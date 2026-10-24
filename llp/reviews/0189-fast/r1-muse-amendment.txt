@@ -1,0 +1,18 @@
+muse: workspace root: /home/ccheever/projects/sb4-fast (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=4658bc0b-fa0d-4b53-b2e4-690b459190f8]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-fast (cwd default)
+muse: workspace trust: trusted source=run-flag
+NOT READY
+
+Material issues in this amendment only:
+
+- Selector self-coverage is unsound: selector implementation/fixture edits select only their own tests. A broken selector then grades itself. Such edits must select broad/all.
+- Producer-failure continuation risks vacuous pass: continuing consumers after their producer failed, with only visibility required, lets a consumer run without its product and record pass/skip. Dependents of a failed producer must be marked blocked, not passed; only independent commands continue.
+- Receipt location defeats landing evidence: a JSON receipt under `target/affected/` lives in ephemeral ignored build output. It cannot be reviewed or audited after clean. Landing evidence needs durable storage.
+- Snapshot-refusal conflicts with LLP 0232: "refuses success if the observed Git/content snapshot changes" read literally invalidates optimistic integration when `main` advances without semantic change. Scope it to intra-run mutation only and preserve the 0232 no-rerun path.
+- Base selection is unenforceable: "merge-base-to-head" plus `--base REV` does not define whether the diff is `REV...HEAD` or `merge-base(REV,HEAD)...HEAD`, nor who picks `REV`. The `cadb7c55be`/`202826334f` note proves a narrow base misses inherited reds but adds no rule for choosing a base that includes the origin on a red base.
+- Mixed-fence diffs have no union rule: `snapback4/` gets the delegation gate and other groups retain the baseline, but a diff touching both sides does not state both run. This risks dropped checks.
+- No landing verdict under inherited red: noting a red HEAD is not necessarily the last commit's fault does not define pass/block. State baseline comparison via the scheduled full-battery oracle, otherwise red HEAD either blocks all landings or misattributes failures.
+

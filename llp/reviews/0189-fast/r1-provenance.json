@@ -1,0 +1,22 @@
+{
+  "date": "2026-10-24T09:38:40.212412+00:00",
+  "baselineCommit": "a41c2a0d0f",
+  "subsequentCommit": "2e1cb506df",
+  "scope": "Initial mutable workspace review, not a verdict on the final tree; raw logs record observations and changing content.",
+  "models": {
+    "codex": "gpt-6.1-sol, high, fresh codex exec session",
+    "muse": "muse-spark-1.3-contributor, high; quota fallback via muse-exec, key never inspected"
+  },
+  "verdicts": {
+    "codex": "NOT READY",
+    "muse": "NOT READY",
+    "muse-amendment": "NOT READY"
+  },
+  "files": {
+    "r1-amendment-brief.txt": "6a83da62d3f25f7e11bc1705ea73e3d89811e6110f43f5f99cc605192e944ad3",
+    "r1-codex.txt": "b7e3c969c6fd22ec4a25e189928b7ff6e3dd8b7eaefc6853b15ecc0384f934ce",
+    "r1-brief.txt": "1a313d969ab34de9e36a71ae3c457e72915a508650c9749a9fd52da2bf66febc",
+    "r1-muse.txt": "d2ff4ef75b65c8e46774e79bceb39f9c478d19ebbc3f2b05417c20c52a4f53cd",
+    "r1-muse-amendment.txt": "a9a8518fe63e5bafc8b2feb13e2a915a058968276a04af70c4f7b87f19f01d08"
+  }
+}

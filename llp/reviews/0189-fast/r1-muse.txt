@@ -1,0 +1,25 @@
+muse: workspace root: /home/ccheever/projects/sb4-fast (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=fcb97f86-f348-46fd-886c-838dcb580b35]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-fast (cwd default)
+muse: workspace trust: trusted source=run-flag
+NOT READY. One blocking delegation defect, plus missing tests and unproven timing.
+
+Blocking: root delegation can mint a PASS receipt with zero work. [affected.mjs](/home/ccheever/projects/sb4-fast/snapback4/scripts/affected.mjs:352) filters proof-receipt files to `snapback4/` with no fallback. Root `FAIL_CLOSED_FULL` selections for `rust-toolchain.toml`, `package.json`, `.node-version`, and `scripts/verify-local-proof` all select `snapback4-affected` (probed). The filter then yields `[]`. [affected.mjs](/home/ccheever/projects/sb4-fast/snapback4/scripts/affected.mjs:115) gives empty input zero checks. [affected.mjs](/home/ccheever/projects/sb4-fast/snapback4/scripts/affected.mjs:328) computes `ok` over an empty result list. I executed this path and observed `steps=0`, `complete=true unchanged=true ok=true`, receipt `PASS`. Shared toolchain and executor inputs that should make Snapback 4 broad are silently dropped. The fix direction is to fall back to broad (or refuse nonzero) when the filtered list is empty but the receipt selected the gate.
+
+Missing tests. No test covers `--proof-receipt` filtering, including the empty case above. Amendment-claimed behaviors without tests: unresolved and computed imports as dual consumers ([affected.mjs](/home/ccheever/projects/sb4-fast/snapback4/scripts/affected.mjs:79)), no-owned-runner widening ([affected.mjs](/home/ccheever/projects/sb4-fast/snapback4/scripts/affected.mjs:170)), required-features passthrough, diagnostics and inventories on source movement, wasm-measurement on device change. [affected-replay.mjs](/home/ccheever/projects/sb4-fast/snapback4/scripts/affected-replay.mjs) is untracked and untested. It replays merge commits only, selection only. It cannot establish missed-failure rates or timing.
+
+Misleading counts. The regression prose undercounts its own raw log. [DIAGNOSIS.md](/home/ccheever/projects/sb4-fast/snapback4/reports/20261022-publication-0.4.38/superseded/attempt-1-cadb7c55be-linux/DIAGNOSIS.md:6) says 19 tests, and [DIAGNOSIS.md](/home/ccheever/projects/sb4-fast/snapback4/reports/20261022-publication-0.4.38/superseded/attempt-1-cadb7c55be-linux/DIAGNOSIS.md:25) says 20. The raw `suite.log.gz` sums to 21 FAILED lines (8+6+2+2+2+1; verified). [affected.test.mjs](/home/ccheever/projects/sb4-fast/snapback4/scripts/affected.test.mjs:117) pins 21 and notes the gap. Correct the prose before citing the fixture as oracle.
+
+Coverage theater. Lang changes select the `generated` check, but the policy roots from `generated-artifact-policy.mjs` cover no `snapback4/` path, and [AGENTS.md](/home/ccheever/projects/sb4-fast/snapback4/AGENTS.md:179) states snapback4 generated outputs are never committed. The step cannot verify snapback4 generation. Low severity.
+
+CI edges. No `lake`/Lean provisioning exists in [local-proof.yml](/home/ccheever/projects/sb4-fast/.github/workflows/local-proof.yml), yet semantics changes emit `lean-build` plus two release difftest runs. Bun and Rust are covered (probed `javascriptDependencies:true`, `rustToolchain:true`; both toolchains pin 1.97.0). First semantics-changing change under the delegation gate risks red on missing `lake`. Material for CI; local use is fine.
+
+Minor. `lean-toolchain` and `lake-manifest.json` select semantics-only while the amendment lists toolchains and locks as broad. Difftest-harness source edits do not trigger the seeded runs. Non-worktree receipts ignore mid-run untracked files. Policy diff whitespace churn verified semantically nil (purely additive: one group, one path rule, one marker).
+
+No conflicts with 0189 or 0232 found. D-1, D-6, publication, and optimistic-landing disclaimers hold. Root unknown-path fallback preserved. Baseline exclusion is scoped to snapback4-only. Workspace fail-broad works with per-file reasons.
+
+Timing is unproven. Every lang and core change now mandates `lean-build` plus two 2,000-case release difftest runs as a landing gate. No measured timing exists. D-2 fast fitness is undocumented.
+
+Observed runs are selection-level only, not execution: `affected.test.mjs` 20/20, `local_proof_selection_v0.mjs` 38/38, `local_proof_inventory_v0.mjs` 7/7, both test inventories PASS. The files under review are also moving concurrently (content changed mid-review, e.g. per-step timeouts and `RUST_MIN_STACK` appeared). Re-review at a pinned commit after the blocking fix.

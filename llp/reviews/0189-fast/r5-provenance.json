@@ -1,0 +1,23 @@
+{
+  "date": "2026-10-24T10:06:50.364012+00:00",
+  "baseCommit": "318445f99e",
+  "scope": "Static conservative Rust-guide source-closure delta; immutable patch and proposed-file SHA256 supplied inline, now verified byte-identical to applied files",
+  "models": {
+    "codex": "gpt-6.1-sol, high, fresh codex exec",
+    "muse": "muse-spark-1.3-contributor, high; quota fallback via muse-exec"
+  },
+  "verdicts": {
+    "codex": "READY",
+    "muse": "READY"
+  },
+  "proposedFiles": {
+    "snapback4/scripts/affected.mjs": "ea9a57256f0d5d3fa72bda0fc62d1ee80967b4a432d1354dfa9c8884c1e1a4be",
+    "snapback4/scripts/affected.test.mjs": "1ff24d7888de70f9014f08b39cbd1bbdb1a6258a89f780fc0b324cfe5d4328cf"
+  },
+  "files": {
+    "r5-muse.txt": "d1af3f1cf6bb324ad33ba25345c51588ecc13326a4c63cab3d0fccc92220491d",
+    "r5-codex.txt": "a087d11dfafa34d479e6d854bfdc82a0c07eecf782e976cc6ce1d4dec5bf4bf7",
+    "r5.patch": "f47236a34d2c22a0cbedc88c4e2638ec1a142f029ac8cfc17539652e3d4e6fe8",
+    "r5-brief.txt": "bfe0e42284e06471c2c02d263f1ba547f51efc12f641259e09c288e38a729841"
+  }
+}

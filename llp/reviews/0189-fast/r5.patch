@@ -1,0 +1,29 @@
+--- a/snapback4/scripts/affected.mjs
++++ b/snapback4/scripts/affected.mjs
+@@ -160,7 +160,10 @@
+       || (supportPackage && /^tests?\//.test(path.slice(supportPackage.dir.length + 1)) && !supportPackage.tests.includes(path))) {
+       widen(path, 'shared fixture or test support (including documentation-shaped inputs)'); continue;
+     }
+-    if (/^crates\/snapback4-lang\/src\/guide(?:\/|\.rs$)/.test(p) || /^(?:guide|docs|reports)\//.test(p)
++    const guideInput = /^crates\/snapback4-lang\/src\/guide(?:\/|\.rs$)/.test(p);
++    // Guide implementation is Rust source: retain the ordinary Cargo closure.
++    if (guideInput && path.endsWith('.rs')) docs(path);
++    if ((guideInput && !path.endsWith('.rs')) || /^(?:guide|docs|reports)\//.test(p)
+       || /^(?:README|JOURNAL|NOT-DOING)\.md$/.test(p) || /^packages\/[^/]+\/[^/]+\.md$/.test(p)) {
+       docs(path); checks.add('ref-check');
+       if (/^crates\/snapback4-lang\/src\/guide/.test(p)) {
+--- a/snapback4/scripts/affected.test.mjs
++++ b/snapback4/scripts/affected.test.mjs
+@@ -244,3 +244,12 @@
+   for (const line of setup.split('\n').filter(line => line.includes('timeout ') && !line.includes('bindgen_version='))) assert.match(line, /\|\| setup_failed=1/, line);
+   assert.match(workflow, /Verify Snapback local proof[\s\S]*Retain Snapback 4 setup failure[\s\S]*always\(\) && steps\.snapback4-tools\.outcome == 'failure'/);
+ });
++
++for (const path of ['snapback4/crates/snapback4-lang/src/guide.rs', 'snapback4/crates/snapback4-lang/src/guide/codes.rs']) {
++  test(`Rust guide implementation ${path} retains reverse dependencies`, () => {
++    const plan = select([path]);
++    assert.deepEqual(plan.rustPackages, ['snapback4', 'snapback4-lang']);
++    assert(plan.checks.includes('docs-budget'));
++    assert(ids(plan).includes('difftest:run'));
++  });
++}

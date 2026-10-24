@@ -1,0 +1,17 @@
+muse: workspace root: /home/ccheever/projects/sb4-fast (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=7a967bdc-1039-4a14-9d72-d4f3755f0a71]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-fast (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY
+
+Patch retains conservative closure for `src/guide*.rs`:
+
+- `.rs` guide inputs call `docs()` (guide/docs-budget/packaged-docs + docs-consumer pool) then fall through to ordinary `crate/src/` path, adding `sourceCrates= snapback4-lang`, diagnostics/inventories/generated, `semantics=true` → `difftest:run`, and `reverseClosure` → `['snapback4','snapback4-lang']`.
+- `docs()`-added `narrowRust:guide` is filtered by `!fullCrates.has()` in `rustTargets`/steps, so no unsafe narrowing or duplicate `--test guide`.
+- Missing unconditional `ref-check` for `.rs` is safe: retained when `model.text` contains `@ref`; otherwise vacuous.
+- Non-`.rs` `guideInput` plus `guide/|docs/|reports/` and root docs retain prior `docs()+ref-check+narrow guide` behavior. No collateral change.
+
+Binds patch and SHA256 `ea9a5725…` / tests `1ff24d78…` only.
+

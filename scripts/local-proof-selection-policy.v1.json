@@ -50,6 +50,7 @@
       "guide-capability-link-real-backend"
     ],
     "browser": [
+      "snapback4-affected",
       "browser-availability"
     ],
     "cargoAudit": [
@@ -59,7 +60,8 @@
       "snapback-cli-real-server"
     ],
     "rustToolchain": [
-      "rustfmt"
+      "rustfmt",
+      "snapback4-affected"
     ],
     "javascriptDependencies": [
       "admin-ui-build",
@@ -745,6 +747,15 @@
     }
   ],
   "pathRules": [
+    {
+      "id": "snapback4-workspace",
+      "groups": [
+        "snapback4"
+      ],
+      "prefixes": [
+        "snapback4/"
+      ]
+    },
     {
       "id": "selector-authority",
       "disposition": "all",
@@ -1639,6 +1650,12 @@
       "lane": "affected",
       "gates": [
         "local-store-carrier-receipt"
+      ]
+    },
+    "snapback4": {
+      "lane": "affected",
+      "gates": [
+        "snapback4-affected"
       ]
     }
   }

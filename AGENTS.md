@@ -213,6 +213,8 @@ silent wedge trap (ENG-22659).
 
 ## Working on this project
 
+- Snapback 4 landings use [`snapback4/scripts/affected.mjs`](./snapback4/scripts/affected.mjs) (`--base origin/main --run`; add `--worktree` for local edits); its complete battery is scheduled and packed qualification belongs to publication.
+
 - Read relevant LLP documents before implementing features or fixing bugs in
   the areas they cover.
 - Landings that add test files, metadata-declared demos, or generated

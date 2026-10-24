@@ -49,6 +49,7 @@ the repository is landing in bursts and several baselines are already red;
 retain cheap/path-scoped feedback, PR affected proof, six-hour/manual complete
 proof, and explicit qualification entry points; keep visibility widening
 activation-disabled until protected custody exists.)
+**Revised:** 2026-10-24 (author-requested Snapback 4 affected-selector amendment; landing selection becomes mechanical, with fail-broad input ownership).
 **Related:** LLP 0005, LLP 0010, LLP 0061, LLP 0154, LLP 0158, LLP 0162, LLP
 0175, LLP 0185, LLP 0232 (D-4 health projection and ticket transitions
 cross-reference D-1's battery-red tickets without weakening fix-forward or
@@ -373,3 +374,97 @@ three parts:
   ticket automation (D-1) remains open in
   `issues/20260807-llp-0189-claim-snapshot-implementation.md`.
 - Ticket amendments (requalification, npm promotion) — done in this landing.
+
+
+## Snapback 4 affected selection (2026-10-24)
+
+Author direction: Workstream FAST, Charlie Cheever, 2026-10-24. This implements
+D-2 for the independent Snapback 4 workspace. It does not amend D-1, D-6, LLP
+0232's optimistic integration rule, or any publication protocol.
+
+`node snapback4/scripts/affected.mjs --base REV [--head REV | --worktree]
+[--json] [--run]` selects `git diff --name-only REV...HEAD` (the merge-base-to-head diff); the
+operator supplies the landing base, defaulting to `origin/main`. Worktree mode adds
+staged, unstaged, deleted, rename endpoints and non-ignored untracked paths.
+Historical planning reads the selected revision's manifests and test sources;
+execution requires that revision checked out. The root local-proof policy
+selects a `snapback4-affected` delegation gate for `snapback4/` paths; a root
+`FAIL_CLOSED_FULL` or complete receipt delegates a broad set even if none of
+its changed paths are under `snapback4/`. This
+independent workspace does not inherit the legacy Exact/admin baseline;
+other root groups and root unknown-path fallback retain it. Mixed-fence
+diffs run the union of the delegation and every affected root group.
+
+Selection ownership:
+
+- Cargo metadata supplies workspace membership, optional/dev dependency edges
+  and integration targets. Source changes select the package and its transitive
+  reverse dependencies. A test-only file selects its exact integration target;
+  shared/nested support widens instead. Required target features are included.
+- Package manifests supply client dependency edges, including peer/dev edges.
+  Source changes select the package's test pool and its reverse dependencies;
+  a test-only diff selects named files. Tests' literal imports/re-exports,
+  dynamic literal imports, resource URLs and helpers are followed to find CLI
+  process and wasm consumers. Unresolved local/computed imports conservatively
+  count as both consumers and require a client dist rebuild. Tests spawning processes are conservatively CLI
+  consumers. Selected clients rebuild the products they consume. Existing
+  process-custody pooling and serial model custody are reused. Bare workspace
+  exports also require rebuilding client dist; documentation consumers join
+  the affected client set when product docs change.
+- Owned guide/docs select check-guide, docs budget and packaged-docs lint; Snapback 4
+  guide cards also select the compiled guide target. Rust source movement
+  conservatively selects diagnostics-registry checking and check-inventories,
+  even without a new code. Language/generated inputs select generated-artifact
+  checking; affected references and LLPs select ref-check. Device reverse
+  dependents select wasm measurement. Language/core semantics select Lean
+  build, difftest run-lean and a seeded 2,000-case run.
+- Unknown paths, locks, workspace/package manifests, toolchains, build scripts,
+  proc-macros, shared test support (regardless of Markdown extension) and vendored inputs select all workspace
+  packages, client pools and cross-cutting checks, including fixture-wrapper
+  tests, chat schema checking, chat/Expo typechecks and release guards from
+  the existing complete suite. Each triggering file has a
+  reason. A package with no owned test runner also widens, covering tests held
+  in sibling packages. Selector implementation/fixture edits select their own
+  tests rather than product pools. Unowned root paths remain broad.
+
+Every execution command has a finite timeout and inherits
+`CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0`.
+Cargo disables target-level fail-fast; independent commands continue after
+failures, with dependent commands explicitly BLOCKED after a failed producer; client
+pools track those dependencies per file so runnable files still execute
+through the existing pool even when another file is blocked. A JSON receipt
+under `target/affected/` records base/head, changed paths, selected commands,
+per-file reasons and per-command status/timing. It records incomplete execution
+before starting and refuses success if the observed Git/content snapshot changes, including a
+newly dirty tracked input or untracked file in committed mode. This is
+intra-run mutation detection, not a requirement to rerun after a semantic
+unchanged rebase; D-2/LLP 0232 still govern reuse. CI uploads these receipts;
+local operators copy them to their report custody before deleting build
+outputs. The directory is a transient production location, not durable custody.
+An affected receipt is landing evidence, never a packed-publication receipt.
+
+A historical red HEAD does not mean its last commit introduced that red. The
+maintained-column regression at `cadb7c55be` must be selected from the range
+starting before its originating change `202826334f`; selecting only the
+last documentation commit cannot discover inherited product failures. The
+regression fixture requires core/lang packages and residency.test.mjs for that
+originating range. Scheduled full-battery results remain the failure oracle;
+selection replay alone is not execution or a no-missed-failures proof.
+
+
+The selector's exit verdict is green only when every selected command passes
+and its input snapshot stays unchanged. It does not automatically forgive a
+red. Baseline-corroborated inherited failures follow LLP 0232's classifier;
+affected product failures still require attention under D-2. On a known red
+base, use the scheduled oracle and originating change range to audit coverage,
+not a documentation-only last commit as evidence of defect coverage.
+Selector-only edits retain their specific fixture and root integration tests
+plus independent review: running the product battery cannot by itself test
+whether a selector maps an omitted path correctly. This known tooling owner
+is an explicit affected rule, not an unknown-path exception.
+
+Within the Snapback 4 tool-preparation step, the root workflow attempts
+each independent setup command even after a setup failure, continues to selected verification, and retains the failed setup as
+a failing job verdict after independent checks have run. It provisions the independent wasm target, matching bindgen
+CLI, twiggy, brotli and the pinned Lean toolchain for a selected delegation;
+it does not invoke the legacy Ibex bootstrap for Snapback 4 alone.

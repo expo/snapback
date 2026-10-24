@@ -10,7 +10,8 @@ before minting a new number).
 
 ```
 cargo build                          # the binary; no JS engine, no bootstrap; crates.io plus one vendored patch (vendor/tiny_http)
-scripts/test.sh                      # everything blocking (60 s budget); reports every failure, never fail-fast
+node scripts/affected.mjs --base origin/main --worktree --run # landing: fast/affected; prints every reason and retains a receipt
+scripts/test.sh                      # complete battery: schedule/on demand; packed qualification: publication
 ./target/debug/snapback4 --help      # init [--online|--expo] · check [--cost|--residency|--fix|--json] · dev · deploy · rollback · serve · run (an op, or a job as the system) · test · why · guide · data · sql · token (a service's seat) · doctor · device · types · --version
 ./target/debug/snapback4 guide       # lists cards (`guide aliases` lists aliases); `guide language` for the language card — every card's Quarry is compiled by the suite (crates/snapback4-lang/tests/guide.rs)
 cd apps/chat && ../../target/debug/snapback4 check     # compiles snapback/*.q, writes snapback/generated/api.ts
@@ -59,6 +60,19 @@ node scripts/qualify-linux.mjs --client /path/client.tgz --expo /path/expo.tgz -
 # Add --consumer-only for packed frontend/toolchain proofs without test.sh; this writes consumer.json, never a publication receipt.
 node scripts/publish.mjs             # Mac: qualify/sign Darwin; optional --linux-receipt + --linux-tarball import; platforms before client
 ```
+
+Ordinary landings use `node snapback4/scripts/affected.mjs --base origin/main --run`
+from the repository root; add `--worktree` for staged, unstaged and untracked
+changes. `--json` prints the plan. Every command has a timeout, failures are
+collected, and receipts live in `target/affected/`. Cargo runs with
+`CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0`.
+The selector reads Cargo's workspace graph, closes source changes over reverse
+dependencies, narrows test-only changes to targets/files, and follows client
+imports/process consumers. Unknown paths, locks/manifests, build scripts,
+proc-macros and shared test support fail broad with a reason per file. The
+complete battery belongs to the schedule; packed qualification belongs to
+publication. An affected receipt does not qualify a release. See
+[LLP 0189](../llp/0189-verification-cadence-and-claim-gating.decision.md#snapback-4-affected-selection-2026-10-24).
 
 Crates: `snapback4-core` (value model, schema with `sync`, IR, key encoding,
 SQLite store, rules with hoisting, the meter, the interpreter, the partition

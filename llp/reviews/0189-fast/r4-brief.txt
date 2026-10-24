@@ -1,0 +1,994 @@
+Fresh independent delta review at frozen commit e98f65af52. Return READY or NOT READY for these corrections and their amendment wording. No tools, execution, browsing or file edits: all necessary input follows. Prior cut bb5649e4b5 had Muse READY; Codex confirmed the per-file producer fix but found two issues: generic Markdown ownership preceded shared fixtures/support, and fail-fast CI tool setup suppressed independent verification. Corrections now classify shared inputs before explicitly owned documentation; unknown Markdown widens; guard every independent setup attempt, continue verification after setup failure, and retain the failing setup as a failing final job step. One extra conservative correction rebuilds client dist for computed/unresolved imports. Review these changes for regressions, unsafe narrowing, false-green outcomes and consistency with final LLP 0189 amendment. Previously reviewed underlying selector architecture is included as context; this is a delta review, not a new design exercise. Selector/root/workflow fixtures are 81/81 green. Historical execution and paired full timing are disclosed deferrals because common lane rules forbid full suite execution, not claimed proof. User explicitly pre-authorized extra review rounds.
+
+=== Delta from bb5649e4b5 ===
+diff --git a/.github/workflows/local-proof.yml b/.github/workflows/local-proof.yml
+index bba505638e..dee0ca8963 100644
+--- a/.github/workflows/local-proof.yml
++++ b/.github/workflows/local-proof.yml
+@@ -165,16 +165,22 @@ jobs:
+       # Snapback 4 is independent of the legacy Ibex bootstrap. Its affected
+       # tests may consume the web device and the pinned Lean oracle.
+       - name: Prepare Snapback 4 verification tools
++        id: snapback4-tools
++        continue-on-error: true
+         if: steps.selection.outputs.requires_snapback4 == 'true'
+         working-directory: snapback4
+         run: |
+-          timeout 900s sudo apt-get update
+-          timeout 900s sudo apt-get install -y elan brotli
+-          timeout 600s rustup target add wasm32-unknown-unknown
+-          bindgen_version=$(timeout 20s node --input-type=module -e 'import {readFileSync} from "node:fs"; const match = readFileSync("Cargo.lock", "utf8").match(/name = "wasm-bindgen"\nversion = "([^"]+)"/); if (!match) process.exit(1); console.log(match[1]);')
+-          timeout 1800s env CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 cargo install wasm-bindgen-cli --version "$bindgen_version" --locked
+-          timeout 1800s env CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 cargo install twiggy --version 0.8.0 --locked
+-          timeout 900s bash -c 'cd lean && lake --version'
++          setup_failed=0
++          timeout 900s sudo apt-get update || setup_failed=1
++          timeout 900s sudo apt-get install -y elan brotli || setup_failed=1
++          timeout 600s rustup target add wasm32-unknown-unknown || setup_failed=1
++          bindgen_version=$(timeout 20s node --input-type=module -e 'import {readFileSync} from "node:fs"; const match = readFileSync("Cargo.lock", "utf8").match(/name = "wasm-bindgen"\nversion = "([^"]+)"/); if (!match) process.exit(1); console.log(match[1]);') || setup_failed=1
++          if [ -n "$bindgen_version" ]; then
++            timeout 1800s env CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 cargo install wasm-bindgen-cli --version "$bindgen_version" --locked || setup_failed=1
++          fi
++          timeout 1800s env CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 cargo install twiggy --version 0.8.0 --locked || setup_failed=1
++          timeout 900s bash -c 'cd lean && lake --version' || setup_failed=1
++          exit "$setup_failed"
+ 
+       # Cargo registry + target cache: without it every run cold-compiles the
+       # full dependency tree (and the ibex-runtime C++ glue) — the dominant
+@@ -237,6 +243,12 @@ jobs:
+           fi
+           scripts/verify-local-proof --selection-receipt "$SNAPBACK_PROOF_SELECTION_RESULTS"
+ 
++      # A setup failure must not suppress independent selected checks, but it
++      # remains a failing job verdict after those checks have run.
++      - name: Retain Snapback 4 setup failure
++        if: always() && steps.snapback4-tools.outcome == 'failure'
++        run: timeout 20s node -e "console.error('Snapback 4 verification setup failed; independent checks were still attempted'); process.exit(1)"
++
+       # @ref LLP 0189#decision — GitHub's read-only checkout reports the
+       # complete-battery verdict. The local scheduled backstop owns durable
+       # signature-ticket mutation and commits that state to the repository.
+diff --git a/llp/0189-verification-cadence-and-claim-gating.decision.md b/llp/0189-verification-cadence-and-claim-gating.decision.md
+index d7be79934f..0fd47120d6 100644
+--- a/llp/0189-verification-cadence-and-claim-gating.decision.md
++++ b/llp/0189-verification-cadence-and-claim-gating.decision.md
+@@ -406,12 +406,12 @@ Selection ownership:
+   a test-only diff selects named files. Tests' literal imports/re-exports,
+   dynamic literal imports, resource URLs and helpers are followed to find CLI
+   process and wasm consumers. Unresolved local/computed imports conservatively
+-  count as both consumers. Tests spawning processes are conservatively CLI
++  count as both consumers and require a client dist rebuild. Tests spawning processes are conservatively CLI
+   consumers. Selected clients rebuild the products they consume. Existing
+   process-custody pooling and serial model custody are reused. Bare workspace
+   exports also require rebuilding client dist; documentation consumers join
+   the affected client set when product docs change.
+-- Guide/docs select check-guide, docs budget and packaged-docs lint; Snapback 4
++- Owned guide/docs select check-guide, docs budget and packaged-docs lint; Snapback 4
+   guide cards also select the compiled guide target. Rust source movement
+   conservatively selects diagnostics-registry checking and check-inventories,
+   even without a new code. Language/generated inputs select generated-artifact
+@@ -419,7 +419,7 @@ Selection ownership:
+   dependents select wasm measurement. Language/core semantics select Lean
+   build, difftest run-lean and a seeded 2,000-case run.
+ - Unknown paths, locks, workspace/package manifests, toolchains, build scripts,
+-  proc-macros, shared test support and vendored inputs select all workspace
++  proc-macros, shared test support (regardless of Markdown extension) and vendored inputs select all workspace
+   packages, client pools and cross-cutting checks, including fixture-wrapper
+   tests, chat schema checking, chat/Expo typechecks and release guards from
+   the existing complete suite. Each triggering file has a
+@@ -463,6 +463,8 @@ plus independent review: running the product battery cannot by itself test
+ whether a selector maps an omitted path correctly. This known tooling owner
+ is an explicit affected rule, not an unknown-path exception.
+ 
+-The root workflow provisions the independent wasm target, matching bindgen
++The root workflow attempts each independent tool setup even after a setup
++failure, continues to selected verification, and retains the failed setup as
++a failing job verdict after independent checks have run. It provisions the independent wasm target, matching bindgen
+ CLI, twiggy, brotli and the pinned Lean toolchain for a selected delegation;
+ it does not invoke the legacy Ibex bootstrap for Snapback 4 alone.
+diff --git a/snapback4/scripts/affected.mjs b/snapback4/scripts/affected.mjs
+index 083dd89356..5f0654ab12 100644
+--- a/snapback4/scripts/affected.mjs
++++ b/snapback4/scripts/affected.mjs
+@@ -154,7 +154,14 @@ export function selectAffected(changedFiles, model) {
+     if (/^scripts\/affected(?:-replay)?(?:\.test)?\.mjs$/.test(p)) {
+       checks.add('selector-tests'); why(path, 'selector implementation/fixtures'); continue;
+     }
+-    if (/^crates\/snapback4-lang\/src\/guide(?:\/|\.rs$)/.test(p) || /^(?:guide|docs)\//.test(p) || /\.md$/.test(p)) {
++    const supportPackage = model.packages.find(pkg => path.startsWith(pkg.dir + '/'));
++    if (/^(?:fixtures|native-fixtures|vendor|scripts)\//.test(p)
++      || /^crates\/[^/]+\/tests\/.*\.md$/.test(p)
++      || (supportPackage && /^tests?\//.test(path.slice(supportPackage.dir.length + 1)) && !supportPackage.tests.includes(path))) {
++      widen(path, 'shared fixture or test support (including documentation-shaped inputs)'); continue;
++    }
++    if (/^crates\/snapback4-lang\/src\/guide(?:\/|\.rs$)/.test(p) || /^(?:guide|docs|reports)\//.test(p)
++      || /^(?:README|JOURNAL|NOT-DOING)\.md$/.test(p) || /^packages\/[^/]+\/[^/]+\.md$/.test(p)) {
+       docs(path); checks.add('ref-check');
+       if (/^crates\/snapback4-lang\/src\/guide/.test(p)) {
+         if (!narrowRust.has('snapback4-lang')) narrowRust.set('snapback4-lang', new Set());
+@@ -236,7 +243,7 @@ export function selectAffected(changedFiles, model) {
+   // trust ignored binaries/dist/wasm left over from another revision.
+   const evidence = [...clientFiles].flatMap(test => model.clientEvidence?.[test] ?? []).concat([...fixtureFiles].flatMap(test => model.fixtureEvidence?.[test] ?? []));
+   const needCli = broad || evidence.some(hit => /CLI|process consumer/.test(hit));
+-  const needClient = broad || evidence.some(hit => /client build consumer/.test(hit));
++  const needClient = broad || evidence.some(hit => /client build consumer|computed import|unresolved (?:local|workspace) import/.test(hit));
+   const needWasm = needClient || evidence.some(hit => /wasm/.test(hit));
+   if (needWasm || needClient || fullPackages.size) step('install-client', 'snapback4', ['bun', 'install', '--frozen-lockfile'], 'locked client/build dependencies');
+   if (needCli) cargo('build-cli', ['build', '-p', 'snapback4'], 'selected clients spawn/import CLI');
+@@ -267,7 +274,7 @@ export function selectAffected(changedFiles, model) {
+       const required = [];
+       if (evidence.some(hit => /CLI|process consumer/.test(hit))) required.push('build-cli');
+       if (evidence.some(hit => /wasm/.test(hit))) required.push('build-wasm');
+-      if (evidence.some(hit => /client build consumer/.test(hit))) required.push('build-client');
++      if (evidence.some(hit => /client build consumer|computed import|unresolved (?:local|workspace) import/.test(hit))) required.push('build-client');
+       // A directory fallback is only used for synthetic models lacking the
+       // discovered file inventory; real models always enumerate fixture files.
+       if (file.endsWith('/')) required.push('build-cli', 'build-wasm', 'build-client');
+diff --git a/snapback4/scripts/affected.test.mjs b/snapback4/scripts/affected.test.mjs
+index 8c1fb6e629..2b94eb00f9 100644
+--- a/snapback4/scripts/affected.test.mjs
++++ b/snapback4/scripts/affected.test.mjs
+@@ -224,3 +224,23 @@ test('a failed wasm producer blocks only its consumers and independent pool file
+     assert.equal(receipt.results[3].status, 0); assert.equal(receipt.unchanged, true); assert.equal(receipt.ok, false);
+   } finally { rmSync(dir, { recursive: true, force: true }); }
+ });
++
++for (const path of ['snapback4/fixtures/input.md', 'snapback4/packages/snapback4/test/helpers/input.md', 'snapback4/crates/snapback4-lang/tests/fixtures/input.md', 'snapback4/scripts/helpers/input.md', 'snapback4/unknown/input.md']) {
++  test(`documentation-shaped shared input ${path} still fails broad`, () => assert(select([path]).broad));
++}
++test('computed and unresolved imports conservatively require a client dist rebuild', () => {
++  const file = model.packages[0].tests[0];
++  for (const hit of ['computed import (CLI + wasm)', 'unresolved local import ./hidden.js (CLI + wasm)']) {
++    const unknown = { ...model, clientEvidence: { [file]: [hit] } };
++    const plan = selectAffected([file], unknown);
++    assert(ids(plan).includes('build-client'));
++    assert(plan.steps.find(step => step.id === 'client-tests').fileRequires[file.slice('snapback4/'.length)].includes('build-client'));
++  }
++});
++test('CI attempts independent setup and retains failure after verification', () => {
++  const workflow = readFileSync(join(ROOT, '.github/workflows/local-proof.yml'), 'utf8');
++  const setup = workflow.split('- name: Prepare Snapback 4 verification tools')[1].split('# Cargo registry')[0];
++  assert.match(setup, /continue-on-error: true/);
++  for (const line of setup.split('\n').filter(line => line.includes('timeout ') && !line.includes('bindgen_version='))) assert.match(line, /\|\| setup_failed=1/, line);
++  assert.match(workflow, /Verify Snapback local proof[\s\S]*Retain Snapback 4 setup failure[\s\S]*always\(\) && steps\.snapback4-tools\.outcome == 'failure'/);
++});
+
+=== Full context snapback4/scripts/affected.mjs at e98f65af52 ===
+#!/usr/bin/env node
+// @ref LLP 0189#snapback-4-affected-selection-2026-10-24 — conservative landing selection;
+// the scheduled battery and publication qualification retain their own custody.
+import { execFileSync, spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
+import { existsSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { dirname, join, relative, resolve } from 'node:path';
+import { availableParallelism } from 'node:os';
+import { fileURLToPath } from 'node:url';
+
+export const ROOT = resolve(import.meta.dirname, '../..');
+export const CARGO_ENV = { CARGO_INCREMENTAL: '0', CARGO_PROFILE_DEV_DEBUG: '0', CARGO_PROFILE_TEST_DEBUG: '0' };
+const PREFIX = 'snapback4/';
+const TIMEOUT = 10800;
+const sorted = values => [...new Set(values)].sort();
+const slash = path => path.split('\\').join('/');
+const hash = text => createHash('sha256').update(text).digest('hex');
+function command(root, executable, args, options = {}) {
+  return execFileSync('timeout', ['120s', executable, ...args], {
+    cwd: root, env: { ...process.env, ...CARGO_ENV }, encoding: 'utf8', maxBuffer: 128 * 1024 * 1024, ...options,
+  });
+}
+function git(root, ...args) { return command(root, 'git', args); }
+function paths(output) { return output.split('\0').filter(Boolean); }
+function walk(root, path = '') {
+  if (!existsSync(join(root, path))) return [];
+  return readdirSync(join(root, path), { withFileTypes: true }).flatMap(entry => {
+    if (['node_modules', 'target', '.git', 'dist'].includes(entry.name)) return [];
+    const child = slash(join(path, entry.name));
+    return entry.isDirectory() ? walk(root, child) : (entry.isFile() || entry.isSymbolicLink()) ? [child] : [];
+  });
+}
+
+// Cargo, including optional and dev dependencies, owns the workspace graph.
+export function loadModel(root = ROOT) {
+  const sb = join(root, 'snapback4');
+  const metadata = JSON.parse(command(sb, 'cargo', ['metadata', '--offline', '--no-deps', '--format-version=1']));
+  const members = metadata.packages.filter(pkg => metadata.workspace_members.includes(pkg.id));
+  const nameByPath = new Map(members.map(pkg => [dirname(pkg.manifest_path), pkg.name]));
+  const crates = members.map(pkg => ({
+    name: pkg.name,
+    dir: slash(relative(root, dirname(pkg.manifest_path))),
+    dependencies: sorted(pkg.dependencies.map(dep => nameByPath.get(dep.path)).filter(Boolean)),
+    procMacro: pkg.targets.some(target => target.kind.includes('proc-macro')),
+    targets: pkg.targets.map(target => ({ name: target.name, kind: target.kind, path: slash(relative(root, target.src_path)), requiredFeatures: target['required-features'] ?? [] })),
+  }));
+  const files = walk(sb).map(path => PREFIX + path);
+  const text = path => existsSync(join(root, path)) ? readFileSync(join(root, path), 'utf8') : '';
+  const packages = readdirSync(join(sb, 'packages'), { withFileTypes: true }).filter(entry => entry.isDirectory())
+    .filter(entry => existsSync(join(sb, 'packages', entry.name, 'package.json'))).map(entry => {
+      const dir = `${PREFIX}packages/${entry.name}`;
+      const manifest = JSON.parse(text(`${dir}/package.json`));
+      return { name: manifest.name, dir, exports: manifest.exports, main: manifest.main, scripts: manifest.scripts ?? {}, dependencies: sorted(Object.keys({
+        ...manifest.dependencies, ...manifest.devDependencies, ...manifest.peerDependencies, ...manifest.optionalDependencies,
+      })), tests: files.filter(path => path.startsWith(dir + '/') && /(?:\.test|\.spec)\.[cm]?[jt]sx?$/.test(path)) };
+    });
+  const fileSet = new Set(files);
+  const evidenceCache = new Map();
+  function evidence(path, seen = new Set()) {
+    if (seen.has(path)) return [];
+    seen.add(path);
+    const source = text(path);
+    const hits = [];
+    if (/\.md\b/.test(source)) hits.push(`${path}: docs consumer`);
+    if (/\/dist\//.test(source)) hits.push(`${path}: client build consumer`);
+    if (/child_process|snapback4(?:\.exe)?['"`]|SNAPBACK4_BIN|processDevice|bin-path/.test(source)) hits.push(`${path}: CLI/process consumer`);
+    if (/wasm|webDevice/.test(source)) hits.push(`${path}: wasm consumer`);
+    // Follow literal imports/re-exports, require(), dynamic import(), and URL resources.
+    // Unresolved local imports are conservative consumers of both products.
+    const imports = [...source.matchAll(/(?:from\s*|import\s*\(|require\s*\(|new URL\s*\(|import\s*)['"]([^'"\n]+)['"]/g)];
+    for (const [, specifier] of imports) {
+      let raw;
+      if (specifier.startsWith('.')) raw = slash(relative(root, resolve(root, dirname(path), specifier)));
+      else {
+        const workspace = packages.find(pkg => specifier === pkg.name || specifier.startsWith(pkg.name + '/'));
+        if (!workspace) continue;
+        const key = specifier === workspace.name ? '.' : '.' + specifier.slice(workspace.name.length);
+        let entry = workspace.exports?.[key] ?? (key === '.' ? workspace.main : undefined);
+        while (entry && typeof entry === 'object') entry = entry.import ?? entry.default ?? entry.node;
+        if (typeof entry !== 'string') { hits.push(`${path}: unresolved workspace import ${specifier} (CLI + wasm)`); hits.push(`${path}: client build consumer via unresolved ${specifier}`); continue; }
+        raw = slash(join(workspace.dir, entry));
+        if (entry.includes('/dist/')) hits.push(`${path}: client build consumer via ${specifier}`);
+      }
+      const candidates = [raw, raw.replace('/dist/', '/src/').replace(/\.js$/, '.ts'), raw + '.mjs', raw + '.js', raw + '.ts', raw + '/index.ts'];
+      const found = candidates.find(candidate => fileSet.has(candidate));
+      if (!found) hits.push(`${path}: unresolved local import ${specifier} (CLI + wasm)`);
+      else if (/\.[cm]?[jt]sx?$/.test(found)) hits.push(...evidence(found, seen));
+    }
+    if (/\b(?:import|require)\s*\(\s*[^'"\s]|\b(?:import|export)\s*\/[/*]/.test(source)) hits.push(`${path}: computed import (CLI + wasm)`);
+    return sorted(hits);
+  }
+  for (const pkg of packages) for (const test of pkg.tests) evidenceCache.set(test, evidence(test));
+  const fixtureFiles = files.filter(path => path.startsWith('snapback4/fixtures/') && path.endsWith('.test.mjs'));
+  const fixtureEvidence = Object.fromEntries(fixtureFiles.map(path => [path, evidence(path)]));
+  return { crates, packages, files, text, fixtureFiles, fixtureEvidence, clientEvidence: Object.fromEntries(evidenceCache) };
+}
+
+export function reverseClosure(seeds, nodes) {
+  const result = new Set(seeds);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (const node of nodes) if (!result.has(node.name) && node.dependencies.some(dep => result.has(dep))) {
+      result.add(node.name); changed = true;
+    }
+  }
+  return sorted(result);
+}
+
+export function selectAffected(changedFiles, model) {
+  const files = sorted(changedFiles);
+  for (const path of files) if (path.startsWith('/') || path.split('/').includes('..') || path.includes('\0')) throw new Error(`invalid path ${JSON.stringify(path)}`);
+  const reasons = [];
+  const fullCrates = new Set();
+  const sourceCrates = new Set();
+  const narrowRust = new Map();
+  const fullPackages = new Set();
+  const clientFiles = new Set();
+  const fixtureFiles = new Set();
+  const checks = new Set(files.length ? ['ref-check'] : []);
+  let broad = false;
+  let semantics = false;
+  const why = (path, reason) => reasons.push({ path, reason });
+  function widen(path, reason) { broad = true; why(path, `fail broad: ${reason}`); }
+  function docs(path) {
+    checks.add('guide'); checks.add('docs-budget'); checks.add('packaged-docs'); why(path, 'guide/docs contract');
+    if (/^snapback4\/(?:packages\/|crates\/snapback4-lang\/src\/guide|guide\/|docs\/|README\.md$)/.test(path)) {
+      if (model.crates.find(crate => crate.name === 'snapback4-lang')?.targets.some(target => target.name === 'guide')) {
+        if (!narrowRust.has('snapback4-lang')) narrowRust.set('snapback4-lang', new Set());
+        narrowRust.get('snapback4-lang').add('guide');
+      }
+      for (const [file, evidence] of Object.entries(model.clientEvidence ?? {})) if (evidence.some(hit => hit.includes('docs consumer'))) {
+        clientFiles.add(file); why(file, `documentation consumer of ${path} (conservative doc pool)`);
+      }
+    }
+  }
+  for (const path of files) {
+    if (path.startsWith('llp/') || /(?:^|\/)AGENTS\.md$|^CLAUDE\.md$/.test(path)) {
+      checks.add('ref-check'); why(path, 'LLP/agent instructions'); continue;
+    }
+    if (!path.startsWith(PREFIX)) {
+      if (['scripts/select-local-proof.mjs', 'scripts/local-proof-selection-policy.v1.json', 'scripts/verify-local-proof', 'tests/local_proof_selection_v0.mjs', 'tests/local_proof_inventory_v0.mjs', '.github/workflows/local-proof.yml'].includes(path)) { checks.add('selector-tests'); checks.add('inventories'); why(path, 'root selector integration'); }
+      else if (path.startsWith('guide/')) docs(path);
+      else widen(path, 'unowned path outside Snapback 4');
+      continue;
+    }
+    const p = path.slice(PREFIX.length);
+    if (/(?:generated|codegen|emit_types)/.test(p)) checks.add('generated');
+    if (/\/(?:test[_-]support|tests\/(?:common|support))(?:\/|\.)/.test(p)) { widen(path, 'shared test support'); continue; }
+    if (/(?:^|\/)(?:Cargo\.toml|Cargo\.lock|lean-toolchain|lake-manifest\.json|build\.rs|package\.json|bun\.lock|rust-toolchain(?:\.toml)?)$/.test(p) || p.startsWith('.cargo/')) {
+      widen(path, 'manifest, lock, toolchain or build script'); continue;
+    }
+    // Changes to this selector and its direct tests have their own affected suite.
+    if (/^scripts\/affected(?:-replay)?(?:\.test)?\.mjs$/.test(p)) {
+      checks.add('selector-tests'); why(path, 'selector implementation/fixtures'); continue;
+    }
+    const supportPackage = model.packages.find(pkg => path.startsWith(pkg.dir + '/'));
+    if (/^(?:fixtures|native-fixtures|vendor|scripts)\//.test(p)
+      || /^crates\/[^/]+\/tests\/.*\.md$/.test(p)
+      || (supportPackage && /^tests?\//.test(path.slice(supportPackage.dir.length + 1)) && !supportPackage.tests.includes(path))) {
+      widen(path, 'shared fixture or test support (including documentation-shaped inputs)'); continue;
+    }
+    if (/^crates\/snapback4-lang\/src\/guide(?:\/|\.rs$)/.test(p) || /^(?:guide|docs|reports)\//.test(p)
+      || /^(?:README|JOURNAL|NOT-DOING)\.md$/.test(p) || /^packages\/[^/]+\/[^/]+\.md$/.test(p)) {
+      docs(path); checks.add('ref-check');
+      if (/^crates\/snapback4-lang\/src\/guide/.test(p)) {
+        if (!narrowRust.has('snapback4-lang')) narrowRust.set('snapback4-lang', new Set());
+        narrowRust.get('snapback4-lang').add('guide');
+        if (path.endsWith('.rs')) { checks.add('diagnostics'); checks.add('inventories'); }
+      }
+      continue;
+    }
+    const crate = model.crates.find(crate => path.startsWith(crate.dir + '/'));
+    if (crate) {
+      if (crate.procMacro) { widen(path, 'proc-macro'); continue; }
+      const test = crate.targets.find(target => target.kind.includes('test') && target.path === path);
+      if (test && path.endsWith('.rs')) {
+        if (!narrowRust.has(crate.name)) narrowRust.set(crate.name, new Set());
+        narrowRust.get(crate.name).add(test.name);
+        why(path, `integration test target ${crate.name}::${test.name}`);
+      } else if (path.startsWith(crate.dir + '/src/') && /\.(?:rs|q|json)$/.test(path)) {
+        sourceCrates.add(crate.name); why(path, `${crate.name} sources and reverse dependents`);
+        if (['snapback4-lang', 'snapback4-core', 'snapback4-difftest'].includes(crate.name)) semantics = true;
+        // Site coordinates drift even when no new diagnostic code is introduced.
+        checks.add('diagnostics'); checks.add('inventories');
+        if (crate.name === 'snapback4-lang') checks.add('generated');
+      } else widen(path, 'shared Rust test support, fixture or unowned crate input');
+      continue;
+    }
+    const pkg = model.packages.find(pkg => path.startsWith(pkg.dir + '/'));
+    if (pkg) {
+      if (pkg.tests.includes(path)) { clientFiles.add(path); why(path, 'client test file only'); }
+      else if (path.startsWith(pkg.dir + '/test/') || path.startsWith(pkg.dir + '/tests/')) widen(path, 'shared client test support');
+      else { fullPackages.add(pkg.name); checks.add('diagnostics'); checks.add('inventories'); why(path, 'client package source and reverse dependents');
+        if (!pkg.tests.length && !pkg.scripts.test) widen(path, 'package has no owned test runner; include cross-package consumers');
+      }
+      continue;
+    }
+    if (p.startsWith('scripts/') || p.startsWith('fixtures/') || p.startsWith('vendor/') || p.startsWith('native-fixtures/')) widen(path, 'shared runner, fixture or vendored build input');
+    else if (p.startsWith('lean/')) { semantics = true; why(path, 'Lean model'); }
+    else widen(path, 'unknown Snapback 4 path');
+    if (/generated|codegen/.test(path)) checks.add('generated');
+  }
+  for (const path of files) if (model.text?.(path).includes('@ref')) checks.add('ref-check');
+  for (const name of reverseClosure([...sourceCrates], model.crates)) fullCrates.add(name);
+  if (broad) {
+    for (const crate of model.crates) fullCrates.add(crate.name);
+    for (const pkg of model.packages) fullPackages.add(pkg.name);
+    for (const file of model.fixtureFiles ?? []) fixtureFiles.add(file);
+    for (const check of ['guide', 'docs-budget', 'packaged-docs', 'diagnostics', 'inventories', 'generated', 'ref-check', 'selector-tests', 'fixture-tests', 'chat-check', 'chat-typecheck', 'expo-typecheck', 'release-guard']) checks.add(check);
+    semantics = true;
+  }
+  for (const name of reverseClosure([...fullPackages], model.packages)) fullPackages.add(name);
+  for (const pkg of model.packages) if (fullPackages.has(pkg.name)) for (const test of pkg.tests) clientFiles.add(test);
+  const products = reverseClosure([...sourceCrates], model.crates);
+  const cliChanged = broad || products.includes('snapback4');
+  const wasmChanged = broad || products.includes('snapback4-device');
+  for (const [test, evidence] of Object.entries(model.clientEvidence ?? {})) {
+    const matched = evidence.filter(hit => (cliChanged && /CLI|process consumer/.test(hit)) || (wasmChanged && /wasm/.test(hit)));
+    if (matched.length) {
+      clientFiles.add(test);
+      const cli = matched.find(hit => /CLI|process consumer/.test(hit));
+      const wasm = matched.find(hit => /wasm/.test(hit));
+      for (const hit of sorted([cli, wasm].filter(Boolean))) why(test, hit);
+    }
+  }
+  for (const [file, evidence] of Object.entries(model.fixtureEvidence ?? {})) {
+    const hit = evidence.find(hit => (cliChanged && /CLI|process consumer/.test(hit)) || (wasmChanged && /wasm/.test(hit)));
+    if (hit) { fixtureFiles.add(file); checks.add('fixture-tests'); why(file, hit); }
+  }
+  if (wasmChanged) checks.add('wasm-measurement');
+  const steps = [];
+  const step = (id, cwd, argv, reason) => steps.push({ id, cwd, argv, reason, timeoutSeconds: /^(?:ref-check|selector-tests|packaged-docs)$/.test(id) ? 300 : /^(?:guide|inventories|diagnostics|install-client)$/.test(id) ? 900 : TIMEOUT });
+  const cargo = (id, args, reason) => {
+    if (args[0] === 'test') {
+      const name = args[args.indexOf('-p') + 1];
+      const threads = name === 'snapback4' ? '1' : name === 'snapback4-device' ? '2' : '4';
+      args = [...args, '--', `--test-threads=${threads}`];
+    }
+    step(id, 'snapback4', ['cargo', ...args], reason);
+  };
+  // Build every product used by selected tests, even for a test-only diff; never
+  // trust ignored binaries/dist/wasm left over from another revision.
+  const evidence = [...clientFiles].flatMap(test => model.clientEvidence?.[test] ?? []).concat([...fixtureFiles].flatMap(test => model.fixtureEvidence?.[test] ?? []));
+  const needCli = broad || evidence.some(hit => /CLI|process consumer/.test(hit));
+  const needClient = broad || evidence.some(hit => /client build consumer|computed import|unresolved (?:local|workspace) import/.test(hit));
+  const needWasm = needClient || evidence.some(hit => /wasm/.test(hit));
+  if (needWasm || needClient || fullPackages.size) step('install-client', 'snapback4', ['bun', 'install', '--frozen-lockfile'], 'locked client/build dependencies');
+  if (needCli) cargo('build-cli', ['build', '-p', 'snapback4'], 'selected clients spawn/import CLI');
+  if (needWasm) step('build-wasm', 'snapback4', ['bash', 'scripts/build-wasm.sh'], 'selected clients import wasm');
+  if (needClient) step('build-client', 'snapback4', ['bun', 'run', '--cwd', 'packages/snapback4', 'build'], 'selected tests import dist');
+  for (const pkg of model.packages) if (fullPackages.has(pkg.name)) {
+    if (pkg.scripts.typecheck) step(`typecheck:${pkg.name}`, 'snapback4', ['bun', 'run', '--cwd', pkg.dir.slice(PREFIX.length), 'typecheck'], 'package source change');
+    if (pkg.scripts.test) step(`package-test:${pkg.name}`, 'snapback4', ['bun', 'run', '--cwd', pkg.dir.slice(PREFIX.length), 'test'], 'package test script');
+  }
+  // One Cargo call per package/target permits independent failures to be reported;
+  // --no-fail-fast additionally preserves Cargo's other targets within a package.
+  for (const name of sorted(fullCrates)) {
+    const features = sorted(model.crates.find(crate => crate.name === name).targets.flatMap(target => target.requiredFeatures ?? []));
+    cargo(`rust:${name}`, ['test', '--no-fail-fast', '-p', name, ...(features.length ? ['--features', features.join(',')] : [])], 'source/reverse dependency closure or fail broad');
+  }
+  for (const [name, targets] of [...narrowRust].sort()) if (!fullCrates.has(name)) for (const target of sorted(targets)) {
+    const features = model.crates.find(crate => crate.name === name).targets.find(item => item.name === target)?.requiredFeatures ?? [];
+    cargo(`rust:${name}:${target}`, ['test', '--no-fail-fast', '-p', name, '--test', target, ...(features.length ? ['--features', features.join(',')] : [])], 'only this integration test changed');
+  }
+  const modelFiles = [...clientFiles].filter(path => /\/(?:app-session-model|online-client-model)\.test\.mjs$/.test(path));
+  const ordinaryFiles = sorted([...clientFiles].filter(path => !modelFiles.includes(path)));
+  const concurrency = String(process.env.SNAPBACK4_TEST_SERIAL_CLIENT_FILES === '1' ? 1 : Math.min(24, Math.max(1, Math.floor(availableParallelism() / 3))));
+  function testPool(id, files, concurrency, mode, evidenceByFile) {
+    step(id, 'snapback4', ['node', 'scripts/run-client-tests.mjs', concurrency, mode, ...files.map(path => path.slice(PREFIX.length))], 'selected files retain existing process custody');
+    steps.at(-1).fileArgOffset = 4;
+    steps.at(-1).fileRequires = Object.fromEntries(files.map(file => {
+      const evidence = evidenceByFile?.[file] ?? [];
+      const required = [];
+      if (evidence.some(hit => /CLI|process consumer/.test(hit))) required.push('build-cli');
+      if (evidence.some(hit => /wasm/.test(hit))) required.push('build-wasm');
+      if (evidence.some(hit => /client build consumer|computed import|unresolved (?:local|workspace) import/.test(hit))) required.push('build-client');
+      // A directory fallback is only used for synthetic models lacking the
+      // discovered file inventory; real models always enumerate fixture files.
+      if (file.endsWith('/')) required.push('build-cli', 'build-wasm', 'build-client');
+      return [file.slice(PREFIX.length), sorted(required)];
+    }));
+  }
+  if (checks.has('fixture-tests')) testPool('fixture-tests', fixtureFiles.size ? sorted(fixtureFiles) : ['snapback4/fixtures/'], '1', 'files', model.fixtureEvidence);
+  if (ordinaryFiles.length) testPool('client-tests', ordinaryFiles, concurrency, 'files', model.clientEvidence);
+  if (modelFiles.length) testPool('client-models', sorted(modelFiles), '1', 'models', model.clientEvidence);
+  const checkCommands = {
+    'fixture-tests': ['snapback4', ['node', 'scripts/run-client-tests.mjs', '1', 'files', 'fixtures/']],
+    'chat-check': ['snapback4/apps/chat', ['../../target/debug/snapback4', 'check']],
+    'chat-typecheck': ['snapback4', ['bun', 'run', '--cwd', 'apps/chat', 'typecheck']],
+    'expo-typecheck': ['snapback4', ['bun', 'run', '--cwd', 'apps/chat-expo', 'typecheck']],
+    'release-guard': ['snapback4', ['bash', 'scripts/check-release-guard.sh']],
+    guide: ['.', ['node', 'scripts/check-guide.mjs']],
+    'docs-budget': ['snapback4', ['node', 'scripts/docs-budget.mjs']],
+    'packaged-docs': ['snapback4', ['node', '--input-type=module', '-e', "import { lintPackagedDocs } from './scripts/packaged-docs.mjs'; lintPackagedDocs(process.cwd());"]],
+    diagnostics: ['.', ['node', 'scripts/generate-diagnostics-registry.mjs', '--check']],
+    inventories: ['.', ['node', 'scripts/check-inventories.mjs']],
+    generated: ['.', ['bash', 'scripts/check-generated-artifacts']],
+    'ref-check': ['.', ['./ref-check']],
+    'selector-tests': ['.', ['node', '--test', 'snapback4/scripts/affected.test.mjs', 'tests/local_proof_selection_v0.mjs', 'tests/local_proof_inventory_v0.mjs', 'tests/ci_workflows_v0.mjs']],
+    'wasm-measurement': ['snapback4', ['bash', 'scripts/measure-wasm.sh']],
+  };
+  for (const check of sorted(checks)) if (check !== 'fixture-tests') step(check, ...checkCommands[check], 'affected input contract');
+  if (semantics) {
+    step('lean-build', 'snapback4/lean', ['lake', 'build'], 'semantic oracle prerequisite');
+    for (const mode of ['run-lean', 'run']) cargo(`difftest:${mode}`, ['run', '--release', '-p', 'snapback4-difftest', '--', mode, '--seed', '0', '--cases', '2000', '--workers', '2', '--out', `target/affected/difftest-${mode}`], 'language, planner/store semantics or fail broad');
+  }
+  const stepIds = new Set(steps.map(step => step.id));
+  for (const step of steps) {
+    let required = [];
+    if (step.id === 'build-wasm' || step.id.startsWith('typecheck:') || step.id === 'expo-typecheck') required.push('install-client');
+    if (step.id === 'build-client') required.push('install-client', 'build-wasm');
+    if (step.fileRequires) for (const [file, dependencies] of Object.entries(step.fileRequires)) step.fileRequires[file] = dependencies.filter(id => stepIds.has(id));
+    if (step.id === 'chat-check') required.push('build-cli');
+    if (step.id === 'chat-typecheck') required.push('install-client', 'chat-check');
+    if (step.id === 'wasm-measurement') required.push('build-wasm');
+    if (step.id === 'difftest:run-lean') required.push('lean-build');
+    step.requires = required.filter(id => stepIds.has(id));
+  }
+  return { schemaVersion: 'snapback4.affected.v1', files, broad, reasons, rustPackages: sorted(fullCrates),
+    fixtureFiles: sorted(fixtureFiles),
+    rustTargets: Object.fromEntries([...narrowRust].filter(([name]) => !fullCrates.has(name)).map(([name, targets]) => [name, sorted(targets)])),
+    clientFiles: sorted(clientFiles), checks: sorted(checks), steps };
+}
+
+export function changedPaths(root, base, head, worktree = false) {
+  const committed = paths(git(root, 'diff', '--name-only', '-z', '--no-renames', `${base}...${head}`));
+  return sorted([...committed, ...(worktree ? [
+    ...paths(git(root, 'diff', '--name-only', '-z', '--no-renames', 'HEAD')),
+    ...paths(git(root, 'ls-files', '--others', '--exclude-standard', '-z')),
+  ] : [])]);
+}
+function snapshotDigest(root, files) {
+  return hash(JSON.stringify(files.map(path => {
+    const absolute = join(root, path);
+    let stat; try { stat = lstatSync(absolute); } catch (error) { if (error.code === 'ENOENT') return [path, null]; throw error; }
+    if (stat.isSymbolicLink()) return [path, 'symlink', readlinkSync(absolute)];
+    if (stat.isDirectory()) return [path, 'submodule', git(absolute, 'rev-parse', 'HEAD'), hash(git(absolute, 'diff', 'HEAD')), git(absolute, 'status', '--porcelain', '--untracked-files=all')];
+    return [path, 'file', stat.mode, hash(readFileSync(absolute))];
+  })));
+}
+
+// Historical planning reads the selected revision's Cargo graph and test sources.
+// The scratch snapshot is confined to this worktree's target and never runs tests.
+export function modelAtRevision(root, revision, fn) {
+  const parent = join(root, 'target/affected'); mkdirSync(parent, { recursive: true });
+  const snapshot = mkdtempSync(join(parent, 'snapshot-'));
+  try {
+    const tree = git(root, 'ls-tree', '-r', '--name-only', revision, '--', 'snapback4').trim().split('\n');
+    const wanted = ['snapback4/Cargo.toml', 'snapback4/Cargo.lock', 'snapback4/package.json', 'snapback4/crates', 'snapback4/packages', 'snapback4/scripts', 'snapback4/fixtures'];
+    const present = wanted.filter(path => tree.some(file => file === path || file.startsWith(path + '/')));
+    const archive = command(root, 'git', ['archive', revision, '--', ...present], { encoding: null });
+    command(snapshot, 'tar', ['-xf', '-'], { input: archive });
+    return fn(loadModel(snapshot));
+  } finally { rmSync(snapshot, { recursive: true, force: true }); }
+}
+export function planAffected({ root = ROOT, base = 'origin/main', head = 'HEAD', worktree = false, files } = {}) {
+  const headRevision = git(root, 'rev-parse', '--verify', `${head}^{commit}`).trim();
+  const baseRevision = git(root, 'rev-parse', '--verify', `${base}^{commit}`).trim();
+  const observedFiles = changedPaths(root, baseRevision, headRevision, worktree);
+  const changed = files ?? observedFiles;
+  const current = git(root, 'rev-parse', 'HEAD').trim();
+  if (worktree && headRevision !== current) throw new Error('--worktree requires current HEAD');
+  const select = model => selectAffected(changed, model);
+  const plan = worktree ? select(loadModel(root)) : modelAtRevision(root, headRevision, select);
+  return { ...plan, base: baseRevision, mergeBase: git(root, 'merge-base', baseRevision, headRevision).trim(), head: headRevision,
+    worktree, observedFiles, inputDigest: snapshotDigest(root, observedFiles) };
+}
+const quote = value => `'${value.replaceAll("'", "'\\''")}'`;
+export function formatStep(step) {
+  return `(cd ${quote(step.cwd)} && timeout ${step.timeoutSeconds}s env RUST_MIN_STACK=33554432 ${Object.entries(CARGO_ENV).map(([key, value]) => `${key}=${value}`).join(' ')} ${step.argv.map(quote).join(' ')})`;
+}
+export async function runPlan(plan, { root = ROOT } = {}) {
+  if (git(root, 'rev-parse', 'HEAD').trim() !== plan.head) throw new Error('--run requires the selected HEAD checked out');
+  if (!plan.worktree && changedPaths(root, plan.head, plan.head, true).length) throw new Error('dirty worktree: use --worktree to bind uncommitted changes');
+  const earlier = new Set();
+  for (const step of plan.steps) {
+    if ([...(step.requires ?? []), ...Object.values(step.fileRequires ?? {}).flat()].some(id => !earlier.has(id))) throw new Error(`missing or later prerequisite for ${step.id}`);
+    if (earlier.has(step.id)) throw new Error(`duplicate step ID ${step.id}`);
+    earlier.add(step.id);
+  }
+  const started = new Date().toISOString();
+  const receiptDir = join(root, 'target/affected'); mkdirSync(receiptDir, { recursive: true });
+  const receiptPath = join(receiptDir, `${plan.head.slice(0, 12)}-${Date.now()}.json`);
+  const receipt = { ...plan, started, results: [], complete: false };
+  const persist = () => writeFileSync(receiptPath, JSON.stringify(receipt, null, 2) + '\n');
+  persist();
+  for (const step of plan.steps) {
+    let executionStep = step;
+    const blockedFiles = [];
+    const failedPrerequisites = dependencies => dependencies.filter(id => !receipt.results.some(result => result.id === id && result.status === 0));
+    if (step.fileRequires) {
+      const runnable = [];
+      for (const file of step.argv.slice(step.fileArgOffset)) {
+        const blockedBy = failedPrerequisites(step.fileRequires[file] ?? []);
+        if (blockedBy.length) blockedFiles.push({ file, blockedBy }); else runnable.push(file);
+      }
+      for (const entry of blockedFiles) console.error(`BLOCKED: ${entry.file} by ${entry.blockedBy.join(', ')}`);
+      if (!runnable.length) { receipt.results.push({ id: step.id, status: null, blockedFiles, elapsedMs: 0 }); persist(); continue; }
+      executionStep = { ...step, argv: [...step.argv.slice(0, step.fileArgOffset), ...runnable] };
+    }
+    console.error(`== ${step.id}\n${formatStep(executionStep)}`);
+    const blockedBy = (step.requires ?? []).filter(id => !receipt.results.some(result => result.id === id && result.status === 0));
+    if (blockedBy.length) { receipt.results.push({ id: step.id, status: null, blockedBy, elapsedMs: 0 }); persist(); console.error(`BLOCKED: ${step.id} by ${blockedBy.join(', ')}`); continue; }
+    const before = Date.now();
+    const result = await new Promise(resolveResult => {
+      const child = spawn('timeout', ['--kill-after=10s', `${step.timeoutSeconds}s`, ...executionStep.argv], {
+        cwd: resolve(root, step.cwd), env: { ...process.env, ...CARGO_ENV, RUST_MIN_STACK: '33554432' }, stdio: 'inherit',
+      });
+      child.on('error', error => resolveResult({ status: null, error: error.message }));
+      child.on('close', (status, signal) => resolveResult({ status, signal }));
+    });
+    receipt.results.push({ id: step.id, ...result, ...(blockedFiles.length ? { executedStatus: result.status, status: result.status === 0 ? null : result.status, blockedFiles } : {}), elapsedMs: Date.now() - before }); persist();
+  }
+  receipt.complete = true;
+  receipt.finished = new Date().toISOString();
+  receipt.unchanged = git(root, 'rev-parse', 'HEAD').trim() === plan.head && snapshotDigest(root, plan.observedFiles) === plan.inputDigest
+    && JSON.stringify(changedPaths(root, plan.base, plan.head, true)) === JSON.stringify(plan.observedFiles);
+  receipt.ok = receipt.unchanged && receipt.results.every(result => result.status === 0);
+  persist(); console.error(`Receipt: ${receiptPath}; ${receipt.ok ? 'PASS' : 'FAIL'}`);
+  return { receiptPath, receipt };
+}
+export function proofReceiptOptions(receipt) {
+  return {
+    base: receipt.requestedBaseRevision ?? receipt.headRevision, head: receipt.headRevision, worktree: receipt.worktreeIncluded,
+    files: receipt.cadence === 'complete' || receipt.selectionClass === 'FAIL_CLOSED_FULL'
+      ? ['snapback4/Cargo.toml'] : receipt.changedFiles.filter(path => path.startsWith(PREFIX)),
+  };
+}
+async function main() {
+  const args = process.argv.slice(2);
+  const options = {}; let json = false; let run = false; let proofReceipt;
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    if (arg === '--json') json = true;
+    else if (arg === '--run') run = true;
+    else if (arg === '--complete') options.files = ['snapback4/Cargo.toml'];
+    else if (arg === '--worktree') options.worktree = true;
+    else if (['--base', '--head', '--proof-receipt'].includes(arg)) {
+      if (!args[i + 1] || args[i + 1].startsWith('--')) throw new Error(`${arg} requires a value`);
+      if (arg === '--proof-receipt') proofReceipt = args[++i]; else options[arg.slice(2)] = args[++i];
+    } else throw new Error(`unknown argument: ${arg}`);
+  }
+  if (options.worktree && options.head) throw new Error('--head and --worktree are mutually exclusive');
+  if (proofReceipt) {
+    const receipt = JSON.parse(readFileSync(proofReceipt, 'utf8'));
+    Object.assign(options, proofReceiptOptions(receipt));
+  }
+  const plan = planAffected(options);
+  if (json) console.log(JSON.stringify(plan, null, 2));
+  else {
+    for (const { path, reason } of plan.reasons) console.log(`# ${path}: ${reason}`);
+    for (const step of plan.steps) console.log(formatStep(step));
+    console.log(`# ${plan.steps.length} commands, ${plan.rustPackages.length} whole Rust packages, ${plan.clientFiles.length} client files; broad=${plan.broad}`);
+  }
+  if (run) { const { receipt } = await runPlan(plan); if (!receipt.ok) process.exitCode = 1; }
+}
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) main().catch(error => { console.error(error.stack); process.exitCode = 1; });
+
+=== Full context .github/workflows/local-proof.yml at e98f65af52 ===
+name: local-proof
+
+on:
+  pull_request:
+  schedule:
+    - cron: '41 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# @ref LLP 0189#temporary-low-noise-development-posture-2026-08-24 — PRs keep
+# affected feedback; schedule/manual runs finish one complete latest-main
+# snapshot without launching another proof for every direct main push.
+concurrency:
+  group: local-proof-${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 'latest-main' || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  local-proof:
+    runs-on: expo-large
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false
+          # Manual complete proof always qualifies latest main even when the
+          # dispatch UI was opened from a topic ref. PRs retain their event ref.
+          ref: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 'refs/heads/main' || github.ref }}
+          # Guide freshness compares reviewed authority commits against HEAD;
+          # a depth-1 checkout turns every historical review identity into an
+          # unverifiable warning instead of running the intended audit.
+          fetch-depth: 0
+
+      - name: Verify checkout credentials were removed
+        run: scripts/check-checkout-credentials
+
+      # ENG-24513: .node-version is the single exact Node runtime authority;
+      # check-toolchain-authority asserts the active runtime matches it.
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version-file: .node-version
+
+      # @ref LLP 0175#d2--assign-every-test-to-an-explicit-cadence — compute
+      # the checked path-to-gate closure before installing heavyweight tools.
+      # The exact receipt is reopened by verify-local-proof and uploaded with
+      # its gate results. Keep it outside target/: the Rust cache restore owns
+      # that tree and may replace it after this planning step. Selector,
+      # workflow, and shared-authority changes fail broad.
+      - name: Plan affected or complete proof
+        id: selection
+        env:
+          PROOF_CADENCE: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 'complete' || 'affected' }}
+          PROOF_BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          PROOF_SELECTION: ${{ runner.temp }}/local-proof-selection.json
+        run: |
+          set -euo pipefail
+          mkdir -p "$(dirname "$PROOF_SELECTION")"
+          selection_args=(
+            plan
+            --cadence "$PROOF_CADENCE"
+            --head HEAD
+            --output "$PROOF_SELECTION"
+            --github-output "$GITHUB_OUTPUT"
+          )
+          if [ "$PROOF_CADENCE" = affected ]; then
+            case "$PROOF_BASE" in
+              0000000000000000000000000000000000000000|'')
+                echo 'SNAPBACK_LOCAL_PROOF_SELECTION_BASE_MISSING' >&2
+                exit 1
+                ;;
+            esac
+            selection_args+=(--base "$PROOF_BASE")
+          fi
+          node scripts/select-local-proof.mjs "${selection_args[@]}"
+
+      # The repository intentionally keeps the large Ibex runtime submodule
+      # demand-loaded. Fast docs/guide selections do not pay its clone cost;
+      # every legacy affected-code or complete selection reaches native readiness
+      # through the mandatory Contract/Exact boundary and initializes it.
+      - name: Initialize native runtime submodules
+        if: steps.selection.outputs.requires_native == 'true'
+        run: |
+          git submodule update --init --recursive
+          scripts/check-checkout-credentials
+
+      # Native profiles can fill a small runner before the in-proof cleanup
+      # point. Fast docs/guide selections never need this 20 GiB admission
+      # gate, so apply it only when the selected closure owns native work.
+      - name: Require workspace disk headroom
+        if: steps.selection.outputs.requires_native == 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+          ci_available_kib="$(df -Pk "$GITHUB_WORKSPACE" | awk 'END { print $4 }')"
+          readonly ci_available_kib
+          readonly ci_required_kib=$((20 * 1024 * 1024))
+          if (( ci_available_kib < ci_required_kib )); then
+            echo "SNAPBACK_CI_DISK_HEADROOM_LOW: ${ci_available_kib} KiB available; ${ci_required_kib} KiB required" >&2
+            exit 1
+          fi
+          echo "[snapback-ci] ${ci_available_kib} KiB available for selected native proof"
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        if: steps.selection.outputs.requires_javascript_dependencies == 'true'
+        with:
+          bun-version-file: package.json
+
+      # The canonical proof regenerates committed artifacts and exercises the
+      # Cloudflare twin, both of which import root lockfile dependencies. A
+      # clean runner must prove those exact dependencies instead of inheriting
+      # an ambient node_modules tree (ENG-24385).
+      - name: Install JavaScript dependencies
+        if: steps.selection.outputs.requires_javascript_dependencies == 'true'
+        run: |
+          bun install --frozen-lockfile
+          node scripts/ensure-workspace-hoist.mjs
+
+      - name: Install native build dependencies
+        if: steps.selection.outputs.requires_native == 'true'
+        run: sudo apt-get update && sudo apt-get install -y cmake ninja-build libcurl4-openssl-dev lsof
+
+      # @ref LLP 0010#ci-and-review-gates — the admin behavior lane is required.
+      # @ref LLP 0015#acceptance-rules — a missing required browser is a failure,
+      # never a skip. The self-hosted expo-large image does not carry the Chrome
+      # binary that ubuntu-latest supplied implicitly, so provision a real
+      # browser and pass its exact action-owned path to the canonical proof.
+      - name: Install Chrome for browser acceptance
+        id: setup-chrome
+        if: steps.selection.outputs.requires_browser == 'true'
+        uses: browser-actions/setup-chrome@2e1d749697dd1612b833dba4a722266286fbefcd # v2.1.2
+        with:
+          chrome-version: stable
+
+      - name: Cache Hermes Linux build
+        if: steps.selection.outputs.requires_native == 'true'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cache/exact/hermes-linux
+            vendor/ibex/linux
+            vendor/ibex/tools/hermes
+          # Reuse only an artifact built from this exact pin, patch stack, and
+          # application/build logic. A prefix fallback can silently restore a
+          # stale runtime after any of those inputs change.
+          key: ${{ runner.os }}-hermes-${{ hashFiles('vendor/ibex/scripts/hermes-version.sh', 'vendor/ibex/scripts/apply-hermes-patches.sh', 'vendor/ibex/scripts/build-hermes-linux.sh', 'vendor/ibex/patches/hermes/*.patch', 'vendor/ibex/Cargo.toml') }}
+
+      # The self-hosted expo image ships no Rust toolchain (cargo ENOENT),
+      # unlike GitHub's ubuntu-latest. Install rustup bare, then let
+      # rust-toolchain.toml select the reviewed compiler authority.
+      # @ref LLP 0175#d2--assign-every-test-to-an-explicit-cadence — rustfmt is
+      # path-owned and needs only this cheap toolchain step, not the native
+      # submodule, Hermes, cache, or bootstrap closure.
+      - name: Install the pinned Rust toolchain
+        if: steps.selection.outputs.requires_rust_toolchain == 'true'
+        run: |
+          if ! command -v rustup >/dev/null 2>&1; then
+            curl --proto '=https' --tlsv1.2 -fsSL https://sh.rustup.rs \
+              | sh -s -- -y --default-toolchain none --profile minimal
+          fi
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+          export PATH="$HOME/.cargo/bin:$PATH"
+          rustup toolchain install
+          rustup show active-toolchain
+
+      # Snapback 4 is independent of the legacy Ibex bootstrap. Its affected
+      # tests may consume the web device and the pinned Lean oracle.
+      - name: Prepare Snapback 4 verification tools
+        id: snapback4-tools
+        continue-on-error: true
+        if: steps.selection.outputs.requires_snapback4 == 'true'
+        working-directory: snapback4
+        run: |
+          setup_failed=0
+          timeout 900s sudo apt-get update || setup_failed=1
+          timeout 900s sudo apt-get install -y elan brotli || setup_failed=1
+          timeout 600s rustup target add wasm32-unknown-unknown || setup_failed=1
+          bindgen_version=$(timeout 20s node --input-type=module -e 'import {readFileSync} from "node:fs"; const match = readFileSync("Cargo.lock", "utf8").match(/name = "wasm-bindgen"\nversion = "([^"]+)"/); if (!match) process.exit(1); console.log(match[1]);') || setup_failed=1
+          if [ -n "$bindgen_version" ]; then
+            timeout 1800s env CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 cargo install wasm-bindgen-cli --version "$bindgen_version" --locked || setup_failed=1
+          fi
+          timeout 1800s env CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 cargo install twiggy --version 0.8.0 --locked || setup_failed=1
+          timeout 900s bash -c 'cd lean && lake --version' || setup_failed=1
+          exit "$setup_failed"
+
+      # Cargo registry + target cache: without it every run cold-compiles the
+      # full dependency tree (and the ibex-runtime C++ glue) — the dominant
+      # per-run cost.
+      - name: Cache Rust build
+        if: steps.selection.outputs.requires_native == 'true'
+        uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32 # v2
+
+      # LLP 0316 Phase 5: compile the fleet-pinned runner from its locked crate
+      # graph. A direct pinned install avoids adding a floating action trust
+      # boundary, and the proof launcher still refuses if installation fails.
+      - name: Install cargo-nextest
+        if: steps.selection.outputs.requires_native == 'true'
+        run: cargo install cargo-nextest --version 0.9.143 --locked
+
+      # An exact-identity cache miss is expected whenever the pin, patch stack,
+      # or build logic changes. Materialize and launch-test that runtime before
+      # verify-local-proof reaches its read-only ibex-doctor preflight.
+      - name: Prepare exact Hermes runtime
+        if: steps.selection.outputs.requires_native == 'true'
+        run: scripts/bootstrap-ibex-runtime
+
+      # ENG-24383: verify-local-proof denies both vulnerabilities and
+      # unmaintained runtime dependencies. Pin the auditing tool so the gate's
+      # own CLI/lock resolution cannot drift under an otherwise unchanged PR.
+      - name: Install cargo-audit
+        if: steps.selection.outputs.requires_cargo_audit == 'true'
+        run: cargo install cargo-audit --version 0.22.2 --locked
+
+      - name: Verify Snapback local proof
+        env:
+          # Three ubuntu-latest runs crashed rust-lld with SIGBUS across
+          # integration tests and the normal binary. Bound concurrency and
+          # omit CI-only debug symbols so native links stay inside the fresh
+          # runner's mmap, memory, and disk budget.
+          CARGO_BUILD_JOBS: "1"
+          CARGO_PROFILE_DEV_DEBUG: "0"
+          CARGO_PROFILE_TEST_DEBUG: "0"
+          SNAPBACK_VERIFY_EXACT: "1"
+          CHROME_BIN: ${{ steps.setup-chrome.outputs.chrome-path }}
+          SNAPBACK_PROOF_RESULTS: ${{ github.workspace }}/target/proof/local-proof-results.jsonl
+          SNAPBACK_PROOF_COMPLETION_RECEIPT: ${{ github.workspace }}/target/proof/local-proof-completion.json
+          SNAPBACK_PROOF_SELECTION_RESULTS: ${{ runner.temp }}/local-proof-selection.json
+          SNAPBACK_APP_CLI_TEST_PRIVATE_ROOT: /opt/snapback-app-cli-test-${{ github.run_id }}
+          # One red round names every broken gate instead of only the first
+          # (issues/20260802-verify-local-proof-stops-at-the-first-failure.md).
+          SNAPBACK_PROOF_KEEP_GOING: "1"
+        run: |
+          # @ref LLP 0062#4-auth-the-existing-model-projected--with-explicit-selection
+          # The shared runner checkout has an unsafe /home/runner ancestor;
+          # prove real credential custody from a private, root-safe hierarchy.
+          if [ "${{ steps.selection.outputs.requires_private_root }}" = true ]; then
+            case "$SNAPBACK_APP_CLI_TEST_PRIVATE_ROOT" in
+              /opt/snapback-app-cli-test-[0-9]*) ;;
+              *) echo "refusing unsafe app-CLI test root" >&2; exit 2 ;;
+            esac
+            sudo install -d -m 0700 -o "$(id -u)" -g "$(id -g)" \
+              "$SNAPBACK_APP_CLI_TEST_PRIVATE_ROOT"
+            trap 'sudo rm -rf -- "$SNAPBACK_APP_CLI_TEST_PRIVATE_ROOT"' EXIT
+          fi
+          scripts/verify-local-proof --selection-receipt "$SNAPBACK_PROOF_SELECTION_RESULTS"
+
+      # A setup failure must not suppress independent selected checks, but it
+      # remains a failing job verdict after those checks have run.
+      - name: Retain Snapback 4 setup failure
+        if: always() && steps.snapback4-tools.outcome == 'failure'
+        run: timeout 20s node -e "console.error('Snapback 4 verification setup failed; independent checks were still attempted'); process.exit(1)"
+
+      # @ref LLP 0189#decision — GitHub's read-only checkout reports the
+      # complete-battery verdict. The local scheduled backstop owns durable
+      # signature-ticket mutation and commits that state to the repository.
+      - name: Report complete-battery verdict
+        if: always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+        env:
+          SNAPBACK_PROOF_RESULTS: ${{ github.workspace }}/target/proof/local-proof-results.jsonl
+          SNAPBACK_PROOF_COMPLETION_RECEIPT: ${{ github.workspace }}/target/proof/local-proof-completion.json
+        run: |
+          set -euo pipefail
+          test -s "$SNAPBACK_PROOF_RESULTS" || {
+            echo 'SNAPBACK_BATTERY_RESULTS_MISSING: complete proof emitted no structured results' >&2
+            exit 2
+          }
+          node scripts/drift-prone-gates.mjs battery-report \
+            --results "$SNAPBACK_PROOF_RESULTS" \
+            --completion "$SNAPBACK_PROOF_COMPLETION_RECEIPT"
+
+      # @ref LLP 0175#d5--make-test-economics-part-of-the-inventory — retain
+      # every named gate's duration and PASS/FAIL/BLOCKED state even on red.
+      - name: Upload local-proof gate timings
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: local-proof-gate-results-${{ github.run_id }}
+          path: |
+            target/affected/*.json
+            target/proof/local-proof-results.jsonl
+            target/proof/local-proof-completion.json
+            target/proof/template-registry-canary.json
+            target/nextest/local-proof/rust-tests.junit.xml
+            ${{ runner.temp }}/local-proof-selection.json
+          if-no-files-found: warn
+
+=== Amendment ===
+
+
+Author direction: Workstream FAST, Charlie Cheever, 2026-10-24. This implements
+D-2 for the independent Snapback 4 workspace. It does not amend D-1, D-6, LLP
+0232's optimistic integration rule, or any publication protocol.
+
+`node snapback4/scripts/affected.mjs --base REV [--head REV | --worktree]
+[--json] [--run]` selects `git diff --name-only REV...HEAD` (the merge-base-to-head diff); the
+operator supplies the landing base, defaulting to `origin/main`. Worktree mode adds
+staged, unstaged, deleted, rename endpoints and non-ignored untracked paths.
+Historical planning reads the selected revision's manifests and test sources;
+execution requires that revision checked out. The root local-proof policy
+selects a `snapback4-affected` delegation gate for `snapback4/` paths; a root
+`FAIL_CLOSED_FULL` or complete receipt delegates a broad set even if none of
+its changed paths are under `snapback4/`. This
+independent workspace does not inherit the legacy Exact/admin baseline;
+other root groups and root unknown-path fallback retain it. Mixed-fence
+diffs run the union of the delegation and every affected root group.
+
+Selection ownership:
+
+- Cargo metadata supplies workspace membership, optional/dev dependency edges
+  and integration targets. Source changes select the package and its transitive
+  reverse dependencies. A test-only file selects its exact integration target;
+  shared/nested support widens instead. Required target features are included.
+- Package manifests supply client dependency edges, including peer/dev edges.
+  Source changes select the package's test pool and its reverse dependencies;
+  a test-only diff selects named files. Tests' literal imports/re-exports,
+  dynamic literal imports, resource URLs and helpers are followed to find CLI
+  process and wasm consumers. Unresolved local/computed imports conservatively
+  count as both consumers and require a client dist rebuild. Tests spawning processes are conservatively CLI
+  consumers. Selected clients rebuild the products they consume. Existing
+  process-custody pooling and serial model custody are reused. Bare workspace
+  exports also require rebuilding client dist; documentation consumers join
+  the affected client set when product docs change.
+- Owned guide/docs select check-guide, docs budget and packaged-docs lint; Snapback 4
+  guide cards also select the compiled guide target. Rust source movement
+  conservatively selects diagnostics-registry checking and check-inventories,
+  even without a new code. Language/generated inputs select generated-artifact
+  checking; affected references and LLPs select ref-check. Device reverse
+  dependents select wasm measurement. Language/core semantics select Lean
+  build, difftest run-lean and a seeded 2,000-case run.
+- Unknown paths, locks, workspace/package manifests, toolchains, build scripts,
+  proc-macros, shared test support (regardless of Markdown extension) and vendored inputs select all workspace
+  packages, client pools and cross-cutting checks, including fixture-wrapper
+  tests, chat schema checking, chat/Expo typechecks and release guards from
+  the existing complete suite. Each triggering file has a
+  reason. A package with no owned test runner also widens, covering tests held
+  in sibling packages. Selector implementation/fixture edits select their own
+  tests rather than product pools. Unowned root paths remain broad.
+
+Every execution command has a finite timeout and inherits
+`CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0`.
+Cargo disables target-level fail-fast; independent commands continue after
+failures, with dependent commands explicitly BLOCKED after a failed producer; client
+pools track those dependencies per file so runnable files still execute
+through the existing pool even when another file is blocked. A JSON receipt
+under `target/affected/` records base/head, changed paths, selected commands,
+per-file reasons and per-command status/timing. It records incomplete execution
+before starting and refuses success if the observed Git/content snapshot changes, including a
+newly dirty tracked input or untracked file in committed mode. This is
+intra-run mutation detection, not a requirement to rerun after a semantic
+unchanged rebase; D-2/LLP 0232 still govern reuse. CI uploads these receipts;
+local operators copy them to their report custody before deleting build
+outputs. The directory is a transient production location, not durable custody.
+An affected receipt is landing evidence, never a packed-publication receipt.
+
+A historical red HEAD does not mean its last commit introduced that red. The
+maintained-column regression at `cadb7c55be` must be selected from the range
+starting before its originating change `202826334f`; selecting only the
+last documentation commit cannot discover inherited product failures. The
+regression fixture requires core/lang packages and residency.test.mjs for that
+originating range. Scheduled full-battery results remain the failure oracle;
+selection replay alone is not execution or a no-missed-failures proof.
+
+
+The selector's exit verdict is green only when every selected command passes
+and its input snapshot stays unchanged. It does not automatically forgive a
+red. Baseline-corroborated inherited failures follow LLP 0232's classifier;
+affected product failures still require attention under D-2. On a known red
+base, use the scheduled oracle and originating change range to audit coverage,
+not a documentation-only last commit as evidence of defect coverage.
+Selector-only edits retain their specific fixture and root integration tests
+plus independent review: running the product battery cannot by itself test
+whether a selector maps an omitted path correctly. This known tooling owner
+is an explicit affected rule, not an unknown-path exception.
+
+The root workflow attempts each independent tool setup even after a setup
+failure, continues to selected verification, and retains the failed setup as
+a failing job verdict after independent checks have run. It provisions the independent wasm target, matching bindgen
+CLI, twiggy, brotli and the pinned Lean toolchain for a selected delegation;
+it does not invoke the legacy Ibex bootstrap for Snapback 4 alone.

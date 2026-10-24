@@ -1,0 +1,15 @@
+muse: workspace root: /home/ccheever/projects/sb4-fast (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=1dda2625-73f9-4f0d-b789-d32b3ea5558b]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-fast (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY
+
+Corrections address both Codex findings without false-green or unsafe narrowing:
+
+* Shared before owned: `fixtures/native-fixtures/vendor/scripts`, `crates/*/tests/*.md`, and non-test `test|tests/` files widen before owned-docs. Unknown `*.md` widens. Owned-docs is now explicit (`lang/guide`, `guide|docs|reports/`, root `README/JOURNAL/NOT-DOING.md`, `packages/*/*.md`).
+* CI: each `Prepare Snapback 4` attempt guarded with `|| setup_failed=1`, `continue-on-error:true`, verification still runs, `Retain Snapback 4 setup failure` with `always() && outcome=='failure'` restores red. No suppression.
+* Extra `build-client` on `computed|unresolved local|workspace import` is conservative widening, matched in `needClient` and `fileRequires`, consistent with amendment wording.
+
+Amendment text matches code: owned-docs, shared-support regardless of extension, dist rebuild, attempt-continue-retain.

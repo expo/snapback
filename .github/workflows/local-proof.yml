@@ -75,7 +75,7 @@ jobs:
 
       # The repository intentionally keeps the large Ibex runtime submodule
       # demand-loaded. Fast docs/guide selections do not pay its clone cost;
-      # every affected code or complete selection reaches native readiness
+      # every legacy affected-code or complete selection reaches native readiness
       # through the mandatory Contract/Exact boundary and initializes it.
       - name: Initialize native runtime submodules
         if: steps.selection.outputs.requires_native == 'true'
@@ -162,6 +162,26 @@ jobs:
           rustup toolchain install
           rustup show active-toolchain
 
+      # Snapback 4 is independent of the legacy Ibex bootstrap. Its affected
+      # tests may consume the web device and the pinned Lean oracle.
+      - name: Prepare Snapback 4 verification tools
+        id: snapback4-tools
+        continue-on-error: true
+        if: steps.selection.outputs.requires_snapback4 == 'true'
+        working-directory: snapback4
+        run: |
+          setup_failed=0
+          timeout 900s sudo apt-get update || setup_failed=1
+          timeout 900s sudo apt-get install -y elan brotli || setup_failed=1
+          timeout 600s rustup target add wasm32-unknown-unknown || setup_failed=1
+          bindgen_version=$(timeout 20s node --input-type=module -e 'import {readFileSync} from "node:fs"; const match = readFileSync("Cargo.lock", "utf8").match(/name = "wasm-bindgen"\nversion = "([^"]+)"/); if (!match) process.exit(1); console.log(match[1]);') || setup_failed=1
+          if [ -n "$bindgen_version" ]; then
+            timeout 1800s env CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 cargo install wasm-bindgen-cli --version "$bindgen_version" --locked || setup_failed=1
+          fi
+          timeout 1800s env CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 cargo install twiggy --version 0.8.0 --locked || setup_failed=1
+          timeout 900s bash -c 'cd lean && lake --version' || setup_failed=1
+          exit "$setup_failed"
+
       # Cargo registry + target cache: without it every run cold-compiles the
       # full dependency tree (and the ibex-runtime C++ glue) — the dominant
       # per-run cost.
@@ -223,6 +243,12 @@ jobs:
           fi
           scripts/verify-local-proof --selection-receipt "$SNAPBACK_PROOF_SELECTION_RESULTS"
 
+      # A setup failure must not suppress independent selected checks, but it
+      # remains a failing job verdict after those checks have run.
+      - name: Retain Snapback 4 setup failure
+        if: always() && steps.snapback4-tools.outcome == 'failure'
+        run: timeout 20s node -e "console.error('Snapback 4 verification setup failed; independent checks were still attempted'); process.exit(1)"
+
       # @ref LLP 0189#decision — GitHub's read-only checkout reports the
       # complete-battery verdict. The local scheduled backstop owns durable
       # signature-ticket mutation and commits that state to the repository.
@@ -249,6 +275,7 @@ jobs:
         with:
           name: local-proof-gate-results-${{ github.run_id }}
           path: |
+            target/affected/*.json
             target/proof/local-proof-results.jsonl
             target/proof/local-proof-completion.json
             target/proof/template-registry-canary.json
