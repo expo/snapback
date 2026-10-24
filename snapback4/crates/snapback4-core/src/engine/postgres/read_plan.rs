@@ -30,8 +30,16 @@ impl Access {
     }
 }
 #[derive(Default)]
-pub(super) struct Answers(pub(super) Vec<(Access, Vec<(Value, Vec<u8>)>)>);
+pub(super) struct Answers(pub(super) Vec<(Access, Vec<(Value, Vec<u8>)>)>, Vec<Vec<std::cell::Cell<Option<crate::rows::word_heap::ScanImage>>>>);
 impl Answers {
+    pub fn new(rows: Vec<(Access, Vec<(Value, Vec<u8>)>)>) -> Self {
+        let prices = rows.iter().map(|(_,rows)| vec![std::cell::Cell::new(None); rows.len()]).collect();
+        Self(rows, prices)
+    }
+    fn push(&mut self, access: Access, rows: Vec<(Value, Vec<u8>)>) {
+        self.1.push(vec![std::cell::Cell::new(None); rows.len()]);
+        self.0.push((access,rows));
+    }
     pub fn get(&self, table: &str, id: &str) -> Option<Option<Value>> {
         self.0.iter().find(|(a,_)| a.table == table && a.id.as_deref() == Some(id)).map(|(_,v)| v.first().map(|(v,_)| v.clone()))
     }
@@ -46,6 +54,22 @@ impl Answers {
             let selected:Vec<_>=v.iter().filter(|(_,k)|k.as_slice()>=lo && k.as_slice()<hi).take(n).cloned().collect();
             let complete=v.len()<a.n as usize;
             (selected.len()>=n || complete).then_some(selected)
+        })
+    }
+    // @ref LLP 3000.009.001.000.001#13-g4a-read-refinement-2026-10-23 — prices are request-owned metadata; every logical access retains its ordinary charges.
+    // Prices are snapshot-local metadata of immutable facts, not authority or
+    // results shared across requests. No hidden row price selects a public cut:
+    // the caller retains the ordinary public-table metered-scan admission.
+    pub fn scan_priced(&self, table: &str, index: &str, lo: &[u8], hi: &[u8], dir: Dir, n: usize) -> Option<Vec<(&Value,&[u8],crate::rows::word_heap::ScanImage)>> {
+        self.0.iter().enumerate().find_map(|(aidx,(a,rows))| {
+            if a.id.is_some() || a.table != table || a.index != index || a.lo.as_slice() > lo || a.hi.as_slice() < hi || a.dir != dir {return None;}
+            let selected:Vec<_>=rows.iter().enumerate().filter(|(_,(_,k))|k.as_slice()>=lo && k.as_slice()<hi).take(n).collect();
+            if selected.len()<n && rows.len()>=a.n as usize {return None;}
+            Some(selected.into_iter().map(|(ridx,(row,key))| {
+                let cell = &self.1[aidx][ridx];
+                let price = cell.get().unwrap_or_else(|| {let price=crate::rows::word_heap::ScanImage::of(row); cell.set(Some(price)); price});
+                (row,key.as_slice(),price)
+            }).collect())
         })
     }
 }
@@ -178,7 +202,7 @@ impl Sequence {
 }
 fn insert(tx: &Tx<'_>, access: Access, rows: Vec<super::store::Row>) -> Result<(),RuntimeError> {
     let values = rows.iter().map(|row| Ok((decode(row.get(0))?, if access.id.is_some() {vec![]} else {row.get(1)}))).collect::<Result<_,RuntimeError>>()?;
-    tx.read_cache.borrow_mut().0.push((access,values));
+    tx.read_cache.borrow_mut().push(access,values);
     Ok(())
 }
 fn key(e: &Expr,c: &Context) -> Option<Value> {

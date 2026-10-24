@@ -574,7 +574,7 @@ impl Closure {
         let mut facts = facts;
         #[cfg(test)]
         plant_fault(&mut answers, &mut facts);
-        *tx.read_cache.borrow_mut() = Answers(answers);
+        *tx.read_cache.borrow_mut() = Answers::new(answers);
         Ok(facts)
     }
 }
@@ -710,14 +710,31 @@ impl Sql {
         } else {
             format!("({})", parts.join(" || "))
         };
+        // @ref LLP 3000.009.001.000#91-adapter-parity-rules — intrinsic byId's portable full key is [id,id]; a point fetch can use the row primary address.
+        // Intrinsic byId is exactly [id,id] in the portable index layout.
+        // Fetch its row at the primary address, retaining the same full index
+        // key for Rust's ordered-prefix facts and logical scan charges. A byId
+        // range or non-identity key retains the ordinary index fetch below.
+        let point_id = if n.point && n.index == "byId" && n.key.len() == 1 {
+            match &n.key[0] {
+                Key::Fixed(Value::Id(id)) => Some(self.param(Param::Text(id.clone()))),
+                Key::Field(_, field) => Some(format!("(image.data->{}::pg_catalog.text)->>'Id'",Self::constant(field)?)),
+                _ => None,
+            }
+        } else { None };
+        let target = point_id.as_ref().map_or(String::new(), |id|format!(", {id}::pg_catalog.text AS target"));
+        let fetch = if point_id.is_some() {
+            format!("SELECT r.data,q.lo || q.lo AS k FROM r WHERE r.t={table} AND r.id=q.target LIMIT 1")
+        } else {
+            let dir = if n.dir == Dir::Asc { "ASC" } else { "DESC" };
+            format!("SELECT r.data,i.k FROM i JOIN r ON r.t=i.t AND r.id=i.id WHERE i.t={table} AND i.ix={index} AND i.k>=q.lo AND i.k<q.lo || '\\xff'::pg_catalog.bytea ORDER BY i.k {dir} LIMIT {}", n.n)
+        };
         let source = n
             .parent
             .map_or_else(|| "(SELECT 1) s".into(), |p| format!("a{p} s"));
-        let dir = if n.dir == Dir::Asc { "ASC" } else { "DESC" };
         Ok(format!(
-            "a{id} AS MATERIALIZED (SELECT q.keys,q.lo,q.lo || '\\xff'::pg_catalog.bytea AS hi,q.unavailable,h.data,h.k FROM {source}{image} CROSS JOIN LATERAL (SELECT pg_catalog.json_build_array({})::pg_catalog.text AS keys, {unavailable} AS unavailable, {lo} AS lo OFFSET 0) q LEFT JOIN LATERAL (SELECT r.data,i.k FROM i JOIN r ON r.t=i.t AND r.id=i.id WHERE i.t={table} AND i.ix={index} AND i.k>=q.lo AND i.k<q.lo || '\\xff'::pg_catalog.bytea ORDER BY i.k {dir} LIMIT {}) h ON true)",
-            json.join(","),
-            n.n
+            "a{id} AS MATERIALIZED (SELECT q.keys,q.lo,q.lo || '\\xff'::pg_catalog.bytea AS hi,q.unavailable,h.data,h.k FROM {source}{image} CROSS JOIN LATERAL (SELECT pg_catalog.json_build_array({})::pg_catalog.text AS keys, {unavailable} AS unavailable, {lo} AS lo{target} OFFSET 0) q LEFT JOIN LATERAL ({fetch}) h ON true)",
+            json.join(",")
         ))
     }
 }

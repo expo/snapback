@@ -106617,3 +106617,32 @@ manual timing helper), transport/cache 6/0, both RT0 ratchets plus cut witnesses
 5/0; warm W1/W2/W3 remains 1/1/1. Root ref-check passes 567 docs / 11,867 refs /
 43,652 files, zero errors. Full final qualification follows the remaining
 request-local accounting optimization and final uninstrumented release windows.
+
+### 2026-10-24 — RCPU: snapshot-owned prices and exact primary facts
+
+The final 128-client release capacity cells are W1 17,847/s (p50/p99
+7.01/11.92 ms; server/PG/client 275/246/69 µs/read), W2 10,872/s
+(11.54/18.20 ms; 436/451/114 µs), and W3 5,415/s (23.15/36.27 ms;
+1,055/844/110 µs). All nine final 64/128/256-client windows have zero errors.
+The report retains the complete PIPE baseline and all intermediate cells;
+W2/W3 still miss the campaign targets, and loopback is no S1 link/SLO claim.
+
+Metered reads of an already fetched immutable fact previously serialized its
+row on every logical access. Its exact canonical-image accounting now stays
+inside the request, lazily computed; each access still pays the original
+ordered preflight, guard and entry charges, including every cut. Intrinsic
+byId point facts fetch at the primary row address, retaining the exact portable
+[id,id] ordered key. byId ranges keep index access; the ordinary Rust interpreter
+still decides every rule/refusal/charge. Neither rows nor authority cross requests.
+
+Separate clock builds attribute W3 decode 307→230 µs/read and interpreter
+637→568 µs; alloc/free/realloc samples estimate 12,545→9,153 calls/read.
+Independent allocation timing was invalid (one estimate exceeds total CPU),
+so it is discarded; allocation remains in the stage/process totals. Temporary
+clock/allocator code and lint exceptions are removed before full qualification.
+
+The first full binary run finds two old hard-coded descriptor expectations;
+they are updated to explicit 1,442 connections / 6,280 descriptors (the other
+586 tests pass). The Postgres core fixtures pass 246/0; the evaluator reproduces
+the commissioned inherited 40001. Full qualification and the controlled
+30-versus-120-logical-worker comparison finish in the following record.
