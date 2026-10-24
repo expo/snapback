@@ -105228,3 +105228,20 @@ records absent; executable/data-directory scans also find no survivors.
 PIDs left: none. Both data directories, short socket directories and raw
 evidence are retained outside Git. No push, stash or persistent Git
 configuration change.
+
+
+### Integration 24: final main synchronization and device measurement
+
+After the complete five-crate qualification at `1a6b1438f9` (461 scopes,
+7,679 reported passes, 391 declared ignores, zero failures), the report lands
+as `37c600c68d`. Main at `480f88e8b4` merges through `1c3d2daadb`; code merges
+automatically and both journal histories survive the sole conflict. The existing
+0.4.40 guide-changes entry now also describes bounded short-request admission
+and PostgreSQL's speculative read-closure/fallback behavior.
+
+A fresh clean-source measurement at `1c3d2daadb` is unchanged: Wasm 2,415,003
+raw / 737,990 gzip / 555,572 Brotli bytes; glue 16,053 / 3,695 / 3,260 bytes.
+The 738,490-byte budget remains measurement plus exactly 500 bytes. Device
+families and server-only absence checks pass. The main serving and PostgreSQL
+delta receives separate changed-input qualification before nonforce delivery;
+no passing result is inferred from the automatic merge.

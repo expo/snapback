@@ -1,0 +1,9 @@
+{
+  "previousFullFiveCrateSource": "1a6b1438f902df4b8691b545814d0e0015a9a65d",
+  "fullFiveCrateExit": 0,
+  "merge": "1c3d2daadb",
+  "originMain": "480f88e8b47e1e2cfe4319561000fcb518376665",
+  "languageSourceChanged": false,
+  "generatedRootArtifacts": "Regenerated sequentially, no byte changes.",
+  "pending": "Full changed Core/CLI targets and device guards; private PG16/RT0/store oracles; all clients/fresh packed consumers; Mac; copied survey/replay; fresh Exact apps; difftest; root checks."
+}
