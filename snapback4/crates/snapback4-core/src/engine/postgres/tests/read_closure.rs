@@ -523,15 +523,19 @@ fn pipeline_measure_w2_w3_128_clients() {
     let (pg,digest,viewer)=engine_with_message_count(true,false,false,20);
     for name in ["W2","W3"] {
         let barrier=Arc::new(Barrier::new(129));
+        let clock=Arc::new(std::sync::OnceLock::<Instant>::new());
         let mut clients=Vec::new();
         for _ in 0..128 {
             let mut e=pg.reader().unwrap();
-            let digest=digest.clone(); let viewer=viewer.clone(); let barrier=barrier.clone();
+            let digest=digest.clone(); let viewer=viewer.clone(); let barrier=barrier.clone(); let clock=clock.clone();
             let args=if name=="W2" {[("room".into(),Value::Id("r'\\\né".into()))].into()} else {BTreeMap::new()};
             clients.push(std::thread::spawn(move|| {
                 // Warm the interpreter and both driver paths before the common start.
-                assert!(run(&mut e,&digest,&viewer,name,args.clone(),true)["out"]["Ok"].is_object());
-                barrier.wait(); let start=Instant::now(); let mut times=Vec::new();
+                let warm=std::panic::catch_unwind(std::panic::AssertUnwindSafe(||run(&mut e,&digest,&viewer,name,args.clone(),true)));
+                barrier.wait();
+                while clock.get().is_none() { std::thread::yield_now(); }
+                assert!(warm.is_ok_and(|out|out["out"]["Ok"].is_object()),"core warm-up failed");
+                let start=clock.get().unwrap(); let mut times=Vec::new();
                 while start.elapsed()<Duration::from_secs(5) {
                     let at=Instant::now();
                     let out=run(&mut e,&digest,&viewer,name,args.clone(),true);
@@ -541,7 +545,7 @@ fn pipeline_measure_w2_w3_128_clients() {
                 (times,start.elapsed().as_secs_f64())
             }));
         }
-        barrier.wait(); let mut times=Vec::new(); let mut seconds=0.0f64;
+        barrier.wait(); clock.set(Instant::now()).unwrap(); let mut times=Vec::new(); let mut seconds=0.0f64;
         for client in clients {let (t,s)=client.join().unwrap();times.extend(t);seconds=seconds.max(s);}
         times.sort_unstable();
         println!("PIPELINE_MEASUREMENT {}",json!({"op":name,"depth":std::env::var("SNAPBACK4_POSTGRES_PIPELINE_DEPTH").unwrap_or("4".into()),"clients":128,"max_connections":30,"reads":times.len(),"seconds":seconds,"reads_per_second":times.len() as f64/seconds,"p50_ms":times[times.len()/2] as f64/1e6,"p99_ms":times[times.len()*99/100] as f64/1e6}));

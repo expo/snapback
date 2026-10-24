@@ -104884,3 +104884,14 @@ reader factory, terminates it, then gets the unchanged complete W3 result
 from a future request and a new factory loan. A second termination followed
 by a changed store id refuses twice with `E_GENERATION`; restoring the
 expected binding allows a freshly validated request. The witness passes.
+
+## 2026-10-24 — PIPE HTTP measurement harness
+
+Added a manual 128-client TCP HTTP load over the existing RT0 W2/W3 fixture,
+including 25 messages/newest 20 and 32 scalar room totals. The core oracle
+separately uses real maintained totals. Each HTTP request opens and closes
+its connection; latency includes response parsing. Report successful reads
+and admission 503s separately, and reject other errors. Both measurement
+harnesses use one common five-second clock after warm-up. HTTP remains at
+30 active workers and 98 queued requests; these tests do not claim a raised
+HTTP concurrency bound or delayed-link S1 capacity.
