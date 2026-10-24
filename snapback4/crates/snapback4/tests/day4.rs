@@ -51,7 +51,10 @@ fn machine_summary_counts_only_business_cases_and_names_skipped_fallback_cases()
     );
 
     let empty = app.run(&["test", "--source", "versions/v1"]);
-    assert!(!empty.status.success(), "zero business cases require explicit fixture-only intent");
+    assert!(empty.status.success(), "clean generated campaigns with no authored cases pass: {empty:?}");
+    let stdout = String::from_utf8_lossy(&empty.stdout);
+    assert!(stdout.contains("no authored business cases")
+        && stdout.contains("SNAPBACK4_TEST_CASES {\"run\":0,\"skipped\":0}"), "{stdout}");
     let sweep_only = app.run(&["test", "--source", "versions/v1", "--fixture-only"]);
     assert!(sweep_only.status.success(), "{sweep_only:?}");
     let stdout = String::from_utf8_lossy(&sweep_only.stdout);

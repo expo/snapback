@@ -39,3 +39,13 @@ const PASSWORD:&str="use identity password\ntable notes:\n  owner: principal\n  
  assert!(text.contains("invariant notes.read only allow")&&text.contains("authored specification change"),"{text}");
  app.write("snapback/schema.q",&source.replace("invariant notes.read only .owner = viewer","invariant notes.read only allow"));app.ok(&["test"]);app.ok(&["deploy","deployment"]);
 }
+
+#[test]fn inherited_read_intent_repair_is_authorable_and_preserves_parent_custody(){
+ let source="use personas alice,bob\ntable boxes:\n  owner: principal\n  immutable owner\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  online only\ntable notes:\n  box: boxes\n  body: text <=80\n  immutable box\n  read through .box\n  insert <- allow\n  online only\nquery note(id: notes):\n  return notes[id]\ninvariant notes.read only deny\n";
+ let app=App::new(source);app.write("fixtures/boxes.jsonl","{\"id\":\"box-a\",\"owner\":\"dev:alice\"}\n");app.write("fixtures/notes.jsonl","{\"id\":\"note-a\",\"box\":\"box-a\",\"body\":\"private\"}\n");
+ let refused=app.run(&["deploy","deployment"]);assert_eq!(refused.status.code(),Some(1),"{refused:?}");let text=format!("{}{}",String::from_utf8_lossy(&refused.stdout),String::from_utf8_lossy(&refused.stderr));
+ assert!(!text.contains("$readThrough")&&!text.contains(".$box"),"{text}");
+ assert!(text.contains("preserve `read through .box`")&&text.contains("parent lifetime/authority"),"{text}");
+ let replacement="invariant notes.read only (.box.owner = viewer)";assert!(text.contains(replacement),"{text}");
+ app.write("snapback/schema.q",&source.replace("invariant notes.read only deny",replacement));app.ok(&["test"]);app.ok(&["deploy","deployment"]);
+}

@@ -104750,3 +104750,11 @@ structural runtime audiences, positive evidence and ordinary read disclosures
 retain negative controls. The analyzer is sec9-2. The intermediate 600-project
 copy survey has 35 gated projects, 39 fresh refusals and 49 post-test refusals;
 wave 26 is 0/0/0. Full final execution and per-refusal audit remain pending.
+
+The expanded survey also exercises the proposed repair lines. Inherited read
+audiences now use authorable captured-parent paths in deliberate intent changes;
+the diagnostic preserves `read through` and its lifetime/authority instead of
+suggesting the parser's internal call or dropping parent custody. A copied
+fixture executes the printed assertion through test and production deploy.
+The older DAY4 empty-case expectation now matches the clean-campaign behavior
+and still checks honest zero-case accounting. Both affected CLI targets pass.

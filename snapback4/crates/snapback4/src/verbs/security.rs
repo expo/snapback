@@ -132,8 +132,14 @@ pub(super) fn release_loop(project:&Project,bound:&Bound,sources:&[(String,Strin
                 let doc=snapback4_lang::parser::parse_document(file,text).0;
                 if let Some(table)=doc.tables.iter().find(|t|t.name==v.invariant.table) {
                     if let Some(rule)=table.rules.iter().find(|r|r.effect==snapback4_lang::ast::Effect::Read) {
-                        notice.push_str(&format!("  SOURCE {}: retain the current audience and enforce this declared intent with `read <- ({}) and ({})`; rerun snapback4 test\n",v.invariant.table,snapback4_lang::print::expression(&rule.value),v.invariant.predicate));
-                        notice.push_str(&format!("  INTENT {}: if every reader admitted by the current read rule is deliberately allowed, replace this assertion with `invariant {}.read only {}`; then run snapback4 test and deploy again. This is an authored specification change, not --ack-security\n",v.invariant.site,v.invariant.table,snapback4_lang::print::expression(&rule.value)));
+                        let expanded=bound.refusal_sites.get(&(v.invariant.table.clone(),"$read-rule".into()));
+                        if expanded.is_some() {
+                            notice.push_str(&format!("  SOURCE {}: preserve `{}` and its parent lifetime/authority; if this audience is unintended, repair the parent read rule before rerunning snapback4 test\n",v.invariant.table,snapback4_lang::bind::spell_internals(&snapback4_lang::print::expression(&rule.value))));
+                        }else {
+                            notice.push_str(&format!("  SOURCE {}: retain the current audience and enforce this declared intent with `read <- ({}) and ({})`; rerun snapback4 test\n",v.invariant.table,snapback4_lang::print::expression(&rule.value),v.invariant.predicate));
+                        }
+                        let predicate=expanded.cloned().unwrap_or_else(||snapback4_lang::print::expression(&rule.value));
+                        notice.push_str(&format!("  INTENT {}: if every reader admitted by the current read rule is deliberately allowed, replace this assertion with `invariant {}.read only {predicate}`; then run snapback4 test and deploy again. This is an authored specification change, not --ack-security\n",v.invariant.site,v.invariant.table));
                     }
                 }
             }

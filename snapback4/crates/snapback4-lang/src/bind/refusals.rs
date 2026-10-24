@@ -23,6 +23,13 @@ fn authored_clause(catalog: &Catalog, site: &crate::Site, value: &ast::Expr) -> 
 pub(super) fn sites(catalog: &Catalog) -> BTreeMap<(String, String), String> {
     let mut out = BTreeMap::new();
     for (name, info) in &catalog.tables {
+        // Host-only repair text needs the inherited rule after capture expansion,
+        // spelled as authorable paths rather than the parser's $readThrough call.
+        if info.through.is_some()
+            && let Some(rule) = info.decl.rules.iter().find(|r| r.effect == ast::Effect::Read) {
+            out.insert((name.clone(), "$read-rule".into()),
+                super::spell_internals(&crate::print::expression(&rule.value)));
+        }
         out.insert((name.clone(), "table".into()), info.decl.site.to_string());
         for rule in &info.decl.rules {
             out.insert((name.clone(), format!("{} rule", rule.effect.word())), rule.site.to_string());
