@@ -109,11 +109,30 @@ fn add_syntax(out:&mut Vec<Invariant>,table:&str,column:Option<&str>,target:&str
     if out.iter().any(|i|i.site==site){return;}
     out.push(Invariant{table:table.into(),column:column.map(str::to_owned),target:target.into(),predicate,policy:None,site,operation,requirements:Vec::new(),syntax:Some(policy),unsupported:Some("derived workflow predicate requires concrete executed-boundary replay; no rule-fragment proof".into())});
 }
+fn resource_local(e:&Expr)->bool{let mut e=e.clone();let mut found=false;walk(&mut e,&mut |e|if matches!(e,Expr::Focal{..}){found=true;});found}
+fn global_ledger(p:&ast::ProgramDecl,write:&Expr,writes:&[(&ast::ProgramDecl,Expr,ast::ProgramDecl)],bound:&Bound)->bool{
+    let Expr::Write{op:WriteOp::Insert|WriteOp::Upsert,table,fields,..}=write else{return false;};
+    let references=bound.schema.tables[table].columns.iter().filter_map(|(column,kind)|if let C::Ref{table}=kind.required(){Some((column,table))}else{None}).collect::<Vec<_>>();
+    let [(column,parent)]=references.as_slice()else{return false;};let Some(value)=fields.iter().find(|field|field.name==**column).and_then(|field|field.value.as_ref())else{return false;};
+    let mut value_probe=value.clone();let mut created=false;walk(&mut value_probe,&mut |e|if matches!(e,Expr::Write{op:WriteOp::Insert,table,..} if table==*parent){created=true;});if created{return true;}
+    writes.iter().any(|(producer,effect,_)|std::ptr::eq(*producer,p)&&unconditional_write(producer,effect.site())&&matches!(effect,Expr::Write{table,fields,..} if table==*parent&&state_field(bound,parent,fields).is_some_and(|field|matches!(&field.value,Some(Expr::Literal{..}))))&&target_arg(producer,effect,parent).is_some_and(|arg|normalize(value,&bound.schema,parent,&BTreeMap::from([(arg.name.clone(),member(focal(),"id"))])).is_some_and(|e|matches!(e,Expr::Member{base,name,..} if name=="id"&&matches!(base.as_ref(),Expr::Focal{..})))))
+}
 pub(super) fn invariants(docs:&[ast::Document],catalog:&Catalog,bound:&Bound,out:&mut Vec<Invariant>){
     let writes=docs.iter().flat_map(|d|&d.programs).filter(|p|p.kind==ast::ProgramKind::Mutation).flat_map(|p|authority_walk::writes(catalog,p).into_iter().map(move |(w,c)|(p,w,c))).collect::<Vec<_>>();
     for (p,write,context) in &writes{
         let Expr::Write{op,table,fields,keys,site,..}=write else{continue;};
         if !matches!(op,WriteOp::Insert|WriteOp::Update|WriteOp::Upsert)||!bound.schema.tables.contains_key(table){continue;}
+        // Fully resolved caller/global approval records do not need a typed
+        // resource argument. They govern this exact effect, not every child
+        // later linked to a resource another actor created.
+        for condition in guards(context).filter(|c|contains_approval(c)){
+            let Some(mut contract)=normalize(condition,&bound.schema,table,&BTreeMap::new())else{continue;};if resource_local(&contract){continue;}
+            let (column,target)=if *op==WriteOp::Update{
+                let Some(field)=state_field(bound,table,fields)else{continue;};let Some(Expr::Literal{..})=&field.value else{continue;};
+                contract=binary("or",binary("!=",member(focal(),&field.name),field.value.clone().unwrap()),contract);(Some(field.name.as_str()),"update")
+            }else{if global_ledger(p,write,&writes,bound){continue;}(None,"insert")};
+            add_syntax(out,table,column,target,contract,site,"sibling-approval",None);
+        }
         for arg in &p.args {let TypeKind::Ref{table:root}=&arg.type_.kind else{continue;};
             let args=BTreeMap::from([(arg.name.clone(),member(focal(),"id"))]);
             if matches!(op,WriteOp::Insert|WriteOp::Upsert)&&root==table {
@@ -129,8 +148,8 @@ pub(super) fn invariants(docs:&[ast::Document],catalog:&Catalog,bound:&Bound,out
             }
             for condition in guards(context).filter(|c|contains_approval(c)) {
                 let Some(contract)=normalize(condition,&bound.schema,root,&args)else{continue;};
-                // Ignore an approval mentioned solely on a different resource.
-                if !crate::print::expression(&contract).contains('.') {continue;}
+                // Global/caller approval contracts are emitted once above.
+                if !resource_local(&contract){continue;}
                 if matches!(op,WriteOp::Insert|WriteOp::Upsert)&&root==table{
                     // A guarded retry copied a stable identity from the prior
                     // row. A fresh sibling insert must not reset that history.

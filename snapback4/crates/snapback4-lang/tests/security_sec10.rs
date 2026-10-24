@@ -259,6 +259,22 @@ fn campaign(s:&str)->Campaign{let b=security::derived::augmented(&sources(s),&bo
 #[test]fn a_conditional_stage_write_cannot_hide_an_insert_contract(){
     let source="table docs:\n  approved: bool default false\n  status: enum('draft','done') default 'draft'\n  read <- allow\n  update <- allow\n  online only\ntable effects:\n  doc: docs\n  read <- allow\n  insert <- allow\n  online only\nmutation finish(doc: docs,changeStage: bool):\n  d = docs[doc] ! else MISSING\n  require d.approved else NO_APPROVAL\n  if changeStage:\n    update docs[doc] {status:'done'}\n  return insert effects {doc}\n";
     assert!(security::derived::invariants(&sources(source),&bound(source)).iter().any(|i|i.table=="effects"&&i.site.file.contains("sibling-approval")));
-    let in_loop=source.replace("if changeStage:","for x in docs:");
+    let in_loop=source.replace("if changeStage:","for x in docs:").replacen("  online only\n","  cap 10\n  online only\n",1);
     assert!(security::derived::invariants(&sources(&in_loop),&bound(&in_loop)).iter().any(|i|i.table=="effects"&&i.site.file.contains("sibling-approval")));
+}
+
+#[test]fn filtered_and_named_key_approval_guards_are_enforcement(){
+    let source="table approvals:\n  subject: principal\n  unique subject\n  approved: bool default false\n  read <- allow\n  update <- allow\n  online only\ntable effects:\n  approval: approvals\n  read <- allow\n  insert <- allow\n  online only\nmutation approve(approval: approvals):\n  update approvals[approval] {approved:true}\nmutation work(approval: approvals):\n  require exists approvals[subject = viewer] where .approved else NO_APPROVAL\n  return insert effects {approval}\n";
+    assert!(!notes(source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+    let keyed=source.replace("approvals[subject = viewer] where .approved","approvals[subject = viewer, approved = true]");
+    assert!(!notes(&keyed).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+    let nested=source.replace("approvals[subject = viewer] where .approved","effects where (exists approvals[subject = viewer] where .approved)");
+    assert!(!notes(&nested).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+    let unrelated=source.replace("table effects:\n  approval: approvals", "table effects:\n  approved: bool default false\n  approval: approvals").replace("exists approvals[subject = viewer] where .approved", "exists effects where .approved");
+    assert!(notes(&unrelated).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+}
+
+#[test]fn caller_approval_contracts_do_not_need_a_resource_argument(){
+    let source="table approvals:\n  principal: principal\n  unique principal\n  approved: bool default false\n  read <- allow\n  online only\ntable effects:\n  owner: principal\n  read <- allow\n  insert <- allow\n  online only\nmutation guarded():\n  require exists approvals[principal = viewer, approved = true] else NO_APPROVAL\n  return insert effects {owner:viewer}\nmutation bypass():\n  return insert effects {owner:viewer}\n";
+    let cs=security::derived::invariants(&sources(source),&bound(source));assert!(cs.iter().any(|i|i.table=="effects"&&i.site.file.contains("sibling-approval")),"{cs:?}");
 }

@@ -57,13 +57,21 @@ fn decision_effect(t:&snapback4_core::schema::Table,column:&str,f:&ast::ObjectFi
     }
 }
 fn program_inspects(p:&ast::ProgramDecl,bound:&Bound,table:&str,column:&str)->bool{
+    const POPULATION:&str="$advice:population:";
     fn row_table(e:&Expr,locals:&BTreeMap<String,String>,bound:&Bound)->Option<String>{match e{
-        Expr::Name{name,..}=>locals.get(name).cloned(),Expr::Read(read)=>Some(read.table.clone()),Expr::Assert{value,..}=>row_table(value,locals,bound),
+        Expr::Name{name,..}=>locals.get(name).cloned().or_else(||name.strip_prefix(POPULATION).filter(|table|bound.schema.tables.contains_key(*table)).map(str::to_owned)),Expr::Read(read)=>Some(read.table.clone()),Expr::Assert{value,..}=>row_table(value,locals,bound),
         Expr::Member{base,name,..}=>{let owner=row_table(base,locals,bound)?;match bound.schema.tables.get(&owner)?.columns.get(name)?.required(){ColumnType::Ref{table}=>Some(table.clone()),_=>None}},_=>None,
     }}
     fn statements(body:&[Stmt],locals:&mut BTreeMap<String,String>,bound:&Bound,table:&str,column:&str)->bool{
         for statement in body{match statement{
-            Stmt::Require{condition,..}=>{let mut found=false;walk(condition,|e|if let Expr::Member{base,name,..}=e&&name==column&&row_table(base,locals,bound).as_deref()==Some(table){found=true;});if found{return true;}},
+            Stmt::Require{condition,..}=>{let mut found=false;let mut condition=condition.clone();
+                // Postorder marking protects nested population binders: an
+                // inner filter's focal is already marked before the outer one.
+                super::super::super::intent_walk::expression(&mut condition,&mut |e|if let Expr::Read(read)|Expr::Exists{read,..}|Expr::Created{read,..}=e{
+                    found|=read.table==table&&read.keys.iter().any(|key|key.column.as_deref()==Some(column));
+                    if let Some(filter)=&mut read.filter{let owner=format!("{POPULATION}{}",read.table);super::super::super::intent_walk::expression(filter,&mut |e|if let Expr::Focal{site}=e{*e=Expr::Name{name:owner.clone(),site:site.clone()};});}
+                });
+                walk(&condition,|e|if let Expr::Member{base,name,..}=e&&name==column&&row_table(base,locals,bound).as_deref()==Some(table){found=true;});if found{return true;}},
             Stmt::Bind{names,value,..} if names.len()==1=>{if let Some(table)=row_table(value,locals,bound){locals.insert(names[0].clone(),table);}else{locals.remove(&names[0]);}},
             Stmt::For{domain,name,body,..}=>{let mut inner=locals.clone();if let Some(table)=row_table(domain,locals,bound){inner.insert(name.clone(),table);}else{inner.remove(name);}if statements(body,&mut inner,bound,table,column){return true;}},
             Stmt::If{then_body,else_body,..}=>{if statements(then_body,&mut locals.clone(),bound,table,column)||statements(else_body,&mut locals.clone(),bound,table,column){return true;}},

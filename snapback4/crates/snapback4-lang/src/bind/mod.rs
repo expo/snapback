@@ -82,6 +82,7 @@ use snapback4_core::schema::Schema;
 pub struct Bound {
     pub rollback_hides:Vec<crate::ast::RollbackHide>,
     pub invariants: Vec<security::Invariant>,
+    // @ref LLP 3000.036.004.000#10-sec10-approvals-and-deterministic-exploration — existing freeze authority cannot erase approval input identities.
     /// Private analysis dependencies, independent of emitted freeze candidates.
     /// Never serialized into the store, IR, client backend or protocol.
     pub(crate) security_approval_inputs: std::collections::BTreeMap<(String,String),std::collections::BTreeSet<String>>,
