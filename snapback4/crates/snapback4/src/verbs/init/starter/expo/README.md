@@ -5,11 +5,9 @@ one live query and three mutations. Development and production builds open the
 native device and work offline; Expo Go uses the online client; web uses the
 wasm device.
 
-> **`npm install` takes a few minutes and reports about 15 high-severity
-> advisories. They are expected; do not run `npm audit fix --force`** (it
-> "fixes" them by downgrading Expo to SDK 44). All come from two packages in
-> Expo's development toolchain with no patched release; neither is in the app
-> bundle. Details under [Audit findings](#audit-findings).
+> **`npm install` takes a few minutes. `npm audit` still reports an unpatched high
+> advisory in Expo's `node-forge` code-signing dependency; qualification records
+> a failed audit. do not run `npm audit fix --force`, which downgrades Expo to SDK 44.**
 
 ```sh
 npm install
@@ -51,15 +49,10 @@ fail Hermes compilation.
 
 `package.json`'s `overrides` moves the config plugins' `xcode` from the
 deprecated `uuid@7` to `uuid@11` (GHSA-w5hq-g745-h8pq). `npm audit` still
-reports about 15 high findings from two advisories in Expo's development
-toolchain, with no patched release of either package in any version:
-`braces` (GHSA-vfj7-8cjw-p6xm, a stack-exhaustion denial of service on deeply
-nested glob patterns; Metro's file watcher through `micromatch`) and
-`node-forge` (GHSA-86w9-cpqp-85rv, RSA signature verification; the Expo CLI's
-code-signing for updates). Neither is part of the app bundle, and the starter
-passes neither untrusted patterns nor signatures to them. Do not run
-`npm audit fix --force`: it "fixes" them by downgrading Expo to SDK 44.
-`npx expo install --fix` takes Expo 57 patch releases as they ship.
+reports an unpatched high advisory in `node-forge`
+(GHSA-86w9-cpqp-85rv, the Expo CLI's code-signing dependency).
+Qualification includes development dependencies and records the audit as failed.
+Patched zod and decode-uri-component versions are pinned through overrides.
 
 ## Native proof
 

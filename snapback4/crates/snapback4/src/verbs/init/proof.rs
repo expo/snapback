@@ -50,12 +50,16 @@ pub(super) fn files(files: &mut Vec<(&'static str, String)>, options: &Options, 
             files.push((path, text));
         }
     }
-    if has_frontend { files.push(("scripts/frontend-proof.mjs", proof)); }
+    if has_frontend {
+        if shape.password { files.extend(super::password_proof::files(&sources,proof)); }
+        else {files.push(("scripts/frontend-proof.mjs",proof));}
+    }
     if day2 { files.push(("scripts/day2-proof.mjs", include_str!("day2-proof.mjs").to_owned())); }
     files.push(("scripts/launch.mjs", include_str!("launch.mjs").replace("BACKEND", &backend.to_string()).replace("FRONTEND", &frontend.to_string())));
     for (name, text) in files.iter_mut().filter(|(name, _)| *name == "package.json") {
         let mut package: Value = serde_json::from_str(text).unwrap();
         if has_frontend { package["scripts"]["frontend:proof"] = json!("node scripts/frontend-proof.mjs"); }
+        if shape.password {package["scripts"]["probe:serve"]=json!("node scripts/probe-serve.mjs");}
         if day2 { package["scripts"]["day2:proof"] = json!("node scripts/day2-proof.mjs versions/v1 versions/v2"); }
         if (package["snapback4"].is_null() || package["snapback4"].is_object()) && (package["snapback4"]["starter"].is_null() || package["snapback4"]["starter"].is_object()) {
             package["snapback4"]["starter"]["day2"] = json!(day2);
@@ -215,7 +219,8 @@ pub(super) fn plan(dir: &std::path::Path, own: &super::OwnSchema, enable_day2: b
             if *name == "scripts/frontend-proof.mjs" { return inherited_frontend.is_some() || !dir.join(name).exists() && referenced_after(name); }
             if *name == "scripts/day2-proof.mjs" { return day2 && (managed_day2 || !dir.join(name).exists() && (enable_day2 || referenced_day2)); }
             if !dir.join(name).exists() {
-                return name.starts_with("versions/") || referenced_after(name);
+                return name.starts_with("versions/") || referenced_after(name)
+                    || shape.password && *name=="scripts/staging.mjs";
             }
             false
         }).collect();

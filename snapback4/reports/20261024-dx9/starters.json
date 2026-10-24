@@ -1,0 +1,572 @@
+{
+  "results": [
+    {
+      "starter": "web",
+      "steps": [
+        {
+          "name": "install-cli",
+          "status": "passed"
+        },
+        {
+          "name": "init",
+          "status": "passed"
+        },
+        {
+          "name": "install",
+          "status": "passed"
+        },
+        {
+          "name": "check",
+          "status": "passed"
+        },
+        {
+          "name": "typecheck",
+          "status": "passed"
+        },
+        {
+          "name": "build",
+          "status": "passed"
+        },
+        {
+          "name": "frontend-proof",
+          "status": "passed"
+        },
+        {
+          "name": "npm-audit",
+          "status": "passed",
+          "exit": 0,
+          "vulnerabilities": {
+            "info": 0,
+            "low": 0,
+            "moderate": 0,
+            "high": 0,
+            "critical": 0,
+            "total": 0
+          },
+          "advisories": []
+        }
+      ],
+      "mac": "skipped by DX9 brief"
+    },
+    {
+      "starter": "web-online",
+      "steps": [
+        {
+          "name": "install-cli",
+          "status": "passed"
+        },
+        {
+          "name": "init",
+          "status": "passed"
+        },
+        {
+          "name": "install",
+          "status": "passed"
+        },
+        {
+          "name": "check",
+          "status": "passed"
+        },
+        {
+          "name": "typecheck",
+          "status": "passed"
+        },
+        {
+          "name": "build",
+          "status": "passed"
+        },
+        {
+          "name": "frontend-proof",
+          "status": "passed"
+        },
+        {
+          "name": "npm-audit",
+          "status": "passed",
+          "exit": 0,
+          "vulnerabilities": {
+            "info": 0,
+            "low": 0,
+            "moderate": 0,
+            "high": 0,
+            "critical": 0,
+            "total": 0
+          },
+          "advisories": []
+        }
+      ],
+      "mac": "skipped by DX9 brief"
+    },
+    {
+      "starter": "expo",
+      "steps": [
+        {
+          "name": "install-cli",
+          "status": "passed"
+        },
+        {
+          "name": "init",
+          "status": "passed"
+        },
+        {
+          "name": "install",
+          "status": "passed"
+        },
+        {
+          "name": "check",
+          "status": "passed"
+        },
+        {
+          "name": "typecheck",
+          "status": "passed"
+        },
+        {
+          "name": "build",
+          "status": "passed"
+        },
+        {
+          "name": "frontend-proof",
+          "status": "passed"
+        },
+        {
+          "name": "npm-audit",
+          "status": "failed",
+          "exit": 1,
+          "vulnerabilities": {
+            "info": 0,
+            "low": 0,
+            "moderate": 0,
+            "high": 5,
+            "critical": 0,
+            "total": 5
+          },
+          "advisories": [
+            {
+              "name": "@expo/cli",
+              "range": "<=0.0.0-canary-20231123-1b19f96-4 || >=0.0.1-canary-20231125-d600e44",
+              "fixAvailable": false,
+              "via": []
+            },
+            {
+              "name": "@expo/code-signing-certificates",
+              "range": "*",
+              "fixAvailable": true,
+              "via": []
+            },
+            {
+              "name": "expo",
+              "range": ">=45.0.0-beta.1",
+              "fixAvailable": false,
+              "via": []
+            },
+            {
+              "name": "node-forge",
+              "range": "*",
+              "fixAvailable": false,
+              "via": [
+                {
+                  "title": "node-forge RSA PKCS#1 v1.5 signature verification accepts extra nested DigestAlgorithm elements",
+                  "url": "https://github.com/advisories/GHSA-86w9-cpqp-85rv",
+                  "range": "<=1.4.0"
+                }
+              ]
+            },
+            {
+              "name": "snapback4-expo",
+              "range": ">=0.4.30",
+              "fixAvailable": false,
+              "via": []
+            }
+          ]
+        }
+      ],
+      "mac": "skipped by DX9 brief"
+    },
+    {
+      "starter": "web-chat",
+      "steps": [
+        {
+          "name": "install-cli",
+          "status": "passed"
+        },
+        {
+          "name": "init",
+          "status": "passed"
+        },
+        {
+          "name": "install",
+          "status": "passed"
+        },
+        {
+          "name": "check",
+          "status": "passed"
+        },
+        {
+          "name": "typecheck",
+          "status": "passed"
+        },
+        {
+          "name": "build",
+          "status": "passed"
+        },
+        {
+          "name": "npm-audit",
+          "status": "passed",
+          "exit": 0,
+          "vulnerabilities": {
+            "info": 0,
+            "low": 0,
+            "moderate": 0,
+            "high": 0,
+            "critical": 0,
+            "total": 0
+          },
+          "advisories": []
+        }
+      ],
+      "mac": "skipped by DX9 brief"
+    },
+    {
+      "starter": "expo-chat",
+      "steps": [
+        {
+          "name": "install-cli",
+          "status": "passed"
+        },
+        {
+          "name": "init",
+          "status": "passed"
+        },
+        {
+          "name": "install",
+          "status": "passed"
+        },
+        {
+          "name": "check",
+          "status": "passed"
+        },
+        {
+          "name": "typecheck",
+          "status": "passed"
+        },
+        {
+          "name": "build",
+          "status": "passed"
+        },
+        {
+          "name": "npm-audit",
+          "status": "failed",
+          "exit": 1,
+          "vulnerabilities": {
+            "info": 0,
+            "low": 0,
+            "moderate": 0,
+            "high": 5,
+            "critical": 0,
+            "total": 5
+          },
+          "advisories": [
+            {
+              "name": "@expo/cli",
+              "range": "<=0.0.0-canary-20231123-1b19f96-4 || >=0.0.1-canary-20231125-d600e44",
+              "fixAvailable": false,
+              "via": []
+            },
+            {
+              "name": "@expo/code-signing-certificates",
+              "range": "*",
+              "fixAvailable": true,
+              "via": []
+            },
+            {
+              "name": "expo",
+              "range": ">=45.0.0-beta.1",
+              "fixAvailable": false,
+              "via": []
+            },
+            {
+              "name": "node-forge",
+              "range": "*",
+              "fixAvailable": false,
+              "via": [
+                {
+                  "title": "node-forge RSA PKCS#1 v1.5 signature verification accepts extra nested DigestAlgorithm elements",
+                  "url": "https://github.com/advisories/GHSA-86w9-cpqp-85rv",
+                  "range": "<=1.4.0"
+                }
+              ]
+            },
+            {
+              "name": "snapback4-expo",
+              "range": ">=0.4.30",
+              "fixAvailable": false,
+              "via": []
+            }
+          ]
+        }
+      ],
+      "mac": "skipped by DX9 brief"
+    },
+    {
+      "starter": "expo-social",
+      "steps": [
+        {
+          "name": "install-cli",
+          "status": "passed"
+        },
+        {
+          "name": "init",
+          "status": "passed"
+        },
+        {
+          "name": "install",
+          "status": "passed"
+        },
+        {
+          "name": "check",
+          "status": "passed"
+        },
+        {
+          "name": "typecheck",
+          "status": "passed"
+        },
+        {
+          "name": "build",
+          "status": "passed"
+        },
+        {
+          "name": "npm-audit",
+          "status": "failed",
+          "exit": 1,
+          "vulnerabilities": {
+            "info": 0,
+            "low": 0,
+            "moderate": 0,
+            "high": 5,
+            "critical": 0,
+            "total": 5
+          },
+          "advisories": [
+            {
+              "name": "@expo/cli",
+              "range": "<=0.0.0-canary-20231123-1b19f96-4 || >=0.0.1-canary-20231125-d600e44",
+              "fixAvailable": false,
+              "via": []
+            },
+            {
+              "name": "@expo/code-signing-certificates",
+              "range": "*",
+              "fixAvailable": true,
+              "via": []
+            },
+            {
+              "name": "expo",
+              "range": ">=45.0.0-beta.1",
+              "fixAvailable": false,
+              "via": []
+            },
+            {
+              "name": "node-forge",
+              "range": "*",
+              "fixAvailable": false,
+              "via": [
+                {
+                  "title": "node-forge RSA PKCS#1 v1.5 signature verification accepts extra nested DigestAlgorithm elements",
+                  "url": "https://github.com/advisories/GHSA-86w9-cpqp-85rv",
+                  "range": "<=1.4.0"
+                }
+              ]
+            },
+            {
+              "name": "snapback4-expo",
+              "range": ">=0.4.30",
+              "fixAvailable": false,
+              "via": []
+            }
+          ]
+        }
+      ],
+      "mac": "skipped by DX9 brief"
+    },
+    {
+      "starter": "web-password",
+      "steps": [
+        {
+          "name": "install-cli",
+          "status": "passed"
+        },
+        {
+          "name": "init",
+          "status": "passed"
+        },
+        {
+          "name": "install",
+          "status": "passed"
+        },
+        {
+          "name": "check",
+          "status": "passed"
+        },
+        {
+          "name": "typecheck",
+          "status": "passed"
+        },
+        {
+          "name": "build",
+          "status": "passed"
+        },
+        {
+          "name": "frontend-proof",
+          "status": "passed"
+        },
+        {
+          "name": "npm-audit",
+          "status": "passed",
+          "exit": 0,
+          "vulnerabilities": {
+            "info": 0,
+            "low": 0,
+            "moderate": 0,
+            "high": 0,
+            "critical": 0,
+            "total": 0
+          },
+          "advisories": []
+        }
+      ],
+      "mac": "skipped by DX9 brief"
+    },
+    {
+      "starter": "web-online-password",
+      "steps": [
+        {
+          "name": "install-cli",
+          "status": "passed"
+        },
+        {
+          "name": "init",
+          "status": "passed"
+        },
+        {
+          "name": "install",
+          "status": "passed"
+        },
+        {
+          "name": "check",
+          "status": "passed"
+        },
+        {
+          "name": "typecheck",
+          "status": "passed"
+        },
+        {
+          "name": "build",
+          "status": "passed"
+        },
+        {
+          "name": "frontend-proof",
+          "status": "passed"
+        },
+        {
+          "name": "npm-audit",
+          "status": "passed",
+          "exit": 0,
+          "vulnerabilities": {
+            "info": 0,
+            "low": 0,
+            "moderate": 0,
+            "high": 0,
+            "critical": 0,
+            "total": 0
+          },
+          "advisories": []
+        }
+      ],
+      "mac": "skipped by DX9 brief"
+    },
+    {
+      "starter": "expo-password",
+      "steps": [
+        {
+          "name": "install-cli",
+          "status": "passed"
+        },
+        {
+          "name": "init",
+          "status": "passed"
+        },
+        {
+          "name": "install",
+          "status": "passed"
+        },
+        {
+          "name": "check",
+          "status": "passed"
+        },
+        {
+          "name": "typecheck",
+          "status": "passed"
+        },
+        {
+          "name": "build",
+          "status": "passed"
+        },
+        {
+          "name": "frontend-proof",
+          "status": "passed"
+        },
+        {
+          "name": "npm-audit",
+          "status": "failed",
+          "exit": 1,
+          "vulnerabilities": {
+            "info": 0,
+            "low": 0,
+            "moderate": 0,
+            "high": 5,
+            "critical": 0,
+            "total": 5
+          },
+          "advisories": [
+            {
+              "name": "@expo/cli",
+              "range": "<=0.0.0-canary-20231123-1b19f96-4 || >=0.0.1-canary-20231125-d600e44",
+              "fixAvailable": false,
+              "via": []
+            },
+            {
+              "name": "@expo/code-signing-certificates",
+              "range": "*",
+              "fixAvailable": true,
+              "via": []
+            },
+            {
+              "name": "expo",
+              "range": ">=45.0.0-beta.1",
+              "fixAvailable": false,
+              "via": []
+            },
+            {
+              "name": "node-forge",
+              "range": "*",
+              "fixAvailable": false,
+              "via": [
+                {
+                  "title": "node-forge RSA PKCS#1 v1.5 signature verification accepts extra nested DigestAlgorithm elements",
+                  "url": "https://github.com/advisories/GHSA-86w9-cpqp-85rv",
+                  "range": "<=1.4.0"
+                }
+              ]
+            },
+            {
+              "name": "snapback4-expo",
+              "range": ">=0.4.30",
+              "fixAvailable": false,
+              "via": []
+            }
+          ]
+        }
+      ],
+      "mac": "skipped by DX9 brief"
+    }
+  ]
+}

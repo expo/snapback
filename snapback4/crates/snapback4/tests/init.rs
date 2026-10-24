@@ -1030,7 +1030,7 @@ fn expo_starters_override_the_config_plugins_uuid() {
         let dir = Dir::new();
         assert!(dir.init(flags).status.success(), "{flags:?}");
         let package: Value = serde_json::from_str(&fs::read_to_string(dir.0.join("package.json")).unwrap()).unwrap();
-        assert_eq!(package["overrides"], json!({ "xcode": { "uuid": "11.1.1" } }), "{flags:?}");
+        assert_eq!(package["overrides"], json!({ "xcode": { "uuid": "11.1.1" }, "zod": "4.6.7", "decode-uri-component": "0.5.1" }), "{flags:?}");
         let readme = fs::read_to_string(dir.0.join("README.md")).unwrap();
         assert!(readme.contains("overrides") && readme.contains("node-forge") && readme.contains("SDK 44"), "{flags:?}");
     }
@@ -1039,7 +1039,7 @@ fn expo_starters_override_the_config_plugins_uuid() {
     let dir = Dir::new();
     let output = dir.init(&["--expo"]);
     let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(stdout.contains("about 15 high advisories") && stdout.contains("do not run `npm audit fix --force`"), "{stdout}");
+    assert!(stdout.contains("unpatched high advisory") && stdout.contains("do not run `npm audit fix --force`"), "{stdout}");
     let readme = fs::read_to_string(dir.0.join("README.md")).unwrap();
     let notice = readme.find("do not run `npm audit fix --force`").expect("the README names the advisories");
     assert!(notice < readme.find("npm install\n").unwrap(), "{readme}");

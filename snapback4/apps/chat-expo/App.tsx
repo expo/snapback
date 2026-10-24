@@ -15,7 +15,7 @@ import { witness } from "snapback4-expo/witness";
 // session is kept in the secure store. `snapback4 dev` serves
 // apps/chat/snapback/schema.q; EXPO_PUBLIC_SNAPBACK_URL names it.
 
-export function App() {
+export default function App() {
   const [app, setApp] = useState<SnapbackApp | null>(null);
   const [client, setClient] = useState<Client | null>(null);
   const [witnessConversation, setWitnessConversation] = useState<string | undefined>(undefined);

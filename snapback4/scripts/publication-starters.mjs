@@ -217,6 +217,8 @@ export async function proveStarters(client, platform, expo, directory, browserPr
       assert.ok(existsSync(join(cwd, "dist/index.html")), `${kind} produced a web page`);
     };
     await build();
+    // DX9: dev tools ship to every builder, so audit includes dev dependencies.
+    await run("npm", ["audit", "--audit-level=low"], cwd);
     // @ref LLP 3000.036.004#169-day-two-precision-and-destructive-evidence-questions — intended optional attachments never require a stock disposition.
     if (template === "social") await run(process.execPath, ["--input-type=commonjs", "-e", `
       const fs=require('node:fs'),assert=require('node:assert/strict'),cp=require('node:child_process');
