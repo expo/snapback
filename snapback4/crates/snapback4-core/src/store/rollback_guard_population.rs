@@ -404,6 +404,10 @@ pub(super) fn validate(
         }
     }
     let hidden = &closure;
+    // A positive freeze witness has the opposite safety polarity to a grant:
+    // disappearing locks can enable a write, including a trusted system write.
+    if schema.tables.values().any(|t|t.frozen_columns.values().any(|r|json_taint(&serde_json::to_value(r).unwrap(),&BTreeSet::new(),hidden))) {return Err(refuse());}
+
     // Point-presence discharge is valid only when surviving payload cells do
     // not change visibility. No payload-policy implication is guessed here.
     if schema.tables.values().any(|t| {

@@ -23,6 +23,35 @@ fn asset(k: &ColumnType) -> bool {
         _ => false,
     }
 }
+// Closed audience inclusion: equality, deny, and Boolean conjunction/union.
+// This never infers a business relation between different atomic predicates.
+fn audience_subset(next:&crate::schema::RuleExpr,source:&crate::schema::RuleExpr)->bool{
+    use crate::schema::RuleExpr::*;
+    next==source || *next==Deny || *source==Allow || match (next,source) {
+        (Or(xs),_)=>xs.iter().all(|x|audience_subset(x,source)),
+        (_,And(xs))=>xs.iter().all(|x|audience_subset(next,x)),
+        (And(xs),_)=>xs.iter().any(|x|audience_subset(x,source)),
+        (_,Or(xs))=>xs.iter().any(|x|audience_subset(next,x)),
+        _=>false,
+    }
+}
+fn mapped_audience(parent:&Table,child:&Table,e:&Extraction,rule:&crate::schema::RuleExpr)->crate::schema::RuleExpr{
+    let mut transported=parent.clone();
+    let names=parent.columns.keys().map(|source|{
+        let copy=e.fields.iter().find(|(_,old)|*old==source).filter(|(dest,_)|!asset(&child.columns[*dest])&&child.constraints.iter().any(|c|matches!(c,crate::schema::Constraint::Immutable{fields}if fields.contains(*dest))));
+        (source.clone(),copy.map(|(dest,_)|dest.clone()).unwrap_or_else(||format!("$extraction-source:{source}")))
+    }).collect();
+    transported.column_reads=BTreeMap::from([("$gate".into(),rule.clone())]);
+    super::asset_renames::table(&mut transported,&names);
+    transported.column_reads.remove("$gate").unwrap()
+}
+fn probe_context(rule:&crate::schema::RuleExpr,sources:&BTreeMap<String,Table>,next:&Schema)->bool{
+    use crate::schema::RuleExpr::*;
+    match rule {
+        Exists{table,index,..}|Created{table,index,..}=>sources.get(table).zip(next.table(table)).is_some_and(|(old,new)|old.index(index)==new.index(index)&&old.rules.read==new.rules.read),
+        And(xs)|Or(xs)=>xs.iter().all(|r|probe_context(r,sources,next)),Not(r)=>probe_context(r,sources,next),_=>true,
+    }
+}
 fn fields(row: &mut Value) -> Result<&mut crate::value::ObjectFields, RuntimeError> {
     match row {
         Value::Row(f) | Value::Map(f) => Ok(f),
@@ -218,8 +247,8 @@ pub(super) fn transition(
                 })?;
                 if found.len() > 1 {
                     return Err(refuse(format!(
-                        "extraction {} parent {id}: several child rows compete for the old asset; declare a truthful bridge",
-                        e.child
+                        "extraction {} parent {id} via {}: several child rows compete for {}; run rollback --check --bridge <new-dir>, keep the child population visible, choose a truthful old representation with an authorized mutation, then preview exact rollback",
+                        e.child,e.reference,e.fields.keys().cloned().collect::<Vec<_>>().join(", ")
                     )));
                 }
                 let Some(child) = found.pop() else {
@@ -257,10 +286,9 @@ pub(super) fn transition(
                 if !parent.columns.contains_key(source) {
                     continue;
                 }
-                if parent.columns[source] != *kind {
-                    return Err(refuse("reverse extraction requires identical asset types"));
-                }
                 let v = image.field(destination)?.clone();
+                crate::engine::validate::validate_column(&e.parent,source,&parent.columns[source],Some(&v))
+                    .map_err(|error|refuse(format!("reverse extraction {}.{} → {}.{source}: {error}; keep a widened bridge, repair this child through an authorized mutation, then preview exact rollback",e.child,destination,e.parent)))?;
                 retain_cell(tx, &key, pt, id, source, &v)?;
                 transfer(
                     tx,
@@ -306,24 +334,16 @@ pub(super) fn transition(
             .as_ref()
             .is_some_and(|t| t.reference == e.reference && t.parent == e.parent);
         let source_read = &parent.rules.read;
+        if !probe_context(source_read,sources,next) {return Err(refuse(format!("extraction {} → {}: source read rule `{}` has changed probe/index meaning; retain its typed lookup context in a bridge",e.parent,e.child,source_read.quarry())));}
+
         if inherited {
-            if next.tables[&e.parent].rules.read != *source_read {
+            if !audience_subset(&next.tables[&e.parent].rules.read,source_read) {
                 return Err(refuse(
                     "asset extraction cannot broaden the inherited parent read policy; stage an explicit policy change separately",
                 ));
             }
         } else if child.rules.read != crate::schema::RuleExpr::Deny {
-            if child.rules.read != *source_read
-                || source_read.any_term(&|term| {
-                    matches!(
-                        term,
-                        crate::schema::RuleTerm::Field(_)
-                            | crate::schema::RuleTerm::OldField(_)
-                            | crate::schema::RuleTerm::NextField(_)
-                            | crate::schema::RuleTerm::Reference { .. }
-                            | crate::schema::RuleTerm::ReferenceChain { .. }
-                    )
-                })
+            if !audience_subset(&child.rules.read,&mapped_audience(parent,child,e,source_read))
             {
                 return Err(refuse(
                     "asset extraction requires read through its parent for row-dependent privacy; the destination cannot broaden the source audience",
@@ -331,11 +351,16 @@ pub(super) fn transition(
             }
         }
         for (dest, source) in &e.fields {
-            let parent_gate = parent.column_reads.get(source);
-            if parent_gate.is_some() && child.column_reads.get(dest) != parent_gate {
-                return Err(refuse(
-                    "asset extraction must preserve the source column's read policy",
-                ));
+            if let Some(parent_gate)=parent.column_reads.get(source) {
+                // Immutable mapped scalar copies are the same authoritative
+                // values, so a stricter child audience can name those copies.
+                if !probe_context(parent_gate,sources,next) {return Err(refuse(format!("extraction {}.{source} → {}.{dest}: source payload rule `{}` has changed probe/index meaning; retain its lookup context in a bridge",e.parent,e.child,parent_gate.quarry())));}
+                let transported=mapped_audience(parent,child,e,parent_gate);
+                let gate=&transported;
+                let covered=child.column_reads.get(dest).is_some_and(|g|audience_subset(g,gate))
+                    || (inherited&&audience_subset(&next.tables[&e.parent].rules.read,parent_gate))
+                    || (!inherited&&audience_subset(&child.rules.read,gate));
+                if !covered {return Err(refuse(format!("extraction {}.{source} → {}.{dest}: preserve source read rule `{}` on the child column or through its parent; an authored stricter audience is allowed",e.parent,e.child,parent_gate.quarry())));}
             }
         }
         let populated: bool =
@@ -355,14 +380,14 @@ pub(super) fn transition(
             let kind = parent.columns.get(source).ok_or_else(|| {
                 refuse(format!("extraction source {}.{source} is absent", e.parent))
             })?;
-            let same = if e.each && asset(&child.columns[dest]) {each::item_type(kind)==Some(&child.columns[dest])} else {kind == &child.columns[dest]};
+            let same = if e.each && asset(&child.columns[dest]) {each::item_type(kind)==Some(&child.columns[dest])} else {kind == &child.columns[dest] || matches!(&child.columns[dest],ColumnType::Optional(inner) if inner.as_ref()==kind)};
             if !same
                 || parent.engine_field(source)
                 || parent.maintained.contains_key(source)
                 || parent.written_by.contains_key(source)
             {
                 return Err(refuse(
-                    "extraction requires identical authoritative source and destination types",
+                    format!("extraction {}.{source} → {}.{dest} requires identical authoritative types or required → optional widening",e.parent,e.child),
                 ));
             }
             if asset(kind) && next.tables[&e.parent].columns.contains_key(source) {
@@ -406,7 +431,7 @@ pub(super) fn transition(
                     continue;
                 };
                 if asset(kind) {
-                    if image.field(destination).is_ok_and(|old| old != &v) {
+                    if image.field(destination).is_ok_and(|old| old != &v && !(saved.is_some() && old == &Value::Null)) {
                         return Err(refuse(
                             "extraction destination asset conflicts with its source",
                         ));

@@ -37,6 +37,7 @@ pub(super) fn bind(catalog: &Catalog, schema: &mut Schema, diagnostics: &mut Vec
     for d in catalog.documents.iter().flat_map(|d|&d.backfills) {bind_one(catalog,schema,diagnostics,d,false,&mut forward_names,&mut forward_outputs);}
     let mut down_names=BTreeSet::new();let mut down_outputs=BTreeSet::new();
     for d in catalog.documents.iter().flat_map(|d|&d.downfills) {bind_one(catalog,schema,diagnostics,d,true,&mut down_names,&mut down_outputs);}
+    bind_enum_aliases(catalog,schema,diagnostics,&mut forward_names,&mut forward_outputs,&mut down_names,&mut down_outputs);
     for table in catalog.documents.iter().flat_map(|d|&d.tables) {
         if let Some(old)=&table.renamed_from {
             if old==&table.name || catalog.tables.contains_key(old) || schema.table_renames.values().any(|v|v==old) {
@@ -64,6 +65,34 @@ pub(super) fn bind(catalog: &Catalog, schema: &mut Schema, diagnostics: &mut Vec
             };
             bind_one(catalog,schema,diagnostics,&declaration(old,&column.name,"up"),false,&mut forward_names,&mut forward_outputs);
             bind_one(catalog,schema,diagnostics,&declaration(&column.name,old,"down"),true,&mut down_names,&mut down_outputs);
+        }
+    }
+}
+
+// @ref LLP 3000.000.000#21-wave-27-release-semantics-rel — enum spelling aliases lower to ordinary reversible receipts.
+fn bind_enum_aliases(catalog:&Catalog,schema:&mut Schema,diagnostics:&mut Vec<Diagnostic>,forward_names:&mut BTreeSet<(String,String)>,forward_outputs:&mut BTreeSet<(String,String)>,down_names:&mut BTreeSet<(String,String)>,down_outputs:&mut BTreeSet<(String,String)>){
+    let mut groups:BTreeMap<(String,String),Vec<_>>=BTreeMap::new();
+    for (table,column,old,new,site) in catalog.documents.iter().flat_map(|d|&d.enum_aliases){groups.entry((table.clone(),column.clone())).or_default().push((old,new,site));}
+    for((table,column),aliases)in groups {
+        let site=aliases[0].2;
+        let decl=catalog.documents.iter().flat_map(|d|&d.tables).find(|t|t.name==table).and_then(|t|t.columns.iter().find(|c|c.name==column));
+        let Some(decl)=decl else {diagnostics.push(unknown(site,format!("enum alias column {table}.{column} is not declared"),"name a current enum column"));continue};
+        let ast::TypeKind::Enum{variants}= &decl.type_.kind else {diagnostics.push(type_error(site,"value aliases require an enum column","declare an enum column"));continue};
+        let mut origins=BTreeSet::new();let mut destinations=BTreeSet::new();
+        if aliases.iter().any(|(old,new,_)|old==new||variants.contains(old)||!variants.contains(new)||!origins.insert((*old).clone())||!destinations.insert((*new).clone())) {
+            diagnostics.push(type_error(site,format!("enum aliases on {table}.{column} must be injective predecessor-only spellings to distinct current variants"),"use explicit backfill/down for a merge or changed business meaning"));continue;
+        }
+        let mut old_type=decl.type_.clone();if let ast::TypeKind::Enum{variants}=&mut old_type.kind {for(old,new,_)in &aliases {variants.retain(|v|v!=*new);variants.push((*old).clone());}variants.sort();}
+        for down in [false,true] {
+            let mut value=ast::Expr::Name{name:column.clone(),site:site.clone()};
+            for(old,new,_)in aliases.iter().rev() {
+                let(from,to)=if down{(new,old)}else{(old,new)};
+                let string=|v:&String|ast::Expr::Literal{value:ast::Literal::Str(v.clone()),site:site.clone()};
+                value=ast::Expr::If{then:Box::new(string(to)),condition:Box::new(ast::Expr::Binary{op:"=".into(),left:Box::new(ast::Expr::Name{name:column.clone(),site:site.clone()}),right:Box::new(string(from)),site:site.clone()}),otherwise:Box::new(value),site:site.clone()};
+            }
+            let name=format!("$enum:{}:{column}:{}",if down{"down"}else{"up"},aliases.iter().map(|(a,b,_)|format!("{a}:{b}")).collect::<Vec<_>>().join(":"));
+            let fill=ast::BackfillDecl{table:table.clone(),name,args:vec![ast::ArgDecl{name:column.clone(),type_:if down{decl.type_.clone()}else{old_type.clone()},alias:None,default:None,deprecated:false,site:site.clone()}],value:ast::Expr::Object{fields:vec![ast::ObjectField{spread:false,name:column.clone(),value:Some(value),site:site.clone()}],site:site.clone()},site:site.clone()};
+            if down {bind_one(catalog,schema,diagnostics,&fill,true,down_names,down_outputs)}else{bind_one(catalog,schema,diagnostics,&fill,false,forward_names,forward_outputs)}
         }
     }
 }
