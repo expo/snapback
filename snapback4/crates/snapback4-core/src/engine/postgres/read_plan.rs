@@ -12,7 +12,7 @@ pub(super) const DESC: &str = "SELECT r.data, i.k FROM i JOIN r ON r.t = i.t AND
 #[derive(Clone, PartialEq, Eq)]
 pub(super) struct Access { pub(super) table: String, pub(super) index: String, pub(super) id: Option<String>, pub(super) lo: Vec<u8>, pub(super) hi: Vec<u8>, pub(super) dir: Dir, pub(super) n: i64 }
 impl Access {
-    fn point(table: &str, index: &str, key: &[Value]) -> Option<Self> {
+    pub(super) fn point(table: &str, index: &str, key: &[Value]) -> Option<Self> {
         if index == "byId" {
             return Some(Self { table: table.into(), index: index.into(), id: Some(key.first()?.as_str().ok()?.into()), lo: vec![], hi: vec![], dir: Dir::Asc, n: 1 });
         }

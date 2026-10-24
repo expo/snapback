@@ -97,8 +97,12 @@ fn rt6_statement_failure_inside_every_serving_fold() {
             let ctx=Context::new("alice",args.clone()).at(1000).with_request_credential("guest");
             let plan=super::super::read_plan::Plan::new(e.schema(),e.program(op).unwrap(),&ctx).unwrap();
             assert_eq!(matches!(plan,super::super::read_plan::Plan::Composed(_)),!fallback);
+            let expected=e.query_materialized_search_with_request(op,ctx.clone().with_request_credential("reference"),None,DeliveryManifest::Skip,&digest,|snap,_|{snap.request_authority(&digest,sample())?;Ok(())}).0;
+            assert!(expected.is_ok());
             let (out,_,_)=fail(flight,at,||e.query_materialized_search_with_request(op,ctx,None,DeliveryManifest::Skip,&digest,|snap,_|{snap.request_authority(&digest,sample())?;Ok(())}));
-            assert!(out.is_err(),"{op} fallback={fallback}, flight {flight}, at {at}"); assert_eq!(census(c),before);no_later(c);
+            if fallback { assert!(out.is_err(),"{op} fallback={fallback}, flight {flight}, at {at}"); }
+            else { assert_eq!(out,expected,"failed composition must reopen ordinary access: {op}, flight {flight}, at {at}"); }
+            assert_eq!(census(c),before);no_later(c);
         }
     }
     };

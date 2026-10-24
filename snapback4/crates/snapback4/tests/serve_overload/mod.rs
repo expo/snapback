@@ -173,9 +173,19 @@ fn queued_short_request_keeps_its_original_body_deadline() {
     dispatch(request, host.shared.clone(), host.admission.clone(), true);
     wait_until(||host.admission.short.load(Ordering::Acquire)==1);
     while Instant::now() < until { thread::sleep(Duration::from_millis(1)); }
-    gate.release();
+    // Every worker remains blocked until the timed refusal is observed.
     let mut reply = String::new(); peer.read_to_string(&mut reply).unwrap();
+    assert!(Instant::now() < until + Duration::from_secs(2), "queue expiry was not timely");
+    assert!(!*lock(&gate.open), "workers must remain blocked through expiry");
+    gate.release();
     assert_eq!(status(&reply), 503, "{reply}");
     assert_eq!(body(&reply)["denied"]["code"], "E_RATE_LIMIT");
     wait_until(|| host.admission.short.load(Ordering::Acquire) == 0);
+}
+
+#[test]
+fn g4a_fix1_short_queue_preserves_mutation_connection_room() {
+    let capacity=crate::host_limits::Capacity::sized(1,1,1);
+    assert!(capacity.connections() >= REQUEST_WORKERS + SHORT_REQUEST_QUEUE + MUTATION_WORKERS + 2,
+        "a full short burst must leave the mutation reservation and held-wait connections");
 }

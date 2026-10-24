@@ -504,3 +504,24 @@ fn rt6_fix1_reused_connection_settings_drift_refuses_opening() {
         "reused connection accepted drift: {accepted:?}"
     );
 }
+
+#[test]
+#[ignore = "private PG16"]
+fn g4a_fix1_failed_statement_reopens_before_authority_and_rows() {
+    let (mut e, mut observer, name, digest) = fixture();
+    let foreign = Engine::open_at(AnyStore::open_postgres(&url(), &name).unwrap(), 1000).unwrap();
+    let before = census(&mut observer);
+    super::super::super::read_closure::AFTER_FAILED_STATEMENT.with(|hook| *hook.borrow_mut() = Some(Box::new(move || {
+        identity::revoke_principal(foreign.store(), "alice").unwrap();
+    })));
+    let (out, _, _) = fail(0, 1, || e.query_materialized_search_with_request("W1", Context::new("alice", [("message".into(),Value::Id("m24".into()))].into()).at(1000).with_request_credential("guest"), None, DeliveryManifest::Skip, &digest, |snapshot, _| {
+        if snapshot.request_authority(&digest, sample())?.capability.is_none() {
+            return Err(crate::Refusal::new("E_AUTH", "auth", "revoked in fresh fallback snapshot"));
+        }
+        Ok(())
+    }));
+    assert_eq!(out.unwrap_err().code, "E_AUTH", "failed speculation must not reuse the old authority cut");
+    assert!(super::super::super::read_closure::AFTER_FAILED_STATEMENT.with(|hook| hook.borrow().is_none()), "real statement failure was not exercised");
+    assert_eq!(census(&mut observer), before);
+    no_later(&mut observer);
+}

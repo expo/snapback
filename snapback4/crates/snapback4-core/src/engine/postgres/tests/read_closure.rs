@@ -14,6 +14,9 @@ fn engine(pg: bool) -> (Engine, String, String) {
     engine_with_json(pg, false)
 }
 fn engine_with_json(pg: bool, payload: bool) -> (Engine, String, String) {
+    engine_with_payload(pg, payload, false)
+}
+fn engine_with_payload(pg: bool, payload: bool, text_nul: bool) -> (Engine, String, String) {
     let source = if payload {
         source().replace(
             "  body: text <=4000",
@@ -80,6 +83,21 @@ fn engine_with_json(pg: bool, payload: bool) -> (Engine, String, String) {
         })
         .collect::<Vec<_>>();
     e.seed_at(rows, 1000).unwrap();
+    if text_nul {
+        // Current text ingress rejects NUL. Retained canonical images must
+        // nevertheless read identically through composed and ordinary paths.
+        use crate::rows::Rows;
+        let table = e.schema().tables["messages"].clone();
+        let old = e.store().rows("messages").unwrap();
+        let tx = e.store_mut().transaction().unwrap();
+        for before in old {
+            let mut after = before.clone();
+            let Value::Row(fields) = &mut after else { panic!("expected row") };
+            fields.insert("body".into(), Value::String("a\u{0}b".into()));
+            tx.put("messages", &table, &after, Some(&before)).unwrap();
+        }
+        tx.commit().unwrap();
+    }
     let token = identity::open_session(e.store(), viewer, "account", 1000)
         .unwrap()
         .token;
@@ -416,5 +434,73 @@ fn composed_read_closure_json_nul_uses_portable_address_fallback() {
             run(&mut pg, &digest, &viewer, name, args, true),
             "{name}: valid NUL JSON cannot become a store error"
         );
+    }
+}
+
+
+fn fix1_bound(source: &str) -> (crate::Schema, Vec<crate::Program>) {
+    let b = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    (serde_json::from_value(serde_json::to_value(b.schema).unwrap()).unwrap(),
+     b.programs.into_iter().map(|p| serde_json::from_value(serde_json::to_value(p.program).unwrap()).unwrap()).collect())
+}
+fn fix1_small(pg: bool, source: &str) -> (Engine, String) {
+    let (schema, programs) = fix1_bound(source);
+    let store = if pg { AnyStore::create_postgres(&std::env::var("SNAPBACK4_EVAL_POSTGRES").unwrap(), &format!("g4a_fix1_{:x}", crate::ids::seed())).unwrap() } else { AnyStore::memory().unwrap() };
+    let e = Engine::new_at(store, schema, programs, 1000).unwrap();
+    let token = identity::open_session(e.store(), "alice", "account", 1000).unwrap().token;
+    (e, identity::session_digest(&token))
+}
+#[test]
+#[ignore = "private PG16"]
+fn g4a_fix1_primary_ranges_never_decode_as_points() {
+    let source = "use identity\ntable books:\n  title: text <=20\n  read <- public\n  online only\nquery first():\n  return books first 1 by .id\nquery last():\n  return books last 1 by .id\nquery point(key: id):\n  return books[key]\n";
+    let (mut pg, d) = fix1_small(true, source);
+    let (mut sq, sd) = fix1_small(false, source);
+    for populated in [false, true] {
+        if populated {
+            for e in [&mut sq, &mut pg] {
+                e.seed_at(["a", "b", "c"].map(|id| ("books".into(), crate::value::object([("id", Value::Id(id.into())), ("title", Value::String(id.into()))]))), 1000).unwrap();
+            }
+        }
+        for (name,args) in [("first",BTreeMap::new()),("last",BTreeMap::new()),("point",[("key".into(),Value::Id("b".into()))].into())] {
+            let expected=run(&mut sq,&sd,"alice",name,args.clone(),false);
+            assert!(expected["out"].get("Ok").is_some(),"{expected}");
+            assert_eq!(expected,run(&mut pg,&d,"alice",name,args.clone(),false));
+            assert_eq!(expected,run(&mut pg,&d,"alice",name,args,true),"{name}, populated={populated}");
+        }
+    }
+}
+#[test]
+#[ignore = "private PG16"]
+fn g4a_fix1_sparse_default_addresses_use_materialized_values() {
+    let old = "use identity\ntable users:\n  principal: principal\n  unique principal\n  read <- public\n  online only\ntable documents:\n  read <- public\n  online only\nquery dependent(key: id):\n  return documents[key]\n";
+    let new = old.replace("table documents:\n", "table documents:\n  owner: principal default 'alice'\n").replace("  return documents[key]", "  d = documents[key]\n  return users[principal = d.owner]");
+    let (mut pg,d)=fix1_small(true,old);
+    let (mut sq,sd)=fix1_small(false,old);
+    for e in [&mut sq,&mut pg] {
+        e.seed_at([("users".into(),crate::value::object([("id",Value::Id("u".into())),("principal",Value::Id("alice".into()))])),("documents".into(),crate::value::object([("id",Value::Id("d".into()))]))],1000).unwrap();
+        let (schema,programs)=fix1_bound(&new);
+        e.adopt_at(schema,programs,1000).unwrap();
+        assert!(e.store().rows("documents").unwrap()[0].field("owner").is_err(),"stored image must remain sparse");
+    }
+    let args=[("key".into(),Value::Id("d".into()))].into();
+    let expected=run(&mut sq,&sd,"alice","dependent",args,false);
+    assert!(expected["out"].get("Ok").is_some(),"{expected}");
+    let args=[("key".into(),Value::Id("d".into()))].into();
+    assert_eq!(expected,run(&mut pg,&d,"alice","dependent",args,false));
+    let args=[("key".into(),Value::Id("d".into()))].into();
+    assert_eq!(expected,run(&mut pg,&d,"alice","dependent",args,true));
+}
+#[test]
+#[ignore = "private PG16"]
+fn g4a_fix1_nul_text_remains_legal_in_composed_reads() {
+    let (mut pg,d,viewer)=engine_with_payload(true,false,true);
+    let (mut sq,sd,_)=engine_with_payload(false,false,true);
+    for (name,args) in [("W1",[("message".into(),Value::Id("m0000-0".into()))].into()),("W2",[("room".into(),Value::Id("r'\\\né".into()))].into()),("W3",BTreeMap::new())] {
+        let expected=run(&mut sq,&sd,&viewer,name,args.clone(),false);
+        assert!(expected["out"].get("Ok").is_some(),"{name}: {expected}");
+        assert_eq!(expected,run(&mut pg,&d,&viewer,name,args.clone(),false));
+        assert_eq!(expected,run(&mut pg,&d,&viewer,name,args,true),"legal NUL text in {name}");
     }
 }

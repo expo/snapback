@@ -436,6 +436,26 @@ impl Tx<'_> {
         *self.read_cache.borrow_mut() = Default::default();
         self.session_authority_facts(digest)
     }
+    // @ref LLP 3000.009.001.000.001#13-g4a-read-refinement-2026-10-23 — failed speculation transfers no facts; ordinary execution gets a fresh snapshot.
+    pub(super) fn restart_request_facts(&self, digest: &str) -> Result<crate::identity::facts::SessionFacts, RuntimeError> {
+        let mut inner = self.inner.borrow_mut();
+        inner.ensure_settings()?;
+        self.calls.set(self.calls.get() + 1);
+        inner.client.batch_execute("ROLLBACK")?;
+        inner.pending.clear();
+        inner.checks.clear();
+        inner.done = true;
+        inner.started = false;
+        drop(inner);
+        self.bind_refused.set(false);
+        self.head.set(None);
+        self.authority_cache.borrow_mut().take();
+        self.pending_read.borrow_mut().take();
+        *self.rows_cache.borrow_mut() = Default::default();
+        #[cfg(test)]
+        super::read_closure::after_failed_statement();
+        self.complete_request_facts(digest)
+    }
     pub(crate) fn finish_planned_reads(&self) -> Result<(),RuntimeError> {
         let plan = self.pending_read.borrow_mut().take();
         if let Some(plan) = plan { plan.finish(self)?; }

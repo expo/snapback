@@ -353,7 +353,7 @@ use start::serve_requests;
 // Thirty executing reads leave the matched 32-connection budget's writer and
 // lease reservations intact. Waiting requests own sockets, never DB readers.
 const REQUEST_WORKERS: usize = 30;
-const SHORT_REQUEST_QUEUE: usize = 98;
+const SHORT_REQUEST_QUEUE: usize = crate::host_limits::SHORT_REQUEST_QUEUE;
 const SHORT_REQUEST_DEADLINE: Duration = Duration::from_secs(30);
 // Writer-dependent requests have their own budget: queued behind adoption, they cannot take
 // the slots reads and discovery need, and neither class loses capacity.
@@ -455,14 +455,16 @@ fn dispatch_with_builder(request: Request, shared: Arc<Shared>, admission: Arc<R
         admission.refuse(request, class);
         return;
     };
+    let deadline = (class == RequestClass::Short).then(|| request_workers::deadline(&request, SHORT_REQUEST_DEADLINE));
     let pending = PendingRequest { request: Some(request), admission: admission.clone(), class };
-    if let Err(error) = admission.workers[class as usize].submit(admission.limit(class), builder, Box::new(move || { let _permit = permit;
+    let job: Box<dyn FnOnce() + Send> = Box::new(move || { let _permit = permit;
         // Intake time survives the queue; neither execution nor body reading
         // receives a renewed lease. Refuse without draining an expired body.
         if class == RequestClass::Short && pending.request.as_ref().is_some_and(|r| r.accepted_at().elapsed() >= SHORT_REQUEST_DEADLINE || r.body_deadline().is_some_and(|at| Instant::now() >= at)) { return; }
         let request = pending.take();
         let run = || { if let Some(sample) = sample { sample.run(|| handle(request, &shared)); } else { handle(request, &shared); } };
-        if let Some(trace) = trace { trace.run(run); } else { run(); } })) {
+        if let Some(trace) = trace { trace.run(run); } else { run(); } });
+    if let Err(error) = admission.workers[class as usize].submit_until(admission.limit(class), builder, deadline, job) {
         snapback4_core::diagnostic!("snapback4: cannot start request thread: {error}");
     }
 }

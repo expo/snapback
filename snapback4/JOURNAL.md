@@ -104723,3 +104723,91 @@ monitor exits; all 826 recorded lane PIDs and the private-directory/target
 census show none left. Final free space is about 115 GiB, above the 40 GB
 stop threshold. Raw logs/data remain outside Git. Local lane commits keep
 the exact RT6 base 2fdab64882; final qualification details are in the report.
+
+## 2026-10-24 — G4a fix round 1 after RT6 round 2
+
+Rebased the six G4a commits from `9563a7ba10`/`2fdab64882` onto RT6 fix
+round 2 `8f3fad25d9`, on `sb4-pg/g4a-fix1`. Conflicts preserve the explicit
+point/range access identity, null-probe absence, codec settings guard and
+G4a's composed read closures. Both pre-existing journal streams are retained.
+No fetch, push, stash or persistent Git configuration change.
+
+New witnesses run first with unchanged `9563a7ba10` production. Empty `.id`
+pages panic at `keys[0]`; a sparse principal default produces
+`E_STORE("read outside completed physical plan")`; a retained NUL text
+image returns a speculative store error instead of the ordinary successful
+outcome. The queue's deadline witness times out after three seconds with all
+workers still blocked; the connection-reservation and partial-worker-exit
+witnesses fail too. Current typed text ingress already rejects U+0000, so
+the NUL witness installs a retained canonical image through the row port;
+it does not claim that a current `post` accepts that control character.
+The initial admission refusal is retained alongside the corrected witness.
+
+Composition now distinguishes points from ranges independently of prefix
+length. A unique primary point also records its exact ordered index prefix
+for the metered lookup, without allowing either fact to answer a wider page.
+All payload node/key/image/hex decoding is fallible. Dependent defaulted or
+optional fields decline composition before SQL, preserving the exact Rust
+sparse-row defaults/nulls. A conservative canonical-NUL spelling check runs
+before PostgreSQL's JSON extraction, declines the speculative payload, and
+leaves every stored byte intact. Fixed NUL keys decline composition too.
+A statement failure rolls back and drops the entire speculative snapshot,
+then resolves ordinary authority and rows in a fresh snapshot. A real SQL
+error followed by revocation between rollback and reopening returns `E_AUTH`.
+Read fault-boundary tests require the complete ordinary outcome after failed
+composition, while writer and sequence faults retain their refusal checks.
+
+One timer per timed request pool expires queued sockets independently of
+blocked workers. The earlier original body/intake deadline decides expiry;
+no DB reader is opened. Partial worker loss keeps queued work for surviving
+workers; loss of all workers refuses it. The HTTP reservation adds the 98
+queued sockets to the existing 128 non-wait connections (default total
+1,282), retaining mutation capacity even with a small long-wait budget.
+DB caps remain 30/32 and short execution/queue capacity remains 30/98.
+The Postgres script explicitly runs ignored closure oracles and the
+revocation cut, and isolates the evaluator target instead of cleaning any
+pre-existing shared artifacts.
+
+Focused qualification passes: five new core fix witnesses, all nine closure
+oracles, all 31 codec/serving cases, nine overload cases (including timely
+expiry before unblocking any worker), all worker-exit and capacity cases.
+Both RT0 tables are byte-identical to `9563a7ba10`; full qualification and
+owned-process shutdown are recorded separately below. Raw evidence stays in
+the commissioned external `rt6g4a` scratch directory. The shared-host disk
+floor has not been reached; the private PG16 PID remains 1459278.
+
+## 2026-10-24 — RT6/G4a final qualification and owned shutdown
+
+RT6 round 2 remains committed as `8f3fad25d9`. G4a round 1 passes the
+requested full checks after rebase: build; full default core (1,120 tests
+plus one subprocess check, five named ignores; 794.35 s); full binary
+(581 main tests, 47 named ignores, plus its passing subprocess checks);
+both unchanged RT0 ratchets; and repository-root ref-check (566 LLPs,
+zero errors/unchecked refs). The final CLI is rebuilt again by the public
+Postgres script after moving deadline calculation into the worker module
+and retaining `serve.rs` at 1,499 lines.
+
+`bash scripts/test-postgres.sh` exits 0 in 1,184.70 s. The isolated evaluator,
+240 main adapter tests, nine explicit closure oracles including the revoked
+cut, 31 codec/serving cases, all ownership/evolution/authority groups, corpus
+overlap, twelve differential-library cases, all four store campaigns and
+the public Postgres serving/P1-MC milestone pass. No inherited red, bound
+relaxation in a product assertion, retry, new exclusion or raw log is needed.
+The public witness's former 40 GiB resource guard now follows the author's
+explicit 22 GiB shared-host floor, matching the lane monitor; the floor is
+never reached. No existing Cargo artifacts were cleaned or host data deleted.
+
+The six original-tip G4a failures, four original-tip RT6 failures, corrected
+fixture development and final command receipts are preserved externally in
+`rt6g4a/regressions.md` and adjacent logs/JSON. Both RT0 JSON files remain
+byte-identical to their respective original lane tips. RFC notes cover both
+fix rounds and the current NUL-admission qualification.
+
+Private PG16 master 1459278 stops in 0.20 s with stop status 0, independent
+status 3, no pid file and no `/proc` identity. The public witness separately
+stops master 2056038 with status 3/no pid file. A final independent audit
+finds all 631 recorded process identities and all 550 public-witness PID
+records absent; executable/data-directory scans also find no survivors.
+PIDs left: none. Both data directories, short socket directories and raw
+evidence are retained outside Git. No push, stash or persistent Git
+configuration change.
