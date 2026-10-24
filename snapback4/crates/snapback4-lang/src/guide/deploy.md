@@ -24,6 +24,21 @@ store fence model. Owner/head locks do not prevent external DDL, and admission
 does not poll catalogs on each request. Doctor and the next open, activation
 or connection replacement detect such changes.
 
+For a single-owner Linux Postgres deployment, zero-flight revision-cache hits
+are opt-in through `SNAPBACK4_READ_GRANT_CLOCK_BOUNDS=rate_ppm,forward_jump_ms`.
+These numbers declare a guarantee: during any grant, database time advances at
+most `(1 + rate_ppm/1000000) * CLOCK_BOOTTIME_elapsed + forward_jump_ms`, including
+suspend and every supported failover. They are not tuning estimates. For example,
+`1000,250` declares a maximum 0.1% relative rate excess and 250 ms cumulative
+forward adjustment; the three-second grant gets a local deadline below 2.747 s.
+Use this only when the deployment guarantees those bounds and all writers run
+the grant-aware protocol. Unset it for arbitrary clock steps, unqualified failover
+or mixed versions. The ordinary one-statement G5 validation remains the default.
+A grant hit rechecks bearer authority and expiry with a fresh clock. Every local
+commit invalidates revision equality. Grant loss falls back to database reads;
+unknown COMMIT stops cached reads and new writers until fenced reacquisition
+with a fresh process/epoch. Graceful release drains cached reads first.
+
 ## Upgrade
 `snapback4 upgrade [version]` resolves once and exactly pins core and installed Expo adapters with npm/bun/pnpm. Rebuild native apps after adapter changes; commit the lockfile, run check/typecheck/acceptance. `test` uses ./fixtures; `--fixture dir` overrides it. Use the password and first-admin recipes below.
 
