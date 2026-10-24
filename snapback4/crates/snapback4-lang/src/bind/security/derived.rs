@@ -46,7 +46,11 @@ fn stamp_source(value:&ast::Expr)->StampSource{match value{
     _=>StampSource::Unknown,
 }}
 
-fn same_stamp_copy(value:&ast::Expr,table:&str,keys:&[ast::KeyPart],p:&ast::ProgramDecl,stamp:&str)->bool{match value{
+pub(super) fn fresh_recording(kind:&snapback4_core::schema::ColumnType,value:Option<&ast::Expr>)->bool{
+    super::creation_advice::approval_recording(kind,value)&&if matches!(kind.required(),snapback4_core::schema::ColumnType::Time){value.is_some_and(|value|stamp_source(value)==StampSource::Fresh)}else{true}
+}
+
+pub(super) fn same_stamp_copy(value:&ast::Expr,table:&str,keys:&[ast::KeyPart],p:&ast::ProgramDecl,stamp:&str)->bool{match value{
     ast::Expr::Assert{value,..}=>same_stamp_copy(value,table,keys,p,stamp),
     ast::Expr::Member{base,name,..}=>name==stamp&&same_resource(base,table,keys,p),
     ast::Expr::Binary{op,left,right,..} if matches!(op.as_str(),"+"|"-")&&matches!(right.as_ref(),ast::Expr::Literal{value:ast::Literal::Number(value),..} if value.trim_end_matches(char::is_alphabetic).parse::<i64>().ok()==Some(0))=>same_stamp_copy(left,table,keys,p,stamp),_=>false,

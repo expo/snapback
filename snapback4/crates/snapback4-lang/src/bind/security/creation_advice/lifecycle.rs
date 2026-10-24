@@ -43,21 +43,34 @@ pub(super) fn recording(kind:&ColumnType,value:Option<&Expr>)->bool{match (kind.
     (ColumnType::Time,Some(e))=>!matches!(e,Expr::Literal{value:ast::Literal::Null,..}|Expr::Member{..}),_=>false,
 }}
 fn records(w:&Write<'_>,column:&str,kind:&ColumnType,t:&snapback4_core::schema::Table)->bool{
-    if let Some(field)=w.fields.iter().find(|f|f.name==column){return recording(kind,field_value(field));}
+    if let Some(field)=w.fields.iter().find(|f|f.name==column){
+        if let Some(value)=field_value(field)&&matches!(kind.required(),ColumnType::Bool|ColumnType::Time){return !matches!(simplify_boolean(value),Expr::Literal{value:ast::Literal::Bool(false)|ast::Literal::Null,..})&&!super::super::derived::same_stamp_copy(value,&w.table,&w.keys,w.p,column);}
+        return recording(kind,field_value(field));
+    }
     matches!(w.op,WriteOp::Insert|WriteOp::Upsert)&&t.defaults.get(column).is_some_and(|d|match (kind.required(),d.value(challenges::NOW,"$advisory")){(ColumnType::Bool,snapback4_core::Value::Bool(true))=>true,(ColumnType::Time,snapback4_core::Value::Int(_))=>true,_=>false})
+}
+fn certain_record(w:&Write<'_>,column:&str,kind:&ColumnType,t:&snapback4_core::schema::Table)->bool{
+    if let Some(field)=w.fields.iter().find(|field|field.name==column){super::super::derived::fresh_recording(kind,field_value(field))}else{records(w,column,kind,t)}
 }
 fn decision_effect(t:&snapback4_core::schema::Table,column:&str,f:&ast::ObjectField)->bool{
     let name=f.name.to_lowercase();
     if f.name==column||["approv","authoriz","consent","reason","note"].iter().any(|part|name.contains(part)){return false;}
     match (t.columns.get(&f.name).map(ColumnType::required),field_value(f)){
-        (Some(ColumnType::Enum{..}),Some(Expr::Literal{value:ast::Literal::Str(_),..}))=>true,
-        (Some(ColumnType::Bool),Some(Expr::Literal{value:ast::Literal::Bool(_),..}))=>true,
+        (Some(ColumnType::Enum{..}),Some(Expr::Literal{value:ast::Literal::Str(_),..})) if ["status","stage","state","phase","decision"].iter().any(|suffix|name.ends_with(suffix))=>true,
         (Some(ColumnType::Text{..}|ColumnType::Enum{..}|ColumnType::Bool),Some(_))=>{let column=column.to_lowercase();["approv","authoriz"].iter().filter_map(|part|column.find(part)).any(|at|at>0&&name.starts_with(&column[..at]))},
         _=>false,
     }
 }
+fn exclusive_decision(record:&Write<'_>,field:&ast::ObjectField,writes:&[Write<'_>],_bound:&Bound)->bool{
+    if matches!(field_value(field),Some(Expr::Member{base,name,..}) if name==&field.name&&super::super::derived::same_resource(base,&record.table,&record.keys,record.p)){return false;}
+    let authority=audience(&record.gate);
+    !writes.iter().any(|other|other.table==record.table&&matches!(other.op,WriteOp::Update|WriteOp::Upsert)&&other.site!=record.site&&other.fields.iter().find(|candidate|candidate.name==field.name).and_then(field_value).is_some_and(|value|{
+        if matches!(value,Expr::Member{base,name,..} if name==&field.name&&super::super::derived::same_resource(base,&other.table,&other.keys,other.p)){return false;}
+        match (value,field_value(field)){(Expr::Literal{value:a,..},Some(Expr::Literal{value:b,..}))=>format!("{a:?}")==format!("{b:?}"),_=>true}
+    })&&kernel::implies(&audience(&other.gate),&authority)!=Ok(true))
+}
 fn scalar_rule(rule:&RuleExpr,table:&str,column:&str,root:&str,negative:bool,bound:&Bound)->bool{
-    let matches=|term:&RuleTerm|if root==table{matches!(term,RuleTerm::Field(name)|RuleTerm::OldField(name)|RuleTerm::NextField(name) if name==column)}else{term.references().last().is_some_and(|(owner,field)|owner==table&&field==column)};
+    let matches=|term:&RuleTerm|root==table&&matches!(term,RuleTerm::Field(name)|RuleTerm::OldField(name)|RuleTerm::NextField(name) if name==column)||term.references().last().is_some_and(|(owner,field)|owner==table&&field==column);
     match rule{
         RuleExpr::Not(rule)=>scalar_rule(rule,table,column,root,!negative,bound),
         RuleExpr::And(parts)|RuleExpr::Or(parts)=>parts.iter().any(|rule|scalar_rule(rule,table,column,root,negative,bound)),
@@ -73,9 +86,9 @@ fn scalar_rule(rule:&RuleExpr,table:&str,column:&str,root:&str,negative:bool,bou
 }
 fn schema_scalar(effect:&Write<'_>,table:&str,column:&str,bound:&Bound,negative:bool)->bool{
     let target=&bound.schema.tables[&effect.table];let row=if effect.op==WriteOp::Update{&target.rules.update}else{&target.rules.insert};
-    if scalar_rule(row,table,column,&effect.table,negative,bound){return true;}
+    if scalar_rule(&super::approval_records::scoped_rule(row,effect,table,bound),table,column,&effect.table,negative,bound){return true;}
     let fields=effect.fields.iter().filter(|field|matches!(target.columns.get(&field.name).map(ColumnType::required),Some(ColumnType::Enum{..}))&&!matches!(field_value(field),Some(Expr::Member{base,name,..}) if name==&field.name&&super::super::derived::same_resource(base,&effect.table,&effect.keys,effect.p))).collect::<Vec<_>>();
-    let covers=|field:&&ast::ObjectField|target.column_writes.get(&field.name).is_some_and(|rule|scalar_rule(rule,table,column,&effect.table,negative,bound))||negative&&target.frozen_columns.get(&field.name).is_some_and(|rule|scalar_rule(rule,table,column,&effect.table,false,bound));
+    let covers=|field:&&ast::ObjectField|target.column_writes.get(&field.name).is_some_and(|rule|scalar_rule(&super::approval_records::scoped_rule(rule,effect,table,bound),table,column,&effect.table,negative,bound))||negative&&target.frozen_columns.get(&field.name).is_some_and(|rule|scalar_rule(&super::approval_records::scoped_rule(rule,effect,table,bound),table,column,&effect.table,false,bound));
     if negative{!fields.is_empty()&&fields.iter().all(covers)}else{fields.iter().any(covers)}
 }
 fn caller_approval(condition:&Expr,table:&str,column:&str,bound:&Bound)->bool{
@@ -133,14 +146,14 @@ fn linked_decision_stamp(record:&Write<'_>,column:&str,writes:&[Write<'_>],bound
 // Only a guard on the resource whose lifecycle is affected can consume its
 // approval. Read audiences and another resource's validation are not enforcement.
 pub(super) fn scalar_enforced(effect:&Write<'_>,table:&str,column:&str,bound:&Bound,negative:bool)->bool{
-    let targets=super::approval_records::parent_values(effect,table,bound).into_iter().filter_map(|value|super::approval_records::origin(value,effect.p,bound)).collect::<Vec<_>>();
+    let targets=super::approval_records::parent_values(effect,table,bound).into_iter().filter_map(|value|super::approval_records::origin(&value,effect.p,bound)).collect::<Vec<_>>();
     let conditions=effective_conditions(&effect.context);if conditions.iter().any(|condition|matches!(condition,Expr::Literal{value:ast::Literal::Bool(false),..})){return false;}
     conditions.iter().any(|condition|{
         if !negative&&caller_approval(condition,table,column,bound){return true;}
         let condition=if negative{Expr::Unary{op:"not".into(),value:Box::new((*condition).clone()),site:condition.site().clone()}}else{(*condition).clone()};
         let mut found=false;let approval=matches!(bound.schema.tables[table].columns.get(column).map(ColumnType::required),Some(ColumnType::Bool|ColumnType::Time))&&["approv","authoriz"].iter().any(|part|column.to_lowercase().contains(part));let mut probes=if approval{super::super::derived::approval_receipts(&condition)}else{vec![condition.clone()]};
         if !negative&&matches!(bound.schema.tables[table].columns.get(column).map(ColumnType::required),Some(ColumnType::Time)){walk(&condition,|e|if matches!(e,Expr::Binary{op,..} if ["<","<=",">",">="].contains(&op.as_str())){probes.push(e.clone());});}for probe in probes{walk(&probe,|e|if let Expr::Member{base,name,..}=e&&name==column{
-            found|=if effect.table==table{super::super::derived::same_resource(base,table,&effect.keys,effect.p)}else{super::approval_records::origin(base,effect.p,bound).is_some_and(|origin|targets.contains(&origin))};
+            found|=effect.table==table&&super::super::derived::same_resource(base,table,&effect.keys,effect.p)||super::approval_records::origin(base,effect.p,bound).is_some_and(|origin|targets.contains(&origin));
         });}found
     })
 }
@@ -156,7 +169,7 @@ pub(super) fn notes(bound:&Bound,writes:&[Write<'_>],out:&mut Vec<Diagnostic>){
             let approval=["approv","authoriz"].iter().any(|part|column.to_lowercase().contains(part));
             let recorded=writes.iter().any(|w|w.table==*table&&records(w,column,kind,t));
             let proxies=writes.iter().filter(|w|w.table==*table&&w.fields.iter().any(|f|f.name==*column)).flat_map(|w|w.fields.iter()).filter(|f|f.name!=*column&&matches!(t.columns.get(&f.name).map(ColumnType::required),Some(ColumnType::Enum{..}|ColumnType::Bool|ColumnType::Principal|ColumnType::Time))).filter(|f|!matches!(field_value(f),Some(Expr::Member{..}))).map(|f|f.name.clone()).collect::<BTreeSet<_>>();
-            let atomic=writes.iter().any(|w|w.table==*table&&records(w,column,kind,t)&&(matches!(w.op,WriteOp::Insert|WriteOp::Upsert)&&t.defaults.iter().any(|(name,d)|["status","stage","state","phase","decision","approval"].iter().any(|suffix|name.to_lowercase().ends_with(suffix))&&matches!(t.columns.get(name).map(ColumnType::required),Some(ColumnType::Enum{..}))&&matches!(d.value(challenges::NOW,"$advisory"),snapback4_core::Value::String(value) if ["approved","authorized","authorised"].contains(&value.to_lowercase().as_str())))||w.fields.iter().any(|f|decision_effect(t,column,f)&&(!matches!(w.op,WriteOp::Insert|WriteOp::Upsert)||!t.defaults.get(&f.name).is_some_and(|d|matches!(field_value(f),Some(Expr::Literal{value:ast::Literal::Str(value),..}) if d.value(challenges::NOW,"$advisory")==snapback4_core::Value::String(value.clone())))))));
+            let atomic=writes.iter().any(|w|w.table==*table&&certain_record(w,column,kind,t)&&(matches!(w.op,WriteOp::Insert|WriteOp::Upsert)&&t.defaults.iter().any(|(name,d)|["status","stage","state","phase","decision","approval"].iter().any(|suffix|name.to_lowercase().ends_with(suffix))&&matches!(t.columns.get(name).map(ColumnType::required),Some(ColumnType::Enum{..}))&&matches!(d.value(challenges::NOW,"$advisory"),snapback4_core::Value::String(value) if ["approved","authorized","authorised"].contains(&value.to_lowercase().as_str())))||w.fields.iter().any(|f|decision_effect(t,column,f)&&exclusive_decision(w,f,writes,bound)&&(!matches!(w.op,WriteOp::Insert|WriteOp::Upsert)||!t.defaults.get(&f.name).is_some_and(|d|matches!(field_value(f),Some(Expr::Literal{value:ast::Literal::Str(value),..}) if d.value(challenges::NOW,"$advisory")==snapback4_core::Value::String(value.clone())))))));
             let others=approval_effects.iter().filter(|w|!(w.table==*table&&records(w,column,kind,t))).collect::<Vec<_>>();
             let frozen=!others.is_empty()&&others.iter().all(|w|scalar_enforced(w,table,column,bound,true)||schema_scalar(w,table,column,bound,true));
             let data_use=writes.iter().filter(|record|record.table==*table&&records(record,column,kind,t)).any(|record|locked_approval_input(record,column,writes,bound)||one_shot_decision(record,column,writes,bound)||linked_decision_stamp(record,column,writes,bound));

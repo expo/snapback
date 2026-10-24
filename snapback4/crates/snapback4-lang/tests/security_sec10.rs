@@ -153,10 +153,10 @@ fn campaign(s:&str)->Campaign{let b=security::derived::augmented(&sources(s),&bo
     assert!(!security::derived::invariants(&sources(source),&bound(source)).iter().any(|i|i.site.file.contains("sibling-approval")));
 }
 
-#[test]fn timestamps_recording_the_atomic_decision_are_not_unused_approvals(){
+#[test]fn matching_applied_decisions_and_unlinked_boolean_records_are_distinguished(){
     for (field,kind,value,column) in [("depositKept","bool default false","true","approvedAt"),("quoteStatus","enum('pending','approved') default 'pending'","'approved'","approvedAt"),("wording","text <=30 ?","'new wording'","wordingApprovedAt"),("dyedColor","text <=30 ?","'blue'","dyeApprovedAt")]{
         let source=format!("table docs:\n  {column}: time ?\n  {field}: {kind}\n  status: enum('draft','done') default 'draft'\n  read <- allow\n  update <- allow\n  online only\nmutation decide(doc: docs):\n  update docs[doc] {{{column}:now,{field}:{value}}}\nmutation finish(doc: docs):\n  update docs[doc] {{status:'done'}}\n");
-        assert!(!notes(&source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"),"{source}");
+        assert_eq!(notes(&source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"),field=="depositKept","{source}");
     }
     let source="table docs:\n  status: enum('draft','done') default 'draft'\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\ntable approvals:\n  doc: docs\n  read <- allow\n  insert <- viewer = 'service:manager'\n  online only\nmutation create():\n  require viewer = 'service:manager' else DENIED\n  d = insert docs {}\n  return insert approvals {doc:d.id}\nmutation finish(doc: docs):\n  update docs[doc] {status:'done'}\n";
     assert!(!notes(source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
@@ -354,4 +354,14 @@ fn campaign(s:&str)->Campaign{let b=security::derived::augmented(&sources(s),&bo
     for (body,gate) in [("  for b in bookings first 10 by .id:\n    require b.approved else APPROVAL\n",false),("  if false:\n    for b in bookings first 10 by .id:\n      require b.approved else APPROVAL\n",true),("  for b in bookings first 10 by .id:\n    if false:\n      require b.approved else APPROVAL\n",true)]{assert_eq!(notes(&source.replace("LOOP",body)).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"),gate);}
     let conditional="table docs:\n  approved: bool default false\n  status: enum('draft','done') default 'draft'\n  read <- allow\n  update <- allow\n  online only\nmutation approve(doc: docs):\n  update docs[doc] {approved:true}\nmutation work(doc: docs,restricted: bool):\n  d = docs[doc] ! else MISSING\n  if CONDITION:\n    require d.approved else APPROVAL\n  update docs[doc] {status:'done'}\n";
     assert!(!notes(&conditional.replace("CONDITION","restricted")).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));assert!(notes(&conditional.replace("CONDITION","false")).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+}
+
+#[test]fn potential_approval_writes_and_irrelevant_markers_do_not_hide_unused_approval(){
+    let source="table docs:\n  approved: bool default false\n  marker: bool default false\n  status: enum('draft','done') default 'draft'\n  read <- allow\n  update <- allow\n  online only\nmutation approve(doc: docs,flag: bool):\n  update docs[doc] {PAYLOAD}\nmutation finish(doc: docs):\n  update docs[doc] {status:'done'}\n";
+    for payload in ["approved:flag","approved:flag,status:'done'","approved:true,marker:false","approved:true,marker:true"]{assert!(notes(&source.replace("PAYLOAD",payload)).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));}
+}
+
+#[test]fn schema_approval_hops_keep_the_actual_stored_parent_path(){
+    let source="table docs:\n  approved: bool default false\n  read <- allow\n  update <- allow\n  online only\ntable pairs:\n  primary: docs\n  secondary: docs\n  read <- allow\n  online only\ntable effects:\n  doc: docs\n  pair: pairs\n  read <- allow\n  insert <- .pair.CHECK.approved = true\n  online only\nmutation approve(doc: docs):\n  update docs[doc] {approved:true}\nmutation work(pair: pairs):\n  p = pairs[pair] ! else MISSING\n  return insert effects {doc:p.primary,pair}\n";
+    assert!(!notes(&source.replace("CHECK","primary")).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));assert!(notes(&source.replace("CHECK","secondary")).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
 }
