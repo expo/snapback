@@ -139,7 +139,7 @@ fn effect(word:&str)->Effect {match word {"read"=>Effect::Read,"insert"=>Effect:
 fn effects(inv:&Invariant)->Vec<&str> { if inv.operation.is_some(){vec!["insert","update","delete"]}else if inv.target=="write" {vec!["insert","update"]} else {vec![inv.target.as_str()]} }
 /// Analyze declarations without using fixtures as proof assumptions.
 pub fn analyze(bound:&Bound)->Report {
-    analyze_with_campaign(bound,&mut challenges::Campaign::bounded(1500))
+    analyze_with_campaign(bound,&mut challenges::Campaign::work_bounded(512))
 }
 /// The CLI supplies its single campaign budget, shared with remaining paths.
 pub fn analyze_with_campaign(bound:&Bound,campaign:&mut challenges::Campaign)->Report {

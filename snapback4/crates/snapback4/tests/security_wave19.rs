@@ -29,6 +29,10 @@ fn check_refutes_excluded_contact_roles_before_any_full_test(){
   assert_eq!(check.status.code(),Some(1),"empty fixtures={empty}: {body}");
   assert!(body.contains("pieces.ownerName read")||body.contains("pieces.address read"),"{body}");
   assert!(body.contains("generated-fixture-trace"),"{body}");
+  assert!(!body.contains("time budget exhausted")&&!body.contains("stopped early (time)"),"default check is work-bounded: {body}");
+  let repeated=app.run(&["check","--json"]);assert_eq!(repeated.status.code(),Some(1),"{}",text(&repeated));
+  let report:serde_json::Value=serde_json::from_slice(&repeated.stdout).unwrap();
+  assert!(report["security"]["campaign_coverage"].as_array().unwrap().iter().all(|r|!r.as_str().unwrap().contains("time budget")));
   assert!(!app.0.join("snapback/generated/security-test.json").exists(),"a full-test record is not needed for direct check replay");
  }
 }

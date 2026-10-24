@@ -1,6 +1,6 @@
 # snapback4: security_wave19 check-refutation test depends on check's 1,500 ms wall-clock budget
 
-Status: Open
+Status: Closed
 Found: 2026-10-23, 0.4.38 publication (Mac dry runs 1 and 2 at 951ecdd4df)
 
 `crates/snapback4/tests/security_wave19.rs::check_refutes_excluded_contact_roles_before_any_full_test`
@@ -34,3 +34,13 @@ check at 1,706.5 ms, and `0 proved, 0 refuted, 2 unproved`, so `Some(0) != Some(
 So the lower-parallelism workaround does not reliably avoid it. The test still needs a work-bounded
 fix. Evidence: `snapback4/reports/20261023-publication-0.4.39/kit/isolated/dr1/` and
 `kit/iso-dr1.log`.
+
+
+## Resolution — 2026-10-24, SEC10
+
+Default check and production deployment now use fixed work budgets (512 and
+8192), with no wall-clock deadline. Explicit caller-selected deadline campaigns
+report `stopped early (time)` rather than a completed campaign. The real CLI
+wave-19 regression checks repeated no-cache refutations and asserts the default
+has no time cut. The affected `security_wave19` target passed all 11 tests on
+Linux (75.92 s); Mac is intentionally skipped by the SEC10 commission.

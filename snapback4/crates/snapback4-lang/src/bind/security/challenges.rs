@@ -18,6 +18,7 @@ mod assets;
 mod column_reads;
 mod stability;
 mod generated;
+mod workflow;
 pub use generated::fixture as generated_fixture;
 #[derive(Clone,Debug,Serialize,serde::Deserialize,PartialEq,Eq)]
 #[serde(rename_all="kebab-case")]
@@ -28,8 +29,11 @@ impl Reachability {
 #[derive(Clone,Debug,Serialize,serde::Deserialize)]
 pub struct Counterexample {pub reachability:Reachability,pub invariant_site:String,pub args:BTreeMap<String,Value>,pub viewer:String,pub operation:String,pub effect:String,pub row:Value,pub old:Option<Value>,pub supporting_rows:BTreeMap<String,Vec<Value>>,pub rule_path:String,pub scope:String, pub observations:Option<paired::Observations>,pub history:Vec<histories::Step>}
 #[derive(Clone,Debug,Default,Serialize)]
-pub struct Campaign {#[doc(hidden)] #[serde(skip)] pub time_samples:Option<Vec<Value>>,pub evaluation_unknowns:BTreeSet<String>,pub directed_attempts:usize,pub directed_peak_worlds:usize,#[serde(skip)] pub history_limit:usize,#[serde(skip)] pub generated_fixture:bool,#[serde(skip)] pub work_remaining:Option<usize>,#[serde(skip)] pub deadline:Option<std::time::Instant>,pub paired_observer_calls:usize,pub history_observer_calls:usize,pub column_observer_calls:usize,pub operations:BTreeMap<String,usize>,pub sequences:usize,pub attempted:usize,pub admitted:usize,pub refused:usize,pub violations:Vec<Counterexample>,pub boundary_failures:Vec<String>,pub unsupported:BTreeSet<String>}
+pub struct Campaign {#[doc(hidden)] #[serde(skip)] pub time_samples:Option<Vec<Value>>,pub evaluation_unknowns:BTreeSet<String>,pub directed_attempts:usize,pub workflow_attempts:usize,pub directed_peak_worlds:usize,#[serde(skip)] pub history_limit:usize,#[serde(skip)] pub generated_fixture:bool,#[serde(skip)] pub work_remaining:Option<usize>,#[serde(skip)] pub deadline:Option<std::time::Instant>,pub paired_observer_calls:usize,pub history_observer_calls:usize,pub column_observer_calls:usize,pub operations:BTreeMap<String,usize>,pub sequences:usize,pub attempted:usize,pub admitted:usize,pub refused:usize,pub violations:Vec<Counterexample>,pub boundary_failures:Vec<String>,pub unsupported:BTreeSet<String>}
 impl Campaign {
+    /// Deterministic production/check exploration. Elapsed time is not a verdict input.
+    pub fn work_bounded(work:usize)->Self {Self{work_remaining:Some(work),..Self::default()}}
+    /// Explicit caller-selected safety deadline; default commands use work_bounded.
     pub fn bounded(milliseconds:u64)->Self {Self{work_remaining:Some(512),deadline:Some(std::time::Instant::now()+std::time::Duration::from_millis(milliseconds)),..Self::default()}}
     pub(super) fn reserve(&mut self,cost:usize)->bool {
         if self.exhausted(){return false;}
@@ -40,7 +44,7 @@ impl Campaign {
     }
     pub(super) fn exhausted(&mut self)->bool {
         if self.work_remaining==Some(0){self.unsupported.insert("check concrete exploration work budget exhausted; remaining paths unproved; run snapback4 test for the full campaign".into());return true;}
-        if self.deadline.is_some_and(|deadline|std::time::Instant::now()>=deadline){self.unsupported.insert("check concrete exploration time budget exhausted; remaining paths unproved; run snapback4 test for the full campaign".into());true}else{false}
+        if self.deadline.is_some_and(|deadline|std::time::Instant::now()>=deadline){self.unsupported.insert("stopped early (time); no completed campaign verdict; run snapback4 test to complete exploration".into());true}else{false}
     }
 }
 fn id(table:&str)->Value {Value::Id(format!("security-{table}"))}
@@ -225,20 +229,8 @@ fn replay(bound:&Bound,inv:&Invariant,rows:&BTreeMap<String,Vec<Value>>,viewer:&
 fn readback(engine:&Engine)->Result<BTreeMap<String,Vec<Value>>,String>{engine.schema().tables.keys().map(|t|engine.store().rows(t).map(|rs|(t.clone(),rs)).map_err(|e|e.to_string())).collect()}
 
 fn operation_preflight(bound:&Bound,inv:&Invariant)->Result<(),String>{
-    let Some(name)=&inv.operation else{return Ok(());};
-    let p=&bound.programs.iter().find(|p|&p.program.name==name).ok_or("operation did not bind")?.program;
-    if !super::census::body(&p.body){return Err(format!("{name}: opaque/loop/scan path requires write-boundary tracing"));}
-    let rule=inv.policy.as_ref().ok_or("operation policy outside rule fragment")?;
-    if rule.any_term(&|t|!matches!(t,RuleTerm::Viewer|RuleTerm::Literal(_))){return Err("operation policy requires write-boundary row-image tracing".into());}
-    let writes=ir::write_tables(p);
-    if writes.iter().filter(|(t,_)|t==&inv.table).count()>1{return Err(format!("{name}: multiple target writes need executed-effect tracing; net images do not identify delete/reinsert"));}
-    let unstable=kernel::dependencies(rule).iter().any(|dep|{
-        let hits=writes.iter().filter(|(t,_)|t==dep).collect::<Vec<_>>();
-        !hits.is_empty()&&!(dep==&inv.table&&hits.len()==1&&hits[0].1=="insert")
-    });
-    if unstable||!bound.schema.maintains.is_empty()||bound.schema.tables.values().any(|t|!t.sequences.is_empty()||!t.maintained.is_empty()||t.on_delete.values().any(|a|a.writes())){
-        return Err("operation policy dependency may change before/after its write boundary; snapshot correspondence unproved".into());
-    }Ok(())
+    if let Some(name)=&inv.operation&&!bound.programs.iter().any(|p|&p.program.name==name){return Err("operation did not bind".into());}
+    Ok(())
 }
 
 /// Schema-only engine challenges. Successful synthetic operations refute the
@@ -313,23 +305,19 @@ pub fn run_selected_after(bound:&Bound,sites:Option<&BTreeSet<String>>,mut out:C
                 if let Some(operation)=&inv.operation {
                     let Some(p)=bound.programs.iter().find(|p|&p.program.name==operation)else{continue;};
                     if ephemeral_operation(bound,&p.program,&mut out){continue;}
-                    let permitted=match judged(inv,policy(bound,inv,&rows,viewer,None,row),&mut out){Ok(p)=>p,Err(why)=>{out.unsupported.insert(format!("{operation}: operation intent not judged: {why}"));continue;}};
-                    let Some(args)=arguments(&p.program.args,variant)else{out.unsupported.insert(format!("{operation}: arguments need fixture assets or unsupported samples"));continue;};
-                    if !out.reserve(1){break;}
+                    let mut attempt=match seeded.fork_fixture(){Ok(e)=>e,Err(why)=>{out.unsupported.insert(why.to_string());continue;}};
+                    let args=match arguments(&p.program.args,variant){Some(a)=>a,None=>{out.unsupported.insert(format!("{operation}: typed arguments unavailable"));continue;}};
+                    let args=match materialize_arguments(&mut attempt,&p.program.args,&args,viewer){Ok(a)=>a,Err(why)=>{out.unsupported.insert(format!("{operation}: argument ledger unavailable: {why}"));continue;}};
+                    let trace=executed::trace(bound,&p.program);
                     out.attempted+=1;
-                    let mut seeded=match engine(bound,&rows,program("$security.seed",ProgramKind::Query,vec![Stmt::Return(Expr::Literal(Value::Null))])){Ok(e)=>e,Err(e)=>{out.unsupported.insert(e);continue;}};
-                    let args=match materialize_arguments(&mut seeded,&p.program.args,&args,viewer){Ok(a)=>a,Err(why)=>{out.unsupported.insert(format!("{operation}: argument ledger unavailable: {why}"));continue;}};
-                    match seeded.mutate(operation,None,Context::new(viewer,args.clone()).at(NOW)) {
+                    match attempt.mutate(operation,None,Context::new(viewer,args.clone()).at(NOW).with_fixture_trace(trace.clone())) {
                         Ok(result) if matches!(result.state,snapback4_core::WriteState::Sent{..})=>{
-                            let current=readback(&seeded).unwrap_or_default();
-                            let changed=current.get(&inv.table).into_iter().flatten().filter(|r|!rows.get(&inv.table).is_some_and(|old|old.contains(r))).collect::<Vec<_>>();
-                            for next in changed {
-                                let old=rows.get(&inv.table).into_iter().flatten().find(|old|old.field("id").ok()==next.field("id").ok());
-                                // An upsert must be attributed to its executed arm;
-                                // a column contract cannot be refuted by editing a sibling.
-                                if inv.target=="update"&&old.is_none() || inv.target=="insert"&&old.is_some() || inv.target=="delete" {continue;}
-                                if let Some(column)=&inv.column && old.is_some_and(|old|old.field(column).ok()==next.field(column).ok()){continue;}
-                                if !permitted{out.admitted+=1;out.violations.push(Counterexample{reachability:Reachability::SyntheticOperation,history:Vec::new(),observations:None,invariant_site:inv.site.to_string(),args:args.clone(),viewer:viewer.into(),operation:operation.clone(),effect:if old.is_some(){"update"}else{"insert"}.into(),row:next.clone(),old:old.cloned(),supporting_rows:rows.clone(),rule_path:format!("authored operation {operation}"),scope:"actual authored mutation committed a changed image from a schema-valid seeded snapshot".into()});found=true;break;}
+                            if let Ok(after)=readback(&attempt){
+                                let steps=vec![histories::Step{clock:Some(NOW),operation:operation.clone(),viewer:viewer.into(),args,result:serde_json::to_value(&result.state).unwrap()}];
+                                let first=out.violations.len();
+                                executed::record(bound,&p.program,&trace,&result.state,&after,&rows,viewer,&steps,&mut attempt,&mut out);
+                                for witness in &mut out.violations[first..]{witness.reachability=Reachability::SyntheticOperation;witness.scope="actual executed boundaries from a schema-valid synthetic initial snapshot; application reachability is not claimed".into();}
+                                found=out.violations.len()>first;
                             }
                         },_=>out.refused+=1,
                     }
@@ -411,6 +399,15 @@ pub fn evaluation_gaps(bound:&Bound)->Vec<String>{
 }
 
 pub fn generated_campaign(bound:&Bound,campaign:&mut Campaign,matrix:bool){
+    // Inferred workflow contracts must get a turn before independent read
+    // observers spend the common work allowance. This is ordering, not proof.
+    if bound.invariants.iter().any(super::derived::is_derived){
+        let mut focused=bound.clone();focused.invariants.retain(super::derived::is_derived);
+        generated_campaign_inner(&focused,campaign,false);
+    }
+    generated_campaign_inner(bound,campaign,matrix);
+}
+fn generated_campaign_inner(bound:&Bound,campaign:&mut Campaign,matrix:bool){
     for (name,_) in bound.schema.visible_tables().filter(|(_,t)|t.ephemeral.is_some()){campaign.unsupported.insert(format!("ephemeral {name}: generated memory populations and ephemeral mutation histories remain uncovered; durable campaigns use isolated hub copies"));}
     campaign.history_limit=64;campaign.generated_fixture=false;
     if !campaign.reserve(1){return;}
