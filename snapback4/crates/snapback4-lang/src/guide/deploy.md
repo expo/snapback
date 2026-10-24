@@ -17,7 +17,9 @@ reported interception and retry. Snapback's own index-key and device-residency
 triggers require their exact installed definitions; only recognized legacy
 constraints and their exact built-in triggers are admitted. Database event
 triggers are allowed; activation checks their managed-relation effects after
-installer DDL before moving data, and again before committing.
+installer DDL before moving data, after creating activation TEMP tables before
+their first use, and again before committing. SQLite managed names match
+identifiers without ASCII case distinctions, including quoted table names.
 
 Runtime DDL on managed relations while serving is explicitly outside the
 store fence model. Owner/head locks do not prevent external DDL, and admission
@@ -33,7 +35,8 @@ suspend and every supported failover. They are not tuning estimates. For example
 forward adjustment; the three-second grant gets a local deadline below 2.747 s.
 Use this only when the deployment guarantees those bounds and all writers run
 the grant-aware protocol. Unset it for arbitrary clock steps, unqualified failover
-or mixed versions. The ordinary one-statement G5 validation remains the default.
+or mixed versions. Explicit malformed or non-UTF-8 bounds refuse startup. The
+ordinary one-statement G5 validation remains the default.
 A grant hit rechecks bearer authority and expiry with a fresh clock. Every local
 commit invalidates revision equality. Grant loss falls back to database reads;
 unknown COMMIT stops cached reads and new writers until fenced reacquisition

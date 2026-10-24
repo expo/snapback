@@ -21,7 +21,8 @@ pub(super) fn verify(conn: &Connection) -> Result<(), RuntimeError> {
         let mut rows = stmt.query([])?;
         while let Some(row) = rows.next()? {
             let table: String = row.get(0)?;
-            if !crate::managed_relations::TABLES.contains(&table.as_str()) { continue; }
+            // SQLite identifier comparison folds ASCII, including quoted names.
+            if !crate::managed_relations::TABLES.iter().any(|name|name.eq_ignore_ascii_case(&table)) { continue; }
             let name: String = row.get(1)?;
             let sql: Option<String> = row.get(2)?;
             if catalog == "main.sqlite_master" && table == "i" && guards.iter().any(|(n, definition)| n == &name && sql.as_deref() == Some(definition.as_str())) { continue; }

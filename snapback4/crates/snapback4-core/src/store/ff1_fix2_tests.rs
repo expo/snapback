@@ -130,3 +130,132 @@ fn activation_benign_event_trigger_is_legal() {
     assert!(tx.test_postgres_tx().query("SELECT count(*) FROM ddl_audit",&[]).unwrap()[0].get::<_,i64>(0)>0);
     tx.rollback().unwrap();
 }
+
+
+#[test]
+fn sqlite_identifier_case_cannot_hide_managed_trigger() {
+    for temporary in [false, true] {
+        let (s, _) = bound("table notes:\n  n: int\n  public\n");
+        let mut st = Store::memory().unwrap();
+        st.install(&s).unwrap();
+        st.conn().execute_batch(&format!("ALTER TABLE r RENAME TO rename_step; ALTER TABLE rename_step RENAME TO R; CREATE {}TRIGGER hide_insert BEFORE INSERT ON R BEGIN SELECT RAISE(IGNORE); END",if temporary {"TEMP "} else {""})).unwrap();
+        refused(st.install(&s));
+    }
+}
+
+#[cfg(feature = "postgres")]
+#[test]
+#[ignore = "private PG16; scripts/test-postgres.sh"]
+fn activation_temp_event_trigger_refuses_before_restoration() {
+    let (mut e, s, p, name) = dormant_fixture();
+    let before = dormant_snapshot(&mut e);
+    let generation = e.generation();
+    let event = format!("ff2_temp_{:x}", crate::ids::seed());
+    sql(
+        &mut e,
+        true,
+        &format!(
+            r#"CREATE SEQUENCE movement_probe;
+      CREATE FUNCTION erase_temp_restore() RETURNS trigger LANGUAGE plpgsql AS $$
+      BEGIN PERFORM nextval('movement_probe'); DELETE FROM r WHERE t=NEW.t AND id=NEW.id; RETURN NEW; END $$;
+      CREATE FUNCTION intercept_temp() RETURNS event_trigger LANGUAGE plpgsql AS $$
+      BEGIN IF current_schema()='{name}' AND to_regclass('pg_temp._evolution_restored') IS NOT NULL
+        AND NOT EXISTS(SELECT 1 FROM pg_trigger WHERE tgrelid=to_regclass('pg_temp._evolution_restored') AND tgname='erase_temp_restore') THEN
+        CREATE TRIGGER erase_temp_restore AFTER INSERT ON pg_temp._evolution_restored FOR EACH ROW EXECUTE FUNCTION erase_temp_restore();
+      END IF; END $$;
+      CREATE EVENT TRIGGER {event} ON ddl_command_end WHEN TAG IN ('CREATE TABLE') EXECUTE FUNCTION intercept_temp()"#
+        ),
+    );
+    let result = restore(&mut e, s.clone(), p.clone());
+    sql(&mut e, true, &format!("DROP EVENT TRIGGER {event}"));
+    refused(result);
+    assert_eq!(e.generation(), generation);
+    assert_eq!(dormant_snapshot(&mut e), before);
+    let tx = e.store_mut().transaction().unwrap();
+    assert!(
+        !tx.test_postgres_tx()
+            .query("SELECT is_called FROM movement_probe", &[])
+            .unwrap()[0]
+            .get::<_, bool>(0),
+        "TEMP interception must refuse before the first insert"
+    );
+    tx.rollback().unwrap();
+    restore(&mut e, s, p).unwrap();
+    assert_eq!(e.store().rows("notes").unwrap().len(), 1);
+}
+
+#[cfg(feature = "postgres")]
+#[test]
+#[ignore = "private PG16; scripts/test-postgres.sh"]
+fn activation_precommit_checks_every_temp_authority_relation() {
+    for table in ["_evolution_restored", "_adopt_groups", "_adopt_conflicts"] {
+        let (s, p) = bound("table notes:\n  n: int\n  public\n  online only\n");
+        let (st, _, _) = store(true);
+        let mut e = Engine::new_at(st, s, p, 1000).unwrap();
+        let s = e.schema().clone();
+        let result=e.store_mut().activate_at_with_launch(&s,Some(&BTreeMap::new()),false,1000,true, |_|Ok(()), |_,_,_|Ok(()), |tx| {
+            let tx=tx.test_postgres_tx();
+            tx.batch(&format!("CREATE TEMP TABLE IF NOT EXISTS {table}(n bigint) ON COMMIT DROP; CREATE FUNCTION late_temp() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NULL; END $$; CREATE TRIGGER late_temp BEFORE INSERT ON pg_temp.{table} FOR EACH ROW EXECUTE FUNCTION late_temp()"))?;
+            Ok(())
+        });
+        refused(result);
+    }
+}
+
+#[cfg(feature = "postgres")]
+#[test]
+#[ignore = "private PG16; scripts/test-postgres.sh"]
+fn activation_temp_group_tables_checked_before_first_use() {
+    for table in ["_adopt_groups", "_adopt_conflicts"] {
+        let source = "table notes:\n  n: int\n  public\n  online only\n";
+        let (s, p) = bound(source);
+        let (st, _, name) = store(true);
+        let mut e = Engine::new_release(st, s, p, 1, None).unwrap();
+        e.seed_at(
+            ["a", "b"].map(|id| {
+                (
+                    "notes".into(),
+                    object([("id", Value::Id(id.into())), ("n", Value::Int(7))]),
+                )
+            }),
+            1000,
+        )
+        .unwrap();
+        let event = format!("ff2_group_{:x}", crate::ids::seed());
+        sql(
+            &mut e,
+            true,
+            &format!(
+                r#"CREATE SEQUENCE movement_probe;
+          CREATE FUNCTION scratch_probe() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN PERFORM nextval('movement_probe'); RETURN NEW; END $$;
+          CREATE FUNCTION intercept_group() RETURNS event_trigger LANGUAGE plpgsql AS $$
+          BEGIN IF current_schema()='{name}' AND to_regclass('pg_temp.{table}') IS NOT NULL
+            AND NOT EXISTS(SELECT 1 FROM pg_trigger WHERE tgrelid=to_regclass('pg_temp.{table}') AND tgname='scratch_probe') THEN
+            CREATE TRIGGER scratch_probe AFTER INSERT ON pg_temp.{table} FOR EACH ROW EXECUTE FUNCTION scratch_probe();
+          END IF; END $$;
+          CREATE EVENT TRIGGER {event} ON ddl_command_end WHEN TAG IN ('CREATE TABLE') EXECUTE FUNCTION intercept_group()"#
+            ),
+        );
+        let (s, p) = bound(&source.replace("  public", "  unique n\n  public"));
+        let result = e.adopt_release_at(
+            s,
+            p,
+            &crate::engine::release::ReleaseActivation::new(2, Some(1)),
+            false,
+            1000,
+        );
+        sql(&mut e, true, &format!("DROP EVENT TRIGGER {event}"));
+        refused(result);
+        assert_eq!(e.generation(), 1);
+        assert_eq!(e.store().count("notes").unwrap(), 2);
+        let tx = e.store_mut().transaction().unwrap();
+        assert!(
+            !tx.test_postgres_tx()
+                .query("SELECT is_called FROM movement_probe", &[])
+                .unwrap()[0]
+                .get::<_, bool>(0),
+            "scratch interception must refuse before use of {table}"
+        );
+        tx.rollback().unwrap();
+    }
+}

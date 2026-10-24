@@ -200,10 +200,30 @@ impl StoreConfig {
         }
         // Opt in only when the operator can guarantee these bounds across the
         // configured database and every lossless failover. Unset stays on G5.
-        if let Ok(value)=std::env::var("SNAPBACK4_READ_GRANT_CLOCK_BOUNDS") {
-            let parsed=(|| {let (rate,jump)=value.split_once(',')?;Some(snapback4_core::store_port::ReadClockBounds {rate_ppm:rate.parse().ok()?,forward_jump:Duration::from_millis(jump.parse().ok()?)})})();
-            let bounds=parsed.ok_or_else(||input("SNAPBACK4_READ_GRANT_CLOCK_BOUNDS requires rate_ppm,forward_jump_ms"))?;
-            lease.lock().unwrap_or_else(|p|p.into_inner()).enable_read_grant(bounds).map_err(redact)?;
+        match std::env::var("SNAPBACK4_READ_GRANT_CLOCK_BOUNDS") {
+            Ok(value) => {
+                let parsed = (|| {
+                    let (rate, jump) = value.split_once(',')?;
+                    Some(snapback4_core::store_port::ReadClockBounds {
+                        rate_ppm: rate.parse().ok()?,
+                        forward_jump: Duration::from_millis(jump.parse().ok()?),
+                    })
+                })();
+                let bounds = parsed.ok_or_else(|| {
+                    input("SNAPBACK4_READ_GRANT_CLOCK_BOUNDS requires rate_ppm,forward_jump_ms")
+                })?;
+                lease
+                    .lock()
+                    .unwrap_or_else(|p| p.into_inner())
+                    .enable_read_grant(bounds)
+                    .map_err(redact)?;
+            }
+            Err(std::env::VarError::NotPresent) => {}
+            Err(std::env::VarError::NotUnicode(_)) => {
+                return Err(input(
+                    "SNAPBACK4_READ_GRANT_CLOCK_BOUNDS must be valid UTF-8",
+                ));
+            }
         }
         let renew = lease.clone();
         let renewed = deadline.clone();
@@ -429,5 +449,80 @@ mod tests {
         let restarted = config.acquire(&id).unwrap();
         assert_eq!(restarted.lease.lock().unwrap().token(), Some(2));
         drop(restarted);
+    }
+}
+
+
+#[cfg(all(test, unix))]
+mod ff2_tests {
+    use super::*;
+    #[test]
+    #[ignore = "private PG16; non-UTF-8 startup setting"]
+    fn postgres_non_utf8_read_grant_setting_refuses_startup() {
+        if std::env::var_os("SNAPBACK4_FF2_SETTING_CHILD").is_none() {
+            use std::os::unix::ffi::OsStringExt;
+            let output = std::process::Command::new(std::env::current_exe().unwrap())
+                .args([
+                    "--ignored",
+                    "--exact",
+                    "store_config::ff2_tests::postgres_non_utf8_read_grant_setting_refuses_startup",
+                    "--nocapture",
+                ])
+                .env("SNAPBACK4_FF2_SETTING_CHILD", "1")
+                .env(
+                    "SNAPBACK4_READ_GRANT_CLOCK_BOUNDS",
+                    std::ffi::OsString::from_vec(vec![0xff]),
+                )
+                .output()
+                .unwrap();
+            assert!(
+                output.status.success(),
+                "{}{}",
+                String::from_utf8_lossy(&output.stdout),
+                String::from_utf8_lossy(&output.stderr)
+            );
+            return;
+        }
+        let connection = std::env::var("SNAPBACK4_EVAL_POSTGRES").unwrap();
+        let namespace = format!("ff2_setting_{:x}", snapback4_core::ids::seed());
+        let store = AnyStore::create_postgres(&connection, &namespace).unwrap();
+        let bound = snapback4_lang::compile(&[(
+            "schema.q".into(),
+            "table notes:\n  n: int\n  public\n  online only\n".into(),
+        )]);
+        assert!(bound.diagnostics.is_empty());
+        let engine = snapback4_core::Engine::new(
+            store,
+            bound.schema,
+            bound.programs.into_iter().map(|p| p.program),
+        )
+        .unwrap();
+        let id = engine.store().store_identity().unwrap().unwrap();
+        drop(engine);
+        let config = StoreConfig {
+            binding: AnyStore::postgres_binding(&connection, &namespace).unwrap(),
+            connection: connection.clone(),
+            namespace: namespace.clone(),
+            state_directory: PathBuf::new(),
+        };
+        let result = config.acquire(&id);
+        let error = result.as_ref().err().cloned();
+        drop(result);
+        let cleaned = std::process::Command::new("psql")
+            .args([
+                &connection,
+                "-v",
+                "ON_ERROR_STOP=1",
+                "-c",
+                &format!("DROP SCHEMA {namespace} CASCADE"),
+            ])
+            .output()
+            .unwrap();
+        assert!(cleaned.status.success());
+        let error = error.expect("non-UTF-8 explicit read-grant setting must refuse startup");
+        assert!(
+            error.contains("SNAPBACK4_READ_GRANT_CLOCK_BOUNDS"),
+            "{error}"
+        );
     }
 }

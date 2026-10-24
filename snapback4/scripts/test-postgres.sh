@@ -67,7 +67,10 @@ cargo test --locked -p snapback4-core --features postgres --lib engine::postgres
 # Keep closure execution, fault oracles and the commit/revocation cut explicit,
 # including the decoder's non-Postgres malformed-payload witnesses.
 cargo test --locked -p snapback4-core --features postgres --lib store::ff1_fix_tests -- --include-ignored --nocapture || status=1
-cargo test --locked -p snapback4-core --features postgres --lib engine::postgres::pipeline -- --include-ignored --nocapture || status=1
+# Socket-based production ownership fixtures and TCP wire/socket-option witnesses
+# can share one private cluster through separate explicit connection strings.
+SNAPBACK4_EVAL_POSTGRES="${SNAPBACK4_EVAL_POSTGRES_TCP:-$SNAPBACK4_EVAL_POSTGRES}" \
+  cargo test --locked -p snapback4-core --features postgres --lib engine::postgres::pipeline -- --include-ignored --nocapture || status=1
 cargo test --locked -p snapback4-core --features postgres --lib read_closure -- --include-ignored --nocapture || status=1
 cargo test --locked -p snapback4-core --features postgres --lib engine::revision_cache -- --include-ignored --nocapture --test-threads 1 || status=1
 cargo test --locked -p snapback4-core --features postgres --lib change_evidence -- --include-ignored --nocapture || status=1
@@ -83,7 +86,7 @@ cargo test --locked -p snapback4-core --features postgres --lib engine::program_
 cargo test --locked -p snapback4-core --features postgres --lib engine::committer::outcome -- --include-ignored --nocapture || status=1
 cargo test --locked -p snapback4 --features postgres --bin snapback4 s10c_postgres_internal_http_host_witness -- --include-ignored --nocapture || status=1
 cargo test --locked -p snapback4 --features postgres --bin snapback4 change_evidence_changes_snapshot -- --include-ignored --nocapture || status=1
-cargo test --locked -p snapback4 --features postgres --bin snapback4 postgres_startup_renewal_error_releases_committed_claim -- --include-ignored --nocapture || status=1
+cargo test --locked -p snapback4 --features postgres --bin snapback4 store_config:: -- --include-ignored --nocapture || status=1
 cargo test --locked -p snapback4 --features postgres --bin snapback4 round_trips_postgres -- --include-ignored --nocapture || status=1
 cargo test --locked -p snapback4 --features postgres --bin snapback4 postgres_bearer_is_checked_after_durable_and_ephemeral_mutation_lock_gaps -- --include-ignored --nocapture || status=1
 cargo test --locked -p snapback4 --features postgres --bin snapback4 rt3b_ -- --include-ignored --nocapture || status=1

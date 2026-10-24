@@ -412,39 +412,27 @@ fn cpu_snapshot(pids: &[u32], tree_root: Option<u32>) -> Value {
         // Children CPU includes reaped descendants. Adding it to each live
         // member retains the CPU of private PG workers that exit mid-window.
         // The stat tail starts at field 3 (state).
-        fn counters(pid: u32) -> Option<(u32, u64, u64, u64)> {
-            let stat = std::fs::read_to_string(format!("/proc/{pid}/stat")).ok()?;
-            let (_, tail) = stat.rsplit_once(") ")?;
-            let f: Vec<_> = tail.split_whitespace().collect();
-            let n = |i: usize| f.get(i)?.parse::<u64>().ok();
-            Some((n(1)? as u32, n(19)?, n(11)? + n(12)?, n(13)? + n(14)?))
-        }
         let hz = unsafe { libc::sysconf(libc::_SC_CLK_TCK) } as f64;
-        let values: Vec<_> = pids.iter().copied().chain(std::iter::once(std::process::id())).map(|pid| {
-            let stat = counters(pid);
-            json!({"pid":pid,"start_ticks":stat.map(|s|s.1),"cpu_s":stat.map(|s|s.2 as f64/hz)})
-        }).collect();
-        let tree = tree_root.and_then(|root| {
-            let all: BTreeMap<_,_> = std::fs::read_dir("/proc").ok()?.filter_map(|e| {
-                let pid = e.ok()?.file_name().to_str()?.parse::<u32>().ok()?;
-                Some((pid,counters(pid)?))
-            }).collect();
-            if !all.contains_key(&root) { return None; }
-            let mut members = std::collections::BTreeSet::from([root]);
-            loop {
-                let old = members.len();
-                for (pid, (parent,_,_,_)) in &all {
-                    if members.contains(parent) { members.insert(*pid); }
-                }
-                if members.len() == old { break; }
-            }
-            let ticks: u64 = members.iter().map(|pid| all[pid].2 + all[pid].3).sum();
-            Some(json!({"root_pid":root,"root_start_ticks":all[&root].1,"cpu_s":ticks as f64/hz,"pids":members}))
-        });
-        json!({"elapsed_unix_s":std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs_f64(),"load1":std::fs::read_to_string("/proc/loadavg").ok().and_then(|s|s.split_whitespace().next()?.parse::<f64>().ok()),"processes":values,"tree":tree})
+        let values: Vec<_> = pids
+            .iter()
+            .copied()
+            .chain(std::iter::once(std::process::id()))
+            .map(|pid| {
+                let stat = counters(std::path::Path::new("/proc"), pid);
+                json!({"pid":pid,"start_ticks":stat.map(|s|s.1),"cpu_s":stat.map(|s|s.2 as f64/hz)})
+            })
+            .collect();
+        let tree =
+            tree_root.and_then(|root| family_snapshot(std::path::Path::new("/proc"), root, hz));
+        let valid = values.iter().all(|value| !value["cpu_s"].is_null())
+            && tree_root.is_none_or(|_| tree.is_some());
+        json!({"valid":valid,"elapsed_unix_s":std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_secs_f64(),"load1":std::fs::read_to_string("/proc/loadavg").ok().and_then(|s|s.split_whitespace().next()?.parse::<f64>().ok()),"processes":values,"tree":tree})
     }
     #[cfg(not(target_os = "linux"))]
-    { let _ = (pids,tree_root); Value::Null }
+    {
+        let _ = (pids, tree_root);
+        Value::Null
+    }
 }
 
 #[cfg(test)]
@@ -460,5 +448,91 @@ mod mixed_tests {
             else {assert_eq!(serde_json::to_value(&op).unwrap(),serde_json::to_value(operation(&ordinary,worker,seq)).unwrap());}
         }}
         assert_eq!(writes,128);
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn counters(proc: &std::path::Path, pid: u32) -> Option<(u32, u64, u64, u64)> {
+    let stat = std::fs::read_to_string(proc.join(pid.to_string()).join("stat")).ok()?;
+    let (_, tail) = stat.rsplit_once(") ")?;
+    let f: Vec<_> = tail.split_whitespace().collect();
+    let n = |i: usize| f.get(i)?.parse::<u64>().ok();
+    Some((n(1)? as u32, n(19)?, n(11)? + n(12)?, n(13)? + n(14)?))
+}
+
+#[cfg(target_os = "linux")]
+fn family_snapshot(proc: &std::path::Path, root: u32, hz: f64) -> Option<Value> {
+    let mut all = BTreeMap::new();
+    for entry in std::fs::read_dir(proc).ok()? {
+        let entry = entry.ok()?;
+        let name = entry.file_name();
+        let Some(pid) = name.to_str().and_then(|name| name.parse::<u32>().ok()) else {
+            continue;
+        };
+        // A failed read cannot establish whether this PID belongs to
+        // the family. Invalidate rather than emit a partial total.
+        all.insert(pid, counters(proc, pid)?);
+    }
+    if !all.contains_key(&root) {
+        return None;
+    }
+    let mut members = std::collections::BTreeSet::from([root]);
+    loop {
+        let old = members.len();
+        for (pid, (parent, _, _, _)) in &all {
+            if members.contains(parent) {
+                members.insert(*pid);
+            }
+        }
+        if members.len() == old {
+            break;
+        }
+    }
+    let ticks: u64 = members.iter().map(|pid| all[pid].2 + all[pid].3).sum();
+    Some(
+        json!({"root_pid":root,"root_start_ticks":all[&root].1,"cpu_s":ticks as f64/hz,"pids":members}),
+    )
+}
+
+#[cfg(all(test, target_os = "linux"))]
+mod sampler_tests {
+    use super::*;
+    #[test]
+    fn family_member_stat_failure_invalidates_the_sample() {
+        let dir = std::env::temp_dir().join(format!("ff2-proc-{}", std::process::id()));
+        std::fs::create_dir_all(dir.join("100")).unwrap();
+        let mut fields = vec!["0"; 20];
+        fields[0] = "S";
+        fields[1] = "1";
+        fields[11] = "10";
+        fields[12] = "20";
+        fields[13] = "3";
+        fields[14] = "4";
+        fields[19] = "42";
+        std::fs::write(
+            dir.join("100/stat"),
+            format!("100 (private PG master) {}", fields.join(" ")),
+        )
+        .unwrap();
+        assert_eq!(family_snapshot(&dir, 100, 100.).unwrap()["cpu_s"], 0.37);
+        // A backend discovered during enumeration disappears before stat is
+        // read; its work is not yet in the master's reaped-child counters.
+        std::fs::create_dir(dir.join("101")).unwrap();
+        let vanished = family_snapshot(&dir, 100, 100.);
+        std::fs::write(dir.join("101/stat"), "malformed stat").unwrap();
+        let malformed = family_snapshot(&dir, 100, 100.);
+        std::fs::remove_dir_all(&dir).unwrap();
+        assert!(
+            vanished.is_none(),
+            "vanished member silently emitted a partial CPU total: {vanished:?}"
+        );
+        assert!(
+            malformed.is_none(),
+            "malformed member silently emitted a partial CPU total"
+        );
+        assert!(
+            family_snapshot(&dir, 100, 100.).is_none(),
+            "failed enumeration must invalidate"
+        );
     }
 }

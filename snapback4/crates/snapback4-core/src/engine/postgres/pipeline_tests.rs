@@ -68,8 +68,8 @@ fn pipeline_snapshots_authority_and_statement_errors_are_independent() {
     assert_eq!(first[0].get::<_, i64>(1), 1);
     assert!(!second[0].get::<_, bool>(0));
     assert_eq!(second[0].get::<_, i64>(1), 2);
-    // All three are in flight before the first query completes. A separate
-    // Sync prevents the division error from discarding the third query.
+    // A separate Sync prevents the division error from discarding the third
+    // query. The protocol relay witness below separately proves wire overlap.
     let a = reader(&pool, &slot);
     let good1 = std::thread::spawn(move || a.independent("SELECT 11::bigint,pg_sleep(0.2)", &[]));
     wait(|| slot.permits.available_permits() == 3);
@@ -193,10 +193,7 @@ fn pipeline_tcp_nodelay_on_reader_and_synchronous_writer() {
         .iter()
         .any(|h| matches!(h, postgres::config::Host::Tcp(_)))
     {
-        eprintln!(
-            "TCP_NODELAY witness requires private TCP PG; socket-only cluster has no TCP sockets"
-        );
-        return;
+        panic!("TCP_NODELAY witness requires private TCP PG; socket-only input cannot qualify it");
     }
     if std::env::var_os("SNAPBACK4_PIPELINE_NODELAY_CHILD").is_some() {
         let (mut writer, _pool, _slot, name) = fixture(4);
@@ -331,4 +328,239 @@ fn pipeline_cached_statements_keep_fresh_facts_and_bounded_typed_code() {
     let names=inspect.query_one("SELECT count(*) FROM pg_prepared_statements",&[]).unwrap().get::<_,i64>(0);
     assert!(names<=33,"eviction must reclaim code, not accumulate preparations: {names}");
     writer.batch_execute(&format!("DROP SCHEMA {name} CASCADE")).unwrap();
+}
+
+// A frontend protocol relay counts complete Execute/Sync units only after
+// forwarding their bytes to PG. Permits and task admission are not evidence of
+// submission: a serialized custody lock cannot satisfy this barrier.
+struct Wire {
+    units: Arc<std::sync::atomic::AtomicUsize>,
+    sockets: Vec<std::net::TcpStream>,
+    relay: Option<std::thread::JoinHandle<()>>,
+}
+impl Wire {
+    fn reaches(&self, count: usize) -> bool {
+        let deadline = Instant::now() + Duration::from_secs(2);
+        while self.units.load(std::sync::atomic::Ordering::SeqCst) < count {
+            if Instant::now() >= deadline {
+                return false;
+            }
+            std::thread::sleep(Duration::from_millis(2));
+        }
+        true
+    }
+    fn count(&self) -> usize {
+        self.units.load(std::sync::atomic::Ordering::SeqCst)
+    }
+}
+impl Drop for Wire {
+    fn drop(&mut self) {
+        for socket in &self.sockets {
+            let _ = socket.shutdown(std::net::Shutdown::Both);
+        }
+        self.relay.take().unwrap().join().unwrap();
+    }
+}
+fn wire_fixture() -> (postgres::Client, Arc<Pool>, Arc<Slot>, String, Wire) {
+    use std::io::{Read, Write};
+    let config: postgres::Config = std::env::var("SNAPBACK4_EVAL_POSTGRES")
+        .unwrap()
+        .parse()
+        .unwrap();
+    let host = config
+        .get_hosts()
+        .iter()
+        .find_map(|h| match h {
+            postgres::config::Host::Tcp(h) => Some(h.clone()),
+            _ => None,
+        })
+        .expect("on-wire witness requires private TCP PG16; socket-only input cannot qualify it");
+    let upstream = (host, config.get_ports().first().copied().unwrap_or(5432));
+    let (mut writer, _) = super::super::ownership::connect(config.clone()).unwrap();
+    let name = format!("ff2_wire_{:x}", crate::ids::seed());
+    writer.batch_execute(&format!("CREATE SCHEMA {name}; CREATE TABLE {name}.facts(live boolean,head bigint); INSERT INTO {name}.facts VALUES(true,1)")).unwrap();
+    let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+    let port = listener.local_addr().unwrap().port();
+    let units = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+    let sent = units.clone();
+    let (controls, receive) = std::sync::mpsc::sync_channel(1);
+    let relay = std::thread::spawn(move || {
+        let (mut front, _) = listener.accept().unwrap();
+        let mut back = std::net::TcpStream::connect(upstream).unwrap();
+        front.set_nodelay(true).unwrap();
+        back.set_nodelay(true).unwrap();
+        controls
+            .send(vec![front.try_clone().unwrap(), back.try_clone().unwrap()])
+            .unwrap();
+        let mut replies = back.try_clone().unwrap();
+        let mut client = front.try_clone().unwrap();
+        let response = std::thread::spawn(move || {
+            let _ = std::io::copy(&mut replies, &mut client);
+            let _ = client.shutdown(std::net::Shutdown::Both);
+        });
+        let forward = (|| -> std::io::Result<()> {
+            // SSL is disabled explicitly below: the first frame is Startup.
+            let mut length = [0u8; 4];
+            front.read_exact(&mut length)?;
+            let n = u32::from_be_bytes(length) as usize;
+            assert!((8..=16 * 1024 * 1024).contains(&n));
+            let mut body = vec![0; n - 4];
+            front.read_exact(&mut body)?;
+            back.write_all(&length)?;
+            back.write_all(&body)?;
+            let mut executed = false;
+            loop {
+                let mut tag = [0u8; 1];
+                front.read_exact(&mut tag)?;
+                front.read_exact(&mut length)?;
+                let n = u32::from_be_bytes(length) as usize;
+                assert!((4..=16 * 1024 * 1024).contains(&n));
+                let mut body = vec![0; n - 4];
+                front.read_exact(&mut body)?;
+                back.write_all(&tag)?;
+                back.write_all(&length)?;
+                back.write_all(&body)?;
+                back.flush()?;
+                if tag[0] == b'E' {
+                    executed = true;
+                }
+                if tag[0] == b'S' && executed {
+                    sent.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                    executed = false;
+                }
+            }
+        })();
+        let _ = forward;
+        let _ = back.shutdown(std::net::Shutdown::Both);
+        let _ = front.shutdown(std::net::Shutdown::Both);
+        response.join().unwrap();
+    });
+    let mut proxied = postgres::Config::new();
+    proxied
+        .host("127.0.0.1")
+        .port(port)
+        .ssl_mode(postgres::config::SslMode::Disable);
+    if let Some(v) = config.get_user() {
+        proxied.user(v);
+    }
+    if let Some(v) = config.get_dbname() {
+        proxied.dbname(v);
+    }
+    if let Some(v) = config.get_password() {
+        proxied.password(v);
+    }
+    let pool = Pool::with_depth(&proxied, &name, None, 4).unwrap();
+    let slot = pool.slot().unwrap();
+    let wire = Wire {
+        units,
+        sockets: receive.recv().unwrap(),
+        relay: Some(relay),
+    };
+    (writer, pool, slot, name, wire)
+}
+#[test]
+#[ignore = "private TCP PG16; actual frontend Execute/Sync submission barrier"]
+fn pipeline_on_wire_overlap_precedes_release_and_backend_termination() {
+    for terminate in [false, true] {
+        let (mut writer, pool, slot, name, wire) = wire_fixture();
+        let pid: i32 = reader(&pool, &slot)
+            .independent("SELECT pg_backend_pid()", &[])
+            .unwrap()[0]
+            .get(0);
+        let key = crate::ids::seed() as i64;
+        writer
+            .query_one("SELECT pg_advisory_lock($1)", &[&key])
+            .unwrap();
+        let baseline = wire.count();
+        let a = reader(&pool, &slot);
+        let first = std::thread::spawn(move || {
+            a.independent(
+                "SELECT live,head,pg_advisory_xact_lock($1) FROM facts",
+                &[(&key, Type::INT8)],
+            )
+        });
+        wait(|| {
+            writer
+                .query_one(
+                    "SELECT wait_event='advisory' FROM pg_stat_activity WHERE pid=$1",
+                    &[&pid],
+                )
+                .unwrap()
+                .get::<_, Option<bool>>(0)
+                == Some(true)
+        });
+        let b = reader(&pool, &slot);
+        let second = std::thread::spawn(move || b.independent("SELECT 1/0", &[]));
+        let c = reader(&pool, &slot);
+        let third = std::thread::spawn(move || c.independent("SELECT live,head FROM facts", &[]));
+        let overlapped = wire.reaches(baseline + 3);
+        let blocked = writer
+            .query_one(
+                "SELECT wait_event='advisory' FROM pg_stat_activity WHERE pid=$1",
+                &[&pid],
+            )
+            .unwrap()
+            .get::<_, Option<bool>>(0)
+            == Some(true);
+        if terminate {
+            assert!(
+                writer
+                    .query_one("SELECT pg_terminate_backend($1)", &[&pid])
+                    .unwrap()
+                    .get::<_, bool>(0)
+            );
+        } else {
+            writer
+                .batch_execute(&format!("UPDATE {name}.facts SET live=false,head=2"))
+                .unwrap();
+        }
+        writer
+            .query_one("SELECT pg_advisory_unlock($1)", &[&key])
+            .unwrap();
+        let first = first.join().unwrap();
+        let second = second.join().unwrap();
+        let third = third.join().unwrap();
+        drop(wire);
+        writer
+            .batch_execute(&format!("DROP SCHEMA {name} CASCADE"))
+            .unwrap();
+        assert!(
+            overlapped && blocked,
+            "three Execute/Sync units must reach PG while the first remains blocked (terminate={terminate})"
+        );
+        if terminate {
+            for result in [first, second, third] {
+                assert!(result.unwrap_err().refusal().retryable);
+            }
+        } else {
+            let first = first.unwrap();
+            let third = third.unwrap();
+            assert!(first[0].get::<_, bool>(0));
+            assert_eq!(first[0].get::<_, i64>(1), 1);
+            assert!(
+                matches!(second,Err(RuntimeError::Postgres(e)) if e.code()==Some(&postgres::error::SqlState::DIVISION_BY_ZERO))
+            );
+            assert!(!third[0].get::<_, bool>(0));
+            assert_eq!(third[0].get::<_, i64>(1), 2);
+        }
+    }
+}
+
+#[cfg(target_os = "linux")]
+#[test]
+fn pipeline_tcp_nodelay_refuses_socket_only_qualification() {
+    let output=std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--ignored","--exact","engine::postgres::pipeline::tests::pipeline_tcp_nodelay_on_reader_and_synchronous_writer","--nocapture"])
+        .env("SNAPBACK4_EVAL_POSTGRES","host=/nonexistent-ff2-socket port=1 user=sb4_eval dbname=postgres")
+        .output().unwrap();
+    assert!(
+        !output.status.success(),
+        "socket-only TCP_NODELAY qualification passed vacuously: {}{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert!(
+        String::from_utf8_lossy(&output.stderr)
+            .contains("TCP_NODELAY witness requires private TCP PG")
+    );
 }
