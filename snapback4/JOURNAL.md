@@ -107055,3 +107055,117 @@ configuration change. Only this worktree's inactive incremental caches were
 reclaimed, under their Cargo build locks on the later cleanup. Raw evidence,
 PID records and stopped private-cluster data remain under
 `/tmp/sb4-ff1-fix1/`, `/tmp/ff1f1pg/` and the named public-witness directories.
+
+## 2026-10-24 — FF1 final fix round: exact trigger admission and lifecycle rechecks
+
+Fixes on top of `0b353789fb`, following both final-round CHANGES REQUIRED
+reviews. The controls RFC (LLP 3000.009.001.000.002 §6), deploy guide and both
+closed FF1 ticket resolutions carry the corrected fence and its exclusion.
+
+### Implementation and witnesses
+
+- SQLite admission shares exact definitions with the device-residency
+  installer and admits the correct durable or legacy TEMP counter mode.
+  `_device_residency` joins the managed relation set. Device installation,
+  quit, reopen, doctor's read-only probe and repeated activation succeed for
+  durable stores and unchanged legacy files. Each of the three familiar
+  residency names with a suppressing replacement body refuses. Exact TEMP
+  evaluator trackers share their installer definition and require the explicit
+  `evaluation-support` build feature. A binary consumer without that feature
+  refuses even the exact evaluator definition; altered tracker bodies refuse
+  in evaluation builds too.
+- PostgreSQL no longer trusts the `tgisinternal` flag alone. It examines
+  incoming and outgoing FK constraints and every managed trigger. The only
+  trigger-backed constraints admitted are the recognized legacy `_log` and
+  `_outbox` seq-to-commits no-action keys, with exact built-in RI functions,
+  generated trigger names, relations, event/timing, constraint linkage and
+  complete sets. The existing legacy log recovery/upgrade/reopen witness
+  passes. An external FK on `_dormant_rows(t,id)` with `ON DELETE CASCADE`
+  and an external deletion trigger that erases the restored live image now
+  refuses at open, doctor and activation. Dormant sources and generation are
+  unchanged; removing the FK restores progress.
+- Database event triggers remain legal. The full managed check repeats after
+  all activation installers, including release preparation, before population
+  movement; a final check runs after the transaction's last writes, before
+  COMMIT. Physical opening upgrades and the retained evaluator also recheck.
+  A `ddl_command_end` hook installing a suppressing row trigger during index
+  installation refuses and rolls back its DDL and all movement. Its
+  nontransactional sequence probe remains uncalled, proving refusal precedes
+  restoration rather than merely undoing it. A benign DDL audit event trigger
+  remains installed during a successful restore. Late activation DDL in the
+  finish callback also refuses and rolls back its inserted row.
+- Pooled connection replacement clears its old statement caches and repeats
+  interception admission alongside identity and generation. Failure remains
+  pending on later requests. The real composed-reader witness adds forced RLS,
+  records and terminates its backend, observes closure, then requires two
+  replacement requests to refuse. Removing RLS permits the same reader to
+  recover. No in-flight query is replayed.
+- Runtime DDL on managed relations while serving is explicitly outside the
+  fence model: owner/head locks do not prevent it. Doctor and the next open,
+  activation or reconnect detect it. There is no per-request catalog polling.
+  Steady-state counts, legal lifecycle zero-row paths and both RT0 tables are
+  unchanged. No throughput measurements were run.
+
+Before implementation, all five new focused fence witnesses fail against
+`0b353789fb`; the separate reader-replacement witness also fails (0/1).
+The first broad `fix2` filter additionally ran four unrelated RT6 tests, all
+passing; these are not counted as defect witnesses. After implementation,
+the focused final set passes 11/0 plus reconnect 1/0, including the stronger
+sequence probe and benign-event legal path. The ordinary binary's exact
+tracker refusal passes too. Raw evidence stays under `/tmp/sb4-ff1-fix2/`.
+
+### Qualification and disk-floor stop
+
+Counts are passed / failed / ignored where shown. Focused scopes overlap the
+complete runs and are not added to their totals.
+
+| Check | Result |
+| --- | --- |
+| Complete core, PostgreSQL feature (49 Rust targets) | 1,241 / 0 / 399 |
+| Complete binary, PostgreSQL feature, final implementation | 587 / 0 / 52 |
+| Focused final admission/lifecycle witnesses | 11 / 0 plus reconnect 1 / 0 |
+| Ordinary binary's exact evaluator-tracker refusal | PASS, included in binary total |
+| HTTP RT0 scope, including unchanged SQLite/PostgreSQL tables | 8 / 0 |
+| Overlay RT0, both stores | 2 / 0 |
+| PostgreSQL script's 35 Rust target/scoped invocations | 759 / 0 |
+| Full `bash scripts/test-postgres.sh` | **INTERRUPTED by disk guard**, exit 1; not a passing qualification |
+| Public CLI witness | EV-1, EV-2 and change-evidence comparisons passed on both stores; remaining serving/restart/lease/S1 cases not completed |
+| Root `./ref-check`, final preservation pass | 0 errors / 0 unchecked |
+
+The initial complete core run had 1,240 passed / 1 failed / 399 ignored:
+a deferrable primary-key fixture expected the narrower family error rather
+than the new earlier interception refusal. Its expectation was corrected,
+and the complete core rerun passes above. The pre-movement check was then
+placed after release preparation, which can itself install ledgers. The final
+PostgreSQL script re-exercised every affected adapter scope and all new
+witnesses after that placement; the full binary was rerun on it too. Both RT0
+tables remain byte-for-byte unchanged. The inherited evaluator `40001` was not
+reproduced with serial test scheduling; it is not claimed fixed.
+
+The PostgreSQL script's resource monitor recorded **29.996 GiB** free and
+stopped its recorded test processes, enforcing the author's 30 GiB stop rule.
+No builds or tests were restarted after that event. Completed caches in this
+worktree's own target were reclaimed under their Cargo locks: two inactive
+incremental passes (7.78 and 7.35 GiB), then completed evaluator artifacts
+(3.65 GiB). Nothing from another worktree was deleted. The final cache cleanup
+restored headroom but does not turn the interrupted public witness into a pass.
+No throughput campaign or standalone measurements ran. Only the mandatory
+script's existing plan-hygiene timing/integrity witness executed.
+
+### Cleanup and preservation
+
+Recorded private PG16 masters **2682117** (`/tmp/ff1f2pg/data`) and **3335451**
+(`/tmp/s10d3-serve-eyhclews/data`) were explicitly stopped. Independent
+`pg_ctl status` returns **3** for both, and neither has a postmaster pidfile.
+The final audit finds **4,582 recorded PID/start identities** and the public
+witness's **472 PID records** absent, with no live/reused identities.
+**Owned PIDs left: none.** Free space after cleanup was **34.30 GiB**.
+
+Raw output, the disk-guard receipt and PID/cleanup audits remain outside Git
+under `/tmp/sb4-ff1-fix2/`; the stopped cluster data and public artifacts remain
+in their named `/tmp` directories. All builds used this worktree's target,
+line-tables-only dev/test debug settings and 24 Cargo build jobs. No
+workspace/all-targets build, stash, push or Git configuration change. The fix
+and these accurate partial-qualification records are preserved in a new commit
+on the commissioned branch; the remaining public qualification requires a
+later run with disk headroom.

@@ -529,7 +529,7 @@ fn release_contract_postgres_attach_refuses_incompatible_shapes() {
         };
         h.engine.store.client.batch_execute(ddl).unwrap();
         let error = PostgresEngine::open(h.client(), &h.name).err().expect(ddl);
-        if ["CREATE TRIGGER", "CREATE RULE", "ENABLE ROW LEVEL SECURITY"].iter().any(|kind|ddl.contains(kind)) {
+        if super::shape_code(ddl, "") == "SNAPBACK_MANAGED_RELATION_INTERCEPTION" {
             assert!(error.to_string().contains("SNAPBACK_MANAGED_RELATION_INTERCEPTION"),"{ddl}: {error}");
         } else {
             assert!(error.to_string().contains("SNAPBACK_ACTIVATION_SCHEMA")

@@ -121,6 +121,10 @@ impl Store {
             if u64::try_from(row.try_get::<_,i64>(1)?).ok() != Some(self.generation) {
                 return Err(RuntimeError::Generation("reader generation changed while reconnecting; reopen the engine".into()));
             }
+            self.calls.set(self.calls.get()+2);
+            if let Some(row) = self.client.query(super::managed_relations::SQL, &[&crate::managed_relations::TABLES])?.first() {
+                return Err(crate::managed_relations::refusal(row.get(0), row.get(1)));
+            }
             // Keep the validation pending after any mismatch or failed query.
             self.reader_binding = false;
         }
@@ -727,6 +731,9 @@ impl Tx<'_> {
             }
         }
         self.flush_tail()?;
+        // Installer DDL (including event-trigger effects) and late activation
+        // callbacks share this transaction. Re-admit after its last writes.
+        if self.lifecycle { super::managed_relations::verify(&self)?; }
         let mut inner = self.inner.into_inner();
         if !self.commit_settings.get() {
             inner.pending.push_str("SET LOCAL statement_timeout = 0; SET LOCAL lock_timeout = 0;");

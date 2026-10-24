@@ -21,6 +21,7 @@ pub(crate) const TABLES: &[&str] = &[
     "_credentials",
     "_device_base",
     "_device_outbox",
+    "_device_residency",
     "_device_snapshot",
     "_dormant_columns",
     "_dormant_indexes",

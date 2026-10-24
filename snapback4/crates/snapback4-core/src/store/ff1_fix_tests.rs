@@ -202,3 +202,6 @@ fn legal_unindexed_lifecycle_phases_postgres() {
     }, |_|Ok(())).unwrap();
     assert_eq!(e.store().count("notes").unwrap(),0);
 }
+
+#[path = "ff1_fix2_tests.rs"]
+mod fix2;

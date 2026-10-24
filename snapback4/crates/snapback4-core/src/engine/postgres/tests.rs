@@ -19,7 +19,7 @@ mod release;
 
 // Interception is now refused before the narrower family shape validators.
 fn shape_code<'a>(ddl: &str, ordinary: &'a str) -> &'a str {
-    if ["CREATE TRIGGER", "CREATE CONSTRAINT TRIGGER", "CREATE RULE", "ENABLE ROW LEVEL SECURITY", "FORCE ROW LEVEL SECURITY"].iter().any(|kind| ddl.contains(kind)) {
+    if ["CREATE TRIGGER", "CREATE CONSTRAINT TRIGGER", "CREATE RULE", "ENABLE ROW LEVEL SECURITY", "FORCE ROW LEVEL SECURITY", "FOREIGN KEY", "REFERENCES", "DEFERRABLE"].iter().any(|kind| ddl.contains(kind)) {
         "SNAPBACK_MANAGED_RELATION_INTERCEPTION"
     } else { ordinary }
 }

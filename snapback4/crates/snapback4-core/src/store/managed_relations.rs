@@ -12,6 +12,9 @@ pub(super) fn index_guards() -> [(String, String); 2] {
 
 pub(super) fn verify(conn: &Connection) -> Result<(), RuntimeError> {
     let guards = index_guards();
+    let residency = super::device_residency::triggers();
+    let durable_residency: bool = conn.query_row("SELECT EXISTS(SELECT 1 FROM main.sqlite_master WHERE type='table' AND name='_device_residency')", [], |r| r.get(0))?;
+    let temporary_residency: bool = !durable_residency && conn.query_row("SELECT EXISTS(SELECT 1 FROM temp.sqlite_master WHERE type='table' AND name='_device_residency')", [], |r| r.get(0))?;
     // TEMP triggers can intercept main relations too, within this connection.
     for catalog in ["main.sqlite_master", "temp.sqlite_master"] {
         let mut stmt = conn.prepare(&format!("SELECT tbl_name, name, sql FROM {catalog} WHERE type='trigger' ORDER BY tbl_name,name"))?;
@@ -22,6 +25,12 @@ pub(super) fn verify(conn: &Connection) -> Result<(), RuntimeError> {
             let name: String = row.get(1)?;
             let sql: Option<String> = row.get(2)?;
             if catalog == "main.sqlite_master" && table == "i" && guards.iter().any(|(n, definition)| n == &name && sql.as_deref() == Some(definition.as_str())) { continue; }
+            let residency_mode = if catalog == "main.sqlite_master" { durable_residency } else { temporary_residency };
+            if table == "r" && residency_mode && residency.iter().any(|(n, definition)| *n == name && sql.as_deref() == Some(*definition)) { continue; }
+            // Production has no evaluation trigger exception. Even evaluation
+            // builds admit only the exact TEMP tracker body for this table.
+            #[cfg(feature = "evaluation-support")]
+            if catalog == "temp.sqlite_master" && super::evaluation::is_tracker(&table, &name, sql.as_deref()) { continue; }
             return Err(crate::managed_relations::refusal(&table, &format!("trigger {name}")));
         }
     }

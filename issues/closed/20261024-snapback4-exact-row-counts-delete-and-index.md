@@ -85,3 +85,32 @@ and retirement of an unindexed narrowed image. PostgreSQL exercises matching
 physical phases in activation transactions; its public temporal/live/backfill
 evolution profile is unchanged. Exact negative-control/check totals and cleanup
 are in the FF1 fix-round JOURNAL entry and the controls RFC §6.
+
+
+## Final resolution correction — 2026-10-24, FF1 fix round 2
+
+The final review found device counter triggers rejected as foreign, incoming
+FK machinery trusted solely for being internal, activation DDL effects admitted
+only before installers, and replacement readers skipping interception admission.
+The final fix admits exact durable/legacy TEMP residency definitions, gates
+exact evaluator trackers to evaluation builds, validates incoming/outgoing FKs
+and exact legacy RI trigger sets, and repeats full admission after installers,
+before activation COMMIT and after reader replacement. Benign database event
+triggers remain legal. Runtime DDL while serving is explicitly outside the
+fence model; doctor and the next open/activation/reconnect detect it.
+
+All six new defect witnesses fail against `0b353789fb` before implementation.
+Positive paths cover reopened and legacy device stores, legal trackers, benign
+event triggers and recognized legacy FK upgrades. The cascade and event cases
+preserve dormant sources on refusal; a nontransactional sequence probe verifies
+that the installer-injected suppressor is caught before restoration executes.
+Final qualification and process cleanup are in the final-round JOURNAL entry
+and LLP 3000.009.001.000.002 §6. No throughput measurement was run.
+
+
+Final qualification caveat: all new witnesses, complete core/binary and RT0
+checks pass. The PostgreSQL script's Rust scopes pass 759/0, but the public
+witness was interrupted by the required disk guard at 29.996 GiB free. The
+full script is not claimed passing; its remaining serving cases need a later
+run with headroom. Both clusters are stopped and the owned-PID audit is empty.
+See the final-round JOURNAL entry for the retained partial qualification.
