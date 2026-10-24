@@ -156,7 +156,6 @@ impl Wave {
             }
         }
         let empty = BTreeMap::new();
-        let first_seq = tx.next_seq()?;
         let mut jobs = Vec::with_capacity(indices.len());
         let mut prepared = (0..indices.len()).map(|_| None).collect::<Vec<_>>();
         for (n, &i) in indices.iter().enumerate() {
@@ -177,6 +176,7 @@ impl Wave {
         }
         // The pool sees immutable facts/IR and owned contexts, never the
         // transaction, invocations, authority callbacks or another overlay.
+        let first_seq = if jobs.is_empty() { 0 } else { tx.next_seq()? };
         let attempts = super::parallel::map(jobs, |(n, program, context)| {
             let overlay = Overlay::new(&base, &empty);
             let execution = execute_body(host, &overlay, context, program, first_seq + n as u64);

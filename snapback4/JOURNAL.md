@@ -105383,3 +105383,14 @@ The new differential compares parallel and forced-serial overlay histories on
 both stores, complementing the existing N=1 oracle, collision chains, receipts
 and intermediate-image witnesses. Qualification and final measurements follow
 in a dated entry; this entry makes no passing-check or capacity claim.
+
+### G3b-par pre-qualification review corrections — 2026-10-24
+
+A fresh read-only review caught a borrowed image guard surviving through the
+vector-tail clear and an unconditional sequence sample on all-hot SQLite
+waves. Scope payload serialization before clearing, and sample the initial
+sequence only when speculative jobs exist. The reviewer confirms both source
+fixes and reports no further material finding. The first affected compilation
+started before these corrections; corrected qualification follows. Refresh
+all four experiment lockfiles for the server-only pool dependency, preserving
+existing dependency pins (and reconciling two inherited core-version entries).

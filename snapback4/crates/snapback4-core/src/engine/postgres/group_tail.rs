@@ -189,24 +189,26 @@ impl Tx<'_> {
         ];
         // Serialize borrowed records directly: no per-field JSON tree or
         // duplicate strings between the per-member tails and the wire payload.
-        let images = self.group_images.borrow();
-        let images = images
-            .iter()
-            .map(|image| Image {
-                t: &image.table,
-                id: image.new.field("id").unwrap().as_str().unwrap(),
-                data: crate::value::canonical_json(&image.new),
+        let payload = {
+            let images = self.group_images.borrow();
+            let images = images
+                .iter()
+                .map(|image| Image {
+                    t: &image.table,
+                    id: image.new.field("id").unwrap().as_str().unwrap(),
+                    data: crate::value::canonical_json(&image.new),
+                })
+                .collect();
+            serde_json::to_string(&Payload {
+                commits,
+                log,
+                effects,
+                presence,
+                receipts,
+                images,
             })
-            .collect();
-        let payload = serde_json::to_string(&Payload {
-            commits,
-            log,
-            effects,
-            presence,
-            receipts,
-            images,
-        })
-        .unwrap();
+            .unwrap()
+        };
         let sets = self.flight(
             &[(SQL, &[&payload, &signed(first)?, &signed(last)?])],
             "SET LOCAL statement_timeout=0; SET LOCAL lock_timeout=0",
