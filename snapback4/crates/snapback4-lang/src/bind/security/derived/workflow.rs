@@ -8,6 +8,12 @@ fn expr(source:&str)->Option<Expr>{
     if !errors.is_empty(){return None;}
     doc.programs.first()?.body.iter().find_map(|s|if let Stmt::Return{value,..}=s{Some(value.clone())}else{None})
 }
+fn unconditional_write(p:&ast::ProgramDecl,site:&Site)->bool{
+    for statement in p.prelude.iter().chain(&p.body){match statement{
+        Stmt::Expr{value,..}|Stmt::Bind{value,..}|Stmt::Return{value,..}=>{if matches!(value,Expr::Write{site:s,if_absent:false,condition:None,..} if s==site){return true;}if matches!(statement,Stmt::Return{..}){return false;}},
+        Stmt::If{..}|Stmt::For{..}|Stmt::As{..}|Stmt::Break{..}|Stmt::Continue{..}=>return false,_=>{},
+    }}false
+}
 fn string(value:&str)->Expr{Expr::Literal{value:ast::Literal::Str(value.into()),site:Site::default()}}
 fn binary(op:&str,left:Expr,right:Expr)->Expr{Expr::Binary{op:op.into(),left:Box::new(left),right:Box::new(right),site:Site::default()}}
 fn focal()->Expr{Expr::Focal{site:Site::default()}}
@@ -155,7 +161,7 @@ pub(super) fn invariants(docs:&[ast::Document],catalog:&Catalog,bound:&Bound,out
                     // records that destination; it does not make every ledger
                     // event require the transition's approval. The exact
                     // parent destination already supplies its own contract.
-                    let stage_effect=writes.iter().any(|(producer,effect,_)|std::ptr::eq(*producer,*p)&&target_arg(producer,effect,root).is_some_and(|selected|selected.name==arg.name)&&matches!(effect,Expr::Write{table:target,fields,..} if target==root&&state_field(bound,root,fields).is_some_and(|field|matches!(&field.value,Some(Expr::Literal{..})))));
+                    let stage_effect=writes.iter().any(|(producer,effect,_)|std::ptr::eq(*producer,*p)&&unconditional_write(producer,effect.site())&&target_arg(producer,effect,root).is_some_and(|selected|selected.name==arg.name)&&matches!(effect,Expr::Write{table:target,fields,..} if target==root&&state_field(bound,root,fields).is_some_and(|field|matches!(&field.value,Some(Expr::Literal{..})))));
                     if stage_effect{continue;}
                     // The guarded resource must be the one actually placed
                     // on this effect, not another argument of the same type.

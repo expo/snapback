@@ -58,7 +58,8 @@ fn add(out:&mut Vec<Invariant>,table:&str,column:&str,target:&str,policy:RuleExp
     if out.iter().any(|i|i.site==site&&i.policy.as_ref()==Some(&policy)){return;}
     out.push(Invariant{table:table.into(),column:Some(column.into()),target:target.into(),predicate:policy.quarry(),policy:Some(policy),site,operation:None,requirements:Vec::new(),syntax:None,unsupported:None});
 }
-pub fn invariants(sources:&[(String,String)],bound:&Bound)->Vec<Invariant>{
+pub fn invariants(sources:&[(String,String)],bound:&Bound)->Vec<Invariant>{collect(sources,bound,&mut BTreeMap::new())}
+fn collect(sources:&[(String,String)],bound:&Bound,inputs:&mut BTreeMap<(String,String),BTreeSet<String>>)->Vec<Invariant>{
     let docs=sources.iter().map(|(f,s)|crate::parse_document(f,s).0).collect::<Vec<_>>();
     let catalog=Catalog::build(docs.clone(),&mut Vec::new());
     let mut out=Vec::new();
@@ -112,6 +113,9 @@ pub fn invariants(sources:&[(String,String)],bound:&Bound)->Vec<Invariant>{
                     (snapback4_core::schema::ColumnType::Time,Some(value)) if super::creation_advice::approval_recording(kind,Some(value))=>RuleExpr::Eq(RuleTerm::Field(approval.name.clone()),RuleTerm::Literal(snapback4_core::Value::Null)),
                     _=>continue,
                 };
+                // Keep the source dependency even when existing runtime freeze
+                // authority makes emitting another edit candidate redundant.
+                inputs.entry((table.clone(),approval.name.clone())).or_default().extend(inspected.iter().filter(|column|definition.columns.contains_key(*column)&&**column!=approval.name).cloned());
                 // A derived approve/edit contract concerns approval retained
                 // across the edit. Deliberate invalidation is not a bypass.
                 let paired=match &condition {
@@ -140,7 +144,7 @@ pub fn notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnostic>{
     }).collect()
 }
 pub fn augmented(sources:&[(String,String)],bound:&Bound)->Bound{
-    let mut out=bound.clone();out.invariants.extend(invariants(sources,bound));
+    let mut out=bound.clone();let mut inputs=BTreeMap::new();out.invariants.extend(collect(sources,bound,&mut inputs));for (stamp,columns) in inputs{out.security_approval_inputs.entry(stamp).or_default().extend(columns);}
     // Declared write audiences are runtime contracts, not inferred spec intent.
     // Their replay failures cannot be acknowledged as deliberate asymmetry.
     let mut contracts=Vec::new();

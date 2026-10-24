@@ -242,7 +242,7 @@ fn campaign(s:&str)->Campaign{let b=security::derived::augmented(&sources(s),&bo
     assert!(!security::derived::invariants(&sources(source),&bound(source)).iter().any(|i|i.site.file.contains("repeat-create")));
 }
 #[test]fn a_single_parent_close_toggle_does_not_establish_child_completion(){
-    let source="table roles:\n  principal: principal\n  role: enum('commander')\n  unique principal\n  read <- allow\n  online only\ntable searches:\n  state: enum('open','closed') default 'open'\n  read <- allow\n  update <- allow\n  online only\ntable teams:\n  search: searches\n  state: enum('active','stood_down') default 'active'\n  read <- allow\n  update <- allow\n  online only\nmutation close(search: searches):\n  require exists roles[viewer,role='commander'] else DENIED\n  s = searches[search] ! else MISSING\n  require s.state = 'open' else CLOSED\n  update searches[search] {state:'closed'}\nmutation standDown(team: teams):\n  require exists roles[viewer,role='commander'] else DENIED\n  t = teams[team] ! else MISSING\n  require t.state = 'active' else CLOSED\n  update teams[team] {state:'stood_down'}\n";
+    let source="table roles:\n  principal: principal\n  role: enum('commander')\n  unique principal\n  read <- allow\n  online only\ntable searches:\n  state: enum('open','closed') default 'open'\n  read <- allow\n  update <- allow\n  online only\ntable teams:\n  callout: searches\n  state: enum('active','stood_down') default 'active'\n  read <- allow\n  update <- allow\n  online only\nmutation close(callout: searches):\n  require exists roles[viewer,role='commander'] else DENIED\n  s = searches[callout] ! else MISSING\n  require s.state = 'open' else CLOSED\n  update searches[callout] {state:'closed'}\nmutation standDown(team: teams):\n  require exists roles[viewer,role='commander'] else DENIED\n  t = teams[team] ! else MISSING\n  require t.state = 'active' else CLOSED\n  update teams[team] {state:'stood_down'}\n";
     assert!(!security::derived::invariants(&sources(source),&bound(source)).iter().any(|i|i.site.file.contains("child-stage")));
 }
 
@@ -254,4 +254,11 @@ fn campaign(s:&str)->Campaign{let b=security::derived::augmented(&sources(s),&bo
 #[test]fn a_secondary_key_is_not_the_approved_parent_identity(){
     let source="table docs:\n  predecessor: docs ?\n  approved: bool default false\n  unique predecessor\n  read <- allow\n  update <- allow\n  online only\ntable effects:\n  doc: docs\n  unique doc\n  read <- allow\n  insert <- allow\n  online only\nmutation approve(prior: docs):\n  require exists effects[doc = prior] else MISSING\n  update docs[predecessor = prior] {approved:true}\nmutation work(doc: docs):\n  return insert effects {doc}\n";
     assert!(notes(source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+}
+
+#[test]fn a_conditional_stage_write_cannot_hide_an_insert_contract(){
+    let source="table docs:\n  approved: bool default false\n  status: enum('draft','done') default 'draft'\n  read <- allow\n  update <- allow\n  online only\ntable effects:\n  doc: docs\n  read <- allow\n  insert <- allow\n  online only\nmutation finish(doc: docs,changeStage: bool):\n  d = docs[doc] ! else MISSING\n  require d.approved else NO_APPROVAL\n  if changeStage:\n    update docs[doc] {status:'done'}\n  return insert effects {doc}\n";
+    assert!(security::derived::invariants(&sources(source),&bound(source)).iter().any(|i|i.table=="effects"&&i.site.file.contains("sibling-approval")));
+    let in_loop=source.replace("if changeStage:","for x in docs:");
+    assert!(security::derived::invariants(&sources(&in_loop),&bound(&in_loop)).iter().any(|i|i.table=="effects"&&i.site.file.contains("sibling-approval")));
 }
