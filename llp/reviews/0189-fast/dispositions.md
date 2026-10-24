@@ -31,3 +31,17 @@ while the wasm consumer is reported BLOCKED and later independent steps run.
 Fixture-wrapper files are now discovered and receive the same per-file
 custody; historical snapshots include their source directory. Client source
 movement also conservatively selects diagnostics/inventory checks.
+
+
+Round 3 reviewed frozen commit bb5649e4b5. Muse returned READY. Fresh Codex
+confirmed the per-file pool fix, then found documentation-shaped shared
+fixtures could bypass broad ownership and the CI setup step could fail-fast
+before verification. Fixed: explicit shared-input classification precedes
+restricted documentation owners (including unknown Markdown paths); added
+fixtures. CI now guards each independent setup attempt, continues verification
+through continue-on-error, and retains a failed setup as a failing final job
+step. An invariant fixture checks that setup failures remain guarded and the
+retained verdict follows verification. Unresolved/computed imports now also
+conservatively require rebuilding client dist, with a dedicated fixture.
+The coordinator explicitly pre-approved extra review rounds, so a fourth
+frozen review follows these two bounded corrections.

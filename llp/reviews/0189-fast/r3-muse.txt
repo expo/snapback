@@ -1,0 +1,18 @@
+muse: workspace root: /home/ccheever/projects/sb4-fast (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=d99242aa-c615-4676-a033-d164469b14b6]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-fast (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY — frozen cut `bb5649e4b5` for Workstream FAST.
+
+Top finding: the Codex pool-wide block is fixed, and no new material defect was found in the fix or amendment.
+
+- Per-file custody is correct: `client-tests` / `client-models` / `fixture-tests` carry `fileRequires` per file for `build-cli` / `build-wasm` / `build-client`, filtered at execution to the runnable subset through the existing runner.
+- Partial block cannot go green: runnable success with any `blockedFiles` records `status: null` with `executedStatus`, so `receipt.ok` stays false. Later independent steps still run. All-files-blocked skips with `BLOCKED`.
+- Transitive blocking holds: `install-client` → `build-wasm` / `build-client` → per-file requirements propagate failure correctly.
+- Whole amendment intact: Cargo reverse closure, test-only narrowing, broad on unknown/shared/manifest/proc-macro, docs/guide/budget/packaged-docs, diagnostics/inventories on movement, generated, `ref-check`, `wasm-measurement`, Lean/difftest semantics, finite timeouts, `--no-fail-fast`, receipt persistence and mutation detection, `FAIL_CLOSED_FULL`/complete broad delegation, mixed-fence union without legacy baseline for `snapback4`-only.
+- Disclosed deferrals excluded per direction: selection-only replay not claimed as execution evidence, historical timing/benchmark comparison out of scope, selector-only affected suite by explicit rule.
+
+No product code changed in this cut.
+

@@ -406,12 +406,12 @@ Selection ownership:
   a test-only diff selects named files. Tests' literal imports/re-exports,
   dynamic literal imports, resource URLs and helpers are followed to find CLI
   process and wasm consumers. Unresolved local/computed imports conservatively
-  count as both consumers. Tests spawning processes are conservatively CLI
+  count as both consumers and require a client dist rebuild. Tests spawning processes are conservatively CLI
   consumers. Selected clients rebuild the products they consume. Existing
   process-custody pooling and serial model custody are reused. Bare workspace
   exports also require rebuilding client dist; documentation consumers join
   the affected client set when product docs change.
-- Guide/docs select check-guide, docs budget and packaged-docs lint; Snapback 4
+- Owned guide/docs select check-guide, docs budget and packaged-docs lint; Snapback 4
   guide cards also select the compiled guide target. Rust source movement
   conservatively selects diagnostics-registry checking and check-inventories,
   even without a new code. Language/generated inputs select generated-artifact
@@ -419,7 +419,7 @@ Selection ownership:
   dependents select wasm measurement. Language/core semantics select Lean
   build, difftest run-lean and a seeded 2,000-case run.
 - Unknown paths, locks, workspace/package manifests, toolchains, build scripts,
-  proc-macros, shared test support and vendored inputs select all workspace
+  proc-macros, shared test support (regardless of Markdown extension) and vendored inputs select all workspace
   packages, client pools and cross-cutting checks, including fixture-wrapper
   tests, chat schema checking, chat/Expo typechecks and release guards from
   the existing complete suite. Each triggering file has a
@@ -463,6 +463,8 @@ plus independent review: running the product battery cannot by itself test
 whether a selector maps an omitted path correctly. This known tooling owner
 is an explicit affected rule, not an unknown-path exception.
 
-The root workflow provisions the independent wasm target, matching bindgen
+The root workflow attempts each independent tool setup even after a setup
+failure, continues to selected verification, and retains the failed setup as
+a failing job verdict after independent checks have run. It provisions the independent wasm target, matching bindgen
 CLI, twiggy, brotli and the pinned Lean toolchain for a selected delegation;
 it does not invoke the legacy Ibex bootstrap for Snapback 4 alone.

@@ -224,3 +224,23 @@ test('a failed wasm producer blocks only its consumers and independent pool file
     assert.equal(receipt.results[3].status, 0); assert.equal(receipt.unchanged, true); assert.equal(receipt.ok, false);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
+
+for (const path of ['snapback4/fixtures/input.md', 'snapback4/packages/snapback4/test/helpers/input.md', 'snapback4/crates/snapback4-lang/tests/fixtures/input.md', 'snapback4/scripts/helpers/input.md', 'snapback4/unknown/input.md']) {
+  test(`documentation-shaped shared input ${path} still fails broad`, () => assert(select([path]).broad));
+}
+test('computed and unresolved imports conservatively require a client dist rebuild', () => {
+  const file = model.packages[0].tests[0];
+  for (const hit of ['computed import (CLI + wasm)', 'unresolved local import ./hidden.js (CLI + wasm)']) {
+    const unknown = { ...model, clientEvidence: { [file]: [hit] } };
+    const plan = selectAffected([file], unknown);
+    assert(ids(plan).includes('build-client'));
+    assert(plan.steps.find(step => step.id === 'client-tests').fileRequires[file.slice('snapback4/'.length)].includes('build-client'));
+  }
+});
+test('CI attempts independent setup and retains failure after verification', () => {
+  const workflow = readFileSync(join(ROOT, '.github/workflows/local-proof.yml'), 'utf8');
+  const setup = workflow.split('- name: Prepare Snapback 4 verification tools')[1].split('# Cargo registry')[0];
+  assert.match(setup, /continue-on-error: true/);
+  for (const line of setup.split('\n').filter(line => line.includes('timeout ') && !line.includes('bindgen_version='))) assert.match(line, /\|\| setup_failed=1/, line);
+  assert.match(workflow, /Verify Snapback local proof[\s\S]*Retain Snapback 4 setup failure[\s\S]*always\(\) && steps\.snapback4-tools\.outcome == 'failure'/);
+});

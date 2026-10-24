@@ -154,7 +154,14 @@ export function selectAffected(changedFiles, model) {
     if (/^scripts\/affected(?:-replay)?(?:\.test)?\.mjs$/.test(p)) {
       checks.add('selector-tests'); why(path, 'selector implementation/fixtures'); continue;
     }
-    if (/^crates\/snapback4-lang\/src\/guide(?:\/|\.rs$)/.test(p) || /^(?:guide|docs)\//.test(p) || /\.md$/.test(p)) {
+    const supportPackage = model.packages.find(pkg => path.startsWith(pkg.dir + '/'));
+    if (/^(?:fixtures|native-fixtures|vendor|scripts)\//.test(p)
+      || /^crates\/[^/]+\/tests\/.*\.md$/.test(p)
+      || (supportPackage && /^tests?\//.test(path.slice(supportPackage.dir.length + 1)) && !supportPackage.tests.includes(path))) {
+      widen(path, 'shared fixture or test support (including documentation-shaped inputs)'); continue;
+    }
+    if (/^crates\/snapback4-lang\/src\/guide(?:\/|\.rs$)/.test(p) || /^(?:guide|docs|reports)\//.test(p)
+      || /^(?:README|JOURNAL|NOT-DOING)\.md$/.test(p) || /^packages\/[^/]+\/[^/]+\.md$/.test(p)) {
       docs(path); checks.add('ref-check');
       if (/^crates\/snapback4-lang\/src\/guide/.test(p)) {
         if (!narrowRust.has('snapback4-lang')) narrowRust.set('snapback4-lang', new Set());
@@ -236,7 +243,7 @@ export function selectAffected(changedFiles, model) {
   // trust ignored binaries/dist/wasm left over from another revision.
   const evidence = [...clientFiles].flatMap(test => model.clientEvidence?.[test] ?? []).concat([...fixtureFiles].flatMap(test => model.fixtureEvidence?.[test] ?? []));
   const needCli = broad || evidence.some(hit => /CLI|process consumer/.test(hit));
-  const needClient = broad || evidence.some(hit => /client build consumer/.test(hit));
+  const needClient = broad || evidence.some(hit => /client build consumer|computed import|unresolved (?:local|workspace) import/.test(hit));
   const needWasm = needClient || evidence.some(hit => /wasm/.test(hit));
   if (needWasm || needClient || fullPackages.size) step('install-client', 'snapback4', ['bun', 'install', '--frozen-lockfile'], 'locked client/build dependencies');
   if (needCli) cargo('build-cli', ['build', '-p', 'snapback4'], 'selected clients spawn/import CLI');
@@ -267,7 +274,7 @@ export function selectAffected(changedFiles, model) {
       const required = [];
       if (evidence.some(hit => /CLI|process consumer/.test(hit))) required.push('build-cli');
       if (evidence.some(hit => /wasm/.test(hit))) required.push('build-wasm');
-      if (evidence.some(hit => /client build consumer/.test(hit))) required.push('build-client');
+      if (evidence.some(hit => /client build consumer|computed import|unresolved (?:local|workspace) import/.test(hit))) required.push('build-client');
       // A directory fallback is only used for synthetic models lacking the
       // discovered file inventory; real models always enumerate fixture files.
       if (file.endsWith('/')) required.push('build-cli', 'build-wasm', 'build-client');
