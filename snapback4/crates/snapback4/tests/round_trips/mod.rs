@@ -291,7 +291,7 @@ fn run(pg: bool) {
     // Controlled store batches exclude HTTP ingress. Totals divided by N are
     // per-member amortized flights/statements; the existing HTTP N=1 rows stay
     // separate and unchanged.
-    for n in [4,32] {
+    for n in [4,8,32] {
         for repetition in 0..4 {
             let principal=session.principal.clone();
             let digest=identity::session_digest(&session.token);
