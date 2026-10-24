@@ -77,6 +77,17 @@ fn fallthrough(body:&[Stmt],env:&Env,site:&Site)->Expr{
     }}super::creation_advice::simplify_boolean(&result)
 }
 fn contains_return(body:&[Stmt])->bool{body.iter().any(|stmt|match stmt{Stmt::Return{..}=>true,Stmt::If{then_body,else_body,..}=>contains_return(then_body)||contains_return(else_body),Stmt::For{body,..}|Stmt::As{body,..}=>contains_return(body),_=>false})}
+// Break/continue leave this block, but transfers in a nested loop do not
+// escape that loop. Only a return can escape a nested iteration.
+fn contains_exit(body:&[Stmt])->bool{body.iter().any(|stmt|match stmt{
+    Stmt::Return{..}|Stmt::Break{..}|Stmt::Continue{..}=>true,
+    Stmt::If{then_body,else_body,..}=>contains_exit(then_body)||contains_exit(else_body),
+    Stmt::As{body,..}=>contains_exit(body),Stmt::For{body,..}=>contains_return(body),_=>false,
+})}
+fn continuation(guards:&mut Vec<Stmt>,condition:Expr,site:&Site)->bool{
+    if matches!(condition,Expr::Literal{value:ast::Literal::Bool(false),..}){return false;}
+    if !matches!(condition,Expr::Literal{value:ast::Literal::Bool(true),..}){guards.push(Stmt::Require{condition,code:"$advice".into(),message:None,site:site.clone()});}true
+}
 fn statements(catalog:&Catalog,p:&ProgramDecl,body:&[Stmt],env:&mut Env,guards:&mut Vec<Stmt>,changes:&mut Vec<Change>,column:Option<&str>,depth:usize,out:&mut Vec<(Expr,ProgramDecl)>){
     for s in body{
         let consuming=column.is_some()&&changes::effectful(s);
@@ -87,6 +98,7 @@ fn statements(catalog:&Catalog,p:&ProgramDecl,body:&[Stmt],env:&mut Env,guards:&
             guards.push(Stmt::Require{condition:resolve(condition,env),code:code.clone(),message:message.clone(),site:site.clone()});
         },
         Stmt::Return{value,..}=>{expression(catalog,p,value,env,guards,changes,column,depth,out);break;},
+        Stmt::Break{..}|Stmt::Continue{..}=>break,
         Stmt::Expr{value,..}=>{expression(catalog,p,value,env,guards,changes,column,depth,out);guards.extend(helper_guards(catalog,value,env,0));},
         Stmt::Emit{payload,once,..}=>{
             if column.is_some(){changes.clear();}
@@ -109,18 +121,16 @@ fn statements(catalog:&Catalog,p:&ProgramDecl,body:&[Stmt],env:&mut Env,guards:&
                     guards.push(Stmt::Require{condition:Expr::Binary{op:"or".into(),left:Box::new(premise),right:Box::new(required),site:site.clone()},code:"$advice:implication".into(),message:None,site:site.clone()});
                 }}
             }
-            if contains_return(then_body)||contains_return(else_body){
+            if contains_exit(then_body)||contains_exit(else_body){
                 let branch=Stmt::If{condition:condition.clone(),then_body:then_body.clone(),else_body:else_body.clone(),site:site.clone()};
-                let continuation=fallthrough(&[branch],env,site);
-                if matches!(continuation,Expr::Literal{value:ast::Literal::Bool(false),..}){break;}
-                guards.push(Stmt::Require{condition:continuation,code:"$advice".into(),message:None,site:site.clone()});
+                if !continuation(guards,fallthrough(&[branch],env,site),site){break;}
             }
             let assigned=branch_assignments(then_body).into_iter().chain(branch_assignments(else_body)).collect::<BTreeSet<_>>();
             if column.is_some()&&assigned.is_empty(){changes.extend(changes::after(catalog,&condition,then_body,else_body,env));}
             for name in assigned{env.insert(name.clone(),Expr::Name{name:format!("$advice_unknown_{name}"),site:site.clone()});}
         },
-        Stmt::For{domain,name,body,site}=>{if column.is_some(){changes.clear();}expression(catalog,p,domain,env,guards,changes,column,depth,out);let mut local=env.clone();local.remove(name);let mut nested=guards.clone();nested.push(Stmt::Require{condition:Expr::Literal{value:ast::Literal::Bool(true),site:site.clone()},code:format!("$iteration:{site}"),message:None,site:site.clone()});statements(catalog,p,body,&mut local,&mut nested,&mut Vec::new(),column,depth,out);for name in branch_assignments(body){env.insert(name.clone(),Expr::Name{name:format!("$advice_unknown_{name}"),site:site.clone()});}},
-        Stmt::As{body,..}=>statements(catalog,p,body,&mut env.clone(),&mut guards.clone(),&mut changes.clone(),column,depth,out),_=>{}
+        Stmt::For{domain,name,body,site}=>{if column.is_some(){changes.clear();}expression(catalog,p,domain,env,guards,changes,column,depth,out);let mut local=env.clone();local.remove(name);let mut nested=guards.clone();nested.push(Stmt::Require{condition:Expr::Literal{value:ast::Literal::Bool(true),site:site.clone()},code:format!("$iteration:{site}"),message:None,site:site.clone()});statements(catalog,p,body,&mut local,&mut nested,&mut Vec::new(),column,depth,out);for name in branch_assignments(body){env.insert(name.clone(),Expr::Name{name:format!("$advice_unknown_{name}"),site:site.clone()});}if contains_return(body){continuation(guards,Expr::Name{name:format!("$advice_fallthrough:{site}"),site:site.clone()},site);}},
+        Stmt::As{body,site,..}=>{statements(catalog,p,body,&mut env.clone(),&mut guards.clone(),&mut changes.clone(),column,depth,out);if contains_exit(body)&&!continuation(guards,fallthrough(body,env,site),site){break;}},
     }
     if consuming{changes.clear();}
     }

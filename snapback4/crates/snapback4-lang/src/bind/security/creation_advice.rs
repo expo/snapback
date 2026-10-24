@@ -17,6 +17,8 @@ fn conditions(p:&ast::ProgramDecl)->Vec<&Expr>{p.body.iter().filter_map(|s|if le
 pub(super) fn simplify_boolean(expression:&Expr)->Expr{
     let mut expression=expression.clone();super::super::intent_walk::expression(&mut expression,&mut |e|{
         let boolean=|e:&Expr|if let Expr::Literal{value:ast::Literal::Bool(value),..}=e{Some(*value)}else{None};
+        fn constant(e:&Expr)->bool{match e{Expr::Literal{..}=>true,Expr::Unary{value,..}=>constant(value),Expr::Binary{left,right,..}=>constant(left)&&constant(right),Expr::Array{items,..}=>items.iter().all(constant),Expr::Call{name,args,..} if matches!(name.as_str(),"len"|"count")=>args.iter().all(constant),_=>false}}
+        if constant(e)&&let Some(value)=super::concrete::evaluate(e,&snapback4_core::Value::Null,&BTreeMap::new(),&snapback4_core::schema::Schema::default(),"","",0){*e=Expr::Literal{value:ast::Literal::Bool(value),site:e.site().clone()};return;}
         match e{
             Expr::Unary{op,value,site} if op=="not"=>if let Some(value)=boolean(value){*e=Expr::Literal{value:ast::Literal::Bool(!value),site:site.clone()};},
             Expr::Binary{op,left,right,site} if op=="and"||op=="or"=>{let decisive=op=="or";if boolean(left)==Some(decisive)||boolean(right)==Some(decisive){*e=Expr::Literal{value:ast::Literal::Bool(decisive),site:site.clone()};}else if boolean(left)==Some(!decisive){*e=*right.clone();}else if boolean(right)==Some(!decisive){*e=*left.clone();}},_=>{},
@@ -25,6 +27,11 @@ pub(super) fn simplify_boolean(expression:&Expr)->Expr{
 }
 // Fold only constant Boolean rule branches; conditional approval use remains use.
 fn simplify_rule(rule:&RuleExpr)->RuleExpr{match rule{
+    RuleExpr::Public{..}=>RuleExpr::Allow,
+    RuleExpr::Eq(RuleTerm::Literal(a),RuleTerm::Literal(b))|RuleExpr::Ne(RuleTerm::Literal(a),RuleTerm::Literal(b))=>if (a==b)==matches!(rule,RuleExpr::Eq(..)){RuleExpr::Allow}else{RuleExpr::Deny},
+    RuleExpr::Compare(op,RuleTerm::Literal(a),RuleTerm::Literal(b))=>{
+        use snapback4_core::{Value,ir::BinaryOp};let pass=match (op,a,b){(BinaryOp::Gt,Value::Int(a),Value::Int(b))=>a>b,(BinaryOp::Gte,Value::Int(a),Value::Int(b))=>a>=b,(BinaryOp::Lt,Value::Int(a),Value::Int(b))=>a<b,(BinaryOp::Lte,Value::Int(a),Value::Int(b))=>a<=b,_=>false};if pass{RuleExpr::Allow}else{RuleExpr::Deny}
+    },
     RuleExpr::Not(rule)=>match simplify_rule(rule){RuleExpr::Allow=>RuleExpr::Deny,RuleExpr::Deny=>RuleExpr::Allow,rule=>RuleExpr::Not(Box::new(rule))},
     RuleExpr::And(parts)|RuleExpr::Or(parts)=>{
         let disjunction=matches!(rule,RuleExpr::Or(_));let mut out=Vec::new();
