@@ -463,8 +463,8 @@ plus independent review: running the product battery cannot by itself test
 whether a selector maps an omitted path correctly. This known tooling owner
 is an explicit affected rule, not an unknown-path exception.
 
-The root workflow attempts each independent tool setup even after a setup
-failure, continues to selected verification, and retains the failed setup as
+Within the Snapback 4 tool-preparation step, the root workflow attempts
+each independent setup command even after a setup failure, continues to selected verification, and retains the failed setup as
 a failing job verdict after independent checks have run. It provisions the independent wasm target, matching bindgen
 CLI, twiggy, brotli and the pinned Lean toolchain for a selected delegation;
 it does not invoke the legacy Ibex bootstrap for Snapback 4 alone.

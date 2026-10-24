@@ -45,3 +45,12 @@ retained verdict follows verification. Unresolved/computed imports now also
 conservatively require rebuilding client dist, with a dedicated fixture.
 The coordinator explicitly pre-approved extra review rounds, so a fourth
 frozen review follows these two bounded corrections.
+
+
+Round 4 reviewed the frozen e98f65af52 delta and full selector/workflow/amendment
+context. Both fresh Codex and Muse returned READY. Codex requested only a
+nonblocking wording clarification: keep-going provisioning is scoped to
+independent setup commands inside the Snapback 4 preparation step, not every
+legacy workflow step. Applied that clarification without changing behavior.
+These static reviews do not establish deferred historical execution or paired
+runtime evidence. Final receipt/evidence custody is in the external FAST report.

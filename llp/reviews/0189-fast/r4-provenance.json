@@ -1,0 +1,18 @@
+{
+  "date": "2026-10-24T09:59:53.574787+00:00",
+  "reviewedCommit": "e98f65af52",
+  "scope": "Static frozen delta from bb5649e4b5 plus full selector/workflow/amendment context; earlier underlying reviews preserved",
+  "models": {
+    "codex": "gpt-6.1-sol, high, fresh codex exec",
+    "muse": "muse-spark-1.3-contributor, high; quota fallback via muse-exec"
+  },
+  "verdicts": {
+    "codex": "READY",
+    "muse": "READY"
+  },
+  "files": {
+    "r4-muse.txt": "d2284ba7693309ce351109cdd488306e85645b5e6bc7ad6911dfe184c21ac461",
+    "r4-codex.txt": "f18ff30d1b9ce289ad2fccf1169ce868d24fba600efd52a856cd93b2e9c4ca18",
+    "r4-brief.txt": "2e99758f2ee1266638824fbe48f9d513da1ecd88c7d49ef43646289923d753ab"
+  }
+}
