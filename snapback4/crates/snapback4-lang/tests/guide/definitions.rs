@@ -137,6 +137,19 @@ fn w11_every_registered_code_quotes_its_definition() {
 // independent of the paragraph selector: do not regenerate them to bless a new
 // first mention. Whitespace may change; the reason for the code must survive.
 const DEFINITIONS: &[(&str, &str)] = &[
+    ("E_PRODUCTION_ROSTER", "E_PRODUCTION_ROSTER means the saved production roster is unsafe, changed, or cannot log in as its known principal."),
+    ("E_PRODUCTION_ROSTER_BUSY", "E_PRODUCTION_ROSTER_BUSY means the named production roster has an exclusive setup lock."),
+    ("E_SERVE_CHECK", "E_SERVE_CHECK means the serve-check invocation or owned-process inspection failed."),
+    ("E_SERVE_CHECK_PLATFORM", "E_SERVE_CHECK_PLATFORM means serve-check cannot provide Unix process-group custody on this platform."),
+    ("E_SERVE_NO_JSON", "E_SERVE_NO_JSON means the npm serve script supplied no complete JSON object line before exit or startup deadline."),
+    ("E_SERVE_EXTRA_OUTPUT", "E_SERVE_EXTRA_OUTPUT means the serve script emitted extra, invalid, oversized or unterminated stdout."),
+    ("E_SERVE_EARLY_EXIT", "E_SERVE_EARLY_EXIT means the npm serve script exited before the requested up interval completed."),
+    ("E_SERVE_CHILD_RUNNING", "E_SERVE_CHILD_RUNNING means an owned child remained alive after group SIGTERM and the stop grace."),
+    ("E_SERVE_DRIVER_EXIT", "E_SERVE_DRIVER_EXIT means the checker driver or keeper exited or lost IPC before inspection completed."),
+    ("E_SERVE_LOCK_HELD", "E_SERVE_LOCK_HELD means the requested deployment lock remained held after group SIGTERM, or its lock barrier refused."),
+    ("E_SERVE_INSPECTION", "E_SERVE_INSPECTION means the process-group listing could not be classified."),
+    ("E_SERVE_START", "E_SERVE_START means the npm script could not start or its keeper handshake was not received."),
+
     ("E_COLUMN_WRITE", "a column write/freeze rule names an invalid or duplicate payload column"),
     ("N_DERIVED_WRITE_AUTHORITY", "an inferred candidate from authored change guards or approval data"),
     ("N_PRESENCE_LOOSENING", "a required-to-optional column change"),

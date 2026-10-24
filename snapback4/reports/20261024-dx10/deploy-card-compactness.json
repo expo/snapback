@@ -1,0 +1,10 @@
+{
+  "baseline": "origin/main",
+  "baselineSha256": "10365b05dad20f924e26fbe03bae0f868bd44345edc48f589dd2ac6df597de21",
+  "beforePrefixLines": 163,
+  "afterPrefixLines": 146,
+  "beforeTotalLines": 294,
+  "afterTotalLines": 277,
+  "codeFencesByteIdentical": true,
+  "allWordsIdentical": true
+}

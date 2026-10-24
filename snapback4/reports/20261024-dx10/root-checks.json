@@ -1,12 +1,12 @@
 {
   "ok": true,
-  "inputDigest": "9bdf11d438f6b651d6149464e26cda6f899cc9dd756b0b3cc574cdc4d4a5cdc2",
+  "inputDigest": "70233e2da1439bc63f3e66480c5f1d99518bac63e2651c6c7c310b584eb51d3c",
   "exclusions": [
-    "snapback4/reports/",
+    "snapback4/",
     "llp/reviews/",
     "issues/"
   ],
-  "reason": "Review/replay evidence has no root generated-input authority; ref-check repeats in the final run. All product, guide and generator inputs remain included.",
+  "reason": "Snapback4 has its own workspace, diagnostic catalog and guide suite; the reused root generators enumerate root guide/packages/crates, not this fence. Git diff proves all retained inputs unchanged since the passing root checks. Snapback4 product and guide checks rerun; ref-check reruns including all new evidence.",
   "results": [
     {
       "id": "diagnostics",
@@ -32,5 +32,6 @@
       "logSha256": "2e5bdbb81fb0a90d0048b15c79190ef3773fdfa33b8646930fe455f717a57813",
       "evidence": "[check-inventories] PASS:"
     }
-  ]
+  ],
+  "unchangedRootInputsSince": "7918027f58"
 }

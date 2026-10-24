@@ -10,7 +10,8 @@ post-drain stdout hardening then received round 3: READY from both families.
 Prompts, file hashes, raw captured diff and complete verbatim responses are
 under llp/reviews/3000.011.003.000.000-dx10-r{1,2,3}-*. Codex logs are gzip
 compressed without modification. Muse's wrapper used its configured quota
-fallback; no key file was read or printed. Product/test source hashes are
-unchanged from the round-3 provenance capture. Review readiness is not
+fallback; no key file was read or printed. The proof-helper and fault-test source hashes are unchanged from the round-3
+provenance capture. Later changes add diagnostic catalog explanations and
+compact existing deploy-card prose without changing any word or code fence. Review readiness is not
 execution qualification or author acceptance. Gate semantics are explicitly
 deferred to SEC10, with runnable counterexamples in this report directory.
