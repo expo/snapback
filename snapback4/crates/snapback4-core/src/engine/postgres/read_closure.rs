@@ -52,6 +52,12 @@ pub(super) fn after_failed_statement() {
     let hook = AFTER_FAILED_STATEMENT.with(|hook| hook.borrow_mut().take());
     if let Some(hook) = hook { hook(); }
 }
+// InitPlans inside CASE are evaluated only on the admitted payload branch.
+// Putting array_agg in the guard's aggregate still builds over-budget arrays.
+const PAYLOAD_COLUMNS: &str = "CASE WHEN ready THEN (SELECT pg_catalog.array_agg(node) FROM facts) END, CASE WHEN ready THEN (SELECT pg_catalog.array_agg(keys) FROM facts) END, CASE WHEN ready THEN (SELECT pg_catalog.array_agg(data) FROM facts) END, CASE WHEN ready THEN (SELECT pg_catalog.array_agg(k) FROM facts) END";
+fn payload_cte() -> String {
+    format!("payload AS MATERIALIZED (SELECT NOT COALESCE(pg_catalog.bool_or(unavailable),false) AND COALESCE(SUM(COALESCE(pg_catalog.octet_length(data),0)+pg_catalog.octet_length(keys)+COALESCE(pg_catalog.octet_length(k),0)*6+512),0) <= {} AS ready FROM facts)", super::prefetch::PREFETCH_ROW_BYTES / 32)
+}
 impl Closure {
     pub fn new(schema: &Schema, program: &Program, context: &Context) -> Option<Self> {
         if program.native
@@ -499,13 +505,8 @@ impl Closure {
         ctes.push(format!("facts AS MATERIALIZED ({unions})"));
         // A failed speculative payload guard transfers no row images. Reopen
         // the ordinary snapshot before resolving authority or executing Rust.
-        ctes.push(format!("payload AS MATERIALIZED (SELECT NOT COALESCE(pg_catalog.bool_or(unavailable),false) AND COALESCE(SUM(COALESCE(pg_catalog.octet_length(data),0)+pg_catalog.octet_length(keys)+COALESCE(pg_catalog.octet_length(k),0)*6+512),0) <= {} AS ready, pg_catalog.array_agg(node) AS nodes, pg_catalog.array_agg(keys) AS keys, pg_catalog.array_agg(data) AS images, pg_catalog.array_agg(k) AS row_keys FROM facts)", super::prefetch::PREFETCH_ROW_BYTES / 32));
-        // Native arrays avoid escaping every row into a second JSON document
-        // and hex-encoding its key. All four arrays share the same guarded cut.
-        let statement = format!(
-            "WITH {} SELECT authority.*, CASE WHEN ready THEN nodes END, CASE WHEN ready THEN keys END, CASE WHEN ready THEN images END, CASE WHEN ready THEN row_keys END FROM authority CROSS JOIN payload",
-            ctes.join(",")
-        );
+        ctes.push(payload_cte());
+        let statement = format!("WITH {} SELECT authority.*, {PAYLOAD_COLUMNS} FROM authority CROSS JOIN payload", ctes.join(","));
         // Request keys are parameters; schema addresses are encoded code constants.
         // Bound the finite statement shapes as well:
         // alias/dedup choices must not grow a connection cache without limit.
@@ -825,5 +826,94 @@ mod decode_tests {
             assert!(parsed.is_err(), "accepted {payload}");
         }
         for malformed in ["f", "雪", "zz", "0雪"] { assert!(hex(malformed).is_err()); }
+    }
+}
+
+
+#[cfg(test)]
+mod payload_guard_tests {
+    use super::*;
+    #[derive(Debug)]
+    struct PlanArray;
+    impl<'a> postgres::types::FromSql<'a> for PlanArray {
+        fn from_sql(
+            _: &postgres::types::Type,
+            _: &'a [u8],
+        ) -> Result<Self, Box<dyn std::error::Error + Sync + Send>> {
+            Ok(Self)
+        }
+        fn accepts(_: &postgres::types::Type) -> bool {
+            true
+        }
+    }
+    #[derive(Debug)]
+    struct PlanJson(String);
+    impl<'a> postgres::types::FromSql<'a> for PlanJson {
+        fn from_sql(
+            _: &postgres::types::Type,
+            raw: &'a [u8],
+        ) -> Result<Self, Box<dyn std::error::Error + Sync + Send>> {
+            Ok(Self(std::str::from_utf8(raw)?.to_owned()))
+        }
+        fn accepts(ty: &postgres::types::Type) -> bool {
+            *ty == postgres::types::Type::JSON
+        }
+    }
+    #[test]
+    #[ignore = "private PG16; scripts/test-postgres.sh read_closure scope"]
+    fn payload_guard_never_executes_over_budget_array_aggregates() {
+        let config: postgres::Config = std::env::var("SNAPBACK4_EVAL_POSTGRES")
+            .unwrap()
+            .parse()
+            .unwrap();
+        let (mut client, _) = super::super::ownership::connect(config).unwrap();
+        for (bytes, unavailable, ready) in [
+            (32, false, true),
+            (80 * 1024, false, false),
+            (32, true, false),
+        ] {
+            let query = format!(
+                "WITH facts AS MATERIALIZED (SELECT n AS node,'[]'::text AS keys,repeat('x',{bytes}) AS data,'a'::bytea AS k,{unavailable} AS unavailable FROM generate_series(1,2) n), {} SELECT {PAYLOAD_COLUMNS} FROM payload",
+                payload_cte()
+            );
+            let row = client.query_one(&query, &[]).unwrap();
+            for i in 0..4 {
+                let value: Option<PlanArray> = row.try_get(i).unwrap();
+                assert_eq!(value.is_some(), ready);
+            }
+            let explain = client
+                .query_one(
+                    &format!("EXPLAIN (ANALYZE,VERBOSE,FORMAT JSON) {query}"),
+                    &[],
+                )
+                .unwrap();
+            // JSON support is deliberately not needed in the production driver.
+            let plan: PlanJson = explain.get(0);
+            let plan = plan.0;
+            let plan: serde_json::Value = serde_json::from_str(&plan).unwrap();
+            fn aggregates(plan: &serde_json::Value, loops: u64, found: &mut usize) {
+                if plan["Node Type"] == "Aggregate"
+                    && plan["Output"].as_array().is_some_and(|out| {
+                        out.iter()
+                            .any(|s| s.as_str().is_some_and(|s| s.contains("array_agg")))
+                    })
+                {
+                    *found += 1;
+                    assert_eq!(
+                        plan["Actual Loops"].as_u64(),
+                        Some(loops),
+                        "over-budget array aggregate executed: {plan}"
+                    );
+                }
+                if let Some(children) = plan["Plans"].as_array() {
+                    for child in children {
+                        aggregates(child, loops, found);
+                    }
+                }
+            }
+            let mut found = 0;
+            aggregates(&plan[0]["Plan"], u64::from(ready), &mut found);
+            assert!(found > 0, "must inspect actual array aggregate execution");
+        }
     }
 }

@@ -235,6 +235,9 @@ fn group_refusal(
         None => crate::rows::index_values(&table.indexes[index], row),
     };
     tx.batch("CREATE TEMP TABLE _adopt_groups(k BYTEA PRIMARY KEY,n BIGINT NOT NULL) ON COMMIT DROP; CREATE TEMP TABLE _adopt_conflicts(k BYTEA NOT NULL,id TEXT COLLATE \"C\" NOT NULL,restored INTEGER NOT NULL,sample TEXT COLLATE \"C\" NOT NULL,PRIMARY KEY(k,id)) ON COMMIT DROP")?;
+    // DDL event triggers may have intercepted these new TEMP relations.
+    // Refuse before the first write; lifecycle COMMIT repeats the same check.
+    super::managed_relations::verify(tx)?;
     super::evolution::walk(tx, "r", name, |_, row| {
         let row = crate::schema::row_image(&row, table);
         let values = key(&row);

@@ -7,7 +7,7 @@
 
 From the G6 blind review (Sol APPROVE WITH NITS, Grok APPROVE) and the G6 report.
 
-1. **Non-UTF-8 setting (Sol, Low).** `store_config.rs` (~203) treats
+1. **Resolved — non-UTF-8 setting (Sol, Low; FF2 2026-10-24).** `store_config.rs` (~203) treats
    `VarError::NotUnicode` for `SNAPBACK4_READ_GRANT_CLOCK_BOUNDS` as unset and
    starts on G5 instead of refusing startup. Fails safe; handle `NotPresent`
    separately and refuse other errors.
@@ -22,3 +22,20 @@ From the G6 blind review (Sol APPROVE WITH NITS, Grok APPROVE) and the G6 report
 4. **Write-mix false misses.** Revision equality misses every entry after
    any commit: a 1 % write stream gives 92.3 % misses and 5.1k reads/s.
    Cross-revision promotion with footprints (§4.1) is the designed remedy.
+
+
+## FF2 resolution of item 1 — 2026-10-24
+
+Startup distinguishes `VarError::NotPresent` from `NotUnicode` for
+`SNAPBACK4_READ_GRANT_CLOCK_BOUNDS`. Only absence selects the default;
+non-UTF-8 returns E_STORE_CONFIG naming the setting, and the failed startup's
+owner releases its claim through the existing cleanup path. The deploy guide
+records the refusal. `postgres_non_utf8_read_grant_setting_refuses_startup`
+executes actual StoreConfig acquisition in a child with non-UTF-8 environment
+bytes; it fails 0/1 before the fix because startup accepts the value. Initial
+fixture setup/TCP-profile errors are excluded from that evidence; the qualified
+negative uses the production-supported Unix socket. The PG runner includes
+this test with the existing startup-cleanup witness.
+
+Items **2–4 remain open**, with their original scope and author decision pending
+where noted. This ticket stays in `issues/` for those items.

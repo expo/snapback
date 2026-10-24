@@ -15,10 +15,16 @@ pub(super) fn verify(tx: &Tx<'_>) -> Result<(), RuntimeError> {
 // read-only legacy inspection admit only the two historical seq -> _commits
 // no-action FKs, including their exact PostgreSQL-installed RI trigger set.
 // Names of constraints were never fixed; trigger names include their own OID.
+// Separate namespace arms and name-typed index keys avoid scanning unrelated
+// schemas when activation repeatedly checks admission in a large catalog.
 pub(super) const SQL: &str = r#"
 WITH managed AS (
     SELECT c.* FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
-    WHERE n.nspname=current_schema() AND c.relname::text=ANY($1)
+    WHERE n.nspname=current_schema() AND c.relname=ANY($1::text[]::name[])
+    UNION ALL
+    SELECT c.* FROM pg_class c
+    WHERE c.relnamespace=pg_my_temp_schema()
+      AND c.relname IN ('_evolution_restored','_adopt_groups','_adopt_conflicts')
 ), legacy AS (
     SELECT c.* FROM pg_constraint c JOIN managed source ON source.oid=c.conrelid
     JOIN managed target ON target.oid=c.confrelid
