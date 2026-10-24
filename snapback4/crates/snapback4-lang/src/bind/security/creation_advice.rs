@@ -14,7 +14,7 @@ fn uses(e:&Expr,arg:&str)->bool{let mut found=false;walk(e,|e|if matches!(e,Expr
 fn conjunction(e:&Expr)->Vec<&Expr>{match e{Expr::Binary{op,left,right,..} if op=="and"=>conjunction(left).into_iter().chain(conjunction(right)).collect(),_=>vec![e]}}
 fn conditions(p:&ast::ProgramDecl)->Vec<&Expr>{p.body.iter().filter_map(|s|if let Stmt::Require{condition,..}=s{Some(condition)}else{None}).collect()}
 // Keep authored conditional prerequisites, but erase statically vacuous reads.
-fn simplify_boolean(expression:&Expr)->Expr{
+pub(super) fn simplify_boolean(expression:&Expr)->Expr{
     let mut expression=expression.clone();super::super::intent_walk::expression(&mut expression,&mut |e|{
         let boolean=|e:&Expr|if let Expr::Literal{value:ast::Literal::Bool(value),..}=e{Some(*value)}else{None};
         match e{
@@ -23,6 +23,15 @@ fn simplify_boolean(expression:&Expr)->Expr{
         }
     });expression
 }
+// Fold only constant Boolean rule branches; conditional approval use remains use.
+fn simplify_rule(rule:&RuleExpr)->RuleExpr{match rule{
+    RuleExpr::Not(rule)=>match simplify_rule(rule){RuleExpr::Allow=>RuleExpr::Deny,RuleExpr::Deny=>RuleExpr::Allow,rule=>RuleExpr::Not(Box::new(rule))},
+    RuleExpr::And(parts)|RuleExpr::Or(parts)=>{
+        let disjunction=matches!(rule,RuleExpr::Or(_));let mut out=Vec::new();
+        for part in parts{let part=simplify_rule(part);if matches!((&part,disjunction),(RuleExpr::Allow,true)|(RuleExpr::Deny,false)){return part;}if !matches!((&part,disjunction),(RuleExpr::Deny,true)|(RuleExpr::Allow,false)){out.push(part);}}
+        if out.is_empty(){if disjunction{RuleExpr::Deny}else{RuleExpr::Allow}}else if out.len()==1{out.remove(0)}else if disjunction{RuleExpr::Or(out)}else{RuleExpr::And(out)}
+    },_=>rule.clone(),
+}}
 fn effective_conditions(p:&ast::ProgramDecl)->Vec<Expr>{conditions(p).into_iter().map(simplify_boolean).collect()}
 fn reads(e:&Expr)->BTreeSet<String>{let mut out=BTreeSet::new();walk(e,|e|match e{Expr::Read(r)|Expr::Exists{read:r,..}=>{out.insert(r.table.clone());},_=>{}});out}
 fn nonnull(p:&ast::ProgramDecl,arg:&str)->bool{nonnull_mode(p,arg,false)}
@@ -63,7 +72,7 @@ pub(super) fn notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnostic>{
                 super::super::intent_walk::expression(&mut value,&mut |e|if let Expr::Member{base,..}=e&&reads(base).contains(&table){*base=Box::new(Expr::Focal{site:site.clone()});});
                 if let Ok(rule)=super::super::schema::bind_rule(&catalog,info,&ast::RuleDecl{effect:ast::Effect::Read,bindings:Vec::new(),value,site:site.clone()}){requirements.push(rule);}
             }
-            let t=&bound.schema.tables[&table];let rule=if op==WriteOp::Update{t.update_rule_judged().into_owned()}else{t.rules.insert.clone()};
+            let t=&bound.schema.tables[&table];let rule=match op{WriteOp::Update=>t.update_rule_judged().into_owned(),WriteOp::Upsert=>RuleExpr::Or(vec![t.rules.insert.clone(),t.update_rule_judged().into_owned()]),_=>t.rules.insert.clone()};
             writes.push(Write{p,name:super::super::operation_name(std::path::Path::new(&p.site.file).file_stem().and_then(|s|s.to_str()).unwrap_or(""),&p.name),op,table,fields,keys,site,context,conditional:if_absent||condition.is_some(),gate:RuleExpr::And(requirements.into_iter().chain([rule]).collect())});
         }
     }

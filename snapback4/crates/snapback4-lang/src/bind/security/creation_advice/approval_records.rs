@@ -57,7 +57,8 @@ fn source_probe(condition:&Expr,negated:bool,name:&str,reference:&str,parent:&st
         }),_=>false,
     }
 }
-fn schema_probe(rule:&RuleExpr,negated:bool,name:&str,reference:&str,parent:&str,effect:&Write<'_>,bound:&Bound)->bool{match rule{
+fn schema_probe(rule:&RuleExpr,negated:bool,name:&str,reference:&str,parent:&str,effect:&Write<'_>,bound:&Bound)->bool{
+    let simplified=simplify_rule(rule);let rule=&simplified;match rule{
     RuleExpr::Not(rule)=>schema_probe(rule,!negated,name,reference,parent,effect,bound),
     RuleExpr::And(rules)|RuleExpr::Or(rules)=>rules.iter().any(|rule|schema_probe(rule,negated,name,reference,parent,effect,bound)),
     RuleExpr::Exists{table,index,key,equalities,..}|RuleExpr::Created{table,index,key,equalities,..} if !negated&&table==name=>super::super::privilege::probe_pairs(bound,table,index,key,equalities).iter().any(|(column,value)|column==reference&&match value{
@@ -166,7 +167,7 @@ fn audience_grant(name:&str,reference:&str,parent:&str,bound:&Bound)->bool{
             let pairs=super::super::privilege::probe_pairs(bound,table,index,key,equalities);
             pairs.iter().any(|(column,value)|column==reference&&*value==RuleTerm::Field("id".into()))&&pairs.iter().any(|(column,value)|*value==RuleTerm::Viewer&&matches!(bound.schema.tables[table].columns.get(column).map(ColumnType::required),Some(ColumnType::Principal)))
         },_=>false,
-    }}probe(&bound.schema.tables[parent].rules.read,name,reference,bound)
+    }}probe(&simplify_rule(&bound.schema.tables[parent].rules.read),name,reference,bound)
 }
 fn decision_provenance(creator:&Write<'_>,reference:&str,parent:&str,writes:&[Write<'_>],bound:&Bound)->bool{
     fn selected(value:&Expr)->Option<&ast::ReadExpr>{match value{Expr::Read(read)=>Some(read),Expr::Assert{value,..}|Expr::Member{base:value,..}=>selected(value),Expr::Call{name,args,..} if name=="first"&&args.len()==1=>selected(&args[0]),_=>None}}

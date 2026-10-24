@@ -98,6 +98,7 @@ fn exclusive_decision(record:&Write<'_>,field:&ast::ObjectField,writes:&[Write<'
     })&&kernel::implies(&audience(&other.gate),&authority)!=Ok(true))
 }
 fn scalar_rule(rule:&RuleExpr,table:&str,column:&str,root:&str,negative:bool,bound:&Bound)->bool{
+    let simplified=simplify_rule(rule);let rule=&simplified;
     let matches=|term:&RuleTerm|root==table&&matches!(term,RuleTerm::Field(name)|RuleTerm::OldField(name)|RuleTerm::NextField(name) if name==column)||term.references().last().is_some_and(|(owner,field)|owner==table&&field==column);
     match rule{
         RuleExpr::Not(rule)=>scalar_rule(rule,table,column,root,!negative,bound),

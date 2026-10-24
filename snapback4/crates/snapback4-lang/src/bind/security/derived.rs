@@ -71,7 +71,7 @@ fn omit_preconditions(expression:&mut ast::Expr,negated:bool){
             let stage=|field:&ast::Expr,value:&ast::Expr|plain_field(field)&&matches!(field,ast::Expr::Member{name,..} if matches!(name.as_str(),"stage"|"status"|"phase"|"state"))&&matches!(value,ast::Expr::Literal{value:ast::Literal::Str(_),..});
             let absence=(op=="="&&!negated||op=="!="&&negated)&&((null(left)&&plain_field(right))||(null(right)&&plain_field(left)));
             let discriminator=matches!(op.as_str(),"="|"!="|"<"|">"|"<="|">=")&&(stage(left,right)||stage(right,left));
-            if absence||discriminator{*expression=ast::Expr::Literal{value:ast::Literal::Bool(true),site:site.clone()};}
+            if absence||discriminator{*expression=ast::Expr::Literal{value:ast::Literal::Bool(!negated),site:site.clone()};}
         },
         // Unknown expression contexts retain every dependency. They do not
         // justify erasing a potentially positive evidence inspection.
@@ -212,4 +212,12 @@ pub fn augmented(sources:&[(String,String)],bound:&Bound)->Bound{
     }}
     for contract in &mut contracts{contract.site.file=contract.site.file.replacen("$derived/","$enforced/",1);}
     out.invariants.extend(contracts);out
+}
+
+#[cfg(test)]mod sec10_preconditions{use super::*;
+#[test]fn negated_stage_preconditions_preserve_replacement_checks(){
+    let source="table docs:\n  status: enum('draft','ready')\n  read <- allow\n  online only\nmutation approve(doc: docs,replacement: int):\n  d = docs[doc] ! else MISSING\n  require not (d.status = 'draft' or replacement <= 0) else INVALID\n";
+    let (doc,diagnostics)=crate::parse_document("schema.q",source);assert!(diagnostics.is_empty(),"{diagnostics:?}");let mut predicate=doc.programs[0].body.iter().find_map(|stmt|if let ast::Stmt::Require{condition,..}=stmt{Some(condition.clone())}else{None}).unwrap();omit_preconditions(&mut predicate,false);
+    let rendered=crate::print::expression(&super::creation_advice::simplify_boolean(&predicate));assert!(rendered.contains("replacement")&&!rendered.contains("status"),"{rendered}");assert_ne!(rendered,"false");
+}
 }

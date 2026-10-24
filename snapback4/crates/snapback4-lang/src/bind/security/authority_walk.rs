@@ -61,6 +61,22 @@ fn conditional_guards(body:&[Stmt],env:&Env)->Option<Vec<Expr>> {
         },_=>return None,
     }} Some(out)
 }
+// An early return commits previous writes while skipping later decisions.
+// Preserve the continuation path so a later stamp cannot exempt an earlier audit.
+fn fallthrough(body:&[Stmt],env:&Env,site:&Site)->Expr{
+    let literal=|value|Expr::Literal{value:ast::Literal::Bool(value),site:site.clone()};
+    let binary=|op:&str,left:Expr,right:Expr|Expr::Binary{op:op.into(),left:Box::new(left),right:Box::new(right),site:site.clone()};
+    let mut result=literal(true);
+    for stmt in body{match stmt{
+        Stmt::Return{..}|Stmt::Break{..}|Stmt::Continue{..}=>return literal(false),
+        Stmt::If{condition,then_body,else_body,..}=>{
+            let condition=resolve(condition,env);let no=Expr::Unary{op:"not".into(),value:Box::new(condition.clone()),site:site.clone()};
+            result=binary("and",result,binary("or",binary("and",condition,fallthrough(then_body,env,site)),binary("and",no,fallthrough(else_body,env,site))));
+        },Stmt::As{body,..}=>result=binary("and",result,fallthrough(body,env,site)),
+        Stmt::For{body,..} if contains_return(body)=>{return Expr::Name{name:format!("$advice_fallthrough:{site}"),site:site.clone()};},_=>{},
+    }}super::creation_advice::simplify_boolean(&result)
+}
+fn contains_return(body:&[Stmt])->bool{body.iter().any(|stmt|match stmt{Stmt::Return{..}=>true,Stmt::If{then_body,else_body,..}=>contains_return(then_body)||contains_return(else_body),Stmt::For{body,..}|Stmt::As{body,..}=>contains_return(body),_=>false})}
 fn statements(catalog:&Catalog,p:&ProgramDecl,body:&[Stmt],env:&mut Env,guards:&mut Vec<Stmt>,changes:&mut Vec<Change>,column:Option<&str>,depth:usize,out:&mut Vec<(Expr,ProgramDecl)>){
     for s in body{
         let consuming=column.is_some()&&changes::effectful(s);
@@ -92,6 +108,12 @@ fn statements(catalog:&Catalog,p:&ProgramDecl,body:&[Stmt],env:&mut Env,guards:&
                     let premise=if negate{Expr::Unary{op:"not".into(),value:Box::new(condition.clone()),site:site.clone()}}else{condition.clone()};
                     guards.push(Stmt::Require{condition:Expr::Binary{op:"or".into(),left:Box::new(premise),right:Box::new(required),site:site.clone()},code:"$advice:implication".into(),message:None,site:site.clone()});
                 }}
+            }
+            if contains_return(then_body)||contains_return(else_body){
+                let branch=Stmt::If{condition:condition.clone(),then_body:then_body.clone(),else_body:else_body.clone(),site:site.clone()};
+                let continuation=fallthrough(&[branch],env,site);
+                if matches!(continuation,Expr::Literal{value:ast::Literal::Bool(false),..}){break;}
+                guards.push(Stmt::Require{condition:continuation,code:"$advice".into(),message:None,site:site.clone()});
             }
             let assigned=branch_assignments(then_body).into_iter().chain(branch_assignments(else_body)).collect::<BTreeSet<_>>();
             if column.is_some()&&assigned.is_empty(){changes.extend(changes::after(catalog,&condition,then_body,else_body,env));}

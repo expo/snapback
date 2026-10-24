@@ -302,9 +302,13 @@ fn campaign(s:&str)->Campaign{let b=security::derived::augmented(&sources(s),&bo
         let source=source.replace("BODY",body);assert_eq!(notes(&source).iter().any(|note|note.code=="N_APPROVAL_NOT_ENFORCED"),gated,"{body}");
         if !gated{let upsert=source.clone()+"mutation overwrite(doc: docs):\n  return upsert docs[doc] {status:'done'}\n";assert!(notes(&upsert).iter().any(|note|note.code=="N_APPROVAL_NOT_ENFORCED"));let mixed=source+"mutation independent(doc: docs):\n  require exists roles[principal = viewer,role = 'manager'] else DENIED\n  return insert approvals {doc}\n";assert!(notes(&mixed).iter().any(|note|note.code=="N_APPROVAL_NOT_ENFORCED"&&note.message.contains("approvals.doc")));}
     }
+    let insert_restricted=source.replace("BODY","  update docs[doc] {status:'done'}\n").replace("  insert <- allow\n  update <- allow","  insert <- exists roles[principal = viewer,role = 'manager']\n  update <- allow")+"mutation overwrite(doc: docs):\n  return upsert docs[doc] {status:'done'}\n";
+    assert!(notes(&insert_restricted).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
     for guard in ["exists approvals[doc = doc]","count(approvals[doc = doc]) > 0","not (count(approvals[doc = doc]) = 0)"]{let guarded=source.replace("BODY","").replace("  update docs[doc] {status:'archived'}",&format!("  require {guard} else NO_APPROVAL\n  update docs[doc] {{status:'archived'}}"));assert!(!notes(&guarded).iter().any(|note|note.code=="N_APPROVAL_NOT_ENFORCED"),"{guard}");}
     for guard in ["exists approvals[doc = other]","not exists approvals[doc = other]"]{let unrelated=source.replace("BODY","").replace("mutation finish(doc: docs):","mutation finish(doc: docs,other: docs):").replace("  update docs[doc] {status:'archived'}",&format!("  require {guard} else NO_APPROVAL\n  update docs[doc] {{status:'archived'}}"));assert!(notes(&unrelated).iter().any(|note|note.code=="N_APPROVAL_NOT_ENFORCED"),"{guard}");}
     for guard in ["exists approvals[doc = .id]","not exists approvals[doc = .id]"]{let guarded=source.replace("BODY","").replace("  doc: docs\n  cap 10", "  doc: docs\n  unique doc\n  cap 10").replace("update <- allow",&format!("update <- {guard}"));assert!(!notes(&guarded).iter().any(|note|note.code=="N_APPROVAL_NOT_ENFORCED"),"{guard}");}
+    let vacuous=source.replace("BODY","").replace("  doc: docs\n  cap 10","  doc: docs\n  unique doc\n  cap 10").replace("update <- allow","update <- true or exists approvals[doc = .id]");
+    assert!(notes(&vacuous).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
     let negative=source.replace("BODY","").replace("  update docs[doc] {status:'archived'}", "  require not exists approvals[doc = doc] else ALREADY\n  update docs[doc] {status:'archived'}");assert!(!notes(&negative).iter().any(|note|note.code=="N_APPROVAL_NOT_ENFORCED"));let unguarded=negative+"mutation unchecked(doc: docs):\n  update docs[doc] {status:'archived'}\n";assert!(notes(&unguarded).iter().any(|note|note.code=="N_APPROVAL_NOT_ENFORCED"));
     let created=source.replace("BODY","").replace("return insert approvals {doc}","fresh = insert docs {status:'done'}\n  return insert approvals {doc:fresh.id}");assert!(!notes(&created).iter().any(|note|note.code=="N_APPROVAL_NOT_ENFORCED"));let mixed=created+"mutation independent(doc: docs):\n  require exists roles[principal = viewer,role = 'manager'] else DENIED\n  return insert approvals {doc}\n";assert!(notes(&mixed).iter().any(|note|note.code=="N_APPROVAL_NOT_ENFORCED"));
 }
@@ -337,6 +341,8 @@ fn campaign(s:&str)->Campaign{let b=security::derived::augmented(&sources(s),&bo
     assert!(!notes(source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"),"{:?}",notes(source));
     let helper=source.replace("  update docs[doc] {approvedAt:now}","  decision(doc)")+"fn decision(doc: docs):\n  update docs[doc] {approvedAt:now}\n  return null\n";
     assert!(!notes(&helper).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+    let early=source.replace("mutation approve(doc: docs):","mutation approve(doc: docs,skip: bool):").replace("  update docs[doc] {approvedAt:now}\n  return insert approvals {doc}","  insert approvals {doc}\n  if skip:\n    return null\n  update docs[doc] {approvedAt:now}\n  return null");
+    assert!(notes(&early).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"),"{:?}",notes(&early));
     let optional_helper=helper.replace("mutation approve(doc: docs):","mutation approve(doc: docs,items: [int] <=10):").replace("  decision(doc)","  for n in items:\n    decision(doc)");
     assert!(notes(&optional_helper).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
     let conditional=source.replace("mutation approve(doc: docs):","mutation approve(doc: docs,items: [int] <=10):").replace("  update docs[doc] {approvedAt:now}","  for n in items:\n    update docs[doc] {approvedAt:now}");
@@ -387,4 +393,10 @@ fn campaign(s:&str)->Campaign{let b=security::derived::augmented(&sources(s),&bo
 #[test]fn upsert_state_effects_cannot_leave_approvals_unenforced(){
     let source="table docs:\n  approved: bool default false\n  status: enum('draft','done') default 'draft'\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\nmutation approve(doc: docs):\n  upsert docs[doc] {approved:true}\nmutation finish(doc: docs):\nGUARD  upsert docs[doc] {status:'done'}\n";
     assert!(notes(&source.replace("GUARD","")).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));assert!(!notes(&source.replace("GUARD","  d = docs[doc] ! else MISSING\n  require d.approved else APPROVAL\n")).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+}
+
+#[test]fn schema_constant_vacuity_cannot_consume_approvals(){
+    let source="table docs:\n  approved: bool default false\n  status: enum('draft','done') default 'draft'\n  read <- allow\n  update <- POLICY\n  online only\nmutation approve(doc: docs):\n  update docs[doc] {approved:true}\nmutation finish(doc: docs):\n  update docs[doc] {status:'done'}\n";
+    for policy in ["true or .approved = true","not (false and .approved = false)"]{assert!(notes(&source.replace("POLICY",policy)).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));}
+    assert!(!notes(&source.replace("POLICY","false or .approved = true")).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
 }
