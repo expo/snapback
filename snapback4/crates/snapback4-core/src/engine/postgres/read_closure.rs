@@ -38,8 +38,12 @@ struct Node {
 }
 pub(crate) struct Closure {
     nodes: Vec<Node>,
-    schema: Schema,
-    viewer: String,
+}
+// Schema is compilation input, not a request-owned copy or retained row fact.
+struct Builder<'a> {
+    nodes: Vec<Node>,
+    schema: &'a Schema,
+    viewer: &'a str,
 }
 #[cfg(test)]
 thread_local! { pub(super) static AFTER_FAILED_STATEMENT: std::cell::RefCell<Option<Box<dyn FnOnce()>>> = const { std::cell::RefCell::new(None) }; }
@@ -63,11 +67,7 @@ impl Closure {
         {
             return None;
         }
-        let mut plan = Self {
-            nodes: Vec::new(),
-            schema: schema.clone(),
-            viewer: context.viewer.clone(),
-        };
+        let mut plan = Builder { nodes: Vec::new(), schema, viewer: &context.viewer };
         let mut env = context
             .args
             .iter()
@@ -89,8 +89,10 @@ impl Closure {
         if bytes > super::prefetch::PREFETCH_ROW_BYTES as u64 {
             return None;
         }
-        Some(plan)
+        Some(Self { nodes: plan.nodes })
     }
+}
+impl Builder<'_> {
     fn block(
         &mut self,
         body: &[Stmt],
@@ -458,7 +460,7 @@ impl Closure {
                     .iter()
                     .map(|k| match k {
                         RuleTerm::Field(f) => Some(Key::Field(source, f.clone())),
-                        RuleTerm::Viewer => Some(Key::Fixed(Value::Id(self.viewer.clone()))),
+                        RuleTerm::Viewer => Some(Key::Fixed(Value::Id(self.viewer.to_owned()))),
                         RuleTerm::Literal(v) => Some(Key::Fixed(v.clone())),
                         _ => None,
                     })
@@ -470,6 +472,8 @@ impl Closure {
         }
         Some(())
     }
+}
+impl Closure {
     pub fn execute(
         self,
         tx: &Tx<'_>,
@@ -483,7 +487,7 @@ impl Closure {
             super::authority::session_facts_sql(tx.read_sessions.get())
         )];
         for (id, node) in self.nodes.iter().enumerate() {
-            ctes.push(sql.node(id, node));
+            ctes.push(sql.node(id, node)?);
         }
         let unions = self
             .nodes
@@ -495,12 +499,15 @@ impl Closure {
         ctes.push(format!("facts AS MATERIALIZED ({unions})"));
         // A failed speculative payload guard transfers no row images. Reopen
         // the ordinary snapshot before resolving authority or executing Rust.
+        ctes.push(format!("payload AS MATERIALIZED (SELECT NOT COALESCE(pg_catalog.bool_or(unavailable),false) AND COALESCE(SUM(COALESCE(pg_catalog.octet_length(data),0)+pg_catalog.octet_length(keys)+COALESCE(pg_catalog.octet_length(k),0)*6+512),0) <= {} AS ready, pg_catalog.array_agg(node) AS nodes, pg_catalog.array_agg(keys) AS keys, pg_catalog.array_agg(data) AS images, pg_catalog.array_agg(k) AS row_keys FROM facts)", super::prefetch::PREFETCH_ROW_BYTES / 32));
+        // Native arrays avoid escaping every row into a second JSON document
+        // and hex-encoding its key. All four arrays share the same guarded cut.
         let statement = format!(
-            "WITH {} SELECT authority.*, (SELECT CASE WHEN NOT COALESCE(pg_catalog.bool_or(unavailable),false) AND COALESCE(SUM(COALESCE(pg_catalog.octet_length(data),0)+pg_catalog.octet_length(keys)+COALESCE(pg_catalog.octet_length(k),0)*6+512),0) <= {} THEN pg_catalog.json_agg(pg_catalog.json_build_array(node,keys,data,pg_catalog.encode(k,'hex')))::pg_catalog.text ELSE NULL END FROM facts) FROM authority",
-            ctes.join(","),
-            super::prefetch::PREFETCH_ROW_BYTES / 32
+            "WITH {} SELECT authority.*, CASE WHEN ready THEN nodes END, CASE WHEN ready THEN keys END, CASE WHEN ready THEN images END, CASE WHEN ready THEN row_keys END FROM authority CROSS JOIN payload",
+            ctes.join(",")
         );
-        // Values are parameters. Bound the finite statement shapes as well:
+        // Request keys are parameters; schema addresses are encoded code constants.
+        // Bound the finite statement shapes as well:
         // alias/dedup choices must not grow a connection cache without limit.
         const PREPARED_CLOSURES: usize = 32;
         if !tx.cache.borrow().contains_key(statement.as_str())
@@ -528,7 +535,7 @@ impl Closure {
             })?;
             if statement.len().saturating_add(encoded) > super::flight::ENCODED_LIMIT { return tx.complete_request_facts(digest); }
             tx.calls.set(tx.calls.get()+1);
-            let result = tx.inner.borrow().client.independent(&statement,&typed);
+            let result = tx.inner.borrow().client.independent_cached(&statement,&typed, || tx.calls.set(tx.calls.get()+1));
             tx.inner.borrow_mut().pending.clear();
             tx.finish_read_flight();
             match result {
@@ -547,15 +554,15 @@ impl Closure {
             let Some(result) = results.pop() else { return tx.complete_request_facts(digest); };
             result.rows
         };
-        let payload = match rows.first().map(|row| row.try_get::<_, Option<String>>(19)) {
-            Some(Ok(Some(payload))) => payload,
+        let payload = match rows.first().map(|row| array_payload(row)) {
+            Some(Ok(payload)) => payload,
             _ => return tx.complete_request_facts(digest),
         };
         let facts = super::authority::session_facts_rows(rows);
         if tx.needs_complete_facts(&facts) {
             return tx.complete_request_facts(digest);
         }
-        let decoded = decode_answers(&self.nodes, &payload);
+        let decoded = decode_answers(&self.nodes, payload);
         // Speculation cannot choose a program error or outrank authority.
         // Decode/address failures discard this cut and use ordinary access.
         #[allow(unused_mut)]
@@ -567,21 +574,31 @@ impl Closure {
         let mut facts = facts;
         #[cfg(test)]
         plant_fault(&mut answers, &mut facts);
-        *tx.read_cache.borrow_mut() = Answers(answers);
+        *tx.read_cache.borrow_mut() = Answers::new(answers);
         Ok(facts)
     }
 }
-fn decode_answers(nodes: &[Node], payload: &str) -> Result<Vec<(Access, Vec<(Value, Vec<u8>)>)>, RuntimeError> {
-    let payload: Vec<(usize, String, Option<String>, Option<String>)> =
-        serde_json::from_str(payload).map_err(|e| RuntimeError::Store(e.to_string()))?;
+type Fact = (usize, String, Option<String>, Option<Vec<u8>>);
+fn array_payload(row: &super::store::Row) -> Result<Vec<Fact>, RuntimeError> {
+    let ids: Vec<i32> = row.try_get(19)?;
+    let keys: Vec<String> = row.try_get(20)?;
+    let images: Vec<Option<String>> = row.try_get(21)?;
+    let row_keys: Vec<Option<Vec<u8>>> = row.try_get(22)?;
+    if ids.len() != keys.len() || ids.len() != images.len() || ids.len() != row_keys.len() {
+        return Err(RuntimeError::Store("incomplete composed arrays".into()));
+    }
+    ids.into_iter().zip(keys).zip(images).zip(row_keys).map(|(((id,key),data),k)| {
+        Ok((usize::try_from(id).map_err(|_| RuntimeError::Store("negative composed node".into()))?,key,data,k))
+    }).collect()
+}
+fn decode_answers(nodes: &[Node], payload: Vec<Fact>) -> Result<Vec<(Access, Vec<(Value, Vec<u8>)>)>, RuntimeError> {
     let mut answers: Vec<(Access, Vec<(Value, Vec<u8>)>)> = Vec::new();
     for (id, keys, data, k) in payload {
         let node = nodes.get(id).ok_or_else(|| RuntimeError::Store("unknown composed node".into()))?;
-        let raw: Vec<serde_json::Value> = serde_json::from_str(&keys).map_err(|e| RuntimeError::Store(e.to_string()))?;
+        let raw: Vec<Option<Value>> = serde_json::from_str(&keys).map_err(|e| RuntimeError::Store(e.to_string()))?;
         if raw.len() != node.key.len() { return Err(RuntimeError::Store("incomplete composed address".into())); }
-        if raw.iter().any(serde_json::Value::is_null) { continue; }
-        let keys: Vec<Value> = raw.into_iter().map(serde_json::from_value).collect::<Result<_, _>>()
-            .map_err(|e| RuntimeError::Store(e.to_string()))?;
+        if raw.iter().any(Option::is_none) { continue; }
+        let keys: Vec<Value> = raw.into_iter().flatten().collect();
         let range = Access::range(&node.table, &node.index, &keys, node.dir, i64::from(node.n))
             .ok_or_else(|| RuntimeError::Store("empty composed address".into()))?;
         let mut accesses = vec![range];
@@ -593,7 +610,7 @@ fn decode_answers(nodes: &[Node], payload: &str) -> Result<Vec<(Access, Vec<(Val
                 .ok_or_else(|| RuntimeError::Store("empty composed point".into()))?);
         }
         let image: Option<(Value, Vec<u8>)> = match (data, k) {
-            (Some(data), Some(k)) => Some((decode(&data)?, hex(&k)?)),
+            (Some(data), Some(k)) => Some((decode(&data)?, k)),
             (None, None) => None,
             _ => return Err(RuntimeError::Store("incomplete composed image".into())),
         };
@@ -612,6 +629,7 @@ fn decode_answers(nodes: &[Node], payload: &str) -> Result<Vec<(Access, Vec<(Val
     }
     Ok(answers)
 }
+#[cfg(test)]
 fn hex(s: &str) -> Result<Vec<u8>, RuntimeError> {
     if s.len() % 2 != 0 { return Err(RuntimeError::Store("composed key hex".into())); }
     s.as_bytes()
@@ -645,16 +663,24 @@ impl Sql {
         self.params.push(p);
         format!("${}", self.params.len())
     }
-    fn node(&mut self, id: usize, n: &Node) -> String {
-        let table = self.param(Param::Text(n.table.clone()));
-        let index = self.param(Param::Text(n.index.clone()));
+    // @ref LLP 3000.009.001.000.002#22-read-ceilings — schema addresses are code; request keys remain typed parameters for fresh facts.
+    fn constant(value: &str) -> Result<String, RuntimeError> {
+        super::literal::encode(&super::literal::Datum::Text(value.into()), &postgres::types::Type::TEXT)
+    }
+    fn node(&mut self, id: usize, n: &Node) -> Result<String, RuntimeError> {
+        let table = Self::constant(&n.table)?;
+        let index = Self::constant(&n.index)?;
         // Do not ask PostgreSQL's JSON reader to unescape an image containing
         // NUL. The spelling check is conservative (escaped backslashes may
         // also decline); all raw images remain untouched for Rust's decoder.
         let unavailable = if n.parent.is_some() {
-            let nul = self.param(Param::Text("\\u0000".into()));
+            let nul = Self::constant("\\u0000")?;
             format!("COALESCE(pg_catalog.strpos(s.data,{nul}) OPERATOR(pg_catalog.>) 0,false)")
         } else { "false".into() };
+        let image = if n.parent.is_some() {
+            format!(" CROSS JOIN LATERAL (SELECT {unavailable} AS unavailable, CASE WHEN {unavailable} THEN NULL::pg_catalog.jsonb ELSE COALESCE(s.data::pg_catalog.jsonb->'Row',s.data::pg_catalog.jsonb->'Map') END AS data OFFSET 0) image")
+        } else { String::new() };
+        let unavailable = if n.parent.is_some() { "image.unavailable" } else { "false" };
         let mut json = Vec::new();
         let mut parts = Vec::new();
         for k in &n.key {
@@ -670,10 +696,8 @@ impl Sql {
                     ));
                 }
                 Key::Field(_, name) => {
-                    let field = self.param(Param::Text(name.clone()));
-                    let value = format!(
-                        "CASE WHEN {unavailable} THEN NULL::pg_catalog.json ELSE COALESCE(s.data::pg_catalog.json->'Row',s.data::pg_catalog.json->'Map')->{field}::pg_catalog.text END"
-                    );
+                    let field = Self::constant(name)?;
+                    let value = format!("image.data->{field}::pg_catalog.text");
                     json.push(value.clone());
                     // Identity admission forbids NUL. UTF-8 therefore has no zero
                     // bytes; the ordinary Id tag/terminator encoding is exact.
@@ -686,15 +710,32 @@ impl Sql {
         } else {
             format!("({})", parts.join(" || "))
         };
+        // @ref LLP 3000.009.001.000#91-adapter-parity-rules — intrinsic byId's portable full key is [id,id]; a point fetch can use the row primary address.
+        // Intrinsic byId is exactly [id,id] in the portable index layout.
+        // Fetch its row at the primary address, retaining the same full index
+        // key for Rust's ordered-prefix facts and logical scan charges. A byId
+        // range or non-identity key retains the ordinary index fetch below.
+        let point_id = if n.point && n.index == "byId" && n.key.len() == 1 {
+            match &n.key[0] {
+                Key::Fixed(Value::Id(id)) => Some(self.param(Param::Text(id.clone()))),
+                Key::Field(_, field) => Some(format!("(image.data->{}::pg_catalog.text)->>'Id'",Self::constant(field)?)),
+                _ => None,
+            }
+        } else { None };
+        let target = point_id.as_ref().map_or(String::new(), |id|format!(", {id}::pg_catalog.text AS target"));
+        let fetch = if point_id.is_some() {
+            format!("SELECT r.data,q.lo || q.lo AS k FROM r WHERE r.t={table} AND r.id=q.target LIMIT 1")
+        } else {
+            let dir = if n.dir == Dir::Asc { "ASC" } else { "DESC" };
+            format!("SELECT r.data,i.k FROM i JOIN r ON r.t=i.t AND r.id=i.id WHERE i.t={table} AND i.ix={index} AND i.k>=q.lo AND i.k<q.lo || '\\xff'::pg_catalog.bytea ORDER BY i.k {dir} LIMIT {}", n.n)
+        };
         let source = n
             .parent
             .map_or_else(|| "(SELECT 1) s".into(), |p| format!("a{p} s"));
-        let dir = if n.dir == Dir::Asc { "ASC" } else { "DESC" };
-        format!(
-            "a{id} AS MATERIALIZED (SELECT q.keys,q.lo,q.hi,q.unavailable,h.data,h.k FROM {source} CROSS JOIN LATERAL (SELECT pg_catalog.json_build_array({})::pg_catalog.text AS keys, {unavailable} AS unavailable, {lo} AS lo, {lo} || '\\xff'::pg_catalog.bytea AS hi) q LEFT JOIN LATERAL (SELECT r.data,i.k FROM i JOIN r ON r.t=i.t AND r.id=i.id WHERE i.t={table} AND i.ix={index} AND i.k>=q.lo AND i.k<q.hi ORDER BY i.k {dir} LIMIT {}) h ON true)",
-            json.join(","),
-            n.n
-        )
+        Ok(format!(
+            "a{id} AS MATERIALIZED (SELECT q.keys,q.lo,q.lo || '\\xff'::pg_catalog.bytea AS hi,q.unavailable,h.data,h.k FROM {source}{image} CROSS JOIN LATERAL (SELECT pg_catalog.json_build_array({})::pg_catalog.text AS keys, {unavailable} AS unavailable, {lo} AS lo{target} OFFSET 0) q LEFT JOIN LATERAL ({fetch}) h ON true)",
+            json.join(",")
+        ))
     }
 }
 
@@ -775,7 +816,14 @@ mod decode_tests {
             json!([[0,"[{\"Id\":\"b\"}]","bad row","01"]]).to_string(),
             json!([[0,"[{\"Id\":\"b\"}]","\"Null\"","f"]]).to_string(),
             json!([[0,"[{\"Id\":\"b\"}]","\"Null\"",null]]).to_string(),
-        ] { assert!(decode_answers(&nodes, &payload).is_err(), "accepted {payload}"); }
+        ] {
+            let parsed = (|| {
+                let rows: Vec<(usize,String,Option<String>,Option<String>)> = serde_json::from_str(&payload).map_err(|e| RuntimeError::Store(e.to_string()))?;
+                let rows = rows.into_iter().map(|(id,key,data,k)| Ok((id,key,data,k.map(|v|hex(&v)).transpose()?))).collect::<Result<_,RuntimeError>>()?;
+                decode_answers(&nodes,rows)
+            })();
+            assert!(parsed.is_err(), "accepted {payload}");
+        }
         for malformed in ["f", "雪", "zz", "0雪"] { assert!(hex(malformed).is_err()); }
     }
 }

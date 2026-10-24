@@ -297,3 +297,38 @@ fn pipeline_retiring_logical_readers_reclaims_only_their_prepared_names() {
         .batch_execute(&format!("DROP SCHEMA {name} CASCADE"))
         .unwrap();
 }
+
+#[test]
+#[ignore = "private PG16; cached code keeps fresh snapshots, parameter types and a bounded session lifetime"]
+fn pipeline_cached_statements_keep_fresh_facts_and_bounded_typed_code() {
+    let (mut writer, pool, slot, name) = fixture(4);
+    let connection = reader(&pool, &slot);
+    let preparations = std::cell::Cell::new(0);
+    let prepared = || preparations.set(preparations.get() + 1);
+    for (viewer, live, head) in [("alice", true, 1), ("bob", false, 2)] {
+        if !live { writer.batch_execute(&format!("UPDATE {name}.facts SET live=false,head=2")).unwrap(); }
+        let rows = connection.independent_cached("SELECT live,head,$1::text FROM facts", &[(&viewer, Type::TEXT)], prepared).unwrap();
+        assert_eq!((rows[0].get::<_,bool>(0),rows[0].get::<_,i64>(1),rows[0].get::<_,String>(2)),(live,head,viewer.into()));
+    }
+    assert_eq!(preparations.get(), 1, "fresh values must reuse only the prepared code");
+    let plans = connection.independent("SELECT generic_plans,custom_plans FROM pg_prepared_statements WHERE statement='SELECT live,head,$1::text FROM facts'", &[]).unwrap();
+    assert_eq!((plans[0].get::<_,i64>(0),plans[0].get::<_,i64>(1)),(2,0),"reader bindings must reuse plans as well as parsed code");
+    for _ in 0..8 {
+        let text = "viewer";
+        let rows = connection.independent_cached("SELECT $1", &[(&text, Type::TEXT)], prepared).unwrap();
+        assert_eq!(rows[0].get::<_,String>(0), text);
+        let number = 17i64;
+        let rows = connection.independent_cached("SELECT $1", &[(&number, Type::INT8)], prepared).unwrap();
+        assert_eq!(rows[0].get::<_,i64>(0), number);
+    }
+    assert_eq!(preparations.get(), 3, "parameter types are part of code identity");
+    for n in 0..64 {
+        let rows=connection.independent_cached(&format!("SELECT {n}::bigint"), &[], prepared).unwrap();
+        assert_eq!(rows[0].get::<_,i64>(0),n);
+    }
+    assert_eq!(runtime().block_on(slot.prepared.lock()).len(),32);
+    let mut inspect=reader(&pool,&slot);
+    let names=inspect.query_one("SELECT count(*) FROM pg_prepared_statements",&[]).unwrap().get::<_,i64>(0);
+    assert!(names<=33,"eviction must reclaim code, not accumulate preparations: {names}");
+    writer.batch_execute(&format!("DROP SCHEMA {name} CASCADE")).unwrap();
+}

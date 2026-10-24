@@ -930,21 +930,22 @@ impl Rows for Tx<'_> {
         guard.range(meter, 2, prefix, bounds)?;
         guard.reserve(meter, DRIVER_SCRATCH)?;
         let Some((lo, hi)) = crate::rows::scan_range(prefix, bounds, dir) else { return Ok(Vec::new()) };
-        if let Some(cached) = self.read_cache.borrow().scan(table,name,&lo,&hi,dir,limit) {
+        let answers = self.read_cache.borrow();
+        if let Some(cached) = answers.scan_priced(table,name,&lo,&hi,dir,limit) {
             let mut out=Vec::new();
-            let images=cached.iter().map(|(row,_)|crate::value::canonical_json(row)).collect::<Vec<_>>();
             let mut preflight=heap::Preflight::new();
-            for (data,(_,key)) in images.iter().zip(&cached) {
-                if !preflight.entry(meter,&mut guard,data.len() as u64,key.len() as u64,ROW_SCRATCH)? {break;}
+            for (_,key,image) in &cached {
+                if !preflight.entry(meter,&mut guard,image.json_bytes,key.len() as u64,ROW_SCRATCH)? {break;}
             }
-            for ((row,key),data) in cached.into_iter().zip(images).take(preflight.entries) {
-                let additional=heap::scan_entry(meter,&mut guard,out.len(),out.capacity(),&data,&key)?;
+            for (row,key,image) in cached.into_iter().take(preflight.entries) {
+                let additional=image.charge(meter,&mut guard,out.len(),out.capacity(),key)?;
                 if additional!=0 {out.reserve_exact(additional);}
-                out.push((row,key));
+                out.push((row.clone(),key.to_vec()));
             }
             preflight.check()?;
             return Ok(out);
         }
+        drop(answers);
         let sizes = match dir {
             Dir::Asc => "SELECT octet_length(r.data)::bigint, octet_length(i.k)::bigint FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5",
             Dir::Desc => "SELECT octet_length(r.data)::bigint, octet_length(i.k)::bigint FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k DESC LIMIT $5",

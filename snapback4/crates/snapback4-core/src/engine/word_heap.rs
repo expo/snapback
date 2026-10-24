@@ -286,6 +286,21 @@ pub fn scan_entry(meter: &mut crate::engine::InternalMeter<'_>, guard: &mut Stor
     scan_entry_priced(meter, guard, len, capacity, stored_row_bytes(json), key)
 }
 
+/// Accounting metadata for one immutable snapshot image. Computing it never
+/// charges the caller; each logical access still runs the ordinary preflight
+/// and entry charges, in their original order, including every cut.
+#[derive(Clone, Copy)]
+pub(crate) struct ScanImage { pub json_bytes: u64, heap_bytes: u64 }
+impl ScanImage {
+    pub(crate) fn of(row: &Value) -> Self {
+        let json = crate::value::canonical_json(row);
+        Self { json_bytes: json.len() as u64, heap_bytes: stored_row_bytes(&json) }
+    }
+    pub(crate) fn charge(self, meter: &mut crate::engine::InternalMeter<'_>, guard: &mut StoreGuard, len: usize, capacity: usize, key: &[u8]) -> Result<usize, RuntimeError> {
+        scan_entry_priced(meter, guard, len, capacity, self.heap_bytes, key)
+    }
+}
+
 /// scan_entry for a store that holds decoded rows: J of the row's canonical
 /// image, counted while serializing into no buffer, so the refusal precedes
 /// every allocation of the entry.
