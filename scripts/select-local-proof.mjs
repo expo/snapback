@@ -266,7 +266,8 @@ export function selectChangedPaths(changedFiles, context = loadSelectionContext(
   }
   const hasAffectedGroup = [...selectedGroups]
     .some((group) => policy.groups[group].lane === 'affected');
-  if (hasAffectedGroup) {
+  // Snapback 4 has independent workspaces; legacy Exact/admin is not its baseline.
+  if ([...selectedGroups].some(group => group !== 'snapback4' && policy.groups[group].lane === 'affected')) {
     for (const group of policy.affectedBaselineGroups) selectedGroups.add(group);
   }
 

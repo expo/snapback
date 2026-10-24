@@ -408,6 +408,16 @@ run runtime-readiness-fixtures -- node --test tests/runtime_readiness_receipt_v0
 run proof-runner-fixtures -- node --test tests/proof_runner_v0.mjs
 run local-proof-inventory -- node --test tests/local_proof_inventory_v0.mjs
 run affected-selector-fixtures -- node --test tests/local_proof_selection_v0.mjs
+# Snapback 4's independent workspace delegates selection and keep-going execution.
+# @ref LLP 0189#snapback-4-affected-selection-2026-10-24 — ordinary landings are affected.
+snapback4_affected() {
+    if [ -n "$PROOF_SELECTION_RECEIPT" ]; then
+        node snapback4/scripts/affected.mjs --proof-receipt "$PROOF_SELECTION_RECEIPT" --run
+    else
+        node snapback4/scripts/affected.mjs --complete --run
+    fi
+}
+run snapback4-affected --timeout-seconds 43200 -- snapback4_affected
 run path-migration-stragglers -- node scripts/check-path-migration-stragglers.mjs
 run path-migration-straggler-fixtures -- node --test tests/path_migration_stragglers_v0.mjs
 run workspace-graph -- node scripts/check-workspace-graph.mjs

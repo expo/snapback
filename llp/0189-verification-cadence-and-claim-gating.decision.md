@@ -49,6 +49,7 @@ the repository is landing in bursts and several baselines are already red;
 retain cheap/path-scoped feedback, PR affected proof, six-hour/manual complete
 proof, and explicit qualification entry points; keep visibility widening
 activation-disabled until protected custody exists.)
+**Revised:** 2026-10-24 (author-requested Snapback 4 affected-selector amendment; landing selection becomes mechanical, with fail-broad input ownership).
 **Related:** LLP 0005, LLP 0010, LLP 0061, LLP 0154, LLP 0158, LLP 0162, LLP
 0175, LLP 0185, LLP 0232 (D-4 health projection and ticket transitions
 cross-reference D-1's battery-red tickets without weakening fix-forward or
@@ -373,3 +374,64 @@ three parts:
   ticket automation (D-1) remains open in
   `issues/20260807-llp-0189-claim-snapshot-implementation.md`.
 - Ticket amendments (requalification, npm promotion) — done in this landing.
+
+
+## Snapback 4 affected selection (2026-10-24)
+
+Author direction: Workstream FAST, Charlie Cheever, 2026-10-24. This implements
+D-2 for the independent Snapback 4 workspace. It does not amend D-1, D-6, LLP
+0232's optimistic integration rule, or any publication protocol.
+
+`node snapback4/scripts/affected.mjs --base REV [--head REV | --worktree]
+[--json] [--run]` selects the merge-base-to-head Git diff. Worktree mode adds
+staged, unstaged, deleted, rename endpoints and non-ignored untracked paths.
+Historical planning reads the selected revision's manifests and test sources;
+execution requires that revision checked out. The root local-proof policy
+selects a `snapback4-affected` delegation gate for `snapback4/` paths. This
+independent workspace does not inherit the legacy Exact/admin baseline;
+other root groups and root unknown-path fallback retain it.
+
+Selection ownership:
+
+- Cargo metadata supplies workspace membership, optional/dev dependency edges
+  and integration targets. Source changes select the package and its transitive
+  reverse dependencies. A test-only file selects its exact integration target;
+  shared/nested support widens instead. Required target features are included.
+- Package manifests supply client dependency edges, including peer/dev edges.
+  Source changes select the package's test pool and its reverse dependencies;
+  a test-only diff selects named files. Tests' literal imports/re-exports,
+  dynamic literal imports, resource URLs and helpers are followed to find CLI
+  process and wasm consumers. Unresolved local/computed imports conservatively
+  count as both consumers. Tests spawning processes are conservatively CLI
+  consumers. Selected clients rebuild the products they consume. Existing
+  process-custody pooling and serial model custody are reused.
+- Guide/docs select check-guide, docs budget and packaged-docs lint; Snapback 4
+  guide cards also select the compiled guide target. Rust source movement
+  conservatively selects diagnostics-registry checking and check-inventories,
+  even without a new code. Language/generated inputs select generated-artifact
+  checking; affected references and LLPs select ref-check. Device reverse
+  dependents select wasm measurement. Language/core semantics select Lean
+  build, difftest run-lean and a seeded 2,000-case run.
+- Unknown paths, locks, workspace/package manifests, toolchains, build scripts,
+  proc-macros, shared test support and vendored inputs select all workspace
+  packages, client pools and cross-cutting checks. Each triggering file has a
+  reason. A package with no owned test runner also widens, covering tests held
+  in sibling packages. Selector implementation/fixture edits select their own
+  tests rather than product pools. Unowned root paths remain broad.
+
+Every execution command has a finite timeout and inherits
+`CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0`.
+Cargo disables target-level fail-fast; independent commands continue after
+failures, including producer failures (which remain visible). A JSON receipt
+under `target/affected/` records base/head, changed paths, selected commands,
+per-file reasons and per-command status/timing. It records incomplete execution
+before starting and refuses success if the observed Git/content snapshot changes.
+An affected receipt is landing evidence, never a packed-publication receipt.
+
+A historical red HEAD does not mean its last commit introduced that red. The
+maintained-column regression at `cadb7c55be` must be selected from the range
+starting before its originating change `202826334f`; selecting only the
+last documentation commit cannot discover inherited product failures. The
+regression fixture requires core/lang packages and residency.test.mjs for that
+originating range. Scheduled full-battery results remain the failure oracle;
+selection replay alone is not execution or a no-missed-failures proof.
