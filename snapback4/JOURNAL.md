@@ -104832,3 +104832,10 @@ under reports/20261024-pipe records qualification and 128-client loopback core
 loads at depths 1/4/8. HTTP admission remains 30 active plus 98 queued;
 measurement makes no delayed-link or HTTP S1 capacity claim. Raw logs stay
 outside Git. Qualification and owned private-PG shutdown follow separately.
+
+## 2026-10-24 — PIPE standalone harness dependency locks
+
+Updated only the core dependency lists in the three independent Postgres
+harness lockfiles (evaluator, commit-path and scale seed). No package version
+changes. All three pass `cargo metadata --locked`; the public stock sweep
+can retain `--locked` with the new direct reader dependencies.
