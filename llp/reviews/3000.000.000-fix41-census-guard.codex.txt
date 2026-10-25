@@ -1,0 +1,9 @@
+READY — no material findings.
+
+- Every successful `neutral_adapter_type` match requires the first token to be `postgres`. The new guard therefore preserves classification for every source.
+- Short-circuit evaluation skips `local_adapter_prefix` and its prefix scans for all other tokens. Scans remain possible at `postgres` tokens.
+- External drivers, unknown operations, aliases, raw methods, and production-zero enforcement remain unchanged. The delta contains only the guard.
+
+Validation: `timeout 120s /tmp/fix41-ratchet/minimal-test --nocapture` passed all **9 tests**. Census: **production 0 sites; tests 116 sites across 16 files**.
+
+No sources or repository files were edited. This is a review verdict, not human acceptance.

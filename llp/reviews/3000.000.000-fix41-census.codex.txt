@@ -1,0 +1,10 @@
+READY — no material findings.
+
+- Confirmed all five false positives reference local metadata, coordination, or test-hook types.
+- Exact neutral references are exempted; external drivers, unknown qualified operations, raw methods, and unsupported mixed groups remain charged.
+- Whole-import alias tracking is unchanged. Independent probes confirmed `Neutral::unknown()` and `Neutral::prepare(sql)` remain charged after a neutral rename; mixed `postgres::Client as D` imports plus `D::connect(url)` remain charged.
+- Production-zero assertions, allowlists, adapter exclusions, runtime sources, and lexer are unchanged.
+
+Validation: all 9 candidate tests and 2 independent reviewer tests passed. Census: **production 0 sites; tests 116 sites across 16 files**. Confirmed the targeted files change from 1/4 charged lines to 0/0.
+
+Repository and supplied sources remained untouched; only `/tmp` build artifacts were created.
