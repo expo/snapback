@@ -129,9 +129,17 @@ const DEFAULT:&str="table docs:\n  label: text <=80 default 'pending'\n  read <-
 
 #[test]fn producer_cancellation_alone_is_not_a_pending_approved_effect(){
  let scalar="table jobs:\n  approved: bool default false\n  status: enum('draft','cancelled','done') default 'draft'\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\nmutation decide(job: jobs,approve: bool):\n  if approve:\n    require viewer = 'service:manager' else NOT_MANAGER\n    update jobs[job] {approved:true}\n  else:\n    update jobs[job] {status:'cancelled'}\n  return null\n";
- let cancel_is_the_act=scalar.replace("approved","cancelApproved");
- assert!(notes(&cancel_is_the_act).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+ let extra_effect=scalar.replace("  approved: bool","  costCents: int default 100\n  approved: bool").replace("{status:'cancelled'}","{status:'cancelled',costCents:0}");
+ assert!(notes(&extra_effect).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+ let refund=scalar.replace("approved","refundApproved").replace("  refundApproved: bool","  refundSent: bool default false\n  refundApproved: bool").replace("{status:'cancelled'}","{status:'cancelled',refundSent:true}");
+ let refund_record=refund.replace("mutation decide", "table refundApprovals:\n  job: jobs\n  read <- allow\n  insert <- viewer = 'service:manager'\n  online only\nmutation decide").replace("update jobs[job] {refundApproved:true}","insert refundApprovals {job}");
+ for mixed in [refund,refund_record]{assert!(notes(&mixed).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));}
+ for name in ["cancelApproved","approvedCancel","approvalCancel"]{let cancel_is_the_act=scalar.replace("approved",name);assert!(notes(&cancel_is_the_act).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));}
+ let named_producer=scalar.replace("mutation decide", "mutation approveCancel");assert!(notes(&named_producer).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+ let denied=scalar.replace("approved","approvedDenied").replace("cancelled","denied");assert!(notes(&denied).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+ let birth=scalar.replace("  approved: bool","  refundSent: bool default true\n  approved: bool").replace("update jobs[job] {status:'cancelled'}","upsert jobs[job] {status:'cancelled'}");assert!(notes(&birth).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
  let record=scalar.replace("mutation decide", "table approvals:\n  job: jobs\n  read <- allow\n  insert <- viewer = 'service:manager'\n  online only\nmutation decide").replace("update jobs[job] {approved:true}","insert approvals {job}");
+ let named_record=record.replace("approvals", "approvalCancel");assert!(notes(&named_record).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
  for source in [scalar.to_owned(),record]{
   assert!(!notes(&source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"),"{:?}",notes(&source));
   let active=source.replace("{status:'cancelled'}","{status:'done'}");
