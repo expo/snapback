@@ -667,14 +667,18 @@ fn g72_cross_store_ticket_cycle_is_a_known_deadlock_abort() {
         entropy: second.entropy,
         ..Default::default()
     };
+    let plans = |engine: &Engine, batch: &[Invocation]| batch.iter().map(|i|
+        crate::engine::committer::closure::Closure::new(&engine.schema,&engine.programs[&i.name],&i.context,engine.generation).unwrap()).collect::<Vec<_>>();
+    let pa = plans(&first, &a);
+    let pb = plans(&second, &b);
     assert!(
         first
-            .program_group_staged(&mut a, &indices, false, Some(&ca), &mut fa)
+            .program_group_staged(&mut a, &indices, false, Some(pa), Some(&ca), &mut fa)
             .is_ok()
     );
     assert!(
         second
-            .program_group_staged(&mut b, &indices, false, Some(&cb), &mut fb)
+            .program_group_staged(&mut b, &indices, false, Some(pb), Some(&cb), &mut fb)
             .is_ok()
     );
     let mut fa = fa.unwrap();

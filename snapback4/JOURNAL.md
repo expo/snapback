@@ -108138,3 +108138,287 @@ references. All 8,732 continuation PID/birth instances, the prior run's 317,
 and 537 public-script PID records are absent; the monitor has exited. PIDs left:
 none. Minimum free disk is 123.83 GiB, final audit 128.77 GiB; the 30 GiB guard
 never fires.
+
+## 2026-10-25 — LEV: non-authorizing mutation ingress
+
+Warm `/m` requests now use G4a's bounded ordinary discovery hints, as `/q`
+does. Cold credentials retain live discovery after bounded body intake;
+keyed preflight, ephemeral execution and durable final authority stay fresh.
+A hint binds store identity and supervisor revision. A changed supervisor
+fence takes cold discovery, preserving retired-child refusal even while
+SQLite retirement holds the writer lock. The durable final check refreshes
+ordinary hints on a stale-kind refusal without authorizing a retry.
+
+The new HTTP witness queues four real mutation members before changing
+revocation, expiry, scope, kind or principal generation. Their batch refuses
+without writes or metadata; a changed-kind retry still resolves fresh facts.
+Existing snapshot-generation and latency witnesses now rendezvous/count the
+remaining preflight checkout instead of the removed warm ingress checkout.
+Warm mutation RT0 rows fall by one PG flight and one SQLite statement;
+query and direct engine-batch rows are unchanged. Core qualification passes
+1,275 tests with 439 explicit ignores. Binary/Postgres qualification and the
+matched one-host measurements continue in this lane; the final LEV report
+records their completed outcomes and raw-evidence custody.
+
+## 2026-10-25 — LEV: refresh ephemeral hints after stale-kind refusal
+
+The final detached/in-memory capability checks now refresh ordinary discovery
+hints before comparing the expected capability. An unkeyed ephemeral retry
+therefore uses the current kind after a metadata-free stale-kind refusal;
+it still resolves authority again. The existing direct/queued ephemeral
+kind witnesses now exercise that retry on both stores. Full binary checks
+pass 609 tests with 58 explicit ignores. This completes the hint lifecycle
+for both durable and ephemeral `/m` paths without changing the counter
+benchmark's durable hot path.
+
+## 2026-10-25 — LEV: reuse attempt-local validated write plans
+
+Thread CPU clocks and gprofng on the one-host W4/W5 route identified repeated
+structural admission and closure analysis around every member. Classification
+now retains each invocation's bounded plan for its first wave. Speculative
+setup and final execution still canonicalize/validate each member's arguments;
+the successful structural check belongs to the same immutable schema/program.
+Authority remains fresh in the batch snapshot. Unsupported waves and physical
+fallbacks discard the proof and perform complete validation in place. No
+SQL flight, runtime meter, ceiling, protocol or durability setting changes.
+The selector also copies only the arguments it uses, not the whole context.
+
+A serial differential now puts valid members on both sides of malformed,
+missing and extra inputs and checks their full outcomes/meters and durable
+history, while requiring the valid members to use waves. Full core checks
+pass 1,276 tests with 440 explicit ignores; full binary checks pass 609 with
+58 ignores, including the ephemeral hint lifecycle refinement above. Initial
+CPU diagnostics share disk with qualification and are attribution only; the
+final report records the clean native before/after matrices, phase profiles,
+complete Postgres result, evidence archive and owned-process cleanup.
+
+The core counts above include one isolated child test invocation. Summing
+only the final Cargo target summaries gives 1,274/0/439 before the CPU
+refinement and 1,275/0/440 afterward (passed/failed/ignored); the extra child
+also passes. The report uses those target totals.
+
+## 2026-10-25 — LEV: completed one-host evidence
+
+The [LEV report](reports/20261025-levers/REPORT.md) records original,
+ingress-only and both-lever release arms at 800 writes/s, 32 clients,
+million-message native seed, both links, 10 s warm-up / 20 s / three repeats.
+The independent audit passes all 54 counter equalities and 864,000 measured
+arrivals, with no request errors. Ingress-only and both-lever arms pass
+18/18 repetitions each. Original passes 17/18: first W4/B p99 is 189.006 ms;
+that failure is retained, and its cohort is not a passing qualification.
+
+Warm ingress removes exactly one independent Postgres flight per mutation;
+batch protocol flights do not change. W4/B server CPU falls 510.4→420.8 µs
+per member and mean latency 19.10→16.61 ms. Exact W5/B falls 486.2→414.6 µs
+and 23.00→21.10 ms. Plan reuse then reduces W4/B committer CPU
+142.5→118.3 µs (server 420.8→407.9; mean 16.61→16.15 ms), and exact W5/B
+238.8→212.1 µs (server 414.6→383.8; mean 21.10→20.41 ms). The 100 µs
+whole-committer goal remains unmet, especially on the serial shared-counter
+interpreter. Nominal 1% mix/B median latency regresses 16.93→17.54 ms while
+CPU falls; repetition ranges overlap. No ceiling or control-win claim is made.
+
+Full core finishes 1,275 passed / 0 failed / 440 ignored; full binary
+609/0/58. Full Postgres script finishes 810/1/0 plus passing public serving;
+its sole failure is the inherited evaluator concurrent-update 40001.
+Both stores' HTTP/core RT0 and authority-freshness witnesses pass, including
+the new carried-mutation batch and per-member argument differentials.
+The report holds final reference, secret-audit, external archive and PID
+receipts. Private clusters are independently stopped; no push occurs.
+
+## 2026-10-25 — LEV fix round 1: mutation hint authority boundaries
+
+The fresh batch boundary now checks store identity and generation before
+refreshing a hint or accepting a mutation capability, including unkeyed
+bodies without `store_id`. A fresh custom/action capability evicts the old
+ordinary hint on durable and ephemeral paths. Every insertion retains the
+supervisor revision of the resolution that produced it; a changed fence
+discards the insert. Cold discovery retains its original post-checkout clock
+sample. Store generation also joins the hint's binding.
+
+Four new SQLite HTTP witnesses fail on `2c64741a39`: the A→B store fixture
+commits, durable and ephemeral custom-kind retries stay stale, and insertion
+after retirement queues the next mutation behind the blocked writer. Their
+fixed counterparts pass. The durable ordinary-kind retry now has no id;
+disabling only durable final hint refresh makes that retry fail. The plan
+witness now counts `Closure::new` calls as well as comparing per-member arguments,
+outcomes, meters and history. The full invalidation audit and qualification
+receipts are in the [LEV report](reports/20261025-levers/REPORT.md#lev-fix-round-1-authority-hint-audit).
+
+The audit adds generation-only invalidation with session rows preserved,
+explicit warm hints before foreign activation, and repeated unkeyed attempts
+after ownership loss. Full-session generation policy remains unchanged:
+public principal revocation deletes full sessions; read sessions also check
+their recorded principal generation. No throughput measurements run in this
+round, and the earlier performance qualification is not extended to these
+corrected bytes. Raw logs remain outside Git; no push occurs.
+
+Final core qualification passes 1,275/0/440; the final full binary passes
+614/0/63 (passed/failed/ignored; isolated children excluded). Both unchanged
+HTTP RT0 filters pass (SQLite 1, Postgres 7), as do both core overlay cases.
+The complete Postgres script finishes 820/1/0 plus passing public serving;
+its sole failure is the inherited evaluator concurrent-update 40001.
+The final PG16 recheck passes 21 ephemeral/hint/lock-gap tests after preserving
+the original clock sample points. Reference validation passes 569 documents
+and 11,974 refs with zero errors or unchecked refs. Three private PG16 clusters
+are recorded, stopped and independently confirmed; the public witness's
+531 recorded PIDs and the combined final task census have no living process.
+Task-owned PIDs left: none. No push or throughput benchmark run occurs.
+
+## 2026-10-25 — LEV fix round 2: fresh mutation permission and refusal parity
+
+A planning hint matching fresh authority is insufficient for a mutation:
+`/m` preflight and final durable/ephemeral authorization now independently
+require fresh Full scope. The first same-token downgrade still returns a
+stale-capability refusal; repeated unkeyed attempts after hint refresh return
+`E_READ_ONLY` and publish no durable or ephemeral effect. The shared authority
+resolver continues to enforce current action claims and kind-specific policy.
+
+Cold and warm authority refusals share their fixed HTTP mapping, including
+409 for store replacement on both durable mutations and queries. The new
+SQLite scope-retry and query-store witnesses, plus the corrected durable
+store-status witness, produce four failures against `1df119de28` product
+code. The corrected RT3b filter passes 43/0/43. New unkeyed warm ephemeral
+post-preflight and ordinary→action/claim HTTP witnesses also detect deliberate
+removal of final authority or claim liveness (one and two failing tests,
+respectively); temporary negative-control changes are restored. The
+[LEV report](reports/20261025-levers/REPORT.md#lev-fix-round-2-mutation-permission-and-refusal-parity)
+records the evidence and corrects the audit to distinguish warm HTTP hints,
+keyed/cold paths and resolver-only cases. No throughput measurement runs.
+
+Final qualification on `029b7c1091`: core 1,275/0/440, binary
+619/0/68 (passed/failed/ignored; isolated child results excluded).
+Both unchanged HTTP RT0 ratchets pass (SQLite 1, Postgres 7), and both core
+overlay RT0 cases pass. The focused private-cluster hints/scope/RT0 run passes
+29/0/0. The complete Postgres script finishes 830/1/0 plus passing
+public serving; its sole failure remains the inherited concurrent-update
+40001. Reference validation passes 569 documents and 11,976 refs with zero
+errors or unchecked refs. Private PG16 masters 3084105 and 3164878
+are stopped and independently confirmed; the combined census of
+569 recorded PIDs contains no remaining process. No push or throughput
+run occurs. Task-owned PIDs left: none.
+
+## 2026-10-25 — LEV rebase onto current main: G7.1, G7.2 and FF3
+
+Lane `sb4-pg/lev-main` starts clean at the required `d1174f8fbd` on base
+`4c6b386072`, preserving that tip at `sb4-pg/lev-pre-main-d1174f8fbd`.
+`git fetch origin main` resolves main to `20a45b73cb`; the seven original
+LEV commits are rebased with their original authors and Charlie Cheever as
+committer. No push, stash or Git configuration change occurs. Qualification
+uses the lane's own target, line-tables-only debug information, 24 Cargo jobs,
+private PG16 and a monitored 30 GiB free-disk stop floor.
+
+The five conflicted files are resolved by intent. JOURNAL keeps every main
+and LEV entry. The controls RFC retains FF3's Revised history and adds LEV's
+history and implementation text. Postgres RT0 composes warm-ingress savings
+(`keyed_first` 7, `narrowed_argument` 1, `one_membership` 7) with G7.1's
+three-flight program-batch totals. No ratchet expectation is tuned to a run.
+`committer/wave.rs` keeps `prepare_chained` and its image/receipt/head fold
+while accepting precomputed member plans. `engine/program_batch.rs` retains
+`indices.len()>1 || chain.is_some()`, first-ticket timeout mapping and the
+unsupported buffered-closure barrier, while consuming those retained plans.
+
+The semantic merge extends plan custody through queue/pipeline classification
+and staging, including single-member chained batches and the pipeline-slot
+creation fallback. Cascade and solo recovery revalidate fully without
+rebuilding closure plans. A drained continuation changing the host binding or
+code epoch invalidates the old inventory. Existing G7.2 recovery, predecessor
+outcome and pipeline-aware fill behavior stays intact. Chained and both
+cascade-to-solo witnesses now count planner calls; LEV's original per-member
+argument/count witness is retained.
+
+Fresh mutation binding and Full scope use the same final authority callback
+in either slot. A new HTTP witness holds an actual predecessor COMMIT and
+requires a single unkeyed warm-hint successor to check fresh authority in
+slot two before that COMMIT releases. A refused successor rolls back before
+final dispatch. It
+covers a stale Full→Read hint, a matching refreshed Read hint, and an
+out-of-band store replacement; the expected refusals are E_AUTH/503,
+E_READ_ONLY/403 and E_STORE_REPLACED/409, without successor writes or metadata.
+The first harness revision allowed a solo predecessor to hold the fixture
+mutex; its recorded test PID was stopped and its database locks disappeared.
+The corrected harness parks mailbox collection before queuing both first
+members. Final qualification and cleanup results follow below. No throughput
+measurement or extension of the original LEV performance claim is made.
+
+The corrected witness warms both writer slots before installing its deliberate
+foreign deferred trigger: FF3 correctly refuses that trigger during a fresh
+slot attach. It uses the explicit point-read/update program form, verifies the
+successor's retained ordinary hint and observes its fresh authority callback
+while the predecessor remains held. Refused staging ends before final dispatch;
+the store-replacement arm instead observes the earlier ticket identity refusal.
+That arm exposed G7's `E_STORE_OWNERSHIP` classification of changed `_meta`
+identity. It now preserves `E_STORE_REPLACED`, the store family, sync guide and
+HTTP 409. The failure remains terminal after confirmed rollback, so it cannot
+fall through to a fresh attempt against a replacement.
+
+Negative controls deliberately rebuild plans in `Wave::prepare_chained` and
+bypass the fresh Full-scope requirement. The original LEV argument/plan witness
+fails on both stores, counting 11 builds instead of 7 (0 passed / 2 failed).
+The new HTTP witness fails on a refreshed Read hint which writes when Full
+scope is bypassed (0/1). Both source files are restored with SHA-256 equality;
+the restored authority witness passes all three cases, and final qualification
+uses the restored bytes. The initial complete Postgres run's added authority
+witness red is a corrected fixture failure, not an inherited main red. Its
+791/4 Rust-target total is retained separately from the final rerun below.
+No new S1 or LEV throughput campaign runs; the requested suite's internal
+plan-hygiene and other qualification probes still run normally.
+
+An additional `store_port_ratchet` integration check reports **7 passed /
+1 failed**: five production-classified adapter sites, one in
+`engine/program_batch.rs` and four in `engine/program_pipeline.rs`. A focused
+fixture using the exact scanner, helper, allowlists and those two files from
+fetched main `20a45b73cb` reproduces the identical counts (**0/1**). This is
+inherited G7.2 census drift, tracked separately in
+[the filesystem ticket](../issues/20261025-snapback4-g72-store-port-ratchet-adapter-types.md).
+The zero-production-access allowance and scanner remain unchanged.
+
+Final qualification (passed / failed / ignored, excluding isolated child-test
+summaries; focused rows overlap the complete scopes):
+
+| Check | Passed | Failed | Ignored |
+| --- | ---: | ---: | ---: |
+| Full core with Postgres, 49 Cargo targets including doctests | 1301 | 0 | 492 |
+| Full `snapback4` binary | 623 | 0 | 69 |
+| Both HTTP RT0 ratchets and related filter | 9 | 0 | 0 |
+| Core overlay RT0, SQLite / Postgres / G6 | 3 | 0 | 0 |
+| Complete Postgres RT3b authority scope | 87 | 0 | 0 |
+| Restored depth-two warm-hint authority witness, three cases | 1 | 0 | 0 |
+| Final `bash scripts/test-postgres.sh`, 26 Rust targets | 792 | 3 | 0 |
+| Additional store-port integration census | 7 | 1 | 0 |
+
+The final script's three Rust reds are the two declared socket-host refusals,
+`pipeline_on_wire_overlap_precedes_release_and_backend_termination` and
+`pipeline_tcp_nodelay_on_reader_and_synchronous_writer`, plus difftest
+`both_stores_all_public_boundaries_and_write_observations` with
+`runtime_refused_unexpected {"E_INPUT": 6}`. The separate evaluator build stage
+refuses the inherited stale `experiments/postgres/Cargo.lock` under `--locked`,
+so its known `40001` stress case is not exercised in either script invocation.
+No other requested final Rust scope fails. The additional inherited census
+red is documented and ticketed above; no expectations or allowances are raised.
+
+The final script's complete public CLI milestone passes, as did the first:
+transport/bootstrap refusals, PostgreSQL/SQLite release evolution and 300 KiB
+restoration, byte-identical wire/meters, retained/pruned changes, real sessions
+and receipt replay, restart, SIGKILL takeover and ownership loss, FF3 event
+inventory and owner-clock diagnostics, and the unchanged S1 app with maintained
+totals recounted. The measured HTTP PG table is 7/1/7 for keyed-first /
+narrowed-argument / one-membership, with 3 flights at each N=4/8/32 batch class.
+SQLite's table also passes unchanged after composing the ingress lever.
+`./ref-check` passes **569 LLP docs / 12,022 refs / 0 errors / 0 unchecked**.
+Raw logs, controls, source hashes, the census baseline fixture and PID receipts
+remain outside Git under `/tmp/lrb.hXRhtj/`.
+
+Original → rebased commit mapping:
+`40e2a1ee45` → `987a1f01df`, `570ac0ded9` → `d2ce1f1dd7`,
+`13560f6574` → `9164c1b73a`, `2c64741a39` → `50bebbbb41`,
+`1df119de28` → `0477d87cae`, `029b7c1091` → `024bb29ef5`,
+`d1174f8fbd` → `209dc2d572`. All original author identities are preserved.
+
+Private PG16 postmasters **2535027**, **2679170** and **2986559** are stopped
+and independently confirmed: pg_ctl status **3**, no `postmaster.pid`, and no
+matching process. Data directories are retained. The final audit finds none
+of **2,197 recorded unique PIDs** or **1,247 recorded PID/birth instances**
+living, no recorded zombie, and no process executing this worktree's target
+binaries. Minimum observed free space is **35.471 GiB**, final audit
+**53.595 GiB**, above the commissioned 30 GiB stop floor. No push, stash or
+Git configuration change occurs. **PIDs left: none.**

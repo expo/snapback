@@ -1,0 +1,9 @@
+{
+  "all_source_sha256_match": true,
+  "source": "b5e34d8912",
+  "binaries": {
+    "snapback4": "1d152ef5f05f26c56a7d6a06a3178d65cf255525f89234a299965cf0f6905097",
+    "sb4-scale-controls": "796431353ab6b2f5d4ec390df905a16c0529f523df2e7f3afd26001d55c77d88",
+    "sb4-postgres-scale-seed": "a4770cb41727c7f8479f29e7a8978a37b7eaed9c107ef43d3afb3dfe1f2cd54a"
+  }
+}

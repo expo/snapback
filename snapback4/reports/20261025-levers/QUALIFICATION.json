@@ -1,0 +1,217 @@
+{
+  "native_trials": 54,
+  "native_cells": 18,
+  "native_slo_passes": 53,
+  "counter_passes": 54,
+  "scheduled_arrivals": 864000,
+  "errors": 0,
+  "group_member_coverage": [
+    {
+      "stage": "baseline",
+      "min": 0.9999166666666667,
+      "max": 0.9999583333333333
+    },
+    {
+      "stage": "ingress",
+      "min": 0.9999583333333333,
+      "max": 0.9999583333333333
+    },
+    {
+      "stage": "cpu",
+      "min": 0.9999166666666667,
+      "max": 0.9999583333333333
+    }
+  ],
+  "rtt": {
+    "baseline/B": {
+      "p50_ms": {
+        "min": 1.071,
+        "max": 1.099
+      },
+      "p99_ms": {
+        "min": 1.108,
+        "max": 1.153
+      }
+    },
+    "baseline/A": {
+      "p50_ms": {
+        "min": 0.562,
+        "max": 0.573
+      },
+      "p99_ms": {
+        "min": 0.575,
+        "max": 0.613
+      }
+    },
+    "ingress/B": {
+      "p50_ms": {
+        "min": 1.08,
+        "max": 1.096
+      },
+      "p99_ms": {
+        "min": 1.123,
+        "max": 1.144
+      }
+    },
+    "ingress/A": {
+      "p50_ms": {
+        "min": 0.562,
+        "max": 0.572
+      },
+      "p99_ms": {
+        "min": 0.575,
+        "max": 0.645
+      }
+    },
+    "cpu/B": {
+      "p50_ms": {
+        "min": 1.076,
+        "max": 1.1
+      },
+      "p99_ms": {
+        "min": 1.108,
+        "max": 1.153
+      }
+    },
+    "cpu/A": {
+      "p50_ms": {
+        "min": 0.562,
+        "max": 0.573
+      },
+      "p99_ms": {
+        "min": 0.597,
+        "max": 0.62
+      }
+    }
+  },
+  "host_load": {
+    "baseline": {
+      "checks": 6,
+      "attempts": 6,
+      "wait_observations": 0,
+      "max_recorded_unrelated_cores": 0.1375130039260145,
+      "loadavg_range": {
+        "1m": {
+          "min": 1.76,
+          "max": 2.85
+        },
+        "5m": {
+          "min": 1.77,
+          "max": 2.59
+        },
+        "15m": {
+          "min": 2.72,
+          "max": 2.8
+        }
+      }
+    },
+    "ingress": {
+      "checks": 6,
+      "attempts": 6,
+      "wait_observations": 0,
+      "max_recorded_unrelated_cores": 0.1277870882809189,
+      "loadavg_range": {
+        "1m": {
+          "min": 1.38,
+          "max": 2.14
+        },
+        "5m": {
+          "min": 1.78,
+          "max": 2.39
+        },
+        "15m": {
+          "min": 2.25,
+          "max": 2.67
+        }
+      }
+    },
+    "cpu": {
+      "checks": 6,
+      "attempts": 6,
+      "wait_observations": 0,
+      "max_recorded_unrelated_cores": 0.13754171080554758,
+      "loadavg_range": {
+        "1m": {
+          "min": 1.63,
+          "max": 2.74
+        },
+        "5m": {
+          "min": 1.71,
+          "max": 2.06
+        },
+        "15m": {
+          "min": 2.08,
+          "max": 2.22
+        }
+      }
+    }
+  },
+  "cleanup": {
+    "baseline": {
+      "still_running": [],
+      "errors": [],
+      "cluster_stopped": true,
+      "socket_absent": true,
+      "pidfile_absent": true
+    },
+    "ingress": {
+      "still_running": [],
+      "errors": [],
+      "cluster_stopped": true,
+      "socket_absent": true,
+      "pidfile_absent": true
+    },
+    "cpu": {
+      "still_running": [],
+      "errors": [],
+      "cluster_stopped": true,
+      "socket_absent": true,
+      "pidfile_absent": true
+    }
+  },
+  "audits": {
+    "baseline": {
+      "cells": 6,
+      "trials": 18,
+      "scheduled_arrivals": 288000,
+      "cells_with_passing_rate": 5,
+      "unknown_write_outcome_trials": 0,
+      "checks": "arrival accounting, every repetition, histogram counts and lossless archive, SLO/counter qualification, brackets"
+    },
+    "ingress": {
+      "cells": 6,
+      "trials": 18,
+      "scheduled_arrivals": 288000,
+      "cells_with_passing_rate": 6,
+      "unknown_write_outcome_trials": 0,
+      "checks": "arrival accounting, every repetition, histogram counts and lossless archive, SLO/counter qualification, brackets"
+    },
+    "cpu": {
+      "cells": 6,
+      "trials": 18,
+      "scheduled_arrivals": 288000,
+      "cells_with_passing_rate": 6,
+      "unknown_write_outcome_trials": 0,
+      "checks": "arrival accounting, every repetition, histogram counts and lossless archive, SLO/counter qualification, brackets"
+    }
+  },
+  "disk_min_gib": 37.26276397705078,
+  "native_affinity": "all app/PG cell thread witnesses and all generator starts passed",
+  "final_custody": {
+    "identities_checked": 6522,
+    "unkeyed_records": 0,
+    "live_task_processes": 0,
+    "zombies": 0,
+    "custody_monitor_stopped": true,
+    "tcp_cluster_stopped": true,
+    "scope": "current audit process, its persistent tool/Codex ancestor chain, and the identity-verified code-mode tool service"
+  },
+  "evidence_archive": {
+    "path": "/home/ccheever/sb4scale/lev-20261025-evidence.tar.gz",
+    "sha256": "fba22a46e465f310b267ed6e42d5edfe7e57efd75c4ec51c45842c8e62007687",
+    "bytes": 938301278,
+    "known_values_scanned": 259,
+    "known_secret_hits": 0,
+    "private_fixture_and_database_state_excluded": true
+  }
+}

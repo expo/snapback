@@ -125,7 +125,7 @@ impl Engine {
             attempted=true;
             context.new_ids = minted.iter().cloned().chain(original.new_ids.iter().skip(minted.len()).cloned()).collect();
             let mut attempt=super::program_transcript::Attempt::default();
-            let result=program_attempt(&host, tx, name, op, context, publication_requested, &wire_args, &mut authority, None, &mut minted,&mut attempt)
+            let result=program_attempt(&host, tx, name, op, context, publication_requested, &wire_args, &mut authority, false, None, &mut minted,&mut attempt)
                 .map(|d| d.map(|(outcome, data)| Pending::new(outcome, data)));
             attempts.push(attempt);result
         })?;
@@ -159,7 +159,7 @@ type AuthorityCheck<'a> = Option<&'a mut dyn FnMut(&super::committer::MemberTx<'
 
 pub(super) fn program_attempt<'m, 's>(host: &ProgramHost<'_>, tx: super::committer::MemberTx<'m, 's>,
     name: &str, op: Option<&str>, mut context: Context, publication_requested: bool,
-    wire_args: &serde_json::Value, authority: &mut AuthorityCheck<'_>, prepared: Option<Execution>, minted: &mut Vec<String>, attempt:&mut super::program_transcript::Attempt,
+    wire_args: &serde_json::Value, authority: &mut AuthorityCheck<'_>, admission_checked: bool, prepared: Option<Execution>, minted: &mut Vec<String>, attempt:&mut super::program_transcript::Attempt,
 ) -> Result<super::committer::Disposition<(MutationAcknowledgement, Option<(u64, Option<DurablePublication>)>)>, RuntimeError> {
             if let Some(check) = authority.as_mut() { check(&tx,&mut context)?; validate::write_identity(&context.viewer, op)?; }
             // @ref LLP 3000.009.001.000.001#35-each-command-keeps-its-own-place — a later command observes a receipt committed during the head-lock wait.
@@ -184,7 +184,11 @@ pub(super) fn program_attempt<'m, 's>(host: &ProgramHost<'_>, tx: super::committ
             if program.kind == ProgramKind::Job {
                 return Err(RuntimeError::UnknownOp(format!("{name} is a job: a schedule fires it, or `snapback4 run {name}` does; no caller can")));
             }
-            if let Err(error) = validate::validate_inputs(host.schema, program, &mut context.args) {
+            // @ref LLP 3000.009.001.000.002#33-in-batch-concurrent-execution-under-the-head-lock — only a wave's validated closure proves static admission for this host; arguments and final authority remain per member.
+            debug_assert!(!admission_checked || super::admission::check(host.schema,program).is_ok());
+            let validated=if admission_checked {validate::validate_arguments(host.schema,program,&mut context.args)}
+                else {validate::validate_inputs(host.schema,program,&mut context.args)};
+            if let Err(error) = validated {
                 return tx.abort((MutationAcknowledgement::unpublished(MutationOutcome { receipt_only: false, state: WriteState::Failed { why: error.refusal(), current: None }, metered: Metered::default(), tables: Vec::new(), events: 0, replayed: false }), None));
             }
             if context.presence.is_none() {

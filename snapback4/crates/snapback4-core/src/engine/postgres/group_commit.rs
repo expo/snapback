@@ -144,9 +144,11 @@ impl Tx<'_> {
         // The raising fence already checked _owner. Also bind _meta, whose
         // identity is part of the final publication witness.
         if identity != self.batch_store_id.as_deref() {
-            return Err(RuntimeError::StoreOwnership(
-                "ticket batch store identity changed".into(),
-            ));
+            // @ref LLP 3000.009.001.000.001#13-g4a-read-refinement-2026-10-23 — a fresh binding failure keeps the mutation refusal code, including before member authority in a chained batch.
+            return Err(RuntimeError::Structural {
+                code: "E_STORE_REPLACED",
+                message: "ticket batch store identity changed".into(),
+            });
         }
         Ok(())
     }

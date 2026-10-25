@@ -1,0 +1,254 @@
+[
+  {
+    "workload": "W1",
+    "keys": "disjoint",
+    "link": "A",
+    "values": {
+      "rawpg": {
+        "rate": 8000,
+        "p50_ms": 0.750079,
+        "p99_ms": 1.041407,
+        "source": "S1-C"
+      },
+      "supabase": {
+        "rate": 2000,
+        "p50_ms": 3.098623,
+        "p99_ms": 3.725311,
+        "source": "S1-C"
+      },
+      "convex": {
+        "rate": 500,
+        "p50_ms": 5.201919,
+        "p99_ms": 12.140543,
+        "source": "S1-C"
+      },
+      "g6": {
+        "rate": 8000,
+        "p50_ms": 1.553407,
+        "p99_ms": 21.643263,
+        "source": "matrix-g6/w1-n1000000-d500-c128-disjoint"
+      },
+      "g5": {
+        "rate": 8000,
+        "p50_ms": 1.547263,
+        "p99_ms": 11.943935,
+        "source": "matrix-g5/w1-n1000000-d500-c128-disjoint"
+      }
+    },
+    "best_advocate_rate": 2000,
+    "best_all_controls_rate": 8000,
+    "g6_strictly_higher": true,
+    "g6_beats_all_controls": false,
+    "g5_beats_all_controls": false
+  },
+  {
+    "workload": "W1",
+    "keys": "disjoint",
+    "link": "B",
+    "values": {
+      "rawpg": {
+        "rate": 8000,
+        "p50_ms": 1.495039,
+        "p99_ms": 6.139903,
+        "source": "S1-C"
+      },
+      "supabase": {
+        "rate": 2000,
+        "p50_ms": 5.140479,
+        "p99_ms": 5.980159,
+        "source": "S1-C"
+      },
+      "convex": {
+        "rate": 500,
+        "p50_ms": 6.459391,
+        "p99_ms": 13.721599,
+        "source": "S1-C"
+      },
+      "g6": {
+        "rate": 8000,
+        "p50_ms": 2.193407,
+        "p99_ms": 13.533183,
+        "source": "matrix-g6/w1-n1000000-d1000-c128-disjoint"
+      },
+      "g5": {
+        "rate": 8000,
+        "p50_ms": 2.181119,
+        "p99_ms": 15.040511,
+        "source": "matrix-g5/w1-n1000000-d1000-c128-disjoint"
+      }
+    },
+    "best_advocate_rate": 2000,
+    "best_all_controls_rate": 8000,
+    "g6_strictly_higher": true,
+    "g6_beats_all_controls": false,
+    "g5_beats_all_controls": false
+  },
+  {
+    "workload": "W2",
+    "keys": "disjoint",
+    "link": "A",
+    "values": {
+      "rawpg": {
+        "rate": 5656,
+        "p50_ms": 1.011199,
+        "p99_ms": 1.331199,
+        "source": "S1-C"
+      },
+      "supabase": {
+        "rate": 2000,
+        "p50_ms": 3.506175,
+        "p99_ms": 4.292607,
+        "source": "S1-C"
+      },
+      "convex": {
+        "rate": 8000,
+        "p50_ms": 0.469247,
+        "p99_ms": 3.862527,
+        "source": "research-convex-w2-a"
+      },
+      "g6": {
+        "rate": 11313,
+        "p50_ms": 0.209279,
+        "p99_ms": 21.839871,
+        "source": "matrix-g6/w2-n1000000-d500-c128-disjoint"
+      },
+      "g5": {
+        "rate": 5656,
+        "p50_ms": 1.364991,
+        "p99_ms": 2.435071,
+        "source": "matrix-g5/w2-n1000000-d500-c128-disjoint"
+      }
+    },
+    "best_advocate_rate": 8000,
+    "best_all_controls_rate": 8000,
+    "g6_strictly_higher": true,
+    "g6_beats_all_controls": true,
+    "g5_beats_all_controls": false
+  },
+  {
+    "workload": "W2",
+    "keys": "disjoint",
+    "link": "B",
+    "values": {
+      "rawpg": {
+        "rate": 8000,
+        "p50_ms": 1.606655,
+        "p99_ms": 2.533375,
+        "source": "S1-C"
+      },
+      "supabase": {
+        "rate": 2000,
+        "p50_ms": 5.603327,
+        "p99_ms": 6.631423,
+        "source": "S1-C"
+      },
+      "convex": {
+        "rate": 8000,
+        "p50_ms": 0.470271,
+        "p99_ms": 5.935103,
+        "source": "research-convex-w2-b"
+      },
+      "g6": {
+        "rate": 11313,
+        "p50_ms": 0.211583,
+        "p99_ms": 21.233663,
+        "source": "matrix-g6/w2-n1000000-d1000-c128-disjoint"
+      },
+      "g5": {
+        "rate": 5656,
+        "p50_ms": 1.881087,
+        "p99_ms": 3.358719,
+        "source": "matrix-g5/w2-n1000000-d1000-c128-disjoint"
+      }
+    },
+    "best_advocate_rate": 8000,
+    "best_all_controls_rate": 8000,
+    "g6_strictly_higher": true,
+    "g6_beats_all_controls": true,
+    "g5_beats_all_controls": false
+  },
+  {
+    "workload": "W3",
+    "keys": "disjoint",
+    "link": "A",
+    "values": {
+      "rawpg": {
+        "rate": 5656,
+        "p50_ms": 1.077247,
+        "p99_ms": 1.410047,
+        "source": "S1-C"
+      },
+      "supabase": {
+        "rate": 2828,
+        "p50_ms": 3.690495,
+        "p99_ms": 4.993023,
+        "source": "S1-C"
+      },
+      "convex": {
+        "rate": 8000,
+        "p50_ms": 0.428031,
+        "p99_ms": 2.932735,
+        "source": "S1-C"
+      },
+      "g6": {
+        "rate": 16000,
+        "p50_ms": 0.252927,
+        "p99_ms": 30.621695,
+        "source": "matrix-g6/w3-n1000000-d500-c128-disjoint"
+      },
+      "g5": {
+        "rate": 5656,
+        "p50_ms": 1.333247,
+        "p99_ms": 2.228223,
+        "source": "matrix-g5/w3-n1000000-d500-c128-disjoint"
+      }
+    },
+    "best_advocate_rate": 8000,
+    "best_all_controls_rate": 8000,
+    "g6_strictly_higher": true,
+    "g6_beats_all_controls": true,
+    "g5_beats_all_controls": false
+  },
+  {
+    "workload": "W3",
+    "keys": "disjoint",
+    "link": "B",
+    "values": {
+      "rawpg": {
+        "rate": 4000,
+        "p50_ms": 1.562623,
+        "p99_ms": 1.873919,
+        "source": "S1-C"
+      },
+      "supabase": {
+        "rate": 2828,
+        "p50_ms": 5.722111,
+        "p99_ms": 7.327743,
+        "source": "S1-C"
+      },
+      "convex": {
+        "rate": 5656,
+        "p50_ms": 0.332543,
+        "p99_ms": 1.550335,
+        "source": "S1-C"
+      },
+      "g6": {
+        "rate": 16000,
+        "p50_ms": 0.259199,
+        "p99_ms": 30.736383,
+        "source": "matrix-g6/w3-n1000000-d1000-c128-disjoint"
+      },
+      "g5": {
+        "rate": 5656,
+        "p50_ms": 1.843199,
+        "p99_ms": 2.656255,
+        "source": "matrix-g5/w3-n1000000-d1000-c128-disjoint"
+      }
+    },
+    "best_advocate_rate": 5656,
+    "best_all_controls_rate": 5656,
+    "g6_strictly_higher": true,
+    "g6_beats_all_controls": true,
+    "g5_beats_all_controls": false
+  }
+]

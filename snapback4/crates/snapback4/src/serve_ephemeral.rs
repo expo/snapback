@@ -107,7 +107,7 @@ pub(super) fn failed_unobserved(request: Request, shared: &Shared, id: Option<&s
 }
 
 pub(super) fn failed(request: Request, shared: &Shared, id: Option<&str>, why: Refusal) {
-    if why.code == "E_AUTH" && why.family == "auth" { return failed_unobserved(request, shared, id, why); }
+    if matches!(why.code.as_str(), "E_AUTH" | "E_READ_ONLY") && why.family == "auth" { return failed_unobserved(request, shared, id, why); }
     let wake = lock(&shared.wake);
     let (store_id, head) = (wake.store_id.clone(), wake.seq);
     drop(wake);

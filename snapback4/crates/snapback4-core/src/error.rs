@@ -247,7 +247,7 @@ impl RuntimeError {
             Self::Structural { code, .. } if matches!(*code, "E_ACTION_UNKNOWN" | "E_ACTION_LEASE" | "E_ACTION_AUTHORITY") => "action",
             #[cfg(feature = "sqlite")]
             Self::Structural { code, .. } if code.starts_with(concat!("E_", "ROUTE_")) => "route",
-            Self::Structural { code: "E_STORE_RESTORE" | "E_STORE_MEMORY" | "E_COMMITTER_STOPPED", .. } => "store",
+            Self::Structural { code: "E_STORE_REPLACED" | "E_STORE_RESTORE" | "E_STORE_MEMORY" | "E_COMMITTER_STOPPED", .. } => "store",
             Self::Structural { code: "E_RULE", .. } => "auth",
             Self::Structural { code: "E_RATE_LIMIT", .. } => "limit",
             Self::Schema(_) | Self::Structural { .. } => "schema",
@@ -338,7 +338,7 @@ impl RuntimeError {
             Self::Structural { code, .. } if matches!(*code, "E_ACTION_UNKNOWN" | "E_ACTION_LEASE" | "E_ACTION_AUTHORITY") => refusal.guide = Some("actions".into()),
             #[cfg(feature = "sqlite")]
             Self::Structural { code, .. } if code.starts_with(concat!("E_", "ROUTE_")) => refusal.guide = Some("routes".into()),
-            Self::Structural { code: "E_STORE_RESTORE" | "E_SCHEMA_CAPABILITY", .. } => refusal.guide = Some("sync".into()),
+            Self::Structural { code: "E_STORE_REPLACED" | "E_STORE_RESTORE" | "E_SCHEMA_CAPABILITY", .. } => refusal.guide = Some("sync".into()),
             Self::Structural { code, message } if code.starts_with("E_TIMELINE_") => {
                 refusal.guide = Some("feeds".into());
                 refusal.rewrite = Some(message.clone());

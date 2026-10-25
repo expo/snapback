@@ -1,0 +1,1027 @@
+[
+  {
+    "campaign": "matrix-g5",
+    "part": "w1-n1000000-d1000-c128-disjoint",
+    "cell": {
+      "workload": "W1",
+      "rows": 1000000,
+      "delay_us": 1000,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-reads-20261025/replay-w1-n1000000-d1000-c128-disjoint-NEW",
+        "--workload",
+        "W1",
+        "--keys",
+        "disjoint",
+        "--link",
+        "B",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-reads-20261025/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "19027",
+        "22627",
+        "32000",
+        "45254",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-reads-20261025/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-reads-20261025/bin/sb4-postgres-scale-seed"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "actual_masks": {
+      "app/proxy": [
+        [
+          3,
+          4,
+          9,
+          10
+        ]
+      ],
+      "postgres": [
+        [
+          0,
+          1,
+          2,
+          6,
+          7,
+          8
+        ]
+      ],
+      "postgres-child": [
+        [
+          0,
+          1,
+          2,
+          6,
+          7,
+          8
+        ]
+      ]
+    },
+    "generator_witnesses": 168
+  },
+  {
+    "campaign": "matrix-g5",
+    "part": "w1-n1000000-d500-c128-disjoint",
+    "cell": {
+      "workload": "W1",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-reads-20261025/replay-w1-n1000000-d500-c128-disjoint-NEW",
+        "--workload",
+        "W1",
+        "--keys",
+        "disjoint",
+        "--link",
+        "A",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-reads-20261025/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "19027",
+        "22627",
+        "32000",
+        "45254",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-reads-20261025/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-reads-20261025/bin/sb4-postgres-scale-seed"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "actual_masks": {
+      "app/proxy": [
+        [
+          3,
+          4,
+          9,
+          10
+        ]
+      ],
+      "postgres": [
+        [
+          0,
+          1,
+          2,
+          6,
+          7,
+          8
+        ]
+      ],
+      "postgres-child": [
+        [
+          0,
+          1,
+          2,
+          6,
+          7,
+          8
+        ]
+      ]
+    },
+    "generator_witnesses": 168
+  },
+  {
+    "campaign": "matrix-g5",
+    "part": "w2-n1000000-d1000-c128-disjoint",
+    "cell": {
+      "workload": "W2",
+      "rows": 1000000,
+      "delay_us": 1000,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-reads-20261025/replay-w2-n1000000-d1000-c128-disjoint-NEW",
+        "--workload",
+        "W2",
+        "--keys",
+        "disjoint",
+        "--link",
+        "B",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-reads-20261025/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "19027",
+        "22627",
+        "32000",
+        "45254",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-reads-20261025/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-reads-20261025/bin/sb4-postgres-scale-seed"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "actual_masks": {
+      "app/proxy": [
+        [
+          3,
+          4,
+          9,
+          10
+        ]
+      ],
+      "postgres": [
+        [
+          0,
+          1,
+          2,
+          6,
+          7,
+          8
+        ]
+      ],
+      "postgres-child": [
+        [
+          0,
+          1,
+          2,
+          6,
+          7,
+          8
+        ]
+      ]
+    },
+    "generator_witnesses": 168
+  },
+  {
+    "campaign": "matrix-g5",
+    "part": "w2-n1000000-d500-c128-disjoint",
+    "cell": {
+      "workload": "W2",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-reads-20261025/replay-w2-n1000000-d500-c128-disjoint-NEW",
+        "--workload",
+        "W2",
+        "--keys",
+        "disjoint",
+        "--link",
+        "A",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-reads-20261025/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "19027",
+        "22627",
+        "32000",
+        "45254",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-reads-20261025/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-reads-20261025/bin/sb4-postgres-scale-seed"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "actual_masks": {
+      "app/proxy": [
+        [
+          3,
+          4,
+          9,
+          10
+        ]
+      ],
+      "postgres": [
+        [
+          0,
+          1,
+          2,
+          6,
+          7,
+          8
+        ]
+      ],
+      "postgres-child": [
+        [
+          0,
+          1,
+          2,
+          6,
+          7,
+          8
+        ]
+      ]
+    },
+    "generator_witnesses": 168
+  },
+  {
+    "campaign": "matrix-g5",
+    "part": "w3-n1000000-d1000-c128-disjoint",
+    "cell": {
+      "workload": "W3",
+      "rows": 1000000,
+      "delay_us": 1000,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-reads-20261025/replay-w3-n1000000-d1000-c128-disjoint-NEW",
+        "--workload",
+        "W3",
+        "--keys",
+        "disjoint",
+        "--link",
+        "B",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-reads-20261025/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "19027",
+        "22627",
+        "32000",
+        "45254",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-reads-20261025/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-reads-20261025/bin/sb4-postgres-scale-seed"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "actual_masks": {
+      "app/proxy": [
+        [
+          3,
+          4,
+          9,
+          10
+        ]
+      ],
+      "postgres": [
+        [
+          0,
+          1,
+          2,
+          6,
+          7,
+          8
+        ]
+      ],
+      "postgres-child": [
+        [
+          0,
+          1,
+          2,
+          6,
+          7,
+          8
+        ]
+      ]
+    },
+    "generator_witnesses": 168
+  },
+  {
+    "campaign": "matrix-g5",
+    "part": "w3-n1000000-d500-c128-disjoint",
+    "cell": {
+      "workload": "W3",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-reads-20261025/replay-w3-n1000000-d500-c128-disjoint-NEW",
+        "--workload",
+        "W3",
+        "--keys",
+        "disjoint",
+        "--link",
+        "A",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-reads-20261025/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "19027",
+        "22627",
+        "32000",
+        "45254",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-reads-20261025/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-reads-20261025/bin/sb4-postgres-scale-seed"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "actual_masks": {
+      "app/proxy": [
+        [
+          3,
+          4,
+          9,
+          10
+        ]
+      ],
+      "postgres": [
+        [
+          0,
+          1,
+          2,
+          6,
+          7,
+          8
+        ]
+      ],
+      "postgres-child": [
+        [
+          0,
+          1,
+          2,
+          6,
+          7,
+          8
+        ]
+      ]
+    },
+    "generator_witnesses": 168
+  },
+  {
+    "campaign": "matrix-g6",
+    "part": "w1-n1000000-d1000-c128-disjoint",
+    "cell": {
+      "workload": "W1",
+      "rows": 1000000,
+      "delay_us": 1000,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-reads-20261025/replay-w1-n1000000-d1000-c128-disjoint-NEW",
+        "--workload",
+        "W1",
+        "--keys",
+        "disjoint",
+        "--link",
+        "B",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-reads-20261025/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "19027",
+        "22627",
+        "32000",
+        "45254",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-reads-20261025/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-reads-20261025/bin/sb4-postgres-scale-seed"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "actual_masks": {
+      "app/proxy": [
+        [
+          3,
+          4,
+          9,
+          10
+        ]
+      ],
+      "postgres": [
+        [
+          0,
+          1,
+          2,
+          6,
+          7,
+          8
+        ]
+      ],
+      "postgres-child": [
+        [
+          0,
+          1,
+          2,
+          6,
+          7,
+          8
+        ]
+      ]
+    },
+    "generator_witnesses": 174
+  },
+  {
+    "campaign": "matrix-g6",
+    "part": "w1-n1000000-d500-c128-disjoint",
+    "cell": {
+      "workload": "W1",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-reads-20261025/replay-w1-n1000000-d500-c128-disjoint-NEW",
+        "--workload",
+        "W1",
+        "--keys",
+        "disjoint",
+        "--link",
+        "A",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-reads-20261025/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "19027",
+        "22627",
+        "32000",
+        "45254",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-reads-20261025/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-reads-20261025/bin/sb4-postgres-scale-seed"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "actual_masks": {
+      "app/proxy": [
+        [
+          3,
+          4,
+          9,
+          10
+        ]
+      ],
+      "postgres": [
+        [
+          0,
+          1,
+          2,
+          6,
+          7,
+          8
+        ]
+      ],
+      "postgres-child": [
+        [
+          0,
+          1,
+          2,
+          6,
+          7,
+          8
+        ]
+      ]
+    },
+    "generator_witnesses": 174
+  },
+  {
+    "campaign": "matrix-g6",
+    "part": "w2-n1000000-d1000-c128-disjoint",
+    "cell": {
+      "workload": "W2",
+      "rows": 1000000,
+      "delay_us": 1000,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-reads-20261025/replay-w2-n1000000-d1000-c128-disjoint-NEW",
+        "--workload",
+        "W2",
+        "--keys",
+        "disjoint",
+        "--link",
+        "B",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-reads-20261025/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "19027",
+        "22627",
+        "32000",
+        "45254",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-reads-20261025/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-reads-20261025/bin/sb4-postgres-scale-seed"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "actual_masks": {
+      "app/proxy": [
+        [
+          3,
+          4,
+          9,
+          10
+        ]
+      ],
+      "postgres": [
+        [
+          0,
+          1,
+          2,
+          6,
+          7,
+          8
+        ]
+      ],
+      "postgres-child": [
+        [
+          0,
+          1,
+          2,
+          6,
+          7,
+          8
+        ]
+      ]
+    },
+    "generator_witnesses": 174
+  },
+  {
+    "campaign": "matrix-g6",
+    "part": "w2-n1000000-d500-c128-disjoint",
+    "cell": {
+      "workload": "W2",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-reads-20261025/replay-w2-n1000000-d500-c128-disjoint-NEW",
+        "--workload",
+        "W2",
+        "--keys",
+        "disjoint",
+        "--link",
+        "A",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-reads-20261025/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "19027",
+        "22627",
+        "32000",
+        "45254",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-reads-20261025/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-reads-20261025/bin/sb4-postgres-scale-seed"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "actual_masks": {
+      "app/proxy": [
+        [
+          3,
+          4,
+          9,
+          10
+        ]
+      ],
+      "postgres": [
+        [
+          0,
+          1,
+          2,
+          6,
+          7,
+          8
+        ]
+      ],
+      "postgres-child": [
+        [
+          0,
+          1,
+          2,
+          6,
+          7,
+          8
+        ]
+      ]
+    },
+    "generator_witnesses": 174
+  },
+  {
+    "campaign": "matrix-g6",
+    "part": "w3-n1000000-d1000-c128-disjoint",
+    "cell": {
+      "workload": "W3",
+      "rows": 1000000,
+      "delay_us": 1000,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-reads-20261025/replay-w3-n1000000-d1000-c128-disjoint-NEW",
+        "--workload",
+        "W3",
+        "--keys",
+        "disjoint",
+        "--link",
+        "B",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-reads-20261025/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "19027",
+        "22627",
+        "32000",
+        "45254",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-reads-20261025/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-reads-20261025/bin/sb4-postgres-scale-seed"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "actual_masks": {
+      "app/proxy": [
+        [
+          3,
+          4,
+          9,
+          10
+        ]
+      ],
+      "postgres": [
+        [
+          0,
+          1,
+          2,
+          6,
+          7,
+          8
+        ]
+      ],
+      "postgres-child": [
+        [
+          0,
+          1,
+          2,
+          6,
+          7,
+          8
+        ]
+      ]
+    },
+    "generator_witnesses": 174
+  },
+  {
+    "campaign": "matrix-g6",
+    "part": "w3-n1000000-d500-c128-disjoint",
+    "cell": {
+      "workload": "W3",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-reads-20261025/replay-w3-n1000000-d500-c128-disjoint-NEW",
+        "--workload",
+        "W3",
+        "--keys",
+        "disjoint",
+        "--link",
+        "A",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-reads-20261025/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "19027",
+        "22627",
+        "32000",
+        "45254",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-reads-20261025/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-reads-20261025/bin/sb4-postgres-scale-seed"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "actual_masks": {
+      "app/proxy": [
+        [
+          3,
+          4,
+          9,
+          10
+        ]
+      ],
+      "postgres": [
+        [
+          0,
+          1,
+          2,
+          6,
+          7,
+          8
+        ]
+      ],
+      "postgres-child": [
+        [
+          0,
+          1,
+          2,
+          6,
+          7,
+          8
+        ]
+      ]
+    },
+    "generator_witnesses": 174
+  },
+  {
+    "campaign": "smoke-g6",
+    "part": "w2-n1000000-d500-c128-disjoint",
+    "cell": {
+      "workload": "W2",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-reads-20261025/replay-w2-n1000000-d500-c128-disjoint-NEW",
+        "--workload",
+        "W2",
+        "--keys",
+        "disjoint",
+        "--link",
+        "A",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-reads-20261025/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-reads-20261025/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-reads-20261025/bin/sb4-postgres-scale-seed",
+        "--rates",
+        "100"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "actual_masks": {
+      "app/proxy": [
+        [
+          3,
+          4,
+          9,
+          10
+        ]
+      ],
+      "postgres": [
+        [
+          0,
+          1,
+          2,
+          6,
+          7,
+          8
+        ]
+      ],
+      "postgres-child": [
+        [
+          0,
+          1,
+          2,
+          6,
+          7,
+          8
+        ]
+      ]
+    },
+    "generator_witnesses": 3
+  }
+]

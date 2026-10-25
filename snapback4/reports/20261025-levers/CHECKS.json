@@ -1,0 +1,52 @@
+{
+  "check-core-final": {
+    "passed": 1275,
+    "failed": 0,
+    "ignored": 440,
+    "cargo_targets": 49,
+    "exit": "0",
+    "failing_tests": []
+  },
+  "check-binary-final-ephemeral": {
+    "passed": 609,
+    "failed": 0,
+    "ignored": 58,
+    "cargo_targets": 1,
+    "exit": "0",
+    "failing_tests": []
+  },
+  "check-postgres-final": {
+    "passed": 810,
+    "failed": 1,
+    "ignored": 0,
+    "cargo_targets": 36,
+    "exit": "1",
+    "failing_tests": [
+      "evaluator_concurrent_read_modify_write_and_duplicate_ops_are_atomic_in_both_modes"
+    ]
+  },
+  "check-rt0-sqlite": {
+    "passed": 1,
+    "failed": 0,
+    "ignored": 0,
+    "cargo_targets": 1,
+    "exit": "0",
+    "failing_tests": []
+  },
+  "check-pipeline-tcp": {
+    "passed": 9,
+    "failed": 0,
+    "ignored": 0,
+    "cargo_targets": 1,
+    "exit": "0",
+    "failing_tests": []
+  },
+  "ref-check": {
+    "exit": "0",
+    "llp_documents": 569,
+    "references": 11972,
+    "files": 45000,
+    "errors": 0,
+    "unchecked": 0
+  }
+}

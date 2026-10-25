@@ -295,6 +295,7 @@ pub fn serve(
         changes_refresh: Mutex::new(None),
         #[cfg(test)]
         mutation_wait: Mutex::new(None),
+        #[cfg(test)] mutation_authority_checked: Mutex::new(None),
         #[cfg(test)]
         mutation_committed: Mutex::new(None),
         #[cfg(test)]

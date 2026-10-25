@@ -83,21 +83,9 @@ impl Wave {
     pub fn prepare_chained(
         tx: &AnyTx<'_>, host: &ProgramHost<'_>, batch: &[Invocation], indices: &[usize],
         chain: Option<&super::super::program_pipeline::Chain>,
+        plans: Vec<Closure>,
     ) -> Result<Option<Self>, RuntimeError> {
-        let Some(plans) = indices
-            .iter()
-            .map(|&i| {
-                Closure::new(
-                    host.schema,
-                    host.programs.get(&batch[i].name)?,
-                    &batch[i].context,
-                    host.generation,
-                )
-            })
-            .collect::<Option<Vec<_>>>()
-        else {
-            return Ok(None);
-        };
+        assert_eq!(plans.len(),indices.len(),"one validated plan per member");
         let requests = indices
             .iter()
             .map(|&i| Request {
@@ -226,7 +214,7 @@ impl Wave {
             let invocation = &batch[i];
             let program = &host.programs[&invocation.name];
             let mut context = invocation.context.clone();
-            crate::engine::validate::validate_inputs(host.schema, program, &mut context.args)?;
+            crate::engine::validate::validate_arguments(host.schema, program, &mut context.args)?;
             context.now = Some(context.now.unwrap_or_else(crate::now_ms));
             context.generation = host.generation;
             context.entropy = host.entropy;
