@@ -107837,3 +107837,46 @@ edit to a native backfill input. Its retained output remains unchanged in
 generation, hidden population and retained output. Repairing only that external
 edit permits the same activation. This control and the original re-hide witness
 both pass in the full core run.
+
+### 2026-10-25 — FF3 fix round 2: final qualification and custody
+
+Code commit `94372abb95` corrects the two review findings on `4b7d437966`.
+The source used by the unbounded Postgres control was restored with SHA-256
+identity, and that digest also matches the committed file. The restored focused
+FF3 run passes **18/0**; the subsequent complete core and PostgreSQL runs include
+the added actual outside-activation native-input conflict control. The complete
+FF1/FF3 activation group passes **35/0**, including all three real-TOAST production
+SQL timeout witnesses and both new SQLite lifecycle/control tests.
+
+| Requested check | Passed | Failed | Ignored |
+|---|---:|---:|---:|
+| Full core (49 scopes, including doctests) | 1223 | 0 | 5 |
+| Full snapback4 binary | 606 | 0 | 54 |
+| HTTP RT0 | 3 | 0 | 0 |
+| Overlay RT0 | 2 | 0 | 0 |
+| Postgres script Rust stages (36 scopes) | 822 | 1 | 0 |
+
+The Postgres script's only red is the explicitly inherited
+`evaluator_concurrent_read_modify_write_and_duplicate_ops_are_atomic_in_both_modes`
+SQLSTATE **40001**, `could not serialize access due to concurrent update`.
+No other Rust scope fails. The script continues through its complete public CLI
+milestone, which passes EV-1/EV-2 and change-evidence journeys on both stores,
+300 KiB restoration, byte-identical wire/meters, bootstrap admission, ownership
+loss/takeover, G6 diagnostics and the unchanged S1 application's totals/recounts.
+The Python milestone prints its final PASS and confirms its own cluster stopped.
+HTTP G6 W1/W2/W3 hits remain **0/0/0 flights**, misses **1/1/1**, and revoked-grant
+G5 fallback **1**. These are functional/round-trip checks; no throughput run occurs.
+
+Root `./ref-check` passes: **568 LLP docs, 11969 refs, 0 errors, 0 unchecked**.
+The lane retains raw logs, commands, control/qualification receipts and process
+ledgers only under `/tmp/sb4-ff3f2/`, outside Git. No push, stash or Git
+configuration change. All Cargo builds use six jobs and line-tables-only debug
+information in this worktree's target directories.
+
+Both owned PG16 clusters are independently confirmed stopped: evaluation PID
+`2287319` and public-witness PID `2537419`, each `pg_ctl status=3`, no
+`postmaster.pid`, and no process. The retained launch parent reaps the evaluation
+postmaster with exit 0. The public witness's own PID ledger is independently
+checked as well. The final lane ledger and target-executable scan both have
+zero remaining processes. Minimum observed free space is **59.74 GiB**, above
+the 40 GiB floor. **Owned PIDs left: none.**
