@@ -5,7 +5,7 @@ import { chmodSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSy
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { digest, json, member, sqliteBuildFlags, sri, validateLinux, validateFrontendProofs, validateStarterProofs } from "../../../scripts/publication-artifacts.mjs";
-import { runToolchainCommand, starterCases } from "../../../scripts/publication-starters.mjs";
+import { evaluateStarterAudit, runToolchainCommand, starterCases } from "../../../scripts/publication-starters.mjs";
 import { containerRuntime } from "../../../scripts/qualify-linux.mjs";
 import { fetchPinned, prootCommand, prootEnvironment } from "../../../scripts/qualify-linux-proot.mjs";
 import { prootDistributions } from "../../../scripts/linux-proof-inputs.mjs";
@@ -14,7 +14,7 @@ function audit(range=[30000,30020]) { return {status:"passed",method:"strace-lis
 function qualify(t, scenario = {}) {
   const root = mkdtempSync(join(tmpdir(), "snapback4-linux-test-")); t.after(() => rmSync(root, { recursive: true, force: true }));
   for (const dir of ["scripts", "packages/snapback4", "packages/snapback4-linux-x64", "target/x86_64-unknown-linux-musl/production"]) mkdirSync(join(root, dir), { recursive: true });
-  for (const file of ["check-verb-help.mjs", "qualify-linux.mjs", "qualify-linux-proot.mjs", "linux-proof-inputs.mjs", "check-elf.mjs", "publication-artifacts.mjs", "publication-roundtrip.mjs", "publication-starters.mjs", "publication-frontend-proofs.mjs", "proof-listener-audit.mjs", "test-command-owner.mjs", "test-owned-command.mjs", "test-command-group.mjs", "build-linux-musl.sh"]) copyFileSync(new URL(`../../../scripts/${file}`, import.meta.url), join(root, "scripts", file));
+  for (const file of ["starter-audit-allowlist.json", "check-verb-help.mjs", "qualify-linux.mjs", "qualify-linux-proot.mjs", "linux-proof-inputs.mjs", "check-elf.mjs", "publication-artifacts.mjs", "publication-roundtrip.mjs", "publication-starters.mjs", "publication-frontend-proofs.mjs", "proof-listener-audit.mjs", "test-command-owner.mjs", "test-owned-command.mjs", "test-command-group.mjs", "build-linux-musl.sh"]) copyFileSync(new URL(`../../../scripts/${file}`, import.meta.url), join(root, "scripts", file));
   copyFileSync(new URL("../CHANGELOG.md", import.meta.url), join(root, "packages/snapback4/CHANGELOG.md"));
   writeFileSync(join(root, "scripts/proof-listener-audit.mjs"), `export function requireListenerTracer(){ ${scenario.tracerFail ? "throw Error('E_PROOF_LISTENER: strace 6.8 required')" : "return 'strace -- version 6.16'"} }`);
   writeFileSync(join(root, "scripts/publication-regressions.mjs"), `export async function proveExpoUpgrades(){return [{mode:'literal-install',status:'passed'},{mode:'upgrade',status:'passed'}];}`);
@@ -529,4 +529,33 @@ for (const consumerOnly of [false, true]) test(`packed dormant failure blocks ${
 for (const consumerOnly of [false, true]) test(`packed DX6 failure blocks ${consumerOnly ? 'consumer' : 'full'} qualification`, t => {
   const r=qualify(t,{consumerOnly,dx6Fail:true});
   assert.notEqual(r.status,0);assert.match(r.stderr,/deliberately failing packed DX6 guide/);
+});
+
+
+test("starter audit exceptions expire and never waive fixable or unknown advisories", () => {
+  const advisory = { name: "node-forge", url: "https://github.com/advisories/GHSA-86w9-cpqp-85rv" };
+  const entry = { advisory: "GHSA-86w9-cpqp-85rv", package: "node-forge", reviewedVersion: "1.4.0", reason: "No patch", pulledBy: "Expo CLI", starters: ["expo"], recheck: "2026-11-08" };
+  const fresh = () => ({ auditReportVersion: 2, metadata: { vulnerabilities: { total: 2 } }, vulnerabilities: {
+    "node-forge": { name: "node-forge", fixAvailable: false, via: [advisory] },
+    expo: { name: "expo", fixAvailable: false, via: ["node-forge"] },
+  } });
+  const check = (report = fresh(), entries = [entry], latest = { "node-forge": "1.4.0" }, day = "2026-10-25", starter = "expo") => evaluateStarterAudit(report, starter, entries, latest, day);
+  assert.equal(check().length, 1, "deduplicate the advisory's transitive occurrences");
+  assert.match(check()[0], /GHSA-86w9-cpqp-85rv.*2026-11-08/);
+  for (const fixAvailable of [true, { name: "expo", version: "58.0.0", isSemVerMajor: true }]) {
+    const report = fresh(); report.vulnerabilities.expo.fixAvailable = fixAvailable;
+    assert.throws(() => check(report), /a fix is available/);
+  }
+  assert.throws(() => check(fresh(), []), /unallowlisted/);
+  assert.throws(() => check(fresh(), [entry], { "node-forge": "1.4.1" }), /new node-forge release/);
+  assert.throws(() => check(fresh(), [entry], {}, "2026-10-25"), /new node-forge release/);
+  assert.throws(() => check(fresh(), [entry], { "node-forge": "1.4.0" }, "2026-11-08"), /recheck date/);
+  assert.throws(() => check(fresh(), [entry], { "node-forge": "1.4.0" }, "2026-10-25", "web"), /unallowlisted/);
+  const unknown = fresh(); unknown.vulnerabilities["node-forge"].via.push({ ...advisory, url: "https://github.com/advisories/GHSA-other" });
+  assert.throws(() => check(unknown), /unallowlisted/);
+  const cycle = fresh(); cycle.vulnerabilities["node-forge"].via = ["expo"];
+  assert.throws(() => check(cycle), /invalid advisory chain/);
+  assert.throws(() => check({ error: { summary: "registry unavailable" } }), /version-2 report/);
+  assert.throws(() => check({ auditReportVersion: 2, metadata: { vulnerabilities: { total: 1 } }, vulnerabilities: {} }), /omitted vulnerability details/);
+  assert.deepEqual(check({ auditReportVersion: 2, metadata: { vulnerabilities: { total: 0 } }, vulnerabilities: {} }), []);
 });

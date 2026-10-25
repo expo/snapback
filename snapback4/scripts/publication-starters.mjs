@@ -45,6 +45,58 @@ export async function runToolchainCommand(command, args, { cwd, env, timeout }) 
   if (status !== 0) throw Error(`${command}: toolchain command exited ${status}`);
 }
 
+// Only explicitly recorded, still-unpatched advisories may warn instead of fail.
+// Check every meta-vulnerability too: a fixed ancestor must never be waived.
+export function evaluateStarterAudit(report, starter, allowlist, latest, today = new Date().toISOString().slice(0, 10)) {
+  assert.equal(report.auditReportVersion, 2, "npm audit must return a version-2 report");
+  assert.ok(!report.error && report.vulnerabilities && report.metadata?.vulnerabilities, "npm audit failed to return findings");
+  const warnings = new Set();
+  const findings = Object.values(report.vulnerabilities);
+  for (const finding of findings) {
+    assert.equal(finding.fixAvailable, false, `${finding.name}: a fix is available; update the starter toolchain`);
+    assert.ok(Array.isArray(finding.via) && finding.via.length, `${finding.name}: missing advisory provenance`);
+    const visit = (item, seen = new Set()) => {
+      if (typeof item === "string") {
+        assert.ok(!seen.has(item) && report.vulnerabilities[item], `${item}: invalid advisory chain`);
+        for (const via of report.vulnerabilities[item].via) visit(via, new Set([...seen, item]));
+        return;
+      }
+      const advisory = item.url?.match(/^https:\/\/github\.com\/advisories\/(GHSA-[a-z0-9-]+)$/)?.[1];
+      const entry = allowlist.find(entry => entry.advisory === advisory && entry.package === item.name && entry.starters.includes(starter));
+      assert.ok(entry, `${item.name}: unallowlisted advisory ${advisory ?? item.url}`);
+      assert.match(entry.recheck, /^\d{4}-\d{2}-\d{2}$/, "allowlist recheck must be an ISO date");
+      assert.ok(today < entry.recheck, `${advisory}: recheck date ${entry.recheck} reached`);
+      assert.equal(latest[entry.package], entry.reviewedVersion, `${advisory}: a new ${entry.package} release is available; recheck the exception`);
+      assert.ok(entry.reason && entry.pulledBy, `${advisory}: missing exception rationale`);
+      warnings.add(`${advisory} (${entry.package}): no fix available; ${entry.pulledBy}; recheck by ${entry.recheck}`);
+    };
+    for (const via of finding.via) visit(via);
+  }
+  assert.ok(findings.length || report.metadata.vulnerabilities.total === 0, "npm audit omitted vulnerability details");
+  return [...warnings];
+}
+
+async function auditStarter(run, cwd, starter) {
+  const allowlist = JSON.parse(readFileSync(new URL("./starter-audit-allowlist.json", import.meta.url), "utf8"));
+  const output = join(cwd, "starter-audit.json");
+  // The ordinary toolchain owner retains custody of npm and its descendants.
+  // npm audit's exit 1 means findings; all other command failures stay failures.
+  await run(process.execPath, ["--input-type=commonjs", "-e", `
+    const {spawnSync}=require('node:child_process'),{writeFileSync}=require('node:fs');
+    const invoke=args=>{const r=spawnSync('npm',args,{encoding:'utf8',timeout:180000,maxBuffer:16777216});if(r.error||r.signal||r.status===null||r.status>1)throw Error(r.error||r.stderr||'npm failed');return r;};
+    const audit=invoke(['audit','--json','--audit-level=low']);
+    const report=JSON.parse(audit.stdout),latest={};
+    for(const name of ${JSON.stringify([...new Set(allowlist.filter(entry => entry.starters.includes(starter)).map(entry => entry.package))])}) {
+      const result=invoke(['view',name,'version','--json']);if(result.status!==0)throw Error(result.stderr);latest[name]=JSON.parse(result.stdout);
+    }
+    writeFileSync(${JSON.stringify(output)},JSON.stringify({report,latest}));
+  `], cwd);
+  const { report, latest } = JSON.parse(readFileSync(output, "utf8"));
+  const warnings = evaluateStarterAudit(report, starter, allowlist, latest);
+  for (const warning of warnings) console.warn(`WARNING starter ${starter}: ${warning}`);
+  return { status: warnings.length ? "passed-with-warnings" : "passed", warnings };
+}
+
 export function guideTypeScriptExport(markdown, heading, exportName) {
   const headingAt = markdown.indexOf(heading);
   if (headingAt < 0) throw Error(`packed guide is missing ${heading}`);
@@ -218,7 +270,7 @@ export async function proveStarters(client, platform, expo, directory, browserPr
     };
     await build();
     // DX9: dev tools ship to every builder, so audit includes dev dependencies.
-    await run("npm", ["audit", "--audit-level=low"], cwd);
+    const audit = await auditStarter(run, cwd, id);
     // @ref LLP 3000.036.004#169-day-two-precision-and-destructive-evidence-questions — intended optional attachments never require a stock disposition.
     if (template === "social") await run(process.execPath, ["--input-type=commonjs", "-e", `
       const fs=require('node:fs'),assert=require('node:assert/strict'),cp=require('node:child_process');
@@ -305,7 +357,7 @@ assert.ok(host.url);const inspected=JSON.parse((await cli(['releases','deploymen
     writeFileSync(join(cwd,"package.json"),JSON.stringify(customPackage,null,2)+"\n");
     await build();
     const adaptedProofs = browserProofs ? await proveFrontendTwice(run, cwd, starter) : [];
-    results.push({ starter: id, kind, fixtureGuide: browserProofs ? "passed" : "not-run-build-only", status: "passed", adapted: "passed", typecheck: "passed", build: "passed", frontendProofs, adaptedProofs, negativeProof, formSubmit: kind === "web" ? "passed" : "not-applicable" });
+    results.push({ starter: id, kind, audit, fixtureGuide: browserProofs ? "passed" : "not-run-build-only", status: "passed", adapted: "passed", typecheck: "passed", build: "passed", frontendProofs, adaptedProofs, negativeProof, formSubmit: kind === "web" ? "passed" : "not-applicable" });
   }
   return results;
 }

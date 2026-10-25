@@ -1,0 +1,11 @@
+[
+  {
+    "advisory": "GHSA-86w9-cpqp-85rv",
+    "package": "node-forge",
+    "reviewedVersion": "1.4.0",
+    "reason": "No patched node-forge release exists. Expo SDK 57 requires its CLI and code-signing tooling; npm audit fix --force downgrades to an unsupported Expo SDK.",
+    "pulledBy": "expo -> @expo/cli -> node-forge and @expo/code-signing-certificates -> node-forge (development/code-signing tools)",
+    "starters": ["expo", "expo-chat", "expo-social"],
+    "recheck": "2026-11-08"
+  }
+]

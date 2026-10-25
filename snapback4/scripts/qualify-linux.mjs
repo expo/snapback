@@ -38,7 +38,7 @@ export function containerRuntime(probeRuntime = name => spawnSync(name, ["info"]
 }
 export function containerProof(runtime, client, platform, version, work, expo) {
   const context = join(work, "container"); mkdirSync(context);
-  for (const file of ["test-command-owner.mjs", "test-owned-command.mjs", "test-command-group.mjs"])
+  for (const file of ["test-command-owner.mjs", "test-owned-command.mjs", "test-command-group.mjs", "starter-audit-allowlist.json"])
     copyFileSync(new URL(`./${file}`, import.meta.url), join(context, file));
   copyFileSync(expo, join(context, "expo.tgz"));
   copyFileSync(new URL("./publication-starters.mjs", import.meta.url), join(context, "starters.mjs"));
