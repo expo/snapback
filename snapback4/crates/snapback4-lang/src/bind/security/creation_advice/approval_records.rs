@@ -60,6 +60,7 @@ fn creator_cell(creator:&Write<'_>,column:&str,bound:&Bound)->Option<snapback4_c
     if !table.immutable_fields().any(|field|field==column)&&kernel::implies(&grant,&RuleExpr::Deny)!=Ok(true){
         for program in creator.catalog.documents.iter().flat_map(|doc|&doc.programs).filter(|program|program.kind==ProgramKind::Mutation){
             for (write,context) in super::super::authority_walk::writes(creator.catalog,program){
+                if !applicability_known(&context,creator.catalog){continue;}
                 let Expr::Write{op:WriteOp::Update|WriteOp::Upsert,table:target,keys,fields,condition,..}=write else{continue;};if target!=creator.table{continue;}
                 if condition.as_deref().is_some_and(|condition|matches!(simplify_boolean(condition),Expr::Literal{value:ast::Literal::Bool(false),..})){continue;}
                 let Some(value)=fields.iter().find(|field|field.name==column).and_then(field_value)else{continue;};

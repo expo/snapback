@@ -79,6 +79,7 @@ fn condition_parts(condition:&Expr,code:&str,catalog:&Catalog)->Vec<Expr>{
     if code=="$advice:implication"&&private_unknown(condition,catalog){return Vec::new();}
     conjunction(condition).into_iter().filter_map(|condition|known_condition(condition,catalog)).collect()
 }
+pub(super) fn applicability_known(p:&ast::ProgramDecl,catalog:&Catalog)->bool{!p.body.iter().any(|stmt|matches!(stmt,Stmt::Require{condition,code,..} if code=="$advice:cut"||code=="$advice"&&private_unknown(condition,catalog)))}
 pub(super) fn known_impossible(p:&ast::ProgramDecl,catalog:&Catalog)->bool{
     let names=caller_names(p);let mut facts=BTreeMap::new();
     // Source applicability may depend on opaque data. Only contradictions over

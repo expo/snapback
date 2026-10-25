@@ -41,7 +41,7 @@ pub(super) fn collect(sources:&[(String,String)],bound:&Bound)->BTreeMap<(String
                 let mut stable=true;walk(condition,|e|if matches!(e,ast::Expr::Read(_)|ast::Expr::Member{..}|ast::Expr::Exists{..}){stable=false;});
                 if stable{workflow::normalize(condition,&bound.schema,table,&arguments)}else{None}
             }).collect();
-            let complete=!context.body.iter().any(|stmt|matches!(stmt,ast::Stmt::Require{code,..} if code=="$advice:cut"));let invocation=ApprovalCheck{complete,clauses:checks,bindings,selectors};
+            let complete=super::super::creation_advice::applicability_known(context,&catalog);let invocation=ApprovalCheck{complete,clauses:checks,bindings,selectors};
             for stamp in target.columns.keys().filter(|stamp|["approv","authoriz"].iter().any(|part|stamp.to_lowercase().contains(part))){
                 out.entry((program.clone(),table.clone(),stamp.clone(),site.to_string())).or_default().push(invocation.clone());
             }

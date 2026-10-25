@@ -4,13 +4,16 @@
 use super::*;
 use ast::{Expr,Stmt,ProgramDecl,FunctionBody};
 type Env=BTreeMap<String,Expr>;
+fn evaluated(value:&Expr)->bool{matches!(value,Expr::Call{site,..}|Expr::Write{site,..} if site.file.starts_with("$advice/evaluated/"))}
+fn captured(value:&Expr)->Expr{let mut value=value.clone();super::super::intent_walk::expression(&mut value,&mut |e|if let Expr::Call{site,..}|Expr::Write{site,..}=e&&!site.file.starts_with("$advice/evaluated/"){site.file=format!("$advice/evaluated/{}",site.file);});value}
+
 mod changes;
 use changes::Change;
 pub(super) fn resolve(expr:&Expr,env:&Env)->Expr{
     let mut expr=expr.clone();
     super::super::intent_walk::expression(&mut expr,&mut |e|{
-        if let Expr::Object{fields,..}|Expr::Write{fields,..}=e{for f in fields{if f.value.is_none(){f.value=Some(env.get(&f.name).cloned().unwrap_or_else(||Expr::Name{name:f.name.clone(),site:f.site.clone()}));}}}
-        if let Expr::Name{name,site}=e&&!site.file.starts_with("$advice/value/")&&let Some(value)=env.get(name){*e=value.clone();}
+        if let Expr::Object{fields,..}|Expr::Write{fields,..}=e{for f in fields{if f.value.is_none(){f.value=Some(env.get(&f.name).map(captured).unwrap_or_else(||Expr::Name{name:f.name.clone(),site:f.site.clone()}));}}}
+        if let Expr::Name{name,site}=e&&!site.file.starts_with("$advice/value/")&&let Some(value)=env.get(name){*e=captured(value);}
     });
     // Values captured at a binding/call retain their original symbolic input.
     // Reusing that expression after a reassignment must not evaluate it again.
@@ -30,24 +33,63 @@ fn normalize_target(catalog:&Catalog,p:&ProgramDecl,expr:&mut Expr,env:&Env){
         }
     }
     let Expr::Write{table,keys,op:ast::WriteOp::Update|ast::WriteOp::Upsert,..}=expr else{return;};if !keys.is_empty(){return;}
-    let value=env.get(table).cloned().unwrap_or_else(||Expr::Name{name:table.clone(),site:p.site.clone()});let value=returned(catalog,&value,0);
+    let value=env.get(table).map(captured).unwrap_or_else(||Expr::Name{name:table.clone(),site:p.site.clone()});let value=returned(catalog,&value,0);
     if let Some((target,selected))=selected(catalog,p,&value){*table=target;*keys=selected;}
 }
+fn at_target(condition:&Expr,target:&Expr)->Expr{
+    let mut condition=condition.clone();
+    // Nested populations bind their own focal row; their keys still capture
+    // the outer row. Protect only each population's local predicates.
+    super::super::intent_walk::expression(&mut condition,&mut |e|if let Expr::Read(read)|Expr::Exists{read,..}|Expr::Created{read,..}=e{for value in [&mut read.filter,&mut read.matching].into_iter().flatten(){super::super::intent_walk::expression(value,&mut |e|if let Expr::Focal{site}=e{*e=Expr::Name{name:"$advice_inner_focal".into(),site:site.clone()};});}});
+    super::super::intent_walk::expression(&mut condition,&mut |e|if matches!(e,Expr::Focal{..}){*e=target.clone();});
+    super::super::intent_walk::expression(&mut condition,&mut |e|if let Expr::Name{name,site}=e&&name=="$advice_inner_focal"{*e=Expr::Focal{site:site.clone()};});condition
+}
+fn under(catalog:&Catalog,guards:&[Stmt],condition:Expr)->Option<Vec<Stmt>>{
+    let condition=super::creation_advice::simplify_boolean(&returned(catalog,&condition,0));if matches!(condition,Expr::Literal{value:ast::Literal::Bool(false),..}){return None;}
+    let mut guards=guards.to_vec();if !matches!(condition,Expr::Literal{value:ast::Literal::Bool(true),..}){guards.push(Stmt::Require{site:condition.site().clone(),condition,code:"$advice".into(),message:None});}Some(guards)
+}
 fn expression(catalog:&Catalog,p:&ProgramDecl,expr:&Expr,env:&Env,guards:&[Stmt],changes:&[Change],column:Option<&str>,depth:usize,out:&mut Vec<(Expr,ProgramDecl)>){
-    let mut expr=resolve(expr,env);
+    let mut expr=resolve(expr,env);if evaluated(&expr){return;}
+    let mut applicability=p.clone();applicability.body=guards.to_vec();if let Expr::Write{condition:Some(condition),..}=&expr{applicability.body.push(Stmt::Require{condition:returned(catalog,condition,0),code:"$advice".into(),message:None,site:condition.site().clone()});}if super::creation_advice::known_impossible(&applicability,catalog){return;}
     let changes=if column.is_some()&&changes::prior_effects(&expr){&[][..]}else{changes};
-    super::super::intent_walk::expression(&mut expr,&mut |e|{normalize_target(catalog,p,e,env);match e{
-        Expr::Write{keys,fields,condition,..}=>{let mut boundary=Vec::new();for value in keys.iter().map(|key|&key.value).chain(fields.iter().filter_map(|field|field.value.as_ref())).chain(condition.iter().map(|condition|condition.as_ref())){boundary.extend(helper_guards(catalog,value,&Env::new(),depth));}let mut context=p.clone();context.prelude=Vec::new();context.body=guards.to_vec();context.body.extend(boundary);let mut actual=context.clone();for stmt in &mut actual.body{if let Stmt::Require{condition,..}=stmt{*condition=returned(catalog,condition,0);}}if let Some(condition)=condition{actual.body.push(Stmt::Require{condition:returned(catalog,condition,0),code:"$advice".into(),message:None,site:condition.site().clone()});}if super::creation_advice::known_impossible(&actual,catalog){return;}if let Some(column)=column{for change in changes{if change.matches(e,column,p){context.body.extend(change.requirements.clone());}}}out.push((e.clone(),context));},
-        Expr::Call{name,args,site} if depth<32=>if let Some(f)=catalog.functions.get(name){
-            let mut locals=f.args.iter().zip(args).map(|(arg,value)|(arg.name.clone(),value.clone())).collect();
-            let mut inherited=guards.to_vec();
-            inherited.push(Stmt::Require{condition:Expr::Literal{value:ast::Literal::Bool(true),site:site.clone()},code:"$callsite".into(),message:None,site:site.clone()});
-            match &f.body{
-                FunctionBody::Expression(value)=>expression(catalog,p,value,&locals,&inherited,changes,column,depth+1,out),
-                FunctionBody::Block(body)=>statements(catalog,p,body,&mut locals,&mut inherited,&mut changes.to_vec(),column,depth+1,out),
-            }
-        },_=>{}
-    }});
+    let sequence=|values:Vec<&Expr>,out:&mut Vec<(Expr,ProgramDecl)>|{let mut prefix=guards.to_vec();for value in values{expression(catalog,p,value,env,&prefix,changes,column,depth,out);prefix.extend(helper_guards(catalog,value,env,0));}prefix};
+    match &expr{
+        Expr::If{condition,then,otherwise,site}=>{
+            let prefix=sequence(vec![condition],out);let predicate=returned(catalog,condition,0);
+            if let Some(yes)=under(catalog,&prefix,predicate.clone()){expression(catalog,p,then,env,&yes,changes,column,depth,out);}
+            if let Some(no)=under(catalog,&prefix,Expr::Unary{op:"not".into(),value:Box::new(predicate),site:site.clone()}){expression(catalog,p,otherwise,env,&no,changes,column,depth,out);}
+        },
+        Expr::Binary{op,left,right,site}=>{
+            let prefix=sequence(vec![left],out);let left=returned(catalog,left,0);
+            let premise=match op.as_str(){"and"=>Some(left),"or"=>Some(Expr::Unary{op:"not".into(),value:Box::new(left),site:site.clone()}),"??"=>Some(Expr::Binary{op:"=".into(),left:Box::new(left),right:Box::new(Expr::Literal{value:ast::Literal::Null,site:site.clone()}),site:site.clone()}),_=>None};
+            if let Some(premise)=premise{if let Some(prefix)=under(catalog,&prefix,premise){expression(catalog,p,right,env,&prefix,changes,column,depth,out);}}else{expression(catalog,p,right,env,&prefix,changes,column,depth,out);}
+        },
+        Expr::Unary{value,..}|Expr::Assert{value,..}|Expr::Member{base:value,..}|Expr::ShapeUse{base:value,..}=>{sequence(vec![value],out);},
+        Expr::Array{items,..}=>{sequence(items.iter().collect(),out);},
+        Expr::Object{fields,..}=>{sequence(fields.iter().filter_map(|field|field.value.as_ref()).collect(),out);},
+        Expr::Call{name,args,site}=>{
+            let lazy=name=="sum"&&args.len()==2&&!catalog.functions.contains_key(name);let prefix=sequence(if lazy{vec![&args[0]]}else{args.iter().collect()},out);
+            if lazy{if !matches!(&args[0],Expr::Array{items,..} if items.is_empty())&&!matches!(&args[0],Expr::Read(read) if read.filter.as_deref().is_some_and(|filter|matches!(super::creation_advice::simplify_boolean(filter),Expr::Literal{value:ast::Literal::Bool(false),..}))){let mut focal=false;let mut projection=args[1].clone();super::super::intent_walk::expression(&mut projection,&mut |e|if matches!(e,Expr::Focal{..}){focal=true;});let premise=if focal{Expr::Name{name:"$advice_lazy_projection".into(),site:site.clone()}}else{Expr::Binary{op:">".into(),left:Box::new(Expr::Call{name:"count".into(),args:vec![args[0].clone()],site:site.clone()}),right:Box::new(Expr::Literal{value:ast::Literal::Number("0".into()),site:site.clone()}),site:site.clone()}};if let Some(scoped)=under(catalog,&prefix,premise){expression(catalog,p,&args[1],env,&scoped,changes,column,depth,out);}}return;}
+            if depth>=32{return;}
+            if let Some(f)=catalog.functions.get(name){let mut locals=f.args.iter().zip(args).map(|(arg,value)|(arg.name.clone(),captured(value))).collect();let mut inherited=prefix;inherited.push(Stmt::Require{condition:Expr::Literal{value:ast::Literal::Bool(true),site:site.clone()},code:"$callsite".into(),message:None,site:site.clone()});match &f.body{FunctionBody::Expression(value)=>expression(catalog,p,value,&locals,&inherited,changes,column,depth+1,out),FunctionBody::Block(body)=>statements(catalog,p,body,&mut locals,&mut inherited,&mut changes.to_vec(),column,depth+1,out)}}
+        },
+        Expr::Write{keys,fields,condition,..}=>{
+            let prefix=sequence(keys.iter().map(|key|&key.value).chain(fields.iter().filter_map(|field|field.value.as_ref())).chain(condition.iter().map(|condition|condition.as_ref())).collect(),out);
+            normalize_target(catalog,p,&mut expr,env);let Expr::Write{table,keys,condition,..}=&expr else{unreachable!()};let mut context=p.clone();context.prelude=Vec::new();context.body=prefix;
+            for stmt in &mut context.body{if let Stmt::Require{condition,..}=stmt{*condition=returned(catalog,condition,0);}}
+            if let Some(condition)=condition{let target=Expr::Read(ast::ReadExpr{cursor_prefix:None,computed:Default::default(),order_keys:Vec::new(),table:table.clone(),keys:keys.clone(),index:None,range:None,matching:None,filter:None,seeks:Vec::new(),site:expr.site().clone()});context.body.push(Stmt::Require{condition:at_target(&returned(catalog,condition,0),&target),code:"$advice".into(),message:None,site:condition.site().clone()});}
+            if super::creation_advice::known_impossible(&context,catalog){return;}
+            if let Some(column)=column{for change in changes{if change.matches(&expr,column,p){context.body.extend(change.requirements.clone());}}}out.push((expr,context));
+        },
+        Expr::Read(read)|Expr::Exists{read,..}|Expr::Created{read,..}=>{
+            let prefix=sequence(read.keys.iter().map(|key|&key.value).chain(read.seeks.iter().map(|seek|&seek.value)).chain(read.range.iter().filter_map(|range|range.cursor.as_deref())).collect(),out);
+            for value in [&read.filter,&read.matching].into_iter().flatten(){let mut scoped=prefix.clone();scoped.push(Stmt::Require{condition:Expr::Name{name:"$advice_lazy_predicate".into(),site:read.site.clone()},code:"$advice".into(),message:None,site:read.site.clone()});expression(catalog,p,value,env,&scoped,changes,column,depth,out);}
+        },
+        Expr::Shape{base,fields,site}=>{let mut prefix=sequence(vec![base],out);prefix.push(Stmt::Require{condition:Expr::Name{name:"$advice_shape_projection".into(),site:site.clone()},code:"$advice".into(),message:None,site:site.clone()});for field in fields{if let ast::ShapeField::Field{value,..}=field{expression(catalog,p,value,env,&prefix,changes,column,depth,out);}}},
+        Expr::Walk{seed,..}=>{sequence(vec![seed],out);},
+        Expr::Merge(merge)=>{let prefix=sequence(merge.cursor.iter().map(|value|value.as_ref()).collect(),out);let mut scoped=prefix;scoped.push(Stmt::Require{condition:Expr::Name{name:"$advice_merge_lane".into(),site:merge.site.clone()},code:"$advice".into(),message:None,site:merge.site.clone()});for value in [&merge.matching,&merge.filter].into_iter().flatten(){expression(catalog,p,value,env,&scoped,changes,column,depth,out);}for lane in &merge.lanes{for value in lane.prefix.iter().chain(lane.admission.iter().map(|value|value.as_ref())).chain(lane.distinct.iter()).chain(lane.loop_.iter().map(|(_,value)|value)){expression(catalog,p,value,env,&scoped,changes,column,depth,out);}if let Some(fields)=&lane.project{for field in fields{if let ast::ShapeField::Field{value,..}=field{expression(catalog,p,value,env,&scoped,changes,column,depth,out);}}}for read in lane.planned.iter().chain(lane.nulls.iter().map(|(_,read)|read)){expression(catalog,p,&Expr::Read(*read.clone()),env,&scoped,changes,column,depth,out);}}},
+        Expr::Name{..}|Expr::Focal{..}|Expr::Literal{..}=>{},
+    }
 }
 fn conditional(guards:Vec<Stmt>,premise:Expr,site:&Site)->Vec<Stmt>{guards.into_iter().filter_map(|stmt|if let Stmt::Require{condition,code,..}=stmt{
         let condition=super::creation_advice::simplify_boolean(&Expr::Binary{op:"or".into(),left:Box::new(Expr::Unary{op:"not".into(),value:Box::new(premise.clone()),site:site.clone()}),right:Box::new(condition),site:site.clone()});
@@ -58,8 +100,9 @@ fn conditional(guards:Vec<Stmt>,premise:Expr,site:&Site)->Vec<Stmt>{guards.into_
 // Guaranteed evaluated operands export helper requirements. Conditional
 // operands retain applicability implications, never an unconditional assumption.
 pub(super) fn helper_guards(catalog:&Catalog,expr:&Expr,env:&Env,depth:usize)->Vec<Stmt>{
+    if evaluated(expr){return Vec::new();}
     if depth>=32{return vec![Stmt::Require{condition:Expr::Name{name:"$advice_helper_cut".into(),site:expr.site().clone()},code:"$advice:cut".into(),message:None,site:expr.site().clone()}];}
-    let expression=resolve(expr,env);
+    let expression=resolve(expr,env);if evaluated(&expression){return Vec::new();}
 
     match &expression{
         Expr::Unary{value,..}|Expr::Assert{value,..}|Expr::Member{base:value,..}=>return helper_guards(catalog,value,&Env::new(),depth+1),
@@ -214,7 +257,7 @@ pub(super) fn column_writes(catalog:&Catalog,p:&ProgramDecl,column:&str)->Vec<(E
 // cannot supply a guessed return. This never executes or rewrites a program.
 pub(super) fn returned(catalog:&Catalog,value:&Expr,depth:usize)->Expr{
     if depth>=32{return value.clone();}
-    fn effectful(catalog:&Catalog,value:&Expr)->bool{let mut value=value.clone();let mut effect=false;super::super::intent_walk::expression(&mut value,&mut |e|match e{Expr::Write{..}=>effect=true,Expr::Call{name,..} if catalog.functions.contains_key(name)=>effect=true,_=>{}});effect}
+    fn effectful(catalog:&Catalog,value:&Expr)->bool{let mut value=value.clone();let mut effect=false;super::super::intent_walk::expression(&mut value,&mut |e|match e{Expr::Write{..} if !evaluated(e)=>effect=true,Expr::Call{name,..} if catalog.functions.contains_key(name)&&!evaluated(e)=>effect=true,_=>{}});effect}
     let mut value=value.clone();
     super::super::intent_walk::expression(&mut value,&mut |e|{
         let Expr::Call{name,args,..}=e else{return;};
@@ -254,6 +297,13 @@ pub(super) fn branch_assignments(body:&[Stmt])->BTreeSet<String>{
 pub(super) fn source_gaps(sources:&[(String,String)],bound:&Bound)->BTreeSet<String>{
     let docs=sources.iter().map(|(file,text)|crate::parse_document(file,text).0).collect::<Vec<_>>();let catalog=Catalog::build(docs.clone(),&mut Vec::new());let mut gaps=BTreeSet::new();
     for p in docs.iter().flat_map(|doc|&doc.programs).filter(|p|p.kind==ast::ProgramKind::Mutation){
-        for (write,context) in walk_writes(&catalog,p,None){if let Expr::Write{table,site,..}=&write&&!bound.schema.tables.contains_key(table){gaps.insert(format!("source approval inference not covered: unresolved write target {table} at {site}; use explicit update TABLE[key] and rerun check -> test; no approval contract is inferred from this site"));}if context.body.iter().any(|stmt|matches!(stmt,Stmt::Require{code,..} if code=="$advice:cut")){gaps.insert(format!("source approval inference not covered: helper guard scan cut for {} at {}; flatten the helper expression and rerun check -> test; replacement validation remains unknown",p.name,write.site()));}}
+        for (write,context) in walk_writes(&catalog,p,None){if let Expr::Write{table,site,..}=&write&&!bound.schema.tables.contains_key(table){gaps.insert(format!("source approval inference not covered: unresolved write target {table} at {site}; use explicit update TABLE[key] and rerun check -> test; no approval contract is inferred from this site"));}if !super::creation_advice::applicability_known(&context,&catalog){gaps.insert(format!("source approval inference not covered: unresolved execution applicability for {} at {}; use an explicit condition/loop and rerun check -> test; this path supplies no approval-use credit",p.name,write.site()));}if context.body.iter().any(|stmt|matches!(stmt,Stmt::Require{code,..} if code=="$advice:cut")){gaps.insert(format!("source approval inference not covered: helper guard scan cut for {} at {}; flatten the helper expression and rerun check -> test; replacement validation remains unknown",p.name,write.site()));}}
     }gaps
+}
+
+#[cfg(test)]mod sec10_execution_controls{use super::*;
+#[test]fn captured_helper_results_execute_once(){
+    let source="table docs:\n  stage: enum('draft','done') default 'draft'\n  note: text ?\n  read <- allow\n  update <- allow\n  online only\nfn change(doc: docs):\n  update docs[doc] {stage:'done'}\n  return doc\nmutation finish(doc: docs):\n  saved = change(doc)\n  update docs[saved] {note:'finished'}\n";
+    let (doc,diagnostics)=crate::parse_document("schema.q",source);assert!(diagnostics.is_empty(),"{diagnostics:?}");let b=crate::compile(&[("schema.q".into(),source.into())]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);let catalog=Catalog::build(vec![doc.clone()],&mut Vec::new());let effects=writes(&catalog,&doc.programs[0]);assert_eq!(effects.len(),2,"{effects:?}");
+}
 }

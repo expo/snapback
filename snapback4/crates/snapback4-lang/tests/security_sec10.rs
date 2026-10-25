@@ -538,8 +538,20 @@ fn campaign(s:&str)->Campaign{let b=security::derived::augmented(&sources(s),&bo
 }
 #[test]fn no_op_child_stage_copies_cannot_erase_completion_obligations(){
     let source=include_str!("security/wave26/008.q");
-    for body in ["  w = walls[wall] ! else MISSING\n  update walls[wall] {stage:w.stage}","  w = walls[wall] ! else MISSING\n  require w.stage = 'finish' else STAGE\n  update walls[wall] {stage:'finish'}"]{let source=source.to_string()+"\nmutation copyWall(wall: walls):\n"+body+"\n";let cs=security::derived::invariants(&sources(&source),&bound(&source));assert!(cs.iter().any(|i|i.site.file.contains("child-stage")),"{body}");}
+    for body in ["  w = walls[wall] ! else MISSING\n  update walls[wall] {stage:w.stage}","  w = walls[wall] ! else MISSING\n  update walls[wall] {stage:w.stage if w.stage = 'finish' else w.stage}","  w = walls[wall] ! else MISSING\n  update walls[wall] {stage:w.stage ?? 'finish'}","  w = walls[wall] ! else MISSING\n  require w.stage = 'finish' else STAGE\n  update walls[wall] {stage:'finish'}"]{let source=source.to_string()+"\nmutation copyWall(wall: walls):\n"+body+"\n";let cs=security::derived::invariants(&sources(&source),&bound(&source));assert!(cs.iter().any(|i|i.site.file.contains("child-stage")),"{body}");}
 }
 #[test]fn unresolved_row_selection_has_an_explicit_inference_gap(){
     let source="table docs:\n  approved: bool default false\n  read <- allow\n  update <- allow\n  online only\nmutation approve(doc: docs,other: docs,flag: bool):\n  d = choose(doc,other,flag)\n  update d {approved:true}\nfn choose(doc: docs,other: docs,flag: bool):\n  if flag:\n    return docs[doc] ! else MISSING\n  return docs[other] ! else MISSING\n";let b=bound(source);let gaps=security::source_inference_gaps(&sources(source),&b);assert!(gaps.iter().any(|gap|gap.contains("unresolved write target")&&gap.contains("update TABLE[key]")),"{gaps:?}");let _=security::derived::augmented(&sources(source),&b);
+}
+
+#[test]fn skipped_expression_effects_cannot_consume_approval(){
+    let source="table docs:\n  approved: bool default false\n  stage: enum('draft','done') default 'draft'\n  read <- allow\n  update <- allow\n  online only\nmutation approve(doc: docs):\n  update docs[doc] {approved:true}\nfn guarded(doc: docs):\n  d = docs[doc] ! else MISSING\n  require d.approved else APPROVAL\n  update docs[doc] {stage:'done'}\n  return true\nmutation finish(doc: docs,flag: bool):\n  ignored = EXPR\n  return null\nmutation bypass(doc: docs):\n  update docs[doc] {stage:'done'}\n";
+    for (expr,used) in [("guarded(doc) if false else false",false),("false and guarded(doc)",false),("true or guarded(doc)",false),("true ?? guarded(doc)",false),("guarded(doc) if flag else false",true),("flag and guarded(doc)",true),("flag or guarded(doc)",true),("null ?? guarded(doc)",true)]{
+        let source=source.replace("EXPR",expr);assert_eq!(!notes(&source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"),used,"{expr}");let cs=security::derived::invariants(&sources(&source),&bound(&source));assert_eq!(cs.iter().any(|i|i.site.file.contains("sibling-approval")),used,"{expr}");
+    }
+}
+#[test]fn opaque_write_applicability_withholds_approval_credit(){
+    let source="table docs:\n  approved: bool default false\n  stage: enum('draft','done') default 'draft'\n  read <- allow\n  update <- allow\n  online only\nmutation approve(doc: docs):\n  update docs[doc] {approved:true}\nfn opaque(flag: bool):\n  if flag:\n    return false\n  return false\nmutation finish(doc: docs,flag: bool):\n  d = docs[doc] ! else MISSING\n  require d.approved else APPROVAL\n  update docs[doc] {stage:'done'} if opaque(flag)\n";
+    assert!(notes(source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));let b=bound(source);assert!(!security::derived::invariants(&sources(source),&b).iter().any(|i|i.site.file.contains("sibling-approval")));assert!(security::source_inference_gaps(&sources(source),&b).iter().any(|gap|gap.contains("execution applicability")));
+    let explicit=source.replace("if opaque(flag)","if .approved");assert!(!notes(&explicit).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));assert!(security::derived::invariants(&sources(&explicit),&bound(&explicit)).iter().any(|i|i.site.file.contains("sibling-approval")));
 }

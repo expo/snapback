@@ -130,6 +130,7 @@ fn global_ledger(p:&ast::ProgramDecl,write:&Expr,writes:&[(&ast::ProgramDecl,Exp
 pub(super) fn invariants(docs:&[ast::Document],catalog:&Catalog,bound:&Bound,out:&mut Vec<Invariant>){
     let writes=docs.iter().flat_map(|d|&d.programs).filter(|p|p.kind==ast::ProgramKind::Mutation).flat_map(|p|authority_walk::writes(catalog,p).into_iter().map(move |(w,c)|(p,w,c))).collect::<Vec<_>>();
     for (p,write,context) in &writes{
+        if !super::super::creation_advice::applicability_known(context,catalog){continue;}
         let Expr::Write{op,table,fields,keys,site,..}=write else{continue;};
         if !matches!(op,WriteOp::Insert|WriteOp::Update|WriteOp::Upsert)||!bound.schema.tables.contains_key(table){continue;}
         // Fully resolved caller/global approval records do not need a typed
@@ -250,6 +251,15 @@ fn source_states(guards:&[Expr],bound:&Bound,table:&str,state:&str)->BTreeSet<St
     let Some(C::Enum{variants})=bound.schema.tables[table].columns.get(state).map(C::required)else{return BTreeSet::new();};
     variants.iter().filter(|value|guards.iter().all(|guard|admits(guard,state,value)!=Some(false))).cloned().collect()
 }
+fn stage_copy(value:&Expr,p:&ast::ProgramDecl,table:&str,keys:&[ast::KeyPart],column:&str,bound:&Bound)->bool{
+    let value=super::super::creation_advice::simplify_boolean(value);
+    fn copied(value:&Expr,p:&ast::ProgramDecl,table:&str,keys:&[ast::KeyPart],column:&str,required:bool)->bool{match value{
+        Expr::Assert{value,..}=>copied(value,p,table,keys,column,required),
+        Expr::Member{base,name,..}=>name==column&&same_resource(base,table,keys,p),
+        Expr::If{then,otherwise,..}=>copied(then,p,table,keys,column,required)&&copied(otherwise,p,table,keys,column,required),
+        Expr::Binary{op,left,right,..} if op=="??"=>required&&copied(left,p,table,keys,column,required)||matches!(left.as_ref(),Expr::Literal{value:ast::Literal::Null,..})&&copied(right,p,table,keys,column,required),_=>false,
+    }}copied(&value,p,table,keys,column,!bound.schema.tables[table].columns[column].is_optional())
+}
 fn changes_from(p:&ast::ProgramDecl,write:&Expr,bound:&Bound,table:&str,state:&str,source:&str)->bool{
     fn changes(value:&Expr,state:&str,source:&str)->bool{match value{
         Expr::Literal{value:ast::Literal::Str(value),..}=>value!=source,
@@ -333,7 +343,7 @@ fn lifecycle(writes:&[(&ast::ProgramDecl,Expr,ast::ProgramDecl)],bound:&Bound,ou
                     // incidental child writes cannot redefine or hide the
                     // independent child lifecycle's terminal stage.
                     let Expr::Write{fields,keys,..}=w else{continue;};let Some(state)=fields.iter().find(|f|f.name==child_state.name)else{continue;};
-                    if matches!(state.value.as_ref(),Some(Expr::Member{base,name,..}) if name==&child_state.name&&same_resource(base,child,keys,p)){continue;}
+                    if state.value.as_ref().is_some_and(|value|stage_copy(value,p,child,keys,&child_state.name,bound)){continue;}
                     if writes.iter().any(|(producer,effect,_)|std::ptr::eq(*producer,*p)&&matches!(effect,Expr::Write{op:WriteOp::Update,table:t,fields,..} if t==parent&&state_field(bound,parent,fields).is_some_and(|field|field.name==parent_state.name))){
                         if let Some(value)=&state.value{coupled.extend(literals(value));}else{ambiguous=true;}continue;
                     }
