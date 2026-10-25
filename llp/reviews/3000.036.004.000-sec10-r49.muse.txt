@@ -1,0 +1,19 @@
+muse: workspace root: /home/ccheever/projects/sb4-b26-sec10 (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=3dd11c53-abc5-4b1f-8fb4-08901db10bae]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-b26-sec10 (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY — the §10 r49 delta (frozen as `d0d577bcfc`) is technically sound and narrowly scoped. No material concerns; no repair needed.
+
+What changed: `caller_approval`'s S1 scanner in [lifecycle.rs](/home/ccheever/projects/sb4-sec10/snapback4/crates/snapback4-lang/src/bind/security/creation_advice/lifecycle.rs) (new `local_filter_receipts`) clones a caller population filter, masks `Focal` nodes inside any nested population (any table, including same-table) to `$advice_foreign_population`, then checks for `.column`-on-`Focal` evidence only in the masked receipts. Outer-condition traversal still visits nested `Exists` nodes independently, so a separately viewer-keyed inner caller population keeps its own proof.
+
+Verification (by code trace, since execution is out of scope for this review):
+
+- All four new regression arms resolve as asserted: outer-Bool/inner-Time-metadata → gate (inner focal masked, inner table mismatched); unpinned inner same-table Bool → gate (masked for outer, no viewer key for inner); direct caller Bool → no gate (outer focal unmasked, no nesting); independently viewer-pinned inner caller Bool → no gate (inner node matches on its own unmasked filter). The last arm confirms the fix preserves rather than destroys genuine nested caller-row checks.
+- Direction is fail-closed: the delta only removes false outer credit (borrowed inner focals matched on bare column name, ignoring table). No previously asked question can be suppressed; only spurious `N_APPROVAL_NOT_ENFORCED` silences are removed.
+- Masking is precisely scoped: only `Focal` inside nested `Read`/`Exists` filters is replaced; outer-level focals, captures/aliases (`LOCAL` names), and keys are untouched, so genuine outer correlations (e.g. outer focal compared against a nested query result) still count. `count(...)` over a nested read is covered since the mask matches `Expr::Read` too.
+- No cross-path interference: `caller_approval` is consulted only on the S1 early-accept path (`scalar_enforced`, `!negative`); S2 predicate replay, S4/parent-child, receipt custody, and birth/reset logic are untouched. The sibling type scan (`typed_approval` in [workflow.rs](/home/ccheever/projects/sb4-sec10/snapback4/crates/snapback4-lang/src/bind/security/derived/workflow.rs)) labels population focals in its own separate child-first pass, unaffected by this masking.
+- Doc/code consistency: the added §10 sentence states both halves (exclusion + independent-key retention), matching the implementation; analyzer `sec10-47` → `sec10-48` is bumped in both the LLP text and `security_reviews.rs`, which correctly invalidates prior local dispositions. No IR/schema/store/protocol change. The landed text makes no all-14-automatic or zero-FP claim, consistent with the stated calibration.
+
+Not objections (per brief): focused-87/87 and 36-private-control pass counts are taken as reported and were hand-corroborated only for the four new arms; native/full-600/matrix execution remains pending qualification, and technical readiness is not author acceptance.
