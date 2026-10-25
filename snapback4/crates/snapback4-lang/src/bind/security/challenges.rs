@@ -450,6 +450,9 @@ pub fn fixture_observers(bound:&Bound,fixture:&Engine,campaign:&mut Campaign){
         });
     }
     campaign.workflow_base=campaign.workflow_attempts;
+    // Derived-first replay must not spend the authored phase's directed ceiling.
+    // The overall deterministic work reservation is still shared.
+    campaign.directed_base=campaign.directed_attempts;
     column_reads::direct_fixture(bound,fixture,campaign);
     histories::initial_observers(bound,fixture,campaign);
     histories::lifecycle_observers(bound,fixture,campaign);
