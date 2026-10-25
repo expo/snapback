@@ -108,6 +108,8 @@ const DEFAULT:&str="table docs:\n  label: text <=80 default 'pending'\n  read <-
 #[test]fn existence_of_the_same_profile_is_not_a_stricter_edit_role(){
  let source="table profiles:\n  principal: principal\n  name: text <=80\n  role: enum('member','editor') default 'member'\n  unique principal\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\nmutation register(name: text <=80):\n  insert profiles {principal:viewer,name}\nmutation edit(name: text <=80):\n  require exists profiles[viewer] else MISSING\n  update profiles[viewer] {name}\n";
  assert!(!notes(source).iter().any(|n|n.code=="N_INSERT_WRITE_INTENT"));
+ let timed=source.replace("  principal: principal","  principal: principal\n  opensAt: time default now").replace("  read <- allow","  not before .opensAt\n  read <- allow");
+ assert!(notes(&timed).iter().any(|n|n.code=="N_INSERT_WRITE_INTENT"));
  let hidden=source.replace("read <- allow","read <- .role = 'editor'");
  assert!(notes(&hidden).iter().any(|n|n.code=="N_INSERT_WRITE_INTENT"));
  let owner_read=source.replace("read <- allow","read <- .principal = viewer");

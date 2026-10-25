@@ -410,15 +410,17 @@ pub(super) fn lifecycle_observers_to(bound:&Bound,fixture:&Engine,out:&mut Campa
         out.unsupported.insert("focused derived workflows defer unrelated roster mutations to the general campaign".into());
     }
     if !bound.invariants.is_empty()&&bound.invariants.iter().all(super::super::derived::is_derived){
+        // @ref LLP 3000.036.004.000#11-wave-27-precision-and-workflow-conservation — deferred payloads remain general coverage.
         // A generic category setter must not displace lifecycle preparation
         // when its payload is absent from every program read, policy and
         // candidate. Unknown patches and structural effects remain eligible;
         // the ordinary campaign retains these deferred payload combinations.
         fn fields(value:&serde_json::Value,out:&mut BTreeSet<String>){
             match value{serde_json::Value::Object(xs)=>{for (tag,value) in xs{
-                if matches!(tag.as_str(),"Field"|"OldField"|"NextField"|"field"|"column"|"expire"){
+                if matches!(tag.as_str(),"Field"|"OldField"|"NextField"|"field"|"column"|"expire"|"notBefore"){
                     if let Some(name)=value.as_str().or_else(||value.get("name").and_then(|v|v.as_str())){out.insert(name.into());}
                 }
+                if tag=="WordPrefixes"&&let Some(columns)=value.get("fields").and_then(|v|v.as_array()){out.extend(columns.iter().filter_map(|v|v.as_str().map(str::to_owned)));}
                 fields(value,out);
             }},serde_json::Value::Array(xs)=>for value in xs{fields(value,out)},_=>{}}
         }
@@ -436,7 +438,7 @@ pub(super) fn lifecycle_observers_to(bound:&Bound,fixture:&Engine,out:&mut Campa
         for inv in &bound.invariants{dependencies.extend(inv.column.iter().cloned());if let Some(mut syntax)=inv.syntax.clone(){crate::bind::intent_walk::expression(&mut syntax,&mut |e|if let ast::Expr::Member{name,..}=e{dependencies.insert(name.clone());});}}
         for bp in &bound.programs{
             fields(&serde_json::to_value(&bp.program).unwrap(),&mut dependencies);
-            for read in ir::read_sites(&bp.program){if let Some(index)=bound.schema.tables[&read.table].index(&read.index){dependencies.extend(index.columns());}}
+            for read in ir::read_sites(&bp.program){if let Some(index)=bound.schema.tables[&read.table].index(&read.index){dependencies.extend(index.columns());dependencies.extend(bound.schema.tables[&read.table].columns.keys().filter(|column|index.uses_column(column)).cloned());}}
         }
         transitions.retain(|bp|{
             if ir::write_tables(&bp.program).iter().any(|(_,kind)|*kind!="update"){return true;}
@@ -803,5 +805,17 @@ pub(super) fn principal_preferences(bound:&Bound,p:&Program,rows:&BTreeMap<Strin
 #[cfg(test)]mod sec10_payload_tests{use super::*;
 #[test]fn lifecycle_replays_changed_optional_numeric_payloads(){
     let sources=vec![("schema.q".into(),"table docs:\n  status: enum('draft','done') default 'draft'\n  weight: int 1..100\n  read <- allow\n  update <- allow\n  online only\nmutation edit(doc: docs,weight: int 1..100 ?):\n  d = docs[doc] ! else MISSING\n  update docs[doc] {weight:weight ?? d.weight}\ninvariant docs.weight update only .status = 'draft'\n".into())];let bound=crate::compile(&sources);assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);let mut engine=Engine::memory(bound.schema.clone(),bound.programs.iter().map(|p|p.program.clone())).unwrap();let row=snapback4_core::wire::row_from_json(&bound.schema.tables["docs"],&serde_json::json!({"id":"d","status":"done","weight":1})).unwrap();engine.seed_at([("docs".into(),row)],NOW).unwrap();let mut campaign=Campaign::work_bounded(1024);lifecycle_observers(&bound,&engine,&mut campaign);assert!(campaign.violations.iter().any(|v|v.operation=="edit"&&v.reachability.is_reachable()),"{:?}",campaign.unsupported);
+}
+}
+
+#[cfg(test)]mod focused_read_dependencies_tests{use super::*;
+#[test]fn opening_visibility_and_word_fields_remain_focused_dependencies(){
+ let source="table docs:\n  flag: bool default false\n  label: text <=30 default 'no'\n  body: text <=80 default 'alpha'\n  opensAt: time default now\n  category: enum('a','b') default 'a'\n  by byWords: words(body), id\n  not before .opensAt\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\nbackfill docs label(flag: bool):\n  {label:'yes' if flag else 'no'}\nmutation enable(doc: docs):\n  update docs[doc] {flag:true}\nmutation setLabel(doc: docs,label: text <=30):\n  require docs[doc].flag else NOT_ENABLED\n  update docs[doc] {label}\nmutation setBody(doc: docs,body: text <=80):\n  update docs[doc] {body}\nmutation setOpening(doc: docs,opensAt: time):\n  update docs[doc] {opensAt}\nmutation setUnused(doc: docs,category: enum('a','b')):\n  update docs[doc] {category}\nquery search(q: text <=30):\n  return docs matching q first 10 by byWords\n";
+ let sources=vec![("schema.q".into(),source.into())];let b=crate::compile(&sources);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);let b=super::super::super::derived::augmented(&sources,&b);assert_eq!(b.invariants.len(),1);
+ let mut e=Engine::memory(b.schema.clone(),b.programs.iter().map(|p|p.program.clone())).unwrap();
+ let row=snapback4_core::wire::row_from_json(&b.schema.tables["docs"],&serde_json::json!({"id":"doc","flag":false,"label":"no","body":"alpha","opensAt":NOW,"category":"a"})).unwrap();e.seed_at([("docs".into(),row)],NOW).unwrap();
+ let mut out=Campaign::work_bounded(1024);lifecycle_observers_to(&b,&e,&mut out,512);
+ let deferred=|name:&str|out.unsupported.iter().any(|why|why.starts_with(name)&&why.contains("unreferenced payload-only"));
+ assert!(deferred("setUnused"),"{:?}",out.unsupported);assert!(!deferred("setBody"));assert!(!deferred("setOpening"));
 }
 }

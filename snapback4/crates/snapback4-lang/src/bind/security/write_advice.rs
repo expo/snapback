@@ -38,7 +38,7 @@ fn existing_identity(catalog:&Catalog,bound:&Bound,write:&ast::Expr)->Option<Rul
     // Source exists is read-filtered; physical write selection alone must not
     // erase a role/private audience carried by that existence requirement.
     let definition=&bound.schema.tables[table];
-    if definition.expire.is_some()||definition.through.is_some(){return None;}
+    if definition.expire.is_some()||definition.not_before.is_some()||definition.through.is_some(){return None;}
     let read=terms(&definition.rules.read,&mut |term|if let RuleTerm::Field(column)=term&&let Some((_,value))=pairs.iter().find(|(name,_)|name==column){*term=value.clone();});
     (kernel::implies(&RuleExpr::Allow,&read)==Ok(true)).then_some(rule)
 }
