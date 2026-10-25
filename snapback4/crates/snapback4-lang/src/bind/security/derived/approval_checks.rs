@@ -17,7 +17,7 @@ pub(super) fn collect(sources:&[(String,String)],bound:&Bound)->BTreeMap<(String
             let program=super::super::super::operation_name(std::path::Path::new(&doc.file).file_stem().and_then(|s|s.to_str()).unwrap_or(&doc.file),&p.name);
             let focal=||ast::Expr::Focal{site:site.clone()};let member=|name:String|ast::Expr::Member{base:Box::new(focal()),name,site:site.clone()};
             let arguments=p.args.iter().map(|arg|(arg.name.clone(),member(format!("{ARG}{}",arg.name)))).collect();
-            let admissions=stage_columns::admissions(&stages,table,keys,p,context,fields,bound);
+            let admissions=stage_columns::admissions(&catalog,&stages,table,keys,p,context,fields,bound);
             let mut checks=Vec::new();
             for condition in context.body.iter().filter_map(|stmt|if let ast::Stmt::Require{condition,..}=stmt{Some(condition)}else{None}).flat_map(clauses){
                 let mut condition=condition.clone();omit_preconditions(&mut condition,false,&|field|matches!(field,ast::Expr::Member{base,name,..} if same_resource(base,table,keys,p)&&admissions.contains(name)));condition=super::super::creation_advice::simplify_boolean(&condition);let mut columns=BTreeSet::new();

@@ -192,6 +192,7 @@ fn global_ledger(p:&ast::ProgramDecl,write:&Expr,context:&ast::ProgramDecl,catal
     writes.iter().any(|(producer,effect,_)|std::ptr::eq(*producer,p)&&unconditional_write(producer,effect.site())&&matches!(effect,Expr::Write{table,fields,..} if table==*parent&&state_field(bound,parent,fields).is_some_and(|field|matches!(&field.value,Some(Expr::Literal{..}))))&&target_arg(producer,effect,parent).is_some_and(|arg|normalize(value,&bound.schema,parent,&BTreeMap::from([(arg.name.clone(),member(focal(),"id"))])).is_some_and(|e|matches!(e,Expr::Member{base,name,..} if name=="id"&&matches!(base.as_ref(),Expr::Focal{..})))))
 }
 pub(super) fn invariants(docs:&[ast::Document],catalog:&Catalog,bound:&Bound,out:&mut Vec<Invariant>){
+    let stages=stage_columns::collect(catalog,bound);
     let writes=docs.iter().flat_map(|d|&d.programs).filter(|p|p.kind==ast::ProgramKind::Mutation).flat_map(|p|authority_walk::writes(catalog,p).into_iter().map(move |(w,c)|(p,w,c))).collect::<Vec<_>>();
     // Upsert has two runtime effects. Its existing-row transition supplies
     // update prerequisites independently of its separately inferred birth arm.
@@ -228,7 +229,12 @@ pub(super) fn invariants(docs:&[ast::Document],catalog:&Catalog,bound:&Bound,out
                 }
             }
             for condition in guards(context).filter(|c|contains_approval(c)) {
-                let Some(contract)=scoped_contract(condition,context,&bound.schema,root,&args)else{continue;};
+                let Some(mut contract)=scoped_contract(condition,context,&bound.schema,root,&args)else{continue;};
+                // The recorded destination is a post-state effect; comparisons
+                // on its overwritten workflow field admitted the old state.
+                // Existentially relax these atoms, preserving whole Boolean
+                // alternatives rather than exporting a false prior-stage freeze.
+                if table==root&&*op==WriteOp::Update{omit_preconditions(&mut contract,false,&|field|matches!(field,Expr::Member{base,name,..} if matches!(base.as_ref(),Expr::Focal{..})&&stages.contains(&(table.clone(),name.clone()))&&fields.iter().any(|field|field.name==*name&&matches!(&field.value,Some(Expr::Literal{..})))));contract=super::super::creation_advice::simplify_boolean(&contract);}
                 // Global/caller approval contracts are emitted once above.
                 if !resource_local(&contract)||!typed_approval(&contract,&bound.schema,root){continue;}
                 if matches!(op,WriteOp::Insert|WriteOp::Upsert)&&root==table{
@@ -245,7 +251,7 @@ pub(super) fn invariants(docs:&[ast::Document],catalog:&Catalog,bound:&Bound,out
                     continue;
                 }
                 let selected=if *op==WriteOp::Update{
-                    fields.iter().find(|f|matches!(f.name.as_str(),"status"|"stage"|"state"|"phase")).and_then(|f|f.value.as_ref()).and_then(|e|normalize(e,&bound.schema,root,&args))
+                    fields.iter().find(|f|stages.contains(&(table.clone(),f.name.clone()))).and_then(|f|f.value.as_ref()).and_then(|e|normalize(e,&bound.schema,root,&args))
                 }else{None};
                 let mut roots=paths(&bound.schema,table,root);
                 // A target update must identify this exact resource argument.
@@ -279,10 +285,10 @@ pub(super) fn invariants(docs:&[ast::Document],catalog:&Catalog,bound:&Bound,out
                         // Destinations must be literals: dynamic status inputs
                         // require an explicit operation-bound history instead.
                         if !matches!(selected,Expr::Literal{..}){continue;}
-                        let column=fields.iter().find(|f|matches!(f.name.as_str(),"status"|"stage"|"state"|"phase")).unwrap();
+                        let column=fields.iter().find(|f|stages.contains(&(table.clone(),f.name.clone()))).unwrap();
                         policy=Expr::Binary{op:"or".into(),left:Box::new(Expr::Binary{op:"!=".into(),left:Box::new(member(focal(),&column.name)),right:Box::new(selected.clone()),site:site.clone()}),right:Box::new(policy),site:site.clone()};
                     }
-                    add_syntax(out,candidate,if *op==WriteOp::Update{fields.iter().find(|f|matches!(f.name.as_str(),"status"|"stage"|"state"|"phase")).map(|f|f.name.as_str())}else{None},if *op==WriteOp::Update{"update"}else{"insert"},policy,site,"sibling-approval",None);
+                    add_syntax(out,candidate,if *op==WriteOp::Update{fields.iter().find(|f|stages.contains(&(table.clone(),f.name.clone()))).map(|f|f.name.as_str())}else{None},if *op==WriteOp::Update{"update"}else{"insert"},policy,site,"sibling-approval",None);
                 }
             }
         }

@@ -79,6 +79,9 @@ fn omit_preconditions(expression:&mut ast::Expr,negated:bool,stage:&impl Fn(&ast
         ast::Expr::Binary{op,left,right,..} if matches!(op.as_str(),"and"|"or")=>{
             omit_preconditions(left,negated,stage);omit_preconditions(right,negated,stage);
         },
+        ast::Expr::Binary{op,left,right,..} if matches!(op.as_str(),"="|"!=")&&(matches!(left.as_ref(),ast::Expr::Literal{value:ast::Literal::Bool(_),..})||matches!(right.as_ref(),ast::Expr::Literal{value:ast::Literal::Bool(_),..}))=>{
+            if let ast::Expr::Literal{value:ast::Literal::Bool(value),..}=right.as_ref(){omit_preconditions(left,negated^((op=="=")!=*value),stage);}else if let ast::Expr::Literal{value:ast::Literal::Bool(value),..}=left.as_ref(){omit_preconditions(right,negated^((op=="=")!=*value),stage);}
+        },
         ast::Expr::Binary{op,left,right,site}=>{
             let null=|e:&ast::Expr|matches!(e,ast::Expr::Literal{value:ast::Literal::Null,..});
             let discriminator_field=|field:&ast::Expr,value:&ast::Expr|plain_field(field)&&stage(field)&&matches!(value,ast::Expr::Literal{value:ast::Literal::Str(value),..} if !value.is_empty());
@@ -187,7 +190,7 @@ fn collect(sources:&[(String,String)],bound:&Bound,inputs:&mut BTreeMap<(String,
             // Approval candidates keep their inferred origin explicit. Only
             // values inspected by this approval (or media governed by its
             // stored approval timestamp) are proposed for freezing.
-            let admissions=stage_columns::admissions(&stages,table,match write{ast::Expr::Write{keys,..}=>keys,_=>unreachable!()},p,context,fields,bound);
+            let admissions=stage_columns::admissions(&catalog,&stages,table,match write{ast::Expr::Write{keys,..}=>keys,_=>unreachable!()},p,context,fields,bound);
             let stage=|field:&ast::Expr|matches!(field,ast::Expr::Member{base,name,..} if admissions.contains(name)&&same_resource(base,table,match write{ast::Expr::Write{keys,..}=>keys,_=>unreachable!()},p));
             let mut inspected=BTreeSet::new();
             for statement in &context.body {if let ast::Stmt::Require{condition,..}=statement {

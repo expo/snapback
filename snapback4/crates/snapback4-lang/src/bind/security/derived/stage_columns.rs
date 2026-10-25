@@ -33,7 +33,7 @@ pub(super) fn collect(catalog:&Catalog,bound:&Bound)->BTreeSet<(String,String)>{
                     let possible=match definition.columns[&field.name].required(){snapback4_core::schema::ColumnType::Enum{variants}=>variants.iter().map(|value|Some(value.as_str())).collect::<Vec<_>>(),_=>states.iter().map(|value|Some(value.as_str())).chain([None]).collect()};
                     let changes=possible.into_iter().any(|old|old!=Some(value.as_str())&&context.body.iter().all(|stmt|{
                         let ast::Stmt::Require{condition,..}=stmt else{return true;};
-                        match projects(condition,old,&table,&keys,p,&field.name){Some(value)=>value,None=>{let mut related=false;let mut expression=condition.clone();super::super::super::intent_walk::expression(&mut expression,&mut |e|if let ast::Expr::Member{base,name,..}=e&&name==&field.name&&same_resource(base,&table,&keys,p){related=true;});!related}}
+                        match projects(condition,old,&table,&keys,p,&field.name){Some(value)=>value,None=>{let mut related=false;let mut expression=condition.clone();super::super::super::intent_walk::expression(&mut expression,&mut |e|if let Some(value)=projects(e,old,&table,&keys,p,&field.name){*e=ast::Expr::Literal{value:ast::Literal::Bool(value),site:e.site().clone()};});expression=super::super::creation_advice::simplify_boolean(&expression);super::super::super::intent_walk::expression(&mut expression,&mut |e|if let ast::Expr::Member{base,name,..}=e&&name==&field.name&&same_resource(base,&table,&keys,p){related=true;});!related}}
                     }));
                     if !changes{continue;}states.insert(value.clone());
                 }else{continue;}
@@ -46,12 +46,21 @@ pub(super) fn collect(catalog:&Catalog,bound:&Bound)->BTreeSet<(String,String)>{
 /// Scope omission to a discriminator's multi-state admission check in this
 /// selected-row invocation. A staged column's unrelated single-value data
 /// inspection remains evidence even when other mutations transition it.
-pub(super) fn admissions(stages:&BTreeSet<(String,String)>,table:&str,keys:&[ast::KeyPart],p:&ast::ProgramDecl,context:&ast::ProgramDecl,fields:&[ast::ObjectField],bound:&Bound)->BTreeSet<String>{
+pub(super) fn admissions(catalog:&Catalog,stages:&BTreeSet<(String,String)>,table:&str,keys:&[ast::KeyPart],p:&ast::ProgramDecl,context:&ast::ProgramDecl,fields:&[ast::ObjectField],bound:&Bound)->BTreeSet<String>{
     let subjects=fields.iter().filter(|field|bound.schema.tables[table].columns.get(&field.name).is_some_and(|kind|named_approval(&field.name,kind)&&fresh_recording(kind,field.value.as_ref()))).map(|field|subject::stem(&field.name)).filter(|stem|!stem.is_empty()&&bound.schema.tables[table].columns.keys().any(|column|!column.to_lowercase().contains("approv")&&subject::same(stem,column))).collect::<BTreeSet<_>>();
     let mut values=BTreeMap::<String,BTreeSet<String>>::new();
     for stmt in &context.body{if let ast::Stmt::Require{condition,..}=stmt{
         let mut condition=condition.clone();super::super::super::intent_walk::expression(&mut condition,&mut |e|if let ast::Expr::Binary{op,left,right,..}=e&&matches!(op.as_str(),"="|"!="){
             for (field,value) in [(left.as_ref(),right.as_ref()),(right.as_ref(),left.as_ref())]{if let ast::Expr::Member{base,name,..}=field&&same_resource(base,table,keys,p)&&stages.contains(&(table.into(),name.clone()))&&let ast::Expr::Literal{value:ast::Literal::Str(value),..}=value&&!value.is_empty(){values.entry(name.clone()).or_default().insert(value.clone());}}
         });
-    }}values.into_iter().filter(|(column,values)|!subjects.iter().any(|stem|subject::same(stem,column))&&(values.len()>1||!subjects.is_empty())).map(|(name,_)|name).collect()
+    }}values.into_iter().filter(|(column,values)|!subjects.iter().any(|stem|subject::same(stem,column))&&(values.len()>1||!subjects.is_empty()||{
+        let recordings=fields.iter().filter(|field|bound.schema.tables[table].columns.get(&field.name).is_some_and(|kind|named_approval(&field.name,kind)&&fresh_recording(kind,field.value.as_ref()))).map(|field|subject::stem(&field.name)).collect::<BTreeSet<_>>();
+        let stamps=fields.iter().filter(|field|bound.schema.tables[table].columns.get(&field.name).is_some_and(|kind|stamps::evidence(&field.name,kind)&&recordings.contains(&subject::stem(&field.name))&&(fresh_recording(kind,field.value.as_ref())||(matches!(kind.required(),snapback4_core::schema::ColumnType::Principal)&&field.value.as_ref().is_some_and(|value|matches!(value,ast::Expr::Name{name,..} if name=="viewer")))))).map(|field|field.name.as_str()).collect::<BTreeSet<_>>();
+        !stamps.is_empty()&&catalog.documents.iter().flat_map(|d|&d.programs).filter(|p|p.kind==ast::ProgramKind::Mutation).any(|p|authority_walk::writes(catalog,p).iter().any(|(write,context)|{
+            let ast::Expr::Write{op:ast::WriteOp::Update,table:target,keys,fields,..}=write else{return false;};
+            target==table&&fields.iter().any(|field|field.name==*column&&field.value.as_ref().is_some_and(|value|!row_input_copy(value,table,keys,p,column)))&&context.body.iter().any(|stmt|{
+                let ast::Stmt::Require{condition,..}=stmt else{return false;};workflow::approval_receipts(condition).iter().any(|receipt|{let mut receipt=receipt.clone();let mut found=false;super::super::super::intent_walk::expression(&mut receipt,&mut |e|if let ast::Expr::Member{base,name,..}=e&&stamps.contains(name.as_str())&&same_resource(base,table,keys,p){found=true;});found})
+            })
+        }))
+    })).map(|(name,_)|name).collect()
 }
