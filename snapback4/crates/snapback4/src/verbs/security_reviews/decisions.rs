@@ -23,7 +23,7 @@ pub(in crate::verbs) fn render(dispositions: &[Disposition], notes: &[Diagnostic
     use std::fmt::Write;
     let mut output=String::new();
     let mut ordered=notes.iter().zip(dispositions).collect::<Vec<_>>();
-    // @ref LLP 3000.036.004#16.5-review-clarification-exact-detector-and-command-boundaries — grouping must preserve gate/authority priority.
+    // @ref LLP 3000.036.004#165-review-clarification-exact-detector-and-command-boundaries — grouping must preserve gate/authority priority.
     ordered.sort_by_key(|(n,_)|(crate::note_rank::summary_order(&n.code),n.site.file.clone(),n.site.line,n.site.col));
     let members=ordered.iter().filter(|(_,d)|d.family.is_some()&&!d.acknowledged).collect::<Vec<_>>();
     let mut family_output=String::new();
