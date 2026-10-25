@@ -24,7 +24,7 @@ fn modeled(write:&Write<'_>,name:&str,parent:&str,bound:&Bound)->bool{
     let t=&bound.schema.tables[&write.table];
     if write.table==parent{
         if !matches!(write.op,WriteOp::Update|WriteOp::Upsert){return false;}
-        return write.fields.iter().any(|field|!metadata(&field.name)&&(
+        return write.fields.iter().any(|field|!metadata(&field.name)&&!matches!(field_value(field).map(simplify_boolean),Some(Expr::Literal{value:ast::Literal::Bool(false)|ast::Literal::Null,..}))&&(
             field.name.to_lowercase().contains(name)||
             matches!(t.columns.get(&field.name).map(ColumnType::required),Some(ColumnType::Enum{..}))&&field_value(field).is_some_and(|value|literal_act(value,name))
         ))||operation.contains(name)&&["perform","execute","install","replace","refund","move","take","remove"].iter().any(|prefix|operation.starts_with(prefix));
@@ -39,13 +39,37 @@ fn modeled(write:&Write<'_>,name:&str,parent:&str,bound:&Bound)->bool{
         field_value(field).is_some_and(|value|write.p.args.iter().any(|arg|
             matches!(arg.type_.kind,TypeKind::Text{..})&&uses(value,&arg.name))))
 }
-fn cancellation_approval(name:&str,producer:&Write<'_>)->bool{
-    if ["cancel","abort","withdraw","reject","declin","deny","deni"].iter().any(|part|name.contains(part)){return true;}
-    let operation=producer.p.name.to_lowercase();
-    operation.strip_prefix("approve").or_else(||operation.strip_prefix("authorize")).is_some_and(|act|["cancel","abort","withdraw","reject","declin","deny","deni"].iter().any(|part|act.trim_start_matches('_').starts_with(part)))
+const CANCELLATIONS:&[(&[&str],&[&str])]=&[
+    (&["cancel","cancellation","cancelation","cancelled","canceled"],&["cancel","cancelled","canceled"]),
+    (&["abort","aborted"],&["abort","aborted"]),
+    (&["withdraw","withdrawal","withdrawn"],&["withdraw","withdrawn"]),
+    (&["reject","rejection","rejected"],&["reject","rejected"]),
+    (&["decline","declined"],&["decline","declined"]),
+    (&["deny","denial","denied"],&["deny","denied"]),
+];
+fn approval_words(name:&str)->Vec<String>{
+    let chars=name.chars().collect::<Vec<_>>();let mut text=String::new();
+    for (n,c) in chars.iter().enumerate(){
+        if !c.is_alphanumeric(){text.push(' ');continue;}
+        if n>0&&c.is_uppercase()&&(chars[n-1].is_lowercase()||chars[n-1].is_numeric()||chars[n-1].is_uppercase()&&chars.get(n+1).is_some_and(|c|c.is_lowercase())){text.push(' ');}
+        text.extend(c.to_lowercase());
+    }
+    // Also retain approval boundaries in lower-case concatenated names.
+    for marker in ["authorizations","authorization","authorized","approvals","approved","approval","approve","authorize"]{text=text.replace(marker," $ ");}
+    text.split_whitespace().map(str::to_owned).collect()
 }
-fn cancellation_effect(parent:&str,effect:&Write<'_>,bound:&Bound)->bool{
-    effect.table==parent&&matches!(effect.op,WriteOp::Update|WriteOp::Upsert)&&effect.fields.iter().any(|field|matches!(field.name.as_str(),"status"|"stage"|"state"|"phase")&&matches!(bound.schema.tables[parent].columns.get(&field.name).map(ColumnType::required),Some(ColumnType::Enum{..}))&&matches!(field_value(field),Some(Expr::Literal{value:ast::Literal::Str(value),..}) if ["cancel","cancelled","canceled","aborted","withdrawn","rejected","declined","denied"].contains(&value.to_lowercase().as_str())))
+fn cancellation_cues(name:&str,producer:&Write<'_>)->Vec<String>{
+    let recognized=|word:&str|CANCELLATIONS.iter().any(|(words,_)|words.contains(&word));
+    let words=approval_words(name);let mut cues=BTreeSet::new();
+    for (n,word) in words.iter().enumerate(){if word=="$"{for neighbor in [n.checked_sub(1),n.checked_add(1)].into_iter().flatten().filter_map(|i|words.get(i)){if recognized(neighbor){cues.insert(neighbor.clone());}}}}
+    let operation=&producer.p.name;
+    for prefix in ["approve","authorize"]{
+        if operation.get(..prefix.len()).is_some_and(|part|part.eq_ignore_ascii_case(prefix))&&let Some(word)=approval_words(&operation[prefix.len()..]).first()&&recognized(word){cues.insert(word.clone());}
+    }
+    cues.into_iter().collect()
+}
+fn cancellation_effect(cues:&[String],parent:&str,effect:&Write<'_>,bound:&Bound)->bool{
+    effect.table==parent&&matches!(effect.op,WriteOp::Update|WriteOp::Upsert)&&effect.fields.iter().any(|field|matches!(field.name.as_str(),"status"|"stage"|"state"|"phase")&&matches!(bound.schema.tables[parent].columns.get(&field.name).map(ColumnType::required),Some(ColumnType::Enum{..}))&&matches!(field_value(field),Some(Expr::Literal{value:ast::Literal::Str(value),..}) if CANCELLATIONS.iter().any(|(words,states)|cues.iter().any(|cue|words.contains(&cue.as_str()))&&states.contains(&value.to_lowercase().as_str()))))
 }
 fn producer_cancellation(parent:&str,producer:&Write<'_>,effect:&Write<'_>,bound:&Bound)->bool{
     if !std::ptr::eq(producer.p,effect.p)||effect.table!=parent||effect.op!=WriteOp::Update{return false;}
@@ -53,8 +77,9 @@ fn producer_cancellation(parent:&str,producer:&Write<'_>,effect:&Write<'_>,bound
     !stages.is_empty()&&stages.len()==effect.fields.len()&&stages.iter().all(|field|matches!(field_value(field),Some(Expr::Literal{value:ast::Literal::Str(value),..}) if ["cancel","cancelled","canceled","aborted","withdrawn","rejected","declined","denied"].contains(&value.to_lowercase().as_str())))
 }
 pub(super) fn scalar(name:&str,parent:&str,record:&Write<'_>,effect:&Write<'_>,writes:&[Write<'_>],bound:&Bound)->bool{
-    let original=name.to_lowercase();let name=stem(name);
-    if cancellation_approval(&original,record){return cancellation_effect(parent,effect,bound);}
+    let original=name.to_owned();let name=stem(name);
+    let cues=cancellation_cues(&original,record);
+    if !cues.is_empty(){return cancellation_effect(&cues,parent,effect,bound)||cues.iter().any(|cue|modeled(effect,cue,parent,bound));}
     if producer_cancellation(parent,record,effect,bound){return false;}
     if generic(&name,parent){return state(effect,bound)||matches!(effect.op,WriteOp::Insert|WriteOp::Upsert)&&effect.table!=parent;}
     if modeled(effect,&name,parent,bound){return true;}
@@ -73,8 +98,9 @@ pub(super) fn scalar(name:&str,parent:&str,record:&Write<'_>,effect:&Write<'_>,w
     })
 }
 pub(super) fn record(name:&str,parent:&str,creator:&Write<'_>,effect:&Write<'_>,bound:&Bound)->bool{
-    let original=name.to_lowercase();let mut name=stem(name);
-    if cancellation_approval(&original,creator){return cancellation_effect(parent,effect,bound);}
+    let original=name.to_owned();let mut name=stem(name);
+    let cues=cancellation_cues(&original,creator);
+    if !cues.is_empty(){return cancellation_effect(&cues,parent,effect,bound)||cues.iter().any(|cue|modeled(effect,cue,parent,bound));}
     // A generic receipt table does not broaden a specifically named decision
     // (approveDiscount, for example) to every stage of its parent workflow.
     if generic(&name,parent){
