@@ -1,0 +1,36 @@
+{
+  "operations": 60,
+  "statement_deltas": [
+    {
+      "statement_class": "COMMIT",
+      "calls": 2,
+      "application_data_read": false
+    },
+    {
+      "statement_class": "START",
+      "calls": 2,
+      "application_data_read": false
+    },
+    {
+      "statement_class": "SET",
+      "calls": 2,
+      "application_data_read": false
+    },
+    {
+      "statement_class": "SET",
+      "calls": 2,
+      "application_data_read": false
+    },
+    {
+      "statement_class": "UPDATE",
+      "calls": 2,
+      "application_data_read": false
+    },
+    {
+      "statement_class": "UPDATE",
+      "calls": 2,
+      "application_data_read": false
+    }
+  ],
+  "scope": "native G6 1000,250 smoke serial probe; cumulative PG statistics can lag boundaries"
+}

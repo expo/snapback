@@ -1,0 +1,176 @@
+{
+  "matrix-snapback-g5": {
+    "rooms": 1025,
+    "users": 256,
+    "counters": 257,
+    "messages": 1000000,
+    "memberships": 8448,
+    "room_mismatches": 0,
+    "sender_mismatches": 0,
+    "message_image_mismatches": 0
+  },
+  "matrix-snapback-g6": {
+    "rooms": 1025,
+    "users": 256,
+    "counters": 257,
+    "messages": 1000000,
+    "memberships": 8448,
+    "room_mismatches": 0,
+    "sender_mismatches": 0,
+    "message_image_mismatches": 0
+  },
+  "matrix-snapback-g6-rest": {
+    "rooms": 1025,
+    "users": 256,
+    "counters": 257,
+    "messages": 1000000,
+    "memberships": 8448,
+    "room_mismatches": 0,
+    "sender_mismatches": 0,
+    "message_image_mismatches": 0
+  },
+  "research-convex-w2-a": {
+    "users": {
+      "actual": {
+        "count": 256,
+        "sum_sha256": "0227d1dab165140544dd5a04020da8015acbc1832bf40b492b1cfdb9cfe01ee3",
+        "xor_sha256": "ef482300d485dbe100cc07ccbb565ed4405670cff0a4ec071b13fc91db0a488d"
+      },
+      "expected": {
+        "count": 256,
+        "sum_sha256": "0227d1dab165140544dd5a04020da8015acbc1832bf40b492b1cfdb9cfe01ee3",
+        "xor_sha256": "ef482300d485dbe100cc07ccbb565ed4405670cff0a4ec071b13fc91db0a488d"
+      },
+      "equal": true
+    },
+    "rooms": {
+      "actual": {
+        "count": 1025,
+        "sum_sha256": "335c6e1504ad599dcb4658b756353e4d776cfe30243209f40da678485b19300c",
+        "xor_sha256": "6ed60d6db613dda0ba57ad98f37696cc3d20e54164954071eb61496bbbba75a6"
+      },
+      "expected": {
+        "count": 1025,
+        "sum_sha256": "335c6e1504ad599dcb4658b756353e4d776cfe30243209f40da678485b19300c",
+        "xor_sha256": "6ed60d6db613dda0ba57ad98f37696cc3d20e54164954071eb61496bbbba75a6"
+      },
+      "equal": true
+    },
+    "memberships": {
+      "actual": {
+        "count": 8448,
+        "sum_sha256": "c67b827c165114d6c8e56d52c6c9862a9b6398775519a37010e0d360a06acd2a",
+        "xor_sha256": "cc8a51b6c3bc82162c18a6f02b05db225fe21c74a7738ddb1df27d9f33194434"
+      },
+      "expected": {
+        "count": 8448,
+        "sum_sha256": "c67b827c165114d6c8e56d52c6c9862a9b6398775519a37010e0d360a06acd2a",
+        "xor_sha256": "cc8a51b6c3bc82162c18a6f02b05db225fe21c74a7738ddb1df27d9f33194434"
+      },
+      "equal": true
+    },
+    "counters": {
+      "actual": {
+        "count": 257,
+        "sum_sha256": "bde9c9cf0c44de9a3b88f9cb54ec29b9fb8ce421bb64ae702e0e33015d709982",
+        "xor_sha256": "e35c542a24e2117d9dd9437b80ed2f582c3b8094b6db0d0047806f2389a5e6b4"
+      },
+      "expected": {
+        "count": 257,
+        "sum_sha256": "bde9c9cf0c44de9a3b88f9cb54ec29b9fb8ce421bb64ae702e0e33015d709982",
+        "xor_sha256": "e35c542a24e2117d9dd9437b80ed2f582c3b8094b6db0d0047806f2389a5e6b4"
+      },
+      "equal": true
+    },
+    "messages": {
+      "actual": {
+        "count": 1000000,
+        "sum_sha256": "d3eb1dccd25868645ca2f19f80d0967924fc78c89b1387c241a0bffaedc7fd4a",
+        "xor_sha256": "af0d632f107ac4340b2cbbc9506ca4f99f303efb70eafe0adf20da76d54f5170"
+      },
+      "expected": {
+        "count": 1000000,
+        "sum_sha256": "d3eb1dccd25868645ca2f19f80d0967924fc78c89b1387c241a0bffaedc7fd4a",
+        "xor_sha256": "af0d632f107ac4340b2cbbc9506ca4f99f303efb70eafe0adf20da76d54f5170"
+      },
+      "equal": true
+    }
+  },
+  "research-convex-w2-b": {
+    "users": {
+      "actual": {
+        "count": 256,
+        "sum_sha256": "0227d1dab165140544dd5a04020da8015acbc1832bf40b492b1cfdb9cfe01ee3",
+        "xor_sha256": "ef482300d485dbe100cc07ccbb565ed4405670cff0a4ec071b13fc91db0a488d"
+      },
+      "expected": {
+        "count": 256,
+        "sum_sha256": "0227d1dab165140544dd5a04020da8015acbc1832bf40b492b1cfdb9cfe01ee3",
+        "xor_sha256": "ef482300d485dbe100cc07ccbb565ed4405670cff0a4ec071b13fc91db0a488d"
+      },
+      "equal": true
+    },
+    "rooms": {
+      "actual": {
+        "count": 1025,
+        "sum_sha256": "335c6e1504ad599dcb4658b756353e4d776cfe30243209f40da678485b19300c",
+        "xor_sha256": "6ed60d6db613dda0ba57ad98f37696cc3d20e54164954071eb61496bbbba75a6"
+      },
+      "expected": {
+        "count": 1025,
+        "sum_sha256": "335c6e1504ad599dcb4658b756353e4d776cfe30243209f40da678485b19300c",
+        "xor_sha256": "6ed60d6db613dda0ba57ad98f37696cc3d20e54164954071eb61496bbbba75a6"
+      },
+      "equal": true
+    },
+    "memberships": {
+      "actual": {
+        "count": 8448,
+        "sum_sha256": "c67b827c165114d6c8e56d52c6c9862a9b6398775519a37010e0d360a06acd2a",
+        "xor_sha256": "cc8a51b6c3bc82162c18a6f02b05db225fe21c74a7738ddb1df27d9f33194434"
+      },
+      "expected": {
+        "count": 8448,
+        "sum_sha256": "c67b827c165114d6c8e56d52c6c9862a9b6398775519a37010e0d360a06acd2a",
+        "xor_sha256": "cc8a51b6c3bc82162c18a6f02b05db225fe21c74a7738ddb1df27d9f33194434"
+      },
+      "equal": true
+    },
+    "counters": {
+      "actual": {
+        "count": 257,
+        "sum_sha256": "bde9c9cf0c44de9a3b88f9cb54ec29b9fb8ce421bb64ae702e0e33015d709982",
+        "xor_sha256": "e35c542a24e2117d9dd9437b80ed2f582c3b8094b6db0d0047806f2389a5e6b4"
+      },
+      "expected": {
+        "count": 257,
+        "sum_sha256": "bde9c9cf0c44de9a3b88f9cb54ec29b9fb8ce421bb64ae702e0e33015d709982",
+        "xor_sha256": "e35c542a24e2117d9dd9437b80ed2f582c3b8094b6db0d0047806f2389a5e6b4"
+      },
+      "equal": true
+    },
+    "messages": {
+      "actual": {
+        "count": 1000000,
+        "sum_sha256": "d3eb1dccd25868645ca2f19f80d0967924fc78c89b1387c241a0bffaedc7fd4a",
+        "xor_sha256": "af0d632f107ac4340b2cbbc9506ca4f99f303efb70eafe0adf20da76d54f5170"
+      },
+      "expected": {
+        "count": 1000000,
+        "sum_sha256": "d3eb1dccd25868645ca2f19f80d0967924fc78c89b1387c241a0bffaedc7fd4a",
+        "xor_sha256": "af0d632f107ac4340b2cbbc9506ca4f99f303efb70eafe0adf20da76d54f5170"
+      },
+      "equal": true
+    }
+  },
+  "smoke-snapback": {
+    "rooms": 1025,
+    "users": 256,
+    "counters": 257,
+    "messages": 1000000,
+    "memberships": 8448,
+    "room_mismatches": 0,
+    "sender_mismatches": 0,
+    "message_image_mismatches": 0
+  }
+}

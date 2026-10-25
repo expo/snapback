@@ -1,0 +1,11 @@
+{
+  "comparison_rows": 12,
+  "positive_source_cohorts_checked": 53,
+  "source_repetitions_checked": 159,
+  "highest_passing_rates_and_latency_medians_match": true,
+  "strict_verdicts_match": true,
+  "report_table_matches_verified_comparison": true,
+  "readme_local_links_checked": 32,
+  "archive_sha256_recomputed": "f5e46efdd1a8a9de67eac775e324c5300cb9aadd41f79345d67c44a5bce166b0",
+  "all_passed": true
+}

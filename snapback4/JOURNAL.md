@@ -107408,3 +107408,50 @@ contains the complete table, latency/range ledger, RTT/load/affinity evidence,
 disqualifications, historical two-host comparison and native replay recipe.
 No paid cloud, managed service, publication, durability relaxation or unowned
 signal is used. Only tooling, documentation and aggregate evidence are committed.
+
+## S1-SB final one-host comparison (2026-10-25)
+
+The [final one-host S1 report](./experiments/scale-controls/results-20261024-s1-onehost-final/README.md)
+measures product c985dbc640 through the unchanged S1-C runner/generator,
+qualification and advocate configurations. The four runner/result commits are
+rebased onto the local product branch; the stale origin is never fetched.
+G6 is explicitly configured as a single-owner deployment with
+`SNAPBACK4_READ_GRANT_CLOCK_BOUNDS=1000,250`; the same executable with that
+variable absent supplies six default G5 read cells. RT0 and the native SQL
+probe verify G6 hits before the matrix. The measured smoke's first window
+fails and remains unqualified, alongside its two passing windows.
+
+G6 highest passing offered rates, A/B: W1 8,000/2,828; W2 5,656/11,313;
+W3 16,000/16,000; W4 800/800; W5 exact 800/141; W5 nominal 1% mix
+1,131/800. Convex W2 is re-searched through every registered intermediate
+and high rung and passes 8,000/s on both links, replacing the search-dependent
+707/s rows. G6 strictly exceeds the best advocate in eight of twelve cells.
+It loses W2/A to Convex's 8,000/s, W4/A and W4/B to Supabase's 3,200/1,600/s,
+and mix/B to Supabase's 1,600/s. All other retained control values stay in
+the comparison. Every new Snapback read includes 19,027, 22,627, 32,000 and
+45,254/s; all repetitions and failures remain retained.
+
+The original W2/A attempt loses its ownership-renewal deadline and exits
+safely; the following observer snapshot aborts that controller. Its completed
+W1 cells remain selected, while its interrupted W2/A attempt is excluded
+from the headline and lacks an after-RTT capture. A fresh exact fixture
+confirms lower passing rungs and tests only unrun higher rungs; the failed 8,000/s
+cohort is not rerun. Each selected rate requires three complete passing
+repetitions from one actual cohort. Source snapshots and scheduling receipts
+make the outside-Git continuation reviewable.
+
+Independent audits pass 486 new trials and
+119,860,920 measured arrivals. Counter mismatches remain
+disqualified. Failed curves show dispatch backlog; the underlying PG/proxy
+cost is not isolated by the original outer CPU sampler. CPU figures disclose
+their scope and the open sampler-completeness/payload-guard ticket.
+Serial windows, shared CPUs/storage and the declared clock assumption limit
+the claim; G6/G5 differences do not isolate a causal cache speedup. This is
+not a production-capacity or publication qualification.
+
+All owned services, private clusters, supervisors and observers stop; the
+PID/start-identity audit also checks prior S1-C ledgers. PIDs left: none.
+Raw data stay outside Git; the archive embeds the original control archive.
+SHA-256: `f5e46efdd1a8a9de67eac775e324c5300cb9aadd41f79345d67c44a5bce166b0`. Known-secret scans and private credential
+cleanup precede the local report commit. No push, stash, Git configuration
+change, paid cloud, publication or unowned signal occurs.

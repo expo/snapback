@@ -1,0 +1,17 @@
+{
+  "time": 1792869319.5609097,
+  "before_free_bytes": 54878523392,
+  "after_free_bytes": 60152455168,
+  "removed": [
+    "/home/ccheever/projects/sb4-s1sk/snapback4/target/debug",
+    "/home/ccheever/projects/sb4-s1sk/snapback4/target/release"
+  ],
+  "live_target_executables": [],
+  "measurement_binaries_preserved": {
+    "sb4-scale-controls-current-unused": "ee979527be8c15ce648817f05514942da4553163cfb9d7f48504da58c9d60843",
+    "snapback4": "ada2789bf453603c01c2c2051c09b16cbed107466e934faf2382bc9be8ce999f",
+    "sb4-scale-controls": "9c5675272ca897d4d54242a13ad4e47593d44c79bf0743adda907a679a34f9fb",
+    "sb4-postgres-scale-seed": "a90a857559c4ed0d4dbae75fc89d00c6fcd9db95efd7fb7c9097a35a2e79641c"
+  },
+  "reason": "inactive artifacts in owned target only; all release measurement binaries copied and RT0 witness completed"
+}

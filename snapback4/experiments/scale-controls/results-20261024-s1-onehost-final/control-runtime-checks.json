@@ -1,0 +1,21 @@
+{
+  "equal_config_and_sql": [
+    "supabase-schema.sql",
+    "supabase-align.sql",
+    "schema.sql",
+    "seed.sql",
+    "postgresql.conf.delta",
+    "supabase.conf"
+  ],
+  "changed_config_and_sql": [],
+  "convex_backend_sha256": "5584895149cd6af74624ccbc038b2ada14ec771b6374e4ce252080a115ba5255",
+  "prior_convex_receipt": {
+    "pid": 2665028,
+    "release": "precompiled-2026-10-10-72ce13c",
+    "source_commit": "72ce13c379fe6dbdfc305bc8ad699c5663c68c2a",
+    "url": "https://github.com/convex/convex-backend/releases/download/precompiled-2026-10-10-72ce13c/convex-local-backend-x86_64-unknown-linux-gnu.zip",
+    "archive_sha256": "fcc51faa1168011819eec9aba85bf6959a6a7ce3929381cdc21c7da29f4bf3d5",
+    "binary_sha256": "5584895149cd6af74624ccbc038b2ada14ec771b6374e4ce252080a115ba5255"
+  },
+  "backend_matches_prior": true
+}

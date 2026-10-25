@@ -1,0 +1,15 @@
+{
+  "new_cells": 22,
+  "new_trials": 486,
+  "new_scheduled_arrivals": 119860920,
+  "new_released_starts": 22,
+  "new_busy_observations": 2,
+  "new_rtt_captures": 43,
+  "g6_wins": 8,
+  "product_tree_unchanged": true,
+  "independent_audits": true,
+  "lossless_histogram_archive": true,
+  "known_secret_matches": [],
+  "owned_live_pids": [],
+  "owned_zombies": []
+}

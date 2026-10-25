@@ -1,0 +1,5 @@
+{
+  "write_trials_checked": 75,
+  "mismatches": 5,
+  "check": "independent before/after durable sums, whole-cohort acknowledgements and equality verdicts"
+}
