@@ -1,0 +1,14 @@
+{
+  "prior_campaign_source": "1921c218a07eee51e7ec8205e73eefd8376736d1",
+  "current_source": "be0b9219f0d8b34408917239804a683a73f68f11",
+  "matched": {
+    "scripts/s1-onehost.py": true,
+    "scripts/run.py": true,
+    "scripts/snapback.py": true,
+    "scripts/postgres-2.py": true,
+    "scripts/s1-onehost-checks.py": true,
+    "postgresql.conf.delta": true,
+    "snapback-app/snapback/schema.q": true
+  },
+  "all_match": true
+}

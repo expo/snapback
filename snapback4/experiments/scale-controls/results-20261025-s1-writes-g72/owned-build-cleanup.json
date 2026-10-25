@@ -1,0 +1,9 @@
+{
+  "target": "/home/ccheever/projects/sb4-s1sk/snapback4/target/s1-wr",
+  "only_lane_owned_target_removed": true,
+  "all_release_binary_hashes_match": true,
+  "diagnostic_copied": true,
+  "no_live_executable_or_mapping_under_target": true,
+  "recovered_bytes": 3673522176,
+  "time": 1792951967.6718242
+}

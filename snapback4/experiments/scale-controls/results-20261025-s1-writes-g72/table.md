@@ -1,0 +1,8 @@
+| Cell | Link | Best Supabase/Convex control | 2026-10-24 Snapback G6 | Current Snapback G6 / arm S / depth 2 | vs best control | vs prior Snapback |
+|---|---|---:|---:|---:|:---:|:---:|
+| W4 | A | 3,200 · 8.02/29.44 (Supabase) | 800 · 18.58/27.31 | 1,600 · 12.14/17.55 | LOSS | WIN |
+| W4 | B | 1,600 · 9.36/17.91 (Supabase) | 800 · 23.48/31.31 | 1,600 · 14.97/20.58 | TIE | WIN |
+| W5 exact | A | 25 · 22.56/28.80 (Convex) | 800 · 20.27/29.29 | 1,600 · 12.80/21.81 | WIN | WIN |
+| W5 exact | B | 70 · 8.07/8.82 (Supabase) | 141 · 23.45/34.11 | 1,131 · 16.91/21.74 | WIN | WIN |
+| W5 nominal 1% mix | A | 800 · 7.20/13.89 (Supabase) | 1,131 · 19.48/27.25 | 1,600 · 12.75/17.71 | WIN | WIN |
+| W5 nominal 1% mix | B | 1,600 · 9.30/14.33 (Supabase) | 800 · 24.30/33.82 | 1,600 · 15.36/22.10 | TIE | WIN |

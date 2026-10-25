@@ -1,0 +1,16 @@
+{
+  "completed_write_cells": 6,
+  "smoke_cells": 1,
+  "trials": 102,
+  "measured_arrivals": 4425180,
+  "released_starts": 9,
+  "busy_observations": 0,
+  "rtt_captures": 14,
+  "control_wins": 3,
+  "prior_snapback_wins": 6,
+  "no_product_or_runner_changes": true,
+  "independent_audits": true,
+  "lossless_histogram_archive": true,
+  "owned_live_pids": [],
+  "owned_zombies": []
+}

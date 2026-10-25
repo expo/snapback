@@ -1,0 +1,103 @@
+{
+  "link": "B",
+  "scope": "outside-Git release helper, public Queue::start defaults, owned G6 store, cloned 1M S1 fixture, direct Context/no HTTP token-auth; unchanged deadlines; no capacity claim",
+  "aggregate": [
+    {
+      "cell": "W4",
+      "depth": 2,
+      "repetitions": 1,
+      "mean_N": 15.609756097560975,
+      "in_flight_at_dispatch": [
+        0,
+        1,
+        81
+      ],
+      "N_histogram": {
+        "1": 29,
+        "2": 6,
+        "25": 1,
+        "26": 1,
+        "27": 2,
+        "28": 2,
+        "29": 2,
+        "3": 1,
+        "30": 5,
+        "31": 27,
+        "4": 1,
+        "5": 4,
+        "6": 1
+      },
+      "counter_delta": 1505,
+      "acknowledged_including_warmup": 1505,
+      "counter_ok": true,
+      "errors_including_warmup": {
+        "E_STORE": 31
+      }
+    },
+    {
+      "cell": "W5-exact",
+      "depth": 2,
+      "repetitions": 1,
+      "mean_N": 15.238095238095237,
+      "in_flight_at_dispatch": [
+        0,
+        1,
+        83
+      ],
+      "N_histogram": {
+        "1": 1,
+        "10": 2,
+        "11": 4,
+        "12": 1,
+        "13": 7,
+        "14": 11,
+        "15": 10,
+        "16": 10,
+        "17": 12,
+        "18": 8,
+        "19": 4,
+        "20": 1,
+        "21": 3,
+        "24": 2,
+        "26": 2,
+        "6": 3,
+        "7": 1,
+        "8": 2
+      },
+      "counter_delta": 1536,
+      "acknowledged_including_warmup": 1536,
+      "counter_ok": true,
+      "errors_including_warmup": {}
+    },
+    {
+      "cell": "W5-mix",
+      "depth": 2,
+      "repetitions": 1,
+      "mean_N": 15.609756097560975,
+      "in_flight_at_dispatch": [
+        0,
+        1,
+        81
+      ],
+      "N_histogram": {
+        "1": 29,
+        "2": 6,
+        "26": 4,
+        "27": 2,
+        "28": 1,
+        "29": 1,
+        "30": 5,
+        "31": 27,
+        "4": 1,
+        "5": 3,
+        "6": 3
+      },
+      "counter_delta": 1536,
+      "acknowledged_including_warmup": 1536,
+      "counter_ok": true,
+      "errors_including_warmup": {}
+    }
+  ],
+  "shipped_http_batch_statistics_exposed": false,
+  "earlier_stock_diagnostic": "deadline refusals at depth two and watchdog termination; retained raw, no timed S1 trial started"
+}
