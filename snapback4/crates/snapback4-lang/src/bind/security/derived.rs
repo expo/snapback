@@ -46,6 +46,10 @@ fn stamp_source(value:&ast::Expr)->StampSource{match value{
     _=>StampSource::Unknown,
 }}
 
+fn potential_recording(kind:&snapback4_core::schema::ColumnType,value:Option<&ast::Expr>,table:&str,keys:&[ast::KeyPart],p:&ast::ProgramDecl,stamp:&str)->bool{
+    matches!(kind.required(),snapback4_core::schema::ColumnType::Bool|snapback4_core::schema::ColumnType::Time)&&value.is_some_and(|value|{let value=super::creation_advice::simplify_boolean(value);!matches!(value,ast::Expr::Literal{value:ast::Literal::Bool(false)|ast::Literal::Null,..})&&!same_stamp_copy(&value,table,keys,p,stamp)})
+}
+
 pub(super) fn fresh_recording(kind:&snapback4_core::schema::ColumnType,value:Option<&ast::Expr>)->bool{
     super::creation_advice::approval_recording(kind,value)&&if matches!(kind.required(),snapback4_core::schema::ColumnType::Time){value.is_some_and(|value|stamp_source(value)==StampSource::Fresh)}else{true}
 }
@@ -106,6 +110,9 @@ fn stored_uses(value:&ast::Expr,name:&str)->bool{let mut value=value.clone();let
 pub(super) fn payload_arguments(value:&ast::Expr,p:&ast::ProgramDecl)->BTreeSet<String>{
     p.args.iter().filter(|arg|!matches!(arg.type_.kind,ast::TypeKind::Ref{..})&&stored_uses(value,&arg.name)).map(|arg|arg.name.clone()).chain(stored_argument(value,p)).collect()
 }
+pub(super) fn row_input_use(value:&ast::Expr,table:&str,keys:&[ast::KeyPart],p:&ast::ProgramDecl,column:&str)->bool{let mut value=value.clone();let mut found=false;super::super::intent_walk::expression(&mut value,&mut |e|if matches!(e,ast::Expr::Member{base,name,..} if name==column&&same_resource(base,table,keys,p)){found=true;});found}
+pub(super) fn row_input_copy(value:&ast::Expr,table:&str,keys:&[ast::KeyPart],p:&ast::ProgramDecl,column:&str)->bool{let value=super::creation_advice::simplify_boolean(value);let mut value=&value;while let ast::Expr::Assert{value:inner,..}=value{value=inner;}matches!(value,ast::Expr::Member{base,name,..} if name==column&&same_resource(base,table,keys,p))}
+pub(super) fn opaque_row_payloads(write:&ast::Expr,context:&ast::ProgramDecl,p:&ast::ProgramDecl)->Vec<String>{let ast::Expr::Write{table,keys,fields,..}=write else{return Vec::new();};fields.iter().filter(|field|field.value.as_ref().is_some_and(|value|row_input_use(value,table,keys,p,&field.name)&&!row_input_copy(value,table,keys,p,&field.name))&&context.body.iter().any(|stmt|matches!(stmt,ast::Stmt::Require{condition,..} if row_input_use(condition,table,keys,p,&field.name)))).map(|field|field.name.clone()).collect()}
 fn checked_arguments(context:&ast::ProgramDecl,p:&ast::ProgramDecl)->BTreeSet<String>{
     let mut checked=BTreeSet::new();for statement in &context.body{if let ast::Stmt::Require{condition,..}=statement{let mut condition=condition.clone();omit_preconditions(&mut condition,false);condition=super::creation_advice::simplify_boolean(&condition);super::super::intent_walk::expression(&mut condition,&mut |e|if let ast::Expr::Name{name,..}=e&&p.args.iter().any(|arg|arg.name==*name){checked.insert(name.clone());});}}checked
 }
@@ -123,7 +130,7 @@ fn collect(sources:&[(String,String)],bound:&Bound,inputs:&mut BTreeMap<(String,
             let checked=checked_arguments(&context,p);
             let payload=fields.iter().filter(|field|!matches!(field.name.as_str(),"status"|"stage"|"state"|"phase")&&field.value.as_ref().is_some_and(|value|!payload_arguments(value,p).is_disjoint(&checked))).map(|field|field.name.clone()).collect::<BTreeSet<_>>();
             for (stamp,kind) in definition.columns.iter().filter(|(stamp,_)|["approv","authoriz"].iter().any(|part|stamp.to_lowercase().contains(part))){
-                let recorded=if let Some(field)=fields.iter().find(|field|field.name==*stamp){super::creation_advice::approval_recording(kind,field.value.as_ref())}else{matches!(op,ast::WriteOp::Insert|ast::WriteOp::Upsert)&&definition.defaults.get(stamp).is_some_and(|value|match (kind.required(),value.value(challenges::NOW,"$derived")){(snapback4_core::schema::ColumnType::Bool,snapback4_core::Value::Bool(true))|(snapback4_core::schema::ColumnType::Time,snapback4_core::Value::Int(_))=>true,_=>false})};
+                let recorded=if let Some(field)=fields.iter().find(|field|field.name==*stamp){potential_recording(kind,field.value.as_ref(),&table,&keys,p,stamp)}else{matches!(op,ast::WriteOp::Insert|ast::WriteOp::Upsert)&&definition.defaults.get(stamp).is_some_and(|value|match (kind.required(),value.value(challenges::NOW,"$derived")){(snapback4_core::schema::ColumnType::Bool,snapback4_core::Value::Bool(true))|(snapback4_core::schema::ColumnType::Time,snapback4_core::Value::Int(_))=>true,_=>false})};
                 if recorded{inputs.entry((table.clone(),stamp.clone())).or_default().extend(payload.iter().filter(|column|*column!=stamp).cloned());origins.entry((table.clone(),stamp.clone())).or_insert_with(||site.clone());}
                 if let Some(field)=fields.iter().find(|field|field.name==*stamp){let key=(super::super::operation_name(std::path::Path::new(file).file_stem().and_then(|s|s.to_str()).unwrap_or(file),&p.name),table.clone(),stamp.clone());
                     if super::creation_advice::approval_recording(kind,field.value.as_ref()){
@@ -181,10 +188,10 @@ fn collect(sources:&[(String,String)],bound:&Bound,inputs:&mut BTreeMap<(String,
             }}
             for approval in fields.iter().filter(|f|["approv","authoriz"].iter().any(|s|f.name.to_lowercase().contains(s))){
                 let Some(kind)=definition.columns.get(&approval.name)else{continue;};
-                if !super::creation_advice::approval_recording(kind,approval.value.as_ref()){continue;}
+                if !potential_recording(kind,approval.value.as_ref(),table,match write{ast::Expr::Write{keys,..}=>keys,_=>unreachable!()},p,&approval.name){continue;}
                 // Keep the source dependency even when existing runtime freeze
                 // authority makes emitting another edit candidate redundant.
-                inputs.entry((table.clone(),approval.name.clone())).or_default().extend(inspected.iter().filter(|column|definition.columns.contains_key(*column)&&**column!=approval.name&&fields.iter().find(|field|&field.name==*column).is_none_or(|field|field.value.as_ref().is_some_and(|value|{let value=super::creation_advice::simplify_boolean(value);matches!(&value,ast::Expr::Member{base,name,..} if name==*column&&same_resource(base,table,match write{ast::Expr::Write{keys,..}=>keys,_=>unreachable!()},p))}))).cloned());
+                inputs.entry((table.clone(),approval.name.clone())).or_default().extend(inspected.iter().filter(|column|definition.columns.contains_key(*column)&&**column!=approval.name&&fields.iter().find(|field|&field.name==*column).is_none_or(|field|field.value.as_ref().is_some_and(|value|row_input_use(value,table,match write{ast::Expr::Write{keys,..}=>keys,_=>unreachable!()},p,column)))).cloned());
                 origins.entry((table.clone(),approval.name.clone())).or_insert_with(||site.clone());
 
             }

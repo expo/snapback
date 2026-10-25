@@ -30,7 +30,7 @@ pub(super) fn collect(sources:&[(String,String)],bound:&Bound)->BTreeMap<(String
                 let mut predicate=workflow::normalize(&condition,&bound.schema,table,&arguments);
                 // Non-identity argument mappings retain the output dependency,
                 // but cannot validate replacement data by pretending output=input.
-                if fields.iter().any(|field|columns.contains(&field.name)&&field.value.as_ref().is_some_and(|value|stored_argument(value,p).is_none()&&!payload_arguments(value,p).is_empty())){predicate=None;}
+                if fields.iter().any(|field|columns.contains(&field.name)&&field.value.as_ref().is_some_and(|value|(stored_argument(value,p).is_none()&&!payload_arguments(value,p).is_empty())||(row_input_use(value,table,keys,p,&field.name)&&!row_input_copy(value,table,keys,p,&field.name)))){predicate=None;}
                 // A foreign row changed earlier in the operation may no longer
                 // be the row image on which its actual require was evaluated.
                 walk(&condition,|e|if let ast::Expr::Read(read)|ast::Expr::Exists{read,..}=e&&writes.iter().any(|(write,_)|matches!(write,ast::Expr::Write{table:target,..} if target==&read.table)){predicate=None;});

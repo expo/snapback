@@ -582,5 +582,20 @@ fn campaign(s:&str)->Campaign{let b=security::derived::augmented(&sources(s),&bo
 }
 #[test]fn equivalent_co_written_inputs_keep_approval_dependencies(){
     let source="table docs:\n  consent: bool\n  approved: bool default false\n  read <- allow\n  update <- allow\n  online only\nmutation approve(doc: docs):\n  d = docs[doc] ! else MISSING\n  require d.consent else CONSENT\n  update docs[doc] {consent:VALUE,approved:true}\nmutation edit(doc: docs):\n  update docs[doc] {consent:false}\n";
-    for value in ["d.consent","not not d.consent","d.consent and true","d.consent if true else false"]{let source=source.replace("VALUE",value);assert!(security::derived::invariants(&sources(&source),&bound(&source)).iter().any(|i|i.table=="docs"&&i.column.as_deref()==Some("consent")),"{value}");}
+    for value in ["d.consent","not not d.consent","d.consent and true","d.consent if true else false","d.consent = true","not d.consent"]{let source=source.replace("VALUE",value);assert!(security::derived::invariants(&sources(&source),&bound(&source)).iter().any(|i|i.table=="docs"&&i.column.as_deref()==Some("consent")),"{value}");}
+}
+
+#[test]fn rejoined_approval_implications_report_unmappable_caller_scope(){
+    let source="table docs:\n  restricted: bool default false\n  approved: bool default false\n  stage: enum('draft','done') default 'draft'\n  read <- allow\n  update <- allow\n  online only\nmutation approve(doc: docs):\n  update docs[doc] {approved:true}\nmutation finish(doc: docs,flag: bool):\n  d = docs[doc] ! else MISSING\n  if CONDITION:\n    require d.approved else APPROVAL\n  update docs[doc] {stage:'done'}\nmutation bypass(doc: docs):\n  update docs[doc] {stage:'done'}\n";
+    for (condition,mapped) in [("flag",false),("d.restricted",true)]{let source=source.replace("CONDITION",condition);let b=bound(&source);assert!(!notes(&source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));let cs=security::derived::invariants(&sources(&source),&b);assert_eq!(cs.iter().any(|i|i.site.file.contains("sibling-approval")),mapped,"{condition}");assert_eq!(security::source_inference_gaps(&sources(&source),&b).iter().any(|gap|gap.contains("branch applicability cannot map")),!mapped,"{condition}");if mapped{assert!(cs.iter().filter(|i|i.site.file.contains("sibling-approval")).all(|i|i.predicate.contains("restricted")));}}
+}
+#[test]fn caller_supplied_positive_approvals_keep_checked_input_contracts(){
+    let source="table docs:\n  consent: bool\n  approved: bool default false\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\nISSUE
+mutation edit(doc: docs):\n  update docs[doc] {consent:false}\n";
+    for issue in ["mutation issue(consent: bool,decision: bool):\n  require consent else CONSENT\n  return insert docs {consent,approved:decision}","mutation issue(doc: docs,decision: bool):\n  d = docs[doc] ! else MISSING\n  require d.consent else CONSENT\n  return update docs[doc] {approved:decision}","mutation issue(doc: docs,consent: bool,decision: bool):\n  require consent else CONSENT\n  return upsert docs[doc] {consent,approved:decision}"]{let source=source.replace("ISSUE",issue);assert!(security::derived::invariants(&sources(&source),&bound(&source)).iter().any(|i|i.table=="docs"&&i.column.as_deref()==Some("consent")&&i.target=="update"),"{issue}");}
+}
+
+#[test]fn preserving_an_existing_stamp_does_not_approve_unrelated_checked_payload(){
+    let source="table docs:\n  consent: bool\n  approved: bool default false\n  read <- allow\n  update <- allow\n  online only\nmutation approve(doc: docs):\n  update docs[doc] {approved:true}\nmutation maintain(doc: docs,consent: bool):\n  d = docs[doc] ! else MISSING\n  require consent else CONSENT\n  update docs[doc] {consent,approved:VALUE}\nmutation edit(doc: docs):\n  update docs[doc] {consent:false}\n";
+    for value in ["d.approved","not not d.approved","d.approved and true"]{let source=source.replace("VALUE",value);assert!(!security::derived::invariants(&sources(&source),&bound(&source)).iter().any(|i|i.table=="docs"&&i.column.as_deref()==Some("consent")),"{value}");}
 }
