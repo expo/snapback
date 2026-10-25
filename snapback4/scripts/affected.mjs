@@ -157,6 +157,11 @@ export function selectAffected(changedFiles, model) {
     if (/^scripts\/affected(?:-replay)?(?:\.test)?\.mjs$/.test(p)) {
       checks.add('selector-tests'); why(path, 'selector implementation/fixtures'); continue;
     }
+    if (p === 'scripts/measure-wasm.sh') {
+      checks.add('wasm-measurement'); checks.add('selector-tests');
+      clientFiles.add(`${PREFIX}packages/snapback4/test/wasm-budget.test.mjs`);
+      why(path, 'measurement runner and its executable contract'); continue;
+    }
     const supportPackage = model.packages.find(pkg => path.startsWith(pkg.dir + '/'));
     if (/^(?:fixtures|native-fixtures|vendor|scripts)\//.test(p)
       || /^crates\/[^/]+\/tests\/.*\.md$/.test(p)
@@ -259,7 +264,7 @@ export function selectAffected(changedFiles, model) {
   const evidence = [...clientFiles].flatMap(test => model.clientEvidence?.[test] ?? []).concat([...fixtureFiles].flatMap(test => model.fixtureEvidence?.[test] ?? []));
   const needCli = broad || evidence.some(hit => /CLI|process consumer/.test(hit));
   const needClient = broad || evidence.some(hit => /client build consumer|computed import|unresolved (?:local|workspace) import/.test(hit));
-  const needWasm = needClient || evidence.some(hit => /wasm/.test(hit));
+  const needWasm = needClient || checks.has('wasm-measurement') || evidence.some(hit => /wasm/.test(hit));
   if (needWasm || needClient || fullPackages.size) step('install-client', 'snapback4', ['bun', 'install', '--frozen-lockfile'], 'locked client/build dependencies');
   if (needCli) cargo('build-cli', ['build', '-p', 'snapback4'], 'selected clients spawn/import CLI');
   if (needWasm) step('build-wasm', 'snapback4', ['bash', 'scripts/build-wasm.sh'], 'selected clients import wasm');
@@ -313,7 +318,7 @@ export function selectAffected(changedFiles, model) {
     generated: ['.', ['bash', 'scripts/check-generated-artifacts']],
     'ref-check': ['.', ['./ref-check']],
     'selector-tests': ['.', ['node', '--test', 'snapback4/scripts/affected.test.mjs', 'tests/local_proof_selection_v0.mjs', 'tests/local_proof_inventory_v0.mjs', 'tests/ci_workflows_v0.mjs']],
-    'wasm-measurement': ['snapback4', ['bash', 'scripts/measure-wasm.sh']],
+    'wasm-measurement': ['snapback4', ['bash', 'scripts/measure-wasm.sh', '--no-record']],
   };
   for (const check of sorted(checks)) if (check !== 'fixture-tests') step(check, ...checkCommands[check], 'affected input contract');
   if (semantics) {

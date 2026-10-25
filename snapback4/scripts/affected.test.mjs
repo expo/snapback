@@ -194,6 +194,16 @@ test('packages without owned tests widen to cover sibling consumers', () => {
   assert(selectAffected(['snapback4/packages/native-package/src/bridge.ts'], noTests).broad);
 });
 
+test('measurement changes run their executable contract without mutating tracked metrology', () => {
+  const plan = select(['snapback4/scripts/measure-wasm.sh']);
+  assert.equal(plan.broad, false);
+  assert(plan.clientFiles.includes('snapback4/packages/snapback4/test/wasm-budget.test.mjs'));
+  assert(ids(plan).includes('build-wasm'));
+  const measurement = plan.steps.find(step => step.id === 'wasm-measurement');
+  assert.deepEqual(measurement.argv, ['bash', 'scripts/measure-wasm.sh', '--no-record']);
+  assert(measurement.requires.includes('build-wasm'));
+});
+
 test('client pool prerequisites are derived per file rather than unioned across the pool', () => {
   const first = model.packages[0].tests[0], second = model.packages[1].tests[0];
   const mixed = { ...model, clientEvidence: { [first]: ['first: CLI/process consumer'], [second]: ['second: wasm consumer'] } };
