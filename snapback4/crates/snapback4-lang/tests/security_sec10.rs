@@ -474,5 +474,14 @@ fn campaign(s:&str)->Campaign{let b=security::derived::augmented(&sources(s),&bo
 #[test]fn caller_path_facts_exclude_skipped_approval_branches(){
     let source="table docs:\n  approved: bool default false\n  status: enum('draft','done') default 'draft'\n  read <- allow\n  update <- allow\n  online only\nmutation approve(doc: docs):\n  update docs[doc] {approved:true}\nmutation finish(doc: docs,choice: bool):\n  d = docs[doc] ! else MISSING\n  if choice:\n    return null\n  if choice:\n    require d.approved else APPROVAL\n  update docs[doc] {status:'done'}\n";
     assert!(notes(source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+    for condition in ["choice = true","choice != false","true = choice"]{let guarded=source.replacen("  if choice:\n    return null",&format!("  if {condition}:\n    return null"),1);assert!(notes(&guarded).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"),"{condition}");}
+    let opaque=source.replace("  if choice:\n    return null\n","").replace("  if choice:\n    require d.approved","  if never(choice):\n    require d.approved")+"fn never(flag: bool):\n  if flag:\n    return false\n  return false\n";assert!(notes(&opaque).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+    let checked=source.replace("  if choice:\n    return null\n","").replace("require d.approved else APPROVAL","require checked(d.approved) else APPROVAL")+"fn checked(value: bool):\n  require value else APPROVAL\n  return true\n";assert!(!notes(&checked).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+
     let joined=source.replace("  if choice:\n    return null", "  stop = false\n  if choice:\n    stop = true\n    return null").replace("  if choice:\n    require d.approved", "  if stop:\n    require d.approved");assert!(notes(&joined).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+}
+
+#[test]fn an_unrelated_unknown_value_does_not_erase_an_unconditional_approval_guard(){
+    let source="table docs:\n  approved: bool default false\n  status: enum('draft','done') default 'draft'\n  reason: text <=30 ?\n  read <- allow\n  update <- allow\n  online only\nmutation approve(doc: docs):\n  update docs[doc] {approved:true}\nmutation finish(doc: docs,newReason: text <=30 ?):\n  d = docs[doc] ! else MISSING\n  reason = newReason\n  if reason = null:\n    reason = d.reason\n  require reason != null else REASON\n  require d.approved else APPROVAL\n  update docs[doc] {status:'done'}\n";
+    assert!(!notes(source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
 }

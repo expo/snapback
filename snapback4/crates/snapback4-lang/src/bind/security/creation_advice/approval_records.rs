@@ -67,7 +67,7 @@ fn schema_probe(rule:&RuleExpr,negated:bool,name:&str,reference:&str,parent:&str
     }),_=>false,
 }}
 fn enforced(effect:&Write<'_>,name:&str,reference:&str,parent:&str,bound:&Bound,negative:bool)->bool{
-    let conditions=effective_conditions(&effect.context);if conditions.iter().any(|condition|matches!(condition,Expr::Literal{value:ast::Literal::Bool(false),..})){return false;}
+    let conditions=effective_conditions(&effect.context,effect.catalog);if conditions.iter().any(|condition|matches!(condition,Expr::Literal{value:ast::Literal::Bool(false),..})){return false;}
     if conditions.iter().any(|condition|source_probe(condition,negative,name,reference,parent,effect,bound)){return true;}
     let table=&bound.schema.tables[&effect.table];let row=if matches!(effect.op,WriteOp::Update|WriteOp::Upsert){&table.rules.update}else{&table.rules.insert};
     if schema_probe(&scoped_rule(row,effect,parent,bound),negative,name,reference,parent,effect,bound){return true;}

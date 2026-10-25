@@ -84,7 +84,7 @@ fn guarded_boolean_decision(record:&Write<'_>,field:&ast::ObjectField,bound:&Bou
         Expr::Binary{op,left,right,..} if op=="and"||op=="or"=>{let a=project(left,record,column,value);let b=project(right,record,column,value);let decisive=op=="or";if a==Some(decisive)||b==Some(decisive){Some(decisive)}else if a.is_some()&&b.is_some(){Some(!decisive)}else{None}},
         Expr::Binary{op,left,right,..} if op=="="||op=="!="=>Some((project(left,record,column,value)?==project(right,record,column,value)?)==(op=="=")),_=>None,
     }}
-    effective_conditions(&record.context).iter().any(|condition|{
+    effective_conditions(&record.context,record.catalog).iter().any(|condition|{
         let mut uses=false;walk(condition,|e|if let Expr::Member{base,name,..}=e&&name==&field.name&&super::super::derived::same_resource(base,&record.table,&record.keys,record.p){uses=true;});
         uses&&project(condition,record,&field.name,*after)==Some(false)
     })
@@ -129,7 +129,7 @@ fn caller_approval(condition:&Expr,table:&str,column:&str,bound:&Bound)->bool{
 fn parent_loop_guard(effect:&Write<'_>,table:&str,column:&str,bound:&Bound)->bool{
     fn expanded(catalog:&Catalog,value:&Expr,env:&BTreeMap<String,Expr>)->Expr{super::super::authority_walk::returned(catalog,&super::super::authority_walk::resolve(value,env),0)}
     fn unresolved(value:&Expr)->bool{let mut unknown=false;walk(value,|e|match e{Expr::Name{name,..} if name.starts_with("$advice_")=>unknown=true,Expr::Call{..}|Expr::If{..}=>unknown=true,_=>{}});unknown}
-    fn scan(body:&[Stmt],binder:&str,column:&str,env:&mut BTreeMap<String,Expr>,catalog:&Catalog,depth:usize,names:&BTreeSet<String>,facts:&mut BTreeMap<String,bool>)->(bool,bool){
+    fn scan(body:&[Stmt],binder:&str,column:&str,env:&mut BTreeMap<String,Expr>,catalog:&Catalog,depth:usize,names:&CallerArguments,facts:&mut BTreeMap<String,bool>)->(bool,bool){
         if depth>=32{return (false,false);}
         let resolve=|value:&Expr,env:&BTreeMap<String,Expr>|expanded(catalog,value,env);
         for stmt in body{
@@ -182,7 +182,7 @@ fn parent_loop_guard(effect:&Write<'_>,table:&str,column:&str,bound:&Bound)->boo
         let Some(owner)=owner else{return false;};before=owner;
     }
     if effect.table==table||!bound.schema.tables[table].columns.values().any(|kind|matches!(kind.required(),ColumnType::Ref{table} if table==&effect.table)){return false;}
-    let Some(mut facts)=context_facts(&effect.context)else{return false;};let names=caller_names(effect.p);
+    let Some(mut facts)=context_facts(&effect.context,effect.catalog)else{return false;};let names=caller_names(effect.p);
     let mut env=BTreeMap::new();
     for stmt in before{match stmt{
         Stmt::Bind{names,value,..}=>{let value=expanded(effect.catalog,value,&env);for name in names{env.insert(name.clone(),if names.len()==1{value.clone()}else{Expr::Name{name:format!("$advice_loop_unknown:{name}"),site:value.site().clone()}});}},
@@ -228,7 +228,7 @@ fn linked_decision_stamp(record:&Write<'_>,column:&str,writes:&[Write<'_>],bound
 // approval. Read audiences and another resource's validation are not enforcement.
 pub(super) fn scalar_enforced(effect:&Write<'_>,table:&str,column:&str,bound:&Bound,negative:bool)->bool{
     let targets=super::approval_records::parent_values(effect,table,bound).into_iter().filter_map(|value|super::approval_records::origin(&value,effect.p,bound)).collect::<Vec<_>>();
-    let conditions=effective_conditions(&effect.context);if conditions.iter().any(|condition|matches!(condition,Expr::Literal{value:ast::Literal::Bool(false),..})){return false;}
+    let conditions=effective_conditions(&effect.context,effect.catalog);if conditions.iter().any(|condition|matches!(condition,Expr::Literal{value:ast::Literal::Bool(false),..})){return false;}
     conditions.iter().any(|condition|{
         if !negative&&caller_approval(condition,table,column,bound){return true;}
         let condition=if negative{Expr::Unary{op:"not".into(),value:Box::new((*condition).clone()),site:condition.site().clone()}}else{(*condition).clone()};

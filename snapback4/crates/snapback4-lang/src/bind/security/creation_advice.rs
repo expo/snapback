@@ -43,24 +43,39 @@ fn simplify_rule(rule:&RuleExpr)->RuleExpr{match rule{
         if out.is_empty(){if disjunction{RuleExpr::Deny}else{RuleExpr::Allow}}else if out.len()==1{out.remove(0)}else if disjunction{RuleExpr::Or(out)}else{RuleExpr::And(out)}
     },_=>rule.clone(),
 }}
-fn caller_names(p:&ast::ProgramDecl)->BTreeSet<String>{p.args.iter().map(|arg|arg.name.clone()).collect()}
-fn caller_predicate(expression:&Expr,names:&BTreeSet<String>)->bool{
-    let mut supported=true;walk(expression,|e|match e{Expr::Literal{..}=>{},Expr::Name{name,..} if names.contains(name)||matches!(name.as_str(),"viewer"|"now")=>{},Expr::Unary{..}|Expr::Binary{..}|Expr::Assert{..}=>{},_=>supported=false});supported
+struct CallerArguments{names:BTreeSet<String>,booleans:BTreeSet<String>}
+fn caller_names(p:&ast::ProgramDecl)->CallerArguments{CallerArguments{names:p.args.iter().map(|arg|arg.name.clone()).collect(),booleans:p.args.iter().filter(|arg|matches!(arg.type_.kind,TypeKind::Bool)&&!arg.type_.optional).map(|arg|arg.name.clone()).collect()}}
+fn caller_predicate(expression:&Expr,names:&CallerArguments)->bool{
+    let mut supported=true;walk(expression,|e|match e{Expr::Literal{..}=>{},Expr::Name{name,..} if names.names.contains(name)||matches!(name.as_str(),"viewer"|"now")=>{},Expr::Unary{..}|Expr::Binary{..}|Expr::Assert{..}=>{},_=>supported=false});supported
 }
-fn predicate_fact(expression:&Expr,names:&BTreeSet<String>)->Option<(String,bool)>{
+fn predicate_fact(expression:&Expr,names:&CallerArguments)->Option<(String,bool)>{
     if !caller_predicate(expression,names){return None;}let mut expression=expression;let mut value=true;while let Expr::Unary{op,value:inner,..}=expression{if op!="not"{break;}expression=inner;value=!value;}
+    if let Expr::Binary{op,left,right,..}=expression&&matches!(op.as_str(),"="|"!="){
+        for (name,boolean) in [(left.as_ref(),right.as_ref()),(right.as_ref(),left.as_ref())]{if let (Expr::Name{name,..},Expr::Literal{value:ast::Literal::Bool(expected),..})=(name,boolean)&&names.booleans.contains(name){return Some((name.clone(),value==(*expected==(op=="="))));}}
+    }
     (!matches!(expression,Expr::Literal{..})).then(||(crate::print::expression(expression),value))
 }
-fn apply_facts(expression:&Expr,facts:&BTreeMap<String,bool>,names:&BTreeSet<String>)->Expr{
+fn apply_facts(expression:&Expr,facts:&BTreeMap<String,bool>,names:&CallerArguments)->Expr{
     let mut expression=expression.clone();super::super::intent_walk::expression(&mut expression,&mut |e|if let Some((key,positive))=predicate_fact(e,names)&&let Some(value)=facts.get(&key){*e=Expr::Literal{value:ast::Literal::Bool(*value==positive),site:e.site().clone()};});simplify_boolean(&expression)
 }
-fn context_facts(p:&ast::ProgramDecl)->Option<BTreeMap<String,bool>>{
+fn private_unknown(expression:&Expr,catalog:&Catalog)->bool{let mut unknown=false;walk(expression,|e|match e{Expr::Name{name,..} if name.starts_with("$advice_")=>unknown=true,Expr::Call{name,..} if catalog.functions.contains_key(name)=>unknown=true,Expr::If{..}=>unknown=true,_=>{}});unknown}
+fn context_facts(p:&ast::ProgramDecl,catalog:&Catalog)->Option<BTreeMap<String,bool>>{
     let names=caller_names(p);let mut facts=BTreeMap::new();
-    for stmt in &p.body{let Stmt::Require{condition,code,..}=stmt else{continue;};let mut unknown=code=="$advice:cut";walk(condition,|e|if matches!(e,Expr::Name{name,..} if name.starts_with("$advice_")){unknown=true;});if unknown{return None;}
-        let condition=simplify_boolean(condition);for part in conjunction(&condition){if matches!(part,Expr::Literal{value:ast::Literal::Bool(false),..}){return None;}if let Some((key,value))=predicate_fact(part,&names){if facts.insert(key,value).is_some_and(|old|old!=value){return None;}}}
+    for stmt in &p.body{let Stmt::Require{condition,code,..}=stmt else{continue;};if code=="$advice:cut"||code=="$advice"&&private_unknown(condition,catalog){return None;}
+        let condition=simplify_boolean(condition);for part in conjunction(&condition){if private_unknown(part,catalog){continue;}if matches!(part,Expr::Literal{value:ast::Literal::Bool(false),..}){return None;}if let Some((key,value))=predicate_fact(part,&names){if facts.insert(key,value).is_some_and(|old|old!=value){return None;}}}
     }Some(facts)
 }
-fn effective_conditions(p:&ast::ProgramDecl)->Vec<Expr>{let Some(facts)=context_facts(p)else{return vec![Expr::Literal{value:ast::Literal::Bool(false),site:p.site.clone()}];};let names=caller_names(p);conditions(p).into_iter().map(|condition|apply_facts(condition,&facts,&names)).collect()}
+fn known_condition(condition:&Expr,catalog:&Catalog)->Option<Expr>{
+    if !private_unknown(condition,catalog){return Some(condition.clone());}
+    // S1 recognizes real conditional use. An opaque alternative in an OR
+    // does not erase its independent approval arm; an opaque applicability
+    // premise (AND or the enclosing branch) cannot establish use.
+    if let Expr::Binary{op,left,right,site}=condition&&op=="or"{return match (known_condition(left,catalog),known_condition(right,catalog)){
+        (Some(left),Some(right))=>Some(Expr::Binary{op:op.clone(),left:Box::new(left),right:Box::new(right),site:site.clone()}),
+        (Some(value),None)|(None,Some(value))=>Some(value),_=>None,
+    };}None
+}
+fn effective_conditions(p:&ast::ProgramDecl,catalog:&Catalog)->Vec<Expr>{let Some(facts)=context_facts(p,catalog)else{return vec![Expr::Literal{value:ast::Literal::Bool(false),site:p.site.clone()}];};let names=caller_names(p);conditions(p).into_iter().flat_map(conjunction).filter_map(|condition|known_condition(condition,catalog)).map(|condition|apply_facts(&condition,&facts,&names)).collect()}
 
 fn reads(e:&Expr)->BTreeSet<String>{let mut out=BTreeSet::new();walk(e,|e|match e{Expr::Read(r)|Expr::Exists{read:r,..}=>{out.insert(r.table.clone());},_=>{}});out}
 fn nonnull(p:&ast::ProgramDecl,arg:&str)->bool{nonnull_mode(p,arg,false)}

@@ -32,16 +32,17 @@ fn expression(catalog:&Catalog,p:&ProgramDecl,expr:&Expr,env:&Env,guards:&[Stmt]
         },_=>{}
     });
 }
+fn conditional(guards:Vec<Stmt>,premise:Expr,site:&Site)->Vec<Stmt>{guards.into_iter().filter_map(|stmt|if let Stmt::Require{condition,code,..}=stmt{
+        let condition=super::creation_advice::simplify_boolean(&Expr::Binary{op:"or".into(),left:Box::new(Expr::Unary{op:"not".into(),value:Box::new(premise.clone()),site:site.clone()}),right:Box::new(condition),site:site.clone()});
+        if code=="$advice:cut"&&matches!(condition,Expr::Literal{value:ast::Literal::Bool(true),..}){return None;}
+        Some(Stmt::Require{condition,code:if code=="$advice:cut"{code}else{"$advice:implication".into()},message:None,site:site.clone()})
+    }else{None}).collect()}
+
 // Guaranteed evaluated operands export helper requirements. Conditional
 // operands retain applicability implications, never an unconditional assumption.
 pub(super) fn helper_guards(catalog:&Catalog,expr:&Expr,env:&Env,depth:usize)->Vec<Stmt>{
     if depth>=32{return vec![Stmt::Require{condition:Expr::Name{name:"$advice_helper_cut".into(),site:expr.site().clone()},code:"$advice:cut".into(),message:None,site:expr.site().clone()}];}
     let expression=resolve(expr,env);
-    fn conditional(guards:Vec<Stmt>,premise:Expr,site:&Site)->Vec<Stmt>{guards.into_iter().filter_map(|stmt|if let Stmt::Require{condition,code,..}=stmt{
-        let condition=super::creation_advice::simplify_boolean(&Expr::Binary{op:"or".into(),left:Box::new(Expr::Unary{op:"not".into(),value:Box::new(premise.clone()),site:site.clone()}),right:Box::new(condition),site:site.clone()});
-        if code=="$advice:cut"&&matches!(condition,Expr::Literal{value:ast::Literal::Bool(true),..}){return None;}
-        Some(Stmt::Require{condition,code:if code=="$advice:cut"{code}else{"$advice:implication".into()},message:None,site:site.clone()})
-    }else{None}).collect()}
 
     match &expression{
         Expr::Unary{value,..}|Expr::Assert{value,..}|Expr::Member{base:value,..}=>return helper_guards(catalog,value,&Env::new(),depth+1),
@@ -70,25 +71,23 @@ pub(super) fn helper_guards(catalog:&Catalog,expr:&Expr,env:&Env,depth:usize)->V
         Stmt::Require{condition,code,message,site}=>{out.extend(helper_guards(catalog,condition,&locals,depth+1));out.push(Stmt::Require{condition:resolve(condition,&locals),code:code.clone(),message:message.clone(),site:site.clone()});},
         Stmt::Bind{names,value,..}=>{out.extend(helper_guards(catalog,value,&locals,depth+1));if names.len()==1{locals.insert(names[0].clone(),resolve(value,&locals));}else{for name in names{locals.insert(name.clone(),Expr::Name{name:format!("$advice_unknown_{name}"),site:value.site().clone()});}}},
         Stmt::Expr{value,..}=>out.extend(helper_guards(catalog,value,&locals,depth+1)),
-        Stmt::Return{value,..}=>{out.extend(helper_guards(catalog,value,&locals,depth+1));break;},_=>break,
+        Stmt::Return{value,..}=>{out.extend(helper_guards(catalog,value,&locals,depth+1));break;},
+        Stmt::If{condition,then_body,else_body,site}=>{let (Some(yes),Some(no))=(conditional_guards(catalog,then_body,&locals,depth+1),conditional_guards(catalog,else_body,&locals,depth+1))else{break;};out.extend(helper_guards(catalog,condition,&locals,depth+1));let predicate=resolve(condition,&locals);out.extend(conditional(yes,predicate.clone(),site));out.extend(conditional(no,Expr::Unary{op:"not".into(),value:Box::new(predicate),site:site.clone()},site));},_=>break,
     }}out
 }
 // Conditional require-only branches impose an implication after rejoining.
 // A branch with writes, returns or assignments exports no inferred requirement.
-fn conditional_guards(body:&[Stmt],env:&Env)->Option<Vec<Expr>> {
+fn conditional_guards(catalog:&Catalog,body:&[Stmt],env:&Env,depth:usize)->Option<Vec<Stmt>> {
+    if depth>=32{return Some(vec![Stmt::Require{condition:Expr::Name{name:"$advice_helper_cut".into(),site:body.first().map(|stmt|match stmt{Stmt::Require{site,..}|Stmt::If{site,..}=>site.clone(),_=>Site::new("$advice",1,1)}).unwrap_or_else(||Site::new("$advice",1,1))},code:"$advice:cut".into(),message:None,site:Site::new("$advice",1,1)}]);}
     let mut out=Vec::new();
-    for s in body {match s {
-        Stmt::Require{condition,..}=>out.push(resolve(condition,env)),
+    for stmt in body {match stmt {
+        Stmt::Require{condition,code,message,site}=>{out.extend(helper_guards(catalog,condition,env,depth+1));out.push(Stmt::Require{condition:resolve(condition,env),code:code.clone(),message:message.clone(),site:site.clone()});},
         Stmt::If{condition,then_body,else_body,site}=>{
-            let condition=resolve(condition,env);
-            for (negate,branch) in [(true,then_body),(false,else_body)] {
-                for required in conditional_guards(branch,env)? {
-                    let premise=if negate{Expr::Unary{op:"not".into(),value:Box::new(condition.clone()),site:site.clone()}}else{condition.clone()};
-                    out.push(Expr::Binary{op:"or".into(),left:Box::new(premise),right:Box::new(required),site:site.clone()});
-                }
-            }
+            out.extend(helper_guards(catalog,condition,env,depth+1));let condition=resolve(condition,env);
+            out.extend(conditional(conditional_guards(catalog,then_body,env,depth+1)?,condition.clone(),site));
+            out.extend(conditional(conditional_guards(catalog,else_body,env,depth+1)?,Expr::Unary{op:"not".into(),value:Box::new(condition),site:site.clone()},site));
         },_=>return None,
-    }} Some(out)
+    }}Some(out)
 }
 // An early return commits previous writes while skipping later decisions.
 // Preserve the continuation path so a later stamp cannot exempt an earlier audit.
@@ -163,10 +162,7 @@ fn statements(catalog:&Catalog,p:&ProgramDecl,body:&[Stmt],env:&mut Env,guards:&
             let mut else_env=env.clone();
             statements(catalog,p,else_body,&mut else_env,&mut else_guards,&mut changes.clone(),column,depth,out);
             for (negate,branch) in [(true,then_body),(false,else_body)] {
-                if let Some(required)=conditional_guards(branch,env) {for required in required {
-                    let premise=if negate{Expr::Unary{op:"not".into(),value:Box::new(condition.clone()),site:site.clone()}}else{condition.clone()};
-                    guards.push(Stmt::Require{condition:Expr::Binary{op:"or".into(),left:Box::new(premise),right:Box::new(required),site:site.clone()},code:"$advice:implication".into(),message:None,site:site.clone()});
-                }}
+                if let Some(required)=conditional_guards(catalog,branch,env,0){let premise=if negate{condition.clone()}else{Expr::Unary{op:"not".into(),value:Box::new(condition.clone()),site:site.clone()}};guards.extend(conditional(required,premise,site));}
             }
             if contains_exit(then_body)||contains_exit(else_body){
                 let branch=Stmt::If{condition:condition.clone(),then_body:then_body.clone(),else_body:else_body.clone(),site:site.clone()};
