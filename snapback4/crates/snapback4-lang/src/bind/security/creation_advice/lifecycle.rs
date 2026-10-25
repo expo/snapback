@@ -121,18 +121,42 @@ fn schema_scalar(effect:&Write<'_>,table:&str,column:&str,bound:&Bound,negative:
     let covers=|field:&&ast::ObjectField|target.column_writes.get(&field.name).is_some_and(|rule|scalar_rule(&super::approval_records::scoped_rule(rule,effect,table,bound),table,column,&effect.table,negative,bound))||negative&&target.frozen_columns.get(&field.name).is_some_and(|rule|scalar_rule(&super::approval_records::scoped_rule(rule,effect,table,bound),table,column,&effect.table,false,bound));
     if negative{!fields.is_empty()&&fields.iter().all(covers)}else{fields.iter().any(covers)}
 }
+// A positive container is not positive use of all its descendants. Select
+// actual scalar operands while retaining Boolean and population polarity.
+fn positive_approval_field(e:&Expr,ordered_time:bool,matches:&impl Fn(&Expr,&str)->bool)->bool{
+    fn operand(e:&Expr,matches:&impl Fn(&Expr,&str)->bool)->bool{match e{
+        Expr::Member{base,name,..}=>matches(base,name),
+        Expr::Binary{op,left,right,..} if matches!(op.as_str(),"+"|"-"|"*"|"/"|"%")=>operand(left,matches)||operand(right,matches),
+        Expr::Unary{op,value,..} if matches!(op.as_str(),"+"|"-")=>operand(value,matches),
+        Expr::Call{name,args,..} if ["year","month","day","hour","minute","second"].contains(&name.as_str())=>args.iter().any(|value|operand(value,matches)),_=>false,
+    }}
+
+    fn scan(e:&Expr,negative:bool,ordered_time:bool,matches:&impl Fn(&Expr,&str)->bool)->bool{match e{
+        Expr::Unary{op,value,..} if op=="not"=>scan(value,!negative,ordered_time,matches),
+        Expr::Binary{op,left,right,..} if matches!(op.as_str(),"and"|"or")=>scan(left,negative,ordered_time,matches)||scan(right,negative,ordered_time,matches),
+        Expr::Exists{read,..} if !negative=>read.filter.as_deref().is_some_and(|filter|scan(filter,false,ordered_time,matches)),
+        Expr::Binary{op,left,right,..}=>{
+            if matches!(op.as_str(),"="|"!="){for (value,literal) in [(left.as_ref(),right.as_ref()),(right.as_ref(),left.as_ref())]{if let Expr::Literal{value:ast::Literal::Bool(flag),..}=literal{return scan(value,negative^((op=="=")!=*flag),ordered_time,matches);}}}
+            let predicate=if negative{Expr::Unary{op:"not".into(),value:Box::new(e.clone()),site:e.site().clone()}}else{e.clone()};
+            let positive=!super::super::derived::approval_receipts(&predicate).is_empty();
+            positive&&[left.as_ref(),right.as_ref()].into_iter().any(|value|matches!(value,Expr::Call{name,args,..} if name=="count"&&args.len()==1&&matches!(&args[0],Expr::Read(read) if read.filter.as_deref().is_some_and(|filter|scan(filter,false,ordered_time,matches)))))||
+            positive&&[left.as_ref(),right.as_ref()].into_iter().any(|value|matches!(value,Expr::Member{base,name,..} if matches(base,name)))||ordered_time&&matches!(op.as_str(),"<"|"<="|">"|">=")&&[left.as_ref(),right.as_ref()].into_iter().any(|value|operand(value,matches))
+        },
+        Expr::Member{base,name,..}=>!negative&&matches(base,name),_=>false,
+    }}scan(e,false,ordered_time,matches)
+}
 // A focal inside a nested population belongs to that population, including
 // another population of the same table. It cannot attest this caller row.
-fn local_filter_receipts(filter:&Expr)->Vec<Expr>{
+fn local_filter_approval(filter:&Expr,column:&str,ordered_time:bool)->bool{
     let mut filter=filter.clone();super::super::super::intent_walk::expression(&mut filter,&mut |e|if let Expr::Read(read)|Expr::Exists{read,..}=e&&let Some(nested)=&mut read.filter{
         super::super::super::intent_walk::expression(nested,&mut |e|if let Expr::Focal{site}=e{*e=Expr::Name{name:"$advice_foreign_population".into(),site:site.clone()};});
-    });super::super::derived::approval_receipts(&filter)
+    });positive_approval_field(&filter,ordered_time,&|base,name|name==column&&matches!(base,Expr::Focal{..}))
 }
 fn caller_approval(condition:&Expr,table:&str,column:&str,bound:&Bound)->bool{
     let Some(principal)=super::super::privilege::global_principal(bound,table)else{return false;};
     fn population(read:&ast::ReadExpr,table:&str,column:&str,principal:&str,bound:&Bound)->bool{
         let local=read.table==table&&read.keys.iter().any(|key|key.column.as_deref()==Some(principal)&&matches!(&key.value,Expr::Name{name,..} if name=="viewer"))&&(
-            read.keys.iter().any(|key|key.column.as_deref()==Some(column)&&matches!(&key.value,Expr::Literal{value:ast::Literal::Bool(true),..}))||read.filter.as_deref().is_some_and(|filter|local_filter_receipts(filter).iter().any(|positive|{let mut found=false;walk(positive,|e|if let Expr::Member{base,name,..}=e&&name==column&&matches!(base.as_ref(),Expr::Focal{..}){found=true;});found})));
+            read.keys.iter().any(|key|key.column.as_deref()==Some(column)&&matches!(&key.value,Expr::Literal{value:ast::Literal::Bool(true),..}))||read.filter.as_deref().is_some_and(|filter|local_filter_approval(filter,column,matches!(bound.schema.tables[table].columns.get(column).map(ColumnType::required),Some(ColumnType::Time)))));
         local||read.filter.as_deref().is_some_and(|filter|positive(filter,false,table,column,principal,bound))
     }
     fn positive(e:&Expr,negative:bool,table:&str,column:&str,principal:&str,bound:&Bound)->bool{match e{
@@ -168,7 +192,7 @@ fn parent_loop_guard(effect:&Write<'_>,table:&str,column:&str,bound:&Bound)->boo
                 // A salvaged OR arm is use evidence, never an assumption.
                 for part in conjunction(&condition){if let Some((key,value))=predicate_fact(part,names){if facts.insert(key,value).is_some_and(|old|old!=value){return (false,false);}}}
                 for condition in condition_parts(&condition,code,catalog){
-                    if super::super::derived::approval_receipts(&condition).iter().any(|positive|{let mut found=false;walk(positive,|e|if let Expr::Member{base,name,..}=e&&name==column&&matches!(base.as_ref(),Expr::Name{name,..} if name==binder){found=true;});found}){return (true,true);}
+                    if positive_approval_field(&condition,false,&|base,name|name==column&&matches!(base,Expr::Name{name,..} if name==binder)){return (true,true);}
                 }
             },
             Stmt::Break{..}|Stmt::Continue{..}|Stmt::Return{..}=>return (false,false),
@@ -263,7 +287,9 @@ pub(super) fn scalar_enforced(effect:&Write<'_>,table:&str,column:&str,bound:&Bo
     conditions.iter().any(|condition|{
         if !negative&&caller_approval(condition,table,column,bound){return true;}
         let condition=if negative{Expr::Unary{op:"not".into(),value:Box::new((*condition).clone()),site:condition.site().clone()}}else{(*condition).clone()};
-        let mut found=false;let approval=bound.schema.tables[table].columns.get(column).is_some_and(|kind|super::super::derived::named_approval(column,kind));let mut probes=if approval{super::super::derived::approval_receipts(&condition)}else{vec![condition.clone()]};
+        let mut found=false;let approval=bound.schema.tables[table].columns.get(column).is_some_and(|kind|super::super::derived::named_approval(column,kind));
+        if approval{return positive_approval_field(&condition,matches!(bound.schema.tables[table].columns.get(column).map(ColumnType::required),Some(ColumnType::Time)),&|base,name|name==column&&(effect.table==table&&super::super::derived::same_resource(base,table,&effect.keys,effect.p)||super::approval_records::origin(base,effect.p,bound).is_some_and(|origin|targets.contains(&origin))));}
+        let mut probes=vec![condition.clone()];
         if !negative&&matches!(bound.schema.tables[table].columns.get(column).map(ColumnType::required),Some(ColumnType::Time)){walk(&condition,|e|if matches!(e,Expr::Binary{op,..} if ["<","<=",">",">="].contains(&op.as_str())){probes.push(e.clone());});}for probe in probes{walk(&probe,|e|if let Expr::Member{base,name,..}=e&&name==column{
             found|=effect.table==table&&super::super::derived::same_resource(base,table,&effect.keys,effect.p)||super::approval_records::origin(base,effect.p,bound).is_some_and(|origin|targets.contains(&origin));
         });}found

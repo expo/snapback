@@ -66,6 +66,21 @@ pub(super) fn approval_receipts(e:&Expr)->Vec<Expr>{
     }
     let mut out=Vec::new();collect(e,false,&mut out);out
 }
+// Preserve the complete predicate at replay; this inventory only identifies
+// positive populations whose deletion has no current receipt image.
+pub(crate) fn approval_populations(e:&Expr)->Vec<ast::ReadExpr>{
+    fn add(read:&ast::ReadExpr,out:&mut Vec<ast::ReadExpr>){out.push(read.clone());if let Some(filter)=&read.filter{out.extend(approval_populations(filter));}}
+    let mut out=Vec::new();for receipt in approval_receipts(e){
+        let mut atom=&receipt;while let Expr::Unary{op,value,..}=atom{if op!="not"{break;}atom=value;}
+        match atom{
+            Expr::Exists{read,..}=>add(read,&mut out),
+            Expr::Binary{left,right,..}=>{for value in [left.as_ref(),right.as_ref()]{match value{
+                Expr::Call{name,args,..} if name=="count"&&args.len()==1=>if let Expr::Read(read)=&args[0]{add(read,&mut out);},
+                Expr::Exists{read,..}=>add(read,&mut out),Expr::Binary{..}|Expr::Unary{..}=>out.extend(approval_populations(value)),_=>{},
+            }}},_=>{},
+        }
+    }out
+}
 fn contains_approval(e:&Expr)->bool{!approval_receipts(e).is_empty()}
 // Normalize first, then classify typed fields. Population filters own their
 // focal row; ordinary edit metadata may remain in a real approval prerequisite.

@@ -672,3 +672,8 @@ mutation edit(doc: docs):\n  update docs[doc] {consent:false}\n";
         let source=source.replace("CONDITION",condition);assert_eq!(notes(&source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"&&n.message.contains("approved")),gate,"{condition}: {:?}",notes(&source));
     }
 }
+
+#[test]fn captured_negative_approval_inside_a_population_is_not_positive_use(){
+    let source="table accounts:\n  principal: principal\n  unique principal\n  approved: bool default false\n  authorizationRouteUpdatedAt: time ?\n  status: enum('draft','done') default 'draft'\n  read <- allow\n  update <- allow\n  online only\nmutation approve(account: accounts):\n  update accounts[account] {approved:true}\nmutation guarded(account: accounts):\n  d = accounts[account] ! else MISSING\n  require exists accounts[principal = viewer] where (.authorizationRouteUpdatedAt != null and NEGATIVE d.approved) else NO_APPROVAL\n  update accounts[account] {status:'done'}\nmutation bypass(account: accounts):\n  update accounts[account] {status:'done'}\n";
+    for (negation,gate) in [("not",true),("",false),("not not",false)]{let source=source.replace("NEGATIVE",negation);assert_eq!(notes(&source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"&&n.message.contains("approved")),gate,"{negation}: {:?}",notes(&source));}
+}

@@ -79,10 +79,10 @@ fn consumed(predicate:&ast::Expr,row:&Value,effective:&Value,rows:&BTreeMap<Stri
     if verdict==Some(false){
         // A deleted approval record has no current input image with which to
         // establish consumption. Keep that existing ambiguity explicit.
-        for receipt in super::super::derived::approval_receipts(predicate){if let ast::Expr::Exists{read,..}=receipt{
+        for read in super::super::derived::approval_populations(predicate){
             if super::super::concrete::evaluate(&ast::Expr::Exists{read:read.clone(),site:Site::default()},row,entry,schema,viewer,table,now)!=Some(true){continue;}
             if let Some(Value::Array(prior))=super::super::concrete::value(&ast::Expr::Read(read.clone()),row,entry,schema,viewer,table,now)&&prior.iter().any(|old|!rows.get(&read.table).into_iter().flatten().any(|current|current.field("id").ok()==old.field("id").ok())){return None;}
-        }}
+        }
     }verdict
 }
 pub(super) fn trace(bound:&Bound,p:&Program,entry:&Engine)->Trace {
@@ -618,5 +618,18 @@ fn lifecycle_observations(source:String,operation:&str,args:BTreeMap<String,Valu
         let p=&b.programs.iter().find(|p|p.program.name=="bypass").unwrap().program;let trace=trace(&b,p,&engine);
         let result=engine.mutate("bypass",None,Context::new("dev:clerk",BTreeMap::from([("doc".into(),Value::Id("d".into()))])).at(NOW).with_fixture_trace(trace.clone())).unwrap();assert!(matches!(result.state,snapback4_core::WriteState::Sent{..}));
         let observations=trace.take();assert!(observations.iter().any(|o|o.site.contains("sibling-approval")&&o.allowed==Some(expected)),"{observations:?}");
+    }
+}}
+
+#[cfg(test)]mod sec10_deleted_population_receipts{use super::*;
+#[test]fn deleted_count_and_exists_approvals_without_current_images_stay_unknown(){
+    let source="table docs:\n  read <- allow\n  online only\ntable approvals:\n  doc: docs\n  read <- allow\n  delete <- allow\n  online only\ntable effects:\n  doc: docs\n  read <- allow\n  insert <- allow\n  online only\nmutation consume(doc: docs,approval: approvals):\n  require CONTRACT else NO_APPROVAL\n  delete approvals[approval]\n  return insert effects {doc}\nmutation bypass(doc: docs):\n  return insert effects {doc}\n";
+    for contract in ["count(approvals[doc = doc]) > 0","not (count(approvals[doc = doc]) = 0)","(count(approvals[doc = doc]) > 0) = true","exists approvals[doc = doc]"]{
+        let sources=vec![("schema.q".into(),source.replace("CONTRACT",contract))];let b=super::super::super::derived::augmented(&sources,&crate::compile(&sources));assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+        for (operation,seed_approval,expected) in [("consume",true,None),("bypass",false,Some(false))]{
+            let mut engine=Engine::memory(b.schema.clone(),b.programs.iter().map(|p|p.program.clone())).unwrap();let row=|table:&str,value:serde_json::Value|snapback4_core::wire::row_from_json(&b.schema.tables[table],&value).unwrap();let mut rows=vec![("docs".into(),row("docs",serde_json::json!({"id":"d"})))];if seed_approval{rows.push(("approvals".into(),row("approvals",serde_json::json!({"id":"a","doc":"d"}))));}engine.seed_at(rows,NOW).unwrap();
+            let p=&b.programs.iter().find(|p|p.program.name==operation).unwrap().program;let trace=trace(&b,p,&engine);let mut args=BTreeMap::from([("doc".into(),Value::Id("d".into()))]);if operation=="consume"{args.insert("approval".into(),Value::Id("a".into()));}
+            let result=engine.mutate(operation,None,Context::new("dev:a",args).at(NOW).with_fixture_trace(trace.clone())).unwrap();assert!(matches!(result.state,snapback4_core::WriteState::Sent{..}));let observations=trace.take();let sibling=observations.iter().filter(|o|o.site.contains("sibling-approval")).collect::<Vec<_>>();assert!(!sibling.is_empty(),"{contract}: {observations:?}");assert!(sibling.iter().all(|o|o.allowed==expected),"{contract}/{operation}: {observations:?}");
+        }
     }
 }}
