@@ -195,14 +195,15 @@ fn refused_legacy_counter_upgrade_preserves_bytes_and_accepted_upgrade_runs_once
     store.install(&s).unwrap();
     let tx = store.transaction().unwrap();
     check(&tx, 1, 1, 0);
-    tx.test_support_conn().execute_batch("CREATE TRIGGER no_counter_rebuild BEFORE DELETE ON _cap_counts BEGIN SELECT RAISE(ABORT, 'counter rebuild repeated'); END;").unwrap();
     tx.commit().unwrap();
     drop(store);
     let mut store = Store::open(&path).unwrap();
+    let writes = store.test_support_write_count("_cap_counts", vec![], &["delete"]);
     store.install(&s).unwrap();
     let tx = store.transaction().unwrap();
     check(&tx, 1, 1, 0);
     tx.rollback().unwrap();
+    assert_eq!(writes.load(std::sync::atomic::Ordering::SeqCst), 0);
     drop(store);
     std::fs::remove_dir_all(dir).unwrap();
 }

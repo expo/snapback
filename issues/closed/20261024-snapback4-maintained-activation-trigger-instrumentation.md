@@ -1,6 +1,6 @@
 # Maintained activation tests use triggers rejected by managed-store admission
 
-Status: Open
+Status: Resolved
 Systems: snapback4, tests, maintained columns
 Author: Codex for Charlie Cheever
 Date: 2026-10-24
@@ -26,3 +26,14 @@ SDK `maintained-column-adoption.test.mjs` exercises four server/device and
 SQLite/wasm watch combinations. Its `zero_untouched` trigger on `r` hits the same
 fence during hot activation, so each watch waits for a generation that correctly
 refused adoption. Include these four fixtures in the instrumentation repair.
+
+Resolution — Integration 25, 2026-10-25: replace foreign trigger guards with
+SQLite preupdate observers enabled only by the debug-only test-support feature.
+The observer detects WITHOUT ROWID writes, same-value updates and replacement
+DELETE/INSERT pairs without adding a managed schema object. The language and
+simulator tests retain their physical-write assertions, including reopened
+activation and expired/implicit-zero parents; the SDK watch proof retains its
+observable values and physical zero-image assertions. Counter installation
+checks the reopened adapter for repeated deletes. The production managed-store
+admission guard is unchanged. Focused activation, simulator and observer tests
+pass; integrated affected verification is recorded in Integration 25's report.

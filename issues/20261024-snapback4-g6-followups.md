@@ -55,3 +55,17 @@ where noted. This ticket stays in `issues/` for those items.
    admitted site in `engine/mutation.rs`. These source files match the merged
    main. Teach the census to prove the existing `cfg(test)` module exclusions;
    retain the single-production-site assertion rather than increasing it to 19.
+
+## Integration 25 resolution of test census items 5 and 6 — 2026-10-25
+
+Item 5's five production sites are lexical false positives: each names the
+engine's `super::postgres` adapter module, rather than the external driver
+crate. The scanner now distinguishes those explicit local paths, with negative
+controls retaining external/absolute driver and actual query calls. Production
+allowances remain unchanged. Test-only counts are regenerated for the new G6
+fixtures and integration observers.
+
+Item 6 now follows literal `#[path]` declarations and their excluded children
+from a proved cfg(test) parent. Removing the gate exposes the sibling again;
+its regression and the original single-production-codec assertion pass.
+Items 2–4 retain their existing open scope.

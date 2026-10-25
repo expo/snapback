@@ -107495,3 +107495,22 @@ Create/edit wording leads with the explicit update-only answer. Gate semantic
 work is recorded for SEC10 in issues/20261024-snapback4-dx10-sec10-gate-semantics.md;
 wording does not claim to repair empty-list initialization, list minimum review
 or missing helper expansion. Execution and replay results are in the DX10 report.
+
+### 2026-10-25 — Integration 25: DX9, REL and DX10
+
+Merge the three reviewed lanes for 0.4.41; SEC10 remains excluded for 0.4.42.
+The combined proof API includes serveUntilSignal and serveCheck. Production
+rosters retain DX10's durable/replay behavior and DX9's argument-name refusal
+help. Release output retains verdict-first review rendering and REL's explicit
+live source/view identity; guide tasks and rename both remain discoverable.
+
+Inherited test triggers conflicted with managed-relation admission. Debug-only
+SQLite preupdate observers now verify physical writes without installing schema
+objects, including WITHOUT ROWID tables, same-value updates and replacements.
+The SDK proof continues checking actual watched values and zero-row storage;
+Rust owns the physical no-write assertion. Production admission is unchanged.
+The store-port lexer distinguishes the engine's local postgres module from the
+driver crate without raising production allowances. The web codec census follows
+explicit test-module paths, with gate-removal controls. The help table also
+includes the packaged serve-check command and all four flags. No store format,
+product authority or release gate is relaxed by these integration repairs.

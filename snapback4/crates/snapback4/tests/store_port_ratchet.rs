@@ -57,7 +57,7 @@ const RAW_STORE_METHODS: &[&str] = &[
     "device_staged_put", "device_staged_delete", "device_staged_after",
     "device_staged_table_after", "device_staged_clear", "install_device",
     "install_device_checked", "install_device_checked_with", "install_device_checked_with_finish",
-    "put_loading_indexes", "test_support_conn", "test_support_meta", "test_support_set_meta",
+    "put_loading_indexes", "test_support_conn", "test_support_meta", "test_support_set_meta", "test_support_write_count",
     "meta", "set_meta", "meta_prefix", "delete_meta", "clear_rows", "replace_rows",
     "install_checked", "install_open",
 ];
@@ -84,7 +84,7 @@ fn restricted_device_site(tokens: &[Token<'_>]) -> bool {
     // Generic trait spellings can also name a test fixture (e.g. Fixture::set_meta).
     // They retain normal test classification; explicit device methods never do.
     raw_store_site(tokens) && ![
-        "test_support_conn", "test_support_meta", "test_support_set_meta",
+        "test_support_conn", "test_support_meta", "test_support_set_meta", "test_support_write_count",
         "meta", "set_meta", "meta_prefix", "delete_meta", "clear_rows", "replace_rows",
     ].iter().any(|method| starts(tokens, &[".", method]) || starts(tokens, &[":", ":", method]))
 }
@@ -167,7 +167,11 @@ fn count_driver_source(source: &str, all_test: bool) -> (usize, usize) {
         }
         if before == drivers.len() { break; }
     }
-    count_matching(source, all_test, |site| {
+    count_matching(source, all_test, |site, prefix| {
+        // The engine adapter module is not the external postgres driver crate.
+        if starts(site, &["postgres", ":", ":"]) &&
+            (prefix.len() >= 3 && starts(&prefix[prefix.len()-3..], &["super", ":", ":"]) ||
+             prefix.len() >= 6 && starts(&prefix[prefix.len()-6..], &["crate", ":", ":", "engine", ":", ":"])) { return false; }
         database_site(site) || (site.first().is_some_and(|t| drivers.contains(t.text))
             && starts(&site[1..], &[":", ":"])
             && !(site.get(3).is_some_and(|t| t.text == "Error")
@@ -175,7 +179,7 @@ fn count_driver_source(source: &str, all_test: bool) -> (usize, usize) {
     })
 }
 
-fn count_matching(source: &str, all_test: bool, site: impl Fn(&[Token<'_>]) -> bool) -> (usize, usize) {
+fn count_matching(source: &str, all_test: bool, site: impl Fn(&[Token<'_>], &[Token<'_>]) -> bool) -> (usize, usize) {
     let tokens = tokens(source);
     let mut lines = [BTreeSet::new(), BTreeSet::new()];
     let (mut depth, mut test_depth) = (0, None);
@@ -195,7 +199,7 @@ fn count_matching(source: &str, all_test: bool, site: impl Fn(&[Token<'_>]) -> b
             cfg_test = false;
             module = false;
         }
-        if site(&tokens[i..]) {
+        if site(&tokens[i..], &tokens[..i]) {
             let category = usize::from((all_test || test_depth.is_some()) && !restricted_device_site(&tokens[i..]));
             lines[category].insert(token.line);
         }
@@ -220,7 +224,7 @@ fn count_file(path: &Path, source: &str) -> (usize, usize) {
     let driver_scope = path.starts_with("crates/snapback4-core/src")
         || path.starts_with("crates/snapback4/src");
     if driver_scope { count_driver_source(source, test_file(path)) }
-    else { count_matching(source, test_file(path), raw_store_site) }
+    else { count_matching(source, test_file(path), |site, _| raw_store_site(site)) }
 }
 
 fn walk(root: &Path, dir: &Path, counts: &mut [Counts; 2]) {
@@ -403,7 +407,7 @@ fn raw_device_and_fixture_access_cannot_reopen_the_host_port() {
             format!("store\n . /* boundary */ {method}\n (key);"),
         ] {
             assert_eq!(count_source(&source, false), (1, 0), "{source}");
-            let fixture_or_trait = ["test_support_conn", "test_support_meta", "test_support_set_meta",
+            let fixture_or_trait = ["test_support_conn", "test_support_meta", "test_support_set_meta", "test_support_write_count",
                 "meta", "set_meta", "meta_prefix", "delete_meta", "clear_rows", "replace_rows"].contains(method);
             assert_eq!(count_source(&source, true), if fixture_or_trait { (0, 1) } else { (1, 0) }, "{source}");
             for path in [
@@ -519,4 +523,12 @@ fn exact_allowlists_and_update_raise_guard() {
     assert!(differences(&counts(3), &counts(2), true, true).is_empty());
     assert!(!differences(&Counts::new(), &counts(2), false, false).is_empty());
     assert!(differences(&Counts::new(), &counts(2), true, false).is_empty());
+}
+
+#[test]
+fn engine_postgres_adapter_paths_are_not_external_driver_access() {
+    assert_eq!(count_source("type Grant = super::postgres::read_grant::Grant;\nfn adapter() { crate::engine::postgres::read_closure::Closure::new(); }", false), (0, 0));
+    assert_eq!(count_source("use super::postgres::read_grant::Grant;\nfn driver() { postgres::Client::connect(url); }", false), (1, 0));
+    assert_eq!(count_source("fn driver() { ::postgres::Client::connect(url); }", false), (1, 0));
+    assert_eq!(count_source("fn adapter() { super::postgres::x().query_row(sql); }", false), (1, 0));
 }

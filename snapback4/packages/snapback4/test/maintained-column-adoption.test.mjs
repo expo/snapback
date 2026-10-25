@@ -74,11 +74,8 @@ for (const tier of ["sqlite", "wasm"]) for (const synced of [false, true]) {
       watch.subscribe(()=>{const read=watch.getSnapshot();if(read.data && read.fresh && !read.revalidating)seen.push(structuredClone(read.data));});
     }
     await until(()=>watches.every(w=>w.getSnapshot().data?.id));
-    // The zero parent must remain physically untouched by both activations.
-    execFileSync("python3",["-c",`import sqlite3,sys
-with sqlite3.connect(sys.argv[1]) as db:
- db.execute("CREATE TRIGGER zero_untouched BEFORE UPDATE ON r WHEN OLD.t=(SELECT num FROM _catalog WHERE name='posts') AND OLD.id='zero' BEGIN SELECT RAISE(ABORT,'zero parent written'); END")
-`,join(dir,".snapback4/store.sqlite")]);
+    // Physical no-write assertions live in the Rust preupdate-hook tests.
+    // This end-to-end proof checks watched values and the retained zero image.
     const after = before.replace("  at: time", "  at: time\n  likeCount: count likes by postId");
     seen.length=0;
     writeFileSync(path,after);

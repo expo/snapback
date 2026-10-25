@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { synopsis } from "./cli-usage.js";
 // `npx snapback4 <verb>`: the Rust binary, found in the platform package
 // installed beside this one, or named by SNAPBACK4_BIN, or built in this
 // repository. The JavaScript here only finds and runs it, and the two live and
@@ -27,7 +28,7 @@ if (process.argv[2] === "serve-check") {
   try {
     const args = process.argv.slice(3), options = {};
     if (args.includes("--help")) {
-      console.log("usage: snapback4 serve-check --deployment DIR [--script prod:serve] [--up-ms 30000] [--timeout-ms 30000]");
+      console.log(`usage: ${synopsis("serve-check")}`);
       process.exit(0);
     }
     const keys = {"--deployment":"deployment", "--script":"script", "--up-ms":"upMs", "--timeout-ms":"timeoutMs"};
