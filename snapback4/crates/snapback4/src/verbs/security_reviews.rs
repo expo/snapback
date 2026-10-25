@@ -3,7 +3,7 @@
 use super::*;
 use serde::{Serialize,Deserialize};
 use sha2::{Digest,Sha256};
-const ANALYZER:&str="sec10-wave27-2";
+const ANALYZER:&str="sec10-wave28-1";
 
 mod binding;
 mod decisions;

@@ -37,7 +37,7 @@ fn birth_act(write:&Write<'_>,name:&str,bound:&Bound)->bool{
 fn modeled(write:&Write<'_>,name:&str,parent:&str,bound:&Bound)->bool{
     if known_impossible(&write.context,write.catalog){return false;}
     let operation=write.p.name.to_lowercase();
-    if ["approv","authoriz","request","record","review","ask","flag"].iter().any(|prefix|operation.starts_with(prefix)){return false;}
+    if ["approv","authoriz","request","review","ask","flag"].iter().any(|prefix|operation.starts_with(prefix)){return false;}
     let t=&bound.schema.tables[&write.table];
     if write.table==parent{
         if !matches!(write.op,WriteOp::Update|WriteOp::Upsert){return false;}
@@ -87,11 +87,11 @@ fn cancellation_cues(name:&str,producer:&Write<'_>)->Vec<String>{
     cues.into_iter().collect()
 }
 fn cancellation_effect(cues:&[String],parent:&str,effect:&Write<'_>,bound:&Bound)->bool{
-    effect.table==parent&&matches!(effect.op,WriteOp::Update|WriteOp::Upsert)&&effect.fields.iter().any(|field|matches!(field.name.as_str(),"status"|"stage"|"state"|"phase")&&matches!(bound.schema.tables[parent].columns.get(&field.name).map(ColumnType::required),Some(ColumnType::Enum{..}))&&matches!(field_value(field),Some(Expr::Literal{value:ast::Literal::Str(value),..}) if CANCELLATIONS.iter().any(|(words,states)|cues.iter().any(|cue|words.contains(&cue.as_str()))&&states.contains(&value.to_lowercase().as_str()))))
+    effect.table==parent&&matches!(effect.op,WriteOp::Update|WriteOp::Upsert)&&effect.fields.iter().any(|field|matches!(bound.schema.tables[parent].columns.get(&field.name).map(ColumnType::required),Some(ColumnType::Enum{..}))&&matches!(field_value(field),Some(Expr::Literal{value:ast::Literal::Str(value),..}) if CANCELLATIONS.iter().any(|(words,states)|cues.iter().any(|cue|words.contains(&cue.as_str()))&&states.contains(&value.to_lowercase().as_str()))))
 }
 fn producer_cancellation(parent:&str,producer:&Write<'_>,effect:&Write<'_>,bound:&Bound)->bool{
     if !std::ptr::eq(producer.p,effect.p)||effect.table!=parent||effect.op!=WriteOp::Update{return false;}
-    let stages=effect.fields.iter().filter(|field|matches!(field.name.as_str(),"status"|"stage"|"state"|"phase")&&matches!(bound.schema.tables[parent].columns.get(&field.name).map(ColumnType::required),Some(ColumnType::Enum{..}))).collect::<Vec<_>>();
+    let stages=effect.fields.iter().filter(|field|matches!(bound.schema.tables[parent].columns.get(&field.name).map(ColumnType::required),Some(ColumnType::Enum{..}))).collect::<Vec<_>>();
     !stages.is_empty()&&stages.len()==effect.fields.len()&&stages.iter().all(|field|matches!(field_value(field),Some(Expr::Literal{value:ast::Literal::Str(value),..}) if ["cancel","cancelled","canceled","aborted","withdrawn","rejected","declined","denied"].contains(&value.to_lowercase().as_str())))
 }
 pub(super) fn scalar(name:&str,parent:&str,record:&Write<'_>,effect:&Write<'_>,writes:&[Write<'_>],bound:&Bound)->bool{
@@ -110,7 +110,7 @@ pub(super) fn scalar(name:&str,parent:&str,record:&Write<'_>,effect:&Write<'_>,w
         let mut found=false;walk(condition,|e|if let Expr::Member{base,name,..}=e&&
             bound.schema.tables[parent].columns.get(name).is_some_and(|kind|matches!(kind.required(),ColumnType::Bool))&&
             !metadata(name)&&super::super::derived::same_resource(base,parent,&record.keys,record.p)&&
-            !writes.iter().any(|other|other.table==parent&&matches!(other.op,WriteOp::Update|WriteOp::Upsert)&&other.fields.iter().any(|field|field.name==*name)){
+            (name.to_lowercase().contains(&stem(&original))||!writes.iter().any(|other|other.table==parent&&matches!(other.op,WriteOp::Update|WriteOp::Upsert)&&other.fields.iter().any(|field|field.name==*name))){
                 found=true;
             });found
     })

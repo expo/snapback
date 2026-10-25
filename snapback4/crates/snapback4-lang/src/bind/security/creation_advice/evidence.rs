@@ -1,6 +1,7 @@
 //! Questions about evidence representations and explicitly authored empty tests.
 // @ref LLP 3000.036.004.000#10-sec10-approvals-and-deterministic-exploration — names ask questions; empty-text guards need a nonblank decision.
 use super::*;
+fn text(kind:&ColumnType)->bool{match kind.required(){ColumnType::Text{..}=>true,ColumnType::List{of,..}|ColumnType::ListRange{of,..}=>text(of),_=>false}}
 fn evidence(name:&str)->bool{["photo","scan","sketch","image","drawing","blueprint","picture","snapshot"].iter().any(|s|name.to_lowercase().contains(s))}
 fn justification(name:&str)->bool{["reason","consent","assessment","recommendation"].iter().any(|s|name.to_lowercase().contains(s))}
 fn nonempty_tests<'a>(e:&'a Expr,negated:bool,out:&mut Vec<&'a Expr>){match e{
@@ -30,8 +31,8 @@ fn validates(e:&Expr,value:&Expr,negated:bool)->bool{match e{
 pub(super) fn notes(bound:&Bound,writes:&[Write<'_>],out:&mut Vec<Diagnostic>){
     for (name,t) in bound.schema.visible_tables(){
         for (column,kind) in &t.columns {
-            if matches!(kind.required(),ColumnType::Text{..})&&evidence(column){
-                note(out,&Site::default(),"N_TEXT_EVIDENCE",format!("{name}.{column}: text names photo/scan/sketch evidence; is verified uploaded media required, or is this deliberately a text reference?"),"use an `image` column and image argument for verified, owner-bound uploads; make it required at the governed boundary so the upload gate can check it; retain text only for an intentional reference");
+            if text(kind)&&evidence(column){
+                note(out,&Site::default(),"N_TEXT_EVIDENCE",format!("{name}.{column}: text names photo/scan/sketch evidence; is verified uploaded media required, or is this deliberately a text reference?"),"use an `image` column (or an image list) and matching image argument for verified, owner-bound uploads; make it required at the governed boundary so the upload gate can check it; retain text only for an intentional reference");
             }
             let narrower=if kind.contains_asset(){let media=super::super::columns::admission(t,Some(column));t.columns.keys().filter(|other|*other!=column&&kernel::implies(&media,&super::super::columns::admission(t,Some(other)))!=Ok(true)).cloned().collect::<Vec<_>>()}else{Vec::new()};
             if !narrower.is_empty(){

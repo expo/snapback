@@ -163,8 +163,8 @@ pub fn fixture(bound:&Bound,out:&mut Campaign)->Result<Engine,String>{
             let related_creator=p.args.values().any(|kind|matches!(kind,ir::ArgType::Ref{table} if created.contains(table)&&engine.store().rows(table).is_ok_and(|rows|!rows.is_empty())&&dependent_children.get(table).is_some_and(|children|writes.iter().any(|(child,kind)|matches!(*kind,"insert"|"upsert")&&children.contains(child)))));
             if !root_observed&&(related_creator||writes.iter().any(|(_,kind)|matches!(*kind,"update"|"upsert"|"delete"))){
                 root_observed=true;
-                if out.generated_fixture&&out.work_remaining.is_none_or(|work|work>=4096)&&validate_fixture(bound,&mut engine).is_ok(){
-                    let first=out.violations.len();histories::lifecycle_observers_to(bound,&engine,out,out.directed_base.saturating_add(1024));
+                if out.generated_fixture&&out.work_remaining.is_none_or(|work|work>=256)&&validate_fixture(bound,&mut engine).is_ok(){
+                    let first=out.violations.len();let allowance=out.work_remaining.map_or(1024,|work|(work/4).min(1024));out.slice(allowance,"pre-transition checkpoint",|out|histories::lifecycle_observers_to(bound,&engine,out,out.directed_attempts.saturating_add(1024)));
                     for witness in &mut out.violations[first..]{if witness.reachability==Reachability::AuthoredFixtureTrace{witness.reachability=Reachability::GeneratedFixtureTrace;witness.scope="actual authored observation from a validated generated early setup checkpoint; initialization is not claimed application-reachable".into();}}
                 }
             }
@@ -218,7 +218,7 @@ pub fn fixture(bound:&Bound,out:&mut Campaign)->Result<Engine,String>{
                 let result=candidate.mutate(&p.name,None,Context::new(actor,args.clone()).at(NOW));
                 if matches!(result,Ok(r) if matches!(r.state,snapback4_core::WriteState::Sent{..})) {
                     let after=readback(&candidate)?;
-                    let loosens=if !stricter_observed&&watched_transition&&out.generated_fixture&&out.work_remaining.is_none_or(|work|work>=4096){
+                    let loosens=if !stricter_observed&&watched_transition&&out.generated_fixture&&out.work_remaining.is_none_or(|work|work>=256){
                         let before=readback(&engine)?;
                         bound.invariants.iter().any(|inv|before.get(&inv.table).into_iter().flatten().any(|row|{
                             let Some(next)=after.get(&inv.table).into_iter().flatten().find(|next|next.field("id").ok()==row.field("id").ok())else{return false;};
@@ -228,7 +228,7 @@ pub fn fixture(bound:&Bound,out:&mut Campaign)->Result<Engine,String>{
                     if !stricter_observed&&loosens {
                         stricter_observed=true;
                         if validate_fixture(bound,&mut engine).is_ok(){
-                            let first=out.violations.len();let limit=out.directed_attempts.saturating_add(1024).min(out.directed_base.saturating_add(2048));histories::lifecycle_observers_to(bound,&engine,out,limit);
+                            let first=out.violations.len();let limit=out.directed_attempts.saturating_add(1024).min(out.directed_base.saturating_add(2048));let allowance=out.work_remaining.map_or(1024,|work|(work/4).min(1024));out.slice(allowance,"pre-loosening checkpoint",|out|histories::lifecycle_observers_to(bound,&engine,out,limit));
                             for witness in &mut out.violations[first..]{if witness.reachability==Reachability::AuthoredFixtureTrace{witness.reachability=Reachability::GeneratedFixtureTrace;witness.scope="actual authored observation from a validated generated root before an admitted dependency-changing creator; initialization is not claimed application-reachable".into();}}
                         }
                     }

@@ -3,12 +3,13 @@
 use super::*;
 use snapback4_core::Value;
 #[derive(Clone)]struct Clause{columns:BTreeSet<String>,predicate:Option<ast::Expr>}
-#[derive(Clone)]pub(crate) struct ApprovalCheck{complete:bool,clauses:Vec<Clause>,bindings:BTreeMap<String,String>,selectors:Vec<Option<ast::Expr>>}
+#[derive(Clone)]pub(crate) struct ApprovalCheck{complete:bool,authorized_subject:BTreeSet<String>,clauses:Vec<Clause>,bindings:BTreeMap<String,String>,selectors:Vec<Option<ast::Expr>>}
 const ARG:&str="$approval-arg:";
 fn walk(e:&ast::Expr,mut visit:impl FnMut(&ast::Expr)){let mut e=e.clone();super::super::super::intent_walk::expression(&mut e,&mut |e|visit(e));}
 fn clauses(e:&ast::Expr)->Vec<&ast::Expr>{match e{ast::Expr::Binary{op,left,right,..} if op=="and"=>clauses(left).into_iter().chain(clauses(right)).collect(),_=>vec![e]}}
 pub(super) fn collect(sources:&[(String,String)],bound:&Bound)->BTreeMap<(String,String,String,String),Vec<ApprovalCheck>>{
     let docs=sources.iter().map(|(file,text)|crate::parse_document(file,text).0).collect::<Vec<_>>();let catalog=Catalog::build(docs.clone(),&mut Vec::new());let mut out=BTreeMap::<_,Vec<_>>::new();
+    let stages=stage_columns::collect(&catalog,bound);
     for doc in &docs{for p in doc.programs.iter().filter(|p|p.kind==ast::ProgramKind::Mutation){
         let writes=authority_walk::writes(&catalog,p);
         for (write,context) in &writes{let ast::Expr::Write{table,keys,fields,site,..}=write else{continue;};
@@ -16,9 +17,10 @@ pub(super) fn collect(sources:&[(String,String)],bound:&Bound)->BTreeMap<(String
             let program=super::super::super::operation_name(std::path::Path::new(&doc.file).file_stem().and_then(|s|s.to_str()).unwrap_or(&doc.file),&p.name);
             let focal=||ast::Expr::Focal{site:site.clone()};let member=|name:String|ast::Expr::Member{base:Box::new(focal()),name,site:site.clone()};
             let arguments=p.args.iter().map(|arg|(arg.name.clone(),member(format!("{ARG}{}",arg.name)))).collect();
+            let admissions=stage_columns::admissions(&stages,table,keys,p,context,fields,bound);
             let mut checks=Vec::new();
             for condition in context.body.iter().filter_map(|stmt|if let ast::Stmt::Require{condition,..}=stmt{Some(condition)}else{None}).flat_map(clauses){
-                let mut condition=condition.clone();omit_preconditions(&mut condition,false);condition=super::super::creation_advice::simplify_boolean(&condition);let mut columns=BTreeSet::new();
+                let mut condition=condition.clone();omit_preconditions(&mut condition,false,&|field|matches!(field,ast::Expr::Member{base,name,..} if same_resource(base,table,keys,p)&&admissions.contains(name)));condition=super::super::creation_advice::simplify_boolean(&condition);let mut columns=BTreeSet::new();
                 walk(&condition,|e|match e{
                     ast::Expr::Member{base,name,..} if same_resource(base,table,keys,p)=>{columns.insert(name.clone());},
                     ast::Expr::Name{name,..}=>{for field in fields{if field.value.as_ref().is_some_and(|value|payload_arguments(value,p).contains(name)){columns.insert(field.name.clone());}}},_=>{},
@@ -44,9 +46,10 @@ pub(super) fn collect(sources:&[(String,String)],bound:&Bound)->BTreeMap<(String
                 let mut stable=true;walk(condition,|e|if matches!(e,ast::Expr::Read(_)|ast::Expr::Member{..}|ast::Expr::Exists{..}){stable=false;});
                 if stable{workflow::normalize(condition,&bound.schema,table,&arguments)}else{None}
             }).collect();
-            let complete=super::super::creation_advice::applicability_known(context,&catalog);let invocation=ApprovalCheck{complete,clauses:checks,bindings,selectors};
+            let complete=super::super::creation_advice::applicability_known(context,&catalog);let invocation=ApprovalCheck{complete,authorized_subject:BTreeSet::new(),clauses:checks,bindings,selectors};
             for stamp in target.columns.keys().filter(|stamp|named_approval(stamp,&target.columns[*stamp])){
-                out.entry((program.clone(),table.clone(),stamp.clone(),site.to_string())).or_default().push(invocation.clone());
+                let mut invocation=invocation.clone();invocation.authorized_subject=fields.iter().filter(|field|subject::authorized(bound,&catalog,p,context,table,stamp,&field.name)).map(|field|field.name.clone()).collect();
+                out.entry((program.clone(),table.clone(),stamp.clone(),site.to_string())).or_default().push(invocation);
             }
         }
     }}out
@@ -68,7 +71,7 @@ pub(crate) fn revalidated(bound:&Bound,program:&str,table:&str,stamp:&str,site:O
         // Atomic consumption of another approval is not ordinary replacement
         // data. Its receipt graph, rather than a negative new stamp, governs it.
         if bound.schema.tables[table].columns.get(column).is_some_and(|kind|named_approval(column,kind))&&matches!(cell(old,column),Value::Bool(true)|Value::Int(_))&&matches!(cell(next,column),Value::Bool(false)|Value::Null){unknown=true;continue;}
-        let relevant=invocation.clauses.iter().filter(|check|check.columns.contains(column)).collect::<Vec<_>>();if relevant.is_empty(){return Some(false);}
+        let relevant=invocation.clauses.iter().filter(|check|check.columns.contains(column)).collect::<Vec<_>>();if relevant.is_empty(){if invocation.authorized_subject.contains(column){continue;}return Some(false);}
         for check in relevant{match check.predicate.as_ref().and_then(|predicate|super::super::concrete::evaluate(predicate,&image,rows,&bound.schema,viewer,table,now)){Some(false)=>return Some(false),None=>unknown=true,_=>{}}}
     }
     if unknown{None}else{Some(true)}

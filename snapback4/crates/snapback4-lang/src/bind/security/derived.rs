@@ -7,6 +7,8 @@ mod conservation;
 pub(crate) use conservation::Conservation;
 mod approval_checks;
 mod stamps;
+mod stage_columns;
+mod subject;
 pub(super) use stamps::named as named_approval;
 pub(super) use workflow::{approval_populations,local_population_approval};
 pub(crate) use approval_checks::ApprovalCheck;
@@ -70,17 +72,17 @@ fn plain_field(expression:&ast::Expr)->bool {
     matches!(expression,ast::Expr::Name{..})||matches!(expression,ast::Expr::Member{base,..} if plain_row(base))
 }
 
-fn omit_preconditions(expression:&mut ast::Expr,negated:bool){
+fn omit_preconditions(expression:&mut ast::Expr,negated:bool,stage:&impl Fn(&ast::Expr)->bool){
     match expression {
-        ast::Expr::Unary{op,value,..} if op=="not"=>omit_preconditions(value,!negated),
+        ast::Expr::Unary{op,value,..} if op=="not"=>omit_preconditions(value,!negated,stage),
         ast::Expr::Binary{op,left,right,..} if matches!(op.as_str(),"and"|"or")=>{
-            omit_preconditions(left,negated);omit_preconditions(right,negated);
+            omit_preconditions(left,negated,stage);omit_preconditions(right,negated,stage);
         },
         ast::Expr::Binary{op,left,right,site}=>{
             let null=|e:&ast::Expr|matches!(e,ast::Expr::Literal{value:ast::Literal::Null,..});
-            let stage=|field:&ast::Expr,value:&ast::Expr|plain_field(field)&&matches!(field,ast::Expr::Member{name,..} if matches!(name.as_str(),"stage"|"status"|"phase"|"state"))&&matches!(value,ast::Expr::Literal{value:ast::Literal::Str(_),..});
+            let discriminator_field=|field:&ast::Expr,value:&ast::Expr|plain_field(field)&&stage(field)&&matches!(value,ast::Expr::Literal{value:ast::Literal::Str(value),..} if !value.is_empty());
             let absence=(op=="="&&!negated||op=="!="&&negated)&&((null(left)&&plain_field(right))||(null(right)&&plain_field(left)));
-            let discriminator=matches!(op.as_str(),"="|"!="|"<"|">"|"<="|">=")&&(stage(left,right)||stage(right,left));
+            let discriminator=matches!(op.as_str(),"="|"!=")&&(discriminator_field(left,right)||discriminator_field(right,left));
             if absence||discriminator{*expression=ast::Expr::Literal{value:ast::Literal::Bool(!negated),site:site.clone()};}
         },
         // Unknown expression contexts retain every dependency. They do not
@@ -120,14 +122,15 @@ pub(super) fn row_input_use(value:&ast::Expr,table:&str,keys:&[ast::KeyPart],p:&
 pub(super) fn row_input_copy(value:&ast::Expr,table:&str,keys:&[ast::KeyPart],p:&ast::ProgramDecl,column:&str)->bool{let value=super::creation_advice::simplify_boolean(value);let mut value=&value;while let ast::Expr::Assert{value:inner,..}=value{value=inner;}matches!(value,ast::Expr::Member{base,name,..} if name==column&&same_resource(base,table,keys,p))}
 pub(super) fn opaque_row_payloads(write:&ast::Expr,context:&ast::ProgramDecl,p:&ast::ProgramDecl)->Vec<String>{let ast::Expr::Write{table,keys,fields,..}=write else{return Vec::new();};fields.iter().filter(|field|field.value.as_ref().is_some_and(|value|row_input_use(value,table,keys,p,&field.name)&&!row_input_copy(value,table,keys,p,&field.name))&&context.body.iter().any(|stmt|matches!(stmt,ast::Stmt::Require{condition,..} if row_input_use(condition,table,keys,p,&field.name)))).map(|field|field.name.clone()).collect()}
 fn checked_arguments(context:&ast::ProgramDecl,p:&ast::ProgramDecl)->BTreeSet<String>{
-    let mut checked=BTreeSet::new();for statement in &context.body{if let ast::Stmt::Require{condition,..}=statement{let mut condition=condition.clone();omit_preconditions(&mut condition,false);condition=super::creation_advice::simplify_boolean(&condition);super::super::intent_walk::expression(&mut condition,&mut |e|if let ast::Expr::Name{name,..}=e&&p.args.iter().any(|arg|arg.name==*name){checked.insert(name.clone());});}}checked
+    let mut checked=BTreeSet::new();for statement in &context.body{if let ast::Stmt::Require{condition,..}=statement{let mut condition=condition.clone();omit_preconditions(&mut condition,false,&|_|false);condition=super::creation_advice::simplify_boolean(&condition);super::super::intent_walk::expression(&mut condition,&mut |e|if let ast::Expr::Name{name,..}=e&&p.args.iter().any(|arg|arg.name==*name){checked.insert(name.clone());});}}checked
 }
-pub(super) fn opaque_payloads(fields:&[ast::ObjectField],context:&ast::ProgramDecl,p:&ast::ProgramDecl)->Vec<String>{let checked=checked_arguments(context,p);fields.iter().filter(|field|!matches!(field.name.as_str(),"status"|"stage"|"state"|"phase")&&field.value.as_ref().is_some_and(|value|stored_argument(value,p).is_none()&&!payload_arguments(value,p).is_disjoint(&checked))).map(|field|field.name.clone()).collect()}
+pub(super) fn opaque_payloads(fields:&[ast::ObjectField],context:&ast::ProgramDecl,p:&ast::ProgramDecl)->Vec<String>{let checked=checked_arguments(context,p);fields.iter().filter(|field|field.value.as_ref().is_some_and(|value|stored_argument(value,p).is_none()&&!payload_arguments(value,p).is_disjoint(&checked))).map(|field|field.name.clone()).collect()}
 pub(super) fn workflow_gaps(sources:&[(String,String)],bound:&Bound)->BTreeSet<String>{let docs=sources.iter().map(|(file,text)|crate::parse_document(file,text).0).collect::<Vec<_>>();let catalog=Catalog::build(docs.clone(),&mut Vec::new());workflow::source_gaps(&docs,&catalog,bound).into_iter().chain(conservation::source_gaps(&docs,&catalog,bound)).collect()}
 pub fn invariants(sources:&[(String,String)],bound:&Bound)->Vec<Invariant>{collect(sources,bound,&mut BTreeMap::new(),&mut BTreeMap::new(),&mut BTreeMap::new())}
 fn collect(sources:&[(String,String)],bound:&Bound,inputs:&mut BTreeMap<(String,String),BTreeSet<String>>,reissues:&mut BTreeMap<(String,String,String),BTreeSet<String>>,uncertain:&mut BTreeMap<(String,String,String),BTreeSet<String>>)->Vec<Invariant>{
     let docs=sources.iter().map(|(f,s)|crate::parse_document(f,s).0).collect::<Vec<_>>();
     let catalog=Catalog::build(docs.clone(),&mut Vec::new());
+    let stages=stage_columns::collect(&catalog,bound);
     let stamps=stamps::columns(&docs,&catalog,bound);for stamp in &stamps{inputs.entry(stamp.clone()).or_default();}
     let mut out=Vec::new();
     let mut controlled=BTreeSet::new();let mut origins=BTreeMap::new();let mut ambiguous_recordings:BTreeMap<(String,String,String),BTreeSet<String>>=BTreeMap::new();
@@ -135,7 +138,7 @@ fn collect(sources:&[(String,String)],bound:&Bound,inputs:&mut BTreeMap<(String,
         if let ast::Expr::Write{op,table,fields,keys,site,..}=write{
             let Some(definition)=bound.schema.tables.get(&table)else{continue;};
             let checked=checked_arguments(&context,p);
-            let payload=fields.iter().filter(|field|!matches!(field.name.as_str(),"status"|"stage"|"state"|"phase")&&field.value.as_ref().is_some_and(|value|!payload_arguments(value,p).is_disjoint(&checked))).map(|field|field.name.clone()).collect::<BTreeSet<_>>();
+            let payload=fields.iter().filter(|field|field.value.as_ref().is_some_and(|value|!payload_arguments(value,p).is_disjoint(&checked))).map(|field|field.name.clone()).collect::<BTreeSet<_>>();
             for (stamp,kind) in definition.columns.iter().filter(|(stamp,_)|stamps.contains(&(table.clone(),(*stamp).clone()))){
                 let recorded=if let Some(field)=fields.iter().find(|field|field.name==*stamp){potential_recording(kind,field.value.as_ref(),&table,&keys,p,stamp)}else{matches!(op,ast::WriteOp::Insert|ast::WriteOp::Upsert)&&definition.defaults.get(stamp).is_some_and(|value|match (kind.required(),value.value(challenges::NOW,"$derived")){(snapback4_core::schema::ColumnType::Bool,snapback4_core::Value::Bool(true))|(snapback4_core::schema::ColumnType::Time,snapback4_core::Value::Int(_))=>true,_=>false})};
                 if recorded{inputs.entry((table.clone(),stamp.clone())).or_default().extend(payload.iter().filter(|column|*column!=stamp).cloned());origins.entry((table.clone(),stamp.clone())).or_insert_with(||site.clone());}
@@ -183,12 +186,14 @@ fn collect(sources:&[(String,String)],bound:&Bound,inputs:&mut BTreeMap<(String,
             // Approval candidates keep their inferred origin explicit. Only
             // values inspected by this approval (or media governed by its
             // stored approval timestamp) are proposed for freezing.
+            let admissions=stage_columns::admissions(&stages,table,match write{ast::Expr::Write{keys,..}=>keys,_=>unreachable!()},p,context,fields,bound);
+            let stage=|field:&ast::Expr|matches!(field,ast::Expr::Member{base,name,..} if admissions.contains(name)&&same_resource(base,table,match write{ast::Expr::Write{keys,..}=>keys,_=>unreachable!()},p));
             let mut inspected=BTreeSet::new();
             for statement in &context.body {if let ast::Stmt::Require{condition,..}=statement {
                 let mut e=condition.clone();
                 // Absence and stage checks admit the transition; they do not
                 // assert that the current value is evidence being approved.
-                omit_preconditions(&mut e,false);e=super::creation_advice::simplify_boolean(&e);
+                omit_preconditions(&mut e,false,&stage);e=super::creation_advice::simplify_boolean(&e);
                 super::super::intent_walk::expression(&mut e,&mut |e|if let ast::Expr::Member{base,name,..}=e {
                     if same_resource(base,table,match write{ast::Expr::Write{keys,..}=>keys,_=>unreachable!()},p){inspected.insert(name.clone());}
                 });
@@ -197,6 +202,7 @@ fn collect(sources:&[(String,String)],bound:&Bound,inputs:&mut BTreeMap<(String,
                 let Some(kind)=definition.columns.get(&approval.name)else{continue;};
                 if !stamps.contains(&(table.clone(),approval.name.clone())){continue;}
                 if !potential_recording(kind,approval.value.as_ref(),table,match write{ast::Expr::Write{keys,..}=>keys,_=>unreachable!()},p,&approval.name){continue;}
+                inputs.entry((table.clone(),approval.name.clone())).or_default().extend(definition.columns.iter().filter(|(column,kind)|subject::matches(&approval.name,column,kind)).map(|(column,_)|column.clone()));
                 // Keep the source dependency even when existing runtime freeze
                 // authority makes emitting another edit candidate redundant.
                 inputs.entry((table.clone(),approval.name.clone())).or_default().extend(inspected.iter().filter(|column|definition.columns.contains_key(*column)&&**column!=approval.name&&fields.iter().find(|field|&field.name==*column).is_none_or(|field|field.value.as_ref().is_some_and(|value|row_input_use(value,table,match write{ast::Expr::Write{keys,..}=>keys,_=>unreachable!()},p,column)))).cloned());
@@ -205,6 +211,9 @@ fn collect(sources:&[(String,String)],bound:&Bound,inputs:&mut BTreeMap<(String,
             }
         }
     }
+    // An independently declared and enforced subject-approval operation can
+    // reapprove its replacement without mechanically rewriting a true flag.
+    for doc in &docs{for p in doc.programs.iter().filter(|p|p.kind==ast::ProgramKind::Mutation){for (write,context) in authority_walk::writes(&catalog,p){if let ast::Expr::Write{op:ast::WriteOp::Update,table,fields,site,..}=write{for ((owner,stamp),columns) in inputs.iter().filter(|((owner,_),_)|owner==&table){if fields.iter().any(|field|columns.contains(&field.name)&&subject::authorized(bound,&catalog,p,&context,owner,stamp,&field.name)){let name=super::super::operation_name(std::path::Path::new(&doc.file).file_stem().and_then(|s|s.to_str()).unwrap_or(&doc.file),&p.name);reissues.entry((name,table.clone(),stamp.clone())).or_default().insert(site.to_string());}}}}}}
     for (key,sites) in uncertain.iter_mut(){sites.retain(|site|reissues.get(key).is_some_and(|recorded|recorded.contains(site)));}
     for (key,sites) in reissues.iter_mut(){if let Some(ambiguous)=uncertain.get(key){sites.retain(|site|!ambiguous.contains(site));}}
     for (key,sites) in ambiguous_recordings{uncertain.entry(key).or_default().extend(sites);}
@@ -249,7 +258,7 @@ pub fn augmented(sources:&[(String,String)],bound:&Bound)->Bound{
 #[cfg(test)]mod sec10_preconditions{use super::*;
 #[test]fn negated_stage_preconditions_preserve_replacement_checks(){
     let source="table docs:\n  status: enum('draft','ready')\n  read <- allow\n  online only\nmutation approve(doc: docs,replacement: int):\n  d = docs[doc] ! else MISSING\n  require not (d.status = 'draft' or replacement <= 0) else INVALID\n";
-    let (doc,diagnostics)=crate::parse_document("schema.q",source);assert!(diagnostics.is_empty(),"{diagnostics:?}");let mut predicate=doc.programs[0].body.iter().find_map(|stmt|if let ast::Stmt::Require{condition,..}=stmt{Some(condition.clone())}else{None}).unwrap();omit_preconditions(&mut predicate,false);
+    let (doc,diagnostics)=crate::parse_document("schema.q",source);assert!(diagnostics.is_empty(),"{diagnostics:?}");let mut predicate=doc.programs[0].body.iter().find_map(|stmt|if let ast::Stmt::Require{condition,..}=stmt{Some(condition.clone())}else{None}).unwrap();omit_preconditions(&mut predicate,false,&|e|matches!(e,ast::Expr::Member{name,..} if name=="status"));
     let rendered=crate::print::expression(&super::creation_advice::simplify_boolean(&predicate));assert!(rendered.contains("replacement")&&!rendered.contains("status"),"{rendered}");assert_ne!(rendered,"false");
 }
 }
