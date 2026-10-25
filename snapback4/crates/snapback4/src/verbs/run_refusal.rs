@@ -11,7 +11,9 @@ use std::time::{Duration, Instant};
 
 /// A local run's trace, in the shape of a dev refusal record.
 pub(super) fn local(trace: &RefusalTrace, sites: &BTreeMap<(String, String), String>) -> Option<Json> {
-    trace.take().filter(|cause| cause.terminal).map(|cause| record(&cause, sites))
+    trace.take().filter(|cause| cause.terminal || trace.hidden()>0).map(|cause| {
+        let mut value=record(&cause, sites);value["hiddenRows"]=json!(trace.hidden());value
+    })
 }
 
 /// The refusal's own authored site takes precedence over any earlier trace.
@@ -21,7 +23,7 @@ pub(super) fn for_refusal(trace: &RefusalTrace, sites: &BTreeMap<(String, String
         trace.take();
         let kind = if kind == "program require" { "mutation require" } else { kind.as_str() };
         return Some(json!({"table":"", "clause":kind, "phase":kind, "site":site, "siteKind":"program",
-            "ruleText":sites.get(&("$clause".into(), site.clone()))}));
+            "hiddenRows":trace.hidden(), "ruleText":sites.get(&("$clause".into(), site.clone()))}));
     }
     local(trace, sites)
 }
@@ -144,6 +146,7 @@ pub(super) fn explain(record: &Json, source: &dyn Fn(&str) -> Option<String>) ->
         (None, Some(site), Some(line)) => format!("{clause}, at `{line}` ({site})"),
         (_, site, _) => format!("{clause} ({}{generation})", site.unwrap_or("<generated>")),
     };
+    let text = if record["hiddenRows"].as_u64().unwrap_or(0)>0 {format!("{text}; rows were hidden by a read rule; program lookups/exists see only caller-visible rows, and hidden columns are omitted") } else {text};
     let text = if let Some(phase) = record["phase"].as_str().filter(|phase| phase.starts_with("table authorization layer:")) {
         format!("{text}; {phase}")
     } else { text };

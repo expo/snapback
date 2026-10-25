@@ -1,10 +1,11 @@
 //! CLI security reporting; compile/test evidence share one analyzer.
-// @ref LLP 3000.036.004#5-exposure-report — full audit is opt-in, intent notes are on ordinary check.
+// @ref LLP 3000.036.004#19-wave-28-output-and-witness-decisions-dx11 — gates lead; advisory questions are opt-in.
 use super::*;
 use snapback4_lang::security::{self,Report};
 mod http;
 mod record;
 mod presence;
+pub(super) mod witnesses;
 #[cfg(test)] mod derived_tests;
 pub(super) use presence::remember as remember_presence;
 pub(super) use record::{remember,capture};
@@ -15,6 +16,7 @@ pub(super) fn report(project:&Project,bound:&Bound,sources:&[(String,String)],op
     let augmented=if options.flags.contains_key("security-deploy"){security::derived::augmented(sources,bound)}else{bound.clone()};
     let bound=&augmented;
     let mut selection=options.clone();
+    selection.json=true; // Internal fixture loading must not print a second check transcript.
     let selected_fixture=record::selected_fixture(project,options);
     if selected_fixture.is_dir(){selection.flags.insert("fixture".into(),selected_fixture.to_string_lossy().into_owned());}
     let inputs=match selection.flags.get("fixture"){
@@ -52,6 +54,10 @@ pub(super) fn report(project:&Project,bound:&Bound,sources:&[(String,String)],op
     security::challenges::apply(&mut report,&campaign);
     report.notes.extend(presence::notes(project,bound,None,sources).unwrap_or_else(|why|vec![snapback4_lang::Diagnostic::new(&Default::default(),"N_PRESENCE_LOOSENING",why,"repair the unreadable generated presence baseline").guide("security")]));
     if let Some(record)=cached {security::challenges::apply(&mut report,&security::challenges::Campaign{violations:record.violations,..Default::default()});}
+    let mut canonical=security::analyze_rules(bound);
+    security::add_source_notes(&mut canonical,sources,bound);
+    canonical.notes.extend(report.notes.iter().filter(|n|n.code=="N_PRESENCE_LOOSENING").cloned());
+    report.notes=canonical.notes;
     report
 }
 pub fn audit(options:&Options)->i32{
@@ -70,11 +76,12 @@ pub(super) fn exposure(report:&Report){
     eprintln!("security exposure: {} tables, {} conditional audiences, {broad} broadly readable tables; run snapback4 audit for exact role/column predicates",report.exposures.len(),report.roles.len());
 }
 // @ref LLP 3000.036.004#18-wave-26-security-decisions-dx9 — report enforcement facts without claiming complete security.
-pub(super) fn enforced(report:&Report,bound:&Bound){
+pub(super) fn enforced(report:&Report,bound:&Bound){println!("{}",enforced_text(report,bound));}
+pub(in crate::verbs) fn enforced_text(report:&Report,bound:&Bound)->String {
     let roles=report.notes.iter().filter(|n|n.code=="N_PRIVILEGE_ESCALATION").count();
     let columns=bound.schema.visible_tables().map(|(_,t)|t.column_reads.len()).sum::<usize>();
     let uploads=bound.schema.visible_tables().flat_map(|(_,t)|t.columns.values()).filter(|t|t.contains_asset()).count();
-    println!("check: enforced — {uploads} typed upload columns with owner-bound placement; {columns} column audiences; {roles} possible self-assignable role paths detected (bounded analysis)");
+    format!("check: enforced by the language — {uploads} typed upload columns with owner-bound placement; {columns} column audiences; {roles} possible self-assignable role paths detected (bounded analysis)")
 }
 pub(super) fn summary(report:&Report,verbose:bool){
     let proved=report.invariants.iter().filter(|v|v.status==security::Status::Proved).count();

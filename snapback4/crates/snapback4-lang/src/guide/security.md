@@ -312,13 +312,25 @@ Shape validation grants no authority; the server still decides session validity.
 
 ## Individual security review
 
-Default check puts likely holes before result inventories and restating questions.
+Default check prints a verdict and the language-enforcement summary. Pending
+gates always print; advisory decisions and notes require `check --review` (or
+--verbose/JSON). A gate blocks; an advisory does not. The verdict counts pending
+advisories and points to --review. A decision with a concrete campaign witness
+shows the admitted operation, caller, arguments, old/new row and inferred
+candidate. An upsert's existing-row arm is an **edit**. Opaque text, JSON and
+asset values in these generated witnesses are redacted. A finite witness is
+behavior to judge against the specification, never a proof of safety.
 Questions about retained role grants and uploads with an explicit mandatory-media
 contract require a repair or an individual disposition. They fail check without claiming an invariant refutation. Analyzer changes
 invalidate older source-bound reviews; recheck current IDs and decisions.
 Read the note, compare it with the specification, then use
 `check --ack-security ID --reason 'specification rationale'` with its current ID
-from check or check --json. Bulk --ack-notes cannot clear these gates.
+from check --review or `securityReviews[].id` in check --json. Repeat
+`--ack-security ID` or pass comma-separated IDs to record several decisions
+with the same reason atomically; an unknown/stale member writes none. Audience
+family commands retain old member decisions when a new member appears; the new
+member remains pending. Historical family commands select only their original,
+still-current members. Bulk --ack-notes cannot clear these gates.
 Commit snapback/security-reviews.json when the decision should travel with source.
 Comments, line shifts and independent declarations preserve decisions. Changed
 rule/column dependencies or analyzer revisions require review again; the record never grants authority or proves safety. Audit retains the full

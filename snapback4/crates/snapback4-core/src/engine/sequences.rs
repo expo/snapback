@@ -116,7 +116,7 @@ impl Runner<'_> {
         let old_provisional = old.map(|row| self.is_provisional(name, row)).transpose()?.unwrap_or(false);
         let viewer = self.context.viewer.clone();
         super::rules::evaluate(rule, &viewer, old, next, effect == Effect::Insert, &mut SequenceProbe {
-            runner: self, allowance, table: name, old: old_provisional, next: next_provisional,
+            runner: self, allowance, table: name, #[cfg(feature = "sqlite")] root: rule, old: old_provisional, next: next_provisional,
         })
     }
 
@@ -126,7 +126,7 @@ impl Runner<'_> {
         let old_provisional = old.map(|row| self.is_provisional(name, row)).transpose()?.unwrap_or(false);
         let viewer = self.context.viewer.clone();
         super::rules::evaluate_update(rule, both, &viewer, old, next, &mut SequenceProbe {
-            runner: self, allowance, table: name, old: old_provisional, next: next_provisional,
+            runner: self, allowance, table: name, #[cfg(feature = "sqlite")] root: rule, old: old_provisional, next: next_provisional,
         })
     }
 
@@ -347,10 +347,28 @@ struct SequenceProbe<'a, 'b> {
     runner: &'a mut Runner<'b>,
     allowance: &'a Authorization,
     table: &'a str,
+    #[cfg(feature = "sqlite")]
+    root: &'a RuleExpr,
     old: bool,
     next: bool,
 }
 impl super::rules::Probe for SequenceProbe<'_, '_> {
+    #[cfg(feature = "sqlite")]
+    // @ref LLP 3000.036.004#19-wave-28-output-and-witness-decisions-dx11 — identify the actual refusing grant without a second probe.
+    fn rejected_conjunct(&mut self,rule:&RuleExpr) {
+        use crate::schema::RuleTerm;
+        if self.runner.context.refusal_trace.is_none(){return;}
+        let RuleExpr::And(terms)=self.root else{return;};
+        if !terms.iter().any(|term|std::ptr::eq(term,rule)){return;}
+        for (column,policy) in &self.runner.schema.tables[self.table].column_writes {
+            let insert=RuleExpr::Or(vec![RuleExpr::Eq(RuleTerm::Field(column.clone()),RuleTerm::Literal(Value::Null)),policy.clone()]);
+            let update=RuleExpr::Or(vec![RuleExpr::Eq(RuleTerm::OldField(column.clone()),RuleTerm::Field(column.clone())),policy.old_and_next()]);
+            if rule==&insert || rule==&update {
+                self.runner.refusing_phase(self.table,&format!("column write grant {column}"),&format!("{column} write rule"));
+                break;
+            }
+        }
+    }
     fn reference(&mut self, table: &str, id: &Value, field: &str) -> Result<Option<Value>, RuntimeError> { self.runner.rule_reference(table, id, field) }
     fn take_changes(&mut self) -> Option<Vec<(i64, super::rules::Verdict)>> { self.runner.witness_changes.take() }
     fn replace_expiry(&mut self, expiry: Option<i64>) -> Option<i64> { self.runner.next_expiry.replace(expiry) }

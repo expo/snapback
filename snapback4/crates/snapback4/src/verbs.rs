@@ -97,7 +97,7 @@ pub fn parse(args: &[String]) -> Options {
                 None if crate::cli_flags::switch(flag) || ( !matches!(flag, "find" | "section") && iter.peek().is_none_or(|next| next.starts_with("--")) ) => (flag.to_owned(), String::new()),
                 None => (flag.to_owned(), iter.next().cloned().unwrap_or_default()),
             };
-            if name == "as" && matches!(args.first().map(String::as_str), Some("test" | "check")) {
+            if (name == "as" || name == "ack-security") && matches!(args.first().map(String::as_str), Some("test" | "check")) {
                 flags.entry(name).and_modify(|prior: &mut String| { prior.push(','); prior.push_str(&value); }).or_insert(value);
             } else { flags.insert(name, value); }
         } else {
@@ -409,8 +409,11 @@ pub fn check(options: &Options) -> i32 {
     let acknowledgment_not_applied = (security.refuted() && options.flags.contains_key("ack-security")).then_some(
         "--ack-security was not applied: a security invariant is refuted; an acknowledgment records specification rationale for a review note and cannot override a concrete counterexample. Repair the policy or the invariant and rerun check.");
     if !options.json { if let Some(message) = acknowledgment_not_applied { eprintln!("check: {message}"); } }
-    let dispositions = match security_reviews::review(&project,&compiled_sources,&security.notes,
-        if security.refuted(){None}else{options.flags.get("ack-security").map(|id|(id.as_str(),options.flags.get("reason").map(String::as_str).unwrap_or("")))}) {
+    let evidence=if options.json || options.flags.contains_key("review") || options.flags.contains_key("verbose") || options.flags.contains_key("ack-security") || security.notes.iter().any(|n|security_reviews::gated(&n.code)) {
+        security::witnesses::collect(&project,&bound,&compiled_sources,&security.notes,options.json || options.flags.contains_key("review") || options.flags.contains_key("verbose") || options.flags.contains_key("ack-security"))
+    } else { Vec::new() };
+    let dispositions = match security_reviews::review_evidence(&project,&compiled_sources,&security.notes,
+        if security.refuted(){None}else{options.flags.get("ack-security").map(|id|(id.as_str(),options.flags.get("reason").map(String::as_str).unwrap_or("")))},&evidence) {
         Ok(d)=>d,Err(error)=>{if options.json {println!("{}",json!({"ok":false,"security":&security,"problems":[{"code":"E_SECURITY_NOTES","message":error}]}));}else{eprintln!("check: E_SECURITY_NOTES: {error}");}return 2;}
     };
     check_surface::report(&project, &bound, options.json, Some((&security, &dispositions)));
@@ -419,7 +422,8 @@ pub fn check(options: &Options) -> i32 {
     let visible_security=security.notes.iter().zip(&dispositions).filter(|(_,d)|!d.acknowledged).map(|(n,_)|n).collect::<Vec<_>>();
     let compact_security=snapback4_lang::security::questionnaire_notes(&visible_security.iter().filter(|n|crate::note_rank::tier(&n.code)!=crate::note_rank::Tier::Review).map(|n|(*n).clone()).collect::<Vec<_>>());
     let present = |text: &str| crate::presentation::indexes(&bound.schema, text, options.flags.contains_key("verbose"));
-    let details = acquisition.is_none() || options.flags.contains_key("verbose");
+    let review = options.flags.contains_key("review") || options.flags.contains_key("verbose") || options.flags.contains_key("all");
+    let details = review && (acquisition.is_none() || options.flags.contains_key("verbose"));
     let certificates: Vec<_> = bound.programs.iter().map(|p| crate::scale::analyze_bound(&bound.schema, p)).collect();
     let scale_summary = crate::scale::summary(&certificates);
     let note_count = compact_security.len() + reviewed.new.len() + certificates.iter().map(|certificate| certificate.search.len()).sum::<usize>();
@@ -437,9 +441,9 @@ pub fn check(options: &Options) -> i32 {
     if options.json {
         println!("{}", json!({ "ok": !security_failed, "acknowledgmentNotApplied": acknowledgment_not_applied, "securityReviews": &dispositions, "security": &security, "followingHistory": bound.programs.iter().filter_map(|p| crate::scale::following::certificate(&bound.schema, &p.program)).collect::<Vec<_>>(), "rowViews": row_views, "fieldAuthority": field_authority, "sequences": sequences, "scaleSummary": scale_summary, "search": certificates.iter().flat_map(|certificate| &certificate.search).collect::<Vec<_>>(), "plans": if options.flags.contains_key("cost") { Some(bound.programs.iter().map(|p| (&p.program.name, p.selections())).collect::<BTreeMap<_, _>>()) } else { None }, "scale": if options.flags.contains_key("cost") { Some(&certificates) } else { None }, "tables": bound.schema.visible_tables().filter(|(name, _)| bound.schema.maintain_for(name).is_none()).count(), "views": bound.schema.visible_tables().filter(|(name, _)| bound.schema.maintain_for(name).is_some()).count(), "synced": synced, "operations": bound.programs.len(), "heldQueries": bound.schema.operations.iter().filter(|(_, fact)| fact.held).map(|(name, _)| name).collect::<Vec<_>>(), "notes": bound.notes, "newNotes": reviewed.new, "acknowledgedNotes": reviewed.acknowledged, "predictionSummary": snapback4_lang::bind::residency::prediction_summary(&bound), "starterLeftovers": init::starter_leftovers_json(&project.root), "acquisition": acquisition, "residency": if options.flags.contains_key("residency") { Some(residency::facts(&bound)) } else { None }, "native": native.as_ref().map(|b| json!({ "module": b.path, "bytes": b.bytes, "jobs": b.jobs, "ms": b.ms })), "ms": elapsed.as_millis() }));
     } else {
-        println!("check: {} — {} ({synced} synced), {} operations, {}{}, {:.1} ms{}; {} decisions to record (are the listed audiences and write/evidence permissions intended? tighten rules or record rationale); next: check --json", if security_failed { "failed" } else { "ok" }, table_counts(&bound.schema), bound.programs.len(), if security.refuted() { "security invariant refuted" } else if security_failed { "security review required" } else { "compiled" }, if note_count == 0 { String::new() } else { format!(", {} note{}", note_count, if note_count == 1 { "" } else { "s" }) }, elapsed.as_secs_f64() * 1000.0, match &native { Some(b) => format!("; native: {} → {} ({} B, {} ms)", b.jobs.join(", "), b.path.display(), b.bytes, b.ms), None => String::new() },security_reviews::decision_count(&dispositions));
+        println!("{}",crate::presentation::check_verdict(security_failed,&table_counts(&bound.schema),synced,bound.programs.len(),if security.refuted(){"security invariant refuted"}else if security_failed{"security review required"}else{"compiled"},dispositions.iter().filter(|d|d.gated&&!d.acknowledged).count(),dispositions.iter().filter(|d|!d.gated&&!d.acknowledged&&crate::note_rank::tier(&d.code)==crate::note_rank::Tier::Review).count(),dispositions.iter().filter(|d|d.acknowledged).count(),note_count,elapsed.as_secs_f64()*1000.0,init::client_setup_hint(&project.root),&native.as_ref().map(|b|format!("; native: {} → {} ({} B, {} ms)",b.jobs.join(", "),b.path.display(),b.bytes,b.ms)).unwrap_or_default()));
         security::enforced(&security,&bound);
-        if !reviewed.acknowledged.is_empty() { println!("{} reviewed notes (check --verbose to inspect); source edits require review again", reviewed.acknowledged.len()); }
+        if review && !reviewed.acknowledged.is_empty() { println!("{} reviewed notes (check --verbose to inspect); source edits require review again", reviewed.acknowledged.len()); }
         if options.flags.contains_key("verbose") {
             for line in &sequences { println!("  {line}"); }
             for (name, _) in bound.schema.visible_tables().filter(|(_, t)| t.ephemeral.is_some()) {
@@ -456,7 +460,7 @@ pub fn check(options: &Options) -> i32 {
             ranked.sort_by_key(|note| crate::note_rank::tier(&note.code));
             let ranked: Vec<snapback4_lang::Diagnostic> = ranked.into_iter().cloned().collect();
             for report in note_reports(&ranked, true) { println!("{}", present(&report)); }
-        } else {
+        } else if review {
             // Notes are advisory: ranked and grouped after the ok line, repeats shortened (note_rank).
             let mut notes = reviewed.new.iter().chain(compact_security.iter()).map(|note| {
                 let compact = completeness_note(note);
@@ -472,7 +476,7 @@ pub fn check(options: &Options) -> i32 {
             for line in crate::note_rank::render(notes) { println!("{}", crate::presentation::abbreviate_quoted(&line)); }
         }
     }
-    if !options.json {security_reviews::print(&dispositions,&security.notes);}
+    if !options.json { print!("{}",security_reviews::render_mode(&dispositions,&security.notes,review)); }
     if !options.json && (options.flags.contains_key("verbose") || options.flags.contains_key("cost")) {
         println!("{scale_summary}");
     }
@@ -513,9 +517,9 @@ pub fn check(options: &Options) -> i32 {
             if options.json { eprintln!("{report}"); } else { println!("{report}"); }
         }
     }
-    if !options.json { security::summary(&security,options.flags.contains_key("verbose")||options.flags.contains_key("all")); }
+    if !options.json && (review || security.refuted()) { security::summary(&security,options.flags.contains_key("verbose")||options.flags.contains_key("all")); }
     // @ref LLP 3000.011.003.000#7.2 — init-first projects keep the todo starter's files; name them and the one command that fits them.
-    if !options.json && let Some(report) = init::starter_leftovers(&project.root) { println!("{report}"); }
+    if !options.json && review && let Some(report) = init::starter_leftovers(&project.root) { println!("{report}"); }
     if security_failed { 1 } else {
         if let Err(error)=security::remember_presence(&project,&bound){eprintln!("check: E_SECURITY_NOTES: {error}");return 2;} 0
     }
@@ -818,6 +822,7 @@ pub fn run(options: &Options) -> i32 {
                 let body = if outcome.unavailable { json!({ "loading": true, "data": null, "complete": false, "metered": outcome.metered }) }
                     else { json!({ "data": wire::to_json(&outcome.data), "complete": outcome.complete, "cut": outcome.cut, "next": outcome.next, "metered": outcome.metered }) };
                 println!("{}", if options.json { body.to_string() } else { serde_json::to_string_pretty(&body).unwrap() });
+                run_refusal::print(run_refusal::local(&trace,&bound.refusal_sites),Some(source.files()));
                 0
             }
             Err(refusal) => {

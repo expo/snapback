@@ -42,19 +42,22 @@ pub(in crate::verbs) fn render(dispositions: &[Disposition], notes: &[Diagnostic
     }
     let mut family_printed=false;
     for (n,d) in ordered {
-        if d.acknowledged { writeln!(&mut output,"security reviewed {} {}: {}",d.id,d.code,d.reason.as_deref().unwrap_or("")).unwrap(); continue; }
+        if d.acknowledged {if let Some(w)=&d.witness {writeln!(&mut output,"  Witness recorded: {}",w["summary"].as_str().unwrap_or("see check --json")).unwrap();} writeln!(&mut output,"security reviewed {} {}: {}",d.id,d.code,d.reason.as_deref().unwrap_or("")).unwrap(); continue; }
         if d.family.is_some() {
             if !family_printed {output.push_str(&family_output);family_printed=true;}
             continue;
         }
-        if crate::note_rank::tier(&n.code)!=crate::note_rank::Tier::Review { continue; }
+        if !d.gated && crate::note_rank::tier(&n.code)!=crate::note_rank::Tier::Review { continue; }
         let subject=n.message.split(": ").next().unwrap_or(&n.message);
         let concise=match n.code.as_str() {
             "N_COLUMN_RESULT_EXPOSURE"=>format!("{subject}: should operation results/refusals expose protected or projected-out columns to every admitted caller"),
             _=>n.message.trim_end_matches(['.', '?']).to_owned(),
         };
+        let concise=concise.replace("insert/upsert", "insert, or edit an existing row via upsert");
         let question=concise.trim_end_matches(['.', '?']);
         writeln!(&mut output,"decision {} at {}: {question}; is this intended?",d.code,d.site).unwrap();
+        if let Some(witness)=&d.witness {writeln!(&mut output,"  Witness: {}",witness["summary"].as_str().unwrap_or("concrete campaign behavior; check --json for replay")).unwrap();}
+        else if matches!(n.code.as_str(),"N_APPROVAL_NOT_ENFORCED"|"N_ARGUMENT_GRANT"|"N_INSERT_WRITE_INTENT"|"N_DERIVED_WRITE_AUTHORITY") {writeln!(&mut output,"  Witness: none obtained in this bounded campaign; `check --review` searches for concrete behavior; this remains a specification question").unwrap();}
         let repair=match n.code.as_str() {
             "N_COLUMN_RESULT_EXPOSURE"=>"restrict result/refusal audiences with column rules and independent intent; run snapback4 test",
             "N_ARGUMENT_GRANT"=>"validate the recipient's current role and relationship; caller authority alone is insufficient",
@@ -66,12 +69,17 @@ pub(in crate::verbs) fn render(dispositions: &[Disposition], notes: &[Diagnostic
     output
 }
 
+/// One mode selector for the CLI and captured-analyzer format replays.
+pub(in crate::verbs) fn render_mode(dispositions:&[Disposition],notes:&[Diagnostic],review:bool)->String {
+    let selected=dispositions.iter().zip(notes).filter(|(d,_)|review || d.recorded || d.gated&&!d.acknowledged).collect::<Vec<_>>();
+    render(&selected.iter().map(|(d,_)|(*d).clone()).collect::<Vec<_>>(),&selected.iter().map(|(_,n)|(*n).clone()).collect::<Vec<_>>())
+}
 #[cfg(test)]mod tests {
  use super::*;
  #[test]fn authority_and_gates_precede_one_complete_audience_family(){
   let codes=["N_BROAD_READ","N_PRIVILEGE_ESCALATION","N_OPTIONAL_UPLOAD_CREATE","N_INVARIANT_RESTATES_RULE"];
   let notes=codes.iter().map(|code|Diagnostic::new(&Default::default(),*code,"subject: review authority","repair enforcement")).collect::<Vec<_>>();
-  let dispositions=codes.iter().map(|code|Disposition{family:audience(code).then(||"audience:family".into()),id:(*code).into(),code:(*code).into(),site:"schema.q:1:1".into(),gated:gated(code),acknowledged:false,reason:None,scope:"test".into()}).collect::<Vec<_>>();
+  let dispositions=codes.iter().map(|code|Disposition{family:audience(code).then(||"audience:family".into()),id:(*code).into(),code:(*code).into(),site:"schema.q:1:1".into(),gated:gated(code),acknowledged:false,recorded:false,reason:None,witness:None,scope:"test".into()}).collect::<Vec<_>>();
   let text=render(&dispositions,&notes);
   assert!(text.find("decision N_OPTIONAL_UPLOAD_CREATE").unwrap()<text.find("decision N_PRIVILEGE_ESCALATION").unwrap(),"{text}");
   assert!(text.find("decision N_PRIVILEGE_ESCALATION").unwrap()<text.find("decision audience").unwrap(),"{text}");
@@ -82,9 +90,39 @@ pub(in crate::verbs) fn render(dispositions: &[Disposition], notes: &[Diagnostic
   for code in snapback4_lang::security::GATED_NOTE_CODES {
    assert!(!audience(code));
    let n=Diagnostic::new(&Default::default(),*code,"explicit review required","repair enforcement");
-   let d=Disposition{family:None,id:"id".into(),code:(*code).into(),site:"schema.q:1:1".into(),gated:true,acknowledged:false,reason:None,scope:"test".into()};
+   let d=Disposition{family:None,id:"id".into(),code:(*code).into(),site:"schema.q:1:1".into(),gated:true,acknowledged:false,recorded:false,reason:None,witness:None,scope:"test".into()};
    let text=render(&[d],&[n]);assert_eq!(text.matches(code).count(),1,"{text}");assert!(text.contains("is this intended?")&&text.contains("Repair:")&&text.contains("Intended:"));
   }
   for code in ["N_DERIVED_WRITE_AUTHORITY","N_CALLER_TIME","N_OPTIONAL_EVIDENCE","N_APPROVAL_NOT_ENFORCED","E_SECURITY_REVIEW"] {assert!(!audience(code));}
+ }
+}
+
+#[cfg(test)]mod sec10_replay {
+ use super::*;
+ fn diagnostic(n:&serde_json::Value)->Diagnostic {Diagnostic::new(&snapback4_lang::Site::new(n["site"]["file"].as_str().unwrap(),n["site"]["line"].as_u64().unwrap() as u32,n["site"]["col"].as_u64().unwrap() as u32),n["code"].as_str().unwrap(),n["message"].as_str().unwrap(),n["rewrite"].as_str().unwrap())}
+ fn disposition(n:&Diagnostic,gated:bool)->Disposition {Disposition{family:None,id:n.code.clone(),code:n.code.clone(),site:n.site.to_string(),gated,acknowledged:false,recorded:false,reason:None,scope:"captured SEC10 source-bound decision".into(),witness:None}}
+ #[test]fn captured_sec10_codes_keep_every_gate_and_hide_advisories_by_default(){
+  let codes:serde_json::Value=serde_json::from_str(include_str!("../../../tests/fixtures/dx11/sec10-codes.json")).unwrap();
+  for n in codes.as_object().unwrap().values(){let n=diagnostic(n);let d=disposition(&n,false);assert!(render_mode(&[d],&[n.clone()],false).is_empty());let d=disposition(&n,true);let output=render_mode(&[d],&[n.clone()],false);assert!(output.contains(&n.code)&&output.contains("Intended:"),"{output}");}
+ }
+ /// Opt-in measurement on all 50 actual SEC10 structured reports. No analyzer
+ /// or source is modified: only the production presentation function runs.
+ #[test]fn captured_sec10_measurement(){
+  let Ok(path)=std::env::var("SNAPBACK4_DX11_SEC10_REPORTS")else{return;};
+  let rows:serde_json::Value=serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();let mut measured=Vec::new();
+  for row in rows.as_array().unwrap(){
+   let notes=row["notes"].as_array().unwrap().iter().map(diagnostic).collect::<Vec<_>>();
+   let ds=row["dispositions"].as_array().unwrap().iter().zip(&notes).map(|(d,n)|disposition(n,d["gated"]==true)).collect::<Vec<_>>();
+   let gate_count=ds.iter().filter(|d|d.gated).count();
+   let project=crate::project::Project{root:std::path::PathBuf::from(format!("/tmp/dx11-replay/sec10/{}",row["lane"].as_str().unwrap()))};
+   let sources=project.sources().unwrap();let bound=snapback4_lang::compile(&sources);assert!(bound.diagnostics.is_empty());
+   let mut report=snapback4_lang::security::analyze_rules(&bound);report.notes=notes.clone();
+   let advice=ds.iter().filter(|d|!d.gated&&crate::note_rank::tier(&d.code)==crate::note_rank::Tier::Review).count();
+   let verdict=crate::presentation::check_verdict(gate_count>0,&crate::verbs::table_counts(&bound.schema),bound.schema.synced().count(),bound.programs.len(),if gate_count==0{"compiled"}else{"security review required"},gate_count,advice,0,row["noteCount"].as_u64().unwrap_or(0) as usize,row["ms"].as_f64().unwrap(),crate::verbs::init::client_setup_hint(&project.root),"");
+   let text=format!("{verdict}\n{}\n{}",crate::verbs::security::enforced_text(&report,&bound),render_mode(&ds,&notes,false));
+   let lines=text.lines().count();if gate_count==0{assert!(lines<=5);}
+   measured.push(serde_json::json!({"lane":row["lane"],"exit":if gate_count==0{0}else{1},"lines":lines,"chars":text.chars().count(),"gates":gate_count}));
+  }
+  if let Ok(path)=std::env::var("SNAPBACK4_DX11_RENDER_OUTPUT"){std::fs::write(path,serde_json::to_vec_pretty(&measured).unwrap()).unwrap();}
  }
 }

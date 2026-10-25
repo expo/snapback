@@ -108076,3 +108076,25 @@ references. All 8,732 continuation PID/birth instances, the prior run's 317,
 and 537 public-script PID records are absent; the monitor has exited. PIDs left:
 none. Minimum free disk is 123.83 GiB, final audit 128.77 GiB; the 30 GiB guard
 never fires.
+
+
+## 2026-10-25 — DX11: quiet checks and witnessed decisions
+
+Wave 28 asked for successful check output to stop competing with application
+work. Default check now prints its verdict and the bounded language-enforcement
+facts; advisory questions and compiler notes require --review. Pending gates
+still print their individual commands. On copies of all fifty wave-28 schemas,
+0.4.41 measured 38 median lines / 5300 characters; DX11 measures two lines.
+The available SEC10 release measured 58 lines / 9703 characters; feeding its
+structured reports through DX11's production rendering retains all nine gate
+outcomes and gives two median lines. No SEC10 gate semantics changed.
+
+Canonical source notes remove campaign-dependent duplicate ordinals. sec11-1
+keeps semantic dependency bindings, atomic repeated/comma-separated decisions
+and historical audience aliases that never absorb new members. Generated-only,
+redacted witness records exercise 011 F1/F2 and 019 F1, including an actual
+dispatcher balance edit from 54321 to zero. Authored refutations still refuse
+acknowledgment. Private diagnostics identify column grants without re-probing
+and explain caller-filtered rows without adding information to public replies.
+LLP 3000.036.004 §19 and its three Muse/fresh-Codex review rounds govern the
+change. Qualification and limitations are in the DX11 workstream report.

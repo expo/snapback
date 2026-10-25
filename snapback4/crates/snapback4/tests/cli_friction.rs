@@ -1100,7 +1100,7 @@ fn surf_saved_copy_hint_is_visible_without_turning_json_into_mixed_stdout() {
 fn surf_unreferenced_smoke_helper_is_info_without_a_schema_mismatch_claim() {
     let project=Project::new("use identity password\n");
     project.write("src/native-smoke.ts","export function smokeSegment() {}\n");
-    let output=project.run(&["check"]);
+    let output=project.run(&["check", "--review"]);
     assert!(output.status.success(),"{}",text(&output));
     let output=text(&output);
     assert!(output.contains("info: src/native-smoke.ts"),"{output}");

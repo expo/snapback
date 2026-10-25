@@ -55,7 +55,7 @@ fn explicit_note_review_is_shareable_invalidates_and_never_hides_json_findings()
     assert!(ack["acknowledgedNotes"].as_array().unwrap().iter().any(|n| n["code"] == "N_NO_CURSOR"));
     assert_eq!(ack["notes"], before["notes"]);
     assert_eq!(ack["notes"].as_array().unwrap().len(), ack["newNotes"].as_array().unwrap().len() + ack["acknowledgedNotes"].as_array().unwrap().len());
-    let normal = String::from_utf8(run(&["check"]).stdout).unwrap();
+    let normal = String::from_utf8(run(&["check", "--review"]).stdout).unwrap();
     assert!(!normal.contains("N_NO_CURSOR"), "{normal}");
     assert!(normal.contains("reviewed notes"));
     let verbose = String::from_utf8(run(&["check", "--verbose"]).stdout).unwrap();
@@ -83,7 +83,7 @@ fn explicit_note_review_is_shareable_invalidates_and_never_hides_json_findings()
     assert_eq!(json(&["check", "--json"])["newNotes"], before["notes"]);
     fs::remove_file(dir.join("snapback/extra.q")).unwrap();
     fs::write(dir.join("snapback/schema.q"), format!("{source}-- source change\n")).unwrap();
-    assert!(String::from_utf8(run(&["check"]).stdout).unwrap().contains("N_NO_CURSOR"));
+    assert!(String::from_utf8(run(&["check", "--review"]).stdout).unwrap().contains("N_NO_CURSOR"));
     fs::write(&file, b"{invalid").unwrap();
     let invalid = run(&["check", "--json"]);
     let findings: serde_json::Value = serde_json::from_slice(&invalid.stdout).unwrap();
@@ -175,7 +175,7 @@ fn no_horizon_notes_are_compact_in_check_and_explained_by_verbose_or_why() {
         assert!(output.status.success(), "{output:?}");
         String::from_utf8(output.stdout).unwrap()
     };
-    let plain = run(&["check"]);
+    let plain = run(&["check", "--review"]);
     assert!(plain.contains("N_NO_HORIZON"), "selected ordinary classes keep both horizon subjects: {plain}");
     let full = run(&["check", "--verbose"]);
     assert_eq!(full.matches(" — N_NO_HORIZON:").count(), 2, "{full}");
@@ -241,11 +241,11 @@ query queue(c: cursor ?):\n  return tickets last 50 by .at after c\nquery queue2
         assert!(output.status.success(), "{output:?}");
         String::from_utf8(output.stdout).unwrap()
     };
-    let merged = run(&["check"]);
+    let merged = run(&["check", "--review"]);
     assert!(!merged.contains("N_NEVER_COMPLETE"), "{merged}");
     let source = source.replace(" last 50 by .at", " where .at + 1 > 0 last 50 by .at").replace(" last 20 by .at", " where .at + 1 > 0 last 20 by .at");
     fs::write(dir.join("snapback/schema.q"), &source).unwrap();
-    let plain = run(&["check"]);
+    let plain = run(&["check", "--review"]);
     // FRONT: the checked source leads, including different queries sharing one explanation.
     for query in ["queue", "queue2", "mySessions"] {
         assert!(plain.contains(&format!("rewrite for query {query}:")), "{plain}");
@@ -304,7 +304,7 @@ fn an_online_only_check_drops_the_never_predict_paragraph_and_each_note_leads_wi
     // still draws its note (as written it merges, LLP 3000.036.001).
     let online = "table staff:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\ntable tickets:\n  owner: principal\n  at: time\n  immutable owner\n  read <- .owner = viewer or exists staff[viewer]\n  insert <- .owner = viewer\n  online only\nquery all():\n  return tickets where .at + 1 > 0 first 50 by .at\nmutation open(at: time):\n  return insert tickets { owner: viewer, at }\n";
     fs::write(dir.join("snapback/schema.q"), online).unwrap();
-    let plain = run(&["check"]);
+    let plain = run(&["check", "--review"]);
     assert!(plain.contains("things to review (advisory;"), "{plain}");
     assert!(!plain.contains("server-run"), "{plain}");
     let verbose = run(&["check", "--verbose"]);
@@ -320,7 +320,7 @@ fn an_online_only_check_drops_the_never_predict_paragraph_and_each_note_leads_wi
     assert!(plain.contains("N_NO_CURSOR: no action for a top-N list."), "{plain}");
     // A synced table keeps the paragraph.
     fs::write(dir.join("snapback/schema.q"), "table notes:\n  owner: principal\n  immutable owner\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  sync\ntable log:\n  owner: principal\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  online only\nmutation add():\n  insert log { owner: viewer }\n  return insert notes { owner: viewer }\n").unwrap();
-    assert!(run(&["check"]).contains("server-run"), "{}", run(&["check"]));
+    assert!(run(&["check", "--review"]).contains("server-run"), "{}", run(&["check", "--review"]));
     fs::remove_dir_all(dir).unwrap();
 }
 
@@ -422,7 +422,7 @@ fn two_scans_in_one_query_keep_their_distinct_audiences() {
     }
     source.push_str("query both():\n  a = tickets where .at + 1 > 0 last 20 by .at\n  b = papers where .at + 1 > 0 last 20 by .at\n  return {a, b}\n");
     fs::write(dir.join("snapback/schema.q"), &source).unwrap();
-    let output = Command::new(env!("CARGO_BIN_EXE_snapback4")).arg("check").current_dir(&dir).output().unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_snapback4")).args(["check", "--review"]).current_dir(&dir).output().unwrap();
     fs::remove_dir_all(dir).unwrap();
     let text = String::from_utf8(output.stdout).unwrap();
     assert!(output.status.success(), "{text} {:?}", output.stderr);
