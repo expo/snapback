@@ -9,7 +9,7 @@ fn projects(e:&ast::Expr,old:Option<&str>,table:&str,keys:&[ast::KeyPart],p:&ast
         ast::Expr::Literal{value:ast::Literal::Bool(value),..}=>Some(*value),
         ast::Expr::Unary{op,value,..} if op=="not"=>projects(value,old,table,keys,p,column).map(|v|!v),
         ast::Expr::Binary{op,left,right,..} if op=="and"||op=="or"=>{let a=projects(left,old,table,keys,p,column);let b=projects(right,old,table,keys,p,column);let decisive=op=="or";if a==Some(decisive)||b==Some(decisive){Some(decisive)}else if a.is_some()&&b.is_some(){Some(!decisive)}else{None}},
-        ast::Expr::Binary{op,left,right,..} if op=="="||op=="!="=>[(left.as_ref(),right.as_ref()),(right.as_ref(),left.as_ref())].into_iter().find_map(|(field,value)|if let ast::Expr::Member{base,name,..}=field&&name==column&&same_resource(base,table,keys,p)&&let ast::Expr::Literal{value:ast::Literal::Str(value),..}=value{Some((old==Some(value.as_str()))==(op=="="))}else{None}),_=>None,
+        ast::Expr::Binary{op,left,right,..} if op=="="||op=="!="=>{if let (Some(a),Some(b))=(projects(left,old,table,keys,p,column),projects(right,old,table,keys,p,column)){return Some((a==b)==(op=="="));}[(left.as_ref(),right.as_ref()),(right.as_ref(),left.as_ref())].into_iter().find_map(|(field,value)|if let ast::Expr::Member{base,name,..}=field&&name==column&&same_resource(base,table,keys,p)&&let ast::Expr::Literal{value:ast::Literal::Str(value),..}=value{Some((old==Some(value.as_str()))==(op=="="))}else{None})},_=>None,
     }
 }
 pub(super) fn collect(catalog:&Catalog,bound:&Bound)->BTreeSet<(String,String)>{
@@ -26,11 +26,17 @@ pub(super) fn collect(catalog:&Catalog,bound:&Bound)->BTreeSet<(String,String)>{
                         if let ast::Expr::Binary{op,left,right,..}=e&&matches!(op.as_str(),"="|"!=")&&[(left.as_ref(),right.as_ref()),(right.as_ref(),left.as_ref())].iter().any(|(a,b)|matches!(a,ast::Expr::Member{base,name,..} if name==&field.name&&same_resource(base,&table,&keys,p))&&matches!(b,ast::Expr::Literal{value:ast::Literal::Str(value),..} if !value.is_empty())){guarded=true;for value in [left.as_ref(),right.as_ref()]{if let ast::Expr::Literal{value:ast::Literal::Str(value),..}=value{states.insert(value.clone());}}}
                     });
                 }}
+                // Only a witnessed literal destination establishes a transition. An
+                // opaque condition involving this field is not evidence of a
+                // possible change; role/other-field conditions stay independent.
                 if guarded&&let Some(ast::Expr::Literal{value:ast::Literal::Str(value),..})=&field.value&&!value.is_empty(){
                     let possible=match definition.columns[&field.name].required(){snapback4_core::schema::ColumnType::Enum{variants}=>variants.iter().map(|value|Some(value.as_str())).collect::<Vec<_>>(),_=>states.iter().map(|value|Some(value.as_str())).chain([None]).collect()};
-                    let changes=possible.into_iter().any(|old|old!=Some(value.as_str())&&!context.body.iter().any(|stmt|matches!(stmt,ast::Stmt::Require{condition,..} if projects(condition,old,&table,&keys,p,&field.name)==Some(false))));
+                    let changes=possible.into_iter().any(|old|old!=Some(value.as_str())&&context.body.iter().all(|stmt|{
+                        let ast::Stmt::Require{condition,..}=stmt else{return true;};
+                        match projects(condition,old,&table,&keys,p,&field.name){Some(value)=>value,None=>{let mut related=false;let mut expression=condition.clone();super::super::super::intent_walk::expression(&mut expression,&mut |e|if let ast::Expr::Member{base,name,..}=e&&name==&field.name&&same_resource(base,&table,&keys,p){related=true;});!related}}
+                    }));
                     if !changes{continue;}states.insert(value.clone());
-                }
+                }else{continue;}
                 if guarded{observations.entry((table.clone(),field.name.clone())).or_default().extend(states);}
             }
         }
