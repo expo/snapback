@@ -27,7 +27,7 @@ fn receipt(table:&str,row:&Value,stamp:&str,columns:&BTreeSet<String>)->Option<(
     let Value::Id(id)=row.field("id").ok()? else{return None;};let value=cell(row,stamp);if !positive(&value){return None;}
     Some(((table.into(),id.clone(),stamp.into()),Receipt{trusted:true,stamp:value,inputs:columns.iter().map(|column|(column.clone(),cell(row,column))).collect()}))
 }
-fn consumed(predicate:&ast::Expr,row:&Value,effective:&Value,rows:&BTreeMap<String,Vec<Value>>,entry:&BTreeMap<String,Vec<Value>>,schema:&Schema,viewer:&str,table:&str,now:i64,inputs:&ApprovedInputs,receipts:&Receipts)->Option<bool>{
+fn consumed(predicate:&ast::Expr,row:&Value,effective:&Value,rows:&BTreeMap<String,Vec<Value>>,entry:&BTreeMap<String,Vec<Value>>,schema:&Schema,viewer:&str,table:&str,now:i64,inputs:&ApprovedInputs,receipts:&Receipts,history:&super::deleted_approvals::History)->Option<bool>{
     let actual=|owner:&str,id:&str|{
         if owner==table&&effective.field("id").ok()==Some(&Value::Id(id.into())){Some(effective)}else{rows.get(owner).into_iter().flatten().find(|r|r.field("id").ok()==Some(&Value::Id(id.into())))}
     };
@@ -76,14 +76,8 @@ fn consumed(predicate:&ast::Expr,row:&Value,effective:&Value,rows:&BTreeMap<Stri
     };
     let verdict=search(&certain);
     if verdict!=Some(true)&&certain!=possible&&search(&possible)!=Some(false){return None;}
-    if verdict==Some(false){
-        // A deleted approval record has no current input image with which to
-        // establish consumption. Keep that existing ambiguity explicit.
-        for read in super::super::derived::approval_populations(predicate){
-            if super::super::concrete::evaluate(&ast::Expr::Exists{read:read.clone(),site:Site::default()},row,entry,schema,viewer,table,now)!=Some(true){continue;}
-            if let Some(Value::Array(prior))=super::super::concrete::value(&ast::Expr::Read(read.clone()),row,entry,schema,viewer,table,now)&&prior.iter().any(|old|!rows.get(&read.table).into_iter().flatten().any(|current|current.field("id").ok()==old.field("id").ok())){return None;}
-        }
-    }verdict
+    if verdict==Some(false)&&super::deleted_approvals::uncertain(predicate,row,effective,rows,entry,schema,viewer,table,now,history){return None;}
+    verdict
 }
 pub(super) fn trace(bound:&Bound,p:&Program,entry:&Engine)->Trace {
     let entry=if bound.invariants.iter().any(|i|i.site.file.contains("/sibling-approval/")){readback(entry).ok().map(std::sync::Arc::new)}else{None};
@@ -91,6 +85,10 @@ pub(super) fn trace(bound:&Bound,p:&Program,entry:&Engine)->Trace {
     let mut initial=Receipts::new();if let Some(entry)=&entry{for ((owner,stamp),columns) in inputs.iter(){for row in entry.get(owner).into_iter().flatten(){if let Some((key,value))=receipt(owner,row,stamp,columns){initial.insert(key,value);}}}}
     let receipts=std::sync::Arc::new(std::sync::Mutex::new(initial));
     let mut intents=Vec::new();
+    let history=std::sync::Arc::new(std::sync::Mutex::new(super::deleted_approvals::History::default()));
+    let deleting=ir::write_tables(p).iter().any(|(_,kind)|*kind=="delete")||!super::stability::implicit(bound,p).is_empty();
+    if entry.is_some()&&deleting{for (table,_) in bound.schema.visible_tables(){let history=history.clone();intents.push(Intent{source:Default::default(),paired:false,concrete:None,site:"$security.population-history".into(),table:table.clone(),effects:vec![Effect::Insert,Effect::Update,Effect::Delete],column:None,policy:RuleExpr::Allow,boundary:Some(snapback4_core::engine::fixture_trace::BoundaryPredicate(std::sync::Arc::new(move |rows,old,next,_,_,_,_|{history.lock().expect("population history lock").record(rows,old.is_some()&&next.is_none());Some(true)})))});}}
+
     if entry.is_some(){for ((owner,stamp),columns) in inputs.iter(){
         for trusted in [true,false]{
             let key=(p.name.clone(),owner.clone(),stamp.clone());
@@ -109,23 +107,23 @@ pub(super) fn trace(bound:&Bound,p:&Program,entry:&Engine)->Trace {
         for word in super::super::effects(inv) {
             let transition=super::super::derived::transition(inv);
             let mut boundary=transition.map(|(bypass,prerequisite)|{
-                let bypass=bypass.clone();let prerequisite=prerequisite.clone();let schema=bound.schema.clone();let table=inv.table.clone();let entry=if inv.site.file.contains("/sibling-approval/"){entry.clone()}else{None};let inputs=inputs.clone();let receipts=receipts.clone();let sibling=inv.site.file.contains("/sibling-approval/");
+                let bypass=bypass.clone();let prerequisite=prerequisite.clone();let schema=bound.schema.clone();let table=inv.table.clone();let entry=if inv.site.file.contains("/sibling-approval/"){entry.clone()}else{None};let inputs=inputs.clone();let receipts=receipts.clone();let history=history.clone();let sibling=inv.site.file.contains("/sibling-approval/");
                 snapback4_core::engine::fixture_trace::BoundaryPredicate(std::sync::Arc::new(move |rows,old,next,viewer,now,_,_|{
                     let (Some(old),Some(next))=(old,next)else{return None;};
                     match super::super::concrete::evaluate(&bypass,next,rows,&schema,viewer,&table,now){
                         Some(true)=>Some(true),Some(false)=>{
                             let image=if sibling{prerequisite_image(old,next,&schema,&table,&inputs)}else{old.clone()};
                             let current=super::super::concrete::evaluate(&prerequisite,&image,rows,&schema,viewer,&table,now);
-                            let prior=entry.as_ref().map(|entry|consumed(&prerequisite,&image,next,rows,entry,&schema,viewer,&table,now,&inputs,&receipts.lock().expect("approval receipt lock")));
+                            let prior=entry.as_ref().map(|entry|consumed(&prerequisite,&image,next,rows,entry,&schema,viewer,&table,now,&inputs,&receipts.lock().expect("approval receipt lock"),&history.lock().expect("population history lock")));
                             match prior{Some(result)=>result,None=>if sibling{None}else{current}}
                         },None=>None,
                     }
                 }))
             }).or_else(||if inv.site.file.contains("/sibling-approval/")&&word=="insert"{
-                let predicate=inv.syntax.clone()?;let schema=bound.schema.clone();let table=inv.table.clone();let entry=entry.clone();let receipts=receipts.clone();let inputs=inputs.clone();
+                let predicate=inv.syntax.clone()?;let schema=bound.schema.clone();let table=inv.table.clone();let entry=entry.clone();let receipts=receipts.clone();let inputs=inputs.clone();let history=history.clone();
                 Some(snapback4_core::engine::fixture_trace::BoundaryPredicate(std::sync::Arc::new(move |rows,_old,next,viewer,now,_,_|{
                     let row=next?;
-                    let prior=entry.as_ref().map(|entry|consumed(&predicate,row,row,rows,entry,&schema,viewer,&table,now,&inputs,&receipts.lock().expect("approval receipt lock")));
+                    let prior=entry.as_ref().map(|entry|consumed(&predicate,row,row,rows,entry,&schema,viewer,&table,now,&inputs,&receipts.lock().expect("approval receipt lock"),&history.lock().expect("population history lock")));
                     match prior{Some(result)=>result,None=>None}
                 })))
             }else if inv.site.file.contains("/parent-state/"){
@@ -624,7 +622,7 @@ fn lifecycle_observations(source:String,operation:&str,args:BTreeMap<String,Valu
 #[cfg(test)]mod sec10_deleted_population_receipts{use super::*;
 #[test]fn deleted_count_and_exists_approvals_without_current_images_stay_unknown(){
     let source="table docs:\n  read <- allow\n  online only\ntable approvals:\n  doc: docs\n  read <- allow\n  delete <- allow\n  online only\ntable effects:\n  doc: docs\n  read <- allow\n  insert <- allow\n  online only\nmutation consume(doc: docs,approval: approvals):\n  require CONTRACT else NO_APPROVAL\n  delete approvals[approval]\n  return insert effects {doc}\nmutation bypass(doc: docs):\n  return insert effects {doc}\n";
-    for contract in ["count(approvals[doc = doc]) > 0","not (count(approvals[doc = doc]) = 0)","(count(approvals[doc = doc]) > 0) = true","exists approvals[doc = doc]"]{
+    for contract in ["count(approvals[doc = doc]) > 0","not (count(approvals[doc = doc]) = 0)","(count(approvals[doc = doc]) > 0) = true","exists approvals[doc = doc]","exists docs[id = doc] where (exists approvals[doc = .id])","exists docs[id = doc] where (count(approvals[doc = .id]) > 0)"]{
         let sources=vec![("schema.q".into(),source.replace("CONTRACT",contract))];let b=super::super::super::derived::augmented(&sources,&crate::compile(&sources));assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
         for (operation,seed_approval,expected) in [("consume",true,None),("bypass",false,Some(false))]{
             let mut engine=Engine::memory(b.schema.clone(),b.programs.iter().map(|p|p.program.clone())).unwrap();let row=|table:&str,value:serde_json::Value|snapback4_core::wire::row_from_json(&b.schema.tables[table],&value).unwrap();let mut rows=vec![("docs".into(),row("docs",serde_json::json!({"id":"d"})))];if seed_approval{rows.push(("approvals".into(),row("approvals",serde_json::json!({"id":"a","doc":"d"}))));}engine.seed_at(rows,NOW).unwrap();
@@ -632,4 +630,21 @@ fn lifecycle_observations(source:String,operation:&str,args:BTreeMap<String,Valu
             let result=engine.mutate(operation,None,Context::new("dev:a",args).at(NOW).with_fixture_trace(trace.clone())).unwrap();assert!(matches!(result.state,snapback4_core::WriteState::Sent{..}));let observations=trace.take();let sibling=observations.iter().filter(|o|o.site.contains("sibling-approval")).collect::<Vec<_>>();assert!(!sibling.is_empty(),"{contract}: {observations:?}");assert!(sibling.iter().all(|o|o.allowed==expected),"{contract}/{operation}: {observations:?}");
         }
     }
+}}
+
+#[cfg(test)]mod sec10_born_deleted_receipts{use super::*;
+#[test]fn transaction_local_approval_birth_and_consumption_keep_uncertainty(){
+    let source="table docs:\n  read <- allow\n  online only\ntable approvals:\n  doc: docs\n  approved: bool default true\n  read <- allow\n  insert <- allow\n  update <- allow\n  delete <- allow\n  online only\ntable effects:\n  doc: docs\n  read <- allow\n  insert <- allow\n  online only\nmutation consume(doc: docs):\n  a = insert approvals {doc}\n  require CONTRACT else NO_APPROVAL\n  CLEAR\n  delete approvals[a.id]\n  return insert effects {doc}\nmutation guarded(doc: docs):\n  require CONTRACT else NO_APPROVAL\n  return insert effects {doc}\nmutation bypass(doc: docs):\n  return insert effects {doc}\n";
+    for contract in ["count(approvals[doc = doc] where .approved) > 0","exists approvals[doc = doc] where .approved","exists docs[id = doc] where (exists approvals[doc = .id] where .approved)"]{for clear in ["","update approvals[a.id] {approved:false}"]{
+        let sources=vec![("schema.q".into(),source.replace("CONTRACT",contract).replace("CLEAR",clear))];let b=super::super::super::derived::augmented(&sources,&crate::compile(&sources));assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+        for (operation,expected) in [("consume",None),("bypass",Some(false))]{
+            let mut engine=Engine::memory(b.schema.clone(),b.programs.iter().map(|p|p.program.clone())).unwrap();let row=snapback4_core::wire::row_from_json(&b.schema.tables["docs"],&serde_json::json!({"id":"d"})).unwrap();engine.seed_at([("docs".into(),row)],NOW).unwrap();let p=&b.programs.iter().find(|p|p.program.name==operation).unwrap().program;let trace=trace(&b,p,&engine);let result=engine.mutate(operation,None,Context::new("dev:a",BTreeMap::from([("doc".into(),Value::Id("d".into()))])).at(NOW).with_fixture_trace(trace.clone())).unwrap();assert!(matches!(result.state,snapback4_core::WriteState::Sent{..}));let observations=trace.take();let siblings=observations.iter().filter(|o|o.site.contains("sibling-approval")).collect::<Vec<_>>();assert!(!siblings.is_empty(),"{contract}/{clear}/{operation}: {observations:?}");assert!(siblings.iter().all(|o|o.allowed==expected),"{contract}/{clear}/{operation}: {observations:?}");
+        }
+    }}
+}}
+
+#[cfg(test)]mod sec10_deleted_metadata{use super::*;
+#[test]fn deleting_ordinary_metadata_cannot_consume_a_complete_approval_prerequisite(){
+    let source="table docs:\n  approved: bool default true\n  read <- allow\n  online only\ntable routeLogs:\n  doc: docs\n  authorizationRouteUpdatedAt: time ?\n  read <- allow\n  delete <- allow\n  online only\ntable effects:\n  doc: docs\n  read <- allow\n  insert <- allow\n  online only\nmutation guarded(doc: docs):\n  d = docs[doc] ! else MISSING\n  require d.approved and exists routeLogs[doc = doc] where .authorizationRouteUpdatedAt != null else NO_APPROVAL\n  return insert effects {doc}\nmutation bypass(doc: docs,route: routeLogs):\n  delete routeLogs[route]\n  return insert effects {doc}\n";
+    let sources=vec![("schema.q".into(),source.into())];let b=super::super::super::derived::augmented(&sources,&crate::compile(&sources));assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);let mut engine=Engine::memory(b.schema.clone(),b.programs.iter().map(|p|p.program.clone())).unwrap();let row=|table:&str,value:serde_json::Value|snapback4_core::wire::row_from_json(&b.schema.tables[table],&value).unwrap();engine.seed_at([("docs".into(),row("docs",serde_json::json!({"id":"d","approved":true}))),("routeLogs".into(),row("routeLogs",serde_json::json!({"id":"r","doc":"d","authorizationRouteUpdatedAt":123})))],NOW).unwrap();let p=&b.programs.iter().find(|p|p.program.name=="bypass").unwrap().program;let trace=trace(&b,p,&engine);let result=engine.mutate("bypass",None,Context::new("dev:a",BTreeMap::from([("doc".into(),Value::Id("d".into())),("route".into(),Value::Id("r".into()))])).at(NOW).with_fixture_trace(trace.clone())).unwrap();assert!(matches!(result.state,snapback4_core::WriteState::Sent{..}));let observations=trace.take();assert!(observations.iter().any(|o|o.site.contains("sibling-approval")&&o.allowed==Some(false)),"{observations:?}");
 }}

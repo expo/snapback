@@ -5,7 +5,7 @@ mod workflow;
 mod approval_checks;
 mod stamps;
 pub(super) use stamps::named as named_approval;
-pub(super) use workflow::approval_populations;
+pub(super) use workflow::{approval_populations,local_population_approval};
 pub(crate) use approval_checks::ApprovalCheck;
 pub(super) use approval_checks::revalidated;
 

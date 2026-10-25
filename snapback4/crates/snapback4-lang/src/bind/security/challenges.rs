@@ -14,6 +14,7 @@ mod paired;
 mod timed;
 mod histories;
 mod executed;
+mod deleted_approvals;
 mod assets;
 mod column_reads;
 mod stability;

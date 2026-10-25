@@ -69,7 +69,7 @@ pub(super) fn approval_receipts(e:&Expr)->Vec<Expr>{
 // Preserve the complete predicate at replay; this inventory only identifies
 // positive populations whose deletion has no current receipt image.
 pub(crate) fn approval_populations(e:&Expr)->Vec<ast::ReadExpr>{
-    fn add(read:&ast::ReadExpr,out:&mut Vec<ast::ReadExpr>){out.push(read.clone());if let Some(filter)=&read.filter{out.extend(approval_populations(filter));}}
+    fn add(read:&ast::ReadExpr,out:&mut Vec<ast::ReadExpr>){out.push(read.clone());}
     let mut out=Vec::new();for receipt in approval_receipts(e){
         let mut atom=&receipt;while let Expr::Unary{op,value,..}=atom{if op!="not"{break;}atom=value;}
         match atom{
@@ -85,26 +85,34 @@ fn contains_approval(e:&Expr)->bool{!approval_receipts(e).is_empty()}
 // Normalize first, then classify typed fields. Population filters own their
 // focal row; ordinary edit metadata may remain in a real approval prerequisite.
 fn typed_approval(e:&Expr,schema:&Schema,root:&str)->bool{
-    const POP:&str="$approval-population:";
     fn owner<'a>(e:&'a Expr,schema:&'a Schema,root:&'a str)->Option<&'a str>{match e{
-        Expr::Read(read)=>Some(&read.table),Expr::Assert{value,..}=>owner(value,schema,root),Expr::Name{name,..} if name==LOCAL=>Some(root),Expr::Name{name,..} if name.starts_with(POP)=>schema.tables.get_key_value(&name[POP.len()..]).map(|(table,_)|table.as_str()),
-        Expr::Focal{..}=>Some(root),Expr::Member{base,name,..}=>{let table=owner(base,schema,root)?;if name=="id"{Some(table)}else{match schema.tables.get(table)?.columns.get(name)?.required(){C::Ref{table}=>Some(table),_=>None}}},_=>None,
+        Expr::Read(read)=>Some(&read.table),Expr::Assert{value,..}=>owner(value,schema,root),Expr::Name{name,..} if name==LOCAL=>Some(root),Expr::Focal{..}=>Some(root),
+        Expr::Member{base,name,..}=>{let table=owner(base,schema,root)?;if name=="id"{Some(table)}else{match schema.tables.get(table)?.columns.get(name)?.required(){C::Ref{table}=>Some(table),_=>None}}},_=>None,
     }}
-    // intent_walk visits children first. Label each population's focal names
-    // in a separate pass before any member contributes approval evidence.
-    // Inner labels survive enclosing filters, whose captures retain their scope.
-    let mut scoped=e.clone();walk(&mut scoped,&mut |e|if let Expr::Read(read)|Expr::Exists{read,..}=e&&let Some(filter)=&mut read.filter{
-        let population=format!("{POP}{}",read.table);walk(filter,&mut |e|match e{Expr::Focal{site}=>*e=Expr::Name{name:population.clone(),site:site.clone()},Expr::Name{name,site} if name==LOCAL=>*e=Expr::Name{name:population.clone(),site:site.clone()},_=>{}});
-    });
-    approval_receipts(&scoped).into_iter().any(|mut receipt|{
-        let mut found=false;walk(&mut receipt,&mut |e|match e{
-            Expr::Member{base,name,..}=>{if let Some(table)=owner(base,schema,root){found|=schema.tables.get(table).and_then(|t|t.columns.get(name)).is_some_and(|kind|stamps::evidence(name,kind));}},
-            Expr::Read(read)|Expr::Exists{read,..}=>{
-                found|=approval(&read.table);
-                found|=read.keys.iter().any(|key|key.column.as_ref().is_some_and(|column|schema.tables.get(&read.table).and_then(|t|t.columns.get(column)).is_some_and(|kind|stamps::evidence(column,kind)))&&!matches!(&key.value,Expr::Literal{value:ast::Literal::Bool(false)|ast::Literal::Null,..}));
-            },_=>{},
-        });found
-    })
+    fn field(e:&Expr,schema:&Schema,root:&str)->bool{matches!(e,Expr::Member{base,name,..} if owner(base,schema,root).and_then(|table|schema.tables.get(table)).and_then(|t|t.columns.get(name)).is_some_and(|kind|stamps::evidence(name,kind)))}
+    fn population(read:&ast::ReadExpr,schema:&Schema)->bool{
+        approval(&read.table)||read.keys.iter().any(|key|key.column.as_ref().is_some_and(|column|schema.tables.get(&read.table).and_then(|t|t.columns.get(column)).is_some_and(|kind|stamps::evidence(column,kind)))&&!matches!(&key.value,Expr::Literal{value:ast::Literal::Bool(false)|ast::Literal::Null,..}))||read.filter.as_deref().is_some_and(|filter|scan(filter,false,schema,&read.table))
+    }
+    fn scan(e:&Expr,negative:bool,schema:&Schema,root:&str)->bool{match e{
+        Expr::Unary{op,value,..} if op=="not"=>scan(value,!negative,schema,root),
+        Expr::Binary{op,left,right,..} if matches!(op.as_str(),"and"|"or")=>scan(left,negative,schema,root)||scan(right,negative,schema,root),
+        Expr::Exists{read,..} if !negative=>population(read,schema),
+        Expr::Binary{op,left,right,..}=>{
+            if matches!(op.as_str(),"="|"!="){for (value,literal) in [(left.as_ref(),right.as_ref()),(right.as_ref(),left.as_ref())]{if let Expr::Literal{value:ast::Literal::Bool(flag),..}=literal{return scan(value,negative^((op=="=")!=*flag),schema,root);}}}
+            let predicate=if negative{Expr::Unary{op:"not".into(),value:Box::new(e.clone()),site:e.site().clone()}}else{e.clone()};
+            !approval_receipts(&predicate).is_empty()&&([left.as_ref(),right.as_ref()].into_iter().any(|value|field(value,schema,root))||[left.as_ref(),right.as_ref()].into_iter().any(|value|matches!(value,Expr::Call{name,args,..} if name=="count"&&args.len()==1&&matches!(&args[0],Expr::Read(read) if population(read,schema)))))
+        },Expr::Member{..}=>!negative&&field(e,schema,root),_=>false,
+    }}scan(e,false,schema,root)
+}
+// Only fields of this actual population row can make its deletion approval
+// consumption. Captured parent data and inner populations retain their images.
+pub(crate) fn local_population_approval(read:&ast::ReadExpr,schema:&Schema)->bool{
+    if approval(&read.table){return true;}
+    if read.keys.iter().any(|key|key.column.as_ref().is_some_and(|column|schema.tables.get(&read.table).and_then(|t|t.columns.get(column)).is_some_and(|kind|stamps::evidence(column,kind)))&&!matches!(&key.value,Expr::Literal{value:ast::Literal::Bool(false)|ast::Literal::Null,..})){return true;}
+    let Some(mut filter)=read.filter.as_deref().cloned()else{return false;};
+    walk(&mut filter,&mut |e|if matches!(e,Expr::Read(_)|Expr::Exists{..}){*e=Expr::Literal{value:ast::Literal::Bool(false),site:e.site().clone()};});
+    walk(&mut filter,&mut |e|if let Expr::Member{base,..}=e&&!(matches!(base.as_ref(),Expr::Focal{..})||matches!(base.as_ref(),Expr::Name{name,..} if name==LOCAL)){*e=Expr::Literal{value:ast::Literal::Bool(false),site:e.site().clone()};});
+    typed_approval(&filter,schema,&read.table)
 }
 
 fn guards(p:&ast::ProgramDecl)->impl Iterator<Item=&Expr>{p.body.iter().filter_map(|s|if let Stmt::Require{condition,..}=s{Some(condition)}else{None})}
