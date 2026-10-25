@@ -106,7 +106,7 @@ roles and replayable first-admin setup. Staging clock: `guide time` (MIG).
 - Time-varying access: `not before .opensAt`/`expire at .endsAt`; an event copies private payload into an authorized publication table (`guide rule-recipes`). A clock does not belong in read rules.
 - Background work: `job`, `schedule x every 1d at 03:00: x`, `every 1 month at day 1 09:00` (UTC), `effect` (`guide jobs`, `guide effects`).
 
-Rules are per row: one readable row never authorizes its neighbours. `last N` is newest-first; `first N` is oldest-first by the selected key. Client-minted ids are time-ordered, and do not sort like hand-written fixture ids.
+Rules are per row: one readable row never authorizes its neighbours. `last N` is newest-first; `first N` is oldest-first by the selected key. Client-minted ids are time-ordered, and do not sort like hand-written fixture ids. A board or roster using `first N by .id` shows the oldest page; a newly inserted row may be on a later page. Follow `next` until null (the proof kit has `exhaustPages`), or use `last N by .id` for a newest-first board. Never infer that a fresh row is missing from the first page alone.
 
 ## Roles and rosters
 

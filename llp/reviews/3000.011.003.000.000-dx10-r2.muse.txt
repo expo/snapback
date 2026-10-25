@@ -1,0 +1,21 @@
+muse: workspace root: /home/ccheever/projects/sb4-b27-dx10 (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=071867d0-6722-4eb6-8113-227d1f752f26]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-b27-dx10 (cwd default)
+muse: workspace trust: trusted source=run-flag
+**Verdict: READY.** No material defects against the DX10 §16 contract. I read the full current source in this worktree only: [§16](llp/3000.011.003.000.000-packaged-proof-kit.rfc.md), [`proof-serve-check.ts`](snapback4/packages/snapback4/src/proof-serve-check.ts), [`proof-serve-driver.ts`](snapback4/packages/snapback4/src/proof-serve-driver.ts), [`proof-accounts.ts`](snapback4/packages/snapback4/src/proof-accounts.ts), [`bin/snapback4.js`](snapback4/packages/snapback4/bin/snapback4.js), [`dx10-process-accounts.test.mjs`](snapback4/packages/snapback4/test/dx10-process-accounts.test.mjs), the guide diffs, and the [SEC10 handoff](issues/20261024-snapback4-dx10-sec10-gate-semantics.md).
+
+What the Round-2 source gets right, claim by claim:
+
+- **Keeper survives SIGTERM.** Both driver and keeper ignore `SIGTERM`/`SIGINT` (shared top-level lines, before the argv branch), the keeper pins the group through inspection, and `kill(0, SIGKILL)` fires only on driver EOF — i.e. only its own group.
+- **Inspection before cleanup.** Group `SIGTERM` → live non-zombie poll → unterminated-line check → `serve --wait-stopped` lock barrier all run before the `finally` that destroys stdin and reaps. Forced cleanup cannot erase a failure.
+- **Driver exit / IPC loss fail.** `lostDriver` on `exit`/`disconnect` records `E_SERVE_DRIVER_EXIT` unless authorized cleanup already began (`cleaning` flag); keeper death forces driver `exit(1)`, which also lands as a failure, never a pass.
+- **Secrets never in reports.** Script stdout stays in a memory buffer and only its shape is reported; stderr is drained, never persisted; failure messages are static codes. The credential-bearing JSON line is covered by an assertion that it never appears in serialized reports, and the packed-recipe run uses `secret:true`. `reports/20261024-dx10/` contains only harness files, no credential material.
+- **Roster safety.** Atomic `tmp → fsync → rename → parent fsync`, `0600` files, `lstat` mode/symlink refusal, exclusive `.lock` with `E_PRODUCTION_ROSTER_BUSY` and operator-inspection wording, pinned sorted plan, entry validation, persist-before-effect ordering (identity → principal → args → mutation id → done), login-first resumption, known-principal login failure refuses without creating a replacement, same-ID replay under server dedup, completed entries never re-provisioned, recursive canonical wire-JSON args comparison. Staging keeps its fresh-batch path (`seedAccounts` untouched).
+- **Compatibility.** `ServeHost.deploymentDir` is bound by `startServe`; standalone hosts must pass `rosterDir` (guide documents it); existing `identity-rate` callers were updated; `CLIENT-AND-OPERATIONS.md` passes a full `ServeHost`, so it still typechecks. `proof_api.md` regenerated with the new signatures; package stays `0.4.40` with an unreleased `0.4.41` CHANGELOG entry, exactly as requested.
+- **Scope discipline.** `write_advice.rs` only reorders the rewrite to lead with the deliberate `update only` answer, with a regression asserting the order; the three real gate semantics stay in the SEC10 issue with no fix claimed.
+
+Non-blocking notes, not verdict-affecting: the hand-maintained `guide/api.md` proof row omits `serveCheck` and the new option/report types (the generated `proof_api.md` table is complete); keeper-death-with-live-driver leaves the npm child to outer group-drain custody, but the report still fails correctly; a retained roster against a wiped store skips provisioning per the explicit "completed entries only log in" rule, which assumes roster travels with store as documented.
+
+READY

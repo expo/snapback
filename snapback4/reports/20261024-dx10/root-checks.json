@@ -1,0 +1,37 @@
+{
+  "ok": true,
+  "inputDigest": "70233e2da1439bc63f3e66480c5f1d99518bac63e2651c6c7c310b584eb51d3c",
+  "exclusions": [
+    "snapback4/",
+    "llp/reviews/",
+    "issues/"
+  ],
+  "reason": "Snapback4 has its own workspace, diagnostic catalog and guide suite; the reused root generators enumerate root guide/packages/crates, not this fence. Git diff proves all retained inputs unchanged since the passing root checks. Snapback4 product and guide checks rerun; ref-check reruns including all new evidence.",
+  "results": [
+    {
+      "id": "diagnostics",
+      "ok": true,
+      "logSha256": "7d4158aa7945df498810a728d90dfc40f8111022e7fadc2bbaaf813e1374577d",
+      "evidence": "[diagnostics-registry] ok"
+    },
+    {
+      "id": "generated",
+      "ok": true,
+      "logSha256": "104998019252efd0f490ee97229a965cebe22fba4213e8677d9ef77019473cf5",
+      "evidence": "[check-generated-artifacts] ok"
+    },
+    {
+      "id": "guide",
+      "ok": true,
+      "logSha256": "ffd2e7f73864b5566cdaa84b86c9a827097996f0ae2b771d81e98f10474ec8b6",
+      "evidence": "[guide-check] ok \u2014 22 passed, 0 failed"
+    },
+    {
+      "id": "inventories",
+      "ok": true,
+      "logSha256": "2e5bdbb81fb0a90d0048b15c79190ef3773fdfa33b8646930fe455f717a57813",
+      "evidence": "[check-inventories] PASS:"
+    }
+  ],
+  "unchangedRootInputsSince": "7918027f58"
+}

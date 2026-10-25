@@ -10,12 +10,14 @@
 - `renderedText` strings match normalized substrings by default; independent matches refuse with scoping/exact-match guidance. `exact:true` keeps equality. `waitForFresh` refuses duplicate within scopes. `fillRN` supports date/datetime controls and file paths/payloads through ordinary browser events.
 - Quarry accepts `elif`, `[] of TYPE` for typed empty accumulators, and stable nullable field guards. Unknown focal columns suggest the dot; probe-bracket diagnostics explain commas versus `and`. `guide tasks` links task descriptions to actual card commands, and cards up to 240 lines print whole.
 - Client recipes put sign-in before readiness and show explicit device-less online browser apps. Hidden-lookup explanations state that program `exists` is caller-filtered and give the refusal ladder. Raw HTTP documents admission `{denied}` versus failed execution receipts. Input errors name arguments, nested list positions and limits.
-
-
 - Release moves print `live:` and JSON reports logical source, selected view and exact-source status. Forward deploy selects the matching ordinary release after a view. Rollback warnings name registered view coverage.
 - Column write adoption alone no longer forces a rollback view. Needed views compile during store/baseline check, retain typed renamed rules, and pause incompatible old writes instead of dropping inputs. Exact selection checks current write authority.
 - Extraction can widen a required asset to optional and refill its receipt-owned child after reversal; retained current child workflows avoid arbitrary choice among new children. Reference renames can change deletion policy. `guide rename` runs a complete field/enum spelling migration through two cycles.
 - New starter day-two proofs compare persisted ids/values (excluding ephemeral state) through two cycles, allow v2-native rows and explicit v1 edits/deletions without masking rollback-hidden rows. Saved versions retain generated module siblings; release commands refuse extra positionals, and concrete deploy refusals precede REVIEW notes. Adaptation is idempotent and preserves genuine historical captures.
+
+- `serve-check --deployment DIR --script prod:serve` checks npm readiness, 30-second lifetime, group shutdown and store release without exposing credential output. Production account provisioning reuses a named deployment roster across serve starts. `guide testing` includes cold/live stage scripts; `guide cheatsheet` explains oldest-first board/roster pages. Create/edit review advice leads with the deliberate `update only` answer.
+
+Existing apps keep their authored workflows and stores retain their rows, users and migration receipts. Rebuild generated clients and devices after upgrading; custom proofs must adopt the new helpers explicitly. Preserve production roster files with their deployment. SEC10 security-semantic changes are deferred to 0.4.42.
 
 ## 0.4.40
 

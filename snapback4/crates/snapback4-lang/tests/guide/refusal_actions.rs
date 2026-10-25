@@ -2,6 +2,19 @@
 //! These facts supplement the definition pins. A code label alone cannot tell
 //! a caller whether to retry, replace intent, change a declaration, or show no data.
 pub(super) const ACTIONS: &[(&str, &[&str])] = &[
+    ("E_PRODUCTION_ROSTER", &["Inspect the roster and deployment. Keep credentials with their store; use stable arguments and never silently create replacement accounts."]),
+    ("E_PRODUCTION_ROSTER_BUSY", &["Wait for its driver. After confirming an interrupted driver is gone, inspect partial grants and remove only that roster lock; setup is not rolled back."]),
+    ("E_SERVE_CHECK", &["Check options with serve-check --help and rerun. No passing script qualification is claimed."]),
+    ("E_SERVE_CHECK_PLATFORM", &["Run on Linux or Darwin. Windows refuses before launching the script; Mac execution requires its own qualification."]),
+    ("E_SERVE_NO_JSON", &["Emit one readiness object line and keep diagnostics on stderr. An incomplete startup never qualifies the script."]),
+    ("E_SERVE_EXTRA_OUTPUT", &["Use npm run --silent and exactly one JSON object line. Keep credentials out of diagnostics; the report withholds script output."]),
+    ("E_SERVE_EARLY_EXIT", &["Hold an owned referenced lifetime until SIGTERM, then await host cleanup. A readiness line alone does not qualify uptime."]),
+    ("E_SERVE_CHILD_RUNNING", &["Stop every owned host and inspect the driver. Forced group cleanup happens after inspection and cannot make this failed check pass."]),
+    ("E_SERVE_DRIVER_EXIT", &["Investigate the driver failure and rerun. Lost custody never qualifies a serve script."]),
+    ("E_SERVE_LOCK_HELD", &["Inspect the intended owner and deployment before rerunning. The observation precedes forced cleanup; the check does not delete a lock."]),
+    ("E_SERVE_INSPECTION", &["Restore a working ps command and rerun. An unknown group never passes cleanup; only the pinned group is reclaimed."]),
+    ("E_SERVE_START", &["Check npm and the script name, then rerun. No readiness or custody claim is made without the handshake."]),
+
     ("E_COLUMN_WRITE", &["Name an ordinary column once", "use current-row rule syntax"]),
     ("N_DERIVED_WRITE_AUTHORITY", &["Enforce the candidate", "record its individual specification decision"]),
     ("N_PRESENCE_LOOSENING", &["Declare presence intent", "production compares the selected release independently"]),

@@ -186,7 +186,9 @@ pub fn guide_for(code: &str) -> &'static str {
         "E_STORE_CONFIG" => "deploy",
         "E_WORKER_STORE_ID" | "E_WORKER_STATE" => "effects",
         "E_EXPIRY_ORPHAN" => "expire",
-        "E_PROOF_BROWSER" | "E_PROOF_PAGE" | "E_PROOF_USAGE" | "E_PROOF_AMBIGUOUS" => "testing",
+        "E_PROOF_BROWSER" | "E_PROOF_PAGE" | "E_PROOF_USAGE" | "E_PROOF_AMBIGUOUS"
+        | "E_SERVE_CHECK" | "E_SERVE_CHECK_PLATFORM" | "E_SERVE_NO_JSON" | "E_SERVE_EXTRA_OUTPUT" | "E_SERVE_EARLY_EXIT"
+        | "E_SERVE_CHILD_RUNNING" | "E_SERVE_DRIVER_EXIT" | "E_SERVE_LOCK_HELD" | "E_SERVE_INSPECTION" | "E_SERVE_START" => "testing",
         "E_QUARRY_IDENTITY_DUPLICATE" => "production",
         code if code.starts_with("E_FOLLOWING_") => "refusals",
         "E_READ_ONLY" | "E_READ_ONLY_REFRESH" | "E_READ_ONLY_CREDENTIAL" | "E_READ_ONLY_DEVICE" | "E_READ_ONLY_UNSUPPORTED" | "E_ASSET_READ_ONLY" => "read-only",
@@ -256,7 +258,7 @@ pub fn guide_for(code: &str) -> &'static str {
         "E_HTTP_RESPONSE" | "E_HTTP_LIMIT" | "E_HTTP_LISTENER" | "E_ADDRINUSE" => "refusals",
         "E_STREAMS" => "wire",
         "E_PRODUCTION_ACCOUNTS" => "production",
-        "E_IDENTITY_TIMEOUT" | "E_STAGING" | "E_STAGING_INPUT" | "E_STAGING_SIGNUP" | "E_STAGING_PROVISION" | "E_STAGING_TIMEOUT" => "staging",
+        "E_PRODUCTION_ROSTER" | "E_PRODUCTION_ROSTER_BUSY" | "E_IDENTITY_TIMEOUT" | "E_STAGING" | "E_STAGING_INPUT" | "E_STAGING_SIGNUP" | "E_STAGING_PROVISION" | "E_STAGING_TIMEOUT" => "staging",
         "E_RELEASE_RUNTIME" | "E_STORE_OWNERSHIP" | "E_COMMITTER_STOPPED" | "E_CLOCK_REPORT_INCOMPLETE" | "E_COMMIT_OUTCOME_UNKNOWN" | "E_STORE_UNSUPPORTED" | "E_STORE_GENERATION" | "E_STORE_BUSY" | "E_RUN_BUSY" | "E_RUN_SOURCE_CHANGED" | "E_SCHEMA" | "E_STORE" | "E_GENERATION" | "E_CLIENT" | "E_CLOSED" | "E_DEVICE_VERSION" => "refusals",
         code if code.strip_prefix("E_").is_some_and(|name| name.starts_with("ASSET_") || name.starts_with("UPLOAD_") || name == "UPLOAD" || name == "CANCELLED") => "assets",
         code if code.starts_with("E_NATIVE") => "native",

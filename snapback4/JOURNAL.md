@@ -107483,3 +107483,15 @@ control win. Request instrumentation distorts read throughput and cache lock
 timing; native cohorts and count-only cache observations remain authoritative.
 Raw traces stay outside Git. The linked report carries audit, archive and
 cleanup receipts; no fetch, push or publication occurs.
+
+### 2026-10-24 — DX10 wave-27 process drivers and production rosters
+
+Adds a packaged npm serve-script checker with private stdout, 30-second up
+interval, group SIGTERM, pre-cleanup child/lock observations and keeper custody.
+Production provisioning now resumes a named private deployment roster instead
+of creating another batch on every serve. Guide testing contains literal cold
+and live-owner stage recipes; cheatsheet explains oldest-first board pages.
+Create/edit wording leads with the explicit update-only answer. Gate semantic
+work is recorded for SEC10 in issues/20261024-snapback4-dx10-sec10-gate-semantics.md;
+wording does not claim to repair empty-list initialization, list minimum review
+or missing helper expansion. Execution and replay results are in the DX10 report.

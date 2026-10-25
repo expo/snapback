@@ -5,7 +5,8 @@ fn bound(s:&str)->snapback4_lang::Bound{let b=compile(&[("schema.q".into(),s.int
 fn report(s:&str)->security::Report{let b=bound(s);let mut r=security::analyze_rules(&b);security::add_source_notes(&mut r,&[("schema.q".into(),s.into())],&b);r}
 const ASYMMETRY:&str="table records:\n  owner: principal\n  value: text ?\n  read <- allow\n  insert <- allow\n  update (old, next) <- old.value = next.value or viewer = 'service:desk'\n  online only\nmutation create(owner: principal, value: text ?):\n  return insert records { owner, value }\n";
 #[test]fn table_changed_column_guard_gates_until_creation_difference_is_explicit(){
- assert!(report(ASYMMETRY).notes.iter().any(|n|n.code=="N_CREATE_EDIT_ASYMMETRY"));
+ let r=report(ASYMMETRY); let n=r.notes.iter().find(|n|n.code=="N_CREATE_EDIT_ASYMMETRY").unwrap();
+ assert!(n.rewrite.find("update only").unwrap()<n.rewrite.find("write <-").unwrap(),"{:?}",n);
  let intentional=format!("{ASYMMETRY}\ninvariant records.value update only viewer = 'service:desk'\n");
  assert!(!report(&intentional).notes.iter().any(|n|n.code=="N_CREATE_EDIT_ASYMMETRY"));
  let enforced=ASYMMETRY.replace("value: text ?\n","value: text ? write <- viewer = 'service:desk'\n");
