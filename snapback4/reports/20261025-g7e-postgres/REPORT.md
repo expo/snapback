@@ -190,3 +190,97 @@ recorded PID/birth instances over 84 record files: zero owned processes left
 and zero audit errors. The minimum sampled free space was 44.94 GiB, above the
 25 GiB floor; final free space was 46.40 GiB. All private cluster data and raw
 records remain outside Git. No PG17/port-55440 or `~/q24` state was changed.
+
+## Rebase onto integrated main (2026-10-25)
+
+The preserved arm-E tip `9c6974b604` is replayed from `069520dc23` onto
+`sb4-pg/main-20a4` (`20a45b73cb`), including landed G7.2 `ac3d2ec858`, its
+fix round `d5c1e41f13`, FF3, R1 and the 0.4.41 integration. The rebased
+implementation is `28acd08e7a`; the original arm-E branch is retained.
+
+Every textual conflict is resolved as follows:
+
+| File | Resolution |
+| --- | --- |
+| `engine/program_pipeline.rs` | Apply E's D/epoch release and drained xid classification before returning the original predecessor's known-abort witness. A committed but unconfirmed predecessor stays unknown. Retain G7.2's ordinary member recovery and bounded cascade-to-solo fallthrough at both sites. |
+| `engine/postgres/store.rs` (two hunks) | Keep E session/snapshot fields and `batch_end`, together with FF3's initialized `activation_relations`. Retain opening relation capture and pre-COMMIT `verify_activation`. |
+| `verbs/configured_release.rs` | Doctor JSON includes `commitMode`, `readCacheTier` and warnings. |
+| `snapback4-lang/src/guide/deploy.md` | Add E opt-in and raw-SQL visibility disclosure, retaining the complete FF3 activation/OID/final-image and event-trigger boundary guidance. |
+| Pipeline RFC | Union both implementation notes and revision history; preserve main's settled G7.0/ruling-8 decision, commissioning order and read-under-write qualification, plus E's three-flight/default-S conditions. |
+| Controls RFC | Keep FF3/R1 history and add E's durable reader-release amendment. |
+| Scale-limits RFC | Retain acknowledgement-defined durability, per-ack flush witness and concurrent-write read qualification; add E reader/recovery coverage, commit-mode and visibility disclosure. |
+| `JOURNAL.md` | Keep both G7.2 fix-round and arm-E entries; append this rebase's record. |
+
+The automatic merges also retain `feature="sqlite"` on `program_pipeline`,
+pipeline-aware fill, both `program_cascade_fallback` call sites, and FF3's
+`verify_activation`. Five additional E regressions exercise the four fix-round
+recovery cases and an unconfirmed predecessor followed by a named successor
+member failure. The recovered survivors open actual E row snapshots to witness
+that their solo commits advanced D. The unconfirmed-predecessor case counts the
+failed member's attempts, forbidding an innocent cascade rerun.
+
+### Rebase verification
+
+All runs use the integrated source and this lane's target, line-tables-only
+profiles and `-j 4`. Counts are passed / failed / ignored; nested helper
+summaries are excluded. No throughput campaign is run.
+
+| Check | Result |
+| --- | --- |
+| Full core with Postgres, 49 direct targets | 1,307 / 0 / 516 |
+| Full `snapback4` binary | 612 / 0 / 58 |
+| E suite, including five new composition regressions | 32 / 0 / 0 |
+| G7.2 suite, including ignored entries and E variants | 40 / 0 / 0 |
+| Core RT0 | 6 / 0 / 0; E retains three-flight batches and idle S/E 15/15 parity |
+| HTTP RT0 | 10 / 0 / 0 |
+| E crash/kill matrix and live revision reuse | 11 / 0; zero acknowledged-write loss and no lost-history reader release |
+| Complete Postgres script, 26 completed Rust targets | 791 / 1 / 0, plus the inherited evaluator lockfile failure |
+| Public serving with S, inside the Postgres script | PASS; 15 PASS checkpoints |
+| Separate public serving with `commit=early` | PASS; 15 PASS checkpoints |
+| Shipped CLI build with Postgres | PASS |
+| Core check without default features | PASS |
+| SQLite-only core check | PASS |
+| `./ref-check --verbose` | 569 LLPs, 12,021 references, zero errors or unchecked references |
+| `git diff --check` | PASS |
+
+The Postgres script's only failed Rust test is
+`both_stores_all_public_boundaries_and_write_observations`, with
+`runtime_refused_unexpected {"E_INPUT": 6}`. The evaluator cannot execute
+because `experiments/postgres/Cargo.lock` is stale under `--locked`; consequently
+its known `40001` stress case is not reached. Both observed failures are the
+inherited main failures documented in
+[the existing ticket](../../../issues/20261025-snapback4-difftest-unexpected-e-input.md).
+There are no other final-source failures. The script still completes its
+public-serving witness and stops its cluster. Both S and E public runs verify
+FF3's event inventory and actual G6 declaration through serve and doctor.
+
+The E suite's count includes two controller-guarded helper entry points; the
+other 30 tests assert mechanisms. Two preliminary development runs each report
+31 / 1 because the new unknown-predecessor fixture initially installed its
+interception before writer-slot admission, then retained it across recovery.
+The fixture now qualifies both slots first, waits for the marker's failure and
+removes its interception before fenced recovery. Production admission and
+recovery correctly refuse that interception. The final 32 / 0 run and complete
+137 / 0 program-batch family in the Postgres script cover the corrected fixture.
+No product protocol change is needed after the semantic rebase.
+
+The SIGKILL matrix independently reports `pids_left: []`; its PG marker case
+loses the visible unacknowledged suffix (16 receipts become eight), retaining
+every acknowledged key. The live case reuses the lost revision with a different
+attempt and emits no held lost-history reader output.
+
+### Rebase process and disk custody
+
+All six private cluster directories, including both preliminary fixture runs,
+independently return `pg_ctl status` 3 and have no `postmaster.pid`. The combined
+PID/birth and explicit public-helper ledgers contain no living or zombie matches.
+The command runner and separate build/check drivers have exited. **PIDs left:
+none.** Raw evidence stays outside Git under `/tmp/g7e-main-*`.
+
+The minimum sampled free space is **34.39 GiB**, above the 25 GiB stop floor.
+After the CLI build completed, with no owned compiler active, the lane removed
+only its own `snapback4/target/debug/incremental` cache, reclaiming **22.59 GiB**.
+Built artifacts were retained. Final free space is about **47.67 GiB**.
+No protected PG17/port-55440 or `~/q24` state is touched. The preserved
+`sb4-pg/g7e` branch remains at `9c6974b604`; no push, stash or Git configuration
+change occurs.

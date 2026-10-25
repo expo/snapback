@@ -108510,3 +108510,26 @@ WAL flush position. Physical power cycling is unavailable on this shared host.
 Final counts, independent mechanism-disabled failures and PID custody are in
 the report. No throughput campaign, S1 qualification, publication, push, stash,
 Git configuration change or unowned signal occurs in this lane.
+
+## 2026-10-25 — G7-E rebased onto integrated main and G7.2 fix round
+
+Rebased arm E `9c6974b604` from `069520dc23` onto `20a45b73cb`, retaining
+G7.2 fix round `d5c1e41f13`, FF3 activation verification, R1 and 0.4.41.
+The predecessor-abort witness is computed after E's release/epoch and drained
+xid checks: committed but unconfirmed stays unknown and cannot authorize a
+cascade. Both cascade sites retain bounded solo fallthrough; each E solo
+commit certifies its own synchronous head. The SQLite pipeline feature gate,
+pipeline-aware fill and FF3 `activation_relations`/`verify_activation` remain.
+Doctor reports both commit mode and existing cache diagnostics; RFC/JOURNAL
+records are united. E variants of the four fix-round regressions and an
+unknown-predecessor/member-failure witness cover the composition.
+Rebase check results and process custody are recorded in
+[the G7-E report](reports/20261025-g7e-postgres/REPORT.md).
+
+Final checks: core 1,307/0, binary 612/0, E 32/0, G7.2 40/0, RT0 core/HTTP
+6/0 and 10/0, crash/kill 11/0. Postgres Rust targets are 791/1: only inherited
+`E_INPUT: 6`; the inherited evaluator lockfile also blocks that stage, before
+its known `40001`. S/E public serving and both feature checks pass. Ref-check:
+569 LLPs, 12,021 references, zero errors/unchecked. All six private clusters
+are independently stopped; no recorded PID remains. Minimum free disk:
+34.39 GiB, above the 25 GiB floor.

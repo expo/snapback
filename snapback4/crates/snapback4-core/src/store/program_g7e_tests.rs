@@ -753,3 +753,88 @@ fn g7e_idle_reader_connection_loss_rebuilds_d_without_a_queued_operation() {
     assert!(reader.store().rows("counters").is_ok());
     drop(queue);
 }
+
+// @ref LLP 3000.009.001.000.000.002#4.2 — an uncertified predecessor never authorizes the innocent cascade rerun.
+#[test]
+#[ignore = "private PG16"]
+fn g7e_successor_own_failure_after_unconfirmed_predecessor_uses_member_recovery() {
+    use crate::engine::program_batch::fault;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    let mut e = enabled();
+    let mut c = control(&mut e);
+    // Qualify both writer slots before installing the intentional interception.
+    let mut lane = Lane::new();
+    lane.start(
+        &mut e,
+        batch(100),
+        Box::new(|_, r| assert!(r.iter().all(Result::is_ok))),
+    );
+    lane.drain(&mut e);
+    let key = held_marker(&mut c);
+    c.batch_execute("CREATE FUNCTION e_fail() RETURNS trigger LANGUAGE plpgsql AS $f$ BEGIN RAISE EXCEPTION 'marker after COMMIT' USING ERRCODE='23514';END $f$;CREATE TRIGGER z_e_fail BEFORE UPDATE ON _durable FOR EACH ROW EXECUTE FUNCTION e_fail()").unwrap();
+    let prior = head(&mut c);
+    let predecessor = Arc::new(Mutex::new(Vec::new()));
+    let out = predecessor.clone();
+    lane.start(
+        &mut e,
+        batch(0),
+        Box::new(move |_, r| *out.lock().unwrap() = r),
+    );
+    wait(|| head(&mut c).1 > prior.1);
+    let attempts = Arc::new(AtomicUsize::new(0));
+    let observed = attempts.clone();
+    let successor = Arc::new(Mutex::new(Vec::new()));
+    let out = successor.clone();
+    fault::with_check_hook(
+        move |point, index| {
+            if point == fault::Point::AfterMember && index == 1 {
+                observed.fetch_add(1, Ordering::SeqCst);
+                release(&mut c, key);
+                // Wait for the marker transaction to fail, then remove the test
+                // interception so fenced D recovery can legitimately proceed.
+                c.batch_execute("DROP TRIGGER e_hold ON _durable; DROP TRIGGER z_e_fail ON _durable; DROP FUNCTION e_hold(); DROP FUNCTION e_fail()").unwrap();
+                return Err(crate::RuntimeError::Store(
+                    "successor member failure".into(),
+                ));
+            }
+            Ok(())
+        },
+        || {
+            lane.start(
+                &mut e,
+                batch(8),
+                Box::new(move |_, r| *out.lock().unwrap() = r),
+            );
+            lane.drain(&mut e);
+        },
+    );
+    assert_eq!(
+        attempts.load(Ordering::SeqCst),
+        1,
+        "named failed member must never enter a cascade rerun"
+    );
+    assert_eq!(predecessor.lock().unwrap().len(), 8);
+    assert!(
+        predecessor
+            .lock()
+            .unwrap()
+            .iter()
+            .all(|r| matches!(r, Err(r) if r.code == "E_COMMIT_OUTCOME_UNKNOWN"))
+    );
+    let successor = successor.lock().unwrap();
+    assert_eq!(successor.len(), 8);
+    for (index, result) in successor.iter().enumerate() {
+        assert_eq!(result.is_ok(), index != 1, "{successor:?}");
+    }
+    let mut c = control(&mut e);
+    assert_eq!(
+        counter(&mut c),
+        23,
+        "warmup, committed predecessor and seven recovered peers, exactly once"
+    );
+    assert_eq!(head(&mut c).1, prior.1 + 15);
+    assert!(
+        e.store().rows("counters").is_ok(),
+        "recovered peer commits must advance D"
+    );
+}
