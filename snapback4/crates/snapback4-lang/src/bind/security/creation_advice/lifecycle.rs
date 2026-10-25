@@ -138,6 +138,7 @@ fn parent_loop_guard(effect:&Write<'_>,table:&str,column:&str,bound:&Bound)->boo
                 let guards=super::super::authority_walk::helper_guards(catalog,value,env,depth);
                 if !guards.is_empty(){let result=scan(&guards,binder,column,&mut env.clone(),catalog,depth+1);if result.0||!result.1{return result;}}
             }
+            if matches!(stmt,Stmt::Require{code,..} if code=="$advice:cut"){return (false,false);}
             match stmt{
             Stmt::Bind{names,value,..}=>{let value=resolve(value,env);for name in names{env.insert(name.clone(),if names.len()==1{value.clone()}else{Expr::Name{name:format!("$advice_loop_unknown:{name}"),site:value.site().clone()}});}},
             Stmt::Require{condition,..}=>{

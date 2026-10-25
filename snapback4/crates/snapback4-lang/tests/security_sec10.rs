@@ -382,8 +382,15 @@ fn campaign(s:&str)->Campaign{let b=security::derived::augmented(&sources(s),&bo
     assert!(!notes(&caller).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
     let checked=source.replace("LOOP","  for b in bookings first 10 by .id:\n    stop = checked(b.approved)\n    if stop:\n      continue\n")+"fn checked(value: bool):\n  require value else APPROVAL\n  return false\n";
     assert!(!notes(&checked).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
-    for (value,consumed) in [("not checked(b.approved)",true),("checked(b.approved) = false",true),("choose(checked(b.approved))",true),("false and checked(b.approved)",false),("true or checked(b.approved)",false)]{
+    for (value,consumed) in [("not checked(b.approved)",true),("checked(b.approved) = false",true),("choose(checked(b.approved))",true),("null ?? checked(b.approved)",true),("false ?? checked(b.approved)",false),("{value:checked(b.approved)}.value",true),("false and checked(b.approved)",false),("true or checked(b.approved)",false)]{
         let body=format!("  for b in bookings first 10 by .id:\n    stop = {value}\n");let source=source.replace("LOOP",&body)+"fn checked(value: bool):\n  require value else APPROVAL\n  return false\nfn choose(value: bool): value\n";assert_eq!(!notes(&source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"),consumed,"{value}");
+    }
+    let projection=source.replace("LOOP","  for b in bookings first 10 by .id:\n    total = sum([], checkedInt(b.approved))\n")+"fn checkedInt(value: bool):\n  require value else APPROVAL\n  return 0\n";
+    assert!(notes(&projection).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+    let conditional=source.replace("mutation finish(trip: trips):","mutation finish(trip: trips,flag: bool):").replace("LOOP","  for b in bookings first 10 by .id:\n    stop = flag and checked(b.approved)\n")+"fn checked(value: bool):\n  require value else APPROVAL\n  return false\n";
+    assert!(!notes(&conditional).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+    for value in ["null ?? skip()","{stop:skip()}.stop","skip() if true else false"]{
+        let body=format!("  for b in bookings first 10 by .id:\n    stop = {value}\n    if stop:\n      continue\n    require b.approved else APPROVAL\n");let source=source.replace("LOOP",&body)+"fn skip(): true\n";assert!(notes(&source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"),"{value}");
     }
     let helper=source.replace("  update trips[trip] {status:'done'}","  setDone(trip)")+"fn setDone(trip: trips):\n  update trips[trip] {status:'done'}\n  return null\n";
     assert!(!notes(&helper.replace("LOOP","  for b in bookings first 10 by .id:\n    require b.approved else APPROVAL\n")).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
@@ -444,7 +451,15 @@ fn campaign(s:&str)->Campaign{let b=security::derived::augmented(&sources(s),&bo
 }
 
 #[test]fn recursive_helper_requirements_cannot_overflow_source_advice(){
-    let source="table trips:\n  status: enum('draft','done') default 'draft'\n  read <- allow\n  update <- allow\n  online only\ntable bookings:\n  trip: trips\n  approved: bool default false\n  read <- allow\n  update <- allow\n  online only\nfn cycleA(value: bool):\n  require cycleB(value) else DENIED\n  return value\nfn cycleB(value: bool):\n  require cycleA(value) else DENIED\n  return value\nmutation approve(booking: bookings):\n  update bookings[booking] {approved:true}\nmutation finish(trip: trips):\n  for b in bookings first 10 by .id:\n    require cycleA(b.approved) else DENIED\n  update trips[trip] {status:'done'}\n";
+    let source="table trips:\n  status: enum('draft','done') default 'draft'\n  read <- allow\n  update <- allow\n  online only\ntable bookings:\n  trip: trips\n  approved: bool default false\n  read <- allow\n  update <- allow\n  online only\ntable waivers:\n  booking: bookings\n  read <- allow\n  insert <- allow\n  online only\nmutation waiver(booking: bookings):\n  return insert waivers {booking}\nfn cycleA(value: bool):\n  require cycleB(value) else DENIED\n  return value\nfn cycleB(value: bool):\n  require cycleA(value) else DENIED\n  return value\nmutation approve(booking: bookings):\n  update bookings[booking] {approved:true}\nmutation finish(trip: trips):\n  for b in bookings first 10 by .id:\n    require cycleA(true) else DENIED\n    require b.approved else APPROVAL\n  update trips[trip] {status:'done'}\n";
     let (_,diagnostics)=snapback4_lang::parse_document("schema.q",source);assert!(diagnostics.is_empty(),"{diagnostics:?}");
-    let sources=sources(source);let b=compile(&sources);let mut report=security::analyze_rules(&b);security::add_source_notes(&mut report,&sources,&b);
+    let sources=sources(source);let b=compile(&sources);let mut report=security::analyze_rules(&b);security::add_source_notes(&mut report,&sources,&b);assert!(report.notes.iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+}
+
+#[test]fn only_actually_inspected_clauses_create_approval_input_contracts(){
+    let source="table docs:\n  consent: bool\n  approved: bool default false\n  read <- allow\n  update <- allow\n  online only\nmutation approve(doc: docs):\n  d = docs[doc] ! else MISSING\n  require GUARD else CONSENT\n  update docs[doc] {approved:true}\nmutation edit(doc: docs,consent: bool):\n  update docs[doc] {consent}\n";
+    let original=include_str!("security/sec10-controls/vacuous-bool-approval.q");assert!(!security::derived::invariants(&sources(original),&bound(original)).iter().any(|i|i.table=="docs"&&i.column.as_deref()==Some("consent")));
+    for (guard,expected) in [("true or d.consent",false),("(1 = 1) or d.consent",false),("false or d.consent",true),("checked(d.consent)",true)]{
+        let source=source.replace("GUARD",guard)+"fn checked(value: bool):\n  require value else CONSENT\n  return true\n";let candidates=security::derived::invariants(&sources(&source),&bound(&source));assert_eq!(candidates.iter().any(|i|i.table=="docs"&&i.column.as_deref()==Some("consent")),expected,"{guard}: {candidates:?}");
+    }
 }

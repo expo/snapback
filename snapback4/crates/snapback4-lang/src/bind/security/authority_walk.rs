@@ -35,15 +35,20 @@ fn expression(catalog:&Catalog,p:&ProgramDecl,expr:&Expr,env:&Env,guards:&[Stmt]
 // Guaranteed evaluated operands export helper requirements. Conditional
 // operands retain applicability implications, never an unconditional assumption.
 pub(super) fn helper_guards(catalog:&Catalog,expr:&Expr,env:&Env,depth:usize)->Vec<Stmt>{
-    if depth>=32{return Vec::new();}
+    if depth>=32{return vec![Stmt::Require{condition:Expr::Name{name:"$advice_helper_cut".into(),site:expr.site().clone()},code:"$advice:cut".into(),message:None,site:expr.site().clone()}];}
     let expression=resolve(expr,env);
-    fn conditional(guards:Vec<Stmt>,premise:Expr,site:&Site)->Vec<Stmt>{guards.into_iter().filter_map(|stmt|if let Stmt::Require{condition,..}=stmt{Some(Stmt::Require{condition:Expr::Binary{op:"or".into(),left:Box::new(Expr::Unary{op:"not".into(),value:Box::new(premise.clone()),site:site.clone()}),right:Box::new(condition),site:site.clone()},code:"$advice:implication".into(),message:None,site:site.clone()})}else{None}).collect()}
+    fn conditional(guards:Vec<Stmt>,premise:Expr,site:&Site)->Vec<Stmt>{guards.into_iter().filter_map(|stmt|if let Stmt::Require{condition,code,..}=stmt{
+        let condition=super::creation_advice::simplify_boolean(&Expr::Binary{op:"or".into(),left:Box::new(Expr::Unary{op:"not".into(),value:Box::new(premise.clone()),site:site.clone()}),right:Box::new(condition),site:site.clone()});
+        if code=="$advice:cut"&&matches!(condition,Expr::Literal{value:ast::Literal::Bool(true),..}){return None;}
+        Some(Stmt::Require{condition,code:if code=="$advice:cut"{code}else{"$advice:implication".into()},message:None,site:site.clone()})
+    }else{None}).collect()}
+
     match &expression{
         Expr::Unary{value,..}|Expr::Assert{value,..}|Expr::Member{base:value,..}=>return helper_guards(catalog,value,&Env::new(),depth+1),
         Expr::Binary{op,left,right,site}=>{
             let mut out=helper_guards(catalog,left,&Env::new(),depth+1);
-            if op=="??"{return out;}
             let right=helper_guards(catalog,right,&Env::new(),depth+1);
+            if op=="??"{let left=returned(catalog,left,depth+1);let premise=Expr::Binary{op:"=".into(),left:Box::new(left),right:Box::new(Expr::Literal{value:ast::Literal::Null,site:site.clone()}),site:site.clone()};out.extend(conditional(right,premise,site));return out;}
             if op=="and"||op=="or"{let left=returned(catalog,left,depth+1);let premise=if op=="and"{left}else{Expr::Unary{op:"not".into(),value:Box::new(left),site:site.clone()}};out.extend(conditional(right,premise,site));}else{out.extend(right);}return out;
         },
         Expr::If{condition,then,otherwise,site}=>{
@@ -51,10 +56,12 @@ pub(super) fn helper_guards(catalog:&Catalog,expr:&Expr,env:&Env,depth:usize)->V
             out.extend(conditional(helper_guards(catalog,then,&Env::new(),depth+1),predicate.clone(),site));
             out.extend(conditional(helper_guards(catalog,otherwise,&Env::new(),depth+1),Expr::Unary{op:"not".into(),value:Box::new(predicate),site:site.clone()},site));return out;
         },
-        Expr::Array{items,..}=>return items.iter().flat_map(|value|helper_guards(catalog,value,&Env::new(),depth+1)).collect(),_=>{},
+        Expr::Array{items,..}=>return items.iter().flat_map(|value|helper_guards(catalog,value,&Env::new(),depth+1)).collect(),
+        Expr::Object{fields,..}=>return fields.iter().filter_map(|field|field.value.as_ref()).flat_map(|value|helper_guards(catalog,value,&Env::new(),depth+1)).collect(),_=>{},
     }
     let Expr::Call{name,args,..}=expression else{return Vec::new();};
-    let mut evaluated=args.iter().flat_map(|value|helper_guards(catalog,value,&Env::new(),depth+1)).collect::<Vec<_>>();
+    let eager=if name=="sum"&&args.len()==2&&!catalog.functions.contains_key(&name){&args[..1]}else{args.as_slice()};
+    let mut evaluated=eager.iter().flat_map(|value|helper_guards(catalog,value,&Env::new(),depth+1)).collect::<Vec<_>>();
     let Some(f)=catalog.functions.get(&name)else{return evaluated;};
     let mut locals=f.args.iter().zip(args).map(|(a,v)|(a.name.clone(),v)).collect::<Env>();
     let FunctionBody::Block(body)=&f.body else{if let FunctionBody::Expression(value)=&f.body{evaluated.extend(helper_guards(catalog,value,&locals,depth+1));}return evaluated;};
@@ -131,6 +138,7 @@ fn statements(catalog:&Catalog,p:&ProgramDecl,body:&[Stmt],env:&mut Env,guards:&
         Stmt::Bind{names,value,..}=>{expression(catalog,p,value,env,guards,changes,column,depth,out);guards.extend(helper_guards(catalog,value,env,0));if names.len()==1{env.insert(names[0].clone(),resolve(value,env));}else{for name in names{env.insert(name.clone(),Expr::Name{name:format!("$advice_unknown_{name}"),site:value.site().clone()});}}},
         Stmt::Require{condition,code,message,site}=>{
             expression(catalog,p,condition,env,guards,changes,column,depth,out);
+            guards.extend(helper_guards(catalog,condition,env,0));
             guards.push(Stmt::Require{condition:resolve(condition,env),code:code.clone(),message:message.clone(),site:site.clone()});
         },
         Stmt::Return{value,..}=>{expression(catalog,p,value,env,guards,changes,column,depth,out);break;},
@@ -144,6 +152,7 @@ fn statements(catalog:&Catalog,p:&ProgramDecl,body:&[Stmt],env:&mut Env,guards:&
         Stmt::If{condition,then_body,else_body,site}=>{
             if column.is_some()&&changes::expression_effectful(&resolve(condition,env)){changes.clear();}
             expression(catalog,p,condition,env,guards,changes,column,depth,out);
+            guards.extend(helper_guards(catalog,condition,env,0));
             let condition=resolve(condition,env);
             let mut then_guards=guards.clone();
             then_guards.push(Stmt::Require{condition:condition.clone(),code:"$advice".into(),message:None,site:site.clone()});
@@ -165,7 +174,7 @@ fn statements(catalog:&Catalog,p:&ProgramDecl,body:&[Stmt],env:&mut Env,guards:&
             if column.is_some()&&assigned.is_empty(){changes.extend(changes::after(catalog,&condition,then_body,else_body,env));}
             for name in assigned{env.insert(name.clone(),Expr::Name{name:format!("$advice_unknown_{name}"),site:site.clone()});}
         },
-        Stmt::For{domain,name,body,site}=>{if column.is_some(){changes.clear();}expression(catalog,p,domain,env,guards,changes,column,depth,out);let mut local=env.clone();local.remove(name);let mut nested=guards.clone();nested.push(Stmt::Require{condition:Expr::Literal{value:ast::Literal::Bool(true),site:site.clone()},code:format!("$iteration:{site}"),message:None,site:site.clone()});statements(catalog,p,body,&mut local,&mut nested,&mut Vec::new(),column,depth,out);for name in branch_assignments(body){env.insert(name.clone(),Expr::Name{name:format!("$advice_unknown_{name}"),site:site.clone()});}if contains_return(body){continuation(guards,Expr::Name{name:format!("$advice_fallthrough:{site}"),site:site.clone()},site);}},
+        Stmt::For{domain,name,body,site}=>{if column.is_some(){changes.clear();}expression(catalog,p,domain,env,guards,changes,column,depth,out);guards.extend(helper_guards(catalog,domain,env,0));let mut local=env.clone();local.remove(name);let mut nested=guards.clone();nested.push(Stmt::Require{condition:Expr::Literal{value:ast::Literal::Bool(true),site:site.clone()},code:format!("$iteration:{site}"),message:None,site:site.clone()});statements(catalog,p,body,&mut local,&mut nested,&mut Vec::new(),column,depth,out);for name in branch_assignments(body){env.insert(name.clone(),Expr::Name{name:format!("$advice_unknown_{name}"),site:site.clone()});}if contains_return(body){continuation(guards,Expr::Name{name:format!("$advice_fallthrough:{site}"),site:site.clone()},site);}},
         Stmt::As{body,site,..}=>{statements(catalog,p,body,&mut env.clone(),&mut guards.clone(),&mut changes.clone(),column,depth,out);if contains_exit(body)&&!continuation(guards,fallthrough(body,env,site),site){break;}},
     }
     if consuming{changes.clear();}

@@ -107,7 +107,7 @@ fn collect(sources:&[(String,String)],bound:&Bound,inputs:&mut BTreeMap<(String,
     for (file,p) in docs.iter().flat_map(|d|d.programs.iter().map(move |p|(&d.file,p))).filter(|(_,p)|p.kind==ast::ProgramKind::Mutation){for (write,context) in authority_walk::writes(&catalog,p){
         if let ast::Expr::Write{op,table,fields,keys,site,..}=write{
             let Some(definition)=bound.schema.tables.get(&table)else{continue;};
-            let mut checked=BTreeSet::new();for statement in &context.body{if let ast::Stmt::Require{condition,..}=statement{let mut condition=condition.clone();omit_preconditions(&mut condition,false);super::super::intent_walk::expression(&mut condition,&mut |e|if let ast::Expr::Name{name,..}=e&&p.args.iter().any(|arg|arg.name==*name){checked.insert(name.clone());});}}
+            let mut checked=BTreeSet::new();for statement in &context.body{if let ast::Stmt::Require{condition,..}=statement{let mut condition=condition.clone();omit_preconditions(&mut condition,false);condition=super::creation_advice::simplify_boolean(&condition);super::super::intent_walk::expression(&mut condition,&mut |e|if let ast::Expr::Name{name,..}=e&&p.args.iter().any(|arg|arg.name==*name){checked.insert(name.clone());});}}
             let payload=fields.iter().filter(|field|!matches!(field.name.as_str(),"status"|"stage"|"state"|"phase")&&matches!(&field.value,Some(ast::Expr::Name{name,..}) if checked.contains(name))).map(|field|field.name.clone()).collect::<BTreeSet<_>>();
             for (stamp,kind) in definition.columns.iter().filter(|(stamp,_)|["approv","authoriz"].iter().any(|part|stamp.to_lowercase().contains(part))){
                 let recorded=if let Some(field)=fields.iter().find(|field|field.name==*stamp){super::creation_advice::approval_recording(kind,field.value.as_ref())}else{matches!(op,ast::WriteOp::Insert|ast::WriteOp::Upsert)&&definition.defaults.get(stamp).is_some_and(|value|match (kind.required(),value.value(challenges::NOW,"$derived")){(snapback4_core::schema::ColumnType::Bool,snapback4_core::Value::Bool(true))|(snapback4_core::schema::ColumnType::Time,snapback4_core::Value::Int(_))=>true,_=>false})};
@@ -161,7 +161,7 @@ fn collect(sources:&[(String,String)],bound:&Bound,inputs:&mut BTreeMap<(String,
                 let mut e=condition.clone();
                 // Absence and stage checks admit the transition; they do not
                 // assert that the current value is evidence being approved.
-                omit_preconditions(&mut e,false);
+                omit_preconditions(&mut e,false);e=super::creation_advice::simplify_boolean(&e);
                 super::super::intent_walk::expression(&mut e,&mut |e|if let ast::Expr::Member{base,name,..}=e {
                     if same_resource(base,table,match write{ast::Expr::Write{keys,..}=>keys,_=>unreachable!()},p){inspected.insert(name.clone());}
                 });

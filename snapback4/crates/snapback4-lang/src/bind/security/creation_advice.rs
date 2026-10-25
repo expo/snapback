@@ -20,6 +20,10 @@ pub(super) fn simplify_boolean(expression:&Expr)->Expr{
         fn constant(e:&Expr)->bool{match e{Expr::Literal{..}=>true,Expr::Unary{value,..}=>constant(value),Expr::Binary{left,right,..}=>constant(left)&&constant(right),Expr::Array{items,..}=>items.iter().all(constant),Expr::Call{name,args,..} if matches!(name.as_str(),"len"|"count")=>args.iter().all(constant),_=>false}}
         if constant(e)&&let Some(value)=super::concrete::evaluate(e,&snapback4_core::Value::Null,&BTreeMap::new(),&snapback4_core::schema::Schema::default(),"","",0){*e=Expr::Literal{value:ast::Literal::Bool(value),site:e.site().clone()};return;}
         match e{
+            Expr::If{condition,then,otherwise,..}=>if let Some(value)=boolean(condition){*e=if value{*then.clone()}else{*otherwise.clone()};},
+            Expr::Binary{op,left,right,..} if op=="??"=>if let Expr::Literal{value,..}=left.as_ref(){*e=if matches!(value,ast::Literal::Null){*right.clone()}else{*left.clone()};},
+            Expr::Member{base,name,..}=>if let Expr::Object{fields,..}=base.as_ref()&&let Some(value)=fields.iter().find(|field|field.name==*name).and_then(|field|field.value.clone()){*e=value;},
+            Expr::Assert{value,..} if matches!(value.as_ref(),Expr::Literal{value,..} if !matches!(value,ast::Literal::Null))=>*e=*value.clone(),
             Expr::Unary{op,value,site} if op=="not"=>if let Some(value)=boolean(value){*e=Expr::Literal{value:ast::Literal::Bool(!value),site:site.clone()};},
             Expr::Binary{op,left,right,site} if op=="and"||op=="or"=>{let decisive=op=="or";if boolean(left)==Some(decisive)||boolean(right)==Some(decisive){*e=Expr::Literal{value:ast::Literal::Bool(decisive),site:site.clone()};}else if boolean(left)==Some(!decisive){*e=*right.clone();}else if boolean(right)==Some(!decisive){*e=*left.clone();}},_=>{},
         }
@@ -39,7 +43,7 @@ fn simplify_rule(rule:&RuleExpr)->RuleExpr{match rule{
         if out.is_empty(){if disjunction{RuleExpr::Deny}else{RuleExpr::Allow}}else if out.len()==1{out.remove(0)}else if disjunction{RuleExpr::Or(out)}else{RuleExpr::And(out)}
     },_=>rule.clone(),
 }}
-fn effective_conditions(p:&ast::ProgramDecl)->Vec<Expr>{conditions(p).into_iter().map(simplify_boolean).collect()}
+fn effective_conditions(p:&ast::ProgramDecl)->Vec<Expr>{if let Some(site)=p.body.iter().find_map(|stmt|if let Stmt::Require{code,site,..}=stmt&&code=="$advice:cut"{Some(site)}else{None}){return vec![Expr::Literal{value:ast::Literal::Bool(false),site:site.clone()}];}conditions(p).into_iter().map(simplify_boolean).collect()}
 fn reads(e:&Expr)->BTreeSet<String>{let mut out=BTreeSet::new();walk(e,|e|match e{Expr::Read(r)|Expr::Exists{read:r,..}=>{out.insert(r.table.clone());},_=>{}});out}
 fn nonnull(p:&ast::ProgramDecl,arg:&str)->bool{nonnull_mode(p,arg,false)}
 fn nonnull_mode(p:&ast::ProgramDecl,arg:&str,branches:bool)->bool{p.body.iter().filter_map(|s|if let Stmt::Require{condition,code,..}=s&&(branches||!code.starts_with("$advice")){Some(condition)}else{None}).flat_map(conjunction).any(|e|match e{

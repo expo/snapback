@@ -21,6 +21,7 @@ pub(super) fn value(e:&Expr,row:&Value,rows:&Rows,schema:&Schema,viewer:&str,tab
     },
     Expr::Unary{op,value:x,..} if op=="not"=>Value::Bool(!boolean(value(x,row,rows,schema,viewer,table,now))?),
     Expr::Unary{op,value:x,..} if op=="-"=>{let Value::Int(number)=value(x,row,rows,schema,viewer,table,now)?else{return None;};Value::int(-i128::from(number)).ok()?},
+    Expr::Binary{op,left,right,..} if op=="??"=>{let first=value(left,row,rows,schema,viewer,table,now)?;if first==Value::Null{value(right,row,rows,schema,viewer,table,now)?}else{first}},
     Expr::Binary{op,left,right,..} if op=="and"||op=="or"=>{
         let a=boolean(value(left,row,rows,schema,viewer,table,now));let b=boolean(value(right,row,rows,schema,viewer,table,now));
         let and=op=="and";let decisive=!and;
@@ -94,7 +95,7 @@ pub(super) fn limitations(expr:&Expr,schema:&Schema,table:&str)->BTreeSet<String
         Expr::Member{..}=>{out.insert("member is not a typed table reference".into());},
         Expr::Unary{op,..} if op=="not"||op=="-"=>{},
         Expr::Binary{left,right,..} if [(left.as_ref(),right.as_ref()),(right.as_ref(),left.as_ref())].iter().any(|(a,b)|matches!(b,Expr::Literal{value:Literal::Str(_),..})&&matches!(a,Expr::Member{base,name,..} if matches!(base.as_ref(),Expr::Focal{..})&&schema.tables.get(table).and_then(|t|t.columns.get(name)).is_some_and(|k|matches!(k.required(),snapback4_core::schema::ColumnType::Id|snapback4_core::schema::ColumnType::Principal|snapback4_core::schema::ColumnType::Ref{..}))))=>{out.insert("contextual principal/id string coercion is outside the concrete invariant evaluator".into());},
-        Expr::Binary{op,..} if ["and","or","+","-","*","=","!=","<","<=",">",">="].contains(&op.as_str())=>{},
+        Expr::Binary{op,..} if ["and","or","??","+","-","*","=","!=","<","<=",">",">="].contains(&op.as_str())=>{},
         Expr::Call{name,args,..} if ((name=="count"||name=="len")&&args.len()==1)||(name=="sum"&&args.len()==2)=>{},
         Expr::Read(read)|Expr::Exists{read,..}=>{
             if schema.maintain_for(&read.table).is_some(){out.insert(format!("{}: read-through/temporal/maintained population is outside the raw concrete evaluator",read.table));}

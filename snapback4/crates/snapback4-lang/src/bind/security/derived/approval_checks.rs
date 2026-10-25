@@ -17,7 +17,7 @@ pub(super) fn collect(sources:&[(String,String)],bound:&Bound)->BTreeMap<(String
             let arguments=p.args.iter().map(|arg|(arg.name.clone(),member(format!("{ARG}{}",arg.name)))).collect();
             let mut checks=Vec::new();
             for condition in context.body.iter().filter_map(|stmt|if let ast::Stmt::Require{condition,..}=stmt{Some(condition)}else{None}).flat_map(clauses){
-                let mut condition=condition.clone();omit_preconditions(&mut condition,false);let mut columns=BTreeSet::new();
+                let mut condition=condition.clone();omit_preconditions(&mut condition,false);condition=super::super::creation_advice::simplify_boolean(&condition);let mut columns=BTreeSet::new();
                 walk(&condition,|e|match e{
                     ast::Expr::Member{base,name,..} if same_resource(base,table,keys,p)=>{columns.insert(name.clone());},
                     ast::Expr::Name{name,..}=>{for field in fields{if matches!(&field.value,Some(ast::Expr::Name{name:arg,..}) if arg==name){columns.insert(field.name.clone());}}},_=>{},
