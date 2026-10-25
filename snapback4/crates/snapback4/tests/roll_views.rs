@@ -687,6 +687,52 @@ fn saved_versions_keep_generated_siblings_and_saved_deploy_leaves_working_codege
 }
 
 #[test]
+fn fitting_extraction_with_rename_restores_predecessor_shape_twice() {
+    let old="table items:\n  owner: principal\n  immutable owner\n  buyer: text <=40\n  scan: file <=1000\n  read <- .owner = viewer\n  insert <- .owner = viewer\n  online only\nquery item(id: items):\n  return items[id]\n";
+    let current=old.replace("  buyer: text <=40","  customer: text <=40 renamed from buyer")
+        .replace("  scan: file <=1000\n","")
+        +"table scans:\n  item: items on delete cascade\n  scan: file <=1000\n  immutable item\n  read through .item\n  online only\nextract scans from items via item: {scan:scan}\n";
+    let app=App::new();app.source(old);app.ok(&["deploy","deployment"]);
+    let b=snapback4_lang::compile(&[("schema.q".into(),old.into())]);
+    let store=snapback4_core::store_port::AnyStore::open(&app.0.join("deployment/store.sqlite")).unwrap();
+    let schema=b.schema.clone();
+    let mut engine=snapback4_core::Engine::new_release(store,b.schema,b.programs.into_iter().map(|p|p.program),1,Some(1)).unwrap();
+    let asset=engine.store_file("alice",b"retained scan",Some("text/plain"),"scan.txt",1000).unwrap();
+    let scan=snapback4_core::wire::to_json(&asset.column_value());
+    engine.seed(vec![("items".into(),snapback4_core::wire::row_from_json(&schema.tables["items"],&json!({"id":"kept","owner":"alice","buyer":"customer","scan":scan})).unwrap())]).unwrap();
+    drop(engine);
+    app.source(&current);app.ok(&["deploy","deployment"]);
+    for _ in 0..2 {
+        let preview=app.json(&["rollback","deployment","--to","1","--check","--json"]);
+        assert_eq!(preview["visibility"]["hiddenRows"],0);
+        let selected=app.json(&["rollback","deployment","--to","1","--json"]);
+        assert_eq!(selected["release"],1,"a fitting reverse extraction keeps the old query shape");
+        let b=snapback4_lang::compile(&[("schema.q".into(),old.into())]);
+        let store=snapback4_core::store_port::AnyStore::open(&app.0.join("deployment/store.sqlite")).unwrap();
+        let mut engine=snapback4_core::Engine::new_release(store,b.schema,b.programs.into_iter().map(|p|p.program),1,Some(1)).unwrap();
+        for viewer in ["alice","bob"] {
+            let outcome=engine.query("item",snapback4_core::Context::new(viewer,std::collections::BTreeMap::from([("id".into(),snapback4_core::Value::Id("kept".into()))]))).unwrap();
+            let data=snapback4_core::wire::to_json(&outcome.data);
+            if viewer=="alice" {assert_eq!(data["scan"],scan);assert_eq!(data["buyer"],"customer");assert!(data.get("customer").is_none());}
+            else {assert_eq!(data,json!(null));}
+        }
+        drop(engine);app.ok(&["rollback","deployment","--to","latest"]);
+    }
+    // An extra independent child of this same receipt-owning old parent must
+    // keep the registered view, even though its original child fits v1.
+    let b=snapback4_lang::compile(&[("schema.q".into(),current)]);
+    let store=snapback4_core::store_port::AnyStore::open(&app.0.join("deployment/store.sqlite")).unwrap();
+    let schema=b.schema.clone();
+    let mut engine=snapback4_core::Engine::new_release(store,b.schema,b.programs.into_iter().map(|p|p.program),2,Some(2)).unwrap();
+    let asset=engine.store_file("alice",b"independent scan",Some("text/plain"),"extra.txt",1000).unwrap();
+    engine.seed(vec![("scans".into(),snapback4_core::wire::row_from_json(&schema.tables["scans"],&json!({"id":"native","item":"kept","scan":snapback4_core::wire::to_json(&asset.column_value())})).unwrap())]).unwrap();
+    drop(engine);
+    let selected=app.json(&["rollback","deployment","--to","1","--json"]);
+    assert_eq!(selected["rollbackView"]["target"],1,"independent children keep the current population visible");
+    assert_eq!(app.json(&["sql","SELECT COUNT(*) FROM scans","--release","deployment","--json"])["rows"][0][0],2);
+}
+
+#[test]
 fn extraction_view_keeps_multiple_native_children_and_bridge_is_written_on_refusal() {
     let old="table items:\n  owner: principal\n  photos: [image <=1000] 1..4\n  label: text <=40\n  public 'fixture'\n  online only\n";
     let current="table items:\n  owner: principal\n  label: text <=40\n  public 'fixture'\n  online only\ntable photos:\n  item: items on delete cascade\n  photos: [image <=1000] 1..4\n  public 'fixture'\n  online only\nextract photos from items via item: {photos:photos}\n";

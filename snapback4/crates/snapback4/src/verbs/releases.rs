@@ -621,7 +621,10 @@ pub fn rollback(options: &Options) -> i32 {
                 .or_else(|| held["previous_active"].as_u64())
                 .ok_or("nothing to roll back to")?;
             let logical=super::rollback_views::metadata(&dir.join("releases").join(previous.to_string()))?.map(|v|v.target).unwrap_or(previous);
-            let view=if options.flags.contains_key("exact"){None}else{super::rollback_views::resolve(&dir,logical)?};
+            let mut view=if options.flags.contains_key("exact"){None}else{super::rollback_views::resolve(&dir,logical)?};
+            if let Some(registered)=&view {
+                if super::rollback_views::prefer_original(&dir,registered,options,_deployment.as_ref())? {view=None;}
+            }
             let previous=view.as_ref().map(|v|v.release).unwrap_or(logical);
             if let Some(view)=&view {
                 eprintln!("rollback target: release {} via bridge {} (registered by release {})",view.target,view.release,view.parent);

@@ -113,6 +113,40 @@ pub fn loosen(target:&[(String,String)],current:&[(String,String)])->Bridge {
     }
     bridge
 }
+/// A reverse extraction can retain its original result shape when transporting
+/// current guards would leave the predecessor's tables and programs unchanged.
+/// Data fit is deliberately a separate, transactional store obligation.
+// @ref LLP 3000.000.000#21-wave-27-release-semantics-rel — fitting extraction rollback prefers the truthful predecessor shape.
+pub fn extraction_preserves_predecessor(target:&[(String,String)],current:&[(String,String)])->bool {
+    let old=crate::compile(target);let next=crate::compile(current);
+    if !old.diagnostics.is_empty()||!next.diagnostics.is_empty()||!next.invariants.is_empty()
+        ||!next.schema.extractions.iter().any(|e|!e.each&&old.schema.table(&e.parent).is_some_and(|t|e.fields.values().any(|c|t.columns.contains_key(c)))) {return false;}
+    // A selective source must also satisfy the CLI's hard-authority boundary.
+    // Compare complete old-table definitions after only declared column names
+    // and extracted cells are accounted for; do not guess policy implication.
+    let Ok(aligned)=align_current_schema(&old.schema,target,&next.schema,current,&BTreeMap::new())else{return false};
+    for (name,table) in &old.schema.tables {
+        let Some(now)=aligned.table(name)else{return false};
+        let mut projected=table.clone();
+        for e in next.schema.extractions.iter().filter(|e|!e.each&&e.parent==*name) {
+            let Some(child)=next.schema.table(&e.child)else{return false};
+            let inherited=child.through.as_ref().is_some_and(|t|t.parent==e.parent&&t.reference==e.reference);
+            let plain_read=current.iter().flat_map(|(f,t)|parser::parse_document(f,t).0.tables).find(|t|t.name==e.child)
+                .is_some_and(|t|t.rules.iter().filter(|r|r.effect==ast::Effect::Read).all(|r|matches!(&r.value,ast::Expr::Call{name,..}if name=="$readThrough")));
+            if !inherited||!plain_read||child.expire.is_some()||child.not_before.is_some()
+                ||!child.column_reads.is_empty()||!child.column_writes.is_empty()||!child.frozen_columns.is_empty(){return false;}
+            for column in e.fields.values(){projected.columns.remove(column);}
+        }
+        if &projected!=now{return false;}
+    }
+    let bridge=loosen_guarded(target,current);
+    if !bridge.diagnostics.is_empty(){return false;}
+    let carried=crate::compile(&bridge.sources);
+    carried.diagnostics.is_empty()&&old.schema.auth==carried.schema.auth
+        &&old.schema.tables.iter().all(|(name,table)|carried.schema.table(name)==Some(table))
+        &&old.programs.iter().all(|p|carried.programs.iter().any(|c|c.program==p.program))
+}
+
 fn loosen_inner(target:&[(String,String)],current:&[(String,String)])->Bridge {
     let current_bound=crate::compile(current);
     if current_bound.schema.extractions.iter().any(|e|!e.each)||!current_bound.invariants.is_empty()||current_bound.schema.tables.values().any(|t|!t.column_writes.is_empty()||!t.frozen_columns.is_empty()) {
@@ -364,6 +398,25 @@ fn join(old:&ast::ScalarType,new:&ast::ScalarType,tables:&BTreeMap<String,(&Stri
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn exact_extraction_eligibility_never_drops_current_guards_or_intent() {
+        let old="table items:\n  owner: principal\n  immutable owner\n  scan: file <=1000\n  read <- .owner = viewer\n  online only\nquery item(id: items):\n  return items[id]\n";
+        let new=old.replace("  scan: file <=1000\n","")+"table scans:\n  item: items\n  scan: file <=1000\n  immutable item\n  read through .item\n  online only\nextract scans from items via item: {scan:scan}\n";
+        let target=vec![("schema.q".into(),old.into())];
+        let current=vec![("schema.q".into(),new.clone())];
+        let bridge=loosen_guarded(&target,&current);
+        assert!(bridge.diagnostics.is_empty(),"selective diagnostics: {:?}",bridge.diagnostics);
+        let old_bound=crate::compile(&target);let new_bound=crate::compile(&current);
+        assert!(new_bound.diagnostics.is_empty(),"current diagnostics: {:?}",new_bound.diagnostics);
+        let aligned=align_current_schema(&old_bound.schema,&target,&new_bound.schema,&current,&BTreeMap::new()).unwrap();
+        let mut old_table=old_bound.schema.tables["items"].clone();old_table.columns.remove("scan");
+        assert_eq!(old_table,aligned.tables["items"],"aligned definitions");
+        assert!(extraction_preserves_predecessor(&target,&current),"child: {:?}; selective: {:?}",new_bound.schema.tables["scans"],bridge.sources);
+        let private=new.replacen("read <- .owner = viewer","read <- deny",1);
+        assert!(!extraction_preserves_predecessor(&target,&[("schema.q".into(),private)]));
+        let intent=new+"invariant items.read only .owner = viewer\n";
+        assert!(!extraction_preserves_predecessor(&target,&[("schema.q".into(),intent)]));
+    }
     #[test]
     fn mixed_narrowing_keeps_current_domains_and_the_complete_current_closure() {
         let old="table items:\n  kind: enum('private', 'public')\n  amount: int\n  read <- .kind != 'public'\n  online only\nquery readItem(id: items):\n  return items[id]\n";

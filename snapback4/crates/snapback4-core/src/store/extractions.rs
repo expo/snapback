@@ -58,7 +58,7 @@ fn fields(row: &mut Value) -> Result<&mut crate::value::ObjectFields, RuntimeErr
         _ => Err(refuse("invalid extraction row")),
     }
 }
-fn key(tx:&Tx<'_>,e:&Extraction)->Result<String,RuntimeError>{
+pub(super) fn key(tx:&Tx<'_>,e:&Extraction)->Result<String,RuntimeError>{
     let parent=tx.num(&e.parent)?;let child=tx.num(&e.child)?;
     let aliases:bool=tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE name='_asset_column_renames')",[],|r|r.get(0))?;
     let origin=|t:i64,c:&str|->Result<String,RuntimeError>{

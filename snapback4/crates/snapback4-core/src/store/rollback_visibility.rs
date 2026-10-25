@@ -93,6 +93,13 @@ pub(super) fn validate(
         .map(|s| serde_json::from_str(&s).map_err(|e| refuse(e.to_string())))
         .transpose()?
         .unwrap_or_default();
+    // @ref LLP 3000.000.000#21-wave-27-release-semantics-rel — an old result shape may represent receipt-owned children only; keep independent child populations in a view.
+    for e in source.extractions.iter().filter(|e|!e.each&&!next.extractions.contains(e)
+        &&next.table(&e.child).is_none()&&next.table(&e.parent).is_some_and(|t|e.fields.values().any(|c|t.columns.contains_key(c)))) {
+        let definition=super::extractions::key(tx,e)?;
+        let unowned:bool=tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM temp._rollback_view_before p WHERE p.name=?1 AND NOT EXISTS(SELECT 1 FROM _extraction_rows r WHERE r.definition=?2 AND r.child_t=p.t AND r.child_id=p.id))",params![e.child,definition],|r|r.get(0))?;
+        if unowned {return Err(refuse(format!("rollback would hide independent {} children outside the extraction receipts; retain the current child population in a bridge",e.child)));}
+    }
     let mut hidden = BTreeSet::new();
     let mut bad = super::adopt_refusals::Samples::default();
     let mut q=tx.conn().prepare("SELECT p.name,p.id,octet_length(p.data),p.data,c.name FROM temp._rollback_view_before p JOIN _catalog c ON c.num=p.t WHERE NOT EXISTS(SELECT 1 FROM r WHERE r.t=p.t AND r.id=p.id) AND (EXISTS(SELECT 1 FROM _dormant_narrow_rows d WHERE d.t=p.t AND d.id=p.id) OR EXISTS(SELECT 1 FROM _dormant_rows d WHERE d.t=p.t AND d.id=p.id)) ORDER BY p.name,p.id")?;
