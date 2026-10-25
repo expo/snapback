@@ -131,17 +131,22 @@ class SupabaseRun(Run):
         self.stop_service()
         assert hashlib.sha256(POSTGREST.read_bytes()).hexdigest()==POSTGREST_SHA
         log=(directory/'dispatcher.stdout').open('x'); err=(directory/'dispatcher.stderr').open('x')
-        p=sp.Popen(['taskset','-c',APP_CORES,str(BIN),'dispatch','--delay-us',str(delay)],env=self.env,stdout=log,stderr=err)
-        self.dispatcher=(p,log,err)
-        self.record(p,'app',component='dispatcher',delay_us=delay)
-        deadline=time.monotonic()+15
-        while True:
-            if p.poll() is not None: raise RuntimeError('dispatcher startup failed')
-            text=(directory/'dispatcher.stdout').read_text()
-            if text.endswith('\n') and json.loads(text)['pid']==p.pid: break
-            if time.monotonic()>deadline: raise RuntimeError('dispatcher timeout')
-            time.sleep(.05)
-        self.env['PGRST_DB_URI']=f"host=127.0.0.1 port=58081 user={self.login_role} password={self.pw.read_text().strip()} dbname={self.db} application_name={self.app_name}"
+        socket_dir=self.env.get('SCALE_PG_SOCKET')
+        if socket_dir:
+            log.close();err.close()
+            self.env['PGRST_DB_URI']=f"host={socket_dir} port=55440 user={self.login_role} dbname={self.db} application_name={self.app_name}"
+        else:
+            p=sp.Popen(['taskset','-c',APP_CORES,str(BIN),'dispatch','--delay-us',str(delay)],env=self.env,stdout=log,stderr=err)
+            self.dispatcher=(p,log,err)
+            self.record(p,'app',component='dispatcher',delay_us=delay)
+            deadline=time.monotonic()+15
+            while True:
+                if p.poll() is not None: raise RuntimeError('dispatcher startup failed')
+                text=(directory/'dispatcher.stdout').read_text()
+                if text.endswith('\n') and json.loads(text)['pid']==p.pid: break
+                if time.monotonic()>deadline: raise RuntimeError('dispatcher timeout')
+                time.sleep(.05)
+            self.env['PGRST_DB_URI']=f"host=127.0.0.1 port=58081 user={self.login_role} password={self.pw.read_text().strip()} dbname={self.db} application_name={self.app_name}"
         # Matches the raw-PG pool passed in: 32 for reads, one connection per writer.
         self.env['PGRST_DB_POOL']=str(pool)
         log=(directory/'service.stdout').open('x'); err=(directory/'service.stderr').open('x')
@@ -161,7 +166,7 @@ class SupabaseRun(Run):
             time.sleep(.1)
         write(directory/'target.json',dict(target='supabase-postgrest-only',postgrest='14.18',pool=pool,
                listener_connections=1,matched_raw_pg_pool=pool,instances=1,rts='-N -I0 -qg',
-               postgrest_sha256=POSTGREST_SHA,dispatcher_pid=self.dispatcher[0].pid,
+               postgrest_sha256=POSTGREST_SHA,dispatcher_pid=self.dispatcher[0].pid if self.dispatcher else None,
                postgrest_pid=p.pid,added_rtt_us=delay))
         # Capture all effective settings while redacting URI/secret in memory.
         config=sp.check_output([str(POSTGREST),str(HERE/'supabase.conf'),'--dump-config'],env=self.env,text=True)
@@ -186,7 +191,7 @@ class SupabaseRun(Run):
             f.write(json.dumps(dict(pid=p.pid,kind=kind,time=time.time(),**fields))+'\n')
 
     def app_pids(self):
-        return [self.service[0].pid,self.dispatcher[0].pid]
+        return [x[0].pid for x in (self.service,self.dispatcher) if x]
 
     def stop_service(self):
         super().stop_service()

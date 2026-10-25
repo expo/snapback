@@ -1,0 +1,18 @@
+{
+  "source_commit": "b5e34d8912",
+  "source_sha256": {
+    "Cargo.toml": "cf86481a9cd5f22eef755335e48e9a5d61d5d28e60154f949337b98c24f36bbe",
+    "Cargo.lock": "08a84604051a0b05620c91da961d84c75525bd54fb6f6914183759a02f887ad3",
+    "src/auth.rs": "a7e540f37ba0c294227359363bd2ae84bbca9c5851760b2e43d0c6aa5cd236c8",
+    "src/convex.rs": "a2e818c03d1ac70eb7903dc4b081caf6de9d5f1cdd7d05118c11893e1aac3f8d",
+    "src/db.rs": "eca578555897ee3f14c5dae20326746956ada1f15e68c901be0bf1932477ab70",
+    "src/load.rs": "c6b3619dc3492e47f2c7d4685056faa9a1894393e2b516156e6dfda8e01b0fcf",
+    "src/main.rs": "f6e003264fda4450c04f9189cc4670a3cafdc13a3009b7701fa1722ed60a7d01",
+    "src/snapback.rs": "cad18abbd44f8eb4e24d1ef7cf55a47cccde0eab5b49ffd04a928fd8d7c3e064",
+    "src/supabase.rs": "363836f645d2257615a4fcdf95368b3e5b83daba00a5b3f294719286350fb66a",
+    "src/unix.rs": "36cb3af8eaef8c5c89b3cf3737d4baf15dc35e433f148e0983abdb28dbc24c04",
+    "../postgres-commit-path/src/proxy.rs": "448b9984b8716e85875c4dcf1715fe14f6bb3477fb5e4eaa4a8915e38291bae8"
+  },
+  "binary_sha256": "9c5675272ca897d4d54242a13ad4e47593d44c79bf0743adda907a679a34f9fb",
+  "current_harness_unused": true
+}

@@ -1,0 +1,53 @@
+[
+  {
+    "phase": "native",
+    "cells": 10,
+    "trials": 120,
+    "scheduled_arrivals": 8907720,
+    "cells_with_passing_rate": 6,
+    "unknown_write_outcome_trials": 5,
+    "checks": "arrival accounting, every repetition, histogram counts and lossless archive, SLO/counter qualification, brackets"
+  },
+  {
+    "phase": "light",
+    "cells": 10,
+    "trials": 40,
+    "scheduled_arrivals": 1187696,
+    "cells_with_passing_rate": 5,
+    "unknown_write_outcome_trials": 6,
+    "checks": "arrival accounting, every repetition, histogram counts and lossless archive, SLO/counter qualification, brackets"
+  },
+  {
+    "phase": "heavy-observer",
+    "cells": 10,
+    "trials": 40,
+    "scheduled_arrivals": 1187696,
+    "cells_with_passing_rate": 4,
+    "unknown_write_outcome_trials": 6,
+    "checks": "arrival accounting, every repetition, histogram counts and lossless archive, SLO/counter qualification, brackets"
+  },
+  {
+    "phase": "legacy",
+    "cells": 2,
+    "trials": 6,
+    "scheduled_arrivals": 960000,
+    "cells_with_passing_rate": 2,
+    "unknown_write_outcome_trials": 0,
+    "checks": "arrival accounting, every repetition, histogram counts and lossless archive, SLO/counter qualification, brackets"
+  },
+  {
+    "phase": "async-flight",
+    "cells": 4,
+    "trials": 4,
+    "scheduled_arrivals": 256000,
+    "cells_with_passing_rate": 0,
+    "unknown_write_outcome_trials": 0,
+    "checks": "arrival accounting, every repetition, histogram counts and lossless archive, SLO/counter qualification, brackets"
+  },
+  {
+    "phase": "trivial-generator",
+    "trials": 42,
+    "scheduled_arrivals": 18026760,
+    "checks": "arrival/error accounting, all three histograms, original SLO calculation; synthetic server validation by unchanged generator"
+  }
+]

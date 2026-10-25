@@ -107337,3 +107337,161 @@ PID/start-tick audit and the worktree-target executable audit are both empty.
 No owned PIDs remain. Minimum recorded free space is **66.927 GiB**, above the
 40 GiB floor throughout; no target reclamation is needed. Work remains local,
 with no push, stash, Git configuration change, q24 access or shared PG17 change.
+
+## 2026-10-24 — S1-C shared one-host controls runner
+
+The author commissions the raw-PG token, Supabase advocate and Convex advocate
+controls on S1-PG4's one-host method, with the same runner reusable by native
+Snapback after its read cache lands. `s1-onehost.py` retains the existing
+intended-arrival scheduler, authorization/SQL, native caches, 10 s/20 s windows,
+three repetitions and counter-qualified SLO search. Every target uses the same
+Unix delay link, PG16.15 durable settings, physical CPU split and live witnesses.
+Read rungs 19,027 and 22,627 are registered in addition to the inherited search.
+The controls use private, socket-only clusters and retain raw data outside Git.
+This entry records the implementation and commission, not measured capacity;
+the complete result and cleanup evidence follow in a dated entry.
+
+### S1-C native adapter setup — 2026-10-24
+
+The seed helper lockfile still named core 0.4.37. An offline refresh changes
+only that local package version to 0.4.38, matching S1-PG4’s documented setup
+repair; every third-party pin remains unchanged. The shared runner also
+records native binary/helper digests and checks both pidfile and socket removal
+after private-cluster shutdown. No workload, tuning or timing change is made.
+
+### S1-C consecutive-campaign preflight — 2026-10-24
+
+All three controls and the native adapter pass their W2/link-A smokes. The
+first matrix setup then refuses a port still in TIME_WAIT after the native
+HTTP server stopped; no listener or live owned service remains. Match the
+actual HTTP listeners’ SO_REUSEADDR policy in the bind-only preflight, which
+still refuses an active listener. No timed matrix trial ran in that attempt,
+and no scheduler, native setting or qualification rule changes.
+
+## 2026-10-24 — S1-C control matrix and reusable runner completed
+
+The shared one-host runner completes all 36 control cells: 615 trials and
+70,457,880 measured arrivals. All three unchanged `audit.py` runs pass;
+267 write trials also pass an independent arithmetic check against durable
+before/after sums and whole-cohort acknowledgements. There are 54 retained
+counter-mismatch trials (11 raw, 7 Supabase, 36 Convex), and 328 trials fail
+at least one qualification rule. Thirty-five cells have a passing rate;
+Convex W4/A has none down to 1 offered write/s. Every rate requires all three
+10 s warm-up /20 s repetitions; no failed repetition is replaced.
+
+Raw token PG's A/B rates are W1 8000/8000, W2 5656/8000, W3 5656/4000,
+W4 400/141, exact W5 282/282, nominal 1% W5 3200/4525. Supabase advocate:
+2000/2000, 2000/2000, 2828/2828, 3200/1600, 8/70, 800/1600. Convex/PG:
+500/500, 707/707, 8000/5656, no pass/141, 25/25, 400/25. These are highest
+**tested passing offered rates**, not physical or production ceilings.
+In particular, Convex W2's first 1000/s failure sends the inherited search
+below untested intermediate rates despite later fast repetitions. The fixed
+19027/22627 trials fail too; the 707/s row cannot establish its warmed-cache
+ceiling. Native caches, warm-up and retry/OCC settings are unchanged.
+
+All 36 released boundaries have no unrelated process above one sampled CPU;
+23 preceding busy observations cause waits. All 72 RTT captures complete
+(maximum p99 4.471 ms). Live witnesses confirm PG physical cores 0–2,
+app/proxy 3–4 and generator 5, with both SMT siblings paired. The host is not
+reserved during load: large disk-usage changes, active unrelated work and
+non-monotonic repetitions remain explicit limitations. A later mixed-write
+row exceeding an earlier disjoint row does not prove that contention helps.
+Minimum recorded free space is 36.62 GiB; the 30 GiB guard never fires.
+
+All three controls and native Snapback pass W2/A smokes at 100/s, with
+three repetitions and independent audits. Native setup uses its ordinary
+Engine::seed_at, account sessions and full 1M recount. Snapback's post-cache
+capacity matrix is not run by this lane. All owned campaign services and PG
+clusters stop, with no socket, pidfile, listener or recorded owned PID left.
+Raw trials stay outside Git; the final result records archive SHA-256 and
+known-secret scan/credential cleanup receipts.
+
+The measured source is b5e34d8912 on preserved S1-PG4 base ac624fef08;
+the configured origin/main unexpectedly returned an August tree without SB4.
+No remote/configuration change, push or stash occurs. Report-tool fixes after
+load distinguish busy waits from released starts, audit counter arithmetic,
+publish correct one-host replay commands and ensure a low-disk guard cannot
+prevent owned cleanup. They do not change measured scheduling, SQL, knobs,
+binaries or qualification. Launch manifests/source remain frozen in the
+archive, including their inherited legacy replay fields.
+
+The [report](./experiments/scale-controls/results-20261024-s1-onehost-controls/README.md)
+contains the complete table, latency/range ledger, RTT/load/affinity evidence,
+disqualifications, historical two-host comparison and native replay recipe.
+No paid cloud, managed service, publication, durability relaxation or unowned
+signal is used. Only tooling, documentation and aggregate evidence are committed.
+
+## S1-SB final one-host comparison (2026-10-25)
+
+The [final one-host S1 report](./experiments/scale-controls/results-20261024-s1-onehost-final/README.md)
+measures product c985dbc640 through the unchanged S1-C runner/generator,
+qualification and advocate configurations. The four runner/result commits are
+rebased onto the local product branch; the stale origin is never fetched.
+G6 is explicitly configured as a single-owner deployment with
+`SNAPBACK4_READ_GRANT_CLOCK_BOUNDS=1000,250`; the same executable with that
+variable absent supplies six default G5 read cells. RT0 and the native SQL
+probe verify G6 hits before the matrix. The measured smoke's first window
+fails and remains unqualified, alongside its two passing windows.
+
+G6 highest passing offered rates, A/B: W1 8,000/2,828; W2 5,656/11,313;
+W3 16,000/16,000; W4 800/800; W5 exact 800/141; W5 nominal 1% mix
+1,131/800. Convex W2 is re-searched through every registered intermediate
+and high rung and passes 8,000/s on both links, replacing the search-dependent
+707/s rows. G6 strictly exceeds the best advocate in eight of twelve cells.
+It loses W2/A to Convex's 8,000/s, W4/A and W4/B to Supabase's 3,200/1,600/s,
+and mix/B to Supabase's 1,600/s. All other retained control values stay in
+the comparison. Every new Snapback read includes 19,027, 22,627, 32,000 and
+45,254/s; all repetitions and failures remain retained.
+
+The original W2/A attempt loses its ownership-renewal deadline and exits
+safely; the following observer snapshot aborts that controller. Its completed
+W1 cells remain selected, while its interrupted W2/A attempt is excluded
+from the headline and lacks an after-RTT capture. A fresh exact fixture
+confirms lower passing rungs and tests only unrun higher rungs; the failed 8,000/s
+cohort is not rerun. Each selected rate requires three complete passing
+repetitions from one actual cohort. Source snapshots and scheduling receipts
+make the outside-Git continuation reviewable.
+
+Independent audits pass 486 new trials and
+119,860,920 measured arrivals. Counter mismatches remain
+disqualified. Failed curves show dispatch backlog; the underlying PG/proxy
+cost is not isolated by the original outer CPU sampler. CPU figures disclose
+their scope and the open sampler-completeness/payload-guard ticket.
+Serial windows, shared CPUs/storage and the declared clock assumption limit
+the claim; G6/G5 differences do not isolate a causal cache speedup. This is
+not a production-capacity or publication qualification.
+
+All owned services, private clusters, supervisors and observers stop; the
+PID/start-identity audit also checks prior S1-C ledgers. PIDs left: none.
+Raw data stay outside Git; the archive embeds the original control archive.
+SHA-256: `f5e46efdd1a8a9de67eac775e324c5300cb9aadd41f79345d67c44a5bce166b0`. Known-secret scans and private credential
+cleanup precede the local report commit. No push, stash, Git configuration
+change, paid cloud, publication or unowned signal occurs.
+
+
+## 2026-10-25 — S1-WD: diagnose the one-host losses before fixes
+
+[The diagnosis](experiments/scale-controls/results-20261025-s1-diagnosis/README.md)
+retains 120 native fixed-rung repetitions, 90 observer/archived-release
+repetitions, 42 trivial-server generator calibrations and four native cold
+reader controls. No product source changes. Native G6 qualifies W4 A at
+1,131/s, W1 B at 8,000/s and W2 A at 11,313/s. First-repetition counter
+mismatches leave the tested B write cells without a complete passing cohort;
+they are retained, not repaired by later passing repetitions.
+
+All 13,285 measured write-probe batches are eligible; the serial five/six PG
+flights, partial fill near N=16 and roughly 2.6 ms WAL sync explain the write
+shape. A narrow reader pool grows under global locks: unchanged native cold
+bursts take 961–1,532 ms versus about 10–11 ms warm; return-lock traces reach
+1.44 s. The archived c985 executable also passes both decisive 8,000/s reads,
+so historical recovery does not require FF2. Historical CPU contention is
+observed; its exact original trigger remains uncertain.
+
+The unchanged generator passes 32,000/s W1 and 16,000/s W2 against trivial
+responses on core 5 and its SMT sibling. Native W1 instead approaches the
+app/proxy CPU budget; default G5 W2 approaches its PG CPU budget. Conditional
+fix forecasts preserve the limits and durability and do not claim a measured
+control win. Request instrumentation distorts read throughput and cache lock
+timing; native cohorts and count-only cache observations remain authoritative.
+Raw traces stay outside Git. The linked report carries audit, archive and
+cleanup receipts; no fetch, push or publication occurs.

@@ -1,0 +1,13 @@
+{
+  "step": "bun-install",
+  "command": [
+    "bun",
+    "install",
+    "--frozen-lockfile"
+  ],
+  "cwd": "/Users/ccheever/projects/snapback-pub-0428/snapback4",
+  "start": 1792856973.7812018,
+  "end": 1792856974.028148,
+  "seconds": 0.247,
+  "exit": 0
+}

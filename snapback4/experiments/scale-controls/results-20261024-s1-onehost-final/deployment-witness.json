@@ -1,0 +1,18 @@
+[
+  {
+    "campaign": "matrix-snapback-g6-rest",
+    "pid": 1651072,
+    "start_ticks": 1544055554,
+    "clock_bounds": "1000,250",
+    "time": 1792881390.1142244,
+    "scope": "only the declared clock-bound variable read from live serving environment; other environment values excluded"
+  },
+  {
+    "campaign": "matrix-snapback-g5",
+    "pid": 1702626,
+    "start_ticks": 1544644403,
+    "clock_bounds": null,
+    "time": 1792886852.6423006,
+    "scope": "only the declared clock-bound variable read from live serving environment; other environment values excluded"
+  }
+]

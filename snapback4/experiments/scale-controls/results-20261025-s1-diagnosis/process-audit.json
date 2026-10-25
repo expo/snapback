@@ -1,0 +1,47 @@
+{
+  "time": 1792903145.4517334,
+  "ledger_files": 67,
+  "recorded_pids": 3685,
+  "full_identities": 3685,
+  "live_owned": [],
+  "reused_pid_numbers": [],
+  "live_without_identity": [],
+  "runtimes": [
+    {
+      "path": "/tmp/s1c-3zf3_443",
+      "postmaster_pid_exists": false,
+      "socket_exists": false
+    },
+    {
+      "path": "/tmp/s1c-vn10ic63",
+      "postmaster_pid_exists": false,
+      "socket_exists": false
+    },
+    {
+      "path": "/tmp/s1c-xo9mwflq",
+      "postmaster_pid_exists": false,
+      "socket_exists": false
+    },
+    {
+      "path": "/tmp/s1c-u6grh59z",
+      "postmaster_pid_exists": false,
+      "socket_exists": false
+    },
+    {
+      "path": "/tmp/s1c-e9uz1bik",
+      "postmaster_pid_exists": false,
+      "socket_exists": false
+    },
+    {
+      "path": "/tmp/s1c-zt4pm570",
+      "postmaster_pid_exists": false,
+      "socket_exists": false
+    },
+    {
+      "path": "/tmp/s1c-qbrna3x2",
+      "postmaster_pid_exists": false,
+      "socket_exists": false
+    }
+  ],
+  "pass_": true
+}

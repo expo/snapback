@@ -1,0 +1,98 @@
+[
+  {
+    "cell": "g5-w1-b",
+    "scope": "entire short probe including startup/warmup/drain; observations, not native qualification",
+    "durations_ms": {
+      "121": {
+        "n": 75812,
+        "p50": 0.000982,
+        "p99": 1.1218974799999994,
+        "max": 1442.090485
+      },
+      "123": {
+        "n": 31,
+        "p50": 9.063036,
+        "p99": 23.769434299999997,
+        "max": 25.54121
+      },
+      "125": {
+        "n": 31,
+        "p50": 53.174345,
+        "p99": 65.4146385,
+        "max": 65.534934
+      }
+    }
+  },
+  {
+    "cell": "g5-w2-a",
+    "scope": "entire short probe including startup/warmup/drain; observations, not native qualification",
+    "durations_ms": {
+      "121": {
+        "n": 75038,
+        "p50": 0.000931,
+        "p99": 0.20404530000000237,
+        "max": 926.457954
+      },
+      "123": {
+        "n": 31,
+        "p50": 6.163633,
+        "p99": 22.583005899999996,
+        "max": 25.418479
+      },
+      "125": {
+        "n": 31,
+        "p50": 35.510541,
+        "p99": 52.51524789999999,
+        "max": 55.505359
+      }
+    }
+  },
+  {
+    "cell": "g6-w1-b",
+    "scope": "entire short probe including startup/warmup/drain; observations, not native qualification",
+    "durations_ms": {
+      "121": {
+        "n": 76094,
+        "p50": 0.000972,
+        "p99": 0.7488505699999966,
+        "max": 1399.720961
+      },
+      "123": {
+        "n": 31,
+        "p50": 9.087612,
+        "p99": 18.114694599999996,
+        "max": 19.6663
+      },
+      "125": {
+        "n": 31,
+        "p50": 52.961224,
+        "p99": 64.44165879999998,
+        "max": 68.353324
+      }
+    }
+  },
+  {
+    "cell": "g6-w2-a",
+    "scope": "entire short probe including startup/warmup/drain; observations, not native qualification",
+    "durations_ms": {
+      "121": {
+        "n": 76949,
+        "p50": 0.000611,
+        "p99": 0.002009200000000041,
+        "max": 896.099262
+      },
+      "123": {
+        "n": 31,
+        "p50": 5.786484,
+        "p99": 16.1254395,
+        "max": 16.139016
+      },
+      "125": {
+        "n": 31,
+        "p50": 31.402474,
+        "p99": 44.9338497,
+        "max": 44.937381
+      }
+    }
+  }
+]

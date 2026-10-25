@@ -1,0 +1,72 @@
+{
+  "time": 1792902247.3616657,
+  "source_commit": "0ce0c0d07864efb9f0b7315388f0751dc8282e11",
+  "source_files_verified": 2432,
+  "product_source_unchanged": true,
+  "product_paths": [
+    "snapback4/crates",
+    "snapback4/vendor",
+    "snapback4/.cargo",
+    "snapback4/Cargo.toml",
+    "snapback4/Cargo.lock",
+    "snapback4/rust-toolchain.toml",
+    "snapback4/experiments/scale-controls/scripts",
+    "snapback4/experiments/scale-controls/src"
+  ],
+  "binaries_sha256": {
+    "bin/native-release/snapback4": "be7b020d29acba28405c6724b71a77b69501ab241baab2724b46c4276ad11975",
+    "bin/sb4-scale-controls": "9c5675272ca897d4d54242a13ad4e47593d44c79bf0743adda907a679a34f9fb",
+    "bin/c985-snapback4": "ada2789bf453603c01c2c2051c09b16cbed107466e934faf2382bc9be8ce999f",
+    "bin/snapback4-probe-heavy": "79956f1f6373143001df535b31cf2d0f34191a0bb5ede3c813b1a521290f22d6",
+    "bin/snapback4-probe": "84f9829ebf01d8d15c40909184efecfb00b71168ce089646c38bc73ab41ff00f",
+    "bin/snapback4-probe-flights": "3fa0de26aa5c3f2f3706510af7169145becf871ad6e712740ac5ec5063f76647",
+    "bin/generator-probe": "d468b0823243d491a7b8583c9d04e47d099c0f410664cff771ed5840a53d8292",
+    "bin/trivial": "f50d495e775d02a5e646dcda1e303e0f69dc7278bdca977d9355d50032bf8223"
+  },
+  "native_launches": 10,
+  "g6_launches": 5,
+  "g5_launches": 5,
+  "native_count_observer": "Existing flag only;128KiB inside448MiB;250ms; same immutableELF",
+  "source_version_difference": "Inherited adbb3cd178 FF2 vs priorc985; old-product8000/s counterfactual replay retained",
+  "seed": {
+    "rooms": 1025,
+    "users": 256,
+    "counters": 257,
+    "messages": 1000000,
+    "memberships": 8448,
+    "room_mismatches": 0,
+    "sender_mismatches": 0,
+    "message_image_mismatches": 0
+  },
+  "affinity": {
+    "process_thread_observations": 1523,
+    "generator_samples": 126,
+    "generator_task_observations": 756,
+    "violations": []
+  },
+  "host_start": {
+    "released": 43,
+    "busy_wait_observations": 0,
+    "released_unrelated_over_one_core": []
+  },
+  "rtt": {
+    "captures": 82,
+    "max_p99_ms": 1.2,
+    "by_delay": {
+      "500": {
+        "median_p50_ms": 0.564,
+        "max_p99_ms": 0.711
+      },
+      "1000": {
+        "median_p50_ms": 1.0895000000000001,
+        "max_p99_ms": 1.2
+      }
+    }
+  },
+  "disk": {
+    "minimum_free_GiB": 90.0038948059082,
+    "samples": 21844,
+    "guard_GiB": 25,
+    "inherited_runner_floor_GiB": 30
+  }
+}

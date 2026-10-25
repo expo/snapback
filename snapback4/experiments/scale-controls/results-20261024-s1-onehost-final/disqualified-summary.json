@@ -1,0 +1,17 @@
+{
+  "trials": 247,
+  "by_campaign": {
+    "matrix-snapback-g5": 95,
+    "matrix-snapback-g6": 36,
+    "matrix-snapback-g6-rest": 91,
+    "research-convex-w2-a": 12,
+    "research-convex-w2-b": 12,
+    "smoke-snapback": 1
+  },
+  "by_reason": {
+    "p99": 246,
+    "errors": 216,
+    "counter": 5
+  },
+  "full_list": "raw archive: disqualified-trials.json"
+}

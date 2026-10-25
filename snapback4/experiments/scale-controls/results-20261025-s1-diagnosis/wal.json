@@ -1,0 +1,722 @@
+[
+  {
+    "cell": "g5-w1-b",
+    "rate": 4000,
+    "repeats": 3,
+    "mean_wal_sync_ms": {
+      "median": 8.55003278688375,
+      "min": 7.556050847456159,
+      "max": 8.860555555555038
+    },
+    "wal_bytes": {
+      "median": 18976.0,
+      "min": 6849.0,
+      "max": 41743.0
+    },
+    "checkpoints_timed": 0,
+    "checkpoints_requested": 0,
+    "scope": "private-cluster counters, includes owner renewals and background work; ~1s samples inside whole trial snapshots"
+  },
+  {
+    "cell": "g5-w1-b",
+    "rate": 5656,
+    "repeats": 3,
+    "mean_wal_sync_ms": {
+      "median": 8.008693548386931,
+      "min": 8.00464062500032,
+      "max": 8.565274193548717
+    },
+    "wal_bytes": {
+      "median": 14684.0,
+      "min": 8169.0,
+      "max": 74961.0
+    },
+    "checkpoints_timed": 0,
+    "checkpoints_requested": 0,
+    "scope": "private-cluster counters, includes owner renewals and background work; ~1s samples inside whole trial snapshots"
+  },
+  {
+    "cell": "g5-w1-b",
+    "rate": 8000,
+    "repeats": 3,
+    "mean_wal_sync_ms": {
+      "median": 8.675129032258186,
+      "min": 8.566124999999374,
+      "max": 8.81291935483985
+    },
+    "wal_bytes": {
+      "median": 8384.0,
+      "min": 7936.0,
+      "max": 9095.0
+    },
+    "checkpoints_timed": 0,
+    "checkpoints_requested": 0,
+    "scope": "private-cluster counters, includes owner renewals and background work; ~1s samples inside whole trial snapshots"
+  },
+  {
+    "cell": "g5-w1-b",
+    "rate": 11313,
+    "repeats": 3,
+    "mean_wal_sync_ms": {
+      "median": 9.155863636363806,
+      "min": 9.028968749998967,
+      "max": 9.261562499999854
+    },
+    "wal_bytes": {
+      "median": 41766.0,
+      "min": 20801.0,
+      "max": 47832.0
+    },
+    "checkpoints_timed": 1,
+    "checkpoints_requested": 0,
+    "scope": "private-cluster counters, includes owner renewals and background work; ~1s samples inside whole trial snapshots"
+  },
+  {
+    "cell": "g5-w2-a",
+    "rate": 100,
+    "repeats": 3,
+    "mean_wal_sync_ms": {
+      "median": 9.40050819672293,
+      "min": 9.356916666667287,
+      "max": 9.698278688524132
+    },
+    "wal_bytes": {
+      "median": 8465.0,
+      "min": 6845.0,
+      "max": 17636.0
+    },
+    "checkpoints_timed": 0,
+    "checkpoints_requested": 0,
+    "scope": "private-cluster counters, includes owner renewals and background work; ~1s samples inside whole trial snapshots"
+  },
+  {
+    "cell": "g5-w2-a",
+    "rate": 5656,
+    "repeats": 3,
+    "mean_wal_sync_ms": {
+      "median": 8.122016393442134,
+      "min": 7.624483870967636,
+      "max": 9.232015151514629
+    },
+    "wal_bytes": {
+      "median": 19968.0,
+      "min": 8167.0,
+      "max": 29650.0
+    },
+    "checkpoints_timed": 0,
+    "checkpoints_requested": 0,
+    "scope": "private-cluster counters, includes owner renewals and background work; ~1s samples inside whole trial snapshots"
+  },
+  {
+    "cell": "g5-w2-a",
+    "rate": 8000,
+    "repeats": 3,
+    "mean_wal_sync_ms": {
+      "median": 8.714515625000786,
+      "min": 8.662838709677734,
+      "max": 9.92438709677475
+    },
+    "wal_bytes": {
+      "median": 39764.0,
+      "min": 30849.0,
+      "max": 41212.0
+    },
+    "checkpoints_timed": 1,
+    "checkpoints_requested": 0,
+    "scope": "private-cluster counters, includes owner renewals and background work; ~1s samples inside whole trial snapshots"
+  },
+  {
+    "cell": "g5-w2-a",
+    "rate": 11313,
+    "repeats": 3,
+    "mean_wal_sync_ms": {
+      "median": 10.101203124999302,
+      "min": 9.51287499999853,
+      "max": 10.822967741935093
+    },
+    "wal_bytes": {
+      "median": 8169.0,
+      "min": 8150.0,
+      "max": 20832.0
+    },
+    "checkpoints_timed": 0,
+    "checkpoints_requested": 0,
+    "scope": "private-cluster counters, includes owner renewals and background work; ~1s samples inside whole trial snapshots"
+  },
+  {
+    "cell": "g5-w4-a",
+    "rate": 800,
+    "repeats": 3,
+    "mean_wal_sync_ms": {
+      "median": 2.5978327598072837,
+      "min": 2.5520170454545292,
+      "max": 2.6618131605864295
+    },
+    "wal_bytes": {
+      "median": 15406979.0,
+      "min": 15023241.0,
+      "max": 18419214.0
+    },
+    "checkpoints_timed": 0,
+    "checkpoints_requested": 0,
+    "scope": "private-cluster counters, includes owner renewals and background work; ~1s samples inside whole trial snapshots"
+  },
+  {
+    "cell": "g5-w4-a",
+    "rate": 1131,
+    "repeats": 3,
+    "mean_wal_sync_ms": {
+      "median": 2.677499639769453,
+      "min": 2.553658695652173,
+      "max": 2.6942580874511317
+    },
+    "wal_bytes": {
+      "median": 20577005.0,
+      "min": 19854724.0,
+      "max": 21097639.0
+    },
+    "checkpoints_timed": 0,
+    "checkpoints_requested": 0,
+    "scope": "private-cluster counters, includes owner renewals and background work; ~1s samples inside whole trial snapshots"
+  },
+  {
+    "cell": "g5-w4-a",
+    "rate": 1600,
+    "repeats": 3,
+    "mean_wal_sync_ms": {
+      "median": 2.567812069663814,
+      "min": 2.5520781831719965,
+      "max": 2.63024705882353
+    },
+    "wal_bytes": {
+      "median": 26060317.0,
+      "min": 25562062.0,
+      "max": 33389609.0
+    },
+    "checkpoints_timed": 1,
+    "checkpoints_requested": 0,
+    "scope": "private-cluster counters, includes owner renewals and background work; ~1s samples inside whole trial snapshots"
+  },
+  {
+    "cell": "g5-w4-a",
+    "rate": 3200,
+    "repeats": 3,
+    "mean_wal_sync_ms": {
+      "median": 2.6658179326546407,
+      "min": 2.6368750488090633,
+      "max": 2.6875287267080834
+    },
+    "wal_bytes": {
+      "median": 24559075.0,
+      "min": 24436351.0,
+      "max": 31700047.0
+    },
+    "checkpoints_timed": 0,
+    "checkpoints_requested": 0,
+    "scope": "private-cluster counters, includes owner renewals and background work; ~1s samples inside whole trial snapshots"
+  },
+  {
+    "cell": "g5-w4-b",
+    "rate": 800,
+    "repeats": 3,
+    "mean_wal_sync_ms": {
+      "median": 2.572601979345936,
+      "min": 2.5423786982248444,
+      "max": 2.6045298804780757
+    },
+    "wal_bytes": {
+      "median": 14832771.0,
+      "min": 14168179.0,
+      "max": 17641248.0
+    },
+    "checkpoints_timed": 0,
+    "checkpoints_requested": 0,
+    "scope": "private-cluster counters, includes owner renewals and background work; ~1s samples inside whole trial snapshots"
+  },
+  {
+    "cell": "g5-w4-b",
+    "rate": 1131,
+    "repeats": 3,
+    "mean_wal_sync_ms": {
+      "median": 2.6778814699792743,
+      "min": 2.64428955375253,
+      "max": 2.7012328907048135
+    },
+    "wal_bytes": {
+      "median": 18969301.0,
+      "min": 18524068.0,
+      "max": 27215320.0
+    },
+    "checkpoints_timed": 1,
+    "checkpoints_requested": 0,
+    "scope": "private-cluster counters, includes owner renewals and background work; ~1s samples inside whole trial snapshots"
+  },
+  {
+    "cell": "g5-w4-b",
+    "rate": 1600,
+    "repeats": 3,
+    "mean_wal_sync_ms": {
+      "median": 2.61115208034433,
+      "min": 2.560601164483249,
+      "max": 2.63368141592923
+    },
+    "wal_bytes": {
+      "median": 19655619.0,
+      "min": 19256297.0,
+      "max": 23837302.0
+    },
+    "checkpoints_timed": 0,
+    "checkpoints_requested": 0,
+    "scope": "private-cluster counters, includes owner renewals and background work; ~1s samples inside whole trial snapshots"
+  },
+  {
+    "cell": "g5-w4-b",
+    "rate": 3200,
+    "repeats": 3,
+    "mean_wal_sync_ms": {
+      "median": 2.6687073634204626,
+      "min": 2.654062530772996,
+      "max": 2.7332099020113554
+    },
+    "wal_bytes": {
+      "median": 20345629.0,
+      "min": 18115327.0,
+      "max": 23979413.0
+    },
+    "checkpoints_timed": 0,
+    "checkpoints_requested": 0,
+    "scope": "private-cluster counters, includes owner renewals and background work; ~1s samples inside whole trial snapshots"
+  },
+  {
+    "cell": "g5-w5mix-b",
+    "rate": 800,
+    "repeats": 3,
+    "mean_wal_sync_ms": {
+      "median": 2.5660071111111384,
+      "min": 2.56555084359321,
+      "max": 2.624690759377816
+    },
+    "wal_bytes": {
+      "median": 14758802.0,
+      "min": 13990795.0,
+      "max": 18930492.0
+    },
+    "checkpoints_timed": 1,
+    "checkpoints_requested": 0,
+    "scope": "private-cluster counters, includes owner renewals and background work; ~1s samples inside whole trial snapshots"
+  },
+  {
+    "cell": "g5-w5mix-b",
+    "rate": 1131,
+    "repeats": 3,
+    "mean_wal_sync_ms": {
+      "median": 2.6899240631163552,
+      "min": 2.6744752906976594,
+      "max": 2.697896463352137
+    },
+    "wal_bytes": {
+      "median": 19604092.0,
+      "min": 19123291.0,
+      "max": 22416543.0
+    },
+    "checkpoints_timed": 0,
+    "checkpoints_requested": 0,
+    "scope": "private-cluster counters, includes owner renewals and background work; ~1s samples inside whole trial snapshots"
+  },
+  {
+    "cell": "g5-w5mix-b",
+    "rate": 1600,
+    "repeats": 3,
+    "mean_wal_sync_ms": {
+      "median": 2.5781775520077375,
+      "min": 2.5724457142857413,
+      "max": 2.6674503120499273
+    },
+    "wal_bytes": {
+      "median": 20338407.0,
+      "min": 19554905.0,
+      "max": 24230413.0
+    },
+    "checkpoints_timed": 0,
+    "checkpoints_requested": 0,
+    "scope": "private-cluster counters, includes owner renewals and background work; ~1s samples inside whole trial snapshots"
+  },
+  {
+    "cell": "g5-w5mix-b",
+    "rate": 3200,
+    "repeats": 3,
+    "mean_wal_sync_ms": {
+      "median": 2.6157531280077153,
+      "min": 2.5868146699266896,
+      "max": 2.7446077959576716
+    },
+    "wal_bytes": {
+      "median": 20008843.0,
+      "min": 19338127.0,
+      "max": 25990971.0
+    },
+    "checkpoints_timed": 1,
+    "checkpoints_requested": 0,
+    "scope": "private-cluster counters, includes owner renewals and background work; ~1s samples inside whole trial snapshots"
+  },
+  {
+    "cell": "g6-w1-b",
+    "rate": 4000,
+    "repeats": 3,
+    "mean_wal_sync_ms": {
+      "median": 8.603625000000648,
+      "min": 8.078042857142698,
+      "max": 8.944281249999221
+    },
+    "wal_bytes": {
+      "median": 14194.0,
+      "min": 12513.0,
+      "max": 680645.0
+    },
+    "checkpoints_timed": 0,
+    "checkpoints_requested": 0,
+    "scope": "private-cluster counters, includes owner renewals and background work; ~1s samples inside whole trial snapshots"
+  },
+  {
+    "cell": "g6-w1-b",
+    "rate": 5656,
+    "repeats": 3,
+    "mean_wal_sync_ms": {
+      "median": 8.752734374999818,
+      "min": 8.585762711864367,
+      "max": 8.97703278688504
+    },
+    "wal_bytes": {
+      "median": 34121.0,
+      "min": 28886.0,
+      "max": 71319.0
+    },
+    "checkpoints_timed": 1,
+    "checkpoints_requested": 0,
+    "scope": "private-cluster counters, includes owner renewals and background work; ~1s samples inside whole trial snapshots"
+  },
+  {
+    "cell": "g6-w1-b",
+    "rate": 8000,
+    "repeats": 3,
+    "mean_wal_sync_ms": {
+      "median": 8.679383333332954,
+      "min": 8.411693548387472,
+      "max": 8.799904761904303
+    },
+    "wal_bytes": {
+      "median": 28268.0,
+      "min": 12220.0,
+      "max": 29042.0
+    },
+    "checkpoints_timed": 0,
+    "checkpoints_requested": 0,
+    "scope": "private-cluster counters, includes owner renewals and background work; ~1s samples inside whole trial snapshots"
+  },
+  {
+    "cell": "g6-w1-b",
+    "rate": 11313,
+    "repeats": 3,
+    "mean_wal_sync_ms": {
+      "median": 8.903061538460987,
+      "min": 8.255015624999942,
+      "max": 8.92235384615353
+    },
+    "wal_bytes": {
+      "median": 17630.0,
+      "min": 14418.0,
+      "max": 18963.0
+    },
+    "checkpoints_timed": 0,
+    "checkpoints_requested": 0,
+    "scope": "private-cluster counters, includes owner renewals and background work; ~1s samples inside whole trial snapshots"
+  },
+  {
+    "cell": "g6-w2-a",
+    "rate": 100,
+    "repeats": 3,
+    "mean_wal_sync_ms": {
+      "median": 8.845031746032108,
+      "min": 7.931491803278627,
+      "max": 9.57524590163881
+    },
+    "wal_bytes": {
+      "median": 28643.0,
+      "min": 18447.0,
+      "max": 88339.0
+    },
+    "checkpoints_timed": 1,
+    "checkpoints_requested": 0,
+    "scope": "private-cluster counters, includes owner renewals and background work; ~1s samples inside whole trial snapshots"
+  },
+  {
+    "cell": "g6-w2-a",
+    "rate": 5656,
+    "repeats": 3,
+    "mean_wal_sync_ms": {
+      "median": 8.746238805970469,
+      "min": 8.5559846153841,
+      "max": 9.333459016393688
+    },
+    "wal_bytes": {
+      "median": 19247.0,
+      "min": 12582.0,
+      "max": 92736.0
+    },
+    "checkpoints_timed": 0,
+    "checkpoints_requested": 0,
+    "scope": "private-cluster counters, includes owner renewals and background work; ~1s samples inside whole trial snapshots"
+  },
+  {
+    "cell": "g6-w2-a",
+    "rate": 8000,
+    "repeats": 3,
+    "mean_wal_sync_ms": {
+      "median": 9.184725806451283,
+      "min": 7.910779661017518,
+      "max": 9.411542372881648
+    },
+    "wal_bytes": {
+      "median": 12222.0,
+      "min": 12093.0,
+      "max": 17407.0
+    },
+    "checkpoints_timed": 0,
+    "checkpoints_requested": 0,
+    "scope": "private-cluster counters, includes owner renewals and background work; ~1s samples inside whole trial snapshots"
+  },
+  {
+    "cell": "g6-w2-a",
+    "rate": 11313,
+    "repeats": 3,
+    "mean_wal_sync_ms": {
+      "median": 8.636449999999604,
+      "min": 8.400354838709445,
+      "max": 9.860629032258013
+    },
+    "wal_bytes": {
+      "median": 45786.0,
+      "min": 11811.0,
+      "max": 56112.0
+    },
+    "checkpoints_timed": 1,
+    "checkpoints_requested": 0,
+    "scope": "private-cluster counters, includes owner renewals and background work; ~1s samples inside whole trial snapshots"
+  },
+  {
+    "cell": "g6-w4-a",
+    "rate": 800,
+    "repeats": 3,
+    "mean_wal_sync_ms": {
+      "median": 2.5823803863298593,
+      "min": 2.5469974340175963,
+      "max": 2.594515937731648
+    },
+    "wal_bytes": {
+      "median": 16923785.0,
+      "min": 14794889.0,
+      "max": 22429271.0
+    },
+    "checkpoints_timed": 1,
+    "checkpoints_requested": 0,
+    "scope": "private-cluster counters, includes owner renewals and background work; ~1s samples inside whole trial snapshots"
+  },
+  {
+    "cell": "g6-w4-a",
+    "rate": 1131,
+    "repeats": 3,
+    "mean_wal_sync_ms": {
+      "median": 2.668065573770493,
+      "min": 2.631791537267079,
+      "max": 2.6786542678151903
+    },
+    "wal_bytes": {
+      "median": 20562436.0,
+      "min": 20512819.0,
+      "max": 26412901.0
+    },
+    "checkpoints_timed": 0,
+    "checkpoints_requested": 0,
+    "scope": "private-cluster counters, includes owner renewals and background work; ~1s samples inside whole trial snapshots"
+  },
+  {
+    "cell": "g6-w4-a",
+    "rate": 1600,
+    "repeats": 3,
+    "mean_wal_sync_ms": {
+      "median": 2.5752983673469387,
+      "min": 2.5408518057285225,
+      "max": 2.6585928629359272
+    },
+    "wal_bytes": {
+      "median": 28232462.0,
+      "min": 23344606.0,
+      "max": 30183050.0
+    },
+    "checkpoints_timed": 0,
+    "checkpoints_requested": 0,
+    "scope": "private-cluster counters, includes owner renewals and background work; ~1s samples inside whole trial snapshots"
+  },
+  {
+    "cell": "g6-w4-a",
+    "rate": 3200,
+    "repeats": 3,
+    "mean_wal_sync_ms": {
+      "median": 2.6689594651065636,
+      "min": 2.5969095788604446,
+      "max": 2.673843260188094
+    },
+    "wal_bytes": {
+      "median": 23499814.0,
+      "min": 22730760.0,
+      "max": 24933957.0
+    },
+    "checkpoints_timed": 1,
+    "checkpoints_requested": 0,
+    "scope": "private-cluster counters, includes owner renewals and background work; ~1s samples inside whole trial snapshots"
+  },
+  {
+    "cell": "g6-w4-b",
+    "rate": 800,
+    "repeats": 3,
+    "mean_wal_sync_ms": {
+      "median": 2.570667465261144,
+      "min": 2.55718994413407,
+      "max": 2.7361144963145048
+    },
+    "wal_bytes": {
+      "median": 14788280.0,
+      "min": 14133934.0,
+      "max": 15046942.0
+    },
+    "checkpoints_timed": 0,
+    "checkpoints_requested": 0,
+    "scope": "private-cluster counters, includes owner renewals and background work; ~1s samples inside whole trial snapshots"
+  },
+  {
+    "cell": "g6-w4-b",
+    "rate": 1131,
+    "repeats": 3,
+    "mean_wal_sync_ms": {
+      "median": 2.643895652173935,
+      "min": 2.6337966368891483,
+      "max": 2.678816055289741
+    },
+    "wal_bytes": {
+      "median": 20933819.0,
+      "min": 17669397.0,
+      "max": 24552672.0
+    },
+    "checkpoints_timed": 0,
+    "checkpoints_requested": 0,
+    "scope": "private-cluster counters, includes owner renewals and background work; ~1s samples inside whole trial snapshots"
+  },
+  {
+    "cell": "g6-w4-b",
+    "rate": 1600,
+    "repeats": 3,
+    "mean_wal_sync_ms": {
+      "median": 2.566896677050879,
+      "min": 2.5621995798319404,
+      "max": 2.5986443444006904
+    },
+    "wal_bytes": {
+      "median": 17890634.0,
+      "min": 17046801.0,
+      "max": 21961082.0
+    },
+    "checkpoints_timed": 1,
+    "checkpoints_requested": 0,
+    "scope": "private-cluster counters, includes owner renewals and background work; ~1s samples inside whole trial snapshots"
+  },
+  {
+    "cell": "g6-w4-b",
+    "rate": 3200,
+    "repeats": 3,
+    "mean_wal_sync_ms": {
+      "median": 2.6801232449298165,
+      "min": 2.615456213948604,
+      "max": 2.7018334211913686
+    },
+    "wal_bytes": {
+      "median": 18549642.0,
+      "min": 17938701.0,
+      "max": 28097550.0
+    },
+    "checkpoints_timed": 0,
+    "checkpoints_requested": 0,
+    "scope": "private-cluster counters, includes owner renewals and background work; ~1s samples inside whole trial snapshots"
+  },
+  {
+    "cell": "g6-w5mix-b",
+    "rate": 800,
+    "repeats": 3,
+    "mean_wal_sync_ms": {
+      "median": 2.558143646408852,
+      "min": 2.5497670761670537,
+      "max": 2.5965712881022793
+    },
+    "wal_bytes": {
+      "median": 16570695.0,
+      "min": 14611648.0,
+      "max": 17785961.0
+    },
+    "checkpoints_timed": 0,
+    "checkpoints_requested": 0,
+    "scope": "private-cluster counters, includes owner renewals and background work; ~1s samples inside whole trial snapshots"
+  },
+  {
+    "cell": "g6-w5mix-b",
+    "rate": 1131,
+    "repeats": 3,
+    "mean_wal_sync_ms": {
+      "median": 2.6944088983050816,
+      "min": 2.6388818565400882,
+      "max": 2.7068495807127855
+    },
+    "wal_bytes": {
+      "median": 17906881.0,
+      "min": 17779530.0,
+      "max": 18203835.0
+    },
+    "checkpoints_timed": 0,
+    "checkpoints_requested": 0,
+    "scope": "private-cluster counters, includes owner renewals and background work; ~1s samples inside whole trial snapshots"
+  },
+  {
+    "cell": "g6-w5mix-b",
+    "rate": 1600,
+    "repeats": 3,
+    "mean_wal_sync_ms": {
+      "median": 2.5940531914893343,
+      "min": 2.553386122881328,
+      "max": 2.6619806079664614
+    },
+    "wal_bytes": {
+      "median": 18219854.0,
+      "min": 17699714.0,
+      "max": 25375035.0
+    },
+    "checkpoints_timed": 1,
+    "checkpoints_requested": 0,
+    "scope": "private-cluster counters, includes owner renewals and background work; ~1s samples inside whole trial snapshots"
+  },
+  {
+    "cell": "g6-w5mix-b",
+    "rate": 3200,
+    "repeats": 3,
+    "mean_wal_sync_ms": {
+      "median": 2.6688361433087464,
+      "min": 2.606491392801237,
+      "max": 2.6947885960193463
+    },
+    "wal_bytes": {
+      "median": 18049903.0,
+      "min": 17397237.0,
+      "max": 23381085.0
+    },
+    "checkpoints_timed": 0,
+    "checkpoints_requested": 0,
+    "scope": "private-cluster counters, includes owner renewals and background work; ~1s samples inside whole trial snapshots"
+  }
+]

@@ -28,6 +28,19 @@ pub async fn connect(index: usize, delay_us: u64, app: &str) -> Result<Client> {
         "password file must be mode 600"
     );
     let password = fs::read_to_string(path)?;
+    // One-host S1 uses the same externally delayed Unix link as native serve.
+    if let Ok(directory) = std::env::var("SCALE_PG_SOCKET") {
+        anyhow::ensure!(delay_us == 0, "external Unix link already supplies delay");
+        let mut config = tokio_postgres::Config::new();
+        config.host(directory).port(55440)
+            .user(std::env::var("SCALE_DB_USER").unwrap_or_else(|_| "scale_app".into()))
+            .password(password.trim()).dbname(&std::env::var("SCALE_DATABASE")?)
+            .application_name(app).connect_timeout(Duration::from_secs(15));
+        let (client, connection) = config.connect(NoTls).await?;
+        tokio::spawn(async move { let _ = connection.await; });
+        client.batch_execute("SET statement_timeout='5s'; SET lock_timeout='5s';").await?;
+        return Ok(client);
+    }
     let ports = std::env::var("SCALE_TUNNEL_PORTS").context("set SCALE_TUNNEL_PORTS")?;
     let port: u16 = ports
         .split(',')

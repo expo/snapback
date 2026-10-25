@@ -1,0 +1,50 @@
+{
+  "matrix-snapback-g5": {
+    "cells": 6,
+    "trials": 168,
+    "scheduled_arrivals": 52841880,
+    "cells_with_passing_rate": 6,
+    "unknown_write_outcome_trials": 0,
+    "checks": "arrival accounting, every repetition, histogram counts and lossless archive, SLO/counter qualification, brackets"
+  },
+  "matrix-snapback-g6": {
+    "cells": 3,
+    "trials": 66,
+    "scheduled_arrivals": 18297420,
+    "cells_with_passing_rate": 3,
+    "unknown_write_outcome_trials": 0,
+    "checks": "arrival accounting, every repetition, histogram counts and lossless archive, SLO/counter qualification, brackets"
+  },
+  "matrix-snapback-g6-rest": {
+    "cells": 10,
+    "trials": 183,
+    "scheduled_arrivals": 37451820,
+    "cells_with_passing_rate": 10,
+    "unknown_write_outcome_trials": 5,
+    "checks": "arrival accounting, every repetition, histogram counts and lossless archive, SLO/counter qualification, brackets"
+  },
+  "research-convex-w2-a": {
+    "cells": 1,
+    "trials": 33,
+    "scheduled_arrivals": 5631900,
+    "cells_with_passing_rate": 1,
+    "unknown_write_outcome_trials": 0,
+    "checks": "arrival accounting, every repetition, histogram counts and lossless archive, SLO/counter qualification, brackets"
+  },
+  "research-convex-w2-b": {
+    "cells": 1,
+    "trials": 33,
+    "scheduled_arrivals": 5631900,
+    "cells_with_passing_rate": 1,
+    "unknown_write_outcome_trials": 0,
+    "checks": "arrival accounting, every repetition, histogram counts and lossless archive, SLO/counter qualification, brackets"
+  },
+  "smoke-snapback": {
+    "cells": 1,
+    "trials": 3,
+    "scheduled_arrivals": 6000,
+    "cells_with_passing_rate": 0,
+    "unknown_write_outcome_trials": 0,
+    "checks": "arrival accounting, every repetition, histogram counts and lossless archive, SLO/counter qualification, brackets"
+  }
+}

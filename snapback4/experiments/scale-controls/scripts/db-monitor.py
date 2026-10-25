@@ -10,8 +10,9 @@ import sys
 import time
 
 root=Path.home()/'sb4scale'
-postmaster=int((root/'postmaster.pid.recorded').read_text())
-assert postmaster==int((root/'pg17/postmaster.pid').read_text().splitlines()[0])
+postmaster=(int(sys.argv[1]) if len(sys.argv)>1 else int((root/'postmaster.pid.recorded').read_text()))
+if len(sys.argv)==1:assert postmaster==int((root/'pg17/postmaster.pid').read_text().splitlines()[0])
+seen=set()
 print(json.dumps({'monitor_pid':os.getpid(),'postmaster':postmaster,'clock_ticks':os.sysconf('SC_CLK_TCK')}),flush=True)
 while not select.select([sys.stdin],[],[],.25)[0]:
     processes={}
@@ -21,5 +22,9 @@ while not select.select([sys.stdin],[],[],.25)[0]:
             pid=int(path.parent.name)
             if pid==postmaster or int(fields[1])==postmaster:
                 processes[pid]={'ticks':int(fields[11])+int(fields[12]),'rss_pages':int(fields[21])}
+                if len(sys.argv)>2 and (pid,int(fields[19])) not in seen:
+                    seen.add((pid,int(fields[19])))
+                    with Path(sys.argv[2]).open('a') as ledger:
+                        ledger.write(json.dumps(dict(pid=pid,start_ticks=int(fields[19]),kind='postgres-child',time=time.time()))+'\n')
         except (OSError,ValueError,IndexError): pass
     print(json.dumps({'time':time.time(),'processes':processes}),flush=True)

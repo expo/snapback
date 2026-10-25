@@ -1,0 +1,386 @@
+[
+  {
+    "cell": "g5-w4-a",
+    "rate": 800,
+    "repeats": 3,
+    "mean_N": {
+      "median": 8.264462809917354,
+      "min": 8.252751031636864,
+      "max": 8.281573498964804
+    },
+    "data_commits": {
+      "median": 2904,
+      "min": 2898,
+      "max": 2908
+    },
+    "scope": "whole warmup+measurement+drain; PG statements independent of tracing; each ordinary writer commit publishes in G6, G5 subtracts lease renewals; two final FIFO token-drain commits excluded"
+  },
+  {
+    "cell": "g5-w4-a",
+    "rate": 1131,
+    "repeats": 3,
+    "mean_N": {
+      "median": 12.104530859793078,
+      "min": 11.871938418474457,
+      "max": 12.249097472924188
+    },
+    "data_commits": {
+      "median": 2803,
+      "min": 2770,
+      "max": 2858
+    },
+    "scope": "whole warmup+measurement+drain; PG statements independent of tracing; each ordinary writer commit publishes in G6, G5 subtracts lease renewals; two final FIFO token-drain commits excluded"
+  },
+  {
+    "cell": "g5-w4-a",
+    "rate": 1600,
+    "repeats": 3,
+    "mean_N": {
+      "median": 15.968834166987303,
+      "min": 15.963790446841294,
+      "max": 15.989366053169734
+    },
+    "data_commits": {
+      "median": 2596,
+      "min": 2445,
+      "max": 2599
+    },
+    "scope": "whole warmup+measurement+drain; PG statements independent of tracing; each ordinary writer commit publishes in G6, G5 subtracts lease renewals; two final FIFO token-drain commits excluded"
+  },
+  {
+    "cell": "g5-w4-a",
+    "rate": 3200,
+    "repeats": 3,
+    "mean_N": {
+      "median": 15.967923015236568,
+      "min": 15.95350669818755,
+      "max": 15.986252945797329
+    },
+    "data_commits": {
+      "median": 2538,
+      "min": 2494,
+      "max": 2546
+    },
+    "scope": "whole warmup+measurement+drain; PG statements independent of tracing; each ordinary writer commit publishes in G6, G5 subtracts lease renewals; two final FIFO token-drain commits excluded"
+  },
+  {
+    "cell": "g5-w4-b",
+    "rate": 800,
+    "repeats": 3,
+    "mean_N": {
+      "median": 10.26518391787853,
+      "min": 9.991670320035073,
+      "max": 10.820559062218214
+    },
+    "data_commits": {
+      "median": 2281,
+      "min": 2218,
+      "max": 2338
+    },
+    "scope": "whole warmup+measurement+drain; PG statements independent of tracing; each ordinary writer commit publishes in G6, G5 subtracts lease renewals; two final FIFO token-drain commits excluded"
+  },
+  {
+    "cell": "g5-w4-b",
+    "rate": 1131,
+    "repeats": 3,
+    "mean_N": {
+      "median": 15.988782051282051,
+      "min": 15.987247608926674,
+      "max": 15.991649269311065
+    },
+    "data_commits": {
+      "median": 1882,
+      "min": 1872,
+      "max": 1916
+    },
+    "scope": "whole warmup+measurement+drain; PG statements independent of tracing; each ordinary writer commit publishes in G6, G5 subtracts lease renewals; two final FIFO token-drain commits excluded"
+  },
+  {
+    "cell": "g5-w4-b",
+    "rate": 1600,
+    "repeats": 3,
+    "mean_N": {
+      "median": 15.990617283950618,
+      "min": 15.987543597409068,
+      "max": 15.992548435171386
+    },
+    "data_commits": {
+      "median": 2013,
+      "min": 2007,
+      "max": 2025
+    },
+    "scope": "whole warmup+measurement+drain; PG statements independent of tracing; each ordinary writer commit publishes in G6, G5 subtracts lease renewals; two final FIFO token-drain commits excluded"
+  },
+  {
+    "cell": "g5-w4-b",
+    "rate": 3200,
+    "repeats": 3,
+    "mean_N": {
+      "median": 15.98215196328404,
+      "min": 15.973464373464374,
+      "max": 15.985122210414453
+    },
+    "data_commits": {
+      "median": 1961,
+      "min": 1882,
+      "max": 2035
+    },
+    "scope": "whole warmup+measurement+drain; PG statements independent of tracing; each ordinary writer commit publishes in G6, G5 subtracts lease renewals; two final FIFO token-drain commits excluded"
+  },
+  {
+    "cell": "g5-w5mix-b",
+    "rate": 800,
+    "repeats": 3,
+    "mean_N": {
+      "median": 10.978956999085087,
+      "min": 10.318511796733212,
+      "max": 11.142061281337048
+    },
+    "data_commits": {
+      "median": 2186,
+      "min": 2154,
+      "max": 2204
+    },
+    "scope": "whole warmup+measurement+drain; PG statements independent of tracing; each ordinary writer commit publishes in G6, G5 subtracts lease renewals; two final FIFO token-drain commits excluded"
+  },
+  {
+    "cell": "g5-w5mix-b",
+    "rate": 1131,
+    "repeats": 3,
+    "mean_N": {
+      "median": 15.988798370672098,
+      "min": 15.975413948820872,
+      "max": 15.991405460060667
+    },
+    "data_commits": {
+      "median": 1978,
+      "min": 1964,
+      "max": 1993
+    },
+    "scope": "whole warmup+measurement+drain; PG statements independent of tracing; each ordinary writer commit publishes in G6, G5 subtracts lease renewals; two final FIFO token-drain commits excluded"
+  },
+  {
+    "cell": "g5-w5mix-b",
+    "rate": 1600,
+    "repeats": 3,
+    "mean_N": {
+      "median": 15.987611496531219,
+      "min": 15.987223587223587,
+      "max": 15.99
+    },
+    "data_commits": {
+      "median": 2018,
+      "min": 2000,
+      "max": 2035
+    },
+    "scope": "whole warmup+measurement+drain; PG statements independent of tracing; each ordinary writer commit publishes in G6, G5 subtracts lease renewals; two final FIFO token-drain commits excluded"
+  },
+  {
+    "cell": "g5-w5mix-b",
+    "rate": 3200,
+    "repeats": 3,
+    "mean_N": {
+      "median": 15.99347061778001,
+      "min": 15.991049229239184,
+      "max": 15.995517928286853
+    },
+    "data_commits": {
+      "median": 2008,
+      "min": 1991,
+      "max": 2011
+    },
+    "scope": "whole warmup+measurement+drain; PG statements independent of tracing; each ordinary writer commit publishes in G6, G5 subtracts lease renewals; two final FIFO token-drain commits excluded"
+  },
+  {
+    "cell": "g6-w4-a",
+    "rate": 800,
+    "repeats": 3,
+    "mean_N": {
+      "median": 8.97192062897791,
+      "min": 8.839779005524862,
+      "max": 9.241432422025413
+    },
+    "data_commits": {
+      "median": 2671,
+      "min": 2597,
+      "max": 2715
+    },
+    "scope": "whole warmup+measurement+drain; PG statements independent of tracing; each ordinary writer commit publishes in G6, G5 subtracts lease renewals; two final FIFO token-drain commits excluded"
+  },
+  {
+    "cell": "g6-w4-a",
+    "rate": 1131,
+    "repeats": 3,
+    "mean_N": {
+      "median": 13.363135092556124,
+      "min": 13.326787117046347,
+      "max": 13.416370106761565
+    },
+    "data_commits": {
+      "median": 2539,
+      "min": 2529,
+      "max": 2546
+    },
+    "scope": "whole warmup+measurement+drain; PG statements independent of tracing; each ordinary writer commit publishes in G6, G5 subtracts lease renewals; two final FIFO token-drain commits excluded"
+  },
+  {
+    "cell": "g6-w4-a",
+    "rate": 1600,
+    "repeats": 3,
+    "mean_N": {
+      "median": 15.993280134397311,
+      "min": 15.990957665433621,
+      "max": 15.993308239230448
+    },
+    "data_commits": {
+      "median": 2391,
+      "min": 2381,
+      "max": 2433
+    },
+    "scope": "whole warmup+measurement+drain; PG statements independent of tracing; each ordinary writer commit publishes in G6, G5 subtracts lease renewals; two final FIFO token-drain commits excluded"
+  },
+  {
+    "cell": "g6-w4-a",
+    "rate": 3200,
+    "repeats": 3,
+    "mean_N": {
+      "median": 15.98805256869773,
+      "min": 15.986616478460896,
+      "max": 15.992697594501719
+    },
+    "data_commits": {
+      "median": 2391,
+      "min": 2328,
+      "max": 2511
+    },
+    "scope": "whole warmup+measurement+drain; PG statements independent of tracing; each ordinary writer commit publishes in G6, G5 subtracts lease renewals; two final FIFO token-drain commits excluded"
+  },
+  {
+    "cell": "g6-w4-b",
+    "rate": 800,
+    "repeats": 3,
+    "mean_N": {
+      "median": 11.396011396011396,
+      "min": 11.263105835806133,
+      "max": 12.207527975584943
+    },
+    "data_commits": {
+      "median": 2022,
+      "min": 1966,
+      "max": 2106
+    },
+    "scope": "whole warmup+measurement+drain; PG statements independent of tracing; each ordinary writer commit publishes in G6, G5 subtracts lease renewals; two final FIFO token-drain commits excluded"
+  },
+  {
+    "cell": "g6-w4-b",
+    "rate": 1131,
+    "repeats": 3,
+    "mean_N": {
+      "median": 15.987978142076503,
+      "min": 15.9836867862969,
+      "max": 15.988485895221647
+    },
+    "data_commits": {
+      "median": 1830,
+      "min": 1737,
+      "max": 1839
+    },
+    "scope": "whole warmup+measurement+drain; PG statements independent of tracing; each ordinary writer commit publishes in G6, G5 subtracts lease renewals; two final FIFO token-drain commits excluded"
+  },
+  {
+    "cell": "g6-w4-b",
+    "rate": 1600,
+    "repeats": 3,
+    "mean_N": {
+      "median": 15.989540964555491,
+      "min": 15.985172981878089,
+      "max": 15.991346673877771
+    },
+    "data_commits": {
+      "median": 1821,
+      "min": 1721,
+      "max": 1849
+    },
+    "scope": "whole warmup+measurement+drain; PG statements independent of tracing; each ordinary writer commit publishes in G6, G5 subtracts lease renewals; two final FIFO token-drain commits excluded"
+  },
+  {
+    "cell": "g6-w4-b",
+    "rate": 3200,
+    "repeats": 3,
+    "mean_N": {
+      "median": 15.985148514851485,
+      "min": 15.981827899518974,
+      "max": 15.991913746630727
+    },
+    "data_commits": {
+      "median": 1855,
+      "min": 1818,
+      "max": 1871
+    },
+    "scope": "whole warmup+measurement+drain; PG statements independent of tracing; each ordinary writer commit publishes in G6, G5 subtracts lease renewals; two final FIFO token-drain commits excluded"
+  },
+  {
+    "cell": "g6-w5mix-b",
+    "rate": 800,
+    "repeats": 3,
+    "mean_N": {
+      "median": 12.072434607645874,
+      "min": 11.641760491299898,
+      "max": 12.4031007751938
+    },
+    "data_commits": {
+      "median": 1954,
+      "min": 1935,
+      "max": 1988
+    },
+    "scope": "whole warmup+measurement+drain; PG statements independent of tracing; each ordinary writer commit publishes in G6, G5 subtracts lease renewals; two final FIFO token-drain commits excluded"
+  },
+  {
+    "cell": "g6-w5mix-b",
+    "rate": 1131,
+    "repeats": 3,
+    "mean_N": {
+      "median": 15.982589771490751,
+      "min": 15.972914409534129,
+      "max": 15.987951807228916
+    },
+    "data_commits": {
+      "median": 1838,
+      "min": 1826,
+      "max": 1846
+    },
+    "scope": "whole warmup+measurement+drain; PG statements independent of tracing; each ordinary writer commit publishes in G6, G5 subtracts lease renewals; two final FIFO token-drain commits excluded"
+  },
+  {
+    "cell": "g6-w5mix-b",
+    "rate": 1600,
+    "repeats": 3,
+    "mean_N": {
+      "median": 15.981986899563319,
+      "min": 15.978201634877385,
+      "max": 15.983669025585193
+    },
+    "data_commits": {
+      "median": 1835,
+      "min": 1832,
+      "max": 1837
+    },
+    "scope": "whole warmup+measurement+drain; PG statements independent of tracing; each ordinary writer commit publishes in G6, G5 subtracts lease renewals; two final FIFO token-drain commits excluded"
+  },
+  {
+    "cell": "g6-w5mix-b",
+    "rate": 3200,
+    "repeats": 3,
+    "mean_N": {
+      "median": 15.969348659003831,
+      "min": 15.946843853820598,
+      "max": 15.971978021978021
+    },
+    "data_commits": {
+      "median": 1820,
+      "min": 1806,
+      "max": 1827
+    },
+    "scope": "whole warmup+measurement+drain; PG statements independent of tracing; each ordinary writer commit publishes in G6, G5 subtracts lease renewals; two final FIFO token-drain commits excluded"
+  }
+]

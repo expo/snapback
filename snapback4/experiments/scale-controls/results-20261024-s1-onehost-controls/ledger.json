@@ -1,0 +1,3157 @@
+[
+  {
+    "cell": {
+      "workload": "W1",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "raw-pg",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "rawpg",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/replay-rawpg-W1-disjoint-500-NEW",
+        "--workload",
+        "W1",
+        "--keys",
+        "disjoint",
+        "--link",
+        "A",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--extra-read-rates",
+        "19027",
+        "22627"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+    },
+    "summary": {
+      "highest_passing_offered_per_s": 8000,
+      "lowest_failing_offered_per_s": 11313,
+      "bracketed": true,
+      "rates": [
+        1000,
+        2000,
+        4000,
+        8000,
+        11313,
+        16000,
+        19027,
+        22627
+      ],
+      "repeats": 3
+    },
+    "achieved_median": 8000.0,
+    "completed_in_window_median": 8000.0,
+    "achieved_min": 8000.0,
+    "achieved_max": 8000.0,
+    "completed_in_window_min": 8000.0,
+    "completed_in_window_max": 8000.0,
+    "p50_ms": 0.750079,
+    "p99_ms": 1.041407,
+    "p99_worst_ms": 1.051647,
+    "p999_ms": 56.524799,
+    "errors": 0,
+    "leading_active_wait": "active:Client:ClientRead",
+    "app_cpu_ms_per_op": 0.310625,
+    "load_cpu_ms_per_op": 0.15695833333333334,
+    "ssh_cpu_ms_per_op": 0.0,
+    "db_cpu_ms_per_op": 0.078375,
+    "wal_lsn_bytes_per_op": 0.0,
+    "sql_exec_ms_per_op": 0.023662992783331047,
+    "sql_calls_per_op": 1.0,
+    "max_connected": 32,
+    "max_active": 2,
+    "system": "rawpg",
+    "latency_ranges_ms": {
+      "p50_ms": {
+        "min": 0.750079,
+        "median": 0.750079,
+        "max": 0.750591
+      },
+      "p99_ms": {
+        "min": 1.037311,
+        "median": 1.041407,
+        "max": 1.051647
+      },
+      "p999_ms": {
+        "min": 48.005119,
+        "median": 56.524799,
+        "max": 71.892991
+      }
+    }
+  },
+  {
+    "cell": {
+      "workload": "W1",
+      "rows": 1000000,
+      "delay_us": 1000,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "raw-pg",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "rawpg",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/replay-rawpg-W1-disjoint-1000-NEW",
+        "--workload",
+        "W1",
+        "--keys",
+        "disjoint",
+        "--link",
+        "B",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--extra-read-rates",
+        "19027",
+        "22627"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+    },
+    "summary": {
+      "highest_passing_offered_per_s": 8000,
+      "lowest_failing_offered_per_s": 11313,
+      "bracketed": true,
+      "rates": [
+        1000,
+        2000,
+        4000,
+        8000,
+        11313,
+        16000,
+        19027,
+        22627
+      ],
+      "repeats": 3
+    },
+    "achieved_median": 8000.0,
+    "completed_in_window_median": 7999.7,
+    "achieved_min": 8000.0,
+    "achieved_max": 8000.0,
+    "completed_in_window_min": 7999.55,
+    "completed_in_window_max": 8000.0,
+    "p50_ms": 1.495039,
+    "p99_ms": 6.139903,
+    "p99_worst_ms": 12.754943,
+    "p999_ms": 22.937599,
+    "errors": 0,
+    "leading_active_wait": "active:Client:ClientRead",
+    "app_cpu_ms_per_op": 0.2542916666666667,
+    "load_cpu_ms_per_op": 0.14770833333333333,
+    "ssh_cpu_ms_per_op": 0.0,
+    "db_cpu_ms_per_op": 0.08970833333333333,
+    "wal_lsn_bytes_per_op": 0.0,
+    "sql_exec_ms_per_op": 0.028784855391622236,
+    "sql_calls_per_op": 1.0,
+    "max_connected": 32,
+    "max_active": 3,
+    "system": "rawpg",
+    "latency_ranges_ms": {
+      "p50_ms": {
+        "min": 1.287167,
+        "median": 1.495039,
+        "max": 2.115583
+      },
+      "p99_ms": {
+        "min": 4.833279,
+        "median": 6.139903,
+        "max": 12.754943
+      },
+      "p999_ms": {
+        "min": 17.858559,
+        "median": 22.937599,
+        "max": 46.628863
+      }
+    }
+  },
+  {
+    "cell": {
+      "workload": "W2",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "raw-pg",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "rawpg",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/replay-rawpg-W2-disjoint-500-NEW",
+        "--workload",
+        "W2",
+        "--keys",
+        "disjoint",
+        "--link",
+        "A",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--extra-read-rates",
+        "19027",
+        "22627"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+    },
+    "summary": {
+      "highest_passing_offered_per_s": 5656,
+      "lowest_failing_offered_per_s": 8000,
+      "bracketed": true,
+      "rates": [
+        1000,
+        2000,
+        4000,
+        5656,
+        8000,
+        19027,
+        22627
+      ],
+      "repeats": 3
+    },
+    "achieved_median": 5656.0,
+    "completed_in_window_median": 5656.0,
+    "achieved_min": 5656.0,
+    "achieved_max": 5656.0,
+    "completed_in_window_min": 5655.95,
+    "completed_in_window_max": 5656.0,
+    "p50_ms": 1.011199,
+    "p99_ms": 1.331199,
+    "p99_worst_ms": 1.475583,
+    "p999_ms": 32.555007,
+    "errors": 0,
+    "leading_active_wait": "active:-:-",
+    "app_cpu_ms_per_op": 0.36504007543611505,
+    "load_cpu_ms_per_op": 0.1844059405940594,
+    "ssh_cpu_ms_per_op": 0.0,
+    "db_cpu_ms_per_op": 0.26443894389438943,
+    "wal_lsn_bytes_per_op": 0.0,
+    "sql_exec_ms_per_op": 0.1914199804631776,
+    "sql_calls_per_op": 1.0,
+    "max_connected": 32,
+    "max_active": 3,
+    "system": "rawpg",
+    "latency_ranges_ms": {
+      "p50_ms": {
+        "min": 1.011199,
+        "median": 1.011199,
+        "max": 1.011711
+      },
+      "p99_ms": {
+        "min": 1.298431,
+        "median": 1.331199,
+        "max": 1.475583
+      },
+      "p999_ms": {
+        "min": 4.489215,
+        "median": 32.555007,
+        "max": 44.204031
+      }
+    }
+  },
+  {
+    "cell": {
+      "workload": "W2",
+      "rows": 1000000,
+      "delay_us": 1000,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "raw-pg",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "rawpg",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/replay-rawpg-W2-disjoint-1000-NEW",
+        "--workload",
+        "W2",
+        "--keys",
+        "disjoint",
+        "--link",
+        "B",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--extra-read-rates",
+        "19027",
+        "22627"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+    },
+    "summary": {
+      "highest_passing_offered_per_s": 8000,
+      "lowest_failing_offered_per_s": 11313,
+      "bracketed": true,
+      "rates": [
+        1000,
+        2000,
+        4000,
+        8000,
+        11313,
+        16000,
+        19027,
+        22627
+      ],
+      "repeats": 3
+    },
+    "achieved_median": 8000.0,
+    "completed_in_window_median": 8000.0,
+    "achieved_min": 8000.0,
+    "achieved_max": 8000.0,
+    "completed_in_window_min": 8000.0,
+    "completed_in_window_max": 8000.05,
+    "p50_ms": 1.606655,
+    "p99_ms": 2.533375,
+    "p99_worst_ms": 2.725887,
+    "p999_ms": 67.764223,
+    "errors": 0,
+    "leading_active_wait": "active:-:-",
+    "app_cpu_ms_per_op": 0.349875,
+    "load_cpu_ms_per_op": 0.17441666666666666,
+    "ssh_cpu_ms_per_op": 0.0,
+    "db_cpu_ms_per_op": 0.27466666666666667,
+    "wal_lsn_bytes_per_op": 0.0,
+    "sql_exec_ms_per_op": 0.1993298019457298,
+    "sql_calls_per_op": 1.0,
+    "max_connected": 32,
+    "max_active": 4,
+    "system": "rawpg",
+    "latency_ranges_ms": {
+      "p50_ms": {
+        "min": 1.606655,
+        "median": 1.606655,
+        "max": 1.607679
+      },
+      "p99_ms": {
+        "min": 2.205695,
+        "median": 2.533375,
+        "max": 2.725887
+      },
+      "p999_ms": {
+        "min": 63.766527,
+        "median": 67.764223,
+        "max": 71.172095
+      }
+    }
+  },
+  {
+    "cell": {
+      "workload": "W3",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "raw-pg",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "rawpg",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/replay-rawpg-W3-disjoint-500-NEW",
+        "--workload",
+        "W3",
+        "--keys",
+        "disjoint",
+        "--link",
+        "A",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--extra-read-rates",
+        "19027",
+        "22627"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+    },
+    "summary": {
+      "highest_passing_offered_per_s": 5656,
+      "lowest_failing_offered_per_s": 8000,
+      "bracketed": true,
+      "rates": [
+        1000,
+        2000,
+        4000,
+        5656,
+        8000,
+        19027,
+        22627
+      ],
+      "repeats": 3
+    },
+    "achieved_median": 5656.0,
+    "completed_in_window_median": 5656.0,
+    "achieved_min": 5656.0,
+    "achieved_max": 5656.0,
+    "completed_in_window_min": 5655.95,
+    "completed_in_window_max": 5656.05,
+    "p50_ms": 1.077247,
+    "p99_ms": 1.410047,
+    "p99_worst_ms": 1.420287,
+    "p999_ms": 6.266879,
+    "errors": 0,
+    "leading_active_wait": "active:-:-",
+    "app_cpu_ms_per_op": 0.3493635077793494,
+    "load_cpu_ms_per_op": 0.17898396982555398,
+    "ssh_cpu_ms_per_op": 0.0,
+    "db_cpu_ms_per_op": 0.34647571900047147,
+    "wal_lsn_bytes_per_op": 0.0,
+    "sql_exec_ms_per_op": 0.2805373109617055,
+    "sql_calls_per_op": 1.0,
+    "max_connected": 32,
+    "max_active": 5,
+    "system": "rawpg",
+    "latency_ranges_ms": {
+      "p50_ms": {
+        "min": 1.074175,
+        "median": 1.077247,
+        "max": 1.077247
+      },
+      "p99_ms": {
+        "min": 1.403903,
+        "median": 1.410047,
+        "max": 1.420287
+      },
+      "p999_ms": {
+        "min": 5.468159,
+        "median": 6.266879,
+        "max": 6.868991
+      }
+    }
+  },
+  {
+    "cell": {
+      "workload": "W3",
+      "rows": 1000000,
+      "delay_us": 1000,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "raw-pg",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "rawpg",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/replay-rawpg-W3-disjoint-1000-NEW",
+        "--workload",
+        "W3",
+        "--keys",
+        "disjoint",
+        "--link",
+        "B",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--extra-read-rates",
+        "19027",
+        "22627"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+    },
+    "summary": {
+      "highest_passing_offered_per_s": 4000,
+      "lowest_failing_offered_per_s": 5656,
+      "bracketed": true,
+      "rates": [
+        1000,
+        2000,
+        4000,
+        5656,
+        8000,
+        19027,
+        22627
+      ],
+      "repeats": 3
+    },
+    "achieved_median": 4000.0,
+    "completed_in_window_median": 4000.0,
+    "achieved_min": 4000.0,
+    "achieved_max": 4000.0,
+    "completed_in_window_min": 4000.0,
+    "completed_in_window_max": 4000.0,
+    "p50_ms": 1.562623,
+    "p99_ms": 1.873919,
+    "p99_worst_ms": 2.140159,
+    "p999_ms": 3.833855,
+    "errors": 0,
+    "leading_active_wait": "active:-:-",
+    "app_cpu_ms_per_op": 0.35083333333333333,
+    "load_cpu_ms_per_op": 0.18316666666666667,
+    "ssh_cpu_ms_per_op": 0.0,
+    "db_cpu_ms_per_op": 0.3586666666666667,
+    "wal_lsn_bytes_per_op": 0.0,
+    "sql_exec_ms_per_op": 0.29130977934975333,
+    "sql_calls_per_op": 1.0,
+    "max_connected": 32,
+    "max_active": 3,
+    "system": "rawpg",
+    "latency_ranges_ms": {
+      "p50_ms": {
+        "min": 1.558527,
+        "median": 1.562623,
+        "max": 1.568767
+      },
+      "p99_ms": {
+        "min": 1.804287,
+        "median": 1.873919,
+        "max": 2.140159
+      },
+      "p999_ms": {
+        "min": 1.949695,
+        "median": 3.833855,
+        "max": 4.968447
+      }
+    }
+  },
+  {
+    "cell": {
+      "workload": "W4",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 32,
+      "keys": "disjoint",
+      "target": "raw-pg",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "rawpg",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/replay-rawpg-W4-disjoint-500-NEW",
+        "--workload",
+        "W4",
+        "--keys",
+        "disjoint",
+        "--link",
+        "A",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--extra-read-rates",
+        "19027",
+        "22627"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+    },
+    "summary": {
+      "highest_passing_offered_per_s": 400,
+      "lowest_failing_offered_per_s": 565,
+      "bracketed": true,
+      "rates": [
+        400,
+        565,
+        800,
+        1600,
+        3200
+      ],
+      "repeats": 3
+    },
+    "achieved_median": 400.0,
+    "completed_in_window_median": 400.05,
+    "achieved_min": 400.0,
+    "achieved_max": 400.0,
+    "completed_in_window_min": 399.95,
+    "completed_in_window_max": 400.05,
+    "p50_ms": 5.423103,
+    "p99_ms": 16.318463,
+    "p99_worst_ms": 20.742143,
+    "p999_ms": 37.650431,
+    "errors": 0,
+    "leading_active_wait": "active:LWLock:WALWrite",
+    "app_cpu_ms_per_op": 0.46166666666666667,
+    "load_cpu_ms_per_op": 0.26916666666666667,
+    "ssh_cpu_ms_per_op": 0.0,
+    "db_cpu_ms_per_op": 0.2683333333333333,
+    "wal_lsn_bytes_per_op": 119.574,
+    "sql_exec_ms_per_op": 0.04379678824999549,
+    "sql_calls_per_op": 1.0,
+    "max_connected": 32,
+    "max_active": 32,
+    "system": "rawpg",
+    "latency_ranges_ms": {
+      "p50_ms": {
+        "min": 5.390335,
+        "median": 5.423103,
+        "max": 5.816319
+      },
+      "p99_ms": {
+        "min": 12.402687,
+        "median": 16.318463,
+        "max": 20.742143
+      },
+      "p999_ms": {
+        "min": 22.315007,
+        "median": 37.650431,
+        "max": 131.661823
+      }
+    }
+  },
+  {
+    "cell": {
+      "workload": "W4",
+      "rows": 1000000,
+      "delay_us": 1000,
+      "writers": 32,
+      "keys": "disjoint",
+      "target": "raw-pg",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "rawpg",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/replay-rawpg-W4-disjoint-1000-NEW",
+        "--workload",
+        "W4",
+        "--keys",
+        "disjoint",
+        "--link",
+        "B",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--extra-read-rates",
+        "19027",
+        "22627"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+    },
+    "summary": {
+      "highest_passing_offered_per_s": 141,
+      "lowest_failing_offered_per_s": 200,
+      "bracketed": true,
+      "rates": [
+        100,
+        141,
+        200,
+        400,
+        800,
+        1600,
+        3200
+      ],
+      "repeats": 3
+    },
+    "achieved_median": 141.0,
+    "completed_in_window_median": 141.0,
+    "achieved_min": 141.0,
+    "achieved_max": 141.0,
+    "completed_in_window_min": 141.0,
+    "completed_in_window_max": 141.0,
+    "p50_ms": 3.993599,
+    "p99_ms": 7.585791,
+    "p99_worst_ms": 9.633791,
+    "p999_ms": 10.035199,
+    "errors": 0,
+    "leading_active_wait": "active:IO:WALSync",
+    "app_cpu_ms_per_op": 0.40425531914893614,
+    "load_cpu_ms_per_op": 0.26713947990543735,
+    "ssh_cpu_ms_per_op": 0.0,
+    "db_cpu_ms_per_op": 0.24113475177304963,
+    "wal_lsn_bytes_per_op": 124.92293144208038,
+    "sql_exec_ms_per_op": 0.026857263356959187,
+    "sql_calls_per_op": 1.0,
+    "max_connected": 32,
+    "max_active": 2,
+    "system": "rawpg",
+    "latency_ranges_ms": {
+      "p50_ms": {
+        "min": 3.909631,
+        "median": 3.993599,
+        "max": 4.020223
+      },
+      "p99_ms": {
+        "min": 5.947391,
+        "median": 7.585791,
+        "max": 9.633791
+      },
+      "p999_ms": {
+        "min": 8.896511,
+        "median": 10.035199,
+        "max": 16.285695
+      }
+    }
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 32,
+      "keys": "hot1",
+      "target": "raw-pg",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "rawpg",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/replay-rawpg-W5-hot1-500-NEW",
+        "--workload",
+        "W5",
+        "--keys",
+        "hot1",
+        "--link",
+        "A",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--extra-read-rates",
+        "19027",
+        "22627"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+    },
+    "summary": {
+      "highest_passing_offered_per_s": 3200,
+      "lowest_failing_offered_per_s": 4525,
+      "bracketed": true,
+      "rates": [
+        3200,
+        4525,
+        6400
+      ],
+      "repeats": 3
+    },
+    "achieved_median": 3200.0,
+    "completed_in_window_median": 3199.9,
+    "achieved_min": 3200.0,
+    "achieved_max": 3200.0,
+    "completed_in_window_min": 3199.85,
+    "completed_in_window_max": 3199.95,
+    "p50_ms": 5.042175,
+    "p99_ms": 18.137087,
+    "p99_worst_ms": 27.705343,
+    "p999_ms": 80.281599,
+    "errors": 0,
+    "leading_active_wait": "active:LWLock:WALWrite",
+    "app_cpu_ms_per_op": 0.341875,
+    "load_cpu_ms_per_op": 0.19,
+    "ssh_cpu_ms_per_op": 0.0,
+    "db_cpu_ms_per_op": 0.16916666666666666,
+    "wal_lsn_bytes_per_op": 120.35691666666666,
+    "sql_exec_ms_per_op": 0.030183141123784785,
+    "sql_calls_per_op": 1.0,
+    "max_connected": 32,
+    "max_active": 31,
+    "system": "rawpg",
+    "latency_ranges_ms": {
+      "p50_ms": {
+        "min": 5.001215,
+        "median": 5.042175,
+        "max": 5.070847
+      },
+      "p99_ms": {
+        "min": 9.060351,
+        "median": 18.137087,
+        "max": 27.705343
+      },
+      "p999_ms": {
+        "min": 18.284543,
+        "median": 80.281599,
+        "max": 80.674815
+      }
+    }
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 1000,
+      "writers": 32,
+      "keys": "hot1",
+      "target": "raw-pg",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "rawpg",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/replay-rawpg-W5-hot1-1000-NEW",
+        "--workload",
+        "W5",
+        "--keys",
+        "hot1",
+        "--link",
+        "B",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--extra-read-rates",
+        "19027",
+        "22627"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+    },
+    "summary": {
+      "highest_passing_offered_per_s": 4525,
+      "lowest_failing_offered_per_s": 6400,
+      "bracketed": true,
+      "rates": [
+        3200,
+        4525,
+        6400
+      ],
+      "repeats": 3
+    },
+    "achieved_median": 4525.0,
+    "completed_in_window_median": 4524.9,
+    "achieved_min": 4525.0,
+    "achieved_max": 4525.0,
+    "completed_in_window_min": 4510.65,
+    "completed_in_window_max": 4525.25,
+    "p50_ms": 5.431295,
+    "p99_ms": 9.969663,
+    "p99_worst_ms": 52.985855,
+    "p999_ms": 105.054207,
+    "errors": 0,
+    "leading_active_wait": "active:LWLock:WALWrite",
+    "app_cpu_ms_per_op": 0.24957642725598528,
+    "load_cpu_ms_per_op": 0.14917127071823205,
+    "ssh_cpu_ms_per_op": 0.0,
+    "db_cpu_ms_per_op": 0.15977900552486188,
+    "wal_lsn_bytes_per_op": 121.50299815837937,
+    "sql_exec_ms_per_op": 0.02911517744370038,
+    "sql_calls_per_op": 1.0,
+    "max_connected": 32,
+    "max_active": 32,
+    "system": "rawpg",
+    "latency_ranges_ms": {
+      "p50_ms": {
+        "min": 5.386239,
+        "median": 5.431295,
+        "max": 5.562367
+      },
+      "p99_ms": {
+        "min": 7.495679,
+        "median": 9.969663,
+        "max": 52.985855
+      },
+      "p999_ms": {
+        "min": 12.648447,
+        "median": 105.054207,
+        "max": 160.956415
+      }
+    }
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 32,
+      "keys": "same",
+      "target": "raw-pg",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "rawpg",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/replay-rawpg-W5-same-500-NEW",
+        "--workload",
+        "W5",
+        "--keys",
+        "same",
+        "--link",
+        "A",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--extra-read-rates",
+        "19027",
+        "22627"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+    },
+    "summary": {
+      "highest_passing_offered_per_s": 282,
+      "lowest_failing_offered_per_s": 400,
+      "bracketed": true,
+      "rates": [
+        100,
+        200,
+        282,
+        400
+      ],
+      "repeats": 3
+    },
+    "achieved_median": 282.0,
+    "completed_in_window_median": 282.0,
+    "achieved_min": 282.0,
+    "achieved_max": 282.0,
+    "completed_in_window_min": 281.95,
+    "completed_in_window_max": 282.0,
+    "p50_ms": 3.487743,
+    "p99_ms": 32.096255,
+    "p99_worst_ms": 82.182143,
+    "p999_ms": 161.349631,
+    "errors": 0,
+    "leading_active_wait": "active:IO:WALSync",
+    "app_cpu_ms_per_op": 0.39952718676122934,
+    "load_cpu_ms_per_op": 0.2576832151300236,
+    "ssh_cpu_ms_per_op": 0.0,
+    "db_cpu_ms_per_op": 0.23286052009456265,
+    "wal_lsn_bytes_per_op": 122.29314420803783,
+    "sql_exec_ms_per_op": 1.240107595864034,
+    "sql_calls_per_op": 1.0,
+    "max_connected": 32,
+    "max_active": 22,
+    "system": "rawpg",
+    "latency_ranges_ms": {
+      "p50_ms": {
+        "min": 3.438591,
+        "median": 3.487743,
+        "max": 3.510271
+      },
+      "p99_ms": {
+        "min": 23.035903,
+        "median": 32.096255,
+        "max": 82.182143
+      },
+      "p999_ms": {
+        "min": 74.383359,
+        "median": 161.349631,
+        "max": 184.287231
+      }
+    }
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 1000,
+      "writers": 32,
+      "keys": "same",
+      "target": "raw-pg",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "rawpg",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/replay-rawpg-W5-same-1000-NEW",
+        "--workload",
+        "W5",
+        "--keys",
+        "same",
+        "--link",
+        "B",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--extra-read-rates",
+        "19027",
+        "22627"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+    },
+    "summary": {
+      "highest_passing_offered_per_s": 282,
+      "lowest_failing_offered_per_s": 400,
+      "bracketed": true,
+      "rates": [
+        100,
+        200,
+        282,
+        400
+      ],
+      "repeats": 3
+    },
+    "achieved_median": 282.0,
+    "completed_in_window_median": 282.0,
+    "achieved_min": 282.0,
+    "achieved_max": 282.0,
+    "completed_in_window_min": 282.0,
+    "completed_in_window_max": 282.0,
+    "p50_ms": 3.975167,
+    "p99_ms": 8.650751,
+    "p99_worst_ms": 36.110335,
+    "p999_ms": 17.793023,
+    "errors": 0,
+    "leading_active_wait": "active:IO:WALSync",
+    "app_cpu_ms_per_op": 0.40189125295508277,
+    "load_cpu_ms_per_op": 0.24231678486997635,
+    "ssh_cpu_ms_per_op": 0.0,
+    "db_cpu_ms_per_op": 0.24113475177304963,
+    "wal_lsn_bytes_per_op": 121.24066193853427,
+    "sql_exec_ms_per_op": 0.7582323929048352,
+    "sql_calls_per_op": 1.0,
+    "max_connected": 32,
+    "max_active": 23,
+    "system": "rawpg",
+    "latency_ranges_ms": {
+      "p50_ms": {
+        "min": 3.966975,
+        "median": 3.975167,
+        "max": 3.997695
+      },
+      "p99_ms": {
+        "min": 6.422527,
+        "median": 8.650751,
+        "max": 36.110335
+      },
+      "p999_ms": {
+        "min": 10.674175,
+        "median": 17.793023,
+        "max": 175.898623
+      }
+    }
+  },
+  {
+    "cell": {
+      "workload": "W1",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "supabase",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/replay-supabase-W1-disjoint-500-NEW",
+        "--workload",
+        "W1",
+        "--keys",
+        "disjoint",
+        "--link",
+        "A",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--extra-read-rates",
+        "19027",
+        "22627"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+    },
+    "summary": {
+      "highest_passing_offered_per_s": 2000,
+      "lowest_failing_offered_per_s": 2828,
+      "bracketed": true,
+      "rates": [
+        1000,
+        2000,
+        2828,
+        4000,
+        19027,
+        22627
+      ],
+      "repeats": 3
+    },
+    "achieved_median": 2000.0,
+    "completed_in_window_median": 2000.0,
+    "achieved_min": 2000.0,
+    "achieved_max": 2000.0,
+    "completed_in_window_min": 1999.95,
+    "completed_in_window_max": 2000.0,
+    "p50_ms": 3.098623,
+    "p99_ms": 3.725311,
+    "p99_worst_ms": 3.749887,
+    "p999_ms": 5.644287,
+    "errors": 0,
+    "leading_active_wait": "active:-:-",
+    "app_cpu_ms_per_op": 1.1646666666666667,
+    "load_cpu_ms_per_op": 0.22566666666666665,
+    "ssh_cpu_ms_per_op": 0.0,
+    "db_cpu_ms_per_op": 0.54,
+    "wal_lsn_bytes_per_op": 0.0,
+    "sql_exec_ms_per_op": 0.31312798673333225,
+    "sql_calls_per_op": 2.0,
+    "max_connected": 17,
+    "max_active": 3,
+    "system": "supabase",
+    "latency_ranges_ms": {
+      "p50_ms": {
+        "min": 3.098623,
+        "median": 3.098623,
+        "max": 3.100671
+      },
+      "p99_ms": {
+        "min": 3.700735,
+        "median": 3.725311,
+        "max": 3.749887
+      },
+      "p999_ms": {
+        "min": 4.886527,
+        "median": 5.644287,
+        "max": 5.984255
+      }
+    }
+  },
+  {
+    "cell": {
+      "workload": "W1",
+      "rows": 1000000,
+      "delay_us": 1000,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "supabase",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/replay-supabase-W1-disjoint-1000-NEW",
+        "--workload",
+        "W1",
+        "--keys",
+        "disjoint",
+        "--link",
+        "B",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--extra-read-rates",
+        "19027",
+        "22627"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+    },
+    "summary": {
+      "highest_passing_offered_per_s": 2000,
+      "lowest_failing_offered_per_s": 2828,
+      "bracketed": true,
+      "rates": [
+        1000,
+        2000,
+        2828,
+        4000,
+        19027,
+        22627
+      ],
+      "repeats": 3
+    },
+    "achieved_median": 2000.0,
+    "completed_in_window_median": 2000.0,
+    "achieved_min": 2000.0,
+    "achieved_max": 2000.0,
+    "completed_in_window_min": 2000.0,
+    "completed_in_window_max": 2000.0,
+    "p50_ms": 5.140479,
+    "p99_ms": 5.980159,
+    "p99_worst_ms": 5.988351,
+    "p999_ms": 8.912895,
+    "errors": 0,
+    "leading_active_wait": "active:-:-",
+    "app_cpu_ms_per_op": 1.1685,
+    "load_cpu_ms_per_op": 0.2325,
+    "ssh_cpu_ms_per_op": 0.0,
+    "db_cpu_ms_per_op": 0.5853333333333334,
+    "wal_lsn_bytes_per_op": 0.0,
+    "sql_exec_ms_per_op": 0.3336624196999531,
+    "sql_calls_per_op": 2.0,
+    "max_connected": 33,
+    "max_active": 4,
+    "system": "supabase",
+    "latency_ranges_ms": {
+      "p50_ms": {
+        "min": 5.128191,
+        "median": 5.140479,
+        "max": 5.144575
+      },
+      "p99_ms": {
+        "min": 5.976063,
+        "median": 5.980159,
+        "max": 5.988351
+      },
+      "p999_ms": {
+        "min": 8.376319,
+        "median": 8.912895,
+        "max": 20.398079
+      }
+    }
+  },
+  {
+    "cell": {
+      "workload": "W2",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "supabase",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/replay-supabase-W2-disjoint-500-NEW",
+        "--workload",
+        "W2",
+        "--keys",
+        "disjoint",
+        "--link",
+        "A",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--extra-read-rates",
+        "19027",
+        "22627"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+    },
+    "summary": {
+      "highest_passing_offered_per_s": 2000,
+      "lowest_failing_offered_per_s": 2828,
+      "bracketed": true,
+      "rates": [
+        1000,
+        2000,
+        2828,
+        4000,
+        19027,
+        22627
+      ],
+      "repeats": 3
+    },
+    "achieved_median": 2000.0,
+    "completed_in_window_median": 1999.95,
+    "achieved_min": 2000.0,
+    "achieved_max": 2000.0,
+    "completed_in_window_min": 1999.95,
+    "completed_in_window_max": 2000.0,
+    "p50_ms": 3.506175,
+    "p99_ms": 4.292607,
+    "p99_worst_ms": 7.266303,
+    "p999_ms": 6.553599,
+    "errors": 0,
+    "leading_active_wait": "active:-:-",
+    "app_cpu_ms_per_op": 1.2251666666666667,
+    "load_cpu_ms_per_op": 0.27283333333333337,
+    "ssh_cpu_ms_per_op": 0.0,
+    "db_cpu_ms_per_op": 0.7731666666666667,
+    "wal_lsn_bytes_per_op": 0.0,
+    "sql_exec_ms_per_op": 0.3980500426333417,
+    "sql_calls_per_op": 2.0002,
+    "max_connected": 19,
+    "max_active": 4,
+    "system": "supabase",
+    "latency_ranges_ms": {
+      "p50_ms": {
+        "min": 3.393535,
+        "median": 3.506175,
+        "max": 3.545087
+      },
+      "p99_ms": {
+        "min": 4.243455,
+        "median": 4.292607,
+        "max": 7.266303
+      },
+      "p999_ms": {
+        "min": 5.849087,
+        "median": 6.553599,
+        "max": 11.984895
+      }
+    }
+  },
+  {
+    "cell": {
+      "workload": "W2",
+      "rows": 1000000,
+      "delay_us": 1000,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "supabase",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/replay-supabase-W2-disjoint-1000-NEW",
+        "--workload",
+        "W2",
+        "--keys",
+        "disjoint",
+        "--link",
+        "B",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--extra-read-rates",
+        "19027",
+        "22627"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+    },
+    "summary": {
+      "highest_passing_offered_per_s": 2000,
+      "lowest_failing_offered_per_s": 2828,
+      "bracketed": true,
+      "rates": [
+        1000,
+        2000,
+        2828,
+        4000,
+        19027,
+        22627
+      ],
+      "repeats": 3
+    },
+    "achieved_median": 2000.0,
+    "completed_in_window_median": 2000.0,
+    "achieved_min": 2000.0,
+    "achieved_max": 2000.0,
+    "completed_in_window_min": 2000.0,
+    "completed_in_window_max": 2000.15,
+    "p50_ms": 5.603327,
+    "p99_ms": 6.631423,
+    "p99_worst_ms": 8.060927,
+    "p999_ms": 7.192575,
+    "errors": 0,
+    "leading_active_wait": "active:-:-",
+    "app_cpu_ms_per_op": 1.2143333333333333,
+    "load_cpu_ms_per_op": 0.291,
+    "ssh_cpu_ms_per_op": 0.0,
+    "db_cpu_ms_per_op": 0.8086666666666666,
+    "wal_lsn_bytes_per_op": 0.0,
+    "sql_exec_ms_per_op": 0.40997394311669705,
+    "sql_calls_per_op": 2.0,
+    "max_connected": 33,
+    "max_active": 4,
+    "system": "supabase",
+    "latency_ranges_ms": {
+      "p50_ms": {
+        "min": 5.582847,
+        "median": 5.603327,
+        "max": 5.611519
+      },
+      "p99_ms": {
+        "min": 6.631423,
+        "median": 6.631423,
+        "max": 8.060927
+      },
+      "p999_ms": {
+        "min": 7.167999,
+        "median": 7.192575,
+        "max": 22.102015
+      }
+    }
+  },
+  {
+    "cell": {
+      "workload": "W3",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "supabase",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/replay-supabase-W3-disjoint-500-NEW",
+        "--workload",
+        "W3",
+        "--keys",
+        "disjoint",
+        "--link",
+        "A",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--extra-read-rates",
+        "19027",
+        "22627"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+    },
+    "summary": {
+      "highest_passing_offered_per_s": 2828,
+      "lowest_failing_offered_per_s": 4000,
+      "bracketed": true,
+      "rates": [
+        1000,
+        2000,
+        2828,
+        4000,
+        19027,
+        22627
+      ],
+      "repeats": 3
+    },
+    "achieved_median": 2828.0,
+    "completed_in_window_median": 2828.0,
+    "achieved_min": 2828.0,
+    "achieved_max": 2828.0,
+    "completed_in_window_min": 2827.9,
+    "completed_in_window_max": 2828.05,
+    "p50_ms": 3.690495,
+    "p99_ms": 4.993023,
+    "p99_worst_ms": 5.033983,
+    "p999_ms": 7.553023,
+    "errors": 0,
+    "leading_active_wait": "active:-:-",
+    "app_cpu_ms_per_op": 1.0522159358793022,
+    "load_cpu_ms_per_op": 0.23455917020273456,
+    "ssh_cpu_ms_per_op": 0.0,
+    "db_cpu_ms_per_op": 0.8226072607260726,
+    "wal_lsn_bytes_per_op": 0.0,
+    "sql_exec_ms_per_op": 0.6104432664545092,
+    "sql_calls_per_op": 2.0,
+    "max_connected": 33,
+    "max_active": 5,
+    "system": "supabase",
+    "latency_ranges_ms": {
+      "p50_ms": {
+        "min": 3.682303,
+        "median": 3.690495,
+        "max": 3.692543
+      },
+      "p99_ms": {
+        "min": 4.993023,
+        "median": 4.993023,
+        "max": 5.033983
+      },
+      "p999_ms": {
+        "min": 6.828031,
+        "median": 7.553023,
+        "max": 7.983103
+      }
+    }
+  },
+  {
+    "cell": {
+      "workload": "W3",
+      "rows": 1000000,
+      "delay_us": 1000,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "supabase",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/replay-supabase-W3-disjoint-1000-NEW",
+        "--workload",
+        "W3",
+        "--keys",
+        "disjoint",
+        "--link",
+        "B",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--extra-read-rates",
+        "19027",
+        "22627"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+    },
+    "summary": {
+      "highest_passing_offered_per_s": 2828,
+      "lowest_failing_offered_per_s": 4000,
+      "bracketed": true,
+      "rates": [
+        1000,
+        2000,
+        2828,
+        4000,
+        19027,
+        22627
+      ],
+      "repeats": 3
+    },
+    "achieved_median": 2828.0,
+    "completed_in_window_median": 2828.05,
+    "achieved_min": 2828.0,
+    "achieved_max": 2828.0,
+    "completed_in_window_min": 2828.05,
+    "completed_in_window_max": 2828.05,
+    "p50_ms": 5.722111,
+    "p99_ms": 7.327743,
+    "p99_worst_ms": 7.561215,
+    "p999_ms": 10.289151,
+    "errors": 0,
+    "leading_active_wait": "active:-:-",
+    "app_cpu_ms_per_op": 1.0603488920320603,
+    "load_cpu_ms_per_op": 0.2267798208392268,
+    "ssh_cpu_ms_per_op": 0.0,
+    "db_cpu_ms_per_op": 0.7957331447430457,
+    "wal_lsn_bytes_per_op": 0.0,
+    "sql_exec_ms_per_op": 0.5926539353371634,
+    "sql_calls_per_op": 2.0,
+    "max_connected": 33,
+    "max_active": 5,
+    "system": "supabase",
+    "latency_ranges_ms": {
+      "p50_ms": {
+        "min": 5.701631,
+        "median": 5.722111,
+        "max": 5.734399
+      },
+      "p99_ms": {
+        "min": 7.282687,
+        "median": 7.327743,
+        "max": 7.561215
+      },
+      "p999_ms": {
+        "min": 9.453567,
+        "median": 10.289151,
+        "max": 10.797055
+      }
+    }
+  },
+  {
+    "cell": {
+      "workload": "W4",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 32,
+      "keys": "disjoint",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "supabase",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/replay-supabase-W4-disjoint-500-NEW",
+        "--workload",
+        "W4",
+        "--keys",
+        "disjoint",
+        "--link",
+        "A",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--extra-read-rates",
+        "19027",
+        "22627"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+    },
+    "summary": {
+      "highest_passing_offered_per_s": 3200,
+      "lowest_failing_offered_per_s": 4525,
+      "bracketed": true,
+      "rates": [
+        3200,
+        4525,
+        6400
+      ],
+      "repeats": 3
+    },
+    "achieved_median": 3200.0,
+    "completed_in_window_median": 3200.1,
+    "achieved_min": 3200.0,
+    "achieved_max": 3200.0,
+    "completed_in_window_min": 3200.05,
+    "completed_in_window_max": 3200.4,
+    "p50_ms": 8.019967,
+    "p99_ms": 29.442047,
+    "p99_worst_ms": 70.975487,
+    "p999_ms": 47.710207,
+    "errors": 0,
+    "leading_active_wait": "active:LWLock:WALWrite",
+    "app_cpu_ms_per_op": 1.0105208333333333,
+    "load_cpu_ms_per_op": 0.18322916666666667,
+    "ssh_cpu_ms_per_op": 0.0,
+    "db_cpu_ms_per_op": 0.5723958333333333,
+    "wal_lsn_bytes_per_op": 126.744,
+    "sql_exec_ms_per_op": 0.3414027884063176,
+    "sql_calls_per_op": 2.0,
+    "max_connected": 33,
+    "max_active": 32,
+    "system": "supabase",
+    "latency_ranges_ms": {
+      "p50_ms": {
+        "min": 7.950335,
+        "median": 8.019967,
+        "max": 8.069119
+      },
+      "p99_ms": {
+        "min": 14.344191,
+        "median": 29.442047,
+        "max": 70.975487
+      },
+      "p999_ms": {
+        "min": 22.626303,
+        "median": 47.710207,
+        "max": 91.488255
+      }
+    }
+  },
+  {
+    "cell": {
+      "workload": "W4",
+      "rows": 1000000,
+      "delay_us": 1000,
+      "writers": 32,
+      "keys": "disjoint",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "supabase",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/replay-supabase-W4-disjoint-1000-NEW",
+        "--workload",
+        "W4",
+        "--keys",
+        "disjoint",
+        "--link",
+        "B",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--extra-read-rates",
+        "19027",
+        "22627"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+    },
+    "summary": {
+      "highest_passing_offered_per_s": 1600,
+      "lowest_failing_offered_per_s": 2262,
+      "bracketed": true,
+      "rates": [
+        1600,
+        2262,
+        3200
+      ],
+      "repeats": 3
+    },
+    "achieved_median": 1600.0,
+    "completed_in_window_median": 1599.9,
+    "achieved_min": 1600.0,
+    "achieved_max": 1600.0,
+    "completed_in_window_min": 1599.85,
+    "completed_in_window_max": 1600.1,
+    "p50_ms": 9.363455,
+    "p99_ms": 17.907711,
+    "p99_worst_ms": 47.677439,
+    "p999_ms": 37.486591,
+    "errors": 0,
+    "leading_active_wait": "active:LWLock:WALWrite",
+    "app_cpu_ms_per_op": 1.165,
+    "load_cpu_ms_per_op": 0.21291666666666667,
+    "ssh_cpu_ms_per_op": 0.0,
+    "db_cpu_ms_per_op": 0.7177083333333333,
+    "wal_lsn_bytes_per_op": 132.72283333333334,
+    "sql_exec_ms_per_op": 0.40652141652078294,
+    "sql_calls_per_op": 2.0,
+    "max_connected": 33,
+    "max_active": 25,
+    "system": "supabase",
+    "latency_ranges_ms": {
+      "p50_ms": {
+        "min": 9.330687,
+        "median": 9.363455,
+        "max": 10.100735
+      },
+      "p99_ms": {
+        "min": 13.213695,
+        "median": 17.907711,
+        "max": 47.677439
+      },
+      "p999_ms": {
+        "min": 17.956863,
+        "median": 37.486591,
+        "max": 98.435071
+      }
+    }
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 32,
+      "keys": "hot1",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "supabase",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/replay-supabase-W5-hot1-500-NEW",
+        "--workload",
+        "W5",
+        "--keys",
+        "hot1",
+        "--link",
+        "A",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--extra-read-rates",
+        "19027",
+        "22627"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+    },
+    "summary": {
+      "highest_passing_offered_per_s": 800,
+      "lowest_failing_offered_per_s": 1131,
+      "bracketed": true,
+      "rates": [
+        800,
+        1131,
+        1600,
+        3200
+      ],
+      "repeats": 3
+    },
+    "achieved_median": 800.0,
+    "completed_in_window_median": 800.05,
+    "achieved_min": 800.0,
+    "achieved_max": 800.0,
+    "completed_in_window_min": 800.0,
+    "completed_in_window_max": 800.05,
+    "p50_ms": 7.200767,
+    "p99_ms": 13.885439,
+    "p99_worst_ms": 13.918207,
+    "p999_ms": 22.315007,
+    "errors": 0,
+    "leading_active_wait": "active:LWLock:WALWrite",
+    "app_cpu_ms_per_op": 1.3550000000000002,
+    "load_cpu_ms_per_op": 0.21875,
+    "ssh_cpu_ms_per_op": 0.0,
+    "db_cpu_ms_per_op": 0.6683333333333333,
+    "wal_lsn_bytes_per_op": 122.61033333333333,
+    "sql_exec_ms_per_op": 0.3684214705419399,
+    "sql_calls_per_op": 2.0,
+    "max_connected": 33,
+    "max_active": 32,
+    "system": "supabase",
+    "latency_ranges_ms": {
+      "p50_ms": {
+        "min": 7.090175,
+        "median": 7.200767,
+        "max": 7.241727
+      },
+      "p99_ms": {
+        "min": 10.510335,
+        "median": 13.885439,
+        "max": 13.918207
+      },
+      "p999_ms": {
+        "min": 15.613951,
+        "median": 22.315007,
+        "max": 104.923135
+      }
+    }
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 1000,
+      "writers": 32,
+      "keys": "hot1",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "supabase",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/replay-supabase-W5-hot1-1000-NEW",
+        "--workload",
+        "W5",
+        "--keys",
+        "hot1",
+        "--link",
+        "B",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--extra-read-rates",
+        "19027",
+        "22627"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+    },
+    "summary": {
+      "highest_passing_offered_per_s": 1600,
+      "lowest_failing_offered_per_s": 2262,
+      "bracketed": true,
+      "rates": [
+        1600,
+        2262,
+        3200
+      ],
+      "repeats": 3
+    },
+    "achieved_median": 1600.0,
+    "completed_in_window_median": 1600.05,
+    "achieved_min": 1600.0,
+    "achieved_max": 1600.0,
+    "completed_in_window_min": 1600.0,
+    "completed_in_window_max": 1600.1,
+    "p50_ms": 9.297919,
+    "p99_ms": 14.327807,
+    "p99_worst_ms": 15.532031,
+    "p999_ms": 24.887295,
+    "errors": 0,
+    "leading_active_wait": "active:LWLock:WALWrite",
+    "app_cpu_ms_per_op": 1.164375,
+    "load_cpu_ms_per_op": 0.21375,
+    "ssh_cpu_ms_per_op": 0.0,
+    "db_cpu_ms_per_op": 0.7072916666666667,
+    "wal_lsn_bytes_per_op": 124.84383333333334,
+    "sql_exec_ms_per_op": 0.3929356511879081,
+    "sql_calls_per_op": 2.0,
+    "max_connected": 33,
+    "max_active": 20,
+    "system": "supabase",
+    "latency_ranges_ms": {
+      "p50_ms": {
+        "min": 9.256959,
+        "median": 9.297919,
+        "max": 9.322495
+      },
+      "p99_ms": {
+        "min": 11.370495,
+        "median": 14.327807,
+        "max": 15.532031
+      },
+      "p999_ms": {
+        "min": 15.138815,
+        "median": 24.887295,
+        "max": 25.772031
+      }
+    }
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 32,
+      "keys": "same",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "supabase",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/replay-supabase-W5-same-500-NEW",
+        "--workload",
+        "W5",
+        "--keys",
+        "same",
+        "--link",
+        "A",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--extra-read-rates",
+        "19027",
+        "22627"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+    },
+    "summary": {
+      "highest_passing_offered_per_s": 8,
+      "lowest_failing_offered_per_s": 12,
+      "bracketed": true,
+      "rates": [
+        6,
+        8,
+        12,
+        25,
+        50,
+        100
+      ],
+      "repeats": 3
+    },
+    "achieved_median": 8.0,
+    "completed_in_window_median": 8.0,
+    "achieved_min": 8.0,
+    "achieved_max": 8.0,
+    "completed_in_window_min": 8.0,
+    "completed_in_window_max": 8.0,
+    "p50_ms": 14.172159,
+    "p99_ms": 15.294463,
+    "p99_worst_ms": 20.692991,
+    "p999_ms": 16.220159,
+    "errors": 0,
+    "leading_active_wait": "active:IO:WALSync",
+    "app_cpu_ms_per_op": 1.8333333333333333,
+    "load_cpu_ms_per_op": 0.4166666666666667,
+    "ssh_cpu_ms_per_op": 0.0,
+    "db_cpu_ms_per_op": 2.375,
+    "wal_lsn_bytes_per_op": 118.26666666666667,
+    "sql_exec_ms_per_op": 0.69652412916912,
+    "sql_calls_per_op": 2.0,
+    "max_connected": 33,
+    "max_active": 1,
+    "system": "supabase",
+    "latency_ranges_ms": {
+      "p50_ms": {
+        "min": 14.032895,
+        "median": 14.172159,
+        "max": 14.188543
+      },
+      "p99_ms": {
+        "min": 14.942207,
+        "median": 15.294463,
+        "max": 20.692991
+      },
+      "p999_ms": {
+        "min": 15.769599,
+        "median": 16.220159,
+        "max": 25.264127
+      }
+    }
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 1000,
+      "writers": 32,
+      "keys": "same",
+      "target": "supabase",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "supabase",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/replay-supabase-W5-same-1000-NEW",
+        "--workload",
+        "W5",
+        "--keys",
+        "same",
+        "--link",
+        "B",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--extra-read-rates",
+        "19027",
+        "22627"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+    },
+    "summary": {
+      "highest_passing_offered_per_s": 70,
+      "lowest_failing_offered_per_s": 100,
+      "bracketed": true,
+      "rates": [
+        50,
+        70,
+        100
+      ],
+      "repeats": 3
+    },
+    "achieved_median": 70.0,
+    "completed_in_window_median": 70.0,
+    "achieved_min": 70.0,
+    "achieved_max": 70.0,
+    "completed_in_window_min": 70.0,
+    "completed_in_window_max": 70.0,
+    "p50_ms": 8.069119,
+    "p99_ms": 8.822783,
+    "p99_worst_ms": 9.412607,
+    "p999_ms": 12.754943,
+    "errors": 0,
+    "leading_active_wait": "active:-:-",
+    "app_cpu_ms_per_op": 1.5476190476190477,
+    "load_cpu_ms_per_op": 0.29523809523809524,
+    "ssh_cpu_ms_per_op": 0.0,
+    "db_cpu_ms_per_op": 1.0809523809523809,
+    "wal_lsn_bytes_per_op": 119.38666666666667,
+    "sql_exec_ms_per_op": 0.655340037143476,
+    "sql_calls_per_op": 2.0,
+    "max_connected": 33,
+    "max_active": 1,
+    "system": "supabase",
+    "latency_ranges_ms": {
+      "p50_ms": {
+        "min": 8.065023,
+        "median": 8.069119,
+        "max": 8.146943
+      },
+      "p99_ms": {
+        "min": 8.568831,
+        "median": 8.822783,
+        "max": 9.412607
+      },
+      "p999_ms": {
+        "min": 12.689407,
+        "median": 12.754943,
+        "max": 30.523391
+      }
+    }
+  },
+  {
+    "cell": {
+      "workload": "W1",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "convex",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/replay-convex-W1-disjoint-500-NEW",
+        "--workload",
+        "W1",
+        "--keys",
+        "disjoint",
+        "--link",
+        "A",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--extra-read-rates",
+        "19027",
+        "22627"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+    },
+    "summary": {
+      "highest_passing_offered_per_s": 500,
+      "lowest_failing_offered_per_s": 707,
+      "bracketed": true,
+      "rates": [
+        500,
+        707,
+        1000,
+        19027,
+        22627
+      ],
+      "repeats": 3
+    },
+    "achieved_median": 500.0,
+    "completed_in_window_median": 500.0,
+    "achieved_min": 500.0,
+    "achieved_max": 500.0,
+    "completed_in_window_min": 500.0,
+    "completed_in_window_max": 500.1,
+    "p50_ms": 5.201919,
+    "p99_ms": 12.140543,
+    "p99_worst_ms": 21.397503,
+    "p999_ms": 17.121279,
+    "errors": 0,
+    "leading_active_wait": "active:-:-",
+    "app_cpu_ms_per_op": 4.666,
+    "load_cpu_ms_per_op": 0.292,
+    "ssh_cpu_ms_per_op": 0.0,
+    "db_cpu_ms_per_op": 0.758,
+    "wal_lsn_bytes_per_op": 0.0,
+    "sql_exec_ms_per_op": 0.08858288406667185,
+    "sql_calls_per_op": 2.0204666666666666,
+    "max_connected": 31,
+    "max_active": 2,
+    "system": "convex",
+    "latency_ranges_ms": {
+      "p50_ms": {
+        "min": 5.033983,
+        "median": 5.201919,
+        "max": 5.373951
+      },
+      "p99_ms": {
+        "min": 10.321919,
+        "median": 12.140543,
+        "max": 21.397503
+      },
+      "p999_ms": {
+        "min": 13.172735,
+        "median": 17.121279,
+        "max": 39.845887
+      }
+    }
+  },
+  {
+    "cell": {
+      "workload": "W1",
+      "rows": 1000000,
+      "delay_us": 1000,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "convex",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/replay-convex-W1-disjoint-1000-NEW",
+        "--workload",
+        "W1",
+        "--keys",
+        "disjoint",
+        "--link",
+        "B",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--extra-read-rates",
+        "19027",
+        "22627"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+    },
+    "summary": {
+      "highest_passing_offered_per_s": 500,
+      "lowest_failing_offered_per_s": 707,
+      "bracketed": true,
+      "rates": [
+        500,
+        707,
+        1000,
+        19027,
+        22627
+      ],
+      "repeats": 3
+    },
+    "achieved_median": 500.0,
+    "completed_in_window_median": 499.95,
+    "achieved_min": 500.0,
+    "achieved_max": 500.0,
+    "completed_in_window_min": 499.9,
+    "completed_in_window_max": 500.0,
+    "p50_ms": 6.459391,
+    "p99_ms": 13.721599,
+    "p99_worst_ms": 30.523391,
+    "p999_ms": 25.149439,
+    "errors": 0,
+    "leading_active_wait": "active:-:-",
+    "app_cpu_ms_per_op": 4.811333333333334,
+    "load_cpu_ms_per_op": 0.296,
+    "ssh_cpu_ms_per_op": 0.0,
+    "db_cpu_ms_per_op": 0.818,
+    "wal_lsn_bytes_per_op": 0.005333333333333333,
+    "sql_exec_ms_per_op": 0.09366057746670035,
+    "sql_calls_per_op": 2.0138,
+    "max_connected": 32,
+    "max_active": 2,
+    "system": "convex",
+    "latency_ranges_ms": {
+      "p50_ms": {
+        "min": 6.348799,
+        "median": 6.459391,
+        "max": 6.541311
+      },
+      "p99_ms": {
+        "min": 12.140543,
+        "median": 13.721599,
+        "max": 30.523391
+      },
+      "p999_ms": {
+        "min": 14.950399,
+        "median": 25.149439,
+        "max": 139.722751
+      }
+    }
+  },
+  {
+    "cell": {
+      "workload": "W2",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "convex",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/replay-convex-W2-disjoint-500-NEW",
+        "--workload",
+        "W2",
+        "--keys",
+        "disjoint",
+        "--link",
+        "A",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--extra-read-rates",
+        "19027",
+        "22627"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+    },
+    "summary": {
+      "highest_passing_offered_per_s": 707,
+      "lowest_failing_offered_per_s": 1000,
+      "bracketed": true,
+      "rates": [
+        500,
+        707,
+        1000,
+        19027,
+        22627
+      ],
+      "repeats": 3
+    },
+    "achieved_median": 707.0,
+    "completed_in_window_median": 707.0,
+    "achieved_min": 707.0,
+    "achieved_max": 707.0,
+    "completed_in_window_min": 707.0,
+    "completed_in_window_max": 707.0,
+    "p50_ms": 0.653823,
+    "p99_ms": 0.764927,
+    "p99_worst_ms": 0.777215,
+    "p999_ms": 1.812479,
+    "errors": 0,
+    "leading_active_wait": "no active sample",
+    "app_cpu_ms_per_op": 0.47713342762847716,
+    "load_cpu_ms_per_op": 0.3088165959453088,
+    "ssh_cpu_ms_per_op": 0.0,
+    "db_cpu_ms_per_op": 0.011315417256011316,
+    "wal_lsn_bytes_per_op": 0.0,
+    "sql_exec_ms_per_op": 0.0012521072135787503,
+    "sql_calls_per_op": 0.014474304573314474,
+    "max_connected": 0,
+    "max_active": 0,
+    "system": "convex",
+    "latency_ranges_ms": {
+      "p50_ms": {
+        "min": 0.571391,
+        "median": 0.653823,
+        "max": 0.655359
+      },
+      "p99_ms": {
+        "min": 0.738303,
+        "median": 0.764927,
+        "max": 0.777215
+      },
+      "p999_ms": {
+        "min": 1.584127,
+        "median": 1.812479,
+        "max": 1.988607
+      }
+    }
+  },
+  {
+    "cell": {
+      "workload": "W2",
+      "rows": 1000000,
+      "delay_us": 1000,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "convex",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/replay-convex-W2-disjoint-1000-NEW",
+        "--workload",
+        "W2",
+        "--keys",
+        "disjoint",
+        "--link",
+        "B",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--extra-read-rates",
+        "19027",
+        "22627"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+    },
+    "summary": {
+      "highest_passing_offered_per_s": 707,
+      "lowest_failing_offered_per_s": 1000,
+      "bracketed": true,
+      "rates": [
+        500,
+        707,
+        1000,
+        19027,
+        22627
+      ],
+      "repeats": 3
+    },
+    "achieved_median": 707.0,
+    "completed_in_window_median": 707.0,
+    "achieved_min": 707.0,
+    "achieved_max": 707.0,
+    "completed_in_window_min": 707.0,
+    "completed_in_window_max": 707.0,
+    "p50_ms": 0.655359,
+    "p99_ms": 0.772607,
+    "p99_worst_ms": 0.847871,
+    "p999_ms": 2.244607,
+    "errors": 0,
+    "leading_active_wait": "no active sample",
+    "app_cpu_ms_per_op": 0.47996228194248,
+    "load_cpu_ms_per_op": 0.3286185761433286,
+    "ssh_cpu_ms_per_op": 0.0,
+    "db_cpu_ms_per_op": 0.010843941537010843,
+    "wal_lsn_bytes_per_op": 0.0026402640264026403,
+    "sql_exec_ms_per_op": 0.0012216635549270251,
+    "sql_calls_per_op": 0.014474304573314474,
+    "max_connected": 0,
+    "max_active": 0,
+    "system": "convex",
+    "latency_ranges_ms": {
+      "p50_ms": {
+        "min": 0.654847,
+        "median": 0.655359,
+        "max": 0.656383
+      },
+      "p99_ms": {
+        "min": 0.762879,
+        "median": 0.772607,
+        "max": 0.847871
+      },
+      "p999_ms": {
+        "min": 2.131967,
+        "median": 2.244607,
+        "max": 3.663871
+      }
+    }
+  },
+  {
+    "cell": {
+      "workload": "W3",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "convex",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/replay-convex-W3-disjoint-500-NEW",
+        "--workload",
+        "W3",
+        "--keys",
+        "disjoint",
+        "--link",
+        "A",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--extra-read-rates",
+        "19027",
+        "22627"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+    },
+    "summary": {
+      "highest_passing_offered_per_s": 8000,
+      "lowest_failing_offered_per_s": 11313,
+      "bracketed": true,
+      "rates": [
+        1000,
+        2000,
+        4000,
+        8000,
+        11313,
+        16000,
+        19027,
+        22627
+      ],
+      "repeats": 3
+    },
+    "achieved_median": 8000.0,
+    "completed_in_window_median": 8000.0,
+    "achieved_min": 8000.0,
+    "achieved_max": 8000.0,
+    "completed_in_window_min": 7999.95,
+    "completed_in_window_max": 8000.05,
+    "p50_ms": 0.428031,
+    "p99_ms": 2.932735,
+    "p99_worst_ms": 6.389759,
+    "p999_ms": 32.751615,
+    "errors": 0,
+    "leading_active_wait": "no active sample",
+    "app_cpu_ms_per_op": 0.2967916666666667,
+    "load_cpu_ms_per_op": 0.19725,
+    "ssh_cpu_ms_per_op": 0.0,
+    "db_cpu_ms_per_op": 0.0010833333333333333,
+    "wal_lsn_bytes_per_op": 0.0,
+    "sql_exec_ms_per_op": 0.00015235178750000401,
+    "sql_calls_per_op": 0.0012791666666666667,
+    "max_connected": 1,
+    "max_active": 0,
+    "system": "convex",
+    "latency_ranges_ms": {
+      "p50_ms": {
+        "min": 0.427007,
+        "median": 0.428031,
+        "max": 0.433919
+      },
+      "p99_ms": {
+        "min": 2.193407,
+        "median": 2.932735,
+        "max": 6.389759
+      },
+      "p999_ms": {
+        "min": 31.752191,
+        "median": 32.751615,
+        "max": 34.406399
+      }
+    }
+  },
+  {
+    "cell": {
+      "workload": "W3",
+      "rows": 1000000,
+      "delay_us": 1000,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "convex",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/replay-convex-W3-disjoint-1000-NEW",
+        "--workload",
+        "W3",
+        "--keys",
+        "disjoint",
+        "--link",
+        "B",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--extra-read-rates",
+        "19027",
+        "22627"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+    },
+    "summary": {
+      "highest_passing_offered_per_s": 5656,
+      "lowest_failing_offered_per_s": 8000,
+      "bracketed": true,
+      "rates": [
+        1000,
+        2000,
+        4000,
+        5656,
+        8000,
+        19027,
+        22627
+      ],
+      "repeats": 3
+    },
+    "achieved_median": 5656.0,
+    "completed_in_window_median": 5656.0,
+    "achieved_min": 5656.0,
+    "achieved_max": 5656.0,
+    "completed_in_window_min": 5656.0,
+    "completed_in_window_max": 5656.0,
+    "p50_ms": 0.332543,
+    "p99_ms": 1.550335,
+    "p99_worst_ms": 3.317759,
+    "p999_ms": 48.103423,
+    "errors": 0,
+    "leading_active_wait": "no active sample",
+    "app_cpu_ms_per_op": 0.25636492220650636,
+    "load_cpu_ms_per_op": 0.2090994813767091,
+    "ssh_cpu_ms_per_op": 0.0,
+    "db_cpu_ms_per_op": 0.0014733616218764733,
+    "wal_lsn_bytes_per_op": 0.0,
+    "sql_exec_ms_per_op": 0.00015993841937763588,
+    "sql_calls_per_op": 0.0018092880716643093,
+    "max_connected": 0,
+    "max_active": 0,
+    "system": "convex",
+    "latency_ranges_ms": {
+      "p50_ms": {
+        "min": 0.331519,
+        "median": 0.332543,
+        "max": 0.333055
+      },
+      "p99_ms": {
+        "min": 0.830975,
+        "median": 1.550335,
+        "max": 3.317759
+      },
+      "p999_ms": {
+        "min": 35.815423,
+        "median": 48.103423,
+        "max": 54.624255
+      }
+    }
+  },
+  {
+    "cell": {
+      "workload": "W4",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 32,
+      "keys": "disjoint",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "convex",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/replay-convex-W4-disjoint-500-NEW",
+        "--workload",
+        "W4",
+        "--keys",
+        "disjoint",
+        "--link",
+        "A",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--extra-read-rates",
+        "19027",
+        "22627"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+    },
+    "summary": {
+      "highest_passing_offered_per_s": null,
+      "lowest_failing_offered_per_s": 1,
+      "bracketed": false,
+      "rates": [
+        1,
+        3,
+        6,
+        12,
+        25,
+        50,
+        100,
+        200,
+        400,
+        800,
+        1600,
+        3200
+      ],
+      "repeats": 3
+    },
+    "system": "convex"
+  },
+  {
+    "cell": {
+      "workload": "W4",
+      "rows": 1000000,
+      "delay_us": 1000,
+      "writers": 32,
+      "keys": "disjoint",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "convex",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/replay-convex-W4-disjoint-1000-NEW",
+        "--workload",
+        "W4",
+        "--keys",
+        "disjoint",
+        "--link",
+        "B",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--extra-read-rates",
+        "19027",
+        "22627"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+    },
+    "summary": {
+      "highest_passing_offered_per_s": 141,
+      "lowest_failing_offered_per_s": 200,
+      "bracketed": true,
+      "rates": [
+        100,
+        141,
+        200,
+        400,
+        800,
+        1600,
+        3200
+      ],
+      "repeats": 3
+    },
+    "achieved_median": 141.0,
+    "completed_in_window_median": 141.0,
+    "achieved_min": 141.0,
+    "achieved_max": 141.0,
+    "completed_in_window_min": 140.95,
+    "completed_in_window_max": 141.0,
+    "p50_ms": 16.842751,
+    "p99_ms": 23.379967,
+    "p99_worst_ms": 23.724031,
+    "p999_ms": 27.246591,
+    "errors": 0,
+    "leading_active_wait": "active:-:-",
+    "app_cpu_ms_per_op": 9.030732860520095,
+    "load_cpu_ms_per_op": 0.3144208037825059,
+    "ssh_cpu_ms_per_op": 0.0,
+    "db_cpu_ms_per_op": 9.936170212765957,
+    "wal_lsn_bytes_per_op": 4284.43877068558,
+    "sql_exec_ms_per_op": 9.578901866193993,
+    "sql_calls_per_op": 8.353900709219857,
+    "max_connected": 12,
+    "max_active": 6,
+    "system": "convex",
+    "latency_ranges_ms": {
+      "p50_ms": {
+        "min": 16.621567,
+        "median": 16.842751,
+        "max": 17.448959
+      },
+      "p99_ms": {
+        "min": 22.790143,
+        "median": 23.379967,
+        "max": 23.724031
+      },
+      "p999_ms": {
+        "min": 26.427391,
+        "median": 27.246591,
+        "max": 34.635775
+      }
+    }
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 32,
+      "keys": "hot1",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "convex",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/replay-convex-W5-hot1-500-NEW",
+        "--workload",
+        "W5",
+        "--keys",
+        "hot1",
+        "--link",
+        "A",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--extra-read-rates",
+        "19027",
+        "22627"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+    },
+    "summary": {
+      "highest_passing_offered_per_s": 400,
+      "lowest_failing_offered_per_s": 565,
+      "bracketed": true,
+      "rates": [
+        400,
+        565,
+        800,
+        1600,
+        3200
+      ],
+      "repeats": 3
+    },
+    "achieved_median": 400.0,
+    "completed_in_window_median": 400.15,
+    "achieved_min": 400.0,
+    "achieved_max": 400.0,
+    "completed_in_window_min": 399.95,
+    "completed_in_window_max": 400.3,
+    "p50_ms": 38.764543,
+    "p99_ms": 64.749567,
+    "p99_worst_ms": 75.694079,
+    "p999_ms": 76.939263,
+    "errors": 0,
+    "leading_active_wait": "active:-:-",
+    "app_cpu_ms_per_op": 5.7575,
+    "load_cpu_ms_per_op": 0.2925,
+    "ssh_cpu_ms_per_op": 0.0,
+    "db_cpu_ms_per_op": 14.516666666666667,
+    "wal_lsn_bytes_per_op": 2902.675333333333,
+    "sql_exec_ms_per_op": 25.55615077300034,
+    "sql_calls_per_op": 5.0835,
+    "max_connected": 32,
+    "max_active": 19,
+    "system": "convex",
+    "latency_ranges_ms": {
+      "p50_ms": {
+        "min": 34.537471,
+        "median": 38.764543,
+        "max": 41.975807
+      },
+      "p99_ms": {
+        "min": 55.836671,
+        "median": 64.749567,
+        "max": 75.694079
+      },
+      "p999_ms": {
+        "min": 65.503231,
+        "median": 76.939263,
+        "max": 95.748095
+      }
+    }
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 1000,
+      "writers": 32,
+      "keys": "hot1",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "convex",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/replay-convex-W5-hot1-1000-NEW",
+        "--workload",
+        "W5",
+        "--keys",
+        "hot1",
+        "--link",
+        "B",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--extra-read-rates",
+        "19027",
+        "22627"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+    },
+    "summary": {
+      "highest_passing_offered_per_s": 25,
+      "lowest_failing_offered_per_s": 35,
+      "bracketed": true,
+      "rates": [
+        25,
+        35,
+        50,
+        100,
+        200,
+        400,
+        800,
+        1600,
+        3200
+      ],
+      "repeats": 3
+    },
+    "achieved_median": 25.0,
+    "completed_in_window_median": 25.0,
+    "achieved_min": 25.0,
+    "achieved_max": 25.0,
+    "completed_in_window_min": 24.9,
+    "completed_in_window_max": 25.0,
+    "p50_ms": 27.328511,
+    "p99_ms": 35.717119,
+    "p99_worst_ms": 43.810815,
+    "p999_ms": 68.878335,
+    "errors": 0,
+    "leading_active_wait": "active:-:-",
+    "app_cpu_ms_per_op": 11.36,
+    "load_cpu_ms_per_op": 0.44,
+    "ssh_cpu_ms_per_op": 0.0,
+    "db_cpu_ms_per_op": 154.61333333333334,
+    "wal_lsn_bytes_per_op": 9374.122666666666,
+    "sql_exec_ms_per_op": 155.7052808532983,
+    "sql_calls_per_op": 12.304,
+    "max_connected": 32,
+    "max_active": 5,
+    "system": "convex",
+    "latency_ranges_ms": {
+      "p50_ms": {
+        "min": 27.328511,
+        "median": 27.328511,
+        "max": 27.672575
+      },
+      "p99_ms": {
+        "min": 34.045951,
+        "median": 35.717119,
+        "max": 43.810815
+      },
+      "p999_ms": {
+        "min": 37.322751,
+        "median": 68.878335,
+        "max": 114.425855
+      }
+    }
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 32,
+      "keys": "same",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "convex",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/replay-convex-W5-same-500-NEW",
+        "--workload",
+        "W5",
+        "--keys",
+        "same",
+        "--link",
+        "A",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--extra-read-rates",
+        "19027",
+        "22627"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+    },
+    "summary": {
+      "highest_passing_offered_per_s": 25,
+      "lowest_failing_offered_per_s": 35,
+      "bracketed": true,
+      "rates": [
+        25,
+        35,
+        50,
+        100
+      ],
+      "repeats": 3
+    },
+    "achieved_median": 25.0,
+    "completed_in_window_median": 25.0,
+    "achieved_min": 25.0,
+    "achieved_max": 25.0,
+    "completed_in_window_min": 25.0,
+    "completed_in_window_max": 25.0,
+    "p50_ms": 22.560767,
+    "p99_ms": 28.803071,
+    "p99_worst_ms": 31.293439,
+    "p999_ms": 34.045951,
+    "errors": 0,
+    "leading_active_wait": "active:-:-",
+    "app_cpu_ms_per_op": 10.96,
+    "load_cpu_ms_per_op": 0.41333333333333333,
+    "ssh_cpu_ms_per_op": 0.0,
+    "db_cpu_ms_per_op": 20.906666666666666,
+    "wal_lsn_bytes_per_op": 5658.122666666667,
+    "sql_exec_ms_per_op": 19.405850979997265,
+    "sql_calls_per_op": 10.925333333333333,
+    "max_connected": 12,
+    "max_active": 4,
+    "system": "convex",
+    "latency_ranges_ms": {
+      "p50_ms": {
+        "min": 22.462463,
+        "median": 22.560767,
+        "max": 23.527423
+      },
+      "p99_ms": {
+        "min": 27.181055,
+        "median": 28.803071,
+        "max": 31.293439
+      },
+      "p999_ms": {
+        "min": 29.835263,
+        "median": 34.045951,
+        "max": 40.861695
+      }
+    }
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 1000,
+      "writers": 32,
+      "keys": "same",
+      "target": "convex",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "convex",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/replay-convex-W5-same-1000-NEW",
+        "--workload",
+        "W5",
+        "--keys",
+        "same",
+        "--link",
+        "B",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--extra-read-rates",
+        "19027",
+        "22627"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+    },
+    "summary": {
+      "highest_passing_offered_per_s": 25,
+      "lowest_failing_offered_per_s": 35,
+      "bracketed": true,
+      "rates": [
+        25,
+        35,
+        50,
+        100
+      ],
+      "repeats": 3
+    },
+    "achieved_median": 25.0,
+    "completed_in_window_median": 25.0,
+    "achieved_min": 25.0,
+    "achieved_max": 25.0,
+    "completed_in_window_min": 25.0,
+    "completed_in_window_max": 25.0,
+    "p50_ms": 24.084479,
+    "p99_ms": 30.949375,
+    "p99_worst_ms": 30.982143,
+    "p999_ms": 33.079295,
+    "errors": 0,
+    "leading_active_wait": "active:IO:WALSync",
+    "app_cpu_ms_per_op": 10.68,
+    "load_cpu_ms_per_op": 0.4266666666666667,
+    "ssh_cpu_ms_per_op": 0.0,
+    "db_cpu_ms_per_op": 13.36,
+    "wal_lsn_bytes_per_op": 3734.432,
+    "sql_exec_ms_per_op": 11.706788725339779,
+    "sql_calls_per_op": 9.485333333333333,
+    "max_connected": 11,
+    "max_active": 3,
+    "system": "convex",
+    "latency_ranges_ms": {
+      "p50_ms": {
+        "min": 23.724031,
+        "median": 24.084479,
+        "max": 25.460735
+      },
+      "p99_ms": {
+        "min": 30.818303,
+        "median": 30.949375,
+        "max": 30.982143
+      },
+      "p999_ms": {
+        "min": 32.800767,
+        "median": 33.079295,
+        "max": 35.651583
+      }
+    }
+  }
+]

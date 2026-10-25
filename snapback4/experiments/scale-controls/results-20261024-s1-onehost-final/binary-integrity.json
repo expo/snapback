@@ -1,0 +1,23 @@
+{
+  "expected_sha256": {
+    "snapback4": "ada2789bf453603c01c2c2051c09b16cbed107466e934faf2382bc9be8ce999f",
+    "sb4-scale-controls": "9c5675272ca897d4d54242a13ad4e47593d44c79bf0743adda907a679a34f9fb",
+    "sb4-postgres-scale-seed": "a90a857559c4ed0d4dbae75fc89d00c6fcd9db95efd7fb7c9097a35a2e79641c"
+  },
+  "actual_sha256": {
+    "snapback4": "ada2789bf453603c01c2c2051c09b16cbed107466e934faf2382bc9be8ce999f",
+    "sb4-scale-controls": "9c5675272ca897d4d54242a13ad4e47593d44c79bf0743adda907a679a34f9fb",
+    "sb4-postgres-scale-seed": "a90a857559c4ed0d4dbae75fc89d00c6fcd9db95efd7fb7c9097a35a2e79641c"
+  },
+  "all_match": true,
+  "product_base": "c985dbc640",
+  "product_paths_checked": [
+    "snapback4/crates",
+    "snapback4/vendor",
+    "snapback4/.cargo",
+    "snapback4/Cargo.toml",
+    "snapback4/Cargo.lock",
+    "snapback4/rust-toolchain.toml"
+  ],
+  "product_source_diff_empty": true
+}

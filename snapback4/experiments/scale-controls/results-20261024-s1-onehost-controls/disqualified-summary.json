@@ -1,0 +1,14 @@
+{
+  "trials": 328,
+  "by_system": {
+    "rawpg": 87,
+    "supabase": 92,
+    "convex": 149
+  },
+  "by_reason": {
+    "p99": 324,
+    "errors": 273,
+    "counter": 54
+  },
+  "full_trial_list": "raw archive: disqualified-trials.json"
+}

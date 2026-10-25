@@ -1,0 +1,35 @@
+{
+  "rawpg": [
+    {
+      "highest_passing_offered_per_s": 100,
+      "lowest_failing_offered_per_s": null,
+      "bracketed": false,
+      "rates": [
+        100
+      ],
+      "repeats": 3
+    }
+  ],
+  "supabase": [
+    {
+      "highest_passing_offered_per_s": 100,
+      "lowest_failing_offered_per_s": null,
+      "bracketed": false,
+      "rates": [
+        100
+      ],
+      "repeats": 3
+    }
+  ],
+  "convex": [
+    {
+      "highest_passing_offered_per_s": 100,
+      "lowest_failing_offered_per_s": null,
+      "bracketed": false,
+      "rates": [
+        100
+      ],
+      "repeats": 3
+    }
+  ]
+}
