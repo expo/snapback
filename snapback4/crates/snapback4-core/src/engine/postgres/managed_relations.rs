@@ -10,6 +10,60 @@ pub(super) fn verify(tx: &Tx<'_>) -> Result<(), RuntimeError> {
     Ok(())
 }
 
+// Capture identity before DDL without preempting the family's named attach
+// diagnostics. Positive checks run after its installers, before movement.
+pub(super) fn capture(tx: &Tx<'_>) -> Result<(), RuntimeError> {
+    let mut captured = tx.activation_relations.borrow_mut();
+    for row in tx.query(IDENTITIES, &[&crate::managed_relations::TABLES])? {
+        captured
+            .entry((row.get::<_, u32>(1), row.get::<_, String>(2)))
+            .or_insert(row.get::<_, u32>(0));
+    }
+    Ok(())
+}
+
+// @ref LLP 3000.009.001.000.002#6 — after installer DDL/before movement and immediately before COMMIT.
+pub(super) fn verify_activation(tx: &Tx<'_>) -> Result<(), RuntimeError> {
+    verify(tx)?;
+    // Capture identities on first admission and retain them through COMMIT.
+    // A privileged DDL hook must not substitute an equally named heap.
+    let rows = tx.query(IDENTITIES, &[&crate::managed_relations::TABLES])?;
+    let mut current = std::collections::BTreeMap::new();
+    for row in rows {
+        let name: String = row.get(2);
+        if row.get::<_, &str>(4) != "r" {
+            return Err(crate::managed_relations::refusal(
+                &name,
+                "expected plain heap",
+            ));
+        }
+        if !row.get::<_, bool>(5) {
+            return Err(crate::managed_relations::refusal(
+                &name,
+                "shadowed managed relation",
+            ));
+        }
+        if !row.get::<_, bool>(3) {
+            return Err(crate::managed_relations::refusal(
+                &name,
+                "not owned by activation role",
+            ));
+        }
+        current.insert((row.get::<_, u32>(1), name), row.get::<_, u32>(0));
+    }
+    let mut captured = tx.activation_relations.borrow_mut();
+    for (name, oid) in captured.iter() {
+        if current.get(name) != Some(oid) {
+            return Err(crate::managed_relations::refusal(
+                &name.1,
+                "captured relation OID changed or disappeared",
+            ));
+        }
+    }
+    captured.extend(current);
+    Ok(())
+}
+
 // @ref LLP 3000.009.001.000.002#6 — internal is not provenance: an incoming FK can cascade lifecycle writes.
 // Current installers create no trigger-backed constraints. Fenced upgrades and
 // read-only legacy inspection admit only the two historical seq -> _commits
@@ -17,14 +71,27 @@ pub(super) fn verify(tx: &Tx<'_>) -> Result<(), RuntimeError> {
 // Names of constraints were never fixed; trigger names include their own OID.
 // Separate namespace arms and name-typed index keys avoid scanning unrelated
 // schemas when activation repeatedly checks admission in a large catalog.
-pub(super) const SQL: &str = r#"
-WITH managed AS (
-    SELECT c.* FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+macro_rules! selection {
+    () => {
+        r#"    SELECT c.* FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
     WHERE n.nspname=current_schema() AND c.relname=ANY($1::text[]::name[])
     UNION ALL
     SELECT c.* FROM pg_class c
     WHERE c.relnamespace=pg_my_temp_schema()
-      AND c.relname IN ('_evolution_restored','_adopt_groups','_adopt_conflicts')
+      AND c.relname IN ('_evolution_restored','_adopt_groups','_adopt_conflicts')"#
+    };
+}
+const IDENTITIES: &str = concat!(
+    "SELECT c.oid,c.relnamespace,c.relname::text,c.relowner=current_user::regrole::oid,c.relkind::text,COALESCE(to_regclass(quote_ident(c.relname))=c.oid,false) FROM (",
+    selection!(),
+    ") c"
+);
+pub(super) const SQL: &str = concat!(
+    r#"
+WITH managed AS (
+"#,
+    selection!(),
+    r#"
 ), legacy AS (
     SELECT c.* FROM pg_constraint c JOIN managed source ON source.oid=c.conrelid
     JOIN managed target ON target.oid=c.confrelid
@@ -67,4 +134,37 @@ WITH managed AS (
       WHERE NOT(w.rulename='_RETURN' AND c.relkind IN ('v','m'))
 )
 SELECT relation,object FROM findings ORDER BY relation,object LIMIT 1
-"#;
+"#
+);
+
+// @ref LLP 3000.009.001.000.002#6 — privileged DDL code is visible, allowed, and outside the supported fence.
+pub(super) const EVENT_TRIGGERS: &str = "SELECT e.evtname::text,e.evtevent::text,COALESCE(e.evttags,ARRAY[]::text[]),pg_get_userbyid(e.evtowner)::text,format('%I.%I(%s)',n.nspname,p.proname,pg_get_function_identity_arguments(p.oid)),e.evtenabled::text FROM pg_event_trigger e JOIN pg_proc p ON p.oid=e.evtfoid JOIN pg_namespace n ON n.oid=p.pronamespace WHERE e.evtenabled<>'D' ORDER BY e.evtname";
+pub(super) fn warn_event_triggers(tx: &Tx<'_>) -> Result<(), RuntimeError> {
+    for row in tx.query(EVENT_TRIGGERS, &[])? {
+        eprintln!(
+            "{}",
+            event_warning(
+                row.get(0),
+                row.get(1),
+                row.get(2),
+                row.get(3),
+                row.get(4),
+                row.get(5)
+            )
+        );
+    }
+    Ok(())
+}
+pub(super) fn event_warning(
+    name: &str,
+    event: &str,
+    tags: Vec<String>,
+    owner: &str,
+    function: &str,
+    mode: &str,
+) -> String {
+    format!(
+        "WARNING: enabled Postgres event trigger {}; privileged activation-DDL rewriting is outside the supported contract",
+        serde_json::json!({"name":name,"events":event,"tags":tags,"owner":owner,"function":function,"enabledMode":mode})
+    )
+}

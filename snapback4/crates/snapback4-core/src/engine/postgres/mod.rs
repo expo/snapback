@@ -41,6 +41,7 @@ mod change_evidence;
 mod foundation_schema;
 mod ledger_schema;
 mod managed_relations;
+pub(crate) mod movement;
 mod shape;
 pub(crate) mod ownership;
 pub(crate) mod activation;

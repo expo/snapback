@@ -16,9 +16,17 @@ reconnect and `doctor`, including foreign incoming foreign keys. Remove the
 reported interception and retry. Snapback's own index-key and device-residency
 triggers require their exact installed definitions; only recognized legacy
 constraints and their exact built-in triggers are admitted. Database event
-triggers are allowed; activation checks their managed-relation effects after
-installer DDL before moving data, after creating activation TEMP tables before
-their first use, and again before committing. SQLite managed names match
+triggers are allowed. Doctor warns with every enabled trigger's name, event,
+tags, owner, function and enabled mode; activation logs the same list once.
+Privileged code (event triggers or superuser-level DDL hooks) that rewrites
+activation DDL or movement semantics is outside the supported contract.
+Activation checks observable effects after installer DDL, after scratch DDL
+before first use, and immediately before COMMIT: managed and TEMP movement
+relations, by captured OID, must be plain heaps owned by the activation role
+without foreign interception. Replaced OIDs, views, materialized views,
+partitioned and foreign tables refuse. Before removing a live/dormant source,
+activation verifies the destination's expected row count and available exact
+payloads in the same transaction; mismatch rolls back. SQLite managed names match
 identifiers without ASCII case distinctions, including quoted table names.
 
 Runtime DDL on managed relations while serving is explicitly outside the
@@ -35,8 +43,14 @@ suspend and every supported failover. They are not tuning estimates. For example
 forward adjustment; the three-second grant gets a local deadline below 2.747 s.
 Use this only when the deployment guarantees those bounds and all writers run
 the grant-aware protocol. Unset it for arbitrary clock steps, unqualified failover
-or mixed versions. Explicit malformed or non-UTF-8 bounds refuse startup. The
-ordinary one-statement G5 validation remains the default.
+or mixed versions, and do not use it across VM pause/migration longer than the lease. Explicit malformed or non-UTF-8 bounds refuse startup. The
+ordinary one-statement G5 validation remains the default. Serve startup and doctor
+print the active tier; doctor reads the owner's recorded declaration rather
+than using its own environment. Opt-in is the default posture even with
+`ha=none`. Revisit default-on only after the roughly one-second G6 stall is
+explained, G5-versus-G6 write cost is measured, a durable compatibility marker
+makes pre-G6 binaries refuse grant-enabled stores, and Snapback can witness
+the clock contract instead of assuming it.
 A grant hit rechecks bearer authority and expiry with a fresh clock. Every local
 commit invalidates revision equality. Grant loss falls back to database reads;
 unknown COMMIT stops cached reads and new writers until fenced reacquisition

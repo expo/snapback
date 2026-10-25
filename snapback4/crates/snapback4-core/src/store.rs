@@ -69,6 +69,7 @@ mod managed_relations;
 #[cfg(test)]
 mod ff1_fix_tests;
 pub(crate) mod dormant;
+mod movement;
 #[cfg(test)]
 mod dormant_tests;
 mod event_slots;

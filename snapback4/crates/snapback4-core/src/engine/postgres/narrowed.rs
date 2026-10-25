@@ -101,6 +101,7 @@ fn restore(tx: &Tx<'_>, next: &Schema) -> Result<(), RuntimeError> {
                 "INSERT INTO r(t,id,data) VALUES($1,$2,$3)",
                 &[name, &id, &canonical_json(&image)],
             )?;
+            super::movement::image(tx,"r",name,id,None,&image)?;
             Ok(())
         })?;
     }
@@ -215,6 +216,13 @@ pub(super) fn transition(
                     }
                     newly += 1;
                 }
+                // A retained original may differ from the candidate image, but
+                // must still exist before hiding the live candidate.
+                if !retained {super::movement::image(tx,"_dormant_narrow_rows",name,id,None,&image)?;}
+                let saved=tx.query("SELECT data FROM _dormant_narrow_rows WHERE t=$1 AND id=$2",&[name,&id])?;
+                let saved= saved.first().ok_or_else(|| RuntimeError::Store("SNAPBACK_ACTIVATION_COPY_MISMATCH: missing retained row".into()))?;
+                let saved:Value=decode(saved.get(0))?;
+                super::movement::image(tx,"_dormant_narrow_rows",name,id,None,&saved)?;
                 tx.rows_cache.borrow_mut().invalidate(name);
                 tx.execute("DELETE FROM r WHERE t=$1 AND id=$2", &[name, &id])?;
                 removed += 1;
@@ -237,6 +245,7 @@ pub(super) fn transition(
         }
     }
     tx.execute("INSERT INTO _evolution_restored(kind,t,col,id) SELECT 'narrowed',t,'',id FROM _dormant_narrow_rows n WHERE EXISTS(SELECT 1 FROM r WHERE r.t=n.t AND r.id=n.id) ON CONFLICT DO NOTHING",&[])?;
+    super::movement::verify_narrowed(tx,super::store::signed(restored)?)?;
     tx.execute("DELETE FROM _dormant_narrow_rows n WHERE EXISTS(SELECT 1 FROM r WHERE r.t=n.t AND r.id=n.id)",&[])?;
     tx.set_meta("activation_narrowed_retained", &newly.to_string())?;
     tx.set_meta("activation_narrowed_restored", &restored.to_string())?;

@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """Public deploy/serve witness; owns a private socket cluster and recorded children."""
 # @ref LLP 3000.009.001.000#3.4 — public CLI, persisted releases and real lease custody.
-import json, os, pathlib, shutil, signal, socket, subprocess, tempfile, threading, time, urllib.request, urllib.error, urllib.parse
+import json, os, sys, pathlib, shutil, signal, socket, subprocess, tempfile, threading, time, urllib.request, urllib.error, urllib.parse
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 TARGET = pathlib.Path(os.environ.get('CARGO_TARGET_DIR', 'target'))
 if not TARGET.is_absolute(): TARGET = ROOT / TARGET
 BIN = TARGET / 'debug/snapback4'
-ENV = {k:v for k,v in os.environ.items() if k not in ('SNAPBACK4_STORE_URL', 'SNAPBACK4_WORKER_STATE_DIR')}
+ENV = {k:v for k,v in os.environ.items() if k not in ('SNAPBACK4_STORE_URL', 'SNAPBACK4_WORKER_STATE_DIR', 'SNAPBACK4_READ_GRANT_CLOCK_BOUNDS')}
 WORK = pathlib.Path(tempfile.mkdtemp(prefix='s10d3-serve-', dir='/tmp'))
 DATA = WORK / 'data'
 children = []
@@ -104,9 +104,10 @@ def cli(args, success=True, env=None, url=None):
         assert result.returncode != 0, (args[0], result.stdout, result.stderr)
     return result
 
-def start(label, url, ready=True, deployment=None):
+def start(label, url, ready=True, deployment=None, grant_bounds=None):
     out, err = WORK / (label+'.out'), WORK / (label+'.err')
     environment = dict(ENV)
+    if grant_bounds is not None: environment['SNAPBACK4_READ_GRANT_CLOCK_BOUNDS']=grant_bounds
     if url is not None: environment['SNAPBACK4_STORE_URL'] = url
     with out.open('w') as stdout, err.open('w') as stderr:
         child = subprocess.Popen([str(BIN), 'serve', str(deployment or WORK/'deployment'),
@@ -509,6 +510,16 @@ try:
     released=run(['psql',connection,'-Atc',"SELECT lease_until='-infinity'::timestamptz FROM serving._owner"])
     assert released.returncode==0 and released.stdout.strip()=='t',released
     first,base=start('first',url)
+    g5_notice=(WORK/'first.err').read_text()
+    for text in ['G5 revision cache (one validation statement per hit)','reason:',
+                 'SNAPBACK4_READ_GRANT_CLOCK_BOUNDS=rate_ppm,forward_jump_ms','single owner',
+                 'every writer grant-aware','database time bounded as declared','VM pause/migration longer than the lease']:
+        assert text in g5_notice,g5_notice
+    # A doctor's different environment cannot enable a grant on the serving owner.
+    g5_doctor=cli(['doctor','--json'],url=url,env={**ENV,'SNAPBACK4_READ_GRANT_CLOCK_BOUNDS':'1000,250'})
+    assert 'G5 revision cache (one validation statement per hit)' in g5_doctor.stderr
+    assert json.loads(g5_doctor.stdout)['readCacheTier'].startswith('G5 revision cache')
+    print('FF3 PASS: serve and doctor expose G5, reason, exact opt-in setting and safe-use conditions',flush=True)
     if pathlib.Path('/proc').exists():
         assert b'private-password' not in pathlib.Path(f'/proc/{first.pid}/cmdline').read_bytes()
     print('failed startup: lease explicitly released; immediate corrected serve succeeded',flush=True)
@@ -585,10 +596,32 @@ try:
     print('logout: old session refused; ownership loss: process exits and listener closes',flush=True)
     # Reopen deploy under a fresh positive token and activate same-schema program bytes.
     (WORK/'app/snapback/schema.q').write_text(source.replace('  return n\n','  return n + 1\n'))
-    next_release=cli(['deploy',str(WORK/'deployment'),'--json'],url=url)
+    event=f'ff3_cli_{os.getpid()}'
+    sql(f"CREATE FUNCTION public.{event}() RETURNS event_trigger LANGUAGE plpgsql AS $$ BEGIN END $$; CREATE EVENT TRIGGER {event} ON ddl_command_end WHEN TAG IN ('CREATE INDEX') EXECUTE FUNCTION public.{event}()")
+    try:
+        next_release=cli(['deploy',str(WORK/'deployment'),'--json'],url=url)
+        trigger_doctor=cli(['doctor','--json'],url=url)
+        warning=json.loads(trigger_doctor.stdout)['warnings']
+        warning=next(w for w in warning if f'\"name\":\"{event}\"' in w)
+        assert next_release.stderr.count(warning)==1,next_release.stderr
+        assert trigger_doctor.stderr.count(warning)==1,trigger_doctor.stderr
+        for field in ['"enabledMode":"O"','"events":"ddl_command_end"','"tags":["CREATE INDEX"]','"owner":"s10d3"',event+'()']:
+            assert field in warning,warning
+        print('FF3 PASS: activation and doctor list the same benign enabled event trigger once, with all fields',flush=True)
+    finally:
+        sql(f'DROP EVENT TRIGGER {event}; DROP FUNCTION public.{event}()')
     selected=json.loads(next_release.stdout)
     assert selected['release']==2 and selected['generation']==2,selected
-    final,base=start('second-release',url)
+    linux_grant=sys.platform.startswith('linux')
+    final,base=start('second-release',url,grant_bounds='1000,250' if linux_grant else None)
+    if linux_grant:
+        g6_tier='G6 zero-flight hits (read grant; clock bounds 1000,250)'
+        assert g6_tier in (WORK/'second-release.err').read_text()
+        g6_doctor=cli(['doctor','--json'],url=url) # no clock variable on doctor
+        assert g6_tier in g6_doctor.stderr and json.loads(g6_doctor.stdout)['readCacheTier']==g6_tier
+        print('FF3 PASS: serve and doctor expose the actual G6 owner declaration 1000,250',flush=True)
+    else:
+        print('FF3 SKIP: G6 owner tier requires Linux CLOCK_BOOTTIME; G5 and event inventory remain covered',flush=True)
     http(base,'POST','/q/peek',{'args':{'key':'n1'}},token,expected=401)
     fresh=http(base,'POST','/auth/guest',{})['session']['token']
     page=http(base,'POST','/q/peek',{'args':{'key':'n1'}},fresh)
@@ -615,7 +648,9 @@ try:
     assert json.loads(deployed.stdout)['generation'] == 1, deployed.stdout
     binding = json.loads((scale_deployment/'store-binding.json').read_text())
     fixture = WORK/'p1mc-seed.json'
-    fixture.write_text(json.dumps({'connection':connection, 'namespace':'p1mc_scale',
+    # Seed with the public activation role so the fixture respects heap ownership.
+    app_connection=f'host={WORK} port=55483 user=s10d3_app dbname=postgres'
+    fixture.write_text(json.dumps({'connection':app_connection, 'namespace':'p1mc_scale',
         'store_id':binding['store_id'], 'session_path':str(WORK/'scale-session.json')}))
     # test-postgres.sh already compiles the CLI unit-test binary. Invoke that
     # exact helper without taking Cargo's build lock while a server witness runs.

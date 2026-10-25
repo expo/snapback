@@ -172,6 +172,7 @@ pub(super) fn save(
     value: &Value,
 ) -> Result<(), RuntimeError> {
     tx.execute("INSERT INTO _dormant_values(t,id,column_name,data) VALUES($1,$2,$3,$4) ON CONFLICT(t,id,column_name) DO UPDATE SET data=excluded.data", &[&name,&id,&column,&canonical_json(value)])?;
+    super::movement::image(tx,"_dormant_values",name,id,Some(column),value)?;
     Ok(())
 }
 
@@ -200,7 +201,7 @@ pub(super) fn transition(
     tx.batch("CREATE TEMP TABLE _evolution_restored(kind TEXT COLLATE \"C\" NOT NULL,t TEXT COLLATE \"C\" NOT NULL,col TEXT COLLATE \"C\" NOT NULL,id TEXT COLLATE \"C\" NOT NULL,PRIMARY KEY(kind,t,col,id)) ON COMMIT DROP")?;
     // DDL event triggers may have intercepted these new TEMP relations.
     // Refuse before the first write; lifecycle COMMIT repeats the same check.
-    super::managed_relations::verify(tx)?;
+    super::managed_relations::verify_activation(tx)?;
     let mut reuse = Vec::new();
     for (relation, query) in [
         (
@@ -275,10 +276,12 @@ pub(super) fn transition(
         if candidate.is_some() && removed.is_empty() {
             continue;
         }
+        let mut copied=0i64;
         walk(tx, "r", name, |id, mut row| {
             materialize_optional_fields(&mut row, old);
             if candidate.is_none() {
                 tx.execute("INSERT INTO _dormant_rows(t,id,data) VALUES($1,$2,$3) ON CONFLICT(t,id) DO UPDATE SET data=excluded.data", &[name,&id,&canonical_json(&row)])?;
+                super::movement::image(tx,"_dormant_rows",name,id,None,&row)?;
                 for (column, kind) in &old.columns {
                     if let Ok(value) = row.field(column) {
                         capture(tx, name, id, column, kind, value)?;
@@ -292,10 +295,12 @@ pub(super) fn transition(
                     }
                 }
             }
+            copied+=1;
             Ok(())
         })?;
         if candidate.is_none() {
             tx.rows_cache.borrow_mut().invalidate(name);
+            super::movement::population(tx,"r","_dormant_rows",name,copied)?;
             tx.execute("DELETE FROM r WHERE t=$1", &[name])?;
             tx.execute("DELETE FROM i WHERE t=$1", &[name])?;
         }
@@ -328,6 +333,7 @@ pub(super) fn transition(
                 "INSERT INTO r(t,id,data) VALUES($1,$2,$3)",
                 &[&name, &id, &canonical_json(&row)],
             )?;
+            super::movement::image(tx,"r",&name,id,None,&row)?;
             count += 1;
             Ok(())
         })?;
@@ -339,6 +345,7 @@ pub(super) fn transition(
             &count.to_string(),
         )?;
         tx.execute("INSERT INTO _evolution_restored(kind,t,col,id) SELECT 'table',t,'',id FROM _dormant_rows WHERE t=$1 ON CONFLICT DO NOTHING",&[&name])?;
+        super::movement::population(tx,"_dormant_rows","r",&name,super::store::signed(count)?)?;
         tx.execute("DELETE FROM _dormant_rows WHERE t=$1", &[&name])?;
         tx.execute("DELETE FROM _dormant_tables WHERE table_name=$1", &[&name])?;
         restoring.insert(name, old);
@@ -385,6 +392,7 @@ pub(super) fn transition(
                 "UPDATE r SET data=$3 WHERE t=$1 AND id=$2",
                 &[name, &id, &canonical_json(&image)],
             )?;
+            super::movement::image(tx,"r",name,id,None,&image)?;
             Ok(())
         })?;
     }
@@ -398,7 +406,9 @@ pub(super) fn transition(
     for (name, table) in &next.tables {
         for column in table.columns.keys() {
             tx.set_meta(&format!("activation_column_restored:{name}.{column}"), "0")?;
+            let expected_cells=super::movement::cells(tx,name,column)?;
             tx.execute("INSERT INTO _evolution_restored(kind,t,col,id) SELECT 'column',t,column_name,id FROM _dormant_values v WHERE t=$1 AND column_name=$2 AND EXISTS(SELECT 1 FROM r WHERE r.t=v.t AND r.id=v.id) AND NOT EXISTS(SELECT 1 FROM _dormant_narrow_rows n WHERE n.t=v.t AND n.id=v.id) ON CONFLICT DO NOTHING",&[name,column])?;
+            super::movement::verify_cells(tx,name,column,expected_cells)?;
             tx.execute(
                 "DELETE FROM _dormant_values v WHERE t=$1 AND column_name=$2 AND NOT EXISTS(SELECT 1 FROM _dormant_narrow_rows n WHERE n.t=v.t AND n.id=v.id)",
                 &[name, column],

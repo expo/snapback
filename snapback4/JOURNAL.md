@@ -107578,3 +107578,81 @@ Both lane PG16 clusters and both public-witness clusters stop with status 3 and
 no pidfiles; all 1,077 unique recorded PIDs are absent. PIDs left: none. Final
 available disk is 79.67 GiB, above the 40 GiB stop floor. No push or Git
 configuration change occurs.
+
+### 2026-10-25 — FF3: opt-in G6 posture and the privileged activation boundary
+
+Lane `sb4-pg/ff3` starts at the requested `0ce0c0d078`, with the G6 environment,
+its own line-tables-only target, eight Cargo jobs and private PG16 only.
+`llp-orient` followed the store-port activation refs, LLP 3000.009.001.000.002 §4.2/§6
+and the current deploy guide. The orchestrator's panel disposition is implemented;
+no throughput measurements run.
+
+G6 stays opt-in. Serve startup and Postgres doctor expose the active cache tier.
+G5 names its validation cost, reason, exact clock-bound setting and safe-use
+conditions: one owner, all writers grant-aware, declared database-clock bounds,
+and no VM pause/migration longer than the lease. G6 prints its actual bounds.
+Doctor reads an epoch-tagged advisory declaration recorded by the owner in the
+grant-install transaction, rather than its own environment. It is lease traffic,
+not authority or the future compatibility marker. The RFC, deploy guide and G6
+follow-up item 3 record all four prerequisites for revisiting default-on; the
+remaining mixed-writer and write-mix work stays open.
+
+Doctor warns with every enabled event trigger's name, event, tags, owner,
+qualified function and enabled mode. Activation emits that inventory once,
+including the retained evaluator's activation path. Benign event triggers stay
+legal. Privileged code which rewrites activation DDL or movement semantics is
+outside the supported contract; the positive checks cover observable violations.
+Opening captures existing OIDs before installers. After installer/scratch DDL,
+before first use, and immediately before COMMIT, movement relations must remain
+plain role-owned heaps under the existing foreign trigger/rule/RLS/constraint
+predicate. Replaced OIDs, TEMP shadows, views, materialized views, partitioned
+and foreign tables refuse. Family attach validation keeps its named refusals.
+
+Retained table, cell and narrowed-row movement verifies physical destinations
+before source removal on both stores. Counts survive intervening marker writes;
+cells and narrowed cohorts are rechecked at destruction, and whole-table
+restoration compares source/destination bytes there. Postgres payload comparison
+uses `pg_catalog."C"`, independently of payload locale and a schema-local C.
+Mismatch rolls back the activation, including source rows and generation.
+
+Failing-before evidence: the TEMP-view redirection witness fails **0/1** on the
+base because activation accepts the redirected view. Fixed, it refuses before
+use, with the nontransactional probe unadvanced and live/dormant copies and
+generation unchanged. Disabling copy verification fails **0/2** on the two
+stores. Making only cached PIPE custody exclusive fails **0/1** at the on-wire
+submission barrier. The mutations are restored. The final relay runs all four
+uncached/cached × release/termination arms, forbids preparation on the warmed
+cached path, and checks snapshots, isolated errors and loss of pending replies.
+Disabling the destruction-time verification also fails **0/2** on the late-erasure
+witnesses. Exact source-byte restoration is SHA-256 confirmed; the restored
+focused suite passes **25/0** again.
+
+The ICU witness physically changes only payload case at constant cardinality;
+ordinary equality and a shadowed unqualified C accept it, while the exact
+production predicate refuses (**1/1/0** acceptance counts). The native activation
+regression requires rollback to the original bytes. Late-erasure witnesses on
+both stores remove the destination after the first copy check and require the
+retained cell/live row/generation to survive the refusal. The final focused
+suite passes **25/0**. The public CLI witnesses pass G5/G6 output with different
+owner/doctor environments and an identical benign event-trigger warning once
+in activation and doctor.
+
+Qualification caught three named ledger refusals being preempted by the first
+placement of the new positive check. Separating early identity capture from
+post-installer positive admission restores all three; the complete ledger unit
+scope passes **247/0**. The initial public native seed used the cluster admin
+against app-owned heaps; its refusal is correct. The fixture now uses the public
+activation role, and the complete public milestone passes, including the S1
+application and maintained-total recounts. G6-only witness portions are scoped
+to Linux CLOCK_BOOTTIME; portable G5/event inventory assertions remain.
+
+Final qualification: full core **1217 passed / 0 failed / 5 ignored** across 49 targets; full binary **606 passed / 0 failed / 54 ignored**; HTTP RT0 **3/0** (G6 W1/W2/W3 **0/0/0**), overlay RT0 **2/0**; the second complete `bash scripts/test-postgres.sh` run has **810 passed / 1 failed / 0 ignored** across 36 Rust scopes, with only the inherited evaluator concurrent read/modify/write SQLSTATE `40001`; its complete public CLI milestone passes.
+Root `./ref-check`: 568 LLP docs, 11969 refs, 0 errors, 0 unchecked.
+The privileged event-trigger ticket, including its cached PIPE P2 item, moves to
+`issues/closed/`. Raw logs, SQL witnesses and PID receipts stay outside Git.
+
+Private PG16 masters `1814115`, `1899842`, `1953077`, `1846994`, `1860062` are independently stopped and confirmed:
+status 3, no postmaster.pid and no matching process. Recorded PID/start-tick and
+worktree-target executable audits are empty. Minimum recorded free space is
+119.71 GiB, above the 40 GiB floor. No owned PIDs remain. Work stays local;
+no push, stash, Git configuration change, q24 access or shared PG17 change.

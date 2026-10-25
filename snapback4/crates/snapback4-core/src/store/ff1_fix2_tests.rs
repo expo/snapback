@@ -70,6 +70,39 @@ fn dormant_snapshot(e:&mut Engine) -> Vec<(String,String,String)> {
 }
 
 #[cfg(feature="postgres")]
+#[test] #[ignore="private PG16; privileged TEMP-view redirection regression"]
+fn activation_temp_view_redirection_refuses_without_movement() {
+    let (mut e,s,p,name)=dormant_fixture();
+    let before=dormant_snapshot(&mut e);
+    let generation=e.generation();
+    let event=format!("ff3_view_{:x}",crate::ids::seed());
+    sql(&mut e,true,&format!(r#"
+      CREATE SEQUENCE movement_probe;
+      CREATE FUNCTION erase_redirected() RETURNS trigger LANGUAGE plpgsql AS $$
+      BEGIN PERFORM nextval('movement_probe'); DELETE FROM r WHERE t=NEW.t AND id=NEW.id; RETURN NEW; END $$;
+      CREATE FUNCTION redirect_temp() RETURNS event_trigger LANGUAGE plpgsql AS $$
+      BEGIN IF current_schema()='{name}' AND to_regclass('pg_temp._evolution_restored') IS NOT NULL
+        AND to_regclass('pg_temp.redirected_heap') IS NULL THEN
+        ALTER TABLE pg_temp._evolution_restored RENAME TO redirected_heap;
+        CREATE TEMP VIEW _evolution_restored AS SELECT * FROM pg_temp.redirected_heap;
+        CREATE TRIGGER erase_redirected AFTER INSERT ON pg_temp.redirected_heap FOR EACH ROW EXECUTE FUNCTION erase_redirected();
+      END IF; END $$;
+      CREATE EVENT TRIGGER {event} ON ddl_command_end WHEN TAG IN ('CREATE TABLE') EXECUTE FUNCTION redirect_temp();
+    "#));
+    let result=restore(&mut e,s,p);
+    sql(&mut e,true,&format!("DROP EVENT TRIGGER {event}"));
+    let tx=e.store_mut().transaction().unwrap();
+    let advanced=tx.test_postgres_tx().query("SELECT is_called FROM movement_probe",&[]).unwrap()[0].get::<_,bool>(0);
+    let live=tx.test_postgres_tx().query("SELECT count(*) FROM r WHERE t='notes'",&[]).unwrap()[0].get::<_,i64>(0);
+    tx.rollback().unwrap();
+    refused(result);
+    assert!(!advanced,"redirection was used before admission");
+    assert_eq!(live,0);
+    assert_eq!(e.generation(),generation);
+    assert_eq!(dormant_snapshot(&mut e),before);
+}
+
+#[cfg(feature="postgres")]
 #[test] #[ignore="private PG16; scripts/test-postgres.sh"]
 fn foreign_incoming_cascade_refused() {
     let(mut e,s,p,name)=dormant_fixture();let before=dormant_snapshot(&mut e);assert_eq!(before.len(),1);

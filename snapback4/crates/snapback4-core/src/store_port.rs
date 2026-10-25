@@ -137,3 +137,12 @@ pub(crate) mod change_evidence_tests;
 #[cfg(feature = "evaluation-support")]
 #[path = "store/port/evaluation.rs"]
 mod evaluation;
+
+/// Operator-facing tier explanation; this does not authorize a cached read.
+// @ref LLP 3000.009.001.000.002#4.2 — G6 remains an explicit opt-in under the declared clock and writer contract.
+pub fn g5_read_cache_tier(reason: &str) -> String {
+    format!("G5 revision cache (one validation statement per hit); reason: {reason}; enable G6 with SNAPBACK4_READ_GRANT_CLOCK_BOUNDS=rate_ppm,forward_jump_ms only with a single owner, every writer grant-aware, database time bounded as declared, and no VM pause/migration longer than the lease")
+}
+pub fn g6_read_cache_tier(rate_ppm: u64, forward_jump_ms: u64) -> String {
+    format!("G6 zero-flight hits (read grant; clock bounds {rate_ppm},{forward_jump_ms})")
+}
