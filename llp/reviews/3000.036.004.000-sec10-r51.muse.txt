@@ -1,0 +1,28 @@
+muse: workspace root: /home/ccheever/projects/sb4-b26-sec10 (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=b58d25d3-de5f-433e-b8af-232e9b7c639c]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-b26-sec10 (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY — §10 r51 delta is technically ready; pending native/full600/matrices is not an objection.
+
+What I checked (read-only, no commands run, no old reviews read):
+
+- Current §10 text in [llp/3000.036.004.000-structural-write-authority.rfc.md](/home/ccheever/projects/sb4-b26-sec10/llp/3000.036.004.000-structural-write-authority.rfc.md), lines 300–630.
+- Semantic delta [sec10-r51-delta.patch](/home/ccheever/sb4-loop/sec10-r51-delta.patch).
+- Current post-delta [lifecycle.rs](/home/ccheever/projects/sb4-b26-sec10/snapback4/crates/snapback4-lang/src/bind/security/creation_advice/lifecycle.rs), [executed.rs](/home/ccheever/projects/sb4-b26-sec10/snapback4/crates/snapback4-lang/src/bind/security/challenges/executed.rs:30), [workflow.rs](/home/ccheever/projects/sb4-b26-sec10/snapback4/crates/snapback4-lang/src/bind/security/derived/workflow.rs:69), [security_sec10.rs](/home/ccheever/projects/sb4-b26-sec10/snapback4/crates/snapback4-lang/tests/security_sec10.rs:676). Frozen commit `9c9e7e2` itself was not opened (all commands timeout, and git/network were out of scope); baseline inferred from the delta parent.
+
+Fixes land as described:
+
+- S1 scalar: new `positive_approval_field` requires actual positive operands. Boolean polarity flips through `not` and `=/!=` with Bool literals. `Exists` requires unnegated filter scan. `count(...)` requires both a positive receipt on the whole predicate and a positive filter scan. Bare `Member` requires `!negative`. A positive container no longer lends polarity to `not d.approved`. Double negation and positive counts retain use. Time keeps arithmetic (`+,-,*,/,%,` unary) and calendar (`year/month/day/hour/minute/second`) operands; unknown calls return false.
+- Caller focal masking retained; nested-population focals still rewritten before scanning.
+- Deleted-image: new `approval_populations` inventories `exists`, `count>0`, `not(count=0)`, Bool-wrapped `(count>0)=true` (via recursion into the inner Binary), and nested filters. `consumed()` still evaluates the complete original predicate; only the `verdict==Some(false)` deleted-row ambiguity check uses the inventory. New committed-trace test covers all 4 forms with delete-then-effect → unknown and effect-with-no-approval → `Some(false)`.
+- New captured-row test covers `not` → gate, bare → no gate, `not not` → no gate.
+- Analyzer `sec10-49` → `sec10-50`, matching spec. No IR/schema/store/protocol change in the diff.
+
+Material concerns: none blocking. Two non-blocking notes, no repair required for readiness:
+
+- Time comparisons stay polarity-insensitive (`not (t > now)` still counts via the `ordered_time` arm). Defensible as still a window (`t <= now`); consistent with pre-delta Time handling. Flag only if the author intends negated windows to be non-use.
+- Key-only positive populations (`exists approvals[approved=true]`, `count(approvals[approved=true])>0` with no filter) still do not count as scalar use, same as pre-delta. Consistent, not a regression.
+
+Not verified (per your constraints, not objections): reported `89 focused public + 37 private PASS` was not re-executed; frozen-to-delta completeness beyond the provided patch was not diffed; native/full600/matrices remain pending with no zero-FP claim made.
