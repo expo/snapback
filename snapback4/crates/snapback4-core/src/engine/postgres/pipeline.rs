@@ -29,6 +29,7 @@ fn runtime() -> &'static tokio::runtime::Runtime {
 }
 
 pub(crate) struct Pool {
+    durability: Mutex<Option<Arc<super::early_release::Durability>>>,
     config: tokio_postgres::Config,
     setup: String,
     slots: Mutex<Slots>,
@@ -156,6 +157,7 @@ impl Pool {
         }
         let quoted = super::store::namespace(namespace)?;
         Ok(Arc::new(Self {
+            durability:Mutex::new(None),
             config: c,
             setup: format!(
                 "SET search_path={quoted},pg_catalog; SET statement_timeout='5s'; SET lock_timeout='5s'; SET default_transaction_read_only=on; SET client_encoding='UTF8'; SET extra_float_digits=3; SET bytea_output='hex'; SET plan_cache_mode=force_generic_plan"
@@ -165,6 +167,9 @@ impl Pool {
             next: AtomicUsize::new(0),
             depth,
         }))
+    }
+    pub(crate) fn set_durability(&self,gate:Option<Arc<super::early_release::Durability>>) {
+        *self.durability.lock().unwrap_or_else(|p|p.into_inner())=gate;
     }
     pub(crate) fn reserve_writer(&self) -> Result<(), RuntimeError> {
         let mut slots = self.slots.lock().unwrap_or_else(|p|p.into_inner());
@@ -204,11 +209,14 @@ impl Pool {
         }
         let reservation = Reservation(self);
         constructing();
+        let durability=self.durability.lock().unwrap_or_else(|p|p.into_inner()).clone();
         let result = runtime().block_on(async {
                 // tokio-postgres connect_socket sets TCP_NODELAY before startup,
                 // exactly as the synchronous postgres wrapper does for writers.
                 let (client, connection) = self.config.connect(tokio_postgres::NoTls).await?;
-                runtime().spawn(async move { let _ = connection.await; });
+                runtime().spawn(async move {
+                    if connection.await.is_err() && let Some(gate)=durability {gate.break_history();}
+                });
                 client.batch_execute(&self.setup).await?;
                 let a = client.query_one("SELECT pg_backend_pid(),current_setting('application_name'),current_setting('server_version_num')::int,current_setting('client_encoding'),current_setting('extra_float_digits'),current_setting('bytea_output')", &[]).await?;
                 let b = client.query_one("SELECT pg_backend_pid(),current_setting('application_name')", &[]).await?;
@@ -428,6 +436,25 @@ impl Connection {
                 runtime().block_on(slot.client.batch_execute("COMMIT"))?;
                 Ok(())
             }
+        }
+    }
+    pub(super) fn commit_synchronous(&mut self,warning:&Arc<std::sync::atomic::AtomicBool>)->Result<(),RuntimeError> {
+        self.commit_prepared(warning)
+    }
+    pub(super) fn commit_synchronous_head(&mut self,warning:&Arc<std::sync::atomic::AtomicBool>)->Result<super::early_release::Snapshot,RuntimeError> {
+        let warning=warning.clone();
+        match self {
+            Self::Sync(c)=>super::early_release::commit_synchronous_head(c,&warning),
+            Self::Writer(c)=>c.call(move|c|super::early_release::commit_synchronous_head(c,&warning)),
+            _=>Err(RuntimeError::Store("reader cannot certify a synchronous write".into())),
+        }
+    }
+    pub(super) fn commit_early(&mut self,warning:&Arc<std::sync::atomic::AtomicBool>,token:i64,slot:i64,xid:String)->Result<(String,String),RuntimeError> {
+        let warning=warning.clone();
+        match self {
+            Self::Sync(c)=>super::early_release::commit_marker(c,&warning,token,slot,&xid),
+            Self::Writer(c)=>c.call(move|c|super::early_release::commit_marker(c,&warning,token,slot,&xid)),
+            _=>Err(RuntimeError::Store("reader cannot commit an early-release batch".into())),
         }
     }
     pub(crate) fn terminate_tagged(&mut self,id:&str,token:i64)->Result<Vec<i32>,RuntimeError> {

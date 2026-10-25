@@ -150,7 +150,7 @@ pub(super) fn connect(mut config: Config) -> Result<(Client, Arc<AtomicBool>), R
 
 // @ref LLP 3000.009.001.000#5.4.1 — COMMIT has no adapter timeout or cancellation; loss of acknowledgement is unknown.
 pub(super) fn commit(mut tx: Transaction<'_>, warning: &AtomicBool) -> Result<(), RuntimeError> {
-    tx.batch_execute("SET LOCAL statement_timeout = 0; SET LOCAL lock_timeout = 0")?;
+    tx.batch_execute("SET LOCAL synchronous_commit=on; SET LOCAL statement_timeout = 0; SET LOCAL lock_timeout = 0")?;
     warning.store(false, Ordering::SeqCst);
     commit_result(tx.commit(), warning)
 }

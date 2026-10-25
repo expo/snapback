@@ -287,6 +287,12 @@ pub(super) fn run(
     };
     #[cfg(feature="postgres")]
     let lane=Arc::new(Mutex::new(super::super::program_pipeline::Lane::new()));
+    #[cfg(feature="postgres")]
+    let recovery_gate={
+        let slot=Arc::new(Mutex::new(None));let capture=slot.clone();
+        execute(Box::new(move|engine|*capture.lock().unwrap()=engine.store.durability()));
+        let gate=slot.lock().unwrap().clone();gate
+    };
     let mut pending = None;
     let mut arrivals = Arrivals::default();
     loop {
@@ -300,6 +306,15 @@ pub(super) fn run(
             if !lane.lock().unwrap().empty() {
                 match receiver.recv_timeout(Duration::from_micros(100)) {
                     Ok(work)=>Ok(work), Err(mpsc::RecvTimeoutError::Timeout)=>continue,
+                    Err(_)=>Err(mpsc::RecvError),
+                }
+            } else if let Some(gate)=&recovery_gate {
+                match receiver.recv_timeout(Duration::from_millis(10)) {
+                    Ok(work)=>Ok(work),
+                    Err(mpsc::RecvTimeoutError::Timeout)=>{
+                        if gate.broken() {let state=lane.clone();execute(Box::new(move|engine|state.lock().unwrap().drain(engine)));}
+                        continue;
+                    }
                     Err(_)=>Err(mpsc::RecvError),
                 }
             } else {receiver.recv()}

@@ -525,7 +525,7 @@ impl Closure {
         let params: Vec<_> = sql.params.iter().map(Param::as_sql).collect();
         let pipeline = {
             let inner = tx.inner.borrow();
-            inner.client.is_reader() && !inner.started
+            tx.early_release.is_none() && inner.client.is_reader() && !inner.started
         };
         let rows = if pipeline {
             let typed: Vec<_> = sql.params.iter().map(|p| (p.as_sql(), p.ty())).collect();
@@ -544,11 +544,13 @@ impl Closure {
                 // A connection loss is retryable for this request. Never hide
                 // it with a fresh connection or replay an in-flight statement.
                 Err(RuntimeError::Postgres(e)) if e.as_db_error().is_none() => return Err(e.into()),
+                Err(error) if tx.early_release.is_some()=>return Err(error),
                 Err(_) => return tx.restart_request_facts(digest),
             }
         } else {
             let mut results = match tx.flight(&[(&statement, &params)], "ROLLBACK") {
                 Ok(results) => results,
+                Err(error) if tx.early_release.is_some()=>return Err(error),
                 Err(_) => return tx.restart_request_facts(digest),
             };
             tx.finish_read_flight();

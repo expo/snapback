@@ -14,6 +14,7 @@ use std::{
 #[derive(Clone)]
 pub(crate) struct StoreConfig {
     connection: String,
+    pub early_lock_release: bool,
     namespace: String,
     pub binding: String,
     pub state_directory: PathBuf,
@@ -50,6 +51,7 @@ impl StoreConfig {
         }
         let mut namespace = None;
         let mut ha = None;
+        let mut commit_mode=None;
         let mut parameters = Vec::new();
         for part in query.split('&') {
             let (key, value) = part
@@ -63,7 +65,8 @@ impl StoreConfig {
             match key {
                 "schema" if namespace.is_none() => namespace = Some(value.to_owned()),
                 "ha" if ha.is_none() => ha = Some(value),
-                "schema" | "ha" => return Err(input("duplicate store URL setting")),
+                "commit" if commit_mode.is_none() => commit_mode=Some(value),
+                "schema" | "ha" | "commit" => return Err(input("duplicate store URL setting")),
                 "options" | "application_name" => {
                     return Err(input(
                         "session options and application_name are owned by the store",
@@ -79,6 +82,7 @@ impl StoreConfig {
         if ha != "none" {
             return Err("E_STORE_UNSUPPORTED: ha-continuity requires provider qualification; this profile admits ha=none".into());
         }
+        let early_lock_release=match commit_mode {None|Some("synchronous")=>false,Some("early")=>true,_=>return Err(input("commit requires synchronous or early"))};
         let connection = format!("{base}?{}", parameters.join("&"));
         let binding = AnyStore::postgres_binding(&connection, &namespace).map_err(redact)?;
         let state_directory = options
@@ -90,6 +94,7 @@ impl StoreConfig {
             .unwrap_or_default();
         Ok(Some(Self {
             connection,
+            early_lock_release,
             namespace,
             binding,
             state_directory,
@@ -326,11 +331,13 @@ impl OwnedStore {
         self.release_on_drop.store(false, std::sync::atomic::Ordering::Release);
     }
     pub fn open(&self) -> Result<AnyStore, RuntimeError> {
-        AnyStore::open_postgres_owned(
+        let mut store=AnyStore::open_postgres_owned(
             &self.config.connection,
             &self.config.namespace,
             &self.lease.lock().unwrap_or_else(|p| p.into_inner()),
-        )
+        )?;
+        if self.config.early_lock_release {store.enable_postgres_early_lock_release()?;}
+        Ok(store)
     }
     pub fn worker_state(&self, store: &AnyStore) -> Result<PathBuf, String> {
         let path = store
@@ -431,6 +438,7 @@ mod tests {
         let id = engine.store().store_identity().unwrap().unwrap();
         drop(engine);
         let config = StoreConfig {
+            early_lock_release:false,
             binding: AnyStore::postgres_binding(&connection, &namespace).unwrap(),
             connection: connection.clone(), namespace: namespace.clone(), state_directory: PathBuf::new(),
         };
@@ -506,6 +514,7 @@ mod ff2_tests {
         let id = engine.store().store_identity().unwrap().unwrap();
         drop(engine);
         let config = StoreConfig {
+            early_lock_release:false,
             binding: AnyStore::postgres_binding(&connection, &namespace).unwrap(),
             connection: connection.clone(),
             namespace: namespace.clone(),

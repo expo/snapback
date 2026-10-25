@@ -11,6 +11,7 @@ use std::{collections::BTreeMap, time::Instant};
 
 pub(crate) struct Suspended {
     pub head: Head,
+    pub release_epoch: u64,
     pub ticket: i64,
     pub predecessor: Option<i64>,
     pub attempt: String,

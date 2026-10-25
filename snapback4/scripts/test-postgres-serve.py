@@ -281,6 +281,9 @@ try:
     role=run(['psql',connection,'-v','ON_ERROR_STOP=1','-c',"CREATE ROLE s10d3_app LOGIN; GRANT CREATE ON DATABASE postgres TO s10d3_app;"])
     assert role.returncode==0,role.stderr
     url=url.replace('s10d3:private-password','s10d3_app:private-password')
+    early_commit = os.environ.get('SNAPBACK4_TEST_PG_COMMIT_MODE') == 'early'
+    if early_commit: url += '&commit=early'
+
     for invalid,code in [
         ('postgres://app@/postgres?ha=none','E_STORE_CONFIG'),
         ('postgres://app@/postgres?schema=app&ha=async','E_STORE_UNSUPPORTED'),
@@ -554,6 +557,7 @@ try:
     doctor=json.loads(doctor_result.stdout)
     assert doctor['store']['token']>0 and not doctor['store']['expired'],doctor
     assert doctor['certifiedChanges'] is True,doctor
+    assert doctor['commitMode'] == ('early-lock-release' if early_commit else 'synchronous'),doctor
     print('HTTP: guest/session, query, identified mutation, receipt replay, changes preserved=[notes]; doctor positive owner/lease',flush=True)
     other,message=start('contender',url,False)
     assert 'E_STORE_OWNERSHIP' in message,message

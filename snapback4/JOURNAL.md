@@ -108464,3 +108464,49 @@ web and password Expo. Packed probe:check and a real Chromium file selection
 passed. A copy of wave-28 lane 018 passed advance, redeploy and clock-retaining
 restart. Mac/device execution is skipped by this Linux workstream's brief.
 The 0.4.42 changes card entry records the surface; no version was bumped.
+
+## 2026-10-25 — G7-E: opt-in early lock release on Postgres
+
+[The G7-E report](reports/20261025-g7e-postgres/REPORT.md) records the functional
+arm on G7.2 `069520dc23`. The store URL's `commit=early` enables it; S remains
+the default pending an E S1 rerun. Each eligible depth-two batch retains three
+flights, with asynchronous data COMMIT and a WAL-generating, count-checked,
+explicitly synchronous marker in the third message. UPDATE 0, marker errors
+including 23514 after data COMMIT, missing replies and cancellation warnings
+remain unknown and never replay committed data. Barriers, solo, recovery and
+takeover explicitly commit synchronously.
+
+A shared D release lock binds revision, public sequence and each snapshot's
+attempt to a recovery epoch. E routes reader optimizations through the gated
+repeatable-read transport; G6 zero-flight hits open certified publication through
+the same rule. Queries, validation/fills, changes, replay, sync expansion and
+outbox reads are covered. SQL inspection and actions retain the existing named
+Postgres refusals. The deploy card discloses the raw-SQL visibility window.
+Reader holds are bounded at 250 ms per snapshot. Connection loss notifies the
+idle committer; after complete drainage, a fenced synchronous head write changes
+the attempt and rebuilds D without advancing revision/public sequence. The old
+G6 epoch stays revoked and reads use G5 until a new grant.
+
+Two additional failures found during qualification are fixed: a lazy closed
+idle writer now retries its fenced control probe/recovery once after reconnect,
+and a logical request reopening after composed-read fallback captures its new
+physical snapshot's head. The live PG crash witness reuses the actually lost
+revision with a fresh attempt and payload, without releasing its held reader.
+A direct effect claim is held at COMMIT and releases its payload only after
+the synchronous barrier advances D.
+The idle N=1 ratchet also caught an extra certificate flight (S/E 15/16).
+Sampling the synchronous post-write head in COMMIT's message restores parity;
+an undecodable head after COMMIT remains unknown. The final E suite includes
+both the before/after round-trip witness and a committed-data decode-failure case.
+
+The private SIGKILL witnesses preserve every acknowledged write and recover a
+whole-batch prefix. A PG marker-boundary kill actually loses eight visible,
+unacknowledged receipts while retaining all eight acknowledged keys. Restart
+rebuilds D before output; takeover during a blocked marker refuses the old owner,
+and old-token row locks do not block new-token provisioning. Qualification/test
+acknowledgements assert a data-commit LSN upper bound at or below the returned
+WAL flush position. Physical power cycling is unavailable on this shared host.
+
+Final counts, independent mechanism-disabled failures and PID custody are in
+the report. No throughput campaign, S1 qualification, publication, push, stash,
+Git configuration change or unowned signal occurs in this lane.
