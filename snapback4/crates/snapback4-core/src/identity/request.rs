@@ -12,6 +12,9 @@ pub struct RequestSnapshot<'a, 'store> {
 /// An owned observation at one boundary. Carrying it never grants authority at
 /// another boundary; that boundary must resolve again with a fresh clock.
 pub struct RequestAuthority {
+    /// Store generation and supervisor fence at this observation, never at insertion.
+    pub generation: Option<u64>,
+    pub supervisor_revision: usize,
     pub capability: Option<Capability>,
     pub store_id: String,
     pub head: u64,
@@ -30,9 +33,10 @@ pub(crate) fn request_authority(tx: &AnyTx<'_>, digest: &str, sample: ServiceSam
 pub(crate) fn authority_from_facts(tx: &AnyTx<'_>, facts: facts::SessionFacts, sample: ServiceSample) -> Result<RequestAuthority, RuntimeError> {
     let store_id = facts.store_id.clone().ok_or_else(|| RuntimeError::Store("missing store identity".into()))?;
     let head = facts.head;
+    let generation = facts.store_generation.as_deref().and_then(|value| value.parse().ok());
     let capability = facts::resolve(tx, facts, sample.now, Some(sample.supervisor_revision))?
         .map(|s| (s.principal, s.kind, s.scope));
-    Ok(RequestAuthority { capability, store_id, head })
+    Ok(RequestAuthority { capability, store_id, head, generation, supervisor_revision: sample.supervisor_revision })
 }
 
 impl RequestSnapshot<'_, '_> {

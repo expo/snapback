@@ -34,6 +34,10 @@ pub(super) fn generation_reply(reply: &str) {
 fn foreign(pg: bool, door: &str) {
     let (host, dir, namespace) = host(pg);
     let session = identity::open_session(lock(&host.shared.engine).store(), "guest:gen", "guest", host.shared.now()).unwrap();
+    if door.starts_with("bearer") {
+        assert_eq!(body(&host.request("POST", "/q/count", &headers(&session), r#"{"args":{"value":7}}"#))["data"], 7);
+        assert_eq!(lock(&host.shared.carried).len(), 1, "activation must race a warm hint");
+    }
     let store = if pg {
         #[cfg(feature = "postgres")]
         { snapback4_core::store_port::AnyStore::open_postgres(&std::env::var("SNAPBACK4_EVAL_POSTGRES").unwrap(), &namespace).unwrap() }

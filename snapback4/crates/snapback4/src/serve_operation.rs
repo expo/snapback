@@ -61,7 +61,19 @@ fn judge(shared: &Shared, engine: Option<&Engine>, name: &str, payload: Json, ca
     Ok(Prepared { capability, payload, args_json, args, delivery_fingerprint, ephemeral })
 }
 
-fn denied(why: Refusal) -> Reply { Reply { status: if why.code == "E_STORE_REPLACED" {409} else if why.retryable {503} else {401}, body: json!({"denied":why}) } }
+// @ref LLP 3000.009.001.000.001#31-authority-boundaries — warm and cold authority refusals preserve the same transport policy.
+pub(super) fn authority_status(why: &Refusal, otherwise: u16) -> u16 {
+    match why.code.as_str() {
+        "E_STORE_REPLACED" => 409,
+        "E_READ_ONLY" => 403,
+        "E_GENERATION" => 503,
+        "E_COMMIT_OUTCOME_UNKNOWN" => 500,
+        _ if why.retryable => 503,
+        "E_AUTH" => 401,
+        _ => otherwise,
+    }
+}
+fn denied(why: Refusal) -> Reply { Reply { status: authority_status(&why, 401), body: json!({"denied":why}) } }
 
 pub(super) fn prepare(request: &Request, shared: &Shared, name: &str, body: &str, capability: Option<snapback4_core::identity::Capability>) -> Result<Prepared, Reply> {
     let mutation = request.url().starts_with("/m/");

@@ -702,7 +702,7 @@ fn every_vector_tail_count_is_verified_before_commit_and_solo_fallback() {
                 m
             })
             .collect();
-        let Err((failure, _)) = engine.program_group_attempt(&mut members, &[0, 1, 2, 3], false)
+        let Err((failure, _)) = engine.program_group_attempt(&mut members, &[0, 1, 2, 3], false, None)
         else {
             panic!("{table}: missing count refusal")
         };

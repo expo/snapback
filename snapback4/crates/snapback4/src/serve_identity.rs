@@ -6,21 +6,34 @@ pub(crate) fn principal_of(request: &impl RequestInfo, shared: &Shared) -> Resul
 }
 
 pub(crate) fn ingress_of(request: &impl RequestInfo, shared: &Shared) -> Result<snapback4_core::identity::Capability, Refusal> {
+    let admission = Admission::capture(request, shared)?;
+    // Retain the resolver's fresh post-checkout clock. If the supervisor fence
+    // changes across discovery, remember discards the observation instead.
+    let revision = shared.worker_revision.load(Ordering::Acquire);
+    let store = lock(&shared.wake).store_id.clone();
+    let generation = *lock(&shared.generation);
     let capability = principal_with_owner(request, shared, None, true)?;
-    Admission::capture(request, shared)?.remember(shared, &capability);
+    if let Some(store) = store { admission.remember(shared, &capability, &store, generation, revision); }
     Ok(capability)
 }
 
-// @ref LLP 3000.009.001.000.001#31-authority-boundaries — a carried capability is only a planning hint; the query snapshot always resolves live facts.
-pub(crate) fn query_ingress(request: &impl RequestInfo, shared: &Shared) -> Result<Option<snapback4_core::identity::Capability>, Refusal> {
+// @ref LLP 3000.009.001.000.001#13-g4a-read-refinement-2026-10-23 — bounded query/mutation hints never authorize; each final snapshot resolves live facts.
+pub(crate) fn operation_ingress(request: &impl RequestInfo, shared: &Shared) -> Result<Option<snapback4_core::identity::Capability>, Refusal> {
     let admission = Admission::capture(request, shared)?;
     if let Some(persona) = &admission.persona {
         return Ok(Some((persona_principal(persona), "persona".into(), snapback4_core::identity::SessionScope::Full)));
     }
     if admission.bearer.is_none() { return Err(Refusal::new("E_AUTH", "auth", "sign in: send a bearer token").guide("personas")); }
     let identity = lock(&shared.wake).store_id.clone();
-    Ok(lock(&shared.carried).get(&admission.digest())
-        .filter(|(store,_)| Some(store) == identity.as_ref()).map(|(_,capability)| capability.clone()))
+    // A supervisor fence invalidates discovery hints as an eviction would.
+    // Cold discovery can still refuse a retired child while retirement holds
+    // the writer lock; successful execution always needs its final snapshot.
+    let generation = *lock(&shared.generation);
+    let carried = lock(&shared.carried);
+    let revision = shared.worker_revision.load(Ordering::Acquire);
+    Ok(carried.get(&admission.digest())
+        .filter(|(store,_,observed_generation,observed)| Some(store) == identity.as_ref() && *observed_generation == generation && *observed == revision)
+        .map(|(_,capability,_,_)| capability.clone()))
 }
 
 // @ref LLP 3000.009.001.000.000#3.6 — credentials are owned admission inputs; every final snapshot resolves live authority and time.
@@ -31,6 +44,7 @@ pub(crate) struct Admission {
     trusted_dev: bool,
     planned_ordinary: bool,
     expected_query: Option<snapback4_core::identity::Capability>,
+    mutation: bool,
 }
 impl Admission {
     pub(crate) fn planned(mut self, capability: &snapback4_core::identity::Capability) -> Self { self.planned_ordinary = matches!(capability.1.as_str(), "guest"|"user"|"member"|"account"|"oidc"|"service"); self }
@@ -66,7 +80,7 @@ impl Admission {
     if persona.is_some() && bearer.is_some() {
         return Err(Refusal::new("E_AUTH", "auth", "send one credential: a development persona or a bearer token").guide("personas"));
     }
-        Ok(Self { persona, bearer, planned_ordinary: false, expected_query: None, trusted_dev: trusted_dev_request(request, shared) })
+        Ok(Self { persona, bearer, planned_ordinary: false, expected_query: None, mutation: request.method() == &Method::Post && request.url().starts_with("/m/"), trusted_dev: trusted_dev_request(request, shared) })
     }
     fn resolve_ingress(&self, shared: &Shared, engine: &Engine, identity: Option<&str>) -> Result<snapback4_core::identity::Capability, Refusal> {
         let Some(token) = &self.bearer else { return self.resolve(shared, engine); };
@@ -76,16 +90,24 @@ impl Admission {
         if result.is_err() { crate::release_requests::stamp(engine.generation()); }
         result
     }
-    pub(crate) fn remember(&self, shared: &Shared, capability: &snapback4_core::identity::Capability) {
-        if self.bearer.is_none() || !snapback4_core::value::identity_fits(&capability.0) || !matches!(capability.1.as_str(), "guest"|"user"|"member"|"account"|"oidc"|"service") { return; }
-        let Some(store) = lock(&shared.wake).store_id.clone() else { return; };
+    // @ref LLP 3000.009.001.000.001#13-g4a-read-refinement-2026-10-23 — insertion retains the observation's binding and fence; custom kinds evict earlier ordinary hints.
+    pub(crate) fn remember(&self, shared: &Shared, capability: &snapback4_core::identity::Capability, store: &str, generation: u64, revision: usize) {
+        if self.bearer.is_none() { return; }
+        let store_current = lock(&shared.wake).store_id.as_deref() == Some(store);
+        let binding_current = store_current && *lock(&shared.generation) == generation;
         let mut carried = lock(&shared.carried);
+        let digest = self.digest();
+        if !binding_current || shared.worker_revision.load(Ordering::Acquire) != revision
+            || !snapback4_core::value::identity_fits(&capability.0)
+            || !matches!(capability.1.as_str(), "guest"|"user"|"member"|"account"|"oidc"|"service") {
+            carried.remove(&digest);
+            return;
+        }
         // A bounded factual hint, never an authority cache. Eviction only adds
         // cold discovery work; neither age nor presence can authorize a reply.
         const CARRIED_CAPABILITIES: usize = 1024;
-        let digest=self.digest();
         if carried.len() >= CARRIED_CAPABILITIES && !carried.contains_key(&digest) { carried.pop_first(); }
-        carried.insert(digest, (store, capability.clone()));
+        carried.insert(digest, (store.to_owned(), capability.clone(), generation, revision));
     }
     pub(crate) fn check_store(&self, shared: &Shared, store: &str) -> Result<(), Refusal> {
         if lock(&shared.wake).store_id.as_deref() != Some(store) {
@@ -93,9 +115,23 @@ impl Admission {
         }
         Ok(())
     }
-    pub(crate) fn check_query_facts(&self, shared: &Shared, expected: &snapback4_core::identity::Capability, facts: &snapback4_core::identity::RequestAuthority, persona: Option<snapback4_core::identity::Capability>) -> Result<(), Refusal> {
+    // @ref LLP 3000.033#1.2 — fresh scope must permit the operation independently of the planning hint or token prefix.
+    fn check_scope(&self, current: &snapback4_core::identity::Capability) -> Result<(), Refusal> {
+        if self.mutation && current.2 != snapback4_core::identity::SessionScope::Full {
+            return Err(Refusal::new("E_READ_ONLY", "auth", "this read session permits reads only; use a full session for writes").guide("read-only"));
+        }
+        Ok(())
+    }
+    pub(crate) fn check_bound_facts(&self, shared: &Shared, expected: &snapback4_core::identity::Capability, facts: &snapback4_core::identity::RequestAuthority, persona: Option<snapback4_core::identity::Capability>, generation: Option<u64>) -> Result<(), Refusal> {
         self.check_store(shared, &facts.store_id)?;
-        if let Some(current) = &facts.capability { self.remember(shared, current); }
+        if generation.is_some() && facts.generation != generation {
+            let mut why=Refusal::new("E_GENERATION","generation","the serving generation changed; retry current admission");
+            why.retryable=true;
+            return Err(why);
+        }
+        if let (Some(current), Some(generation)) = (&facts.capability, facts.generation) {
+            self.remember(shared, current, &facts.store_id, generation, facts.supervisor_revision);
+        }
         self.check_facts(expected, facts, persona)
     }
     pub(crate) fn query_expected(mut self, capability: &snapback4_core::identity::Capability) -> Self { self.expected_query=Some(capability.clone()); self }
@@ -118,7 +154,7 @@ impl Admission {
             why.retryable = true;
             return Err(why);
         }
-        Ok(())
+        self.check_scope(&current)
     }
     pub(crate) fn with_snapshot<T>(&self, shared: &Shared, engine: &Engine, receipt: Option<&(String,String)>,
         run: impl FnOnce(snapback4_core::identity::Capability, &snapback4_core::identity::RequestSnapshot<'_, '_>) -> Result<T, Refusal>,
@@ -130,25 +166,35 @@ impl Admission {
         snapback4_core::identity::with_request_preflight(engine.store(), &digest, sample, ordinary, receipt.map(|(p,id)|(p.as_str(),id.as_str())), |snapshot| {
             self.check_store(shared, &snapshot.store_id)?;
             let capability = persona.or_else(|| snapshot.capability.clone()).ok_or_else(|| Refusal::new("E_AUTH", "auth", "this session is not live; sign in again").guide("personas"))?;
-            self.remember(shared, &capability);
+            self.remember(shared, &capability, &snapshot.store_id, engine.generation(), sample.supervisor_revision);
             if let Some(expected)=&self.expected_query { self.check_capability(expected,capability.clone())?; }
+            self.check_scope(&capability)?;
             run(capability, &snapshot)
         }).map_err(|e| e.refusal())?
     }
     pub(crate) fn resolve(&self, shared: &Shared, engine: &Engine) -> Result<snapback4_core::identity::Capability, Refusal> {
-        self.resolve_at(shared, engine, None, false)
+        self.resolve_at(shared, engine, None, false, self.sample(shared))
     }
     pub(crate) fn resolve_detached(&self, shared: &Shared, engine: &Engine) -> Result<snapback4_core::identity::Capability, Refusal> {
         let identity = lock(&shared.wake).store_id.clone();
-        self.resolve_at(shared, engine, identity.as_deref(), true)
+        self.resolve_at(shared, engine, identity.as_deref(), true, self.sample(shared))
     }
+    // @ref LLP 3000.009.001.000.001#13-g4a-read-refinement-2026-10-23 — refresh discovery before a stale-kind refusal; every retry still resolves live authority.
     pub(crate) fn check_detached(&self, shared: &Shared, engine: &Engine, expected: &snapback4_core::identity::Capability) -> Result<(), Refusal> {
-        self.check_capability(expected, self.resolve_detached(shared, engine)?)
+        let store = lock(&shared.wake).store_id.clone();
+        let sample = self.sample(shared);
+        let current=self.resolve_at(shared, engine, store.as_deref(), true, sample)?;
+        if let Some(store) = store { self.remember(shared,&current,&store,engine.generation(),sample.supervisor_revision); }
+        self.check_capability(expected,current)
     }
     pub(crate) fn check_expected(&self, shared: &Shared, engine: &Engine, expected: &snapback4_core::identity::Capability) -> Result<(), Refusal> {
-        self.check_capability(expected, self.resolve(shared, engine)?)
+        let sample = self.sample(shared);
+        let store = lock(&shared.wake).store_id.clone();
+        let current=self.resolve_at(shared, engine, None, false, sample)?;
+        if let Some(store) = store { self.remember(shared,&current,&store,engine.generation(),sample.supervisor_revision); }
+        self.check_capability(expected,current)
     }
-    fn resolve_at(&self, shared: &Shared, engine: &Engine, identity: Option<&str>, detached: bool) -> Result<snapback4_core::identity::Capability, Refusal> {
+    fn resolve_at(&self, shared: &Shared, engine: &Engine, identity: Option<&str>, detached: bool, sample: snapback4_core::identity::ServiceSample) -> Result<snapback4_core::identity::Capability, Refusal> {
     if let Some(persona) = self.persona.clone() {
         shared.dev_authority(engine)?;
         if shared.dev_doors() {
@@ -167,8 +213,7 @@ impl Admission {
         return Err(Refusal::new("E_AUTH", "auth", "personas are a development door; a deployed server takes bearer tokens (snapback4/auth)").guide("personas"));
     }
     if let Some(token) = &self.bearer {
-        let now = shared.now();
-        let sample = snapback4_core::identity::ServiceSample { now, supervisor_revision: shared.worker_revision.load(Ordering::Acquire) };
+        let now = sample.now;
         let result = if detached {
             snapback4_core::identity::resolve_read_only_supervised(engine.store(), token, sample, identity)
         } else {
@@ -197,7 +242,7 @@ fn principal_with_owner(request: &impl RequestInfo, shared: &Shared, owner: Opti
         match shared.reader() {
             Ok((epoch, reader)) => {
                 let identity = lock(&shared.wake).store_id.clone();
-                let result = if ingress { admission.resolve_ingress(shared, &reader, identity.as_deref()) } else { admission.resolve_at(shared, &reader, identity.as_deref(), true) };
+                let result = if ingress { admission.resolve_ingress(shared, &reader, identity.as_deref()) } else { admission.resolve_at(shared, &reader, identity.as_deref(), true, admission.sample(shared)) };
                 lock(&shared.readers).put(&epoch, reader.into_inner());
                 result
             }
