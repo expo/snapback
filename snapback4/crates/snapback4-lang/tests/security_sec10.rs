@@ -650,3 +650,11 @@ mutation edit(doc: docs):\n  update docs[doc] {consent:false}\n";
     let source="table docs:\n  consent: bool\n  approved: bool default false\n  approvalUpdatedAt: time ?\n  status: enum('draft','done') default 'draft'\n  read <- allow\n  update <- allow\n  online only\nmutation approve(doc: docs):\n  d = docs[doc] ! else MISSING\n  update docs[doc] {approved:not d.consent,approvalUpdatedAt:now}\nmutation finish(doc: docs):\n  update docs[doc] {status:'done'}\n";
     assert!(notes(source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"&&n.message.contains("approved")),"{:?}",notes(source));
 }
+
+#[test]fn nested_population_approval_types_belong_to_the_population(){
+    let source="table docs:\n  authorizationRouteUpdatedAt: bool default false\n  status: enum('draft','done') default 'draft'\n  read <- allow\n  update <- allow\n  online only\ntable routeLogs:\n  authorizationRouteUpdatedAt: time ?\n  read <- allow\n  online only\nmutation guarded(doc: docs):\n  require CONDITION else NO_ROUTE\n  update docs[doc] {status:'done'}\nmutation bypass(doc: docs):\n  update docs[doc] {status:'done'}\n";
+    for condition in ["exists routeLogs where .authorizationRouteUpdatedAt != null","exists docs where (exists routeLogs where .authorizationRouteUpdatedAt != null)"]{
+        let source=source.replace("CONDITION",condition);let candidates=security::derived::invariants(&sources(&source),&bound(&source));assert!(!candidates.iter().any(|i|i.site.file.contains("sibling-approval")),"{candidates:?}");
+    }
+    let positive=source.replace("authorizationRouteUpdatedAt: bool default false","authorizationRouteUpdatedAt: time ?").replace("authorizationRouteUpdatedAt: time ?\n  read <- allow\n  online only","authorizationRouteUpdatedAt: bool default false\n  read <- allow\n  online only").replace("CONDITION","exists routeLogs where .authorizationRouteUpdatedAt");let candidates=security::derived::invariants(&sources(&positive),&bound(&positive));assert!(candidates.iter().any(|i|i.site.file.contains("sibling-approval")),"{candidates:?}");
+}

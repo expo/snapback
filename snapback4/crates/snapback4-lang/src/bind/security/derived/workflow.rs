@@ -70,17 +70,23 @@ fn contains_approval(e:&Expr)->bool{!approval_receipts(e).is_empty()}
 // Normalize first, then classify typed fields. Population filters own their
 // focal row; ordinary edit metadata may remain in a real approval prerequisite.
 fn typed_approval(e:&Expr,schema:&Schema,root:&str)->bool{
+    const POP:&str="$approval-population:";
     fn owner<'a>(e:&'a Expr,schema:&'a Schema,root:&'a str)->Option<&'a str>{match e{
-        Expr::Read(read)=>Some(&read.table),Expr::Assert{value,..}=>owner(value,schema,root),Expr::Name{name,..} if name==LOCAL=>Some(root),
+        Expr::Read(read)=>Some(&read.table),Expr::Assert{value,..}=>owner(value,schema,root),Expr::Name{name,..} if name==LOCAL=>Some(root),Expr::Name{name,..} if name.starts_with(POP)=>schema.tables.get_key_value(&name[POP.len()..]).map(|(table,_)|table.as_str()),
         Expr::Focal{..}=>Some(root),Expr::Member{base,name,..}=>{let table=owner(base,schema,root)?;if name=="id"{Some(table)}else{match schema.tables.get(table)?.columns.get(name)?.required(){C::Ref{table}=>Some(table),_=>None}}},_=>None,
     }}
-    approval_receipts(e).into_iter().any(|mut receipt|{
+    // intent_walk visits children first. Label each population's focal names
+    // in a separate pass before any member contributes approval evidence.
+    // Inner labels survive enclosing filters, whose captures retain their scope.
+    let mut scoped=e.clone();walk(&mut scoped,&mut |e|if let Expr::Read(read)|Expr::Exists{read,..}=e&&let Some(filter)=&mut read.filter{
+        let population=format!("{POP}{}",read.table);walk(filter,&mut |e|match e{Expr::Focal{site}=>*e=Expr::Name{name:population.clone(),site:site.clone()},Expr::Name{name,site} if name==LOCAL=>*e=Expr::Name{name:population.clone(),site:site.clone()},_=>{}});
+    });
+    approval_receipts(&scoped).into_iter().any(|mut receipt|{
         let mut found=false;walk(&mut receipt,&mut |e|match e{
             Expr::Member{base,name,..}=>{if let Some(table)=owner(base,schema,root){found|=schema.tables.get(table).and_then(|t|t.columns.get(name)).is_some_and(|kind|stamps::evidence(name,kind));}},
             Expr::Read(read)|Expr::Exists{read,..}=>{
                 found|=approval(&read.table);
                 found|=read.keys.iter().any(|key|key.column.as_ref().is_some_and(|column|schema.tables.get(&read.table).and_then(|t|t.columns.get(column)).is_some_and(|kind|stamps::evidence(column,kind)))&&!matches!(&key.value,Expr::Literal{value:ast::Literal::Bool(false)|ast::Literal::Null,..}));
-                if let Some(filter)=read.filter.take(){found|=typed_approval(&filter,schema,&read.table);}
             },_=>{},
         });found
     })
