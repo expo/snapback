@@ -1,0 +1,8 @@
+{
+  "events": 2637,
+  "distinct_pid_identities": 1807,
+  "live_owned": [],
+  "owned_zombies": [],
+  "postprocessor_rechecked_after_exit": true,
+  "checks": "PID/start ticks; all build, preflight, benchmark, monitor, postprocessor and cluster records; cleanup receipts confirm socket/pidfile absence"
+}

@@ -1,0 +1,21 @@
+{
+  "product_commit": "be0b9219f0d8b34408917239804a683a73f68f11",
+  "binary_sha256": {
+    "snapback4": "7a4857bfb4960666b36bfe8ff86a681feaffb65d5779ac6c89b46e2217981483",
+    "sb4-scale-controls": "4bd288f49f139961461b656c8bd7109ca73cc2eca9b920ead1843703f367ce0c",
+    "sb4-postgres-scale-seed": "e8fd711fe4942301bbb00d55a56234ecee2ef461d344485354ca951a94a60333"
+  },
+  "all_build_hashes_match": true,
+  "product_and_runner_diff_empty": true,
+  "paths_checked": [
+    "snapback4/crates",
+    "snapback4/vendor",
+    "snapback4/.cargo",
+    "snapback4/Cargo.toml",
+    "snapback4/Cargo.lock",
+    "snapback4/experiments/scale-controls/scripts",
+    "snapback4/experiments/scale-controls/src",
+    "snapback4/experiments/scale-controls/snapback-app",
+    "snapback4/experiments/scale-controls/postgres-seed"
+  ]
+}
