@@ -1,0 +1,17 @@
+{
+  "commits": {
+    "original": "4c6b386072",
+    "ingress": "570ac0ded9",
+    "both": "13560f6574"
+  },
+  "binary_sha256": {
+    "baseline": "4f5df66e925c38d165d8e185571a59eb73252d2900527fa4eba930e3896aa70b",
+    "ingress": "84ffe75c714767ca13559c740d7127bdf096c760e5377050d7c18135c43b73c0",
+    "cpu": "012ebb63b5467bf6907fff5d1819aca655f70eaab12c17bfc4be2acc9b885404",
+    "profile-before-clean": "cb9547eb3e063c29728dcab51e030e3554b33d6630f5c55ac7afc22f1ce9bf22",
+    "profile-after-clean": "fbf674741adf46b5e8691964ec8464e9e52ac1c10c2cf3b82e07c69c575d16c0"
+  },
+  "harness_sha256": "d468b0823243d491a7b8583c9d04e47d099c0f410664cff771ed5840a53d8292",
+  "seed_executable_sha256": "c960a1893afc0dc5e52d88c3e896e496672026c8fd6943caa53b22df378f5b64",
+  "runner_sha256": "e0ba42cc3cd40e6496046b8feea11cc1a7f3c690c753c4ca19a183b92fcb2de4"
+}

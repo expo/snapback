@@ -108134,3 +108134,31 @@ The core counts above include one isolated child test invocation. Summing
 only the final Cargo target summaries gives 1,274/0/439 before the CPU
 refinement and 1,275/0/440 afterward (passed/failed/ignored); the extra child
 also passes. The report uses those target totals.
+
+## 2026-10-25 — LEV: completed one-host evidence
+
+The [LEV report](reports/20261025-levers/REPORT.md) records original,
+ingress-only and both-lever release arms at 800 writes/s, 32 clients,
+million-message native seed, both links, 10 s warm-up / 20 s / three repeats.
+The independent audit passes all 54 counter equalities and 864,000 measured
+arrivals, with no request errors. Ingress-only and both-lever arms pass
+18/18 repetitions each. Original passes 17/18: first W4/B p99 is 189.006 ms;
+that failure is retained, and its cohort is not a passing qualification.
+
+Warm ingress removes exactly one independent Postgres flight per mutation;
+batch protocol flights do not change. W4/B server CPU falls 510.4→420.8 µs
+per member and mean latency 19.10→16.61 ms. Exact W5/B falls 486.2→414.6 µs
+and 23.00→21.10 ms. Plan reuse then reduces W4/B committer CPU
+142.5→118.3 µs (server 420.8→407.9; mean 16.61→16.15 ms), and exact W5/B
+238.8→212.1 µs (server 414.6→383.8; mean 21.10→20.41 ms). The 100 µs
+whole-committer goal remains unmet, especially on the serial shared-counter
+interpreter. Nominal 1% mix/B median latency regresses 16.93→17.54 ms while
+CPU falls; repetition ranges overlap. No ceiling or control-win claim is made.
+
+Full core finishes 1,275 passed / 0 failed / 440 ignored; full binary
+609/0/58. Full Postgres script finishes 810/1/0 plus passing public serving;
+its sole failure is the inherited evaluator concurrent-update 40001.
+Both stores' HTTP/core RT0 and authority-freshness witnesses pass, including
+the new carried-mutation batch and per-member argument differentials.
+The report holds final reference, secret-audit, external archive and PID
+receipts. Private clusters are independently stopped; no push occurs.
