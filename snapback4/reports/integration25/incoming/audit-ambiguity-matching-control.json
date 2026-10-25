@@ -1,0 +1,44 @@
+{
+  "project": "w21-013-snapback-piano-competition-juries",
+  "exactMatches": [
+    {
+      "old": "930c7247d102c9e929df1de3b32b509f15d76d9f903fb398c04994a7d4eba392",
+      "current": "c24a83b75e274c6b658959e6e1ca625f319663612a8cbcfcf3596d4e7a65ff77",
+      "identity": {
+        "priorId": "930c7247d102c9e929df1de3b32b509f15d76d9f903fb398c04994a7d4eba392",
+        "message": "decisions.read: retained grants grants are written by submitEntry requiring recipient `exists roles[viewer, role = 'teacher']`, but read branch `exists grants[.entry, viewer]` does not recheck that mutable current role",
+        "matching": "exact code, site and full prior/current diagnostic message"
+      }
+    },
+    {
+      "old": "c8f127bb6807dc61eae017edaceb80261c07a39b2386b90616c7c95852baab54",
+      "current": "79894d1be9a20d3ab74f0f81d80f8f773fb8a3795e45c701e93dd0f3ff14e358",
+      "identity": {
+        "priorId": "c8f127bb6807dc61eae017edaceb80261c07a39b2386b90616c7c95852baab54",
+        "message": "entries.read: retained grants grants are written by submitEntry requiring recipient `exists roles[viewer, role = 'teacher']`, but read branch `exists grants[.id, viewer]` does not recheck that mutable current role",
+        "matching": "exact code, site and full prior/current diagnostic message"
+      }
+    },
+    {
+      "old": "1badc88b0f59a78860a58bae7b881f074d0f1c924dc050177472a229efac1ec8",
+      "current": "978b475cda3e132c66121eaad4275555e2e1c895746a81b31d467f9e5ed0272a",
+      "identity": {
+        "priorId": "1badc88b0f59a78860a58bae7b881f074d0f1c924dc050177472a229efac1ec8",
+        "message": "decisions.read: retained grants grants are written by assign requiring recipient `exists roles[viewer, role = 'juror']`, but read branch `exists grants[.entry, viewer]` does not recheck that mutable current role",
+        "matching": "exact code, site and full prior/current diagnostic message"
+      }
+    },
+    {
+      "old": "ae01f9a830efcd65fe80e6890b9f1c838403c851c7ff1bde49d5b94d9907cea9",
+      "current": "14555989971582606d2965fa60b4e4295c621fce970f4fe5e5a59bc5510d84a5",
+      "identity": {
+        "priorId": "ae01f9a830efcd65fe80e6890b9f1c838403c851c7ff1bde49d5b94d9907cea9",
+        "message": "entries.read: retained grants grants are written by assign requiring recipient `exists roles[viewer, role = 'juror']`, but read branch `exists grants[.id, viewer]` does not recheck that mutable current role",
+        "matching": "exact code, site and full prior/current diagnostic message"
+      }
+    }
+  ],
+  "unreviewedMessageRefused": true,
+  "initialHarnessSha256": "731714084a9a5d76d49aac5deeb33c39494c817aa675a7206b4fbd6804e84b84",
+  "resumedHarnessSha256": "589dba033a464f8e6594308c378ca24123e1083b0d4b032452df1cbef41fbac8"
+}

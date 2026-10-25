@@ -1,0 +1,10 @@
+{
+  "binary": "/home/ccheever/sb4-loop/reports/integration25/bin-incoming-0.4.41",
+  "binarySha256": "31c84eb104f37db8a3dfd2d2aa01d0b26f75190edbc59a8cf4d3adb12cbbb105",
+  "mode": "incoming",
+  "projects": 650,
+  "sourceScope": "Quarry modules and contemporary fixture copies; no original store opened",
+  "source": "030a1ab426580372f3b7116724205990223af312",
+  "checkoutSource": "030a1ab426580372f3b7116724205990223af312",
+  "corpusManifestSha256": null
+}

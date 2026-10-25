@@ -1,0 +1,452 @@
+{
+  "source": "030a1ab426",
+  "status": 0,
+  "scopes": [
+    {
+      "target": "unittests src/lib.rs (target/debug/deps/snapback4_core-7866549446de2638)",
+      "lastSummary": [
+        "ok",
+        "800",
+        "0",
+        "3"
+      ]
+    },
+    {
+      "target": "tests/action_context.rs (target/debug/deps/action_context-f57e7bde106ce976)",
+      "lastSummary": [
+        "ok",
+        "10",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "target": "tests/adoption_scale.rs (target/debug/deps/adoption_scale-c664a629cff2538f)",
+      "lastSummary": [
+        "ok",
+        "0",
+        "0",
+        "1"
+      ]
+    },
+    {
+      "target": "tests/asset_lists.rs (target/debug/deps/asset_lists-fc12226e6a0ce534)",
+      "lastSummary": [
+        "ok",
+        "28",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "target": "tests/born_perf.rs (target/debug/deps/born_perf-ec9be132b47be76c)",
+      "lastSummary": [
+        "ok",
+        "2",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "target": "tests/bound_session.rs (target/debug/deps/bound_session-a6901e63fcdc2361)",
+      "lastSummary": [
+        "ok",
+        "8",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "target": "tests/corpus.rs (target/debug/deps/corpus-76cc18872497a0ee)",
+      "lastSummary": [
+        "ok",
+        "20",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "target": "tests/delivery_bounds.rs (target/debug/deps/delivery_bounds-e3d5144f7c9c4a26)",
+      "lastSummary": [
+        "ok",
+        "2",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "target": "tests/dev_reset.rs (target/debug/deps/dev_reset-dc2a4f8146f29bb8)",
+      "lastSummary": [
+        "ok",
+        "5",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "target": "tests/disclosure.rs (target/debug/deps/disclosure-ec76c0412863ffa0)",
+      "lastSummary": [
+        "ok",
+        "32",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "target": "tests/effect_policy.rs (target/debug/deps/effect_policy-22d7378598774b71)",
+      "lastSummary": [
+        "ok",
+        "14",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "target": "tests/ephemeral.rs (target/debug/deps/ephemeral-5e97897a033e92cd)",
+      "lastSummary": [
+        "ok",
+        "18",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "target": "tests/event_slot_snapshot.rs (target/debug/deps/event_slot_snapshot-37578218e8631f99)",
+      "lastSummary": [
+        "ok",
+        "6",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "target": "tests/expiring_adoption.rs (target/debug/deps/expiring_adoption-c36e7764724be75f)",
+      "lastSummary": [
+        "ok",
+        "5",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "target": "tests/file_assets.rs (target/debug/deps/file_assets-2a10e96505ed4f10)",
+      "lastSummary": [
+        "ok",
+        "8",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "target": "tests/group_commit_measure.rs (target/debug/deps/group_commit_measure-7cbb3ebff809edd6)",
+      "lastSummary": [
+        "ok",
+        "0",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "target": "tests/identity.rs (target/debug/deps/identity-7886581dea0647c8)",
+      "lastSummary": [
+        "ok",
+        "2",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "target": "tests/job_time_audiences.rs (target/debug/deps/job_time_audiences-1d552b0f4a704e0f)",
+      "lastSummary": [
+        "ok",
+        "5",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "target": "tests/lane_source.rs (target/debug/deps/lane_source-b6f07b1a28235089)",
+      "lastSummary": [
+        "ok",
+        "10",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "target": "tests/maintained_columns_review.rs (target/debug/deps/maintained_columns_review-3678b66e5a163ff2)",
+      "lastSummary": [
+        "ok",
+        "4",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "target": "tests/membership_discovery_steps.rs (target/debug/deps/membership_discovery_steps-5fc44e0ae0673d3f)",
+      "lastSummary": [
+        "ok",
+        "1",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "target": "tests/meter.rs (target/debug/deps/meter-54eeedcb6bec557f)",
+      "lastSummary": [
+        "ok",
+        "9",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "target": "tests/nul_chokepoints.rs (target/debug/deps/nul_chokepoints-149988c550d868d0)",
+      "lastSummary": [
+        "ok",
+        "9",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "target": "tests/overlay_measure.rs (target/debug/deps/overlay_measure-ff63fbf8fc676f5f)",
+      "lastSummary": [
+        "ok",
+        "0",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "target": "tests/pending_metadata_heap.rs (target/debug/deps/pending_metadata_heap-78ddde04d1c0d4a0)",
+      "lastSummary": [
+        "ok",
+        "4",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "target": "tests/postgres_evolution.rs (target/debug/deps/postgres_evolution-a3e4572961e3573e)",
+      "lastSummary": [
+        "ok",
+        "15",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "target": "tests/read_sessions.rs (target/debug/deps/read_sessions-ff68c30740dfbedc)",
+      "lastSummary": [
+        "ok",
+        "7",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "target": "tests/refused_open.rs (target/debug/deps/refused_open-5f9310179f78b584)",
+      "lastSummary": [
+        "ok",
+        "7",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "target": "tests/review_walk.rs (target/debug/deps/review_walk-c9c0168478b4f0fb)",
+      "lastSummary": [
+        "ok",
+        "16",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "target": "tests/revocation_history.rs (target/debug/deps/revocation_history-98c2547d6098f29c)",
+      "lastSummary": [
+        "ok",
+        "3",
+        "0",
+        "1"
+      ]
+    },
+    {
+      "target": "tests/routes.rs (target/debug/deps/routes-878f7e0ec22def82)",
+      "lastSummary": [
+        "ok",
+        "14",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "target": "tests/row_view_accounting.rs (target/debug/deps/row_view_accounting-114c23ef8f7c038d)",
+      "lastSummary": [
+        "ok",
+        "6",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "target": "tests/row_view_disclosure.rs (target/debug/deps/row_view_disclosure-025cbc72d949ba54)",
+      "lastSummary": [
+        "ok",
+        "18",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "target": "tests/row_view_legacy.rs (target/debug/deps/row_view_legacy-4d7ca93759cf8ac1)",
+      "lastSummary": [
+        "ok",
+        "1",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "target": "tests/row_view_witness.rs (target/debug/deps/row_view_witness-d76e2130a6c8af41)",
+      "lastSummary": [
+        "ok",
+        "6",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "target": "tests/rows.rs (target/debug/deps/rows-9eee758d7ab97d14)",
+      "lastSummary": [
+        "ok",
+        "10",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "target": "tests/schema_capabilities.rs (target/debug/deps/schema_capabilities-b259154affe2af02)",
+      "lastSummary": [
+        "ok",
+        "11",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "target": "tests/schema_capabilities_legacy.rs (target/debug/deps/schema_capabilities_legacy-b792cf94361dcecb)",
+      "lastSummary": [
+        "ok",
+        "3",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "target": "tests/sequence_by.rs (target/debug/deps/sequence_by-45e4ca9e6ca0a9cd)",
+      "lastSummary": [
+        "ok",
+        "17",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "target": "tests/sequence_disclosure.rs (target/debug/deps/sequence_disclosure-3f08d7610b4ce2c1)",
+      "lastSummary": [
+        "ok",
+        "29",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "target": "tests/store_handle_traits.rs (target/debug/deps/store_handle_traits-8538f6ef99c4e70a)",
+      "lastSummary": [
+        "ok",
+        "1",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "target": "tests/stream_receipts.rs (target/debug/deps/stream_receipts-4ed79720e675680a)",
+      "lastSummary": [
+        "ok",
+        "2",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "target": "tests/sync_count_batch.rs (target/debug/deps/sync_count_batch-415884bd63f985c7)",
+      "lastSummary": [
+        "ok",
+        "1",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "target": "tests/time_audiences.rs (target/debug/deps/time_audiences-d7e04b62424289a3)",
+      "lastSummary": [
+        "ok",
+        "22",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "target": "tests/unicode_fold.rs (target/debug/deps/unicode_fold-073440e07e447009)",
+      "lastSummary": [
+        "ok",
+        "2",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "target": "tests/update_rule_images.rs (target/debug/deps/update_rule_images-5920d8de3f8e8e3c)",
+      "lastSummary": [
+        "ok",
+        "6",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "target": "tests/upload_intents.rs (target/debug/deps/upload_intents-810a0ed1133d8c69)",
+      "lastSummary": [
+        "ok",
+        "7",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "target": "tests/work_records.rs (target/debug/deps/work_records-464172178180656f)",
+      "lastSummary": [
+        "ok",
+        "6",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "target": "snapback4_core",
+      "lastSummary": [
+        "ok",
+        "27",
+        "0",
+        "0"
+      ]
+    }
+  ],
+  "passed": 1239,
+  "failed": 0,
+  "ignored": 5,
+  "counts": "Last parent summary per direct Cargo target; nested summaries excluded",
+  "command": "CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 RUST_MIN_STACK=33554432 cargo test --no-fail-fast -p snapback4-core -- --test-threads=4"
+}

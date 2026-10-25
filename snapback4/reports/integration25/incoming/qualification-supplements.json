@@ -1,0 +1,93 @@
+{
+  "runtimeSource": "030a1ab426",
+  "canonicalPrimary": "../affected-final.json",
+  "incomingDocs": "docs-affected.json",
+  "rawDocsComplete": true,
+  "rawDocsUnchanged": false,
+  "rawDocsReds": [
+    "rust:snapback4-lang:guide (325-line merged card)",
+    "client-tests (one cleanup fixture and leaked polling)"
+  ],
+  "repairedGuide": {
+    "totalLines": 279,
+    "operationalLines": 149,
+    "sameWords": true,
+    "testsPassed": 127,
+    "testsFailed": 0
+  },
+  "proofSupplement": {
+    "isolatedPassed": 1,
+    "fullTargetPassed": 31,
+    "assertionsAndDeadlinesUnchanged": true
+  },
+  "rootGuide": {
+    "passed": 22,
+    "failed": 0,
+    "skipped": 0,
+    "preconditions": 0
+  },
+  "ordinaryDocs": {
+    "files": 119,
+    "rawFailedFiles": 1,
+    "rawCompletedPasses": 2247,
+    "rawSkips": 37,
+    "hungFilePartialCountsIncluded": false
+  },
+  "models": {
+    "files": 2,
+    "passed": 89,
+    "failed": 0,
+    "fullWorkloads": true
+  },
+  "reusedUpstreamPostgres": "Incoming18changedPGfiles byte-identical to qualified main, inherited evaluator40001 remains documented upstream; no packed/publication claim",
+  "sourceAfterRuntimePin": "Only two documentation fixes; no Rust/JS implementation delta",
+  "excludedSetupAttempt": {
+    "log": "incoming-cli-release.log.gz",
+    "status": 101,
+    "cause": "round_trips and serve_release are binary test modules, not Cargo integration targets; no tests executed. Corrected binary+replay+roll_views+SURF4+port command passes."
+  },
+  "surveyFinal": {
+    "projects": 650,
+    "audits": 49,
+    "cachedOnFinalClosure": 49,
+    "classes": {
+      "oneLineIntent": 32,
+      "real": 17
+    },
+    "unresolved": 0,
+    "businessTestReds": 6,
+    "originalFilesUnchanged": {
+      "quarry": 658,
+      "fixtures": 777,
+      "sqliteWalShm": 300
+    }
+  },
+  "archivedLogsSha256": {
+    "incoming-cli-build.log.gz": "89b3d5f8bc0281fb32474abf8da9ad52d387602d4d81572305645db138c10a5d",
+    "incoming-device-census-native.log.gz": "8ea5d0f21c03962f48d0d33674e1e23e47c91a16f94b4ef99db6c524487b19ee",
+    "incoming-sim-native.log.gz": "6354be92f6c9bf70cf3f59de14a92609352d61c6bfedf0ca94cfe3643196b876",
+    "audit-incoming-final.log.gz": "b926a8a900f352dbb59396dc906bc744d52edf80942147d27492cbb93cbf625f",
+    "deploy-card-compact-docs.log.gz": "bf0dd25b5ee46f7ea6b87fe6560e7b2b18eeff0269e9c9c34e1c4363bede8bbc",
+    "audit-incoming-resume1.log.gz": "2d109c6d858f63346b10576cef3860fba0cd2a30547c214c68ea8588738e51ee",
+    "incoming-codec-census.log.gz": "5cfc5bd0f987983372e57d2aa0c7d1781394103d759cca09c4a245dd4766cc28",
+    "final-docs-cli-build.log.gz": "21045354462747591c8b550dd53d07e7cd6e062fe8ab4fa0692ae45d63d4ab4c",
+    "incoming-cli-release-targets.log.gz": "44647597d1b6e84d1799a114e372d0e2a1de5ff6ed59489ddc219cc25b51f919",
+    "audit-incoming-precompute.log.gz": "cd4ab46e4796c3f8a4fb1ad7d0f55b8e1b3daeb3ac95591d316ab71992cdcb5d",
+    "deploy-card-compact-guide.log.gz": "940f3e55f5d378c2a6599bcd074fc25dfd1239529476c9370302c8a30b64157d",
+    "proof-complete-target-rerun.log.gz": "041d34a50660dfe7d6c106b9e1228408c98f5fc99fed67ab28be8ca6851d4614",
+    "proof-cleanup-alone.log.gz": "0c90a61471186b92a60ce8aec8ee796d3af42ba6091a2d8efff63ea1866e4238",
+    "incoming-regeneration.log.gz": "22da50d490bc74ee1b81acf5aa95225c67120642b3e810e9694b91f0515d225e",
+    "replay-incoming.log.gz": "29c23b905842eda5ad241d4bbdd99e1330cbd05f611bb4a18fb9a710aa328bb4",
+    "wasm-post-main.log.gz": "a2982a24925ea386044b0c03d57cc8cccd0d44913df418609c15484ddd582a97",
+    "final-docs-guide.log.gz": "0d49bf6302fe4cc6f80eca97eb5e36b3cbca3f7f53a2230f233fb51a1dfc9818",
+    "deploy-card-compact-docs-scoped.log.gz": "e4fdbeb1220cfd6921c7339de8e07b60cc0f2b47b695066e1e436a6dc89e7267",
+    "audit-incoming-complete49.log.gz": "556fd1e2b5df895525c9e293973a961a4286b13d193bf2f2bfa55e9b3e5ed93b",
+    "incoming-differential.log.gz": "d955f02804357fe35e976b3d6970af2a1b47c18b26993f6f7dcb8e2ce69837f5",
+    "incoming-port-census.log.gz": "9c2ca22a473c983d759218fbdd7e834ac9a8a252527989fa1624d49d37d2f2e3",
+    "incoming-core.log.gz": "4b6cb68915997b79689ddc06923758c471ed5bda631b68f358a9009d6a5f3f98",
+    "incoming-cli-release.log.gz": "1ff4700cacff4742da937eccb0306ed6786ac787c4cd8cc4ab44cf4ee2dfd668",
+    "generated-restored-final.log.gz": "5019f617715ee84f7cb3eb24509602076a6273386c697ac6f85806f46cc16ce3",
+    "incoming-docs-affected.log.gz": "029d179e6f753770ea5c02d5b5c38e75e8a3b605df17dc8a24b09931ac94c4b7",
+    "survey-incoming.log.gz": "89ebafbbbebaa87d06493e96cfe66133a2db318baa2b3bed26bfef883040efaa"
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "sourceCommit": "030a1ab426",
+  "at": "2026-10-25T12:57:52.310737+00:00",
+  "kind": "Fresh independent incoming-main interaction content reviews; no normative amendment",
+  "sourceSha256": {
+    "snapback4/crates/snapback4-core/src/store/extractions.rs": "a90d175d1175995cd3475608c69ecfae7bf36dbfcc282e63ee629086249256ce",
+    "snapback4/crates/snapback4-core/src/store/backfills.rs": "c5473b46f15680d6948db8909211438ff60aa077f456f7ea0b985db4c4ce9646",
+    "snapback4/crates/snapback4/src/serve_readers.rs": "60e447bd39436fadfd6c805cc9b18a86eaa7a08815b5fd9264612c73f87d138e",
+    "snapback4/crates/snapback4-lang/src/guide/deploy.md": "6c07873494cb98d1e0fdfc12922b48b7f6f22b65d503ef6a7d73aac67402d796"
+  },
+  "reviews": {
+    "codex": {
+      "model": "gpt-6.1-sol",
+      "reasoning": "high",
+      "freshSession": true,
+      "exit": 0,
+      "verdict": "No material finding",
+      "sha256": "5fc443bf186ce277f2ecca1845b0b0a1f467819958b499646c88cdf198eac0d2"
+    },
+    "muse": {
+      "model": "muse-spark-1.3-contributor",
+      "reasoning": "high",
+      "freshSession": true,
+      "exit": 0,
+      "verdict": "No material finding",
+      "sha256": "7cf38adb8864bfac164a5cc89609fe6ff3bca6b97e630c228293e0b380f377bb"
+    }
+  },
+  "transport": "Muse wrapper initial429 and successful configured Meta fallback preserved verbatim. No tests run by reviewers.",
+  "artifactsSha256": {
+    "muse.stderr.txt": "b02576a706de1f9d01462349f5977c1ab7cde30bff530d5c431ddca3a7eed733",
+    "brief.md": "f7727aeb95dc16ba324480ec8f59599b4b69d04eb6729d551822f4870b3c7fde",
+    "codex.txt": "5fc443bf186ce277f2ecca1845b0b0a1f467819958b499646c88cdf198eac0d2",
+    "codex.stderr.txt": "6ebb23c9cef2d7f94a0e4b44bcb664baeffe19098cbefde71d132680d7475963",
+    "muse.txt": "7cf38adb8864bfac164a5cc89609fe6ff3bca6b97e630c228293e0b380f377bb"
+  },
+  "postReviewDocumentation": "Deploy paragraphs rewrapped without changing any word; changelog upgrade paragraph made a bullet to appear in the compiled guide. All127 compiled guide tests and emitted upgrade smoke pass; no code or semantic conflict adjustment after the reviewed source."
+}

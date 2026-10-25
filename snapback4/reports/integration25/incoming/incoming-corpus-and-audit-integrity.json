@@ -1,0 +1,357 @@
+{
+  "schemas": 650,
+  "pairsMatchPriorCampaign": 650,
+  "originalQuarryFiles": 658,
+  "originalFixtureFiles": 777,
+  "mismatches": 0,
+  "binaryImmutable": true,
+  "conditionalAudits": 49,
+  "auditSourcePairs": {
+    "w15-016-day2-waste-accumulation-clock": {
+      "sourceHashes": {
+        "schema.q": "99e78ef30e63501f56c5a505d80e5dd3974461bb12fbfe6eea1d0e5debc73f82"
+      },
+      "fixtureHashes": {
+        "people.jsonl": "1c07c3cb988170fa1c0b128924fdd833bf0246c0ba6d7ffd237ce38e7f11004c",
+        "pickupEvents.jsonl": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "test.cases.jsonl": "55a0974297e042b0099c5efeb4b7ad80f584f8fd8c02e635d44a0f0ac8250838",
+        "containers.jsonl": "5d8d5ffb3e47d3c750a68f702e27d05951ed6230840a7d8e4944ef7f580e012d"
+      }
+    },
+    "w16-013-snapback-hackathon-rubric-judging": {
+      "sourceHashes": {
+        "schema.q": "cca90a1a5b901961bc869141f9df6eb2a68f7068a14461d17e2ae1bb320fa2db"
+      },
+      "fixtureHashes": {}
+    },
+    "w16-019-snapback-apiary-hive-inspections": {
+      "sourceHashes": {
+        "schema.q": "67b76528e9ec9f7a3038440f8b53785339bb94a3c02451ec5de6242a545f6162"
+      },
+      "fixtureHashes": {
+        "test.sweep.json": "103faaba75ac247cf34979e04ecc3ebc8891d8e1e86fb5a23e9d3fcd1c51583b",
+        "hives.jsonl": "172f17c17355fcfedd358d607d1c114e4c23e044dc2960fcac0918c93f7dfe30",
+        "alerts.jsonl": "0556c12b37058dac236ba7f7fcfddea4d85f118403e0c84d1f77fb6b1fbaf2d2",
+        "inspections.jsonl": "9933ce1bb81b3b4aff6a2abc2b3d975f7be6bf305e35edeb8d2eeb900a5d7926",
+        "listings.jsonl": "0a80a4eb61310455551128fb3d977707cc19aa71d40cee0652b8e27ec1340eb3",
+        "test.cases.jsonl": "a375534d70401918a038769d7f2c0498409f9ed90cb66488f98fa4c1dad082cc",
+        "roles.jsonl": "bedbb75c9ec6398e5e6ebcef26df2025c5be558179da0643c3abdacc88f99057",
+        "routes.jsonl": "d5bdce2488c95453868c23bf2c91f853e8688f881c8c2b6e05e74a49955dc30c"
+      }
+    },
+    "w16-027-snapback-podcast-guest-releases": {
+      "sourceHashes": {
+        "schema.q": "6b7b951188cdfa933d498b82373bb00dfb42d45c8db3e3ecfcffbdd6e0600b83"
+      },
+      "fixtureHashes": {}
+    },
+    "w18-010-snapback-cobbler-repair-tickets": {
+      "sourceHashes": {
+        "schema.q": "6fbdd77d23997954443e30bd3b45b7a88d2a461a99fae692510802e64e12889c"
+      },
+      "fixtureHashes": {
+        "ownerSeats.jsonl": "89df0f648a5d3aeeaafac7f025821875bbc36c31d16ef256f959ac73b2293b0d",
+        "customerPhones.jsonl": "df1cd309f298d492841b52fdaa3e2e288bd848be39b937f1b67e676921b055a7",
+        "roles.jsonl": "e018b72c32971a3abfe4a84f7224b83f1dd13cbd322f016400f1e52248bf3b05",
+        "profiles.jsonl": "869b85e0ed0ea91092a887649a3aa940b98eb5756784ec64185dd39ee153655c"
+      }
+    },
+    "w18-011-snapback-gem-lab-certificates": {
+      "sourceHashes": {
+        "schema.q": "d65015c574e4ccf0a6dd837702f5fb08c435357fc280bd05f25f82be5f66dc08"
+      },
+      "fixtureHashes": {}
+    },
+    "w18-019-snapback-chimney-sweep-reports": {
+      "sourceHashes": {
+        "schema.q": "8ab8cf7fdc337841a4d3d88084f13ccc461e3c2cdb64f6713e162dfc9259984a"
+      },
+      "fixtureHashes": {}
+    },
+    "w18-025-snapback-wheelchair-repair-loaners": {
+      "sourceHashes": {
+        "schema.q": "09c08aa6b49bd91884ad74f5d72eb0c347b20d79453b3751fce8e9363bc6cdf8"
+      },
+      "fixtureHashes": {
+        "test.cases.jsonl": "93c9bd89e258d7c5c7dc166f15747dfb8574b8bdd8ee79464c7ea2bfc27f1be4",
+        "todos.jsonl": "7170e5af130d76301bee92bd3f2040028ea4ad9e8ea64ce864820c2d438733b0"
+      }
+    },
+    "w18-026-snapback-extinguisher-service-tags": {
+      "sourceHashes": {
+        "schema.q": "9a4d1f3214bfefa2ececf85af17c1a84ec4ecdf7a7fb57b496c85729a5ff9035"
+      },
+      "fixtureHashes": {}
+    },
+    "w18-030-snapback-cat-show-ring-judging": {
+      "sourceHashes": {
+        "schema.q": "91027d692641b354cc0295a9a5f1e7a54c2c7b8fc779627f6f499d465cb39d27"
+      },
+      "fixtureHashes": {}
+    },
+    "w18-045-snapback-honor-guard-details": {
+      "sourceHashes": {
+        "schema.q": "b14217e01f1d592cf7555accf1b273b78a145323b5420f1d39a37a3b1b910718"
+      },
+      "fixtureHashes": {
+        "test.cases.jsonl": "93c9bd89e258d7c5c7dc166f15747dfb8574b8bdd8ee79464c7ea2bfc27f1be4",
+        "todos.jsonl": "7170e5af130d76301bee92bd3f2040028ea4ad9e8ea64ce864820c2d438733b0"
+      }
+    },
+    "w18-047-snapback-hyperbaric-chamber-log": {
+      "sourceHashes": {
+        "schema.q": "4b9a0d7e2d1dd04550b20fbae03ddc3717427eaef45af8bc34f19ffe02f2aa9b"
+      },
+      "fixtureHashes": {}
+    },
+    "w18-048-snapback-repair-cafe-intake": {
+      "sourceHashes": {
+        "schema.q": "5986e8c18077193e1309bde53b3b356698cdc4204019cb8e409cad60f0e14226"
+      },
+      "fixtureHashes": {}
+    },
+    "w19-002-snapback-venison-processing-tags": {
+      "sourceHashes": {
+        "schema.q": "8e1d7059880f7ed6c9af22195bee48f95fb3e506ca1dd6dbd108dc32876f4aa2"
+      },
+      "fixtureHashes": {}
+    },
+    "w19-010-snapback-cobbler-repair-tickets": {
+      "sourceHashes": {
+        "schema.q": "fd0d3c3caed1754b8d8967d97f5b2547e087b9b58a97f105e4dba022f5701d65"
+      },
+      "fixtureHashes": {
+        "ownerSeats.jsonl": "89df0f648a5d3aeeaafac7f025821875bbc36c31d16ef256f959ac73b2293b0d",
+        "customerPhones.jsonl": "df1cd309f298d492841b52fdaa3e2e288bd848be39b937f1b67e676921b055a7",
+        "roles.jsonl": "e018b72c32971a3abfe4a84f7224b83f1dd13cbd322f016400f1e52248bf3b05",
+        "profiles.jsonl": "869b85e0ed0ea91092a887649a3aa940b98eb5756784ec64185dd39ee153655c"
+      }
+    },
+    "w19-011-snapback-gem-lab-certificates": {
+      "sourceHashes": {
+        "schema.q": "de29876bfe325d523af0f891a63e15106350a837c9fe75702d1ffc1e04dbc611"
+      },
+      "fixtureHashes": {}
+    },
+    "w19-019-snapback-chimney-sweep-reports": {
+      "sourceHashes": {
+        "schema.q": "f07c9db9e86c3acf8c59068560790349a4ae5ca8737848bbb1c27fc6422f925b"
+      },
+      "fixtureHashes": {}
+    },
+    "w19-025-snapback-wheelchair-repair-loaners": {
+      "sourceHashes": {
+        "schema.q": "48749f3932efafc43839ea4e20041916145da2662a4c4f82708474a0025c4e5c"
+      },
+      "fixtureHashes": {
+        "test.cases.jsonl": "93c9bd89e258d7c5c7dc166f15747dfb8574b8bdd8ee79464c7ea2bfc27f1be4",
+        "todos.jsonl": "7170e5af130d76301bee92bd3f2040028ea4ad9e8ea64ce864820c2d438733b0"
+      }
+    },
+    "w19-026-snapback-extinguisher-service-tags": {
+      "sourceHashes": {
+        "schema.q": "e134ebbbea2b35e4a2297a268a23152c5d7fd74598f66f5d7b2cf4271ac0330a"
+      },
+      "fixtureHashes": {}
+    },
+    "w19-029-snapback-coin-grading-submissions": {
+      "sourceHashes": {
+        "schema.q": "6ec37ab27d2c356640687e514b2eabd9d9674ff8f3e05b66cb3d4bb853e4464f"
+      },
+      "fixtureHashes": {}
+    },
+    "w19-030-snapback-cat-show-ring-judging": {
+      "sourceHashes": {
+        "schema.q": "d9bdeaa1ac949317b72abed2a016a7b0de6795ea413d45f54ef831ecbbb9201b"
+      },
+      "fixtureHashes": {}
+    },
+    "w19-045-snapback-honor-guard-details": {
+      "sourceHashes": {
+        "schema.q": "bba50954cdd8cc5aa63d9d9f9b2e640861af6bde8ed842be8e9ba69eddace19e"
+      },
+      "fixtureHashes": {
+        "test.cases.jsonl": "93c9bd89e258d7c5c7dc166f15747dfb8574b8bdd8ee79464c7ea2bfc27f1be4",
+        "todos.jsonl": "7170e5af130d76301bee92bd3f2040028ea4ad9e8ea64ce864820c2d438733b0"
+      }
+    },
+    "w19-047-snapback-hyperbaric-chamber-log": {
+      "sourceHashes": {
+        "schema.q": "481c8220a6df3386a3decf6d18b94ce0a0ea1e7aa0ab1c46fd39b6f9030aabb6"
+      },
+      "fixtureHashes": {}
+    },
+    "w19-048-snapback-repair-cafe-intake": {
+      "sourceHashes": {
+        "schema.q": "c24eaa3f1e8d4181aab336d46268bb832b45d13fba122cdc9dbf203dc0a6e68f"
+      },
+      "fixtureHashes": {}
+    },
+    "w20-013-snapback-piano-competition-juries": {
+      "sourceHashes": {
+        "schema.q": "41a6c99aa7dcd0f0868149b78a6563207cbdd0c2166ee7e3710c70d98238e0cf"
+      },
+      "fixtureHashes": {}
+    },
+    "w20-015-snapback-sailmaker-repair-orders": {
+      "sourceHashes": {
+        "schema.q": "f43021d9c92a5f852c895696a0f578a741dd9cad47b290cd3cfd6093c4726fd8"
+      },
+      "fixtureHashes": {}
+    },
+    "w20-045-snapback-hop-kiln-lots": {
+      "sourceHashes": {
+        "schema.q": "fc9979b3abf298dea104d9d62ba4255b58cee8cd72ffaac713b3555aaaa91365"
+      },
+      "fixtureHashes": {}
+    },
+    "w20-048-snapback-therapeutic-riding-sessions": {
+      "sourceHashes": {
+        "schema.q": "45a47c44adb9b8b51dfd775f78e58a7f215355f1e798d45c7d04572af240c91c"
+      },
+      "fixtureHashes": {}
+    },
+    "w21-001-snapback-luthier-crack-repairs": {
+      "sourceHashes": {
+        "schema.q": "fe8be98db6c80e27db35b45c9df83669d9e49e5546c679fac5cdbb62d2584773"
+      },
+      "fixtureHashes": {}
+    },
+    "w21-013-snapback-piano-competition-juries": {
+      "sourceHashes": {
+        "schema.q": "f9ddc52e05eb18f1e0c56fd309db5a0f5b69358e76e23a4fab385bfd54e49495"
+      },
+      "fixtureHashes": {}
+    },
+    "w21-015-snapback-sailmaker-repair-orders": {
+      "sourceHashes": {
+        "schema.q": "0f49723ae78179f7618671fb02904f8e0659c32cd9eff6d347a3fd9397592d0a"
+      },
+      "fixtureHashes": {}
+    },
+    "w21-026-snapback-bookbinding-restoration-jobs": {
+      "sourceHashes": {
+        "schema.q": "f69dd0f4984146543907c8f60689ea6eeaddc5a11f86fc2dbf9cd158b79810ba"
+      },
+      "fixtureHashes": {}
+    },
+    "w21-042-snapback-english-class-placement": {
+      "sourceHashes": {
+        "schema.q": "f7a5d2c231eb6570cd390bbb50b21a2f559e9997e9417a3ca7869e23ccd0a9ea"
+      },
+      "fixtureHashes": {}
+    },
+    "w21-045-snapback-hop-kiln-lots": {
+      "sourceHashes": {
+        "schema.q": "ba2dc53312ed347a0207061ad91bd8d366d52c90bd5554d82d2e79eec8ae9b28"
+      },
+      "fixtureHashes": {}
+    },
+    "w21-048-snapback-therapeutic-riding-sessions": {
+      "sourceHashes": {
+        "schema.q": "da790661c431de5027d6cd5ff405a9f8eab2b0df0c8f6df486f55a5d48652571"
+      },
+      "fixtureHashes": {}
+    },
+    "w22-021-snapback-wash-fold-laundry": {
+      "sourceHashes": {
+        "schema.q": "483ac21603cb56a387e9254aac0d4b2195459c827c2c9f1205d0a12476de8cad"
+      },
+      "fixtureHashes": {}
+    },
+    "w23-001-snapback-stained-glass-restorations": {
+      "sourceHashes": {
+        "schema.q": "e642c41a7546b4cbfdbf0de171af80243258ef273b17dfaf04f216114d576810"
+      },
+      "fixtureHashes": {}
+    },
+    "w23-005-snapback-tool-library-loans": {
+      "sourceHashes": {
+        "schema.q": "1b1818fec75fb46dc66292a32271e30c65149f9a57f7f2c726506f5e5fc06e3b"
+      },
+      "fixtureHashes": {}
+    },
+    "w23-017-snapback-pawn-loan-tickets": {
+      "sourceHashes": {
+        "schema.q": "3405bf72cbaba4a310b98583da60fb2a5bbafb729c9bbbb1f98b08308cab3682"
+      },
+      "fixtureHashes": {
+        "test.cases.jsonl": "747d0f1ccf8d538d95fdf82354b8bb1d007ef889867e3fbf2aa0074ff03aece2",
+        "roles.jsonl": "6e3bb4ddce7c891b5fb8d401052ba0c755ab14e0c97f55eaa877ad168c668141"
+      }
+    },
+    "w23-021-snapback-wash-fold-laundry": {
+      "sourceHashes": {
+        "schema.q": "12abecfd5e5605c6727e7cfc09734e82aae16e20a315b542a73933664fc5807c"
+      },
+      "fixtureHashes": {}
+    },
+    "w23-022-snapback-court-interpreter-bookings": {
+      "sourceHashes": {
+        "schema.q": "f663477361b9320d4e0534f21016948d7ad4db7c2d890676a70ffa4c7c0a98ae"
+      },
+      "fixtureHashes": {}
+    },
+    "w23-031-snapback-wedding-cake-orders": {
+      "sourceHashes": {
+        "schema.q": "9addd1f136c09c14e731c9a57ba1cd36921f5eb53aa160851301359f5d8f7f4c"
+      },
+      "fixtureHashes": {}
+    },
+    "w23-041-snapback-swim-school-assessments": {
+      "sourceHashes": {
+        "schema.q": "834b809d5dc77c0f9eb1373c22c8d58b4913ea6534d95a3f588e446ad33ce2e9"
+      },
+      "fixtureHashes": {}
+    },
+    "w23-042-snapback-mobile-notary-signings": {
+      "sourceHashes": {
+        "schema.q": "f3b956af45b0d13353481bb12a85a1935a10528f9c5b11643b5e6cd868167f79"
+      },
+      "fixtureHashes": {}
+    },
+    "w24-029-snapback-dog-sled-tours": {
+      "sourceHashes": {
+        "schema.q": "ad4d1d456ae23c383cd4f8fdfa47de0e19f74090a6980027a9d6bd81e4495126"
+      },
+      "fixtureHashes": {}
+    },
+    "w25-015-snapback-band-instrument-rentals": {
+      "sourceHashes": {
+        "schema.q": "360163161498d2342cd06d8534b2a5c5bfa2b6b5cc6ebfbd3add62cfea17c28b"
+      },
+      "fixtureHashes": {}
+    },
+    "w25-017-snapback-butcher-custom-orders": {
+      "sourceHashes": {
+        "schema.q": "e0c617d6b3759abb2577fc3d4088295a5ad364d021f007d0e30fa048a4111a79"
+      },
+      "fixtureHashes": {}
+    },
+    "w25-029-snapback-dog-sled-tours": {
+      "sourceHashes": {
+        "schema.q": "59a8b510a9cf7c1daa6b1bf4f1474f54a17c5616f95f9d21ce0fa613674dd7f4"
+      },
+      "fixtureHashes": {}
+    },
+    "w25-045-snapback-basement-waterproofing-jobs": {
+      "sourceHashes": {
+        "schema.q": "a22c778fd726fb7123fe74d11fb251e7a6e7435131f0254c0b86152543990f05"
+      },
+      "fixtureHashes": {}
+    }
+  },
+  "conditionalClasses": {
+    "cleared by one-line intent": 32,
+    "real": 17
+  },
+  "conditionalBusinessTestReds": [
+    "w25-029-snapback-dog-sled-tours",
+    "w19-025-snapback-wheelchair-repair-loaners",
+    "w19-045-snapback-honor-guard-details",
+    "w24-029-snapback-dog-sled-tours",
+    "w18-045-snapback-honor-guard-details",
+    "w18-025-snapback-wheelchair-repair-loaners"
+  ],
+  "conditionalGatesFreshPostRefusals": 0
+}

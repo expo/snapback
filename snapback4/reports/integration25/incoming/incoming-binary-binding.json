@@ -1,0 +1,9 @@
+{
+  "source": "030a1ab426580372f3b7116724205990223af312",
+  "binary": "/home/ccheever/sb4-loop/reports/integration25/bin-incoming-0.4.41",
+  "version": "snapback4 0.4.41",
+  "binarySha256": "31c84eb104f37db8a3dfd2d2aa01d0b26f75190edbc59a8cf4d3adb12cbbb105",
+  "profile": "Repository-configured test profile; no DEV/TEST_OPT_LEVEL override; original assertions and32MiB test stack",
+  "build": "CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 RUST_MIN_STACK=33554432 cargo test -p snapback4 --features snapback4-core/test-support --test surf4 --no-run",
+  "at": "2026-10-25T12:55:13.035484+00:00"
+}

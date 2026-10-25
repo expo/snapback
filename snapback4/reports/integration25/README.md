@@ -31,3 +31,5 @@ budget738,608 is gzip+500. The missing-Brotli probe is explicitly invalid and
 was never appended as a measurement. A filesystem issue tracks strict failure.
 Source-bound supplementary root/documentation and incoming-main receipts follow.
 Publication qualification is deliberately separate and deferred.
+
+Incoming-main closure, repeated campaigns and final scoped supplements are under `incoming/`.
