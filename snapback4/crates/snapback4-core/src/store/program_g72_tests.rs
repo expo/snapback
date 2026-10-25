@@ -61,12 +61,17 @@ fn g72_held_chain_folds_before_predecessor_commits_and_releases_in_order() {
     let hold = Hold::new();
     let events = install_hook(&mut lane, Point::AfterTail, hold.clone(), false);
     let output = Arc::new(Mutex::new(Vec::new()));
+    crate::engine::committer::closure::PLAN_BUILDS.with(|count|count.set(0));
     for start in [0, 8] {
         let r = released.clone();
         let o = output.clone();
-        lane.start(
+        let batch = members(start);
+        let mut plans = (0..batch.len()).map(|_|None).collect();
+        assert!(Lane::eligible(&engine,&batch,!lane.empty(),&mut plans));
+        lane.start_planned(
             &mut engine,
-            members(start),
+            batch,
+            plans,
             Box::new(move |_, out| {
                 r.lock().unwrap().push(start);
                 o.lock().unwrap().extend(out.into_iter().map(outcome));
@@ -83,6 +88,8 @@ fn g72_held_chain_folds_before_predecessor_commits_and_releases_in_order() {
     hold.open();
     lane.drain(&mut engine);
     assert_eq!(*released.lock().unwrap(), vec![0, 8]);
+    assert_eq!(crate::engine::committer::closure::PLAN_BUILDS.with(|count|count.get()),16,
+        "pipeline classification and chained staging must reuse one plan per member");
     let mut serial = fixture(true);
     let expected = (0..16)
         .map(|i| outcome(serial.invoke_program(&mut item(i))))

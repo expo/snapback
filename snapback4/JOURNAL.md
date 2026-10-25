@@ -108234,3 +108234,129 @@ errors or unchecked refs. Private PG16 masters 3084105 and 3164878
 are stopped and independently confirmed; the combined census of
 569 recorded PIDs contains no remaining process. No push or throughput
 run occurs. Task-owned PIDs left: none.
+
+## 2026-10-25 — LEV rebase onto current main: G7.1, G7.2 and FF3
+
+Lane `sb4-pg/lev-main` starts clean at the required `d1174f8fbd` on base
+`4c6b386072`, preserving that tip at `sb4-pg/lev-pre-main-d1174f8fbd`.
+`git fetch origin main` resolves main to `20a45b73cb`; the seven original
+LEV commits are rebased with their original authors and Charlie Cheever as
+committer. No push, stash or Git configuration change occurs. Qualification
+uses the lane's own target, line-tables-only debug information, 24 Cargo jobs,
+private PG16 and a monitored 30 GiB free-disk stop floor.
+
+The five conflicted files are resolved by intent. JOURNAL keeps every main
+and LEV entry. The controls RFC retains FF3's Revised history and adds LEV's
+history and implementation text. Postgres RT0 composes warm-ingress savings
+(`keyed_first` 7, `narrowed_argument` 1, `one_membership` 7) with G7.1's
+three-flight program-batch totals. No ratchet expectation is tuned to a run.
+`committer/wave.rs` keeps `prepare_chained` and its image/receipt/head fold
+while accepting precomputed member plans. `engine/program_batch.rs` retains
+`indices.len()>1 || chain.is_some()`, first-ticket timeout mapping and the
+unsupported buffered-closure barrier, while consuming those retained plans.
+
+The semantic merge extends plan custody through queue/pipeline classification
+and staging, including single-member chained batches and the pipeline-slot
+creation fallback. Cascade and solo recovery revalidate fully without
+rebuilding closure plans. A drained continuation changing the host binding or
+code epoch invalidates the old inventory. Existing G7.2 recovery, predecessor
+outcome and pipeline-aware fill behavior stays intact. Chained and both
+cascade-to-solo witnesses now count planner calls; LEV's original per-member
+argument/count witness is retained.
+
+Fresh mutation binding and Full scope use the same final authority callback
+in either slot. A new HTTP witness holds an actual predecessor COMMIT and
+requires a single unkeyed warm-hint successor to check fresh authority in
+slot two before that COMMIT releases. A refused successor rolls back before
+final dispatch. It
+covers a stale Full→Read hint, a matching refreshed Read hint, and an
+out-of-band store replacement; the expected refusals are E_AUTH/503,
+E_READ_ONLY/403 and E_STORE_REPLACED/409, without successor writes or metadata.
+The first harness revision allowed a solo predecessor to hold the fixture
+mutex; its recorded test PID was stopped and its database locks disappeared.
+The corrected harness parks mailbox collection before queuing both first
+members. Final qualification and cleanup results follow below. No throughput
+measurement or extension of the original LEV performance claim is made.
+
+The corrected witness warms both writer slots before installing its deliberate
+foreign deferred trigger: FF3 correctly refuses that trigger during a fresh
+slot attach. It uses the explicit point-read/update program form, verifies the
+successor's retained ordinary hint and observes its fresh authority callback
+while the predecessor remains held. Refused staging ends before final dispatch;
+the store-replacement arm instead observes the earlier ticket identity refusal.
+That arm exposed G7's `E_STORE_OWNERSHIP` classification of changed `_meta`
+identity. It now preserves `E_STORE_REPLACED`, the store family, sync guide and
+HTTP 409. The failure remains terminal after confirmed rollback, so it cannot
+fall through to a fresh attempt against a replacement.
+
+Negative controls deliberately rebuild plans in `Wave::prepare_chained` and
+bypass the fresh Full-scope requirement. The original LEV argument/plan witness
+fails on both stores, counting 11 builds instead of 7 (0 passed / 2 failed).
+The new HTTP witness fails on a refreshed Read hint which writes when Full
+scope is bypassed (0/1). Both source files are restored with SHA-256 equality;
+the restored authority witness passes all three cases, and final qualification
+uses the restored bytes. The initial complete Postgres run's added authority
+witness red is a corrected fixture failure, not an inherited main red. Its
+791/4 Rust-target total is retained separately from the final rerun below.
+No new S1 or LEV throughput campaign runs; the requested suite's internal
+plan-hygiene and other qualification probes still run normally.
+
+An additional `store_port_ratchet` integration check reports **7 passed /
+1 failed**: five production-classified adapter sites, one in
+`engine/program_batch.rs` and four in `engine/program_pipeline.rs`. A focused
+fixture using the exact scanner, helper, allowlists and those two files from
+fetched main `20a45b73cb` reproduces the identical counts (**0/1**). This is
+inherited G7.2 census drift, tracked separately in
+[the filesystem ticket](../issues/20261025-snapback4-g72-store-port-ratchet-adapter-types.md).
+The zero-production-access allowance and scanner remain unchanged.
+
+Final qualification (passed / failed / ignored, excluding isolated child-test
+summaries; focused rows overlap the complete scopes):
+
+| Check | Passed | Failed | Ignored |
+| --- | ---: | ---: | ---: |
+| Full core with Postgres, 49 Cargo targets including doctests | 1301 | 0 | 492 |
+| Full `snapback4` binary | 623 | 0 | 69 |
+| Both HTTP RT0 ratchets and related filter | 9 | 0 | 0 |
+| Core overlay RT0, SQLite / Postgres / G6 | 3 | 0 | 0 |
+| Complete Postgres RT3b authority scope | 87 | 0 | 0 |
+| Restored depth-two warm-hint authority witness, three cases | 1 | 0 | 0 |
+| Final `bash scripts/test-postgres.sh`, 26 Rust targets | 792 | 3 | 0 |
+| Additional store-port integration census | 7 | 1 | 0 |
+
+The final script's three Rust reds are the two declared socket-host refusals,
+`pipeline_on_wire_overlap_precedes_release_and_backend_termination` and
+`pipeline_tcp_nodelay_on_reader_and_synchronous_writer`, plus difftest
+`both_stores_all_public_boundaries_and_write_observations` with
+`runtime_refused_unexpected {"E_INPUT": 6}`. The separate evaluator build stage
+refuses the inherited stale `experiments/postgres/Cargo.lock` under `--locked`,
+so its known `40001` stress case is not exercised in either script invocation.
+No other requested final Rust scope fails. The additional inherited census
+red is documented and ticketed above; no expectations or allowances are raised.
+
+The final script's complete public CLI milestone passes, as did the first:
+transport/bootstrap refusals, PostgreSQL/SQLite release evolution and 300 KiB
+restoration, byte-identical wire/meters, retained/pruned changes, real sessions
+and receipt replay, restart, SIGKILL takeover and ownership loss, FF3 event
+inventory and owner-clock diagnostics, and the unchanged S1 app with maintained
+totals recounted. The measured HTTP PG table is 7/1/7 for keyed-first /
+narrowed-argument / one-membership, with 3 flights at each N=4/8/32 batch class.
+SQLite's table also passes unchanged after composing the ingress lever.
+`./ref-check` passes **569 LLP docs / 12,022 refs / 0 errors / 0 unchecked**.
+Raw logs, controls, source hashes, the census baseline fixture and PID receipts
+remain outside Git under `/tmp/lrb.hXRhtj/`.
+
+Original → rebased commit mapping:
+`40e2a1ee45` → `987a1f01df`, `570ac0ded9` → `d2ce1f1dd7`,
+`13560f6574` → `9164c1b73a`, `2c64741a39` → `50bebbbb41`,
+`1df119de28` → `0477d87cae`, `029b7c1091` → `024bb29ef5`,
+`d1174f8fbd` → `209dc2d572`. All original author identities are preserved.
+
+Private PG16 postmasters **2535027**, **2679170** and **2986559** are stopped
+and independently confirmed: pg_ctl status **3**, no `postmaster.pid`, and no
+matching process. Data directories are retained. The final audit finds none
+of **2,197 recorded unique PIDs** or **1,247 recorded PID/birth instances**
+living, no recorded zombie, and no process executing this worktree's target
+binaries. Minimum observed free space is **35.471 GiB**, final audit
+**53.595 GiB**, above the commissioned 30 GiB stop floor. No push, stash or
+Git configuration change occurs. **PIDs left: none.**

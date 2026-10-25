@@ -164,7 +164,13 @@ mod lane {
                     .values()
                     .any(|t| t.not_before.is_some())
         }
-        pub fn start(&mut self, engine: &mut Engine, mut batch: Vec<Invocation>, mut plans: super::super::program_batch::Plans, finish: Finish) {
+        #[cfg(test)]
+        pub fn start(&mut self, engine: &mut Engine, batch: Vec<Invocation>, finish: Finish) {
+            let mut plans: super::super::program_batch::Plans = (0..batch.len()).map(|_|None).collect();
+            for i in 0..batch.len() { super::super::program_batch::bounded_plan(&mut plans,i,engine,&batch); }
+            self.start_planned(engine,batch,plans,finish);
+        }
+        pub fn start_planned(&mut self, engine: &mut Engine, mut batch: Vec<Invocation>, mut plans: super::super::program_batch::Plans, finish: Finish) {
             if self.paused {
                 finish(
                     engine,
@@ -224,7 +230,7 @@ mod lane {
             let mut staged = None;
             let values =
                 engine.program_group_staged(&mut batch, &indices, false,
-                    Some(plans.into_iter().map(|p|p.unwrap().unwrap()).collect()), Some(&chain), &mut staged);
+                    plans.into_iter().map(|p|p.unwrap()).collect(), Some(&chain), &mut staged);
             let values = match values {
                 Ok(values) => values,
                 Err(failure) => {

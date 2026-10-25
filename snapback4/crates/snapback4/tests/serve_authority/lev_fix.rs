@@ -215,3 +215,72 @@ fn rt3b_lev_custom_ephemeral_postgres() { custom_kind(true, true); }
 fn rt3b_lev_retired_observation_postgres() { retired_observation(true); }
 #[cfg(feature="postgres")] #[test] #[ignore="private PG16"]
 fn rt3b_lev_ownership_postgres() { ownership(true); }
+
+#[cfg(feature = "postgres")]
+#[test]
+#[ignore = "private PG16"]
+fn rt3b_lev_pipeline_successor_warm_unkeyed_authority_postgres() {
+    for change in ["scope-stale", "scope-read", "store"] {
+        // Use G3b's admitted explicit point-read/update form.
+        let source=SOURCE.replace("  update counters[\"c\"] { n: (counters[\"c\"].n ?? 0) + n }",
+            "  c = counters[\"c\"] ! else NOT_FOUND\n  update counters[c.id] { n: c.n + n }");
+        let f = Fixture::with_source(true, &source);
+        let first = f.session(false);
+        let successor = f.session(false);
+        for session in [&first, &successor] {
+            assert_eq!(body(&f.host.request("POST", "/q/count", &headers(session), "{}"))["data"], 0);
+        }
+        if change.starts_with("scope") {
+            change_capability(&f, &successor, "scope");
+            if change == "scope-read" {
+                let reply = f.host.request("POST", "/m/change", &headers(&successor), r#"{"args":{"n":1}}"#);
+                refused(&reply, "E_AUTH"); no_store_metadata(&reply);
+                // The next batch plans from a matching Read hint. It must
+                // still independently require fresh Full mutation scope.
+            }
+        }
+        let pair = || {
+            // Park collection itself so both members reach its next FIFO fill.
+            let gate=Arc::new(WorkGate::default()); let release=ReleaseGate(gate.clone()); let hook=gate.clone();
+            let shared=f.host.shared.clone();
+            let parked=thread::spawn(move || shared.engine.submit(move |_,_|hook.park()));
+            wait_until(|| gate.entered.load(Ordering::Acquire)==1);
+            let mut tasks = Vec::new();
+            for n in 1..=2 {
+                let address=f.host.address; let request=wire("/m/change", &first, &json!({"args":{"n":1}}));
+                tasks.push(thread::spawn(move || exchange_held(address, 2*WAIT_TIMEOUT, request)));
+                wait_until(|| f.host.shared.engine.queued() >= n+1);
+            }
+            drop(release); parked.join().unwrap().unwrap(); tasks
+        };
+        // Initialize both real writer slots before installing the deliberate
+        // foreign trigger. FF3 correctly refuses it during a fresh slot attach.
+        for task in pair() { assert_eq!(body(&task.join().unwrap())["state"], "sent"); }
+        let hinted=lock(&f.host.shared.carried).get(&identity::session_digest(&successor.token)).cloned().expect("successor must retain a warm ordinary hint");
+        assert_eq!(hinted.1.2, if change=="scope-read" { identity::SessionScope::Read } else { identity::SessionScope::Full });
+        let original = lock(&f.host.shared.wake).store_id.clone().unwrap();
+        let mut hold = lock(&f.host.shared.engine).store_mut().test_request_pipeline_hold().unwrap();
+        let first_tasks = pair();
+        wait_until(|| hold.waiting().unwrap());
+        if change == "store" { hold.replace_store_id("replacement").unwrap(); }
+        // A single successor is eligible only because it has a pipeline
+        // predecessor; this also witnesses the chain.is_some() admission arm.
+        let (checked, observed)=mpsc::channel();
+        *lock(&f.host.shared.mutation_authority_checked)=Some(Arc::new(move || { checked.send(()).unwrap(); }));
+        let address=f.host.address; let request=wire("/m/change", &successor, &json!({"args":{"n":1}}));
+        let successors=vec![thread::spawn(move || exchange_held(address, 2*WAIT_TIMEOUT, request))];
+        let overlapped=observed.recv_timeout(WAIT_TIMEOUT).is_ok();
+        let held=hold.waiting().unwrap();
+        assert!(first_tasks.iter().chain(&successors).all(|t| !t.is_finished()), "no early HTTP publication");
+        if change == "store" { hold.replace_store_id(&original).unwrap(); }
+        hold.release().unwrap();
+        for task in first_tasks { assert_eq!(body(&task.join().unwrap())["state"], "sent"); }
+        for task in successors {
+            let reply=task.join().unwrap();
+            let (code, http) = match change { "scope-stale" => ("E_AUTH",503), "scope-read" => ("E_READ_ONLY",403), _ => ("E_STORE_REPLACED",409) };
+            refused(&reply,code); no_store_metadata(&reply); assert_eq!(status(&reply),http,"{change}: {reply}");
+        }
+        assert!(held && (overlapped || change=="store"), "{change}: the chained successor must check fresh authority while its predecessor's COMMIT is held; stats={:?}",f.host.shared.engine.batch_stats());
+        assert_eq!(f.count(),4,"{change}: successor authority must publish no write");
+    }
+}

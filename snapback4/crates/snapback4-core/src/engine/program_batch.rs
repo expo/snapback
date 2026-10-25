@@ -29,6 +29,7 @@ impl Engine {
         self.invoke_program_batch_planned(batch, &mut plans)
     }
     pub(super) fn invoke_program_batch_planned(&mut self, batch: &mut [Invocation], plans: &mut Plans) -> Vec<Outcome> {
+        assert!(batch.len() <= 32, "bounded program batch");
         assert_eq!(plans.len(), batch.len());
         let mut results = vec![None; batch.len()];
         // @ref LLP 3000.009.001.000.002#33-in-batch-concurrent-execution-under-the-head-lock — a plan belongs to this immutable host/intent only; fallback discards it and revalidates.

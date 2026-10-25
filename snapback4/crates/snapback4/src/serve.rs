@@ -168,6 +168,8 @@ pub struct Shared {
     #[cfg(test)]
     pub mutation_wait: WorkHook,
     #[cfg(test)]
+    pub mutation_authority_checked: WorkHook,
+    #[cfg(test)]
     pub mutation_committed: WorkHook,
     #[cfg(test)]
     pub operation_ingress: WorkHook,
@@ -1413,7 +1415,9 @@ fn handle(mut request: Request, shared: &Shared) {
                     Ok(snapback4_core::engine::program::Invocation::new(owned_op,owned_id,context.with_wire_args(args_json))
                         .authorized(admission.digest(),move ||sample_admission.sample(&sample_host),move |facts| {
                             // Bind fresh store facts before refreshing the hint or accepting authority.
-                            admission.check_bound_facts(&shared,&expected,&facts,persona.clone(),Some(generation))?;
+                            let checked=admission.check_bound_facts(&shared,&expected,&facts,persona.clone(),Some(generation));
+                            #[cfg(test)] test_work(&shared.mutation_authority_checked);
+                            checked?;
                             *lock(&boundary_check)=Some((facts.store_id.clone(),facts.head));
                             head::intent_store_id(&payload,Some(&facts.store_id))
                         }))

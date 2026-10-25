@@ -7,7 +7,8 @@ const SOURCE: &str = "use identity\ntable counters:\n  n: int\n  public\n  inser
 
 struct Fixture { host: Host, _directory: ReaderTestDirectory }
 impl Fixture {
-    fn new(pg: bool) -> Self {
+    fn new(pg: bool) -> Self { Self::with_source(pg, SOURCE) }
+    fn with_source(pg: bool, source: &str) -> Self {
         let directory = ReaderTestDirectory::new();
         let store = if pg {
             #[cfg(feature = "postgres")]
@@ -15,7 +16,7 @@ impl Fixture {
             #[cfg(not(feature = "postgres"))]
             { unreachable!() }
         } else { snapback4_core::store_port::AnyStore::open(&directory.0.join("authority.sqlite")).unwrap() };
-        let host = Host::with_store(false, store, SOURCE);
+        let host = Host::with_store(false, store, source);
         lock(&host.shared.engine).seed([("counters".into(), snapback4_core::wire::row_from_json(&lock(&host.shared.bound).schema.tables["counters"], &json!({"id":"c","n":0})).unwrap())]).unwrap();
         Self { host, _directory: directory }
     }
