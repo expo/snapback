@@ -73,3 +73,16 @@ pub(crate) fn revalidated(bound:&Bound,program:&str,table:&str,stamp:&str,site:O
     // must never refute a legitimate invocation or mint a trusted receipt.
     if !verdicts.is_empty()&&verdicts.iter().all(|verdict|*verdict==Some(true)){Some(true)}else if !verdicts.is_empty()&&verdicts.iter().all(|verdict|*verdict==Some(false)){Some(false)}else{None}
 }
+
+#[cfg(test)]mod inline_checks{use super::*;
+#[test]fn actual_write_boundary_retains_key_and_field_helper_requirements(){
+    use snapback4_core::value::object;
+    let source="table docs:\n  payload: int\n  approved: bool default false\n  read <- allow\n  update <- allow\n  online only\nmutation approve(doc: docs):\n  d = docs[doc] ! else MISSING\n  require d.payload > 0 else INVALID\n  update docs[doc] {approved:true}\nmutation replace(doc: docs,value: int):\n  update docs[KEY] {payload:FIELD,approved:true}\nfn checked(value: int):\n  require value > 0 else INVALID\n  return value\nfn checkedDoc(doc: docs,value: int):\n  require value > 0 else INVALID\n  return doc\n";
+    for (key,field) in [("doc","checked(value)"),("checkedDoc(doc,value)","value")]{
+        let source=source.replace("KEY",key).replace("FIELD",field);let sources=vec![("schema.q".into(),source)];let b=crate::compile(&sources);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);let b=super::super::augmented(&sources,&b);
+        let site=b.security_approval_checks.keys().find(|key|key.0=="replace"&&key.1=="docs"&&key.2=="approved").unwrap().3.clone();
+        let old=object([("id",Value::Id("d".into())),("payload",Value::Int(0)),("approved",Value::Bool(true))]);let next=object([("id",Value::Id("d".into())),("payload",Value::Int(1)),("approved",Value::Bool(true))]);let args=BTreeMap::from([("doc".into(),Value::Id("d".into())),("value".into(),Value::Int(1))]);
+        assert_eq!(revalidated(&b,"replace","docs","approved",Some(&site),&old,&next,&BTreeSet::from(["payload".into()]),&BTreeMap::new(),"actor",0,&args),Some(true),"{key}/{field}");
+    }
+}
+}

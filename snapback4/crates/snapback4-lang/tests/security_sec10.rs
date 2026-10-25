@@ -492,3 +492,22 @@ fn campaign(s:&str)->Campaign{let b=security::derived::augmented(&sources(s),&bo
     let source="table docs:\n  approved: bool default false\n  status: enum('draft','done') default 'draft'\n  reason: text <=30 ?\n  read <- allow\n  update <- allow\n  online only\nmutation approve(doc: docs):\n  update docs[doc] {approved:true}\nmutation finish(doc: docs,newReason: text <=30 ?):\n  d = docs[doc] ! else MISSING\n  reason = newReason\n  if reason = null:\n    reason = d.reason\n  require reason != null else REASON\n  require d.approved else APPROVAL\n  update docs[doc] {status:'done'}\n";
     assert!(!notes(source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
 }
+
+#[test]fn approval_alternatives_do_not_establish_caller_facts(){
+    assert!(!notes(include_str!("security/sec10-controls/or-branch-facts.q")).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+}
+#[test]fn parent_approval_loops_keep_the_selected_parent(){
+    let source=include_str!("security/sec10-controls/or-branch-facts.q").replace("mutation finish(trip: trips,flag: bool):","mutation finish(trip: trips,other: trips,flag: bool):\n  require trip != other else DIFFERENT").replace("    require flag or opaque(flag) else CHOICE\n    if flag:\n      continue\n","");
+    for (target,gated) in [("trip",false),("other",true)]{let source=source.replace("bookings first 10",&format!("bookings where .trip = {target} first 10"));assert_eq!(notes(&source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"),gated,"{target}");}
+    for predicate in [".trip = trip and .trip = other",".trip = trip and false"]{let source=source.replace("bookings first 10",&format!("bookings where {predicate} first 10"));assert!(notes(&source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"),"{predicate}");}
+}
+#[test]fn approval_table_use_belongs_to_each_literal_kind(){
+    let source="table roles:\n  principal: principal\n  role: enum('manager','staff')\n  unique principal\n  read <- allow\n  online only\ntable docs:\n  status: enum('draft','done') default 'draft'\n  read <- allow\n  update <- allow\n  online only\ntable approvals:\n  doc: docs\n  kind: enum('permit','audit')\n  unique doc,kind\n  read <- allow\n  insert <- exists roles[principal = viewer,role = 'manager']\n  online only\nmutation permit(doc: docs):\n  require exists roles[principal = viewer,role = 'manager'] else MANAGER\n  return insert approvals {doc,kind:'permit'}\nmutation audit(doc: docs):\n  require exists roles[principal = viewer,role = 'manager'] else MANAGER\n  return insert approvals {doc,kind:'audit'}\nmutation finish(doc: docs):\n  require exists approvals[doc = doc,kind = 'permit'] else PERMIT\n  update docs[doc] {status:'done'}\n";
+    let audit_line=source.lines().position(|line|line.contains("return insert approvals {doc,kind:'audit'}")).unwrap()+1;
+    for guard in ["exists approvals[doc = doc,kind = 'permit']","exists approvals where .doc = doc and .kind = 'permit'","exists approvals[doc = doc] where .kind != 'audit'"]{
+        let source=source.replace("exists approvals[doc = doc,kind = 'permit']",guard);let ns=notes(&source).into_iter().filter(|n|n.code=="N_APPROVAL_NOT_ENFORCED").collect::<Vec<_>>();assert_eq!(ns.len(),1,"{guard}: {ns:?}");assert_eq!(ns[0].site.line as usize,audit_line,"{guard}");
+    }
+    let schema=source.replace("  update <- allow","  update <- exists approvals[doc = .id,kind = 'permit']").replace("  require exists approvals[doc = doc,kind = 'permit'] else PERMIT\n","");let ns=notes(&schema).into_iter().filter(|n|n.code=="N_APPROVAL_NOT_ENFORCED").collect::<Vec<_>>();assert_eq!(ns.len(),1,"{ns:?}");assert_eq!(ns[0].site.line as usize,audit_line);
+    let broad=source.replace("exists approvals[doc = doc,kind = 'permit']","exists approvals where .doc = doc and (.kind = 'permit' or .kind = 'audit')");assert!(!notes(&broad).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+    let mutable=source.to_string()+"mutation classify(approval: approvals):\n  update approvals[approval] {kind:'permit'}\n";assert!(!notes(&mutable).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+}

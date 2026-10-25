@@ -143,8 +143,10 @@ fn parent_loop_guard(effect:&Write<'_>,table:&str,column:&str,bound:&Bound)->boo
             Stmt::Bind{names,value,..}=>{let value=resolve(value,env);for name in names{env.insert(name.clone(),if names.len()==1{value.clone()}else{Expr::Name{name:format!("$advice_loop_unknown:{name}"),site:value.site().clone()}});}},
             Stmt::Require{condition,code,..}=>{
                 let condition=apply_facts(&resolve(condition,env),facts,names);if matches!(condition,Expr::Literal{value:ast::Literal::Bool(false),..}){return (false,false);}
+                // Only complete authored conjuncts establish continuation facts.
+                // A salvaged OR arm is use evidence, never an assumption.
+                for part in conjunction(&condition){if let Some((key,value))=predicate_fact(part,names){if facts.insert(key,value).is_some_and(|old|old!=value){return (false,false);}}}
                 for condition in condition_parts(&condition,code,catalog){
-                    if let Some((key,value))=predicate_fact(&condition,names){facts.insert(key,value);}
                     if super::super::derived::approval_receipts(&condition).iter().any(|positive|{let mut found=false;walk(positive,|e|if let Expr::Member{base,name,..}=e&&name==column&&matches!(base.as_ref(),Expr::Name{name,..} if name==binder){found=true;});found}){return (true,true);}
                 }
             },
@@ -184,10 +186,17 @@ fn parent_loop_guard(effect:&Write<'_>,table:&str,column:&str,bound:&Bound)->boo
     }
     if effect.table==table||!bound.schema.tables[table].columns.values().any(|kind|matches!(kind.required(),ColumnType::Ref{table} if table==&effect.table)){return false;}
     let Some(mut facts)=context_facts(&effect.context,effect.catalog)else{return false;};let names=caller_names(effect.p);
+    let domain_matches=|read:&ast::ReadExpr|{
+        if read.table!=table||read.filter.as_deref().is_some_and(|filter|matches!(simplify_boolean(filter),Expr::Literal{value:ast::Literal::Bool(false),..})){return false;}
+        let references=bound.schema.tables[table].columns.iter().filter(|(_,kind)|matches!(kind.required(),ColumnType::Ref{table} if table==&effect.table)).map(|(name,_)|name.clone()).collect::<BTreeSet<_>>();
+        let selected=super::approval_records::pins(read,effect.p,bound).into_iter().filter(|(column,_)|references.contains(column)).collect::<Vec<_>>();
+        if !selected.is_empty(){return selected.iter().any(|(column,_)|selected.iter().filter(|(candidate,_)|candidate==column).all(|(_,value)|super::approval_records::origin(value,effect.p,bound).is_some_and(|origin|super::approval_records::parent_values(effect,&effect.table,bound).iter().any(|target|super::approval_records::origin(target,effect.p,bound)==Some(origin.clone())))));}
+        let mut unresolved_selection=!read.keys.is_empty();if let Some(filter)=&read.filter{walk(filter,|e|if matches!(e,Expr::Member{base,name,..} if matches!(base.as_ref(),Expr::Focal{..})&&references.contains(name)){unresolved_selection=true;});}!unresolved_selection
+    };
     let mut env=BTreeMap::new();
     for stmt in before{match stmt{
         Stmt::Bind{names,value,..}=>{let value=expanded(effect.catalog,value,&env);for name in names{env.insert(name.clone(),if names.len()==1{value.clone()}else{Expr::Name{name:format!("$advice_loop_unknown:{name}"),site:value.site().clone()}});}},
-        Stmt::For{domain,name,body,..}=>{if matches!(domain,Expr::Read(read) if read.table==table){let mut local=env.clone();local.remove(name);if scan(body,name,column,&mut local,effect.catalog,0,&names,&mut facts.clone()).0{return true;}}for name in super::super::authority_walk::branch_assignments(body){env.insert(name.clone(),Expr::Name{name:format!("$advice_loop_unknown:{name}"),site:domain.site().clone()});}},
+        Stmt::For{domain,name,body,..}=>{if let Expr::Read(read)=expanded(effect.catalog,domain,&env)&&domain_matches(&read){let mut local=env.clone();local.remove(name);if scan(body,name,column,&mut local,effect.catalog,0,&names,&mut facts.clone()).0{return true;}}for name in super::super::authority_walk::branch_assignments(body){env.insert(name.clone(),Expr::Name{name:format!("$advice_loop_unknown:{name}"),site:domain.site().clone()});}},
         Stmt::If{condition,then_body,else_body,site}=>{
             let condition=apply_facts(&expanded(effect.catalog,condition,&env),&facts,&names);
             if let Expr::Literal{value:ast::Literal::Bool(value),..}=condition{let _=scan(if value{then_body}else{else_body},"","",&mut env,effect.catalog,0,&names,&mut facts);}else{for name in super::super::authority_walk::branch_assignments(then_body).into_iter().chain(super::super::authority_walk::branch_assignments(else_body)){env.insert(name.clone(),Expr::Name{name:format!("$advice_loop_unknown:{name}"),site:site.clone()});}}

@@ -3,7 +3,7 @@
 use super::*;
 use super::lifecycle::{state,audience};
 fn arg<'a>(value:&Expr,table:&str,p:&'a ast::ProgramDecl)->Option<&'a str>{super::super::derived::resource_argument(value,table,p).map(|arg|arg.name.as_str())}
-fn pins(read:&ast::ReadExpr,p:&ast::ProgramDecl,bound:&Bound)->Vec<(String,Expr)>{
+pub(super) fn pins(read:&ast::ReadExpr,p:&ast::ProgramDecl,bound:&Bound)->Vec<(String,Expr)>{
     let table=&bound.schema.tables[&read.table];
     let candidates=table.indexes.values().filter(|index|index.unique&&index.columns().len()==read.keys.len()&&read.index.as_ref().is_none_or(|name|table.index(name)==Some(*index))).filter(|index|read.keys.iter().zip(index.columns()).all(|(key,column)|{
         if let Some(name)=&key.column{return name==&column;}let Some(kind)=table.columns.get(&column)else{return false;};
@@ -43,11 +43,41 @@ pub(super) fn scoped_rule(rule:&RuleExpr,effect:&Write<'_>,parent:&str,bound:&Bo
         RuleExpr::Created{table,index,key,equalities,provenance}=>RuleExpr::Created{table:table.clone(),index:index.clone(),key:key.iter().map(term).collect(),equalities:equalities.iter().map(|(name,value)|(name.clone(),term(value))).collect(),provenance:*provenance},_=>rule.clone(),
     }
 }
-fn source_probe(condition:&Expr,negated:bool,name:&str,reference:&str,parent:&str,effect:&Write<'_>,bound:&Bound)->bool{
-    let matching=|read:&ast::ReadExpr|read.table==name&&pins(read,effect.p,bound).iter().any(|(column,value)|column==reference&&parent_values(effect,parent,bound).iter().any(|target|origin(target,effect.p,bound).is_some_and(|selected|origin(value,effect.p,bound)==Some(selected))));
+// A prerequisite for one literal approval kind cannot consume another kind.
+// Unknown caller values remain conditional possibilities, not fabricated rows.
+fn literal_value(value:&Expr,kind:&ColumnType,bound:&Bound)->Option<snapback4_core::Value>{
+    let mut dynamic=false;walk(value,|e|if matches!(e,Expr::Name{..}|Expr::Read(_)|Expr::Exists{..}|Expr::Member{..}){dynamic=true;});if dynamic{return None;}
+    let value=super::super::concrete::value(value,&snapback4_core::Value::Null,&BTreeMap::new(),&bound.schema,"","",0)?;
+    Some(match (kind.required(),value){(ColumnType::Id|ColumnType::Principal|ColumnType::Ref{..},snapback4_core::Value::String(value))=>snapback4_core::Value::Id(value),(_,value)=>value})
+}
+fn creator_cell(creator:&Write<'_>,column:&str,bound:&Bound)->Option<snapback4_core::Value>{
+    let table=&bound.schema.tables[&creator.table];let kind=table.columns.get(column)?;
+    // A record may enter a prerequisite's subset after a later authored edit.
+    // Creation literals distinguish stable kinds, not mutable decision stages.
+    let mut mutable=false;
+    let mut inspect=|value:&Expr|walk(value,|e|if matches!(e,Expr::Write{op:WriteOp::Update|WriteOp::Upsert,table,fields,..} if table==&creator.table&&fields.iter().any(|field|field.name==column)){mutable=true;});
+    for program in creator.catalog.documents.iter().flat_map(|doc|&doc.programs){let mut body=program.prelude.iter().chain(&program.body).cloned().collect::<Vec<_>>();super::super::super::intent_walk::statements(&mut body,&mut |value|inspect(value));}
+    for function in creator.catalog.functions.values(){match &function.body{ast::FunctionBody::Expression(value)=>inspect(value),ast::FunctionBody::Block(body)=>{let mut body=body.clone();super::super::super::intent_walk::statements(&mut body,&mut |value|inspect(value));}}}
+    if mutable{return None;}
+    if let Some(value)=creator.fields.iter().find(|field|field.name==column).and_then(field_value){return literal_value(value,kind,bound);}
+    if creator.op!=WriteOp::Insert{return None;}
+    match table.defaults.get(column){Some(snapback4_core::schema::ColumnDefault::Literal(value))=>Some(value.clone()),None if kind.is_optional()=>Some(snapback4_core::Value::Null),_=>None}
+}
+fn source_compatible(read:&ast::ReadExpr,creator:&Write<'_>,reader:&ast::ProgramDecl,bound:&Bound)->bool{
+    for (column,expected) in pins(read,reader,bound){if let Some(kind)=bound.schema.tables[&read.table].columns.get(&column)&&let (Some(actual),Some(expected))=(creator_cell(creator,&column,bound),literal_value(&expected,kind,bound))&&actual!=expected{return false;}}
+    let Some(filter)=&read.filter else{return true;};let mut filter=filter.as_ref().clone();
+    super::super::super::intent_walk::expression(&mut filter,&mut |e|if matches!(e,Expr::Name{..}|Expr::Read(_)|Expr::Exists{..}){*e=Expr::Name{name:"$advice_unknown_filter".into(),site:e.site().clone()};});
+    let row=snapback4_core::Value::Map(bound.schema.tables[&creator.table].columns.keys().filter_map(|column|creator_cell(creator,column,bound).map(|value|(column.clone(),value))).collect());
+    super::super::concrete::evaluate(&filter,&row,&BTreeMap::new(),&bound.schema,"",&creator.table,0)!=Some(false)
+}
+fn schema_compatible(table:&str,index:&str,key:&[RuleTerm],equalities:&[(String,RuleTerm)],creator:&Write<'_>,bound:&Bound)->bool{
+    !super::super::privilege::probe_pairs(bound,table,index,key,equalities).iter().any(|(column,expected)|matches!(expected,RuleTerm::Literal(expected) if creator_cell(creator,column,bound).is_some_and(|actual|actual!=*expected)))
+}
+fn source_probe(condition:&Expr,negated:bool,name:&str,reference:&str,parent:&str,effect:&Write<'_>,bound:&Bound,creator:&Write<'_>)->bool{
+    let matching=|read:&ast::ReadExpr|read.table==name&&source_compatible(read,creator,effect.p,bound)&&pins(read,effect.p,bound).iter().any(|(column,value)|column==reference&&parent_values(effect,parent,bound).iter().any(|target|origin(target,effect.p,bound).is_some_and(|selected|origin(value,effect.p,bound)==Some(selected))));
     match condition{
-        Expr::Unary{op,value,..} if op=="not"=>source_probe(value,!negated,name,reference,parent,effect,bound),
-        Expr::Binary{op,left,right,..} if op=="and"||op=="or"=>source_probe(left,negated,name,reference,parent,effect,bound)||source_probe(right,negated,name,reference,parent,effect,bound),
+        Expr::Unary{op,value,..} if op=="not"=>source_probe(value,!negated,name,reference,parent,effect,bound,creator),
+        Expr::Binary{op,left,right,..} if op=="and"||op=="or"=>source_probe(left,negated,name,reference,parent,effect,bound,creator)||source_probe(right,negated,name,reference,parent,effect,bound,creator),
         Expr::Exists{read,..}=>!negated&&matching(read),
         Expr::Binary{op,left,right,..}=>[(left.as_ref(),right.as_ref(),false),(right.as_ref(),left.as_ref(),true)].into_iter().any(|(count,number,reversed)|{
             let Expr::Call{name:call,args,..}=count else{return false;};if call!="count"||args.len()!=1{return false;}let Expr::Read(read)=&args[0]else{return false;};let Some(number)=duration_number(number)else{return false;};
@@ -57,23 +87,23 @@ fn source_probe(condition:&Expr,negated:bool,name:&str,reference:&str,parent:&st
         }),_=>false,
     }
 }
-fn schema_probe(rule:&RuleExpr,negated:bool,name:&str,reference:&str,parent:&str,effect:&Write<'_>,bound:&Bound)->bool{
+fn schema_probe(rule:&RuleExpr,negated:bool,name:&str,reference:&str,parent:&str,effect:&Write<'_>,bound:&Bound,creator:&Write<'_>)->bool{
     let simplified=simplify_rule(rule);let rule=&simplified;match rule{
-    RuleExpr::Not(rule)=>schema_probe(rule,!negated,name,reference,parent,effect,bound),
-    RuleExpr::And(rules)|RuleExpr::Or(rules)=>rules.iter().any(|rule|schema_probe(rule,negated,name,reference,parent,effect,bound)),
-    RuleExpr::Exists{table,index,key,equalities,..}|RuleExpr::Created{table,index,key,equalities,..} if !negated&&table==name=>super::super::privilege::probe_pairs(bound,table,index,key,equalities).iter().any(|(column,value)|column==reference&&match value{
+    RuleExpr::Not(rule)=>schema_probe(rule,!negated,name,reference,parent,effect,bound,creator),
+    RuleExpr::And(rules)|RuleExpr::Or(rules)=>rules.iter().any(|rule|schema_probe(rule,negated,name,reference,parent,effect,bound,creator)),
+    RuleExpr::Exists{table,index,key,equalities,..}|RuleExpr::Created{table,index,key,equalities,..} if !negated&&table==name&&schema_compatible(table,index,key,equalities,creator,bound)=>super::super::privilege::probe_pairs(bound,table,index,key,equalities).iter().any(|(column,value)|column==reference&&match value{
         RuleTerm::Field(column)|RuleTerm::NextField(column)|RuleTerm::OldField(column)=>effect.table==parent&&matches!(effect.op,WriteOp::Update|WriteOp::Upsert)&&column=="id"||matches!(bound.schema.tables[&effect.table].columns.get(column).map(ColumnType::required),Some(ColumnType::Ref{table}) if table==parent),
         RuleTerm::Reference{table,field,..}=>table==parent&&field=="id"||matches!(bound.schema.tables[table].columns.get(field).map(ColumnType::required),Some(ColumnType::Ref{table}) if table==parent),RuleTerm::ReferenceChain{hops,..}=>hops.last().is_some_and(|hop|hop.table==parent&&hop.field=="id"||matches!(bound.schema.tables[&hop.table].columns.get(&hop.field).map(ColumnType::required),Some(ColumnType::Ref{table}) if table==parent)),_=>false,
     }),_=>false,
 }}
-fn enforced(effect:&Write<'_>,name:&str,reference:&str,parent:&str,bound:&Bound,negative:bool)->bool{
+fn enforced(effect:&Write<'_>,name:&str,reference:&str,parent:&str,bound:&Bound,negative:bool,creator:&Write<'_>)->bool{
     let conditions=effective_conditions(&effect.context,effect.catalog);if conditions.iter().any(|condition|matches!(condition,Expr::Literal{value:ast::Literal::Bool(false),..})){return false;}
-    if conditions.iter().any(|condition|source_probe(condition,negative,name,reference,parent,effect,bound)){return true;}
+    if conditions.iter().any(|condition|source_probe(condition,negative,name,reference,parent,effect,bound,creator)){return true;}
     let table=&bound.schema.tables[&effect.table];let row=if matches!(effect.op,WriteOp::Update|WriteOp::Upsert){&table.rules.update}else{&table.rules.insert};
-    if schema_probe(&scoped_rule(row,effect,parent,bound),negative,name,reference,parent,effect,bound){return true;}
+    if schema_probe(&scoped_rule(row,effect,parent,bound),negative,name,reference,parent,effect,bound,creator){return true;}
     let changing=matches!(effect.op,WriteOp::Update|WriteOp::Upsert);
     let fields=effect.fields.iter().filter(|field|if changing{matches!(table.columns.get(&field.name).map(ColumnType::required),Some(ColumnType::Enum{..}))&&!matches!(field_value(field),Some(Expr::Member{base,name,..}) if name==&field.name&&super::super::derived::same_resource(base,&effect.table,&effect.keys,effect.p))}else{table.columns.get(&field.name).is_some_and(|kind|!kind.is_optional())}).collect::<Vec<_>>();
-    let covers=|field:&&ast::ObjectField|table.column_writes.get(&field.name).is_some_and(|rule|schema_probe(&scoped_rule(rule,effect,parent,bound),negative,name,reference,parent,effect,bound));
+    let covers=|field:&&ast::ObjectField|table.column_writes.get(&field.name).is_some_and(|rule|schema_probe(&scoped_rule(rule,effect,parent,bound),negative,name,reference,parent,effect,bound,creator));
     if negative{!fields.is_empty()&&fields.iter().all(covers)}else{fields.iter().any(covers)}
 }
 fn created(value:&Expr,parent:&str)->bool{match value{
@@ -160,14 +190,14 @@ fn decision_mirror(creator:&Write<'_>,reference:&str,parent:&str,writes:&[Write<
         positive&&writes.iter().any(|effect|super::lifecycle::scalar_enforced(effect,parent,&field.name,bound,false))&&!writes.iter().any(|other|other.table==parent&&matches!(other.op,WriteOp::Update|WriteOp::Upsert|WriteOp::Insert)&&other.fields.iter().find(|candidate|candidate.name==field.name).and_then(field_value).map(|value|!matches!(value,Expr::Literal{value:ast::Literal::Bool(false)|ast::Literal::Null,..})&&!matches!(value,Expr::Member{base,name,..} if name==&field.name&&super::super::derived::same_resource(base,parent,&other.keys,other.p))).unwrap_or_else(||matches!(other.op,WriteOp::Insert|WriteOp::Upsert)&&bound.schema.tables[parent].defaults.get(&field.name).is_some_and(|value|matches!(value.value(challenges::NOW,"$audit"),snapback4_core::Value::Bool(true)|snapback4_core::Value::Int(_))))&&kernel::implies(&audience(&other.gate),&creator_role)!=Ok(true))
     }))
 }
-fn audience_grant(name:&str,reference:&str,parent:&str,bound:&Bound)->bool{
-    fn probe(rule:&RuleExpr,name:&str,reference:&str,bound:&Bound)->bool{match rule{
-        RuleExpr::And(parts)|RuleExpr::Or(parts)=>parts.iter().any(|part|probe(part,name,reference,bound)),
-        RuleExpr::Exists{table,index,key,equalities,..} if table==name=>{
+fn audience_grant(name:&str,reference:&str,parent:&str,bound:&Bound,creator:&Write<'_>)->bool{
+    fn probe(rule:&RuleExpr,name:&str,reference:&str,bound:&Bound,creator:&Write<'_>)->bool{match rule{
+        RuleExpr::And(parts)|RuleExpr::Or(parts)=>parts.iter().any(|part|probe(part,name,reference,bound,creator)),
+        RuleExpr::Exists{table,index,key,equalities,..} if table==name&&schema_compatible(table,index,key,equalities,creator,bound)=>{
             let pairs=super::super::privilege::probe_pairs(bound,table,index,key,equalities);
             pairs.iter().any(|(column,value)|column==reference&&*value==RuleTerm::Field("id".into()))&&pairs.iter().any(|(column,value)|*value==RuleTerm::Viewer&&matches!(bound.schema.tables[table].columns.get(column).map(ColumnType::required),Some(ColumnType::Principal)))
         },_=>false,
-    }}probe(&simplify_rule(&bound.schema.tables[parent].rules.read),name,reference,bound)
+    }}probe(&simplify_rule(&bound.schema.tables[parent].rules.read),name,reference,bound,creator)
 }
 fn decision_provenance(creator:&Write<'_>,reference:&str,parent:&str,writes:&[Write<'_>],bound:&Bound)->bool{
     fn selected(value:&Expr)->Option<&ast::ReadExpr>{match value{Expr::Read(read)=>Some(read),Expr::Assert{value,..}|Expr::Member{base:value,..}=>selected(value),Expr::Call{name,args,..} if name=="first"&&args.len()==1=>selected(&args[0]),_=>None}}
@@ -182,10 +212,9 @@ pub(super) fn notes(bound:&Bound,writes:&[Write<'_>],out:&mut Vec<Diagnostic>){
         let creators=writes.iter().filter(|write|write.table==*name&&matches!(write.op,WriteOp::Insert|WriteOp::Upsert)).collect::<Vec<_>>();if creators.is_empty()||matches!(table.rules.insert,RuleExpr::Deny){continue;}
         for (reference,kind) in &table.columns{let ColumnType::Ref{table:parent}=kind.required()else{continue;};
             let effects=writes.iter().filter(|write|write.table!=*name&&(write.table==*parent&&state(write,bound)||state(write,bound)&&bound.schema.tables[&write.table].columns.values().any(|kind|matches!(kind.required(),ColumnType::Ref{table} if table==parent))||matches!(write.op,WriteOp::Insert|WriteOp::Upsert)&&bound.schema.tables[&write.table].columns.values().any(|kind|matches!(kind.required(),ColumnType::Ref{table} if table==parent)))).collect::<Vec<_>>();
-            if audience_grant(name,reference,parent,bound)||effects.iter().any(|effect|enforced(effect,name,reference,parent,bound,false)){continue;}
-            for creator in &creators{let writer=RuleExpr::And(vec![audience(&table.rules.insert),audience(&creator.gate)]);if kernel::implies(&RuleExpr::Allow,&writer)==Ok(true)||kernel::implies(&writer,&RuleExpr::Deny)==Ok(true){continue;}
+            for creator in &creators{if audience_grant(name,reference,parent,bound,creator)||effects.iter().any(|effect|enforced(effect,name,reference,parent,bound,false,creator)){continue;}let writer=RuleExpr::And(vec![audience(&table.rules.insert),audience(&creator.gate)]);if kernel::implies(&RuleExpr::Allow,&writer)==Ok(true)||kernel::implies(&writer,&RuleExpr::Deny)==Ok(true){continue;}
                 if creator.fields.iter().find(|field|&field.name==reference).and_then(field_value).is_some_and(|value|created(value,parent))||coupled(creator,reference,parent,writes,bound)||creation_audit(creator,reference,parent,bound)||decision_mirror(creator,reference,parent,writes,bound)||decision_provenance(creator,reference,parent,writes,bound){continue;}
-                if effects.iter().any(|effect|kernel::implies(&audience(&effect.gate),&writer)!=Ok(true)&&!enforced(effect,name,reference,parent,bound,true)){note(out,&creator.site,"N_APPROVAL_NOT_ENFORCED",format!("{name}.{reference}: a separately authorized approval for {parent} is recorded but no effect requires it; is it informational?"),"require the matching approval row before the governed parent/child effect; or record `check --ack-security ID --reason 'informational approval record: <spec rationale>'`");}
+                if effects.iter().any(|effect|kernel::implies(&audience(&effect.gate),&writer)!=Ok(true)&&!enforced(effect,name,reference,parent,bound,true,creator)){note(out,&creator.site,"N_APPROVAL_NOT_ENFORCED",format!("{name}.{reference}: a separately authorized approval for {parent} is recorded but no effect requires it; is it informational?"),"require the matching approval row before the governed parent/child effect; or record `check --ack-security ID --reason 'informational approval record: <spec rationale>'`");}
             }
         }
     }

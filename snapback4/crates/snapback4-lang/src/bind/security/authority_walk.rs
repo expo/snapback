@@ -20,7 +20,7 @@ fn expression(catalog:&Catalog,p:&ProgramDecl,expr:&Expr,env:&Env,guards:&[Stmt]
     let mut expr=resolve(expr,env);
     let changes=if column.is_some()&&changes::prior_effects(&expr){&[][..]}else{changes};
     super::super::intent_walk::expression(&mut expr,&mut |e|match e{
-        Expr::Write{..}=>{let mut context=p.clone();context.prelude=Vec::new();context.body=guards.to_vec();if let Some(column)=column{for change in changes{if change.matches(e,column,p){context.body.extend(change.requirements.clone());}}}out.push((e.clone(),context));},
+        Expr::Write{keys,fields,condition,..}=>{let mut boundary=Vec::new();for value in keys.iter().map(|key|&key.value).chain(fields.iter().filter_map(|field|field.value.as_ref())).chain(condition.iter().map(|condition|condition.as_ref())){boundary.extend(helper_guards(catalog,value,&Env::new(),depth));}let mut context=p.clone();context.prelude=Vec::new();context.body=guards.to_vec();context.body.extend(boundary);if let Some(column)=column{for change in changes{if change.matches(e,column,p){context.body.extend(change.requirements.clone());}}}out.push((e.clone(),context));},
         Expr::Call{name,args,site} if depth<32=>if let Some(f)=catalog.functions.get(name){
             let mut locals=f.args.iter().zip(args).map(|(arg,value)|(arg.name.clone(),value.clone())).collect();
             let mut inherited=guards.to_vec();
