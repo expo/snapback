@@ -121,10 +121,17 @@ fn schema_scalar(effect:&Write<'_>,table:&str,column:&str,bound:&Bound,negative:
     let covers=|field:&&ast::ObjectField|target.column_writes.get(&field.name).is_some_and(|rule|scalar_rule(&super::approval_records::scoped_rule(rule,effect,table,bound),table,column,&effect.table,negative,bound))||negative&&target.frozen_columns.get(&field.name).is_some_and(|rule|scalar_rule(&super::approval_records::scoped_rule(rule,effect,table,bound),table,column,&effect.table,false,bound));
     if negative{!fields.is_empty()&&fields.iter().all(covers)}else{fields.iter().any(covers)}
 }
+// A focal inside a nested population belongs to that population, including
+// another population of the same table. It cannot attest this caller row.
+fn local_filter_receipts(filter:&Expr)->Vec<Expr>{
+    let mut filter=filter.clone();super::super::super::intent_walk::expression(&mut filter,&mut |e|if let Expr::Read(read)|Expr::Exists{read,..}=e&&let Some(nested)=&mut read.filter{
+        super::super::super::intent_walk::expression(nested,&mut |e|if let Expr::Focal{site}=e{*e=Expr::Name{name:"$advice_foreign_population".into(),site:site.clone()};});
+    });super::super::derived::approval_receipts(&filter)
+}
 fn caller_approval(condition:&Expr,table:&str,column:&str,bound:&Bound)->bool{
     let Some(principal)=super::super::privilege::global_principal(bound,table)else{return false;};let mut found=false;
     for probe in super::super::derived::approval_receipts(condition){walk(&probe,|e|if let Expr::Exists{read,..}=e&&read.table==table&&read.keys.iter().any(|key|key.column.as_deref()==Some(&principal)&&matches!(&key.value,Expr::Name{name,..} if name=="viewer")){
-        found|=read.keys.iter().any(|key|key.column.as_deref()==Some(column)&&matches!(&key.value,Expr::Literal{value:ast::Literal::Bool(true),..}))||read.filter.as_deref().is_some_and(|filter|super::super::derived::approval_receipts(filter).iter().any(|positive|{let mut matches=false;walk(positive,|e|if let Expr::Member{base,name,..}=e&&name==column&&matches!(base.as_ref(),Expr::Focal{..}){matches=true;});matches}));
+        found|=read.keys.iter().any(|key|key.column.as_deref()==Some(column)&&matches!(&key.value,Expr::Literal{value:ast::Literal::Bool(true),..}))||read.filter.as_deref().is_some_and(|filter|local_filter_receipts(filter).iter().any(|positive|{let mut matches=false;walk(positive,|e|if let Expr::Member{base,name,..}=e&&name==column&&matches!(base.as_ref(),Expr::Focal{..}){matches=true;});matches}));
     });}found
 }
 fn parent_loop_guard(effect:&Write<'_>,table:&str,column:&str,bound:&Bound)->bool{

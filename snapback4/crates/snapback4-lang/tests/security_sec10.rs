@@ -658,3 +658,10 @@ mutation edit(doc: docs):\n  update docs[doc] {consent:false}\n";
     }
     let positive=source.replace("authorizationRouteUpdatedAt: bool default false","authorizationRouteUpdatedAt: time ?").replace("authorizationRouteUpdatedAt: time ?\n  read <- allow\n  online only","authorizationRouteUpdatedAt: bool default false\n  read <- allow\n  online only").replace("CONDITION","exists routeLogs where .authorizationRouteUpdatedAt");let candidates=security::derived::invariants(&sources(&positive),&bound(&positive));assert!(candidates.iter().any(|i|i.site.file.contains("sibling-approval")),"{candidates:?}");
 }
+
+#[test]fn unused_caller_approval_cannot_borrow_an_inner_populations_focal(){
+    let source="table accounts:\n  principal: principal\n  unique principal\n  authorizationRouteUpdatedAt: bool default false\n  status: enum('draft','done') default 'draft'\n  read <- allow\n  update <- allow\n  online only\ntable routeLogs:\n  authorizationRouteUpdatedAt: time ?\n  read <- allow\n  online only\nmutation approve(account: accounts):\n  update accounts[account] {authorizationRouteUpdatedAt:true}\nmutation finish(account: accounts):\n  require CONDITION else NO_APPROVAL\n  update accounts[account] {status:'done'}\n";
+    for (condition,gate) in [("exists accounts[principal = viewer] where (exists routeLogs where .authorizationRouteUpdatedAt != null)",true),("exists accounts[principal = viewer] where (exists accounts where .authorizationRouteUpdatedAt)",true),("exists accounts[principal = viewer] where .authorizationRouteUpdatedAt",false),("exists accounts[principal = viewer] where (exists accounts[principal = viewer] where .authorizationRouteUpdatedAt)",false)]{
+        let source=source.replace("CONDITION",condition);assert_eq!(notes(&source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"&&n.message.contains("authorizationRouteUpdatedAt")),gate,"{condition}: {:?}",notes(&source));
+    }
+}
