@@ -1,0 +1,33 @@
+{
+  "revision": "75058926f0eceea196a158945793680a40cc0f5c",
+  "date": "2026-10-25",
+  "briefSha256": "a27f2f03375ef25ec69afbff8a22ea4c80acfc408677ec1aab3d261950dcabec",
+  "reviews": {
+    "codex": {
+      "verdict": "READY",
+      "model": "gpt-6.1-sol high",
+      "verbatim": "3000.036.004.000-sec10-wave27-r19.codex.md",
+      "logSha256": "d8cb57a3ce23c416a4e45f34588a8595b4215b7dc88a7fe1998649cc7029ec7b"
+    },
+    "muse": {
+      "verdict": "READY",
+      "model": "muse-spark-1.3-contributor high via quota fallback",
+      "verbatim": "3000.036.004.000-sec10-wave27-r19.muse.md",
+      "logSha256": "fbc2fe7540717d7c02ac53dd35f987aca5d0d82f76de7c2713a0ac6f8973cce2"
+    }
+  },
+  "subsequentQualification": {
+    "rustRegression": {
+      "log": "/home/ccheever/sb4-loop/sec10-w27-r19-authored-regression.log",
+      "passed": 1,
+      "failed": 0
+    },
+    "nativeReplay": {
+      "results": "/home/ccheever/sb4-loop/sec10-w27-r19-029-proof/results.json",
+      "sourceSha256": "fccccc268b7a6828e43eeb28ab93293c1c517a2036e61dd8f933b16626a8c286",
+      "beforeReachableWitnesses": 0,
+      "afterReachableWitnesses": 52
+    },
+    "fullScope": "pending; independently recorded outside repository"
+  }
+}
