@@ -81,9 +81,10 @@ test('packed security card and starter run as written; broad reads refute', {tim
  for(const lane of ['003','040','030','042','028']){
   const cwd=join(dir,'day-two-'+lane);mkdirSync(join(cwd,'snapback'),{recursive:true});
   writeFileSync(join(cwd,'snapback/schema.q'),readFileSync(new URL('../../../crates/snapback4-lang/tests/security/wave23/'+lane+'.q',import.meta.url)));
-  const checked=JSON.parse(run(process.execPath,[cli,'check','--json'],cwd,lane==='042'?1:0));
-  assert.equal(checked.ok,lane!=='042',`installed day-two check ${lane}`);
+  const checked=JSON.parse(run(process.execPath,[cli,'check','--json'],cwd,['040','042'].includes(lane)?1:0));
+  assert.equal(checked.ok,!['040','042'].includes(lane),`installed day-two check ${lane}`);
   assert.ok(!checked.securityReviews.some(r=>r.code==='N_OPTIONAL_UPLOAD_CREATE'));
+  if(lane==='040')assert.equal(checked.securityReviews.filter(r=>r.code==='N_INSERT_WRITE_INTENT'&&r.gated).length,2,'creation authority is a separate gating question');
   if(lane==='030'){
    const stale=checked.security.notes.filter(n=>n.code==='N_STALE_CREATION_CHECK');
    assert.equal(stale.length,2,'independent applications and permits eligibility questions stay separate');

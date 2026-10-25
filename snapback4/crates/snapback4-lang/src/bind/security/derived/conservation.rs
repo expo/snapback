@@ -1,6 +1,7 @@
 //! Stable participant ledgers retain value across removal.
 // @ref LLP 3000.036.004.000#11-wave-27-precision-and-workflow-conservation — source-linked charge/refund contracts are replayed on committed deletes.
 use super::*;
+mod custody;
 use ast::{Expr,WriteOp};
 use snapback4_core::{Value,schema::ColumnType as C};
 #[derive(Clone,Debug)]pub(crate) struct Conservation{
@@ -52,7 +53,9 @@ fn shared_value(a:&Expr,b:&Expr)->bool{
  }
  custody(a)==custody(b)
 }
-pub(super) fn contracts(docs:&[ast::Document],catalog:&Catalog,bound:&Bound)->Vec<(Invariant,Conservation)>{
+pub(super) fn contracts(_docs:&[ast::Document],catalog:&Catalog,bound:&Bound)->Vec<(Invariant,Conservation)>{
+ let Some(owned)=custody::catalog(catalog)else{return Vec::new();};
+ let catalog=&owned;let docs=&owned.documents;
  let writes=docs.iter().flat_map(|doc|&doc.programs).filter(|p|p.kind==ast::ProgramKind::Mutation).flat_map(|p|authority_walk::writes(catalog,p).into_iter().map(move |(w,_)|(p,w))).collect::<Vec<_>>();
  let mut result=Vec::new();
  for (producer,write) in &writes{

@@ -34,16 +34,18 @@ test('packed approval decisions, nonblank guards and text minimums run as docume
  assert.match(run(process.execPath,[cli,'run','required',JSON.stringify({value:'\u2003 \t'}),'--as','clerk','--json'],dir,1),/E_INPUT/);
  assert.match(run(process.execPath,[cli,'run','required',JSON.stringify({value:' a '}),'--as','clerk','--json']),/ a /);
  assert.ok(readFileSync(join(dir,'snapback/security-reviews.json'),'utf8').includes('informational approval record'));
+ const info=join(dir,'informational');mkdirSync(join(info,'snapback'),{recursive:true});
  source="table docs:\n  rewindApproved: bool default false\n  status: enum('draft','done') default 'draft'\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\nmutation create():\n  return insert docs {}\nmutation approveRewind(doc: docs):\n  update docs[doc] {rewindApproved:true}\nmutation finish(doc: docs):\n  update docs[doc] {status:'done'}\n";
- write();checked=JSON.parse(run(process.execPath,[cli,'check','--json']));
+ writeFileSync(join(info,'snapback/schema.q'),source);checked=JSON.parse(run(process.execPath,[cli,'check','--json'],info));
  assert.ok(checked.securityReviews.some(r=>r.code==='N_APPROVAL_INFORMATIONAL'&&!r.gated));
  assert.ok(!checked.securityReviews.some(r=>r.code==='N_APPROVAL_NOT_ENFORCED'));
  for(const code of ['N_APPROVAL_INFORMATIONAL','N_INSERT_TABLE_AUTHORITY'])assert.match(run(process.execPath,[cli,'why',code]),new RegExp(code));
+ const edit=join(dir,'edit-guard');mkdirSync(join(edit,'snapback'),{recursive:true});
  source="table docs:\n  title: text <=80\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\nmutation create(title: text <=80):\n  return insert docs {title}\nmutation edit(doc: docs,title: text <=80):\n  require viewer = 'service:editor' else NOT_EDITOR\n  update docs[doc] {title}\n";
- write();checked=JSON.parse(run(process.execPath,[cli,'check','--json'],dir,1));
+ writeFileSync(join(edit,'snapback/schema.q'),source);checked=JSON.parse(run(process.execPath,[cli,'check','--json'],edit,1));
  assert.ok(checked.securityReviews.some(r=>r.code==='N_INSERT_WRITE_INTENT'&&r.gated));
- source+="invariant docs.title update only viewer = 'service:editor'\n";write();
- checked=JSON.parse(run(process.execPath,[cli,'check','--json']));
+ source+="invariant docs.title update only viewer = 'service:editor'\n";writeFileSync(join(edit,'snapback/schema.q'),source);
+ checked=JSON.parse(run(process.execPath,[cli,'check','--json'],edit));
  assert.ok(!checked.securityReviews.some(r=>r.code==='N_INSERT_WRITE_INTENT'));
 
 });

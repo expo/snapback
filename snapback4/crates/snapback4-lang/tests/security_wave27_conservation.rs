@@ -68,3 +68,18 @@ fn bad(out:&Campaign)->bool{out.violations.iter().any(|v|v.operation=="remove"&&
   if !captured{assert!(security::source_inference_gaps(&sources,&b).iter().any(|gap|gap.contains("participant conservation not covered")));}
  }
 }
+
+
+#[test]fn helper_invocations_are_distinct_but_a_captured_result_is_shared(){
+ for nested in [false,true]{for captured in [false,true]{
+  let helper=if nested{"fn present(flag: flags):\n  return delegated(flag)\nfn delegated(flag: flags):\n  return exists flags[flag]\n"}else{"fn present(flag: flags):\n  return exists flags[flag]\n"};
+  let flags="table flags:\n  marker: bool\n  read <- allow\n  delete <- allow\n  online only\n";
+  let (binding,condition)=if captured{("  held = present(flag)\n","held")}else{("","present(flag)")};
+  let birth=format!("mutation add(trip: trips,flag: flags,aPerson: principal,bPerson: principal):\n{binding}  insert participants {{trip,person:aPerson if {condition} else bPerson}}\n  delete flags[flag]\n  return insert ledger {{trip,person:aPerson if {condition} else bPerson,paidCents:100,kind:'charge'}}");
+  let original="mutation add(trip: trips,person: principal):\n  insert participants {trip,person}\n  return insert ledger {trip,person,paidCents:100,kind:'charge'}";
+  let source=flags.to_owned()+helper+&SOURCE.replace(original,&birth).replace("BEFORE","").replace("AFTER","");
+  let sources=vec![("schema.q".into(),source)];let b=compile(&sources);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+  assert_eq!(security::derived::invariants(&sources,&b).iter().any(|i|i.site.file.contains("/participant-conservation/")),captured,"nested={nested} captured={captured}");
+  if !captured{assert!(security::source_inference_gaps(&sources,&b).iter().any(|gap|gap.contains("participant conservation not covered")));}
+ }}
+}
