@@ -2,6 +2,8 @@
 //! These facts supplement the definition pins. A code label alone cannot tell
 //! a caller whether to retry, replace intent, change a declaration, or show no data.
 pub(super) const ACTIONS: &[(&str, &[&str])] = &[
+    ("N_APPROVAL_INFORMATIONAL", &["offers the individual acknowledgment as the default next step.", "It does not block deployment.", "Adding the governed effect can create a new approval question."]),
+    ("N_INSERT_TABLE_AUTHORITY", &["remains advisory", "Confirm the declared table insert and edit audiences", "does not establish a distinct mutation require."]),
     ("E_PRODUCTION_ROSTER", &["Inspect the roster and deployment. Keep credentials with their store; use stable arguments and never silently create replacement accounts."]),
     ("E_PRODUCTION_ROSTER_BUSY", &["Wait for its driver. After confirming an interrupted driver is gone, inspect partial grants and remove only that roster lock; setup is not rolled back."]),
     ("E_SERVE_CHECK", &["Check options with serve-check --help and rerun. No passing script qualification is claimed."]),

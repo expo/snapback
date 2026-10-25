@@ -39,7 +39,7 @@ test('packed approval decisions, nonblank guards and text minimums run as docume
  writeFileSync(join(info,'snapback/schema.q'),source);checked=JSON.parse(run(process.execPath,[cli,'check','--json'],info));
  assert.ok(checked.securityReviews.some(r=>r.code==='N_APPROVAL_INFORMATIONAL'&&!r.gated));
  assert.ok(!checked.securityReviews.some(r=>r.code==='N_APPROVAL_NOT_ENFORCED'));
- for(const code of ['N_APPROVAL_INFORMATIONAL','N_INSERT_TABLE_AUTHORITY'])assert.match(run(process.execPath,[cli,'why',code]),new RegExp(code));
+ for(const [code,fact] of [['N_APPROVAL_INFORMATIONAL','It does not block deployment.'],['N_INSERT_TABLE_AUTHORITY','Confirm the declared table insert and edit audiences']]){const why=run(process.execPath,[cli,'why',code]);assert.match(why,new RegExp(code));assert.ok(why.includes(fact),why);}
  const edit=join(dir,'edit-guard');mkdirSync(join(edit,'snapback'),{recursive:true});
  source="table docs:\n  title: text <=80\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\nmutation create(title: text <=80):\n  return insert docs {title}\nmutation edit(doc: docs,title: text <=80):\n  require viewer = 'service:editor' else NOT_EDITOR\n  update docs[doc] {title}\n";
  writeFileSync(join(edit,'snapback/schema.q'),source);checked=JSON.parse(run(process.execPath,[cli,'check','--json'],edit,1));
