@@ -20,7 +20,7 @@ fn literal_act(value:&Expr,name:&str)->bool{
 fn modeled(write:&Write<'_>,name:&str,parent:&str,bound:&Bound)->bool{
     if known_impossible(&write.context,write.catalog){return false;}
     let operation=write.p.name.to_lowercase();
-    if ["approv","authoriz","request","record","review","ask"].iter().any(|prefix|operation.starts_with(prefix)){return false;}
+    if ["approv","authoriz","request","record","review","ask","flag"].iter().any(|prefix|operation.starts_with(prefix)){return false;}
     let t=&bound.schema.tables[&write.table];
     if write.table==parent{
         if !matches!(write.op,WriteOp::Update|WriteOp::Upsert){return false;}
@@ -57,8 +57,16 @@ pub(super) fn scalar(name:&str,parent:&str,record:&Write<'_>,effect:&Write<'_>,w
             });found
     })
 }
-pub(super) fn record(name:&str,parent:&str,effect:&Write<'_>,bound:&Bound)->bool{
-    let name=stem(name);
+pub(super) fn record(name:&str,parent:&str,creator:&Write<'_>,effect:&Write<'_>,bound:&Bound)->bool{
+    let mut name=stem(name);
+    // A generic receipt table does not broaden a specifically named decision
+    // (approveDiscount, for example) to every stage of its parent workflow.
+    if generic(&name,parent){
+        let operation=creator.p.name.to_lowercase();
+        if let Some(act)=operation.strip_prefix("approve").or_else(||operation.strip_prefix("authorize")){
+            let act=act.trim_start_matches('_');if !act.is_empty(){name=act.into();}
+        }
+    }
     if generic(&name,parent){return state(effect,bound)||effect.table!=parent&&matches!(effect.op,WriteOp::Insert|WriteOp::Upsert);}
     modeled(effect,&name,parent,bound)
 }

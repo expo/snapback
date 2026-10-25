@@ -93,3 +93,14 @@ const DEFAULT:&str="table docs:\n  label: text <=80 default 'pending'\n  read <-
  let mixed=source.replace("mutation edit(owner: principal):","mutation edit(owner: principal,title: text <=80):").replace("return upsert docs[owner] {owner}\n","return upsert docs[owner] {owner,title}\n");
  let ns=notes(&mixed);let question=ns.iter().find(|n|n.code=="N_INSERT_WRITE_INTENT").unwrap();assert!(question.message.contains("docs.title"));assert!(!question.message.contains("docs.owner"));
 }
+
+#[test]fn requests_and_named_receipts_do_not_govern_unrelated_stages(){
+ let base="table parents:\n  price: int default 100\n  needsRefigure: bool default false\n  status: enum('open','done','refigured') default 'open'\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\ntable refigureApprovals:\n  parent: parents\n  immutable parent\n  read <- allow\n  insert <- viewer = 'service:manager'\n  online only\nmutation approveRefigure(parent: parents):\n  require viewer = 'service:manager' else NOT_MANAGER\n  p = parents[parent] ! else MISSING\n  require p.needsRefigure else NOT_NEEDED\n  return insert refigureApprovals {parent}\nmutation flagDamaged(parent: parents):\n  update parents[parent] {needsRefigure:true}\nmutation advance(parent: parents):\n  update parents[parent] {status:'done'}\n";
+ assert!(!notes(base).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+ let modeled=format!("{base}mutation performRefigure(parent: parents):\n  update parents[parent] {{status:'refigured'}}\n");
+ assert!(notes(&modeled).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+ let discount=base.replace("refigureApprovals","approvals").replace("approveRefigure","approveDiscount").replace("  require p.needsRefigure else NOT_NEEDED\n","").replace("  return insert approvals {parent}","  insert approvals {parent}\n  return update parents[parent] {price:0}");
+ assert!(!notes(&discount).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));assert!(notes(&discount).iter().any(|n|n.code=="N_APPROVAL_INFORMATIONAL"));
+ let bypass=format!("{discount}mutation performDiscount(parent: parents):\n  update parents[parent] {{price:0}}\n");
+ assert!(notes(&bypass).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+}
