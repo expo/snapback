@@ -92,6 +92,7 @@ pub(super) fn fixture_cases(bound:&Bound,p:&Program,rows:&BTreeMap<String,Vec<Va
     let mut cases=vec![BTreeMap::new()];
     for (name,k) in args{
         let Some(mut vals)=values(name,k,rows,actors,&times)else{out.unsupported.insert(format!("{name}: history needs a typed asset argument"));return Vec::new();};
+        if vals.is_empty()||cases.is_empty(){out.unsupported.insert(format!("{}: no typed history tuples available for {name}; remaining combinations uncovered",p.name));return Vec::new();}
         if let Some(preferred)=preferences.get(name){vals.sort_by_key(|v|!preferred.contains(v));}
         for literal in literals.get(name).into_iter().flatten() {
             let valid=match (k,literal){
@@ -284,7 +285,7 @@ fn observe(bound:&Bound,e:&mut Engine,rows:&BTreeMap<String,Vec<Value>>,initial:
 fn prior_policy(bound:&Bound,inv:&Invariant,rows:&BTreeMap<String,Vec<Value>>,viewer:&str,old:Option<&Value>,row:&Value,prior:&mut Option<Engine>,now:i64)->Result<bool,String>{
     match prior.as_mut(){Some(e)=>policy_in_at(bound,inv,rows,viewer,old,row,e,now),None=>policy_at(bound,inv,rows,viewer,old,row,now)}
 }
-fn assertions(bound:&Bound,before:&BTreeMap<String,Vec<Value>>,after:&BTreeMap<String,Vec<Value>>,initial:&BTreeMap<String,Vec<Value>>,viewer:&str,steps:&[Step],prior:&mut Option<Engine>,current:&mut Engine,out:&mut Campaign){
+pub(super) fn assertions(bound:&Bound,before:&BTreeMap<String,Vec<Value>>,after:&BTreeMap<String,Vec<Value>>,initial:&BTreeMap<String,Vec<Value>>,viewer:&str,steps:&[Step],prior:&mut Option<Engine>,current:&mut Engine,out:&mut Campaign){
     for inv in bound.invariants.iter().filter(|i|i.target=="always"){
         for row in after.get(&inv.table).into_iter().flatten(){
             let old=before.get(&inv.table).into_iter().flatten().find(|r|r.field("id").ok()==row.field("id").ok());
@@ -393,6 +394,10 @@ pub(super) fn lifecycle_observers_to(bound:&Bound,fixture:&Engine,out:&mut Campa
     if interesting.is_empty(){return;}
     let selected_sites=interesting.iter().map(|i|i.site.to_string()).collect::<BTreeSet<_>>();
     let mut relevant=interesting.iter().flat_map(|i|std::iter::once(i.table.clone()).chain(i.policy.iter().flat_map(kernel::dependencies))).collect::<BTreeSet<_>>();
+    for inv in &interesting{
+        if let Some(mut syntax)=inv.syntax.clone(){crate::bind::intent_walk::expression(&mut syntax,&mut |e|if let ast::Expr::Read(read)|ast::Expr::Exists{read,..}=e{relevant.insert(read.table.clone());});}
+        if let Some(contract)=bound.security_conservation.get(&inv.site.to_string()){relevant.insert(contract.ledger.clone());relevant.extend(contract.refund_ledger.iter().cloned());}
+    }
     for _ in 0..bound.schema.tables.len(){let old=relevant.clone();for name in &old{for kind in bound.schema.tables[name].columns.values(){if let C::Ref{table}=kind.required(){relevant.insert(table.clone());}}}if old==relevant{break;}}
     let has_lifecycle=relevant.iter().any(|name|bound.schema.tables[name].columns.values().any(|k|matches!(k.required(),C::Enum{..}|C::Bool|C::Principal|C::Ref{..})));
     if !has_lifecycle{return;}
@@ -445,6 +450,11 @@ pub(super) fn lifecycle_observers_to(bound:&Bound,fixture:&Engine,out:&mut Campa
                             if !roles.is_empty()&&roles.iter().any(|c|row.field(c).is_ok_and(|v|matches!(v,Value::String(role) if program_json.contains(&format!("\"String\":\"{role}\""))))){score+=4;}
                             if p.args.iter().any(|(name,k)|matches!(k,ir::ArgType::Ref{table:t} if t==table)&&args.get(name)==row.field("id").ok()){score+=2;class.insert(format!("owns target {table}"));}
                         }}
+                        // Keep the best owner within a role, then leave a slot
+                        // for another role admitted by an argument-conditioned
+                        // branch. Ownership must not split one global role into
+                        // both of the two retained actor classes.
+                        if class.iter().any(|label|!label.starts_with("owns target ")){class.retain(|label|!label.starts_with("owns target "));}
                         if program_json.contains(&format!("\"{}\"",actor)){score+=8;}
                         (actor,score,class)
                     }).collect::<Vec<_>>();ordered.sort_by_key(|(_,score,_)|std::cmp::Reverse(*score));
@@ -485,10 +495,15 @@ pub(super) fn lifecycle_observers_to(bound:&Bound,fixture:&Engine,out:&mut Campa
                     let progress=after.iter().filter(|(name,_)|relevant.contains(*name)).map(|(name,rs)|{let t=&bound.schema.tables[name];rs.iter().map(|r|t.columns.iter().map(|(c,k)|match k.required(){C::Enum{..} if !super::super::privilege::role_columns(bound,name).contains(c)=>before.get(name).into_iter().flatten().find(|old|old.field("id").ok()==r.field("id").ok()).is_some_and(|old|old.field(c).ok()!=r.field(c).ok()) as usize*4,C::Bool=>matches!(r.field(c),Ok(Value::Bool(true))) as usize,C::Time=>before.get(name).into_iter().flatten().find(|old|old.field("id").ok()==r.field("id").ok()).is_some_and(|old|old.field(c).ok()!=r.field(c).ok()) as usize*3,_ if k.is_optional()=>before.get(name).into_iter().flatten().find(|old|old.field("id").ok()==r.field("id").ok()).is_some_and(|old|(old.field(c).ok()==Some(&Value::Null))!=(r.field(c).ok()==Some(&Value::Null))) as usize*3,_=>0}).sum::<usize>()).sum::<usize>()}).sum::<usize>();
                     let progress=progress+after.iter().filter(|(t,_)|relevant.contains(*t)&&super::super::privilege::role_columns(bound,t).is_empty()).map(|(t,rs)|rs.len().saturating_sub(initial.get(t).map_or(0,Vec::len))*2).sum::<usize>();
                     let goal_tables=interesting.iter().filter(|i|super::super::derived::is_derived(i)&&i.target=="insert").map(|i|i.table.clone()).collect::<BTreeSet<_>>();
+                    let mut goal_tables=goal_tables;
+                    for _ in 0..4{
+                        let dependencies=bound.programs.iter().map(|b|&b.program).filter(|p|ir::write_tables(p).iter().any(|(t,k)|goal_tables.contains(t)&&matches!(*k,"insert"|"upsert"))).flat_map(|p|p.args.values().filter_map(|kind|if let ir::ArgType::Ref{table}=kind{Some(table.clone())}else{None})).collect::<BTreeSet<_>>();
+                        let old=goal_tables.len();goal_tables.extend(dependencies);if old==goal_tables.len(){break;}
+                    }
                     let goal_creators=bound.programs.iter().map(|b|&b.program).filter(|p|ir::write_tables(p).iter().any(|(t,k)|goal_tables.contains(t)&&matches!(*k,"insert"|"upsert"))).collect::<Vec<_>>();
                     let mut progress=progress;
                     for goal in goal_creators {
-                        for kind in goal.args.values(){if let ir::ArgType::Ref{table}=kind&&!goal_tables.contains(table){progress+=after.get(table).map_or(0,Vec::len).min(2)*20;}}
+                        for kind in goal.args.values(){if let ir::ArgType::Ref{table}=kind{progress+=after.get(table).map_or(0,Vec::len).min(2)*20;}}
                         let preferred=principal_preferences(bound,goal,&after);
                         progress+=preferred.iter().filter(|(name,_)|matches!(goal.args.get(*name),Some(ir::ArgType::Ref{..}))).map(|(_,ids)|ids.len().min(2)*40).sum::<usize>();
                     }

@@ -17,6 +17,8 @@ impl std::fmt::Debug for BoundaryPredicate {fn fmt(&self,f:&mut std::fmt::Format
 #[derive(Clone,Debug,Default)]
 pub struct SourceFilter {
     pub inserts_at: Option<Vec<String>>,
+    /// An authored literal default at this exact source is initialization of this intent column only.
+    pub insert_initializers_at: Vec<(String,Value)>,
     /// Reissuing an approval may touch an unchanged stamp at these exact sites.
     pub unchanged_at: Vec<String>,
     /// Restrict update observations to these executed sources; inserts are independent.
@@ -75,6 +77,8 @@ impl Runner<'_> {
         let write_site=trace.write_sites.lock().expect("fixture write-site lock").last().cloned();
         for intent in trace.intents.iter().filter(|i| i.table == table && i.effects.contains(&effect)) {
             if effect==Effect::Insert&&intent.source.inserts_at.as_ref().is_some_and(|sites|!write_site.as_ref().is_some_and(|site|sites.contains(site))){continue;}
+            // @ref LLP 3000.036.004.000#11-wave-27-precision-and-workflow-conservation — only source-bound authored intent initialization; structural rules still execute normally.
+            if effect==Effect::Insert&&write_site.as_ref().is_some_and(|site|intent.source.insert_initializers_at.iter().any(|(source,value)|source==site&&intent.column.as_ref().is_some_and(|column|next.and_then(|row|row.field(column).ok())==Some(value)))){continue;}
             if effect==Effect::Update&&intent.source.updates_at.as_ref().is_some_and(|sites|!write_site.as_ref().is_some_and(|site|sites.contains(site))){continue;}
             if write_site.as_ref().is_some_and(|site|intent.source.except_at.contains(site)){continue;}
             if effect == Effect::Update && !write_site.as_ref().is_some_and(|site|intent.source.unchanged_at.contains(site)) && intent.column.as_ref().is_some_and(|c|old.and_then(|r|r.field(c).ok()) == next.and_then(|r|r.field(c).ok())) { continue; }

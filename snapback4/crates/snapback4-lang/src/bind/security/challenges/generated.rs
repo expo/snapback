@@ -174,7 +174,7 @@ pub fn fixture(bound:&Bound,out:&mut Campaign)->Result<Engine,String>{
             let current=readback(&engine)?;
             let targets=writes.iter().filter(|(_,kind)|matches!(*kind,"insert"|"upsert")).map(|(t,_)|t).collect::<Vec<_>>();
             if targets.iter().all(|t|current.get(*t).map_or(0,Vec::len)>=2){
-                if p.args.values().any(|kind|matches!(kind,ir::ArgType::Bool)){out.unsupported.insert(format!("{}: two-row target population cap skips creator boolean alternatives; combinations remain uncovered",p.name));}
+                if p.args.values().any(|kind|matches!(kind,ir::ArgType::Bool|ir::ArgType::Enum{..})){out.unsupported.insert(format!("{}: two-row target population cap skips creator Boolean/enum alternatives; combinations remain uncovered",p.name));}
                 continue;
             }
             let mut cases=histories::fixture_cases(bound,p,&current,&creator_actors,out);
@@ -187,12 +187,12 @@ pub fn fixture(bound:&Bound,out:&mut Campaign)->Result<Engine,String>{
             // Do not let two actors on the first tuple consume both root
             // slots before the opposite gating boolean is tried.
             if let Some(first)=cases.first().cloned(){
-                if let Some(index)=cases.iter().position(|case|p.args.iter().any(|(name,kind)|matches!(kind,ir::ArgType::Bool)&&case.get(name)!=first.get(name))){
+                if let Some(index)=cases.iter().position(|case|p.args.iter().any(|(name,kind)|matches!(kind,ir::ArgType::Bool|ir::ArgType::Enum{..})&&case.get(name)!=first.get(name))){
                     let alternate=cases.remove(index);cases.insert(1,alternate);
-                    if p.args.values().filter(|kind|matches!(kind,ir::ArgType::Bool)).count()>1{out.unsupported.insert(format!("{}: generated roots keep two boolean tuples; additional correlated boolean combinations remain uncovered",p.name));}
+                    if p.args.values().filter(|kind|matches!(kind,ir::ArgType::Bool|ir::ArgType::Enum{..})).count()>1{out.unsupported.insert(format!("{}: generated roots keep two Boolean/enum tuples; additional correlated Boolean/enum combinations remain uncovered",p.name));}
                 }
             }
-            let boolean_names=p.args.iter().filter(|(_,kind)|matches!(kind,ir::ArgType::Bool)).map(|(name,_)|name.clone()).collect::<Vec<_>>();
+            let boolean_names=p.args.iter().filter(|(_,kind)|matches!(kind,ir::ArgType::Bool|ir::ArgType::Enum{..})).map(|(name,_)|name.clone()).collect::<Vec<_>>();
             let projection=|args:&BTreeMap<String,Value>|boolean_names.iter().filter_map(|name|args.get(name).map(|value|(name.clone(),value.clone()))).collect::<BTreeMap<_,_>>();
             let possible=cases.iter().map(|args|serde_json::to_string(&projection(args)).unwrap()).collect::<BTreeSet<_>>();
             let mut attempted_booleans=BTreeSet::new();let admitted_booleans=creator_decisions.entry(p.name.clone()).or_default();
@@ -242,7 +242,7 @@ pub fn fixture(bound:&Bound,out:&mut Campaign)->Result<Engine,String>{
                     if targets.iter().any(|t|after.get(*t).map_or(0,Vec::len)>current.get(*t).map_or(0,Vec::len)){continue 'cases;}
                 }
             }}
-            if !boolean_names.is_empty()&&possible.difference(&attempted_booleans).next().is_some(){out.unsupported.insert(format!("{}: creator tuple/population cap omits {} generated boolean projections; remaining combinations uncovered",p.name,possible.difference(&attempted_booleans).count()));}
+            if !boolean_names.is_empty()&&possible.difference(&attempted_booleans).next().is_some(){out.unsupported.insert(format!("{}: creator tuple/population cap omits {} generated Boolean/enum projections; remaining combinations uncovered",p.name,possible.difference(&attempted_booleans).count()));}
         }
         if readback(&engine)?==before{break;}
     }

@@ -526,7 +526,7 @@ fn campaign(s:&str)->Campaign{let b=security::derived::augmented(&sources(s),&bo
 }
 
 #[test]fn actual_alias_corpus_schema_does_not_panic_and_keeps_unused_approval_visible(){
-    let source=include_str!("security/sec10-controls/w26-037.q");let _=security::derived::augmented(&sources(source),&bound(source));assert!(notes(source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"&&n.message.contains("remakeApproved")));
+    let source=include_str!("security/sec10-controls/w26-037.q");let _=security::derived::augmented(&sources(source),&bound(source));assert!(notes(source).iter().any(|n|n.code=="N_APPROVAL_INFORMATIONAL"&&n.message.contains("remakeApproved")));
 }
 
 #[test]fn impossible_effects_neither_consume_approval_nor_create_sibling_contracts(){

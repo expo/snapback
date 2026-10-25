@@ -11,6 +11,7 @@ pub(super) fn value(e:&Expr,row:&Value,rows:&Rows,schema:&Schema,viewer:&str,tab
     Expr::Name{name,..} if name=="viewer"=>Value::Id(viewer.into()),
     Expr::Literal{value,..}=>match value{Literal::Str(s)=>Value::String(s.clone()),Literal::Bool(v)=>Value::Bool(*v),Literal::Null=>Value::Null,Literal::Number(_)=>Value::int(i128::from(super::creation_advice::duration_number(e)?)).ok()?},
     Expr::Focal{..}=>row.clone(),
+    Expr::If{condition,then,otherwise,..}=>{if boolean(value(condition,row,rows,schema,viewer,table,now))?{value(then,row,rows,schema,viewer,table,now)?}else{value(otherwise,row,rows,schema,viewer,table,now)?}},
     Expr::Member{base,name,..} if matches!(base.as_ref(),Expr::Focal{..})=>row.field(name).ok()?.clone(),
     Expr::Member{base,name,..}=>{
         let Value::Id(id)=value(base,row,rows,schema,viewer,table,now)? else{return None;};
@@ -89,7 +90,7 @@ pub(super) fn limitations(expr:&Expr,schema:&Schema,table:&str)->BTreeSet<String
         Expr::Name{name,..} if name=="viewer"||name=="now"=>{},
         Expr::Name{name,..}=>{out.insert(if name=="now"{"clock expression is outside the concrete invariant evaluator".into()}else{format!("unbound concrete name {name}")});},
         Expr::Literal{value:Literal::Number(_),..} if super::creation_advice::duration_number(e).is_none()=>{out.insert("typed duration/decimal literal is outside the concrete invariant evaluator".into());},
-        Expr::Literal{..}|Expr::Focal{..}|Expr::Array{..}=>{},
+        Expr::Literal{..}|Expr::Focal{..}|Expr::Array{..}|Expr::If{..}=>{},
         Expr::Member{base,..} if matches!(base.as_ref(),Expr::Focal{..})=>{},
         Expr::Member{base,..} if reference_table(base,schema,table).is_some()=>{},
         Expr::Member{..}=>{out.insert("member is not a typed table reference".into());},

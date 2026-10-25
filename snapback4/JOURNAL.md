@@ -107590,3 +107590,12 @@ Both lane PG16 clusters and both public-witness clusters stop with status 3 and
 no pidfiles; all 1,077 unique recorded PIDs are absent. PIDs left: none. Final
 available disk is 79.67 GiB, above the 40 GiB stop floor. No push or Git
 configuration change occurs.
+
+
+2026-10-25 — SEC10 wave-27 follow-up: approval gates now need a plausible
+modeled effect; external-act records are informational. Mutation require edit
+asymmetry becomes an individual question. Stable participant ledgers and
+current-input backfill labels generate replay candidates. Authored literal
+default initialization retains exact insert-source custody; structural grants
+are unchanged. Deterministic campaigns reuse each generated fixture and try
+derived effects first. Semantic amendment: LLP 3000.036.004.000 §11.

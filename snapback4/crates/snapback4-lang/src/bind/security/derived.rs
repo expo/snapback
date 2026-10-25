@@ -2,6 +2,9 @@
 // @ref LLP 3000.036.004.000#5-derived-campaigns-and-production-deployment — inferred candidates require ordinary replay, never a proof claim.
 use super::*;
 mod workflow;
+mod labels;
+mod conservation;
+pub(crate) use conservation::Conservation;
 mod approval_checks;
 mod stamps;
 pub(super) use stamps::named as named_approval;
@@ -120,7 +123,7 @@ fn checked_arguments(context:&ast::ProgramDecl,p:&ast::ProgramDecl)->BTreeSet<St
     let mut checked=BTreeSet::new();for statement in &context.body{if let ast::Stmt::Require{condition,..}=statement{let mut condition=condition.clone();omit_preconditions(&mut condition,false);condition=super::creation_advice::simplify_boolean(&condition);super::super::intent_walk::expression(&mut condition,&mut |e|if let ast::Expr::Name{name,..}=e&&p.args.iter().any(|arg|arg.name==*name){checked.insert(name.clone());});}}checked
 }
 pub(super) fn opaque_payloads(fields:&[ast::ObjectField],context:&ast::ProgramDecl,p:&ast::ProgramDecl)->Vec<String>{let checked=checked_arguments(context,p);fields.iter().filter(|field|!matches!(field.name.as_str(),"status"|"stage"|"state"|"phase")&&field.value.as_ref().is_some_and(|value|stored_argument(value,p).is_none()&&!payload_arguments(value,p).is_disjoint(&checked))).map(|field|field.name.clone()).collect()}
-pub(super) fn workflow_gaps(sources:&[(String,String)],bound:&Bound)->BTreeSet<String>{let docs=sources.iter().map(|(file,text)|crate::parse_document(file,text).0).collect::<Vec<_>>();let catalog=Catalog::build(docs.clone(),&mut Vec::new());workflow::source_gaps(&docs,&catalog,bound)}
+pub(super) fn workflow_gaps(sources:&[(String,String)],bound:&Bound)->BTreeSet<String>{let docs=sources.iter().map(|(file,text)|crate::parse_document(file,text).0).collect::<Vec<_>>();let catalog=Catalog::build(docs.clone(),&mut Vec::new());workflow::source_gaps(&docs,&catalog,bound).into_iter().chain(conservation::source_gaps(&docs,&catalog,bound)).collect()}
 pub fn invariants(sources:&[(String,String)],bound:&Bound)->Vec<Invariant>{collect(sources,bound,&mut BTreeMap::new(),&mut BTreeMap::new(),&mut BTreeMap::new())}
 fn collect(sources:&[(String,String)],bound:&Bound,inputs:&mut BTreeMap<(String,String),BTreeSet<String>>,reissues:&mut BTreeMap<(String,String,String),BTreeSet<String>>,uncertain:&mut BTreeMap<(String,String,String),BTreeSet<String>>)->Vec<Invariant>{
     let docs=sources.iter().map(|(f,s)|crate::parse_document(f,s).0).collect::<Vec<_>>();
@@ -216,19 +219,23 @@ fn collect(sources:&[(String,String)],bound:&Bound,inputs:&mut BTreeMap<(String,
         }
     }
     workflow::invariants(&docs,&catalog,bound,&mut out);
+    labels::invariants(&docs,&catalog,bound,&mut out);
+    out.extend(conservation::contracts(&docs,&catalog,bound).into_iter().map(|(inv,_)|inv));
     out
 }
 pub fn notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnostic>{
-    invariants(sources,bound).into_iter().map(|i|{
+    (if bound.invariants.iter().any(is_derived){bound.invariants.iter().filter(|i|is_derived(i)).cloned().collect()}else{invariants(sources,bound)}).into_iter().map(|i|{
         let transition=transition(&i).is_some();
         let workflow=["/sibling-approval/","/approval-history/","/repeat-create/","/parent-state/","/child-stage/"].iter().any(|label|i.site.file.contains(label));
         let message=if transition{format!("{}: inferred effect prerequisite {}; judge before entering the selected destination, permitting atomic approval consumption; a replayed violation needs a specification decision",i.target_label(),i.predicate)}else{format!("{}: derived candidate {} only {}; a replayed violation needs a specification decision",i.target_label(),i.target,i.predicate)};
-        let repair=if workflow{"require the named approval/parent/child prerequisite before this governed effect, consume one-use guards atomically, or record this individual alternative path with check --ack-security ID --reason '<spec rationale>'"}else{"enforce column write/freeze authority, declare matching update-only creation intent, or record this individual rule's deliberate design with check --ack-security ID --reason '<spec rationale>'"};
+        let repair=if i.site.file.contains("/participant-conservation/"){"refund the matching participant charge in the removal transaction, refuse removal while a charge remains, or record this deliberate no-refund removal with check --ack-security ID --reason '<spec rationale>'"}else if i.site.file.contains("/label-consistency/"){"preserve the backfilled equation in every setter, declare invariant T always c = f(x), or acknowledge this individual manual override with check --ack-security ID --reason '<spec rationale>'"}else if workflow{"require the named approval/parent/child prerequisite before this governed effect, consume one-use guards atomically, or record this individual alternative path with check --ack-security ID --reason '<spec rationale>'"}else{"enforce column write/freeze authority, declare matching update-only creation intent, or record this individual rule's deliberate design with check --ack-security ID --reason '<spec rationale>'"};
         Diagnostic::new(&i.site,"N_DERIVED_WRITE_AUTHORITY",message,repair).guide("security")
     }).collect()
 }
 pub fn augmented(sources:&[(String,String)],bound:&Bound)->Bound{
     let mut out=bound.clone();let mut inputs=BTreeMap::new();let mut reissues=BTreeMap::new();let mut uncertain=BTreeMap::new();out.invariants.extend(collect(sources,bound,&mut inputs,&mut reissues,&mut uncertain));out.security_approval_checks=approval_checks::collect(sources,bound);out.security_approval_reissues.extend(reissues);out.security_approval_uncertain_writes.extend(uncertain);for (stamp,columns) in inputs{out.security_approval_inputs.entry(stamp).or_default().extend(columns);}
+    let docs=sources.iter().map(|(f,s)|crate::parse_document(f,s).0).collect::<Vec<_>>();let catalog=Catalog::build(docs.clone(),&mut Vec::new());
+    out.security_conservation.extend(conservation::contracts(&docs,&catalog,bound).into_iter().map(|(inv,contract)|(inv.site.to_string(),contract)));
     // Declared write audiences are runtime contracts, not inferred spec intent.
     // Their replay failures cannot be acknowledged as deliberate asymmetry.
     let mut contracts=Vec::new();

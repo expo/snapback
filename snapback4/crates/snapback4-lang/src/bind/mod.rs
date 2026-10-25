@@ -80,6 +80,8 @@ use snapback4_core::schema::Schema;
 
 #[derive(Clone)]
 pub struct Bound {
+    pub(crate) security_literal_defaults: std::collections::BTreeMap<(String,String,String),std::collections::BTreeSet<String>>,
+    pub(crate) security_conservation: std::collections::BTreeMap<String,security::derived::Conservation>,
     pub rollback_hides:Vec<crate::ast::RollbackHide>,
     pub invariants: Vec<security::Invariant>,
     // @ref LLP 3000.036.004.000#10-sec10-approvals-and-deterministic-exploration — existing freeze authority cannot erase approval input identities.
@@ -432,7 +434,8 @@ pub(crate) fn bind_unverified(mut documents: Vec<Document>) -> Bound {
             diagnostics.push(crate::diag::type_error(&hide.site,"rollback hides requires a declared nullable column","name the nullable column whose null records must stay hidden").guide("deploy"));
         }
     }
-    Bound { security_approval_checks:Default::default(),security_approval_reissues:Default::default(),security_approval_uncertain_writes:Default::default(),security_approval_inputs: Default::default(), rollback_hides, invariants, receipt_members, refusal_sites, view_types, server, schema, programs, personas, diagnostics, notes }
+    let mut bound=Bound { security_literal_defaults:Default::default(),security_conservation:Default::default(),security_approval_checks:Default::default(),security_approval_reissues:Default::default(),security_approval_uncertain_writes:Default::default(),security_approval_inputs: Default::default(), rollback_hides, invariants, receipt_members, refusal_sites, view_types, server, schema, programs, personas, diagnostics, notes };
+    security::capture_literal_defaults(&catalog,&mut bound);bound
 }
 
 /// A read-through child binds its parent's rule over hidden captures

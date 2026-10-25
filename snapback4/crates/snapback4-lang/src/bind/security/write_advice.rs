@@ -26,8 +26,9 @@ pub(super) fn notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnostic>{
             let requirements=super::operation::requirements(&catalog,info,&context);
             let t=&bound.schema.tables[&table];
             let gate=if op==ast::WriteOp::Update{t.update_rule_judged().into_owned()}else{t.rules.insert.clone()};
+            let require_guard=kernel::implies(&RuleExpr::Allow,&necessary(&RuleExpr::And(requirements.clone())))!=Ok(true);
             let admission=RuleExpr::And(requirements.into_iter().chain([gate]).collect());
-            writes.push((p,p.name.clone(),op,table,fields,site,admission));
+            writes.push((p,p.name.clone(),op,table,fields,site,admission,require_guard));
         }
     }}
     fn necessary(rule:&RuleExpr)->RuleExpr{match rule{
@@ -51,7 +52,7 @@ pub(super) fn notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnostic>{
         }}
     }}
     let mut out=Vec::new();let mut table_replaced=BTreeSet::new();
-    for (creator,name,op,table,fields,site,admission) in &writes {
+    for (creator,name,op,table,fields,site,admission,_) in &writes {
         if !matches!(op,ast::WriteOp::Insert|ast::WriteOp::Upsert){continue;}
         for (column,guard) in table_guards(&bound.schema.tables[table].rules.update) {
             let t=&bound.schema.tables[table];
@@ -66,7 +67,7 @@ pub(super) fn notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnostic>{
         }
     }
     let mut seen=BTreeSet::new();let mut replaced=table_replaced;
-    for (creator,name,op,table,fields,site,admission) in &writes{
+    for (creator,name,op,table,fields,site,admission,_) in &writes{
         if !matches!(op,ast::WriteOp::Insert|ast::WriteOp::Upsert){continue;}
         for ((file,editor,target,column),(conditional,guards)) in &specific{
             if !conditional||replaced.contains(&(creator.site.file.clone(),name.clone(),table.clone(),column.clone())){continue;}
@@ -89,15 +90,17 @@ pub(super) fn notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnostic>{
         }
     }
     seen.clear();
-    for (creator,name,op,table,fields,site,admission) in &writes{
+    for (creator,name,op,table,fields,site,admission,_) in &writes{
         if !matches!(op,ast::WriteOp::Insert|ast::WriteOp::Upsert){continue;}
-        for (_,editor,edit,other,patch,_,restricted) in &writes{
-            if *edit!=ast::WriteOp::Update||other!=table{continue;}
+        for (_,editor,edit,other,patch,_,restricted,from_require) in &writes{
+            if !matches!(edit,ast::WriteOp::Update|ast::WriteOp::Upsert)||other!=table{continue;}
             let restriction=necessary(restricted);
             if kernel::implies(&RuleExpr::Allow,&restriction)==Ok(true)||kernel::implies(admission,&restriction)!=Ok(false)||probe_implies(admission,&restriction){continue;}
-            let columns=patch.iter().filter(|f|!replaced.contains(&(creator.site.file.clone(),name.clone(),table.clone(),f.name.clone()))&&fields.iter().any(|insert|insert.name==f.name&&supplied(insert,creator))).map(|f|f.name.clone()).collect::<BTreeSet<_>>();
+            let columns=patch.iter().filter(|f|!replaced.contains(&(creator.site.file.clone(),name.clone(),table.clone(),f.name.clone()))&&!bound.schema.tables[table].column_writes.get(&f.name).is_some_and(|rule|probe_implies(&RuleExpr::And(vec![admission.clone(),rule.clone()]),&restriction))&&!update_only(bound,table,&f.name,&restriction)&&fields.iter().any(|insert|insert.name==f.name&&supplied(insert,creator))).map(|f|f.name.clone()).collect::<BTreeSet<_>>();
             if columns.is_empty()||!seen.insert((creator.site.file.clone(),name.clone(),table.clone(),columns.clone(),restriction.quarry())){continue;}
-            out.push(Diagnostic::new(site,"N_INSERT_WRITE_INTENT",format!("{name}: {table}.{} can be supplied at insert/upsert without the edit restriction of {editor}: {}; creation admission: {}",columns.into_iter().collect::<Vec<_>>().join(","),restriction.quarry(),admission.quarry()),"confirm whether the spec permits different creation authority; otherwise guard every insert/upsert arm too and declare column write only intent, then run snapback4 test").guide("security"));
+            let code=if *from_require{"N_INSERT_WRITE_INTENT"}else{"N_INSERT_TABLE_AUTHORITY"};
+            let repair=format!("declare `invariant {table}.COLUMN update only {}` for the named column to retain deliberate creation authority, or apply `COLUMN: <type> write <- {}` at both boundaries; one decision also suffices: check --ack-security ID --reason '<spec rationale>'",restriction.quarry(),restriction.quarry());
+            out.push(Diagnostic::new(site,code,format!("{name}: {table}.{} can be supplied at insert/upsert without the edit restriction of {editor}: {}; creation admission: {}",columns.into_iter().collect::<Vec<_>>().join(","),restriction.quarry(),admission.quarry()),repair).guide("security"));
         }
     }out
 }

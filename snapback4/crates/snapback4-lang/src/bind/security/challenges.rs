@@ -30,12 +30,24 @@ impl Reachability {
 #[derive(Clone,Debug,Serialize,serde::Deserialize)]
 pub struct Counterexample {pub reachability:Reachability,pub invariant_site:String,pub args:BTreeMap<String,Value>,pub viewer:String,pub operation:String,pub effect:String,pub row:Value,pub old:Option<Value>,pub supporting_rows:BTreeMap<String,Vec<Value>>,pub rule_path:String,pub scope:String, pub observations:Option<paired::Observations>,pub history:Vec<histories::Step>}
 #[derive(Clone,Debug,Default,Serialize)]
-pub struct Campaign {#[doc(hidden)] #[serde(skip)] pub directed_base:usize,#[doc(hidden)] #[serde(skip)] pub time_samples:Option<Vec<Value>>,pub evaluation_unknowns:BTreeSet<String>,pub directed_attempts:usize,pub workflow_attempts:usize,pub directed_peak_worlds:usize,#[serde(skip)] pub history_limit:usize,#[serde(skip)] pub generated_fixture:bool,#[serde(skip)] pub work_remaining:Option<usize>,#[serde(skip)] pub deadline:Option<std::time::Instant>,pub paired_observer_calls:usize,pub history_observer_calls:usize,pub column_observer_calls:usize,pub operations:BTreeMap<String,usize>,pub sequences:usize,pub attempted:usize,pub admitted:usize,pub refused:usize,pub violations:Vec<Counterexample>,pub boundary_failures:Vec<String>,pub unsupported:BTreeSet<String>}
+pub struct Campaign {#[doc(hidden)] #[serde(skip)] pub directed_base:usize,#[doc(hidden)] #[serde(skip)] pub workflow_base:usize,#[doc(hidden)] #[serde(skip)] pub time_samples:Option<Vec<Value>>,pub evaluation_unknowns:BTreeSet<String>,pub directed_attempts:usize,pub workflow_attempts:usize,pub directed_peak_worlds:usize,#[serde(skip)] pub history_limit:usize,#[serde(skip)] pub generated_fixture:bool,#[serde(skip)] pub work_remaining:Option<usize>,#[serde(skip)] pub deadline:Option<std::time::Instant>,pub paired_observer_calls:usize,pub history_observer_calls:usize,pub column_observer_calls:usize,pub operations:BTreeMap<String,usize>,pub sequences:usize,pub attempted:usize,pub admitted:usize,pub refused:usize,pub violations:Vec<Counterexample>,pub boundary_failures:Vec<String>,pub unsupported:BTreeSet<String>}
 impl Campaign {
     /// Deterministic production/check exploration. Elapsed time is not a verdict input.
     pub fn work_bounded(work:usize)->Self {Self{work_remaining:Some(work),..Self::default()}}
     /// Explicit caller-selected safety deadline; default commands use work_bounded.
     pub fn bounded(milliseconds:u64)->Self {Self{work_remaining:Some(512),deadline:Some(std::time::Instant::now()+std::time::Duration::from_millis(milliseconds)),..Self::default()}}
+    fn slice(&mut self,work:usize,label:&str,run:impl FnOnce(&mut Self)){
+        let original=self.work_remaining;
+        let workflow_base=self.workflow_base;self.workflow_base=self.workflow_attempts;
+        let allowance=original.map_or(work,|left|left.min(work));
+        self.work_remaining=Some(allowance);run(self);
+        let used=allowance.saturating_sub(self.work_remaining.unwrap_or(0));
+        self.work_remaining=original.map(|left|left.saturating_sub(used));self.workflow_base=workflow_base;
+        if used==allowance&&allowance>0&&self.work_remaining!=Some(0){
+            self.unsupported.remove("check concrete exploration work budget exhausted; remaining paths unproved; run snapback4 test for the full campaign");
+            self.unsupported.insert(format!("{label}: deterministic phase work slice exhausted; deferred combinations remain uncovered"));
+        }
+    }
     pub(super) fn reserve(&mut self,cost:usize)->bool {
         if self.exhausted(){return false;}
         if let Some(remaining)=&mut self.work_remaining {
@@ -400,35 +412,44 @@ pub fn evaluation_gaps(bound:&Bound)->Vec<String>{
 }
 
 pub fn generated_campaign(bound:&Bound,campaign:&mut Campaign,matrix:bool){
-    // Inferred workflow contracts must get a turn before independent read
-    // observers spend the common work allowance. This is ordering, not proof.
-    if bound.invariants.iter().any(super::derived::is_derived){
-        let mut focused=bound.clone();focused.invariants.retain(super::derived::is_derived);
-        generated_campaign_inner(&focused,campaign,false);
-    }
-    generated_campaign_inner(bound,campaign,matrix);
-}
-fn generated_campaign_inner(bound:&Bound,campaign:&mut Campaign,matrix:bool){
+    // @ref LLP 3000.036.004.000#11-wave-27-precision-and-workflow-conservation — build each world once; actual derived effects get the first deterministic work slice.
     campaign.directed_base=campaign.directed_attempts;
     for (name,_) in bound.schema.visible_tables().filter(|(_,t)|t.ephemeral.is_some()){campaign.unsupported.insert(format!("ephemeral {name}: generated memory populations and ephemeral mutation histories remain uncovered; durable campaigns use isolated hub copies"));}
     campaign.history_limit=64;campaign.generated_fixture=false;
     if !campaign.reserve(1){return;}
     match engine_with(bound,&BTreeMap::new(),Vec::new()){
-        Ok(empty)=>fixture_observers(bound,&empty,campaign),
+        Ok(empty)=>{let allowance=campaign.work_remaining.map_or(512,|left|(left/4).clamp(1,512));campaign.slice(allowance,"empty-start phase",|campaign|fixture_observers(bound,&empty,campaign));},
         Err(why)=>{campaign.unsupported.insert(format!("empty initial campaign unavailable: {why}"));}
     }
     campaign.history_limit=448;campaign.generated_fixture=true;
-    match generated_fixture(bound,campaign){
-        Ok(fixture)=>if matrix{operations(bound,&fixture,campaign)}else{fixture_observers(bound,&fixture,campaign)},
-        Err(why)=>{campaign.unsupported.insert(format!("generated fixture campaign unavailable: {why}"));}
-    }
+    let allowance=campaign.work_remaining.map_or(usize::MAX,|left|left.saturating_sub(left/4));
+    let mut fixture=None;
+    campaign.slice(allowance,"generated initialization",|campaign|{match generated_fixture(bound,campaign){
+        Ok(world)=>fixture=Some(world),Err(why)=>{campaign.unsupported.insert(format!("generated fixture campaign unavailable: {why}"));}
+    }});
+    if let Some(fixture)=fixture{if matrix{operations(bound,&fixture,campaign)}else{fixture_observers(bound,&fixture,campaign)}}
+
     campaign.history_limit=0;campaign.generated_fixture=false;
 }
 /// Exercise every authored query/mutation with cross-principal candidates.
 /// This is conformance exploration, not a guessed spec oracle: only declared
 /// policies and replayed violations can fail security acceptance.
 pub fn fixture_observers(bound:&Bound,fixture:&Engine,campaign:&mut Campaign){
-    let first=campaign.violations.len();
+    let first=campaign.violations.len();campaign.workflow_base=campaign.workflow_attempts;
+    if bound.invariants.iter().any(super::derived::is_derived){
+        let mut focused=bound.clone();focused.invariants.retain(super::derived::is_derived);
+        let allowance=campaign.work_remaining.map_or(4096,|left|(left/2).min(4096));
+        campaign.slice(allowance,"derived replay",|campaign|{
+            if let Ok(rows)=readback(fixture){
+                let changed=rows.keys().cloned().collect();
+                workflow::direct(&focused,fixture,&rows,campaign);
+                workflow::run(&focused,fixture,&rows,&[],&changed,campaign);
+            }
+            let limit=campaign.directed_attempts.saturating_add(4096);
+            histories::lifecycle_observers_to(&focused,fixture,campaign,limit);
+        });
+    }
+    campaign.workflow_base=campaign.workflow_attempts;
     column_reads::direct_fixture(bound,fixture,campaign);
     histories::initial_observers(bound,fixture,campaign);
     histories::lifecycle_observers(bound,fixture,campaign);
@@ -538,4 +559,20 @@ fn trusted_reads(bound:&Bound,fixture:&Engine,out:&mut Campaign){
             break 'rows;
         }}
     }
+}
+
+
+#[cfg(test)]mod wave27_budget_tests{
+ use super::*;
+ #[test]fn focused_slice_preserves_general_work_and_reports_its_cut(){
+  let mut unbounded=Campaign::default();unbounded.slice(8,"finite phase",|out|while out.reserve(1){});
+  assert_eq!(unbounded.work_remaining,None);assert!(unbounded.reserve(1));assert!(unbounded.unsupported.iter().any(|why|why.contains("finite phase")));
+  for budget in [512,8192]{
+   let mut out=Campaign::work_bounded(budget);
+   out.slice(budget/2,"derived replay",|out|while out.reserve(1){});
+   assert_eq!(out.work_remaining,Some(budget/2));assert!(out.reserve(1));
+   assert!(out.unsupported.iter().any(|why|why.contains("derived replay")&&why.contains("slice exhausted")));
+   assert!(!out.unsupported.iter().any(|why|why.starts_with("check concrete exploration work budget exhausted")));
+  }
+ }
 }

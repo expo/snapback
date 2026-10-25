@@ -69,7 +69,7 @@ reason, without increasing the search. Declaring one effect does not cover the o
 `invariant table.read only P` protects read intent; insert, update and delete
 name authority. `invariant table.column write only P` covers writes to a
 column (insert, inserted insert-if-absent, update and both upsert arms).
-A null creation or the declared `false` approval default is initialization, not an approval write. Mandatory creation presence needs whole-row insert/write or always intent; non-null/non-default creation still requires P. Tests judge each executed write in a committed mutation, including intermediate writes. `invariant table.column update only P` checks
+A null creation or the declared `false` approval default is initialization, not an approval write. An explicit literal equal to the column's declared default also initializes authored `write only` intent at that insert source; caller-supplied values, later edits, positive approval/role defaults and structural `write <-` rules retain authority checks. Mandatory creation presence needs whole-row insert/write or always intent; non-null/non-default creation still requires P. Tests judge each executed write in a committed mutation, including intermediate writes. `invariant table.column update only P` checks
 only edits, retaining old-and-next-image semantics; use it when creation is permitted
 to a different role (for example counter staff creating a ticket price). `invariant table always P` states row integrity.
 An update policy over `.field` constrains **both old and next images**.
@@ -405,9 +405,13 @@ N_TABLE_QUESTIONNAIRE: Role-wide access and restating invariants share one table
 
 ### N_APPROVAL_NOT_ENFORCED
 
-N_APPROVAL_NOT_ENFORCED: An approval flag, timestamp, or separately authorized parent-linked approval table is recorded but no lifecycle effect requires it. This is an individual review gate. Add the matching approval requirement before its governed effect; if the approval is an informational record, record that specification decision with `check --ack-security ID --reason '<spec rationale>'`. A query returning the approval is not a transition guard. Edit/version timestamps such as `authorizationRouteUpdatedAt` are ordinary metadata, including when checked as data. Use a distinct approval-event field such as `approvedAt` or independent intent when the domain needs an approval marker.
+N_APPROVAL_NOT_ENFORCED: An approval flag, timestamp, or separately authorized parent-linked approval table is recorded, and a plausible modeled act does not require it. This is an individual review gate. Add the matching approval requirement before its governed effect; if the approval is an informational record, record that specification decision with `check --ack-security ID --reason '<spec rationale>'`. A query returning the approval is not a transition guard. Edit/version timestamps such as `authorizationRouteUpdatedAt` are ordinary metadata, including when checked as data. Use a distinct approval-event field such as `approvedAt` or independent intent when the domain needs an approval marker.
 
 ### N_EDIT_AFTER_APPROVAL
+
+N_APPROVAL_INFORMATIONAL: No operation models the approved act. This advisory calls it an informational record and offers the individual acknowledgment as the default next step. It does not block deployment. Adding the governed effect can create a new approval question.
+
+N_INSERT_WRITE_INTENT: A mutation requires stricter authority to edit caller-controlled columns than an insert requires to create them. This individual gating question asks whether that asymmetry is deliberate. One matching `invariant T.c update only P` answers the named column; a column `write <- P` enforces its authority at creation too. An individual acknowledgment records the deliberate asymmetry for a grouped question. A table-only edit restriction remains advisory as N_INSERT_TABLE_AUTHORITY.
 
 N_EDIT_AFTER_APPROVAL: A checked value or media artifact can change without a positive creation-state restriction. Decide whether approval must be renewed after edits or replacements; declare column update intent. To freeze approved evidence use `immutable photo when .approved = true` from the complete rule recipe. This is a specification question, never a proof or a new gate.
 
@@ -539,3 +543,20 @@ Run create, pass its returned id to approve with a nonblank value, then finish.
 Production role authority belongs in the table and operation policies for the
 application's real identities; this local example isolates the decision guard.
 The scan is deliberately optional and readable only by its owner.
+
+
+Current-input backfills plus generic setters derive label-consistency candidates.
+Replay checks the backfilled equation after committed writes. Keep the label in
+sync with its inputs, or acknowledge the individual manual override from the
+specification. Predecessor migrations, self-input backfills and constant fills
+do not declare current-input equations.
+
+Co-created participant charges with stable typed identities and an authored
+refund path derive participant-conservation candidates. A committed participant
+removal must retain a matching full refund or be refused. Refunds may be written
+before or after the delete in the same transaction. Partial refunds or another
+participant's refund do not satisfy this candidate. A deliberate no-refund
+removal takes one individual security decision. Unsupported or mutable ledger
+shapes remain coverage gaps; finite exploration never proves conservation.
+Derived effects run before general observers on each generated fixture; bounded
+production replay retains explicit coverage for paths it did not explore.

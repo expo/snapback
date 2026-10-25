@@ -7,6 +7,7 @@ mod eligibility;
 mod lifecycle;
 mod evidence;
 mod approval_records;
+mod approval_effects;
 pub(super) fn fresh_reference(value:&Expr,context:&ast::ProgramDecl,p:&ast::ProgramDecl,catalog:&Catalog,parent:&str)->bool{approval_records::fresh_reference(value,context,p,catalog,parent)}
 pub(super) fn approval_recording(kind:&ColumnType,value:Option<&Expr>)->bool{lifecycle::recording(kind,value)}
 fn note(out:&mut Vec<Diagnostic>,site:&Site,code:&str,message:String,repair:&str){out.push(Diagnostic::new(site,code,message,repair).guide("security"));}

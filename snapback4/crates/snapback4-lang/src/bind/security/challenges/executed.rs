@@ -159,6 +159,11 @@ pub(super) fn trace(bound:&Bound,p:&Program,entry:&Engine)->Trace {
                     })));
                 }
             }
+            if word=="insert"&&inv.target=="write"&&!super::super::derived::is_derived(inv)&&let Some(column)=&inv.column&&
+                let Some(sites)=bound.security_literal_defaults.get(&(p.name.clone(),inv.table.clone(),column.clone()))&&
+                let Some(snapback4_core::schema::ColumnDefault::Literal(default))=bound.schema.tables[&inv.table].defaults.get(column){
+                source.insert_initializers_at=sites.iter().map(|site|(site.clone(),default.clone())).collect();
+            }
             intents.push(Intent {
                 source,paired:super::super::derived::is_derived(inv)&&inv.policy.as_ref().is_some_and(|r|r.any_term(&|t|matches!(t,RuleTerm::OldField(_)|RuleTerm::NextField(_)))),
                 boundary,concrete,site:inv.site.to_string(),table:inv.table.clone(),column:inv.column.clone(),
@@ -184,6 +189,7 @@ pub(super) fn trace(bound:&Bound,p:&Program,entry:&Engine)->Trace {
     Trace::new(intents).with_insert_sites(bound.programs.iter().find(|program|program.program.name==p.name).map(|program|program.fixture_insert_sites.iter().map(|(name,site)|(name.clone(),site.to_string())).collect()).unwrap_or_default())
 }
 fn lifecycle_judgment(bound:&Bound,inv:&super::super::Invariant,observation:&snapback4_core::engine::fixture_trace::Observation,all:&[snapback4_core::engine::fixture_trace::Observation],after:&BTreeMap<String,Vec<Value>>,viewer:&str,now:i64)->Option<bool>{
+    if let Some(contract)=bound.security_conservation.get(&inv.site.to_string()){return contract.judge(observation.old.as_ref()?,after);}
     let Some(predicate)=&inv.syntax else{return observation.allowed;};
     if inv.site.file.contains("/child-stage/"){
         let row=observation.next.as_ref()?;

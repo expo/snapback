@@ -15,9 +15,9 @@ fn unconditional_write(p:&ast::ProgramDecl,site:&Site)->bool{
     }}false
 }
 fn string(value:&str)->Expr{Expr::Literal{value:ast::Literal::Str(value.into()),site:Site::default()}}
-fn binary(op:&str,left:Expr,right:Expr)->Expr{Expr::Binary{op:op.into(),left:Box::new(left),right:Box::new(right),site:Site::default()}}
-fn focal()->Expr{Expr::Focal{site:Site::default()}}
-fn member(base:Expr,name:&str)->Expr{Expr::Member{base:Box::new(base),name:name.into(),site:Site::default()}}
+pub(super) fn binary(op:&str,left:Expr,right:Expr)->Expr{Expr::Binary{op:op.into(),left:Box::new(left),right:Box::new(right),site:Site::default()}}
+pub(super) fn focal()->Expr{Expr::Focal{site:Site::default()}}
+pub(super) fn member(base:Expr,name:&str)->Expr{Expr::Member{base:Box::new(base),name:name.into(),site:Site::default()}}
 fn walk(e:&mut Expr,f:&mut impl FnMut(&mut Expr)){super::super::super::intent_walk::expression(e,f)}
 const LOCAL:&str="$derived:local-focal";
 // Preserve focal binders in populations through outer-resource substitution.
@@ -174,7 +174,7 @@ fn paths(schema:&Schema,from:&str,to:&str)->Vec<Expr>{
     let mut out=Vec::new();visit(schema,from,to,focal(),&BTreeSet::new(),&mut out);out
 }
 fn lift(e:&Expr,root:&Expr)->Expr{let mut e=e.clone();walk(&mut e,&mut |e|if matches!(e,Expr::Focal{..}){*e=root.clone();});e}
-fn add_syntax(out:&mut Vec<Invariant>,table:&str,column:Option<&str>,target:&str,mut policy:Expr,site:&Site,label:&str,operation:Option<String>){
+pub(super) fn add_syntax(out:&mut Vec<Invariant>,table:&str,column:Option<&str>,target:&str,mut policy:Expr,site:&Site,label:&str,operation:Option<String>){
     use sha2::{Digest,Sha256};
     walk(&mut policy,&mut |e|if let Expr::Name{name,site}=e&&name==LOCAL{*e=Expr::Focal{site:site.clone()};});
     let predicate=crate::print::expression(&policy);

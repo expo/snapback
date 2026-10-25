@@ -28,18 +28,34 @@ fn actors_for(bound:&Bound,p:&Program,rows:&BTreeMap<String,Vec<Value>>,engine:&
     }out
 }
 fn attempt(bound:&Bound,base:&Engine,p:&Program,args:&BTreeMap<String,Value>,viewer:&str,initial:&BTreeMap<String,Vec<Value>>,steps:&[histories::Step],out:&mut Campaign)->Option<(Engine,Vec<histories::Step>)>{
-    if out.workflow_attempts>=512{out.unsupported.insert("focused workflow continuations capped at 512 calls; remaining repeated/dependency histories uncovered".into());return None;}if !out.reserve(1){return None;}out.workflow_attempts+=1;
+    if out.workflow_attempts>=out.workflow_base.saturating_add(512){out.unsupported.insert("focused workflow continuations capped at 512 calls; remaining repeated/dependency histories uncovered".into());return None;}if !out.reserve(1){return None;}out.workflow_attempts+=1;
     let mut engine=base.fork_fixture().ok()?;
     let args=materialize_arguments(&mut engine,&p.args,args,viewer).ok()?;
     let trace=executed::trace(bound,p,&engine);out.attempted+=1;*out.operations.entry(p.name.clone()).or_default()+=1;
     let result=engine.mutate(&p.name,None,Context::new(viewer,args.clone()).at(histories::history_clock(steps)).with_fixture_trace(trace.clone())).ok()?;
     if !matches!(result.state,snapback4_core::WriteState::Sent{..}){out.refused+=1;return None;}
     let mut history=steps.to_vec();history.push(histories::Step{clock:Some(histories::history_clock(steps)),operation:p.name.clone(),viewer:viewer.into(),args,result:serde_json::to_value(&result.state).ok()?});
-    let after=readback(&engine).ok()?;executed::record(bound,p,&trace,&result.state,&after,initial,viewer,&history,&mut engine,out);
+    let before=readback(base).ok()?;let after=readback(&engine).ok()?;histories::assertions(bound,&before,&after,initial,viewer,&history,&mut None,&mut engine,out);executed::record(bound,p,&trace,&result.state,&after,initial,viewer,&history,&mut engine,out);
     Some((engine,history))
 }
+// Try each candidate-producing operation before prerequisite expansion.
+// Every failure below still comes from the normal committed trace observer.
+pub(super) fn direct(bound:&Bound,base:&Engine,initial:&BTreeMap<String,Vec<Value>>,out:&mut Campaign){
+ let actors=histories::actors(bound,initial);
+ for p in bound.programs.iter().map(|b|&b.program).filter(|p|p.kind==ProgramKind::Mutation&&!p.native){
+  let targets=ir::write_tables(p);
+  if !bound.invariants.iter().any(|i|targets.iter().any(|(table,kind)|table==&i.table&&(i.target=="always"||i.target==*kind||i.target=="update"&&*kind=="upsert"))){continue;}
+  let candidates=histories::fixture_cases(bound,p,initial,&actors,out);
+  let eligible=actors_for(bound,p,initial,base,out);
+  if candidates.len()>8{out.unsupported.insert(format!("{}: direct derived tuples capped at eight; remaining combinations uncovered",p.name));}
+  for args in candidates.into_iter().take(8){for viewer in &eligible{
+   let _=attempt(bound,base,p,&args,viewer,initial,&[],out);
+   if out.exhausted(){return;}
+  }}
+ }
+}
 pub(super) fn run(bound:&Bound,base:&Engine,initial:&BTreeMap<String,Vec<Value>>,steps:&[histories::Step],changed:&BTreeSet<String>,out:&mut Campaign){
-    if out.workflow_attempts>=512{out.unsupported.insert("focused workflow continuations capped at 512 calls; remaining repeated/dependency histories uncovered".into());return;}if out.exhausted(){return;}
+    if out.workflow_attempts>=out.workflow_base.saturating_add(512){out.unsupported.insert("focused workflow continuations capped at 512 calls; remaining repeated/dependency histories uncovered".into());return;}if out.exhausted(){return;}
     let Ok(rows)=readback(base)else{return;};
     let goals=bound.invariants.iter().filter(|i|super::super::derived::is_derived(i)&&i.target=="insert").map(|i|i.table.clone()).collect::<BTreeSet<_>>();
     let mut predicate_columns=BTreeSet::new();
@@ -92,7 +108,7 @@ pub(super) fn run(bound:&Bound,base:&Engine,initial:&BTreeMap<String,Vec<Value>>
                     }}
                 }
             }
-            if out.workflow_attempts>=512||out.exhausted(){out.unsupported.insert("focused workflow continuations capped at 512 calls; remaining repeated/dependency histories uncovered".into());return;}
+            if out.workflow_attempts>=out.workflow_base.saturating_add(512)||out.exhausted(){out.unsupported.insert("focused workflow continuations capped at 512 calls; remaining repeated/dependency histories uncovered".into());return;}
         }
     }
 }

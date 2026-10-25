@@ -309,7 +309,6 @@ pub(super) fn notes(bound:&Bound,writes:&[Write<'_>],out:&mut Vec<Diagnostic>){
     for (table,t) in bound.schema.visible_tables(){
         let transitions=writes.iter().filter(|w|w.table==*table&&state(w,bound)).collect::<Vec<_>>();
         let approval_effects=transitions.iter().copied().chain(writes.iter().filter(|w|w.table!=*table&&(matches!(w.op,WriteOp::Insert|WriteOp::Upsert)||state(w,bound))&&bound.schema.tables[&w.table].columns.values().any(|kind|matches!(kind.required(),ColumnType::Ref{table:parent} if parent==table))&&!fresh_parent_child(w,table,bound))).collect::<Vec<_>>();
-        if approval_effects.is_empty(){continue;}
         for (column,kind) in &t.columns {
             let approval=super::super::derived::named_approval(column,kind);
             let recorded=writes.iter().any(|w|w.table==*table&&records(w,column,kind,t));
@@ -320,8 +319,14 @@ pub(super) fn notes(bound:&Bound,writes:&[Write<'_>],out:&mut Vec<Diagnostic>){
             let data_use=writes.iter().filter(|record|record.table==*table&&records(record,column,kind,t)).any(|record|locked_approval_input(record,column,writes,bound)||one_shot_decision(record,column,writes,bound)||linked_decision_stamp(record,column,writes,bound));
             let consumed=atomic||data_use||frozen||writes.iter().any(|effect|schema_scalar(effect,table,column,bound,false))||writes.iter().filter(|effect|state(effect,bound)).any(|effect|parent_loop_guard(effect,table,column,bound))||approval_effects.iter().filter(|w|!(w.table==*table&&records(w,column,kind,t))).any(|w|scalar_enforced(w,table,column,bound,false)||schema_scalar(w,table,column,bound,false)||proxies.iter().any(|proxy|scalar_enforced(w,table,proxy,bound,false)));
             let downstream=approval_effects.iter().filter(|effect|effect.table==*table||!writes.iter().any(|writer|writer.table==*table&&records(writer,column,kind,t)&&bound.schema.tables[&effect.table].columns.iter().any(|(reference,kind)|matches!(kind.required(),ColumnType::Ref{table:parent} if parent==table)&&requires_child(writer,&effect.table,reference)))).collect::<Vec<_>>();
-            if approval&&recorded&&!consumed&&!downstream.is_empty() {
-                note(out,&downstream[0].site,"N_APPROVAL_NOT_ENFORCED",format!("{table}.{column}: approval is recorded but no lifecycle effect inspects it; is this an informational record or a required approval?"),"require this approval before its governed effect; or record `check --ack-security ID --reason 'informational approval record: <spec rationale>'` for this individual decision");
+            if approval&&recorded&&!consumed {
+                let modeled=downstream.iter().copied().copied().chain(writes.iter().filter(|effect|effect.table==*table&&matches!(effect.op,WriteOp::Update|WriteOp::Upsert)&&!records(effect,column,kind,t))).find(|effect|
+                    writes.iter().filter(|record|record.table==*table&&records(record,column,kind,t)).any(|record|super::approval_effects::scalar(column,table,record,effect,writes,bound)));
+                if let Some(effect)=modeled{
+                    note(out,&effect.site,"N_APPROVAL_NOT_ENFORCED",format!("{table}.{column}: a modeled {} effect can proceed without reading this recorded approval",effect.name),"require this approval before the named effect; or record this individual deliberate alternative with check --ack-security ID --reason '<spec rationale>'");
+                }else if let Some(record)=writes.iter().find(|record|record.table==*table&&records(record,column,kind,t)){
+                    super::approval_effects::informational(out,&record.site,&format!("{table}.{column}"));
+                }
             }
         }
         // A separately attached child's required field cannot require the child.

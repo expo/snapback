@@ -3,8 +3,9 @@
 ## 0.4.41
 
 ### Guide changes
+- Wave-27 security precision: mutation edit-guard questions accept matching update-only intent, column write authority or an individual decision. Derived replay checks participant charge/refund conservation and current-input backfill labels; manual overrides and deliberate no-refund removals take individual decisions. Authored explicit literal defaults initialize write intent at their exact insert source. Derived effects run first with one generated fixture per phase.
 
-- Ignored approval flags, timestamps and separately authorized approval records require an individual specification decision. Enforce the approval before its effect, or record why it is informational with `check --ack-security ID --reason '<spec rationale>'`.
+- Ignored approval flags, timestamps and separately authorized approval records require an individual specification decision when a plausible modeled act can bypass them. External-act records are informational and do not gate deployment. Enforce the approval before its effect, or record why it is informational with `check --ack-security ID --reason '<spec rationale>'`.
 - Derived security replay covers sibling approval paths, Boolean/enum/principal approval inputs, parent/child stages and repeatable creates. A production FIX names the exact candidate and its repair or individual alternative-path decision. Resource branch conditions retain their scope; unmappable caller conditions need explicit operation intent. Row aliases retain their target and source site; unresolved source targets and helper cuts report coverage gaps with the explicit-target or expression repair.
 - New questions identify text-typed photo evidence, media beside private fields, one-sided anchored date windows, month-number arithmetic and global unique keys over owner-scoped rows. Empty-string justification guards that accept whitespace require review; use `trim(value) != ''` or `text 1..N` on every supplied justification.
 - Default check and production security campaigns use deterministic work budgets; machine load no longer selects a different security verdict. Search cuts retain explicit coverage gaps.

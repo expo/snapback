@@ -141,6 +141,8 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("N_DERIVED_WRITE_AUTHORITY", "an inferred candidate from authored change guards or approval data"),
     ("N_PRESENCE_LOOSENING", "a required-to-optional column change"),
     ("N_TABLE_QUESTIONNAIRE", "Role-wide access and restating invariants share one table questionnaire."),
+    ("N_APPROVAL_INFORMATIONAL", "No operation models the approved act"),
+    ("N_INSERT_TABLE_AUTHORITY", "table-only edit restriction"),
     ("N_APPROVAL_NOT_ENFORCED", "An approval flag, timestamp, or separately authorized parent-linked approval table"),
     ("N_TEXT_EVIDENCE", "A text column names photo, scan, sketch or image evidence."),
     ("N_MEDIA_PRIVATE_FIELDS", "Media has the whole-row audience beside narrower private fields."),
