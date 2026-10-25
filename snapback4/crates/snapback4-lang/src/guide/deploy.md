@@ -28,8 +28,9 @@ partitioned and foreign tables refuse. Before removing a live/dormant source,
 activation verifies the destination's expected final images and count in the same
 transaction; mismatch rolls back. Intentional overlays, backfills and narrowing
 advance the expected image. SQLite compares decoded values, so JSON key order
-from a rename is harmless. Postgres verification advances in 64-key pages under
-the existing five-second statement timeout. SQLite managed names match
+from a rename is harmless. Postgres verification pages cap keys at 64 and
+combined compared payloads at 4 MiB, admitting one oversized row to ensure
+progress, under the existing five-second statement timeout. SQLite managed names match
 identifiers without ASCII case distinctions, including quoted table names.
 
 Runtime DDL on managed relations while serving is explicitly outside the

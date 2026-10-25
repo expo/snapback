@@ -486,6 +486,183 @@ fn restored_cell_legal_backfill_changes_expected_final_image_sqlite() {
     assert_eq!(count(&mut e, false, "_dormant_values"), 0);
 }
 
+#[test]
+fn retained_rehide_native_agreement_advances_expected_image_sqlite() {
+    let source = "table person:\n  n: int 0..10\n  public 'fixture'\n  online only\ntable notes:\n  who: person on delete keep\n  label: text <=100\n  public 'fixture'\n  online only\n";
+    let (s, p) =
+        bound(&(source.to_owned() + "backfill notes mark(label: text <=100):\n  {label:label}\n"));
+    let (st, _, _) = store(false);
+    let mut e = Engine::new_release(st, s, p, 1, None).unwrap();
+    e.seed_at(
+        [
+            (
+                "person".into(),
+                object([("id", Value::Id("p".into())), ("n", Value::Int(7))]),
+            ),
+            (
+                "notes".into(),
+                object([
+                    ("id", Value::Id("a".into())),
+                    ("who", Value::Id("p".into())),
+                    ("label", Value::String("kept".into())),
+                ]),
+            ),
+        ],
+        1000,
+    )
+    .unwrap();
+    let no_label = source.replace("  label: text <=100\n", "");
+    activate(&mut e, &no_label, 2).unwrap();
+    activate(&mut e, &no_label.replace("0..10", "0..5"), 3).unwrap();
+    assert_eq!(e.store().count("notes").unwrap(), 0);
+    assert_eq!(count(&mut e, false, "_dormant_values"), 1);
+    let restored = source.replace("0..10", "0..5")
+        + "backfill notes mark(label: text <=100):\n  {label:label}\n";
+    let (schema, _) = bound(&restored);
+    let key = schema.backfills[0].key();
+    let conn = e.store().test_support_conn();
+    let t: i64 = conn
+        .query_row("SELECT t FROM _dormant_narrow_rows WHERE id='a'", [], |r| {
+            r.get(0)
+        })
+        .unwrap();
+    let archive: String = conn
+        .query_row(
+            "SELECT data FROM _dormant_narrow_rows WHERE t=?1 AND id='a'",
+            [t],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert!(
+        serde_json::from_str::<Value>(&archive)
+            .unwrap()
+            .field("label")
+            .is_err()
+    );
+    // A prior native declaration, with changed inputs: force recomputation
+    // agreement rather than fingerprint equality or patch_retained's write.
+    assert_eq!(conn.execute("UPDATE _backfill_absence SET column_name='old-fingerprint' WHERE t=?1 AND id='a' AND definition=?2", params![t, format!("$native:{key}")]).unwrap(), 1);
+    assert_eq!(
+        conn.query_row(
+            "SELECT count(*) FROM _backfill_evidence WHERE t=?1 AND id='a'",
+            [t],
+            |r| r.get::<_, i64>(0)
+        )
+        .unwrap(),
+        0
+    );
+    activate(&mut e, &restored, 4).unwrap();
+    assert_eq!(
+        e.store().count("notes").unwrap(),
+        0,
+        "hidden parent re-hides its child"
+    );
+    let conn = e.store().test_support_conn();
+    let archive: String = conn
+        .query_row(
+            "SELECT data FROM _dormant_narrow_rows WHERE t=?1 AND id='a'",
+            [t],
+            |r| r.get(0),
+        )
+        .unwrap();
+    assert_eq!(
+        serde_json::from_str::<Value>(&archive)
+            .unwrap()
+            .field("label")
+            .unwrap(),
+        &Value::String("kept".into())
+    );
+    assert_eq!(
+        conn.query_row(
+            "SELECT count(*) FROM _backfill_evidence WHERE t=?1 AND id='a'",
+            [t],
+            |r| r.get::<_, i64>(0)
+        )
+        .unwrap(),
+        0,
+        "native agreement did not patch retained provenance"
+    );
+    // An unannounced physical edit still cannot advance an expected image.
+    let tx = e.store_mut().transaction().unwrap();
+    tx.with_sqlite(|tx| -> Result<(), RuntimeError> {
+        super::super::movement::begin(tx)?;
+        tx.conn().execute("UPDATE _dormant_narrow_rows SET data=replace(data,'kept','tampered') WHERE t=?1 AND id='a'", [t])?;
+        mismatch(super::super::movement::verify_expected(tx, "_dormant_narrow_rows", t, "a"));
+        Ok(())
+    }).unwrap();
+    tx.rollback().unwrap();
+    activate(&mut e, &restored.replace("0..5", "0..10"), 5).unwrap();
+    assert_eq!(
+        e.store().rows("notes").unwrap()[0].field("label").unwrap(),
+        &Value::String("kept".into())
+    );
+}
+
+#[test]
+fn retained_native_backfill_rejects_external_input_change_sqlite() {
+    let source = "table person:\n  n: int 0..10\n  public 'fixture'\n  online only\ntable notes:\n  who: person on delete keep\n  body: text <=100\n  label: text <=100\n  public 'fixture'\n  online only\n";
+    let fill = "backfill notes mark(body: text <=100):\n  {label:body}\n";
+    let (s, p) = bound(&(source.to_owned() + fill));
+    let (st, _, _) = store(false);
+    let mut e = Engine::new_release(st, s, p, 1, None).unwrap();
+    e.seed_at(
+        [
+            (
+                "person".into(),
+                object([("id", Value::Id("p".into())), ("n", Value::Int(7))]),
+            ),
+            (
+                "notes".into(),
+                object([
+                    ("id", Value::Id("a".into())),
+                    ("who", Value::Id("p".into())),
+                    ("body", Value::String("kept".into())),
+                    ("label", Value::String("kept".into())),
+                ]),
+            ),
+        ],
+        1000,
+    )
+    .unwrap();
+    let no_label = source.replace("  label: text <=100\n", "");
+    activate(&mut e, &no_label, 2).unwrap();
+    activate(&mut e, &no_label.replace("0..10", "0..5"), 3).unwrap();
+    let generation = e.generation();
+    // This edit commits outside activation. Its historical native inputs no
+    // longer recompute to the separately retained output; it must still refuse.
+    assert_eq!(
+        e.store()
+            .test_support_conn()
+            .execute(
+                "UPDATE _dormant_narrow_rows SET data=replace(data,'kept','edited') WHERE id='a'",
+                []
+            )
+            .unwrap(),
+        1
+    );
+    let restored = source.replace("0..10", "0..5") + fill;
+    let error = activate(&mut e, &restored, 4).unwrap_err();
+    assert!(
+        matches!(&error, RuntimeError::Structural { code: "E_ADOPT", message } if message.contains("changed outside its owning release") && message.contains("recomputation differs")),
+        "{error}"
+    );
+    assert_eq!(e.generation(), generation);
+    assert_eq!(e.store().count("notes").unwrap(), 0);
+    assert_eq!(count(&mut e, false, "_dormant_values"), 1);
+    assert_eq!(
+        e.store()
+            .test_support_conn()
+            .execute(
+                "UPDATE _dormant_narrow_rows SET data=replace(data,'edited','kept') WHERE id='a'",
+                []
+            )
+            .unwrap(),
+        1
+    );
+    activate(&mut e, &restored, 4).unwrap();
+    assert_eq!(e.store().count("notes").unwrap(), 0);
+}
+
 fn narrowed_final_image(pg: bool) {
     let source = "table notes:\n  n: int 0..10\n  public\n  online only\n";
     let (s, p) = bound(source);
@@ -529,47 +706,35 @@ fn narrowed_same_count_corruption_refuses_postgres() {
 }
 
 #[cfg(feature = "postgres")]
-#[test]
-#[ignore = "private PG16; large legal activation with a lowered per-statement timeout"]
-fn activation_verification_pages_fit_statement_timeout() {
-    let source = "table notes:\n  n: int\n  public\n  online only\n";
-    let (s, p) = bound(source);
+fn large_verification_pages(path: &str) {
+    let (s, p) = bound("table notes:\n  payload: text <=8388608\n  public\n  online only\n");
     let (st, _, _) = store(true);
     let mut e = Engine::new_release(st, s, p, 1, None).unwrap();
-    e.seed_at(
-        (0..512).map(|n| {
-            (
-                "notes".into(),
-                object([("id", Value::Id(format!("{n:04}"))), ("n", Value::Int(n))]),
-            )
-        }),
-        1000,
-    )
-    .unwrap();
-    // A repeatable per-row cost makes one whole-table statement exceed the
-    // lowered budget. Use the identical cost for each production page below.
     let tx = e.store_mut().transaction().unwrap();
-    tx.test_postgres_tx()
-        .batch("SET LOCAL statement_timeout='400ms'")
-        .unwrap();
-    let error=tx.test_postgres_tx().query("SELECT count(*) FROM (SELECT s.id,pg_sleep(0.002) FROM r s JOIN r d ON d.t=s.t AND d.id=s.id AND d.data COLLATE pg_catalog.\"C\"=s.data COLLATE pg_catalog.\"C\" WHERE s.t='notes') q",&[]).unwrap_err();
-    let RuntimeError::Postgres(error) = error else {
-        panic!("{error}")
-    };
-    assert_eq!(error.code().unwrap().code(), "57014");
+    let result = crate::engine::postgres::movement::test_large_verification_pages(
+        tx.test_postgres_tx(),
+        path,
+    );
     tx.rollback().unwrap();
-    crate::engine::postgres::movement::fault::set_slow_pages(true);
-    let retired = activate(&mut e, "", 2);
-    let restored = if retired.is_ok() {
-        activate(&mut e, source, 3)
-    } else {
-        Ok(0)
-    };
-    crate::engine::postgres::movement::fault::set_slow_pages(false);
-    retired.unwrap();
-    restored.unwrap();
-    assert_eq!(e.store().count("notes").unwrap(), 512);
-    assert_eq!(count(&mut e, true, "_dormant_rows"), 0);
+    result.unwrap();
+}
+#[cfg(feature = "postgres")]
+#[test]
+#[ignore = "private PG16; production SQL compares 64 toasted 8 MiB rows under 250 ms"]
+fn activation_verification_large_population_pages_fit_statement_timeout() {
+    large_verification_pages("population");
+}
+#[cfg(feature = "postgres")]
+#[test]
+#[ignore = "private PG16; production cell verification uses the payload byte bound"]
+fn activation_verification_large_cell_pages_fit_statement_timeout() {
+    large_verification_pages("cells");
+}
+#[cfg(feature = "postgres")]
+#[test]
+#[ignore = "private PG16; production narrowed verification uses the payload byte bound"]
+fn activation_verification_large_narrowed_pages_fit_statement_timeout() {
+    large_verification_pages("narrowed");
 }
 
 #[test]

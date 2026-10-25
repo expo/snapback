@@ -8,12 +8,19 @@ use crate::{RuntimeError, Value, value::canonical_json};
 // LIMIT also fences each correlated PK lookup: a generic plan must not turn a
 // bounded page into a whole-destination hash/merge join.
 const PAGE: i64 = 64;
+const PAYLOAD_PAGE_BYTES: i64 = 4 * 1024 * 1024;
+
+// Measure TOAST lengths without detoasting, then fence the comparisons behind
+// materialized keys. Bound both physical images, including a corrupt oversized
+// destination. One oversized first row is always admitted to ensure progress.
+fn payload_keys(keys: &str, destination: &str) -> String {
+    assert!(matches!(destination, "r" | "_dormant_rows"));
+    format!(
+        "WITH sizes AS MATERIALIZED (SELECT s.t,s.id,s.col,COALESCE(octet_length(d.data),0)::bigint+COALESCE(octet_length(e.data),0)::bigint AS bytes FROM ({keys}) s LEFT JOIN LATERAL (SELECT data FROM {destination} WHERE t=s.t AND id=s.id LIMIT 1) d ON true LEFT JOIN LATERAL (SELECT data FROM pg_temp._activation_images WHERE relation='{destination}' AND t=s.t AND id=s.id AND col='' LIMIT 1) e ON true), bounded AS MATERIALIZED (SELECT t,id,col FROM (SELECT t,id,col,row_number() OVER w AS ordinal,sum(bytes) OVER w AS bytes FROM sizes WINDOW w AS (ORDER BY t,id,col ROWS UNBOUNDED PRECEDING)) q WHERE ordinal=1 OR bytes<={PAYLOAD_PAGE_BYTES}) "
+    )
+}
 pub(super) fn begin(tx: &Tx<'_>) -> Result<(), RuntimeError> {
     tx.batch("CREATE TEMP TABLE _activation_images(relation TEXT COLLATE pg_catalog.\"C\" NOT NULL,t TEXT COLLATE pg_catalog.\"C\" NOT NULL,id TEXT COLLATE pg_catalog.\"C\" NOT NULL,col TEXT COLLATE pg_catalog.\"C\" NOT NULL,data TEXT NOT NULL,PRIMARY KEY(relation,t,id,col)) ON COMMIT DROP")?;
-    #[cfg(test)]
-    if fault::slow_pages() {
-        tx.batch("SET LOCAL statement_timeout='400ms'")?;
-    }
     super::managed_relations::verify_activation(tx)
 }
 fn remember(
@@ -42,16 +49,6 @@ fn page(
     sql: &str,
     args: &[&(dyn postgres::types::ToSql + Sync)],
 ) -> Result<Vec<super::flight::Row>, RuntimeError> {
-    #[cfg(test)]
-    if fault::slow_pages() {
-        return Ok(tx
-            .flight(
-                &[(&format!("SELECT q.*,pg_sleep(0.002) FROM ({sql}) q"), args)],
-                "",
-            )?
-            .remove(0)
-            .rows);
-    }
     Ok(tx.flight(&[(sql, args)], "")?.remove(0).rows)
 }
 
@@ -101,9 +98,13 @@ pub(super) fn population(
         ("r", "_dormant_rows") | ("_dormant_rows", "r")
     ));
     expected(rows(tx, destination, t)?, copied, destination)?;
-    let sql = format!(
-        "SELECT s.id,COALESCE(d.data COLLATE pg_catalog.\"C\"=e.data COLLATE pg_catalog.\"C\",false) FROM (SELECT id FROM {source} WHERE t=$1 AND id>=COALESCE($2,'') AND ($2::text IS NULL OR id>$2) ORDER BY id LIMIT $3) s LEFT JOIN LATERAL (SELECT data FROM {destination} WHERE t=$1 AND id=s.id LIMIT 1) d ON true LEFT JOIN LATERAL (SELECT data FROM pg_temp._activation_images WHERE relation=$4 AND t=$1 AND id=s.id AND col='' LIMIT 1) e ON true ORDER BY s.id"
+    let keys = format!(
+        "SELECT t,id,''::text AS col FROM {source} WHERE t=$1 AND id>=COALESCE($2,'') AND ($2::text IS NULL OR id>$2) ORDER BY id LIMIT $3"
     );
+    let sql = payload_keys(&keys, destination)
+        + &format!(
+            "SELECT s.id,COALESCE(d.data COLLATE pg_catalog.\"C\"=e.data COLLATE pg_catalog.\"C\",false) FROM bounded s LEFT JOIN LATERAL (SELECT data FROM {destination} WHERE t=s.t AND id=s.id LIMIT 1) d ON true LEFT JOIN LATERAL (SELECT data FROM pg_temp._activation_images WHERE relation=$4 AND t=s.t AND id=s.id AND col='' LIMIT 1) e ON true ORDER BY s.id"
+        );
     let mut after: Option<String> = None;
     let mut count = 0;
     loop {
@@ -132,13 +133,6 @@ fn expected(actual: i64, expected: i64, relation: &str) -> Result<(), RuntimeErr
 #[cfg(test)]
 pub(crate) mod fault {
     use super::*;
-    thread_local! {static SLOW:std::cell::Cell<bool>=const{std::cell::Cell::new(false)};}
-    pub fn slow_pages() -> bool {
-        SLOW.with(|f| f.get())
-    }
-    pub fn set_slow_pages(slow: bool) {
-        SLOW.with(|f| f.set(slow));
-    }
     thread_local! { static ERASE: std::cell::RefCell<Option<(String,bool)>> = const {std::cell::RefCell::new(None)}; }
     pub fn arm(relation: &str, corrupt: bool) {
         ERASE.with(|f| *f.borrow_mut() = Some((relation.into(), corrupt)));
@@ -239,7 +233,10 @@ fn cell_pages(tx: &Tx<'_>, t: &str, column: &str, verify: bool) -> Result<i64, R
     loop {
         let batch = page(
             tx,
-            "SELECT v.id,v.column_name,(v.column_name=$2 AND r.id IS NOT NULL AND n.id IS NULL),COALESCE(r.data COLLATE pg_catalog.\"C\"=e.data COLLATE pg_catalog.\"C\",false) FROM (SELECT id,column_name FROM _dormant_values WHERE t=$1 AND (id,column_name)>=(COALESCE($3,''),COALESCE($4,'')) AND ($3::text IS NULL OR (id,column_name)>($3,$4)) ORDER BY id,column_name LIMIT $5) v LEFT JOIN LATERAL (SELECT id,data FROM r WHERE t=$1 AND id=v.id LIMIT 1) r ON true LEFT JOIN LATERAL (SELECT id FROM _dormant_narrow_rows WHERE t=$1 AND id=v.id LIMIT 1) n ON true LEFT JOIN LATERAL (SELECT data FROM pg_temp._activation_images WHERE relation='r' AND t=$1 AND id=v.id AND col='' LIMIT 1) e ON true ORDER BY v.id,v.column_name",
+            &(payload_keys(
+                "SELECT t,id,column_name AS col FROM _dormant_values WHERE t=$1 AND (id,column_name)>=(COALESCE($3,''),COALESCE($4,'')) AND ($3::text IS NULL OR (id,column_name)>($3,$4)) ORDER BY id,column_name LIMIT $5",
+                "r",
+            ) + "SELECT v.id,v.col,(v.col=$2 AND r.id IS NOT NULL AND n.id IS NULL),COALESCE(r.data COLLATE pg_catalog.\"C\"=e.data COLLATE pg_catalog.\"C\",false) FROM bounded v LEFT JOIN LATERAL (SELECT id,data FROM r WHERE t=$1 AND id=v.id LIMIT 1) r ON true LEFT JOIN LATERAL (SELECT id FROM _dormant_narrow_rows WHERE t=$1 AND id=v.id LIMIT 1) n ON true LEFT JOIN LATERAL (SELECT data FROM pg_temp._activation_images WHERE relation='r' AND t=$1 AND id=v.id AND col='' LIMIT 1) e ON true ORDER BY v.id,v.col"),
             &[&t, &column, &after, &col, &PAGE],
         )?;
         if batch.is_empty() {
@@ -301,7 +298,10 @@ fn narrowed_pages(
     loop {
         let batch = page(
             tx,
-            "SELECT n.t,n.id,r.id IS NOT NULL,COALESCE(r.data COLLATE pg_catalog.\"C\"=e.data COLLATE pg_catalog.\"C\",false) FROM (SELECT t,id FROM _dormant_narrow_rows WHERE (t,id)>=(COALESCE($1,''),COALESCE($2,'')) AND ($1::text IS NULL OR (t,id)>($1,$2)) ORDER BY t,id LIMIT $3) n LEFT JOIN LATERAL (SELECT id,data FROM r WHERE t=n.t AND id=n.id LIMIT 1) r ON true LEFT JOIN LATERAL (SELECT data FROM pg_temp._activation_images WHERE relation='r' AND t=n.t AND id=n.id AND col='' LIMIT 1) e ON true ORDER BY n.t,n.id",
+            &(payload_keys(
+                "SELECT t,id,''::text AS col FROM _dormant_narrow_rows WHERE (t,id)>=(COALESCE($1,''),COALESCE($2,'')) AND ($1::text IS NULL OR (t,id)>($1,$2)) ORDER BY t,id LIMIT $3",
+                "r",
+            ) + "SELECT n.t,n.id,r.id IS NOT NULL,COALESCE(r.data COLLATE pg_catalog.\"C\"=e.data COLLATE pg_catalog.\"C\",false) FROM bounded n LEFT JOIN LATERAL (SELECT id,data FROM r WHERE t=n.t AND id=n.id LIMIT 1) r ON true LEFT JOIN LATERAL (SELECT data FROM pg_temp._activation_images WHERE relation='r' AND t=n.t AND id=n.id AND col='' LIMIT 1) e ON true ORDER BY n.t,n.id"),
             &[&t, &id, &PAGE],
         )?;
         if batch.is_empty() {
@@ -335,4 +335,33 @@ pub(super) fn verify_narrowed(tx: &Tx<'_>, copied: i64) -> Result<(), RuntimeErr
         copied,
         "r narrowed restoration",
     )
+}
+
+#[cfg(test)]
+pub(crate) fn test_large_verification_pages(tx: &Tx<'_>, path: &str) -> Result<(), RuntimeError> {
+    begin(tx)?;
+    // Real 8 MiB toasted JSON rows. Only setup gets an unlimited timeout;
+    // production payload comparisons below get 250 ms, with no artificial cost.
+    tx.batch(r#"SET LOCAL statement_timeout=0;
+        INSERT INTO r(t,id,data) SELECT 'notes',i::text,
+          '{"Row":{"id":{"Id":"'||i||'"},"payload":{"String":"'||repeat(md5(i::text),262144)||'"}}}'
+          FROM generate_series(0,63) i;
+        INSERT INTO _dormant_rows SELECT t,id,data FROM r WHERE t='notes';
+        INSERT INTO pg_temp._activation_images SELECT 'r',t,id,'',data FROM r WHERE t='notes';
+        INSERT INTO pg_temp._activation_images SELECT '_dormant_rows',t,id,'',data FROM r WHERE t='notes';
+        INSERT INTO _dormant_values SELECT t,id,'payload','{}' FROM r WHERE t='notes';
+        ANALYZE r; ANALYZE _dormant_rows; ANALYZE pg_temp._activation_images;
+        SET LOCAL statement_timeout='250ms';"#)?;
+    match path {
+        "population" => {
+            population(tx, "_dormant_rows", "r", "notes", 64)?;
+            population(tx, "r", "_dormant_rows", "notes", 64)
+        }
+        "cells" => verify_cells(tx, "notes", "payload", 64),
+        "narrowed" => {
+            tx.batch("INSERT INTO _dormant_narrow_rows SELECT t,id,'{}','{}','fixture' FROM r WHERE t='notes'")?;
+            verify_narrowed(tx, 64)
+        }
+        _ => unreachable!(),
+    }
 }

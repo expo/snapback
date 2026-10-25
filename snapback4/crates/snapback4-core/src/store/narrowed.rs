@@ -171,6 +171,7 @@ pub(super) fn transition(
                     let original:Table=serde_json::from_str(&definition).map_err(|e|RuntimeError::Store(e.to_string()))?;
                     let definition=super::backfills::native_source(&original,table,&native);
                     tx.conn().execute("UPDATE _dormant_narrow_rows SET data=?1,definition=?4 WHERE t=?2 AND id=?3",params![canonical_json(&archived),t,id,canonical_json(definition.as_ref())])?;
+                    super::movement::rewrite_relation(tx,"_dormant_narrow_rows",t,id,&archived)?;
                 }
                 if retained {tx.conn().execute("UPDATE _dormant_narrow_rows SET reason=?3 WHERE t=?1 AND id=?2",params![t,id,reason])?;}
                 for c in &outputs {

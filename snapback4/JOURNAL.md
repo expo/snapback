@@ -107778,3 +107778,62 @@ confirmed stopped: pg_ctl status **3**, no `postmaster.pid`, and no matching
 process. The PID/start-tick ledger and worktree-target executable audit both
 return empty. Minimum recorded free space is **82.55 GiB**, above the
 40 GiB floor. **PIDs left: none.**
+
+### 2026-10-25 — FF3 fix round 2: retained re-hide images and payload-bounded verification
+
+Lane `sb4-pg/ff3` starts clean at the requested `4b7d437966`. The inherited
+private-PG16/own-target/line-tables-only environment remains in force, with
+Cargo reduced to six jobs because another lane shares the host. No throughput
+measurements, pushes, stashes or Git configuration changes. `llp-orient` follows
+the retained-dormancy/backfill refs, RFC 3000.009.001.000.002 §6 and the current
+deploy card; this is a correction to the existing activation contract.
+
+SQLite's retained re-hide path advances its expected archive image from the
+computed `archived` value immediately after the intentional archive UPDATE,
+using the same `rewrite_relation` operation as `patch_retained`. It does not
+replace the expected image with a reread of the physical destination. The new
+five-step witness starts with a native `mark(label)` row, removes `label` into
+`_dormant_values`, narrows its parent so the child is retained without `label`,
+and restores the column with a native marker and no backfill evidence. A stale
+native fingerprint forces recomputation agreement, which skips `patch_retained`.
+The hidden parent then re-hides the overlaid child. Before the fix this actual
+activation fails with `SNAPBACK_ACTIVATION_COPY_MISMATCH`; after the fix it commits,
+keeps the child hidden, and retains `label='kept'` with no new backfill evidence.
+An ordinary transaction then changes that physical retained payload without an
+intentional image rewrite: verification still refuses, rollback preserves it,
+and a subsequent parent widening restores the original child and label.
+
+Postgres verification still selects at most 64 keys, and now also selects at
+most 4 MiB of combined expected/destination payload lengths before comparison.
+Indexed `octet_length` checks avoid detoasting the candidate population. A
+materialized sizes/key boundary fences full-payload equality behind the byte
+selection; both physical images are charged, including an oversized corrupt
+destination. One oversized first row is admitted to guarantee cursor progress.
+The same helper bounds population copies in both directions, restored-cell
+verification and narrowed-row verification; sparse filtering remains after the
+page boundary. The ordinary five-second statement timeout is unchanged.
+
+The former per-page sleep hook and small-row timeout witness are removed.
+Three replacements call the production population/cell/narrowed verification
+functions over 64 actual toasted 8 MiB JSON documents under a lowered 250 ms
+statement timeout. Setup alone has no timeout; verification has no injected
+sleep or substituted comparison SQL. All three pass, including both population
+movement directions. The complete focused FF3 scope passes **18/0**. The
+unbounded-production negative control and final qualification/custody results
+are recorded below; raw logs and source/process receipts remain outside Git
+under `/tmp/sb4-ff3f2/`.
+
+The control removes only the byte-selection prefix from the production query
+builder: the indexed source cursor, LIMIT 64 and the production payload equality
+SQL remain. All **three** new witnesses fail with PostgreSQL **57014** under
+250 ms (**0 passed / 3 failed**). Thus one 64-key page is itself too much work;
+this is not a hand-written sleep query or a changed key-count limit. The fixed
+source is restored byte-for-byte with SHA-256 confirmation before qualification.
+
+A second SQLite control drives actual activation after a committed external
+edit to a native backfill input. Its retained output remains unchanged in
+`_dormant_values`; recomputation now differs. Activation refuses with `E_ADOPT`
+(`changed outside its owning release` / `recomputation differs`), preserving
+generation, hidden population and retained output. Repairing only that external
+edit permits the same activation. This control and the original re-hide witness
+both pass in the full core run.
