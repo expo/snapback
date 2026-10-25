@@ -1,25 +1,37 @@
-import { hangBudget } from './helpers/wait.mjs';
+import { hangBudget, waitFor } from './helpers/wait.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer, request } from 'node:http';
 import { once } from 'node:events';
 import { connect } from 'node:net';
-import { readFileSync } from 'node:fs';
+import { readFileSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { chromium } from 'playwright-core';
 import { chromiumExecutable } from '../../../witness/lib.mjs';
-import { server, until } from './helpers/app-server.mjs';
+import { binary } from './helpers/app-server.mjs';
+import { signalChild, spawnTracked as spawn } from '../../../scripts/test-signals.mjs';
+import { captureStdout } from './helpers/server-output.mjs';
 
 test('Chromium reads cross-origin admission refusals and Retry-After; upload actually retries four times', { timeout: hangBudget(16) }, async t => {
   // Derive intake capacity from the actual binary; main may enlarge its short queue.
   const saved = [process.env.SNAPBACK4_LONG_WAITS, process.env.SNAPBACK4_CLAIM_WAITS];
   process.env.SNAPBACK4_LONG_WAITS = '1'; process.env.SNAPBACK4_CLAIM_WAITS = '1';
   t.after(() => { for (const [name, value] of [['SNAPBACK4_LONG_WAITS', saved[0]], ['SNAPBACK4_CLAIM_WAITS', saved[1]]]) { if (value === undefined) delete process.env[name]; else process.env[name] = value; } });
-  const { url, diagnostics } = await server(t, undefined, `use personas alice
+  const dir = mkdtempSync(join(tmpdir(), 'sb4-overload-browser-'));
+  mkdirSync(join(dir, 'snapback'));
+  writeFileSync(join(dir, 'snapback/schema.q'), `use personas alice
 table photos:
   photo: image <=10000
   read <- allow
 `);
-  const connections = Number((await until(() => diagnostics().match(/HTTP connections=(\d+)/), 'reported admission capacity'))[1]);
+  // Own startup here so admission contains only this fixture's explicit sockets.
+  const host = spawn(binary, ['dev', '--port', '0', '--no-watch'], { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'] });
+  const exited = once(host, 'exit'), stdout = captureStdout(host);
+  let diagnostics = ''; host.stderr.on('data', bytes => { diagnostics += bytes; });
+  t.after(async () => { if (host.exitCode === null && host.signalCode === null) await signalChild(host, 'SIGTERM'); await exited; rmSync(dir, { recursive: true, force: true }); });
+  const url = await waitFor(() => { assert.equal(host.exitCode, null); return stdout().match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; }, 'backend ready');
+  const connections = Number((await waitFor(() => diagnostics.match(/HTTP connections=(\d+)/), 'reported admission capacity'))[1]);
   assert.ok(Number.isSafeInteger(connections) && connections > 0);
   // A transparent test proxy asks the backend to close warm connections, so
   // overload cannot reuse an admitted socket. It changes no CORS header/body.

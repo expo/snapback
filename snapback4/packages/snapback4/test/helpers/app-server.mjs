@@ -36,5 +36,5 @@ query list():
   host.stdout.on("data", bytes => { output += bytes; }); host.stderr.on("data", bytes => { output += bytes; });
   t.after(async () => { const done = new Promise(resolve => host.once("exit", resolve)); if (host.exitCode === null && host.signalCode === null) { await signalChild(host, "SIGTERM"); await done; } rmSync(dir, { recursive: true, force: true }); });
   const url = await until(() => { assert.equal(host.exitCode, null, output); return readStdout().match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; }, "server");
-  return { url, dir, diagnostics: () => output };
+  return { url, dir };
 }
