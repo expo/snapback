@@ -220,7 +220,10 @@ fn per_member_arguments(pg: bool) {
     let mut reference=fixture(pg);
     let expected=(0..7).map(|n|outcome(reference.invoke_program(&mut make(n)))).collect::<Vec<_>>();
     let mut engine=fixture(pg);let mut batch=(0..7).map(make).collect::<Vec<_>>();
+    crate::engine::committer::closure::PLAN_BUILDS.with(|count| count.set(0));
     let actual=engine.invoke_program_batch(&mut batch).into_iter().map(outcome).collect::<Vec<_>>();
+    assert_eq!(crate::engine::committer::closure::PLAN_BUILDS.with(|count| count.get()), batch.len(),
+        "classification plans must be reused, including lookahead across malformed members");
     assert_eq!(actual,expected,"static admission must not reuse another member's arguments");
     assert_eq!(super::tests::snapshot(&mut engine),super::tests::snapshot(&mut reference));
     assert_eq!(batch.iter().filter(|i|i.attempts.last().is_some_and(|a|a.buffered)).count(),4,

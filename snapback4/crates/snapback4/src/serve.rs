@@ -98,7 +98,7 @@ pub struct Shared {
     pub engine: committer::Writer,
     adoption: Mutex<adoption::Status>,
     readers: Mutex<QueryReaders>,
-    carried: Mutex<BTreeMap<String, (String, snapback4_core::identity::Capability, usize)>>,
+    carried: Mutex<BTreeMap<String, (String, snapback4_core::identity::Capability, u64, usize)>>,
     read_cuts: Mutex<read_cost::ReadCuts>,
     pub bound: Mutex<Bound>,
     pub generation: Mutex<u64>,
@@ -1220,7 +1220,7 @@ fn handle(mut request: Request, shared: &Shared) {
                         let mut metadata = None;
                         let (outcome, cut, current) = reader.query_materialized_search_with_request(&op, context, retained.as_deref(), manifest, &admission.digest(), |snapshot, head| {
                             let authority = snapshot.request_authority(&admission.digest(), admission.sample(shared)).map_err(|e| e.refusal()).and_then(|facts| {
-                                persona.clone().and_then(|persona| admission.check_query_facts(shared, &expected, &facts, persona))?;
+                                persona.clone().and_then(|persona| admission.check_bound_facts(shared, &expected, &facts, persona, None))?;
                                 Ok((facts.store_id, head))
                             });
                             let result = authority.as_ref().map(|_| ()).map_err(Clone::clone);
@@ -1267,7 +1267,7 @@ fn handle(mut request: Request, shared: &Shared) {
                         let mut metadata = None;
                         let (outcome, cut, current) = engine.query_materialized_search_with_request(&op, context, retained.as_deref(), manifest, &admission.digest(), |snapshot, head| {
                             let authority = snapshot.request_authority(&admission.digest(), admission.sample(shared)).map_err(|e| e.refusal()).and_then(|facts| {
-                                persona.clone().and_then(|persona| admission.check_query_facts(shared, &expected, &facts, persona))?;
+                                persona.clone().and_then(|persona| admission.check_bound_facts(shared, &expected, &facts, persona, None))?;
                                 Ok((facts.store_id, head))
                             });
                             let result = authority.as_ref().map(|_| ()).map_err(Clone::clone);
@@ -1411,12 +1411,11 @@ fn handle(mut request: Request, shared: &Shared) {
                     let persona = admission.persona(&shared, engine)?;
                     let expected = (owned_principal, credential_kind, scope);
                     let sample_host=shared.clone();let sample_admission=admission.clone();
+                    let generation=engine.generation();
                     Ok(snapback4_core::engine::program::Invocation::new(owned_op,owned_id,context.with_wire_args(args_json))
                         .authorized(admission.digest(),move ||sample_admission.sample(&sample_host),move |facts| {
-                            // Refresh only the planning hint, including after a stale-kind
-                            // refusal. This batch's fresh facts alone decide authority.
-                            if let Some(current)=&facts.capability {admission.remember(&shared,current);}
-                            admission.check_facts(&expected,&facts,persona.clone())?;
+                            // Bind fresh store facts before refreshing the hint or accepting authority.
+                            admission.check_bound_facts(&shared,&expected,&facts,persona.clone(),Some(generation))?;
                             *lock(&boundary_check)=Some((facts.store_id.clone(),facts.head));
                             head::intent_store_id(&payload,Some(&facts.store_id))
                         }))

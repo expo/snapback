@@ -1,6 +1,7 @@
 //! RT3b: exercise authority changes at the actual HTTP upload/queue boundaries.
 use super::*;
 use snapback4_core::identity;
+mod lev_fix;
 
 const SOURCE: &str = "use identity\ntable counters:\n  n: int\n  public\n  insert <- allow\n  update <- allow\ntable typing:\n  owner: principal\n  unique owner\n  public\n  insert <- allow\n  update <- allow\n  ephemeral 4s\nmutation change(n: int):\n  update counters[\"c\"] { n: (counters[\"c\"].n ?? 0) + n }\n  return n\nmutation other(n: int):\n  return n\nquery count():\n  return counters[\"c\"].n\n";
 
@@ -507,7 +508,7 @@ fn rt3b_carried_query_postgres() { carried_query(true); }
 
 // @ref LLP 3000.009.001.000.001#13-g4a-read-refinement-2026-10-23 — mutation hints cannot authorize a batch after an intervening authority change.
 fn carried_mutation_batch(pg: bool) {
-    for change in ["revoke", "expiry", "scope", "kind", "generation"] {
+    for change in ["revoke", "expiry", "scope", "kind", "generation", "read-generation"] {
         let f=Fixture::new(pg);let session=f.session(false);
         assert_eq!(body(&f.host.request("POST","/q/count",&headers(&session),"{}"))["data"],0);
         assert_eq!(lock(&f.host.shared.carried).len(),1);
@@ -521,6 +522,10 @@ fn carried_mutation_batch(pg: bool) {
                 "scope"=>engine.store_mut().test_request_read_scope(&token,false).unwrap(),
                 "kind"=>engine.store_mut().test_request_kind(&token,"account").unwrap(),
                 "generation"=>{identity::revoke_principal(engine.store(),&principal).unwrap();},
+                "read-generation"=>{
+                    engine.store_mut().test_request_read_scope(&token,false).unwrap();
+                    engine.store_mut().test_request_principal_generation(&token).unwrap();
+                },
                 _=>{},
             }
         }));
@@ -546,7 +551,7 @@ fn carried_mutation_batch(pg: bool) {
         assert_eq!(f.host.shared.engine.batch_stats().fills.get(4),Some(&1),"must execute a physical four-member batch");
         if change=="kind" {
             // A refreshed hint still needs fresh authority on the retry.
-            assert_eq!(f.call(&session,&f.payload("retry-kind"))["state"],"sent");
+            assert_eq!(f.call(&session,&json!({"args":{"n":1}}))["state"],"sent");
         }
     }
 }

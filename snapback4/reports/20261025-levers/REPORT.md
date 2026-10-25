@@ -146,3 +146,88 @@ Secret audit: **259 known values, zero hits** in staged content or included arch
 Sanitized external archive: [lev-20261025-evidence.tar.gz](/home/ccheever/sb4scale/lev-20261025-evidence.tar.gz), 938,301,278 bytes. SHA-256: `fba22a46e465f310b267ed6e42d5edfe7e57efd75c4ec51c45842c8e62007687`. The archive includes frozen continuous custody logs; [QUALIFICATION.json](./QUALIFICATION.json) adds the final post-archive receipt.
 
 Final independent process census checks **6,522 PID/birth identities**, with zero unkeyed records, **no live task process and no zombies**. Every native/probe runner reports clean shutdown; public/evaluator/TCP clusters independently confirm stop, and the custody monitor has exited. Persistent Codex/tool infrastructure is outside the task-process scope. **PIDs left: none.**
+
+## LEV fix round 1: authority hint audit
+
+This correctness-only round starts at `2c64741a39` on `sb4-pg/lev-fix1`.
+It runs no throughput measurements and does not extend the earlier performance
+qualification to the corrected code. Raw test output remains under `/tmp`,
+outside Git. The governing context is LLP 3000 §4 (the Snapback 4 fence),
+LLP 3000.009.001.000.001 §3.1/§13 (fresh authority and non-authorizing hints),
+and LLP 3000.009.001.000.002 §3.3 (attempt-local plans and full fallback).
+No new design mechanism or authority cache is introduced.
+
+The durable callback now checks the fresh store id and generation before
+refreshing hints or comparing capabilities. Hint insertion uses the resolved
+observation's supervisor revision and binding, discarding it if the host has
+changed. Custom/action kinds remove an older ordinary entry. Ephemeral and
+durable final checks share that eviction rule. Generation joins store id in
+the bounded hint's binding; a supervisor fence is sampled under the hint-map
+lock for lookup. Cold discovery retains its original clock sample after
+reader checkout; a revision change anywhere across discovery discards the
+insert rather than relabeling the observation. The full binary is rerun after
+this timing-preserving refinement.
+
+Failing-before controls:
+
+| Review item | Witness and negative control |
+| --- | --- |
+| Serving-store identity | `rt3b_lev_store_binding_*`: warm the hint at A, use `test_request_store_id` to change only durable identity to B, then repeat unkeyed `/m` without `store_id`. The SQLite witness fails on `2c64741a39` because the mutation succeeds. Corrected requests refuse `E_STORE_REPLACED` without metadata or writes. |
+| Non-cacheable kind | `rt3b_lev_custom_{durable,ephemeral}_*`: ordinary → `customer`, one stale-kind refusal, then three unkeyed retries. Both SQLite witnesses fail on the original tip because retries remain stale; corrected retries succeed through complete discovery and leave no hint. |
+| Supervisor observation | `rt3b_lev_retired_observation_*`: resolve at R, advance the fence, then attempt insertion with the R observation. Hold the writer while an unkeyed request must immediately refuse `E_AUTH`. Original SQLite code times out behind the writer. |
+| Durable retry coverage | `rt3b_carried_mutation_batch_*` now retries with args only. Disabling only durable final hint refresh makes the SQLite test fail on that retry. |
+| Plan reuse coverage | `batch_plans_keep_per_member_arguments_*` also counts `Closure::new` calls on the invoking thread. Restoring the five production plan files from `13560f6574^` (and its private test-call signature), preserving the counter and witness, fails at runtime: **14 calls versus 7 required**. The fixed code passes with 7. |
+
+The invalidation audit follows every hint producer and consumer and the shared
+resolver. “Fresh check” below means the hint is bypassed as an authority source;
+it need not be eagerly removed to refuse safely. Witness names ending in `*`
+have SQLite and private-Postgres variants.
+
+| Change | Required behavior and covering witness |
+| --- | --- |
+| Session revocation / token replacement | Fresh batch or detached authority sees no live credential. `rt3b_carried_mutation_batch_*` (`revoke`), `rt3b_authority_boundaries_*` (upload/queue/replay), and `rt3b_carried_query_*`. |
+| Expiry / read-cap expiry | Fresh service-clock sample at each final attempt; the shared resolver applies expiry and cap boundaries. `rt3b_carried_mutation_batch_*` (`expiry` at exact expiry), `rt3b_authority_boundaries_*`, and the authority-facts equivalence matrix (both read scopes and cap edges). |
+| Scope | Fresh comparison refuses a Full → Read transition before writes or metadata; an ordinary hint may refresh but grants nothing. `rt3b_carried_mutation_batch_*` (`scope`), `rt3b_fix_ephemeral_*scope_*`. |
+| Kind / action claim | Ordinary changes refresh; non-cacheable changes evict and take complete discovery, including action-claim policy. `rt3b_carried_mutation_batch_*` (`kind`, unkeyed retry), `rt3b_fix_ephemeral_kind_*`, `rt3b_lev_custom_{durable,ephemeral}_*`, and authority-facts action/custom equivalence cases. |
+| Principal generation | Public principal revocation deletes full sessions. Read credentials additionally compare their recorded generation to the fresh principal generation. `rt3b_carried_mutation_batch_*` covers both public revocation (`generation`) and generation-only invalidation (`read-generation`); the latter fixture proves the session rows remain present. Full sessions are not independently generation-bound by existing policy. |
+| Supervisor retirement | A changed fence misses the hint; insertion cannot relabel an older observation. `rt3b_lev_retired_observation_*`, plus `rt3b_authority_boundaries_*` (`supervisor`) and the supervised retirement/writer-lock witnesses. |
+| Store id | Lookup misses a changed serving id; the final boundary also compares the fresh durable id even when `Shared.wake` is unchanged and the body omits `store_id`. `rt3b_lev_store_binding_*`, `rt3b_fix_ingress_store_mismatch_*`. |
+| Store generation / code activation | A generation change misses the hint; existing transaction/opening identity guards and the batch facts check refuse stale engines. `rt3b_generation_bearer_unkeyed_*` and `rt3b_generation_bearer_keyed_*` now explicitly warm a hint before foreign adoption; `rt3b_metadata_refusal_uses_its_snapshot_program_*` and ephemeral-conversion witnesses cover local adoption. |
+| Ownership loss | Queue admission and durable owner fencing remain mandatory regardless of the hint; unfenced historical replay stays available. `rt3b_lev_ownership_*` repeats warm unkeyed attempts after queue or durable owner loss; `rt3b_replay_and_concurrent_copies_*` covers keyed/replay semantics. |
+
+Final qualification (passed / failed / ignored, Cargo target summaries):
+
+| Check | Passed | Failed | Ignored |
+| --- | ---: | ---: | ---: |
+| Full core | 1,275 | 0 | 440 |
+| Full binary, after preserving clock sample points | 614 | 0 | 63 |
+| Explicit SQLite HTTP RT0 filter | 1 | 0 | 0 |
+| Postgres HTTP RT0 filter | 7 | 0 | 0 |
+| Core overlay RT0, both stores | 2 | 0 | 0 |
+| Complete `bash scripts/test-postgres.sh`, Rust targets | 820 | 1 | 0 |
+| Final focused PG16 clock/hint checks | 21 | 0 | 0 |
+
+Passing isolated child invocations are excluded from those target totals:
+core 1, binary 13, Postgres script 1. The full Postgres script remains **failed**
+solely on the inherited
+`evaluator_concurrent_read_modify_write_and_duplicate_ops_are_atomic_in_both_modes`
+SQLSTATE **40001**, “could not serialize access due to concurrent update”.
+Every later stage completes, including the 76 RT3b checks, both argument/reuse
+witnesses, core/HTTP RT0, corpus, differential tests and public serving.
+The final focused recheck passes 10 ephemeral, 10 hint and 1 lock-gap tests
+on the final source. The two RT0 expectation files remain unchanged.
+
+`./ref-check`: **569 LLP documents, 11,974 references in 45,003 files;
+0 errors, 0 unchecked**. `git diff --check` also passes. No throughput
+benchmarks were run; raw logs remain outside Git. Builds use this worktree's own
+target, line-tables-only debug information and four Cargo jobs. The continuous
+40 GiB guard never fires; Cargo cleans this target's old release, simulator
+and core artifacts to preserve the disk margin, rebuilding required artifacts.
+
+All three private PG16 masters are stopped and independently absent:
+**2885596** (main evaluation, port 57597), **2972890** (public witness,
+private socket), and **3005185** (final focused recheck, port 54915).
+Each has `pg_ctl status=3` and no `postmaster.pid`; the public witness's
+531 recorded child/command PIDs are also independently absent. The final
+combined census of 582 recorded PIDs contains no living task process. Data and raw
+receipts remain outside Git. **Task-owned PIDs left: none.** No push occurs.

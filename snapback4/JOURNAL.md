@@ -108162,3 +108162,42 @@ Both stores' HTTP/core RT0 and authority-freshness witnesses pass, including
 the new carried-mutation batch and per-member argument differentials.
 The report holds final reference, secret-audit, external archive and PID
 receipts. Private clusters are independently stopped; no push occurs.
+
+## 2026-10-25 — LEV fix round 1: mutation hint authority boundaries
+
+The fresh batch boundary now checks store identity and generation before
+refreshing a hint or accepting a mutation capability, including unkeyed
+bodies without `store_id`. A fresh custom/action capability evicts the old
+ordinary hint on durable and ephemeral paths. Every insertion retains the
+supervisor revision of the resolution that produced it; a changed fence
+discards the insert. Cold discovery retains its original post-checkout clock
+sample. Store generation also joins the hint's binding.
+
+Four new SQLite HTTP witnesses fail on `2c64741a39`: the A→B store fixture
+commits, durable and ephemeral custom-kind retries stay stale, and insertion
+after retirement queues the next mutation behind the blocked writer. Their
+fixed counterparts pass. The durable ordinary-kind retry now has no id;
+disabling only durable final hint refresh makes that retry fail. The plan
+witness now counts `Closure::new` calls as well as comparing per-member arguments,
+outcomes, meters and history. The full invalidation audit and qualification
+receipts are in the [LEV report](reports/20261025-levers/REPORT.md#lev-fix-round-1-authority-hint-audit).
+
+The audit adds generation-only invalidation with session rows preserved,
+explicit warm hints before foreign activation, and repeated unkeyed attempts
+after ownership loss. Full-session generation policy remains unchanged:
+public principal revocation deletes full sessions; read sessions also check
+their recorded principal generation. No throughput measurements run in this
+round, and the earlier performance qualification is not extended to these
+corrected bytes. Raw logs remain outside Git; no push occurs.
+
+Final core qualification passes 1,275/0/440; the final full binary passes
+614/0/63 (passed/failed/ignored; isolated children excluded). Both unchanged
+HTTP RT0 filters pass (SQLite 1, Postgres 7), as do both core overlay cases.
+The complete Postgres script finishes 820/1/0 plus passing public serving;
+its sole failure is the inherited evaluator concurrent-update 40001.
+The final PG16 recheck passes 21 ephemeral/hint/lock-gap tests after preserving
+the original clock sample points. Reference validation passes 569 documents
+and 11,974 refs with zero errors or unchecked refs. Three private PG16 clusters
+are recorded, stopped and independently confirmed; the public witness's
+531 recorded PIDs and the combined final task census have no living process.
+Task-owned PIDs left: none. No push or throughput benchmark run occurs.

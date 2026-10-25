@@ -84,6 +84,23 @@ impl AnyStore {
         tx.commit()
     }
 
+    /// Advance revocation generation without deleting the session row.
+    pub fn test_request_principal_generation(&mut self, token: &str) -> Result<(), RuntimeError> {
+        use crate::authority::AuthorityTransaction;
+        let tx = self.transaction()?;
+        let facts = tx.session_authority_facts(&crate::identity::digest(token))?;
+        let principal = &facts.sessions.first().expect("test credential remains stored").principal;
+        let generation = facts.current_generation + 1;
+        match &tx {
+            AnyTx::Sqlite(SqliteTx(inner)) => { inner.conn().execute("INSERT INTO _principal_generations(principal,generation) VALUES (?1,?2) ON CONFLICT(principal) DO UPDATE SET generation=excluded.generation", rusqlite::params![principal,generation])?; }
+            #[cfg(feature = "postgres")]
+            AnyTx::Postgres(super::handles::PostgresTx(inner)) => { inner.execute("INSERT INTO _principal_generations(principal,generation) VALUES ($1,$2) ON CONFLICT(principal) DO UPDATE SET generation=excluded.generation", &[principal,&generation])?; }
+        }
+        assert_eq!(tx.session_authority_facts(&crate::identity::digest(token))?.sessions, facts.sessions,
+            "generation-only fixture preserves session rows");
+        tx.commit()
+    }
+
     #[cfg(feature = "postgres")]
     pub fn test_request_owner_loss(&mut self) -> Result<(), RuntimeError> {
         let tx = self.transaction()?;
