@@ -250,8 +250,14 @@ pub(super) fn scalar_enforced(effect:&Write<'_>,table:&str,column:&str,bound:&Bo
     })
 }
 fn fresh_parent_child(w:&Write<'_>,parent:&str,bound:&Bound)->bool{
-    let references=w.fields.iter().filter(|f|matches!(bound.schema.tables[&w.table].columns.get(&f.name).map(ColumnType::required),Some(ColumnType::Ref{table}) if table==parent)).collect::<Vec<_>>();
-    !references.is_empty()&&references.iter().all(|field|field_value(field).is_some_and(|value|super::approval_records::fresh_reference(value,w,parent)))
+    let target=&bound.schema.tables[&w.table];let references=target.columns.iter().filter(|(_,kind)|matches!(kind.required(),ColumnType::Ref{table} if table==parent)).collect::<Vec<_>>();
+    !references.is_empty()&&references.iter().all(|(name,kind)|{
+        let value=w.fields.iter().find(|field|field.name==**name).and_then(field_value).or_else(||w.keys.iter().find(|key|key.column.as_deref()==Some(name.as_str())).map(|key|&key.value));
+        if let Some(value)=value{let facts=context_facts(&w.context,w.catalog).unwrap_or_default();let value=apply_facts(value,&facts,&caller_names(w.p));return kind.is_optional()&&matches!(simplify_boolean(&value),Expr::Literal{value:ast::Literal::Null,..})||fresh_reference(&value,&w.context,w.p,w.catalog,parent);}
+        // Missing insert links default to null; missing existing-row links
+        // retain a prior value and cannot be presumed fresh or absent.
+        w.op==WriteOp::Insert&&kind.is_optional()&&target.defaults.get(*name).is_none_or(|value|value.value(challenges::NOW,"$advisory")==snapback4_core::Value::Null)
+    })
 }
 pub(super) fn notes(bound:&Bound,writes:&[Write<'_>],out:&mut Vec<Diagnostic>){
     for (table,t) in bound.schema.visible_tables(){

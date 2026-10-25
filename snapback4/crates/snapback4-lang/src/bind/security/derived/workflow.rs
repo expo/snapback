@@ -136,11 +136,11 @@ fn add_syntax(out:&mut Vec<Invariant>,table:&str,column:Option<&str>,target:&str
     out.push(Invariant{table:table.into(),column:column.map(str::to_owned),target:target.into(),predicate,policy:None,site,operation,requirements:Vec::new(),syntax:Some(policy),unsupported:Some("derived workflow predicate requires concrete executed-boundary replay; no rule-fragment proof".into())});
 }
 fn resource_local(e:&Expr)->bool{let mut e=e.clone();let mut found=false;walk(&mut e,&mut |e|if matches!(e,Expr::Focal{..}){found=true;});found}
-fn global_ledger(p:&ast::ProgramDecl,write:&Expr,writes:&[(&ast::ProgramDecl,Expr,ast::ProgramDecl)],bound:&Bound)->bool{
+fn global_ledger(p:&ast::ProgramDecl,write:&Expr,context:&ast::ProgramDecl,catalog:&Catalog,writes:&[(&ast::ProgramDecl,Expr,ast::ProgramDecl)],bound:&Bound)->bool{
     let Expr::Write{op:WriteOp::Insert|WriteOp::Upsert,table,fields,..}=write else{return false;};
     let references=bound.schema.tables[table].columns.iter().filter_map(|(column,kind)|if let C::Ref{table}=kind.required(){Some((column,table))}else{None}).collect::<Vec<_>>();
     let [(column,parent)]=references.as_slice()else{return false;};let Some(value)=fields.iter().find(|field|field.name==**column).and_then(|field|field.value.as_ref())else{return false;};
-    let mut value_probe=value.clone();let mut created=false;walk(&mut value_probe,&mut |e|if matches!(e,Expr::Write{op:WriteOp::Insert,table,..} if table==*parent){created=true;});if created{return true;}
+    if super::super::creation_advice::fresh_reference(value,context,p,catalog,parent){return true;}
     writes.iter().any(|(producer,effect,_)|std::ptr::eq(*producer,p)&&unconditional_write(producer,effect.site())&&matches!(effect,Expr::Write{table,fields,..} if table==*parent&&state_field(bound,parent,fields).is_some_and(|field|matches!(&field.value,Some(Expr::Literal{..}))))&&target_arg(producer,effect,parent).is_some_and(|arg|normalize(value,&bound.schema,parent,&BTreeMap::from([(arg.name.clone(),member(focal(),"id"))])).is_some_and(|e|matches!(e,Expr::Member{base,name,..} if name=="id"&&matches!(base.as_ref(),Expr::Focal{..})))))
 }
 pub(super) fn invariants(docs:&[ast::Document],catalog:&Catalog,bound:&Bound,out:&mut Vec<Invariant>){
@@ -163,7 +163,7 @@ pub(super) fn invariants(docs:&[ast::Document],catalog:&Catalog,bound:&Bound,out
             let (column,target)=if *op==WriteOp::Update{
                 let Some(field)=state_field(bound,table,fields)else{continue;};let Some(Expr::Literal{..})=&field.value else{continue;};
                 contract=binary("or",binary("!=",member(focal(),&field.name),field.value.clone().unwrap()),contract);(Some(field.name.as_str()),"update")
-            }else{if global_ledger(p,write,&writes,bound){continue;}(None,"insert")};
+            }else{if global_ledger(p,write,context,catalog,&writes,bound){continue;}(None,"insert")};
             add_syntax(out,table,column,target,contract,site,"sibling-approval",None);
         }
         for arg in &p.args {let TypeKind::Ref{table:root}=&arg.type_.kind else{continue;};
