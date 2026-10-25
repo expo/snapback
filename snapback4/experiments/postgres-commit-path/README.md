@@ -1,5 +1,12 @@
 # S0: commit-path cells (Postgres and SQLite)
 
+G7.0 (2026-10-25): `g70` measures the real S1 W4 vector tail under serial,
+ordered synchronous, early-release/durable-marker and independent disjoint
+schedules on the one-host A/B links. See [the G7.0 report](./results-20261025-g70/README.md)
+for the full N/connection matrix, K/H ledger, WAL sync counts, open-loop
+confirmations and crash/restart evidence. These are SQL-harness bounds, not
+product capacity claims.
+
 G3b/G8 (2026-10-23): `g3b` measures composed point reads/image writes and
 four durable commit-stage tail shapes on direct loopback TCP. See
 [the server-cost record](./results-20261024-g3b-gate-loopback/README.md) for

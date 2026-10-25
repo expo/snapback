@@ -1,0 +1,24 @@
+{
+  "release_build": {
+    "command": "CARGO_TARGET_DIR=snapback4/target/g70 cargo build --release --manifest-path snapback4/experiments/postgres-commit-path/Cargo.toml --bin g70",
+    "passed": true
+  },
+  "rustfmt_check": true,
+  "python_compile": true,
+  "ref_check": {
+    "passed": true,
+    "summary": "ref-check: ok \u2014 569 LLP docs, 11963 refs in 44984 files, 0 errors, 0 unchecked"
+  },
+  "frozen_native_input_recomputation": "byte-identical",
+  "json_links_arithmetic_and_archive_sha256": true,
+  "product_diff_empty": true,
+  "affected_selector": {
+    "plan_only": true,
+    "base": "sb4-pg/g7-rfc",
+    "broad": true,
+    "reason": "Experimental paths are unknown to the product selector. The standalone release harness, all 374 measurement/audit trials, crash tests and unchanged HTTP auditor supply affected experiment validation; no complete product battery or publication claim.",
+    "initial_precondition": "Cargo was absent from the ambient PATH; rerun succeeded with $HOME/.cargo/bin prepended."
+  },
+  "whitespace_check": true,
+  "staged_secret_scan": "see staged-secret-audit.json"
+}
