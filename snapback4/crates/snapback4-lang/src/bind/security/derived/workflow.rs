@@ -163,7 +163,7 @@ pub(super) fn invariants(docs:&[ast::Document],catalog:&Catalog,bound:&Bound,out
             let (column,target)=if *op==WriteOp::Update{
                 let Some(field)=state_field(bound,table,fields)else{continue;};let Some(Expr::Literal{..})=&field.value else{continue;};
                 contract=binary("or",binary("!=",member(focal(),&field.name),field.value.clone().unwrap()),contract);(Some(field.name.as_str()),"update")
-            }else{if global_ledger(p,write,context,catalog,&writes,bound){continue;}(None,"insert")};
+            }else{if global_ledger(p,write,context,catalog,&origins,bound){continue;}(None,"insert")};
             add_syntax(out,table,column,target,contract,site,"sibling-approval",None);
         }
         for arg in &p.args {let TypeKind::Ref{table:root}=&arg.type_.kind else{continue;};
@@ -173,7 +173,7 @@ pub(super) fn invariants(docs:&[ast::Document],catalog:&Catalog,bound:&Bound,out
                     let Some(value)=field.value.as_ref().and_then(|e|normalize(e,&bound.schema,root,&args))else{continue;};
                     if !matches!(value,Expr::Member{base,name,..} if name=="id"&&matches!(base.as_ref(),Expr::Focal{..})){continue;}
                     let guarded=guards(context).filter_map(|c|normalize(c,&bound.schema,root,&args)).any(|c|{let mut found=false;let mut c=c;walk(&mut c,&mut |e|if let Expr::Member{base,name,..}=e&&matches!(base.as_ref(),Expr::Focal{..})&&matches!(bound.schema.tables[root].columns.get(name).map(C::required),Some(C::Bool|C::Enum{..})){found=true;});found});
-                    let consumed=writes.iter().any(|(other,w,_)|std::ptr::eq(*other,*p)&&matches!(w,Expr::Write{op:WriteOp::Update|WriteOp::Delete,table:t,..} if t==root));
+                    let consumed=origins.iter().any(|(other,w,_)|std::ptr::eq(*other,*p)&&matches!(w,Expr::Write{op:WriteOp::Update|WriteOp::Delete,table:t,..} if t==root));
                     if guarded&&!consumed&&guards(context).any(contains_approval) {
                         if let Some(policy)=expr(&format!(".{} = null or count({table}[{} = .{}]) <= 1",field.name,field.name,field.name)){add_syntax(out,table,None,"insert",policy,site,"repeat-create",None);}
                     }
@@ -213,7 +213,7 @@ pub(super) fn invariants(docs:&[ast::Document],catalog:&Catalog,bound:&Bound,out
                     // records that destination; it does not make every ledger
                     // event require the transition's approval. The exact
                     // parent destination already supplies its own contract.
-                    let stage_effect=writes.iter().any(|(producer,effect,_)|std::ptr::eq(*producer,*p)&&unconditional_write(producer,effect.site())&&target_arg(producer,effect,root).is_some_and(|selected|selected.name==arg.name)&&matches!(effect,Expr::Write{table:target,fields,..} if target==root&&state_field(bound,root,fields).is_some_and(|field|matches!(&field.value,Some(Expr::Literal{..})))));
+                    let stage_effect=origins.iter().any(|(producer,effect,_)|std::ptr::eq(*producer,*p)&&unconditional_write(producer,effect.site())&&target_arg(producer,effect,root).is_some_and(|selected|selected.name==arg.name)&&matches!(effect,Expr::Write{table:target,fields,..} if target==root&&state_field(bound,root,fields).is_some_and(|field|matches!(&field.value,Some(Expr::Literal{..})))));
                     if stage_effect{continue;}
                     // The guarded resource must be the one actually placed
                     // on this effect, not another argument of the same type.
@@ -239,7 +239,7 @@ pub(super) fn invariants(docs:&[ast::Document],catalog:&Catalog,bound:&Bound,out
             }
         }
     }
-    lifecycle(&writes,bound,out);
+    lifecycle(&origins,bound,out);
 }
 
 fn state_field<'a>(bound:&Bound,table:&str,fields:&'a [ast::ObjectField])->Option<&'a ast::ObjectField>{
