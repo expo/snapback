@@ -108222,3 +108222,15 @@ respectively); temporary negative-control changes are restored. The
 [LEV report](reports/20261025-levers/REPORT.md#lev-fix-round-2-mutation-permission-and-refusal-parity)
 records the evidence and corrects the audit to distinguish warm HTTP hints,
 keyed/cold paths and resolver-only cases. No throughput measurement runs.
+
+Final qualification on `029b7c1091`: core 1,275/0/440, binary
+619/0/68 (passed/failed/ignored; isolated child results excluded).
+Both unchanged HTTP RT0 ratchets pass (SQLite 1, Postgres 7), and both core
+overlay RT0 cases pass. The focused private-cluster hints/scope/RT0 run passes
+29/0/0. The complete Postgres script finishes 830/1/0 plus passing
+public serving; its sole failure remains the inherited concurrent-update
+40001. Reference validation passes 569 documents and 11,976 refs with zero
+errors or unchecked refs. Private PG16 masters 3084105 and 3164878
+are stopped and independently confirmed; the combined census of
+569 recorded PIDs contains no remaining process. No push or throughput
+run occurs. Task-owned PIDs left: none.

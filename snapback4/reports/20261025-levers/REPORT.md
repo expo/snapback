@@ -288,3 +288,45 @@ section. It explicitly labels resolver-only cap/family coverage, keyed
 activation witnesses, supervisor insertion exercised directly, and claim
 invalidation after non-cacheable hint eviction. No throughput measurements
 run in this round; prior performance numbers do not qualify these bytes.
+
+Final qualification on the fixed source `029b7c1091` (passed / failed /
+ignored; isolated child invocations excluded):
+
+| Check | Passed | Failed | Ignored |
+| --- | ---: | ---: | ---: |
+| Full core | 1,275 | 0 | 440 |
+| Full binary | 619 | 0 | 68 |
+| SQLite HTTP RT0 | 1 | 0 | 0 |
+| Postgres HTTP RT0 (focused) | 7 | 0 | 0 |
+| Focused hint witnesses, both stores | 20 | 0 | 0 |
+| Focused durable scope batches, both stores | 2 | 0 | 0 |
+| Complete Postgres script, Rust targets | 830 | 1 | 0 |
+| Core overlay RT0, both stores (inside Postgres script) | 2 | 0 | 0 |
+
+The complete Postgres script remains **failed** solely on the inherited
+`evaluator_concurrent_read_modify_write_and_duplicate_ops_are_atomic_in_both_modes`
+SQLSTATE **40001**, “could not serialize access due to concurrent update”.
+Every later target completes, including all 86 RT3b cases, both core overlay
+RT0 cases, both per-member plan witnesses, corpus, differential tests, the
+production CLI build and public serving. Both HTTP RT0 expectation files
+remain unchanged. The focused Postgres-cluster run independently passes all
+29 selected hint/scope/HTTP-RT0 tests (including the SQLite siblings).
+Passing isolated children are excluded from target totals: core 1, binary 13,
+Postgres script 1.
+
+`./ref-check --verbose` passes: **569 LLP documents, 11,976 refs in 45,003
+files, zero errors and zero unchecked refs**. `git diff --check` passes.
+Builds retain the lane's private target, line-tables-only profiles and four
+Cargo jobs. Old, unlocked incremental caches are removed to preserve disk
+headroom; the 40 GiB disk guard never fires. No throughput measurements,
+publication, push, or new performance qualification occurs. Raw logs and
+receipts remain outside Git.
+
+Private PG16 master **3084105** (port 48927,
+`/tmp/levfix2-pg-n1w01i8c`) and public serving master
+**3164878** (`/tmp/s10d3-serve-yo7qks0n`) are stopped.
+Independent `pg_ctl status` checks return 3; neither has a `postmaster.pid`.
+The public witness records 530 command/server PIDs; the final
+combined census of 569 recorded task PIDs has no remaining process.
+Raw cleanup receipt: `/tmp/levfix2-final-pid-receipt.json`.
+**Task-owned PIDs left: none.**
