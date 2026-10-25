@@ -23,24 +23,30 @@ pub(in crate::verbs) fn render(dispositions: &[Disposition], notes: &[Diagnostic
     use std::fmt::Write;
     let mut output=String::new();
     let mut ordered=notes.iter().zip(dispositions).collect::<Vec<_>>();
+    // @ref LLP 3000.036.004#16.5-review-clarification-exact-detector-and-command-boundaries — grouping must preserve gate/authority priority.
     ordered.sort_by_key(|(n,_)|(crate::note_rank::summary_order(&n.code),n.site.file.clone(),n.site.line,n.site.col));
     let members=ordered.iter().filter(|(_,d)|d.family.is_some()&&!d.acknowledged).collect::<Vec<_>>();
+    let mut family_output=String::new();
     if let Some((_,first))=members.first().copied() {
         let codes=members.iter().map(|(n,_)|n.code.as_str()).collect::<std::collections::BTreeSet<_>>().into_iter().collect::<Vec<_>>().join(", ");
-        writeln!(&mut output,"decision audience ({codes}): Are these {} row/column audiences, roles and lifecycle states intended?",members.len()).unwrap();
+        writeln!(&mut family_output,"decision audience ({codes}): Are these {} row/column audiences, roles and lifecycle states intended?",members.len()).unwrap();
         for (n,_) in &members {
             // The expanded branch cross-product stays in JSON. One question
             // names the source subject without repeating every equivalent path.
             let subject = n.message.split(" matches or weakens").next().unwrap_or(&n.message)
                 .split(": ").next().unwrap_or(&n.message);
-            writeln!(&mut output,"  ? {}: Is {} intended?",n.site,subject.trim_end_matches('.')).unwrap();
+            writeln!(&mut family_output,"  ? {}: Is {} intended?",n.site,subject.trim_end_matches('.')).unwrap();
         }
-        writeln!(&mut output,"  Intended: snapback4 check --ack-security {} --reason '<spec rationale>'",first.family.as_deref().unwrap()).unwrap();
-        writeln!(&mut output,"  Narrower: restrict the listed rules; declare independent intent; run snapback4 test. Full audiences: check --json.").unwrap();
+        writeln!(&mut family_output,"  Intended: snapback4 check --ack-security {} --reason '<spec rationale>'",first.family.as_deref().unwrap()).unwrap();
+        writeln!(&mut family_output,"  Narrower: restrict the listed rules; declare independent intent; run snapback4 test. Full audiences: check --json.").unwrap();
     }
+    let mut family_printed=false;
     for (n,d) in ordered {
         if d.acknowledged { writeln!(&mut output,"security reviewed {} {}: {}",d.id,d.code,d.reason.as_deref().unwrap_or("")).unwrap(); continue; }
-        if d.family.is_some() { continue; }
+        if d.family.is_some() {
+            if !family_printed {output.push_str(&family_output);family_printed=true;}
+            continue;
+        }
         if crate::note_rank::tier(&n.code)!=crate::note_rank::Tier::Review { continue; }
         let subject=n.message.split(": ").next().unwrap_or(&n.message);
         let concise=match n.code.as_str() {
@@ -62,6 +68,16 @@ pub(in crate::verbs) fn render(dispositions: &[Disposition], notes: &[Diagnostic
 
 #[cfg(test)]mod tests {
  use super::*;
+ #[test]fn authority_and_gates_precede_one_complete_audience_family(){
+  let codes=["N_BROAD_READ","N_PRIVILEGE_ESCALATION","N_OPTIONAL_UPLOAD_CREATE","N_INVARIANT_RESTATES_RULE"];
+  let notes=codes.iter().map(|code|Diagnostic::new(&Default::default(),*code,"subject: review authority","repair enforcement")).collect::<Vec<_>>();
+  let dispositions=codes.iter().map(|code|Disposition{family:audience(code).then(||"audience:family".into()),id:(*code).into(),code:(*code).into(),site:"schema.q:1:1".into(),gated:gated(code),acknowledged:false,reason:None,scope:"test".into()}).collect::<Vec<_>>();
+  let text=render(&dispositions,&notes);
+  assert!(text.find("decision N_OPTIONAL_UPLOAD_CREATE").unwrap()<text.find("decision N_PRIVILEGE_ESCALATION").unwrap(),"{text}");
+  assert!(text.find("decision N_PRIVILEGE_ESCALATION").unwrap()<text.find("decision audience").unwrap(),"{text}");
+  assert_eq!(text.matches("decision audience").count(),1,"{text}");
+  assert!(text.contains("Are these 2 row/column audiences")&&text.contains("audience:family"),"{text}");
+ }
  #[test]fn every_gate_is_one_decision_and_never_a_family_member(){
   for code in snapback4_lang::security::GATED_NOTE_CODES {
    assert!(!audience(code));

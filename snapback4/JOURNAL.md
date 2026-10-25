@@ -107550,3 +107550,15 @@ parser test preserves accepted syntax while still refusing to choose an ambiguou
 index; process/Wasm list tests retain their limits and prediction assertions with
 the argument-qualified wording. No product assertion, admission limit or lifecycle
 check is weakened.
+
+## 2026-10-25 — Integration 25: ranked families and complete client seals
+
+The broad client run additionally caught an actual rendering regression: the
+new audience family printed before higher-priority gate/authority decisions.
+It now occupies its first member's established sorted position, retaining one
+complete source-bound family and every member; a mixed gate/escalation/family
+witness and installed-output assertions preserve that order. Rule-enforced
+summary tests now assert the distinction from whole-protocol proof. The React
+harness imports the Expo starter's new default App export. The complete await
+seal is regenerated after explicit Node proof/setup/process classification; SDK
+delivery sites and fault recipes remain unchanged.

@@ -112,9 +112,11 @@ test('check keeps invariant details behind verbose and preserves complete JSON',
  const binary=process.env.SNAPBACK4_BIN||join(root,'target/debug/snapback4');
  const invoke=(...args)=>{const r=spawnSync(binary,args,{cwd:dir,encoding:'utf8',timeout:30000});assert.equal(r.status,0,r.stdout+r.stderr);return r;};
  const compact=invoke('check'),text=compact.stdout+compact.stderr;
- assert.match(text,/security: \d+ proved, \d+ refuted, \d+ unproved/);
- assert.equal((text.match(/— N_INVARIANT_RESTATES_RULE:/g)||[]).length,1,'restating sites share one table questionnaire');
- assert.match(text,/8 underlying questions/);
+ assert.match(text,/security: 0 proved, 0 refuted; 8 enforced by rule \(additional paths not proved\); 0 other unproved/);
+ assert.equal((text.match(/decision audience \(N_INVARIANT_RESTATES_RULE\)/g)||[]).length,1,'restating sites share one source-bound questionnaire');
+ assert.match(text,/Are these 8 row\/column audiences/);
+ assert.equal((text.match(/  \? schema\.q:/g)||[]).length,8);
+ assert.match(text,/check --ack-security audience:[a-f0-9]+ --reason/);
  assert.match(text,/snapback4 test/);assert.match(text,/snapback4 audit/);
  assert.doesNotMatch(text,/security Unproved:|counterexample \{/);
  const full=invoke('check','--verbose');assert.match(full.stdout+full.stderr,/whole-protocol noninterference/);
@@ -133,5 +135,7 @@ test('an escalation note stays visible above repeated broad-read advice', {timeo
  assert.match(result.stdout,/N_PRIVILEGE_ESCALATION/);
  const broad=result.stdout.indexOf('N_BROAD_READ');
  assert.ok(broad<0||result.stdout.indexOf('N_PRIVILEGE_ESCALATION')<broad);
- assert.equal((result.stdout.match(/— N_BROAD_READ:/g)||[]).length,9,'every likely-hole audience survives the cap');
+ assert.equal((result.stdout.match(/decision audience \(N_BROAD_READ\)/g)||[]).length,1,'one complete audience family');
+ assert.match(result.stdout,/Are these 9 row\/column audiences/);
+ assert.equal((result.stdout.match(/  \? schema\.q:/g)||[]).length,9,'every likely-hole audience survives the cap');
 });
