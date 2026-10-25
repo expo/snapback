@@ -6,7 +6,7 @@ fn close_doors(shared: &Shared, engine: &mut Engine) {
     let bound = snapback4_lang::compile(&[("schema.q".into(), SOURCE.replace("use identity", "use identity password"))]);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
     let next = engine.adopt(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).unwrap();
-    lock(&shared.readers).replace(engine, &bound.refusal_sites);
+    shared.replace_readers(engine, &bound.refusal_sites);
     *lock(&shared.bound) = bound;
     *lock(&shared.generation) = next;
 }
@@ -115,7 +115,7 @@ fn stage_persona_cannot_acquire_a_replacement_password_only_reader() {
         {
             let mut engine = lock(&host.shared.engine);
             let generation = engine.adopt(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).unwrap();
-            lock(&host.shared.readers).replace(&engine, &bound.refusal_sites);
+            host.shared.replace_readers(&engine, &bound.refusal_sites);
             *lock(&host.shared.bound) = bound;
             *lock(&host.shared.generation) = generation;
         }
@@ -151,7 +151,7 @@ fn stage_actions_and_session_routes_revalidate_before_durable_admission() {
                 else { source.replace("use personas alice\n", "") };
             let bound = snapback4_lang::compile(&[("schema.q".into(), next)]);
             let generation = engine.adopt(bound.schema.clone(), bound.programs.iter().map(|p|p.program.clone())).unwrap();
-            lock(&host.shared.readers).replace(&engine, &bound.refusal_sites);
+            host.shared.replace_readers(&engine, &bound.refusal_sites);
             *lock(&host.shared.bound) = bound; *lock(&host.shared.generation) = generation;
             drop(engine);
             let response = task.join().unwrap();
@@ -186,7 +186,7 @@ fn stage_asset_owner_transitions_recheck_at_the_writer() {
         wait_until(|| host.shared.engine.waiting() > 0);
         let bound = snapback4_lang::compile(&[("schema.q".into(),source.replace("use identity", "use identity password"))]);
         let generation = engine.adopt(bound.schema.clone(), bound.programs.iter().map(|p|p.program.clone())).unwrap();
-        lock(&host.shared.readers).replace(&engine,&bound.refusal_sites);
+        host.shared.replace_readers(&engine, &bound.refusal_sites);
         *lock(&host.shared.bound)=bound;*lock(&host.shared.generation)=generation;
         drop(engine);
         let response=task.join().unwrap();

@@ -1,0 +1,108 @@
+{
+  "base": "25ee876966185acfa7be9eace384b2988512da56",
+  "branch": "sb4-pg/r1",
+  "cargo_target": "snapback4/target",
+  "cargo_jobs": 24,
+  "dev_debug": "line-tables-only",
+  "test_debug": "line-tables-only",
+  "full_core": {
+    "targets": 49,
+    "passed": 1273,
+    "failed": 0,
+    "ignored": 437
+  },
+  "full_binary": {
+    "passed": 608,
+    "failed": 0,
+    "ignored": 57
+  },
+  "http_rt0": {
+    "passed": 9,
+    "failed": 0,
+    "ignored": 0
+  },
+  "core_rt0": {
+    "passed": 2,
+    "failed": 0,
+    "ignored": 0
+  },
+  "g6_after_final_budget_fix": {
+    "passed": 18,
+    "failed": 0,
+    "ignored": 0
+  },
+  "program_batches_after_final_budget_fix": {
+    "passed": 75,
+    "failed": 0,
+    "ignored": 0
+  },
+  "literal_flights_after_final_budget_fix": {
+    "passed": 35,
+    "failed": 0,
+    "ignored": 0
+  },
+  "reader_witnesses": {
+    "passed": 4,
+    "failed": 0,
+    "ignored": 0
+  },
+  "arrival_policy": {
+    "passed": 4,
+    "failed": 0,
+    "covered_by": "final queue/command checks"
+  },
+  "tcp_pipeline": {
+    "passed": 9,
+    "failed": 0,
+    "ignored": 0
+  },
+  "postgres_rust_stages": {
+    "executions": 36,
+    "passed": 806,
+    "failed": 0,
+    "ignored": 0
+  },
+  "initial_setup_failures": {
+    "full_binary": {
+      "passed": 578,
+      "failed": 30,
+      "ignored": 57,
+      "cause": "unbuilt target/debug/snapback4 helper and unrestricted timing-test concurrency; corrected by build plus four test threads"
+    },
+    "postgres": {
+      "causes": [
+        "socket-only input cannot qualify TCP witnesses",
+        "core overlay RT0 needed its 5->4 and 6->5 ratchet",
+        "eager-reader HTTP fixtures exceeded 400 connections at unrestricted fixture concurrency"
+      ],
+      "resolution": "explicit private TCP cluster, lowered ratchet, default four fixture threads; complete script rerun"
+    }
+  },
+  "failing_before_witnesses": [
+    "reader construction held global reader mutex",
+    "raising fence could resolve a shadow equality operator",
+    "fused owner lock preceded remaining-budget controls",
+    "1 ms arrival history misclassified a burst queued across a 4 ms writer cycle as idle"
+  ],
+  "raw_evidence": "/tmp/sb4-r1",
+  "scope": "loopback diagnostics, no S1/publication qualification",
+  "queue_command_checks": {
+    "passed": 19,
+    "failed": 0,
+    "ignored": 0
+  },
+  "postgres_script_exit_status": 0,
+  "public_postgres_serving": "PASS; private witness cluster stopped and independently confirmed",
+  "final_delta_checks": "After final remaining-budget correction: literal flights, all program batches, G6 and full binary/HTTP RT0. After each collection-policy refinement: every queue/command check (including the four policy witnesses), full binary and HTTP RT0. Transport/tail/interpreter semantics unchanged by collection refinements.",
+  "durability": {
+    "postgres": "16.15",
+    "fsync": "on",
+    "synchronous_commit": "on",
+    "full_page_writes": "on"
+  },
+  "pids_left": [],
+  "ref_check": {
+    "exit_status": 0,
+    "result": "ref-check: ok \u2014 568 LLP docs, 11966 refs in 44962 files, 0 errors, 0 unchecked"
+  }
+}

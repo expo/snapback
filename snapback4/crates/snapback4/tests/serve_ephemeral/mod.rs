@@ -286,7 +286,7 @@ fn adoption_and_restart_change_incarnation_and_removed_members_read_empty() {
                 h.shared.now(),
             )
             .unwrap();
-        lock(&h.shared.readers).replace(&engine, &b.refusal_sites);
+        h.shared.replace_readers(&engine, &b.refusal_sites);
         *lock(&h.shared.bound) = b;
         h.shared.publish_engine(&engine);
     }

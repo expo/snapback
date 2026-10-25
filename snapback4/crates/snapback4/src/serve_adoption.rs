@@ -229,7 +229,7 @@ pub(super) fn watch_sources_until(project: Project, shared: Arc<Shared>, mut sta
                                 Err(problem) => snapback4_core::diagnostic!("snapback4 dev: {problem}"),
                             }
                         }
-                        lock(&shared.readers).replace(engine, &bound.refusal_sites);
+                        shared.replace_readers(engine, &bound.refusal_sites);
                         // Publish the advertised backend and identity together:
                         // /schema takes these guards in the same order.
                         let mut active = lock(&shared.bound);

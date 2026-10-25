@@ -55,6 +55,7 @@ pub(super) enum Prepared {
     Gone,
 }
 pub(super) trait Task: Send {
+    fn arrived(&self) -> Instant;
     fn build_intent(&mut self, engine: &mut Engine) -> Prepared;
     fn finish(self: Box<Self>, engine: &mut Engine, outcome: Outcome);
     fn unknown(self: Box<Self>);
@@ -63,6 +64,7 @@ pub(super) struct ProgramTask<T> {
     command: ProgramCommand<T>,
     sent: mpsc::SyncSender<Result<std::thread::Result<T>, SubmitError>>,
     ticket: Ticket,
+    arrived: Instant,
 }
 impl<T: Send + 'static> ProgramTask<T> {
     pub(super) fn new(
@@ -74,10 +76,12 @@ impl<T: Send + 'static> ProgramTask<T> {
             command,
             sent,
             ticket,
+            arrived: Instant::now(),
         }
     }
 }
 impl<T: Send + 'static> Task for ProgramTask<T> {
+    fn arrived(&self) -> Instant { self.arrived }
     fn build_intent(&mut self, engine: &mut Engine) -> Prepared {
         if !self.ticket.start_execution(engine) {
             return Prepared::Gone;
@@ -185,7 +189,7 @@ impl BatchStats {
         sorted.sort_unstable();
         self.p99_micros = sorted[(sorted.len() * 99).div_ceil(100).saturating_sub(1)];
         self.since_resize += 1;
-        // @ref LLP 3000.009.001.000.000#7 — queue through COMMIT latency governs the largest admitted N; idle never waits to fill.
+        // @ref LLP 3000.009.001.000.002#3.4 — queue through COMMIT latency governs the largest admitted N; only recent traffic can coalesce.
         if !self.fixed && self.since_resize >= 32 {
             let next = if self.p99_micros > 100_000 {
                 (self.target / 2).max(1)
@@ -203,12 +207,47 @@ impl BatchStats {
     }
 }
 
+const COLLECTION: Duration = Duration::from_millis(1);
+// A burst queued during a write cycle is still recent. This is history age,
+// not a fill budget: collection always ends at started + COLLECTION.
+const RECENT: Duration = Duration::from_millis(20);
+/// An exponentially smoothed interarrival interval from actual mailbox intake,
+/// never response rate. A gap beyond the history horizon starts idle again.
+#[derive(Default)]
+struct Arrivals {
+    last: Option<Instant>,
+    interval: Option<Duration>,
+}
+impl Arrivals {
+    fn observe(&mut self, at: Instant) {
+        if let Some(last) = self.last {
+            let gap = at.saturating_duration_since(last);
+            self.interval = if gap > RECENT { None } else {
+                Some(self.interval.map_or(gap, |old| (old * 3 + gap) / 4))
+            };
+        }
+        self.last = Some(at);
+    }
+    // @ref LLP 3000.009.001.000.002#3.4 — non-idle predicted arrivals may fill within one fixed window; never wait for the cap.
+    fn wait(&self, started: Instant, now: Instant) -> Option<Duration> {
+        let until = started + COLLECTION;
+        let remaining = until.checked_duration_since(now).filter(|r| !r.is_zero())?;
+        let last = self.last?;
+        let interval = self.interval?;
+        if now.saturating_duration_since(last) >= RECENT || last + interval > until { return None; }
+        // An absent predicted arrival ends collection after one estimated
+        // interval, rather than spending the whole window on a stale burst.
+        Some(remaining.min(interval.max(Duration::from_micros(1))))
+    }
+}
+
 pub(super) fn run(
     receiver: mpsc::Receiver<Queued>,
     mut execute: impl FnMut(Work),
     stats: Arc<Mutex<BatchStats>>,
 ) {
     let mut pending = None;
+    let mut arrivals = Arrivals::default();
     loop {
         let work = match pending.take().map(Ok).unwrap_or_else(|| receiver.recv()) {
             Ok(work) => work,
@@ -221,13 +260,20 @@ pub(super) fn run(
             continue;
         };
         let started = Instant::now();
+        arrivals.observe(first.arrived());
         let target = stats.lock().unwrap().target;
         let mut tasks = vec![first];
-        // Only drain work already present. Empty means immediate COMMIT; the
-        // collection cap bounds even a continuously replenished mailbox.
-        while tasks.len() < target && started.elapsed() < Duration::from_millis(1) {
-            match receiver.try_recv() {
-                Ok(Queued::Program(task)) => tasks.push(task),
+        while tasks.len() < target && started.elapsed() < COLLECTION {
+            let next = match receiver.try_recv() {
+                Ok(work) => Ok(work),
+                Err(mpsc::TryRecvError::Empty) => match arrivals.wait(started, Instant::now()) {
+                    Some(wait) => receiver.recv_timeout(wait).map_err(|_| ()),
+                    None => Err(()),
+                },
+                Err(mpsc::TryRecvError::Disconnected) => Err(()),
+            };
+            match next {
+                Ok(Queued::Program(task)) => { arrivals.observe(task.arrived()); tasks.push(task); },
                 Ok(solo) => {
                     pending = Some(solo);
                     break;
@@ -309,5 +355,36 @@ mod tests {
             fixed.observe([1_000_000], 4);
         }
         assert_eq!(fixed.target, 4);
+    }
+    #[test]
+    fn idle_and_low_rate_never_wait() {
+        let start = Instant::now();
+        let mut arrivals = Arrivals::default();
+        arrivals.observe(start);
+        assert_eq!(arrivals.wait(start, start), None);
+        arrivals.observe(start + Duration::from_millis(2));
+        assert_eq!(arrivals.wait(start + Duration::from_millis(2), start + Duration::from_millis(2)), None);
+        arrivals.observe(start + Duration::from_millis(30));
+        assert_eq!(arrivals.wait(start + Duration::from_millis(30), start + Duration::from_millis(30)), None);
+    }
+    #[test]
+    fn queued_non_idle_arrivals_remain_recent_across_a_write_cycle() {
+        let start = Instant::now();
+        let mut arrivals = Arrivals::default();
+        arrivals.observe(start - Duration::from_millis(4));
+        arrivals.observe(start - Duration::from_micros(3900));
+        assert_eq!(arrivals.wait(start, start), Some(Duration::from_micros(100)), "a busy writer's queued burst is not an idle mailbox");
+    }
+    #[test]
+    fn non_idle_predicts_fill_but_cannot_extend_the_original_window() {
+        let start = Instant::now();
+        let mut arrivals = Arrivals::default();
+        arrivals.observe(start - Duration::from_micros(250));
+        arrivals.observe(start);
+        assert_eq!(arrivals.wait(start, start), Some(Duration::from_micros(250)));
+        arrivals.observe(start + Duration::from_micros(800));
+        assert_eq!(arrivals.wait(start, start + Duration::from_micros(900)), None, "predicted arrival lies beyond the window");
+        assert_eq!(arrivals.wait(start, start + COLLECTION), None);
+        assert_eq!(arrivals.wait(start + Duration::from_millis(30), start + Duration::from_millis(30)), None, "old traffic cannot create an idle delay");
     }
 }

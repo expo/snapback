@@ -50,7 +50,7 @@ fn host_contended() -> bool {
 
 fn engine_work<T: super::committer::QueueResult + Send + 'static>(shared: &Shared, run: impl FnOnce(&mut snapback4_core::Engine, Duration, &Shared) -> T + Send + 'static) -> T {
     shared.engine.background_call(move |engine, shared, contended| {
-        lock(&shared.readers).retry_missing(engine);
+        shared.retry_missing_readers(engine);
         let budget = if contended || host_contended() { CONTENDED_TIME } else { WORK_TIME };
         let result = run(engine, budget, shared);
         shared.publish_engine(engine);

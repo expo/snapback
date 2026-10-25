@@ -12,6 +12,10 @@ pub(super) struct Session<'a> {
     pub done: bool,
     pub settings_refused: bool,
     pub checks: Vec<(usize,u64)>,
+    // A raising owner command precedes every application lock/fact in the
+    // first message. Kept separate so its PL/pgSQL semicolons are not controls.
+    pub owner: Option<String>,
+    pub owner_budget: Option<u32>,
 }
 impl Drop for Session<'_> {
     fn drop(&mut self) {
@@ -36,6 +40,8 @@ impl Session<'_> {
         self.ensure_settings()?;
         const GUARD: &str = "DO $sb4_settings$ BEGIN IF pg_catalog.current_setting('client_encoding') OPERATOR(pg_catalog.<>) 'UTF8' OR pg_catalog.current_setting('extra_float_digits') OPERATOR(pg_catalog.<>) '3' OR pg_catalog.current_setting('bytea_output') OPERATOR(pg_catalog.<>) 'hex' THEN RAISE EXCEPTION 'Postgres flight output settings drifted' USING ERRCODE = 'S4001'; END IF; END $sb4_settings$;";
         let mut command = String::with_capacity(GUARD.len() + sql.len());
+        let owner = self.owner.take();
+        let owner_budget = self.owner_budget.take();
         // An aborted transaction accepts only rollback. These recovery flights
         // contain controls alone: restore the savepoint before checking settings,
         // which may themselves have been restored by that rollback.
@@ -45,10 +51,19 @@ impl Session<'_> {
         let opening = if sql.starts_with("BEGIN ") { sql.find(';').map_or(0, |n|n+1) } else { 0 };
         command.push_str(&sql[..opening]);
         if !recovery { command.push_str(GUARD); }
+        if let Some(owner) = &owner {
+            if let Some(ms) = owner_budget {
+                command.push_str(&format!("SET LOCAL statement_timeout={ms}; SET LOCAL lock_timeout={ms};"));
+            }
+            command.push_str(owner);
+        }
         command.push_str(&sql[opening..]);
         if recovery { command.push(';'); command.push_str(GUARD); }
         let mut messages = self.client.simple_query(&command).map_err(|error| {
             if error.code().is_some_and(|code| code.code() == "S4001") { self.settings_refused = true; }
+            if error.code().is_some_and(|code| code.code() == "S4002") {
+                return RuntimeError::StoreOwnership("stale owner token or logical store identity".into());
+            }
             RuntimeError::from(error)
         })?;
         let guard_index = usize::from(opening != 0);
@@ -57,6 +72,14 @@ impl Session<'_> {
             return Err(RuntimeError::Store("missing Postgres output settings guard".into()));
         }
         if recovery { messages.pop(); } else { messages.remove(guard_index); }
+        if owner.is_some() {
+            for _ in 0..if owner_budget.is_some() { 3 } else { 1 } {
+                if !matches!(messages.get(guard_index), Some(SimpleQueryMessage::CommandComplete(_))) {
+                    return Err(RuntimeError::StoreOwnership("missing raising owner fence/budget".into()));
+                }
+                messages.remove(guard_index);
+            }
+        }
         Ok(messages)
     }
     pub fn flush(&mut self, calls: &CallCounter) -> Result<(), RuntimeError> {

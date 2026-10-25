@@ -147,7 +147,7 @@ pub(super) fn apply(
             engine.set_prepared_native(prepared.module);
             engine.set_presence(Some(shared.presence.clone()));
             shared.refresh_time_audience_clock(engine, shared.now());
-            lock(&shared.readers).replace(engine, &bound.refusal_sites);
+            shared.replace_readers(engine, &bound.refusal_sites);
             {
                 let mut active = lock(&shared.bound);
                 let mut advertised = lock(&shared.generation);

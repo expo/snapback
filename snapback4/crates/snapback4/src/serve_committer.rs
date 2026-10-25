@@ -24,6 +24,10 @@ pub struct Writer {
     fixture: Arc<FairMutex<Engine>>,
 }
 impl Writer {
+    #[cfg(test)]
+    pub(super) fn batch_stats(&self) -> snapback4_core::engine::command::BatchStats {
+        self.queue.batch_stats()
+    }
     pub fn new(engine: Engine) -> std::io::Result<Self> {
         #[cfg(not(test))]
         let queue = Queue::start(engine, CAPACITY)?;
