@@ -528,3 +528,18 @@ fn campaign(s:&str)->Campaign{let b=security::derived::augmented(&sources(s),&bo
 #[test]fn actual_alias_corpus_schema_does_not_panic_and_keeps_unused_approval_visible(){
     let source=include_str!("security/sec10-controls/w26-037.q");let _=security::derived::augmented(&sources(source),&bound(source));assert!(notes(source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"&&n.message.contains("remakeApproved")));
 }
+
+#[test]fn impossible_effects_neither_consume_approval_nor_create_sibling_contracts(){
+    let source="table docs:\n  approved: bool default false\n  stage: enum('draft','done') default 'draft'\n  read <- allow\n  update <- allow\n  online only\ntable outputs:\n  doc: docs\n  read <- allow\n  insert <- allow\n  online only\nmutation approve(doc: docs):\n  update docs[doc] {approved:true}\nmutation guarded(doc: docs,flag: bool):\n  d = docs[doc] ! else MISSING\nPREFIX  require d.approved else APPROVAL\n  return update docs[doc] {stage:'done'} if CONDITION\nmutation bypass(doc: docs):\n  return update docs[doc] {stage:'done'}\n";
+    for (prefix,condition,possible) in [("","false",false),("  require not flag else FLAG\n","flag",false),("","flag",true)]{
+        let source=source.replace("PREFIX",prefix).replace("CONDITION",condition);let b=bound(&source);let cs=security::derived::invariants(&sources(&source),&b);assert_eq!(cs.iter().any(|i|i.site.file.contains("sibling-approval")),possible,"{condition}");assert_eq!(!notes(&source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"),possible,"{condition}");
+    }
+    for domain in ["[]","docs where false first 10 by .id"]{let source=source.replace("PREFIX","").replace("  require d.approved else APPROVAL\n  return update docs[doc] {stage:'done'} if CONDITION",&format!("  for row in {domain}:\n    require d.approved else APPROVAL\n    update docs[doc] {{stage:'done'}}\n  return null"));let cs=security::derived::invariants(&sources(&source),&bound(&source));assert!(!cs.iter().any(|i|i.site.file.contains("sibling-approval")),"{domain}");assert!(notes(&source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));}
+}
+#[test]fn no_op_child_stage_copies_cannot_erase_completion_obligations(){
+    let source=include_str!("security/wave26/008.q");
+    for body in ["  w = walls[wall] ! else MISSING\n  update walls[wall] {stage:w.stage}","  w = walls[wall] ! else MISSING\n  require w.stage = 'finish' else STAGE\n  update walls[wall] {stage:'finish'}"]{let source=source.to_string()+"\nmutation copyWall(wall: walls):\n"+body+"\n";let cs=security::derived::invariants(&sources(&source),&bound(&source));assert!(cs.iter().any(|i|i.site.file.contains("child-stage")),"{body}");}
+}
+#[test]fn unresolved_row_selection_has_an_explicit_inference_gap(){
+    let source="table docs:\n  approved: bool default false\n  read <- allow\n  update <- allow\n  online only\nmutation approve(doc: docs,other: docs,flag: bool):\n  d = choose(doc,other,flag)\n  update d {approved:true}\nfn choose(doc: docs,other: docs,flag: bool):\n  if flag:\n    return docs[doc] ! else MISSING\n  return docs[other] ! else MISSING\n";let b=bound(source);let gaps=security::source_inference_gaps(&sources(source),&b);assert!(gaps.iter().any(|gap|gap.contains("unresolved write target")&&gap.contains("update TABLE[key]")),"{gaps:?}");let _=security::derived::augmented(&sources(source),&b);
+}

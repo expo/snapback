@@ -121,6 +121,7 @@ pub fn test(options: &Options) -> i32 {
     }
     let security_campaign=snapback4_lang::security::challenges::run_selected_after(&bound,None,security_campaign);
     let mut security_campaign=security_campaign;
+    security_campaign.unsupported.extend(snapback4_lang::security::source_inference_gaps(&sources,&bound));
     for gap in &security_campaign.evaluation_unknowns {println!("security invariant NOT EVALUATED on a visited image: {gap}");}
     println!("security runtime evaluation: {} unknown judgments (target and source site listed above)",security_campaign.evaluation_unknowns.len());
     let security_http_ok=security::unauthenticated(&project,&bound,&sources);

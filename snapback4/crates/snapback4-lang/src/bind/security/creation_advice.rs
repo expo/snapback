@@ -79,6 +79,19 @@ fn condition_parts(condition:&Expr,code:&str,catalog:&Catalog)->Vec<Expr>{
     if code=="$advice:implication"&&private_unknown(condition,catalog){return Vec::new();}
     conjunction(condition).into_iter().filter_map(|condition|known_condition(condition,catalog)).collect()
 }
+pub(super) fn known_impossible(p:&ast::ProgramDecl,catalog:&Catalog)->bool{
+    let names=caller_names(p);let mut facts=BTreeMap::new();
+    // Source applicability may depend on opaque data. Only contradictions over
+    // immutable caller arguments or literal false can remove an effect.
+    for _ in 0..=p.body.len(){let before=facts.clone();
+        for condition in conditions(p){let condition=apply_facts(condition,&facts,&names);
+            for part in conjunction(&condition){if matches!(part,Expr::Literal{value:ast::Literal::Bool(false),..}){return true;}if private_unknown(part,catalog){continue;}
+                let mut ambient=false;walk(part,|e|if matches!(e,Expr::Name{name,..} if name=="viewer"||name=="now"){ambient=true;});if ambient{continue;}
+                if let Some((key,value))=predicate_fact(part,&names)&&facts.insert(key,value).is_some_and(|old|old!=value){return true;}
+            }
+        }if facts==before{break;}
+    }false
+}
 fn effective_conditions(p:&ast::ProgramDecl,catalog:&Catalog)->Vec<Expr>{let Some(facts)=context_facts(p,catalog)else{return vec![Expr::Literal{value:ast::Literal::Bool(false),site:p.site.clone()}];};let names=caller_names(p);p.body.iter().filter_map(|stmt|if let Stmt::Require{condition,code,..}=stmt{Some((condition,code))}else{None}).flat_map(|(condition,code)|condition_parts(&apply_facts(condition,&facts,&names),code,catalog)).collect()}
 
 fn reads(e:&Expr)->BTreeSet<String>{let mut out=BTreeSet::new();walk(e,|e|match e{Expr::Read(r)|Expr::Exists{read:r,..}=>{out.insert(r.table.clone());},_=>{}});out}

@@ -396,6 +396,17 @@
       ],
       "classification": "genuine review gate",
       "reason": "Declared approval is recorded without a matching governed effect. S1 intentionally requires an individual enforce-or-informational decision; this is a genuine review question, not a claim that every unused record is an exploit."
+    },
+    {
+      "wave": 26,
+      "lane": "037-snapback-bespoke-shoe-commissions",
+      "code": "N_APPROVAL_NOT_ENFORCED",
+      "site": "schema.q:101:5",
+      "messages": [
+        "pairs.remakeApproved: approval is recorded but no lifecycle effect inspects it; is this an informational record or a required approval?"
+      ],
+      "classification": "genuine individual specification decision",
+      "reason": "approveRemake writes pairs.remakeApproved through a row alias; advanceStatus and the other lifecycle effects do not inspect it. Displaying it in a query is not enforcement. Require it before a governed effect, or individually acknowledge the informational record. Source regression: security/sec10-controls/w26-037.q."
     }
   ]
 }

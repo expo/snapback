@@ -255,7 +255,10 @@ fn blockers(bound:&Bound,inv:&Invariant)->Vec<String> {
     out.into_iter().collect()
 }
 
+#[doc(hidden)]
+pub fn source_inference_gaps(sources:&[(String,String)],bound:&Bound)->BTreeSet<String>{authority_walk::source_gaps(sources,bound)}
 pub fn add_source_notes(report:&mut Report,sources:&[(String,String)],bound:&Bound){
+    report.campaign_coverage.extend(source_inference_gaps(sources,bound));
     report.notes.extend(lints::source_notes(sources,bound));
     report.notes.extend(write_advice::notes(sources,bound));
     report.notes.extend(creation_advice::notes(sources,bound));

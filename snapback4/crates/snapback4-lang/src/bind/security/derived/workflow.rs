@@ -332,7 +332,8 @@ fn lifecycle(writes:&[(&ast::ProgramDecl,Expr,ast::ProgramDecl)],bound:&Bound,ou
                     // Parent operations are the coupling being checked; their
                     // incidental child writes cannot redefine or hide the
                     // independent child lifecycle's terminal stage.
-                    let Expr::Write{fields,..}=w else{continue;};let Some(state)=fields.iter().find(|f|f.name==child_state.name)else{continue;};
+                    let Expr::Write{fields,keys,..}=w else{continue;};let Some(state)=fields.iter().find(|f|f.name==child_state.name)else{continue;};
+                    if matches!(state.value.as_ref(),Some(Expr::Member{base,name,..}) if name==&child_state.name&&same_resource(base,child,keys,p)){continue;}
                     if writes.iter().any(|(producer,effect,_)|std::ptr::eq(*producer,*p)&&matches!(effect,Expr::Write{op:WriteOp::Update,table:t,fields,..} if t==parent&&state_field(bound,parent,fields).is_some_and(|field|field.name==parent_state.name))){
                         if let Some(value)=&state.value{coupled.extend(literals(value));}else{ambiguous=true;}continue;
                     }
@@ -344,6 +345,7 @@ fn lifecycle(writes:&[(&ast::ProgramDecl,Expr,ast::ProgramDecl)],bound:&Bound,ou
                         let reset=matches!(&state.value,Some(Expr::Literal{value:ast::Literal::Str(value),..}) if bound.schema.tables[child].defaults.get(&child_state.name).is_some_and(|d|d.value(challenges::NOW,"$derived")==snapback4_core::Value::String(value.clone())));
                         if reset{continue;}ambiguous=true;break;
                     }
+                    let sources=source_states(&requirements,bound,child,&child_state.name);if !sources.is_empty()&&sources.iter().all(|source|!changes_from(p,w,bound,child,&child_state.name,source)){continue;}
                     if let Some(value)=&state.value{assigned.extend(literals(value));}
                     from.extend(source_states(&requirements,bound,child,&child_state.name).into_iter().filter(|source|changes_from(p,w,bound,child,&child_state.name,source)));
                 }

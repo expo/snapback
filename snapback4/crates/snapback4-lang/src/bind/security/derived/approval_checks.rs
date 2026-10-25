@@ -3,7 +3,7 @@
 use super::*;
 use snapback4_core::Value;
 #[derive(Clone)]struct Clause{columns:BTreeSet<String>,predicate:Option<ast::Expr>}
-#[derive(Clone)]pub(crate) struct ApprovalCheck{clauses:Vec<Clause>,bindings:BTreeMap<String,String>,selectors:Vec<Option<ast::Expr>>}
+#[derive(Clone)]pub(crate) struct ApprovalCheck{complete:bool,clauses:Vec<Clause>,bindings:BTreeMap<String,String>,selectors:Vec<Option<ast::Expr>>}
 const ARG:&str="$approval-arg:";
 fn walk(e:&ast::Expr,mut visit:impl FnMut(&ast::Expr)){let mut e=e.clone();super::super::super::intent_walk::expression(&mut e,&mut |e|visit(e));}
 fn clauses(e:&ast::Expr)->Vec<&ast::Expr>{match e{ast::Expr::Binary{op,left,right,..} if op=="and"=>clauses(left).into_iter().chain(clauses(right)).collect(),_=>vec![e]}}
@@ -41,7 +41,7 @@ pub(super) fn collect(sources:&[(String,String)],bound:&Bound)->BTreeMap<(String
                 let mut stable=true;walk(condition,|e|if matches!(e,ast::Expr::Read(_)|ast::Expr::Member{..}|ast::Expr::Exists{..}){stable=false;});
                 if stable{workflow::normalize(condition,&bound.schema,table,&arguments)}else{None}
             }).collect();
-            let invocation=ApprovalCheck{clauses:checks,bindings,selectors};
+            let complete=!context.body.iter().any(|stmt|matches!(stmt,ast::Stmt::Require{code,..} if code=="$advice:cut"));let invocation=ApprovalCheck{complete,clauses:checks,bindings,selectors};
             for stamp in target.columns.keys().filter(|stamp|["approv","authoriz"].iter().any(|part|stamp.to_lowercase().contains(part))){
                 out.entry((program.clone(),table.clone(),stamp.clone(),site.to_string())).or_default().push(invocation.clone());
             }
@@ -59,6 +59,7 @@ pub(crate) fn revalidated(bound:&Bound,program:&str,table:&str,stamp:&str,site:O
         if invocation.bindings.iter().any(|(column,arg)|args.get(arg).is_some_and(|value|cell(next,column)!=*value)){continue;}
         if checks.len()>1&&invocation.selectors.iter().any(|selector|selector.as_ref().and_then(|selector|super::super::concrete::evaluate(selector,&image,rows,&bound.schema,viewer,table,now))==Some(false)){continue;}
         let verdict=(||{
+    if !invocation.complete{return None;}
     let mut unknown=false;
     for column in columns.iter().filter(|column|cell(old,column)!=cell(next,column)){
         // Atomic consumption of another approval is not ordinary replacement
@@ -76,6 +77,14 @@ pub(crate) fn revalidated(bound:&Bound,program:&str,table:&str,stamp:&str,site:O
 }
 
 #[cfg(test)]mod inline_checks{use super::*;
+#[test]fn truncated_helper_requirements_are_unknown_not_unchecked(){
+    use snapback4_core::value::object;
+    let source=format!("table docs:\n  payload: int\n  approved: bool default false\n  read <- allow\n  update <- allow\n  online only\nmutation approve(doc: docs):\n  d = docs[doc] ! else MISSING\n  require d.payload > 0 else INVALID\n  update docs[doc] {{approved:true}}\nmutation replace(doc: docs,value: int):\n  update docs[doc] {{payload:checked(value),approved:true}}\nfn checked(value: int):\n  require {}c(value) else INVALID\n  return value\nfn c(value: int):\n  require value > 0 else INVALID\n  return true\n","not ".repeat(36));
+    let sources=vec![("schema.q".into(),source)];let b=crate::compile(&sources);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);let b=super::super::augmented(&sources,&b);let site=b.security_approval_checks.keys().find(|key|key.0=="replace"&&key.2=="approved").unwrap().3.clone();
+    let old=object([("id",Value::Id("d".into())),("payload",Value::Int(0)),("approved",Value::Bool(true))]);let next=object([("id",Value::Id("d".into())),("payload",Value::Int(1)),("approved",Value::Bool(true))]);let args=BTreeMap::from([("doc".into(),Value::Id("d".into())),("value".into(),Value::Int(1))]);
+    assert_eq!(revalidated(&b,"replace","docs","approved",Some(&site),&old,&next,&BTreeSet::from(["payload".into()]),&BTreeMap::new(),"actor",0,&args),None);
+    assert!(crate::security::source_inference_gaps(&sources,&b).iter().any(|gap|gap.contains("helper guard scan cut")));
+}
 #[test]fn actual_write_boundary_retains_key_and_field_helper_requirements(){
     use snapback4_core::value::object;
     let source="table docs:\n  payload: int\n  approved: bool default false\n  read <- allow\n  update <- allow\n  online only\nmutation approve(doc: docs):\n  d = docs[doc] ! else MISSING\n  require d.payload > 0 else INVALID\n  update docs[doc] {approved:true}\nmutation replace(doc: docs,value: int):\n  update docs[KEY] {payload:FIELD,approved:true}\nfn checked(value: int):\n  require value > 0 else INVALID\n  return value\nfn checkedDoc(doc: docs,value: int):\n  require value > 0 else INVALID\n  return doc\n";
