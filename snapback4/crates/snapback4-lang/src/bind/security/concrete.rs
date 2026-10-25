@@ -29,14 +29,22 @@ pub(super) fn value(e:&Expr,row:&Value,rows:&Rows,schema:&Schema,viewer:&str,tab
         Value::Bool(if a==Some(decisive)||b==Some(decisive){decisive}else if a.is_some()&&b.is_some(){and}else{return None;})
     },
     Expr::Binary{op,left,right,..}=>{
-        let a=value(left,row,rows,schema,viewer,table,now)?;let b=value(right,row,rows,schema,viewer,table,now)?;
+        let mut a=value(left,row,rows,schema,viewer,table,now)?;let mut b=value(right,row,rows,schema,viewer,table,now)?;
+        // @ref LLP 3000.036.004.000#12-wave-28-inference-and-visible-evidence — only viewer supplies this known principal context.
+        // Viewer has a fixed principal type, so these literals have the same
+        // contextual type as at the executed compiler boundary. Other mixed
+        // id/text comparisons remain unknown rather than host-string equality.
+        if matches!(op.as_str(),"="|"!="){
+            if matches!(left.as_ref(),Expr::Name{name,..} if name=="viewer")&&let Expr::Literal{value:Literal::Str(id),..}=right.as_ref(){b=Value::Id(id.clone());}
+            if matches!(right.as_ref(),Expr::Name{name,..} if name=="viewer")&&let Expr::Literal{value:Literal::Str(id),..}=left.as_ref(){a=Value::Id(id.clone());}
+        }
         if matches!(op.as_str(),"+"|"-"|"*") {
             let (Value::Int(a),Value::Int(b))=(a,b)else{return None;};
             let n=match op.as_str(){"+"=>i128::from(a)+i128::from(b),"-"=>i128::from(a)-i128::from(b),_=>i128::from(a)*i128::from(b)};
             return Value::int(n).ok();
         }
         // The binder contextually types principal/id literals. This partial
-        // evaluator refuses that coercion rather than using host strings.
+        // evaluator refuses other coercions rather than using host strings.
         if !matches!((&a,&b),(Value::Id(_),Value::Id(_))|(Value::String(_),Value::String(_))|(Value::Int(_),Value::Int(_))|(Value::Bool(_),Value::Bool(_))|(Value::Null,_)|(_,Value::Null)){return None;}
         Value::Bool(match op.as_str(){"="=>a==b,"!="=>a!=b,"<"|"<="|">"|">="=>if let (Value::Int(a),Value::Int(b))=(a,b){match op.as_str(){"<"=>a<b,"<="=>a<=b,">"=>a>b,_=>a>=b}}else{return None;},_=>return None})
     },
@@ -131,6 +139,12 @@ fn logical_live(schema:&Schema,rows:&Rows,table:&str,row:&Value,now:i64,depth:us
 #[cfg(test)]mod tests{
     use super::*;
     use snapback4_core::value::object;
+    #[test]fn viewer_literals_have_principal_context_without_generic_id_coercion(){
+        let source="table docs:\n  owner: principal\n  read <- allow\n  online only\n";let b=crate::compile(&[("schema.q".into(),source.into())]);assert!(b.diagnostics.is_empty());let row=object([("id",Value::Id("d".into())),("owner",Value::Id("service:owner".into()))]);
+        let expr=|text:&str|{let(doc,errors)=crate::parse_document("expr.q",&format!("query condition():\n  return {text}\n"));assert!(errors.is_empty());let ast::Stmt::Return{value,..}=&doc.programs[0].body[0]else{panic!()};value.clone()};
+        for text in ["viewer = 'service:owner'","'service:owner' = viewer","not (viewer != 'service:owner')"]{assert_eq!(evaluate(&expr(text),&row,&BTreeMap::new(),&b.schema,"service:owner","docs",0),Some(true));assert_eq!(evaluate(&expr(text),&row,&BTreeMap::new(),&b.schema,"account:other","docs",0),Some(false));}
+        let expression=expr(".owner = 'service:owner'");assert_eq!(evaluate(&expression,&row,&BTreeMap::new(),&b.schema,"service:owner","docs",0),None);assert!(limitations(&expression,&b.schema,"docs").iter().any(|s|s.contains("coercion")));
+    }
     #[test]fn sum_reference_hops_use_the_population_element_type(){
         let source="table projectOwners:\n  limit: int\n  read <- allow\n  online only\ntable itemOwners:\n  limit: int\n  read <- allow\n  online only\ntable projects:\n  owner: projectOwners\n  read <- allow\n  online only\ntable items:\n  project: projects\n  owner: itemOwners\n  read <- allow\n  online only\ninvariant projects always sum(items[project = .id], .owner.limit) = 7\n";
         let b=crate::compile(&[("schema.q".into(),source.into())]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);

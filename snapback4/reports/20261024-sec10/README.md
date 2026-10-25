@@ -1,5 +1,15 @@
 # SEC10 — structural approval inference
 
+Current wave-28 follow-up is governed by LLP 3000.036.004.000 §12. The
+completed qualification, immutable native identities, wave-15–28 survey,
+unloaded timing and affected receipt are recorded in
+[WORKSTREAM-REPORT.md](../../../WORKSTREAM-REPORT.md). The snapshots below are
+historical evidence, not the current qualification. Wave-28 hardens text
+minimum/trim semantics and preserves recursive stored text-list constraints;
+its qualification includes actual predecessor-store repair, device/Wasm parity
+and the required Lean/native 2k campaigns. It supersedes the older statements
+below that language/store semantics did not change.
+
 This committed evidence snapshot measures semantic revision `ab8734c07e9f238bdbf877f44066407d64edd550`, independently marked READY by Muse and a fresh Codex session. [Review provenance](../../../llp/reviews/3000.036.004.000-sec10-r52.provenance.json) binds the verbatim reviews, brief and frozen delta. `origin/main` through `4c6b386072` merged as `669cb5549d`. The incoming Postgres flights, group-collection scheduling and reader-factory work left SEC10 inference/replay code unchanged. The final affected receipt covers the integrated branch; the recorded native evidence remains bound to its frozen SEC10 source and default SQLite profile. Product version remains 0.4.40, with visible changes recorded under 0.4.41 / Guide changes.
 
 

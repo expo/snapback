@@ -461,15 +461,18 @@ pub(super) fn lifecycle_observers_to(bound:&Bound,fixture:&Engine,out:&mut Campa
         out.unsupported.insert("directed lifecycle needs a populated resource root; generated initialization and breadth retain bootstraps, longer empty-start histories remain uncovered".into());return;
     }
     let actors=actors(bound,&initial);
+    let identity_policies=serde_json::to_string(&bound.invariants).unwrap();
+    let named_actors=actors.iter().filter(|actor|identity_policies.contains(&serde_json::to_string(actor).unwrap())).cloned().collect::<BTreeSet<_>>();
     if !out.reserve(1){return;}
     let Ok(root)=fixture.fork_fixture()else{return;};
     let mut frontier=vec![(root,Vec::<Step>::new())];
-    fn signature(bound:&Bound,rows:&BTreeMap<String,Vec<Value>>)->String{
+    let signature_fields=bound.security_approval_inputs.iter().flat_map(|((table,_),columns)|columns.iter().map(move |column|(table.clone(),column.clone()))).chain(interesting.iter().filter_map(|inv|inv.column.as_ref().map(|column|(inv.table.clone(),column.clone())))).collect::<BTreeSet<_>>();
+    fn signature(bound:&Bound,rows:&BTreeMap<String,Vec<Value>>,preserved:&BTreeSet<(String,String)>)->String{
         // Equality of this projection is only an exploration heuristic. Missing
         // worlds are explicitly uncovered; it never discharges an obligation.
-        let projected=rows.iter().map(|(name,rs)|{let t=&bound.schema.tables[name];let mut images=rs.iter().map(|r|t.columns.iter().filter(|(c,k)|c.as_str()!="id"&&(k.is_optional()||matches!(k.required(),C::Enum{..}|C::Bool|C::Principal|C::Ref{..}|C::Time))).filter_map(|(c,k)|r.field(c).ok().map(|v|(c.clone(),if k.is_optional()&&!matches!(k.required(),C::Enum{..}|C::Bool|C::Principal|C::Ref{..}|C::Time){Value::Bool(*v!=Value::Null)}else{v.clone()}))).collect::<BTreeMap<_,_>>()).collect::<Vec<_>>();images.sort_by_key(|r|serde_json::to_string(r).unwrap());(name.clone(),images)}).collect::<BTreeMap<_,_>>();serde_json::to_string(&projected).unwrap()
+        let projected=rows.iter().map(|(name,rs)|{let t=&bound.schema.tables[name];let mut images=rs.iter().map(|r|t.columns.iter().filter(|(c,k)|c.as_str()!="id"&&(preserved.contains(&(name.clone(),(*c).clone()))||k.is_optional()||matches!(k.required(),C::Enum{..}|C::Bool|C::Principal|C::Ref{..}|C::Time))).filter_map(|(c,k)|r.field(c).ok().map(|v|(c.clone(),if k.is_optional()&&!preserved.contains(&(name.clone(),c.clone()))&&!matches!(k.required(),C::Enum{..}|C::Bool|C::Principal|C::Ref{..}|C::Time){Value::Bool(*v!=Value::Null)}else{v.clone()}))).collect::<BTreeMap<_,_>>()).collect::<Vec<_>>();images.sort_by_key(|r|serde_json::to_string(r).unwrap());(name.clone(),images)}).collect::<BTreeMap<_,_>>();serde_json::to_string(&projected).unwrap()
     }
-    let mut seen=BTreeSet::from([signature(bound,&initial)]);
+    let mut seen=BTreeSet::from([signature(bound,&initial,&signature_fields)]);
     for _ in 0..12{
         let mut next=Vec::new();let frontier_count=frontier.len();
         for (base,steps) in frontier{
@@ -500,6 +503,7 @@ pub(super) fn lifecycle_observers_to(bound:&Bound,fixture:&Engine,out:&mut Campa
                         // branch. Ownership must not split one global role into
                         // both of the two retained actor classes.
                         if class.iter().any(|label|!label.starts_with("owns target ")){class.retain(|label|!label.starts_with("owns target "));}
+                        if named_actors.contains(actor){class.insert(format!("named policy principal {actor}"));}
                         if program_json.contains(&format!("\"{}\"",actor)){score+=8;}
                         (actor,score,class)
                     }).collect::<Vec<_>>();ordered.sort_by_key(|(_,score,_)|std::cmp::Reverse(*score));
@@ -531,7 +535,7 @@ pub(super) fn lifecycle_observers_to(bound:&Bound,fixture:&Engine,out:&mut Campa
                     }
                     if before==after{continue;}
                     out.sequences+=1;
-                    if !seen.insert(signature(bound,&after)){out.unsupported.insert("directed lifecycle signature merges worlds differing in non-status payload; remaining worlds uncovered".into());continue;}
+                    if !seen.insert(signature(bound,&after,&signature_fields)){out.unsupported.insert("directed lifecycle signature merges worlds differing in unselected payload; remaining worlds uncovered".into());continue;}
                     observe(bound,&mut engine,&after,&initial,&actors,&history,out);
                     column_reads::after_history(bound,&engine,&initial,&history,out);
                     if selected_sites.iter().all(|site|out.violations.iter().any(|v|&v.invariant_site==site&&v.reachability.is_reachable())){
@@ -561,7 +565,7 @@ pub(super) fn lifecycle_observers_to(bound:&Bound,fixture:&Engine,out:&mut Campa
                         let preferred=principal_preferences(bound,goal,&after);
                         progress+=preferred.iter().filter(|(name,_)|matches!(goal.args.get(*name),Some(ir::ArgType::Ref{..}))).map(|(_,ids)|ids.len().min(2)*40).sum::<usize>();
                     }
-                    let state_key=signature(bound,&after.iter().filter(|(name,_)|relevant.contains(*name)).map(|(name,rs)|(name.clone(),rs.clone())).collect());
+                    let state_key=signature(bound,&after.iter().filter(|(name,_)|relevant.contains(*name)).map(|(name,rs)|(name.clone(),rs.clone())).collect(),&signature_fields);
                     if successors.iter().any(|(_,_,_,key)|key==&state_key){out.unsupported.insert("directed successor diversity merges audit-only attribution variants; additional histories uncovered".into());continue;}
                     successors.push((engine,history,progress,state_key));
                     out.directed_peak_worlds=out.directed_peak_worlds.max(frontier_count+next.len()+successors.len()+1);

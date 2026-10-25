@@ -73,21 +73,22 @@ fn plain_field(expression:&ast::Expr)->bool {
     matches!(expression,ast::Expr::Name{..})||matches!(expression,ast::Expr::Member{base,..} if plain_row(base))
 }
 
-fn omit_preconditions(expression:&mut ast::Expr,negated:bool,stage:&impl Fn(&ast::Expr)->bool){
+fn omit_preconditions(expression:&mut ast::Expr,negated:bool,stage:&impl Fn(&ast::Expr)->bool){omit_conditions(expression,negated,stage,true)}
+fn omit_conditions(expression:&mut ast::Expr,negated:bool,stage:&impl Fn(&ast::Expr)->bool,remove_absence:bool){
     match expression {
-        ast::Expr::Unary{op,value,..} if op=="not"=>omit_preconditions(value,!negated,stage),
+        ast::Expr::Unary{op,value,..} if op=="not"=>omit_conditions(value,!negated,stage,remove_absence),
         ast::Expr::Binary{op,left,right,..} if matches!(op.as_str(),"and"|"or")=>{
-            omit_preconditions(left,negated,stage);omit_preconditions(right,negated,stage);
+            omit_conditions(left,negated,stage,remove_absence);omit_conditions(right,negated,stage,remove_absence);
         },
         ast::Expr::Binary{op,left,right,..} if matches!(op.as_str(),"="|"!=")&&(matches!(left.as_ref(),ast::Expr::Literal{value:ast::Literal::Bool(_),..})||matches!(right.as_ref(),ast::Expr::Literal{value:ast::Literal::Bool(_),..}))=>{
-            if let ast::Expr::Literal{value:ast::Literal::Bool(value),..}=right.as_ref(){omit_preconditions(left,negated^((op=="=")!=*value),stage);}else if let ast::Expr::Literal{value:ast::Literal::Bool(value),..}=left.as_ref(){omit_preconditions(right,negated^((op=="=")!=*value),stage);}
+            if let ast::Expr::Literal{value:ast::Literal::Bool(value),..}=right.as_ref(){omit_conditions(left,negated^((op=="=")!=*value),stage,remove_absence);}else if let ast::Expr::Literal{value:ast::Literal::Bool(value),..}=left.as_ref(){omit_conditions(right,negated^((op=="=")!=*value),stage,remove_absence);}
         },
         ast::Expr::Binary{op,left,right,site}=>{
             let null=|e:&ast::Expr|matches!(e,ast::Expr::Literal{value:ast::Literal::Null,..});
             let discriminator_field=|field:&ast::Expr,value:&ast::Expr|plain_field(field)&&stage(field)&&matches!(value,ast::Expr::Literal{value:ast::Literal::Str(value),..} if !value.is_empty());
             let absence=(op=="="&&!negated||op=="!="&&negated)&&((null(left)&&plain_field(right))||(null(right)&&plain_field(left)));
             let discriminator=matches!(op.as_str(),"="|"!=")&&(discriminator_field(left,right)||discriminator_field(right,left));
-            if absence||discriminator{*expression=ast::Expr::Literal{value:ast::Literal::Bool(!negated),site:site.clone()};}
+            if remove_absence&&absence||discriminator{*expression=ast::Expr::Literal{value:ast::Literal::Bool(!negated),site:site.clone()};}
         },
         // Unknown expression contexts retain every dependency. They do not
         // justify erasing a potentially positive evidence inspection.
