@@ -42,7 +42,7 @@ fn inherited_placeholder_todo_snapshot_and_legacy_difference_are_named() {
     app.write("scripts/day2-proof.mjs",include_str!("../src/verbs/init/previous/day2-proof-0.4.30.mjs"));
     app.write("versions/v1/schema.q",&app.read("snapback/schema.q"));
     app.write("versions/v1.q","query old():\n  return true\n");
-    let out=app.run(&["check"]);assert!(out.status.success(),"{out:?}");
+    let out=app.run(&["check", "--review"]);assert!(out.status.success(),"{out:?}");
     let advice=String::from_utf8(out.stdout).unwrap()+&String::from_utf8(out.stderr).unwrap();
     for wanted in ["0.4.30 assert.fail", "todo snapshot", "sha256", "versions/v1.q differs from versions/v1/schema.q"] {assert!(advice.contains(wanted),"{wanted}: {advice}");}
     let saved=app.read("versions/v1/schema.q");
@@ -91,13 +91,13 @@ fn legacy_comparison_covers_non_schema_and_multi_module_snapshots() {
     let preview=app.ok(&["init","--adapt","--day2"]);
     assert!(preview.contains("versions/v1.q differs from versions/v1/main.q"),"{preview}");
     app.ok(&["init","--adapt","--day2","--apply"]);
-    let checked=app.ok(&["check"]);
+    let checked=app.ok(&["check", "--review"]);
     assert!(checked.contains("versions/v1.q differs from versions/v1/main.q"),"{checked}");
     assert_eq!(app.read("versions/v1/main.q"),current);
     app.write("versions/v1.q",current);
-    assert!(!app.ok(&["check"]).contains("versions/v1.q differs"));
+    assert!(!app.ok(&["check", "--review"]).contains("versions/v1.q differs"));
     app.write("versions/v1/extra.q","query other():\n  return true\n");
-    let multiple=app.ok(&["check"]);
+    let multiple=app.ok(&["check", "--review"]);
     assert!(multiple.contains("versions/v1.q differs") && multiple.contains("versions/v1/extra.q") && multiple.contains("versions/v1/main.q"),"{multiple}");
 }
 
@@ -107,14 +107,14 @@ fn recognized_older_native_helper_keeps_age_advice_across_a_sign_in_switch() {
     app.write("src/custom-smoke.ts","import './native-smoke';\n");
     app.write("snapback/schema.q",&app.read("snapback/schema.q").replace("use identity","use identity password"));
     app.write("src/native-smoke.ts",include_str!("../src/verbs/init/starter/previous/wave14/native-smoke.ts"));
-    for command in [&["check"][..],&["init","--adapt"][..]] {
+    for command in [&["check", "--review"][..],&["init","--adapt"][..]] {
         let text=app.ok(command);
         let line=text.lines().find(|line|line.contains("src/native-smoke.ts:") || line.contains("rewrite src/native-smoke.ts")).unwrap();
         assert!(line.contains("an older starter version") && line.contains("refresh also updates its sign-in mode") && !line.contains("previous schema"),"{text}");
     }
     app.ok(&["init","--adapt","--apply"]);
     assert!(app.read("src/native-smoke.ts").contains("smokeAccount"));
-    assert!(!app.ok(&["check"]).contains("src/native-smoke.ts:"));
+    assert!(!app.ok(&["check", "--review"]).contains("src/native-smoke.ts:"));
 }
 
 #[test]

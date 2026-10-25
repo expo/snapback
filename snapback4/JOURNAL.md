@@ -108422,3 +108422,45 @@ living, no recorded zombie, and no process executing this worktree's target
 binaries. Minimum observed free space is **35.471 GiB**, final audit
 **53.595 GiB**, above the commissioned 30 GiB stop floor. No push, stash or
 Git configuration change occurs. **PIDs left: none.**
+
+
+## 2026-10-25 — DX11: quiet checks and witnessed decisions
+
+Wave 28 asked for successful check output to stop competing with application
+work. Default check now prints its verdict and the bounded language-enforcement
+facts; advisory questions and compiler notes require --review. Pending gates
+still print their individual commands. On copies of all fifty wave-28 schemas,
+0.4.41 measured 38 median lines / 5300 characters; DX11 measures two lines.
+The available SEC10 release measured 58 lines / 9703 characters; feeding its
+structured reports through DX11's production rendering retains all nine gate
+outcomes and gives two median lines. No SEC10 gate semantics changed.
+
+Canonical source notes remove campaign-dependent duplicate ordinals. sec11-1
+keeps semantic dependency bindings, atomic repeated/comma-separated decisions
+and historical audience aliases that never absorb new members. Generated-only,
+redacted witness records exercise 011 F1/F2 and 019 F1, including an actual
+dispatcher balance edit from 54321 to zero. Authored refutations still refuse
+acknowledgment. Private diagnostics identify column grants without re-probing
+and explain caller-filtered rows without adding information to public replies.
+LLP 3000.036.004 §19 and its three Muse/fresh-Codex review rounds govern the
+change. Qualification and limitations are in the DX11 workstream report.
+
+
+## 2026-10-25 — DX11: client shapes and proof-loop reachability
+
+usePage now projects loading and why without discarding its combined read's
+freshness/completeness. The short client card stays within its existing
+114-line/1200-word budget; the linked reference spells out observation and
+asset result shapes. A schema-first React check points to the pinned starter.
+Expo starters include a web/native image picker and its pinned dependency.
+Upload admission refusals explain sequential batches and bounded Retry-After.
+Clock advance and redeploy expose the retained staging offset; the proof text
+card states its on-screen-only rule. Password starters expose probe:check,
+which drives the actual npm probe through serve-check in an owned temporary
+deployment and observes group shutdown/store release before cleanup.
+
+Installed tarballs passed typecheck, build and frontend proof for Expo, password
+web and password Expo. Packed probe:check and a real Chromium file selection
+passed. A copy of wave-28 lane 018 passed advance, redeploy and clock-retaining
+restart. Mac/device execution is skipped by this Linux workstream's brief.
+The 0.4.42 changes card entry records the surface; no version was bumped.

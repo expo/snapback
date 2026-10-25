@@ -1,0 +1,278 @@
+{
+  "N_SECURITY_INTENT": {
+    "code": "N_SECURITY_INTENT",
+    "guide": "security",
+    "mechanical": false,
+    "message": "1 tables have access rules and no security invariants: roles; declare the spec's privacy rules as invariants (`guide security`)",
+    "rewrite": "review snapback/generated/security-invariants.q.draft against the spec; candidates are never auto-accepted",
+    "site": {
+      "col": 1,
+      "file": "schema.q",
+      "line": 1
+    }
+  },
+  "N_ARGUMENT_GRANT": {
+    "code": "N_ARGUMENT_GRANT",
+    "guide": "security",
+    "mechanical": false,
+    "message": "provision writes argument principal straight into reader-grant column roles.principal",
+    "rewrite": "require the chosen principal's current role and relationship before granting access; caller authority alone does not validate the recipient",
+    "site": {
+      "col": 10,
+      "file": "schema.q",
+      "line": 61
+    }
+  },
+  "N_ROLE_WIDE_WRITE": {
+    "code": "N_ROLE_WIDE_WRITE",
+    "guide": "security",
+    "mechanical": false,
+    "message": "approveOutside: may any admitted role write any claims row and record themselves? Does the spec mean owner of THIS resource?",
+    "rewrite": "model the resource-to-owner principal/reference relationship and require it for this row; a global owner role is not ownership of every resource",
+    "site": {
+      "col": 3,
+      "file": "schema.q",
+      "line": 126
+    }
+  },
+  "N_EDIT_AFTER_APPROVAL": {
+    "code": "N_EDIT_AFTER_APPROVAL",
+    "guide": "security",
+    "mechanical": false,
+    "message": "approveWorkshop: visits.status can change without a lifecycle/approval condition; should approved evidence or checked values remain editable?",
+    "rewrite": "declare column update intent for approved states or authorized reapproval; to freeze this value use `immutable status when <approved-state-policy>`; enforce replacement as well as removal, then test approve -> edit",
+    "site": {
+      "col": 3,
+      "file": "schema.q",
+      "line": 122
+    }
+  },
+  "N_TEXT_EVIDENCE": {
+    "code": "N_TEXT_EVIDENCE",
+    "guide": "security",
+    "mechanical": false,
+    "message": "jobs.photo2: text names photo/scan/sketch evidence; is verified uploaded media required, or is this deliberately a text reference?",
+    "rewrite": "use an `image` column and image argument for verified, owner-bound uploads; make it required at the governed boundary so the upload gate can check it; retain text only for an intentional reference",
+    "site": {
+      "col": 3,
+      "file": "schema.q",
+      "line": 45
+    }
+  },
+  "N_COLUMN_RESULT_EXPOSURE": {
+    "code": "N_COLUMN_RESULT_EXPOSURE",
+    "guide": "security",
+    "mechanical": false,
+    "message": "roles: provision at schema.q:59:1: return/write result observes principal (omitted by allGenerators, myVisits, routeBoard); myRole at schema.q:125:1: return/write result observes principal (omitted by allGenerators, myVisits, routeBoard); row audience: .principal = viewer or exists roles[viewer, role = 'scheduler'] or exists roles[viewer, role = 'headtech']",
+    "rewrite": "confirm each operation's result/refusal audience from the spec; a query projection alone is not privacy. Use column read rules and independent intent; run snapback4 test",
+    "site": {
+      "col": 1,
+      "file": "schema.q",
+      "line": 59
+    }
+  },
+  "N_INVARIANT_RESTATES_RULE": {
+    "code": "N_INVARIANT_RESTATES_RULE",
+    "guide": "security",
+    "mechanical": false,
+    "message": "visits.insert matches or weakens current enforcement. May any roles.role = 'scheduler' write any visits row, or only the owner of THIS resource? Rule visits.insert admits roles.role = 'scheduler' under `exists roles[viewer, role = 'scheduler']` (no row relationship or lifecycle condition in this branch). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state?",
+    "rewrite": "answer each audience question from the app specification; keep confirmed intent, and narrow unintended access in the rule. Review the per-role/per-column questionnaire in snapback/generated/security-invariants.q.draft; run check -> test -> audit",
+    "site": {
+      "col": 1,
+      "file": "schema.q",
+      "line": 157
+    }
+  },
+  "N_ROLE_WIDE_READ": {
+    "code": "N_ROLE_WIDE_READ",
+    "guide": "security",
+    "mechanical": false,
+    "message": "visits.read: roles.role='assistant' (`exists roles[viewer, role = 'assistant']`), roles.role='headtech' (`exists roles[viewer, role = 'headtech']`), roles.role='technician' (`exists roles[viewer, role = 'technician']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?",
+    "rewrite": "conjoin the intended resource relationship and lifecycle states in this rule, or publish a board/projection table",
+    "site": {
+      "col": 3,
+      "file": "schema.q",
+      "line": 52
+    }
+  },
+  "N_OPTIONAL_EVIDENCE": {
+    "code": "N_OPTIONAL_EVIDENCE",
+    "guide": "security",
+    "mechanical": false,
+    "message": "guitars.photo permits omitted or empty media evidence",
+    "rewrite": "if the spec requires evidence permanently, declare `invariant guitars always .photo != null`; for creation-only presence use `invariant guitars.insert only .photo != null`. Require the creating upload argument accordingly; otherwise record why optionality is intentional (guide security)",
+    "site": {
+      "col": 3,
+      "file": "schema.q",
+      "line": 38
+    }
+  },
+  "N_COLUMN_READ": {
+    "code": "N_COLUMN_READ",
+    "guide": "rule-recipes",
+    "mechanical": false,
+    "message": "invoices is a one-to-one extension of orders with a separate read audience; a field that only narrows visibility can use `field: type read <- policy` on orders",
+    "rewrite": "use a column rule for a private field; keep this table when it represents a separate entity or lifecycle",
+    "site": {
+      "col": 1,
+      "file": "schema.q",
+      "line": 65
+    }
+  },
+  "N_CHILD_EVIDENCE_PRESENCE": {
+    "code": "N_CHILD_EVIDENCE_PRESENCE",
+    "guide": "security",
+    "mechanical": false,
+    "message": "orders: transitions advanceOrder do not require attached fences[order = parent].permission; must a photo/file child exist before advancing? Text photo/URL fields are a name-based evidence question.",
+    "rewrite": "if the spec requires evidence, declare independent parent integrity intent such as `invariant orders always exists fences[order = .id]` (add the spec's draft-state exceptions); require the matching child at the governed boundary",
+    "site": {
+      "col": 5,
+      "file": "schema.q",
+      "line": 127
+    }
+  },
+  "N_DERIVED_WRITE_AUTHORITY": {
+    "code": "N_DERIVED_WRITE_AUTHORITY",
+    "guide": "security",
+    "mechanical": false,
+    "message": "jobs.status update: inferred effect prerequisite (.status != 'replaced' or (.requested = 'replace' or .replacementApproved)); judge before entering the selected destination, permitting atomic approval consumption; a replayed violation needs a specification decision",
+    "rewrite": "require the named approval/parent/child prerequisite before this governed effect, consume one-use guards atomically, or record this individual alternative path with check --ack-security ID --reason '<spec rationale>'",
+    "site": {
+      "col": 3,
+      "file": "$derived/sibling-approval/4b53db2a6c69799a3081e84ffa25d5bf5edbcbbb0977d7d9f86a8d46e8f9d133/schema.q",
+      "line": 74
+    }
+  },
+  "N_APPROVAL_INFORMATIONAL": {
+    "code": "N_APPROVAL_INFORMATIONAL",
+    "guide": "security",
+    "mechanical": false,
+    "message": "samples.approvedAt: informational record; no operation models the approved act, so there is no inferred pending-effect gate",
+    "rewrite": "acknowledge the external decision with check --ack-security ID --reason 'informational record: <spec rationale>'; if this application adds the governed act, require the matching approval there",
+    "site": {
+      "col": 10,
+      "file": "schema.q",
+      "line": 105
+    }
+  },
+  "N_GUARD_NOT_CONSUMED": {
+    "code": "N_GUARD_NOT_CONSUMED",
+    "guide": "security",
+    "mechanical": false,
+    "message": "advanceOrder: checks orders.fenceLine but leaves it unchanged while changing state; could repeating this transition reuse the same authorization?",
+    "rewrite": "if the guard represents one-use consent/payment, consume it atomically or require the source lifecycle state; declare intent and test repeated transitions",
+    "site": {
+      "col": 5,
+      "file": "schema.q",
+      "line": 133
+    }
+  },
+  "N_UNIQUE_HIDDEN": {
+    "code": "N_UNIQUE_HIDDEN",
+    "guide": "rules",
+    "mechanical": false,
+    "message": "samples: global unique order omits owner scope $order.customer; could a private-row conflict expose that another owner already holds this value?",
+    "rewrite": "include the owner in uniqueness when values are owner-scoped; for intentional global claims keep hidden conflicts generic and expose only a minimal availability projection",
+    "site": {
+      "col": 1,
+      "file": "schema.q",
+      "line": 43
+    }
+  },
+  "N_DEPENDENT_WINDOW": {
+    "code": "N_DEPENDENT_WINDOW",
+    "guide": "security",
+    "mechanical": false,
+    "message": "approveCourse: bounds courses.consentAt against now but does not compare dependent jobs.expiresAt; which deadline is the specification's window base? (name-based question)",
+    "rewrite": "compare the actual written deadline with the dependent resource's bound as well as server now; declare independent window intent and test the boundary",
+    "site": {
+      "col": 14,
+      "file": "schema.q",
+      "line": 157
+    }
+  },
+  "N_GRANT_OUTLIVES_ROLE": {
+    "code": "N_GRANT_OUTLIVES_ROLE",
+    "guide": "security",
+    "mechanical": false,
+    "message": "repairs.insert: `.owner = viewer and exists jobs[.job, owner = viewer, stage = 'completed']` trusts retained jobs grants that can survive role changes in roles; confirm whether current-role intent is required",
+    "rewrite": "recheck the current role in this branch or revoke every derived grant transactionally on role changes; guide security",
+    "site": {
+      "col": 3,
+      "file": "schema.q",
+      "line": 65
+    }
+  },
+  "N_CALLER_TIME": {
+    "code": "N_CALLER_TIME",
+    "guide": "security",
+    "mechanical": false,
+    "message": "approveExtension: caller time newDueAt is bounded on only one side of a stored anchor; does the window also forbid dates before/after that anchor?",
+    "rewrite": "require both the anchor's lower and upper window bounds before writing the supplied date; declare independent clock intent and test old and future dates",
+    "site": {
+      "col": 10,
+      "file": "schema.q",
+      "line": 158
+    }
+  },
+  "N_INSERT_WRITE_INTENT": {
+    "code": "N_INSERT_WRITE_INTENT",
+    "guide": "security",
+    "mechanical": false,
+    "message": "registerForOwner: generators.lastServiceAt can be supplied at insert/upsert without the edit restriction of markLoadRun: (exists roles[viewer, role = 'technician'] or exists roles[viewer, role = 'headtech']) and (exists roles[viewer, role = 'technician'] or exists roles[viewer, role = 'headtech']); creation admission: exists roles[viewer, role = 'scheduler'] and (.owner = viewer or exists roles[viewer, role = 'scheduler'])",
+    "rewrite": "declare `invariant generators.COLUMN update only (exists roles[viewer, role = 'technician'] or exists roles[viewer, role = 'headtech']) and (exists roles[viewer, role = 'technician'] or exists roles[viewer, role = 'headtech'])` for the named column to retain deliberate creation authority, or apply `COLUMN: <type> write <- (exists roles[viewer, role = 'technician'] or exists roles[viewer, role = 'headtech']) and (exists roles[viewer, role = 'technician'] or exists roles[viewer, role = 'headtech'])` at both boundaries; one decision also suffices: check --ack-security ID --reason '<spec rationale>'",
+    "site": {
+      "col": 10,
+      "file": "schema.q",
+      "line": 73
+    }
+  },
+  "N_MEDIA_PRIVATE_FIELDS": {
+    "code": "N_MEDIA_PRIVATE_FIELDS",
+    "guide": "security",
+    "mechanical": false,
+    "message": "jobs.stairs: media has a broader audience than gateCode, phone, quoteCents; can this scan expose those private fields?",
+    "rewrite": "apply the private audience to this media column too (`image read <- <policy>`; guide rule-recipes), or declare independent media read intent and test the broader audience",
+    "site": {
+      "col": 3,
+      "file": "schema.q",
+      "line": 26
+    }
+  },
+  "N_BROAD_READ": {
+    "code": "N_BROAD_READ",
+    "guide": "security",
+    "mechanical": false,
+    "message": "spawnings.read: branch `exists roles[viewer]` lets every roles member (roles: breeder, buyer, manager, staff) read every row, regardless of ownership",
+    "rewrite": "restrict this branch to the intended roles and row relationship; a query filter cannot narrow the table rule",
+    "site": {
+      "col": 3,
+      "file": "schema.q",
+      "line": 34
+    }
+  },
+  "N_STALE_CREATION_CHECK": {
+    "code": "N_STALE_CREATION_CHECK",
+    "guide": "security",
+    "mechanical": false,
+    "message": "visits: creation by openVisit at schema.q:82:10 checks mutable generators.lastServiceAt, but later state transition approveWorkshop at schema.q:122:3, markLoadRun at schema.q:104:3, markRepaired at schema.q:96:3, markTested at schema.q:89:3 does not recheck every column for the same applicant/resource",
+    "rewrite": "decide whether eligibility must remain current at this decision; recheck it or declare independent intent and test create -> eligibility change -> approval",
+    "site": {
+      "col": 3,
+      "file": "schema.q",
+      "line": 89
+    }
+  },
+  "N_CALENDAR_DURATION": {
+    "code": "N_CALENDAR_DURATION",
+    "guide": "security",
+    "mechanical": false,
+    "message": "issueReport: certificates.expiresAt uses 730d; does the spec mean fixed days or a calendar anniversary? Leap years differ. (duration question)",
+    "rewrite": "decide fixed-duration versus calendar-anniversary intent; compute an explicit calendar deadline outside Quarry when needed, validate its bounds and test a leap-year interval",
+    "site": {
+      "col": 10,
+      "file": "schema.q",
+      "line": 112
+    }
+  }
+}

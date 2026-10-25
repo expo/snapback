@@ -1184,6 +1184,9 @@ pub fn pinned_literals(prefix: &[Value]) -> Vec<IndexKeyExpr> {
 
 /// Something that can answer an `exists`/`created` probe while a rule runs.
 pub trait Probe {
+    /// Observe a failed conjunction member without evaluating it again.
+    #[cfg(feature = "sqlite")]
+    fn rejected_conjunct(&mut self, _rule:&RuleExpr) {}
     fn reference(&mut self, _table: &str, _id: &Value, _field: &str) -> Result<Option<Value>, crate::error::RuntimeError> { Ok(None) }
     /// Exact count-predicate transitions, distinct from ordinary witness expiry.
     fn take_changes(&mut self) -> Option<Vec<(i64, super::rules::Verdict)>> { None }
@@ -1285,6 +1288,8 @@ fn compound_timeline(terms: &[RuleExpr], conjunction: bool, viewer: &str, old: O
     let mut failed = None;
     for (index, term) in terms.iter().enumerate() {
         let part = timeline(term, viewer, old, next, created_allowed, probe)?;
+        #[cfg(feature = "sqlite")]
+        if conjunction && part.value == Verdict::Denied {probe.rejected_conjunct(term);}
         if failed.is_none() && part.value != Verdict::Readable { failed = Some(index); }
         answer = answer.combine(part, conjunction);
         // Preserve the original timeline traversal and its physical allowance.

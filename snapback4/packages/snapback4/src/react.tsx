@@ -275,6 +275,10 @@ export type UseQuery<O> = O extends Query<any, any> ? Read<ResultOf<O>> : never;
  * Guards take `page.read`; `matchRead` also accepts the whole page. */
 export interface PageHook<R extends readonly unknown[]> {
   items: R[number][];
+  /** True only while the combined read is loading. Partial/stale rows remain data. */
+  loading: boolean;
+  /** The combined read's refusal, or null. Completeness/freshness stay on read. */
+  why: Refusal | null;
   hasMore: boolean;
   read: Read<R>;
   loadMore: () => void;
@@ -300,7 +304,7 @@ export function usePage<A, R extends readonly unknown[]>(op: PagedQuery<A, R>, a
   const paged = op as Query<A & { c?: Cursor | null }, R>;
   const pages = useMemo(() => skip ? SKIPPED_PAGES : new Pages(client, paged, args as A & { c?: Cursor | null }, observeOptions(options)), [client, op, key, options?.keep, skip]); // eslint-disable-line react-hooks/exhaustive-deps
   const snapshot = useSyncExternalStore(pages.subscribe, pages.getSnapshot, pages.getSnapshot);
-  return { items: snapshot.items as R[number][], hasMore: snapshot.hasMore, read: snapshot.read as Read<R>, loadMore: pages.loadMore };
+  return { loading: "loading" in snapshot.read, why: "denied" in snapshot.read ? snapshot.read.denied : null, items: snapshot.items as R[number][], hasMore: snapshot.hasMore, read: snapshot.read as Read<R>, loadMore: pages.loadMore };
 }
 /** The page chain a skipped `usePage` holds: loading, no items, nothing to load. */
 const SKIPPED_PAGE_SNAPSHOT = { items: [] as never[], hasMore: false, read: LOADING };

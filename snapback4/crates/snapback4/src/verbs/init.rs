@@ -698,3 +698,14 @@ fn expo_core_derivation_removes_complete_server_declarations() {
     assert_eq!(core_expo_schema(&source), core);
     assert_eq!(core_expo_schema(&source.replace('\n', "\r\n")), core);
 }
+
+/// Discover the pinned starter even when the builder began with a schema.
+// @ref LLP 3000.036.004#19-wave-28-output-and-witness-decisions-dx11 — setup advice fits on the verdict line.
+pub(super) fn client_setup_hint(root: &Path) -> Option<&'static str> {
+    let package: serde_json::Value = serde_json::from_slice(&std::fs::read(root.join("package.json")).ok()?).ok()?;
+    let react = package["dependencies"]["react"].is_string() || package["devDependencies"]["react"].is_string();
+    let expo = package["dependencies"]["expo"].is_string();
+    let reference:serde_json::Value=serde_json::from_str(include_str!("../../../../apps/chat/package.json")).ok()?;
+    (react && !expo && (!package["scripts"]["probe:serve"].is_string() || package["devDependencies"]["vite"] != reference["devDependencies"]["vite"]))
+        .then_some("React setup: `snapback4 guide start` has the pinned starter and verification recipe (`init /tmp/my-starter --web`)")
+}

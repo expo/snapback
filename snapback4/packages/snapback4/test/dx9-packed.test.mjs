@@ -8,7 +8,7 @@ import { execFileSync, spawn } from 'node:child_process';
 import { once } from 'node:events';
 
 const root=resolve(import.meta.dirname,'../../..');
-test('DX9 packed staging recipe, password templates, task links and Quarry forms run literally', {timeout:300000}, async () => {
+test('DX9 packed staging recipe, password templates, task links and Quarry forms run literally', {timeout:600000}, async () => {
   const dir=mkdtempSync(join(tmpdir(),'sb4-dx9-packed-'));
   const env={...process.env,npm_config_cache:'/tmp/dx9-npm-cache'};
   delete env.SNAPBACK4_BIN;delete env.PORT_LO;delete env.PORT_HI;
@@ -41,6 +41,19 @@ test('DX9 packed staging recipe, password templates, task links and Quarry forms
     }
     const forms=fence(guide('programs'),'quarry').find(source=>source.includes('fn crewSize'));
     assert.ok(forms);writeFileSync(join(dir,'snapback/schema.q'),forms);run(cli,['check']);
+    // Run the security guide's source and decision commands through installed
+    // tarballs, including their shared flag registry and persisted bindings.
+    const securitySource=fence(guide('security'),'quarry')[0];
+    writeFileSync(join(dir,'snapback/schema.q'),securitySource);
+    assert.ok(run(cli,['check']).trim().split('\n').length<=5);
+    run(cli,['check','--review']);
+    const decisions=JSON.parse(run(cli,['check','--json'])).securityReviews;
+    assert.ok(decisions.length>0);
+    const ids=decisions.map(d=>d.id);
+    run(cli,['check','--ack-security',ids.join(','),'--reason','The specification intentionally grants only the patient access to these notes']);
+    writeFileSync(join(dir,'snapback/schema.q'),securitySource+'\nquery independent():\n  return true\n');
+    const retained=JSON.parse(run(cli,['check','--json'])).securityReviews;
+    assert.ok(ids.every(id=>retained.some(d=>d.id===id&&d.acknowledged===true)));
     // The starter detects the standard operator provision signature and seeds
     // every declared role with two real accounts; it never uses dev/status.
     writeFileSync(join(dir,'snapback/schema.q'),fence(staging,'quarry')[0]);
@@ -51,9 +64,14 @@ test('DX9 packed staging recipe, password templates, task links and Quarry forms
       const proof=readFileSync(join(app,'scripts/frontend-proof.mjs'),'utf8');
       assert.ok(proof.includes('startStaging')&&!proof.includes('/dev/status')&&!proof.includes('startDev('));
       if(flag==='--expo') {
+        assert.ok(readFileSync(join(app,'src/UploadPicker.tsx'),'utf8').includes('Platform.OS === \"web\"'));
         assert.match(readFileSync(join(app,'index.js'),'utf8'),/import App from/);
         assert.match(readFileSync(join(app,'App.tsx'),'utf8'),/export default function App/);
         assert.ok(JSON.parse(readFileSync(join(app,'package.json'))).devDependencies['@types/node']);
+      }
+      if(flag==='--web') {
+        const result=run('npm',['run','--silent','probe:check'],app);
+        assert.equal(JSON.parse(result).ok,true);
       }
       const child=spawn(process.execPath,['scripts/probe-serve.mjs'],{cwd:app,env,stdio:['ignore','pipe','pipe']});
       const closed=once(child,'close');let stdout='',stderr='';child.stdout.on('data',b=>stdout+=b);child.stderr.on('data',b=>stderr+=b);

@@ -456,7 +456,7 @@ const cases = {
       return null;
     }
     await mount(h(Probe, { id: null }), client);
-    check(read.loading === true && page.read.loading === true && page.items.length === 0 && page.hasMore === false, "skipped reads are loading with no items");
+    check(read.loading === true && page.loading === true && page.why === null && page.read.loading === true && page.items.length === 0 && page.hasMore === false, "skipped reads are loading with no items");
     check(client.records.length === 0, "a skipped hook opens no observation");
     page.loadMore();
     check(client.records.length === 0, "loadMore on a skipped page opens nothing");
@@ -837,7 +837,7 @@ ${assetRecoveryHarness}
     equal(latest.items, ["b", "c", "d", "e"], "deletion duplicates no boundary row");
     await act(async () => first.set(ready(["e", "a"], "a", { complete: false, cut: "words", fresh: false, since: 10 })));
     equal(latest.items, ["e", "a", "b", "c"], "reorder replaces the suffix");
-    check(!latest.read.complete && !latest.read.fresh && latest.read.since === 10, "combined state includes the earlier page");
+    check(!latest.loading && latest.why === null && !latest.read.complete && !latest.read.fresh && latest.read.since === 10, "combined state includes the earlier page");
     check(latest.read.cut === "words", "earlier page word cut survives aggregation");
     const second = active(client)[1];
     await act(async () => second.set(ready(["b", "c"], "c", { complete: false, cut: "meter" })));
@@ -919,6 +919,7 @@ ${assetRecoveryHarness}
       await settle(() => latest.page.items.length === 3 && latest.query.fresh);
       phase = "denied"; await act(async () => { await raw.mutate(mutation, {}); });
       await settle(() => latest.query.denied && latest.page.read.denied);
+      check(!latest.page.loading && latest.page.why === latest.page.read.denied, "page.why is the original typed refusal, not loading");
       check(!host.querySelector("input"), "a refusal replaces kept data");
       phase = "ready"; await act(async () => { await raw.mutate(mutation, {}); });
       await settle(() => latest.page.read.data && latest.query.data);

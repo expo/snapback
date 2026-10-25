@@ -159,6 +159,7 @@ pub fn command(options: &crate::verbs::Options) -> i32 {
                 .unwrap_or_else(|| "clock status unavailable".into());
             format!("clock advance reply failed at {address}: {error}; time may already have advanced ({evidence}); inspect /dev/status and queued work before retrying; for an isolated dev pass --port N")
         })?;
+        if let Some(message)=json["message"].as_str() {eprintln!("clock: {message}");}
         if let Some(notice) = json["sessionNotice"].as_str() { eprintln!("clock: {notice}"); }
         if let Some(held) = json["held"].as_array() {
             for schedule in held.iter().filter(|s| s["holdCode"] == "saved-boundary") {

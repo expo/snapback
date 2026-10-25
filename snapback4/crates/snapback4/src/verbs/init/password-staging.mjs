@@ -10,7 +10,7 @@ import { deploy, startServe } from "snapback4/proof";
 // For a custom provision signature, set args(account) as in guide staging.
 const seedUsers = SEED_PLAN;
 export async function startStaging(options = {}) {
-  const directory = mkdtempSync(join(tmpdir(), "snapback4-password-proof-"));
+  const directory = options.directory ?? mkdtempSync(join(tmpdir(), "snapback4-password-proof-"));
   const release = join(directory, "release");
   let host;
   try {
@@ -29,11 +29,11 @@ export async function startStaging(options = {}) {
     let stopped;
     return { ...host, directory, stop: () => stopped ??= (async () => {
       await stop(); // Reap the writer before removing its store.
-      rmSync(directory, { recursive: true, force: true });
+      if (!options.directory) rmSync(directory, { recursive: true, force: true });
     })() };
   } catch (error) {
     if (host) await host.stop();
-    rmSync(directory, { recursive: true, force: true });
+    if (!options.directory) rmSync(directory, { recursive: true, force: true });
     throw error;
   }
 }

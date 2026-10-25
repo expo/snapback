@@ -218,7 +218,7 @@ fn notes_stay_short_and_verbose_explains_each_code_once() {
         assert_eq!(bound.notes.len(), count);
         let explanation = bound.notes[0].explanation().unwrap();
         for verbose in [false, true] {
-            let output = p.run(if verbose { &["check", "--verbose"] } else { &["check"] });
+            let output = p.run(if verbose { &["check", "--verbose"] } else { &["check", "--review"] });
             assert!(output.status.success(), "{output:?}");
             let text = String::from_utf8(output.stdout).unwrap();
             // Repeats of a code share one line naming each query (wave 6 #25).
@@ -513,7 +513,7 @@ fn upsert_insert_proof_and_service_grants_reach_check_and_why() {
     let p = Project::new();
     p.source("table likes:\n  post: text <=30\n  principal: principal\n  on: bool\n  unique byPostPrincipal: post, principal\n  by byPrincipal: principal, post, id\n  read <- .principal = viewer or viewer = 'service:pusher'\n  insert <- .principal = viewer\n  update <- .principal = viewer\n  sync\nmutation vote(post: text <=30):\n  upsert likes[post, viewer] {on: true}\n");
     for (args, words) in [
-        (vec!["check", "--residency"], vec!["predicts: eligible", "upsert insert into likes: absence is provable when the group and insert image are held and readable", "service grants: service:pusher"]),
+        (vec!["check", "--residency", "--review"], vec!["predicts: eligible", "upsert insert into likes: absence is provable when the group and insert image are held and readable", "service grants: service:pusher"]),
         (vec!["why", "vote"], vec!["predicts: eligible", "upsert insert into likes: absence is provable when the group and insert image are held and readable"]),
         (vec!["why", "likes"], vec!["service grants: service:pusher"]),
     ] {
@@ -818,7 +818,7 @@ fn b2_every_check_summarizes_zero_one_and_three_never_mutations() {
         let source = if count == 1 { source[..source.find("mutation createPost").unwrap()].to_owned() } else { source };
         p.source(&source);
         for _ in 0..2 {
-            let output = p.run(&["check"]);
+            let output = p.run(&["check", "--review"]);
             assert!(output.status.success(), "{output:?}");
             let text = String::from_utf8(output.stdout).unwrap();
             println!("{text}");
@@ -855,7 +855,7 @@ fn b2_maintain_note_points_to_the_measured_cold_snapshot() {
     let table = &e.schema().tables["likes"];
     e.seed([( "l1", "p1"), ("l2", "p1"), ("l3", "p2")].map(|(id, post)| ("likes".into(), wire::row_from_json(table, &json!({"id":id,"postId":post,"owner":"alice"})).unwrap()))).unwrap();
     assert_eq!(e.store().count("likeCounts").unwrap(), 2);
-    let compact = p.run(&["check"]);
+    let compact = p.run(&["check", "--review"]);
     assert!(compact.status.success());
     let compact = String::from_utf8(compact.stdout).unwrap();
     assert!(compact.contains("N_MAINTAIN_SYNCED: no action for an online app. 2 synced maintains: likeCounts, ownerCounts."), "{compact}");
@@ -916,7 +916,7 @@ fn b2_l12_final_ranked_writes_and_entry_counts_remain_visible_in_json_and_text()
     let p = Project::new();
     p.source("table ranked:\n  score: int\n  read <- allow\n  insert <- allow\ntable entries:\n  postId: id\n  by byPost: postId, id\n  public 'feed'\n  sync\nmaintain entryCounts: count entries by postId\n  read <- allow\n  online only\nmutation repost(postId: id):\n  return entryCounts[postId]\nmutation like():\n  insert ranked { score: 1 }\nmutation createPost():\n  insert ranked { score: 0 }\n");
     let summary = "3 mutations are server-run (online app: no action): createPost (writes online-only table ranked), like (writes online-only table ranked), repost (reads online-only maintain entryCounts) — snapback4 why <op>";
-    for args in [vec!["check"], vec!["check", "--json"], vec!["check", "--residency"]] {
+    for args in [vec!["check", "--review"], vec!["check", "--json"], vec!["check", "--residency", "--review"]] {
         let output = p.run(&args);
         assert!(output.status.success(), "{output:?}");
         if args.contains(&"--json") { assert_eq!(parsed(&output)["predictionSummary"], summary); }
@@ -1054,7 +1054,7 @@ fn w9a_check_states_held_source_coverage_only_without_horizons() {
     let positive = "    horizon-free source coverage — all sources sync without a horizon; answer completeness still depends on runtime authorization and limits";
     for horizon in [false, true] {
         p.source(&if horizon { source.replacen("  sync\n", "  sync last 20 by byId\n", 1) } else { source.into() });
-        for args in [vec!["check", "--verbose"], vec!["check", "--cost"], vec!["check", "--residency"], vec!["why", "heldRows"]] {
+        for args in [vec!["check", "--verbose"], vec!["check", "--cost"], vec!["check", "--residency", "--review"], vec!["why", "heldRows"]] {
             let output = p.run(&args);
             assert!(output.status.success(), "{output:?}");
             let text = String::from_utf8_lossy(&output.stdout);
@@ -1694,7 +1694,7 @@ mod sql_objects;
 fn wave8_check_and_inherited_capped_cases_name_the_new_complete_parent_verdict() {
     let p = Project::new();
     p.source("use personas alice, bob\ntable parents:\n  owner: principal\n  immutable owner\n  read <- .owner = viewer\n  online only\ntable children:\n  parent: parents\n  author: principal\n  immutable parent, author\n  read <- .author = viewer or exists parents[.parent, owner = viewer]\n  online only\nfn historyPage(parent: parents, c: cursor ?):\n  return children where .parent = parent first 50 by .id after c\nquery history(parent: parents, c: cursor ?):\n  return historyPage(parent, c)\n");
-    let check = p.run(&["check"]); assert!(check.status.success(), "{check:?}");
+    let check = p.run(&["check", "--review"]); assert!(check.status.success(), "{check:?}");
     let text = String::from_utf8_lossy(&check.stdout);
     assert!(text.contains("N_CONDITIONAL_COMPLETE") && !text.contains("N_NEVER_COMPLETE"), "{text}");
     fs::create_dir_all(p.0.join("fixture")).unwrap();
@@ -1825,7 +1825,7 @@ fn w14_cascade_product_rewrite_precedes_verbose_reservation_evidence() {
 fn w14_conditional_completeness_default_names_the_query_and_missing_pin() {
     let p=Project::new();
     p.source("table owners:\n  principal: principal\n  unique principal\n  read <- .principal = viewer\n  online only\ntable docs:\n  owner: principal\n  n: int\n  read <- .owner = viewer or exists owners[viewer]\n  online only\nquery overview(c: cursor ?):\n  return docs where .n + 1 > 0 first 50 by .id after c\n");
-    let output=p.run(&["check"]);
+    let output=p.run(&["check", "--review"]);
     assert!(output.status.success(),"{output:?}");
     let text=String::from_utf8(output.stdout).unwrap();
     assert!(text.contains("rewrite for query overview:") && text.contains(".owner = viewer") && text.contains("proving absence or all matches needs complete: true"),"{text}");

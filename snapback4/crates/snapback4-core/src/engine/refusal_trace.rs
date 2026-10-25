@@ -50,7 +50,11 @@ impl Runner<'_> {
     fn record_clause(&self, table: &str, clause: &str, phase: &str, terminal: bool) {
         #[cfg(feature = "sqlite")]
         if let Some(trace) = &self.context.refusal_trace {
-            *trace.0.lock().unwrap_or_else(|e| e.into_inner()) = Some(RefusingClause {
+            let mut current=trace.0.lock().unwrap_or_else(|e| e.into_inner());
+            // A write can wrap a column grant refusal as an insert/update rule.
+            // Preserve its specific terminal cause through that public remapping.
+            if current.as_ref().is_some_and(|cause|cause.terminal && !matches!(cause.clause.as_str(),"insert rule"|"update rule") && (clause=="insert rule" || clause=="update rule" || !terminal)) {return;}
+            *current = Some(RefusingClause {
                 table: table.into(), viewer: self.context.viewer.clone(), clause: clause.into(), phase: phase.into(), terminal, no_candidate: false, site: self.statement_site.clone(), generation: self.context.generation,
             });
         }

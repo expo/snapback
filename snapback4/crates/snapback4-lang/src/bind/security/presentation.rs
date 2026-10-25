@@ -72,7 +72,8 @@ impl Report {
         for note in notes.iter().enumerate().filter_map(|(i,n)|
             (i < limit || note_priority(&n.code) <= 3).then_some(*n)) {
             shown += 1;
-            out.push_str(&format!("  DECISION {} {}: {}; is this intended?\n    Repair: {}\n    Intended: check --json for the source-bound decision ID; check --ack-security ID --reason '<spec rationale>'\n",note.site,note.code,note.message.trim_end_matches(['.', '?']),note.rewrite));
+            let message=if note.code=="N_INSERT_WRITE_INTENT"{note.message.replace("insert/upsert","insert, or edit an existing row via upsert")}else{note.message.clone()};
+            out.push_str(&format!("  DECISION {} {}: {}; is this intended?\n    Repair: {}\n    Intended: check --json for the source-bound decision ID; check --ack-security ID --reason '<spec rationale>'\n",note.site,note.code,message.trim_end_matches(['.', '?']),note.rewrite));
         }
         if shown < notes.len() { out.push_str(&format!("  {} more reviews: snapback4 audit --all or check --verbose\n", notes.len()-shown)); }
         let proved = self.invariants.iter().filter(|v| v.status == Status::Proved).count();

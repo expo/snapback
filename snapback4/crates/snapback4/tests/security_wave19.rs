@@ -52,7 +52,7 @@ fn rule_changing_deploy_preview_demands_a_campaign_and_prints_exposure(){
 fn all_escalation_locations_survive_the_default_five_note_cap(){
  let app=App::new();let mut source=String::new();
  for n in 0..7{source.push_str(&format!("table roles{n}:\n  principal: principal\n  role: enum('manager','guard')\n  unique principal\n  read <- allow\n  insert <- .principal = viewer\n  online only\ntable secrets{n}:\n  read <- exists roles{n}[viewer,role = 'manager']\n  online only\nmutation register{n}(role: enum('manager','guard')):\n  return insert roles{n} {{principal: viewer,role}}\n"));}
- app.write("snapback/schema.q",&source);let check=app.run(&["check"]);let body=text(&check);assert!(check.status.success(),"{body}");for n in 0..7{assert!(body.contains(&format!("register{n}: roles{n}")),"{body}");}assert!(body.contains("'manager'"),"{body}");
+ app.write("snapback/schema.q",&source);let check=app.run(&["check", "--review"]);let body=text(&check);assert!(check.status.success(),"{body}");for n in 0..7{assert!(body.contains(&format!("register{n}: roles{n}")),"{body}");}assert!(body.contains("'manager'"),"{body}");
 }
 
 #[cfg(unix)]

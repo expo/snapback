@@ -53,7 +53,7 @@ const APP_FILES: &[&str] = &[
     ".snapback4/dev-refusals/<storeId>/<instance>.json",
     "app/dm/[other].tsx", "app/conversation/[id].tsx", "src/Direct.tsx",
     "src/BoundedConversation.tsx", "src/PageLifetime.ts", "src/QuotedMessage.tsx",
-    "src/client.ts", "src/Inbox.tsx", "src/Thread.tsx", "src/witness.ts",
+    "src/UploadPicker.tsx", "src/client.ts", "src/Inbox.tsx", "src/Thread.tsx", "src/witness.ts",
     "about/index.html", "artifacts/native-smoke/smoke-ios-run.json", "artifacts/native-smoke/<timestamp>/smoke-ios-run.json",
     "snapback/organizations.q", "src/following.ts", "generated/residency.json",
     "api.ts", "server.ts", "schema.q", "m.q", "digest.q", "mail.q", "hooks.q",
