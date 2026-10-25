@@ -107726,3 +107726,55 @@ and Postgres 300 KiB, EV-2 and wire/meter parity journeys, plus ownership loss,
 SIGKILL takeover and the unchanged S1 application/recounts; its private cluster
 stops with status 3 and no pidfile. Complete final qualification, negative
 controls and the lane-wide PID audit are recorded in the following entry.
+
+### 2026-10-25 — FF3 fix round 1: final qualification and custody
+
+Final verification binds the implementation content in `f8e5b0f9ed`. The source
+is unchanged after the affected 31/0 catalog/movement and 60/0 paired evolution
+passes, apart from temporary, exactly reverted negative controls below.
+
+| Check | Passed | Failed | Ignored |
+| --- | ---: | ---: | ---: |
+| Full core, 49 targets | 1221 | 0 | 5 |
+| Full `snapback4` binary, eight libtest threads | 606 | 0 | 54 |
+| HTTP RT0 | 3 | 0 | 0 |
+| Overlay RT0 | 2 | 0 | 0 |
+| `bash scripts/test-postgres.sh`, 36 Rust scopes | 818 | 1 | 0 |
+| Restored-source FF3 focused suite | 15 | 0 | 0 |
+
+The sole final Postgres red is the inherited evaluator concurrent
+read/modify/write SQLSTATE `40001`; the unified/production arm passes. The full
+public CLI milestone passes, including its benign event-trigger inventory,
+owner-clock declaration with doctor-local activity unconfirmed, ownership loss,
+SIGKILL recovery, exact evolution, preserved/revoked changes, 300 KiB cases and
+unchanged S1 application/recounts. HTTP RT0 observes G6 W1/W2/W3 **0/0/0** flights,
+misses **1/1/1**, and revoked-grant G5 **1**.
+
+A default-concurrency binary pass first reported **605/1/54** at the already-open
+refusal-shutdown fixture's final writer-lock assertion. The unchanged exact case
+passes **1/0**, and the entire binary repeats **606/0/54** at eight libtest
+threads. Assertions and deadlines are unchanged; the existing
+`issues/20261018-sb4-refusal-shutdown-test-flake.md` receives this corroboration
+and stays Open. No cause or production lifecycle fix is claimed by this lane.
+
+Negative controls restore raw-byte equality plus the original restore-walk
+check, weaken final payload checks to count/presence, and expand the Postgres
+verification page to all 512 fixture rows. The compiled control suite reports
+**8 passed / 7 failed**: precisely the rename, escaped-key equality, lowered-timeout,
+and four same-count cell/narrowed corruption witnesses reject the controls.
+All three mutated source files are restored with SHA-256 identity and checked
+against the committed files. A fresh restored-source focused run passes **15/0**.
+The passing legal backfill, asset/home identity and rollback assertions remain
+part of that run; controls do not depend on disabling the fault injection.
+
+Root `./ref-check` passes: **568 LLP docs, 11969 refs, 0 errors, 0 unchecked**;
+it is repeated after this journal addition. Raw logs, commands, source hashes,
+process ledgers and resource receipts stay outside Git in `/tmp/sb4-ff3f1/`.
+No throughput campaign, push, stash, Git configuration change, q24 access or
+shared PG17 alteration occurs.
+
+Private PG16 postmasters **1988495**, **2056666** and **2218881** are independently
+confirmed stopped: pg_ctl status **3**, no `postmaster.pid`, and no matching
+process. The PID/start-tick ledger and worktree-target executable audit both
+return empty. Minimum recorded free space is **82.55 GiB**, above the
+40 GiB floor. **PIDs left: none.**
