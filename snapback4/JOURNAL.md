@@ -107609,3 +107609,11 @@ otherwise exhaust its private 400-connection cluster. Full raw evidence remains
 outside Git. Two private lane clusters and two public-witness clusters stop and
 are independently confirmed; all 31 measurement children have exited. PIDs
 left: none. No push, stash, Git configuration change or unowned signal occurs.
+
+## 2026-10-25 — Integration 25: readiness helper and the port seal
+
+After merging R1, the port census correctly refused its lexical match on the
+non-SQL `QueryReaders::prepare(&engine)` helper. Rename that internal method and
+both callers to `prepare_population`; its bounded Engine-reader behavior is
+unchanged. Do not widen the database matcher or production allowance to admit a
+startup helper. Regenerate the actual test-only census for R1's added witnesses.
