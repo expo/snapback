@@ -647,7 +647,16 @@ mutation sendPhotos(photos: [image <=10000000] <=4):
 
 Choose a bounded `image`, `video` or `file` column first; upload bytes, place
 `{ id: uploaded.asset.id }` through a mutation, then render with `useAsset`.
-Image capture in a browser uses the same upload path:
+Parallel uploads can exhaust server admission slots (`E_RATE_LIMIT`, HTTP 429).
+Upload a batch sequentially. The client retries explicit retryable admission
+refusals with bounded backoff and Retry-After; if it still refuses, keep the
+selected bytes and retry after that delay. Other failures are not automatically
+retried because acceptance may be uncertain.
+
+Expo starters include `src/UploadPicker.tsx`: a file input on web and an image
+library picker on native, with pending/error feedback. Its `onUploaded(id)`
+callback places the id through your generated mutation; selection alone does
+not save a row. Image capture in a browser uses the same upload path:
 
 ```tsx
 <input type="file" accept="image/jpeg,image/png,image/webp" capture="environment"

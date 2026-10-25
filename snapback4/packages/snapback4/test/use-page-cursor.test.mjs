@@ -21,7 +21,7 @@ declare const renamed: Query<{ drive: string; cursor?: Cursor | null }, { id: st
 declare const paged: Query<{ drive: string; c?: Cursor | null }, { id: string }[]>;
 declare const bare: Query<{ c?: Cursor | null }, { id: string }[]>;
 export function Bad() { usePage(noCursor, { drive: "x" }); usePage(renamed, { drive: "x" }); return null; }
-export function Good() { const page = usePage(paged, { drive: "x" }); usePage(bare, {}); const id: string | undefined = page.items[0]?.id; return id ?? null; }
+export function Good() { const page = usePage(paged, { drive: "x" }); usePage(bare, {}); const loading: boolean = page.loading; const why: import("snapback4/contract").Refusal | null = page.why; const id: string | undefined = page.items[0]?.id; return id ?? null; }
 `);
   const config = ts.readConfigFile(join(root, "tsconfig.json"), ts.sys.readFile);
   const { options } = ts.parseJsonConfigFileContent(config.config, ts.sys, root);

@@ -61,7 +61,7 @@ pub(super) fn files(files: &mut Vec<(&'static str, String)>, options: &Options, 
     for (name, text) in files.iter_mut().filter(|(name, _)| *name == "package.json") {
         let mut package: Value = serde_json::from_str(text).unwrap();
         if has_frontend { package["scripts"]["frontend:proof"] = json!("node scripts/frontend-proof.mjs"); }
-        if shape.password {package["scripts"]["probe:serve"]=json!("node scripts/probe-serve.mjs");}
+        if shape.password {package["scripts"]["probe:serve"]=json!("node scripts/probe-serve.mjs");package["scripts"]["probe:check"]=json!("node scripts/probe-check.mjs");}
         if day2 { package["scripts"]["day2:proof"] = json!("node scripts/day2-proof.mjs versions/v1 versions/v2"); }
         if (package["snapback4"].is_null() || package["snapback4"].is_object()) && (package["snapback4"]["starter"].is_null() || package["snapback4"]["starter"].is_object()) {
             package["snapback4"]["starter"]["day2"] = json!(day2);

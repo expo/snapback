@@ -33,7 +33,7 @@ fn safe(value: &snapback4_core::Value, kind: Option<&ColumnType>) -> serde_json:
             Value::String(_) | Value::Bytes(_) | Value::Row(_) | Value::Map(_) | Value::Array(_),
             None,
         ) => json!("<redacted>"),
-        _ => serde_json::to_value(value).unwrap(),
+        _ => snapback4_core::wire::to_json(value),
     }
 }
 fn image(bound: &Bound, table: &str, row: &snapback4_core::Value) -> serde_json::Value {
@@ -493,7 +493,7 @@ mod tests {
         }
         assert_eq!(
             safe(&snapback4_core::Value::Int(42), None),
-            json!({"Int":42})
+            json!(42)
         );
     }
 }

@@ -99,7 +99,7 @@ Never gate sign-in with `useAppReady()`: it needs a signed-in client; sign-out/r
 | `matchRead(read, handlers)` | Read or page; handler result | `loading(read)`, `denied(why,read)`, `absent(read)`, `partial(data,read)`, `present(data,read)`. Bare `why: Refusal`; data first, metadata second. All five required, even partial on single rows; `otherwise(read)` replaces omitted loading/absent/present only. |
 | `matchReadList(read, handlers)` | List read or page | Requires `denied(why,read)` and `otherwise(read)`; omitted partial uses otherwise. |
 | `otherwiseAll(fallback, overrides?)` | Spread into matchRead handlers | `fallback(read)` includes denied/partial; named handlers win in any order. |
-| `usePage(op, args)` | Query with `c: cursor ?`; omit c from args | `{read, items, hasMore, loadMore}`; match page.read/page, render items, call loadMore(). No handlers. |
+| `usePage(op, args)` | Query with `c: cursor ?`; omit c from args | `{read, items, hasMore, loadMore, loading, why}`; loading: boolean; why: Refusal or null. Full completeness/freshness evidence: read. |
 
 `'data' in read` exposes data/existence/metadata. Complete empty lists are absent. `isPresent` excludes null; `isReady` permits it; `existence(read)` and `read.existence` classify. `absent` can be an authorised empty list. PDFs need `doc: file <=10000000 ?`; persist uploaded ids through mutations (`guide assets`).
 ```ts

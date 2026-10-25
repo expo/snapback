@@ -89,7 +89,8 @@ export async function uploadAsset(base: string, headers: Record<string, string>,
       try { json = await response.json(); }
       catch { return { ok: false, why: invalidResponse(response.status, "upload") }; }
       if (response.ok && json?.asset) return { ok: true, asset: json.asset };
-      const why = refusal(json?.denied) ?? invalidResponse(response.status, "upload");
+      const denied = refusal(json?.denied) ?? invalidResponse(response.status, "upload");
+      const why = denied.code === "E_RATE_LIMIT" ? { ...denied, message: `${denied.message}; upload admission is busy: send files sequentially, then retry the same selected bytes after Retry-After (automatic retries are bounded)` } : denied;
       // Only an explicit admission refusal proves these bytes were not stored.
       // A transport failure or another retryable code may follow acceptance.
       if (why.code !== "E_RATE_LIMIT" || why.retryable !== true || attempt === 3 || !canRetry()) return { ok: false, why };

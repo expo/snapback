@@ -8,7 +8,7 @@ import { execFileSync, spawn } from 'node:child_process';
 import { once } from 'node:events';
 
 const root=resolve(import.meta.dirname,'../../..');
-test('DX9 packed staging recipe, password templates, task links and Quarry forms run literally', {timeout:300000}, async () => {
+test('DX9 packed staging recipe, password templates, task links and Quarry forms run literally', {timeout:600000}, async () => {
   const dir=mkdtempSync(join(tmpdir(),'sb4-dx9-packed-'));
   const env={...process.env,npm_config_cache:'/tmp/dx9-npm-cache'};
   delete env.SNAPBACK4_BIN;delete env.PORT_LO;delete env.PORT_HI;
@@ -51,9 +51,14 @@ test('DX9 packed staging recipe, password templates, task links and Quarry forms
       const proof=readFileSync(join(app,'scripts/frontend-proof.mjs'),'utf8');
       assert.ok(proof.includes('startStaging')&&!proof.includes('/dev/status')&&!proof.includes('startDev('));
       if(flag==='--expo') {
+        assert.ok(readFileSync(join(app,'src/UploadPicker.tsx'),'utf8').includes('Platform.OS === \"web\"'));
         assert.match(readFileSync(join(app,'index.js'),'utf8'),/import App from/);
         assert.match(readFileSync(join(app,'App.tsx'),'utf8'),/export default function App/);
         assert.ok(JSON.parse(readFileSync(join(app,'package.json'))).devDependencies['@types/node']);
+      }
+      if(flag==='--web') {
+        const result=run('npm',['run','--silent','probe:check'],app);
+        assert.equal(JSON.parse(result).ok,true);
       }
       const child=spawn(process.execPath,['scripts/probe-serve.mjs'],{cwd:app,env,stdio:['ignore','pipe','pipe']});
       const closed=once(child,'close');let stdout='',stderr='';child.stdout.on('data',b=>stdout+=b);child.stderr.on('data',b=>stderr+=b);

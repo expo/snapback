@@ -369,6 +369,7 @@ fn html_text(text: &str) -> String {
 pub(super) fn expo_files(shape: &Shape) -> Vec<(&'static str, String)> {
     let mut package: Value = serde_json::from_str(&super::expo_package()).unwrap();
     package["name"] = json!("snapback4-expo-starter");
+    package["dependencies"]["expo-image-picker"] = json!("57.0.20");
     package["scripts"]["build:web"] = json!("expo export --platform web --max-workers 2 --clear && snapback4 web-shell dist");
     let mut config: Value = serde_json::from_str(include_str!("../../../../../apps/chat-expo/app.json")).unwrap();
     config["expo"]["name"] = json!(shape.title);
@@ -390,6 +391,7 @@ pub(super) fn expo_files(shape: &Shape) -> Vec<(&'static str, String)> {
         ("expo-env.d.ts", include_str!("starter/expo-env.d.ts").to_owned()),
         ("App.tsx", app),
         ("src/client.ts", client),
+        ("src/UploadPicker.tsx", include_str!("starter/expo/UploadPicker.tsx").to_owned()),
         ("snapback/schema.q", SCHEMA.to_owned()),
         ("README.md", identity_readme(Platform::Expo, &shape.title, &shape.body, shape.personas.is_some(), &shape.offline, shape.password)),
     ].into_iter().chain(FIXTURES.map(|(name, text)| (name, text.to_owned()))).collect()

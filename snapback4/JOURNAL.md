@@ -108098,3 +108098,23 @@ acknowledgment. Private diagnostics identify column grants without re-probing
 and explain caller-filtered rows without adding information to public replies.
 LLP 3000.036.004 §19 and its three Muse/fresh-Codex review rounds govern the
 change. Qualification and limitations are in the DX11 workstream report.
+
+
+## 2026-10-25 — DX11: client shapes and proof-loop reachability
+
+usePage now projects loading and why without discarding its combined read's
+freshness/completeness. The short client card stays within its existing
+114-line/1200-word budget; the linked reference spells out observation and
+asset result shapes. A schema-first React check points to the pinned starter.
+Expo starters include a web/native image picker and its pinned dependency.
+Upload admission refusals explain sequential batches and bounded Retry-After.
+Clock advance and redeploy expose the retained staging offset; the proof text
+card states its on-screen-only rule. Password starters expose probe:check,
+which drives the actual npm probe through serve-check in an owned temporary
+deployment and observes group shutdown/store release before cleanup.
+
+Installed tarballs passed typecheck, build and frontend proof for Expo, password
+web and password Expo. Packed probe:check and a real Chromium file selection
+passed. A copy of wave-28 lane 018 passed advance, redeploy and clock-retaining
+restart. Mac/device execution is skipped by this Linux workstream's brief.
+The 0.4.42 changes card entry records the surface; no version was bumped.

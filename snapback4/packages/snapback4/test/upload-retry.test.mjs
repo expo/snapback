@@ -63,14 +63,14 @@ function immediateTimers(t) {
   return delays;
 }
 
-test("upload admission attempts are bounded and return the last refusal unchanged", async t => {
+test("upload admission attempts are bounded and return the last refusal with actionable admission guidance", async t => {
   const delays = immediateTimers(t);
   let attempts = 0;
   const result = await uploadAsset("http://uploads.invalid", {}, async () => {
     attempts++; return Response.json({ denied: rateLimit }, { status: 429 });
   }, bytes);
   assert.equal(attempts, 4); assert.deepEqual(delays, [281.25, 562.5, 1125]);
-  assert.deepEqual(result, { ok: false, why: rateLimit });
+  assert.equal(result.ok, false); assert.deepEqual({ ...result.why, message: rateLimit.message }, rateLimit); assert.match(result.why.message, /sequentially.*Retry-After/);
 });
 
 for (const realm of ["current", "foreign"]) for (const host of ["web", "React Native"])
@@ -109,7 +109,7 @@ test("repeated Retry-After: 6 consumes the cumulative ten-second wait budget", a
   }, bytes);
   assert.equal(attempts, 2);
   assert.deepEqual(delays, [6750]);
-  assert.deepEqual(result, { ok: false, why: rateLimit });
+  assert.equal(result.ok, false); assert.deepEqual({ ...result.why, message: rateLimit.message }, rateLimit); assert.match(result.why.message, /sequentially.*Retry-After/);
 });
 
 for (const why of [{ ...rateLimit, retryable: false }, { ...rateLimit, retryable: undefined }, { ...rateLimit, code: "E_STORE" }, { ...rateLimit, code: "E_AUTH", retryable: false }]) {
@@ -293,7 +293,7 @@ test("Retry-After beyond the ten-second wait budget returns without retrying ear
   const result = await uploadAsset("http://uploads.invalid", {}, async () => {
     attempts++; return Response.json({ denied: rateLimit }, { status: 429, headers: { "Retry-After": "60" } });
   }, bytes);
-  assert.equal(attempts, 1); assert.deepEqual(delays, []); assert.deepEqual(result.why, rateLimit);
+  assert.equal(attempts, 1); assert.deepEqual(delays, []); assert.deepEqual({ ...result.why, message: rateLimit.message }, rateLimit); assert.match(result.why.message, /sequentially.*Retry-After/);
 });
 
 test("closing the client during admission backoff prevents another upload", async t => {

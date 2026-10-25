@@ -410,6 +410,7 @@ pub fn deploy(options: &Options) -> i32 {
             if options.flags.contains_key("staging") {
                 staging::classify(&dir, _deployment.as_ref(), existed, checking)?;
             }
+            if let Some(notice)=staging::clock_notice(&dir){eprintln!("{notice}");}
             std::fs::create_dir_all(dir.join("releases")).map_err(|e| e.to_string())?;
             let held = if checking {
                 if dir.join("store.sqlite").exists() {snapback4_core::store_port::AnyStore::open_read_only(&dir.join("store.sqlite")).and_then(|mut s|s.release_status(0,None,None)).map_err(|e|e.to_string())?}

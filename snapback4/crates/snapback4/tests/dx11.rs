@@ -139,22 +139,22 @@ fn wave28_false_premise_decisions_retain_the_concrete_witness() {
                     d["code"] == code
                         && d["witness"].is_object()
                         && (code != "N_ARGUMENT_GRANT"
-                            || d["witness"]["row"]["homeowner"].is_object())
+                            || d["witness"]["row"]["homeowner"].is_string())
                 })
                 .unwrap_or_else(|| panic!("missing witness for {code}"));
             let witness = &decision["witness"];
             if code == "N_APPROVAL_NOT_ENFORCED" {
                 assert_eq!(witness["operation"], "recordInstallation");
-                assert_eq!(witness["row"]["indoorMount"]["Bool"], true);
-                assert_eq!(witness["row"]["indoorApproved"]["Bool"], false);
+                assert_eq!(witness["row"]["indoorMount"], true);
+                assert_eq!(witness["row"]["indoorApproved"], false);
             }
             if code == "N_INSERT_WRITE_INTENT" {
                 assert_eq!(witness["operation"], "setAccount");
                 assert_eq!(witness["effect"], "update");
                 assert!(witness["args"].get("balance").is_some());
                 assert!(
-                    witness["old"]["balance"]["Int"].as_i64().unwrap()
-                        > witness["row"]["balance"]["Int"].as_i64().unwrap()
+                    witness["old"]["balance"].as_i64().unwrap()
+                        > witness["row"]["balance"].as_i64().unwrap()
                 );
             }
             let id = decision["id"].as_str().unwrap();
@@ -164,7 +164,11 @@ fn wave28_false_premise_decisions_retain_the_concrete_witness() {
                     "--ack-security",
                     id,
                     "--reason",
-                    "The specification explicitly permits this witnessed behavior",
+                    match code {
+                        "N_APPROVAL_NOT_ENFORCED" => "Owner approval is not a gate on quote acceptance or work progress",
+                        "N_ARGUMENT_GRANT" => "The homeowner acceptance handshake confirms the relationship; a mis-addressed quote can never be accepted",
+                        _ => "Distinct creation vs forgiveness authority is intended; only the owner can reduce a balance via writeOff",
+                    },
                 ],
             );
             assert_eq!(

@@ -9,7 +9,12 @@ const dev = await startDev();
 try { console.log(dev.url); } finally { await cleanup(() => dev.stop()); }
 ```
 
-For shared test releases and probe:serve, use `guide staging`: real password users and operator grants on serve. Password-only dev fixture/clock tools require explicit --unsafe-dev-doors; startDev persists unless --memory is explicit.
+To verify a brief's `probe:serve` process, use `snapback4 serve-check
+--deployment staging --script probe:serve`: it checks one JSON readiness line,
+30 seconds alive, group SIGTERM cleanup and store release. Password starters
+include `npm run --silent probe:check`, which runs that same helper against a
+fresh deployment. Use this as the process verification driver; it withholds
+credentials and reports readiness/lifetime/shutdown failures. For shared test releases and probe:serve, use `guide staging`: real password users and operator grants on serve. Password-only dev fixture/clock tools require explicit --unsafe-dev-doors; startDev persists unless --memory is explicit.
 
 Raw HTTP starts with JSON envelopes: POST /q/name `{args:{...}}`, POST /m/name
 `{id:"stable-intent-id",args:{...}}`, POST /a/name `{id:"stable-action-id",args:{...}}`.
@@ -232,7 +237,10 @@ has no content-derived accessible name, so never getByRole('status', {name}).
 Never wait for networkidle: live queries hold long polls. Wait for the control.
 
 `renderedText(page, text, { exact: true, within: container })` excludes inputs and
-textareas. Strings match normalized substrings by default; exact:true requires equality. Use
+textareas. They inspect **on-screen rendered text only**: hidden, clipped and
+outside-the-viewport text does not count, even if it exists in the DOM.
+Scroll the specific row into view before calling `renderedText` or
+`waitForFresh`; an input value is not a rendered result. Strings match normalized substrings by default; exact:true requires equality. Use
 `renderedText(page, "verification", {exact:false})` or
 `renderedText(page, /verification/)` for a row that contains more text.
 `within` is optional. RN-web may split one logical row across nested nodes,

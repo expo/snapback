@@ -156,11 +156,13 @@ test("MIG staging clock is operator-only and production never accepts an offset"
     }
     const advanced = await host.advance("+2h"); assert.ok(Math.abs(advanced.now - before - 7200000) < 5000);
     const result = await cli(["clock", "advance", "+1h", "--release", "staging"], { cwd });
-    assert.equal(result.code, 0, result.stderr); assert.ok((await host.now()) - advanced.now >= 3600000);
+    assert.equal(result.code, 0, result.stderr); assert.match(result.stderr, /cumulative offset.*staging store/); assert.ok((await host.now()) - advanced.now >= 3600000);
     const token = await host.operatorToken();
     for (const path of ["/seed", "/dev/reset", "/dev/jobs/foo"]) assert.equal((await fetch(host.url + path, { method: "POST", headers: { Authorization: `Bearer ${token}` }, body: "[]" })).status, 403, path);
     persistedSkew = (await host.now()) - Date.now();
   } finally { await host.stop(); }
+  const redeployed = await cli(["deploy", "staging", "--staging"], { cwd });
+  assert.equal(redeployed.code, 0, redeployed.stderr); assert.match(redeployed.stderr, /staging clock: persisted offset \+/);
   host = await startServe("staging", { cwd });
   try { assert.ok(Math.abs((await host.now()) - Date.now() - persistedSkew) < 5000, "restart retains the durable staging offset"); } finally { await host.stop(); }
 });
