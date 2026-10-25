@@ -385,6 +385,13 @@ fn campaign(s:&str)->Campaign{let b=security::derived::augmented(&sources(s),&bo
     for (value,consumed) in [("not checked(b.approved)",true),("checked(b.approved) = false",true),("choose(checked(b.approved))",true),("null ?? checked(b.approved)",true),("false ?? checked(b.approved)",false),("{value:checked(b.approved)}.value",true),("false and checked(b.approved)",false),("true or checked(b.approved)",false)]{
         let body=format!("  for b in bookings first 10 by .id:\n    stop = {value}\n");let source=source.replace("LOOP",&body)+"fn checked(value: bool):\n  require value else APPROVAL\n  return false\nfn choose(value: bool): value\n";assert_eq!(!notes(&source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"),consumed,"{value}");
     }
+    for expression in ["b.approved and opaque(flag)","opaque(flag) or b.approved"]{
+        let body=format!("  for b in bookings first 10 by .id:\n    require {expression} else APPROVAL\n");let source=source.replace("mutation finish(trip: trips):","mutation finish(trip: trips,flag: bool):").replace("LOOP",&body)+"fn opaque(flag: bool):\n  if flag:\n    return true\n  return false\n";assert!(!notes(&source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"),"{expression}");
+    }
+    let wrapped=source.replace("LOOP","  for b in bookings first 10 by .id:\n    ignored = wrap(b.approved)\n")+"fn checked(value: bool):\n  require value else APPROVAL\n  return true\nfn wrap(value: bool):\n  if checked(value):\n    return true\n  return false\n";
+    assert!(!notes(&wrapped).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+    let domain=wrapped.replace("if checked(value):", "for n in checkedList(value):")+"fn checkedList(value: bool):\n  require value else APPROVAL\n  return [1]\n";
+    assert!(!notes(&domain).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
     let projection=source.replace("LOOP","  for b in bookings first 10 by .id:\n    total = sum([], checkedInt(b.approved))\n")+"fn checkedInt(value: bool):\n  require value else APPROVAL\n  return 0\n";
     assert!(notes(&projection).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
     let conditional=source.replace("mutation finish(trip: trips):","mutation finish(trip: trips,flag: bool):").replace("LOOP","  for b in bookings first 10 by .id:\n    stop = flag and checked(b.approved)\n")+"fn checked(value: bool):\n  require value else APPROVAL\n  return false\n";

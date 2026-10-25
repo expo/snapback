@@ -72,7 +72,8 @@ pub(super) fn helper_guards(catalog:&Catalog,expr:&Expr,env:&Env,depth:usize)->V
         Stmt::Bind{names,value,..}=>{out.extend(helper_guards(catalog,value,&locals,depth+1));if names.len()==1{locals.insert(names[0].clone(),resolve(value,&locals));}else{for name in names{locals.insert(name.clone(),Expr::Name{name:format!("$advice_unknown_{name}"),site:value.site().clone()});}}},
         Stmt::Expr{value,..}=>out.extend(helper_guards(catalog,value,&locals,depth+1)),
         Stmt::Return{value,..}=>{out.extend(helper_guards(catalog,value,&locals,depth+1));break;},
-        Stmt::If{condition,then_body,else_body,site}=>{let (Some(yes),Some(no))=(conditional_guards(catalog,then_body,&locals,depth+1),conditional_guards(catalog,else_body,&locals,depth+1))else{break;};out.extend(helper_guards(catalog,condition,&locals,depth+1));let predicate=resolve(condition,&locals);out.extend(conditional(yes,predicate.clone(),site));out.extend(conditional(no,Expr::Unary{op:"not".into(),value:Box::new(predicate),site:site.clone()},site));},_=>break,
+        Stmt::If{condition,then_body,else_body,site}=>{out.extend(helper_guards(catalog,condition,&locals,depth+1));let (Some(yes),Some(no))=(conditional_guards(catalog,then_body,&locals,depth+1),conditional_guards(catalog,else_body,&locals,depth+1))else{break;};let predicate=resolve(condition,&locals);out.extend(conditional(yes,predicate.clone(),site));out.extend(conditional(no,Expr::Unary{op:"not".into(),value:Box::new(predicate),site:site.clone()},site));},
+        Stmt::For{domain,..}=>{out.extend(helper_guards(catalog,domain,&locals,depth+1));break;},_=>break,
     }}out
 }
 // Conditional require-only branches impose an implication after rejoining.

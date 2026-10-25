@@ -141,11 +141,12 @@ fn parent_loop_guard(effect:&Write<'_>,table:&str,column:&str,bound:&Bound)->boo
             if matches!(stmt,Stmt::Require{code,..} if code=="$advice:cut"){return (false,false);}
             match stmt{
             Stmt::Bind{names,value,..}=>{let value=resolve(value,env);for name in names{env.insert(name.clone(),if names.len()==1{value.clone()}else{Expr::Name{name:format!("$advice_loop_unknown:{name}"),site:value.site().clone()}});}},
-            Stmt::Require{condition,..}=>{
+            Stmt::Require{condition,code,..}=>{
                 let condition=apply_facts(&resolve(condition,env),facts,names);if matches!(condition,Expr::Literal{value:ast::Literal::Bool(false),..}){return (false,false);}
-                let unknown=unresolved(&condition);if unknown{continue;}
-                if let Some((key,value))=predicate_fact(&condition,names){facts.insert(key,value);}
-                if super::super::derived::approval_receipts(&condition).iter().any(|positive|{let mut found=false;walk(positive,|e|if let Expr::Member{base,name,..}=e&&name==column&&matches!(base.as_ref(),Expr::Name{name,..} if name==binder){found=true;});found}){return (true,true);}
+                for condition in condition_parts(&condition,code,catalog){
+                    if let Some((key,value))=predicate_fact(&condition,names){facts.insert(key,value);}
+                    if super::super::derived::approval_receipts(&condition).iter().any(|positive|{let mut found=false;walk(positive,|e|if let Expr::Member{base,name,..}=e&&name==column&&matches!(base.as_ref(),Expr::Name{name,..} if name==binder){found=true;});found}){return (true,true);}
+                }
             },
             Stmt::Break{..}|Stmt::Continue{..}|Stmt::Return{..}=>return (false,false),
             Stmt::If{condition,then_body,else_body,site}=>{
