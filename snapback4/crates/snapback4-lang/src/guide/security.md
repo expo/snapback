@@ -123,8 +123,15 @@ If the spec requires a photo, use a required `image <=5000000` column or
 `[image <=5000000] 1..4`; `?` permits omission and `[image] <=4` permits zero.
 Uploads are verified media and asset reads inherit row and private-field rules.
 Optional-evidence advice asks the builder to check intentional optionality.
-Text `min..max` counts non-whitespace Unicode characters toward the minimum;
+Text `min..max` counts visible Unicode scalar values (excluding whitespace, zero-width and format
+characters, and Unicode 17 default-ignorable characters) toward the minimum;
 the maximum counts all characters. Stored text is not trimmed or rewritten.
+`trim` returns empty for invisible-only text. Other values keep ordinary
+whitespace edge trimming and their format/presentation controls, including emoji.
+Legacy format-only values remain readable; repair them through an authorized
+mutation before writing that row again. If adoption rejects an invalid default
+or old row, repair it with the previous binary before upgrading. Collect actual
+replacement consent or evidence; the upgrade never invents it.
 A sweep changes state eventually: compare the deadline with server `now` in
 the mutation too if writes must stop exactly at that instant.
 
@@ -497,7 +504,8 @@ N_TEXT_EVIDENCE asks whether photo/scan/sketch text should instead be a verified
 decision. N_MEDIA_PRIVATE_FIELDS asks whether media carries the private fields
 beside it; apply the corresponding column audience with `image read <- P`.
 
-`text 1..N` already counts non-whitespace characters for its minimum. Optional
+`text 1..N` counts visible characters for its minimum, excluding whitespace,
+zero-width/format and Unicode 17 default-ignorable characters. Optional
 minimum-zero text permits whitespace. N_BLANK_TEXT_GUARD is a review gate for
 reason/consent/assessment empty-string checks on such inputs: require
 `trim(value) != ''` for the same justification or use positive text minimums on

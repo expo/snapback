@@ -25,6 +25,8 @@
 
 The following changes are pending publication; the published 0.4.41 boundary above remains unchanged.
 
+- Wave-28 security precision recognizes guarded workflow fields regardless of their names, recorded lifecycle effects, named approved media subjects, and text-list evidence. Required text minima reject zero-width, format and Unicode 17 default-ignorable characters; trim uses the same blank definition while retaining attached emoji presentation controls. Existing bytes remain readable; repair legacy format-only required values through an authorized mutation before editing their rows, or with the prior binary if adoption refuses. Deploy retains deterministic work budgets with derived replay first and a smaller finite preflight; cuts remain unproved.
+
 - Security precision: mutation edit-guard questions accept matching update-only intent, column write authority or an individual decision. Derived replay checks participant charge/refund conservation and current-input backfill labels; manual overrides and deliberate no-refund removals take individual decisions. Authored explicit literal defaults initialize write intent at their exact insert source. Unreviewed derived effects run first with one generated fixture per phase; an individual override cannot hide independent approval contracts. Deployment replay and final dispositions share one immutable decision snapshot.
 
 - Ignored approval flags, timestamps and separately authorized approval records require an individual specification decision when a plausible modeled act can bypass them. External-act records are informational and do not gate deployment. Enforce the approval before its effect, or record why it is informational with `check --ack-security ID --reason '<spec rationale>'`.

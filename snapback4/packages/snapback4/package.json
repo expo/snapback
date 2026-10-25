@@ -103,7 +103,8 @@
     "SERVER.md",
     "CLIENT-AND-OPERATIONS.md",
     "FOLLOWING-ADOPTION.md",
-    "OFFLINE-UPLOADS.md"
+    "OFFLINE-UPLOADS.md",
+    "THIRD-PARTY-NOTICES"
   ],
   "optionalDependencies": {
     "snapback4-darwin-arm64": "0.4.41",

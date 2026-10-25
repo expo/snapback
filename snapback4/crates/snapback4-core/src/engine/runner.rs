@@ -1129,7 +1129,7 @@ impl<'a> Runner<'a> {
             Builtin::Civil(function) => Ok(Value::Int(function.apply(args[0].as_int()?)?)),
             Builtin::Lower | Builtin::Trim => {
                 let text = args[0].as_str()?;
-                let value = Value::String(if matches!(builtin, Builtin::Lower) { text.to_lowercase() } else { text.trim().to_owned() });
+                let value = Value::String(if matches!(builtin, Builtin::Lower) { text.to_lowercase() } else { crate::visible_text::trim(text).to_owned() });
                 // @ref LLP 3000.007#5.3 — the small text library charges every new result to the heap meter.
                 self.meter.heap(expression_heap(&value))?;
                 Ok(value)

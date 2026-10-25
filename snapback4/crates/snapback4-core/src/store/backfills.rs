@@ -933,7 +933,7 @@ fn rebuild_reads(tx:&Tx<'_>,source:&Schema,reads:&BTreeSet<(String,String)>)->Re
 fn validate_output(name:&str,table:&Table,column:&str,value:&Value)->Result<(),RuntimeError>{
     crate::engine::validate::validate_column(name,column,&table.columns[column],Some(value))?;
     for constraint in &table.constraints {if let crate::schema::Constraint::Text{field,min,format}=constraint {
-        if field==column {if let Value::String(text)=value {crate::engine::validate::validate_text(&format!("{name}.{column}"),text,*min,*format)?;}}
+        if field==column {crate::engine::validate::validate_text_value(&format!("{name}.{column}"),value,*min,*format)?;}
     }}Ok(())
 }
 

@@ -35,8 +35,7 @@ pub(super) fn incompatible_column(tx: &Tx<'_>, table: &Table, name: &str, column
         Ok(()) => (),
     }
     Ok(table.constraints.iter().any(|c| matches!(c, Constraint::Text { field, min, format }
-        if field == column && matches!(value, Value::String(s)
-            if crate::engine::validate::validate_text(field, s, *min, *format).is_err()))))
+        if field == column && crate::engine::validate::validate_text_value(field,value,*min,*format).is_err())))
 }
 
 fn migratable(kind:&ColumnType)->bool {

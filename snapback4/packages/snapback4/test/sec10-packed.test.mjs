@@ -16,6 +16,7 @@ test('packed approval decisions, nonblank guards and text minimums run as docume
  copyFileSync(process.env.SNAPBACK4_BIN||join(root,'target/debug/snapback4'),join(native,'snapback4'));
  copyFileSync(join(root,'packages',nativeName,'THIRD-PARTY-NOTICES'),join(native,'THIRD-PARTY-NOTICES'));
  const platform=pack(native);writeFileSync(join(dir,'package.json'),'{}');run('npm',['install','--ignore-scripts','--no-audit','--no-fund',client,platform]);
+ assert.match(readFileSync(join(dir,'node_modules/snapback4/THIRD-PARTY-NOTICES'),'utf8'),/UNICODE LICENSE V3/);
  const cli=join(dir,'node_modules/snapback4/bin/snapback4.js');mkdirSync(join(dir,'snapback'));
  const card=run(process.execPath,[cli,'guide','security','--full']);assert.match(card,/N_BLANK_TEXT_GUARD/);assert.match(card,/trim\(value\) != ''/);
  for(const code of ['N_APPROVAL_NOT_ENFORCED','N_BLANK_TEXT_GUARD','N_TEXT_EVIDENCE','N_MEDIA_PRIVATE_FIELDS'])assert.match(run(process.execPath,[cli,'why',code]),new RegExp(code));
@@ -32,6 +33,8 @@ test('packed approval decisions, nonblank guards and text minimums run as docume
  const created=JSON.parse(run(process.execPath,[cli,'run','create','{}','--as','clerk','--json']));
  const result=run(process.execPath,[cli,'run','approve',JSON.stringify({doc:created.result.id,value:' \t '}),'--as','clerk','--json'],dir,1);assert.match(result,/EMPTY_REASON/);
  assert.match(run(process.execPath,[cli,'run','required',JSON.stringify({value:'\u2003 \t'}),'--as','clerk','--json'],dir,1),/E_INPUT/);
+ for(const value of ['\u200b','\u2060','\u200c','\u202e','\ufeff','\u00ad','\ufe0f']){assert.match(run(process.execPath,[cli,'run','required',JSON.stringify({value}),'--as','clerk','--json'],dir,1),/E_INPUT/);assert.match(run(process.execPath,[cli,'run','approve',JSON.stringify({doc:created.result.id,value}),'--as','clerk','--json'],dir,1),/EMPTY_REASON/);}
+ assert.match(run(process.execPath,[cli,'run','required',JSON.stringify({value:'❤️'}),'--as','clerk','--json']),/❤️/);
  assert.match(run(process.execPath,[cli,'run','required',JSON.stringify({value:' a '}),'--as','clerk','--json']),/ a /);
  assert.ok(readFileSync(join(dir,'snapback/security-reviews.json'),'utf8').includes('informational approval record'));
  const info=join(dir,'informational');mkdirSync(join(info,'snapback'),{recursive:true});

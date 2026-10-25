@@ -118,8 +118,8 @@ pub(super) fn assess(tx: &Tx<'_>, schema: &Schema) -> Result<Vec<Step>, RuntimeE
                                 fits &= *count <= u64::from(*max);
                             }
                             Constraint::Text { field, min, format } if field == column => {
-                                if let Ok(Value::String(text)) = row.field(column) {
-                                    fits &= crate::engine::validate::validate_text(&format!("{name}.{column}"), text, *min, *format).is_ok();
+                                if let Ok(value) = row.field(column) {
+                                    fits &= crate::engine::validate::validate_text_value(&format!("{name}.{column}"), value, *min, *format).is_ok();
                                 }
                             }
                             _ => {}

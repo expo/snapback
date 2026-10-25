@@ -15,8 +15,7 @@ fn incompatible(table: &Table, name: &str, column: &str, kind: &ColumnType, valu
     crate::engine::validate::validate_column(name, column, kind, Some(value)).is_err()
         || table.constraints.iter().any(|c| {
             matches!(c, Constraint::Text { field, min, format }
-            if field==column && matches!(value, Value::String(s)
-                if crate::engine::validate::validate_text(field,s,*min,*format).is_err()))
+            if field==column && crate::engine::validate::validate_text_value(field,value,*min,*format).is_err())
         })
 }
 fn bad_image(table: &Table, name: &str, image: &Value) -> bool {
