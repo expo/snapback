@@ -1,0 +1,9 @@
+{
+  "path": "/home/ccheever/sb4scale/archive/s1-reads-20261025.tar.gz",
+  "sha256": "1707ab2f197f00c69a11fc9e8f2e02597bcf55a607c70e50f9729fc44f99acf7",
+  "bytes": 499247807,
+  "members": 2839,
+  "trial_jsons": 345,
+  "prior_final_archive_sha256": "f5e46efdd1a8a9de67eac775e324c5300cb9aadd41f79345d67c44a5bce166b0",
+  "prior_archive_embedded": true
+}

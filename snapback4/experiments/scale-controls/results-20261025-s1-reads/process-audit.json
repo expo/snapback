@@ -1,0 +1,13 @@
+{
+  "time": 1792950692.2402153,
+  "events": 4438,
+  "distinct_pid_identities": 3938,
+  "live_owned": [],
+  "owned_zombies": [],
+  "source_ledger_files": 9,
+  "current_processes_inspected": 73,
+  "independent_runtime_or_binary_matches": [],
+  "private_roots_absent": true,
+  "private_clusters_stopped": true,
+  "scope": "all recorded runner/build/campaign/monitor/environment/finish-helper/postprocess PID and birth identities, plus independent current executable/command scan for owned raw/bin/runtime paths; audit command and its launcher ancestry excluded"
+}
