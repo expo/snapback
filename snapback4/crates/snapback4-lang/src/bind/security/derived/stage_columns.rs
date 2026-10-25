@@ -23,7 +23,7 @@ fn feasible(condition:&ast::Expr,old:Option<&str>,table:&str,keys:&[ast::KeyPart
 }
 // Source witnesses for a changing consumer. Resolve conditional/local stage
 // destinations; for an enum argument, project that chosen value into guards.
-fn changing_consumer(value:&ast::Expr,table:&str,keys:&[ast::KeyPart],p:&ast::ProgramDecl,context:&ast::ProgramDecl,column:&str,bound:&Bound)->bool{
+pub(super) fn changing_consumer(value:&ast::Expr,table:&str,keys:&[ast::KeyPart],p:&ast::ProgramDecl,context:&ast::ProgramDecl,column:&str,bound:&Bound)->bool{
     fn destinations(e:&ast::Expr,old:Option<&str>,table:&str,keys:&[ast::KeyPart],p:&ast::ProgramDecl,context:&ast::ProgramDecl,column:&str,depth:usize)->Vec<(String,Option<String>)>{
         if depth>16{return Vec::new();}
         match e{

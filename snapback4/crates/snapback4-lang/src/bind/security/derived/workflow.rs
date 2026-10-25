@@ -192,7 +192,7 @@ fn global_ledger(p:&ast::ProgramDecl,write:&Expr,context:&ast::ProgramDecl,catal
     let references=bound.schema.tables[table].columns.iter().filter_map(|(column,kind)|if let C::Ref{table}=kind.required(){Some((column,table))}else{None}).collect::<Vec<_>>();
     let [(column,parent)]=references.as_slice()else{return false;};let Some(value)=fields.iter().find(|field|field.name==**column).and_then(|field|field.value.as_ref())else{return false;};
     if super::super::creation_advice::fresh_reference(value,context,p,catalog,parent){return true;}
-    writes.iter().any(|(producer,effect,_)|std::ptr::eq(*producer,p)&&unconditional_write(producer,effect.site())&&matches!(effect,Expr::Write{table,fields,..} if table==*parent&&state_field(bound,parent,fields,stages).is_some_and(|field|matches!(&field.value,Some(Expr::Literal{..}))))&&target_arg(producer,effect,parent).is_some_and(|arg|normalize(value,&bound.schema,parent,&BTreeMap::from([(arg.name.clone(),member(focal(),"id"))])).is_some_and(|e|matches!(e,Expr::Member{base,name,..} if name=="id"&&matches!(base.as_ref(),Expr::Focal{..})))))
+    writes.iter().any(|(producer,effect,effect_context)|std::ptr::eq(*producer,p)&&unconditional_write(producer,effect.site())&&matches!(effect,Expr::Write{table,..} if table==*parent)&&!effect_fields(producer,effect,effect_context,bound,stages).is_empty()&&target_arg(producer,effect,parent).is_some_and(|arg|normalize(value,&bound.schema,parent,&BTreeMap::from([(arg.name.clone(),member(focal(),"id"))])).is_some_and(|e|matches!(e,Expr::Member{base,name,..} if name=="id"&&matches!(base.as_ref(),Expr::Focal{..})))))
 }
 pub(super) fn invariants(docs:&[ast::Document],catalog:&Catalog,bound:&Bound,out:&mut Vec<Invariant>){
     let stages=stage_columns::collect(catalog,bound);
@@ -211,12 +211,10 @@ pub(super) fn invariants(docs:&[ast::Document],catalog:&Catalog,bound:&Bound,out
         // resource argument. They govern this exact effect, not every child
         // later linked to a resource another actor created.
         for condition in guards(context).filter(|c|contains_approval(c)){
-            let Some(mut contract)=scoped_contract(condition,context,&bound.schema,table,&BTreeMap::new())else{continue;};if resource_local(&contract)||!typed_approval(&contract,&bound.schema,table){continue;}
-            let (column,target)=if *op==WriteOp::Update{
-                let Some(field)=state_field(bound,table,fields,&stages)else{continue;};let Some(Expr::Literal{..})=&field.value else{continue;};
-                contract=binary("or",binary("!=",member(focal(),&field.name),field.value.clone().unwrap()),contract);(Some(field.name.as_str()),"update")
-            }else{if global_ledger(p,write,context,catalog,&origins,bound,&stages){continue;}(None,"insert")};
-            add_syntax(out,table,column,target,contract,site,"sibling-approval",None);
+            let Some(contract)=scoped_contract(condition,context,&bound.schema,table,&BTreeMap::new())else{continue;};if resource_local(&contract)||!typed_approval(&contract,&bound.schema,table){continue;}
+            if *op==WriteOp::Update{
+                for field in effect_fields(p,write,context,bound,&stages){let contract=binary("or",binary("!=",member(focal(),&field.name),field.value.clone().unwrap()),contract.clone());add_syntax(out,table,Some(&field.name),"update",contract,site,"sibling-approval",None);}
+            }else{if global_ledger(p,write,context,catalog,&origins,bound,&stages){continue;}add_syntax(out,table,None,"insert",contract,site,"sibling-approval",None);}
         }
         for arg in &p.args {let TypeKind::Ref{table:root}=&arg.type_.kind else{continue;};
             let args=BTreeMap::from([(arg.name.clone(),member(focal(),"id"))]);
@@ -253,9 +251,7 @@ pub(super) fn invariants(docs:&[ast::Document],catalog:&Catalog,bound:&Bound,out
                     add_syntax(out,table,None,"insert",policy,site,"approval-history",None);
                     continue;
                 }
-                let selected=if *op==WriteOp::Update{
-                    state_field(bound,table,fields,&stages).and_then(|f|f.value.as_ref()).and_then(|e|normalize(e,&bound.schema,root,&args))
-                }else{None};
+                let destinations=if *op==WriteOp::Update{effect_fields(p,write,context,bound,&stages).into_iter().map(Some).collect::<Vec<_>>()}else{vec![None]};
                 let mut roots=paths(&bound.schema,table,root);
                 // A target update must identify this exact resource argument.
                 if table==root&&*op==WriteOp::Update&&target_arg(p,write,root).is_none_or(|selected|selected.name!=arg.name){continue;}
@@ -270,7 +266,7 @@ pub(super) fn invariants(docs:&[ast::Document],catalog:&Catalog,bound:&Bound,out
                     // records that destination; it does not make every ledger
                     // event require the transition's approval. The exact
                     // parent destination already supplies its own contract.
-                    let stage_effect=origins.iter().any(|(producer,effect,_)|std::ptr::eq(*producer,*p)&&unconditional_write(producer,effect.site())&&target_arg(producer,effect,root).is_some_and(|selected|selected.name==arg.name)&&matches!(effect,Expr::Write{table:target,fields,..} if target==root&&state_field(bound,root,fields,&stages).is_some_and(|field|matches!(&field.value,Some(Expr::Literal{..})))));
+                    let stage_effect=origins.iter().any(|(producer,effect,effect_context)|std::ptr::eq(*producer,*p)&&unconditional_write(producer,effect.site())&&target_arg(producer,effect,root).is_some_and(|selected|selected.name==arg.name)&&matches!(effect,Expr::Write{table:target,..} if target==root)&&!effect_fields(producer,effect,effect_context,bound,&stages).is_empty());
                     if stage_effect{continue;}
                     // The guarded resource must be the one actually placed
                     // on this effect, not another argument of the same type.
@@ -278,20 +274,18 @@ pub(super) fn invariants(docs:&[ast::Document],catalog:&Catalog,bound:&Bound,out
                     if !normalize(&placed,&bound.schema,root,&args).is_some_and(|e|matches!(e,Expr::Member{base,name,..} if name=="id"&&matches!(base.as_ref(),Expr::Focal{..}))){continue;}
                 }
 
+                for selected in &destinations{
                 for (candidate,_) in bound.schema.visible_tables(){
                     let descendants=paths(&bound.schema,candidate,table);if descendants.len()!=1{continue;}
                     if *op==WriteOp::Update&&candidate!=table{continue;}
                     let mut root_path=base.clone();let outer=&descendants[0];root_path=lift(&root_path,outer);
                     let mut policy=lift(&contract,&root_path);
                     if *op==WriteOp::Update{
-                        let Some(selected)=&selected else{continue;};
-                        // Destinations must be literals: dynamic status inputs
-                        // require an explicit operation-bound history instead.
-                        if !matches!(selected,Expr::Literal{..}){continue;}
-                        let column=state_field(bound,table,fields,&stages).unwrap();
-                        policy=Expr::Binary{op:"or".into(),left:Box::new(Expr::Binary{op:"!=".into(),left:Box::new(member(focal(),&column.name)),right:Box::new(selected.clone()),site:site.clone()}),right:Box::new(policy),site:site.clone()};
+                        let Some(column)=selected else{continue;};
+                        policy=Expr::Binary{op:"or".into(),left:Box::new(Expr::Binary{op:"!=".into(),left:Box::new(member(focal(),&column.name)),right:Box::new(column.value.clone().unwrap()),site:site.clone()}),right:Box::new(policy),site:site.clone()};
                     }
-                    add_syntax(out,candidate,if *op==WriteOp::Update{state_field(bound,table,fields,&stages).map(|f|f.name.as_str())}else{None},if *op==WriteOp::Update{"update"}else{"insert"},policy,site,"sibling-approval",None);
+                    add_syntax(out,candidate,selected.map(|field|field.name.as_str()),if *op==WriteOp::Update{"update"}else{"insert"},policy,site,"sibling-approval",None);
+                }
                 }
             }
         }
@@ -299,9 +293,17 @@ pub(super) fn invariants(docs:&[ast::Document],catalog:&Catalog,bound:&Bound,out
     lifecycle(&origins,bound,out,&stages);
 }
 
-fn state_field<'a>(bound:&Bound,table:&str,fields:&'a [ast::ObjectField],stages:&BTreeSet<(String,String)>)->Option<&'a ast::ObjectField>{
-    let definition=bound.schema.tables.get(table)?;
-    fields.iter().find(|f|stages.contains(&(table.into(),f.name.clone()))).or_else(||fields.iter().find(|f|matches!(definition.columns.get(&f.name).map(C::required),Some(C::Enum{..}))))
+// Enumerate each actual categorical destination. A copied discriminator or
+// another literal payload must not shadow a separate approval-governed effect.
+fn effect_fields<'a>(p:&ast::ProgramDecl,write:&'a Expr,context:&ast::ProgramDecl,bound:&Bound,stages:&BTreeSet<(String,String)>)->Vec<&'a ast::ObjectField>{
+    let Expr::Write{table,keys,fields,..}=write else{return Vec::new();};
+    fields.iter().filter(|field|bound.schema.tables[table].columns.get(&field.name).is_some_and(|kind|matches!(kind.required(),C::Enum{..})||stages.contains(&(table.clone(),field.name.clone())))&&field.value.as_ref().is_some_and(|value|matches!(value,Expr::Literal{value:ast::Literal::Str(_),..})&&stage_columns::changing_consumer(value,table,keys,p,context,&field.name,bound))).collect()
+}
+
+fn state_field<'a>(p:&ast::ProgramDecl,write:&'a Expr,bound:&Bound,stages:&BTreeSet<(String,String)>)->Option<&'a ast::ObjectField>{
+    let Expr::Write{table,keys,fields,..}=write else{return None;};let definition=bound.schema.tables.get(table)?;
+    let changed=|field:&&ast::ObjectField|field.value.as_ref().is_some_and(|value|!stage_copy(value,p,table,keys,&field.name,bound));
+    fields.iter().filter(changed).find(|field|stages.contains(&(table.clone(),field.name.clone()))).or_else(||fields.iter().filter(changed).find(|field|matches!(definition.columns.get(&field.name).map(C::required),Some(C::Enum{..}))))
 }
 fn roles(context:&ast::ProgramDecl,bound:&Bound)->BTreeSet<String>{
     guards(context).filter(|c|{let mut c=(*c).clone();let mut found=false;walk(&mut c,&mut |e|if let Expr::Exists{read,..}=e&& !privilege::role_columns(bound,&read.table).is_empty(){found=true;});found}).map(crate::print::expression).collect()
@@ -363,21 +365,21 @@ fn parent_guard(p:&ast::ProgramDecl,write:&Expr,context:&ast::ProgramDecl,bound:
 }
 fn lifecycle(writes:&[(&ast::ProgramDecl,Expr,ast::ProgramDecl)],bound:&Bound,out:&mut Vec<Invariant>,stages:&BTreeSet<(String,String)>){
     for (child_p,child_write,child_context) in writes {
-        let Expr::Write{op:WriteOp::Update,table:child,fields:child_fields,site:child_site,..}=child_write else{continue;};
-        let Some(child_state)=state_field(bound,child,child_fields,stages)else{continue;};
+        let Expr::Write{op:WriteOp::Update,table:child,site:child_site,..}=child_write else{continue;};
+        let Some(child_state)=state_field(child_p,child_write,bound,stages)else{continue;};
         let child_roles=roles(child_context,bound);if child_roles.is_empty(){continue;}
         // A child write inside a parent transition is the authored atomic
         // coupling itself. Do not turn its intermediate image into a bypass.
 
         for (reference,kind) in &bound.schema.tables[child].columns{let C::Ref{table:parent}=kind.required()else{continue;};if parent==child{continue;}
             for (parent_p,parent_write,parent_context) in writes {
-                let Expr::Write{op:WriteOp::Update,table,fields,site,..}=parent_write else{continue;};if table!=parent{continue;}
-                let Some(parent_state)=state_field(bound,parent,fields,stages)else{continue;};
+                let Expr::Write{op:WriteOp::Update,table,site,..}=parent_write else{continue;};if table!=parent{continue;}
+                let Some(parent_state)=state_field(parent_p,parent_write,bound,stages)else{continue;};
                 let parent_gate=parent_guard(child_p,child_write,child_context,bound,child,reference,parent,&parent_state.name,&child_state.name);
                 if roles(parent_context,bound)!=child_roles{continue;}
                 let Some(requirements)=state_requirements(parent_p,parent_write,parent_context,bound,parent,&parent_state.name)else{continue;};
                 // Unresolved state-write targets cannot establish terminality.
-                if writes.iter().any(|(p,w,c)|matches!(w,Expr::Write{op:WriteOp::Update,table:t,fields,..} if t==parent&&state_field(bound,parent,fields,stages).is_some())&&state_requirements(p,w,c,bound,parent,&parent_state.name).is_none()){continue;}
+                if writes.iter().any(|(p,w,c)|matches!(w,Expr::Write{op:WriteOp::Update,table:t,fields,..} if t==parent&&state_field(p,w,bound,stages).is_some())&&state_requirements(p,w,c,bound,parent,&parent_state.name).is_none()){continue;}
                 let Some(destination)=parent_state.value.as_ref()else{continue;};
                 let Expr::Literal{value:ast::Literal::Str(destination),..}=destination else{continue;};
                 let sources=source_states(&requirements,bound,parent,&parent_state.name);
@@ -391,10 +393,10 @@ fn lifecycle(writes:&[(&ast::ProgramDecl,Expr,ast::ProgramDecl)],bound:&Bound,ou
                     // contradictory per-edge prerequisites.
                     let mut allowed=BTreeSet::new();
                     for (producer,write,context) in writes{
-                        let Expr::Write{op:WriteOp::Update,table,fields,..}=write else{continue;};
+                        let Expr::Write{op:WriteOp::Update,table,..}=write else{continue;};
                         if table!=parent||roles(context,bound)!=child_roles{continue;}
                         let Some(requirements)=state_requirements(producer,write,context,bound,parent,&parent_state.name)else{continue;};
-                        let Some(state)=state_field(bound,parent,fields,stages)else{continue;};if state.name!=parent_state.name{continue;}
+                        let Some(state)=state_field(producer,write,bound,stages)else{continue;};if state.name!=parent_state.name{continue;}
                         let Some(Expr::Literal{value:ast::Literal::Str(to),..})=&state.value else{continue;};
                         let next_edge=writes.iter().any(|(p,w,c)|roles(c,bound)==child_roles&&state_requirements(p,w,c,bound,parent,&parent_state.name).is_some_and(|guards|source_states(&guards,bound,parent,&parent_state.name).contains(to)&&changes_from(p,w,bound,parent,&parent_state.name,to)));
                         if !next_edge{continue;}
@@ -414,7 +416,7 @@ fn lifecycle(writes:&[(&ast::ProgramDecl,Expr,ast::ProgramDecl)],bound:&Bound,ou
                 // A single open/closed toggle does not establish a completion
                 // workflow across child stages. Require an authored predecessor
                 // transition into this completion's source phase.
-                let predecessor=writes.iter().any(|(p,w,c)|matches!(w,Expr::Write{op:WriteOp::Update,table:t,fields,..} if t==parent&&state_field(bound,parent,fields,stages).and_then(|field|field.value.as_ref()).is_some_and(|value|matches!(value,Expr::Literal{value:ast::Literal::Str(to),..} if sources.contains(to))))&&state_requirements(p,w,c,bound,parent,&parent_state.name).is_some_and(|guards|source_states(&guards,bound,parent,&parent_state.name).iter().any(|source|changes_from(p,w,bound,parent,&parent_state.name,source))));
+                let predecessor=writes.iter().any(|(p,w,c)|matches!(w,Expr::Write{op:WriteOp::Update,table:t,fields,..} if t==parent&&state_field(p,w,bound,stages).and_then(|field|field.value.as_ref()).is_some_and(|value|matches!(value,Expr::Literal{value:ast::Literal::Str(to),..} if sources.contains(to))))&&state_requirements(p,w,c,bound,parent,&parent_state.name).is_some_and(|guards|source_states(&guards,bound,parent,&parent_state.name).iter().any(|source|changes_from(p,w,bound,parent,&parent_state.name,source))));
                 if !predecessor{continue;}
                 let mut assigned=BTreeSet::new();let mut from=BTreeSet::new();let mut coupled=BTreeSet::new();let mut ambiguous=false;
                 for (p,w,c) in writes.iter().filter(|(_,w,_)|matches!(w,Expr::Write{op:WriteOp::Update,table:t,..} if t==child)){
@@ -423,7 +425,7 @@ fn lifecycle(writes:&[(&ast::ProgramDecl,Expr,ast::ProgramDecl)],bound:&Bound,ou
                     // independent child lifecycle's terminal stage.
                     let Expr::Write{fields,keys,..}=w else{continue;};let Some(state)=fields.iter().find(|f|f.name==child_state.name)else{continue;};
                     if state.value.as_ref().is_some_and(|value|stage_copy(value,p,child,keys,&child_state.name,bound)){continue;}
-                    if writes.iter().any(|(producer,effect,_)|std::ptr::eq(*producer,*p)&&matches!(effect,Expr::Write{op:WriteOp::Update,table:t,fields,..} if t==parent&&state_field(bound,parent,fields,stages).is_some_and(|field|field.name==parent_state.name))){
+                    if writes.iter().any(|(producer,effect,_)|std::ptr::eq(*producer,*p)&&matches!(effect,Expr::Write{op:WriteOp::Update,table:t,fields,..} if t==parent&&state_field(producer,effect,bound,stages).is_some_and(|field|field.name==parent_state.name))){
                         if let Some(value)=&state.value{coupled.extend(literals(value));}else{ambiguous=true;}continue;
                     }
                     let Some(requirements)=state_requirements(p,w,c,bound,child,&child_state.name)else{ambiguous=true;break;};
