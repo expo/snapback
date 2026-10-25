@@ -1,3 +1,4 @@
+import { after as teardownAfter } from "./helpers/teardown.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, writeFileSync, rmSync } from 'node:fs';
@@ -8,7 +9,7 @@ import { loadFixtures } from '../dist/proof-fixtures.js';
 
 test('loadFixtures resolves only typed leaves at one dev clock and returns reset-ready rows', async t => {
   const dir = mkdtempSync(join(tmpdir(), 'surf3-proof-fixtures-'));
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  teardownAfter(t, () => rmSync(dir, { recursive: true, force: true }));
   const fields = { at: 'Time', optional: { Optional: 'Time' }, times: { List: { of: 'Time', max: 4 } }, text: { Text: { max: 40 } }, json: { Json: { max: 1000 } } };
   const requests = [];
   const server = createServer((request, response) => {
@@ -16,7 +17,7 @@ test('loadFixtures resolves only typed leaves at one dev clock and returns reset
     response.end(JSON.stringify(request.url === '/dev/catalog' ? { tables: [{ name: 'events', fields }] } : { now: 100_000_000 }));
   });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
-  t.after(() => new Promise(resolve => server.close(resolve)));
+  teardownAfter(t, () => new Promise(resolve => server.close(resolve)));
   const url = `http://127.0.0.1:${server.address().port}`;
   writeFileSync(join(dir, 'events.jsonl'), JSON.stringify({ id: 'e', at: 'now+2h', optional: 'now-1h', times: ['now', 'now+1ms'], text: 'now+2h', json: { at: 'now' } }) + '\n');
   writeFileSync(join(dir, 'test.cases.jsonl'), 'not a row file\n');
@@ -44,7 +45,7 @@ test('loadFixtures refuses bad clocks, durations and bounded catalog failure', a
 for (const credentials of [{ persona: 'alice' }, { headers: { authorization: 'Bearer test' } }]) {
   test(`loadFixtures sends ${Object.keys(credentials)[0]} on catalog and clock reads`, async t => {
     const dir = mkdtempSync(join(tmpdir(), 'reg-fixtures-'));
-    t.after(() => rmSync(dir, { recursive: true, force: true }));
+    teardownAfter(t, () => rmSync(dir, { recursive: true, force: true }));
     const requests = [];
     const server = createServer((req, res) => {
       requests.push([req.url, req.headers]);
@@ -52,7 +53,7 @@ for (const credentials of [{ persona: 'alice' }, { headers: { authorization: 'Be
       res.end(JSON.stringify(req.url === '/' ? { tables: [] } : { now: 1 }));
     });
     await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
-    t.after(() => new Promise(resolve => server.close(resolve)));
+    teardownAfter(t, () => new Promise(resolve => server.close(resolve)));
     await loadFixtures(dir, { url: `http://127.0.0.1:${server.address().port}`, ...credentials });
     assert.deepEqual(requests.map(([path]) => path).sort(), ['/', '/dev/status']);
     for (const [, headers] of requests) {
@@ -64,7 +65,7 @@ for (const credentials of [{ persona: 'alice' }, { headers: { authorization: 'Be
 test('loadFixtures preserves auth refusals', async t => {
   const server = createServer((req, res) => { res.writeHead(401, { 'content-type': 'application/json' }); res.end('{"denied":{"code":"E_AUTH"}}'); });
   await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
-  t.after(() => new Promise(resolve => server.close(resolve)));
+  teardownAfter(t, () => new Promise(resolve => server.close(resolve)));
   await assert.rejects(loadFixtures('.', { url: `http://127.0.0.1:${server.address().port}` }), /E_AUTH: loadFixtures could not read .* using no credential/);
 });
 
@@ -74,7 +75,7 @@ test('KIT4 missing URL refuses before URL parsing', async () => {
 test('KIT4 fixture auth errors identify persona or token fingerprint without leaking bearer bytes', async t => {
   const server=createServer((req,res)=>{res.writeHead(401,{'content-type':'application/json'});res.end('{"denied":{"code":"E_AUTH"}}');});
   await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
-  t.after(()=>new Promise(resolve=>server.close(resolve)));
+  teardownAfter(t, ()=>new Promise(resolve=>server.close(resolve)));
   const url=`http://127.0.0.1:${server.address().port}`;
   await assert.rejects(loadFixtures('.',{url,persona:'mallory'}),/using persona "mallory"/);
   await assert.rejects(loadFixtures('.',{url,headers:{authorization:'Bearer private-token'}}),error=>{

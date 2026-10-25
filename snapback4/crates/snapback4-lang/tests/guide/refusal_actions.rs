@@ -188,6 +188,7 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("E_PROOF_BROWSER", &["Install playwright-core@1.55.1 in the proof project and rerun.", "precedes browser startup, application callbacks and log creation"]),
     ("E_PROOF_PAGE", &["Repair its query, authority or bound", "pass each opaque next cursor back unchanged", "No partial snapshot is returned"]),
     ("E_DEV_RESET", &["Reopen the client after reset.", "Outstanding writes retain unknown outcomes and are never retried automatically"]),
+    ("E_PROOF_AMBIGUOUS", &["Narrow within or pass exact: true", "never choose the first match silently"]),
     ("E_PROOF_USAGE", &["Call startServe(deployDir, options) with a nonempty directory string first."]),
     ("E_PRODUCTION_ACCOUNTS", &["production deployment with password identity", "Staging and development refuse before creating users", "seedAccounts only on a fresh deploy --staging"]),
     ("E_QUARRY_IDENTITY_DUPLICATE", &["Keep one declaration: password, guests, or both."]),

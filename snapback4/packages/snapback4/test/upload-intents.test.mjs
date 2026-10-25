@@ -1,3 +1,4 @@
+import { after as teardownAfter } from "./helpers/teardown.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
@@ -26,10 +27,10 @@ const op = { kind: 'mutation', name: 'attach' };
 const wasm = readFileSync(new URL('../dist/wasm/snapback4_device_bg.wasm', import.meta.url));
 for (const tier of ['memory', 'sqlite']) test(`${tier}: captured bytes survive reopen; lost upload reply and failed readiness dedup before one placement`, { timeout: hangBudget(120) }, async t => {
   const { url } = await server(t, undefined, source);
-  const dir = mkdtempSync(join(tmpdir(), 'sb4-upload-')); t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const dir = mkdtempSync(join(tmpdir(), 'sb4-upload-')); teardownAfter(t, () => rmSync(dir, { recursive: true, force: true }));
   const persist = memoryPersistence(); let offline = false, lost = true, failReady = true, uploads = 0, placements = 0;
   const assetIds = new Set(); const clients = [];
-  t.after(async () => { for (const c of clients) await c.close(); });
+  teardownAfter(t, async () => { for (const c of clients) await c.close(); });
   const native = processDevice({ dir });
   const fetcher = async (input, init) => {
     const path = new URL(input).pathname;
@@ -100,7 +101,7 @@ test('public guarded capability rejects ordinary terminal id reuse and scopes su
   const {guardClient}=await import('../dist/app-client.js');
   const {mintId}=await import('../dist/client.js');
   const {url}=await server(t,undefined,source);const persist=memoryPersistence();
-  const raw=await createLocalClient({url,persona:'alice',device:webDevice({wasm,persist})});t.after(()=>raw.close());
+  const raw=await createLocalClient({url,persona:'alice',device:webDevice({wasm,persist})});teardownAfter(t, ()=>raw.close());
   let valid=true;const why=()=>({code:'E_AUTH',family:'auth',message:'retired'});
   const scope=guardClient(raw,async()=>valid,()=>valid,why);assert.equal(typeof scope.client.uploadAndPlace,'function');
   const id=mintId();
@@ -119,7 +120,7 @@ test('close stops waiting for a hung upload and fences its late response without
   const c=await createLocalClient({url,persona:'alice',fetch:fetcher,device:webDevice({wasm,persist})});
   await c.uploadAndPlace(op,{},pdf,{id:'close-upload',argument:'doc',file:{type:'application/pdf',name:'a.pdf'}});await until(()=>started,'held upload');await c.close();
   release(Response.json({asset:{id:'late',type:'application/pdf',bytes:pdf.length,width:null,height:null,duration:null,name:'a.pdf'}}));
-  const restored=await createLocalClient({url,persona:'alice',fetch:async()=>{throw Error('offline');},device:webDevice({wasm,persist})});t.after(()=>restored.close());
+  const restored=await createLocalClient({url,persona:'alice',fetch:async()=>{throw Error('offline');},device:webDevice({wasm,persist})});teardownAfter(t, ()=>restored.close());
   assert.equal((await restored.uploads())[0].id,'close-upload');
   const saved=[...persist.stores.values()].flatMap(store=>[...store.values()]).filter(c=>c.s==='o'&&c.v).map(c=>JSON.parse(c.v));
   assert.equal(saved.find(e=>e.id==='close-upload').upload.bytes,Buffer.from(pdf).toString('hex'));
@@ -132,7 +133,7 @@ test('file capture normalizes bounded metadata before custody; a shared ordinary
   assert.throws(()=>captureFile(pdf,{type:'x'.repeat(1000000)}),e=>e.code==='E_UPLOAD_ARGUMENT');
   const {url}=await server(t,undefined,source);const persist=memoryPersistence();let core,name;
   const opener=webDevice({wasm,persist});
-  const client=await createLocalClient({url,persona:'alice',device:{async open(...a){name=a[0];return core=await opener.open(...a);}}});t.after(()=>client.close());
+  const client=await createLocalClient({url,persona:'alice',device:{async open(...a){name=a[0];return core=await opener.open(...a);}}});teardownAfter(t, ()=>client.close());
   const history=Array.from({length:256},(_,i)=>({id:'local'+i,state:'failed',why:{code:'E_RULE',family:'rule',message:'local'}}));
   await core.call({op:'set_meta',key:'write-history',value:JSON.stringify(history)});
   await persist.save(name+':receipts',[{s:'m',k:'client:write-history',v:JSON.stringify([{id:'ordinary-shared',state:'sent',seq:1,replayed:true}])}]);
@@ -152,7 +153,7 @@ test('default orphan adoption preserves conflicting bytes and the entire source 
   assert.ok(!(await second.call({op:'admit_upload',entry:entry('ee')})).denied);
   assert.ok(!(await second.call({op:'enqueue',entry:{id:'tail-source',seq:2,op:'send',args:{body:'later',conversationId:'c1'},viewer:'dev:alice',now:1,new_ids:[],predicted:[],predictable:false}})).denied);
   await first.close();await second.close();
-  const destination=await opener.open('orphan-conflict',null);t.after(()=>destination.close());
+  const destination=await opener.open('orphan-conflict',null);teardownAfter(t, ()=>destination.close());
   const queue=(await destination.call({op:'queued'})).ok;
   assert.equal(queue.find(e=>e.id==='collision').upload.bytes,'ff');assert.equal(queue.some(e=>e.id==='tail-source'),false);
   const source=[...persist.stores.values()].map(store=>[...store.values()].filter(c=>c.s==='o'&&c.v).map(c=>JSON.parse(c.v))).find(entries=>entries.some(e=>e.upload?.bytes==='ee'));
@@ -169,7 +170,7 @@ test('opening recovery cannot evict applicable shared ownership before upload pr
   }
   await first.close();await second.close();
   await persist.save(name+':receipts',[{s:'m',k:'client:write-history',v:JSON.stringify([{id:'protected',state:'sent',seq:1,replayed:true}])}]);
-  const destination=await opener.open(name,null);t.after(()=>destination.close());
+  const destination=await opener.open(name,null);teardownAfter(t, ()=>destination.close());
   const response=await destination.call({op:'admit_upload',entry:{id:'protected',seq:1,op:'send',args:{body:'new',conversationId:'c1'},viewer:'dev:alice',now:1,upload:{bytes:'ff',argument:'photo',store_id:'A'}}});
   assert.equal(response.denied.code,'E_WRITE_ID_REUSE');
   assert.equal((await destination.call({op:'queued'})).ok.some(e=>e.id==='protected'),false);
@@ -194,7 +195,7 @@ test('transfer protects shared ownership from source-history trimming',async t=>
   await second.call({op:'admit_upload',entry:{id:'protected',seq:1,op:'send',args:{body:'orphan',conversationId:'c1'},viewer:'dev:alice',now:1,upload:{bytes:'ff',argument:'photo',store_id:'A'}}});
   await first.close();await second.close();
   await persist.save(name+':receipts',[{s:'m',k:'client:write-history',v:JSON.stringify([{id:'protected',state:'sent',seq:1,replayed:true}])}]);
-  const destination=await opener.open(name,null);t.after(()=>destination.close());
+  const destination=await opener.open(name,null);teardownAfter(t, ()=>destination.close());
   assert.equal((await destination.call({op:'queued'})).ok.some(e=>e.id==='protected'),false);
   const copies=[...persist.stores.values()].flatMap(s=>[...s.values()]).filter(c=>c.s==='o'&&c.v).map(c=>JSON.parse(c.v));
   assert.equal(copies.find(e=>e.id==='protected').upload.bytes,'ff');
@@ -220,7 +221,7 @@ test('matching shared receipt cannot erase conflicting live orphan custody',asyn
   await second.call({op:'enqueue',entry:{id:'held-tail',seq:2,op:'send',args:{body:'later',conversationId:'c1'},viewer:'dev:alice',now:1}});
   await first.close();await second.close();
   await persist.save(name+':receipts',[{s:'m',k:'client:write-history',v:JSON.stringify([{id:'collision',state:'sent',seq:1,replayed:true,upload_identity:{fingerprint:original.upload.fingerprint,op:original.op,viewer:original.viewer,store_id:'A'}}])}]);
-  const dest=await opener.open(name,null);t.after(()=>dest.close());const queued=(await dest.call({op:'queued'})).ok;
+  const dest=await opener.open(name,null);teardownAfter(t, ()=>dest.close());const queued=(await dest.call({op:'queued'})).ok;
   assert.equal(queued.find(e=>e.id==='collision').upload.bytes,'ee');assert.equal(queued.some(e=>e.id==='held-tail'),false);
   const copies=[...persist.stores.values()].map(s=>[...s.values()].filter(c=>c.s==='o'&&c.v).map(c=>JSON.parse(c.v)));
   assert.ok(copies.some(items=>items.some(e=>e.upload?.bytes==='ff')&&items.some(e=>e.id==='held-tail')));
@@ -237,7 +238,7 @@ test('entering shared ownership survives histories of earlier orphans in the sam
   await devices[2].call({op:'admit_upload',entry:{id:'protected',seq:1,op:'send',args:{body:'capture',conversationId:'c1'},viewer:'dev:alice',now:1,upload:{bytes:'ff',argument:'photo',store_id:'A'}}});
   for(const core of devices)await core.close();
   await persist.save(name+':receipts',[{s:'m',k:'client:write-history',v:JSON.stringify([{id:'protected',state:'sent',seq:1,replayed:true}])}]);
-  const dest=await opener.open(name,null);t.after(()=>dest.close());assert.equal((await dest.call({op:'queued'})).ok.some(e=>e.id==='protected'),false);
+  const dest=await opener.open(name,null);teardownAfter(t, ()=>dest.close());assert.equal((await dest.call({op:'queued'})).ok.some(e=>e.id==='protected'),false);
   assert.ok([...persist.stores.values()].some(s=>[...s.values()].some(c=>c.s==='o'&&c.v&&JSON.parse(c.v).id==='protected')));
 });
 
@@ -245,7 +246,7 @@ test('entering shared ownership survives histories of earlier orphans in the sam
 test('readiness schema refusal persists blocked reason and stops automatic uploads',async t=>{
   const {DeviceUploads}=await import('../dist/uploads.js');
   const backend=JSON.parse(readFileSync(new URL('./chat-schema.json',import.meta.url),'utf8'));backend.programs.find(p=>p.name==='send').args.photo={Optional:{Image:{max:100000}}};
-  const persist=memoryPersistence(),core=await webDevice({wasm,persist}).open('readiness-schema',backend);t.after(()=>core.close());
+  const persist=memoryPersistence(),core=await webDevice({wasm,persist}).open('readiness-schema',backend);teardownAfter(t, ()=>core.close());
   await core.call({op:'apply',first:true,page:{snapshot:true,store_id:'A',generation:1,events:[],watermark:0,more:false}});
   let attempts=0;const env={base:'http://media.invalid',viewer:'dev:alice',current:()=>true,unavailable:()=>null,storeId:()=> 'A',capture:async()=>({store_id:'A'}),credentials:()=>({headers:{},revision:1}),
     entry:(id,op,args)=>({id,seq:1,op,args,viewer:'dev:alice',now:1}),call:r=>core.call(r),queued:async()=>(await core.call({op:'queued'})).ok,notify(){},flush(){},

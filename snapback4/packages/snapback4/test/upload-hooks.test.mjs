@@ -1,3 +1,4 @@
+import { after as teardownAfter } from "./helpers/teardown.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {mkdtempSync,mkdirSync,writeFileSync,rmSync} from 'node:fs';
@@ -8,7 +9,7 @@ import {launch,root} from '../../../witness/lib.mjs';
 import {until} from './helpers/app-server.mjs';
 import {hangBudget} from './helpers/wait.mjs';
 test('AppProvider useUpload captures offline, resumes a kept id, and fences the retired public facade',{timeout:hangBudget(120)},async t=>{
-  const project=mkdtempSync(join(tmpdir(),'sb4-upload-hook-'));t.after(()=>rmSync(project,{recursive:true,force:true}));mkdirSync(join(project,'snapback'));
+  const project=mkdtempSync(join(tmpdir(),'sb4-upload-hook-'));teardownAfter(t, ()=>rmSync(project,{recursive:true,force:true}));mkdirSync(join(project,'snapback'));
   writeFileSync(join(project,'snapback/schema.q'),`use personas alice
  table docs:
   owner: principal
@@ -36,7 +37,7 @@ window.unsupportedHook=()=>{
  function Capture(){window.uploadHook=useUpload({kind:'mutation',name:'attach'},'doc');return h('span',null,String(uploadHook.available));}
  reactRoot.render(h(SnapbackProvider,{client:{onUploads:()=>()=>{}}},h(Capture)));
 };
-`});t.after(()=>witness.close());const {page,api}=witness;
+`});teardownAfter(t, ()=>witness.close());const {page,api}=witness;
   await page.evaluate(api=>bootHook(api),api);await until(()=>page.evaluate(()=>uploadHook?.available),'upload capability');
   await page.evaluate(()=>{offlineMode=true;});
   const capture=await page.evaluate(()=>uploadHook.uploadAndPlace({},new File(['%PDF-1.7\n'],'a.pdf',{type:'application/pdf'}),{file:{},id:'hook1'}));assert.equal(capture.id,'hook1');

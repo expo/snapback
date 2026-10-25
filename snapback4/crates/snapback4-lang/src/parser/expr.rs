@@ -190,7 +190,10 @@ impl Parser {
                     }
                 }
                 self.take("]")?;
-                Expr::Array { items, site: token.site }
+                {
+                    let item_type = if items.is_empty() && self.maybe("of") { Some(self.parse_type(false)?) } else { None };
+                    Expr::Array { items, item_type, site: token.site }
+                }
             }
             _ if token.value == "{" => {
                 let fields = self.parse_object_fields()?;
@@ -208,7 +211,7 @@ impl Parser {
                             break;
                         }
                     }
-                    Expr::Array { items, site: token.site.clone() }
+                    Expr::Array { items, item_type: None, site: token.site.clone() }
                 } else {
                     first
                 };
@@ -394,12 +397,15 @@ impl Parser {
                 let column = self.maintain_column()?;
                 let op = self.peek().value.clone();
                 self.position += 1;
-                let value = self.expression(0, &[",", "]"])?;
+                let value = self.expression(0, &[",", "]", "and"])?;
                 seeks.push(SeekBound { column, op, value, site: key_site });
             } else {
                 if !seeks.is_empty() { return Err(syntax_with(&key_site, "pin the prefix before the seek comparisons", "t[prefix, col >= start, col < end] first 50 by index")); }
-                let value = self.expression(0, &[",", "]"])?;
+                let value = self.expression(0, &[",", "]", "and"])?;
                 keys.push(KeyPart { column, value, site: key_site });
+            }
+            if self.at("and") {
+                return Err(syntax_with(&self.peek().site, "probe brackets separate equalities with commas, not `and`", format!("{table}[key, column = value, other = value]; parenthesize a Boolean key expression: {table}[(a and b)]")).guide("rules"));
             }
             if !self.maybe(",") {
                 break;

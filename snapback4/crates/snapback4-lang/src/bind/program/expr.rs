@@ -145,9 +145,16 @@ impl Binder<'_> {
                 Literal::Bool(b) => (Expr::Literal(Value::Bool(*b)), Ty::Bool),
                 Literal::Null => (Expr::Literal(Value::Null), Ty::Null),
             }),
-            A::Array { items, .. } => {
+            A::Array { items, item_type, .. } => {
+                if let Some(annotation)=item_type {
+                    let mut leaf=annotation;
+                    while let ast::TypeKind::List{item,..}=&leaf.kind {leaf=item;}
+                    if let ast::TypeKind::Ref{table}=&leaf.kind && !self.catalog.tables.contains_key(table) {
+                        return Err(unknown(site,format!("unknown empty-list element type {table}"),"use a declared table reference or a scalar element type"));
+                    }
+                }
                 let mut exprs = Vec::new();
-                let mut item_ty: Option<Ty> = None;
+                let mut item_ty: Option<Ty> = item_type.as_ref().map(Ty::from_scalar);
                 let args = self.strict_args(items, out)?;
                 let origins: Vec<_> = args.iter().zip(items).map(|((_, ty), source)| (ty.clone(), source.clone())).collect();
                 for (e, t) in args {
@@ -342,6 +349,14 @@ impl Binder<'_> {
                 }
                 if self.catalog.tables.contains_key(name) {
                     return Err(unknown(site, format!("{name} is a table; a read needs a key or a range"), format!("{name}[key]  -- or: {name}[prefix] first 50 by index")));
+                }
+                if let Some((_, ty)) = &self.focal {
+                    let has_column = match ty.required() {
+                        Ty::Row(table) | Ty::WriteRow(table) => self.schema.table(&table).is_some_and(|t| t.columns.contains_key(name)),
+                        Ty::Object(fields) | Ty::RowObject(fields) | Ty::RowShape(fields) => fields.contains_key(name),
+                        _ => false,
+                    };
+                    if has_column { return Err(unknown(site, format!("unknown name {name}; the current row has column .{name}"), format!("use `.{name}` inside this row expression"))); }
                 }
                 let declared: Vec<&str> = self.scopes.iter().flat_map(|s| s.keys().map(String::as_str)).chain(["viewer", "now", "new"]).collect();
                 Err(unknown(site, format!("unknown name {name}"), name_rewrite(name, declared, None)))

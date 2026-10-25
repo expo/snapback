@@ -1,3 +1,4 @@
+import { after as teardownAfter } from "./helpers/teardown.mjs";
 import { hangBudget } from './helpers/wait.mjs';
 // Real Chromium, real app logout, and deterministic renderer-cache faults.
 import test from 'node:test';
@@ -35,7 +36,7 @@ mutation click():
 query total():
   return audit['audit'].total
 `);
-  t.after(() => rmSync(project, { recursive: true, force: true }));
+  teardownAfter(t, () => rmSync(project, { recursive: true, force: true }));
   const path = name => join(root, 'packages/snapback4/src', name);
   const mutant = process.env.SNAPBACK4_SESSION_AUTHORITY_MUTANT, sourceOverrides = {};
   const replace = (file, before, after) => {
@@ -120,7 +121,7 @@ window.capture = () => {
     store: key ? decodeURIComponent(key.split(':')[1]) : null };
 };
 ` });
-  t.after(() => witness.close());
+  teardownAfter(t, () => witness.close());
   const { page, api: url } = witness, errors = [];
   page.on('pageerror', error => errors.push(error.message));
   let count = 0;

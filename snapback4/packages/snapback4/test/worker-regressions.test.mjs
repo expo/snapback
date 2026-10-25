@@ -1,3 +1,4 @@
+import { after as teardownAfter } from "./helpers/teardown.mjs";
 import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 import { cleanup, withCleanup } from './helpers/cleanup.mjs';
 import { identity, live } from '../../../scripts/test-processes.mjs';
@@ -66,7 +67,7 @@ function fixture(t, source, cleanupChildren) {
   fixtureDiagnostics.enterWith(diagnostics);
   const onAbort = () => t.diagnostic(diagnostics());
   t.signal.addEventListener('abort', onAbort, { once: true });
-  t.after(async () => {
+  teardownAfter(t, async () => {
     t.signal.removeEventListener('abort', onAbort);
     try {
       for (const s of servers) {
@@ -369,7 +370,7 @@ for (const check of ['query fence', 'retirement custody']) test(`removed worker 
   const query = () => fetch(s.url+'/q/who', {method:'POST',headers:{authorization:'Bearer '+first.token,'content-type':'application/json'},body:'{"args":{}}'});
   assert.equal((await query()).status, 200);
   const db = new DatabaseSync(join(f.dir, '.snapback4/store.sqlite'));
-  t.after(() => db.close());
+  teardownAfter(t, () => db.close());
   rmSync(join(f.dir, 'snapback/workers/push.mjs'));
   await until(() => existsSync(join(f.dir, 'terms')));
   await lockWriter(db);
@@ -448,7 +449,7 @@ appendFileSync('starts',JSON.stringify({pid:process.pid,watchdog:process.ppid,he
 
 test('ledger commits with FULL synchronization and durable journaling', async t => {
   const dir = mkdtempSync(join(tmpdir(), 'sb4-ledger-durability-'));
-  t.after(() => rmSync(dir, {recursive:true,force:true}));
+  teardownAfter(t, () => rmSync(dir, {recursive:true,force:true}));
   const settings = [], original = DatabaseSync.prototype.exec;
   const configured = new WeakSet();
   t.mock.method(DatabaseSync.prototype, 'exec', function(sql) {
@@ -541,9 +542,9 @@ appendFileSync('starts',JSON.stringify({pid:process.pid,helper:helper.pid})+'\\n
 
 test('ledger open waits for a busy writer before becoming ready', async t => {
   const dir=mkdtempSync(join(tmpdir(),'sb4-ledger-open-busy-'));
-  t.after(()=>rmSync(dir,{recursive:true,force:true}));
+  teardownAfter(t, ()=>rmSync(dir,{recursive:true,force:true}));
   const path=join(dir,'ledger.sqlite'), holder=new DatabaseSync(path);
-  t.after(()=>holder.close());holder.exec('BEGIN IMMEDIATE');
+  teardownAfter(t, ()=>holder.close());holder.exec('BEGIN IMMEDIATE');
   let ready=false;
   const opening=WorkerLedger.open(path,new AbortController().signal).then(ledger=>{ready=true;return ledger;});
   void opening.catch(()=>{});
@@ -557,7 +558,7 @@ test('failed revocation blocks restart until the retired bearer is refused', { t
   const first = rows(join(f.dir, 'starts'))[0];
   assert.equal((await claim(s, first.token)).status, 200);
   const db = new DatabaseSync(join(f.dir, '.snapback4/store.sqlite'));
-  t.after(() => db.close());
+  teardownAfter(t, () => db.close());
   await lockWriter(db);
   try {
     process.kill(first.pid, 'SIGKILL');
@@ -590,7 +591,7 @@ test('rotation retires the old bearer even while its stored expiry still stands'
 for (const where of ['schema', 'root', 'entry', 'helper', 'fifo']) test(`worker snapshot refuses ${where} escapes or non-regular files`, t => {
   const f = fixture(t);
   const outside = mkdtempSync(join(tmpdir(), 'sb4-external-workers-'));
-  t.after(() => rmSync(outside, { recursive: true, force: true }));
+  teardownAfter(t, () => rmSync(outside, { recursive: true, force: true }));
   writeFileSync(join(outside, 'push.mjs'), idle);
   writeFileSync(join(outside, '.env.test'), 'not project source');
   const workers = join(f.dir, 'snapback/workers');
@@ -662,7 +663,7 @@ appendFileSync('starts',JSON.stringify({pid:process.pid,helper:helper.pid})+'\\n
 
 for (const bad of ['corrupt', 'schema', 'receipt', 'parent-file']) test(`ledger ${bad} initialization reports once without claiming or settling`, async t => {
   const dir = mkdtempSync(join(tmpdir(), 'sb4-ledger-invalid-'));
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  teardownAfter(t, () => rmSync(dir, { recursive: true, force: true }));
   let path = join(dir, 'ledger.sqlite');
   if (bad === 'corrupt') writeFileSync(path, 'not sqlite');
   else if (bad === 'schema') { const db = new DatabaseSync(path); db.exec('CREATE TABLE completions(wrong TEXT)'); db.close(); }
@@ -720,10 +721,10 @@ test('repeated secret admission failures increase restart backoff', { timeout: h
 
 test('SQLite busy retries return the winning receipt to both waiters', async t => {
   const dir = mkdtempSync(join(tmpdir(), 'sb4-ledger-busy-'));
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  teardownAfter(t, () => rmSync(dir, { recursive: true, force: true }));
   const stop = new AbortController(), path = join(dir, 'ledger.sqlite');
   const first = await WorkerLedger.open(path, stop.signal), second = await WorkerLedger.open(path, stop.signal);
-  t.after(() => { first.close(); second.close(); });
+  teardownAfter(t, () => { first.close(); second.close(); });
   let entered, release, calls = 0;
   const started = new Promise(resolve => { entered = resolve; });
   const gate = new Promise(resolve => { release = resolve; });
@@ -738,7 +739,7 @@ test('SQLite busy retries return the winning receipt to both waiters', async t =
 
 for (const failure of ['disk-full', 'commit-and-rollback']) test(`ledger ${failure} closes storage and stops without failed settlement`, async t => {
   const dir = mkdtempSync(join(tmpdir(), 'sb4-ledger-runtime-'));
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  teardownAfter(t, () => rmSync(dir, { recursive: true, force: true }));
   let initialized = false, claims = 0, settlements = 0;
   const original = DatabaseSync.prototype.exec;
   t.mock.method(DatabaseSync.prototype, 'exec', function (sql) {
@@ -807,7 +808,7 @@ appendFileSync('starts',JSON.stringify({name:'${name}',pid:process.pid,token:pro
   const starts = () => rows(join(s.workdir,'starts'));
   await until(() => starts().length===2);
   const original = starts(), db = new DatabaseSync(join(f.dir,'release/store.sqlite'));
-  t.after(() => db.close());
+  teardownAfter(t, () => db.close());
   // Refuse deletion without blocking status writes, so both stopped states
   // and repeated retries can be observed while the original rows stay valid.
   await fixtureDdl(db, "CREATE TRIGGER hold_retirement BEFORE DELETE ON _sessions BEGIN SELECT RAISE(FAIL,'retirement held'); END");
@@ -929,7 +930,7 @@ test('named worker packages resolve from the app when the deploy directory is ou
   writeFileSync(join(f.dir, 'node_modules/hand-dependency/package.json'), '{"name":"hand-dependency","type":"module","exports":"./index.js"}');
   writeFileSync(join(f.dir, 'node_modules/hand-dependency/index.js'), 'export const value = "app-package";');
   const outside = mkdtempSync(join(tmpdir(), 'sb4-hand-outside-'));
-  t.after(() => rmSync(outside, { recursive: true, force: true }));
+  teardownAfter(t, () => rmSync(outside, { recursive: true, force: true }));
   mkdirSync(join(f.dir, 'snapback/workers/node_modules/hand-dependency'), {recursive:true});
   writeFileSync(join(f.dir, 'snapback/workers/node_modules/hand-dependency/package.json'), '{"name":"hand-dependency","type":"module","exports":"./index.js"}');
   writeFileSync(join(f.dir, 'snapback/workers/node_modules/hand-dependency/index.js'), 'export const value = "nested-package";');
@@ -938,7 +939,7 @@ test('named worker packages resolve from the app when the deploy directory is ou
   assert.equal(deploy.status, 0, deploy.stderr);
   const child = spawn(binary, ['serve', release, '--port', '0'], {cwd:f.dir,stdio:['ignore','pipe','pipe']});
   const done = once(child, 'exit'); let log = ''; child.stderr.on('data', b => {log += b;}); child.stdout.resume();
-  t.after(async () => { if(child.exitCode===null) child.kill('SIGTERM'); await done; });
+  teardownAfter(t, async () => { if(child.exitCode===null) child.kill('SIGTERM'); await done; });
   await until(() => { assert.equal(child.exitCode,null,log); return existsSync(join(release,'releases/1/import-ok')); });
   assert.equal(readFileSync(join(release,'releases/1/import-ok'),'utf8'),'nested-package');
   assert.equal(log.includes('ERR_MODULE_NOT_FOUND'),false,log);

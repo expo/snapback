@@ -5,7 +5,7 @@ import { AppProvider, useAuth, useAppReady, usePersonaApp } from "snapback4/reac
 import { smokeSegment } from "snapback4-expo/witness";
 import { openApp, personas } from "./src/client";
 
-export function App() {
+export default function App() {
   return <SafeAreaView style={{ flex: 1 }}><StatusBar style="auto" /><Personas /></SafeAreaView>;
 }
 

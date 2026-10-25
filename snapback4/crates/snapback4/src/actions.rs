@@ -50,7 +50,7 @@ fn arguments(program: &snapback4_core::Program, json: &Json) -> Result<BTreeMap<
     let fields = json.as_object().ok_or_else(|| snapback4_core::RuntimeError::Input("action args must be an object".into()))?;
     fields.iter().map(|(name, value)| {
         let kind = program.args.get(name).ok_or_else(|| snapback4_core::RuntimeError::Input(format!("undeclared action argument {name}")))?;
-        wire::from_json(kind, value).map(|value| (name.clone(), value)).map_err(snapback4_core::RuntimeError::Input)
+        wire::from_json(kind, value).map(|value| (name.clone(), value)).map_err(|why|snapback4_core::RuntimeError::Input(format!("argument {name}: {why}")))
     }).collect()
 }
 

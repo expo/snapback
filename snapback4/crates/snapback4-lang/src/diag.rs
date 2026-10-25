@@ -186,7 +186,7 @@ pub fn guide_for(code: &str) -> &'static str {
         "E_STORE_CONFIG" => "deploy",
         "E_WORKER_STORE_ID" | "E_WORKER_STATE" => "effects",
         "E_EXPIRY_ORPHAN" => "expire",
-        "E_PROOF_BROWSER" | "E_PROOF_PAGE" | "E_PROOF_USAGE" => "testing",
+        "E_PROOF_BROWSER" | "E_PROOF_PAGE" | "E_PROOF_USAGE" | "E_PROOF_AMBIGUOUS" => "testing",
         "E_QUARRY_IDENTITY_DUPLICATE" => "production",
         code if code.starts_with("E_FOLLOWING_") => "refusals",
         "E_READ_ONLY" | "E_READ_ONLY_REFRESH" | "E_READ_ONLY_CREDENTIAL" | "E_READ_ONLY_DEVICE" | "E_READ_ONLY_UNSUPPORTED" | "E_ASSET_READ_ONLY" => "read-only",

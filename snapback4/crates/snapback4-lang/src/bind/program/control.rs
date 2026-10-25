@@ -106,7 +106,7 @@ impl Binder<'_> {
                     let (element, ty) = self.value_of(&items[0], out)?;
                     let mut origins = binding.origins.clone();
                     origins.push((Ty::List(Box::new(ty.clone()), 1), value.clone()));
-                    let joined = if *max == 0 { ty.clone() } else { item.join_item(&ty).map_err(|error| self.assignment_type_error(self.join_error_many(error.at("[]"), &origins), name, value, site))? };
+                    let joined = if *max == 0 && **item == Ty::Unknown { ty.clone() } else { item.join_item(&ty).map_err(|error| self.assignment_type_error(self.join_error_many(error.at("[]"), &origins), name, value, site))? };
                     if !ty.assignable_to(&joined) || !item.assignable_to(&joined) {
                         return Err(self.assignment_type_error(type_error(site, format!("{name} holds {}; cannot append {}", item.name(), ty.name()), "append an item of the list's type"), name, value, site));
                     }
@@ -140,6 +140,7 @@ impl Binder<'_> {
                     binding.fields.clear();
                     binding.error = None;
                     binding.revision += 1;
+                    self.invalidate_point_fields();
                     out.push(Stmt::Assign { name: binding.runtime.clone(), value: expr });
                     self.scopes.last_mut().expect("a scope").insert(name.clone(), binding);
                 } else {
@@ -166,6 +167,7 @@ impl Binder<'_> {
                 Ok(())
             }
             S::Emit { effect, payload, once, site } => {
+                self.invalidate_points();
                 if self.viewer_depth.is_some() { return Err(job_reads::read_only(site)); }
                 if self.in_prelude {
                     return Err(placement(site, "a write belongs to a chunk", "move emit inside a top-level `for row in table:` job sweep"));
@@ -520,6 +522,7 @@ impl Binder<'_> {
                     binding.fields.insert(path, if present { ty.required() } else { Ty::Null });
                     self.scopes.last_mut().expect("a scope").insert(name.to_owned(), binding);
                 } else {
+                    if points { self.narrow_point_field(candidate, (op == "!=") == then_branch); }
                     self.narrow_call(candidate, (op == "!=") == then_branch);
                 }
             }
@@ -528,8 +531,10 @@ impl Binder<'_> {
     }
 
     pub(super) fn field_refinement(&self, expr: &A) -> Option<Ty> {
-        let (name, path) = field_path(expr, self.focal.as_ref().map(|(name, _)| name.as_str()))?;
-        self.binding(&name)?.fields.get(&path).cloned()
+        if let Some((name, path)) = field_path(expr, self.focal.as_ref().map(|(name, _)| name.as_str())) {
+            return self.binding(&name)?.fields.get(&path).cloned();
+        }
+        self.point_field_refinement(expr)
     }
 
     pub(super) fn loop_domain(&mut self, domain: &A, out: &mut setup::Body) -> Fallible<(LoopDomain, Ty)> {

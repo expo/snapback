@@ -1,3 +1,4 @@
+import { after } from "./helpers/teardown.mjs";
 import { captureStdout } from './helpers/server-output.mjs';
 import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 // @ref LLP 3000.008.001#2-three-facts-to-distinguish — a compiled device capability is not an acquired partition.
@@ -59,7 +60,7 @@ async function fixture(t, tier, empty = false, schemaSource = source) {
   mkdirSync(join(directory, "snapback"));
   const schemaPath = join(directory, "snapback/schema.q");
   writeFileSync(schemaPath, schemaSource);
-  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  after(t, () => rmSync(directory, { recursive: true, force: true }));
   let child, exit, url;
   async function start() {
     if (child) { child.kill("SIGTERM"); await exit; }
@@ -72,10 +73,10 @@ async function fixture(t, tier, empty = false, schemaSource = source) {
     await until(() => { assert.equal(child.exitCode, null, log); return listening; }, "server did not listen");
   }
   const clients = [];
-  t.after(async () => {
+  after(t, async () => {
     await Promise.allSettled(clients.map((client) => client.close()));
-    if (child.exitCode == null && child.signalCode == null) child.kill("SIGTERM");
-    await exit;
+    if (child && child.exitCode == null && child.signalCode == null) child.kill("SIGTERM");
+    if (exit) await exit;
   });
   await start();
   const headers = { "x-snapback-persona": "alice" };
@@ -454,7 +455,7 @@ function receiptLocks(t) {
     held.add(name);
     try { return await body({ name }); } finally { held.delete(name); }
   } } } });
-  t.after(() => previous ? Object.defineProperty(globalThis, "navigator", previous) : delete globalThis.navigator);
+  after(t, () => previous ? Object.defineProperty(globalThis, "navigator", previous) : delete globalThis.navigator);
 }
 
 test("W5R2a: two native owners recover 600 completions without stale pending memory", { timeout: hangBudget(600) }, async t => {

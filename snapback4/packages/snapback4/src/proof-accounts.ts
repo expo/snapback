@@ -71,7 +71,7 @@ async function accounts(host: Pick<ServeHost, "url" | "operatorToken">, options:
       const args = { principal: account.principal, role, ...options.args?.(account) };
       const response = await request(`/m/${options.provision.name}`, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${operator}` }, body: JSON.stringify({ id: randomUUID(), args }) });
       const result = await response.json();
-      if (!response.ok || result.state !== "sent") throw Error(`E_STAGING_PROVISION: ${options.provision.name} refused (${result.why?.code ?? result.denied?.code ?? "invalid reply"}); partial accounts/grants may exist; ${partial}`);
+      if (!response.ok || result.state !== "sent") throw Error(`E_STAGING_PROVISION: ${options.provision.name} refused (${result.why?.code ?? result.denied?.code ?? "invalid reply"}); supplied arguments: ${Object.keys(args).sort().join(", ")}; default provision arguments are principal and role; use args(account) for custom names; partial accounts/grants may exist; ${partial}`);
       sessions[role]!.push(account);
     }
   }

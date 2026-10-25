@@ -1,3 +1,4 @@
+import { after as teardownAfter } from "./helpers/teardown.mjs";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync } from 'node:fs';
@@ -10,12 +11,12 @@ import { runFile } from '../../../scripts/run-client-tests.mjs';
 
 async function original(t) {
   const dir = mkdtempSync(join(tmpdir(), 'sb4-replacement-regression-'));
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  teardownAfter(t, () => rmSync(dir, { recursive: true, force: true }));
   mkdirSync(join(dir, 'snapback'));
   writeFileSync(join(dir, 'snapback/schema.q'), 'use identity\nquery who():\n  return viewer\n');
   const options = { sourceDir: join(dir, 'snapback'), seed: [] };
   const server = await devServer(options);
-  t.after(() => server.close());
+  teardownAfter(t, () => server.close());
   const { session } = await fetch(server.api + '/auth/guest', { method: 'POST', body: '{}' }).then(r => r.json());
   assert.ok(session?.token);
   return { dir, options, server, session };
@@ -24,7 +25,7 @@ async function original(t) {
 test('replacement copy waits for a held writer, retaining real identity in a distinct store', async t => {
   const f = await original(t);
   let lock, busy = 0;
-  t.after(() => lock?.close());
+  teardownAfter(t, () => lock?.close());
   const replacement = await replacementServer({ original: f.server, session: f.session, ...f.options,
     onBusy: error => {
       assert.ok([5, 6].includes(error.errcode & 255));
@@ -40,7 +41,7 @@ test('replacement copy waits for a held writer, retaining real identity in a dis
       return server;
     },
   });
-  t.after(() => replacement.close());
+  teardownAfter(t, () => replacement.close());
   assert.ok(busy >= 1, 'copy observed BUSY before the writer released');
   assert.equal(lock, undefined, 'copy could only succeed after the writer released');
   const result = await fetch(replacement.api + '/q/who', {

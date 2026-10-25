@@ -1,0 +1,17 @@
+READY
+
+No material semantic blockers found in the four sections as one proposed revision. No amendment fixes required.
+
+The proposal preserves the important boundaries: direct-rule proof remains distinct from whole-invariant proof; audience-family dispositions retain individual source-bound records and exclude gates; repeated nullable reads require stable facts; typed empties constrain joins; and serving has explicit lifetime and bounded cleanup.
+
+Implementation tests should specifically demonstrate:
+
+- **Proof honesty:** direct Proved/whole Unproved keeps its qualification; finite campaigns never promote proof.
+- **Family safety:** changed membership or dependencies reject stale IDs; gates remain excluded; refutation and races prevent recording.
+- **Nullable facts:** different keys, hidden columns, writes, rebindings and branch/loop joins cannot reuse invalid facts.
+- **Typed empties:** incompatible appends and joins fail even before the first element; untyped-empty inference still works.
+- **Lifetime:** real parent/child processes survive idle waiting, exit successfully after signal cleanup, and report cleanup failures; startup failures release acquired hosts.
+
+Affected checks and Linux packed consumers are the appropriate evidence for this lane. Full publication qualification remains integration’s responsibility.
+
+Read-only review; no tests run or files edited.

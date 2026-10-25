@@ -1,3 +1,4 @@
+import { after as teardownAfter } from "./helpers/teardown.mjs";
 import { captureStdout } from './helpers/server-output.mjs';
 import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 // LLP 3000.018: a live query that reads connected[p] re-runs on the interval
@@ -93,7 +94,9 @@ for (const tier of ["online", "native", "web"]) test(`${tier}: a live online mar
   server.stdout.on("data", data => { log += data; url ??= readStdout().match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; });
   server.stderr.on("data", data => { log += data; });
   const clients = [];
-  t.after(async () => { for (const client of clients) await client.close().catch(() => {}); server.kill(); await exited; rmSync(dir, { recursive: true, force: true }); delete globalThis[clockKey]; });
+  teardownAfter(t, () => { rmSync(dir, { recursive: true, force: true }); delete globalThis[clockKey]; });
+  teardownAfter(t, async () => { server.kill(); await exited; });
+  teardownAfter(t, async () => { const results = await Promise.allSettled(clients.map(client => client.close())); const errors = results.filter(r => r.status === "rejected").map(r => r.reason); if(errors.length) throw new AggregateError(errors); });
   assert.notEqual(await until(() => url), null, log);
   const native = processDevice({ binary, dir: join(dir, "devices"), spawn: (command, args) => spawn(command, args, { stdio: ["pipe", "pipe", "inherit"] }), writeFile: async (path, text) => writeFileSync(path, text) });
   const wasm = readFileSync(join(root, "packages/snapback4/src/wasm/snapback4_device_bg.wasm"));
@@ -104,11 +107,11 @@ for (const tier of ["online", "native", "web"]) test(`${tier}: a live online mar
   if (tier !== "online") await alice.sync();
   const query = { kind: "query", name: "presenceOf" };
   const mark = alice.observe(query, { p: "dev:bob" });
-  t.after(() => mark.close());
+  teardownAfter(t, () => mark.close());
   const online = () => mark.getSnapshot()?.data?.online;
   // The same presence beside rows the device holds: an answer composed from both.
   const notes = alice.observe({ kind: "query", name: "withNotes" }, { p: "dev:bob" });
-  t.after(() => notes.close());
+  teardownAfter(t, () => notes.close());
   assert.notEqual(await until(() => online() === false && notes.getSnapshot()?.data?.online === false), null, "Bob starts away");
 
   // Bob's client holds a poll while it watches something.

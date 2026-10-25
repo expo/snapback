@@ -1479,7 +1479,7 @@ mod surf;
 #[test]
 fn bounded_discovery_never_prints_a_partial_quarry_fence() {
     let source=format!("query alive():\n  return true\n{}", "-- one indivisible recipe\n".repeat(100));
-    let text=format!("# Large card\n\nOpening.\n\n## First recipe\n```quarry\n{source}```\n\n## Other details\n{}", "More prose.\n".repeat(60));
+    let text=format!("# Large card\n\nOpening.\n\n## First recipe\n```quarry\n{source}```\n\n## Other details\n{}", "More prose.\n".repeat(300));
     let printed=guide::piped("synthetic",&text);
     assert!(printed.contains("Truncated:"));
     assert_eq!(printed.lines().filter(|line|line.trim_start().starts_with("```")).count(),2,"{printed}");

@@ -1,3 +1,4 @@
+import { after as teardownAfter } from "./helpers/teardown.mjs";
 import { waitFor as awaitState } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
@@ -39,7 +40,7 @@ function storage() {
 }
 function generated(t, held, fetcher, address = url) {
   const dir = mkdtempSync(join(tmpdir(), "sb4-secure-adapter-"));
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  teardownAfter(t, () => rmSync(dir, { recursive: true, force: true }));
   const binary = process.env.SNAPBACK4_BIN ?? resolve(import.meta.dirname, "../../../target/debug/snapback4");
   const init = spawnSync(binary, ["init", "--expo", "--template", "chat"], { cwd: dir, encoding: "utf8" });
   assert.equal(init.status, 0, init.stdout + init.stderr);
@@ -63,7 +64,7 @@ function generated(t, held, fetcher, address = url) {
   vm.runInNewContext(js, context);
   assert.equal(context.exports.tier, "online");
   const app = context.exports.app;
-  t.after(() => app.close());
+  teardownAfter(t, () => app.close());
   return app;
 }
 function transport() {
@@ -166,7 +167,7 @@ for (const bytes of ["{", "null", '{"pending":[],"receipts":[]}', JSON.stringify
   const key = storeKey("writes", url, "alice");
   await keepSession(url, session("alice"), held.store); await held.store.set(key, bytes);
   let app = createApp({ url, sessionStore: held.store, fetch: wire.fetcher });
-  t.after(() => app.close());
+  teardownAfter(t, () => app.close());
   assert.equal((await app.ready).ok, true); assert.equal(app.auth.state, "signed-in");
   assert.equal(app.auth.why.code, "E_CLIENT");
   assert.match(app.auth.why.rewrite, /sessionStore.get/);
@@ -190,7 +191,7 @@ test("unavailable quarantine preserves the original bytes and blocks writes, not
     if (broken && name.includes(".damaged.")) throw Error("storage unavailable");
     await held.store.set(name, value);
   } } });
-  t.after(() => app.close());
+  teardownAfter(t, () => app.close());
   assert.equal((await app.ready).ok, true); assert.equal(app.auth.state, "signed-in");
   assert.equal(app.auth.why.code, "E_CLIENT");
   for (const waitSeconds of [undefined, 0]) {
@@ -209,7 +210,7 @@ test("quarantine naming failure also preserves bytes without refusing sign-in", 
   await delay(5); // mintId must request fresh entropy rather than increment its last millisecond.
   t.mock.method(globalThis.crypto, "getRandomValues", () => { throw Error("entropy unavailable"); });
   const app = createApp({ url, sessionStore: held.store, fetch: wire.fetcher });
-  t.after(() => app.close());
+  teardownAfter(t, () => app.close());
   assert.equal((await app.ready).ok, true);
   assert.equal(app.auth.state, "signed-in"); assert.equal(app.auth.why.code, "E_CLIENT");
   assert.equal(await held.store.get(key), "broken");

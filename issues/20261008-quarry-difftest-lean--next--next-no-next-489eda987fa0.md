@@ -322,3 +322,14 @@ this ticket to `issues/closed/`.
 - 2026-10-11: run `20261011T000003Z-f1e6f481`, seed `22328`, commit `2135415fe9484dd8ba17466b9c80bcb05536cb44`.
 
 - 2026-10-12: run `20261012T000004Z-bbc18bf6`, seed `47442`, commit `1c47f02cd8faca7b0997644f4cc111711f7c8291`.
+
+## DX9 baseline control — 2026-10-24
+
+The seed-0, 2,000-case Lean sample reproduces this open question 8 times
+in both DX9 and a clean `origin/main` / 0.4.40 (`0cb3de79ee`) archive.
+Both builds use the same built Lean oracle, separate Cargo targets, and no
+source changes in the control. All three signature counts match (18 total);
+this is inherited, not a newly introduced DX9 disagreement. No ruling or
+engine/model repair is inferred here. Reports and shrunk examples are under
+`snapback4/reports/20261024-dx9/` (`lean-baseline-0.4.40.json`,
+`lean-2k.json`, `lean-cases/`).

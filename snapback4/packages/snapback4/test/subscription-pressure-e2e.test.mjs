@@ -1,3 +1,4 @@
+import { after as teardownAfter } from "./helpers/teardown.mjs";
 import { createBrowserServer, loadBrowserPage } from './helpers/browser-server.mjs';
 import { hangBudget } from './helpers/wait.mjs';
 // @ref LLP 3000.023#10 — two independent offline writers converge without queue-only history gaps.
@@ -18,7 +19,6 @@ const require = createRequire(join(root, 'package.json'));
 
 for (const tier of ['wasm', 'process']) test(`${tier}: two offline devices, 124 mounted observations each, exactly-once history`, { timeout: hangBudget(2 * 124) }, async t => {
   const drivers = [], pages = [], renders = [Promise.resolve(), Promise.resolve()];
-  t.after(async () => { for (const driver of drivers) await driver.close(); await Promise.all(renders); });
   const { url, dir } = await server(t, '', source);
   const rows = [{ table: 'rooms', row: { id: 'room', title: 'Chat' } }, ...['alice', 'bob'].map(name => ({ table: 'members', row: { id: name, room: 'room', principal: 'dev:' + name } })),
     ...Array.from({ length: 40 }, (_, i) => ({ table: 'messages', row: { id: 'm' + i, room: 'room', sender: 'dev:alice', ordinal: i, text: 'History ' + i } })),
@@ -29,7 +29,7 @@ for (const tier of ['wasm', 'process']) test(`${tier}: two offline devices, 124 
   const seeded = await fetch(url + '/seed', { method: 'POST', body: JSON.stringify(rows) }).then(r => r.json());
   assert.equal(seeded.seeded, rows.length, JSON.stringify(seeded));
   const pageDir = mkdtempSync(join(tmpdir(), 'sb4-pr-browser-'));
-  t.after(() => rmSync(pageDir, { recursive: true, force: true }));
+  teardownAfter(t, () => rmSync(pageDir, { recursive: true, force: true }));
   writeFileSync(join(pageDir, 'index.html'), '<div id="root"></div><script type="module" src="/page.jsx"></script>');
   writeFileSync(join(pageDir, 'page.jsx'), `
 import React from 'react'; import { createRoot } from 'react-dom/client'; import { flushSync } from 'react-dom';
@@ -43,10 +43,11 @@ window.openPressure = async ({url,persona,holdMs}) => { const state = { holdMs, 
 
   const pkg = createRequire(join(root, 'packages/snapback4/package.json'));
   const vite = await createBrowserServer({ root: pageDir, configFile: false, logLevel: 'error', server: { hmr: false, host: '127.0.0.1', port: 0, fs: { allow: [root, pageDir] } }, resolve: { alias: ['react','react-dom','react-dom/client','react/jsx-runtime','react/jsx-dev-runtime'].map(name => ({ find: new RegExp('^' + name + '$'), replacement: pkg.resolve(name) })) } });
-  await vite.listen(); t.after(() => vite.close());
+  await vite.listen(); teardownAfter(t, () => vite.close());
   const { chromium } = require('playwright-core');
   const browser = await chromium.launch({ timeout: hangBudget(), executablePath: chromiumExecutable(), headless: true, args: ['--no-sandbox', '--disable-background-timer-throttling'] });
-  t.after(() => browser.close());
+  teardownAfter(t, () => browser.close());
+  teardownAfter(t, async () => { for (const driver of drivers) await driver.close(); await Promise.all(renders); });
   for (const [i, persona] of ['alice','bob'].entries()) {
     const context = await browser.newContext(), page = await context.newPage();
   page.setDefaultTimeout(hangBudget()); page.setDefaultNavigationTimeout(hangBudget()); pages.push(page);

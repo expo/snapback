@@ -140,6 +140,7 @@ catch (error) { if ((error as NodeJS.ErrnoException).code !== "ERR_MODULE_NOT_FO
 // Locator construction stays synchronous for CommonJS callers. Actions wait
 // for optional-peer selector registration, including when the page predates
 // the proof import. Preserve synchronous Locator/FrameLocator chaining.
+export const scopedLocators = new WeakSet<object>();
 const locatorWrappers = new WeakMap<object, object>();
 const locatorChains = new Set(["locator", "filter", "describe", "first", "last", "nth", "and", "or", "frameLocator", "contentFrame", "owner"]);
 export function registeredLocator<T extends Locator | FrameLocator>(locator: T): T {
@@ -150,7 +151,11 @@ export function registeredLocator<T extends Locator | FrameLocator>(locator: T):
       const value = Reflect.get(target, key, target);
       if (typeof value !== "function" || key === "constructor") return value;
       if (typeof key !== "string" || key === "page" || key === "toString" || key === "_inspect" || key === "_equals") return value.bind(target);
-      if (locatorChains.has(key) || key.startsWith("getBy")) return (...args: unknown[]) => registeredLocator(Reflect.apply(value, target, args));
+      if (locatorChains.has(key) || key.startsWith("getBy")) return (...args: unknown[]) => {
+        const next = registeredLocator(Reflect.apply(value, target, args));
+        if (scopedLocators.has(wrapped) || scopedLocators.has(target)) scopedLocators.add(next);
+        return next;
+      };
       return (...args: unknown[]) => selectorReady.then(() => Reflect.apply(value, target, args));
     },
   });

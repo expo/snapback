@@ -1,3 +1,4 @@
+import { after as teardownAfter } from "./helpers/teardown.mjs";
 // H9 controls can load the unchanged 0.4.29 proof/witness modules via KIT2_BASELINE_DIST.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -13,15 +14,15 @@ const kit = await import(pathToFileURL(join(dist, 'proof.js')));
 const witnessSource = readFileSync(join(dist, 'witness-web.js'), 'utf8');
 async function browser(t, run) {
   const cwd = mkdtempSync(join(tmpdir(), 'kit2-contract-'));
-  t.after(() => rmSync(cwd, {recursive:true,force:true}));
+  teardownAfter(t, () => rmSync(cwd, {recursive:true,force:true}));
   await kit.withBrowser({cwd, executablePath:process.env.CHROME ?? chromiumExecutable()}, async context => run(await context.newPage(), cwd));
 }
-test('H9 renderedText opts into substring matching for a row with more than the needle', {timeout:30000}, async t => browser(t, async page => {
+test('DX9 renderedText defaults to substring matching for a row with more than the needle', {timeout:30000}, async t => browser(t, async page => {
   await page.setContent('<section aria-label="Rows"><p>Proof needle — more row text</p><input value="Proof needle"></section>');
   const within = page.getByRole('region', {name:'Rows'});
   assert.equal(await kit.renderedText(page, 'Proof needle — more row text', null).count(), 1, 'null options mean the defaults');
-  assert.equal(await kit.renderedText(page, 'Proof needle', {within}).count(), 0, 'exact by default');
-  await assert.rejects(kit.waitForFresh(kit.renderedText(page, 'Proof needle', {within}), null, 50), /a substring match exists; pass a RegExp or `exact: false`/);
+  assert.equal(await kit.renderedText(page, 'Proof needle', {within, exact:true}).count(), 0, 'exact remains opt-in');
+  await assert.rejects(kit.waitForFresh(kit.renderedText(page, 'Proof needle', {within, exact:true}), null, 50), /a substring match exists; pass a RegExp or `exact: false`/);
   const row = kit.renderedText(page, 'Proof needle', {within, exact:false});
   assert.equal(await row.count(), 1, 'explicit substring matches the whole rendered row');
   assert.equal(await kit.waitForFresh(row, null, {timeoutMs:500}), 'Proof needle — more row text');
@@ -60,7 +61,7 @@ test('DX6 composed RN text and wrapping labels preserve scope, exactness and amb
     <p hidden>Order 42 saved</p><p>Order 42 saved later</p></section>`);
   const within = page.getByRole('region', {name:'Rows'});
   for (const text of ['Order 42 saved', /^Order 42 saved$/]) {
-    const found = kit.renderedText(page, text, {within});
+    const found = kit.renderedText(page, text, {within,exact:true});
     assert.equal(await found.count(), 1, 'composed text selects the smallest rendered container');
     assert.equal(await kit.waitForFresh(found, null, 500), 'Order 42 saved');
   }
@@ -83,7 +84,7 @@ test('DX6 composed RN text and wrapping labels preserve scope, exactness and amb
   await assert.rejects(kit.waitForFresh(visible.filter({visible:true}),'Visible composed',50),/present but unchanged/);
 
 
-  assert.equal(await kit.renderedText(page, 'order 42 saved', {within}).count(), 0, 'exact remains case sensitive');
+  assert.equal(await kit.renderedText(page, 'order 42 saved', {within,exact:true}).count(), 0, 'exact remains case sensitive');
   assert.equal(await kit.renderedText(page, 'Order 42 saved', {within, exact:false}).count(), 2);
   await page.getByRole('region', {name:'Rows'}).evaluate(el => el.insertAdjacentHTML('beforeend', '<p>Order 42 saved</p>'));
   await assert.rejects(kit.waitForFresh(kit.renderedText(page, 'Order 42 saved', {within}), null, 500), /strict mode violation/);
@@ -91,7 +92,7 @@ test('DX6 composed RN text and wrapping labels preserve scope, exactness and amb
 test('DX6 rendered locators work on caller-owned Chromium outside withBrowser', {timeout:30000}, async t => {
   const {chromium}=createRequire(join(dist,'proof.js'))('playwright-core');
   const browser=await chromium.launch({headless:true,executablePath:process.env.CHROME??chromiumExecutable(),args:['--no-sandbox']});
-  t.after(()=>kit.bounded(browser.close(),5000,'caller browser close'));
+  teardownAfter(t, ()=>kit.bounded(browser.close(),5000,'caller browser close'));
   const page=await browser.newPage();
   await page.setContent('<p><span>Caller </span><strong>visible</strong><span hidden> hidden</span></p>');
   assert.equal(await kit.waitForFresh(kit.renderedText(page,'Caller visible'),null,1000),'Caller visible');
@@ -107,7 +108,7 @@ test('DX6 proof driver installs the SDK bridge without application witness impor
     window[Symbol.for('snapback4.proof.app')]({ready:Promise.resolve({ok:true}),client:{}});
     document.querySelector('button').onclick=()=>app.mutate(op,{title:'composed'});
   </script>`);
-  const host = await kit.startStatic('dist', {cwd}); t.after(() => host.stop());
+  const host = await kit.startStatic('dist', {cwd}); teardownAfter(t, () => host.stop());
   await page.goto(host.url, {waitUntil:'domcontentloaded'});
   const tamper = await page.evaluate(() => {
     const key=Symbol.for('snapback4.proof.app'), observer=window[key], bridge=window.__snapback4Witness;
@@ -128,19 +129,19 @@ test('DX6 proof driver installs the SDK bridge without application witness impor
 test('KIT4 substring advice stays inside explicit scope and timeout names the visible screen', {timeout:30000}, async t => browser(t, async page => {
   await page.setContent('<h1>Open status link</h1><p>Explains Cleared status</p><section aria-label="Status"><p>Waiting</p></section>');
   const within=page.getByRole('region',{name:'Status'});
-  for (const options of [{}, {within}]) {
+  for (const options of [{exact:true}, {within}]) {
     await assert.rejects(kit.waitForFresh(kit.renderedText(page,'Cleared',options),null,50), error => {
       assert.match(error.message,/visible heading="Open status link"/);
       assert.doesNotMatch(error.message,/substring match exists/); return true;
     });
   }
   await page.getByRole('region',{name:'Status'}).evaluate(el=>el.innerHTML='<p>Cleared by officer</p>');
-  await assert.rejects(kit.waitForFresh(kit.renderedText(page,'Cleared',{within}),null,50),/substring match exists/);
-  await assert.rejects(kit.waitForFresh(kit.renderedText(page,'Cleared'),null,{within,timeoutMs:50}),/substring match exists/);
+  await assert.rejects(kit.waitForFresh(kit.renderedText(page,'Cleared',{within,exact:true}),null,50),/substring match exists/);
+  await assert.rejects(kit.waitForFresh(kit.renderedText(page,'Cleared',{exact:true}),null,{within,timeoutMs:50}),/substring match exists/);
 }));
 test('H9 P12 a trusted click that writes nothing settles E_WITNESS_NO_WRITE and rearming settles the old promise', {timeout:30000}, async t => browser(t, async page => {
   const cwd=mkdtempSync(join(tmpdir(),'kit2-no-write-'));
-  t.after(()=>rmSync(cwd,{recursive:true,force:true}));
+  teardownAfter(t, ()=>rmSync(cwd,{recursive:true,force:true}));
   mkdirSync(join(cwd,'dist'));
   writeFileSync(join(cwd,'dist/bridge.js'),witnessSource);
   writeFileSync(join(cwd,'dist/index.html'),`<button>Add</button><script type="module">
@@ -150,7 +151,7 @@ const app={client,mutate:client.mutate,ready:Promise.resolve({ok:true})};
 window.testApp=app;registerWebWitness(app,{add:{kind:'mutation',name:'add'}});
 </script>`);
   const host=await kit.startStatic('dist',{cwd});
-  t.after(()=>host.stop());
+  teardownAfter(t, ()=>host.stop());
   await page.goto(host.url+'/?witness=web',{waitUntil:'domcontentloaded'});
   await page.waitForFunction(()=>window.__snapback4Witness);
   await page.evaluate(()=>{
@@ -175,7 +176,7 @@ window.testApp=app;registerWebWitness(app,{add:{kind:'mutation',name:'add'}});
 
 test('KIT3 explicit form claim survives slow uploads and never grants an unrelated callback', {timeout:30000}, async t => browser(t, async (page, browserCwd) => {
   const cwd=mkdtempSync(join(tmpdir(),'kit3-upload-'));
-  t.after(()=>rmSync(cwd,{recursive:true,force:true})); mkdirSync(join(cwd,'dist'));
+  teardownAfter(t, ()=>rmSync(cwd,{recursive:true,force:true})); mkdirSync(join(cwd,'dist'));
   writeFileSync(join(cwd,'dist/bridge.js'),witnessSource);
   writeFileSync(join(cwd,'dist/index.html'),`<button>Add</button><script type="module">
 import {registerWebWitness,witnessForm} from './bridge.js';
@@ -196,7 +197,7 @@ document.querySelector('button').onclick=event=>{
   });
 };
 </script>`);
-  const host=await kit.startStatic('dist',{cwd});t.after(()=>host.stop());
+  const host=await kit.startStatic('dist',{cwd});teardownAfter(t, ()=>host.stop());
   await page.goto(host.url+'/?witness=web'); await page.waitForFunction(()=>window.__snapback4Witness);
   const arm=()=>page.evaluate(()=>window.__snapback4Witness.beginForm('add',{},document.querySelector('button')));
   await arm(); await page.getByRole('button').click();
@@ -245,9 +246,9 @@ test('KIT3 starter SVG box click and scoped text recipe run literally', {timeout
 }));
 
 test('KIT3 dev.now reads the current served clock across advance and reset', {timeout:30000}, async t => {
-  const cwd=mkdtempSync(join(tmpdir(),'kit3-now-'));t.after(()=>rmSync(cwd,{recursive:true,force:true}));
+  const cwd=mkdtempSync(join(tmpdir(),'kit3-now-'));teardownAfter(t, ()=>rmSync(cwd,{recursive:true,force:true}));
   mkdirSync(join(cwd,'snapback'));writeFileSync(join(cwd,'snapback/schema.q'),'use personas alice\nquery time():\n  return now\n');
-  const dev=await kit.startDev({cwd});t.after(()=>dev.stop());
+  const dev=await kit.startDev({cwd});teardownAfter(t, ()=>dev.stop());
   const before=await dev.now();
   const post=async(path,body)=>(await fetch(dev.url+path,{method:'POST',body:JSON.stringify(body)})).json();
   const advanced=await post('/dev/clock/advance',{duration:'2h'});
@@ -259,15 +260,15 @@ test('KIT3 dev.now reads the current served clock across advance and reset', {ti
 
 test('KIT4 stale online client names dev reset and a newly opened client works', {timeout:30000}, async t => {
   const {createClient}=await import('../dist/client.js');
-  const cwd=mkdtempSync(join(tmpdir(),'kit4-reset-'));t.after(()=>rmSync(cwd,{recursive:true,force:true}));
+  const cwd=mkdtempSync(join(tmpdir(),'kit4-reset-'));teardownAfter(t, ()=>rmSync(cwd,{recursive:true,force:true}));
   mkdirSync(join(cwd,'snapback'));writeFileSync(join(cwd,'snapback/schema.q'),'use personas alice\nquery time():\n  return now\n');
-  const dev=await kit.startDev({cwd});t.after(()=>dev.stop());
-  const before=createClient({url:dev.url,persona:'alice'});t.after(()=>before.close());
+  const dev=await kit.startDev({cwd});teardownAfter(t, ()=>dev.stop());
+  const before=createClient({url:dev.url,persona:'alice'});teardownAfter(t, ()=>before.close());
   assert.equal((await before.query({kind:'query',name:'time'},{})).complete,true);
   const reset=await fetch(dev.url+'/dev/reset',{method:'POST',body:'{}'});assert.equal(reset.status,200);
   const reply=await before.query({kind:'query',name:'time'},{});
   assert.equal(reply.denied.code,'E_DEV_RESET');assert.match(reply.denied.message,/reopen the client/);
-  const after=createClient({url:dev.url,persona:'alice'});t.after(()=>after.close());
+  const after=createClient({url:dev.url,persona:'alice'});teardownAfter(t, ()=>after.close());
   assert.equal((await after.query({kind:'query',name:'time'},{})).complete,true);
 });
 test('KIT4 waitForClock observes the page client instead of the proof driver clock', {timeout:30000}, async t => browser(t, async page => {
@@ -283,7 +284,7 @@ test('KIT4 generated proof API table agrees with every source export', {timeout:
 });
 
 for (const mode of ['count', 'fresh']) test(`late CommonJS proof import waits for rendered selector registration: ${mode}`, {timeout:30000}, async t => {
-  const cwd=mkdtempSync(join(tmpdir(),'proof-late-cjs-'));t.after(()=>rmSync(cwd,{recursive:true,force:true}));
+  const cwd=mkdtempSync(join(tmpdir(),'proof-late-cjs-'));teardownAfter(t, ()=>rmSync(cwd,{recursive:true,force:true}));
   const peer=createRequire(join(dist,'proof.js')).resolve('playwright-core');
   const script=`const assert=require('node:assert/strict');const {chromium}=require(${JSON.stringify(peer)});
 (async()=>{const browser=await chromium.launch({headless:true,executablePath:${JSON.stringify(process.env.CHROME??chromiumExecutable())},args:['--no-sandbox']});
@@ -297,3 +298,24 @@ else assert.equal(await kit.waitForFresh(locator,null,{within:page.locator('main
   const result=await kit.command(process.execPath,['probe.cjs',mode],{cwd,timeoutMs:20000});
   assert.equal(result.code,0,result.stdout+result.stderr);
 });
+
+// @ref LLP 3000.011.003.000.000#15-wave-26-proof-ergonomics-dx9 — refuse duplicate scopes and ambiguous evidence; use real input events.
+test('DX9 proof scopes, substring ambiguity and typed HTML inputs', {timeout:30000}, async t => browser(t, async page => {
+  await page.setContent('<main><p>Saved order 42</p><p>Saved order 43</p><input type="date"><input type="datetime-local"><input type="file"><input type="text"></main>');
+  const within=page.locator('main');
+  await assert.rejects(kit.waitForFresh(kit.renderedText(page,'Saved'),null,500),/E_PROOF_AMBIGUOUS.*2 rendered matches.*within.*exact/);
+  assert.equal(await kit.waitForFresh(kit.renderedText(page,'order 42'),null,500),'Saved order 42');
+  const scoped=kit.renderedText(page,'order 42',{within}).filter({visible:true});
+  await assert.rejects(kit.waitForFresh(scoped,null,{within,timeoutMs:500}),/E_PROOF_USAGE.*within.*twice/);
+  await page.evaluate(()=>{window.events=[];document.querySelectorAll('input').forEach(el=>el.addEventListener('input',()=>window.events.push(el.type)));});
+  await kit.fillRN(page.locator('[type=date]'),'2026-10-24');
+  await kit.fillRN(page.locator('[type=datetime-local]'),'2026-10-24T12:34');
+  await kit.fillRN(page.locator('[type=file]'),{name:'evidence.txt',mimeType:'text/plain',buffer:Buffer.from('uploaded evidence')});
+  await kit.fillRN(page.locator('[type=text]'),'ordinary RN input');
+  assert.equal(await page.locator('[type=date]').inputValue(),'2026-10-24');
+  assert.equal(await page.locator('[type=datetime-local]').inputValue(),'2026-10-24T12:34');
+  assert.equal(await page.locator('[type=file]').evaluate(el=>el.files[0].name),'evidence.txt');
+  assert.equal(await page.locator('[type=text]').inputValue(),'ordinary RN input');
+  assert.ok((await page.evaluate(()=>window.events)).includes('date'));
+  assert.ok((await page.evaluate(()=>window.events)).includes('datetime-local'));
+}));
