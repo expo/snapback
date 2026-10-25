@@ -91,7 +91,7 @@ fn hot_release_pinned_old_read_finishes_and_unpinned_reader_is_fenced() {
     let host = directory.host();
     let (epoch, mut pinned) = {
         let engine = lock(&host.shared.engine);
-        lock(&host.shared.readers).take(&engine).unwrap()
+        host.shared.take_reader(&engine).unwrap()
     };
     let mut unpinned = lock(&host.shared.engine).reader().unwrap();
     let (entered, waiting) = mpsc::channel();

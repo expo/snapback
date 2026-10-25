@@ -253,7 +253,7 @@ fn historical(pg: bool) {
             _=>SOURCE.replace("update counters[\"c\"] { n: (counters[\"c\"].n ?? 0) + n }", "upsert typing[owner = viewer] {}"),
         };
         let bound=snapback4_lang::compile(&[("schema.q".into(),source)]);assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);
-        { let mut engine=lock(&f.host.shared.engine); let generation=engine.adopt(bound.schema.clone(),bound.programs.iter().map(|p|p.program.clone())).unwrap();lock(&f.host.shared.readers).replace(&engine,&bound.refusal_sites);*lock(&f.host.shared.bound)=bound;*lock(&f.host.shared.generation)=generation;f.host.shared.publish_engine(&engine); }
+        { let mut engine=lock(&f.host.shared.engine); let generation=engine.adopt(bound.schema.clone(),bound.programs.iter().map(|p|p.program.clone())).unwrap();f.host.shared.replace_readers(&engine, &bound.refusal_sites);*lock(&f.host.shared.bound)=bound;*lock(&f.host.shared.generation)=generation;f.host.shared.publish_engine(&engine); }
         let mut retry=payload.clone();retry["delivery"]=json!({});
         let replay=f.call(&session,&retry);assert_eq!(replay["replayed"],true,"{change}: {replay}");assert_eq!(replay["seq"],first["seq"]);assert_eq!(f.count(),1);
         if change == "ephemeral" {
@@ -295,7 +295,7 @@ fn refusal_generation(pg: bool) {
     let generation={
         let mut engine=lock(&f.host.shared.engine);
         let generation=engine.adopt(bound.schema.clone(),bound.programs.iter().map(|p|p.program.clone())).unwrap();
-        lock(&f.host.shared.readers).replace(&engine,&bound.refusal_sites);*lock(&f.host.shared.bound)=bound;
+        f.host.shared.replace_readers(&engine, &bound.refusal_sites);*lock(&f.host.shared.bound)=bound;
         *lock(&f.host.shared.generation)=generation;f.host.shared.publish_engine(&engine);generation
     };
     gate.release();let reply=body(&task.join().unwrap());
@@ -309,7 +309,7 @@ fn adopt_ephemeral(f: &Fixture, engine: &mut Engine) {
     let bound = snapback4_lang::compile(&[("schema.q".into(), source)]);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
     let generation = engine.adopt(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).unwrap();
-    lock(&f.host.shared.readers).replace(engine, &bound.refusal_sites);
+    f.host.shared.replace_readers(engine, &bound.refusal_sites);
     *lock(&f.host.shared.bound) = bound;
     *lock(&f.host.shared.generation) = generation;
     f.host.shared.publish_engine(engine);

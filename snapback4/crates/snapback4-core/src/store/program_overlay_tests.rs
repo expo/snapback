@@ -781,7 +781,7 @@ fn counts(pg: bool) {
                 if repetition == 3 {
                     eprintln!("G3b RT0 pg={pg} shared={shared} N={n}: {measured:?}");
                     if pg && n > 1 {
-                        assert_eq!(measured.postgres, if shared { 6 } else { 5 });
+                        assert_eq!(measured.postgres, if shared { 5 } else { 4 });
                     }
                 }
             }

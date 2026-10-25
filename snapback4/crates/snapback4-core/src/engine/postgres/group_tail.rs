@@ -3,8 +3,8 @@
 use super::store::{Tx, signed};
 use crate::RuntimeError;
 
-pub(super) const SQL: &str = r#"WITH
-head AS (UPDATE _head SET seq=$3 WHERE singleton AND seq=$2 RETURNING seq),
+macro_rules! tail_sql { ($head:literal, $publication:literal) => { concat!(r#"WITH
+head AS (UPDATE _head SET seq=$3 WHERE singleton AND seq=$2 "#, $head, r#"),
 images AS (
  UPDATE r SET data=w.data FROM jsonb_to_recordset(($1::text::jsonb)->'images') AS w(t text,id text,data text)
  CROSS JOIN head WHERE r.t=w.t AND r.id=w.id RETURNING r.id
@@ -42,7 +42,11 @@ committed AS (
  CROSS JOIN head RETURNING id
 )
 SELECT (SELECT count(*) FROM head),(SELECT count(*) FROM committed),(SELECT count(*) FROM evidence),
- (SELECT count(*) FROM logged),(SELECT count(*) FROM effects),(SELECT count(*) FROM presence),(SELECT count(*) FROM receipts),(SELECT count(*) FROM images)"#;
+ (SELECT count(*) FROM logged),(SELECT count(*) FROM effects),(SELECT count(*) FROM presence),(SELECT count(*) FROM receipts),(SELECT count(*) FROM images)"#, $publication) }; }
+pub(super) const SQL: &str = tail_sql!("RETURNING seq", "");
+const PUBLICATION_SQL: &str = tail_sql!("RETURNING seq,revision", r#",
+ (SELECT revision FROM head),(SELECT seq FROM head),(SELECT generation FROM _backend WHERE singleton),
+ (SELECT value FROM _meta WHERE key='store_id'),(SELECT value FROM _meta WHERE key='schema_hash'),(SELECT value FROM _meta WHERE key='activation_hash')"#);
 
 #[derive(Clone, serde::Serialize)]
 pub(super) struct Receipt {
@@ -212,7 +216,7 @@ impl Tx<'_> {
             .unwrap()
         };
         let sets = self.flight(
-            &[(SQL, &[&payload, &signed(first)?, &signed(last)?])],
+            &[(if self.publication_enabled() { PUBLICATION_SQL } else { SQL }, &[&payload, &signed(first)?, &signed(last)?])],
             "SET LOCAL statement_timeout=0; SET LOCAL lock_timeout=0",
         )?;
         let row = sets[0]
@@ -226,6 +230,7 @@ impl Tx<'_> {
                 )));
             }
         }
+        self.capture_tail_publication(row, 8)?;
         drop(tails);
         self.group_tails.borrow_mut().clear();
         self.group_images.borrow_mut().clear();

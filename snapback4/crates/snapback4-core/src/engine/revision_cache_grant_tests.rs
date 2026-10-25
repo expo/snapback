@@ -788,3 +788,42 @@ fn g6_already_admitted_writer_rolls_back_if_gate_refuses_dispatch() {
     assert!(read(&mut r,&d,&v,"W1",true,SessionScope::Full,1001).is_ok());assert!(r.revision_cache_stats().gate.uncertain);
     lease.release().unwrap();
 }
+
+#[test]
+#[ignore = "private PG16"]
+fn r1_group_tail_publishes_returned_head_and_revision_in_four_flights() {
+    let (mut w, digest, viewer, mut lease, mut c) = fixture_owned();
+    w.seed_at((0..4).map(|n| ("counters".into(), crate::value::object([
+        ("id", Value::Id(format!("r1-{n}"))), ("n", Value::Int(0)),
+        ("owner", Value::Id(viewer.clone())), ("room", Value::Id("r'\\\né".into())),
+    ]))), 1000).unwrap();
+    let mut reader = w.reader().unwrap();
+    actual_hit(&mut reader, &digest, &viewer, "W1", SessionScope::Full);
+    let invocations = || (0..4).map(|n| {
+        crate::engine::program::Invocation::new("increment", None,
+            Context::new(&viewer, [("counter".into(), Value::Id(format!("r1-{n}")))].into()).at(1000).with_request_credential("account"))
+            .authorized(digest.clone(), || identity::ServiceSample { now: 1000, supervisor_revision: 0 }, |_| Ok(()))
+    }).collect::<Vec<_>>();
+    assert!(w.invoke_program_batch(&mut invocations()).iter().all(Result::is_ok));
+    let before = revision(&mut w);
+    let trips = Scope::begin();
+    let outcomes = w.invoke_program_batch(&mut invocations());
+    let flights = trips.counts().postgres; drop(trips);
+    assert!(outcomes.iter().all(Result::is_ok), "{outcomes:?}");
+    assert_eq!(flights, 4, "fenced facts, batch facts, apply+publication tail, separate COMMIT");
+    let after = revision(&mut w);
+    assert_eq!(after, (before.0 + 4, before.1 + 4));
+    let persisted = c.query_one("SELECT h.revision,h.seq,b.generation,(SELECT value FROM _meta WHERE key='store_id'),(SELECT value FROM _meta WHERE key='schema_hash'),(SELECT value FROM _meta WHERE key='activation_hash') FROM _head h CROSS JOIN _backend b WHERE h.singleton AND b.singleton", &[]).unwrap();
+    let published = lease.read_grant.state.read().unwrap().published.clone().unwrap();
+    assert_eq!((published.revision, published.head), after);
+    assert_eq!(published.generation, persisted.get::<_, i64>(2));
+    assert_eq!(published.store, persisted.get::<_, String>(3));
+    assert_eq!(published.schema, persisted.get::<_, String>(4));
+    assert_eq!(published.code, persisted.get::<_, String>(5));
+    let hits = reader.revision_cache_stats().g6_hits;
+    let ordinary = read(&mut reader, &digest, &viewer, "W1", false, SessionScope::Full, 1000).unwrap();
+    assert_eq!(read(&mut reader, &digest, &viewer, "W1", true, SessionScope::Full, 1000).unwrap(), ordinary);
+    assert_eq!(reader.revision_cache_stats().g6_hits, hits, "old fill must miss the new revision");
+    actual_hit(&mut reader, &digest, &viewer, "W1", SessionScope::Full);
+    lease.release().unwrap();
+}

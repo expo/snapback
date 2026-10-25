@@ -1340,14 +1340,14 @@ fn pooled_readers_discard_old_loans_after_backend_or_native_epoch_changes() {
     assert_eq!(version()["data"], 1);
     let (epoch, mut old) = {
         let engine = lock(&host.shared.engine);
-        lock(&host.shared.readers).take(&engine).unwrap()
+        host.shared.take_reader(&engine).unwrap()
     };
     let bound = snapback4_lang::compile(&[("schema.q".into(), READER_SCHEMA.replace("return 1", "return 2"))]);
     assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
     {
         let mut engine = lock(&host.shared.engine);
         let next = engine.adopt(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).unwrap();
-        lock(&host.shared.readers).replace(&engine, &bound.refusal_sites);
+        host.shared.replace_readers(&engine, &bound.refusal_sites);
         *lock(&host.shared.bound) = bound;
         *lock(&host.shared.generation) = next;
     }
@@ -1358,7 +1358,7 @@ fn pooled_readers_discard_old_loans_after_backend_or_native_epoch_changes() {
     assert_eq!(version()["data"], 2);
     let (epoch, reader, generation) = {
         let engine = lock(&host.shared.engine);
-        let (epoch, reader) = lock(&host.shared.readers).take(&engine).unwrap();
+        let (epoch, reader) = host.shared.take_reader(&engine).unwrap();
         (epoch, reader, engine.generation())
     };
     // A native-only replacement also invalidates loans even if the stored
@@ -1366,7 +1366,7 @@ fn pooled_readers_discard_old_loans_after_backend_or_native_epoch_changes() {
     // it does not claim to execute a native-module rebuild.
     {
         let engine = lock(&host.shared.engine);
-        lock(&host.shared.readers).replace(&engine, &lock(&host.shared.bound).refusal_sites);
+        host.shared.replace_readers(&engine, &lock(&host.shared.bound).refusal_sites);
         assert_eq!(engine.generation(), generation);
     }
     lock(&host.shared.readers).put(&epoch, reader);

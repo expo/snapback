@@ -160,7 +160,7 @@ pub(super) fn reset(request: Request, shared: &Shared, body: &str) {
     // `/dev/status` forget the old identity. Wake then names the new store,
     // so every held poll returns and each client sees the replacement.
     let sites = lock(&shared.bound).refusal_sites.clone();
-    lock(&shared.readers).replace(engine, &sites);
+    shared.replace_readers(engine, &sites);
     lock(&shared.adoption).store_id = reset.store_id.clone();
     if let Ok(reader) = snapback4_core::engine::following_history::Reader::new() { *lock(&shared.following) = reader; }
     *lock(&shared.change_answers) = Default::default();

@@ -464,3 +464,171 @@ fn round_trips_postgres_g6_zero_flight_hits_and_g5_fallback() {
     assert_eq!(after.g6_hits,before.g6_hits);assert!(after.hits>before.hits,"fresh G5 reuse resumes after grant retirement");
     eprintln!("RT0 G6 W1/W2/W3 = 0/0/0; misses=1/1/1; revoked grant G5=1");
 }
+
+/// Relative HTTP loopback evidence; intended arrivals advance independently of
+/// responses, with 32 senders retaining queue delay and every error.
+#[cfg(feature = "postgres")]
+#[test]
+#[ignore = "manual private PG16; SNAPBACK4_R1_MEASURE=before|after"]
+fn r1_open_loop_batch_fill() {
+    let Ok(label) = std::env::var("SNAPBACK4_R1_MEASURE") else { return };
+    let source = include_str!("../../../../reports/20261022-rt-a-round-trips/admitted-s1.q");
+    let rates: Vec<usize> = std::env::var("SNAPBACK4_R1_RATES").unwrap_or("800,1600,3200".into())
+        .split(',').map(|s| s.parse().unwrap()).collect();
+    for rate in rates { for repetition in 0..3 {
+        let store = snapback4_core::store_port::AnyStore::create_postgres(
+            &std::env::var("SNAPBACK4_EVAL_POSTGRES").unwrap(),
+            &format!("r1_measure_{:x}", snapback4_core::ids::seed())).unwrap();
+        let host = Host::with_store(false, store, source);
+        let token = { let e = lock(&host.shared.engine); identity::open_session(e.store(), "guest:r1", "guest", host.shared.now()).unwrap().token };
+        let headers = format!("Authorization: Bearer {token}\r\n");
+        let setup = host.request("POST", "/m/setup", &headers, r#"{"args":{}}"#);
+        assert_eq!(body(&setup)["state"], "sent", "{setup}");
+        let warm = host.request("POST", "/q/W1", &headers, r#"{"args":{"message":"absent"}}"#);
+        assert_eq!(status(&warm), 200);
+        let before = host.shared.engine.batch_stats();
+        let head = lock(&host.shared.engine).store().seq().unwrap();
+        let load_start = std::fs::read_to_string("/proc/loadavg").ok();
+        let count = rate * 3;
+        let next = Arc::new(AtomicUsize::new(0));
+        let start = Instant::now() + Duration::from_millis(100);
+        let mut senders = Vec::new();
+        for _ in 0..32 {
+            let next = next.clone(); let headers = headers.clone(); let address = host.address;
+            senders.push(thread::spawn(move || {
+                let mut latencies = Vec::new(); let mut failures = BTreeMap::<String, usize>::new();
+                loop {
+                    let n = next.fetch_add(1, Ordering::Relaxed); if n >= count { break; }
+                    let intended = start + Duration::from_secs_f64(n as f64 / rate as f64);
+                    if let Some(wait) = intended.checked_duration_since(Instant::now()) { thread::sleep(wait); }
+                    let payload = r#"{"args":{"counter":"c0000"}}"#;
+                    let wire = format!("POST /m/increment HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nContent-Length: {}\r\n{headers}\r\n{payload}", payload.len());
+                    let response = (|| -> std::io::Result<String> {
+                        let mut stream = TcpStream::connect(address)?;
+                        stream.set_read_timeout(Some(Duration::from_secs(1)))?;
+                        stream.write_all(wire.as_bytes())?;
+                        let mut reply = String::new(); stream.read_to_string(&mut reply)?; Ok(reply)
+                    })();
+                    match response {
+                        Ok(reply) if status(&reply) == 200 && body(&reply)["state"] == "sent" => latencies.push(intended.elapsed().as_micros() as u64),
+                        Ok(reply) => { let value = body(&reply); let why = value["why"]["code"].as_str().or(value["denied"]["code"].as_str()).unwrap_or("other"); *failures.entry(why.into()).or_default() += 1; },
+                        Err(_) => *failures.entry("transport_timeout".into()).or_default() += 1,
+                    }
+                }
+                (latencies, failures)
+            }));
+        }
+        let mut latencies = Vec::new(); let mut failures = BTreeMap::<String, usize>::new();
+        for sender in senders { let (times, errors) = sender.join().unwrap(); latencies.extend(times); for (why, n) in errors { *failures.entry(why).or_default() += n; } }
+        let seconds = start.elapsed().as_secs_f64(); latencies.sort_unstable();
+        let after = host.shared.engine.batch_stats();
+        let durable = lock(&host.shared.engine).store().seq().unwrap() - head;
+        let fills: Vec<_> = after.fills.iter().zip(&before.fills).map(|(a,b)| a-b).collect();
+        println!("R1_MEASURE {}", json!({"label":label,"offered":rate,"repetition":repetition,"intended":count,"acknowledged":latencies.len(),"durable":durable,"errors":failures,"seconds":seconds,"writes_per_second":latencies.len() as f64/seconds,"mean_n":(after.members-before.members) as f64/fills.iter().sum::<u64>() as f64,"fills":fills,"p99_us":latencies.get(latencies.len()*99/100),"load_start":load_start,"load_end":std::fs::read_to_string("/proc/loadavg").ok(),"clients":32,"transport":"HTTP loopback, close per request, Unix PG16 socket","profile":"test, line-tables-only"}));
+        assert_eq!(durable, latencies.len() as u64, "durable commits must reconcile with acknowledged writes");
+    }}
+}
+
+#[test]
+fn r1_reader_construction_releases_the_global_lock() {
+    let directory = ReaderTestDirectory::new();
+    let host = Host::with_store(false, snapback4_core::store_port::AnyStore::open(&directory.0.join("reader.db")).unwrap(), "use identity\nquery who():\n  return viewer\n");
+    let (entered, arrived) = mpsc::channel(); let (release, resumed) = mpsc::channel();
+    let resumed = Mutex::new(resumed);
+    lock(&host.shared.readers).idle.clear();
+    lock(&host.shared.readers).construction_hook = Some(Arc::new(move || { entered.send(()).unwrap(); lock(&resumed).recv().unwrap(); }));
+    let shared = host.shared.clone();
+    let builder = thread::spawn(move || shared.reader());
+    arrived.recv_timeout(Duration::from_secs(10)).unwrap();
+    // Construction is parked indefinitely. This is a mutex ownership witness,
+    // independent of the machine's scheduling speed or connect latency.
+    let unlocked = host.shared.readers.try_lock().is_ok();
+    release.send(()).unwrap();
+    assert!(builder.join().unwrap().is_ok());
+    assert!(unlocked, "reader construction owns the global reader mutex (>100ms convoy possible)");
+}
+
+#[cfg(feature = "postgres")]
+#[test]
+#[ignore = "private PG16"]
+fn r1_ready_burst_never_constructs_a_reader() {
+    let store = snapback4_core::store_port::AnyStore::create_postgres(
+        &std::env::var("SNAPBACK4_EVAL_POSTGRES").unwrap(),
+        &format!("r1_ready_{:x}", snapback4_core::ids::seed())).unwrap();
+    let host = Host::with_store(false, store, "use identity\nquery who():\n  return viewer\n");
+    assert_eq!(lock(&host.shared.readers).idle.len(), REQUEST_WORKERS);
+    lock(&host.shared.readers).construction_hook = Some(Arc::new(|| panic!("ready burst tried to construct/qualify a reader")));
+    let barrier = Arc::new(std::sync::Barrier::new(REQUEST_WORKERS));
+    let threads: Vec<_> = (0..REQUEST_WORKERS).map(|_| {
+        let shared = host.shared.clone(); let barrier = barrier.clone();
+        thread::spawn(move || {
+            let start = Instant::now(); let (epoch, reader) = shared.reader().unwrap();
+            let acquisition = start.elapsed();
+            // No return until every burst member owns its distinct loan.
+            barrier.wait(); lock(&shared.readers).put(&epoch, reader.into_inner());
+            acquisition
+        })
+    }).collect();
+    let maximum = threads.into_iter().map(|t| t.join().unwrap()).max().unwrap();
+    eprintln!("R1 ready burst: {REQUEST_WORKERS} loans; construction hook unreachable; max acquisition {maximum:?}");
+    assert!(maximum < Duration::from_millis(100));
+}
+
+#[cfg(feature = "postgres")]
+#[test]
+#[ignore = "private PG16"]
+fn r1_client_timeout_after_commit_is_not_an_extra_execution() {
+    for keyed in [false, true] {
+        let store = snapback4_core::store_port::AnyStore::create_postgres(
+            &std::env::var("SNAPBACK4_EVAL_POSTGRES").unwrap(),
+            &format!("r1_ack_{:x}", snapback4_core::ids::seed())).unwrap();
+        let host = Host::with_store(false, store, include_str!("../../../../reports/20261022-rt-a-round-trips/admitted-s1.q"));
+        let token = { let e = lock(&host.shared.engine); identity::open_session(e.store(), "guest:r1-ack", "guest", host.shared.now()).unwrap().token };
+        let headers = format!("Authorization: Bearer {token}\r\n");
+        assert_eq!(body(&host.request("POST", "/m/setup", &headers, r#"{"args":{}}"#))["state"], "sent");
+        let before = lock(&host.shared.engine).store().seq().unwrap();
+        let (entered, arrived) = mpsc::channel(); let (release, resumed) = mpsc::channel(); let resumed = Mutex::new(resumed);
+        *lock(&host.shared.mutation_committed) = Some(Arc::new(move || { entered.send(()).unwrap(); lock(&resumed).recv().unwrap(); }));
+        let payload = if keyed { r#"{"id":"lost-ack","args":{"counter":"c0000"}}"# } else { r#"{"args":{"counter":"c0000"}}"# };
+        let mut client = TcpStream::connect(host.address).unwrap();
+        client.set_read_timeout(Some(Duration::from_secs(1))).unwrap();
+        client.write_all(format!("POST /m/increment HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\nContent-Length: {}\r\n{headers}\r\n{payload}", payload.len()).as_bytes()).unwrap();
+        arrived.recv_timeout(Duration::from_secs(10)).unwrap();
+        // COMMIT is confirmed, but the response continuation is parked. Losing
+        // the HTTP acknowledgement cannot roll back a durable write.
+        let mut bytes = [0; 4096]; let timed_out = client.read(&mut bytes).unwrap_err();
+        drop(client); release.send(()).unwrap();
+        *lock(&host.shared.mutation_committed) = None;
+        let head = host.shared.engine.call(|engine, _| engine.seq().unwrap()).unwrap();
+        assert!(matches!(timed_out.kind(), std::io::ErrorKind::TimedOut | std::io::ErrorKind::WouldBlock));
+        assert_eq!(head - before, 1, "one lost HTTP ack, exactly one durable execution");
+        if keyed {
+            let replay = body(&host.request("POST", "/m/increment", &headers, payload));
+            assert_eq!(replay["state"], "sent"); assert_eq!(replay["seq"], head);
+            assert_eq!(lock(&host.shared.engine).store().seq().unwrap(), head, "replay does not re-execute the mutation");
+        }
+        eprintln!("R1 lost HTTP ack keyed={keyed}: timeout, durable delta=1; no duplicate execution");
+    }
+}
+
+#[test]
+fn r1_reader_factory_unwind_and_retired_epoch_cannot_consume_slots() {
+    let directory = ReaderTestDirectory::new();
+    let host = Host::with_store(false, snapback4_core::store_port::AnyStore::open(&directory.0.join("reader.db")).unwrap(), "use identity\nquery who():\n  return viewer\n");
+    lock(&host.shared.readers).construction_hook = Some(Arc::new(|| panic!("injected constructor unwind")));
+    assert!(std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| host.shared.reader())).is_err());
+    lock(&host.shared.readers).construction_hook = None;
+    assert!(host.shared.reader().is_ok(), "unwind must return the factory reservation");
+    let (entered, arrived) = mpsc::channel(); let (release, resumed) = mpsc::channel(); let resumed = Mutex::new(Some(resumed));
+    lock(&host.shared.readers).construction_hook = Some(Arc::new(move || {
+        if let Some(resumed) = lock(&resumed).take() { entered.send(()).unwrap(); resumed.recv().unwrap(); }
+    }));
+    let shared = host.shared.clone(); let builder = thread::spawn(move || shared.reader());
+    arrived.recv_timeout(Duration::from_secs(10)).unwrap();
+    let old = lock(&host.shared.readers).epoch.clone();
+    { let engine = lock(&host.shared.engine); host.shared.replace_readers(&engine, &Default::default()); }
+    release.send(()).unwrap();
+    let (epoch, _) = builder.join().unwrap().unwrap();
+    assert!(!Arc::ptr_eq(&old, &epoch));
+    assert!(Arc::ptr_eq(&epoch, &lock(&host.shared.readers).epoch), "a constructor must retry after its native/backend epoch retires");
+}

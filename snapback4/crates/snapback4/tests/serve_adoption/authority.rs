@@ -101,7 +101,7 @@ fn queued_authority(pg: bool) {
             if !pg {
                 let candidate = snapback4_lang::compile(&[("schema.q".into(),format!("{}{}",source,reads::VIEWS))]);
                 engine.adopt(candidate.schema, candidate.programs.into_iter().map(|p|p.program)).unwrap();
-                lock(&host.shared.readers).replace(&engine, &candidate.refusal_sites);
+                host.shared.replace_readers(&engine, &candidate.refusal_sites);
             }
             let after_adoption = engine.seq().unwrap();
             assert!(after_adoption >= seq);

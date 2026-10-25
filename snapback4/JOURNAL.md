@@ -107562,3 +107562,50 @@ summary tests now assert the distinction from whole-protocol proof. The React
 harness imports the Expo starter's new default App export. The complete await
 seal is regenerated after explicit Node proof/setup/process classification; SDK
 delivery sites and fault recipes remain unchanged.
+## 2026-10-25 — R1: cold readers, bounded coalescing and two write flights
+
+[The R1 report](reports/20261025-r1-postgres/REPORT.md) records local changes
+from `25ee876966` on `sb4-pg/r1`. Both reader layers reserve bounded
+construction slots, qualify outside global mutexes, and retain store/generation
+checks and epoch retirement. Serve prepares the fixed 30-reader population
+before readiness. A parked-constructor witness fails before the change; the
+final 30-loan burst never enters construction and takes at most 19.95 µs to
+acquire a loan. Constructor unwind and epoch replacement preserve reservations.
+
+The local cold baseline reproduces the first-cohort counter signature: five
+failed arms each lose 32 HTTP acknowledgements while exactly those 32 writes
+commit (160 total). Across 78 prepared-reader trials, 1,079,999 acknowledged
+writes exactly reconcile with durable commits; one overloaded request is
+E_RATE_LIMIT, with no wire timeouts or extra commits. A controlled post-COMMIT
+HTTP timeout, including keyed replay, confirms correct unknown-outcome semantics.
+The original native 134 excess commits have the same signature; their individual
+request attribution remains unavailable from the retained aggregate alone.
+
+Collection keeps FIFO, N≤32 and the original 1 ms window. A 20 ms arrival-history
+horizon spans a busy write cycle; non-idle waits use one predicted interarrival
+interval, bounded by that window. Idle arrivals do not wait. The first 1 ms
+history candidate incorrectly treated queued bursts as idle; a failing-before
+policy witness catches it. All three bounded policy arms are retained. Final
+saturated fill stays near N=16; one-member groups fall sharply at 9,600/s, but
+throughput moves in opposite directions at the two saturated rungs. No reliable
+throughput improvement or S1 qualification is claimed on this noisy host.
+
+Fenced BEGIN and first facts share one message, with a raising catalog-qualified
+owner check before head/data commands and the original remaining budget before
+the owner lock. A held-owner witness catches a misplaced timeout; a shadow
+operator catches an unqualified comparison. Grant-enabled tails return their
+publication stamp from the head UPDATE's RETURNING relation. The gate still
+closes before separate uncancellable COMMIT and installs only on confirmation.
+Simple batches fall G5 5→4 / G6 6→4 flights; the shared-dependency core case
+falls 6→5. Both stores' HTTP/core RT0 ratchets pass; SQLite's values are unchanged.
+
+Full core: 1,273 passed, 0 failed, 437 ignored; full binary: 608/0/57; complete
+Postgres script: 806 Rust passes, no failures, plus public serving. The inherited
+40001 did not occur. Final affected checks cover 35 literal/flight, 75 batch,
+18 G6, 19 queue/command, 9 TCP pipeline, 9 HTTP RT0 and 4 reader witnesses;
+collection refinements rerun all queue checks and the full binary/HTTP ratchet.
+The Postgres runner now defaults to four fixture threads: eager 30-reader hosts
+otherwise exhaust its private 400-connection cluster. Full raw evidence remains
+outside Git. Two private lane clusters and two public-witness clusters stop and
+are independently confirmed; all 31 measurement children have exited. PIDs
+left: none. No push, stash, Git configuration change or unowned signal occurs.

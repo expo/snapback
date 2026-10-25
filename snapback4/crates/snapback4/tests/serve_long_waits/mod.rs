@@ -191,7 +191,7 @@ fn a_wake_racing_adoption_waits_for_the_new_reader_pool() {
     go.send(()).unwrap();
     thread::sleep(Duration::from_millis(150));
     assert!(!poll.is_finished(), "the stale pooled read waits behind the adopting engine");
-    lock(&host.shared.readers).replace(&engine, &next.refusal_sites);
+    host.shared.replace_readers(&engine, &next.refusal_sites);
     *lock(&host.shared.bound) = next;
     drop(engine);
     let reply = poll.join().unwrap();

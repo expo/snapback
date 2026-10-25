@@ -9,12 +9,13 @@ use postgres::{
 };
 use std::collections::VecDeque;
 use std::sync::{
-    Arc, Mutex, OnceLock,
+    Arc, Condvar, Mutex, OnceLock,
     atomic::{AtomicUsize, Ordering},
 };
 use tokio::sync::{OwnedRwLockWriteGuard, RwLock, Semaphore};
 
 const CONNECTIONS: usize = 30;
+const CONSTRUCTORS: usize = 4;
 fn runtime() -> &'static tokio::runtime::Runtime {
     static RUNTIME: OnceLock<tokio::runtime::Runtime> = OnceLock::new();
     RUNTIME.get_or_init(|| {
@@ -30,9 +31,15 @@ fn runtime() -> &'static tokio::runtime::Runtime {
 pub(crate) struct Pool {
     config: tokio_postgres::Config,
     setup: String,
-    slots: Mutex<Vec<Arc<Slot>>>,
+    slots: Mutex<Slots>,
+    available: Condvar,
     next: AtomicUsize,
     depth: usize,
+}
+#[derive(Default)]
+struct Slots {
+    ready: Vec<Arc<Slot>>,
+    opening: usize,
 }
 pub(crate) struct Slot {
     client: tokio_postgres::Client,
@@ -152,17 +159,42 @@ impl Pool {
             setup: format!(
                 "SET search_path={quoted},pg_catalog; SET statement_timeout='5s'; SET lock_timeout='5s'; SET default_transaction_read_only=on; SET client_encoding='UTF8'; SET extra_float_digits=3; SET bytea_output='hex'; SET plan_cache_mode=force_generic_plan"
             ),
-            slots: Mutex::new(Vec::new()),
+            slots: Mutex::new(Slots::default()),
+            available: Condvar::new(),
             next: AtomicUsize::new(0),
             depth,
         }))
     }
     fn slot(&self) -> Result<Arc<Slot>, RuntimeError> {
+        self.slot_with(|| {})
+    }
+    // @ref LLP 3000.009.001.000.002#4.1 — reserve bounded construction, then qualify without owning the global slots mutex.
+    fn slot_with(&self, constructing: impl FnOnce()) -> Result<Arc<Slot>, RuntimeError> {
         let mut slots = self.slots.lock().unwrap_or_else(|e| e.into_inner());
-        // Closed drivers are retired; never replay an in-flight request.
-        slots.retain(|s| !s.client.is_closed());
-        if slots.len() < CONNECTIONS {
-            let slot = runtime().block_on(async {
+        loop {
+            // Reservations count toward the physical cap, including failures.
+            slots.ready.retain(|s| !s.client.is_closed());
+            if slots.ready.len() + slots.opening < CONNECTIONS && slots.opening < CONSTRUCTORS {
+                slots.opening += 1;
+                break;
+            }
+            if !slots.ready.is_empty() {
+                return Ok(slots.ready[self.next.fetch_add(1, Ordering::Relaxed) % slots.ready.len()].clone());
+            }
+            slots = self.available.wait(slots).unwrap_or_else(|p| p.into_inner());
+        }
+        drop(slots);
+        // Return reservations and notify waiters even if construction panics.
+        struct Reservation<'a>(&'a Pool);
+        impl Drop for Reservation<'_> {
+            fn drop(&mut self) {
+                self.0.slots.lock().unwrap_or_else(|p| p.into_inner()).opening -= 1;
+                self.0.available.notify_all();
+            }
+        }
+        let reservation = Reservation(self);
+        constructing();
+        let result = runtime().block_on(async {
                 // tokio-postgres connect_socket sets TCP_NODELAY before startup,
                 // exactly as the synchronous postgres wrapper does for writers.
                 let (client, connection) = self.config.connect(tokio_postgres::NoTls).await?;
@@ -178,13 +210,14 @@ impl Pool {
                     return Err(RuntimeError::Store("Postgres reader settings were not pinned".into()));
                 }
                 Ok(Arc::new(Slot { client, custody: Arc::new(RwLock::new(())), permits: Semaphore::new(self.depth), prepared: tokio::sync::Mutex::new(VecDeque::new()) }))
-            })?;
-            slots.push(slot.clone());
+            });
+        if let Ok(slot) = &result {
+            self.slots.lock().unwrap_or_else(|p| p.into_inner()).ready.push(slot.clone());
             #[cfg(any(test, feature = "test-support"))]
             crate::round_trips::postgres(6);
-            return Ok(slot);
         }
-        Ok(slots[self.next.fetch_add(1, Ordering::Relaxed) % slots.len()].clone())
+        drop(reservation);
+        result
     }
 }
 

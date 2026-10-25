@@ -28,6 +28,13 @@ pub(super) fn initialize(tx: &Tx<'_>) -> Result<(), RuntimeError> {
 }
 
 impl Tx<'_> {
+    // @ref LLP 3000.009.001.000.002#4.1 — tail RETURNING sees the updated head; a sibling SELECT of _head would see its old statement snapshot.
+    pub(super) fn capture_tail_publication(&self, row: &super::flight::Row, offset: usize) -> Result<(), RuntimeError> {
+        if self.publication_enabled() {
+            *self.publication.borrow_mut() = Some(super::read_grant::Published::row_at(row, offset)?);
+        }
+        Ok(())
+    }
     // @ref LLP 3000.009.001.000.002#4.2 — one statement snapshot carries revision, identity, code and current authority; Rust decides reuse.
     pub(super) fn result_validation(
         &self,
@@ -81,6 +88,7 @@ impl Tx<'_> {
         if count == 0 {
             return Ok(());
         }
+        self.publication.borrow_mut().take();
         self.require_serialized_head_fence("advance durable revision")?;
         let count = u64::try_from(count)
             .map_err(|_| RuntimeError::Store("revision count overflow".into()))?;

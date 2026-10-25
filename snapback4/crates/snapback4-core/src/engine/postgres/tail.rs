@@ -4,8 +4,8 @@
 use super::store::{Tx, signed};
 use crate::RuntimeError;
 
-pub(super) const SQL: &str = "WITH head AS (
-            UPDATE _head SET seq = $1::pg_catalog.int8 WHERE singleton AND seq = $1::pg_catalog.int8 - 1 RETURNING seq
+macro_rules! tail_sql { ($head:literal, $publication:literal) => { concat!("WITH head AS (
+            UPDATE _head SET seq = $1::pg_catalog.int8 WHERE singleton AND seq = $1::pg_catalog.int8 - 1 ", $head, "
         ), committed AS (
             INSERT INTO _commits(seq,at,program,principal,kind,touched,writes) SELECT seq,$2,$3,$4,$5,$6,$7 FROM head RETURNING seq
         ), evidence AS (
@@ -22,7 +22,11 @@ pub(super) const SQL: &str = "WITH head AS (
         ), presence AS (
             INSERT INTO _effect_presence(principal,id,deadline) SELECT p.principal,p.id,p.deadline FROM committed c
             CROSS JOIN unnest($21::pg_catalog.text[],$22::pg_catalog.text[],$23::pg_catalog.int8[]) AS p(principal,id,deadline) RETURNING id
-        ) SELECT (SELECT count(*) FROM committed),(SELECT count(*) FROM evidence),(SELECT count(*) FROM logged),(SELECT count(*) FROM effects),(SELECT count(*) FROM presence)";
+        ) SELECT (SELECT count(*) FROM committed),(SELECT count(*) FROM evidence),(SELECT count(*) FROM logged),(SELECT count(*) FROM effects),(SELECT count(*) FROM presence)", $publication) }; }
+pub(super) const SQL: &str = tail_sql!("RETURNING seq", "");
+const PUBLICATION_SQL: &str = tail_sql!("RETURNING seq,revision", ",
+            (SELECT revision FROM head),(SELECT seq FROM head),(SELECT generation FROM _backend WHERE singleton),
+            (SELECT value FROM _meta WHERE key='store_id'),(SELECT value FROM _meta WHERE key='schema_hash'),(SELECT value FROM _meta WHERE key='activation_hash')");
 
 #[derive(Clone, Default)]
 pub(super) struct Tail {
@@ -85,7 +89,7 @@ impl Tx<'_> {
         // One data-modifying CTE sends head, commit, all events and effects in
         // one execution. Shared policy inserts and binds receipts before member
         // release; a failed flush still rolls them back with this frame.
-        let results = self.flight(&[(SQL, &[
+        let results = self.flight(&[(if self.publication_enabled() { PUBLICATION_SQL } else { SQL }, &[
             &signed(commit.seq)?, &commit.at, &commit.program, &commit.principal, &commit.kind, &commit.touched, &signed(commit.writes)?,
             &tail.partitions, &tail.ords, &tail.tables, &tail.kinds, &tail.ids, &tail.data, &ids, &effects, &payloads, &next_at, &work, &deadlines, &contracts, &principals, &presence_ids, &presence_deadlines, &explicit_release, &releases,
             &commit.footprint, &signed(commit.seq.saturating_sub(1000))?,
@@ -97,6 +101,7 @@ impl Tx<'_> {
         for (column,expected) in [(1,1),(2,tail.partitions.len()),(3,tail.effects.len()),(4,presence_ids.len())] {
             if rows[0].get::<_,i64>(column) != expected as i64 {return Err(RuntimeError::Store(format!("Postgres tail count mismatch at {column}")));}
         }
+        self.capture_tail_publication(&rows[0], 5)?;
         let seq = commit.seq;
         drop(tail);
         // The next member must allocate the successor of this completed tail.

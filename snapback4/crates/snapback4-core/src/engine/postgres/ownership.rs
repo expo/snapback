@@ -62,6 +62,17 @@ pub(super) struct Fence {
     pub token: i64,
 }
 impl Fence {
+    // @ref LLP 3000.009.001.000.002#3.3 — failure raises before later commands, whose snapshots follow the owner/head lock grants.
+    pub(super) fn raising_command(fence: Option<&Self>) -> Result<String, RuntimeError> {
+        let (token, identity) = match fence {
+            Some(f) => {
+                f.tag()?;
+                (f.token, format!(" OR current_store IS NULL OR current_store OPERATOR(pg_catalog.<>) {}", super::literal::encode(&super::literal::Datum::Text(f.store_id.clone()), &postgres::types::Type::TEXT)?))
+            }
+            None => (0, String::new()),
+        };
+        Ok(format!("DO $sb4_owner$ DECLARE current_store pg_catalog.text; current_token pg_catalog.int8; BEGIN SELECT store_id,token INTO current_store,current_token FROM _owner WHERE singleton FOR KEY SHARE; IF NOT FOUND OR current_token IS NULL OR current_token OPERATOR(pg_catalog.<>) {token}::pg_catalog.int8{identity} THEN RAISE EXCEPTION 'stale owner token or logical store identity' USING ERRCODE='S4002'; END IF; END $sb4_owner$;"))
+    }
     pub(super) fn tag(&self) -> Result<String, RuntimeError> {
         let hex =
             |text: &str, len| text.len() == len && text.bytes().all(|c| c.is_ascii_hexdigit());

@@ -17,6 +17,8 @@
 
 - `serve-check --deployment DIR --script prod:serve` checks npm readiness, 30-second lifetime, group shutdown and store release without exposing credential output. Production account provisioning reuses a named deployment roster across serve starts. `guide testing` includes cold/live stage scripts; `guide cheatsheet` explains oldest-first board/roster pages. Create/edit review advice leads with the deliberate `update only` answer.
 
+- PostgreSQL serving prepares readers before reporting readiness and bounds coalescing under load while preserving request deadlines and commit-outcome semantics. This does not establish a new capacity qualification.
+
 Existing apps keep their authored workflows and stores retain their rows, users and migration receipts. Restart running serve processes with 0.4.41 before deploying or rolling back. Rebuild generated clients and devices after upgrading; custom proofs must adopt the new helpers explicitly. Preserve production roster files with their deployment. SEC10 security-semantic changes are deferred to 0.4.42.
 
 ## 0.4.40

@@ -564,3 +564,27 @@ fn pipeline_tcp_nodelay_refuses_socket_only_qualification() {
             .contains("TCP_NODELAY witness requires private TCP PG")
     );
 }
+
+#[test]
+#[ignore = "private PG16"]
+fn r1_pool_construction_releases_global_slots_and_bounds_reservations() {
+    let (_, pool, _, _) = fixture(4);
+    let (entered, arrived) = std::sync::mpsc::channel();
+    let (release, resumed) = std::sync::mpsc::channel();
+    let building = pool.clone();
+    let thread = std::thread::spawn(move || building.slot_with(|| {
+        entered.send(()).unwrap(); resumed.recv().unwrap();
+    }));
+    arrived.recv_timeout(Duration::from_secs(10)).unwrap();
+    let available = pool.slots.try_lock().is_ok();
+    // Existing slots remain usable while a connect is parked indefinitely.
+    let usable = if available { Some(reader(&pool, &pool.slots.lock().unwrap().ready[0]).independent("SELECT 42::bigint", &[]).unwrap()[0].get::<_, i64>(0)) } else { None };
+    release.send(()).unwrap(); thread.join().unwrap().unwrap();
+    assert!(available, "connect/qualification holds the global slots mutex");
+    assert_eq!(usable, Some(42));
+    let threads: Vec<_> = (0..64).map(|_| { let pool = pool.clone(); std::thread::spawn(move || pool.slot().unwrap()) }).collect();
+    for thread in threads { thread.join().unwrap(); }
+    let slots = pool.slots.lock().unwrap();
+    assert_eq!(slots.opening, 0);
+    assert!(slots.ready.len() <= CONNECTIONS);
+}
