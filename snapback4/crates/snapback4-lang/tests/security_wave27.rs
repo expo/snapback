@@ -135,7 +135,12 @@ const DEFAULT:&str="table docs:\n  label: text <=80 default 'pending'\n  read <-
   assert!(notes(&ordinary).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"),"{act}: {:?}",notes(&ordinary));
   let ordinary_record=ordinary.replace("mutation decide",&format!("table {act}Approvals:\n  job: jobs\n  read <- allow\n  insert <- viewer = 'service:manager'\n  online only\nmutation decide")).replace(&format!("update jobs[job] {{{approved}:true}}"),&format!("insert {act}Approvals {{job}}"));
   assert!(notes(&ordinary_record).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"),"{act}");
-  if act=="withdrawal"{let reset=ordinary.replace(&format!("{{{done}:true}}"),&format!("{{{done}:false}}"));assert!(!notes(&reset).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));}
+  if act=="withdrawal"{
+   for valued in [&ordinary,&ordinary_record]{
+    let reset=valued.replace(&format!("{{{done}:true}}"),&format!("{{{done}:false}}"));assert!(!notes(&reset).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+    let named=reset.replace("  else:\n    update jobs[job]", "  return null\nmutation performWithdrawal(job: jobs):\n  update jobs[job]");assert!(!notes(&named).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"),"{:?}",notes(&named));
+   }
+  }
  }
  let extra_effect=scalar.replace("  approved: bool","  costCents: int default 100\n  approved: bool").replace("{status:'cancelled'}","{status:'cancelled',costCents:0}");
  assert!(notes(&extra_effect).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
