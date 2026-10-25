@@ -438,5 +438,37 @@
       "\u2139 duration_ms 2096.207083"
     ],
     "failedTests": []
+  },
+  "packed-security-guide": {
+    "summaries": [
+      "\u2139 tests 1",
+      "\u2139 suites 0",
+      "\u2139 pass 1",
+      "\u2139 fail 0",
+      "\u2139 cancelled 0",
+      "\u2139 skipped 0",
+      "\u2139 todo 0",
+      "\u2139 duration_ms 47550.614813"
+    ],
+    "failedTests": []
+  },
+  "upload-merged-auth": {
+    "summaries": [
+      "\u2139 tests 1",
+      "\u2139 suites 0",
+      "\u2139 pass 1",
+      "\u2139 fail 0",
+      "\u2139 cancelled 0",
+      "\u2139 skipped 0",
+      "\u2139 todo 0",
+      "\u2139 duration_ms 2361.435568"
+    ],
+    "failedTests": []
+  },
+  "integration-followup": {
+    "finding": "The combined final client run reached E_AUTH rather than admission saturation because its schema capacity probe was anonymous after main authority fixes.",
+    "fix": "Use the schema-declared alice persona on that capacity probe; isolated real connection overload/recovery passes.",
+    "supersededReceipt": "157def6522c0-1792957032115.json",
+    "guideFollowup": "Correct security guide default-output and opt-in budget prose; packed guide source/review/JSON/multi-ack/independent-edit retention commands pass."
   }
 }

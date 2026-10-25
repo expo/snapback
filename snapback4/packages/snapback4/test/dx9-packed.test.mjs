@@ -41,6 +41,19 @@ test('DX9 packed staging recipe, password templates, task links and Quarry forms
     }
     const forms=fence(guide('programs'),'quarry').find(source=>source.includes('fn crewSize'));
     assert.ok(forms);writeFileSync(join(dir,'snapback/schema.q'),forms);run(cli,['check']);
+    // Run the security guide's source and decision commands through installed
+    // tarballs, including their shared flag registry and persisted bindings.
+    const securitySource=fence(guide('security'),'quarry')[0];
+    writeFileSync(join(dir,'snapback/schema.q'),securitySource);
+    assert.ok(run(cli,['check']).trim().split('\n').length<=5);
+    run(cli,['check','--review']);
+    const decisions=JSON.parse(run(cli,['check','--json'])).securityReviews;
+    assert.ok(decisions.length>0);
+    const ids=decisions.map(d=>d.id);
+    run(cli,['check','--ack-security',ids.join(','),'--reason','The specification intentionally grants only the patient access to these notes']);
+    writeFileSync(join(dir,'snapback/schema.q'),securitySource+'\nquery independent():\n  return true\n');
+    const retained=JSON.parse(run(cli,['check','--json'])).securityReviews;
+    assert.ok(ids.every(id=>retained.some(d=>d.id===id&&d.acknowledged===true)));
     // The starter detects the standard operator provision signature and seeds
     // every declared role with two real accounts; it never uses dev/status.
     writeFileSync(join(dir,'snapback/schema.q'),fence(staging,'quarry')[0]);

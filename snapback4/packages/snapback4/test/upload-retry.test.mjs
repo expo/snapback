@@ -203,8 +203,10 @@ table photos:
     }
   }));
   if (capacity === "connection") await waitFor(async () => {
+    // Main's ingress authority check rejects anonymous schema requests before
+    // capacity admission; exercise saturation as the declared caller.
     const status = await new Promise(resolve => {
-      const probe = request(new URL('/schema', url), { headers: { connection: 'close' } }, reply => {
+      const probe = request(new URL('/schema', url), { headers: { connection: 'close', 'x-snapback-persona': 'alice' } }, reply => {
         reply.once('end', () => resolve(reply.statusCode)); reply.once('error', () => resolve(0)); reply.resume();
       });
       probe.once('error', () => resolve(0)); probe.end();

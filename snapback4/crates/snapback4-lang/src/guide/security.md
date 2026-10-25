@@ -23,8 +23,10 @@ mutation writePrivateNote(body: text 1..2000):
   return insert privateNotes { patient: viewer, body }
 ```
 
-Run `snapback4 check` → `snapback4 test` → `snapback4 audit`. Check reports
-invariant counts, five ordinary note classes and all likely-hole questions; `--verbose` retains every reason.
+Run `snapback4 check` → `snapback4 test` → `snapback4 audit`. A passing default
+check prints its verdict and language-enforcement summary; pending gates stay
+visible. Use `snapback4 check --review` for advisory decisions and notes;
+`--verbose` retains every reason.
 Answer the rule questions from the product specification before editing intent.
 The restating advisory names each admitted role and its row conditions: for
 example, a coach branch with no assignment check asks whether coaches should
@@ -54,8 +56,12 @@ initial state, not proof that app operations created that state. Author-supplied
 fixtures retain `authored-fixture-trace`. Both fail acceptance on actual observed
 violations; seed-only/synthetic table probes remain non-failing supplemental evidence.
 Fixture-free tests report that no authored business cases ran. Finite passing
-campaigns never prove security. Check bounds concrete exploration to 512 call/world
-reservations and 1500 ms; exhaustion stays unproved and points to the full test.
+campaigns never prove security. Default check bounds concrete exploration to 512
+call/world reservations and 1500 ms; exhaustion stays unproved and points to the
+full test. Explicit `--review`, `--verbose`, JSON and `--ack-security` also search
+generated question witnesses with a separate deterministic 8192-work budget.
+This opt-in search cannot change a gate, decision ID or proof verdict; exhausted
+questions retain an explicit unavailable witness.
 `audit --json` retains all column audiences, grant writers, exclusions and uncovered
 role/row/effect exposures. Audit returns the permission map with bounded check
 evidence; run `test` for the full generated campaign. `audit --all` shows every
@@ -257,8 +263,8 @@ A completed `test` records concrete refutations under
 `snapback/generated/security-test.json`. The next `check` reports matching
 failures even when its short campaign cannot rediscover them. Exact source,
 fixture bytes and CLI identity bind the record; edits invalidate it. No cached
-passing result proves security. Every escalation note stays visible in short
-output. Rule-changing deploy previews print exposure counts and demand a test
+passing result proves security. Every escalation gate stays visible in short
+output; advisory escalation notes require `check --review`. Rule-changing deploy previews print exposure counts and demand a test
 for the selected source/fixtures when a matching full finite campaign is absent.
 
 ### N_SELF_CLAIMED_RELATIONSHIP
@@ -353,7 +359,7 @@ Role-wide write questions ask whether a global role may write every resource.
 Model the owner of this particular wall; see `guide rule-recipes --section "Wall ownership"`.
 
 Test explores directed status/eligibility histories up to twelve mutations with a
-separate finite successor bound. Check keeps its shared 512-work/1500ms limit.
+separate finite successor bound. Default check keeps its shared 512-work/1500ms limit.
 Frontier, argument, signature and attempt cuts remain coverage gaps. Synthetic
 observations are REVIEW, while actual admitted histories from validated generated
 fixtures retain their generated-fixture-trace origin and can fail acceptance.
