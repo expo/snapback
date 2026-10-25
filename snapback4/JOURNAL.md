@@ -108097,3 +108097,14 @@ query and direct engine-batch rows are unchanged. Core qualification passes
 1,275 tests with 439 explicit ignores. Binary/Postgres qualification and the
 matched one-host measurements continue in this lane; the final LEV report
 records their completed outcomes and raw-evidence custody.
+
+## 2026-10-25 — LEV: refresh ephemeral hints after stale-kind refusal
+
+The final detached/in-memory capability checks now refresh ordinary discovery
+hints before comparing the expected capability. An unkeyed ephemeral retry
+therefore uses the current kind after a metadata-free stale-kind refusal;
+it still resolves authority again. The existing direct/queued ephemeral
+kind witnesses now exercise that retry on both stores. Full binary checks
+pass 609 tests with 58 explicit ignores. This completes the hint lifecycle
+for both durable and ephemeral `/m` paths without changing the counter
+benchmark's durable hot path.

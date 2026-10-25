@@ -148,10 +148,14 @@ impl Admission {
         self.resolve_at(shared, engine, identity.as_deref(), true)
     }
     pub(crate) fn check_detached(&self, shared: &Shared, engine: &Engine, expected: &snapback4_core::identity::Capability) -> Result<(), Refusal> {
-        self.check_capability(expected, self.resolve_detached(shared, engine)?)
+        let current=self.resolve_detached(shared, engine)?;
+        self.remember(shared,&current);
+        self.check_capability(expected,current)
     }
     pub(crate) fn check_expected(&self, shared: &Shared, engine: &Engine, expected: &snapback4_core::identity::Capability) -> Result<(), Refusal> {
-        self.check_capability(expected, self.resolve(shared, engine)?)
+        let current=self.resolve(shared, engine)?;
+        self.remember(shared,&current);
+        self.check_capability(expected,current)
     }
     fn resolve_at(&self, shared: &Shared, engine: &Engine, identity: Option<&str>, detached: bool) -> Result<snapback4_core::identity::Capability, Refusal> {
     if let Some(persona) = self.persona.clone() {

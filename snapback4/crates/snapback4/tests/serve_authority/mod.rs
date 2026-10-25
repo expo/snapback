@@ -370,6 +370,12 @@ fn ephemeral_freshness(pg: bool, queued: bool, at_final_reader: bool, change: &s
         assert!(body(&reply).get("ephemeral").is_none(), "{reply}");
         assert_eq!(after, before, "a stale request cannot publish to the hub");
         assert_eq!(lock(&f.host.shared.wake).eph.version, before, "no wake publication");
+        if change=="kind" {
+            *lock(&f.host.shared.mutation_wait)=None;
+            let mut retry=f.payload("ephemeral-kind-retry");retry.as_object_mut().unwrap().remove("id");
+            let retry=f.call(&session,&retry);
+            assert_eq!(retry["state"],"sent","a stale-kind refusal must refresh discovery for an unkeyed ephemeral retry: {retry}");
+        }
     }
     assert_eq!(f.count(), 0);
 }
