@@ -15,15 +15,41 @@ fn probe_implies(admission:&RuleExpr,policy:&RuleExpr)->bool {
         _=>false,
     }
 }
+// Existing-row writes already establish existence of their exact selected
+// identity. A registration/edit split needs no role decision merely because
+// editing one's profile first requires that same profile to exist.
+fn existing_identity(catalog:&Catalog,bound:&Bound,write:&ast::Expr)->Option<RuleExpr>{
+    let ast::Expr::Write{op:ast::WriteOp::Update|ast::WriteOp::Upsert,table,keys,site,..}=write else{return None;};
+    let mut read=ast::ReadExpr{cursor_prefix:None,computed:Default::default(),order_keys:Vec::new(),table:table.clone(),keys:keys.clone(),index:None,range:None,matching:None,filter:None,seeks:Vec::new(),site:site.clone()};
+    if keys.len()==1&&keys[0].column.as_deref().is_none_or(|column|column=="id"){
+        let mut value=&keys[0].value;while let ast::Expr::Assert{value:inner,..}=value{value=inner;}
+        if let ast::Expr::Member{base,name,..}=value&&name=="id"{
+            let mut base=base.as_ref();while let ast::Expr::Assert{value:inner,..}=base{base=inner;}
+            if let ast::Expr::Read(selected)=base&&selected.table==*table{read=selected.clone();}
+        }
+    }
+    if read.filter.is_some()||read.range.is_some()||read.matching.is_some()||!read.seeks.is_empty()||!read.computed.is_empty(){return None;}
+    let decl=ast::RuleDecl{effect:ast::Effect::Read,bindings:Vec::new(),value:ast::Expr::Exists{read,site:site.clone()},site:site.clone()};
+    let rule=super::super::schema::bind_rule(catalog,&catalog.tables[table],&decl).ok()?;
+    let RuleExpr::Exists{table,index,key,equalities,..}=&rule else{return None;};
+    if !super::operation::safe(&rule)||!equalities.is_empty(){return None;}
+    let pairs=super::privilege::probe_pairs(bound,table,index,key,equalities);
+    (!pairs.is_empty()&&pairs.iter().all(|(column,_)|matches!(bound.schema.tables[table].columns.get(column).map(snapback4_core::schema::ColumnType::required),Some(snapback4_core::schema::ColumnType::Id|snapback4_core::schema::ColumnType::Principal|snapback4_core::schema::ColumnType::Ref{..})))).then_some(rule)
+}
+fn without_identity(rule:RuleExpr,identity:&RuleExpr)->RuleExpr{
+    if probe_implies(identity,&rule){return RuleExpr::Allow;}
+    match rule{RuleExpr::And(parts)=>RuleExpr::And(parts.into_iter().map(|part|without_identity(part,identity)).collect()),other=>other}
+}
 pub(super) fn notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnostic>{
     let documents=sources.iter().map(|(file,text)|crate::parse_document(file,text).0).collect::<Vec<_>>();
     let catalog=Catalog::build(documents.clone(),&mut Vec::new());
     let mut writes=Vec::new();
     for doc in &documents{for p in &doc.programs{if p.kind!=ast::ProgramKind::Mutation{continue;}
         for (write,context) in super::authority_walk::writes(&catalog,p){
+            let identity=existing_identity(&catalog,bound,&write);
             let ast::Expr::Write{op,table,fields,site,..}=write else{continue;};
             let Some(info)=catalog.tables.get(&table)else{continue;};
-            let requirements=super::operation::requirements(&catalog,info,&context);
+            let requirements=super::operation::requirements(&catalog,info,&context).into_iter().map(|rule|if let Some(identity)=&identity{without_identity(rule,identity)}else{rule}).collect::<Vec<_>>();
             let t=&bound.schema.tables[&table];
             let gate=if op==ast::WriteOp::Update{t.update_rule_judged().into_owned()}else{t.rules.insert.clone()};
             let require_guard=kernel::implies(&RuleExpr::Allow,&necessary(&RuleExpr::And(requirements.clone())))!=Ok(true);

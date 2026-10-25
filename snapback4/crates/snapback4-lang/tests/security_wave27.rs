@@ -104,3 +104,14 @@ const DEFAULT:&str="table docs:\n  label: text <=80 default 'pending'\n  read <-
  let bypass=format!("{discount}mutation performDiscount(parent: parents):\n  update parents[parent] {{price:0}}\n");
  assert!(notes(&bypass).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
 }
+
+#[test]fn existence_of_the_same_profile_is_not_a_stricter_edit_role(){
+ let source="table profiles:\n  principal: principal\n  name: text <=80\n  role: enum('member','editor') default 'member'\n  unique principal\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\nmutation register(name: text <=80):\n  insert profiles {principal:viewer,name}\nmutation edit(name: text <=80):\n  require exists profiles[viewer] else MISSING\n  update profiles[viewer] {name}\n";
+ assert!(!notes(source).iter().any(|n|n.code=="N_INSERT_WRITE_INTENT"));
+ let restricted=source.replace("require exists profiles[viewer] else", "require exists profiles[viewer,role='editor'] else");
+ assert!(notes(&restricted).iter().any(|n|n.code=="N_INSERT_WRITE_INTENT"));
+ let alias=source.replace("  update profiles[viewer] {name}","  p = profiles[viewer] ! else MISSING\n  update profiles[p.id] {name}");
+ assert!(!notes(&alias).iter().any(|n|n.code=="N_INSERT_WRITE_INTENT"));
+ let other=source.replace("update profiles[viewer] {name}","update profiles[principal='dev:other'] {name}");
+ assert!(notes(&other).iter().any(|n|n.code=="N_INSERT_WRITE_INTENT"));
+}
