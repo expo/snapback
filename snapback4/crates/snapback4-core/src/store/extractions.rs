@@ -323,7 +323,12 @@ pub(super) fn transition(
         .filter(|e| previous.is_none_or(|s| !s.extractions.contains(e)))
     {
         e.admit(next).map_err(refuse)?;
-        let parent = sources.get(&e.parent).unwrap_or(&next.tables[&e.parent]);
+        // @ref LLP 3000.000.000#21-wave-27-release-semantics-rel — probes retain the selected source definition's schema, including a newly declared parent.
+        let (parent, source_context) = if let Some(parent) = sources.get(&e.parent) {
+            (parent, sources)
+        } else {
+            (&next.tables[&e.parent], &next.tables)
+        };
         let child = &next.tables[&e.child];
         let pt = tx.num(&e.parent)?;
         let ct = tx.num(&e.child)?;
@@ -334,7 +339,7 @@ pub(super) fn transition(
             .as_ref()
             .is_some_and(|t| t.reference == e.reference && t.parent == e.parent);
         let source_read = &parent.rules.read;
-        if !probe_context(source_read,sources,next) {return Err(refuse(format!("extraction {} → {}: source read rule `{}` has changed probe/index meaning; retain its typed lookup context in a bridge",e.parent,e.child,source_read.quarry())));}
+        if !probe_context(source_read,source_context,next) {return Err(refuse(format!("extraction {} → {}: source read rule `{}` has changed probe/index meaning; retain its typed lookup context in a bridge",e.parent,e.child,source_read.quarry())));}
 
         if inherited {
             if !audience_subset(&next.tables[&e.parent].rules.read,source_read) {
@@ -354,7 +359,7 @@ pub(super) fn transition(
             if let Some(parent_gate)=parent.column_reads.get(source) {
                 // Immutable mapped scalar copies are the same authoritative
                 // values, so a stricter child audience can name those copies.
-                if !probe_context(parent_gate,sources,next) {return Err(refuse(format!("extraction {}.{source} → {}.{dest}: source payload rule `{}` has changed probe/index meaning; retain its lookup context in a bridge",e.parent,e.child,parent_gate.quarry())));}
+                if !probe_context(parent_gate,source_context,next) {return Err(refuse(format!("extraction {}.{source} → {}.{dest}: source payload rule `{}` has changed probe/index meaning; retain its lookup context in a bridge",e.parent,e.child,parent_gate.quarry())));}
                 let transported=mapped_audience(parent,child,e,parent_gate);
                 let gate=&transported;
                 let covered=child.column_reads.get(dest).is_some_and(|g|audience_subset(g,gate))

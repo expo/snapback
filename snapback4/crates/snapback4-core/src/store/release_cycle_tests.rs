@@ -109,3 +109,27 @@ fn hiding_a_positive_freeze_witness_refuses_under_the_writer() {
     let mut activation=ReleaseActivation::new(2,Some(1));activation.visibility=Some(VisibilityPolicy{hides:vec![HiddenNull{table:"locks".into(),column:"value".into(),reason:"pending".into()}]});
     let error=e.adopt_release(schema,programs,&activation,false).unwrap_err().to_string();assert!(error.contains("lookup population"),"{error}");assert_eq!(e.generation(),generation);assert_eq!(e.store().count("locks").unwrap(),1);
 }
+
+const FRESH_PROBED_EXTRACTION: &str = "table roles:\n  principal: principal\n  role: enum('staff')\n  unique principal\n  read <- .principal = viewer\n  online only\ntable orders:\n  owner: principal\n  immutable owner\n  read <- .owner = viewer or exists roles[viewer, role = 'staff']\n  online only\ntable documents:\n  order: orders on delete cascade\n  names: file <=1000 ?\n  immutable order\n  read through .order\n  online only\nextract documents from orders via order: {names:names}\n";
+
+#[test]
+fn fresh_or_new_extraction_parent_uses_its_own_probe_context() {
+    let mut fresh = engine(FRESH_PROBED_EXTRACTION);
+    assert_eq!(fresh.store().count("orders").unwrap(), 0);
+    assert_eq!(fresh.store().count("documents").unwrap(), 0);
+    let old = "table existing:\n  public 'fixture'\n  online only\n";
+    let mut existing = engine(old);
+    adopt(&mut existing, &(old.to_owned()+FRESH_PROBED_EXTRACTION), 2).unwrap();
+    assert_eq!(existing.store().count("orders").unwrap(), 0);
+}
+
+#[test]
+fn retained_extraction_parent_still_refuses_changed_probe_meaning() {
+    let old = FRESH_PROBED_EXTRACTION.replace("extract documents from orders via order: {names:names}\n", "");
+    let mut e = engine(&old);
+    let next = FRESH_PROBED_EXTRACTION.replace("read <- .principal = viewer", "read <- allow");
+    let generation = e.generation();
+    let error = adopt(&mut e, &next, 2).unwrap_err().to_string();
+    assert!(error.contains("changed probe/index meaning"), "{error}");
+    assert_eq!(e.generation(), generation);
+}

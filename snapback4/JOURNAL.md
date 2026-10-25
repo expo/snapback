@@ -107519,3 +107519,16 @@ Integration 25 census follow-up: the local-path exception is limited to the
 four reviewed neutral adapter types, rather than the whole postgres namespace.
 Negative controls continue counting re-exported driver types, unknown adapter
 paths and real query calls. No production allowance changes.
+
+### 2026-10-25 — Integration 25: fresh extraction source contexts
+
+The 650-schema survey catches fresh deploy refusals in wave-27 028 and 032.
+Extraction chose a newly declared parent from the current schema but checked
+its role probes against the empty historical map. Keep the parent definition
+and its probe context together: a new parent uses its current source schema;
+a retained/restored parent still uses its historical source definitions.
+Both row and payload policy checks keep their existing inclusion tests.
+A failing-before fresh/new-parent regression reproduces E_ADOPT; a paired
+historical-parent regression preserves the changed-probe-meaning refusal and
+atomic generation boundary. This implements LLP 3000.000.000 §21's existing
+source-context rule rather than changing its authority contract.
