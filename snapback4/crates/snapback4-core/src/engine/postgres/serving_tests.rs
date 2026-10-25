@@ -73,10 +73,10 @@ fn no_later(c:&mut Client) {assert!(!c.query_one("SELECT is_called FROM _rt6_aft
 fn rt6_statement_failure_inside_every_serving_fold() {
     let (mut e,mut c,_,digest)=fixture();
     let before=census(&mut c);
-    // BEGIN/owner; head/generation/authority/receipt/placement; savepoints/read;
+    // BEGIN/raising owner/head/generation/authority/receipt/placement; savepoints/read;
     // UPDATE; post-update read; release/receipt insert/bind/tail/member release/settings. Every command
     // boundary includes an error plus a nontransactional later-command sentinel.
-    for (flight,commands) in [(0,2),(1,5),(2,3),(3,1),(4,1),(5,7)] {
+    for (flight,commands) in [(0,6),(1,3),(2,1),(3,1),(4,7)] {
         for at in 0..=commands {
             assert!(fail(flight,at,||mutate(&mut e,&digest,Some("faulted"))).is_err(),"flight {flight}, at {at}");
             assert_eq!(census(&mut c),before,"flight {flight}, at {at}"); no_later(&mut c);
@@ -355,4 +355,39 @@ fn rt6_planner_rejects_arguments_shadowed_by_local_bindings() {
         program.body.insert(0,Stmt::Let{name:arg.into(),value:Expr::Literal(Value::Id("different".into()))});
         assert!(super::super::read_plan::Plan::new(&schema,&program,&context).is_none(),"{name}: use the ordinary interpreter/store path after shadowing");
     }
+}
+
+#[test]
+#[ignore = "private PG16"]
+fn r1_raising_owner_check_cannot_use_a_shadow_text_comparison() {
+    let (mut engine, mut observer, name, digest) = fixture();
+    observer.batch_execute(&format!("CREATE FUNCTION {name}.r1_equal(pg_catalog.text,pg_catalog.text) RETURNS pg_catalog.bool LANGUAGE sql AS 'SELECT true'; CREATE OPERATOR {name}.= (LEFTARG=pg_catalog.text,RIGHTARG=pg_catalog.text,FUNCTION={name}.r1_equal); UPDATE _owner SET store_id='11111111111111111111111111111111' WHERE singleton")).unwrap();
+    let before = census(&mut observer);
+    let outcome = mutate(&mut engine, &digest, Some("shadow-owner"));
+    assert_eq!(outcome.unwrap_err().code, "E_STORE_OWNERSHIP");
+    assert_eq!(census(&mut observer), before, "a refused owner cannot reach application commands");
+}
+
+#[test]
+#[ignore = "private PG16"]
+fn r1_fused_owner_wait_uses_the_remaining_program_budget() {
+    let (mut engine, mut observer, _, digest) = fixture();
+    let waiter = pid(&mut engine);
+    let holder = observer.query_one("SELECT pg_backend_pid()", &[]).unwrap().get::<_, i32>(0);
+    let mut held = observer.transaction().unwrap();
+    held.query("SELECT token FROM _owner WHERE singleton FOR UPDATE", &[]).unwrap();
+    let (sent, received) = mpsc::channel();
+    let worker = thread::spawn(move || {
+        let store = engine.store_mut().test_postgres_handle_mut().store.get_mut();
+        store.next_program_deadline = Some(Instant::now() + Duration::from_millis(100));
+        let refused = store.request_transaction(&digest, "alice", None).is_err();
+        sent.send(refused).unwrap();
+    });
+    let mut census = Client::connect(&url(), NoTls).unwrap();
+    wait_for(&mut census, waiter, holder);
+    // The owner remains locked: a refusal must come from the original budget,
+    // not from releasing the lock or a timing-only slow-query assumption.
+    let bounded = received.recv_timeout(Duration::from_secs(1));
+    held.rollback().unwrap(); worker.join().unwrap();
+    assert_eq!(bounded.ok(), Some(true), "the fused owner fence ignored the program's remaining budget");
 }

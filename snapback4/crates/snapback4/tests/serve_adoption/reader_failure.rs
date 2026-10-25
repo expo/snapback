@@ -68,9 +68,10 @@ fn failed_reader_factory_recovers_on_maintenance() {
         // remains open; returning its original inode clears the external fault.
         std::fs::rename(&path, &missing).unwrap();
         {
+            let prepared = QueryReaders::new(&engine, &lock(&host.shared.bound).refusal_sites);
             let mut readers = lock(&host.shared.readers);
-            if startup { *readers = QueryReaders::new(&engine, &lock(&host.shared.bound).refusal_sites); }
-            else { readers.replace(&engine, &lock(&host.shared.bound).refusal_sites); }
+            if startup { *readers = prepared; }
+            else { readers.replace(prepared); }
             assert!(readers.source.is_none());
         }
         let started = Instant::now();

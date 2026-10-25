@@ -1,0 +1,16 @@
+{
+  "path": "/home/ccheever/sb4scale/archive/g70-20261025.tar.gz",
+  "sha256": "6d2e531409a0bc1f1421ba100d2c998b346434a26c160daf9c284e2c2ca8ea40",
+  "bytes": 109938679,
+  "roots": [
+    "g70-smoke-01",
+    "g70-smoke-02",
+    "g70-smoke-03",
+    "g70-smoke-04",
+    "g70-smoke-05",
+    "g70-20261025",
+    "g70-final-20261025",
+    "g70-protocol-20261025"
+  ],
+  "raw_data_in_git": false
+}

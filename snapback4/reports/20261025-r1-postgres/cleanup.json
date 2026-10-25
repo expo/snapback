@@ -1,0 +1,41 @@
+{
+  "private_clusters": [
+    {
+      "label": "socket",
+      "pid": 3731226,
+      "start_ticks": "162761607",
+      "directory": "/tmp/r1pg",
+      "stopped": true,
+      "pg_ctl_status": 3,
+      "postmaster_pidfile_absent": true,
+      "socket_absent": true
+    },
+    {
+      "label": "tcp",
+      "pid": 110579,
+      "start_ticks": "163009478",
+      "directory": "/tmp/r1pt",
+      "stopped": true,
+      "pg_ctl_status": 3,
+      "postmaster_pidfile_absent": true,
+      "socket_absent": true
+    }
+  ],
+  "public_witness_clusters": [
+    {
+      "directory": "/tmp/s10d3-serve-t3fzx9o9",
+      "stopped": true,
+      "postmaster_pidfile_absent": true
+    },
+    {
+      "directory": "/tmp/s10d3-serve-_jlc11lx",
+      "stopped": true,
+      "postmaster_pidfile_absent": true
+    }
+  ],
+  "measurement_children_confirmed_exited": 31,
+  "pids_left": [],
+  "signals": "only recorded private postmasters/owned test processes; no name/pattern signals",
+  "minimum_observed_free_gib": 35,
+  "raw_custody": "/tmp/sb4-r1"
+}

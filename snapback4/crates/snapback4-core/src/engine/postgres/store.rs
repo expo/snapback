@@ -154,8 +154,8 @@ impl Store {
             Some(WriteMode::Serialized) => "BEGIN ISOLATION LEVEL READ COMMITTED READ WRITE;",
             Some(WriteMode::Serializable) => "BEGIN ISOLATION LEVEL SERIALIZABLE READ WRITE;",
         };
-        let inner = super::flight::Session { client: &mut self.client, pending: if cpu_only {String::new()} else {begin.into()}, started: false, done: cpu_only, settings_refused: false, checks: Vec::new() };
-        let tx = Tx { read_grant:self.read_grant.clone(), durable_write: mode.is_some(), revisions: Cell::new(0), lifecycle: opening, read_sessions: &self.read_sessions, read_sessions_installed: Cell::new(false), unified: self.unified, commit_warning: &self.commit_warning, inner: RefCell::new(inner),
+        let inner = super::flight::Session { client: &mut self.client, pending: if cpu_only {String::new()} else {begin.into()}, started: false, done: cpu_only, settings_refused: false, checks: Vec::new(), owner: None, owner_budget: None };
+        let tx = Tx { publication: RefCell::new(None), read_grant:self.read_grant.clone(), durable_write: mode.is_some(), revisions: Cell::new(0), lifecycle: opening, read_sessions: &self.read_sessions, read_sessions_installed: Cell::new(false), unified: self.unified, commit_warning: &self.commit_warning, inner: RefCell::new(inner),
             bind_refused: Cell::new(false), program_deadline: Cell::new(deadline), read_cache: RefCell::new(super::read_plan::Answers::default()), pending_read: RefCell::new(None), receipt_cache: RefCell::new(None), placement_cache: RefCell::new(None), authority_cache: RefCell::new(None), commit_settings: Cell::new(false), literal_cache: RefCell::new(&mut self.literal_cache), cache: RefCell::new(&mut self.cache), calls: &self.calls, marked_reads: &self.marked_reads, page_reads: &self.page_reads, prefetch_rows: &self.prefetch_rows, prefetch_bytes: &self.prefetch_bytes,
             rows_cache: RefCell::new(super::prefetch::Cache::default()), prefetch_enabled: self.prefetch, head: Cell::new(None), serialized_head: Cell::new(false), tail: RefCell::new(super::tail::Tail::default()), group_head: Cell::new(None), group_tails: RefCell::new(Vec::new()), group_images: Default::default(), changes: Default::default(), savepoints: RefCell::new(Vec::new()) };
         if opening { super::managed_relations::verify(&tx)?; }
@@ -178,7 +178,11 @@ impl Store {
                     exists = true;
                 }
             }
-            if exists {
+            if exists && !opening && mode == Some(WriteMode::Serialized) {
+                // BEGIN, raising owner fence, then the first facts commands
+                // travel together. No CTE pulls facts into the lock snapshot.
+                tx.inner.borrow_mut().owner = Some(super::ownership::Fence::raising_command(self.fence.as_ref())?);
+            } else if exists {
                 // @ref LLP 3000.009.001.000#5.1 — first row lock, before head, generation or any family write.
                 let rows = tx.query("SELECT store_id,token FROM _owner WHERE singleton FOR KEY SHARE", &[]).map_err(|error| {
                     if matches!(&error, RuntimeError::Postgres(e) if e.code() == Some(&postgres::error::SqlState::T_R_SERIALIZATION_FAILURE)) {
@@ -388,7 +392,16 @@ impl Tx<'_> {
             let remaining=deadline.checked_duration_since(std::time::Instant::now()).filter(|r|!r.is_zero())
                 .ok_or_else(||RuntimeError::Store("program invocation's remaining deadline elapsed".into()))?;
             let ms=remaining.as_millis().clamp(1,i32::MAX as u128);
-            self.defer_control(&format!("SET LOCAL statement_timeout={ms}; SET LOCAL lock_timeout={ms}"))?;
+            self.ensure_active()?;
+            let mut inner = self.inner.borrow_mut();
+            if inner.owner.is_some() {
+                // The raising fence is the first lock in the message, but
+                // must still obey the original remaining invocation budget.
+                inner.owner_budget = Some(ms as u32);
+            } else {
+                drop(inner);
+                self.defer_control(&format!("SET LOCAL statement_timeout={ms}; SET LOCAL lock_timeout={ms}"))?;
+            }
             // @ref LLP 3000.009.001.000.002#3.1 — COMMIT remains uncancellable after every retry budget.
             // A solo member release may already have disabled timeouts. This
             // later budget supersedes that preparation even with an empty tail.
@@ -399,6 +412,7 @@ impl Tx<'_> {
 }
 
 pub struct Tx<'a> {
+    pub(super) publication: RefCell<Option<super::read_grant::Published>>,
     read_grant: Option<std::sync::Arc<super::read_grant::Grant>>,
     durable_write: bool,
     pub(super) revisions: Cell<u64>,
@@ -616,6 +630,7 @@ impl Tx<'_> {
         Ok(())
     }
     pub(super) fn defer_one(&self, sql: &'static str, params: &[&(dyn ToSql+Sync)]) -> Result<(),RuntimeError> {
+        self.publication.borrow_mut().take();
         self.ensure_active()?;
         let bind = self.prepared(sql)?;
         let mut cache = self.literal_cache.borrow_mut();
@@ -660,6 +675,7 @@ impl Tx<'_> {
     }
 
     pub(crate) fn execute(&self, sql: &'static str, params: &[&(dyn ToSql + Sync)]) -> Result<u64, RuntimeError> {
+        self.publication.borrow_mut().take();
         let statement = self.prepared(sql)?;
         if statement.params().iter().all(|t| super::literal::name(t).is_ok())
             && statement.columns().iter().all(|c| super::flight::text_type(c.type_())) {
@@ -683,6 +699,7 @@ impl Tx<'_> {
     }
 
     pub(crate) fn batch(&self, sql: &str) -> Result<(), RuntimeError> {
+        self.publication.borrow_mut().take();
         self.ensure_active()?;
         self.refresh_program_budget()?;
         if sql.split(|c: char| !c.is_ascii_alphanumeric() && c != '_').any(|token| token.eq_ignore_ascii_case("ROLLBACK")) {
@@ -694,6 +711,7 @@ impl Tx<'_> {
     }
 
     pub(super) fn rollback_named(&self, name: &str) -> Result<(), RuntimeError> {
+        self.publication.borrow_mut().take();
         self.ensure_active()?;
         self.rows_cache.borrow_mut().clear();
         self.calls.set(self.calls.get() + 1);
@@ -723,6 +741,10 @@ impl Tx<'_> {
         })
     }
 
+    pub(super) fn publication_enabled(&self) -> bool {
+        self.read_grant.as_ref().is_some_and(|g| g.configured.load(std::sync::atomic::Ordering::Acquire))
+    }
+
     pub fn commit(self) -> Result<(), RuntimeError> {
         // The driver already validated its tail within the remaining budget.
         // Once it selects COMMIT, no deadline may cancel that outcome.
@@ -741,7 +763,15 @@ impl Tx<'_> {
         // callbacks share this transaction. Re-admit after its last writes.
         if self.lifecycle { super::managed_relations::verify(&self)?; }
         let grant=self.read_grant.as_ref().filter(|g|self.durable_write && g.configured.load(std::sync::atomic::Ordering::Acquire)).cloned();
-        let published=if grant.is_some() {Some(super::read_grant::Published::row(&self.query(super::read_grant::PUBLICATION,&[])?.remove(0))?)} else {None};
+        let published = if grant.is_some() {
+            let from_tail = self.publication.borrow_mut().take().filter(|_| !self.lifecycle);
+            Some(match from_tail {
+                Some(published) => published,
+                // Receipt-only/admin transactions and activation without a
+                // final program tail retain the complete post-write witness.
+                None => super::read_grant::Published::row(&self.query(super::read_grant::PUBLICATION, &[])?.remove(0))?,
+            })
+        } else { None };
         let mut inner = self.inner.into_inner();
         if !self.commit_settings.get() {
             inner.pending.push_str("SET LOCAL statement_timeout = 0; SET LOCAL lock_timeout = 0;");

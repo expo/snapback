@@ -192,7 +192,9 @@ pub fn serve(
     let registration = if dev { Some(crate::dev_hosts::register(&project.root, address,
         engine.store().store_identity().map_err(|e|e.to_string())?.unwrap_or_default(),
         matches!(mode, Mode::Dev {fresh:true,..}), host_owner.as_ref().and_then(|o| o.path().ok()).map(std::path::Path::to_path_buf))?) } else {None};
-    let readers = Mutex::new(QueryReaders::new(&engine, &bound.refusal_sites));
+    let mut readers = QueryReaders::new(&engine, &bound.refusal_sites);
+    readers.prepare(&engine).map_err(|e| e.to_string())?;
+    let readers = Mutex::new(readers);
     let shared = Arc::new(Shared {
         carried: Mutex::new(BTreeMap::new()),
         dev_reset_store: Mutex::new(None),

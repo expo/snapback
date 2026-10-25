@@ -3,6 +3,10 @@
 # cluster, stop precisely that cluster on exit, and leave its data for inspection.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+# Each HTTP fixture now prepares its fixed 30-reader population before ready.
+# Bound fixture concurrency within the private cluster's 400-connection budget;
+# individual race/transport fixtures retain their own explicit concurrency.
+export RUST_TEST_THREADS="${RUST_TEST_THREADS:-4}"
 if [[ "${1:-}" != "" && "${1:-}" != "--bench" ]]; then
   echo "usage: bash scripts/test-postgres.sh [--bench]" >&2
   exit 2

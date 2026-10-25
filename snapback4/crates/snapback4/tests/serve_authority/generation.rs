@@ -17,7 +17,7 @@ fn adopt(shared: &Shared, source: String) {
         let bound = snapback4_lang::compile(&[("schema.q".into(), source)]);
         assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
         let (generation, _) = adoption::adopt_candidate(shared, engine, &bound, || panic!("unexpected reopen")).unwrap();
-        lock(&shared.readers).replace(engine, &bound.refusal_sites);
+        shared.replace_readers(engine, &bound.refusal_sites);
         *lock(&shared.bound) = bound;
         *lock(&shared.generation) = generation;
     }).unwrap();

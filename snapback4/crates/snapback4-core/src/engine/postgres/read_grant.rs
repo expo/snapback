@@ -64,13 +64,16 @@ pub(crate) struct Published {
 pub(super) const PUBLICATION: &str = "SELECT h.revision,h.seq,b.generation,(SELECT value FROM _meta WHERE key='store_id'),(SELECT value FROM _meta WHERE key='schema_hash'),(SELECT value FROM _meta WHERE key='activation_hash') FROM _head h CROSS JOIN _backend b WHERE h.singleton AND b.singleton";
 impl Published {
     pub(super) fn row(r: &super::flight::Row) -> Result<Self, RuntimeError> {
+        Self::row_at(r, 0)
+    }
+    pub(super) fn row_at(r: &super::flight::Row, offset: usize) -> Result<Self, RuntimeError> {
         Ok(Self {
-            revision: r.try_get(0)?,
-            head: u64::try_from(r.try_get::<_, i64>(1)?).map_err(|_| clock_error())?,
-            generation: r.try_get(2)?,
-            store: r.try_get(3)?,
-            schema: r.try_get(4)?,
-            code: r.try_get(5)?,
+            revision: r.try_get(offset)?,
+            head: u64::try_from(r.try_get::<_, i64>(offset + 1)?).map_err(|_| clock_error())?,
+            generation: r.try_get(offset + 2)?,
+            store: r.try_get(offset + 3)?,
+            schema: r.try_get(offset + 4)?,
+            code: r.try_get(offset + 5)?,
         })
     }
 }

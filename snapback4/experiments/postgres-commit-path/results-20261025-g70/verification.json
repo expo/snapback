@@ -1,0 +1,160 @@
+{
+  "control_audit": {
+    "cells": 2,
+    "trials": 9,
+    "scheduled_arrivals": 480000,
+    "cells_with_passing_rate": 2,
+    "unknown_write_outcome_trials": 0,
+    "checks": "arrival accounting, every repetition, histogram counts and lossless archive, SLO/counter qualification, brackets"
+  },
+  "batch_arithmetic_audit": {
+    "trials": 374,
+    "batches": 424426,
+    "physical_confirmed_writes": 7459615,
+    "all_counter_commit_equal": true,
+    "all_log_counts_equal": true,
+    "deadlocks": 0
+  },
+  "process_audit": {
+    "events": 7192,
+    "distinct_identities": 4956,
+    "live_owned": [],
+    "cleanup": [
+      {
+        "run": "g70-smoke-01",
+        "events": 30,
+        "cluster_stopped": true,
+        "private_removed": true
+      },
+      {
+        "run": "g70-smoke-02",
+        "events": 35,
+        "cluster_stopped": true,
+        "private_removed": true
+      },
+      {
+        "run": "g70-smoke-03",
+        "events": 36,
+        "cluster_stopped": true,
+        "private_removed": true
+      },
+      {
+        "run": "g70-smoke-04",
+        "events": 344,
+        "cluster_stopped": true,
+        "private_removed": true
+      },
+      {
+        "run": "g70-smoke-05",
+        "events": 784,
+        "cluster_stopped": true,
+        "private_removed": true
+      },
+      {
+        "run": "g70-20261025",
+        "events": 330,
+        "cluster_stopped": true,
+        "private_removed": true
+      },
+      {
+        "run": "g70-final-20261025",
+        "events": 5573,
+        "cluster_stopped": true,
+        "private_removed": true
+      },
+      {
+        "run": "g70-protocol-20261025",
+        "events": 60,
+        "cluster_stopped": true,
+        "private_removed": true
+      }
+    ]
+  },
+  "affinity": {
+    "samples": 22461,
+    "observed": [
+      {
+        "role": "PG",
+        "cpus": [
+          0,
+          1,
+          2,
+          6,
+          7,
+          8
+        ],
+        "thread_observations": 207154
+      },
+      {
+        "role": "app",
+        "cpus": [
+          3,
+          4,
+          9,
+          10
+        ],
+        "thread_observations": 364089
+      },
+      {
+        "role": "app",
+        "cpus": [
+          5,
+          11
+        ],
+        "thread_observations": 21571
+      }
+    ]
+  },
+  "disk": {
+    "minimum_free_bytes": 92788252672,
+    "minimum_free_GiB": 86.4157943725586,
+    "guard_GiB": 25,
+    "passed": true
+  },
+  "host_start_gate": {
+    "released_boundaries": 374,
+    "busy_wait_observations": 0,
+    "all_released_clean": true
+  },
+  "rtt": {
+    "captures": 54,
+    "p50_ms_min": 0.56,
+    "p50_ms_max": 1.107,
+    "p99_ms_max": 1.164
+  },
+  "protocol": {
+    "http_requests": 1,
+    "http_status": 200,
+    "bind_values_logged": false,
+    "statements": [
+      "SET client_encoding = 'UTF8';SET client_min_messages TO WARNING;",
+      "BEGIN ISOLATION LEVEL READ COMMITTED READ WRITE",
+      "select set_config('search_path', $1, true), set_config($2, $3, true), set_config('role', $4, true), set_config('request.jwt.claims', $5, true), set_config('request.method', $6, true), set_config('request.path', $7, true), set_config('request.headers', $8, true), set_config('request.cookies', $9, true), set_config($10, $11, true)",
+      "WITH pgrst_source AS (SELECT pgrst_call.pgrst_scalar FROM (SELECT $1 AS json_data) pgrst_payload, LATERAL (SELECT \"counter_id\" FROM json_to_record(pgrst_payload.json_data) AS _(\"counter_id\" bigint) LIMIT 1) pgrst_body , LATERAL (SELECT \"sb4scale\".\"increment\"(\"counter_id\" := pgrst_body.\"counter_id\") pgrst_scalar) pgrst_call) SELECT null::bigint AS total_result_set, 1 AS page_total, coalesce(json_agg(_postgrest_t.pgrst_scalar)->0, 'null') AS body, nullif(current_setting('response.headers', true), '') AS response_headers, nullif(current_setting('response.status', true), '') AS response_status, '' AS response_inserted FROM (SELECT \"increment\".* FROM \"pgrst_source\" AS \"increment\"   LIMIT $2 OFFSET $3) _postgrest_t",
+      "COMMIT"
+    ]
+  },
+  "provenance": {
+    "binary_sha256": "4b88058aad2aefef41f18e7d6adc18e6a40a8f34e15166f487c4b58e42387252",
+    "source_sha256": {
+      "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/g70-onehost.py": "e0ed6f110064d9ae96ef85489a04b8d6ded0e3aca1e8bdcc7886639c49d922d8",
+      "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/postgres-commit-path/src/bin/g70.rs": "d85b6acc0fa8341a4f87a5068464e85d6d61ddfff8a08f3d05fd6dddfb017c35",
+      "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/postgres-commit-path/src/g70_fixture.rs": "a96260e968fa7dd370f074b206f46f2cfd15d1528f24f8843973091617e9f304",
+      "/home/ccheever/projects/sb4-s1sk/snapback4/crates/snapback4-core/src/engine/postgres/group_tail.rs": "69b0f20fe213543df0741787a4cb56f3759ee4301093705db3d598febce69e82",
+      "/home/ccheever/projects/sb4-s1sk/snapback4/crates/snapback4-core/src/engine/postgres/batch.rs": "38b909402a566133695048a5555bdaa170deddc574b8bd20e61404029b94a7cd"
+    },
+    "command": [
+      "snapback4/experiments/scale-controls/scripts/g70-onehost.py",
+      "--out",
+      "/home/ccheever/sb4scale/g70-final-20261025",
+      "--binary",
+      "snapback4/target/g70/release/g70",
+      "--fixture-cache",
+      "/home/ccheever/sb4scale/g70-fixture-ede6e04add97.dump"
+    ]
+  },
+  "product_base": "80d1597cf974d56b23048447be499c75f0aba669",
+  "product_edits": false,
+  "no_fetch_push_stash": true,
+  "repository_checks": "See repository-checks.json"
+}

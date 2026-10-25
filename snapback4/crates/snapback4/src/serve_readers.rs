@@ -1,5 +1,6 @@
 //! Read checkout is independent of the schema-adoption writer.
 use super::*;
+use snapback4_core::RuntimeError;
 
 // @ref LLP 3000.009.001.000.000#9 — each handoff decodes the original wire arguments against the program that will execute them.
 pub(super) fn query_context(engine: &Engine, shared: &Shared, op: &str, args: &Json, mut context: Context) -> Result<Context, Refusal> {
@@ -20,35 +21,41 @@ pub(super) struct QueryReaders {
     pub(super) epoch: Arc<()>,
     pub(super) idle: Vec<Engine>,
     pub(super) source: Option<Engine>,
+    factories: Vec<Engine>,
+    available: Arc<Condvar>,
     memory: bool,
     pub(super) refusal_sites: Arc<dev_refusals::Sites>,
     #[cfg(test)]
     pub(super) fail_open_after: Option<usize>,
     #[cfg(test)]
     pub(super) retry_open: Option<Arc<dyn Fn() + Send + Sync>>,
+    #[cfg(test)]
+    pub(super) construction_hook: Option<Arc<dyn Fn() + Send + Sync>>,
     candidate_queries: BTreeSet<String>,
     launching_feed: bool,
 }
 
-impl QueryReaders {
-    pub(super) fn take(
-        &mut self,
-        engine: &Engine,
-    ) -> Result<(Arc<()>, Engine), snapback4_core::RuntimeError> {
-        self.memory = engine.store().is_memory();
-        if self.source.is_none() {
-            self.source = engine.reader().ok();
+// @ref LLP 3000.009.001.000.002#4.1 — construction owns a bounded factory loan, never the global mutex, including errors/unwind.
+struct FactoryLoan<'a> {
+    shared: &'a Shared,
+    epoch: Arc<()>,
+    engine: Option<Engine>,
+}
+impl Drop for FactoryLoan<'_> {
+    fn drop(&mut self) {
+        let mut readers = lock(&self.shared.readers);
+        if Arc::ptr_eq(&self.epoch, &readers.epoch) {
+            readers.factories.push(self.engine.take().unwrap());
         }
-        let reader = match self.idle.pop() {
-            Some(reader) => reader,
-            None => engine.reader()?,
-        };
-        Ok((self.epoch.clone(), reader))
+        readers.available.notify_all();
     }
+}
 
+impl QueryReaders {
     pub(super) fn put(&mut self, epoch: &Arc<()>, reader: Engine) {
         if Arc::ptr_eq(epoch, &self.epoch) && self.idle.len() < REQUEST_WORKERS {
             self.idle.push(reader);
+            self.available.notify_one();
         }
     }
 
@@ -58,6 +65,8 @@ impl QueryReaders {
         self.epoch = Arc::new(());
         self.idle.clear();
         self.source = None;
+        self.factories.clear();
+        self.available.notify_all();
         self.candidate_queries.clear();
         self.launching_feed = false;
     }
@@ -65,28 +74,37 @@ impl QueryReaders {
 
 impl QueryReaders {
     pub(super) fn new(engine: &Engine, sites: &dev_refusals::Sites) -> Self {
+        // Four independent factory loans bound concurrent construction. They
+        // share PG's fixed physical pool; no connection is borrowed through a
+        // global mutex while connect/qualification runs.
+        let mut source = engine.reader().ok();
+        let factories: Vec<_> = (0..4).filter_map(|_| source.as_ref()?.reader().ok()).collect();
+        if factories.is_empty() { source = None; }
         Self {
-            source: engine.reader().ok(),
+            source,
+            factories,
             refusal_sites: Arc::new(sites.clone()),
             memory: engine.store().is_memory(),
             ..Self::default()
         }
     }
-    pub(super) fn replace(&mut self, engine: &Engine, sites: &dev_refusals::Sites) {
+    pub(super) fn replace(&mut self, prepared: Self) {
         self.invalidate();
-        self.refusal_sites = Arc::new(sites.clone());
-        self.memory = engine.store().is_memory();
-        self.source = engine.reader().ok();
+        self.refusal_sites = prepared.refusal_sites;
+        self.memory = prepared.memory;
+        self.source = prepared.source;
+        self.factories = prepared.factories;
     }
-    // @ref LLP 3000.019#3.6 — retry a failed factory on existing writer work; reads still refuse immediately.
-    pub(super) fn retry_missing(&mut self, engine: &Engine) {
-        if !self.memory && self.source.is_none() {
-            self.source = latency::acquire(|| {
-                #[cfg(test)]
-                if let Some(open) = &self.retry_open { open(); }
-                engine.reader()
-            }).ok();
+    // Startup has no global mutex yet. PG serve readiness includes all 30
+    // detached loans, including their identity/generation qualification.
+    pub(super) fn prepare(&mut self, engine: &Engine) -> Result<(), RuntimeError> {
+        #[cfg(feature = "postgres")]
+        if matches!(engine.store(), snapback4_core::store_port::AnyStore::Postgres(_)) {
+            let source = self.source.as_ref().ok_or_else(|| RuntimeError::Store("Postgres reader population unavailable before readiness".into()))?;
+            while self.idle.len() < REQUEST_WORKERS { self.idle.push(source.reader()?); }
         }
+        let _ = engine;
+        Ok(())
     }
     pub(super) fn begin_adoption(&mut self, candidate: &Bound) {
         self.launching_feed = self.source.as_ref().is_some_and(|old| candidate.schema.timelines.iter()
@@ -106,20 +124,16 @@ impl QueryReaders {
     pub(super) fn pending(&self, name: &str) -> bool {
         self.candidate_queries.contains(name)
     }
-    fn detached(&mut self) -> Option<Result<(Arc<()>, Engine), snapback4_core::RuntimeError>> {
+    fn check_open(&mut self) -> Result<(), RuntimeError> {
         #[cfg(test)]
         if let Some(remaining) = &mut self.fail_open_after {
             if *remaining == 0 {
                 self.idle.clear();
-                return Some(Err(snapback4_core::RuntimeError::Store("injected reader-open failure; retry the request".into())));
+                return Err(RuntimeError::Store("injected reader-open failure; retry the request".into()));
             }
             *remaining -= 1;
         }
-        let source = self.source.as_ref()?;
-        Some(match self.idle.pop() {
-            Some(reader) => Ok((self.epoch.clone(), reader)),
-            None => source.reader().map(|reader| (self.epoch.clone(), reader)),
-        })
+        Ok(())
     }
 }
 impl Shared {
@@ -127,18 +141,36 @@ impl Shared {
     // The source is only a connection factory: no transaction, answer or viewer
     // is retained. Identity guards still refuse an obsolete generation.
     pub(super) fn reader(&self) -> Result<(Arc<()>, TimedReader), snapback4_core::RuntimeError> {
-        let (result, sites) = self.acquire_reader(|| {
+        self.acquire_reader(|| loop {
             let start = trace::begin();
             let mut readers = lock(&self.readers);
             trace::waited(start, "readers");
-            (readers.detached(), readers.refusal_sites.clone())
-        });
-        if let Some(result) = result {
-            return result.map(|(epoch, reader)| (epoch, TimedReader { engine: reader, refusal_sites: sites, _timing: latency::EngineSpan::new() }));
-        }
-        // A missing factory can also mean opening a file-backed reader failed.
-        // Never acquire the writer to repair that failure under a read permit.
-        Err(snapback4_core::RuntimeError::Store("detached reader unavailable; retry the request after the store is available".into()))
+            readers.check_open()?;
+            let epoch = readers.epoch.clone();
+            let sites = readers.refusal_sites.clone();
+            let engine = if let Some(reader) = readers.idle.pop() { reader } else {
+                if readers.source.is_none() {
+                    return Err(RuntimeError::Store("detached reader unavailable; retry the request after the store is available".into()));
+                }
+                let Some(factory) = readers.factories.pop() else {
+                    let available = readers.available.clone();
+                    drop(available.wait(readers).unwrap_or_else(|p| p.into_inner()));
+                    continue;
+                };
+                #[cfg(test)]
+                let hook = readers.construction_hook.clone();
+                drop(readers);
+                let loan = FactoryLoan { shared: self, epoch: epoch.clone(), engine: Some(factory) };
+                #[cfg(test)]
+                if let Some(hook) = hook { hook(); }
+                let opened = loan.engine.as_ref().unwrap().reader();
+                drop(loan);
+                readers = lock(&self.readers);
+                if !Arc::ptr_eq(&epoch, &readers.epoch) { continue; }
+                opened?
+            };
+            return Ok((epoch, TimedReader { engine, refusal_sites: sites, _timing: latency::EngineSpan::new() }));
+        })
     }
     pub(super) fn reader_after_handoff(&self) -> Result<(Arc<()>, TimedReader), snapback4_core::RuntimeError> {
         let (epoch, engine, sites) = self.engine.attempt(|engine, shared| {
@@ -162,7 +194,37 @@ impl Shared {
         self.acquire_reader(|| engine.reader())
     }
     pub(super) fn take_reader(&self, engine: &Engine) -> Result<(Arc<()>, Engine), snapback4_core::RuntimeError> {
-        self.acquire_reader(|| lock(&self.readers).take(engine))
+        let _ = engine;
+        self.reader().map(|(epoch, reader)| (epoch, reader.into_inner()))
+    }
+    pub(super) fn replace_readers(&self, engine: &Engine, sites: &dev_refusals::Sites) {
+        let prepared = QueryReaders::new(engine, sites);
+        lock(&self.readers).replace(prepared);
+    }
+    // @ref LLP 3000.019#3.6 — repair on existing writer work, outside the reader lock; reads refuse a missing factory.
+    pub(super) fn retry_missing_readers(&self, engine: &Engine) {
+        #[cfg(test)]
+        let hook;
+        let (epoch, sites) = {
+            let readers = lock(&self.readers);
+            if readers.memory || readers.source.is_some() { return; }
+            #[cfg(test)]
+            { hook = readers.retry_open.clone(); }
+            let state = (readers.epoch.clone(), readers.refusal_sites.clone());
+            drop(readers);
+            state
+        };
+        let prepared = latency::acquire(|| {
+            #[cfg(test)]
+            if let Some(hook) = hook { hook(); }
+            QueryReaders::new(engine, &sites)
+        });
+        let mut readers = lock(&self.readers);
+        if Arc::ptr_eq(&epoch, &readers.epoch) && readers.source.is_none() {
+            readers.source = prepared.source;
+            readers.factories = prepared.factories;
+            readers.available.notify_all();
+        }
     }
     pub(super) fn memory_store(&self) -> bool { lock(&self.readers).memory }
 

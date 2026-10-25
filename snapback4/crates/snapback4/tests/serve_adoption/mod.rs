@@ -24,7 +24,7 @@ fn atomic_feed_launch_keeps_queries_reading_and_holds_sync_and_writes() {
         let mut engine = lock(&shared.engine);
         let (generation, _) = adoption::adopt_candidate(&shared, &mut engine, &b, || panic!("unexpected reopen")).unwrap();
         (engine.store()).test_support_conn().commit_hook(None::<fn()->bool>).unwrap();
-        lock(&shared.readers).replace(&engine, &b.refusal_sites);
+        shared.replace_readers(&engine, &b.refusal_sites);
         *lock(&shared.bound) = b; *lock(&shared.generation) = generation;
     });
     waiting.recv_timeout(Duration::from_secs(10)).unwrap();
@@ -247,7 +247,7 @@ fn w8r1b_adoption_recovery_retires_a_query_already_in_flight() {
     let host = directory.host();
     let (epoch, mut old) = {
         let engine = lock(&host.shared.engine);
-        lock(&host.shared.readers).take(&engine).unwrap()
+        host.shared.take_reader(&engine).unwrap()
     };
     let (entered, waiting) = mpsc::channel();
     let (resume, resumed) = mpsc::channel();
@@ -272,7 +272,7 @@ fn w8r1b_adoption_recovery_retires_a_query_already_in_flight() {
         lock(&host.shared.adoption).refused(&error, engine.generation());
         let next = engine.adopt(bound.schema.clone(), bound.programs.iter().map(|p| p.program.clone())).unwrap();
         lock(&host.shared.adoption).recovered();
-        lock(&host.shared.readers).replace(&engine, &bound.refusal_sites);
+        host.shared.replace_readers(&engine, &bound.refusal_sites);
         *lock(&host.shared.bound) = bound;
         *lock(&host.shared.generation) = next;
     }
@@ -319,7 +319,7 @@ fn query_retries_behind_adoption_commit_before_reader_replacement() {
         let bound = snapback4_lang::compile(&[("schema.q".into(), next)]);
         assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
         let (generation, _) = adoption::adopt_candidate(shared, engine, &bound, || panic!("unexpected reopen")).unwrap();
-        lock(&shared.readers).replace(engine, &bound.refusal_sites);
+        shared.replace_readers(engine, &bound.refusal_sites);
         *lock(&shared.bound) = bound;
         *lock(&shared.generation) = generation;
     }).unwrap());
@@ -370,7 +370,7 @@ fn adopt_during_query(shared: &Arc<Shared>, source: &'static str, repeat: bool) 
             let bound = snapback4_lang::compile(&[("schema.q".into(), next)]);
             assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
             let (generation, _) = adoption::adopt_candidate(shared, engine, &bound, || panic!("unexpected reopen")).unwrap();
-            lock(&shared.readers).replace(engine, &bound.refusal_sites);
+            shared.replace_readers(engine, &bound.refusal_sites);
             *lock(&shared.bound) = bound;
             *lock(&shared.generation) = generation;
         }).unwrap();

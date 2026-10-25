@@ -70,7 +70,7 @@ fn a_checked_out_reader_keeps_its_source_coordinates_across_publication() {
     {
         let mut engine = lock(&host.shared.engine);
         engine.adopt(next.schema.clone(), next.programs.iter().map(|p|p.program.clone())).unwrap();
-        lock(&host.shared.readers).replace(&engine, &next.refusal_sites);
+        host.shared.replace_readers(&engine, &next.refusal_sites);
         *lock(&host.shared.bound) = next;
     }
     assert_eq!(reader.refusal_sites[&("rows".into(), "read rule".into())], "schema.q:4:3");
@@ -145,7 +145,9 @@ impl Host {
         let refusals = recent.unwrap_or_else(|| evidence.map(|project| dev_refusals::Recent::start(project,
             &(engine.store()).test_support_meta("store_id").unwrap().unwrap(), "127.0.0.1:0".parse().unwrap(), false, false).unwrap()).unwrap_or_default());
         let generation = engine.generation();
-        let readers = Mutex::new(QueryReaders::new(&engine, &bound.refusal_sites));
+        let mut readers = QueryReaders::new(&engine, &bound.refusal_sites);
+        readers.prepare(&engine).unwrap();
+        let readers = Mutex::new(readers);
         let shared = Arc::new(Shared {
         carried: Mutex::new(BTreeMap::new()),
         dev_reset_store: Mutex::new(None), dev_identity: None,
