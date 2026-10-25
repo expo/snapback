@@ -22,8 +22,15 @@ pub(in crate::engine) enum Point {
 thread_local! {
     static FAULT:RefCell<Option<(Point,usize,bool)>>=const{RefCell::new(None)};
     static MEMBER:Cell<usize>=const{Cell::new(usize::MAX)};
+    static CHECK_HOOK: RefCell<Option<Box<dyn FnMut(Point, usize) -> Result<(), RuntimeError>>>> = RefCell::new(None);
 }
 pub(in crate::engine) fn check(point: Point, index: usize) -> Result<(), RuntimeError> {
+    CHECK_HOOK.with(|hook| {
+        if let Some(hook) = hook.borrow_mut().as_mut() {
+            hook(point, index)?;
+        }
+        Ok::<(), RuntimeError>(())
+    })?;
     FAULT.with(|slot| {
         let mut slot = slot.borrow_mut();
         if let Some((p, i, fired)) = slot.as_mut()
@@ -46,6 +53,24 @@ pub(in crate::engine) fn check(point: Point, index: usize) -> Result<(), Runtime
 }
 pub(in crate::engine) fn current(point: Point) -> Result<(), RuntimeError> {
     MEMBER.with(|i| check(point, i.get()))
+}
+
+pub(in crate::engine) fn with_check_hook<T>(
+    hook: impl FnMut(Point, usize) -> Result<(), RuntimeError> + 'static,
+    run: impl FnOnce() -> T,
+) -> T {
+    struct Clear;
+    impl Drop for Clear {
+        fn drop(&mut self) {
+            CHECK_HOOK.with(|hook| { hook.borrow_mut().take(); });
+        }
+    }
+    CHECK_HOOK.with(|slot| {
+        assert!(slot.borrow().is_none());
+        *slot.borrow_mut() = Some(Box::new(hook));
+    });
+    let _clear = Clear;
+    run()
 }
 pub(in crate::engine) struct MemberGuard(usize);
 pub(in crate::engine) fn enter(index: usize) -> MemberGuard {

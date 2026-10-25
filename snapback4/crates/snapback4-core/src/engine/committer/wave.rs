@@ -80,11 +80,9 @@ pub(in crate::engine) struct Wave {
     prepared: Vec<Option<Prepared>>,
 }
 impl Wave {
-    pub fn prepare(
-        tx: &AnyTx<'_>,
-        host: &ProgramHost<'_>,
-        batch: &[Invocation],
-        indices: &[usize],
+    pub fn prepare_chained(
+        tx: &AnyTx<'_>, host: &ProgramHost<'_>, batch: &[Invocation], indices: &[usize],
+        chain: Option<&super::super::program_pipeline::Chain>,
     ) -> Result<Option<Self>, RuntimeError> {
         let Some(plans) = indices
             .iter()
@@ -154,7 +152,18 @@ impl Wave {
             crate::engine::program_batch::fault::Point::BeforeLevel,
             0,
         )?;
-        let facts = tx.batch_facts(&requests, &roots, host.schema, &mut base)?;
+        let mut facts = tx.batch_facts(&requests, &roots, host.schema, &mut base)?;
+        if let Some(chain) = chain {
+            base.fold(&chain.images);
+            for (fact, request) in facts.iter_mut().zip(&requests) {
+                if let Some(id) = &request.id {
+                    if let Some(receipt) = chain.receipts.get(&(request.principal.clone(), id.clone())) {
+                        fact.receipt = Some(((request.principal.clone(), id.clone()), Some(receipt.clone())));
+                    }
+                }
+            }
+            tx.chain_head(chain)?;
+        }
         #[cfg(test)]
         crate::engine::program_batch::fault::check(
             crate::engine::program_batch::fault::Point::AfterFacts,
@@ -193,6 +202,7 @@ impl Wave {
             1,
         )?;
         tx.batch_level(&probes, host.schema, &mut base)?;
+        if let Some(chain) = chain { base.fold(&chain.images); }
         #[cfg(test)]
         crate::engine::program_batch::fault::check(
             crate::engine::program_batch::fault::Point::AfterLevel,

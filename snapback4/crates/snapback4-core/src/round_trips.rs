@@ -24,6 +24,7 @@ thread_local! { static ACTIVE: RefCell<Option<Handle>> = const { RefCell::new(No
 pub(crate) struct CommitTiming { pub attempts:u64, pub nanos:u64 }
 thread_local! {static COMMITS:Cell<CommitTiming>=const{Cell::new(CommitTiming{attempts:0,nanos:0})};}
 pub(crate) fn commit_timing()->CommitTiming {COMMITS.with(Cell::get)}
+pub(crate) fn add_commit_timing(delta:CommitTiming) {COMMITS.with(|slot|{let mut n=slot.get();n.attempts+=delta.attempts;n.nanos+=delta.nanos;slot.set(n);});}
 pub(crate) fn committed_in(elapsed:std::time::Duration) {COMMITS.with(|slot| {
     let mut value=slot.get();value.attempts+=1;value.nanos=value.nanos.saturating_add(elapsed.as_nanos().min(u64::MAX as u128) as u64);slot.set(value);
 });}

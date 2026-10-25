@@ -1115,3 +1115,101 @@ mod g71_tests;
 #[test]
 #[ignore = "private Postgres"]
 fn overlay_rt0_postgres_g6() { counts_with_grant(true, true); }
+
+#[cfg(feature="postgres")]
+#[path="program_g72_tests.rs"]
+mod g72_tests;
+
+#[test]
+fn g72_sqlite_wal_reader_folds_a_held_uncommitted_predecessor() {
+    use crate::engine::{committer::wave::Wave,mutation::ProgramHost,program_pipeline::Chain};
+    use crate::rows::Rows;
+    for seed in [1u64,19,0xdecaf] {
+        let mut reference=fixture(false);
+        let directory=std::env::temp_dir().join(format!("sb4-g72-fold-{:x}",crate::ids::seed()));
+        std::fs::create_dir(&directory).unwrap();let path=directory.join("store.sqlite");
+        reference.store().snapshot_to(&path).unwrap();
+        rusqlite::Connection::open(&path).unwrap().execute_batch("PRAGMA journal_mode=WAL").unwrap();
+        let mut writer=AnyStore::open(&path).unwrap();let mut reader=AnyStore::open_read_only(&path).unwrap();
+        for n in 0..96 {
+            let random=seed.wrapping_mul(6364136223846793005).rotate_left(n%63).wrapping_add(n as u64*797);
+            let source=["a","b","shared"][(random%3)as usize];
+            let targets=["a","b","shared"].into_iter().filter(|id|*id!=source).collect::<Vec<_>>();
+            let mut predecessor=Invocation::new("guarded",Some(format!("p-{n}")),Context::new("alice",[("counter".into(),Value::Id(source.into())),("delta".into(),Value::Int(1+(random%7)as i64)),("reject".into(),Value::Bool(false))].into()).at(1000+n as i64));
+            reference.invoke_program(&mut predecessor).unwrap();
+            let image=reference.store().rows("counters").unwrap().into_iter().find(|r|r.field("id").unwrap().as_str().unwrap()==source).unwrap();
+            let tx=writer.transaction().unwrap();let old=tx.get("counters",source).unwrap().unwrap();tx.put("counters",&reference.schema.tables["counters"],&image,Some(&old)).unwrap();
+            let snapshot=reader.read_transaction().unwrap();assert_ne!(snapshot.test_batch_tx().get("counters",source).unwrap(),Some(image.clone()),"the WAL reader must see the old base");
+            let chain=Chain{images:[(("counters".into(),source.into()),image.clone())].into(),entropy:reference.entropy,..Default::default()};
+            let batch=targets.iter().map(|target|Invocation::new("chain",None,Context::new("alice",[("source".into(),Value::Id(source.into())),("target".into(),Value::Id((*target).into()))].into()).at(1000+n as i64))).collect::<Vec<_>>();
+            let host=ProgramHost{schema:&reference.schema,programs:&reference.programs,entropy:reference.entropy,minter:&reference.minter,presence:reference.presence.clone(),ceilings:reference.ceilings,store_id:&reference.store_id,generation:reference.generation,dev_effects:reference.dev_effects,#[cfg(feature="evaluation-support")] evaluation_precharge:reference.evaluation_precharge};
+            let mut wave=Wave::prepare_chained(snapshot.test_batch_tx(),&host,&batch,&[0,1],Some(&chain)).unwrap().unwrap();
+            let prepared=(0..2).map(|i|wave.take(i).0.unwrap().execution).collect::<Vec<_>>();
+            drop(host);snapshot.rollback().unwrap();tx.commit().unwrap();
+            for (execution,mut invocation) in prepared.into_iter().zip(batch) {
+                let expected=reference.invoke_program(&mut invocation).unwrap().outcome;
+                let crate::engine::WriteState::Sent{result,..}=expected.state else {panic!("serial child must commit")};
+                assert_eq!(execution.ran.unwrap(),result,"seed={seed},held chain iteration={n}");
+                assert_eq!(execution.metered,expected.metered,"fold must preserve every meter");
+                assert_eq!(execution.tables,expected.tables);assert_eq!(execution.events.len(),expected.events);
+            }
+            // Advance the WAL writer's row prefix to the serial reference before
+            // holding the next predecessor. The read-only wave never writes.
+            let tx=writer.transaction().unwrap();
+            for id in ["a","b","shared"] {
+                let row=reference.store().rows("counters").unwrap().into_iter().find(|r|r.field("id").unwrap().as_str().unwrap()==id).unwrap();
+                let old=tx.get("counters",id).unwrap().unwrap();tx.put("counters",&reference.schema.tables["counters"],&row,Some(&old)).unwrap();
+            }
+            tx.commit().unwrap();
+        }
+        drop(reader);drop(writer);std::fs::remove_dir_all(directory).unwrap();
+    }
+}
+
+#[cfg(feature="postgres")]
+#[test]
+#[ignore="private Postgres"]
+fn g72_queued_second_wave_interprets_while_first_commit_is_held() {
+    use crate::engine::command::{Command,ProgramCommand,Queue};
+    use postgres::{Client,NoTls};
+    use std::sync::{Arc,mpsc,atomic::{AtomicUsize,Ordering}};
+    let mut engine=fixture(true);
+    let handle=engine.store_mut().test_postgres_handle_mut();
+    let schema:String=handle.store.get_mut().client.query_one("SELECT current_schema()",&[]).unwrap().get(0);
+    let tag=format!("sb:{}:0000:0",engine.store_id);
+    let mut watch=Client::connect(&std::env::var("SNAPBACK4_EVAL_POSTGRES").unwrap(),NoTls).unwrap();
+    watch.batch_execute(&format!("SET search_path={schema},pg_catalog;SET statement_timeout='10s'")).unwrap();
+    let queue=Queue::start_fixed(engine,64,8).unwrap();
+    let invocation=|i:usize|Invocation::new("increment",None,Context::new("alice",[("counter".into(),Value::Id(format!("k{}",i%32)))].into()).at(1000));
+    for warm in 0..2 {
+        let replies=(warm*8..warm*8+8).map(|i|queue.submit_program(ProgramCommand::new(invocation(i),|_,v|v)).unwrap()).collect::<Vec<_>>();
+        for reply in replies {assert!(reply.wait().unwrap().is_ok());}
+    }
+    let head:i64=watch.query_one("SELECT seq FROM _head WHERE singleton",&[]).unwrap().get(0);
+    let key=(crate::ids::seed()&i64::MAX as u64)as i64;
+    watch.query_one("SELECT pg_advisory_lock($1)",&[&key]).unwrap();
+    watch.batch_execute(&format!("CREATE FUNCTION g72_queue_hold() RETURNS trigger LANGUAGE plpgsql AS $f$ BEGIN IF NEW.seq<={} THEN PERFORM pg_advisory_xact_lock({key}::bigint); END IF;RETURN NEW;END $f$;CREATE CONSTRAINT TRIGGER g72_queue_hold AFTER INSERT ON _commits DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION g72_queue_hold()",head+8)).unwrap();
+    let (started,ready)=mpsc::channel();let (release,resume)=mpsc::channel();
+    let barrier=queue.submit(Command::new(move|_|{started.send(()).unwrap();resume.recv_timeout(Duration::from_secs(10)).unwrap();})).unwrap();
+    ready.recv_timeout(Duration::from_secs(10)).unwrap();
+    let (interpreted,seen)=mpsc::channel();let published=Arc::new(AtomicUsize::new(0));
+    let replies=(0..16).map(|i| {
+        let signal=interpreted.clone();let count=published.clone();
+        let intent=invocation(i).instrument(move|run|{run();if i>=8 {signal.send(()).unwrap();}});
+        queue.submit_program(ProgramCommand::new(intent,move|_,v|{count.fetch_add(1,Ordering::SeqCst);v})).unwrap()
+    }).collect::<Vec<_>>();
+    release.send(()).unwrap();barrier.wait().unwrap();
+    let until=Instant::now()+Duration::from_secs(10);
+    loop {
+        let waiting:bool=watch.query_one("SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE application_name=$1 AND query='COMMIT' AND wait_event='advisory')",&[&tag]).unwrap().get(0);
+        if waiting {break;}assert!(Instant::now()<until,"first final must reach held COMMIT");std::thread::sleep(Duration::from_millis(1));
+    }
+    let overlap=seen.recv_timeout(Duration::from_secs(1)).is_ok();
+    let early=published.load(Ordering::SeqCst);
+    watch.query_one("SELECT pg_advisory_unlock($1)",&[&key]).unwrap();
+    let results=replies.into_iter().map(|r|r.wait().unwrap()).collect::<Vec<_>>();
+    drop(queue);watch.batch_execute("DROP TRIGGER g72_queue_hold ON _commits;DROP FUNCTION g72_queue_hold()").unwrap();
+    assert!(overlap,"the second wave must interpret before the first COMMIT confirmation");
+    assert_eq!(early,0,"no continuation or reply may pass the held first COMMIT");
+    assert!(results.iter().all(Result::is_ok));
+}

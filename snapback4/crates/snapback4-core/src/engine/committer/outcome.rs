@@ -10,6 +10,10 @@ pub(crate) struct Failure {
     pub member: Option<usize>,
 }
 impl Failure {
+    pub(crate) fn may_rerun(&self) -> bool {
+        self.aborted && !matches!(&self.error,RuntimeError::StoreOwnership(_)) &&
+            !matches!(&self.error,RuntimeError::Store(message) if message.starts_with("pipeline ticket deadline"))
+    }
     // Tentative member refusals have authority only after a confirmed abort.
     pub fn refusal(&self, retained: Option<crate::Refusal>) -> crate::Refusal {
         if self.aborted {
