@@ -52,13 +52,27 @@ fn literal_value(value:&Expr,kind:&ColumnType,bound:&Bound)->Option<snapback4_co
 }
 fn creator_cell(creator:&Write<'_>,column:&str,bound:&Bound)->Option<snapback4_core::Value>{
     let table=&bound.schema.tables[&creator.table];let kind=table.columns.get(column)?;
-    // A record may enter a prerequisite's subset after a later authored edit.
-    // Creation literals distinguish stable kinds, not mutable decision stages.
-    let mut mutable=false;
-    let mut inspect=|value:&Expr|walk(value,|e|if matches!(e,Expr::Write{op:WriteOp::Update|WriteOp::Upsert,table,fields,..} if table==&creator.table&&fields.iter().any(|field|field.name==column)){mutable=true;});
-    for program in creator.catalog.documents.iter().flat_map(|doc|&doc.programs){let mut body=program.prelude.iter().chain(&program.body).cloned().collect::<Vec<_>>();super::super::super::intent_walk::statements(&mut body,&mut |value|inspect(value));}
-    for function in creator.catalog.functions.values(){match &function.body{ast::FunctionBody::Expression(value)=>inspect(value),ast::FunctionBody::Block(body)=>{let mut body=body.clone();super::super::super::intent_walk::statements(&mut body,&mut |value|inspect(value));}}}
-    if mutable{return None;}
+    // Only possibly admitted, nontrivial writes can change a record's kind.
+    let row_grant=table.update_rule_judged().into_owned();
+    let cell_grant=table.column_writes.get(column).cloned().unwrap_or(RuleExpr::Allow);
+    let unfrozen=table.frozen_columns.get(column).map(|rule|RuleExpr::Not(Box::new(rule.clone()))).unwrap_or(RuleExpr::Allow);
+    let grant=RuleExpr::And(vec![row_grant,cell_grant,unfrozen]);
+    if kernel::implies(&grant,&RuleExpr::Deny)!=Ok(true){
+        for program in creator.catalog.documents.iter().flat_map(|doc|&doc.programs).filter(|program|program.kind==ProgramKind::Mutation){
+            for (write,context) in super::super::authority_walk::writes(creator.catalog,program){
+                let Expr::Write{op:WriteOp::Update|WriteOp::Upsert,table:target,keys,fields,..}=write else{continue;};if target!=creator.table{continue;}
+                let Some(value)=fields.iter().find(|field|field.name==column).and_then(field_value)else{continue;};
+                let mut copied=value;while let Expr::Assert{value,..}=copied{copied=value;}
+                if matches!(copied,Expr::Member{base,name,..} if name==column&&super::super::derived::same_resource(base,&target,&keys,program)){continue;}
+                if conditions(&context).iter().any(|condition|matches!(simplify_boolean(condition),Expr::Literal{value:ast::Literal::Bool(false),..})){continue;}
+                let mut gates=super::super::operation::requirements(creator.catalog,&creator.catalog.tables[&target],&context);gates.push(grant.clone());
+                if kernel::implies(&RuleExpr::And(gates),&RuleExpr::Deny)==Ok(true){continue;}
+                let before=creator.fields.iter().find(|field|field.name==column).and_then(field_value).and_then(|value|literal_value(value,kind,bound)).or_else(||if creator.op==WriteOp::Insert{match table.defaults.get(column){Some(snapback4_core::schema::ColumnDefault::Literal(value))=>Some(value.clone()),_=>None}}else{None});
+                if before.is_some()&&literal_value(value,kind,bound)==before{continue;}
+                return None;
+            }
+        }
+    }
     if let Some(value)=creator.fields.iter().find(|field|field.name==column).and_then(field_value){return literal_value(value,kind,bound);}
     if creator.op!=WriteOp::Insert{return None;}
     match table.defaults.get(column){Some(snapback4_core::schema::ColumnDefault::Literal(value))=>Some(value.clone()),None if kind.is_optional()=>Some(snapback4_core::Value::Null),_=>None}
