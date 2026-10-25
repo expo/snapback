@@ -1,0 +1,12 @@
+{
+  "trials": 52,
+  "by_campaign": {
+    "matrix-g6": 52
+  },
+  "by_reason": {
+    "p99": 52,
+    "errors": 48,
+    "counter": 0
+  },
+  "full_list": "raw archive: disqualified-trials.json"
+}

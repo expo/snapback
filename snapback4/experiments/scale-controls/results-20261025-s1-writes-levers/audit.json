@@ -1,0 +1,10 @@
+{
+  "matrix-g6": {
+    "cells": 7,
+    "trials": 102,
+    "scheduled_arrivals": 4425180,
+    "cells_with_passing_rate": 7,
+    "unknown_write_outcome_trials": 0,
+    "checks": "arrival accounting, every repetition, histogram counts and lossless archive, SLO/counter qualification, brackets"
+  }
+}

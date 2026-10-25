@@ -1,0 +1,11 @@
+{
+  "path": "/home/ccheever/sb4scale/archive/s1-writes-levers-20261025.tar.gz",
+  "sha256": "34760fd372799a78431e96f576646cc515e04c4f3896355966717ce0c15b06d9",
+  "bytes": 620545263,
+  "members": 999,
+  "trial_jsons": 102,
+  "prior_final_archive_sha256": "f5e46efdd1a8a9de67eac775e324c5300cb9aadd41f79345d67c44a5bce166b0",
+  "prior_archive_embedded_transitively": true,
+  "g72_archive_sha256": "18499e06b6b6070575fe5b7524ba9ed7983caf7aea5b725f6d0f1a0546e86244",
+  "g72_archive_embedded": true
+}
