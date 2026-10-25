@@ -57,10 +57,11 @@ fn creator_cell(creator:&Write<'_>,column:&str,bound:&Bound)->Option<snapback4_c
     let cell_grant=table.column_writes.get(column).cloned().unwrap_or(RuleExpr::Allow);
     let unfrozen=table.frozen_columns.get(column).map(|rule|RuleExpr::Not(Box::new(rule.clone()))).unwrap_or(RuleExpr::Allow);
     let grant=RuleExpr::And(vec![row_grant,cell_grant,unfrozen]);
-    if kernel::implies(&grant,&RuleExpr::Deny)!=Ok(true){
+    if !table.immutable_fields().any(|field|field==column)&&kernel::implies(&grant,&RuleExpr::Deny)!=Ok(true){
         for program in creator.catalog.documents.iter().flat_map(|doc|&doc.programs).filter(|program|program.kind==ProgramKind::Mutation){
             for (write,context) in super::super::authority_walk::writes(creator.catalog,program){
-                let Expr::Write{op:WriteOp::Update|WriteOp::Upsert,table:target,keys,fields,..}=write else{continue;};if target!=creator.table{continue;}
+                let Expr::Write{op:WriteOp::Update|WriteOp::Upsert,table:target,keys,fields,condition,..}=write else{continue;};if target!=creator.table{continue;}
+                if condition.as_deref().is_some_and(|condition|matches!(simplify_boolean(condition),Expr::Literal{value:ast::Literal::Bool(false),..})){continue;}
                 let Some(value)=fields.iter().find(|field|field.name==column).and_then(field_value)else{continue;};
                 let mut copied=value;while let Expr::Assert{value,..}=copied{copied=value;}
                 if matches!(copied,Expr::Member{base,name,..} if name==column&&super::super::derived::same_resource(base,&target,&keys,program)){continue;}

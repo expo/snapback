@@ -12,6 +12,7 @@ pub(super) fn collect(sources:&[(String,String)],bound:&Bound)->BTreeMap<(String
     for doc in &docs{for p in doc.programs.iter().filter(|p|p.kind==ast::ProgramKind::Mutation){
         let writes=authority_walk::writes(&catalog,p);
         for (write,context) in &writes{let ast::Expr::Write{table,keys,fields,site,..}=write else{continue;};
+            let Some(target)=bound.schema.tables.get(table)else{continue;};
             let program=super::super::super::operation_name(std::path::Path::new(&doc.file).file_stem().and_then(|s|s.to_str()).unwrap_or(&doc.file),&p.name);
             let focal=||ast::Expr::Focal{site:site.clone()};let member=|name:String|ast::Expr::Member{base:Box::new(focal()),name,site:site.clone()};
             let arguments=p.args.iter().map(|arg|(arg.name.clone(),member(format!("{ARG}{}",arg.name)))).collect();
@@ -41,7 +42,7 @@ pub(super) fn collect(sources:&[(String,String)],bound:&Bound)->BTreeMap<(String
                 if stable{workflow::normalize(condition,&bound.schema,table,&arguments)}else{None}
             }).collect();
             let invocation=ApprovalCheck{clauses:checks,bindings,selectors};
-            for stamp in bound.schema.tables[table].columns.keys().filter(|stamp|["approv","authoriz"].iter().any(|part|stamp.to_lowercase().contains(part))){
+            for stamp in target.columns.keys().filter(|stamp|["approv","authoriz"].iter().any(|part|stamp.to_lowercase().contains(part))){
                 out.entry((program.clone(),table.clone(),stamp.clone(),site.to_string())).or_default().push(invocation.clone());
             }
         }

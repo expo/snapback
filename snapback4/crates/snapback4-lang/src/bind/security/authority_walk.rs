@@ -16,10 +16,27 @@ pub(super) fn resolve(expr:&Expr,env:&Env)->Expr{
     // Reusing that expression after a reassignment must not evaluate it again.
     super::super::intent_walk::expression(&mut expr,&mut |e|if let Expr::Name{site,..}=e&&!site.file.starts_with("$advice/value/"){site.file=format!("$advice/value/{}",site.file);});expr
 }
+// Normalize the paved `update row` form to its selected table and key.
+// Keep the authored site: fixture observation binds the executed write there.
+fn normalize_target(catalog:&Catalog,p:&ProgramDecl,expr:&mut Expr,env:&Env){
+    fn selected(catalog:&Catalog,p:&ProgramDecl,value:&Expr)->Option<(String,Vec<ast::KeyPart>)>{
+        let point=|table:String,value:Expr|{let site=value.site().clone();(table,vec![ast::KeyPart{column:Some("id".into()),value,site}])};
+        match value{
+            Expr::Assert{value,..}=>selected(catalog,p,value),
+            Expr::Read(read) if !read.keys.is_empty()&&read.filter.is_none()&&read.range.is_none()&&read.matching.is_none()&&read.seeks.is_empty()=>Some((read.table.clone(),read.keys.clone())),
+            Expr::Name{name,..}=>p.args.iter().find_map(|arg|if arg.name==*name&&let ast::TypeKind::Ref{table}=&arg.type_.kind{Some(point(table.clone(),value.clone()))}else{None}),
+            Expr::Call{name,args,..} if name=="first"&&args.len()==1=>if let Expr::Read(read)=&args[0]{Some(point(read.table.clone(),Expr::Member{base:Box::new(value.clone()),name:"id".into(),site:value.site().clone()}))}else{None},
+            Expr::Member{base,name,..}=>{let (owner,_)=selected(catalog,p,base)?;let table=if name=="id"{owner}else{let ast::TypeKind::Ref{table}=&catalog.tables.get(&owner)?.columns.get(name)?.kind else{return None;};table.clone()};Some(point(table,value.clone()))},_=>None,
+        }
+    }
+    let Expr::Write{table,keys,op:ast::WriteOp::Update|ast::WriteOp::Upsert,..}=expr else{return;};if !keys.is_empty(){return;}
+    let value=env.get(table).cloned().unwrap_or_else(||Expr::Name{name:table.clone(),site:p.site.clone()});let value=returned(catalog,&value,0);
+    if let Some((target,selected))=selected(catalog,p,&value){*table=target;*keys=selected;}
+}
 fn expression(catalog:&Catalog,p:&ProgramDecl,expr:&Expr,env:&Env,guards:&[Stmt],changes:&[Change],column:Option<&str>,depth:usize,out:&mut Vec<(Expr,ProgramDecl)>){
     let mut expr=resolve(expr,env);
     let changes=if column.is_some()&&changes::prior_effects(&expr){&[][..]}else{changes};
-    super::super::intent_walk::expression(&mut expr,&mut |e|match e{
+    super::super::intent_walk::expression(&mut expr,&mut |e|{normalize_target(catalog,p,e,env);match e{
         Expr::Write{keys,fields,condition,..}=>{let mut boundary=Vec::new();for value in keys.iter().map(|key|&key.value).chain(fields.iter().filter_map(|field|field.value.as_ref())).chain(condition.iter().map(|condition|condition.as_ref())){boundary.extend(helper_guards(catalog,value,&Env::new(),depth));}let mut context=p.clone();context.prelude=Vec::new();context.body=guards.to_vec();context.body.extend(boundary);if let Some(column)=column{for change in changes{if change.matches(e,column,p){context.body.extend(change.requirements.clone());}}}out.push((e.clone(),context));},
         Expr::Call{name,args,site} if depth<32=>if let Some(f)=catalog.functions.get(name){
             let mut locals=f.args.iter().zip(args).map(|(arg,value)|(arg.name.clone(),value.clone())).collect();
@@ -30,7 +47,7 @@ fn expression(catalog:&Catalog,p:&ProgramDecl,expr:&Expr,env:&Env,guards:&[Stmt]
                 FunctionBody::Block(body)=>statements(catalog,p,body,&mut locals,&mut inherited,&mut changes.to_vec(),column,depth+1,out),
             }
         },_=>{}
-    });
+    }});
 }
 fn conditional(guards:Vec<Stmt>,premise:Expr,site:&Site)->Vec<Stmt>{guards.into_iter().filter_map(|stmt|if let Stmt::Require{condition,code,..}=stmt{
         let condition=super::creation_advice::simplify_boolean(&Expr::Binary{op:"or".into(),left:Box::new(Expr::Unary{op:"not".into(),value:Box::new(premise.clone()),site:site.clone()}),right:Box::new(condition),site:site.clone()});
@@ -184,7 +201,7 @@ fn statements(catalog:&Catalog,p:&ProgramDecl,body:&[Stmt],env:&mut Env,guards:&
                 }}.unwrap_or_else(||Expr::Name{name:format!("$advice_unknown_{name}"),site:site.clone()});env.insert(name,value);
             }
         },
-        Stmt::For{domain,name,body,site}=>{if column.is_some(){changes.clear();}expression(catalog,p,domain,env,guards,changes,column,depth,out);guards.extend(helper_guards(catalog,domain,env,0));let mut local=env.clone();local.remove(name);let mut nested=guards.clone();nested.push(Stmt::Require{condition:Expr::Literal{value:ast::Literal::Bool(true),site:site.clone()},code:format!("$iteration:{site}"),message:None,site:site.clone()});statements(catalog,p,body,&mut local,&mut nested,&mut Vec::new(),column,depth,out);for name in branch_assignments(body){env.insert(name.clone(),Expr::Name{name:format!("$advice_unknown_{name}"),site:site.clone()});}if contains_return(body){continuation(guards,Expr::Name{name:format!("$advice_fallthrough:{site}"),site:site.clone()},site);}},
+        Stmt::For{domain,name,body,site}=>{if column.is_some(){changes.clear();}expression(catalog,p,domain,env,guards,changes,column,depth,out);guards.extend(helper_guards(catalog,domain,env,0));let mut local=env.clone();local.remove(name);if let Expr::Read(read)=returned(catalog,&resolve(domain,env),0){let mut binder=site.clone();binder.file=format!("$advice/value/{}",binder.file);local.insert(name.clone(),Expr::Read(ast::ReadExpr{cursor_prefix:None,computed:Default::default(),order_keys:Vec::new(),table:read.table,keys:vec![ast::KeyPart{column:Some("id".into()),value:Expr::Member{base:Box::new(Expr::Name{name:name.clone(),site:binder.clone()}),name:"id".into(),site:binder.clone()},site:binder.clone()}],index:None,range:None,matching:None,filter:None,seeks:Vec::new(),site:binder}));}let mut nested=guards.clone();nested.push(Stmt::Require{condition:Expr::Literal{value:ast::Literal::Bool(true),site:site.clone()},code:format!("$iteration:{site}"),message:None,site:site.clone()});statements(catalog,p,body,&mut local,&mut nested,&mut Vec::new(),column,depth,out);for name in branch_assignments(body){env.insert(name.clone(),Expr::Name{name:format!("$advice_unknown_{name}"),site:site.clone()});}if contains_return(body){continuation(guards,Expr::Name{name:format!("$advice_fallthrough:{site}"),site:site.clone()},site);}},
         Stmt::As{body,site,..}=>{statements(catalog,p,body,&mut env.clone(),&mut guards.clone(),&mut changes.clone(),column,depth,out);if contains_exit(body)&&!continuation(guards,fallthrough(body,env,site),site){break;}},
     }
     if consuming{changes.clear();}

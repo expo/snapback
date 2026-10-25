@@ -98,7 +98,7 @@ fn campaign(s:&str)->Campaign{let b=security::derived::augmented(&sources(s),&bo
 }
 #[test]fn aliased_loop_updates_do_not_panic_workflow_inference(){
     let source="table docs:\n  stage: enum('draft','done') default 'draft'\n  read <- allow\n  update <- allow\n  online only\nmutation migrate():\n  for d in docs first 10 by .id:\n    update d {stage:'done'}\n";
-    let b=bound(source);let _=security::derived::invariants(&sources(source),&b);
+    let b=bound(source);let _=security::derived::invariants(&sources(source),&b);let _=security::derived::augmented(&sources(source),&b);
 }
 
 #[test]fn enum_and_principal_approval_inputs_derive_invalidation_contracts(){
@@ -513,5 +513,18 @@ fn campaign(s:&str)->Campaign{let b=security::derived::augmented(&sources(s),&bo
     let broad=source.replace("exists approvals[doc = doc,kind = 'permit']","exists approvals where .doc = doc and (.kind = 'permit' or .kind = 'audit')");assert!(!notes(&broad).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
     let mutable=source.replace("  insert <- exists roles[principal = viewer,role = 'manager']","  update <- allow\n  insert <- exists roles[principal = viewer,role = 'manager']")+"mutation classify(approval: approvals):\n  update approvals[approval] {kind:'permit'}\n";assert!(!notes(&mutable).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
     let denied=source.to_string()+"mutation classify(approval: approvals):\n  update approvals[approval] {kind:'permit'}\n";assert!(notes(&denied).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
-    for body in ["  a = approvals[approval] ! else MISSING\n  update approvals[approval] {kind:a.kind}\n","  require false else DENIED\n  update approvals[approval] {kind:'permit'}\n","  update approvals[approval] {kind:'audit'}\n"]{let shape=source.replace("  insert <- exists roles[principal = viewer,role = 'manager']","  update <- allow\n  insert <- exists roles[principal = viewer,role = 'manager']")+"mutation preserve(approval: approvals):\n"+body;assert!(notes(&shape).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"),"{body}");}
+    let immutable=mutable.replace("  kind: enum('permit','audit')", "  kind: enum('permit','audit')\n  immutable kind");assert!(notes(&immutable).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+    for body in ["  a = approvals[approval] ! else MISSING\n  update approvals[approval] {kind:a.kind}\n","  require false else DENIED\n  update approvals[approval] {kind:'permit'}\n","  update approvals[approval] {kind:'permit'} if false\n","  update approvals[approval] {kind:'audit'}\n"]{let shape=source.replace("  insert <- exists roles[principal = viewer,role = 'manager']","  update <- allow\n  insert <- exists roles[principal = viewer,role = 'manager']")+"mutation preserve(approval: approvals):\n"+body;assert!(notes(&shape).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"),"{body}");}
+}
+
+#[test]fn row_alias_approval_writes_keep_the_actual_table_and_source_site(){
+    let source="table docs:\n  approved: bool default false\n  stage: enum('draft','done') default 'draft'\n  read <- allow\n  update <- allow\n  online only\nmutation approve(doc: docs):\nBODY\nmutation finish(doc: docs):\n  update docs[doc] {stage:'done'}\n";
+    for body in ["  d = docs[doc] ! else MISSING\n  update d {approved:true}","  d = lookup(doc)\n  update d {approved:true}\nfn lookup(doc: docs):\n  return docs[doc] ! else MISSING","  for d in docs first 10 by .id:\n    update d {approved:true}"]{
+        let source=source.replace("BODY",body);let b=security::derived::augmented(&sources(&source),&bound(&source));assert!(b.schema.tables.contains_key("docs"));assert!(notes(&source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"),"{body}");
+        let guarded=source.replace("  update docs[doc] {stage:'done'}","  d = docs[doc] ! else MISSING\n  require d.approved else APPROVAL\n  update d {stage:'done'}");assert!(!notes(&guarded).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"),"{body}");
+    }
+}
+
+#[test]fn actual_alias_corpus_schema_does_not_panic_and_keeps_unused_approval_visible(){
+    let source=include_str!("security/sec10-controls/w26-037.q");let _=security::derived::augmented(&sources(source),&bound(source));assert!(notes(source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"&&n.message.contains("remakeApproved")));
 }
