@@ -11,16 +11,21 @@ pub(crate) fn ingress_of(request: &impl RequestInfo, shared: &Shared) -> Result<
     Ok(capability)
 }
 
-// @ref LLP 3000.009.001.000.001#31-authority-boundaries — a carried capability is only a planning hint; the query snapshot always resolves live facts.
-pub(crate) fn query_ingress(request: &impl RequestInfo, shared: &Shared) -> Result<Option<snapback4_core::identity::Capability>, Refusal> {
+// @ref LLP 3000.009.001.000.001#13-g4a-read-refinement-2026-10-23 — bounded query/mutation hints never authorize; each final snapshot resolves live facts.
+pub(crate) fn operation_ingress(request: &impl RequestInfo, shared: &Shared) -> Result<Option<snapback4_core::identity::Capability>, Refusal> {
     let admission = Admission::capture(request, shared)?;
     if let Some(persona) = &admission.persona {
         return Ok(Some((persona_principal(persona), "persona".into(), snapback4_core::identity::SessionScope::Full)));
     }
     if admission.bearer.is_none() { return Err(Refusal::new("E_AUTH", "auth", "sign in: send a bearer token").guide("personas")); }
     let identity = lock(&shared.wake).store_id.clone();
+    // A supervisor fence invalidates discovery hints as an eviction would.
+    // Cold discovery can still refuse a retired child while retirement holds
+    // the writer lock; successful execution always needs its final snapshot.
+    let revision = shared.worker_revision.load(Ordering::Acquire);
     Ok(lock(&shared.carried).get(&admission.digest())
-        .filter(|(store,_)| Some(store) == identity.as_ref()).map(|(_,capability)| capability.clone()))
+        .filter(|(store,_,observed)| Some(store) == identity.as_ref() && *observed == revision)
+        .map(|(_,capability,_)| capability.clone()))
 }
 
 // @ref LLP 3000.009.001.000.000#3.6 — credentials are owned admission inputs; every final snapshot resolves live authority and time.
@@ -85,7 +90,7 @@ impl Admission {
         const CARRIED_CAPABILITIES: usize = 1024;
         let digest=self.digest();
         if carried.len() >= CARRIED_CAPABILITIES && !carried.contains_key(&digest) { carried.pop_first(); }
-        carried.insert(digest, (store, capability.clone()));
+        carried.insert(digest, (store, capability.clone(), shared.worker_revision.load(Ordering::Acquire)));
     }
     pub(crate) fn check_store(&self, shared: &Shared, store: &str) -> Result<(), Refusal> {
         if lock(&shared.wake).store_id.as_deref() != Some(store) {

@@ -282,10 +282,11 @@ fn refusal_generation(pg: bool) {
     let gate=Arc::new(WorkGate::default());let _release=ReleaseGate(gate.clone());let hook=gate.clone();
     let visits=AtomicUsize::new(0);
     *lock(&f.host.shared.reader_open)=Some(Arc::new(move|| {
-        if visits.fetch_add(1,Ordering::AcqRel)==1 { hook.park(); }
+        if visits.fetch_add(1,Ordering::AcqRel)==if replay {0}else{1} { hook.park(); }
     }));
-    // Ingress checks the predecessor. Its decoder refuses this argument, then
-    // the refusal's reader checkout waits while that argument becomes valid.
+    // A cold credential discovers the predecessor before its decoder refuses;
+    // a warm replay goes directly to preflight. Park the fresh snapshot's
+    // checkout while the new argument contract becomes valid.
     let address=f.host.address;let request=wire("/m/change",&session,&payload);
     let task=thread::spawn(move||exchange_held(address,2*WAIT_TIMEOUT,request));
     wait_until(||gate.entered.load(Ordering::Acquire)==1);
@@ -497,3 +498,52 @@ fn carried_query(pg: bool) {
 #[test] fn rt3b_carried_query_sqlite() { carried_query(false); }
 #[cfg(feature="postgres")] #[test] #[ignore="requires private Postgres"]
 fn rt3b_carried_query_postgres() { carried_query(true); }
+
+// @ref LLP 3000.009.001.000.001#13-g4a-read-refinement-2026-10-23 — mutation hints cannot authorize a batch after an intervening authority change.
+fn carried_mutation_batch(pg: bool) {
+    for change in ["revoke", "expiry", "scope", "kind", "generation"] {
+        let f=Fixture::new(pg);let session=f.session(false);
+        assert_eq!(body(&f.host.request("POST","/q/count",&headers(&session),"{}"))["data"],0);
+        assert_eq!(lock(&f.host.shared.carried).len(),1);
+        let gate=Arc::new(WorkGate::default());let release=ReleaseGate(gate.clone());let hook=gate.clone();
+        let token=session.token.clone();let principal=session.principal.clone();
+        let shared=f.host.shared.clone();
+        let held=thread::spawn(move||shared.engine.submit(move |engine,_| {
+            hook.park();
+            match change {
+                "revoke"=>identity::close_session(engine.store(),&token).unwrap(),
+                "scope"=>engine.store_mut().test_request_read_scope(&token,false).unwrap(),
+                "kind"=>engine.store_mut().test_request_kind(&token,"account").unwrap(),
+                "generation"=>{identity::revoke_principal(engine.store(),&principal).unwrap();},
+                _=>{},
+            }
+        }));
+        wait_until(||gate.entered.load(Ordering::Acquire)==1);
+        let mut tasks=Vec::new();
+        for n in 1..=4 {
+            let address=f.host.address;let request=wire("/m/change",&session,&json!({"args":{"n":1}}));
+            tasks.push(thread::spawn(move||exchange_held(address,2*WAIT_TIMEOUT,request)));
+            wait_until(||f.host.shared.engine.queued()>=n+1);
+        }
+        // All four passed warm ingress and reached the writer using the old
+        // hint. Their one physical batch starts only after the changed facts.
+        if change=="expiry" {
+            let mut clock=crate::dev_clock::Clock::new(true,0).unwrap();clock.freeze(session.expires_at);
+            *lock(&f.host.shared.clock)=clock;
+        }
+        drop(release);held.join().unwrap().unwrap();
+        for task in tasks {
+            let reply=task.join().unwrap();refused(&reply,"E_AUTH");no_store_metadata(&reply);
+            assert_eq!(status(&reply),if matches!(change,"kind"|"scope"){503}else{401},"{change}: {reply}");
+        }
+        assert_eq!(f.count(),0,"{change}: a stale hint wrote a row");
+        assert_eq!(f.host.shared.engine.batch_stats().fills.get(4),Some(&1),"must execute a physical four-member batch");
+        if change=="kind" {
+            // A refreshed hint still needs fresh authority on the retry.
+            assert_eq!(f.call(&session,&f.payload("retry-kind"))["state"],"sent");
+        }
+    }
+}
+#[test] fn rt3b_carried_mutation_batch_sqlite(){carried_mutation_batch(false);}
+#[cfg(feature="postgres")] #[test] #[ignore="requires private Postgres; scripts/test-postgres.sh"]
+fn rt3b_carried_mutation_batch_postgres(){carried_mutation_batch(true);}

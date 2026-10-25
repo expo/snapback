@@ -108076,3 +108076,24 @@ references. All 8,732 continuation PID/birth instances, the prior run's 317,
 and 537 public-script PID records are absent; the monitor has exited. PIDs left:
 none. Minimum free disk is 123.83 GiB, final audit 128.77 GiB; the 30 GiB guard
 never fires.
+
+## 2026-10-25 — LEV: non-authorizing mutation ingress
+
+Warm `/m` requests now use G4a's bounded ordinary discovery hints, as `/q`
+does. Cold credentials retain live discovery after bounded body intake;
+keyed preflight, ephemeral execution and durable final authority stay fresh.
+A hint binds store identity and supervisor revision. A changed supervisor
+fence takes cold discovery, preserving retired-child refusal even while
+SQLite retirement holds the writer lock. The durable final check refreshes
+ordinary hints on a stale-kind refusal without authorizing a retry.
+
+The new HTTP witness queues four real mutation members before changing
+revocation, expiry, scope, kind or principal generation. Their batch refuses
+without writes or metadata; a changed-kind retry still resolves fresh facts.
+Existing snapshot-generation and latency witnesses now rendezvous/count the
+remaining preflight checkout instead of the removed warm ingress checkout.
+Warm mutation RT0 rows fall by one PG flight and one SQLite statement;
+query and direct engine-batch rows are unchanged. Core qualification passes
+1,275 tests with 439 explicit ignores. Binary/Postgres qualification and the
+matched one-host measurements continue in this lane; the final LEV report
+records their completed outcomes and raw-evidence custody.

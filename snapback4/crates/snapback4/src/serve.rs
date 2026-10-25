@@ -98,7 +98,7 @@ pub struct Shared {
     pub engine: committer::Writer,
     adoption: Mutex<adoption::Status>,
     readers: Mutex<QueryReaders>,
-    carried: Mutex<BTreeMap<String, (String, snapback4_core::identity::Capability)>>,
+    carried: Mutex<BTreeMap<String, (String, snapback4_core::identity::Capability, usize)>>,
     read_cuts: Mutex<read_cost::ReadCuts>,
     pub bound: Mutex<Bound>,
     pub generation: Mutex<u64>,
@@ -951,7 +951,7 @@ fn handle(mut request: Request, shared: &Shared) {
         return respond_timed(request, shared, 403, json!({ "denied": refusal_json(&dev_doors::reset_release()) }));
     }
     let mut operation_capability = None;
-    // Check credentials before upload admission; /q carries bounded hints.
+    // Check credentials before upload admission; /q and /m carry bounded hints.
     // Fresh preflight/execution authority follows body and queue waits, so
     // expiry/revocation cannot retain an earlier observation's authority.
     // Logout's body is only 4 KiB and its sole authentication happens inside
@@ -959,7 +959,7 @@ fn handle(mut request: Request, shared: &Shared) {
     if method == Method::Post && (path == "/assets" || path.starts_with("/assets/intent/") || path == "/sync" || path.starts_with("/q/") || path.starts_with("/following/") || path.starts_with("/m/") || path.starts_with("/a/")
         || (path.starts_with("/actions/") && path.ends_with("/cancel"))
         || matches!(path.as_str(), "/auth/refresh" | "/auth/logout-all")) {
-        match if path.starts_with("/q/") { session_identity::query_ingress(&request, shared) } else { session_identity::ingress_of(&request, shared).map(Some) } {
+        match if path.starts_with("/q/") || path.starts_with("/m/") { session_identity::operation_ingress(&request, shared) } else { session_identity::ingress_of(&request, shared).map(Some) } {
             Ok(capability) => operation_capability = capability,
             Err(refusal) => {
             // No authenticated viewer: metadata cannot disclose a store head.
@@ -1413,6 +1413,9 @@ fn handle(mut request: Request, shared: &Shared) {
                     let sample_host=shared.clone();let sample_admission=admission.clone();
                     Ok(snapback4_core::engine::program::Invocation::new(owned_op,owned_id,context.with_wire_args(args_json))
                         .authorized(admission.digest(),move ||sample_admission.sample(&sample_host),move |facts| {
+                            // Refresh only the planning hint, including after a stale-kind
+                            // refusal. This batch's fresh facts alone decide authority.
+                            if let Some(current)=&facts.capability {admission.remember(&shared,current);}
                             admission.check_facts(&expected,&facts,persona.clone())?;
                             *lock(&boundary_check)=Some((facts.store_id.clone(),facts.head));
                             head::intent_store_id(&payload,Some(&facts.store_id))
