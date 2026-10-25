@@ -43,7 +43,25 @@ fn simplify_rule(rule:&RuleExpr)->RuleExpr{match rule{
         if out.is_empty(){if disjunction{RuleExpr::Deny}else{RuleExpr::Allow}}else if out.len()==1{out.remove(0)}else if disjunction{RuleExpr::Or(out)}else{RuleExpr::And(out)}
     },_=>rule.clone(),
 }}
-fn effective_conditions(p:&ast::ProgramDecl)->Vec<Expr>{if let Some(site)=p.body.iter().find_map(|stmt|if let Stmt::Require{code,site,..}=stmt&&code=="$advice:cut"{Some(site)}else{None}){return vec![Expr::Literal{value:ast::Literal::Bool(false),site:site.clone()}];}conditions(p).into_iter().map(simplify_boolean).collect()}
+fn caller_names(p:&ast::ProgramDecl)->BTreeSet<String>{p.args.iter().map(|arg|arg.name.clone()).collect()}
+fn caller_predicate(expression:&Expr,names:&BTreeSet<String>)->bool{
+    let mut supported=true;walk(expression,|e|match e{Expr::Literal{..}=>{},Expr::Name{name,..} if names.contains(name)||matches!(name.as_str(),"viewer"|"now")=>{},Expr::Unary{..}|Expr::Binary{..}|Expr::Assert{..}=>{},_=>supported=false});supported
+}
+fn predicate_fact(expression:&Expr,names:&BTreeSet<String>)->Option<(String,bool)>{
+    if !caller_predicate(expression,names){return None;}let mut expression=expression;let mut value=true;while let Expr::Unary{op,value:inner,..}=expression{if op!="not"{break;}expression=inner;value=!value;}
+    (!matches!(expression,Expr::Literal{..})).then(||(crate::print::expression(expression),value))
+}
+fn apply_facts(expression:&Expr,facts:&BTreeMap<String,bool>,names:&BTreeSet<String>)->Expr{
+    let mut expression=expression.clone();super::super::intent_walk::expression(&mut expression,&mut |e|if let Some((key,positive))=predicate_fact(e,names)&&let Some(value)=facts.get(&key){*e=Expr::Literal{value:ast::Literal::Bool(*value==positive),site:e.site().clone()};});simplify_boolean(&expression)
+}
+fn context_facts(p:&ast::ProgramDecl)->Option<BTreeMap<String,bool>>{
+    let names=caller_names(p);let mut facts=BTreeMap::new();
+    for stmt in &p.body{let Stmt::Require{condition,code,..}=stmt else{continue;};let mut unknown=code=="$advice:cut";walk(condition,|e|if matches!(e,Expr::Name{name,..} if name.starts_with("$advice_")){unknown=true;});if unknown{return None;}
+        let condition=simplify_boolean(condition);for part in conjunction(&condition){if matches!(part,Expr::Literal{value:ast::Literal::Bool(false),..}){return None;}if let Some((key,value))=predicate_fact(part,&names){if facts.insert(key,value).is_some_and(|old|old!=value){return None;}}}
+    }Some(facts)
+}
+fn effective_conditions(p:&ast::ProgramDecl)->Vec<Expr>{let Some(facts)=context_facts(p)else{return vec![Expr::Literal{value:ast::Literal::Bool(false),site:p.site.clone()}];};let names=caller_names(p);conditions(p).into_iter().map(|condition|apply_facts(condition,&facts,&names)).collect()}
+
 fn reads(e:&Expr)->BTreeSet<String>{let mut out=BTreeSet::new();walk(e,|e|match e{Expr::Read(r)|Expr::Exists{read:r,..}=>{out.insert(r.table.clone());},_=>{}});out}
 fn nonnull(p:&ast::ProgramDecl,arg:&str)->bool{nonnull_mode(p,arg,false)}
 fn nonnull_mode(p:&ast::ProgramDecl,arg:&str,branches:bool)->bool{p.body.iter().filter_map(|s|if let Stmt::Require{condition,code,..}=s&&(branches||!code.starts_with("$advice")){Some(condition)}else{None}).flat_map(conjunction).any(|e|match e{

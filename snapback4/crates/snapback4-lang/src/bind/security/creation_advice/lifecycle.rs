@@ -129,32 +129,35 @@ fn caller_approval(condition:&Expr,table:&str,column:&str,bound:&Bound)->bool{
 fn parent_loop_guard(effect:&Write<'_>,table:&str,column:&str,bound:&Bound)->bool{
     fn expanded(catalog:&Catalog,value:&Expr,env:&BTreeMap<String,Expr>)->Expr{super::super::authority_walk::returned(catalog,&super::super::authority_walk::resolve(value,env),0)}
     fn unresolved(value:&Expr)->bool{let mut unknown=false;walk(value,|e|match e{Expr::Name{name,..} if name.starts_with("$advice_")=>unknown=true,Expr::Call{..}|Expr::If{..}=>unknown=true,_=>{}});unknown}
-    fn scan(body:&[Stmt],binder:&str,column:&str,env:&mut BTreeMap<String,Expr>,catalog:&Catalog,depth:usize)->(bool,bool){
+    fn scan(body:&[Stmt],binder:&str,column:&str,env:&mut BTreeMap<String,Expr>,catalog:&Catalog,depth:usize,names:&BTreeSet<String>,facts:&mut BTreeMap<String,bool>)->(bool,bool){
         if depth>=32{return (false,false);}
         let resolve=|value:&Expr,env:&BTreeMap<String,Expr>|expanded(catalog,value,env);
         for stmt in body{
             let value=match stmt{Stmt::Bind{value,..}|Stmt::Expr{value,..}|Stmt::Return{value,..}=>Some(value),Stmt::Require{condition,..}|Stmt::If{condition,..}=>Some(condition),Stmt::For{domain,..}=>Some(domain),_=>None};
             if let Some(value)=value{
                 let guards=super::super::authority_walk::helper_guards(catalog,value,env,depth);
-                if !guards.is_empty(){let result=scan(&guards,binder,column,&mut env.clone(),catalog,depth+1);if result.0||!result.1{return result;}}
+                if !guards.is_empty(){let result=scan(&guards,binder,column,&mut env.clone(),catalog,depth+1,names,facts);if result.0||!result.1{return result;}}
             }
             if matches!(stmt,Stmt::Require{code,..} if code=="$advice:cut"){return (false,false);}
             match stmt{
             Stmt::Bind{names,value,..}=>{let value=resolve(value,env);for name in names{env.insert(name.clone(),if names.len()==1{value.clone()}else{Expr::Name{name:format!("$advice_loop_unknown:{name}"),site:value.site().clone()}});}},
             Stmt::Require{condition,..}=>{
-                let condition=simplify_boolean(&resolve(condition,env));if matches!(condition,Expr::Literal{value:ast::Literal::Bool(false),..}){return (false,false);}
+                let condition=apply_facts(&resolve(condition,env),facts,names);if matches!(condition,Expr::Literal{value:ast::Literal::Bool(false),..}){return (false,false);}
                 let unknown=unresolved(&condition);if unknown{continue;}
+                if let Some((key,value))=predicate_fact(&condition,names){facts.insert(key,value);}
                 if super::super::derived::approval_receipts(&condition).iter().any(|positive|{let mut found=false;walk(positive,|e|if let Expr::Member{base,name,..}=e&&name==column&&matches!(base.as_ref(),Expr::Name{name,..} if name==binder){found=true;});found}){return (true,true);}
             },
             Stmt::Break{..}|Stmt::Continue{..}|Stmt::Return{..}=>return (false,false),
             Stmt::If{condition,then_body,else_body,site}=>{
-                let condition=simplify_boolean(&resolve(condition,env));
+                let condition=apply_facts(&resolve(condition,env),facts,names);
                 let unknown=unresolved(&condition);
                 if unknown&&(super::super::authority_walk::contains_exit(then_body)||super::super::authority_walk::contains_exit(else_body)){return (false,false);}
                 let (found,continues)=match condition{
-                    Expr::Literal{value:ast::Literal::Bool(value),..}=>scan(if value{then_body}else{else_body},binder,column,env,catalog,depth+1),
-                    _=>{let mut yes=env.clone();let a=scan(then_body,binder,column,&mut yes,catalog,depth+1);let mut no=env.clone();let b=scan(else_body,binder,column,&mut no,catalog,depth+1);
-                        if !a.1{*env=no;}else if !b.1{*env=yes;}else{for name in yes.keys().chain(no.keys()).cloned().collect::<BTreeSet<_>>(){let value=match (yes.get(&name),no.get(&name)){(Some(a),Some(b)) if crate::print::expression(a)==crate::print::expression(b)=>a.clone(),_=>Expr::Name{name:format!("$advice_loop_unknown:{name}"),site:site.clone()}};env.insert(name,value);}}(a.0||b.0,a.1||b.1)},
+                    Expr::Literal{value:ast::Literal::Bool(value),..}=>scan(if value{then_body}else{else_body},binder,column,env,catalog,depth+1,names,facts),
+                    _=>{let mut yes=env.clone();let mut yes_facts=facts.clone();let mut no=env.clone();let mut no_facts=facts.clone();
+                        if let Some((key,value))=predicate_fact(&condition,names){yes_facts.insert(key.clone(),value);no_facts.insert(key,!value);}
+                        let a=scan(then_body,binder,column,&mut yes,catalog,depth+1,names,&mut yes_facts);let b=scan(else_body,binder,column,&mut no,catalog,depth+1,names,&mut no_facts);
+                        if !a.1{*env=no;*facts=no_facts;}else if !b.1{*env=yes;*facts=yes_facts;}else{*facts=yes_facts.into_iter().filter(|(key,value)|no_facts.get(key)==Some(value)).collect();for name in yes.keys().chain(no.keys()).cloned().collect::<BTreeSet<_>>(){let value=match (yes.get(&name),no.get(&name)){(Some(a),Some(b)) if crate::print::expression(a)==crate::print::expression(b)=>a.clone(),_=>Expr::Name{name:format!("$advice_loop_unknown:{name}"),site:site.clone()}};env.insert(name,value);}}(a.0||b.0,a.1||b.1)},
                 };if found&&!unknown{return (true,continues);}if !continues{return (false,false);}
             },
             Stmt::For{domain,body,site,..}=>{
@@ -163,7 +166,7 @@ fn parent_loop_guard(effect:&Write<'_>,table:&str,column:&str,bound:&Bound)->boo
                     for name in super::super::authority_walk::branch_assignments(body){env.insert(name.clone(),Expr::Name{name:format!("$advice_loop_unknown:{name}"),site:site.clone()});}
                 }
             },
-            Stmt::As{body,..}=>{let result=scan(body,binder,column,&mut env.clone(),catalog,depth+1);if result.0||!result.1{return result;}},_=>{},
+            Stmt::As{body,..}=>{let result=scan(body,binder,column,&mut env.clone(),catalog,depth+1,names,&mut facts.clone());if result.0||!result.1{return result;}},_=>{},
         }}(false,true)
     }
     fn contains(stmt:&Stmt,site:&Site)->bool{let mut found=false;let mut body=vec![stmt.clone()];super::super::super::intent_walk::statements(&mut body,&mut |e|if e.site()==site{found=true;});found}
@@ -179,13 +182,14 @@ fn parent_loop_guard(effect:&Write<'_>,table:&str,column:&str,bound:&Bound)->boo
         let Some(owner)=owner else{return false;};before=owner;
     }
     if effect.table==table||!bound.schema.tables[table].columns.values().any(|kind|matches!(kind.required(),ColumnType::Ref{table} if table==&effect.table)){return false;}
+    let Some(mut facts)=context_facts(&effect.context)else{return false;};let names=caller_names(effect.p);
     let mut env=BTreeMap::new();
     for stmt in before{match stmt{
         Stmt::Bind{names,value,..}=>{let value=expanded(effect.catalog,value,&env);for name in names{env.insert(name.clone(),if names.len()==1{value.clone()}else{Expr::Name{name:format!("$advice_loop_unknown:{name}"),site:value.site().clone()}});}},
-        Stmt::For{domain,name,body,..}=>{if matches!(domain,Expr::Read(read) if read.table==table){let mut local=env.clone();local.remove(name);if scan(body,name,column,&mut local,effect.catalog,0).0{return true;}}for name in super::super::authority_walk::branch_assignments(body){env.insert(name.clone(),Expr::Name{name:format!("$advice_loop_unknown:{name}"),site:domain.site().clone()});}},
+        Stmt::For{domain,name,body,..}=>{if matches!(domain,Expr::Read(read) if read.table==table){let mut local=env.clone();local.remove(name);if scan(body,name,column,&mut local,effect.catalog,0,&names,&mut facts.clone()).0{return true;}}for name in super::super::authority_walk::branch_assignments(body){env.insert(name.clone(),Expr::Name{name:format!("$advice_loop_unknown:{name}"),site:domain.site().clone()});}},
         Stmt::If{condition,then_body,else_body,site}=>{
-            let condition=simplify_boolean(&expanded(effect.catalog,condition,&env));
-            if let Expr::Literal{value:ast::Literal::Bool(value),..}=condition{let _=scan(if value{then_body}else{else_body},"","",&mut env,effect.catalog,0);}else{for name in super::super::authority_walk::branch_assignments(then_body).into_iter().chain(super::super::authority_walk::branch_assignments(else_body)){env.insert(name.clone(),Expr::Name{name:format!("$advice_loop_unknown:{name}"),site:site.clone()});}}
+            let condition=apply_facts(&expanded(effect.catalog,condition,&env),&facts,&names);
+            if let Expr::Literal{value:ast::Literal::Bool(value),..}=condition{let _=scan(if value{then_body}else{else_body},"","",&mut env,effect.catalog,0,&names,&mut facts);}else{for name in super::super::authority_walk::branch_assignments(then_body).into_iter().chain(super::super::authority_walk::branch_assignments(else_body)){env.insert(name.clone(),Expr::Name{name:format!("$advice_loop_unknown:{name}"),site:site.clone()});}}
         },_=>{},
     }}false
 }

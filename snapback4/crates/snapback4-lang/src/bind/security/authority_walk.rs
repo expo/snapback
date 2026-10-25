@@ -67,7 +67,7 @@ pub(super) fn helper_guards(catalog:&Catalog,expr:&Expr,env:&Env,depth:usize)->V
     let FunctionBody::Block(body)=&f.body else{if let FunctionBody::Expression(value)=&f.body{evaluated.extend(helper_guards(catalog,value,&locals,depth+1));}return evaluated;};
     let mut out=Vec::new();out.append(&mut evaluated);
     for s in body{match s{
-        Stmt::Require{condition,code,message,site}=>out.push(Stmt::Require{condition:resolve(condition,&locals),code:code.clone(),message:message.clone(),site:site.clone()}),
+        Stmt::Require{condition,code,message,site}=>{out.extend(helper_guards(catalog,condition,&locals,depth+1));out.push(Stmt::Require{condition:resolve(condition,&locals),code:code.clone(),message:message.clone(),site:site.clone()});},
         Stmt::Bind{names,value,..}=>{out.extend(helper_guards(catalog,value,&locals,depth+1));if names.len()==1{locals.insert(names[0].clone(),resolve(value,&locals));}else{for name in names{locals.insert(name.clone(),Expr::Name{name:format!("$advice_unknown_{name}"),site:value.site().clone()});}}},
         Stmt::Expr{value,..}=>out.extend(helper_guards(catalog,value,&locals,depth+1)),
         Stmt::Return{value,..}=>{out.extend(helper_guards(catalog,value,&locals,depth+1));break;},_=>break,
@@ -156,10 +156,12 @@ fn statements(catalog:&Catalog,p:&ProgramDecl,body:&[Stmt],env:&mut Env,guards:&
             let condition=resolve(condition,env);
             let mut then_guards=guards.clone();
             then_guards.push(Stmt::Require{condition:condition.clone(),code:"$advice".into(),message:None,site:site.clone()});
-            statements(catalog,p,then_body,&mut env.clone(),&mut then_guards,&mut changes.clone(),column,depth,out);
+            let mut then_env=env.clone();
+            statements(catalog,p,then_body,&mut then_env,&mut then_guards,&mut changes.clone(),column,depth,out);
             let mut else_guards=guards.clone();
             else_guards.push(Stmt::Require{condition:Expr::Unary{op:"not".into(),value:Box::new(condition.clone()),site:site.clone()},code:"$advice".into(),message:None,site:site.clone()});
-            statements(catalog,p,else_body,&mut env.clone(),&mut else_guards,&mut changes.clone(),column,depth,out);
+            let mut else_env=env.clone();
+            statements(catalog,p,else_body,&mut else_env,&mut else_guards,&mut changes.clone(),column,depth,out);
             for (negate,branch) in [(true,then_body),(false,else_body)] {
                 if let Some(required)=conditional_guards(branch,env) {for required in required {
                     let premise=if negate{Expr::Unary{op:"not".into(),value:Box::new(condition.clone()),site:site.clone()}}else{condition.clone()};
@@ -172,7 +174,18 @@ fn statements(catalog:&Catalog,p:&ProgramDecl,body:&[Stmt],env:&mut Env,guards:&
             }
             let assigned=branch_assignments(then_body).into_iter().chain(branch_assignments(else_body)).collect::<BTreeSet<_>>();
             if column.is_some()&&assigned.is_empty(){changes.extend(changes::after(catalog,&condition,then_body,else_body,env));}
-            for name in assigned{env.insert(name.clone(),Expr::Name{name:format!("$advice_unknown_{name}"),site:site.clone()});}
+            let then_stops=matches!(fallthrough(then_body,env,site),Expr::Literal{value:ast::Literal::Bool(false),..});
+            let else_stops=matches!(fallthrough(else_body,env,site),Expr::Literal{value:ast::Literal::Bool(false),..});
+            let predicate=super::creation_advice::simplify_boolean(&returned(catalog,&condition,0));
+            let mut caller=true;let mut probe=predicate.clone();super::super::intent_walk::expression(&mut probe,&mut |e|match e{Expr::Literal{..}=>{},Expr::Name{name,..} if p.args.iter().any(|arg|arg.name==*name)=>{},Expr::Unary{..}|Expr::Binary{..}=>{},_=>caller=false});
+            for name in assigned{
+                let a=then_env.get(&name).map(|value|super::creation_advice::simplify_boolean(&returned(catalog,value,0)));let b=else_env.get(&name).map(|value|super::creation_advice::simplify_boolean(&returned(catalog,value,0)));
+                let boolean=|e:&Expr|if let Expr::Literal{value:ast::Literal::Bool(value),..}=e{Some(*value)}else{None};
+                let value=if then_stops{b.clone()}else if else_stops{a.clone()}else if let Expr::Literal{value:ast::Literal::Bool(branch),..}=&predicate{if *branch{a.clone()}else{b.clone()}}else{match (&a,&b){
+                    (Some(a),Some(b)) if matches!(a,Expr::Literal{..}|Expr::Name{..})&&crate::print::expression(a)==crate::print::expression(b)=>Some(a.clone()),
+                    (Some(a),Some(b)) if caller&&boolean(a).is_some()&&boolean(b).is_some()=>Some(if boolean(a)==Some(true){predicate.clone()}else{Expr::Unary{op:"not".into(),value:Box::new(predicate.clone()),site:site.clone()}}),_=>None,
+                }}.unwrap_or_else(||Expr::Name{name:format!("$advice_unknown_{name}"),site:site.clone()});env.insert(name,value);
+            }
         },
         Stmt::For{domain,name,body,site}=>{if column.is_some(){changes.clear();}expression(catalog,p,domain,env,guards,changes,column,depth,out);guards.extend(helper_guards(catalog,domain,env,0));let mut local=env.clone();local.remove(name);let mut nested=guards.clone();nested.push(Stmt::Require{condition:Expr::Literal{value:ast::Literal::Bool(true),site:site.clone()},code:format!("$iteration:{site}"),message:None,site:site.clone()});statements(catalog,p,body,&mut local,&mut nested,&mut Vec::new(),column,depth,out);for name in branch_assignments(body){env.insert(name.clone(),Expr::Name{name:format!("$advice_unknown_{name}"),site:site.clone()});}if contains_return(body){continuation(guards,Expr::Name{name:format!("$advice_fallthrough:{site}"),site:site.clone()},site);}},
         Stmt::As{body,site,..}=>{statements(catalog,p,body,&mut env.clone(),&mut guards.clone(),&mut changes.clone(),column,depth,out);if contains_exit(body)&&!continuation(guards,fallthrough(body,env,site),site){break;}},

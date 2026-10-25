@@ -392,6 +392,8 @@ fn campaign(s:&str)->Campaign{let b=security::derived::augmented(&sources(s),&bo
     for value in ["null ?? skip()","{stop:skip()}.stop","skip() if true else false"]{
         let body=format!("  for b in bookings first 10 by .id:\n    stop = {value}\n    if stop:\n      continue\n    require b.approved else APPROVAL\n");let source=source.replace("LOOP",&body)+"fn skip(): true\n";assert!(notes(&source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"),"{value}");
     }
+    let dead=source.replace("mutation finish(trip: trips):","mutation finish(trip: trips,choice: bool):").replace("LOOP","  for b in bookings first 10 by .id:\n    if choice:\n      continue\n    if choice:\n      require b.approved else APPROVAL\n");assert!(notes(&dead).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+    let admitted=source.replace("mutation finish(trip: trips):","mutation finish(trip: trips,choice: bool):").replace("LOOP","  for b in bookings first 10 by .id:\n    stop = checkedChoice(choice)\n    if not choice:\n      require b.approved else APPROVAL\n")+"fn checkedChoice(value: bool):\n  require value else CHOICE\n  return false\n";assert!(notes(&admitted).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
     let helper=source.replace("  update trips[trip] {status:'done'}","  setDone(trip)")+"fn setDone(trip: trips):\n  update trips[trip] {status:'done'}\n  return null\n";
     assert!(!notes(&helper.replace("LOOP","  for b in bookings first 10 by .id:\n    require b.approved else APPROVAL\n")).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
     for transfer in ["continue","break","return null"]{
@@ -459,7 +461,18 @@ fn campaign(s:&str)->Campaign{let b=security::derived::augmented(&sources(s),&bo
 #[test]fn only_actually_inspected_clauses_create_approval_input_contracts(){
     let source="table docs:\n  consent: bool\n  approved: bool default false\n  read <- allow\n  update <- allow\n  online only\nmutation approve(doc: docs):\n  d = docs[doc] ! else MISSING\n  require GUARD else CONSENT\n  update docs[doc] {approved:true}\nmutation edit(doc: docs,consent: bool):\n  update docs[doc] {consent}\n";
     let original=include_str!("security/sec10-controls/vacuous-bool-approval.q");assert!(!security::derived::invariants(&sources(original),&bound(original)).iter().any(|i|i.table=="docs"&&i.column.as_deref()==Some("consent")));
-    for (guard,expected) in [("true or d.consent",false),("(1 = 1) or d.consent",false),("false or d.consent",true),("checked(d.consent)",true)]{
-        let source=source.replace("GUARD",guard)+"fn checked(value: bool):\n  require value else CONSENT\n  return true\n";let candidates=security::derived::invariants(&sources(&source),&bound(&source));assert_eq!(candidates.iter().any(|i|i.table=="docs"&&i.column.as_deref()==Some("consent")),expected,"{guard}: {candidates:?}");
+    for (guard,expected) in [("true or d.consent",false),("(1 = 1) or d.consent",false),("false or d.consent",true),("checked(d.consent)",true),("wrapper(d.consent)",true)]{
+        let source=source.replace("GUARD",guard)+"fn checked(value: bool):\n  require value else CONSENT\n  return true\nfn wrapper(value: bool):\n  require checked(value) else CONSENT\n  return true\n";let candidates=security::derived::invariants(&sources(&source),&bound(&source));assert_eq!(candidates.iter().any(|i|i.table=="docs"&&i.column.as_deref()==Some("consent")),expected,"{guard}: {candidates:?}");
     }
+}
+
+#[test]fn joined_bindings_preserve_known_and_caller_conditional_approval_use(){
+    let source="table docs:\n  approved: bool default false\n  status: enum('draft','done') default 'draft'\n  read <- allow\n  update <- allow\n  online only\nmutation approve(doc: docs):\n  update docs[doc] {approved:true}\nmutation finish(doc: docs,choice: bool):\n  d = docs[doc] ! else MISSING\n  stop = BEFORE\n  if choice:\n    stop = AFTER\n  if stop:\n    require d.approved else APPROVAL\n  update docs[doc] {status:'done'}\n";
+    for (before,after,gated) in [("false","false",true),("true","true",false),("false","true",false),("true","false",false)]{let source=source.replace("BEFORE",before).replace("AFTER",after);assert_eq!(notes(&source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"),gated,"{before}/{after}");}
+}
+
+#[test]fn caller_path_facts_exclude_skipped_approval_branches(){
+    let source="table docs:\n  approved: bool default false\n  status: enum('draft','done') default 'draft'\n  read <- allow\n  update <- allow\n  online only\nmutation approve(doc: docs):\n  update docs[doc] {approved:true}\nmutation finish(doc: docs,choice: bool):\n  d = docs[doc] ! else MISSING\n  if choice:\n    return null\n  if choice:\n    require d.approved else APPROVAL\n  update docs[doc] {status:'done'}\n";
+    assert!(notes(source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+    let joined=source.replace("  if choice:\n    return null", "  stop = false\n  if choice:\n    stop = true\n    return null").replace("  if choice:\n    require d.approved", "  if stop:\n    require d.approved");assert!(notes(&joined).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
 }
