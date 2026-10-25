@@ -1,9 +1,20 @@
 # Snapback 4: inherited affected-check failures observed in SEC10
 
-Status: Open
+Status: Closed (tracking consolidated)
 Date: 2026-10-25
-Scope: historical baseline 4c6b386072; refreshed baseline origin/main 20a45b73cb
+Scope: historical baseline 4c6b386072; refreshed baseline origin/main b2959e2455
 Related: LLP 0232; LLP 3000.036.004.000 §10
+
+## Resolution: tracking consolidated, not a product fix
+
+The final conflict-free SEC10 integration includes main b2959e2455. Its canonical
+open ticket is [G7.2 adapter classifications](../20261025-snapback4-g72-store-port-ratchet-adapter-types.md).
+All seven other historical failures were fixed upstream; the remaining lexical
+ratchet failure is tracked there instead of in two open tickets. The ratchet
+still fails with five sites on an independently compiled, unmodified b2959e2455
+archive. Both reported files exactly match the integrated SEC10 files; no
+allowance or enforcement was weakened. Current proof:
+`~/sb4-loop/sec10-w27-mainb295-ratchet-proof.json` and `.log`.
 
 ## Current baseline refresh
 
