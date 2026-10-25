@@ -28,6 +28,8 @@ pub struct Invocation {
     pub(super) admitted: Instant,
     pub(super) deadline: Instant,
     pub(super) minted: Vec<String>,
+    pub(super) final_dispatch: Option<Arc<dyn Fn(&mut dyn FnMut()) -> std::result::Result<(), crate::RuntimeError> + Send + Sync>>,
+    pub(super) final_check: Option<Box<dyn Fn() -> std::result::Result<(), crate::RuntimeError> + Send>>,
     pub(super) attempts: Vec<super::program_transcript::Attempt>,
     pub(super) scope: Option<Box<dyn FnMut(&mut dyn FnMut()) + Send>>,
     #[cfg(any(test, feature = "test-support"))]
@@ -52,6 +54,8 @@ impl Invocation {
             admitted,
             deadline: admitted + Duration::from_millis(100),
             minted: Vec::new(),
+            final_check: None,
+            final_dispatch: None,
             attempts: Vec::new(),
             scope: None,
             #[cfg(any(test, feature = "test-support"))]

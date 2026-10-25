@@ -107976,3 +107976,54 @@ postmaster with exit 0. The public witness's own PID ledger is independently
 checked as well. The final lane ledger and target-executable scan both have
 zero remaining processes. Minimum observed free space is **59.74 GiB**, above
 the 40 GiB floor. **Owned PIDs left: none.**
+
+## 2026-10-25 — G7.2: depth-two synchronous group commit
+
+[The G7.2 report](reports/20261025-g72-postgres/REPORT.md) records the accepted
+depth-two slice on G7.1 `24a241b12c`. Two owned synchronous writer slots overlap
+final I/O with successor collection, facts and interpretation. Frozen row images,
+bound receipts, entropy and the exact head chain into the successor. FIFO release
+orders results, continuations and G5/G6 publication; barriers drain both slots.
+The second writer reserves a reader connection, keeping the production owner,
+two writers and 29 readers within 32 total. Each eligible warm batch still uses
+three flights, with COMMIT separate and uncancellable.
+
+G6 counts pending finals under its write lock; readers wait without the read
+guard for up to 1 ms and then use G5. Unknown outcomes and unacknowledged
+preparation rollback clear publication/epoch and stay sticky. Known predecessor
+abort cascades into one whole-batch fresh-fact successor fallback only after
+complete drainage, preserving original deadlines. Recovery probes highest tickets
+first and escalates failed drainage to tagged termination and paused admission.
+Both lost transports can reconnect after successful drainage.
+
+The final G7.2 suite is 29/0, including 26 asserting witnesses plus the crash-child
+helper and two explicit measurement guards. Coverage includes held folds on both
+stores, randomized N=1 equivalence, flight-boundary outcomes, cascades, deadline
+expiry, socket/ownership loss, ordered release, G6 count/sticky uncertainty,
+provisional state, process-death prefix recovery and the connection cap. The queue
+overlap witness fails on actual G7.1; nine mechanism-disabled witnesses fail, and
+two additional pre-fix failures establish first-flight timeout classification and
+preparation-rollback uncertainty. Temporary mutation switches are removed.
+
+Full core is 1,277/0/472 (passed/failed/ignored); full binary 608/0/57; full G6
+family 33/0; core/HTTP RT0 4/0 and 9/0. The complete Postgres script is 843/1:
+only the permitted inherited evaluator `40001`; public serving passes. The old
+G6 whole-COMMIT blocking assertion is replaced by the accepted bounded-wait/G5
+behavior. A loaded HTTP RT0 failure passes on the serial full ratchet rerun.
+Final preparation-rollback refinements pass both direct/pipeline checks and the
+refreshed complete G7.2 suite. SQLite-only compilation and ref-check pass, with
+zero errors or unchecked references.
+
+The bounded 32-client TCP loopback comparison records load and N distributions.
+Depth 1 → 2 writes/s and mean latency: W4 2,863 → 2,517, 11.15 → 12.68 ms;
+W5-exact 2,149 → 2,363, 14.87 → 13.44 ms; W5-mix 3,045 → 2,655,
+10.47 → 12.02 ms. Results are mixed; no general throughput or S1 claim follows.
+An incomplete first sample hit the unchanged admission deadline; the repeated
+fixed sample completes. The gate scheduling probe also records increased G5
+fallbacks at depth two. No Arm E, two-flight COMMIT or depth-three work is added.
+
+The lane PG16 and both public-witness clusters stop and independently confirm
+status 3/no pidfile. All 15,667 recorded PID/birth instances, three monitors and
+1,066 explicit public-script PID records are absent. PIDs left: none. Disk at the process-custody audit is
+60.64 GiB, minimum recorded 59.72 GiB. Raw logs stay outside Git; no push, stash,
+Git configuration change or unowned signal occurs.

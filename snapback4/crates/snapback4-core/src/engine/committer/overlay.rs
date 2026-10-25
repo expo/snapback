@@ -33,6 +33,14 @@ impl Access {
 #[derive(Default)]
 pub(crate) struct Base(BTreeMap<(String, String, Vec<u8>), Option<Value>>);
 impl Base {
+    // @ref LLP 3000.009.001.000.000.002#3.3 — replace each fetched image by its latest pending predecessor, including unique-index answers.
+    pub fn fold(&mut self, images: &BTreeMap<RowKey, Value>) {
+        for ((table, _, _), row) in &mut self.0 {
+            if let Some(value) = row.as_ref().and_then(|v| v.field("id").ok()).and_then(|id| id.as_str().ok()).and_then(|id| images.get(&(table.clone(), id.into()))) {
+                *row = Some(value.clone());
+            }
+        }
+    }
     pub fn insert(&mut self, access: &Access, row: Option<Value>) {
         self.0.insert(access.cache_key(), row);
     }

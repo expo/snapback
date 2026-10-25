@@ -95,6 +95,19 @@ impl<T: Send + 'static> Task for ProgramTask<T> {
         let prepare = std::mem::replace(&mut self.command.prepare, Box::new(|_| unreachable!()));
         match std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| prepare(engine))) {
             Ok(Ok(mut invocation)) => {
+                let admission=self.ticket.admission.clone();
+                invocation.final_dispatch=Some(Arc::new(move|dispatch| {
+                    super::latch_expired(&admission);
+                    let state=admission.lock().unwrap();
+                    if state.lost || super::admission_uncertain(&state) {Err(crate::RuntimeError::StoreOwnership("ownership lost before final dispatch".into()))}
+                    else {dispatch();Ok(())}
+                }));
+                let admission=self.ticket.admission.clone();
+                invocation.final_check=Some(Box::new(move|| {
+                    super::latch_expired(&admission);
+                    let state=admission.lock().unwrap();
+                    if state.lost || super::admission_uncertain(&state) {Err(crate::RuntimeError::StoreOwnership("ownership lost before final dispatch".into()))} else {Ok(())}
+                }));
                 invocation.admitted = self.command.admitted;
                 invocation.deadline = invocation.admitted + Duration::from_millis(100);
                 #[cfg(any(test, feature = "test-support"))]
@@ -243,18 +256,59 @@ impl Arrivals {
 
 pub(super) fn run(
     receiver: mpsc::Receiver<Queued>,
-    mut execute: impl FnMut(Work),
+    mut host_execute: impl FnMut(Work),
     stats: Arc<Mutex<BatchStats>>,
+    depth:usize,
 ) {
+    #[cfg(not(feature="postgres"))]
+    let _=depth;
+    let timing_stats=stats.clone();
+    let mut execute=move|work:Work| {
+        let stats=timing_stats.clone();
+        host_execute(Box::new(move|engine|{
+            #[cfg(any(test,feature="test-support"))]
+            let before=crate::round_trips::commit_timing();
+            work(engine);
+            #[cfg(any(test,feature="test-support"))]
+            {let after=crate::round_trips::commit_timing();let mut stats=stats.lock().unwrap();stats.commit_attempts+=after.attempts-before.attempts;stats.commit_nanos+=after.nanos-before.nanos;}
+            #[cfg(not(any(test,feature="test-support")))]
+            let _=stats;
+        }));
+    };
+    #[cfg(feature="postgres")]
+    let lane=Arc::new(Mutex::new(super::super::program_pipeline::Lane::new()));
     let mut pending = None;
     let mut arrivals = Arrivals::default();
     loop {
-        let work = match pending.take().map(Ok).unwrap_or_else(|| receiver.recv()) {
+        #[cfg(feature="postgres")]
+        if !lane.lock().unwrap().empty() {
+            let state=lane.clone();
+            execute(Box::new(move |engine|{let mut lane=state.lock().unwrap();let wait=lane.len()==2;lane.poll(engine,wait);}));
+        }
+        let received = if let Some(work)=pending.take() { Ok(work) } else {
+            #[cfg(feature="postgres")]
+            if !lane.lock().unwrap().empty() {
+                match receiver.recv_timeout(Duration::from_micros(100)) {
+                    Ok(work)=>Ok(work), Err(mpsc::RecvTimeoutError::Timeout)=>continue,
+                    Err(_)=>Err(mpsc::RecvError),
+                }
+            } else {receiver.recv()}
+            #[cfg(not(feature="postgres"))]
+            receiver.recv()
+        };
+        let work = match received {
             Ok(work) => work,
-            Err(_) => break,
+            Err(_) => {
+                #[cfg(feature="postgres")]
+                { let state=lane.clone(); execute(Box::new(move|engine|state.lock().unwrap().drain(engine))); }
+                break;
+            }
         };
         let Queued::Program(first) = work else {
             if let Queued::Solo(work) = work {
+                #[cfg(feature="postgres")]
+                { let state=lane.clone(); execute(Box::new(move|engine| {let mut lane=state.lock().unwrap();lane.drain(engine);if !lane.paused {work(engine);}})); }
+                #[cfg(not(feature="postgres"))]
                 execute(work);
             }
             continue;
@@ -282,7 +336,11 @@ pub(super) fn run(
             }
         }
         let stats = stats.clone();
+        #[cfg(feature="postgres")]
+        let state=lane.clone();
         execute(Box::new(move |engine| {
+            #[cfg(feature="postgres")]
+            if state.lock().unwrap().paused {drop(tasks);return;}
             let mut invocations = Vec::new();
             let mut slots = Vec::new();
             for mut task in tasks {
@@ -297,41 +355,28 @@ pub(super) fn run(
                 }
             }
             let count = invocations.len();
-            #[cfg(any(test, feature = "test-support"))]
-            let before = crate::round_trips::commit_timing();
-            let outcomes = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                engine.invoke_program_batch(&mut invocations)
-            }));
-            #[cfg(any(test, feature = "test-support"))]
+            let admitted=invocations.iter().map(|i|i.admitted).collect::<Vec<_>>();
+            let finish = move |engine:&mut Engine, outcomes:Option<Vec<Outcome>>| {
+                let latencies:Vec<_>=admitted.iter().map(|i|i.elapsed().as_micros().min(u64::MAX as u128) as u64).collect();
+                stats.lock().unwrap().observe(latencies,count);
+                for (task,slot) in slots {
+                    if let Some(outcomes)=&outcomes {task.finish(engine,match slot {Ok(i)=>outcomes[i].clone(),Err(why)=>Err(why)});}
+                    else {task.unknown();}
+                }
+            };
+            #[cfg(feature="postgres")]
             {
-                let after = crate::round_trips::commit_timing();
-                let mut stats = stats.lock().unwrap();
-                stats.commit_attempts += after.attempts - before.attempts;
-                stats.commit_nanos += after.nanos - before.nanos;
-            }
-            let latencies: Vec<_> = invocations
-                .iter()
-                .map(|i| i.admitted.elapsed().as_micros().min(u64::MAX as u128) as u64)
-                .collect();
-            stats.lock().unwrap().observe(latencies, count);
-            match outcomes {
-                Ok(outcomes) => {
-                    for (task, slot) in slots {
-                        task.finish(
-                            engine,
-                            match slot {
-                                Ok(i) => outcomes[i].clone(),
-                                Err(why) => Err(why),
-                            },
-                        );
-                    }
+                let mut lane=state.lock().unwrap();
+                if depth==2 && super::super::program_pipeline::Lane::eligible(engine,&invocations,!lane.empty()) {
+                    let result=std::panic::catch_unwind(std::panic::AssertUnwindSafe(||lane.start(engine,invocations,Box::new(move|e,o|finish(e,Some(o))))));
+                    if result.is_err(){lane.paused=true;lane.close_uncertain(engine);lane.drain(engine);}
+                    return;
                 }
-                Err(_) => {
-                    for (task, _) in slots {
-                        task.unknown();
-                    }
-                }
+                lane.drain(engine);
+                if lane.paused {finish(engine,None);return;}
             }
+            let outcomes=std::panic::catch_unwind(std::panic::AssertUnwindSafe(||engine.invoke_program_batch(&mut invocations)));
+            finish(engine,outcomes.ok());
         }));
     }
 }

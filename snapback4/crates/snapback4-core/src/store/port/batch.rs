@@ -22,6 +22,13 @@ pub(crate) struct Facts {
     pub placement: Option<((String, String), Option<crate::assets::IntentRecord>)>,
 }
 impl AnyTx<'_> {
+    pub(crate) fn chain_head(&self, chain: &crate::engine::program_pipeline::Chain) -> Result<(), RuntimeError> {
+        #[cfg(feature="postgres")]
+        if let Self::Postgres(PostgresTx(tx)) = self { tx.chain_head(chain)?; }
+        let _ = chain;
+        Ok(())
+    }
+
     pub(crate) fn batch_level(
         &self,
         accesses: &[Access],
@@ -110,5 +117,55 @@ impl AnyTx<'_> {
             Self::Postgres(PostgresTx(tx)) => *tx.group_images.borrow_mut() = images,
         }
         Ok(())
+    }
+}
+
+#[cfg(feature="postgres")]
+impl AnyTx<'_> {
+    pub(crate) fn suspend_program(self, predecessor: Option<i64>, deadline: std::time::Instant) -> Result<crate::engine::postgres::writer_slot::Suspended, RuntimeError> {
+        match self { Self::Postgres(PostgresTx(tx)) => tx.suspend_program(predecessor, deadline), _ => unreachable!("pipeline is Postgres only") }
+    }
+}
+#[cfg(feature="postgres")]
+impl crate::store_port::AnyStore {
+    pub(crate) fn refresh_pipeline_writer(&mut self) -> Result<(), RuntimeError> {
+        match self {
+            Self::Postgres(super::handles::PostgresStore(handle)) => handle.reconnect_pipeline_writer(),
+            _ => unreachable!("pipeline is Postgres only"),
+        }
+    }
+    pub(crate) fn finish_suspended(&mut self, frozen: crate::engine::postgres::writer_slot::Suspended) -> Result<Option<crate::engine::postgres::read_grant::Published>, crate::engine::committer::outcome::Failure> {
+        match self { Self::Postgres(super::handles::PostgresStore(h)) => h.store.get_mut().finish_suspended(frozen), _ => unreachable!("pipeline is Postgres only") }
+    }
+    pub(crate) fn pipeline_slot(&self) -> Result<Self, RuntimeError> {
+        match self { Self::Postgres(super::handles::PostgresStore(h)) => h.writer_slot().map(Self::from_postgres), _ => Err(RuntimeError::StoreUnsupported {family:"pipeline"}) }
+    }
+}
+
+#[cfg(feature="postgres")]
+impl crate::store_port::AnyStore {
+    pub(crate) fn abort_suspended(&mut self, frozen: crate::engine::postgres::writer_slot::Suspended) -> Result<(),RuntimeError> {
+        if let Self::Postgres(super::handles::PostgresStore(h)) = self {
+            return h.store.get_mut().resume_program(frozen)?.rollback();
+        }
+        unreachable!("Postgres pipeline only")
+    }
+    pub(crate) fn drain_program_tickets(&mut self, tickets: &[i64]) -> Result<(), RuntimeError> {
+        if let Self::Postgres(super::handles::PostgresStore(h)) = self {
+            h.reconnect_pipeline_writer()?;
+            h.store.get_mut().drain_program_tickets(tickets)
+        } else { unreachable!() }
+    }
+}
+
+#[cfg(feature="postgres")]
+impl crate::store_port::AnyStore {
+    pub(crate) fn fence_pipeline_terminal(&mut self)->Result<Vec<i32>,RuntimeError> {
+        if let Self::Postgres(super::handles::PostgresStore(h))=self {h.reconnect_pipeline_writer()?;h.store.get_mut().fence_pipeline_terminal()} else {unreachable!()}
+    }
+    pub(crate) fn sync_pipeline_slot(&mut self,other:&Self) {
+        if let (Self::Postgres(super::handles::PostgresStore(dst)),Self::Postgres(super::handles::PostgresStore(src)))=(self,other) {
+            dst.sync_pipeline_slot(src);
+        }
     }
 }

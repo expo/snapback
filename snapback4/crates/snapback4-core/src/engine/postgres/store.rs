@@ -87,7 +87,7 @@ pub struct Store {
     pub(crate) read_only: bool,
     pub(crate) client: super::pipeline::Connection,
     qualified: bool,
-    pub(super) batch_ordinal: u64,
+    pub(super) batch_ordinal: std::sync::Arc<std::sync::atomic::AtomicU64>,
     reader_binding: bool,
     pub(crate) next_program_deadline: Option<std::time::Instant>,
     literal_cache: BTreeMap<String, super::literal::Prepared>,
@@ -103,7 +103,7 @@ pub struct Store {
 impl Store {
     pub fn new(client: Client) -> Self { Self::with_connection(super::pipeline::Connection::Sync(client)) }
     pub(super) fn with_connection(client: super::pipeline::Connection) -> Self {
-        Self { read_sessions: Cell::new(false), unified: false, fence: None, read_grant: None, commit_warning: Default::default(), generation:1, read_only: false, client, qualified: false, batch_ordinal: 0, reader_binding: false, next_program_deadline: None, literal_cache: BTreeMap::new(), cache: BTreeMap::new(), calls: CallCounter::new(0), prefetch: true, marked_reads: Cell::new(0), page_reads: Cell::new(0), prefetch_rows: Cell::new(0), prefetch_bytes: Cell::new(0) }
+        Self { read_sessions: Cell::new(false), unified: false, fence: None, read_grant: None, commit_warning: Default::default(), generation:1, read_only: false, client, qualified: false, batch_ordinal: Default::default(), reader_binding: false, next_program_deadline: None, literal_cache: BTreeMap::new(), cache: BTreeMap::new(), calls: CallCounter::new(0), prefetch: true, marked_reads: Cell::new(0), page_reads: Cell::new(0), prefetch_rows: Cell::new(0), prefetch_bytes: Cell::new(0) }
     }
 
     // @ref LLP 3000.009.001.000#8 — only future requests reconnect, with fresh binding checks.
@@ -137,7 +137,10 @@ impl Store {
     pub(crate) fn cached_read(&mut self)->Result<Tx<'_>,RuntimeError> {self.begin_inner(None,false,true)}
     pub(super) fn begin(&mut self, mode: Option<WriteMode>, opening: bool) -> Result<Tx<'_>, RuntimeError> {self.begin_inner(mode,opening,false)}
     fn begin_inner(&mut self, mode: Option<WriteMode>, opening: bool, cpu_only:bool) -> Result<Tx<'_>, RuntimeError> {
-        if mode.is_some() && self.read_grant.as_ref().is_some_and(|g|g.uncertain.load(std::sync::atomic::Ordering::Acquire)) {return Err(RuntimeError::StoreOwnership("unknown COMMIT pauses writer admission until fenced reconciliation".into()));}
+        self.begin_resuming(mode, opening, cpu_only, false)
+    }
+    fn begin_resuming(&mut self, mode: Option<WriteMode>, opening: bool, cpu_only: bool, resuming: bool) -> Result<Tx<'_>, RuntimeError> {
+        if !resuming && mode.is_some() && self.read_grant.as_ref().is_some_and(|g|g.uncertain.load(std::sync::atomic::Ordering::Acquire)) {return Err(RuntimeError::StoreOwnership("unknown COMMIT pauses writer admission until fenced reconciliation".into()));}
         let deadline = self.next_program_deadline.take();
         if self.read_only && mode.is_some() { return Err(RuntimeError::Store("Postgres reader is read-only".into())); }
         if !cpu_only { self.refresh_reader_connection()?; }
@@ -156,11 +159,11 @@ impl Store {
             Some(WriteMode::Serializable) => "BEGIN ISOLATION LEVEL SERIALIZABLE READ WRITE;",
         };
         let inner = super::flight::Session { client: &mut self.client, pending: if cpu_only {String::new()} else {begin.into()}, started: false, done: cpu_only, settings_refused: false, checks: Vec::new(), owner: None, owner_budget: None };
-        let tx = Tx { activation_relations: Default::default(), batch_store_id: self.fence.as_ref().map(|f| f.store_id.clone()), attempt: RefCell::new(if mode.is_some() { super::group_commit::fresh_attempt(self.fence.as_ref().map_or(0, |f| f.token))? } else { String::new() }), batch_ticket: None, batch_base: RefCell::new(None), generation_expected: self.generation, publication: RefCell::new(None), read_grant:self.read_grant.clone(), durable_write: mode.is_some(), revisions: Cell::new(0), lifecycle: opening, read_sessions: &self.read_sessions, read_sessions_installed: Cell::new(false), unified: self.unified, commit_warning: &self.commit_warning, inner: RefCell::new(inner),
+        let tx = Tx { activation_relations: Default::default(), batch_store_id: self.fence.as_ref().map(|f| f.store_id.clone()), attempt: RefCell::new(if mode.is_some() { super::group_commit::fresh_attempt(self.fence.as_ref().map_or(0, |f| f.token))? } else { String::new() }), batch_ticket: None, predecessor_ticket: None, pipeline: false, batch_base: RefCell::new(None), generation_expected: self.generation, publication: RefCell::new(None), read_grant:self.read_grant.clone(), durable_write: mode.is_some(), revisions: Cell::new(0), lifecycle: opening, read_sessions: &self.read_sessions, read_sessions_installed: Cell::new(false), unified: self.unified, commit_warning: &self.commit_warning, inner: RefCell::new(inner),
             bind_refused: Cell::new(false), program_deadline: Cell::new(deadline), read_cache: RefCell::new(super::read_plan::Answers::default()), pending_read: RefCell::new(None), receipt_cache: RefCell::new(None), placement_cache: RefCell::new(None), authority_cache: RefCell::new(None), commit_settings: Cell::new(false), literal_cache: RefCell::new(&mut self.literal_cache), cache: RefCell::new(&mut self.cache), calls: &self.calls, marked_reads: &self.marked_reads, page_reads: &self.page_reads, prefetch_rows: &self.prefetch_rows, prefetch_bytes: &self.prefetch_bytes,
             rows_cache: RefCell::new(super::prefetch::Cache::default()), prefetch_enabled: self.prefetch, head: Cell::new(None), serialized_head: Cell::new(false), tail: RefCell::new(super::tail::Tail::default()), group_head: Cell::new(None), group_tails: RefCell::new(Vec::new()), group_images: Default::default(), changes: Default::default(), savepoints: RefCell::new(Vec::new()) };
         if opening { super::managed_relations::verify(&tx)?; super::managed_relations::capture(&tx)?; }
-        if self.unified && mode.is_some() {
+        if !resuming && self.unified && mode.is_some() {
             // Bootstrap is the sole exception: an absent owner relation is
             // installed in the successful opening transaction, never by readers.
             let mut exists = !opening || tx.query("SELECT to_regclass('_owner') IS NOT NULL", &[])?[0].get::<_, bool>(0);
@@ -417,6 +420,8 @@ pub struct Tx<'a> {
     pub(super) batch_store_id: Option<String>,
     pub(super) attempt: RefCell<String>,
     pub(super) batch_ticket: Option<i64>,
+    pub(super) predecessor_ticket: Option<i64>,
+    pipeline: bool,
     pub(super) batch_base: RefCell<Option<super::group_commit::Head>>,
     pub(super) generation_expected: u64,
     pub(super) publication: RefCell<Option<super::read_grant::Published>>,
@@ -429,7 +434,7 @@ pub struct Tx<'a> {
     pub(super) read_sessions: &'a Cell<bool>,
     pub(super) read_sessions_installed: Cell<bool>,
     unified: bool,
-    commit_warning: &'a std::sync::atomic::AtomicBool,
+    commit_warning: &'a std::sync::Arc<std::sync::atomic::AtomicBool>,
     pub(super) inner: RefCell<super::flight::Session<'a>>,
     literal_cache: RefCell<&'a mut BTreeMap<String, super::literal::Prepared>>,
     bind_refused: Cell<bool>,
@@ -769,7 +774,7 @@ impl Tx<'_> {
         // Installer DDL (including event-trigger effects) and late activation
         // callbacks share this transaction. Re-admit after its last writes.
         if self.lifecycle { super::managed_relations::verify_activation(&self)?; }
-        let grant=self.read_grant.as_ref().filter(|g|self.durable_write && g.configured.load(std::sync::atomic::Ordering::Acquire)).cloned();
+        let grant=self.read_grant.as_ref().filter(|g|!self.pipeline && self.durable_write && g.configured.load(std::sync::atomic::Ordering::Acquire)).cloned();
         let published = if grant.is_some() {
             let from_tail = self.publication.borrow_mut().take().filter(|_| !self.lifecycle);
             Some(match from_tail {
@@ -802,7 +807,14 @@ impl Tx<'_> {
         // Pending writes/control need not execute to abort the original
         // transaction. In particular, expiry must not flush them first.
         inner.pending.clear(); inner.checks.clear();
-        inner.client.batch_execute("ROLLBACK")?;
+        let aborted = inner.client.batch_execute("ROLLBACK");
+        // @ref LLP 3000.009.001.000.000.002#3.6 — every durable preparation path, including depth-one barriers, closes G6 on an unacknowledged rollback.
+        if aborted.is_err() && self.durable_write {
+            if let Some(grant) = self.read_grant.as_ref().filter(|g|g.configured.load(std::sync::atomic::Ordering::Acquire)) {
+                grant.close_uncertain();
+            }
+        }
+        aborted?;
         inner.client.finish();
         inner.done = true;
         Ok(())
@@ -1106,5 +1118,52 @@ impl Rows for Tx<'_> {
         }
         entries += self.update_cap_counts(table_name, table, Some(old), None)?;
         Ok(entries)
+    }
+}
+
+impl Tx<'_> {
+    // @ref LLP 3000.009.001.000.000.002#3.7 — the handoff owns only provisional tail state; the store keeps the socket and code caches.
+    pub(crate) fn suspend_program(self, predecessor: Option<i64>, deadline: std::time::Instant) -> Result<super::writer_slot::Suspended, RuntimeError> {
+        let head = self.batch_base.borrow().clone().ok_or_else(||RuntimeError::Store("missing pipeline base".into()))?;
+        let ticket = self.batch_ticket.ok_or_else(||RuntimeError::Store("missing pipeline ticket".into()))?;
+        let mut inner = self.inner.into_inner();
+        inner.done = true; // custody transfers; dropping this borrowed view must not roll back
+        Ok(super::writer_slot::Suspended {
+            head, ticket, predecessor, attempt:self.attempt.into_inner(),
+            tails:self.group_tails.into_inner(), images:self.group_images.into_inner(),
+            pending:std::mem::take(&mut inner.pending), checks:std::mem::take(&mut inner.checks), deadline,
+            #[cfg(test)] hook:None,#[cfg(test)] ordinal:0,
+        })
+    }
+}
+impl Store {
+    pub(crate) fn resume_program(&mut self, frozen: super::writer_slot::Suspended) -> Result<Tx<'_>, RuntimeError> {
+        // No BEGIN, fence or facts are repeated: this is the same open server transaction.
+        let mut tx = self.begin_resuming(Some(WriteMode::Serialized), false, false, true)?;
+        tx.pipeline = true;
+        tx.batch_ticket = Some(frozen.ticket);
+        tx.predecessor_ticket = frozen.predecessor;
+        tx.head.set(Some(frozen.head.seq as u64));
+        tx.group_head.set(Some(frozen.head.seq as u64));
+        *tx.batch_base.borrow_mut() = Some(frozen.head);
+        *tx.attempt.borrow_mut() = frozen.attempt;
+        *tx.group_tails.borrow_mut() = frozen.tails;
+        *tx.group_images.borrow_mut() = frozen.images;
+        tx.program_deadline.set(Some(frozen.deadline));
+        let inner = tx.inner.get_mut();
+        inner.pending = frozen.pending;
+        inner.checks = frozen.checks;
+        inner.owner = None;
+        inner.started = true;
+        Ok(tx)
+    }
+}
+
+impl Store {
+    pub(super) fn recovery_transaction(&mut self) -> Result<Tx<'_>,RuntimeError> {
+        let owner=super::ownership::Fence::raising_command(self.fence.as_ref())?;
+        let mut tx=self.begin_resuming(Some(WriteMode::Serialized),false,false,true)?;
+        tx.inner.get_mut().owner=Some(owner);
+        Ok(tx)
     }
 }
