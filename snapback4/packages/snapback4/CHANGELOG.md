@@ -19,7 +19,7 @@
 
 - PostgreSQL serving prepares readers before reporting readiness and bounds coalescing under load while preserving request deadlines and commit-outcome semantics. This does not establish a new capacity qualification.
 
-Existing apps keep their authored workflows and stores retain their rows, users and migration receipts. Restart running serve processes with 0.4.41 before deploying or rolling back. Rebuild generated clients and devices after upgrading; custom proofs must adopt the new helpers explicitly. Preserve production roster files with their deployment. SEC10 security-semantic changes are deferred to 0.4.42.
+Existing apps keep their authored workflows and stores retain their rows, users and migration receipts. Restart running serve processes with 0.4.41 before deploying or rolling back. Older analyzer-bound decisions become unreviewed; use `check --json` and renew each required current ID with its specification rationale. Only the displayed advisory audience family accepts a shared disposition. Rebuild generated clients and devices after upgrading; custom proofs must adopt the new helpers explicitly. Preserve production roster files with their deployment. SEC10 security-semantic changes are deferred to 0.4.42.
 
 ## 0.4.40
 

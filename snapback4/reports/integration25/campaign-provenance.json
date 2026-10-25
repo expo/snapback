@@ -1,0 +1,18 @@
+{
+  "helperSha256": {
+    "survey.py": "409fe424b63476c5846fd1435aeac62bcbbf2b04fb91c1778732d923e6b2a2fb",
+    "replay.py": "c59aca9826c9830ba312cf27e2e4cc624ab0674f280ac3c4b14c69fdb13f3d34",
+    "collect-evidence.py": "4f4688d59f4c2752428d2f0a49b76317225f90d5e2f97756b8bd79a863745bd6",
+    "audit-survey-before-message-match.py": "731714084a9a5d76d49aac5deeb33c39494c817aa675a7206b4fbd6804e84b84",
+    "audit-survey-before-subject-match.py": "589dba033a464f8e6594308c378ca24123e1083b0d4b032452df1cbef41fbac8",
+    "audit-survey.py": "4285bb0cd9aaf1321f9078744eddad7a22dd5763f24e59215539c2a1cfca9fdb",
+    "final-replay.py": "889e755cdaa23d23e9916dea69d861d8485969c381cf21a9ac542127ae38670a"
+  },
+  "at": "2026-10-25T11:29:36.212028+00:00",
+  "source": "70365904e65a71c3af923faedfc3b0713e3ee1a9",
+  "surveyProjects": 650,
+  "conditionalAudits": 49,
+  "replayStores": 100,
+  "rawEvidenceRoot": "/home/ccheever/sb4-loop/reports/integration25",
+  "redaction": "Compact ledgers preserve result/identity/source/fixture hashes, decisions and conditional edits; stdout/stderr are content hashes. Private raw output and binaries stay local. No stores, account rosters or tokens are archived."
+}

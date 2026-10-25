@@ -1,0 +1,30 @@
+{
+  "kind": "Independent content reviews; no normative amendment",
+  "sourceCommit": "70365904e65a71c3af923faedfc3b0713e3ee1a9",
+  "at": "2026-10-25T12:49:04.113098+00:00",
+  "filesSha256": {
+    "brief.md": "85c76cd2bd8e7ab09dccb99d58c8976bf6daf272e049988e2dfd3671586a8ad3",
+    "codex.txt": "94ee393930b1b5dd6104bac789d1a347a169b3720686657831d0be1f7d38e396",
+    "muse.txt": "b07468e4cb02fea8d74eb33d3143d14ec848170e97134c5258bf637af903a8ef",
+    "codex.stderr.txt": "97e1156d36b3724eb30a231e982bfba0dbf32d733f4a31edb5c9be002724c0ac",
+    "muse.stderr.txt": "b02576a706de1f9d01462349f5977c1ab7cde30bff530d5c431ddca3a7eed733"
+  },
+  "reviews": {
+    "codex": {
+      "model": "gpt-6.1-sol",
+      "reasoning": "high",
+      "freshSession": true,
+      "exit": 0,
+      "verdict": "No material finding"
+    },
+    "muse": {
+      "model": "muse-spark-1.3-contributor",
+      "reasoning": "high",
+      "freshSession": true,
+      "exit": 0,
+      "verdict": "No material finding",
+      "transport": "Provided wrapper initial quota429 followed by successful configured Meta fallback"
+    }
+  },
+  "scope": "Content review only, no tests executed by reviewers; outcomes independently recorded in snapback4/reports/integration25."
+}

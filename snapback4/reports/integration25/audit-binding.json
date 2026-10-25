@@ -1,0 +1,23 @@
+{
+  "binary": "/home/ccheever/sb4-loop/reports/integration25/bin-0.4.41",
+  "binarySha256": "435ba3877ae9407e022a93051bb840cb9499e9b4144a86cd2c5b23e27d3cad18",
+  "sourceCommit": "70365904e65a71c3af923faedfc3b0713e3ee1a9",
+  "at": "2026-10-25T11:17:02.693742+00:00",
+  "inheritedAuditSha256": "b8652c47ef9eced4335882851863af1a5ebfe1cff6197c731a24f966bbc208e1",
+  "auditHarnessSha256": "4285bb0cd9aaf1321f9078744eddad7a22dd5763f24e59215539c2a1cfca9fdb",
+  "resumedFrom": {
+    "binary": "/home/ccheever/sb4-loop/reports/integration25/bin-0.4.41",
+    "binarySha256": "435ba3877ae9407e022a93051bb840cb9499e9b4144a86cd2c5b23e27d3cad18",
+    "sourceCommit": "70365904e65a71c3af923faedfc3b0713e3ee1a9",
+    "at": "2026-10-25T11:10:48.882396+00:00",
+    "inheritedAuditSha256": "b8652c47ef9eced4335882851863af1a5ebfe1cff6197c731a24f966bbc208e1",
+    "auditHarnessSha256": "589dba033a464f8e6594308c378ca24123e1083b0d4b032452df1cbef41fbac8",
+    "resumedFrom": {
+      "binary": "/home/ccheever/sb4-loop/reports/integration25/bin-0.4.41",
+      "binarySha256": "435ba3877ae9407e022a93051bb840cb9499e9b4144a86cd2c5b23e27d3cad18",
+      "sourceCommit": "70365904e65a71c3af923faedfc3b0713e3ee1a9",
+      "at": "2026-10-25T10:59:31.400942+00:00",
+      "inheritedAuditSha256": "b8652c47ef9eced4335882851863af1a5ebfe1cff6197c731a24f966bbc208e1"
+    }
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "at": "2026-10-25T11:40:31.095678+00:00",
+  "candidate": "70365904e65a71c3af923faedfc3b0713e3ee1a9",
+  "baseline": "25ee876966185acfa7be9eace384b2988512da56",
+  "test": "snapback4-device::native_following",
+  "stackBytes": 33554432,
+  "temporaryProfile": {
+    "devOptLevel": 2,
+    "testOptLevel": 2,
+    "devicePerPackageOptLevel": 3,
+    "result": "candidate and pre-merge baseline both SIGABRT with stack overflow in native_following_memory"
+  },
+  "configuredProfile": {
+    "devOptLevel": "repository default",
+    "testOptLevel": 1,
+    "devicePerPackageOptLevel": 3,
+    "result": "complete target2/2, isolated memory1/1, repeated complete target2/2 at original2 threads; no assertion, stack or workload changes"
+  },
+  "requiredCargoEnv": {
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0"
+  },
+  "baselineCargoLockMatchesGit": true,
+  "logSha256": {
+    "native-following-alone-scoped.log": "4e44615cf82f21d69bd42363a1a781e0757ee92949e6db38e21f104beb5eb275",
+    "native-following-configured-profile.log": "a351d059db98092506dd6f4d15ca2384957db34d2d9c79e849db67cf9fbda722",
+    "native-following-configured-alone.log": "20828ee1a40a8e408df72250e92c028c9d9ae9c970ab5f38278b0e848a3270f7",
+    "native-following-configured-target-rerun.log": "f67a10e0af0f04e6b5478552c806ab413f77a880a54bb8f4f7ae2acce48b8b1e",
+    "native-following-baseline-opt2.log": "8b35786a7008c0107c9984b0ff9790794d8322cf0495ee2d314c95be87ecfa45"
+  },
+  "disposition": "Inherited noncanonical profile-specific failure. Normal configured target is qualified. Preserve raw selector red; full packed/production qualification belongs to publication."
+}

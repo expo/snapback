@@ -1,0 +1,15 @@
+{
+  "candidate": "70365904e65a71c3af923faedfc3b0713e3ee1a9",
+  "baseline": "25ee876966185acfa7be9eace384b2988512da56",
+  "test": "snapback4-sim::native",
+  "failingCase": "a_native_continuation_parks_when_module_bytes_change_and_new_work_runs",
+  "stackBytes": 33554432,
+  "temporaryOpt2": "candidate full target and baseline isolated case both SIGABRT with stack overflow",
+  "configuredProfile": "isolated case1/1 then full target12passed,1existingignore at original4threads; no stack/assertion/workload change",
+  "baselineLockMatchesGit": true,
+  "logSha256": {
+    "sim-native-configured-alone.log": "9498bd4b428cf9ec3b41a212b333fb785c63aceb50a092462afb1f9de72bde7b",
+    "sim-native-configured-target-rerun.log": "c3c83a50fa0ae3e53ea2c8ff5949f51d7dda70dd91e26672b57c4ee16c868edc",
+    "sim-native-baseline-opt2.log": "5fd68ada02e818adad7288c0b463f49400862315029a4b0004a03ee5ae89179e"
+  }
+}
