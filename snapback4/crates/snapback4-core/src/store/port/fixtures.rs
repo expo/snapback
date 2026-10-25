@@ -167,9 +167,16 @@ impl AnyStore {
 pub struct RequestPipelineHold {
     client: postgres::Client,
     key: i64,
+    marker: bool,
 }
 #[cfg(feature = "postgres")]
 impl RequestPipelineHold {
+    /// Out-of-band witness observation, deliberately outside E's reader gate.
+    pub fn counter_value(&mut self) -> Result<i64, RuntimeError> {
+        let text: String = self.client.query_one("SELECT data FROM r WHERE t='counters' AND id='c'", &[])?.get(0);
+        let value: crate::Value = serde_json::from_str(&text).map_err(|e|RuntimeError::Store(e.to_string()))?;
+        Ok(value.field("n")?.as_int()?)
+    }
     pub fn waiting(&mut self) -> Result<bool, RuntimeError> {
         Ok(self.client.query_one("SELECT EXISTS(SELECT 1 FROM pg_locks WHERE locktype='advisory' AND NOT granted AND classid::bigint=$1 AND objid::bigint=$2 AND objsubid=1)",
             &[&((self.key >> 32) & 0xffff_ffff), &(self.key & 0xffff_ffff)])?.get(0))
@@ -188,7 +195,9 @@ impl RequestPipelineHold {
 impl Drop for RequestPipelineHold {
     fn drop(&mut self) {
         let _ = self.release();
-        let _ = self.client.batch_execute("DROP TRIGGER IF EXISTS lev_pipeline_hold ON _commits; DROP FUNCTION IF EXISTS lev_pipeline_hold()");
+        let _ = self.client.batch_execute(if self.marker {
+            "DROP TRIGGER IF EXISTS lev_marker_hold ON _durable; DROP FUNCTION IF EXISTS lev_marker_hold()"
+        } else { "DROP TRIGGER IF EXISTS lev_pipeline_hold ON _commits; DROP FUNCTION IF EXISTS lev_pipeline_hold()" });
     }
 }
 #[cfg(feature = "postgres")]
@@ -202,6 +211,22 @@ impl AnyStore {
         let key = (crate::ids::seed() & i64::MAX as u64) as i64;
         client.query_one("SELECT pg_advisory_lock($1)", &[&key])?;
         client.batch_execute(&format!("CREATE FUNCTION lev_pipeline_hold() RETURNS trigger LANGUAGE plpgsql AS $f$ BEGIN IF NEW.seq<={} THEN PERFORM pg_advisory_xact_lock({key}::bigint); END IF; RETURN NEW; END $f$; CREATE CONSTRAINT TRIGGER lev_pipeline_hold AFTER INSERT ON _commits DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION lev_pipeline_hold()", head+2))?;
-        Ok(RequestPipelineHold { client, key })
+        Ok(RequestPipelineHold { client, key, marker: false })
+    }
+}
+
+#[cfg(feature = "postgres")]
+impl AnyStore {
+    /// Hold E's marker after the data COMMIT; optionally fail the marker.
+    pub fn test_request_marker_hold(&mut self, fail: bool) -> Result<RequestPipelineHold, RuntimeError> {
+        let Self::Postgres(super::handles::PostgresStore(handle)) = self else { panic!("private Postgres fixture") };
+        let schema: String = handle.store.get_mut().client.query_one("SELECT current_schema()", &[])?.get(0);
+        let mut client = postgres::Client::connect(&std::env::var("SNAPBACK4_EVAL_POSTGRES").expect("private PG16"), postgres::NoTls)?;
+        client.batch_execute(&format!("SET search_path=\"{}\",pg_catalog; SET statement_timeout='10s'; SET lock_timeout='2s'", schema.replace('"', "\"\"")))?;
+        let key = (crate::ids::seed() & i64::MAX as u64) as i64;
+        client.query_one("SELECT pg_advisory_lock($1)", &[&key])?;
+        let error=if fail {"RAISE EXCEPTION USING ERRCODE='23514',MESSAGE='marker failed after data COMMIT';"} else {""};
+        client.batch_execute(&format!("CREATE FUNCTION lev_marker_hold() RETURNS trigger LANGUAGE plpgsql AS $f$ BEGIN PERFORM pg_advisory_xact_lock({key}::bigint); {error} RETURN NEW; END $f$; CREATE TRIGGER lev_marker_hold BEFORE UPDATE ON _durable FOR EACH ROW EXECUTE FUNCTION lev_marker_hold()"))?;
+        Ok(RequestPipelineHold {client,key,marker:true})
     }
 }

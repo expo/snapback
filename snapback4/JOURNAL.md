@@ -108571,3 +108571,51 @@ directories independently confirm stopped. The combined 8,851 PID/birth audit,
 including zombies and explicit public-helper ledgers, has no matches.
 Minimum free disk is 34.06 GiB, above the 25 GiB floor. No throughput campaign
 or push occurs.
+
+
+## 2026-10-25 — G7-E rebase 2: write-lever composition
+
+Replayed `ce2a6ce622`'s three E commits from `20a45b73cb` onto the requested
+main snapshot `7e88aa041d` on `sb4-pg/g7e-land`. The shared base ref had
+advanced to `ba886e7be0`; the pinned commit is used and both input refs are
+preserved. Rebased commits are `1f70653988`, `5477844260`, `a1644584ef`.
+Only the controls RFC revision header and JOURNAL tail conflicted; both sides'
+records are retained. The code merges retain E certification/epoch/D, reader
+holds and grant-before-D liveness, together with fresh Full-scope/store-binding
+checks, HTTP 409 and retained plans through `prepare_chained`.
+
+The semantic audit found that final durable authority checks still refreshed
+mutation ingress hints during staging. They now retain a candidate beside the
+existing request boundary and publish it only in the released-result
+continuation. Failed and unknown attempts evict instead; retries rediscover
+through a certified reader. This adds no successful-path SQL flight or extra
+per-request shared allocation. Held-marker HTTP witnesses cover confirmed and
+23514-after-COMMIT outcomes, no above-D hint/reply, no unknown metadata and no
+committed-member rerun. E variants cover four-member and chained-successor
+fresh-authority changes. The E two-slot witness counts one plan per member;
+both E cascade-to-solo witnesses also retain LEV's exact original-member
+plan-build count. Physical recovery revalidates in place.
+
+[The G7-E report](reports/20261025-g7e-postgres/REPORT.md#g7-e-rebase-2--composition-with-write-levers)
+records every conflict, the semantic correction, requested check results and
+process custody. The two RT0 ratchets compose the warm-ingress savings with
+E's unchanged three-flight protocol. No throughput or S1 campaign, publication
+or push is commissioned by this rebase.
+
+Final checks: core **1,309/0** (518 ignored), binary
+**623/0** (74 ignored), core/HTTP E **34/0** and
+**4/0**, G7.2 **40/0**, plan/HTTP authority lever witnesses **2/0** and
+**87/0**, core/HTTP RT0 **6/0** and **10/0**, crash/kill **11/0**.
+Postgres Rust targets are **816/1**: inherited
+`E_INPUT: 6`; the evaluator's inherited stale lockfile blocks its known
+`40001` stage. S/E public serving, the binary build and SQLite feature check
+pass. The initial resolver-startup red passes isolated and in the final full
+serial run; an invalid diagnostic repeat overlapped a test-executable rebuild.
+Development helper-conversion and E-fixture ordering errors are corrected and
+recorded in the report. Ref-check: 569 LLPs, 12,031
+references, zero errors/unchecked. All 4
+private cluster directories confirm stopped; the combined
+13,152-pair audit and both public PID ledgers
+have no matches, including zombies. **PIDs left: none.** Monitored free disk
+stays above 62.96 GiB after the authorized
+own-target cleanup; the 25 GiB floor never fires.

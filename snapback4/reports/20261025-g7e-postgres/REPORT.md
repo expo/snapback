@@ -371,3 +371,196 @@ Raw custody evidence is `/tmp/g7ef1-final-audit.json`; no raw logs are committed
 Minimum sampled free disk is **34.06 GiB**, above the 25 GiB stop floor;
 final free disk is about **34.28 GiB**. No throughput campaign, protected
 PG17/port-55440 or `~/q24` access, push, stash or Git configuration change occurs.
+
+
+## G7-E rebase 2 — composition with write levers
+
+The input E tip is exactly `ce2a6ce622d4e49bd7241babc84582cc554c4b9a`.
+Replayed its three commits from `20a45b73cb` onto the requested immutable
+main commit `7e88aa041df5207c5ff95a0982bc16e54543177d` on
+`sb4-pg/g7e-land`. The local `sb4-pg/main-7e88` ref had advanced to
+`ba886e7be0`; the pinned requested main commit is used rather than moving
+that shared ref or incorporating its later changes. The input branch remains
+at `ce2a6ce622`.
+
+| Original E commit | Rebased commit |
+| --- | --- |
+| `28acd08e7a` | `1f70653988` |
+| `d155f7a68e` | `5477844260` |
+| `ce2a6ce622` | `a1644584ef` |
+
+### Every textual conflict
+
+Both conflicts occurred while replaying the first commit. The other two
+commits replayed without conflicts.
+
+| File | Conflict and resolution |
+| --- | --- |
+| `llp/3000.009.001.000.002-beating-the-postgres-controls.rfc.md` | Both sides prepend the `Revised` header. Retain E's durable-reader-release amendment and LEV's attempt-local-plan amendment, plus the shared history. Neither design paragraph is discarded. |
+| `snapback4/JOURNAL.md` | Both sides append after G7.2 fix round 1. Retain the entire main tail (LEV ingress, ephemeral refresh, retained plans, reports, qualifications and subsequent main records), then E's full implementation entry. Subsequent E rebase/liveness entries replay unchanged. |
+
+There were no code or RT0 table conflicts. Automatic merges of
+`command_batch.rs`, `postgres/group_commit.rs`, `program_pipeline.rs`,
+`program_g72_tests.rs`, `program_overlay_tests.rs` and `serve_start.rs` were
+reviewed semantically. They retain fresh Full-scope/store/generation checks,
+terminal `E_STORE_REPLACED` with HTTP 409, plan inventory through
+`prepare_chained`, E certificate/epoch classification before predecessor-abort
+classification, grant-before-D lock order, reader holds and three-flight E
+batches. The main HTTP RT0 table retains warm keyed-first / narrowed-argument /
+one-membership counts 7 / 1 / 7 and the direct batch classes remain 3 flights.
+
+### Composition correction and witnesses
+
+The audit found a semantic overlap despite the clean code merge: the durable
+member's authority callback refreshed an ingress hint during staging, before
+E's marker result or ordered D release. Durable mutation checks now retain
+one candidate, replaced on every attempt, and publish it only from the
+released-result continuation. Failed/unknown outcomes evict the old hint;
+stale-kind retries take fresh certified discovery. Ephemeral checks retain
+their separate final-snapshot behavior. No successful-path SQL flight is added.
+The existing authority and pipeline LLPs record the refined lifecycle.
+
+The held-marker HTTP witnesses remove the old hint after both warm requests
+queue but before their final authority checks. While data is visible and the
+marker is held, neither a hint nor an HTTP reply is published. A confirmed
+marker releases replies and the candidate. A planted 23514 after data COMMIT
+returns unknown without metadata or a hint; exactly the original two member
+updates remain and no committed member reruns. The E four-member and chained
+single-successor authority variants retain revocation/expiry/kind/generation,
+Full-scope and store-binding refusal coverage. The matching-Read-hint arm now
+obtains that hint through a certified query after the failed mutation evicts
+its staged candidate.
+
+The E two-slot witness asserts exactly 16 plan builds for 16 members while
+both markers are held. Both E cascade-to-solo witnesses inherit LEV's exact
+three-build assertion for their three original members. Physical fallbacks
+revalidate fully in place and do not reconstruct a closure proof. Plans carry
+neither authority nor D evidence. Existing crash, epoch, reader and outcome
+witnesses remain in the focused suites.
+
+Raw evidence is under `/tmp/g7er2-checks/` and the cluster ledger
+`/tmp/g7er2-checks-clusters.jsonl`; no raw logs are committed. Cargo uses
+this worktree's own target, line-tables-only dev/test profiles,
+`CARGO_INCREMENTAL=0`, and `-j 6` (also `CARGO_BUILD_JOBS=6` for the script).
+The previous own target was removed before rebuilding, as authorized.
+
+
+### Development and transient observations
+
+The first full-core command stopped at a type-conversion error in the newly
+added test-only control observation (`ValueError` needed conversion into
+`RuntimeError`). The helper was corrected before qualification continued;
+the full core scope is rerun rather than counting this build failure as tests.
+
+The first complete binary run reports **622 passed / 1 failed / 74 ignored**.
+`verbs::witness::preparation::tests::stalled_resolver_sigint_is_bounded_journalled_and_drained`
+misses its ten-second `descendant.pid` startup assertion. This entire source
+file is byte-identical to `7e88aa041d`. An immediate isolated execution of
+the same binary passes **1/0** in 1.5 seconds with no remaining recorded PID.
+The initial failure is retained; it is unrelated to the E/LEV source delta.
+Raw isolated evidence is under `/tmp/g7er2-resolver/`.
+
+
+The initial four added HTTP E witnesses stopped at fixture setup (**0/4**):
+E recovery was enabled before schema installation created `_head`. The fixture
+now installs the schema first, enables E before creating readers, then starts
+the host. The corrected four witnesses pass **4/0**, including both real marker
+outcomes. This changes test setup only; raw corrected evidence is under
+`/tmp/g7er2-http-rerun/`.
+
+
+An attempted bare-binary serial diagnostic repeat overlapped the corrected
+HTTP fixture Cargo rebuild, which replaced its executable while it was
+running. Its child-executable launches then returned ENOENT: **599/24/74**.
+This invocation is retained as an invalid qualification attempt, not treated
+as 24 product regressions. The final serial run goes through Cargo after all
+source edits stop. Raw diagnostic evidence is `/tmp/g7er2-binary-rerun/`.
+The ENOENT failures were:
+
+- `verbs::security::record::tests::a_witness_free_later_run_keeps_failures_and_does_not_promote_synthetic_evidence`
+- `verbs::security::record::tests::review_labels_missing_stale_and_incomplete_evidence_and_strict_refuses_only_reachable_intent`
+- `verbs::witness::background::tests::witness_passed_outcome_survives_post_driver_compression_failure`
+- `verbs::witness::lookup_tests::app_lookup_preserves_safe_simctl_diagnostics`
+- `verbs::witness::ownership::tests::partial_ownership_write_is_removed`
+- `verbs::witness::preparation::tests::lease_preserves_an_existing_owner_and_releases_on_drop`
+- `verbs::witness::preparation::tests::stalled_resolver_sigint_is_bounded_journalled_and_drained`
+- `verbs::witness::preparation::tests::stalled_resolver_sigkill_triggers_watchdog_before_recovery`
+- `verbs::witness::preparation::tests::stalled_resolver_sigterm_is_bounded_journalled_and_drained`
+- `verbs::witness::preparation::tests::stalled_resolver_timeout_is_bounded_journalled_and_drained`
+- `verbs::witness::publication::tests::witness_orphan_deletion_does_not_hold_the_publication_lock`
+- `verbs::witness::publication::tests::witness_orphan_markers_recover_after_repeated_sigkill_and_retain_then_prune`
+- `verbs::witness::publication::tests::witness_orphan_reconciliation_requires_all_leases_and_preserves_changed_identity`
+- `verbs::witness::publication::tests::witness_pruning_cannot_delete_through_an_export_during_atomic_publication`
+- `verbs::witness::publication::tests::witness_retention_recovers_verified_publication_without_a_later_publisher`
+- `verbs::witness::publication::tests::witness_two_wrappers_killed_after_exchange_leave_only_survivors_verified_export`
+- `verbs::witness::publication::tests::witness_wait_follows_publication_through_exchange_and_verify_without_an_older_pass`
+- `verbs::witness::recovery::tests::abandoned_bulk_and_backend_wait_for_the_run_lease_and_reject_a_reused_pid`
+- `verbs::witness::recovery::tests::discovery_of_an_unfinished_leased_export_keeps_maintenance_pending`
+- `verbs::witness::recovery::tests::live_wrapper_lease_preserves_export_and_journal_after_driver_exit`
+- `verbs::witness::recovery::tests::ownerless_shell_waits_only_for_live_leases_without_becoming_finished_evidence`
+- `verbs::witness::recovery::tests::recovery_drains_a_live_preparation_descendant_before_finishing_even_with_a_live_wrapper`
+- `verbs::witness::recovery::tests::retention_pins_current_and_pending_swap_generations_before_start_order`
+- `verbs::witness::smoke::tests::smoke_barrier_advances_only_the_commit_clock`
+
+
+The final full binary run, after source edits stopped, passes
+**623/0/74** (passed/failed/ignored), with `--test-threads 1` through Cargo and
+the private evaluation connection. Raw final evidence is
+`/tmp/g7er2-binary-final/`. All its recorded subprocesses have exited.
+
+
+### Rebase 2 final check results
+
+Counts are passed / failed / ignored, summed from the outer Cargo target
+summaries so child-process summaries are not double-counted. Focused commands
+use `--include-ignored`; the full core/binary commands retain their ordinary
+explicit ignores. The failed preliminary commands are recorded above.
+
+| Check | Passed | Failed | Ignored |
+| --- | ---: | ---: | ---: |
+| Full core, all targets and doctests | 1,309 | 0 | 518 |
+| Full `snapback4` binary, final serial run | 623 | 0 | 74 |
+| Core E suite, including ignored entries | 34 | 0 | 0 |
+| HTTP E/LEV suite, including ignored entries | 4 | 0 | 0 |
+| G7.2 suite, including E recovery variants | 40 | 0 | 0 |
+| Core plan-reuse lever witnesses | 2 | 0 | 0 |
+| Full HTTP RT3b/LEV authority witnesses | 87 | 0 | 0 |
+| Core RT0 | 6 | 0 | 0 |
+| HTTP RT0 | 10 | 0 | 0 |
+| Full `bash scripts/test-postgres.sh`, Rust targets | 816 | 1 | 0 |
+| E crash/kill matrix, including live PG revision reuse | 11 | 0 | 0 |
+
+The binary build, SQLite-only feature check, and public serving in S and E pass.
+Core RT0 retains three flights per eligible E batch, with marker in the data
+COMMIT message, and S/E idle N=1 parity. The unchanged HTTP tables pass with
+the ingress saving composed into the warm write rows.
+
+The Postgres script exits 1 only for the declared inherited difftest
+`both_stores_all_public_boundaries_and_write_observations`, with
+`runtime_refused_unexpected {"E_INPUT": 6}`, plus the inherited stale
+`experiments/postgres/Cargo.lock` at its evaluator stage. The latter prevents
+that stage from reaching its known `40001` stress case; `40001` is not
+observed in this run. No additional final Rust test red appears. The separate
+initial resolver-startup failure and invalid concurrent-rebuild diagnostic
+remain explicitly recorded above; the final complete binary is green.
+
+`./ref-check --verbose` passes: **569 LLP docs,
+12,031 references, zero errors and zero unchecked references**.
+
+### Rebase 2 process custody and disk
+
+All **4 private cluster directories**
+independently confirm `pg_ctl status` 3 and no `postmaster.pid`. The final
+combined audit includes **13,152 recorded
+PID/birth pairs**, crash-child records, both explicit public-serving PID
+ledgers and the check drivers. There is no match, including zombies, no live
+recorded public-helper PID, and no executing check driver or executable from
+this worktree's target. **PIDs left: none.**
+
+At arrival `df -h` reported about 35 GiB available. Removing only this
+worktree's authorized old target raised headroom before rebuilding. Across
+all build/check monitors the minimum is **62.96 GiB**;
+the final audit reports **63.09 GiB**, above the 25 GiB
+stop floor. Raw evidence remains outside Git, including
+`/tmp/g7er2-final-audit.json`. No push, stash, Git configuration change,
+protected PG17/port-55440 or `~/q24` access, or throughput/S1 campaign occurs.

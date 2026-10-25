@@ -285,6 +285,7 @@ fn g7e_two_slots_fold_and_release_in_order_with_markers() {
     let key = held_marker(&mut c);
     let prior = head(&mut c);
     let released = Arc::new(Mutex::new(Vec::new()));
+    crate::engine::committer::closure::PLAN_BUILDS.with(|count|count.set(0));
     for n in [0, 8] {
         let r = released.clone();
         lane.start(
@@ -302,6 +303,8 @@ fn g7e_two_slots_fold_and_release_in_order_with_markers() {
     lane.drain(&mut e);
     assert_eq!(*released.lock().unwrap(), vec![0, 8]);
     assert_eq!(counter(&mut c), 24);
+    assert_eq!(crate::engine::committer::closure::PLAN_BUILDS.with(|count|count.get()),16,
+        "E certification and ordered release must retain one plan per member");
 }
 
 #[test]
