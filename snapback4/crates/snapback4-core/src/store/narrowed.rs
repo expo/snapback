@@ -208,9 +208,7 @@ pub(super) fn transition(
                     }
                 }
                 if !retained {super::movement::image(tx,"_dormant_narrow_rows",t,id,None,&row)?;}
-                let saved:String=tx.conn().query_row("SELECT data FROM _dormant_narrow_rows WHERE t=?1 AND id=?2",params![t,id],|r|r.get(0))?;
-                let saved:Value=serde_json::from_str(&saved).map_err(|e|RuntimeError::Store(e.to_string()))?;
-                super::movement::image(tx,"_dormant_narrow_rows",t,id,None,&saved)?;
+                super::movement::verify_expected(tx,"_dormant_narrow_rows",t,id)?;
                 tx.conn()
                     .execute("DELETE FROM r WHERE t=?1 AND id=?2", params![t, id])?;
                 removed += 1;

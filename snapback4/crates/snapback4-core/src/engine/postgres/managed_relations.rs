@@ -78,7 +78,7 @@ macro_rules! selection {
     UNION ALL
     SELECT c.* FROM pg_class c
     WHERE c.relnamespace=pg_my_temp_schema()
-      AND c.relname IN ('_evolution_restored','_adopt_groups','_adopt_conflicts')"#
+      AND c.relname IN ('_evolution_restored','_adopt_groups','_adopt_conflicts','_activation_images')"#
     };
 }
 const IDENTITIES: &str = concat!(
@@ -138,7 +138,7 @@ SELECT relation,object FROM findings ORDER BY relation,object LIMIT 1
 );
 
 // @ref LLP 3000.009.001.000.002#6 — privileged DDL code is visible, allowed, and outside the supported fence.
-pub(super) const EVENT_TRIGGERS: &str = "SELECT e.evtname::text,e.evtevent::text,COALESCE(e.evttags,ARRAY[]::text[]),pg_get_userbyid(e.evtowner)::text,format('%I.%I(%s)',n.nspname,p.proname,pg_get_function_identity_arguments(p.oid)),e.evtenabled::text FROM pg_event_trigger e JOIN pg_proc p ON p.oid=e.evtfoid JOIN pg_namespace n ON n.oid=p.pronamespace WHERE e.evtenabled<>'D' ORDER BY e.evtname";
+pub(super) const EVENT_TRIGGERS: &str = "SELECT e.evtname::text,e.evtevent::text,e.evttags,pg_get_userbyid(e.evtowner)::text,format('%I.%I(%s)',n.nspname,p.proname,pg_get_function_identity_arguments(p.oid)),e.evtenabled::text FROM pg_event_trigger e JOIN pg_proc p ON p.oid=e.evtfoid JOIN pg_namespace n ON n.oid=p.pronamespace WHERE e.evtenabled<>'D' ORDER BY e.evtname";
 pub(super) fn warn_event_triggers(tx: &Tx<'_>) -> Result<(), RuntimeError> {
     for row in tx.query(EVENT_TRIGGERS, &[])? {
         eprintln!(
@@ -158,13 +158,13 @@ pub(super) fn warn_event_triggers(tx: &Tx<'_>) -> Result<(), RuntimeError> {
 pub(super) fn event_warning(
     name: &str,
     event: &str,
-    tags: Vec<String>,
+    tags: Option<Vec<String>>,
     owner: &str,
     function: &str,
     mode: &str,
 ) -> String {
     format!(
         "WARNING: enabled Postgres event trigger {}; privileged activation-DDL rewriting is outside the supported contract",
-        serde_json::json!({"name":name,"events":event,"tags":tags,"owner":owner,"function":function,"enabledMode":mode})
+        serde_json::json!({"name":name,"events":event,"tags":tags.map(serde_json::Value::from).unwrap_or_else(||serde_json::Value::from("all")),"owner":owner,"function":function,"enabledMode":mode})
     )
 }

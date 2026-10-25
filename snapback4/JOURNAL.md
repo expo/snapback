@@ -107656,3 +107656,73 @@ status 3, no postmaster.pid and no matching process. Recorded PID/start-tick and
 worktree-target executable audits are empty. Minimum recorded free space is
 119.71 GiB, above the 40 GiB floor. No owned PIDs remain. Work stays local;
 no push, stash, Git configuration change, q24 access or shared PG17 change.
+
+### 2026-10-25 — FF3 fix round 1: expected final images and bounded verification
+
+Lane `sb4-pg/ff3` starts clean at the requested `ae8c68c0e8` on the commissioned
+host/worktree. The inherited lane environment stays in force: own target,
+line-tables-only debug information, eight Cargo jobs, private PG16, a 40 GiB
+free-space floor, no push/stash/configuration changes and no throughput runs.
+`llp-orient` follows the activation/store-port refs and the existing RFC §4.2/§6
+and current deploy card; the fixes extend those documents rather than adding an LLP.
+
+SQLite image equality compares JSON values independently of key insertion order.
+It keeps the comparison in SQLite: exact BINARY equality is a fast path, while
+`json_tree` builds paths from decoded keys and compares path/node-kind/scalar
+triples in both directions. `fullkey` alone preserves source escapes, so paths
+quote each decoded segment, distinguishing map keys from array positions.
+Text case, array order, numeric values and malformed JSON remain observable.
+Verification fetches no destination payload into Rust. This matters beyond the rename:
+a legal incompatible 3 MiB retained original must remain dormant without paying
+an active-row decoding budget. The existing 300 KiB default-restoration fixture
+and the paired compatible/incompatible large-image lifecycle keep their original
+admission policy. An initially attempted Rust verification guard failed those
+legal fixtures; it is removed, and the active walker/pricing code stays unchanged.
+
+Expected images live in activation TEMP scratch. Computed copy/overlay writes
+record them; intentional backfill/downfill/extraction and row writes advance them.
+Retained originals are remembered before transforms, rather than reread and
+accepted at destruction. Table retirement/restoration, cell consumption and
+narrowed-row movement compare the expected final payloads at source removal,
+with identity/count checks as well. SQLite's late archive upserts verified
+replacement rows while keeping the old retained population, instead of clearing
+it before copying. A mismatch rolls back source, destination and generation.
+Postgres admits the new TEMP heap under the same captured-OID/interception fence.
+
+Postgres population counts and payload verification use 64-key pages. Page limits
+precede sparse-column filtering, and correlated destination lookups carry LIMIT 1
+to prevent a whole-destination hash/merge join. Expected image storage stays in
+the database; Rust receives keys/counts/equality bits only. The existing five-second
+statement timeout remains unchanged. The fixed-cost witness uses 512 rows and a
+400 ms test timeout: a whole-table statement with a 2 ms per-row verification
+cost fails with `57014`; the same cost in production pages permits retirement
+and restoration of all 512 rows. This is a timeout correctness witness, not a
+throughput measurement.
+
+Doctor reports an unexpired persisted G6 grant and its owner's clock declaration
+with owner-local activity explicitly unconfirmed. A local revocation can therefore
+fall back to G5 without the persisted row being misreported as active zero-flight
+hits. Serve retains its confirmed local startup tier. Null event-trigger command
+tags are rendered as `"tags":"all"`; filtered tags remain arrays and disabled
+triggers remain omitted. The existing benign-event-trigger and public CLI
+inventory witnesses remain in the required qualification.
+
+Witnesses cover actual uploaded-file dormant restores for `photo` → `album` and
+`zebra` → `apple`, preserving asset/home identity; a legal restored-cell backfill
+from `n=7` to `8`; and late same-count `7` → `8` corruption at cell and narrowed
+source destruction on both stores, requiring rollback and a later clean restore
+to `7`. PostgreSQL renames/backfills retain their existing named admission limits.
+An additional SQLite witness admits reordered/escaped Unicode keys and refuses
+changed numbers, array order, text case and malformed JSON. Doctor's witness
+revokes the actual shared local grant, confirms the hit gate is closed while the
+persisted grant is still live, and checks the unconfirmed diagnostic. The event
+inventory includes a real enabled no-tag-filter trigger.
+
+Affected qualification on this implementation passes **31/0** in the full FF1
+catalog/movement unit scope and **60/0** in the paired PostgreSQL evolution
+scope. The SQLite movement subset passes **7/0**, including escaped-key equality
+and invalid/corrupt payload refusal. The public CLI milestone passes its SQLite
+and Postgres 300 KiB, EV-2 and wire/meter parity journeys, plus ownership loss,
+SIGKILL takeover and the unchanged S1 application/recounts; its private cluster
+stops with status 3 and no pidfile. Complete final qualification, negative
+controls and the lane-wide PID audit are recorded in the following entry.

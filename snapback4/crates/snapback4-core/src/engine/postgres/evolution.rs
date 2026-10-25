@@ -195,6 +195,7 @@ pub(super) fn transition(
         }
         return Ok(());
     }
+    super::movement::begin(tx)?;
     let restore = tx.meta("activation_restore")?.as_deref() != Some("false");
     // Keep restoration identities until the common builder finishes, so release
     // narration counts only surviving images without a population-sized buffer.

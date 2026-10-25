@@ -47,6 +47,7 @@ fn restore(tx: &Tx<'_>, next: &Schema) -> Result<(), RuntimeError> {
         .filter(|(n, t)| t.ephemeral.is_none() && next.maintain_for(n).is_none())
     {
         evolution::walk(tx, "_dormant_narrow_rows", name, |id, mut image| {
+            super::movement::image(tx,"_dormant_narrow_rows",name,id,None,&image)?;
             if tx.query(
                 "SELECT EXISTS(SELECT 1 FROM r WHERE t=$1 AND id=$2)",
                 &[name, &id],
@@ -219,10 +220,7 @@ pub(super) fn transition(
                 // A retained original may differ from the candidate image, but
                 // must still exist before hiding the live candidate.
                 if !retained {super::movement::image(tx,"_dormant_narrow_rows",name,id,None,&image)?;}
-                let saved=tx.query("SELECT data FROM _dormant_narrow_rows WHERE t=$1 AND id=$2",&[name,&id])?;
-                let saved= saved.first().ok_or_else(|| RuntimeError::Store("SNAPBACK_ACTIVATION_COPY_MISMATCH: missing retained row".into()))?;
-                let saved:Value=decode(saved.get(0))?;
-                super::movement::image(tx,"_dormant_narrow_rows",name,id,None,&saved)?;
+                super::movement::verify_expected(tx,"_dormant_narrow_rows",name,id)?;
                 tx.rows_cache.borrow_mut().invalidate(name);
                 tx.execute("DELETE FROM r WHERE t=$1 AND id=$2", &[name, &id])?;
                 removed += 1;
@@ -233,16 +231,10 @@ pub(super) fn transition(
             break;
         }
     }
-    let mut restored = 0u64;
-    for (name, _) in &next.tables {
-        let n:i64=tx.query("SELECT COUNT(*) FROM _dormant_narrow_rows n WHERE t=$1 AND EXISTS(SELECT 1 FROM r WHERE r.t=n.t AND r.id=n.id)",&[name])?[0].get(0);
-        if n > 0 {
-            tx.set_meta(
-                &format!("activation_narrowed_restored:{name}"),
-                &n.to_string(),
-            )?;
-            restored += n as u64;
-        }
+    let restored_counts=super::movement::narrowed_counts(tx)?;
+    let restored=restored_counts.values().sum::<i64>() as u64;
+    for (name,n) in restored_counts {
+        tx.set_meta(&format!("activation_narrowed_restored:{name}"),&n.to_string())?;
     }
     tx.execute("INSERT INTO _evolution_restored(kind,t,col,id) SELECT 'narrowed',t,'',id FROM _dormant_narrow_rows n WHERE EXISTS(SELECT 1 FROM r WHERE r.t=n.t AND r.id=n.id) ON CONFLICT DO NOTHING",&[])?;
     super::movement::verify_narrowed(tx,super::store::signed(restored)?)?;

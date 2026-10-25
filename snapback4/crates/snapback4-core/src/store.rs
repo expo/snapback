@@ -816,6 +816,7 @@ impl<'a> Tx<'a> {
         if affected != 1 {
             return Err(RuntimeError::Store(format!("row write count mismatch for {table_name}: expected 1, got {affected}")));
         }
+        if self.lifecycle { movement::rewrite(self,t,id,row)?; }
         let mut insert = self.tx.prepare_cached(insert_index)?;
         let mut entries = 0;
         for crate::rows::IndexWrite { name, before, after } in keys {

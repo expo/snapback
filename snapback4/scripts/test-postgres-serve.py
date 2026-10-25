@@ -618,7 +618,8 @@ try:
         g6_tier='G6 zero-flight hits (read grant; clock bounds 1000,250)'
         assert g6_tier in (WORK/'second-release.err').read_text()
         g6_doctor=cli(['doctor','--json'],url=url) # no clock variable on doctor
-        assert g6_tier in g6_doctor.stderr and json.loads(g6_doctor.stdout)['readCacheTier']==g6_tier
+        persisted_tier='persisted G6 read grant (clock bounds 1000,250); owner-local activity unconfirmed (revocation/reconnect may use G5 validation)'
+        assert persisted_tier in g6_doctor.stderr and json.loads(g6_doctor.stdout)['readCacheTier']==persisted_tier
         print('FF3 PASS: serve and doctor expose the actual G6 owner declaration 1000,250',flush=True)
     else:
         print('FF3 SKIP: G6 owner tier requires Linux CLOCK_BOOTTIME; G5 and event inventory remain covered',flush=True)

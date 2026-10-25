@@ -8,7 +8,8 @@ use crate::{
 
 impl AnyStore {
     /// Read the owner's persisted clock declaration; the caller's environment
-    /// cannot describe a different running owner's tier. No writer is acquired.
+    /// cannot describe a different running owner's grant. Persisted state cannot
+    /// confirm the owner's local grant after reconnect/revocation. No writer is acquired.
     pub fn postgres_diagnostics(connection: &str, namespace: &str) -> Result<(String, Vec<String>), RuntimeError> {
         let quoted=store::namespace(namespace)?;
         let (mut client,_)=ownership::connect(connection.parse()?)?;
@@ -23,8 +24,8 @@ impl AnyStore {
                 let epoch:String=row.get(0);
                 let notice=row.get::<_,Option<String>>(1).and_then(|s|serde_json::from_str::<serde_json::Value>(&s).ok());
                 tier=match notice.filter(|n|n["epoch"].as_str()==Some(epoch.as_str())) {
-                    Some(n) if n["rate_ppm"].as_u64().is_some() && n["forward_jump_ms"].as_u64().is_some()=>crate::store_port::g6_read_cache_tier(n["rate_ppm"].as_u64().unwrap(),n["forward_jump_ms"].as_u64().unwrap()),
-                    _=>"G6 zero-flight hits (read grant; clock bounds unavailable from legacy owner)".into(),
+                    Some(n) if n["rate_ppm"].as_u64().is_some() && n["forward_jump_ms"].as_u64().is_some()=>format!("persisted G6 read grant (clock bounds {},{}); owner-local activity unconfirmed (revocation/reconnect may use G5 validation)",n["rate_ppm"].as_u64().unwrap(),n["forward_jump_ms"].as_u64().unwrap()),
+                    _=>"persisted G6 read grant (clock bounds unavailable from legacy owner); owner-local activity unconfirmed (revocation/reconnect may use G5 validation)".into(),
                 };
             }
         }

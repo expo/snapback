@@ -173,11 +173,12 @@ fn doctor_event_inventory_and_owner_cache_tier() {
     let mut e = Engine::new_release(st, s, p, 1, None).unwrap();
     let event = format!("ff3_doctor_{:x}", crate::ids::seed());
     let disabled = format!("{event}_disabled");
+    let all = format!("{event}_all");
     sql(
         &mut e,
         true,
         &format!(
-            "CREATE FUNCTION audit_ff3() RETURNS event_trigger LANGUAGE plpgsql AS $$ BEGIN END $$; CREATE EVENT TRIGGER {event} ON ddl_command_end WHEN TAG IN ('CREATE INDEX') EXECUTE FUNCTION audit_ff3(); ALTER EVENT TRIGGER {event} ENABLE ALWAYS; CREATE EVENT TRIGGER {disabled} ON sql_drop EXECUTE FUNCTION audit_ff3(); ALTER EVENT TRIGGER {disabled} DISABLE"
+            "CREATE FUNCTION audit_ff3() RETURNS event_trigger LANGUAGE plpgsql AS $$ BEGIN END $$; CREATE EVENT TRIGGER {event} ON ddl_command_end WHEN TAG IN ('CREATE INDEX') EXECUTE FUNCTION audit_ff3(); ALTER EVENT TRIGGER {event} ENABLE ALWAYS; CREATE EVENT TRIGGER {all} ON ddl_command_start EXECUTE FUNCTION audit_ff3(); CREATE EVENT TRIGGER {disabled} ON sql_drop EXECUTE FUNCTION audit_ff3(); ALTER EVENT TRIGGER {disabled} DISABLE"
         ),
     );
     let url = std::env::var("SNAPBACK4_EVAL_POSTGRES").unwrap();
@@ -185,7 +186,9 @@ fn doctor_event_inventory_and_owner_cache_tier() {
     sql(
         &mut e,
         true,
-        &format!("DROP EVENT TRIGGER {event}; DROP EVENT TRIGGER {disabled}"),
+        &format!(
+            "DROP EVENT TRIGGER {event}; DROP EVENT TRIGGER {disabled}; DROP EVENT TRIGGER {all}"
+        ),
     );
     assert!(tier.starts_with("G5 revision cache (one validation statement per hit)"));
     for word in [
@@ -210,6 +213,11 @@ fn doctor_event_inventory_and_owner_cache_tier() {
     ] {
         assert!(warning.contains(field), "{warning}");
     }
+    let warning = warnings
+        .iter()
+        .find(|s| s.contains(&format!("\"name\":\"{all}\"")))
+        .unwrap();
+    assert!(warning.contains("\"tags\":\"all\""), "{warning}");
     assert!(!warnings.iter().any(|s| s.contains(&disabled)));
     #[cfg(target_os = "linux")]
     {
@@ -230,11 +238,27 @@ fn doctor_event_inventory_and_owner_cache_tier() {
             })
             .unwrap();
         let (tier, _) = AnyStore::postgres_diagnostics(&url, &name).unwrap();
-        lease.release().unwrap();
-        assert_eq!(
-            tier,
-            "G6 zero-flight hits (read grant; clock bounds 1000,250)"
+        assert!(
+            tier.contains("persisted G6 read grant (clock bounds 1000,250)"),
+            "{tier}"
         );
+        assert!(lease.read_grant.read().is_some());
+        lease.read_grant.revoke();
+        assert!(
+            lease.read_grant.read().is_none(),
+            "local hits must be revoked"
+        );
+        let (revoked_tier, _) = AnyStore::postgres_diagnostics(&url, &name).unwrap();
+        assert_eq!(tier, revoked_tier, "the persisted grant is still live");
+        assert!(
+            revoked_tier.contains("owner-local activity unconfirmed"),
+            "{revoked_tier}"
+        );
+        assert!(
+            !revoked_tier.contains("G6 zero-flight hits"),
+            "{revoked_tier}"
+        );
+        lease.release().unwrap();
         assert!(
             AnyStore::postgres_diagnostics(&url, &name)
                 .unwrap()
@@ -331,7 +355,7 @@ fn activation_copy_payload_is_exact_under_casefold_and_shadowed_c() {
     );
 }
 
-fn restored_cells_verify_again_after_copy(pg: bool) {
+fn restored_cells_verify_again_after_copy(pg: bool, payload: bool) {
     let source = "table notes:\n  n: int\n  public\n  online only\n";
     let no_column = "table notes:\n  public\n  online only\n";
     let (s, p) = bound(source);
@@ -349,9 +373,17 @@ fn restored_cells_verify_again_after_copy(pg: bool) {
     let generation = e.generation();
     if pg {
         #[cfg(feature = "postgres")]
-        crate::engine::postgres::movement::fault::arm_late();
+        if payload {
+            crate::engine::postgres::movement::fault::arm_late_payload();
+        } else {
+            crate::engine::postgres::movement::fault::arm_late();
+        }
     } else {
-        super::super::movement::fault::arm_late();
+        if payload {
+            super::super::movement::fault::arm_late_payload();
+        } else {
+            super::super::movement::fault::arm_late();
+        }
     }
     mismatch(activate(&mut e, source, 3));
     assert_eq!(e.generation(), generation);
@@ -365,11 +397,231 @@ fn restored_cells_verify_again_after_copy(pg: bool) {
 }
 #[test]
 fn restoration_rechecks_destination_before_destroy_sqlite() {
-    restored_cells_verify_again_after_copy(false)
+    for payload in [false, true] {
+        restored_cells_verify_again_after_copy(false, payload)
+    }
 }
 #[cfg(feature = "postgres")]
 #[test]
 #[ignore = "private PG16; destination loss after copy before retained-cell deletion"]
 fn restoration_rechecks_destination_before_destroy_postgres() {
-    restored_cells_verify_again_after_copy(true)
+    for payload in [false, true] {
+        restored_cells_verify_again_after_copy(true, payload)
+    }
+}
+
+#[test]
+fn dormant_asset_rename_reorders_keys_before_id_sqlite() {
+    for (old, new) in [("photo", "album"), ("zebra", "apple")] {
+        let source = format!(
+            "table photos:\n  {old}: file <=1000\n  public 'fixture'\n  insert <- allow\n  online only\nmutation add(blob: file <=1000):\n  return insert photos {{{old}:blob}}\n"
+        );
+        let (s, p) = bound(&source);
+        let (st, _, _) = store(false);
+        let mut e = Engine::new_release(st, s, p, 1, None).unwrap();
+        let asset = e
+            .store_file(
+                "alice",
+                b"legal rename",
+                Some("text/plain"),
+                "image.txt",
+                100,
+            )
+            .unwrap();
+        let handle =
+            Value::Map(BTreeMap::from([("id".into(), Value::Id(asset.id.clone()))]).into());
+        let out = e
+            .mutate(
+                "add",
+                None,
+                crate::Context::new("alice", BTreeMap::from([("blob".into(), handle)])).at(101),
+            )
+            .unwrap();
+        let crate::engine::WriteState::Sent { result, .. } = out.state else {
+            panic!("{out:?}")
+        };
+        let id = result.field("id").unwrap().as_str().unwrap().to_owned();
+        activate(&mut e, "", 2).unwrap();
+        let renamed = source
+            .replace(
+                &format!("{old}: file <=1000"),
+                &format!("{new}: file <=1000 renamed from {old}"),
+            )
+            .replace(&format!("{{{old}:blob}}"), &format!("{{{new}:blob}}"));
+        activate(&mut e, &renamed, 3).unwrap();
+        let row = e.store().rows("photos").unwrap().pop().unwrap();
+        assert_eq!(
+            crate::assets::asset_id(row.field(new).ok()),
+            Some(asset.id.as_str())
+        );
+        assert_eq!(
+            e.store().asset(&asset.id).unwrap().unwrap().home,
+            Some(("photos".into(), id, new.into()))
+        );
+        assert!(row.field(old).is_err());
+    }
+}
+
+#[test]
+fn restored_cell_legal_backfill_changes_expected_final_image_sqlite() {
+    let source = "table notes:\n  n: int\n  public 'fixture'\n  online only\n";
+    let (s, p) = bound(source);
+    let (st, _, _) = store(false);
+    let mut e = Engine::new_release(st, s, p, 1, None).unwrap();
+    e.seed_at(
+        [(
+            "notes".into(),
+            object([("id", Value::Id("a".into())), ("n", Value::Int(7))]),
+        )],
+        1000,
+    )
+    .unwrap();
+    activate(&mut e, &source.replace("  n: int\n", ""), 2).unwrap();
+    let patched = format!("{source}backfill notes patch(n: int):\n  {{n:n + 1}}\n");
+    activate(&mut e, &patched, 3).unwrap();
+    assert_eq!(
+        e.store().rows("notes").unwrap()[0].field("n").unwrap(),
+        &Value::Int(8)
+    );
+    assert_eq!(count(&mut e, false, "_dormant_values"), 0);
+}
+
+fn narrowed_final_image(pg: bool) {
+    let source = "table notes:\n  n: int 0..10\n  public\n  online only\n";
+    let (s, p) = bound(source);
+    let (st, _, _) = store(pg);
+    let mut e = Engine::new_release(st, s, p, 1, None).unwrap();
+    e.seed_at(
+        [(
+            "notes".into(),
+            object([("id", Value::Id("a".into())), ("n", Value::Int(7))]),
+        )],
+        1000,
+    )
+    .unwrap();
+    activate(&mut e, &source.replace("0..10", "0..5"), 2).unwrap();
+    assert_eq!(e.store().count("notes").unwrap(), 0);
+    let generation = e.generation();
+    if pg {
+        #[cfg(feature = "postgres")]
+        crate::engine::postgres::movement::fault::arm_late_payload();
+    } else {
+        super::super::movement::fault::arm_late_payload();
+    }
+    mismatch(activate(&mut e, source, 3));
+    assert_eq!(e.generation(), generation);
+    assert_eq!(e.store().count("notes").unwrap(), 0);
+    activate(&mut e, source, 3).unwrap();
+    assert_eq!(
+        e.store().rows("notes").unwrap()[0].field("n").unwrap(),
+        &Value::Int(7)
+    );
+}
+#[test]
+fn narrowed_same_count_corruption_refuses_sqlite() {
+    narrowed_final_image(false)
+}
+#[cfg(feature = "postgres")]
+#[test]
+#[ignore = "private PG16; narrowing transforms retain an exact expected image"]
+fn narrowed_same_count_corruption_refuses_postgres() {
+    narrowed_final_image(true)
+}
+
+#[cfg(feature = "postgres")]
+#[test]
+#[ignore = "private PG16; large legal activation with a lowered per-statement timeout"]
+fn activation_verification_pages_fit_statement_timeout() {
+    let source = "table notes:\n  n: int\n  public\n  online only\n";
+    let (s, p) = bound(source);
+    let (st, _, _) = store(true);
+    let mut e = Engine::new_release(st, s, p, 1, None).unwrap();
+    e.seed_at(
+        (0..512).map(|n| {
+            (
+                "notes".into(),
+                object([("id", Value::Id(format!("{n:04}"))), ("n", Value::Int(n))]),
+            )
+        }),
+        1000,
+    )
+    .unwrap();
+    // A repeatable per-row cost makes one whole-table statement exceed the
+    // lowered budget. Use the identical cost for each production page below.
+    let tx = e.store_mut().transaction().unwrap();
+    tx.test_postgres_tx()
+        .batch("SET LOCAL statement_timeout='400ms'")
+        .unwrap();
+    let error=tx.test_postgres_tx().query("SELECT count(*) FROM (SELECT s.id,pg_sleep(0.002) FROM r s JOIN r d ON d.t=s.t AND d.id=s.id AND d.data COLLATE pg_catalog.\"C\"=s.data COLLATE pg_catalog.\"C\" WHERE s.t='notes') q",&[]).unwrap_err();
+    let RuntimeError::Postgres(error) = error else {
+        panic!("{error}")
+    };
+    assert_eq!(error.code().unwrap().code(), "57014");
+    tx.rollback().unwrap();
+    crate::engine::postgres::movement::fault::set_slow_pages(true);
+    let retired = activate(&mut e, "", 2);
+    let restored = if retired.is_ok() {
+        activate(&mut e, source, 3)
+    } else {
+        Ok(0)
+    };
+    crate::engine::postgres::movement::fault::set_slow_pages(false);
+    retired.unwrap();
+    restored.unwrap();
+    assert_eq!(e.store().count("notes").unwrap(), 512);
+    assert_eq!(count(&mut e, true, "_dormant_rows"), 0);
+}
+
+#[test]
+fn sqlite_json_equality_decodes_keys_and_preserves_values() {
+    let source = "table notes:\n  n: int\n  m: json <=500\n  public\n  online only\n";
+    let (s, p) = bound(source);
+    let (st, _, _) = store(false);
+    let mut e = Engine::new_release(st, s, p, 1, None).unwrap();
+    let row = object([
+        ("id", Value::Id("a".into())),
+        ("n", Value::Int(7)),
+        (
+            "m",
+            Value::Map(
+                BTreeMap::from([
+                    ("é".into(), Value::Int(7)),
+                    ("word".into(), Value::String("Upper".into())),
+                    (
+                        "list".into(),
+                        Value::Array(vec![Value::Int(1), Value::Int(2)]),
+                    ),
+                ])
+                .into(),
+            ),
+        ),
+    ]);
+    e.seed_at([("notes".into(), row.clone())], 1000).unwrap();
+    // Both object insertion order and an escaped Unicode key differ from
+    // canonical_json. json_tree.fullkey by itself would compare unequal.
+    let encoded = r#"{"Row":{"n":{"Int":7},"m":{"Map":{"\u00e9":{"Int":7},"word":{"String":"Upper"},"list":{"Array":[{"Int":1},{"Int":2}]}}},"id":{"Id":"a"}}}"#;
+    let tx = e.store_mut().transaction().unwrap();
+    tx.with_sqlite(|tx| -> Result<(), RuntimeError> {
+        let t = tx.num("notes")?;
+        tx.conn().execute(
+            "UPDATE r SET data=?1 WHERE t=?2 AND id='a'",
+            params![encoded, t],
+        )?;
+        super::super::movement::test_payload(tx, t, "a", &row)?;
+        for bad in [
+            encoded.replacen(r#""Int":7"#, r#""Int":8"#, 1),
+            encoded.replace(r#"[{"Int":1},{"Int":2}]"#, r#"[{"Int":2},{"Int":1}]"#),
+            encoded.replace("Upper", "upper"),
+            "bad JSON".into(),
+        ] {
+            tx.conn().execute(
+                "UPDATE r SET data=?1 WHERE t=?2 AND id='a'",
+                params![bad, t],
+            )?;
+            mismatch(super::super::movement::test_payload(tx, t, "a", &row));
+        }
+        Ok(())
+    })
+    .unwrap();
+    tx.rollback().unwrap();
 }

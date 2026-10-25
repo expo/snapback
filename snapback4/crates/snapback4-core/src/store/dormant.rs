@@ -326,6 +326,7 @@ pub(super) fn transition(
     now:i64,
     report: &mut super::adoption_report::AdoptionReport,
 ) -> Result<BTreeSet<String>, RuntimeError> {
+    super::movement::begin(tx)?;
     if !enabled(tx)? {
         return Ok(BTreeSet::new());
     }
@@ -475,13 +476,12 @@ pub(super) fn transition(
         let t = tx.num(name)?;
         let table = &next.tables[name];
         let expected=super::movement::rows(tx,"_dormant_rows",t)?;
+        super::movement::snapshot_restore(tx,t)?;
         tx.conn().execute(
             "INSERT INTO r(t,id,data) SELECT t,id,data FROM _dormant_rows WHERE t=?1",
             [t],
         )?;
         super::movement::population(tx,"_dormant_rows","r",t,expected)?;
-        let copied:i64=tx.conn().query_row("SELECT count(*) FROM _dormant_rows s JOIN r d ON d.t=s.t AND d.id=s.id AND d.data=s.data WHERE s.t=?1",[t],|r|r.get(0))?;
-        super::movement::expected(copied,expected,"r")?;
 
         for column in old
             .columns
@@ -491,7 +491,6 @@ pub(super) fn transition(
             definition(tx, name, old, column)?;
         }
         super::activation::walk(tx, t, |id, row| {
-            super::movement::image(tx,"r",t,id,None,&row)?;
             let removed: Vec<_> = row
                 .as_object()?
                 .iter()
@@ -607,13 +606,12 @@ pub(super) fn transition(
         if next.tables.contains_key(name) || old.ephemeral.is_some() || previous.maintain_for(name).is_some(){continue;}
         let t=tx.num(name)?;
         super::movement::retained_coverage(tx,t)?;
-        tx.conn().execute("DELETE FROM _dormant_rows WHERE t=?1",[t])?;
         let mut copied=0i64;
         super::activation::walk(tx,t,|id,mut row|{
             let native=super::backfills::native_absences(tx,t,id,&row)?;
             materialize_optional_fields(&mut row,old);
             super::backfills::preserve_native_absence(&mut row,&native);
-            tx.conn().execute("INSERT INTO _dormant_rows VALUES(?1,?2,?3)",params![t,id,canonical_json(&row)])?;
+            tx.conn().execute("INSERT INTO _dormant_rows VALUES(?1,?2,?3) ON CONFLICT(t,id) DO UPDATE SET data=excluded.data",params![t,id,canonical_json(&row)])?;
             super::movement::image(tx,"_dormant_rows",t,id,None,&row)?;
             for (column,kind) in &old.columns {if let Ok(value)=row.field(column) {
                 if !super::authority_origin::live_input(old,column) {capture_refs(tx,t,id,column,kind,value)?;}
