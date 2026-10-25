@@ -1,0 +1,9 @@
+{
+  "reviewedSemanticCommit": "92b226082b5f480f504847620de79651804fb0bb",
+  "verdicts": {
+    "muse": "READY",
+    "freshCodex": "READY"
+  },
+  "briefSha256": "fac2325f477762daa32042681f151de62bc0984a121f8b6193272e2034f874e9",
+  "previousReadyPair": 7
+}
