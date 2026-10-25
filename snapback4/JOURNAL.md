@@ -107617,3 +107617,14 @@ non-SQL `QueryReaders::prepare(&engine)` helper. Rename that internal method and
 both callers to `prepare_population`; its bounded Engine-reader behavior is
 unchanged. Do not widen the database matcher or production allowance to admit a
 startup helper. Regenerate the actual test-only census for R1's added witnesses.
+
+## 2026-10-25 — Integration 25: final 0.4.41 Wasm allowance
+
+Clean Linux source `7a70ea22d2` measures 2,415,524 raw / 738,108 gzip /
+555,805 Brotli bytes. Set the allowance to 738,608 bytes, exactly measured
+gzip plus 500 bytes of platform headroom, tightening the integrated pre-bump
+allowance by four bytes. Locked Binaryen and strict family/absence audits pass.
+This whole-artifact measurement includes the version stamp; no independent
+feature cost, runtime ceiling increase or Mac qualification follows. The first
+probe lacked its temporary Brotli tool and is retained only as an invalid
+measurement; the complete probe uses restored Brotli 1.1.0, quality 11.
