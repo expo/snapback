@@ -245,13 +245,16 @@ fn release_command_waits_for_an_unannounced_owner_then_acquires_exclusively() {
 // enable evaluation-support. Assert the policy actually compiled into core.
 #[test]
 fn store_admits_exact_evaluation_tracker_only_with_evaluation_support() {
+    fn execute(store: &snapback4_core::Store, sql: &str) {
+        store.test_support_conn().execute_batch(sql).unwrap();
+    }
     let mut store=snapback4_core::Store::memory().unwrap();
     let schema=snapback4_core::Schema::default();
     store.install(&schema).unwrap();
-    store.test_support_conn().execute_batch(
+    execute(&store,
         "CREATE TEMP TABLE dt_dirty(t INTEGER PRIMARY KEY);
          CREATE TEMP TRIGGER dt_track_0_INSERT AFTER INSERT ON \"r\" BEGIN INSERT OR IGNORE INTO dt_dirty VALUES (0); END;"
-    ).unwrap();
+    );
     let installed=store.install(&schema);
     if snapback4_core::Store::TEST_SUPPORT_EVALUATION_ENABLED {
         installed.unwrap();
@@ -261,10 +264,10 @@ fn store_admits_exact_evaluation_tracker_only_with_evaluation_support() {
         assert!(error.to_string().contains("SNAPBACK_MANAGED_RELATION_INTERCEPTION"),"{error}");
     }
     // The evaluator exception never permits a different trigger body.
-    store.test_support_conn().execute_batch(
+    execute(&store,
         "DROP TRIGGER dt_track_0_INSERT;
          CREATE TEMP TRIGGER dt_track_0_INSERT AFTER INSERT ON r BEGIN DELETE FROM r; END;"
-    ).unwrap();
+    );
     let error=store.install(&schema).unwrap_err();
     assert_eq!(error.code(),"E_STORE");
     assert!(error.to_string().contains("SNAPBACK_MANAGED_RELATION_INTERCEPTION"),"{error}");

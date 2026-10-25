@@ -167,6 +167,8 @@ cp.execFileSync = (cmd,args,opts={}) => {
     if(args[0] === "build") {
       context = args.at(-1);
       const dockerfile = readFileSync(join(args.at(-1), "Dockerfile"), "utf8");
+      assert.ok(dockerfile.split(String.fromCharCode(10)).some(line => line.startsWith("COPY ") && line.includes("starter-audit-allowlist.json") && line.endsWith(" /proof/")), "the image must carry the starter audit policy");
+      assert.ok(readFileSync(join(args.at(-1), "starter-audit-allowlist.json"), "utf8").includes("GHSA-86w9-cpqp-85rv"), "the policy must be a real build input");
       const configs = [...dockerfile.matchAll(/NPM_CONFIG_(?:USER|GLOBAL)CONFIG=(\\S+)/g)].map(m => m[1]);
       if(configs.length !== 2 || configs[0] === configs[1]) throw Error("npm cannot double-load one config path");
     }

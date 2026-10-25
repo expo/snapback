@@ -322,7 +322,7 @@ assert.ok(host.url);const inspected=JSON.parse((await cli(['releases','deploymen
       } finally { rmSync(password, {recursive:true, force:true}); }
     }
     if (template || id === "web-online") {
-      results.push({ starter: id, kind, template, fixtureGuide: browserProofs ? "passed" : "not-run-build-only", status: "passed", typecheck: "passed", build: "passed", frontendProofs });
+      results.push({ starter: id, kind, template, audit, fixtureGuide: browserProofs ? "passed" : "not-run-build-only", status: "passed", typecheck: "passed", build: "passed", frontendProofs });
       continue;
     }
     // Exercise init-first adaptation with a different online-only schema: Home,
