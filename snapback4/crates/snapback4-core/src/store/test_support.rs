@@ -3,6 +3,12 @@ use super::{Store, Tx};
 use crate::RuntimeError;
 use rusqlite::Connection;
 
+impl Store {
+    /// Cargo can unify evaluator features into consumer test builds.
+    /// Report the core's compiled policy rather than the caller's features.
+    pub const TEST_SUPPORT_EVALUATION_ENABLED: bool = cfg!(feature = "evaluation-support");
+}
+
 macro_rules! fixture_access {
     ($handle:ty) => {
         impl $handle {
