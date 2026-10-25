@@ -1,0 +1,1109 @@
+{
+  "measurement": {
+    "binarySha256": "98778a8b1fec77f1ab308383f485f74c69ecd7e716f0999cfdf3db133dc98ce5",
+    "originalBinary": "/home/ccheever/sb4-loop/sec10-r52-native",
+    "projects": 48,
+    "mode": "finding-matrix"
+  },
+  "results": [
+    {
+      "lane": "007-specF2",
+      "mode": "none",
+      "sha256": "13590f724976be3e565a147d116f5263f33bb00ca2873a495bbe04d362ba86de",
+      "checkExit": 0,
+      "codes": [
+        "N_ARGUMENT_GRANT",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_EDIT_AFTER_APPROVAL",
+        "N_MEDIA_PRIVATE_FIELDS",
+        "N_OPTIONAL_EVIDENCE",
+        "N_ROLE_WIDE_READ",
+        "N_SECURITY_INTENT"
+      ],
+      "gates": [],
+      "testExit": 0,
+      "reachableInvariantSites": []
+    },
+    {
+      "lane": "007-specF2",
+      "mode": "own",
+      "sha256": "55a25314cecfe8c916bfa4eb73e0d12c7daf7c7b6d50058d668aa157bc0bad37",
+      "checkExit": 0,
+      "codes": [
+        "N_ARGUMENT_GRANT",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_EDIT_AFTER_APPROVAL",
+        "N_INVARIANT_RESTATES_RULE",
+        "N_MEDIA_PRIVATE_FIELDS",
+        "N_OPTIONAL_EVIDENCE",
+        "N_ROLE_WIDE_READ"
+      ],
+      "gates": [],
+      "testExit": 0,
+      "reachableInvariantSites": []
+    },
+    {
+      "lane": "007-specF2",
+      "mode": "spec",
+      "sha256": "62af0cdc229fd1a1c0909cc131fd67511878be0804115c0e8b8ade0bbbe2a8cd",
+      "checkExit": 1,
+      "codes": [
+        "N_ARGUMENT_GRANT",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_EDIT_AFTER_APPROVAL",
+        "N_INVARIANT_RESTATES_RULE",
+        "N_MEDIA_PRIVATE_FIELDS",
+        "N_OPTIONAL_EVIDENCE",
+        "N_OPTIONAL_UPLOAD_CREATE",
+        "N_ROLE_WIDE_READ"
+      ],
+      "gates": [
+        {
+          "code": "N_OPTIONAL_UPLOAD_CREATE",
+          "site": "schema.q:52:10"
+        }
+      ],
+      "testExit": 1,
+      "reachableInvariantSites": [
+        "schema.q:150:1"
+      ],
+      "specInvariantSite": "schema.q:150:1",
+      "specWitnesses": 124
+    },
+    {
+      "lane": "008-specF1",
+      "mode": "none",
+      "sha256": "566cd4b79f8976067195241a606472c3da92cf3c6a2734c92f9752526aac8a96",
+      "checkExit": 0,
+      "codes": [
+        "N_ARGUMENT_GRANT",
+        "N_CHILD_EVIDENCE_PRESENCE",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_EDIT_AFTER_APPROVAL",
+        "N_GRANT_OUTLIVES_ROLE",
+        "N_GUARD_NOT_CONSUMED",
+        "N_INSERT_WRITE_INTENT",
+        "N_ROLE_WIDE_WRITE",
+        "N_SECURITY_INTENT",
+        "N_STALE_CREATION_CHECK"
+      ],
+      "gates": [],
+      "testExit": 0,
+      "reachableInvariantSites": []
+    },
+    {
+      "lane": "008-specF1",
+      "mode": "own",
+      "sha256": "ca6d005605b23bfa40c09b034e718cb481fc6d5be7b845958ee93706e6453fbf",
+      "checkExit": 0,
+      "codes": [
+        "N_ARGUMENT_GRANT",
+        "N_CHILD_EVIDENCE_PRESENCE",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_EDIT_AFTER_APPROVAL",
+        "N_GRANT_OUTLIVES_ROLE",
+        "N_GUARD_NOT_CONSUMED",
+        "N_INSERT_WRITE_INTENT",
+        "N_INVARIANT_RESTATES_RULE",
+        "N_ROLE_WIDE_WRITE",
+        "N_STALE_CREATION_CHECK"
+      ],
+      "gates": [],
+      "testExit": 0,
+      "reachableInvariantSites": []
+    },
+    {
+      "lane": "008-specF1",
+      "mode": "spec",
+      "sha256": "2b335e932946bbb69433f31fe9db92e43a4862b40eff09f7c8dd108af77b5390",
+      "checkExit": 0,
+      "codes": [
+        "N_ARGUMENT_GRANT",
+        "N_CHILD_EVIDENCE_PRESENCE",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_EDIT_AFTER_APPROVAL",
+        "N_GRANT_OUTLIVES_ROLE",
+        "N_GUARD_NOT_CONSUMED",
+        "N_INSERT_WRITE_INTENT",
+        "N_INVARIANT_RESTATES_RULE",
+        "N_ROLE_WIDE_WRITE",
+        "N_STALE_CREATION_CHECK"
+      ],
+      "gates": [],
+      "testExit": 1,
+      "reachableInvariantSites": [
+        "schema.q:236:1"
+      ],
+      "specInvariantSite": "schema.q:236:1",
+      "specWitnesses": 24
+    },
+    {
+      "lane": "011-specF1",
+      "mode": "none",
+      "sha256": "2982561231a89fae3e8cfdff7a22912d94634cf89b930f40589275d089e589be",
+      "checkExit": 1,
+      "codes": [
+        "N_APPROVAL_NOT_ENFORCED",
+        "N_ARGUMENT_GRANT",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_EDIT_AFTER_APPROVAL",
+        "N_ROLE_WIDE_READ",
+        "N_SECURITY_INTENT"
+      ],
+      "gates": [
+        {
+          "code": "N_APPROVAL_NOT_ENFORCED",
+          "site": "schema.q:98:3"
+        }
+      ],
+      "testExit": 1,
+      "reachableInvariantSites": []
+    },
+    {
+      "lane": "011-specF1",
+      "mode": "own",
+      "sha256": "8afa2587374f10f4e64b90fa8a84d4f5b99ee28bba34af8f21145be96a191397",
+      "checkExit": 1,
+      "codes": [
+        "N_APPROVAL_NOT_ENFORCED",
+        "N_ARGUMENT_GRANT",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_EDIT_AFTER_APPROVAL",
+        "N_INVARIANT_RESTATES_RULE",
+        "N_ROLE_WIDE_READ"
+      ],
+      "gates": [
+        {
+          "code": "N_APPROVAL_NOT_ENFORCED",
+          "site": "schema.q:98:3"
+        }
+      ],
+      "testExit": 1,
+      "reachableInvariantSites": []
+    },
+    {
+      "lane": "011-specF1",
+      "mode": "spec",
+      "sha256": "eeb8886b97af5393d74451fc9c14ae83d4b097092865e5aeae239f3572567a87",
+      "checkExit": 1,
+      "codes": [
+        "N_APPROVAL_NOT_ENFORCED",
+        "N_ARGUMENT_GRANT",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_EDIT_AFTER_APPROVAL",
+        "N_INVARIANT_RESTATES_RULE",
+        "N_ROLE_WIDE_READ"
+      ],
+      "gates": [
+        {
+          "code": "N_APPROVAL_NOT_ENFORCED",
+          "site": "schema.q:98:3"
+        }
+      ],
+      "testExit": 1,
+      "reachableInvariantSites": [
+        "schema.q:140:1"
+      ],
+      "specInvariantSite": "schema.q:140:1",
+      "specWitnesses": 10
+    },
+    {
+      "lane": "013-specF1",
+      "mode": "none",
+      "sha256": "7c87b4d76cd24217141694721371a5e1790b03feb6b41bf65c7c8226ff319e3f",
+      "checkExit": 0,
+      "codes": [
+        "N_ARGUMENT_GRANT",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_DERIVED_WRITE_AUTHORITY",
+        "N_EDIT_AFTER_APPROVAL",
+        "N_GUARD_NOT_CONSUMED",
+        "N_INSERT_WRITE_INTENT",
+        "N_SECURITY_INTENT",
+        "N_STALE_CREATION_CHECK",
+        "N_UNIQUE_HIDDEN"
+      ],
+      "gates": [],
+      "testExit": 0,
+      "reachableInvariantSites": []
+    },
+    {
+      "lane": "013-specF1",
+      "mode": "own",
+      "sha256": "07fd277d271a569989f961bd2a1f78201194e85b555e9d3e2c106b689ed867e2",
+      "checkExit": 0,
+      "codes": [
+        "N_ARGUMENT_GRANT",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_DERIVED_WRITE_AUTHORITY",
+        "N_EDIT_AFTER_APPROVAL",
+        "N_GUARD_NOT_CONSUMED",
+        "N_INSERT_WRITE_INTENT",
+        "N_INVARIANT_RESTATES_RULE",
+        "N_SECURITY_INTENT",
+        "N_STALE_CREATION_CHECK",
+        "N_UNIQUE_HIDDEN"
+      ],
+      "gates": [],
+      "testExit": 0,
+      "reachableInvariantSites": []
+    },
+    {
+      "lane": "013-specF1",
+      "mode": "spec",
+      "sha256": "415889cd79c6082c9fe74b0747fbdbc00c22ad389e79325b20feb38ed853fbb2",
+      "checkExit": 0,
+      "codes": [
+        "N_ARGUMENT_GRANT",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_DERIVED_WRITE_AUTHORITY",
+        "N_EDIT_AFTER_APPROVAL",
+        "N_GUARD_NOT_CONSUMED",
+        "N_INSERT_WRITE_INTENT",
+        "N_INVARIANT_RESTATES_RULE",
+        "N_SECURITY_INTENT",
+        "N_STALE_CREATION_CHECK",
+        "N_UNIQUE_HIDDEN"
+      ],
+      "gates": [],
+      "testExit": 1,
+      "reachableInvariantSites": [
+        "schema.q:196:1"
+      ],
+      "specInvariantSite": "schema.q:196:1",
+      "specWitnesses": 12
+    },
+    {
+      "lane": "015-specF1",
+      "mode": "none",
+      "sha256": "739ba28ed2a4c4462b422bb4b3f1918263a3afce32c167d054652f406f3c1973",
+      "checkExit": 0,
+      "codes": [
+        "N_ARGUMENT_GRANT",
+        "N_BROAD_READ",
+        "N_CHILD_EVIDENCE_PRESENCE",
+        "N_COLUMN_READ",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_DERIVED_WRITE_AUTHORITY",
+        "N_EDIT_AFTER_APPROVAL",
+        "N_GRANT_OUTLIVES_ROLE",
+        "N_GUARD_NOT_CONSUMED",
+        "N_ROLE_WIDE_READ",
+        "N_SECURITY_INTENT",
+        "N_STALE_CREATION_CHECK",
+        "N_TIME_TRANSITION"
+      ],
+      "gates": [],
+      "testExit": 0,
+      "reachableInvariantSites": []
+    },
+    {
+      "lane": "015-specF1",
+      "mode": "own",
+      "sha256": "8701582397d17b91f06b8a5c9031998c19c30c57132540d98112eb57b35acd4c",
+      "checkExit": 0,
+      "codes": [
+        "N_ARGUMENT_GRANT",
+        "N_BROAD_READ",
+        "N_CHILD_EVIDENCE_PRESENCE",
+        "N_COLUMN_READ",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_DERIVED_WRITE_AUTHORITY",
+        "N_EDIT_AFTER_APPROVAL",
+        "N_GRANT_OUTLIVES_ROLE",
+        "N_GUARD_NOT_CONSUMED",
+        "N_ROLE_WIDE_READ",
+        "N_SECURITY_INTENT",
+        "N_STALE_CREATION_CHECK",
+        "N_TIME_TRANSITION"
+      ],
+      "gates": [],
+      "testExit": 0,
+      "reachableInvariantSites": []
+    },
+    {
+      "lane": "015-specF1",
+      "mode": "spec",
+      "sha256": "4d8e369042f2133fd8e070774c047b1d6b652fed5462b3cb846b5707aab3c07d",
+      "checkExit": 0,
+      "codes": [
+        "N_ARGUMENT_GRANT",
+        "N_BROAD_READ",
+        "N_CHILD_EVIDENCE_PRESENCE",
+        "N_COLUMN_READ",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_DERIVED_WRITE_AUTHORITY",
+        "N_EDIT_AFTER_APPROVAL",
+        "N_GRANT_OUTLIVES_ROLE",
+        "N_GUARD_NOT_CONSUMED",
+        "N_ROLE_WIDE_READ",
+        "N_SECURITY_INTENT",
+        "N_STALE_CREATION_CHECK",
+        "N_TIME_TRANSITION"
+      ],
+      "gates": [],
+      "testExit": 1,
+      "reachableInvariantSites": [
+        "schema.q:218:1"
+      ],
+      "specInvariantSite": "schema.q:218:1",
+      "specWitnesses": 10
+    },
+    {
+      "lane": "015-specF2",
+      "mode": "none",
+      "sha256": "739ba28ed2a4c4462b422bb4b3f1918263a3afce32c167d054652f406f3c1973",
+      "checkExit": 0,
+      "codes": [
+        "N_ARGUMENT_GRANT",
+        "N_BROAD_READ",
+        "N_CHILD_EVIDENCE_PRESENCE",
+        "N_COLUMN_READ",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_DERIVED_WRITE_AUTHORITY",
+        "N_EDIT_AFTER_APPROVAL",
+        "N_GRANT_OUTLIVES_ROLE",
+        "N_GUARD_NOT_CONSUMED",
+        "N_ROLE_WIDE_READ",
+        "N_SECURITY_INTENT",
+        "N_STALE_CREATION_CHECK",
+        "N_TIME_TRANSITION"
+      ],
+      "gates": [],
+      "testExit": 0,
+      "reachableInvariantSites": []
+    },
+    {
+      "lane": "015-specF2",
+      "mode": "own",
+      "sha256": "8701582397d17b91f06b8a5c9031998c19c30c57132540d98112eb57b35acd4c",
+      "checkExit": 0,
+      "codes": [
+        "N_ARGUMENT_GRANT",
+        "N_BROAD_READ",
+        "N_CHILD_EVIDENCE_PRESENCE",
+        "N_COLUMN_READ",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_DERIVED_WRITE_AUTHORITY",
+        "N_EDIT_AFTER_APPROVAL",
+        "N_GRANT_OUTLIVES_ROLE",
+        "N_GUARD_NOT_CONSUMED",
+        "N_ROLE_WIDE_READ",
+        "N_SECURITY_INTENT",
+        "N_STALE_CREATION_CHECK",
+        "N_TIME_TRANSITION"
+      ],
+      "gates": [],
+      "testExit": 0,
+      "reachableInvariantSites": []
+    },
+    {
+      "lane": "015-specF2",
+      "mode": "spec",
+      "sha256": "1eced13914935982c597bc83c90536c97d72154af33ba0ab58321077e4dc62e5",
+      "checkExit": 0,
+      "codes": [
+        "N_ARGUMENT_GRANT",
+        "N_BROAD_READ",
+        "N_CHILD_EVIDENCE_PRESENCE",
+        "N_COLUMN_READ",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_DERIVED_WRITE_AUTHORITY",
+        "N_EDIT_AFTER_APPROVAL",
+        "N_GRANT_OUTLIVES_ROLE",
+        "N_GUARD_NOT_CONSUMED",
+        "N_ROLE_WIDE_READ",
+        "N_SECURITY_INTENT",
+        "N_STALE_CREATION_CHECK",
+        "N_TIME_TRANSITION"
+      ],
+      "gates": [],
+      "testExit": 0,
+      "reachableInvariantSites": [],
+      "specInvariantSite": "schema.q:218:1",
+      "specWitnesses": 0
+    },
+    {
+      "lane": "016-specF1",
+      "mode": "none",
+      "sha256": "68f398d71ee019b061f338eb549ee99325f4be9d3e5cf7aa75994d888a2407f7",
+      "checkExit": 0,
+      "codes": [
+        "N_ARGUMENT_GRANT",
+        "N_CHILD_EVIDENCE_PRESENCE",
+        "N_COLUMN_READ",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_EDIT_AFTER_APPROVAL",
+        "N_GRANT_OUTLIVES_ROLE",
+        "N_GUARD_NOT_CONSUMED",
+        "N_SECURITY_INTENT",
+        "N_SWEEP_ONLY_DEADLINE"
+      ],
+      "gates": [],
+      "testExit": 0,
+      "reachableInvariantSites": []
+    },
+    {
+      "lane": "016-specF1",
+      "mode": "own",
+      "sha256": "cd4d65b4fa81dd23fefa3e290dd25c218999c0ea122bf498370c804bee60e1f3",
+      "checkExit": 0,
+      "codes": [
+        "N_ARGUMENT_GRANT",
+        "N_CHILD_EVIDENCE_PRESENCE",
+        "N_COLUMN_READ",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_EDIT_AFTER_APPROVAL",
+        "N_GRANT_OUTLIVES_ROLE",
+        "N_GUARD_NOT_CONSUMED",
+        "N_INVARIANT_RESTATES_RULE",
+        "N_SECURITY_INTENT",
+        "N_SWEEP_ONLY_DEADLINE"
+      ],
+      "gates": [],
+      "testExit": 0,
+      "reachableInvariantSites": []
+    },
+    {
+      "lane": "016-specF1",
+      "mode": "spec",
+      "sha256": "06095c9acd1f1b0617ec7abc20130a36cd881af5c9c0b030b5c2e828c7f32771",
+      "checkExit": 0,
+      "codes": [
+        "N_ARGUMENT_GRANT",
+        "N_CHILD_EVIDENCE_PRESENCE",
+        "N_COLUMN_READ",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_EDIT_AFTER_APPROVAL",
+        "N_GRANT_OUTLIVES_ROLE",
+        "N_GUARD_NOT_CONSUMED",
+        "N_INVARIANT_RESTATES_RULE",
+        "N_SECURITY_INTENT",
+        "N_SWEEP_ONLY_DEADLINE"
+      ],
+      "gates": [],
+      "testExit": 1,
+      "reachableInvariantSites": [
+        "schema.q:193:1"
+      ],
+      "specInvariantSite": "schema.q:193:1",
+      "specWitnesses": 12
+    },
+    {
+      "lane": "029-specF1",
+      "mode": "none",
+      "sha256": "97f11714f6a59cfe35ab9588d554bff61170326dc2d0bd13a38d9d422a4812bc",
+      "checkExit": 0,
+      "codes": [
+        "N_ARGUMENT_GRANT",
+        "N_CALENDAR_DURATION",
+        "N_CHILD_EVIDENCE_PRESENCE",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_DERIVED_WRITE_AUTHORITY",
+        "N_EDIT_AFTER_APPROVAL",
+        "N_GUARD_NOT_CONSUMED",
+        "N_ROLE_WIDE_READ",
+        "N_SECURITY_INTENT",
+        "N_STALE_CREATION_CHECK"
+      ],
+      "gates": [],
+      "testExit": 0,
+      "reachableInvariantSites": []
+    },
+    {
+      "lane": "029-specF1",
+      "mode": "own",
+      "sha256": "cf3a96e6bee196a03948ca1eb2ba3ad730c7bf0b4870232fd94bedb07d66d973",
+      "checkExit": 0,
+      "codes": [
+        "N_ARGUMENT_GRANT",
+        "N_CALENDAR_DURATION",
+        "N_CHILD_EVIDENCE_PRESENCE",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_DERIVED_WRITE_AUTHORITY",
+        "N_EDIT_AFTER_APPROVAL",
+        "N_GRANT_OUTLIVES_ROLE",
+        "N_GUARD_NOT_CONSUMED",
+        "N_INVARIANT_RESTATES_RULE",
+        "N_ROLE_WIDE_READ",
+        "N_STALE_CREATION_CHECK"
+      ],
+      "gates": [],
+      "testExit": 0,
+      "reachableInvariantSites": []
+    },
+    {
+      "lane": "029-specF1",
+      "mode": "spec",
+      "sha256": "fccccc268b7a6828e43eeb28ab93293c1c517a2036e61dd8f933b16626a8c286",
+      "checkExit": 0,
+      "codes": [
+        "N_ARGUMENT_GRANT",
+        "N_CALENDAR_DURATION",
+        "N_CHILD_EVIDENCE_PRESENCE",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_DERIVED_WRITE_AUTHORITY",
+        "N_EDIT_AFTER_APPROVAL",
+        "N_GRANT_OUTLIVES_ROLE",
+        "N_GUARD_NOT_CONSUMED",
+        "N_INVARIANT_RESTATES_RULE",
+        "N_ROLE_WIDE_READ",
+        "N_STALE_CREATION_CHECK"
+      ],
+      "gates": [],
+      "testExit": 1,
+      "reachableInvariantSites": [
+        "schema.q:183:1"
+      ],
+      "specInvariantSite": "schema.q:183:1",
+      "specWitnesses": 30
+    },
+    {
+      "lane": "031-specF1",
+      "mode": "none",
+      "sha256": "4c95f45a5e1c63bc40e1d820fd57bfb81a677ee040231f52ecb7e9012f280b86",
+      "checkExit": 0,
+      "codes": [
+        "N_ARGUMENT_GRANT",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_DEPENDENT_WINDOW",
+        "N_EDIT_AFTER_APPROVAL",
+        "N_GUARD_NOT_CONSUMED",
+        "N_OPTIONAL_EVIDENCE",
+        "N_ROLE_WIDE_READ",
+        "N_SECURITY_INTENT",
+        "N_UNIQUE_HIDDEN"
+      ],
+      "gates": [],
+      "testExit": 0,
+      "reachableInvariantSites": []
+    },
+    {
+      "lane": "031-specF1",
+      "mode": "own",
+      "sha256": "515132021ad92205fd31d3e999c048d95da571e80d731026e413ef80352b9cf2",
+      "checkExit": 0,
+      "codes": [
+        "N_ARGUMENT_GRANT",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_DEPENDENT_WINDOW",
+        "N_EDIT_AFTER_APPROVAL",
+        "N_GUARD_NOT_CONSUMED",
+        "N_INVARIANT_RESTATES_RULE",
+        "N_OPTIONAL_EVIDENCE",
+        "N_ROLE_WIDE_READ",
+        "N_UNIQUE_HIDDEN"
+      ],
+      "gates": [],
+      "testExit": 0,
+      "reachableInvariantSites": []
+    },
+    {
+      "lane": "031-specF1",
+      "mode": "spec",
+      "sha256": "8026cf435674cb19a3d08eaa57ea040c6096bf9df20ee6bc9487fd8eaa1d178b",
+      "checkExit": 0,
+      "codes": [
+        "N_ARGUMENT_GRANT",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_DEPENDENT_WINDOW",
+        "N_EDIT_AFTER_APPROVAL",
+        "N_GUARD_NOT_CONSUMED",
+        "N_INVARIANT_RESTATES_RULE",
+        "N_OPTIONAL_EVIDENCE",
+        "N_ROLE_WIDE_READ",
+        "N_UNIQUE_HIDDEN"
+      ],
+      "gates": [],
+      "testExit": 1,
+      "reachableInvariantSites": [
+        "schema.q:209:1"
+      ],
+      "specInvariantSite": "schema.q:209:1",
+      "specWitnesses": 1
+    },
+    {
+      "lane": "033-specF1",
+      "mode": "none",
+      "sha256": "93be53335c0da31c38ae16343339af79d39bcbf10ef70037011194ef5f35ee4b",
+      "checkExit": 0,
+      "codes": [
+        "N_ARGUMENT_GRANT",
+        "N_CHILD_EVIDENCE_PRESENCE",
+        "N_COLUMN_READ",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_EDIT_AFTER_APPROVAL",
+        "N_GRANT_OUTLIVES_ROLE",
+        "N_GUARD_NOT_CONSUMED",
+        "N_ROLE_WIDE_READ",
+        "N_SECURITY_INTENT",
+        "N_UNIQUE_HIDDEN"
+      ],
+      "gates": [],
+      "testExit": 0,
+      "reachableInvariantSites": []
+    },
+    {
+      "lane": "033-specF1",
+      "mode": "own",
+      "sha256": "3b2eaa4f5682e1602aef81af123cfde8f66a82b4226b8100300ff896348fdc5a",
+      "checkExit": 0,
+      "codes": [
+        "N_ARGUMENT_GRANT",
+        "N_CHILD_EVIDENCE_PRESENCE",
+        "N_COLUMN_READ",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_EDIT_AFTER_APPROVAL",
+        "N_GRANT_OUTLIVES_ROLE",
+        "N_GUARD_NOT_CONSUMED",
+        "N_INVARIANT_RESTATES_RULE",
+        "N_ROLE_WIDE_READ",
+        "N_UNIQUE_HIDDEN"
+      ],
+      "gates": [],
+      "testExit": 0,
+      "reachableInvariantSites": []
+    },
+    {
+      "lane": "033-specF1",
+      "mode": "spec",
+      "sha256": "9a1dd1552aebda309193f8c726a1e495f2f4b8112502541c9b3b6a7f9ea30c7f",
+      "checkExit": 0,
+      "codes": [
+        "N_ARGUMENT_GRANT",
+        "N_CHILD_EVIDENCE_PRESENCE",
+        "N_COLUMN_READ",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_EDIT_AFTER_APPROVAL",
+        "N_GRANT_OUTLIVES_ROLE",
+        "N_GUARD_NOT_CONSUMED",
+        "N_INVARIANT_RESTATES_RULE",
+        "N_ROLE_WIDE_READ",
+        "N_UNIQUE_HIDDEN"
+      ],
+      "gates": [],
+      "testExit": 1,
+      "reachableInvariantSites": [
+        "schema.q:196:1"
+      ],
+      "specInvariantSite": "schema.q:196:1",
+      "specWitnesses": 73
+    },
+    {
+      "lane": "036-specF1",
+      "mode": "none",
+      "sha256": "4c43f5f9ac99484d1f3f550e99aa3ad37ae0f223e3c7a906228f463ee8744a4a",
+      "checkExit": 0,
+      "codes": [
+        "N_ARGUMENT_GRANT",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_EDIT_AFTER_APPROVAL",
+        "N_GRANT_OUTLIVES_ROLE",
+        "N_GUARD_NOT_CONSUMED",
+        "N_OPTIONAL_EVIDENCE",
+        "N_ROLE_WIDE_READ",
+        "N_SECURITY_INTENT"
+      ],
+      "gates": [],
+      "testExit": 0,
+      "reachableInvariantSites": []
+    },
+    {
+      "lane": "036-specF1",
+      "mode": "own",
+      "sha256": "8576937a9f1b6b827564bd6780c4942a3a71c847e18f281f454067439fda2cd5",
+      "checkExit": 0,
+      "codes": [
+        "N_ARGUMENT_GRANT",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_EDIT_AFTER_APPROVAL",
+        "N_GRANT_OUTLIVES_ROLE",
+        "N_GUARD_NOT_CONSUMED",
+        "N_INVARIANT_RESTATES_RULE",
+        "N_OPTIONAL_EVIDENCE",
+        "N_ROLE_WIDE_READ"
+      ],
+      "gates": [],
+      "testExit": 0,
+      "reachableInvariantSites": []
+    },
+    {
+      "lane": "036-specF1",
+      "mode": "spec",
+      "sha256": "e21178f97115db08bf67c773205aa1386c7157a5ce859eac33bae688ec54bdae",
+      "checkExit": 1,
+      "codes": [
+        "N_ARGUMENT_GRANT",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_EDIT_AFTER_APPROVAL",
+        "N_GRANT_OUTLIVES_ROLE",
+        "N_GUARD_NOT_CONSUMED",
+        "N_INVARIANT_RESTATES_RULE",
+        "N_OPTIONAL_EVIDENCE",
+        "N_OPTIONAL_UPLOAD_CREATE",
+        "N_ROLE_WIDE_READ"
+      ],
+      "gates": [
+        {
+          "code": "N_OPTIONAL_UPLOAD_CREATE",
+          "site": "schema.q:101:10"
+        }
+      ],
+      "testExit": 1,
+      "reachableInvariantSites": [
+        "schema.q:220:1"
+      ],
+      "specInvariantSite": "schema.q:220:1",
+      "specWitnesses": 12
+    },
+    {
+      "lane": "036-specF2",
+      "mode": "none",
+      "sha256": "4c43f5f9ac99484d1f3f550e99aa3ad37ae0f223e3c7a906228f463ee8744a4a",
+      "checkExit": 0,
+      "codes": [
+        "N_ARGUMENT_GRANT",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_EDIT_AFTER_APPROVAL",
+        "N_GRANT_OUTLIVES_ROLE",
+        "N_GUARD_NOT_CONSUMED",
+        "N_OPTIONAL_EVIDENCE",
+        "N_ROLE_WIDE_READ",
+        "N_SECURITY_INTENT"
+      ],
+      "gates": [],
+      "testExit": 0,
+      "reachableInvariantSites": []
+    },
+    {
+      "lane": "036-specF2",
+      "mode": "own",
+      "sha256": "8576937a9f1b6b827564bd6780c4942a3a71c847e18f281f454067439fda2cd5",
+      "checkExit": 0,
+      "codes": [
+        "N_ARGUMENT_GRANT",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_EDIT_AFTER_APPROVAL",
+        "N_GRANT_OUTLIVES_ROLE",
+        "N_GUARD_NOT_CONSUMED",
+        "N_INVARIANT_RESTATES_RULE",
+        "N_OPTIONAL_EVIDENCE",
+        "N_ROLE_WIDE_READ"
+      ],
+      "gates": [],
+      "testExit": 0,
+      "reachableInvariantSites": []
+    },
+    {
+      "lane": "036-specF2",
+      "mode": "spec",
+      "sha256": "9c4b9c7f3880f9a67b77fbe714e372e47dea3510689039c45be26faa592b4589",
+      "checkExit": 0,
+      "codes": [
+        "N_ARGUMENT_GRANT",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_EDIT_AFTER_APPROVAL",
+        "N_GRANT_OUTLIVES_ROLE",
+        "N_GUARD_NOT_CONSUMED",
+        "N_INVARIANT_RESTATES_RULE",
+        "N_OPTIONAL_EVIDENCE",
+        "N_ROLE_WIDE_READ"
+      ],
+      "gates": [],
+      "testExit": 1,
+      "reachableInvariantSites": [
+        "schema.q:220:1"
+      ],
+      "specInvariantSite": "schema.q:220:1",
+      "specWitnesses": 1
+    },
+    {
+      "lane": "048-specF1",
+      "mode": "none",
+      "sha256": "07dfa86593109531803d363af485a83410bdc0adc79096116062959edaac6679",
+      "checkExit": 0,
+      "codes": [
+        "N_ARGUMENT_GRANT",
+        "N_CALENDAR_DURATION",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_DERIVED_WRITE_AUTHORITY",
+        "N_EDIT_AFTER_APPROVAL",
+        "N_GUARD_NOT_CONSUMED",
+        "N_ROLE_WIDE_READ",
+        "N_SECURITY_INTENT"
+      ],
+      "gates": [],
+      "testExit": 0,
+      "reachableInvariantSites": []
+    },
+    {
+      "lane": "048-specF1",
+      "mode": "own",
+      "sha256": "b7de170e0221be44c8926153055f57f171a4695069d2261d662e58b53774bc78",
+      "checkExit": 0,
+      "codes": [
+        "N_ARGUMENT_GRANT",
+        "N_CALENDAR_DURATION",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_DERIVED_WRITE_AUTHORITY",
+        "N_EDIT_AFTER_APPROVAL",
+        "N_GUARD_NOT_CONSUMED",
+        "N_INVARIANT_RESTATES_RULE",
+        "N_ROLE_WIDE_READ"
+      ],
+      "gates": [],
+      "testExit": 0,
+      "reachableInvariantSites": []
+    },
+    {
+      "lane": "048-specF1",
+      "mode": "spec",
+      "sha256": "e5f334902140e13ebd467f5f4fde172a322125416d0b102384440d6b4278010e",
+      "checkExit": 0,
+      "codes": [
+        "N_ARGUMENT_GRANT",
+        "N_CALENDAR_DURATION",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_DERIVED_WRITE_AUTHORITY",
+        "N_EDIT_AFTER_APPROVAL",
+        "N_GUARD_NOT_CONSUMED",
+        "N_INVARIANT_RESTATES_RULE",
+        "N_ROLE_WIDE_READ"
+      ],
+      "gates": [],
+      "testExit": 1,
+      "reachableInvariantSites": [
+        "schema.q:147:1"
+      ],
+      "specInvariantSite": "schema.q:147:1",
+      "specWitnesses": 17
+    },
+    {
+      "lane": "w25-015-F3",
+      "mode": "none",
+      "sha256": "6cbd6a38357ca4bce1d6d774583c369055cd83e368113b0105946661f5eccd59",
+      "checkExit": 1,
+      "codes": [
+        "N_ARGUMENT_GRANT",
+        "N_BROAD_READ",
+        "N_CHILD_EVIDENCE_PRESENCE",
+        "N_COLUMN_READ",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_CREATE_EDIT_ASYMMETRY",
+        "N_DERIVED_WRITE_AUTHORITY",
+        "N_EDIT_AFTER_APPROVAL",
+        "N_GRANT_OUTLIVES_ROLE",
+        "N_GUARD_NOT_CONSUMED",
+        "N_OPTIONAL_EVIDENCE",
+        "N_ROLE_WIDE_READ",
+        "N_SECURITY_INTENT",
+        "N_STALE_CREATION_CHECK",
+        "N_TIME_TRANSITION"
+      ],
+      "gates": [
+        {
+          "code": "N_CREATE_EDIT_ASYMMETRY",
+          "site": "schema.q:151:7"
+        }
+      ],
+      "testExit": 1,
+      "reachableInvariantSites": [
+        "$derived/schema.q/rentals/photo/insert/7b52d7f32d6a5641fabb2950ff9576f11a388511be8e07ef026926b7735d1893:59:1"
+      ]
+    },
+    {
+      "lane": "w25-015-F3",
+      "mode": "own",
+      "sha256": "9829825473477a0048265a13f1e1cd977b8d80c9fd1994aa59c5431c3b4eb801",
+      "checkExit": 1,
+      "codes": [
+        "N_ARGUMENT_GRANT",
+        "N_BROAD_READ",
+        "N_CHILD_EVIDENCE_PRESENCE",
+        "N_COLUMN_READ",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_CREATE_EDIT_ASYMMETRY",
+        "N_DERIVED_WRITE_AUTHORITY",
+        "N_EDIT_AFTER_APPROVAL",
+        "N_GRANT_OUTLIVES_ROLE",
+        "N_GUARD_NOT_CONSUMED",
+        "N_OPTIONAL_EVIDENCE",
+        "N_ROLE_WIDE_READ",
+        "N_SECURITY_INTENT",
+        "N_STALE_CREATION_CHECK",
+        "N_TIME_TRANSITION"
+      ],
+      "gates": [
+        {
+          "code": "N_CREATE_EDIT_ASYMMETRY",
+          "site": "schema.q:151:7"
+        }
+      ],
+      "testExit": 1,
+      "reachableInvariantSites": [
+        "$derived/schema.q/rentals/photo/insert/7b52d7f32d6a5641fabb2950ff9576f11a388511be8e07ef026926b7735d1893:59:1"
+      ]
+    },
+    {
+      "lane": "w25-015-F3",
+      "mode": "spec",
+      "sha256": "01247fcd718e02e23731dec82014138804241bdfba1d6c3785783ded2204594c",
+      "checkExit": 1,
+      "codes": [
+        "N_ARGUMENT_GRANT",
+        "N_BROAD_READ",
+        "N_CHILD_EVIDENCE_PRESENCE",
+        "N_COLUMN_READ",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_CREATE_EDIT_ASYMMETRY",
+        "N_DERIVED_WRITE_AUTHORITY",
+        "N_EDIT_AFTER_APPROVAL",
+        "N_GRANT_OUTLIVES_ROLE",
+        "N_GUARD_NOT_CONSUMED",
+        "N_OPTIONAL_EVIDENCE",
+        "N_ROLE_WIDE_READ",
+        "N_SECURITY_INTENT",
+        "N_STALE_CREATION_CHECK",
+        "N_TIME_TRANSITION"
+      ],
+      "gates": [
+        {
+          "code": "N_CREATE_EDIT_ASYMMETRY",
+          "site": "schema.q:151:7"
+        }
+      ],
+      "testExit": 1,
+      "reachableInvariantSites": [
+        "$derived/schema.q/rentals/photo/insert/7b52d7f32d6a5641fabb2950ff9576f11a388511be8e07ef026926b7735d1893:59:1",
+        "schema.q:232:1"
+      ],
+      "specInvariantSite": "schema.q:232:1",
+      "specWitnesses": 6
+    },
+    {
+      "lane": "w25-036-F2",
+      "mode": "none",
+      "sha256": "d7368fdf41f485b45b2f5319629a148347c4102e1ec7b8192267cbd852a6da16",
+      "checkExit": 0,
+      "codes": [
+        "N_ARGUMENT_GRANT",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_EDIT_AFTER_APPROVAL",
+        "N_GRANT_OUTLIVES_ROLE",
+        "N_GUARD_NOT_CONSUMED",
+        "N_OPTIONAL_EVIDENCE",
+        "N_ROLE_WIDE_READ",
+        "N_SECURITY_INTENT"
+      ],
+      "gates": [],
+      "testExit": 0,
+      "reachableInvariantSites": []
+    },
+    {
+      "lane": "w25-036-F2",
+      "mode": "own",
+      "sha256": "cad53d9108b80311a853859d11984132a47ad335e5c9bf378e9adce8c1a5a9ec",
+      "checkExit": 0,
+      "codes": [
+        "N_ARGUMENT_GRANT",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_EDIT_AFTER_APPROVAL",
+        "N_GRANT_OUTLIVES_ROLE",
+        "N_GUARD_NOT_CONSUMED",
+        "N_INVARIANT_RESTATES_RULE",
+        "N_OPTIONAL_EVIDENCE",
+        "N_ROLE_WIDE_READ"
+      ],
+      "gates": [],
+      "testExit": 0,
+      "reachableInvariantSites": []
+    },
+    {
+      "lane": "w25-036-F2",
+      "mode": "spec",
+      "sha256": "d8670da25e252b158c033611e3a51a0df4ab1631fda0be4787e79655aab8b281",
+      "checkExit": 0,
+      "codes": [
+        "N_ARGUMENT_GRANT",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_EDIT_AFTER_APPROVAL",
+        "N_GRANT_OUTLIVES_ROLE",
+        "N_GUARD_NOT_CONSUMED",
+        "N_INVARIANT_RESTATES_RULE",
+        "N_OPTIONAL_EVIDENCE",
+        "N_ROLE_WIDE_READ"
+      ],
+      "gates": [],
+      "testExit": 1,
+      "reachableInvariantSites": [
+        "schema.q:243:1"
+      ],
+      "specInvariantSite": "schema.q:243:1",
+      "specWitnesses": 1
+    },
+    {
+      "lane": "w25-043-F1",
+      "mode": "none",
+      "sha256": "5cf4ac166f170c797669c8bf3588075c5c87427e604ed268919afe41397c66bf",
+      "checkExit": 0,
+      "codes": [
+        "N_ARGUMENT_GRANT",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_DERIVED_WRITE_AUTHORITY",
+        "N_EDIT_AFTER_APPROVAL",
+        "N_GUARD_NOT_CONSUMED",
+        "N_OPTIONAL_EVIDENCE",
+        "N_ROLE_WIDE_READ",
+        "N_ROLE_WIDE_WRITE",
+        "N_SECURITY_INTENT"
+      ],
+      "gates": [],
+      "testExit": 0,
+      "reachableInvariantSites": []
+    },
+    {
+      "lane": "w25-043-F1",
+      "mode": "own",
+      "sha256": "94a7daa2b668814ce78f8426f154aaa3f4f5a3223c2ffeaacf82a9ff1302687d",
+      "checkExit": 0,
+      "codes": [
+        "N_ARGUMENT_GRANT",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_DERIVED_WRITE_AUTHORITY",
+        "N_EDIT_AFTER_APPROVAL",
+        "N_GUARD_NOT_CONSUMED",
+        "N_INVARIANT_RESTATES_RULE",
+        "N_OPTIONAL_EVIDENCE",
+        "N_ROLE_WIDE_READ",
+        "N_ROLE_WIDE_WRITE"
+      ],
+      "gates": [],
+      "testExit": 0,
+      "reachableInvariantSites": []
+    },
+    {
+      "lane": "w25-043-F1",
+      "mode": "spec",
+      "sha256": "55b865a9666e3ce13792ff53d83bddb0c7a57eb293d61a25c52ce4191ad76729",
+      "checkExit": 0,
+      "codes": [
+        "N_ARGUMENT_GRANT",
+        "N_COLUMN_RESULT_EXPOSURE",
+        "N_DERIVED_WRITE_AUTHORITY",
+        "N_EDIT_AFTER_APPROVAL",
+        "N_GUARD_NOT_CONSUMED",
+        "N_INVARIANT_RESTATES_RULE",
+        "N_OPTIONAL_EVIDENCE",
+        "N_ROLE_WIDE_READ",
+        "N_ROLE_WIDE_WRITE"
+      ],
+      "gates": [],
+      "testExit": 1,
+      "reachableInvariantSites": [
+        "schema.q:140:1"
+      ],
+      "specInvariantSite": "schema.q:140:1",
+      "specWitnesses": 17
+    }
+  ]
+}

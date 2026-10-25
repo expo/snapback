@@ -1,0 +1,51 @@
+{
+  "sourceCommit": "ab8734c07e9f238bdbf877f44066407d64edd550",
+  "nativeSha256": "98778a8b1fec77f1ab308383f485f74c69ecd7e716f0999cfdf3db133dc98ce5",
+  "baselinePackage": {
+    "name": "snapback4-linux-x64",
+    "version": "0.4.40",
+    "integrity": "sha512-L1yevtpgZN7wS1Q5dEqLiGsiU8QjseXSllHEK5irwVho9jhj/dtPo4IY5GtXXuR96tlhgJxOwhmh8YSO+QRcTg==",
+    "shasum": "a800a5d3be9cfb8f143144a3b09bd0db487504d5"
+  },
+  "integratedCommit": "669cb5549dc3d3c30dfa6a6e31eb39a0da4534b1",
+  "reviewProvenance": "../../../llp/reviews/3000.036.004.000-sec10-r52.provenance.json",
+  "profile": "Linux x86_64, default SQLite native; Mac skipped",
+  "jobs": [
+    {
+      "job": "survey",
+      "exit": 0,
+      "seconds": 1613.549
+    },
+    {
+      "job": "no-intent",
+      "exit": 0,
+      "seconds": 294.698
+    },
+    {
+      "job": "wave26",
+      "exit": 0,
+      "seconds": 354.616
+    },
+    {
+      "job": "sec9",
+      "exit": 0,
+      "seconds": 932.695
+    },
+    {
+      "job": "typed-evidence",
+      "exit": 0,
+      "seconds": 8.848
+    }
+  ],
+  "artifacts": {
+    "comparison.json": "cf95867d9397d6be8cceb82a2cca681eddfe4ec2debc1dbc887681319d336952",
+    "inline-reapproval.json": "f0bf69c4139282e99b7cefdb4a543989a837ba55e2d26521b26cb9f6ac0879c0",
+    "or-branch-facts.json": "ac3607378f74cab673e0dedb3777fd82e90949f40f95ea59da28136a79b012a7",
+    "sec9-matrix.json": "85aba6f6afd9a7ac3d5ff2cfab3c7fe4fa445d5ab189186ae5f72d33586ab3db",
+    "survey.json.gz": "15478765f547225e3bff3f535ce55e0d3339b36a87b37aee6ca42e015a0b6988",
+    "typed-evidence.json": "539f010296b17bb59f534ee84557008f1f0c1e44b7cf64d8fd69e4c2538034cf",
+    "vacuous-input.json": "55ffccd034c7c7cc4c001e38b0696f6743f003af4d8a2a31eb55ef0b8e61b7bf",
+    "wave26-no-intent.json": "b4f85ece614e3188fc469dd222aeda7c20a33a4babf47ea25da5eac9880827c4",
+    "wave26-one-line.json": "3da2e6baf38f5055f21bd3fa17e12edf1cd86ab157cc13b1405073ac82576306"
+  }
+}

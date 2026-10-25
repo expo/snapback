@@ -8,7 +8,7 @@ const plan=planAffected({base:'origin/main',worktree:true});
 writeFileSync(resolve(out,'unadjusted-plan.json'),JSON.stringify(plan,null,2)+'\n');
 const crates=['snapback4-core','snapback4-lang','snapback4'];
 const clients=['snapback4/packages/snapback4/test/sec10-packed.test.mjs','snapback4/packages/snapback4/test/security-packed.test.mjs'];
-const keep=new Set(['install-client','build-cli','build-wasm','build-client','client-tests','docs-budget','packaged-docs','diagnostics','inventories','generated','guide','ref-check','wasm-measurement',...crates.map(name=>'rust:'+name)]);
+const keep=new Set(['install-client','build-cli','build-wasm','build-client','typecheck:snapback4','release-guard','client-tests','docs-budget','packaged-docs','diagnostics','inventories','generated','guide','ref-check','wasm-measurement',...crates.map(name=>'rust:'+name)]);
 const omitted=plan.steps.filter(step=>!keep.has(step.id)).map(step=>({id:step.id,reason:step.reason}));
 plan.scopeAdjustment={authority:'SEC10 brief: affected scope; no full suites, full client pool, difftest 20k or qualify-linux; reasonable scope adjustments preapproved',reason:'The closed ticket is an unowned root path and publication-security is shared support. Both force the broad seven-crate/438-client plan. Only core private fixture observation, language security analysis, CLI check/deploy and two installed security consumers changed. No parser, planner or store semantics changed in this lane; existing text minima remain unchanged. Incoming origin/main runtime changes retain their upstream qualification and are exercised by the three affected crates here.',omitted};
 plan.steps=plan.steps.filter(step=>keep.has(step.id));
@@ -22,6 +22,7 @@ for(const step of plan.steps){
 const rust=plan.steps.filter(step=>step.id.startsWith('rust:'));
 for(const step of rust){const threads=step.id==='rust:snapback4-lang'?'16':step.id==='rust:snapback4-core'?'8':'1';step.argv=step.argv.map(arg=>arg.startsWith('--test-threads=')?`--test-threads=${threads}`:arg);}
 for(const step of plan.steps){if(step.id==='wasm-measurement')step.argv=['node','reports/20261024-sec10/measure-wasm-scope.mjs',out];}
+plan.scopeAdjustment.cheapGuards='Retain the client typecheck and release-feature negative build guards alongside the affected builds; omit only unrelated/broad pool work.';
 plan.scopeAdjustment.metrology='Run the canonical wasm measurement, bind its one appended row externally, then restore only that own append; a measurement must not mutate the source digest it is qualifying. The gzip budget remains enforced.';
 plan.scopeAdjustment.rustExecution='Same three complete affected-package Cargo commands, concurrent across packages; language 16/core 8/CLI 1 test threads on a 96-core host. No target or feature omitted.';
 const group={id:'rust:affected-scope',cwd:'snapback4',argv:['node','reports/20261024-sec10/run-rust-scope.mjs',JSON.stringify(rust),out],reason:'Run all three affected packages without serializing independent tests',timeoutSeconds:10800,requires:[...new Set(rust.flatMap(step=>step.requires??[]))]};

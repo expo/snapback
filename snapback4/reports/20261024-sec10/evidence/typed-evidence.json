@@ -1,0 +1,25 @@
+{
+  "binarySha256": "98778a8b1fec77f1ab308383f485f74c69ecd7e716f0999cfdf3db133dc98ce5",
+  "originalSourceSha256": "fa41ac94918105f353c442e1f25728f84972fb2533937575b46400e744eb3c4b",
+  "sourceSha256": "7ef60d2ef05c76534b749a6be79391cf0d2190ecb2389bab037c1b151f21ed86",
+  "typeReplacements": 6,
+  "presenceIntentLines": 1,
+  "checkExit": 1,
+  "gates": [
+    {
+      "code": "N_OPTIONAL_UPLOAD_CREATE",
+      "site": "schema.q:93:10"
+    },
+    {
+      "code": "N_OPTIONAL_UPLOAD_CREATE",
+      "site": "schema.q:93:10"
+    },
+    {
+      "code": "N_OPTIONAL_UPLOAD_CREATE",
+      "site": "schema.q:93:10"
+    }
+  ],
+  "deployExit": 1,
+  "securityRefused": true,
+  "qualification": "typed-column repair plus one explicit presence intent; original text remains advisory"
+}
