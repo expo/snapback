@@ -108,6 +108,10 @@ const DEFAULT:&str="table docs:\n  label: text <=80 default 'pending'\n  read <-
 #[test]fn existence_of_the_same_profile_is_not_a_stricter_edit_role(){
  let source="table profiles:\n  principal: principal\n  name: text <=80\n  role: enum('member','editor') default 'member'\n  unique principal\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\nmutation register(name: text <=80):\n  insert profiles {principal:viewer,name}\nmutation edit(name: text <=80):\n  require exists profiles[viewer] else MISSING\n  update profiles[viewer] {name}\n";
  assert!(!notes(source).iter().any(|n|n.code=="N_INSERT_WRITE_INTENT"));
+ let hidden=source.replace("read <- allow","read <- .role = 'editor'");
+ assert!(notes(&hidden).iter().any(|n|n.code=="N_INSERT_WRITE_INTENT"));
+ let owner_read=source.replace("read <- allow","read <- .principal = viewer");
+ assert!(!notes(&owner_read).iter().any(|n|n.code=="N_INSERT_WRITE_INTENT"));
  let restricted=source.replace("require exists profiles[viewer] else", "require exists profiles[viewer,role='editor'] else");
  assert!(notes(&restricted).iter().any(|n|n.code=="N_INSERT_WRITE_INTENT"));
  let alias=source.replace("  update profiles[viewer] {name}","  p = profiles[viewer] ! else MISSING\n  update profiles[p.id] {name}");
@@ -115,3 +119,9 @@ const DEFAULT:&str="table docs:\n  label: text <=80 default 'pending'\n  read <-
  let other=source.replace("update profiles[viewer] {name}","update profiles[principal='dev:other'] {name}");
  assert!(notes(&other).iter().any(|n|n.code=="N_INSERT_WRITE_INTENT"));
 }
+
+#[test]fn repeated_create_remains_reachable_with_an_unrelated_category_setter(){
+ let out=campaign(include_str!("security/wave27/025.q"));
+ assert!(out.violations.iter().any(|v|v.operation=="retest"&&v.invariant_site.contains("/repeat-create/")&&v.reachability.is_reachable()),"operations={:?}; violations={:?}",out.operations,out.violations.iter().map(|v|(&v.operation,&v.invariant_site)).collect::<Vec<_>>());
+}
+

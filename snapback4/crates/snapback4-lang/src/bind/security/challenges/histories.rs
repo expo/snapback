@@ -409,6 +409,42 @@ pub(super) fn lifecycle_observers_to(bound:&Bound,fixture:&Engine,out:&mut Campa
         transitions.retain(|bp|ir::write_tables(&bp.program).iter().any(|(t,_)|super::super::privilege::role_columns(bound,t).is_empty()||bound.invariants.iter().any(|i|i.table==*t)));
         out.unsupported.insert("focused derived workflows defer unrelated roster mutations to the general campaign".into());
     }
+    if !bound.invariants.is_empty()&&bound.invariants.iter().all(super::super::derived::is_derived){
+        // A generic category setter must not displace lifecycle preparation
+        // when its payload is absent from every program read, policy and
+        // candidate. Unknown patches and structural effects remain eligible;
+        // the ordinary campaign retains these deferred payload combinations.
+        fn fields(value:&serde_json::Value,out:&mut BTreeSet<String>){
+            match value{serde_json::Value::Object(xs)=>{for (tag,value) in xs{
+                if matches!(tag.as_str(),"Field"|"OldField"|"NextField"|"field"|"column"|"expire"){
+                    if let Some(name)=value.as_str().or_else(||value.get("name").and_then(|v|v.as_str())){out.insert(name.into());}
+                }
+                fields(value,out);
+            }},serde_json::Value::Array(xs)=>for value in xs{fields(value,out)},_=>{}}
+        }
+        fn patches(value:&serde_json::Value,out:&mut BTreeSet<String>,unknown:&mut bool){
+            match value{serde_json::Value::Object(xs)=>{for (tag,value) in xs{
+                if matches!(tag.as_str(),"Update"|"WriteTarget"){
+                    if let Some(object)=value.get("patch").and_then(|v|v.get("Object")).and_then(|v|v.as_object()){out.extend(object.keys().cloned());}else{*unknown=true;}
+                }
+                patches(value,out,unknown);
+            }},serde_json::Value::Array(xs)=>for value in xs{patches(value,out,unknown)},_=>{}}
+        }
+        let mut dependencies=BTreeSet::new();
+        fields(&serde_json::to_value(&bound.schema).unwrap(),&mut dependencies);
+        fields(&serde_json::to_value(&bound.invariants).unwrap(),&mut dependencies);
+        for inv in &bound.invariants{dependencies.extend(inv.column.iter().cloned());if let Some(mut syntax)=inv.syntax.clone(){crate::bind::intent_walk::expression(&mut syntax,&mut |e|if let ast::Expr::Member{name,..}=e{dependencies.insert(name.clone());});}}
+        for bp in &bound.programs{
+            fields(&serde_json::to_value(&bp.program).unwrap(),&mut dependencies);
+            for read in ir::read_sites(&bp.program){if let Some(index)=bound.schema.tables[&read.table].index(&read.index){dependencies.extend(index.columns());}}
+        }
+        transitions.retain(|bp|{
+            if ir::write_tables(&bp.program).iter().any(|(_,kind)|*kind!="update"){return true;}
+            let mut columns=BTreeSet::new();let mut unknown=false;patches(&serde_json::to_value(&bp.program).unwrap(),&mut columns,&mut unknown);
+            let keep=unknown||columns.is_empty()||!columns.is_disjoint(&dependencies);
+            if !keep{out.unsupported.insert(format!("{}: focused derived replay defers unreferenced payload-only updates; their combinations remain in general replay",bp.program.name));}keep
+        });
+    }
     transitions.sort_by_key(|bp|(!focused.contains(&bp.program.name),ir::write_tables(&bp.program).iter().all(|(t,_)|!super::super::privilege::role_columns(bound,t).is_empty())));
     if transitions.is_empty(){return;}
     let Ok(initial)=readback(fixture)else{return;};

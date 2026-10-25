@@ -34,7 +34,13 @@ fn existing_identity(catalog:&Catalog,bound:&Bound,write:&ast::Expr)->Option<Rul
     let RuleExpr::Exists{table,index,key,equalities,..}=&rule else{return None;};
     if !super::operation::safe(&rule)||!equalities.is_empty(){return None;}
     let pairs=super::privilege::probe_pairs(bound,table,index,key,equalities);
-    (!pairs.is_empty()&&pairs.iter().all(|(column,_)|matches!(bound.schema.tables[table].columns.get(column).map(snapback4_core::schema::ColumnType::required),Some(snapback4_core::schema::ColumnType::Id|snapback4_core::schema::ColumnType::Principal|snapback4_core::schema::ColumnType::Ref{..})))).then_some(rule)
+    if pairs.is_empty()||!pairs.iter().all(|(column,_)|matches!(bound.schema.tables[table].columns.get(column).map(snapback4_core::schema::ColumnType::required),Some(snapback4_core::schema::ColumnType::Id|snapback4_core::schema::ColumnType::Principal|snapback4_core::schema::ColumnType::Ref{..}))){return None;}
+    // Source exists is read-filtered; physical write selection alone must not
+    // erase a role/private audience carried by that existence requirement.
+    let definition=&bound.schema.tables[table];
+    if definition.expire.is_some()||definition.through.is_some(){return None;}
+    let read=terms(&definition.rules.read,&mut |term|if let RuleTerm::Field(column)=term&&let Some((_,value))=pairs.iter().find(|(name,_)|name==column){*term=value.clone();});
+    (kernel::implies(&RuleExpr::Allow,&read)==Ok(true)).then_some(rule)
 }
 fn without_identity(rule:RuleExpr,identity:&RuleExpr)->RuleExpr{
     if probe_implies(identity,&rule){return RuleExpr::Allow;}
