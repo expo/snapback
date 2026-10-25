@@ -122,11 +122,14 @@ fn enforced(effect:&Write<'_>,name:&str,reference:&str,parent:&str,bound:&Bound,
     let covers=|field:&&ast::ObjectField|table.column_writes.get(&field.name).is_some_and(|rule|schema_probe(&scoped_rule(rule,effect,parent,bound),negative,name,reference,parent,effect,bound,creator));
     if negative{!fields.is_empty()&&fields.iter().all(covers)}else{fields.iter().any(covers)}
 }
-fn created(value:&Expr,parent:&str)->bool{match value{
+pub(super) fn created(value:&Expr,parent:&str)->bool{let value=simplify_boolean(value);match &value{
     Expr::Assert{value,..}=>created(value,parent),Expr::Member{base,name,..} if name=="id"=>created(base,parent),
     Expr::Write{op:WriteOp::Insert,table,if_absent:false,condition:None,..}=>table==parent,
-    Expr::If{then,otherwise,..}=>created(then,parent)&&created(otherwise,parent),_=>false,
+    Expr::If{then,otherwise,..}=>created(then,parent)&&created(otherwise,parent),
+    Expr::Binary{op,left,..} if op=="??"=>created(left,parent),
+    Expr::Call{name,args,..} if name=="first"&&args.len()==1=>matches!(&args[0],Expr::Array{items,..} if items.first().is_some_and(|value|created(value,parent))),_=>false,
 }}
+pub(super) fn fresh_reference(value:&Expr,writer:&Write<'_>,parent:&str)->bool{let facts=context_facts(&writer.context,writer.catalog).unwrap_or_default();created(&apply_facts(value,&facts,&caller_names(writer.p)),parent)}
 // An attached ancestor is provenance for an audited child decision, not a
 // second independently approved resource. Keep the exact typed source row.
 pub(super) fn origin(value:&Expr,p:&ast::ProgramDecl,bound:&Bound)->Option<(String,String,String,Vec<String>)>{match value{
@@ -229,7 +232,7 @@ pub(super) fn notes(bound:&Bound,writes:&[Write<'_>],out:&mut Vec<Diagnostic>){
         for (reference,kind) in &table.columns{let ColumnType::Ref{table:parent}=kind.required()else{continue;};
             let effects=writes.iter().filter(|write|write.table!=*name&&(write.table==*parent&&state(write,bound)||state(write,bound)&&bound.schema.tables[&write.table].columns.values().any(|kind|matches!(kind.required(),ColumnType::Ref{table} if table==parent))||matches!(write.op,WriteOp::Insert|WriteOp::Upsert)&&bound.schema.tables[&write.table].columns.values().any(|kind|matches!(kind.required(),ColumnType::Ref{table} if table==parent)))).collect::<Vec<_>>();
             for creator in &creators{if audience_grant(name,reference,parent,bound,creator)||effects.iter().any(|effect|enforced(effect,name,reference,parent,bound,false,creator)){continue;}let writer=RuleExpr::And(vec![audience(&table.rules.insert),audience(&creator.gate)]);if kernel::implies(&RuleExpr::Allow,&writer)==Ok(true)||kernel::implies(&writer,&RuleExpr::Deny)==Ok(true){continue;}
-                if creator.fields.iter().find(|field|&field.name==reference).and_then(field_value).is_some_and(|value|created(value,parent))||coupled(creator,reference,parent,writes,bound)||creation_audit(creator,reference,parent,bound)||decision_mirror(creator,reference,parent,writes,bound)||decision_provenance(creator,reference,parent,writes,bound){continue;}
+                if creator.fields.iter().find(|field|&field.name==reference).and_then(field_value).is_some_and(|value|fresh_reference(value,creator,parent))||coupled(creator,reference,parent,writes,bound)||creation_audit(creator,reference,parent,bound)||decision_mirror(creator,reference,parent,writes,bound)||decision_provenance(creator,reference,parent,writes,bound){continue;}
                 if effects.iter().any(|effect|kernel::implies(&audience(&effect.gate),&writer)!=Ok(true)&&!enforced(effect,name,reference,parent,bound,true,creator)){note(out,&creator.site,"N_APPROVAL_NOT_ENFORCED",format!("{name}.{reference}: a separately authorized approval for {parent} is recorded but no effect requires it; is it informational?"),"require the matching approval row before the governed parent/child effect; or record `check --ack-security ID --reason 'informational approval record: <spec rationale>'`");}
             }
         }

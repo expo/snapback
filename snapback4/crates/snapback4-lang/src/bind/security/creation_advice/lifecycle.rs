@@ -250,7 +250,8 @@ pub(super) fn scalar_enforced(effect:&Write<'_>,table:&str,column:&str,bound:&Bo
     })
 }
 fn fresh_parent_child(w:&Write<'_>,parent:&str,bound:&Bound)->bool{
-    w.fields.iter().filter(|f|matches!(bound.schema.tables[&w.table].columns.get(&f.name).map(ColumnType::required),Some(ColumnType::Ref{table}) if table==parent)).filter_map(field_value).any(|value|{let mut fresh=false;walk(value,|e|if matches!(e,Expr::Write{op:WriteOp::Insert,table,..} if table==parent){fresh=true;});fresh})
+    let references=w.fields.iter().filter(|f|matches!(bound.schema.tables[&w.table].columns.get(&f.name).map(ColumnType::required),Some(ColumnType::Ref{table}) if table==parent)).collect::<Vec<_>>();
+    !references.is_empty()&&references.iter().all(|field|field_value(field).is_some_and(|value|super::approval_records::fresh_reference(value,w,parent)))
 }
 pub(super) fn notes(bound:&Bound,writes:&[Write<'_>],out:&mut Vec<Diagnostic>){
     for (table,t) in bound.schema.visible_tables(){
