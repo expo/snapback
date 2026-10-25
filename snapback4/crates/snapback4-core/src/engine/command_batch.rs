@@ -380,12 +380,13 @@ pub(super) fn run(
                     else {task.unknown();}
                 }
             };
+            let mut plans = (0..count).map(|_|None).collect();
             #[cfg(feature="postgres")]
             {
                 let mut lane=state.lock().unwrap();
-                if depth==2 && super::super::program_pipeline::Lane::eligible(engine,&invocations,!lane.empty()) {
+                if depth==2 && super::super::program_pipeline::Lane::eligible(engine,&invocations,!lane.empty(),&mut plans) {
                     let before = lane.len();
-                    let result=std::panic::catch_unwind(std::panic::AssertUnwindSafe(||lane.start(engine,invocations,Box::new(move|e,o|finish(e,Some(o))))));
+                    let result=std::panic::catch_unwind(std::panic::AssertUnwindSafe(||lane.start(engine,invocations,plans,Box::new(move|e,o|finish(e,Some(o))))));
                     if lane.len() == before + 1 {
                         dispatch_stats.lock().unwrap().in_flight_at_dispatch[lane.len()] += 1;
                     }
@@ -396,7 +397,7 @@ pub(super) fn run(
                 if lane.paused {finish(engine,None);return;}
             }
             if count > 0 { dispatch_stats.lock().unwrap().in_flight_at_dispatch[1] += 1; }
-            let outcomes=std::panic::catch_unwind(std::panic::AssertUnwindSafe(||engine.invoke_program_batch(&mut invocations)));
+            let outcomes=std::panic::catch_unwind(std::panic::AssertUnwindSafe(||engine.invoke_program_batch_planned(&mut invocations,&mut plans)));
             finish(engine,outcomes.ok());
         }));
     }

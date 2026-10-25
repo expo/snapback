@@ -7,6 +7,13 @@ use super::{
 };
 use crate::{Refusal, RuntimeError, engine::MutationAcknowledgement};
 use std::{sync::Arc, time::Instant};
+// Computed against the batch's immutable schema/programs, retained through
+// pipeline classification and staging; physical recovery revalidates in place.
+pub(super) type Plans = Vec<Option<Option<super::committer::closure::Closure>>>;
+pub(super) fn bounded_plan<'a>(plans: &'a mut [Option<Option<super::committer::closure::Closure>>], i: usize, engine: &Engine, batch: &[Invocation]) -> &'a Option<super::committer::closure::Closure> {
+    plans[i].get_or_insert_with(|| engine.programs.get(&batch[i].name).and_then(|p|
+        super::committer::closure::Closure::new(&engine.schema,p,&batch[i].context,engine.generation)))
+}
 pub(super) type Outcome = Result<MutationAcknowledgement, Refusal>;
 pub(super) type ProgramResolution = Resolution<Outcome, Option<(u64, Option<super::DurablePublication>)>>;
 pub(super) type Attempt = Result<Vec<(usize, ProgramResolution)>, (Failure, Option<Refusal>)>;
@@ -18,7 +25,13 @@ impl Engine {
     // @ref LLP 3000.009.001.000.002#3.2 — serial members see predecessors' provisional rows and receipts; hooks wait for physical durability.
     pub fn invoke_program_batch(&mut self, batch: &mut [Invocation]) -> Vec<Outcome> {
         assert!(batch.len() <= 32, "bounded program batch");
+        let mut plans: Plans = (0..batch.len()).map(|_| None).collect();
+        self.invoke_program_batch_planned(batch, &mut plans)
+    }
+    pub(super) fn invoke_program_batch_planned(&mut self, batch: &mut [Invocation], plans: &mut Plans) -> Vec<Outcome> {
+        assert_eq!(plans.len(), batch.len());
         let mut results = vec![None; batch.len()];
+        // @ref LLP 3000.009.001.000.002#33-in-batch-concurrent-execution-under-the-head-lock — a plan belongs to this immutable host/intent only; fallback discards it and revalidates.
         let mut start = 0;
         while start < batch.len() {
             if !batch[start].eligible(self) {
@@ -26,12 +39,13 @@ impl Engine {
                 start += 1;
                 continue;
             }
-            let bounded = |i:usize| self.programs.get(&batch[i].name).and_then(|p|
-                super::committer::closure::Closure::new(&self.schema,p,&batch[i].context,self.generation)).is_some();
-            let first_bounded=bounded(start);
-            let end = (start + 1..batch.len())
-                .find(|&i| !batch[i].eligible(self) || bounded(i)!=first_bounded)
-                .unwrap_or(batch.len());
+            let (first_bounded,end) = {
+                let mut bounded = |i:usize| bounded_plan(plans,i,self,batch).is_some();
+                let first=bounded(start);
+                let end=(start+1..batch.len()).find(|&i|
+                    !batch[i].eligible(self) || bounded(i)!=first).unwrap_or(batch.len());
+                (first,end)
+            };
             let mut indices: Vec<usize> = Vec::new();
             let mut aliases = Vec::new();
             for i in start..end {
@@ -56,7 +70,9 @@ impl Engine {
                 let i = indices[0];
                 results[i] = Some(self.invoke_program(&mut batch[i]));
             } else if !indices.is_empty() {
-                self.program_group(batch, &indices, &mut results);
+                let selected=first_bounded.then(|| indices.iter().map(|&i|
+                    plans[i].take().unwrap().unwrap()).collect());
+                self.program_group(batch, &indices, selected, &mut results);
             }
             for (alias, original) in aliases {
                 results[alias] = results[original].clone();
@@ -91,9 +107,10 @@ impl Engine {
         &mut self,
         batch: &mut [Invocation],
         indices: &[usize],
+        plans: Option<Vec<super::committer::closure::Closure>>,
         results: &mut [Option<Outcome>],
     ) {
-        let failure = match self.program_group_attempt(batch, indices, false) {
+        let failure = match self.program_group_attempt(batch, indices, false, plans) {
             Ok(values) => {
                 self.finish_programs(batch, values, results);
                 return;
@@ -156,7 +173,7 @@ impl Engine {
             if remaining.is_empty() {
                 return;
             }
-            match self.program_group_attempt(batch, &remaining, true) {
+            match self.program_group_attempt(batch, &remaining, true, None) {
                 Ok(values) => {
                     self.finish_programs(batch, values, results);
                     return;
@@ -194,7 +211,7 @@ impl Engine {
         indices: &[usize],
         results: &mut [Option<Outcome>],
     ) {
-        match self.program_group_attempt(batch, indices, true) {
+        match self.program_group_attempt(batch, indices, true, None) {
             Ok(values) => self.finish_programs(batch, values, results),
             Err((failure, named)) => {
                 let why = failure.refusal(named);
@@ -221,7 +238,7 @@ impl Engine {
         if indices.is_empty() {
             return;
         }
-        match self.program_group_attempt(batch, indices, true) {
+        match self.program_group_attempt(batch, indices, true, None) {
             Ok(values) => self.finish_programs(batch, values, results),
             Err((failure, named)) => {
                 let why = failure.refusal(named);
@@ -237,11 +254,13 @@ impl Engine {
         batch: &mut [Invocation],
         indices: &[usize],
         fallback: bool,
+        plans: Option<Vec<super::committer::closure::Closure>>,
     ) -> Attempt {
-        self.program_group_staged(batch, indices, fallback, None, &mut None)
+        self.program_group_staged(batch, indices, fallback, plans, None, &mut None)
     }
     pub(super) fn program_group_staged(
         &mut self, batch: &mut [Invocation], indices: &[usize], fallback: bool,
+        plans: Option<Vec<super::committer::closure::Closure>>,
         chain: Option<&super::program_pipeline::Chain>,
         #[cfg(feature="postgres")] staged: &mut Option<super::postgres::writer_slot::Suspended>,
         #[cfg(not(feature="postgres"))] _staged: &mut Option<()>,
@@ -285,9 +304,7 @@ impl Engine {
             .attribution
             .clone()
             .map(crate::round_trips::Handle::enter);
-        let buffered = postgres && (indices.len() > 1 || chain.is_some()) && !fallback && indices.iter().all(|&i|
-            host.programs.get(&batch[i].name).and_then(|p|
-                super::committer::closure::Closure::new(host.schema, p, &batch[i].context, host.generation)).is_some());
+        let buffered = postgres && (indices.len() > 1 || chain.is_some()) && !fallback && plans.is_some();
         let deadline = (fallback || buffered).then(|| indices.iter().map(|&i| batch[i].deadline).min().unwrap());
         let physical = if buffered { store.buffered_program_transaction(deadline.unwrap()) } else { Committer::open_program_before(
             store,
@@ -311,8 +328,8 @@ impl Engine {
                 return Err((Failure::rollback(tx, error, None), None));
             }
         }
-        let mut wave = if (indices.len()>1 || chain.is_some()) && !fallback {
-            match super::committer::wave::Wave::prepare_chained(&tx,&host,batch,indices,chain) {
+        let mut wave = if let Some(plans)=plans.filter(|_|(indices.len()>1 || chain.is_some()) && !fallback) {
+            match super::committer::wave::Wave::prepare_chained(&tx,&host,batch,indices,chain,plans) {
                 Ok(wave)=>wave,
                 Err(error)=> {
                     // @ref LLP 3000.009.001.000.000.002#4.4 — the first-flight ticket obeys the shared original deadline too; a timeout cannot rescope later peers into fresh attempts.
@@ -331,6 +348,7 @@ impl Engine {
         #[cfg(any(test, feature = "test-support"))]
         drop(_attribution);
         let mut pending = Vec::new();
+        let admission_checked=wave.is_some();
         for (ordinal,&i) in indices.iter().enumerate() {
             let (prepared, conflict_rerun) = wave.as_mut().map(|w|w.take(ordinal)).unwrap_or((None,false));
             let overlay=wave.as_ref().map(|w|super::committer::overlay::Overlay::new(&w.base,&w.accepted));
@@ -449,6 +467,7 @@ impl Engine {
                             true,
                             &raw,
                             &mut authority,
+                            admission_checked,
                             prepared.take(),
                             &mut invocation.minted,
                             &mut transcript,

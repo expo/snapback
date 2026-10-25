@@ -48,10 +48,9 @@ impl Closure {
         }) {
             return None;
         }
-        let mut context = context.clone();
-        crate::engine::validate::validate_inputs(schema, program, &mut context.args).ok()?;
-        let mut env: BTreeMap<_, _> = context
-            .args
+        let mut args = context.args.clone();
+        crate::engine::validate::validate_inputs(schema, program, &mut args).ok()?;
+        let mut env: BTreeMap<_, _> = args
             .iter()
             .map(|(k, v)| (k.clone(), Binding::Scalar(v.clone())))
             .collect();

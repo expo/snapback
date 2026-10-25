@@ -108108,3 +108108,29 @@ kind witnesses now exercise that retry on both stores. Full binary checks
 pass 609 tests with 58 explicit ignores. This completes the hint lifecycle
 for both durable and ephemeral `/m` paths without changing the counter
 benchmark's durable hot path.
+
+## 2026-10-25 — LEV: reuse attempt-local validated write plans
+
+Thread CPU clocks and gprofng on the one-host W4/W5 route identified repeated
+structural admission and closure analysis around every member. Classification
+now retains each invocation's bounded plan for its first wave. Speculative
+setup and final execution still canonicalize/validate each member's arguments;
+the successful structural check belongs to the same immutable schema/program.
+Authority remains fresh in the batch snapshot. Unsupported waves and physical
+fallbacks discard the proof and perform complete validation in place. No
+SQL flight, runtime meter, ceiling, protocol or durability setting changes.
+The selector also copies only the arguments it uses, not the whole context.
+
+A serial differential now puts valid members on both sides of malformed,
+missing and extra inputs and checks their full outcomes/meters and durable
+history, while requiring the valid members to use waves. Full core checks
+pass 1,276 tests with 440 explicit ignores; full binary checks pass 609 with
+58 ignores, including the ephemeral hint lifecycle refinement above. Initial
+CPU diagnostics share disk with qualification and are attribution only; the
+final report records the clean native before/after matrices, phase profiles,
+complete Postgres result, evidence archive and owned-process cleanup.
+
+The core counts above include one isolated child test invocation. Summing
+only the final Cargo target summaries gives 1,274/0/439 before the CPU
+refinement and 1,275/0/440 afterward (passed/failed/ignored); the extra child
+also passes. The report uses those target totals.

@@ -147,6 +147,7 @@ impl Admission {
         let identity = lock(&shared.wake).store_id.clone();
         self.resolve_at(shared, engine, identity.as_deref(), true)
     }
+    // @ref LLP 3000.009.001.000.001#13-g4a-read-refinement-2026-10-23 — refresh discovery before a stale-kind refusal; every retry still resolves live authority.
     pub(crate) fn check_detached(&self, shared: &Shared, engine: &Engine, expected: &snapback4_core::identity::Capability) -> Result<(), Refusal> {
         let current=self.resolve_detached(shared, engine)?;
         self.remember(shared,&current);
