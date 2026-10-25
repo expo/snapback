@@ -1,0 +1,15 @@
+{
+  "completed_read_cells": 12,
+  "smoke_cells": 1,
+  "trials": 345,
+  "measured_arrivals": 109529880,
+  "released_starts": 13,
+  "busy_observations": 0,
+  "rtt_captures": 26,
+  "g6_advocate_wins": 6,
+  "no_product_or_runner_changes": true,
+  "independent_audits": true,
+  "lossless_histogram_archive": true,
+  "owned_live_pids": [],
+  "owned_zombies": []
+}

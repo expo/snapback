@@ -84,6 +84,45 @@ impl AnyStore {
         tx.commit()
     }
 
+    /// Same-token ordinary -> action corruption with a controllable claim.
+    pub fn test_request_action_claim(&mut self, token: &str, now: i64, live: bool) -> Result<(), RuntimeError> {
+        use crate::authority::AuthorityTransaction;
+        let digest = crate::identity::digest(token);
+        let tx = self.transaction()?;
+        let principal = tx.session_authority_facts(&digest)?.sessions[0].principal.clone();
+        let state = if live {"running"} else {"done"};
+        let lease = now + 60_000;
+        match &tx {
+            AnyTx::Sqlite(SqliteTx(inner)) => {
+                inner.conn().execute("UPDATE _sessions SET kind='action' WHERE token_digest=?1", [&digest])?;
+                inner.conn().execute("INSERT INTO _requests(id,name,args,principal,at,state,claimed_by,session_digest,lease_until,deadline) VALUES ('lev-claim','test','{}',?1,?2,?3,'worker',?4,?5,?5) ON CONFLICT(id) DO UPDATE SET state=excluded.state", rusqlite::params![principal,now,state,digest,lease])?;
+            }
+            #[cfg(feature = "postgres")]
+            AnyTx::Postgres(super::handles::PostgresTx(inner)) => {
+                inner.execute("UPDATE _sessions SET kind='action' WHERE token_digest=$1", &[&digest])?;
+                inner.execute("INSERT INTO _requests(id,name,args,principal,at,state,claimed_by,session_digest,lease_until,deadline) VALUES ('lev-claim','test','{}',$1,$2,$3,'worker',$4,$5,$5) ON CONFLICT(id) DO UPDATE SET state=excluded.state", &[&principal,&now,&state,&digest,&lease])?;
+            }
+        }
+        tx.commit()
+    }
+
+    /// Advance revocation generation without deleting the session row.
+    pub fn test_request_principal_generation(&mut self, token: &str) -> Result<(), RuntimeError> {
+        use crate::authority::AuthorityTransaction;
+        let tx = self.transaction()?;
+        let facts = tx.session_authority_facts(&crate::identity::digest(token))?;
+        let principal = &facts.sessions.first().expect("test credential remains stored").principal;
+        let generation = facts.current_generation + 1;
+        match &tx {
+            AnyTx::Sqlite(SqliteTx(inner)) => { inner.conn().execute("INSERT INTO _principal_generations(principal,generation) VALUES (?1,?2) ON CONFLICT(principal) DO UPDATE SET generation=excluded.generation", rusqlite::params![principal,generation])?; }
+            #[cfg(feature = "postgres")]
+            AnyTx::Postgres(super::handles::PostgresTx(inner)) => { inner.execute("INSERT INTO _principal_generations(principal,generation) VALUES ($1,$2) ON CONFLICT(principal) DO UPDATE SET generation=excluded.generation", &[principal,&generation])?; }
+        }
+        assert_eq!(tx.session_authority_facts(&crate::identity::digest(token))?.sessions, facts.sessions,
+            "generation-only fixture preserves session rows");
+        tx.commit()
+    }
+
     #[cfg(feature = "postgres")]
     pub fn test_request_owner_loss(&mut self) -> Result<(), RuntimeError> {
         let tx = self.transaction()?;
@@ -119,5 +158,50 @@ impl AnyStore {
             #[cfg(feature = "postgres")]
             Self::Postgres(_) => Err(RuntimeError::StoreUnsupported { family: "sqlite-fixture" }),
         }
+    }
+}
+
+/// A private-cluster witness can hold one real COMMIT while the next slot
+/// resolves authority. The port exposes rendezvous/corruption operations only.
+#[cfg(feature = "postgres")]
+pub struct RequestPipelineHold {
+    client: postgres::Client,
+    key: i64,
+}
+#[cfg(feature = "postgres")]
+impl RequestPipelineHold {
+    pub fn waiting(&mut self) -> Result<bool, RuntimeError> {
+        Ok(self.client.query_one("SELECT EXISTS(SELECT 1 FROM pg_locks WHERE locktype='advisory' AND NOT granted AND classid::bigint=$1 AND objid::bigint=$2 AND objsubid=1)",
+            &[&((self.key >> 32) & 0xffff_ffff), &(self.key & 0xffff_ffff)])?.get(0))
+    }
+    pub fn replace_store_id(&mut self, id: &str) -> Result<(), RuntimeError> {
+        // Deliberate out-of-band corruption, while the first writer is held.
+        self.client.execute("UPDATE _meta SET value=$1 WHERE key='store_id'", &[&id])?;
+        Ok(())
+    }
+    pub fn release(&mut self) -> Result<(), RuntimeError> {
+        self.client.query_one("SELECT pg_advisory_unlock($1)", &[&self.key])?;
+        Ok(())
+    }
+}
+#[cfg(feature = "postgres")]
+impl Drop for RequestPipelineHold {
+    fn drop(&mut self) {
+        let _ = self.release();
+        let _ = self.client.batch_execute("DROP TRIGGER IF EXISTS lev_pipeline_hold ON _commits; DROP FUNCTION IF EXISTS lev_pipeline_hold()");
+    }
+}
+#[cfg(feature = "postgres")]
+impl AnyStore {
+    pub fn test_request_pipeline_hold(&mut self) -> Result<RequestPipelineHold, RuntimeError> {
+        let Self::Postgres(super::handles::PostgresStore(handle)) = self else { panic!("private Postgres fixture") };
+        let schema: String = handle.store.get_mut().client.query_one("SELECT current_schema()", &[])?.get(0);
+        let mut client = postgres::Client::connect(&std::env::var("SNAPBACK4_EVAL_POSTGRES").expect("private PG16"), postgres::NoTls)?;
+        client.batch_execute(&format!("SET search_path=\"{}\",pg_catalog; SET statement_timeout='10s'; SET lock_timeout='2s'", schema.replace('"', "\"\"")))?;
+        let head: i64 = client.query_one("SELECT seq FROM _head WHERE singleton", &[])?.get(0);
+        let key = (crate::ids::seed() & i64::MAX as u64) as i64;
+        client.query_one("SELECT pg_advisory_lock($1)", &[&key])?;
+        client.batch_execute(&format!("CREATE FUNCTION lev_pipeline_hold() RETURNS trigger LANGUAGE plpgsql AS $f$ BEGIN IF NEW.seq<={} THEN PERFORM pg_advisory_xact_lock({key}::bigint); END IF; RETURN NEW; END $f$; CREATE CONSTRAINT TRIGGER lev_pipeline_hold AFTER INSERT ON _commits DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION lev_pipeline_hold()", head+2))?;
+        Ok(RequestPipelineHold { client, key })
     }
 }

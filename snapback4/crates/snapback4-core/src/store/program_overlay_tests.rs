@@ -201,6 +201,38 @@ fn overlay_serial_history_sqlite() {
 fn overlay_serial_history_postgres() {
     oracle(true);
 }
+
+fn per_member_arguments(pg: bool) {
+    let make = |n| {
+        let mut args = [
+            ("counter".into(), Value::Id(if n % 2 == 0 {"a"} else {"b"}.into())),
+            ("delta".into(), Value::Int(n + 2)),
+            ("reject".into(), Value::Bool(false)),
+        ].into_iter().collect::<std::collections::BTreeMap<_,_>>();
+        match n {
+            2 => {args.insert("delta".into(), Value::String("bad".into()));},
+            3 => {args.insert("extra".into(), Value::Int(1));},
+            4 => {args.remove("delta");},
+            _ => {},
+        }
+        Invocation::new("guarded",None,Context::new("alice",args).at(1000+n))
+    };
+    let mut reference=fixture(pg);
+    let expected=(0..7).map(|n|outcome(reference.invoke_program(&mut make(n)))).collect::<Vec<_>>();
+    let mut engine=fixture(pg);let mut batch=(0..7).map(make).collect::<Vec<_>>();
+    crate::engine::committer::closure::PLAN_BUILDS.with(|count| count.set(0));
+    let actual=engine.invoke_program_batch(&mut batch).into_iter().map(outcome).collect::<Vec<_>>();
+    assert_eq!(crate::engine::committer::closure::PLAN_BUILDS.with(|count| count.get()), batch.len(),
+        "classification plans must be reused, including lookahead across malformed members");
+    assert_eq!(actual,expected,"static admission must not reuse another member's arguments");
+    assert_eq!(super::tests::snapshot(&mut engine),super::tests::snapshot(&mut reference));
+    assert_eq!(batch.iter().filter(|i|i.attempts.last().is_some_and(|a|a.buffered)).count(),4,
+        "valid members on both sides of malformed inputs must exercise the wave");
+}
+#[test] fn batch_plans_keep_per_member_arguments_sqlite(){per_member_arguments(false);}
+#[cfg(feature="postgres")] #[test] #[ignore="private PG16"]
+fn batch_plans_keep_per_member_arguments_postgres(){per_member_arguments(true);}
+
 fn chains(pg: bool) {
     let mut reference = fixture(pg);
     let mut engine = fixture(pg);
@@ -1143,7 +1175,8 @@ fn g72_sqlite_wal_reader_folds_a_held_uncommitted_predecessor() {
             let chain=Chain{images:[(("counters".into(),source.into()),image.clone())].into(),entropy:reference.entropy,..Default::default()};
             let batch=targets.iter().map(|target|Invocation::new("chain",None,Context::new("alice",[("source".into(),Value::Id(source.into())),("target".into(),Value::Id((*target).into()))].into()).at(1000+n as i64))).collect::<Vec<_>>();
             let host=ProgramHost{schema:&reference.schema,programs:&reference.programs,entropy:reference.entropy,minter:&reference.minter,presence:reference.presence.clone(),ceilings:reference.ceilings,store_id:&reference.store_id,generation:reference.generation,dev_effects:reference.dev_effects,#[cfg(feature="evaluation-support")] evaluation_precharge:reference.evaluation_precharge};
-            let mut wave=Wave::prepare_chained(snapshot.test_batch_tx(),&host,&batch,&[0,1],Some(&chain)).unwrap().unwrap();
+            let plans=batch.iter().map(|i|crate::engine::committer::closure::Closure::new(host.schema,&host.programs[&i.name],&i.context,host.generation).unwrap()).collect();
+            let mut wave=Wave::prepare_chained(snapshot.test_batch_tx(),&host,&batch,&[0,1],Some(&chain),plans).unwrap().unwrap();
             let prepared=(0..2).map(|i|wave.take(i).0.unwrap().execution).collect::<Vec<_>>();
             drop(host);snapshot.rollback().unwrap();tx.commit().unwrap();
             for (execution,mut invocation) in prepared.into_iter().zip(batch) {

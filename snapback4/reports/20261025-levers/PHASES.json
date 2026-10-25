@@ -1,0 +1,366 @@
+[
+  {
+    "stage": "profile-before-clean",
+    "cell": "w4-n1000000-d1000-c32-disjoint",
+    "repetitions": 3,
+    "attempt_members": 23998,
+    "attempt_calls": 2331,
+    "mean_n": 10.295152295152295,
+    "alignment_max_seconds": 0.47895011119544506,
+    "phases": {
+      "batch_attempt": {
+        "calls": 2331,
+        "inclusive_us": 118.0563036503042,
+        "exclusive_us": 18.687461080090007
+      },
+      "facts_plan": {
+        "calls": 2328,
+        "inclusive_us": 40.065214142845235,
+        "exclusive_us": 19.563857279773313
+      },
+      "facts_decode": {
+        "calls": 52652,
+        "inclusive_us": 9.854833861155097,
+        "exclusive_us": 9.854833861155097
+      },
+      "interpreter": {
+        "calls": 23998,
+        "inclusive_us": 98.35861842653554,
+        "exclusive_us": 98.33516001333444
+      },
+      "ordered_member": {
+        "calls": 23995,
+        "inclusive_us": 35.183508125677136,
+        "exclusive_us": 33.888096216351364
+      },
+      "conflict_take": {
+        "calls": 23995,
+        "inclusive_us": 1.295411909325777,
+        "exclusive_us": 1.295411909325777
+      },
+      "apply": {
+        "calls": 2328,
+        "inclusive_us": 0.20769859988332362,
+        "exclusive_us": 0.20769859988332362
+      },
+      "tail_assembly": {
+        "calls": 4656,
+        "inclusive_us": 14.788292191015918,
+        "exclusive_us": 1.8900685473789482
+      },
+      "driver": {
+        "calls": 16479,
+        "inclusive_us": 54.522233144428704,
+        "exclusive_us": 23.182948454037835
+      },
+      "literal_encode": {
+        "calls": 16383,
+        "inclusive_us": 4.960650179181598,
+        "exclusive_us": 4.960650179181598
+      },
+      "result_decode": {
+        "calls": 7071,
+        "inclusive_us": 6.33962626052171,
+        "exclusive_us": 6.33962626052171
+      },
+      "fact_encode": {
+        "calls": 2328,
+        "inclusive_us": 0.5622551879323276,
+        "exclusive_us": 0.5622551879323276
+      },
+      "tail_encode": {
+        "calls": 2328,
+        "inclusive_us": 2.756895866322193,
+        "exclusive_us": 2.756895866322193
+      },
+      "http": {
+        "calls": 24004,
+        "inclusive_us": 173.4502450620885,
+        "exclusive_us": 168.46957833986164
+      },
+      "batch_flights": {
+        "calls": 9338,
+        "inclusive_us": 0.0,
+        "exclusive_us": 0.0
+      },
+      "ingress_flights": {
+        "calls": 23998,
+        "inclusive_us": 0.0,
+        "exclusive_us": 0.0
+      }
+    }
+  },
+  {
+    "stage": "profile-before-clean",
+    "cell": "w5-n1000000-d1000-c32-same",
+    "repetitions": 3,
+    "attempt_members": 24000,
+    "attempt_calls": 2051,
+    "mean_n": 11.701608971233545,
+    "alignment_max_seconds": 0.4710729233920574,
+    "phases": {
+      "batch_attempt": {
+        "calls": 2051,
+        "inclusive_us": 235.40581766666668,
+        "exclusive_us": 8.938407999999999
+      },
+      "facts_plan": {
+        "calls": 2048,
+        "inclusive_us": 49.444700958333335,
+        "exclusive_us": 21.157499208333334
+      },
+      "facts_decode": {
+        "calls": 54144,
+        "inclusive_us": 10.506352249999999,
+        "exclusive_us": 10.506352249999999
+      },
+      "interpreter": {
+        "calls": 24000,
+        "inclusive_us": 107.48299166666666,
+        "exclusive_us": 107.43827366666666
+      },
+      "ordered_member": {
+        "calls": 23997,
+        "inclusive_us": 156.48749658333332,
+        "exclusive_us": 47.8968345
+      },
+      "conflict_take": {
+        "calls": 23997,
+        "inclusive_us": 1.1817477083333334,
+        "exclusive_us": 1.1817477083333334
+      },
+      "apply": {
+        "calls": 2048,
+        "inclusive_us": 0.14760604166666666,
+        "exclusive_us": 0.14760604166666666
+      },
+      "tail_assembly": {
+        "calls": 4096,
+        "inclusive_us": 12.243619291666667,
+        "exclusive_us": 1.1229567083333334
+      },
+      "driver": {
+        "calls": 18583,
+        "inclusive_us": 61.011903333333336,
+        "exclusive_us": 26.455477
+      },
+      "literal_encode": {
+        "calls": 16458,
+        "inclusive_us": 4.987071208333334,
+        "exclusive_us": 4.987071208333334
+      },
+      "result_decode": {
+        "calls": 8264,
+        "inclusive_us": 6.626912416666667,
+        "exclusive_us": 6.626912416666667
+      },
+      "fact_encode": {
+        "calls": 4096,
+        "inclusive_us": 1.6496260833333334,
+        "exclusive_us": 1.6496260833333334
+      },
+      "tail_encode": {
+        "calls": 2048,
+        "inclusive_us": 1.9467695833333332,
+        "exclusive_us": 1.9467695833333332
+      },
+      "http": {
+        "calls": 24004,
+        "inclusive_us": 170.9249975,
+        "exclusive_us": 166.40851529166667
+      },
+      "batch_flights": {
+        "calls": 10275,
+        "inclusive_us": 0.0,
+        "exclusive_us": 0.0
+      },
+      "ingress_flights": {
+        "calls": 24000,
+        "inclusive_us": 0.0,
+        "exclusive_us": 0.0
+      }
+    }
+  },
+  {
+    "stage": "profile-after-clean",
+    "cell": "w4-n1000000-d1000-c32-disjoint",
+    "repetitions": 3,
+    "attempt_members": 24000,
+    "attempt_calls": 2529,
+    "mean_n": 9.489916963226571,
+    "alignment_max_seconds": 0.43294215202331543,
+    "phases": {
+      "batch_attempt": {
+        "calls": 2529,
+        "inclusive_us": 98.4031305,
+        "exclusive_us": 13.595673375
+      },
+      "facts_plan": {
+        "calls": 2525,
+        "inclusive_us": 27.428897208333332,
+        "exclusive_us": 5.662451291666667
+      },
+      "facts_decode": {
+        "calls": 29081,
+        "inclusive_us": 5.17425475,
+        "exclusive_us": 5.17425475
+      },
+      "interpreter": {
+        "calls": 24000,
+        "inclusive_us": 96.47428154166667,
+        "exclusive_us": 96.44528508333333
+      },
+      "ordered_member": {
+        "calls": 23996,
+        "inclusive_us": 29.445370875000002,
+        "exclusive_us": 28.069550125000003
+      },
+      "conflict_take": {
+        "calls": 23996,
+        "inclusive_us": 1.3758207500000001,
+        "exclusive_us": 1.3758207500000001
+      },
+      "apply": {
+        "calls": 2525,
+        "inclusive_us": 0.23721645833333332,
+        "exclusive_us": 0.23721645833333332
+      },
+      "tail_assembly": {
+        "calls": 5050,
+        "inclusive_us": 16.73476408333333,
+        "exclusive_us": 1.9961819166666666
+      },
+      "driver": {
+        "calls": 17869,
+        "inclusive_us": 61.60664020833333,
+        "exclusive_us": 26.46034129166667
+      },
+      "literal_encode": {
+        "calls": 17769,
+        "inclusive_us": 5.31793125,
+        "exclusive_us": 5.31793125
+      },
+      "result_decode": {
+        "calls": 7667,
+        "inclusive_us": 6.949376625,
+        "exclusive_us": 6.949376625
+      },
+      "fact_encode": {
+        "calls": 2525,
+        "inclusive_us": 0.5470608333333333,
+        "exclusive_us": 0.5470608333333333
+      },
+      "tail_encode": {
+        "calls": 2525,
+        "inclusive_us": 3.1267415833333336,
+        "exclusive_us": 3.1267415833333336
+      },
+      "http": {
+        "calls": 24006,
+        "inclusive_us": 129.97432270833335,
+        "exclusive_us": 129.970433875
+      },
+      "batch_flights": {
+        "calls": 10132,
+        "inclusive_us": 0.0,
+        "exclusive_us": 0.0
+      },
+      "ingress_flights": {
+        "calls": 31,
+        "inclusive_us": 0.0,
+        "exclusive_us": 0.0
+      }
+    }
+  },
+  {
+    "stage": "profile-after-clean",
+    "cell": "w5-n1000000-d1000-c32-same",
+    "repetitions": 3,
+    "attempt_members": 23768,
+    "attempt_calls": 2124,
+    "mean_n": 11.190207156308851,
+    "alignment_max_seconds": 0.4939601141959429,
+    "phases": {
+      "batch_attempt": {
+        "calls": 2124,
+        "inclusive_us": 212.15925597441938,
+        "exclusive_us": 9.186758540895323
+      },
+      "facts_plan": {
+        "calls": 2122,
+        "inclusive_us": 37.592154409289805,
+        "exclusive_us": 8.040366711544934
+      },
+      "facts_decode": {
+        "calls": 30152,
+        "inclusive_us": 6.150962596768764,
+        "exclusive_us": 6.150962596768764
+      },
+      "interpreter": {
+        "calls": 23768,
+        "inclusive_us": 104.96966623190845,
+        "exclusive_us": 104.9507521036688
+      },
+      "ordered_member": {
+        "calls": 23766,
+        "inclusive_us": 143.85774112251767,
+        "exclusive_us": 37.76966446482666
+      },
+      "conflict_take": {
+        "calls": 23766,
+        "inclusive_us": 1.1552371255469538,
+        "exclusive_us": 1.1552371255469538
+      },
+      "apply": {
+        "calls": 2122,
+        "inclusive_us": 0.14802608549309998,
+        "exclusive_us": 0.14802608549309998
+      },
+      "tail_assembly": {
+        "calls": 4244,
+        "inclusive_us": 12.335714574217434,
+        "exclusive_us": 1.1155774150117808
+      },
+      "driver": {
+        "calls": 19228,
+        "inclusive_us": 64.1791540727028,
+        "exclusive_us": 27.760038665432514
+      },
+      "literal_encode": {
+        "calls": 17034,
+        "inclusive_us": 5.2561284500168295,
+        "exclusive_us": 5.2561284500168295
+      },
+      "result_decode": {
+        "calls": 8550,
+        "inclusive_us": 7.080027347694379,
+        "exclusive_us": 7.080027347694379
+      },
+      "fact_encode": {
+        "calls": 4243,
+        "inclusive_us": 1.7934554022214744,
+        "exclusive_us": 1.7934554022214744
+      },
+      "tail_encode": {
+        "calls": 2122,
+        "inclusive_us": 1.8412927044766072,
+        "exclusive_us": 1.8412927044766072
+      },
+      "http": {
+        "calls": 23772,
+        "inclusive_us": 127.64154144227533,
+        "exclusive_us": 127.63801161225176
+      },
+      "batch_flights": {
+        "calls": 10634,
+        "inclusive_us": 0.0,
+        "exclusive_us": 0.0
+      },
+      "ingress_flights": {
+        "calls": 31,
+        "inclusive_us": 0.0,
+        "exclusive_us": 0.0
+      }
+    }
+  }
+]

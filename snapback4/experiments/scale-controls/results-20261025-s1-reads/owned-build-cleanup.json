@@ -1,0 +1,10 @@
+{
+  "path": "/home/ccheever/projects/sb4-s1sk/snapback4/target/s1-rd",
+  "logical_bytes": 2192599803,
+  "before_free_bytes": 41059905536,
+  "after_free_bytes": 43024556032,
+  "no_live_executable_or_mapping": true,
+  "release_copies_retained": true,
+  "scope": "only this lane dedicated inactive Cargo target; all three release copies and build receipts retained",
+  "time": 1792934836.3576388
+}

@@ -380,23 +380,30 @@ pub(super) fn run(
                     else {task.unknown();}
                 }
             };
+            let mut plans = (0..count).map(|_|None).collect();
             #[cfg(feature="postgres")]
             {
                 let mut lane=state.lock().unwrap();
-                if depth==2 && super::super::program_pipeline::Lane::eligible(engine,&invocations,!lane.empty()) {
+                if depth==2 && super::super::program_pipeline::Lane::eligible(engine,&invocations,!lane.empty(),&mut plans) {
                     let before = lane.len();
-                    let result=std::panic::catch_unwind(std::panic::AssertUnwindSafe(||lane.start(engine,invocations,Box::new(move|e,o|finish(e,Some(o))))));
+                    let result=std::panic::catch_unwind(std::panic::AssertUnwindSafe(||lane.start_planned(engine,invocations,plans,Box::new(move|e,o|finish(e,Some(o))))));
                     if lane.len() == before + 1 {
                         dispatch_stats.lock().unwrap().in_flight_at_dispatch[lane.len()] += 1;
                     }
                     if result.is_err(){lane.paused=true;lane.close_uncertain(engine);lane.drain(engine);}
                     return;
                 }
+                // A continuation released by the drain may adopt a different
+                // immutable host. Plans cannot carry proof across that epoch.
+                let binding = (engine.store_id.clone(), engine.generation, engine.code_native_digest.clone());
                 lane.drain(engine);
                 if lane.paused {finish(engine,None);return;}
+                if binding != (engine.store_id.clone(), engine.generation, engine.code_native_digest.clone()) {
+                    plans.iter_mut().for_each(|p| *p=None);
+                }
             }
             if count > 0 { dispatch_stats.lock().unwrap().in_flight_at_dispatch[1] += 1; }
-            let outcomes=std::panic::catch_unwind(std::panic::AssertUnwindSafe(||engine.invoke_program_batch(&mut invocations)));
+            let outcomes=std::panic::catch_unwind(std::panic::AssertUnwindSafe(||engine.invoke_program_batch_planned(&mut invocations,&mut plans)));
             finish(engine,outcomes.ok());
         }));
     }

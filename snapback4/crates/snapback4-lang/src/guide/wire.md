@@ -313,6 +313,7 @@ Dev only, same machine; `serve` refuses each one.
 | 401 | Missing/dead credential, production persona, failed login or disabled identity method, `denied` E_AUTH |
 | 403 | Development door on serve, read-only token attempting a write, or supervised-worker refresh, `denied` |
 | 404 | Unknown route/operation, or hidden/missing asset, `denied` |
+| 409 | Serving store replaced or unkeyed store ownership lost, `denied`; store replacement discloses no store metadata |
 | 413 | Request exceeds the body ceiling, `denied` |
 | 429 | Identity rate limit or per-principal wait capacity; retry as directed |
 | 500 | Internal store/response-metadata failure, `denied` |

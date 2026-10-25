@@ -1,0 +1,18 @@
+{
+  "control_report": "snapback4/experiments/scale-controls/results-20261024-s1-onehost-final/README.md",
+  "comparison_sha256": "d601feffdd271f676c82e353d346b05fda4dac18922efe04a1dc840f1e7b9df9",
+  "archive": {
+    "path": "/home/ccheever/sb4scale/archive/s1-onehost-final-20261024.tar.gz",
+    "sha256": "f5e46efdd1a8a9de67eac775e324c5300cb9aadd41f79345d67c44a5bce166b0",
+    "bytes": 405957913,
+    "members": 4610,
+    "new_trial_jsons": 486,
+    "prior_control_archive_sha256": "2ad9953ae6e01a790171e3778547e2703f4d0db9e991039f2833c03543ecb7fb",
+    "prior_control_archive_embedded": true
+  },
+  "no_controls_rerun": true,
+  "verdicts": {
+    "advocates": "max(Supabase advocate, Convex advocate), matching prior report",
+    "all_controls": "max(Raw PG token, Supabase advocate, Convex advocate)"
+  }
+}

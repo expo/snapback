@@ -11,7 +11,7 @@ pub(crate) struct Failure {
 }
 impl Failure {
     pub(crate) fn may_rerun(&self) -> bool {
-        self.aborted && !matches!(&self.error,RuntimeError::StoreOwnership(_)) &&
+        self.aborted && !matches!(&self.error,RuntimeError::StoreOwnership(_) | RuntimeError::Structural { code: "E_STORE_REPLACED", .. }) &&
             !matches!(&self.error,RuntimeError::Store(message) if message.starts_with("pipeline ticket deadline"))
     }
     // Tentative member refusals have authority only after a confirmed abort.

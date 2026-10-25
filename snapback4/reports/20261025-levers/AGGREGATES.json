@@ -1,0 +1,1316 @@
+[
+  {
+    "stage": "baseline",
+    "cell": "w4-n1000000-d1000-c32-disjoint",
+    "repetitions": 3,
+    "passed": 2,
+    "counter_pass": 3,
+    "errors": 0,
+    "scheduled": 48000,
+    "mean_ms": {
+      "median": 19.100241408,
+      "min": 18.56797312,
+      "max": 23.815471103999997
+    },
+    "p99_ms": {
+      "median": 25.985023,
+      "min": 25.624575,
+      "max": 189.005823
+    },
+    "cpu_us": {
+      "server": {
+        "median": 510.4166666666667,
+        "min": 487.5,
+        "max": 517.0833333333333
+      },
+      "committer": {
+        "median": 143.75,
+        "min": 142.08333333333334,
+        "max": 145.41666666666666
+      },
+      "wave": {
+        "median": 104.58333333333333,
+        "min": 101.25,
+        "max": 105.41666666666667
+      },
+      "proxy": {
+        "median": 385.4166666666667,
+        "min": 375.0,
+        "max": 392.0833333333333
+      }
+    },
+    "flights": {
+      "group_batches": {
+        "median": 2515,
+        "min": 2489,
+        "max": 2572
+      },
+      "group_members": {
+        "median": 23999,
+        "min": 23999,
+        "max": 23999
+      },
+      "levels": {
+        "median": 2515,
+        "min": 2489,
+        "max": 2572
+      },
+      "standalone_authority": {
+        "median": 26516,
+        "min": 26490,
+        "max": 26573
+      },
+      "group_mean_n": {
+        "median": 9.542345924453281,
+        "min": 9.330870917573872,
+        "max": 9.64202490960225
+      },
+      "group_flights_per_member": {
+        "median": 0.4191841326721947,
+        "min": 0.41485061877578233,
+        "max": 0.42868452852202177
+      }
+    }
+  },
+  {
+    "stage": "baseline",
+    "cell": "w4-n1000000-d500-c32-disjoint",
+    "repetitions": 3,
+    "passed": 3,
+    "counter_pass": 3,
+    "errors": 0,
+    "scheduled": 48000,
+    "mean_ms": {
+      "median": 16.021484032,
+      "min": 15.964479616,
+      "max": 16.391892864
+    },
+    "p99_ms": {
+      "median": 42.041343,
+      "min": 38.043647,
+      "max": 48.922623
+    },
+    "cpu_us": {
+      "server": {
+        "median": 514.1666666666667,
+        "min": 509.1666666666667,
+        "max": 527.0833333333334
+      },
+      "committer": {
+        "median": 154.58333333333334,
+        "min": 152.08333333333334,
+        "max": 155.41666666666666
+      },
+      "wave": {
+        "median": 108.75,
+        "min": 107.08333333333333,
+        "max": 112.5
+      },
+      "proxy": {
+        "median": 410.4166666666667,
+        "min": 392.0833333333333,
+        "max": 416.25
+      }
+    },
+    "flights": {
+      "group_batches": {
+        "median": 3018,
+        "min": 2995,
+        "max": 3144
+      },
+      "group_members": {
+        "median": 23999,
+        "min": 23998,
+        "max": 23999
+      },
+      "levels": {
+        "median": 3018,
+        "min": 2995,
+        "max": 3144
+      },
+      "standalone_authority": {
+        "median": 27020,
+        "min": 26996,
+        "max": 27145
+      },
+      "group_mean_n": {
+        "median": 7.951623591782638,
+        "min": 7.633269720101781,
+        "max": 8.013021702838063
+      },
+      "group_flights_per_member": {
+        "median": 0.5030419201600134,
+        "min": 0.49918746614442266,
+        "max": 0.5240218342430935
+      }
+    }
+  },
+  {
+    "stage": "baseline",
+    "cell": "w5-n1000000-d1000-c32-hot1",
+    "repetitions": 3,
+    "passed": 3,
+    "counter_pass": 3,
+    "errors": 0,
+    "scheduled": 48000,
+    "mean_ms": {
+      "median": 20.604981248,
+      "min": 20.057696512,
+      "max": 20.633249792
+    },
+    "p99_ms": {
+      "median": 34.701311,
+      "min": 29.065215,
+      "max": 39.550975
+    },
+    "cpu_us": {
+      "server": {
+        "median": 499.1666666666667,
+        "min": 491.6666666666667,
+        "max": 507.9166666666667
+      },
+      "committer": {
+        "median": 143.33333333333334,
+        "min": 140.83333333333334,
+        "max": 143.33333333333334
+      },
+      "wave": {
+        "median": 102.91666666666667,
+        "min": 102.08333333333333,
+        "max": 103.33333333333333
+      },
+      "proxy": {
+        "median": 383.3333333333333,
+        "min": 374.5833333333333,
+        "max": 383.75
+      }
+    },
+    "flights": {
+      "group_batches": {
+        "median": 2364,
+        "min": 2323,
+        "max": 2411
+      },
+      "group_members": {
+        "median": 23999,
+        "min": 23999,
+        "max": 23999
+      },
+      "levels": {
+        "median": 2603,
+        "min": 2562,
+        "max": 2650
+      },
+      "standalone_authority": {
+        "median": 26365,
+        "min": 26324,
+        "max": 26412
+      },
+      "group_mean_n": {
+        "median": 10.15186125211506,
+        "min": 9.953961012028204,
+        "max": 10.331037451571245
+      },
+      "group_flights_per_member": {
+        "median": 0.40397516563190133,
+        "min": 0.39714154756448183,
+        "max": 0.4118088253677237
+      }
+    }
+  },
+  {
+    "stage": "baseline",
+    "cell": "w5-n1000000-d1000-c32-same",
+    "repetitions": 3,
+    "passed": 3,
+    "counter_pass": 3,
+    "errors": 0,
+    "scheduled": 48000,
+    "mean_ms": {
+      "median": 22.995331328000002,
+      "min": 22.739650304,
+      "max": 24.174434048000002
+    },
+    "p99_ms": {
+      "median": 33.193983,
+      "min": 31.883263,
+      "max": 59.047935
+    },
+    "cpu_us": {
+      "server": {
+        "median": 486.25,
+        "min": 482.5,
+        "max": 500.4166666666667
+      },
+      "committer": {
+        "median": 237.91666666666666,
+        "min": 235.83333333333334,
+        "max": 240.0
+      },
+      "wave": {
+        "median": 0.0,
+        "min": 0.0,
+        "max": 0.0
+      },
+      "proxy": {
+        "median": 385.8333333333333,
+        "min": 382.9166666666667,
+        "max": 390.8333333333333
+      }
+    },
+    "flights": {
+      "group_batches": {
+        "median": 2092,
+        "min": 1969,
+        "max": 2150
+      },
+      "group_members": {
+        "median": 23999,
+        "min": 23998,
+        "max": 23999
+      },
+      "levels": {
+        "median": 4184,
+        "min": 3938,
+        "max": 4300
+      },
+      "standalone_authority": {
+        "median": 26094,
+        "min": 25970,
+        "max": 26151
+      },
+      "group_mean_n": {
+        "median": 11.47131931166348,
+        "min": 11.162325581395349,
+        "max": 12.188420518029456
+      },
+      "group_flights_per_member": {
+        "median": 0.43586965580465037,
+        "min": 0.41022542605941914,
+        "max": 0.4479353306387766
+      }
+    }
+  },
+  {
+    "stage": "baseline",
+    "cell": "w5-n1000000-d500-c32-hot1",
+    "repetitions": 3,
+    "passed": 3,
+    "counter_pass": 3,
+    "errors": 0,
+    "scheduled": 48000,
+    "mean_ms": {
+      "median": 15.332909056,
+      "min": 15.051603968,
+      "max": 15.346415616
+    },
+    "p99_ms": {
+      "median": 22.921215,
+      "min": 22.626303,
+      "max": 23.199743
+    },
+    "cpu_us": {
+      "server": {
+        "median": 527.0833333333334,
+        "min": 509.5833333333333,
+        "max": 530.4166666666666
+      },
+      "committer": {
+        "median": 155.83333333333334,
+        "min": 155.41666666666666,
+        "max": 156.66666666666666
+      },
+      "wave": {
+        "median": 110.41666666666667,
+        "min": 108.33333333333333,
+        "max": 110.41666666666667
+      },
+      "proxy": {
+        "median": 415.0,
+        "min": 415.0,
+        "max": 419.1666666666667
+      }
+    },
+    "flights": {
+      "group_batches": {
+        "median": 3183,
+        "min": 3157,
+        "max": 3201
+      },
+      "group_members": {
+        "median": 23999,
+        "min": 23999,
+        "max": 23999
+      },
+      "levels": {
+        "median": 3422,
+        "min": 3396,
+        "max": 3440
+      },
+      "standalone_authority": {
+        "median": 27184,
+        "min": 27158,
+        "max": 27202
+      },
+      "group_mean_n": {
+        "median": 7.539742381401194,
+        "min": 7.497344579818806,
+        "max": 7.601837187203041
+      },
+      "group_flights_per_member": {
+        "median": 0.5404808533688904,
+        "min": 0.5361473394724781,
+        "max": 0.5434809783740989
+      }
+    }
+  },
+  {
+    "stage": "baseline",
+    "cell": "w5-n1000000-d500-c32-same",
+    "repetitions": 3,
+    "passed": 3,
+    "counter_pass": 3,
+    "errors": 0,
+    "scheduled": 48000,
+    "mean_ms": {
+      "median": 17.181439744,
+      "min": 16.627075712,
+      "max": 17.265866496
+    },
+    "p99_ms": {
+      "median": 27.820031,
+      "min": 23.298047,
+      "max": 34.078719
+    },
+    "cpu_us": {
+      "server": {
+        "median": 506.6666666666667,
+        "min": 487.9166666666667,
+        "max": 507.5
+      },
+      "committer": {
+        "median": 250.41666666666666,
+        "min": 249.16666666666666,
+        "max": 250.83333333333334
+      },
+      "wave": {
+        "median": 0.0,
+        "min": 0.0,
+        "max": 0.0
+      },
+      "proxy": {
+        "median": 430.4166666666667,
+        "min": 424.1666666666667,
+        "max": 431.6666666666667
+      }
+    },
+    "flights": {
+      "group_batches": {
+        "median": 2823,
+        "min": 2800,
+        "max": 2837
+      },
+      "group_members": {
+        "median": 23999,
+        "min": 23998,
+        "max": 23999
+      },
+      "levels": {
+        "median": 5646,
+        "min": 5600,
+        "max": 5674
+      },
+      "standalone_authority": {
+        "median": 26825,
+        "min": 26801,
+        "max": 26838
+      },
+      "group_mean_n": {
+        "median": 8.500885582713426,
+        "min": 8.45928798026084,
+        "max": 8.571071428571429
+      },
+      "group_flights_per_member": {
+        "median": 0.5881740145012084,
+        "min": 0.5833576399016626,
+        "max": 0.5910662944289345
+      }
+    }
+  },
+  {
+    "stage": "ingress",
+    "cell": "w4-n1000000-d1000-c32-disjoint",
+    "repetitions": 3,
+    "passed": 3,
+    "counter_pass": 3,
+    "errors": 0,
+    "scheduled": 48000,
+    "mean_ms": {
+      "median": 16.608328704,
+      "min": 16.347453696,
+      "max": 16.951015168
+    },
+    "p99_ms": {
+      "median": 23.724031,
+      "min": 22.806527,
+      "max": 28.884991
+    },
+    "cpu_us": {
+      "server": {
+        "median": 420.8333333333333,
+        "min": 420.0,
+        "max": 426.25
+      },
+      "committer": {
+        "median": 142.5,
+        "min": 141.66666666666666,
+        "max": 144.58333333333334
+      },
+      "wave": {
+        "median": 104.58333333333333,
+        "min": 103.75,
+        "max": 107.5
+      },
+      "proxy": {
+        "median": 126.25,
+        "min": 126.25,
+        "max": 126.66666666666667
+      }
+    },
+    "flights": {
+      "group_batches": {
+        "median": 2603,
+        "min": 2587,
+        "max": 2638
+      },
+      "group_members": {
+        "median": 23999,
+        "min": 23999,
+        "max": 23999
+      },
+      "levels": {
+        "median": 2603,
+        "min": 2587,
+        "max": 2638
+      },
+      "standalone_authority": {
+        "median": 2604,
+        "min": 2588,
+        "max": 2670
+      },
+      "group_mean_n": {
+        "median": 9.21974644640799,
+        "min": 9.097422289613343,
+        "max": 9.276768457672981
+      },
+      "group_flights_per_member": {
+        "median": 0.43385141047543646,
+        "min": 0.43118463269302887,
+        "max": 0.4396849868744531
+      }
+    }
+  },
+  {
+    "stage": "ingress",
+    "cell": "w4-n1000000-d500-c32-disjoint",
+    "repetitions": 3,
+    "passed": 3,
+    "counter_pass": 3,
+    "errors": 0,
+    "scheduled": 48000,
+    "mean_ms": {
+      "median": 13.689179392000002,
+      "min": 12.915134208000001,
+      "max": 13.806052224
+    },
+    "p99_ms": {
+      "median": 20.348927,
+      "min": 19.415039,
+      "max": 20.496383
+    },
+    "cpu_us": {
+      "server": {
+        "median": 438.3333333333333,
+        "min": 428.3333333333333,
+        "max": 459.5833333333333
+      },
+      "committer": {
+        "median": 152.91666666666666,
+        "min": 151.25,
+        "max": 155.83333333333334
+      },
+      "wave": {
+        "median": 110.41666666666667,
+        "min": 106.25,
+        "max": 119.16666666666667
+      },
+      "proxy": {
+        "median": 151.25,
+        "min": 150.83333333333334,
+        "max": 160.83333333333334
+      }
+    },
+    "flights": {
+      "group_batches": {
+        "median": 3152,
+        "min": 3098,
+        "max": 3364
+      },
+      "group_members": {
+        "median": 23999,
+        "min": 23999,
+        "max": 23999
+      },
+      "levels": {
+        "median": 3152,
+        "min": 3098,
+        "max": 3364
+      },
+      "standalone_authority": {
+        "median": 3184,
+        "min": 3099,
+        "max": 3365
+      },
+      "group_mean_n": {
+        "median": 7.613895939086294,
+        "min": 7.1340665873959574,
+        "max": 7.746610716591349
+      },
+      "group_flights_per_member": {
+        "median": 0.5253552231342973,
+        "min": 0.5163548481186716,
+        "max": 0.560690028751198
+      }
+    }
+  },
+  {
+    "stage": "ingress",
+    "cell": "w5-n1000000-d1000-c32-hot1",
+    "repetitions": 3,
+    "passed": 3,
+    "counter_pass": 3,
+    "errors": 0,
+    "scheduled": 48000,
+    "mean_ms": {
+      "median": 16.930484224,
+      "min": 16.64016896,
+      "max": 17.843218943999997
+    },
+    "p99_ms": {
+      "median": 24.379391,
+      "min": 23.396351,
+      "max": 35.454975
+    },
+    "cpu_us": {
+      "server": {
+        "median": 426.25,
+        "min": 407.0833333333333,
+        "max": 429.1666666666667
+      },
+      "committer": {
+        "median": 144.58333333333334,
+        "min": 144.16666666666666,
+        "max": 145.0
+      },
+      "wave": {
+        "median": 102.91666666666667,
+        "min": 97.5,
+        "max": 103.33333333333333
+      },
+      "proxy": {
+        "median": 128.33333333333331,
+        "min": 125.41666666666667,
+        "max": 128.75
+      }
+    },
+    "flights": {
+      "group_batches": {
+        "median": 2576,
+        "min": 2536,
+        "max": 2591
+      },
+      "group_members": {
+        "median": 23999,
+        "min": 23999,
+        "max": 23999
+      },
+      "levels": {
+        "median": 2815,
+        "min": 2775,
+        "max": 2830
+      },
+      "standalone_authority": {
+        "median": 2577,
+        "min": 2568,
+        "max": 2592
+      },
+      "group_mean_n": {
+        "median": 9.316381987577639,
+        "min": 9.262446931686608,
+        "max": 9.463328075709779
+      },
+      "group_flights_per_member": {
+        "median": 0.43930997124880206,
+        "min": 0.43264302679278305,
+        "max": 0.44181007541980916
+      }
+    }
+  },
+  {
+    "stage": "ingress",
+    "cell": "w5-n1000000-d1000-c32-same",
+    "repetitions": 3,
+    "passed": 3,
+    "counter_pass": 3,
+    "errors": 0,
+    "scheduled": 48000,
+    "mean_ms": {
+      "median": 21.099068416,
+      "min": 20.58547584,
+      "max": 21.787219712000002
+    },
+    "p99_ms": {
+      "median": 29.900799,
+      "min": 29.458431,
+      "max": 35.127295
+    },
+    "cpu_us": {
+      "server": {
+        "median": 414.5833333333333,
+        "min": 402.5,
+        "max": 416.25
+      },
+      "committer": {
+        "median": 238.75,
+        "min": 237.91666666666666,
+        "max": 240.0
+      },
+      "wave": {
+        "median": 0.0,
+        "min": 0.0,
+        "max": 0.0
+      },
+      "proxy": {
+        "median": 125.41666666666667,
+        "min": 125.0,
+        "max": 126.25
+      }
+    },
+    "flights": {
+      "group_batches": {
+        "median": 2074,
+        "min": 2059,
+        "max": 2085
+      },
+      "group_members": {
+        "median": 23999,
+        "min": 23999,
+        "max": 23999
+      },
+      "levels": {
+        "median": 4148,
+        "min": 4118,
+        "max": 4170
+      },
+      "standalone_authority": {
+        "median": 2075,
+        "min": 2060,
+        "max": 2117
+      },
+      "group_mean_n": {
+        "median": 11.57135969141755,
+        "min": 11.51031175059952,
+        "max": 11.655658086449733
+      },
+      "group_flights_per_member": {
+        "median": 0.4321013375557315,
+        "min": 0.42897620734197256,
+        "max": 0.434393099712488
+      }
+    }
+  },
+  {
+    "stage": "ingress",
+    "cell": "w5-n1000000-d500-c32-hot1",
+    "repetitions": 3,
+    "passed": 3,
+    "counter_pass": 3,
+    "errors": 0,
+    "scheduled": 48000,
+    "mean_ms": {
+      "median": 13.242217088,
+      "min": 13.122553216,
+      "max": 13.283754752
+    },
+    "p99_ms": {
+      "median": 19.955711,
+      "min": 19.644415,
+      "max": 21.184511
+    },
+    "cpu_us": {
+      "server": {
+        "median": 447.9166666666667,
+        "min": 428.3333333333333,
+        "max": 448.3333333333333
+      },
+      "committer": {
+        "median": 154.58333333333334,
+        "min": 154.16666666666666,
+        "max": 155.41666666666666
+      },
+      "wave": {
+        "median": 108.75,
+        "min": 108.75,
+        "max": 114.58333333333333
+      },
+      "proxy": {
+        "median": 161.66666666666666,
+        "min": 161.66666666666666,
+        "max": 163.75
+      }
+    },
+    "flights": {
+      "group_batches": {
+        "median": 3316,
+        "min": 3313,
+        "max": 3339
+      },
+      "group_members": {
+        "median": 23999,
+        "min": 23999,
+        "max": 23999
+      },
+      "levels": {
+        "median": 3555,
+        "min": 3552,
+        "max": 3578
+      },
+      "standalone_authority": {
+        "median": 3340,
+        "min": 3314,
+        "max": 3348
+      },
+      "group_mean_n": {
+        "median": 7.237334137515078,
+        "min": 7.187481281820904,
+        "max": 7.243887715061877
+      },
+      "group_flights_per_member": {
+        "median": 0.5626484436851535,
+        "min": 0.5621484228509521,
+        "max": 0.5664819367473645
+      }
+    }
+  },
+  {
+    "stage": "ingress",
+    "cell": "w5-n1000000-d500-c32-same",
+    "repetitions": 3,
+    "passed": 3,
+    "counter_pass": 3,
+    "errors": 0,
+    "scheduled": 48000,
+    "mean_ms": {
+      "median": 16.137943936,
+      "min": 14.936822528,
+      "max": 16.71982784
+    },
+    "p99_ms": {
+      "median": 23.887871,
+      "min": 21.839871,
+      "max": 26.722303
+    },
+    "cpu_us": {
+      "server": {
+        "median": 420.0,
+        "min": 408.75,
+        "max": 420.4166666666667
+      },
+      "committer": {
+        "median": 244.58333333333334,
+        "min": 242.91666666666666,
+        "max": 247.08333333333334
+      },
+      "wave": {
+        "median": 0.0,
+        "min": 0.0,
+        "max": 0.0
+      },
+      "proxy": {
+        "median": 159.58333333333334,
+        "min": 157.5,
+        "max": 170.0
+      }
+    },
+    "flights": {
+      "group_batches": {
+        "median": 2697,
+        "min": 2640,
+        "max": 2871
+      },
+      "group_members": {
+        "median": 23999,
+        "min": 23999,
+        "max": 23999
+      },
+      "levels": {
+        "median": 5394,
+        "min": 5280,
+        "max": 5742
+      },
+      "standalone_authority": {
+        "median": 2698,
+        "min": 2641,
+        "max": 2903
+      },
+      "group_mean_n": {
+        "median": 8.89840563589173,
+        "min": 8.359108324625566,
+        "max": 9.090530303030302
+      },
+      "group_flights_per_member": {
+        "median": 0.5618984124338514,
+        "min": 0.5500229176215675,
+        "max": 0.5981499229134547
+      }
+    }
+  },
+  {
+    "stage": "cpu",
+    "cell": "w4-n1000000-d1000-c32-disjoint",
+    "repetitions": 3,
+    "passed": 3,
+    "counter_pass": 3,
+    "errors": 0,
+    "scheduled": 48000,
+    "mean_ms": {
+      "median": 16.146489088,
+      "min": 16.115588352,
+      "max": 16.21912576
+    },
+    "p99_ms": {
+      "median": 22.609919,
+      "min": 22.527999,
+      "max": 22.986751
+    },
+    "cpu_us": {
+      "server": {
+        "median": 407.9166666666667,
+        "min": 390.8333333333333,
+        "max": 410.0
+      },
+      "committer": {
+        "median": 118.33333333333333,
+        "min": 117.5,
+        "max": 119.58333333333333
+      },
+      "wave": {
+        "median": 106.66666666666667,
+        "min": 105.41666666666667,
+        "max": 109.58333333333333
+      },
+      "proxy": {
+        "median": 127.91666666666667,
+        "min": 127.08333333333333,
+        "max": 128.75
+      }
+    },
+    "flights": {
+      "group_batches": {
+        "median": 2642,
+        "min": 2636,
+        "max": 2644
+      },
+      "group_members": {
+        "median": 23999,
+        "min": 23999,
+        "max": 23999
+      },
+      "levels": {
+        "median": 2642,
+        "min": 2636,
+        "max": 2644
+      },
+      "standalone_authority": {
+        "median": 2643,
+        "min": 2637,
+        "max": 2676
+      },
+      "group_mean_n": {
+        "median": 9.083648750946253,
+        "min": 9.0767776096823,
+        "max": 9.10432473444613
+      },
+      "group_flights_per_member": {
+        "median": 0.440351681320055,
+        "min": 0.43935163965165214,
+        "max": 0.44068502854285596
+      }
+    }
+  },
+  {
+    "stage": "cpu",
+    "cell": "w4-n1000000-d500-c32-disjoint",
+    "repetitions": 3,
+    "passed": 3,
+    "counter_pass": 3,
+    "errors": 0,
+    "scheduled": 48000,
+    "mean_ms": {
+      "median": 13.257915648,
+      "min": 13.167415168,
+      "max": 13.661049216
+    },
+    "p99_ms": {
+      "median": 20.594687,
+      "min": 20.250623,
+      "max": 21.692415
+    },
+    "cpu_us": {
+      "server": {
+        "median": 411.6666666666667,
+        "min": 406.6666666666667,
+        "max": 413.75
+      },
+      "committer": {
+        "median": 125.0,
+        "min": 123.33333333333333,
+        "max": 126.66666666666667
+      },
+      "wave": {
+        "median": 110.83333333333333,
+        "min": 106.25,
+        "max": 114.16666666666667
+      },
+      "proxy": {
+        "median": 155.0,
+        "min": 152.91666666666666,
+        "max": 159.16666666666666
+      }
+    },
+    "flights": {
+      "group_batches": {
+        "median": 3267,
+        "min": 3170,
+        "max": 3339
+      },
+      "group_members": {
+        "median": 23999,
+        "min": 23998,
+        "max": 23999
+      },
+      "levels": {
+        "median": 3267,
+        "min": 3170,
+        "max": 3339
+      },
+      "standalone_authority": {
+        "median": 3299,
+        "min": 3172,
+        "max": 3340
+      },
+      "group_mean_n": {
+        "median": 7.3458830731558,
+        "min": 7.187481281820904,
+        "max": 7.570347003154574
+      },
+      "group_flights_per_member": {
+        "median": 0.5445226884453519,
+        "min": 0.5283773647803983,
+        "max": 0.5565231884661861
+      }
+    }
+  },
+  {
+    "stage": "cpu",
+    "cell": "w5-n1000000-d1000-c32-hot1",
+    "repetitions": 3,
+    "passed": 3,
+    "counter_pass": 3,
+    "errors": 0,
+    "scheduled": 48000,
+    "mean_ms": {
+      "median": 17.536791296,
+      "min": 16.942717184,
+      "max": 18.078379264
+    },
+    "p99_ms": {
+      "median": 26.099711,
+      "min": 25.198591,
+      "max": 33.374207
+    },
+    "cpu_us": {
+      "server": {
+        "median": 396.25,
+        "min": 390.0,
+        "max": 402.0833333333333
+      },
+      "committer": {
+        "median": 116.25,
+        "min": 115.83333333333333,
+        "max": 118.33333333333333
+      },
+      "wave": {
+        "median": 105.41666666666667,
+        "min": 102.5,
+        "max": 106.66666666666667
+      },
+      "proxy": {
+        "median": 124.58333333333333,
+        "min": 120.41666666666667,
+        "max": 126.25
+      }
+    },
+    "flights": {
+      "group_batches": {
+        "median": 2487,
+        "min": 2426,
+        "max": 2549
+      },
+      "group_members": {
+        "median": 23999,
+        "min": 23998,
+        "max": 23999
+      },
+      "levels": {
+        "median": 2726,
+        "min": 2665,
+        "max": 2788
+      },
+      "standalone_authority": {
+        "median": 2488,
+        "min": 2427,
+        "max": 2582
+      },
+      "group_mean_n": {
+        "median": 9.649778850020105,
+        "min": 9.414672420557082,
+        "max": 9.892415498763397
+      },
+      "group_flights_per_member": {
+        "median": 0.4244760198341598,
+        "min": 0.4143089295387308,
+        "max": 0.43482790232519375
+      }
+    }
+  },
+  {
+    "stage": "cpu",
+    "cell": "w5-n1000000-d1000-c32-same",
+    "repetitions": 3,
+    "passed": 3,
+    "counter_pass": 3,
+    "errors": 0,
+    "scheduled": 48000,
+    "mean_ms": {
+      "median": 20.413597952,
+      "min": 20.088957952,
+      "max": 21.095068928
+    },
+    "p99_ms": {
+      "median": 28.917759,
+      "min": 28.295167,
+      "max": 30.900223
+    },
+    "cpu_us": {
+      "server": {
+        "median": 383.75,
+        "min": 375.4166666666667,
+        "max": 392.5
+      },
+      "committer": {
+        "median": 212.08333333333334,
+        "min": 210.0,
+        "max": 212.08333333333334
+      },
+      "wave": {
+        "median": 0.0,
+        "min": 0.0,
+        "max": 0.0
+      },
+      "proxy": {
+        "median": 127.91666666666667,
+        "min": 127.5,
+        "max": 128.33333333333331
+      }
+    },
+    "flights": {
+      "group_batches": {
+        "median": 2117,
+        "min": 2116,
+        "max": 2147
+      },
+      "group_members": {
+        "median": 23999,
+        "min": 23999,
+        "max": 23999
+      },
+      "levels": {
+        "median": 4234,
+        "min": 4232,
+        "max": 4294
+      },
+      "standalone_authority": {
+        "median": 2118,
+        "min": 2117,
+        "max": 2179
+      },
+      "group_mean_n": {
+        "median": 11.336324988190835,
+        "min": 11.177922682813227,
+        "max": 11.341682419659735
+      },
+      "group_flights_per_member": {
+        "median": 0.441060044168507,
+        "min": 0.44085170215425645,
+        "max": 0.44731030459602483
+      }
+    }
+  },
+  {
+    "stage": "cpu",
+    "cell": "w5-n1000000-d500-c32-hot1",
+    "repetitions": 3,
+    "passed": 3,
+    "counter_pass": 3,
+    "errors": 0,
+    "scheduled": 48000,
+    "mean_ms": {
+      "median": 12.895573888,
+      "min": 12.885584384,
+      "max": 13.237558528000001
+    },
+    "p99_ms": {
+      "median": 19.202047,
+      "min": 19.087359,
+      "max": 20.987903
+    },
+    "cpu_us": {
+      "server": {
+        "median": 409.1666666666667,
+        "min": 405.8333333333333,
+        "max": 421.6666666666667
+      },
+      "committer": {
+        "median": 127.5,
+        "min": 126.25,
+        "max": 127.5
+      },
+      "wave": {
+        "median": 111.25,
+        "min": 108.33333333333333,
+        "max": 112.08333333333333
+      },
+      "proxy": {
+        "median": 162.5,
+        "min": 160.83333333333334,
+        "max": 163.33333333333334
+      }
+    },
+    "flights": {
+      "group_batches": {
+        "median": 3346,
+        "min": 3305,
+        "max": 3355
+      },
+      "group_members": {
+        "median": 23999,
+        "min": 23998,
+        "max": 23999
+      },
+      "levels": {
+        "median": 3585,
+        "min": 3544,
+        "max": 3594
+      },
+      "standalone_authority": {
+        "median": 3348,
+        "min": 3306,
+        "max": 3387
+      },
+      "group_mean_n": {
+        "median": 7.172145845786013,
+        "min": 7.153204172876304,
+        "max": 7.2614220877458395
+      },
+      "group_flights_per_member": {
+        "median": 0.5676723060255021,
+        "min": 0.5608150339597483,
+        "max": 0.5691487145297721
+      }
+    }
+  },
+  {
+    "stage": "cpu",
+    "cell": "w5-n1000000-d500-c32-same",
+    "repetitions": 3,
+    "passed": 3,
+    "counter_pass": 3,
+    "errors": 0,
+    "scheduled": 48000,
+    "mean_ms": {
+      "median": 15.785868672,
+      "min": 14.859131264,
+      "max": 16.207306496
+    },
+    "p99_ms": {
+      "median": 25.231359,
+      "min": 23.281663,
+      "max": 25.559039
+    },
+    "cpu_us": {
+      "server": {
+        "median": 397.9166666666667,
+        "min": 387.0833333333333,
+        "max": 399.1666666666667
+      },
+      "committer": {
+        "median": 221.25,
+        "min": 218.75,
+        "max": 223.33333333333334
+      },
+      "wave": {
+        "median": 0.0,
+        "min": 0.0,
+        "max": 0.0
+      },
+      "proxy": {
+        "median": 167.91666666666666,
+        "min": 160.0,
+        "max": 172.5
+      }
+    },
+    "flights": {
+      "group_batches": {
+        "median": 2820,
+        "min": 2684,
+        "max": 2931
+      },
+      "group_members": {
+        "median": 23999,
+        "min": 23999,
+        "max": 23999
+      },
+      "levels": {
+        "median": 5640,
+        "min": 5368,
+        "max": 5862
+      },
+      "standalone_authority": {
+        "median": 2821,
+        "min": 2685,
+        "max": 2963
+      },
+      "group_mean_n": {
+        "median": 8.510283687943263,
+        "min": 8.187990446946435,
+        "max": 8.94150521609538
+      },
+      "group_flights_per_member": {
+        "median": 0.5875244801866745,
+        "min": 0.5591899662485937,
+        "max": 0.6106504437684903
+      }
+    }
+  }
+]

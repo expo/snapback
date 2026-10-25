@@ -145,29 +145,18 @@ mod lane {
                 }
             }
         }
-        pub fn eligible(engine: &Engine, batch: &[Invocation], chained: bool) -> bool {
+        pub fn eligible(engine: &Engine, batch: &[Invocation], chained: bool, plans: &mut super::super::program_batch::Plans) -> bool {
             !batch.iter().enumerate().any(|(n, i)| {
                 batch[..n]
                     .iter()
                     .any(|j| std::sync::Arc::ptr_eq(&i.identity, &j.identity))
             }) && matches!(engine.store, AnyStore::Postgres(_))
                 && (batch.len() > 1 || (chained && batch.len() == 1))
-                && batch.iter().all(|i| {
+                && batch.iter().enumerate().all(|(n,i)| {
                     i.eligible(engine)
                         && i.cached().is_none()
                         && i.bind(engine).is_ok()
-                        && engine
-                            .programs
-                            .get(&i.name)
-                            .and_then(|p| {
-                                super::super::committer::closure::Closure::new(
-                                    &engine.schema,
-                                    p,
-                                    &i.context,
-                                    engine.generation,
-                                )
-                            })
-                            .is_some()
+                        && super::super::program_batch::bounded_plan(plans,n,engine,batch).is_some()
                 })
                 && !engine
                     .schema
@@ -175,7 +164,13 @@ mod lane {
                     .values()
                     .any(|t| t.not_before.is_some())
         }
-        pub fn start(&mut self, engine: &mut Engine, mut batch: Vec<Invocation>, finish: Finish) {
+        #[cfg(test)]
+        pub fn start(&mut self, engine: &mut Engine, batch: Vec<Invocation>, finish: Finish) {
+            let mut plans: super::super::program_batch::Plans = (0..batch.len()).map(|_|None).collect();
+            for i in 0..batch.len() { super::super::program_batch::bounded_plan(&mut plans,i,engine,&batch); }
+            self.start_planned(engine,batch,plans,finish);
+        }
+        pub fn start_planned(&mut self, engine: &mut Engine, mut batch: Vec<Invocation>, mut plans: super::super::program_batch::Plans, finish: Finish) {
             if self.paused {
                 finish(
                     engine,
@@ -200,7 +195,7 @@ mod lane {
                         self.placeholder = Some(AnyStore::memory().expect("pipeline placeholder"));
                     }
                     Err(_) => {
-                        let out = engine.invoke_program_batch(&mut batch);
+                        let out = engine.invoke_program_batch_planned(&mut batch, &mut plans);
                         finish(engine, out);
                         return;
                     }
@@ -234,7 +229,8 @@ mod lane {
             let indices: Vec<_> = (0..batch.len()).collect();
             let mut staged = None;
             let values =
-                engine.program_group_staged(&mut batch, &indices, false, Some(&chain), &mut staged);
+                engine.program_group_staged(&mut batch, &indices, false,
+                    plans.into_iter().map(|p|p.unwrap()).collect(), Some(&chain), &mut staged);
             let values = match values {
                 Ok(values) => values,
                 Err(failure) => {

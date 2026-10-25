@@ -152,6 +152,7 @@ fn cascade(dispatched: bool) {
     let mut lane = Lane::new();
     let hold = Hold::new();
     let events = install_hook(&mut lane, Point::AfterTail, hold.clone(), true);
+    crate::engine::committer::closure::PLAN_BUILDS.with(|count|count.set(0));
     lane.start(
         &mut engine,
         vec![item(0)],
@@ -193,6 +194,8 @@ fn cascade(dispatched: bool) {
         },
     );
     assert_eq!(sql_status(&mut control, &first.xid), "aborted");
+    assert_eq!(crate::engine::committer::closure::PLAN_BUILDS.with(|count|count.get()),3,
+        "cascade and solo recovery must not rebuild closure plans");
     assert_survivor(&mut engine, &output);
 }
 #[test]

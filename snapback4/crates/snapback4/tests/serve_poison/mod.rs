@@ -53,6 +53,7 @@ fn a_request_after_engine_poison_still_serves() {
         poll_wait: Mutex::new(None), poll_resumed: Mutex::new(None), poll_notified: Mutex::new(None),
         query_wait: Mutex::new(None), adoption_committed: Mutex::new(None), clock_advanced: Mutex::new(None), reader_open: Mutex::new(None), changes_refresh: Mutex::new(None),
         mutation_wait: Mutex::new(None),
+        #[cfg(test)] mutation_authority_checked: Mutex::new(None),
         mutation_committed: Mutex::new(None),
         operation_ingress: Mutex::new(None),
     });

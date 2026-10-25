@@ -3,6 +3,9 @@ use super::overlay::{Access, Base, RowKey};
 use crate::{Program, Schema, Value, engine::Context, ir::*, schema::*};
 use std::collections::{BTreeMap, BTreeSet};
 
+#[cfg(test)]
+thread_local! { pub(crate) static PLAN_BUILDS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) }; }
+
 #[derive(Clone)]
 enum Binding {
     Scalar(Value),
@@ -22,6 +25,8 @@ impl Closure {
         context: &Context,
         generation: u64,
     ) -> Option<Self> {
+        #[cfg(test)]
+        PLAN_BUILDS.with(|count| count.set(count.get() + 1));
         // Evolved generations may carry dormant/backfill/retained transitions.
         if generation != 1
             || program.native
@@ -48,10 +53,9 @@ impl Closure {
         }) {
             return None;
         }
-        let mut context = context.clone();
-        crate::engine::validate::validate_inputs(schema, program, &mut context.args).ok()?;
-        let mut env: BTreeMap<_, _> = context
-            .args
+        let mut args = context.args.clone();
+        crate::engine::validate::validate_inputs(schema, program, &mut args).ok()?;
+        let mut env: BTreeMap<_, _> = args
             .iter()
             .map(|(k, v)| (k.clone(), Binding::Scalar(v.clone())))
             .collect();

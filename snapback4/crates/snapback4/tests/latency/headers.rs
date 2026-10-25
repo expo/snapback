@@ -196,9 +196,9 @@ fn changes_reopens_after_a_commit_and_times_each_open_as_wait() {
     let reply = poll.join().unwrap();
     assert_eq!(status(&reply), 200, "{reply}");
     assert_eq!(body(&reply)["tables"], json!(["notes"]));
-    // The poll opens twice; the concurrent keyed write opens ingress
-    // and preflight readers too. Only the poll's two delays belong to its reply.
-    assert_eq!(opens.load(Ordering::SeqCst), 4);
+    // The poll opens twice; the concurrent keyed persona write opens only its
+    // preflight reader. Only the poll's two delays belong to its reply.
+    assert_eq!(opens.load(Ordering::SeqCst), 3);
     assert_open_wait(&reply, 2);
 }
 
