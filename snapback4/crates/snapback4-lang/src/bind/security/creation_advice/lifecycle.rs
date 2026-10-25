@@ -129,10 +129,23 @@ fn local_filter_receipts(filter:&Expr)->Vec<Expr>{
     });super::super::derived::approval_receipts(&filter)
 }
 fn caller_approval(condition:&Expr,table:&str,column:&str,bound:&Bound)->bool{
-    let Some(principal)=super::super::privilege::global_principal(bound,table)else{return false;};let mut found=false;
-    for probe in super::super::derived::approval_receipts(condition){walk(&probe,|e|if let Expr::Exists{read,..}=e&&read.table==table&&read.keys.iter().any(|key|key.column.as_deref()==Some(&principal)&&matches!(&key.value,Expr::Name{name,..} if name=="viewer")){
-        found|=read.keys.iter().any(|key|key.column.as_deref()==Some(column)&&matches!(&key.value,Expr::Literal{value:ast::Literal::Bool(true),..}))||read.filter.as_deref().is_some_and(|filter|local_filter_receipts(filter).iter().any(|positive|{let mut matches=false;walk(positive,|e|if let Expr::Member{base,name,..}=e&&name==column&&matches!(base.as_ref(),Expr::Focal{..}){matches=true;});matches}));
-    });}found
+    let Some(principal)=super::super::privilege::global_principal(bound,table)else{return false;};
+    fn population(read:&ast::ReadExpr,table:&str,column:&str,principal:&str,bound:&Bound)->bool{
+        let local=read.table==table&&read.keys.iter().any(|key|key.column.as_deref()==Some(principal)&&matches!(&key.value,Expr::Name{name,..} if name=="viewer"))&&(
+            read.keys.iter().any(|key|key.column.as_deref()==Some(column)&&matches!(&key.value,Expr::Literal{value:ast::Literal::Bool(true),..}))||read.filter.as_deref().is_some_and(|filter|local_filter_receipts(filter).iter().any(|positive|{let mut found=false;walk(positive,|e|if let Expr::Member{base,name,..}=e&&name==column&&matches!(base.as_ref(),Expr::Focal{..}){found=true;});found})));
+        local||read.filter.as_deref().is_some_and(|filter|positive(filter,false,table,column,principal,bound))
+    }
+    fn positive(e:&Expr,negative:bool,table:&str,column:&str,principal:&str,bound:&Bound)->bool{match e{
+        Expr::Unary{op,value,..} if op=="not"=>positive(value,!negative,table,column,principal,bound),
+        Expr::Binary{op,left,right,..} if matches!(op.as_str(),"and"|"or")=>positive(left,negative,table,column,principal,bound)||positive(right,negative,table,column,principal,bound),
+        Expr::Exists{read,..} if !negative=>population(read,table,column,principal,bound),
+        Expr::Binary{op,left,right,..}=>{
+            if matches!(op.as_str(),"="|"!="){for (value,literal) in [(left.as_ref(),right.as_ref()),(right.as_ref(),left.as_ref())]{if let Expr::Literal{value:ast::Literal::Bool(flag),..}=literal{return positive(value,negative^((op=="=")!=*flag),table,column,principal,bound);}}}
+            let predicate=if negative{Expr::Unary{op:"not".into(),value:Box::new(e.clone()),site:e.site().clone()}}else{e.clone()};
+            !super::super::derived::approval_receipts(&predicate).is_empty()&&[left.as_ref(),right.as_ref()].into_iter().any(|value|matches!(value,Expr::Call{name,args,..} if name=="count"&&args.len()==1&&matches!(&args[0],Expr::Read(read) if population(read,table,column,principal,bound))))
+        },_=>false,
+    }}
+    positive(condition,false,table,column,&principal,bound)
 }
 fn parent_loop_guard(effect:&Write<'_>,table:&str,column:&str,bound:&Bound)->bool{
     fn expanded(catalog:&Catalog,value:&Expr,env:&BTreeMap<String,Expr>)->Expr{super::super::authority_walk::returned(catalog,&super::super::authority_walk::resolve(value,env),0)}
