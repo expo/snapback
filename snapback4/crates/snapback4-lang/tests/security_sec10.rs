@@ -382,6 +382,9 @@ fn campaign(s:&str)->Campaign{let b=security::derived::augmented(&sources(s),&bo
     assert!(!notes(&caller).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
     let checked=source.replace("LOOP","  for b in bookings first 10 by .id:\n    stop = checked(b.approved)\n    if stop:\n      continue\n")+"fn checked(value: bool):\n  require value else APPROVAL\n  return false\n";
     assert!(!notes(&checked).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+    for (value,consumed) in [("not checked(b.approved)",true),("checked(b.approved) = false",true),("choose(checked(b.approved))",true),("false and checked(b.approved)",false),("true or checked(b.approved)",false)]{
+        let body=format!("  for b in bookings first 10 by .id:\n    stop = {value}\n");let source=source.replace("LOOP",&body)+"fn checked(value: bool):\n  require value else APPROVAL\n  return false\nfn choose(value: bool): value\n";assert_eq!(!notes(&source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"),consumed,"{value}");
+    }
     let helper=source.replace("  update trips[trip] {status:'done'}","  setDone(trip)")+"fn setDone(trip: trips):\n  update trips[trip] {status:'done'}\n  return null\n";
     assert!(!notes(&helper.replace("LOOP","  for b in bookings first 10 by .id:\n    require b.approved else APPROVAL\n")).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
     for transfer in ["continue","break","return null"]{
@@ -438,4 +441,10 @@ fn campaign(s:&str)->Campaign{let b=security::derived::augmented(&sources(s),&bo
     assert!(notes(source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
     use snapback4_core::{Engine,Context,Value,WriteState};use std::collections::BTreeMap;
     let source=source.to_owned()+"query get(doc: docs):\n  return docs[doc]\n";let b=bound(&source);let mut e=Engine::memory(b.schema.clone(),b.programs.iter().map(|p|p.program.clone())).unwrap();let row=|table:&str,json:serde_json::Value|snapback4_core::wire::row_from_json(&b.schema.tables[table],&json).unwrap();e.seed_at([("roles".into(),row("roles",serde_json::json!({"id":"r","principal":"dev:owner","role":"owner"}))),("docs".into(),row("docs",serde_json::json!({"id":"d","approvedAt":null,"status":"draft"})))],challenges::NOW).unwrap();let args=BTreeMap::from([("doc".into(),Value::Id("d".into()))]);let result=e.mutate("approve",None,Context::new("dev:owner",args.clone()).at(challenges::NOW)).unwrap();assert!(matches!(result.state,WriteState::Sent{..}));let observed=e.query("get",Context::new("dev:owner",args).at(challenges::NOW)).unwrap();assert_eq!(observed.data.field("approvedAt").unwrap(),&Value::Null);
+}
+
+#[test]fn recursive_helper_requirements_cannot_overflow_source_advice(){
+    let source="table trips:\n  status: enum('draft','done') default 'draft'\n  read <- allow\n  update <- allow\n  online only\ntable bookings:\n  trip: trips\n  approved: bool default false\n  read <- allow\n  update <- allow\n  online only\nfn cycleA(value: bool):\n  require cycleB(value) else DENIED\n  return value\nfn cycleB(value: bool):\n  require cycleA(value) else DENIED\n  return value\nmutation approve(booking: bookings):\n  update bookings[booking] {approved:true}\nmutation finish(trip: trips):\n  for b in bookings first 10 by .id:\n    require cycleA(b.approved) else DENIED\n  update trips[trip] {status:'done'}\n";
+    let (_,diagnostics)=snapback4_lang::parse_document("schema.q",source);assert!(diagnostics.is_empty(),"{diagnostics:?}");
+    let sources=sources(source);let b=compile(&sources);let mut report=security::analyze_rules(&b);security::add_source_notes(&mut report,&sources,&b);
 }

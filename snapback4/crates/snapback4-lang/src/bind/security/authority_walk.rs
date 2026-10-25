@@ -32,15 +32,33 @@ fn expression(catalog:&Catalog,p:&ProgramDecl,expr:&Expr,env:&Env,guards:&[Stmt]
         },_=>{}
     });
 }
-// Only an unconditional direct call exports a helper's guaranteed prefix.
-// Conditional/loop-local requirements never become caller assumptions.
+// Guaranteed evaluated operands export helper requirements. Conditional
+// operands retain applicability implications, never an unconditional assumption.
 pub(super) fn helper_guards(catalog:&Catalog,expr:&Expr,env:&Env,depth:usize)->Vec<Stmt>{
     if depth>=32{return Vec::new();}
-    let Expr::Call{name,args,..}=resolve(expr,env)else{return Vec::new();};
-    let Some(f)=catalog.functions.get(&name)else{return Vec::new();};
+    let expression=resolve(expr,env);
+    fn conditional(guards:Vec<Stmt>,premise:Expr,site:&Site)->Vec<Stmt>{guards.into_iter().filter_map(|stmt|if let Stmt::Require{condition,..}=stmt{Some(Stmt::Require{condition:Expr::Binary{op:"or".into(),left:Box::new(Expr::Unary{op:"not".into(),value:Box::new(premise.clone()),site:site.clone()}),right:Box::new(condition),site:site.clone()},code:"$advice:implication".into(),message:None,site:site.clone()})}else{None}).collect()}
+    match &expression{
+        Expr::Unary{value,..}|Expr::Assert{value,..}|Expr::Member{base:value,..}=>return helper_guards(catalog,value,&Env::new(),depth+1),
+        Expr::Binary{op,left,right,site}=>{
+            let mut out=helper_guards(catalog,left,&Env::new(),depth+1);
+            if op=="??"{return out;}
+            let right=helper_guards(catalog,right,&Env::new(),depth+1);
+            if op=="and"||op=="or"{let left=returned(catalog,left,depth+1);let premise=if op=="and"{left}else{Expr::Unary{op:"not".into(),value:Box::new(left),site:site.clone()}};out.extend(conditional(right,premise,site));}else{out.extend(right);}return out;
+        },
+        Expr::If{condition,then,otherwise,site}=>{
+            let mut out=helper_guards(catalog,condition,&Env::new(),depth+1);let predicate=returned(catalog,condition,depth+1);
+            out.extend(conditional(helper_guards(catalog,then,&Env::new(),depth+1),predicate.clone(),site));
+            out.extend(conditional(helper_guards(catalog,otherwise,&Env::new(),depth+1),Expr::Unary{op:"not".into(),value:Box::new(predicate),site:site.clone()},site));return out;
+        },
+        Expr::Array{items,..}=>return items.iter().flat_map(|value|helper_guards(catalog,value,&Env::new(),depth+1)).collect(),_=>{},
+    }
+    let Expr::Call{name,args,..}=expression else{return Vec::new();};
+    let mut evaluated=args.iter().flat_map(|value|helper_guards(catalog,value,&Env::new(),depth+1)).collect::<Vec<_>>();
+    let Some(f)=catalog.functions.get(&name)else{return evaluated;};
     let mut locals=f.args.iter().zip(args).map(|(a,v)|(a.name.clone(),v)).collect::<Env>();
-    let FunctionBody::Block(body)=&f.body else{return if let FunctionBody::Expression(value)=&f.body{helper_guards(catalog,value,&locals,depth+1)}else{Vec::new()};};
-    let mut out=Vec::new();
+    let FunctionBody::Block(body)=&f.body else{if let FunctionBody::Expression(value)=&f.body{evaluated.extend(helper_guards(catalog,value,&locals,depth+1));}return evaluated;};
+    let mut out=Vec::new();out.append(&mut evaluated);
     for s in body{match s{
         Stmt::Require{condition,code,message,site}=>out.push(Stmt::Require{condition:resolve(condition,&locals),code:code.clone(),message:message.clone(),site:site.clone()}),
         Stmt::Bind{names,value,..}=>{out.extend(helper_guards(catalog,value,&locals,depth+1));if names.len()==1{locals.insert(names[0].clone(),resolve(value,&locals));}else{for name in names{locals.insert(name.clone(),Expr::Name{name:format!("$advice_unknown_{name}"),site:value.site().clone()});}}},
