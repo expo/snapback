@@ -83,6 +83,7 @@ pub fn nearest(word: &str) -> Vec<&'static str> {
     nearest
 }
 
+// @ref LLP 3000.000.000#21-wave-27-release-semantics-rel — extraction widening and guarded rollback use the reviewed release contract.
 pub(super) const EVOLUTION: &str = r##"# Evolution: adopting a schema
 
 Schema adoption applies a new backend definition to existing data.
@@ -142,7 +143,7 @@ while dormant. `releases <dir>` inspects database-authoritative history.
 
 Clients reacquire a fresh generation for changed execution content, including
 native-only module changes. A failed hot adoption leaves the old release serving.
-For a truthful scalar old view, declare `down table name(typedInputs): {oldField: expression}` in newer source. Saved old preimages win; receipts name their rows. Computed down cannot manufacture files/images, collections, references or missing tables. For required → optional media/money and empty albums, `rollback DIR --to N --check --bridge NEW_DIR` generates target operations with loosened domains and retained new tables. Review nullable UI reads, current safety guards and the checklist, then preview/deploy that NEW release with `deploy DIR --schema NEW_DIR --restore-dormant --check`. New tables may still have no old read path. `table newName renamed from oldName:` preserves table/row/reference identity across both directions; asset-column renames preserve the single asset home. Cross-table indexed existence/unique lookups and migration-only `fileText` are declarative inputs; see the packed-tested language example and `guide deploy`.
+For a truthful scalar old view, declare `down table name(typedInputs): {oldField: expression}` in newer source. Saved old preimages win; receipts name their rows. Computed down cannot manufacture files/images, collections, references or missing tables. For required → optional media/money and empty albums, `rollback DIR --to N --check --bridge NEW_DIR` generates a current-workflow repair source and checklist with loosened domains and retained new tables. Review nullable UI reads, current safety guards and the checklist, then preview/deploy that NEW release with `deploy DIR --schema NEW_DIR --restore-dormant --check`. New tables may still have no old read path. `table newName renamed from oldName:` preserves table/row/reference identity across both directions; asset-column renames preserve the single asset home. Cross-table indexed existence/unique lookups and migration-only `fileText` are declarative inputs; see the packed-tested language example and `guide deploy`.
 
 Full lifecycle, concurrency, failure and recovery semantics:
 [SERVER.md — Release lifecycle](SERVER.md#release-lifecycle).
@@ -173,10 +174,18 @@ extract scans from orders via order: {scan:scan}
 ```
 
 Preview the whole migration with deploy --check. Initial child ids equal parent
-ids; independent destinations refuse. Bytes move without reuploading. Reverse
-selection needs a valid parent lifetime and one unambiguous child. Missing bytes,
-changed types or broader read audiences refuse atomically. Image and bounded
-asset-list columns use the same extraction form with identical full types.
+ids; independent destinations refuse. Bytes move without reuploading. Exact
+scalar reversal needs a valid parent lifetime and one unambiguous child. A
+compatible registered current-workflow view can retain v2-native parents with
+several children on default rollback; otherwise `rollback --bridge` supplies a
+repair source and checklist. Preview before selecting it.
+
+An ordinary extracted payload may widen required → optional while retaining its
+underlying kind, bounds and lifetime; reversal still validates the old required
+payload. Keep its read policy: a compatible stricter child policy needs no
+intermediate bridge release. Missing bytes, other incompatible type changes or
+broader read audiences refuse atomically. Image and bounded asset-list columns
+use the same ordinary extraction form.
 
 ### One record per photo in a list
 
