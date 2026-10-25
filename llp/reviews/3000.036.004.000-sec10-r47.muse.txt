@@ -1,0 +1,24 @@
+muse: workspace root: /home/ccheever/projects/sb4-b26-sec10 (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=dbba5b96-1446-439e-a3cc-4cd42e95b946]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-b26-sec10 (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY — no material defect in the current §10 delta as implemented at frozen `f020b4ef`.
+
+What I checked (static read-only review, no builds/tests per instructions):
+
+- Current [§10 text]( /home/ccheever/projects/sb4-b26-sec10/llp/3000.036.004.000-structural-write-authority.rfc.md) (lines 300–336, 468–480) against the [latest delta](/home/ccheever/sb4-loop/sec10-r47-delta.patch) and the working tree at the frozen commit.
+- The four delta sentences are all implemented where claimed:
+  - [Sibling emission]( /home/ccheever/projects/sb4-b26-sec10/snapback4/crates/snapback4-lang/src/bind/security/derived/workflow.rs) now gates every sibling contract site on normalized typed approval (global/caller line 181, repeat-create line 196, per-resource line 204), with population filters evaluated in each filter's own row scope (line 83) and metadata premises retained (line 211).
+  - [Stamp classifier]( /home/ccheever/projects/sb4-b26-sec10/snapback4/crates/snapback4-lang/src/bind/security/derived/stamps.rs) splits broad evidence (any type, lines 10–11) from restorable stamps (Bool/Time only), with all 16 edit-clock suffixes excluded even when the name contains approval/authorization. `approvalUpdatedAt` correctly classifies as data; `ApprovedAt`/`ApprovalAt` still mint.
+  - [Replacement validation]( /home/ccheever/projects/sb4-b26-sec10/snapback4/crates/snapback4-lang/src/bind/security/derived/approval_checks.rs) (collect line 48, atomic-consumption carve-out line 70) and [factual-decision accompaniment]( /home/ccheever/projects/sb4-b26-sec10/snapback4/crates/snapback4-lang/src/bind/security/creation_advice/lifecycle.rs) (line 65) share the same `named_approval` classifier, with regression tests for cleared edit metadata and co-written edit clocks.
+  - Analyzer `sec10-46` matches between spec line 480 and [security reviews]( /home/ccheever/projects/sb4-b26-sec10/snapback4/crates/snapback4/src/verbs/security_reviews.rs). No IR/schema/store/protocol change in the delta.
+
+Residual non-blocking notes (not readiness objections, repair only if the author wants it):
+
+- Table-name matching stays raw substring (`approval()` in workflow), so a hypothetical route table literally named `authorizationRoutes` would still count as an approval table. That is the spec's own name heuristic, not a code deviation, and no such table is in the cited w21-019 shape.
+- Advisory-only `N_EDIT_AFTER_APPROVAL` asset protection in lifecycle (line 298) still builds its approval-column list with a raw substring, so an asset table carrying only an edit clock can draw an advisory note. It cannot refuse deployment; treat as guidance noise, not a FIX defect.
+- `stamp_source` Member classification in derived (line 44) is still raw, but both the raw and typed paths resolve an edit-clock copy to non-Fresh (unknown/ambiguous, never a trusted reissue), so the verdict is safe either way.
+
+Pending native snapshot and 600/matrix qualification is noted as pending per the brief and is not an objection. Technical readiness here is not author acceptance.
