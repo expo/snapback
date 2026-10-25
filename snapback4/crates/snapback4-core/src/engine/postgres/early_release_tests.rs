@@ -17,6 +17,113 @@ fn gate() -> Arc<Durability> {
     d
 }
 #[test]
+#[ignore = "private PG16"]
+fn g7e_delayed_disconnect_closure_cannot_strand_writer_admission() {
+    use super::read_grant::Grant;
+    use crate::engine::{
+        command::{Command, Queue},
+        program_pipeline::Lane,
+    };
+    use std::sync::atomic::Ordering;
+
+    let mut engine = crate::engine::program_batch::tests::fixture(true);
+    let grant = Arc::new(Grant::default());
+    grant.configured.store(true, Ordering::Release);
+    engine
+        .store_mut()
+        .test_postgres_handle_mut()
+        .store
+        .get_mut()
+        .read_grant = Some(grant.clone());
+    engine
+        .store_mut()
+        .enable_postgres_early_lock_release()
+        .unwrap();
+    let d = engine.store().durability().unwrap();
+    let (bumped, bump) = mpsc::channel();
+    let (resume, paused) = mpsc::channel();
+    let notify = d.clone();
+    let notification = std::thread::spawn(move || {
+        notify.break_history_with(|epoch| {
+            bumped.send(epoch).unwrap();
+            paused.recv_timeout(Duration::from_secs(10)).unwrap();
+        });
+    });
+    let epoch = bump.recv_timeout(Duration::from_secs(5)).unwrap();
+    let (started, start) = mpsc::channel();
+    let (recovered, recovery) = mpsc::channel();
+    let worker = std::thread::spawn(move || {
+        started.send(()).unwrap();
+        Lane::new().drain(&mut engine);
+        recovered.send(engine).unwrap();
+    });
+    start.recv_timeout(Duration::from_secs(5)).unwrap();
+    // Before the fix this completes while the notification is paused. With
+    // the shared transition lock recovery waits until closure has completed.
+    let early = recovery.recv_timeout(Duration::from_secs(2));
+    resume.send(()).unwrap();
+    notification.join().unwrap();
+    let engine = early.unwrap_or_else(|_| recovery.recv_timeout(Duration::from_secs(10)).unwrap());
+    worker.join().unwrap();
+    assert_eq!(d.epoch(), epoch);
+    assert!(!d.broken(), "fenced recovery must restore D");
+    let queue = Queue::start(engine, 8).unwrap();
+    let write = queue.call(Command::new(|engine| {
+        engine.mutate(
+            "increment",
+            None,
+            crate::Context::new(
+                "alice",
+                [
+                    ("key".into(), crate::Value::Id("a".into())),
+                    ("delta".into(), crate::Value::Int(1)),
+                    ("reject".into(), crate::Value::Bool(false)),
+                ]
+                .into(),
+            )
+            .at(1000),
+        )
+    }));
+    drop(queue);
+    assert!(
+        write.is_ok(),
+        "recovered epoch stranded admission: {write:?}"
+    );
+    assert!(write.unwrap().is_ok());
+    assert!(!grant.uncertain.load(Ordering::Acquire));
+    assert!(
+        grant.state.read().unwrap().epoch.is_none(),
+        "recovery must not resurrect the old read grant"
+    );
+}
+
+#[test]
+fn g7e_recovery_clears_only_its_own_epoch_uncertainty() {
+    use super::read_grant::Grant;
+    use std::sync::atomic::Ordering;
+    let grant = Arc::new(Grant::default());
+    let d = Durability::new(Some(&grant));
+    d.certify(d.epoch(), snapshot(10, 3, 10), true).unwrap();
+    d.break_history();
+    let stale = d.epoch();
+    d.break_history();
+    assert!(d.certify(stale, snapshot(10, 3, 20), true).is_err());
+    assert!(d.broken());
+    assert!(grant.uncertain.load(Ordering::Acquire));
+    d.certify(d.epoch(), snapshot(10, 3, 30), true).unwrap();
+    assert!(!d.broken());
+    assert!(
+        !grant.uncertain.load(Ordering::Acquire),
+        "matching recovery left writer admission uncertain"
+    );
+    d.break_history();
+    assert!(
+        grant.uncertain.load(Ordering::Acquire),
+        "a newer break must close admission again"
+    );
+}
+
+#[test]
 fn g7e_revision_reuse_discards_lost_output_and_fill() {
     let d = gate();
     let lost = d.bind(snapshot(11, 4, 11), "lost rows");

@@ -108533,3 +108533,41 @@ its known `40001`. S/E public serving and both feature checks pass. Ref-check:
 569 LLPs, 12,021 references, zero errors/unchecked. All six private clusters
 are independently stopped; no recorded PID remains. Minimum free disk:
 34.39 GiB, above the 25 GiB floor.
+
+## 2026-10-25 — G7-E fix round 1: recoverable epoch and G6 admission
+
+Fixed the P1 delayed-disconnect race on rebased arm E `d155f7a68e`.
+The disconnect's epoch bump and G6 uncertainty closure now hold both locks,
+in the existing grant-before-D order used by synchronous G6 commits and CPU
+hits. Recovery checks its captured epoch and clears writer uncertainty under
+the same locks. It cannot erase a newer break, and a delayed old closure
+cannot strand admission after D becomes healthy. The old G6 epoch and
+deadline stay revoked; recovery admits writes while reads use G5.
+
+The audit found the reverse two-step update in both drained-flight and idle
+recovery: each cleared uncertainty after certification had released D. Both
+external clears are removed. E rollback and lane failure closure use the
+coordinated transition once; an in-flight slot supplies D when the engine
+contains its depth-two placeholder. Flight resolution, ordinary G6 commits,
+ownership installation and grant revocation retain their existing lock or
+one-way-revocation protection.
+
+The deterministic notification hook pauses between bump and closure. Against
+the unfixed implementation, idle fenced recovery restores D before the hook
+resumes, then the real command queue rejects a subsequent mutation with
+`OwnershipLost`. The epoch-specific recovery witness also fails before the
+fix. The baseline E selection reports 31 passed / 2 failed (one crash helper
+filtered); both failures are the new witnesses. Their raw evidence stays in
+`/tmp/g7ef1-before/`. Final checks and PID custody are recorded in
+[the G7-E report](reports/20261025-g7e-postgres/REPORT.md).
+
+Final checks: core 1,308/0 (517 ignored), binary 612/0 (58 ignored), E 34/0,
+G7.2 40/0, RT0 core/HTTP 6/0 and 10/0, crash/kill 11/0. Postgres Rust
+targets report 791/1: the inherited difftest `E_INPUT: 6`; its stale evaluator
+lockfile blocks that stage before the known `40001`. No other red appears.
+Public serving passes in S and E; the SQLite feature check passes. Ref-check:
+569 LLPs, 12,022 references, zero errors/unchecked. All five private cluster
+directories independently confirm stopped. The combined 8,851 PID/birth audit,
+including zombies and explicit public-helper ledgers, has no matches.
+Minimum free disk is 34.06 GiB, above the 25 GiB floor. No throughput campaign
+or push occurs.

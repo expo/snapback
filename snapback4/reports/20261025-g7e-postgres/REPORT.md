@@ -284,3 +284,90 @@ Built artifacts were retained. Final free space is about **47.67 GiB**.
 No protected PG17/port-55440 or `~/q24` state is touched. The preserved
 `sb4-pg/g7e` branch remains at `9c6974b604`; no push, stash or Git configuration
 change occurs.
+
+## G7-E fix round 1 — epoch transition and G6 uncertainty
+
+Base: `d155f7a68e`, branch `sb4-pg/g7e-main`. This fixes the P1 from the
+Sol review of pre-rebase arm E: a delayed reader-disconnect notification
+could restore uncertainty after the committer had already rebuilt D,
+leaving a healthy durability epoch with permanently refused writes.
+
+The epoch bump and uncertainty closure now share D's release lock and the
+G6 publication write lock. Both acquire grant before D, matching ordinary
+G6 commits and CPU hits. A recovery certificate acquires the same locks,
+checks its captured epoch, installs D and clears writer uncertainty before
+releasing either lock. Recovery from an older epoch cannot clear a newer
+break. Old read-grant epoch, publication and deadline are not restored.
+
+The audit also found the inverse two-step update in both pipeline recovery
+sites: each cleared `grant.uncertain` after epoch certification had unlocked
+D. Both are removed; certification owns that transition. Duplicate E/G6
+closure in rollback and lane failure is consolidated. When the engine has
+its depth-two placeholder, failure closure finds D in the in-flight slot.
+Other flight-resolution and ordinary G6 commit updates already hold the
+publication lock; initial ownership installation is startup-only and
+publication-locked, and revocation is one-way. No further split recovery
+clear remains.
+
+### Deterministic failing-before witnesses
+
+`g7e_delayed_disconnect_closure_cannot_strand_writer_admission` pauses a
+notification between its epoch bump and G6 closure, starts real idle fenced
+recovery, resumes the notification, then submits a mutation through the real
+command queue. On the unfixed code, recovery leaves D healthy and the delayed
+closure causes `recovered epoch stranded admission: Err(OwnershipLost)`.
+With the fix, recovery waits for the coordinated closure and the subsequent
+mutation is admitted and committed.
+
+`g7e_recovery_clears_only_its_own_epoch_uncertainty` rejects a stale recovery
+certificate without clearing the newer break, clears uncertainty for the
+matching epoch and verifies another break closes it again. The unfixed
+certification fails with `matching recovery left writer admission uncertain`.
+
+The before run used unchanged product transitions plus the notification hook
+and the two new tests: **31 passed / 2 failed**, with one crash helper filtered.
+The private PG16 cluster stopped independently (`pg_ctl status` 3, no
+`postmaster.pid`); its recorded PID/birth audit is empty. Raw before/after
+evidence stays outside Git under `/tmp/g7ef1-before/` and `/tmp/g7ef1-after/`.
+
+### Fix-round verification and custody
+
+All code checks use this lane's own target, line-tables-only profiles,
+`CARGO_INCREMENTAL=0` and cargo `-j 4`. Counts below are passed / failed /
+ignored; nested child summaries are excluded.
+
+| Check | Result |
+| --- | --- |
+| Full core with Postgres, 49 direct targets | 1,308 / 0 / 517 |
+| Full `snapback4` binary | 612 / 0 / 58 |
+| E suite, including both new regressions | 34 / 0 / 0 |
+| G7.2 suite, including ignored entries and E variants | 40 / 0 / 0 |
+| Core RT0 | 6 / 0 / 0 |
+| HTTP RT0 | 10 / 0 / 0 |
+| E crash/kill matrix and live revision reuse | 11 / 0; zero acknowledged loss; no lost-history reader release |
+| Full `bash scripts/test-postgres.sh`, 26 Rust targets | 791 / 1 / 0; script exits 1 for inherited reds below |
+| Public serving in S and E | Both pass and independently stop their own clusters |
+| SQLite-only core feature check | Pass |
+| `./ref-check --verbose` | 569 LLPs, 12,022 references, zero errors/unchecked |
+| `git diff --check` | Pass |
+
+The only Rust failure is the inherited
+`both_stores_all_public_boundaries_and_write_observations`, whose report has
+`runtime_refused_unexpected: {"E_INPUT": 6}`. The inherited evaluator
+`experiments/postgres/Cargo.lock` also refuses `--locked`, so that stage never
+reaches its known `40001`. **No other red appears.** The public-serving
+witness inside the otherwise red Postgres script passes; the separate E-mode
+witness also passes, including actual G6 declarations in serve/doctor and
+FF3's event inventory.
+
+All five private cluster directories (before, after, crash matrix and both
+public-serving witnesses) independently return `pg_ctl status` 3 and have no
+`postmaster.pid`. The after driver records 8,709 PID/birth pairs and no living
+matches. The separate final audit combines before/after and crash ledgers:
+**8,851 recorded pairs, no matches including zombies**, and no extant PID in
+either explicit public-helper ledger. Both build/check drivers have exited.
+Raw custody evidence is `/tmp/g7ef1-final-audit.json`; no raw logs are committed.
+
+Minimum sampled free disk is **34.06 GiB**, above the 25 GiB stop floor;
+final free disk is about **34.28 GiB**. No throughput campaign, protected
+PG17/port-55440 or `~/q24` access, push, stash or Git configuration change occurs.

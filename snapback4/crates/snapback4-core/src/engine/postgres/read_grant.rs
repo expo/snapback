@@ -202,6 +202,9 @@ impl Grant {
     // @ref LLP 3000.009.001.000.000.002#3.6 — an unacknowledged preparation rollback or panic is sticky even before a final-flight guard exists.
     pub(crate) fn close_uncertain(&self) {
         let mut state = self.state.write().unwrap_or_else(|p| p.into_inner());
+        self.close_uncertain_locked(&mut state);
+    }
+    pub(super) fn close_uncertain_locked(&self, state: &mut State) {
         self.uncertain.store(true, Ordering::Release);
         self.until.store(0, Ordering::Release);
         state.epoch = None;

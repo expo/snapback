@@ -134,8 +134,14 @@ mod lane {
             self.flights.is_empty()
         }
         pub fn close_uncertain(&self, engine: &Engine) {
-            if let Some(d) = engine.store.durability() {
+            // A depth-two dispatch can leave the engine's empty placeholder
+            // installed. Flights retain the same store-shared epoch and G6.
+            let durability = engine.store.durability().or_else(|| {
+                self.flights.iter().find_map(|f| f.durability.as_ref().map(|(d, _)| d.clone()))
+            });
+            if let Some(d) = durability {
                 d.break_history();
+                return;
             }
             if let Some(grant) = engine
                 .store
@@ -564,10 +570,6 @@ mod lane {
                 if broken.is_some() && drained {
                     if engine.store.recover_durability().is_err() {
                         self.paused = true;
-                    } else if let Some(grant) = engine.store.read_grant() {
-                        grant
-                            .uncertain
-                            .store(false, std::sync::atomic::Ordering::Release);
                     }
                 }
                 let lower_known = resolved[0].1.as_ref().err().is_some_and(|f| f.aborted);
@@ -641,12 +643,6 @@ mod lane {
             }
             if engine.store.recover_durability().is_err() {
                 self.paused = true;
-            } else if let Some(grant) = engine.store.read_grant() {
-                // Recovery leaves the old G6 epoch revoked; subsequent reads
-                // validate through G5 until a newly acquired owner grants one.
-                grant
-                    .uncertain
-                    .store(false, std::sync::atomic::Ordering::Release);
             }
         }
         pub fn drain(&mut self, engine: &mut Engine) {

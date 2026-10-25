@@ -72,14 +72,25 @@ impl Durability {
     // A bump shares the output-release lock. Unopened values retain their old
     // snapshot attempt and cannot be rescued by reuse of their numeric revision.
     pub(crate) fn break_history(&self) {
+        self.break_history_with(|_| {});
+    }
+    // Test rendezvous at the disconnect notification's epoch/closure boundary.
+    pub(super) fn break_history_with(&self, before_close: impl FnOnce(u64)) {
+        // @ref LLP 3000.009.001.000.000.002#3.9 — close G6 and bump D atomically with respect to epoch-checked recovery.
+        // G6 hits and synchronous commits already lock grant -> D. Never wait
+        // for the grant while holding D, including on a reader disconnect.
+        let grant = self.grant.as_ref().and_then(Weak::upgrade);
+        let mut publication = grant
+            .as_ref()
+            .map(|g| g.state.write().unwrap_or_else(|p| p.into_inner()));
         let mut s = self.state.lock().unwrap_or_else(|p| p.into_inner());
         s.epoch = s.epoch.checked_add(1).expect("recovery epoch exhausted");
         s.broken = true;
-        self.changed.notify_all();
-        drop(s);
-        if let Some(g) = self.grant.as_ref().and_then(Weak::upgrade) {
-            g.close_uncertain();
+        before_close(s.epoch);
+        if let (Some(g), Some(state)) = (&grant, &mut publication) {
+            g.close_uncertain_locked(state);
         }
+        self.changed.notify_all();
     }
     fn covers(s: &State, h: &Snapshot) -> bool {
         !s.broken
@@ -172,6 +183,16 @@ impl Durability {
         head: Snapshot,
         recovery: bool,
     ) -> Result<(), RuntimeError> {
+        // Ordinary G6 commits already hold the publication lock. Only recovery
+        // acquires it here, in the same order as break_history and G6 hits.
+        let grant = self
+            .grant
+            .as_ref()
+            .filter(|_| recovery)
+            .and_then(Weak::upgrade);
+        let _publication = grant
+            .as_ref()
+            .map(|g| g.state.write().unwrap_or_else(|p| p.into_inner()));
         let mut s = self.state.lock().unwrap_or_else(|p| p.into_inner());
         if s.epoch != epoch
             || (!recovery
@@ -195,6 +216,13 @@ impl Durability {
             .is_none_or(|d| head.revision >= d.revision && head.seq >= d.seq)
         {
             s.point = Some(head);
+        }
+        if let Some(g) = &grant {
+            // Clear exactly the epoch certified above, before a later break
+            // can acquire either lock. Old G6 evidence remains revoked; reads
+            // use G5 until a newly acquired owner installs a fresh read grant.
+            g.uncertain
+                .store(false, std::sync::atomic::Ordering::Release);
         }
         self.changed.notify_all();
         Ok(())

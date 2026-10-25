@@ -838,7 +838,7 @@ impl Tx<'_> {
         // @ref LLP 3000.009.001.000.000.002#3.6 — every durable preparation path, including depth-one barriers, closes G6 on an unacknowledged rollback.
         if aborted.is_err() && self.durable_write {
             if let Some(gate)=&self.early_release {gate.break_history();}
-            if let Some(grant) = self.read_grant.as_ref().filter(|g|g.configured.load(std::sync::atomic::Ordering::Acquire)) {
+            else if let Some(grant) = self.read_grant.as_ref().filter(|g|g.configured.load(std::sync::atomic::Ordering::Acquire)) {
                 grant.close_uncertain();
             }
         }
