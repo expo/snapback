@@ -1,4 +1,6 @@
 //! Depth-two witnesses use the real slots and a deliberately held predecessor.
+#[path = "program_g72_recovery_tests.rs"]
+mod recovery_tests;
 use super::*;
 use crate::engine::program_pipeline::Lane;
 use postgres::{Client, NoTls};

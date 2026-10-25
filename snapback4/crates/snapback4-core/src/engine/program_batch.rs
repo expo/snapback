@@ -186,6 +186,32 @@ impl Engine {
             }
         }
     }
+    // @ref LLP 3000.009.001.000.000.002#4.2 — the innocent whole-batch rerun consumes the fallback; another known abort falls through to bounded solo attempts.
+    #[cfg(feature = "postgres")]
+    pub(super) fn program_cascade_fallback(
+        &mut self,
+        batch: &mut [Invocation],
+        indices: &[usize],
+        results: &mut [Option<Outcome>],
+    ) {
+        match self.program_group_attempt(batch, indices, true) {
+            Ok(values) => self.finish_programs(batch, values, results),
+            Err((failure, named)) => {
+                let why = failure.refusal(named);
+                for &i in indices {
+                    if !failure.may_rerun()
+                        || failure.member == Some(i)
+                        || Instant::now() >= batch[i].deadline
+                    {
+                        results[i] = Some(batch[i].remember(Err(why.clone())));
+                    } else {
+                        // A solo failure is terminal: no recursive group retry.
+                        self.program_fallback(batch, &[i], results);
+                    }
+                }
+            }
+        }
+    }
     pub(super) fn program_fallback(
         &mut self,
         batch: &mut [Invocation],

@@ -131,6 +131,7 @@ pub(crate) mod presence;
 pub mod program;
 #[cfg(feature = "sqlite")]
 mod program_batch;
+#[cfg(feature = "sqlite")]
 pub(crate) mod program_pipeline;
 #[cfg(test)]
 pub(crate) use program_batch::fault::tail_prepared as program_tail_prepared;

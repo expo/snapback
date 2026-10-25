@@ -243,7 +243,10 @@ mod lane {
                     {
                         self.close_uncertain(engine);
                     }
-                    self.drain(engine);
+                    // start admits at most one predecessor. Retain its original
+                    // terminal outcome, even if its callers recover successfully.
+                    let predecessor_aborted = self.poll(engine, true);
+                    debug_assert!(self.empty());
                     if self.paused {
                         finish(
                             engine,
@@ -260,8 +263,8 @@ mod lane {
                         return;
                     }
                     let mut results = vec![None; batch.len()];
-                    if chain.head.is_some() && failure.0.may_rerun() {
-                        engine.program_fallback(&mut batch, &indices, &mut results);
+                    if predecessor_aborted && failure.0.may_rerun() {
+                        engine.program_cascade_fallback(&mut batch, &indices, &mut results);
                     } else {
                         engine.program_recover(&mut batch, &indices, &mut results, failure);
                     }
@@ -431,16 +434,17 @@ mod lane {
                 self.active_slot = slot;
             }
         }
-        pub fn poll(&mut self, engine: &mut Engine, wait: bool) {
+        /// Whether the oldest original transaction affirmatively aborted.
+        pub fn poll(&mut self, engine: &mut Engine, wait: bool) -> bool {
             let Some(front) = self.flights.front() else {
-                return;
+                return false;
             };
             let result = if wait {
                 front.receiver.recv().ok()
             } else {
                 match front.receiver.try_recv() {
                     Ok(v) => Some(v),
-                    Err(mpsc::TryRecvError::Empty) => return,
+                    Err(mpsc::TryRecvError::Empty) => return false,
                     Err(_) => None,
                 }
             };
@@ -454,6 +458,7 @@ mod lane {
             #[cfg(any(test, feature = "test-support"))]
             crate::round_trips::add_commit_timing(timing);
             self.restore(engine, store, flight.slot);
+            let known_abort = result.as_ref().err().is_some_and(|f| f.aborted);
             if result.is_err() {
                 // @ref LLP 3000.009.001.000.000.002#4.2 — resolve every dispatched successor before fresh facts, a barrier or a rerun.
                 let mut resolved = vec![(flight, result)];
@@ -506,7 +511,7 @@ mod lane {
                         {
                             // Innocent conditional facts are discarded. One fresh whole
                             // batch fallback preserves deadlines and the original order.
-                            engine.program_fallback(&mut flight.batch, &indices, &mut results);
+                            engine.program_cascade_fallback(&mut flight.batch, &indices, &mut results);
                         }
                         Err(failure) if drained && !(ordinal > 0 && lower_unknown) => engine
                             .program_recover(
@@ -533,6 +538,7 @@ mod lane {
                 engine.finish_programs(&flight.batch, flight.values, &mut results);
                 (flight.finish)(engine, results.into_iter().map(Option::unwrap).collect());
             }
+            known_abort
         }
         pub fn drain(&mut self, engine: &mut Engine) {
             while !self.empty() {

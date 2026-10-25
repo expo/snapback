@@ -153,6 +153,8 @@ pub enum BatchPolicy {
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct BatchStats {
     pub fills: Vec<u64>,
+    /// Dispatch samples by number of outstanding batches, including this one.
+    pub in_flight_at_dispatch: [u64; 3],
     pub members: u64,
     pub target: usize,
     pub p99_micros: u64,
@@ -160,6 +162,8 @@ pub struct BatchStats {
     pub commit_nanos: u64,
     #[serde(skip)]
     fixed: bool,
+    #[serde(skip)]
+    pipeline_fill: bool,
     #[serde(skip)]
     samples: VecDeque<u64>,
     #[serde(skip)]
@@ -176,12 +180,14 @@ impl BatchStats {
         };
         Self {
             fills: vec![0; 33],
+            in_flight_at_dispatch: [0; 3],
             members: 0,
             target,
             p99_micros: 0,
             commit_attempts: 0,
             commit_nanos: 0,
             fixed: matches!(policy, BatchPolicy::Fixed(_)),
+            pipeline_fill: false,
             samples: VecDeque::new(),
             since_resize: 0,
         }
@@ -252,6 +258,10 @@ impl Arrivals {
         // interval, rather than spending the whole window on a stale burst.
         Some(remaining.min(interval.max(Duration::from_micros(1))))
     }
+    // @ref LLP 3000.009.001.000.000.002#8.1 — depth two starts available work rather than waiting for clients held by its predecessor.
+    fn collection_wait(&self, started: Instant, now: Instant, depth: usize) -> Option<Duration> {
+        if depth == 2 { None } else { self.wait(started, now) }
+    }
 }
 
 pub(super) fn run(
@@ -315,12 +325,15 @@ pub(super) fn run(
         };
         let started = Instant::now();
         arrivals.observe(first.arrived());
-        let target = stats.lock().unwrap().target;
+        let (target, fill_depth) = {
+            let stats = stats.lock().unwrap();
+            (stats.target, if depth == 2 && stats.pipeline_fill { 2 } else { 1 })
+        };
         let mut tasks = vec![first];
         while tasks.len() < target && started.elapsed() < COLLECTION {
             let next = match receiver.try_recv() {
                 Ok(work) => Ok(work),
-                Err(mpsc::TryRecvError::Empty) => match arrivals.wait(started, Instant::now()) {
+                Err(mpsc::TryRecvError::Empty) => match arrivals.collection_wait(started, Instant::now(), fill_depth) {
                     Some(wait) => receiver.recv_timeout(wait).map_err(|_| ()),
                     None => Err(()),
                 },
@@ -341,6 +354,8 @@ pub(super) fn run(
         execute(Box::new(move |engine| {
             #[cfg(feature="postgres")]
             if state.lock().unwrap().paused {drop(tasks);return;}
+            #[cfg(feature="postgres")]
+            { stats.lock().unwrap().pipeline_fill = matches!(engine.store, crate::store_port::AnyStore::Postgres(_)); }
             let mut invocations = Vec::new();
             let mut slots = Vec::new();
             for mut task in tasks {
@@ -356,6 +371,7 @@ pub(super) fn run(
             }
             let count = invocations.len();
             let admitted=invocations.iter().map(|i|i.admitted).collect::<Vec<_>>();
+            let dispatch_stats = stats.clone();
             let finish = move |engine:&mut Engine, outcomes:Option<Vec<Outcome>>| {
                 let latencies:Vec<_>=admitted.iter().map(|i|i.elapsed().as_micros().min(u64::MAX as u128) as u64).collect();
                 stats.lock().unwrap().observe(latencies,count);
@@ -368,13 +384,18 @@ pub(super) fn run(
             {
                 let mut lane=state.lock().unwrap();
                 if depth==2 && super::super::program_pipeline::Lane::eligible(engine,&invocations,!lane.empty()) {
+                    let before = lane.len();
                     let result=std::panic::catch_unwind(std::panic::AssertUnwindSafe(||lane.start(engine,invocations,Box::new(move|e,o|finish(e,Some(o))))));
+                    if lane.len() == before + 1 {
+                        dispatch_stats.lock().unwrap().in_flight_at_dispatch[lane.len()] += 1;
+                    }
                     if result.is_err(){lane.paused=true;lane.close_uncertain(engine);lane.drain(engine);}
                     return;
                 }
                 lane.drain(engine);
                 if lane.paused {finish(engine,None);return;}
             }
+            if count > 0 { dispatch_stats.lock().unwrap().in_flight_at_dispatch[1] += 1; }
             let outcomes=std::panic::catch_unwind(std::panic::AssertUnwindSafe(||engine.invoke_program_batch(&mut invocations)));
             finish(engine,outcomes.ok());
         }));
@@ -384,6 +405,16 @@ pub(super) fn run(
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn pipeline_fill_starts_available_work_without_waiting_for_the_cap() {
+        let now = Instant::now();
+        let mut arrivals = Arrivals::default();
+        arrivals.observe(now - Duration::from_micros(100));
+        arrivals.observe(now);
+        assert!(arrivals.collection_wait(now, now, 1).is_some());
+        assert!(arrivals.collection_wait(now, now, 2).is_none(),
+            "a free pipeline slot must start the available FIFO members");
+    }
     #[test]
     fn p99_control_backs_off_and_recovers_inside_32() {
         let mut stats = BatchStats::new(BatchPolicy::Adaptive);

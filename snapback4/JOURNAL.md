@@ -108027,3 +108027,52 @@ status 3/no pidfile. All 15,667 recorded PID/birth instances, three monitors and
 1,066 explicit public-script PID records are absent. PIDs left: none. Disk at the process-custody audit is
 60.64 GiB, minimum recorded 59.72 GiB. Raw logs stay outside Git; no push, stash,
 Git configuration change or unowned signal occurs.
+
+## 2026-10-25 — G7.2 fix round 1: successor recovery and pipeline-aware fill
+
+[The fix-round report](reports/20261025-g72-fix1/REPORT.md) resumes the preserved
+changes on `069520dc23` after the prior disk-floor stop. A successor's own
+staging failure now uses its predecessor's original terminal outcome to select
+recovery. A committed predecessor leaves ordinary per-member recovery: valid A
+survives B's deterministic 23505 or expired deadline, as at depth one. Only a
+known predecessor abort takes the innocent whole-batch cascade rerun. Both
+cascade sites now fall through to bounded solo attempts after that rerun's
+second known failure. Unknown outcomes never authorize another attempt.
+
+The four recovery witnesses fail before and pass after, including both cascade
+sites and the mixed-deadline case; each checks durable receipts, contiguous
+head and serial-equivalent state. The pipeline module now shares the SQLite
+feature gate with program batching. Device and browser configurations fail
+before with unresolved server-only imports and build afterward. Final core
+and device builds without default features, native device, and browser wasm
+all pass; wasm is 738,071 B gzip under the 738,490 B budget.
+
+Postgres depth two drains available FIFO work and dispatches at the first empty
+mailbox, within the existing target, 32-member cap and 1 ms collection bound.
+It does not wait for predicted clients still held by the other writer. Depth
+one and SQLite retain their coalescing policy, and idle arrivals never wait.
+The policy witness fails before and passes after. RFC §8.1 documents the rule.
+
+Two reversed-order loopback repetitions at 32 closed-loop clients record depth
+1 → 2: W4 4,434 → 4,551 writes/s, 7.081 → 6.817 ms; W5-exact 4,531 → 4,803,
+6.917 → 6.579 ms; W5-mix 4,602 → 4,811, 6.858 → 6.499 ms. Mean N falls from
+30.48/30.48/31.22 to 15.24/15.42/15.33. Outstanding-batch dispatch histograms
+(1, 2) are W4 (84, 0) → (4, 164), exact (84, 0) → (2, 164), mix
+(82, 0) → (3, 164). All counters reconcile. Load is about 84 on 96 available
+CPUs; these short local relative samples establish overlap, without an S1 or
+general speedup claim.
+
+Final full core: 1,278/0/480 (passed/failed/ignored); binary: 608/0/57;
+focused G7.2: 33/0; core/HTTP RT0: 4/0 and 9/0. The complete Postgres script
+records 847/2: only the on-wire-overlap and TCP_NODELAY witnesses explicitly
+refuse socket-only qualification. The inherited evaluator 40001 does not occur.
+Public serving passes, including release evolution, recovery, ownership, wire
+parity and scale recounts. Both private clusters independently confirm status
+3 with no pidfile. Final reference and PID audit results are in the report.
+Raw evidence stays outside Git; no push, stash or Git configuration change occurs.
+
+Final ref-check reports 569 LLPs and 11,984 references, zero errors or unchecked
+references. All 8,732 continuation PID/birth instances, the prior run's 317,
+and 537 public-script PID records are absent; the monitor has exited. PIDs left:
+none. Minimum free disk is 123.83 GiB, final audit 128.77 GiB; the 30 GiB guard
+never fires.

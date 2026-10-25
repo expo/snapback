@@ -56,6 +56,7 @@ fn g72_loopback_relative_sanity_32_clients() {
                 }
                 ready.wait();
                 let before = queue.batch_stats();
+                let load_before = std::fs::read_to_string("/proc/loadavg").ok();
                 let start = Instant::now();
                 go.wait();
                 let nanos = workers.into_iter().map(|w| w.join().unwrap()).sum::<u128>();
@@ -79,6 +80,8 @@ fn g72_loopback_relative_sanity_32_clients() {
                     .unwrap();
                 assert_eq!(total, 32 * 48);
                 let after = queue.batch_stats();
+                let in_flight = after.in_flight_at_dispatch.iter().zip(before.in_flight_at_dispatch).map(|(a,b)| a-b).collect::<Vec<_>>();
+                let mean_n = (after.members-before.members) as f64 / after.fills.iter().zip(&before.fills).map(|(a,b)| a-b).sum::<u64>() as f64;
                 let histogram = after
                     .fills
                     .iter()
@@ -88,7 +91,7 @@ fn g72_loopback_relative_sanity_32_clients() {
                     .collect::<std::collections::BTreeMap<_, _>>();
                 eprintln!(
                     "G72_MEASURE {}",
-                    serde_json::json!({"cell":cell,"depth":depth,"repetition":repetition,"clients":32,"warmup_writes":256,"measured_writes":1280,"seconds":elapsed.as_secs_f64(),"writes_s":1280.0/elapsed.as_secs_f64(),"mean_ms":nanos as f64/1280.0/1e6,"N":histogram,"counter_total":total,"fsync":settings.get::<_,String>(0),"synchronous_commit":settings.get::<_,String>(1),"full_page_writes":settings.get::<_,String>(2)})
+                    serde_json::json!({"cell":cell,"depth":depth,"repetition":repetition,"clients":32,"warmup_writes":256,"measured_writes":1280,"seconds":elapsed.as_secs_f64(),"writes_s":1280.0/elapsed.as_secs_f64(),"mean_ms":nanos as f64/1280.0/1e6,"mean_N":mean_n,"in_flight_at_dispatch":in_flight,"N":histogram,"counter_total":total,"load_before":load_before,"load_after":std::fs::read_to_string("/proc/loadavg").ok(),"fsync":settings.get::<_,String>(0),"synchronous_commit":settings.get::<_,String>(1),"full_page_writes":settings.get::<_,String>(2)})
                 );
                 drop(queue);
             }
