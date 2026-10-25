@@ -3237,7 +3237,7 @@ try {
   as one JSON object per stdout line (50 by default), with any truncation hint on stderr; **`doctor
   [--json]`** says what is in place: the store, its size, schedules and their last boundary, the last job
   runs, the effects by state and the failed ones; **`guide [keyword]`** prints cards: tasks, security, production, changes, cheatsheet, language, app, recipes, rule-recipes, types, time, api, indexes, maintains, totals, offline-interactions, rules, sync, sharing, residency, prediction, evolution, rename, deploy, release-json, expire, assets, client, wire, social, reads, shapes, writes, cleanup, sequences, programs, jobs, native, feeds, search, effects, actions, routes, services, presence, receipts, read-only, manual-receipts, ephemeral, bounds, refusals, personas, testing, witness, staging
-  (`guide <E_CODE>` explains a code; `guide aliases` lists the words that open a card or one of its sections). In a terminal, a card over 130 lines prints its opening and section index; piped output prints the full card.
+  (`guide <E_CODE>` explains a code; `guide aliases` lists the words that open a card or one of its sections). Cards over 240 lines print their opening and section index in terminals and tool pipes; pass --full for the complete card.
   `--section <number or words>` prints one section (any case, a unique prefix or the heading's words; a
   word no heading names prints the section holding most of its mentions, or all of them when they spread),
   `--find <words>` prints the lines that mention them (`a|b` for either), and `--full` prints the whole card. Natural words

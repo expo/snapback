@@ -295,7 +295,7 @@ Security intent: declare invariants separately from rules; `guide security` cove
 ## Reference map: open only what the feature needs
 
 `snapback4 guide <card>` and `snapback4 why <code>` answer in the terminal. Bare `guide` indexes the cards; `guide aliases`
-lists words that open a card or one section (`guide pagination`). A card over 130 lines prints its opening, a section index
+lists words that open a card or one section (`guide pagination`). A card over 240 lines prints its opening, a section index
 and, piped, its first section: `--section <number or words>` prints one, `--find <words>` greps it, `--full` prints all.
 Every refusal names a code, site and rewrite.
 Every Quarry example compiles in the suite; the language card also runs. The chat example is optional.
