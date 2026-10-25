@@ -43,7 +43,7 @@ pub(super) fn scalar(name:&str,parent:&str,record:&Write<'_>,effect:&Write<'_>,w
     let name=stem(name);
     if generic(&name,parent){return state(effect,bound)||matches!(effect.op,WriteOp::Insert|WriteOp::Upsert)&&effect.table!=parent;}
     if modeled(effect,&name,parent,bound){return true;}
-    if state(effect,bound)&&writes.iter().any(|other|std::ptr::eq(other.p,record.p)&&other.table==parent&&other.site!=record.site&&state(other,bound)&&
+    if !std::ptr::eq(effect.p,record.p)&&state(effect,bound)&&writes.iter().any(|other|std::ptr::eq(other.p,record.p)&&other.table==parent&&other.site!=record.site&&state(other,bound)&&
         other.keys.len()==record.keys.len()&&other.keys.iter().zip(&record.keys).all(|(a,b)|a.column==b.column&&crate::print::expression(&a.value)==crate::print::expression(&b.value))){return true;}
 
     // A feature fixed at birth can qualify the entity's whole workflow.

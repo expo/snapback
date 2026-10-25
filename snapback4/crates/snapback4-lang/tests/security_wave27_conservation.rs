@@ -83,3 +83,44 @@ fn bad(out:&Campaign)->bool{out.violations.iter().any(|v|v.operation=="remove"&&
   if !captured{assert!(security::source_inference_gaps(&sources,&b).iter().any(|gap|gap.contains("participant conservation not covered")));}
  }}
 }
+
+
+#[test]fn maintained_scalars_preserve_direct_helper_and_nested_capture_custody(){
+ for depth in 0..3{for captured in [false,true]{
+  let views="table flags:\n  marker: bool\n  read <- allow\n  delete <- allow\n  online only\nview flagCount: count flags\n  read <- allow\n  online only\n";
+  let helper=match depth{0=>"",1=>"fn present():\n  return flagCount > 0\n",_=>"fn present():\n  return delegated()\nfn delegated():\n  return flagCount > 0\n"};
+  let decision=if depth==0{"flagCount > 0"}else{"present()"};
+  let binding=if captured{format!("  held = {decision}\n")}else{String::new()};let condition=if captured{"held"}else{decision};
+  let birth=format!("mutation add(trip: trips,flag: flags,aPerson: principal,bPerson: principal):\n{binding}  insert participants {{trip,person:aPerson if {condition} else bPerson}}\n  delete flags[flag]\n  return insert ledger {{trip,person:aPerson if {condition} else bPerson,paidCents:100,kind:'charge'}}");
+  let original="mutation add(trip: trips,person: principal):\n  insert participants {trip,person}\n  return insert ledger {trip,person,paidCents:100,kind:'charge'}";
+  let source=views.to_owned()+helper+&SOURCE.replace(original,&birth).replace("BEFORE","").replace("AFTER","");
+  let sources=vec![("schema.q".into(),source)];let b=compile(&sources);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+  assert_eq!(security::derived::invariants(&sources,&b).iter().any(|i|i.site.file.contains("/participant-conservation/")),captured,"depth={depth} captured={captured}");
+  if !captured{assert!(security::source_inference_gaps(&sources,&b).iter().any(|gap|gap.contains("participant conservation not covered")));}
+ }}
+}
+#[test]fn lexical_arguments_shadow_world_names_without_becoming_world_reads(){
+ let views="table flags:\n  marker: bool\n  read <- allow\n  delete <- allow\n  online only\nview flagCount: count flags\n  read <- allow\n  online only\n";
+ let birth="mutation add(trip: trips,flag: flags,flagCount: int,aPerson: principal,bPerson: principal):\n  insert participants {trip,person:aPerson if flagCount > 0 else bPerson}\n  delete flags[flag]\n  return insert ledger {trip,person:aPerson if flagCount > 0 else bPerson,paidCents:100,kind:'charge'}";
+ let original="mutation add(trip: trips,person: principal):\n  insert participants {trip,person}\n  return insert ledger {trip,person,paidCents:100,kind:'charge'}";
+ let sources=vec![("schema.q".into(),views.to_owned()+&SOURCE.replace(original,birth).replace("BEFORE","").replace("AFTER",""))];
+ let b=compile(&sources);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+ assert!(security::derived::invariants(&sources,&b).iter().any(|i|i.site.file.contains("/participant-conservation/")));
+}
+
+
+#[test]fn scalar_capture_versions_and_helper_shadowing_preserve_actual_identity(){
+ let views="table flags:\n  marker: bool\n  read <- allow\n  delete <- allow\n  online only\nview flagCount: count flags\n  read <- allow\n  online only\n";
+ let cases=[
+  ("","", "  held = flagCount > 0\n","  held = flagCount > 0\n","held",false),
+  ("fn present(flagCount: int):\n  return flagCount > 0\n",",flagCount: int","","","present(flagCount)",true),
+  ("fn present():\n  return flagCount > 0\n",",flagCount: int","","","present()",false),
+ ];
+ for (helper,args,before,after,condition,expected) in cases{
+  let birth=format!("mutation add(trip: trips,flag: flags,aPerson: principal,bPerson: principal{args}):\n{before}  insert participants {{trip,person:aPerson if {condition} else bPerson}}\n  delete flags[flag]\n{after}  return insert ledger {{trip,person:aPerson if {condition} else bPerson,paidCents:100,kind:'charge'}}");
+  let original="mutation add(trip: trips,person: principal):\n  insert participants {trip,person}\n  return insert ledger {trip,person,paidCents:100,kind:'charge'}";
+  let sources=vec![("schema.q".into(),views.to_owned()+helper+&SOURCE.replace(original,&birth).replace("BEFORE","").replace("AFTER",""))];
+  let b=compile(&sources);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+  assert_eq!(security::derived::invariants(&sources,&b).iter().any(|i|i.site.file.contains("/participant-conservation/")),expected,"helper={helper},args={args}");
+ }
+}

@@ -43,7 +43,10 @@ fn shared_value(a:&Expr,b:&Expr)->bool{
    // Exhaustive classification prevents a new world-reading expression from
    // silently becoming a pure shared identity. A captured direct row image
    // keeps its original Read site; reference hops retain their own evaluation.
-   Expr::Name{..}|Expr::Literal{..}|Expr::Focal{..}|Expr::Array{..}|Expr::Object{..}|Expr::Unary{..}|Expr::Binary{..}|Expr::If{..}|Expr::Assert{..}=>{},
+   Expr::Name{site,..}=>{
+    if site.file.contains("$conservation/world-name/")||site.file.contains("$conservation/capture/"){sites.push(site.clone());}
+   },
+   Expr::Literal{..}|Expr::Focal{..}|Expr::Array{..}|Expr::Object{..}|Expr::Unary{..}|Expr::Binary{..}|Expr::If{..}|Expr::Assert{..}=>{},
    Expr::Member{base,..}=>{
     let mut base=base.as_ref();while let Expr::Assert{value,..}=base{base=value;}
     if !matches!(base,Expr::Read(_)){sites.push(e.site().clone());}

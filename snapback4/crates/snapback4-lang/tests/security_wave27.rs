@@ -77,3 +77,10 @@ const DEFAULT:&str="table docs:\n  label: text <=80 default 'pending'\n  read <-
  let source=source.replace("table parts:","table parts:\n  photo: image <=8000000 ?");
  assert!(notes(&source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"),"{:?}",notes(&source));
 }
+
+
+#[test]fn model_approval_question_names_the_downstream_effect(){
+ let ns=notes(include_str!("security/wave26/036.q"));
+ assert!(ns.iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"&&n.message.contains("advanceStage")));
+ assert!(!ns.iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"&&n.message.contains("modeled approveModel")));
+}
