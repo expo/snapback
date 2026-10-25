@@ -139,6 +139,8 @@ const DEFAULT:&str="table docs:\n  label: text <=80 default 'pending'\n  read <-
    for valued in [&ordinary,&ordinary_record]{
     let reset=valued.replace(&format!("{{{done}:true}}"),&format!("{{{done}:false}}"));assert!(!notes(&reset).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
     let named=reset.replace("  else:\n    update jobs[job]", "  return null\nmutation performWithdrawal(job: jobs):\n  update jobs[job]");assert!(!notes(&named).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"),"{:?}",notes(&named));
+    let birth=named.replace("  withdrawalDone: bool default false", "  resetFlag: bool default true\n  withdrawalDone: bool default true").replace("update jobs[job] {withdrawalDone:false}","upsert jobs[job] {resetFlag:false}");assert!(notes(&birth).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"),"{:?}",notes(&birth));
+    let negative_birth=birth.replace("  withdrawalDone: bool default true","  withdrawalDone: bool default false");assert!(!notes(&negative_birth).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"),"{:?}",notes(&negative_birth));
    }
   }
  }

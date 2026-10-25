@@ -21,11 +21,11 @@
 
 - Existing apps keep their authored workflows and stores retain their rows, users and migration receipts. Restart running serve processes with 0.4.41 before deploying or rolling back. Older analyzer-bound decisions become unreviewed; use `check --json` and renew each required current ID with its specification rationale. Only the displayed advisory audience family accepts a shared disposition. Rebuild generated clients and devices after upgrading; custom proofs must adopt the new helpers explicitly. Preserve production roster files with their deployment. SEC10 security-semantic changes are deferred to 0.4.42.
 
-#### SEC10 branch additions (unpublished)
+#### Pending security changes (unpublished)
 
 The following changes are pending publication; the published 0.4.41 boundary above remains unchanged.
 
-- Wave-27 security precision: mutation edit-guard questions accept matching update-only intent, column write authority or an individual decision. Derived replay checks participant charge/refund conservation and current-input backfill labels; manual overrides and deliberate no-refund removals take individual decisions. Authored explicit literal defaults initialize write intent at their exact insert source. Derived effects run first with one generated fixture per phase.
+- Security precision: mutation edit-guard questions accept matching update-only intent, column write authority or an individual decision. Derived replay checks participant charge/refund conservation and current-input backfill labels; manual overrides and deliberate no-refund removals take individual decisions. Authored explicit literal defaults initialize write intent at their exact insert source. Derived effects run first with one generated fixture per phase.
 
 - Ignored approval flags, timestamps and separately authorized approval records require an individual specification decision when a plausible modeled act can bypass them. External-act records are informational and do not gate deployment. Enforce the approval before its effect, or record why it is informational with `check --ack-security ID --reason '<spec rationale>'`.
 - Derived security replay covers sibling approval paths, Boolean/enum/principal approval inputs, parent/child stages and repeatable creates. A production FIX names the exact candidate and its repair or individual alternative-path decision. Resource branch conditions retain their scope; unmappable caller conditions need explicit operation intent. Row aliases retain their target and source site; unresolved source targets and helper cuts report coverage gaps with the explicit-target or expression repair.

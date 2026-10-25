@@ -24,10 +24,12 @@ fn modeled(write:&Write<'_>,name:&str,parent:&str,bound:&Bound)->bool{
     let t=&bound.schema.tables[&write.table];
     if write.table==parent{
         if !matches!(write.op,WriteOp::Update|WriteOp::Upsert){return false;}
-        return write.fields.iter().any(|field|!metadata(&field.name)&&!matches!(field_value(field).map(simplify_boolean),Some(Expr::Literal{value:ast::Literal::Bool(false)|ast::Literal::Null,..}))&&(
+        // An upsert reset can still perform the act through an omitted birth default.
+        let default_act=write.op==WriteOp::Upsert&&t.defaults.iter().any(|(column,default)|!write.fields.iter().any(|field|field.name==*column)&&!metadata(column)&&!matches!(default.value(challenges::NOW,"$audit"),snapback4_core::Value::Bool(false)|snapback4_core::Value::Null)&&(column.to_lowercase().contains(name)||matches!(t.columns.get(column).map(ColumnType::required),Some(ColumnType::Enum{..}))&&matches!(default.value(challenges::NOW,"$audit"),snapback4_core::Value::String(value) if value.to_lowercase().contains(name))));
+        return default_act||write.fields.iter().any(|field|!metadata(&field.name)&&!matches!(field_value(field).map(simplify_boolean),Some(Expr::Literal{value:ast::Literal::Bool(false)|ast::Literal::Null,..}))&&(
             field.name.to_lowercase().contains(name)||
             matches!(t.columns.get(&field.name).map(ColumnType::required),Some(ColumnType::Enum{..}))&&field_value(field).is_some_and(|value|literal_act(value,name))
-        ))||operation.contains(name)&&["perform","execute","install","replace","refund","move","take","remove"].iter().any(|prefix|operation.starts_with(prefix))&&write.fields.iter().any(|field|!metadata(&field.name)&&!matches!(field_value(field).map(simplify_boolean),Some(Expr::Literal{value:ast::Literal::Bool(false)|ast::Literal::Null,..})));
+        ))||operation.contains(name)&&["perform","execute","install","replace","refund","move","take","remove"].iter().any(|prefix|operation.starts_with(prefix))&&(default_act||write.fields.iter().any(|field|!metadata(&field.name)&&!matches!(field_value(field).map(simplify_boolean),Some(Expr::Literal{value:ast::Literal::Bool(false)|ast::Literal::Null,..}))));
     }
     if !matches!(write.op,WriteOp::Insert|WriteOp::Upsert)||!t.columns.values().any(|kind|matches!(kind.required(),ColumnType::Ref{table} if table==parent)){return false;}
     // Pure media attachments are evidence about an act, not its performance.
