@@ -1,0 +1,13 @@
+READY — no material correctness findings.
+
+Reviewed the complete original file and isolated patch against HEAD `b168eb2735`. The patch SHA256 matches the supplied value, and `patched.mjs` exactly matches the patch’s changes.
+
+- **Bank bounds and cleanup:** Each bank position owns at most one socket or replenishment timer. Release stops replenishment, cancels pending timers, and destroys owned sockets. Repeated release is safe. The 50 ms replenishment timers pass through the upload timer mock unchanged.
+- **Saturation:** A received HTTP 503 plus the fresh host’s connection-overload diagnostic provides an admission witness beyond TCP connection establishment. Replenishment replaces refused and expired sockets while preserving real host capacity and deadlines.
+- **Recovery:** The bank stops before release; an authenticated `/schema` response confirms renewed admission before the recovery upload.
+- **Regression:** The focused test verifies replacement after both a warm connection causes refusal and an admitted connection expires.
+- **Preserved coverage:** The 32-worker `100 Continue` witness, four upload attempts, exact `[1125, 1125, 1125]` backoff, `E_RATE_LIMIT` checks, complete diagnostic, live-host assertion, successful recovery upload, and existing Retry-After tests remain intact.
+
+Validation: the already copied test passed all **36 tests**, with no failures, cancellations, or skips, under Node `v24.13.1` and a 180-second shell timeout. This was one standalone run, not a full-contention qualification.
+
+No repository files were modified, no patch was applied, and no `sb4-pub-*` directories were accessed.
