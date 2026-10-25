@@ -107531,3 +107531,50 @@ otherwise exhaust its private 400-connection cluster. Full raw evidence remains
 outside Git. Two private lane clusters and two public-witness clusters stop and
 are independently confirmed; all 31 measurement children have exited. PIDs
 left: none. No push, stash, Git configuration change or unowned signal occurs.
+
+## 2026-10-25 — G7.1: synchronous tickets and exact head attempts
+
+[The G7.1 report](reports/20261025-g71-postgres/REPORT.md) records the depth-one
+restructure on R1 base `77a36819f4`. Eligible Postgres G3b groups send the owner
+fence, store-keyed transaction advisory ticket, unlocked head/xid and composed
+level-zero facts together. The tail assigns revision absolutely and compares
+seq, revision and attempt together, verifies every count, and returns publication
+before the separate uncancellable COMMIT. Evidence pruning covers only the newly
+expired interval. R1's level-zero groups fall 4→3 flights under G5 and G6
+(pre-R1: 5/6→3); one additional dependency level falls 5→4. Solo, barrier,
+ineligible and SQLite protocols retain their existing routes and budgets.
+
+The head attempt encodes owner token plus a process-wide atomic counter shared
+across handles. Rollback and reattach never lower that counter. Barriers write
+fresh attempts; fenced attach installs/validates the C-collated column, while
+read-only bootstrap recovery admits the complete pre-upgrade head. No second
+slot, chain fold, cascade or asynchronous commit is introduced; depth one keeps
+the existing G6 COMMIT guard and release behavior.
+
+Ten G7.1 witnesses pass: stale-attempt refusal, monotone reservations across
+abort/reattach, independent two-store tickets, concurrent barrier ordering,
+generation change, randomized 192-member histories on both stores with keyed
+duplicates and barriers, flight faults, transaction status, attach upgrade/refusal
+and fence refusal. Five new PG protocol witnesses and the core flight assertion
+fail at the parent; the unchanged SQLite oracle passes there. An added operator
+shadowing case demonstrates a nonce-only CAS bypass before catalog qualification;
+all three CAS comparisons now use `OPERATOR(pg_catalog.=)`.
+
+The final complete core pass is 1,275/0/449 (passed/failed/ignored), the full binary
+608/0/57, the affected batch suite 85/0, core RT0 3/0, HTTP RT0 9/0, TCP/pipeline
+9/0 and the real-owner G6 three-flight publication check 1/0. The initial binary
+run lacked the built CLI helper required by process/worker tests; building it
+and rerunning the complete binary suite resolves those setup failures. The
+initial PG script used socket-only input for TCP-required witnesses and retained
+R1's old four-flight G6 assertion; a fresh TCP-qualified private PG16 cluster and
+the three-flight assertion resolve those cases. The complete script is rerun;
+its retained evaluator stress case reproduces the author-declared inherited
+`40001`. No throughput or S1 qualification is claimed; raw logs stay outside Git.
+
+The completed Postgres script records 816 passed / 1 failed: only the inherited
+`40001` evaluator stress case remains; every other Rust stage and the public
+serving milestone pass. Final `ref-check` has zero errors/unchecked references.
+Both lane PG16 clusters and both public-witness clusters stop with status 3 and
+no pidfiles; all 1,077 unique recorded PIDs are absent. PIDs left: none. Final
+available disk is 79.67 GiB, above the 40 GiB stop floor. No push or Git
+configuration change occurs.

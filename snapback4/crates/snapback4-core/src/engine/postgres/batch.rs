@@ -6,7 +6,7 @@ use crate::{
     store_port::batch::{Facts, Request},
 };
 
-const LEVEL: &str = r#"WITH q AS (
+pub(super) const LEVEL: &str = r#"WITH q AS (
  SELECT * FROM jsonb_to_recordset($1::text::jsonb) AS q(n bigint,t text,ix text,id text,lo text,hi text)
 )
 SELECT q.n, a.data FROM q LEFT JOIN LATERAL (
@@ -28,13 +28,13 @@ SELECT s.principal,COALESCE(s.family,s.token_digest),s.kind,s.token_digest,s.exp
  (SELECT seq FROM _head WHERE singleton),(SELECT revision FROM _head WHERE singleton),q.n
 FROM q LEFT JOIN sessions s ON s.token_digest=q.digest
 LEFT JOIN _principal_generations g ON g.principal=s.principal ORDER BY q.n"#) }; }
-const AUTH: &str = authority_sql!(
+pub(super) const AUTH: &str = authority_sql!(
     "SELECT principal,family,kind,token_digest,expires_at,0 AS scope,NULL::bigint AS cap_expires_at,NULL::bigint AS principal_generation FROM _sessions"
 );
-const AUTH_READ: &str = authority_sql!(
+pub(super) const AUTH_READ: &str = authority_sql!(
     "SELECT principal,family,kind,token_digest,expires_at,0 AS scope,NULL::bigint AS cap_expires_at,NULL::bigint AS principal_generation FROM _sessions UNION ALL SELECT principal,family,kind,token_digest,expires_at,1,cap_expires_at,principal_generation FROM _read_sessions"
 );
-const RECEIPTS: &str = r#"WITH q AS (
+pub(super) const RECEIPTS: &str = r#"WITH q AS (
  SELECT n::bigint-1 AS n,x->>'principal' AS principal,x->>'id' AS id FROM jsonb_array_elements($1::text::jsonb) WITH ORDINALITY a(x,n)
 ) SELECT q.n,r.outcome,r.name,r.args_digest,a.placement,a.facts,a.state
 FROM q LEFT JOIN _ops r ON r.principal=q.principal AND r.id=q.id
@@ -74,14 +74,22 @@ impl Tx<'_> {
             AUTH
         };
         let level = level_payload(accesses);
-        let sets = self.flight(
-            &[
-                (auth, &[&payload]),
-                (RECEIPTS, &[&payload]),
-                (LEVEL, &[&level]),
-            ],
-            "",
-        )?;
+        let ticket = self.batch_ticket;
+        let ticket_params: &[&(dyn postgres::types::ToSql + Sync)] = &[&ticket];
+        let head_params: &[&(dyn postgres::types::ToSql + Sync)] = &[];
+        let auth_params: &[&(dyn postgres::types::ToSql + Sync)] = &[&payload];
+        let level_params: &[&(dyn postgres::types::ToSql + Sync)] = &[&level];
+        let mut commands = Vec::new();
+        if ticket.is_some() {
+            commands.push((super::group_commit::TICKET, ticket_params));
+            commands.push((super::group_commit::HEAD, head_params));
+        }
+        commands.extend([(auth, auth_params), (RECEIPTS, auth_params), (LEVEL, level_params)]);
+        let mut sets = self.flight(&commands, "")?;
+        if ticket.is_some() {
+            sets.remove(0);
+            self.accept_batch_head(&sets.remove(0).rows[0])?;
+        }
         let mut grouped: Vec<Vec<super::store::Row>> =
             requests.iter().map(|_| Vec::new()).collect();
         for row in &sets[0].rows {

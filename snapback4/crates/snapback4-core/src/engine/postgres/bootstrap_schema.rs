@@ -51,6 +51,7 @@ const TABLES: &[Table] = &[
             ("singleton", "boolean", true, false, None, ""),
             ("seq", "bigint", true, false, None, ""),
             ("revision", "bigint", true, false, Some("0"), ""),
+            ("attempt", "text", true, true, Some("'0:0'::text"), ""),
         ],
         constraints: &[
             "PRIMARY KEY (singleton)",
@@ -491,7 +492,10 @@ fn verify_table(tx: &Tx<'_>, table: &Table) -> Result<(), RuntimeError> {
          WHERE a.attrelid=to_regclass($1) AND a.attnum>0 AND NOT a.attisdropped",
         &[&table.name],
     )?;
+    // @ref LLP 3000.009.001.000.000.002#8.1 — read-only bootstrap recovery admits the complete old head; only fenced attach installs attempt.
+    let legacy_head = table.name == "_head" && !actual.iter().any(|r| r.get::<_, &str>(0)=="attempt");
     for &(name, kind, required, byte_exact, default, identity) in table.columns {
+        if legacy_head && name=="attempt" { continue; }
         let Some(column) = actual.iter().find(|r| r.get::<_, &str>(0) == name) else {
             return Err(incompatible(table.name, &format!("missing column {name}")));
         };
@@ -508,7 +512,7 @@ fn verify_table(tx: &Tx<'_>, table: &Table) -> Result<(), RuntimeError> {
             ));
         }
     }
-    if actual.len() != table.columns.len() {
+    if actual.len() != table.columns.len() - usize::from(legacy_head) {
         return Err(incompatible(table.name, "unexpected column set"));
     }
     // Names do not affect constraint semantics. Deparsing is stable on the

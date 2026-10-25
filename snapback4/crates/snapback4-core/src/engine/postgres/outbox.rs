@@ -43,7 +43,7 @@ impl OutboxTransaction for Tx<'_> {
         self.release_value()
     }
     fn insert_effect(&self, effect: &NewEffect<'_>) -> Result<(), RuntimeError> {
-        self.require_serialized_head_fence("insert effect")?;
+        self.require_tail_order("insert effect")?;
         self.ensure_active()?;
         {
             let mut tail = self.tail.borrow_mut();
@@ -57,16 +57,18 @@ impl OutboxTransaction for Tx<'_> {
                 return Ok(());
             }
         }
+        self.require_serialized_head_fence("insert effect outside buffered tail")?;
         self.execute_one("INSERT INTO _outbox(id,seq,effect,payload,state,attempts,at,next_at,work_spec,deadline,release,contract) VALUES ($1,$2,$3,$4,'queued',0,$5,$6,$7,$8,$9,$10)", &[&effect.id, &signed(effect.seq)?, &effect.effect, &canonical_json(effect.payload), &effect.now, &effect.next_at, &canonical_json(effect.work), &effect.deadline, &effect.release, &effect.contract])?;
         Ok(())
     }
     fn insert_effect_presence(&self, principal: &str, id: &str, deadline: i64) -> Result<(), RuntimeError> {
-        self.require_serialized_head_fence("insert effect presence")?;
+        self.require_tail_order("insert effect presence")?;
         self.ensure_active()?;
         if let Some(effect) = self.tail.borrow_mut().effects.iter_mut().find(|e| e.id == id) {
             effect.presence.push((principal.into(), deadline));
             return Ok(());
         }
+        self.require_serialized_head_fence("insert effect presence outside buffered tail")?;
         self.execute_one("INSERT INTO _effect_presence(principal,id,deadline) VALUES ($1,$2,$3)", &[&principal, &id, &deadline])?;
         Ok(())
     }

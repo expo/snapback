@@ -1,10 +1,11 @@
 //! One verified vector tail, followed by a separate, uncancellable COMMIT.
 // @ref LLP 3000.009.001.000.002#3.2 — preserve every intermediate commit/image; advance the head once.
+// @ref LLP 3000.009.001.000.000.002#3.4 — ticket batches advance the complete head identity with one exact CAS.
 use super::store::{Tx, signed};
 use crate::RuntimeError;
 
-macro_rules! tail_sql { ($head:literal, $publication:literal) => { concat!(r#"WITH
-head AS (UPDATE _head SET seq=$3 WHERE singleton AND seq=$2 "#, $head, r#"),
+macro_rules! tail_sql { ($update:literal, $head:literal, $publication:literal) => { concat!(r#"WITH
+head AS ("#, $update, $head, r#"),
 images AS (
  UPDATE r SET data=w.data FROM jsonb_to_recordset(($1::text::jsonb)->'images') AS w(t text,id text,data text)
  CROSS JOIN head WHERE r.t=w.t AND r.id=w.id RETURNING r.id
@@ -19,7 +20,7 @@ committed AS (
  SELECT c.seq,c.footprint FROM jsonb_to_recordset(($1::text::jsonb)->'commits') AS c(seq bigint,footprint text)
  JOIN committed USING(seq) RETURNING seq
 ), pruned AS (
- DELETE FROM _change_evidence WHERE seq <= $3-1000 AND EXISTS(SELECT 1 FROM committed)
+ DELETE FROM _change_evidence WHERE seq > $2-1000 AND seq <= $3-1000 AND EXISTS(SELECT 1 FROM committed)
 ), logged AS (
  INSERT INTO _log(partition,seq,ord,t,kind,id,data)
  SELECT l.partition,l.seq,l.ord,l.t,l.kind,l.id,l.data
@@ -43,8 +44,12 @@ committed AS (
 )
 SELECT (SELECT count(*) FROM head),(SELECT count(*) FROM committed),(SELECT count(*) FROM evidence),
  (SELECT count(*) FROM logged),(SELECT count(*) FROM effects),(SELECT count(*) FROM presence),(SELECT count(*) FROM receipts),(SELECT count(*) FROM images)"#, $publication) }; }
-pub(super) const SQL: &str = tail_sql!("RETURNING seq", "");
-const PUBLICATION_SQL: &str = tail_sql!("RETURNING seq,revision", r#",
+pub(super) const SQL: &str = tail_sql!("UPDATE _head SET seq=$3 WHERE singleton AND seq=$2 ", "RETURNING seq", "");
+const PUBLICATION_SQL: &str = tail_sql!("UPDATE _head SET seq=$3 WHERE singleton AND seq=$2 ", "RETURNING seq,revision", r#",
+ (SELECT revision FROM head),(SELECT seq FROM head),(SELECT generation FROM _backend WHERE singleton),
+ (SELECT value FROM _meta WHERE key='store_id'),(SELECT value FROM _meta WHERE key='schema_hash'),(SELECT value FROM _meta WHERE key='activation_hash')"#);
+const CAS_SQL: &str = tail_sql!("UPDATE _head SET seq=$3,revision=$4,attempt=$5 WHERE singleton AND seq OPERATOR(pg_catalog.=) $2 AND revision OPERATOR(pg_catalog.=) $6 AND attempt OPERATOR(pg_catalog.=) $7 ", "RETURNING seq", "");
+const CAS_PUBLICATION_SQL: &str = tail_sql!("UPDATE _head SET seq=$3,revision=$4,attempt=$5 WHERE singleton AND seq OPERATOR(pg_catalog.=) $2 AND revision OPERATOR(pg_catalog.=) $6 AND attempt OPERATOR(pg_catalog.=) $7 ", "RETURNING seq,revision", r#",
  (SELECT revision FROM head),(SELECT seq FROM head),(SELECT generation FROM _backend WHERE singleton),
  (SELECT value FROM _meta WHERE key='store_id'),(SELECT value FROM _meta WHERE key='schema_hash'),(SELECT value FROM _meta WHERE key='activation_hash')"#);
 
@@ -131,7 +136,8 @@ impl Tx<'_> {
             return Ok(());
         }
         // @ref LLP 3000.009.001.000.002#4.1 — completed receipt-only members count too; aborted members have no tail slot.
-        self.defer_revision(tails.len())?;
+        if self.batch_ticket.is_none() { self.defer_revision(tails.len())?; }
+        else { self.revisions.set(tails.len() as u64); }
         let mut commits = Vec::new();
         let mut log = Vec::new();
         let mut effects = Vec::new();
@@ -215,10 +221,31 @@ impl Tx<'_> {
             })
             .unwrap()
         };
-        let sets = self.flight(
+        let sets = if self.batch_ticket.is_some() {
+            let base = self.batch_base.borrow();
+            let base = base.as_ref().ok_or_else(|| RuntimeError::Store("missing ticket batch head".into()))?;
+            if base.seq != signed(first)? { return Err(RuntimeError::Store("ticket batch base seq changed".into())); }
+            let revision = base.revision.checked_add(tails.len() as i64).ok_or_else(||RuntimeError::Store("revision overflow".into()))?;
+            let attempt = self.attempt.borrow();
+            let sets = self.flight(&[
+                (super::group_commit::IDENTITY, &[]),
+                (if self.publication_enabled() { CAS_PUBLICATION_SQL } else { CAS_SQL },
+                 &[&payload, &signed(first)?, &signed(last)?, &revision, &*attempt, &base.revision, &base.attempt]),
+            ], "SET LOCAL statement_timeout=0; SET LOCAL lock_timeout=0")?;
+            let identity = &sets[0].rows[0];
+            self.check_batch_identity(identity.get(0), identity.get(1))?;
+            if sets[1].rows.first().is_some_and(|row| row.get::<_,i64>(0)==0) {
+                let observed=self.query(super::group_commit::HEAD, &[])?.remove(0);
+                return Err(RuntimeError::Store(format!(
+                    "ticket head CAS mismatch: expected ({},{},{}), observed ({},{},{})",
+                    base.seq, base.revision, base.attempt,
+                    observed.get::<_,i64>(0), observed.get::<_,i64>(1), observed.get::<_,String>(2))));
+            }
+            sets.into_iter().skip(1).collect::<Vec<_>>()
+        } else { self.flight(
             &[(if self.publication_enabled() { PUBLICATION_SQL } else { SQL }, &[&payload, &signed(first)?, &signed(last)?])],
             "SET LOCAL statement_timeout=0; SET LOCAL lock_timeout=0",
-        )?;
+        )? };
         let row = sets[0]
             .rows
             .first()
