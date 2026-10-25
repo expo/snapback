@@ -83,7 +83,7 @@ pub fn nearest(word: &str) -> Vec<&'static str> {
     nearest
 }
 
-// @ref LLP 3000.000.000#21-wave-27-release-semantics-rel — extraction widening and guarded rollback use the reviewed release contract.
+// @ref LLP 3000.000.000#21 — extraction widening and guarded rollback use the reviewed release contract.
 pub(super) const EVOLUTION: &str = r##"# Evolution: adopting a schema
 
 Schema adoption applies a new backend definition to existing data.
