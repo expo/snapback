@@ -10,9 +10,109 @@ fn store_binding(pg: bool) {
     for _ in 0..2 {
         let reply = f.host.request("POST", "/m/change", &headers(&session), r#"{"args":{"n":1}}"#);
         refused(&reply, "E_STORE_REPLACED"); no_store_metadata(&reply);
-        assert_eq!(status(&reply), 401, "preserve cold-ingress store replacement refusal: {reply}");
+        assert_eq!(status(&reply), 409, "preserve cold-ingress store replacement refusal: {reply}");
         assert_eq!(f.count(), 0, "an unkeyed request without store_id must not write the replacement store");
     }
+}
+
+fn query_store_binding(pg: bool) {
+    let f = Fixture::new(pg); let session = f.session(false);
+    assert_eq!(body(&f.host.request("POST", "/q/count", &headers(&session), "{}"))["data"], 0);
+    lock(&f.host.shared.engine).store_mut().test_request_store_id("replacement").unwrap();
+    for _ in 0..2 {
+        let reply = f.host.request("POST", "/q/count", &headers(&session), "{}");
+        refused(&reply, "E_STORE_REPLACED"); no_store_metadata(&reply);
+        assert_eq!(status(&reply), 409, "warm query must preserve cold-ingress status: {reply}");
+    }
+}
+
+fn ephemeral_scope_retries(pg: bool) {
+    let f = Fixture::new(pg); let session = f.session(false);
+    adopt_ephemeral(&f, &mut lock(&f.host.shared.engine));
+    assert_eq!(body(&f.host.request("POST", "/q/count", &headers(&session), "{}"))["data"], 0);
+    assert_eq!(lock(&f.host.shared.carried).len(), 1);
+    let before = f.host.shared.ephemeral.snapshot().unwrap().version;
+    change_capability(&f, &session, "scope");
+    for attempt in 0..4 {
+        let reply = f.host.request("POST", "/m/change", &headers(&session), r#"{"args":{"n":1}}"#);
+        assert_eq!(status(&reply), 200, "ephemeral refusal envelope: {reply}");
+        refused(&reply, if attempt == 0 {"E_AUTH"} else {"E_READ_ONLY"});
+        no_store_metadata(&reply);
+        assert!(body(&reply).get("ephemeral").is_none(), "{reply}");
+        assert_eq!(f.host.shared.ephemeral.snapshot().unwrap().version, before);
+        assert_eq!(lock(&f.host.shared.wake).eph.version, before);
+    }
+    assert_eq!(f.count(), 0);
+}
+
+// The third mutation_wait visit is after ephemeral preflight and immediately
+// before final reader checkout. Args only proves this is the unkeyed path.
+fn warm_ephemeral_final(pg: bool) {
+    for change in ["revoke", "scope", "kind", "unchanged"] {
+        let f = Fixture::new(pg); let session = f.session(false);
+        adopt_ephemeral(&f, &mut lock(&f.host.shared.engine));
+        assert_eq!(body(&f.host.request("POST", "/q/count", &headers(&session), "{}"))["data"], 0);
+        assert_eq!(lock(&f.host.shared.carried).len(), 1);
+        let before = f.host.shared.ephemeral.snapshot().unwrap().version;
+        let (gate, _release) = park(&f.host, 3);
+        let address = f.host.address;
+        let request = wire("/m/change", &session, &json!({"args":{"n":1}}));
+        let task = thread::spawn(move || exchange_held(address, 2*WAIT_TIMEOUT, request));
+        wait_until(|| gate.entered.load(Ordering::Acquire) == 1);
+        if change == "revoke" { identity::close_session(lock(&f.host.shared.engine).store(), &session.token).unwrap(); }
+        else { change_capability(&f, &session, change); }
+        gate.release(); let reply = task.join().unwrap();
+        assert_eq!(status(&reply), 200, "{reply}");
+        let after = f.host.shared.ephemeral.snapshot().unwrap().version;
+        if change == "unchanged" {
+            assert_eq!(body(&reply)["state"], "sent", "{reply}");
+            assert_eq!(after.epoch, before.epoch + 1);
+        } else {
+            refused(&reply, "E_AUTH"); no_store_metadata(&reply);
+            assert!(body(&reply).get("ephemeral").is_none(), "{reply}");
+            assert_eq!(after, before, "{change}: stale effects reached the hub");
+            assert_eq!(lock(&f.host.shared.wake).eph.version, before, "no wake publication");
+        }
+        assert_eq!(f.count(), 0);
+    }
+}
+
+fn action_kind(pg: bool, ephemeral: bool) {
+    let f = Fixture::new(pg); let session = f.session(false);
+    if ephemeral { adopt_ephemeral(&f, &mut lock(&f.host.shared.engine)); }
+    assert_eq!(body(&f.host.request("POST", "/q/count", &headers(&session), "{}"))["data"], 0);
+    assert_eq!(lock(&f.host.shared.carried).len(), 1);
+    lock(&f.host.shared.engine).store_mut().test_request_action_claim(&session.token, f.host.shared.now(), true).unwrap();
+    let input = r#"{"args":{"n":1}}"#;
+    let reply = f.host.request("POST", "/m/change", &headers(&session), input);
+    refused(&reply, "E_AUTH"); no_store_metadata(&reply);
+    let value = body(&reply);
+    assert_eq!(value.get("denied").or_else(|| value.get("why")).unwrap()["retryable"], true);
+    assert!(lock(&f.host.shared.carried).is_empty(), "action authority evicts the ordinary hint");
+    for _ in 0..2 {
+        assert_eq!(body(&f.host.request("POST", "/m/change", &headers(&session), input))["state"], "sent");
+        assert!(lock(&f.host.shared.carried).is_empty());
+    }
+    let before = f.host.shared.ephemeral.snapshot().unwrap().version;
+    // Pause after ephemeral preflight (or after cold durable discovery) and
+    // invalidate the live claim before final execution resolves it again.
+    let (gate, _release) = park(&f.host, 3);
+    let address = f.host.address;
+    let request = wire("/m/change", &session, &json!({"args":{"n":1}}));
+    let task = thread::spawn(move || exchange_held(address, 2*WAIT_TIMEOUT, request));
+    wait_until(|| gate.entered.load(Ordering::Acquire) == 1);
+    lock(&f.host.shared.engine).store_mut().test_request_action_claim(&session.token, f.host.shared.now(), false).unwrap();
+    gate.release(); let reply = task.join().unwrap();
+    refused(&reply, "E_AUTH"); no_store_metadata(&reply);
+    assert_eq!(status(&reply), if ephemeral {200} else {401});
+    assert_eq!(f.host.shared.ephemeral.snapshot().unwrap().version, before);
+    assert_eq!(lock(&f.host.shared.wake).eph.version, before);
+    *lock(&f.host.shared.mutation_wait) = None;
+    for _ in 0..2 {
+        let reply = f.host.request("POST", "/m/change", &headers(&session), input);
+        refused(&reply, "E_AUTH"); no_store_metadata(&reply);
+    }
+    assert_eq!(f.count(), if ephemeral {0} else {2});
 }
 
 fn custom_kind(pg: bool, ephemeral: bool) {
@@ -86,12 +186,27 @@ fn ownership(pg: bool) {
 }
 
 #[test] fn rt3b_lev_store_binding_sqlite() { store_binding(false); }
+#[test] fn rt3b_lev_query_store_binding_sqlite() { query_store_binding(false); }
+#[test] fn rt3b_lev_ephemeral_scope_retries_sqlite() { ephemeral_scope_retries(false); }
+#[test] fn rt3b_lev_warm_ephemeral_final_sqlite() { warm_ephemeral_final(false); }
+#[test] fn rt3b_lev_action_durable_sqlite() { action_kind(false, false); }
+#[test] fn rt3b_lev_action_ephemeral_sqlite() { action_kind(false, true); }
 #[test] fn rt3b_lev_custom_durable_sqlite() { custom_kind(false, false); }
 #[test] fn rt3b_lev_custom_ephemeral_sqlite() { custom_kind(false, true); }
 #[test] fn rt3b_lev_retired_observation_sqlite() { retired_observation(false); }
 #[test] fn rt3b_lev_ownership_sqlite() { ownership(false); }
 #[cfg(feature="postgres")] #[test] #[ignore="private PG16"]
 fn rt3b_lev_store_binding_postgres() { store_binding(true); }
+#[cfg(feature="postgres")] #[test] #[ignore="private PG16"]
+fn rt3b_lev_query_store_binding_postgres() { query_store_binding(true); }
+#[cfg(feature="postgres")] #[test] #[ignore="private PG16"]
+fn rt3b_lev_ephemeral_scope_retries_postgres() { ephemeral_scope_retries(true); }
+#[cfg(feature="postgres")] #[test] #[ignore="private PG16"]
+fn rt3b_lev_warm_ephemeral_final_postgres() { warm_ephemeral_final(true); }
+#[cfg(feature="postgres")] #[test] #[ignore="private PG16"]
+fn rt3b_lev_action_durable_postgres() { action_kind(true, false); }
+#[cfg(feature="postgres")] #[test] #[ignore="private PG16"]
+fn rt3b_lev_action_ephemeral_postgres() { action_kind(true, true); }
 #[cfg(feature="postgres")] #[test] #[ignore="private PG16"]
 fn rt3b_lev_custom_durable_postgres() { custom_kind(true, false); }
 #[cfg(feature="postgres")] #[test] #[ignore="private PG16"]

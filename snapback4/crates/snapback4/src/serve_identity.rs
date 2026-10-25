@@ -44,6 +44,7 @@ pub(crate) struct Admission {
     trusted_dev: bool,
     planned_ordinary: bool,
     expected_query: Option<snapback4_core::identity::Capability>,
+    mutation: bool,
 }
 impl Admission {
     pub(crate) fn planned(mut self, capability: &snapback4_core::identity::Capability) -> Self { self.planned_ordinary = matches!(capability.1.as_str(), "guest"|"user"|"member"|"account"|"oidc"|"service"); self }
@@ -79,7 +80,7 @@ impl Admission {
     if persona.is_some() && bearer.is_some() {
         return Err(Refusal::new("E_AUTH", "auth", "send one credential: a development persona or a bearer token").guide("personas"));
     }
-        Ok(Self { persona, bearer, planned_ordinary: false, expected_query: None, trusted_dev: trusted_dev_request(request, shared) })
+        Ok(Self { persona, bearer, planned_ordinary: false, expected_query: None, mutation: request.method() == &Method::Post && request.url().starts_with("/m/"), trusted_dev: trusted_dev_request(request, shared) })
     }
     fn resolve_ingress(&self, shared: &Shared, engine: &Engine, identity: Option<&str>) -> Result<snapback4_core::identity::Capability, Refusal> {
         let Some(token) = &self.bearer else { return self.resolve(shared, engine); };
@@ -111,6 +112,13 @@ impl Admission {
     pub(crate) fn check_store(&self, shared: &Shared, store: &str) -> Result<(), Refusal> {
         if lock(&shared.wake).store_id.as_deref() != Some(store) {
             return Err(Refusal::new("E_STORE_REPLACED", "store", "the serving store identity changed; reconcile with the original store").guide("sync"));
+        }
+        Ok(())
+    }
+    // @ref LLP 3000.033#1.2 — fresh scope must permit the operation independently of the planning hint or token prefix.
+    fn check_scope(&self, current: &snapback4_core::identity::Capability) -> Result<(), Refusal> {
+        if self.mutation && current.2 != snapback4_core::identity::SessionScope::Full {
+            return Err(Refusal::new("E_READ_ONLY", "auth", "this read session permits reads only; use a full session for writes").guide("read-only"));
         }
         Ok(())
     }
@@ -146,7 +154,7 @@ impl Admission {
             why.retryable = true;
             return Err(why);
         }
-        Ok(())
+        self.check_scope(&current)
     }
     pub(crate) fn with_snapshot<T>(&self, shared: &Shared, engine: &Engine, receipt: Option<&(String,String)>,
         run: impl FnOnce(snapback4_core::identity::Capability, &snapback4_core::identity::RequestSnapshot<'_, '_>) -> Result<T, Refusal>,
@@ -160,6 +168,7 @@ impl Admission {
             let capability = persona.or_else(|| snapshot.capability.clone()).ok_or_else(|| Refusal::new("E_AUTH", "auth", "this session is not live; sign in again").guide("personas"))?;
             self.remember(shared, &capability, &snapshot.store_id, engine.generation(), sample.supervisor_revision);
             if let Some(expected)=&self.expected_query { self.check_capability(expected,capability.clone())?; }
+            self.check_scope(&capability)?;
             run(capability, &snapshot)
         }).map_err(|e| e.refusal())?
     }

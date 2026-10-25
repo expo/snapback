@@ -963,7 +963,7 @@ fn handle(mut request: Request, shared: &Shared) {
             Ok(capability) => operation_capability = capability,
             Err(refusal) => {
             // No authenticated viewer: metadata cannot disclose a store head.
-            let status = if refusal.code == "E_STORE_REPLACED" { 409 } else if refusal.retryable { 503 } else { 401 };
+            let status = operation_request::authority_status(&refusal, 401);
             if path.starts_with("/q/") { return respond_timed(request, shared, status, latency::Unobserved(json!({"denied":refusal_json(&refusal)}))); }
             return reject(request, status, refusal);
             }
@@ -1307,12 +1307,10 @@ fn handle(mut request: Request, shared: &Shared) {
                 }
                 break evaluated;
                 };
-                if let Err(why) = &metadata && why.code == "E_AUTH" {
-                    return respond_timed(request, shared, if why.retryable {503} else {401}, json!({"denied":why}));
-                }
                 let (store_id, head) = match metadata { Ok(head) => head, Err(why) => {
+                    let status = operation_request::authority_status(&why, 503);
                     let reply = if why.code == "E_GENERATION" { json!({"denied":why,"complete":false}) } else { json!({"denied":why}) };
-                    respond_timed(request, shared, 503, latency::Unobserved(reply)); return;
+                    respond_timed(request, shared, status, latency::Unobserved(reply)); return;
                 } };
                 match outcome {
                     Ok(outcome) => {
@@ -1428,7 +1426,7 @@ fn handle(mut request: Request, shared: &Shared) {
                 let (outcome, metadata, preserved, generation) = match result.and_then(|v| v) {
                     Ok(Some(value)) => value,
                     Ok(None) => return ephemeral::serve(request, shared, &op, &body, diverted_capability),
-                    Err(mut why) => { if id.is_some() && why.code == "E_STORE_OWNERSHIP" { why.retryable = true; } return respond_timed(request, shared, if why.code=="E_COMMIT_OUTCOME_UNKNOWN" {500} else if why.retryable {503} else {401}, latency::Unobserved(json!({"denied": why}))); },
+                    Err(mut why) => { if id.is_some() && why.code == "E_STORE_OWNERSHIP" { why.retryable = true; } return respond_timed(request, shared, operation_request::authority_status(&why, 401), latency::Unobserved(json!({"denied": why}))); },
                 };
                 let (store_id, head) = match metadata { Ok(head) => head, Err(why) => { respond_timed(request, shared, 503, json!({ "denied": why })); return; } };
                 match outcome {

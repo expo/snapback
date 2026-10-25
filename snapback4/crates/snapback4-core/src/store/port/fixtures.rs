@@ -84,6 +84,28 @@ impl AnyStore {
         tx.commit()
     }
 
+    /// Same-token ordinary -> action corruption with a controllable claim.
+    pub fn test_request_action_claim(&mut self, token: &str, now: i64, live: bool) -> Result<(), RuntimeError> {
+        use crate::authority::AuthorityTransaction;
+        let digest = crate::identity::digest(token);
+        let tx = self.transaction()?;
+        let principal = tx.session_authority_facts(&digest)?.sessions[0].principal.clone();
+        let state = if live {"running"} else {"done"};
+        let lease = now + 60_000;
+        match &tx {
+            AnyTx::Sqlite(SqliteTx(inner)) => {
+                inner.conn().execute("UPDATE _sessions SET kind='action' WHERE token_digest=?1", [&digest])?;
+                inner.conn().execute("INSERT INTO _requests(id,name,args,principal,at,state,claimed_by,session_digest,lease_until,deadline) VALUES ('lev-claim','test','{}',?1,?2,?3,'worker',?4,?5,?5) ON CONFLICT(id) DO UPDATE SET state=excluded.state", rusqlite::params![principal,now,state,digest,lease])?;
+            }
+            #[cfg(feature = "postgres")]
+            AnyTx::Postgres(super::handles::PostgresTx(inner)) => {
+                inner.execute("UPDATE _sessions SET kind='action' WHERE token_digest=$1", &[&digest])?;
+                inner.execute("INSERT INTO _requests(id,name,args,principal,at,state,claimed_by,session_digest,lease_until,deadline) VALUES ('lev-claim','test','{}',$1,$2,$3,'worker',$4,$5,$5) ON CONFLICT(id) DO UPDATE SET state=excluded.state", &[&principal,&now,&state,&digest,&lease])?;
+            }
+        }
+        tx.commit()
+    }
+
     /// Advance revocation generation without deleting the session row.
     pub fn test_request_principal_generation(&mut self, token: &str) -> Result<(), RuntimeError> {
         use crate::authority::AuthorityTransaction;

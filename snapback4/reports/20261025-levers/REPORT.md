@@ -183,17 +183,21 @@ resolver. “Fresh check” below means the hint is bypassed as an authority sou
 it need not be eagerly removed to refuse safely. Witness names ending in `*`
 have SQLite and private-Postgres variants.
 
-| Change | Required behavior and covering witness |
-| --- | --- |
-| Session revocation / token replacement | Fresh batch or detached authority sees no live credential. `rt3b_carried_mutation_batch_*` (`revoke`), `rt3b_authority_boundaries_*` (upload/queue/replay), and `rt3b_carried_query_*`. |
-| Expiry / read-cap expiry | Fresh service-clock sample at each final attempt; the shared resolver applies expiry and cap boundaries. `rt3b_carried_mutation_batch_*` (`expiry` at exact expiry), `rt3b_authority_boundaries_*`, and the authority-facts equivalence matrix (both read scopes and cap edges). |
-| Scope | Fresh comparison refuses a Full → Read transition before writes or metadata; an ordinary hint may refresh but grants nothing. `rt3b_carried_mutation_batch_*` (`scope`), `rt3b_fix_ephemeral_*scope_*`. |
-| Kind / action claim | Ordinary changes refresh; non-cacheable changes evict and take complete discovery, including action-claim policy. `rt3b_carried_mutation_batch_*` (`kind`, unkeyed retry), `rt3b_fix_ephemeral_kind_*`, `rt3b_lev_custom_{durable,ephemeral}_*`, and authority-facts action/custom equivalence cases. |
-| Principal generation | Public principal revocation deletes full sessions. Read credentials additionally compare their recorded generation to the fresh principal generation. `rt3b_carried_mutation_batch_*` covers both public revocation (`generation`) and generation-only invalidation (`read-generation`); the latter fixture proves the session rows remain present. Full sessions are not independently generation-bound by existing policy. |
-| Supervisor retirement | A changed fence misses the hint; insertion cannot relabel an older observation. `rt3b_lev_retired_observation_*`, plus `rt3b_authority_boundaries_*` (`supervisor`) and the supervised retirement/writer-lock witnesses. |
-| Store id | Lookup misses a changed serving id; the final boundary also compares the fresh durable id even when `Shared.wake` is unchanged and the body omits `store_id`. `rt3b_lev_store_binding_*`, `rt3b_fix_ingress_store_mismatch_*`. |
-| Store generation / code activation | A generation change misses the hint; existing transaction/opening identity guards and the batch facts check refuse stale engines. `rt3b_generation_bearer_unkeyed_*` and `rt3b_generation_bearer_keyed_*` now explicitly warm a hint before foreign adoption; `rt3b_metadata_refusal_uses_its_snapshot_program_*` and ephemeral-conversion witnesses cover local adoption. |
-| Ownership loss | Queue admission and durable owner fencing remain mandatory regardless of the hint; unfenced historical replay stays available. `rt3b_lev_ownership_*` repeats warm unkeyed attempts after queue or durable owner loss; `rt3b_replay_and_concurrent_copies_*` covers keyed/replay semantics. |
+The table below is corrected by fix round 2. A keyed witness or resolver
+matrix is additional coverage, never evidence of an unkeyed HTTP hint path.
+
+| Change | Fresh requirement | HTTP warm-hint / unkeyed coverage | Additional coverage and limits |
+| --- | --- | --- | --- |
+| Session revocation / token replacement | No live credential at the final snapshot | `rt3b_carried_mutation_batch_*` (`revoke`); `rt3b_lev_warm_ephemeral_final_*` (`revoke` after preflight); `rt3b_carried_query_*` | `rt3b_authority_boundaries_*` adds upload/queue/replay coverage; replacement is not separately claimed as a warm HTTP witness. |
+| Session expiry / read-cap expiry | Fresh clock; enforce expiry and cap boundaries | `rt3b_carried_mutation_batch_*` (`expiry`, exact boundary) | Read-cap edges are **resolver-only** in the authority-facts equivalence matrix; no warm HTTP read-cap-expiry claim. |
+| Scope | Fresh mutation scope must be Full independently of hint equality | `rt3b_carried_mutation_batch_*` (`scope`, four queued members then three unkeyed retries); `rt3b_lev_ephemeral_scope_retries_*` (first refusal plus three retries); `rt3b_lev_warm_ephemeral_final_*` (`scope` after preflight) | `rt3b_fix_ephemeral_*scope_*` uses keyed requests for the intervening change. Public narrowing mints a distinct `ro.` token; these fixtures deliberately rewrite the same token. |
+| Ordinary / custom kind | Compare fresh kind; refresh ordinary hints and evict non-cacheable kinds | `rt3b_carried_mutation_batch_*` (`kind`, unkeyed retry); `rt3b_lev_custom_{durable,ephemeral}_*`; `rt3b_lev_warm_ephemeral_final_*` (`kind` after preflight) | Older `rt3b_fix_ephemeral_kind_*` changes authority on a **keyed** request, then retries unkeyed. |
+| Action kind / claim | Complete snapshot resolver, live claim lease/deadline and inherited authority | `rt3b_lev_action_{durable,ephemeral}_*`: warm ordinary → live action, stale refusal, eviction and two successful unkeyed retries | The same HTTP tests invalidate the claim between admission/preflight and execution, then repeat unkeyed refusal. At claim invalidation the action hint has already been evicted, so this portion is **cold discovery**, not warm-hint coverage. Claim edge/family combinations additionally remain resolver-only matrix coverage. |
+| Principal generation | Public revocation removes full sessions; read sessions also check stored generation | `rt3b_carried_mutation_batch_*` (`generation`, `read-generation`); generation-only fixture preserves session rows | Full sessions are not independently generation-bound by existing policy. |
+| Supervisor retirement | Hint fence must match; insertion retains the observation's revision | `rt3b_lev_retired_observation_*`: discard insertion at R after fence R+1, then immediate unkeyed HTTP refusal with writer held | Insertion is exercised directly through `Admission::remember`; the HTTP request is **cold after discard**, not an HTTP producer race. Other supervised retirement/lock witnesses remain additional coverage. |
+| Store identity | Check fresh durable id against serving binding before refresh, execution or metadata | `rt3b_lev_store_binding_*`: warm unkeyed `/m` omitting `store_id`, A→B durable-only replacement, repeated 409; `rt3b_lev_query_store_binding_*`: warm `/q` twin, repeated 409 | `rt3b_fix_ingress_store_mismatch_*` changes wake id, misses the hint and uses keyed mutation bodies; it covers **cold** ingress status. |
+| Store generation / activation | Miss changed hint bindings; final batch/reader rejects obsolete engine | `rt3b_generation_bearer_unkeyed_*`: explicitly warm before foreign adoption | Keyed sibling, metadata refusal and ephemeral conversion witnesses cover local adoption; they are **keyed / handoff** coverage, not an unkeyed warm ephemeral authority-change witness. |
+| Ownership loss | Queue admission and durable owner fence still apply | `rt3b_lev_ownership_*`: repeated warm unkeyed attempts after queue or durable owner loss | `rt3b_replay_and_concurrent_copies_*` covers keyed/unfenced historical replay separately. |
 
 Final qualification (passed / failed / ignored, Cargo target summaries):
 
@@ -231,3 +235,56 @@ Each has `pg_ctl status=3` and no `postmaster.pid`; the public witness's
 531 recorded child/command PIDs are also independently absent. The final
 combined census of 582 recorded PIDs contains no living task process. Data and raw
 receipts remain outside Git. **Task-owned PIDs left: none.** No push occurs.
+
+## LEV fix round 2: mutation permission and refusal parity
+
+Base: `1df119de28` on `sb4-pg/lev-fix1`. Scope: HTTP mutation
+admission/final authority, query/durable refusal mapping and their witnesses.
+Governing constraints are LLP 3000.009.001.000.001 §3.1 and §13 (a hint
+never grants authority; final facts belong to the outcome's snapshot), and
+LLP 3000.033 §1.2 (read scope cannot mutate). The current `read-only` and
+`wire` guide cards agree with those constraints. No new policy decision or
+LLP number is needed; the existing RFC and wire status table are updated.
+
+The final capability comparison now separately requires Full scope for `/m`,
+using the freshly resolved capability, including ephemeral preflight/final
+execution and metadata/replay preflight. The token prefix and a matching
+hint cannot supply that permission. A refreshed Read hint can still plan
+queries; it cannot grant a mutation. A first in-flight scope mismatch keeps
+its retryable stale `E_AUTH`; subsequent attempts get `E_READ_ONLY`. Ephemeral
+authority refusals retain HTTP 200 and disclose no store or hub metadata.
+Kind-specific authority, including action-claim liveness, stays in the complete
+shared snapshot resolver.
+
+The common authority-status mapper preserves fixed codes across cold discovery,
+warm durable batch and warm query metadata failures: store replacement 409,
+read-only 403, generation loss 503, unknown COMMIT 500. Existing queue policy
+still supplies unkeyed ownership loss 409, keyed ownership loss retryable 503,
+and stopped/overloaded queue statuses. This adds no facts read or flight.
+
+Failing-before evidence is executed, not inferred:
+
+| Item | Witness and negative result | Corrected result |
+| --- | --- | --- |
+| Sol P1, durable scope | Extend `rt3b_carried_mutation_batch_sqlite` with three args-only retries after the four queued refusals. Against base product code the first retry returns `sent`, with no `E_READ_ONLY`. | Each retry refuses HTTP 403 `E_READ_ONLY`; counter remains zero. |
+| Sol P1, ephemeral scope | New `rt3b_lev_ephemeral_scope_retries_sqlite`, ordinary hint warmed before the same-token downgrade. Against base product code the second attempt returns `sent`. | First stale refusal plus three `E_READ_ONLY` refusals; HTTP 200 envelope; hub/wake versions and durable counter unchanged. |
+| Grok status, durable | `rt3b_lev_store_binding_sqlite` now requires 409. Base product code returns **401**. | Both repeated warm, unkeyed mutations return **409**, no metadata or writes. |
+| Grok status, query | New `rt3b_lev_query_store_binding_sqlite`. Base product code returns **503**. | Both repeated warm queries return **409**, no metadata. |
+| Sol P2, unkeyed final ephemeral authority | New `rt3b_lev_warm_ephemeral_final_*` warms an ordinary hint, uses args only, parks after ephemeral preflight, then changes revocation/scope/kind. An unchanged-authority control publishes. Temporarily skipping final authority **only for unkeyed requests** makes the SQLite witness fail: a revoked request returns `sent`. | All changed cases refuse with hub/wake versions unchanged; positive control publishes one epoch. |
+| Sol P2, action/claim | New `rt3b_lev_action_{durable,ephemeral}_*` transitions a warmed ordinary token to a live action claim, verifies stale refusal/eviction and two successful unkeyed retries, then invalidates the claim before final execution and repeats refusal. Temporarily disabling the shared live-claim check makes **both SQLite witnesses fail**: invalidated claims return `sent`. | No stale durable write or ephemeral publication; repeated dead-claim attempts refuse. |
+
+The baseline run changes only witnesses and their test-support fixture: **39
+passed / 4 failed / 43 ignored** in the RT3b filter. The new final-ephemeral and
+action cases already pass on the base; their regression sensitivity is proved
+by the explicit negative controls above, not claimed as a base product defect.
+The ephemeral negative control fails 1/1 selected test; the claim negative
+control fails both selected SQLite tests (2 Postgres cases ignored). All
+negative product changes are restored. The corrected RT3b filter passes
+**43/0/43**. All new HTTP cases also have private-Postgres twins, selected by
+the complete Postgres script.
+
+The corrected invalidation audit is the table in the preceding fix-round
+section. It explicitly labels resolver-only cap/family coverage, keyed
+activation witnesses, supervisor insertion exercised directly, and claim
+invalidation after non-cacheable hint eviction. No throughput measurements
+run in this round; prior performance numbers do not qualify these bytes.

@@ -549,6 +549,14 @@ fn carried_mutation_batch(pg: bool) {
         }
         assert_eq!(f.count(),0,"{change}: a stale hint wrote a row");
         assert_eq!(f.host.shared.engine.batch_stats().fills.get(4),Some(&1),"must execute a physical four-member batch");
+        if change=="scope" {
+            for _ in 0..3 {
+                let reply=f.host.request("POST","/m/change",&headers(&session),r#"{"args":{"n":1}}"#);
+                refused(&reply,"E_READ_ONLY"); no_store_metadata(&reply);
+                assert_eq!(status(&reply),403,"a refreshed Read hint cannot grant mutation authority: {reply}");
+                assert_eq!(f.count(),0);
+            }
+        }
         if change=="kind" {
             // A refreshed hint still needs fresh authority on the retry.
             assert_eq!(f.call(&session,&json!({"args":{"n":1}}))["state"],"sent");

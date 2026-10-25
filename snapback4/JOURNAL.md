@@ -108201,3 +108201,24 @@ and 11,974 refs with zero errors or unchecked refs. Three private PG16 clusters
 are recorded, stopped and independently confirmed; the public witness's
 531 recorded PIDs and the combined final task census have no living process.
 Task-owned PIDs left: none. No push or throughput benchmark run occurs.
+
+## 2026-10-25 — LEV fix round 2: fresh mutation permission and refusal parity
+
+A planning hint matching fresh authority is insufficient for a mutation:
+`/m` preflight and final durable/ephemeral authorization now independently
+require fresh Full scope. The first same-token downgrade still returns a
+stale-capability refusal; repeated unkeyed attempts after hint refresh return
+`E_READ_ONLY` and publish no durable or ephemeral effect. The shared authority
+resolver continues to enforce current action claims and kind-specific policy.
+
+Cold and warm authority refusals share their fixed HTTP mapping, including
+409 for store replacement on both durable mutations and queries. The new
+SQLite scope-retry and query-store witnesses, plus the corrected durable
+store-status witness, produce four failures against `1df119de28` product
+code. The corrected RT3b filter passes 43/0/43. New unkeyed warm ephemeral
+post-preflight and ordinary→action/claim HTTP witnesses also detect deliberate
+removal of final authority or claim liveness (one and two failing tests,
+respectively); temporary negative-control changes are restored. The
+[LEV report](reports/20261025-levers/REPORT.md#lev-fix-round-2-mutation-permission-and-refusal-parity)
+records the evidence and corrects the audit to distinguish warm HTTP hints,
+keyed/cold paths and resolver-only cases. No throughput measurement runs.
