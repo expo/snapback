@@ -134,11 +134,14 @@ const DEFAULT:&str="table docs:\n  label: text <=80 default 'pending'\n  read <-
  let refund=scalar.replace("approved","refundApproved").replace("  refundApproved: bool","  refundSent: bool default false\n  refundApproved: bool").replace("{status:'cancelled'}","{status:'cancelled',refundSent:true}");
  let refund_record=refund.replace("mutation decide", "table refundApprovals:\n  job: jobs\n  read <- allow\n  insert <- viewer = 'service:manager'\n  online only\nmutation decide").replace("update jobs[job] {refundApproved:true}","insert refundApprovals {job}");
  for mixed in [refund,refund_record]{assert!(notes(&mixed).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));}
- for name in ["cancelApproved","approvedCancel","approvalCancel"]{let cancel_is_the_act=scalar.replace("approved",name);assert!(notes(&cancel_is_the_act).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));}
+ for name in ["cancelApproved","approvedCancel","approvalCancel","managerApprovedCancel"]{let cancel_is_the_act=scalar.replace("approved",name);assert!(notes(&cancel_is_the_act).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));}
  let named_producer=scalar.replace("mutation decide", "mutation approveCancel");assert!(notes(&named_producer).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
  let denied=scalar.replace("approved","approvedDenied").replace("cancelled","denied");assert!(notes(&denied).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
  let birth=scalar.replace("  approved: bool","  refundSent: bool default true\n  approved: bool").replace("update jobs[job] {status:'cancelled'}","upsert jobs[job] {status:'cancelled'}");assert!(notes(&birth).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
  let record=scalar.replace("mutation decide", "table approvals:\n  job: jobs\n  read <- allow\n  insert <- viewer = 'service:manager'\n  online only\nmutation decide").replace("update jobs[job] {approved:true}","insert approvals {job}");
+ let named_record_producer=record.replace("mutation decide", "mutation approveCancel");assert!(notes(&named_record_producer).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+ let no_cancel=scalar.replace("  else:\n    update jobs[job] {status:'cancelled'}\n", "").replace("approved", "managerApprovedCancel");assert!(!notes(&no_cancel).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+ let unrelated=scalar.replace("approved", "managerApprovedCancel").replace("{status:'cancelled'}", "{status:'done'}");assert!(!notes(&unrelated).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
  let named_record=record.replace("approvals", "approvalCancel");assert!(notes(&named_record).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
  for source in [scalar.to_owned(),record]{
   assert!(!notes(&source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"),"{:?}",notes(&source));

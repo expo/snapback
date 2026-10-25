@@ -39,17 +39,23 @@ fn modeled(write:&Write<'_>,name:&str,parent:&str,bound:&Bound)->bool{
         field_value(field).is_some_and(|value|write.p.args.iter().any(|arg|
             matches!(arg.type_.kind,TypeKind::Text{..})&&uses(value,&arg.name))))
 }
-fn producer_cancellation(name:&str,parent:&str,producer:&Write<'_>,effect:&Write<'_>,bound:&Bound)->bool{
-    if ["cancel","abort","withdraw","reject","declin","deny","deni"].iter().any(|part|name.contains(part)){return false;}
+fn cancellation_approval(name:&str,producer:&Write<'_>)->bool{
+    if ["cancel","abort","withdraw","reject","declin","deny","deni"].iter().any(|part|name.contains(part)){return true;}
     let operation=producer.p.name.to_lowercase();
-    if operation.strip_prefix("approve").or_else(||operation.strip_prefix("authorize")).is_some_and(|act|["cancel","abort","withdraw","reject","declin","deny","deni"].iter().any(|part|act.trim_start_matches('_').starts_with(part))){return false;}
+    operation.strip_prefix("approve").or_else(||operation.strip_prefix("authorize")).is_some_and(|act|["cancel","abort","withdraw","reject","declin","deny","deni"].iter().any(|part|act.trim_start_matches('_').starts_with(part)))
+}
+fn cancellation_effect(parent:&str,effect:&Write<'_>,bound:&Bound)->bool{
+    effect.table==parent&&matches!(effect.op,WriteOp::Update|WriteOp::Upsert)&&effect.fields.iter().any(|field|matches!(field.name.as_str(),"status"|"stage"|"state"|"phase")&&matches!(bound.schema.tables[parent].columns.get(&field.name).map(ColumnType::required),Some(ColumnType::Enum{..}))&&matches!(field_value(field),Some(Expr::Literal{value:ast::Literal::Str(value),..}) if ["cancel","cancelled","canceled","aborted","withdrawn","rejected","declined","denied"].contains(&value.to_lowercase().as_str())))
+}
+fn producer_cancellation(parent:&str,producer:&Write<'_>,effect:&Write<'_>,bound:&Bound)->bool{
     if !std::ptr::eq(producer.p,effect.p)||effect.table!=parent||effect.op!=WriteOp::Update{return false;}
     let stages=effect.fields.iter().filter(|field|matches!(field.name.as_str(),"status"|"stage"|"state"|"phase")&&matches!(bound.schema.tables[parent].columns.get(&field.name).map(ColumnType::required),Some(ColumnType::Enum{..}))).collect::<Vec<_>>();
     !stages.is_empty()&&stages.len()==effect.fields.len()&&stages.iter().all(|field|matches!(field_value(field),Some(Expr::Literal{value:ast::Literal::Str(value),..}) if ["cancel","cancelled","canceled","aborted","withdrawn","rejected","declined","denied"].contains(&value.to_lowercase().as_str())))
 }
 pub(super) fn scalar(name:&str,parent:&str,record:&Write<'_>,effect:&Write<'_>,writes:&[Write<'_>],bound:&Bound)->bool{
     let original=name.to_lowercase();let name=stem(name);
-    if producer_cancellation(&original,parent,record,effect,bound){return false;}
+    if cancellation_approval(&original,record){return cancellation_effect(parent,effect,bound);}
+    if producer_cancellation(parent,record,effect,bound){return false;}
     if generic(&name,parent){return state(effect,bound)||matches!(effect.op,WriteOp::Insert|WriteOp::Upsert)&&effect.table!=parent;}
     if modeled(effect,&name,parent,bound){return true;}
     if !std::ptr::eq(effect.p,record.p)&&state(effect,bound)&&writes.iter().any(|other|std::ptr::eq(other.p,record.p)&&other.table==parent&&other.site!=record.site&&state(other,bound)&&
@@ -68,6 +74,7 @@ pub(super) fn scalar(name:&str,parent:&str,record:&Write<'_>,effect:&Write<'_>,w
 }
 pub(super) fn record(name:&str,parent:&str,creator:&Write<'_>,effect:&Write<'_>,bound:&Bound)->bool{
     let original=name.to_lowercase();let mut name=stem(name);
+    if cancellation_approval(&original,creator){return cancellation_effect(parent,effect,bound);}
     // A generic receipt table does not broaden a specifically named decision
     // (approveDiscount, for example) to every stage of its parent workflow.
     if generic(&name,parent){
@@ -76,7 +83,7 @@ pub(super) fn record(name:&str,parent:&str,creator:&Write<'_>,effect:&Write<'_>,
             let act=act.trim_start_matches('_');if !act.is_empty(){name=act.into();}
         }
     }
-    if producer_cancellation(&format!("{original}/{name}"),parent,creator,effect,bound){return false;}
+    if producer_cancellation(parent,creator,effect,bound){return false;}
     if generic(&name,parent){return state(effect,bound)||effect.table!=parent&&matches!(effect.op,WriteOp::Insert|WriteOp::Upsert);}
     modeled(effect,&name,parent,bound)
 }
