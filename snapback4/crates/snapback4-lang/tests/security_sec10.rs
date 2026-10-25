@@ -622,3 +622,17 @@ mutation edit(doc: docs):\n  update docs[doc] {consent:false}\n";
     let source="table roles:\n  principal: principal\n  role: enum('crew')\n  unique principal\n  read <- allow\n  online only\ntable jobs:\n  stage: enum('open','active','done') default 'open'\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\ntable tasks:\n  job: jobs\n  stage: enum('raw','finish') default 'raw'\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\nmutation start(job: jobs):\n  require exists roles[viewer,role='crew'] else ROLE\n  j = jobs[job] ! else MISSING\n  require j.stage = 'open' else STAGE\n  update jobs[job] {stage:'active'}\nmutation finish(job: jobs):\n  require exists roles[viewer,role='crew'] else ROLE\n  j = jobs[job] ! else MISSING\n  require j.stage = 'active' else STAGE\n  PARENT jobs[job] {stage:'done'}\nmutation advance(task: tasks):\n  require exists roles[viewer,role='crew'] else ROLE\n  t = tasks[task] ! else MISSING\n  require t.stage = 'raw' else STAGE\n  CHILD tasks[task] {job:t.job,stage:'finish'}\n";
     for (parent,child) in [("upsert","update"),("update","upsert"),("upsert","upsert")]{let source=source.replace("PARENT",parent).replace("CHILD",child);let cs=security::derived::invariants(&sources(&source),&bound(&source));for label in ["parent-state","child-stage"]{assert!(cs.iter().any(|i|i.site.file.contains(label)),"{parent}/{child}/{label}: {cs:?}");}}
 }
+
+#[test]fn authorization_route_edit_clocks_are_data_not_approval_events(){
+    let source=include_str!("security/sec10-controls/w21-019.q");
+    let candidates=security::derived::invariants(&sources(source),&bound(source));
+    assert!(!candidates.iter().any(|i|i.predicate.contains("old.authorizationRouteUpdatedAt")),"{candidates:?}");
+    for field in ["authorizationRouteUpdatedAt","approval_changed_at","approvalEditedOn","authorizationModifiedTimestamp"]{
+        let source=format!("table docs:\n  {field}: time ?\n  read <- allow\n  update <- allow\n  online only\nmutation edit(doc: docs):\n  update docs[doc] {{{field}:now}}\n");
+        assert!(!notes(&source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"),"{field}");
+    }
+    for field in ["approvedAt","approvalAt"]{
+        let source=format!("table docs:\n  {field}: time ?\n  read <- allow\n  update <- allow\n  online only\nmutation approve(doc: docs):\n  update docs[doc] {{{field}:now}}\n");
+        assert!(notes(&source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"),"{field}");
+    }
+}

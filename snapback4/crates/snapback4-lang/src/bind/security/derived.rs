@@ -3,6 +3,8 @@
 use super::*;
 mod workflow;
 mod approval_checks;
+mod stamps;
+pub(super) use stamps::named as named_approval;
 pub(crate) use approval_checks::ApprovalCheck;
 pub(super) use approval_checks::revalidated;
 
@@ -122,6 +124,7 @@ pub fn invariants(sources:&[(String,String)],bound:&Bound)->Vec<Invariant>{colle
 fn collect(sources:&[(String,String)],bound:&Bound,inputs:&mut BTreeMap<(String,String),BTreeSet<String>>,reissues:&mut BTreeMap<(String,String,String),BTreeSet<String>>,uncertain:&mut BTreeMap<(String,String,String),BTreeSet<String>>)->Vec<Invariant>{
     let docs=sources.iter().map(|(f,s)|crate::parse_document(f,s).0).collect::<Vec<_>>();
     let catalog=Catalog::build(docs.clone(),&mut Vec::new());
+    let stamps=stamps::columns(&docs,&catalog,bound);for stamp in &stamps{inputs.entry(stamp.clone()).or_default();}
     let mut out=Vec::new();
     let mut controlled=BTreeSet::new();let mut origins=BTreeMap::new();let mut ambiguous_recordings:BTreeMap<(String,String,String),BTreeSet<String>>=BTreeMap::new();
     for (file,p) in docs.iter().flat_map(|d|d.programs.iter().map(move |p|(&d.file,p))).filter(|(_,p)|p.kind==ast::ProgramKind::Mutation){for (write,context) in authority_walk::writes(&catalog,p){
@@ -129,7 +132,7 @@ fn collect(sources:&[(String,String)],bound:&Bound,inputs:&mut BTreeMap<(String,
             let Some(definition)=bound.schema.tables.get(&table)else{continue;};
             let checked=checked_arguments(&context,p);
             let payload=fields.iter().filter(|field|!matches!(field.name.as_str(),"status"|"stage"|"state"|"phase")&&field.value.as_ref().is_some_and(|value|!payload_arguments(value,p).is_disjoint(&checked))).map(|field|field.name.clone()).collect::<BTreeSet<_>>();
-            for (stamp,kind) in definition.columns.iter().filter(|(stamp,_)|["approv","authoriz"].iter().any(|part|stamp.to_lowercase().contains(part))){
+            for (stamp,kind) in definition.columns.iter().filter(|(stamp,_)|stamps.contains(&(table.clone(),(*stamp).clone()))){
                 let recorded=if let Some(field)=fields.iter().find(|field|field.name==*stamp){potential_recording(kind,field.value.as_ref(),&table,&keys,p,stamp)}else{matches!(op,ast::WriteOp::Insert|ast::WriteOp::Upsert)&&definition.defaults.get(stamp).is_some_and(|value|match (kind.required(),value.value(challenges::NOW,"$derived")){(snapback4_core::schema::ColumnType::Bool,snapback4_core::Value::Bool(true))|(snapback4_core::schema::ColumnType::Time,snapback4_core::Value::Int(_))=>true,_=>false})};
                 if recorded{inputs.entry((table.clone(),stamp.clone())).or_default().extend(payload.iter().filter(|column|*column!=stamp).cloned());origins.entry((table.clone(),stamp.clone())).or_insert_with(||site.clone());}
                 if let Some(field)=fields.iter().find(|field|field.name==*stamp){let key=(super::super::operation_name(std::path::Path::new(file).file_stem().and_then(|s|s.to_str()).unwrap_or(file),&p.name),table.clone(),stamp.clone());
@@ -188,6 +191,7 @@ fn collect(sources:&[(String,String)],bound:&Bound,inputs:&mut BTreeMap<(String,
             }}
             for approval in fields.iter().filter(|f|["approv","authoriz"].iter().any(|s|f.name.to_lowercase().contains(s))){
                 let Some(kind)=definition.columns.get(&approval.name)else{continue;};
+                if !stamps.contains(&(table.clone(),approval.name.clone())){continue;}
                 if !potential_recording(kind,approval.value.as_ref(),table,match write{ast::Expr::Write{keys,..}=>keys,_=>unreachable!()},p,&approval.name){continue;}
                 // Keep the source dependency even when existing runtime freeze
                 // authority makes emitting another edit candidate redundant.

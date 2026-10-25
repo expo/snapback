@@ -2,9 +2,9 @@
 """Apply source-reviewed classifications; never label an unseen refusal as genuine."""
 import argparse,json,pathlib,collections
 p=argparse.ArgumentParser();p.add_argument('--comparison',required=True);p.add_argument('--catalog',default=str(pathlib.Path(__file__).with_name('reviewed-gates.json')));a=p.parse_args();path=pathlib.Path(a.comparison);d=json.loads(path.read_text());catalog=json.loads(pathlib.Path(a.catalog).read_text())['reviewedGates'];pool=collections.defaultdict(list)
-for r in catalog:pool[(r['wave'],r['lane'],r['code'],r['site'])].append(r)
+for r in catalog:pool[(r['wave'],r['lane'],r['code'],r['site'],tuple(r['messages']))].append(r)
 for r in d['newGates']:
- key=(r['wave'],r['lane'],r['code'],r['site'])
+ key=(r['wave'],r['lane'],r['code'],r['site'],tuple(r['messages']))
  if pool[key]:review=pool[key].pop(0);r.update(classification=review['classification'],reason=review['reason'])
 for r in d['newDeploymentFixes']+d['newTestFixes']:
  if r['wave']!=26:continue

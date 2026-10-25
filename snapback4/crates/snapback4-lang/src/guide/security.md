@@ -405,7 +405,7 @@ N_TABLE_QUESTIONNAIRE: Role-wide access and restating invariants share one table
 
 ### N_APPROVAL_NOT_ENFORCED
 
-N_APPROVAL_NOT_ENFORCED: An approval flag, timestamp, or separately authorized parent-linked approval table is recorded but no lifecycle effect requires it. This is an individual review gate. Add the matching approval requirement before its governed effect; if the approval is an informational record, record that specification decision with `check --ack-security ID --reason '<spec rationale>'`. A query returning the approval is not a transition guard.
+N_APPROVAL_NOT_ENFORCED: An approval flag, timestamp, or separately authorized parent-linked approval table is recorded but no lifecycle effect requires it. This is an individual review gate. Add the matching approval requirement before its governed effect; if the approval is an informational record, record that specification decision with `check --ack-security ID --reason '<spec rationale>'`. A query returning the approval is not a transition guard. Edit/version timestamps such as `authorizationRouteUpdatedAt` are ordinary metadata, including when checked as data. Use a distinct approval-event field such as `approvedAt` or independent intent when the domain needs an approval marker.
 
 ### N_EDIT_AFTER_APPROVAL
 
