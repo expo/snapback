@@ -60,8 +60,8 @@ where noted. This ticket stays in `issues/` for those items.
 
 Item 5's five production sites are lexical false positives: each names the
 engine's `super::postgres` adapter module, rather than the external driver
-crate. The scanner now distinguishes those explicit local paths, with negative
-controls retaining external/absolute driver and actual query calls. Production
+crate. The scanner now distinguishes only those four reviewed adapter types, with negative
+controls retaining external/absolute drivers, re-exported driver types and actual query calls. Production
 allowances remain unchanged. Test-only counts are regenerated for the new G6
 fixtures and integration observers.
 

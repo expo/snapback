@@ -168,10 +168,14 @@ fn count_driver_source(source: &str, all_test: bool) -> (usize, usize) {
         if before == drivers.len() { break; }
     }
     count_matching(source, all_test, |site, prefix| {
-        // The engine adapter module is not the external postgres driver crate.
-        if starts(site, &["postgres", ":", ":"]) &&
-            (prefix.len() >= 3 && starts(&prefix[prefix.len()-3..], &["super", ":", ":"]) ||
-             prefix.len() >= 6 && starts(&prefix[prefix.len()-6..], &["crate", ":", ":", "engine", ":", ":"])) { return false; }
+        // These neutral adapter types are not external driver access. Keep the
+        // exception exact: a re-exported Client or an unknown adapter path counts.
+        let local_adapter = prefix.len() >= 3 && starts(&prefix[prefix.len()-3..], &["super", ":", ":"]) ||
+            prefix.len() >= 6 && starts(&prefix[prefix.len()-6..], &["crate", ":", ":", "engine", ":", ":"]);
+        let neutral_type = ["Grant", "GateStats", "Published"].iter().any(|name|
+            starts(site, &["postgres", ":", ":", "read_grant", ":", ":", name])) ||
+            starts(site, &["postgres", ":", ":", "read_closure", ":", ":", "Closure", ":", ":", "new"]);
+        if local_adapter && neutral_type { return false; }
         database_site(site) || (site.first().is_some_and(|t| drivers.contains(t.text))
             && starts(&site[1..], &[":", ":"])
             && !(site.get(3).is_some_and(|t| t.text == "Error")
@@ -526,9 +530,11 @@ fn exact_allowlists_and_update_raise_guard() {
 }
 
 #[test]
-fn engine_postgres_adapter_paths_are_not_external_driver_access() {
+fn neutral_postgres_adapter_types_are_not_external_driver_access() {
     assert_eq!(count_source("type Grant = super::postgres::read_grant::Grant;\nfn adapter() { crate::engine::postgres::read_closure::Closure::new(); }", false), (0, 0));
     assert_eq!(count_source("use super::postgres::read_grant::Grant;\nfn driver() { postgres::Client::connect(url); }", false), (1, 0));
     assert_eq!(count_source("fn driver() { ::postgres::Client::connect(url); }", false), (1, 0));
+    assert_eq!(count_source("fn driver() { super::postgres::Client::connect(url); }", false), (1, 0));
+    assert_eq!(count_source("fn driver() { crate::engine::postgres::Client::connect(url); }", false), (1, 0));
     assert_eq!(count_source("fn adapter() { super::postgres::x().query_row(sql); }", false), (1, 0));
 }

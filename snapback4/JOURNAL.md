@@ -107514,3 +107514,8 @@ driver crate without raising production allowances. The web codec census follows
 explicit test-module paths, with gate-removal controls. The help table also
 includes the packaged serve-check command and all four flags. No store format,
 product authority or release gate is relaxed by these integration repairs.
+
+Integration 25 census follow-up: the local-path exception is limited to the
+four reviewed neutral adapter types, rather than the whole postgres namespace.
+Negative controls continue counting re-exported driver types, unknown adapter
+paths and real query calls. No production allowance changes.
