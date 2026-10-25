@@ -4066,7 +4066,7 @@ export async function readEveryRow<Row>(readPage: Parameters<typeof exhaustPages
 ```
 
 ```ts
-import { startDev, startServe, startStatic, startVite, cli, command, deploy,
+import { startDev, startServe, serveUntilSignal, serveCheck, startStatic, startVite, cli, command, deploy,
   rollback, testSource, withBrowser, waitForFresh, waitForClock, fillRN, statusText,
   selectByValue, renderedText, frontPage, logsDir, bounded, cleanup, stopChild, portRange, sandboxUnavailable, loadFixtures }
   from "snapback4/proof";
@@ -4118,6 +4118,19 @@ export async function developmentHosts(cwd: string) {
     const frontend = await startVite(cwd);
     await cleanup(() => frontend.stop());
   } finally { await cleanup(() => backend.stop()); }
+}
+
+// The prod:serve script retains its owned host until SIGTERM/SIGINT.
+export async function productionServe(cwd: string) {
+  const backend = await startServe("deployment", { cwd });
+  await serveUntilSignal([backend]);
+}
+
+// Run separately: checks readiness, 30-second lifetime and shutdown/store release.
+export async function checkProductionServe(cwd: string) {
+  const report = await serveCheck({ cwd, deployment: "deployment", script: "prod:serve" });
+  if (!report.ok) throw Error(report.failures.map(f => `${f.code}: ${f.message}`).join("; "));
+  return report;
 }
 
 // Pass a signed-in page with a registered witness after a dev clock advance.

@@ -365,21 +365,19 @@ test("check --fix leaves unmarked rewrites and prints the diagnostic", (t) => {
   assert.equal(read(join(dir, "snapback/schema.q")), source);
 });
 
-test("an elif is repaired while an ambiguous positional key needs an author choice", (t) => {
+test("an accepted elif is preserved while an ambiguous positional key needs an author choice", (t) => {
   const { dir, run, invoke } = fixture(t);
   mkdirSync(join(dir, "snapback"));
   const source = ambiguous.replace("  by byTitle: title, id", "  by byOtherOwner: owner, title, id") + "\nquery choose(n: int):\n  if n = 0:\n    return 0\n  elif n = 1:\n    return 1\n  else:\n    return 2\n";
   writeFileSync(join(dir, "snapback/schema.q"), source);
   const before = JSON.parse(invoke("check", "--json").stdout);
-  const alias = before.problems?.find((d) => d.code === "E_QUARRY_UNSUPPORTED" && /elif/.test(d.message));
-  assert.ok(alias, "elif has an exact mechanical diagnostic");
-  assert.equal(alias.mechanical, true, "lane L's exact spelling rewrite must call .mechanical()");
+  assert.ok(!before.problems?.some(d => d.code === "E_QUARRY_UNSUPPORTED" && /elif/.test(d.message)), "elif is accepted syntax");
+  assert.ok(before.problems?.some(d => d.code === "E_QUARRY_POSITIONAL_SCAN"));
   const fixed = invoke("check", "--fix", "--json");
   assert.equal(fixed.status, 1);
   assert.equal(JSON.parse(fixed.stdout).problems[0].code, "E_QUARRY_POSITIONAL_SCAN");
   const repaired = read(join(dir, "snapback/schema.q"));
-  assert.doesNotMatch(repaired, /\belif\b/);
-  assert.equal(repaired, source.replace("elif", "else if"));
+  assert.equal(repaired, source, "fix neither rewrites accepted elif nor chooses an ambiguous index");
   writeFileSync(join(dir, "snapback/schema.q"), repaired.replace("items[viewer]", "items[viewer] by byOtherOwner"));
   run("check");
 });
@@ -584,7 +582,7 @@ test("CLI and Node device share environment, platform-package and repository bin
   const platformDir = join(pkgDir, `node_modules/snapback4-${process.platform}-${process.arch}`);
   for (const path of [join(pkgDir, "dist"), join(pkgDir, "bin"), platformDir, join(dir, "target/release"), join(dir, "target/debug")]) mkdirSync(path, { recursive: true });
   writeFileSync(join(pkgDir, "package.json"), '{"type":"module"}');
-  for (const file of ["dist/native.js", "dist/resolve-binary.js", "bin/snapback4.js", "bin/upgrade-warnings.js", "bin/release-changes.js"]) copyFileSync(join(root, "packages/snapback4", file), join(pkgDir, file));
+  for (const file of ["dist/native.js", "dist/resolve-binary.js", "bin/snapback4.js", "bin/cli-usage.js", "bin/cli-commands.json", "bin/upgrade-warnings.js", "bin/release-changes.js"]) copyFileSync(join(root, "packages/snapback4", file), join(pkgDir, file));
   writeFileSync(join(platformDir, "package.json"), '{"name":"fixture"}');
   const candidates = [join(dir, "override"), join(platformDir, "snapback4"), join(dir, "target/release/snapback4"), join(dir, "target/debug/snapback4")];
   for (const file of candidates) writeFileSync(file, "binary resolution fixture");

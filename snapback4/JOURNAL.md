@@ -107538,3 +107538,15 @@ the compiler's CENSUS_ITEM output after the merged Programs guide gained its
 accumulator example. The complete guide context adds repeated occurrences and
 renumbers the following example; the 95 distinct private-write families are
 unchanged. All 88 device read-authority tests pass with the regenerated snapshot.
+
+## 2026-10-25 — Integration 25: client contract reconciliation
+
+The canonical affected client run exposed missing new proof-helper API/example
+coverage, shim fixtures that omitted the newly imported shared synopsis files,
+and older expectations for accepted `elif` and located list-argument refusals.
+The API index and compiled operations examples now demonstrate both host helpers;
+isolated shim fixtures carry the same help inputs as the shipped package. The
+parser test preserves accepted syntax while still refusing to choose an ambiguous
+index; process/Wasm list tests retain their limits and prediction assertions with
+the argument-qualified wording. No product assertion, admission limit or lifecycle
+check is weakened.
