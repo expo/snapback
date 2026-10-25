@@ -34,7 +34,7 @@ pub(super) fn collect(sources:&[(String,String)],bound:&Bound)->BTreeMap<(String
                 // A foreign row changed earlier in the operation may no longer
                 // be the row image on which its actual require was evaluated.
                 walk(&condition,|e|if let ast::Expr::Read(read)|ast::Expr::Exists{read,..}=e&&writes.iter().any(|(write,_)|matches!(write,ast::Expr::Write{table:target,..} if target==&read.table)){predicate=None;});
-                if let Some(normalized)=&predicate{let mut foreign=false;walk(normalized,|e|if let ast::Expr::Member{base,..}=e&&let Some(owner)=super::super::concrete::reference_table(base,&bound.schema,table)&&owner!=table&&writes.iter().any(|(write,_)|matches!(write,ast::Expr::Write{table:target,..} if target==owner)){foreign=true;});if foreign{predicate=None;}}
+                if let Some(normalized)=&predicate{let mut foreign=false;walk(normalized,|e|if let ast::Expr::Member{base,..}=e&&let Some(owner)=super::super::concrete::reference_table(base,&bound.schema,table)&&!matches!(base.as_ref(),ast::Expr::Focal{..})&&writes.iter().any(|(write,_)|matches!(write,ast::Expr::Write{table:target,..} if target==owner)){foreign=true;});if foreign{predicate=None;}}
                 checks.push(Clause{columns,predicate});
             }
             let bindings=fields.iter().filter_map(|field|field.value.as_ref().and_then(|value|stored_argument(value,p)).map(|name|(field.name.clone(),name))).collect();
