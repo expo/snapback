@@ -24,7 +24,7 @@ pub(super) fn simplify_boolean(expression:&Expr)->Expr{
             Expr::Binary{op,left,right,..} if op=="??"=>if let Expr::Literal{value,..}=left.as_ref(){*e=if matches!(value,ast::Literal::Null){*right.clone()}else{*left.clone()};},
             Expr::Member{base,name,..}=>if let Expr::Object{fields,..}=base.as_ref()&&let Some(value)=fields.iter().find(|field|field.name==*name).and_then(|field|field.value.clone()){*e=value;},
             Expr::Assert{value,..} if matches!(value.as_ref(),Expr::Literal{value,..} if !matches!(value,ast::Literal::Null))=>*e=*value.clone(),
-            Expr::Unary{op,value,site} if op=="not"=>if let Some(value)=boolean(value){*e=Expr::Literal{value:ast::Literal::Bool(!value),site:site.clone()};},
+            Expr::Unary{op,value,site} if op=="not"=>if let Some(value)=boolean(value){*e=Expr::Literal{value:ast::Literal::Bool(!value),site:site.clone()};}else if let Expr::Unary{op:inner,value,..}=value.as_ref()&&inner=="not"{*e=*value.clone();},
             Expr::Binary{op,left,right,site} if op=="and"||op=="or"=>{let decisive=op=="or";if boolean(left)==Some(decisive)||boolean(right)==Some(decisive){*e=Expr::Literal{value:ast::Literal::Bool(decisive),site:site.clone()};}else if boolean(left)==Some(!decisive){*e=*right.clone();}else if boolean(right)==Some(!decisive){*e=*left.clone();}},_=>{},
         }
     });expression

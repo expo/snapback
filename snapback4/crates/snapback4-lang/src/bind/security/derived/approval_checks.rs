@@ -21,20 +21,23 @@ pub(super) fn collect(sources:&[(String,String)],bound:&Bound)->BTreeMap<(String
                 let mut condition=condition.clone();omit_preconditions(&mut condition,false);condition=super::super::creation_advice::simplify_boolean(&condition);let mut columns=BTreeSet::new();
                 walk(&condition,|e|match e{
                     ast::Expr::Member{base,name,..} if same_resource(base,table,keys,p)=>{columns.insert(name.clone());},
-                    ast::Expr::Name{name,..}=>{for field in fields{if matches!(&field.value,Some(ast::Expr::Name{name:arg,..}) if arg==name){columns.insert(field.name.clone());}}},_=>{},
+                    ast::Expr::Name{name,..}=>{for field in fields{if field.value.as_ref().is_some_and(|value|payload_arguments(value,p).contains(name)){columns.insert(field.name.clone());}}},_=>{},
                 });
                 if columns.is_empty(){continue;}
                 // Resolve only the selected row. A different resource's checks
                 // remain a different resource, even with the same column name.
                 super::super::super::intent_walk::expression(&mut condition,&mut |e|if same_resource(e,table,keys,p){*e=focal();});
                 let mut predicate=workflow::normalize(&condition,&bound.schema,table,&arguments);
+                // Non-identity argument mappings retain the output dependency,
+                // but cannot validate replacement data by pretending output=input.
+                if fields.iter().any(|field|columns.contains(&field.name)&&field.value.as_ref().is_some_and(|value|stored_argument(value,p).is_none()&&!payload_arguments(value,p).is_empty())){predicate=None;}
                 // A foreign row changed earlier in the operation may no longer
                 // be the row image on which its actual require was evaluated.
                 walk(&condition,|e|if let ast::Expr::Read(read)|ast::Expr::Exists{read,..}=e&&writes.iter().any(|(write,_)|matches!(write,ast::Expr::Write{table:target,..} if target==&read.table)){predicate=None;});
                 if let Some(normalized)=&predicate{let mut foreign=false;walk(normalized,|e|if let ast::Expr::Member{base,..}=e&&let Some(owner)=super::super::concrete::reference_table(base,&bound.schema,table)&&owner!=table&&writes.iter().any(|(write,_)|matches!(write,ast::Expr::Write{table:target,..} if target==owner)){foreign=true;});if foreign{predicate=None;}}
                 checks.push(Clause{columns,predicate});
             }
-            let bindings=fields.iter().filter_map(|field|if let Some(ast::Expr::Name{name,..})=&field.value&&p.args.iter().any(|arg|arg.name==*name){Some((field.name.clone(),name.clone()))}else{None}).collect();
+            let bindings=fields.iter().filter_map(|field|field.value.as_ref().and_then(|value|stored_argument(value,p)).map(|name|(field.name.clone(),name))).collect();
             // Different expanded helper invocations can share a write site.
             // Select their actual caller branch/bindings before judging data.
             let selectors=context.body.iter().filter_map(|stmt|if let ast::Stmt::Require{condition,code,..}=stmt&&code=="$advice"{Some(condition)}else{None}).map(|condition|{
@@ -77,6 +80,10 @@ pub(crate) fn revalidated(bound:&Bound,program:&str,table:&str,stamp:&str,site:O
 }
 
 #[cfg(test)]mod inline_checks{use super::*;
+#[test]fn non_identity_checked_mappings_retain_dependencies_and_unknown_revalidation(){
+    use snapback4_core::value::object;
+    let source="table docs:\n  consent: bool\n  approved: bool default true\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\nmutation create(consent: bool):\n  require consent else CONSENT\n  return insert docs {consent:not consent}\nmutation replace(doc: docs,value: bool):\n  require value else CONSENT\n  update docs[doc] {consent:not value,approved:true}\n";let sources=vec![("schema.q".into(),source.into())];let b=crate::compile(&sources);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);let b=super::super::augmented(&sources,&b);assert!(b.security_approval_inputs[&("docs".into(),"approved".into())].contains("consent"));let site=b.security_approval_checks.keys().find(|key|key.0=="replace").unwrap().3.clone();let old=object([("id",Value::Id("d".into())),("consent",Value::Bool(true)),("approved",Value::Bool(true))]);let next=object([("id",Value::Id("d".into())),("consent",Value::Bool(false)),("approved",Value::Bool(true))]);let args=BTreeMap::from([("doc".into(),Value::Id("d".into())),("value".into(),Value::Bool(true))]);assert_eq!(revalidated(&b,"replace","docs","approved",Some(&site),&old,&next,&BTreeSet::from(["consent".into()]),&BTreeMap::new(),"actor",0,&args),None);assert!(crate::security::source_inference_gaps(&sources,&b).iter().any(|gap|gap.contains("non-identity checked argument mapping")));
+}
 #[test]fn truncated_helper_requirements_are_unknown_not_unchecked(){
     use snapback4_core::value::object;
     let source=format!("table docs:\n  payload: int\n  approved: bool default false\n  read <- allow\n  update <- allow\n  online only\nmutation approve(doc: docs):\n  d = docs[doc] ! else MISSING\n  require d.payload > 0 else INVALID\n  update docs[doc] {{approved:true}}\nmutation replace(doc: docs,value: int):\n  update docs[doc] {{payload:checked(value),approved:true}}\nfn checked(value: int):\n  require {}c(value) else INVALID\n  return value\nfn c(value: int):\n  require value > 0 else INVALID\n  return true\n","not ".repeat(36));

@@ -209,7 +209,7 @@ fn locked_approval_input(record:&Write<'_>,column:&str,writes:&[Write<'_>],bound
     bound.schema.tables[table].columns.keys().filter(|input|*input!=column&&!["status","stage","state","phase"].contains(&input.as_str())).any(|input|{
         if !scalar_enforced(record,table,input,bound,false){return false;}
         let edits=writes.iter().filter(|write|write.table==*table&&matches!(write.op,WriteOp::Update|WriteOp::Upsert)&&!std::ptr::eq(write.p,record.p)&&write.fields.iter().any(|field|field.name==*input)).collect::<Vec<_>>();
-        !edits.is_empty()&&edits.iter().all(|write|scalar_enforced(write,table,column,bound,true)||schema_scalar(write,table,column,bound,true)||bound.schema.tables[table].frozen_columns.get(input).is_some_and(|rule|scalar_rule(rule,table,column,table,false,bound))||bound.schema.tables[table].column_writes.get(input).is_some_and(|rule|scalar_rule(rule,table,column,table,true,bound)))
+        !edits.is_empty()&&edits.iter().all(|write|applicability_known(&write.context,write.catalog)&&(scalar_enforced(write,table,column,bound,true)||schema_scalar(write,table,column,bound,true)||bound.schema.tables[table].frozen_columns.get(input).is_some_and(|rule|scalar_rule(&super::approval_records::scoped_rule(rule,write,table,bound),table,column,table,false,bound))||bound.schema.tables[table].column_writes.get(input).is_some_and(|rule|scalar_rule(&super::approval_records::scoped_rule(rule,write,table,bound),table,column,table,true,bound))))
     })
 }
 fn one_shot_decision(record:&Write<'_>,column:&str,writes:&[Write<'_>],bound:&Bound)->bool{

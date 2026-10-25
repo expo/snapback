@@ -3,7 +3,7 @@
 use super::*;
 use serde::{Serialize,Deserialize};
 use sha2::{Digest,Sha256};
-const ANALYZER:&str="sec10-37";
+const ANALYZER:&str="sec10-38";
 mod binding;
 #[derive(Serialize,Deserialize)]
 #[serde(deny_unknown_fields)]

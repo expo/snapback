@@ -565,3 +565,12 @@ fn campaign(s:&str)->Campaign{let b=security::derived::augmented(&sources(s),&bo
     let source="table docs:\n  approved: bool default false\n  status: enum('draft','done') default 'draft'\n  owner: principal\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\nmutation guarded(doc: docs):\n  d = docs[doc] ! else MISSING\n  require d.approved else APPROVAL\n  upsert docs[doc] {status:'done',owner:d.owner}\nmutation bypass(doc: docs):\n  update docs[doc] {status:'done'}\n";
     for source in [source.to_string(),source.replace(",owner:d.owner",",owner:viewer")]{let cs=security::derived::invariants(&sources(&source),&bound(&source));assert!(cs.iter().any(|i|i.table=="docs"&&i.target=="update"&&i.column.as_deref()==Some("status")&&i.site.file.contains("sibling-approval")),"{cs:?}");}
 }
+
+#[test]fn opaque_input_freezes_do_not_consume_unused_approval(){
+    let source=include_str!("security/sec10-controls/opaque-input-freeze.q");
+    for source in [source.to_string(),source.replace("  consent: bool","  consent: bool write <- not .approved").replace("  immutable consent when .approved\n", "")]{assert!(notes(&source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));assert!(!notes(&source.replace("if opaque(flag)","if flag")).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));}
+}
+#[test]fn equivalent_checked_birth_values_retain_edit_contracts(){
+    let source="table docs:\n  consent: bool\n  approved: bool default true\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\nmutation create(consent: bool):\n  require consent else CONSENT\n  return insert docs {consent:VALUE}\nmutation edit(doc: docs):\n  update docs[doc] {consent:false}\n";
+    for value in ["consent","consent and true","not not consent","consent if true else false"]{let source=source.replace("VALUE",value);assert!(security::derived::invariants(&sources(&source),&bound(&source)).iter().any(|i|i.table=="docs"&&i.column.as_deref()==Some("consent")&&i.target=="update"),"{value}");}
+}

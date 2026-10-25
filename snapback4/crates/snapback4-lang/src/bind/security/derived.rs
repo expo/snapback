@@ -98,6 +98,18 @@ fn add(out:&mut Vec<Invariant>,table:&str,column:&str,target:&str,policy:RuleExp
     if out.iter().any(|i|i.site==site&&i.policy.as_ref()==Some(&policy)){return;}
     out.push(Invariant{table:table.into(),column:Some(column.into()),target:target.into(),predicate:policy.quarry(),policy:Some(policy),site,operation:None,requirements:Vec::new(),syntax:None,unsupported:None});
 }
+// Normalize value-preserving wrappers consistently for dependency and replacement binding.
+pub(super) fn stored_argument(value:&ast::Expr,p:&ast::ProgramDecl)->Option<String>{
+    let value=super::creation_advice::simplify_boolean(value);match value{ast::Expr::Name{name,..} if p.args.iter().any(|arg|arg.name==name)=>Some(name),ast::Expr::Assert{value,..}=>stored_argument(&value,p),_=>None}
+}
+fn stored_uses(value:&ast::Expr,name:&str)->bool{let mut value=value.clone();let mut found=false;super::super::intent_walk::expression(&mut value,&mut |e|if matches!(e,ast::Expr::Name{name:arg,..} if arg==name){found=true;});found}
+pub(super) fn payload_arguments(value:&ast::Expr,p:&ast::ProgramDecl)->BTreeSet<String>{
+    p.args.iter().filter(|arg|!matches!(arg.type_.kind,ast::TypeKind::Ref{..})&&stored_uses(value,&arg.name)).map(|arg|arg.name.clone()).chain(stored_argument(value,p)).collect()
+}
+fn checked_arguments(context:&ast::ProgramDecl,p:&ast::ProgramDecl)->BTreeSet<String>{
+    let mut checked=BTreeSet::new();for statement in &context.body{if let ast::Stmt::Require{condition,..}=statement{let mut condition=condition.clone();omit_preconditions(&mut condition,false);condition=super::creation_advice::simplify_boolean(&condition);super::super::intent_walk::expression(&mut condition,&mut |e|if let ast::Expr::Name{name,..}=e&&p.args.iter().any(|arg|arg.name==*name){checked.insert(name.clone());});}}checked
+}
+pub(super) fn opaque_payloads(fields:&[ast::ObjectField],context:&ast::ProgramDecl,p:&ast::ProgramDecl)->Vec<String>{let checked=checked_arguments(context,p);fields.iter().filter(|field|!matches!(field.name.as_str(),"status"|"stage"|"state"|"phase")&&field.value.as_ref().is_some_and(|value|stored_argument(value,p).is_none()&&!payload_arguments(value,p).is_disjoint(&checked))).map(|field|field.name.clone()).collect()}
 pub fn invariants(sources:&[(String,String)],bound:&Bound)->Vec<Invariant>{collect(sources,bound,&mut BTreeMap::new(),&mut BTreeMap::new(),&mut BTreeMap::new())}
 fn collect(sources:&[(String,String)],bound:&Bound,inputs:&mut BTreeMap<(String,String),BTreeSet<String>>,reissues:&mut BTreeMap<(String,String,String),BTreeSet<String>>,uncertain:&mut BTreeMap<(String,String,String),BTreeSet<String>>)->Vec<Invariant>{
     let docs=sources.iter().map(|(f,s)|crate::parse_document(f,s).0).collect::<Vec<_>>();
@@ -107,8 +119,8 @@ fn collect(sources:&[(String,String)],bound:&Bound,inputs:&mut BTreeMap<(String,
     for (file,p) in docs.iter().flat_map(|d|d.programs.iter().map(move |p|(&d.file,p))).filter(|(_,p)|p.kind==ast::ProgramKind::Mutation){for (write,context) in authority_walk::writes(&catalog,p){
         if let ast::Expr::Write{op,table,fields,keys,site,..}=write{
             let Some(definition)=bound.schema.tables.get(&table)else{continue;};
-            let mut checked=BTreeSet::new();for statement in &context.body{if let ast::Stmt::Require{condition,..}=statement{let mut condition=condition.clone();omit_preconditions(&mut condition,false);condition=super::creation_advice::simplify_boolean(&condition);super::super::intent_walk::expression(&mut condition,&mut |e|if let ast::Expr::Name{name,..}=e&&p.args.iter().any(|arg|arg.name==*name){checked.insert(name.clone());});}}
-            let payload=fields.iter().filter(|field|!matches!(field.name.as_str(),"status"|"stage"|"state"|"phase")&&matches!(&field.value,Some(ast::Expr::Name{name,..}) if checked.contains(name))).map(|field|field.name.clone()).collect::<BTreeSet<_>>();
+            let checked=checked_arguments(&context,p);
+            let payload=fields.iter().filter(|field|!matches!(field.name.as_str(),"status"|"stage"|"state"|"phase")&&field.value.as_ref().is_some_and(|value|!payload_arguments(value,p).is_disjoint(&checked))).map(|field|field.name.clone()).collect::<BTreeSet<_>>();
             for (stamp,kind) in definition.columns.iter().filter(|(stamp,_)|["approv","authoriz"].iter().any(|part|stamp.to_lowercase().contains(part))){
                 let recorded=if let Some(field)=fields.iter().find(|field|field.name==*stamp){super::creation_advice::approval_recording(kind,field.value.as_ref())}else{matches!(op,ast::WriteOp::Insert|ast::WriteOp::Upsert)&&definition.defaults.get(stamp).is_some_and(|value|match (kind.required(),value.value(challenges::NOW,"$derived")){(snapback4_core::schema::ColumnType::Bool,snapback4_core::Value::Bool(true))|(snapback4_core::schema::ColumnType::Time,snapback4_core::Value::Int(_))=>true,_=>false})};
                 if recorded{inputs.entry((table.clone(),stamp.clone())).or_default().extend(payload.iter().filter(|column|*column!=stamp).cloned());origins.entry((table.clone(),stamp.clone())).or_insert_with(||site.clone());}
