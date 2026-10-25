@@ -75,7 +75,7 @@ fn known_condition(condition:&Expr,catalog:&Catalog)->Option<Expr>{
         (Some(value),None)|(None,Some(value))=>Some(value),_=>None,
     };}None
 }
-fn effective_conditions(p:&ast::ProgramDecl,catalog:&Catalog)->Vec<Expr>{let Some(facts)=context_facts(p,catalog)else{return vec![Expr::Literal{value:ast::Literal::Bool(false),site:p.site.clone()}];};let names=caller_names(p);conditions(p).into_iter().flat_map(conjunction).filter_map(|condition|known_condition(condition,catalog)).map(|condition|apply_facts(&condition,&facts,&names)).collect()}
+fn effective_conditions(p:&ast::ProgramDecl,catalog:&Catalog)->Vec<Expr>{let Some(facts)=context_facts(p,catalog)else{return vec![Expr::Literal{value:ast::Literal::Bool(false),site:p.site.clone()}];};let names=caller_names(p);p.body.iter().filter_map(|stmt|if let Stmt::Require{condition,code,..}=stmt&&!(code=="$advice:implication"&&private_unknown(condition,catalog)){Some(condition)}else{None}).flat_map(conjunction).filter_map(|condition|known_condition(condition,catalog)).map(|condition|apply_facts(&condition,&facts,&names)).collect()}
 
 fn reads(e:&Expr)->BTreeSet<String>{let mut out=BTreeSet::new();walk(e,|e|match e{Expr::Read(r)|Expr::Exists{read:r,..}=>{out.insert(r.table.clone());},_=>{}});out}
 fn nonnull(p:&ast::ProgramDecl,arg:&str)->bool{nonnull_mode(p,arg,false)}
