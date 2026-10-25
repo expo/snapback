@@ -107532,3 +107532,9 @@ A failing-before fresh/new-parent regression reproduces E_ADOPT; a paired
 historical-parent regression preserves the changed-probe-meaning refusal and
 atomic generation boundary. This implements LLP 3000.000.000 §21's existing
 source-context rule rather than changing its authority contract.
+
+Integration 25 authoring census: regenerate readauth/census.txt directly from
+the compiler's CENSUS_ITEM output after the merged Programs guide gained its
+accumulator example. The complete guide context adds repeated occurrences and
+renumbers the following example; the 95 distinct private-write families are
+unchanged. All 88 device read-authority tests pass with the regenerated snapshot.
