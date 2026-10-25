@@ -1,0 +1,30 @@
+{
+  "kind": "Independent implementation reviews; existing accepted priority contract, no normative amendment",
+  "sourceCommit": "2cbac690603d2204c816bb7f7168f57ecbd351d3",
+  "at": "2026-10-25T09:14:56.913138+00:00",
+  "promptSha256": "db1503d2f7782957b5eb2906dfdf31be4e219c311177cf679534c171e9701ef9",
+  "sourceSha256": {
+    "snapback4/crates/snapback4/src/verbs/security_reviews/decisions.rs": "04d7659168ca368ff942083ab6f01a747530635d9303da000a1bcbfbc6ada4ad",
+    "snapback4/packages/snapback4/test/security-packed.test.mjs": "a355adf38536f296e7e5c85a3fc4d954b87d07c79c86f8d05b30857df9f9c735"
+  },
+  "reviews": {
+    "codex": {
+      "model": "gpt-6.1-sol",
+      "reasoning": "high",
+      "freshSession": true,
+      "exit": 0,
+      "verdict": "No material finding",
+      "sha256": "09156369c8f06d12bef8c79d3ea0eaa9a69279a554a3dfb0dcb7a3df9748b9c6"
+    },
+    "muse": {
+      "model": "muse-spark-1.3-contributor",
+      "reasoning": "high",
+      "freshSession": true,
+      "exit": 0,
+      "verdict": "No material finding",
+      "sha256": "dcd4ad42da2e9cdb14acddb3e3b5e08dc97c2cd9fd0379b00983c200ff3a5675",
+      "transport": "Provided wrapper; initial plan quota429, configured Meta fallback completed. Stdout preserved verbatim."
+    }
+  },
+  "execution": "Separate from reviews: two mixed gate/family unit tests, both changed security-output cases, and complete await classification seal pass. React target passes77 tests. Full canonical repetition remains pending."
+}

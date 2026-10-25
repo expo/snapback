@@ -1,0 +1,3 @@
+No material finding. The correction preserves one complete pending audience family at its first unacknowledged member’s sorted position. Acknowledgement identities, gate classifications, and proof semantics remain unchanged.
+
+Read-only inspection only; no files changed or tests run.
