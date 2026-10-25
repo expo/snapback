@@ -241,14 +241,15 @@ fn screens(dir: &Path, platform: Platform, own: &OwnSchema, todos: bool, found: 
     let client_shape = normalized(&client);
     let matches_client = |reference: &str, personas: bool| [reference, starter::previous_client(platform, personas)].iter().any(|reference|
         client_shape == normalized(reference) || client_shape == normalized(&starter::web_client((*reference).to_owned(), &journal_shape)) || client_shape == normalized(&starter::online_web_client((*reference).to_owned())) || client_shape == normalized(&starter::expo_client((*reference).to_owned(), &journal_shape)));
+    let matches_app = |reference: &str| app == reference || app == reference.replace("export default function App", "export function App");
     let current = [Body::Todos, Body::Home(first_read(&app))].into_iter().find_map(|body| [0, 1, 2, 3, 4].into_iter().find_map(|version| {
         let screens = |personas: Option<&[String]>, password| match version { 1 => starter::previous_screens(platform, personas, &body, password), 2 => starter::wave14_screens(platform, personas, &body, password), 3 => starter::wave20_screens(platform, personas, &body, password), 4 => starter::wave22_screens(platform, personas, &body, password), _ => starter::identity_screens(platform, personas, &body, password) };
         let (guest_app, guest_client) = screens(None, false);
         let (persona_app, persona_client) = screens(Some(&[]), false);
         let (password_app, password_client) = screens(None, true);
-        if app == guest_app && matches_client(&guest_client, false) { Some((SignIn::Guest, body.clone())) }
-        else if app == password_app && matches_client(&password_client, false) { Some((SignIn::Password, body.clone())) }
-        else if app == persona_app && matches_client(&persona_client, true) { Some((SignIn::Personas(personas_of(&client)), body.clone())) }
+        if matches_app(&guest_app) && matches_client(&guest_client, false) { Some((SignIn::Guest, body.clone())) }
+        else if matches_app(&password_app) && matches_client(&password_client, false) { Some((SignIn::Password, body.clone())) }
+        else if matches_app(&persona_app) && matches_client(&persona_client, true) { Some((SignIn::Personas(personas_of(&client)), body.clone())) }
         else { None }
     }));
     let Some((sign_in, body)) = current else { return false };
@@ -271,6 +272,12 @@ fn screens(dir: &Path, platform: Platform, own: &OwnSchema, todos: bool, found: 
     let (app_text, mut client_text) = starter::identity_screens(platform, wanted_sign_in.personas(), &wanted_body, wanted_sign_in == SignIn::Password);
     client_text = if explicit_online { starter::online_web_client(client_text) } else if platform == Platform::Expo { starter::expo_client(client_text, &own.offline) } else { starter::web_client(client_text, &own.offline) };
     let client_changed = client_shape != normalized(&client_text);
+    if platform == Platform::Expo && app_text.contains("export default function App") {
+        let entry = include_str!("../../../../../apps/chat-expo/index.js");
+        if read(dir,"index.js").is_some_and(|text| text == entry.replace("import App from", "import { App } from")) {
+            found.push(Leftover { path: "index.js", why: "the owned Expo entry imports the old named App; the screen now exports App by default".into(), rewrite: Some(entry.into()) });
+        }
+    }
     if wanted_sign_in == sign_in && app == app_text && wanted_body == body && !client_changed { return true; }
     let mut reasons = Vec::new();
     let mut client_leftover = None;

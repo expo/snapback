@@ -345,3 +345,17 @@ test('mutation receipt codec stays excluded only behind its SQLite module gate',
   assert.equal(errors.length, 1, errors.join('\n'));
   assert.ok(errors[0].startsWith(file + ':') && errors[0].includes('serde_json::to_string(&outcome.receipt(Some(op)))'), errors.join('\n'));
 });
+
+test('explicit test-module paths exclude only the gated file and its declared children', () => {
+  const parent = core + 'fixture.rs', child = core + 'revision_cache_tests.rs';
+  const leaf = core + 'revision_cache_grant_tests.rs';
+  const all = new Map(sources());
+  all.set(parent, '#[cfg(test)]\n#[path = "revision_cache_tests.rs"]\nmod tests;');
+  all.set(child, '#[path = "revision_cache_grant_tests.rs"]\nmod grant;');
+  all.set(leaf, 'fn fixture() { serde_json::to_value(value); }');
+  assert.equal(selectWebSources(all).has(child), false);
+  assert.equal(selectWebSources(all).has(leaf), false);
+  all.set(parent, all.get(parent).replace('#[cfg(test)]\n', ''));
+  assert.equal(selectWebSources(all).has(child), true);
+  assert.equal(selectWebSources(all).has(leaf), true);
+});

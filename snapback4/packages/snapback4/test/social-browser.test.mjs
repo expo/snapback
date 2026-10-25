@@ -1,3 +1,4 @@
+import { after as teardownAfter } from "./helpers/teardown.mjs";
 import { createBrowserServer, loadBrowserPage, reloadBrowserPage } from './helpers/browser-server.mjs';
 import { hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
@@ -17,7 +18,9 @@ const root = resolve(import.meta.dirname, "../../..");
 test("social recipes in React/browser: real online signals and media, controlled read interleavings", { timeout: hangBudget(303) }, async t => {
   const dir = mkdtempSync(join(root, ".social-browser-"));
   let vite, browser;
-  t.after(async () => { await browser?.close(); await vite?.close(); rmSync(dir, { recursive: true, force: true }); });
+  teardownAfter(t, () => rmSync(dir, { recursive: true, force: true }));
+  teardownAfter(t, () => vite?.close());
+  teardownAfter(t, () => browser?.close());
   for (const args of [["new", dir, "--template", "social"], ["check"]]) {
     const run = spawnSync(binary, args, { cwd: dir, encoding: "utf8" });
     assert.equal(run.status, 0, run.stdout + run.stderr);
@@ -29,11 +32,11 @@ test("social recipes in React/browser: real online signals and media, controlled
   sessions.forEach(value => assert.equal(value.ok, true));
   const [alice, bob, carol] = sessions.map(value => value.session);
   const client = createClient({ url, token: alice.token });
-  t.after(() => client.close());
+  teardownAfter(t, () => client.close());
   const secondLogin = await login(url, "alice@social.test", "social-password"); assert.equal(secondLogin.ok, true);
   const secondSession = createClient({ url, token: secondLogin.session.token });
   const peerSession = createClient({ url, token: bob.token });
-  t.after(() => Promise.all([secondSession.close(), peerSession.close()]));
+  teardownAfter(t, () => Promise.all([secondSession.close(), peerSession.close()]));
   const send = async (op, args) => { const write = await client.mutate(op, args); assert.equal(write.state, "sent", JSON.stringify(write)); return write.result; };
   const conversation = await send(api.createConversation, { title: "Friends" });
   await send(api.add, { conversation, principal: bob.principal });
@@ -409,7 +412,9 @@ test("social recipes in React/browser: real online signals and media, controlled
 test("social search in React/browser uses current server and retained device pages", { timeout: hangBudget(40) }, async t => {
   const dir = mkdtempSync(join(root, ".social-search-"));
   let vite, browser;
-  t.after(async () => { await browser?.close(); await vite?.close(); rmSync(dir, { recursive: true, force: true }); });
+  teardownAfter(t, () => rmSync(dir, { recursive: true, force: true }));
+  teardownAfter(t, () => vite?.close());
+  teardownAfter(t, () => browser?.close());
   for (const args of [["new", dir, "--template", "social"], ["check"]]) {
     const run = spawnSync(binary, args, { cwd: dir, encoding: "utf8" });
     assert.equal(run.status, 0, run.stdout + run.stderr);
@@ -420,7 +425,7 @@ test("social search in React/browser uses current server and retained device pag
   const signed = await guest(url); assert.equal(signed.ok, true);
   const { session } = signed, owner = session.principal;
   const writer = createClient({ url, token: session.token });
-  t.after(() => writer.close());
+  teardownAfter(t, () => writer.close());
   assert.equal((await writer.mutate(api.saveProfile, { name: "Search Reader" })).state, "sent");
   const rows = [], matches = [];
   for (const [conversation, count] of [["live-chat", 520], ["departed-chat", 25]]) {
@@ -522,7 +527,9 @@ test("social DM routes: slow lookup, profile open, offline reopen and canonical 
   const { directHarness, directRouter } = await import("./helpers/social-direct-browser.mjs");
   const dir = mkdtempSync(join(root, ".social-direct-"));
   let vite, browser;
-  t.after(async () => { await browser?.close(); await vite?.close(); rmSync(dir, { recursive: true, force: true }); });
+  teardownAfter(t, () => rmSync(dir, { recursive: true, force: true }));
+  teardownAfter(t, () => vite?.close());
+  teardownAfter(t, () => browser?.close());
   for (const args of [["new", dir, "--template", "social"], ["check"]]) {
     const run = spawnSync(binary, args, { cwd: dir, encoding: "utf8" });
     assert.equal(run.status, 0, run.stdout + run.stderr);
@@ -534,7 +541,7 @@ test("social DM routes: slow lookup, profile open, offline reopen and canonical 
   sessions.forEach(value => assert.equal(value.ok, true));
   const [alice, bob, carol] = sessions.map(value => value.session);
   const peer = createClient({ url, token: bob.token }), racer = createClient({ url, token: carol.token });
-  t.after(() => Promise.all([peer.close(), racer.close()]));
+  teardownAfter(t, () => Promise.all([peer.close(), racer.close()]));
   assert.equal((await peer.mutate(api.saveProfile, { name: "Bob" })).state, "sent");
   writeFileSync(join(dir, "fixture.json"), JSON.stringify({ url, session: alice }));
   for (const [name, contents] of [["harness.jsx", directHarness], ["native.jsx", nativeViews], ["router.jsx", directRouter],
@@ -724,7 +731,7 @@ test("social DM routes: slow lookup, profile open, offline reopen and canonical 
     await page.evaluate(() => window.connectDM());
     const fourth = await guest(url); assert.equal(fourth.ok, true);
     const latePeer = createClient({ url, token: fourth.session.token });
-    t.after(() => latePeer.close());
+    teardownAfter(t, () => latePeer.close());
     await page.evaluate(() => window.dropDM());
     const winner = await latePeer.mutate(api.openDirect, { id: "unmounted-canonical", other: alice.principal });
     assert.equal(winner.state, "sent");

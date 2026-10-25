@@ -54,7 +54,7 @@ fn page(value: &Expr, site: &crate::diag::Site) -> Option<Stmt> {
     let mut value = value.clone();
     let read = read_of(&mut value)?;
     let Split { guard, conjunctive, rest } = split(read.filter.as_deref()?)?;
-    let empty = Expr::Array { items: Vec::new(), site: site.clone() };
+    let empty = Expr::Array { items: Vec::new(), item_type: None, site: site.clone() };
     let with = |filter: Option<Expr>| { let mut value = value.clone(); read_of(&mut value).unwrap().filter = filter.map(Box::new); value };
     let (then, otherwise) = if conjunctive {
         // `G and R`: G holds → the page over R; otherwise no row passes.

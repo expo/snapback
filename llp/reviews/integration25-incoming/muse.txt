@@ -1,0 +1,18 @@
+muse: workspace root: /home/ccheever/projects/snapback-sb4loop (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=86cf64c3-30ac-4431-9e65-c5b56e48718a]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+No material interaction regression found in the merged content at `030a1ab426`.
+
+I reviewed the four changed areas read-only: [extractions.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-core/src/store/extractions.rs), [backfills.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-core/src/store/backfills.rs), [serve_readers.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4/src/serve_readers.rs), and [deploy.md](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/guide/deploy.md). No edits, tests, stores, credentials, or publication worktrees were touched.
+
+What changed and why it is safe:
+
+- Reverse extraction now validates the child asset value with `validate_column` instead of requiring exact `ColumnType` equality. `fits()` treats `Image`/`File`/`Video` maps coarsely, so in theory an `Image` value could validate into a `File` slot. There is no reachable trigger: forward admission still requires identical types or required-to-optional widening, and a mismatched extraction cannot enter history. A cross-kind case would first require an asset-kind change under a live extraction, which is outside what this diff permits.
+- Forward resume now permits overwriting a `Null` child asset when a saved receipt exists. The trigger needs a removed-then-re-added identical extraction plus an explicitly `Null`ed receipt-owned child asset. The normal remove path deletes the child cell rather than nulling it, so this is a benign resume fill, not a silent authored-clear overwrite.
+- New audience checks (`audience_subset`, `mapped_audience`, `probe_context`) are sound but incomplete by construction. They allow strictly narrower audiences and add refusals for changed probe/index context. Any incompleteness causes extra refusals, never broadening.
+- Backfill inactive-receipt skip only fires when a live successor owns the column, or a re-entering transform's accepted view already equals current. It defers to the live owner and preserves retained cells. This matches the stated history-vs-owner semantics.
+- The new-transform guard against retained authored native values only adds refusals in a previously unguarded path. Partial coverage is a gap in strictness, not a new allowance.
+- `prepare` to `prepare_population` is a pure rename. Both callers (`serve_start.rs`, `serve_refusals` test) use the new name. Behavior is unchanged.
+- `backfills.rs` refusal-text changes and `deploy.md` wording are guidance and docs only. No normative behavior or capacity claim changes.
+
+Net: the merge tightens retention in the new paths and relaxes only in safe, narrow directions. No concrete trigger breaks extraction receipts, reverse custody, backfill authority, or reader population.

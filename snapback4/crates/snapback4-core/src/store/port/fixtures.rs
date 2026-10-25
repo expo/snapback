@@ -8,6 +8,9 @@ macro_rules! fixture_access {
             pub fn test_support_conn(&self) -> &rusqlite::Connection {
                 match self { Self::Sqlite($wrapper(inner)) => inner.test_support_conn(), #[cfg(feature = "postgres")] Self::Postgres(_) => panic!("SQLite fixture") }
             }
+            pub fn test_support_write_count(&self, table: &str, columns: Vec<(i32, rusqlite::types::Value)>, actions: &[&str]) -> std::sync::Arc<std::sync::atomic::AtomicUsize> {
+                match self { Self::Sqlite($wrapper(inner)) => inner.test_support_write_count(table, columns, actions), #[cfg(feature = "postgres")] Self::Postgres(_) => panic!("SQLite fixture") }
+            }
             pub fn test_support_meta(&self, key: &str) -> Result<Option<String>, RuntimeError> {
                 match self { Self::Sqlite($wrapper(inner)) => inner.test_support_meta(key), #[cfg(feature = "postgres")] Self::Postgres(_) => Err(RuntimeError::StoreUnsupported { family: "sqlite-fixture" }) }
             }

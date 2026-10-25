@@ -1,6 +1,8 @@
 # LLP 3000.009.001.000 §3.2; test matching source lines; paths relative to snapback4/
 crates/snapback4-core/src/engine/following_history/tests.rs 4
 crates/snapback4-core/src/engine/following_history/tests/matrix.rs 2
+crates/snapback4-core/src/engine/revision_cache_grant_tests.rs 11
+crates/snapback4-core/src/engine/revision_cache_tests.rs 6
 crates/snapback4-core/src/engine/word_heap/tests.rs 34
 crates/snapback4-core/src/identity.rs 4
 crates/snapback4-core/src/identity/diagnostics.rs 4
@@ -9,7 +11,7 @@ crates/snapback4/src/dev_worker_tests.rs 4
 crates/snapback4/src/release_files.rs 2
 crates/snapback4/src/serve_changes.rs 3
 crates/snapback4/src/serve_tests.rs 10
-crates/snapback4/src/store_owner_tests.rs 7
+crates/snapback4/src/store_owner_tests.rs 8
 crates/snapback4/src/verbs/run_admission.rs 4
 crates/snapback4/src/verbs/sql_catalog.rs 14
 crates/snapback4/src/verbs/witness/smoke.rs 3

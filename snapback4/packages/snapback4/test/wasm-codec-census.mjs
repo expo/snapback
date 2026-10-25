@@ -206,13 +206,22 @@ export function selectWebSources(all) {
       excluded.push(stem + '.rs', stem + '/');
     }
   }
-  // A test-only external module never reaches wasm, wherever it is declared
-  // (e.g. assets.rs: `#[cfg(all(test, feature = "sqlite"))] pub(crate) mod test_cases;`).
-  for (const [file, code] of all) {
-    const base = path.posix.basename(file), dir = path.posix.dirname(file);
-    const childDir = base === 'lib.rs' || base === 'mod.rs' ? dir : dir + '/' + base.slice(0, -3);
-    for (const item of items(code).filter(item => item.kind === 'mod' && item.external && testOnly(item))) {
-      excluded.push(childDir + '/' + item.name + '.rs', childDir + '/' + item.name + '/');
+  // Resolve literal external module paths to a fixed point: an excluded test
+  // file can itself declare a sibling via #[path], outside its default subtree.
+  let previous = -1;
+  while (previous !== excluded.length) {
+    previous = excluded.length;
+    for (const [file, code] of all) {
+      const inherited = excluded.some(p => p.endsWith('/') ? file.startsWith(p) : file === p);
+      const base = path.posix.basename(file), dir = path.posix.dirname(file);
+      const childDir = base === 'lib.rs' || base === 'mod.rs' ? dir : dir + '/' + base.slice(0, -3);
+      for (const item of items(code).filter(item => item.kind === 'mod' && item.external && (inherited || testOnly(item)))) {
+        const explicit = /#\[\s*path\s*=\s*"([^"\n]+)"\s*\]/.exec(item.attrs)?.[1];
+        const paths = explicit
+          ? (!path.posix.isAbsolute(explicit) && explicit.endsWith('.rs') ? [path.posix.normalize(dir + '/' + explicit)] : [])
+          : [childDir + '/' + item.name + '.rs', childDir + '/' + item.name + '/'];
+        for (const p of paths) if (!excluded.includes(p)) excluded.push(p);
+      }
     }
   }
   return new Map([...all].filter(([file]) => !excluded.some(exclude => exclude.endsWith('/') ? file.startsWith(exclude) : file === exclude)));

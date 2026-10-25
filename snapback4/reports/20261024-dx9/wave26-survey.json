@@ -1,0 +1,1223 @@
+{
+  "binarySha256": "c210a09266bf4c315311f66f54181b30275d65940fd6b714c9c6d46dfbf3adc1",
+  "lanes": 50,
+  "checkPass": 50,
+  "pendingGates": 0,
+  "oldCharsMedian": 4840.5,
+  "newCharsMedian": 5538.5,
+  "rows": [
+    {
+      "lane": "001",
+      "sourceSha256": "8695cadc58eb59e93b186245bcafb28d1afa625c5e7e93f66363dc789adce5c3",
+      "commands": [
+        "snapback4 check --json",
+        "snapback4 check"
+      ],
+      "exit": 0,
+      "humanExit": 0,
+      "notes": 6,
+      "oldNotes": 6,
+      "pendingGates": 0,
+      "gateCodes": [],
+      "deadlineNotes": [],
+      "oldDeadlineNotes": [],
+      "oldChars": 3274,
+      "newChars": 3095,
+      "summary": [
+        "check: ok \u2014 3 tables (0 synced), 15 operations, compiled, 5 notes, 8127.4 ms; 3 decisions to record (are the listed audiences and write/evidence permissions intended? tighten rules or record rationale); next: check --json",
+        "check: enforced \u2014 0 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)"
+      ],
+      "familyMembers": 4
+    },
+    {
+      "lane": "002",
+      "sourceSha256": "f109a1d032a67b153c8a1b81c960583e92c20de2de26145b97272ca301ceaa0a",
+      "commands": [
+        "snapback4 check --json",
+        "snapback4 check"
+      ],
+      "exit": 0,
+      "humanExit": 0,
+      "notes": 15,
+      "oldNotes": 15,
+      "pendingGates": 0,
+      "gateCodes": [],
+      "deadlineNotes": [],
+      "oldDeadlineNotes": [],
+      "oldChars": 3837,
+      "newChars": 4399,
+      "summary": [
+        "check: ok \u2014 2 tables (0 synced), 11 operations, compiled, 3 notes, 8453.9 ms; 5 decisions to record (are the listed audiences and write/evidence permissions intended? tighten rules or record rationale); next: check --json",
+        "check: enforced \u2014 2 typed upload columns with owner-bound placement; 6 column audiences; 0 possible self-assignable role paths detected (bounded analysis)"
+      ],
+      "familyMembers": 11
+    },
+    {
+      "lane": "003",
+      "sourceSha256": "9899236623b8bdb99f03d50592839ab8f9add513f60e8d71b3e37c8583df55d6",
+      "commands": [
+        "snapback4 check --json",
+        "snapback4 check"
+      ],
+      "exit": 0,
+      "humanExit": 0,
+      "notes": 14,
+      "oldNotes": 14,
+      "pendingGates": 0,
+      "gateCodes": [],
+      "deadlineNotes": [],
+      "oldDeadlineNotes": [],
+      "oldChars": 4565,
+      "newChars": 5454,
+      "summary": [
+        "check: ok \u2014 2 tables (0 synced), 14 operations, compiled, 7 notes, 8239.2 ms; 6 decisions to record (are the listed audiences and write/evidence permissions intended? tighten rules or record rationale); next: check --json",
+        "check: enforced \u2014 3 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)"
+      ],
+      "familyMembers": 9
+    },
+    {
+      "lane": "004",
+      "sourceSha256": "53b8a19c8eab3cf228e73e991a0d00800fb4e19ad8c28f61a180322c9e5ee4f9",
+      "commands": [
+        "snapback4 check --json",
+        "snapback4 check"
+      ],
+      "exit": 0,
+      "humanExit": 0,
+      "notes": 13,
+      "oldNotes": 13,
+      "pendingGates": 0,
+      "gateCodes": [],
+      "deadlineNotes": [],
+      "oldDeadlineNotes": [],
+      "oldChars": 4141,
+      "newChars": 5592,
+      "summary": [
+        "check: ok \u2014 3 tables (0 synced), 12 operations, compiled, 7 notes, 8244.8 ms; 7 decisions to record (are the listed audiences and write/evidence permissions intended? tighten rules or record rationale); next: check --json",
+        "check: enforced \u2014 1 typed upload columns with owner-bound placement; 7 column audiences; 0 possible self-assignable role paths detected (bounded analysis)"
+      ],
+      "familyMembers": 7
+    },
+    {
+      "lane": "005",
+      "sourceSha256": "995d108623f28bea801750640ced8b9b5c78d02866614e2ef31efc1da283c51b",
+      "commands": [
+        "snapback4 check --json",
+        "snapback4 check"
+      ],
+      "exit": 0,
+      "humanExit": 0,
+      "notes": 10,
+      "oldNotes": 13,
+      "pendingGates": 0,
+      "gateCodes": [],
+      "deadlineNotes": [
+        "N_SWEEP_DEADLINE"
+      ],
+      "oldDeadlineNotes": [
+        "N_SWEEP_ONLY_DEADLINE",
+        "N_SWEEP_ONLY_DEADLINE",
+        "N_SWEEP_ONLY_DEADLINE",
+        "N_SWEEP_DEADLINE",
+        "N_SWEEP_DEADLINE",
+        "N_SWEEP_DEADLINE",
+        "N_SWEEP_DEADLINE"
+      ],
+      "oldChars": 5837,
+      "newChars": 6723,
+      "summary": [
+        "check: ok \u2014 2 tables (0 synced), 15 operations, compiled, 6 notes, 6025.9 ms; 9 decisions to record (are the listed audiences and write/evidence permissions intended? tighten rules or record rationale); next: check --json",
+        "check: enforced \u2014 2 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)"
+      ],
+      "familyMembers": 2
+    },
+    {
+      "lane": "006",
+      "sourceSha256": "4ad0cc1a16ecf95cbfa8f81e51737f705744177753c0e97ab461992e383d1c8c",
+      "commands": [
+        "snapback4 check --json",
+        "snapback4 check"
+      ],
+      "exit": 0,
+      "humanExit": 0,
+      "notes": 16,
+      "oldNotes": 16,
+      "pendingGates": 0,
+      "gateCodes": [],
+      "deadlineNotes": [],
+      "oldDeadlineNotes": [],
+      "oldChars": 5946,
+      "newChars": 6382,
+      "summary": [
+        "check: ok \u2014 5 tables (0 synced), 14 operations, compiled, 4 notes, 7686.9 ms; 8 decisions to record (are the listed audiences and write/evidence permissions intended? tighten rules or record rationale); next: check --json",
+        "check: enforced \u2014 2 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)"
+      ],
+      "familyMembers": 8
+    },
+    {
+      "lane": "007",
+      "sourceSha256": "d44f74cc21589189ef50382cc73894a9f47696c593fa3fdc6b39efd9e7975f81",
+      "commands": [
+        "snapback4 check --json",
+        "snapback4 check"
+      ],
+      "exit": 0,
+      "humanExit": 0,
+      "notes": 11,
+      "oldNotes": 11,
+      "pendingGates": 0,
+      "gateCodes": [],
+      "deadlineNotes": [],
+      "oldDeadlineNotes": [],
+      "oldChars": 6744,
+      "newChars": 7465,
+      "summary": [
+        "check: ok \u2014 6 tables (0 synced), 16 operations, compiled, 17 notes, 7846.4 ms; 7 decisions to record (are the listed audiences and write/evidence permissions intended? tighten rules or record rationale); next: check --json",
+        "check: enforced \u2014 1 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)"
+      ],
+      "familyMembers": 4
+    },
+    {
+      "lane": "008",
+      "sourceSha256": "2b4846f2ef437d68d8c5969c33d0825f3cc29ebd673ad2d734ebf7587c148ed6",
+      "commands": [
+        "snapback4 check --json",
+        "snapback4 check"
+      ],
+      "exit": 0,
+      "humanExit": 0,
+      "notes": 25,
+      "oldNotes": 25,
+      "pendingGates": 0,
+      "gateCodes": [],
+      "deadlineNotes": [
+        "N_SWEEP_DEADLINE"
+      ],
+      "oldDeadlineNotes": [
+        "N_SWEEP_DEADLINE",
+        "N_SWEEP_DEADLINE",
+        "N_SWEEP_DEADLINE",
+        "N_SWEEP_DEADLINE"
+      ],
+      "oldChars": 9270,
+      "newChars": 9629,
+      "summary": [
+        "check: ok \u2014 7 tables (0 synced), 21 operations, compiled, 10 notes, 7589.0 ms; 12 decisions to record (are the listed audiences and write/evidence permissions intended? tighten rules or record rationale); next: check --json",
+        "check: enforced \u2014 1 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)"
+      ],
+      "familyMembers": 14
+    },
+    {
+      "lane": "009",
+      "sourceSha256": "156e4ac2f94f7c20fde407ebc9720965d41a2675b6de1814e0dd5405dde12334",
+      "commands": [
+        "snapback4 check --json",
+        "snapback4 check"
+      ],
+      "exit": 0,
+      "humanExit": 0,
+      "notes": 25,
+      "oldNotes": 25,
+      "pendingGates": 0,
+      "gateCodes": [],
+      "deadlineNotes": [],
+      "oldDeadlineNotes": [],
+      "oldChars": 7956,
+      "newChars": 9202,
+      "summary": [
+        "check: ok \u2014 5 tables, 1 view (0 synced), 15 operations, compiled, 3 notes, 7461.4 ms; 13 decisions to record (are the listed audiences and write/evidence permissions intended? tighten rules or record rationale); next: check --json",
+        "check: enforced \u2014 3 typed upload columns with owner-bound placement; 4 column audiences; 0 possible self-assignable role paths detected (bounded analysis)"
+      ],
+      "familyMembers": 12
+    },
+    {
+      "lane": "010",
+      "sourceSha256": "b04c79b654c5f035028b1a42c4e78e3dd83e61392a3ca0ebffa16a9bc4e17b50",
+      "commands": [
+        "snapback4 check --json",
+        "snapback4 check"
+      ],
+      "exit": 0,
+      "humanExit": 0,
+      "notes": 20,
+      "oldNotes": 20,
+      "pendingGates": 0,
+      "gateCodes": [],
+      "deadlineNotes": [],
+      "oldDeadlineNotes": [],
+      "oldChars": 7811,
+      "newChars": 8368,
+      "summary": [
+        "check: ok \u2014 6 tables (0 synced), 21 operations, compiled, 11 notes, 7698.9 ms; 10 decisions to record (are the listed audiences and write/evidence permissions intended? tighten rules or record rationale); next: check --json",
+        "check: enforced \u2014 1 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)"
+      ],
+      "familyMembers": 11
+    },
+    {
+      "lane": "011",
+      "sourceSha256": "2719cabd3e7e925b14cd2f27678a5bbd850643739a1689e900dc4c6c49406720",
+      "commands": [
+        "snapback4 check --json",
+        "snapback4 check"
+      ],
+      "exit": 0,
+      "humanExit": 0,
+      "notes": 10,
+      "oldNotes": 10,
+      "pendingGates": 0,
+      "gateCodes": [],
+      "deadlineNotes": [],
+      "oldDeadlineNotes": [],
+      "oldChars": 4018,
+      "newChars": 4897,
+      "summary": [
+        "check: ok \u2014 2 tables (0 synced), 13 operations, compiled, 6 notes, 7513.0 ms; 5 decisions to record (are the listed audiences and write/evidence permissions intended? tighten rules or record rationale); next: check --json",
+        "check: enforced \u2014 1 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)"
+      ],
+      "familyMembers": 5
+    },
+    {
+      "lane": "012",
+      "sourceSha256": "b4080687c24f7824bb508e35eb5dfc4c5b40ca59c10baf1545d9dc64a1849a4f",
+      "commands": [
+        "snapback4 check --json",
+        "snapback4 check"
+      ],
+      "exit": 0,
+      "humanExit": 0,
+      "notes": 17,
+      "oldNotes": 17,
+      "pendingGates": 0,
+      "gateCodes": [],
+      "deadlineNotes": [],
+      "oldDeadlineNotes": [],
+      "oldChars": 6625,
+      "newChars": 7874,
+      "summary": [
+        "check: ok \u2014 5 tables (0 synced), 14 operations, compiled, 8 notes, 7897.1 ms; 10 decisions to record (are the listed audiences and write/evidence permissions intended? tighten rules or record rationale); next: check --json",
+        "check: enforced \u2014 3 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)"
+      ],
+      "familyMembers": 6
+    },
+    {
+      "lane": "013",
+      "sourceSha256": "cc0b1895c43e26c797a6f5e4d995d1ef51e1a936c6fc266092aa273d70d7b6fb",
+      "commands": [
+        "snapback4 check --json",
+        "snapback4 check"
+      ],
+      "exit": 0,
+      "humanExit": 0,
+      "notes": 18,
+      "oldNotes": 18,
+      "pendingGates": 0,
+      "gateCodes": [],
+      "deadlineNotes": [],
+      "oldDeadlineNotes": [],
+      "oldChars": 6209,
+      "newChars": 8735,
+      "summary": [
+        "check: ok \u2014 3 tables (0 synced), 13 operations, compiled, 8 notes, 7882.8 ms; 13 decisions to record (are the listed audiences and write/evidence permissions intended? tighten rules or record rationale); next: check --json",
+        "check: enforced \u2014 3 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)"
+      ],
+      "familyMembers": 6
+    },
+    {
+      "lane": "014",
+      "sourceSha256": "ccd2ead0c6b2cfda02bc7f1828422241fc5817f1a0e9eace5d58597b12c742fc",
+      "commands": [
+        "snapback4 check --json",
+        "snapback4 check"
+      ],
+      "exit": 0,
+      "humanExit": 0,
+      "notes": 14,
+      "oldNotes": 14,
+      "pendingGates": 0,
+      "gateCodes": [],
+      "deadlineNotes": [],
+      "oldDeadlineNotes": [],
+      "oldChars": 5987,
+      "newChars": 6915,
+      "summary": [
+        "check: ok \u2014 5 tables (0 synced), 12 operations, compiled, 8 notes, 7948.2 ms; 8 decisions to record (are the listed audiences and write/evidence permissions intended? tighten rules or record rationale); next: check --json",
+        "check: enforced \u2014 1 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)"
+      ],
+      "familyMembers": 6
+    },
+    {
+      "lane": "015",
+      "sourceSha256": "52fadca7a625fbf8f4d0db2c44f5081ca5e9f0bd3fcb7c499a5daf4c340a6d63",
+      "commands": [
+        "snapback4 check --json",
+        "snapback4 check"
+      ],
+      "exit": 0,
+      "humanExit": 0,
+      "notes": 11,
+      "oldNotes": 11,
+      "pendingGates": 0,
+      "gateCodes": [],
+      "deadlineNotes": [],
+      "oldDeadlineNotes": [],
+      "oldChars": 4631,
+      "newChars": 4856,
+      "summary": [
+        "check: ok \u2014 4 tables (0 synced), 12 operations, compiled, 5 notes, 7955.0 ms; 5 decisions to record (are the listed audiences and write/evidence permissions intended? tighten rules or record rationale); next: check --json",
+        "check: enforced \u2014 2 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)"
+      ],
+      "familyMembers": 6
+    },
+    {
+      "lane": "016",
+      "sourceSha256": "23b2ed2df60133bfeb93aedbc1c7853a351460dc8969c181635bd1b9ab980ab4",
+      "commands": [
+        "snapback4 check --json",
+        "snapback4 check"
+      ],
+      "exit": 0,
+      "humanExit": 0,
+      "notes": 8,
+      "oldNotes": 8,
+      "pendingGates": 0,
+      "gateCodes": [],
+      "deadlineNotes": [],
+      "oldDeadlineNotes": [
+        "N_SWEEP_DEADLINE",
+        "N_SWEEP_DEADLINE",
+        "N_SWEEP_DEADLINE",
+        "N_SWEEP_DEADLINE",
+        "N_SWEEP_DEADLINE"
+      ],
+      "oldChars": 3942,
+      "newChars": 4365,
+      "summary": [
+        "check: ok \u2014 2 tables (0 synced), 14 operations, compiled, 4 notes, 7930.4 ms; 4 decisions to record (are the listed audiences and write/evidence permissions intended? tighten rules or record rationale); next: check --json",
+        "check: enforced \u2014 3 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)"
+      ],
+      "familyMembers": 3
+    },
+    {
+      "lane": "017",
+      "sourceSha256": "5cd57abb5d389761e5db81cee5596042aed5a6e3818d6ab3a1a448cac08d27dc",
+      "commands": [
+        "snapback4 check --json",
+        "snapback4 check"
+      ],
+      "exit": 0,
+      "humanExit": 0,
+      "notes": 19,
+      "oldNotes": 19,
+      "pendingGates": 0,
+      "gateCodes": [],
+      "deadlineNotes": [],
+      "oldDeadlineNotes": [],
+      "oldChars": 5281,
+      "newChars": 6688,
+      "summary": [
+        "check: ok \u2014 2 tables (0 synced), 11 operations, compiled, 6 notes, 7822.9 ms; 8 decisions to record (are the listed audiences and write/evidence permissions intended? tighten rules or record rationale); next: check --json",
+        "check: enforced \u2014 2 typed upload columns with owner-bound placement; 4 column audiences; 0 possible self-assignable role paths detected (bounded analysis)"
+      ],
+      "familyMembers": 12
+    },
+    {
+      "lane": "018",
+      "sourceSha256": "17e34b6af244258b7bd23c09bb3b47882b73a7bb399b2ab045191522b1837f3c",
+      "commands": [
+        "snapback4 check --json",
+        "snapback4 check"
+      ],
+      "exit": 0,
+      "humanExit": 0,
+      "notes": 10,
+      "oldNotes": 10,
+      "pendingGates": 0,
+      "gateCodes": [],
+      "deadlineNotes": [],
+      "oldDeadlineNotes": [],
+      "oldChars": 4588,
+      "newChars": 6997,
+      "summary": [
+        "check: ok \u2014 6 tables (0 synced), 17 operations, compiled, 12 notes, 5906.9 ms; 10 decisions to record (are the listed audiences and write/evidence permissions intended? tighten rules or record rationale); next: check --json",
+        "check: enforced \u2014 1 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)"
+      ],
+      "familyMembers": 1
+    },
+    {
+      "lane": "019",
+      "sourceSha256": "5397ede3334fbad60ca46c39d641a2029f36b17c98a75317879696dfb4fd8e5a",
+      "commands": [
+        "snapback4 check --json",
+        "snapback4 check"
+      ],
+      "exit": 0,
+      "humanExit": 0,
+      "notes": 13,
+      "oldNotes": 13,
+      "pendingGates": 0,
+      "gateCodes": [],
+      "deadlineNotes": [],
+      "oldDeadlineNotes": [],
+      "oldChars": 4019,
+      "newChars": 4641,
+      "summary": [
+        "check: ok \u2014 3 tables (0 synced), 11 operations, compiled, 4 notes, 7382.9 ms; 5 decisions to record (are the listed audiences and write/evidence permissions intended? tighten rules or record rationale); next: check --json",
+        "check: enforced \u2014 1 typed upload columns with owner-bound placement; 6 column audiences; 0 possible self-assignable role paths detected (bounded analysis)"
+      ],
+      "familyMembers": 9
+    },
+    {
+      "lane": "020",
+      "sourceSha256": "50052394974df2470bd0e0d1757c64f5aa2a44a2f971e4d2fc4fe3f3667dc955",
+      "commands": [
+        "snapback4 check --json",
+        "snapback4 check"
+      ],
+      "exit": 0,
+      "humanExit": 0,
+      "notes": 13,
+      "oldNotes": 13,
+      "pendingGates": 0,
+      "gateCodes": [],
+      "deadlineNotes": [],
+      "oldDeadlineNotes": [],
+      "oldChars": 4644,
+      "newChars": 5540,
+      "summary": [
+        "check: ok \u2014 4 tables (0 synced), 12 operations, compiled, 3 notes, 7488.4 ms; 8 decisions to record (are the listed audiences and write/evidence permissions intended? tighten rules or record rationale); next: check --json",
+        "check: enforced \u2014 1 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)"
+      ],
+      "familyMembers": 6
+    },
+    {
+      "lane": "021",
+      "sourceSha256": "0c164dcecbb81d727ca5697d6bfc3e578888a02f8f77729d7afb1ca2026457fd",
+      "commands": [
+        "snapback4 check --json",
+        "snapback4 check"
+      ],
+      "exit": 0,
+      "humanExit": 0,
+      "notes": 11,
+      "oldNotes": 11,
+      "pendingGates": 0,
+      "gateCodes": [],
+      "deadlineNotes": [],
+      "oldDeadlineNotes": [],
+      "oldChars": 3829,
+      "newChars": 4065,
+      "summary": [
+        "check: ok \u2014 3 tables (0 synced), 14 operations, compiled, 6 notes, 7399.2 ms; 4 decisions to record (are the listed audiences and write/evidence permissions intended? tighten rules or record rationale); next: check --json",
+        "check: enforced \u2014 1 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)"
+      ],
+      "familyMembers": 8
+    },
+    {
+      "lane": "022",
+      "sourceSha256": "1d544c5b60b25785a0bb09de8d352d5ffca37f995c922d7824e157aa1f1b12cd",
+      "commands": [
+        "snapback4 check --json",
+        "snapback4 check"
+      ],
+      "exit": 0,
+      "humanExit": 0,
+      "notes": 10,
+      "oldNotes": 10,
+      "pendingGates": 0,
+      "gateCodes": [],
+      "deadlineNotes": [],
+      "oldDeadlineNotes": [],
+      "oldChars": 2934,
+      "newChars": 3996,
+      "summary": [
+        "check: ok \u2014 2 tables (0 synced), 12 operations, compiled, 7 notes, 7655.6 ms; 4 decisions to record (are the listed audiences and write/evidence permissions intended? tighten rules or record rationale); next: check --json",
+        "check: enforced \u2014 1 typed upload columns with owner-bound placement; 5 column audiences; 0 possible self-assignable role paths detected (bounded analysis)"
+      ],
+      "familyMembers": 7
+    },
+    {
+      "lane": "023",
+      "sourceSha256": "7057d7e5fe85bbd07d6aff2571629c67dbf6cd73f89b37f96c0977cfb0720617",
+      "commands": [
+        "snapback4 check --json",
+        "snapback4 check"
+      ],
+      "exit": 0,
+      "humanExit": 0,
+      "notes": 13,
+      "oldNotes": 13,
+      "pendingGates": 0,
+      "gateCodes": [],
+      "deadlineNotes": [],
+      "oldDeadlineNotes": [],
+      "oldChars": 5824,
+      "newChars": 6619,
+      "summary": [
+        "check: ok \u2014 3 tables (0 synced), 12 operations, compiled, 7 notes, 7658.8 ms; 7 decisions to record (are the listed audiences and write/evidence permissions intended? tighten rules or record rationale); next: check --json",
+        "check: enforced \u2014 1 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)"
+      ],
+      "familyMembers": 6
+    },
+    {
+      "lane": "024",
+      "sourceSha256": "fa41ac94918105f353c442e1f25728f84972fb2533937575b46400e744eb3c4b",
+      "commands": [
+        "snapback4 check --json",
+        "snapback4 check"
+      ],
+      "exit": 0,
+      "humanExit": 0,
+      "notes": 12,
+      "oldNotes": 12,
+      "pendingGates": 0,
+      "gateCodes": [],
+      "deadlineNotes": [],
+      "oldDeadlineNotes": [],
+      "oldChars": 3404,
+      "newChars": 3698,
+      "summary": [
+        "check: ok \u2014 3 tables (0 synced), 13 operations, compiled, 3 notes, 7559.0 ms; 4 decisions to record (are the listed audiences and write/evidence permissions intended? tighten rules or record rationale); next: check --json",
+        "check: enforced \u2014 0 typed upload columns with owner-bound placement; 3 column audiences; 0 possible self-assignable role paths detected (bounded analysis)"
+      ],
+      "familyMembers": 9
+    },
+    {
+      "lane": "025",
+      "sourceSha256": "bbf301ffa13f5a4f66a4c099012d6526d4ce7365042c2d81b2fa9d10aef4e080",
+      "commands": [
+        "snapback4 check --json",
+        "snapback4 check"
+      ],
+      "exit": 0,
+      "humanExit": 0,
+      "notes": 16,
+      "oldNotes": 16,
+      "pendingGates": 0,
+      "gateCodes": [],
+      "deadlineNotes": [],
+      "oldDeadlineNotes": [],
+      "oldChars": 5056,
+      "newChars": 5916,
+      "summary": [
+        "check: ok \u2014 5 tables (0 synced), 17 operations, compiled, 2 notes, 7492.1 ms; 8 decisions to record (are the listed audiences and write/evidence permissions intended? tighten rules or record rationale); next: check --json",
+        "check: enforced \u2014 1 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)"
+      ],
+      "familyMembers": 8
+    },
+    {
+      "lane": "026",
+      "sourceSha256": "a6c759675289afdd4f06132e20b02a162b1e9e22f2c74a13c7af05ee8ba22766",
+      "commands": [
+        "snapback4 check --json",
+        "snapback4 check"
+      ],
+      "exit": 0,
+      "humanExit": 0,
+      "notes": 10,
+      "oldNotes": 10,
+      "pendingGates": 0,
+      "gateCodes": [],
+      "deadlineNotes": [],
+      "oldDeadlineNotes": [],
+      "oldChars": 4140,
+      "newChars": 4972,
+      "summary": [
+        "check: ok \u2014 2 tables (0 synced), 14 operations, compiled, 6 notes, 7405.9 ms; 5 decisions to record (are the listed audiences and write/evidence permissions intended? tighten rules or record rationale); next: check --json",
+        "check: enforced \u2014 4 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)"
+      ],
+      "familyMembers": 3
+    },
+    {
+      "lane": "027",
+      "sourceSha256": "7966da2efaedd67e47fc0f05dc5692c0cd775c55cdc75ae272f764e4e0d1afd9",
+      "commands": [
+        "snapback4 check --json",
+        "snapback4 check"
+      ],
+      "exit": 0,
+      "humanExit": 0,
+      "notes": 11,
+      "oldNotes": 11,
+      "pendingGates": 0,
+      "gateCodes": [],
+      "deadlineNotes": [],
+      "oldDeadlineNotes": [],
+      "oldChars": 5958,
+      "newChars": 5816,
+      "summary": [
+        "check: ok \u2014 5 tables (0 synced), 12 operations, compiled, 6 notes, 7776.4 ms; 6 decisions to record (are the listed audiences and write/evidence permissions intended? tighten rules or record rationale); next: check --json",
+        "check: enforced \u2014 2 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)"
+      ],
+      "familyMembers": 5
+    },
+    {
+      "lane": "028",
+      "sourceSha256": "bf05c6eda15407926c63ad6bb5b3f8a90b5da24b58b2e42e0ad1399a5bb15b05",
+      "commands": [
+        "snapback4 check --json",
+        "snapback4 check"
+      ],
+      "exit": 0,
+      "humanExit": 0,
+      "notes": 10,
+      "oldNotes": 10,
+      "pendingGates": 0,
+      "gateCodes": [],
+      "deadlineNotes": [],
+      "oldDeadlineNotes": [],
+      "oldChars": 4660,
+      "newChars": 4053,
+      "summary": [
+        "check: ok \u2014 4 tables (0 synced), 12 operations, compiled, 8 notes, 7310.9 ms; 3 decisions to record (are the listed audiences and write/evidence permissions intended? tighten rules or record rationale); next: check --json",
+        "check: enforced \u2014 3 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)"
+      ],
+      "familyMembers": 7
+    },
+    {
+      "lane": "029",
+      "sourceSha256": "2bad30c7e1e80767163c8f5ddd573335f7f29216708a64235ca7ec7a1c17c7e0",
+      "commands": [
+        "snapback4 check --json",
+        "snapback4 check"
+      ],
+      "exit": 0,
+      "humanExit": 0,
+      "notes": 10,
+      "oldNotes": 10,
+      "pendingGates": 0,
+      "gateCodes": [],
+      "deadlineNotes": [],
+      "oldDeadlineNotes": [],
+      "oldChars": 4224,
+      "newChars": 5555,
+      "summary": [
+        "check: ok \u2014 2 tables (0 synced), 12 operations, compiled, 7 notes, 5991.3 ms; 6 decisions to record (are the listed audiences and write/evidence permissions intended? tighten rules or record rationale); next: check --json",
+        "check: enforced \u2014 2 typed upload columns with owner-bound placement; 4 column audiences; 0 possible self-assignable role paths detected (bounded analysis)"
+      ],
+      "familyMembers": 3
+    },
+    {
+      "lane": "030",
+      "sourceSha256": "3132a88175d91d1b6083bac754da8cdf8dfc925ad8dc86f91b1314e609f11bf0",
+      "commands": [
+        "snapback4 check --json",
+        "snapback4 check"
+      ],
+      "exit": 0,
+      "humanExit": 0,
+      "notes": 13,
+      "oldNotes": 13,
+      "pendingGates": 0,
+      "gateCodes": [],
+      "deadlineNotes": [],
+      "oldDeadlineNotes": [],
+      "oldChars": 4255,
+      "newChars": 4923,
+      "summary": [
+        "check: ok \u2014 4 tables (0 synced), 15 operations, compiled, 6 notes, 7719.7 ms; 7 decisions to record (are the listed audiences and write/evidence permissions intended? tighten rules or record rationale); next: check --json",
+        "check: enforced \u2014 1 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)"
+      ],
+      "familyMembers": 7
+    },
+    {
+      "lane": "031",
+      "sourceSha256": "42cecd02ca6fabebc9c9f42d2188565fb8a7e1fc539bf1b1c465690ee41704a0",
+      "commands": [
+        "snapback4 check --json",
+        "snapback4 check"
+      ],
+      "exit": 0,
+      "humanExit": 0,
+      "notes": 15,
+      "oldNotes": 15,
+      "pendingGates": 0,
+      "gateCodes": [],
+      "deadlineNotes": [],
+      "oldDeadlineNotes": [],
+      "oldChars": 5663,
+      "newChars": 5095,
+      "summary": [
+        "check: ok \u2014 6 tables (0 synced), 21 operations, compiled, 1 note, 6611.2 ms; 7 decisions to record (are the listed audiences and write/evidence permissions intended? tighten rules or record rationale); next: check --json",
+        "check: enforced \u2014 1 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)"
+      ],
+      "familyMembers": 9
+    },
+    {
+      "lane": "032",
+      "sourceSha256": "6b6cacada4d44e5419cb7746e68c20ebe87480f11c406b79cbcbc3808241115d",
+      "commands": [
+        "snapback4 check --json",
+        "snapback4 check"
+      ],
+      "exit": 0,
+      "humanExit": 0,
+      "notes": 17,
+      "oldNotes": 17,
+      "pendingGates": 0,
+      "gateCodes": [],
+      "deadlineNotes": [],
+      "oldDeadlineNotes": [],
+      "oldChars": 5384,
+      "newChars": 4484,
+      "summary": [
+        "check: ok \u2014 6 tables (0 synced), 20 operations, compiled, 7 notes, 7524.3 ms; 4 decisions to record (are the listed audiences and write/evidence permissions intended? tighten rules or record rationale); next: check --json",
+        "check: enforced \u2014 1 typed upload columns with owner-bound placement; 4 column audiences; 0 possible self-assignable role paths detected (bounded analysis)"
+      ],
+      "familyMembers": 14
+    },
+    {
+      "lane": "033",
+      "sourceSha256": "9f8bdec4789ccdf17f4daa1d41adf2ee4237f93dd940cce8783ef32bf3d0d4eb",
+      "commands": [
+        "snapback4 check --json",
+        "snapback4 check"
+      ],
+      "exit": 0,
+      "humanExit": 0,
+      "notes": 17,
+      "oldNotes": 17,
+      "pendingGates": 0,
+      "gateCodes": [],
+      "deadlineNotes": [],
+      "oldDeadlineNotes": [],
+      "oldChars": 6278,
+      "newChars": 7734,
+      "summary": [
+        "check: ok \u2014 5 tables (0 synced), 22 operations, compiled, 8 notes, 7376.2 ms; 11 decisions to record (are the listed audiences and write/evidence permissions intended? tighten rules or record rationale); next: check --json",
+        "check: enforced \u2014 2 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)"
+      ],
+      "familyMembers": 7
+    },
+    {
+      "lane": "034",
+      "sourceSha256": "10f981001730cc5914f335b7268c6ee6f021f4ff487f2b683aaec3de5b2c009a",
+      "commands": [
+        "snapback4 check --json",
+        "snapback4 check"
+      ],
+      "exit": 0,
+      "humanExit": 0,
+      "notes": 12,
+      "oldNotes": 12,
+      "pendingGates": 0,
+      "gateCodes": [],
+      "deadlineNotes": [
+        "N_SWEEP_DEADLINE"
+      ],
+      "oldDeadlineNotes": [
+        "N_SWEEP_DEADLINE"
+      ],
+      "oldChars": 4111,
+      "newChars": 4607,
+      "summary": [
+        "check: ok \u2014 3 tables (0 synced), 14 operations, compiled, 5 notes, 7201.7 ms; 5 decisions to record (are the listed audiences and write/evidence permissions intended? tighten rules or record rationale); next: check --json",
+        "check: enforced \u2014 3 typed upload columns with owner-bound placement; 3 column audiences; 0 possible self-assignable role paths detected (bounded analysis)"
+      ],
+      "familyMembers": 8
+    },
+    {
+      "lane": "035",
+      "sourceSha256": "fc49e1e3b38e4ccfc8520fd26d82817014e799d2285c16386c9ce51249505a36",
+      "commands": [
+        "snapback4 check --json",
+        "snapback4 check"
+      ],
+      "exit": 0,
+      "humanExit": 0,
+      "notes": 8,
+      "oldNotes": 8,
+      "pendingGates": 0,
+      "gateCodes": [],
+      "deadlineNotes": [],
+      "oldDeadlineNotes": [
+        "N_SWEEP_DEADLINE",
+        "N_SWEEP_DEADLINE",
+        "N_SWEEP_DEADLINE",
+        "N_SWEEP_DEADLINE"
+      ],
+      "oldChars": 5240,
+      "newChars": 4638,
+      "summary": [
+        "check: ok \u2014 3 tables (0 synced), 13 operations, compiled, 9 notes, 7181.6 ms; 3 decisions to record (are the listed audiences and write/evidence permissions intended? tighten rules or record rationale); next: check --json",
+        "check: enforced \u2014 1 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)"
+      ],
+      "familyMembers": 5
+    },
+    {
+      "lane": "036",
+      "sourceSha256": "13ce915836f9638fcd487ca192016a10b2234e4822a8fc9a5d223f369d410c5e",
+      "commands": [
+        "snapback4 check --json",
+        "snapback4 check"
+      ],
+      "exit": 0,
+      "humanExit": 0,
+      "notes": 8,
+      "oldNotes": 8,
+      "pendingGates": 0,
+      "gateCodes": [],
+      "deadlineNotes": [],
+      "oldDeadlineNotes": [],
+      "oldChars": 4297,
+      "newChars": 4185,
+      "summary": [
+        "check: ok \u2014 4 tables (0 synced), 13 operations, compiled, 3 notes, 7306.7 ms; 5 decisions to record (are the listed audiences and write/evidence permissions intended? tighten rules or record rationale); next: check --json",
+        "check: enforced \u2014 0 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)"
+      ],
+      "familyMembers": 3
+    },
+    {
+      "lane": "037",
+      "sourceSha256": "7fdcb3210f7773ece2e2f0fbfbe0a658d86c0e079bfa750e0acb5b801db06950",
+      "commands": [
+        "snapback4 check --json",
+        "snapback4 check"
+      ],
+      "exit": 0,
+      "humanExit": 0,
+      "notes": 5,
+      "oldNotes": 5,
+      "pendingGates": 0,
+      "gateCodes": [],
+      "deadlineNotes": [],
+      "oldDeadlineNotes": [],
+      "oldChars": 3261,
+      "newChars": 3601,
+      "summary": [
+        "check: ok \u2014 2 tables (0 synced), 15 operations, compiled, 6 notes, 7053.6 ms; 3 decisions to record (are the listed audiences and write/evidence permissions intended? tighten rules or record rationale); next: check --json",
+        "check: enforced \u2014 1 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)"
+      ],
+      "familyMembers": 3
+    },
+    {
+      "lane": "038",
+      "sourceSha256": "1183c5bdd7dbc65fc0b7fde5f99252bee5a8d590dd1cde803ec3a9e7135383be",
+      "commands": [
+        "snapback4 check --json",
+        "snapback4 check"
+      ],
+      "exit": 0,
+      "humanExit": 0,
+      "notes": 18,
+      "oldNotes": 18,
+      "pendingGates": 0,
+      "gateCodes": [],
+      "deadlineNotes": [],
+      "oldDeadlineNotes": [],
+      "oldChars": 8230,
+      "newChars": 10258,
+      "summary": [
+        "check: ok \u2014 4 tables (0 synced), 15 operations, compiled, 11 notes, 7603.5 ms; 13 decisions to record (are the listed audiences and write/evidence permissions intended? tighten rules or record rationale); next: check --json",
+        "check: enforced \u2014 1 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)"
+      ],
+      "familyMembers": 6
+    },
+    {
+      "lane": "039",
+      "sourceSha256": "58244eb99503ddd4f7e84d157709e5b2939a2ccbe71c24667a1b1a81a020c65b",
+      "commands": [
+        "snapback4 check --json",
+        "snapback4 check"
+      ],
+      "exit": 0,
+      "humanExit": 0,
+      "notes": 16,
+      "oldNotes": 16,
+      "pendingGates": 0,
+      "gateCodes": [],
+      "deadlineNotes": [],
+      "oldDeadlineNotes": [],
+      "oldChars": 4002,
+      "newChars": 5962,
+      "summary": [
+        "check: ok \u2014 3 tables (0 synced), 14 operations, compiled, 4 notes, 7761.4 ms; 8 decisions to record (are the listed audiences and write/evidence permissions intended? tighten rules or record rationale); next: check --json",
+        "check: enforced \u2014 2 typed upload columns with owner-bound placement; 5 column audiences; 0 possible self-assignable role paths detected (bounded analysis)"
+      ],
+      "familyMembers": 9
+    },
+    {
+      "lane": "040",
+      "sourceSha256": "c94f593bf584c34809652a6e0ee2e2bc0bd6575c7f835062f87fe34d5fc93fae",
+      "commands": [
+        "snapback4 check --json",
+        "snapback4 check"
+      ],
+      "exit": 0,
+      "humanExit": 0,
+      "notes": 13,
+      "oldNotes": 13,
+      "pendingGates": 0,
+      "gateCodes": [],
+      "deadlineNotes": [
+        "N_SWEEP_DEADLINE",
+        "N_SWEEP_DEADLINE",
+        "N_SWEEP_DEADLINE",
+        "N_SWEEP_DEADLINE",
+        "N_SWEEP_DEADLINE",
+        "N_SWEEP_DEADLINE"
+      ],
+      "oldDeadlineNotes": [
+        "N_SWEEP_DEADLINE",
+        "N_SWEEP_DEADLINE",
+        "N_SWEEP_DEADLINE",
+        "N_SWEEP_DEADLINE",
+        "N_SWEEP_DEADLINE",
+        "N_SWEEP_DEADLINE",
+        "N_SWEEP_DEADLINE"
+      ],
+      "oldChars": 5450,
+      "newChars": 5509,
+      "summary": [
+        "check: ok \u2014 3 tables (0 synced), 17 operations, compiled, 12 notes, 7596.9 ms; 5 decisions to record (are the listed audiences and write/evidence permissions intended? tighten rules or record rationale); next: check --json",
+        "check: enforced \u2014 2 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)"
+      ],
+      "familyMembers": 9
+    },
+    {
+      "lane": "041",
+      "sourceSha256": "fec536cf9686d17f92103a8a57cb33a707b565cfede86eebe86fb8a569770295",
+      "commands": [
+        "snapback4 check --json",
+        "snapback4 check"
+      ],
+      "exit": 0,
+      "humanExit": 0,
+      "notes": 8,
+      "oldNotes": 9,
+      "pendingGates": 0,
+      "gateCodes": [],
+      "deadlineNotes": [
+        "N_SWEEP_DEADLINE",
+        "N_SWEEP_DEADLINE",
+        "N_SWEEP_DEADLINE"
+      ],
+      "oldDeadlineNotes": [
+        "N_SWEEP_DEADLINE",
+        "N_SWEEP_DEADLINE",
+        "N_SWEEP_DEADLINE",
+        "N_SWEEP_DEADLINE",
+        "N_SWEEP_DEADLINE",
+        "N_SWEEP_DEADLINE",
+        "N_SWEEP_DEADLINE",
+        "N_SWEEP_DEADLINE"
+      ],
+      "oldChars": 4588,
+      "newChars": 4583,
+      "summary": [
+        "check: ok \u2014 2 tables (0 synced), 13 operations, compiled, 10 notes, 7435.9 ms; 3 decisions to record (are the listed audiences and write/evidence permissions intended? tighten rules or record rationale); next: check --json",
+        "check: enforced \u2014 3 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)"
+      ],
+      "familyMembers": 3
+    },
+    {
+      "lane": "042",
+      "sourceSha256": "a370f451f3af335239c475a35955b6381c684b87b0d7b8d1e4e1fdcbfb637d07",
+      "commands": [
+        "snapback4 check --json",
+        "snapback4 check"
+      ],
+      "exit": 0,
+      "humanExit": 0,
+      "notes": 18,
+      "oldNotes": 20,
+      "pendingGates": 0,
+      "gateCodes": [],
+      "deadlineNotes": [],
+      "oldDeadlineNotes": [
+        "N_SWEEP_ONLY_DEADLINE",
+        "N_SWEEP_ONLY_DEADLINE"
+      ],
+      "oldChars": 5423,
+      "newChars": 5908,
+      "summary": [
+        "check: ok \u2014 3 tables (0 synced), 16 operations, compiled, 7 notes, 7684.7 ms; 7 decisions to record (are the listed audiences and write/evidence permissions intended? tighten rules or record rationale); next: check --json",
+        "check: enforced \u2014 0 typed upload columns with owner-bound placement; 4 column audiences; 0 possible self-assignable role paths detected (bounded analysis)"
+      ],
+      "familyMembers": 12
+    },
+    {
+      "lane": "043",
+      "sourceSha256": "16c5d12bb6341de39502965a76c0173e9d84bf7847061e27f95f604fcea27de5",
+      "commands": [
+        "snapback4 check --json",
+        "snapback4 check"
+      ],
+      "exit": 0,
+      "humanExit": 0,
+      "notes": 16,
+      "oldNotes": 16,
+      "pendingGates": 0,
+      "gateCodes": [],
+      "deadlineNotes": [],
+      "oldDeadlineNotes": [],
+      "oldChars": 6668,
+      "newChars": 10305,
+      "summary": [
+        "check: ok \u2014 3 tables (0 synced), 13 operations, compiled, 9 notes, 7754.0 ms; 16 decisions to record (are the listed audiences and write/evidence permissions intended? tighten rules or record rationale); next: check --json",
+        "check: enforced \u2014 1 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)"
+      ],
+      "familyMembers": 1
+    },
+    {
+      "lane": "044",
+      "sourceSha256": "e53a997f8731d1ce20d3a7bae0dff83a79862689bd0761e2def5e8035d3e5692",
+      "commands": [
+        "snapback4 check --json",
+        "snapback4 check"
+      ],
+      "exit": 0,
+      "humanExit": 0,
+      "notes": 17,
+      "oldNotes": 17,
+      "pendingGates": 0,
+      "gateCodes": [],
+      "deadlineNotes": [],
+      "oldDeadlineNotes": [],
+      "oldChars": 5000,
+      "newChars": 6129,
+      "summary": [
+        "check: ok \u2014 4 tables (0 synced), 16 operations, compiled, 7 notes, 7652.8 ms; 8 decisions to record (are the listed audiences and write/evidence permissions intended? tighten rules or record rationale); next: check --json",
+        "check: enforced \u2014 1 typed upload columns with owner-bound placement; 3 column audiences; 0 possible self-assignable role paths detected (bounded analysis)"
+      ],
+      "familyMembers": 10
+    },
+    {
+      "lane": "045",
+      "sourceSha256": "212b8db4e0568249bfd62afdb347f9cf99b44cbf70398d4a4bfbbf64037aef23",
+      "commands": [
+        "snapback4 check --json",
+        "snapback4 check"
+      ],
+      "exit": 0,
+      "humanExit": 0,
+      "notes": 9,
+      "oldNotes": 9,
+      "pendingGates": 0,
+      "gateCodes": [],
+      "deadlineNotes": [],
+      "oldDeadlineNotes": [],
+      "oldChars": 4681,
+      "newChars": 6862,
+      "summary": [
+        "check: ok \u2014 3 tables (0 synced), 17 operations, compiled, 7 notes, 6345.4 ms; 9 decisions to record (are the listed audiences and write/evidence permissions intended? tighten rules or record rationale); next: check --json",
+        "check: enforced \u2014 0 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)"
+      ],
+      "familyMembers": 0
+    },
+    {
+      "lane": "046",
+      "sourceSha256": "0a96345bcaf662c266ac54dda00d3df82dcad8bfd3cd54279b829d02acc88d87",
+      "commands": [
+        "snapback4 check --json",
+        "snapback4 check"
+      ],
+      "exit": 0,
+      "humanExit": 0,
+      "notes": 9,
+      "oldNotes": 9,
+      "pendingGates": 0,
+      "gateCodes": [],
+      "deadlineNotes": [],
+      "oldDeadlineNotes": [],
+      "oldChars": 5079,
+      "newChars": 3966,
+      "summary": [
+        "check: ok \u2014 5 tables (0 synced), 17 operations, compiled, 6 notes, 7756.3 ms; 4 decisions to record (are the listed audiences and write/evidence permissions intended? tighten rules or record rationale); next: check --json",
+        "check: enforced \u2014 2 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)"
+      ],
+      "familyMembers": 6
+    },
+    {
+      "lane": "047",
+      "sourceSha256": "75b190596bbb6202248a6b6330bbf0d1fd9f1f253cd93b88b4f770ac20d2ddaf",
+      "commands": [
+        "snapback4 check --json",
+        "snapback4 check"
+      ],
+      "exit": 0,
+      "humanExit": 0,
+      "notes": 9,
+      "oldNotes": 9,
+      "pendingGates": 0,
+      "gateCodes": [],
+      "deadlineNotes": [],
+      "oldDeadlineNotes": [],
+      "oldChars": 3503,
+      "newChars": 3516,
+      "summary": [
+        "check: ok \u2014 2 tables (0 synced), 9 operations, compiled, 4 notes, 7501.9 ms; 3 decisions to record (are the listed audiences and write/evidence permissions intended? tighten rules or record rationale); next: check --json",
+        "check: enforced \u2014 1 typed upload columns with owner-bound placement; 5 column audiences; 0 possible self-assignable role paths detected (bounded analysis)"
+      ],
+      "familyMembers": 7
+    },
+    {
+      "lane": "048",
+      "sourceSha256": "342a3d13b5a064e1334270c4bfa33f634864c51d8c0216e5f11f1c9ce6442602",
+      "commands": [
+        "snapback4 check --json",
+        "snapback4 check"
+      ],
+      "exit": 0,
+      "humanExit": 0,
+      "notes": 21,
+      "oldNotes": 21,
+      "pendingGates": 0,
+      "gateCodes": [],
+      "deadlineNotes": [],
+      "oldDeadlineNotes": [],
+      "oldChars": 9139,
+      "newChars": 10560,
+      "summary": [
+        "check: ok \u2014 6 tables (0 synced), 11 operations, compiled, 11 notes, 7567.1 ms; 13 decisions to record (are the listed audiences and write/evidence permissions intended? tighten rules or record rationale); next: check --json",
+        "check: enforced \u2014 4 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)"
+      ],
+      "familyMembers": 5
+    },
+    {
+      "lane": "049",
+      "sourceSha256": "d53b0d92f9b872228996f8805153972a74664d271a7ce13179f25aa264be4291",
+      "commands": [
+        "snapback4 check --json",
+        "snapback4 check"
+      ],
+      "exit": 0,
+      "humanExit": 0,
+      "notes": 11,
+      "oldNotes": 11,
+      "pendingGates": 0,
+      "gateCodes": [],
+      "deadlineNotes": [],
+      "oldDeadlineNotes": [],
+      "oldChars": 3484,
+      "newChars": 3679,
+      "summary": [
+        "check: ok \u2014 2 tables (0 synced), 13 operations, compiled, 8 notes, 7503.0 ms; 3 decisions to record (are the listed audiences and write/evidence permissions intended? tighten rules or record rationale); next: check --json",
+        "check: enforced \u2014 1 typed upload columns with owner-bound placement; 3 column audiences; 0 possible self-assignable role paths detected (bounded analysis)"
+      ],
+      "familyMembers": 9
+    },
+    {
+      "lane": "050",
+      "sourceSha256": "54f2c46dbed1939efb999e040819a38b5c273ba63a57b4cbda083939c60b0afc",
+      "commands": [
+        "snapback4 check --json",
+        "snapback4 check"
+      ],
+      "exit": 0,
+      "humanExit": 0,
+      "notes": 8,
+      "oldNotes": 8,
+      "pendingGates": 0,
+      "gateCodes": [],
+      "deadlineNotes": [],
+      "oldDeadlineNotes": [],
+      "oldChars": 5244,
+      "newChars": 5537,
+      "summary": [
+        "check: ok \u2014 4 tables (0 synced), 18 operations, compiled, 6 notes, 7782.7 ms; 6 decisions to record (are the listed audiences and write/evidence permissions intended? tighten rules or record rationale); next: check --json",
+        "check: enforced \u2014 3 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)"
+      ],
+      "familyMembers": 3
+    }
+  ]
+}

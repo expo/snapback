@@ -1,0 +1,31 @@
+{
+  "kind": "independent implementation reviews; no normative amendment",
+  "sourceCommit": "cd64564f81441bf08a4dea72bba9feca1573ba0e",
+  "at": "2026-10-25T08:16:27.688386+00:00",
+  "promptSha256": "5997fe3f65daccc2ff69e80d25d36a8893fe3355cec8e2ea68d3713ad31e95f4",
+  "sourceSha256": {
+    "snapback4/crates/snapback4-core/src/store/extractions.rs": "142aa000e3cd509f5e0f858ce71f2750253db0448c06326cb8eec972fbe60d8e",
+    "snapback4/crates/snapback4-core/src/store/release_cycle_tests.rs": "53a1d896ccfc630f77ea98465b6cff66c6fbb0ae8e7039a7ecfe28da773c8454",
+    "llp/3000.000.000-retained-storage-and-hot-release.rfc.md": "8caa52b7224eb434956c221fbde37f46e434b057d22f69b7a1b72b8fc1b34a0a"
+  },
+  "reviews": {
+    "codex": {
+      "model": "gpt-6.1-sol",
+      "reasoning": "high",
+      "freshSession": true,
+      "exit": 0,
+      "verdict": "No material finding remains",
+      "sha256": "22744c66918ad7c0e5282be8cd8301dd92bd3d93cd3638fb4ef46199848ac917"
+    },
+    "muse": {
+      "model": "muse-spark-1.3-contributor",
+      "reasoning": "high",
+      "exit": 0,
+      "verdict": "No material finding remains",
+      "sha256": "cb5e2aaae72ad8c5a950ca9b013f7746e17ef32c6598b134a93445a988c5ee40",
+      "transport": "Provided muse-exec wrapper: initial plan quota429; configured Meta API fallback completed. Full stdout preserved verbatim."
+    }
+  },
+  "execution": "Separate from reviews: valid fresh/new-parent regression failed before with E_ADOPT; retained-parent control passed. After correction all11 release_cycle_tests pass; both copied wave27 apps pass check/fresh deploy/test/deploy-after-test.",
+  "nonMaterialCoverageNotes": "Reviewers note restored-parent and payload-only context cases do not have separate new regressions. Parent/context selection and both call sites were reviewed; existing migration guards remain unchanged."
+}

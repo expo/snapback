@@ -107496,6 +107496,84 @@ timing; native cohorts and count-only cache observations remain authoritative.
 Raw traces stay outside Git. The linked report carries audit, archive and
 cleanup receipts; no fetch, push or publication occurs.
 
+### 2026-10-24 — DX10 wave-27 process drivers and production rosters
+
+Adds a packaged npm serve-script checker with private stdout, 30-second up
+interval, group SIGTERM, pre-cleanup child/lock observations and keeper custody.
+Production provisioning now resumes a named private deployment roster instead
+of creating another batch on every serve. Guide testing contains literal cold
+and live-owner stage recipes; cheatsheet explains oldest-first board pages.
+Create/edit wording leads with the explicit update-only answer. Gate semantic
+work is recorded for SEC10 in issues/20261024-snapback4-dx10-sec10-gate-semantics.md;
+wording does not claim to repair empty-list initialization, list minimum review
+or missing helper expansion. Execution and replay results are in the DX10 report.
+
+### 2026-10-25 — Integration 25: DX9, REL and DX10
+
+Merge the three reviewed lanes for 0.4.41; SEC10 remains excluded for 0.4.42.
+The combined proof API includes serveUntilSignal and serveCheck. Production
+rosters retain DX10's durable/replay behavior and DX9's argument-name refusal
+help. Release output retains verdict-first review rendering and REL's explicit
+live source/view identity; guide tasks and rename both remain discoverable.
+
+Inherited test triggers conflicted with managed-relation admission. Debug-only
+SQLite preupdate observers now verify physical writes without installing schema
+objects, including WITHOUT ROWID tables, same-value updates and replacements.
+The SDK proof continues checking actual watched values and zero-row storage;
+Rust owns the physical no-write assertion. Production admission is unchanged.
+The store-port lexer distinguishes the engine's local postgres module from the
+driver crate without raising production allowances. The web codec census follows
+explicit test-module paths, with gate-removal controls. The help table also
+includes the packaged serve-check command and all four flags. No store format,
+product authority or release gate is relaxed by these integration repairs.
+
+Integration 25 census follow-up: the local-path exception is limited to the
+four reviewed neutral adapter types, rather than the whole postgres namespace.
+Negative controls continue counting re-exported driver types, unknown adapter
+paths and real query calls. No production allowance changes.
+
+### 2026-10-25 — Integration 25: fresh extraction source contexts
+
+The 650-schema survey catches fresh deploy refusals in wave-27 028 and 032.
+Extraction chose a newly declared parent from the current schema but checked
+its role probes against the empty historical map. Keep the parent definition
+and its probe context together: a new parent uses its current source schema;
+a retained/restored parent still uses its historical source definitions.
+Both row and payload policy checks keep their existing inclusion tests.
+A failing-before fresh/new-parent regression reproduces E_ADOPT; a paired
+historical-parent regression preserves the changed-probe-meaning refusal and
+atomic generation boundary. This implements LLP 3000.000.000 §21's existing
+source-context rule rather than changing its authority contract.
+
+Integration 25 authoring census: regenerate readauth/census.txt directly from
+the compiler's CENSUS_ITEM output after the merged Programs guide gained its
+accumulator example. The complete guide context adds repeated occurrences and
+renumbers the following example; the 95 distinct private-write families are
+unchanged. All 88 device read-authority tests pass with the regenerated snapshot.
+
+## 2026-10-25 — Integration 25: client contract reconciliation
+
+The canonical affected client run exposed missing new proof-helper API/example
+coverage, shim fixtures that omitted the newly imported shared synopsis files,
+and older expectations for accepted `elif` and located list-argument refusals.
+The API index and compiled operations examples now demonstrate both host helpers;
+isolated shim fixtures carry the same help inputs as the shipped package. The
+parser test preserves accepted syntax while still refusing to choose an ambiguous
+index; process/Wasm list tests retain their limits and prediction assertions with
+the argument-qualified wording. No product assertion, admission limit or lifecycle
+check is weakened.
+
+## 2026-10-25 — Integration 25: ranked families and complete client seals
+
+The broad client run additionally caught an actual rendering regression: the
+new audience family printed before higher-priority gate/authority decisions.
+It now occupies its first member's established sorted position, retaining one
+complete source-bound family and every member; a mixed gate/escalation/family
+witness and installed-output assertions preserve that order. Rule-enforced
+summary tests now assert the distinction from whole-protocol proof. The React
+harness imports the Expo starter's new default App export. The complete await
+seal is regenerated after explicit Node proof/setup/process classification; SDK
+delivery sites and fault recipes remain unchanged.
 ## 2026-10-25 — R1: cold readers, bounded coalescing and two write flights
 
 [The R1 report](reports/20261025-r1-postgres/REPORT.md) records local changes
@@ -107544,6 +107622,24 @@ outside Git. Two private lane clusters and two public-witness clusters stop and
 are independently confirmed; all 31 measurement children have exited. PIDs
 left: none. No push, stash, Git configuration change or unowned signal occurs.
 
+## 2026-10-25 — Integration 25: readiness helper and the port seal
+
+After merging R1, the port census correctly refused its lexical match on the
+non-SQL `QueryReaders::prepare(&engine)` helper. Rename that internal method and
+both callers to `prepare_population`; its bounded Engine-reader behavior is
+unchanged. Do not widen the database matcher or production allowance to admit a
+startup helper. Regenerate the actual test-only census for R1's added witnesses.
+
+## 2026-10-25 — Integration 25: final 0.4.41 Wasm allowance
+
+Clean Linux source `7a70ea22d2` measures 2,415,524 raw / 738,108 gzip /
+555,805 Brotli bytes. Set the allowance to 738,608 bytes, exactly measured
+gzip plus 500 bytes of platform headroom, tightening the integrated pre-bump
+allowance by four bytes. Locked Binaryen and strict family/absence audits pass.
+This whole-artifact measurement includes the version stamp; no independent
+feature cost, runtime ceiling increase or Mac qualification follows. The first
+probe lacked its temporary Brotli tool and is retained only as an invalid
+measurement; the complete probe uses restored Brotli 1.1.0, quality 11.
 ## 2026-10-25 — G7.1: synchronous tickets and exact head attempts
 
 [The G7.1 report](reports/20261025-g71-postgres/REPORT.md) records the depth-one

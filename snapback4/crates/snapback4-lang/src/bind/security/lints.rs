@@ -198,36 +198,7 @@ pub(super) fn source_notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnos
                 Stmt::For{body,..}|Stmt::As{body,..}=>refusals(body,bound,&mut absent.clone(),codes),_=>{}}}}
             let mut codes=Vec::new();refusals(&p.body,bound,&mut None,&mut codes);
             for (site,why) in codes.into_iter().take(1){note(&mut out,&site,"N_EXISTENCE_ORACLE",format!("{}: {why}; row readership is broader than declared private-existence intent",p.name),"use the same absence/denial code and message for private existence, or tighten the row audience");}
-            if p.kind==ProgramKind::Job {
-                fn guards(body:&[Stmt],out:&mut Vec<Expr>){for s in body {match s{
-                    Stmt::Require{condition,..}=>out.push(condition.clone()),
-                    Stmt::If{condition,then_body,else_body,..}=>{out.push(condition.clone());guards(then_body,out);guards(else_body,out);},
-                    Stmt::For{body,..}|Stmt::As{body,..}=>guards(body,out),_=>{}
-                }}}
-                let mut job_guards=Vec::new();guards(&p.body,&mut job_guards);
-                let clock=job_guards.iter().any(|g|{let mut g=g.clone();let mut found=false;super::super::intent_walk::expression(&mut g,&mut |e|if matches!(e,Expr::Name{name,..} if name=="now"){found=true;});found});
-                if !clock{continue;}
-                let mut writes=BTreeSet::new();let mut b=p.body.clone();
-                super::super::intent_walk::statements(&mut b,&mut |e|if let Expr::Write{table,fields,..}=e&&fields.iter().any(|f|f.name=="status"){writes.insert(table.clone());});
-                for table in writes {for m in doc.programs.iter().filter(|m|m.kind==ProgramKind::Mutation){
-                    let mut aliases=BTreeSet::new();
-                    for s in &m.body{if let Stmt::Bind{names,value,..}=s{
-                        let v=if let Expr::Assert{value,..}=value{value.as_ref()}else{value};
-                        if matches!(v,Expr::Read(r) if r.table==table){aliases.extend(names.clone());}
-                    }}
-                    let mut checks=Vec::new();guards(&m.body,&mut checks);let(mut status,mut now)=(false,false);
-                    for mut c in checks{super::super::intent_walk::expression(&mut c,&mut |e|match e{
-                        Expr::Name{name,..} if name=="now"=>now=true,
-                        Expr::Member{base,name,..} if name=="status"&&matches!(base.as_ref(),Expr::Name{name,..} if aliases.contains(name))=>status=true,_=>{}
-                    });}
-                    let module = std::path::Path::new(&doc.file).file_stem().and_then(|s| s.to_str()).unwrap_or("schema");
-                    let job_name = if module == "schema" { p.name.clone() } else { format!("{module}.{}", p.name) };
-                    let already_named = bound.notes.iter().any(|n| n.code == "N_SWEEP_DEADLINE" && n.site == m.site
-                        && n.message.contains(&format!("column {table}.status)"))
-                        && n.message.contains(&format!("scheduled job {job_name} ")));
-                    if status&&!now&&!already_named{note(&mut out,&m.site,"N_SWEEP_ONLY_DEADLINE",format!("{} gates on {table}.status while clock job {} changes that status; writes can run between the deadline and sweep",m.name,p.name),"enforce the deadline against server now in the mutation too; a sweep cleans up state but does not enforce an exact deadline");}
-                }}
-            }
+
         }
     }
     out

@@ -1,0 +1,17 @@
+{
+  "columnWriteHelper": {
+    "exit": 1,
+    "diagnosticCodes": [
+      "E_QUARRY_RULE_OPERATOR"
+    ]
+  },
+  "listMinimum": {
+    "beforeExit": 0,
+    "afterExit": 0,
+    "asksPresence": false
+  },
+  "emptyInitialization": {
+    "state": "failed",
+    "code": "E_RULE"
+  }
+}

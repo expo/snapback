@@ -67,7 +67,7 @@ impl Binder<'_> {
         let pages: Vec<&String> = self.returns.iter().filter_map(|(ty, _)| match ty { Ty::Page(table, _) => Some(table), _ => None }).collect();
         let one_table = !pages.is_empty() && pages.iter().all(|table| *table == pages[0]);
         for (ty, _) in &self.returns {
-            if one_table && matches!(ty, Ty::List(_, 0)) { continue; }
+            if one_table && matches!(ty, Ty::List(item, 0) if **item==Ty::Unknown) { continue; }
             joined = Some(match joined {
                 Some(prior) => prior.join(ty).map_err(|error| self.join_error_many(error, &self.returns))?,
                 None => ty.clone(),

@@ -20,7 +20,7 @@ import { ViewState } from "web-state";
 import { Thread } from "expo-thread";
 import { Inbox as ExpoInbox } from "expo-inbox";
 import { App as WebApp } from "web-app";
-import { App as ExpoApp } from "expo-app";
+import ExpoApp from "expo-app";
 
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 globalThis.process = { env: {} };

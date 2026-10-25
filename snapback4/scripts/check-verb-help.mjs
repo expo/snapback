@@ -3,7 +3,7 @@ import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
-const verbs = new Set('init new check device types dev deploy rollback prune releases serve run clock reset test audit why guide data sql token doctor upgrade witness'.split(' '));
+const verbs = new Set('init new check device types dev deploy rollback prune releases serve serve-check stop run clock reset test audit why guide data sql token doctor upgrade witness'.split(' '));
 export function changelogFlags(changelog) {
   // Changelog entries are newest first. The newest mention decides whether
   // an option is supported; explicit retirement prose must not announce it.
@@ -13,7 +13,7 @@ export function changelogFlags(changelog) {
     const retired = [...line.matchAll(/\b(?:drops?|dropped|removes?|removed|retires?|retired)\s+(?:(?:the|unsupported)\s+)*[A-Za-z-]+\s+--[a-z][a-z-]*/gi)];
     // Every flag must follow a named owner; preserve owner through adjacent flags.
     // Exact's rebuild command is an external tool, explicitly outside binary help.
-    for (const match of line.matchAll(/\b(?:exact\.mjs|[A-Za-z]+)\b|--[a-z][a-z0-9-]*/g)) {
+    for (const match of line.matchAll(/\b(?:exact\.mjs|[A-Za-z]+(?:-[A-Za-z]+)*)\b|--[a-z][a-z0-9-]*/g)) {
       const token = match[0];
       if (['npm', 'bun', 'pnpm'].includes(token)) {
         verb = 'package-manager';

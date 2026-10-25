@@ -1,3 +1,4 @@
+import { after as teardownAfter } from "./helpers/teardown.mjs";
 // Real IndexedDB and Web Locks: reload, orphan adoption, exit and cancellation.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -21,7 +22,7 @@ query mine():
 `.replace(' table docs:', 'table docs:');
 
 for(const worker of [false,true])test(`Chromium (worker=${worker}): offline byte custody transfers to a new tab after reload and places once; IDB abort and pagehide stay fenced`, { timeout: hangBudget(180) }, async t => {
-  const project = mkdtempSync(join(tmpdir(), 'sb4-media-browser-')); t.after(() => rmSync(project,{recursive:true,force:true}));
+  const project = mkdtempSync(join(tmpdir(), 'sb4-media-browser-')); teardownAfter(t, () => rmSync(project,{recursive:true,force:true}));
   const sourceDir = join(project,'snapback'); mkdirSync(sourceDir); writeFileSync(join(sourceDir,'schema.q'),source);
   const runtime=join(root,'packages/snapback4/src/web-worker-runtime.ts');
   const workerFault=`
@@ -45,7 +46,7 @@ window.refuseMediaPersistence = () => {
   IDBDatabase.prototype.transaction = function(...args) { const tx = original.apply(this,args); if(args[1] === 'readwrite') queueMicrotask(()=>{ try {tx.abort();} catch {} }); return tx; };
   return () => { IDBDatabase.prototype.transaction = original; };
 };
-`}); t.after(()=>witness.close());
+`}); teardownAfter(t, ()=>witness.close());
   const {page,api:url}=witness;
   const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.evaluate(url=>bootMedia(url),url);
@@ -75,7 +76,7 @@ window.refuseMediaPersistence = () => {
 });
 
 for(const worker of [false,true])test(`Chromium (worker=${worker}): shared receipts cannot bypass live input or lose entering ownership across orphan histories`,{timeout:hangBudget(180)},async t=>{
-  const project=mkdtempSync(join(tmpdir(),'sb4-media-adoption-'));t.after(()=>rmSync(project,{recursive:true,force:true}));
+  const project=mkdtempSync(join(tmpdir(),'sb4-media-adoption-'));teardownAfter(t, ()=>rmSync(project,{recursive:true,force:true}));
   const sourceDir=join(project,'snapback');mkdirSync(sourceDir);writeFileSync(join(sourceDir,'schema.q'),source);
   const witness=await launch({sourceDir,seed:[],entrySource:`
 window.proveMediaRecovery=async backend=>{
@@ -99,7 +100,7 @@ window.proveMediaRecovery=async backend=>{
  const retained=[];for(const store of await persist.others(name2+':tab-'))retained.push(...(await persist.load(store)).filter(c=>c.s==='o'&&c.v).map(c=>JSON.parse(c.v)));
  return {queue,copies,next,retained};
 };
-`});t.after(()=>witness.close());
+`});teardownAfter(t, ()=>witness.close());
   const backend=await fetch(witness.api+'/schema',{headers:{'x-snapback-persona':'alice'}}).then(r=>r.json());
   const result=await witness.page.evaluate(backend=>proveMediaRecovery(backend),backend);
   assert.equal(result.queue.find(e=>e.id==='collision').upload.bytes,'ee');assert.equal(result.queue.some(e=>e.id==='held-tail'),false);

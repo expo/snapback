@@ -1,0 +1,45 @@
+{
+  "scope": "Integration25 final semantic-source/evidence closure; subsequent report is data only",
+  "release": "0.4.41",
+  "semanticRuntimeCommit": "030a1ab426580372f3b7116724205990223af312",
+  "finalDocumentationAndEvidenceCommit": "72f73ab05179ff2d11da6558bb653da498a474f8",
+  "sourceAfterRuntime": "Deploy documentation rewrap with identical word sequence and changelog upgrade paragraph-to-bullet; no Rust/JS implementation change",
+  "bump": "7c364a917c",
+  "merges": {
+    "DX9": "ee7adeb4cc",
+    "REL": "d681fc410b",
+    "DX10": "33ee8cf8ff",
+    "main": [
+      "2ce713a595",
+      "00532affd8",
+      "030a1ab426"
+    ]
+  },
+  "SEC10Included": false,
+  "rawPrimaryAggregateGreen": false,
+  "rawIncomingDocsAggregateGreen": false,
+  "requiredAffectedProductTargets": "Qualified through original raw results and recorded normal-profile/flake/conflict-resolution supplements; raw receipts remain unchanged",
+  "knownLeanDisagreements": 18,
+  "newOrdinaryDifferentialDisagreements": 0,
+  "publicationQualified": false,
+  "wasm": {
+    "raw": 2415524,
+    "gzip": 738108,
+    "brotli": 555805,
+    "budget": 738608,
+    "headroom": 500
+  },
+  "recordSha256": {
+    "../affected-final.json": "bcf7ac37848c8a9c3b73ad9cf1bbbe34b06a99db37928c36bd25e3b0fa8b8b73",
+    "docs-affected.json": "9d044420c9ebb033285ef9a0c07249da2ad856d2678662ef6d77a455ffcdb575",
+    "qualification-supplements.json": "a500c95f24a067e48337b3a4080ad9b1841e558b0aedbf6ca2157a23513bee64",
+    "incoming-core-summary.json": "e88ab020e36cfdb2509fe757b915399fa8eb819c7ddc535359a33ca32c6f9870",
+    "incoming-cli-summary.json": "eafb0c5cb617883ef8ca56a33d6e42570905c89dfd6c9bad6aaef821473660a8",
+    "survey-summary.json": "be5274966473fec92e81e77a54860013eceb65ee0789be98dc69c85e3c5173be",
+    "audit-summary.json": "8aa979bf9eb91d2898cf36cecb6a078ad955a26b2d4fa87395165f98dcdf77fe",
+    "replay-summary.json": "262477f7a3464c75d65baf789dd113b16b8ccc12853fd2a731b84b475ca1a9ff",
+    "incoming-corpus-and-audit-integrity.json": "5aa7d557cc6a348ffe8e4e5e3ecbfac3d8105475518c735624243d165cae385c",
+    "guide-changes-upgrade-smoke.json": "3bc079c5c8f21d9a29a5a908abaff85c2831a58409923aba076ef8b3d9ce01dc"
+  },
+  "at": "2026-10-25T13:45:28.254801+00:00"
+}

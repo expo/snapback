@@ -1,0 +1,170 @@
+{
+  "baseline": "replay/final.json; original REL-audited cases",
+  "incoming": "replay/incoming.json",
+  "rawReasonsPreserved": true,
+  "comparisonNormalization": "Only temporary private-copy directory basenames final-* / incoming-* immediately before slash; diagnostic codes, text, ids, values and move remain exact",
+  "knownTrueRefusals": [
+    {
+      "wave": 25,
+      "lane": "004",
+      "move": "deploy",
+      "sameFailureStatus": true,
+      "sameReasonIgnoringOnlyPrivateCopyDirectory": true,
+      "reasonSha256": "8c8c3f67ddb6b8b2b51104304abc926ca9977564af88dfbad25e53f90b26ecb0",
+      "comparisonSha256": "bc7af889f88bde0644ac502080e08a6eb6f045abb4208cafe68a115f39c045a2"
+    },
+    {
+      "wave": 25,
+      "lane": "004",
+      "move": "rollback1",
+      "sameFailureStatus": true,
+      "sameReasonIgnoringOnlyPrivateCopyDirectory": true,
+      "reasonSha256": "3f291324adf3a51992309bd56cf1e25ebaabb452e73b3e254118df3fd6e77d82",
+      "comparisonSha256": "30684d3999b0377e74ef7798926db32bf42745c16922a9f3ae60eca622a2a020"
+    },
+    {
+      "wave": 25,
+      "lane": "004",
+      "move": "forward1",
+      "sameFailureStatus": true,
+      "sameReasonIgnoringOnlyPrivateCopyDirectory": true,
+      "reasonSha256": "8c8c3f67ddb6b8b2b51104304abc926ca9977564af88dfbad25e53f90b26ecb0",
+      "comparisonSha256": "bc7af889f88bde0644ac502080e08a6eb6f045abb4208cafe68a115f39c045a2"
+    },
+    {
+      "wave": 25,
+      "lane": "004",
+      "move": "rollback2",
+      "sameFailureStatus": true,
+      "sameReasonIgnoringOnlyPrivateCopyDirectory": true,
+      "reasonSha256": "3f291324adf3a51992309bd56cf1e25ebaabb452e73b3e254118df3fd6e77d82",
+      "comparisonSha256": "30684d3999b0377e74ef7798926db32bf42745c16922a9f3ae60eca622a2a020"
+    },
+    {
+      "wave": 25,
+      "lane": "004",
+      "move": "forward2",
+      "sameFailureStatus": true,
+      "sameReasonIgnoringOnlyPrivateCopyDirectory": true,
+      "reasonSha256": "8c8c3f67ddb6b8b2b51104304abc926ca9977564af88dfbad25e53f90b26ecb0",
+      "comparisonSha256": "bc7af889f88bde0644ac502080e08a6eb6f045abb4208cafe68a115f39c045a2"
+    },
+    {
+      "wave": 25,
+      "lane": "024",
+      "move": "deploy",
+      "sameFailureStatus": true,
+      "sameReasonIgnoringOnlyPrivateCopyDirectory": true,
+      "reasonSha256": "0b0257a162216826917b5619f50cb8f530839aafc11ed54cf8eb16fad76176a2",
+      "comparisonSha256": "0b0257a162216826917b5619f50cb8f530839aafc11ed54cf8eb16fad76176a2"
+    },
+    {
+      "wave": 25,
+      "lane": "024",
+      "move": "rollback1",
+      "sameFailureStatus": true,
+      "sameReasonIgnoringOnlyPrivateCopyDirectory": true,
+      "reasonSha256": "11b97dd0252251fc52639fb1e15b3d417900353fbd95d00867453aa959d9ff7e",
+      "comparisonSha256": "2e28213c150ea4ea47f856eb5a49a52704da0fe300c329834b818b614e43b612"
+    },
+    {
+      "wave": 25,
+      "lane": "024",
+      "move": "forward1",
+      "sameFailureStatus": true,
+      "sameReasonIgnoringOnlyPrivateCopyDirectory": true,
+      "reasonSha256": "0b0257a162216826917b5619f50cb8f530839aafc11ed54cf8eb16fad76176a2",
+      "comparisonSha256": "0b0257a162216826917b5619f50cb8f530839aafc11ed54cf8eb16fad76176a2"
+    },
+    {
+      "wave": 25,
+      "lane": "024",
+      "move": "rollback2",
+      "sameFailureStatus": true,
+      "sameReasonIgnoringOnlyPrivateCopyDirectory": true,
+      "reasonSha256": "11b97dd0252251fc52639fb1e15b3d417900353fbd95d00867453aa959d9ff7e",
+      "comparisonSha256": "2e28213c150ea4ea47f856eb5a49a52704da0fe300c329834b818b614e43b612"
+    },
+    {
+      "wave": 25,
+      "lane": "024",
+      "move": "forward2",
+      "sameFailureStatus": true,
+      "sameReasonIgnoringOnlyPrivateCopyDirectory": true,
+      "reasonSha256": "0b0257a162216826917b5619f50cb8f530839aafc11ed54cf8eb16fad76176a2",
+      "comparisonSha256": "0b0257a162216826917b5619f50cb8f530839aafc11ed54cf8eb16fad76176a2"
+    },
+    {
+      "wave": 25,
+      "lane": "030",
+      "move": "rollback1",
+      "sameFailureStatus": true,
+      "sameReasonIgnoringOnlyPrivateCopyDirectory": true,
+      "reasonSha256": "d4fe2bf6567c4193697895e9e33db19857f9875022ec1c661b012980ed1d96dd",
+      "comparisonSha256": "ab3c5aaef01ae1c157b24c1423979bd1c8bbbc11e2791aa94af6aa3d045e1536"
+    },
+    {
+      "wave": 25,
+      "lane": "030",
+      "move": "rollback2",
+      "sameFailureStatus": true,
+      "sameReasonIgnoringOnlyPrivateCopyDirectory": true,
+      "reasonSha256": "d4fe2bf6567c4193697895e9e33db19857f9875022ec1c661b012980ed1d96dd",
+      "comparisonSha256": "ab3c5aaef01ae1c157b24c1423979bd1c8bbbc11e2791aa94af6aa3d045e1536"
+    },
+    {
+      "wave": 25,
+      "lane": "045",
+      "move": "forward1",
+      "sameFailureStatus": true,
+      "sameReasonIgnoringOnlyPrivateCopyDirectory": true,
+      "reasonSha256": "7abc58d7d4533934ed573ed4f7dd5ef3a1afe994e560ab955e9d2eaae7e1d28b",
+      "comparisonSha256": "7abc58d7d4533934ed573ed4f7dd5ef3a1afe994e560ab955e9d2eaae7e1d28b"
+    },
+    {
+      "wave": 25,
+      "lane": "045",
+      "move": "forward2",
+      "sameFailureStatus": true,
+      "sameReasonIgnoringOnlyPrivateCopyDirectory": true,
+      "reasonSha256": "7abc58d7d4533934ed573ed4f7dd5ef3a1afe994e560ab955e9d2eaae7e1d28b",
+      "comparisonSha256": "7abc58d7d4533934ed573ed4f7dd5ef3a1afe994e560ab955e9d2eaae7e1d28b"
+    },
+    {
+      "wave": 27,
+      "lane": "012",
+      "move": "rollback1",
+      "sameFailureStatus": true,
+      "sameReasonIgnoringOnlyPrivateCopyDirectory": true,
+      "reasonSha256": "d6a1bddc19ec662c2f943dff6e8712c3090f660ecdfc06a27e7276079bf18a08",
+      "comparisonSha256": "d6a1bddc19ec662c2f943dff6e8712c3090f660ecdfc06a27e7276079bf18a08"
+    },
+    {
+      "wave": 27,
+      "lane": "012",
+      "move": "rollback2",
+      "sameFailureStatus": true,
+      "sameReasonIgnoringOnlyPrivateCopyDirectory": true,
+      "reasonSha256": "d6a1bddc19ec662c2f943dff6e8712c3090f660ecdfc06a27e7276079bf18a08",
+      "comparisonSha256": "d6a1bddc19ec662c2f943dff6e8712c3090f660ecdfc06a27e7276079bf18a08"
+    },
+    {
+      "wave": 27,
+      "lane": "042",
+      "move": "rollback1",
+      "sameFailureStatus": true,
+      "sameReasonIgnoringOnlyPrivateCopyDirectory": true,
+      "reasonSha256": "b8e47fafc5ca3e5c3b26089d8e39425b4e6fea852ca379422095238a500159fc",
+      "comparisonSha256": "b8e47fafc5ca3e5c3b26089d8e39425b4e6fea852ca379422095238a500159fc"
+    },
+    {
+      "wave": 27,
+      "lane": "042",
+      "move": "rollback2",
+      "sameFailureStatus": true,
+      "sameReasonIgnoringOnlyPrivateCopyDirectory": true,
+      "reasonSha256": "b8e47fafc5ca3e5c3b26089d8e39425b4e6fea852ca379422095238a500159fc",
+      "comparisonSha256": "b8e47fafc5ca3e5c3b26089d8e39425b4e6fea852ca379422095238a500159fc"
+    }
+  ]
+}

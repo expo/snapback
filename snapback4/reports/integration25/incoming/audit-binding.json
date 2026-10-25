@@ -1,0 +1,32 @@
+{
+  "binary": "/home/ccheever/sb4-loop/reports/integration25/bin-incoming-0.4.41",
+  "binarySha256": "31c84eb104f37db8a3dfd2d2aa01d0b26f75190edbc59a8cf4d3adb12cbbb105",
+  "sourceCommit": "030a1ab426580372f3b7116724205990223af312",
+  "at": "2026-10-25T13:43:19.506423+00:00",
+  "inheritedAuditSha256": "b8652c47ef9eced4335882851863af1a5ebfe1cff6197c731a24f966bbc208e1",
+  "auditHarnessSha256": "4285bb0cd9aaf1321f9078744eddad7a22dd5763f24e59215539c2a1cfca9fdb",
+  "resumedFrom": {
+    "binary": "/home/ccheever/sb4-loop/reports/integration25/bin-incoming-0.4.41",
+    "binarySha256": "31c84eb104f37db8a3dfd2d2aa01d0b26f75190edbc59a8cf4d3adb12cbbb105",
+    "sourceCommit": "030a1ab426580372f3b7116724205990223af312",
+    "at": "2026-10-25T13:38:11.917612+00:00",
+    "inheritedAuditSha256": "b8652c47ef9eced4335882851863af1a5ebfe1cff6197c731a24f966bbc208e1",
+    "auditHarnessSha256": "4285bb0cd9aaf1321f9078744eddad7a22dd5763f24e59215539c2a1cfca9fdb",
+    "resumedFrom": {
+      "binary": "/home/ccheever/sb4-loop/reports/integration25/bin-incoming-0.4.41",
+      "binarySha256": "31c84eb104f37db8a3dfd2d2aa01d0b26f75190edbc59a8cf4d3adb12cbbb105",
+      "sourceCommit": "030a1ab426580372f3b7116724205990223af312",
+      "at": "2026-10-25T13:19:33.413138+00:00",
+      "inheritedAuditSha256": "b8652c47ef9eced4335882851863af1a5ebfe1cff6197c731a24f966bbc208e1",
+      "auditHarnessSha256": "4285bb0cd9aaf1321f9078744eddad7a22dd5763f24e59215539c2a1cfca9fdb",
+      "resumedFrom": {
+        "binary": "/home/ccheever/sb4-loop/reports/integration25/bin-incoming-0.4.41",
+        "binarySha256": "31c84eb104f37db8a3dfd2d2aa01d0b26f75190edbc59a8cf4d3adb12cbbb105",
+        "sourceCommit": "030a1ab426580372f3b7116724205990223af312",
+        "at": "2026-10-25T12:59:07.673002+00:00",
+        "inheritedAuditSha256": "b8652c47ef9eced4335882851863af1a5ebfe1cff6197c731a24f966bbc208e1",
+        "auditHarnessSha256": "4285bb0cd9aaf1321f9078744eddad7a22dd5763f24e59215539c2a1cfca9fdb"
+      }
+    }
+  }
+}

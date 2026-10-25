@@ -360,7 +360,29 @@ card/programs/1:sendBrief | eligible
 card/programs/1:sendBrief | messageCounts/maintain | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/programs/1:sendBrief | messages/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
 card/programs/1:split | never
-card/programs/2:annotateNotes | never
+card/programs/2:checkin | never
+card/programs/2:createRoom | eligible
+card/programs/2:createRoom | members/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/programs/2:createRoom | rooms/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read rule
+card/programs/2:createRoom | rooms/upsert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read rule
+card/programs/2:edit | eligible
+card/programs/2:edit | messageCounts/maintain | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/programs/2:edit | messages/update | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/programs/2:join | eligible
+card/programs/2:join | members/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/programs/2:leave | eligible
+card/programs/2:pagePass | never
+card/programs/2:post | eligible
+card/programs/2:react | eligible
+card/programs/2:react | postLikes/maintain | "Deny" | read rule
+card/programs/2:react | reactionCounts/maintain | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
+card/programs/2:react | reactions/upsert | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
+card/programs/2:registerProfile | never
+card/programs/2:sendBrief | eligible
+card/programs/2:sendBrief | messageCounts/maintain | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/programs/2:sendBrief | messages/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule
+card/programs/2:split | never
+card/programs/3:annotateNotes | never
 card/reads/1:checkin | never
 card/reads/1:createRoom | eligible
 card/reads/1:createRoom | members/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule

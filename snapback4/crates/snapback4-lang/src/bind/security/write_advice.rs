@@ -94,7 +94,7 @@ pub(super) fn notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnostic>{
             let creation_guard=terms(&guard,&mut |t|if let RuleTerm::Field(c)=t {if let Some(value)=known.get(c){*t=value.clone();}});
             if kernel::implies(&admission,&creation_guard)==Ok(false)&&!probe_implies(&admission,&creation_guard) {
                 if !table_replaced.insert((creator.site.file.clone(),name.clone(),table.clone(),column.clone())){continue;}
-                out.push(Diagnostic::new(site,"N_CREATE_EDIT_ASYMMETRY",format!("{name}: {table}.{column} is supplied at create/upsert without its table update change guard {}",guard.quarry()),format!("enforce `{column}: <type> write <- {}` or declare deliberate creation asymmetry with `invariant {table}.{column} update only {}`; run test with non-null input",guard.quarry(),guard.quarry())).guide("security"));
+                out.push(Diagnostic::new(site,"N_CREATE_EDIT_ASYMMETRY",format!("{name}: {table}.{column} is supplied at create/upsert without its table update change guard {}",guard.quarry()),format!("for deliberate creation asymmetry declare `invariant {table}.{column} update only {}`; otherwise enforce `{column}: <type> write <- {}` at creation too; run test with non-null input",guard.quarry(),guard.quarry())).guide("security"));
             }
         }
     }
@@ -117,7 +117,7 @@ pub(super) fn notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnostic>{
             let private=audience.is_some_and(|r|kernel::implies(admission,r)==Ok(false));
             let code=if private{"N_PRIVATE_CREATE_EDIT_ASYMMETRY"}else{"N_CREATE_EDIT_ASYMMETRY"};
             let detail=if private{format!("; write-only private payload: creator admission does not imply column read audience {}",audience.unwrap().quarry())}else{String::new()};
-            out.push(Diagnostic::new(site,code,format!("{name}: argument-supplied {table}.{column} is open at create/upsert, but {operation} requires {} when this column changes{detail}",guard.quarry()),"confirm this column's creation authority against the specification; apply its change guard at creation too when required, declare independent column write intent, then run test with a non-null value").guide("security"));
+            out.push(Diagnostic::new(site,code,format!("{name}: argument-supplied {table}.{column} is open at create/upsert, but {operation} requires {} when this column changes{detail}",guard.quarry()),format!("for deliberate creation asymmetry declare `invariant {table}.{column} update only {}`; otherwise enforce `{column}: <type> write <- {}` at creation too; run test with a non-null value",guard.quarry(),guard.quarry())).guide("security"));
             replaced.insert((creator.site.file.clone(),name.clone(),table.clone(),column.clone()));
         }
     }

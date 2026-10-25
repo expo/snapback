@@ -1,0 +1,39 @@
+{
+  "baseQualifiedProduct": "70365904e65a71c3af923faedfc3b0713e3ee1a9",
+  "incomingMain": "22412ba20ba8ef3ba63a9970221aa673500821b2",
+  "integratedSource": "030a1ab426",
+  "codeConflicts": [],
+  "documentationConflicts": [
+    "snapback4/JOURNAL.md",
+    "snapback4/crates/snapback4-lang/src/guide/deploy.md",
+    "issues/20261024-snapback4-g6-followups.md"
+  ],
+  "upstreamPostgresFilesByteIdentical": {
+    "snapback4/crates/snapback4-core/src/engine/postgres/activation.rs": true,
+    "snapback4/crates/snapback4-core/src/engine/postgres/batch.rs": true,
+    "snapback4/crates/snapback4-core/src/engine/postgres/bootstrap_schema.rs": true,
+    "snapback4/crates/snapback4-core/src/engine/postgres/column_evolution.rs": true,
+    "snapback4/crates/snapback4-core/src/engine/postgres/deployment.rs": true,
+    "snapback4/crates/snapback4-core/src/engine/postgres/evolution.rs": true,
+    "snapback4/crates/snapback4-core/src/engine/postgres/group_commit.rs": true,
+    "snapback4/crates/snapback4-core/src/engine/postgres/group_tail.rs": true,
+    "snapback4/crates/snapback4-core/src/engine/postgres/managed_relations.rs": true,
+    "snapback4/crates/snapback4-core/src/engine/postgres/mod.rs": true,
+    "snapback4/crates/snapback4-core/src/engine/postgres/movement.rs": true,
+    "snapback4/crates/snapback4-core/src/engine/postgres/narrowed.rs": true,
+    "snapback4/crates/snapback4-core/src/engine/postgres/opening.rs": true,
+    "snapback4/crates/snapback4-core/src/engine/postgres/outbox.rs": true,
+    "snapback4/crates/snapback4-core/src/engine/postgres/ownership.rs": true,
+    "snapback4/crates/snapback4-core/src/engine/postgres/pipeline_tests.rs": true,
+    "snapback4/crates/snapback4-core/src/engine/postgres/revision.rs": true,
+    "snapback4/crates/snapback4-core/src/engine/postgres/store.rs": true
+  },
+  "upstreamEvidence": [
+    "snapback4/reports/20261025-g71-postgres/REPORT.md",
+    "snapback4/JOURNAL.md#2026-10-25--ff3-fix-round-2-final-qualification-and-custody"
+  ],
+  "upstreamKnownRed": "Evaluator concurrent-read-modify-write stress SQLSTATE40001; preserved, not retried away. Publication owns full Postgres/packed qualification.",
+  "repeatedIntegrationScope": "Complete core package; complete CLI binary and release integration targets; doc selector121files; full650schema survey+49conditional audits and100store replay; bothdifferential2k; rootchecks andWasm",
+  "reusedUnchangedScope": "Unchanged language logic (guide integration repeated), device/simulator/native execution paths and client consumers outside the doc/release scope retain prior product evidence. Shared PostgreSQL batch changes are guarded by backend selection; SQLite execution remains on the prior branch. New SQLite activation bookkeeping is requalified through the complete core package, CLI release tests and full copied schema/store campaigns. This is semantic-scope reuse under LLP0232, not byte-identical whole-crate input reuse.",
+  "wasmBudgetSha256": "b535af133e5f2615cd1ae6af25ba492fca24788ff68022a6462124c8ff55d33c"
+}

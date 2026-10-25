@@ -1,0 +1,18 @@
+{
+  "sourceCommit": "70365904e65a71c3af923faedfc3b0713e3ee1a9",
+  "at": "2026-10-25T10:09:23.666309+00:00",
+  "binary": "/home/ccheever/sb4-loop/reports/integration25/bin-0.4.41",
+  "version": "snapback4 0.4.41",
+  "binarySha256": "435ba3877ae9407e022a93051bb840cb9499e9b4144a86cd2c5b23e27d3cad18",
+  "wasmSha256": "372958943032961762aaf0aff6cece741bc354f26fa5a036d842555d1db7afea",
+  "profile": "test, scoped opt-level2; existing snapback4-device per-package opt-level3 retained; debug assertions/overflow checks remain enabled",
+  "env": {
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "CARGO_PROFILE_DEV_OPT_LEVEL": "2",
+    "CARGO_PROFILE_TEST_OPT_LEVEL": "2",
+    "RUST_MIN_STACK": "33554432"
+  },
+  "command": "cargo test -p snapback4 --features snapback4-core/test-support --test surf4 --no-run"
+}

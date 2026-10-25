@@ -1,3 +1,4 @@
+import { after } from "./helpers/teardown.mjs";
 import { captureStdout } from './helpers/server-output.mjs';
 import { hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
@@ -26,7 +27,7 @@ const root = resolve(import.meta.dirname, "../../..");
 function starter(t) {
   // Under the workspace so TypeScript sees the installed public dependencies.
   const dir = mkdtempSync(join(root, ".social-test-"));
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  after(t, () => rmSync(dir, { recursive: true, force: true }));
   for (const args of [["new", dir, "--template", "social"], ["check"]]) {
     const result = spawnSync(binary, args, { cwd: dir, encoding: "utf8" });
     assert.equal(result.status, 0, result.stdout + result.stderr);
@@ -125,7 +126,7 @@ test("social seed script creates two password accounts, signs in and refuses cro
     assert.equal(signedIn.session.principal, account.principal);
     const client = createClient({ url, session: signedIn.session });
     clients.push(client);
-    t.after(() => client.signOut());
+    after(t, () => client.signOut());
     const profile = await client.query(api.profile, { principal: account.principal });
     assert.equal(profile.data.name, `Seed ${n + 1}`, "the script wrote as this user");
     assert.equal((created.stdout + created.stderr + reused.stdout + reused.stderr).includes(signedIn.session.token), false);
@@ -146,7 +147,7 @@ test("social seed script creates two password accounts, signs in and refuses cro
 });
 test("new requires an explicit template and names what init creates", t => {
   const dir = mkdtempSync(join(root, ".social-test-"));
-  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  after(t, () => rmSync(dir, { recursive: true, force: true }));
   const result = spawnSync(binary, ["new", dir], { encoding: "utf8" });
   assert.equal(result.status, 2);
   assert.match(result.stderr, /Choose a template: --template social/);
@@ -166,7 +167,7 @@ for (const tier of ["native", "web"]) {
     assert.ok(signup.session, JSON.stringify(signup));
     const owner = signup.session.principal;
     const author = createClient({ url, token: signup.session.token });
-    t.after(() => author.close());
+    after(t, () => author.close());
     const created = await author.mutate(api.post, { body: "cold fixture" });
     assert.equal(created.state, "sent", JSON.stringify(created));
     const oldPost = created.result.id;
@@ -189,7 +190,7 @@ for (const tier of ["native", "web"]) {
         return fetch(input, init);
       },
     });
-    t.after(() => client.close());
+    after(t, () => client.close());
     offline = true;
     assert.equal(client.acquired, false);
     for (const post of [oldPost, "absent-before-acquisition"]) {
@@ -270,13 +271,13 @@ test("social starter runs through the public client: feed, likes, receipts, typi
   const server = spawn(binary, ["dev", "--port", "0", "--no-watch"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
   const readStdout = captureStdout(server);
   server.stdout.on("data", bytes => { output += bytes; }); server.stderr.on("data", bytes => { output += bytes; });
-  t.after(async () => { if (server.exitCode === null) { const stopped = new Promise(resolve => server.once("exit", resolve)); server.kill("SIGTERM"); await stopped; } });
+  after(t, async () => { if (server.exitCode === null) { const stopped = new Promise(resolve => server.once("exit", resolve)); server.kill("SIGTERM"); await stopped; } });
   const url = await until(() => { assert.equal(server.exitCode, null, output); return readStdout().match(/http:\/\/127\.0\.0\.1:\d+(?=\r?\n)/)?.[0]; }, "social dev ready");
   await until(() => output.includes("notifications.mjs (pid"), "declared starter worker ready");
   const wasm = readFileSync(join(root, "packages/snapback4/src/wasm/snapback4_device_bg.wasm"));
   const open = async () => {
     const app = createApp({ url, sessionStore: memorySessionStore(), device: webDevice({ wasm, persist: memoryPersistence() }) });
-    t.after(() => app.close());
+    after(t, () => app.close());
     assert.equal((await app.ready).ok, true);
     assert.equal((await app.auth.guest()).ok, true);
     return app;
@@ -315,7 +316,7 @@ test("social starter runs through the public client: feed, likes, receipts, typi
     if (new URL(input).pathname === "/m/setTyping") dispatched++;
     return fetch(input, init);
   } });
-  t.after(() => online.close());
+  after(t, () => online.close());
   assert.equal((await online.mutate(api.setTyping, { conversation })).state, "sent");
   assert.equal((await a.query(api.typingIn, { conversation })).data.length, 1);
   await fetch(`${url}/dev/clock/advance`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ duration: "5s" }) });
@@ -402,16 +403,16 @@ for (const tier of ["native", "web"]) test(`social DM ${tier}: concurrent opens 
     } catch (error) { res.writeHead(500); res.end(String(error)); }
   });
   await new Promise(resolve => gate.listen(0, "127.0.0.1", resolve));
-  t.after(async () => { release.resolve(); await new Promise(resolve => gate.close(resolve)); });
+  after(t, async () => { release.resolve(); await new Promise(resolve => gate.close(resolve)); });
   let holdOpens = true;
   const [a, b, outsider] = sessions.map(({ session }) => createClient({ url, token: session.token,
     fetch: (input, init) => fetch(holdOpens && new URL(input).pathname === "/m/openDirect"
       ? `http://127.0.0.1:${gate.address().port}/m/openDirect` : input, init),
   }));
   const db = new DatabaseSync(join(dir, ".snapback4/store.sqlite"), { readOnly: true });
-  t.after(() => db.close());
+  after(t, () => db.close());
   const exists = id => !!db.prepare("SELECT 1 FROM r WHERE id = ?").get(id);
-  t.after(() => Promise.all([a.close(), b.close(), outsider.close()]));
+  after(t, () => Promise.all([a.close(), b.close(), outsider.close()]));
   let offline = false;
   const device = tier === "native" ? processDevice({ binary, dir: join(dir, "dm-device") }) :
     webDevice({ persist: memoryPersistence(), wasm: readFileSync(join(root, "packages/snapback4/src/wasm/snapback4_device_bg.wasm")) });
@@ -419,7 +420,7 @@ for (const tier of ["native", "web"]) test(`social DM ${tier}: concurrent opens 
     if (offline) throw Error("offline");
     return new URL(input).pathname === "/changes" ? parkedChanges(init.signal) : fetch(input, init);
   } });
-  t.after(() => local.close());
+  after(t, () => local.close());
   await local.sync();
   const peer = sessions[1].session.principal;
   const absent = await local.query(api.directConversation, { other: peer });
@@ -466,7 +467,7 @@ for (const tier of ["native", "web"]) test(`social DM ${tier}: concurrent opens 
   const outsiderDevice = tier === "native" ? processDevice({ binary, dir: join(dir, "outsider-device") }) :
     webDevice({ persist: memoryPersistence(), wasm: readFileSync(join(root, "packages/snapback4/src/wasm/snapback4_device_bg.wasm")) });
   const outsiderReplica = await createLocalClient({ url, session: sessions[2].session, device: outsiderDevice });
-  t.after(() => outsiderReplica.close());
+  after(t, () => outsiderReplica.close());
   await outsiderReplica.sync();
   assert.equal(outsiderReplica.acquired, true);
   assert.equal((await outsiderReplica.residency()).tables.directChats?.rows ?? 0, 0,
@@ -514,9 +515,12 @@ test("guide aliases send schedules, DMs and Expo readers to their owning cards",
   }
   const native = spawnSync(binary, ["guide", "native"], { encoding: "utf8" }).stdout;
   assert.match(native, /Expo client[^\n]*guide client[^\n]*guide witness/);
-  assert.match(native, /Truncated:.*\d+-line card: snapback4 guide native --section/);
-  assert.match(native, /Sections of guide native:/);
-  assert.match(native, /--full prints all \d+ lines/);
+  const fullNative = spawnSync(binary, ["guide", "native", "--full"], { encoding: "utf8" }).stdout;
+  assert.equal(native, fullNative, "a short card is now complete without truncation");
+  const long = spawnSync(binary, ["guide", "language"], { encoding: "utf8" }).stdout;
+  assert.match(long, /Truncated:.*\d+-line card: snapback4 guide language --section/);
+  assert.match(long, /Sections of guide language:/);
+  assert.match(long, /--full prints all \d+ lines/);
 });
 
 test("social proposal associations are durable, account/backend scoped and preserve every send's arguments", async t => {
@@ -577,14 +581,14 @@ test("social starter wasm: offline history predicts in compose order and settles
     assert.ok(response.session, JSON.stringify(response)); sessions.push(response.session);
   }
   const remote = createClient({ url, token: sessions[1].token });
-  t.after(() => remote.close());
+  after(t, () => remote.close());
   let offline = false;
   const device = webDevice({ persist: memoryPersistence(), wasm: readFileSync(join(root, "packages/snapback4/src/wasm/snapback4_device_bg.wasm")) });
   const local = await createLocalClient({ url, session: sessions[0], device, fetch: (input, init) => {
     if (offline) throw new TypeError("offline");
     return new URL(input).pathname === "/changes" ? parkedChanges(init.signal) : fetch(input, init);
   } });
-  t.after(() => local.close());
+  after(t, () => local.close());
   const created = await local.mutate(api.createConversation, { title: "offline history" });
   assert.equal(created.state, "sent", JSON.stringify(created));
   const conversation = created.result;
@@ -654,9 +658,9 @@ query badges(conversation: conversations):
       if (offline) throw new TypeError("offline");
       return new URL(input).pathname === "/changes" ? parkedChanges(init.signal) : fetch(input, init);
     } });
-  t.after(() => local.close());
+  after(t, () => local.close());
   const remote = createClient({ url, token: session.token });
-  t.after(() => remote.close());
+  after(t, () => remote.close());
   const created = await local.mutate(api.createConversation, { title: "receipt badge" });
   assert.equal(created.state, "sent", JSON.stringify(created));
   const conversation = created.result;
@@ -729,7 +733,7 @@ for (const tier of ['native', 'wasm']) test(`social ${tier}: quote windows share
     if (offline) throw new TypeError('offline');
     return new URL(input).pathname === '/changes' ? parkedChanges(init.signal) : fetch(input, init);
   } });
-  t.after(() => client.close()); await client.sync();
+  after(t, () => client.close()); await client.sync();
   for (const through of [1, 480]) {
     const args = { conversation, through };
     const history = await client.query(api.history, args), receipts = await client.query(api.messageReceipts, args);

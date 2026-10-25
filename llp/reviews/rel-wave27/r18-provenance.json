@@ -1,0 +1,18 @@
+{
+  "date": "2026-10-24",
+  "round": 18,
+  "models": {
+    "codex": "gpt-6.1-sol high, fresh codex exec",
+    "muse": "muse-spark-1.3-contributor high, helper Meta fallback"
+  },
+  "commands": {
+    "codex": "codex exec -m gpt-6.1-sol -c model_reasoning_effort=high --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox - < brief",
+    "muse": "~/sb4-loop/muse-exec.sh --yolo --model muse-spark-1.3-contributor --reasoning-effort high --prompt-file brief"
+  },
+  "scope": "Same immutable final normative amendment and exact emitted recipe; both READY. Public catalog excludes only ephemeral populations; SQL/data errors remain refusals. Actual packed social starter supplies regression. Prior R10 authority remains unchanged.",
+  "sha256": {
+    "r18-brief.md": "22c746facc4835828a5978d02be682d98a1173a351e69fe2c78e97fab50b449a",
+    "r18-codex.md": "1ef8a8cb2fca1ff7764c34b3c4f05926884415ab5695fcc64f8fa4a62360b551",
+    "r18-muse.md": "d929fcc3c0c333b0ff991bbf077c265a341df8a34b15bb1756c6a31bc454a81c"
+  }
+}

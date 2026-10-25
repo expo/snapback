@@ -58,7 +58,7 @@ const at = process.argv.indexOf('-o'); copyFileSync(process.argv[at + 2], proces
     const budget = path.join(root, 'metrics/wasm-budget.json');
     const log = path.join(dir, 'tools.log');
     for (const name of ['build-wasm.sh', 'measure-wasm.sh']) {
-      const run = (dirty = '', familyFail = false, optFail = false) => spawnSync('bash', [path.join(root, 'scripts', name)], {
+      const run = (dirty = '', familyFail = false, optFail = false, args = []) => spawnSync('bash', [path.join(root, 'scripts', name), ...args], {
         encoding: 'utf8', env: { ...process.env, PATH: `${bin}:${path.dirname(process.execPath)}:${process.env.PATH}`, TOOLS_LOG: log, TEST_DIRTY: dirty, TEST_FAMILY_FAIL: String(familyFail), TEST_OPT_FAIL: String(optFail) },
       });
       rmSync(budget, { force: true }); writeFileSync(log, '');
@@ -107,10 +107,19 @@ const at = process.argv.indexOf('-o'); copyFileSync(process.argv[at + 2], proces
         writeFileSync(log, '');
         const metrics = path.join(root, 'metrics/wasm.jsonl');
         const before = readFileSync(metrics, 'utf8');
+        const readOnly = run('', false, false, ['--no-record']);
+        assert.equal(readOnly.status, 0, readOnly.stderr);
+        assert.ok(JSON.parse(readOnly.stdout).over > 0, 'read-only checks still measure the actual artifact');
+        assert.equal(readFileSync(metrics, 'utf8'), before, 'affected measurement must not change tracked inputs');
+        const recorded = run();
+        assert.equal(recorded.status, 0, recorded.stderr);
+        const after = readFileSync(metrics, 'utf8');
+        assert.equal(after, before + recorded.stdout, 'ordinary measurement still appends its provenance line');
+        writeFileSync(log, '');
         const rejected = run('', true);
         assert.notEqual(rejected.status, 0);
         assert.doesNotMatch(readFileSync(log, 'utf8'), /cargo/);
-        assert.equal(readFileSync(metrics, 'utf8'), before, 'a second family must not publish a measurement');
+        assert.equal(readFileSync(metrics, 'utf8'), after, 'a second family must not publish a measurement');
       }
     }
   } finally { rmSync(dir, { recursive: true }); }

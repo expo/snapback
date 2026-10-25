@@ -30,6 +30,14 @@ From the G6 blind review (Sol APPROVE WITH NITS, Grok APPROVE) and the G6 report
    any commit: a 1 % write stream gives 92.3 % misses and 5.1k reads/s.
    Cross-revision promotion with footprints (§4.1) is the designed remedy.
 
+5. **Store-port ratchet (REL affected audit, 2026-10-24).** The current
+   `store_port_ratchet` reports production accesses above the port in
+   `engine/command.rs` (1) and `engine/revision_cache.rs` (4), violating
+   LLP 3000.009.001.000 §3.2. These files match origin/main; REL does not
+   modify them. Move the driver access/typing behind the admitted port,
+   or review any lexical false positive explicitly; do not silently raise
+   the zero-production-access allowlist. Reproduce from `snapback4` with
+   `CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 cargo test -p snapback4 --test store_port_ratchet`.
 
 ## FF2 resolution of item 1 — 2026-10-24
 
@@ -44,5 +52,28 @@ fixture setup/TCP-profile errors are excluded from that evidence; the qualified
 negative uses the production-supported Unix socket. The PG runner includes
 this test with the existing startup-cleanup witness.
 
-Items **2 and 4 remain open**; item 3 is resolved above. This ticket stays in
-`issues/` for the remaining engineering work and default-on prerequisites.
+Items **2 and 4 remain open**; item 3 is resolved above. The test-census
+resolutions of items 5 and 6 are recorded below.
+
+6. **Codec census (REL affected audit, 2026-10-25).** The
+   `wasm-codec-census.test.mjs` mutation-receipt exclusion test counts eighteen
+   serde sites in `engine/revision_cache_tests.rs` and
+   `engine/revision_cache_grant_tests.rs` as production, alongside the one
+   admitted site in `engine/mutation.rs`. These source files match the merged
+   main. Teach the census to prove the existing `cfg(test)` module exclusions;
+   retain the single-production-site assertion rather than increasing it to 19.
+
+## Integration 25 resolution of test census items 5 and 6 — 2026-10-25
+
+Item 5's five production sites are lexical false positives: each names the
+engine's `super::postgres` adapter module, rather than the external driver
+crate. The scanner now distinguishes only those four reviewed adapter types, with negative
+controls retaining external/absolute drivers, re-exported driver types and actual query calls. Production
+allowances remain unchanged. Test-only counts are regenerated for the new G6
+fixtures and integration observers.
+
+Item 6 now follows literal `#[path]` declarations and their excluded children
+from a proved cfg(test) parent. Removing the gate exposes the sibling again;
+its regression and the original single-production-codec assertion pass.
+Items 2 and 4 retain their existing open scope; item 3 follows the upstream
+opt-in/default-on ruling recorded above.

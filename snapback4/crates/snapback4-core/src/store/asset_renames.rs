@@ -5,7 +5,7 @@ use std::collections::BTreeMap;
 type Maps=BTreeMap<String,BTreeMap<String,String>>;
 fn refusal(message:impl Into<String>)->RuntimeError {RuntimeError::Structural{code:"E_ADOPT",message:message.into()}}
 fn replace_keys<T>(fields:BTreeMap<String,T>,map:&BTreeMap<String,String>)->BTreeMap<String,T> {fields.into_iter().map(|(name,value)|(map.get(&name).cloned().unwrap_or(name),value)).collect()}
-fn table(table:&mut Table,map:&BTreeMap<String,String>){
+pub(super) fn table(table:&mut Table,map:&BTreeMap<String,String>){
     table.columns=replace_keys(std::mem::take(&mut table.columns),map);
     table.defaults=replace_keys(std::mem::take(&mut table.defaults),map);
     table.column_reads=replace_keys(std::mem::take(&mut table.column_reads),map);
@@ -65,7 +65,7 @@ pub(super) fn prepare(conn:&Connection,next:&Schema,catalog:&BTreeMap<String,i64
                 if let Some(before)=prior.table(name).filter(|t|t.columns.contains_key(old)){
                     let source=&before.columns[old];let destination=&current.columns[new];
                     if reference(source)||reference(destination){
-                        if source!=destination||before.on_delete.get(old)!=current.on_delete.get(new)||before.through.as_ref().is_some_and(|t|t.reference==*old)||current.through.as_ref().is_some_and(|t|t.reference==*new){return Err(refusal("reference rename requires identical nominal type, deletion policy and uncaptured ownership in both directions"))}
+                        if source!=destination||before.through.as_ref().is_some_and(|t|t.reference==*old)||current.through.as_ref().is_some_and(|t|t.reference==*new){return Err(refusal("reference rename requires identical nominal type and uncaptured ownership in both directions"))}
                     }
                 }
             }

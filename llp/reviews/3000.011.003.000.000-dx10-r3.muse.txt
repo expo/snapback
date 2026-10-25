@@ -1,0 +1,21 @@
+muse: workspace root: /home/ccheever/projects/sb4-b27-dx10 (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=25dbb4b5-ddd5-4c16-8b4f-222324379d44]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-b27-dx10 (cwd default)
+muse: workspace trust: trusted source=run-flag
+**READY** — no remaining material correctness concerns in the final DX10 source. (Read-only review; no files edited, no credentials or other worktrees touched. Readiness only — no execution qualification performed.)
+
+What I verified, claim by claim:
+
+- **Driver-death false pass (round-1): repaired and sound.** `lostDriver` fires on child `exit` or `disconnect` and appends `E_SERVE_DRIVER_EXIT` unless authorized cleanup already started (`cleaning` is set before stdin destroy, so normal shutdown cannot trip it). Every other bad path also refuses: spawn error, missing keeper handshake, no JSON, early npm exit, leftover non-zombie members, unterminated buffer, held lock. Nothing in the file can return `ok:true` after any observed anomaly.
+- **Snapshot durability + the two hardening changes: present.** `save()` writes temp → `fsync` → `rename` → folder `fsync`; [proof-accounts.ts](/home/ccheever/projects/sb4-b27-dx10/snapback4/packages/snapback4/src/proof-accounts.ts:149) additionally fsyncs the deployment dir after `mkdir proof-accounts/`, and [proof-serve-check.ts](/home/ccheever/projects/sb4-b27-dx10/snapback4/packages/snapback4/src/proof-serve-check.ts:106) rechecks the unterminated-stdout buffer after final drain (deduped by code, so no double-count).
+- **Canonical argument order: repaired.** `canonical()` recursively sorts object keys; the resume test replays reordered nested args against the same mutation ID.
+- **Stale proof API: repaired.** `proof_api.md` was regenerated (serveCheck row, `ProvisionAccountsOptions`, `ServeCheckOptions/Report`, `deploymentDir`, `provisionUsers` retype all match source), and the hand-maintained `api.md` row now lists `serveCheck` plus the new types. This also resolves the round-2 note about the omitted hand row.
+- **Roster safety holds:** 0600 enforcement, plan pinning, entry validation (slot bounds, duplicates, email domain, UUID id, done-requires-principal+args), `.lock` exclusivity with operator-inspection wording, login-before-signup on resume, no replacement of a known failed login, no re-provisioning of completed entries. `startServe` binds `deploymentDir` and closures pass it through, matching §16.
+- **Guide prose matches implementation:** testing.md's serve-check section (one JSON line, 30s/30s defaults, group SIGTERM, children+lock before forced cleanup, credential secrecy) and staging.md's roster section (0600, travels with the store, new name = new accounts, stable args, lock guidance) are both accurate. The packed test's 3-block assumption is intact.
+- **Changelog/version as instructed:** `CHANGELOG.md` carries `## 0.4.41`; `package.json` stays `0.4.40`. DX9 likewise does not bump the version (only an undici patch), so no version conflict at merge.
+- **DX9 `serveUntilSignal` compatibility:** runtime-independent — disjoint `proof.ts` hunks, no shared state, `ServeHost` still satisfies `Pick<ProofHost,"stop">`. Merge needs three mechanical steps, none affecting correctness: rerun `generate-proof-api.mjs` (both branches insert a row after `selectByValue`), combine the two `## 0.4.41` changelog sections under one heading, and keep DX9's prose appendix (fence-free, so the 3-block test stays green either way).
+- **SEC10 handoff respected:** HEAD's wording-only edits stay out of SEC10's current lines; no gate semantic fix is claimed anywhere in DX10.
+
+Non-material notes for the qualification run, not verdict-affecting: a nonexistent `rosterDir` surfaces raw `ENOENT` rather than `E_PRODUCTION_ROSTER`; the dir-fsync pattern is untested on Windows (serve-check refuses win32, but the roster tests carry no win32 skip — the Linux qualification run will tell); login-time `E_RATE_LIMIT` maps to a safe-direction roster refusal rather than a timeout.

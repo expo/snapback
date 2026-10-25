@@ -30,7 +30,7 @@ mod intent;
 mod images;
 mod columns;
 mod privilege;
-mod authority_walk;
+pub(super) mod authority_walk;
 pub use audit::{Exposure, Grant};
 pub use observers::Obligation;
 pub use adoption::{draft, UncoveredExposure};
@@ -113,7 +113,8 @@ impl Report {
         for v in &self.invariants {
             if !all && v.status != Status::Refuted {continue;}
             if !all&&v.status==Status::Refuted&&v.counterexample.as_ref().is_some_and(|c|!c.reachability.is_reachable()){out.push_str(&format!("  {}: seed/synthetic refutation only (non-failing; --all for details)\n",v.invariant.target_label()));continue;}
-            out.push_str(&format!("  {:?}: {}.{} {} — direct rule {:?}\n",v.status,v.invariant.table,format!("{}{}",v.invariant.column.as_ref().map(|c|format!("{c} ")).unwrap_or_default(),v.invariant.target),v.invariant.predicate,v.direct_rule));
+            let label=if v.status==Status::Unproved&&v.direct_rule==Status::Proved{"enforced by rule; additional paths not proved"}else{match v.status{Status::Proved=>"Proved",Status::Refuted=>"Refuted",Status::Unproved=>"Unproved"}};
+            out.push_str(&format!("  {}: {}.{} {} — direct rule {:?}\n",label,v.invariant.table,format!("{}{}",v.invariant.column.as_ref().map(|c|format!("{c} ")).unwrap_or_default(),v.invariant.target),v.invariant.predicate,v.direct_rule));
             for reason in &v.reasons {out.push_str(&format!("    {reason}\n"));}
             for o in &v.obligations {out.push_str(&format!("    {:?}: {} — {}\n",o.status,o.path,o.reason));if let Some(repair)=&o.repair{out.push_str(&format!("      repair: {repair}\n"));}}
             if let Some(c)=&v.counterexample {out.push_str(&format!("    counterexample {}\n",serde_json::to_string(c).unwrap()));}

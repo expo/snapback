@@ -17,6 +17,13 @@ pub(super) fn plan(
     options: &Options,
     held_owner: Option<&crate::store_owner::Owner>,
 ) -> Result<serde_json::Value, String> {
+    if let Some(path)=options.flags.get("bridge") {
+        let dir=store_path.parent().ok_or("no deployment directory")?;
+        let mut store=snapback4_core::store_port::AnyStore::open_read_only(store_path).map_err(|e|e.to_string())?;
+        let current=store.release_status(0,None,None).map_err(|e|e.to_string())?["release"].as_u64().ok_or("a bridge needs a current release")?;
+        super::release_bridge::write(Path::new(path),dir,current,release,&[])?;
+        eprintln!("bridge starter written to {path}; follow ROLLBACK-CHECKLIST.md before selecting exact source");
+    }
     let bound = super::releases::bound_at(root.clone())?;
     let project = Project { root };
     let native = crate::native::prepare(&project, &bound).map_err(|e| e.to_string())?;
@@ -191,7 +198,10 @@ pub(super) fn plan(
         if let Some(current) = held["release"].as_u64() {
             let old_root=store_path.parent().ok_or("no deployment directory")?.join("releases").join(current.to_string());
             let old=super::releases::bound_at(old_root.clone())?;
-            hazards.extend(super::rollback_foresight::risks(&candidate_schema,&old.schema,current,store_path.parent().unwrap()));
+            let covered=rollback_views.iter().find(|v|v.target==current);
+            let risks=super::rollback_foresight::risks(&candidate_schema,&old.schema,current,store_path.parent().unwrap());
+            if let Some(view)=covered {for risk in risks {notes.push(format!("{risk}; default rollback covered by registered view {} (exact source remains subject to this risk)",view.release));}}
+            else {hazards.extend(risks);}
             // Exact reverse adoption tests today's post-deploy image, separately from future-write risks.
             let reverse_path=snapshot.0.join("reverse.sqlite");
             engine.store().snapshot_to(&reverse_path).map_err(|e|e.to_string())?;
@@ -213,6 +223,7 @@ pub(super) fn plan(
                     if effects.hidden_rows>0&&!rollback_views.iter().any(|v|v.target==current){return Err(format!("E_ADOPT: deploy would hide {} old-table rows on rollback to release {current}; retain a compiled guarded bridge or declare intentional hiding",effects.hidden_rows))}
                     rollback_visibility=Some(effects);
                 },
+                Err(error) if covered.is_some()=>notes.push(format!("exact rollback to release {current} refuses: {error}; default rollback covered by registered view {}",covered.unwrap().release)),
                 Err(error) => hazards.push(format!("rollback to release {current} refuses on the post-deploy snapshot: {error}; run `snapback4 rollback {} --to {current} --check --bridge <new-dir>` and preserve the required fields/domains in a bridge",store_path.parent().unwrap().display())),
             }
         }
@@ -232,11 +243,7 @@ pub(super) fn plan(
         }
         return Ok(payload);
     }
-    if let Some(path) = options.flags.get("bridge") {
-        let current = held["release"].as_u64().ok_or("a bridge needs a current deployed release")?;
-        super::release_bridge::write(Path::new(path),store_path.parent().ok_or("no deployment directory")?,current,release,&checklist)?;
-        eprintln!("bridge starter written to {path}; review its loosened target source and follow ROLLBACK-CHECKLIST.md before activation");
-    }
+
     if options.json {
         println!("{}",serde_json::to_string_pretty(&payload).unwrap());
     } else {

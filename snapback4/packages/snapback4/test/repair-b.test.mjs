@@ -1,3 +1,4 @@
+import { after as teardownAfter } from "./helpers/teardown.mjs";
 import { captureStdout } from './helpers/server-output.mjs';
 import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 // Native round trip uses the same Device without requiring a wasm build.
@@ -36,7 +37,9 @@ test("Repair B carries both bounds and resumes a private transfer cursor", { tim
   const exited = once(server, "exit");
   let log = "", client, core;
   server.stderr.on("data", chunk => { log += chunk; });
-  t.after(async () => { await client?.close(); if (server.exitCode == null && server.signalCode == null) server.kill(); await exited; rmSync(directory, { recursive: true, force: true }); });
+  teardownAfter(t, () => rmSync(directory, { recursive: true, force: true }));
+  teardownAfter(t, async () => { if (server.exitCode == null && server.signalCode == null) server.kill(); await exited; });
+  teardownAfter(t, () => client?.close());
   const url = await new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error(log)), hangBudget());
     server.once("exit", () => { clearTimeout(timer); reject(new Error(log)); });
@@ -79,7 +82,7 @@ test("Repair B carries both bounds and resumes a private transfer cursor", { tim
   const watch = client.observe({ kind: "query", name: "counter" }, {});
   const watched = [];
   watch.subscribe(() => { const value = watch.getSnapshot().data?.n; if (value != null) watched.push(value); });
-  t.after(() => watch.close());
+  teardownAfter(t, () => watch.close());
   const published = (await ok({ op: "state" })).watermark;
   mode = "hold";
   await post("/m/bump", { id: "bob", args: {} }, "bob");
@@ -289,7 +292,7 @@ test("row reset between A2 acquisition and B fetches B's backend and retires A's
   const directory = mkdtempSync(join(tmpdir(), "sb4-repair-b-reset-"));
   const servers = [];
   let client, core, deviceName, switched = false, adoptedA2 = false, bSchemas = 0, schemaReads = 0, receipt;
-  t.after(async () => {
+  teardownAfter(t, async () => {
     await client?.close(); await core?.close();
     for (const { server, exited } of servers) { if (server.exitCode == null && server.signalCode == null) server.kill(); await exited; }
     rmSync(directory, { recursive: true, force: true });

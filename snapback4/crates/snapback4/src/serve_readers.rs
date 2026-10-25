@@ -97,7 +97,7 @@ impl QueryReaders {
     }
     // Startup has no global mutex yet. PG serve readiness includes all 30
     // detached loans, including their identity/generation qualification.
-    pub(super) fn prepare(&mut self, engine: &Engine) -> Result<(), RuntimeError> {
+    pub(super) fn prepare_population(&mut self, engine: &Engine) -> Result<(), RuntimeError> {
         #[cfg(feature = "postgres")]
         if matches!(engine.store(), snapback4_core::store_port::AnyStore::Postgres(_)) {
             let source = self.source.as_ref().ok_or_else(|| RuntimeError::Store("Postgres reader population unavailable before readiness".into()))?;

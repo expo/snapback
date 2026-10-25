@@ -1,0 +1,219 @@
+{
+  "at": "2026-10-25T13:08:49.646930+00:00",
+  "rule": "Only completed incoming-core/CLI and unscoped-docs logged test executables; no active executables, libraries, host binaries, configured guide target or publication paths. All three source runs complete.",
+  "removed": [
+    {
+      "path": "target/debug/deps/action_context-f57e7bde106ce976",
+      "bytes": 20386520
+    },
+    {
+      "path": "target/debug/deps/adoption_scale-c664a629cff2538f",
+      "bytes": 36097248
+    },
+    {
+      "path": "target/debug/deps/asset_lists-fc12226e6a0ce534",
+      "bytes": 32690584
+    },
+    {
+      "path": "target/debug/deps/born_perf-ec9be132b47be76c",
+      "bytes": 31804888
+    },
+    {
+      "path": "target/debug/deps/bound_session-a6901e63fcdc2361",
+      "bytes": 20524504
+    },
+    {
+      "path": "target/debug/deps/corpus-76cc18872497a0ee",
+      "bytes": 24700664
+    },
+    {
+      "path": "target/debug/deps/delivery_bounds-e3d5144f7c9c4a26",
+      "bytes": 32478816
+    },
+    {
+      "path": "target/debug/deps/dev_reset-dc2a4f8146f29bb8",
+      "bytes": 36087048
+    },
+    {
+      "path": "target/debug/deps/disclosure-ec76c0412863ffa0",
+      "bytes": 37060544
+    },
+    {
+      "path": "target/debug/deps/effect_policy-22d7378598774b71",
+      "bytes": 33021184
+    },
+    {
+      "path": "target/debug/deps/ephemeral-5e97897a033e92cd",
+      "bytes": 36444376
+    },
+    {
+      "path": "target/debug/deps/event_slot_snapshot-37578218e8631f99",
+      "bytes": 22115784
+    },
+    {
+      "path": "target/debug/deps/expiring_adoption-c36e7764724be75f",
+      "bytes": 30782072
+    },
+    {
+      "path": "target/debug/deps/file_assets-2a10e96505ed4f10",
+      "bytes": 35788656
+    },
+    {
+      "path": "target/debug/deps/group_commit_measure-7cbb3ebff809edd6",
+      "bytes": 1060112
+    },
+    {
+      "path": "target/debug/deps/guide-2c33e33af06a228d",
+      "bytes": 554634672
+    },
+    {
+      "path": "target/debug/deps/identity-7886581dea0647c8",
+      "bytes": 4997536
+    },
+    {
+      "path": "target/debug/deps/job_time_audiences-1d552b0f4a704e0f",
+      "bytes": 36312976
+    },
+    {
+      "path": "target/debug/deps/lane_source-b6f07b1a28235089",
+      "bytes": 20999016
+    },
+    {
+      "path": "target/debug/deps/maintained_columns_review-3678b66e5a163ff2",
+      "bytes": 32246184
+    },
+    {
+      "path": "target/debug/deps/membership_discovery_steps-5fc44e0ae0673d3f",
+      "bytes": 35279584
+    },
+    {
+      "path": "target/debug/deps/meter-54eeedcb6bec557f",
+      "bytes": 24043704
+    },
+    {
+      "path": "target/debug/deps/nul_chokepoints-149988c550d868d0",
+      "bytes": 32787848
+    },
+    {
+      "path": "target/debug/deps/overlay_measure-ff63fbf8fc676f5f",
+      "bytes": 1060088
+    },
+    {
+      "path": "target/debug/deps/pending_metadata_heap-78ddde04d1c0d4a0",
+      "bytes": 19939008
+    },
+    {
+      "path": "target/debug/deps/postgres_evolution-a3e4572961e3573e",
+      "bytes": 35782488
+    },
+    {
+      "path": "target/debug/deps/read_sessions-ff68c30740dfbedc",
+      "bytes": 5320872
+    },
+    {
+      "path": "target/debug/deps/refused_open-5f9310179f78b584",
+      "bytes": 32685720
+    },
+    {
+      "path": "target/debug/deps/replay-48f44374bd8b2a96",
+      "bytes": 37129248
+    },
+    {
+      "path": "target/debug/deps/review_walk-c9c0168478b4f0fb",
+      "bytes": 37313320
+    },
+    {
+      "path": "target/debug/deps/revocation_history-98c2547d6098f29c",
+      "bytes": 31836960
+    },
+    {
+      "path": "target/debug/deps/roll_views-238a12aa584d0975",
+      "bytes": 40253448
+    },
+    {
+      "path": "target/debug/deps/routes-878f7e0ec22def82",
+      "bytes": 20294384
+    },
+    {
+      "path": "target/debug/deps/row_view_accounting-114c23ef8f7c038d",
+      "bytes": 35858424
+    },
+    {
+      "path": "target/debug/deps/row_view_disclosure-025cbc72d949ba54",
+      "bytes": 36796624
+    },
+    {
+      "path": "target/debug/deps/row_view_legacy-4d7ca93759cf8ac1",
+      "bytes": 35326376
+    },
+    {
+      "path": "target/debug/deps/row_view_witness-d76e2130a6c8af41",
+      "bytes": 36184008
+    },
+    {
+      "path": "target/debug/deps/rows-9eee758d7ab97d14",
+      "bytes": 21175672
+    },
+    {
+      "path": "target/debug/deps/schema_capabilities-b259154affe2af02",
+      "bytes": 21251472
+    },
+    {
+      "path": "target/debug/deps/schema_capabilities_legacy-b792cf94361dcecb",
+      "bytes": 31807472
+    },
+    {
+      "path": "target/debug/deps/sequence_by-45e4ca9e6ca0a9cd",
+      "bytes": 37069472
+    },
+    {
+      "path": "target/debug/deps/sequence_disclosure-3f08d7610b4ce2c1",
+      "bytes": 37015256
+    },
+    {
+      "path": "target/debug/deps/snapback4_core-7866549446de2638",
+      "bytes": 55039144
+    },
+    {
+      "path": "target/debug/deps/store_handle_traits-8538f6ef99c4e70a",
+      "bytes": 1060736
+    },
+    {
+      "path": "target/debug/deps/store_port_ratchet-d39b414bed63a55c",
+      "bytes": 1244528
+    },
+    {
+      "path": "target/debug/deps/stream_receipts-4ed79720e675680a",
+      "bytes": 32864552
+    },
+    {
+      "path": "target/debug/deps/surf4-e80bf9394369d140",
+      "bytes": 7094072
+    },
+    {
+      "path": "target/debug/deps/sync_count_batch-415884bd63f985c7",
+      "bytes": 22433504
+    },
+    {
+      "path": "target/debug/deps/time_audiences-d7e04b62424289a3",
+      "bytes": 36884976
+    },
+    {
+      "path": "target/debug/deps/unicode_fold-073440e07e447009",
+      "bytes": 3735912
+    },
+    {
+      "path": "target/debug/deps/update_rule_images-5920d8de3f8e8e3c",
+      "bytes": 35781096
+    },
+    {
+      "path": "target/debug/deps/upload_intents-810a0ed1133d8c69",
+      "bytes": 32551168
+    },
+    {
+      "path": "target/debug/deps/work_records-464172178180656f",
+      "bytes": 20960368
+    }
+  ],
+  "bytes": 1976094888
+}

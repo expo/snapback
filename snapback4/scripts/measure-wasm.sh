@@ -3,6 +3,11 @@
 # profile, wasm-bindgen's web target, gzip-9 and brotli-11, one line to
 # metrics/wasm.jsonl (LLP 3000 §7: one implementation; the web ships this).
 set -euo pipefail
+record=true
+if [ "$#" -gt 0 ]; then
+  if [ "$#" -eq 1 ] && [ "$1" = --no-record ]; then record=false;
+  else echo 'usage: measure-wasm.sh [--no-record]' >&2; exit 2; fi
+fi
 cd "$(dirname "$0")/.."
 budget=$(node scripts/wasm-budget.mjs)
 dirty=false
@@ -41,5 +46,7 @@ sizes() { printf '{"raw":%d,"gzip":%d,"brotli":%d}' "$(wc -c < "$1")" "$(gzip -9
 over=$(( $(gzip -9 -c "$wasm" | wc -c) - budget ))
 if [ "$over" -lt 0 ]; then over=0; fi
 line=$(printf '{"at":"%s","sha":"%s","dirty":%s,"wasm":%s,"glue":%s,"wasmOpt":%s,"budget":%d,"over":%d}' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$(git rev-parse --short HEAD)" "$dirty" "$(sizes "$wasm")" "$(sizes "$glue")" "$optimized" "$budget" "$over")
-echo "$line" | tee -a metrics/wasm.jsonl
+# Affected checks retain this line in their receipt log without changing inputs.
+if [ "$record" = true ]; then echo "$line" | tee -a metrics/wasm.jsonl;
+else echo "$line"; fi
 rm -rf "$out"

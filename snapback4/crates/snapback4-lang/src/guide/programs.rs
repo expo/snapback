@@ -13,6 +13,32 @@ mutation programWrites(roomId: rooms, title: text 1..80):     -- reads and write
   update rooms[room] { name: title }                           -- a final write is the implicit return
 ```
 
+## Branches and typed empty accumulators
+
+An empty accumulator can declare its element representation before nested loops
+read it. The annotation uses ordinary inferred-type joins, without adding a
+runtime cast or constraint. A nullable value/field narrows under `!= null` in
+`if`, `require` and the right side of `and`; a role check alone cannot make a
+protected value present. Writes invalidate repeated database field facts.
+
+```quarry
+fn crewSize(names: [text <=80] <=8):
+  seen = [] of text <=80
+  for name in names:
+    for previous in seen:
+      require lower(previous) != lower(name) else DUPLICATE_CREW
+    seen = seen + [name]
+  return count(seen)
+query describeCrew(names: [text <=80] <=8):
+  size = crewSize(names)
+  if size = 0:
+    return 'empty'
+  elif size = 1:
+    return 'one'
+  else:
+    return 'several'
+```
+
 ## Limits
 
 - N_QUERY_FALLTHROUGH: return []/null.

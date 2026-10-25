@@ -339,6 +339,11 @@ pub fn check(options: &Options) -> i32 {
         if !options.json { print_prediction(&bound, options.flags.contains_key("verbose")); }
         return 1;
     }
+    match rollback_views::check(&project,&compiled_sources,&bound,options.flags.get("store")) {
+        Ok(diagnostics)=>bound.diagnostics.extend(diagnostics),
+        Err(error)=>{failed_check(&bound,options.json,"E_ADOPT",error);return 1;}
+    }
+    if !bound.diagnostics.is_empty(){report_diagnostics(&bound,options.json,true,options.flags.contains_key("verbose"));return 1;}
     let security = security::report(&project, &bound, &compiled_sources, options);
     // @ref LLP 3000.007#18.3 — check judges adoption against the dev store's active generation and rows, read-only
     match adoption::diagnostics(&project, &bound.schema, options.flags.get("store"), options.json || options.flags.contains_key("verbose")) {
@@ -412,7 +417,7 @@ pub fn check(options: &Options) -> i32 {
     check_surface::remember(&project, &bound, Some((&security, &dispositions)));
     let security_failed=security.refuted()||security_reviews::pending(&dispositions);
     let visible_security=security.notes.iter().zip(&dispositions).filter(|(_,d)|!d.acknowledged).map(|(n,_)|n).collect::<Vec<_>>();
-    let compact_security=snapback4_lang::security::questionnaire_notes(&visible_security.iter().map(|n|(*n).clone()).collect::<Vec<_>>());
+    let compact_security=snapback4_lang::security::questionnaire_notes(&visible_security.iter().filter(|n|crate::note_rank::tier(&n.code)!=crate::note_rank::Tier::Review).map(|n|(*n).clone()).collect::<Vec<_>>());
     let present = |text: &str| crate::presentation::indexes(&bound.schema, text, options.flags.contains_key("verbose"));
     let details = acquisition.is_none() || options.flags.contains_key("verbose");
     let certificates: Vec<_> = bound.programs.iter().map(|p| crate::scale::analyze_bound(&bound.schema, p)).collect();
@@ -432,7 +437,8 @@ pub fn check(options: &Options) -> i32 {
     if options.json {
         println!("{}", json!({ "ok": !security_failed, "acknowledgmentNotApplied": acknowledgment_not_applied, "securityReviews": &dispositions, "security": &security, "followingHistory": bound.programs.iter().filter_map(|p| crate::scale::following::certificate(&bound.schema, &p.program)).collect::<Vec<_>>(), "rowViews": row_views, "fieldAuthority": field_authority, "sequences": sequences, "scaleSummary": scale_summary, "search": certificates.iter().flat_map(|certificate| &certificate.search).collect::<Vec<_>>(), "plans": if options.flags.contains_key("cost") { Some(bound.programs.iter().map(|p| (&p.program.name, p.selections())).collect::<BTreeMap<_, _>>()) } else { None }, "scale": if options.flags.contains_key("cost") { Some(&certificates) } else { None }, "tables": bound.schema.visible_tables().filter(|(name, _)| bound.schema.maintain_for(name).is_none()).count(), "views": bound.schema.visible_tables().filter(|(name, _)| bound.schema.maintain_for(name).is_some()).count(), "synced": synced, "operations": bound.programs.len(), "heldQueries": bound.schema.operations.iter().filter(|(_, fact)| fact.held).map(|(name, _)| name).collect::<Vec<_>>(), "notes": bound.notes, "newNotes": reviewed.new, "acknowledgedNotes": reviewed.acknowledged, "predictionSummary": snapback4_lang::bind::residency::prediction_summary(&bound), "starterLeftovers": init::starter_leftovers_json(&project.root), "acquisition": acquisition, "residency": if options.flags.contains_key("residency") { Some(residency::facts(&bound)) } else { None }, "native": native.as_ref().map(|b| json!({ "module": b.path, "bytes": b.bytes, "jobs": b.jobs, "ms": b.ms })), "ms": elapsed.as_millis() }));
     } else {
-        println!("check: {} — {} ({synced} synced), {} operations, {}{}, {:.1} ms{}", if security_failed { "failed" } else { "ok" }, table_counts(&bound.schema), bound.programs.len(), if security.refuted() { "security invariant refuted" } else if security_failed { "security review required" } else { "compiled" }, if note_count == 0 { String::new() } else { format!(", {} note{}", note_count, if note_count == 1 { "" } else { "s" }) }, elapsed.as_secs_f64() * 1000.0, match &native { Some(b) => format!("; native: {} → {} ({} B, {} ms)", b.jobs.join(", "), b.path.display(), b.bytes, b.ms), None => String::new() });
+        println!("check: {} — {} ({synced} synced), {} operations, {}{}, {:.1} ms{}; {} decisions to record (are the listed audiences and write/evidence permissions intended? tighten rules or record rationale); next: check --json", if security_failed { "failed" } else { "ok" }, table_counts(&bound.schema), bound.programs.len(), if security.refuted() { "security invariant refuted" } else if security_failed { "security review required" } else { "compiled" }, if note_count == 0 { String::new() } else { format!(", {} note{}", note_count, if note_count == 1 { "" } else { "s" }) }, elapsed.as_secs_f64() * 1000.0, match &native { Some(b) => format!("; native: {} → {} ({} B, {} ms)", b.jobs.join(", "), b.path.display(), b.bytes, b.ms), None => String::new() },security_reviews::decision_count(&dispositions));
+        security::enforced(&security,&bound);
         if !reviewed.acknowledged.is_empty() { println!("{} reviewed notes (check --verbose to inspect); source edits require review again", reviewed.acknowledged.len()); }
         if options.flags.contains_key("verbose") {
             for line in &sequences { println!("  {line}"); }
@@ -466,7 +472,7 @@ pub fn check(options: &Options) -> i32 {
             for line in crate::note_rank::render(notes) { println!("{}", crate::presentation::abbreviate_quoted(&line)); }
         }
     }
-    if !options.json {security_reviews::print(&dispositions);}
+    if !options.json {security_reviews::print(&dispositions,&security.notes);}
     if !options.json && (options.flags.contains_key("verbose") || options.flags.contains_key("cost")) {
         println!("{scale_summary}");
     }

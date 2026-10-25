@@ -7,7 +7,16 @@
     "module": "esnext",
     "allowImportingTsExtensions": true,
     "noEmit": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "types": [
+      "node",
+      "react"
+    ]
   },
-  "include": ["*.ts", "*.tsx", "src/**/*"]
+  "include": [
+    "*.ts",
+    "*.tsx",
+    "src/**/*",
+    "scripts/**/*"
+  ]
 }

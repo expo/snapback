@@ -201,6 +201,10 @@ fn main() -> ExitCode {
             serve::serve(project, port, serve::Mode::Dev { unsafe_dev_doors: options.flags.contains_key("unsafe-dev-doors"), trace_empty: options.flags.contains_key("trace-empty"), verbose: options.flags.contains_key("verbose"), watch: !options.flags.contains_key("no-watch"), fresh: options.flags.contains_key("fresh") || options.flags.contains_key("memory"), replay: options.flags.contains_key("replay"), hold_effects: options.flags.contains_key("hold-effects"), hold_schedules: options.flags.contains_key("hold-schedules"), clock_offset }, &bind.to_string(), inherited, capacity)
         }),
         // @ref LLP 3000.007#20.1 — wave 7 (060): resolveBinary() runs the platform binary; web-shell lives in the npm wrapper.
+        "serve-check" => {
+            eprintln!("serve-check runs through the packaged Node CLI; use `npx snapback4 serve-check --deployment DIR --script prod:serve` (or node_modules/.bin/snapback4). See `snapback4 guide testing` for the process contract.");
+            2
+        }
         "web-shell" => {
             eprintln!("web-shell is the npm wrapper's verb, not the platform binary's: run node_modules/.bin/snapback4 web-shell dist (or `npx snapback4 web-shell dist`); resolveBinary() from snapback4/bin-path is only for the native verbs (dev, check, test, …)");
             2

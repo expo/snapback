@@ -1,0 +1,2185 @@
+{
+  "schemaVersion": "snapback4.affected.v1",
+  "files": [
+    "snapback4/crates/snapback4-lang/src/guide/deploy.md",
+    "snapback4/packages/snapback4/CHANGELOG.md",
+    "snapback4/reports/integration25/README.md"
+  ],
+  "broad": false,
+  "reasons": [
+    {
+      "path": "snapback4/crates/snapback4-lang/src/guide/deploy.md",
+      "reason": "guide/docs contract"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/api-index.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/app-global-attempts.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/app-global.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/app-handles.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/app-local-outcomes.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/app-local-receipts.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/app-local-session.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/app-online-arm.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/app-online.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/app-outcomes.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/app-persona.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/app-receipts.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/app-session-model.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/app-state.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/app-storage.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/app-store-replacement.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/app.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/argument-aliases.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/asset-avatars.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/asset-scan-recipe.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/browser-write-warnings.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/client-seams.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/day3-proofs.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/day4-proofs.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/day5-proofs.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/delivery-approval.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/dormant-visibility.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/dx10-process-accounts.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/dx4-dev.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/dx5-react.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/dx5.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/dx7.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/effectful-cancellation.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/ephemeral-routing.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/expo-session-store.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/export-background.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/export-native.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/export-publication.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/first-account.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/following-history.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/front-data-react.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/identity-rate.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/init-typecheck.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/keep-app-expiry.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/keep-app-model.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/keep-authority-react.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/keep-observation.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/kit2-client-react.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/linux-package.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/maintained-columns.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/migrations.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/once-preservation.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/one-shot-bounds.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/one-shot-commit-evidence.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/one-shot-dependencies.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/one-shot-model.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/one-shot-review-races.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/one-shot-review.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/one-shot-sync-overlap.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/one-shot.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/online-client-model.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/online-intent-store.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/online-session.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/online-terminal-entrypoints.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/page-observation.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/page-ready.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/pending-items-round3.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/periphery.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/production-starters.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/proof-contract.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/proof.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/pubfix29b.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/publish-linux.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/publish-signing.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/qualify-linux.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/react.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/read-only-allocation.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/read-only-custody-races.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/read-only-custody-server.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/read-only-custody.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/read-only-peer-rotation.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/read-only-round4.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/read-only-round5.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/read-only-round7.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/read-only-server.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/read-only.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/read-presentation-react.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/read-types.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/readme-examples.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/refresh-behavior.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/reg-upgrade.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/release-transitions.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/reservation-parity.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/retention-lifecycle.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/retention-store-withdrawal.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/security-packed.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/server-clock-regressions.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/session-reasons.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/session-timing.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/social-browser.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/social-quote-jump-browser.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/social-starter.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/staging.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/surf4.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/transport-outcomes.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/unread-range.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/wasm-budget.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/wave10-starters.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/wave10-upgrade.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/wave10-witness.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/wave11-guide-types.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/wave11-init.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/wave11-upgrade-history.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/wave12-kit.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/wave12-surface.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/wave13-surface.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/wave14-rule-recipes.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/wave9-dx.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/wire-envelopes.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/wire-first.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/worker-regressions.test.mjs",
+      "reason": "documentation consumer of snapback4/crates/snapback4-lang/src/guide/deploy.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/CHANGELOG.md",
+      "reason": "guide/docs contract"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/api-index.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/app-global-attempts.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/app-global.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/app-handles.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/app-local-outcomes.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/app-local-receipts.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/app-local-session.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/app-online-arm.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/app-online.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/app-outcomes.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/app-persona.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/app-receipts.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/app-session-model.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/app-state.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/app-storage.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/app-store-replacement.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/app.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/argument-aliases.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/asset-avatars.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/asset-scan-recipe.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/browser-write-warnings.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/client-seams.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/day3-proofs.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/day4-proofs.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/day5-proofs.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/delivery-approval.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/dormant-visibility.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/dx10-process-accounts.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/dx4-dev.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/dx5-react.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/dx5.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/dx7.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/effectful-cancellation.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/ephemeral-routing.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/expo-session-store.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/export-background.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/export-native.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/export-publication.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/first-account.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/following-history.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/front-data-react.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/identity-rate.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/init-typecheck.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/keep-app-expiry.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/keep-app-model.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/keep-authority-react.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/keep-observation.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/kit2-client-react.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/linux-package.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/maintained-columns.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/migrations.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/once-preservation.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/one-shot-bounds.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/one-shot-commit-evidence.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/one-shot-dependencies.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/one-shot-model.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/one-shot-review-races.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/one-shot-review.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/one-shot-sync-overlap.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/one-shot.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/online-client-model.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/online-intent-store.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/online-session.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/online-terminal-entrypoints.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/page-observation.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/page-ready.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/pending-items-round3.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/periphery.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/production-starters.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/proof-contract.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/proof.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/pubfix29b.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/publish-linux.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/publish-signing.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/qualify-linux.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/react.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/read-only-allocation.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/read-only-custody-races.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/read-only-custody-server.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/read-only-custody.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/read-only-peer-rotation.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/read-only-round4.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/read-only-round5.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/read-only-round7.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/read-only-server.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/read-only.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/read-presentation-react.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/read-types.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/readme-examples.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/refresh-behavior.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/reg-upgrade.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/release-transitions.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/reservation-parity.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/retention-lifecycle.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/retention-store-withdrawal.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/security-packed.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/server-clock-regressions.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/session-reasons.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/session-timing.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/social-browser.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/social-quote-jump-browser.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/social-starter.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/staging.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/surf4.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/transport-outcomes.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/unread-range.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/wasm-budget.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/wave10-starters.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/wave10-upgrade.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/wave10-witness.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/wave11-guide-types.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/wave11-init.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/wave11-upgrade-history.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/wave12-kit.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/wave12-surface.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/wave13-surface.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/wave14-rule-recipes.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/wave9-dx.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/wire-envelopes.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/wire-first.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/packages/snapback4/test/worker-regressions.test.mjs",
+      "reason": "documentation consumer of snapback4/packages/snapback4/CHANGELOG.md (conservative doc pool)"
+    },
+    {
+      "path": "snapback4/reports/integration25/README.md",
+      "reason": "guide/docs contract"
+    }
+  ],
+  "rustPackages": [],
+  "fixtureFiles": [],
+  "rustTargets": {
+    "snapback4-lang": [
+      "guide"
+    ]
+  },
+  "clientFiles": [
+    "snapback4/packages/snapback4/test/api-index.test.mjs",
+    "snapback4/packages/snapback4/test/app-global-attempts.test.mjs",
+    "snapback4/packages/snapback4/test/app-global.test.mjs",
+    "snapback4/packages/snapback4/test/app-handles.test.mjs",
+    "snapback4/packages/snapback4/test/app-local-outcomes.test.mjs",
+    "snapback4/packages/snapback4/test/app-local-receipts.test.mjs",
+    "snapback4/packages/snapback4/test/app-local-session.test.mjs",
+    "snapback4/packages/snapback4/test/app-online-arm.test.mjs",
+    "snapback4/packages/snapback4/test/app-online.test.mjs",
+    "snapback4/packages/snapback4/test/app-outcomes.test.mjs",
+    "snapback4/packages/snapback4/test/app-persona.test.mjs",
+    "snapback4/packages/snapback4/test/app-receipts.test.mjs",
+    "snapback4/packages/snapback4/test/app-session-model.test.mjs",
+    "snapback4/packages/snapback4/test/app-state.test.mjs",
+    "snapback4/packages/snapback4/test/app-storage.test.mjs",
+    "snapback4/packages/snapback4/test/app-store-replacement.test.mjs",
+    "snapback4/packages/snapback4/test/app.test.mjs",
+    "snapback4/packages/snapback4/test/argument-aliases.test.mjs",
+    "snapback4/packages/snapback4/test/asset-avatars.test.mjs",
+    "snapback4/packages/snapback4/test/asset-scan-recipe.test.mjs",
+    "snapback4/packages/snapback4/test/browser-write-warnings.test.mjs",
+    "snapback4/packages/snapback4/test/client-seams.test.mjs",
+    "snapback4/packages/snapback4/test/day3-proofs.test.mjs",
+    "snapback4/packages/snapback4/test/day4-proofs.test.mjs",
+    "snapback4/packages/snapback4/test/day5-proofs.test.mjs",
+    "snapback4/packages/snapback4/test/delivery-approval.test.mjs",
+    "snapback4/packages/snapback4/test/dormant-visibility.test.mjs",
+    "snapback4/packages/snapback4/test/dx10-process-accounts.test.mjs",
+    "snapback4/packages/snapback4/test/dx4-dev.test.mjs",
+    "snapback4/packages/snapback4/test/dx5-react.test.mjs",
+    "snapback4/packages/snapback4/test/dx5.test.mjs",
+    "snapback4/packages/snapback4/test/dx7.test.mjs",
+    "snapback4/packages/snapback4/test/effectful-cancellation.test.mjs",
+    "snapback4/packages/snapback4/test/ephemeral-routing.test.mjs",
+    "snapback4/packages/snapback4/test/expo-session-store.test.mjs",
+    "snapback4/packages/snapback4/test/export-background.test.mjs",
+    "snapback4/packages/snapback4/test/export-native.test.mjs",
+    "snapback4/packages/snapback4/test/export-publication.test.mjs",
+    "snapback4/packages/snapback4/test/first-account.test.mjs",
+    "snapback4/packages/snapback4/test/following-history.test.mjs",
+    "snapback4/packages/snapback4/test/front-data-react.test.mjs",
+    "snapback4/packages/snapback4/test/identity-rate.test.mjs",
+    "snapback4/packages/snapback4/test/init-typecheck.test.mjs",
+    "snapback4/packages/snapback4/test/keep-app-expiry.test.mjs",
+    "snapback4/packages/snapback4/test/keep-app-model.test.mjs",
+    "snapback4/packages/snapback4/test/keep-authority-react.test.mjs",
+    "snapback4/packages/snapback4/test/keep-observation.test.mjs",
+    "snapback4/packages/snapback4/test/kit2-client-react.test.mjs",
+    "snapback4/packages/snapback4/test/linux-package.test.mjs",
+    "snapback4/packages/snapback4/test/maintained-columns.test.mjs",
+    "snapback4/packages/snapback4/test/migrations.test.mjs",
+    "snapback4/packages/snapback4/test/once-preservation.test.mjs",
+    "snapback4/packages/snapback4/test/one-shot-bounds.test.mjs",
+    "snapback4/packages/snapback4/test/one-shot-commit-evidence.test.mjs",
+    "snapback4/packages/snapback4/test/one-shot-dependencies.test.mjs",
+    "snapback4/packages/snapback4/test/one-shot-model.test.mjs",
+    "snapback4/packages/snapback4/test/one-shot-review-races.test.mjs",
+    "snapback4/packages/snapback4/test/one-shot-review.test.mjs",
+    "snapback4/packages/snapback4/test/one-shot-sync-overlap.test.mjs",
+    "snapback4/packages/snapback4/test/one-shot.test.mjs",
+    "snapback4/packages/snapback4/test/online-client-model.test.mjs",
+    "snapback4/packages/snapback4/test/online-intent-store.test.mjs",
+    "snapback4/packages/snapback4/test/online-session.test.mjs",
+    "snapback4/packages/snapback4/test/online-terminal-entrypoints.test.mjs",
+    "snapback4/packages/snapback4/test/page-observation.test.mjs",
+    "snapback4/packages/snapback4/test/page-ready.test.mjs",
+    "snapback4/packages/snapback4/test/pending-items-round3.test.mjs",
+    "snapback4/packages/snapback4/test/periphery.test.mjs",
+    "snapback4/packages/snapback4/test/production-starters.test.mjs",
+    "snapback4/packages/snapback4/test/proof-contract.test.mjs",
+    "snapback4/packages/snapback4/test/proof.test.mjs",
+    "snapback4/packages/snapback4/test/pubfix29b.test.mjs",
+    "snapback4/packages/snapback4/test/publish-linux.test.mjs",
+    "snapback4/packages/snapback4/test/publish-signing.test.mjs",
+    "snapback4/packages/snapback4/test/qualify-linux.test.mjs",
+    "snapback4/packages/snapback4/test/react.test.mjs",
+    "snapback4/packages/snapback4/test/read-only-allocation.test.mjs",
+    "snapback4/packages/snapback4/test/read-only-custody-races.test.mjs",
+    "snapback4/packages/snapback4/test/read-only-custody-server.test.mjs",
+    "snapback4/packages/snapback4/test/read-only-custody.test.mjs",
+    "snapback4/packages/snapback4/test/read-only-peer-rotation.test.mjs",
+    "snapback4/packages/snapback4/test/read-only-round4.test.mjs",
+    "snapback4/packages/snapback4/test/read-only-round5.test.mjs",
+    "snapback4/packages/snapback4/test/read-only-round7.test.mjs",
+    "snapback4/packages/snapback4/test/read-only-server.test.mjs",
+    "snapback4/packages/snapback4/test/read-only.test.mjs",
+    "snapback4/packages/snapback4/test/read-presentation-react.test.mjs",
+    "snapback4/packages/snapback4/test/read-types.test.mjs",
+    "snapback4/packages/snapback4/test/readme-examples.test.mjs",
+    "snapback4/packages/snapback4/test/refresh-behavior.test.mjs",
+    "snapback4/packages/snapback4/test/reg-upgrade.test.mjs",
+    "snapback4/packages/snapback4/test/release-transitions.test.mjs",
+    "snapback4/packages/snapback4/test/reservation-parity.test.mjs",
+    "snapback4/packages/snapback4/test/retention-lifecycle.test.mjs",
+    "snapback4/packages/snapback4/test/retention-store-withdrawal.test.mjs",
+    "snapback4/packages/snapback4/test/security-packed.test.mjs",
+    "snapback4/packages/snapback4/test/server-clock-regressions.test.mjs",
+    "snapback4/packages/snapback4/test/session-reasons.test.mjs",
+    "snapback4/packages/snapback4/test/session-timing.test.mjs",
+    "snapback4/packages/snapback4/test/social-browser.test.mjs",
+    "snapback4/packages/snapback4/test/social-quote-jump-browser.test.mjs",
+    "snapback4/packages/snapback4/test/social-starter.test.mjs",
+    "snapback4/packages/snapback4/test/staging.test.mjs",
+    "snapback4/packages/snapback4/test/surf4.test.mjs",
+    "snapback4/packages/snapback4/test/transport-outcomes.test.mjs",
+    "snapback4/packages/snapback4/test/unread-range.test.mjs",
+    "snapback4/packages/snapback4/test/wasm-budget.test.mjs",
+    "snapback4/packages/snapback4/test/wave10-starters.test.mjs",
+    "snapback4/packages/snapback4/test/wave10-upgrade.test.mjs",
+    "snapback4/packages/snapback4/test/wave10-witness.test.mjs",
+    "snapback4/packages/snapback4/test/wave11-guide-types.test.mjs",
+    "snapback4/packages/snapback4/test/wave11-init.test.mjs",
+    "snapback4/packages/snapback4/test/wave11-upgrade-history.test.mjs",
+    "snapback4/packages/snapback4/test/wave12-kit.test.mjs",
+    "snapback4/packages/snapback4/test/wave12-surface.test.mjs",
+    "snapback4/packages/snapback4/test/wave13-surface.test.mjs",
+    "snapback4/packages/snapback4/test/wave14-rule-recipes.test.mjs",
+    "snapback4/packages/snapback4/test/wave9-dx.test.mjs",
+    "snapback4/packages/snapback4/test/wire-envelopes.test.mjs",
+    "snapback4/packages/snapback4/test/wire-first.test.mjs",
+    "snapback4/packages/snapback4/test/worker-regressions.test.mjs"
+  ],
+  "checks": [
+    "docs-budget",
+    "guide",
+    "packaged-docs",
+    "ref-check"
+  ],
+  "steps": [
+    {
+      "id": "install-client",
+      "cwd": "snapback4",
+      "argv": [
+        "bun",
+        "install",
+        "--frozen-lockfile"
+      ],
+      "reason": "locked client/build dependencies",
+      "timeoutSeconds": 900,
+      "requires": []
+    },
+    {
+      "id": "build-cli",
+      "cwd": "snapback4",
+      "argv": [
+        "cargo",
+        "build",
+        "-p",
+        "snapback4"
+      ],
+      "reason": "selected clients spawn/import CLI",
+      "timeoutSeconds": 10800,
+      "requires": []
+    },
+    {
+      "id": "build-wasm",
+      "cwd": "snapback4",
+      "argv": [
+        "bash",
+        "scripts/build-wasm.sh"
+      ],
+      "reason": "selected clients import wasm",
+      "timeoutSeconds": 10800,
+      "requires": [
+        "install-client"
+      ]
+    },
+    {
+      "id": "build-client",
+      "cwd": "snapback4",
+      "argv": [
+        "bun",
+        "run",
+        "--cwd",
+        "packages/snapback4",
+        "build"
+      ],
+      "reason": "selected tests import dist",
+      "timeoutSeconds": 10800,
+      "requires": [
+        "install-client",
+        "build-wasm"
+      ]
+    },
+    {
+      "id": "rust:snapback4-lang:guide",
+      "cwd": "snapback4",
+      "argv": [
+        "cargo",
+        "test",
+        "--no-fail-fast",
+        "-p",
+        "snapback4-lang",
+        "--test",
+        "guide",
+        "--",
+        "--test-threads=4"
+      ],
+      "reason": "only this integration test changed",
+      "timeoutSeconds": 10800,
+      "requires": []
+    },
+    {
+      "id": "client-tests",
+      "cwd": "snapback4",
+      "argv": [
+        "node",
+        "scripts/run-client-tests.mjs",
+        "24",
+        "files",
+        "packages/snapback4/test/api-index.test.mjs",
+        "packages/snapback4/test/app-global-attempts.test.mjs",
+        "packages/snapback4/test/app-global.test.mjs",
+        "packages/snapback4/test/app-handles.test.mjs",
+        "packages/snapback4/test/app-local-outcomes.test.mjs",
+        "packages/snapback4/test/app-local-receipts.test.mjs",
+        "packages/snapback4/test/app-local-session.test.mjs",
+        "packages/snapback4/test/app-online-arm.test.mjs",
+        "packages/snapback4/test/app-online.test.mjs",
+        "packages/snapback4/test/app-outcomes.test.mjs",
+        "packages/snapback4/test/app-persona.test.mjs",
+        "packages/snapback4/test/app-receipts.test.mjs",
+        "packages/snapback4/test/app-state.test.mjs",
+        "packages/snapback4/test/app-storage.test.mjs",
+        "packages/snapback4/test/app-store-replacement.test.mjs",
+        "packages/snapback4/test/app.test.mjs",
+        "packages/snapback4/test/argument-aliases.test.mjs",
+        "packages/snapback4/test/asset-avatars.test.mjs",
+        "packages/snapback4/test/asset-scan-recipe.test.mjs",
+        "packages/snapback4/test/browser-write-warnings.test.mjs",
+        "packages/snapback4/test/client-seams.test.mjs",
+        "packages/snapback4/test/day3-proofs.test.mjs",
+        "packages/snapback4/test/day4-proofs.test.mjs",
+        "packages/snapback4/test/day5-proofs.test.mjs",
+        "packages/snapback4/test/delivery-approval.test.mjs",
+        "packages/snapback4/test/dormant-visibility.test.mjs",
+        "packages/snapback4/test/dx10-process-accounts.test.mjs",
+        "packages/snapback4/test/dx4-dev.test.mjs",
+        "packages/snapback4/test/dx5-react.test.mjs",
+        "packages/snapback4/test/dx5.test.mjs",
+        "packages/snapback4/test/dx7.test.mjs",
+        "packages/snapback4/test/effectful-cancellation.test.mjs",
+        "packages/snapback4/test/ephemeral-routing.test.mjs",
+        "packages/snapback4/test/expo-session-store.test.mjs",
+        "packages/snapback4/test/export-background.test.mjs",
+        "packages/snapback4/test/export-native.test.mjs",
+        "packages/snapback4/test/export-publication.test.mjs",
+        "packages/snapback4/test/first-account.test.mjs",
+        "packages/snapback4/test/following-history.test.mjs",
+        "packages/snapback4/test/front-data-react.test.mjs",
+        "packages/snapback4/test/identity-rate.test.mjs",
+        "packages/snapback4/test/init-typecheck.test.mjs",
+        "packages/snapback4/test/keep-app-expiry.test.mjs",
+        "packages/snapback4/test/keep-app-model.test.mjs",
+        "packages/snapback4/test/keep-authority-react.test.mjs",
+        "packages/snapback4/test/keep-observation.test.mjs",
+        "packages/snapback4/test/kit2-client-react.test.mjs",
+        "packages/snapback4/test/linux-package.test.mjs",
+        "packages/snapback4/test/maintained-columns.test.mjs",
+        "packages/snapback4/test/migrations.test.mjs",
+        "packages/snapback4/test/once-preservation.test.mjs",
+        "packages/snapback4/test/one-shot-bounds.test.mjs",
+        "packages/snapback4/test/one-shot-commit-evidence.test.mjs",
+        "packages/snapback4/test/one-shot-dependencies.test.mjs",
+        "packages/snapback4/test/one-shot-model.test.mjs",
+        "packages/snapback4/test/one-shot-review-races.test.mjs",
+        "packages/snapback4/test/one-shot-review.test.mjs",
+        "packages/snapback4/test/one-shot-sync-overlap.test.mjs",
+        "packages/snapback4/test/one-shot.test.mjs",
+        "packages/snapback4/test/online-intent-store.test.mjs",
+        "packages/snapback4/test/online-session.test.mjs",
+        "packages/snapback4/test/online-terminal-entrypoints.test.mjs",
+        "packages/snapback4/test/page-observation.test.mjs",
+        "packages/snapback4/test/page-ready.test.mjs",
+        "packages/snapback4/test/pending-items-round3.test.mjs",
+        "packages/snapback4/test/periphery.test.mjs",
+        "packages/snapback4/test/production-starters.test.mjs",
+        "packages/snapback4/test/proof-contract.test.mjs",
+        "packages/snapback4/test/proof.test.mjs",
+        "packages/snapback4/test/pubfix29b.test.mjs",
+        "packages/snapback4/test/publish-linux.test.mjs",
+        "packages/snapback4/test/publish-signing.test.mjs",
+        "packages/snapback4/test/qualify-linux.test.mjs",
+        "packages/snapback4/test/react.test.mjs",
+        "packages/snapback4/test/read-only-allocation.test.mjs",
+        "packages/snapback4/test/read-only-custody-races.test.mjs",
+        "packages/snapback4/test/read-only-custody-server.test.mjs",
+        "packages/snapback4/test/read-only-custody.test.mjs",
+        "packages/snapback4/test/read-only-peer-rotation.test.mjs",
+        "packages/snapback4/test/read-only-round4.test.mjs",
+        "packages/snapback4/test/read-only-round5.test.mjs",
+        "packages/snapback4/test/read-only-round7.test.mjs",
+        "packages/snapback4/test/read-only-server.test.mjs",
+        "packages/snapback4/test/read-only.test.mjs",
+        "packages/snapback4/test/read-presentation-react.test.mjs",
+        "packages/snapback4/test/read-types.test.mjs",
+        "packages/snapback4/test/readme-examples.test.mjs",
+        "packages/snapback4/test/refresh-behavior.test.mjs",
+        "packages/snapback4/test/reg-upgrade.test.mjs",
+        "packages/snapback4/test/release-transitions.test.mjs",
+        "packages/snapback4/test/reservation-parity.test.mjs",
+        "packages/snapback4/test/retention-lifecycle.test.mjs",
+        "packages/snapback4/test/retention-store-withdrawal.test.mjs",
+        "packages/snapback4/test/security-packed.test.mjs",
+        "packages/snapback4/test/server-clock-regressions.test.mjs",
+        "packages/snapback4/test/session-reasons.test.mjs",
+        "packages/snapback4/test/session-timing.test.mjs",
+        "packages/snapback4/test/social-browser.test.mjs",
+        "packages/snapback4/test/social-quote-jump-browser.test.mjs",
+        "packages/snapback4/test/social-starter.test.mjs",
+        "packages/snapback4/test/staging.test.mjs",
+        "packages/snapback4/test/surf4.test.mjs",
+        "packages/snapback4/test/transport-outcomes.test.mjs",
+        "packages/snapback4/test/unread-range.test.mjs",
+        "packages/snapback4/test/wasm-budget.test.mjs",
+        "packages/snapback4/test/wave10-starters.test.mjs",
+        "packages/snapback4/test/wave10-upgrade.test.mjs",
+        "packages/snapback4/test/wave10-witness.test.mjs",
+        "packages/snapback4/test/wave11-guide-types.test.mjs",
+        "packages/snapback4/test/wave11-init.test.mjs",
+        "packages/snapback4/test/wave11-upgrade-history.test.mjs",
+        "packages/snapback4/test/wave12-kit.test.mjs",
+        "packages/snapback4/test/wave12-surface.test.mjs",
+        "packages/snapback4/test/wave13-surface.test.mjs",
+        "packages/snapback4/test/wave14-rule-recipes.test.mjs",
+        "packages/snapback4/test/wave9-dx.test.mjs",
+        "packages/snapback4/test/wire-envelopes.test.mjs",
+        "packages/snapback4/test/wire-first.test.mjs",
+        "packages/snapback4/test/worker-regressions.test.mjs"
+      ],
+      "reason": "selected files retain existing process custody",
+      "timeoutSeconds": 10800,
+      "fileArgOffset": 4,
+      "fileRequires": {
+        "packages/snapback4/test/api-index.test.mjs": [],
+        "packages/snapback4/test/app-global-attempts.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/app-global.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/app-handles.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/app-local-outcomes.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/app-local-receipts.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/app-local-session.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/app-online-arm.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/app-online.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/app-outcomes.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/app-persona.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/app-receipts.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/app-state.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/app-storage.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/app-store-replacement.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/app.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/argument-aliases.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/asset-avatars.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/asset-scan-recipe.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/browser-write-warnings.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/client-seams.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/day3-proofs.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/day4-proofs.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/day5-proofs.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/delivery-approval.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/dormant-visibility.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/dx10-process-accounts.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/dx4-dev.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/dx5-react.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/dx5.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/dx7.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/effectful-cancellation.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/ephemeral-routing.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/expo-session-store.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/export-background.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/export-native.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/export-publication.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/first-account.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/following-history.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/front-data-react.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/identity-rate.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/init-typecheck.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/keep-app-expiry.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/keep-app-model.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/keep-authority-react.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/keep-observation.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/kit2-client-react.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/linux-package.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/maintained-columns.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/migrations.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/once-preservation.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/one-shot-bounds.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/one-shot-commit-evidence.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/one-shot-dependencies.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/one-shot-model.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/one-shot-review-races.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/one-shot-review.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/one-shot-sync-overlap.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/one-shot.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/online-intent-store.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/online-session.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/online-terminal-entrypoints.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/page-observation.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/page-ready.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/pending-items-round3.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/periphery.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/production-starters.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/proof-contract.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/proof.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/pubfix29b.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/publish-linux.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/publish-signing.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/qualify-linux.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/react.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/read-only-allocation.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/read-only-custody-races.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/read-only-custody-server.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/read-only-custody.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/read-only-peer-rotation.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/read-only-round4.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/read-only-round5.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/read-only-round7.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/read-only-server.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/read-only.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/read-presentation-react.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/read-types.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/readme-examples.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/refresh-behavior.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/reg-upgrade.test.mjs": [
+          "build-cli"
+        ],
+        "packages/snapback4/test/release-transitions.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/reservation-parity.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/retention-lifecycle.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/retention-store-withdrawal.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/security-packed.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/server-clock-regressions.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/session-reasons.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/session-timing.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/social-browser.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/social-quote-jump-browser.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/social-starter.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/staging.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/surf4.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/transport-outcomes.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/unread-range.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/wasm-budget.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/wave10-starters.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/wave10-upgrade.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/wave10-witness.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/wave11-guide-types.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/wave11-init.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/wave11-upgrade-history.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/wave12-kit.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/wave12-surface.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/wave13-surface.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/wave14-rule-recipes.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/wave9-dx.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/wire-envelopes.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/wire-first.test.mjs": [
+          "build-cli"
+        ],
+        "packages/snapback4/test/worker-regressions.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ]
+      },
+      "requires": []
+    },
+    {
+      "id": "client-models",
+      "cwd": "snapback4",
+      "argv": [
+        "node",
+        "scripts/run-client-tests.mjs",
+        "1",
+        "models",
+        "packages/snapback4/test/app-session-model.test.mjs",
+        "packages/snapback4/test/online-client-model.test.mjs"
+      ],
+      "reason": "selected files retain existing process custody",
+      "timeoutSeconds": 10800,
+      "fileArgOffset": 4,
+      "fileRequires": {
+        "packages/snapback4/test/app-session-model.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ],
+        "packages/snapback4/test/online-client-model.test.mjs": [
+          "build-cli",
+          "build-client",
+          "build-wasm"
+        ]
+      },
+      "requires": []
+    },
+    {
+      "id": "docs-budget",
+      "cwd": "snapback4",
+      "argv": [
+        "node",
+        "scripts/docs-budget.mjs"
+      ],
+      "reason": "affected input contract",
+      "timeoutSeconds": 10800,
+      "requires": []
+    },
+    {
+      "id": "guide",
+      "cwd": ".",
+      "argv": [
+        "node",
+        "scripts/check-guide.mjs"
+      ],
+      "reason": "affected input contract",
+      "timeoutSeconds": 900,
+      "requires": []
+    },
+    {
+      "id": "packaged-docs",
+      "cwd": "snapback4",
+      "argv": [
+        "node",
+        "--input-type=module",
+        "-e",
+        "import { lintPackagedDocs } from './scripts/packaged-docs.mjs'; lintPackagedDocs(process.cwd());"
+      ],
+      "reason": "affected input contract",
+      "timeoutSeconds": 300,
+      "requires": []
+    },
+    {
+      "id": "ref-check",
+      "cwd": ".",
+      "argv": [
+        "./ref-check"
+      ],
+      "reason": "affected input contract",
+      "timeoutSeconds": 300,
+      "requires": []
+    }
+  ],
+  "base": "70365904e65a71c3af923faedfc3b0713e3ee1a9",
+  "mergeBase": "70365904e65a71c3af923faedfc3b0713e3ee1a9",
+  "head": "030a1ab426580372f3b7116724205990223af312",
+  "worktree": false,
+  "observedFiles": [
+    "issues/20261018-sb4-refusal-shutdown-test-flake.md",
+    "issues/20261024-snapback4-g6-followups.md",
+    "issues/20261024-snapback4-privileged-event-trigger-tamper.md",
+    "issues/20261025-snapback4-native-opt2-profile-stack-overflow.md",
+    "issues/20261025-snapback4-wasm-measure-missing-brotli.md",
+    "issues/closed/20261024-snapback4-privileged-event-trigger-tamper.md",
+    "llp/3000.009.001.000.000.002-pipelined-group-commit.rfc.md",
+    "llp/3000.009.001.000.002-beating-the-postgres-controls.rfc.md",
+    "llp/3000.009.001.002-scale-limits-against-postgres-controls.rfc.md",
+    "llp/reviews/integration25-final/brief.md",
+    "llp/reviews/integration25-final/codex.stderr.txt",
+    "llp/reviews/integration25-final/codex.txt",
+    "llp/reviews/integration25-final/muse.stderr.txt",
+    "llp/reviews/integration25-final/muse.txt",
+    "llp/reviews/integration25-final/provenance.json",
+    "snapback4/JOURNAL.md",
+    "snapback4/crates/snapback4-core/src/engine/postgres/activation.rs",
+    "snapback4/crates/snapback4-core/src/engine/postgres/batch.rs",
+    "snapback4/crates/snapback4-core/src/engine/postgres/bootstrap_schema.rs",
+    "snapback4/crates/snapback4-core/src/engine/postgres/column_evolution.rs",
+    "snapback4/crates/snapback4-core/src/engine/postgres/deployment.rs",
+    "snapback4/crates/snapback4-core/src/engine/postgres/evolution.rs",
+    "snapback4/crates/snapback4-core/src/engine/postgres/group_commit.rs",
+    "snapback4/crates/snapback4-core/src/engine/postgres/group_tail.rs",
+    "snapback4/crates/snapback4-core/src/engine/postgres/managed_relations.rs",
+    "snapback4/crates/snapback4-core/src/engine/postgres/mod.rs",
+    "snapback4/crates/snapback4-core/src/engine/postgres/movement.rs",
+    "snapback4/crates/snapback4-core/src/engine/postgres/narrowed.rs",
+    "snapback4/crates/snapback4-core/src/engine/postgres/opening.rs",
+    "snapback4/crates/snapback4-core/src/engine/postgres/outbox.rs",
+    "snapback4/crates/snapback4-core/src/engine/postgres/ownership.rs",
+    "snapback4/crates/snapback4-core/src/engine/postgres/pipeline_tests.rs",
+    "snapback4/crates/snapback4-core/src/engine/postgres/revision.rs",
+    "snapback4/crates/snapback4-core/src/engine/postgres/store.rs",
+    "snapback4/crates/snapback4-core/src/engine/program_batch.rs",
+    "snapback4/crates/snapback4-core/src/engine/revision_cache_grant_tests.rs",
+    "snapback4/crates/snapback4-core/src/store.rs",
+    "snapback4/crates/snapback4-core/src/store/backfills.rs",
+    "snapback4/crates/snapback4-core/src/store/dormant.rs",
+    "snapback4/crates/snapback4-core/src/store/extractions.rs",
+    "snapback4/crates/snapback4-core/src/store/ff1_fix2_tests.rs",
+    "snapback4/crates/snapback4-core/src/store/ff1_fix_tests.rs",
+    "snapback4/crates/snapback4-core/src/store/ff3_tests.rs",
+    "snapback4/crates/snapback4-core/src/store/movement.rs",
+    "snapback4/crates/snapback4-core/src/store/narrowed.rs",
+    "snapback4/crates/snapback4-core/src/store/port/lifecycle.rs",
+    "snapback4/crates/snapback4-core/src/store/program_g71_tests.rs",
+    "snapback4/crates/snapback4-core/src/store/program_overlay_tests.rs",
+    "snapback4/crates/snapback4-core/src/store_port.rs",
+    "snapback4/crates/snapback4-lang/src/guide/deploy.md",
+    "snapback4/crates/snapback4/src/store_config.rs",
+    "snapback4/crates/snapback4/src/verbs/configured_release.rs",
+    "snapback4/crates/snapback4/tests/round_trips/postgres.json",
+    "snapback4/packages/snapback4/CHANGELOG.md",
+    "snapback4/reports/20261025-g71-postgres/REPORT.md",
+    "snapback4/reports/integration25/README.md",
+    "snapback4/reports/integration25/affected-final.json",
+    "snapback4/reports/integration25/affected-final.log.gz",
+    "snapback4/reports/integration25/audit-ambiguity-matching-control.json",
+    "snapback4/reports/integration25/audit-binding.json",
+    "snapback4/reports/integration25/audit-edit-subject-control.json",
+    "snapback4/reports/integration25/audit-final-initial-binding.json",
+    "snapback4/reports/integration25/audit-final-message-binding.json",
+    "snapback4/reports/integration25/audit-summary.json",
+    "snapback4/reports/integration25/audit-survey-before-message-match.py",
+    "snapback4/reports/integration25/audit-survey-before-subject-match.py",
+    "snapback4/reports/integration25/audit-survey.py",
+    "snapback4/reports/integration25/baseline-profile-cleanup.json",
+    "snapback4/reports/integration25/baseline-sim-profile-cleanup.json",
+    "snapback4/reports/integration25/binary-binding.json",
+    "snapback4/reports/integration25/bounded-following-configured-alone.log.gz",
+    "snapback4/reports/integration25/bounded-following-configured-target-rerun.log.gz",
+    "snapback4/reports/integration25/bounded-following-native-alone.log.gz",
+    "snapback4/reports/integration25/campaign-provenance.json",
+    "snapback4/reports/integration25/collect-evidence.py",
+    "snapback4/reports/integration25/configured-binary-binding.json",
+    "snapback4/reports/integration25/corpus-unchanged.json",
+    "snapback4/reports/integration25/differential-comparison.json",
+    "snapback4/reports/integration25/difftest-2k.json",
+    "snapback4/reports/integration25/final-regeneration.log.gz",
+    "snapback4/reports/integration25/final-replay.py",
+    "snapback4/reports/integration25/lean-2k.json",
+    "snapback4/reports/integration25/native-client-profile-control.json",
+    "snapback4/reports/integration25/native-following-alone-scoped.log.gz",
+    "snapback4/reports/integration25/native-following-baseline-opt2.log.gz",
+    "snapback4/reports/integration25/native-following-configured-alone.log.gz",
+    "snapback4/reports/integration25/native-following-configured-profile.log.gz",
+    "snapback4/reports/integration25/native-following-configured-target-rerun.log.gz",
+    "snapback4/reports/integration25/native-following-profile-control.json",
+    "snapback4/reports/integration25/post-main-port-census-fixed.log.gz",
+    "snapback4/reports/integration25/replay-binding.json",
+    "snapback4/reports/integration25/replay-classification.json",
+    "snapback4/reports/integration25/replay-summary.json",
+    "snapback4/reports/integration25/replay.py",
+    "snapback4/reports/integration25/root-deps-restored.log.gz",
+    "snapback4/reports/integration25/sim-native-baseline-opt2.log.gz",
+    "snapback4/reports/integration25/sim-native-configured-alone.log.gz",
+    "snapback4/reports/integration25/sim-native-configured-target-rerun.log.gz",
+    "snapback4/reports/integration25/sim-native-profile-control.json",
+    "snapback4/reports/integration25/store-replay.jsonl.gz",
+    "snapback4/reports/integration25/survey-binding.json",
+    "snapback4/reports/integration25/survey-conditional-audits.jsonl.gz",
+    "snapback4/reports/integration25/survey-projects.jsonl.gz",
+    "snapback4/reports/integration25/survey-summary.json",
+    "snapback4/reports/integration25/survey.py",
+    "snapback4/reports/integration25/wasm-0.4.41-final.log.gz",
+    "snapback4/reports/integration25/wasm-invalid-no-brotli.log.gz",
+    "snapback4/scripts/test-postgres-serve.py"
+  ],
+  "inputDigest": "e79a1df00ad12528cd428d858c2ffefc6f062b731d0a643f7ff3e2f0c21360f1",
+  "started": "2026-10-25T12:56:10.272Z",
+  "results": [
+    {
+      "id": "install-client",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 49
+    },
+    {
+      "id": "build-cli",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 46815
+    },
+    {
+      "id": "build-wasm",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 42437
+    },
+    {
+      "id": "build-client",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 4527
+    },
+    {
+      "id": "rust:snapback4-lang:guide",
+      "status": 101,
+      "signal": null,
+      "elapsedMs": 70556
+    },
+    {
+      "id": "client-tests",
+      "status": 1,
+      "signal": null,
+      "elapsedMs": 1736797
+    },
+    {
+      "id": "client-models",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 340577
+    },
+    {
+      "id": "docs-budget",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 4469
+    },
+    {
+      "id": "guide",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 212322
+    },
+    {
+      "id": "packaged-docs",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 40
+    },
+    {
+      "id": "ref-check",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 5130
+    }
+  ],
+  "complete": true,
+  "finished": "2026-10-25T13:37:14.006Z",
+  "unchanged": false,
+  "ok": false
+}

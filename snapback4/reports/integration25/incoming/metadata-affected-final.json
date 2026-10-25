@@ -1,0 +1,115 @@
+{
+  "schemaVersion": "snapback4.affected.v1",
+  "files": [
+    "snapback4/reports/integration25/incoming/README.md",
+    "snapback4/reports/integration25/incoming/closure.json"
+  ],
+  "broad": false,
+  "reasons": [
+    {
+      "path": "snapback4/reports/integration25/incoming/README.md",
+      "reason": "guide/docs contract"
+    },
+    {
+      "path": "snapback4/reports/integration25/incoming/closure.json",
+      "reason": "guide/docs contract"
+    }
+  ],
+  "rustPackages": [],
+  "fixtureFiles": [],
+  "rustTargets": {},
+  "clientFiles": [],
+  "checks": [
+    "docs-budget",
+    "guide",
+    "packaged-docs",
+    "ref-check"
+  ],
+  "steps": [
+    {
+      "id": "docs-budget",
+      "cwd": "snapback4",
+      "argv": [
+        "node",
+        "scripts/docs-budget.mjs"
+      ],
+      "reason": "affected input contract",
+      "timeoutSeconds": 10800,
+      "requires": []
+    },
+    {
+      "id": "guide",
+      "cwd": ".",
+      "argv": [
+        "node",
+        "scripts/check-guide.mjs"
+      ],
+      "reason": "affected input contract",
+      "timeoutSeconds": 900,
+      "requires": []
+    },
+    {
+      "id": "packaged-docs",
+      "cwd": "snapback4",
+      "argv": [
+        "node",
+        "--input-type=module",
+        "-e",
+        "import { lintPackagedDocs } from './scripts/packaged-docs.mjs'; lintPackagedDocs(process.cwd());"
+      ],
+      "reason": "affected input contract",
+      "timeoutSeconds": 300,
+      "requires": []
+    },
+    {
+      "id": "ref-check",
+      "cwd": ".",
+      "argv": [
+        "./ref-check"
+      ],
+      "reason": "affected input contract",
+      "timeoutSeconds": 300,
+      "requires": []
+    }
+  ],
+  "base": "72f73ab05179ff2d11da6558bb653da498a474f8",
+  "mergeBase": "72f73ab05179ff2d11da6558bb653da498a474f8",
+  "head": "af0d6a1cdb73fc97080f18f89b6cea6a9872a574",
+  "worktree": false,
+  "observedFiles": [
+    "snapback4/reports/integration25/incoming/README.md",
+    "snapback4/reports/integration25/incoming/closure.json"
+  ],
+  "inputDigest": "9cc65429c6b6000a701a2475efccaaa21f75f431f8269dec7a6daf8e99f66de4",
+  "started": "2026-10-25T13:45:52.360Z",
+  "results": [
+    {
+      "id": "docs-budget",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 223
+    },
+    {
+      "id": "guide",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 212207
+    },
+    {
+      "id": "packaged-docs",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 38
+    },
+    {
+      "id": "ref-check",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 5103
+    }
+  ],
+  "complete": true,
+  "finished": "2026-10-25T13:49:29.932Z",
+  "unchanged": true,
+  "ok": true
+}

@@ -3,16 +3,18 @@
 use super::*;
 use serde::{Serialize,Deserialize};
 use sha2::{Digest,Sha256};
-const ANALYZER:&str="sec10-wave27-1";
+const ANALYZER:&str="sec10-wave27-2";
+
 mod binding;
+mod decisions;
 #[derive(Serialize,Deserialize)]
 #[serde(deny_unknown_fields)]
 struct File{version:u32,entries:BTreeMap<String,Entry>}
 #[derive(Serialize,Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Entry{sources:String,analyzer:String,reason:String}
-#[derive(Serialize)]
-pub(super) struct Disposition{pub id:String,pub code:String,pub site:String,pub gated:bool,pub acknowledged:bool,pub reason:Option<String>,pub scope:String}
+#[derive(Clone,Serialize)]
+pub(super) struct Disposition{pub family:Option<String>,pub id:String,pub code:String,pub site:String,pub gated:bool,pub acknowledged:bool,pub reason:Option<String>,pub scope:String}
 pub(super) fn gated(code:&str)->bool{snapback4_lang::security::gated_note(code)}
 fn hash(bytes:&[u8])->String{format!("{:x}",Sha256::digest(bytes))}
 fn digest(s:&str)->bool{s.len()==64&&s.bytes().all(|b|b.is_ascii_hexdigit())}
@@ -45,8 +47,16 @@ fn review_inner(project:&Project,sources:&[(String,String)],notes:&[snapback4_la
     if file.version!=1||file.entries.iter().any(|(key,e)|!digest(key)||!digest(&e.sources)||e.reason.trim().is_empty()||e.analyzer.is_empty()){return Err("invalid security disposition version/digest/reason".into());}
     if let Some((key,reason))=ack{
         if reason.trim().is_empty(){return Err("--reason needs the specification rationale for this individual note".into());}
-        let Some((_,fingerprint,_))=identities.iter().find(|(id,_,_)|id==key)else{return Err("--ack-security ID is not a current security note; run check --json".into());};
-        file.entries.insert(key.into(),Entry{sources:fingerprint.clone(),analyzer:ANALYZER.into(),reason:reason.trim().into()});
+        let selected=if key.starts_with("audience:") {
+            let Some(family)=decisions::family(notes,&identities) else {return Err("no current advisory audience family; run check --json".into());};
+            if family!=key{return Err("stale or unknown audience family; rerun check and review the current members".into());}
+            identities.iter().zip(notes).filter(|(_,note)|decisions::audience(&note.code)).map(|(identity,_)|identity).collect::<Vec<_>>()
+        } else {
+            vec![identities.iter().find(|(id,_,_)|id==key).ok_or_else(||"--ack-security ID is not a current security note; run check --json".to_string())?]
+        };
+        for (id,fingerprint,_) in selected {
+            file.entries.insert(id.clone(),Entry{sources:fingerprint.clone(),analyzer:ANALYZER.into(),reason:reason.trim().into()});
+        }
         let temporary=path.with_extension(format!("json.{}.tmp",std::process::id()));
         let result=std::fs::write(&temporary,serde_json::to_vec_pretty(&file).unwrap()).and_then(|_|{
             if project.sources()?!=sources{return Err(std::io::Error::other("Quarry sources changed before disposition publication; rerun check"));}
@@ -54,20 +64,16 @@ fn review_inner(project:&Project,sources:&[(String,String)],notes:&[snapback4_la
         });
         if let Err(e)=result{let _=std::fs::remove_file(&temporary);return Err(format!("cannot record security disposition: {e}"));}
     }
+    let family=decisions::family(notes,&identities);
     Ok(notes.iter().zip(identities).map(|(n,(key,fingerprint,scope))|{let entry=file.entries.get(&key).filter(|e|e.sources==fingerprint&&e.analyzer==ANALYZER);
-        Disposition{id:key,code:n.code.clone(),site:n.site.to_string(),gated:gated(&n.code),acknowledged:entry.is_some(),scope,reason:entry.map(|e|e.reason.clone())}
+        Disposition{family:decisions::audience(&n.code).then(||family.clone()).flatten(),id:key,code:n.code.clone(),site:n.site.to_string(),gated:gated(&n.code),acknowledged:entry.is_some(),scope,reason:entry.map(|e|e.reason.clone())}
     }).collect())
 }
 pub(super) fn pending(dispositions:&[Disposition])->bool{dispositions.iter().any(|d|d.gated&&!d.acknowledged)}
-pub(super) fn print(dispositions:&[Disposition]){
-if dispositions.iter().any(|d|!d.gated&&!d.acknowledged){println!("security decisions: check --json lists individual advisory IDs; record a specification decision with check --ack-security <ID> --reason '<spec rationale>'");}
-for d in dispositions.iter().filter(|d|d.gated||d.acknowledged){
-    if d.acknowledged{println!("security reviewed {} {}: {}",d.id,d.code,d.reason.as_deref().unwrap_or(""));}
-    else{println!("security review required {} {} at {}; repair or check --ack-security {} --reason '<spec rationale>'",d.id,d.code,d.site,d.id);}
-}}
+pub(super) use decisions::{print,render,count as decision_count};
 #[cfg(test)]mod tests{
 use super::*;
-struct Scratch(std::path::PathBuf);impl Drop for Scratch{fn drop(&mut self){let _=std::fs::remove_dir_all(&self.0);}}
+pub(super) struct Scratch(pub(super) std::path::PathBuf);impl Drop for Scratch{fn drop(&mut self){let _=std::fs::remove_dir_all(&self.0);}}
 #[test]fn individual_source_and_diagnostic_bound_dispositions(){
  let root=std::env::temp_dir().join(format!("sb4-sec7-dispositions-{}",std::process::id()));std::fs::create_dir_all(root.join("snapback")).unwrap();
  let _scratch=Scratch(root.clone());let p=Project{root:root.clone()};std::fs::write(p.schema_dir().join("schema.q"),"query q():\n  return true\n").unwrap();let sources=p.sources().unwrap();
@@ -89,4 +95,21 @@ struct Scratch(std::path::PathBuf);impl Drop for Scratch{fn drop(&mut self){let 
  let ds=review(&p,&p.sources().unwrap(),&[n.clone(),n],None).unwrap();assert!(ds[0].acknowledged);assert!(!ds[1].acknowledged);
 }
 
+}
+
+#[cfg(test)] mod family_tests {
+ use super::*;
+ #[test] fn audience_command_records_current_members_but_never_gates_or_changed_families() {
+  let root=std::env::temp_dir().join(format!("sb4-dx9-family-{}",std::process::id()));
+  std::fs::create_dir_all(root.join("snapback")).unwrap();let _scratch=super::tests::Scratch(root.clone());
+  let p=Project{root};std::fs::write(p.schema_dir().join("schema.q"),"query q():\n  return true\n").unwrap();let sources=p.sources().unwrap();
+  let n=|code:&str,message:&str|snapback4_lang::Diagnostic::new(&Default::default(),code,message,"confirm");
+  let notes=vec![n("N_ROLE_WIDE_READ","notes.read: audience A"),n("N_ROLE_WIDE_WRITE","notes.write: audience B"),n("N_PRESENCE_LOOSENING","gate")];
+  let ds=review(&p,&sources,&notes,None).unwrap();let family=ds[0].family.clone().unwrap();assert_eq!(ds[1].family.as_ref(),Some(&family));assert!(ds[2].family.is_none());
+  let recorded=review(&p,&sources,&notes,Some((&family,"The specification admits both audiences"))).unwrap();
+  assert!(recorded[0].acknowledged&&recorded[1].acknowledged);assert!(!recorded[2].acknowledged);assert!(pending(&recorded));
+  let mut changed=notes.clone();changed.push(n("N_BROAD_READ","extra.read: another audience"));
+  assert!(review(&p,&sources,&changed,Some((&family,"old decision"))).is_err());
+  assert!(review(&p,&sources,&notes,Some((&family,"  "))).is_err());
+ }
 }

@@ -1,3 +1,4 @@
+import { after as teardownAfter } from "./helpers/teardown.mjs";
 import { hangBudget } from './helpers/wait.mjs';
 // Upgrade custody on real Wasm + IndexedDB: original-store delivery and
 // corrected receipts crossing more than one orphan adoption.
@@ -31,7 +32,7 @@ test('web receipt upgrades preserve original binding and corrected shared custod
   const project = mkdtempSync(join(tmpdir(), 'sb4-web-receipt-upgrade-'));
   const sourceDir = join(project, 'snapback'); mkdirSync(sourceDir);
   writeFileSync(join(sourceDir, 'schema.q'), source);
-  t.after(() => rmSync(project, { recursive: true, force: true }));
+  teardownAfter(t, () => rmSync(project, { recursive: true, force: true }));
   const sourceOverrides = {}, mutant = process.env.SNAPBACK4_UPGRADE_MUTANT;
   const replace = (file, before, after) => {
     const path = join(root, 'packages/snapback4/src', file);
@@ -110,7 +111,7 @@ window.hide = () => {
   document.dispatchEvent(new Event('visibilitychange'));
 };
 ` });
-  t.after(() => witness.close());
+  teardownAfter(t, () => witness.close());
   const { page, api: url } = witness;
   const errors = []; page.on('pageerror', error => errors.push(error.message));
   const audit = async backend => (await fetch(backend + '/q/total', { method: 'POST', headers, body: '{}' }).then(r => r.json())).data;

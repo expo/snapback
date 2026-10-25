@@ -449,3 +449,13 @@ schema has zero synced tables. Unused default assets and unrelated wasm do not
 create a device requirement. Computed or remote custom URLs are checked by the
 runtime handshake. Exact builds copy the stamped artifact intact and use this format in their
 build/test preflight.
+
+## Refusals before and after authenticated admission
+
+A signed-out or invalid-session write refuses HTTP 401 with `{denied: Refusal}`,
+before it has an admitted mutation/action receipt. An authenticated operation
+that executes and refuses returns its normal receipt, `{state:"failed", why: Refusal}`
+(usually HTTP 200). Raw HTTP callers inspect `denied` before reading a receipt;
+SDK mutation/action calls normalize admission refusals to their failed outcome.
+Argument validation (`E_INPUT`, naming the argument and its bound) precedes the
+body's `require` statements. Supply valid arguments when testing authorization.

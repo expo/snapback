@@ -5,6 +5,12 @@ was refused without disclosing its existence. It is also the conventional
 application code for `row ! else NOT_FOUND`. Check a readable target and retry;
 do not infer absence from a refused blind write.
 
+Program `exists` is caller-filtered: hidden rows answer false even when a table
+rule can probe them. Refusal ladder: valid arguments first (`E_INPUT` precedes
+the body), then statements in source order; an asserted hidden lookup can emit
+`NOT_FOUND` before a later `require`, and readable denied writes emit `E_RULE`.
+Inspect the lookup's read rule before widening write authority.
+
 An alternate-key delete of a missing row refuses `NOT_FOUND` locally when the
 synced group proves absence; otherwise it queues for server resolution.
 

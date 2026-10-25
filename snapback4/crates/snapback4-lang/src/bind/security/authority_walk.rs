@@ -250,7 +250,7 @@ fn statements(catalog:&Catalog,p:&ProgramDecl,body:&[Stmt],env:&mut Env,guards:&
     if consuming{changes.clear();}
     }
 }
-pub(super) fn writes(catalog:&Catalog,p:&ProgramDecl)->Vec<(Expr,ProgramDecl)>{walk_writes(catalog,p,None).into_iter().filter(|(write,_)|matches!(write,Expr::Write{table,..} if catalog.tables.contains_key(table))).collect()}
+pub(in crate::bind) fn writes(catalog:&Catalog,p:&ProgramDecl)->Vec<(Expr,ProgramDecl)>{walk_writes(catalog,p,None).into_iter().filter(|(write,_)|matches!(write,Expr::Write{table,..} if catalog.tables.contains_key(table))).collect()}
 pub(super) fn column_writes(catalog:&Catalog,p:&ProgramDecl,column:&str)->Vec<(Expr,ProgramDecl)>{walk_writes(catalog,p,Some(column)).into_iter().filter(|(write,_)|matches!(write,Expr::Write{table,..} if catalog.tables.contains_key(table))).collect()}
 // Expand a helper's single guaranteed value for source analysis. Requirements
 // are already exported separately; branches, effects and unknown control flow
@@ -280,6 +280,7 @@ pub(super) fn returned(catalog:&Catalog,value:&Expr,depth:usize)->Expr{
         }
     });value
 }
+
 fn walk_writes(catalog:&Catalog,p:&ProgramDecl,column:Option<&str>)->Vec<(Expr,ProgramDecl)>{
     let mut out=Vec::new();let mut env=Env::new();let mut guards=Vec::new();let mut changes=Vec::new();
     statements(catalog,p,&p.prelude,&mut env,&mut guards,&mut changes,column,0,&mut out);

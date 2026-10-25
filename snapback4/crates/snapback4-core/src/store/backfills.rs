@@ -457,8 +457,8 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
     }
     // A name is immutable within a continuous lineage. Replacing a transform
     // deliberately goes through an old-source/bridge transition first.
-    if let Some(old)=previous {for f in &next.backfills {if let Some(p)=old.backfills.iter().find(|p|p.table==f.table && p.name==f.name && p.key()!=f.key()) {return Err(refusal(format!("backfill {} {} changed historical meaning; old digest {}; new digest {}; use a new name in a bridge release rather than replacing historical meaning",f.table,f.name,p.key(),f.key())));}}}
-    if let Some(old)=previous {for f in &next.downfills {if let Some(p)=old.downfills.iter().find(|p|p.table==f.table && p.name==f.name && p.down_key()!=f.down_key()) {return Err(refusal(format!("down {} {} changed historical meaning; old digest {}; new digest {}; use a new name in a bridge release rather than replacing historical meaning",f.table,f.name,p.down_key(),f.down_key())));}}}
+    if let Some(old)=previous {for f in &next.backfills {if let Some(p)=old.backfills.iter().find(|p|p.table==f.table && p.name==f.name && p.key()!=f.key()) {return Err(refusal(format!("backfill {} {} changed historical meaning; old digest {}; new digest {}; first select a bridge preserving current values, repair through an authorized mutation, declare a new name for new meaning, then preview the destination",f.table,f.name,p.key(),f.key())));}}}
+    if let Some(old)=previous {for f in &next.downfills {if let Some(p)=old.downfills.iter().find(|p|p.table==f.table && p.name==f.name && p.down_key()!=f.down_key()) {return Err(refusal(format!("down {} {} changed historical meaning; old digest {}; new digest {}; first select a bridge preserving current values, repair through an authorized mutation, declare a new name for new meaning, then preview the destination",f.table,f.name,p.down_key(),f.down_key())));}}}
     // Names keep one meaning throughout durable store history, including gaps
     // without the table or declaration. A different transform needs a new name.
     let mut known=tx.conn().prepare("SELECT octet_length(definition),definition FROM _backfill_definitions ORDER BY digest")?;
@@ -467,7 +467,7 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
         let mut meter=Meter::new(Ceilings::job(),Cut::Abort);meter.heap((row.get::<_,i64>(0)?.max(0) as u64).saturating_mul(64).saturating_add(8192))?;
         let old:Backfill=decode(&row.get::<_,String>(1)?)?;
         if let Some(new)=next.backfills.iter().find(|f|f.table==old.table && f.name==old.name && f.key()!=old.key()) {
-            return Err(refusal(format!("backfill {} {} changed historical meaning; old digest {}; new digest {}; use a new name in a bridge release",old.table,old.name,old.key(),new.key())));
+            return Err(refusal(format!("backfill {} {} changed historical meaning; old digest {}; new digest {}; first select a bridge preserving current values, repair through an authorized mutation, declare a new name for new meaning, then preview the destination",old.table,old.name,old.key(),new.key())));
         }
     }
     let mut known_down=tx.conn().prepare("SELECT octet_length(definition),definition FROM _downfill_definitions ORDER BY digest")?;
@@ -476,7 +476,7 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
         let mut meter=Meter::new(Ceilings::job(),Cut::Abort);meter.heap((row.get::<_,i64>(0)?.max(0) as u64).saturating_mul(64).saturating_add(8192))?;
         let old:Backfill=decode(&row.get::<_,String>(1)?)?;
         if let Some(new)=next.downfills.iter().find(|f|f.table==old.table && f.name==old.name && f.down_key()!=old.down_key()) {
-            return Err(refusal(format!("down {} {} changed historical meaning; old digest {}; new digest {}; use a new name in a bridge release",old.table,old.name,old.down_key(),new.down_key())))
+            return Err(refusal(format!("down {} {} changed historical meaning; old digest {}; new digest {}; first select a bridge preserving current values, repair through an authorized mutation, declare a new name for new meaning, then preview the destination",old.table,old.name,old.down_key(),new.down_key())))
         }
     }
     for fill in &next.backfills {
@@ -507,6 +507,14 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
                 if !table.columns.contains_key(c){e.retained.insert(c.clone());continue;}
 
                 let current=fields.get(c);let before=e.before.get(c);let after=e.after.get(c);
+                // @ref LLP 3000.000.000#21-wave-27-release-semantics-rel — an inactive receipt is history, not a competing live output owner.
+                if !e.active {
+                    let successor:bool=tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM _backfill_evidence e JOIN _backfill_definitions d ON d.digest=e.definition, json_each(d.definition,'$.outputs') output WHERE e.t=?1 AND e.id=?2 AND e.active=1 AND e.definition!=?3 AND output.value=?4)",params![t,id,key,c],|r|r.get(0))?;
+                    let reentering=next.backfills.iter().any(|f|f.table==fill.table&&f.key()!=key&&f.outputs.contains(c));
+                    let accepted_view=e.reversed.get(c).is_some_and(|v|v.as_ref()==current);
+                    if successor || (reentering&&accepted_view) {continue;}
+                }
+
                 if (current!=after && current!=before) || e.authored.contains(c) {
                     let projected=if down_pending {
                         let patches:Vec<String>=tx.conn().prepare("SELECT patch FROM temp._downfill_pending WHERE t=?1 AND id=?2")?.query_map(params![t,id],|r|r.get(0))?.collect::<Result<_,_>>()?;
@@ -674,6 +682,15 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
             let fields=current.as_object()?;let mut before=BTreeMap::new();let mut desired=patch.clone();
             let mut preimage_meter=Meter::new(Ceilings::job(),Cut::Abort);
             for (c,value) in &patch {
+                // A new transform may consume an older receipt's accepted view,
+                // but cannot overwrite a distinct retained authored native value.
+                let others:Vec<String>=tx.conn().prepare("SELECT definition FROM _backfill_evidence WHERE t=?1 AND id=?2 AND active=0 AND definition!=?3 AND retained_outputs!='[]'")?.query_map(params![t,id,key],|r|r.get(0))?.collect::<Result<_,_>>()?;
+                for other in others {if let Some(retained)=evidence(tx,t,id,&other)? {
+                    if retained.retained.contains(c)&&retained.authored.contains(c)&&retained.after.get(c)!=Some(value)
+                        &&retained.reversed.get(c).is_some_and(|view|view.as_ref()==current.field(c).ok()) {
+                        bad.add(id,&format!("{}.{} retained authored output {} conflicts with new backfill {} computation {}; select a bridge that exposes the retained native value, repair it through an authorized mutation, then preview the new named transform",fill.table,c,display_cell(retained.after.get(c)),fill.name,display_cell(Some(value))));return Ok(())
+                    }
+                }}
                 if let Err(e)=validate_output(&fill.table,table,c,value) {bad.add(id,&e.to_string());return Ok(())}
                 if let Some(kind)=row_source.as_deref().and_then(|t|t.columns.get(c)) {if protected(kind) && prior.as_ref().is_none_or(|e|e.before.contains_key(c)) {bad.add(id,&format!("cannot overwrite historical reference or asset {}.{c}; derive into a new column",fill.table));return Ok(())}}
                 if prior.is_none() && fill.name.starts_with("$rename:up:") {

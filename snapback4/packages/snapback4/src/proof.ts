@@ -1,6 +1,6 @@
 export { loadFixtures, type FixtureRow, type LoadFixturesOptions } from "./proof-fixtures.ts";
-import { provisionAccounts, seedAccounts, type ProvisionedSessions, type SeedAccountsOptions, type StagingSessions } from "./proof-accounts.ts";
-export { provisionAccounts, seedAccounts, type SeedAccountsOptions, type StagingAccount, type StagingSessions, type ProvisionedAccount, type ProvisionedSessions } from "./proof-accounts.ts";
+import { provisionAccounts, seedAccounts, type ProvisionAccountsOptions, type ProvisionedSessions, type SeedAccountsOptions, type StagingSessions } from "./proof-accounts.ts";
+export { provisionAccounts, seedAccounts, type SeedAccountsOptions, type StagingAccount, type StagingSessions, type ProvisionAccountsOptions, type ProvisionedAccount, type ProvisionedSessions } from "./proof-accounts.ts";
 // @ref LLP 3000.011.003.000.000#1 — the packaged proof kit owns hosts; builders own assertions.
 import { mkdirSync, openSync, closeSync, writeSync } from "node:fs";
 import { join } from "node:path";
@@ -10,10 +10,10 @@ import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import type { BrowserContext, BrowserType, LaunchOptions, Locator, Page } from "playwright-core";
 import type { Cursor, ReadCut, Refusal } from "./contract.ts";
-import { renderedSelector, registerRenderedSelector, registeredLocator, visibleText } from "./proof-text.ts";
+import { renderedSelector, registerRenderedSelector, registeredLocator, visibleText, scopedLocators } from "./proof-text.ts";
 import { webWitnessObserverScript } from "./witness-web.ts";
 import { resolveBinary } from "./bin-path.ts";
-import { bounded, deadline, logged, logText, portRange, ready, stopChild, type ProofHost, type ProofOptions, logsDir } from "./proof-process.ts";
+import { bounded, cleanup, deadline, logged, logText, portRange, ready, stopChild, type ProofHost, type ProofOptions, logsDir } from "./proof-process.ts";
 export { bounded, cleanup, stopChild, portRange } from "./proof-process.ts";
 export type { ProofHost, ProofOptions } from "./proof-process.ts";
 
@@ -112,6 +112,7 @@ export interface ScheduleOutcome {
 export interface ClockAdvance { now: number; fired: ScheduleOutcome[]; held: ScheduleOutcome[]; maintenancePaused: boolean; valueOf(): number }
 export interface AdvanceOptions { eachBoundary?: boolean; drain?: boolean; allowHeld?: boolean; sessions?: "preserve" | "expire" }
 export interface ServeHost extends ProofHost {
+  readonly deploymentDir: string;
   /** Authoritative staging time; requires a staging store and local operator authority. */
   now(): Promise<number>;
   /** Advance staging time once and drain due work. A lost reply must not be retried. */
@@ -120,10 +121,10 @@ export interface ServeHost extends ProofHost {
   drain(options?: Pick<AdvanceOptions, "eachBoundary" | "allowHeld">): Promise<ClockAdvance>;
   operatorToken(service?: string, days?: number): Promise<string>;
   seedAccounts(options: SeedAccountsOptions): Promise<StagingSessions>;
-  provisionAccounts(options: SeedAccountsOptions): Promise<ProvisionedSessions>;
+  provisionAccounts(options: ProvisionAccountsOptions): Promise<ProvisionedSessions>;
   sessions?: StagingSessions;
 }
-export interface ServeOptions extends ProofOptions { seedUsers?: SeedAccountsOptions; provisionUsers?: SeedAccountsOptions; clockOffset?: string }
+export interface ServeOptions extends ProofOptions { seedUsers?: SeedAccountsOptions; provisionUsers?: ProvisionAccountsOptions; clockOffset?: string }
 // @ref LLP 3000.000.000.001#2-real-staging-accounts — operator authority stays in the existing local store proof; bulk setup refuses production.
 /** Starts a release. stop() awaits native exit and kernel store release.
  * @throws E_PROOF_USAGE for missing deployment directory; child exit, readiness deadline or served identity mismatch. stop() rejects bounded cleanup failure. */
@@ -155,7 +156,7 @@ export async function startServe(deployDir: string, options: ServeOptions | read
     const result = await cli(["serve", directory, "--wait-stopped"], {...opts, timeoutMs:6000});
     if (result.code !== 0) throw Error(`proof serve store release failed: ${result.stderr}`);
   })().catch(error => { stopping = undefined; throw error; });
-  const served: ServeHost = { ...host, stop,
+  const served: ServeHost = { ...host, stop, deploymentDir: directory,
     now: async () => (await clockCall()).now,
     advance: (duration, options = {}) => {
       if (typeof duration !== "string" || (!/^\+?\d+(ms|s|m|h|d|w)$/.test(duration) || BigInt(duration.replace(/\D/g, "")) === 0n)) throw new TypeError("E_PROOF_USAGE: advance requires a positive whole duration");
@@ -334,13 +335,29 @@ export async function withBrowser<T>(options: LaunchOptions & Pick<ProofOptions,
     }
   } finally { closeSync(err); closeSync(diagnostic); }
 }
+/** Keep owned proof hosts alive until SIGTERM/SIGINT, then stop all of them.
+ * @throws AggregateError if any bounded host cleanup fails. */
+// @ref LLP 3000.011.003.000.000#15-wave-26-proof-ergonomics-dx9 — a pending promise alone cannot keep probe:serve alive.
+export async function serveUntilSignal(hosts: readonly Pick<ProofHost, "stop">[]): Promise<void> {
+  if (!Array.isArray(hosts) || hosts.length === 0 || hosts.some(host => typeof host?.stop !== "function")) throw Error("E_PROOF_USAGE: serveUntilSignal requires at least one owned host");
+  let finish!: () => void;
+  const signalled = new Promise<void>(resolve => { finish = resolve; });
+  const hold = setInterval(() => {}, 60_000);
+  process.on("SIGTERM", finish); process.on("SIGINT", finish);
+  try { await signalled; }
+  finally {
+    clearInterval(hold);
+    try { await cleanup(...[...hosts].reverse().map(host => () => host.stop())); }
+    finally { process.removeListener("SIGTERM", finish); process.removeListener("SIGINT", finish); }
+  }
+}
 const substringLocators = new WeakMap<Locator, { locator: Locator; scoped: boolean }>();
 /** Match the smallest visible element whose composed descendant text matches.
- * Strings normalize whitespace and stay exact by default; regexes keep their
+ * Strings normalize whitespace and match substrings by default; regexes keep their
  * own semantics. Editable values never count. Independent matches remain
  * ambiguous, including repeated rows. */
 /** @throws None at construction; locator observation can refuse ambiguous or invalid selectors. */
-// @ref LLP 3000.000.000.001#11-wave-22-loop-repairs-dx6 — composed text preserves exactness and ambiguity.
+// @ref LLP 3000.011.003.000.000#15-wave-26-proof-ergonomics-dx9 — substrings retain strict ambiguity and explicit exactness.
 export function renderedText(page: Page, text: string | RegExp, options: { within?: Locator; exact?: boolean } | null = {}): Locator {
   const normalized = options ?? {};
   const root = normalized.within ?? page;
@@ -349,8 +366,9 @@ export function renderedText(page: Page, text: string | RegExp, options: { withi
     flags: typeof text === "string" ? "" : text.flags,
     regex: typeof text !== "string", exact,
   })}`));
-  const locator = match(normalized.exact ?? true);
-  if (typeof text === "string" && normalized.exact !== false) substringLocators.set(locator, { locator: match(false), scoped: normalized.within !== undefined });
+  const locator = match(normalized.exact ?? false);
+  if (normalized.within) scopedLocators.add(locator);
+  if (typeof text === "string" && normalized.exact === true) substringLocators.set(locator, { locator: match(false), scoped: normalized.within !== undefined });
   return locator;
 }
 
@@ -404,6 +422,7 @@ export async function waitForFresh(locator: Locator, previous: string | null, op
   let substring = substringLocators.get(locator);
   locator = registeredLocator(locator);
   if (typeof options !== "number" && options.within) {
+    if (scopedLocators.has(locator)) throw Error("E_PROOF_USAGE: within was supplied twice; scope renderedText or waitForFresh once");
     locator = registeredLocator(options.within.locator(locator));
     if (substring) substring = { locator: options.within.locator(substring.locator), scoped: true };
   }
@@ -412,6 +431,7 @@ export async function waitForFresh(locator: Locator, previous: string | null, op
   while (performance.now() < end) {
     try {
       count = await bounded(locator.count(), Math.max(1, end - performance.now()), "locator count");
+      if (count > 1) throw Error(`E_PROOF_AMBIGUOUS: strict mode violation: ${count} rendered matches; use a narrower within or exact: true: ${String(locator)}`);
       text = count ? await bounded(visibleText(locator, Math.max(1, Math.min(1000, end - performance.now()))), Math.max(1, end - performance.now()), "locator text") : null;
       if (text && text !== previous) return text;
     } catch (error) {
@@ -457,11 +477,17 @@ export async function waitForClock(page: Page, advancedNow: number, options: { t
   }), now => now >= advancedNow, { ...options, label: "page client clock" });
 }
 /** @throws locator ambiguity, disabled/closed control, or Playwright deadline. */
-export async function fillRN(locator: Locator, text: string): Promise<void> {
+export async function fillRN(locator: Locator, value: string | Parameters<Locator["setInputFiles"]>[0]): Promise<void> {
+  const type = await locator.evaluate(element => element instanceof HTMLInputElement ? element.type : "text");
+  if (type === "file") { await locator.setInputFiles(value); return; }
+  if (typeof value !== "string") throw Error("E_PROOF_USAGE: file paths/payloads require a file input");
+  if (["date", "datetime-local", "time", "month", "week"].includes(type)) { await locator.fill(value); return; }
   await locator.focus(); await locator.press("ControlOrMeta+A"); await locator.press("Backspace");
-  await locator.pressSequentially(text);
+  await locator.pressSequentially(value);
 }
 /** @throws None at construction; ambiguous text is refused when observed. */
 export function statusText(page: Page, text: string | RegExp = /^(?:Ready|pending|sent|failed)$/): Locator { return renderedText(page, text); }
 /** @throws locator ambiguity, unavailable option or Playwright deadline. */
 export async function selectByValue(locator: Locator, value: string): Promise<void> { await locator.selectOption({ value }); }
+
+export { serveCheck, type ServeCheckOptions, type ServeCheckReport } from "./proof-serve-check.ts";

@@ -1,0 +1,19 @@
+muse: workspace root: /home/ccheever/projects/snapback-sb4loop (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=28564ce6-518a-4620-9664-c53176ca00d7]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+No material finding.
+
+Read-only review of the integration diff content (not HEAD). No edits, tests, stores, or worktrees touched. The broad affected run, 650 copied-schema survey, and 100 copied-store replay are ongoing; I assume nothing about their outcomes.
+
+What I checked for interaction regressions:
+
+- Extractions fresh context ([extractions.rs:327-342](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-core/src/store/extractions.rs:327)): `sources` is previous-plus-restored definitions ([dormant.rs:553-554](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-core/src/store/dormant.rs:553)), so a newly declared parent is correctly absent from it. Falling back to `&next.tables` for both `parent` and `source_context` keeps the probe check in the schema the new rule was authored against. The considered loosening trigger — new parent `P` referencing a `Q` whose index changed in the same adoption — is a new rule with no historical meaning to retain, not a bypass of a retained bridge. Existing parents still use `sources`, so historical probe/index checks are retained.
+
+- Security decision rendering ([decisions.rs:22-49](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4/src/verbs/security_reviews/decisions.rs:22)): buffering the single `decision audience` block and emitting it at the first family member's sorted position preserves gate/authority priority (`summary_order`) instead of the old always-first family block. Gates stay out of the family via `!gated` ([decisions.rs:6-8](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4/src/verbs/security_reviews/decisions.rs:6)) and retain Repair/Intended next steps. One coherent family block, counted once.
+
+- Reader pool bounded custody ([serve_readers.rs:38-52,143-173](/home/ccheever/projects/snapback-sb4loop/snapback4/src/serve_readers.rs:38)): 4 factory loans bound construction without holding the readers mutex across `connect`/qualification; epoch-checked loan return plus `invalidate()` clearing `source`/`factories`/`idle` retains current authority on rollback/forward. `take_reader` ignoring the passed engine only affects test callers; production paths use `reader()`/`open_reader()`. `prepare_population` failing fast on Postgres with no source is truthful readiness, not silent refusal.
+
+- Help/parser agreement ([cli_flags.rs:268](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4/src/cli_flags.rs:268), [cli-commands.json:14](/home/ccheever/projects/snapback-sb4loop/snapback4/packages/snapback4/bin/cli-commands.json:14), [cli-usage.js:4-9](/home/ccheever/projects/snapback-sb4loop/snapback4/packages/snapback4/bin/cli-usage.js:4), [snapback4.js:31](/home/ccheever/projects/snapback-sb4loop/snapback4/packages/snapback4/bin/snapback4.js:31)): `serve-check` added in one table consumed by both Rust (`commands()`/`synopsis`/`top_help`/`verb_help`) and JS (`synopsis`), replacing a hardcoded usage string with the generated one. Missing `deployment`/`script` still fails truthfully via `E_PROOF_USAGE` in `proof-serve-check`.
+
+No finite-campaign universal-proof claim is made by the diff.
+

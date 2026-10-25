@@ -1,0 +1,20 @@
+{
+  "source": "70365904e65a71c3af923faedfc3b0713e3ee1a9",
+  "test": "bounded-following.test.mjs",
+  "temporaryOpt2": "full pool38pass1failed; isolated native case repeats TypeError from missing data",
+  "configuredPin": {
+    "sourceCommit": "70365904e65a71c3af923faedfc3b0713e3ee1a9",
+    "binary": "/home/ccheever/sb4-loop/reports/integration25/bin-configured-0.4.41",
+    "version": "snapback4 0.4.41",
+    "binarySha256": "e3391d494d1a39210d25dfccd2a7447614043467341abd046c3237fc52085135",
+    "profile": "Repository-configured test profile opt-level1; device3 unchanged; no opt-level environment overrides; three required Cargo0/debug0 variables and32MiB test stack",
+    "purpose": "Isolated native client target supplement; the active full-selector CLI and campaign pin remain separate."
+  },
+  "configuredResults": "isolated native case1/1, complete file39/39; original assertions/workload and32MiB runtime setting retained",
+  "logSha256": {
+    "bounded-following-native-alone.log": "e0c9ee8963c3ce587a2cba374dc0a81276c0a8bfd446d422d1deb9ea53e9467e",
+    "bounded-following-configured-alone.log": "b49740b18360de5bcb1c786eb4372abfff9f608862f8db9e67a9d39dc9d62ebb",
+    "bounded-following-configured-target-rerun.log": "ceec7f8a755af0fc8a54f9e328f7b0b93aa6481dc6dd00658ab5098d8d218d4d"
+  },
+  "underlyingControl": "Both Rust native Following and native continuation failOPT2 on pre-merge main, while configured-profile targets pass."
+}

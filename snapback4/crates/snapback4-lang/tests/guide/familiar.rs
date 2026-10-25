@@ -61,13 +61,23 @@ fn cards_meet_word_targets_and_preserve_every_original_compiled_block() {
         // The historical compression target still applies to the original
         // cards. MIG adds one independently compiled, packed-tested example;
         // bound that addition explicitly rather than weakening the 30% target.
+        let historical_programs;
         let historical = if name == "language" {
             let (historical, added) = text.split_once("```quarry\nuse identity password\ntable parcels").unwrap();
             assert!(added.split_whitespace().count() <= 100, "backfill example budget");
             historical
+        } else if name == "programs" {
+            let (before, added) = text.split_once("## Branches and typed empty accumulators").unwrap();
+            let (addition, after) = added.split_once("## Limits").unwrap();
+            assert!(addition.split_whitespace().count() <= 180, "DX9 independently packed-tested forms budget");
+            // Preserve the compression target for historical prose; separately
+            // bound the new compiled, packed-tested example.
+            // `historical_programs` below owns the reconstructed original card.
+            historical_programs = format!("{before}## Limits{after}");
+            &historical_programs
         } else { text };
         let words = historical.split_whitespace().count();
-        let opening = text.split_once("## Limits").unwrap().0.split_whitespace().count();
+        let opening = historical.split_once("## Limits").unwrap().0.split_whitespace().count();
         assert!(opening * 3 <= old.opening_words, "{name}: opening {opening}, before {}", old.opening_words);
         let hashes: BTreeSet<_> = quarry(text).iter().map(|s| format!("{:x}", Sha256::digest(s.as_bytes()))).collect();
         for hash in old.blocks { assert!(hashes.contains(&hash), "{name} lost compiled block {hash}"); }

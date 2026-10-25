@@ -1,0 +1,25 @@
+{
+  "head": "ec032939d9d685ba52e2bbb7f8331ea07392e76c",
+  "fileSha256": {
+    "llp/3000.011.003.000.000-packaged-proof-kit.rfc.md": "5060e7f60f2fe2d26250bcef80889ff6ede925dcb708c9ea753329fcafd607b6",
+    "snapback4/JOURNAL.md": "e9f93458bffb287aec5d8e985fc067f30f2f4d61e1f9f8e2e461af54d6c7346d",
+    "snapback4/crates/snapback4-lang/src/bind/security/write_advice.rs": "ccde1eb93ec0d55f8e40ec7e42f981740a28ce4a9a2f2d7f1be81a99435bc3fe",
+    "snapback4/crates/snapback4-lang/src/guide/cheatsheet.md": "b3f88f714a14264501c26394464713f570c9abb13637cc49990a7da01498ab01",
+    "snapback4/crates/snapback4-lang/src/guide/proof_api.md": "8a15af43ab59e9400df1295c7fe06cb5f6a0e3cf33e39daf4ce9392c47b593cd",
+    "snapback4/crates/snapback4-lang/src/guide/staging.md": "f316db3d4a9f75a0f63be32890c41f78c9d159ed0ad26ec10803360622a42003",
+    "snapback4/crates/snapback4-lang/src/guide/testing.md": "ef602005622c8581205b00806131c6eeef371d7ee04569baa4332b4e359f85b6",
+    "snapback4/crates/snapback4-lang/tests/security_sec9.rs": "9c744517787c69797fd78be91284e66933689e7b870b6233ede93195ff055e49",
+    "snapback4/packages/snapback4/CHANGELOG.md": "cae623d4a4121efb079d7c89f6c5d0778d942b7942d5fc77e4ffacf7d632fa61",
+    "snapback4/packages/snapback4/bin/snapback4.js": "9203091b603b83062d7f0ce2f844e27fec05eb8ed2a7c9935c741b1a349e8d11",
+    "snapback4/packages/snapback4/src/proof-accounts.ts": "0008eaad1a87066a32984027d821794be6b729742325bae812f3b4625f0d3e0e",
+    "snapback4/packages/snapback4/src/proof.ts": "57718a526e8a07dae875cba39a03dc6797b602544333021fce5f79e1db3af843",
+    "snapback4/packages/snapback4/test/identity-rate.test.mjs": "dfa9c4cca76cf28dae2aff07b43e4862d310322d9c9c9a34b0289fa211355d6d",
+    "snapback4/packages/snapback4/src/proof-serve-check.ts": "4b44776ba60cbb84f9c13d44a3af4ffda5e1f4819eea87f0909a01366547e024",
+    "snapback4/packages/snapback4/src/proof-serve-driver.ts": "233720f258e444617bf2330af6b41f8278c8df02bd3f871234bae46c84004b29",
+    "snapback4/packages/snapback4/test/dx10-process-accounts.test.mjs": "9f98fe36a28fca9ef2d7caa42cf8ba56b15c8c1a13a33174a0398565f5928984"
+  },
+  "models": [
+    "muse-spark-1.3-contributor high",
+    "fresh codex gpt-6.1-sol high"
+  ]
+}

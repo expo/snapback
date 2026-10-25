@@ -72,13 +72,14 @@ impl Report {
         for note in notes.iter().enumerate().filter_map(|(i,n)|
             (i < limit || note_priority(&n.code) <= 3).then_some(*n)) {
             shown += 1;
-            out.push_str(&format!("  REVIEW {} {}: {}\n    {}\n",note.site,note.code,note.message,note.rewrite));
+            out.push_str(&format!("  DECISION {} {}: {}; is this intended?\n    Repair: {}\n    Intended: check --json for the source-bound decision ID; check --ack-security ID --reason '<spec rationale>'\n",note.site,note.code,note.message.trim_end_matches(['.', '?']),note.rewrite));
         }
         if shown < notes.len() { out.push_str(&format!("  {} more reviews: snapback4 audit --all or check --verbose\n", notes.len()-shown)); }
         let proved = self.invariants.iter().filter(|v| v.status == Status::Proved).count();
         let refuted = self.invariants.iter().filter(|v|v.status==Status::Refuted).count();
         let unproved = self.invariants.len()-proved-refuted;
-        out.push_str(&format!("security: {proved} proved, {refuted} refuted, {unproved} unproved ({} failing)\n", failures.len()));
+        let enforced=self.invariants.iter().filter(|v|v.status==Status::Unproved&&v.direct_rule==Status::Proved).count();
+        out.push_str(&format!("security: {proved} proved, {refuted} refuted; {enforced} enforced by rule (additional paths not proved); {} other unproved ({} failing)\n",unproved-enforced, failures.len()));
         let supplemental = self.invariants.iter().filter(|v| v.status == Status::Refuted &&
             v.counterexample.as_ref().is_some_and(|c| !c.reachability.is_reachable())).count();
         if supplemental > 0 {out.push_str(&format!("  {supplemental} seed/synthetic observations are non-failing\n"));}

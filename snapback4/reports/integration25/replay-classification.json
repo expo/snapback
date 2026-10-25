@@ -1,0 +1,32 @@
+{
+  "sourceCommit": "70365904e65a71c3af923faedfc3b0713e3ee1a9",
+  "falseRefusals": 0,
+  "basis": "Every refused case and move count matches the independently audited REL report; successful moves and live state are checked by the replay. No original schema decision is accepted.",
+  "reference": "~/sb4-loop/reports/rel.md:137-146",
+  "cases": [
+    {
+      "project": "w25-004",
+      "knownTrueRefusal": "Removed defaults/legacy media need a truthful reverse projection or authored bridge."
+    },
+    {
+      "project": "w25-024",
+      "knownTrueRefusal": "Required installs.photos needs reversible custody-preserving extraction/projection."
+    },
+    {
+      "project": "w25-030",
+      "knownTrueRefusal": "Two predecessor rows need preserved visibility or a truthful authored declaration/projection."
+    },
+    {
+      "project": "w25-045",
+      "knownTrueRefusal": "An individual security decision remains pending; do not invent author intent."
+    },
+    {
+      "project": "w27-012",
+      "knownTrueRefusal": "Old updateWork editor authority exceeds current owner/producer authority; guarded bridge required."
+    },
+    {
+      "project": "w27-042",
+      "knownTrueRefusal": "Old manager openCar can supply inspector-only notes; guarded bridge required."
+    }
+  ]
+}

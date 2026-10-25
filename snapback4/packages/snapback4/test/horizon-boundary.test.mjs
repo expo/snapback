@@ -1,3 +1,4 @@
+import { after as teardownAfter } from "./helpers/teardown.mjs";
 import { captureStdout } from './helpers/server-output.mjs';
 import { hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
@@ -52,7 +53,7 @@ for (const group of [false, true]) test(`wasm acquisition boundary: ${group ? "c
   const exited = once(server, "exit");
   let log = "", client;
   server.stderr.on("data", chunk => { log += chunk; });
-  t.after(async () => { await client?.close(); if (server.exitCode == null && server.signalCode == null) server.kill(); await exited; rmSync(directory, { recursive: true, force: true }); });
+  teardownAfter(t, async () => { await client?.close(); if (server.exitCode == null && server.signalCode == null) server.kill(); await exited; rmSync(directory, { recursive: true, force: true }); });
   const url = await new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error(`server did not start in ten minutes: ${log}`)), hangBudget());
     server.once("exit", () => { clearTimeout(timer); reject(new Error(log)); });
@@ -122,7 +123,7 @@ const rawQuery = core => core.call({ op: "query", name: "thread", viewer: "dev:a
 
 test("wasm rejects a skipped snapshot page before accepting its completion", async t => {
   const persist = memoryPersistence(), opener = webDevice({ wasm, persist });
-  const core = await opener.open("skip", rawBackend); t.after(() => core.close());
+  const core = await opener.open("skip", rawBackend); teardownAfter(t, () => core.close());
   const pages = [
     { after: null, next: "middle", more: true, events: [membership, message(12), message(11)], acquisitions: [marker(1)] },
     { after: "middle", next: "last", more: true, events: [message(10), message(9)] },
@@ -143,7 +144,7 @@ test("wasm rejects a skipped snapshot page before accepting its completion", asy
 
 for (const moved of [false, true]) test(`wasm retained reacquisition remains unknown after gap ${moved ? "move" : "deletion"}`, async t => {
   const persist = memoryPersistence(), opener = webDevice({ wasm, persist });
-  let core = await opener.open(`gap-${moved}`, rawBackend); t.after(() => core.close());
+  let core = await opener.open(`gap-${moved}`, rawBackend); teardownAfter(t, () => core.close());
   ok(await core.call({ op: "apply", first: true, page: { snapshot: true, events: [membership, message(2), message(1)], acquisitions: [marker(1), marker(3, "whole")], watermark: 1, more: false } }));
   assert.equal(ok(await rawQuery(core)).complete, true);
   ok(await core.call({ op: "apply", page: { snapshot: false, events: [{ table: "messages", id: "scope", kind: "scope", data: ["c1"] }], watermark: 2, more: false } }));
@@ -194,7 +195,7 @@ async function reviewServer(t, source = reviewSource) {
   const readStdout = captureStdout(server);
   const exited = once(server, "exit"); let log = "";
   server.stderr.on("data", chunk => { log += chunk; });
-  t.after(async () => { if (server.exitCode == null && server.signalCode == null) server.kill(); await exited; rmSync(directory, { recursive: true, force: true }); });
+  teardownAfter(t, async () => { if (server.exitCode == null && server.signalCode == null) server.kill(); await exited; rmSync(directory, { recursive: true, force: true }); });
   const url = await new Promise((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error(log)), hangBudget());
     server.once("exit", () => { clearTimeout(timer); reject(new Error(log)); });
@@ -212,7 +213,7 @@ async function reviewServer(t, source = reviewSource) {
   };
   const backend = await (await fetch(`${url}/schema`, { headers: { "x-snapback-persona": "bob" } })).json();
   const persist = memoryPersistence();
-  const core = await webDevice({ wasm, persist }).open(directory, backend); t.after(() => core.close());
+  const core = await webDevice({ wasm, persist }).open(directory, backend); teardownAfter(t, () => core.close());
   return { post, core, persisted: () => persist.load(directory) };
 }
 for (const moved of [false, true]) for (const hidden of [false, true]) test(`wasm wire withholds a ${hidden ? "hidden" : "deleted"} floor's historical value${moved ? " with moved survivor (recheck)" : ""}`, { timeout: hangBudget(5000) }, async t => {
@@ -416,7 +417,7 @@ test("wasm public retained history keeps only served rows on a closed horizonles
   backend.schema.tables.messages.sync.horizon = null;
   for (const served of [false, true]) {
     const core = await webDevice({ wasm, persist: memoryPersistence() }).open(`public-closed-${served}`, backend);
-    t.after(() => core.close());
+    teardownAfter(t, () => core.close());
     ok(await core.call({ op: "apply", first: true, page: { snapshot: true, events: [membership], watermark: 1, more: false } }));
     if (served) ok(await core.call({ op: "apply", page: { snapshot: false, events: Array.from({ length: 26 }, (_, i) => message(i)), watermark: 2, more: false } }));
     ok(await core.call({ op: "apply", page: { snapshot: false, events: [{ table: "messages", id: "scope", kind: "scope", data: ["c1"] }], watermark: 3, more: false } }));
@@ -464,7 +465,7 @@ for (const kind of ["cold", "gap", "revoke", "unlimited"]) for (const horizon of
   if (kind === "unlimited" && (!horizon || !split)) continue;
   test(`wasm review renewal ${kind} horizon=${horizon} split=${split}`, { timeout: hangBudget(5000) }, async t => {
     const f = (await rustReviewFixtures()).renewals.find(f => f.kind === kind && f.horizon === horizon && f.split === split);
-    const persist = memoryPersistence(), core = await webDevice({ wasm, persist }).open(f.name, f.backend); t.after(() => core.close());
+    const persist = memoryPersistence(), core = await webDevice({ wasm, persist }).open(f.name, f.backend); teardownAfter(t, () => core.close());
     for (const [i, page] of f.initial.entries()) ok(await core.call({ op: "apply", first: i === 0, page }));
     if (kind === "gap") assert.notEqual(ok(await core.call({ op: "query", name: "one", viewer: "dev:bob", args: { p: "p3" }, now: 100 })).data, null);
     for (const page of f.pages) ok(await core.call({ op: "apply", page }));
@@ -499,7 +500,7 @@ for (const kind of ["cold", "gap", "revoke", "unlimited"]) for (const horizon of
 for (const kind of ["renew", "rejoin", "twice", "later"]) for (const horizon of [false, true]) for (const split of [false, true]) for (const retained of [false, true]) {
   test(`wasm review same-commit ${kind} horizon=${horizon} split=${split} retained=${retained}`, { timeout: hangBudget(5000) }, async t => {
     const f = (await rustReviewFixtures()).same_commit.find(f => f.kind === kind && f.horizon === horizon && f.split === split && f.retained === retained);
-    const persist = memoryPersistence(), core = await webDevice({ wasm, persist }).open(f.name, f.backend); t.after(() => core.close());
+    const persist = memoryPersistence(), core = await webDevice({ wasm, persist }).open(f.name, f.backend); teardownAfter(t, () => core.close());
     for (const page of f.pages) ok(await core.call({ op: "apply", page }));
     const query = c => core.call({ op: "query", name: "timeline", viewer: "dev:bob", args: { g: "g", c }, now: f.now }).then(ok);
     const read = await query(null);
@@ -527,7 +528,7 @@ for (const kind of ["renew", "rejoin", "twice", "later"]) for (const horizon of 
 for (const snapshot of [false, true]) test(`wasm review mixed-readable generated pages snapshot=${snapshot}`, { timeout: hangBudget(5000) }, async t => {
   const observations = [];
   for (const f of (await rustReviewFixtures()).mixed.filter(f => f.snapshot === snapshot)) {
-    const persist = memoryPersistence(), core = await webDevice({ wasm, persist }).open(f.name, f.backend); t.after(() => core.close());
+    const persist = memoryPersistence(), core = await webDevice({ wasm, persist }).open(f.name, f.backend); teardownAfter(t, () => core.close());
     for (const [i, page] of f.pages.entries()) ok(await core.call({ op: "apply", first: snapshot && i === 0, page }));
     const query = c => core.call({ op: "query", name: "timeline", viewer: "bob", args: { c }, now: 3 }).then(ok);
     const read = await query(null);

@@ -7,7 +7,7 @@ import { app, tier, url } from "./src/client";
 import { Inbox } from "./src/Inbox";
 import { Thread } from "./src/Thread";
 
-export function App() {
+export default function App() {
   return <AppProvider app={app}><SafeAreaView style={{ flex: 1 }}>
     <StatusBar style="auto" /><Account />
   </SafeAreaView></AppProvider>;

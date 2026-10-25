@@ -25,8 +25,12 @@ fn aliases(body: &[Stmt], out: &mut BTreeMap<String, String>) {
 }
 fn member(expr: &Expr, aliases: &BTreeMap<String, String>) -> Option<(String, String, String)> {
     let Expr::Member { base, name: field, .. } = expr else { return None };
-    let Expr::Name { name, .. } = base.as_ref() else { return None };
-    Some((aliases.get(name)?.clone(), field.clone(), name.clone()))
+    match base.as_ref() {
+        Expr::Name { name, .. } => Some((aliases.get(name)?.clone(),field.clone(),name.clone())),
+        Expr::Read(read) => Some((read.table.clone(),field.clone(),crate::print::read_expr(read))),
+        Expr::Assert{value,..} => read_table(value).map(|table|(table.to_owned(),field.clone(),crate::print::expression(value))),
+        _ => None,
+    }
 }
 fn clock(expr: &Expr, period: bool) -> bool {
     let mut found = false;
@@ -77,40 +81,93 @@ fn literal_updates(body: &[Stmt]) -> BTreeSet<(String, String)> {
     });
     writes
 }
+// @ref LLP 3000.036.004#18-wave-26-security-decisions-dx9 — compare literal states and dominating guards of the actual write paths.
+fn allows(expr:&Expr, table:&str, column:&str, value:&Literal, alias:&str, aliases:&BTreeMap<String,String>)->Option<bool>{
+    match expr {
+        Expr::Literal{value:Literal::Bool(b),..}=>Some(*b),
+        Expr::Unary{op,value:inner,..} if op=="not"=>allows(inner,table,column,value,alias,aliases).map(|b|!b),
+        Expr::Binary{op,left,right,..} if op=="and"||op=="or"=>{
+            let a=allows(left,table,column,value,alias,aliases);let b=allows(right,table,column,value,alias,aliases);
+            if op=="and" {if a==Some(false)||b==Some(false){Some(false)}else if a==Some(true)&&b==Some(true){Some(true)}else{None}}
+            else {if a==Some(true)||b==Some(true){Some(true)}else if a==Some(false)&&b==Some(false){Some(false)}else{None}}
+        },
+        Expr::Binary{op,left,right,..} if op=="="||op=="!="=>{
+            for (field,literal) in [(left.as_ref(),right.as_ref()),(right.as_ref(),left.as_ref())] {
+                if member(field,aliases).is_some_and(|(t,c,a)|t==table&&c==column&&a==alias)
+                    && let Expr::Literal{value:other,..}=literal {
+                    return Some((other==value)==(op=="="));
+                }
+            }None
+        },
+        field if member(field,aliases).is_some_and(|(t,c,a)|t==table&&c==column&&a==alias)=>if let Literal::Bool(b)=value{Some(*b)}else{None},
+        _=>None,
+    }
+}
+fn admitted(body:&[Stmt],table:&str,column:&str,value:&Literal,alias:&str,aliases:&BTreeMap<String,String>)->bool{
+    body.iter().filter_map(|s|if let Stmt::Require{condition,..}=s{Some(condition)}else{None})
+        .all(|guard|allows(guard,table,column,value,alias,aliases)!=Some(false))
+}
+fn time_mask(expr:&Expr,table:&str,column:&str,alias:&str,bindings:&BTreeMap<String,String>,period:bool)->Option<u8>{
+    match expr {
+        Expr::Unary{op,value,..} if op=="not"=>time_mask(value,table,column,alias,bindings,period).map(|mask|7^mask),
+        Expr::Binary{op,left,right,..} if op=="and"||op=="or"=>{
+            let a=time_mask(left,table,column,alias,bindings,period);let b=time_mask(right,table,column,alias,bindings,period);
+            if op=="and" {if a.is_some()||b.is_some(){Some(a.unwrap_or(7)&b.unwrap_or(7))}else{None}}
+            else {Some(a? | b?)}
+        },
+        Expr::Binary{op,left,right,..}=>{
+            for (field,time,reverse) in [(left.as_ref(),right.as_ref(),false),(right.as_ref(),left.as_ref(),true)] {
+                if !matches!(time,Expr::Name{name,..} if name=="now"||period&&name=="periodEnd"){continue;}
+                if !member(field,bindings).is_some_and(|(t,c,a)|t==table&&c==column&&a==alias){continue;}
+                let mask=match op.as_str(){"<"=>1,"<="=>3,"="=>2,"!="=>5,">="=>6,">"=>4,_=>return None};
+                return Some(if reverse{(mask&1)<<2 | mask&2 | (mask&4)>>2}else{mask});
+            }None
+        },_=>None,
+    }
+}
+fn path_time(body:&[Stmt],table:&str,column:&str,alias:&str,bindings:&BTreeMap<String,String>,period:bool)->u8{
+    body.iter().filter_map(|s|if let Stmt::Require{condition,..}=s{time_mask(condition,table,column,alias,bindings,period)}else{None}).fold(7,|a,b|a&b)
+}
 pub(super) fn notes(catalog: &Catalog) -> Vec<Diagnostic> {
     let programs: Vec<_> = catalog.documents.iter().flat_map(|doc| {
         let module = std::path::Path::new(&doc.file).file_stem().and_then(|s| s.to_str()).unwrap_or("schema");
         doc.programs.iter().map(move |program| (if module == "schema" { program.name.clone() } else { format!("{module}.{}", program.name) }, program))
     }).collect();
     let scheduled: BTreeSet<_> = catalog.documents.iter().flat_map(|doc| &doc.schedules).map(|s| s.target.as_str()).collect();
-    let mut notes = Vec::new();
-    let mut emitted = BTreeSet::new();
-    for (job_name, job) in programs.iter().filter(|(name, p)| p.kind == ProgramKind::Job && !p.native && scheduled.contains(name.as_str())) {
-        let mut bindings = BTreeMap::new(); aliases(&job.body, &mut bindings);
-        let deadlines = comparisons(&job.body, &bindings, true);
-        let writes = literal_updates(&job.body);
-        let mut job_conditions = BTreeSet::new();
-        condition_fields(&job.body, &bindings, &mut job_conditions);
-        for (mutation_name, mutation) in programs.iter().filter(|(_, p)| p.kind == ProgramKind::Mutation && !p.native) {
-            let mut bindings = BTreeMap::new(); aliases(&mutation.body, &mut bindings);
-            let mut conditions = BTreeSet::new(); condition_fields(&mutation.body, &bindings, &mut conditions);
-            let checked = comparisons(&mutation.body, &bindings, false);
-            let mutation_writes = literal_updates(&mutation.body);
-            for (table, deadline, _job_alias, _comparison) in &deadlines {
-                if !catalog.tables.get(table).and_then(|info| info.columns.get(deadline)).is_some_and(|column| matches!(column.kind, TypeKind::Time)) { continue; }
-                for (target, status, alias) in &conditions {
-                    let direct = writes.contains(&(table.clone(), status.clone()));
-                    let coupled = writes.iter().any(|(t, _)| t == table)
-                        && job_conditions.iter().any(|(t, field, _)| t == table && field == status)
-                        && mutation_writes.contains(&(table.clone(), status.clone()));
-                    if target != table || (!direct && !coupled)
-                        || checked.iter().any(|(t, f, a, _)| t == table && f == deadline && a == alias)
-                        || !emitted.insert((mutation_name.clone(), table.clone(), deadline.clone(), status.clone())) { continue; }
-                    let relation = if direct { format!("tests {alias}.{status} (column {table}.{status}); scheduled job {job_name} has a literal update of that column") }
-                        else { format!("tests {alias}.{status} and writes column {table}.{status}; scheduled job {job_name} also tests that column") };
-                    notes.push(Diagnostic::new(&mutation.site, "N_SWEEP_DEADLINE",
-                        format!("mutation {mutation_name} {relation}; the job contains a time comparison on {table}.{deadline}; no direct comparison of {alias}.{deadline} with now was found. A sweep-written status can lag a time boundary; this syntactic advisory is not a proof of control flow, row identity or safety, or a security finding"),
-                        format!("if this is an operation deadline, enforce the intended time boundary on {alias}.{deadline} against now inside this mutation, choosing the opening/closing direction and equality boundary explicitly; keep the sweep for notifications/cleanup. Notification-only sweeps need no extra deadline guard; review row identity and helper guards before changing behavior")).guide("time"));
+    let mut notes=Vec::new();let mut emitted=BTreeSet::new();
+    for (job_name,job) in programs.iter().filter(|(name,p)|p.kind==ProgramKind::Job&&!p.native&&scheduled.contains(name.as_str())) {
+        let mut job_aliases=BTreeMap::new();aliases(&job.body,&mut job_aliases);
+        for (write,job_path) in super::security::authority_walk::writes(catalog,job) {
+            let Expr::Write{op:WriteOp::Update,table,fields,..}=write else{continue;};
+            let deadlines=comparisons(&job_path.body,&job_aliases,true);
+            let job_writes=literal_updates(&job.body);
+            let mut job_conditions=BTreeSet::new();condition_fields(&job_path.body,&job_aliases,&mut job_conditions);
+            for (mutation_name,mutation) in programs.iter().filter(|(_,p)|p.kind==ProgramKind::Mutation&&!p.native){
+                let mut mutation_aliases=BTreeMap::new();aliases(&mutation.body,&mut mutation_aliases);
+                for (_,path) in super::security::authority_walk::writes(catalog,mutation){
+                    let mut conditions=BTreeSet::new();condition_fields(&path.body,&mutation_aliases,&mut conditions);
+                    let mutation_writes=literal_updates(&mutation.body);
+                    for (deadline_table,deadline,job_alias,_) in &deadlines {
+                        if deadline_table!=&table||!catalog.tables.get(&table).and_then(|t|t.columns.get(deadline)).is_some_and(|c|matches!(c.kind,TypeKind::Time)){continue;}
+                        for (target,status,alias) in &conditions {
+                            let direct=fields.iter().any(|f|&f.name==status&&matches!(f.value,Some(Expr::Literal{..})));
+                            let coupled=job_writes.iter().any(|(t,_)|t==&table)&&job_conditions.iter().any(|(t,c,_)|t==&table&&c==status)&&mutation_writes.contains(&(table.clone(),status.clone()));
+                            if target!=&table||(!direct&&!coupled){continue;}
+                            let due=path_time(&job_path.body,&table,deadline,job_alias,&job_aliases,true);
+                            let admitted_time=path_time(&path.body,&table,deadline,alias,&mutation_aliases,false);
+                            if due!=7&&due&admitted_time==0{continue;}
+                            let states=match catalog.tables.get(&table).and_then(|t|t.columns.get(status)).map(|c|&c.kind){
+                                Some(TypeKind::Bool)=>vec![Literal::Bool(false),Literal::Bool(true)],
+                                Some(TypeKind::Enum{variants})=>variants.iter().cloned().map(Literal::Str).collect(),
+                                _=>Vec::new(),
+                            };
+                            if !states.is_empty()&&!states.iter().any(|state|admitted(&job_path.body,&table,status,state,job_alias,&job_aliases)&&admitted(&path.body,&table,status,state,alias,&mutation_aliases)){continue;}
+                            if !emitted.insert((mutation_name.clone(),table.clone(),deadline.clone(),status.clone())){continue;}
+                            let relation=if direct{format!("tests {alias}.{status} (column {table}.{status}); scheduled job {job_name} has a literal update of that column")}
+                                else{format!("tests {alias}.{status} and writes column {table}.{status}; scheduled job {job_name} also tests that column")};
+                            notes.push(Diagnostic::new(&mutation.site,"N_SWEEP_DEADLINE",format!("mutation {mutation_name} {relation}; its write path can admit a state changed by the job at {table}.{deadline}; no dominating comparison of {alias}.{deadline} with now was found. This is not a proof of control flow, row identity or safety"),format!("if this is an operation deadline, enforce the intended time boundary on {alias}.{deadline} against now inside this mutation, choosing the opening/closing direction and equality boundary explicitly; keep the sweep for notifications/cleanup. Notification-only sweeps need no extra deadline guard")).guide("time"));
+                        }
+                    }
                 }
             }
         }

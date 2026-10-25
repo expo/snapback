@@ -115,7 +115,7 @@ fn enum_complement(predicate: &Expr, table: &TableInfo) -> Option<(String, Expr)
     let ty = table.columns.get(column)?;
     let TypeKind::Enum { variants } = &ty.kind else { return None; };
     if ty.optional || variants.len() > 8 { return None; }
-    let values = |exclude: Option<&str>| Expr::Array { site: site.clone(), items: variants.iter()
+    let values = |exclude: Option<&str>| Expr::Array { site: site.clone(), item_type: None, items: variants.iter()
         .filter(|variant| Some(variant.as_str()) != exclude)
         .map(|variant| Expr::Literal { value: Literal::Str(variant.clone()), site: site.clone() }).collect() };
     let source = match value {

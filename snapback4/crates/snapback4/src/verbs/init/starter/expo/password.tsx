@@ -5,7 +5,7 @@ import { AppProvider, useAuth, useAppReady } from "snapback4/react";
 import { useNativeSmokeGuest } from "./src/native-smoke";
 import { app } from "./src/client";
 
-export function App() { return <AppProvider app={app}><SafeAreaView style={{ flex: 1 }}><StatusBar style="auto" /><Account /></SafeAreaView></AppProvider>; }
+export default function App() { return <AppProvider app={app}><SafeAreaView style={{ flex: 1 }}><StatusBar style="auto" /><Account /></SafeAreaView></AppProvider>; }
 function Account() {
   useNativeSmokeGuest();
   const auth = useAuth();

@@ -1,5 +1,9 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import {mkdtempSync, rmSync} from "node:fs";
+import {tmpdir} from "node:os";
+import {join} from "node:path";
+const rosterDir=t=>{const dir=mkdtempSync(join(tmpdir(),"dx10-identity-"));t.after(()=>rmSync(dir,{recursive:true,force:true}));return dir;};
 import {setTimeout as sleep} from "node:timers/promises";
 import {guest, login, signup} from "../dist/auth.js";
 import {provisionAccounts,seedAccounts} from "../dist/proof.js";
@@ -54,7 +58,7 @@ test("proof provisionAccounts authenticates schema inspection and warns for an u
   if(url.endsWith("/auth/signup"))return response(session());
   provision=JSON.parse(init.body);return response({state:"sent"});
  });
- const accounts=await provisionAccounts({url:"http://example",operatorToken:async service=>{assert.equal(service,"unused");return "operator";}},{roles:{member:1},provision:{name:"provision"},service:"unused",timeoutMs:1000});
+ const accounts=await provisionAccounts({deploymentDir:rosterDir(t),url:"http://example",operatorToken:async service=>{assert.equal(service,"unused");return "operator";}},{roles:{member:1},provision:{name:"provision"},service:"unused",timeoutMs:1000});
  assert.equal(schemaAuthorization,"Bearer operator");
  assert.match(warning,/service:unused.*no explicit positive authorization.*rules still decide/);
  assert.match(accounts.member[0].email,/^production-member-/);
@@ -67,7 +71,7 @@ test("proof provisionAccounts gives production-safe partial setup advice",async 
   return response({denied:{code:"E_AUTH",family:"auth",message:"signup refused",retryable:false}},401);
  });
  await assert.rejects(
-  provisionAccounts({url:"http://example",operatorToken:async()=>"operator"},{roles:{member:1},provision:{name:"provision"},service:"setup",timeoutMs:1000}),
+  provisionAccounts({deploymentDir:rosterDir(t),url:"http://example",operatorToken:async()=>"operator"},{roles:{member:1},provision:{name:"provision"},service:"setup",timeoutMs:1000}),
   error=>error.message.includes("inspect partial production accounts/grants")&&!error.message.includes("discard")
  );
 });
@@ -78,7 +82,7 @@ test("an active production signup deadline never recommends discarding productio
   calls++;return new Promise((_,reject)=>{const abort=()=>reject(init.signal.reason);init.signal.addEventListener("abort",abort,{once:true});if(init.signal.aborted)abort();});
  });
  await assert.rejects(
-  provisionAccounts({url:"http://example",operatorToken:async()=>"operator"},{roles:{member:1},provision:{name:"provision"},service:"setup",timeoutMs:10}),
+  provisionAccounts({deploymentDir:rosterDir(t),url:"http://example",operatorToken:async()=>"operator"},{roles:{member:1},provision:{name:"provision"},service:"setup",timeoutMs:10}),
   error=>error.message.includes("E_STAGING_TIMEOUT")&&error.message.includes("inspect partial production accounts/grants")&&!error.message.includes("discard")
  );
  assert.equal(calls,1);
@@ -118,4 +122,16 @@ test("early timer delivery preserves staging timeout classification with budget 
  });
  await assert.rejects(seedAccounts({url:"http://example",operatorToken:async()=>"operator"},{roles:{member:1},provision:{name:"provision"},timeoutMs:1000}),/E_STAGING_TIMEOUT.*partial accounts/);
  assert.equal(early,1);assert.equal(calls,1);
+});
+
+test('DX9 provisioning refusal names only argument keys and never credential values', async t => {
+ const original=globalThis.fetch;t.after(()=>{globalThis.fetch=original;});
+ for(const envelope of [{state:'failed',why:{code:'E_INPUT',message:'private-password private-token private-value'}},{denied:{code:'E_RULE',message:'private-password private-token'}}]) {
+  globalThis.fetch=async url=>new Response(JSON.stringify(String(url).endsWith('/auth/config')?{environment:'staging',development:false,password:true}:String(url).endsWith('/auth/signup')?{session:{kind:'user',principal:'user:private-principal',token:'private-token',expiresAt:Date.now()+100000}}:envelope));
+  await assert.rejects(seedAccounts({url:'http://example',operatorToken:async()=>'operator'},{roles:{member:1},provision:{name:'provision'},args:()=>({label:'private-value'})}),error=>{
+   assert.match(error.message,/E_STAGING_PROVISION.*supplied arguments: label, principal, role/);
+   for(const secret of ['private-password','private-token','private-value','private-principal'])assert.equal(error.message.includes(secret),false);
+   return true;
+  });
+ }
 });

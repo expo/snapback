@@ -1,0 +1,6 @@
+muse: workspace root: /home/ccheever/projects/snapback-sb4loop (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=cf29fe6c-eb19-4f28-b2cf-14d9b8c5e142]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+No material finding.
+
+The diff preserves the accepted contract: `audience()` still excludes every gated code, the family hash stays source-bound and singular, `count()`/`render()` emit one complete family block plus individual review-tier decisions, acknowledged rows keep their identities, and deferring the family block to the first member position preserves gate/authority priority instead of hoisting it to the top.

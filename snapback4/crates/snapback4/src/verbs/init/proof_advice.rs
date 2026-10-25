@@ -13,7 +13,7 @@ fn templates() -> &'static [Template] {
 pub(super) fn digest(text: &str) -> String { format!("{:x}", Sha256::digest(text.as_bytes())) }
 pub(super) fn known_day2(text: &str) -> bool {
     let hash = digest(text);
-    templates().iter().any(|t| t.file == "day2" && t.sha256 == hash)
+    text == include_str!("day2-proof.mjs") || templates().iter().any(|t| t.file == "day2" && t.sha256 == hash)
 }
 /// Exact shipped helper bytes identify its identity mode and starter revision.
 pub(super) fn native_template(text: &str) -> Option<(&'static str, bool)> {
@@ -59,7 +59,12 @@ pub(super) fn legacy_differences(dir: &Path, plan: &[(&str, String)]) -> Vec<Str
 }
 pub(super) fn report(dir: &Path) -> Vec<String> {
     let mut advice = legacy_differences(dir, &[]);
-    if let Ok(entries) = std::fs::read_dir(dir.join("versions")) {
+    // A current or application-owned recipe can contain genuine historical
+    // todo source. Only a recognized old scaffold recipe supplies evidence of
+    // the old placeholder problem; never relabel new captures as stale.
+    let inherited_recipe=std::fs::read_to_string(dir.join("scripts/day2-proof.mjs")).ok()
+        .is_some_and(|text|{let hash=digest(&text);templates().iter().any(|t|t.file=="day2"&&t.sha256==hash)});
+    if let Ok(entries) = std::fs::read_dir(dir.join("versions")) && inherited_recipe {
         let mut paths = Vec::new();
         for entry in entries.flatten() {
             let path = entry.path();
@@ -72,7 +77,7 @@ pub(super) fn report(dir: &Path) -> Vec<String> {
             if let Ok(text) = std::fs::read_to_string(&path) {
                 let hash = digest(&text);
                 if let Some(t) = templates().iter().find(|t| t.file == "todo-schema" && t.sha256 == hash) {
-                    advice.push(format!("info: {} is the unmodified {} todo snapshot (sha256 {hash}); replace it with this app's saved schema and contemporary fixtures before day2:proof", path.strip_prefix(dir).unwrap_or(&path).display(), t.version));
+                    advice.push(format!("info: {} is the unmodified {} todo snapshot (sha256 {hash}); preserve genuine historical source and fixtures; if this was only a scaffold placeholder, replace it with the actual historical unit before day2:proof", path.strip_prefix(dir).unwrap_or(&path).display(), t.version));
                 }
             }
         }
@@ -139,9 +144,9 @@ mod tests {
             ("0.4.28",include_str!("previous/frontend-proof-0.4.28.mjs"),include_str!("previous/day2-proof-0.4.28.mjs")),
             ("0.4.29",include_str!("previous/frontend-proof-0.4.29.mjs"),include_str!("previous/day2-proof-0.4.29.mjs")),
             ("0.4.30",include_str!("previous/frontend-proof-0.4.30.mjs"),include_str!("previous/day2-proof-0.4.30.mjs")),
-            ("0.4.31",include_str!("previous/frontend-proof-0.4.31.mjs"),include_str!("day2-proof.mjs")),
+            ("0.4.31",include_str!("previous/frontend-proof-0.4.31.mjs"),include_str!("previous/day2-proof-0.4.40.mjs")),
             ("0.4.32",include_str!("previous/frontend-proof-0.4.32.mjs"),include_str!("previous/day2-proof-0.4.32.mjs")),
-            ("0.4.33",include_str!("frontend-proof.mjs"),include_str!("day2-proof.mjs")),
+            ("0.4.33",include_str!("frontend-proof.mjs"),include_str!("previous/day2-proof-0.4.40.mjs")),
         ] {
             for web in [false,true] { for template in [None,Some("chat"),Some("social")] {
                 expected.push(serde_json::json!({"file":"frontend","version":version,"web":web,"template":template,"sha256":digest(&super::super::proof::frontend_proof(frontend,template,web))}));

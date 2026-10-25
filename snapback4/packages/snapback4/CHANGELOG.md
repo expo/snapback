@@ -3,12 +3,35 @@
 ## 0.4.41
 
 ### Guide changes
+
+- Check presents security questions as decisions, with a source-bound audience-family disposition and individual gates. Its summary names pending decisions and measured enforcement facts; rule-enforced intent distinguishes additional unproved paths. Sweep deadline questions follow actual write paths, states and boundary polarity.
+- Password-only starters prove against a disposable staging serve, with real accounts and operator-provisioned roles when the standard provision signature exists. `probe:serve` prints one readiness record, holds the loop, and reaps its hosts on SIGTERM. `guide staging --full` carries the complete roles, credentials, clock and shutdown recipe.
+- Expo entries use a default App export and include Node types for proof scripts. Web starters pin Vite 8.3.5. Starter qualification typechecks/builds each installed template and audits development dependencies; Expo's unpatched node-forge advisory remains an explicit failing audit rather than a waived result.
+- `renderedText` strings match normalized substrings by default; independent matches refuse with scoping/exact-match guidance. `exact:true` keeps equality. `waitForFresh` refuses duplicate within scopes. `fillRN` supports date/datetime controls and file paths/payloads through ordinary browser events.
+- Quarry accepts `elif`, `[] of TYPE` for typed empty accumulators, and stable nullable field guards. Unknown focal columns suggest the dot; probe-bracket diagnostics explain commas versus `and`. `guide tasks` links task descriptions to actual card commands, and cards up to 240 lines print whole.
+- Client recipes put sign-in before readiness and show explicit device-less online browser apps. Hidden-lookup explanations state that program `exists` is caller-filtered and give the refusal ladder. Raw HTTP documents admission `{denied}` versus failed execution receipts. Input errors name arguments, nested list positions and limits.
+- Release moves print `live:` and JSON reports logical source, selected view and exact-source status. Forward deploy selects the matching ordinary release after a view. Rollback warnings name registered view coverage.
+- Column write adoption alone no longer forces a rollback view. Needed views compile during store/baseline check, retain typed renamed rules, and pause incompatible old writes instead of dropping inputs. Exact selection checks current write authority.
+- Fresh deployments support extraction declarations whose read rules use role lookups. Extraction can widen a required asset to optional and refill its receipt-owned child after reversal; retained current child workflows avoid arbitrary choice among new children. Reference renames can change deletion policy. `guide rename` runs a complete field/enum spelling migration through two cycles.
+- New starter day-two proofs compare persisted ids/values (excluding ephemeral state) through two cycles, allow v2-native rows and explicit v1 edits/deletions without masking rollback-hidden rows. Saved versions retain generated module siblings; release commands refuse extra positionals, and concrete deploy refusals precede REVIEW notes. Adaptation is idempotent and preserves genuine historical captures.
+
+- `serve-check --deployment DIR --script prod:serve` checks npm readiness, 30-second lifetime, group shutdown and store release without exposing credential output. Production account provisioning reuses a named deployment roster across serve starts. `guide testing` includes cold/live stage scripts; `guide cheatsheet` explains oldest-first board/roster pages. Create/edit review advice leads with the deliberate `update only` answer.
+
+- PostgreSQL serving prepares readers before reporting readiness and bounds coalescing under load while preserving request deadlines and commit-outcome semantics. This does not establish a new capacity qualification. Activation verifies expected final images before removing live or dormant sources, preserving legal rename/backfill changes while refusing mismatches transactionally. PostgreSQL copy checks bound keys and compared payload bytes; `doctor` reports cache posture and enabled event triggers.
+
+- Existing apps keep their authored workflows and stores retain their rows, users and migration receipts. Restart running serve processes with 0.4.41 before deploying or rolling back. Older analyzer-bound decisions become unreviewed; use `check --json` and renew each required current ID with its specification rationale. Only the displayed advisory audience family accepts a shared disposition. Rebuild generated clients and devices after upgrading; custom proofs must adopt the new helpers explicitly. Preserve production roster files with their deployment. SEC10 security-semantic changes are deferred to 0.4.42.
+
+#### SEC10 branch additions (unpublished)
+
+The following changes are pending publication; the published 0.4.41 boundary above remains unchanged.
+
 - Wave-27 security precision: mutation edit-guard questions accept matching update-only intent, column write authority or an individual decision. Derived replay checks participant charge/refund conservation and current-input backfill labels; manual overrides and deliberate no-refund removals take individual decisions. Authored explicit literal defaults initialize write intent at their exact insert source. Derived effects run first with one generated fixture per phase.
 
 - Ignored approval flags, timestamps and separately authorized approval records require an individual specification decision when a plausible modeled act can bypass them. External-act records are informational and do not gate deployment. Enforce the approval before its effect, or record why it is informational with `check --ack-security ID --reason '<spec rationale>'`.
 - Derived security replay covers sibling approval paths, Boolean/enum/principal approval inputs, parent/child stages and repeatable creates. A production FIX names the exact candidate and its repair or individual alternative-path decision. Resource branch conditions retain their scope; unmappable caller conditions need explicit operation intent. Row aliases retain their target and source site; unresolved source targets and helper cuts report coverage gaps with the explicit-target or expression repair.
 - New questions identify text-typed photo evidence, media beside private fields, one-sided anchored date windows, month-number arithmetic and global unique keys over owner-scoped rows. Empty-string justification guards that accept whitespace require review; use `trim(value) != ''` or `text 1..N` on every supplied justification.
 - Default check and production security campaigns use deterministic work budgets; machine load no longer selects a different security verdict. Search cuts retain explicit coverage gaps.
+
 
 ## 0.4.40
 

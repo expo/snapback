@@ -1,0 +1,52 @@
+{
+  "source": "030a1ab426",
+  "status": 0,
+  "scopes": [
+    {
+      "target": "unittests src/main.rs (target/debug/deps/snapback4-3c3913fc048ee53f)",
+      "lastSummary": [
+        "ok",
+        "612",
+        "0",
+        "57"
+      ]
+    },
+    {
+      "target": "tests/replay.rs (target/debug/deps/replay-48f44374bd8b2a96)",
+      "lastSummary": [
+        "ok",
+        "24",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "target": "tests/roll_views.rs (target/debug/deps/roll_views-238a12aa584d0975)",
+      "lastSummary": [
+        "ok",
+        "27",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "target": "tests/store_port_ratchet.rs (target/debug/deps/store_port_ratchet-d39b414bed63a55c)",
+      "lastSummary": [
+        "ok",
+        "8",
+        "0",
+        "0"
+      ]
+    },
+    {
+      "target": "tests/surf4.rs (target/debug/deps/surf4-e80bf9394369d140)",
+      "lastSummary": [
+        "ok",
+        "20",
+        "0",
+        "0"
+      ]
+    }
+  ],
+  "countsUseLastParentSummary": "Nested test subprocess summaries excluded"
+}

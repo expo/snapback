@@ -1,3 +1,4 @@
+import { after as teardownAfter } from "./helpers/teardown.mjs";
 import { hangBudget } from './helpers/wait.mjs';
 // Browser review regressions: session custody, offline startup, and page exit.
 import test from 'node:test';
@@ -44,7 +45,7 @@ query roster(room: text <=40):
 query total():
   return removals['audit'].total
 `);
-  t.after(() => rmSync(project, { recursive: true, force: true }));
+  teardownAfter(t, () => rmSync(project, { recursive: true, force: true }));
   const focus = process.env.SNAPBACK4_WEB_ADMISSION_FOCUS;
   // Bound each sequential browser scenario, so adding cases or sharing a CPU
   // cannot consume a later case's allowance. Launch/navigation have their own
@@ -280,7 +281,7 @@ window.abortReceipts = (store, limit = Infinity) => {
   };
 };
 ` });
-  t.after(() => witness.close());
+  teardownAfter(t, () => witness.close());
   const { page, api: url } = witness;
   const errors = []; page.on('pageerror', error => errors.push(error.message));
   let account = 0;

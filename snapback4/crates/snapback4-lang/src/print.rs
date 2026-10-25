@@ -43,7 +43,7 @@ fn render(expr: &Expr, minimum: u8, source: &Source<'_>) -> String {
             Literal::Str(s) => quote(s), Literal::Number(n) => n.clone(),
             Literal::Bool(b) => b.to_string(), Literal::Null => "null".into(),
         },
-        Expr::Array { items, .. } => format!("[{}]", items.iter().map(sub).collect::<Vec<_>>().join(", ")),
+        Expr::Array { items, item_type, .. } => format!("[{}]{}", items.iter().map(sub).collect::<Vec<_>>().join(", "), item_type.as_ref().map(|ty| format!(" of {}", crate::types::scalar_to_column(ty))).unwrap_or_default()),
         Expr::Object { fields, .. } => format!("{{ {} }}", object_fields(fields, source)),
         Expr::Unary { op, value, .. } => {
             let value = render(value, 7, source);

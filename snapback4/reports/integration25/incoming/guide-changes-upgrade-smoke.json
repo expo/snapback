@@ -1,0 +1,21 @@
+{
+  "source": "030a1ab426 plus whitespace-only deploy card compaction and changelog paragraph-to-bullet correction",
+  "binarySha256": "20294aeddc650ebeca405506c028d2f0a7e9a7921901985e888f63d61221b2df",
+  "command": [
+    "guide",
+    "changes",
+    "--full"
+  ],
+  "exit": 0,
+  "single041Entry": true,
+  "checks": {
+    "serve-check": true,
+    "live:": true,
+    "roster": true,
+    "Older analyzer-bound decisions": true,
+    "current ID": true,
+    "0.4.42": true,
+    "Activation verifies": true
+  },
+  "stdoutSha256": "389c87cee2b28ea42c3ae7b7b90219d6a0d93517981b64598afc8ff014bba438"
+}

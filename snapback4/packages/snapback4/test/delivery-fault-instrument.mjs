@@ -477,3 +477,10 @@ export function awaitBoundary() {
 // paging/render waits. These Node proof paths never enter app/local/online
 // delivery custody; identity-rate, proof process/contract and packed operator
 // cases exercise their failures. Delivery sites and recipes remain unchanged.
+
+// Integration 25: the new proof.ts waits hold/stop explicitly owned test hosts.
+// proof-accounts adds bounded roster/setup reads before application write custody;
+// proof-serve-check and its driver observe npm readiness/lifetime and group/store
+// shutdown. These Node-only process/operator paths never originate or settle SDK
+// delivery. Proof process/accounts/serve-check tests exercise their failure paths.
+// Regenerate the complete await seal; delivery sites and fault recipes stay fixed.

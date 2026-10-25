@@ -403,7 +403,7 @@ query vectors():
 }
 
 #[test]
-fn else_if_selects_one_branch_and_elif_names_the_exact_rewrite() {
+fn else_if_and_elif_select_the_same_single_branch() {
     let source = r#"
 query choose(n: int):
   result = 0
@@ -421,8 +421,10 @@ query choose(n: int):
     for (n, expected) in [(-2, -1), (0, 10), (1, 20), (2, 30)] {
         assert_eq!(query(&mut e, "choose", &[("n", Value::Int(n))]), Value::Int(expected));
     }
-    let refused = compile(&[("schema.q".into(), source.replace("else if", "elif"))]);
-    assert!(refused.diagnostics.iter().any(|d| d.code == "E_QUARRY_UNSUPPORTED" && d.rewrite == "else if cond:"));
+    let mut e = engine(&source.replace("else if", "elif"));
+    for (n, expected) in [(-2, -1), (0, 10), (1, 20), (2, 30)] {
+        assert_eq!(query(&mut e, "choose", &[("n", Value::Int(n))]), Value::Int(expected));
+    }
 }
 
 #[test]
@@ -1236,6 +1238,7 @@ fn null_checks_narrow_snapshot_fields_and_surviving_paths() {
         "require readiness != null and readiness.changedAt != null else NOT_READY\n  return readiness.changedAt < periodStart",
         "return readiness.changedAt < periodStart if readiness != null and readiness.changedAt != null else false",
         "return not (readiness = null or readiness.changedAt = null) and readiness.changedAt < periodStart",
+        "if feedReady[principal = viewer].changedAt != null:\n    return feedReady[principal = viewer].changedAt < periodStart\n  return false",
     ] {
         let compiled = bound(&format!("{schema}query repair(periodStart: time):\n  readiness = feedReady[principal = viewer]\n  {body}\n"));
         let mut engine = Engine::memory(compiled.schema, compiled.programs.into_iter().map(|p| p.program)).unwrap();
@@ -1251,7 +1254,7 @@ fn null_checks_narrow_snapshot_fields_and_surviving_paths() {
         "if readiness.changedAt != null:\n    readiness = feedReady[principal = viewer]\n    return readiness.changedAt < periodStart",
         "if readiness.changedAt != null:\n    for i in range(0, 2):\n      x = readiness.changedAt < periodStart\n      readiness = feedReady[principal = viewer]\n  return false",
         "if readiness.changedAt != null:\n    if periodStart > 0:\n      readiness = feedReady[principal = viewer]\n    return readiness.changedAt < periodStart",
-        "if feedReady[principal = viewer].changedAt != null:\n    return feedReady[principal = viewer].changedAt < periodStart",
+
     ] {
         let bad = compile(&[("schema.q".into(), format!("{schema}query repair(periodStart: time):\n  readiness = feedReady[principal = viewer] ! else MISSING\n  {body}\n"))]);
         assert!(bad.diagnostics.iter().any(|d| d.code == "E_QUARRY_TYPE"), "{body}: {:?}", bad.diagnostics);

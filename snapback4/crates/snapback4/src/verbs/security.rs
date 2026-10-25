@@ -62,25 +62,33 @@ pub fn audit(options:&Options)->i32{
     let report=report(&project,&bound,&sources,options);
     let dispositions=match super::security_reviews::review(&project,&sources,&report.notes,None){Ok(d)=>d,Err(error)=>{eprintln!("audit: E_SECURITY_NOTES: {error}");return 2;}};
     if options.json {let mut value=serde_json::to_value(&report).unwrap();value["securityReviews"]=serde_json::to_value(&dispositions).unwrap();println!("{value}");}
-    else {print!("{}",report.text_with_all(options.flags.contains_key("all")));super::security_reviews::print(&dispositions);}
+    else {let mut human=report.clone();human.notes.retain(|n|crate::note_rank::tier(&n.code)!=crate::note_rank::Tier::Review);print!("{}",human.text_with_all(options.flags.contains_key("all")));super::security_reviews::print(&dispositions,&report.notes);}
     if report.refuted(){1}else{0}
 }
 pub(super) fn exposure(report:&Report){
     let broad=report.exposures.iter().filter(|e|e.effects.get("read").is_some_and(|r|r=="allow"||r.starts_with("public"))).count();
     eprintln!("security exposure: {} tables, {} conditional audiences, {broad} broadly readable tables; run snapback4 audit for exact role/column predicates",report.exposures.len(),report.roles.len());
 }
+// @ref LLP 3000.036.004#18-wave-26-security-decisions-dx9 — report enforcement facts without claiming complete security.
+pub(super) fn enforced(report:&Report,bound:&Bound){
+    let roles=report.notes.iter().filter(|n|n.code=="N_PRIVILEGE_ESCALATION").count();
+    let columns=bound.schema.visible_tables().map(|(_,t)|t.column_reads.len()).sum::<usize>();
+    let uploads=bound.schema.visible_tables().flat_map(|(_,t)|t.columns.values()).filter(|t|t.contains_asset()).count();
+    println!("check: enforced — {uploads} typed upload columns with owner-bound placement; {columns} column audiences; {roles} possible self-assignable role paths detected (bounded analysis)");
+}
 pub(super) fn summary(report:&Report,verbose:bool){
     let proved=report.invariants.iter().filter(|v|v.status==security::Status::Proved).count();
     let failures=report.invariants.iter().filter(|v|v.status==security::Status::Refuted&&v.counterexample.as_ref().is_some_and(|c|c.reachability.is_reachable())).collect::<Vec<_>>();
     let refuted=report.invariants.iter().filter(|v|v.status==security::Status::Refuted).count();
-    eprintln!("security: {proved} proved, {refuted} refuted, {} unproved ({} failing)",report.invariants.len()-proved-refuted,failures.len());
+    let rule_enforced=report.invariants.iter().filter(|v|v.status==security::Status::Unproved&&v.direct_rule==security::Status::Proved).count();
+    eprintln!("security: {proved} proved, {refuted} refuted; {rule_enforced} enforced by rule (additional paths not proved); {} other unproved ({} failing)",report.invariants.len()-proved-refuted-rule_enforced,failures.len());
     for v in &failures {
         let c=v.counterexample.as_ref().unwrap();
         eprintln!("  FIX {}: {} via {} as {} ({}); tighten enforcement to the declared intent, then run snapback4 test",v.invariant.site,v.invariant.target_label(),c.operation,c.viewer,serde_json::to_value(&c.reachability).unwrap().as_str().unwrap());
     }
     let supplemental=report.invariants.iter().filter(|v|v.status==security::Status::Refuted&&v.counterexample.as_ref().is_some_and(|c|!c.reachability.is_reachable())).count();
     if supplemental>0 {eprintln!("  {supplemental} seed/synthetic observations (non-failing)");}
-    if verbose {eprint!("{}",report.text_with_all(true));}
+    if verbose {let mut human=report.clone();human.notes.retain(|n|crate::note_rank::tier(&n.code)!=crate::note_rank::Tier::Review);eprint!("{}",human.text_with_all(true));}
     else if !report.invariants.is_empty()||!report.campaign_coverage.is_empty(){eprintln!("  next: snapback4 test; {} coverage gaps (check --verbose/JSON keeps every reason)",report.campaign_coverage.len());}
     if !report.exposures.is_empty(){eprintln!("  review audiences and {} uncovered exposures: snapback4 audit",report.uncovered.len());}
 }
@@ -150,9 +158,15 @@ pub(super) fn release_loop(project:&Project,bound:&Bound,sources:&[(String,Strin
     notes.sort_by_key(|n|crate::note_rank::summary_order(&n.code));
     let count=notes.len();
     // Never suppress a gate or write-authority question behind the display cap.
-    for (i,n) in notes.into_iter().enumerate(){if i<5||super::security_reviews::gated(&n.code)||security::note_priority(&n.code)<=3{notice.push_str(&format!("  REVIEW {} {}: {}\n    {}\n",n.site,n.code,n.message,n.rewrite));}}
+    for (i,n) in notes.into_iter().enumerate(){if crate::note_rank::tier(&n.code)!=crate::note_rank::Tier::Review&&(i<5||security::note_priority(&n.code)<=3){notice.push_str(&format!("  REVIEW {} {}: {}\n    {}\n",n.site,n.code,n.message,n.rewrite));}}
     if count>5 {notice.push_str(&format!("  {count} changed-scope notes in deploy --check --json\n"));}
-    for d in dispositions.iter().filter(|d|(d.gated||d.code=="N_DERIVED_WRITE_AUTHORITY")&&!d.acknowledged){notice.push_str(&format!("  NEXT {} {}: snapback4 check --ack-security {} --reason '<specification decision>'\n",d.site,d.code,d.id));}
+    let selected=report.notes.iter().zip(&dispositions).filter(|(n,d)|d.gated || n.code!="N_SECURITY_INTENT" && scope.iter().any(|(file,start,end)| n.site.file==*file&&n.site.line>=*start&&n.site.line<*end)).collect::<Vec<_>>();
+    let complete_family=dispositions.iter().filter(|d|d.family.is_some()).count()==selected.iter().filter(|(_,d)|d.family.is_some()).count();
+    let scoped_notes=selected.iter().map(|(n,_)|(*n).clone()).collect::<Vec<_>>();
+    let scoped_dispositions=selected.iter().map(|(_,d)| {let mut d=(*d).clone(); if !complete_family {d.family=None;} d}).collect::<Vec<_>>();
+    // A scoped deploy cannot silently acknowledge unseen family members. It
+    // prints their individual commands; ordinary check offers the whole family.
+    notice.push_str(&super::security_reviews::render(&scoped_dispositions,&scoped_notes));
     let test=release_notice(project,bound,sources,options);
     notice.push_str(&format!("  security exposure: {} tables; {} independent invariants; {} coverage gaps\n  {}",report.exposures.len(),bound.invariants.len(),report.campaign_coverage.len(),test));
     let verdict=format!("security FIX {fixes}; {} pending review; {test}",dispositions.iter().filter(|d|d.gated&&!d.acknowledged).count());

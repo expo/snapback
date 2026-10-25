@@ -1,0 +1,52 @@
+muse: workspace root: /home/ccheever/projects/sb4-b26-dx9 (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=795b9b7c-c6a7-4c66-b955-4682e835ef2b]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+NOT READY. The four sections are one coherent DX9 proposal and its instincts are right (honest labels, narrow family ack, stable rereads, typed empties, bounded cleanup), but several clauses are not yet precisely implementable or testable as written.
+
+Note on method: per the loaded review skill I act here as one independent family reviewer only. I did not write `llp/reviews/` artifacts because this task forbids file edits. I read all four DX9 sections plus governing text (§§16.5, 17.3, 17.5) and the implicated code (`proof.ts`, `proof-text.ts`, `proof-accounts.ts`, `point_facts.rs`, `control.rs`, `lints.rs`, `parser.rs`).
+
+Material issues and exact fixes:
+
+1. §18 family disposition — membership and identity undefined (high).
+- "Advisory audience/restatement family" names no diagnostic codes. §17.3 collapses "restatement and role-wide questions" into one questionnaire, but §18 must enumerate exactly which codes may enter the family.
+- Fix: list the exact codes, and add a negative test feeding every gate code, derived-contract code, non-audience heuristic, and authored-contradiction code to `audience:<family-id>` expecting refusal.
+
+2. §18 family disposition — analyzer revision and atomicity missing (high).
+- §17.5 pins analyzer `sec8-1`; §18 changes disposition identity without bumping it, and says family ID "hashes sorted individual IDs and semantic source bindings" without naming the analyzer input. A stale-analyzer family could clear new notes.
+- "Writer lock, source race checks and atomic publication bind the complete set" does not say the N member v1 records land in one atomic temp+rename write or not at all.
+- Fix: set family ID = hash(analyzer revision, sorted member IDs, union of semantic bindings); bump the analyzer revision; state one-file atomic write, partial family ack never persists; test crash-between-members and one-member-changed-dependency, both refusing the whole family.
+
+3. §18 proof-label rendering — trigger and fields vague (medium-high).
+- "Direct-rule Proved alongside whole-invariant Unproved" does not name which checker produces each verdict or which verbose/JSON fields carry the "exact blockers."
+- The check-line "measured structural facts" (typed owner-bound upload custody, column-read-audience count, possible self-assignable role paths) name no walker, no count definition, and no numeric bound for the "bounded detector."
+- Fix: name the verdict sources and JSON fields; define custody = lexical authority walker (§16.5), audience count = count of what exactly, role-path detector bound = N hops/budget; add a golden test asserting the exact line plus a grep test that no unconditional zero-hole string ("no role", "zero", etc.) appears in any `check` output.
+
+4. §18 `N_SWEEP_ONLY_DEADLINE` narrowing — match rule untestable as written (medium-high).
+- The worktree detector (`lints.rs` ~227) still fires on status-gate plus `!now`, with no table/column/literal/polarity correlation. The DX9 narrowing is the right direction, but "same table, column and literal state/polarity," "disjoint state quiet," and "server-now guard must dominate the particular guarded write path, not occur in an unrelated arm" need a match tuple and a dominance definition.
+- Fix: specify match = (table, column, literal, polarity), disjoint = different literal of the same enum (or different column — pick one), dominance = guard in the dominating requires of that write path, arm-sensitive; keep the two mandated regression tests (unrelated deadlines on a shared status column stay quiet; a real race asks).
+
+5. §29 nullable narrowing — identity and invalidation incomplete (high).
+- "Full read/key identity" and "invalidation on writes/rebindings" omit the authorization context, the transaction snapshot, commit/effect boundaries, and loop back-edges. Two textually identical reads under different callers or after a commit must not share a fact. "Missing field fact support" is a new fact kind that must never conflate absent with hidden-withheld.
+- Fix: identity = (table, key columns + key value identity, authorization context, transaction epoch); invalidate on any write to the table, key rebinding, commit/effects, and loop back-edges; state narrowed facts are presence-only, never authority or visibility; require tests for read-after-write (no narrowing), hidden column (no narrowing), and role-name match (no narrowing).
+
+6. §29 `[] of TYPE` — join rule and TYPE domain undefined (medium).
+- "Appends and branch/loop joins must agree" does not say equality vs. subtyping, what error names the mismatch, or which TYPEs are legal (optional? nested?).
+- Fix: require identical canonical element type after inference (or name the subtyping rule), give the diagnostic code, state the TYPE restrictions, and reword "nested recursive accumulator growth" into a testable bound or drop it in favor of "allocation semantics unchanged."
+
+7. §15 `serveUntilSignal` — two small gaps (low-medium).
+- The implementation matches the spec (referenced timer, reverse-order bounded cleanup, listener removal), but an empty-hosts call would hold the timer until a signal arrives with nothing to stop.
+- Fix: require ≥1 host (`E_PROOF_USAGE` on empty); clarify that the function resolves and the recipe maps resolution to exit 0; state second-signal-during-cleanup behavior. Keep the strong test obligation (real parent/child lifetimes and signal exit status, exact packed fences).
+
+8. §13 `E_STAGING_PROVISION` — completeness vs. redaction unclosed (medium).
+- The worktree message emits only the provision name and refusal code (`proof-accounts.ts` ~74), not the mandated supplied-argument names and server missing/type/constraint info. The redaction half ("never values, passwords, tokens, arbitrary server text") has no named test.
+- Fix: build the message from argument keys only plus whitelisted structured server fields; add a failing-provision test asserting the password/token/value substrings are absent across refusal modes.
+
+9. §13 teardown and replay hygiene (low-medium).
+- "Audit all client files" and "live-writer cases" are unbounded; "/tmp/dx9-replay, removed afterward" destroys failure evidence.
+- Fix: define live-writer = writer child still running at recursive-removal start (removal must come after reap, every cleanup attempted even after a failure); scope the audit to named fixture/helper files; retain `/tmp/dx9-replay` copies on failure.
+
+10. §13 version wording (low).
+- "Authorizes these changes for 0.4.41, without a version bump" reads as both targeting a release and not bumping.
+- Fix: state the base version and confirm integration owns any 0.4.41 publication.
+
+Recommended next step: revise the four sections with the exact fixes above (enumerated code lists, identity tuples, bounds, analyzer bump, atomicity rule, golden/grep/negative tests), then proceed to implementation — no full suites or Mac gates needed for this lane, consistent with its affected-scope/Linux-packed-consumer framing.

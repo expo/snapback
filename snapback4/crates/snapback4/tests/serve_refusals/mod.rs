@@ -146,7 +146,7 @@ impl Host {
             &(engine.store()).test_support_meta("store_id").unwrap().unwrap(), "127.0.0.1:0".parse().unwrap(), false, false).unwrap()).unwrap_or_default());
         let generation = engine.generation();
         let mut readers = QueryReaders::new(&engine, &bound.refusal_sites);
-        readers.prepare(&engine).unwrap();
+        readers.prepare_population(&engine).unwrap();
         let readers = Mutex::new(readers);
         let shared = Arc::new(Shared {
         carried: Mutex::new(BTreeMap::new()),

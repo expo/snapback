@@ -1,0 +1,48 @@
+[
+  {
+    "command": [
+      "timeout",
+      "1000s",
+      "cargo",
+      "run",
+      "--release",
+      "-p",
+      "snapback4-difftest",
+      "--",
+      "run-lean",
+      "--seed",
+      "0",
+      "--cases",
+      "2000",
+      "--workers",
+      "2",
+      "--out",
+      "target/affected/incoming-run-lean"
+    ],
+    "status": 1,
+    "at": "2026-10-25T12:59:02.280728+00:00"
+  },
+  {
+    "command": [
+      "timeout",
+      "1000s",
+      "cargo",
+      "run",
+      "--release",
+      "-p",
+      "snapback4-difftest",
+      "--",
+      "run",
+      "--seed",
+      "0",
+      "--cases",
+      "2000",
+      "--workers",
+      "2",
+      "--out",
+      "target/affected/incoming-run"
+    ],
+    "status": 0,
+    "at": "2026-10-25T13:00:15.169370+00:00"
+  }
+]

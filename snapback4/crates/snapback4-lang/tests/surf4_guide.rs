@@ -43,7 +43,7 @@ fn release_json_reference_is_discoverable_without_growing_the_deploy_card() {
 
 #[test]
 fn long_overview_skips_empty_group_headings_and_shows_real_content() {
-    let card = format!("# Example\n\nA lead.\n\n## Reference\n\n## Useful\n\nFirst useful body.\n\n{}\n## Later\n\nLater body.", "more body\n".repeat(160));
+    let card = format!("# Example\n\nA lead.\n\n## Reference\n\n## Useful\n\nFirst useful body.\n\n{}\n## Later\n\nLater body.", "more body\n".repeat(guide::FULL_LINES + 20));
     let preview = guide::overview("example", &card).unwrap();
     assert!(preview.contains("First useful body."));
     assert!(preview.contains("--section 2"));
