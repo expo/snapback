@@ -53,8 +53,21 @@ export function evaluateStarterAudit(report, starter, allowlist, latest, today =
   const warnings = new Set();
   const findings = Object.values(report.vulnerabilities);
   for (const finding of findings) {
-    assert.equal(finding.fixAvailable, false, `${finding.name}: a fix is available; update the starter toolchain`);
     assert.ok(Array.isArray(finding.via) && finding.via.length, `${finding.name}: missing advisory provenance`);
+    if (finding.fixAvailable !== false) {
+      // npm can flag a meta-vulnerability as fixable even when its entire
+      // published range is affected and audit fix offers no remediation.
+      // Admit only this recorded, exact chain; never a concrete fix candidate.
+      const exception = allowlist.filter(entry => entry.starters.includes(starter))
+        .flatMap(entry => entry.metadataExceptions ?? []).find(entry => entry.package === finding.name);
+      assert.ok(finding.fixAvailable === true && finding.range === "*" && exception?.reason
+        && JSON.stringify(finding.via) === JSON.stringify(exception.via)
+        && finding.via.every(name => typeof name === "string" && report.vulnerabilities[name]?.fixAvailable === false),
+        `${finding.name}: a fix is available; update the starter toolchain`);
+      assert.equal(latest[exception.package], exception.reviewedVersion,
+        `${exception.package}: a new release is available; recheck the metadata exception`);
+      warnings.add(`${exception.package}: recorded npm metadata anomaly (all versions affected, no remediation); recheck with its underlying advisory`);
+    }
     const visit = (item, seen = new Set()) => {
       if (typeof item === "string") {
         assert.ok(!seen.has(item) && report.vulnerabilities[item], `${item}: invalid advisory chain`);
@@ -86,7 +99,7 @@ async function auditStarter(run, cwd, starter) {
     const invoke=args=>{const r=spawnSync('npm',args,{encoding:'utf8',timeout:180000,maxBuffer:16777216});if(r.error||r.signal||r.status===null||r.status>1)throw Error(r.error||r.stderr||'npm failed');return r;};
     const audit=invoke(['audit','--json','--audit-level=low']);
     const report=JSON.parse(audit.stdout),latest={};
-    for(const name of ${JSON.stringify([...new Set(allowlist.filter(entry => entry.starters.includes(starter)).map(entry => entry.package))])}) {
+    for(const name of ${JSON.stringify([...new Set(allowlist.filter(entry => entry.starters.includes(starter)).flatMap(entry => [entry.package, ...(entry.metadataExceptions ?? []).map(meta => meta.package)]))])}) {
       const result=invoke(['view',name,'version','--json']);if(result.status!==0)throw Error(result.stderr);latest[name]=JSON.parse(result.stdout);
     }
     writeFileSync(${JSON.stringify(output)},JSON.stringify({report,latest}));

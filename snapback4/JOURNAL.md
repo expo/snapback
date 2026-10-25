@@ -108014,3 +108014,28 @@ connect with a live admitted lease. A bounded replenishing socket bank observes
 the real raw refusal; it replaces expired/refused sockets and avoids an HTTP
 probe that can own the final slot or lose a reply to a reset. Product admission
 limits, five-second deadlines and Chromium retry assertions are unchanged.
+
+
+### FIX41 packed follow-up: reference labels and npm metadata
+
+The first repaired packed migration still failed: the in-process fixture used
+text for buyer, while the real consumer uses a table reference. Declared rename
+alignment changed reference index components but retained the generated
+`$reference:customer` label. Closed table equality rejected that harmless label
+difference and chose the current-shaped bridge. Eligibility now normalizes only
+compiler-reserved reference labels under the declared column map; authored
+labels, components and policies stay exact. The runtime regression imports the
+actual publication media schema. The actual installed migration/roll proof now
+passes, as do all 28 rollback cases. A final copied100-store/500-move replay
+again preserves482successes,18true refusals,0false refusals and0hiddenv1rows.
+
+The starter audit also found npm's `fixAvailable:true` meta flag for
+`@expo/code-signing-certificates` despite affected range `*`. An actual upgrade
+from0.0.6 to latest0.0.7 still reports it; the latter still requires unpatched
+node-forge1.4.0, and audit-fix dry run offers no advisory remediation. The dated
+allowlist records this exact meta chain and reviewed latest0.0.7. Only boolean
+true/range*/exact-via plus an underlying unpatched allowlisted advisory may
+warn; concrete candidates, changed affected ranges, unrecorded chains, new
+upstream versions and the expiry date fail. Both warnings remain in every
+starter receipt. No ineffective dependency override or forced downgrade added.
+The Expo Todos/chat README text now consistently calls this a dated warning.

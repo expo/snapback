@@ -561,3 +561,23 @@ test("starter audit exceptions expire and never waive fixable or unknown advisor
   assert.throws(() => check({ auditReportVersion: 2, metadata: { vulnerabilities: { total: 1 } }, vulnerabilities: {} }), /omitted vulnerability details/);
   assert.deepEqual(check({ auditReportVersion: 2, metadata: { vulnerabilities: { total: 0 } }, vulnerabilities: {} }), []);
 });
+
+
+test("unactionable npm meta fix flag requires the recorded all-versions chain", () => {
+  const allowlist = JSON.parse(readFileSync(new URL("../../../scripts/starter-audit-allowlist.json", import.meta.url), "utf8"));
+  const report = { auditReportVersion: 2, metadata: { vulnerabilities: { total: 2 } }, vulnerabilities: {
+    "node-forge": { name: "node-forge", fixAvailable: false, via: [{ name: "node-forge", url: "https://github.com/advisories/GHSA-86w9-cpqp-85rv" }] },
+    "@expo/code-signing-certificates": { name: "@expo/code-signing-certificates", fixAvailable: true, range: "*", via: ["node-forge"] },
+  } };
+  const latest = { "node-forge": "1.4.0", "@expo/code-signing-certificates": "0.0.7" };
+  const check = (input = report, versions = latest, date = "2026-10-25") => evaluateStarterAudit(input, "expo", allowlist, versions, date);
+  assert.equal(check().length, 2, "retain both the actual advisory and metadata warning");
+  assert.throws(() => check(report, { ...latest, "@expo/code-signing-certificates": "0.0.8" }), /new release/);
+  for (const patch of [{ range: "<=0.0.6" }, { fixAvailable: { name: "@expo/code-signing-certificates", version: "0.0.8" } }, { via: ["expo"] }]) {
+    const changed = structuredClone(report); Object.assign(changed.vulnerabilities["@expo/code-signing-certificates"], patch);
+    assert.throws(() => check(changed), /fix is available/);
+  }
+  const patched = structuredClone(report); patched.vulnerabilities["node-forge"].fixAvailable = true;
+  assert.throws(() => check(patched), /fix is available/);
+  assert.throws(() => check(report, latest, "2026-11-08"), /recheck date/);
+});

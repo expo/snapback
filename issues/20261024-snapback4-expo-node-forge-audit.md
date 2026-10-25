@@ -42,3 +42,18 @@ Keep this issue open until a patch can be adopted; rerun packed starter audits
 and builds at that point.
 
 Evidence: [packed starter results](../snapback4/reports/20261024-dx9/starters.json).
+
+
+FIX41 packed follow-up: npm reports `fixAvailable:true` for the transitive
+`@expo/code-signing-certificates`, despite its affected range being `*`.
+Installed 0.0.6 and latest 0.0.7 both reproduce that flag; 0.0.7 depends on
+node-forge `^1.4.0`, whose latest release remains 1.4.0 with no patch.
+`npm audit fix --dry-run --json` offers no advisory remediation (only an
+unrelated optional platform binary). An isolated actual upgrade to 0.0.7 leaves
+the same finding. The allowlist records this exact meta chain, reviewed latest
+0.0.7 and reason. The gate only permits boolean `true` plus range `*` plus
+exact `via:["node-forge"]` where the underlying package has no fix; concrete
+fix candidates and any new code-signing release fail. The underlying advisory's
+2026-11-08 expiry applies to both warnings. No extra starter override was added:
+it would not remediate the advisory. npm's meta-vulnerability/remediation model:
+[npm audit documentation](https://docs.npmjs.com/cli/commands/npm-audit/).

@@ -5,7 +5,21 @@
     "reviewedVersion": "1.4.0",
     "reason": "No patched node-forge release exists. Expo SDK 57 requires its CLI and code-signing tooling; npm audit fix --force downgrades to an unsupported Expo SDK.",
     "pulledBy": "expo -> @expo/cli -> node-forge and @expo/code-signing-certificates -> node-forge (development/code-signing tools)",
-    "starters": ["expo", "expo-chat", "expo-social"],
-    "recheck": "2026-11-08"
+    "starters": [
+      "expo",
+      "expo-chat",
+      "expo-social"
+    ],
+    "recheck": "2026-11-08",
+    "metadataExceptions": [
+      {
+        "package": "@expo/code-signing-certificates",
+        "reviewedVersion": "0.0.7",
+        "via": [
+          "node-forge"
+        ],
+        "reason": "npm reports fixAvailable:true with affected range * even after installing latest 0.0.7, which still depends on node-forge ^1.4.0. npm audit fix --dry-run offers no remediation; the underlying advisory has no patched release."
+      }
+    ]
   }
 ]

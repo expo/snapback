@@ -1033,6 +1033,7 @@ fn expo_starters_override_the_config_plugins_uuid() {
         assert_eq!(package["overrides"], json!({ "xcode": { "uuid": "11.1.1" }, "zod": "4.6.7", "decode-uri-component": "0.5.1" }), "{flags:?}");
         let readme = fs::read_to_string(dir.0.join("README.md")).unwrap();
         assert!(readme.contains("overrides") && readme.contains("node-forge") && readme.contains("SDK 44"), "{flags:?}");
+        assert!(readme.contains("dated no-fix warning") && !readme.contains("failed audit") && !readme.contains("audit as failed"), "{flags:?}: {readme}");
     }
     // Wave 4 (15 lanes): the advisories are named before the install reports them,
     // in init's output and above the starter README's first command.
