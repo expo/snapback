@@ -17,6 +17,23 @@ fn metadata(name:&str)->bool{
 fn literal_act(value:&Expr,name:&str)->bool{
     let mut found=false;walk(value,|e|if let Expr::Literal{value:ast::Literal::Str(value),..}=e{found|=value.to_lowercase().contains(name);});found
 }
+// Use the binder's actual target index: positional/named keys complete birth
+// values before defaults. Ambiguous expanded sources do not establish a default.
+fn birth_act(write:&Write<'_>,name:&str,bound:&Bound)->bool{
+    if write.op!=WriteOp::Upsert{return false;}
+    let table=&bound.schema.tables[&write.table];let source=write.site.to_string();
+    let targets=bound.programs.iter().flat_map(|p|snapback4_core::ir::read_sites(&p.program)).filter(|r|r.kind=="write target"&&r.table==write.table&&r.site==source).filter_map(|r|table.index(&r.index)).filter(|index|index.is_plain()).map(|index|index.columns()).collect::<BTreeSet<_>>();
+    if targets.len()!=1{return false;}let columns=targets.first().unwrap();
+    let keys=write.keys.iter().enumerate().filter_map(|(i,key)|key.column.as_ref().or_else(||columns.get(i)).map(|column|(column.as_str(),&key.value))).collect::<BTreeMap<_,_>>();
+    table.columns.iter().any(|(column,kind)|{
+        if metadata(column)||write.fields.iter().any(|field|field.name==*column){return false;}
+        let named=column.to_lowercase().contains(name);let enum_=matches!(kind.required(),ColumnType::Enum{..});
+        if let Some(value)=keys.get(column.as_str()){
+            return !matches!(simplify_boolean(value),Expr::Literal{value:ast::Literal::Bool(false)|ast::Literal::Null,..})&&(named||enum_&&literal_act(value,name));
+        }
+        table.defaults.get(column).is_some_and(|default|{let value=default.value(challenges::NOW,"$audit");!matches!(value,snapback4_core::Value::Bool(false)|snapback4_core::Value::Null)&&(named||enum_&&matches!(value,snapback4_core::Value::String(value) if value.to_lowercase().contains(name)))})
+    })
+}
 fn modeled(write:&Write<'_>,name:&str,parent:&str,bound:&Bound)->bool{
     if known_impossible(&write.context,write.catalog){return false;}
     let operation=write.p.name.to_lowercase();
@@ -24,8 +41,7 @@ fn modeled(write:&Write<'_>,name:&str,parent:&str,bound:&Bound)->bool{
     let t=&bound.schema.tables[&write.table];
     if write.table==parent{
         if !matches!(write.op,WriteOp::Update|WriteOp::Upsert){return false;}
-        // An upsert reset can still perform the act through an omitted birth default.
-        let default_act=write.op==WriteOp::Upsert&&t.defaults.iter().any(|(column,default)|!write.fields.iter().any(|field|field.name==*column)&&!metadata(column)&&!matches!(default.value(challenges::NOW,"$audit"),snapback4_core::Value::Bool(false)|snapback4_core::Value::Null)&&(column.to_lowercase().contains(name)||matches!(t.columns.get(column).map(ColumnType::required),Some(ColumnType::Enum{..}))&&matches!(default.value(challenges::NOW,"$audit"),snapback4_core::Value::String(value) if value.to_lowercase().contains(name))));
+        let default_act=birth_act(write,name,bound);
         return default_act||write.fields.iter().any(|field|!metadata(&field.name)&&!matches!(field_value(field).map(simplify_boolean),Some(Expr::Literal{value:ast::Literal::Bool(false)|ast::Literal::Null,..}))&&(
             field.name.to_lowercase().contains(name)||
             matches!(t.columns.get(&field.name).map(ColumnType::required),Some(ColumnType::Enum{..}))&&field_value(field).is_some_and(|value|literal_act(value,name))

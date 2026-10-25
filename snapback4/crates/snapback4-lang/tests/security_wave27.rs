@@ -141,6 +141,11 @@ const DEFAULT:&str="table docs:\n  label: text <=80 default 'pending'\n  read <-
     let named=reset.replace("  else:\n    update jobs[job]", "  return null\nmutation performWithdrawal(job: jobs):\n  update jobs[job]");assert!(!notes(&named).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"),"{:?}",notes(&named));
     let birth=named.replace("  withdrawalDone: bool default false", "  resetFlag: bool default true\n  withdrawalDone: bool default true").replace("update jobs[job] {withdrawalDone:false}","upsert jobs[job] {resetFlag:false}");assert!(notes(&birth).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"),"{:?}",notes(&birth));
     let negative_birth=birth.replace("  withdrawalDone: bool default true","  withdrawalDone: bool default false");assert!(!notes(&negative_birth).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"),"{:?}",notes(&negative_birth));
+    let indexed=birth.replace("  resetFlag: bool default true", "  unique withdrawalDone\n  resetFlag: bool default true");
+    for key in ["withdrawalDone=false","false"]{
+     let keyed=indexed.replace("upsert jobs[job] {resetFlag:false}",&format!("upsert jobs[{key}] {{resetFlag:false}}"));assert!(!notes(&keyed).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"),"{key}: {:?}",notes(&keyed));
+     let keyed_true=keyed.replace(&format!("upsert jobs[{key}]"),&format!("upsert jobs[{}]",key.replace("false","true")));assert!(notes(&keyed_true).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"),"{key}: {:?}",notes(&keyed_true));
+    }
    }
   }
  }
