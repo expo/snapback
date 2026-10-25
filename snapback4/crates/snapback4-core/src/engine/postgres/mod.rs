@@ -21,6 +21,7 @@ mod tail;
 mod revision;
 pub(crate) mod read_grant;
 mod group_tail;
+mod group_commit;
 mod batch;
 pub mod literal;
 mod flight;

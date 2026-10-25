@@ -24,7 +24,7 @@ pub(super) fn initialize(tx: &Tx<'_>) -> Result<(), RuntimeError> {
     if tx.query("SELECT revision FROM _head WHERE singleton", &[])?[0].get::<_, i64>(0) < 0 {
         return Err(RuntimeError::Store("negative durable revision".into()));
     }
-    Ok(())
+    super::group_commit::initialize(tx)
 }
 
 impl Tx<'_> {
@@ -81,12 +81,15 @@ impl Tx<'_> {
         Ok(facts)
     }
 
-    // A numeric engine count is the only interpolated value. Queue the checked
-    // update in the existing tail/control flight, before the physical COMMIT.
+    // Only engine-generated counts and numeric attempt pairs are interpolated.
+    // Queue the checked update before the separate physical COMMIT.
     // Rollback restores both this SQL update and the member checkpoint count.
     pub(super) fn defer_revision(&self, count: usize) -> Result<(), RuntimeError> {
         if count == 0 {
             return Ok(());
+        }
+        if self.batch_ticket.is_some() {
+            return Err(RuntimeError::Store("ticket batch revision must advance in the exact head CAS".into()));
         }
         self.publication.borrow_mut().take();
         self.require_serialized_head_fence("advance durable revision")?;
@@ -103,7 +106,7 @@ impl Tx<'_> {
         let command = inner.pending.bytes().filter(|b| *b == b';').count();
         inner.checks.push((command, 1));
         inner.pending.push_str(&format!(
-            "UPDATE _head SET revision=revision+{count} WHERE singleton;"
+            "UPDATE _head SET revision=revision+{count},attempt='{}' WHERE singleton;", self.attempt.borrow()
         ));
         self.revisions.set(next);
         Ok(())

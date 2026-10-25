@@ -57,6 +57,16 @@ impl AnyStore {
             }
         }
     }
+    pub(crate) fn buffered_program_transaction(&mut self, deadline: std::time::Instant) -> Result<AnyTx<'_>, RuntimeError> {
+        match self {
+            Self::Sqlite(SqliteStore(store)) => store.program_transaction_until(deadline).map(|tx| AnyTx::Sqlite(SqliteTx(tx))),
+            #[cfg(feature="postgres")]
+            Self::Postgres(PostgresStore(handle)) => {
+                let store=handle.store.get_mut(); store.next_program_deadline=Some(deadline);
+                store.batch_transaction().map(|tx| AnyTx::Postgres(PostgresTx(tx)))
+            },
+        }
+    }
     pub fn transaction(&mut self) -> Result<AnyTx<'_>, RuntimeError> {
         match self { Self::Sqlite(SqliteStore(store)) => store.transaction().map(|inner| AnyTx::Sqlite(SqliteTx(inner))), #[cfg(feature = "postgres")] Self::Postgres(PostgresStore(handle)) => handle.store.get_mut().transaction(Some(crate::engine::postgres::WriteMode::Serialized)).map(|inner| AnyTx::Postgres(PostgresTx(inner))) }
     }

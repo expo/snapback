@@ -33,7 +33,7 @@ CREATE INDEX IF NOT EXISTS _read_sessions_family ON _read_sessions(principal, fa
 pub(super) const VERSION: &str = "snapback4-postgres-evaluation-3";
 pub(super) const DDL: &str = "
 CREATE TABLE _backend (singleton BOOLEAN PRIMARY KEY CHECK(singleton), version TEXT NOT NULL, schema TEXT NOT NULL, programs TEXT NOT NULL);
-CREATE TABLE _head (singleton BOOLEAN PRIMARY KEY CHECK(singleton), seq BIGINT NOT NULL CHECK(seq >= 0), revision BIGINT NOT NULL DEFAULT 0 CHECK(revision >= 0));
+CREATE TABLE _head (singleton BOOLEAN PRIMARY KEY CHECK(singleton), seq BIGINT NOT NULL CHECK(seq >= 0), revision BIGINT NOT NULL DEFAULT 0 CHECK(revision >= 0), attempt TEXT COLLATE \"C\" NOT NULL DEFAULT '0:0');
 INSERT INTO _head VALUES (true, 0);
 CREATE TABLE r (t TEXT COLLATE \"C\" NOT NULL, id TEXT COLLATE \"C\" NOT NULL, data TEXT NOT NULL, PRIMARY KEY(t,id));
 CREATE TABLE i (t TEXT COLLATE \"C\" NOT NULL, ix TEXT COLLATE \"C\" NOT NULL, k BYTEA NOT NULL, id TEXT COLLATE \"C\" NOT NULL, PRIMARY KEY(t,ix,k));
@@ -87,6 +87,7 @@ pub struct Store {
     pub(crate) read_only: bool,
     pub(crate) client: super::pipeline::Connection,
     qualified: bool,
+    pub(super) batch_ordinal: u64,
     reader_binding: bool,
     pub(crate) next_program_deadline: Option<std::time::Instant>,
     literal_cache: BTreeMap<String, super::literal::Prepared>,
@@ -102,7 +103,7 @@ pub struct Store {
 impl Store {
     pub fn new(client: Client) -> Self { Self::with_connection(super::pipeline::Connection::Sync(client)) }
     pub(super) fn with_connection(client: super::pipeline::Connection) -> Self {
-        Self { read_sessions: Cell::new(false), unified: false, fence: None, read_grant: None, commit_warning: Default::default(), generation:1, read_only: false, client, qualified: false, reader_binding: false, next_program_deadline: None, literal_cache: BTreeMap::new(), cache: BTreeMap::new(), calls: CallCounter::new(0), prefetch: true, marked_reads: Cell::new(0), page_reads: Cell::new(0), prefetch_rows: Cell::new(0), prefetch_bytes: Cell::new(0) }
+        Self { read_sessions: Cell::new(false), unified: false, fence: None, read_grant: None, commit_warning: Default::default(), generation:1, read_only: false, client, qualified: false, batch_ordinal: 0, reader_binding: false, next_program_deadline: None, literal_cache: BTreeMap::new(), cache: BTreeMap::new(), calls: CallCounter::new(0), prefetch: true, marked_reads: Cell::new(0), page_reads: Cell::new(0), prefetch_rows: Cell::new(0), prefetch_bytes: Cell::new(0) }
     }
 
     // @ref LLP 3000.009.001.000#8 — only future requests reconnect, with fresh binding checks.
@@ -134,7 +135,7 @@ impl Store {
     }
 
     pub(crate) fn cached_read(&mut self)->Result<Tx<'_>,RuntimeError> {self.begin_inner(None,false,true)}
-    fn begin(&mut self, mode: Option<WriteMode>, opening: bool) -> Result<Tx<'_>, RuntimeError> {self.begin_inner(mode,opening,false)}
+    pub(super) fn begin(&mut self, mode: Option<WriteMode>, opening: bool) -> Result<Tx<'_>, RuntimeError> {self.begin_inner(mode,opening,false)}
     fn begin_inner(&mut self, mode: Option<WriteMode>, opening: bool, cpu_only:bool) -> Result<Tx<'_>, RuntimeError> {
         if mode.is_some() && self.read_grant.as_ref().is_some_and(|g|g.uncertain.load(std::sync::atomic::Ordering::Acquire)) {return Err(RuntimeError::StoreOwnership("unknown COMMIT pauses writer admission until fenced reconciliation".into()));}
         let deadline = self.next_program_deadline.take();
@@ -155,7 +156,7 @@ impl Store {
             Some(WriteMode::Serializable) => "BEGIN ISOLATION LEVEL SERIALIZABLE READ WRITE;",
         };
         let inner = super::flight::Session { client: &mut self.client, pending: if cpu_only {String::new()} else {begin.into()}, started: false, done: cpu_only, settings_refused: false, checks: Vec::new(), owner: None, owner_budget: None };
-        let tx = Tx { publication: RefCell::new(None), read_grant:self.read_grant.clone(), durable_write: mode.is_some(), revisions: Cell::new(0), lifecycle: opening, read_sessions: &self.read_sessions, read_sessions_installed: Cell::new(false), unified: self.unified, commit_warning: &self.commit_warning, inner: RefCell::new(inner),
+        let tx = Tx { batch_store_id: self.fence.as_ref().map(|f| f.store_id.clone()), attempt: RefCell::new(if mode.is_some() { super::group_commit::fresh_attempt(self.fence.as_ref().map_or(0, |f| f.token))? } else { String::new() }), batch_ticket: None, batch_base: RefCell::new(None), generation_expected: self.generation, publication: RefCell::new(None), read_grant:self.read_grant.clone(), durable_write: mode.is_some(), revisions: Cell::new(0), lifecycle: opening, read_sessions: &self.read_sessions, read_sessions_installed: Cell::new(false), unified: self.unified, commit_warning: &self.commit_warning, inner: RefCell::new(inner),
             bind_refused: Cell::new(false), program_deadline: Cell::new(deadline), read_cache: RefCell::new(super::read_plan::Answers::default()), pending_read: RefCell::new(None), receipt_cache: RefCell::new(None), placement_cache: RefCell::new(None), authority_cache: RefCell::new(None), commit_settings: Cell::new(false), literal_cache: RefCell::new(&mut self.literal_cache), cache: RefCell::new(&mut self.cache), calls: &self.calls, marked_reads: &self.marked_reads, page_reads: &self.page_reads, prefetch_rows: &self.prefetch_rows, prefetch_bytes: &self.prefetch_bytes,
             rows_cache: RefCell::new(super::prefetch::Cache::default()), prefetch_enabled: self.prefetch, head: Cell::new(None), serialized_head: Cell::new(false), tail: RefCell::new(super::tail::Tail::default()), group_head: Cell::new(None), group_tails: RefCell::new(Vec::new()), group_images: Default::default(), changes: Default::default(), savepoints: RefCell::new(Vec::new()) };
         if opening { super::managed_relations::verify(&tx)?; }
@@ -286,7 +287,7 @@ impl Store {
     // Parse/SQL PREPARE can retain relation locks until transaction end. Warm
     // the folded setup outside BEGIN so those locks cannot precede the head
     // and deadlock an adoption doing physical upgrades while holding it.
-    fn prewarm_flight(&mut self, sql: &'static str) -> Result<(),RuntimeError> {
+    pub(super) fn prewarm_flight(&mut self, sql: &'static str) -> Result<(),RuntimeError> {
         let bind = if let Some(bind) = self.cache.get(sql) {bind.clone()} else {
             self.calls.set(self.calls.get()+1);
             let bind = self.client.prepare(sql)?;
@@ -412,6 +413,11 @@ impl Tx<'_> {
 }
 
 pub struct Tx<'a> {
+    pub(super) batch_store_id: Option<String>,
+    pub(super) attempt: RefCell<String>,
+    pub(super) batch_ticket: Option<i64>,
+    pub(super) batch_base: RefCell<Option<super::group_commit::Head>>,
+    pub(super) generation_expected: u64,
     pub(super) publication: RefCell<Option<super::read_grant::Published>>,
     read_grant: Option<std::sync::Arc<super::read_grant::Grant>>,
     durable_write: bool,
@@ -753,7 +759,7 @@ impl Tx<'_> {
         if self.inner.borrow().done { return Ok(()); }
         // @ref LLP 3000.009.001.000.002#4.1 — solo administrative and legacy family writers join the same revision domain.
         if self.unified && self.durable_write {
-            self.require_serialized_head_fence("commit durable revision")?;
+            self.require_tail_order("commit durable revision")?;
             if self.revisions.get() == 0 && self.group_head.get().is_none() {
                 self.defer_revision(1)?;
             }
