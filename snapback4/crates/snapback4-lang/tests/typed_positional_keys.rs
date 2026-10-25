@@ -160,6 +160,21 @@ fn nested_identity_keys_bind_once_within_one_second() {
 }
 
 #[test]
+fn nested_unstable_point_field_keys_do_not_rebind_inner_reads() {
+    // Each point field consults DX9's stable-field domain. Its database-read
+    // key is unstable, so deciding that must not recursively bind it again.
+    let mut expression = "x".to_owned();
+    for _ in 0..12 { expression = format!("conversations[{expression}].id"); }
+    let source = format!("{}query q(x: conversations):\n  return {expression}\n", model(1));
+    let start = std::time::Instant::now();
+    let b = ok(&source);
+    let elapsed = start.elapsed();
+    eprintln!("twelve nested typed identity keys: {elapsed:?}");
+    assert!(elapsed < std::time::Duration::from_secs(1), "point-field fact selection rebound nested keys: {elapsed:?}");
+    assert_eq!(snapback4_core::ir::read_sites(&b.programs[0].program).len(), 12);
+}
+
+#[test]
 fn bound_key_reuse_preserves_allocation_order_and_one_helper_effect() {
     use snapback4_core::{Context, Engine, Value, WriteState, value::object};
     let source = "table conversations:\n  public\n  online only\ntable members:\n  conversation: conversations\n  principal: principal\n  role: text <=20\n  unique pair: conversation, principal\n  unique reverse: principal, conversation\n  public\n  online only\ntable events:\n  public\n  insert <- allow\n  online only\nfn nextPrincipal():\n  insert events {}\n  return viewer\nmutation q():\n  return members[new, nextPrincipal()EXTRA]\n";
