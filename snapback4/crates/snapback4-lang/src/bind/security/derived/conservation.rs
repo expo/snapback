@@ -38,7 +38,17 @@ fn shared_value(a:&Expr,b:&Expr)->bool{
  if crate::print::expression(a)!=crate::print::expression(b){return false;}
  fn custody(value:&Expr)->Vec<Site>{
   let mut value=value.clone();let mut sites=Vec::new();
-  super::super::super::intent_walk::expression(&mut value,&mut |e|if matches!(e,Expr::Read(_)|Expr::Call{..}|Expr::Write{..}){sites.push(e.site().clone());});sites
+  super::super::super::intent_walk::expression(&mut value,&mut |e|match e{
+   // Exhaustive classification prevents a new world-reading expression from
+   // silently becoming a pure shared identity. A captured direct row image
+   // keeps its original Read site; reference hops retain their own evaluation.
+   Expr::Name{..}|Expr::Literal{..}|Expr::Focal{..}|Expr::Array{..}|Expr::Object{..}|Expr::Unary{..}|Expr::Binary{..}|Expr::If{..}|Expr::Assert{..}=>{},
+   Expr::Member{base,..}=>{
+    let mut base=base.as_ref();while let Expr::Assert{value,..}=base{base=value;}
+    if !matches!(base,Expr::Read(_)){sites.push(e.site().clone());}
+   },
+   Expr::Read(_)|Expr::Exists{..}|Expr::Created{..}|Expr::Call{..}|Expr::Write{..}|Expr::ShapeUse{..}|Expr::Shape{..}|Expr::Walk{..}|Expr::Merge(_)=>sites.push(e.site().clone()),
+  });sites
  }
  custody(a)==custody(b)
 }

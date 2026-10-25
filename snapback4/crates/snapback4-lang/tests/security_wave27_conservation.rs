@@ -54,3 +54,17 @@ fn bad(out:&Campaign)->bool{out.violations.iter().any(|v|v.operation=="remove"&&
  assert!(!security::derived::invariants(&sources,&b).iter().any(|i|i.site.file.contains("/participant-conservation/")));
  assert!(security::source_inference_gaps(&sources,&b).iter().any(|gap|gap.contains("participant conservation not covered")));
 }
+
+
+#[test]fn existence_decisions_require_the_same_captured_evaluation(){
+ let flags="table flags:\n  marker: bool\n  read <- allow\n  delete <- allow\n  online only\n";
+ for captured in [false,true]{
+  let (binding,condition)=if captured{("  present = exists flags[flag]\n","present")}else{("","exists flags[flag]")};
+  let birth=format!("mutation add(trip: trips,flag: flags,aPerson: principal,bPerson: principal):\n{binding}  insert participants {{trip,person:aPerson if {condition} else bPerson}}\n  delete flags[flag]\n  return insert ledger {{trip,person:aPerson if {condition} else bPerson,paidCents:100,kind:'charge'}}");
+  let original="mutation add(trip: trips,person: principal):\n  insert participants {trip,person}\n  return insert ledger {trip,person,paidCents:100,kind:'charge'}";
+  let source=flags.to_owned()+&SOURCE.replace(original,&birth).replace("BEFORE","").replace("AFTER","");
+  let sources=vec![("schema.q".into(),source)];let b=compile(&sources);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+  assert_eq!(security::derived::invariants(&sources,&b).iter().any(|i|i.site.file.contains("/participant-conservation/")),captured);
+  if !captured{assert!(security::source_inference_gaps(&sources,&b).iter().any(|gap|gap.contains("participant conservation not covered")));}
+ }
+}
