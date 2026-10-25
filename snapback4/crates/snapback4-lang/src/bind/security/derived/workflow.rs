@@ -129,7 +129,13 @@ fn global_ledger(p:&ast::ProgramDecl,write:&Expr,writes:&[(&ast::ProgramDecl,Exp
 }
 pub(super) fn invariants(docs:&[ast::Document],catalog:&Catalog,bound:&Bound,out:&mut Vec<Invariant>){
     let writes=docs.iter().flat_map(|d|&d.programs).filter(|p|p.kind==ast::ProgramKind::Mutation).flat_map(|p|authority_walk::writes(catalog,p).into_iter().map(move |(w,c)|(p,w,c))).collect::<Vec<_>>();
-    for (p,write,context) in &writes{
+    // Upsert has two runtime effects. Its existing-row transition supplies
+    // update prerequisites independently of its separately inferred birth arm.
+    let origins=writes.iter().flat_map(|(p,write,context)|{
+        let mut origins=vec![(*p,write.clone(),context.clone())];
+        if matches!(write,Expr::Write{op:WriteOp::Upsert,..}){let mut existing=write.clone();if let Expr::Write{op,..}=&mut existing{*op=WriteOp::Update;}origins.push((*p,existing,context.clone()));}origins
+    }).collect::<Vec<_>>();
+    for (p,write,context) in &origins{
         if !super::super::creation_advice::applicability_known(context,catalog){continue;}
         let Expr::Write{op,table,fields,keys,site,..}=write else{continue;};
         if !matches!(op,WriteOp::Insert|WriteOp::Update|WriteOp::Upsert)||!bound.schema.tables.contains_key(table){continue;}

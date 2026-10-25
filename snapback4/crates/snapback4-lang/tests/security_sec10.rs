@@ -555,3 +555,13 @@ fn campaign(s:&str)->Campaign{let b=security::derived::augmented(&sources(s),&bo
     assert!(notes(source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));let b=bound(source);assert!(!security::derived::invariants(&sources(source),&b).iter().any(|i|i.site.file.contains("sibling-approval")));assert!(security::source_inference_gaps(&sources(source),&b).iter().any(|gap|gap.contains("execution applicability")));
     let explicit=source.replace("if opaque(flag)","if .approved");assert!(!notes(&explicit).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));assert!(security::derived::invariants(&sources(&explicit),&bound(&explicit)).iter().any(|i|i.site.file.contains("sibling-approval")));
 }
+
+#[test]fn unknown_schema_gated_effects_do_not_hide_unused_approval(){
+    let source="table docs:\n  approved: bool default false\n  stage: enum('draft','done') default 'draft' write <- .approved\n  phase: enum('open','closed') default 'open'\n  read <- allow\n  update <- allow\n  online only\nmutation approve(doc: docs):\n  update docs[doc] {approved:true}\nfn opaque(flag: bool):\n  if flag:\n    return false\n  return false\nmutation guarded(doc: docs,flag: bool):\n  update docs[doc] {stage:'done'} if opaque(flag)\nmutation bypass(doc: docs):\n  update docs[doc] {phase:'closed'}\n";
+    assert!(notes(source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+    assert!(!notes(&source.replace("if opaque(flag)","if flag")).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+}
+#[test]fn existing_row_upserts_establish_update_approval_contracts(){
+    let source="table docs:\n  approved: bool default false\n  status: enum('draft','done') default 'draft'\n  owner: principal\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\nmutation guarded(doc: docs):\n  d = docs[doc] ! else MISSING\n  require d.approved else APPROVAL\n  upsert docs[doc] {status:'done',owner:d.owner}\nmutation bypass(doc: docs):\n  update docs[doc] {status:'done'}\n";
+    for source in [source.to_string(),source.replace(",owner:d.owner",",owner:viewer")]{let cs=security::derived::invariants(&sources(&source),&bound(&source));assert!(cs.iter().any(|i|i.table=="docs"&&i.target=="update"&&i.column.as_deref()==Some("status")&&i.site.file.contains("sibling-approval")),"{cs:?}");}
+}

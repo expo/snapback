@@ -114,6 +114,7 @@ fn scalar_rule(rule:&RuleExpr,table:&str,column:&str,root:&str,negative:bool,bou
     }
 }
 fn schema_scalar(effect:&Write<'_>,table:&str,column:&str,bound:&Bound,negative:bool)->bool{
+    if !applicability_known(&effect.context,effect.catalog){return false;}
     let target=&bound.schema.tables[&effect.table];let row=if matches!(effect.op,WriteOp::Update|WriteOp::Upsert){&target.rules.update}else{&target.rules.insert};
     if scalar_rule(&super::approval_records::scoped_rule(row,effect,table,bound),table,column,&effect.table,negative,bound){return true;}
     let fields=effect.fields.iter().filter(|field|matches!(target.columns.get(&field.name).map(ColumnType::required),Some(ColumnType::Enum{..}))&&!matches!(field_value(field),Some(Expr::Member{base,name,..}) if name==&field.name&&super::super::derived::same_resource(base,&effect.table,&effect.keys,effect.p))).collect::<Vec<_>>();
