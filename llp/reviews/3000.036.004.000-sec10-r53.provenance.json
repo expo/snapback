@@ -1,0 +1,16 @@
+{
+  "time": "2026-10-25T09:17:15.317367+00:00",
+  "base": "98814920a4",
+  "head": "f29a79ede11f90912d03b4b819d5a9d1ba4ae2cd",
+  "deltaSha256": "d33ffc39329cf38154b404811b518bccbfd301545a77d22c2a84eb09ce551e14",
+  "deltaArtifact": "llp/reviews/3000.036.004.000-sec10-r53.delta.patch.gz",
+  "briefSha256": "0bf55896fbdc1ad83260c96bcd30067708f3edc1603eef550683fd5e3890ba4d",
+  "reviewers": [
+    "Muse muse-spark-1.3-contributor high via muse-exec.sh; quota fallback used",
+    "fresh codex gpt-6.1-sol high"
+  ],
+  "verdicts": {
+    "muse": "READY",
+    "codex": "READY"
+  }
+}
