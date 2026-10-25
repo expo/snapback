@@ -1,61 +1,56 @@
-# Integration 25 — Snapback 4 0.4.41
+# FIX41 publication repair — 0.4.41
 
-Worktree `/home/ccheever/projects/snapback-sb4loop`, branch `sb4-loop`.
-Pre-merge main: `25ee876966185acfa7be9eace384b2988512da56`.
-Integrated runtime source: `030a1ab426`; final documentation/evidence commit: `72f73ab051` (closure record `af0d6a1cdb`).
-Standalone bump: `7c364a917c` (`snapback4 0.4.41: clearer security decisions and reliable release proofs`).
+Base: 5c4716af14, branch sb4-loop, authorized direct push to main after fetch/merge.
+Version stays 0.4.41. Publisher evidence was read only; no sb4-pub-* tree or kit modified.
 
-## Changes and integration
+LLP context: Snapback 4 fence, LLP 3000 §7 (bounded admission, publication),
+LLP 3000.009.001.000.002 §6 (managed-relation interception),
+LLP 3000.011.003.000 §10 (installed starter toolchains),
+and LLP 3000.000.000 §20–21 (rollback views). Scope-specific @refs checked.
+User ruling authorizes a dated exception for unavoidable unpatched advisories.
 
-- Main merges: `2ce713a595`, `00532affd8` (R1), `030a1ab426` (G7.1/FF3, main `22412ba20b`). Lane merges: DX9 `ee7adeb4cc`, REL `d681fc410b`, DX10 `33ee8cf8ff`. SEC10 is excluded.
-- DX9 supplies coherent source-bound security decisions, the password-role recipe and init template, starter corrections, serveUntilSignal, Quarry ergonomics, navigation and social teardown custody. REL supplies needed/correct rollback views, live-release identity on moves, extraction/backfill/rename semantics and day-two guidance. DX10 supplies serve-check, persistent idempotent production account provisioning and explicit review-tier gate/next-step wording.
-- Conflicts retain both lanes’ task/rename routes, all diagnostics, both proof helper APIs, DX9’s account argument guidance and DX10’s idempotence. Journals retain both histories. Root report conflicts keep integration content. Generated files are regenerated rather than merged manually. Upstream G6 issue resolution preserves the integration’s census fixes and main’s opt-in ruling.
-- Integration repairs: `6e27274c8f` uses a debug-only preupdate write observer instead of forbidden trigger instrumentation and follows transitive test-module exclusions in the codec census. `a7d116fa40` narrowly recognizes four neutral internal types; `124c6172bb` regenerates test-only port counts. Production port allowances stay zero.
-- `441b46c872` puts serve-check in shared help/parser metadata; `bebe475177` fixes packaged guidance. `cd64564f81` fixes real false fresh-extraction refusals in wave 27 apps 028/032: new parents use their new source context for role probes, while retained/restored parents keep historical context. Both regression scenarios and all 11 release-cycle tests pass; no historical audience guard is weakened.
-- `563bd644e0` regenerates the compiler-emitted authoring census (569 mutation occurrences, 95 private families). `792f6772fd` aligns API/examples and isolated shim/input fixtures. `2cbac69060` fixes actual security-family priority, retaining gates/authority first, and repairs the Expo harness/await classification seal. `4a83001350` repairs the governing reference anchor.
-- The standalone bump follows the previous bump’s version-file set and adds LLP3000.037 §20.10. `7a70ea22d2` renames the private reader-preparation helper without changing behavior or either port allowance file. The final 0.4.41 guide-changes entry combines every lane and existing-app/store effects. Upgrade prose is a bullet so the compiled guide includes decision renewal, restart/rebuild and roster retention. The deploy card preserves every word while returning to 279 total / 149 operational lines; no test limit changes.
-- Fresh independent Codex and Muse reviews find no material issue in extraction, priority rendering, the integrated candidate and incoming release interactions. Received outputs, prompts and provenance are verbatim under `llp/reviews/integration25-*`. Muse’s quota failures and successful configured fallback are retained; no credential file is read or printed.
+Execution: llp-orient and llp-ship; user-specified shared sb4-loop checkout
+and optimistic main merge procedure override generic run-branch instructions.
+Three disjoint implementation lanes share the existing target: binder,
+rollback, browser; primary owns feature-aware test/audit/integration. Cap four
+agents including primary, initially 131 GB disk free / 235 GiB RAM available /
+load 3.3; avoid duplicate target trees. Every launched shell command bounded
+by timeout and cargo invocations carry required profile flags.
 
-## Affected verification
+1. Store feature test: core test-support constant reports compiled evaluation
+feature. Both exact-tracker outcomes asserted; altered tracker always refused.
+Package-only test PASS 1/1. Workspace binary PASS 612/612 (57 ignored).
+Additional raw-fixture census PASS8/8 after reusing the existing fixture boundary.
+Publisher inventory459binaries/1177executions ran; only two development-fixture
+failures appeared (eligibility fixture and fixture-site census), both corrected
+and focused reruns passed. Runner completed with those two failures; no other failures. Final affected
+checks rerun current code, and targeted fixes are separately green.
+2. Binder: 0be6995c45, early stable-value qualification and borrowed AST.
+Eight levels721.5ms ->6.3–6.7ms; twelve76.7ms. Positional target11/11passes.
+Short differential2k:120,026 executions,0 disagreements. Lean2k exit1 only
+known CLASSIFIED C2/W4 signatures (18; no new signature). Full lang package run hit its1200s guard after1857passes; no test failure
+before interruption. Publisher-style runner completed the broader inventory.
+3. Rollback:39cdc9cea7; fitting original selection under compiler/transaction
+checks, independent-child receipt coverage retains view fallback. roll_views
+28/28pass, eligibilityunit1/1pass. Replay evidence c13733cce0: before=after,
+100stores/500moves,482successes,18expectedtrue refusals,0false refusals,
+0hiddenv1rows,482correctlive lines,194ordinary forwards,300originalfilesunchanged.
+Safe JSON in snapback4/reports/20261025-fix41/replay-{before,after}.json.
+4. Audit: checked-in GHSA-86w9-cpqp-85rv exception through 2026-11-07,
+recheck 2026-11-08. Unrecorded/fixable findings and new upstream releases fail.
+62 qualifier tests pass (includes exception/maturity/patch/unknown regressions).
+Ticket records code-signing tooling reachability. Commit2a9b9871dc,
+review corrections97e59e6d2f (container COPY and every-template audit result).
+Qualifier62/62 and day5proofs5/5pass. Packed proof pending.
+5. Browser:438e676638, bounded replenishing bank observes raw refusal and
+host diagnostic; removes HTTP probe. Deterministic refusal/expiry regression.
+20/20alone (2.999–3.217s),20/20under8-fileclientpool (3.019–3.131s).
+Pool8/8files187/187tests pass; related overload/platform114/114pass.
 
-The canonical run against pre-merge main binds clean product source `70365904e6` and completes with unchanged inputs: **31 commands, seven whole Rust packages, 440 client files**. CLI, core, language, difftest Rust, native, fixtures and both complete models pass. Ordinary clients report **7,941 passes / 1 native-profile failure / 56 skips** across 438 files; models pass **89/89**, retaining full 5,000 online + 5,000 local sessions and 3,000 online-client sequences.
-
-The raw selector is red and remains unmodified. Three product steps encounter native failures only under temporary session opt-level2 overrides. Both Rust failures reproduce on archived pre-merge main. Repository-configured profiles pass device native_following (2/2, isolated 1/1, repeated 2/2), simulator native (12 pass / 1 existing ignore after isolated 1/1), and the entire affected bounded-Following client file (39/39 after isolated 1/1). No assertion, workload, stack size or product deadline changes. The overrides are never committed. The other raw reds are missing root dependencies (restored and rechecked) and the exact inherited Lean disagreements below. No single green aggregate is fabricated.
-
-Main then adds qualified G7.1/FF3 code without code conflicts. Its 18 changed PostgreSQL files are byte-identical to qualified main. Integrated incoming scope is repeated under repository-configured profiles: **complete core, 49 scopes / 1,239 passes / 0 failures / 5 ignores; full CLI binary 612 passes / 57 ignores; replay 24, rollback views 27, port ratchet 8 and SURF4 help/parser 20 pass**. Native Following 2, authoring census 88, simulator native 12 (1 existing ignore) and codec census 29 pass again. Both complete copied-app/store campaigns and both differential smokes are repeated on this merged runtime.
-
-Incoming documentation selection covers **121 client files and compiled guide tests**. The ordinary 119-file pool records 2,247 completed passes / 37 skips and one watchdog-failed file; that hung file’s partial results are excluded from its totals. Both complete models pass 89/89. Its long proof target first fails the five-second npm-descendant fixture, then retains an uncancelled poll until the file watchdog. The exact case passes alone and the complete original target passes **31/31** unchanged. This follows the flake rule; a filesystem issue records the fixture behavior. The deploy-card line-budget failure is repaired without removing words or relaxing limits; **all 127 compiled guide tests pass**. A rebuilt CLI smoke confirms one 0.4.41 entry and every upgrade consequence. Raw source-changed/red documentation receipts remain raw, with scoped supplements.
-
-Focused conflict-resolution evidence also includes 43 API/shim/input/example cases, 522 React/delivery cases, both mixed gate/family unit regressions and both changed output cases, all 11 release-cycle tests, the 59-case complete admission rerun and the unchanged Worker/saturation isolation-plus-target repetitions. Both lanes’ relevant tests remain enabled.
-
-**Differential smoke:** ordinary seed 0/2,000 cases reports zero disagreements before and after the main merge. Real Lean seed 0/2,000 reproduces exactly the lane baseline: 1,658 passes, 324 unsupported, **18 inherited disagreements** (5 continuation-next, 8 next, 5 prelude-code), zero omitted meter fields and no new signatures. Raw exit1 is retained; no oracle normalization or mismatch-free claim. OPEN C2/W4 remain tracked.
-
-Root checks pass: `scripts/check-generated-artifacts` after frozen install/hoist repair; generated diagnostics (3,593 codes /9,654 emitting sites) and guide manifest; inventories (365 package tests /35 script tests /31 demos /487 publication leaves /162 pages /1,937 snippets); all 22 guide checks with 0 failures/skips/preconditions; `./ref-check` with 0 errors/unchecked references; packaged-doc lint; actual Snapback4 `node scripts/docs-budget.mjs` at 320/320 README lines plus its passing first-screen proof. Existing freshness/GAP warnings remain warnings.
-
-The final metadata-only affected receipt is `snapback4/reports/integration25/incoming/metadata-affected-final.json` (commit `af0d6a1cdb`, four checks, complete/unchanged/PASS); its source binding and actual results are retained. Product evidence is composed by semantic scope under LLP 0189 D-2/LLP 0232, rather than repeating unchanged expensive tests whenever main advances. Earlier incomplete/source-changing attempts are superseded, never claimed as green.
-
-## Day-one survey
-
-The final merged-runtime pin is SHA-256 `31c84eb104f37db8a3dfd2d2aa01d0b26f75190edbc59a8cf4d3adb12cbbb105`, version 0.4.41, repository-configured test profile. All **650 schemas** run check, fresh deploy, test and deploy after test: wave 15’s 100 historical names, plus 50 each from waves 16,18–27. Raw totals match the prior campaign exactly: 35 gated projects, 39 fresh refusals, 49 post-test refusals and 54 business-test failures; zero timeouts. All 50 wave 27 apps pass all four commands, including the fixed extraction cases 028/032.
-
-All **49 conditional audits** clear check and both deploy paths: **zero unresolved/false gates or deploy refusals under this finite protocol**. They comprise 32 per-finding intent cases and 17 real specification issues. Six app tests remain red: four stale todo starter cases (wheelchair/honor guard, waves 18/19) and two reviewed derived-weight hypotheses (dog-sled, waves24/25). They are not counted as passing business proofs.
-
-Conditional copies reuse individually reviewed specification rationale and match current code/site/ID. Same-site teacher/juror findings use exact diagnostic messages; duplicate read clauses use the named repairs.read invariant. Unknown-message/subject controls refuse. Cached successful audits are reused only on the same immutable pin/source. Original schemas are never repaired or acknowledged. All 650 source/fixture pairs match the earlier campaign; the final rehash verifies 658 original Quarry files and 777 fixture files unchanged. These finite campaigns are not universal security proofs.
-
-## Day-two replay
-
-All **100 private copies** of wave 25/27 production stores attempt **500 moves**: v2 deploy and two default rollback/forward cycles. Results repeat before and after main: **zero false refusals, zero hidden v1 rows, 482 successful moves and 482/482 correct live-release lines; 194 forwards select ordinary source**. The 18 true refusals match REL exactly: wave 25/004(5),024(5),030(2),045(2), wave 27/012(2),042(2). Their move keys, statuses and reason text match the prior run, except private-copy directory names.
-
-The exceptions need truthful reverse media/default projections (004/024), preserved predecessor rows (030), an individual author decision (045), or current write-authority bridges (012/042). No original-store decision is invented. Every SQLite connection uses a copy excluding owner/token/control material; release symlinks point to that copy. All **300 original SQLite/WAL/SHM files remain byte-identical**. Binary hashes are checked after execution. Compact ledgers retain source/fixture/output hashes, not stores, account rosters, tokens or private raw app output.
-
-## Wasm and delivery
-
-Clean merged Linux measurement: **2,415,524 bytes raw / 738,108 gzip / 555,805 Brotli**. **Budget 738,608 = measured gzip + exactly 500 bytes**. Whole-artifact gzip is 4 bytes below the integrated pre-bump measurement; no independent per-feature cost or runtime ceiling change is claimed. Locked Binaryen and strict family/server-only absence audits pass. Record `138097c5ce` is appended by `70365904e6`, dirty=false, over=0. Post-main no-record remeasurement at `030a1ab426` is identical. A missing-Brotli probe is explicitly invalid, never appended; the restored Brotli 1.1.0 measurement is complete and a filesystem issue tracks strict failure.
-
-Two diagnostic drivers (early native isolation and manual docs-budget) omitted the required nested Cargo environment. Neither is qualification evidence; both are repeated with all three flags, and large completed diagnostic executables are removed. Other qualified Cargo runs carry CARGO_INCREMENTAL=0 and both debug=0 settings. Completed baseline/control targets and test executables are deleted after evidence collection; owned test processes are released. Publication paths/worktrees are untouched.
-
-Publication owns the full packed five-crate/client qualification, qualify-linux, Mac, Exact builds, difftest 20k/devices and npm publication on the landed commit. Five Expo starter audits remain red on unpatched node-forge (existing issue 20261024-snapback4-expo-node-forge-audit.md), not waived. Upstream PostgreSQL’s inherited evaluator stress SQLSTATE 40001 remains documented in its qualified report; full Postgres publication qualification is not replaced by this integration.
-
-Delivery is authorized to origin/main by non-force push, with fetch/merge race handling. The root report and compact receipts are committed so the delivered worktree is clean. No npm-publication or packed-qualification claim is made here.
-
-Final source status before the report carrier is clean. SEC10 branch ancestry is explicitly absent. The report carrier adds only this report and the final metadata receipt/log; runtime and documentation content stay qualified by the recorded scopes.
+ref-check PASS569docs/12617refs. Fresh prepare-client completed at c13733cce0.
+Initial Muse and fresh Codex reviews received verbatim under llp/reviews/;
+Codex found container policy COPY + template warning receipt omissions, fixed.
+Muse found no code/design defect, requested frozen source and finished checks.
+Frozen-source second-round Muse and fresh Codex reviews both READY for content. Final affected, consumer proofs and
+push pending. Shared npm cache had an ENOENT read; isolated owned cache works,
+registry confirms node-forge latest1.4.0. No change to version0.4.41.

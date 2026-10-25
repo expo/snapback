@@ -1,0 +1,26 @@
+muse: workspace root: /home/ccheever/projects/snapback-sb4loop (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=0ca62c4f-6bfc-4884-9dbb-464d6dcccc59]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+Review complete. Content review of the frozen FIX41 candidate against its base; no code was edited and no builds were run.
+
+## Verdict: READY
+
+No material code or design concern found in the candidate. The implementation matches the two authorized amendments (§21 fitting-extraction selection, §10 dated audit exceptions), and every requirement clause has a corresponding, correctly-wired code/test/docs change.
+
+## Checks performed (candidate SHA pinned)
+
+Provenance: Muse Code, powered by Meta Muse Spark. Reviewed source: `438e676638b8cb2933202e001e6327321bc2f529` vs base `5c4716af14` (24 files, +448/−52, `WORKSTREAM-REPORT.md` excluded as instructed). Note: the checkout has since advanced past the candidate; all reads below were pinned to `438e676…` via `git show`/`git grep`. I did not open the untracked `llp/reviews/` files.
+
+- **Version stays 0.4.41** — `snapback4/packages/snapback4/package.json:3` reads `"version": "0.4.41"` at the candidate; the diff touches no version field, only prose (`CHANGELOG.md`, `README.md`, `init.rs`) describing the dated warning.
+- **Compiled evaluation feature test** — `snapback4/crates/snapback4-core/src/store/managed_relations.rs` admits a tracker only under `cfg(feature = "evaluation-support")` and only when `evaluation::is_tracker` matches the exact `dt_track_{i}_{event}` body; `store_owner_tests.rs` now branches on the core-compiled `TEST_SUPPORT_EVALUATION_ENABLED` const (refuses exact tracker without the feature, admits only the exact body with it, still refuses an altered `DELETE FROM r` body). Truthful under both package-only and workspace-unified builds; no production exception added.
+- **Nested key binding** — `point_facts.rs` computes `stable_value` first and `stable_value` returns `None` for `A::Read`, so database reads are rejected before any speculative `select_index` rebind; `path` now borrows instead of cloning. The new 12-level test asserts the 1s guard plus 12 runtime reads. DX9 semantics preserved by construction.
+- **Rollback buyer+scan shape, authority, fallback** — `release_bridge.rs::extraction_preserves_predecessor` gates on clean compiles, no invariants, aligned-schema equality after removing extracted columns, plain `$readThrough` child with no expiry/policy hardening, unchanged auth/tables/programs under carried guards; the unit test pins the private-read and invariant-intent refusals. `rollback_views.rs::prefer_original` additionally requires a real `validation-only` + `visible-rollback` preview plan on a private `VACUUM INTO` snapshot, and live activation re-runs `rollback_visibility::validate` (called from `activation.rs:467`) under CAS. The new visibility check refuses hiding independent children outside `_extraction_rows` receipts. `roll_views.rs` covers two buyer+rename/scan restoration cycles and the extra native child on the same old parent keeping the registered view.
+- **Audit rule** — `publication-starters.mjs::evaluateStarterAudit` iterates every finding including meta-vulnerabilities, fails on any `fixAvailable`, any unallowlisted advisory, malformed chains, missing detail, recheck-date arrival, or `latest != reviewedVersion`, and returns warnings otherwise. `starter-audit-allowlist.json` records GHSA-86w9-cpqp-85rv/node-forge 1.4.0 with reason, pull path, starters, and `2026-11-08` recheck; dev dependencies are included (no `--omit` flag). Policy is transported into both container (`qualify-linux.mjs` Dockerfile `COPY … starter-audit-allowlist.json /proof/`, asserted by test) and proot (`qualify-linux-proot.mjs`) proofs, and audit results are retained in both `results.push` branches (template and adapted; adaptation changes schema, not toolchain deps). The `CHANGELOG.md` "through 2026-11-07 / fails 2026-11-08" wording is consistent with the `today < recheck` gate, not a mismatch.
+- **Browser saturation** — changes are test-witness-only: a bounded replenishing socket bank (`connections * 2`) observes a real 503 refusal instead of equating TCP connect with admission; product capacity, five-second lease deadlines, and the 4-attempt/1s-retry assertions are unchanged. The bank's replace-on-refused/expired behavior has its own unit test against a fake TCP intake.
+- **Amendment docs** — `llp/3000.000.000…§21` and `llp/3000.011.003.000…§10` describe exactly what the code does (register-then-select, receipt-owned fallback, dated exceptions that warn without claiming a clean audit). `deploy.md` and the node-forge issue file agree.
+
+Findings: none material. No severity-tagged items; no RFC status changed and no proposal accepted.
+
+## Verification limits
+
+Read-only review: I inspected the full diff and the cited sources at the candidate SHA but ran no builds or tests, so the quoted evidence (e.g. 28 roll_views, 62 qualifier, 20/20 browser, 8→6.3ms timings, REL replay 482/18/0/0) is corroborated by matching test/code content, not independently re-executed. Integration-affected and fresh packed-consumer checks are still pending under the primary and are not claimed here.

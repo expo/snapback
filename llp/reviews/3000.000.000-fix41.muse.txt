@@ -1,0 +1,30 @@
+muse: workspace root: /home/ccheever/projects/snapback-sb4loop (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=5847b88a-846f-4038-979d-0934eb38b697]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+# FIX41 Independent Review — NOT READY
+
+**Reviewer:** Muse Code, powered by Meta Muse Spark (read-only; no files edited, no large builds run; every shell command bounded with `timeout`).
+**Candidate at inspection:** HEAD `2a9b9871dc` ("fix(snapback4): expire unpatched starter audit exceptions") on top of base `5c4716af14`, **plus a dirty worktree** (8 modified files). I did not read `llp/reviews/3000.000.000-fix41.*` per instructions.
+**Version:** remains `0.4.41` — confirmed in both `package.json` files and workspace `Cargo.toml`; the diff contains no version bump.
+
+## Static findings by task (no logic/security defect found)
+
+**1. Truthful TEMP tracker test — sound.** `snapback4-core/src/store/test_support.rs:6-9` reports the core's compiled `evaluation-support` cfg, and `store_owner_tests.rs` branches on it instead of asserting refusal unconditionally. The policy it tracks is exact: `managed_relations.rs:33-36` + `evaluation.rs:16-20` admit only the byte-exact tracker body (`INSERT OR IGNORE INTO dt_dirty`), and the test still asserts the `DELETE FROM r` variant is refused in both modes. Production (feature off) behavior is unchanged.
+
+**2. Nested identity binder perf — sound, DX9 semantics preserved.** `pure_calls.rs:27-51`: `A::Read` falls through to `_ => None`, so `point_facts.rs` computing `stable_value` before `select_index` only skips a doomed rebind; outcomes are identical (`stable_value` takes `&self`, mutates only the local `roots` set). `point_field_key` switching from `read.clone()` to `&ReadExpr` removes per-level cloning. The new 12-deep `<1s` test targets the regression precisely.
+
+**3. Rollback-to-v1 buyer+scan shape — sound (verified to the engine floor).** My main suspicion — that `prefer_original` (`rollback_views.rs:53-65`) uses `plan(...).is_ok()` without inspecting `hiddenRows` — does **not** hold: `plan()` runs full `Engine::new_release_prepared_at`, which executes core `rollback_visibility::validate` (`activation.rs:467`), refusing unowned independent children and unacknowledged hiding with `E_ADOPT`. So `is_ok()` genuinely implies the RFC's "validates with no hidden predecessor rows," and live activation repeats it under CAS. The static gate (`release_bridge.rs:120-148`) is conservatively closed (invariants, expiry, column writes, non-plain read-through, auth/table/program equality all force `false`). Each-extraction/native children stay on the view via engine refusal (`extraction_each.rs:378`). The fitting test asserts `selected == 1` plus alice/bob buyer+scan shape; the multi-children test guards the view path end-to-end (a wrongly-selected original would refuse at live activation). RFC §21 and `guide/deploy.md` match the code.
+
+**4. Starter audit policy — sound.** `evaluateStarterAudit` (`publication-starters.mjs:48-76`) fails every `fixAvailable` finding including meta-vulnerabilities, unknown advisories, broken chains, and registry failures (all fail-closed); exceptions require a checked-in advisory/package/path/reason/recheck, expire `2026-11-08`, and re-verify `npm view` latest. Allowlist starters match `starterCases` ids; `run()`'s `(cmd,args,cwd,overrides)` signature is compatible with the call. I executed the new unit test: **pass 1 / fail 0** (`✔ starter audit exceptions expire and never waive fixable or unknown advisories`). `init`/README/CHANGELOG/issues prose is consistent; warnings are retained in evidence, not claimed clean.
+
+**5. Overload-browser saturation — sound.** `occupyConnections` replaces closed/refused sockets on a 10 ms timer (bounded set, `t.after` cleanup); `connections + 16` surplus plus the `bankRefused` gate eliminate the probe-before-saturation race; the raw-socket 503 probe matches the product's refuse-before-read behavior; the 5 s lease and all deadlines are untouched. A dedicated witness test covers the helper itself.
+
+## Material concerns (why NOT READY)
+
+**M1 — The artifact moved under review; nothing is frozen to certify.** Between my first diff and final reads, a concurrent writer changed `release_bridge.rs` (eligibility gained `align_current_schema`/per-table projection hardening), `roll_views.rs` (`store_asset` → `store_file`), and `overload-browser.test.mjs` (`onRefused` callback + `bankRefused` gate). Final worktree hashes (e.g. `release_bridge.rs` `8e936db1…`, `rollback_views.rs` `703332fc…`, overload test `66678e12…`) are recorded above. A review cannot certify a concurrently-mutated tree — freeze it, confirm the diff, then land.
+
+**M2 — The workstream's own affected verification is explicitly pending.** On-disk `WORKSTREAM-REPORT.md` lists as pending: binder lane report, rollback before/after replay + regressions, package test, browser 20-alone/20-loaded, packed starter proof, and integration/consumer proofs. The only observed pass in this candidate is the pure-node audit unit test I ran myself. The new Rust tests (fitting rollback, binder perf, store-owner) and the REL replay have no recorded passing run here, and large builds were out of scope for this review — they must run before landing.
+
+Non-blocking notes (no action needed for READY): `validateStarterProofs` doesn't require the `audit` sub-result field, so pre-policy receipts still validate; the npm-latest mismatch message reads as "new release" even on registry failure — fail-closed either way.
+
+**Verdict: NOT READY** — no defect in logic, RFC amendments, or security posture, but the tree must be frozen (M1) and the pending affected verification run green (M2) before landing.
