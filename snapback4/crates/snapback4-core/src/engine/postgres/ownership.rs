@@ -512,7 +512,7 @@ fn tag_token(tag: &str, id: &str) -> Option<i64> {
     let token = parts.next()?.parse::<i64>().ok()?;
     (parts.next().is_none() && token >= 0).then_some(token)
 }
-fn terminate(
+pub(super) fn terminate(
     client: &mut Client,
     waiter: Option<i32>,
     id: &str,

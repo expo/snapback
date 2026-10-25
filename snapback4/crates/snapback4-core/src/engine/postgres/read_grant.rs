@@ -4,7 +4,7 @@
 use crate::RuntimeError;
 use std::{
     sync::{
-        RwLock, RwLockReadGuard,
+        RwLock, RwLockReadGuard, Mutex, Condvar, Arc,
         atomic::{AtomicBool, AtomicU64, Ordering},
     },
     time::Duration,
@@ -81,6 +81,7 @@ impl Published {
 pub(crate) struct State {
     pub epoch: Option<String>,
     pub published: Option<Published>,
+    pub inflight: usize,
 }
 #[derive(Default)]
 pub(crate) struct Grant {
@@ -90,11 +91,14 @@ pub(crate) struct Grant {
     pub revoked: AtomicBool,
     pub uncertain: AtomicBool,
     pub until: AtomicU64,
+    #[cfg(test)]
+    pub closing: AtomicU64,
     closed_at: AtomicU64,
     closed_ns: AtomicU64,
     waits: AtomicU64,
     wait_ns: AtomicU64,
     max_wait_ns: AtomicU64,
+    changed: (Mutex<u64>, Condvar),
 }
 #[derive(Clone, Copy, Debug, Default, serde::Serialize)]
 pub struct GateStats {
@@ -154,39 +158,75 @@ impl Grant {
         {
             return None;
         }
-        let mut waited = 0;
-        let read = match self.state.try_read() {
-            Ok(s) => s,
-            Err(std::sync::TryLockError::WouldBlock) => {
-                let start = std::time::Instant::now();
-                let s = loop {
-                    if start.elapsed() >= Duration::from_secs(1)
-                        || self.revoked.load(Ordering::Acquire)
-                        || self.uncertain.load(Ordering::Acquire)
-                    {
-                        let ns = start.elapsed().as_nanos().min(u64::MAX as u128) as u64;
-                        self.waits.fetch_add(1, Ordering::Relaxed);
-                        self.wait_ns.fetch_add(ns, Ordering::Relaxed);
-                        self.max_wait_ns.fetch_max(ns, Ordering::Relaxed);
-                        return None;
-                    }
-                    match self.state.try_read() {
-                        Ok(s) => break s,
-                        Err(std::sync::TryLockError::Poisoned(_)) => return None,
-                        Err(_) => std::thread::sleep(Duration::from_micros(100)),
-                    }
-                };
-                let ns = start.elapsed().as_nanos().min(u64::MAX as u128) as u64;
-                self.waits.fetch_add(1, Ordering::Relaxed);
-                self.wait_ns.fetch_add(ns, Ordering::Relaxed);
-                self.max_wait_ns.fetch_max(ns, Ordering::Relaxed);
-                waited = ns;
-                s
+        // @ref LLP 3000.009.001.000.000.002#3.6 — wait without the read guard so ordered resolution can acquire the write lock.
+        const HIT_WAIT: Duration = Duration::from_millis(1);
+        let start = std::time::Instant::now();
+        let mut waited = false;
+        loop {
+            match self.state.try_read() {
+                Ok(s) if s.inflight == 0 => {
+                    self.live(&s)?;
+                    let ns = if waited {start.elapsed().as_nanos().min(u64::MAX as u128) as u64} else {0};
+                    if waited { self.record_wait(ns); }
+                    return Some((s, ns));
+                }
+                Err(std::sync::TryLockError::Poisoned(_)) => return None,
+                _ => {} // drop the read guard before waiting
             }
-            Err(_) => return None,
-        };
-        self.live(&read)?;
-        Some((read, waited))
+            waited = true;
+            let remaining = HIT_WAIT.saturating_sub(start.elapsed());
+            if remaining.is_zero() || self.revoked.load(Ordering::Acquire) || self.uncertain.load(Ordering::Acquire) {
+                self.record_wait(start.elapsed().as_nanos().min(u64::MAX as u128) as u64);
+                return None;
+            }
+            let version = self.changed.0.lock().unwrap_or_else(|p|p.into_inner());
+            let _ = self.changed.1.wait_timeout(version, remaining.min(Duration::from_micros(100)));
+        }
+    }
+    fn record_wait(&self, ns:u64) {
+        self.waits.fetch_add(1, Ordering::Relaxed);
+        self.wait_ns.fetch_add(ns, Ordering::Relaxed);
+        self.max_wait_ns.fetch_max(ns, Ordering::Relaxed);
+    }
+    pub(crate) fn begin_flight(self: &Arc<Self>) -> Result<FlightGuard, RuntimeError> {
+        #[cfg(test)]
+        self.closing.fetch_add(1,Ordering::SeqCst);
+        let mut state=self.state.write().map_err(|_|clock_error())?;
+        #[cfg(test)]
+        self.closing.fetch_sub(1,Ordering::SeqCst);
+        if self.uncertain.load(Ordering::Acquire) {return Err(clock_error());}
+        if state.inflight==0 {self.closed_at.store(boottime().map_or(1,|n|n.as_nanos() as u64),Ordering::Release);}
+        state.inflight+=1;
+        Ok(FlightGuard {grant:self.clone(),resolved:false})
+    }
+    // @ref LLP 3000.009.001.000.000.002#3.6 — an unacknowledged preparation rollback or panic is sticky even before a final-flight guard exists.
+    pub(crate) fn close_uncertain(&self) {
+        let mut state = self.state.write().unwrap_or_else(|p| p.into_inner());
+        self.uncertain.store(true, Ordering::Release);
+        self.until.store(0, Ordering::Release);
+        state.epoch = None;
+        state.published = None;
+        let _ = self.closed_at.compare_exchange(0, boottime().map_or(1, |n| n.as_nanos() as u64), Ordering::AcqRel, Ordering::Acquire);
+        *self.changed.0.lock().unwrap_or_else(|p|p.into_inner()) += 1;
+        self.changed.1.notify_all();
+    }
+    fn resolve_flight(&self, published:Option<Published>, unknown:bool) {
+        let mut state=self.state.write().unwrap_or_else(|p|p.into_inner());
+        assert!(state.inflight>0);
+        state.inflight-=1;
+        if unknown {
+            self.uncertain.store(true,Ordering::Release);
+            self.until.store(0,Ordering::Release);
+            state.epoch=None;state.published=None;
+        } else if !self.uncertain.load(Ordering::Acquire) {
+            if let Some(published)=published {state.published=Some(published);}
+        }
+        if state.inflight==0 && !self.uncertain.load(Ordering::Acquire) {
+            let start=self.closed_at.swap(0,Ordering::AcqRel);
+            self.closed_ns.fetch_add(boottime().map_or(0,|n|(n.as_nanos() as u64).saturating_sub(start)),Ordering::Relaxed);
+        }
+        *self.changed.0.lock().unwrap_or_else(|p|p.into_inner())+=1;
+        self.changed.1.notify_all();
     }
     // @ref LLP 3000.009.001.000.002#4.1 — close before COMMIT, install only after confirmation; uncertainty is sticky.
     pub fn commit(
@@ -243,6 +283,17 @@ impl Grant {
     }
 }
 
+pub(crate) struct FlightGuard { grant: Arc<Grant>, resolved: bool }
+impl FlightGuard {
+    pub(crate) fn close_uncertain(&self) { self.grant.close_uncertain(); }
+    pub(crate) fn resolve(mut self, published:Option<Published>, unknown:bool) {
+        self.grant.resolve_flight(published,unknown);self.resolved=true;
+    }
+}
+impl Drop for FlightGuard {
+    fn drop(&mut self) { if !self.resolved { self.grant.resolve_flight(None,true); } }
+}
+
 pub(super) const CREATE: &str = "CREATE TABLE IF NOT EXISTS _read_grant (singleton BOOLEAN PRIMARY KEY, store_id TEXT COLLATE \"C\" NOT NULL, holder TEXT COLLATE \"C\" NOT NULL, token BIGINT NOT NULL, epoch TEXT COLLATE \"C\" NOT NULL, valid_until TIMESTAMPTZ NOT NULL)";
 
 pub(super) fn verify(tx: &super::store::Tx<'_>) -> Result<(), RuntimeError> {
@@ -279,5 +330,24 @@ mod tests {
             assert!(boottime().unwrap() > Duration::ZERO);
         }
         assert!(b.window(Duration::from_millis(200)).is_err());
+    }
+}
+
+#[cfg(test)]
+mod pipeline_tests {
+    use super::*;
+    #[test]
+    fn g72_count_is_visible_off_guard_and_unknown_stays_closed() {
+        let grant=Arc::new(Grant::default());grant.configured.store(true,Ordering::Release);
+        grant.until.store((boottime().unwrap_or_default()+Duration::from_secs(10)).as_nanos() as u64,Ordering::Release);
+        let publication=Published{revision:0,head:0,store:"s".into(),generation:1,schema:"h".into(),code:"c".into()};
+        {let mut s=grant.state.write().unwrap();s.epoch=Some("e".into());s.published=Some(publication.clone());}
+        #[cfg(target_os="linux")]
+        assert!(grant.read().is_some());
+        let first=grant.begin_flight().unwrap();let second=grant.begin_flight().unwrap();
+        assert_eq!(grant.state.read().unwrap().inflight,2);let start=std::time::Instant::now();assert!(grant.read().is_none());assert!(start.elapsed()<Duration::from_millis(100));
+        first.resolve(Some(Published{revision:1,head:1,..publication}),false);assert!(grant.read().is_none());
+        // resolve must acquire the write lock: read's bounded wait cannot retain its guard.
+        second.resolve(None,true);assert!(grant.read().is_none());let state=grant.state.read().unwrap();assert_eq!(state.inflight,0);assert!(state.epoch.is_none()&&state.published.is_none());drop(state);assert!(grant.begin_flight().is_err());
     }
 }

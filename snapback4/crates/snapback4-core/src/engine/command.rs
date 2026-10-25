@@ -134,12 +134,15 @@ impl Queue {
         Self::start_with_policy(capacity, execute, BatchPolicy::Adaptive)
     }
     fn start_with_policy(capacity: usize, execute: impl FnMut(Work) + Send + 'static, policy: BatchPolicy) -> std::io::Result<Self> {
+        Self::start_policy_depth(capacity,execute,policy,2)
+    }
+    fn start_policy_depth(capacity: usize, execute: impl FnMut(Work) + Send + 'static, policy: BatchPolicy, depth:usize) -> std::io::Result<Self> {
         assert!(capacity > 0);
         let (sender, receiver) = mpsc::sync_channel::<Queued>(capacity);
         let batching = Arc::new(Mutex::new(BatchStats::new(policy)));
         let stats = batching.clone();
         let worker = thread::Builder::new().name("snapback4-committer".into())
-            .spawn(move || batching::run(receiver, execute, stats))?;
+            .spawn(move || batching::run(receiver, execute, stats, depth))?;
         Ok(Self { sender:Some(sender), worker:Some(worker), admission:Arc::new(Mutex::new(Admission::default())), batching,
             #[cfg(feature="postgres")] lease:None })
     }
@@ -147,6 +150,11 @@ impl Queue {
     #[cfg(any(test, feature="test-support"))]
     pub fn start_fixed(mut engine: Engine, capacity: usize, n: usize) -> std::io::Result<Self> {
         Self::start_with_policy(capacity, move |work|work(&mut engine), BatchPolicy::Fixed(n))
+    }
+    #[cfg(any(test,feature="test-support"))]
+    pub fn start_fixed_depth(mut engine: Engine, capacity:usize,n:usize,depth:usize)->std::io::Result<Self> {
+        assert!((1..=2).contains(&depth));
+        Self::start_policy_depth(capacity,move|work|work(&mut engine),BatchPolicy::Fixed(n),depth)
     }
     pub fn batch_stats(&self) -> BatchStats { self.batching.lock().unwrap().clone() }
 

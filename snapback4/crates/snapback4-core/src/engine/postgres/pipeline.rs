@@ -40,6 +40,7 @@ pub(crate) struct Pool {
 struct Slots {
     ready: Vec<Arc<Slot>>,
     opening: usize,
+    writers: usize,
 }
 pub(crate) struct Slot {
     client: tokio_postgres::Client,
@@ -165,6 +166,15 @@ impl Pool {
             depth,
         }))
     }
+    pub(crate) fn reserve_writer(&self) -> Result<(), RuntimeError> {
+        let mut slots = self.slots.lock().unwrap_or_else(|p|p.into_inner());
+        if slots.writers == 1 { return Ok(()); }
+        if slots.ready.len() + slots.opening >= CONNECTIONS {
+            return Err(RuntimeError::Store("no reader slot available for pipeline writer".into()));
+        }
+        slots.writers = 1;
+        Ok(())
+    }
     fn slot(&self) -> Result<Arc<Slot>, RuntimeError> {
         self.slot_with(|| {})
     }
@@ -174,7 +184,7 @@ impl Pool {
         loop {
             // Reservations count toward the physical cap, including failures.
             slots.ready.retain(|s| !s.client.is_closed());
-            if slots.ready.len() + slots.opening < CONNECTIONS && slots.opening < CONSTRUCTORS {
+            if slots.ready.len() + slots.opening + slots.writers < CONNECTIONS && slots.opening < CONSTRUCTORS {
                 slots.opening += 1;
                 break;
             }
@@ -225,6 +235,7 @@ impl Pool {
 /// connection custody are shared. No authority or result survives a request.
 pub(crate) enum Connection {
     Sync(postgres::Client),
+    Writer(super::writer_driver::Driver),
     Reader {
         slot: Arc<Slot>,
         _pool: Arc<Pool>,
@@ -270,13 +281,13 @@ impl Connection {
                 slot: slot.clone(),
                 name: name.into(),
             }),
-            Self::Sync(_) => None,
+            Self::Sync(_) | Self::Writer(_) => None,
         }
     }
-    #[cfg(test)]
     pub(super) fn is_closed(&self) -> bool {
         match self {
             Self::Sync(c) => c.is_closed(),
+            Self::Writer(c) => c.is_closed(),
             Self::Reader { slot, .. } => slot.client.is_closed(),
         }
     }
@@ -290,6 +301,13 @@ impl Connection {
         let replacement = Self::reader(pool)?;
         *self = replacement;
         Ok(true)
+    }
+    pub(crate) fn writer_thread(&mut self) {
+        if matches!(self, Self::Writer(_)) {return;}
+        // The caller supplies a temporary disconnected holder through an Option
+        // conversion; no reference into the old client survives this move.
+        let old=std::mem::replace(self, Self::Writer(super::writer_driver::Driver::empty()));
+        *self=match old {Self::Sync(client)=>Self::Writer(super::writer_driver::Driver::new(client)),other=>other};
     }
     pub fn is_reader(&self) -> bool {
         matches!(self, Self::Reader { .. })
@@ -307,7 +325,7 @@ impl Connection {
     }
     fn lock(&mut self) -> Option<OwnedRwLockWriteGuard<()>> {
         match self {
-            Self::Sync(_) => None,
+            Self::Sync(_) | Self::Writer(_) => None,
             Self::Reader {
                 slot,
                 session,
@@ -331,10 +349,11 @@ impl Connection {
         let _guard = self.lock();
         match self {
             Self::Sync(c) => c.prepare(sql),
+            Self::Writer(c) => c.prepare(sql),
             Self::Reader { slot, .. } => runtime().block_on(slot.client.prepare(sql)),
         }
     }
-    pub fn query<T: ?Sized + tokio_postgres::ToStatement>(
+    pub fn query<T: ?Sized + tokio_postgres::ToStatement + super::writer_driver::Source>(
         &mut self,
         sql: &T,
         params: &[&(dyn ToSql + Sync)],
@@ -342,10 +361,11 @@ impl Connection {
         let _guard = self.lock();
         match self {
             Self::Sync(c) => c.query(sql, params),
+            Self::Writer(c) => c.query(sql, params),
             Self::Reader { slot, .. } => runtime().block_on(slot.client.query(sql, params)),
         }
     }
-    pub fn query_one<T: ?Sized + tokio_postgres::ToStatement>(
+    pub fn query_one<T: ?Sized + tokio_postgres::ToStatement + super::writer_driver::Source>(
         &mut self,
         sql: &T,
         params: &[&(dyn ToSql + Sync)],
@@ -353,10 +373,11 @@ impl Connection {
         let _guard = self.lock();
         match self {
             Self::Sync(c) => c.query_one(sql, params),
+            Self::Writer(c) => c.query_one(sql, params),
             Self::Reader { slot, .. } => runtime().block_on(slot.client.query_one(sql, params)),
         }
     }
-    pub fn query_opt<T: ?Sized + tokio_postgres::ToStatement>(
+    pub fn query_opt<T: ?Sized + tokio_postgres::ToStatement + super::writer_driver::Source>(
         &mut self,
         sql: &T,
         params: &[&(dyn ToSql + Sync)],
@@ -364,10 +385,11 @@ impl Connection {
         let _guard = self.lock();
         match self {
             Self::Sync(c) => c.query_opt(sql, params),
+            Self::Writer(c) => c.query_opt(sql, params),
             Self::Reader { slot, .. } => runtime().block_on(slot.client.query_opt(sql, params)),
         }
     }
-    pub fn execute<T: ?Sized + tokio_postgres::ToStatement>(
+    pub fn execute<T: ?Sized + tokio_postgres::ToStatement + super::writer_driver::Source>(
         &mut self,
         sql: &T,
         params: &[&(dyn ToSql + Sync)],
@@ -375,6 +397,7 @@ impl Connection {
         let _guard = self.lock();
         match self {
             Self::Sync(c) => c.execute(sql, params),
+            Self::Writer(c) => c.execute(sql, params),
             Self::Reader { slot, .. } => runtime().block_on(slot.client.execute(sql, params)),
         }
     }
@@ -382,6 +405,7 @@ impl Connection {
         let _guard = self.lock();
         match self {
             Self::Sync(c) => c.simple_query(sql),
+            Self::Writer(c) => c.simple_query(sql),
             Self::Reader { slot, .. } => runtime().block_on(slot.client.simple_query(sql)),
         }
     }
@@ -389,25 +413,30 @@ impl Connection {
         let _guard = self.lock();
         match self {
             Self::Sync(c) => c.batch_execute(sql),
+            Self::Writer(c) => c.batch_execute(sql),
             Self::Reader { slot, .. } => runtime().block_on(slot.client.batch_execute(sql)),
         }
     }
     pub fn commit_prepared(
         &mut self,
-        warning: &std::sync::atomic::AtomicBool,
+        warning: &Arc<std::sync::atomic::AtomicBool>,
     ) -> Result<(), RuntimeError> {
         match self {
             Self::Sync(c) => super::ownership::commit_prepared(c, warning),
+            Self::Writer(c) => {let warning=warning.clone();c.call(move|c|super::ownership::commit_prepared(c,&warning))},
             Self::Reader { slot, .. } => {
                 runtime().block_on(slot.client.batch_execute("COMMIT"))?;
                 Ok(())
             }
         }
     }
+    pub(crate) fn terminate_tagged(&mut self,id:&str,token:i64)->Result<Vec<i32>,RuntimeError> {
+        match self {Self::Sync(c)=>super::ownership::terminate(c,None,id,token),Self::Writer(c)=>{let id=id.to_owned();c.call(move|c|super::ownership::terminate(c,None,&id,token))},_=>Err(RuntimeError::StoreOwnership("reader cannot fence writers".into()))}
+    }
+    pub(crate) fn close_writer(&mut self) {let old=std::mem::replace(self,Self::Writer(super::writer_driver::Driver::empty()));drop(old);}
     pub fn configure(&mut self) -> Result<(), RuntimeError> {
-        if let Self::Sync(c) = self {
-            super::literal::configure(c)?;
-        }
+        match self {Self::Sync(c)=>super::literal::configure(c)?,Self::Writer(c)=>c.call(super::literal::configure)?,_=>{}}
+
         Ok(())
     }
     pub fn fold<T>(
@@ -426,6 +455,12 @@ impl Connection {
                     total = fold(total, super::flight::Row::Bind(row))?;
                 }
                 Ok(total)
+            }
+            Self::Writer(c) => {
+                for row in c.stream(statement, params) {
+                    match row? {Some(row)=>total=fold(total,super::flight::Row::Bind(row))?,None=>return Ok(total)}
+                }
+                Err(RuntimeError::Store("writer row stream lost its terminal result".into()))
             }
             Self::Reader { slot, .. } => runtime().block_on(async {
                 let rows = slot

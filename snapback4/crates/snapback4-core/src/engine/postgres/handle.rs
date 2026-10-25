@@ -33,6 +33,7 @@ impl Handle {
         let existing = self.readers.borrow().clone();
         let pool = if let Some(pool) = existing { pool } else {
             let pool = super::pipeline::Pool::new(&self.connection.0, &self.connection.1, self.borrow()?.fence.as_ref().map(|f| f.tag()).transpose()?)?;
+            pool.reserve_writer()?;
             *self.readers.borrow_mut() = Some(pool.clone()); pool
         };
         let reader = Self::connect_reader(self.connection.0.clone(), &self.connection.1, self.borrow()?.fence.clone(), pool)?;
@@ -47,5 +48,48 @@ impl Handle {
         let result = run(&tx)?;
         tx.commit()?;
         Ok(result)
+    }
+}
+
+impl Handle {
+    pub(crate) fn writer_slot(&self) -> Result<Self, RuntimeError> {
+        let existing=self.readers.borrow().clone();
+        let pool = if let Some(pool) = existing { pool } else {
+            let pool = super::pipeline::Pool::new(&self.connection.0, &self.connection.1, self.borrow()?.fence.as_ref().map(|f| f.tag()).transpose()?)?;
+            *self.readers.borrow_mut() = Some(pool.clone()); pool
+        };
+        pool.reserve_writer()?;
+        let mut slot = Self::connect_owned(self.connection.0.clone(), &self.connection.1, self.borrow()?.fence.clone())?;
+        slot.store.get_mut().read_grant = self.borrow()?.read_grant.clone();
+        slot.store.get_mut().batch_ordinal = self.borrow()?.batch_ordinal.clone();
+        slot.store.get_mut().client.writer_thread();
+        self.borrow()?.client.writer_thread();
+        *slot.readers.borrow_mut() = Some(pool);
+        Ok(slot)
+    }
+}
+
+impl Handle {
+    // Reconnect only a lost slot, without reading/reseeding the head. Recovery
+    // must take the owner fence and probe every unresolved ticket first.
+    pub(crate) fn reconnect_pipeline_writer(&mut self) -> Result<(),RuntimeError> {
+        let old=self.store.get_mut();
+        if !old.client.is_closed() {return Ok(());}
+        old.client.close_writer();
+        let (mut client,warning)=super::ownership::connect(self.connection.0.clone())?;
+        let namespace=super::store::namespace(&self.connection.1)?;
+        let tag=old.fence.as_ref().ok_or_else(||RuntimeError::StoreOwnership("missing recovery fence".into()))?.tag()?;
+        client.batch_execute(&format!("SET search_path={namespace},pg_catalog;SET statement_timeout='5s';SET lock_timeout='5s'"))?;
+        client.execute("SELECT set_config('application_name',$1,false)",&[&tag])?;
+        let mut replacement=Store::new(client);
+        replacement.fence=old.fence.clone();replacement.unified=true;replacement.generation=old.generation;
+        replacement.read_sessions.set(old.read_sessions.get());replacement.read_grant=old.read_grant.clone();replacement.commit_warning=warning;replacement.batch_ordinal=old.batch_ordinal.clone();
+        replacement.client.writer_thread();*old=replacement;Ok(())
+    }
+}
+
+impl Handle {
+    pub(crate) fn sync_pipeline_slot(&mut self,other:&Self) {
+        let dst=self.store.get_mut();let src=other.store.borrow();dst.generation=src.generation;dst.read_sessions.set(src.read_sessions.get());dst.fence=src.fence.clone();
     }
 }

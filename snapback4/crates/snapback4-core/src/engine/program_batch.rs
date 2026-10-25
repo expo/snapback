@@ -7,9 +7,9 @@ use super::{
 };
 use crate::{Refusal, RuntimeError, engine::MutationAcknowledgement};
 use std::{sync::Arc, time::Instant};
-type Outcome = Result<MutationAcknowledgement, Refusal>;
-type ProgramResolution = Resolution<Outcome, Option<(u64, Option<super::DurablePublication>)>>;
-type Attempt = Result<Vec<(usize, ProgramResolution)>, (Failure, Option<Refusal>)>;
+pub(super) type Outcome = Result<MutationAcknowledgement, Refusal>;
+pub(super) type ProgramResolution = Resolution<Outcome, Option<(u64, Option<super::DurablePublication>)>>;
+pub(super) type Attempt = Result<Vec<(usize, ProgramResolution)>, (Failure, Option<Refusal>)>;
 #[cfg(test)]
 #[path = "program_batch_fault.rs"]
 pub(super) mod fault;
@@ -66,7 +66,7 @@ impl Engine {
         results.into_iter().map(Option::unwrap).collect()
     }
 
-    fn finish_programs(
+    pub(super) fn finish_programs(
         &mut self,
         batch: &[Invocation],
         values: Vec<(usize, ProgramResolution)>,
@@ -87,7 +87,7 @@ impl Engine {
             results[i] = Some(batch[i].remember(value));
         }
     }
-    fn program_group(
+    pub(super) fn program_group(
         &mut self,
         batch: &mut [Invocation],
         indices: &[usize],
@@ -100,9 +100,13 @@ impl Engine {
             }
             Err(failure) => failure,
         };
+        self.program_recover(batch, indices, results, failure);
+    }
+    pub(super) fn program_recover(&mut self, batch: &mut [Invocation], indices: &[usize], results: &mut [Option<Outcome>], failure: (Failure, Option<Refusal>)) {
         let (failure, named_refusal) = failure;
+        let may_rerun=failure.may_rerun();
         let why = failure.refusal(named_refusal);
-        if !failure.aborted {
+        if !may_rerun {
             for &i in indices {
                 results[i] = Some(batch[i].remember(Err(why.clone())));
             }
@@ -182,7 +186,33 @@ impl Engine {
             }
         }
     }
-    fn program_fallback(
+    // @ref LLP 3000.009.001.000.000.002#4.2 — the innocent whole-batch rerun consumes the fallback; another known abort falls through to bounded solo attempts.
+    #[cfg(feature = "postgres")]
+    pub(super) fn program_cascade_fallback(
+        &mut self,
+        batch: &mut [Invocation],
+        indices: &[usize],
+        results: &mut [Option<Outcome>],
+    ) {
+        match self.program_group_attempt(batch, indices, true) {
+            Ok(values) => self.finish_programs(batch, values, results),
+            Err((failure, named)) => {
+                let why = failure.refusal(named);
+                for &i in indices {
+                    if !failure.may_rerun()
+                        || failure.member == Some(i)
+                        || Instant::now() >= batch[i].deadline
+                    {
+                        results[i] = Some(batch[i].remember(Err(why.clone())));
+                    } else {
+                        // A solo failure is terminal: no recursive group retry.
+                        self.program_fallback(batch, &[i], results);
+                    }
+                }
+            }
+        }
+    }
+    pub(super) fn program_fallback(
         &mut self,
         batch: &mut [Invocation],
         indices: &[usize],
@@ -208,6 +238,14 @@ impl Engine {
         indices: &[usize],
         fallback: bool,
     ) -> Attempt {
+        self.program_group_staged(batch, indices, fallback, None, &mut None)
+    }
+    pub(super) fn program_group_staged(
+        &mut self, batch: &mut [Invocation], indices: &[usize], fallback: bool,
+        chain: Option<&super::program_pipeline::Chain>,
+        #[cfg(feature="postgres")] staged: &mut Option<super::postgres::writer_slot::Suspended>,
+        #[cfg(not(feature="postgres"))] _staged: &mut Option<()>,
+    ) -> Attempt {
         let Engine {
             store,
             schema,
@@ -226,7 +264,7 @@ impl Engine {
         let mut host = ProgramHost {
             schema,
             programs,
-            entropy: *entropy,
+            entropy: chain.map_or(*entropy, |c|c.entropy),
             minter,
             presence: presence.clone(),
             ceilings: *ceilings,
@@ -247,7 +285,7 @@ impl Engine {
             .attribution
             .clone()
             .map(crate::round_trips::Handle::enter);
-        let buffered = postgres && indices.len() > 1 && !fallback && indices.iter().all(|&i|
+        let buffered = postgres && (indices.len() > 1 || chain.is_some()) && !fallback && indices.iter().all(|&i|
             host.programs.get(&batch[i].name).and_then(|p|
                 super::committer::closure::Closure::new(host.schema, p, &batch[i].context, host.generation)).is_some());
         let deadline = (fallback || buffered).then(|| indices.iter().map(|&i| batch[i].deadline).min().unwrap());
@@ -273,10 +311,17 @@ impl Engine {
                 return Err((Failure::rollback(tx, error, None), None));
             }
         }
-        let mut wave = if indices.len()>1 && !fallback {
-            match super::committer::wave::Wave::prepare(&tx,&host,batch,indices) {
+        let mut wave = if (indices.len()>1 || chain.is_some()) && !fallback {
+            match super::committer::wave::Wave::prepare_chained(&tx,&host,batch,indices,chain) {
                 Ok(wave)=>wave,
-                Err(error)=>return Err((Failure::rollback(tx,error,None),None)),
+                Err(error)=> {
+                    // @ref LLP 3000.009.001.000.000.002#4.4 — the first-flight ticket obeys the shared original deadline too; a timeout cannot rescope later peers into fresh attempts.
+                    #[cfg(feature="postgres")]
+                    let error=if buffered && matches!(&error,RuntimeError::Postgres(e) if e.code().is_some_and(|c|matches!(c.code(),"55P03"|"57014"))) {
+                        RuntimeError::Store("pipeline ticket deadline elapsed during batch facts".into())
+                    } else {error};
+                    return Err((Failure::rollback(tx,error,None),None));
+                },
             }
         } else {None};
         // @ref LLP 3000.009.001.000.000.002#3.1 — late unknown closure discards the ticket attempt before any serial writer runs.
@@ -475,6 +520,17 @@ impl Engine {
                 ),
                 None,
             ));
+        }
+        for &i in indices {
+            if let Some(check)=&batch[i].final_check { if let Err(error)=check() {return Err((Failure::rollback(tx,error,None),None));} }
+        }
+        #[cfg(feature="postgres")]
+        if chain.is_some() {
+            if let Some(wave) = wave {
+                if let Err(error) = tx.apply_overlay(host.schema, wave.images.into_values().collect()) { return Err((Failure::rollback(tx,error,None),None)); }
+            } else { return Err((Failure::rollback(tx, RuntimeError::Store("pipeline closure became unsupported".into()), None), None)); }
+            *staged = Some(tx.suspend_program(chain.and_then(|c|c.ticket), deadline.unwrap()).map_err(|error|(Failure{error,aborted:false,member:None},None))?);
+            return Ok(pending);
         }
         let prepared: Result<(), RuntimeError> = (|| {
             // Shared apply/tail work uses the earliest survivor, after each

@@ -1,4 +1,4 @@
-//! Depth-one synchronous ticket batches. No provisional state crosses transactions.
+//! Synchronous ticket batches, with exact identities for chained successors.
 // @ref LLP 3000.009.001.000.000.002#3.4 — store-keyed tickets and an exact head identity prevent ABA.
 use super::store::{Store, Tx};
 use crate::RuntimeError;
@@ -66,11 +66,11 @@ pub(super) fn ticket(store_id: &str, ordinal: u64) -> Result<i64, RuntimeError> 
         .ok_or_else(|| RuntimeError::StoreOwnership("ticket requires a store identity".into()))?;
     Ok(((prefix & !63) | (ordinal & 63)) as i64)
 }
-pub(super) struct Head {
+#[derive(Clone)]
+pub(crate) struct Head {
     pub seq: i64,
     pub revision: i64,
     pub attempt: String,
-    #[cfg(test)]
     pub xid: String,
 }
 pub(super) const TICKET: &str = "SELECT pg_catalog.pg_advisory_xact_lock($1)";
@@ -96,10 +96,8 @@ impl Store {
         ] {
             self.prewarm_flight(sql)?;
         }
-        let ordinal = self.batch_ordinal;
-        self.batch_ordinal = ordinal
-            .checked_add(1)
-            .ok_or_else(|| RuntimeError::Store("batch ordinal exhausted".into()))?;
+        let ordinal = self.batch_ordinal.fetch_add(1, Ordering::Relaxed);
+        if ordinal == u64::MAX { return Err(RuntimeError::Store("batch ordinal exhausted".into())); }
         let mut tx = self.begin(Some(super::store::WriteMode::Serialized), false)?;
         tx.batch_ticket = Some(ticket(&store_id, ordinal)?);
         Ok(tx)
@@ -127,7 +125,6 @@ impl Tx<'_> {
             seq,
             revision: row.get(1),
             attempt: row.get(2),
-            #[cfg(test)]
             xid: row.get(3),
         });
         self.head.set(Some(seq as u64));

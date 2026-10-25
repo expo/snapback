@@ -452,11 +452,12 @@ fn g6_unknown_commit_keeps_gate_closed_and_pauses_writer_admission() {
 
 #[test]
 #[ignore = "private PG16"]
-fn g6_real_commit_stalls_hit_until_publication_and_records_gate_cost() {
+fn g6_real_commit_bounds_hit_wait_then_g5_validates_prior_prefix() {
     let (mut w, d, v, mut lease, mut c) = fixture_owned();
     let mut r = w.reader().unwrap();
     actual_hit(&mut r, &d, &v, "W1", SessionScope::Full);
     let before = r.revision_cache_stats();
+    let before_head = revision(&mut w).1;
     let key = (crate::ids::seed() & i64::MAX as u64) as i64;
     c.query_one("SELECT pg_advisory_lock($1)", &[&key]).unwrap();
     c.batch_execute(&format!("CREATE FUNCTION g6_stall() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN PERFORM pg_advisory_xact_lock({key}); RETURN NEW; END $$; CREATE CONSTRAINT TRIGGER g6_stall AFTER UPDATE ON _head DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION g6_stall()")).unwrap();
@@ -480,20 +481,24 @@ fn g6_real_commit_stalls_hit_until_publication_and_records_gate_cost() {
         let result = read(&mut r, &rd, &rv, "W1", true, SessionScope::Full, 1001);
         send.send((r, result)).unwrap();
     });
-    assert!(
-        receive.recv_timeout(Duration::from_millis(70)).is_err(),
-        "CPU hit crossed durable commit/install gap"
-    );
+    // @ref LLP 3000.009.001.000.000.002#3.6 — a closed G6 gate waits briefly off the read guard, then G5 may validate the prior committed prefix.
+    let (mut r, result) = receive.recv_timeout(Duration::from_secs(5))
+        .expect("G5 fallback must finish while the writer remains held");
+    assert_eq!(result.unwrap().seq, before_head);
+    assert_eq!(r.revision_cache_stats().g6_hits, before.g6_hits,
+        "no CPU hit may cross the unresolved COMMIT");
+    assert_eq!(r.revision_cache_stats().hits, before.hits + 1,
+        "the prior entry must be validated through G5 while COMMIT is held");
+    std::thread::sleep(Duration::from_millis(70));
     c.query_one("SELECT pg_advisory_unlock($1)", &[&key])
         .unwrap();
-    let (mut r, result) = receive.recv_timeout(Duration::from_secs(5)).unwrap();
     hit.join().unwrap();
     let mut w = writer.join().unwrap();
-    result.unwrap();
     let stats = r.revision_cache_stats();
     assert_eq!(stats.g6_hits, before.g6_hits);
     assert!(stats.gate.closed_ns > 50_000_000);
-    assert!(stats.gate.hit_stall_ns > 50_000_000);
+    assert!(stats.gate.hit_stall_ns > 0);
+    assert!(stats.gate.hit_stall_ns < stats.gate.closed_ns);
     assert!(stats.gate.hit_waits > 0);
     assert_eq!(
         read(&mut r, &d, &v, "W1", false, SessionScope::Full, 1000)

@@ -173,7 +173,10 @@ impl AnyTx<'_> {
     pub fn rollback(self) -> Result<(), RuntimeError> { match self { Self::Sqlite(SqliteTx(tx)) => tx.rollback(), #[cfg(feature = "postgres")] Self::Postgres(PostgresTx(tx)) => tx.rollback() } }
     pub(crate) fn begin_member_evidence(&self) { match self { Self::Sqlite(SqliteTx(tx)) => tx.begin_member_evidence(), #[cfg(feature = "postgres")] Self::Postgres(PostgresTx(tx)) => tx.begin_member_evidence() } }
 }
-impl ReadSnapshot<'_> {
+impl<'store> ReadSnapshot<'store> {
+    #[cfg(test)]
+    pub(crate) fn test_batch_tx(&self)->&AnyTx<'store>{&self.tx}
+
     #[cfg(feature="postgres")]
     pub(crate) fn result_cache_facts(&self)->Option<&crate::identity::facts::SessionFacts> {
         self.authority.as_ref().map(|(_,facts)|facts)

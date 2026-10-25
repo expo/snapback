@@ -132,7 +132,7 @@ impl Tx<'_> {
             return Ok(());
         };
         let tails = self.group_tails.borrow();
-        if tails.is_empty() {
+        if tails.is_empty() && (self.batch_ticket.is_none() || self.commit_settings.get()) {
             return Ok(());
         }
         // @ref LLP 3000.009.001.000.002#4.1 — completed receipt-only members count too; aborted members have no tail slot.
@@ -227,11 +227,19 @@ impl Tx<'_> {
             if base.seq != signed(first)? { return Err(RuntimeError::Store("ticket batch base seq changed".into())); }
             let revision = base.revision.checked_add(tails.len() as i64).ok_or_else(||RuntimeError::Store("revision overflow".into()))?;
             let attempt = self.attempt.borrow();
-            let sets = self.flight(&[
-                (super::group_commit::IDENTITY, &[]),
+            let predecessor = self.predecessor_ticket;
+            let predecessor_params: &[&(dyn postgres::types::ToSql + Sync)] = &[&predecessor];
+            let identity_params: &[&(dyn postgres::types::ToSql + Sync)] = &[];
+            let tail_params: &[&(dyn postgres::types::ToSql + Sync)] = &[&payload, &signed(first)?, &signed(last)?, &revision, &*attempt, &base.revision, &base.attempt];
+            let mut commands = Vec::new();
+            if predecessor.is_some() { commands.push((super::group_commit::TICKET, predecessor_params)); }
+            commands.extend([
+                (super::group_commit::IDENTITY, identity_params),
                 (if self.publication_enabled() { CAS_PUBLICATION_SQL } else { CAS_SQL },
-                 &[&payload, &signed(first)?, &signed(last)?, &revision, &*attempt, &base.revision, &base.attempt]),
-            ], "SET LOCAL statement_timeout=0; SET LOCAL lock_timeout=0")?;
+                 tail_params),
+            ]);
+            let mut sets = self.flight(&commands, "SET LOCAL statement_timeout=0; SET LOCAL lock_timeout=0")?;
+            if predecessor.is_some() { sets.remove(0); }
             let identity = &sets[0].rows[0];
             self.check_batch_identity(identity.get(0), identity.get(1))?;
             if sets[1].rows.first().is_some_and(|row| row.get::<_,i64>(0)==0) {
