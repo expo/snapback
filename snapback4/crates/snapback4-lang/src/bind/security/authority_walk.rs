@@ -34,7 +34,7 @@ fn expression(catalog:&Catalog,p:&ProgramDecl,expr:&Expr,env:&Env,guards:&[Stmt]
 }
 // Only an unconditional direct call exports a helper's guaranteed prefix.
 // Conditional/loop-local requirements never become caller assumptions.
-fn helper_guards(catalog:&Catalog,expr:&Expr,env:&Env,depth:usize)->Vec<Stmt>{
+pub(super) fn helper_guards(catalog:&Catalog,expr:&Expr,env:&Env,depth:usize)->Vec<Stmt>{
     if depth>=32{return Vec::new();}
     let Expr::Call{name,args,..}=resolve(expr,env)else{return Vec::new();};
     let Some(f)=catalog.functions.get(&name)else{return Vec::new();};

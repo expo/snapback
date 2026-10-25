@@ -380,6 +380,8 @@ fn campaign(s:&str)->Campaign{let b=security::derived::augmented(&sources(s),&bo
     }
     let caller=source.replace("mutation finish(trip: trips):","mutation finish(trip: trips,restricted: bool):").replace("LOOP","  for b in bookings first 10 by .id:\n    stop = choose(restricted)\n    if stop:\n      require b.approved else APPROVAL\n")+"fn choose(value: bool): value\n";
     assert!(!notes(&caller).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+    let checked=source.replace("LOOP","  for b in bookings first 10 by .id:\n    stop = checked(b.approved)\n    if stop:\n      continue\n")+"fn checked(value: bool):\n  require value else APPROVAL\n  return false\n";
+    assert!(!notes(&checked).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
     let helper=source.replace("  update trips[trip] {status:'done'}","  setDone(trip)")+"fn setDone(trip: trips):\n  update trips[trip] {status:'done'}\n  return null\n";
     assert!(!notes(&helper.replace("LOOP","  for b in bookings first 10 by .id:\n    require b.approved else APPROVAL\n")).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
     for transfer in ["continue","break","return null"]{

@@ -131,7 +131,13 @@ fn parent_loop_guard(effect:&Write<'_>,table:&str,column:&str,bound:&Bound)->boo
     fn unresolved(value:&Expr)->bool{let mut unknown=false;walk(value,|e|match e{Expr::Name{name,..} if name.starts_with("$advice_")=>unknown=true,Expr::Call{..}|Expr::If{..}=>unknown=true,_=>{}});unknown}
     fn scan(body:&[Stmt],binder:&str,column:&str,env:&mut BTreeMap<String,Expr>,catalog:&Catalog)->(bool,bool){
         let resolve=|value:&Expr,env:&BTreeMap<String,Expr>|expanded(catalog,value,env);
-        for stmt in body{match stmt{
+        for stmt in body{
+            let value=match stmt{Stmt::Bind{value,..}|Stmt::Expr{value,..}|Stmt::Return{value,..}=>Some(value),Stmt::Require{condition,..}|Stmt::If{condition,..}=>Some(condition),Stmt::For{domain,..}=>Some(domain),_=>None};
+            if let Some(value)=value{
+                let guards=super::super::authority_walk::helper_guards(catalog,value,env,0);
+                if !guards.is_empty(){let result=scan(&guards,binder,column,&mut env.clone(),catalog);if result.0||!result.1{return result;}}
+            }
+            match stmt{
             Stmt::Bind{names,value,..}=>{let value=resolve(value,env);for name in names{env.insert(name.clone(),if names.len()==1{value.clone()}else{Expr::Name{name:format!("$advice_loop_unknown:{name}"),site:value.site().clone()}});}},
             Stmt::Require{condition,..}=>{
                 let condition=simplify_boolean(&resolve(condition,env));if matches!(condition,Expr::Literal{value:ast::Literal::Bool(false),..}){return (false,false);}
