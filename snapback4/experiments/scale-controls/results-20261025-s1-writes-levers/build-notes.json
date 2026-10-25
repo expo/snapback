@@ -1,0 +1,8 @@
+{
+  "initial_generator_build": "missing copied sibling proxy.rs; zero benchmark trials; copied exact archived sibling and resumed unchanged source",
+  "seed": "copied unchanged seed main.rs outside Git, made core path absolute, refreshed copy lockfile offline to avoid inherited stale lock",
+  "release_product_from_current_tree": true,
+  "diagnostic": "same outside-Git public Queue probe as G7.2 rebuilt release against current core",
+  "target": "/home/ccheever/projects/sb4-s1sk/snapback4/target/s1-wl",
+  "no_repository_source_or_lock_changes": true
+}
