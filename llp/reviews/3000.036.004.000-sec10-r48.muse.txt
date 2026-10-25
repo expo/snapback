@@ -1,0 +1,21 @@
+muse: workspace root: /home/ccheever/projects/sb4-b26-sec10 (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=d996d02a-7455-40d7-8f4f-5ba89192d35e]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-b26-sec10 (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY — the population-scope binding fix is technically sound; no material concern requires repair before landing.
+
+What changed (frozen `9487c19` = delta `sec10-r48`): `typed_approval` in [workflow.rs](/home/ccheever/projects/sb4-b26-sec10/snapback4/crates/snapback4-lang/src/bind/security/derived/workflow.rs) now runs a separate labeling pass before approval scanning, rewriting each population filter's `Focal`/`$derived:local-focal` to `$approval-population:<table>`; `owner()` resolves those labels to the population table. Inner labels survive because the rewrite only matches bare focal forms. The old recursive `read.filter.take()` + `typed_approval(filter, table)` call is removed; per-receipt classification walks the already-scoped tree. Analyzer `sec10-46` → `sec10-47` in [security_reviews.rs](/home/ccheever/projects/sb4-b26-sec10/snapback4/crates/snapback4-lang/src/bind/security/derived/workflow.rs) and spec, invalidating earlier dispositions.
+
+Verified from source:
+
+- Child-first claim holds: [intent_walk.rs](/home/ccheever/projects/sb4-b26-sec10/snapback4/crates/snapback4-lang/src/bind/intent_walk.rs:4) recurses into children then calls `visit(value)`, so inner populations label before outer filters sweep over them.
+- Metadata exclusion holds: [stamps.rs](/home/ccheever/projects/sb4-b26-sec10/snapback4/crates/snapback4-lang/src/bind/security/derived/stamps.rs:6) `evidence = word && !audit`; `authorizationRouteUpdatedAt: time` hits the `updatedat` audit suffix so it can never anchor a sibling contract, while the `bool` form can.
+- Test in [security_sec10.rs](/home/ccheever/projects/sb4-b26-sec10/snapback4/crates/snapback4-lang/tests/security_sec10.rs:654) covers exactly the collision: outer-`bool`/inner-`time` and nested `exists docs where (exists routeLogs …)` assert no sibling contract; the inverted outer-`time`/inner-`bool` positive control asserts one is still emitted.
+- Scope of delta is clean: 4 files only (spec version line, `workflow.rs`, the new test, analyzer const). No IR/schema/store/protocol changes. S1 conditional scope (`scoped_contract` or-not-premise), S2 full-predicate replay, S4 all-child obligations, birth-vs-reset, receipt custody, and 512/8192 determinism paths are untouched by this delta.
+
+Non-blocking notes (no repair needed): same-table nested populations share one `$approval-population:<table>` label, harmless since the owner table is identical and the function returns only a bool; `Created` reads and non-filter clauses (keys/seeks/matching) are not relabeled, consistent with the spec sentence limiting row scope to "each population filter"; unknown tables resolve to `None` owner and fail closed to no-credit per the unknown-targets rule.
+
+Qualification status: focused-86/private-36 and analyzer `sec10-47` claims are as stated by the author and not independently executed here (no builds/tests per task constraints); new native/full-600/matrices remain pending — do not assume zero FP. Target remains 6 approval classes + `008x2` + `045` automatic; the 5 remaining source holes still need explicit intent/type choices — this review does not claim all 14 automatic. Pending qualification is not an objection; technical readiness is not author acceptance.
+
