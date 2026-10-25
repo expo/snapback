@@ -1,6 +1,17 @@
 # SEC10 — structural approval inference
 
-The semantic revision is `ab8734c07e9f238bdbf877f44066407d64edd550`, independently marked READY by Muse and a fresh Codex session. [Review provenance](../../../llp/reviews/3000.036.004.000-sec10-r52.provenance.json) binds the verbatim reviews, brief and frozen delta. `origin/main` through `4c6b386072` merged as `669cb5549d`. The incoming Postgres flights, group-collection scheduling and reader-factory work left SEC10 inference/replay code unchanged. The final affected receipt covers the integrated branch; the recorded native evidence remains bound to its frozen SEC10 source and default SQLite profile. Product version remains 0.4.40, with visible changes recorded under 0.4.41 / Guide changes.
+This committed evidence snapshot measures semantic revision `ab8734c07e9f238bdbf877f44066407d64edd550`, independently marked READY by Muse and a fresh Codex session. [Review provenance](../../../llp/reviews/3000.036.004.000-sec10-r52.provenance.json) binds the verbatim reviews, brief and frozen delta. `origin/main` through `4c6b386072` merged as `669cb5549d`. The incoming Postgres flights, group-collection scheduling and reader-factory work left SEC10 inference/replay code unchanged. The final affected receipt covers the integrated branch; the recorded native evidence remains bound to its frozen SEC10 source and default SQLite profile. Product version remains 0.4.40, with visible changes recorded under 0.4.41 / Guide changes.
+
+
+The subsequent correction `f29a79ede1` preserves exact parent birth sites when
+older evidence analysis receives a privately marked captured value. All 54
+`security_sec7` / `security_sec7_day2` regressions pass, and both independent
+[follow-up reviews are READY](../../../llp/reviews/3000.036.004.000-sec10-r53.provenance.json).
+This packet remains the explicitly frozen R52 snapshot. The final integrated
+R53 native, refreshed 600-app survey, finding matrices and affected-check receipt
+are recorded in [WORKSTREAM-REPORT.md](../../../WORKSTREAM-REPORT.md); their full
+portable packet is retained under `~/sb4-loop/sec10-r53-portable/`. Do not use the
+older snapshot as evidence that the restored evidence checks have been measured.
 
 The measured Linux x86_64 default SQLite native has SHA-256 `98778a8b1fec77f1ab308383f485f74c69ecd7e716f0999cfdf3db133dc98ce5`. Baseline is the immutable packed npm `snapback4-linux-x64@0.4.40`; its integrity is recorded in the evidence manifest. App archives were read only; every attempt ran on an automatically removed copy. Measurement summaries omit argument payloads and credentials.
 
@@ -37,7 +48,7 @@ The source-reviewed gate catalog binds exact wave, app, code, source site and me
 
 The superseded R45 survey exposed two false deploy FIXes and three false test FIXes in wave21-019. Route edit metadata had been treated as an approval event. The repaired implementation shares typed event classification across inference, replacement checks and receipt restoration; nested populations retain their own field types. R45–R51 are not qualification evidence. Independent refinements also retain Boolean polarity, nested population scope and uncertainty for approvals born and deleted within a transaction. The private history retains at most 64 snapshots; an exhausted deletion history stays unknown, never FIX.
 
-Additional controls on the same final binary: vacuous Boolean approval (2,597 attempts, no reachable violations), inline replacement revalidation (2,870 attempts, no reachable violations), and the OR/caller-fact source (check, fresh deploy, test and post-test deploy all exit zero).
+Additional controls on the same R52 snapshot binary: vacuous Boolean approval (2,597 attempts, no reachable violations), inline replacement revalidation (2,870 attempts, no reachable violations), and the OR/caller-fact source (check, fresh deploy, test and post-test deploy all exit zero).
 
 ## Qualification boundary
 
