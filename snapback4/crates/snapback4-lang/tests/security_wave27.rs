@@ -126,3 +126,19 @@ const DEFAULT:&str="table docs:\n  label: text <=80 default 'pending'\n  read <-
  let out=campaign(include_str!("security/wave27/025.q"));
  assert!(out.violations.iter().any(|v|v.operation=="retest"&&v.invariant_site.contains("/repeat-create/")&&v.reachability.is_reachable()),"operations={:?}; violations={:?}",out.operations,out.violations.iter().map(|v|(&v.operation,&v.invariant_site)).collect::<Vec<_>>());
 }
+
+#[test]fn producer_cancellation_alone_is_not_a_pending_approved_effect(){
+ let scalar="table jobs:\n  approved: bool default false\n  status: enum('draft','cancelled','done') default 'draft'\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\nmutation decide(job: jobs,approve: bool):\n  if approve:\n    require viewer = 'service:manager' else NOT_MANAGER\n    update jobs[job] {approved:true}\n  else:\n    update jobs[job] {status:'cancelled'}\n  return null\n";
+ let cancel_is_the_act=scalar.replace("approved","cancelApproved");
+ assert!(notes(&cancel_is_the_act).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+ let record=scalar.replace("mutation decide", "table approvals:\n  job: jobs\n  read <- allow\n  insert <- viewer = 'service:manager'\n  online only\nmutation decide").replace("update jobs[job] {approved:true}","insert approvals {job}");
+ for source in [scalar.to_owned(),record]{
+  assert!(!notes(&source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"),"{:?}",notes(&source));
+  let active=source.replace("{status:'cancelled'}","{status:'done'}");
+  // The lower-authority active branch still performs a potentially governed
+  // effect; only a cancellation-only branch is excluded.
+  assert!(notes(&active).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+  let later=format!("{source}mutation execute(job: jobs):\n  update jobs[job] {{status:'done'}}\n");
+  assert!(notes(&later).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));
+ }
+}
