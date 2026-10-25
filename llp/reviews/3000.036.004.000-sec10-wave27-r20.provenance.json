@@ -1,0 +1,21 @@
+{
+  "baseRevision": "62e5f9cd6335b2ac796c90775960f1036740daf4",
+  "date": "2026-10-25",
+  "briefSha256": "f6d5279f712bab8aada211e100cc2056f8277357f09bfb64a331163c912a3ab2",
+  "deltaSha256": "dc07682e2aaaa86f2e68f929e9435ccc9a22970f059ff7674e831fb090fe3b1a",
+  "reviews": {
+    "muse": {
+      "verdict": "READY",
+      "model": "muse-spark-1.3-contributor high via wrapper quota fallback",
+      "logSha256": "2f1467b7a6c6859dd80d0e745249d1b52675506c59e2a2aec1e26c213b831510",
+      "verbatim": "3000.036.004.000-sec10-wave27-r20.muse.md"
+    },
+    "codex": {
+      "verdict": "READY",
+      "model": "gpt-6.1-sol high",
+      "logSha256": "db1c9f9f241ee7630d38d23750943f6f48424c8c49715a86ddcc6a1930f6a232",
+      "verbatim": "3000.036.004.000-sec10-wave27-r20.codex.md"
+    }
+  },
+  "qualification": "Focused snapshot 3/3 and initial actual033/derived 2/2 passed; strengthened cached033/full affected/native qualification recorded separately. Test strengthening and pending changelog prose do not change the reviewed production semantics."
+}
