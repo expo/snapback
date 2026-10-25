@@ -442,8 +442,10 @@ pub fn fixture_observers(bound:&Bound,fixture:&Engine,campaign:&mut Campaign){
         campaign.slice(allowance,"derived replay",|campaign|{
             if let Ok(rows)=readback(fixture){
                 let changed=rows.keys().cloned().collect();
-                workflow::direct(&focused,fixture,&rows,campaign);
-                workflow::run(&focused,fixture,&rows,&[],&changed,campaign);
+                let allowance=campaign.work_remaining.map_or(128,|left|(left/4).min(128));
+                campaign.slice(allowance,"derived direct probes",|out|workflow::direct(&focused,fixture,&rows,out));
+                let allowance=campaign.work_remaining.map_or(128,|left|(left/4).min(128));
+                campaign.slice(allowance,"derived creator continuations",|out|workflow::run(&focused,fixture,&rows,&[],&changed,out));
             }
             let limit=campaign.directed_attempts.saturating_add(4096);
             histories::lifecycle_observers_to(&focused,fixture,campaign,limit);

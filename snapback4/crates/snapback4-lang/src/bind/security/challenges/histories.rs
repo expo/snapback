@@ -447,7 +447,14 @@ pub(super) fn lifecycle_observers_to(bound:&Bound,fixture:&Engine,out:&mut Campa
             if !keep{out.unsupported.insert(format!("{}: focused derived replay defers unreferenced payload-only updates; their combinations remain in general replay",bp.program.name));}keep
         });
     }
-    transitions.sort_by_key(|bp|(!focused.contains(&bp.program.name),ir::write_tables(&bp.program).iter().all(|(t,_)|!super::super::privilege::role_columns(bound,t).is_empty())));
+    // Relevant evidence writers and approval recorders precede unrelated
+    // lifecycle preparation; this orders real replay, never fabricates a state.
+    let derived_only=!bound.invariants.is_empty()&&bound.invariants.iter().all(super::super::derived::is_derived);
+    transitions.sort_by_key(|bp|{
+        let program=serde_json::to_string(&bp.program).unwrap();let writes=ir::write_tables(&bp.program);
+        let evidence=derived_only&&interesting.iter().any(|inv|writes.iter().any(|(table,_)|table==&inv.table)&&bound.schema.tables[&inv.table].columns.keys().any(|column|(inv.column.as_ref()==Some(column)||inv.policy.as_ref().is_some_and(|policy|policy.any_term(&|term|matches!(term,RuleTerm::Field(name)|RuleTerm::OldField(name)|RuleTerm::NextField(name) if name==column))))&&program.contains(&format!("\"{column}\":"))));
+        (!focused.contains(&bp.program.name),!evidence,writes.iter().all(|(t,_)|!super::super::privilege::role_columns(bound,t).is_empty()))
+    });
     if transitions.is_empty(){return;}
     let Ok(initial)=readback(fixture)else{return;};
     if !relevant.iter().any(|name|super::super::privilege::role_columns(bound,name).is_empty()&&initial.get(name).is_some_and(|rs|!rs.is_empty())){
@@ -532,6 +539,15 @@ pub(super) fn lifecycle_observers_to(bound:&Bound,fixture:&Engine,out:&mut Campa
                     }
                     let progress=after.iter().filter(|(name,_)|relevant.contains(*name)).map(|(name,rs)|{let t=&bound.schema.tables[name];rs.iter().map(|r|t.columns.iter().map(|(c,k)|match k.required(){C::Enum{..} if !super::super::privilege::role_columns(bound,name).contains(c)=>before.get(name).into_iter().flatten().find(|old|old.field("id").ok()==r.field("id").ok()).is_some_and(|old|old.field(c).ok()!=r.field(c).ok()) as usize*4,C::Bool=>matches!(r.field(c),Ok(Value::Bool(true))) as usize,C::Time=>before.get(name).into_iter().flatten().find(|old|old.field("id").ok()==r.field("id").ok()).is_some_and(|old|old.field(c).ok()!=r.field(c).ok()) as usize*3,_ if k.is_optional()=>before.get(name).into_iter().flatten().find(|old|old.field("id").ok()==r.field("id").ok()).is_some_and(|old|(old.field(c).ok()==Some(&Value::Null))!=(r.field(c).ok()==Some(&Value::Null))) as usize*3,_=>0}).sum::<usize>()).sum::<usize>()}).sum::<usize>();
                     let progress=progress+after.iter().filter(|(t,_)|relevant.contains(*t)&&super::super::privilege::role_columns(bound,t).is_empty()).map(|(t,rs)|rs.len().saturating_sub(initial.get(t).map_or(0,Vec::len))*2).sum::<usize>();
+                    // Preparing checked evidence, then actually recording its
+                    // approval, must not lose the beam to unrelated stage hops.
+                    let approval_progress=if derived_only{interesting.iter().filter_map(|inv|{
+                        let column=inv.column.as_ref()?;let policy=inv.policy.as_ref()?;
+                        Some(bound.security_approval_inputs.iter().filter(|((table,stamp),columns)|table==&inv.table&&columns.contains(column)&&policy.any_term(&|term|matches!(term,RuleTerm::OldField(name)|RuleTerm::NextField(name) if name==stamp))).map(|((table,stamp),_)|after.get(table).into_iter().flatten().map(|row|{
+                            if matches!(row.field(stamp),Ok(Value::Bool(true)|Value::Int(_))){64}else{initial.get(table).into_iter().flatten().find(|old|old.field("id").ok()==row.field("id").ok()).is_some_and(|old|old.field(column).ok()!=row.field(column).ok()) as usize*8}
+                        }).sum::<usize>()).sum::<usize>())
+                    }).sum::<usize>()}else{0};
+                    let progress=progress+approval_progress;
                     let goal_tables=interesting.iter().filter(|i|super::super::derived::is_derived(i)&&i.target=="insert").map(|i|i.table.clone()).collect::<BTreeSet<_>>();
                     let mut goal_tables=goal_tables;
                     for _ in 0..4{

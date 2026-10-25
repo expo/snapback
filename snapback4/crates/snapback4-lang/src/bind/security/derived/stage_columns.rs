@@ -9,11 +9,13 @@ pub(super) fn collect(catalog:&Catalog,bound:&Bound)->BTreeSet<(String,String)>{
             let Some(definition)=bound.schema.table(&table)else{continue;};
             for field in fields.iter().filter(|field|matches!(definition.columns.get(&field.name).map(snapback4_core::schema::ColumnType::required),Some(snapback4_core::schema::ColumnType::Enum{..}|snapback4_core::schema::ColumnType::Text{..}))){
                 if field.value.as_ref().is_none_or(|value|row_input_copy(value,&table,&keys,p,&field.name)){continue;}
+                let mut guarded=false;
                 for stmt in &context.body{if let ast::Stmt::Require{condition,..}=stmt{
                     let mut condition=condition.clone();super::super::super::intent_walk::expression(&mut condition,&mut |e|{
-                        if let ast::Expr::Binary{op,left,right,..}=e&&matches!(op.as_str(),"="|"!=")&&[(left.as_ref(),right.as_ref()),(right.as_ref(),left.as_ref())].iter().any(|(a,b)|matches!(a,ast::Expr::Member{base,name,..} if name==&field.name&&same_resource(base,&table,&keys,p))&&matches!(b,ast::Expr::Literal{value:ast::Literal::Str(value),..} if !value.is_empty())){for value in [left.as_ref(),right.as_ref()]{if let ast::Expr::Literal{value:ast::Literal::Str(value),..}=value{observations.entry((table.clone(),field.name.clone())).or_default().insert(value.clone());}}}
+                        if let ast::Expr::Binary{op,left,right,..}=e&&matches!(op.as_str(),"="|"!=")&&[(left.as_ref(),right.as_ref()),(right.as_ref(),left.as_ref())].iter().any(|(a,b)|matches!(a,ast::Expr::Member{base,name,..} if name==&field.name&&same_resource(base,&table,&keys,p))&&matches!(b,ast::Expr::Literal{value:ast::Literal::Str(value),..} if !value.is_empty())){guarded=true;for value in [left.as_ref(),right.as_ref()]{if let ast::Expr::Literal{value:ast::Literal::Str(value),..}=value{observations.entry((table.clone(),field.name.clone())).or_default().insert(value.clone());}}}
                     });
                 }}
+                if guarded&&let Some(ast::Expr::Literal{value:ast::Literal::Str(value),..})=&field.value&&!value.is_empty(){observations.entry((table.clone(),field.name.clone())).or_default().insert(value.clone());}
             }
         }
     }observations.into_iter().filter(|(_,states)|states.len()>1).map(|(column,_)|column).collect()

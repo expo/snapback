@@ -41,3 +41,15 @@ fn campaign(source:&str)->security::challenges::Campaign{let(s,b)=bound(source);
  let source=format!("table docs:\n  material: {kind}\n  approved: bool default false\n  read <- allow\n  update <- allow\n  online only\nmutation approve(doc: docs,material: {kind}):\n  require material = 'steel' else WRONG_MATERIAL\n  update docs[doc] {{material,approved:true}}\nmutation replace(doc: docs):\n  d = docs[doc] ! else MISSING\n  require d.material = 'steel' else WRONG_MATERIAL\n  update docs[doc] {{material:'wood'}}\nmutation restore(doc: docs):\n  d = docs[doc] ! else MISSING\n  require d.material = 'wood' else WRONG_MATERIAL\n  update docs[doc] {{material:'steel'}}\n");let(s,b)=bound(&source);let cs=security::derived::invariants(&s,&b);assert!(cs.iter().any(|i|i.column.as_deref()==Some("material")),"{cs:?}");
  }
 }
+
+#[test]fn named_subjects_follow_positive_birth_and_default_recordings(){
+ for (default,field) in [("false",",likenessApproved:true"),("true","")]{let source=format!("table docs:\n  likenessScan: image <=10000\n  likenessApproved: bool default {default}\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\nmutation create(photo: image <=10000):\n  return insert docs {{likenessScan:photo{field}}}\nmutation replace(doc: docs,photo: image <=10000):\n  update docs[doc] {{likenessScan:photo}}\n");let(s,b)=bound(&source);let cs=security::derived::invariants(&s,&b);assert!(cs.iter().any(|i|i.column.as_deref()==Some("likenessScan")),"{cs:?}");let c=campaign(&source);assert!(c.violations.iter().any(|v|v.operation=="replace"&&v.reachability.is_reachable()),"{:?}",c.violations);}
+}
+#[test]fn text_workflow_effects_are_modeled_approval_acts(){
+ let source="table docs:\n  workflow: text <=30 default 'wiring'\n  indoorMount: bool default false\n  indoorApproved: bool default false\n  read <- allow\n  update <- allow\n  online only\nmutation request(doc: docs):\n  require viewer = 'service:worker' else NOT_WORKER\n  update docs[doc] {indoorMount:true}\nmutation approve(doc: docs):\n  require viewer = 'service:owner' else NOT_OWNER\n  d = docs[doc] ! else MISSING\n  require d.indoorMount else NOT_REQUESTED\n  update docs[doc] {indoorApproved:true}\nmutation captureWork(doc: docs):\n  d = docs[doc] ! else MISSING\n  require d.workflow = 'wiring' else BAD_STAGE\n  update docs[doc] {workflow:'inspection'}\n";
+ assert!(notes(source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"),"{:?}",notes(source));
+}
+
+#[test]fn evidence_words_are_not_metadata_prefixes(){
+ for column in ["likenessCostume","likenessAtlas","likenessConsentForm","likeness_costume","likeness_consent_form"]{let source=format!("table docs:\n  {column}: image <=10000\n  likenessApproved: bool default false\n  read <- allow\n  update <- allow\n  online only\nmutation approve(doc: docs):\n  update docs[doc] {{likenessApproved:true}}\nmutation replace(doc: docs,photo: image <=10000):\n  update docs[doc] {{{column}:photo}}\n");let(s,b)=bound(&source);assert!(security::derived::invariants(&s,&b).iter().any(|i|i.column.as_deref()==Some(column)),"{column}");}
+}

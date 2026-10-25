@@ -5,7 +5,7 @@ pub(super) fn stem(stamp:&str)->String{let stamp=stamp.to_lowercase();["approv",
 pub(super) fn same(stem:&str,column:&str)->bool{column.to_lowercase().starts_with(stem)&&column.get(stem.len()..).is_some_and(|tail|tail.is_empty()||tail.starts_with('_')||tail.chars().next().is_some_and(char::is_uppercase))}
 pub(super) fn matches(stamp:&str,column:&str,kind:&snapback4_core::schema::ColumnType)->bool{
     let stem=stem(stamp);let matched=same(&stem,column);let column=column.to_lowercase();
-    stem.len()>2&&matched&&!["approv","authoriz","consent","reason","cost","at"].iter().any(|suffix|column[stem.len()..].starts_with(suffix))&&kind.contains_asset()
+    stem.len()>2&&matched&&!["approved","approval","authorized","authorization","approvedat","approvalat","authorizedat","authorizationat","consent","reason","cost","at"].contains(&column[stem.len()..].trim_start_matches('_'))&&kind.contains_asset()
 }
 pub(super) fn authorized(bound:&Bound,catalog:&Catalog,p:&ast::ProgramDecl,context:&ast::ProgramDecl,table:&str,stamp:&str,column:&str)->bool{
     let stem=stem(stamp);if !matches(stamp,column,&bound.schema.tables[table].columns[column]){return false;}
