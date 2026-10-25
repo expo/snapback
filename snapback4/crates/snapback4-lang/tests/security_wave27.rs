@@ -84,3 +84,12 @@ const DEFAULT:&str="table docs:\n  label: text <=80 default 'pending'\n  read <-
  assert!(ns.iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"&&n.message.contains("advanceStage")));
  assert!(!ns.iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"&&n.message.contains("modeled approveModel")));
 }
+
+#[test]fn immutable_upsert_identity_does_not_ask_for_edit_intent(){
+ let source="table staff:\n  principal: principal\n  role: enum('clerk','editor')\n  unique principal\n  read <- allow\n  insert <- viewer = 'service:operator'\n  online only\ntable docs:\n  owner: principal\n  title: text <=80 default 'initial'\n  unique owner\n  immutable owner\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\nmutation create(owner: principal,title: text <=80):\n  return upsert docs[owner] {owner,title}\nmutation edit(owner: principal):\n  require exists staff[viewer,role='editor'] else NOT_EDITOR\n  return upsert docs[owner] {owner}\n";
+ assert!(!notes(source).iter().any(|n|n.code=="N_INSERT_WRITE_INTENT"),"{:?}",notes(source));
+ let mutable=source.replace("  immutable owner\n","").replace("mutation edit(owner: principal):","mutation edit(doc: docs,owner: principal):").replace("return upsert docs[owner] {owner}\n","return update docs[doc] {owner}\n");
+ assert!(notes(&mutable).iter().any(|n|n.code=="N_INSERT_WRITE_INTENT"));
+ let mixed=source.replace("mutation edit(owner: principal):","mutation edit(owner: principal,title: text <=80):").replace("return upsert docs[owner] {owner}\n","return upsert docs[owner] {owner,title}\n");
+ let ns=notes(&mixed);let question=ns.iter().find(|n|n.code=="N_INSERT_WRITE_INTENT").unwrap();assert!(question.message.contains("docs.title"));assert!(!question.message.contains("docs.owner"));
+}

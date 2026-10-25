@@ -96,7 +96,9 @@ pub(super) fn notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnostic>{
             if !matches!(edit,ast::WriteOp::Update|ast::WriteOp::Upsert)||other!=table{continue;}
             let restriction=necessary(restricted);
             if kernel::implies(&RuleExpr::Allow,&restriction)==Ok(true)||kernel::implies(admission,&restriction)!=Ok(false)||probe_implies(admission,&restriction){continue;}
-            let columns=patch.iter().filter(|f|!replaced.contains(&(creator.site.file.clone(),name.clone(),table.clone(),f.name.clone()))&&!bound.schema.tables[table].column_writes.get(&f.name).is_some_and(|rule|probe_implies(&RuleExpr::And(vec![admission.clone(),rule.clone()]),&restriction))&&!update_only(bound,table,&f.name,&restriction)&&fields.iter().any(|insert|insert.name==f.name&&supplied(insert,creator))).map(|f|f.name.clone()).collect::<BTreeSet<_>>();
+            // Immutable identities repeated by an upsert are never edits.
+            // They do not supply an edit restriction to compare with birth.
+            let columns=patch.iter().filter(|f|!bound.schema.tables[table].immutable_fields().any(|c|c==&f.name)&&!replaced.contains(&(creator.site.file.clone(),name.clone(),table.clone(),f.name.clone()))&&!bound.schema.tables[table].column_writes.get(&f.name).is_some_and(|rule|probe_implies(&RuleExpr::And(vec![admission.clone(),rule.clone()]),&restriction))&&!update_only(bound,table,&f.name,&restriction)&&fields.iter().any(|insert|insert.name==f.name&&supplied(insert,creator))).map(|f|f.name.clone()).collect::<BTreeSet<_>>();
             if columns.is_empty()||!seen.insert((creator.site.file.clone(),name.clone(),table.clone(),columns.clone(),restriction.quarry())){continue;}
             let code=if *from_require{"N_INSERT_WRITE_INTENT"}else{"N_INSERT_TABLE_AUTHORITY"};
             let repair=format!("declare `invariant {table}.COLUMN update only {}` for the named column to retain deliberate creation authority, or apply `COLUMN: <type> write <- {}` at both boundaries; one decision also suffices: check --ack-security ID --reason '<spec rationale>'",restriction.quarry(),restriction.quarry());
