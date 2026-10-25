@@ -1,0 +1,14 @@
+Independent read-only review by Codex (GPT-6; exact runtime model ID unavailable).
+
+Pinned source: `c8ef2ccafc78fd6b8e6da0c759cb3b5fbd218891`. Base: `5c4716af14`; focus: `3595b5f091..c8ef2ccafc`. Version remains `0.4.41`.
+
+No material findings.
+
+- Capture runs under the activation writer before migration. Validation uses original receipt ownership, so reverse projection cannot authorize itself.
+- Receipt matching retains definition, numeric child-table identity, and child ID. Missing legacy receipt tables yield an empty ownership set; null asset cells confer no ownership.
+- Success clears both TEMP tables and visibility metadata. Transaction rollback removes partial capture and migration state before retry.
+- Regressions cover native-singleton identity/file/privacy, actual publication Ref-schema buyer/scan restoration, and extra-child fallback. LLP 3000.000.000 §21 matches these semantics.
+
+Verification limits: independently passed 12/12 in-memory SQL scenarios using pinned capture/validation/cleanup SQL. I inspected but did not rerun the Rust tests; the supplied 1/1 and 29/29 results remain reported evidence. Running packed proofs and replay are not completed qualification. Final affected checks and fresh full packed consumer qualification remain with root.
+
+READY

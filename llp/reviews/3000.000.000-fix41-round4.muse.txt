@@ -1,0 +1,16 @@
+muse: workspace root: /home/ccheever/projects/snapback-sb4loop (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=8077e76d-3575-4045-bce5-75bfa17d4522]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+READY.
+
+No material concern in the correction delta.
+
+What was reviewed (pinned SHAs `3595b5f091..c8ef2ccafc`, 3 files, 72 insertions/10 deletions):
+- [rollback_visibility.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-core/src/store/rollback_visibility.rs:28): `capture()` now snapshots `_rollback_extraction_before` under the activation writer before reverse projection can mint receipts, guarded by `main.sqlite_schema` existence for null/legacy stores. `validate()` at line 109 reads ownership from that before-image instead of live `_extraction_rows`, so a minted receipt cannot retroactively authorize hiding a native singleton. `clear()` drops both TEMP tables and the visibility meta on the success path.
+- Ordering/scope is correct: `capture()` runs under the writer at [activation.rs:130](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-core/src/store/activation.rs:130), before schema/dormant/extraction migration; `validate()`/`clear()` run inside the same transaction at [activation.rs:467](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-core/src/store/activation.rs:467). Abort rolls back TEMP creates plus minted receipts; the new unit test asserts commit cleanup, abort leaves no stale TEMP state, and retry re-captures correctly, for both receipt-table-present and absent cases.
+- Guarded-view behavior holds: native singleton keeps identity/file/private result with target 1 and zero receipts after private preview; receipt-owned publication extraction still restores v1 buyer+scan shape across the buyer/customer rename; extra independent child on the same old parent still falls back to the registered view. `key()` rename handling via `_asset_column_renames` origins is unchanged and consistent with the stored definitions for this extraction shape.
+- Doc amendment in §21 matches the code: ownership "as held before adoption", captured "before reverse projection can mint a receipt". No version or unrelated FIX41 content touched.
+
+Limits: read-only review via pinned git reads only. I ran no builds or tests; the cited 1/1 snapshot test, 29/29 `roll_views`, and replay evidence are the author's targeted results, not my verification. Final affected-scope and full packed consumer qualification after freeze belong to root; I impose no exact-HEAD complete-suite gate.
+
+Provenance: Muse Code, powered by Meta Muse Spark. Pinned semantic source `c8ef2ccafc`, base `5c4716af14`, focus delta `3595b5f091..c8ef2ccafc`.
