@@ -62,7 +62,7 @@ fn derived_decision_fact(w:&Write<'_>,column:&str,kind:&ColumnType,t:&snapback4_
         Expr::If{condition,then,otherwise,..}=>stored(condition,p,false)&&stored(then,p,false)&&stored(otherwise,p,false),_=>false,
     }}
     let Some(value)=w.fields.iter().find(|field|field.name==column).and_then(field_value)else{return false;};
-    !matches!(value,Expr::Literal{..}|Expr::Name{..})&&stored(value,w.p,false)&&w.fields.iter().any(|field|field.name!=column&&["approv","authoriz"].iter().any(|part|field.name.to_lowercase().contains(part))&&t.columns.get(&field.name).is_some_and(|kind|super::super::derived::fresh_recording(kind,field_value(field))))
+    !matches!(value,Expr::Literal{..}|Expr::Name{..})&&stored(value,w.p,false)&&w.fields.iter().any(|field|field.name!=column&&t.columns.get(&field.name).is_some_and(|kind|super::super::derived::named_approval(&field.name,kind)&&super::super::derived::fresh_recording(kind,field_value(field))))
 }
 fn decision_effect(t:&snapback4_core::schema::Table,column:&str,f:&ast::ObjectField)->bool{
     let name=f.name.to_lowercase();
@@ -243,7 +243,7 @@ pub(super) fn scalar_enforced(effect:&Write<'_>,table:&str,column:&str,bound:&Bo
     conditions.iter().any(|condition|{
         if !negative&&caller_approval(condition,table,column,bound){return true;}
         let condition=if negative{Expr::Unary{op:"not".into(),value:Box::new((*condition).clone()),site:condition.site().clone()}}else{(*condition).clone()};
-        let mut found=false;let approval=matches!(bound.schema.tables[table].columns.get(column).map(ColumnType::required),Some(ColumnType::Bool|ColumnType::Time))&&["approv","authoriz"].iter().any(|part|column.to_lowercase().contains(part));let mut probes=if approval{super::super::derived::approval_receipts(&condition)}else{vec![condition.clone()]};
+        let mut found=false;let approval=bound.schema.tables[table].columns.get(column).is_some_and(|kind|super::super::derived::named_approval(column,kind));let mut probes=if approval{super::super::derived::approval_receipts(&condition)}else{vec![condition.clone()]};
         if !negative&&matches!(bound.schema.tables[table].columns.get(column).map(ColumnType::required),Some(ColumnType::Time)){walk(&condition,|e|if matches!(e,Expr::Binary{op,..} if ["<","<=",">",">="].contains(&op.as_str())){probes.push(e.clone());});}for probe in probes{walk(&probe,|e|if let Expr::Member{base,name,..}=e&&name==column{
             found|=effect.table==table&&super::super::derived::same_resource(base,table,&effect.keys,effect.p)||super::approval_records::origin(base,effect.p,bound).is_some_and(|origin|targets.contains(&origin));
         });}found

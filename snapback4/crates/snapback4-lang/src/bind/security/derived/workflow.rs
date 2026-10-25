@@ -67,16 +67,35 @@ pub(super) fn approval_receipts(e:&Expr)->Vec<Expr>{
     let mut out=Vec::new();collect(e,false,&mut out);out
 }
 fn contains_approval(e:&Expr)->bool{!approval_receipts(e).is_empty()}
+// Normalize first, then classify typed fields. Population filters own their
+// focal row; ordinary edit metadata may remain in a real approval prerequisite.
+fn typed_approval(e:&Expr,schema:&Schema,root:&str)->bool{
+    fn owner<'a>(e:&'a Expr,schema:&'a Schema,root:&'a str)->Option<&'a str>{match e{
+        Expr::Read(read)=>Some(&read.table),Expr::Assert{value,..}=>owner(value,schema,root),Expr::Name{name,..} if name==LOCAL=>Some(root),
+        Expr::Focal{..}=>Some(root),Expr::Member{base,name,..}=>{let table=owner(base,schema,root)?;if name=="id"{Some(table)}else{match schema.tables.get(table)?.columns.get(name)?.required(){C::Ref{table}=>Some(table),_=>None}}},_=>None,
+    }}
+    approval_receipts(e).into_iter().any(|mut receipt|{
+        let mut found=false;walk(&mut receipt,&mut |e|match e{
+            Expr::Member{base,name,..}=>{if let Some(table)=owner(base,schema,root){found|=schema.tables.get(table).and_then(|t|t.columns.get(name)).is_some_and(|kind|stamps::evidence(name,kind));}},
+            Expr::Read(read)|Expr::Exists{read,..}=>{
+                found|=approval(&read.table);
+                found|=read.keys.iter().any(|key|key.column.as_ref().is_some_and(|column|schema.tables.get(&read.table).and_then(|t|t.columns.get(column)).is_some_and(|kind|stamps::evidence(column,kind)))&&!matches!(&key.value,Expr::Literal{value:ast::Literal::Bool(false)|ast::Literal::Null,..}));
+                if let Some(filter)=read.filter.take(){found|=typed_approval(&filter,schema,&read.table);}
+            },_=>{},
+        });found
+    })
+}
+
 fn guards(p:&ast::ProgramDecl)->impl Iterator<Item=&Expr>{p.body.iter().filter_map(|s|if let Stmt::Require{condition,..}=s{Some(condition)}else{None})}
 // Branch/write applicability scopes exported prerequisites. Authored requires
 // remain requirements; caller premises that cannot map onto a row stay uncovered.
-fn premises(p:&ast::ProgramDecl)->Vec<&Expr>{
-    fn parts<'a>(value:&'a Expr,out:&mut Vec<&'a Expr>){if let Expr::Binary{op,left,right,..}=value&&op=="and"{parts(left,out);parts(right,out);}else if !contains_approval(value){out.push(value);}}
-    let mut out=Vec::new();for stmt in &p.body{if let Stmt::Require{condition,code,..}=stmt&&code=="$advice"{parts(condition,&mut out);}}out
+fn premises<'a>(p:&'a ast::ProgramDecl,schema:&Schema,root:&str,args:&BTreeMap<String,Expr>)->Vec<&'a Expr>{
+    fn parts<'a>(value:&'a Expr,out:&mut Vec<&'a Expr>,schema:&Schema,root:&str,args:&BTreeMap<String,Expr>){if let Expr::Binary{op,left,right,..}=value&&op=="and"{parts(left,out,schema,root,args);parts(right,out,schema,root,args);}else if normalize(value,schema,root,args).map(|value|!typed_approval(&value,schema,root)).unwrap_or(!contains_approval(value)){out.push(value);}}
+    let mut out=Vec::new();for stmt in &p.body{if let Stmt::Require{condition,code,..}=stmt&&code=="$advice"{parts(condition,&mut out,schema,root,args);}}out
 }
 fn scoped_contract(condition:&Expr,context:&ast::ProgramDecl,schema:&Schema,root:&str,args:&BTreeMap<String,Expr>)->Option<Expr>{
     let mut contract=normalize(condition,schema,root,args)?;
-    for premise in premises(context){let premise=normalize(premise,schema,root,args)?;contract=binary("or",Expr::Unary{op:"not".into(),value:Box::new(premise),site:condition.site().clone()},contract);}
+    for premise in premises(context,schema,root,args){let premise=normalize(premise,schema,root,args)?;contract=binary("or",Expr::Unary{op:"not".into(),value:Box::new(premise),site:condition.site().clone()},contract);}
     Some(super::super::creation_advice::simplify_boolean(&contract))
 }
 pub(super) fn source_gaps(docs:&[ast::Document],catalog:&Catalog,bound:&Bound)->BTreeSet<String>{
@@ -159,7 +178,7 @@ pub(super) fn invariants(docs:&[ast::Document],catalog:&Catalog,bound:&Bound,out
         // resource argument. They govern this exact effect, not every child
         // later linked to a resource another actor created.
         for condition in guards(context).filter(|c|contains_approval(c)){
-            let Some(mut contract)=scoped_contract(condition,context,&bound.schema,table,&BTreeMap::new())else{continue;};if resource_local(&contract){continue;}
+            let Some(mut contract)=scoped_contract(condition,context,&bound.schema,table,&BTreeMap::new())else{continue;};if resource_local(&contract)||!typed_approval(&contract,&bound.schema,table){continue;}
             let (column,target)=if *op==WriteOp::Update{
                 let Some(field)=state_field(bound,table,fields)else{continue;};let Some(Expr::Literal{..})=&field.value else{continue;};
                 contract=binary("or",binary("!=",member(focal(),&field.name),field.value.clone().unwrap()),contract);(Some(field.name.as_str()),"update")
@@ -174,7 +193,7 @@ pub(super) fn invariants(docs:&[ast::Document],catalog:&Catalog,bound:&Bound,out
                     if !matches!(value,Expr::Member{base,name,..} if name=="id"&&matches!(base.as_ref(),Expr::Focal{..})){continue;}
                     let guarded=guards(context).filter_map(|c|normalize(c,&bound.schema,root,&args)).any(|c|{let mut found=false;let mut c=c;walk(&mut c,&mut |e|if let Expr::Member{base,name,..}=e&&matches!(base.as_ref(),Expr::Focal{..})&&matches!(bound.schema.tables[root].columns.get(name).map(C::required),Some(C::Bool|C::Enum{..})){found=true;});found});
                     let consumed=origins.iter().any(|(other,w,_)|std::ptr::eq(*other,*p)&&matches!(w,Expr::Write{op:WriteOp::Update|WriteOp::Delete,table:t,..} if t==root));
-                    if guarded&&!consumed&&guards(context).any(contains_approval) {
+                    if guarded&&!consumed&&guards(context).filter_map(|c|normalize(c,&bound.schema,root,&args)).any(|c|typed_approval(&c,&bound.schema,root)) {
                         if let Some(policy)=expr(&format!(".{} = null or count({table}[{} = .{}]) <= 1",field.name,field.name,field.name)){add_syntax(out,table,None,"insert",policy,site,"repeat-create",None);}
                     }
                 }
@@ -182,14 +201,14 @@ pub(super) fn invariants(docs:&[ast::Document],catalog:&Catalog,bound:&Bound,out
             for condition in guards(context).filter(|c|contains_approval(c)) {
                 let Some(contract)=scoped_contract(condition,context,&bound.schema,root,&args)else{continue;};
                 // Global/caller approval contracts are emitted once above.
-                if !resource_local(&contract){continue;}
+                if !resource_local(&contract)||!typed_approval(&contract,&bound.schema,root){continue;}
                 if matches!(op,WriteOp::Insert|WriteOp::Upsert)&&root==table{
                     // A guarded retry copied a stable identity from the prior
                     // row. A fresh sibling insert must not reset that history.
                     let identity=fields.iter().filter(|f|matches!(bound.schema.tables[table].columns.get(&f.name).map(C::required),Some(C::Principal|C::Ref{..}))).find(|f|f.value.as_ref().and_then(|e|normalize(e,&bound.schema,root,&args)).is_some_and(|e|matches!(e,Expr::Member{base,name,..} if matches!(base.as_ref(),Expr::Focal{..})&&name==f.name)));
                     let Some(identity)=identity else{continue;};
                     let Some(Expr::Read(mut population))=expr(&format!("{root}[{} = .{}]",identity.name,identity.name))else{continue;};
-                    let prerequisites=guards(context).filter(|c|!contains_approval(c)).filter_map(|c|normalize(c,&bound.schema,root,&args)).filter(|c|{let text=crate::print::expression(c);text.contains('.')&&!text.contains("viewer")}).collect::<Vec<_>>();
+                    let prerequisites=guards(context).filter_map(|c|normalize(c,&bound.schema,root,&args)).filter(|c|!typed_approval(c,&bound.schema,root)).filter(|c|{let text=crate::print::expression(c);text.contains('.')&&!text.contains("viewer")}).collect::<Vec<_>>();
                     let negative=Expr::Unary{op:"not".into(),value:Box::new(contract.clone()),site:site.clone()};
                     population.filter=Some(Box::new(prerequisites.into_iter().chain([negative]).reduce(|a,b|binary("and",a,b)).unwrap()));
                     let policy=Expr::Binary{op:"=".into(),left:Box::new(Expr::Call{name:"count".into(),args:vec![Expr::Read(population)],site:site.clone()}),right:Box::new(expr("0").unwrap()),site:site.clone()};

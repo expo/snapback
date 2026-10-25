@@ -45,7 +45,7 @@ pub(super) fn collect(sources:&[(String,String)],bound:&Bound)->BTreeMap<(String
                 if stable{workflow::normalize(condition,&bound.schema,table,&arguments)}else{None}
             }).collect();
             let complete=super::super::creation_advice::applicability_known(context,&catalog);let invocation=ApprovalCheck{complete,clauses:checks,bindings,selectors};
-            for stamp in target.columns.keys().filter(|stamp|["approv","authoriz"].iter().any(|part|stamp.to_lowercase().contains(part))){
+            for stamp in target.columns.keys().filter(|stamp|named_approval(stamp,&target.columns[*stamp])){
                 out.entry((program.clone(),table.clone(),stamp.clone(),site.to_string())).or_default().push(invocation.clone());
             }
         }
@@ -67,7 +67,7 @@ pub(crate) fn revalidated(bound:&Bound,program:&str,table:&str,stamp:&str,site:O
     for column in columns.iter().filter(|column|cell(old,column)!=cell(next,column)){
         // Atomic consumption of another approval is not ordinary replacement
         // data. Its receipt graph, rather than a negative new stamp, governs it.
-        if ["approv","authoriz"].iter().any(|part|column.to_lowercase().contains(part))&&matches!(cell(old,column),Value::Bool(true)|Value::Int(_))&&matches!(cell(next,column),Value::Bool(false)|Value::Null){unknown=true;continue;}
+        if bound.schema.tables[table].columns.get(column).is_some_and(|kind|named_approval(column,kind))&&matches!(cell(old,column),Value::Bool(true)|Value::Int(_))&&matches!(cell(next,column),Value::Bool(false)|Value::Null){unknown=true;continue;}
         let relevant=invocation.clauses.iter().filter(|check|check.columns.contains(column)).collect::<Vec<_>>();if relevant.is_empty(){return Some(false);}
         for check in relevant{match check.predicate.as_ref().and_then(|predicate|super::super::concrete::evaluate(predicate,&image,rows,&bound.schema,viewer,table,now)){Some(false)=>return Some(false),None=>unknown=true,_=>{}}}
     }
@@ -103,3 +103,10 @@ pub(crate) fn revalidated(bound:&Bound,program:&str,table:&str,stamp:&str,site:O
     }
 }
 }
+
+#[cfg(test)]mod sec10_metadata_revalidation{use super::*;
+#[test]fn cleared_edit_metadata_is_ordinary_replacement_data(){
+    use snapback4_core::value::object;
+    let source="table docs:\n  authorizationRouteUpdatedAt: time ?\n  approved: bool default false\n  read <- allow\n  update <- allow\n  online only\nmutation replace(doc: docs):\n  d = docs[doc] ! else MISSING\n  require d.authorizationRouteUpdatedAt != null else NO_ROUTE\n  update docs[doc] {authorizationRouteUpdatedAt:null,approved:true}\n";
+    let sources=vec![("schema.q".into(),source.into())];let b=super::super::augmented(&sources,&crate::compile(&sources));assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);assert!(!b.security_approval_checks.keys().any(|key|key.2=="authorizationRouteUpdatedAt"));let site=b.security_approval_checks.keys().find(|key|key.2=="approved").unwrap().3.clone();let old=object([("id",Value::Id("d".into())),("authorizationRouteUpdatedAt",Value::Int(123)),("approved",Value::Bool(false))]);let next=object([("id",Value::Id("d".into())),("authorizationRouteUpdatedAt",Value::Null),("approved",Value::Bool(true))]);assert_eq!(revalidated(&b,"replace","docs","approved",Some(&site),&old,&next,&BTreeSet::from(["authorizationRouteUpdatedAt".into()]),&BTreeMap::new(),"actor",0,&BTreeMap::new()),Some(false));
+}}

@@ -628,11 +628,25 @@ mutation edit(doc: docs):\n  update docs[doc] {consent:false}\n";
     let candidates=security::derived::invariants(&sources(source),&bound(source));
     assert!(!candidates.iter().any(|i|i.predicate.contains("old.authorizationRouteUpdatedAt")),"{candidates:?}");
     for field in ["authorizationRouteUpdatedAt","approval_changed_at","approvalEditedOn","authorizationModifiedTimestamp"]{
-        let source=format!("table docs:\n  {field}: time ?\n  read <- allow\n  update <- allow\n  online only\nmutation edit(doc: docs):\n  update docs[doc] {{{field}:now}}\n");
+        let source=format!("table docs:\n  {field}: time ?\n  status: enum('draft','done') default 'draft'\n  read <- allow\n  update <- allow\n  online only\nmutation edit(doc: docs):\n  update docs[doc] {{{field}:now}}\nmutation finish(doc: docs):\n  update docs[doc] {{status:'done'}}\n");
         assert!(!notes(&source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"),"{field}");
     }
     for field in ["approvedAt","approvalAt"]{
-        let source=format!("table docs:\n  {field}: time ?\n  read <- allow\n  update <- allow\n  online only\nmutation approve(doc: docs):\n  update docs[doc] {{{field}:now}}\n");
+        let source=format!("table docs:\n  {field}: time ?\n  status: enum('draft','done') default 'draft'\n  read <- allow\n  update <- allow\n  online only\nmutation approve(doc: docs):\n  update docs[doc] {{{field}:now}}\nmutation finish(doc: docs):\n  update docs[doc] {{status:'done'}}\n");
         assert!(notes(&source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"),"{field}");
     }
+}
+
+#[test]fn metadata_only_guards_do_not_create_sibling_approval_contracts(){
+    let source="table docs:\n  authorizationRouteUpdatedAt: time ?\n  approved: bool default false\n  status: enum('draft','done') default 'draft'\n  read <- allow\n  update <- allow\n  online only\nmutation guarded(doc: docs):\n  d = docs[doc] ! else MISSING\n  require d.authorizationRouteUpdatedAt != null else NO_ROUTE\n  update docs[doc] {status:'done'}\nmutation bypass(doc: docs):\n  update docs[doc] {status:'done'}\n";
+    let candidates=security::derived::invariants(&sources(source),&bound(source));assert!(!candidates.iter().any(|i|i.site.file.contains("sibling-approval")),"{candidates:?}");
+    let population=source.replace("d.authorizationRouteUpdatedAt != null","exists docs where .authorizationRouteUpdatedAt != null");let candidates=security::derived::invariants(&sources(&population),&bound(&population));assert!(!candidates.iter().any(|i|i.site.file.contains("sibling-approval")),"{candidates:?}");
+    let boolean=source.replace("authorizationRouteUpdatedAt: time ?","authorizationRouteUpdatedAt: bool default false").replace("d.authorizationRouteUpdatedAt != null","d.authorizationRouteUpdatedAt");let candidates=security::derived::invariants(&sources(&boolean),&bound(&boolean));assert!(candidates.iter().any(|i|i.site.file.contains("sibling-approval")),"{candidates:?}");
+    let mixed=source.replace("  require d.authorizationRouteUpdatedAt != null else NO_ROUTE", "  if d.authorizationRouteUpdatedAt != null:\n    require d.approved else NO_APPROVAL\n    update docs[doc] {status:'done'}\n  return null").replace("  return null\n  update docs[doc] {status:'done'}", "  return null");
+    let candidates=security::derived::invariants(&sources(&mixed),&bound(&mixed));assert!(candidates.iter().any(|i|i.site.file.contains("sibling-approval")&&i.predicate.contains("authorizationRouteUpdatedAt")&&i.predicate.contains("approved")),"{candidates:?}");
+}
+
+#[test]fn an_edit_clock_cannot_make_an_unused_derived_bool_approval_atomic(){
+    let source="table docs:\n  consent: bool\n  approved: bool default false\n  approvalUpdatedAt: time ?\n  status: enum('draft','done') default 'draft'\n  read <- allow\n  update <- allow\n  online only\nmutation approve(doc: docs):\n  d = docs[doc] ! else MISSING\n  update docs[doc] {approved:not d.consent,approvalUpdatedAt:now}\nmutation finish(doc: docs):\n  update docs[doc] {status:'done'}\n";
+    assert!(notes(source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"&&n.message.contains("approved")),"{:?}",notes(source));
 }

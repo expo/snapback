@@ -7,7 +7,8 @@ fn audit(name:&str,kind:&C)->bool{
     let name=name.to_lowercase().replace('_',"");
     matches!(kind.required(),C::Time)&&["updatedat","changedat","editedat","modifiedat","updatedon","changedon","editedon","modifiedon","updatedtime","changedtime","editedtime","modifiedtime","updatedtimestamp","changedtimestamp","editedtimestamp","modifiedtimestamp"].iter().any(|suffix|name.ends_with(suffix))
 }
-pub(crate) fn named(name:&str,kind:&C)->bool{word(name)&&matches!(kind.required(),C::Bool|C::Time)&&!audit(name,kind)}
+pub(super) fn evidence(name:&str,kind:&C)->bool{word(name)&&!audit(name,kind)}
+pub(crate) fn named(name:&str,kind:&C)->bool{evidence(name,kind)&&matches!(kind.required(),C::Bool|C::Time)}
 pub(super) fn columns(_docs:&[ast::Document],_catalog:&Catalog,bound:&Bound)->BTreeSet<(String,String)>{
     bound.schema.visible_tables().flat_map(|(table,t)|t.columns.iter().filter(|(column,kind)|named(column,kind)).map(move |(column,_)|(table.clone(),column.clone()))).collect()
 }
