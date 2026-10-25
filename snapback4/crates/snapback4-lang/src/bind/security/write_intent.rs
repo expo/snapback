@@ -55,6 +55,9 @@ pub(super) fn capture(catalog:&Catalog,bound:&mut Bound){
    let Some(t)=bound.schema.tables.get(&table)else{continue;};
    let roles=authority_cache.entry(table.clone()).or_insert_with(||{
    let mut roles=authority_fields(bound,&table);
+   for mut document in catalog.documents.clone(){super::super::intent_walk::document(&mut document,&mut |e|if let ast::Expr::Read(read)|ast::Expr::Exists{read,..}=e&&read.table==table{
+    for key in &read.keys{if let Some(column)=&key.column&&matches!(key.value,ast::Expr::Literal{..}){roles.insert(column.clone());}}
+   });}
    for program in catalog.documents.iter().flat_map(|doc|&doc.programs){
     for (_,context) in authority_walk::writes(catalog,program){for statement in &context.body{
      if let ast::Stmt::Require{condition,..}=statement{let mut condition=condition.clone();super::super::intent_walk::expression(&mut condition,&mut |e|if let ast::Expr::Read(read)|ast::Expr::Exists{read,..}=e&&read.table==table{
@@ -102,7 +105,9 @@ pub(super) fn capture(catalog:&Catalog,bound:&mut Bound){
  }
  #[test]fn mutation_require_only_custom_authority_is_a_grant(){
   let source=BASE.replace("role","power")+"table docs:\n  team: teams\n  title: text\n  read <- allow\n  update <- allow\n  online only\nmutation edit(doc: docs,title: text):\n  d = docs[doc] ! else MISSING\n  require exists members[team=d.team,principal=viewer,power='admin'] else NOT_ADMIN\n  update docs[doc] {title}\n";
-  let b=crate::compile(&[("schema.q".into(),source)]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
-  assert!(b.security_literal_defaults.keys().all(|(_,table,column)|table!="members"||column!="power"));
+  for source in [source.clone(),source.replace("mutation edit(doc: docs,title: text):","query readSecret(doc: docs,title: text):").replace("  update docs[doc] {title}","  return true")]{
+   let b=crate::compile(&[("schema.q".into(),source)]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+   assert!(b.security_literal_defaults.keys().all(|(_,table,column)|table!="members"||column!="power"));
+  }
  }
 }
