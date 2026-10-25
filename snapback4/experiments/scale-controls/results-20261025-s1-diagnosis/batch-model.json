@@ -1,0 +1,866 @@
+[
+  {
+    "cell": "g5-w4-a",
+    "observed_measured_batches": 2760,
+    "N_min": 1,
+    "N_max": 30,
+    "points": [
+      {
+        "N": 1,
+        "count": 1,
+        "median_ms": 10.639728,
+        "min_ms": 10.639728,
+        "max_ms": 10.639728
+      },
+      {
+        "N": 2,
+        "count": 49,
+        "median_ms": 10.064125,
+        "min_ms": 8.228461,
+        "max_ms": 13.543682
+      },
+      {
+        "N": 3,
+        "count": 1,
+        "median_ms": 9.316648,
+        "min_ms": 9.316648,
+        "max_ms": 9.316648
+      },
+      {
+        "N": 4,
+        "count": 16,
+        "median_ms": 9.8162385,
+        "min_ms": 7.871009,
+        "max_ms": 11.200023
+      },
+      {
+        "N": 6,
+        "count": 2,
+        "median_ms": 10.0070625,
+        "min_ms": 9.495204,
+        "max_ms": 10.518921
+      },
+      {
+        "N": 7,
+        "count": 72,
+        "median_ms": 9.4355725,
+        "min_ms": 8.542883,
+        "max_ms": 14.389392
+      },
+      {
+        "N": 8,
+        "count": 475,
+        "median_ms": 9.791713,
+        "min_ms": 7.582095,
+        "max_ms": 12.447038
+      },
+      {
+        "N": 9,
+        "count": 193,
+        "median_ms": 10.536133,
+        "min_ms": 7.620608,
+        "max_ms": 23.348338
+      },
+      {
+        "N": 10,
+        "count": 340,
+        "median_ms": 10.618037000000001,
+        "min_ms": 7.867683,
+        "max_ms": 13.717509
+      },
+      {
+        "N": 11,
+        "count": 353,
+        "median_ms": 11.98551,
+        "min_ms": 8.286841,
+        "max_ms": 15.383734
+      },
+      {
+        "N": 12,
+        "count": 67,
+        "median_ms": 10.715961,
+        "min_ms": 8.752397,
+        "max_ms": 12.356718
+      },
+      {
+        "N": 13,
+        "count": 225,
+        "median_ms": 11.319156,
+        "min_ms": 9.201953,
+        "max_ms": 14.94075
+      },
+      {
+        "N": 14,
+        "count": 183,
+        "median_ms": 11.933552,
+        "min_ms": 9.942847,
+        "max_ms": 14.428797
+      },
+      {
+        "N": 15,
+        "count": 96,
+        "median_ms": 12.440380999999999,
+        "min_ms": 9.403623,
+        "max_ms": 15.60509
+      },
+      {
+        "N": 16,
+        "count": 20,
+        "median_ms": 12.7971675,
+        "min_ms": 10.811331,
+        "max_ms": 14.134072
+      },
+      {
+        "N": 17,
+        "count": 6,
+        "median_ms": 12.479825000000002,
+        "min_ms": 10.106936,
+        "max_ms": 13.033793
+      },
+      {
+        "N": 18,
+        "count": 1,
+        "median_ms": 12.259335,
+        "min_ms": 12.259335,
+        "max_ms": 12.259335
+      },
+      {
+        "N": 19,
+        "count": 2,
+        "median_ms": 11.730776,
+        "min_ms": 9.763089,
+        "max_ms": 13.698463
+      },
+      {
+        "N": 20,
+        "count": 1,
+        "median_ms": 13.313449,
+        "min_ms": 13.313449,
+        "max_ms": 13.313449
+      },
+      {
+        "N": 21,
+        "count": 293,
+        "median_ms": 13.292719,
+        "min_ms": 10.472143,
+        "max_ms": 17.64072
+      },
+      {
+        "N": 22,
+        "count": 301,
+        "median_ms": 11.777148,
+        "min_ms": 9.297893,
+        "max_ms": 15.54113
+      },
+      {
+        "N": 23,
+        "count": 1,
+        "median_ms": 13.721396,
+        "min_ms": 13.721396,
+        "max_ms": 13.721396
+      },
+      {
+        "N": 24,
+        "count": 1,
+        "median_ms": 13.770389,
+        "min_ms": 13.770389,
+        "max_ms": 13.770389
+      },
+      {
+        "N": 25,
+        "count": 1,
+        "median_ms": 13.878972,
+        "min_ms": 13.878972,
+        "max_ms": 13.878972
+      },
+      {
+        "N": 26,
+        "count": 1,
+        "median_ms": 11.253974,
+        "min_ms": 11.253974,
+        "max_ms": 11.253974
+      },
+      {
+        "N": 28,
+        "count": 14,
+        "median_ms": 11.13758,
+        "min_ms": 10.475139,
+        "max_ms": 13.257343
+      },
+      {
+        "N": 30,
+        "count": 45,
+        "median_ms": 11.505216,
+        "min_ms": 10.70985,
+        "max_ms": 14.109346
+      }
+    ],
+    "fit_bins": 15,
+    "intercept_ms": 9.787608911103113,
+    "marginal_ms": 0.10935307130646034,
+    "observed_RTT_ms": 0.562,
+    "r_squared": 0.4571880128206347,
+    "cycle_ms_at_N32": 13.286907192909844,
+    "service_rate_at_N32": 2408.3859046652956,
+    "service_rate_N32_less_two_RTT": 2630.949944159226,
+    "service_rate_N32_less_two_RTT_less_2ms_sync": 3148.7053254136586,
+    "method": "Unweighted OLS of each N median over all measured lightweight-probe batches; bins with >=15 samples; no latency outliers dropped. Conditional mean-service forecasts, not open-loop p99/SLO predictions. RTT is the median of that cell before/after prepared-query p50; physical durability unchanged. Last scenario requires 2ms lower actual flush latency, not disabling fsync."
+  },
+  {
+    "cell": "g5-w4-b",
+    "observed_measured_batches": 2114,
+    "N_min": 2,
+    "N_max": 30,
+    "points": [
+      {
+        "N": 2,
+        "count": 33,
+        "median_ms": 13.476645,
+        "min_ms": 11.038929,
+        "max_ms": 15.655234
+      },
+      {
+        "N": 8,
+        "count": 1,
+        "median_ms": 12.071512,
+        "min_ms": 12.071512,
+        "max_ms": 12.071512
+      },
+      {
+        "N": 9,
+        "count": 27,
+        "median_ms": 11.813957,
+        "min_ms": 10.478926,
+        "max_ms": 13.082463
+      },
+      {
+        "N": 10,
+        "count": 578,
+        "median_ms": 12.9747165,
+        "min_ms": 10.532336,
+        "max_ms": 30.383424
+      },
+      {
+        "N": 11,
+        "count": 226,
+        "median_ms": 13.075971500000001,
+        "min_ms": 11.148335,
+        "max_ms": 17.69432
+      },
+      {
+        "N": 12,
+        "count": 20,
+        "median_ms": 13.3229215,
+        "min_ms": 12.332683,
+        "max_ms": 14.745703
+      },
+      {
+        "N": 13,
+        "count": 2,
+        "median_ms": 14.753262,
+        "min_ms": 13.874334,
+        "max_ms": 15.63219
+      },
+      {
+        "N": 14,
+        "count": 220,
+        "median_ms": 15.2953175,
+        "min_ms": 12.39495,
+        "max_ms": 19.126866
+      },
+      {
+        "N": 16,
+        "count": 512,
+        "median_ms": 15.266112,
+        "min_ms": 11.278489,
+        "max_ms": 21.766272
+      },
+      {
+        "N": 18,
+        "count": 216,
+        "median_ms": 15.955854500000001,
+        "min_ms": 12.78819,
+        "max_ms": 19.856208
+      },
+      {
+        "N": 22,
+        "count": 247,
+        "median_ms": 16.597096,
+        "min_ms": 13.450075,
+        "max_ms": 20.916132
+      },
+      {
+        "N": 30,
+        "count": 32,
+        "median_ms": 17.5056505,
+        "min_ms": 13.354366,
+        "max_ms": 20.122458
+      }
+    ],
+    "fit_bins": 10,
+    "intercept_ms": 11.560720234899328,
+    "marginal_ms": 0.20609055313199112,
+    "observed_RTT_ms": 1.0870000000000002,
+    "r_squared": 0.7405492478688681,
+    "cycle_ms_at_N32": 18.155617935123043,
+    "service_rate_at_N32": 1762.539843829509,
+    "service_rate_N32_less_two_RTT": 2002.3004009921372,
+    "service_rate_N32_less_two_RTT_less_2ms_sync": 2288.7193848727056,
+    "method": "Unweighted OLS of each N median over all measured lightweight-probe batches; bins with >=15 samples; no latency outliers dropped. Conditional mean-service forecasts, not open-loop p99/SLO predictions. RTT is the median of that cell before/after prepared-query p50; physical durability unchanged. Last scenario requires 2ms lower actual flush latency, not disabling fsync."
+  },
+  {
+    "cell": "g5-w5mix-b",
+    "observed_measured_batches": 2104,
+    "N_min": 2,
+    "N_max": 30,
+    "points": [
+      {
+        "N": 2,
+        "count": 34,
+        "median_ms": 12.5085485,
+        "min_ms": 10.637293,
+        "max_ms": 14.318409
+      },
+      {
+        "N": 3,
+        "count": 251,
+        "median_ms": 13.57498,
+        "min_ms": 10.660116,
+        "max_ms": 16.234514
+      },
+      {
+        "N": 8,
+        "count": 4,
+        "median_ms": 10.804813500000002,
+        "min_ms": 10.588842,
+        "max_ms": 11.607398
+      },
+      {
+        "N": 9,
+        "count": 41,
+        "median_ms": 11.913634,
+        "min_ms": 10.312512,
+        "max_ms": 17.988154
+      },
+      {
+        "N": 10,
+        "count": 256,
+        "median_ms": 12.510748,
+        "min_ms": 10.800982,
+        "max_ms": 18.565079
+      },
+      {
+        "N": 11,
+        "count": 450,
+        "median_ms": 13.824655,
+        "min_ms": 10.706283,
+        "max_ms": 30.693307
+      },
+      {
+        "N": 12,
+        "count": 54,
+        "median_ms": 13.244574,
+        "min_ms": 11.808737,
+        "max_ms": 15.17497
+      },
+      {
+        "N": 13,
+        "count": 9,
+        "median_ms": 13.880244,
+        "min_ms": 11.281405,
+        "max_ms": 14.851342
+      },
+      {
+        "N": 14,
+        "count": 5,
+        "median_ms": 14.204955,
+        "min_ms": 11.499836,
+        "max_ms": 18.16728
+      },
+      {
+        "N": 15,
+        "count": 251,
+        "median_ms": 15.408159,
+        "min_ms": 12.377678,
+        "max_ms": 18.41673
+      },
+      {
+        "N": 17,
+        "count": 248,
+        "median_ms": 15.7014055,
+        "min_ms": 12.326121,
+        "max_ms": 21.161974
+      },
+      {
+        "N": 21,
+        "count": 218,
+        "median_ms": 16.5109585,
+        "min_ms": 12.275436,
+        "max_ms": 19.962809
+      },
+      {
+        "N": 29,
+        "count": 250,
+        "median_ms": 17.497936,
+        "min_ms": 12.734979,
+        "max_ms": 21.794163
+      },
+      {
+        "N": 30,
+        "count": 33,
+        "median_ms": 16.980628,
+        "min_ms": 12.956166,
+        "max_ms": 19.096929
+      }
+    ],
+    "fit_bins": 11,
+    "intercept_ms": 11.771542359348471,
+    "marginal_ms": 0.18986956318972834,
+    "observed_RTT_ms": 1.0985,
+    "r_squared": 0.7929391965799111,
+    "cycle_ms_at_N32": 17.847368381419777,
+    "service_rate_at_N32": 1792.9814253912075,
+    "service_rate_N32_less_two_RTT": 2044.6803052885716,
+    "service_rate_N32_less_two_RTT_less_2ms_sync": 2344.2590782792977,
+    "method": "Unweighted OLS of each N median over all measured lightweight-probe batches; bins with >=15 samples; no latency outliers dropped. Conditional mean-service forecasts, not open-loop p99/SLO predictions. RTT is the median of that cell before/after prepared-query p50; physical durability unchanged. Last scenario requires 2ms lower actual flush latency, not disabling fsync."
+  },
+  {
+    "cell": "g6-w4-a",
+    "observed_measured_batches": 2474,
+    "N_min": 2,
+    "N_max": 30,
+    "points": [
+      {
+        "N": 2,
+        "count": 206,
+        "median_ms": 11.0592635,
+        "min_ms": 9.265543,
+        "max_ms": 13.202862
+      },
+      {
+        "N": 5,
+        "count": 120,
+        "median_ms": 11.447534000000001,
+        "min_ms": 9.262909,
+        "max_ms": 14.274137
+      },
+      {
+        "N": 6,
+        "count": 8,
+        "median_ms": 11.1142125,
+        "min_ms": 7.810937,
+        "max_ms": 11.857551
+      },
+      {
+        "N": 7,
+        "count": 28,
+        "median_ms": 8.970819500000001,
+        "min_ms": 8.0303,
+        "max_ms": 11.620264
+      },
+      {
+        "N": 8,
+        "count": 200,
+        "median_ms": 10.310559999999999,
+        "min_ms": 8.887001,
+        "max_ms": 14.054004
+      },
+      {
+        "N": 9,
+        "count": 374,
+        "median_ms": 10.806458,
+        "min_ms": 8.150015,
+        "max_ms": 14.733773
+      },
+      {
+        "N": 10,
+        "count": 70,
+        "median_ms": 11.293139,
+        "min_ms": 9.079814,
+        "max_ms": 15.261124
+      },
+      {
+        "N": 11,
+        "count": 290,
+        "median_ms": 13.206529,
+        "min_ms": 8.162318,
+        "max_ms": 62.071792
+      },
+      {
+        "N": 12,
+        "count": 81,
+        "median_ms": 12.336702,
+        "min_ms": 10.515115,
+        "max_ms": 22.362516
+      },
+      {
+        "N": 13,
+        "count": 143,
+        "median_ms": 13.606131,
+        "min_ms": 10.596548,
+        "max_ms": 17.362459
+      },
+      {
+        "N": 14,
+        "count": 54,
+        "median_ms": 13.587811,
+        "min_ms": 10.734668,
+        "max_ms": 16.04526
+      },
+      {
+        "N": 15,
+        "count": 19,
+        "median_ms": 13.342274,
+        "min_ms": 9.338632,
+        "max_ms": 14.619287
+      },
+      {
+        "N": 16,
+        "count": 25,
+        "median_ms": 13.65889,
+        "min_ms": 11.334286,
+        "max_ms": 16.179332
+      },
+      {
+        "N": 17,
+        "count": 15,
+        "median_ms": 13.232408,
+        "min_ms": 10.751069,
+        "max_ms": 14.289206
+      },
+      {
+        "N": 18,
+        "count": 44,
+        "median_ms": 13.8730785,
+        "min_ms": 10.073053,
+        "max_ms": 15.373266
+      },
+      {
+        "N": 19,
+        "count": 121,
+        "median_ms": 14.695741,
+        "min_ms": 11.402304,
+        "max_ms": 16.995789
+      },
+      {
+        "N": 20,
+        "count": 64,
+        "median_ms": 13.9942465,
+        "min_ms": 9.995838,
+        "max_ms": 24.264274
+      },
+      {
+        "N": 21,
+        "count": 277,
+        "median_ms": 14.731889,
+        "min_ms": 10.573354,
+        "max_ms": 105.221109
+      },
+      {
+        "N": 23,
+        "count": 6,
+        "median_ms": 12.858183,
+        "min_ms": 11.786407,
+        "max_ms": 14.395436
+      },
+      {
+        "N": 24,
+        "count": 2,
+        "median_ms": 13.743043499999999,
+        "min_ms": 13.420311,
+        "max_ms": 14.065776
+      },
+      {
+        "N": 25,
+        "count": 4,
+        "median_ms": 13.116484499999999,
+        "min_ms": 12.713051,
+        "max_ms": 14.019579
+      },
+      {
+        "N": 26,
+        "count": 4,
+        "median_ms": 14.0530315,
+        "min_ms": 13.731347,
+        "max_ms": 14.962533
+      },
+      {
+        "N": 27,
+        "count": 113,
+        "median_ms": 13.22279,
+        "min_ms": 10.984087,
+        "max_ms": 19.910653
+      },
+      {
+        "N": 30,
+        "count": 206,
+        "median_ms": 12.93637,
+        "min_ms": 11.350567,
+        "max_ms": 18.193172
+      }
+    ],
+    "fit_bins": 19,
+    "intercept_ms": 10.522006119902308,
+    "marginal_ms": 0.14742524716005906,
+    "observed_RTT_ms": 0.5685,
+    "r_squared": 0.45262050134604526,
+    "cycle_ms_at_N32": 15.239614029024198,
+    "service_rate_at_N32": 2099.790712484926,
+    "service_rate_N32_less_two_RTT": 2269.0828759931806,
+    "service_rate_N32_less_two_RTT_less_2ms_sync": 2644.056889136378,
+    "method": "Unweighted OLS of each N median over all measured lightweight-probe batches; bins with >=15 samples; no latency outliers dropped. Conditional mean-service forecasts, not open-loop p99/SLO predictions. RTT is the median of that cell before/after prepared-query p50; physical durability unchanged. Last scenario requires 2ms lower actual flush latency, not disabling fsync."
+  },
+  {
+    "cell": "g6-w4-b",
+    "observed_measured_batches": 1892,
+    "N_min": 3,
+    "N_max": 29,
+    "points": [
+      {
+        "N": 3,
+        "count": 31,
+        "median_ms": 14.370008,
+        "min_ms": 11.871527,
+        "max_ms": 17.107669
+      },
+      {
+        "N": 5,
+        "count": 239,
+        "median_ms": 14.483051,
+        "min_ms": 11.785465,
+        "max_ms": 21.346394
+      },
+      {
+        "N": 10,
+        "count": 2,
+        "median_ms": 12.9151055,
+        "min_ms": 12.252564,
+        "max_ms": 13.577647
+      },
+      {
+        "N": 11,
+        "count": 25,
+        "median_ms": 14.126369,
+        "min_ms": 13.171483,
+        "max_ms": 16.652462
+      },
+      {
+        "N": 12,
+        "count": 309,
+        "median_ms": 15.893073,
+        "min_ms": 12.291347,
+        "max_ms": 20.91348
+      },
+      {
+        "N": 13,
+        "count": 420,
+        "median_ms": 16.120531,
+        "min_ms": 13.581214,
+        "max_ms": 20.943396
+      },
+      {
+        "N": 14,
+        "count": 129,
+        "median_ms": 16.624971,
+        "min_ms": 13.034354,
+        "max_ms": 19.131186
+      },
+      {
+        "N": 15,
+        "count": 24,
+        "median_ms": 17.240102999999998,
+        "min_ms": 14.476979,
+        "max_ms": 19.311616
+      },
+      {
+        "N": 16,
+        "count": 8,
+        "median_ms": 18.045724,
+        "min_ms": 16.499335,
+        "max_ms": 20.308742
+      },
+      {
+        "N": 17,
+        "count": 2,
+        "median_ms": 16.574856,
+        "min_ms": 15.884908,
+        "max_ms": 17.264804
+      },
+      {
+        "N": 19,
+        "count": 201,
+        "median_ms": 17.208017,
+        "min_ms": 12.863664,
+        "max_ms": 30.449651
+      },
+      {
+        "N": 20,
+        "count": 233,
+        "median_ms": 17.375382,
+        "min_ms": 13.823069,
+        "max_ms": 19.902757
+      },
+      {
+        "N": 27,
+        "count": 238,
+        "median_ms": 18.1037025,
+        "min_ms": 13.666594,
+        "max_ms": 20.731327
+      },
+      {
+        "N": 29,
+        "count": 31,
+        "median_ms": 18.007301,
+        "min_ms": 15.127714,
+        "max_ms": 21.596114
+      }
+    ],
+    "fit_bins": 11,
+    "intercept_ms": 13.853723675097275,
+    "marginal_ms": 0.16167588139244024,
+    "observed_RTT_ms": 1.0895000000000001,
+    "r_squared": 0.8111279079210316,
+    "cycle_ms_at_N32": 19.027351879655363,
+    "service_rate_at_N32": 1681.7894682557164,
+    "service_rate_N32_less_two_RTT": 1899.2955648463446,
+    "service_rate_N32_less_two_RTT_less_2ms_sync": 2155.12134002193,
+    "method": "Unweighted OLS of each N median over all measured lightweight-probe batches; bins with >=15 samples; no latency outliers dropped. Conditional mean-service forecasts, not open-loop p99/SLO predictions. RTT is the median of that cell before/after prepared-query p50; physical durability unchanged. Last scenario requires 2ms lower actual flush latency, not disabling fsync."
+  },
+  {
+    "cell": "g6-w5mix-b",
+    "observed_measured_batches": 1941,
+    "N_min": 2,
+    "N_max": 30,
+    "points": [
+      {
+        "N": 2,
+        "count": 246,
+        "median_ms": 13.533498,
+        "min_ms": 11.245608,
+        "max_ms": 18.519495
+      },
+      {
+        "N": 4,
+        "count": 29,
+        "median_ms": 14.805827,
+        "min_ms": 12.662786,
+        "max_ms": 17.689513
+      },
+      {
+        "N": 6,
+        "count": 23,
+        "median_ms": 15.38138,
+        "min_ms": 11.569187,
+        "max_ms": 18.023411
+      },
+      {
+        "N": 9,
+        "count": 1,
+        "median_ms": 13.468561,
+        "min_ms": 13.468561,
+        "max_ms": 13.468561
+      },
+      {
+        "N": 10,
+        "count": 3,
+        "median_ms": 13.555305,
+        "min_ms": 12.651244,
+        "max_ms": 14.143231
+      },
+      {
+        "N": 11,
+        "count": 125,
+        "median_ms": 14.029677,
+        "min_ms": 12.731284,
+        "max_ms": 16.280792
+      },
+      {
+        "N": 12,
+        "count": 475,
+        "median_ms": 15.106693,
+        "min_ms": 12.247604,
+        "max_ms": 23.082159
+      },
+      {
+        "N": 13,
+        "count": 104,
+        "median_ms": 15.0451875,
+        "min_ms": 13.543652,
+        "max_ms": 21.342667
+      },
+      {
+        "N": 14,
+        "count": 226,
+        "median_ms": 16.404851,
+        "min_ms": 12.902156,
+        "max_ms": 20.035757
+      },
+      {
+        "N": 15,
+        "count": 2,
+        "median_ms": 16.3552575,
+        "min_ms": 15.366171,
+        "max_ms": 17.344344
+      },
+      {
+        "N": 16,
+        "count": 1,
+        "median_ms": 14.896628,
+        "min_ms": 14.896628,
+        "max_ms": 14.896628
+      },
+      {
+        "N": 17,
+        "count": 1,
+        "median_ms": 15.448166,
+        "min_ms": 15.448166,
+        "max_ms": 15.448166
+      },
+      {
+        "N": 18,
+        "count": 206,
+        "median_ms": 17.100805,
+        "min_ms": 13.041036,
+        "max_ms": 26.711648
+      },
+      {
+        "N": 20,
+        "count": 200,
+        "median_ms": 17.552825499999997,
+        "min_ms": 13.36738,
+        "max_ms": 21.9137
+      },
+      {
+        "N": 26,
+        "count": 24,
+        "median_ms": 18.085012499999998,
+        "min_ms": 15.49812,
+        "max_ms": 30.151029
+      },
+      {
+        "N": 28,
+        "count": 29,
+        "median_ms": 18.668274,
+        "min_ms": 15.993832,
+        "max_ms": 21.436213
+      },
+      {
+        "N": 30,
+        "count": 246,
+        "median_ms": 18.0848315,
+        "min_ms": 13.703904,
+        "max_ms": 23.235598
+      }
+    ],
+    "fit_bins": 12,
+    "intercept_ms": 13.528323953619115,
+    "marginal_ms": 0.17097268780744904,
+    "observed_RTT_ms": 1.0939999999999999,
+    "r_squared": 0.8450744846058953,
+    "cycle_ms_at_N32": 18.999449963457483,
+    "service_rate_at_N32": 1684.259284429132,
+    "service_rate_N32_less_two_RTT": 1903.4646071312936,
+    "service_rate_N32_less_two_RTT_less_2ms_sync": 2160.4907067808867,
+    "method": "Unweighted OLS of each N median over all measured lightweight-probe batches; bins with >=15 samples; no latency outliers dropped. Conditional mean-service forecasts, not open-loop p99/SLO predictions. RTT is the median of that cell before/after prepared-query p50; physical durability unchanged. Last scenario requires 2ms lower actual flush latency, not disabling fsync."
+  }
+]

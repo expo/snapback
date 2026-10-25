@@ -1,0 +1,10 @@
+{
+  "time": 1792902971.2115984,
+  "private_roots_removed": [
+    "/tmp/s1c-u6grh59z",
+    "/tmp/s1c-xo9mwflq"
+  ],
+  "known_secret_scan_before_private_cleanup": true,
+  "backup_removed": true,
+  "live_owned": []
+}

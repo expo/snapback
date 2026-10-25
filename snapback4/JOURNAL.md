@@ -107455,3 +107455,31 @@ Raw data stay outside Git; the archive embeds the original control archive.
 SHA-256: `f5e46efdd1a8a9de67eac775e324c5300cb9aadd41f79345d67c44a5bce166b0`. Known-secret scans and private credential
 cleanup precede the local report commit. No push, stash, Git configuration
 change, paid cloud, publication or unowned signal occurs.
+
+
+## 2026-10-25 — S1-WD: diagnose the one-host losses before fixes
+
+[The diagnosis](experiments/scale-controls/results-20261025-s1-diagnosis/README.md)
+retains 120 native fixed-rung repetitions, 90 observer/archived-release
+repetitions, 42 trivial-server generator calibrations and four native cold
+reader controls. No product source changes. Native G6 qualifies W4 A at
+1,131/s, W1 B at 8,000/s and W2 A at 11,313/s. First-repetition counter
+mismatches leave the tested B write cells without a complete passing cohort;
+they are retained, not repaired by later passing repetitions.
+
+All 13,285 measured write-probe batches are eligible; the serial five/six PG
+flights, partial fill near N=16 and roughly 2.6 ms WAL sync explain the write
+shape. A narrow reader pool grows under global locks: unchanged native cold
+bursts take 961–1,532 ms versus about 10–11 ms warm; return-lock traces reach
+1.44 s. The archived c985 executable also passes both decisive 8,000/s reads,
+so historical recovery does not require FF2. Historical CPU contention is
+observed; its exact original trigger remains uncertain.
+
+The unchanged generator passes 32,000/s W1 and 16,000/s W2 against trivial
+responses on core 5 and its SMT sibling. Native W1 instead approaches the
+app/proxy CPU budget; default G5 W2 approaches its PG CPU budget. Conditional
+fix forecasts preserve the limits and durability and do not claim a measured
+control win. Request instrumentation distorts read throughput and cache lock
+timing; native cohorts and count-only cache observations remain authoritative.
+Raw traces stay outside Git. The linked report carries audit, archive and
+cleanup receipts; no fetch, push or publication occurs.

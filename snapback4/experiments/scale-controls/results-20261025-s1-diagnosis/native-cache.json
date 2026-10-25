@@ -1,0 +1,754 @@
+[
+  {
+    "cell": "g5-w1-b",
+    "rate": 4000,
+    "repeats": 3,
+    "hit_fraction": {
+      "median": 0.0,
+      "min": 0.0,
+      "max": 0.0
+    },
+    "hits": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "misses": {
+      "median": 78070,
+      "min": 77070,
+      "max": 78072
+    },
+    "evictions": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "gate_waits": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "gate_closed_ms": {
+      "median": 0.0,
+      "min": 0.0,
+      "max": 0.0
+    },
+    "max_gate_stall_ms": 0.0,
+    "entries": [
+      0,
+      1
+    ],
+    "bytes": [
+      33689600,
+      33699886
+    ],
+    "any_revocation": false,
+    "any_uncertainty": false,
+    "scope": "~19.6s inner measured window, sampled every250ms"
+  },
+  {
+    "cell": "g5-w1-b",
+    "rate": 5656,
+    "repeats": 3,
+    "hit_fraction": {
+      "median": 0.0,
+      "min": 0.0,
+      "max": 0.0
+    },
+    "hits": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "misses": {
+      "median": 110446,
+      "min": 109010,
+      "max": 110474
+    },
+    "evictions": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "gate_waits": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "gate_closed_ms": {
+      "median": 0.0,
+      "min": 0.0,
+      "max": 0.0
+    },
+    "max_gate_stall_ms": 0.0,
+    "entries": [
+      0,
+      0
+    ],
+    "bytes": [
+      33689600,
+      33689600
+    ],
+    "any_revocation": false,
+    "any_uncertainty": false,
+    "scope": "~19.6s inner measured window, sampled every250ms"
+  },
+  {
+    "cell": "g5-w1-b",
+    "rate": 8000,
+    "repeats": 3,
+    "hit_fraction": {
+      "median": 0.0,
+      "min": 0.0,
+      "max": 0.0
+    },
+    "hits": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "misses": {
+      "median": 154476,
+      "min": 154368,
+      "max": 154615
+    },
+    "evictions": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "gate_waits": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "gate_closed_ms": {
+      "median": 0.0,
+      "min": 0.0,
+      "max": 0.0
+    },
+    "max_gate_stall_ms": 0.0,
+    "entries": [
+      0,
+      0
+    ],
+    "bytes": [
+      33689600,
+      33689600
+    ],
+    "any_revocation": false,
+    "any_uncertainty": false,
+    "scope": "~19.6s inner measured window, sampled every250ms"
+  },
+  {
+    "cell": "g5-w1-b",
+    "rate": 11313,
+    "repeats": 3,
+    "hit_fraction": {
+      "median": 0.0,
+      "min": 0.0,
+      "max": 0.0
+    },
+    "hits": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "misses": {
+      "median": 185861,
+      "min": 185860,
+      "max": 186560
+    },
+    "evictions": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "gate_waits": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "gate_closed_ms": {
+      "median": 0.0,
+      "min": 0.0,
+      "max": 0.0
+    },
+    "max_gate_stall_ms": 0.0,
+    "entries": [
+      0,
+      0
+    ],
+    "bytes": [
+      33689600,
+      33689600
+    ],
+    "any_revocation": false,
+    "any_uncertainty": false,
+    "scope": "~19.6s inner measured window, sampled every250ms"
+  },
+  {
+    "cell": "g5-w2-a",
+    "rate": 100,
+    "repeats": 3,
+    "hit_fraction": {
+      "median": 0.0,
+      "min": 0.0,
+      "max": 0.0
+    },
+    "hits": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "misses": {
+      "median": 1928,
+      "min": 1928,
+      "max": 1930
+    },
+    "evictions": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "gate_waits": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "gate_closed_ms": {
+      "median": 0.0,
+      "min": 0.0,
+      "max": 0.0
+    },
+    "max_gate_stall_ms": 0.0,
+    "entries": [
+      1,
+      2950
+    ],
+    "bytes": [
+      33744381,
+      195307383
+    ],
+    "any_revocation": false,
+    "any_uncertainty": false,
+    "scope": "~19.6s inner measured window, sampled every250ms"
+  },
+  {
+    "cell": "g5-w2-a",
+    "rate": 5656,
+    "repeats": 3,
+    "hit_fraction": {
+      "median": 0.9327884491900122,
+      "min": 0.9324476081798257,
+      "max": 0.9336898984431621
+    },
+    "hits": {
+      "median": 101775,
+      "min": 101687,
+      "max": 102959
+    },
+    "misses": {
+      "median": 7327,
+      "min": 7228,
+      "max": 7459
+    },
+    "evictions": {
+      "median": 2977,
+      "min": 2870,
+      "max": 3046
+    },
+    "gate_waits": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "gate_closed_ms": {
+      "median": 0.0,
+      "min": 0.0,
+      "max": 0.0
+    },
+    "max_gate_stall_ms": 0.0,
+    "entries": [
+      7850,
+      7926
+    ],
+    "bytes": [
+      463757481,
+      469759689
+    ],
+    "any_revocation": false,
+    "any_uncertainty": false,
+    "scope": "~19.6s inner measured window, sampled every250ms"
+  },
+  {
+    "cell": "g5-w2-a",
+    "rate": 8000,
+    "repeats": 3,
+    "hit_fraction": {
+      "median": 0.9271711324395502,
+      "min": 0.9259195358229174,
+      "max": 0.9282839923674218
+    },
+    "hits": {
+      "median": 147405,
+      "min": 144899,
+      "max": 147512
+    },
+    "misses": {
+      "median": 11587,
+      "min": 11388,
+      "max": 11593
+    },
+    "evictions": {
+      "median": 2881,
+      "min": 2877,
+      "max": 2978
+    },
+    "gate_waits": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "gate_closed_ms": {
+      "median": 0.0,
+      "min": 0.0,
+      "max": 0.0
+    },
+    "max_gate_stall_ms": 0.0,
+    "entries": [
+      7918,
+      7951
+    ],
+    "bytes": [
+      467866419,
+      469760337
+    ],
+    "any_revocation": false,
+    "any_uncertainty": false,
+    "scope": "~19.6s inner measured window, sampled every250ms"
+  },
+  {
+    "cell": "g5-w2-a",
+    "rate": 11313,
+    "repeats": 3,
+    "hit_fraction": {
+      "median": 0.9279756175810073,
+      "min": 0.9261162600128316,
+      "max": 0.9283867897836878
+    },
+    "hits": {
+      "median": 144625,
+      "min": 144379,
+      "max": 145792
+    },
+    "misses": {
+      "median": 11225,
+      "min": 11137,
+      "max": 11631
+    },
+    "evictions": {
+      "median": 2901,
+      "min": 2884,
+      "max": 2988
+    },
+    "gate_waits": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "gate_closed_ms": {
+      "median": 0.0,
+      "min": 0.0,
+      "max": 0.0
+    },
+    "max_gate_stall_ms": 0.0,
+    "entries": [
+      7918,
+      7949
+    ],
+    "bytes": [
+      467482844,
+      469744444
+    ],
+    "any_revocation": false,
+    "any_uncertainty": false,
+    "scope": "~19.6s inner measured window, sampled every250ms"
+  },
+  {
+    "cell": "g6-w1-b",
+    "rate": 4000,
+    "repeats": 3,
+    "hit_fraction": {
+      "median": 0.0,
+      "min": 0.0,
+      "max": 0.0
+    },
+    "hits": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "misses": {
+      "median": 78074,
+      "min": 77105,
+      "max": 78110
+    },
+    "evictions": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "gate_waits": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "gate_closed_ms": {
+      "median": 0.0,
+      "min": 0.0,
+      "max": 0.0
+    },
+    "max_gate_stall_ms": 0.0,
+    "entries": [
+      0,
+      1
+    ],
+    "bytes": [
+      33689600,
+      33700174
+    ],
+    "any_revocation": false,
+    "any_uncertainty": false,
+    "scope": "~19.6s inner measured window, sampled every250ms"
+  },
+  {
+    "cell": "g6-w1-b",
+    "rate": 5656,
+    "repeats": 3,
+    "hit_fraction": {
+      "median": 0.0,
+      "min": 0.0,
+      "max": 0.0
+    },
+    "hits": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "misses": {
+      "median": 109013,
+      "min": 108990,
+      "max": 109017
+    },
+    "evictions": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "gate_waits": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "gate_closed_ms": {
+      "median": 0.0,
+      "min": 0.0,
+      "max": 0.0
+    },
+    "max_gate_stall_ms": 0.0,
+    "entries": [
+      0,
+      0
+    ],
+    "bytes": [
+      33689600,
+      33689600
+    ],
+    "any_revocation": false,
+    "any_uncertainty": false,
+    "scope": "~19.6s inner measured window, sampled every250ms"
+  },
+  {
+    "cell": "g6-w1-b",
+    "rate": 8000,
+    "repeats": 3,
+    "hit_fraction": {
+      "median": 0.0,
+      "min": 0.0,
+      "max": 0.0
+    },
+    "hits": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "misses": {
+      "median": 154500,
+      "min": 154407,
+      "max": 156772
+    },
+    "evictions": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "gate_waits": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "gate_closed_ms": {
+      "median": 0.0,
+      "min": 0.0,
+      "max": 0.0
+    },
+    "max_gate_stall_ms": 0.0,
+    "entries": [
+      0,
+      0
+    ],
+    "bytes": [
+      33689600,
+      33689600
+    ],
+    "any_revocation": false,
+    "any_uncertainty": false,
+    "scope": "~19.6s inner measured window, sampled every250ms"
+  },
+  {
+    "cell": "g6-w1-b",
+    "rate": 11313,
+    "repeats": 3,
+    "hit_fraction": {
+      "median": 0.0,
+      "min": 0.0,
+      "max": 0.0
+    },
+    "hits": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "misses": {
+      "median": 185971,
+      "min": 185511,
+      "max": 187640
+    },
+    "evictions": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "gate_waits": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "gate_closed_ms": {
+      "median": 0.0,
+      "min": 0.0,
+      "max": 0.0
+    },
+    "max_gate_stall_ms": 0.0,
+    "entries": [
+      0,
+      0
+    ],
+    "bytes": [
+      33689600,
+      33689600
+    ],
+    "any_revocation": false,
+    "any_uncertainty": false,
+    "scope": "~19.6s inner measured window, sampled every250ms"
+  },
+  {
+    "cell": "g6-w2-a",
+    "rate": 100,
+    "repeats": 3,
+    "hit_fraction": {
+      "median": 0.0,
+      "min": 0.0,
+      "max": 0.0
+    },
+    "hits": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "misses": {
+      "median": 1929,
+      "min": 1929,
+      "max": 1954
+    },
+    "evictions": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "gate_waits": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "gate_closed_ms": {
+      "median": 0.0,
+      "min": 0.0,
+      "max": 0.0
+    },
+    "max_gate_stall_ms": 0.0,
+    "entries": [
+      1,
+      2960
+    ],
+    "bytes": [
+      33744669,
+      196707721
+    ],
+    "any_revocation": false,
+    "any_uncertainty": false,
+    "scope": "~19.6s inner measured window, sampled every250ms"
+  },
+  {
+    "cell": "g6-w2-a",
+    "rate": 5656,
+    "repeats": 3,
+    "hit_fraction": {
+      "median": 0.9200810838080038,
+      "min": 0.9198612984010788,
+      "max": 0.9211279492166
+    },
+    "hits": {
+      "median": 100310,
+      "min": 100275,
+      "max": 100414
+    },
+    "misses": {
+      "median": 8713,
+      "min": 8598,
+      "max": 8736
+    },
+    "evictions": {
+      "median": 3512,
+      "min": 3506,
+      "max": 3529
+    },
+    "gate_waits": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "gate_closed_ms": {
+      "median": 0.0,
+      "min": 0.0,
+      "max": 0.0
+    },
+    "max_gate_stall_ms": 0.0,
+    "entries": [
+      7791,
+      7877
+    ],
+    "bytes": [
+      462768866,
+      469745523
+    ],
+    "any_revocation": false,
+    "any_uncertainty": false,
+    "scope": "~19.6s inner measured window, sampled every250ms"
+  },
+  {
+    "cell": "g6-w2-a",
+    "rate": 8000,
+    "repeats": 3,
+    "hit_fraction": {
+      "median": 0.9175016165483332,
+      "min": 0.9159949417982556,
+      "max": 0.9177994241095748
+    },
+    "hits": {
+      "median": 141521,
+      "min": 141251,
+      "max": 143311
+    },
+    "misses": {
+      "median": 12886,
+      "min": 12675,
+      "max": 12954
+    },
+    "evictions": {
+      "median": 4584,
+      "min": 4395,
+      "max": 4586
+    },
+    "gate_waits": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "gate_closed_ms": {
+      "median": 0.0,
+      "min": 0.0,
+      "max": 0.0
+    },
+    "max_gate_stall_ms": 0.0,
+    "entries": [
+      7722,
+      7879
+    ],
+    "bytes": [
+      458968867,
+      469752096
+    ],
+    "any_revocation": false,
+    "any_uncertainty": false,
+    "scope": "~19.6s inner measured window, sampled every250ms"
+  },
+  {
+    "cell": "g6-w2-a",
+    "rate": 11313,
+    "repeats": 3,
+    "hit_fraction": {
+      "median": 0.9188385340525281,
+      "min": 0.9182244597587312,
+      "max": 0.9194492444069614
+    },
+    "hits": {
+      "median": 200497,
+      "min": 200262,
+      "max": 200599
+    },
+    "misses": {
+      "median": 17710,
+      "min": 17574,
+      "max": 17835
+    },
+    "evictions": {
+      "median": 5284,
+      "min": 5180,
+      "max": 5296
+    },
+    "gate_waits": {
+      "median": 0,
+      "min": 0,
+      "max": 0
+    },
+    "gate_closed_ms": {
+      "median": 0.0,
+      "min": 0.0,
+      "max": 0.0
+    },
+    "max_gate_stall_ms": 0.0,
+    "entries": [
+      7745,
+      7871
+    ],
+    "bytes": [
+      461667371,
+      469752093
+    ],
+    "any_revocation": false,
+    "any_uncertainty": false,
+    "scope": "~19.6s inner measured window, sampled every250ms"
+  }
+]
