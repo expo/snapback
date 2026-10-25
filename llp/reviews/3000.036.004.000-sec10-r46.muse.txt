@@ -1,0 +1,31 @@
+muse: workspace root: /home/ccheever/projects/sb4-b26-sec10 (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=9eee9919-6117-4b65-aba1-a7d85c61b7ed]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-b26-sec10 (cwd default)
+muse: workspace trust: trusted source=run-flag
+NOT READY — [frozen commit 1917b6df](https://github.com/ccheever/snapback/commit/1917b6df614329ef995f6dcd3c5ebbb43cc72838) does not fully implement CURRENT §10 of the [structural write authority RFC](/home/ccheever/projects/sb4-b26-sec10/llp/3000.036.004.000-structural-write-authority.rfc.md).
+
+What is correct in this delta:
+
+- The new [stamps classifier](/home/ccheever/projects/sb4-b26-sec10/snapback4/crates/snapback4-lang/src/bind/security/derived/stamps.rs) correctly excludes all 16 Time edit/version combinations (`Updated`/`Changed`/`Edited`/`Modified` × `At`/`On`/`Time`/`Timestamp`, case/underscore normalized), while retaining `approvedAt`/`approvalAt` and Bool approval events.
+- [Executed receipts](/home/ccheever/projects/sb4-b26-sec10/snapback4/crates/snapback4-lang/src/bind/security/challenges/executed.rs), [derived inputs](/home/ccheever/projects/sb4-b26-sec10/snapback4/crates/snapback4-lang/src/bind/security/derived.rs), and the `N_APPROVAL_NOT_ENFORCED` gate in [lifecycle notes](/home/ccheever/projects/sb4-b26-sec10/snapback4/crates/snapback4-lang/src/bind/security/creation_advice/lifecycle.rs) now share that classifier. The [w21-019 corpus fixture](/home/ccheever/projects/sb4-b26-sec10/snapback4/crates/snapback4-lang/tests/security/sec10-controls/w21-019.q) shape is covered. Analyzer is `sec10-45`. No IR/schema/store change.
+
+Material concern 1 — workflow approval recognition still raw:
+
+- [workflow approval matching](/home/ccheever/projects/sb4-b26-sec10/snapback4/crates/snapback4-lang/src/bind/security/derived/workflow.rs) uses a bare `approv`/`authoriz` substring for `Member` and `approval_receipts`. A presence check such as `require d.authorizationRouteUpdatedAt != null` is still classified as an approval receipt.
+- Per §10 a presence/timing check must not turn a route-edit clock into approval. A status `Update` guarded only by that clock still mints a `$derived/sibling-approval` candidate (status-literal arm passes, `resource_local` path taken). That is a spurious candidate and a potential false FIX at replay, outside the tested `approve`-without-status shape.
+- Repair: make the `Member` branch type-aware via `stamps::named` (look up the column type in schema). Keep the raw match only for table names such as `approvals`. Filter or reclassify edit-clock members at candidate emission.
+
+Material concern 2 — replacement-validation carve-out still raw:
+
+- [approval check collection and atomic-consumption skip](/home/ccheever/projects/sb4-b26-sec10/snapback4/crates/snapback4-lang/src/bind/security/derived/approval_checks.rs) use raw substring. Collection mints dead checks for edit-clock stamps. Worse, clearing an edit clock (`Int` → `Null`) hits the approval-consumption `unknown` path instead of ordinary-data validation.
+- Per §10 ordinary metadata remains part of the complete prerequisite and clearing it cannot consume a capability. Withholding `Some(false)` here risks a missed refusal.
+- Repair: collect checks only for `named_approval` columns, and gate the consumption carve-out on `named_approval` (schema type + audit exclusion), not substring.
+
+Material concern 3 — factual-decision accompaniment still raw:
+
+- [derived decision fact](/home/ccheever/projects/sb4-b26-sec10/snapback4/crates/snapback4-lang/src/bind/security/creation_advice/lifecycle.rs) counts any co-written `approv`/`authoriz` field with fresh recording as support, including a `...UpdatedAt: now` clock. That can mark a Bool approval atomic and suppress `N_APPROVAL_NOT_ENFORCED`.
+- Repair: require `named_approval` for the co-written field.
+
+Pending full600/matrix qualification is not an objection. Technical readiness here is not author acceptance.
