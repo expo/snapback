@@ -532,7 +532,7 @@ fn campaign(s:&str)->Campaign{let b=security::derived::augmented(&sources(s),&bo
 #[test]fn impossible_effects_neither_consume_approval_nor_create_sibling_contracts(){
     let source="table docs:\n  approved: bool default false\n  stage: enum('draft','done') default 'draft'\n  read <- allow\n  update <- allow\n  online only\ntable outputs:\n  doc: docs\n  read <- allow\n  insert <- allow\n  online only\nmutation approve(doc: docs):\n  update docs[doc] {approved:true}\nmutation guarded(doc: docs,flag: bool):\n  d = docs[doc] ! else MISSING\nPREFIX  require d.approved else APPROVAL\n  return update docs[doc] {stage:'done'} if CONDITION\nmutation bypass(doc: docs):\n  return update docs[doc] {stage:'done'}\n";
     for (prefix,condition,possible) in [("","false",false),("  require not flag else FLAG\n","flag",false),("","flag",true)]{
-        let source=source.replace("PREFIX",prefix).replace("CONDITION",condition);let b=bound(&source);let cs=security::derived::invariants(&sources(&source),&b);assert_eq!(cs.iter().any(|i|i.site.file.contains("sibling-approval")),possible,"{condition}");assert_eq!(!notes(&source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"),possible,"{condition}");
+        let source=source.replace("PREFIX",prefix).replace("CONDITION",condition);let b=bound(&source);let cs=security::derived::invariants(&sources(&source),&b);assert_eq!(cs.iter().any(|i|i.site.file.contains("sibling-approval")),possible&&condition!="flag","{condition}");assert_eq!(!notes(&source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"),possible,"{condition}");
     }
     for domain in ["[]","docs where false first 10 by .id"]{let source=source.replace("PREFIX","").replace("  require d.approved else APPROVAL\n  return update docs[doc] {stage:'done'} if CONDITION",&format!("  for row in {domain}:\n    require d.approved else APPROVAL\n    update docs[doc] {{stage:'done'}}\n  return null"));let cs=security::derived::invariants(&sources(&source),&bound(&source));assert!(!cs.iter().any(|i|i.site.file.contains("sibling-approval")),"{domain}");assert!(notes(&source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"));}
 }
@@ -547,7 +547,7 @@ fn campaign(s:&str)->Campaign{let b=security::derived::augmented(&sources(s),&bo
 #[test]fn skipped_expression_effects_cannot_consume_approval(){
     let source="table docs:\n  approved: bool default false\n  stage: enum('draft','done') default 'draft'\n  read <- allow\n  update <- allow\n  online only\nmutation approve(doc: docs):\n  update docs[doc] {approved:true}\nfn guarded(doc: docs):\n  d = docs[doc] ! else MISSING\n  require d.approved else APPROVAL\n  update docs[doc] {stage:'done'}\n  return true\nmutation finish(doc: docs,flag: bool):\n  ignored = EXPR\n  return null\nmutation bypass(doc: docs):\n  update docs[doc] {stage:'done'}\n";
     for (expr,used) in [("guarded(doc) if false else false",false),("false and guarded(doc)",false),("true or guarded(doc)",false),("true ?? guarded(doc)",false),("guarded(doc) if flag else false",true),("flag and guarded(doc)",true),("flag or guarded(doc)",true),("null ?? guarded(doc)",true)]{
-        let source=source.replace("EXPR",expr);assert_eq!(!notes(&source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"),used,"{expr}");let cs=security::derived::invariants(&sources(&source),&bound(&source));assert_eq!(cs.iter().any(|i|i.site.file.contains("sibling-approval")),used,"{expr}");
+        let source=source.replace("EXPR",expr);assert_eq!(!notes(&source).iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"),used,"{expr}");let cs=security::derived::invariants(&sources(&source),&bound(&source));assert_eq!(cs.iter().any(|i|i.site.file.contains("sibling-approval")),used&&!expr.contains("flag"),"{expr}");
     }
 }
 #[test]fn opaque_write_applicability_withholds_approval_credit(){
@@ -573,4 +573,14 @@ fn campaign(s:&str)->Campaign{let b=security::derived::augmented(&sources(s),&bo
 #[test]fn equivalent_checked_birth_values_retain_edit_contracts(){
     let source="table docs:\n  consent: bool\n  approved: bool default true\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\nmutation create(consent: bool):\n  require consent else CONSENT\n  return insert docs {consent:VALUE}\nmutation edit(doc: docs):\n  update docs[doc] {consent:false}\n";
     for value in ["consent","consent and true","not not consent","consent if true else false"]{let source=source.replace("VALUE",value);assert!(security::derived::invariants(&sources(&source),&bound(&source)).iter().any(|i|i.table=="docs"&&i.column.as_deref()==Some("consent")&&i.target=="update"),"{value}");}
+}
+
+#[test]fn sibling_contracts_keep_resource_branch_scope_and_disclose_caller_scope(){
+    let source="table docs:\n  restricted: bool default false\n  approved: bool default false\n  stage: enum('draft','done') default 'draft'\n  read <- allow\n  update <- allow\n  online only\nmutation guarded(doc: docs):\n  d = docs[doc] ! else MISSING\n  if d.restricted:\n    require d.approved else APPROVAL\n    update docs[doc] {stage:'done'}\n  else:\n    update docs[doc] {stage:'done'}\nmutation bypass(doc: docs):\n  update docs[doc] {stage:'done'}\n";
+    let cs=security::derived::invariants(&sources(source),&bound(source));let contracts=cs.iter().filter(|i|i.site.file.contains("sibling-approval")).collect::<Vec<_>>();assert!(!contracts.is_empty());assert!(contracts.iter().all(|i|i.predicate.contains("restricted")),"{contracts:?}");
+    let caller=source.replace("guarded(doc: docs)","guarded(doc: docs,flag: bool)").replace("if d.restricted:","if flag:");let b=bound(&caller);assert!(!security::derived::invariants(&sources(&caller),&b).iter().any(|i|i.site.file.contains("sibling-approval")));assert!(security::source_inference_gaps(&sources(&caller),&b).iter().any(|gap|gap.contains("branch applicability cannot map")));
+}
+#[test]fn equivalent_co_written_inputs_keep_approval_dependencies(){
+    let source="table docs:\n  consent: bool\n  approved: bool default false\n  read <- allow\n  update <- allow\n  online only\nmutation approve(doc: docs):\n  d = docs[doc] ! else MISSING\n  require d.consent else CONSENT\n  update docs[doc] {consent:VALUE,approved:true}\nmutation edit(doc: docs):\n  update docs[doc] {consent:false}\n";
+    for value in ["d.consent","not not d.consent","d.consent and true","d.consent if true else false"]{let source=source.replace("VALUE",value);assert!(security::derived::invariants(&sources(&source),&bound(&source)).iter().any(|i|i.table=="docs"&&i.column.as_deref()==Some("consent")),"{value}");}
 }

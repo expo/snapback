@@ -482,7 +482,7 @@ check --ack-security ID --reason '<spec rationale>'.
 An approval required on one effect derives a candidate for sibling effects and
 reference-linked continuations. Approved Bool, Enum and Principal inputs are
 included in approve/edit replay. Parent/child stage and repeat-create candidates
-retain their inferred origin. Status prerequisites are checked immediately before entering the selected destination; the same update may consume its approval. Unrelated edits and same-status writes do not repeat that effect. Parent completion checks all matching child stages at commit, so a mutation may finish its children atomically; partial or unrelated child updates do not satisfy it. Only an actual replayed violation refuses production;
+retain their inferred origin. Resource branch conditions retain their scope as conditional prerequisites. A caller-only condition that cannot map to that resource remains uncovered; store the condition on the resource or declare explicit operation intent and rerun `check` then `test`. Status prerequisites are checked immediately before entering the selected destination; the same update may consume its approval. Unrelated edits and same-status writes do not repeat that effect. Parent completion checks all matching child stages at commit, so a mutation may finish its children atomically; partial or unrelated child updates do not satisfy it. Only an actual replayed violation refuses production;
 an intentional alternative path takes one individual candidate decision. Run
 `test`, repair the named effect or record its exact `check --ack-security` ID.
 

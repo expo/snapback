@@ -68,6 +68,22 @@ pub(super) fn approval_receipts(e:&Expr)->Vec<Expr>{
 }
 fn contains_approval(e:&Expr)->bool{!approval_receipts(e).is_empty()}
 fn guards(p:&ast::ProgramDecl)->impl Iterator<Item=&Expr>{p.body.iter().filter_map(|s|if let Stmt::Require{condition,..}=s{Some(condition)}else{None})}
+// Branch/write applicability scopes exported prerequisites. Authored requires
+// remain requirements; caller premises that cannot map onto a row stay uncovered.
+fn premises(p:&ast::ProgramDecl)->Vec<&Expr>{
+    fn parts<'a>(value:&'a Expr,out:&mut Vec<&'a Expr>){if let Expr::Binary{op,left,right,..}=value&&op=="and"{parts(left,out);parts(right,out);}else if !contains_approval(value){out.push(value);}}
+    let mut out=Vec::new();for stmt in &p.body{if let Stmt::Require{condition,code,..}=stmt&&code=="$advice"{parts(condition,&mut out);}}out
+}
+fn scoped_contract(condition:&Expr,context:&ast::ProgramDecl,schema:&Schema,root:&str,args:&BTreeMap<String,Expr>)->Option<Expr>{
+    let mut contract=normalize(condition,schema,root,args)?;
+    for premise in premises(context){let premise=normalize(premise,schema,root,args)?;contract=binary("or",Expr::Unary{op:"not".into(),value:Box::new(premise),site:condition.site().clone()},contract);}
+    Some(super::super::creation_advice::simplify_boolean(&contract))
+}
+pub(super) fn source_gaps(docs:&[ast::Document],catalog:&Catalog,bound:&Bound)->BTreeSet<String>{
+    let mut gaps=BTreeSet::new();for p in docs.iter().flat_map(|doc|&doc.programs).filter(|p|p.kind==ast::ProgramKind::Mutation){for (write,context) in authority_walk::writes(catalog,p){let Expr::Write{table,..}=&write else{continue;};let scopes=std::iter::once((table.clone(),BTreeMap::new())).chain(p.args.iter().filter_map(|arg|if let TypeKind::Ref{table}=&arg.type_.kind{Some((table.clone(),BTreeMap::from([(arg.name.clone(),member(focal(),"id"))])))}else{None}));
+        for (root,args) in scopes{if guards(&context).filter(|condition|contains_approval(condition)).any(|condition|normalize(condition,&bound.schema,&root,&args).is_some()&&scoped_contract(condition,&context,&bound.schema,&root,&args).is_none()){gaps.insert(format!("source approval inference not covered: branch applicability cannot map to the governed resource for {} at {}; use a stored resource condition or declare explicit operation intent and rerun check -> test; no unconditional sibling contract is inferred",p.name,write.site()));}}
+    }}gaps
+}
 fn ref_table<'a>(e:&Expr,schema:&'a Schema,root:&'a str)->Option<&'a str>{match e{
     Expr::Focal{..}=>Some(root),
     Expr::Member{base,name,..}=>{let t=ref_table(base,schema,root)?;match schema.tables.get(t)?.columns.get(name)?.required(){C::Ref{table}=>Some(table),_=>None}},_=>None,
@@ -143,7 +159,7 @@ pub(super) fn invariants(docs:&[ast::Document],catalog:&Catalog,bound:&Bound,out
         // resource argument. They govern this exact effect, not every child
         // later linked to a resource another actor created.
         for condition in guards(context).filter(|c|contains_approval(c)){
-            let Some(mut contract)=normalize(condition,&bound.schema,table,&BTreeMap::new())else{continue;};if resource_local(&contract){continue;}
+            let Some(mut contract)=scoped_contract(condition,context,&bound.schema,table,&BTreeMap::new())else{continue;};if resource_local(&contract){continue;}
             let (column,target)=if *op==WriteOp::Update{
                 let Some(field)=state_field(bound,table,fields)else{continue;};let Some(Expr::Literal{..})=&field.value else{continue;};
                 contract=binary("or",binary("!=",member(focal(),&field.name),field.value.clone().unwrap()),contract);(Some(field.name.as_str()),"update")
@@ -164,7 +180,7 @@ pub(super) fn invariants(docs:&[ast::Document],catalog:&Catalog,bound:&Bound,out
                 }
             }
             for condition in guards(context).filter(|c|contains_approval(c)) {
-                let Some(contract)=normalize(condition,&bound.schema,root,&args)else{continue;};
+                let Some(contract)=scoped_contract(condition,context,&bound.schema,root,&args)else{continue;};
                 // Global/caller approval contracts are emitted once above.
                 if !resource_local(&contract){continue;}
                 if matches!(op,WriteOp::Insert|WriteOp::Upsert)&&root==table{

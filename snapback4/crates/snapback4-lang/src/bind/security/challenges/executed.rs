@@ -570,3 +570,13 @@ fn lifecycle_observations(source:String,operation:&str,args:BTreeMap<String,Valu
 }
 
 }
+
+#[cfg(test)]mod sec10_conditional_contracts{use super::*;
+#[test]fn sibling_scope_keeps_the_unrestricted_branch_and_copied_inputs(){
+    let source="table docs:\n  restricted: bool default false\n  consent: bool\n  approved: bool default false\n  stage: enum('draft','done') default 'draft'\n  read <- allow\n  update <- allow\n  online only\nmutation approve(doc: docs):\n  d = docs[doc] ! else MISSING\n  require d.consent else CONSENT\n  update docs[doc] {consent:not not d.consent,approved:true}\nmutation guarded(doc: docs):\n  d = docs[doc] ! else MISSING\n  if d.restricted:\n    require d.approved else APPROVAL\n    update docs[doc] {stage:'done'}\n  else:\n    update docs[doc] {stage:'done'}\nmutation bypass(doc: docs,change: bool):\n  update docs[doc] {approved:false}\n  if change:\n    update docs[doc] {consent:false}\n  update docs[doc] {stage:'done'}\n";
+    let sources=vec![("schema.q".into(),source.into())];let b=super::super::super::derived::augmented(&sources,&crate::compile(&sources));assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);assert!(b.security_approval_inputs[&("docs".into(),"approved".into())].contains("consent"));
+    for (restricted,approved,change,expected) in [(false,false,false,true),(true,false,false,false),(true,true,false,true),(true,true,true,false)]{
+        let mut engine=Engine::memory(b.schema.clone(),b.programs.iter().map(|p|p.program.clone())).unwrap();let row=snapback4_core::wire::row_from_json(&b.schema.tables["docs"],&serde_json::json!({"id":"d","restricted":restricted,"consent":true,"approved":approved,"stage":"draft"})).unwrap();engine.seed_at([("docs".into(),row)],NOW).unwrap();let p=&b.programs.iter().find(|p|p.program.name=="bypass").unwrap().program;let trace=trace(&b,p,&engine);let result=engine.mutate("bypass",None,Context::new("dev:a",BTreeMap::from([("doc".into(),Value::Id("d".into())),("change".into(),Value::Bool(change))])).at(NOW).with_fixture_trace(trace.clone())).unwrap();assert!(matches!(result.state,snapback4_core::WriteState::Sent{..}));let observations=trace.take();assert!(observations.iter().any(|o|o.site.contains("sibling-approval")&&o.allowed==Some(expected)),"{restricted}/{approved}/{change}: {observations:?}");
+    }
+}
+}

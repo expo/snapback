@@ -110,6 +110,7 @@ fn checked_arguments(context:&ast::ProgramDecl,p:&ast::ProgramDecl)->BTreeSet<St
     let mut checked=BTreeSet::new();for statement in &context.body{if let ast::Stmt::Require{condition,..}=statement{let mut condition=condition.clone();omit_preconditions(&mut condition,false);condition=super::creation_advice::simplify_boolean(&condition);super::super::intent_walk::expression(&mut condition,&mut |e|if let ast::Expr::Name{name,..}=e&&p.args.iter().any(|arg|arg.name==*name){checked.insert(name.clone());});}}checked
 }
 pub(super) fn opaque_payloads(fields:&[ast::ObjectField],context:&ast::ProgramDecl,p:&ast::ProgramDecl)->Vec<String>{let checked=checked_arguments(context,p);fields.iter().filter(|field|!matches!(field.name.as_str(),"status"|"stage"|"state"|"phase")&&field.value.as_ref().is_some_and(|value|stored_argument(value,p).is_none()&&!payload_arguments(value,p).is_disjoint(&checked))).map(|field|field.name.clone()).collect()}
+pub(super) fn workflow_gaps(sources:&[(String,String)],bound:&Bound)->BTreeSet<String>{let docs=sources.iter().map(|(file,text)|crate::parse_document(file,text).0).collect::<Vec<_>>();let catalog=Catalog::build(docs.clone(),&mut Vec::new());workflow::source_gaps(&docs,&catalog,bound)}
 pub fn invariants(sources:&[(String,String)],bound:&Bound)->Vec<Invariant>{collect(sources,bound,&mut BTreeMap::new(),&mut BTreeMap::new(),&mut BTreeMap::new())}
 fn collect(sources:&[(String,String)],bound:&Bound,inputs:&mut BTreeMap<(String,String),BTreeSet<String>>,reissues:&mut BTreeMap<(String,String,String),BTreeSet<String>>,uncertain:&mut BTreeMap<(String,String,String),BTreeSet<String>>)->Vec<Invariant>{
     let docs=sources.iter().map(|(f,s)|crate::parse_document(f,s).0).collect::<Vec<_>>();
@@ -183,7 +184,7 @@ fn collect(sources:&[(String,String)],bound:&Bound,inputs:&mut BTreeMap<(String,
                 if !super::creation_advice::approval_recording(kind,approval.value.as_ref()){continue;}
                 // Keep the source dependency even when existing runtime freeze
                 // authority makes emitting another edit candidate redundant.
-                inputs.entry((table.clone(),approval.name.clone())).or_default().extend(inspected.iter().filter(|column|definition.columns.contains_key(*column)&&**column!=approval.name&&fields.iter().find(|field|&field.name==*column).is_none_or(|field|matches!(&field.value,Some(ast::Expr::Member{base,name,..}) if name==*column&&same_resource(base,table,match write{ast::Expr::Write{keys,..}=>keys,_=>unreachable!()},p)))).cloned());
+                inputs.entry((table.clone(),approval.name.clone())).or_default().extend(inspected.iter().filter(|column|definition.columns.contains_key(*column)&&**column!=approval.name&&fields.iter().find(|field|&field.name==*column).is_none_or(|field|field.value.as_ref().is_some_and(|value|{let value=super::creation_advice::simplify_boolean(value);matches!(&value,ast::Expr::Member{base,name,..} if name==*column&&same_resource(base,table,match write{ast::Expr::Write{keys,..}=>keys,_=>unreachable!()},p))}))).cloned());
                 origins.entry((table.clone(),approval.name.clone())).or_insert_with(||site.clone());
 
             }
