@@ -321,7 +321,7 @@ fn evidence_notes(bound:&Bound,writes:&[Write<'_>],out:&mut Vec<Diagnostic>){
         for (reference,kind) in &t.columns{let ColumnType::Ref{table:parent}=kind.required()else{continue;};
             let declared=required_child(bound,parent,child,reference);
             let media=assets.iter().filter(|c|required_media(bound,child,c)).cloned().collect::<Vec<_>>();if media.is_empty()&&!declared{continue;}
-            let created_together=writes.iter().any(|w|w.table==*child&&matches!(w.op,WriteOp::Insert|WriteOp::Upsert)&&writes.iter().any(|p|std::ptr::eq(p.p,w.p)&&p.table==*parent&&matches!(p.op,WriteOp::Insert|WriteOp::Upsert)&&w.fields.iter().find(|f|&f.name==reference).and_then(field_value).is_some_and(|e|matches!(e,Expr::Member{base,name,..} if name=="id"&&matches!(base.as_ref(),Expr::Write{table,site,..} if table==parent&&site==&p.site))))&&media.iter().any(|c|w.fields.iter().find(|f|&f.name==c).and_then(field_value).is_some_and(|e|w.p.args.iter().any(|a|!a.type_.optional&&uses(e,&a.name)))));
+            let created_together=writes.iter().any(|w|w.table==*child&&matches!(w.op,WriteOp::Insert|WriteOp::Upsert)&&writes.iter().any(|p|std::ptr::eq(p.p,w.p)&&p.table==*parent&&matches!(p.op,WriteOp::Insert|WriteOp::Upsert)&&w.fields.iter().find(|f|&f.name==reference).and_then(field_value).is_some_and(|e|matches!(e,Expr::Member{base,name,..} if name=="id"&&created_at(base,p))))&&media.iter().any(|c|w.fields.iter().find(|f|&f.name==c).and_then(field_value).is_some_and(|e|w.p.args.iter().any(|a|!a.type_.optional&&uses(e,&a.name)))));
             if !declared&&!created_together{continue;}
             let removing=writes.iter().filter(|w|w.table==*child&&(w.op==WriteOp::Delete||matches!(w.op,WriteOp::Update|WriteOp::Upsert)&&w.fields.iter().any(|f|{
                 if &f.name==reference{return !field_value(f).is_some_and(|e|matches!(e,Expr::Member{base,name,..} if name==reference&&same_target(base,w)));}
@@ -343,7 +343,7 @@ fn required_child(bound:&Bound,parent:&str,child:&str,reference:&str)->bool{
 // The obligation names a relationship and any literal discriminator, not every
 // attachment in the child table (e.g. required checkout vs optional return).
 fn mandatory_parent_for(bound:&Bound,w:&Write<'_>,writes:&[Write<'_>],arg:&str)->bool{
-    fn linked(w:&Write<'_>,reference:&str,parent:&Write<'_>)->bool{w.fields.iter().find(|f|f.name==reference).and_then(field_value).is_some_and(|e|matches!(e,Expr::Member{base,name,..} if name=="id"&&matches!(base.as_ref(),Expr::Write{table,site,..} if table==&parent.table&&site==&parent.site)))}
+    fn linked(w:&Write<'_>,reference:&str,parent:&Write<'_>)->bool{w.fields.iter().find(|f|f.name==reference).and_then(field_value).is_some_and(|e|matches!(e,Expr::Member{base,name,..} if name=="id"&&created_at(base,parent)))}
     fn literal(e:&Expr,v:&snapback4_core::Value)->bool{match(e,v){
         (Expr::Literal{value:ast::Literal::Str(a),..},snapback4_core::Value::String(b))=>a==b,
         (Expr::Literal{value:ast::Literal::Bool(a),..},snapback4_core::Value::Bool(b))=>a==b,
@@ -385,8 +385,15 @@ fn asserted_argument(value:&Expr,arg:&str)->bool{
     match value{Expr::Assert{value,..}=>matches!(value.as_ref(),Expr::Name{name,..} if name==arg)||asserted_argument(value,arg),_=>false}
 }
 
+// Captured values retain a private evaluation marker, not a different birth site.
+fn created_at(value:&Expr,parent:&Write<'_>)->bool{
+    let Expr::Write{table,site,..}=value else{return false;};
+    let mut site=site.clone();
+    if let Some(file)=site.file.strip_prefix("$advice/evaluated/"){site.file=file.to_string();}
+    table==&parent.table&&site==parent.site
+}
 fn links_created_parent(w:&Write<'_>,writes:&[&Write<'_>])->bool{
-    writes.iter().any(|p|w.fields.iter().any(|f|matches!(field_value(f),Some(Expr::Member{base,name,..}) if name=="id"&&matches!(base.as_ref(),Expr::Write{table,site,..} if table==&p.table&&site==&p.site))))
+    writes.iter().any(|p|w.fields.iter().any(|f|matches!(field_value(f),Some(Expr::Member{base,name,..}) if name=="id"&&created_at(base,p))))
 }
 
 fn branch_nonnull(p:&ast::ProgramDecl,arg:&str)->bool{
