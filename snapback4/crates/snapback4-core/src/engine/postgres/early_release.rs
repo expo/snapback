@@ -49,6 +49,8 @@ pub(crate) struct Durability {
     state: Mutex<State>,
     changed: Condvar,
     grant: Option<Weak<Grant>>,
+    #[cfg(test)]
+    recovery_hook: Mutex<Option<Arc<dyn Fn() + Send + Sync>>>,
 }
 impl Durability {
     pub(super) fn new(grant: Option<&Arc<Grant>>) -> Arc<Self> {
@@ -61,7 +63,13 @@ impl Durability {
             }),
             changed: Condvar::new(),
             grant: grant.map(Arc::downgrade),
+            #[cfg(test)]
+            recovery_hook: Mutex::new(None),
         })
+    }
+    #[cfg(test)]
+    pub(crate) fn set_recovery_hook(&self, hook: Arc<dyn Fn() + Send + Sync>) {
+        *self.recovery_hook.lock().unwrap() = Some(hook);
     }
     pub(crate) fn epoch(&self) -> u64 {
         self.state.lock().unwrap_or_else(|p| p.into_inner()).epoch
@@ -261,6 +269,11 @@ impl Store {
             return Ok(());
         };
         let epoch = gate.epoch();
+        #[cfg(test)]
+        {
+            let hook = gate.recovery_hook.lock().unwrap().clone();
+            if let Some(hook) = hook { hook(); }
+        }
         let result = (|| {
             let tx = self.recovery_transaction()?;
             tx.query(
@@ -395,7 +408,7 @@ pub(super) fn commit_marker(
     let xid = xid.parse::<u64>().map_err(|_| retry())?;
     warning.store(false, Ordering::SeqCst);
     let sql = format!(
-        "SET LOCAL synchronous_commit=off; COMMIT; BEGIN; SET LOCAL synchronous_commit=on; UPDATE _durable SET n=n+1 WHERE token={token} AND slot={slot} RETURNING pg_catalog.pg_current_wal_insert_lsn()::text,pg_catalog.pg_postmaster_start_time()::text; COMMIT; SELECT pg_catalog.pg_current_wal_flush_lsn()::text,pg_catalog.pg_xact_status('{xid}'::xid8)"
+        "SET LOCAL synchronous_commit=off; COMMIT; BEGIN; SET LOCAL synchronous_commit=on; SET LOCAL statement_timeout=0; SET LOCAL lock_timeout=0; UPDATE _durable SET n=n+1 WHERE token={token} AND slot={slot} RETURNING pg_catalog.pg_current_wal_insert_lsn()::text,pg_catalog.pg_postmaster_start_time()::text; COMMIT; SELECT pg_catalog.pg_current_wal_flush_lsn()::text,pg_catalog.pg_xact_status('{xid}'::xid8)"
     );
     let result = client.simple_query(&sql);
     let warned = warning.swap(false, Ordering::SeqCst);
@@ -415,7 +428,7 @@ pub(super) fn commit_marker(
                 .iter()
                 .filter_map(|m| if let M::Row(r) = m { Some(r) } else { None })
                 .collect::<Vec<_>>();
-            if counts != [0, 0, 0, 0, 1, 0, 1]
+            if counts != [0, 0, 0, 0, 0, 0, 1, 0, 1]
                 || rows.len() != 2
                 || rows[1].get(1) != Some("committed")
             {

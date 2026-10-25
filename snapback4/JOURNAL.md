@@ -108619,3 +108619,28 @@ private cluster directories confirm stopped; the combined
 have no matches, including zombies. **PIDs left: none.** Monitored free disk
 stays above 62.96 GiB after the authorized
 own-target cleanup; the 25 GiB floor never fires.
+
+
+## 2026-10-25 — G7-E fix round 2: recovery liveness and certificate timeouts
+
+On pinned `f9a870b262`, a reader disconnect during the recovery SQL could
+supersede its sampled epoch and permanently pause the writer. Drained recovery
+failures now schedule another fenced recovery for the current epoch with a
+10 ms exponential backoff capped at 250 ms. Only a certified recovery clears
+uncertainty and resumes admission. The queue's independent lease-loss latch
+stops further attempts; failed ticket drainage and terminal fencing remain
+terminal. Program and solo work encountered while recovery is pending receive
+explicit unknown instead of a dropped reply channel.
+
+Marker and recovery certificate COMMIT messages explicitly set synchronous
+commit and locally disable statement/lock timeouts. These settings share the
+existing message, preserve the marker's exact command-count certificate, and
+leave the session's five-second settings intact after the transaction.
+
+Deterministic witnesses supersede three consecutive recovery attempts from a
+reader thread, observe restored write admission after the follow-up certificate,
+and exercise queued replies plus lease-loss retry cessation. Real marker lock
+and recovery COMMIT waits exceed five seconds. The before tree fails the
+concurrent-break, marker-lock and recovery-COMMIT witnesses; the additional
+queue/settings witnesses and final requested checks are recorded in
+[the G7-E report](reports/20261025-g7e-postgres/REPORT.md).

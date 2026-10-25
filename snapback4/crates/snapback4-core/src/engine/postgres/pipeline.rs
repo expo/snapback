@@ -439,7 +439,14 @@ impl Connection {
         }
     }
     pub(super) fn commit_synchronous(&mut self,warning:&Arc<std::sync::atomic::AtomicBool>)->Result<(),RuntimeError> {
-        self.commit_prepared(warning)
+        // Recovery is a certificate transaction: disable session timeouts in
+        // the same message as its uncancellable synchronous COMMIT.
+        let warning=warning.clone();
+        match self {
+            Self::Sync(c)=>super::ownership::commit_synchronous(c,&warning),
+            Self::Writer(c)=>c.call(move|c|super::ownership::commit_synchronous(c,&warning)),
+            _=>Err(RuntimeError::Store("reader cannot certify a synchronous write".into())),
+        }
     }
     pub(super) fn commit_synchronous_head(&mut self,warning:&Arc<std::sync::atomic::AtomicBool>)->Result<super::early_release::Snapshot,RuntimeError> {
         let warning=warning.clone();

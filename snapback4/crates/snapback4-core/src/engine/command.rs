@@ -141,9 +141,11 @@ impl Queue {
         let (sender, receiver) = mpsc::sync_channel::<Queued>(capacity);
         let batching = Arc::new(Mutex::new(BatchStats::new(policy)));
         let stats = batching.clone();
+        let admission = Arc::new(Mutex::new(Admission::default()));
+        let worker_admission = admission.clone();
         let worker = thread::Builder::new().name("snapback4-committer".into())
-            .spawn(move || batching::run(receiver, execute, stats, depth))?;
-        Ok(Self { sender:Some(sender), worker:Some(worker), admission:Arc::new(Mutex::new(Admission::default())), batching,
+            .spawn(move || batching::run(receiver, execute, stats, depth, worker_admission))?;
+        Ok(Self { sender:Some(sender), worker:Some(worker), admission, batching,
             #[cfg(feature="postgres")] lease:None })
     }
     /// Controlled N=1/4/16/32 witnesses use the same queue and transaction path.
@@ -190,6 +192,7 @@ impl Queue {
                 started: started.clone(),
             }
         };
+        let unknown = sent.clone();
         let work = Box::new(move |engine: &mut Engine| {
             // @ref LLP 3000.009.001.000#5.1 — loss is terminal for this writer; drain every queued acknowledgement without executing its body.
             // Command start and lease loss share one lock: running work keeps its real
@@ -204,7 +207,7 @@ impl Queue {
             // A lost submitter does not cancel an admitted write or its continuation.
             let _ = sent.send(Ok(result));
         });
-        Ok((Queued::Solo(work), Reply { receiver, started }))
+        Ok((Queued::Solo(work, Box::new(move || { let _ = unknown.send(Err(SubmitError::OutcomeUnknown)); })), Reply { receiver, started }))
     }
     pub fn submit_program<T: Send + 'static>(&self, command: ProgramCommand<T>) -> Result<Reply<T>, SubmitError> {
         self.check_admission()?;

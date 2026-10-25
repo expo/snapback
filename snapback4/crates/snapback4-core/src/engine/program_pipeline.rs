@@ -105,6 +105,9 @@ mod lane {
         placeholder: Option<AnyStore>,
         active: bool,
         pub paused: bool,
+        recovery_after: Option<std::time::Instant>,
+        recovery_delay: std::time::Duration,
+        recovery_allowed: Option<std::sync::Arc<dyn Fn() -> bool + Send + Sync>>,
         #[cfg(test)]
         pub hook: Option<super::super::postgres::writer_slot::Hook>,
         #[cfg(test)]
@@ -120,12 +123,18 @@ mod lane {
                 placeholder: None,
                 active: true,
                 paused: false,
+                recovery_after: None,
+                recovery_delay: std::time::Duration::from_millis(10),
+                recovery_allowed: None,
                 #[cfg(test)]
                 hook: None,
                 #[cfg(test)]
                 next_ordinal: 0,
                 flights: VecDeque::new(),
             }
+        }
+        pub fn set_recovery_guard(&mut self, allowed: std::sync::Arc<dyn Fn() -> bool + Send + Sync>) {
+            self.recovery_allowed = Some(allowed);
         }
         pub fn len(&self) -> usize {
             self.flights.len()
@@ -184,6 +193,7 @@ mod lane {
             self.start_planned(engine,batch,plans,finish);
         }
         pub fn start_planned(&mut self, engine: &mut Engine, mut batch: Vec<Invocation>, mut plans: super::super::program_batch::Plans, finish: Finish) {
+            if self.empty() { self.recover_idle_durability(engine); }
             if self.paused {
                 finish(
                     engine,
@@ -215,7 +225,6 @@ mod lane {
                 }
             }
             if self.empty() {
-                self.recover_idle_durability(engine);
                 // Every previous final is drained at this point. Either slot
                 // may have lost its transport; reconnect without re-seeding.
                 let refreshed = engine.store.refresh_pipeline_writer().and_then(|()| {
@@ -568,9 +577,7 @@ mod lane {
                     }
                 }
                 if broken.is_some() && drained {
-                    if engine.store.recover_durability().is_err() {
-                        self.paused = true;
-                    }
+                    self.recover_idle_durability(engine);
                 }
                 let lower_known = resolved[0].1.as_ref().err().is_some_and(|f| f.aborted);
                 let lower_unknown = resolved[0].1.as_ref().err().is_some_and(|f| !f.aborted);
@@ -586,13 +593,13 @@ mod lane {
                             engine.finish_programs(&flight.batch, flight.values, &mut results)
                         }
                         Err(failure)
-                            if ordinal > 0 && lower_known && failure.may_rerun() && drained =>
+                            if ordinal > 0 && lower_known && failure.may_rerun() && drained && !self.paused =>
                         {
                             // Innocent conditional facts are discarded. One fresh whole
                             // batch fallback preserves deadlines and the original order.
                             engine.program_cascade_fallback(&mut flight.batch, &indices, &mut results);
                         }
-                        Err(failure) if drained && !(ordinal > 0 && lower_unknown) => engine
+                        Err(failure) if drained && !self.paused && !(ordinal > 0 && lower_unknown) => engine
                             .program_recover(
                                 &mut flight.batch,
                                 &indices,
@@ -621,28 +628,42 @@ mod lane {
             known_abort
         }
         fn recover_idle_durability(&mut self, engine: &mut Engine) {
-            if !self.empty() || self.paused {
+            // A failed drain/terminal fence still requires reacquisition. Only
+            // a drained E recovery failure arms this retry state.
+            if !self.empty() || (self.paused && self.recovery_after.is_none()) {
                 return;
             }
-            let Some(gate) = engine.store.durability() else {
+            let Some(gate) = engine.store.durability() else { return; };
+            // @ref LLP 3000.009.001.000.000.002#3.9 — retry failed/superseded recovery in the current epoch, bounded by backoff and live ownership.
+            // The watchdog can latch loss independently of blocked SQL. An
+            // already dispatched uncancellable certificate keeps its outcome;
+            // loss prevents the next attempt and never reopens queue admission.
+            if self.recovery_allowed.as_ref().is_some_and(|allowed| !allowed()) {
+                self.paused = true;
+                self.recovery_after = None;
                 return;
-            };
-            let refreshed = engine.store.refresh_pipeline_writer().and_then(|()| {
-                if let Some((spare, _)) = &mut self.spare {
-                    spare.refresh_pipeline_writer()?;
-                }
+            }
+            if self.recovery_after.is_some_and(|at| std::time::Instant::now() < at) {
+                return;
+            }
+            let result = engine.store.refresh_pipeline_writer().and_then(|()| {
+                if let Some((spare, _)) = &mut self.spare { spare.refresh_pipeline_writer()?; }
                 Ok(())
+            }).and_then(|()| {
+                if gate.broken() { engine.store.recover_durability() } else { Ok(()) }
             });
-            if refreshed.is_err() {
-                gate.break_history();
-                self.paused = true;
-                return;
-            }
-            if !gate.broken() {
-                return;
-            }
-            if engine.store.recover_durability().is_err() {
-                self.paused = true;
+            match result {
+                Ok(()) => {
+                    self.paused = false;
+                    self.recovery_after = None;
+                    self.recovery_delay = std::time::Duration::from_millis(10);
+                }
+                Err(_) => {
+                    if !gate.broken() { gate.break_history(); }
+                    self.paused = true;
+                    self.recovery_after = Some(std::time::Instant::now() + self.recovery_delay);
+                    self.recovery_delay = (self.recovery_delay * 2).min(std::time::Duration::from_millis(250));
+                }
             }
         }
         pub fn drain(&mut self, engine: &mut Engine) {

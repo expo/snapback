@@ -46,7 +46,7 @@ impl<T> ProgramCommand<T> {
 }
 
 pub(super) enum Queued {
-    Solo(Work),
+    Solo(Work, Box<dyn FnOnce() + Send>),
     Program(Box<dyn Task>),
 }
 pub(super) enum Prepared {
@@ -269,9 +269,10 @@ pub(super) fn run(
     mut host_execute: impl FnMut(Work),
     stats: Arc<Mutex<BatchStats>>,
     depth:usize,
+    admission: Arc<Mutex<super::Admission>>,
 ) {
     #[cfg(not(feature="postgres"))]
-    let _=depth;
+    let _=(depth, &admission);
     let timing_stats=stats.clone();
     let mut execute=move|work:Work| {
         let stats=timing_stats.clone();
@@ -286,7 +287,14 @@ pub(super) fn run(
         }));
     };
     #[cfg(feature="postgres")]
-    let lane=Arc::new(Mutex::new(super::super::program_pipeline::Lane::new()));
+    let lane={
+        let mut lane=super::super::program_pipeline::Lane::new();
+        lane.set_recovery_guard(Arc::new(move || {
+            super::latch_expired(&admission);
+            !admission.lock().unwrap().lost
+        }));
+        Arc::new(Mutex::new(lane))
+    };
     #[cfg(feature="postgres")]
     let recovery_gate={
         let slot=Arc::new(Mutex::new(None));let capture=slot.clone();
@@ -330,11 +338,11 @@ pub(super) fn run(
             }
         };
         let Queued::Program(first) = work else {
-            if let Queued::Solo(work) = work {
+            if let Queued::Solo(work, unknown) = work {
                 #[cfg(feature="postgres")]
-                { let state=lane.clone(); execute(Box::new(move|engine| {let mut lane=state.lock().unwrap();lane.drain(engine);if !lane.paused {work(engine);}})); }
+                { let state=lane.clone(); execute(Box::new(move|engine| {let mut lane=state.lock().unwrap();lane.drain(engine);if lane.paused {unknown();} else {work(engine);}})); }
                 #[cfg(not(feature="postgres"))]
-                execute(work);
+                { let _=unknown; execute(work); }
             }
             continue;
         };
@@ -368,7 +376,13 @@ pub(super) fn run(
         let state=lane.clone();
         execute(Box::new(move |engine| {
             #[cfg(feature="postgres")]
-            if state.lock().unwrap().paused {drop(tasks);return;}
+            {
+                let mut lane=state.lock().unwrap();
+                if lane.paused {
+                    lane.drain(engine);
+                    if lane.paused {for task in tasks {task.unknown();} return;}
+                }
+            }
             #[cfg(feature="postgres")]
             { stats.lock().unwrap().pipeline_fill = matches!(engine.store, crate::store_port::AnyStore::Postgres(_)); }
             let mut invocations = Vec::new();

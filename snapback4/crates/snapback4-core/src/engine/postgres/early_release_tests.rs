@@ -388,3 +388,307 @@ fn g7e_synchronous_head_decode_failure_after_commit_is_unknown() {
         "the certificate error happened after the data committed"
     );
 }
+
+#[test]
+#[ignore = "private PG16"]
+fn g7e_concurrent_reader_break_during_recovery_retries_and_admits_writes() {
+    use super::read_grant::Grant;
+    use crate::engine::{
+        command::{Command, Queue},
+        program_pipeline::Lane,
+    };
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    let mut engine = crate::engine::program_batch::tests::fixture(true);
+    let grant = Arc::new(Grant::default());
+    grant.configured.store(true, Ordering::Release);
+    engine
+        .store_mut()
+        .test_postgres_handle_mut()
+        .store
+        .get_mut()
+        .read_grant = Some(grant.clone());
+    engine
+        .store_mut()
+        .enable_postgres_early_lock_release()
+        .unwrap();
+    let d = engine.store().durability().unwrap();
+    let (sampled, sample) = mpsc::channel();
+    let (broke, broken) = mpsc::channel();
+    let broken = std::sync::Mutex::new(broken);
+    let attempts = Arc::new(AtomicUsize::new(0));
+    let count = attempts.clone();
+    d.set_recovery_hook(Arc::new(move || {
+        if count.fetch_add(1, Ordering::AcqRel) < 3 {
+            sampled.send(()).unwrap();
+            broken
+                .lock()
+                .unwrap()
+                .recv_timeout(Duration::from_secs(5))
+                .unwrap();
+        }
+    }));
+    let reader = d.clone();
+    let notification = std::thread::spawn(move || {
+        for _ in 0..3 {
+            sample.recv_timeout(Duration::from_secs(5)).unwrap();
+            // The reader connection task uses this same break_history entry.
+            reader.break_history();
+            broke.send(()).unwrap();
+        }
+    });
+    d.break_history();
+    let mut lane = Lane::new();
+    let until = Instant::now() + Duration::from_secs(3);
+    while d.broken() && Instant::now() < until {
+        lane.drain(&mut engine);
+        std::thread::sleep(Duration::from_millis(2));
+    }
+    // Drop the hook before joining so a failing-before run cannot park the
+    // notification thread waiting for attempts the old lane never makes.
+    d.set_recovery_hook(Arc::new(|| {}));
+    drop(engine.store().durability());
+    assert!(
+        !d.broken(),
+        "superseded recovery permanently paused admission; attempts={}",
+        attempts.load(Ordering::Acquire)
+    );
+    notification.join().unwrap();
+    assert!(!lane.paused);
+    assert!(attempts.load(Ordering::Acquire) >= 4);
+    assert!(!grant.uncertain.load(Ordering::Acquire));
+    drop(lane);
+    let queue = Queue::start(engine, 8).unwrap();
+    let write = queue.call(Command::new(|engine| {
+        engine.mutate(
+            "increment",
+            None,
+            crate::Context::new(
+                "alice",
+                [
+                    ("key".into(), crate::Value::Id("a".into())),
+                    ("delta".into(), crate::Value::Int(1)),
+                    ("reject".into(), crate::Value::Bool(false)),
+                ]
+                .into(),
+            )
+            .at(1000),
+        )
+    }));
+    assert!(
+        write.is_ok(),
+        "follow-up recovery must admit writes: {write:?}"
+    );
+    assert!(write.unwrap().is_ok());
+    drop(queue);
+}
+
+fn marker_timeout_client() -> postgres::Client {
+    let mut c = postgres::Client::connect(
+        &std::env::var("SNAPBACK4_EVAL_POSTGRES").unwrap(),
+        postgres::NoTls,
+    )
+    .unwrap();
+    c.batch_execute("SET statement_timeout='5s'; SET lock_timeout='5s'; CREATE TEMP TABLE _durable(token bigint, slot bigint, n bigint); INSERT INTO _durable VALUES(1,0,0)").unwrap();
+    c
+}
+#[test]
+#[ignore = "private PG16; real certificate wait exceeds 5s session timeout"]
+fn g7e_marker_commit_wait_exceeds_session_statement_timeout() {
+    let mut c = marker_timeout_client();
+    c.batch_execute("CREATE FUNCTION pg_temp.slow_marker() RETURNS trigger LANGUAGE plpgsql AS $f$ BEGIN IF current_setting('synchronous_commit')<>'on' OR current_setting('statement_timeout')<>'0' OR current_setting('lock_timeout')<>'0' THEN RAISE EXCEPTION 'certificate timeouts not disabled'; END IF; PERFORM pg_sleep(5.2); RETURN NEW; END $f$; CREATE CONSTRAINT TRIGGER slow_marker AFTER UPDATE ON _durable DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION pg_temp.slow_marker(); BEGIN; SET LOCAL statement_timeout=0; SET LOCAL lock_timeout=0").unwrap();
+    let xid: String = c
+        .query_one("SELECT pg_current_xact_id()::text", &[])
+        .unwrap()
+        .get(0);
+    let start = Instant::now();
+    let outcome = commit_marker(
+        &mut c,
+        &std::sync::atomic::AtomicBool::new(false),
+        1,
+        0,
+        &xid,
+    );
+    assert!(
+        outcome.is_ok(),
+        "slow marker COMMIT must certify: {outcome:?}"
+    );
+    assert!(start.elapsed() >= Duration::from_millis(5200));
+    assert_eq!(
+        c.query_one("SHOW statement_timeout", &[])
+            .unwrap()
+            .get::<_, String>(0),
+        "5s"
+    );
+}
+#[test]
+#[ignore = "private PG16; real certificate wait exceeds 5s session timeout"]
+fn g7e_marker_lock_wait_exceeds_session_lock_timeout() {
+    let mut c = marker_timeout_client();
+    let mut blocker = marker_timeout_client();
+    let key = (crate::ids::seed() & i64::MAX as u64) as i64;
+    blocker
+        .query_one("SELECT pg_advisory_lock($1)", &[&key])
+        .unwrap();
+    c.batch_execute(&format!("CREATE FUNCTION pg_temp.lock_marker() RETURNS trigger LANGUAGE plpgsql AS $f$ BEGIN PERFORM pg_advisory_xact_lock({key}); RETURN NEW; END $f$; CREATE TRIGGER lock_marker BEFORE UPDATE ON _durable FOR EACH ROW EXECUTE FUNCTION pg_temp.lock_marker(); BEGIN; SET LOCAL statement_timeout=0; SET LOCAL lock_timeout=0")).unwrap();
+    let pid: i32 = c.query_one("SELECT pg_backend_pid()", &[]).unwrap().get(0);
+    let xid: String = c
+        .query_one("SELECT pg_current_xact_id()::text", &[])
+        .unwrap()
+        .get(0);
+    let task = std::thread::spawn(move || {
+        let outcome = commit_marker(
+            &mut c,
+            &std::sync::atomic::AtomicBool::new(false),
+            1,
+            0,
+            &xid,
+        );
+        (c, outcome)
+    });
+    let until = Instant::now() + Duration::from_secs(3);
+    while !blocker
+        .query_one(
+            "SELECT EXISTS(SELECT 1 FROM pg_locks WHERE pid=$1 AND NOT granted)",
+            &[&pid],
+        )
+        .unwrap()
+        .get::<_, bool>(0)
+    {
+        assert!(Instant::now() < until, "marker lock rendezvous");
+        std::thread::sleep(Duration::from_millis(1));
+    }
+    std::thread::sleep(Duration::from_millis(5200));
+    blocker
+        .query_one("SELECT pg_advisory_unlock($1)", &[&key])
+        .unwrap();
+    let (mut c, outcome) = task.join().unwrap();
+    assert!(
+        outcome.is_ok(),
+        "slow marker lock must certify: {outcome:?}"
+    );
+    assert_eq!(
+        c.query_one("SHOW lock_timeout", &[])
+            .unwrap()
+            .get::<_, String>(0),
+        "5s"
+    );
+}
+#[test]
+#[ignore = "private PG16; real recovery COMMIT wait exceeds 5s session timeout"]
+fn g7e_recovery_commit_wait_exceeds_session_statement_timeout() {
+    let mut engine = crate::engine::program_batch::tests::fixture(true);
+    engine
+        .store_mut()
+        .enable_postgres_early_lock_release()
+        .unwrap();
+    let store = engine
+        .store_mut()
+        .test_postgres_handle_mut()
+        .store
+        .get_mut();
+    store.client.batch_execute("SET statement_timeout='5s'; SET lock_timeout='5s'; CREATE FUNCTION slow_recovery() RETURNS trigger LANGUAGE plpgsql AS $f$ BEGIN PERFORM pg_sleep(5.2); IF current_setting('synchronous_commit')<>'on' OR current_setting('statement_timeout')<>'0' OR current_setting('lock_timeout')<>'0' THEN RAISE EXCEPTION 'certificate timeouts not disabled'; END IF; RETURN NEW; END $f$; CREATE CONSTRAINT TRIGGER slow_recovery AFTER UPDATE ON _head DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION slow_recovery()").unwrap();
+    let d = store.early_release.clone().unwrap();
+    d.break_history();
+    let start = Instant::now();
+    let outcome = store.recover_early_release();
+    assert!(
+        outcome.is_ok(),
+        "slow recovery COMMIT must certify: {outcome:?}"
+    );
+    assert!(start.elapsed() >= Duration::from_millis(5200));
+    assert!(!d.broken());
+    assert_eq!(
+        store
+            .client
+            .query_one("SHOW statement_timeout", &[])
+            .unwrap()
+            .get::<_, String>(0),
+        "5s"
+    );
+}
+
+#[test]
+#[ignore = "private PG16"]
+fn g7e_recovery_pending_queue_returns_unknown_and_lease_loss_stops_retries() {
+    use crate::engine::{
+        command::{Command, ProgramCommand, Queue, SubmitError},
+        program::Invocation,
+    };
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    let mut engine = crate::engine::program_batch::tests::fixture(true);
+    engine
+        .store_mut()
+        .enable_postgres_early_lock_release()
+        .unwrap();
+    let d = engine.store().durability().unwrap();
+    let weak = Arc::downgrade(&d);
+    let attempts = Arc::new(AtomicUsize::new(0));
+    let count = attempts.clone();
+    let (sampled, sample) = mpsc::channel();
+    let (resume, resumed) = mpsc::channel();
+    let resumed = std::sync::Mutex::new(resumed);
+    d.set_recovery_hook(Arc::new(move || {
+        if count.fetch_add(1, Ordering::AcqRel) == 0 {
+            sampled.send(()).unwrap();
+            resumed
+                .lock()
+                .unwrap()
+                .recv_timeout(Duration::from_secs(5))
+                .unwrap();
+        }
+        weak.upgrade().unwrap().break_history();
+    }));
+    d.break_history();
+    let queue = Queue::start(engine, 8).unwrap();
+    sample.recv_timeout(Duration::from_secs(5)).unwrap();
+    let mut replies = Vec::new();
+    for _ in 0..2 {
+        replies.push(
+            queue
+                .submit_program(ProgramCommand::new(
+                    Invocation::new(
+                        "increment",
+                        None,
+                        crate::Context::new(
+                            "alice",
+                            [
+                                ("key".into(), crate::Value::Id("a".into())),
+                                ("delta".into(), crate::Value::Int(1)),
+                                ("reject".into(), crate::Value::Bool(false)),
+                            ]
+                            .into(),
+                        )
+                        .at(1000),
+                    ),
+                    |_, outcome| outcome,
+                ))
+                .unwrap(),
+        );
+    }
+    let solo = queue.submit(Command::new(|_| ())).unwrap();
+    resume.send(()).unwrap();
+    let outcomes: Vec<_> = replies.into_iter().map(|r| r.wait()).collect();
+    let solo = solo.wait();
+    queue.refuse_ownership();
+    // Barrier via the hook mutex is not needed: at most the recovery already
+    // in progress can finish. No later idle tick may start another attempt.
+    std::thread::sleep(Duration::from_millis(300));
+    let stopped = attempts.load(Ordering::Acquire);
+    std::thread::sleep(Duration::from_millis(300));
+    assert_eq!(
+        attempts.load(Ordering::Acquire),
+        stopped,
+        "lease loss left recovery retries running"
+    );
+    drop(queue);
+    for outcome in outcomes {
+        assert!(
+            matches!(outcome, Err(SubmitError::OutcomeUnknown)),
+            "queued program lost its explicit unknown outcome: {outcome:?}"
+        );
+    }
+    assert!(
+        matches!(solo, Err(SubmitError::OutcomeUnknown)),
+        "queued solo lost its explicit unknown outcome: {solo:?}"
+    );
+}

@@ -159,6 +159,12 @@ pub(super) fn commit_prepared(client: &mut Client, warning: &AtomicBool) -> Resu
     commit_result(client.batch_execute("COMMIT"), warning)
 }
 
+// @ref LLP 3000.009.001.000#5.4.1 — certificate waits, including recovery, cannot inherit session cancellation timeouts.
+pub(super) fn commit_synchronous(client: &mut Client, warning: &AtomicBool) -> Result<(), RuntimeError> {
+    warning.store(false, Ordering::SeqCst);
+    commit_result(client.batch_execute("SET LOCAL synchronous_commit=on; SET LOCAL statement_timeout=0; SET LOCAL lock_timeout=0; COMMIT"), warning)
+}
+
 fn commit_result(result: Result<(), postgres::Error>, warning: &AtomicBool) -> Result<(), RuntimeError> {
     if warning.swap(false, Ordering::SeqCst) {
         return Err(RuntimeError::CommitOutcomeUnknown(
