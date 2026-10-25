@@ -212,7 +212,7 @@ fn patch_retained<'a>(tx:&Tx<'_>,t:i64,id:&str,patch:impl Iterator<Item=(&'a str
             if let Some(value)=value{fields.insert(column.to_owned(),value.clone());}else{fields.remove(column);}
         }
     }
-    if let Some(archived)=archived {tx.conn().execute("UPDATE _dormant_narrow_rows SET data=?1 WHERE t=?2 AND id=?3",params![canonical_json(&archived),t,id])?;}
+    if let Some(archived)=archived {tx.conn().execute("UPDATE _dormant_narrow_rows SET data=?1 WHERE t=?2 AND id=?3",params![canonical_json(&archived),t,id])?;super::movement::rewrite_relation(tx,"_dormant_narrow_rows",t,id,&archived)?;}
     Ok(())
 }
 
@@ -274,7 +274,7 @@ fn restore_downfills(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,sources:&B
             // Restore the receipt's native image before ordinary destination
             // narrowing, including a native row that was already out of domain.
             patch_retained(tx,t,id,e.reversed.iter().map(|(c,v)|(c.as_str(),v.as_ref())))?;
-            e.active=true;if in_r {tx.conn().execute("UPDATE r SET data=?1 WHERE t=?2 AND id=?3",params![canonical_json(&row),t,id])?;}save(tx,t,id,&key,&e,true)?;count+=1;Ok(())
+            e.active=true;if in_r {tx.conn().execute("UPDATE r SET data=?1 WHERE t=?2 AND id=?3",params![canonical_json(&row),t,id])?;super::movement::rewrite(tx,t,&id,&row)?;}save(tx,t,id,&key,&e,true)?;count+=1;Ok(())
         })?;
         if bad.count>0{return Err(refusal(format!("down {} {} forward: {}",fill.table,fill.name,bad.describe())))}
         if count>0 {report.backfills.push(format!("{} {} restored {count} native {}",fill.table,fill.name,if count==1{"row"}else{"rows"}));tx.set_meta("activation_population","true")?;}
@@ -422,7 +422,7 @@ fn apply_staged_downfills(tx:&Tx<'_>)->Result<(),RuntimeError>{
         let patch:BTreeMap<String,Value>=decode(&r.get::<_,String>(3)?)?;let e:Evidence=decode(&r.get::<_,String>(4)?)?;
         let (mut row,in_r)=load_image(tx,t,&id)?.ok_or_else(||refusal("down source lifetime ended before its staged patch"))?;if let Value::Row(f)|Value::Map(f)=&mut row{f.extend(patch)}
         patch_retained(tx,t,&id,e.after.iter().map(|(c,v)|(c.as_str(),Some(v))))?;
-        if in_r {tx.conn().execute("UPDATE r SET data=?1 WHERE t=?2 AND id=?3",params![canonical_json(&row),t,id])?;}save(tx,t,&id,&key,&e,false)?;
+        if in_r {tx.conn().execute("UPDATE r SET data=?1 WHERE t=?2 AND id=?3",params![canonical_json(&row),t,id])?;super::movement::rewrite(tx,t,&id,&row)?;}save(tx,t,&id,&key,&e,false)?;
     }
     drop(rows);drop(stmt);tx.conn().execute_batch("DROP TABLE temp._downfill_pending;")?;tx.set_meta("activation_population","true")?;Ok(())
 }
@@ -542,7 +542,7 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
                 e.retained.remove(c);
                 changed=true;
             }
-            if changed {patch_retained(tx,t,id,restored.iter().map(|(c,v)|(c.as_str(),v.as_ref())))?;tx.conn().execute("UPDATE r SET data=?1 WHERE t=?2 AND id=?3",params![canonical_json(&row),t,id])?;count+=1;}
+            if changed {patch_retained(tx,t,id,restored.iter().map(|(c,v)|(c.as_str(),v.as_ref())))?;tx.conn().execute("UPDATE r SET data=?1 WHERE t=?2 AND id=?3",params![canonical_json(&row),t,id])?;super::movement::rewrite(tx,t,&id,&row)?;count+=1;}
             save(tx,t,id,&key,&e,false)
         })?;
         if bad.count>0 {return Err(refusal(format!("backfill {} {} rollback: {}",fill.table,fill.name,bad.describe())))}
@@ -732,7 +732,7 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
         let data:String=tx.conn().query_row("SELECT data FROM r WHERE t=?1 AND id=?2",params![t,id],|r|r.get(0))?;let mut row:Value=decode(&data)?;
         patch_retained(tx,t,&id,patch.iter().map(|(c,v)|(c.as_str(),Some(v))))?;
         if let Value::Row(f)|Value::Map(f)=&mut row {f.extend(patch);}
-        tx.conn().execute("UPDATE r SET data=?1 WHERE t=?2 AND id=?3",params![canonical_json(&row),t,id])?;
+        tx.conn().execute("UPDATE r SET data=?1 WHERE t=?2 AND id=?3",params![canonical_json(&row),t,id])?;super::movement::rewrite(tx,t,&id,&row)?;
         let prior=evidence(tx,t,&id,&key)?;
         save(tx,t,&id,&key,&e,true)?;
         for c in e.after.keys() {tx.conn().execute("DELETE FROM _backfill_absence WHERE t=?1 AND id=?2 AND definition='' AND column_name=?3",params![t,id,c])?;}
@@ -1158,7 +1158,7 @@ pub(super) fn retire_snapshot(tx:&Tx<'_>,sources:&BTreeMap<String,Table>,previou
                 let bytes:Option<i64>=tx.conn().query_row("SELECT octet_length(data) FROM _dormant_narrow_rows WHERE t=?1 AND id=?2",params![t,id],|r|r.get(0)).optional()?;
                 let mut admission=Meter::new(Ceilings::job(),Cut::Abort);admission.heap((bytes.unwrap_or(0).max(0) as u64).saturating_mul(64).saturating_add(row.retained_heap_bytes().saturating_mul(64)).saturating_add(8192))?;
                 let archived:Option<String>=tx.conn().query_row("SELECT data FROM _dormant_narrow_rows WHERE t=?1 AND id=?2",params![t,id],|r|r.get(0)).optional()?;
-                if let Some(archived)=archived {let mut image:Value=decode(&archived)?;if let Value::Row(fields)|Value::Map(fields)=&mut image {fields.insert(c.clone(),Value::Null);}tx.conn().execute("UPDATE _dormant_narrow_rows SET data=?1 WHERE t=?2 AND id=?3",params![canonical_json(&image),t,id])?;}
+                if let Some(archived)=archived {let mut image:Value=decode(&archived)?;if let Value::Row(fields)|Value::Map(fields)=&mut image {fields.insert(c.clone(),Value::Null);}tx.conn().execute("UPDATE _dormant_narrow_rows SET data=?1 WHERE t=?2 AND id=?3",params![canonical_json(&image),t,id])?;super::movement::rewrite_relation(tx,"_dormant_narrow_rows",t,id,&image)?;}
                 tx.conn().execute("DELETE FROM _dormant_refs WHERE t=?1 AND id=?2 AND column_name=?3",params![t,id,c])?;
             }}Ok(())
         })?;

@@ -7,6 +7,32 @@ use crate::{
 };
 
 impl AnyStore {
+    /// Read the owner's persisted clock declaration; the caller's environment
+    /// cannot describe a different running owner's grant. Persisted state cannot
+    /// confirm the owner's local grant after reconnect/revocation. No writer is acquired.
+    pub fn postgres_diagnostics(connection: &str, namespace: &str) -> Result<(String, Vec<String>), RuntimeError> {
+        let quoted=store::namespace(namespace)?;
+        let (mut client,_)=ownership::connect(connection.parse()?)?;
+        client.batch_execute(&format!("SET search_path={quoted},pg_catalog; SET statement_timeout='5s'"))?;
+        let mut tx=client.build_transaction().read_only(true).start()?;
+        let warnings=tx.query(super::managed_relations::EVENT_TRIGGERS,&[])?.iter().map(|row|
+            super::managed_relations::event_warning(row.get(0),row.get(1),row.get(2),row.get(3),row.get(4),row.get(5))
+        ).collect();
+        let mut tier=crate::store_port::g5_read_cache_tier("no live qualified read grant on the owner (unset bounds or expired/drained grant)");
+        if tx.query_one("SELECT to_regclass('_read_grant') IS NOT NULL",&[])?.get::<_,bool>(0) {
+            if let Some(row)=tx.query_opt("SELECT g.epoch,(SELECT value FROM _meta WHERE key='read_grant_clock') FROM _read_grant g JOIN _owner o ON o.singleton=g.singleton AND o.store_id=g.store_id AND o.token=g.token AND o.holder=g.holder WHERE g.singleton AND g.valid_until>clock_timestamp() AND o.lease_until>clock_timestamp()",&[])? {
+                let epoch:String=row.get(0);
+                let notice=row.get::<_,Option<String>>(1).and_then(|s|serde_json::from_str::<serde_json::Value>(&s).ok());
+                tier=match notice.filter(|n|n["epoch"].as_str()==Some(epoch.as_str())) {
+                    Some(n) if n["rate_ppm"].as_u64().is_some() && n["forward_jump_ms"].as_u64().is_some()=>format!("persisted G6 read grant (clock bounds {},{}); owner-local activity unconfirmed (revocation/reconnect may use G5 validation)",n["rate_ppm"].as_u64().unwrap(),n["forward_jump_ms"].as_u64().unwrap()),
+                    _=>"persisted G6 read grant (clock bounds unavailable from legacy owner); owner-local activity unconfirmed (revocation/reconnect may use G5 validation)".into(),
+                };
+            }
+        }
+        tx.rollback()?;
+        Ok((tier,warnings))
+    }
+
     /// Validate the currently admitted transport and return a non-secret binding.
     pub fn postgres_binding(connection: &str, namespace: &str) -> Result<String, RuntimeError> {
         store::namespace(namespace)?;

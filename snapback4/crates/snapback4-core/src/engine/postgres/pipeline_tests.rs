@@ -461,6 +461,7 @@ fn wire_fixture() -> (postgres::Client, Arc<Pool>, Arc<Slot>, String, Wire) {
 #[test]
 #[ignore = "private TCP PG16; actual frontend Execute/Sync submission barrier"]
 fn pipeline_on_wire_overlap_precedes_release_and_backend_termination() {
+    for cached in [false,true] {
     for terminate in [false, true] {
         let (mut writer, pool, slot, name, wire) = wire_fixture();
         let pid: i32 = reader(&pool, &slot)
@@ -468,16 +469,24 @@ fn pipeline_on_wire_overlap_precedes_release_and_backend_termination() {
             .unwrap()[0]
             .get(0);
         let key = crate::ids::seed() as i64;
+        let a = reader(&pool,&slot);
+        let b = reader(&pool,&slot);
+        let c = reader(&pool,&slot);
+        let first_sql="SELECT live,head,pg_advisory_xact_lock($1) FROM facts";
+        // Warm all three exact statements, including the statement-error case,
+        // before taking the lock. The measured overlap must execute cached code.
+        if cached {
+            a.independent_cached(first_sql,&[(&key,Type::INT8)],||{}).unwrap();
+            assert!(b.independent_cached("SELECT 1/0",&[],||{}).is_err());
+            c.independent_cached("SELECT live,head FROM facts",&[],||{}).unwrap();
+        }
         writer
             .query_one("SELECT pg_advisory_lock($1)", &[&key])
             .unwrap();
         let baseline = wire.count();
-        let a = reader(&pool, &slot);
         let first = std::thread::spawn(move || {
-            a.independent(
-                "SELECT live,head,pg_advisory_xact_lock($1) FROM facts",
-                &[(&key, Type::INT8)],
-            )
+            if cached {a.independent_cached(first_sql,&[(&key,Type::INT8)],||panic!("first statement was not warmed"))}
+            else {a.independent(first_sql,&[(&key,Type::INT8)])}
         });
         wait(|| {
             writer
@@ -489,10 +498,8 @@ fn pipeline_on_wire_overlap_precedes_release_and_backend_termination() {
                 .get::<_, Option<bool>>(0)
                 == Some(true)
         });
-        let b = reader(&pool, &slot);
-        let second = std::thread::spawn(move || b.independent("SELECT 1/0", &[]));
-        let c = reader(&pool, &slot);
-        let third = std::thread::spawn(move || c.independent("SELECT live,head FROM facts", &[]));
+        let second = std::thread::spawn(move || if cached {b.independent_cached("SELECT 1/0",&[],||panic!("error statement was not warmed"))} else {b.independent("SELECT 1/0",&[])});
+        let third = std::thread::spawn(move || if cached {c.independent_cached("SELECT live,head FROM facts",&[],||panic!("third statement was not warmed"))} else {c.independent("SELECT live,head FROM facts",&[])});
         let overlapped = wire.reaches(baseline + 3);
         let blocked = writer
             .query_one(
@@ -526,7 +533,7 @@ fn pipeline_on_wire_overlap_precedes_release_and_backend_termination() {
             .unwrap();
         assert!(
             overlapped && blocked,
-            "three Execute/Sync units must reach PG while the first remains blocked (terminate={terminate})"
+            "three Execute/Sync units must reach PG while the first remains blocked (cached={cached}, terminate={terminate})"
         );
         if terminate {
             for result in [first, second, third] {
@@ -543,6 +550,7 @@ fn pipeline_on_wire_overlap_precedes_release_and_backend_termination() {
             assert!(!third[0].get::<_, bool>(0));
             assert_eq!(third[0].get::<_, i64>(1), 2);
         }
+    }
     }
 }
 

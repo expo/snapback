@@ -146,6 +146,7 @@ impl Handle {
                 crate::engine::activation_facts::check_postgres_ordinary_operations(&previous, schema, &previous_programs, programs)?;
             }
             if !fresh { super::evolution_admission::retained(&tx, &previous, schema)?; }
+            super::managed_relations::warn_event_triggers(&tx)?;
             initialize(&tx, schema)?;
             if let Some(fence) = &bootstrap_fence {
                 tx.set_meta("store_id", &fence.store_id)?;
@@ -159,7 +160,7 @@ impl Handle {
             tx.with_postgres(|inner| check(&AnyPreparation::Postgres(Preparation(inner))))?;
             // Release preparation can install ledgers too. Admit all installer
             // and event-trigger effects before live/dormant population moves.
-            tx.with_postgres(super::managed_relations::verify)?;
+            tx.with_postgres(super::managed_relations::verify_activation)?;
             if !fresh { tx.with_postgres(|inner| super::evolution::transition(inner, &previous, schema))?; }
             let population=crate::activation::ActivationReader::activation_population(&tx)?.as_deref()==Some("true");
             let rebuilding=schema_changed || population;

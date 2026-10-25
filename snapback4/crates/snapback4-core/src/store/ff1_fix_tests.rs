@@ -205,3 +205,6 @@ fn legal_unindexed_lifecycle_phases_postgres() {
 
 #[path = "ff1_fix2_tests.rs"]
 mod fix2;
+
+#[path="ff3_tests.rs"]
+mod ff3;
