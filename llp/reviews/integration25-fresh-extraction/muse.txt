@@ -1,0 +1,19 @@
+muse: workspace root: /home/ccheever/projects/snapback-sb4loop (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=409aeb79-b754-4900-8eda-e341a11fd26b]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+No material finding remains for this commit within the stated scope.
+
+The fix correctly pairs each new extraction's parent definition with its own probe context.
+
+**What changed** — [extractions.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-core/src/store/extractions.rs:326) selects `(parent, source_context)` together: historical `sources` when the parent is retained/restored, `&next.tables` when newly declared. Both probe gates ([row](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-core/src/store/extractions.rs:342) and [payload](/home/ccheever/projects/snapback-sb4loop/snapback4-core/src/store/extractions.rs:362)) now use `source_context` instead of always-historical `sources`. Parent selection itself is semantically unchanged from the old `unwrap_or`, and no other `sources` use remains in the forward loop.
+
+**Why it is correct per area:**
+
+- Role/index context: `probe_context` ([extractions.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-core/src/store/extractions.rs:48)) compares `sources.get(table)` vs `next.table(table)` on index equality and read equality. For a fresh parent, historical `sources` lacks the probe table, so the old code false-refused with `E_ADOPT`; `next`-vs-`next` is trivially true, which is the intended "new definition uses current schema" behavior. This matches LLP 3000.000.000 §21, lines 1913-1914 ("Probe index meaning and read policy must remain the source context").
+- Authority preservation: row-audience direction and the inherited/non-inherited `audience_subset` checks (lines 344-357) are untouched and still enforce CHILD ⊆ SOURCE per §21 lines 1904-1916. For a fresh parent both sides are current, so equality passes without broadening.
+- Dormant/restored: `sources` is `source_definitions` = previous tables plus restoring tables ([dormant.rs](/home/ccheever/projects/snapback-sb4loop/snapback4-core/src/store/dormant.rs:553)), passed at [dormant.rs](/home/ccheever/projects/snapback-sb4loop/snapback4-core/src/store/dormant.rs:589). A restored parent still hits the historical branch, preserving its context. The cell-patch loop only enriches retained definitions; it does not reroute genuinely new parents.
+- Immutable scalar/payload mapping: `mapped_audience`, type/immutability/asset-home checks, and the empty-population guard are unchanged. The fix keeps definition and context aligned (historical parent with historical checks; new parent with current checks), consistent with §21 lines 1905-1916. The `each` forward/resume path (line 405) runs after both probe gates, so it inherits the fix with no separate probe caller left behind.
+
+**Paired tests are well-pinned** — [release_cycle_tests.rs](/home/ccheever/projects/snapback-sb4loop/snapback4-core/src/store/release_cycle_tests.rs:113): the fresh/new-parent test covers both direct fresh deploy and adding extraction tables to an existing app, and would have hit the old false `E_ADOPT`; the retained-parent test changes `roles` read to `allow` while adding the extraction and asserts the specific `"changed probe/index meaning"` refusal plus generation preservation, ruling out confusion with the broader-audience refusal strings.
+
+Residual, non-material: the payload-gate branch has no standalone probe regression (the fixture has no column gates), and a new parent probing a retained table changed in the same release trivially passes — but that follows from the stated "new definition uses current schema" rule, with the retained-table change itself governed by ordinary admission. Neither justifies holding this commit.

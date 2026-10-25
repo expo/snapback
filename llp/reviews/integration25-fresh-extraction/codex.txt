@@ -1,0 +1,7 @@
+No material finding remains for commit `cd64564f81441bf08a4dea72bba9feca1573ba0e`.
+
+The fix pairs the selected parent with its schema context for both row and payload probe validation. Historical/restored parents retain existing checks; child ⊆ source audience inclusion and immutable scalar mapping remain unchanged, consistent with LLP 3000.000.000 §21.
+
+The paired tests cover fresh/new parents and retained-parent refusal with unchanged generation. Restored-parent and payload-only probe cases lack direct new coverage.
+
+Static review only: no edits, builds, tests, or access to excluded locations.
