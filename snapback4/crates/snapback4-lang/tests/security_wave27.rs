@@ -124,4 +124,3 @@ const DEFAULT:&str="table docs:\n  label: text <=80 default 'pending'\n  read <-
  let out=campaign(include_str!("security/wave27/025.q"));
  assert!(out.violations.iter().any(|v|v.operation=="retest"&&v.invariant_site.contains("/repeat-create/")&&v.reachability.is_reachable()),"operations={:?}; violations={:?}",out.operations,out.violations.iter().map(|v|(&v.operation,&v.invariant_site)).collect::<Vec<_>>());
 }
-
