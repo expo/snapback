@@ -30,6 +30,7 @@ pub(super) fn prepare(target: &[Source], current: &[Source], guarded_fallback: &
         };
     }
     if contracts(&old, &next) {
+        if !destructive_delete_roots(&old,&next).is_empty(){*guarded_fallback=true;return guarded(target,current);}
         return retained(current.to_vec(), false);
     }
     match alpha(target, current) {
@@ -43,6 +44,7 @@ pub(super) fn prepare(target: &[Source], current: &[Source], guarded_fallback: &
                 };
             }
             if contracts(&old, &bound) {
+                if !destructive_delete_roots(&old,&bound).is_empty(){*guarded_fallback=true;return guarded(target,current);}
                 return retained(sources, true);
             }
         }
@@ -56,7 +58,13 @@ fn retained(sources: Vec<Source>, alpha: bool) -> Bridge {
     Bridge {sources,diagnostics:vec![],changes:vec![format!("current independent intent: retained the complete current authored schema, defaults, programs, helpers, jobs and policy declarations{}; predecessor names and accepted inputs remain available; review current results in the old UI",if alpha {" under declared table identity renames"}else{""})]}
 }
 fn refused(current: &[Source], reason: &str) -> Bridge {
-    Bridge {sources:current.to_vec(),changes:vec![],diagnostics:vec![crate::diag::type_error(&crate::Site::default(),format!("rollback view cannot preserve current independent intent: {reason}"),"author a compatible guarded source retaining the predecessor fields and inputs, truthful migrations and the current policy; an acknowledgment does not authorize restoring an unsafe workflow").guide("deploy")]}
+    let docs=current.iter().map(|(file,text)|parser::parse_document(file,text).0).collect::<Vec<_>>();
+    let site=docs.iter().flat_map(|d|&d.tables).find_map(|t|t.columns.iter().find(|c|reason.contains(&format!("{}.{}",t.name,c.name))).map(|c|c.site.clone()))
+        .or_else(||docs.iter().flat_map(|d|&d.tables).find(|t|reason.contains(&format!("{}.",t.name))).map(|t|t.site.clone()))
+        .or_else(||docs.iter().flat_map(|d|&d.programs).find(|p|reason.contains(&p.name)).map(|p|p.site.clone()))
+        .or_else(||docs.iter().flat_map(|d|&d.tables).next().map(|t|t.site.clone()))
+        .unwrap_or_else(||crate::Site::new("schema.q",1,1));
+    Bridge {sources:current.to_vec(),changes:vec![],diagnostics:vec![crate::diag::type_error(&site,format!("rollback view cannot preserve current independent intent: {reason}"),"author a compatible guarded source retaining the predecessor fields and inputs, truthful migrations and the current policy; an acknowledgment does not authorize restoring an unsafe workflow").guide("deploy")]}
 }
 
 /// A loosened current workflow may omit a predecessor's nullable, default-free
@@ -70,7 +78,13 @@ pub(super) fn guarded(target:&[Source],current:&[Source])->Bridge {
     let current=normalized.as_deref().unwrap_or(current);
     let old=crate::compile(target);let next=crate::compile(current);
     if !old.diagnostics.is_empty()||!next.diagnostics.is_empty(){return refused(current,"both authored sources must compile before preparing a guarded view");}
-    if !table_contracts(&old,&next,true){return refused(current,"the guarded current workflow needs every predecessor table and required/defaulted field; author a truthful reverse projection or compatible guarded source");}
+    if !table_contracts(&old,&next,true){
+        let missing=old.schema.tables.iter().flat_map(|(table,t)|{let old=&old;let next=&next;t.columns.iter().filter_map(move |(column,kind)|{
+            let absent=next.schema.table(table).is_none_or(|n|!n.columns.contains_key(column));
+            (absent&&renamed_column(&old,&next,table,column).is_none()&&(!kind.is_optional()||t.defaults.contains_key(column))).then(||format!("{table}.{column}"))
+        })}).collect::<Vec<_>>();
+        return refused(current,&format!("guarded view needs a truthful reverse projection for required/defaulted columns [{}]; retain these fields in an authored bridge",missing.join(", ")));
+    }
     let mut sources=current.to_vec();let mut changes=vec!["guarded loosened view: retained the complete current schema, defaults, helpers, programs, jobs, aliases and independent intent; omitted nullable default-free predecessor fields are absent results, never invented values; review current results in the old UI".into()];
     if normalized.is_some(){changes.push("declared table identities: complete current guarded workflow retained under predecessor spellings, without rewriting business strings or weakening authority".into());}
     for(file,text)in &mut sources {
@@ -107,12 +121,48 @@ pub(super) fn guarded(target:&[Source],current:&[Source])->Bridge {
         for(start,end,value)in edits{text.replace_range(start..end,&value);}
         if !extra.is_empty(){if !text.ends_with('\n'){text.push('\n');}text.push_str(&extra);}
     }
+    // A view can pause an incompatible write; it cannot guess a required
+    // choice or silently consume a removed data-bearing argument.
+    let available=crate::compile(&sources);
+    let delete_roots=destructive_delete_roots(&old,&available);
+    let mut paused=BTreeSet::new();
+    for (file,text) in &mut sources {
+        let doc=parser::parse_document(file,text).0;
+        let mut edits=Vec::new();
+        for endpoint in &doc.programs {
+            let actual=super::release_bridge::operation_name(file,&endpoint.name);
+            let exports=std::iter::once(actual.clone()).chain(doc.aliases.iter().filter(|(_,target,_)|target==&endpoint.name).map(|(name,_,_)|super::release_bridge::operation_name(file,name))).collect::<Vec<_>>();
+            let incompatible=old.programs.iter().filter(|p|exports.contains(&p.program.name)).find(|p|available.programs.iter().find(|n|n.program.name==actual).is_some_and(|n|!endpoint_contract(&p.program,&n.program)||snapback4_core::ir::write_tables(&n.program).iter().any(|(table,effect)|*effect=="delete"&&delete_roots.contains(table))));
+            if let Some(previous)=incompatible {
+                if matches!(previous.program.kind,snapback4_core::ir::ProgramKind::Query){continue;}
+                paused.extend(exports);
+                let (a,b)=declaration(text,endpoint.site.line);edits.push((a,b));
+                for (_,target,site) in &doc.aliases {if target==&endpoint.name {edits.push(declaration(text,site.line));}}
+                changes.push(format!("operation {}: paused (E_OP); incompatible input/delete contract (current cascade/set-null roots [{}]); arguments [{}] → [{}]; author a guarded compatibility endpoint that consumes old inputs and supplies required choices explicitly",previous.program.name,delete_roots.iter().cloned().collect::<Vec<_>>().join(", "),previous.program.args.keys().cloned().collect::<Vec<_>>().join(", "),endpoint.args.iter().map(|a|a.name.clone()).collect::<Vec<_>>().join(", ")));
+            }
+        }
+        edits.sort();edits.dedup();for (a,b) in edits.into_iter().rev(){text.replace_range(a..b,"");}
+    }
+    // An assertion about a paused export is vacuous, not a table-wide guard.
+    // Remove only that named-operation assertion; all data/column intent stays.
+    for (file,text)in &mut sources {
+        let doc=parser::parse_document(file,text).0;let mut edits=Vec::new();
+        for inv in &doc.invariants {
+            if inv.column.is_none()&&!matches!(inv.target.as_str(),"always"|"read"|"insert"|"update"|"delete"|"write")
+                &&(paused.contains(&inv.target)||paused.contains(&super::release_bridge::operation_name(file,&inv.target))) {edits.push(declaration(text,inv.site.line));}
+        }
+        edits.sort();edits.dedup();for(a,b)in edits.into_iter().rev(){text.replace_range(a..b,"");}
+    }
     let bound=crate::compile(&sources);
     if !bound.diagnostics.is_empty(){return Bridge{sources,changes,diagnostics:bound.diagnostics};}
-    if !table_contracts(&old,&bound,true)||!endpoint_contracts(&old,&bound,true){return refused(current,"the guarded current workflow cannot retain a predecessor query or a retained export's wire aliases and distinct inputs; author a compatible guarded endpoint with the old accepted arguments");}
+    if !table_contracts(&old,&bound,true)||!endpoint_contracts(&old,&bound,true){
+        let incompatible=old.programs.iter().filter(|p|bound.programs.iter().find(|n|n.program.name==p.program.name).is_none_or(|n|!endpoint_contract(&p.program,&n.program))).map(|p|format!("{} predecessor arguments [{}], current arguments [{}]",p.program.name,p.program.args.keys().cloned().collect::<Vec<_>>().join(", "),bound.programs.iter().find(|n|n.program.name==p.program.name).map(|n|n.program.args.keys().cloned().collect::<Vec<_>>().join(", ")).unwrap_or_else(||"export absent".into()))).collect::<Vec<_>>();
+        return refused(current,&format!("guarded view cannot retain predecessor queries/inputs [{}]; author a compatible guarded query with the old accepted arguments",incompatible.join("; ")));
+    }
     for(name,table)in &old.schema.tables {
         for column in table.columns.keys().filter(|column|!bound.schema.tables[name].columns.contains_key(*column)) {
             if let Some(current)=renamed_column(&old,&bound,name,column){changes.push(format!("{name}.{column}: declared identity is now {name}.{current}; guarded view uses the current spelling and result semantics; review the old UI"));}
+            else if bound.schema.extractions.iter().any(|e|&e.parent==name&&e.fields.values().any(|source|source==column)){changes.push(format!("{name}.{column}: extracted field remains in the retained child population; no single child is invented for the old cell; review the current query result in the old UI"));}
             else{changes.push(format!("{name}.{column}: removed nullable default-free field remains absent in this guarded view; historical cells stay retained; review the old UI result"));}
         }
     }
@@ -122,6 +172,27 @@ pub(super) fn guarded(target:&[Source],current:&[Source])->Bridge {
     Bridge{sources,changes,diagnostics:vec![]}
 }
 
+fn destructive_delete_roots(old:&crate::Bound,next:&crate::Bound)->BTreeSet<String>{
+    use snapback4_core::schema::{ColumnType,references::OnDelete};
+    let mut roots=BTreeSet::new();
+    for (name,before) in &old.schema.tables {if let Some(after)=next.schema.table(name){
+        for column in before.columns.keys() {
+            let new=renamed_column(old,next,name,column).unwrap_or(column);
+            let Some(ColumnType::Ref{table:parent})=after.columns.get(new).map(ColumnType::required)else{continue};
+            let action=after.on_delete.get(new);
+            if action!=before.on_delete.get(column)&&matches!(action,Some(OnDelete::Cascade|OnDelete::SetNull)){roots.insert(parent.clone());}
+        }
+    }}
+    loop {
+        let prior=roots.len();
+        for child in roots.clone() {if let Some(table)=next.schema.table(&child) {for(column,kind)in &table.columns {
+            if table.on_delete.get(column)==Some(&OnDelete::Cascade) {if let ColumnType::Ref{table}=kind.required(){roots.insert(table.clone());}}
+        }}}
+        if roots.len()==prior{break;}
+    }
+    roots
+}
+
 pub(super) fn contracts(old:&crate::Bound,new:&crate::Bound)->bool {
     table_contracts(old,new,false)&&endpoint_contracts(old,new,false)
 }
@@ -129,6 +200,7 @@ fn table_contracts(old:&crate::Bound,new:&crate::Bound,nullable_gaps:bool)->bool
     old.schema.tables.iter().all(|(name,table)|new.schema.tables.get(name).is_some_and(|next| {
         table.columns.iter().all(|(column,kind)|next.columns.contains_key(column)
             || (nullable_gaps&&renamed_column(old,new,name,column).is_some())
+            || (nullable_gaps&&new.schema.extractions.iter().any(|e|&e.parent==name&&e.fields.values().any(|source|source==column)))
             || (nullable_gaps&&kind.is_optional()&&!table.defaults.contains_key(column)&&!table.engine_field(column)&&!table.maintained.contains_key(column)))
     }))
 }
@@ -318,54 +390,9 @@ fn alpha(target: &[Source], current: &[Source]) -> Result<Option<Vec<Source>>, M
             "the declared table mapping is ambiguous or captures a current table name".into(),
         );
     }
-    let reserved = names
-        .keys()
-        .chain(names.values())
-        .cloned()
-        .collect::<BTreeSet<_>>();
-    let mut capture = doc.shapes.iter().any(|s| reserved.contains(&s.name));
-    capture |= doc.tables.iter().any(|t| {
-        t.rules
-            .iter()
-            .chain(t.column_reads.iter().map(|(_, r)| r))
-            .any(|r| r.bindings.iter().any(|n| reserved.contains(n)))
-    });
-    fn bindings(body: &[ast::Stmt], reserved: &BTreeSet<String>) -> bool {
-        body.iter().any(|s| match s {
-            ast::Stmt::Bind { names, .. } => names.iter().any(|n| reserved.contains(n)),
-            ast::Stmt::For { name, body, .. } => {
-                reserved.contains(name) || bindings(body, reserved)
-            }
-            ast::Stmt::If {
-                then_body,
-                else_body,
-                ..
-            } => bindings(then_body, reserved) || bindings(else_body, reserved),
-            ast::Stmt::As { body, .. } => bindings(body, reserved),
-            _ => false,
-        })
-    }
-    capture |= doc
-        .programs
-        .iter()
-        .any(|p| bindings(&p.prelude, &reserved) || bindings(&p.body, &reserved));
-    capture |= doc
-        .functions
-        .iter()
-        .any(|f| matches!(&f.body,ast::FunctionBody::Block(body) if bindings(body,&reserved)));
-    for args in doc
-        .programs
-        .iter()
-        .map(|p| &p.args)
-        .chain(doc.functions.iter().map(|p| &p.args))
-        .chain(doc.actions.iter().map(|p| &p.args))
-    {
-        capture |= args.iter().any(|a| reserved.contains(&a.name));
-    }
     let mut inspect = doc.clone();
     let mut unsupported = false;
     let mut check = |e: &mut ast::Expr| match e {
-        ast::Expr::Name { name, .. } => capture |= reserved.contains(name),
         ast::Expr::Walk { .. } | ast::Expr::Merge(_) => unsupported = true,
         _ => (),
     };
@@ -382,13 +409,14 @@ fn alpha(target: &[Source], current: &[Source]) -> Result<Option<Vec<Source>>, M
             crate::bind::intent_walk::expression(&mut rule.value, &mut check);
         }
         for column in &mut table.columns {
-            for value in [&mut column.read, &mut column.default]
+            for value in [&mut column.read, &mut column.write, &mut column.default]
                 .into_iter()
                 .flatten()
             {
                 crate::bind::intent_walk::expression(value, &mut check);
             }
         }
+        for (_,value,_) in &mut table.immutable_when {crate::bind::intent_walk::expression(value,&mut check);}
         for (value, _) in &mut table.final_exists {
             crate::bind::intent_walk::expression(value, &mut check);
         }
@@ -397,9 +425,6 @@ fn alpha(target: &[Source], current: &[Source]) -> Result<Option<Vec<Source>>, M
         return Err(
             "a recursive or merge expression needs an authored compatible table mapping".into(),
         );
-    }
-    if capture {
-        return Err("a table identity mapping captures a local, argument or shape name".into());
     }
     if !doc.actions.is_empty()
         || !doc.effects.is_empty()
@@ -471,6 +496,20 @@ fn alpha(target: &[Source], current: &[Source]) -> Result<Option<Vec<Source>>, M
             format!("invariant {target} {}\n", print::expression(&value)),
         ));
     }
+    fn loop_domains(body:&[ast::Stmt],bound:&mut BTreeSet<String>,names:&BTreeMap<String,String>,text:&str,edits:&mut Vec<(usize,usize,String)>){
+        for stmt in body {match stmt {
+            ast::Stmt::Bind{names,..}=>bound.extend(names.iter().cloned()),
+            ast::Stmt::For{name,domain,body,..}=>{
+                if let ast::Expr::Name{name:table,site}=domain {if !bound.contains(table) {if let Some(prior)=names.get(table){let a=offset(text,site.line,site.col);edits.push((a,a+table.len(),prior.clone()));}}}
+                let mut inner=bound.clone();inner.insert(name.clone());loop_domains(body,&mut inner,names,text,edits);
+            },
+            ast::Stmt::If{then_body,else_body,..}=>{loop_domains(then_body,&mut bound.clone(),names,text,edits);loop_domains(else_body,&mut bound.clone(),names,text,edits);},
+            ast::Stmt::As{body,..}=>loop_domains(body,&mut bound.clone(),names,text,edits),
+            _=>(),
+        }}
+    }
+    for p in &doc.programs {let mut bound=p.args.iter().map(|a|a.name.clone()).collect();loop_domains(&p.prelude,&mut bound,&names,text,&mut edits);loop_domains(&p.body,&mut bound,&names,text,&mut edits);}
+    for f in &doc.functions {if let ast::FunctionBody::Block(body)=&f.body {loop_domains(body,&mut f.args.iter().map(|a|a.name.clone()).collect(),&names,text,&mut edits);}}
     let mut other = doc.clone();
     other.tables.clear();
     other.invariants.clear();

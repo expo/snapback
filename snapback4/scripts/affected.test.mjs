@@ -194,6 +194,16 @@ test('packages without owned tests widen to cover sibling consumers', () => {
   assert(selectAffected(['snapback4/packages/native-package/src/bridge.ts'], noTests).broad);
 });
 
+test('measurement changes run their executable contract without mutating tracked metrology', () => {
+  const plan = select(['snapback4/scripts/measure-wasm.sh']);
+  assert.equal(plan.broad, false);
+  assert(plan.clientFiles.includes('snapback4/packages/snapback4/test/wasm-budget.test.mjs'));
+  assert(ids(plan).includes('build-wasm'));
+  const measurement = plan.steps.find(step => step.id === 'wasm-measurement');
+  assert.deepEqual(measurement.argv, ['bash', 'scripts/measure-wasm.sh', '--no-record']);
+  assert(measurement.requires.includes('build-wasm'));
+});
+
 test('client pool prerequisites are derived per file rather than unioned across the pool', () => {
   const first = model.packages[0].tests[0], second = model.packages[1].tests[0];
   const mixed = { ...model, clientEvidence: { [first]: ['first: CLI/process consumer'], [second]: ['second: wasm consumer'] } };
@@ -253,3 +263,26 @@ for (const path of ['snapback4/crates/snapback4-lang/src/guide.rs', 'snapback4/c
     assert(ids(plan).includes('difftest:run'));
   });
 }
+
+for (const leaf of ['day2-proof.mjs', 'previous/day2-proof-0.4.40.mjs']) {
+  test(`embedded init template ${leaf} selects its binary source and consumers`, () => {
+    const plan=select([`snapback4/crates/snapback4/src/verbs/init/${leaf}`]);
+    assert.equal(plan.broad,false);
+    assert.deepEqual(plan.rustPackages,['snapback4']);
+    assert(plan.clientFiles.includes('snapback4/packages/snapback4/test/residency.test.mjs'));
+    assert(!plan.clientFiles.includes(model.packages[1].tests[0]));
+  });
+}
+
+test('guide integration modules and named fixtures select their compiled consumer', () => {
+  const guideModel = { ...model, crates: model.crates.map(crate => crate.name === 'snapback4-lang' ? { ...crate, targets: [...crate.targets, { name:'guide', kind:['test'], path:`${crate.dir}/tests/guide.rs`, requiredFeatures:[] }] } : crate) };
+  for (const file of ['tests/guide/published.rs','tests/fixtures/guide-fact-homes.json','tests/fixtures/guide-before.json']) {
+    const plan = selectAffected([`snapback4/crates/snapback4-lang/${file}`],guideModel);
+    assert.equal(plan.broad,false);assert.deepEqual(plan.rustTargets,{'snapback4-lang':['guide']});assert.deepEqual(plan.rustPackages,[]);
+  }
+  assert.equal(selectAffected(['snapback4/crates/snapback4-lang/tests/fixtures/unowned.json'],guideModel).broad,true);
+});
+test('filesystem issue records require reference validation without widening product scope', () => {
+  const plan=select(['issues/20261024-maintained-activation.md']);
+  assert.equal(plan.broad,false);assert.deepEqual(plan.rustPackages,[]);assert.deepEqual(plan.clientFiles,[]);assert.deepEqual(plan.checks,['ref-check']);
+});

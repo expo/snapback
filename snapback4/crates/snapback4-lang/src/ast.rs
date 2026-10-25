@@ -573,6 +573,7 @@ pub struct Document {
     pub rollback_hides:Vec<RollbackHide>,
     pub extractions:Vec<ExtractionDecl>,
     pub aliases: Vec<(String, String, Site)>,
+    pub enum_aliases: Vec<(String,String,String,String,Site)>,
     pub backfills: Vec<BackfillDecl>,
     pub downfills: Vec<BackfillDecl>,
     pub invariants: Vec<InvariantDecl>,

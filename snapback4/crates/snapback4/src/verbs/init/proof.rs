@@ -1,12 +1,14 @@
 // @ref LLP 3000.011.003.000.000#3 — generated proofs use the published kit and runtime ports.
+// @ref LLP 3000.000.000#21-wave-27-release-semantics-rel — the default embedded recipe observes conservation before app callbacks.
 use serde_json::{Value, json};
 use super::{Options, pretty};
 
-const README_PROOFS: &str = "\n## Frontend proofs\n\n`npm run frontend:proof` builds its own dist, then proves the starter in Chromium.\nAfter replacing the screen, add your business assertions to scripts/frontend-proof.mjs.\nDay-two scaffolding is opt-in: `snapback4 init --adapt --day2 --apply` captures\ncurrent sources and fixtures in versions/v1 and versions/v2 and adds day2:proof.\nReplace its BUSINESS_ASSERTION_BEGIN block before running `npm run day2:proof`.\nSet PORT_LO and PORT_HI at run time to confine proof servers and launchers.\nSet CHROME=/path/to/chromium or install Playwright's Chromium.\n";
+const README_PROOFS: &str = "\n## Frontend proofs\n\n`npm run frontend:proof` builds its own dist, then proves the starter in Chromium.\nAfter replacing the screen, add your business assertions to scripts/frontend-proof.mjs.\nNew starters include `npm run day2:proof`, saved versions and id-based conservation\nacross two rollback/forward cycles. Add authenticated business assertions at\nBUSINESS_ASSERTION_BEGIN; return deliberately v1-written table/id and changed-field lists there.\nMark deliberate deletes with deleted:true; the proof checks they stay absent.\nExisting apps can add it with `snapback4 init --adapt --day2 --apply`.\nSet PORT_LO and PORT_HI at run time to confine proof servers and launchers.\nSet CHROME=/path/to/chromium or install Playwright's Chromium.\n";
+const PREVIOUS_40_README_PROOFS: &str = "\n## Frontend proofs\n\n`npm run frontend:proof` builds its own dist, then proves the starter in Chromium.\nAfter replacing the screen, add your business assertions to scripts/frontend-proof.mjs.\nDay-two scaffolding is opt-in: `snapback4 init --adapt --day2 --apply` captures\ncurrent sources and fixtures in versions/v1 and versions/v2 and adds day2:proof.\nReplace its BUSINESS_ASSERTION_BEGIN block before running `npm run day2:proof`.\nSet PORT_LO and PORT_HI at run time to confine proof servers and launchers.\nSet CHROME=/path/to/chromium or install Playwright's Chromium.\n";
 const PREVIOUS_30_README_PROOFS: &str = "\n## Frontend and day-two proofs\n\nRun\n`npm run frontend:proof` (it builds its own dist) to prove sign-in and the starter form in Chromium.\nAfter replacing the screen, add your business assertions to scripts/frontend-proof.mjs.\n`npm run day2:proof` proves saved-source deploy,\nrollback and compatible forward using versions/v1 and versions/v2. Replace the marked business assertion before it can pass.\nSet `PORT_LO` and `PORT_HI` at run time to confine proof servers and launchers;\nunset means allocated proof ports and the interactive starter defaults.\nSet `CHROME=/path/to/chromium` or install Playwright's Chromium (`npx playwright-core install chromium`).\n";
 const PREVIOUS_README_PROOFS: &str = "\n## Frontend and day-two proofs\n\nAfter `npm run build` (web) or `npm run build:web` (Expo), run\n`npm run frontend:proof` to prove sign-in and the starter form in Chromium.\nAfter replacing the screen, add your business assertions to scripts/frontend-proof.mjs.\n`npm run day2:proof -- versions/v1.q versions/v2.q` proves saved-source deploy,\nrollback and compatible forward without replacing your working schema.\nSet `PORT_LO` and `PORT_HI` at run time to confine proof servers and launchers;\nunset means allocated proof ports and the interactive starter defaults.\nSet `CHROME=/path/to/chromium` or install Playwright's Chromium (`npx playwright-core install chromium`).\n";
 /// Only the exact generated appendix is ignored for historical byte recognition.
-pub(super) fn without_readme(text: &str) -> &str { text.strip_suffix(README_PROOFS).or_else(|| text.strip_suffix(PREVIOUS_30_README_PROOFS)).or_else(|| text.strip_suffix(PREVIOUS_README_PROOFS)).unwrap_or(text) }
+pub(super) fn without_readme(text: &str) -> &str { text.strip_suffix(README_PROOFS).or_else(|| text.strip_suffix(PREVIOUS_40_README_PROOFS)).or_else(|| text.strip_suffix(PREVIOUS_30_README_PROOFS)).or_else(|| text.strip_suffix(PREVIOUS_README_PROOFS)).unwrap_or(text) }
 pub(super) fn readme(mut text: String) -> String {
     if !text.contains("`npm run frontend:proof`") { text.push_str(README_PROOFS); }
     text
@@ -26,7 +28,7 @@ pub(super) fn files(files: &mut Vec<(&'static str, String)>, options: &Options, 
     let sources = if let Ok(Some(own)) = super::own_schema(dir) {
         own.files.iter().filter_map(|name| std::fs::read_to_string(dir.join("snapback").join(name)).ok().map(|text| (name.clone(), text))).collect::<Vec<_>>()
     } else { files.iter().find(|(name, _)| *name == "snapback/schema.q").map(|(_, text)| vec![("schema.q".to_owned(), text.clone())]).unwrap_or_default() };
-    let day2 = options.flags.contains_key("day2");
+    let day2 = options.flags.contains_key("day2") || !dir.join("package.json").is_file();
     for version in ["v1", "v2"].into_iter().filter(|_| day2) {
         if dir.join("versions").join(version).exists() { continue; }
         // Init is a one-shot CLI operation. Destinations live for this invocation's
@@ -215,9 +217,10 @@ pub(super) fn plan(dir: &std::path::Path, own: &super::OwnSchema, enable_day2: b
     }
     let referenced_after = |path: &str| package["scripts"].as_object().is_some_and(|scripts| scripts.values().any(|v|v.as_str().is_some_and(|s|s.contains(path))));
     let mut additions: Vec<_> = generated.into_iter().skip(1)
-        .filter(|(name, _)| {
+        .filter(|(name, text)| {
             if *name == "scripts/frontend-proof.mjs" { return inherited_frontend.is_some() || !dir.join(name).exists() && referenced_after(name); }
-            if *name == "scripts/day2-proof.mjs" { return day2 && (managed_day2 || !dir.join(name).exists() && (enable_day2 || referenced_day2)); }
+            if *name == "scripts/day2-proof.mjs" { return day2 && (managed_day2 || !dir.join(name).exists() && (enable_day2 || referenced_day2))
+                && std::fs::read_to_string(dir.join(name)).ok().as_deref()!=Some(text.as_str()); }
             if !dir.join(name).exists() {
                 return name.starts_with("versions/") || referenced_after(name)
                     || shape.password && *name=="scripts/staging.mjs";

@@ -9,8 +9,8 @@ fn admission_survives_closed_stderr() { check(false); }
 #[test]
 fn admission_survives_full_stderr() { check(true); }
 fn check(full: bool) {
-        // Both cases hold 228 sockets; overlapping them exceeds macOS's
-        // ordinary 256-descriptor test-process limit before exercising the server.
+        // Both cases hold the server's full reported admission capacity;
+        // serialize their socket pressure within this test process.
         static SOCKETS: std::sync::Mutex<()> = std::sync::Mutex::new(());
         let _sockets = SOCKETS.lock().unwrap();
         let dir = std::env::temp_dir().join(format!("sb4-overload-{}-{full}", std::process::id()));
@@ -31,7 +31,16 @@ fn check(full: bool) {
         let address = url.trim().strip_prefix("http://").expect("server URL");
         // Drain only startup diagnostics, then explicitly fault the same pipe.
         unsafe { libc::fcntl(reader.as_raw_fd(), libc::F_SETFL, libc::O_NONBLOCK); }
-        let mut buffer = [0; 4096]; while reader.read(&mut buffer).is_ok_and(|n| n > 0) {}
+        let mut buffer = [0; 4096];let mut startup=Vec::new();
+        while let Ok(n)=reader.read(&mut buffer) {if n==0{break;}startup.extend_from_slice(&buffer[..n]);}
+        let startup=String::from_utf8_lossy(&startup);
+        let capacity=startup.split("HTTP connections=").nth(1).and_then(|s|s.split(|c:char|!c.is_ascii_digit()).next()).and_then(|s|s.parse::<usize>().ok()).expect("reported admission capacity");
+        // Raise only this test process's soft limit where needed. The old 228
+        // constant stopped saturating admission after main enlarged its intake.
+        let mut limits=std::mem::MaybeUninit::<libc::rlimit>::uninit();
+        assert_eq!(unsafe{libc::getrlimit(libc::RLIMIT_NOFILE,limits.as_mut_ptr())},0);
+        let mut limits=unsafe{limits.assume_init()};let needed=(capacity as libc::rlim_t).saturating_add(64);
+        if limits.rlim_cur<needed {assert!(limits.rlim_max>=needed,"test descriptor hard limit must hold reported admission capacity");limits.rlim_cur=needed;assert_eq!(unsafe{libc::setrlimit(libc::RLIMIT_NOFILE,&limits)},0);}
         if full {
             unsafe { libc::fcntl(writer.as_raw_fd(), libc::F_SETFL, libc::O_NONBLOCK); }
             while writer.write(&buffer).is_ok() {}
@@ -39,9 +48,9 @@ fn check(full: bool) {
             // this is the original full-pipe failure, not a nonblocking fake.
             unsafe { libc::fcntl(writer.as_raw_fd(), libc::F_SETFL, 0); }
         } else { drop(reader); }
-        // The connection cap reserves 128 intake slots, 98 queued short requests,
-        // and the long-wait pools (here 1 + 1): 228 total.
-        let held: Vec<_> = (0..228).map(|_| TcpStream::connect(address).unwrap()).collect();
+        // Fill exactly the capacity claimed by this binary, including intake,
+        // queued short requests and the configured long-wait pools.
+        let held: Vec<_> = (0..capacity).map(|_| TcpStream::connect(address).unwrap()).collect();
         thread::sleep(Duration::from_millis(100));
         for i in 0..9 {
             if i == 8 { thread::sleep(Duration::from_millis(1250)); } // summary writer has attempted the faulty pipe

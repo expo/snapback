@@ -12,6 +12,15 @@ impl Parser {
     pub(super) fn parse_alias(&mut self) -> Fallible<()> {
         let token=self.take("alias")?;
         let name=self.local_name()?;
+        if self.maybe(".") {
+            let column=self.word()?.value;
+            let old=self.take_kind(Kind::Str)?.value;
+            self.take("=")?;
+            let new=self.take_kind(Kind::Str)?.value;
+            self.end_line(&token.site)?;
+            self.document.enum_aliases.push((name,column,old,new,token.site));
+            return Ok(());
+        }
         self.take("=")?;
         let target=self.local_name()?;
         self.end_line(&token.site)?;

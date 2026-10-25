@@ -146,7 +146,7 @@ pub fn compare(old: &Bound, new: &Bound, label: &str) -> Vec<String> {
                     if !accepts_in(kind,next,Some(old),Some(new)){lines.push(format!("{prefix}: INPUT BREAK: aliased argument {arg} retyped or narrowed ({kind:?} → {next:?}); retain its old input domain"));}
                 },
                 None if warned_renames.contains(arg)=>{},
-                None=>lines.push(format!("{prefix}: INPUT BREAK: removed argument {arg}; old calls sending it get E_INPUT; retain `{arg}: <old type> deprecated` on a query/mutation")),
+                None=>lines.push(format!("{prefix}: INPUT BREAK: removed argument {arg}; old calls sending it get E_INPUT; retain a guarded compatibility endpoint that consumes {arg}, or deliberately pause the old operation; never silently discard data-bearing inputs")),
                 Some(next) if !accepts_in(kind,next,Some(old),Some(new))=>lines.push(format!("{prefix}: INPUT BREAK: argument {arg} retyped or narrowed ({kind:?} → {next:?}); old values may get E_INPUT; retain the old input domain or a compatible wrapper")),
                 _=>{}
             }

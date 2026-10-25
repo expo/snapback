@@ -1,0 +1,18 @@
+{
+  "date": "2026-10-24",
+  "round": 8,
+  "models": {
+    "codex": "gpt-6.1-sol high, fresh codex exec",
+    "muse": "muse-spark-1.3-contributor high, helper Meta fallback"
+  },
+  "commands": {
+    "codex": "codex exec -m gpt-6.1-sol -c model_reasoning_effort=high --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox - < brief",
+    "muse": "~/sb4-loop/muse-exec.sh --yolo --model muse-spark-1.3-contributor --reasoning-effort high --prompt-file brief"
+  },
+  "scope": "Same immutable complete normative/gate snapshot; one further clarification excludes insert-only placement from freeze update admission. Both READY.",
+  "sha256": {
+    "r8-brief.md": "16c1184daa317fe9ffa10df4026374f10eebd1443fa7d60484a018c5eac26d0e",
+    "r8-codex.md": "5d124fbf236318d483ea84af677773ebe57c73246d1d482544cdeae6bfbd37e5",
+    "r8-muse.md": "48899826c7850334425fd3b1145b8bcc4359fabddc43250b45bf05eca828aa89"
+  }
+}

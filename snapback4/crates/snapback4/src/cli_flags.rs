@@ -52,6 +52,10 @@ pub fn validate(args: &[String]) -> Result<(), String> {
             }
         }
     }
+    let limit=match verb {"deploy"|"rollback"|"prune"|"stop"=>Some(1),"releases"=>Some(2),_=>None};
+    if limit.is_some_and(|limit|crate::verbs::parse(args).positionals.len()>limit) {
+        return Err(format!("E_INPUT: {verb} has extra positional arguments; see `{verb} --help`"));
+    }
     let has = |name: &str| args.iter().skip(1).any(|arg| arg == &format!("--{name}") || arg.starts_with(&format!("--{name}=")));
     if verb == "check" {
         if has("ack-security")!=has("reason"){return Err("E_INPUT: --ack-security ID requires --reason TEXT".into());}

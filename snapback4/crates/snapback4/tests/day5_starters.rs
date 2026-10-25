@@ -53,6 +53,8 @@ fn inherited_placeholder_todo_snapshot_and_legacy_difference_are_named() {
 #[test]
 fn legacy_flat_sources_differ_from_newly_captured_v1_in_the_preview() {
     let app=App::new();app.ok(&["init","--web"]);
+    // Emulate the older flat-only kit rather than deleting captured evidence in adaptation.
+    fs::remove_dir_all(app.0.join("versions")).unwrap();
     app.write("versions/v1.q","query legacy():\n  return false\n");
     let text=app.ok(&["init","--adapt","--day2"]);
     assert!(text.contains("versions/v1.q differs from versions/v1/schema.q"),"{text}");
@@ -80,6 +82,8 @@ fn custom_schema_starters_have_no_todo_proof_or_leftovers_after_adaptation() {
 #[test]
 fn legacy_comparison_covers_non_schema_and_multi_module_snapshots() {
     let app=App::new();app.ok(&["init","--web"]);
+    // Emulate the older flat-only kit rather than deleting captured evidence in adaptation.
+    fs::remove_dir_all(app.0.join("versions")).unwrap();
     fs::remove_file(app.0.join("snapback/schema.q")).unwrap();
     let current="query alive():\n  return true\n";
     app.write("snapback/main.q",current);

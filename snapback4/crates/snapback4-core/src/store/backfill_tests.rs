@@ -1301,3 +1301,6 @@ fn release_registry_format_fence_upgrades_atomically_and_never_downgrades(){
 
 #[path="extraction_each_tests.rs"]
 mod extraction_each_tests;
+
+#[path="release_cycle_tests.rs"]
+mod release_cycle_tests;

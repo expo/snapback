@@ -1,7 +1,7 @@
 import { hangBudget, waitFor } from './helpers/wait.mjs';
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createServer } from "node:http";
+import { createServer, request } from "node:http";
 import { once } from "node:events";
 import { readFileSync } from "node:fs";
 import { mkdtemp, mkdir, writeFile, rm } from "node:fs/promises";
@@ -161,7 +161,7 @@ table photos:
   read <- allow
 `);
   const binary = process.env.SNAPBACK4_BIN ?? fileURLToPath(new URL("../../../target/debug/snapback4", import.meta.url));
-  // Smallest long-wait pools: the connection cap is 128 + 98 queued short slots + 1 + 1 (LLP 3000.009.001.000.001 §13).
+  // Derive intake capacity from this binary instead of assuming an old short queue.
   const child = spawn(binary, ["dev", "--fresh", "--replay", "--no-watch", "--port", "0", "--long-waits", "1", "--claim-waits", "1"], { cwd: dir, stdio: ["ignore", "pipe", "pipe"] });
   const exited = once(child, "exit");
   let log = "";
@@ -183,9 +183,11 @@ table photos:
     child.once("exit", () => { clearTimeout(timeout); reject(Error(`server exited: ${log}`)); });
   });
   const port = Number(new URL(url).port);
-  // Slow headers fill all 228 connection leases; 100-continue witnesses prove that
+  const connections = Number((await waitFor(() => log.match(/HTTP connections=(\d+)/), "reported admission capacity"))[1]);
+  assert.ok(Number.isSafeInteger(connections) && connections > 0);
+  // Slow headers fill the reported connection leases; 100-continue witnesses prove that
   // unfinished mutations occupy all 32 workers before the upload is attempted.
-  await Promise.all(Array.from({ length: capacity === "connection" ? 228 : 32 }, async () => {
+  await Promise.all(Array.from({ length: capacity === "connection" ? connections : 32 }, async () => {
     const socket = connect(port, "127.0.0.1");
     socket.on("error", () => {});
     sockets.push(socket);
@@ -200,20 +202,77 @@ table photos:
       finally { socket.off("data", onData); }
     }
   }));
+  if (capacity === "connection") await waitFor(async () => {
+    const status = await new Promise(resolve => {
+      const probe = request(new URL('/schema', url), { headers: { connection: 'close' } }, reply => {
+        reply.once('end', () => resolve(reply.statusCode)); reply.once('error', () => resolve(0)); reply.resume();
+      });
+      probe.once('error', () => resolve(0)); probe.end();
+    });
+    return status === 503 && log.includes(`E_RATE_LIMIT at http: all ${connections} HTTP connections`);
+  }, 'connection leases are admitted and saturated', { diagnostics: () => log });
   const png = Buffer.alloc(2081);
   Buffer.from("89504e470d0a1a0a0000000d494844520000000100000001", "hex").copy(png);
+  // @ref LLP 3000#http-overload-diagnostics — a write does not prove peer receipt.
+  // Admission can refuse before reading request bytes. Withhold those bytes at
+  // a transparent proxy so this assertion measures the real refusal envelope,
+  // rather than best-effort delivery across an unread-body TCP reset.
+  let saturated = true, uploadURL = url;
+  if (capacity === "connection") {
+    const proxy = createServer((req, res) => {
+      if (saturated) {
+        // Drain the caller before dialing; send no bytes to the saturated host.
+        // The raw upstream therefore has no unread request body to reset.
+        req.once("end", () => {
+          const upstream = connect(port, "127.0.0.1"), chunks = [];
+          upstream.on("data", bytes => chunks.push(bytes));
+          upstream.on("error", () => res.destroy());
+          res.on("close", () => upstream.destroy());
+          upstream.once("end", () => {
+            const reply = Buffer.concat(chunks), split = reply.indexOf("\r\n\r\n");
+            const lines = reply.subarray(0, split).toString().split("\r\n");
+            const status = lines.shift()?.match(/^HTTP\/1\.[01] (\d+)/);
+            if (split < 0 || !status) { res.destroy(); return; }
+            const headers = Object.fromEntries(lines.map(line => {
+              const colon = line.indexOf(":"); return [line.slice(0, colon), line.slice(colon + 1).trim()];
+            }));
+            res.writeHead(Number(status[1]), { ...headers, connection: "close" }); res.end(reply.subarray(split + 4));
+          });
+        });
+        req.resume();
+      } else {
+        const upstream = request(new URL(req.url, url), { method: req.method, headers: { ...req.headers, host: new URL(url).host, connection: "close" } }, reply => {
+          res.writeHead(reply.statusCode, { ...reply.headers, connection: "close" }); reply.pipe(res);
+        });
+        upstream.on("error", () => res.destroy()); req.pipe(upstream);
+      }
+    });
+    proxy.listen(0, "127.0.0.1"); await once(proxy, "listening");
+    t.after(() => { proxy.closeAllConnections(); proxy.close(); });
+    uploadURL = `http://127.0.0.1:${proxy.address().port}`;
+  }
+  // Observe the requested backoff without letting a scheduling pause expire
+  // the host's independent five-second header leases.
+  const delays = [], schedule = globalThis.setTimeout;
+  t.mock.method(Math, "random", () => 0.5);
+  t.mock.method(globalThis, "setTimeout", (callback, delay, ...args) => {
+    if (delay !== 1125) return schedule(callback, delay, ...args);
+    delays.push(delay); return schedule(callback, 0, ...args);
+  });
   let attempts = 0;
-  const result = await uploadAsset(url, { "x-snapback-persona": "alice" }, (...args) => { attempts++; return defaultFetch(...args); }, png);
-  assert.equal(attempts, 4, "the actual server refusal must be retryable");
+  const result = await uploadAsset(uploadURL, { "x-snapback-persona": "alice" }, (...args) => { attempts++; return defaultFetch(...args); }, png);
+  assert.equal(attempts, 4, JSON.stringify({ result, log }));
+  assert.deepEqual(delays, [1125, 1125, 1125]);
   assert.equal(result.ok, false, log);
   assert.equal(result.why.code, "E_RATE_LIMIT", JSON.stringify(result));
   assert.match(result.why.message, /HTTP connections/);
-  const diagnostic = capacity === "connection" ? /E_RATE_LIMIT at http: all 228 HTTP connections/ : /E_RATE_LIMIT at workers: cumulative refused=\[0, [1-9]/;
+  const diagnostic = capacity === "connection" ? new RegExp(`E_RATE_LIMIT at http: all ${connections} HTTP connections`) : /E_RATE_LIMIT at workers: cumulative refused=\[0, [1-9]/;
   await waitFor(() => log.split("\n").slice(0, -1).some(line => diagnostic.test(line)), "complete overload diagnostic");
   assert.match(log, diagnostic);
   assert.equal(child.exitCode, null, "host remains alive");
   for (const socket of sockets) socket.destroy();
-  const recovered = await uploadAsset(url, { "x-snapback-persona": "alice" }, defaultFetch, png);
+  saturated = false;
+  const recovered = await uploadAsset(uploadURL, { "x-snapback-persona": "alice" }, defaultFetch, png);
   assert.equal(recovered.ok, true, JSON.stringify(recovered));
 });
 

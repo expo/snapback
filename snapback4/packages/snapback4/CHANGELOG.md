@@ -12,6 +12,11 @@
 - Client recipes put sign-in before readiness and show explicit device-less online browser apps. Hidden-lookup explanations state that program `exists` is caller-filtered and give the refusal ladder. Raw HTTP documents admission `{denied}` versus failed execution receipts. Input errors name arguments, nested list positions and limits.
 
 
+- Release moves print `live:` and JSON reports logical source, selected view and exact-source status. Forward deploy selects the matching ordinary release after a view. Rollback warnings name registered view coverage.
+- Column write adoption alone no longer forces a rollback view. Needed views compile during store/baseline check, retain typed renamed rules, and pause incompatible old writes instead of dropping inputs. Exact selection checks current write authority.
+- Extraction can widen a required asset to optional and refill its receipt-owned child after reversal; retained current child workflows avoid arbitrary choice among new children. Reference renames can change deletion policy. `guide rename` runs a complete field/enum spelling migration through two cycles.
+- New starter day-two proofs compare persisted ids/values (excluding ephemeral state) through two cycles, allow v2-native rows and explicit v1 edits/deletions without masking rollback-hidden rows. Saved versions retain generated module siblings; release commands refuse extra positionals, and concrete deploy refusals precede REVIEW notes. Adaptation is idempotent and preserves genuine historical captures.
+
 ## 0.4.40
 
 ### Guide changes

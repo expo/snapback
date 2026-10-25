@@ -1,7 +1,7 @@
 //! Compiled examples first; diagnostic details are under `why`.
 pub const LANGUAGE: &str = r##"# Quarry — the language card
 
-**Start here:** Tables, rules, queries, mutations; inferred indexes. `guide from-sql`.
+**Start here:** Tables, rules, queries, mutations; indexes. `guide from-sql`.
 
 ```quarry
 table todos:
@@ -570,7 +570,7 @@ route providerEvent: post "/hooks/room-events" as service:reporter secrets [ROOM
 
 ## Left out on purpose and idioms
 
-Cards: `snapback4 guide <keyword>`: cheatsheet, app, social, from-sql, types, time, api, indexes, maintains, totals, offline-interactions, rules, sync, sharing, residency, prediction, evolution, deploy, release-json, expire, ephemeral, sequences,
+Cards: `snapback4 guide <keyword>`: cheatsheet, app, social, from-sql, types, time, api, indexes, maintains, totals, offline-interactions, rules, sync, sharing, residency, prediction, evolution, rename, deploy, release-json, expire, ephemeral, sequences,
 assets, client, wire, reads, shapes, writes, cleanup, programs, jobs, native, feeds, search,
 effects, actions, routes, services, presence, receipts, read-only, manual-receipts, bounds, refusals, personas, testing, witness. `why
 <CODE>` explains refusals. Tasks: `guide tasks`. Also: production, staging, security, recipes, rule-recipes, deploy, changes.
