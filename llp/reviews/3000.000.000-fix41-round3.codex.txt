@@ -1,0 +1,13 @@
+One material finding:
+
+**P1 — Native-child fallback checks receipt ownership after reverse activation can manufacture that ownership.** [rollback_visibility.rs:100](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-core/src/store/rollback_visibility.rs:100) queries the mutated `_extraction_rows`. Earlier, reverse extraction selects a sole native child for a parent without a receipt and [inserts a receipt](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-core/src/store/extractions.rs:310).
+
+For a v2-born parent with exactly one independently created child and valid lifetime evidence, the snapshot probe can therefore pass, select original v1, and make the independent child table dormant. This violates §21’s native-child fallback requirement. Capture receipt ownership before migration, or validate it before reverse extraction inserts receipts. Add a regression for this singleton case; the added extra-child regression follows a different path.
+
+No material issue found in the final label normalization, audit metadata exception, binder repair, compiled-feature test, or overload witness repair. Version remains `0.4.41`.
+
+Verification limits: focused audit/socket tests and prebuilt compiler, binder, and store tests passed. The finding is source-traced, with its SQL predicate confirmed in memory; no new end-to-end singleton reproduction or full qualification was run. Supplied installed-proof and replay evidence was inspected. No edits or proposal-status changes made.
+
+Provenance: Codex (GPT-6); source `3595b5f091c635e82a1359aa6aa0ef37c532873e`, base `5c4716af14`, emphasis `071a9ceafb..3595b5f091`.
+
+NOT READY

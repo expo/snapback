@@ -1,0 +1,19 @@
+{
+  "stores": 100,
+  "moves": 500,
+  "knownTrueRefusals": {
+    "w25-004": 5,
+    "w25-024": 5,
+    "w25-030": 2,
+    "w25-045": 2,
+    "w27-012": 2,
+    "w27-042": 2
+  },
+  "refusalsMatchREL": true,
+  "successfulMoves": 482,
+  "correctLiveLines": 482,
+  "ordinarySourceForwards": 194,
+  "hiddenV1Rows": 0,
+  "originalFilesUnchanged": 300,
+  "binarySha256": "adef6f93afc7fc35e45190a018652dca68ab925bdaf35af1d4231be6812ee82c"
+}

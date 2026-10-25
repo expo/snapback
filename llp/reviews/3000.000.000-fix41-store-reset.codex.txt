@@ -1,0 +1,14 @@
+No material correctness concerns found.
+
+Reviewed HEAD `b168eb27352a8ed0ebdc398b48a85390999d0a42`, the entire original test, complete patch, patched source, resolved runnable copy, and relevant server/helper code. Verified patch SHA256 `a30f9ee97dae562e618e4d36d3c9be549b07da0b1554b742884950142af3d9e4`.
+
+- **Adoption barrier:** `patched.mjs:197–204` requires no refusal, a valid positive generation, a nonnegative watermark, and a nonempty store identity before accepting a changed generation. This matches the successful `/sync` response metadata; successful snapshots do not require `complete: true`.
+- **Narrow retry:** Only `E_GENERATION` with family `generation` and `retryable === true` is retried. Other refusals and malformed required metadata throw immediately. Transport and JSON errors also propagate because the wait helper does not swallow predicate errors.
+- **Reply retention:** `patched.mjs:230` retains the successful barrier reply directly, eliminating the unguarded second fetch and its separate adoption race.
+- **Regression:** `patched.mjs:207–220` deterministically exercises unchanged generation, two consecutive legitimate refusals, then adoption. Object identity and exactly four requests verify retention and prevent early acceptance. Negative cases cover malformed metadata and mismatched refusal code, family, and retryability.
+- **Preserved assertions:** The committed rebuild watermark, same store identity, idle committed head, client freshness/data, restore refusal, reconnect behavior, and outbox preservation assertions remain unchanged.
+- **Cleanup and scheduling:** The regression creates no server, client, filesystem fixture, or extra pool. Existing teardown, polling cadence, guards, and timer-file scheduling remain unchanged. This follows LLP3000’s state-barrier and generation-fenced reader guidance.
+
+The runnable copy differs only in import/base URL resolution. I ran no tests or builds, made no file changes, and accessed no other worktrees or `sb4-pub-*` directories. The reported 13/13 pass and ongoing repeats remain caller-supplied evidence.
+
+READY

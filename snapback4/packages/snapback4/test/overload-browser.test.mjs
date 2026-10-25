@@ -3,7 +3,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer, request } from 'node:http';
 import { once } from 'node:events';
-import { connect } from 'node:net';
+import { connect, createServer as createTcpServer } from 'node:net';
 import { readFileSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -12,6 +12,61 @@ import { chromiumExecutable } from '../../../witness/lib.mjs';
 import { binary } from './helpers/app-server.mjs';
 import { signalChild, spawnTracked as spawn } from '../../../scripts/test-signals.mjs';
 import { captureStdout } from './helpers/server-output.mjs';
+
+// @ref LLP 3000#http-overload-diagnostics — existing leases keep their real deadlines.
+// A TCP connect only establishes the kernel socket, not a host admission lease.
+// Warm requests can still own slots, and silent leases expire after five seconds.
+// Keep replacing closed/refused sockets throughout the witness; a one-shot bank
+// can remain below capacity forever after either event, particularly under load.
+function occupyConnections(port, count, onRefused = () => {}) {
+  const sockets = new Set(), timers = new Set();
+  let stopped = false;
+  function open() {
+    if (stopped) return;
+    const socket = connect(port, '127.0.0.1'); sockets.add(socket);
+    socket.on('error', () => {});
+    const reply = [];
+    socket.on('data', bytes => reply.push(bytes));
+    socket.once('end', () => { if (/^HTTP\/1\.[01] 503 /.test(Buffer.concat(reply).toString())) onRefused(); });
+    socket.resume(); // Consume refusals/EOF so close can replenish the slot.
+    socket.once('close', () => {
+      sockets.delete(socket);
+      if (stopped) return;
+      const timer = setTimeout(() => { timers.delete(timer); open(); }, 50);
+      timers.add(timer);
+    });
+  }
+  for (let index = 0; index < count; index++) open();
+  return () => {
+    stopped = true;
+    for (const timer of timers) clearTimeout(timer);
+    for (const socket of sockets) socket.destroy();
+  };
+}
+
+test('the overload socket bank replaces refused and expired admission leases', { timeout: hangBudget(3) }, async t => {
+  const admitted = new Set();
+  let refused = 0;
+  const intake = createTcpServer(socket => {
+    if (admitted.size === 2) { refused++; socket.end('HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\n\r\n'); return; }
+    admitted.add(socket); socket.on('error', () => {});
+    socket.once('close', () => admitted.delete(socket));
+  });
+  intake.listen(0, '127.0.0.1'); await once(intake, 'listening');
+  t.after(() => { for (const socket of admitted) socket.destroy(); intake.close(); });
+  const port = intake.address().port;
+  const warm = connect(port, '127.0.0.1'); warm.on('error', () => {});
+  t.after(() => warm.destroy());
+  await waitFor(() => admitted.size === 1, 'warm request owns an admission slot');
+  const warmLease = [...admitted][0];
+  let observedRefusal = false;
+  const release = occupyConnections(port, 2, () => { observedRefusal = true; }); t.after(release);
+  await waitFor(() => refused > 0 && observedRefusal, 'bank observes its refused socket behind the warm request');
+  warm.destroy();
+  await waitFor(() => admitted.size === 2 && !admitted.has(warmLease), 'bank replaces the refused socket');
+  const expired = [...admitted][0]; expired.destroy();
+  await waitFor(() => admitted.size === 2 && !admitted.has(expired), 'bank replaces an expired silent lease');
+});
 
 test('Chromium reads cross-origin admission refusals and Retry-After; upload actually retries four times', { timeout: hangBudget(16) }, async t => {
   // Derive intake capacity from the actual binary; main may enlarge its short queue.
@@ -84,26 +139,20 @@ table photos:
     return window.sdk.uploadAsset(url, { 'x-snapback-persona': 'alice' }, fetch, window.png);
   }, { url: browserURL, png: [...png] });
   assert.equal(warm.ok, true, JSON.stringify(warm)); // includes a real browser preflight
-  const held = [];
-  t.after(() => { for (const socket of held) socket.destroy(); });
-  await Promise.all(Array.from({ length: connections }, async () => {
-    const socket = connect(Number(new URL(url).port), '127.0.0.1'); held.push(socket); socket.on('error', () => {}); await once(socket, 'connect');
-  }));
-  await waitFor(async () => {
-    const status = await new Promise(resolve => {
-      const probe = request(new URL('/schema', url), { headers: { connection: 'close' } }, reply => {
-        reply.once('end', () => resolve(reply.statusCode)); reply.once('error', () => resolve(0)); reply.resume();
-      });
-      probe.once('error', () => resolve(0)); probe.end();
-    });
-    return status === 503 && diagnostics.includes(`E_RATE_LIMIT at http: all ${connections} HTTP connections`);
-  }, 'connection leases are admitted and saturated', { diagnostics: () => diagnostics });
+  // Keep a bounded surplus of contenders: replacements race lease expiry too.
+  // Exactly capacity contenders can continually trail the real admitted count.
+  let bankRefused = false;
+  t.after(occupyConnections(Number(new URL(url).port), connections * 2, () => { bankRefused = true; }));
+  // Observe a real refusal from the bank itself. A separate HTTP probe can
+  // acquire the final slot during intake, or reset a refusal with unread bytes.
+  await waitFor(() => bankRefused && diagnostics.includes(`E_RATE_LIMIT at http: all ${connections} HTTP connections`),
+    'connection leases are admitted and saturated', { diagnostics: () => diagnostics });
   saturated = true;
   const result = await page.evaluate(async url => {
     const response = await fetch(`${url}/schema`);
     const status = response.status, after = response.headers.get('retry-after'), body = await response.json();
     // Check the requested minimum delay with a controlled backoff clock;
-    // silent connection leases retain the real host's five-second deadline.
+    // The replenished silent leases retain the host's real five-second deadline.
     const schedule = window.setTimeout.bind(window), delays = [];
     window.setTimeout = (callback, delay, ...args) => { delays.push(delay); return schedule(callback, 0, ...args); };
     let attempts = 0;

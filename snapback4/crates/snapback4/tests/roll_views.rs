@@ -686,6 +686,87 @@ fn saved_versions_keep_generated_siblings_and_saved_deploy_leaves_working_codege
     assert_eq!(fs::read_to_string(api).unwrap(),"// working client sentinel\n");
 }
 
+fn publication_media()->(&'static str,String) {
+    // Consume the exact packed proof's fixtures: reference-key renames create
+    // compiler-owned $reference labels that a scalar stand-in does not cover.
+    let proof=include_str!("../../../scripts/publication-roll.mjs");
+    let old=proof.split("  const media=`").nth(1).unwrap().split("`;").next().unwrap();
+    let child=proof.split("+`table scans:").nth(1).unwrap().split("`;").next().unwrap();
+    let current=old.replace("  buyer: customers","  customer: customers renamed from buyer")
+        .replace("  scan: file <=1000\n","")
+        .replace("mutation add(buyer: customers, scan: file <=1000):\n  return insert orders {owner:viewer,buyer,scan}\n","")
+        +"table scans:"+child;
+    (old,current)
+}
+
+#[test]
+fn native_singleton_keeps_its_identity_in_the_registered_rollback_view() {
+    let(old,current)=publication_media();let app=App::new();app.source(old);app.ok(&["deploy","deployment"]);
+    app.source(&current);app.ok(&["deploy","deployment"]);
+    let b=snapback4_lang::compile(&[("schema.q".into(),current.clone())]);
+    let store=snapback4_core::store_port::AnyStore::open(&app.0.join("deployment/store.sqlite")).unwrap();let schema=b.schema.clone();
+    let mut engine=snapback4_core::Engine::new_release(store,b.schema,b.programs.into_iter().map(|p|p.program),2,Some(2)).unwrap();
+    let asset=engine.store_file("alice",b"native singleton",Some("text/plain"),"native.txt",1000).unwrap();let scan=snapback4_core::wire::to_json(&asset.column_value());
+    let rows=[("customers",json!({"id":"customer"})),("orders",json!({"id":"native-parent","owner":"alice","customer":"customer"})),("scans",json!({"id":"native-child","order":"native-parent","scan":scan}))];
+    engine.seed(rows.into_iter().map(|(t,row)|(t.into(),snapback4_core::wire::row_from_json(&schema.tables[t],&row).unwrap())).collect::<Vec<_>>()).unwrap();drop(engine);
+    let receipts=||{let conn=rusqlite::Connection::open_with_flags(app.0.join("deployment/store.sqlite"),rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY).unwrap();conn.query_row("SELECT COUNT(*) FROM _extraction_rows WHERE child_id='native-child'",[],|r|r.get::<_,i64>(0)).unwrap()};
+    assert_eq!(receipts(),0,"this native singleton has lifetime evidence but no extraction receipt");
+    for _ in 0..2 {
+        let selected=app.json(&["rollback","deployment","--to","1","--json"]);assert_eq!(selected["rollbackView"]["target"],1,"a receipt minted by reverse preview must not authorize hiding a native singleton");
+        assert_eq!(receipts(),0,"private reverse preview rolls its new receipt back");
+        let release=selected["release"].as_u64().unwrap();let b=snapback4_lang::compile(&[("schema.q".into(),current.clone())]);
+        let store=snapback4_core::store_port::AnyStore::open(&app.0.join("deployment/store.sqlite")).unwrap();let mut engine=snapback4_core::Engine::new_release(store,b.schema,b.programs.into_iter().map(|p|p.program),release,Some(release)).unwrap();
+        for viewer in ["alice","bob"] {
+            let out=engine.query("scan",snapback4_core::Context::new(viewer,std::collections::BTreeMap::from([("id".into(),snapback4_core::Value::Id("native-child".into()))]))).unwrap();let data=snapback4_core::wire::to_json(&out.data);
+            if viewer=="alice"{assert_eq!(data["id"],"native-child");assert_eq!(data["order"],"native-parent");assert_eq!(data["scan"],scan);}else{assert_eq!(data,json!(null));}
+        }
+        drop(engine);app.ok(&["rollback","deployment","--to","latest"]);
+    }
+}
+
+#[test]
+fn fitting_extraction_with_rename_restores_predecessor_shape_twice() {
+    let(old,current)=publication_media();
+    let app=App::new();app.source(old);app.ok(&["deploy","deployment"]);
+    let b=snapback4_lang::compile(&[("schema.q".into(),old.into())]);
+    let store=snapback4_core::store_port::AnyStore::open(&app.0.join("deployment/store.sqlite")).unwrap();
+    let schema=b.schema.clone();
+    let mut engine=snapback4_core::Engine::new_release(store,b.schema,b.programs.into_iter().map(|p|p.program),1,Some(1)).unwrap();
+    let asset=engine.store_file("alice",b"retained scan",Some("text/plain"),"scan.txt",1000).unwrap();
+    let scan=snapback4_core::wire::to_json(&asset.column_value());
+    engine.seed(vec![("customers".into(),snapback4_core::wire::row_from_json(&schema.tables["customers"],&json!({"id":"customer"})).unwrap()),("orders".into(),snapback4_core::wire::row_from_json(&schema.tables["orders"],&json!({"id":"kept","owner":"alice","buyer":"customer","scan":scan})).unwrap())]).unwrap();
+    drop(engine);
+    app.source(&current);app.ok(&["deploy","deployment"]);
+    for _ in 0..2 {
+        let preview=app.json(&["rollback","deployment","--to","1","--check","--json"]);
+        assert_eq!(preview["visibility"]["hiddenRows"],0);
+        let selected=app.json(&["rollback","deployment","--to","1","--json"]);
+        assert_eq!(selected["release"],1,"a fitting reverse extraction keeps the old query shape");
+        let b=snapback4_lang::compile(&[("schema.q".into(),old.into())]);
+        let store=snapback4_core::store_port::AnyStore::open(&app.0.join("deployment/store.sqlite")).unwrap();
+        let mut engine=snapback4_core::Engine::new_release(store,b.schema,b.programs.into_iter().map(|p|p.program),1,Some(1)).unwrap();
+        for viewer in ["alice","bob"] {
+            let outcome=engine.query("order",snapback4_core::Context::new(viewer,std::collections::BTreeMap::from([("id".into(),snapback4_core::Value::Id("kept".into()))]))).unwrap();
+            let data=snapback4_core::wire::to_json(&outcome.data);
+            if viewer=="alice" {assert_eq!(data["scan"],scan);assert_eq!(data["buyer"],"customer");assert!(data.get("customer").is_none());}
+            else {assert_eq!(data,json!(null));}
+        }
+        drop(engine);app.ok(&["rollback","deployment","--to","latest"]);
+    }
+    // An extra independent child of this same receipt-owning old parent must
+    // keep the registered view, even though its original child fits v1.
+    let b=snapback4_lang::compile(&[("schema.q".into(),current)]);
+    let store=snapback4_core::store_port::AnyStore::open(&app.0.join("deployment/store.sqlite")).unwrap();
+    let schema=b.schema.clone();
+    let mut engine=snapback4_core::Engine::new_release(store,b.schema,b.programs.into_iter().map(|p|p.program),2,Some(2)).unwrap();
+    let asset=engine.store_file("alice",b"independent scan",Some("text/plain"),"extra.txt",1000).unwrap();
+    engine.seed(vec![("scans".into(),snapback4_core::wire::row_from_json(&schema.tables["scans"],&json!({"id":"native","order":"kept","scan":snapback4_core::wire::to_json(&asset.column_value())})).unwrap())]).unwrap();
+    drop(engine);
+    let selected=app.json(&["rollback","deployment","--to","1","--json"]);
+    assert_eq!(selected["rollbackView"]["target"],1,"independent children keep the current population visible");
+    assert_eq!(app.json(&["sql","SELECT COUNT(*) FROM scans","--release","deployment","--json"])["rows"][0][0],2);
+}
+
 #[test]
 fn extraction_view_keeps_multiple_native_children_and_bridge_is_written_on_refusal() {
     let old="table items:\n  owner: principal\n  photos: [image <=1000] 1..4\n  label: text <=40\n  public 'fixture'\n  online only\n";

@@ -193,6 +193,33 @@ test("R2 item 3: restoring the same store at a lower head halts reads and retrie
   t.diagnostic(`restore: old watermark preserved=${state.watermark}, retry syncs=0, offline reopen refuses=true, fresh device rows=${freshRead.data.length}`);
 });
 
+// @ref LLP 3000#publication-suite-under-contention — a transient refusal is not adopted state.
+function adoptedSync(reply, previousGeneration) {
+  assert.ok(reply && typeof reply === "object", JSON.stringify(reply));
+  if (reply.denied?.code === "E_GENERATION" && reply.denied.family === "generation" && reply.denied.retryable === true) return false;
+  assert.equal(reply.denied, undefined, JSON.stringify(reply));
+  assert.ok(Number.isSafeInteger(reply.generation) && reply.generation > 0, JSON.stringify(reply));
+  assert.ok(Number.isSafeInteger(reply.watermark) && reply.watermark >= 0, JSON.stringify(reply));
+  assert.ok(typeof reply.store_id === "string" && reply.store_id.length > 0, JSON.stringify(reply));
+  return reply.generation !== previousGeneration && reply;
+}
+
+test("maintain adoption waits for a successful snapshot and preserves unexpected refusals", async () => {
+  const before = { generation: 1, watermark: 3, store_id: "same-store" };
+  const transient = { complete: false, denied: { code: "E_GENERATION", family: "generation", retryable: true } };
+  const after = { ...before, generation: 2, watermark: 4 };
+  const replies = [before, transient, transient, after];
+  let requests = 0;
+  const rebuilt = await until(() => adoptedSync(replies[requests++], before.generation), "successful adopted snapshot");
+  assert.equal(rebuilt, after); assert.equal(requests, 4);
+  for (const reply of [
+    {}, { generation: 2 },
+    { denied: { code: "E_GENERATION", family: "generation", retryable: false } },
+    { denied: { code: "E_GENERATION", family: "auth", retryable: true } },
+    { denied: { code: "E_STORE", family: "store", retryable: true } },
+  ]) assert.throws(() => adoptedSync(reply, before.generation), assert.AssertionError);
+});
+
 for (const kind of ["server", "wasm", "process"]) test(`R3 finding 5: ${kind} idle poll after populated maintain adoption stays healthy`, { timeout: hangBudget(12) }, async t => {
   const f = await fixture(t, kind, 0, true); await f.seed("A", 3);
   const before = await f.post("/sync", { from: 0 });
@@ -200,8 +227,7 @@ for (const kind of ["server", "wasm", "process"]) test(`R3 finding 5: ${kind} id
 maintain counts: count notes by body
   read <- allow
 `);
-  await until(async () => (await f.post("/sync", { from: 0 })).generation !== before.generation, "maintain was not adopted");
-  const rebuilt = await f.post("/sync", { from: 0 });
+  const rebuilt = await until(async () => adoptedSync(await f.post("/sync", { from: 0 }), before.generation), "maintain was not adopted");
   assert.equal(rebuilt.watermark, before.watermark + 1);
   assert.equal(rebuilt.store_id, before.store_id);
   if (kind === "server") {

@@ -1,61 +1,92 @@
-# Integration 25 — Snapback 4 0.4.41
+# FIX41 — repair 0.4.41 publication reds
 
-Worktree `/home/ccheever/projects/snapback-sb4loop`, branch `sb4-loop`.
-Pre-merge main: `25ee876966185acfa7be9eace384b2988512da56`.
-Integrated runtime source: `030a1ab426`; final documentation/evidence commit: `72f73ab051` (closure record `af0d6a1cdb`).
-Standalone bump: `7c364a917c` (`snapback4 0.4.41: clearer security decisions and reliable release proofs`).
+Worktree /home/ccheever/projects/snapback-sb4loop, branch sb4-loop.
+Base5c4716af14; version stays0.4.41. Direct main push authorized; no force.
+Publisher evidence read only; no sb4-pub-* tree/kit changed. No original lane
+store opened: replay wrappers copy stores and hash all300originalfiles.
 
-## Changes and integration
+Orientation: Snapback4 fence, LLP3000§7, LLP3000.009.001.000.002§6,
+LLP3000.000.000§21 and LLP3000.011.003.000§10, relevant source @refs,
+Snapback4 guide/README authoring forms. Used llp-orient and llp-ship; user
+branch/worktree/merge instructions override generic run-branch rules.
+Four-agent cap initially:131GB free,235GiB RAM available, load3.3. Disjoint
+binder/rollback/browser lanes share target; primary owns feature test/audit.
 
-- Main merges: `2ce713a595`, `00532affd8` (R1), `030a1ab426` (G7.1/FF3, main `22412ba20b`). Lane merges: DX9 `ee7adeb4cc`, REL `d681fc410b`, DX10 `33ee8cf8ff`. SEC10 is excluded.
-- DX9 supplies coherent source-bound security decisions, the password-role recipe and init template, starter corrections, serveUntilSignal, Quarry ergonomics, navigation and social teardown custody. REL supplies needed/correct rollback views, live-release identity on moves, extraction/backfill/rename semantics and day-two guidance. DX10 supplies serve-check, persistent idempotent production account provisioning and explicit review-tier gate/next-step wording.
-- Conflicts retain both lanes’ task/rename routes, all diagnostics, both proof helper APIs, DX9’s account argument guidance and DX10’s idempotence. Journals retain both histories. Root report conflicts keep integration content. Generated files are regenerated rather than merged manually. Upstream G6 issue resolution preserves the integration’s census fixes and main’s opt-in ruling.
-- Integration repairs: `6e27274c8f` uses a debug-only preupdate write observer instead of forbidden trigger instrumentation and follows transitive test-module exclusions in the codec census. `a7d116fa40` narrowly recognizes four neutral internal types; `124c6172bb` regenerates test-only port counts. Production port allowances stay zero.
-- `441b46c872` puts serve-check in shared help/parser metadata; `bebe475177` fixes packaged guidance. `cd64564f81` fixes real false fresh-extraction refusals in wave 27 apps 028/032: new parents use their new source context for role probes, while retained/restored parents keep historical context. Both regression scenarios and all 11 release-cycle tests pass; no historical audience guard is weakened.
-- `563bd644e0` regenerates the compiler-emitted authoring census (569 mutation occurrences, 95 private families). `792f6772fd` aligns API/examples and isolated shim/input fixtures. `2cbac69060` fixes actual security-family priority, retaining gates/authority first, and repairs the Expo harness/await classification seal. `4a83001350` repairs the governing reference anchor.
-- The standalone bump follows the previous bump’s version-file set and adds LLP3000.037 §20.10. `7a70ea22d2` renames the private reader-preparation helper without changing behavior or either port allowance file. The final 0.4.41 guide-changes entry combines every lane and existing-app/store effects. Upgrade prose is a bullet so the compiled guide includes decision renewal, restart/rebuild and roster retention. The deploy card preserves every word while returning to 279 total / 149 operational lines; no test limit changes.
-- Fresh independent Codex and Muse reviews find no material issue in extraction, priority rendering, the integrated candidate and incoming release interactions. Received outputs, prompts and provenance are verbatim under `llp/reviews/integration25-*`. Muse’s quota failures and successful configured fallback are retained; no credential file is read or printed.
+1. Store test —6c79375cbb (+fixture-boundary cleanup97e59e6d2f).
+Core debug test-support reports its compiled evaluation feature. Package-only
+refuses exact tracker; workspace-unified core admits only exact tracker;
+malicious changed body always refuses. Package test1/1PASS; workspace binary
+612/612PASS,57ignored. Port fixture census8/8PASS without raised allowance.
 
-## Affected verification
+2. Binder —0be6995c45. Check stability before speculative key selection;
+borrow field AST. Existing8-level time721.5ms ->6.3–6.7ms; added12-level
+76.7ms/1s guard,12runtime reads. Positional11/11 andDX9ergonomics3/3PASS.
+Difftest2k:120,026executions,0disagreements. Lean2k:18alreadyCLASSIFIED C2/W4
+signatures, no new signature. Standalone full-lang1200s guard expired after
+1857passes/no failures; publisher-style inventory completed separately.
 
-The canonical run against pre-merge main binds clean product source `70365904e6` and completes with unchanged inputs: **31 commands, seven whole Rust packages, 440 client files**. CLI, core, language, difftest Rust, native, fixtures and both complete models pass. Ordinary clients report **7,941 passes / 1 native-profile failure / 56 skips** across 438 files; models pass **89/89**, retaining full 5,000 online + 5,000 local sessions and 3,000 online-client sequences.
+3. Rollback —39cdc9cea7,caefb60f5c,c8ef2ccafc. Prefer truthful original
+extraction shape under closed authority checks/private activation; normalize
+only generated reference labels. Capture original receipt ownership before
+adoption can mint native-singleton receipts; independent children keep view.
+Regression reads actual publication media schema. Eligibility1/1, core snapshot
+transaction unit1/1, fullroll_views29/29PASS. Actual installed mini-pack
+proveMigrations/proveRollInstalled PASS, including private file/reference rename,
+two cycles and worker/guard cases. Final replay evidence4685131d7f:
 
-The raw selector is red and remains unmodified. Three product steps encounter native failures only under temporary session opt-level2 overrides. Both Rust failures reproduce on archived pre-merge main. Repository-configured profiles pass device native_following (2/2, isolated 1/1, repeated 2/2), simulator native (12 pass / 1 existing ignore after isolated 1/1), and the entire affected bounded-Following client file (39/39 after isolated 1/1). No assertion, workload, stack size or product deadline changes. The overrides are never committed. The other raw reds are missing root dependencies (restored and rechecked) and the exact inherited Lean disagreements below. No single green aggregate is fabricated.
+| Metric | Before | Final |
+|---|---:|---:|
+| Stores / moves |100/500|100/500|
+| Successful moves / truthful live lines |482/482|482/482|
+| Expected true refusals |18|18|
+| False refusals / hidden v1 rows |0/0|0/0|
+| Ordinary source forwards |194|194|
+| Original files unchanged |300|300|
 
-Main then adds qualified G7.1/FF3 code without code conflicts. Its 18 changed PostgreSQL files are byte-identical to qualified main. Integrated incoming scope is repeated under repository-configured profiles: **complete core, 49 scopes / 1,239 passes / 0 failures / 5 ignores; full CLI binary 612 passes / 57 ignores; replay 24, rollback views 27, port ratchet 8 and SURF4 help/parser 20 pass**. Native Following 2, authoring census 88, simulator native 12 (1 existing ignore) and codec census 29 pass again. Both complete copied-app/store campaigns and both differential smokes are repeated on this merged runtime.
+Reports snapback4/reports/20261025-fix41/replay-{before,after}.json.
+Final replay binarySHA256adef6f93afc7fc35e45190a018652dca68ab925bdaf35af1d4231be6812ee82c.
 
-Incoming documentation selection covers **121 client files and compiled guide tests**. The ordinary 119-file pool records 2,247 completed passes / 37 skips and one watchdog-failed file; that hung file’s partial results are excluded from its totals. Both complete models pass 89/89. Its long proof target first fails the five-second npm-descendant fixture, then retains an uncancelled poll until the file watchdog. The exact case passes alone and the complete original target passes **31/31** unchanged. This follows the flake rule; a filesystem issue records the fixture behavior. The deploy-card line-budget failure is repaired without removing words or relaxing limits; **all 127 compiled guide tests pass**. A rebuilt CLI smoke confirms one 0.4.41 entry and every upgrade consequence. Raw source-changed/red documentation receipts remain raw, with scoped supplements.
+4. Audit —2a9b9871dc,97e59e6d2f,3595b5f091. Checked-in advisory/package/
+reason/dependency path/recheck2026-11-08. Unknown/fixable advisories, concrete
+fix candidates, new reviewed-package releases and date expiry fail. Specific
+recorded npm meta anomaly true/range*/exact-via cannot hide a real fix.
+Actual isolated code-signing0.0.7 upgrade leaves same advisory; dry-run offers
+no remediation. No ineffective pin or forced downgrade added.63qualifier,
+5day5proofs and Expo README regression PASS. All6realpacked diagnostic starters
+PASS; all3Expo results retain2warnings. Ticket documents development/code-signing
+tooling reachability (not app runtime) and npm evidence. All starter receipts
+and Docker/proot policy transport retain the rule/warnings.
 
-Focused conflict-resolution evidence also includes 43 API/shim/input/example cases, 522 React/delivery cases, both mixed gate/family unit regressions and both changed output cases, all 11 release-cycle tests, the 59-case complete admission rerun and the unchanged Worker/saturation isolation-plus-target repetitions. Both lanes’ relevant tests remain enabled.
+5. Browser —438e676638. Bounded replenishing bank observes raw refusal;
+removes HTTP probe. Real capacity/deadlines unchanged. Refusal/expiry regression.
+20/20alone (2.999–3.217s),20/20beside8-fileheavyclientpool (3.019–3.131s).
+Pool8/8files187/187tests PASS; related overload/platform114/114PASS.
 
-**Differential smoke:** ordinary seed 0/2,000 cases reports zero disagreements before and after the main merge. Real Lean seed 0/2,000 reproduces exactly the lane baseline: 1,658 passes, 324 unsupported, **18 inherited disagreements** (5 continuation-next, 8 next, 5 prelude-code), zero omitted meter fields and no new signatures. Raw exit1 is retained; no oracle normalization or mismatch-free claim. OPEN C2/W4 remain tracked.
+Review: four actual independent Muse/freshCodex rounds retained verbatim under
+llp/reviews/ with provenance/dispositions. Finalc8ef2ccafc reviews bothREADY.
+Earlier material findings fixed; no fabricated approval or proposal acceptance.
 
-Root checks pass: `scripts/check-generated-artifacts` after frozen install/hoist repair; generated diagnostics (3,593 codes /9,654 emitting sites) and guide manifest; inventories (365 package tests /35 script tests /31 demos /487 publication leaves /162 pages /1,937 snippets); all 22 guide checks with 0 failures/skips/preconditions; `./ref-check` with 0 errors/unchecked references; packaged-doc lint; actual Snapback4 `node scripts/docs-budget.mjs` at 320/320 README lines plus its passing first-screen proof. Existing freshness/GAP warnings remain warnings.
+Verification/execution notes:
+- Publisher runner459binaries/1177executions completed. Two development-test
+  failures (new eligibility fixture and raw-fixture census) were fixed/retested;
+  no other workspace/package feature blind spot found. Do not call initial run
+  green. Final selector will cover corrected current source.
+- ref-check PASS569docs/12617refs. Inventory PASS365package/35scripts tests,
+  31demos/catalog,487publicationleaves,162guidepages/1937snippets.
+- README320/320 budget and named self-containment test PASS.
+- First fresh full consumer attempt at071a9ceafb failed original rollback;
+  exact reference regression now fixed and actual mini-pack proof passes.
+- First affected run started071a9ceafb and is superseded by packed follow-up
+  source changes. CLI/core steps passed; it continues remaining checks, but its
+  receipt cannot certify final source. Final affected run is still required.
+- Standalone inventory/docs-budget preflights inherited default Cargo settings
+  through child commands once; final runs explicitly use required profile vars.
+  Removed3.4GB incremental scratch; required CARGO_INCREMENTAL=0 and both
+  debug=0 vars apply to all subsequent Cargo/qualification/selector commands.
+- Shared npm cache read failedENOENT; owned/tmp/fix41-npm-cache works. Failed
+  consumer projects and diagnostic starter projects removed; smallJSON/logs kept.
 
-The final metadata-only affected receipt is `snapback4/reports/integration25/incoming/metadata-affected-final.json` (commit `af0d6a1cdb`, four checks, complete/unchanged/PASS); its source binding and actual results are retained. Product evidence is composed by semantic scope under LLP 0189 D-2/LLP 0232, rather than repeating unchanged expensive tests whenever main advances. Earlier incomplete/source-changing attempts are superseded, never claimed as green.
-
-## Day-one survey
-
-The final merged-runtime pin is SHA-256 `31c84eb104f37db8a3dfd2d2aa01d0b26f75190edbc59a8cf4d3adb12cbbb105`, version 0.4.41, repository-configured test profile. All **650 schemas** run check, fresh deploy, test and deploy after test: wave 15’s 100 historical names, plus 50 each from waves 16,18–27. Raw totals match the prior campaign exactly: 35 gated projects, 39 fresh refusals, 49 post-test refusals and 54 business-test failures; zero timeouts. All 50 wave 27 apps pass all four commands, including the fixed extraction cases 028/032.
-
-All **49 conditional audits** clear check and both deploy paths: **zero unresolved/false gates or deploy refusals under this finite protocol**. They comprise 32 per-finding intent cases and 17 real specification issues. Six app tests remain red: four stale todo starter cases (wheelchair/honor guard, waves 18/19) and two reviewed derived-weight hypotheses (dog-sled, waves24/25). They are not counted as passing business proofs.
-
-Conditional copies reuse individually reviewed specification rationale and match current code/site/ID. Same-site teacher/juror findings use exact diagnostic messages; duplicate read clauses use the named repairs.read invariant. Unknown-message/subject controls refuse. Cached successful audits are reused only on the same immutable pin/source. Original schemas are never repaired or acknowledged. All 650 source/fixture pairs match the earlier campaign; the final rehash verifies 658 original Quarry files and 777 fixture files unchanged. These finite campaigns are not universal security proofs.
-
-## Day-two replay
-
-All **100 private copies** of wave 25/27 production stores attempt **500 moves**: v2 deploy and two default rollback/forward cycles. Results repeat before and after main: **zero false refusals, zero hidden v1 rows, 482 successful moves and 482/482 correct live-release lines; 194 forwards select ordinary source**. The 18 true refusals match REL exactly: wave 25/004(5),024(5),030(2),045(2), wave 27/012(2),042(2). Their move keys, statuses and reason text match the prior run, except private-copy directory names.
-
-The exceptions need truthful reverse media/default projections (004/024), preserved predecessor rows (030), an individual author decision (045), or current write-authority bridges (012/042). No original-store decision is invented. Every SQLite connection uses a copy excluding owner/token/control material; release symlinks point to that copy. All **300 original SQLite/WAL/SHM files remain byte-identical**. Binary hashes are checked after execution. Compact ledgers retain source/fixture/output hashes, not stores, account rosters, tokens or private raw app output.
-
-## Wasm and delivery
-
-Clean merged Linux measurement: **2,415,524 bytes raw / 738,108 gzip / 555,805 Brotli**. **Budget 738,608 = measured gzip + exactly 500 bytes**. Whole-artifact gzip is 4 bytes below the integrated pre-bump measurement; no independent per-feature cost or runtime ceiling change is claimed. Locked Binaryen and strict family/server-only absence audits pass. Record `138097c5ce` is appended by `70365904e6`, dirty=false, over=0. Post-main no-record remeasurement at `030a1ab426` is identical. A missing-Brotli probe is explicitly invalid, never appended; the restored Brotli 1.1.0 measurement is complete and a filesystem issue tracks strict failure.
-
-Two diagnostic drivers (early native isolation and manual docs-budget) omitted the required nested Cargo environment. Neither is qualification evidence; both are repeated with all three flags, and large completed diagnostic executables are removed. Other qualified Cargo runs carry CARGO_INCREMENTAL=0 and both debug=0 settings. Completed baseline/control targets and test executables are deleted after evidence collection; owned test processes are released. Publication paths/worktrees are untouched.
-
-Publication owns the full packed five-crate/client qualification, qualify-linux, Mac, Exact builds, difftest 20k/devices and npm publication on the landed commit. Five Expo starter audits remain red on unpatched node-forge (existing issue 20261024-snapback4-expo-node-forge-audit.md), not waived. Upstream PostgreSQL’s inherited evaluator stress SQLSTATE 40001 remains documented in its qualified report; full Postgres publication qualification is not replaced by this integration.
-
-Delivery is authorized to origin/main by non-force push, with fetch/merge race handling. The root report and compact receipts are committed so the delivered worktree is clean. No npm-publication or packed-qualification claim is made here.
-
-Final source status before the report carrier is clean. SEC10 branch ancestry is explicitly absent. The report carrier adds only this report and the final metadata receipt/log; runtime and documentation content stay qualified by the recorded scopes.
+Remaining: final review-record commit/freeze, fresh prepare-client production
+pack, all-consumer qualify-linux, final affected selector, cleanup, fetch/merge
+origin/main and non-forced main push. Publisher owns full publication qualification
+and npm publication; consumer-only success is not a publication receipt.

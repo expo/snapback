@@ -1,6 +1,7 @@
 # Snapback 4 G7.2 adapter types trip the zero-production-access store-port ratchet
 
-**Status:** Open
+**Status:** Closed
+**Resolved:** 2026-10-25
 **Opened:** 2026-10-25
 **Area:** `snapback4/crates/snapback4/tests/store_port_ratchet.rs`; `engine/program_batch.rs`; `engine/program_pipeline.rs`
 **Related:** LLP 3000.009.001.000 §3.2; `issues/20261024-snapback4-g6-followups.md` item 5's Integration 25 resolution
@@ -34,3 +35,13 @@ any actual database access below the port. Keep the production allowance empty;
 do not normalize the failure by raising its counts or excluding the whole
 pipeline module. The existing G6 item 5 describes different, already-resolved
 sites in `command.rs` and `revision_cache.rs`.
+
+## Resolution — FIX41
+
+Recognize only the reviewed local neutral types and simple all-neutral read-grant
+imports. Production allowance remains empty; no adapter namespace is exempted
+and driver aliases/unknown operations stay charged. Added negative controls
+cover lookalikes, malformed imports, mixed/glob groups, aliases, UFCS and raw
+methods. Candidate validation passed 9/9 with zero production sites and the
+existing test census unchanged (116 sites across 16 files). The final in-tree
+Cargo target and affected receipt are recorded in WORKSTREAM-REPORT.md.

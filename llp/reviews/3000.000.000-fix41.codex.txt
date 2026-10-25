@@ -1,0 +1,13 @@
+Independent review by Codex / GPT-6. Candidate HEAD: `2a9b9871dcccecee337a4f39fbebb7743dcdacaf`, including tracked working changes against `5c4716af14`. Version remains **0.4.41**.
+
+1. **P1 — Docker qualification omits the audit allowlist.** [qualify-linux.mjs:53](/home/ccheever/projects/snapback-sb4loop/snapback4/scripts/qualify-linux.mjs:53)  
+   The new JSON file enters the Docker build context, but the Dockerfile’s explicit `COPY` list excludes it. Both Docker and Podman qualification therefore fail at the first starter audit: `auditStarter()` unconditionally reads `/proof/starter-audit-allowlist.json`, producing `ENOENT`. Include the allowlist in the image.
+
+2. **P2 — Template qualification receipts discard audit warnings.** [publication-starters.mjs:325](/home/ccheever/projects/snapback-sb4loop/snapback4/scripts/publication-starters.mjs:325)  
+   `auditStarter()` returns `passed-with-warnings`, but this early-return branch omits `audit` from its result. Consequently, `expo-chat` and `expo-social` qualification receipts lose the advisory and recheck warning, although stderr prints it. This contradicts amended RFC §10’s requirement that passing qualification retain its warning. Preserve the audit result in every starter result.
+
+No additional material concern found in the §21 rollback amendment or its transactional visibility enforcement.
+
+Validation: the focused audit test, 11 nested/positional-key tests, both extraction rollback tests, and both overload-browser tests passed. Rust tests used existing binaries; no builds or repository edits were performed.
+
+**NOT READY** — resolve the two publication-path defects above.

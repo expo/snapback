@@ -9,13 +9,68 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { spawn } from "node:child_process";
-import { connect } from "node:net";
+import { connect, createServer as createTcpServer } from "node:net";
 import { runInNewContext } from "node:vm";
 import { uploadAsset } from "../dist/assets.js";
 import { defaultFetch } from "../dist/node-fetch.js";
 import { createClient } from "../dist/client.js";
 import { createLocalClient } from "../dist/local.js";
 import { memoryPersistence, webDevice } from "../dist/web.js";
+
+// @ref LLP 3000#http-overload-diagnostics — existing leases keep their real deadlines.
+// A TCP connect only establishes the kernel socket, not a host admission lease.
+// Warm requests can still own slots, and silent leases expire after five seconds.
+// Keep replacing closed/refused sockets throughout the witness; a one-shot bank
+// can remain below capacity forever after either event, particularly under load.
+function occupyConnections(port, count, onRefused = () => {}) {
+  const sockets = new Set(), timers = new Set();
+  let stopped = false;
+  function open() {
+    if (stopped) return;
+    const socket = connect(port, '127.0.0.1'); sockets.add(socket);
+    socket.on('error', () => {});
+    const reply = [];
+    socket.on('data', bytes => reply.push(bytes));
+    socket.once('end', () => { if (/^HTTP\/1\.[01] 503 /.test(Buffer.concat(reply).toString())) onRefused(); });
+    socket.resume(); // Consume refusals/EOF so close can replenish the slot.
+    socket.once('close', () => {
+      sockets.delete(socket);
+      if (stopped) return;
+      const timer = setTimeout(() => { timers.delete(timer); open(); }, 50);
+      timers.add(timer);
+    });
+  }
+  for (let index = 0; index < count; index++) open();
+  return () => {
+    stopped = true;
+    for (const timer of timers) clearTimeout(timer);
+    for (const socket of sockets) socket.destroy();
+  };
+}
+
+test('the overload socket bank replaces refused and expired admission leases', { timeout: hangBudget(3) }, async t => {
+  const admitted = new Set();
+  let refused = 0;
+  const intake = createTcpServer(socket => {
+    if (admitted.size === 2) { refused++; socket.end('HTTP/1.1 503 Service Unavailable\r\nContent-Length: 0\r\n\r\n'); return; }
+    admitted.add(socket); socket.on('error', () => {});
+    socket.once('close', () => admitted.delete(socket));
+  });
+  intake.listen(0, '127.0.0.1'); await once(intake, 'listening');
+  t.after(() => { for (const socket of admitted) socket.destroy(); intake.close(); });
+  const port = intake.address().port;
+  const warm = connect(port, '127.0.0.1'); warm.on('error', () => {});
+  t.after(() => warm.destroy());
+  await waitFor(() => admitted.size === 1, 'warm request owns an admission slot');
+  const warmLease = [...admitted][0];
+  let observedRefusal = false;
+  const release = occupyConnections(port, 2, () => { observedRefusal = true; }); t.after(release);
+  await waitFor(() => refused > 0 && observedRefusal, 'bank observes its refused socket behind the warm request');
+  warm.destroy();
+  await waitFor(() => admitted.size === 2 && !admitted.has(warmLease), 'bank replaces the refused socket');
+  const expired = [...admitted][0]; expired.destroy();
+  await waitFor(() => admitted.size === 2 && !admitted.has(expired), 'bank replaces an expired silent lease');
+});
 
 const rateLimit = { code: "E_RATE_LIMIT", family: "auth", message: "all upload slots are full", retryable: true };
 const asset = { id: "uploaded", type: "image/png", bytes: 3, width: 1, height: 1, duration: null };
@@ -167,7 +222,9 @@ table photos:
   let log = "";
   child.stderr.on("data", bytes => { log += bytes; });
   const sockets = [];
+  let releaseConnections = () => {};
   t.after(async () => {
+    releaseConnections();
     for (const socket of sockets) socket.destroy();
     child.kill("SIGTERM"); await exited;
     await rm(dir, { recursive: true, force: true });
@@ -185,14 +242,20 @@ table photos:
   const port = Number(new URL(url).port);
   const connections = Number((await waitFor(() => log.match(/HTTP connections=(\d+)/), "reported admission capacity"))[1]);
   assert.ok(Number.isSafeInteger(connections) && connections > 0);
-  // Slow headers fill the reported connection leases; 100-continue witnesses prove that
-  // unfinished mutations occupy all 32 workers before the upload is attempted.
-  await Promise.all(Array.from({ length: capacity === "connection" ? connections : 32 }, async () => {
-    const socket = connect(port, "127.0.0.1");
-    socket.on("error", () => {});
-    sockets.push(socket);
-    await once(socket, "connect");
-    if (capacity === "worker") {
+  if (capacity === "connection") {
+    // TCP connect is not admission: backlog retries and five-second lease
+    // expiry can leave a one-shot, exact-capacity bank permanently short.
+    let refused = false;
+    releaseConnections = occupyConnections(port, connections * 2, () => { refused = true; });
+    await waitFor(() => refused && log.includes(`E_RATE_LIMIT at http: all ${connections} HTTP connections`),
+      "connection leases are admitted and saturated", { diagnostics: () => log });
+  } else {
+    // 100-continue witnesses prove unfinished mutations occupy all 32 workers.
+    await Promise.all(Array.from({ length: 32 }, async () => {
+      const socket = connect(port, "127.0.0.1");
+      socket.on("error", () => {});
+      sockets.push(socket);
+      await once(socket, "connect");
       let header = "";
       const onData = bytes => { header += bytes; };
       socket.on("data", onData);
@@ -200,17 +263,8 @@ table photos:
       socket.write("POST /m/held HTTP/1.1\r\nHost: localhost\r\nx-snapback-persona: alice\r\nContent-Length: 100000\r\nExpect: 100-continue\r\n\r\n");
       try { assert.match(String((await ready)[0]), /HTTP\/1.1 100 Continue/); }
       finally { socket.off("data", onData); }
-    }
-  }));
-  if (capacity === "connection") await waitFor(async () => {
-    const status = await new Promise(resolve => {
-      const probe = request(new URL('/schema', url), { headers: { connection: 'close' } }, reply => {
-        reply.once('end', () => resolve(reply.statusCode)); reply.once('error', () => resolve(0)); reply.resume();
-      });
-      probe.once('error', () => resolve(0)); probe.end();
-    });
-    return status === 503 && log.includes(`E_RATE_LIMIT at http: all ${connections} HTTP connections`);
-  }, 'connection leases are admitted and saturated', { diagnostics: () => log });
+    }));
+  }
   const png = Buffer.alloc(2081);
   Buffer.from("89504e470d0a1a0a0000000d494844520000000100000001", "hex").copy(png);
   // @ref LLP 3000#http-overload-diagnostics — a write does not prove peer receipt.
@@ -251,8 +305,8 @@ table photos:
     t.after(() => { proxy.closeAllConnections(); proxy.close(); });
     uploadURL = `http://127.0.0.1:${proxy.address().port}`;
   }
-  // Observe the requested backoff without letting a scheduling pause expire
-  // the host's independent five-second header leases.
+  // Observe the requested backoff while the bank replenishes the host's real
+  // five-second leases; the product deadlines remain unchanged.
   const delays = [], schedule = globalThis.setTimeout;
   t.mock.method(Math, "random", () => 0.5);
   t.mock.method(globalThis, "setTimeout", (callback, delay, ...args) => {
@@ -270,8 +324,20 @@ table photos:
   await waitFor(() => log.split("\n").slice(0, -1).some(line => diagnostic.test(line)), "complete overload diagnostic");
   assert.match(log, diagnostic);
   assert.equal(child.exitCode, null, "host remains alive");
+  releaseConnections();
   for (const socket of sockets) socket.destroy();
   saturated = false;
+  if (capacity === "connection") await waitFor(async () => {
+    // Releasing client sockets is not proof that the host returned their leases.
+    // Observe an authenticated read before forwarding the recovery upload.
+    const status = await new Promise(resolve => {
+      const probe = request(new URL("/schema", url), { headers: { connection: "close", "x-snapback-persona": "alice" } }, reply => {
+        reply.once("end", () => resolve(reply.statusCode)); reply.once("error", () => resolve(0)); reply.resume();
+      });
+      probe.once("error", () => resolve(0)); probe.end();
+    });
+    return status === 200;
+  }, "released connection leases admit the recovery read", { diagnostics: () => log });
   const recovered = await uploadAsset(uploadURL, { "x-snapback-persona": "alice" }, defaultFetch, png);
   assert.equal(recovered.ok, true, JSON.stringify(recovered));
 });

@@ -1,0 +1,7 @@
+{
+  "initial_seed_locked_build": "refused stale inherited lockfile; no product edits",
+  "repair": "copied unchanged seed main.rs outside Git, made core path absolute, refreshed copy lockfile offline",
+  "release_product_from_current_tree": true,
+  "diagnostic": "unchanged existing core test, optimized test profile; test-support refuses release",
+  "target": "/home/ccheever/projects/sb4-s1sk/snapback4/target/s1-wr"
+}

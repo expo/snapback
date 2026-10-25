@@ -47,6 +47,23 @@ pub(super) fn resolve(dir:&Path,target:u64)->Result<Option<View>,String>{
     let view=manifest(&dir.join("releases").join(context.to_string()))?.into_iter().find(|v|v.target==target);
     if let Some(view)=&view{verify(dir,view)?;}Ok(view)
 }
+/// Registration covers future non-fitting children. Selection can still use
+/// the old shape when its actual reverse projection fits without hiding rows.
+// @ref LLP 3000.000.000#21-wave-27-release-semantics-rel — retain guarded-view fallback for independent children.
+pub(super) fn prefer_original(dir:&Path,view:&View,options:&super::Options,owner:Option<&crate::store_owner::Owner>)->Result<bool,String>{
+    let target=dir.join("releases").join(view.target.to_string());
+    let original=Project{root:target.clone()}.sources().map_err(|e|e.to_string())?;
+    let current=Project{root:dir.join("releases").join(view.parent.to_string())}.sources().map_err(|e|e.to_string())?;
+    if !snapback4_lang::release_bridge::extraction_preserves_predecessor(&original,&current){return Ok(false);}
+    let mut probe=options.clone();probe.json=true;
+    probe.flags.remove("bridge");
+    probe.flags.insert("validation-only".into(),String::new());
+    probe.flags.insert("visible-rollback".into(),String::new());
+    // plan uses VACUUM INTO and the ordinary real activation on a private
+    // snapshot. Live activation repeats visibility validation under its CAS.
+    Ok(super::release_preview::plan(&dir.join("store.sqlite"),target,view.target,&probe,owner).is_ok())
+}
+
 pub(super) fn verify(dir: &Path, view: &View) -> Result<(), String> {
     if view.parent == view.release || is_view(dir, view.parent) {
         return Err("invalid rollback view parent".into());

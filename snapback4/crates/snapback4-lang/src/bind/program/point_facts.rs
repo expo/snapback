@@ -22,16 +22,20 @@ impl Binder<'_> {
         if read.range.is_some() || read.matching.is_some() || read.filter.is_some() || !read.seeks.is_empty() { return None; }
         let info = self.catalog.tables.get(&read.table)?;
         if info.maintained.is_some() || info.decl.ephemeral.is_some() { return None; }
+        // @ref LLP 3000.013#2.2 — do not recursively rebind an inner key
+        // merely to discover whether a point fact could apply. Database reads
+        // are never stable values: reject them before speculative selection.
+        let mut roots = BTreeSet::from([pure_calls::CONSTANTS.to_owned()]);
+        let values = read.keys.iter().map(|part|
+            Some(format!("{:?}:{}", part.column, self.stable_value(&part.value, &mut roots)?.key()))
+        ).collect::<Option<Vec<_>>>()?;
         let mut binder = self.clone();
         let mut setup = setup::Body::default();
         let (bound, index, _) = binder.select_index(info, read, ReadMode::FilteredPoint, &mut setup).ok()?;
         // Exists over a nonunique key does not prove a point lookup.
         if !index.unique || bound.len() != index.columns.len() { return None; }
-        let mut roots = BTreeSet::from([pure_calls::CONSTANTS.to_owned()]);
         let mut key = vec![POINT.into(), read.table.clone(), index.name];
-        for part in &read.keys {
-            key.push(format!("{:?}:{}", part.column, self.stable_value(&part.value, &mut roots)?.key()));
-        }
+        key.extend(values);
         Some((key, roots))
     }
     // @ref LLP 3000.007#5.2 — key roots and the transaction-state anchor own
@@ -78,9 +82,9 @@ impl Binder<'_> {
     }
     // @ref LLP 3000.036#29-wave-26-quarry-ergonomics-dx9 — a field fact uses the same key roots and write invalidation as presence.
     fn point_field_key(&self, value: &A) -> Option<(Vec<String>, BTreeSet<String>)> {
-        fn path(value: &A, fields: &mut Vec<String>) -> Option<ReadExpr> {
+        fn path<'a>(value: &'a A, fields: &mut Vec<String>) -> Option<&'a ReadExpr> {
             match value {
-                A::Read(read) => Some(read.clone()),
+                A::Read(read) => Some(read),
                 A::Member { base, name, .. } => { let read = path(base, fields)?; fields.push(name.clone()); Some(read) },
                 _ => None,
             }
@@ -88,7 +92,7 @@ impl Binder<'_> {
         let mut fields = Vec::new();
         let read = path(value, &mut fields)?;
         if fields.is_empty() { return None; }
-        let (mut key, roots) = self.point_key(&read)?;
+        let (mut key, roots) = self.point_key(read)?;
         key.push("$field".into()); key.extend(fields);
         Some((key, roots))
     }

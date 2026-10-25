@@ -7,7 +7,7 @@ wasm device.
 
 > **`npm install` takes a few minutes. `npm audit` still reports an unpatched high
 > advisory in Expo's `node-forge` code-signing dependency; qualification records
-> a failed audit. do not run `npm audit fix --force`, which downgrades Expo to SDK 44.**
+> a dated no-fix warning. do not run `npm audit fix --force`, which downgrades Expo to SDK 44.**
 
 ```sh
 npm install
@@ -51,7 +51,7 @@ fail Hermes compilation.
 deprecated `uuid@7` to `uuid@11` (GHSA-w5hq-g745-h8pq). `npm audit` still
 reports an unpatched high advisory in `node-forge`
 (GHSA-86w9-cpqp-85rv, the Expo CLI's code-signing dependency).
-Qualification includes development dependencies and records the audit as failed.
+Qualification includes development dependencies and retains a dated no-fix warning; fixed or unrecorded advisories fail.
 Patched zod and decode-uri-component versions are pinned through overrides.
 
 ## Native proof

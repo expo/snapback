@@ -148,6 +148,69 @@ fn count_source(source: &str, all_test: bool) -> (usize, usize) {
     count_driver_source(source, all_test)
 }
 
+// Exact local roots only. The one supported grouped form is a direct child
+// of `use crate::engine::{...}`; unknown/nested use syntax remains charged.
+fn local_adapter_prefix(prefix: &[Token<'_>]) -> bool {
+    let root = |path: &[Token<'_>]| {
+        starts(path, &["crate", ":", ":", "engine", ":", ":"]) && path.len() == 6
+            || !path.is_empty() && path.chunks(3).all(|part| starts(part, &["super", ":", ":"]))
+    };
+    if let Some(import) = prefix.iter().rposition(|token| token.text == "use")
+        .filter(|at| !prefix[*at..].iter().any(|token| token.text == ";")) {
+        let path = &prefix[import + 1..];
+        if root(path) { return true; }
+        let Some(open) = path.iter().position(|token| token.text == "{") else { return false; };
+        let mut depth = 0isize;
+        for token in &path[open..] {
+            depth += match token.text { "{" => 1, "}" => -1, _ => 0 };
+            if depth <= 0 { return false; }
+        }
+        return open == 6 && starts(path, &["crate", ":", ":", "engine", ":", ":"])
+            && depth == 1 && prefix.last().is_some_and(|token| matches!(token.text, "{" | ","));
+    }
+    let mut begin = prefix.len();
+    while begin >= 3 && starts(&prefix[begin - 2..], &[":", ":"]) { begin -= 3; }
+    root(&prefix[begin..]) && !(begin >= 2 && starts(&prefix[begin - 2..], &[":", ":"]))
+}
+
+fn neutral_adapter_type(site: &[Token<'_>], prefix: &[Token<'_>]) -> bool {
+    let import = prefix.iter().rposition(|token| token.text == "use").is_some_and(|at|
+        !prefix[at..].iter().any(|token| token.text == ";"));
+    let terminator = |token: Option<&Token<'_>>| token.is_none_or(|token| matches!(token.text, "," | ";" | "}"));
+    let exact = |path: &[&str]| {
+        if !starts(site, path) { return false; }
+        let tail = &site[path.len()..];
+        if !import {
+            let closing = tail.iter().take_while(|token| matches!(token.text, ">" | ")" | "]")).count();
+            return tail.first().is_none_or(|token| !matches!(token.text, ":" | "as"))
+                && !starts(&tail[closing..], &[":", ":"]);
+        }
+        terminator(tail.first()) || starts(tail, &["as"]) && tail.get(1).is_some_and(|token|
+            token.text.as_bytes().first().is_some_and(|byte| byte.is_ascii_alphabetic() || *byte == b'_')) && terminator(tail.get(2))
+    };
+    let grant = |name: &str| ["Grant", "GateStats", "Published", "FlightGuard"].contains(&name);
+    if ["Grant", "GateStats", "Published", "FlightGuard"].iter().any(|name|
+        exact(&["postgres", ":", ":", "read_grant", ":", ":", name]))
+        || exact(&["postgres", ":", ":", "group_commit", ":", ":", "Head"])
+        || ["Suspended", "Hook"].iter().any(|name| exact(&["postgres", ":", ":", "writer_slot", ":", ":", name]))
+        || exact(&["postgres", ":", ":", "read_closure", ":", ":", "Closure", ":", ":", "new"]) { return true; }
+    // Only simple all-neutral type lists, no renames/globs/paths. Preserve the
+    // original conservative driver-alias tracking for every import.
+    if !starts(site, &["postgres", ":", ":", "read_grant", ":", ":", "{"])
+        || !import { return false; }
+    let mut at = 7;
+    loop {
+        if !site.get(at).is_some_and(|token| grant(token.text)) { return false; }
+        at += 1;
+        if site.get(at).is_some_and(|token| token.text == ",") {
+            at += 1;
+            if site.get(at).is_some_and(|token| token.text == "}") { break; }
+        } else if site.get(at).is_some_and(|token| token.text == "}") { break; }
+        else { return false; }
+    }
+    terminator(site.get(at + 1))
+}
+
 fn count_driver_source(source: &str, all_test: bool) -> (usize, usize) {
     let tokens = tokens(source);
     let mut drivers: BTreeSet<&str> = ["rusqlite", "postgres"].into();
@@ -170,12 +233,8 @@ fn count_driver_source(source: &str, all_test: bool) -> (usize, usize) {
     count_matching(source, all_test, |site, prefix| {
         // These neutral adapter types are not external driver access. Keep the
         // exception exact: a re-exported Client or an unknown adapter path counts.
-        let local_adapter = prefix.len() >= 3 && starts(&prefix[prefix.len()-3..], &["super", ":", ":"]) ||
-            prefix.len() >= 6 && starts(&prefix[prefix.len()-6..], &["crate", ":", ":", "engine", ":", ":"]);
-        let neutral_type = ["Grant", "GateStats", "Published"].iter().any(|name|
-            starts(site, &["postgres", ":", ":", "read_grant", ":", ":", name])) ||
-            starts(site, &["postgres", ":", ":", "read_closure", ":", ":", "Closure", ":", ":", "new"]);
-        if local_adapter && neutral_type { return false; }
+        if site.first().is_some_and(|token| token.text == "postgres")
+            && local_adapter_prefix(prefix) && neutral_adapter_type(site, prefix) { return false; }
         database_site(site) || (site.first().is_some_and(|t| drivers.contains(t.text))
             && starts(&site[1..], &[":", ":"])
             && !(site.get(3).is_some_and(|t| t.text == "Error")
@@ -537,4 +596,50 @@ fn neutral_postgres_adapter_types_are_not_external_driver_access() {
     assert_eq!(count_source("fn driver() { super::postgres::Client::connect(url); }", false), (1, 0));
     assert_eq!(count_source("fn driver() { crate::engine::postgres::Client::connect(url); }", false), (1, 0));
     assert_eq!(count_source("fn adapter() { super::postgres::x().query_row(sql); }", false), (1, 0));
+}
+
+
+#[test]
+fn neutral_type_census_handles_only_exact_paths_and_simple_local_groups() {
+    for source in [
+        "type H = super::postgres::group_commit::Head;",
+        "type H = super::super::postgres::writer_slot::Hook;",
+        "type S = crate::engine::postgres::writer_slot::Suspended;",
+        "use crate::engine::{committer::Failure, postgres::read_grant::{FlightGuard, Published}, program::Invocation};",
+        "use crate::engine::{other::{X, Y}, postgres::read_grant::{Grant, GateStats,}};",
+        "use super::postgres::read_grant::Grant as Neutral;\nlet value: Option<Neutral>;",
+    ] { assert_eq!(count_source(source, false), (0, 0), "{source}"); }
+    for source in [
+        "type C = postgres::Client;",
+        "use postgres::read_grant::{FlightGuard, Published};",
+        "use crate::engine::{postgres::read_grant::{Grant, Client}};",
+        "use crate::engine::{postgres::read_grant::{Grant, *}};",
+        "use crate::engine::{postgres::read_grant::{Grant as Neutral}};",
+        "use crate::{engine::{postgres::read_grant::{Grant, Published}}};",
+        "use foreign::{super::postgres::read_grant::Grant};",
+        "use crate::engine::postgres::group_commit::Head + Unknown;",
+        "use crate::engine::postgres::group_commit::Head as;",
+        "use crate::engine::postgres::group_commit::Head as Name + Unknown;",
+        "use crate::engine::{postgres::read_grant::{Grant, Published} + Unknown};",
+        "use crate::engine::{} fn raw() { postgres::read_grant::Grant; }",
+        "use foreign::{crate::engine::postgres::read_grant::Grant};",
+        "type H = foreign::super::postgres::group_commit::Head;",
+        "type H = ::super::postgres::group_commit::Head;",
+        "type H = ::crate::engine::postgres::group_commit::Head;",
+        "type H = super::postgres::group_commit::HeadExtra;",
+        "fn raw() { super::postgres::group_commit::Head::connect(url); }",
+        "fn raw() { <super::postgres::group_commit::Head>::connect(url); }",
+        "fn raw() { <super::postgres::writer_slot::Suspended>::query_row(sql); }",
+        "fn raw() { <crate::engine::postgres::read_grant::FlightGuard as Driver>::connect(url); }",
+        "fn raw() { <(super::postgres::group_commit::Head)>::connect(url); }",
+        "fn raw() { super::postgres::writer_slot::Suspended::query_row(sql); }",
+        "fn raw() { crate::engine::postgres::read_grant::Grant::connect(url); }",
+        "type Incomplete = super::postgres::group_commit::Head::",
+        "use super::postgres::read_grant::Grant as Neutral;\nNeutral::connect(url);",
+        "use super::postgres::read_grant::Grant as Neutral;\nNeutral::prepare(sql);",
+        "use super::postgres::read_grant::Grant as Neutral;\nNeutral::query_row(sql);",
+        "use crate::engine::{postgres::read_grant::{Grant, Published}};\ndb.query_row(sql);",
+    ] { assert_eq!(count_source(source, false), (1, 0), "{source}"); }
+    assert_eq!(count_source("use crate::engine::{postgres::read_grant::{Grant, Client as Driver}};\nDriver::connect(url);", false), (2, 0));
+    assert_eq!(count_source("use {crate::engine::postgres::read_grant::Grant as Neutral, postgres::Client as Driver};\nDriver::connect(url);", false), (2, 0));
 }

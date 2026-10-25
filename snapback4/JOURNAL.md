@@ -107998,6 +107998,68 @@ checked as well. The final lane ledger and target-executable scan both have
 zero remaining processes. Minimum observed free space is **59.74 GiB**, above
 the 40 GiB floor. **Owned PIDs left: none.**
 
+
+## 2026-10-25 — FIX41: repair the 0.4.41 publication reds
+
+Keep 0.4.41 unpublished while repairing the publisher's first lean-flow
+qualification findings. Publisher worktrees, kits and archived evidence stay
+read-only; all REL replay stores are copied before opening.
+
+The store-owner regression now reads the core's compiled evaluation feature
+through debug test support. Package-only builds refuse even the exact evaluator
+tracker; workspace-unified builds admit only that tracker. Both refuse an
+altered trigger. No production admission exception was added.
+
+Point-fact binding checks stability before speculative key selection and borrows
+the point-field AST. Nested database reads cannot establish stable facts, so
+rebinding their discarded subtrees adds no semantics. Eight-level compile time
+fell from 721.5 ms locally to 6.3–6.7 ms; the twelve-level regression takes
+76.7 ms. Both retain a one-second guard and the expected runtime reads.
+
+Rollback registration still prepares the current guarded view. Selection prefers
+the original extraction predecessor only when closed compiler checks preserve
+authority and a private reverse activation fits. The activation writer rejects
+independent child rows outside extraction receipts, so they keep the view.
+Tests cover two buyer/scan restoration cycles, private reads and an independently
+born child on the same old parent. Full roll_views: 28 passed.
+
+The coordinator permits dated warnings for unavoidable advisories without a fix.
+The checked-in node-forge GHSA-86w9-cpqp-85rv exception expires 2026-11-08;
+fixable or unknown findings and any new upstream release fail. The gate audits
+dev dependencies, transports its policy into clean userspaces and retains audit
+warnings in every starter receipt. Source inspection places node-forge in Expo's
+development/code-signing tools; the open issue records the scope and recheck.
+
+The browser witness must establish actual overload rather than equating a TCP
+connect with a live admitted lease. A bounded replenishing socket bank observes
+the real raw refusal; it replaces expired/refused sockets and avoids an HTTP
+probe that can own the final slot or lose a reply to a reset. Product admission
+limits, five-second deadlines and Chromium retry assertions are unchanged.
+
+
+### FIX41 packed follow-up: reference labels and npm metadata
+
+The first repaired packed migration still failed: the in-process fixture used
+text for buyer, while the real consumer uses a table reference. Declared rename
+alignment changed reference index components but retained the generated
+`$reference:customer` label. Closed table equality rejected that harmless label
+difference and chose the current-shaped bridge. Eligibility now normalizes only
+compiler-reserved reference labels under the declared column map; authored
+labels, components and policies stay exact. The runtime regression imports the
+actual publication media schema. The actual installed migration/roll proof now
+passes, as do all 28 rollback cases. A final copied100-store/500-move replay
+again preserves482successes,18true refusals,0false refusals and0hiddenv1rows.
+
+The starter audit also found npm's `fixAvailable:true` meta flag for
+`@expo/code-signing-certificates` despite affected range `*`. An actual upgrade
+from0.0.6 to latest0.0.7 still reports it; the latter still requires unpatched
+node-forge1.4.0, and audit-fix dry run offers no advisory remediation. The dated
+allowlist records this exact meta chain and reviewed latest0.0.7. Only boolean
+true/range*/exact-via plus an underlying unpatched allowlisted advisory may
+warn; concrete candidates, changed affected ranges, unrecorded chains, new
+upstream versions and the expiry date fail. Both warnings remain in every
+starter receipt. No ineffective dependency override or forced downgrade added.
+The Expo Todos/chat README text now consistently calls this a dated warning.
 ## 2026-10-25 — G7.2: depth-two synchronous group commit
 
 [The G7.2 report](reports/20261025-g72-postgres/REPORT.md) records the accepted
