@@ -95,6 +95,9 @@ impl StoreConfig {
             state_directory,
         }))
     }
+    pub fn diagnostics(&self) -> Result<(String, Vec<String>), String> {
+        AnyStore::postgres_diagnostics(&self.connection,&self.namespace).map_err(redact)
+    }
     pub fn probe(&self) -> Result<Option<DeploymentState>, String> {
         AnyStore::postgres_deployment(&self.connection, &self.namespace).map_err(redact)
     }
@@ -178,6 +181,7 @@ impl StoreConfig {
         // Install cleanup before any further fallible startup, including renewal
         // and spawning either thread. Serving disarms release only at admission.
         let mut owner = OwnedStore {
+            read_cache_tier: snapback4_core::store_port::g5_read_cache_tier("SNAPBACK4_READ_GRANT_CLOCK_BOUNDS is unset on this owner"),
             config: self.clone(),
             lease: lease.clone(),
             stop: None,
@@ -217,6 +221,7 @@ impl StoreConfig {
                     .unwrap_or_else(|p| p.into_inner())
                     .enable_read_grant(bounds)
                     .map_err(redact)?;
+                owner.read_cache_tier = snapback4_core::store_port::g6_read_cache_tier(bounds.rate_ppm as u64, bounds.forward_jump.as_millis() as u64);
             }
             Err(std::env::VarError::NotPresent) => {}
             Err(std::env::VarError::NotUnicode(_)) => {
@@ -305,6 +310,7 @@ struct Binding {
 }
 
 pub(crate) struct OwnedStore {
+    pub read_cache_tier: String,
     pub config: StoreConfig,
     lease: Arc<Mutex<StoreLease>>,
     stop: Option<mpsc::Sender<()>>,

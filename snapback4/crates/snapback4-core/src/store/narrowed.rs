@@ -171,6 +171,7 @@ pub(super) fn transition(
                     let original:Table=serde_json::from_str(&definition).map_err(|e|RuntimeError::Store(e.to_string()))?;
                     let definition=super::backfills::native_source(&original,table,&native);
                     tx.conn().execute("UPDATE _dormant_narrow_rows SET data=?1,definition=?4 WHERE t=?2 AND id=?3",params![canonical_json(&archived),t,id,canonical_json(definition.as_ref())])?;
+                    super::movement::rewrite_relation(tx,"_dormant_narrow_rows",t,id,&archived)?;
                 }
                 if retained {tx.conn().execute("UPDATE _dormant_narrow_rows SET reason=?3 WHERE t=?1 AND id=?2",params![t,id,reason])?;}
                 for c in &outputs {
@@ -207,6 +208,8 @@ pub(super) fn transition(
                         // Nominal keep references may already be dangling. They have no bound lifetime.
                     }
                 }
+                if !retained {super::movement::image(tx,"_dormant_narrow_rows",t,id,None,&row)?;}
+                super::movement::verify_expected(tx,"_dormant_narrow_rows",t,id)?;
                 tx.conn()
                     .execute("DELETE FROM r WHERE t=?1 AND id=?2", params![t, id])?;
                 removed += 1;
@@ -233,6 +236,7 @@ pub(super) fn transition(
     }
     tx.set_meta("activation_narrowed_retained", &newly_retained.to_string())?;
     tx.set_meta("activation_narrowed_restored", &restored.to_string())?;
+    super::movement::verify_narrowed(tx,restored as i64)?;
     tx.conn().execute("DELETE FROM _dormant_narrow_rows WHERE EXISTS(SELECT 1 FROM r WHERE r.t=_dormant_narrow_rows.t AND r.id=_dormant_narrow_rows.id)",[])?;
     if newly_retained > 0 || restored > 0 {
         tx.set_meta("activation_population", "true")?;
@@ -400,6 +404,7 @@ pub(super) fn restore_images(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,no
             "INSERT INTO r(t,id,data) VALUES(?1,?2,?3)",
             params![t, id, canonical_json(&row)],
         )?;
+        super::movement::image(tx,"r",t,&id,None,&row)?;
     }
     tx.clear_activation_scan();
     Ok(())

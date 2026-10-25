@@ -242,6 +242,7 @@ pub(super) fn save_cell(
     // @ref LLP 3000.014.000#implementation-proof-clarifications — another row cannot overwrite a cell's live origin.
     let live=table.engine_field(column) && table.through.as_ref().is_some_and(|e|e.live.is_some());
     tx.conn().execute("INSERT INTO _dormant_values(t,id,column_name,data,live_source) VALUES(?1,?2,?3,?4,?5) ON CONFLICT(t,id,column_name) DO UPDATE SET data=excluded.data,live_source=excluded.live_source",params![t,id,column,canonical_json(value),i64::from(live)])?;
+    super::movement::image(tx,"_dormant_values",t,id,Some(column),value)?;
     if capture && !super::authority_origin::live_input(table,column) {
         capture_refs(tx, t, id, column, &table.columns[column], value)
     } else {
@@ -325,6 +326,7 @@ pub(super) fn transition(
     now:i64,
     report: &mut super::adoption_report::AdoptionReport,
 ) -> Result<BTreeSet<String>, RuntimeError> {
+    super::movement::begin(tx)?;
     if !enabled(tx)? {
         return Ok(BTreeSet::new());
     }
@@ -438,12 +440,14 @@ pub(super) fn transition(
             if removed.is_empty() && candidate.is_some() {
                 continue;
             }
+            let mut copied=0i64;
             super::activation::walk(tx, tx.num(name)?, |id, mut row| {
                 let native=super::backfills::native_absences(tx,tx.num(name)?,id,&row)?;
                 materialize_optional_fields(&mut row, old);
                 super::backfills::preserve_native_absence(&mut row,&native);
                 if candidate.is_none() {
                     tx.conn().execute("INSERT INTO _dormant_rows VALUES(?1,?2,?3) ON CONFLICT(t,id) DO UPDATE SET data=excluded.data",params![tx.num(name)?,id,canonical_json(&row)])?;
+                    super::movement::image(tx,"_dormant_rows",tx.num(name)?,id,None,&row)?;
                     for (column, kind) in &old.columns {
                         if let Ok(value) = row.field(column) {
                             if !super::authority_origin::live_input(old,column) {capture_refs(tx, tx.num(name)?, id, column, kind, value)?;}
@@ -458,9 +462,11 @@ pub(super) fn transition(
                         }
                     }
                 }
+                copied+=1;
                 Ok(())
             })?;
             if candidate.is_none() {
+                super::movement::population(tx,"r","_dormant_rows",tx.num(name)?,copied)?;
                 tx.conn().execute("DELETE FROM r WHERE t=?1",[tx.num(name)?])?;
                 for index in old.indexes.keys(){tx.conn().execute("DELETE FROM i WHERE ti=?1",[tx.num(&format!("{name}.{index}"))?])?;}
             }
@@ -469,10 +475,14 @@ pub(super) fn transition(
     for (name, old) in &restoring {
         let t = tx.num(name)?;
         let table = &next.tables[name];
+        let expected=super::movement::rows(tx,"_dormant_rows",t)?;
+        super::movement::snapshot_restore(tx,t)?;
         tx.conn().execute(
             "INSERT INTO r(t,id,data) SELECT t,id,data FROM _dormant_rows WHERE t=?1",
             [t],
         )?;
+        super::movement::population(tx,"_dormant_rows","r",t,expected)?;
+
         for column in old
             .columns
             .keys()
@@ -503,6 +513,7 @@ pub(super) fn transition(
             let ids=tx.conn().prepare("SELECT id FROM _dormant_rows WHERE t=?1")?.query_map([t],|r|r.get::<_,String>(0))?.collect::<Result<Vec<_>,_>>()?;
             tx.set_meta(&format!("activation_table_restored_ids:{name}"),&serde_json::to_string(&ids).map_err(|e|RuntimeError::Store(e.to_string()))?)?;
         }
+        super::movement::population(tx,"_dormant_rows","r",t,expected)?;
         tx.conn()
             .execute("DELETE FROM _dormant_rows WHERE t=?1", [t])?;
         tx.conn()
@@ -544,6 +555,7 @@ pub(super) fn transition(
                 "UPDATE r SET data=?1 WHERE t=?2 AND id=?3",
                 params![canonical_json(&row), t, id],
             )?;
+            super::movement::image(tx,"r",t,id,None,&row)?;
             Ok(())
         })?;
     }
@@ -593,17 +605,20 @@ pub(super) fn transition(
     if backfilling {if let Some(previous)=previous {for (name,old) in &previous.tables {
         if next.tables.contains_key(name) || old.ephemeral.is_some() || previous.maintain_for(name).is_some(){continue;}
         let t=tx.num(name)?;
-        tx.conn().execute("DELETE FROM _dormant_rows WHERE t=?1",[t])?;
+        super::movement::retained_coverage(tx,t)?;
+        let mut copied=0i64;
         super::activation::walk(tx,t,|id,mut row|{
             let native=super::backfills::native_absences(tx,t,id,&row)?;
             materialize_optional_fields(&mut row,old);
             super::backfills::preserve_native_absence(&mut row,&native);
-            tx.conn().execute("INSERT INTO _dormant_rows VALUES(?1,?2,?3)",params![t,id,canonical_json(&row)])?;
+            tx.conn().execute("INSERT INTO _dormant_rows VALUES(?1,?2,?3) ON CONFLICT(t,id) DO UPDATE SET data=excluded.data",params![t,id,canonical_json(&row)])?;
+            super::movement::image(tx,"_dormant_rows",t,id,None,&row)?;
             for (column,kind) in &old.columns {if let Ok(value)=row.field(column) {
                 if !super::authority_origin::live_input(old,column) {capture_refs(tx,t,id,column,kind,value)?;}
                 capture_through_parent(tx,name,old,id,column,&row)?;
-            }}Ok(())
+            }}copied+=1;Ok(())
         })?;
+        super::movement::population(tx,"r","_dormant_rows",t,copied)?;
         tx.conn().execute("DELETE FROM r WHERE t=?1",[t])?;
         for index in old.indexes.keys(){tx.conn().execute("DELETE FROM i WHERE ti=?1",[tx.num(&format!("{name}.{index}"))?])?;}
     }}}
@@ -633,12 +648,14 @@ pub(super) fn transition(
     for (name, table) in next.tables.iter().filter(|(_, t)| t.ephemeral.is_none()) {
         let t = tx.num(name)?;
         for column in table.columns.keys() {
+            let expected_cells=super::movement::cells(tx,t,column)?;
             if super::live_activation::active(tx)? {
                 tx.conn().execute("INSERT OR IGNORE INTO temp._live_restored SELECT 'column',v.t,v.column_name,v.id FROM _dormant_values v WHERE v.t=?1 AND v.column_name=?2 AND EXISTS(SELECT 1 FROM r WHERE r.t=v.t AND r.id=v.id) AND NOT EXISTS(SELECT 1 FROM _dormant_narrow_rows n WHERE n.t=v.t AND n.id=v.id)",params![t,column])?;
             } else {
                 let ids=tx.conn().prepare("SELECT v.id FROM _dormant_values v WHERE v.t=?1 AND v.column_name=?2 AND EXISTS(SELECT 1 FROM r WHERE r.t=v.t AND r.id=v.id) AND NOT EXISTS(SELECT 1 FROM _dormant_narrow_rows n WHERE n.t=v.t AND n.id=v.id)")?.query_map(params![t,column],|r|r.get::<_,String>(0))?.collect::<Result<Vec<_>,_>>()?;
                 if !ids.is_empty() {tx.set_meta(&format!("activation_column_restored_ids:{name}.{column}"),&serde_json::to_string(&ids).map_err(|e|RuntimeError::Store(e.to_string()))?)?;}
             }
+            super::movement::verify_cells(tx,t,column,expected_cells)?;
             tx.conn().execute(
                 "DELETE FROM _dormant_values WHERE t=?1 AND column_name=?2 AND NOT EXISTS(SELECT 1 FROM _dormant_narrow_rows n WHERE n.t=_dormant_values.t AND n.id=_dormant_values.id)",
                 params![t, column],

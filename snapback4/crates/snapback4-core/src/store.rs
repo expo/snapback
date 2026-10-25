@@ -69,6 +69,7 @@ mod managed_relations;
 #[cfg(test)]
 mod ff1_fix_tests;
 pub(crate) mod dormant;
+mod movement;
 #[cfg(test)]
 mod dormant_tests;
 mod event_slots;
@@ -815,6 +816,7 @@ impl<'a> Tx<'a> {
         if affected != 1 {
             return Err(RuntimeError::Store(format!("row write count mismatch for {table_name}: expected 1, got {affected}")));
         }
+        if self.lifecycle { movement::rewrite(self,t,id,row)?; }
         let mut insert = self.tx.prepare_cached(insert_index)?;
         let mut entries = 0;
         for crate::rows::IndexWrite { name, before, after } in keys {

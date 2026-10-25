@@ -236,20 +236,28 @@ impl Engine {
             #[cfg(feature = "evaluation-support")]
             evaluation_precharge: *evaluation_precharge,
         };
-        let deadline = fallback.then(|| indices.iter().map(|&i| batch[i].deadline).min().unwrap());
+        let postgres = match store {
+            #[cfg(feature="postgres")]
+            crate::store_port::AnyStore::Postgres(_) => true,
+            _ => false,
+        };
         let first = &batch[indices[0]];
         #[cfg(any(test, feature = "test-support"))]
         let _attribution = first
             .attribution
             .clone()
             .map(crate::round_trips::Handle::enter);
-        let physical = Committer::open_program_before(
+        let buffered = postgres && indices.len() > 1 && !fallback && indices.iter().all(|&i|
+            host.programs.get(&batch[i].name).and_then(|p|
+                super::committer::closure::Closure::new(host.schema, p, &batch[i].context, host.generation)).is_some());
+        let deadline = (fallback || buffered).then(|| indices.iter().map(|&i| batch[i].deadline).min().unwrap());
+        let physical = if buffered { store.buffered_program_transaction(deadline.unwrap()) } else { Committer::open_program_before(
             store,
             first.authority.as_ref().map(|a| a.digest.as_str()),
             &first.context.viewer,
             first.id.as_deref(),
             fallback.then_some(first.deadline),
-        );
+        ) };
         let tx = physical.map_err(|error| {
             (
                 Failure {
@@ -260,7 +268,7 @@ impl Engine {
                 None,
             )
         })?;
-        if indices.len() > 1 {
+        if indices.len() > 1 && !buffered {
             if let Err(error) = tx.enable_group_tail() {
                 return Err((Failure::rollback(tx, error, None), None));
             }
@@ -271,6 +279,10 @@ impl Engine {
                 Err(error)=>return Err((Failure::rollback(tx,error,None),None)),
             }
         } else {None};
+        // @ref LLP 3000.009.001.000.000.002#3.1 — late unknown closure discards the ticket attempt before any serial writer runs.
+        if buffered && wave.is_none() {
+            return Err((Failure::rollback(tx, RuntimeError::Store("buffered closure requires serial barrier".into()), None), None));
+        }
         #[cfg(any(test, feature = "test-support"))]
         drop(_attribution);
         let mut pending = Vec::new();

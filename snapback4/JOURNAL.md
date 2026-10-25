@@ -107628,3 +107628,351 @@ This whole-artifact measurement includes the version stamp; no independent
 feature cost, runtime ceiling increase or Mac qualification follows. The first
 probe lacked its temporary Brotli tool and is retained only as an invalid
 measurement; the complete probe uses restored Brotli 1.1.0, quality 11.
+## 2026-10-25 — G7.1: synchronous tickets and exact head attempts
+
+[The G7.1 report](reports/20261025-g71-postgres/REPORT.md) records the depth-one
+restructure on R1 base `77a36819f4`. Eligible Postgres G3b groups send the owner
+fence, store-keyed transaction advisory ticket, unlocked head/xid and composed
+level-zero facts together. The tail assigns revision absolutely and compares
+seq, revision and attempt together, verifies every count, and returns publication
+before the separate uncancellable COMMIT. Evidence pruning covers only the newly
+expired interval. R1's level-zero groups fall 4→3 flights under G5 and G6
+(pre-R1: 5/6→3); one additional dependency level falls 5→4. Solo, barrier,
+ineligible and SQLite protocols retain their existing routes and budgets.
+
+The head attempt encodes owner token plus a process-wide atomic counter shared
+across handles. Rollback and reattach never lower that counter. Barriers write
+fresh attempts; fenced attach installs/validates the C-collated column, while
+read-only bootstrap recovery admits the complete pre-upgrade head. No second
+slot, chain fold, cascade or asynchronous commit is introduced; depth one keeps
+the existing G6 COMMIT guard and release behavior.
+
+Ten G7.1 witnesses pass: stale-attempt refusal, monotone reservations across
+abort/reattach, independent two-store tickets, concurrent barrier ordering,
+generation change, randomized 192-member histories on both stores with keyed
+duplicates and barriers, flight faults, transaction status, attach upgrade/refusal
+and fence refusal. Five new PG protocol witnesses and the core flight assertion
+fail at the parent; the unchanged SQLite oracle passes there. An added operator
+shadowing case demonstrates a nonce-only CAS bypass before catalog qualification;
+all three CAS comparisons now use `OPERATOR(pg_catalog.=)`.
+
+The final complete core pass is 1,275/0/449 (passed/failed/ignored), the full binary
+608/0/57, the affected batch suite 85/0, core RT0 3/0, HTTP RT0 9/0, TCP/pipeline
+9/0 and the real-owner G6 three-flight publication check 1/0. The initial binary
+run lacked the built CLI helper required by process/worker tests; building it
+and rerunning the complete binary suite resolves those setup failures. The
+initial PG script used socket-only input for TCP-required witnesses and retained
+R1's old four-flight G6 assertion; a fresh TCP-qualified private PG16 cluster and
+the three-flight assertion resolve those cases. The complete script is rerun;
+its retained evaluator stress case reproduces the author-declared inherited
+`40001`. No throughput or S1 qualification is claimed; raw logs stay outside Git.
+
+The completed Postgres script records 816 passed / 1 failed: only the inherited
+`40001` evaluator stress case remains; every other Rust stage and the public
+serving milestone pass. Final `ref-check` has zero errors/unchecked references.
+Both lane PG16 clusters and both public-witness clusters stop with status 3 and
+no pidfiles; all 1,077 unique recorded PIDs are absent. PIDs left: none. Final
+available disk is 79.67 GiB, above the 40 GiB stop floor. No push or Git
+configuration change occurs.
+
+### 2026-10-25 — FF3: opt-in G6 posture and the privileged activation boundary
+
+Lane `sb4-pg/ff3` starts at the requested `0ce0c0d078`, with the G6 environment,
+its own line-tables-only target, eight Cargo jobs and private PG16 only.
+`llp-orient` followed the store-port activation refs, LLP 3000.009.001.000.002 §4.2/§6
+and the current deploy guide. The orchestrator's panel disposition is implemented;
+no throughput measurements run.
+
+G6 stays opt-in. Serve startup and Postgres doctor expose the active cache tier.
+G5 names its validation cost, reason, exact clock-bound setting and safe-use
+conditions: one owner, all writers grant-aware, declared database-clock bounds,
+and no VM pause/migration longer than the lease. G6 prints its actual bounds.
+Doctor reads an epoch-tagged advisory declaration recorded by the owner in the
+grant-install transaction, rather than its own environment. It is lease traffic,
+not authority or the future compatibility marker. The RFC, deploy guide and G6
+follow-up item 3 record all four prerequisites for revisiting default-on; the
+remaining mixed-writer and write-mix work stays open.
+
+Doctor warns with every enabled event trigger's name, event, tags, owner,
+qualified function and enabled mode. Activation emits that inventory once,
+including the retained evaluator's activation path. Benign event triggers stay
+legal. Privileged code which rewrites activation DDL or movement semantics is
+outside the supported contract; the positive checks cover observable violations.
+Opening captures existing OIDs before installers. After installer/scratch DDL,
+before first use, and immediately before COMMIT, movement relations must remain
+plain role-owned heaps under the existing foreign trigger/rule/RLS/constraint
+predicate. Replaced OIDs, TEMP shadows, views, materialized views, partitioned
+and foreign tables refuse. Family attach validation keeps its named refusals.
+
+Retained table, cell and narrowed-row movement verifies physical destinations
+before source removal on both stores. Counts survive intervening marker writes;
+cells and narrowed cohorts are rechecked at destruction, and whole-table
+restoration compares source/destination bytes there. Postgres payload comparison
+uses `pg_catalog."C"`, independently of payload locale and a schema-local C.
+Mismatch rolls back the activation, including source rows and generation.
+
+Failing-before evidence: the TEMP-view redirection witness fails **0/1** on the
+base because activation accepts the redirected view. Fixed, it refuses before
+use, with the nontransactional probe unadvanced and live/dormant copies and
+generation unchanged. Disabling copy verification fails **0/2** on the two
+stores. Making only cached PIPE custody exclusive fails **0/1** at the on-wire
+submission barrier. The mutations are restored. The final relay runs all four
+uncached/cached × release/termination arms, forbids preparation on the warmed
+cached path, and checks snapshots, isolated errors and loss of pending replies.
+Disabling the destruction-time verification also fails **0/2** on the late-erasure
+witnesses. Exact source-byte restoration is SHA-256 confirmed; the restored
+focused suite passes **25/0** again.
+
+The ICU witness physically changes only payload case at constant cardinality;
+ordinary equality and a shadowed unqualified C accept it, while the exact
+production predicate refuses (**1/1/0** acceptance counts). The native activation
+regression requires rollback to the original bytes. Late-erasure witnesses on
+both stores remove the destination after the first copy check and require the
+retained cell/live row/generation to survive the refusal. The final focused
+suite passes **25/0**. The public CLI witnesses pass G5/G6 output with different
+owner/doctor environments and an identical benign event-trigger warning once
+in activation and doctor.
+
+Qualification caught three named ledger refusals being preempted by the first
+placement of the new positive check. Separating early identity capture from
+post-installer positive admission restores all three; the complete ledger unit
+scope passes **247/0**. The initial public native seed used the cluster admin
+against app-owned heaps; its refusal is correct. The fixture now uses the public
+activation role, and the complete public milestone passes, including the S1
+application and maintained-total recounts. G6-only witness portions are scoped
+to Linux CLOCK_BOOTTIME; portable G5/event inventory assertions remain.
+
+Final qualification: full core **1217 passed / 0 failed / 5 ignored** across 49 targets; full binary **606 passed / 0 failed / 54 ignored**; HTTP RT0 **3/0** (G6 W1/W2/W3 **0/0/0**), overlay RT0 **2/0**; the second complete `bash scripts/test-postgres.sh` run has **810 passed / 1 failed / 0 ignored** across 36 Rust scopes, with only the inherited evaluator concurrent read/modify/write SQLSTATE `40001`; its complete public CLI milestone passes.
+Root `./ref-check`: 568 LLP docs, 11969 refs, 0 errors, 0 unchecked.
+The privileged event-trigger ticket, including its cached PIPE P2 item, moves to
+`issues/closed/`. Raw logs, SQL witnesses and PID receipts stay outside Git.
+
+Private PG16 masters `1814115`, `1899842`, `1953077`, `1846994`, `1860062` are independently stopped and confirmed:
+status 3, no postmaster.pid and no matching process. Recorded PID/start-tick and
+worktree-target executable audits are empty. Minimum recorded free space is
+119.71 GiB, above the 40 GiB floor. No owned PIDs remain. Work stays local;
+no push, stash, Git configuration change, q24 access or shared PG17 change.
+
+### 2026-10-25 — FF3 fix round 1: expected final images and bounded verification
+
+Lane `sb4-pg/ff3` starts clean at the requested `ae8c68c0e8` on the commissioned
+host/worktree. The inherited lane environment stays in force: own target,
+line-tables-only debug information, eight Cargo jobs, private PG16, a 40 GiB
+free-space floor, no push/stash/configuration changes and no throughput runs.
+`llp-orient` follows the activation/store-port refs and the existing RFC §4.2/§6
+and current deploy card; the fixes extend those documents rather than adding an LLP.
+
+SQLite image equality compares JSON values independently of key insertion order.
+It keeps the comparison in SQLite: exact BINARY equality is a fast path, while
+`json_tree` builds paths from decoded keys and compares path/node-kind/scalar
+triples in both directions. `fullkey` alone preserves source escapes, so paths
+quote each decoded segment, distinguishing map keys from array positions.
+Text case, array order, numeric values and malformed JSON remain observable.
+Verification fetches no destination payload into Rust. This matters beyond the rename:
+a legal incompatible 3 MiB retained original must remain dormant without paying
+an active-row decoding budget. The existing 300 KiB default-restoration fixture
+and the paired compatible/incompatible large-image lifecycle keep their original
+admission policy. An initially attempted Rust verification guard failed those
+legal fixtures; it is removed, and the active walker/pricing code stays unchanged.
+
+Expected images live in activation TEMP scratch. Computed copy/overlay writes
+record them; intentional backfill/downfill/extraction and row writes advance them.
+Retained originals are remembered before transforms, rather than reread and
+accepted at destruction. Table retirement/restoration, cell consumption and
+narrowed-row movement compare the expected final payloads at source removal,
+with identity/count checks as well. SQLite's late archive upserts verified
+replacement rows while keeping the old retained population, instead of clearing
+it before copying. A mismatch rolls back source, destination and generation.
+Postgres admits the new TEMP heap under the same captured-OID/interception fence.
+
+Postgres population counts and payload verification use 64-key pages. Page limits
+precede sparse-column filtering, and correlated destination lookups carry LIMIT 1
+to prevent a whole-destination hash/merge join. Expected image storage stays in
+the database; Rust receives keys/counts/equality bits only. The existing five-second
+statement timeout remains unchanged. The fixed-cost witness uses 512 rows and a
+400 ms test timeout: a whole-table statement with a 2 ms per-row verification
+cost fails with `57014`; the same cost in production pages permits retirement
+and restoration of all 512 rows. This is a timeout correctness witness, not a
+throughput measurement.
+
+Doctor reports an unexpired persisted G6 grant and its owner's clock declaration
+with owner-local activity explicitly unconfirmed. A local revocation can therefore
+fall back to G5 without the persisted row being misreported as active zero-flight
+hits. Serve retains its confirmed local startup tier. Null event-trigger command
+tags are rendered as `"tags":"all"`; filtered tags remain arrays and disabled
+triggers remain omitted. The existing benign-event-trigger and public CLI
+inventory witnesses remain in the required qualification.
+
+Witnesses cover actual uploaded-file dormant restores for `photo` → `album` and
+`zebra` → `apple`, preserving asset/home identity; a legal restored-cell backfill
+from `n=7` to `8`; and late same-count `7` → `8` corruption at cell and narrowed
+source destruction on both stores, requiring rollback and a later clean restore
+to `7`. PostgreSQL renames/backfills retain their existing named admission limits.
+An additional SQLite witness admits reordered/escaped Unicode keys and refuses
+changed numbers, array order, text case and malformed JSON. Doctor's witness
+revokes the actual shared local grant, confirms the hit gate is closed while the
+persisted grant is still live, and checks the unconfirmed diagnostic. The event
+inventory includes a real enabled no-tag-filter trigger.
+
+Affected qualification on this implementation passes **31/0** in the full FF1
+catalog/movement unit scope and **60/0** in the paired PostgreSQL evolution
+scope. The SQLite movement subset passes **7/0**, including escaped-key equality
+and invalid/corrupt payload refusal. The public CLI milestone passes its SQLite
+and Postgres 300 KiB, EV-2 and wire/meter parity journeys, plus ownership loss,
+SIGKILL takeover and the unchanged S1 application/recounts; its private cluster
+stops with status 3 and no pidfile. Complete final qualification, negative
+controls and the lane-wide PID audit are recorded in the following entry.
+
+### 2026-10-25 — FF3 fix round 1: final qualification and custody
+
+Final verification binds the implementation content in `f8e5b0f9ed`. The source
+is unchanged after the affected 31/0 catalog/movement and 60/0 paired evolution
+passes, apart from temporary, exactly reverted negative controls below.
+
+| Check | Passed | Failed | Ignored |
+| --- | ---: | ---: | ---: |
+| Full core, 49 targets | 1221 | 0 | 5 |
+| Full `snapback4` binary, eight libtest threads | 606 | 0 | 54 |
+| HTTP RT0 | 3 | 0 | 0 |
+| Overlay RT0 | 2 | 0 | 0 |
+| `bash scripts/test-postgres.sh`, 36 Rust scopes | 818 | 1 | 0 |
+| Restored-source FF3 focused suite | 15 | 0 | 0 |
+
+The sole final Postgres red is the inherited evaluator concurrent
+read/modify/write SQLSTATE `40001`; the unified/production arm passes. The full
+public CLI milestone passes, including its benign event-trigger inventory,
+owner-clock declaration with doctor-local activity unconfirmed, ownership loss,
+SIGKILL recovery, exact evolution, preserved/revoked changes, 300 KiB cases and
+unchanged S1 application/recounts. HTTP RT0 observes G6 W1/W2/W3 **0/0/0** flights,
+misses **1/1/1**, and revoked-grant G5 **1**.
+
+A default-concurrency binary pass first reported **605/1/54** at the already-open
+refusal-shutdown fixture's final writer-lock assertion. The unchanged exact case
+passes **1/0**, and the entire binary repeats **606/0/54** at eight libtest
+threads. Assertions and deadlines are unchanged; the existing
+`issues/20261018-sb4-refusal-shutdown-test-flake.md` receives this corroboration
+and stays Open. No cause or production lifecycle fix is claimed by this lane.
+
+Negative controls restore raw-byte equality plus the original restore-walk
+check, weaken final payload checks to count/presence, and expand the Postgres
+verification page to all 512 fixture rows. The compiled control suite reports
+**8 passed / 7 failed**: precisely the rename, escaped-key equality, lowered-timeout,
+and four same-count cell/narrowed corruption witnesses reject the controls.
+All three mutated source files are restored with SHA-256 identity and checked
+against the committed files. A fresh restored-source focused run passes **15/0**.
+The passing legal backfill, asset/home identity and rollback assertions remain
+part of that run; controls do not depend on disabling the fault injection.
+
+Root `./ref-check` passes: **568 LLP docs, 11969 refs, 0 errors, 0 unchecked**;
+it is repeated after this journal addition. Raw logs, commands, source hashes,
+process ledgers and resource receipts stay outside Git in `/tmp/sb4-ff3f1/`.
+No throughput campaign, push, stash, Git configuration change, q24 access or
+shared PG17 alteration occurs.
+
+Private PG16 postmasters **1988495**, **2056666** and **2218881** are independently
+confirmed stopped: pg_ctl status **3**, no `postmaster.pid`, and no matching
+process. The PID/start-tick ledger and worktree-target executable audit both
+return empty. Minimum recorded free space is **82.55 GiB**, above the
+40 GiB floor. **PIDs left: none.**
+
+### 2026-10-25 — FF3 fix round 2: retained re-hide images and payload-bounded verification
+
+Lane `sb4-pg/ff3` starts clean at the requested `4b7d437966`. The inherited
+private-PG16/own-target/line-tables-only environment remains in force, with
+Cargo reduced to six jobs because another lane shares the host. No throughput
+measurements, pushes, stashes or Git configuration changes. `llp-orient` follows
+the retained-dormancy/backfill refs, RFC 3000.009.001.000.002 §6 and the current
+deploy card; this is a correction to the existing activation contract.
+
+SQLite's retained re-hide path advances its expected archive image from the
+computed `archived` value immediately after the intentional archive UPDATE,
+using the same `rewrite_relation` operation as `patch_retained`. It does not
+replace the expected image with a reread of the physical destination. The new
+five-step witness starts with a native `mark(label)` row, removes `label` into
+`_dormant_values`, narrows its parent so the child is retained without `label`,
+and restores the column with a native marker and no backfill evidence. A stale
+native fingerprint forces recomputation agreement, which skips `patch_retained`.
+The hidden parent then re-hides the overlaid child. Before the fix this actual
+activation fails with `SNAPBACK_ACTIVATION_COPY_MISMATCH`; after the fix it commits,
+keeps the child hidden, and retains `label='kept'` with no new backfill evidence.
+An ordinary transaction then changes that physical retained payload without an
+intentional image rewrite: verification still refuses, rollback preserves it,
+and a subsequent parent widening restores the original child and label.
+
+Postgres verification still selects at most 64 keys, and now also selects at
+most 4 MiB of combined expected/destination payload lengths before comparison.
+Indexed `octet_length` checks avoid detoasting the candidate population. A
+materialized sizes/key boundary fences full-payload equality behind the byte
+selection; both physical images are charged, including an oversized corrupt
+destination. One oversized first row is admitted to guarantee cursor progress.
+The same helper bounds population copies in both directions, restored-cell
+verification and narrowed-row verification; sparse filtering remains after the
+page boundary. The ordinary five-second statement timeout is unchanged.
+
+The former per-page sleep hook and small-row timeout witness are removed.
+Three replacements call the production population/cell/narrowed verification
+functions over 64 actual toasted 8 MiB JSON documents under a lowered 250 ms
+statement timeout. Setup alone has no timeout; verification has no injected
+sleep or substituted comparison SQL. All three pass, including both population
+movement directions. The complete focused FF3 scope passes **18/0**. The
+unbounded-production negative control and final qualification/custody results
+are recorded below; raw logs and source/process receipts remain outside Git
+under `/tmp/sb4-ff3f2/`.
+
+The control removes only the byte-selection prefix from the production query
+builder: the indexed source cursor, LIMIT 64 and the production payload equality
+SQL remain. All **three** new witnesses fail with PostgreSQL **57014** under
+250 ms (**0 passed / 3 failed**). Thus one 64-key page is itself too much work;
+this is not a hand-written sleep query or a changed key-count limit. The fixed
+source is restored byte-for-byte with SHA-256 confirmation before qualification.
+
+A second SQLite control drives actual activation after a committed external
+edit to a native backfill input. Its retained output remains unchanged in
+`_dormant_values`; recomputation now differs. Activation refuses with `E_ADOPT`
+(`changed outside its owning release` / `recomputation differs`), preserving
+generation, hidden population and retained output. Repairing only that external
+edit permits the same activation. This control and the original re-hide witness
+both pass in the full core run.
+
+### 2026-10-25 — FF3 fix round 2: final qualification and custody
+
+Code commit `94372abb95` corrects the two review findings on `4b7d437966`.
+The source used by the unbounded Postgres control was restored with SHA-256
+identity, and that digest also matches the committed file. The restored focused
+FF3 run passes **18/0**; the subsequent complete core and PostgreSQL runs include
+the added actual outside-activation native-input conflict control. The complete
+FF1/FF3 activation group passes **35/0**, including all three real-TOAST production
+SQL timeout witnesses and both new SQLite lifecycle/control tests.
+
+| Requested check | Passed | Failed | Ignored |
+|---|---:|---:|---:|
+| Full core (49 scopes, including doctests) | 1223 | 0 | 5 |
+| Full snapback4 binary | 606 | 0 | 54 |
+| HTTP RT0 | 3 | 0 | 0 |
+| Overlay RT0 | 2 | 0 | 0 |
+| Postgres script Rust stages (36 scopes) | 822 | 1 | 0 |
+
+The Postgres script's only red is the explicitly inherited
+`evaluator_concurrent_read_modify_write_and_duplicate_ops_are_atomic_in_both_modes`
+SQLSTATE **40001**, `could not serialize access due to concurrent update`.
+No other Rust scope fails. The script continues through its complete public CLI
+milestone, which passes EV-1/EV-2 and change-evidence journeys on both stores,
+300 KiB restoration, byte-identical wire/meters, bootstrap admission, ownership
+loss/takeover, G6 diagnostics and the unchanged S1 application's totals/recounts.
+The Python milestone prints its final PASS and confirms its own cluster stopped.
+HTTP G6 W1/W2/W3 hits remain **0/0/0 flights**, misses **1/1/1**, and revoked-grant
+G5 fallback **1**. These are functional/round-trip checks; no throughput run occurs.
+
+Root `./ref-check` passes: **568 LLP docs, 11969 refs, 0 errors, 0 unchecked**.
+The lane retains raw logs, commands, control/qualification receipts and process
+ledgers only under `/tmp/sb4-ff3f2/`, outside Git. No push, stash or Git
+configuration change. All Cargo builds use six jobs and line-tables-only debug
+information in this worktree's target directories.
+
+Both owned PG16 clusters are independently confirmed stopped: evaluation PID
+`2287319` and public-witness PID `2537419`, each `pg_ctl status=3`, no
+`postmaster.pid`, and no process. The retained launch parent reaps the evaluation
+postmaster with exit 0. The public witness's own PID ledger is independently
+checked as well. The final lane ledger and target-executable scan both have
+zero remaining processes. Minimum observed free space is **59.74 GiB**, above
+the 40 GiB floor. **Owned PIDs left: none.**

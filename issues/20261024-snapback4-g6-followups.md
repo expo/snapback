@@ -16,9 +16,16 @@ From the G6 blind review (Sol APPROVE WITH NITS, Grok APPROVE) and the G6 report
    cached authority reusable until the next local publication. The deploy
    guide's all-writers requirement is the only guard. Consider a durable
    grant-aware marker that pre-G6 writers refuse, and a doctor check.
-3. **Default posture.** Zero-flight reuse is opt-in via declared clock
-   bounds. Decide whether single-owner `ha=none` deployments default to
-   conservative bounds (author decision pending).
+3. **Resolved — default posture (FF3 panel disposition, 2026-10-25).** G6
+   stays opt-in via `SNAPBACK4_READ_GRANT_CLOCK_BOUNDS=rate_ppm,forward_jump_ms`;
+   `ha=none` alone is insufficient. Serve/doctor expose the tier and safe-use
+   conditions (single owner, every writer grant-aware, declared database-clock
+   bound, no VM pause/migration longer than the lease). Revisit default-on only
+   after (1) the roughly one-second G6 stall is explained, (2) G5-versus-G6
+   write cost is measured, (3) a durable marker makes pre-G6 binaries refuse a
+   grant-enabled store, and (4) Snapback witnesses the clock contract rather
+   than assuming it. LLP 3000.009.001.000.002 §4.2/§6 and the deploy guide record
+   the decision. These four prerequisites remain future work.
 4. **Write-mix false misses.** Revision equality misses every entry after
    any commit: a 1 % write stream gives 92.3 % misses and 5.1k reads/s.
    Cross-revision promotion with footprints (§4.1) is the designed remedy.
@@ -45,8 +52,8 @@ fixture setup/TCP-profile errors are excluded from that evidence; the qualified
 negative uses the production-supported Unix socket. The PG runner includes
 this test with the existing startup-cleanup witness.
 
-Items **2–6 remain open**, with their original scope and author decision pending
-where noted. This ticket stays in `issues/` for those items.
+Items **2 and 4 remain open**; item 3 is resolved above. The test-census
+resolutions of items 5 and 6 are recorded below.
 
 6. **Codec census (REL affected audit, 2026-10-25).** The
    `wasm-codec-census.test.mjs` mutation-receipt exclusion test counts eighteen
@@ -68,4 +75,5 @@ fixtures and integration observers.
 Item 6 now follows literal `#[path]` declarations and their excluded children
 from a proved cfg(test) parent. Removing the gate exposes the sibling again;
 its regression and the original single-production-codec assertion pass.
-Items 2–4 retain their existing open scope.
+Items 2 and 4 retain their existing open scope; item 3 follows the upstream
+opt-in/default-on ruling recorded above.

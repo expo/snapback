@@ -731,8 +731,16 @@ fn overlay_apply_count_rejects_suppressed_image_and_rolls_back_history_sqlite() 
     suppressed_update(false);
 }
 
-fn counts(pg: bool) {
+fn counts(pg: bool) { counts_with_grant(pg, false); }
+fn counts_with_grant(pg: bool, g6: bool) {
     let mut engine = fixture(pg);
+    #[cfg(feature="postgres")]
+    let grant = if g6 {
+        let grant=std::sync::Arc::new(crate::engine::postgres::read_grant::Grant::default());
+        grant.configured.store(true, std::sync::atomic::Ordering::Release);
+        engine.store_mut().test_postgres_handle_mut().store.get_mut().read_grant=Some(grant.clone());
+        Some(grant)
+    } else { None };
     let session = crate::identity::open_session(engine.store(), "alice", "account", 1000).unwrap();
     let digest = crate::identity::session_digest(&session.token);
     for shared in [false, true] {
@@ -778,10 +786,17 @@ fn counts(pg: bool) {
                 ));
                 let measured = scope.counts();
                 drop(scope);
+                #[cfg(feature="postgres")]
+                if let Some(grant)=&grant {
+                    let row=engine.store_mut().test_postgres_handle_mut().store.get_mut().client.query_one("SELECT revision,seq FROM _head WHERE singleton", &[]).unwrap();
+                    let state=grant.state.read().unwrap();
+                    let published=state.published.as_ref().expect("confirmed G6 publication");
+                    assert_eq!((published.revision,published.head),(row.get::<_,i64>(0),row.get::<_,i64>(1) as u64));
+                }
                 if repetition == 3 {
-                    eprintln!("G3b RT0 pg={pg} shared={shared} N={n}: {measured:?}");
+                    eprintln!("G3b RT0 pg={pg} g6={g6} shared={shared} N={n}: {measured:?}");
                     if pg && n > 1 {
-                        assert_eq!(measured.postgres, if shared { 5 } else { 4 });
+                        assert_eq!(measured.postgres, if shared { 4 } else { 3 });
                     }
                 }
             }
@@ -1091,3 +1106,12 @@ fn admitted_membership_probes_speculate_and_validate_sqlite() { admitted_members
 #[test]
 #[ignore="private PG16; scripts/test-postgres.sh"]
 fn admitted_membership_probes_speculate_and_validate_postgres() { admitted_membership_probes(true); }
+
+#[cfg(feature = "postgres")]
+#[path = "program_g71_tests.rs"]
+mod g71_tests;
+
+#[cfg(feature="postgres")]
+#[test]
+#[ignore = "private Postgres"]
+fn overlay_rt0_postgres_g6() { counts_with_grant(true, true); }

@@ -23,7 +23,8 @@ pub(super) fn initialize(
 ) -> Result<(), RuntimeError> {
     super::activation_schema::initialize(tx)?;
     super::evolution_schema::initialize(tx)?;
-    super::managed_relations::verify(tx)?;
+    super::managed_relations::warn_event_triggers(tx)?;
+    super::managed_relations::verify_activation(tx)?;
     if tx.meta("store_id")?.is_none() {
         tx.set_meta(
             "store_id",

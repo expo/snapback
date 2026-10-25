@@ -102,6 +102,7 @@ fn load(tx: &Tx<'_>, t: i64, id: &str) -> Result<Option<Value>, RuntimeError> {
 }
 fn write(tx: &Tx<'_>, t: i64, id: &str, row: &Value) -> Result<(), RuntimeError> {
     tx.conn().execute("INSERT INTO r(t,id,data) VALUES(?1,?2,?3) ON CONFLICT(t,id) DO UPDATE SET data=excluded.data",params![t,id,canonical_json(row)])?;
+    super::movement::rewrite(tx,t,id,row)?;
     Ok(())
 }
 fn value(

@@ -264,6 +264,7 @@ pub(super) fn serve(options: &Options, config: StoreConfig) -> Result<(), String
         .map_err(crate::store_config::redact)?;
     owner.worker_state(_engine.store())?;
     drop(_engine);
+    eprintln!("snapback4: {}", owner.read_cache_tier);
     let bind = super::releases::release_bind(options)?;
     let requested_port =
         crate::port_flag::parse("serve", options.flags.get("port").map(String::as_str))?;
@@ -290,9 +291,12 @@ pub(super) fn doctor(options: &Options, config: StoreConfig) -> Result<(), Strin
     if let Some(dir) = options.flags.get("release") {
         config.validate_binding(Path::new(dir), &state)?;
     }
+    let (tier,warnings)=config.diagnostics()?;
+    eprintln!("snapback4: {tier}");
+    for warning in &warnings { eprintln!("{warning}"); }
     println!(
         "{}",
-        serde_json::json!({"backend":"postgres", "store":state, "binding":config.binding, "profile":"initial-http", "ha":"none", "certifiedChanges":true})
+        serde_json::json!({"backend":"postgres", "store":state, "binding":config.binding, "profile":"initial-http", "ha":"none", "certifiedChanges":true, "readCacheTier":tier, "warnings":warnings})
     );
     Ok(())
 }

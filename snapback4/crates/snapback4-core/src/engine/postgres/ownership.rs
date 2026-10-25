@@ -439,6 +439,11 @@ impl StoreLease {
         // repeat installation with the same owner identity.
         if tx.query_opt("SELECT epoch FROM _read_grant WHERE singleton AND valid_until>=clock_timestamp()",&[])?.is_some() {return Err(RuntimeError::StoreOwnership("outstanding read epoch must expire or drain".into()));}
         tx.execute("INSERT INTO _read_grant VALUES(true,$1,$2,$3,$4,clock_timestamp()+make_interval(secs=>$5)) ON CONFLICT(singleton) DO UPDATE SET store_id=EXCLUDED.store_id,holder=EXCLUDED.holder,token=EXCLUDED.token,epoch=EXCLUDED.epoch,valid_until=EXCLUDED.valid_until",&[&self.fence.store_id,&self.fence.holder,&self.fence.token,&epoch,&self.policy.lease.as_secs_f64()])?;
+        // @ref LLP 3000.009.001.000.002#6 — doctor reports the owner's declared bounds, not its own environment.
+        // Advisory diagnostics only, bound to this epoch. This is lease traffic,
+        // never authority or a durable compatibility marker for older writers.
+        let notice=serde_json::json!({"epoch":epoch,"rate_ppm":bounds.rate_ppm,"forward_jump_ms":bounds.forward_jump.as_millis()}).to_string();
+        tx.execute("INSERT INTO _meta(key,value) VALUES('read_grant_clock',$1) ON CONFLICT(key) DO UPDATE SET value=EXCLUDED.value",&[&notice])?;
         let row=super::flight::Row::Bind(tx.query_one(PUBLICATION,&[])?);
         let published=Published::row(&row)?;
         commit(tx,&self.warning)?;
