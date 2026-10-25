@@ -337,3 +337,16 @@ fn marker_hint_release(fail: bool) {
 fn g7e_lev_hint_waits_for_marker_certificate(){marker_hint_release(false);}
 #[cfg(feature="postgres")] #[test] #[ignore="private PG16"]
 fn g7e_lev_unknown_marker_does_not_refresh_hint(){marker_hint_release(true);}
+
+#[cfg(feature="postgres")] #[test] #[ignore="private PG16"]
+fn g7e_lev_queue_rejection_evicts_warm_hint() {
+    let f = Fixture::with_source_commit(true, SOURCE, true);
+    let session = f.session(false);
+    assert_eq!(body(&f.host.request("POST", "/q/count", &headers(&session), "{}"))["data"], 0);
+    assert_eq!(lock(&f.host.shared.carried).len(), 1);
+    f.host.shared.engine.test_ownership_loss();
+    let reply = f.host.request("POST", "/m/change", &headers(&session), r#"{"args":{"n":1}}"#);
+    refused(&reply, "E_STORE_OWNERSHIP");
+    no_store_metadata(&reply);
+    assert!(lock(&f.host.shared.carried).is_empty(), "queue failure bypassed the continuation and retained its hint");
+}

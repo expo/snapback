@@ -108644,3 +108644,33 @@ and recovery COMMIT waits exceed five seconds. The before tree fails the
 concurrent-break, marker-lock and recovery-COMMIT witnesses; the additional
 queue/settings witnesses and final requested checks are recorded in
 [the G7-E report](reports/20261025-g7e-postgres/REPORT.md).
+
+
+## 2026-10-26 — G7-E fix round 2: queue hint boundary
+
+The `f9a870b262` hint audit found that queue errors bypass the mutation result
+continuation entirely, including its failure eviction. The caller now evicts
+the carried hint on that outer error too. The new HTTP witness warms a hint,
+loses queue ownership, and checks that the refusal carries no store metadata
+and leaves no hint. It fails before with the old hint retained and passes after.
+The existing held-marker success/unknown witnesses still gate hint publication
+on certified release. A late eviction of a newer certified observation only
+adds cold discovery; hints never authorize, and every execution checks fresh
+store, generation, principal, kind and Full scope.
+
+The core recovery/timeout change is `5eae13de38`. The six new regressions all
+have failing-before and passing-after evidence. Full core is 1,309/0 (523
+ignored), binary 623/0 (75 ignored), E core/HTTP 39/0 and 5/0, G7.2 40/0,
+lever core/HTTP 2/0 and 87/0, RT0 core/HTTP 6/0 and 10/0, and crash/kill 11/0
+with zero acknowledged loss. Final Postgres, reference and process-custody
+results are recorded in
+[the G7-E report](reports/20261025-g7e-postgres/REPORT.md).
+
+Final checks: Postgres Rust targets **816/1**, only inherited `E_INPUT: 6`;
+the evaluator's inherited stale lockfile blocks its known `40001` stage.
+Public S/E serving, full binary build and SQLite-only feature check pass.
+Ref-check: 569 LLPs, 12,033 references, zero errors/unchecked.
+All 7 private cluster directories confirm stopped; the combined
+12,623-pair audit, including zombies and both public PID ledgers,
+has no matches. Minimum monitored free disk: 59.35 GiB.
+**PIDs left: none.** No throughput campaign, publication or push.

@@ -564,3 +564,124 @@ the final audit reports **63.09 GiB**, above the 25 GiB
 stop floor. Raw evidence remains outside Git, including
 `/tmp/g7er2-final-audit.json`. No push, stash, Git configuration change,
 protected PG17/port-55440 or `~/q24` access, or throughput/S1 campaign occurs.
+
+## G7-E fix round 2 — concurrent recovery breaks and certificate timeouts
+
+Pinned input: `f9a870b2626d6b3ff53b5606e7539d445c5a4b9d` on
+`sb4-pg/g7e-land`, already rebased on main `7e88aa041d`. These are fixes on
+top of that input. Private PG16 only, own target, line-tables-only, cargo
+`-j 6`, 25 GiB disk floor. No throughput/S1 campaign or push.
+
+### P1: recovery keeps making progress while ownership remains
+
+The stale-epoch rejection remains mandatory. Drained recovery errors now arm
+another current-epoch fenced recovery on idle ticks, using exponential 10, 20,
+40, …, 250 ms backoff. The lane clears its transient pause only after recovery
+certifies D under the existing grant-before-D locks. It never clears uncertainty
+from an old epoch, resurrects a read grant, reruns committed-unconfirmed data,
+or treats drainage as durability. Both slots refresh before retrying.
+
+The queue supplies a recovery guard backed by its independent ownership-loss
+latch and conservative lease deadline. Loss prevents another attempt; an
+already dispatched certificate remains uncancellable. Unacknowledged ticket
+drainage/terminal fencing still requires acquisition, and does not arm a
+recovery retry. Failed recovery cannot rerun a member while the lane is paused.
+Program tasks and solo commands encountered during that pause receive explicit
+`OutcomeUnknown`; no queued reply is silently dropped.
+
+Failing-before evidence uses the pinned implementation plus only the test
+rendezvous/new assertions:
+
+| Witness | Before | Fixed behavior |
+| --- | --- | --- |
+| `g7e_concurrent_reader_break_during_recovery_retries_and_admits_writes` | One recovery attempt, then `superseded recovery permanently paused admission; attempts=1` | Reader thread breaks after each of three epoch samples; fourth recovery certifies; G6 uncertainty clears and a real queued mutation succeeds |
+| `g7e_recovery_pending_queue_returns_unknown_and_lease_loss_stops_retries` | Queued program returns `Err(Stopped)` | Queued programs and solo receive explicit unknown; ownership-loss latch stops subsequent recovery attempts |
+
+The first witness runs the same `break_history` entry as the reader connection
+task, after the recovery sample and before certification, without closing the
+writer socket. The second holds recovery while enqueueing waiters. It keeps
+superseding attempts until the ownership-loss latch is set, and checks that
+later idle ticks start no new attempts.
+
+### P2: certificate transactions disable both local timeouts
+
+The marker sets `synchronous_commit=on`, `statement_timeout=0` and
+`lock_timeout=0` after its own BEGIN. Exact certificate command counts include
+the two setting tags. Recovery sends all three settings with its COMMIT in the
+existing message. Session defaults remain five seconds after the transaction;
+no successful-path SQL flight was added.
+
+| Witness | Before | Fixed behavior |
+| --- | --- | --- |
+| `g7e_marker_commit_wait_exceeds_session_statement_timeout` | Marker trigger observes inherited nonzero certificate timeouts and returns unknown | Asserts all three settings inside deferred COMMIT, waits 5.2 s, then certifies; session timeout restored |
+| `g7e_marker_lock_wait_exceeds_session_lock_timeout` | Marker lock wait exceeds inherited 5 s limit and returns unknown | A rendezvoused advisory lock is held for 5.2 s; marker then certifies; session lock timeout restored |
+| `g7e_recovery_commit_wait_exceeds_session_statement_timeout` | Deferred recovery COMMIT exceeds inherited 5 s limit and returns unknown | Deferred head trigger waits 5.2 s, checks all settings, and recovery installs D; session timeout restored |
+
+The initial marker-COMMIT sleep alone passed before: that simple-query timer
+behavior was not a decisive oracle. The final witness adds the in-transaction
+settings assertion and fails before. Recovery's real timeout and the marker's
+real lock timeout independently establish the slow-certificate failure.
+These are slow COMMIT/lock witnesses, not a throughput experiment or a claim
+about physical storage flush latency.
+
+### f9a870b262 hint ordering audit
+
+Reviewed member, chain, solo/barrier, retry, unknown, query, and queue-error
+paths. Staging replaces its hint candidate on each attempt. A successful
+mutation reaches the continuation only after its own certificate and ordered
+release check; a break before that check yields unknown and evicts. A later
+break cannot make an already certified/released observation belong to a lost
+history. Certified query observations still pass the head-bound reader path.
+Hints never authorize; final facts independently validate store, generation,
+principal, kind and Full scope. A late failure eviction can remove a newer
+certified hint, adding cold discovery work without changing authority.
+
+The audit found one missing boundary: queue errors bypass the result
+continuation, so its eviction never ran. The HTTP caller now evicts on that
+error too. `g7e_lev_queue_rejection_evicts_warm_hint` fails before with
+`queue failure bypassed the continuation and retained its hint`; fixed behavior
+returns the ownership refusal without metadata and evicts the warm hint.
+Existing held-marker success/unknown HTTP witnesses continue to cover
+publication above D and after data COMMIT.
+
+Before-run records remain local under `/tmp/g7ef2-before/` and
+`/tmp/g7ef2-before2/`: 34 passed / 3 failed in the first E selection, then
+0/1 for queued outcomes, 0/1 for the strengthened marker setting witness,
+and 0/1 for the HTTP hint boundary. All six new witnesses fail before.
+Both private before clusters confirm stopped with no recorded living PID.
+
+### Requested checks
+
+Full core and the Postgres script run concurrently in separate private PG16
+clusters. The script is actually executed once by `/tmp/g7ef2-postgres.py`;
+the sequential runner waits for its confirmed cluster cleanup and reuses that
+result, after checking the source delta is unchanged. No code edits occur
+during either run. Its raw output and custody records stay under
+`/tmp/g7ef2-postgres/`; the other checks stay under `/tmp/g7ef2-after/`.
+G7.2's two measurement bodies remain disabled (no `SNAPBACK4_G72_MEASURE=1`).
+
+Checks completed 2026-10-26 (pass/fail counts):
+
+| Check | Passed | Failed | Notes |
+| --- | ---: | ---: | --- |
+| Full core | 1,309 | 0 | 523 ignored; 49 targets |
+| Full `snapback4` binary tests | 623 | 0 | 75 ignored |
+| E core suite | 39 | 0 | All five new core witnesses included |
+| E HTTP suite | 5 | 0 | New queue-error eviction plus held-marker levers |
+| G7.2 | 40 | 0 | Measurement bodies disabled |
+| Lever core / HTTP | 2 / 87 | 0 / 0 | Retained plans and fresh authority |
+| RT0 core / HTTP | 6 / 10 | 0 / 0 | E retains three flights, marker in the final message |
+| E crash/kill | 11 | 0 | Zero acknowledged-write loss; lost-history reader withheld; revision reuse |
+| Postgres Rust targets | 816 | 1 | 26 targets; inherited `E_INPUT: 6` |
+
+Full binary build, the SQLite-only feature check, and public serving in both
+S and E pass. `bash scripts/test-postgres.sh` exits 1 solely for inherited
+reds: difftest `stores::both_stores_all_public_boundaries_and_write_observations`
+reports six unexpected `E_INPUT` refusals, and the evaluator workspace's stale
+`experiments/postgres/Cargo.lock` refuses `--locked` before its known `40001`
+stage can execute. No other red appears. Registry cache write/auto-clean
+permission warnings are nonfatal.
+
+`./ref-check --verbose`: 569 LLP documents, 12,033 references in 45205 files, **0 errors / 0 unchecked**.
+
+The combined audit checks 12,623 recorded PID/birth pairs, including zombies, both public-helper PID ledgers, and executables under this worktree's target. All 7 private cluster directories confirm stopped (status 3 and no postmaster.pid). Minimum monitored free disk across before and after runs is 59.35 GiB, above the 25 GiB floor. **PIDs left: none.** No throughput campaign, publication or push. Raw records remain in `/tmp/g7ef2-*` and the named private witness directories; none are committed.

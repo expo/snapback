@@ -1400,6 +1400,7 @@ fn handle(mut request: Request, shared: &Shared) {
                 let boundary=Arc::new(Mutex::new((None,None)));
                 let boundary_check=boundary.clone();
                 let hint_admission=admission.clone();
+                let hint_digest=admission.digest();
                 let diverted=Arc::new(AtomicBool::new(false));
                 let diverted_prepare=diverted.clone();
                 let result = shared.engine.program(request.accepted_at(), move |engine, shared| {
@@ -1440,6 +1441,8 @@ fn handle(mut request: Request, shared: &Shared) {
                     if let Err(why)=&outcome && (boundary.is_none() || matches!(why.code.as_str(),"E_AUTH"|"E_COMMIT_OUTCOME_UNKNOWN")) {return Err(why.clone());}
                     Ok(Some(head::mutation_acknowledgement_at(shared,engine,outcome,boundary)))
                 });
+                // Queue refusal/unknown bypasses the result continuation too.
+                if result.is_err() { lock(&shared.carried).remove(&hint_digest); }
                 let (outcome, metadata, preserved, generation) = match result.and_then(|v| v) {
                     Ok(Some(value)) => value,
                     Ok(None) => return ephemeral::serve(request, shared, &op, &body, diverted_capability),
