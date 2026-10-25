@@ -1,5 +1,5 @@
 //! Grace belongs to effect admission, never to predicted rows.
-use super::runner::Runner;
+use super::runner::{Runner, expression_heap};
 use crate::{error::RuntimeError, ir::{Expr, Stmt}, value::Value};
 use std::collections::BTreeMap;
 #[cfg(not(target_arch = "wasm32"))]
@@ -102,11 +102,31 @@ impl Runner<'_> {
         Ok(deps)
     }
 
+    pub(super) fn bind(&mut self, name: &str, value: Value) {
+        #[cfg(feature = "sqlite")]
+        self.clear_delivery_variable(name);
+        self.effect_presence.variables.remove(name);
+        self.bind_value(name, value);
+    }
+
+    pub(super) fn bind_value(&mut self, name: &str, value: Value) {
+        if let Some(slot) = self.env.get_mut(name) { *slot = value; }
+        else { self.env.insert(name.to_owned(), value); }
+    }
+
+    pub(super) fn environment_value_copy_heap(&self, name: &str) -> u64 { self.env.get(name).map_or(0, |v| super::runner::expression_copy(v)) }
+    pub(super) fn environment_heap(&self) -> u64 { self.env.values().map(expression_heap).sum() }
+    pub(super) fn measured_expr(&mut self, expr: &Expr) -> Result<(Value, u64), RuntimeError> {
+        let value = self.expr(expr)?;
+        let bytes = expression_heap(&value);
+        Ok((value, bytes))
+    }
+
     pub(super) fn bind_effect_value(&mut self, name: &str, value: Value) -> Result<(), RuntimeError> {
         #[cfg(feature = "sqlite")]
         self.bind_delivery(name);
         let deps = self.value_presence()?;
-        self.env.insert(name.into(), value);
+        self.bind_value(name, value);
         if deps.is_empty() { self.effect_presence.variables.remove(name); }
         else {
             self.meter.heap(name.len() as u64 + 64)?;

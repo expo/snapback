@@ -79,6 +79,23 @@ impl Value {
             _ => (0, 1),
         }
     }
+    /// Physical cache retention counts existing metadata, not an unbuilt wire
+    /// mask. Delivery images retain a separate ledger graph and bypass reuse.
+    // @ref LLP 3000.009.001.000.002#4.5 — account the full shared backing or reject the entry.
+    #[cfg(feature="postgres")]
+    pub(crate) fn cache_metadata_bytes(&self)->Option<usize> {
+        match self {
+            Self::Row(fields)|Self::Map(fields)=>{
+                let own=if let Some(source)=fields.2.as_ref() {
+                    if source.delivery.is_some() {return None;}
+                    std::mem::size_of::<SourceIdentity>().checked_add(64)?.checked_add(source.table.capacity())?.checked_add(source.id.capacity())?
+                } else {0};
+                fields.values().try_fold(own,|sum,value|sum.checked_add(value.cache_metadata_bytes()?))
+            },
+            Self::Array(items)=>items.iter().try_fold(0usize,|sum,value|sum.checked_add(value.cache_metadata_bytes()?)),
+            _=>Some(0),
+        }
+    }
     /// A parallel mask describes every returned row and nested field. A null
     /// source is intentionally unknown; projected fields cannot fill it in.
     pub fn retained_rows_mask(&self) -> Self {

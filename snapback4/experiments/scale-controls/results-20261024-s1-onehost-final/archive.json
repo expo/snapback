@@ -1,0 +1,9 @@
+{
+  "path": "/home/ccheever/sb4scale/archive/s1-onehost-final-20261024.tar.gz",
+  "sha256": "f5e46efdd1a8a9de67eac775e324c5300cb9aadd41f79345d67c44a5bce166b0",
+  "bytes": 405957913,
+  "members": 4610,
+  "new_trial_jsons": 486,
+  "prior_control_archive_sha256": "2ad9953ae6e01a790171e3778547e2703f4d0db9e991039f2833c03543ecb7fb",
+  "prior_control_archive_embedded": true
+}

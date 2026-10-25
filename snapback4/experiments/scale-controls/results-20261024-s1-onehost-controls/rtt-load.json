@@ -1,0 +1,5002 @@
+{
+  "rtt": [
+    {
+      "system": "rawpg",
+      "cell": {
+        "workload": "W1",
+        "rows": 1000000,
+        "delay_us": 1000,
+        "writers": 128,
+        "keys": "disjoint",
+        "target": "raw-pg",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "rawpg",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-rawpg-W1-disjoint-1000-NEW",
+          "--workload",
+          "W1",
+          "--keys",
+          "disjoint",
+          "--link",
+          "B",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 1.155,
+      "p99_ms": 4.323,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-wlj_1ncr/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "system": "rawpg",
+      "cell": {
+        "workload": "W1",
+        "rows": 1000000,
+        "delay_us": 1000,
+        "writers": 128,
+        "keys": "disjoint",
+        "target": "raw-pg",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "rawpg",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-rawpg-W1-disjoint-1000-NEW",
+          "--workload",
+          "W1",
+          "--keys",
+          "disjoint",
+          "--link",
+          "B",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 1.17,
+      "p99_ms": 3.969,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-wlj_1ncr/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "system": "rawpg",
+      "cell": {
+        "workload": "W1",
+        "rows": 1000000,
+        "delay_us": 500,
+        "writers": 128,
+        "keys": "disjoint",
+        "target": "raw-pg",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "rawpg",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-rawpg-W1-disjoint-500-NEW",
+          "--workload",
+          "W1",
+          "--keys",
+          "disjoint",
+          "--link",
+          "A",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 0.57,
+      "p99_ms": 0.621,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-wlj_1ncr/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "system": "rawpg",
+      "cell": {
+        "workload": "W1",
+        "rows": 1000000,
+        "delay_us": 500,
+        "writers": 128,
+        "keys": "disjoint",
+        "target": "raw-pg",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "rawpg",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-rawpg-W1-disjoint-500-NEW",
+          "--workload",
+          "W1",
+          "--keys",
+          "disjoint",
+          "--link",
+          "A",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 0.619,
+      "p99_ms": 3.649,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-wlj_1ncr/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "system": "rawpg",
+      "cell": {
+        "workload": "W2",
+        "rows": 1000000,
+        "delay_us": 1000,
+        "writers": 128,
+        "keys": "disjoint",
+        "target": "raw-pg",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "rawpg",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-rawpg-W2-disjoint-1000-NEW",
+          "--workload",
+          "W2",
+          "--keys",
+          "disjoint",
+          "--link",
+          "B",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 1.095,
+      "p99_ms": 1.139,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-wlj_1ncr/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "system": "rawpg",
+      "cell": {
+        "workload": "W2",
+        "rows": 1000000,
+        "delay_us": 1000,
+        "writers": 128,
+        "keys": "disjoint",
+        "target": "raw-pg",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "rawpg",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-rawpg-W2-disjoint-1000-NEW",
+          "--workload",
+          "W2",
+          "--keys",
+          "disjoint",
+          "--link",
+          "B",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 1.078,
+      "p99_ms": 1.146,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-wlj_1ncr/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "system": "rawpg",
+      "cell": {
+        "workload": "W2",
+        "rows": 1000000,
+        "delay_us": 500,
+        "writers": 128,
+        "keys": "disjoint",
+        "target": "raw-pg",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "rawpg",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-rawpg-W2-disjoint-500-NEW",
+          "--workload",
+          "W2",
+          "--keys",
+          "disjoint",
+          "--link",
+          "A",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 0.622,
+      "p99_ms": 3.609,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-wlj_1ncr/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "system": "rawpg",
+      "cell": {
+        "workload": "W2",
+        "rows": 1000000,
+        "delay_us": 500,
+        "writers": 128,
+        "keys": "disjoint",
+        "target": "raw-pg",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "rawpg",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-rawpg-W2-disjoint-500-NEW",
+          "--workload",
+          "W2",
+          "--keys",
+          "disjoint",
+          "--link",
+          "A",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 0.562,
+      "p99_ms": 0.576,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-wlj_1ncr/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "system": "rawpg",
+      "cell": {
+        "workload": "W3",
+        "rows": 1000000,
+        "delay_us": 1000,
+        "writers": 128,
+        "keys": "disjoint",
+        "target": "raw-pg",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "rawpg",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-rawpg-W3-disjoint-1000-NEW",
+          "--workload",
+          "W3",
+          "--keys",
+          "disjoint",
+          "--link",
+          "B",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 1.085,
+      "p99_ms": 1.138,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-wlj_1ncr/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "system": "rawpg",
+      "cell": {
+        "workload": "W3",
+        "rows": 1000000,
+        "delay_us": 1000,
+        "writers": 128,
+        "keys": "disjoint",
+        "target": "raw-pg",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "rawpg",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-rawpg-W3-disjoint-1000-NEW",
+          "--workload",
+          "W3",
+          "--keys",
+          "disjoint",
+          "--link",
+          "B",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 1.116,
+      "p99_ms": 1.578,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-wlj_1ncr/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "system": "rawpg",
+      "cell": {
+        "workload": "W3",
+        "rows": 1000000,
+        "delay_us": 500,
+        "writers": 128,
+        "keys": "disjoint",
+        "target": "raw-pg",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "rawpg",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-rawpg-W3-disjoint-500-NEW",
+          "--workload",
+          "W3",
+          "--keys",
+          "disjoint",
+          "--link",
+          "A",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 0.561,
+      "p99_ms": 0.608,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-wlj_1ncr/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "system": "rawpg",
+      "cell": {
+        "workload": "W3",
+        "rows": 1000000,
+        "delay_us": 500,
+        "writers": 128,
+        "keys": "disjoint",
+        "target": "raw-pg",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "rawpg",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-rawpg-W3-disjoint-500-NEW",
+          "--workload",
+          "W3",
+          "--keys",
+          "disjoint",
+          "--link",
+          "A",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 0.62,
+      "p99_ms": 3.875,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-wlj_1ncr/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "system": "rawpg",
+      "cell": {
+        "workload": "W4",
+        "rows": 1000000,
+        "delay_us": 1000,
+        "writers": 32,
+        "keys": "disjoint",
+        "target": "raw-pg",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "rawpg",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-rawpg-W4-disjoint-1000-NEW",
+          "--workload",
+          "W4",
+          "--keys",
+          "disjoint",
+          "--link",
+          "B",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 1.151,
+      "p99_ms": 3.105,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-wlj_1ncr/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "system": "rawpg",
+      "cell": {
+        "workload": "W4",
+        "rows": 1000000,
+        "delay_us": 1000,
+        "writers": 32,
+        "keys": "disjoint",
+        "target": "raw-pg",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "rawpg",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-rawpg-W4-disjoint-1000-NEW",
+          "--workload",
+          "W4",
+          "--keys",
+          "disjoint",
+          "--link",
+          "B",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 1.086,
+      "p99_ms": 1.128,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-wlj_1ncr/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "system": "rawpg",
+      "cell": {
+        "workload": "W4",
+        "rows": 1000000,
+        "delay_us": 500,
+        "writers": 32,
+        "keys": "disjoint",
+        "target": "raw-pg",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "rawpg",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-rawpg-W4-disjoint-500-NEW",
+          "--workload",
+          "W4",
+          "--keys",
+          "disjoint",
+          "--link",
+          "A",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 0.591,
+      "p99_ms": 0.634,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-wlj_1ncr/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "system": "rawpg",
+      "cell": {
+        "workload": "W4",
+        "rows": 1000000,
+        "delay_us": 500,
+        "writers": 32,
+        "keys": "disjoint",
+        "target": "raw-pg",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "rawpg",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-rawpg-W4-disjoint-500-NEW",
+          "--workload",
+          "W4",
+          "--keys",
+          "disjoint",
+          "--link",
+          "A",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 0.601,
+      "p99_ms": 3.917,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-wlj_1ncr/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "system": "rawpg",
+      "cell": {
+        "workload": "W5",
+        "rows": 1000000,
+        "delay_us": 1000,
+        "writers": 32,
+        "keys": "hot1",
+        "target": "raw-pg",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "rawpg",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-rawpg-W5-hot1-1000-NEW",
+          "--workload",
+          "W5",
+          "--keys",
+          "hot1",
+          "--link",
+          "B",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 1.074,
+      "p99_ms": 1.113,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-wlj_1ncr/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "system": "rawpg",
+      "cell": {
+        "workload": "W5",
+        "rows": 1000000,
+        "delay_us": 1000,
+        "writers": 32,
+        "keys": "hot1",
+        "target": "raw-pg",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "rawpg",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-rawpg-W5-hot1-1000-NEW",
+          "--workload",
+          "W5",
+          "--keys",
+          "hot1",
+          "--link",
+          "B",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 1.078,
+      "p99_ms": 1.118,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-wlj_1ncr/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "system": "rawpg",
+      "cell": {
+        "workload": "W5",
+        "rows": 1000000,
+        "delay_us": 1000,
+        "writers": 32,
+        "keys": "same",
+        "target": "raw-pg",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "rawpg",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-rawpg-W5-same-1000-NEW",
+          "--workload",
+          "W5",
+          "--keys",
+          "same",
+          "--link",
+          "B",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 1.08,
+      "p99_ms": 1.13,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-wlj_1ncr/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "system": "rawpg",
+      "cell": {
+        "workload": "W5",
+        "rows": 1000000,
+        "delay_us": 1000,
+        "writers": 32,
+        "keys": "same",
+        "target": "raw-pg",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "rawpg",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-rawpg-W5-same-1000-NEW",
+          "--workload",
+          "W5",
+          "--keys",
+          "same",
+          "--link",
+          "B",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 1.085,
+      "p99_ms": 1.126,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-wlj_1ncr/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "system": "rawpg",
+      "cell": {
+        "workload": "W5",
+        "rows": 1000000,
+        "delay_us": 500,
+        "writers": 32,
+        "keys": "hot1",
+        "target": "raw-pg",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "rawpg",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-rawpg-W5-hot1-500-NEW",
+          "--workload",
+          "W5",
+          "--keys",
+          "hot1",
+          "--link",
+          "A",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 0.575,
+      "p99_ms": 0.604,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-wlj_1ncr/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "system": "rawpg",
+      "cell": {
+        "workload": "W5",
+        "rows": 1000000,
+        "delay_us": 500,
+        "writers": 32,
+        "keys": "hot1",
+        "target": "raw-pg",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "rawpg",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-rawpg-W5-hot1-500-NEW",
+          "--workload",
+          "W5",
+          "--keys",
+          "hot1",
+          "--link",
+          "A",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 0.565,
+      "p99_ms": 0.585,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-wlj_1ncr/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "system": "rawpg",
+      "cell": {
+        "workload": "W5",
+        "rows": 1000000,
+        "delay_us": 500,
+        "writers": 32,
+        "keys": "same",
+        "target": "raw-pg",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "rawpg",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-rawpg-W5-same-500-NEW",
+          "--workload",
+          "W5",
+          "--keys",
+          "same",
+          "--link",
+          "A",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 0.57,
+      "p99_ms": 0.605,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-wlj_1ncr/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "system": "rawpg",
+      "cell": {
+        "workload": "W5",
+        "rows": 1000000,
+        "delay_us": 500,
+        "writers": 32,
+        "keys": "same",
+        "target": "raw-pg",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "rawpg",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-rawpg-W5-same-500-NEW",
+          "--workload",
+          "W5",
+          "--keys",
+          "same",
+          "--link",
+          "A",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 0.567,
+      "p99_ms": 0.584,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-wlj_1ncr/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "system": "supabase",
+      "cell": {
+        "workload": "W1",
+        "rows": 1000000,
+        "delay_us": 1000,
+        "writers": 128,
+        "keys": "disjoint",
+        "target": "supabase",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "supabase",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-supabase-W1-disjoint-1000-NEW",
+          "--workload",
+          "W1",
+          "--keys",
+          "disjoint",
+          "--link",
+          "B",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 1.095,
+      "p99_ms": 1.136,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-ksvo537u/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "system": "supabase",
+      "cell": {
+        "workload": "W1",
+        "rows": 1000000,
+        "delay_us": 1000,
+        "writers": 128,
+        "keys": "disjoint",
+        "target": "supabase",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "supabase",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-supabase-W1-disjoint-1000-NEW",
+          "--workload",
+          "W1",
+          "--keys",
+          "disjoint",
+          "--link",
+          "B",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 1.144,
+      "p99_ms": 4.311,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-ksvo537u/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "system": "supabase",
+      "cell": {
+        "workload": "W1",
+        "rows": 1000000,
+        "delay_us": 500,
+        "writers": 128,
+        "keys": "disjoint",
+        "target": "supabase",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "supabase",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-supabase-W1-disjoint-500-NEW",
+          "--workload",
+          "W1",
+          "--keys",
+          "disjoint",
+          "--link",
+          "A",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 0.562,
+      "p99_ms": 0.632,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-ksvo537u/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "system": "supabase",
+      "cell": {
+        "workload": "W1",
+        "rows": 1000000,
+        "delay_us": 500,
+        "writers": 128,
+        "keys": "disjoint",
+        "target": "supabase",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "supabase",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-supabase-W1-disjoint-500-NEW",
+          "--workload",
+          "W1",
+          "--keys",
+          "disjoint",
+          "--link",
+          "A",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 0.576,
+      "p99_ms": 0.592,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-ksvo537u/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "system": "supabase",
+      "cell": {
+        "workload": "W2",
+        "rows": 1000000,
+        "delay_us": 1000,
+        "writers": 128,
+        "keys": "disjoint",
+        "target": "supabase",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "supabase",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-supabase-W2-disjoint-1000-NEW",
+          "--workload",
+          "W2",
+          "--keys",
+          "disjoint",
+          "--link",
+          "B",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 1.093,
+      "p99_ms": 1.144,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-ksvo537u/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "system": "supabase",
+      "cell": {
+        "workload": "W2",
+        "rows": 1000000,
+        "delay_us": 1000,
+        "writers": 128,
+        "keys": "disjoint",
+        "target": "supabase",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "supabase",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-supabase-W2-disjoint-1000-NEW",
+          "--workload",
+          "W2",
+          "--keys",
+          "disjoint",
+          "--link",
+          "B",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 1.089,
+      "p99_ms": 1.137,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-ksvo537u/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "system": "supabase",
+      "cell": {
+        "workload": "W2",
+        "rows": 1000000,
+        "delay_us": 500,
+        "writers": 128,
+        "keys": "disjoint",
+        "target": "supabase",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "supabase",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-supabase-W2-disjoint-500-NEW",
+          "--workload",
+          "W2",
+          "--keys",
+          "disjoint",
+          "--link",
+          "A",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 0.572,
+      "p99_ms": 0.625,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-ksvo537u/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "system": "supabase",
+      "cell": {
+        "workload": "W2",
+        "rows": 1000000,
+        "delay_us": 500,
+        "writers": 128,
+        "keys": "disjoint",
+        "target": "supabase",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "supabase",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-supabase-W2-disjoint-500-NEW",
+          "--workload",
+          "W2",
+          "--keys",
+          "disjoint",
+          "--link",
+          "A",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 0.562,
+      "p99_ms": 0.584,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-ksvo537u/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "system": "supabase",
+      "cell": {
+        "workload": "W3",
+        "rows": 1000000,
+        "delay_us": 1000,
+        "writers": 128,
+        "keys": "disjoint",
+        "target": "supabase",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "supabase",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-supabase-W3-disjoint-1000-NEW",
+          "--workload",
+          "W3",
+          "--keys",
+          "disjoint",
+          "--link",
+          "B",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 1.07,
+      "p99_ms": 1.121,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-ksvo537u/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "system": "supabase",
+      "cell": {
+        "workload": "W3",
+        "rows": 1000000,
+        "delay_us": 1000,
+        "writers": 128,
+        "keys": "disjoint",
+        "target": "supabase",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "supabase",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-supabase-W3-disjoint-1000-NEW",
+          "--workload",
+          "W3",
+          "--keys",
+          "disjoint",
+          "--link",
+          "B",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 1.07,
+      "p99_ms": 1.089,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-ksvo537u/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "system": "supabase",
+      "cell": {
+        "workload": "W3",
+        "rows": 1000000,
+        "delay_us": 500,
+        "writers": 128,
+        "keys": "disjoint",
+        "target": "supabase",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "supabase",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-supabase-W3-disjoint-500-NEW",
+          "--workload",
+          "W3",
+          "--keys",
+          "disjoint",
+          "--link",
+          "A",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 0.562,
+      "p99_ms": 0.578,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-ksvo537u/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "system": "supabase",
+      "cell": {
+        "workload": "W3",
+        "rows": 1000000,
+        "delay_us": 500,
+        "writers": 128,
+        "keys": "disjoint",
+        "target": "supabase",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "supabase",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-supabase-W3-disjoint-500-NEW",
+          "--workload",
+          "W3",
+          "--keys",
+          "disjoint",
+          "--link",
+          "A",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 0.564,
+      "p99_ms": 0.582,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-ksvo537u/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "system": "supabase",
+      "cell": {
+        "workload": "W4",
+        "rows": 1000000,
+        "delay_us": 1000,
+        "writers": 32,
+        "keys": "disjoint",
+        "target": "supabase",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "supabase",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-supabase-W4-disjoint-1000-NEW",
+          "--workload",
+          "W4",
+          "--keys",
+          "disjoint",
+          "--link",
+          "B",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 1.097,
+      "p99_ms": 1.148,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-ksvo537u/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "system": "supabase",
+      "cell": {
+        "workload": "W4",
+        "rows": 1000000,
+        "delay_us": 1000,
+        "writers": 32,
+        "keys": "disjoint",
+        "target": "supabase",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "supabase",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-supabase-W4-disjoint-1000-NEW",
+          "--workload",
+          "W4",
+          "--keys",
+          "disjoint",
+          "--link",
+          "B",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 1.097,
+      "p99_ms": 1.137,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-ksvo537u/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "system": "supabase",
+      "cell": {
+        "workload": "W4",
+        "rows": 1000000,
+        "delay_us": 500,
+        "writers": 32,
+        "keys": "disjoint",
+        "target": "supabase",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "supabase",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-supabase-W4-disjoint-500-NEW",
+          "--workload",
+          "W4",
+          "--keys",
+          "disjoint",
+          "--link",
+          "A",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 0.563,
+      "p99_ms": 0.586,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-ksvo537u/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "system": "supabase",
+      "cell": {
+        "workload": "W4",
+        "rows": 1000000,
+        "delay_us": 500,
+        "writers": 32,
+        "keys": "disjoint",
+        "target": "supabase",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "supabase",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-supabase-W4-disjoint-500-NEW",
+          "--workload",
+          "W4",
+          "--keys",
+          "disjoint",
+          "--link",
+          "A",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 0.563,
+      "p99_ms": 0.592,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-ksvo537u/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "system": "supabase",
+      "cell": {
+        "workload": "W5",
+        "rows": 1000000,
+        "delay_us": 1000,
+        "writers": 32,
+        "keys": "hot1",
+        "target": "supabase",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "supabase",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-supabase-W5-hot1-1000-NEW",
+          "--workload",
+          "W5",
+          "--keys",
+          "hot1",
+          "--link",
+          "B",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 1.071,
+      "p99_ms": 1.127,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-ksvo537u/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "system": "supabase",
+      "cell": {
+        "workload": "W5",
+        "rows": 1000000,
+        "delay_us": 1000,
+        "writers": 32,
+        "keys": "hot1",
+        "target": "supabase",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "supabase",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-supabase-W5-hot1-1000-NEW",
+          "--workload",
+          "W5",
+          "--keys",
+          "hot1",
+          "--link",
+          "B",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 1.076,
+      "p99_ms": 1.132,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-ksvo537u/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "system": "supabase",
+      "cell": {
+        "workload": "W5",
+        "rows": 1000000,
+        "delay_us": 1000,
+        "writers": 32,
+        "keys": "same",
+        "target": "supabase",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "supabase",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-supabase-W5-same-1000-NEW",
+          "--workload",
+          "W5",
+          "--keys",
+          "same",
+          "--link",
+          "B",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 1.093,
+      "p99_ms": 1.168,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-ksvo537u/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "system": "supabase",
+      "cell": {
+        "workload": "W5",
+        "rows": 1000000,
+        "delay_us": 1000,
+        "writers": 32,
+        "keys": "same",
+        "target": "supabase",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "supabase",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-supabase-W5-same-1000-NEW",
+          "--workload",
+          "W5",
+          "--keys",
+          "same",
+          "--link",
+          "B",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 1.097,
+      "p99_ms": 1.121,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-ksvo537u/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "system": "supabase",
+      "cell": {
+        "workload": "W5",
+        "rows": 1000000,
+        "delay_us": 500,
+        "writers": 32,
+        "keys": "hot1",
+        "target": "supabase",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "supabase",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-supabase-W5-hot1-500-NEW",
+          "--workload",
+          "W5",
+          "--keys",
+          "hot1",
+          "--link",
+          "A",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 0.562,
+      "p99_ms": 0.595,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-ksvo537u/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "system": "supabase",
+      "cell": {
+        "workload": "W5",
+        "rows": 1000000,
+        "delay_us": 500,
+        "writers": 32,
+        "keys": "hot1",
+        "target": "supabase",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "supabase",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-supabase-W5-hot1-500-NEW",
+          "--workload",
+          "W5",
+          "--keys",
+          "hot1",
+          "--link",
+          "A",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 0.57,
+      "p99_ms": 0.603,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-ksvo537u/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "system": "supabase",
+      "cell": {
+        "workload": "W5",
+        "rows": 1000000,
+        "delay_us": 500,
+        "writers": 32,
+        "keys": "same",
+        "target": "supabase",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "supabase",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-supabase-W5-same-500-NEW",
+          "--workload",
+          "W5",
+          "--keys",
+          "same",
+          "--link",
+          "A",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 0.574,
+      "p99_ms": 0.618,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-ksvo537u/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "system": "supabase",
+      "cell": {
+        "workload": "W5",
+        "rows": 1000000,
+        "delay_us": 500,
+        "writers": 32,
+        "keys": "same",
+        "target": "supabase",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "supabase",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-supabase-W5-same-500-NEW",
+          "--workload",
+          "W5",
+          "--keys",
+          "same",
+          "--link",
+          "A",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 0.563,
+      "p99_ms": 0.596,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-ksvo537u/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "system": "convex",
+      "cell": {
+        "workload": "W1",
+        "rows": 1000000,
+        "delay_us": 1000,
+        "writers": 128,
+        "keys": "disjoint",
+        "target": "convex",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "convex",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-convex-W1-disjoint-1000-NEW",
+          "--workload",
+          "W1",
+          "--keys",
+          "disjoint",
+          "--link",
+          "B",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 1.071,
+      "p99_ms": 1.127,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-oibfngod/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "system": "convex",
+      "cell": {
+        "workload": "W1",
+        "rows": 1000000,
+        "delay_us": 1000,
+        "writers": 128,
+        "keys": "disjoint",
+        "target": "convex",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "convex",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-convex-W1-disjoint-1000-NEW",
+          "--workload",
+          "W1",
+          "--keys",
+          "disjoint",
+          "--link",
+          "B",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 1.075,
+      "p99_ms": 1.096,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-oibfngod/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "system": "convex",
+      "cell": {
+        "workload": "W1",
+        "rows": 1000000,
+        "delay_us": 500,
+        "writers": 128,
+        "keys": "disjoint",
+        "target": "convex",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "convex",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-convex-W1-disjoint-500-NEW",
+          "--workload",
+          "W1",
+          "--keys",
+          "disjoint",
+          "--link",
+          "A",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 0.571,
+      "p99_ms": 0.619,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-oibfngod/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "system": "convex",
+      "cell": {
+        "workload": "W1",
+        "rows": 1000000,
+        "delay_us": 500,
+        "writers": 128,
+        "keys": "disjoint",
+        "target": "convex",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "convex",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-convex-W1-disjoint-500-NEW",
+          "--workload",
+          "W1",
+          "--keys",
+          "disjoint",
+          "--link",
+          "A",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 0.569,
+      "p99_ms": 0.601,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-oibfngod/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "system": "convex",
+      "cell": {
+        "workload": "W2",
+        "rows": 1000000,
+        "delay_us": 1000,
+        "writers": 128,
+        "keys": "disjoint",
+        "target": "convex",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "convex",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-convex-W2-disjoint-1000-NEW",
+          "--workload",
+          "W2",
+          "--keys",
+          "disjoint",
+          "--link",
+          "B",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 1.078,
+      "p99_ms": 1.145,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-oibfngod/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "system": "convex",
+      "cell": {
+        "workload": "W2",
+        "rows": 1000000,
+        "delay_us": 1000,
+        "writers": 128,
+        "keys": "disjoint",
+        "target": "convex",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "convex",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-convex-W2-disjoint-1000-NEW",
+          "--workload",
+          "W2",
+          "--keys",
+          "disjoint",
+          "--link",
+          "B",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 1.073,
+      "p99_ms": 1.091,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-oibfngod/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "system": "convex",
+      "cell": {
+        "workload": "W2",
+        "rows": 1000000,
+        "delay_us": 500,
+        "writers": 128,
+        "keys": "disjoint",
+        "target": "convex",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "convex",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-convex-W2-disjoint-500-NEW",
+          "--workload",
+          "W2",
+          "--keys",
+          "disjoint",
+          "--link",
+          "A",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 0.562,
+      "p99_ms": 0.597,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-oibfngod/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "system": "convex",
+      "cell": {
+        "workload": "W2",
+        "rows": 1000000,
+        "delay_us": 500,
+        "writers": 128,
+        "keys": "disjoint",
+        "target": "convex",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "convex",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-convex-W2-disjoint-500-NEW",
+          "--workload",
+          "W2",
+          "--keys",
+          "disjoint",
+          "--link",
+          "A",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 0.563,
+      "p99_ms": 0.586,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-oibfngod/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "system": "convex",
+      "cell": {
+        "workload": "W3",
+        "rows": 1000000,
+        "delay_us": 1000,
+        "writers": 128,
+        "keys": "disjoint",
+        "target": "convex",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "convex",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-convex-W3-disjoint-1000-NEW",
+          "--workload",
+          "W3",
+          "--keys",
+          "disjoint",
+          "--link",
+          "B",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 1.073,
+      "p99_ms": 1.124,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-oibfngod/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "system": "convex",
+      "cell": {
+        "workload": "W3",
+        "rows": 1000000,
+        "delay_us": 1000,
+        "writers": 128,
+        "keys": "disjoint",
+        "target": "convex",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "convex",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-convex-W3-disjoint-1000-NEW",
+          "--workload",
+          "W3",
+          "--keys",
+          "disjoint",
+          "--link",
+          "B",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 1.065,
+      "p99_ms": 1.094,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-oibfngod/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "system": "convex",
+      "cell": {
+        "workload": "W3",
+        "rows": 1000000,
+        "delay_us": 500,
+        "writers": 128,
+        "keys": "disjoint",
+        "target": "convex",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "convex",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-convex-W3-disjoint-500-NEW",
+          "--workload",
+          "W3",
+          "--keys",
+          "disjoint",
+          "--link",
+          "A",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 0.562,
+      "p99_ms": 0.608,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-oibfngod/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "system": "convex",
+      "cell": {
+        "workload": "W3",
+        "rows": 1000000,
+        "delay_us": 500,
+        "writers": 128,
+        "keys": "disjoint",
+        "target": "convex",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "convex",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-convex-W3-disjoint-500-NEW",
+          "--workload",
+          "W3",
+          "--keys",
+          "disjoint",
+          "--link",
+          "A",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 0.605,
+      "p99_ms": 3.101,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-oibfngod/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "system": "convex",
+      "cell": {
+        "workload": "W4",
+        "rows": 1000000,
+        "delay_us": 1000,
+        "writers": 32,
+        "keys": "disjoint",
+        "target": "convex",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "convex",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-convex-W4-disjoint-1000-NEW",
+          "--workload",
+          "W4",
+          "--keys",
+          "disjoint",
+          "--link",
+          "B",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 1.127,
+      "p99_ms": 4.471,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-oibfngod/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "system": "convex",
+      "cell": {
+        "workload": "W4",
+        "rows": 1000000,
+        "delay_us": 1000,
+        "writers": 32,
+        "keys": "disjoint",
+        "target": "convex",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "convex",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-convex-W4-disjoint-1000-NEW",
+          "--workload",
+          "W4",
+          "--keys",
+          "disjoint",
+          "--link",
+          "B",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 1.081,
+      "p99_ms": 1.144,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-oibfngod/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "system": "convex",
+      "cell": {
+        "workload": "W4",
+        "rows": 1000000,
+        "delay_us": 500,
+        "writers": 32,
+        "keys": "disjoint",
+        "target": "convex",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "convex",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-convex-W4-disjoint-500-NEW",
+          "--workload",
+          "W4",
+          "--keys",
+          "disjoint",
+          "--link",
+          "A",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 0.563,
+      "p99_ms": 0.6,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-oibfngod/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "system": "convex",
+      "cell": {
+        "workload": "W4",
+        "rows": 1000000,
+        "delay_us": 500,
+        "writers": 32,
+        "keys": "disjoint",
+        "target": "convex",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "convex",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-convex-W4-disjoint-500-NEW",
+          "--workload",
+          "W4",
+          "--keys",
+          "disjoint",
+          "--link",
+          "A",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 0.614,
+      "p99_ms": 3.893,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-oibfngod/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "system": "convex",
+      "cell": {
+        "workload": "W5",
+        "rows": 1000000,
+        "delay_us": 1000,
+        "writers": 32,
+        "keys": "hot1",
+        "target": "convex",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "convex",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-convex-W5-hot1-1000-NEW",
+          "--workload",
+          "W5",
+          "--keys",
+          "hot1",
+          "--link",
+          "B",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 1.095,
+      "p99_ms": 1.129,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-oibfngod/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "system": "convex",
+      "cell": {
+        "workload": "W5",
+        "rows": 1000000,
+        "delay_us": 1000,
+        "writers": 32,
+        "keys": "hot1",
+        "target": "convex",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "convex",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-convex-W5-hot1-1000-NEW",
+          "--workload",
+          "W5",
+          "--keys",
+          "hot1",
+          "--link",
+          "B",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 1.095,
+      "p99_ms": 1.148,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-oibfngod/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "system": "convex",
+      "cell": {
+        "workload": "W5",
+        "rows": 1000000,
+        "delay_us": 1000,
+        "writers": 32,
+        "keys": "same",
+        "target": "convex",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "convex",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-convex-W5-same-1000-NEW",
+          "--workload",
+          "W5",
+          "--keys",
+          "same",
+          "--link",
+          "B",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 1.078,
+      "p99_ms": 1.148,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-oibfngod/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "system": "convex",
+      "cell": {
+        "workload": "W5",
+        "rows": 1000000,
+        "delay_us": 1000,
+        "writers": 32,
+        "keys": "same",
+        "target": "convex",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "convex",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-convex-W5-same-1000-NEW",
+          "--workload",
+          "W5",
+          "--keys",
+          "same",
+          "--link",
+          "B",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 1.073,
+      "p99_ms": 1.106,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-oibfngod/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "system": "convex",
+      "cell": {
+        "workload": "W5",
+        "rows": 1000000,
+        "delay_us": 500,
+        "writers": 32,
+        "keys": "hot1",
+        "target": "convex",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "convex",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-convex-W5-hot1-500-NEW",
+          "--workload",
+          "W5",
+          "--keys",
+          "hot1",
+          "--link",
+          "A",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 0.59,
+      "p99_ms": 0.608,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-oibfngod/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "system": "convex",
+      "cell": {
+        "workload": "W5",
+        "rows": 1000000,
+        "delay_us": 500,
+        "writers": 32,
+        "keys": "hot1",
+        "target": "convex",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "convex",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-convex-W5-hot1-500-NEW",
+          "--workload",
+          "W5",
+          "--keys",
+          "hot1",
+          "--link",
+          "A",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 0.588,
+      "p99_ms": 0.612,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-oibfngod/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "system": "convex",
+      "cell": {
+        "workload": "W5",
+        "rows": 1000000,
+        "delay_us": 500,
+        "writers": 32,
+        "keys": "same",
+        "target": "convex",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "convex",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-convex-W5-same-500-NEW",
+          "--workload",
+          "W5",
+          "--keys",
+          "same",
+          "--link",
+          "A",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 0.57,
+      "p99_ms": 0.618,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-oibfngod/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "system": "convex",
+      "cell": {
+        "workload": "W5",
+        "rows": 1000000,
+        "delay_us": 500,
+        "writers": 32,
+        "keys": "same",
+        "target": "convex",
+        "rerun": [
+          "python3",
+          "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+          "--system",
+          "convex",
+          "--mode",
+          "cell",
+          "--out",
+          "/home/ccheever/sb4scale/replay-convex-W5-same-500-NEW",
+          "--workload",
+          "W5",
+          "--keys",
+          "same",
+          "--link",
+          "A",
+          "--warmup-ms",
+          "10000",
+          "--duration-ms",
+          "20000",
+          "--repeats",
+          "3",
+          "--extra-read-rates",
+          "19027",
+          "22627"
+        ],
+        "rate_policy": "double/halve, one geometric midpoint, plus registered 19027/22627 read rungs; all repetitions must pass"
+      },
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 0.568,
+      "p99_ms": 0.595,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-oibfngod/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    }
+  ],
+  "load": [
+    {
+      "system": "rawpg",
+      "time": 1792853636.0221918,
+      "label": "('W1', 1000000, 500, 128, 'disjoint')",
+      "loadavg": "6.83 9.90 14.69 1/1009 2972186",
+      "unrelated_over_one_core": [],
+      "top": [
+        {
+          "pid": 2961664,
+          "cores": 0.07865245673744072,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "system": "rawpg",
+      "time": 1792854386.6125042,
+      "label": "('W1', 1000000, 1000, 128, 'disjoint')",
+      "loadavg": "30.85 22.02 16.77 13/1087 3018072",
+      "unrelated_over_one_core": [],
+      "top": [
+        {
+          "pid": 3017034,
+          "cores": 0.9842518270213398,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 3001846,
+          "cores": 0.9744093087511264,
+          "owned": false,
+          "comm": "cc1"
+        },
+        {
+          "pid": 3016486,
+          "cores": 0.964566790480913,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 3015502,
+          "cores": 0.9547242722106996,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 3017330,
+          "cores": 0.9547242722106996,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 3016565,
+          "cores": 0.9350392356702728,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 3017571,
+          "cores": 0.9350392356702728,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 3016893,
+          "cores": 0.9153541991298461,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 3015838,
+          "cores": 0.8562990895085656,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 3016577,
+          "cores": 0.8366140529681388,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 2961664,
+          "cores": 0.08858266443192057,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "system": "rawpg",
+      "time": 1792855134.516208,
+      "label": "('W2', 1000000, 500, 128, 'disjoint')",
+      "loadavg": "32.84 29.63 22.08 13/1094 3095235",
+      "unrelated_over_one_core": [],
+      "top": [
+        {
+          "pid": 3091123,
+          "cores": 0.9979530796425516,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 3092508,
+          "cores": 0.9881692259205658,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 3093592,
+          "cores": 0.9881692259205658,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 3094600,
+          "cores": 0.9881692259205658,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 3093501,
+          "cores": 0.97838537219858,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 3094550,
+          "cores": 0.97838537219858,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 3092968,
+          "cores": 0.9588176647546084,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 3094863,
+          "cores": 0.9588176647546084,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 3093070,
+          "cores": 0.9490338110326226,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 2961664,
+          "cores": 0.06848697605390061,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "system": "rawpg",
+      "time": 1792855783.9315274,
+      "label": "('W2', 1000000, 1000, 128, 'disjoint')",
+      "loadavg": "17.22 15.41 17.11 1/1053 3112017",
+      "unrelated_over_one_core": [],
+      "top": [
+        {
+          "pid": 2961664,
+          "cores": 0.07864510132596651,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "system": "rawpg",
+      "time": 1792856529.0933886,
+      "label": "('W3', 1000000, 500, 128, 'disjoint')",
+      "loadavg": "24.89 21.06 17.16 1/939 3135173",
+      "unrelated_over_one_core": [],
+      "top": [
+        {
+          "pid": 2961664,
+          "cores": 0.07866845798154795,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "system": "rawpg",
+      "time": 1792857211.7389956,
+      "label": "('W3', 1000000, 1000, 128, 'disjoint')",
+      "loadavg": "17.78 16.80 15.46 3/1036 3156906",
+      "unrelated_over_one_core": [],
+      "top": [
+        {
+          "pid": 2961664,
+          "cores": 0.08834057916713932,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "system": "rawpg",
+      "time": 1792857887.5067463,
+      "label": "('W4', 1000000, 500, 32, 'disjoint')",
+      "loadavg": "27.70 27.94 20.20 3/1039 3203385",
+      "unrelated_over_one_core": [],
+      "top": [
+        {
+          "pid": 3194132,
+          "cores": 0.9887955035378225,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 2961664,
+          "cores": 0.096940735640963,
+          "owned": true,
+          "comm": "python3"
+        },
+        {
+          "pid": 2990680,
+          "cores": 0.0581644413845778,
+          "owned": false,
+          "comm": "kworker/u66:3+flush-259:0"
+        }
+      ]
+    },
+    {
+      "system": "rawpg",
+      "time": 1792858350.7783291,
+      "label": "('W4', 1000000, 1000, 32, 'disjoint')",
+      "loadavg": "22.31 19.92 18.63 27/1225 3274078",
+      "unrelated_over_one_core": [],
+      "top": [
+        {
+          "pid": 3249337,
+          "cores": 0.9291053801525437,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 3272365,
+          "cores": 0.801964643921143,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 3272850,
+          "cores": 0.5183430015587877,
+          "owned": false,
+          "comm": "build-script-bu"
+        },
+        {
+          "pid": 3272384,
+          "cores": 0.3716421520610175,
+          "owned": false,
+          "comm": "build-script-bu"
+        },
+        {
+          "pid": 3272462,
+          "cores": 0.3618620954278328,
+          "owned": false,
+          "comm": "build-script-bu"
+        },
+        {
+          "pid": 2961664,
+          "cores": 0.08802050969866204,
+          "owned": true,
+          "comm": "python3"
+        },
+        {
+          "pid": 3235293,
+          "cores": 0.07824045306547737,
+          "owned": false,
+          "comm": "cargo"
+        },
+        {
+          "pid": 2957425,
+          "cores": 0.06846039643229271,
+          "owned": false,
+          "comm": "kworker/u65:4+flush-259:0"
+        }
+      ]
+    },
+    {
+      "system": "rawpg",
+      "time": 1792859002.0986264,
+      "label": "('W5', 1000000, 500, 32, 'same')",
+      "loadavg": "0.81 4.43 11.13 1/1089 3299405",
+      "unrelated_over_one_core": [],
+      "top": [
+        {
+          "pid": 2961664,
+          "cores": 0.0883257155062607,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "system": "rawpg",
+      "time": 1792859373.3391335,
+      "label": "('W5', 1000000, 1000, 32, 'same')",
+      "loadavg": "1.22 2.12 7.81 2/1039 3304201",
+      "unrelated_over_one_core": [],
+      "top": [
+        {
+          "pid": 3295216,
+          "cores": 0.07826730174520556,
+          "owned": false,
+          "comm": "grok"
+        },
+        {
+          "pid": 2961664,
+          "cores": 0.06848388902705486,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "system": "rawpg",
+      "time": 1792859745.6780636,
+      "label": "('W5', 1000000, 500, 32, 'hot1')",
+      "loadavg": "1.19 1.43 5.60 1/953 3308554",
+      "unrelated_over_one_core": [],
+      "top": [
+        {
+          "pid": 2961664,
+          "cores": 0.07864836624335951,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "system": "rawpg",
+      "time": 1792860026.7146986,
+      "label": "('W5', 1000000, 1000, 32, 'hot1')",
+      "loadavg": "4.02 3.40 5.36 1/1152 3312395",
+      "unrelated_over_one_core": [],
+      "top": [
+        {
+          "pid": 2961664,
+          "cores": 0.06927048000549844,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "system": "supabase",
+      "time": 1792860397.6738932,
+      "label": "('W1', 1000000, 500, 128, 'disjoint')",
+      "loadavg": "2.74 4.00 5.08 1/1006 3319383",
+      "unrelated_over_one_core": [],
+      "top": [
+        {
+          "pid": 3317122,
+          "cores": 0.0884359098070523,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "system": "supabase",
+      "time": 1792860969.4902985,
+      "label": "('W1', 1000000, 1000, 128, 'disjoint')",
+      "loadavg": "22.11 15.89 10.01 2/949 3530638",
+      "unrelated_over_one_core": [],
+      "top": [
+        {
+          "pid": 3317122,
+          "cores": 0.05874832296539959,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "system": "supabase",
+      "time": 1792861579.6914425,
+      "label": "('W2', 1000000, 500, 128, 'disjoint')",
+      "loadavg": "18.41 20.64 14.50 2/1063 3874717",
+      "unrelated_over_one_core": [],
+      "top": [
+        {
+          "pid": 3317122,
+          "cores": 0.0784538023504792,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "system": "supabase",
+      "time": 1792862141.395934,
+      "label": "('W2', 1000000, 1000, 128, 'disjoint')",
+      "loadavg": "18.57 17.24 14.76 1/1007 4110537",
+      "unrelated_over_one_core": [],
+      "top": [
+        {
+          "pid": 3317122,
+          "cores": 0.08838949273649656,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "system": "supabase",
+      "time": 1792862703.9541092,
+      "label": "('W3', 1000000, 500, 128, 'disjoint')",
+      "loadavg": "24.88 19.38 15.75 1/1087 205616",
+      "unrelated_over_one_core": [],
+      "top": [
+        {
+          "pid": 3317122,
+          "cores": 0.08836826539441267,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "system": "supabase",
+      "time": 1792863263.2080553,
+      "label": "('W3', 1000000, 1000, 128, 'disjoint')",
+      "loadavg": "21.61 17.02 15.24 1/1036 418134",
+      "unrelated_over_one_core": [],
+      "top": [
+        {
+          "pid": 3317122,
+          "cores": 0.08877640160009903,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "system": "supabase",
+      "time": 1792863824.9676332,
+      "label": "('W4', 1000000, 500, 32, 'disjoint')",
+      "loadavg": "17.23 15.33 14.41 1/1011 723518",
+      "unrelated_over_one_core": [],
+      "top": [
+        {
+          "pid": 3317122,
+          "cores": 0.07926605840512346,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "system": "supabase",
+      "time": 1792864108.9955182,
+      "label": "('W4', 1000000, 1000, 32, 'disjoint')",
+      "loadavg": "15.56 15.40 14.65 1/1061 827058",
+      "unrelated_over_one_core": [],
+      "top": [
+        {
+          "pid": 3317122,
+          "cores": 0.08847413287520947,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "system": "supabase",
+      "time": 1792864404.3122056,
+      "label": "('W5', 1000000, 500, 32, 'same')",
+      "loadavg": "14.28 14.57 14.41 3/1071 893381",
+      "unrelated_over_one_core": [],
+      "top": [
+        {
+          "pid": 893257,
+          "cores": 0.9977486611112663,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 3317122,
+          "cores": 0.06847294733116534,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "system": "supabase",
+      "time": 1792864957.790492,
+      "label": "('W5', 1000000, 1000, 32, 'same')",
+      "loadavg": "0.86 5.11 10.07 2/1003 923949",
+      "unrelated_over_one_core": [],
+      "top": [
+        {
+          "pid": 3317122,
+          "cores": 0.09820393202739515,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "system": "supabase",
+      "time": 1792865236.9586835,
+      "label": "('W5', 1000000, 500, 32, 'hot1')",
+      "loadavg": "1.29 2.63 7.70 1/998 928028",
+      "unrelated_over_one_core": [],
+      "top": [
+        {
+          "pid": 3317122,
+          "cores": 0.08838540728843594,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "system": "supabase",
+      "time": 1792865607.233436,
+      "label": "('W5', 1000000, 1000, 32, 'hot1')",
+      "loadavg": "6.13 6.17 7.82 1/1051 988707",
+      "unrelated_over_one_core": [],
+      "top": [
+        {
+          "pid": 3317122,
+          "cores": 0.08841401400555617,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "system": "convex",
+      "time": 1792846241.1817124,
+      "label": "('W1', 1000000, 500, 128, 'disjoint')",
+      "loadavg": "1.21 1.21 2.28 1/999 2718272",
+      "unrelated_over_one_core": [],
+      "top": [
+        {
+          "pid": 2716028,
+          "cores": 0.10534108866316284,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "system": "convex",
+      "time": 1792846715.011004,
+      "label": "('W1', 1000000, 1000, 128, 'disjoint')",
+      "loadavg": "27.11 17.77 9.65 1/992 2722275",
+      "unrelated_over_one_core": [],
+      "top": [
+        {
+          "pid": 2716028,
+          "cores": 0.08841656570274208,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "system": "convex",
+      "time": 1792847245.378295,
+      "label": "('W2', 1000000, 500, 128, 'disjoint')",
+      "loadavg": "19.56 24.07 16.06 1/1016 2749910",
+      "unrelated_over_one_core": [],
+      "top": [
+        {
+          "pid": 2716028,
+          "cores": 0.07857829755874654,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "system": "convex",
+      "time": 1792847713.8095803,
+      "label": "('W2', 1000000, 1000, 128, 'disjoint')",
+      "loadavg": "8.22 9.57 11.64 1/1016 2754572",
+      "unrelated_over_one_core": [],
+      "top": [
+        {
+          "pid": 2716028,
+          "cores": 0.08841654677317555,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "system": "convex",
+      "time": 1792848183.594124,
+      "label": "('W3', 1000000, 500, 128, 'disjoint')",
+      "loadavg": "7.54 6.28 8.87 1/1030 2757734",
+      "unrelated_over_one_core": [],
+      "top": [
+        {
+          "pid": 2716028,
+          "cores": 0.07861104043639032,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "system": "convex",
+      "time": 1792848944.7982874,
+      "label": "('W3', 1000000, 1000, 128, 'disjoint')",
+      "loadavg": "9.79 10.24 8.92 1/993 2780457",
+      "unrelated_over_one_core": [],
+      "top": [
+        {
+          "pid": 2716028,
+          "cores": 0.08841959696482178,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "system": "convex",
+      "time": 1792849597.556045,
+      "label": "('W4', 1000000, 500, 32, 'disjoint')",
+      "loadavg": "7.24 6.26 6.86 1/976 2785410",
+      "unrelated_over_one_core": [],
+      "top": [
+        {
+          "pid": 2716028,
+          "cores": 0.06873644657846555,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "system": "convex",
+      "time": 1792850722.142339,
+      "label": "('W4', 1000000, 1000, 32, 'disjoint')",
+      "loadavg": "14.96 14.38 13.53 15/1093 2887528",
+      "unrelated_over_one_core": [],
+      "top": [
+        {
+          "pid": 2867545,
+          "cores": 0.9637106590581709,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 2868821,
+          "cores": 0.8555390544700089,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 2885731,
+          "cores": 0.7965363610582842,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 2885649,
+          "cores": 0.6981985387054095,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 2885618,
+          "cores": 0.6293620630583974,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 2885590,
+          "cores": 0.5113566762349478,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 2885515,
+          "cores": 0.4130188538820732,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 2885484,
+          "cores": 0.21634320917632407,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 2716028,
+          "cores": 0.09833782235287458,
+          "owned": true,
+          "comm": "python3"
+        },
+        {
+          "pid": 2844011,
+          "cores": 0.08850404011758711,
+          "owned": false,
+          "comm": "kworker/u65:7+flush-259:0"
+        },
+        {
+          "pid": 2857675,
+          "cores": 0.07867025788229967,
+          "owned": false,
+          "comm": "cargo"
+        }
+      ]
+    },
+    {
+      "system": "convex",
+      "time": 1792851385.184247,
+      "label": "('W5', 1000000, 500, 32, 'same')",
+      "loadavg": "4.65 12.14 14.54 3/1076 2920892",
+      "unrelated_over_one_core": [],
+      "top": [
+        {
+          "pid": 2716028,
+          "cores": 0.06820267870928845,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "system": "convex",
+      "time": 1792851762.2050889,
+      "label": "('W5', 1000000, 1000, 32, 'same')",
+      "loadavg": "1.30 4.86 10.40 2/1020 2924325",
+      "unrelated_over_one_core": [],
+      "top": [
+        {
+          "pid": 2716028,
+          "cores": 0.08846834362830881,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "system": "convex",
+      "time": 1792852141.0299945,
+      "label": "('W5', 1000000, 500, 32, 'hot1')",
+      "loadavg": "1.21 3.01 7.81 1/1042 2927783",
+      "unrelated_over_one_core": [],
+      "top": [
+        {
+          "pid": 2716028,
+          "cores": 0.08836628873188965,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "system": "convex",
+      "time": 1792852618.752318,
+      "label": "('W5', 1000000, 1000, 32, 'hot1')",
+      "loadavg": "26.86 19.69 13.92 1/1037 2932264",
+      "unrelated_over_one_core": [],
+      "top": [
+        {
+          "pid": 2716028,
+          "cores": 0.07863513745066228,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    }
+  ],
+  "waits": [
+    {
+      "system": "rawpg",
+      "time": 1792853591.8436987,
+      "label": "('W1', 1000000, 500, 128, 'disjoint')",
+      "loadavg": "6.18 10.18 15.01 14/1054 2966605",
+      "unrelated_over_one_core": [
+        {
+          "pid": 2966357,
+          "cores": 2.163497859153454,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 2966374,
+          "cores": 1.2390942284242508,
+          "owned": false,
+          "comm": "rustc"
+        }
+      ],
+      "top": [
+        {
+          "pid": 2966357,
+          "cores": 2.163497859153454,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 2966374,
+          "cores": 1.2390942284242508,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 2966391,
+          "cores": 0.9932421989749948,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 2961664,
+          "cores": 0.0885067306017322,
+          "owned": true,
+          "comm": "python3"
+        },
+        {
+          "pid": 2962049,
+          "cores": 0.059004487067821465,
+          "owned": false,
+          "comm": "cargo"
+        }
+      ]
+    },
+    {
+      "system": "rawpg",
+      "time": 1792853602.9092045,
+      "label": "('W1', 1000000, 500, 128, 'disjoint')",
+      "loadavg": "7.79 10.34 14.98 13/1041 2968316",
+      "unrelated_over_one_core": [
+        {
+          "pid": 2966594,
+          "cores": 5.986592397279108,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 2967623,
+          "cores": 2.0707721243047406,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 2967788,
+          "cores": 2.0609580384075623,
+          "owned": false,
+          "comm": "rustc"
+        }
+      ],
+      "top": [
+        {
+          "pid": 2966594,
+          "cores": 5.986592397279108,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 2967623,
+          "cores": 2.0707721243047406,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 2967788,
+          "cores": 2.0609580384075623,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 2967208,
+          "cores": 0.9912226756150655,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 2961664,
+          "cores": 0.07851268717743093,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "system": "rawpg",
+      "time": 1792853613.9567847,
+      "label": "('W1', 1000000, 500, 128, 'disjoint')",
+      "loadavg": "8.43 10.39 14.95 14/1062 2969436",
+      "unrelated_over_one_core": [
+        {
+          "pid": 2966594,
+          "cores": 9.79683254564316,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 2968300,
+          "cores": 1.0002771968524546,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 2968357,
+          "cores": 1.0002771968524546,
+          "owned": false,
+          "comm": "rustc"
+        }
+      ],
+      "top": [
+        {
+          "pid": 2966594,
+          "cores": 9.79683254564316,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 2968300,
+          "cores": 1.0002771968524546,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 2968357,
+          "cores": 1.0002771968524546,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 2961664,
+          "cores": 0.06864647429379592,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "system": "rawpg",
+      "time": 1792853624.9870915,
+      "label": "('W1', 1000000, 500, 128, 'disjoint')",
+      "loadavg": "7.29 10.08 14.80 3/1020 2971594",
+      "unrelated_over_one_core": [
+        {
+          "pid": 2971307,
+          "cores": 1.001136510758944,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 2971308,
+          "cores": 1.001136510758944,
+          "owned": false,
+          "comm": "rustc"
+        }
+      ],
+      "top": [
+        {
+          "pid": 2971307,
+          "cores": 1.001136510758944,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 2971308,
+          "cores": 1.001136510758944,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 2961664,
+          "cores": 0.07852051064776032,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "system": "rawpg",
+      "time": 1792854375.5771003,
+      "label": "('W1', 1000000, 1000, 128, 'disjoint')",
+      "loadavg": "34.18 22.35 16.82 15/1026 3015393",
+      "unrelated_over_one_core": [
+        {
+          "pid": 3001387,
+          "cores": 7.669592980475603,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 3010232,
+          "cores": 1.023925121912019,
+          "owned": false,
+          "comm": "rustc"
+        }
+      ],
+      "top": [
+        {
+          "pid": 3001387,
+          "cores": 7.669592980475603,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 3010232,
+          "cores": 1.023925121912019,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 3001846,
+          "cores": 0.9943888203184029,
+          "owned": false,
+          "comm": "cc1"
+        },
+        {
+          "pid": 3011096,
+          "cores": 0.9746979525893257,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 3011247,
+          "cores": 0.9550070848602483,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 2961664,
+          "cores": 0.07876347091630914,
+          "owned": true,
+          "comm": "python3"
+        },
+        {
+          "pid": 2990680,
+          "cores": 0.0689180370517705,
+          "owned": false,
+          "comm": "kworker/u66:3+flush-259:0"
+        }
+      ]
+    },
+    {
+      "system": "rawpg",
+      "time": 1792857178.6062152,
+      "label": "('W3', 1000000, 1000, 128, 'disjoint')",
+      "loadavg": "26.45 18.06 15.80 6/1076 3154756",
+      "unrelated_over_one_core": [
+        {
+          "pid": 3153625,
+          "cores": 1.0016857226001123,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 3154242,
+          "cores": 1.5909126182472375,
+          "owned": false,
+          "comm": "rustc"
+        }
+      ],
+      "top": [
+        {
+          "pid": 3154242,
+          "cores": 1.5909126182472375,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 3153625,
+          "cores": 1.0016857226001123,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 3154209,
+          "cores": 0.991865274339327,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 2961664,
+          "cores": 0.08838403434706874,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "system": "rawpg",
+      "time": 1792857189.6420994,
+      "label": "('W3', 1000000, 1000, 128, 'disjoint')",
+      "loadavg": "23.83 17.77 15.73 3/1016 3155644",
+      "unrelated_over_one_core": [
+        {
+          "pid": 3155383,
+          "cores": 1.0005121101433507,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 3155384,
+          "cores": 1.0005121101433507,
+          "owned": false,
+          "comm": "rustc"
+        }
+      ],
+      "top": [
+        {
+          "pid": 3155383,
+          "cores": 1.0005121101433507,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 3155384,
+          "cores": 1.0005121101433507,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 2961664,
+          "cores": 0.0980894225630736,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "system": "rawpg",
+      "time": 1792857200.7010376,
+      "label": "('W3', 1000000, 1000, 128, 'disjoint')",
+      "loadavg": "21.02 17.37 15.62 3/1027 3156482",
+      "unrelated_over_one_core": [
+        {
+          "pid": 3156462,
+          "cores": 1.0572888656093744,
+          "owned": false,
+          "comm": "rustc"
+        }
+      ],
+      "top": [
+        {
+          "pid": 3156462,
+          "cores": 1.0572888656093744,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 2961664,
+          "cores": 0.10572888656093743,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "system": "rawpg",
+      "time": 1792857865.41527,
+      "label": "('W4', 1000000, 500, 32, 'disjoint')",
+      "loadavg": "37.12 29.59 20.55 7/1074 3202896",
+      "unrelated_over_one_core": [
+        {
+          "pid": 3194974,
+          "cores": 5.2235152684595745,
+          "owned": false,
+          "comm": "rustc"
+        }
+      ],
+      "top": [
+        {
+          "pid": 3194974,
+          "cores": 5.2235152684595745,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 3194132,
+          "cores": 0.9916824099895057,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 2961664,
+          "cores": 0.08836773950401536,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "system": "rawpg",
+      "time": 1792857876.4524057,
+      "label": "('W4', 1000000, 500, 32, 'disjoint')",
+      "loadavg": "32.46 28.84 20.40 3/1038 3203257",
+      "unrelated_over_one_core": [
+        {
+          "pid": 3194132,
+          "cores": 1.0094831560595745,
+          "owned": false,
+          "comm": "rustc"
+        }
+      ],
+      "top": [
+        {
+          "pid": 3194132,
+          "cores": 1.0094831560595745,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 3194974,
+          "cores": 0.16661372478653175,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 2961664,
+          "cores": 0.08820726606345797,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "system": "supabase",
+      "time": 1792860386.6379364,
+      "label": "('W1', 1000000, 500, 128, 'disjoint')",
+      "loadavg": "2.69 4.03 5.10 3/1090 3318765",
+      "unrelated_over_one_core": [
+        {
+          "pid": 3317731,
+          "cores": 1.0024049522678902,
+          "owned": false,
+          "comm": "rustfmt"
+        }
+      ],
+      "top": [
+        {
+          "pid": 3317731,
+          "cores": 1.0024049522678902,
+          "owned": false,
+          "comm": "rustfmt"
+        },
+        {
+          "pid": 3317122,
+          "cores": 0.05896499719222882,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "system": "supabase",
+      "time": 1792860958.4505396,
+      "label": "('W1', 1000000, 1000, 128, 'disjoint')",
+      "loadavg": "26.04 16.42 10.12 6/1025 3529977",
+      "unrelated_over_one_core": [
+        {
+          "pid": 3527539,
+          "cores": 2.808637282038175,
+          "owned": false,
+          "comm": "rustc"
+        }
+      ],
+      "top": [
+        {
+          "pid": 3527539,
+          "cores": 2.808637282038175,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 3317122,
+          "cores": 0.0689840735939201,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "system": "supabase",
+      "time": 1792861535.537317,
+      "label": "('W2', 1000000, 500, 128, 'disjoint')",
+      "loadavg": "30.40 22.62 14.80 14/1127 3867810",
+      "unrelated_over_one_core": [
+        {
+          "pid": 3859767,
+          "cores": 2.4935723825447997,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 3861004,
+          "cores": 1.266420619481414,
+          "owned": false,
+          "comm": "rustc"
+        }
+      ],
+      "top": [
+        {
+          "pid": 3859767,
+          "cores": 2.4935723825447997,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 3861004,
+          "cores": 1.266420619481414,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 3847947,
+          "cores": 0.9817214104507085,
+          "owned": false,
+          "comm": "cc1"
+        },
+        {
+          "pid": 3861832,
+          "cores": 0.8933664835101447,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 3867681,
+          "cores": 0.8246459847785951,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 3847437,
+          "cores": 0.7951943424650739,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 3317122,
+          "cores": 0.0687204987315496,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "system": "supabase",
+      "time": 1792861546.5775754,
+      "label": "('W2', 1000000, 500, 128, 'disjoint')",
+      "loadavg": "27.87 22.34 14.79 15/1124 3869419",
+      "unrelated_over_one_core": [
+        {
+          "pid": 3869289,
+          "cores": 1.3209385258803488,
+          "owned": false,
+          "comm": "rustc"
+        }
+      ],
+      "top": [
+        {
+          "pid": 3869289,
+          "cores": 1.3209385258803488,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 3869038,
+          "cores": 0.9686882523122556,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 3869147,
+          "cores": 0.9686882523122556,
+          "owned": false,
+          "comm": "cc1plus"
+        },
+        {
+          "pid": 3869291,
+          "cores": 0.9686882523122556,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 3868954,
+          "cores": 0.8806256839202324,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 3847947,
+          "cores": 0.8708409540988965,
+          "owned": false,
+          "comm": "cc1"
+        },
+        {
+          "pid": 3317122,
+          "cores": 0.09784729821335916,
+          "owned": true,
+          "comm": "python3"
+        },
+        {
+          "pid": 3869292,
+          "cores": 0.08806256839202324,
+          "owned": false,
+          "comm": "bun"
+        }
+      ]
+    },
+    {
+      "system": "supabase",
+      "time": 1792861557.616037,
+      "label": "('W2', 1000000, 500, 128, 'disjoint')",
+      "loadavg": "25.52 22.01 14.77 14/1154 3871232",
+      "unrelated_over_one_core": [
+        {
+          "pid": 3869498,
+          "cores": 1.566109234372883,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 3870806,
+          "cores": 1.0081828196275435,
+          "owned": false,
+          "comm": "rustc"
+        }
+      ],
+      "top": [
+        {
+          "pid": 3869498,
+          "cores": 1.566109234372883,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 3870806,
+          "cores": 1.0081828196275435,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 3847947,
+          "cores": 0.9983946369127129,
+          "owned": false,
+          "comm": "cc1"
+        },
+        {
+          "pid": 3317122,
+          "cores": 0.09788182714830519,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "system": "supabase",
+      "time": 1792861568.6514204,
+      "label": "('W2', 1000000, 500, 128, 'disjoint')",
+      "loadavg": "21.39 21.28 14.64 3/1062 3873186",
+      "unrelated_over_one_core": [
+        {
+          "pid": 3847947,
+          "cores": 1.0116029166363334,
+          "owned": false,
+          "comm": "cc1"
+        }
+      ],
+      "top": [
+        {
+          "pid": 3847947,
+          "cores": 1.0116029166363334,
+          "owned": false,
+          "comm": "cc1"
+        },
+        {
+          "pid": 3317122,
+          "cores": 0.07857110032126861,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "system": "supabase",
+      "time": 1792864393.2696092,
+      "label": "('W5', 1000000, 500, 32, 'same')",
+      "loadavg": "16.94 15.06 14.57 2/1023 893051",
+      "unrelated_over_one_core": [
+        {
+          "pid": 890000,
+          "cores": 1.0007609290221364,
+          "owned": false,
+          "comm": "rustc"
+        }
+      ],
+      "top": [
+        {
+          "pid": 890000,
+          "cores": 1.0007609290221364,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 3317122,
+          "cores": 0.08830243491371792,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "system": "convex",
+      "time": 1792847190.194125,
+      "label": "('W2', 1000000, 500, 128, 'disjoint')",
+      "loadavg": "42.31 28.02 16.76 5/1032 2748501",
+      "unrelated_over_one_core": [
+        {
+          "pid": 2748226,
+          "cores": 2.9923446226286794,
+          "owned": false,
+          "comm": "it-db8ef2159524"
+        }
+      ],
+      "top": [
+        {
+          "pid": 2748226,
+          "cores": 2.9923446226286794,
+          "owned": false,
+          "comm": "it-db8ef2159524"
+        },
+        {
+          "pid": 2716028,
+          "cores": 0.0774717054402247,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "system": "convex",
+      "time": 1792847201.2327096,
+      "label": "('W2', 1000000, 500, 128, 'disjoint')",
+      "loadavg": "34.25 26.93 16.58 2/1004 2749292",
+      "unrelated_over_one_core": [
+        {
+          "pid": 2749061,
+          "cores": 8.619661467865733,
+          "owned": false,
+          "comm": "it-c053bb05a051"
+        }
+      ],
+      "top": [
+        {
+          "pid": 2749061,
+          "cores": 8.619661467865733,
+          "owned": false,
+          "comm": "it-c053bb05a051"
+        },
+        {
+          "pid": 2716028,
+          "cores": 0.0883564387366647,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "system": "convex",
+      "time": 1792847212.2707667,
+      "label": "('W2', 1000000, 500, 128, 'disjoint')",
+      "loadavg": "29.38 26.12 16.43 10/1006 2749561",
+      "unrelated_over_one_core": [
+        {
+          "pid": 2749505,
+          "cores": 5.972793965108313,
+          "owned": false,
+          "comm": "rustc"
+        }
+      ],
+      "top": [
+        {
+          "pid": 2749505,
+          "cores": 5.972793965108313,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 2716028,
+          "cores": 0.07858939427774095,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "system": "convex",
+      "time": 1792847223.3033428,
+      "label": "('W2', 1000000, 500, 128, 'disjoint')",
+      "loadavg": "25.81 25.46 16.32 2/1028 2749645",
+      "unrelated_over_one_core": [
+        {
+          "pid": 2749505,
+          "cores": 5.296095535399388,
+          "owned": false,
+          "comm": "rustc"
+        }
+      ],
+      "top": [
+        {
+          "pid": 2749505,
+          "cores": 5.296095535399388,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 2716028,
+          "cores": 0.07875234996876414,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "system": "convex",
+      "time": 1792847234.34231,
+      "label": "('W2', 1000000, 500, 128, 'disjoint')",
+      "loadavg": "23.03 24.87 16.23 3/997 2749802",
+      "unrelated_over_one_core": [
+        {
+          "pid": 2749655,
+          "cores": 2.3163158763404907,
+          "owned": false,
+          "comm": "rustc"
+        }
+      ],
+      "top": [
+        {
+          "pid": 2749655,
+          "cores": 2.3163158763404907,
+          "owned": false,
+          "comm": "rustc"
+        },
+        {
+          "pid": 2716028,
+          "cores": 0.08833408002993397,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "system": "convex",
+      "time": 1792848933.7615936,
+      "label": "('W3', 1000000, 1000, 128, 'disjoint')",
+      "loadavg": "11.39 10.56 9.01 3/1021 2780398",
+      "unrelated_over_one_core": [
+        {
+          "pid": 2780267,
+          "cores": 3.266671752870579,
+          "owned": false,
+          "comm": "pinned-9928317c"
+        }
+      ],
+      "top": [
+        {
+          "pid": 2780267,
+          "cores": 3.266671752870579,
+          "owned": false,
+          "comm": "pinned-9928317c"
+        },
+        {
+          "pid": 2716028,
+          "cores": 0.07895279161016505,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    }
+  ]
+}

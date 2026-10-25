@@ -24,6 +24,8 @@ impl<'store> AssetLocation<'store> {
 }
 
 pub(crate) struct OpeningMetadata {
+    #[cfg(feature="postgres")]
+    pub native_digest: Option<String>,
     pub store_id: String,
     pub dev_effects: bool,
 }
@@ -42,7 +44,7 @@ mod worker_ledger;
 #[path = "store/port/ownership.rs"]
 mod ownership;
 #[cfg(feature = "postgres")]
-pub use ownership::{StoreLease, LeasePolicy, LeaseAcquisition, LeaseDeadline};
+pub use ownership::{StoreLease, LeasePolicy, LeaseAcquisition, LeaseDeadline, ReadClockBounds, GateStats};
 
 /// Read-only deployment facts; no connection or secret leaves an adapter.
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]

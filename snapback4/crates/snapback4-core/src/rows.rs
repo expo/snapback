@@ -25,6 +25,15 @@ pub const MAX_INDEX_KEY_BYTES: usize = 2048;
 /// their space explicitly rather than assuming identifiers have bounded size.
 pub const MAX_INDEX_LABEL_BYTES: usize = 512;
 
+// @ref LLP 3000.009.001.000.002#3.3 — serial recovery must verify each physical row/index delta before durability, just as bulk apply does.
+pub(crate) fn require_one(affected: u64, operation: &str, table: &str, index: Option<&str>) -> Result<(), RuntimeError> {
+    if affected != 1 {
+        let index = index.map(|name| format!(".{name}")).unwrap_or_default();
+        return Err(RuntimeError::Store(format!("{operation} count mismatch for {table}{index}: expected 1, got {affected}")));
+    }
+    Ok(())
+}
+
 /// Compute once, validate before any store changes, then reuse for the writes.
 /// Existing violations may stay equal or shrink; deletion never uses this gate.
 pub struct IndexWrite<'a> {

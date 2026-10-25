@@ -7,6 +7,8 @@ thread_local! { static SERIAL: std::cell::Cell<bool> = const { std::cell::Cell::
 
 // @ref LLP 3000.009.001.000.002#3.3 — only private interpretation overlaps; accepting predecessors, authority and publication stay on the committer.
 pub(super) fn map<T: Send, R: Send>(items: Vec<T>, run: impl Fn(T) -> R + Sync + Send) -> Vec<R> {
+    // @ref LLP 3000.009.001.000.002#3.3 — join covers at most 32 individually metered private attempts; the first attempt has no wall-clock cancellation.
+    assert!(items.len() <= 32, "bounded parallel wave");
     #[cfg(test)]
     if SERIAL.with(|serial| serial.get()) {
         return items.into_iter().map(run).collect();
@@ -47,6 +49,12 @@ pub(in crate::engine) fn serial<T>(run: impl FnOnce() -> T) -> T {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    #[should_panic(expected = "bounded parallel wave")]
+    fn join_rejects_more_than_32_private_attempts() {
+        super::map((0..33).collect(), |n| n);
+    }
+
     #[test]
     fn pool_keeps_input_order_and_uses_bounded_workers() {
         let names = super::map((0..32).collect(), |n| {

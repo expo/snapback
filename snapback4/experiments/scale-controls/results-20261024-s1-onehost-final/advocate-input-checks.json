@@ -1,0 +1,15 @@
+{
+  "equal_inputs": [
+    "snapback4/experiments/scale-controls/convex-app/convex/auth.config.ts",
+    "snapback4/experiments/scale-controls/convex-app/convex/chat.ts",
+    "snapback4/experiments/scale-controls/convex-app/convex/schema.ts",
+    "snapback4/experiments/scale-controls/convex-app/package.json",
+    "snapback4/experiments/scale-controls/convex-app/bun.lock",
+    "snapback4/experiments/scale-controls/snapback-app/snapback/schema.q",
+    "snapback4/experiments/scale-controls/postgres-seed/src/main.rs"
+  ],
+  "changed_inputs": [
+    "snapback4/experiments/scale-controls/postgres-seed/Cargo.lock"
+  ],
+  "scope": "prior control application/lockfiles, unchanged Quarry fixture and seed source; seed Cargo.lock follows product base"
+}

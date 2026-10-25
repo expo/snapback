@@ -226,7 +226,7 @@ pub fn activate(
     previous: Option<&Schema>,
     now: i64,
 ) -> Result<std::collections::BTreeMap<String, u64>, RuntimeError> {
-    activate_retained(tx, next, previous, now, &Default::default())
+    activate_retained(tx, next, previous, now, &Default::default(), false)
 }
 
 pub(crate) fn activate_retained(
@@ -235,6 +235,7 @@ pub(crate) fn activate_retained(
     previous: Option<&Schema>,
     now: i64,
     retained: &std::collections::BTreeSet<String>,
+    rebuild_all_indexes: bool,
 ) -> Result<std::collections::BTreeMap<String, u64>, RuntimeError> {
     let mut shortened = std::collections::BTreeMap::new();
     let Some(previous) = previous else {
@@ -323,6 +324,11 @@ pub(crate) fn activate_retained(
         let recapture = old_through != Some(t) && !preserved_bare;
         let mut invalid = 0;
         let mut samples = Vec::new();
+        // @ref LLP 3000.014#7-activation — captures precede the candidate index rebuild. Population restoration guarantees only the identity scan; the caller then rebuilds every candidate index. Otherwise maintain predecessor indexes.
+        let mut physical = previous.table(&name).unwrap_or(table).clone();
+        if rebuild_all_indexes || previous.table(&name).is_none() {
+            physical.indexes.retain(|name, _| name == "byId");
+        }
         rows(tx, &name, previous.table(&name).unwrap_or(table), parent_bytes(Some(parent),previous.table(&t.parent)), bounded, Some(table), |old| {
             let mut row = old.clone();
             // @ref LLP 3000.000.000#2-retain-by-default — restored audience/deadline captures retain their original lifetime.
@@ -364,7 +370,7 @@ pub(crate) fn activate_retained(
             {
                 *shortened.entry(name.clone()).or_default() += 1;
             }
-            tx.put(&name, table, &row, Some(&old))?;
+            tx.put(&name, &physical, &row, Some(&old))?;
             Ok(())
         })?;
         if invalid > 0 {

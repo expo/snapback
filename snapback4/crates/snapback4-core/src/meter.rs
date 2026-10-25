@@ -151,7 +151,7 @@ impl Meter {
     }
 
     pub fn at(&mut self, site: &str) {
-        self.site = site.to_owned();
+        site.clone_into(&mut self.site);
     }
 
     pub fn site(&self) -> &str {

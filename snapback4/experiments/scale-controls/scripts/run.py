@@ -222,7 +222,7 @@ class Run:
         wf=(directory/f'{prefix}.waits.txt').open('x')
         monitor=sp.Popen([str(PSQL),'-X','-qAt','-v','ON_ERROR_STOP=1','-d',self.db,'-f',str(wait_sql)],env=self.env,stdin=sp.DEVNULL,stdout=wf,stderr=sp.STDOUT)
         db_cpu=(directory/f'{prefix}.db-cpu.jsonl').open('x')
-        db_monitor=sp.Popen(SSH+['expo-build-450a','python3 -u ~/sb4scale/db-monitor.py'],stdin=sp.PIPE,stdout=db_cpu,stderr=sp.STDOUT)
+        db_monitor=self.start_db_monitor(db_cpu)
         stdout=(directory/f'{prefix}.stdout').open('x'); stderr=(directory/f'{prefix}.stderr').open('x')
         command=['taskset','-c',getattr(self.args,'load_cores',LOAD_CORES),str(BIN),'load','--workload',workload,'--workers',str(writers),'--keys',keys,'--rows',str(rows),'--rate',str(rate),'--warmup-ms',str(self.args.warmup_ms),'--duration-ms',str(self.args.duration_ms)]
         command+=['--target',getattr(self.args,'target','raw-pg-no-token')]
@@ -264,6 +264,9 @@ class Run:
             if time.monotonic()>deadline: raise RuntimeError('database work did not drain')
             time.sleep(.1)
 
+    def start_db_monitor(self,output):
+        return sp.Popen(SSH+['expo-build-450a','python3 -u ~/sb4scale/db-monitor.py'],stdin=sp.PIPE,stdout=output,stderr=sp.STDOUT)
+
     def app_pids(self):
         return [self.service[0].pid]
 
@@ -302,6 +305,9 @@ class Run:
                 high=rate; low=max(1,rate//2)
                 while low>1 and not at(low): high,low=low,max(1,low//2)
                 if at(low): at(int((low*high)**.5))
+        # Additional pre-registered rungs share exactly the same repetitions/SLO.
+        if workload in ('W1','W2','W3'):
+            for rate in getattr(self.args,'extra_read_rates',[]): at(rate)
         self.stop_service()
         self.ping(delay,directory/'rtt-after.json')
         (directory/'vmstat-after.txt').write_text(sp.check_output(['vmstat','1','2'],text=True))

@@ -1,0 +1,48 @@
+{
+  "cell": "light/g6-w4-a",
+  "rate": 800,
+  "scope": "first repetition warmup; client1000ms timeout; lightweight out-of-tree trace",
+  "timeout_requests": 8,
+  "joined": 8,
+  "counter": {
+    "delta": 7951,
+    "acknowledged_including_warmup": 7943,
+    "ok": false
+  },
+  "client_http_ms": {
+    "n": 8,
+    "min": 1000.197882,
+    "median": 1000.6809505,
+    "max": 1001.759831
+  },
+  "server_response_ms": {
+    "n": 8,
+    "min": 991.754716,
+    "median": 992.234168,
+    "max": 1008.044947
+  },
+  "intake_ms": {
+    "n": 8,
+    "min": 0.008105,
+    "median": 0.02648,
+    "max": 0.10604
+  },
+  "admission_ms": {
+    "n": 8,
+    "min": 0.083157,
+    "median": 0.517083,
+    "max": 0.784957
+  },
+  "reader_mutex_ms": {
+    "n": 8,
+    "min": 134.302749,
+    "median": 229.1186725,
+    "max": 344.262213
+  },
+  "engine_ms": {
+    "n": 8,
+    "min": 44.057527,
+    "median": 44.185268,
+    "max": 44.389272
+  }
+}

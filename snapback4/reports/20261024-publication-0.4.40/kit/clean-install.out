@@ -1,0 +1,9 @@
+
+added 6 packages in 829ms
+snapback4 0.4.40
+init: wrote 2 files in . — local-first — next: `snapback4 check`, then `snapback4 dev`
+init: files: snapback/{schema.q, generated/package.json}
+init rc=0
+  next: snapback4 test; 15 coverage gaps (check --verbose/JSON keeps every reason)
+  review audiences and 4 uncovered exposures: snapback4 audit
+check rc=0

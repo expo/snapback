@@ -76,20 +76,30 @@ fn rebuild(tx: &Connection, temporary: bool) -> Result<(), RuntimeError> {
     Ok(())
 }
 
+// One canonical definition serves installation and exact catalog admission.
+// SQLite omits TEMP and the final semicolon from sqlite_master.sql.
+pub(super) fn triggers() -> [(&'static str, &'static str); 3] {
+    [
+      ("_device_residency_insert", "CREATE TRIGGER _device_residency_insert AFTER INSERT ON main.r BEGIN
+        INSERT INTO _device_residency VALUES (NEW.t, 1, length(CAST(NEW.data AS BLOB)))
+        ON CONFLICT(t) DO UPDATE SET rows = rows + 1, bytes = bytes + excluded.bytes;
+      END"),
+      ("_device_residency_delete", "CREATE TRIGGER _device_residency_delete AFTER DELETE ON main.r BEGIN
+        UPDATE _device_residency SET rows = rows - 1, bytes = bytes - length(CAST(OLD.data AS BLOB)) WHERE t = OLD.t;
+      END"),
+      ("_device_residency_update", "CREATE TRIGGER _device_residency_update AFTER UPDATE ON main.r BEGIN
+        UPDATE _device_residency SET rows = rows - 1, bytes = bytes - length(CAST(OLD.data AS BLOB)) WHERE t = OLD.t;
+        INSERT INTO _device_residency VALUES (NEW.t, 1, length(CAST(NEW.data AS BLOB)))
+        ON CONFLICT(t) DO UPDATE SET rows = rows + 1, bytes = bytes + excluded.bytes;
+      END"),
+    ]
+}
+
 fn create_triggers(tx: &Connection, temporary: bool) -> Result<(), RuntimeError> {
-    let storage = if temporary { "TEMP " } else { "" };
-    tx.execute_batch(&format!("CREATE {storage}TRIGGER _device_residency_insert AFTER INSERT ON main.r BEGIN
-        INSERT INTO _device_residency VALUES (NEW.t, 1, length(CAST(NEW.data AS BLOB)))
-        ON CONFLICT(t) DO UPDATE SET rows = rows + 1, bytes = bytes + excluded.bytes;
-      END;
-      CREATE {storage}TRIGGER _device_residency_delete AFTER DELETE ON main.r BEGIN
-        UPDATE _device_residency SET rows = rows - 1, bytes = bytes - length(CAST(OLD.data AS BLOB)) WHERE t = OLD.t;
-      END;
-      CREATE {storage}TRIGGER _device_residency_update AFTER UPDATE ON main.r BEGIN
-        UPDATE _device_residency SET rows = rows - 1, bytes = bytes - length(CAST(OLD.data AS BLOB)) WHERE t = OLD.t;
-        INSERT INTO _device_residency VALUES (NEW.t, 1, length(CAST(NEW.data AS BLOB)))
-        ON CONFLICT(t) DO UPDATE SET rows = rows + 1, bytes = bytes + excluded.bytes;
-      END;"))?;
+    for (_, definition) in triggers() {
+        let sql = if temporary { definition.replacen("CREATE TRIGGER", "CREATE TEMP TRIGGER", 1) } else { definition.into() };
+        tx.execute_batch(&sql)?;
+    }
     Ok(())
 }
 

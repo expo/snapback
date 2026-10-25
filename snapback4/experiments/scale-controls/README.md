@@ -1,5 +1,30 @@
 # S1: scale controls and native Snapback serve
 
+## Closed-loop read CPU diagnostics
+
+`load --closed-loop --target snapback --workload W2 --workers 128 --rows 1000000`
+keeps one request outstanding per worker using the same pooled reqwest client,
+fixture-key mix and response validation as open-loop S1. Choose 64, 128 or 256
+workers for the RCPU comparison. Do not supply `--rate` with `--closed-loop`.
+The output format is `sb4-scale-closed-loop-v1`; these capacity diagnostics do
+not qualify an open-loop offered-rate rung or its SLO. The ordinary `--rate`
+mode retains its intended-arrival scheduler and open-loop format.
+`successful_latency` reports validated successful reads separately, so quick
+admission refusals cannot improve the displayed read latency; the existing
+all-arrival latency and SLO accounting are retained.
+
+On Linux, `--cpu-pids SERVER_PID` samples whole-process user+system CPU ticks
+at the common measured boundaries, including the load client itself.
+`--cpu-tree-root PRIVATE_PG_MASTER_PID` additionally samples the private PG
+process family, including CPU of reaped children. The JSON retains process
+birth ticks, actual boundary times, one-minute loads and live family PIDs.
+Divide the CPU delta by `completed_in_window_per_s * duration_ms / 1000`,
+which counts warm-up completions in the window and excludes drain. Missing
+counters, a changed process identity or incomplete process-family inspection
+must be reported rather than treated as zero. Other platforms emit null CPU
+samples; load generation and validation remain available.
+
+
 ## S1-PG2: admitted maintained columns, unchanged Postgres baseline
 
 [Matched W1–W5 report, comparison and archive](./results-20261022-snapback-postgres-2/README.md)
@@ -606,3 +631,49 @@ committer gauge includes queued/prevalidation/persistence work. Persistence
 maintenance can keep SQL active after every request settles, so SQL-wide idle
 is not a Convex readiness condition. Raw PG/Supabase retain their existing
 application-SQL drain. Native drain samples remain in each raw trial record.
+
+## Shared one-host S1 runner
+
+`scripts/s1-onehost.py --system {snapback,rawpg,supabase,convex}` applies the
+same S1-PG4 Unix delay link to every target. PG16.15 uses physical cores
+0–2 (both SMT siblings), service/proxy 3–4, generator 5. Each invocation owns
+a private socket-only cluster with `postgresql.conf.delta`, an identical 1M
+seed, fresh service per cell, 10 s warm-up, 20 s measured and three repetitions.
+It waits for unrelated processes above one sampled CPU core at cell start,
+records loadavg and live affinities, and stops below 30 GiB free on `/home`.
+Links A/B add 250/500 µs per direction. Every boundary captures 1,000 prepared
+SELECT 1 timings after 100 warm-ups through the exact selected link.
+
+The inherited double/halve search and geometric midpoint also test read rates
+19,027 and 22,627. Every repetition must meet intended-arrival p99 ≤ 50 ms
+reads /100 ms writes, errors ≤ 0.1%, and whole-cohort counter equality. Reads
+use 128 clients and pool/function cap 32; writes use 32 clients and cap 32.
+Advocate SQL, JWT handling, native caches and Convex OCC/backoff remain unchanged.
+
+From the repository root, with the user-local PG16.15 tools and
+`pg_stat_statements` installed:
+
+```sh
+export PATH=$HOME/.cargo/bin:$HOME/.local/bin:$HOME/.local/sb4-postgresql-16.15/bin:$PATH
+export CARGO_TARGET_DIR=$HOME/projects/sb4-s1sk/snapback4/target
+cargo build --release --locked --manifest-path snapback4/experiments/scale-controls/Cargo.toml
+python3 snapback4/experiments/scale-controls/scripts/s1-onehost.py \
+  --system rawpg --mode smoke --out "$HOME/sb4scale/onehost-smoke-NEW"
+python3 snapback4/experiments/scale-controls/scripts/s1-onehost.py \
+  --system rawpg --out "$HOME/sb4scale/onehost-rawpg-NEW"
+```
+
+Replace `rawpg` with either advocate target; install the pinned Convex app
+dependencies with `bun install --frozen-lockfile` from `convex-app/`. Run each
+supervisor detached, redirect logs outside Git, and immediately record its PID.
+`--mode cell --workload W5 --keys same --link B` reproduces one cell. All raw
+evidence stays outside Git; the runner stops only recorded processes. It removes
+the stopped cluster data and retains credentials privately for the known-secret
+audit before final deletion.
+
+For Snapback, build `snapback4` with `--release --locked -p snapback4 --features
+postgres` from its workspace and build the isolated `postgres-seed/Cargo.toml`
+helper with the same target directory. Then use `--system snapback` with the
+same runner; `--snapback-bin` and `--seed-bin` select explicit release binaries.
+The native app, account sessions, `Engine::seed_at` and drain witnesses are the
+S1-PG4 forms. No separate scheduler or capacity rule is used for Snapback.

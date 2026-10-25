@@ -6,6 +6,20 @@ fn ident(s: &str) -> String {
     format!("\"{}\"", s.replace('"', "\"\""))
 }
 
+fn tracker(table: &str, i: usize, event: &str) -> (String, String) {
+    let name = format!("dt_track_{i}_{event}");
+    let definition = format!("CREATE TRIGGER {name} AFTER {event} ON {} BEGIN INSERT OR IGNORE INTO dt_dirty VALUES ({i}); END", ident(table));
+    (name, definition)
+}
+
+pub(super) fn is_tracker(table: &str, name: &str, sql: Option<&str>) -> bool {
+    let Some((ordinal, event)) = name.strip_prefix("dt_track_").and_then(|s| s.split_once('_')) else { return false; };
+    let Ok(i) = ordinal.parse::<usize>() else { return false; };
+    if !["INSERT", "UPDATE", "DELETE"].contains(&event) { return false; }
+    let (expected_name, definition) = tracker(table, i, event);
+    name == expected_name && sql == Some(definition.as_str())
+}
+
 /// Snapshot all SQLite rows once; preserve engine schema/catalog caches.
 pub struct Snapshot {
     tables: Vec<String>,
@@ -35,7 +49,7 @@ impl Snapshot {
             ))
             .map_err(|e| error_chain("SQLite snapshot", &e))?;
             for event in ["INSERT", "UPDATE", "DELETE"] {
-                conn.execute_batch(&format!("CREATE TEMP TRIGGER dt_track_{i}_{event} AFTER {event} ON {} BEGIN INSERT OR IGNORE INTO dt_dirty VALUES ({i}); END;",ident(t)))
+                conn.execute_batch(&tracker(t, i, event).1.replacen("CREATE TRIGGER", "CREATE TEMP TRIGGER", 1))
                     .map_err(|e| error_chain("SQLite changed table trigger", &e))?;
             }
         }

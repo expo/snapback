@@ -1,0 +1,9 @@
+{
+  "events": 39350,
+  "distinct_pid_identities": 12488,
+  "live_owned": [],
+  "owned_zombies": [],
+  "scope": "all new campaign, build and orchestration ledgers plus prior S1-C campaign ledgers; PID/start identity checked independently after controllers exited",
+  "final_recheck_utc": "2026-10-25 01:43:41 UTC",
+  "owned_binary_or_test_processes": []
+}

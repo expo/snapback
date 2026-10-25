@@ -13,9 +13,11 @@ impl Tx<'_> {
         for (key, delta) in &changes {
             let t = self.num(name)?;
             if *delta > 0 {
-                self.conn().prepare_cached("INSERT INTO _cap_counts(t,k,n) VALUES (?1,?2,1) ON CONFLICT(t,k) DO UPDATE SET n = n + 1")?.execute(params![t, key])?;
+                let affected = self.conn().prepare_cached("INSERT INTO _cap_counts(t,k,n) VALUES (?1,?2,1) ON CONFLICT(t,k) DO UPDATE SET n = n + 1")?.execute(params![t, key])?;
+                if !self.lifecycle { crate::rows::require_one(affected as u64, "cap increment", name, None)?; }
             } else {
-                self.conn().prepare_cached("UPDATE _cap_counts SET n = n - 1 WHERE t = ?1 AND k = ?2")?.execute(params![t, key])?;
+                let affected = self.conn().prepare_cached("UPDATE _cap_counts SET n = n - 1 WHERE t = ?1 AND k = ?2")?.execute(params![t, key])?;
+                if !self.lifecycle { crate::rows::require_one(affected as u64, "cap decrement", name, None)?; }
                 self.conn().prepare_cached("DELETE FROM _cap_counts WHERE t = ?1 AND k = ?2 AND n = 0")?.execute(params![t, key])?;
             }
         }

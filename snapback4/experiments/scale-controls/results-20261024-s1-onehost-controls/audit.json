@@ -1,0 +1,26 @@
+{
+  "rawpg": {
+    "cells": 12,
+    "trials": 213,
+    "scheduled_arrivals": 28923060,
+    "cells_with_passing_rate": 12,
+    "unknown_write_outcome_trials": 11,
+    "checks": "arrival accounting, every repetition, histogram counts and lossless archive, SLO/counter qualification, brackets"
+  },
+  "supabase": {
+    "cells": 12,
+    "trials": 174,
+    "scheduled_arrivals": 20657580,
+    "cells_with_passing_rate": 12,
+    "unknown_write_outcome_trials": 7,
+    "checks": "arrival accounting, every repetition, histogram counts and lossless archive, SLO/counter qualification, brackets"
+  },
+  "convex": {
+    "cells": 12,
+    "trials": 228,
+    "scheduled_arrivals": 20877240,
+    "cells_with_passing_rate": 11,
+    "unknown_write_outcome_trials": 36,
+    "checks": "arrival accounting, every repetition, histogram counts and lossless archive, SLO/counter qualification, brackets"
+  }
+}

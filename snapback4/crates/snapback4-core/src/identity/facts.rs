@@ -4,6 +4,8 @@ use crate::{RuntimeError, authority::{self, AuthorityTransaction, SessionRecord}
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(crate) struct SessionFacts {
+    /// Internal committed-member order, absent on the uncached SQLite arm.
+    pub revision: Option<i64>,
     // At most one row per session table. Preserve the strict duplicate refusal.
     pub head: u64,
     pub sessions: Vec<SessionRecord>,

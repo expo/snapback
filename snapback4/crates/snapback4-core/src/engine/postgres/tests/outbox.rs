@@ -104,7 +104,7 @@ fn outbox_attach_refuses_incompatible_shapes() {
     ] {
         let error = match reopen_after(ddl) { Ok(_) => panic!("accepted {ddl}"), Err(error) => error };
         assert_eq!(error.code(), "E_STORE");
-        assert!(error.to_string().contains("SNAPBACK_OUTBOX_SCHEMA"), "{ddl}: {error}");
+        assert!(error.to_string().contains(super::shape_code(ddl,"SNAPBACK_OUTBOX_SCHEMA")), "{ddl}: {error}");
     }
 }
 

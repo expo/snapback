@@ -198,6 +198,9 @@ pub(super) fn transition(
     // Keep restoration identities until the common builder finishes, so release
     // narration counts only surviving images without a population-sized buffer.
     tx.batch("CREATE TEMP TABLE _evolution_restored(kind TEXT COLLATE \"C\" NOT NULL,t TEXT COLLATE \"C\" NOT NULL,col TEXT COLLATE \"C\" NOT NULL,id TEXT COLLATE \"C\" NOT NULL,PRIMARY KEY(kind,t,col,id)) ON COMMIT DROP")?;
+    // DDL event triggers may have intercepted these new TEMP relations.
+    // Refuse before the first write; lifecycle COMMIT repeats the same check.
+    super::managed_relations::verify(tx)?;
     let mut reuse = Vec::new();
     for (relation, query) in [
         (

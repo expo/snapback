@@ -1,0 +1,45 @@
+{
+  "time": 1792903179.480124,
+  "ref_check": {
+    "status": 0,
+    "LLPs": 568,
+    "refs": 11962,
+    "errors": 0,
+    "unchecked": 0
+  },
+  "packaged_docs": {
+    "status": 0
+  },
+  "docs_budget": {
+    "status": 0,
+    "physical_readme_lines": 319,
+    "limit": 320,
+    "self_containment_test": "w14b_first_account_screen_is_self_contained",
+    "tests_passed": 1,
+    "initial_attempt": "cargo absent from tool-shell PATH; corrected PATH, own target and bounded jobs used; initial failure retained"
+  },
+  "affected_selector": {
+    "base": "sb4-pg/main-0ce0",
+    "source_commit": "0ce0c0d07864efb9f0b7315388f0751dc8282e11",
+    "plan_command": "node snapback4/scripts/affected.mjs --base sb4-pg/main-0ce0 --worktree --json",
+    "broad": true,
+    "planned_steps": 31,
+    "full_battery_run": false,
+    "reason": "Experimental result artifacts are unknown paths to selector; local documentation/evidence commit, product and runner source unchanged; scoped documentation and evidence audits used. No landing/publication qualification claim."
+  },
+  "scope_audit": {
+    "governing_LLPs": [
+      "3000",
+      "3000.009.001.000.002",
+      "3000.009.001.002",
+      "0189"
+    ],
+    "code_changes": false,
+    "new_design_adopted": false,
+    "proposal_forecasts_only": true
+  },
+  "whitespace": "checked in staged delta before commit",
+  "json_and_local_links": "checked after final receipts",
+  "benchmark_audits": "trial-audit.json",
+  "process_audit": "process-audit.json"
+}

@@ -1,0 +1,90 @@
+{
+  "rawpg": {
+    "rate": 100,
+    "workload": "W2",
+    "link": "A",
+    "repeats": 3,
+    "warmup_ms": 10000,
+    "measurement_ms": 20000,
+    "audit": {
+      "cells": 1,
+      "trials": 3,
+      "scheduled_arrivals": 6000,
+      "cells_with_passing_rate": 1,
+      "unknown_write_outcome_trials": 0,
+      "checks": "arrival accounting, every repetition, histogram counts and lossless archive, SLO/counter qualification, brackets"
+    },
+    "p99_ms": {
+      "min": 1.332223,
+      "median": 1.333247,
+      "max": 1.397759
+    },
+    "cluster_stopped": true
+  },
+  "supabase": {
+    "rate": 100,
+    "workload": "W2",
+    "link": "A",
+    "repeats": 3,
+    "warmup_ms": 10000,
+    "measurement_ms": 20000,
+    "audit": {
+      "cells": 1,
+      "trials": 3,
+      "scheduled_arrivals": 6000,
+      "cells_with_passing_rate": 1,
+      "unknown_write_outcome_trials": 0,
+      "checks": "arrival accounting, every repetition, histogram counts and lossless archive, SLO/counter qualification, brackets"
+    },
+    "p99_ms": {
+      "min": 3.842047,
+      "median": 3.880959,
+      "max": 3.940351
+    },
+    "cluster_stopped": true
+  },
+  "convex": {
+    "rate": 100,
+    "workload": "W2",
+    "link": "A",
+    "repeats": 3,
+    "warmup_ms": 10000,
+    "measurement_ms": 20000,
+    "audit": {
+      "cells": 1,
+      "trials": 3,
+      "scheduled_arrivals": 6000,
+      "cells_with_passing_rate": 1,
+      "unknown_write_outcome_trials": 0,
+      "checks": "arrival accounting, every repetition, histogram counts and lossless archive, SLO/counter qualification, brackets"
+    },
+    "p99_ms": {
+      "min": 0.971775,
+      "median": 3.016703,
+      "max": 10.665983
+    },
+    "cluster_stopped": true
+  },
+  "snapback": {
+    "rate": 100,
+    "workload": "W2",
+    "link": "A",
+    "repeats": 3,
+    "warmup_ms": 10000,
+    "measurement_ms": 20000,
+    "audit": {
+      "cells": 1,
+      "trials": 3,
+      "scheduled_arrivals": 6000,
+      "cells_with_passing_rate": 1,
+      "unknown_write_outcome_trials": 0,
+      "checks": "arrival accounting, every repetition, histogram counts and lossless archive, SLO/counter qualification, brackets"
+    },
+    "p99_ms": {
+      "min": 5.095423,
+      "median": 5.308415,
+      "max": 5.328895
+    },
+    "cluster_stopped": true
+  }
+}

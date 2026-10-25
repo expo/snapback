@@ -124,6 +124,8 @@ pub(crate) use write_target::row_copy_ceiling;
 mod aggregate_metadata_tests;
 #[cfg(feature = "postgres")]
 pub mod postgres;
+#[cfg(feature="postgres")]
+pub mod revision_cache;
 pub(crate) mod presence;
 #[cfg(feature = "sqlite")]
 pub mod program;
@@ -190,6 +192,8 @@ pub enum LoadMode { Import, Restore }
 /// Who runs the program, with what, and when.
 #[derive(Clone, Debug)]
 pub struct Context {
+    #[cfg(feature="postgres")]
+    pub(crate) revision_cache: bool,
     #[cfg(feature="sqlite")]
     pub(crate) migration_assets: Option<std::path::PathBuf>,
     #[cfg(feature = "sqlite")]
@@ -230,6 +234,13 @@ pub struct Context {
 
 
 impl Context {
+    /// Release HTTP reads opt in; development/staging and SQLite keep ordinary execution.
+    pub fn with_revision_cache(self,enabled:bool)->Self {
+        #[cfg(feature="postgres")]
+        { let mut context=self;context.revision_cache=enabled;context }
+        #[cfg(not(feature="postgres"))]
+        {let _=enabled;self}
+    }
     /// A transport planning hint. Live authority is still resolved in the
     /// request snapshot; this never changes the interpreter's principal kind.
     pub fn with_request_credential(self, kind: &str) -> Self {
@@ -240,7 +251,7 @@ impl Context {
     }
 
     pub fn new(viewer: impl Into<String>, args: BTreeMap<String, Value>) -> Self {
-        Self { #[cfg(feature = "sqlite")] fixture_trace: None, #[cfg(feature="sqlite")] migration_assets: None, #[cfg(feature = "sqlite")] refusal_trace: None, #[cfg(feature = "server-search")] search_retained_order: None, #[cfg(feature = "server-search")] search_retained_candidates: Vec::new(), retained_search: false, read_spent: None, viewer: viewer.into(), kind: "user".into(), #[cfg(feature = "postgres")] request_credential_kind: None, args, now: None, read_time: None, row_provenance: false, session_digest: None, wire_args: None, #[cfg(feature = "sqlite")] delivery_fingerprint: None, generation: 0, new_ids: VecDeque::new(), entropy: 0, minter: crate::ids::Mint::default(), minted_ids: Vec::new(), presence: None }
+        Self { #[cfg(feature="postgres")] revision_cache: false, #[cfg(feature = "sqlite")] fixture_trace: None, #[cfg(feature="sqlite")] migration_assets: None, #[cfg(feature = "sqlite")] refusal_trace: None, #[cfg(feature = "server-search")] search_retained_order: None, #[cfg(feature = "server-search")] search_retained_candidates: Vec::new(), retained_search: false, read_spent: None, viewer: viewer.into(), kind: "user".into(), #[cfg(feature = "postgres")] request_credential_kind: None, args, now: None, read_time: None, row_provenance: false, session_digest: None, wire_args: None, #[cfg(feature = "sqlite")] delivery_fingerprint: None, generation: 0, new_ids: VecDeque::new(), entropy: 0, minter: crate::ids::Mint::default(), minted_ids: Vec::new(), presence: None }
     }
 
     #[cfg(feature = "sqlite")]
@@ -331,6 +342,10 @@ pub(crate) fn server_query_allowed(schema: &crate::schema::Schema, name: &str) -
 /// A query's outcome: the card's read, minus `fresh` (transport truth).
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct QueryOutcome {
+    /// Retains the physical cache reservation while a hit response owns shared images.
+    #[cfg(feature="postgres")]
+    #[serde(skip)]
+    pub cache_lifetime: revision_cache::Lifetime,
     /// Complete, authorized current audience of an inferred ordinary search.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub search_scopes: Option<Vec<String>>,
@@ -418,6 +433,10 @@ pub struct AssetGrant {
 
 #[cfg(feature = "sqlite")]
 pub struct Engine {
+    #[cfg(feature="postgres")]
+    revision_cache: std::sync::Arc<revision_cache::Cache>,
+    #[cfg(feature="postgres")]
+    code_native_digest: Option<String>,
     #[cfg(feature = "evaluation-support")]
     evaluation_precharge: Metered,
     timeline_schedule: timeline::Schedule,
@@ -469,13 +488,13 @@ impl Engine {
         let (generation, metadata) = Self::activate(&mut store, &schema, &programs, None, now, true, None, None)?.into_inner();
         let dev_effects = metadata.dev_effects;
         store.exclude_ephemeral(&schema);
-        Ok(Self { #[cfg(feature = "evaluation-support")] evaluation_precharge: Metered::default(), timeline_schedule: timeline::Schedule::default(), ephemeral: std::sync::Arc::new(ephemeral::Hub::new(metadata.store_id.clone(), generation, &schema)), store_id: metadata.store_id, store, schema, programs, generation, expiry_after: BTreeMap::new(), dev_effects, ceilings: Ceilings::default(), entropy: crate::ids::seed(), minter: crate::ids::Mint::default(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: None })
+        Ok(Self { #[cfg(feature="postgres")] revision_cache: Default::default(), #[cfg(feature="postgres")] code_native_digest: metadata.native_digest, #[cfg(feature = "evaluation-support")] evaluation_precharge: Metered::default(), timeline_schedule: timeline::Schedule::default(), ephemeral: std::sync::Arc::new(ephemeral::Hub::new(metadata.store_id.clone(), generation, &schema)), store_id: metadata.store_id, store, schema, programs, generation, expiry_after: BTreeMap::new(), dev_effects, ceilings: Ceilings::default(), entropy: crate::ids::seed(), minter: crate::ids::Mint::default(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: None })
     }
 
     /// A detached read owner for HTTP query/sync computation. Creating it is
     /// brief; materializing its response does not hold the serving engine.
     pub fn reader(&self) -> Result<Self, RuntimeError> {
-        Ok(Self { #[cfg(feature = "evaluation-support")] evaluation_precharge: self.evaluation_precharge, timeline_schedule: timeline::Schedule::default(), ephemeral: self.ephemeral.clone(), store_id: self.store_id.clone(), store: self.store.reader()?, schema: self.schema.clone(), programs: self.programs.clone(),
+        Ok(Self { #[cfg(feature="postgres")] revision_cache: self.revision_cache.clone(), #[cfg(feature="postgres")] code_native_digest: self.code_native_digest.clone(), #[cfg(feature = "evaluation-support")] evaluation_precharge: self.evaluation_precharge, timeline_schedule: timeline::Schedule::default(), ephemeral: self.ephemeral.clone(), store_id: self.store_id.clone(), store: self.store.reader()?, schema: self.schema.clone(), programs: self.programs.clone(),
             ceilings: self.ceilings, entropy: 0, minter: self.minter.clone(), generation: self.generation, expiry_after: BTreeMap::new(), dev_effects: self.dev_effects,
             #[cfg(feature = "native")] native: self.native.clone(),
             #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: self.presence.clone() })
@@ -527,7 +546,7 @@ impl Engine {
             else { tx.rollback()?; Self::activate(&mut store, &schema, &programs, None, now, true, expected_release, Some(&kept))?.into_inner() };
         let dev_effects = metadata.dev_effects;
         store.accept_open(); store.exclude_ephemeral(&schema);
-        Ok(Self { #[cfg(feature = "evaluation-support")] evaluation_precharge: Metered::default(), timeline_schedule: timeline::Schedule::default(), ephemeral: std::sync::Arc::new(ephemeral::Hub::new(metadata.store_id.clone(), generation, &schema)), store_id: metadata.store_id, store, schema, programs, generation, expiry_after: BTreeMap::new(), dev_effects, ceilings: Ceilings::default(), entropy: crate::ids::seed(), minter: crate::ids::Mint::default(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: None })
+        Ok(Self { #[cfg(feature="postgres")] revision_cache: Default::default(), #[cfg(feature="postgres")] code_native_digest: metadata.native_digest, #[cfg(feature = "evaluation-support")] evaluation_precharge: Metered::default(), timeline_schedule: timeline::Schedule::default(), ephemeral: std::sync::Arc::new(ephemeral::Hub::new(metadata.store_id.clone(), generation, &schema)), store_id: metadata.store_id, store, schema, programs, generation, expiry_after: BTreeMap::new(), dev_effects, ceilings: Ceilings::default(), entropy: crate::ids::seed(), minter: crate::ids::Mint::default(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: None })
     }
 
     /// Serving a selected immutable release may attach only while that release
@@ -574,6 +593,8 @@ impl Engine {
         let module = native::Module::compile(bytes)?;
         let jobs = module.jobs().to_vec();
         self.native = Some(std::sync::Arc::new(module));
+        #[cfg(feature="postgres")]
+        self.reset_revision_cache();
         Ok(jobs)
     }
 
@@ -644,6 +665,9 @@ impl Engine {
             Self::activate(&mut engine.store, &schema, &programs, None, now, true, None, None)
                 .map(|committed| committed.pending((schema, programs)))
         }, |engine, (schema, programs), (generation, metadata)| {
+            // @ref LLP 3000.009.001.000.002#4.3 — development adoption also retires the previous immutable code epoch.
+            #[cfg(feature="postgres")]
+            {engine.code_native_digest=metadata.native_digest;engine.reset_revision_cache();}
             engine.timeline_schedule = timeline::Schedule::default();
             engine.schema = schema;
             engine.programs = programs;
@@ -814,9 +838,14 @@ impl Engine {
         &mut self, name: &str, context: Context, retained: Option<&[String]>, manifest: DeliveryManifest,
         digest: &str, mut snapshot: impl FnMut(&crate::store_port::ReadSnapshot<'_>, u64) -> Result<(), Refusal>,
     ) -> (Result<QueryOutcome, Refusal>, Option<u64>, Option<Vec<String>>) {
+        #[cfg(feature="postgres")]
+        {return self.query_cached_request(name,context,retained,manifest,digest,&mut snapshot);}
+        #[cfg(not(feature="postgres"))]
+        {
         let (mut cut, mut current) = (None, None);
         let result = self.query_reading(name, context, &mut cut, retained, &mut current, manifest, false, Some(&mut snapshot), Some(digest));
         (result, cut, current)
+        }
     }
 
     fn query_reading(&mut self, name: &str, mut context: Context, cut: &mut Option<u64>, _retained: Option<&[String]>, _current: &mut Option<Vec<String>>, manifest: DeliveryManifest, advance_opening: bool, snapshot: Option<&mut dyn FnMut(&crate::store_port::ReadSnapshot<'_>, u64) -> Result<(), Refusal>>, digest: Option<&str>) -> Result<QueryOutcome, Refusal> {
@@ -880,7 +909,7 @@ impl Engine {
                 };
                 runner.charge_output(&data)?;
                 let (delivery, delivery_meter) = match manifest { DeliveryManifest::Build => runner.delivery_manifest(&data), DeliveryManifest::Skip => (None, None) };
-                let outcome = QueryOutcome { decoration_expiry: None, search_rows: None, search_scopes: None, delivery, delivery_meter, ephemeral: version, unavailable: runner.query_unavailable, pending_opening: runner.pending_opening.clone(), complete: !runner.query_unavailable && runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_position_lost() && !runner.timeline_pending, cut: runner.read_cut(), capped_at: runner.meter.capped_at.clone(), word_cut_at: runner.word_cut_at.clone(), next: None, data, seq, metered: runner.meter.used, tables: runner.read_tables.iter().cloned().collect(), next_expiry: runner.next_expiry.get() };
+                let outcome = QueryOutcome { #[cfg(feature="postgres")] cache_lifetime: Default::default(), decoration_expiry: None, search_rows: None, search_scopes: None, delivery, delivery_meter, ephemeral: version, unavailable: runner.query_unavailable, pending_opening: runner.pending_opening.clone(), complete: !runner.query_unavailable && runner.meter.capped_at.is_none() && runner.word_cut_at.is_none() && !runner.non_uniform && !runner.page_position_lost() && !runner.timeline_pending, cut: runner.read_cut(), capped_at: runner.meter.capped_at.clone(), word_cut_at: runner.word_cut_at.clone(), next: None, data, seq, metered: runner.meter.used, tables: runner.read_tables.iter().cloned().collect(), next_expiry: runner.next_expiry.get() };
                 drop(runner);
                 drop(layered); drop(hub);
                 tx.rollback()?;
@@ -927,7 +956,7 @@ impl Engine {
         // `complete` is a class, not a count: a query with a scan the prefix
         // does not decide is capped whatever the meter found (LLP 1001 §3).
         let (delivery, delivery_meter) = match manifest { DeliveryManifest::Build => runner.delivery_manifest(&data), DeliveryManifest::Skip => (None, None) };
-        let outcome = QueryOutcome {
+        let outcome = QueryOutcome { #[cfg(feature="postgres")] cache_lifetime: Default::default(),
             decoration_expiry: runner.decoration_expiry, search_rows: runner.search_rows.take(),
             #[cfg(feature = "server-search")] search_scopes: runner.search_scopes.take(),
             #[cfg(not(feature = "server-search"))] search_scopes: None,

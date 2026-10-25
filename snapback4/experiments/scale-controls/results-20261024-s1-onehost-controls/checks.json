@@ -1,0 +1,18 @@
+{
+  "python_syntax": "all seven affected Python modules compile",
+  "release_harness_auth_test": "1 passed, 0 failed; validates HS256 identity/claims rejection; archived harness-tests.log",
+  "adapter_smokes": "rawpg, supabase, convex, snapback: W2/A at 100/s; three 10s/20s repetitions; independent audits pass",
+  "matrix_audits": "unchanged audit.py passes all 615 trials and 70,457,880 measured arrivals",
+  "counter_arithmetic": "all 267 write trials checked directly; 54 mismatches retained as failures",
+  "ref_check": "566 LLP docs; 11,823 refs; 0 errors; 0 unchecked",
+  "source_custody": "all three systems share measured commit b5e34d8912 and all 60 recorded source hashes match its committed content; common generator binary hash",
+  "replay_commands": "all 36 corrected one-host commands parse against current CLI without starting services",
+  "report_integrity": "36 distinct cell keys; table/ledger/audit arithmetic agree; all report-local Markdown targets exist",
+  "archive": "SHA-256 independently recomputed; 8,008 entries; 615 trial JSONs and 615 HDR companions verified",
+  "shutdown": "all 29,688 PID events checked, including setup/build/supervisors/finisher; no matching processes or zombies; no benchmark listeners; ten private runtime roots absent",
+  "postmeasurement_changes": "replay metadata, cleanup ordering and summary/audit tooling only; no timed scheduling, SQL, binary, advocate setting or SLO change",
+  "postmeasurement_source_sha256": {
+    "snapback4/experiments/scale-controls/scripts/s1-onehost.py": "e0ba42cc3cd40e6496046b8feea11cc1a7f3c690c753c4ca19a183b92fcb2de4",
+    "snapback4/experiments/scale-controls/scripts/s1-onehost-finish.py": "cddb71421d007d233c61bb4cb7cb5f641485f9b075bf2d86872cdd0bb89b3217"
+  }
+}

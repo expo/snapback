@@ -1,0 +1,18 @@
+{
+  "source_commit": "b5e34d8912b38a0d2fe8ce082cdef1a954af59b0",
+  "source_sha256": {
+    "snapback4/experiments/scale-controls/convex-app/convex/auth.config.ts": "d2e88787c9f9d87d80b85a4e163bf7f8f4492e1df0c4a42133ba1b743a215c98",
+    "snapback4/experiments/scale-controls/convex-app/convex/chat.ts": "856779a8f7e591a24dce494518ca22eb3556b9c869a9bdaa1e4141a91e650bad",
+    "snapback4/experiments/scale-controls/convex-app/convex/schema.ts": "852ce30a7924fc32710d16c99dbb695863b9d23fa81df03fb85ec83ebc518f92",
+    "snapback4/experiments/scale-controls/convex-app/package.json": "ed643a627e0acefa7db258b91721a7d7bd98c36d0cbdb058253a72282631dc7e",
+    "snapback4/experiments/scale-controls/convex-app/bun.lock": "513906264c56d64de3592422ada86ddfe1e440bfa95ec7a66d11028f298db1a4",
+    "snapback4/experiments/scale-controls/snapback-app/snapback/schema.q": "d81afc50e1ead9ba3c8fd245fc2fd84f2ed1b179e03d3382fccf18b2bef9c65f",
+    "snapback4/experiments/scale-controls/postgres-seed/src/main.rs": "481fb7e09844d4f4d08b4799c73ee8f5d1de794965c45ccb508bf13ee1439c63",
+    "snapback4/experiments/scale-controls/postgres-seed/Cargo.lock": "fc1a8d6bef96a9cf9b14c2b1b9bcacd922b97114265add9e984b3db6b6cd65f7"
+  },
+  "versions": {
+    "python": "3.12.3",
+    "node": "v24.13.1",
+    "postgres": "postgres (PostgreSQL) 16.15"
+  }
+}

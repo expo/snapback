@@ -216,7 +216,11 @@ fn legacy_attach_bootstrap_is_atomic_and_serializes_racing_openers() {
 fn two_owners_stale_token_refuses_without_a_receipt() {
     let ns = name();
     let id = create(&ns);
-    let mut a = lease(&ns, &id, "0001");
+    // This is a fencing/replay witness, not a startup-speed bound. Keep the
+    // lease live through cold opening and mutation setup under concurrent load;
+    // explicit release below remains the only handoff trigger.
+    let live = LeasePolicy { lease: Duration::from_secs(30), ..policy() };
+    let mut a = StoreLease::connect(&connection(), &ns, &id, "0001", live.clone()).unwrap();
     assert_eq!(a.acquire().unwrap().unwrap().token, 1);
     let mut e = open(&ns, &a);
     let before = e.mutate_acknowledged("put", Some("before"), context(1)).unwrap();
@@ -232,7 +236,7 @@ fn two_owners_stale_token_refuses_without_a_receipt() {
         .client
         .batch_execute("SET application_name='s10d2-stale-fence-witness'")
         .unwrap();
-    let mut b = lease(&ns, &id, "0002");
+    let mut b = StoreLease::connect(&connection(), &ns, &id, "0002", live).unwrap();
     assert!(b.acquire().unwrap().is_none());
     assert!(a.release().unwrap());
     let won = b.acquire().unwrap().unwrap();

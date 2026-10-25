@@ -1,0 +1,27 @@
+{
+  "ref_check": {
+    "command": "./ref-check --verbose",
+    "llp_docs": 568,
+    "refs": 11962,
+    "files": 44838,
+    "errors": 0,
+    "unchecked": 0,
+    "passed": true
+  },
+  "docs_budget": {
+    "command": "node scripts/docs-budget.mjs",
+    "readme_lines": 319,
+    "budget": 320,
+    "self_containment_test": "w14b_first_account_screen_is_self_contained",
+    "tests_passed": 1,
+    "passed": true,
+    "environment": "Cargo PATH restored for rerun; owned CARGO_TARGET_DIR; CARGO_INCREMENTAL=0; DEV/TEST DEBUG=0; LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT"
+  },
+  "packaged_docs_lint": {
+    "passed": true
+  },
+  "git_diff_check": {
+    "passed": true
+  },
+  "scope": "report/corpus validation and existing documentation self-containment test; no complete product-suite claim"
+}

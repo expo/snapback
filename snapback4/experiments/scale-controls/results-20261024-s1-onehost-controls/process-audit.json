@@ -1,0 +1,11 @@
+{
+  "checked_at_utc": "2026-10-24T18:30:24Z",
+  "events": 29688,
+  "distinct_pids": 6462,
+  "supervisor_and_setup_events": 37,
+  "live_owned_including_zombies": [],
+  "reused_pid_numbers_ignored": [],
+  "benchmark_listeners": [],
+  "private_runtime_roots_absent": 10,
+  "scope": "all segment PID ledgers plus setup/build/smoke/matrix/archive/finisher launch ledger; recorded process birth identity checked where available; no signals sent"
+}

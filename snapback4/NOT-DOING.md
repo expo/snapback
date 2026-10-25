@@ -15,7 +15,7 @@ on the hub fixture. Everything not required to pass them does not exist yet.
 
 - **A second authoring language.** Quarry, one spelling, copied from Snapback 2 (LLP 1004, LLP 1007 §4b). TypeScript is for seeds, journeys, effect bodies and the client.
 - **Byte- and step-priced certification.** No closure, heap, output or step ceilings at `check`; the certificate certifies shape, uniformity, completeness class and prediction eligibility. Resources are metered at runtime (LLP 2000.000 §6).
-- **A per-query result cache.** No range receipts, validators, halos, absence evidence, coverage spans, extent facts, held directories, fact integrity or swap journals. The client replicates declared partitions with one watermark each (LLP 2000.000 §7).
+- **A device per-query result cache.** No range receipts, halos, absence evidence, coverage spans, extent facts, held directories, fact integrity or swap journals. The client replicates declared partitions with one watermark each (LLP 2000.000 §7). The server's narrow Postgres revision-equality cache and explicitly clock-qualified G6 read grant are the exceptions below; cross-revision promotion remains excluded.
 - **Engine-minted ids for client inserts, grants, ID slices.** Ids are client-minted, time-ordered, 128-bit; the engine mints for its own writes.
 - **The `drain` protocol, follower-tab inbox rows, `defineItems`, `withHistory`, `mutationTarget`, `receipt.source`, `local.caughtUp`, `partial` reason codes.** The card (`packages/snapback4/src/contract.ts`) is the whole client vocabulary; `why` carries the rest.
 - **`retain` as a receipt rule.** `until-revoked` and `delivered-history` survive as the client's leave policy on a scope tombstone.
@@ -85,6 +85,17 @@ on the hub fixture. Everything not required to pass them does not exist yet.
 - One hosted target, one platform binary at a time. SQLite remains the default store; Postgres deploy/serve admits the initial Unix-socket HTTP profile under LLP 3000.009.001 (Moves, 2026-10-20; `guide release-json`). Provider HA, full parity and publication remain outside that profile.
 
 ## Moves
+
+- **2026-10-24 — a bounded server read grant moves onto the doing-list** (author's G6 commission, LLP 3000.009.001.000.002 §4.2). It unblocks zero-flight Postgres hits after G5's measured validation CPU limit. Taken off the doing-list: mandatory per-hit database validation for the explicitly qualified, single-owner Linux deployment. Unqualified clocks/failover and lost/uncertain epochs use G5; device result caches and cross-revision promotion remain excluded.
+
+- **2026-10-24 — Postgres server revision-equality read reuse** (LLP
+  3000.009.001.000.002 §4/§6 G5). This removes repeated interpretation and
+  data decoding for eligible pure queries at an unchanged durable revision.
+  Taken off: the blanket server result-cache exclusion. Every reuse still
+  validates fresh authority, revision and code in one database statement;
+  SQLite stays on ordinary reads because it has no complete revision stream.
+  Device caches, dependency promotion, retained authority and zero-flight
+  grants stay excluded. Operator-local counters add no HTTP or authoring API.
 
 - **2026-10-20 — Snapback 4 on Postgres moves onto the doing-list** (author: "commit and push these things, then do your \"what i'd do next\" things, then get this working on postgres and measure it"; LLP 3000.009.001 and its children). Unblocks: the store-port extraction on SQLite (P0, including the `Committer` seam with the serial batch); the Postgres adapters for every durable-state family and `serve`/`deploy`/`doctor` over Postgres (P1), with store-held fencing, the declared HA mode and `BlobStore`; the optimistic committer, commissioned on 2026-10-19 and built after its execution stage is sized; the scale program of LLP 3000.009.001.002 with its raw-Postgres, Supabase and Convex controls on fleet machines; and a research note comparing replicated SQLite with Postgres for applications that outgrow one SQLite file. Taken off in the same change: the evaluation-only framing of the Postgres adapter. Stands: no publication or managed-service deployment authority, no lowering of Quarry to SQL, no SQL writes to managed data, one core owner. Several serving processes (P2), log retention, live graduation (LLP 3000.009.001.001) and the async-safe external anchor each wait for their own Moves line.
 

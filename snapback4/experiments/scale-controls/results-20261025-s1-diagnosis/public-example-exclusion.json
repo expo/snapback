@@ -1,0 +1,7 @@
+{
+  "path": "probe-source/vendor/tiny_http/examples/ssl-key.pem",
+  "sha256": "e345c5c79dba8fd849f31fb06ee871a32d1f1bf1ef4c15b510e70a2524009626",
+  "upstream_copy_matches_product_base": true,
+  "omitted_from_archive": true,
+  "reason": "Unused public vendored TLS example key; not benchmark material; no TLS example is compiled or measured. Repository file unchanged."
+}

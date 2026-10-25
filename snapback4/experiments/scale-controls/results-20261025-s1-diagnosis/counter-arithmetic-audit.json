@@ -1,0 +1,20 @@
+[
+  {
+    "phase": "native",
+    "trials": 72,
+    "mismatches": 5,
+    "unknown_commits": 134
+  },
+  {
+    "phase": "light",
+    "trials": 24,
+    "mismatches": 6,
+    "unknown_commits": 167
+  },
+  {
+    "phase": "heavy-observer",
+    "trials": 24,
+    "mismatches": 6,
+    "unknown_commits": 131
+  }
+]

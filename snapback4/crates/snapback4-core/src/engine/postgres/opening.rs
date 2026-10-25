@@ -157,6 +157,9 @@ impl Handle {
             let generation = if !fresh && changed { before.0.checked_add(1).ok_or_else(|| RuntimeError::Generation("generation overflow".into()))? } else { before.0 };
             let tx = AnyTx::from_postgres(tx);
             tx.with_postgres(|inner| check(&AnyPreparation::Postgres(Preparation(inner))))?;
+            // Release preparation can install ledgers too. Admit all installer
+            // and event-trigger effects before live/dormant population moves.
+            tx.with_postgres(super::managed_relations::verify)?;
             if !fresh { tx.with_postgres(|inner| super::evolution::transition(inner, &previous, schema))?; }
             let population=crate::activation::ActivationReader::activation_population(&tx)?.as_deref()==Some("true");
             let rebuilding=schema_changed || population;
@@ -184,6 +187,7 @@ impl Handle {
 
 pub(super) fn initialize(tx: &Tx<'_>, schema: &Schema) -> Result<(), RuntimeError> {
     super::activation_schema::verify_core(tx)?;
+    super::revision::initialize(tx)?;
     // Apply the evaluator's portable key bound before accepting an existing
     // generation, as well as on each shared row/index write.
     if let Some(row) = tx.query(
@@ -218,6 +222,7 @@ impl Tx<'_> {
             initialize(&self, &schema)?;
             let id = self.meta("store_id")?.ok_or(RuntimeError::WorkerStoreIdentity)?;
             super::ownership::install(&self, &id)?;
+            super::managed_relations::verify(&self)?;
             let metadata = crate::store_port::OpeningMetadata::read(&self)?;
             self.commit()?;
             Ok(metadata)

@@ -1,0 +1,230 @@
+[
+  {
+    "config": "g5",
+    "link": "a",
+    "release_sha256": "be7b020d29acba28405c6724b71a77b69501ab241baab2724b46c4276ad11975",
+    "priming": {
+      "n": 32,
+      "p50_ms": 2.691722,
+      "p99_ms": 36.641387,
+      "max_ms": 36.641387,
+      "valid": 32
+    },
+    "low_load": {
+      "n": 1000,
+      "p50_ms": 1.582206,
+      "p99_ms": 2.076316,
+      "max_ms": 3.372292,
+      "valid": 1000
+    },
+    "connections_before": 4,
+    "connections_after_low": 4,
+    "method": "32 sequential credential hints, then three synchronized 32-client bursts with distinct uncached W1 keys; client timeout5s; same native release",
+    "bursts": [
+      {
+        "index": 1,
+        "stats": {
+          "n": 32,
+          "p50_ms": 958.136089,
+          "p99_ms": 961.179854,
+          "max_ms": 961.179854,
+          "valid": 32
+        },
+        "connections": 32
+      },
+      {
+        "index": 2,
+        "stats": {
+          "n": 32,
+          "p50_ms": 7.93787,
+          "p99_ms": 11.290956,
+          "max_ms": 11.290956,
+          "valid": 32
+        },
+        "connections": 32
+      },
+      {
+        "index": 3,
+        "stats": {
+          "n": 32,
+          "p50_ms": 7.850796,
+          "p99_ms": 9.919136,
+          "max_ms": 9.919136,
+          "valid": 32
+        },
+        "connections": 32
+      }
+    ]
+  },
+  {
+    "config": "g5",
+    "link": "b",
+    "release_sha256": "be7b020d29acba28405c6724b71a77b69501ab241baab2724b46c4276ad11975",
+    "priming": {
+      "n": 32,
+      "p50_ms": 3.708525,
+      "p99_ms": 63.401198,
+      "max_ms": 63.401198,
+      "valid": 32
+    },
+    "low_load": {
+      "n": 1000,
+      "p50_ms": 2.136168,
+      "p99_ms": 2.544626,
+      "max_ms": 2.789888,
+      "valid": 1000
+    },
+    "connections_before": 4,
+    "connections_after_low": 4,
+    "method": "32 sequential credential hints, then three synchronized 32-client bursts with distinct uncached W1 keys; client timeout5s; same native release",
+    "bursts": [
+      {
+        "index": 1,
+        "stats": {
+          "n": 32,
+          "p50_ms": 1467.868356,
+          "p99_ms": 1469.587429,
+          "max_ms": 1469.587429,
+          "valid": 32
+        },
+        "connections": 32
+      },
+      {
+        "index": 2,
+        "stats": {
+          "n": 32,
+          "p50_ms": 6.967946,
+          "p99_ms": 10.512292,
+          "max_ms": 10.512292,
+          "valid": 32
+        },
+        "connections": 32
+      },
+      {
+        "index": 3,
+        "stats": {
+          "n": 32,
+          "p50_ms": 7.654287,
+          "p99_ms": 9.922372,
+          "max_ms": 9.922372,
+          "valid": 32
+        },
+        "connections": 32
+      }
+    ]
+  },
+  {
+    "config": "g6",
+    "link": "a",
+    "release_sha256": "be7b020d29acba28405c6724b71a77b69501ab241baab2724b46c4276ad11975",
+    "priming": {
+      "n": 32,
+      "p50_ms": 2.740294,
+      "p99_ms": 43.492812,
+      "max_ms": 43.492812,
+      "valid": 32
+    },
+    "low_load": {
+      "n": 1000,
+      "p50_ms": 1.611411,
+      "p99_ms": 2.040037,
+      "max_ms": 2.182986,
+      "valid": 1000
+    },
+    "connections_before": 4,
+    "connections_after_low": 4,
+    "method": "32 sequential credential hints, then three synchronized 32-client bursts with distinct uncached W1 keys; client timeout5s; same native release",
+    "bursts": [
+      {
+        "index": 1,
+        "stats": {
+          "n": 32,
+          "p50_ms": 975.837649,
+          "p99_ms": 980.681358,
+          "max_ms": 980.681358,
+          "valid": 32
+        },
+        "connections": 32
+      },
+      {
+        "index": 2,
+        "stats": {
+          "n": 32,
+          "p50_ms": 7.216564,
+          "p99_ms": 9.974611,
+          "max_ms": 9.974611,
+          "valid": 32
+        },
+        "connections": 32
+      },
+      {
+        "index": 3,
+        "stats": {
+          "n": 32,
+          "p50_ms": 7.822413,
+          "p99_ms": 10.253264,
+          "max_ms": 10.253264,
+          "valid": 32
+        },
+        "connections": 32
+      }
+    ]
+  },
+  {
+    "config": "g6",
+    "link": "b",
+    "release_sha256": "be7b020d29acba28405c6724b71a77b69501ab241baab2724b46c4276ad11975",
+    "priming": {
+      "n": 32,
+      "p50_ms": 3.713565,
+      "p99_ms": 62.897711,
+      "max_ms": 62.897711,
+      "valid": 32
+    },
+    "low_load": {
+      "n": 1000,
+      "p50_ms": 2.051979,
+      "p99_ms": 2.542672,
+      "max_ms": 2.939609,
+      "valid": 1000
+    },
+    "connections_before": 4,
+    "connections_after_low": 4,
+    "method": "32 sequential credential hints, then three synchronized 32-client bursts with distinct uncached W1 keys; client timeout5s; same native release",
+    "bursts": [
+      {
+        "index": 1,
+        "stats": {
+          "n": 32,
+          "p50_ms": 1529.110066,
+          "p99_ms": 1531.869295,
+          "max_ms": 1531.869295,
+          "valid": 32
+        },
+        "connections": 32
+      },
+      {
+        "index": 2,
+        "stats": {
+          "n": 32,
+          "p50_ms": 7.889048,
+          "p99_ms": 10.356459,
+          "max_ms": 10.356459,
+          "valid": 32
+        },
+        "connections": 32
+      },
+      {
+        "index": 3,
+        "stats": {
+          "n": 32,
+          "p50_ms": 7.424925,
+          "p99_ms": 9.667774,
+          "max_ms": 9.667774,
+          "valid": 32
+        },
+        "connections": 32
+      }
+    ]
+  }
+]

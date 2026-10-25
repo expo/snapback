@@ -33,7 +33,7 @@ CREATE INDEX IF NOT EXISTS _read_sessions_family ON _read_sessions(principal, fa
 pub(super) const VERSION: &str = "snapback4-postgres-evaluation-3";
 pub(super) const DDL: &str = "
 CREATE TABLE _backend (singleton BOOLEAN PRIMARY KEY CHECK(singleton), version TEXT NOT NULL, schema TEXT NOT NULL, programs TEXT NOT NULL);
-CREATE TABLE _head (singleton BOOLEAN PRIMARY KEY CHECK(singleton), seq BIGINT NOT NULL CHECK(seq >= 0));
+CREATE TABLE _head (singleton BOOLEAN PRIMARY KEY CHECK(singleton), seq BIGINT NOT NULL CHECK(seq >= 0), revision BIGINT NOT NULL DEFAULT 0 CHECK(revision >= 0));
 INSERT INTO _head VALUES (true, 0);
 CREATE TABLE r (t TEXT COLLATE \"C\" NOT NULL, id TEXT COLLATE \"C\" NOT NULL, data TEXT NOT NULL, PRIMARY KEY(t,id));
 CREATE TABLE i (t TEXT COLLATE \"C\" NOT NULL, ix TEXT COLLATE \"C\" NOT NULL, k BYTEA NOT NULL, id TEXT COLLATE \"C\" NOT NULL, PRIMARY KEY(t,ix,k));
@@ -81,6 +81,7 @@ pub struct Store {
     pub(super) read_sessions: Cell<bool>,
     pub(super) unified: bool,
     pub(super) fence: Option<super::ownership::Fence>,
+    pub(crate) read_grant: Option<std::sync::Arc<super::read_grant::Grant>>,
     pub(super) commit_warning: std::sync::Arc<std::sync::atomic::AtomicBool>,
     pub generation: u64,
     pub(crate) read_only: bool,
@@ -101,7 +102,7 @@ pub struct Store {
 impl Store {
     pub fn new(client: Client) -> Self { Self::with_connection(super::pipeline::Connection::Sync(client)) }
     pub(super) fn with_connection(client: super::pipeline::Connection) -> Self {
-        Self { read_sessions: Cell::new(false), unified: false, fence: None, commit_warning: Default::default(), generation:1, read_only: false, client, qualified: false, reader_binding: false, next_program_deadline: None, literal_cache: BTreeMap::new(), cache: BTreeMap::new(), calls: CallCounter::new(0), prefetch: true, marked_reads: Cell::new(0), page_reads: Cell::new(0), prefetch_rows: Cell::new(0), prefetch_bytes: Cell::new(0) }
+        Self { read_sessions: Cell::new(false), unified: false, fence: None, read_grant: None, commit_warning: Default::default(), generation:1, read_only: false, client, qualified: false, reader_binding: false, next_program_deadline: None, literal_cache: BTreeMap::new(), cache: BTreeMap::new(), calls: CallCounter::new(0), prefetch: true, marked_reads: Cell::new(0), page_reads: Cell::new(0), prefetch_rows: Cell::new(0), prefetch_bytes: Cell::new(0) }
     }
 
     // @ref LLP 3000.009.001.000#8 — only future requests reconnect, with fresh binding checks.
@@ -109,6 +110,7 @@ impl Store {
     // statements belong to the old socket; no result or authority is reused.
     fn refresh_reader_connection(&mut self) -> Result<(),RuntimeError> {
         if self.client.refresh_closed()? {
+            if let Some(grant)=&self.read_grant {grant.revoke();}
             self.literal_cache.clear(); self.cache.clear();
             self.reader_binding = self.unified;
         }
@@ -121,34 +123,42 @@ impl Store {
             if u64::try_from(row.try_get::<_,i64>(1)?).ok() != Some(self.generation) {
                 return Err(RuntimeError::Generation("reader generation changed while reconnecting; reopen the engine".into()));
             }
+            self.calls.set(self.calls.get()+2);
+            if let Some(row) = self.client.query(super::managed_relations::SQL, &[&crate::managed_relations::TABLES])?.first() {
+                return Err(crate::managed_relations::refusal(row.get(0), row.get(1)));
+            }
             // Keep the validation pending after any mismatch or failed query.
             self.reader_binding = false;
         }
         Ok(())
     }
 
-    fn begin(&mut self, mode: Option<WriteMode>, opening: bool) -> Result<Tx<'_>, RuntimeError> {
+    pub(crate) fn cached_read(&mut self)->Result<Tx<'_>,RuntimeError> {self.begin_inner(None,false,true)}
+    fn begin(&mut self, mode: Option<WriteMode>, opening: bool) -> Result<Tx<'_>, RuntimeError> {self.begin_inner(mode,opening,false)}
+    fn begin_inner(&mut self, mode: Option<WriteMode>, opening: bool, cpu_only:bool) -> Result<Tx<'_>, RuntimeError> {
+        if mode.is_some() && self.read_grant.as_ref().is_some_and(|g|g.uncertain.load(std::sync::atomic::Ordering::Acquire)) {return Err(RuntimeError::StoreOwnership("unknown COMMIT pauses writer admission until fenced reconciliation".into()));}
         let deadline = self.next_program_deadline.take();
         if self.read_only && mode.is_some() { return Err(RuntimeError::Store("Postgres reader is read-only".into())); }
-        self.refresh_reader_connection()?;
-        if !self.qualified {
+        if !cpu_only { self.refresh_reader_connection()?; }
+        if !self.qualified && !cpu_only {
             if !self.client.is_reader() {
                 self.client.configure()?;
                 self.calls.set(self.calls.get() + 3);
             }
             self.qualified = true;
         }
-        self.client.begin();
+        if !cpu_only { self.client.begin(); }
         self.page_reads.set(0);
         let begin = match mode {
             None => "BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY;",
             Some(WriteMode::Serialized) => "BEGIN ISOLATION LEVEL READ COMMITTED READ WRITE;",
             Some(WriteMode::Serializable) => "BEGIN ISOLATION LEVEL SERIALIZABLE READ WRITE;",
         };
-        let inner = super::flight::Session { client: &mut self.client, pending: begin.into(), started: false, done: false, settings_refused: false, checks: Vec::new() };
-        let tx = Tx { read_sessions: &self.read_sessions, read_sessions_installed: Cell::new(false), unified: self.unified, commit_warning: &self.commit_warning, inner: RefCell::new(inner),
+        let inner = super::flight::Session { client: &mut self.client, pending: if cpu_only {String::new()} else {begin.into()}, started: false, done: cpu_only, settings_refused: false, checks: Vec::new() };
+        let tx = Tx { read_grant:self.read_grant.clone(), durable_write: mode.is_some(), revisions: Cell::new(0), lifecycle: opening, read_sessions: &self.read_sessions, read_sessions_installed: Cell::new(false), unified: self.unified, commit_warning: &self.commit_warning, inner: RefCell::new(inner),
             bind_refused: Cell::new(false), program_deadline: Cell::new(deadline), read_cache: RefCell::new(super::read_plan::Answers::default()), pending_read: RefCell::new(None), receipt_cache: RefCell::new(None), placement_cache: RefCell::new(None), authority_cache: RefCell::new(None), commit_settings: Cell::new(false), literal_cache: RefCell::new(&mut self.literal_cache), cache: RefCell::new(&mut self.cache), calls: &self.calls, marked_reads: &self.marked_reads, page_reads: &self.page_reads, prefetch_rows: &self.prefetch_rows, prefetch_bytes: &self.prefetch_bytes,
             rows_cache: RefCell::new(super::prefetch::Cache::default()), prefetch_enabled: self.prefetch, head: Cell::new(None), serialized_head: Cell::new(false), tail: RefCell::new(super::tail::Tail::default()), group_head: Cell::new(None), group_tails: RefCell::new(Vec::new()), group_images: Default::default(), changes: Default::default(), savepoints: RefCell::new(Vec::new()) };
+        if opening { super::managed_relations::verify(&tx)?; }
         if self.unified && mode.is_some() {
             // Bootstrap is the sole exception: an absent owner relation is
             // installed in the successful opening transaction, never by readers.
@@ -264,7 +274,9 @@ impl Store {
     // Recovery checks the physical bootstrap before assuming any columns exist.
     // PostgreSQL enforces read-only access for this entire repeatable snapshot.
     pub(super) fn bootstrap_read_transaction(&mut self) -> Result<Tx<'_>, RuntimeError> {
-        self.begin(None, false)
+        let tx = self.begin(None, false)?;
+        super::managed_relations::verify(&tx)?;
+        Ok(tx)
     }
 
     // Parse/SQL PREPARE can retain relation locks until transaction end. Warm
@@ -387,6 +399,11 @@ impl Tx<'_> {
 }
 
 pub struct Tx<'a> {
+    read_grant: Option<std::sync::Arc<super::read_grant::Grant>>,
+    durable_write: bool,
+    pub(super) revisions: Cell<u64>,
+    // @ref LLP 3000.009.001.000.002#6 — restored images can precede their index/cap population rebuild.
+    pub(super) lifecycle: bool,
     program_deadline: Cell<Option<std::time::Instant>>,
     pub(super) read_sessions: &'a Cell<bool>,
     pub(super) read_sessions_installed: Cell<bool>,
@@ -712,7 +729,19 @@ impl Tx<'_> {
         self.program_deadline.set(None);
         self.ensure_active()?;
         if self.inner.borrow().done { return Ok(()); }
+        // @ref LLP 3000.009.001.000.002#4.1 — solo administrative and legacy family writers join the same revision domain.
+        if self.unified && self.durable_write {
+            self.require_serialized_head_fence("commit durable revision")?;
+            if self.revisions.get() == 0 && self.group_head.get().is_none() {
+                self.defer_revision(1)?;
+            }
+        }
         self.flush_tail()?;
+        // Installer DDL (including event-trigger effects) and late activation
+        // callbacks share this transaction. Re-admit after its last writes.
+        if self.lifecycle { super::managed_relations::verify(&self)?; }
+        let grant=self.read_grant.as_ref().filter(|g|self.durable_write && g.configured.load(std::sync::atomic::Ordering::Acquire)).cloned();
+        let published=if grant.is_some() {Some(super::read_grant::Published::row(&self.query(super::read_grant::PUBLICATION,&[])?.remove(0))?)} else {None};
         let mut inner = self.inner.into_inner();
         if !self.commit_settings.get() {
             inner.pending.push_str("SET LOCAL statement_timeout = 0; SET LOCAL lock_timeout = 0;");
@@ -722,8 +751,9 @@ impl Tx<'_> {
         // The last data flight verified the codec settings. Only client-side
         // validation intervenes; COMMIT stays alone and decodes no row payload.
         // Once COMMIT is sent, even transport loss must retain unknown-outcome classification.
-        inner.done = true;
-        inner.client.commit_prepared(self.commit_warning)?;
+        if let (Some(grant),Some(published))=(grant,published) {
+            grant.commit(published,|| {inner.done=true;inner.client.commit_prepared(self.commit_warning)})?;
+        } else {inner.done=true;inner.client.commit_prepared(self.commit_warning)?;}
         if self.read_sessions_installed.get() { self.read_sessions.set(true); }
         Ok(())
     }
@@ -799,7 +829,8 @@ impl Rows for Tx<'_> {
         Ok(self.query("SELECT value FROM _sequences WHERE parent = $1 AND id = $2", &[&parent, &id])?.first().map_or(0, |r| r.get(0)))
     }
     fn set_sequence(&self, parent: &str, id: &str, value: i64) -> Result<(), RuntimeError> {
-        self.execute("INSERT INTO _sequences VALUES ($1, $2, $3) ON CONFLICT(parent, id) DO UPDATE SET value = EXCLUDED.value", &[&parent, &id, &value])?;
+        let affected = self.execute("INSERT INTO _sequences VALUES ($1, $2, $3) ON CONFLICT(parent, id) DO UPDATE SET value = EXCLUDED.value", &[&parent, &id, &value])?;
+        crate::rows::require_one(affected, "sequence upsert", parent, None)?;
         Ok(())
     }
     fn sequence_ids(&self, parent: &str) -> Result<Vec<String>, RuntimeError> {
@@ -930,21 +961,22 @@ impl Rows for Tx<'_> {
         guard.range(meter, 2, prefix, bounds)?;
         guard.reserve(meter, DRIVER_SCRATCH)?;
         let Some((lo, hi)) = crate::rows::scan_range(prefix, bounds, dir) else { return Ok(Vec::new()) };
-        if let Some(cached) = self.read_cache.borrow().scan(table,name,&lo,&hi,dir,limit) {
+        let answers = self.read_cache.borrow();
+        if let Some(cached) = answers.scan_priced(table,name,&lo,&hi,dir,limit) {
             let mut out=Vec::new();
-            let images=cached.iter().map(|(row,_)|crate::value::canonical_json(row)).collect::<Vec<_>>();
             let mut preflight=heap::Preflight::new();
-            for (data,(_,key)) in images.iter().zip(&cached) {
-                if !preflight.entry(meter,&mut guard,data.len() as u64,key.len() as u64,ROW_SCRATCH)? {break;}
+            for (_,key,image) in &cached {
+                if !preflight.entry(meter,&mut guard,image.json_bytes,key.len() as u64,ROW_SCRATCH)? {break;}
             }
-            for ((row,key),data) in cached.into_iter().zip(images).take(preflight.entries) {
-                let additional=heap::scan_entry(meter,&mut guard,out.len(),out.capacity(),&data,&key)?;
+            for (row,key,image) in cached.into_iter().take(preflight.entries) {
+                let additional=image.charge(meter,&mut guard,out.len(),out.capacity(),key)?;
                 if additional!=0 {out.reserve_exact(additional);}
-                out.push((row,key));
+                out.push((row.clone(),key.to_vec()));
             }
             preflight.check()?;
             return Ok(out);
         }
+        drop(answers);
         let sizes = match dir {
             Dir::Asc => "SELECT octet_length(r.data)::bigint, octet_length(i.k)::bigint FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k ASC LIMIT $5",
             Dir::Desc => "SELECT octet_length(r.data)::bigint, octet_length(i.k)::bigint FROM i JOIN r ON r.t = i.t AND r.id = i.id WHERE i.t = $1 AND i.ix = $2 AND i.k >= $3 AND i.k < $4 ORDER BY i.k DESC LIMIT $5",
@@ -1003,11 +1035,13 @@ impl Rows for Tx<'_> {
         let mut entries = 0;
         for crate::rows::IndexWrite { name, before, after } in keys {
             for key in before.iter().filter(|k| !after.contains(k)) {
-                self.execute("DELETE FROM i WHERE t = $1 AND ix = $2 AND k = $3", &[&table_name, &name, key])?;
+                let affected = self.execute("DELETE FROM i WHERE t = $1 AND ix = $2 AND k = $3", &[&table_name, &name, key])?;
+                if !self.lifecycle { crate::rows::require_one(affected, "index delete", table_name, Some(name))?; }
                 entries += 1;
             }
             for key in after.iter().filter(|k| !before.contains(k)) {
-                self.execute("INSERT INTO i VALUES ($1,$2,$3,$4)", &[&table_name, &name, key, &id])?;
+                let affected = self.execute("INSERT INTO i VALUES ($1,$2,$3,$4)", &[&table_name, &name, key, &id])?;
+                crate::rows::require_one(affected, "index insert", table_name, Some(name))?;
                 entries += 1;
             }
         }
@@ -1023,11 +1057,13 @@ impl Rows for Tx<'_> {
         let sql = if self.unified {
             "WITH refs AS (UPDATE _dormant_refs SET invalid=1 WHERE parent_t=$1 AND parent_id=$2 AND invalid=0 AND NOT(t=$1 AND id=$2)), cells AS (DELETE FROM _dormant_values WHERE t=$1 AND id=$2), images AS (DELETE FROM _dormant_rows WHERE t=$1 AND id=$2), narrowed AS (DELETE FROM _dormant_narrow_rows WHERE t=$1 AND id=$2), own_refs AS (DELETE FROM _dormant_refs WHERE t=$1 AND id=$2) DELETE FROM r WHERE t=$1 AND id=$2"
         } else { "DELETE FROM r WHERE t = $1 AND id = $2" };
-        self.execute(sql, &[&table_name, &id])?;
+        let affected = self.execute(sql, &[&table_name, &id])?;
+        crate::rows::require_one(affected, "row delete", table_name, None)?;
         let mut entries = 0;
         for (name, index) in &table.indexes {
             for key in stored_index_keys(table, index, old, id) {
-                self.execute("DELETE FROM i WHERE t = $1 AND ix = $2 AND k = $3", &[&table_name, name, &key])?;
+                let affected = self.execute("DELETE FROM i WHERE t = $1 AND ix = $2 AND k = $3", &[&table_name, name, &key])?;
+                if !self.lifecycle { crate::rows::require_one(affected, "index delete", table_name, Some(name))?; }
                 entries += 1;
             }
         }

@@ -19,7 +19,7 @@ fn engine_with_json(pg: bool, payload: bool) -> (Engine, String, String) {
 fn engine_with_payload(pg: bool, payload: bool, text_nul: bool) -> (Engine, String, String) {
     engine_with_message_count(pg, payload, text_nul, 3)
 }
-fn engine_with_message_count(pg: bool, payload: bool, text_nul: bool, messages: usize) -> (Engine, String, String) {
+pub(in crate::engine) fn engine_with_message_count(pg: bool, payload: bool, text_nul: bool, messages: usize) -> (Engine, String, String) {
     let source = if payload {
         source().replace(
             "  body: text <=4000",
@@ -618,4 +618,28 @@ fn pipeline_read_closure_future_requests_recover_and_recheck_store_binding() {
     }
     pg.store_mut().test_postgres_handle_mut().store.get_mut().client.execute("UPDATE _meta SET value=$1 WHERE key='store_id'",&[&original]).unwrap();
     assert_eq!(run(&mut fresh,&digest,&viewer,"W3",BTreeMap::new(),true),expected,"a failed binding check must not be marked validated");
+}
+
+#[test]
+#[ignore = "private PG16; FF1 reconnect admission"]
+fn pipeline_read_closure_reconnect_refuses_forced_rls() {
+    let(mut pg,digest,viewer)=engine(true);
+    let mut reader=pg.reader().unwrap();
+    let expected=run(&mut reader,&digest,&viewer,"W3",BTreeMap::new(),true);
+    assert!(expected["out"]["Ok"].is_object());
+    let victim:i32=reader.store_mut().test_postgres_handle_mut().store.get_mut().client.query_one("SELECT pg_backend_pid()",&[]).unwrap().get(0);
+    let control=&mut pg.store_mut().test_postgres_handle_mut().store.get_mut().client;
+    control.batch_execute("ALTER TABLE r ENABLE ROW LEVEL SECURITY; ALTER TABLE r FORCE ROW LEVEL SECURITY").unwrap();
+    assert!(control.query_one("SELECT pg_terminate_backend($1)",&[&victim]).unwrap().get::<_,bool>(0));
+    let until=std::time::Instant::now()+std::time::Duration::from_secs(5);
+    while !reader.store_mut().test_postgres_handle_mut().store.get_mut().client.is_closed() {
+        assert!(std::time::Instant::now()<until);std::thread::sleep(std::time::Duration::from_millis(2));
+    }
+    for _ in 0..2 {
+        let refusal=run(&mut reader,&digest,&viewer,"W3",BTreeMap::new(),true);
+        assert_eq!(refusal["out"]["Err"]["code"],"E_STORE","reconnect must keep admission pending: {refusal}");
+        assert!(refusal.to_string().contains("SNAPBACK_MANAGED_RELATION_INTERCEPTION"));
+    }
+    pg.store_mut().test_postgres_handle_mut().store.get_mut().client.batch_execute("ALTER TABLE r DISABLE ROW LEVEL SECURITY; ALTER TABLE r NO FORCE ROW LEVEL SECURITY").unwrap();
+    assert_eq!(run(&mut reader,&digest,&viewer,"W3",BTreeMap::new(),true),expected);
 }

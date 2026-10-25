@@ -1,0 +1,11 @@
+{
+  "path": "/home/ccheever/sb4scale/archive/s1-diagnosis-20261025.tar.gz",
+  "sha256": "5d66635f4471b8c4e0d7145ce5cb8b90259e4879e989d136c2cd6114003c2259",
+  "bytes": 926450123,
+  "members": 7195,
+  "http_load_trials": 210,
+  "trivial_generator_trials": 42,
+  "observer_heavy_pass_retained": true,
+  "setup_failures_retained": true,
+  "private_database_and_credentials_excluded": true
+}

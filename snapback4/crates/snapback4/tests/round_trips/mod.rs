@@ -423,3 +423,44 @@ fn pipeline_http_measure_128_clients() {
         println!("PIPELINE_HTTP_MEASUREMENT {}",json!({"op":name,"depth":std::env::var("SNAPBACK4_POSTGRES_PIPELINE_DEPTH").unwrap_or("4".into()),"clients":128,"max_connections":30,"http_workers":REQUEST_WORKERS,"http_queue":SHORT_REQUEST_QUEUE,"reads":times.len(),"refused_503":refused,"seconds":seconds,"reads_per_second":times.len() as f64/seconds,"p50_ms":times[times.len()/2] as f64/1e6,"p99_ms":times[times.len()*99/100] as f64/1e6,"connection":"close per request","fixture":"RT0 W2=25 messages/newest20; W3=32 scalar totals"}));
     }
 }
+
+// @ref LLP 3000.009.001.000.002#4.3 — the complete HTTP route must preserve metadata while the first G6 hit costs zero flights.
+#[cfg(feature="postgres")]
+#[test]
+#[ignore="private PG16"]
+fn round_trips_postgres_g6_zero_flight_hits_and_g5_fallback() {
+    use snapback4_core::store_port::{AnyStore,StoreLease,LeasePolicy,ReadClockBounds};
+    let url=std::env::var("SNAPBACK4_EVAL_POSTGRES").unwrap();
+    let ns=format!("rt0_g6_{:x}",snapback4_core::ids::seed());
+    let source=format!("{}\n{}",include_str!("../../../../reports/20261022-rt-a-round-trips/admitted-s1.q"),include_str!("w3.q")).replace("table rooms:\n","table rooms:\n  total: int default 0\n");
+    let bound=snapback4_lang::compile(&[("schema.q".into(),source.clone())]);assert!(bound.diagnostics.is_empty());
+    let schema=serde_json::from_value(serde_json::to_value(&bound.schema).unwrap()).unwrap();
+    let programs:Vec<snapback4_core::Program>=bound.programs.into_iter().map(|p|serde_json::from_value(serde_json::to_value(p.program).unwrap()).unwrap()).collect();
+    let bootstrap=Engine::new(AnyStore::create_postgres(&url,&ns).unwrap(),schema,programs).unwrap();
+    let id=bootstrap.store().store_identity().unwrap().unwrap();drop(bootstrap);
+    let mut lease=StoreLease::connect(&url,&ns,&id,"a666",LeasePolicy {lease:Duration::from_secs(30),..Default::default()}).unwrap();
+    assert!(lease.acquire().unwrap().is_some());
+    lease.enable_read_grant(ReadClockBounds {rate_ppm:1000,forward_jump:Duration::from_millis(10)}).unwrap();
+    let host=Host::with_store(false,AnyStore::open_postgres_owned(&url,&ns,&lease).unwrap(),&source);
+    let token={let e=lock(&host.shared.engine);identity::open_session(e.store(),"guest:g6-http","account",host.shared.now()).unwrap().token};
+    let headers=format!("Authorization: Bearer {token}\r\n");
+    let request=|path:&str,args:Json| {let response=host.request("POST",path,&headers,&json!({"args":args}).to_string());assert_eq!(status(&response),200,"{response}");body(&response)};
+    assert_eq!(request("/m/setup",json!({}))["state"],"sent");
+    for n in 0..25 {assert_eq!(request("/m/seedMessage",json!({"key":format!("m{n}"),"at":n}))["state"],"sent");}
+    let (tx,rx)=mpsc::channel();*lock(&host.shared.round_trips)=Some(tx);
+    for (name,args) in [("W1",json!({"message":"m24"})),("W2",json!({"room":"r0001"})),("W3",json!({}))] {
+        let mut ordinary=None;
+        for repetition in 0..4 {
+            let reply=request(&format!("/q/{name}"),args.clone());let count=rx.recv_timeout(Duration::from_secs(10)).unwrap();
+            assert_eq!(count.postgres,if repetition==0 {2}else if repetition==1 {1}else{0},"{name} repetition {repetition}: {count:?}");assert_eq!(count.sqlite,0);
+            if let Some(expected)=&ordinary {assert_eq!(&reply,expected,"same data, metadata, manifest and cursor");}else{ordinary=Some(reply.clone());}
+            assert_eq!(reply["store_id"],id);assert!(reply.get("head").is_none());assert!(reply["seq"].is_u64());assert!(reply["generation"].is_u64());
+        }
+    }
+    let before=lock(&host.shared.engine).revision_cache_stats();assert!(before.g6_hits>=6);
+    lease.release().unwrap();
+    for _ in 0..3 {request("/q/W2",json!({"room":"r0001"}));let count=rx.recv_timeout(Duration::from_secs(10)).unwrap();assert_eq!(count.postgres,1,"revoked grant uses the unchanged G5/miss path");}
+    let after=lock(&host.shared.engine).revision_cache_stats();
+    assert_eq!(after.g6_hits,before.g6_hits);assert!(after.hits>before.hits,"fresh G5 reuse resumes after grant retirement");
+    eprintln!("RT0 G6 W1/W2/W3 = 0/0/0; misses=1/1/1; revoked grant G5=1");
+}

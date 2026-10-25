@@ -1,0 +1,13 @@
+{
+  "hostname": "expose-builder-pixel-a",
+  "product_commit": "c985dbc64022312af282f0d78da4902232592cac",
+  "runner_commits": [
+    "327a415062f98c29affe099c746a4e6113ed2d7b",
+    "97e236c87e9017f59b579cc0ed67d378e928af39",
+    "149cb5c41fb578cc7640fbc2c45f70b48789281e",
+    "1921c218a07eee51e7ec8205e73eefd8376736d1"
+  ],
+  "prior_control_archive_sha256": "2ad9953ae6e01a790171e3778547e2703f4d0db9e991039f2833c03543ecb7fb",
+  "environment_keys": [],
+  "product_tree_unchanged": true
+}

@@ -59,6 +59,9 @@ impl AnyStore {
             "SET search_path={quoted},pg_catalog; SET statement_timeout='5s'"
         ))?;
         let mut tx = client.build_transaction().read_only(true).start()?;
+        if let Some(row) = tx.query(super::managed_relations::SQL, &[&crate::managed_relations::TABLES])?.first() {
+            return Err(crate::managed_relations::refusal(row.get(0), row.get(1)));
+        }
         let row = tx.query_one("SELECT o.store_id,o.holder,o.token,o.lease_until::text,o.lease_until<clock_timestamp(),b.generation, (SELECT value FROM _meta WHERE key='release'), (SELECT value FROM _meta WHERE key='release_revision'), (SELECT value FROM _meta WHERE key='store_id') FROM _owner o CROSS JOIN _backend b WHERE o.singleton AND b.singleton", &[])?;
         let store_id: String = row.try_get(0)?;
         if row.try_get::<_, Option<String>>(8)?.as_deref() != Some(&store_id) {

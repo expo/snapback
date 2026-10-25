@@ -122,15 +122,25 @@ process.stdout.write(JSON.stringify({jwks:'data:text/plain;charset=utf-8;base64,
         self.admin=admin.read_text();self.env['CONVEX_SELF_HOSTED_ADMIN_KEY']=self.admin
         # Exact same independent-SSH dispatcher and S0 delay proxy as Supabase.
         log=(directory/'dispatcher.stdout').open('x');err=(directory/'dispatcher.stderr').open('x')
-        p=sp.Popen(['taskset','-c',APP_CORES,str(BIN),'dispatch','--delay-us',str(delay)],env=self.env,stdout=log,stderr=err)
-        self.dispatcher=(p,log,err)
-        self.record(p,'app')
-        self.ready_tcp(p,58081)
+        socket_dir=self.env.get('SCALE_PG_SOCKET')
+        if socket_dir:
+            log.close();err.close()
+        else:
+            p=sp.Popen(['taskset','-c',APP_CORES,str(BIN),'dispatch','--delay-us',str(delay)],env=self.env,stdout=log,stderr=err)
+            self.dispatcher=(p,log,err)
+            self.record(p,'app')
+            self.ready_tcp(p,58081)
         env=dict(self.env,POSTGRES_MAX_CONNECTIONS=str(pool),APPLICATION_MAX_CONCURRENT_QUERIES=str(pool),APPLICATION_MAX_CONCURRENT_MUTATIONS=str(pool),
                  DOCUMENT_RETENTION_DELAY='172800',RUST_LOG='info',DISABLE_BEACON='true',DISABLE_METRICS_ENDPOINT='false')
         # The native driver requires credentials in its URL; never record argv or env.
         safe_url='postgresql://sb4scale:[REDACTED]@127.0.0.1:58081'
         url='postgresql://sb4scale:'+self.pw.read_text().strip()+'@127.0.0.1:58081'
+        if socket_dir:
+            from urllib.parse import quote
+            # Convex derives the database name from its instance; the cluster
+            # URL must have no database path, including on a Unix connection.
+            url='postgresql://sb4scale:'+quote(self.pw.read_text().strip(),safe='')+'@localhost?host='+quote(socket_dir,safe='')+'&port=55440'
+            safe_url='postgresql://sb4scale:[REDACTED]@localhost?host=[private Unix link]&port=55440'
         command=['taskset','-c',APP_CORES,str(BACKEND),'--db','postgres-v5',url,'--instance-name',instance,'--instance-secret',secret.read_text(),
                  '--interface','127.0.0.1','--port','58080','--site-proxy-port','58083','--do-not-require-ssl','--disable-beacon',
                  '--local-storage',str(ROOT/(instance+'-storage'))]

@@ -15,6 +15,8 @@ use std::{
     sync::{Arc, Mutex, mpsc},
     time::Duration,
 };
+#[path = "serial_write_tests.rs"]
+mod serial_write_tests;
 const SOURCE: &str = r#"effect notify
 table counters:
   n: int
@@ -656,6 +658,14 @@ fn real_database_error_names_each_failed_program_and_preserves_valid_peers() {
 #[test]
 #[ignore = "private PG16; scripts/test-postgres.sh"]
 fn every_vector_tail_count_is_verified_before_commit_and_solo_fallback() {
+    let revision = |engine: &mut Engine| {
+        let tx = engine.store_mut().test_postgres_handle_mut().store.get_mut()
+            .transaction(None).unwrap();
+        let value = tx.query("SELECT revision FROM _head WHERE singleton", &[])
+            .unwrap()[0].get::<_, i64>(0);
+        tx.rollback().unwrap();
+        value
+    };
     for table in [
         "_head",
         "_commits",
@@ -668,12 +678,20 @@ fn every_vector_tail_count_is_verified_before_commit_and_solo_fallback() {
         let mut engine = history_fixture(true);
         let before = snapshot(&mut engine);
         let event = if table == "_head" { "UPDATE" } else { "INSERT" };
+        // This witness targets the public vector tail. Permit the separate
+        // internal revision advance so it still reaches the intended count.
+        let permit_revision = if table == "_head" {
+            "IF NEW.seq IS NOT DISTINCT FROM OLD.seq THEN RETURN NEW; END IF;"
+        } else {
+            ""
+        };
         pg_sql(
             &mut engine,
             &format!(
-                "CREATE FUNCTION g23_skip() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RETURN NULL; END $$; CREATE TRIGGER g23_skip BEFORE {event} ON {table} FOR EACH ROW EXECUTE FUNCTION g23_skip()"
+                "CREATE FUNCTION g23_skip() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN {permit_revision} RETURN NULL; END $$; CREATE TRIGGER g23_skip BEFORE {event} ON {table} FOR EACH ROW EXECUTE FUNCTION g23_skip()"
             ),
         );
+        let before_revision = revision(&mut engine);
         let mut members: Vec<_> = (0..4)
             .map(|i| {
                 let mut m = intent(19, i);
@@ -710,9 +728,11 @@ fn every_vector_tail_count_is_verified_before_commit_and_solo_fallback() {
             "{table}"
         );
         assert_eq!(snapshot(&mut engine), before, "{table}");
+        assert_eq!(revision(&mut engine), before_revision, "{table}: group rollback includes revision");
         let result = engine.invoke_program_batch(&mut members);
         assert!(result.iter().all(Result::is_err), "{table}: {result:?}");
         assert_eq!(snapshot(&mut engine), before, "{table}");
+        assert_eq!(revision(&mut engine), before_revision, "{table}: solo fallback rollback includes revision");
     }
 }
 
