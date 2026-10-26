@@ -136,7 +136,14 @@ async function accounts(host: Pick<ServeHost, "url" | "operatorToken">, options:
         };
         opaque(args);
         let explanation: string = typeof refusal?.message === "string" ? refusal.message.slice(0, 4096) : "";
-        for (const value of strings.sort((a, b) => b.length - a.length)) explanation = explanation.replaceAll(value, "<redacted>");
+        for (const value of strings.sort((a, b) => b.length - a.length)) {
+          if (value.length > 3) { explanation = explanation.replaceAll(value, "<redacted>"); continue; }
+          // A one-letter selection must not turn "argument" into gibberish.
+          // Redact quoted/standalone echoes while retaining named schema sites.
+          const escaped = value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+          explanation = explanation.replace(new RegExp(`(?<![\\p{L}\\p{N}_.])${escaped}(?![\\p{L}\\p{N}_])`, "gu"), (token, offset: number, text: string) =>
+            /(?:argument|field|column|table|operation|mutation|code)\s+["']?$/.test(text.slice(0, offset)) ? token : "<redacted>");
+        }
         // Backend value descriptions use scalar tokens ("the number 482719").
         // Keep quoted schema names and whole identifiers/codes intact, so a
         // numeric input cannot alter a field such as role482719 or E_INPUT.

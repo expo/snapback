@@ -29,7 +29,7 @@ export function refuseWatchGuess<T extends object>(client: T): T {
 
 /** Reject callback-shaped guesses before creating a watch or starting work. */
 export function validateObserveOptions(options: unknown): void {
-  if (options !== undefined && (options === null || typeof options !== "object" || Array.isArray(options))) {
+  if (options != null && (typeof options !== "object" || Array.isArray(options))) {
     throw observeUsage();
   }
 }

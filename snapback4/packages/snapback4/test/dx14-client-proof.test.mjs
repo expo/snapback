@@ -29,8 +29,10 @@ for(const tier of ['online','web','mock','guarded'])test(`DX14 044R 022E observe
  after(t,()=>raw.close());
  const client=tier==='guarded'?guardClient(raw,async()=>true,()=>true,()=>({code:'E_AUTH',family:'auth',message:'retired'})).client:raw;
  for(const call of [()=>client.observe({kind:'query',name:'answer'},{},()=>{}),()=>client.watch({kind:'query',name:'answer'},{},()=>{})]) assert.throws(call,error=>error.code==='E_OBSERVE_USAGE'&&/getSnapshot/.test(error.message)&&/subscribe/.test(error.message));
- const observed=client.observe({kind:'query',name:'answer'},{},{keep:false});const stop=observed.subscribe(()=>{});
- await until(()=>observed.getSnapshot().data===42,'documented observed read');stop();observed.close();
+ for(const options of [{keep:false},null]){
+  const observed=client.observe({kind:'query',name:'answer'},{},options);const stop=observed.subscribe(()=>{});
+  await until(()=>observed.getSnapshot().data===42,`documented observed read with ${options===null?'null (omitted)':'explicit'} options`);stop();observed.close();
+ }
 });
 test('DX14 011E oversized upload recovery follows the original intent to its refusal',{timeout:30000},async t=>{
  const {url}=await server(t,undefined,schema);let recovering=false,submissions=0;
@@ -114,4 +116,22 @@ test('DX14 R1 provisioning redacts numeric, boolean and null enum inputs with sc
    assert.match(error.message,/role/);assert.match(error.message,/<redacted>/);return true;
   });
  }
+});
+
+test('DX14 Muse R1 short string provisioning values redact without mangling argument diagnostics',{timeout:30000},async t=>{
+ const cwd=mkdtempSync(join(tmpdir(),'dx14-provision-short-'));after(t,()=>rmSync(cwd,{recursive:true,force:true}));mkdirSync(join(cwd,'snapback'));
+ const source=readFileSync(join(root,'crates/snapback4-lang/src/guide/staging.md'),'utf8').match(/```quarry\n([\s\S]*?)\n```/)[1].replace("mutation provision(principal: principal, role: enum('admin', 'member')):","mutation provision(principal: principal, role: enum('admin', 'member'), team: enum('staff', 'ops')):");
+ writeFileSync(join(cwd,'snapback/schema.q'),source);const host=await startDev({cwd});after(t,()=>host.stop());
+ const originalFetch=globalThis.fetch;after(t,()=>{globalThis.fetch=originalFetch;});
+ globalThis.fetch=async(input,init)=>{
+  const response=await originalFetch(input,init);if(String(input)!==host.url+'/m/provision')return response;
+  const reply=await response.json();assert.equal(reply.why.code,'E_INPUT');assert.match(reply.why.message,/argument team/);
+  reply.why.message=`argument team: expected "staff" or "ops", got the text 'a'; got a; field 'a'; code E_a`;
+  return Response.json(reply,{status:response.status});
+ };
+ await assert.rejects(devAccounts(host,{roles:{member:1},provision:{name:'provision'},args:()=>({team:'a'})}),error=>{
+  assert.match(error.message,/E_STAGING_PROVISION.*E_INPUT/);assert.match(error.message,/argument team: expected "staff" or "ops", got the text '<redacted>'; got <redacted>/);
+  assert.match(error.message,/field 'a'; code E_a/);assert.match(error.message,/mutation parameters: principal, role, team/);
+  assert.ok(error.message.includes('"team":"<redacted string>"'));return true;
+ });
 });
