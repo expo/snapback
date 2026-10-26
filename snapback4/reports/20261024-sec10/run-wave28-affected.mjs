@@ -16,7 +16,7 @@ plan.scopeAdjustment={authority:'SEC10 brief: affected scope; no full suites, fu
 plan.steps=plan.steps.filter(step=>keep.has(step.id));
 plan.rustPackages=crates;plan.clientFiles=clients;plan.fixtureFiles=[];
 for(const step of plan.steps){
- if(step.id==='client-tests'){step.argv=[...step.argv.slice(0,step.fileArgOffset),...clients.map(path=>path.slice('snapback4/'.length))];step.fileRequires=Object.fromEntries(clients.map(path=>[path.slice('snapback4/'.length),['build-cli','build-client','build-wasm']]));}
+ if(step.id==='client-tests'){step.argv=[...step.argv.slice(0,step.fileArgOffset),...clients.map(path=>path.slice('snapback4/'.length))];step.fileRequires=Object.fromEntries(clients.map(path=>[path.slice('snapback4/'.length),['build-cli','build-client','build-wasm']]));if(process.env.SEC10_QUALIFIED_NATIVE){step.argv=['env',`SNAPBACK4_BIN=${resolve(process.env.SEC10_QUALIFIED_NATIVE)}`,...step.argv];step.fileArgOffset+=2;}}
  step.requires=(step.requires??[]).filter(id=>keep.has(id));
 }
 // This 96-core host can run the four independent packages in parallel. Keep
@@ -49,6 +49,7 @@ if(finalDelta){
 const rust=plan.steps.filter(step=>step.id.startsWith('rust:'));
 for(const step of rust){const threads=step.id==='rust:snapback4-lang'?'16':step.id==='rust:snapback4-core'?'8':step.id==='rust:snapback4-device'?'4':'1';step.argv=step.argv.map(arg=>arg.startsWith('--test-threads=')?`--test-threads=${threads}`:arg);}
 for(const step of plan.steps){if(step.id==='wasm-measurement')step.argv=['bash','scripts/measure-wasm.sh','--no-record'];}
+if(process.env.SEC10_QUALIFIED_NATIVE){const path=resolve(process.env.SEC10_QUALIFIED_NATIVE);plan.scopeAdjustment.packedNative={path,sha256:createHash('sha256').update(readFileSync(path)).digest('hex'),reason:'The six client/packed consumers use the immutable normal-publication release native; Rust tests keep their own expected Cargo executables.'};}
 plan.scopeAdjustment.cheapGuards='Retain the client typecheck and release-feature negative build guards alongside the affected builds; omit only unrelated/broad pool work.';
 plan.scopeAdjustment.metrology='Use canonical measure-wasm.sh --no-record; retain the line in the receipt without mutating source metrology. The pinned integrated gzip budget remains enforced; this lane adds no allowance.';
 plan.scopeAdjustment.rustExecution=finalDelta?'Four final affected Rust commands with explicit content-bound target selection above; language16/core8/device4/CLI1 threads. Every selected target/feature runs; omitted precursor coverage is identified explicitly.':'Same four complete affected-package Cargo commands, concurrent across packages; language16/core8/device4/CLI1 threads on a96-core host. No target or feature omitted.';
