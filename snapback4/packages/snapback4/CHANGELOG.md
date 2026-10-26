@@ -27,7 +27,7 @@
 - New questions identify text-typed photo evidence, media beside private fields, one-sided anchored date windows, month-number arithmetic and global unique keys over owner-scoped rows. Empty-string justification guards that accept whitespace remain advice without a concrete witness; use `trim(value) != ''` or `text 1..N` on every supplied justification.
 - Default check and production security campaigns use deterministic work budgets; machine load no longer selects a different security verdict. Search cuts retain explicit coverage gaps.
 
-
+- PostgreSQL owners validate digest-bound flight-check contracts on open and reconnect. Missing or changed admitted helpers refuse instead of falling back; qualified sessions pin the durable namespace before temporary objects and require `array_nulls=on`. Older admitted helper versions are retained. These PostgreSQL checks do not change SQLite store format.
 
 ## 0.4.42
 

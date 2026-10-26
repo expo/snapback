@@ -109341,3 +109341,16 @@ caches are reclaimed and the 25 GiB stop monitor never fires. No push,
 publication, protected-cluster action, q24 access or git-config change occurs.
 The [Stage P report](reports/20261026-stage-p/REPORT.md) records all five conflict
 resolutions, controls, initial reds and final evidence; raw logs stay outside Git.
+
+## 2026-10-26 — Integration 27 late Stage P main merge
+
+Merged `9ee365bbd6` as `02cf700f71` after the completed SQLite evidence repeat.
+The incoming runtime diff is confined to the PostgreSQL adapter; remaining
+changes are test-support, SQLite/PG comparison snapshots, experiments and
+records. No semantic conflict was authored. Reuse the source-bound SQLite
+survey/replay, client and differential evidence; verify the changed PostgreSQL
+module and fixture consumers plus the store-port census. The incoming lane's
+full core/binary and private Stage P receipts remain explicitly attributed to
+that lane. Add its admitted-helper/settings upgrade behavior to the same
+0.4.43 guide-changes entry; this is documentation of the accepted §3.11 rule,
+not a new storage design.
