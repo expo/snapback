@@ -44,7 +44,7 @@
     }
   },
   "after": {
-    "sha256": "9d1a6498fd57c8e6f526ed0ab4c2425e8567cb18eb72f9a750bad164e6ee31b1",
+    "sha256": "c26a799c1bc9ad770e04739e258994bfda4d82668a711f7aee2cdbc10dd09fda",
     "waves": {
       "25": {
         "successfulMoves": 236,

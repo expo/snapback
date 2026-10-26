@@ -8,7 +8,7 @@
       "before": "false refusal: requires identical authoritative types",
       "after": "admitted; reverse actual-value admission retained",
       "test": "populated_extraction_accepts_inclusive_list_bounds_and_reverse_checks_new_values",
-      "baselineComparisonLog": "/tmp/rel2-before-after-list.log"
+      "baselineComparisonLog": "false-refusal-list.log.gz"
     },
     {
       "wave": 29,
@@ -17,7 +17,7 @@
       "before": "false refusal: missing baseline being created",
       "after": "admitted; failed preparation/activation cleans new snapshot",
       "test": "saving_the_configured_baseline_is_not_circular_and_failure_cleans_it",
-      "baselineComparisonLog": "/tmp/rel2-before-after-save.log"
+      "baselineComparisonLog": "false-refusal-save.log.gz"
     },
     {
       "wave": 29,
@@ -25,12 +25,14 @@
       "case": "stale holderless roster marker",
       "before": "E_PRODUCTION_ROSTER_BUSY",
       "after": "success; kernel holder/lease protocol",
-      "baselineComparisonLog": "/tmp/rel2-roster-before-after.json",
+      "baselineComparisonLog": "roster-before-after.json",
       "candidateConcurrencyTests": 7
     }
   ],
   "historicalFalseDeployRefusalsBefore": 2,
   "historicalFalseDeployRefusalsAfter": 0,
   "staleLockDefectsBefore": 1,
-  "staleLockDefectsAfter": 0
+  "staleLockDefectsAfter": 0,
+  "baselineBinarySha256": "944c7ab8a3fe380379777cc8649cf73e0bf3934f3499bca8be85d6eb7d952c07",
+  "candidateRuntimeCommit": "809a7e9a81"
 }

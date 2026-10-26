@@ -1,0 +1,21 @@
+{
+  "baseline": "bcf780d30729158da09d731d2e9e84aa31738f30",
+  "baselineModules": {
+    "proof-accounts.ts": "5aadbd45eb58c7fc5374fa9a1f0bcc79b8951649997309c79b78c1e9d4cf7740",
+    "identity-request.ts": "8e30ebba5dab26c26620bde003adbfcf0325ea9734ecdfedf7f41aeda611d62c",
+    "http-response.ts": "2f6e933753eeeb9770ae915cdda200433345e22fcd8cb0c4f4a939b379cfeb25"
+  },
+  "before": {
+    "code": "E_PRODUCTION_ROSTER_BUSY",
+    "identityRequests": 0
+  },
+  "after": {
+    "status": "passed",
+    "accounts": 1,
+    "identityRequests": 4,
+    "holderRecorded": true,
+    "leaseRecorded": true,
+    "released": true
+  },
+  "realIdentityRequests": 0
+}

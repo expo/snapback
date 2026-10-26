@@ -1,9 +1,9 @@
 {
   "baselineSourceCommit": "bcf780d30729158da09d731d2e9e84aa31738f30",
-  "candidateSourceCommit": "837ac659c4",
+  "candidateSourceCommit": "809a7e9a81",
   "mergedOriginMain": "5059edecb3",
   "baselineBinarySha256": "9043ac3e799a80e9b0de2c4aec6ae749bfa2bb49c88e1361ebf8f7423dbde0b3",
-  "candidateBinarySha256": "9d1a6498fd57c8e6f526ed0ab4c2425e8567cb18eb72f9a750bad164e6ee31b1",
+  "candidateBinarySha256": "c26a799c1bc9ad770e04739e258994bfda4d82668a711f7aee2cdbc10dd09fda",
   "platform": "Linux x86_64; production-feature debug build; no Mac or publication claim",
   "command": "python3 snapback4/reports/20261026-rel2/measure.py --binary PINNED_BINARY --out PRIVATE_JSON --workers 12",
   "runtimeReviewManifest": "../../../llp/reviews/rel2-wave29/final-reviewed-runtime.json",
@@ -14,10 +14,25 @@
   ],
   "artifacts": {
     "before-lanes.json.gz": "355ee5be8d5fa40409f9506e9ed1b9aa1fe59b0f7470e6eb275f051141d756dd",
-    "after-lanes.json.gz": "e7c740b43f77dee081031b836fce37c17c9faeae86259f6446b63ddfdd5fba21",
-    "summary.json": "bbf9dba3ed22ebf5e4611037366de83f93f336ca304e9dac8d09ddc14f45ace8",
-    "false-refusal-fixtures.json": "57a70c8289c3229d710a50c49d99c5b535d4f1e788cda39b8052e9f03936b2cb",
+    "after-lanes.json.gz": "30d5ef50b885ee1b303ca21f8713063867e33c98268c6a35e8abc7fa71afe15c",
+    "summary.json": "005413b6e9e88ef61377cb22597e7ddc6495e3b6609678bca6311044f8069634",
+    "false-refusal-fixtures.json": "e910a6df88e2e9d20a23229e354b0ebb71f9533b2a3c9dc292610d2aa90061ae",
     "measure.py": "7976b784ccf20a4a1d4946fa8dbdd0e4f8daa1edfd1c8e8ec31a9bf3fc57a723",
-    "summarize.py": "3e19c02d5cf47f14f0517463b0ac2d48f9ee408697498d1b9ba4a14092ddc243"
-  }
+    "summarize.py": "3e19c02d5cf47f14f0517463b0ac2d48f9ee408697498d1b9ba4a14092ddc243",
+    "roster-before-after.mjs": "b2f336531f15c4f7033ce82323e27bfe341f04b50a9d4f67499754c6ba4a10d5",
+    "roster-before-after.json": "a7c863d26972d64ce0a4d3dbfe3f455e006c8510d54125192d89c54b94ba0291",
+    "false-refusal-list.log.gz": "020af92e72ff004ed43c67905f8d1438e8bb34ff172d516fc6f2ad02e42e036a",
+    "false-refusal-save.log.gz": "a9b36692fbc0cfb587d79c39f1dfae932e8586d2b5c8311f9dc4d8c59fae240f"
+  },
+  "finalReviewRounds": [
+    "r15",
+    "r16",
+    "r18",
+    "r20"
+  ],
+  "focusedSdkBinarySha256": "625723f54e8c506c52b69bd47c7b9620a50c4ba7b75c6f464a731e26379a6ab9",
+  "baselineFixtureBinarySha256": "944c7ab8a3fe380379777cc8649cf73e0bf3934f3499bca8be85d6eb7d952c07",
+  "runtimeReviewManifestSha256": "4b67654628031be0804075368cdfaf488bdf23d1a15d79b6ad018ad4aca8d218",
+  "persistentLocalEvidence": "target/rel2-evidence/",
+  "falseRefusalTransitionsMatchBaseline": true
 }

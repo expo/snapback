@@ -58,3 +58,24 @@ Both final rollback cycles expose consistent preview/listing shape fields in all
 independent predecessor-column census: 040 preserves v1; the other ten disclose
 the omitted v1 payload columns. Across 750 attempted release moves, 732 succeed;
 the remaining eighteen are the documented truthful refusal families above.
+
+Final runtime source is `809a7e9a81`; its fourteen runtime hashes match the
+verbatim dual READY review composition r15/r16/r18/r20. All 58 rollback cases
+pass, including safe restoration after intervening narrowing, finite A/B deploy
+reuse, every retained qualification alias and fail-closed hiding-policy mismatch.
+The five corrected client files pass 556/556. No ordinary source-origin cutoff
+discards committed rollback obligations.
+
+Reproduce stale roster behavior against actual initial-main TypeScript, using
+only synthetic identity replies (build the current SDK first):
+
+```sh
+node snapback4/reports/20261026-rel2/roster-before-after.mjs
+```
+
+`roster-before-after.json` retains the source hashes and before/after outcomes,
+never sessions or account secrets. The compressed list/save fixture logs bind
+the actual rebuilt initial-main control to the candidate assertions. Original
+150-store baseline manifests remain unchanged; newer intermediate replays are
+superseded by the final after manifest. Local pins and proof logs are preserved
+under ignored `target/rel2-evidence/`.
