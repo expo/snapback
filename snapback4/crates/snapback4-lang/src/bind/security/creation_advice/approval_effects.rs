@@ -42,10 +42,11 @@ fn modeled(write:&Write<'_>,name:&str,parent:&str,bound:&Bound)->bool{
     if write.table==parent{
         if !matches!(write.op,WriteOp::Update|WriteOp::Upsert){return false;}
         let default_act=birth_act(write,name,bound);
-        return default_act||write.fields.iter().any(|field|!metadata(&field.name)&&!matches!(field_value(field).map(simplify_boolean),Some(Expr::Literal{value:ast::Literal::Bool(false)|ast::Literal::Null,..}))&&(
+        let changes=|field:&ast::ObjectField|!matches!(field_value(field),Some(Expr::Member{base,name,..}) if name==&field.name&&super::super::derived::same_resource(base,&write.table,&write.keys,write.p))&&(!matches!(t.columns.get(&field.name).map(ColumnType::required),Some(ColumnType::Enum{..}))||super::lifecycle::state_field_changes(write,field,bound));
+        return default_act||write.fields.iter().any(|field|changes(field)&&!metadata(&field.name)&&!matches!(field_value(field).map(simplify_boolean),Some(Expr::Literal{value:ast::Literal::Bool(false)|ast::Literal::Null,..}))&&(
             field.name.to_lowercase().contains(name)||
             matches!(t.columns.get(&field.name).map(ColumnType::required),Some(ColumnType::Enum{..}))&&field_value(field).is_some_and(|value|literal_act(value,name))
-        ))||operation.contains(name)&&["perform","execute","install","replace","refund","move","take","remove"].iter().any(|prefix|operation.starts_with(prefix))&&(default_act||write.fields.iter().any(|field|!metadata(&field.name)&&!matches!(field_value(field).map(simplify_boolean),Some(Expr::Literal{value:ast::Literal::Bool(false)|ast::Literal::Null,..}))));
+        ))||operation.contains(name)&&["perform","execute","install","replace","refund","move","take","remove"].iter().any(|prefix|operation.starts_with(prefix))&&(default_act||write.fields.iter().any(|field|changes(field)&&!metadata(&field.name)&&!matches!(field_value(field).map(simplify_boolean),Some(Expr::Literal{value:ast::Literal::Bool(false)|ast::Literal::Null,..}))));
     }
     if !matches!(write.op,WriteOp::Insert|WriteOp::Upsert)||!t.columns.values().any(|kind|matches!(kind.required(),ColumnType::Ref{table} if table==parent)){return false;}
     // Pure media attachments are evidence about an act, not its performance.

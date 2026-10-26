@@ -1,8 +1,12 @@
 //! Structural workflow review questions; each approval disposition is individual.
 // @ref LLP 3000.036.004#171-presence-and-lifecycle-questions — decisions require explicit product intent.
 use super::*;
+pub(super) fn state_field_changes(w:&Write<'_>,field:&ast::ObjectField,bound:&Bound)->bool{
+    let value=field.value.clone().unwrap_or_else(||Expr::Name{name:field.name.clone(),site:field.site.clone()});
+    super::super::derived::categorical_change(&value,&w.table,&w.keys,w.p,&w.context,&field.name,bound)
+}
 pub(super) fn state(w:&Write<'_>,bound:&Bound)->bool{
-    matches!(w.op,WriteOp::Update|WriteOp::Upsert)&&w.fields.iter().any(|f|(matches!(bound.schema.tables[&w.table].columns.get(&f.name).map(ColumnType::required),Some(ColumnType::Enum{..}))||matches!(bound.schema.tables[&w.table].columns.get(&f.name).map(ColumnType::required),Some(ColumnType::Text{..}))&&w.stages.contains(&(w.table.clone(),f.name.clone())))&&!matches!(field_value(f),Some(Expr::Member{base,name,..}) if name==&f.name&&super::super::derived::same_resource(base,&w.table,&w.keys,w.p)))
+    matches!(w.op,WriteOp::Update|WriteOp::Upsert)&&w.fields.iter().any(|field|(matches!(bound.schema.tables[&w.table].columns.get(&field.name).map(ColumnType::required),Some(ColumnType::Enum{..}))||matches!(bound.schema.tables[&w.table].columns.get(&field.name).map(ColumnType::required),Some(ColumnType::Text{..}))&&w.stages.contains(&(w.table.clone(),field.name.clone())))&&state_field_changes(w,field,bound))
 }
 fn inspected(w:&Write<'_>,table:&str,column:&str)->bool{
     conditions(&w.context).iter().any(|condition|{

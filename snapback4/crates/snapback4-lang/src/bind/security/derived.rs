@@ -93,6 +93,7 @@ pub(crate) fn principal_receipt_columns(bound:&Bound)->BTreeSet<(String,String)>
 pub(crate) fn lifecycle_columns(bound:&Bound)->BTreeSet<(String,String)>{
     let mut out=BTreeSet::new();for inv in bound.invariants.iter().filter(|i|i.site.file.contains("/parent-state/")||i.site.file.contains("/child-stage/")){if let Some(column)=&inv.column{out.insert((inv.table.clone(),column.clone()));}if let Some(syntax)=&inv.syntax{referenced_columns(syntax,&inv.table,bound,&mut out);}}out.retain(|(table,column)|matches!(bound.schema.tables[table].columns[column].required(),snapback4_core::schema::ColumnType::Enum{..}|snapback4_core::schema::ColumnType::Text{..}));out
 }
+pub(super) fn categorical_change(value:&ast::Expr,table:&str,keys:&[ast::KeyPart],p:&ast::ProgramDecl,context:&ast::ProgramDecl,column:&str,bound:&Bound)->bool{stage_columns::changing_consumer(value,table,keys,p,context,column,bound)}
 fn omit_preconditions(expression:&mut ast::Expr,negated:bool,stage:&impl Fn(&ast::Expr)->bool){omit_conditions(expression,negated,stage,true)}
 fn omit_conditions(expression:&mut ast::Expr,negated:bool,stage:&impl Fn(&ast::Expr)->bool,remove_absence:bool){
     match expression {
