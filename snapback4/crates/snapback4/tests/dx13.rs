@@ -8,6 +8,8 @@ fn cold_default_check_and_deploy_show_concrete_witnesses_without_review() {
  let p=scratch("witness");fs::write(p.0.join("snapback/schema.q"),include_str!("fixtures/dx11/011.q")).unwrap();
  for args in [vec!["check"],vec!["deploy","release"]] {
   let out=run(&p,&args);let text=format!("{}{}",String::from_utf8_lossy(&out.stdout),String::from_utf8_lossy(&out.stderr));
+  assert!(out.status.success(),"{text}");
+  let verdict=text.lines().next().unwrap();assert!(verdict.contains("witnessed questions")&&verdict.contains("don't block"),"{verdict}");
   assert!(text.contains("Witness:")&&text.contains("indoorApproved")&&text.contains("is this intended?"),"{text}");
   assert!(text.contains("don't block"),"{text}");
  }

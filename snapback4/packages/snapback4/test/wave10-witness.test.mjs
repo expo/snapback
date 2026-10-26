@@ -26,14 +26,15 @@ for (const persona of [undefined, 'alice']) test(`default web starter ${persona 
   if (persona) { const sdk = invoke(['witness', 'web', 'dist', '--as', 'alice', '--mutation', 'add', '--args', '{"title":"SDK proof"}'], dir); success(sdk); }
 });
 
-test('password web starter native witness captures its visible write without app witness imports', {timeout:120000}, t => {
+test('password web starter native witness captures its visible write with generated registration', {timeout:120000}, t => {
   const dir=project(t,'dx6-password-witness-');
   success(invoke(['init','--web'],dir));
   symlinkSync(join(root,'node_modules'),join(dir,'node_modules'));
   const schema=join(dir,'snapback/schema.q');
   writeFileSync(schema,readFileSync(schema,'utf8').replace(/^use identity[^\n]*/m,'use identity password'));
   success(invoke(['init','--adapt','--apply'],dir));
-  assert.doesNotMatch(readFileSync(join(dir,'src/client.ts'),'utf8'),/registerWebWitness|witnessPersona|snapback\/generated\/api/);
+  const client=readFileSync(join(dir,'src/client.ts'),'utf8');
+  assert.match(client,/registerWebWitness\(app, api\)/);assert.doesNotMatch(client,/witnessPersona/);
   success(invoke(['check'],dir));
   success(spawnSync(join(root,'node_modules/.bin/vite'),['build'],{cwd:dir,encoding:'utf8',timeout:120000}));
   const proof=invoke(['witness','web','dist','--email','native-proof@example.test','--password-env','SNAPBACK4_DX6_TEST_PASSWORD','--mutation','add','--args','{"title":"Password native proof"}','--field','Task','--value','Password native proof','--button','Add'],dir,{SNAPBACK4_DX6_TEST_PASSWORD:'Proof-password-928!'});

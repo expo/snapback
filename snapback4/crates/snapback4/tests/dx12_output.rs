@@ -11,7 +11,10 @@ impl Drop for App{fn drop(&mut self){let _=fs::remove_dir_all(&self.0);}}
 const SOURCE:&str="table notes:\n  title: text <=80\n  public 'fixture'\nquery list():\n  return notes first 20 by .id\n";
 #[test]fn deploy_rollback_and_releases_lead_with_verdict_and_keep_live_identity(){
  let app=App::new();app.write(SOURCE);
- let first=app.ok(&["deploy","production"]);assert!(first.starts_with("deploy verdict: READY"),"{first}");assert!(first.lines().nth(1).unwrap().starts_with("live:"),"{first}");assert!(!first.contains("decision "),"{first}");
+ let initial=app.run(&["deploy","production"]);assert!(initial.status.success(),"{initial:?}");
+ let first=String::from_utf8(initial.stdout).unwrap();let diagnostics=String::from_utf8(initial.stderr).unwrap();
+ let verdict=first.lines().next().unwrap();assert!(verdict.contains("0 gates")&&verdict.contains("0 witnessed questions")&&verdict.contains("advisories (don't block)"),"{verdict}");
+ assert!(first.lines().count()+diagnostics.lines().count()<=5,"{first}{diagnostics}");assert!(first.starts_with("deploy verdict: READY"),"{first}");assert!(first.lines().nth(1).unwrap().starts_with("live:"),"{first}");assert!(!first.contains("decision "),"{first}");
  app.write(&SOURCE.replace("<=80","<=160"));let second=app.ok(&["deploy","production"]);assert!(!second.contains("preview:"),"{second}");
  let rolled=app.ok(&["rollback","production","--to","1"]);assert!(rolled.starts_with("rollback verdict: READY"),"{rolled}");assert!(rolled.lines().nth(1).unwrap().starts_with("live:"),"{rolled}");
  let short=app.ok(&["releases","production"]);assert!(short.starts_with("releases verdict: READY"),"{short}");assert!(short.lines().count()<=4,"{short}");

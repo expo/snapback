@@ -33,7 +33,7 @@ const APP_FILES: &[&str] = &[
     "app.ts", "snapback.ts",
     // The testing card's fixture cases file and acceptance script.
     "test.cases.jsonl", "scripts/acceptance.mjs", "scripts/wire-proof.mjs", "scripts/day2-accounts.mjs",
-    "scripts/frontend-proof.mjs", "scripts/day2-proof.mjs", "scripts/launch.mjs",
+    "scripts/frontend-proof.mjs", "scripts/day2-proof.mjs", "scripts/launch.mjs", "scripts/install.mjs",
     "versions/v1.q", "versions/v2.q", "versions/v1/schema.q", "versions/v1/generated/api.ts", "versions/v1/generated/package.json", "versions/v2/schema.q", "versions/bridge/schema.q", "file.q",
     // The builder's own Expo inputs and generated native-proof outputs.
     "package-lock.json", "app.json", "build.json", "proof.json", "acquire.json", "preparation-deadline.json",
@@ -59,7 +59,7 @@ const APP_FILES: &[&str] = &[
     "api.ts", "server.ts", "schema.q", "m.q", "digest.q", "mail.q", "hooks.q",
     "App.tsx", "metro.config.js", "metro.config.cjs", "metro-wasm-transformer.cjs",
     "snapback4-sw.js", "contact.html", "about.html", "store.sqlite",
-    "<dir>/store.sqlite", "deployment/store.sqlite", "<segment>-ios-run.json", "<segment>-ios-screen.mp4",
+    "<dir>/store.sqlite", "<deployment>/store.sqlite", "deployment/store.sqlite", "<segment>-ios-run.json", "<segment>-ios-screen.mp4",
     "<segment>-ios-receipts.jsonl", "/api.ts", "/native.wasm",
     "index.html", "<table>.jsonl", "releases.jsonl", "backend.json",
     "provenance.json", "versions/v1/release.json", "bridge/ROLLBACK-CHECKLIST.md", "fixtures/test.sweep.json", "fixtures/<table>.jsonl", "fixtures/test.cases.jsonl", "expo-env.d.ts",
@@ -175,7 +175,7 @@ fn published_path_guard_rejects_astras_counterexample_and_unlisted_files() {
         "Read [escape](../README.md).",
         "Read [details](https://example.com/private/new.md).",
     ] { assert!(!unshipped(text, &shipped).is_empty(), "accepted {text}"); }
-    for text in ["Read [client](./CLIENT-AND-OPERATIONS.md#react).", "Read [adoption](./FOLLOWING-ADOPTION.md).", "[client]: ./CLIENT-AND-OPERATIONS.md", "Run `snapback4 guide receipts`.", "Edit `snapback/schema.q`.", "Generated local evidence: `.snapback4/dev-refusals/<storeId>/<instance>.json`."] {
+    for text in ["Run `node scripts/install.mjs`.", "Barrier: `<deployment>/store.sqlite`.", "Read [client](./CLIENT-AND-OPERATIONS.md#react).", "Read [adoption](./FOLLOWING-ADOPTION.md).", "[client]: ./CLIENT-AND-OPERATIONS.md", "Run `snapback4 guide receipts`.", "Edit `snapback/schema.q`.", "Generated local evidence: `.snapback4/dev-refusals/<storeId>/<instance>.json`."] {
         assert!(unshipped(text, &shipped).is_empty(), "refused {text}");
     }
     for text in [

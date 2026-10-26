@@ -182,7 +182,8 @@ pub(super) fn release_loop(project:&Project,bound:&Bound,sources:&[(String,Strin
     let witnessed=scoped_dispositions.iter().filter(|d|!d.gated&&!d.acknowledged&&d.witness.is_some()).count();
     notice.push_str(&format!("{}; {witnessed} witnessed questions; {advice} advisories (don't block): deploy --review (or check --review)\n",enforced_text(&report,bound).replacen("check:","security:",1)));
     if review||test.contains("run `snapback4 test")||test.contains("FAILED") {notice.push_str(&format!("  {test}\n"));}
-    let verdict=format!("security FIX {fixes}; {} pending review",dispositions.iter().filter(|d|d.gated&&!d.acknowledged).count());
+    let gates=dispositions.iter().filter(|d|d.gated&&!d.acknowledged).count();
+    let verdict=format!("security FIX {fixes}; {gates} gates; {witnessed} witnessed questions; {advice} advisories (don't block): deploy --review");
     Ok(Some(serde_json::json!({"notice":notice,"verdict":verdict,"fixes":fixes,"pending":pending,"changedNotes":count,"report":report,"securityReviews":dispositions}).to_string()))
 }
 fn age(timestamp:Option<i64>,now:i64)->String{
@@ -224,7 +225,7 @@ fn release_scope(bound:&Bound,prior:Option<&Bound>,sources:&[(String,String)])->
         }
     }scope
 }
-pub(super) fn print_release(summary:Option<&String>){if let Some(s)=summary.and_then(|s|serde_json::from_str::<serde_json::Value>(s).ok()){eprintln!("{}",s["notice"].as_str().unwrap_or(""));}}
+pub(super) fn print_release(summary:Option<&String>){if let Some(s)=summary.and_then(|s|serde_json::from_str::<serde_json::Value>(s).ok()){eprint!("{}",s["notice"].as_str().unwrap_or(""));}}
 pub(super) fn release_verdict(summary:Option<&String>)->String {summary.and_then(|s|serde_json::from_str::<serde_json::Value>(s).ok()).and_then(|s|s["verdict"].as_str().map(str::to_owned)).unwrap_or_else(||"security unchanged".into())}
 
 pub(super) fn enforce_release(summary:Option<&String>,options:&Options)->Result<(),String>{
