@@ -108674,3 +108674,18 @@ All 7 private cluster directories confirm stopped; the combined
 12,623-pair audit, including zombies and both public PID ledgers,
 has no matches. Minimum monitored free disk: 59.35 GiB.
 **PIDs left: none.** No throughput campaign, publication or push.
+
+## 2026-10-26 — REL2 release identity and wave-29 refusals
+
+REL2 makes a fitting one-child reverse projection eligible for original-source
+selection despite current invariants or declaration layout. The closed proof
+retains authored guards, invariant content, shape/helper meaning and write
+payloads; the writer requires a validated parent projection for every child and
+parent. A v2-born singleton can establish that receipt atomically; a competing
+child cannot. Previews and live release JSON disclose bound predecessor result
+shape differences. Historical source reactivation reuses its source/manifest;
+latest-source compiler registry upgrades retain the existing qualification path.
+List-bound inclusion and self-baseline saving remove 008/011's false refusals.
+Roster provisioning uses a kernel writer lock plus a diagnostic holder lease,
+including per-attempt fencing of delayed identity requests. See LLP 3000.000.000
+§22 and the verbatim dual-family reviews in `llp/reviews/rel2-wave29/`.

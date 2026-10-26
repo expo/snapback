@@ -700,7 +700,7 @@ fn publication_media()->(&'static str,String) {
 }
 
 #[test]
-fn native_singleton_keeps_its_identity_in_the_registered_rollback_view() {
+fn native_singleton_projects_to_exact_shape_and_keeps_its_forward_identity() {
     let(old,current)=publication_media();let app=App::new();app.source(old);app.ok(&["deploy","deployment"]);
     app.source(&current);app.ok(&["deploy","deployment"]);
     let b=snapback4_lang::compile(&[("schema.q".into(),current.clone())]);
@@ -711,16 +711,22 @@ fn native_singleton_keeps_its_identity_in_the_registered_rollback_view() {
     engine.seed(rows.into_iter().map(|(t,row)|(t.into(),snapback4_core::wire::row_from_json(&schema.tables[t],&row).unwrap())).collect::<Vec<_>>()).unwrap();drop(engine);
     let receipts=||{let conn=rusqlite::Connection::open_with_flags(app.0.join("deployment/store.sqlite"),rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY).unwrap();conn.query_row("SELECT COUNT(*) FROM _extraction_rows WHERE child_id='native-child'",[],|r|r.get::<_,i64>(0)).unwrap()};
     assert_eq!(receipts(),0,"this native singleton has lifetime evidence but no extraction receipt");
-    for _ in 0..2 {
-        let selected=app.json(&["rollback","deployment","--to","1","--json"]);assert_eq!(selected["rollbackView"]["target"],1,"a receipt minted by reverse preview must not authorize hiding a native singleton");
-        assert_eq!(receipts(),0,"private reverse preview rolls its new receipt back");
-        let release=selected["release"].as_u64().unwrap();let b=snapback4_lang::compile(&[("schema.q".into(),current.clone())]);
-        let store=snapback4_core::store_port::AnyStore::open(&app.0.join("deployment/store.sqlite")).unwrap();let mut engine=snapback4_core::Engine::new_release(store,b.schema,b.programs.into_iter().map(|p|p.program),release,Some(release)).unwrap();
+    for cycle in 0..2 {
+        let preview=app.json(&["rollback","deployment","--to","1","--check","--json"]);
+        assert_eq!(preview["rowShape"]["matchesTarget"],true);
+        assert_eq!(receipts(),if cycle==0{0}else{1},"private preview never changes live receipts");
+        let selected=app.json(&["rollback","deployment","--to","1","--json"]);assert_eq!(selected["release"],1);
+        assert_eq!(receipts(),1,"real reverse adoption records the proven projection");
+        let values=app.json(&["sql","SELECT scan FROM orders","--release","deployment","--json"]);
+        let restored:snapback4_core::Value=serde_json::from_str(values["rows"][0][0].as_str().unwrap()).unwrap();
+        assert_eq!(snapback4_core::wire::to_json(&restored),scan);
+        app.ok(&["rollback","deployment","--to","latest"]);
+        let b=snapback4_lang::compile(&[("schema.q".into(),current.clone())]);
+        let store=snapback4_core::store_port::AnyStore::open(&app.0.join("deployment/store.sqlite")).unwrap();let mut engine=snapback4_core::Engine::new_release(store,b.schema,b.programs.into_iter().map(|p|p.program),2,Some(2)).unwrap();
         for viewer in ["alice","bob"] {
             let out=engine.query("scan",snapback4_core::Context::new(viewer,std::collections::BTreeMap::from([("id".into(),snapback4_core::Value::Id("native-child".into()))]))).unwrap();let data=snapback4_core::wire::to_json(&out.data);
             if viewer=="alice"{assert_eq!(data["id"],"native-child");assert_eq!(data["order"],"native-parent");assert_eq!(data["scan"],scan);}else{assert_eq!(data,json!(null));}
         }
-        drop(engine);app.ok(&["rollback","deployment","--to","latest"]);
     }
 }
 
@@ -740,6 +746,7 @@ fn fitting_extraction_with_rename_restores_predecessor_shape_twice() {
     for _ in 0..2 {
         let preview=app.json(&["rollback","deployment","--to","1","--check","--json"]);
         assert_eq!(preview["visibility"]["hiddenRows"],0);
+        assert_eq!(preview["rowShape"]["matchesTarget"],true);
         let selected=app.json(&["rollback","deployment","--to","1","--json"]);
         assert_eq!(selected["release"],1,"a fitting reverse extraction keeps the old query shape");
         let b=snapback4_lang::compile(&[("schema.q".into(),old.into())]);
@@ -763,6 +770,8 @@ fn fitting_extraction_with_rename_restores_predecessor_shape_twice() {
     engine.seed(vec![("scans".into(),snapback4_core::wire::row_from_json(&schema.tables["scans"],&json!({"id":"native","order":"kept","scan":snapback4_core::wire::to_json(&asset.column_value())})).unwrap())]).unwrap();
     drop(engine);
     let selected=app.json(&["rollback","deployment","--to","1","--json"]);
+    assert_eq!(selected["live"]["rowShape"]["matchesTarget"],false);
+    assert_eq!(app.json(&["releases","deployment","--json"])["rowShape"]["matchesTarget"],false);
     assert_eq!(selected["rollbackView"]["target"],1,"independent children keep the current population visible");
     assert_eq!(app.json(&["sql","SELECT COUNT(*) FROM scans","--release","deployment","--json"])["rows"][0][0],2);
 }
@@ -805,4 +814,113 @@ fn equal_historical_source_cannot_bypass_authority_by_registering_new_views() {
         assert!(text(&out).contains("items.body")&&text(&out).contains("write <-"),"{}",text(&out));
         assert_eq!(app.json(&["releases","deployment"])["current"],active);
     }
+}
+
+#[test]
+fn extraction_exact_selection_ignores_invariants_sites_and_immutable_grouping_but_keeps_guards() {
+    let (old,current)=publication_media();
+    for split in [false,true] {
+        let old=old.replace("  buyer: customers", "  immutable buyer\n  buyer: customers")
+            +"invariant orders.read only .owner = viewer\n";
+        let current=current.replace("  customer: customers", "  immutable customer\n  customer: customers")
+            +"invariant orders.read only .owner = viewer\ninvariant scans.read only .order.owner = viewer\n";
+        let current=if split{current.replace("  immutable owner\n", "  immutable owner, customer\n").replace("  immutable customer\n", "")}else{current};
+        let old=old.replace("query order(id: orders):\n", "query order(id: orders):\n  require viewer != 'blocked' else BLOCKED\n");
+        let current=current.replace("query order(id: orders):\n", "query order(id: orders):\n  require viewer != 'blocked' else BLOCKED\n");
+        assert!(snapback4_lang::release_bridge::extraction_preserves_predecessor(&[("schema.q".into(),old.clone())],&[("schema.q".into(),current.clone())]));
+        let app=App::new();app.source(&old);app.ok(&["deploy","deployment"]);app.source(&current);app.ok(&["deploy","deployment"]);
+        let preview=app.json(&["rollback","deployment","--to","1","--check","--json"]);
+        assert_eq!(preview["rowShape"]["matchesTarget"],true,"{preview}");
+        assert_eq!(app.json(&["rollback","deployment","--to","1","--json"])["release"],1);
+        app.ok(&["deploy","deployment"]);
+        let guarded=current.replace("require viewer != 'blocked' else BLOCKED", "require viewer = 'alice' else BLOCKED");
+        assert!(!snapback4_lang::release_bridge::extraction_preserves_predecessor(&[("schema.q".into(),old)],&[("schema.q".into(),guarded)]));
+    }
+}
+
+#[test]
+fn source_reactivation_dedupes_path_forms_without_new_registration_parents() {
+    let app=App::new();app.source(OLD);app.ok(&["deploy","deployment","--save-version","versions/v1"]);
+    app.source_with_presence(&newer(),"amount");app.ok(&["deploy","deployment"]);
+    for path in ["versions/v1/schema.q","versions/v1","./versions/v1/schema.q"] {
+        let result=app.json(&["deploy","deployment","--schema",path,"--json"]);
+        assert_eq!(result["release"],1,"{result}");
+        assert_eq!(app.json(&["releases","deployment","--json"])["latest"],2);
+        app.ok(&["deploy","deployment"]);
+    }
+}
+
+#[test]
+fn populated_extraction_accepts_inclusive_list_bounds_and_reverse_checks_new_values() {
+    let (base,current)=publication_media();
+    let old=base.replace("  scan: file <=1000\n", "  scan: file <=1000\n  kinds: [text <=20] 1..12\n  immutable kinds\n")
+        .replace("scan: file <=1000):", "scan: file <=1000, kinds: [text <=20] 1..12):")
+        .replace("{owner:viewer,buyer,scan}", "{owner:viewer,buyer,scan,kinds}");
+    let current=current.replace("  scan: file <=1000\n", "  scan: file <=1000\n  kinds: [text <=20] <=12\n  immutable kinds\n")
+        .replace("{scan:scan}", "{scan:scan,kinds:kinds}");
+    let app=App::new();app.source(&old);app.ok(&["deploy","deployment"]);
+    let b=snapback4_lang::compile(&[("schema.q".into(),old.clone())]);let schema=b.schema.clone();
+    let store=snapback4_core::store_port::AnyStore::open(&app.0.join("deployment/store.sqlite")).unwrap();
+    let mut engine=snapback4_core::Engine::new_release(store,b.schema,b.programs.into_iter().map(|p|p.program),1,Some(1)).unwrap();
+    let asset=engine.store_file("alice",b"photo",Some("text/plain"),"photo.txt",1000).unwrap();
+    engine.seed(vec![("customers".into(),snapback4_core::wire::row_from_json(&schema.tables["customers"],&json!({"id":"customer"})).unwrap()),("orders".into(),snapback4_core::wire::row_from_json(&schema.tables["orders"],&json!({"id":"kept","owner":"alice","buyer":"customer","scan":snapback4_core::wire::to_json(&asset.column_value()),"kinds":["a"]})).unwrap())]).unwrap();drop(engine);
+    app.source(&current);app.ok(&["deploy","deployment"]);
+    assert_eq!(app.json(&["sql","SELECT kinds FROM scans","--release","deployment","--json"])["rows"][0][0],json!(r#"{"Array":[{"String":"a"}]}"#));
+    app.ok(&["rollback","deployment","--to","1","--exact","--check"]);
+}
+
+#[test]
+fn extraction_proof_checks_alias_guards_and_never_rebinds_child_focal_fields() {
+    let (base,current)=publication_media();
+    let audit="table audit:\n  n: int\n  public\n  online only\n";
+    let old=base.to_owned()+audit+"mutation create():\n  return insert audit {n:1}\nalias protected = create\n";
+    let next=current.clone()+audit+"mutation protected():\n  require viewer = 'service:ops' else OPS\n  return insert audit {n:1}\n";
+    for source in [&old,&next]{assert!(snapback4_lang::compile(&[("schema.q".into(),source.to_string())]).diagnostics.is_empty());}
+    assert!(!snapback4_lang::release_bridge::extraction_preserves_predecessor(&[("schema.q".into(),old)],&[("schema.q".into(),next)]));
+    let next=current.replace("table scans:\n","table scans:\n  owner: principal ?\n  insert <- .owner = viewer\n");
+    assert!(snapback4_lang::compile(&[("schema.q".into(),next.clone())]).diagnostics.is_empty());
+    assert!(!snapback4_lang::release_bridge::extraction_preserves_predecessor(&[("schema.q".into(),base.into())],&[("schema.q".into(),next)]));
+    let next=current.replace("table scans:\n","table scans:\n  insert <- deny\n");
+    assert!(!snapback4_lang::release_bridge::extraction_preserves_predecessor(&[("schema.q".into(),base.into())],&[("schema.q".into(),next)]));
+}
+
+#[test]
+fn extraction_keeps_retained_intent_named_shape_guards_and_write_repairs() {
+    let(base,current)=publication_media();
+    let source=|s:String|vec![("schema.q".into(),s)];
+    let strengthened=current.clone()+"invariant orders.read only viewer = 'alice'\n";
+    assert!(!snapback4_lang::release_bridge::extraction_preserves_predecessor(&source(base.into()),&source(strengthened)));
+    let existence=current.replace("  immutable order\n","  immutable order\n  unique order\n")+"invariant orders always exists scans[order = .id]\n";
+    assert!(snapback4_lang::compile(&source(existence.clone())).diagnostics.is_empty());
+    assert!(snapback4_lang::release_bridge::extraction_preserves_predecessor(&source(base.into()),&source(existence)));
+    let shared="table documents:\n  owner: principal\n  amount: int\n  public\n  online only\nshape access = { allowed: true }\nmutation change(id: documents):\n  row = documents[id] ! else MISSING\n  gate = row access\n  require gate.allowed else FORBIDDEN\n  update documents[id] {amount:1}\n";
+    let old=base.to_owned()+shared;
+    let changed=current.clone()+&shared.replace("allowed: true","allowed: .owner = viewer");
+    assert!(snapback4_lang::compile(&source(old.clone())).diagnostics.is_empty());
+    assert!(snapback4_lang::compile(&source(changed.clone())).diagnostics.is_empty());
+    assert!(!snapback4_lang::release_bridge::extraction_preserves_predecessor(&source(old.clone()),&source(changed)));
+    let repaired=current+&shared.replace("amount:1}","amount:2}");
+    assert!(!snapback4_lang::release_bridge::extraction_preserves_predecessor(&source(old),&source(repaired)));
+}
+
+#[test]
+fn live_writer_rechecks_projection_for_a_parent_born_after_a_fitting_preview() {
+    let (base,current)=publication_media();
+    let old=base.replace("scan: file <=1000","scan: file <=1000 ?");
+    let current=current.replace("scan: file <=1000","scan: file <=1000 ?");
+    let app=App::new();app.source(&old);app.ok(&["deploy","deployment"]);app.source(&current);app.ok(&["deploy","deployment"]);
+    let preview=app.json(&["rollback","deployment","--to","1","--check","--json"]);
+    assert_eq!(preview["rowShape"]["matchesTarget"],true);
+    let b=snapback4_lang::compile(&[("schema.q".into(),current)]);let schema=b.schema.clone();
+    let store=snapback4_core::store_port::AnyStore::open(&app.0.join("deployment/store.sqlite")).unwrap();
+    let mut engine=snapback4_core::Engine::new_release(store,b.schema,b.programs.into_iter().map(|p|p.program),2,Some(2)).unwrap();
+    engine.seed(vec![("customers".into(),snapback4_core::wire::row_from_json(&schema.tables["customers"],&json!({"id":"customer"})).unwrap()),("orders".into(),snapback4_core::wire::row_from_json(&schema.tables["orders"],&json!({"id":"late","owner":"alice","customer":"customer"})).unwrap())]).unwrap();drop(engine);
+    let b=snapback4_lang::compile(&[("schema.q".into(),old)]);
+    let store=snapback4_core::store_port::AnyStore::open(&app.0.join("deployment/store.sqlite")).unwrap();
+    let mut activation=snapback4_core::engine::release::ReleaseActivation::new(1,Some(2));activation.visibility=Some(Default::default());
+    let result=snapback4_core::Engine::new_release_prepared_at(store,b.schema,b.programs.into_iter().map(|p|p.program),&activation,false,snapback4_core::now_ms());
+    let Err(error)=result else{panic!("writer admitted an invented predecessor cell")};
+    assert!(error.to_string().contains("without a validated child projection"),"{error}");
+    assert_eq!(app.json(&["releases","deployment"])["current"],2);
+    assert_eq!(app.json(&["rollback","deployment","--to","1","--json"])["live"]["rowShape"]["matchesTarget"],false);
 }

@@ -429,3 +429,113 @@ fn normalized_statement(s: &Stmt) -> String {
         Stmt::Continue { .. } => "continue".into(),
     }
 }
+
+// @ref LLP 3000.000.000#22-wave-29-release-identity-rel2 — source coordinates and trailing extraction writes are not guard meaning.
+pub(super) fn same_workflows(a:&[(String,String)],b:&[(String,String)])->bool {
+    fn signatures(sources:&[(String,String)])->std::collections::BTreeMap<String,Vec<String>> {
+        sources.iter().flat_map(|(file,text)|parser::parse_document(file,text).0.programs.into_iter().map(move |p|
+            (super::release_bridge::operation_name(file,&p.name),p.prelude.iter().chain(&p.body).map(normalized_statement).collect()))).collect()
+    }
+    signatures(a)==signatures(b)
+}
+
+pub(super) fn extraction_context_safe(target:&[(String,String)],current:&[(String,String)],extractions:&[snapback4_core::schema::Extraction])->bool {
+    let mut next=current.iter().map(|(f,t)|parser::parse_document(f,t).0).collect::<Vec<_>>();
+    let old=target.iter().map(|(f,t)|parser::parse_document(f,t).0).collect::<Vec<_>>();
+    let mut names=std::collections::BTreeMap::new();
+    for table in next.iter().flat_map(|d|&d.tables) {
+        if let Some(prior)=&table.renamed_from {names.insert(table.name.clone(),prior.clone());}
+    }
+    for doc in &mut next {normalize_identities(doc,&names);}
+    // Named shapes may compute a guard operand or spread another shape. Compare
+    // their complete definitions before considering identical statement names.
+    let shapes=|docs:&[crate::ast::Document]|docs.iter().flat_map(|d|d.shapes.iter().map(|shape|
+        (shape.name.clone(),shape.fields.iter().map(|field|match field {
+            crate::ast::ShapeField::Spread{..}=>"...".to_owned(),
+            crate::ast::ShapeField::NamedSpread{name,..}=>format!("...{name}"),
+            crate::ast::ShapeField::Bare{name,..}=>name.clone(),
+            crate::ast::ShapeField::Field{name,value,..}=>format!("{name}:{}",expression_signature(value)),
+        }).collect::<Vec<_>>()))).collect::<std::collections::BTreeMap<_,_>>();
+    if shapes(&old)!=shapes(&next){return false;}
+    let helpers=|docs:&[crate::ast::Document]|docs.iter().flat_map(|d|d.functions.iter().map(|f| {
+        let args=f.args.iter().map(|a|(a.name.clone(),a.type_.clone(),a.alias.clone(),a.default.as_ref().map(expression_signature),a.deprecated)).collect::<Vec<_>>();
+        let body=match &f.body {crate::ast::FunctionBody::Expression(e)=>vec![expression_signature(e)],crate::ast::FunctionBody::Block(b)=>b.iter().map(normalized_statement).collect()};
+        (f.name.clone(),format!("{args:?} {body:?}"))
+    })).collect::<std::collections::BTreeMap<_,_>>();
+    if helpers(&old)!=helpers(&next){return false;}
+    for doc in &old {for previous in &doc.programs {
+        let name=super::release_bridge::operation_name(&doc.file,&previous.name);
+        let Some(current)=next.iter().flat_map(|d|d.programs.iter().map(move |p|(d,p)))
+            .find(|(d,p)|super::release_bridge::operation_name(&d.file,&p.name)==name).map(|(_,p)|p) else {continue};
+        let context=|p:&crate::ast::ProgramDecl| {
+            let body=p.prelude.iter().chain(&p.body).collect::<Vec<_>>();
+            // Nested branches/scopes/loops retain their whole ordered context.
+            let end=if body.iter().any(|s|matches!(s,Stmt::If{..}|Stmt::For{..}|Stmt::As{..})){body.len()}
+                else {body.iter().rposition(|s|matches!(s,Stmt::Require{..})).map(|i|i+1).unwrap_or(0)};
+            body[..end].iter().map(|s|normalized_statement(s)).collect::<Vec<_>>()
+        };
+        if context(previous)!=context(current){return false;}
+        if !matches!(previous.kind,crate::ast::ProgramKind::Query)
+            &&write_projection(previous,extractions)!=write_projection(current,extractions){return false;}
+        if !matches!(previous.kind,crate::ast::ProgramKind::Query)&&write_projection(previous,extractions).is_none(){return false;}
+    }}
+    true
+}
+
+// A split insertion may bind its new parent before inserting the child. Compare
+// all other writes and scalar bindings exactly; pair each payload with the same
+// parent-write ordinal rather than trusting child statement order.
+fn write_projection(p:&crate::ast::ProgramDecl,extractions:&[snapback4_core::schema::Extraction])
+    ->Option<(Vec<String>,Vec<(usize,String,Vec<(String,String)>)>,Vec<String>)> {
+    use crate::ast::{Expr,WriteOp};
+    let field_value=|field:&crate::ast::ObjectField|field.value.clone().unwrap_or_else(||Expr::Name{name:field.name.clone(),site:field.site.clone()});
+    let mut bindings=std::collections::BTreeMap::new();let mut ordinary=Vec::new();
+    for stmt in p.prelude.iter().chain(&p.body) {
+        if let Stmt::Bind{names,value,..}=stmt {
+            if let Expr::Write{op:WriteOp::Insert,table,site,..}=value {
+                if names.len()==1&&extractions.iter().any(|e|e.parent==*table){
+                    if bindings.insert(names[0].clone(),(site.line,site.col)).is_some(){return None;}
+                    continue;
+                }
+            }
+            ordinary.push(normalized_statement(stmt));
+        } else if matches!(stmt,Stmt::Emit{..}|Stmt::Break{..}|Stmt::Continue{..}){ordinary.push(normalized_statement(stmt));}
+    }
+    // A later rebinding must not inherit an earlier parent identity.
+    for name in bindings.keys() {
+        if p.prelude.iter().chain(&p.body).filter(|s|matches!(s,Stmt::Bind{names,..}if names.contains(name))).count()!=1{return None;}
+    }
+    let mut doc=crate::ast::Document::default();doc.programs.push(p.clone());
+    let mut writes=Vec::new();let mut payloads=Vec::new();let mut children=Vec::new();let mut positions=std::collections::BTreeMap::new();let mut valid=true;
+    crate::bind::intent_walk::document(&mut doc,&mut |expr| {
+        let Expr::Write{op,table,keys,fields,condition,if_absent,site}=expr else{return};
+        if let Some(e)=extractions.iter().find(|e|e.child==*table) {
+            if *op!=WriteOp::Insert||!keys.is_empty()||condition.is_some()||*if_absent {valid=false;return;}
+            if fields.iter().any(|f|f.name!=e.reference&&!e.fields.contains_key(&f.name)){valid=false;return;}
+            let parent=fields.iter().find(|f|f.name==e.reference).and_then(|f|match &field_value(f) {
+                Expr::Name{name,..}=>Some(name.clone()),
+                Expr::Member{base,name,..}if name=="id"=>if let Expr::Name{name,..}=base.as_ref(){Some(name.clone())}else{None},_=>None,
+            });
+            let Some(parent)=parent else{valid=false;return};
+            let values=e.fields.iter().map(|(dest,source)|fields.iter().find(|f|f.name==*dest).map(|f|(source.clone(),expression_signature(&field_value(f))))).collect::<Option<Vec<_>>>();
+            let Some(values)=values else{valid=false;return};children.push((parent,e.child.clone(),values));return;
+        }
+        let index=writes.len();positions.insert((site.line,site.col),index);
+        let mut value=expr.clone();
+        if let Expr::Write{table,fields,..}=&mut value {
+            for e in extractions.iter().filter(|e|e.parent==*table) {
+                let values=e.fields.values().filter_map(|source|fields.iter().find(|f|f.name==*source).map(|f|(source.clone(),expression_signature(&field_value(f))))).collect::<Vec<_>>();
+                if !values.is_empty(){payloads.push((index,e.child.clone(),values));}
+                fields.retain(|f|!e.fields.values().any(|source|*source==f.name));
+            }
+            fields.sort_by(|a,b|a.name.cmp(&b.name));
+        }
+        writes.push(expression_signature(&value));
+    });
+    if !valid{return None;}
+    for (name,child,values) in children {
+        let index=*positions.get(bindings.get(&name)?)?;
+        payloads.push((index,child,values));
+    }
+    payloads.sort();Some((writes,payloads,ordinary))
+}

@@ -231,7 +231,11 @@ pub(super) fn plan(
     hazards.extend(client_compatibility.iter().filter(|line|!snapback4_lang::client_contracts::is_note(line)).cloned());
     notes.extend(client_compatibility.iter().filter(|line|snapback4_lang::client_contracts::is_note(line)).cloned());
     let checklist = super::release_bridge::checklist(held["release"].as_u64().unwrap_or(0),release,&hazards);
-    let payload=serde_json::json!({"sourceRelease":options.flags.get("source-release").and_then(|s|s.parse::<u64>().ok()),"preview":true,"security":options.flags.get("security-summary").and_then(|s|serde_json::from_str::<serde_json::Value>(s).ok()),"visibility":visibility,"rollbackVisibility":rollback_visibility,"rollbackViews":rollback_views,"rollbackViewEffects":view_effects,"rollbackView":options.flags.get("rollback-view").and_then(|s|serde_json::from_str::<serde_json::Value>(s).ok()),"clientCompatibility":client_compatibility,"checklist":checklist,"hazards":hazards,"notes":notes,"current":held,"plan":planned,"steps":steps,"estimate":estimate,"phases":engine.store().adoption_report().summary(),"backfills":engine.store().adoption_report().backfills});
+    let row_shape=if !options.flags.contains_key("deploy-direction") {
+        let dir=store_path.parent().ok_or("no deployment directory")?;
+        Some(super::release_shape::at(dir,release)?)
+    }else{None};
+    let payload=serde_json::json!({"sourceRelease":options.flags.get("source-release").and_then(|s|s.parse::<u64>().ok()),"preview":true,"rowShape":row_shape,"security":options.flags.get("security-summary").and_then(|s|serde_json::from_str::<serde_json::Value>(s).ok()),"visibility":visibility,"rollbackVisibility":rollback_visibility,"rollbackViews":rollback_views,"rollbackViewEffects":view_effects,"rollbackView":options.flags.get("rollback-view").and_then(|s|serde_json::from_str::<serde_json::Value>(s).ok()),"clientCompatibility":client_compatibility,"checklist":checklist,"hazards":hazards,"notes":notes,"current":held,"plan":planned,"steps":steps,"estimate":estimate,"phases":engine.store().adoption_report().summary(),"backfills":engine.store().adoption_report().backfills});
     if !options.json&&options.flags.contains_key("deploy-direction") {
         let hidden=view_effects.iter().filter_map(|v|v["visibility"]["hiddenRows"].as_u64()).sum::<u64>();
         println!("deploy verdict: READY; {} rollback views, {hidden} hidden old-table rows across those views; {}",rollback_views.len(),super::security::release_verdict(options.flags.get("security-summary")));
@@ -250,6 +254,7 @@ pub(super) fn plan(
         if !options.flags.contains_key("deploy-direction") {
             for line in visibility.lines(held["release"].as_u64().unwrap_or(0),release) {println!("{line}");}
         }
+        if let Some(shape)=&row_shape {super::release_shape::print(shape);}
         println!("preview: release {release} would be current as generation {}; live release unchanged", engine.generation());
         super::release_summary::print(prior_schema.as_ref(), &candidate_schema, &candidate_programs, &snapback4_lang::client_contracts::compact(&hazards), &notes, &steps, &items);
         if !options.flags.contains_key("deploy-direction") { println!("  checklist: prove the named refusal cases and affected lists/counts as real accounts before release {release}; `--bridge <new-dir>` saves loosened target source plus this app's ROLLBACK-CHECKLIST.md"); }

@@ -55,13 +55,18 @@ pub(super) fn prefer_original(dir:&Path,view:&View,options:&super::Options,owner
     let original=Project{root:target.clone()}.sources().map_err(|e|e.to_string())?;
     let current=Project{root:dir.join("releases").join(view.parent.to_string())}.sources().map_err(|e|e.to_string())?;
     if !snapback4_lang::release_bridge::extraction_preserves_predecessor(&original,&current){return Ok(false);}
+    let store=snapback4_core::store_port::AnyStore::open_read_only(&dir.join("store.sqlite")).map_err(|e|e.to_string())?;
+    let active=store.release_value().map_err(|e|e.to_string())?.and_then(|n|n.parse().ok());
+    let bound=super::releases::bound_at(target.clone())?;
+    if super::releases::check_change(dir,active,&bound,options,Some(view.target)).is_err(){return Ok(false);}
     let mut probe=options.clone();probe.json=true;
     probe.flags.remove("bridge");
     probe.flags.insert("validation-only".into(),String::new());
     probe.flags.insert("visible-rollback".into(),String::new());
     // plan uses VACUUM INTO and the ordinary real activation on a private
     // snapshot. Live activation repeats visibility validation under its CAS.
-    Ok(super::release_preview::plan(&dir.join("store.sqlite"),target,view.target,&probe,owner).is_ok())
+    let result=super::release_preview::plan(&dir.join("store.sqlite"),target,view.target,&probe,owner);
+    Ok(result.is_ok_and(|plan|plan["visibility"]["hiddenRows"]==0 && plan["visibility"]["newlyEmptyCells"]==0))
 }
 
 pub(super) fn verify(dir: &Path, view: &View) -> Result<(), String> {

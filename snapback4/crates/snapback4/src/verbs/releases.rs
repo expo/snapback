@@ -182,7 +182,7 @@ pub(super) fn bound_at(root: PathBuf) -> Result<snapback4_lang::Bound, String> {
     }
     Ok(bound)
 }
-fn check_change(
+pub(super) fn check_change(
     dir: &Path,
     previous: Option<u64>,
     bound: &snapback4_lang::Bound,
@@ -485,7 +485,11 @@ pub fn deploy(options: &Options) -> i32 {
             let mut n=std::fs::read_dir(&releases).map_err(|e|e.to_string())?.filter_map(Result::ok).filter_map(|e|e.file_name().to_str()?.parse::<u64>().ok()).max().unwrap_or(0);
             let staged_bound=bound_at(stage.clone())?;
             let parent=n.checked_add(1).ok_or("release identity exhausted")?;
-            let views=super::rollback_views::prepare(&dir,&stage,&staged_bound,parent)?;
+            // Reactivation selects retained source and its immutable view manifest.
+            // Changing predecessor context alone never mints a duplicate source.
+            let views=if let Some(origin)=matched.filter(|n|Some(*n)!=latest(&dir).ok()&&releases.join(n.to_string()).join("rollback-views.json").is_file()) {
+                super::rollback_views::manifest(&releases.join(origin.to_string()))?
+            } else {super::rollback_views::prepare(&dir,&stage,&staged_bound,parent)?};
             let register_views=super::rollback_views::needs_registration(&dir,matched,&views)?;
             if let Some(origin)=matched {check_change(&dir,previous,&bound,options,Some(origin))?;}
             if let Some(previous)=previous {
@@ -704,6 +708,7 @@ pub fn releases(options: &Options) -> i32 {
             if result["release"].is_null() { result["release"]=serde_json::json!(inspect_current(&dir)?); }
             result["current"]=result["release"].clone();
             result["live"]=result["release"].as_u64().map(|n|live_identity(&dir,n)).transpose()?.unwrap_or(serde_json::Value::Null);
+            result["rowShape"]=result["live"]["rowShape"].clone();
             result["latest"]=serde_json::json!(latest(&dir).ok());
             let mut views=Vec::new();for parent in ordinary_releases(&dir)?{views.extend(super::rollback_views::manifest(&dir.join("releases").join(parent.to_string()))?);}
             result["rollbackViews"]=serde_json::to_value(views).unwrap();
@@ -1024,14 +1029,19 @@ pub(crate) fn validate_registered_view(dir:&Path,root:&Path)->Result<(),String>{
 // @ref LLP 3000.000.000#21-wave-27-release-semantics-rel — workflow source and selected identity are separate facts.
 fn live_identity(dir:&Path,release:u64)->Result<serde_json::Value,String>{
     let view=super::rollback_views::metadata(&dir.join("releases").join(release.to_string()))?;
-    Ok(match view {
+    let mut identity=match view {
         Some(view)=>serde_json::json!({"release":release,"source":view.target,"parent":view.parent,"view":release,"target":view.target,"exact":false}),
         None=>serde_json::json!({"release":release,"source":release,"view":null,"target":release,"exact":true}),
-    })
+    };
+    identity["rowShape"]=super::release_shape::at(dir,release)?;
+    Ok(identity)
 }
 fn print_live(live:&serde_json::Value){
     if live["exact"]==true {println!("live: release {} = exact source {}",live["release"],live["source"]);}
-    else {println!("live: release {} = rollback view of release {} (registered by release {})",live["release"],live["target"],live["parent"]);}
+    else {println!("live: release {} = rollback view of release {} (registered by release {})",live["release"],live["target"],live["parent"]);
+        println!("  view retains the registered workflow and guards; --exact selects original release {}",live["target"]);
+        super::release_shape::print(&live["rowShape"]);
+    }
 }
 
 #[cfg(test)]

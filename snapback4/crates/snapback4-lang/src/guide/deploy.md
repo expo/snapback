@@ -293,4 +293,6 @@ Storage, users and rows survive. Resolve reported conflicts through a truthful b
 
 Migration warnings require a recorded older version crossing the behavior's introduction. Fresh init/check stays quiet; stderr delivery acknowledges the installed version, including CI. Paths cover session literals, advance arithmetic, persistent startDev and data --json. Future known-family store formats refuse with “a newer Snapback (FORMAT)”; upgrade the CLI. SQL inspection also exits nonzero.
 
+Inspect `guide release-json` for `rowShape.matchesTarget`: rollback call success alone does not preserve v1 result fields. Fitting extraction rollback prefers exact source while retaining guards; otherwise stdout names the live view’s changed fields and children.
+
 `check --store ./deployment/store.sqlite` compiles required rollback views against that deployment without registering them. A configured client baseline is checked too. Source-only check cannot qualify a production transition without a predecessor. New UI starters include `day2:proof`: snapshots compare by id over two cycles, retain v2-native rows, and exclude values deliberately changed by v1-client writes from equal-value comparisons. Add authenticated business/refusal assertions in its hook; the default proves storage conservation only.

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.43
+
+### Guide changes
+
+- Fitting extraction rollbacks prefer original source while preserving guards; previews and release JSON report `rowShape.matchesTarget` and concrete result differences. Live views print the columns/children they still serve. Reactivating identical source reuses its retained release.
+- Extraction admits safe list-bound widening; `--save-version` can create its own configured baseline. Production roster locks record a renewable holder/lease and recover automatically when the kernel releases a dead holder.
+
 ## 0.4.42
 
 ### Guide changes
