@@ -108785,3 +108785,45 @@ All 7 private cluster directories confirm stopped; the combined
 scan find **no PIDs left**, including zombies. Minimum free disk is
 45.63 GiB. The ticket is resolved and moved to `issues/closed/`;
 the complete evidence is in [the G7-E report](reports/20261025-g7e-postgres/REPORT.md#g7-e-fix-forward--terminal-completion-and-pg17-transaction-timeout).
+
+
+**2026-10-26 — Integration 27 / 0.4.43.** Merged DX13 (including DX12),
+REL2 and SEC10 after current main. Current applicable approval witnesses remain
+blocking gates; other concrete witnesses remain default-visible questions.
+Current enforced derived refutations occupy the blocking tier during deployment,
+with authored FIX counts separate; they never also print as nonblocking questions.
+Compact display summaries are excluded from canonical witness identity. Literal
+column defaults retain DX13 insertion initialization in the engine and SEC10
+analysis; changed edits still require authority. SEC10 §§10–13 are retained and
+the default-initialization override is §14 of LLP 3000.036.004.000. One Muse and
+one fresh Codex conflict-resolution review are retained verbatim: Muse READY,
+Codex identified the tier/identity defects above, corrected with regression tests;
+no later independent approval is claimed.
+
+REL2 rowShape remains in rollback/release JSON and short output discloses concrete
+result differences and extraction children. A preserved shape needs no redundant
+short-output line. The deploy operational card is 131/150 lines (263/280 total):
+client compatibility, deployed-job and inspection/proxy facts moved intact to
+release-json. E_DATA_TRANSACTION_ABORTED retains its registered explanation.
+The store-port production allowance stays zero: early_release::Durability is an
+exact neutral adapter type, with constructor/external-driver rejection controls.
+The regenerated test census records main's two early-release regression sites;
+they are test-only epoch/transaction fixture access, not production allowances.
+
+The proof cleanup fixture waits for actual npm descendants before completion,
+then waits for their disappearance with a bounded cancellable poll. Timeout
+cleanup and caller-death custody remain asserted. The complete file passed
+10/10 runs with serial client files under 16 busy loops on the same eight CPUs;
+an injected cleanup refusal exited in about 1.2 seconds. Identity deadline tests
+pin setup's monotonic clock and still exercise the actual signup-abort timer.
+run_admission holds a real SQLite writer barrier through the isolated campaign
+instead of using a five-second total-runtime proxy. SEC10 already made the
+security_wave19 check control work-bounded.
+
+The locked Linux wasm is 2,416,590 B raw / 738,613 B gzip / 555,952 B Brotli.
+Budget 739,113 B is measured gzip plus exactly 500 B. The whole-artifact delta
+from Integration 26 is +1,022 B raw / +483 B gzip, including visible-character
+text minima, literal-default initialization and the 0.4.43 stamp. This changes
+no runtime ceiling and makes no independent feature-cost or Mac qualification
+claim. Existing minimum-invalid stored values need repair before narrowing or
+adoption. Publication owns complete packed, Linux-host and Mac qualification.
