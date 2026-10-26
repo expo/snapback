@@ -8,6 +8,32 @@ fn engine() -> Engine {
 }
 
 #[test]
+fn terminal_completion_keeps_one_outcome_before_and_after_receive() {
+    for first in 0..4 {
+        let (sender, receiver) = mpsc::sync_channel(1);
+        let completion = Completion::new(sender);
+        let competing = completion.clone();
+        let outcome = match first {
+            0 => Err(SubmitError::OwnershipLost),
+            1 => Err(SubmitError::OutcomeUnknown),
+            2 => Ok(Ok(7)),
+            _ => Ok(Err(Box::new("command panic") as Box<dyn std::any::Any + Send>)),
+        };
+        assert!(completion.complete(outcome));
+        assert!(!competing.complete(Err(SubmitError::OutcomeUnknown)));
+        let received = receiver.recv().unwrap();
+        match first {
+            0 => assert!(matches!(received, Err(SubmitError::OwnershipLost))),
+            1 => assert!(matches!(received, Err(SubmitError::OutcomeUnknown))),
+            2 => assert!(matches!(received, Ok(Ok(7)))),
+            _ => assert!(matches!(received, Ok(Err(_)))),
+        }
+        assert!(!competing.complete(Ok(Ok(8))), "draining must not reopen completion");
+        assert!(matches!(receiver.try_recv(), Err(mpsc::TryRecvError::Disconnected)));
+    }
+}
+
+#[test]
 fn same_worker_call_and_submit_refuse_before_enqueueing() {
     let queue = Arc::new(Queue::start(engine(), 1).unwrap());
     let own = queue.clone();

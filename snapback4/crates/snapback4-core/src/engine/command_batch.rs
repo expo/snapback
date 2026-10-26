@@ -1,5 +1,5 @@
 //! FIFO collection and latency control for the program-only batch lane.
-use super::{Engine, SubmitError, Ticket, Work};
+use super::{Completion, Engine, SubmitError, Ticket, Work};
 use crate::Refusal;
 use crate::engine::{MutationAcknowledgement, program::Invocation};
 use std::{
@@ -62,14 +62,14 @@ pub(super) trait Task: Send {
 }
 pub(super) struct ProgramTask<T> {
     command: ProgramCommand<T>,
-    sent: mpsc::SyncSender<Result<std::thread::Result<T>, SubmitError>>,
+    sent: Completion<T>,
     ticket: Ticket,
     arrived: Instant,
 }
 impl<T: Send + 'static> ProgramTask<T> {
     pub(super) fn new(
         command: ProgramCommand<T>,
-        sent: mpsc::SyncSender<Result<std::thread::Result<T>, SubmitError>>,
+        sent: Completion<T>,
         ticket: Ticket,
     ) -> Self {
         Self {
@@ -118,7 +118,7 @@ impl<T: Send + 'static> Task for ProgramTask<T> {
             }
             Ok(Err(why)) => Prepared::Failed(why),
             Err(panic) => {
-                let _ = self.sent.send(Ok(Err(panic)));
+                self.sent.complete(Ok(Err(panic)));
                 Prepared::Gone
             }
         }
@@ -138,10 +138,10 @@ impl<T: Send + 'static> Task for ProgramTask<T> {
         let value = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
             (command.finish)(engine, outcome)
         }));
-        let _ = sent.send(Ok(value));
+        sent.complete(Ok(value));
     }
     fn unknown(self: Box<Self>) {
-        let _ = self.sent.send(Err(SubmitError::OutcomeUnknown));
+        self.sent.complete(Err(SubmitError::OutcomeUnknown));
     }
 }
 

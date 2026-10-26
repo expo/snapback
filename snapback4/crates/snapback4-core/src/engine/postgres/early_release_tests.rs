@@ -692,3 +692,78 @@ fn g7e_recovery_pending_queue_returns_unknown_and_lease_loss_stops_retries() {
         "queued solo lost its explicit unknown outcome: {solo:?}"
     );
 }
+
+#[test]
+#[ignore = "private Postgres"]
+fn g7e_ownership_loss_before_pause_rejection_drops_queue_with_unread_replies() {
+    use crate::engine::command::{Command, ProgramCommand, Queue, SubmitError};
+    use crate::engine::program::Invocation;
+    let mut engine = crate::engine::program_batch::tests::fixture(true);
+    engine.store_mut().enable_postgres_early_lock_release().unwrap();
+    let d = engine.store().durability().unwrap();
+    let weak = Arc::downgrade(&d);
+    let (parked, park) = mpsc::channel();
+    let (resume, resumed) = mpsc::channel();
+    let resumed = std::sync::Mutex::new(resumed);
+    d.set_recovery_hook(Arc::new(move || {
+        parked.send(()).unwrap();
+        resumed.lock().unwrap().recv_timeout(Duration::from_secs(5)).unwrap();
+        // Supersede the sampled epoch so the already dispatched recovery fails.
+        weak.upgrade().unwrap().break_history();
+    }));
+    d.break_history();
+    let queue = Queue::start(engine, 8).unwrap();
+    park.recv_timeout(Duration::from_secs(5)).unwrap();
+    let program = queue.submit_program(ProgramCommand::new(
+        Invocation::new("increment", None, crate::Context::new("alice", Default::default())),
+        |_, _| panic!("unstarted program continuation ran"),
+    )).unwrap();
+    let solo = queue.submit(Command::new(|_| panic!("unstarted solo ran"))).unwrap();
+    queue.refuse_ownership(); // Both capacity-one reply channels are now full.
+    resume.send(()).unwrap();
+    let (dropped, drop_done) = mpsc::channel();
+    let shutdown = std::thread::spawn(move || {
+        drop(queue);
+        dropped.send(()).unwrap();
+    });
+    // Do not consume either reply to make room for an erroneous second send.
+    drop_done.recv_timeout(Duration::from_secs(3))
+        .expect("Queue::drop deadlocked on a second terminal reply");
+    shutdown.join().unwrap();
+    assert_eq!(program.wait(), Err(SubmitError::OwnershipLost));
+    assert_eq!(solo.wait(), Err(SubmitError::OwnershipLost));
+}
+
+#[test]
+#[ignore = "private PG17"]
+fn g7e_pg17_marker_ignores_session_transaction_timeout() {
+    let mut c = marker_timeout_client();
+    let version: i32 = c.query_one("SELECT current_setting('server_version_num')::int", &[]).unwrap().get(0);
+    assert!(version >= 170000, "this witness requires private PG17");
+    c.batch_execute("CREATE FUNCTION pg_temp.transaction_slow_marker() RETURNS trigger LANGUAGE plpgsql AS $f$ BEGIN PERFORM pg_sleep(0.6); IF current_setting('transaction_timeout')<>'0' THEN RAISE EXCEPTION 'certificate transaction timeout not disabled'; END IF; RETURN NEW; END $f$; CREATE CONSTRAINT TRIGGER transaction_slow_marker AFTER UPDATE ON _durable DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION pg_temp.transaction_slow_marker(); SET transaction_timeout='300ms'; BEGIN").unwrap();
+    let xid: String = c.query_one("SELECT pg_current_xact_id()::text", &[]).unwrap().get(0);
+    let start = Instant::now();
+    let outcome = commit_marker(&mut c, &std::sync::atomic::AtomicBool::new(false), 1, 0, &xid);
+    assert!(outcome.is_ok(), "slow PG17 marker must certify: {outcome:?}");
+    assert!(start.elapsed() >= Duration::from_millis(600));
+    assert_eq!(c.query_one("SHOW transaction_timeout", &[]).unwrap().get::<_, String>(0), "300ms");
+}
+
+#[test]
+#[ignore = "private PG17"]
+fn g7e_pg17_recovery_ignores_session_transaction_timeout() {
+    let mut engine = crate::engine::program_batch::tests::fixture(true);
+    engine.store_mut().enable_postgres_early_lock_release().unwrap();
+    let store = engine.store_mut().test_postgres_handle_mut().store.get_mut();
+    let version: i32 = store.client.query_one("SELECT current_setting('server_version_num')::int", &[]).unwrap().get(0);
+    assert!(version >= 170000, "this witness requires private PG17");
+    store.client.batch_execute("CREATE FUNCTION transaction_slow_recovery() RETURNS trigger LANGUAGE plpgsql AS $f$ BEGIN PERFORM pg_sleep(0.6); IF current_setting('transaction_timeout')<>'0' THEN RAISE EXCEPTION 'certificate transaction timeout not disabled'; END IF; RETURN NEW; END $f$; CREATE CONSTRAINT TRIGGER transaction_slow_recovery AFTER UPDATE ON _head DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION transaction_slow_recovery(); SET transaction_timeout='300ms'").unwrap();
+    let d = store.early_release.clone().unwrap();
+    d.break_history();
+    let start = Instant::now();
+    let outcome = store.recover_early_release();
+    assert!(outcome.is_ok(), "slow PG17 recovery must certify: {outcome:?}");
+    assert!(start.elapsed() >= Duration::from_millis(600));
+    assert!(!d.broken());
+    assert_eq!(store.client.query_one("SHOW transaction_timeout", &[]).unwrap().get::<_, String>(0), "300ms");
+}
