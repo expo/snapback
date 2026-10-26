@@ -1,0 +1,18 @@
+{
+  "records": 17855,
+  "distinct_identities": 14941,
+  "snapshots": [
+    {
+      "completed_at": 1793050363.1105876,
+      "recorded_identities_left": [],
+      "target_runtime_scan_left": []
+    },
+    {
+      "completed_at": 1793050363.3365507,
+      "recorded_identities_left": [],
+      "target_runtime_scan_left": []
+    }
+  ],
+  "private_runtimes_removed": 13,
+  "pids_left": []
+}

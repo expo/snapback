@@ -1,0 +1,27 @@
+{
+  "path": "/home/ccheever/sb4scale/archive/c0-20261026-capacity.tar.gz",
+  "sha256": "88cb7c51cfeffdf1af120c729a6250eb52b61af3a0b7e5acf80088fc92b422b8",
+  "bytes": 1424556547,
+  "roots": [
+    "c0-20261026",
+    "c0-capacity-20261026",
+    "c0-resume-baseline-01",
+    "c0-resume-baseline-02",
+    "c0-resume-bounds-01",
+    "c0-resume-calibration-01",
+    "c0-smoke-01",
+    "c0-smoke-02",
+    "c0-smoke-03",
+    "c0-smoke-04",
+    "c0-smoke-candidate",
+    "c0-smoke-final",
+    "c0-smoke-qualify",
+    "c0-resume-samples",
+    "c0-samples-20261026",
+    "c0-samples-20261026-aligned",
+    "c0-samples-20261026-final",
+    "c0-build-20261026",
+    "c0-postrun-20261026"
+  ],
+  "raw_data_in_git": false
+}

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Audit all retained C0 ledgers and process identities, without fixed trial counts."""
-import argparse,collections as co,hashlib,json,os
+import argparse,collections as co,hashlib,json,math,os
 from pathlib import Path
 
 def read(p):return json.loads(p.read_text())
@@ -29,7 +29,7 @@ def main():
             rs=[json.loads(s) for s in path.with_suffix('.batches.jsonl.requests.jsonl').read_text().splitlines()]
             actual=[r for r in rs if 'id' in r];assert len(actual)==counter['assigned'],path
             assert co.Counter(r['id'] for r in actual)==co.Counter(u for b in bs for u in b['ids']),path
-            assert len(rs)==round(v['rate']*(v['warmup_s']+v['seconds'])),path
+            assert len(rs)==math.ceil(v['rate']*(v['warmup_s']+v['seconds'])),path
             selected=[r for r in rs if v['warmup_s']*1000<=r.get('at_ms',r.get('expired_at_ms'))<(v['warmup_s']+v['seconds'])*1000]
             assert len(selected)==v['scheduled'],path
             exp=sum('expired_at_ms' in r for r in selected)

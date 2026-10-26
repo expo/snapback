@@ -1,0 +1,315 @@
+{
+  "capacity": {
+    "base": "0298c21295955fe0d4bc2dba09e2df5ec6062d37",
+    "binary_sha256": "83d431192ca71221a66c4bdf04d44ed985b66f6bfdf10a6467ad122192e01309",
+    "source_sha256": {
+      "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/c0-onehost.py": "34f2d348e8dce5358960fde27669b4023ad11d1684548ab1185d3837b37ea9d1",
+      "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/c0-capacity.py": "1ffda8c0fba742956a0b4f7826a73e12c78ca6df3ba533c86fc20546305ca100",
+      "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/postgres-commit-path/src/c0/check_calls.rs": "5d89074b2591176ad0c3aaac596082d1fae992a9e1b13c0d33370fa79dce2d5e",
+      "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/postgres-commit-path/src/c0/checks.sql": "9d1c947c8782d450bfef6422010d7f63fe97d13749dcff699fd7825d6ca23bb4",
+      "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/postgres-commit-path/src/c0/sql.rs": "f31cd380b84ef4803d21f45b7ec56f9829e3a278cb7121ee1f90f2b9e8a88448",
+      "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/postgres-commit-path/src/c0/stage-p-source.json": "b347026c3f6afa152a854a83850f6928835154d1e16cdc571dbc2665924cbd3c",
+      "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/postgres-commit-path/src/c0/typed.rs": "5396aee5a46378d8de1e5cc7785f43f37bc2d43762f1666dce172687d0cf70a5",
+      "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/postgres-commit-path/src/c0/witness.rs": "02ce4f42f2722172dd30f02113509b303a304091c96b782b10d676f8f9b07c98",
+      "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/postgres-commit-path/src/bin/c0.rs": "376a522c455042d313f53325a2517c9fb8b1b77057c84e82be13d18c278aec24"
+    },
+    "samples": {
+      "S-A-2262": {
+        "batches": 11326,
+        "requests": 126722,
+        "sha256": "29d8cb4e81427df5c9f1871d8b33e90e53ad735d9b925009fb0895694a99250f",
+        "mean_source_n": 11.211725233974924,
+        "mean_prep_ms": 1.605000856701395
+      },
+      "S-A-3200": {
+        "batches": 11052,
+        "requests": 124020,
+        "sha256": "5053b5a723a6c4b510b7ed14ca7fb77927589a256e808f198ad30b81cc9693c2",
+        "mean_source_n": 11.224936663047412,
+        "mean_prep_ms": 1.5964330021715525
+      },
+      "S-B-1600": {
+        "batches": 10382,
+        "requests": 95996,
+        "sha256": "eef882da16030db622e5f066a64c2d908e68d75a608eafffcd39f672b8f95313",
+        "mean_source_n": 9.246965902523598,
+        "mean_prep_ms": 1.5126703290310153
+      },
+      "S-B-2262": {
+        "batches": 9821,
+        "requests": 110764,
+        "sha256": "36a2880f4d09036cd61fdd0dbc485e98a641cbfc4e7295e5097f47b5f22ec83f",
+        "mean_source_n": 11.283881478464515,
+        "mean_prep_ms": 1.7160377734446595
+      },
+      "E-A-2262": {
+        "batches": 11007,
+        "requests": 123130,
+        "sha256": "28fbfcd183a653a6e9c0db76cfa899f757521aa73fc4d5809fe7ddba20417627",
+        "mean_source_n": 11.199055146724811,
+        "mean_prep_ms": 1.6069855054056508
+      },
+      "E-A-3200": {
+        "batches": 11038,
+        "requests": 123988,
+        "sha256": "2c724aacd263be39e91269c6002cc091b0bf977b2a1eee60cca3ace495a48dc1",
+        "mean_source_n": 11.2341909766262,
+        "mean_prep_ms": 1.5854342951621672
+      },
+      "E-B-1600": {
+        "batches": 9437,
+        "requests": 95994,
+        "sha256": "9e7bd8c21388a9aae5c5707ab13e28e3cf00b5e4109ae86b67f21fa6862c06d9",
+        "mean_source_n": 10.17357210978065,
+        "mean_prep_ms": 1.6405464847938962
+      },
+      "E-B-2262": {
+        "batches": 9323,
+        "requests": 107058,
+        "sha256": "901a0ea97d596fa30e4e6fcee308748427314f3c1074da91fb8117b8f8862929",
+        "mean_source_n": 11.488791161643247,
+        "mean_prep_ms": 1.7003148113268263
+      }
+    },
+    "fixture_sha256": "28c1152ce34455cb7f40f54196691fc51f7468acdb9a8d951f3f256b55366a00",
+    "command": [
+      "snapback4/experiments/scale-controls/scripts/c0-onehost.py",
+      "--out",
+      "/home/ccheever/sb4scale/c0-capacity-20261026",
+      "--binary",
+      "/home/ccheever/sb4scale/c0-target/release/c0",
+      "--samples",
+      "/home/ccheever/sb4scale/c0-resume-samples",
+      "--mode",
+      "full",
+      "--calibration",
+      "/home/ccheever/sb4scale/c0-resume-baseline-02/aggregate.json"
+    ]
+  },
+  "product_shape_calibration": {
+    "base": "09b631a44d91754b145f1da1e9fbeb088dc55e5b",
+    "binary_sha256": "67bb643fe9f17c67e8f13973fbbdba678eef30f612e3ead8f5148ced3ea47b61",
+    "source_sha256": {
+      "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/c0-onehost.py": "442888f0c2079b4f433d848a292e2d569c65d1cce94ffe291b2306097f18d803",
+      "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/postgres-commit-path/src/c0/check_calls.rs": "5d89074b2591176ad0c3aaac596082d1fae992a9e1b13c0d33370fa79dce2d5e",
+      "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/postgres-commit-path/src/c0/checks.sql": "9d1c947c8782d450bfef6422010d7f63fe97d13749dcff699fd7825d6ca23bb4",
+      "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/postgres-commit-path/src/c0/sql.rs": "f31cd380b84ef4803d21f45b7ec56f9829e3a278cb7121ee1f90f2b9e8a88448",
+      "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/postgres-commit-path/src/c0/stage-p-source.json": "b347026c3f6afa152a854a83850f6928835154d1e16cdc571dbc2665924cbd3c",
+      "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/postgres-commit-path/src/c0/typed.rs": "5396aee5a46378d8de1e5cc7785f43f37bc2d43762f1666dce172687d0cf70a5",
+      "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/postgres-commit-path/src/c0/witness.rs": "02ce4f42f2722172dd30f02113509b303a304091c96b782b10d676f8f9b07c98",
+      "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/postgres-commit-path/src/bin/c0.rs": "da343b15ad0ceaaa29f259e8077f181cfc045f48f70cbef480617433dd7ff8c8"
+    },
+    "samples": {
+      "S-A-2262": {
+        "batches": 11326,
+        "requests": 126722,
+        "sha256": "29d8cb4e81427df5c9f1871d8b33e90e53ad735d9b925009fb0895694a99250f",
+        "mean_source_n": 11.211725233974924,
+        "mean_prep_ms": 1.605000856701395
+      },
+      "S-A-3200": {
+        "batches": 11052,
+        "requests": 124020,
+        "sha256": "5053b5a723a6c4b510b7ed14ca7fb77927589a256e808f198ad30b81cc9693c2",
+        "mean_source_n": 11.224936663047412,
+        "mean_prep_ms": 1.5964330021715525
+      },
+      "S-B-1600": {
+        "batches": 10382,
+        "requests": 95996,
+        "sha256": "eef882da16030db622e5f066a64c2d908e68d75a608eafffcd39f672b8f95313",
+        "mean_source_n": 9.246965902523598,
+        "mean_prep_ms": 1.5126703290310153
+      },
+      "S-B-2262": {
+        "batches": 9821,
+        "requests": 110764,
+        "sha256": "36a2880f4d09036cd61fdd0dbc485e98a641cbfc4e7295e5097f47b5f22ec83f",
+        "mean_source_n": 11.283881478464515,
+        "mean_prep_ms": 1.7160377734446595
+      },
+      "E-A-2262": {
+        "batches": 11007,
+        "requests": 123130,
+        "sha256": "28fbfcd183a653a6e9c0db76cfa899f757521aa73fc4d5809fe7ddba20417627",
+        "mean_source_n": 11.199055146724811,
+        "mean_prep_ms": 1.6069855054056508
+      },
+      "E-A-3200": {
+        "batches": 11038,
+        "requests": 123988,
+        "sha256": "2c724aacd263be39e91269c6002cc091b0bf977b2a1eee60cca3ace495a48dc1",
+        "mean_source_n": 11.2341909766262,
+        "mean_prep_ms": 1.5854342951621672
+      },
+      "E-B-1600": {
+        "batches": 9437,
+        "requests": 95994,
+        "sha256": "9e7bd8c21388a9aae5c5707ab13e28e3cf00b5e4109ae86b67f21fa6862c06d9",
+        "mean_source_n": 10.17357210978065,
+        "mean_prep_ms": 1.6405464847938962
+      },
+      "E-B-2262": {
+        "batches": 9323,
+        "requests": 107058,
+        "sha256": "901a0ea97d596fa30e4e6fcee308748427314f3c1074da91fb8117b8f8862929",
+        "mean_source_n": 11.488791161643247,
+        "mean_prep_ms": 1.7003148113268263
+      }
+    },
+    "fixture_sha256": "28c1152ce34455cb7f40f54196691fc51f7468acdb9a8d951f3f256b55366a00",
+    "command": [
+      "snapback4/experiments/scale-controls/scripts/c0-onehost.py",
+      "--out",
+      "/home/ccheever/sb4scale/c0-resume-baseline-02",
+      "--binary",
+      "/home/ccheever/sb4scale/c0-target/release/c0",
+      "--samples",
+      "/home/ccheever/sb4scale/c0-resume-samples",
+      "--mode",
+      "baseline"
+    ]
+  },
+  "literal_calibration": {
+    "base": "09b631a44d91754b145f1da1e9fbeb088dc55e5b",
+    "binary_sha256": "308b73676f5588bef824aed11a486417409bc2606ebfa25cc28617848cb5aaaa",
+    "source_sha256": {
+      "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/c0-onehost.py": "e177a8f9667887477723b7c2130aa5dec02fc4fa96139127f4853502ba20f05a",
+      "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/postgres-commit-path/src/c0/check_calls.rs": "5d89074b2591176ad0c3aaac596082d1fae992a9e1b13c0d33370fa79dce2d5e",
+      "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/postgres-commit-path/src/c0/checks.sql": "9d1c947c8782d450bfef6422010d7f63fe97d13749dcff699fd7825d6ca23bb4",
+      "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/postgres-commit-path/src/c0/sql.rs": "f31cd380b84ef4803d21f45b7ec56f9829e3a278cb7121ee1f90f2b9e8a88448",
+      "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/postgres-commit-path/src/c0/stage-p-source.json": "b347026c3f6afa152a854a83850f6928835154d1e16cdc571dbc2665924cbd3c",
+      "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/postgres-commit-path/src/c0/typed.rs": "5396aee5a46378d8de1e5cc7785f43f37bc2d43762f1666dce172687d0cf70a5",
+      "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/postgres-commit-path/src/c0/witness.rs": "02ce4f42f2722172dd30f02113509b303a304091c96b782b10d676f8f9b07c98",
+      "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/postgres-commit-path/src/bin/c0.rs": "c3882a2ba549b93bd86c6126476da9e628ec7945c6def5730f461de04d50229d"
+    },
+    "samples": {
+      "S-A": {
+        "batches": 11052,
+        "requests": 124020,
+        "sha256": "5053b5a723a6c4b510b7ed14ca7fb77927589a256e808f198ad30b81cc9693c2",
+        "mean_source_n": 11.224936663047412,
+        "mean_prep_ms": 1.5964330021715525
+      },
+      "S-B": {
+        "batches": 9821,
+        "requests": 110764,
+        "sha256": "36a2880f4d09036cd61fdd0dbc485e98a641cbfc4e7295e5097f47b5f22ec83f",
+        "mean_source_n": 11.283881478464515,
+        "mean_prep_ms": 1.7160377734446595
+      },
+      "E-A": {
+        "batches": 11038,
+        "requests": 123988,
+        "sha256": "2c724aacd263be39e91269c6002cc091b0bf977b2a1eee60cca3ace495a48dc1",
+        "mean_source_n": 11.2341909766262,
+        "mean_prep_ms": 1.5854342951621672
+      },
+      "E-B": {
+        "batches": 9323,
+        "requests": 107058,
+        "sha256": "901a0ea97d596fa30e4e6fcee308748427314f3c1074da91fb8117b8f8862929",
+        "mean_source_n": 11.488791161643247,
+        "mean_prep_ms": 1.7003148113268263
+      }
+    },
+    "fixture_sha256": "28c1152ce34455cb7f40f54196691fc51f7468acdb9a8d951f3f256b55366a00",
+    "command": [
+      "snapback4/experiments/scale-controls/scripts/c0-onehost.py",
+      "--out",
+      "/home/ccheever/sb4scale/c0-resume-calibration-01",
+      "--binary",
+      "/home/ccheever/sb4scale/c0-target/release/c0",
+      "--samples",
+      "/home/ccheever/sb4scale/c0-samples-20261026-final",
+      "--mode",
+      "calibration"
+    ]
+  },
+  "diagnostics": {
+    "base": "09b631a44d91754b145f1da1e9fbeb088dc55e5b",
+    "binary_sha256": "59bb34cc6f7ec715e972ab8c62d0b1b4774fff1d261832f5e6ed70e8219bdb42",
+    "source_sha256": {
+      "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/c0-onehost.py": "c8176d793ca020c52e9f31ace3a5c913a2ad0672fc8edc735c06b614925f2c2a",
+      "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/c0-capacity.py": "40269451b8198988672f1172efa6e37a2ce6abe3e2be1ed45ed48d1609e24e76",
+      "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/postgres-commit-path/src/c0/check_calls.rs": "5d89074b2591176ad0c3aaac596082d1fae992a9e1b13c0d33370fa79dce2d5e",
+      "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/postgres-commit-path/src/c0/checks.sql": "9d1c947c8782d450bfef6422010d7f63fe97d13749dcff699fd7825d6ca23bb4",
+      "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/postgres-commit-path/src/c0/sql.rs": "f31cd380b84ef4803d21f45b7ec56f9829e3a278cb7121ee1f90f2b9e8a88448",
+      "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/postgres-commit-path/src/c0/stage-p-source.json": "b347026c3f6afa152a854a83850f6928835154d1e16cdc571dbc2665924cbd3c",
+      "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/postgres-commit-path/src/c0/typed.rs": "5396aee5a46378d8de1e5cc7785f43f37bc2d43762f1666dce172687d0cf70a5",
+      "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/postgres-commit-path/src/c0/witness.rs": "02ce4f42f2722172dd30f02113509b303a304091c96b782b10d676f8f9b07c98",
+      "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/postgres-commit-path/src/bin/c0.rs": "587bfb60ab90b3238626ad188ab287308453bf264ca282d58ba717e8c37d66b8"
+    },
+    "samples": {
+      "S-A-2262": {
+        "batches": 11326,
+        "requests": 126722,
+        "sha256": "29d8cb4e81427df5c9f1871d8b33e90e53ad735d9b925009fb0895694a99250f",
+        "mean_source_n": 11.211725233974924,
+        "mean_prep_ms": 1.605000856701395
+      },
+      "S-A-3200": {
+        "batches": 11052,
+        "requests": 124020,
+        "sha256": "5053b5a723a6c4b510b7ed14ca7fb77927589a256e808f198ad30b81cc9693c2",
+        "mean_source_n": 11.224936663047412,
+        "mean_prep_ms": 1.5964330021715525
+      },
+      "S-B-1600": {
+        "batches": 10382,
+        "requests": 95996,
+        "sha256": "eef882da16030db622e5f066a64c2d908e68d75a608eafffcd39f672b8f95313",
+        "mean_source_n": 9.246965902523598,
+        "mean_prep_ms": 1.5126703290310153
+      },
+      "S-B-2262": {
+        "batches": 9821,
+        "requests": 110764,
+        "sha256": "36a2880f4d09036cd61fdd0dbc485e98a641cbfc4e7295e5097f47b5f22ec83f",
+        "mean_source_n": 11.283881478464515,
+        "mean_prep_ms": 1.7160377734446595
+      },
+      "E-A-2262": {
+        "batches": 11007,
+        "requests": 123130,
+        "sha256": "28fbfcd183a653a6e9c0db76cfa899f757521aa73fc4d5809fe7ddba20417627",
+        "mean_source_n": 11.199055146724811,
+        "mean_prep_ms": 1.6069855054056508
+      },
+      "E-A-3200": {
+        "batches": 11038,
+        "requests": 123988,
+        "sha256": "2c724aacd263be39e91269c6002cc091b0bf977b2a1eee60cca3ace495a48dc1",
+        "mean_source_n": 11.2341909766262,
+        "mean_prep_ms": 1.5854342951621672
+      },
+      "E-B-1600": {
+        "batches": 9437,
+        "requests": 95994,
+        "sha256": "9e7bd8c21388a9aae5c5707ab13e28e3cf00b5e4109ae86b67f21fa6862c06d9",
+        "mean_source_n": 10.17357210978065,
+        "mean_prep_ms": 1.6405464847938962
+      },
+      "E-B-2262": {
+        "batches": 9323,
+        "requests": 107058,
+        "sha256": "901a0ea97d596fa30e4e6fcee308748427314f3c1074da91fb8117b8f8862929",
+        "mean_source_n": 11.488791161643247,
+        "mean_prep_ms": 1.7003148113268263
+      }
+    },
+    "fixture_sha256": "28c1152ce34455cb7f40f54196691fc51f7468acdb9a8d951f3f256b55366a00",
+    "command": [
+      "snapback4/experiments/scale-controls/scripts/c0-onehost.py",
+      "--out",
+      "/home/ccheever/sb4scale/c0-resume-bounds-01",
+      "--binary",
+      "/home/ccheever/sb4scale/c0-target/release/c0",
+      "--samples",
+      "/home/ccheever/sb4scale/c0-resume-samples",
+      "--mode",
+      "smoke",
+      "--smoke"
+    ]
+  }
+}

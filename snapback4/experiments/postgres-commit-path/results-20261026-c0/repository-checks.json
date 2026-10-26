@@ -1,0 +1,60 @@
+{
+  "release_harness_build": {
+    "passed": true,
+    "status_path": "/home/ccheever/sb4scale/c0-build-20261026/status.json",
+    "target": "/home/ccheever/sb4scale/c0-target",
+    "binary_sha256": "83d431192ca71221a66c4bdf04d44ed985b66f6bfdf10a6467ad122192e01309"
+  },
+  "python_compile": {
+    "passed": true,
+    "scripts": [
+      "c0-samples.py",
+      "c0-report.py",
+      "c0-verify.py",
+      "c0-finish.py",
+      "c0-onehost.py",
+      "c0-capacity.py"
+    ]
+  },
+  "ref_check": {
+    "passed": true,
+    "llps": 570,
+    "references": 12051,
+    "errors": 0,
+    "unchecked": 0
+  },
+  "affected_selector": {
+    "base": "799e42a6bb560c310ac8f3a3411d740b7380b372",
+    "broad": true,
+    "commands_selected": 31,
+    "executed": false,
+    "reason": "Standalone experiment paths and its independent Cargo.lock select the broad product suite; experiment-only validation is the release harness, calibration, bounded failure diagnostics, full S1 confirmation and retained-ledger audit. No product qualification claimed."
+  },
+  "product_edits": false,
+  "fetch_push_stash": false,
+  "stage_p_source_parity": {
+    "stage_p_commit": "784641ce400d42c16509f8ed63d94c29b641f820",
+    "source_hashes": true,
+    "typed_generator_exact_except_comments_and_unused_test_fallback": true,
+    "guard_and_fence_bodies_exact": true
+  },
+  "raw_ledger_audit": {
+    "passed": true,
+    "completed_trials": 1378,
+    "failed_execution_records": 2,
+    "superseded_trials": 205,
+    "fractional_warmup_arrival_count": "ceil(rate * (warmup + seconds))"
+  },
+  "local_markdown_targets": {
+    "passed": true,
+    "links": 14
+  },
+  "json_parse": {
+    "passed": true
+  },
+  "scope_audit": {
+    "passed": true,
+    "allowed": "postgres-commit-path experiment and c0 one-host runner scripts only",
+    "raw_trial_request_batch_data_in_git": false
+  }
+}
