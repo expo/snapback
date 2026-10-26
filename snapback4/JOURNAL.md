@@ -108701,3 +108701,43 @@ released: 141.178 s total, median 2.410 s. The two slow call scripts themselves
 take about a minute; no new builder-time savings are claimed. Existing release
 and security semantics are unchanged (REL2/SEC10 own those). LLP 3000.036.004
 §19.1 records presentation; detailed evidence is in reports/20261026-dx12.
+
+## 2026-10-26 — G7-E fix-forward: terminal completion and PG17 certificate timeout
+
+On integrated main `bcf780d307`, pause rejection could publish a second
+terminal outcome after ownership loss had already filled a command's reply
+channel. With recovery parked, the new witness enqueues a program and a
+solo command, loses ownership before consuming either reply, supersedes the
+recovery epoch, and drops the queue while both replies remain unread. The
+before implementation fails with `Queue::drop deadlocked on a second
+terminal reply`. Every program and solo terminal path now shares one
+completion sender: ownership loss, pause rejection, unknown outcomes,
+prepare/continuation panics and certified results atomically take it once
+and send without blocking. Reading a result cannot reopen completion;
+started work keeps its actual result.
+
+Marker and recovery certificates share settings that locally disable
+statement/lock timeouts and conditionally execute `SET LOCAL
+transaction_timeout=0` on PG17 and later. PG16 never executes that setting.
+The conditional stays in the existing certificate message and its command
+tag joins the marker's exact validation. On a separate private PG17
+cluster, both new deferred-COMMIT witnesses sleep 600 ms with a 300 ms
+session transaction timeout. Both fail before with unknown outcomes and
+server `terminating connection due to transaction timeout` records. The
+protected PG17 cluster on port 55440 is untouched. No throughput campaign
+or push is part of this lane; raw evidence remains under `/tmp/g7eff-*`.
+
+
+Final checks: full core **1,311/0** (526 ignored), full
+binary **626/0** (75 ignored), E core/HTTP **40/0** and **5/0**,
+private PG17 **2/0**, G7.2 **40/0**, RT0 core/HTTP **6/0** and **10/0**,
+crash/kill **11/0** with zero acknowledged loss or lost-history release.
+Full binary build and public serving pass. Postgres Rust targets are
+**817/1** across 26 targets: only inherited `E_INPUT: 6`; the inherited
+stale evaluator lockfile blocks its known `40001` stage. No additional red.
+Ref-check: **569 LLPs, 12,045 references, zero errors/unchecked**.
+All 7 private cluster directories confirm stopped; the combined
+8,020-pair audit, public PID ledger, test drivers and target executable
+scan find **no PIDs left**, including zombies. Minimum free disk is
+45.63 GiB. The ticket is resolved and moved to `issues/closed/`;
+the complete evidence is in [the G7-E report](reports/20261025-g7e-postgres/REPORT.md#g7-e-fix-forward--terminal-completion-and-pg17-transaction-timeout).

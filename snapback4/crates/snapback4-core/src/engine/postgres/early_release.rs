@@ -407,8 +407,9 @@ pub(super) fn commit_marker(
     // All interpolated values originate as integers or pg_current_xact_id().
     let xid = xid.parse::<u64>().map_err(|_| retry())?;
     warning.store(false, Ordering::SeqCst);
+    let settings = super::ownership::CERTIFICATE_SETTINGS;
     let sql = format!(
-        "SET LOCAL synchronous_commit=off; COMMIT; BEGIN; SET LOCAL synchronous_commit=on; SET LOCAL statement_timeout=0; SET LOCAL lock_timeout=0; UPDATE _durable SET n=n+1 WHERE token={token} AND slot={slot} RETURNING pg_catalog.pg_current_wal_insert_lsn()::text,pg_catalog.pg_postmaster_start_time()::text; COMMIT; SELECT pg_catalog.pg_current_wal_flush_lsn()::text,pg_catalog.pg_xact_status('{xid}'::xid8)"
+        "SET LOCAL synchronous_commit=off; COMMIT; BEGIN; {settings} UPDATE _durable SET n=n+1 WHERE token={token} AND slot={slot} RETURNING pg_catalog.pg_current_wal_insert_lsn()::text,pg_catalog.pg_postmaster_start_time()::text; COMMIT; SELECT pg_catalog.pg_current_wal_flush_lsn()::text,pg_catalog.pg_xact_status('{xid}'::xid8)"
     );
     let result = client.simple_query(&sql);
     let warned = warning.swap(false, Ordering::SeqCst);
@@ -428,7 +429,7 @@ pub(super) fn commit_marker(
                 .iter()
                 .filter_map(|m| if let M::Row(r) = m { Some(r) } else { None })
                 .collect::<Vec<_>>();
-            if counts != [0, 0, 0, 0, 0, 0, 1, 0, 1]
+            if counts != [0, 0, 0, 0, 0, 0, 0, 1, 0, 1]
                 || rows.len() != 2
                 || rows[1].get(1) != Some("committed")
             {

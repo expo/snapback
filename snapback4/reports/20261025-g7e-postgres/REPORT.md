@@ -685,3 +685,89 @@ permission warnings are nonfatal.
 `./ref-check --verbose`: 569 LLP documents, 12,033 references in 45205 files, **0 errors / 0 unchecked**.
 
 The combined audit checks 12,623 recorded PID/birth pairs, including zombies, both public-helper PID ledgers, and executables under this worktree's target. All 7 private cluster directories confirm stopped (status 3 and no postmaster.pid). Minimum monitored free disk across before and after runs is 59.35 GiB, above the 25 GiB floor. **PIDs left: none.** No throughput campaign, publication or push. Raw records remain in `/tmp/g7ef2-*` and the named private witness directories; none are committed.
+
+
+## G7-E fix-forward — terminal completion and PG17 transaction timeout
+
+Pinned input: integrated main `bcf780d307` on `sb4-pg/main-bcf7`; work stays
+on `sb4-pg/g7e-ff`, without a push. Own target, line-tables-only dev/test
+profiles, cargo `-j 8`, no throughput campaign, 25 GiB disk stop floor.
+
+Every terminal reply from a program or solo command now shares one
+`Completion<T>`. Taking its only sender arbitrates ownership loss, pause
+rejection, unknown outcomes, prepare/continuation panics and real results;
+the send is nonblocking. The sender remains claimed after a receive.
+Existing admission locking continues to remove started commands from
+ownership-loss refusal, so their actual results and continuations survive.
+
+The new queue witness parks a real E recovery, enqueues a program and a
+solo command, loses ownership before either reply is consumed, supersedes
+recovery's epoch and drops the queue with both capacity-one reply channels
+full. On the before tree plus witnesses only, queue shutdown times out with
+`Queue::drop deadlocked on a second terminal reply` (0 passed / 1 failed).
+With the fix it finishes before either receive; both commands return
+`OwnershipLost`, and neither body/continuation executes. The completion
+unit witness covers refusal, unknown, success and panic winners, rejects
+another outcome while the reply is unread, and rejects one after receive.
+
+Certificate settings share a server-version conditional: PG17 and later
+execute `SET LOCAL transaction_timeout=0`; PG16 does not execute that
+setting. The conditional stays with marker/recovery COMMIT, with no extra
+flight. Exact marker validation includes its zero-count command tag on
+both versions. Explicit synchronous commit, warning classification and
+committed-unknown no-replay behavior are retained.
+
+PG17 is available on this host. The new marker and recovery witnesses use
+separate private PG17 data, socket and port, never the protected port-55440
+cluster. Each installs a deferred trigger that sleeps 600 ms, against a
+300 ms session transaction timeout. Both fail on the before implementation
+(0 passed / 2 failed), with server `terminating connection due to
+transaction timeout` records. Both pass after (2 / 0), certifying the slow
+transaction and restoring the 300 ms session default. The PG16 E suite
+also passes all 40 entries (38 asserting tests and two controller-guarded
+helpers); the two PG17-only tests are excluded from that PG16 selection.
+
+Raw before/after records remain outside Git under `/tmp/g7eff-*`.
+
+### Completed verification and custody
+
+The complete Postgres script ran once through `/bin/bash` in
+`/tmp/g7eff-postgres`, concurrently with full core on a separate private
+PG16 cluster. The main runner imported that completed result only after
+checking the source digest was unchanged and the cluster cleanup was
+confirmed. No source edit occurred during verification. Counts below are
+passed / failed, with each suite reported separately.
+
+| Check | Passed | Failed | Notes |
+| --- | ---: | ---: | --- |
+| Full core with Postgres | 1,311 | 0 | 526 ignored; 49 direct targets |
+| Full `snapback4` binary tests | 626 | 0 | 75 ignored |
+| E core, PG16 | 40 | 0 | 38 assertions and two controller-guarded helpers |
+| E HTTP | 5 | 0 |  |
+| G7.2 | 40 | 0 | Both measurement bodies disabled |
+| RT0 core | 6 | 0 | E marker remains in the third flight |
+| RT0 HTTP | 10 | 0 |  |
+| Private PG17 slow marker/recovery | 2 | 0 | Both fail before; 300 ms session default restored after 600 ms waits |
+| Snapback/PG crash and kill matrix | 11 | 0 | Zero acknowledged-write loss; lost-history reader withheld; revision reuse |
+| Postgres script Rust targets | 817 | 1 | 26 direct targets; inherited differential `E_INPUT: 6` |
+
+The full binary build and public Postgres serving pass. The Postgres script
+exits 1 for the two inherited reds: six unexpected `E_INPUT` refusals in
+`both_stores_all_public_boundaries_and_write_observations`, and the stale
+`experiments/postgres/Cargo.lock` rejecting `--locked`. The lockfile blocks
+the evaluator's known `40001` stage; that stage did not execute. There is
+no additional red. Registry cache permission warnings remain nonfatal.
+
+`./ref-check --verbose`: **569 LLP documents, 12,045 references,
+0 errors / 0 unchecked**. `git diff --check` passes.
+
+All **7 private cluster directories** independently report
+`pg_ctl status` 3 and no `postmaster.pid`. The final audit combines
+**8,020 PID/birth pairs**, crash records, the public-serving
+PID ledger, test drivers, and executables under this worktree's target,
+including zombies. **PIDs left: none.** Minimum monitored free space is
+**45.63 GiB**, above the 25 GiB stop floor; final free space
+is **45.89 GiB**. Raw records, including
+`/tmp/g7eff-final-audit.json`, remain outside Git. No throughput campaign,
+protected PG17/port-55440 access, push, stash, or Git configuration change.
+The ticket is resolved under `issues/closed/`.
