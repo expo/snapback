@@ -1,0 +1,17 @@
+{
+  "report_commit": "98216d25554f09cb7947421c68d954fed845b66f",
+  "product_commit": "7e88aa041df5207c5ff95a0982bc16e54543177d",
+  "archive": {
+    "path": "/home/ccheever/sb4scale/archive/s1-writes-levers-20261025.tar.gz",
+    "sha256": "34760fd372799a78431e96f576646cc515e04c4f3896355966717ce0c15b06d9",
+    "bytes": 620545263,
+    "members": 999,
+    "trial_jsons": 102,
+    "prior_final_archive_sha256": "f5e46efdd1a8a9de67eac775e324c5300cb9aadd41f79345d67c44a5bce166b0",
+    "prior_archive_embedded_transitively": true,
+    "g72_archive_sha256": "18499e06b6b6070575fe5b7524ba9ed7983caf7aea5b725f6d0f1a0546e86244",
+    "g72_archive_embedded": true
+  },
+  "comparison_sha256": "7d1c06cc3c35f8455b249bf891f3d371e9a879dd5eed2e5149d9f731a361d0d7",
+  "no_controls_rerun": true
+}

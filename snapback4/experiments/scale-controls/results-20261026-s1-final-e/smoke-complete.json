@@ -1,0 +1,15 @@
+{
+  "link": "B",
+  "arm": "E",
+  "trials": 3,
+  "passes": 3,
+  "rate": 100,
+  "certificates": {
+    "slots": 2,
+    "marker_updates": 1694
+  },
+  "overlap_confirmed": true,
+  "flush_assertion_compiled": true,
+  "planted_violation_witness": "snapback4/crates/snapback4-core/src/engine/postgres/early_release_tests.rs: g7e_flush_position_assertion_rejects_an_unflushed_reply; existing qualified report 20261025-g7e-postgres/REPORT.md",
+  "time": 1792973773.9529183
+}

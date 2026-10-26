@@ -1,0 +1,7 @@
+{
+  "trials": 240,
+  "all_writer_streams_started_before_read_load": true,
+  "all_reader_processes_exited_before_writer_last_scheduled_arrival": true,
+  "minimum_margin_s": 7.454916715621948,
+  "method": "reader /proc exit observations at 200 ms cadence; writer spawn is a lower bound on its clock start; native writer schedule lasts 40 seconds; durable counter increase before read spawn proves writer started; no workload or runner change"
+}

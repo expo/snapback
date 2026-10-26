@@ -1,0 +1,18 @@
+{
+  "unchanged_main_auditors_pass": true,
+  "main_trials": 342,
+  "background_readback_pass": true,
+  "background_trials": 240,
+  "lossless_archive_pairs": true,
+  "all_binary_hashes_match": true,
+  "product_and_runner_unchanged": true,
+  "report_readback_pending": false,
+  "report_readback_pass": true,
+  "repetitions_read": 339,
+  "write_rows": 6,
+  "read_rows": 6,
+  "matched_rates_verified": true,
+  "latency_medians_verified": true,
+  "strict_verdicts_verified": true,
+  "archive_sha256_verified": true
+}
