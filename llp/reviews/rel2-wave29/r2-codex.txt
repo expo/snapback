@@ -1,0 +1,43 @@
+**NOT READY** — three material defects in the supplied snapshot.
+
+1. **Current guards can be bypassed through changed named shapes.**  
+   In `extraction_preserves_predecessor` / `extraction_context_safe`, statement comparison retains a shape’s name but never compares its definition.
+
+   **Reproducer:** Extend the fitting `publication_media()` pair with identical documents tables and this workflow:
+   ```quarry
+   shape access = { allowed: true }
+   mutation change(id: documents):
+     row = documents[id] ! else MISSING
+     gate = row access
+     require gate.allowed else FORBIDDEN
+     update documents[id] {amount:1}
+   ```
+   In current source, change only `allowed: true` to `allowed: .owner = viewer`. The new proof accepts the identical statements and can select exact predecessor source. Bob can then modify Alice’s document, although current execution refuses.
+
+   **Correction:** Compare resolved shape definitions, including transitive named spreads and helpers, throughout guard dependencies. Otherwise retain the guarded view.
+
+2. **`rowShape.matchesTarget` can report preservation when fields disappear.**  
+   [`release_shape.rs`](/home/ccheever/projects/sb4-b29-rel2/snapback4/crates/snapback4/src/verbs/release_shape.rs) handles `Ty::WriteRow` identically to `Ty::Row`. Runtime write results explicitly remove maintained columns.
+
+   **Reproducer:** With `posts.likeCount: count likes by postId`, compare the same mutation returning:
+   ```quarry
+   -- Target
+   p = insert posts {id, at}
+   return posts[p.id] ! else MISSING
+
+   -- Served
+   p = insert posts {id, at}
+   return p
+   ```
+   The target includes `likeCount`; the served write result omits it. `compare` nevertheless reports `matchesTarget: true`.
+
+   **Correction:** Model write-result fields separately, excluding maintained columns, and use the actual public field-presence rules.
+
+3. **The empty/defaulted-cell safety check races normal writes.**  
+   `prefer_original` checks `newlyEmptyCells` only on its private snapshot. Live activation checks the release revision, which ordinary mutations do not advance; writer-time rollback visibility validation does not repeat this cell check.
+
+   **Reproducer:** Use an extraction whose predecessor asset column is optional. After the fitting private preview passes, insert a current parent without a child through the running server. Live reverse activation finds no child, materializes the predecessor column as null, and succeeds despite introducing a newly empty cell.
+
+   **Correction:** Enforce the empty/defaulted-cell condition inside the activation transaction, or fence activation against intervening data changes.
+
+Static source-level reproducers; not executed. No files edited, other reviewers invoked, credentials read, or original stores opened.

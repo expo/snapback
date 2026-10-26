@@ -32,7 +32,7 @@ impl SavedVersion {
             Err(error) if error.kind()==std::io::ErrorKind::NotFound => {std::fs::create_dir(&path).map_err(|e|format!("cannot save {name}: {e}"))?;false}
             Err(error) => return Err(format!("cannot inspect {name}: {error}")),
         };
-        let mut files = if refresh {Vec::new()} else {sources.iter().map(|(name,text)|(PathBuf::from(name),text.as_bytes().to_vec())).collect()};
+        let mut files = Vec::new();
         // Keep the generated module boundary and every sibling artifact.
         // A saved-source selection draws siblings from that saved unit.
         let unit=match options.flags.get("schema").map(PathBuf::from) {
@@ -69,6 +69,18 @@ impl SavedVersion {
             }
         }
         if !refresh {saved.files.push((PathBuf::from("fixtures/.gitkeep"),Vec::new()));}
+        // Materialize selected baseline bytes before compatibility/codegen reads
+        // them. Drop removes this provisional snapshot if activation fails.
+        // @ref LLP 3000.000.000#22-wave-29-release-identity-rel2 — saving a baseline may consume its own selected source.
+        if !refresh {
+            for (name, text) in sources {
+                let destination = saved.path.join(name);
+                std::fs::create_dir_all(destination.parent().unwrap()).map_err(|e|e.to_string())?;
+                use std::io::Write;
+                let mut file = std::fs::OpenOptions::new().write(true).create_new(true).open(destination).map_err(|e|e.to_string())?;
+                file.write_all(text.as_bytes()).map_err(|e|e.to_string())?;
+            }
+        }
         Ok(Some(saved))
     }
     pub(super) fn finish(&mut self, release: u64, source_hash: &str) -> Result<(),String> {

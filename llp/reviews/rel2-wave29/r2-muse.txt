@@ -1,0 +1,39 @@
+muse: workspace root: /home/ccheever/projects/sb4-b29-rel2 (cwd default)
+muse: workspace trust: trusted source=run-flag
+**NOT READY** — one material guard-preservation defect blocks REL2.
+
+## Blocking defect: current invariants are ignored by exact selection
+
+[release_bridge.rs](/home/ccheever/projects/sb4-b29-rel2/snapback4/crates/snapback4-lang/src/release_bridge.rs:122) removed the baseline's `!next.invariants.is_empty()` refusal. The new `extraction_preserves_predecessor` never compares `old.invariants` against `next.invariants`. Nothing else in the exact path covers them: [release_bridge_guards.rs](/home/ccheever/projects/sb4-b29-rel2/snapback4/crates/snapback4-lang/src/release_bridge_guards.rs:79) `carry`, `same_workflows`, and `extraction_context_safe` compare only programs, guards, bindings, and helpers. `check_change` in [releases.rs](/home/ccheever/projects/sb4-b29-rel2/snapback4/crates/snapback4/src/verbs/releases.rs:185) checks only column-write authority. The private preview checks hidden rows and newly empty cells, not invariant retention.
+
+So a stricter current invariant on a retained table is silently dropped when exact source is selected. The existing test only adds a vacuous duplicate plus a child-only extra, which does not exercise this.
+
+### Reproducer
+
+Take the fitting pair from the `fitting_extraction_with_rename` test in [roll_views.rs](/home/ccheever/projects/sb4-b29-rel2/snapback4/crates/snapback4/tests/roll_views.rs). Keep `old` as-is. Append a new retained-table invariant only to `current`:
+
+```rust
+let (old, mut current) = publication_media();
+current.push_str("invariant orders.read only viewer = 'alice'\n");
+assert!(snapback4_lang::compile(&[("schema.q".into(), old.clone())]).diagnostics.is_empty());
+assert!(snapback4_lang::compile(&[("schema.q".into(), current.clone())]).diagnostics.is_empty());
+// Bug: returns true, so prefer_original selects exact and drops the invariant.
+assert!(snapback4_lang::release_bridge::extraction_preserves_predecessor(
+    &[("schema.q".into(), old)], &[("schema.q".into(), current)]));
+```
+
+Expected: `false` (fall back to the registered view or a bridge that retains the invariant). Actual: `true`.
+
+### Necessary correction
+
+In `extraction_preserves_predecessor`, after the auth comparison, require every current invariant governing a retained table or operation to already hold in the old source. Compare canonicalized invariant sets, order-insensitive. Permit extras only when they govern solely an extracted child table removed by the rollback (that is the case the current test covers). Narrow the amendment wording accordingly: invariant *grouping/order* is presentation, but invariant *content* on retained subjects must survive like guards.
+
+## Other areas checked, no blockers found
+
+- Alias exports: [release_bridge.rs](/home/ccheever/projects/sb4-b29-rel2/snapback4/crates/snapback4-lang/src/release_bridge.rs:185) expansion plus `carry` alias handling covers the same-file alias-to-guard case in the new test. Read-only review only; cross-file and chained aliases look out of scope for this amendment.
+- Child-vs-parent write proof: unknown row-relative gates refuse closed; explicit deny refuses; omitted rules are correctly skipped per the amendment.
+- Singleton vs competing children: [rollback_visibility.rs](/home/ccheever/projects/sb4-b29-rel2/snapback4/crates/snapback4-core/src/store/rollback_visibility.rs) live-receipt query is definition-scoped; competing children without receipts still force the view.
+- Result shape: [release_shape.rs](/home/ccheever/projects/sb4-b29-rel2/snapback4/crates/snapback4/src/verbs/release_shape.rs) compares every target export including missing operations and nullable/omittable/nested/collection structure; exact trivially preserves its own target.
+- Source dedupe, list inclusion, self-baseline cleanup, and lease fencing all read correctly against the stated contracts.
+
+Verification was static only: read the amended section, the full diff, and baseline context via `git show`; ran no test suites and changed nothing.

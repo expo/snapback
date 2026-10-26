@@ -106,3 +106,21 @@ fn generated_password_campaign_prepares_live_read_through_without_a_dev_store() 
     assert!(text.contains("security unauthenticated serve HTTP"),"{text}");
     assert!(!app.0.join(".snapback4/store.sqlite").exists());
 }
+
+#[test]
+fn saving_the_configured_baseline_is_not_circular_and_failure_cleans_it() {
+    let app=App::new();
+    app.write("snapback/schema.q","query alive():\n  return true\n");
+    app.write("snapback/client-compatibility.json",r#"{"baseline":"versions/v1","since_release":2}"#);
+    app.ok(&["deploy","deployment","--schema","snapback/schema.q","--save-version","versions/v1"]);
+    assert!(app.0.join("versions/v1/release.json").is_file());
+    app.ok(&["check"]);
+    let other=App::new();
+    other.write("snapback/schema.q","query alive():\n  return true\njob missing(): native\n");
+    other.write("snapback/client-compatibility.json",r#"{"baseline":"versions/v1","since_release":2}"#);
+    assert!(!other.run(&["deploy","deployment","--save-version","versions/v1"]).status.success());
+    assert!(!other.0.join("versions/v1").exists());
+    app.write("snapback/client-compatibility.json",r#"{"baseline":"versions/v99","since_release":2}"#);
+    assert!(!app.run(&["deploy","deployment","--save-version","versions/v2"]).status.success());
+    assert!(!app.0.join("versions/v2").exists());
+}
