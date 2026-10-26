@@ -485,7 +485,7 @@ impl StoreLease {
             // A legacy store is upgraded by Engine::open after this lease was
             // connected. Observe that committed marker on the next renewal.
             if rows==1 && !self.prune_evidence {
-                self.prune_evidence=tx.query_one("SELECT EXISTS(SELECT 1 FROM _meta WHERE key='flight_checks_v1' AND value='1')", &[])?.get(0);
+                self.prune_evidence=tx.query_one("SELECT EXISTS(SELECT 1 FROM _meta WHERE key='flight_checks_v1' AND value IN ('1','digests'))", &[])?.get(0);
             }
             if rows==1 && self.prune_evidence {
                 // Lease maintenance is outside the ordered batch critical path.

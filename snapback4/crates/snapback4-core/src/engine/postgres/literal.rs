@@ -267,10 +267,10 @@ pub fn binary(ty: &Type, bytes: &[u8]) -> Result<Datum, RuntimeError> {
 /// Applied at every physical ownership connection and before a Store first begins.
 pub fn configure(client: &mut Client) -> Result<(), RuntimeError> {
     client.batch_execute(
-        "SET client_encoding='UTF8'; SET extra_float_digits=3; SET bytea_output='hex'",
+        "SET client_encoding='UTF8'; SET extra_float_digits=3; SET bytea_output='hex'; SET array_nulls=on",
     )?;
-    let r = client.query_one("SELECT pg_catalog.current_setting('client_encoding'),pg_catalog.current_setting('extra_float_digits'),pg_catalog.current_setting('bytea_output')", &[])?;
-    if r.get::<_, &str>(0) != "UTF8" || r.get::<_, &str>(1) != "3" || r.get::<_, &str>(2) != "hex" {
+    let r = client.query_one("SELECT pg_catalog.current_setting('client_encoding'),pg_catalog.current_setting('extra_float_digits'),pg_catalog.current_setting('bytea_output'),pg_catalog.current_setting('array_nulls')", &[])?;
+    if r.get::<_, &str>(0) != "UTF8" || r.get::<_, &str>(1) != "3" || r.get::<_, &str>(2) != "hex" || r.get::<_, &str>(3) != "on" {
         return Err(decode_error("RT5 output settings were not pinned"));
     }
     Ok(())

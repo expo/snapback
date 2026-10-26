@@ -160,7 +160,7 @@ impl Pool {
             durability:Mutex::new(None),
             config: c,
             setup: format!(
-                "SET search_path={quoted},pg_catalog; SET statement_timeout='5s'; SET lock_timeout='5s'; SET default_transaction_read_only=on; SET client_encoding='UTF8'; SET extra_float_digits=3; SET bytea_output='hex'; SET plan_cache_mode=force_generic_plan"
+                "SET search_path={quoted},pg_catalog; SET statement_timeout='5s'; SET lock_timeout='5s'; SET default_transaction_read_only=on; SET client_encoding='UTF8'; SET extra_float_digits=3; SET bytea_output='hex'; SET array_nulls=on; SET plan_cache_mode=force_generic_plan"
             ),
             slots: Mutex::new(Slots::default()),
             available: Condvar::new(),

@@ -56,7 +56,7 @@ fn stage_p_existing_store_upgrades_once_under_inline_fence() {
         c.batch_execute(&format!("DROP FUNCTION {signature}"))
             .unwrap();
     }
-    c.execute("DELETE FROM _meta WHERE key='flight_checks_v1'", &[])
+    c.execute("DELETE FROM _meta WHERE key='flight_checks_v1' OR pg_catalog.starts_with(key,'flight_check:')", &[])
         .unwrap();
     let mut e = reopen(&schema).unwrap();
     assert_eq!(functions(&mut c).len(), 2);
@@ -103,6 +103,16 @@ fn stage_p_tampered_function_attributes_refuse_open_and_lease() {
             _=>c.batch_execute(&format!("CREATE OR REPLACE FUNCTION {signature} RETURNS void LANGUAGE {} VOLATILE SECURITY INVOKER SET search_path=pg_catalog AS '{}'",if tamper=="language" {"sql"} else {"plpgsql"},if tamper=="language" {"SELECT NULL::void"} else {"BEGIN RETURN; END"})).unwrap(),
         }
             assert!(reopen(&schema).is_err(), "{kind}/{tamper}");
+            let error = AnyStore::postgres_diagnostics(
+                &std::env::var("SNAPBACK4_EVAL_POSTGRES").unwrap(),
+                &schema,
+            )
+            .expect_err("doctor must reject the same catalog tampering");
+            assert_eq!(
+                error.code(),
+                "E_STORE_OWNERSHIP",
+                "doctor {kind}/{tamper}: {error:?}"
+            );
             assert!(
                 StoreLease::connect(
                     &std::env::var("SNAPBACK4_EVAL_POSTGRES").unwrap(),
@@ -119,6 +129,99 @@ fn stage_p_tampered_function_attributes_refuse_open_and_lease() {
             if tamper == "owner" {
                 c.batch_execute(&format!("DROP ROLE {role}")).unwrap();
             }
+        }
+    }
+}
+
+#[test]
+#[ignore = "private Postgres"]
+fn stage_p_new_digest_adds_names_and_preserves_admitted_versions() {
+    let mut v1 = fixture(true);
+    let (mut c, schema) = observer(&mut v1);
+    let original = c.query("SELECT oid::bigint,pg_get_functiondef(oid) FROM pg_proc WHERE pronamespace=current_schema()::regnamespace AND proname ~ '^_sb4_(guard|fence)_' ORDER BY oid", &[]).unwrap()
+        .iter().map(|r| (r.get::<_,i64>(0),r.get::<_,String>(1))).collect::<Vec<_>>();
+    crate::engine::postgres::next_check_revision(|| {
+        let mut v2 = reopen(&schema).expect("a new binary must add its unadmitted digest");
+        increment(&mut v2).unwrap();
+        assert_eq!(functions(&mut c).len(), 3);
+    });
+    for (oid, definition) in original {
+        assert_eq!(
+            c.query_one("SELECT pg_get_functiondef($1::bigint::oid)", &[&oid])
+                .unwrap()
+                .get::<_, String>(0),
+            definition
+        );
+    }
+    increment(&mut v1).unwrap();
+    // Even an older binary validates the newer admitted version, not just its own.
+    let newer = functions(&mut c)
+        .into_iter()
+        .find(|(_, signature)| {
+            c.query_one(
+                "SELECT prosrc LIKE '%next binary%' FROM pg_proc WHERE oid=$1::text::regprocedure",
+                &[&signature],
+            )
+            .unwrap()
+            .get::<_, bool>(0)
+        })
+        .unwrap()
+        .1;
+    c.batch_execute(&format!("DROP FUNCTION {newer}")).unwrap();
+    assert!(
+        reopen(&schema).is_err(),
+        "a missing admitted digest must never be recreated"
+    );
+}
+
+#[test]
+#[ignore = "private Postgres"]
+fn stage_p_namespace_and_array_setting_drift_refuse_before_data() {
+    check_drift("namespace");
+}
+#[test]
+#[ignore = "private Postgres"]
+fn stage_p_array_nulls_drift_refuses_before_data() {
+    check_drift("array_nulls");
+}
+fn check_drift(drift: &str) {
+    {
+        let mut a = fixture(true);
+        let mut b = fixture(true);
+        let (mut ca, _) = observer(&mut a);
+        let (mut cb, sb) = observer(&mut b);
+        let before_a = snapshot(&mut a);
+        let before_b = snapshot(&mut b);
+        let image_a = ca
+            .query_one("SELECT data FROM r WHERE t='counters' AND id='a'", &[])
+            .unwrap()
+            .get::<_, String>(0);
+        let image_b = cb
+            .query_one("SELECT data FROM r WHERE t='counters' AND id='a'", &[])
+            .unwrap()
+            .get::<_, String>(0);
+        let store = a.store_mut().test_postgres_handle_mut().store.get_mut();
+        let sql = if drift == "namespace" {
+            format!("SET search_path=\"{sb}\",pg_catalog")
+        } else {
+            "SET array_nulls=off".into()
+        };
+        store.client.batch_execute(&sql).unwrap();
+        let result = increment(&mut a);
+        assert!(result.is_err(), "{drift} drift admitted a data write");
+        for (c, expected, image) in [(&mut ca, &before_a, image_a), (&mut cb, &before_b, image_b)] {
+            assert_eq!(
+                c.query_one("SELECT seq FROM _head", &[])
+                    .unwrap()
+                    .get::<_, i64>(0),
+                expected["head"].as_i64().unwrap()
+            );
+            assert_eq!(
+                c.query_one("SELECT data FROM r WHERE t='counters' AND id='a'", &[])
+                    .unwrap()
+                    .get::<_, String>(0),
+                image
+            );
         }
     }
 }
@@ -176,23 +279,45 @@ fn stage_p_reconnect_keeps_failed_helper_admission_pending() {
             let mut e = fixture(true);
             let (mut c, _) = observer(&mut e);
             let mut reader = e.reader().unwrap();
-            let store = reader.store_mut().test_postgres_handle_mut().store.get_mut();
-            let pid = store.client.independent("SELECT pg_backend_pid()", &[])
-                .unwrap()[0].get::<_, i32>(0);
+            let store = reader
+                .store_mut()
+                .test_postgres_handle_mut()
+                .store
+                .get_mut();
+            let pid = store
+                .client
+                .independent("SELECT pg_backend_pid()", &[])
+                .unwrap()[0]
+                .get::<_, i32>(0);
             eprintln!("Stage P reconnect witness owns reader backend {pid}");
-            let (_, signature) = functions(&mut c).into_iter()
-                .find(|(name, _)| name.contains(kind)).unwrap();
-            let definition = c.query_one("SELECT pg_get_functiondef($1::text::regprocedure)", &[&signature])
-                .unwrap().get::<_, String>(0);
+            let (_, signature) = functions(&mut c)
+                .into_iter()
+                .find(|(name, _)| name.contains(kind))
+                .unwrap();
+            let definition = c
+                .query_one(
+                    "SELECT pg_get_functiondef($1::text::regprocedure)",
+                    &[&signature],
+                )
+                .unwrap()
+                .get::<_, String>(0);
             if tamper == "missing" {
-                c.batch_execute(&format!("DROP FUNCTION {signature}")).unwrap();
+                c.batch_execute(&format!("DROP FUNCTION {signature}"))
+                    .unwrap();
             } else {
                 c.batch_execute(&format!("CREATE OR REPLACE FUNCTION {signature} RETURNS void LANGUAGE plpgsql VOLATILE SECURITY INVOKER SET search_path=pg_catalog AS 'BEGIN RETURN; END'")).unwrap();
             }
-            assert!(c.query_one("SELECT pg_terminate_backend($1)", &[&pid])
-                .unwrap().get::<_, bool>(0));
+            assert!(
+                c.query_one("SELECT pg_terminate_backend($1)", &[&pid])
+                    .unwrap()
+                    .get::<_, bool>(0)
+            );
             let until = std::time::Instant::now() + Duration::from_secs(5);
-            while !store.client.query_one("SELECT 1", &[]).is_err_and(|error| error.is_closed()) {
+            while !store
+                .client
+                .query_one("SELECT 1", &[])
+                .is_err_and(|error| error.is_closed())
+            {
                 assert!(std::time::Instant::now() < until);
                 std::thread::sleep(Duration::from_millis(5));
             }
@@ -211,16 +336,21 @@ fn stage_p_reconnect_keeps_failed_helper_admission_pending() {
 #[test]
 #[ignore = "private Postgres"]
 fn stage_p_typed_shapes_match_generic_tail_and_sqlite_randomized() {
-    for (fast, seed) in [false, true]
+    for (shape, seed, array_nulls) in [0, 1, 2]
         .into_iter()
-        .flat_map(|fast| [1, 19, 0xdecaf].map(|seed| (fast, seed)))
+        .flat_map(|shape| [1, 19, 0xdecaf].map(|seed| (shape, seed)))
+        .flat_map(|(shape, seed)| ["on", "off"].map(|setting| (shape, seed, setting)))
     {
+        let fast = shape == 1;
         let source = SOURCE
             .replace("  sync public", "  online only")
             .replace("  insert entries { counter: key, delta }\n", "")
             .replace("  emit notify { key, delta }\n", "");
+        let nullable_source = SOURCE.replace("  insert <- allow\n  sync public\nmutation setup():", "  insert <- allow\n  delete <- allow\n  sync public\nmutation remove(key: entries):\n  delete entries[key]\nmutation setup():");
         let fixture = |pg| {
-            if fast {
+            if shape == 2 {
+                fixture_source(pg, &nullable_source)
+            } else if fast {
                 fixture_source(pg, &source)
             } else {
                 history_fixture(pg)
@@ -229,6 +359,20 @@ fn stage_p_typed_shapes_match_generic_tail_and_sqlite_randomized() {
         let mut generic = fixture(true);
         let mut typed = fixture(true);
         let mut sqlite = fixture(false);
+        // Start with hostile session input, just as a role/database default can.
+        // Production connection qualification must pin it before compact arrays.
+        for engine in [&mut generic, &mut typed] {
+            let store = engine
+                .store_mut()
+                .test_postgres_handle_mut()
+                .store
+                .get_mut();
+            store
+                .client
+                .batch_execute(&format!("SET array_nulls={array_nulls}"))
+                .unwrap();
+            store.client.configure().unwrap();
+        }
         let intent = |seed, i| {
             let original = super::intent(seed, i);
             if fast {
@@ -268,6 +412,59 @@ fn stage_p_typed_shapes_match_generic_tail_and_sqlite_randomized() {
             let generic_plans=typed.store_mut().test_postgres_handle_mut().store.get_mut().client.query_one("SELECT coalesce(sum(generic_plans),0)::bigint FROM pg_prepared_statements WHERE statement LIKE '%commits_input AS MATERIALIZED%' AND statement NOT LIKE '%pg_prepared_statements%'",&[]).unwrap().get::<_,i64>(0);
             assert!(generic_plans > 0, "the warm shape must use a generic plan");
         }
+        if shape == 2 {
+            let keys = typed
+                .store()
+                .rows("entries")
+                .unwrap()
+                .into_iter()
+                .take(8)
+                .map(|row| row.field("id").unwrap().clone())
+                .collect::<Vec<_>>();
+            assert!(!keys.is_empty());
+            let removals = || {
+                keys.iter()
+                    .map(|key| {
+                        Invocation::new(
+                            "remove",
+                            None,
+                            Context::new("alice", [("key".into(), key.clone())].into()).at(2000),
+                        )
+                    })
+                    .collect::<Vec<_>>()
+            };
+            let result = |v: Vec<crate::engine::program_batch::Outcome>| {
+                v.into_iter()
+                    .map(|v| v.unwrap().outcome)
+                    .collect::<Vec<_>>()
+            };
+            let expected = crate::engine::postgres::generic_tail(|| {
+                result(generic.invoke_program_batch(&mut removals()))
+            });
+            assert_eq!(
+                expected,
+                result(typed.invoke_program_batch(&mut removals()))
+            );
+            assert_eq!(
+                expected,
+                result(sqlite.invoke_program_batch(&mut removals()))
+            );
+            let (mut c, _) = observer(&mut typed);
+            assert!(
+                c.query_one("SELECT count(*) FROM _log WHERE data IS NULL", &[])
+                    .unwrap()
+                    .get::<_, i64>(0)
+                    > 0,
+                "exercise tombstones with NULL elements, initial array_nulls={array_nulls}"
+            );
+            assert!(
+                c.query_one("SELECT count(*) FROM _outbox WHERE deadline IS NULL", &[])
+                    .unwrap()
+                    .get::<_, i64>(0)
+                    > 0,
+                "exercise nullable integer effect elements"
+            );
+        }
         let expected = serde_json::to_vec(&snapshot(&mut generic)).unwrap();
         assert_eq!(expected, serde_json::to_vec(&snapshot(&mut typed)).unwrap());
         assert_eq!(
@@ -289,7 +486,7 @@ fn stage_p_delayed_reader_keeps_evidence_across_maintenance_prune() {
         c.batch_execute(&format!("DROP FUNCTION {signature}"))
             .unwrap();
     }
-    c.execute("DELETE FROM _meta WHERE key='flight_checks_v1'", &[])
+    c.execute("DELETE FROM _meta WHERE key='flight_checks_v1' OR pg_catalog.starts_with(key,'flight_check:')", &[])
         .unwrap();
     let mut lease = StoreLease::connect(
         &std::env::var("SNAPBACK4_EVAL_POSTGRES").unwrap(),

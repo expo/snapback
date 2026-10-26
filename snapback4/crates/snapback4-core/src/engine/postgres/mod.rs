@@ -30,6 +30,8 @@ mod batch;
 pub mod literal;
 mod flight;
 mod checks;
+#[cfg(test)]
+pub(crate) use checks::next_revision as next_check_revision;
 pub(crate) mod early_release;
 #[cfg(test)]
 mod early_release_tests;

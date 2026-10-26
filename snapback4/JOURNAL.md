@@ -108980,3 +108980,29 @@ is 28.53 GiB, above the 25 GiB stop floor. No push, shared PG17 reconfiguration,
 or `~/q24` access occurred. Full timing limits, W5 residence regressions, source
 and release-binary custody are in the [Stage P report](reports/20261026-stage-p/REPORT.md).
 The later WF rebase remains separate work.
+
+## 2026-10-26 — Stage P fix round 1: namespace, NULLs, digest lifecycle and doctor
+
+The Stage P review reproduced namespace drift admitting a data write, a new
+helper digest refusing to open, and doctor accepting ALTERed function attributes
+on the pre-fix source. A separate pre-fix control also admits a write after
+`array_nulls=off`. The guard now receives the caller's effective schema path,
+checks exactly the fenced namespace plus pg_catalog, and checks array_nulls.
+Connection qualification pins array_nulls on. Both changes stay in the existing
+flight; compact arrays retain their measured transport form.
+
+Each admitted digest now carries its exact contract in _meta. Admission checks
+all versions, installs only new names under the opening fence/head lock, retains
+older functions/OIDs and refuses missing admitted names. The original boolean
+marker migrates only after its exact original functions validate. Doctor shares
+the same read-only catalog validator and returns E_STORE_OWNERSHIP for tampering.
+The accepted pipelined-commit RFC §3.11 records these mechanisms.
+
+Focused tests cover both drift refusals, two binary revisions coexisting, older
+binary admission of the newer contract, missing admitted functions, every
+catalog tamper attribute through doctor/open/lease, and emitted SQL omitting
+empty families. The randomized durable-state oracle is extended to hostile
+initial array_nulls settings, explicit grouped tombstones and nullable integer
+effect fields on both PG tails and SQLite. Full verification, the short W4
+server-cost pair and process cleanup are pending and will be appended to the
+Stage P report; no push or throughput campaign is authorized.

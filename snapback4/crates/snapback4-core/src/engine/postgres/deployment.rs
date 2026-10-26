@@ -15,6 +15,7 @@ impl AnyStore {
         let (mut client,_)=ownership::connect(connection.parse()?)?;
         client.batch_execute(&format!("SET search_path={quoted},pg_catalog; SET statement_timeout='5s'"))?;
         let mut tx=client.build_transaction().read_only(true).start()?;
+        super::checks::diagnose(&mut tx, namespace)?;
         let warnings=tx.query(super::managed_relations::EVENT_TRIGGERS,&[])?.iter().map(|row|
             super::managed_relations::event_warning(row.get(0),row.get(1),row.get(2),row.get(3),row.get(4),row.get(5))
         ).collect();

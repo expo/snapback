@@ -182,7 +182,8 @@ impl<'a> Tail<'a> {
     }
 }
 
-// Array input distinguishes NULL from a quoted string, and escapes only the
+// Connection qualification pins array_nulls=on and every flight guards it.
+// Array input then distinguishes NULL from a quoted string, and escapes only the
 // two array grammar characters inside quoted elements. Raw Unicode and control
 // characters remain bytes in the outer, existing RT5 UTF8 text encoder.
 trait ArrayElement {
@@ -234,6 +235,19 @@ impl ArrayElement for bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn stage_p_empty_families_are_absent_from_emitted_sql() {
+        let payload = Payload { commits: vec![], log: vec![], effects: vec![], presence: vec![], receipts: vec![], images: vec![] };
+        for cas in [false, true] {
+            for publication in [false, true] {
+                let tail = Tail::new(&payload, cas, publication, 0, 0, 0, "", 0, "").unwrap();
+                for family in ["images", "commits_input", "committed", "evidence", "logged", "effects", "presence", "receipts"] {
+                    assert!(!tail.sql.contains(&format!("{family} AS")), "empty {family} CTE returned: {}", tail.sql);
+                }
+                assert_eq!(tail.sql.matches("0::pg_catalog.int8").count(), 7);
+            }
+        }
+    }
     #[test]
     #[ignore = "private Postgres"]
     fn stage_p_compact_array_input_matches_binary_array_bytes() {
