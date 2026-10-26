@@ -819,7 +819,10 @@ fn rule_expr(catalog: &Catalog, info: &TableInfo, expr: &Expr, bindings: &RuleBi
                 let target = &catalog.tables[&read.table];
                 let mut terms = vec![base];
                 for bound in &read.seeks {
-                    if target.columns.get(&bound.column).is_none_or(|ty| ty.optional) {
+                    let Some(column_type) = target.columns.get(&bound.column) else {
+                        return Err(unknown(&bound.site, format!("{} has no column {}", read.table, bound.column), name_rewrite(&bound.column, target.columns.keys().map(String::as_str), None)));
+                    };
+                    if column_type.optional {
                         return Err(type_error(&bound.site, "probe != needs a declared required field", "read the row by its unique key and compare the nullable field in the program"));
                     }
                     let mut equal = point.clone();

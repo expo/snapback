@@ -164,3 +164,11 @@ fn review_r1_ordinary_ordered_pages_refuse_bracket_inequality_without_panicking(
     }
     checked(&format!("{schema}query page():\n  return docs first 10 by byScore where .score != 1\n"));
 }
+
+#[test]
+fn muse_review_r1_rule_predicate_typo_names_the_unknown_field_and_repair() {
+    let b = compile(&[("schema.q".into(), format!("{DOCS}table flags:\n  owner: principal\n  read <- exists docs[owner = .owner, staet != 'closed']\n  online only\n"))]);
+    let d = b.diagnostics.iter().find(|d| d.message.contains("docs has no column staet")).unwrap();
+    assert_eq!(d.code, "E_QUARRY_UNKNOWN");
+    assert!(d.rewrite.contains("state"), "{d:?}");
+}
