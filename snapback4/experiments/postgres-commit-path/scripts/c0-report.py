@@ -1,129 +1,106 @@
 #!/usr/bin/env python3
-"""Aggregate C0′ repetitions; no per-request or per-trial data enters Git."""
-import argparse,collections as co,hashlib,json,statistics as st
+"""Publish aggregate C0 calibration, searched capacity and S1 gate evidence."""
+import argparse,collections as co,json,statistics as st
 from pathlib import Path
 
 def read(p):return json.loads(p.read_text())
 def write(p,x):p.write_text(json.dumps(x,indent=2)+'\n')
 def aggregate(rows):
-    keys=('arm','link','n','k','hold_ms','phase');groups=co.defaultdict(list)
-    for r in rows:groups[tuple(r[k] for k in keys)].append(r)
+    keys=('arm','link','n','k','hold_ms','rate');groups=co.defaultdict(list)
+    for r in rows:
+        if not r.get('execution_failed'):groups[tuple(r[k] for k in keys)].append(r)
     out=[]
     for key,rr in sorted(groups.items()):
-        x=dict(zip(keys,key));x.update(delivery_selection_sum=sum(r['writes_per_s'] for r in rr),mean_selection_sum=sum(r['client_ms']['mean'] for r in rr),repetitions=len(rr),s1_all=all(r['slo_pass'] for r in rr),mean_ms=[min(r['client_ms']['mean'] for r in rr),max(r['client_ms']['mean'] for r in rr)],intended_mean_ms=[min(r['intended_ms']['mean'] for r in rr),max(r['intended_ms']['mean'] for r in rr)],p50_ms=st.median(r['client_ms']['p50'] for r in rr),p99_ms=max(r['intended_ms']['p99'] for r in rr),error_fraction=max(r['error_fraction'] for r in rr),delivered_per_s=min(r['writes_per_s'] for r in rr),mean_n=st.median(r['mean_batch_n'] for r in rr),syncs_per_batch=st.median(r['syncs_per_batch'] for r in rr),wal_sync_mean_ms=st.median(r['wal_sync_mean_ms'] for r in rr),cpu={role:st.median(r['cpu'][role] for r in rr) for role in ['PG','app','client']},prep_cpu_ms=st.median(r['mean_prep_cpu_ms'] for r in rr))
+        x=dict(zip(keys,key));x.update(repetitions=len(rr),s1_all=all(r['slo_pass'] for r in rr),mean_ms=[min(r['client_ms']['mean'] for r in rr),max(r['client_ms']['mean'] for r in rr)],intended_mean_ms=[min(r['intended_ms']['mean'] for r in rr),max(r['intended_ms']['mean'] for r in rr)],p50_ms=st.median(r['client_ms']['p50'] for r in rr),p99_ms=max(r['intended_ms']['p99'] for r in rr),error_fraction=max(r['error_fraction'] for r in rr),delivered_per_s=min(r['writes_per_s'] for r in rr),mean_n=st.median(r['mean_batch_n'] for r in rr),syncs_per_batch=st.median(r['syncs_per_batch'] for r in rr),wal_sync_mean_ms=st.median(r['wal_sync_mean_ms'] for r in rr),cpu={role:st.median(r['cpu'][role] for r in rr) for role in ['PG','app','client']},prep_cpu_ms=st.median(r['mean_prep_cpu_ms'] for r in rr),pg_statement_ms_per_batch=st.median(r.get('pg_statement_ms_per_batch',0) for r in rr),pg_cpu_ms_per_batch=st.median(r.get('pg_cpu_ms_per_batch',0) for r in rr))
         out.append(x)
     return out
 
+def label(x):return f'{x["n"]}/{x["k"]}/{x["hold_ms"]:g}'
+def means(x):return f'{x["mean_ms"][0]:.2f}–{x["mean_ms"][1]:.2f}'
+def cpu(x):return '/'.join(f'{x["cpu"][r]:.2f}' for r in ['PG','app','client'])
 def main():
-    p=argparse.ArgumentParser();p.add_argument('--raw',type=Path,required=True);p.add_argument('--out',type=Path,required=True);a=p.parse_args();a.out.mkdir(exist_ok=True,parents=True)
-    trials=[read(p) for glob in ['[AB]/*/r[0-2].json','long-[AB]/*/r[0-2].json'] for p in a.raw.glob(glob)]
-    assert len(trials)==978,len(trials)
-    agg=aggregate(trials);sweep=[r for r in agg if r['phase']=='sweep'];confirmation=[r for r in agg if r['phase']=='confirmation'];assert len(sweep)==320 and len(confirmation)==6
-    assert all(r['repetitions']==3 for r in agg)
-    write(a.out/'sweep.json',sweep);write(a.out/'confirmation.json',confirmation)
-    gates=[]
-    for r in confirmation:
-        o=next(x for x in confirmation if x['link']==r['link'] and x['arm']=='O1')
-        margin=r['mean_ms'][1]<=6.4
-        better=r['arm']=='O1' or not o['s1_all'] or r['mean_ms'][1]<=o['mean_ms'][0]-1.0
-        # The formal RFC gate needs measured L′ and its one-flight O1 comparator.
-        # User requested the measured current-preparation stand-in and a
-        # two-flight O1, so never turn an exploratory pass into authorization.
-        gates.append(dict(arm=r['arm'],link=r['link'],s1_all=r['s1_all'],mean_margin_6_4=margin,o1_comparator=better,numerical_a_gate=r['link']=='A' and r['s1_all'] and margin and better,formal_authorization=False,cpu_basis='current preparation distribution; L-prime stand-in',b_capacity_screen=r['link']=='B' and r['s1_all'] and r['mean_ms'][1]<=32/2262*1000))
-    write(a.out/'gate.json',gates)
-    lines=['# C0′ — product-shaped write harness, current-preparation stand-in','',
-    '**Experiments only.** No serving/product change, fetch, push, publication, or managed resource. '+
-    'The numerical gate below is separate from RFC authorization: L′ does not exist on this base, '+
-    'so current measured preparation is the explicitly requested stand-in. O1 is the requested two-flight ordered arm, '+
-    'rather than the RFC’s eventual one-flight comparator. These results authorize no C/ordered-C product implementation.','',
-    '## Verdict','',
-    '| Arm | Link / offered/s | Best N / K / h ms | Client mean ms, 3 reps | Intended p99 ms, worst | Errors %, worst | Delivered/s, minimum | S1 3/3 | Mean margin ≤6.4 | Gate |',
-    '|---|---|---|---:|---:|---:|---:|---|---|---|']
-    for r in confirmation:
-        g=next(x for x in gates if x['arm']==r['arm'] and x['link']==r['link'])
-        verdict=('provisional numerical pass' if g['numerical_a_gate'] else 'no') if r['link']=='A' else ('B capacity screen passes' if g['b_capacity_screen'] else 'no')
-        lines.append(f'| {r["arm"]} | {r["link"]} / {4525 if r["link"]=="A" else 2262} | {r["n"]} / {r["k"]} / {r["hold_ms"]} | {r["mean_ms"][0]:.2f}–{r["mean_ms"][1]:.2f} | {r["p99_ms"]:.2f} | {100*r["error_fraction"]:.3f} | {r["delivered_per_s"]:.1f} | {"yes" if r["s1_all"] else "no"} | {"yes" if g["mean_margin_6_4"] else "no"} | {verdict} |')
-    lines+=['', 'A’s gate needs an S1 pass at 4,525/s in **every** full confirmation, '+
-    'mean ≤6.4 ms in every repetition (or a separate high-end injection pass), and ≥1 ms over O1 or a pass where O1 fails. '+
-    'S1 decides: intended-arrival p99 ≤100 ms, errors ≤0.1%, delivered rate and counter equality. '+
-    'A mean ≤7.07 ms alone cannot pass. B’s capacity screen uses 2,262/s and mean ≤14.15 ms; it is not permission to build C for A. '+
-    'High-end stress is not credited without three measured confirmations. C-L is omitted because no full canonical in-statement encoder was implemented.', '',
-    '## Method and provenance','',
-    'Host `expo-build-450b` / OS `expose-builder-pixel-a`, Ryzen 5 3600. '+
-    'PG16.15 on `0–2,6–8`; app/replay and the existing delayed Unix proxy on `3–4,9–10`; '+
-    'open-loop scheduler on `5,11`. Private socket-only cluster, inherited `postgresql.conf.delta`, '+
-    'fsync/full_page_writes/synchronous_commit on except ordered C’s data transaction; no commit_delay tuning. '+
-    'A adds 250 µs/direction, B 500 µs/direction. The unchanged one-host lifecycle supplies RTT captures, '+
-    'a live thread-affinity sampler, PID/birth custody, unrelated-process start gate and cleanup. '+
-    '/home’s lane stop is 25 GiB, checked at startup, each repetition, and sampler ticks.', '',
-    'The G7.0 fixture retains its million product-codec background message images and million historical `_commits` rows, '+
-    'S1 parents/counters and native Engine mutation templates. Its background maintained state remains a W4-only fixture, '+
-    'not read-workload qualification. Synthetic account facts and a synthetic owner are private; '+
-    'ordinary expiry is very distant, supervisor revision absent. Authority writers, membership-dependent W5 misses, '+
-    'reader-pool qualification, takeover and full product recovery are outside this W4 measurement.', '',
-    'The complete **320-cell** sweep is N∈{4,8,16,32}, K∈{1,2} for O1 and K∈{1,2,3,4} for C/OC, '+
-    'h∈{0,0.3,0.6,1.0 ms}, both links, three repetitions. As in G7.0, screening uses 1 s warm-up / 4 s measured, '+
-    'now open-loop at the registered rungs, with 32 clients and cap 32. '+
-    'Strongest configuration per arm/link gets three additional **10 s / 20 s** S1 confirmations. '+
-    'Selection prefers all-three S1 pass, then highest summed delivery, then lowest mean residence; failures are retained. '+
-    'The full sweep is [sweep.json](./sweep.json), confirmations [confirmation.json](./confirmation.json), '+
-    'and decisions [gate.json](./gate.json). Screening passes are not full-window gate passes.', '',
-    'After a slot confirms, its formation clock starts. The oldest free slot dispatches when min(N,ceil(32/K)) '+
-    'members are ready or h expires; N is a cap, not a promise. Idle time, cohort hold, HTTP/release spread and '+
-    'all queueing remain inside request residence. All nominal K SQL connections are open. A client becomes available '+
-    'only after ordered publication, continuation and HTTP-out replay. The one-second intended-arrival deadline '+
-    'counts unsent expiry and late acknowledgements as errors; draining never erases them.', '',
-    '## Messages and injected terms','',
-    'Stage P’s [source receipt](../src/c0/stage-p-source.json) pins the exact helper bodies and typed-tail generator. '+
-    'The typed generator is copied verbatim apart from comments and its unused test-only JSON fallback; '+
-    'the harness supplies its data structs. It emits compact typed columns, only present W4 families, '+
-    'set-based images, `_commits` and evidence. Canonical tagged image bytes are rebuilt from native templates, '+
-    'not jsonb::text. The serving RT5 literal form encodes UTF8 through hex/convert_from. '+
-    'Generic plans are forced. Settings and owner functions precede data; timeouts are cleared before COMMIT; '+
-    'every tail count is asserted server-side before a co-dispatched COMMIT.', '',
-    '- **O1:** first flight begins/fences, takes its own ticket and reads head, authority, receipts and level facts. '+
-    'Second flight waits on its predecessor, reads identity, executes the exact Stage P CAS tail with folded publication, '+
-    'raises on count mismatch and synchronously commits. K=1 or 2 is ordered depth.',
-    '- **C:** one fenced final message on a warm mirror, `_batches` insert first, complete ordinary stored authority equality/absence '+
-    'and absolute expiry check, locked image/owner probe, then two-image typed apply with the watermark tripwire and synchronous COMMIT. '+
-    'Rows read through GREATEST(dispatch W,durable head); replies publish only through the contiguous confirmed prefix. '+
-    'A dedicated maintenance connection performs roughly 10/s synchronous catch-ups/prunes and owner renewal; their WAL syncs are charged.',
-    '- **OC (ordered C):** E’s two-flight ordered shape, two-image level reads at D and two-image apply. '+
-    'Its asynchronous data COMMIT and synchronous durable-head marker are in the same second message. '+
-    'This removes E’s measured extra marker flight (~0.5/1.0 ms A/B) by construction, and subtracts the sampled completed-before-poll '+
-    'delay (~0.4–0.5 ms at the cited high-load A rung) from each source continuation sample. '+
-    'Remaining marker execution/flush, checks, ticket waiting, images, HTTP and release CPU remain charged. '+
-    'No holes/reservations/void maintenance are needed in this lane.', '',
-    'Joint numeric batch/request samples come from the cited S1 write-attribution archive: S W4/A 3,200/s, '+
-    'S W4/B 2,262/s, and E counterparts for OC, all three repetitions. Diagnostic IDs restart per generator; '+
-    'joins are restricted by each trial’s clock interval. Cohort resampling draws one complete source bundle; '+
-    'its request HTTP/continuation timings, callback CPU, fill and preparation remain correlated. '+
-    'Per-member staging CPU and parallel critical wall scale by actual/source N. '+
-    'Nested intent/classification/merge clocks are not added to inclusive staging CPU. '+
-    'HTTP worker plus otherwise-unaccounted writer CPU is replayed on app cores, and callback CPU runs inside '+
-    'the sampled continuation delay. Current parallel **wall** is deliberately charged as critical CPU; '+
-    'this is a current-preparation stand-in, not a measured L′ pool or a claim about its full parallel-worker CPU. '+
-    'Actual encode/transport CPU is charged against the staging budget before padding with CPU work; '+
-    'it is never replaced by a sleep. HTTP timing remainders sleep after CPU work. '+
-    'The app, slots, response workers and proxy contend on the product’s app cores.', '',
-    '## Per-arm screening tables','',
-    'For each nominal N/K, the table shows the strongest h under the same frozen selection rule. '+
-    'Means span three repetitions; p99 and errors are worst, delivery minimum. CPU is median sampled logical CPUs '+
-    '(PG/app/client) over warm-up + measurement + drain; app includes the Python observer/controller. '+
-    'Sync/batch includes maintenance and background WAL work. Every h, including failures, is in sweep.json.','']
+    p=argparse.ArgumentParser();p.add_argument('--raw',type=Path,required=True);p.add_argument('--baseline',type=Path,required=True);p.add_argument('--literal',type=Path,required=True);p.add_argument('--out',type=Path,required=True);a=p.parse_args();a.out.mkdir(exist_ok=True,parents=True)
+    rows=[read(p) for p in a.raw.glob('[AB]/confirmation/*/rate*/r[0-2].json')];confirmation=aggregate(rows)
+    assert confirmation and all(x['repetitions']==3 for x in confirmation)
+    searches=read(a.raw/'searches.json');screen=[x for x in searches if x['phase']=='screen'];caps=[x for x in searches if x['phase']=='confirmed-capacity'];assert len(screen)==108 and len(caps)==18
+    def group(x,rate):return next(g for g in confirmation if all(g[k]==x[k] for k in ['arm','link','n','k','hold_ms']) and g['rate']==rate)
+    best=[]
     for arm in ['O1','C','OC']:
-      lines+=['### '+arm,'','| Link | N / K | h ms | Actual N | Delivered/s | Client mean ms | Intended p99 ms | Errors % | S1 3/3 | Sync/batch | CPU PG/app/client |','|---|---|---:|---:|---:|---:|---:|---:|---|---:|---|']
-      groups=co.defaultdict(list)
-      for r in sweep:
-        if r['arm']==arm:groups[(r['link'],r['n'],r['k'])].append(r)
-      for key,rr in sorted(groups.items()):
-        r=max(rr,key=lambda x:(x['s1_all'],x['delivery_selection_sum'],-x['mean_selection_sum']));cpu='/'.join(f'{r["cpu"][x]:.2f}' for x in ['PG','app','client'])
-        lines.append(f'| {r["link"]} | {r["n"]} / {r["k"]} | {r["hold_ms"]} | {r["mean_n"]:.2f} | {r["delivered_per_s"]:.0f} | {r["mean_ms"][0]:.2f}–{r["mean_ms"][1]:.2f} | {r["p99_ms"]:.2f} | {r["error_fraction"]*100:.2f} | {"yes" if r["s1_all"] else "no"} | {r["syncs_per_batch"]:.3f} | {cpu} |')
-      lines+=['']
-    lines+=['## Validation, custody and recommendation','','See [verification.json](./verification.json), [archive.json](./archive.json) and the final recommendation recorded below. '+
-    'The prefix hammer runs only in diagnostic smokes, not the capacity matrix. Its success does not qualify all product readers. '+
-    'Arm E’s earlier SQL-harness pass (~7.01 ms at 4,525/s) versus product qualification at 1,600/s remains the transfer warning '+
-    'behind the RFC margin; this harness result never supersedes the product S1 record.','']
+        for link in ['A','B']:
+            x=max((x for x in caps if x['arm']==arm and x['link']==link),key=lambda x:x['capacity'])
+            best.append(dict(**x,metrics=group(x,x['capacity'])))
+    gates=[]
+    for arm in ['O1','C','OC']:
+        for link,rates in [('A',[3200,3805,4525]),('B',[2262,3200])]:
+            for rate in rates:
+                rr=[x for x in confirmation if x['arm']==arm and x['link']==link and x['rate']==rate]
+                x=max(rr,key=lambda x:(x['s1_all'],-x['mean_ms'][1] if x['s1_all'] else x['delivered_per_s'],-x['p99_ms']))
+                gates.append(dict(**x,margin_6_4=x['mean_ms'][1]<=6.4,numerical_gate=False,formal_authorization=False))
+    for x in gates:
+        o=next(g for g in gates if g['arm']=='O1' and g['link']==x['link'] and g['rate']==x['rate'])
+        x['ordered_comparator']=x['arm']=='O1' or not o['s1_all'] or x['mean_ms'][1]<=o['mean_ms'][0]-1
+        x['numerical_gate']=x['link']=='A' and x['rate']==4525 and x['s1_all'] and x['margin_6_4'] and x['ordered_comparator']
+    write(a.out/'capacity.json',dict(best=best,confirmed=caps,screen=screen));write(a.out/'confirmation.json',confirmation);write(a.out/'gate.json',gates)
+    refs={('A',2262):(2177,14.99),('A',3200):(2223,14.39),('B',1600):(1600,13.90),('B',2262):(1889,16.94)}
+    cal=[];literal=[]
+    for x in read(a.baseline/'aggregate.json'):
+        rate,mean=refs[x['link'],int(x['rate'])];cal.append(dict(link=x['link'],offered=x['rate'],reference_rate=rate,reference_mean=mean,achieved=x['writes_per_s'],mean=x['client_ms']['mean'],p99=x['intended_ms']['p99'],s1=x['slo_pass'],rate_delta=x['writes_per_s']/rate-1,mean_delta=x['client_ms']['mean']/mean-1,actual_n=x['mean_batch_n']))
+    for x in read(a.literal/'aggregate.json'):
+        rate,mean=refs[x['link'],int(x['rate'])];literal.append(dict(link=x['link'],offered=x['rate'],achieved=x['writes_per_s'],mean=x['client_ms']['mean'],rate_delta=x['writes_per_s']/rate-1,mean_delta=x['client_ms']['mean']/mean-1))
+    assert all(abs(x['rate_delta'])<=.15 and abs(x['mean_delta'])<=.15 for x in cal)
+    write(a.out/'calibration.json',dict(product_shape_control=cal,literal_n11_k1=literal,passes=True,literal_passes=False))
+    lines=['# C0′ — calibrated write-capacity search','',
+    'Experiments only, on `sb4-pg/c0`. No product changes, fetch, push, publication or external service. Current measured preparation is an explicitly labelled **L′ CPU stand-in**. L′ is unbuilt; C-L is omitted because a complete canonical SQL encoder was not implemented. No result here authorizes C or ordered C under the [Accepted RFC](../../../../llp/3000.009.001.000.000.003-concurrent-disjoint-commits.rfc.md#35-stage-c0-the-product-shaped-harness-and-its-gate).','',
+    '## Calibration','',
+    'A literal N=11, K=1 O1 is not today’s product: it has one slot, provisioned Stage P checks, a typed tail and two flights. The [S1-WA reference](../../scale-controls/results-20261026-s1-write-attribution/README.md) has two pipeline slots, inline checks, the JSON tail and a separate COMMIT: three flights, mean N≈11 under a 32-member cap. The literal calibration failed and is retained below. The separate current-product-shape control restores those protocol and scheduling terms, uses rate-specific joint samples, and matches **all four reference achieved rates and sent means within ±15%**. This protocol correction is disclosed; the literal one-slot arm is not relabelled a calibration success. Its configuration is retained in the three-repetition searches.','',
+    '| Link / offered/s | Reference achieved/s / sent mean ms | Control achieved/s / sent mean ms | Rate / mean delta | Actual N | S1 |','|---|---:|---:|---:|---:|---|']
+    for x in cal:lines.append(f'| {x["link"]} / {x["offered"]:.0f} | {x["reference_rate"]:.0f} / {x["reference_mean"]:.2f} | {x["achieved"]:.0f} / {x["mean"]:.2f} | {100*x["rate_delta"]:+.1f}% / {100*x["mean_delta"]:+.1f}% | {x["actual_n"]:.2f} | {"pass" if x["s1"] else "fail"} |')
+    lines+=['','| Literal N=11, K=1 | Achieved/s | Sent mean ms | Rate / mean delta |','|---|---:|---:|---:|']
+    for x in literal:lines.append(f'| {x["link"]} / {x["offered"]:.0f} | {x["achieved"]:.0f} | {x["mean"]:.2f} | {100*x["rate_delta"]:+.1f}% / {100*x["mean_delta"]:+.1f}% |')
+    lines+=['','Calibration is one full 10 s/20 s trial per reference rung, matching the native reference’s diagnostic design. It validates achieved rate and sent mean, not complete latency-distribution equality: the B/1,600 control’s intended p99 is 91.81 ms versus the reference’s 18.71 ms. The reference’s three overloaded rungs fail in the control too. A baseline setup attempt started before the sample export receipt was ready; it was retained, stopped, and repeated after export completed.','',
+    '## Capacity by arm','',
+    'These are highest offered rates passing **all three complete S1 10 s warm-up/20 s measurement repetitions**, bracketed by the next tested failing rate within 5%. The screen and refinement use shorter windows, described below. Means span repetitions; p99/errors are worst, delivery is minimum, and CPU/cost columns are medians. All failed observations remain in the archive.','',
+    '| Arm | Link | N/K/h ms | Capacity/s [next fail) | Delivered/s | Sent mean ms | Intended p99 ms | Errors % | Actual N | Sync/batch | PG non-wait statement / CPU ms/batch | Prep CPU ms/batch | CPU PG/app/client |','|---|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---|']
+    for x in best:
+        m=x['metrics'];lines.append(f'| {x["arm"]} | {x["link"]} | {label(x)} | {x["capacity"]:,} [{x["upper"]:,}) | {m["delivered_per_s"]:.0f} | {means(m)} | {m["p99_ms"]:.2f} | {100*m["error_fraction"]:.3f} | {m["mean_n"]:.2f} | {m["syncs_per_batch"]:.3f} | {m["pg_statement_ms_per_batch"]:.3f} / {m["pg_cpu_ms_per_batch"]:.3f} | {m["prep_cpu_ms"]:.3f} | {cpu(m)} |')
+    lines+=['','## Fixed-rung S1 verdicts','',
+    'For each arm/rung this selects the strongest fully confirmed configuration among its best two screened configurations and N=11/K=1/h=0. Every row has three full repetitions. S1 requires intended-arrival p99≤100 ms, errors≤0.1%, delivered offered rate and counter equality. The RFC’s A transfer gate additionally needs every sent mean≤6.4 ms, or a separately tested high-end injection pass, and the ordered comparator. No high-end sensitivity is claimed.','',
+    '| Arm | Link / offered/s | N/K/h ms | Delivered/s | Sent mean ms | Intended p99 ms | Errors % | S1 3/3 | Mean≤6.4 3/3 |','|---|---|---|---:|---:|---:|---:|---|---|']
+    for x in gates:lines.append(f'| {x["arm"]} | {x["link"]} / {x["rate"]:.0f} | {label(x)} | {x["delivered_per_s"]:.0f} | {means(x)} | {x["p99_ms"]:.2f} | {100*x["error_fraction"]:.3f} | {"pass" if x["s1_all"] else "fail"} | {"yes" if x["margin_6_4"] else "no"} |')
+    lines+=['','## Recommendation','']
+    # Complete measured recommendation below after all arm/rung results exist.
+    fine=[x['arm'] for x in gates if x['link']=='A' and x['rate']==3805 and x['s1_all']]
+    strict=[x['arm'] for x in gates if x['link']=='A' and x['rate']==4525 and x['s1_all']]
+    lines.append(f'A/3,805 passes: {", ".join(fine) or "none"}. A/4,525 passes: {", ".join(strict) or "none"}. These statements use current measured preparation; they assume neither 20–30 µs/member L′ CPU nor a cheaper unimplemented server tail.')
+    for x in best:
+        if x['link']!='A':continue
+        m=x['metrics'];lines.append(f'{x["arm"]}’s strongest A capacity is {x["capacity"]:,}/s at N/K/h={label(x)}. It pays measured PG statement work {m["pg_statement_ms_per_batch"]:.3f} ms/batch, PG process CPU {m["pg_cpu_ms_per_batch"]:.3f} ms/batch and preparation CPU {m["prep_cpu_ms"]:.3f} ms/batch, with sampled PG/app/client CPU {cpu(m)}.')
+    lines.append('**Build only L′ on the ordered lane, under the RFC’s freshness protocol, then remeasure; stop C and ordered C at this gate.** B does not require a new reader/recovery protocol. The current-preparation experiment supplies no formal authorization for C/ordered C, even if a finer rung passes. A 3,805 result is not a strict control win without a matched control rerun; 4,525 remains the registered strict-win rung.')
+    lines+=['','## Method and limits','',METHOD,'','## Every screened configuration','',
+    'One repetition per tested screen rate; N∈{8,16,32}, K∈{1,2,4}, h∈{0,0.6 ms}, all three arms on A and B: 108 configurations. An abandoned configuration has an already-failing upper bound below 0.7×the best capacity yet found for that arm/link; it is not assigned an invented exact capacity. [All capacity summaries](./capacity.json), [three-repetition confirmation aggregates](./confirmation.json), [gate summaries](./gate.json).','']
+    for arm in ['O1','C','OC']:
+        lines += ['### '+arm,'','| Link | N/K/h ms | Screen capacity/s | Next failed/s | Status |','|---|---|---:|---:|---|']
+        for x in sorted((x for x in screen if x['arm']==arm),key=lambda x:(x['link'],x['n'],x['k'],x['hold_ms'])):lines.append(f'| {x["link"]} | {label(x)} | {x["capacity"] if x["capacity"] is not None else "withheld"} | {x["upper"]} | {"abandoned below 70%" if x["abandoned"] else "bracketed within 5%"} |')
+        lines+=['']
+    lines+=['## Verification and custody','','[Verification](./verification.json), [secret scan](./secret-audit.json), and [archive receipt](./archive.json) bind the retained evidence. The 205 interrupted fixed-rung trials remain as **superseded-by-capacity-search**, including their original incorrect late-intended throughput accounting. They are never used to select or pass a new configuration. The interrupted campaign had no living recorded identities at resume; its private runtime was removed after sealing its known secrets. Clean shutdown was not observed for that interrupted run. All new campaign clusters stop through the runner’s normal cleanup.','',
+    'The old timeout attempts contain worker panics (owner/settings errors or an invalid SQL column), not evidence of a 120-second overload drain. Startup now checks failed worker joins against a single bounded readiness deadline; the main loop observes maintenance/release worker failure and has a 10-second drain bound. The outer process has warm-up+measurement+15 seconds. Nonzero exits/timeouts write failed trial JSON and stop capacity qualification for diagnosis. Injected startup failures and 16,000/s overloads on all arms/links verify bounded failure, continued counter equality and prefix checks.','',
+    'Exact-value secret scans cover both benchmark passwords, sealed campaign credentials, JWT/native tokens and PEM payloads. No raw per-request, per-batch or per-rate trial files enter Git. Raw archive path and SHA-256 are in archive.json. No push, stash or Git configuration change. **PIDs left: none.**','']
     (a.out/'README.md').write_text('\n'.join(lines))
-    print(json.dumps(dict(trials=len(trials),sweep_cells=len(sweep),confirmation_cells=len(confirmation),a_numerical_passes=[g['arm'] for g in gates if g['numerical_a_gate']])))
+    print(json.dumps(dict(confirmed_configurations=len(caps),confirmation_groups=len(confirmation),a_3805_passes=fine,a_4525_passes=strict)))
+
+METHOD='''The host is `expo-build-450b` (OS `expose-builder-pixel-a`), Ryzen 5 3600. PG16.15 is pinned to 0–2,6–8; replay/app/proxy to 3–4,9–10; the open-loop scheduler to 5,11. The existing Unix delayed proxy injects 250 µs/direction on A and 500 µs/direction on B. Private socket-only PG, inherited fsync/full_page_writes settings, 32 clients/cap 32, live affinity/CPU sampling, unrelated-process start checks, before/after RTT and a 25 GiB /home stop are retained. The runtime checks disk once per second as well as at boundaries and sampler ticks.
+
+The √2 ladder is 1,600/2,262/3,200/4,525, extended downward if the first rung fails or upward if the top passes, then geometric bisection until failing/passing≤1.05. The one-repetition screen uses 1 s/4 s. The best two configurations per arm/link plus the literal N=11/K=1/h=0 configuration receive three-repetition 1 s/4 s searches, then three **10 s/20 s** confirmations at their bracket endpoints and the fixed rungs. Long-window failures move the bracket downward; additional full confirmations narrow it back to 5%. Failed trials are retained, never replaced. This is a measured empirical bracket, not a statistical confidence interval.
+
+A slot’s cohort timer starts at SQL confirmation, while its clients are still in release/HTTP. It dispatches at min(N,ceil(32/K)) ready members or expiration of h; N is a cap. Every hold and queue remains in residence. Ordered arms serialize opener+preparation but overlap final SQL; K=4 is the user-requested depth sensitivity. Replies release only through a contiguous prefix, and a client is reused only after continuation and HTTP replay.
+
+O1 uses two flights: fenced opener/head/authority/receipts/facts, then predecessor ticket, exact Stage P typed CAS tail, raising counts and synchronous COMMIT. C uses one fenced warm-fact flight: first-write `_batches`, stored-authority/absence and locked-image validation, deadline check, two-image typed apply, tripwire and synchronous COMMIT; a dedicated connection pays catch-up/prune/renewal work. Ordered C uses two-image reads at D and E’s ordered async-data/synchronous-marker shape. Its marker is co-dispatched with the data COMMIT and sampled completed-before-poll delay is removed; remaining marker cost, flush, checks, encoding and CPU are charged. It needs no holes/voids. Stage P helper bodies and typed generator provenance are [pinned](../src/c0/stage-p-source.json). The typed generator differs from that source only in comments and removal of an unused test fallback.
+
+Joint numerical S1-WA samples retain request HTTP/continuation/callback terms correlated with batch fill/preparation. Inclusive staging CPU plus measured parallel critical wall is replayed as CPU, scaled by actual/source N. HTTP and callback CPU contend on app cores; wall remainders sleep. Actual encode/driver CPU is charged before padding the preparation budget. This is a **current-preparation stand-in**, not a measurement of L′ or its full parallel-worker CPU. The baseline control uses rate-specific samples; candidate arms use the high-rung S sample per link, and E for ordered C. These distributions are not tuned to make a rung pass.
+
+S1 semantics match the native generator: arrivals expire before send after one second; sent requests time out from send. A successful reply with >1-second intended latency still contributes achieved throughput and its complete intended latency. The previous harness wrongly counted it as an error; this explains 0/s at overloaded fixed rungs. Intended p99 still rejects overload. Whole-cohort counter/commit/request equality is separate from measured-arrival SLO accounting.
+
+PG non-wait statement ms/batch is pg_stat_statements execution+planning minus advisory-ticket and COMMIT utility clocks, including maintenance, divided by all batches. It excludes parsing outside those clocks and is not a flush measurement. PG CPU ms/batch is sampled process CPU, also including backgrounds/observer work; both columns expose their different coverage. WAL sync time and sync/batch are whole-cohort private-cluster deltas. App CPU includes the Python controller/observer; CPU columns are logical CPUs, not percentages. Neither server ledger is an assumed formula substituted for measurements.
+
+The W4-only G7.0 fixture retains one million product-codec background message images and one million historical commit rows, unlike S1-WA’s fully seeded maintained-state/history cardinality. It uses native W4 templates, synthetic session facts and static ordinary authority. Validation does not qualify authority changes, full product readers/recovery, W5 dependency misses, takeover or L′ freshness. The absolute-expiry sentinel and fixed authority facts are fixture assumptions. Prefix and void-race witnesses are diagnostic, not product correctness qualification. Arm E’s earlier harness/product transfer failure is why no mean-only or short-screen result authorizes implementation.'''
 if __name__=='__main__':main()

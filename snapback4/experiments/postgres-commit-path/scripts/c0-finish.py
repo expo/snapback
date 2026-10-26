@@ -13,7 +13,7 @@ def main():
     values=sorted({x for path in a.vaults for x in read(path)})
     merged=a.archive.parent/'c0-merged-vault.json';fd=os.open(merged,os.O_WRONLY|os.O_CREAT|os.O_EXCL,0o600)
     with os.fdopen(fd,'w') as f:json.dump(values,f)
-    raw=next(r for r in a.roots if r.name=='c0-20261026');binary=raw/'binary';binary.mkdir();shutil.copyfile(a.binary,binary/'c0')
+    assert any((r/'c0-binary').exists() and hashlib.sha256((r/'c0-binary').read_bytes()).hexdigest()==hashlib.sha256(a.binary.read_bytes()).hexdigest() for r in a.roots)
     spec=importlib.util.spec_from_file_location('finish',Path(__file__).with_name('g70-finish.py'));m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
     scan=m.scan([*a.roots,a.out],merged);assert not scan['matches'],scan['matches'];write(a.out/'secret-audit.json',scan)
     a.archive.parent.mkdir(parents=True,exist_ok=True)
