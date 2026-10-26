@@ -839,6 +839,91 @@ fn extraction_exact_selection_ignores_invariants_sites_and_immutable_grouping_bu
 }
 
 #[test]
+fn alternating_deploys_reuse_guarded_sources_and_resolve_qualification_aliases() {
+    let app=App::new();
+    let a="table items:\n  n: int\n  public 'identity regression'\n  online only\ninvariant items.read only true\nquery value():\n  return 1\n";
+    let b=a.replace("return 1","return 2");
+    app.source(a);app.ok(&["deploy","deployment"]);
+    app.seed(a,vec![json!({"id":"retained","n":1})]);
+    app.source(&b);let b_id=app.json(&["deploy","deployment","--json"])["release"].as_u64().unwrap();
+    app.source(a);let a_id=app.json(&["deploy","deployment","--json"])["release"].as_u64().unwrap();
+    assert_ne!(a_id,1,"a genuinely new rollback registry qualifies the retained source once");
+    let leaves=fs::read_dir(app.0.join("deployment/releases")).unwrap().count();
+    if let Ok(binary)=std::env::var("REL2_PRE_ALIAS_BIN") {
+        app.source(&b);
+        let before=Command::new(binary).current_dir(&app.0).args(["deploy","deployment","--check","--json"]).output().unwrap();
+        assert!(before.status.success(),"{}",text(&before));
+        let planned:Value=serde_json::from_slice(&before.stdout).unwrap();
+        assert!(planned["plan"]["release"].as_u64().unwrap()>a_id,"the ID-only registry must demonstrate another qualification parent: {planned}");
+        assert_eq!(app.json(&["releases","deployment","--json"])["current"],a_id);
+    }
+    for _ in 0..3 {
+        for (source,id) in [(&b[..],b_id),(a,a_id)] {
+            app.source(source);let deployed=app.json(&["deploy","deployment","--json"]);
+            assert_eq!(deployed["release"],id,"{deployed}");
+            assert_eq!(app.count(),1);
+            assert_eq!(fs::read_dir(app.0.join("deployment/releases")).unwrap().count(),leaves);
+        }
+    }
+    for (target,canonical,source) in [(1,1,&b[..]),(b_id,b_id,a),(a_id,1,&b[..])] {
+        app.source(source);let parent=app.json(&["deploy","deployment","--json"])["release"].clone();
+        let target=target.to_string();
+        let check=app.json(&["rollback","deployment","--to",&target,"--check","--json"]);
+        assert_eq!(check["rowShape"]["matchesTarget"],true,"{check}");
+        let rolled=app.json(&["rollback","deployment","--to",&target,"--json"]);
+        assert_eq!(rolled["live"]["exact"],false,"{rolled}");
+        assert_eq!(rolled["live"]["parent"],parent,"{rolled}");
+        assert_eq!(rolled["live"]["target"],canonical,"{rolled}");
+        assert_eq!(app.count(),1);
+    }
+    assert_eq!(fs::read_dir(app.0.join("deployment/releases")).unwrap().count(),leaves);
+    // A legacy registry with a different hiding acknowledgement cannot lend
+    // that authority to an equivalent physical target, or fall back to exact.
+    app.source(&b);app.ok(&["deploy","deployment"]);
+    let parent=app.0.join(format!("deployment/releases/{b_id}"));
+    let mut registry:Value=serde_json::from_slice(&fs::read(parent.join("rollback-views.json")).unwrap()).unwrap();
+    let view=registry.as_array_mut().unwrap().iter_mut().find(|view|view["target"]==1).unwrap();
+    view["hides"]=json!(["items where n = null because legacy different policy"]);
+    fs::write(app.0.join(format!("deployment/releases/{}/rollback-view.json",view["release"].as_u64().unwrap())),serde_json::to_vec(view).unwrap()).unwrap();
+    fs::write(parent.join("rollback-views.json"),serde_json::to_vec(&registry).unwrap()).unwrap();
+    let generation=app.json(&["releases","deployment","--json"])["generation"].clone();
+    let alias=a_id.to_string();let refused=app.run(&["rollback","deployment","--to",&alias,"--check"]);
+    assert!(!refused.status.success(),"{}",text(&refused));
+    assert!(text(&refused).contains("registration with matching hiding policy"),"{}",text(&refused));
+    assert_eq!(app.json(&["releases","deployment","--json"])["generation"],generation);
+    assert_eq!(app.count(),1);
+}
+
+#[test]
+fn source_reactivation_restores_dormant_rows_and_keeps_intervening_rollback_guards() {
+    let app=App::new();
+    let wide="table items:\n  n: enum('kept','wide')\n  public 'restoration regression'\n  online only\nquery list():\n  return items first 10 by .id\n";
+    app.source(wide);app.ok(&["deploy","deployment"]);
+    app.seed(wide,vec![json!({"id":"retained","n":"wide"})]);
+    app.source(&wide.replace("enum('kept','wide')","enum('kept')"));
+    app.ok(&["deploy","deployment"]);assert_eq!(app.count(),0);
+    app.source(wide);
+    if let Ok(binary)=std::env::var("REL2_CUTOFF_BIN") {
+        let before=Command::new(binary).current_dir(&app.0).args(["deploy","deployment","--check"]).output().unwrap();
+        assert!(!before.status.success(),"the source-origin cutoff unexpectedly admits restoration");
+        assert!(text(&before).contains("would hide 1 old-table rows on rollback to release 2"),"{}",text(&before));
+    }
+    app.ok(&["deploy","deployment","--check"]);
+    let restored=app.json(&["deploy","deployment","--json"]);
+    assert_eq!(restored["sourceRelease"],1);assert_eq!(app.count(),1);
+    let selected=restored["release"].as_u64().unwrap();
+    let views:Value=serde_json::from_slice(&fs::read(app.0.join(format!("deployment/releases/{selected}/rollback-views.json"))).unwrap()).unwrap();
+    assert!(views.as_array().unwrap().iter().any(|view|view["target"]==2),"{views}");
+    let latest=app.json(&["releases","deployment","--json"])["latest"].clone();
+    for _ in 0..2 {
+        app.ok(&["rollback","deployment","--to","2"]);assert_eq!(app.count(),1);
+        let redeployed=app.json(&["deploy","deployment","--json"]);
+        assert_eq!(redeployed["release"],selected);assert_eq!(app.count(),1);
+        assert_eq!(app.json(&["releases","deployment","--json"])["latest"],latest);
+    }
+}
+
+#[test]
 fn source_reactivation_dedupes_path_forms_without_new_registration_parents() {
     let app=App::new();app.source(OLD);app.ok(&["deploy","deployment","--save-version","versions/v1"]);
     app.source_with_presence(&newer(),"amount");app.ok(&["deploy","deployment"]);

@@ -1,0 +1,8 @@
+muse: workspace root: /home/ccheever/projects/sb4-b29-rel2 (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY — No material defect in this delta.
+
+* Restoration is truthful: `prepare` now covers all retained ordinary releases before source-identity reuse, so the widened reactivation registers a guarded view for the intervening narrowed release; test proves restored row stays visible via that view on `rollback --to 2`.
+* Source origin is identity only: earliest match still names `source-release`, but no longer filters `ordinary_releases`; committed targets cannot be cut off.
+* Finite reuse holds: `needs_registration` compares only `target/digest/hides`, ignoring `release/parent` ids, so the first widened reactivation mints one qualification parent and the next two cycles reuse it with `latest` unchanged.
+* Upgrades correct: changed guarded views still requalify; unchanged registry reuses retained release via `executable_digest` independent of path/metadata; companion executable changes remain new source; no immutable edits.

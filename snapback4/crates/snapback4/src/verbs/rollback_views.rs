@@ -44,8 +44,35 @@ pub(super) fn resolve(dir:&Path,target:u64)->Result<Option<View>,String>{
     let root=dir.join("releases").join(active.to_string());
     let context=if let Some(view)=metadata(&root)?{verify(dir,&view)?;view.parent}else{active};
     super::releases::selectable(dir,context)?;
-    let view=manifest(&dir.join("releases").join(context.to_string()))?.into_iter().find(|v|v.target==target);
+    let context_root=dir.join("releases").join(context.to_string());
+    let views=manifest(&context_root)?;
+    let view=covering(dir,&context_root,&views,target)?.cloned();
     if let Some(view)=&view{verify(dir,view)?;}Ok(view)
+}
+
+fn hides(bound:&snapback4_lang::Bound,target:u64)->Vec<String>{
+    bound.rollback_hides.iter().filter(|h|h.release==target)
+        .map(|h|format!("{} where {} = null because {}",h.table,h.column,h.reason)).collect()
+}
+
+/// Qualification parents can share an immutable executable source. Their
+/// fallback is interchangeable only under the same release-specific hiding policy.
+// @ref LLP 3000.000.000#22-wave-29-release-identity-rel2 — target aliases preserve guarded-source and hiding-policy identity.
+pub(super) fn covering<'a>(dir:&Path,source:&Path,views:&'a[View],target:u64)->Result<Option<&'a View>,String>{
+    if let Some(view)=views.iter().find(|view|view.target==target){return Ok(Some(view));}
+    if views.is_empty()||is_view(dir,target){return Ok(None);}
+    super::releases::selectable(dir,target)?;
+    let digest=crate::release_files::executable_digest(&dir.join("releases").join(target.to_string()))?;
+    let policy=hides(&super::releases::bound_at(source.to_path_buf())?,target);
+    let mut equivalent=false;
+    for view in views {
+        if crate::release_files::executable_digest(&dir.join("releases").join(view.target.to_string()))?==digest {
+            equivalent=true;
+            if view.hides==policy {return Ok(Some(view));}
+        }
+    }
+    if equivalent {return Err(format!("E_ADOPT: equivalent source for release {target} needs a registration with matching hiding policy; redeploy the source to qualify its guarded registry"));}
+    Ok(None)
 }
 /// Registration covers future non-fitting children. Selection can still use
 /// the old shape when its actual reverse projection fits without hiding rows.
@@ -91,21 +118,16 @@ pub(super) fn prepare(
     bound: &snapback4_lang::Bound,
     parent: u64,
 ) -> Result<Vec<View>, String> {
-    prepare_for_source(dir,stage,bound,parent,None)
-}
-
-pub(super) fn prepare_for_source(
-    dir:&Path,stage:&Path,bound:&snapback4_lang::Bound,parent:u64,source_origin:Option<u64>,
-)->Result<Vec<View>,String> {
     let current = Project { root: stage.into() }
         .sources()
         .map_err(|e| e.to_string())?;
     let mut views = Vec::new();
     let mut id = parent;
-    // Source identity has its own timeline: reactivation does not acquire
-    // predecessor obligations toward sources authored after that source.
-    for target in super::releases::ordinary_releases(dir)?.into_iter().filter(|n|source_origin.is_none_or(|origin|*n<origin)) {
+    let mut targets=std::collections::BTreeSet::new();
+    // @ref LLP 3000.000.000#22-wave-29-release-identity-rel2 — source reuse preserves committed rollback obligations, including intervening narrowing.
+    for target in super::releases::ordinary_releases(dir)?.into_iter() {
         let old_root = dir.join("releases").join(target.to_string());
+        if !targets.insert((crate::release_files::executable_digest(&old_root)?,hides(bound,target))){continue;}
         let old = super::releases::bound_at(old_root.clone())?;
         let original=Project{root:old_root.clone()}.sources().map_err(|e|e.to_string())?;
         let risks = super::rollback_foresight::risks(&bound.schema, &old.schema, target, dir);
@@ -336,7 +358,10 @@ pub(super) fn install(
 pub(super) fn needs_registration(dir:&Path,matched:Option<u64>,prepared:&[View])->Result<bool,String>{
     let held=matched.map(|n|manifest(&dir.join("releases").join(n.to_string()))).transpose()?.unwrap_or_default();
     for view in &held{verify(dir,view)?;}
-    Ok(held.len()!=prepared.len()||prepared.iter().any(|v|!held.iter().any(|old|old.target==v.target&&old.digest==v.digest&&old.hides==v.hides)))
+    let keys=|views:&[View]|->Result<std::collections::BTreeSet<_>,String>{views.iter().map(|view|{
+        Ok((crate::release_files::executable_digest(&dir.join("releases").join(view.target.to_string()))?,view.digest.clone(),view.hides.clone()))
+    }).collect()};
+    Ok(keys(&held)?!=keys(prepared)?)
 }
 
 /// Compile production rollback views on check's read-only store selection.

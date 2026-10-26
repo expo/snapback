@@ -488,8 +488,9 @@ pub fn deploy(options: &Options) -> i32 {
             let staged_bound=bound_at(stage.clone())?;
             let parent=n.checked_add(1).ok_or("release identity exhausted")?;
             // Match executable source independently of generated registry metadata.
-            // Only releases preceding its first identity are rollback predecessors.
-            let views=super::rollback_views::prepare_for_source(&dir,&stage,&staged_bound,parent,source_origin)?;
+            // Reactivation can restore dormant rows: qualify its complete
+            // committed rollback registry before reusing a source identity.
+            let views=super::rollback_views::prepare(&dir,&stage,&staged_bound,parent)?;
             // A historical duplicate may carry the wrong registry. Reuse an
             // already-qualified matching source/registry before minting anything.
             for candidate in source_matches {
@@ -637,6 +638,7 @@ pub fn rollback(options: &Options) -> i32 {
             }
             let previous=view.as_ref().map(|v|v.release).unwrap_or(logical);
             if let Some(view)=&view {
+                if view.target!=logical {eprintln!("rollback source: release {logical} has the same executable digest as retained target {}",view.target);}
                 eprintln!("rollback target: release {} via bridge {} (registered by release {})",view.target,view.release,view.parent);
                 for reason in &view.hides {eprintln!("intentional rollback hiding: {reason}");}
             }

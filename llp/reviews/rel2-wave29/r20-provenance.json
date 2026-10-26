@@ -1,0 +1,29 @@
+{
+  "scope": "complete committed rollback registry, finite source-equivalent qualification reuse, policy-safe alias resolution and foresight",
+  "brief_sha256": "cad35d366a0f0a3835afce3d5039b68f2b2a97c4fb10cb2bf3c57017c14563c9",
+  "files": {
+    "snapback4/crates/snapback4/src/verbs/releases.rs": "5d9c86a862d3550e9d88455f44ad1499b64809ccb502fea6c79c7eb133bc83b4",
+    "snapback4/crates/snapback4/src/verbs/rollback_views.rs": "ef269daa89a264af602849e64d87736dd2f64f4f99f8d67d19178eefbedfd620",
+    "snapback4/crates/snapback4/src/verbs/release_preview.rs": "4af05080d824b233ebbb074cb998582bfa649ff62fe5a60825cc3d11cebd66a3",
+    "snapback4/crates/snapback4/src/release_files.rs": "7112b4299f3ccb48be40e05b9cced9c34cf52a8951d5204aff2fe04fed25da77",
+    "snapback4/crates/snapback4/tests/roll_views.rs": "b938717e12bd57d11cddc604c80eba7c06eaf2f97c2874bd914f86373c574b95",
+    "llp/3000.000.000-retained-storage-and-hot-release.rfc.md": "75760dbad5e2a46bd9995d03f765ce5555a51516e7d967cac80c1afdb1c4543a"
+  },
+  "disposition": "Both independent reviewers READY. Supersedes round 19 ID-only registration comparison. All committed rollback targets remain covered by target-source/guarded-source/hiding-policy equivalence, including actual dormant-row restoration; alternating deployments remain finite and hiding-policy mismatch cannot fall back to exact.",
+  "muse": {
+    "model": "muse-spark-1.3-contributor",
+    "reasoning": "high",
+    "fresh_session": true,
+    "verbatim": true,
+    "stdout_sha256": "eb35d8672404d250089eec332ba0dd37ed54f8a3db34bcd2d2e7f3cbe42887e7",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "codex": {
+    "model": "gpt-6.1-sol",
+    "reasoning": "high",
+    "fresh_session": true,
+    "verbatim": true,
+    "stdout_sha256": "19edf16274040c88bb79c005c556e666f3208369897fca64869fccbaff846f54",
+    "stderr_sha256": "0c24fe042dcdc589b180b9a1d065cfccde0abebc932242824740c69b601316df"
+  }
+}

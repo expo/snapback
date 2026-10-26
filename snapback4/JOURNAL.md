@@ -108690,6 +108690,15 @@ Roster provisioning uses a kernel writer lock plus a diagnostic holder lease,
 including per-attempt fencing of delayed identity requests. See LLP 3000.000.000
 §22 and the verbatim dual-family reviews in `llp/reviews/rel2-wave29/`.
 
+The final affected sweep caught a source-origin cutoff which refused restoration
+of rows made dormant by intervening narrowing. Reactivation now preserves the
+complete committed rollback closure. Equivalent qualification targets share
+registry coverage by executable digest, guarded bytes and hiding policy;
+alternating A/B deploys stabilize, and alias lookup cannot borrow a different
+hiding acknowledgment. CLI regressions cover restoration, repeated deployment,
+every retained target and a mismatched legacy policy. Changelog verb ownership
+and the unchanged non-delivery await classification are checked explicitly.
+
 ## 2026-10-26 — G7-E fix-forward: terminal completion and PG17 certificate timeout
 
 On integrated main `bcf780d307`, pause rejection could publish a second

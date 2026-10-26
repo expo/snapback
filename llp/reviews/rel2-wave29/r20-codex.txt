@@ -1,0 +1,5 @@
+READY
+
+No material defect found in §22 or the final delta across guarded authority, hidden-row safety, hiding policies, canonical target disclosure, compiler/worker/native identity, finite A/B reuse, legacy registries or previews.
+
+Read-only review; no edits or test suites run.

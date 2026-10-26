@@ -1,0 +1,15 @@
+muse: workspace root: /home/ccheever/projects/sb4-b29-rel2 (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY
+
+No material defect in §22 final delta. Source reuse preserves committed rollback while keeping reuse finite and safe.
+
+- Authority/hidden-row safety: `prepare` now qualifies across all retained ordinary releases before reuse, so restoring a widened source cannot drop the intervening narrowed guard. `covering` only accepts an equivalent target under identical `hides` policy; mismatch returns `E_ADOPT` fail-closed, never falls back to exact. Deploy and rollback previews refuse on `hidden_rows` unless `covered.is_some()`.
+- Compiler/worker/native: `executable_digest` still excludes provenance, device-compatibility, worker-package reports and all rollback registries, but includes schema, worker bundle and native wasm. Differing bytes never coalesce; pure metadata changes reuse. Bridge compilation still refuses native/worker views.
+- Target-specific hiding: grouping key is `(target executable digest, hides(target))` and `covering` compares `view.hides` against `hides(bound, target)`. Differing declarations never coalesce.
+- Canonical disclosure: `resolve`/`covering` canonicalize aliases by digest; rollback prints requested id plus `same executable digest as retained target` and `via bridge … (registered by …)` without editing manifests. `live` names canonical target; `rowShape`/`live.rowShape` unchanged.
+- Finite reuse: `prepare` dedupes by digest+policy; `needs_registration` compares sets of `(target digest, bridge digest, hides)`, ignoring physical ids and duplicate multiplicity. Alternating A/B stabilizes after one qualification; every retained target resolves.
+- Legacy/read-only: no immutable manifest edited; `verify`/`selectable`/`bound_at`/`digest` reads only. Legacy policy mismatch fails closed with actionable requalification message, generation unchanged.
+- Tests: new regressions cover dormant-row restoration with cutoff control, repeated A/B reuse with alias control, per-target canonical resolution, and legacy hides mismatch. Control binaries are optional env-gated demonstrations only.
+
+Unchanged extraction proof, roster protocol, changelog/metadata-only items out of scope as stated.

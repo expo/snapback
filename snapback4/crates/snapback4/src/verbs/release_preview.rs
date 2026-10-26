@@ -198,7 +198,7 @@ pub(super) fn plan(
         if let Some(current) = held["release"].as_u64() {
             let old_root=store_path.parent().ok_or("no deployment directory")?.join("releases").join(current.to_string());
             let old=super::releases::bound_at(old_root.clone())?;
-            let covered=rollback_views.iter().find(|v|v.target==current);
+            let covered=super::rollback_views::covering(store_path.parent().unwrap(),&project.root,&rollback_views,current)?;
             let risks=super::rollback_foresight::risks(&candidate_schema,&old.schema,current,store_path.parent().unwrap());
             if let Some(view)=covered {for risk in risks {notes.push(format!("{risk}; default rollback covered by registered view {} (exact source remains subject to this risk)",view.release));}}
             else {hazards.extend(risks);}
@@ -220,7 +220,7 @@ pub(super) fn plan(
                     if effects.hidden_rows>0 || effects.empty_cells>0 || effects.newer_only_rows>0 {
                         for line in effects.lines(release,current) { hazards.push(format!("rollback foresight: {}",line.trim())); }
                     }
-                    if effects.hidden_rows>0&&!rollback_views.iter().any(|v|v.target==current){return Err(format!("E_ADOPT: deploy would hide {} old-table rows on rollback to release {current}; retain a compiled guarded bridge or declare intentional hiding",effects.hidden_rows))}
+                    if effects.hidden_rows>0&&covered.is_none(){return Err(format!("E_ADOPT: deploy would hide {} old-table rows on rollback to release {current}; retain a compiled guarded bridge or declare intentional hiding",effects.hidden_rows))}
                     rollback_visibility=Some(effects);
                 },
                 Err(error) if covered.is_some()=>notes.push(format!("exact rollback to release {current} refuses: {error}; default rollback covered by registered view {}",covered.unwrap().release)),

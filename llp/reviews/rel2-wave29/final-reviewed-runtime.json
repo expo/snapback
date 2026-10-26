@@ -2,7 +2,8 @@
   "reviewComposition": [
     "r15 full runtime",
     "r16 closed child layout and enum-label metadata",
-    "r18 automatic-versus-explicit scope correction; supersedes prototype global input policy"
+    "r18 automatic-versus-explicit scope correction; supersedes prototype global input policy",
+    "r20 complete rollback obligations, finite registry equivalence and policy-safe target aliases; supersedes earlier source-origin cutoff"
   ],
   "files": {
     "snapback4/crates/snapback4-core/src/schema/extraction.rs": "d28123a01d204da081edd18fa758cc0ff22af01fab4f3747bf77d18ac0f7358f",
@@ -12,10 +13,10 @@
     "snapback4/crates/snapback4-lang/src/release_bridge.rs": "a4bcedd9640947db91ae02fd5a1e5ddec394cbeb2628f1524f91de81383ea230",
     "snapback4/crates/snapback4-lang/src/release_bridge_guards.rs": "12927cd712466034e32060689f3ee9a2c0c6153ec217fae6386c9b69626690ac",
     "snapback4/crates/snapback4/src/verbs.rs": "67b318c0d979d01cca27d784cd0793720db9d53b727180779621ed7d1243dc63",
-    "snapback4/crates/snapback4/src/verbs/release_preview.rs": "e70aa4682e2dd2588f41c8ca2cd2ebd289023849eebae333d7aa68f137a373b1",
+    "snapback4/crates/snapback4/src/verbs/release_preview.rs": "4af05080d824b233ebbb074cb998582bfa649ff62fe5a60825cc3d11cebd66a3",
     "snapback4/crates/snapback4/src/verbs/release_shape.rs": "3f8d6ccf65150f03d3ed1b61088c05b0c2df652e82b666a85dc76a4ab674a68d",
-    "snapback4/crates/snapback4/src/verbs/releases.rs": "f6a56f398e2cc0a41ac3bc33287c73ac32b6a1e7e4a5cbb8132aac31353828c9",
-    "snapback4/crates/snapback4/src/verbs/rollback_views.rs": "5d7720fac6b2162d2b560e85c2eeb925fe05a991e6208f0d2a54524581bff933",
+    "snapback4/crates/snapback4/src/verbs/releases.rs": "5d9c86a862d3550e9d88455f44ad1499b64809ccb502fea6c79c7eb133bc83b4",
+    "snapback4/crates/snapback4/src/verbs/rollback_views.rs": "ef269daa89a264af602849e64d87736dd2f64f4f99f8d67d19178eefbedfd620",
     "snapback4/crates/snapback4/src/verbs/saved_version.rs": "e2038bbec8dbeeeb6f2eed0d3cd2521bec806e9d6b219fcc731f24057774fdde",
     "snapback4/packages/snapback4/src/proof-accounts.ts": "5d26779bec78d12cc306b44eda51a5dd859b72b3ee37281ae3bbf1ca9cf56293",
     "snapback4/packages/snapback4/src/proof-roster-lock.ts": "847eafe7fae019505356d3ba7dbbf563f4b5940f687dffd4a7bbbabd3d7fb31d"

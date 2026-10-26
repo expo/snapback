@@ -24,6 +24,10 @@ export const followRetry = 'local.ts:follow:new Promise((r) => setTimeout(r, 100
 // still exercise delivery failures. KIT changes only proof-host awaits.
 // STAGE account provisioning awaits signup/operator setup outside application
 // delivery custody; proof host token/setup waits are likewise not delivery I/O.
+// REL2 retains those ten account-driver awaits while fencing identity retries
+// on roster ownership. The new synchronous roster-lock module has no awaits;
+// neither path originates or settles application delivery. Roster contention,
+// dead-holder recovery and renewal-fenced retries have separate integration tests.
 export const scope = {
   'local.ts': ['flush', 'flushOnce', 'call', 'captureStore', 'refreshAcquired', 'sendPost', 'syncRound', 'probe', 'waitForChange', 'follow', 'replayOnOpen', 'listenForExit', 'commit', 'read', 'lookup', 'save'],
   'local-receipts.ts': '*',

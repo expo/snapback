@@ -321,7 +321,7 @@
   },
   "proof-accounts.ts": {
     "count": 10,
-    "sha256": "ee8d1d151e3b79dfaea2be02cb33cf6a50a6f25d463eb7da98327cffd43b4305"
+    "sha256": "66d0acb25f18a52970131841ee3354002da7c33dd233b64d7345c5d37d42a7b8"
   },
   "proof-command.ts": {
     "count": 1,
@@ -342,6 +342,10 @@
   "proof-process.ts": {
     "count": 9,
     "sha256": "2f439e3bfe64e4babef29361749bbc2a3cf91d4a15738e78e862112fd13359eb"
+  },
+  "proof-roster-lock.ts": {
+    "count": 0,
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
   },
   "proof-serve-check.ts": {
     "count": 8,
