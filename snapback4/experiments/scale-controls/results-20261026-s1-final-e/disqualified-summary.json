@@ -1,0 +1,12 @@
+{
+  "trials": 191,
+  "by_arm": {
+    "E": 119,
+    "S": 72
+  },
+  "by_reason": {
+    "p99": 191,
+    "errors": 176
+  },
+  "full_list": "raw archive: disqualified-trials.json"
+}

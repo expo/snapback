@@ -1,0 +1,19 @@
+{
+  "trials": 240,
+  "qualified": 240,
+  "failures": 0,
+  "p99_ms": {
+    "min": 12.836863,
+    "median": 25.763839,
+    "max": 49.315839
+  },
+  "achieved_per_s": {
+    "min": 400.0,
+    "median": 400.0,
+    "max": 400.0
+  },
+  "coverage_failures": 0,
+  "error_count": 0,
+  "warmup_error_count": 167,
+  "trials_with_warmup_errors": 6
+}
