@@ -22,3 +22,11 @@ pub(super) fn classify(dir: &Path, owner: Option<&Owner>, existed: bool, checkin
         if store.deployment_environment().map_err(|e|e.to_string())?.as_deref() == Some("staging") { Ok(()) } else { Err(production()) }
     }
 }
+
+/// Read-only reporting: redeploy must make a retained staging clock visible.
+pub(super) fn clock_notice(dir:&Path)->Option<String> {
+    let store=snapback4_core::store_port::AnyStore::open_read_only(&dir.join("store.sqlite")).ok()?;
+    if store.deployment_environment().ok()?.as_deref()!=Some("staging"){return None;}
+    let clock=crate::dev_clock_store::staging_clock(&store,0,snapback4_core::now_ms()).ok()?;
+    Some(format!("staging clock: persisted offset {:+}ms; now {}; retained across deploy/restart; use a fresh deployment directory for an independent run",clock.offset,clock.now))
+}

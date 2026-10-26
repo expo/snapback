@@ -231,7 +231,7 @@ test("presence effects residency is additive in check, why and generated artifac
   writeFileSync(path, effects);
   const run = (...args) => { const result = spawnSync(binary, args, { cwd: directory, encoding: "utf8" }); assert.equal(result.status, 0, result.stdout + result.stderr); return result.stdout; };
   const explanation = "connected: decides effects only — the server decides who is notified at commit";
-  const checked = run("check", "--residency");
+  const checked = run("check", "--residency", "--review");
   assert.match(checked, /send: predicts: eligible/);
   assert.ok(checked.includes(explanation));
   assert.ok(run("why", "send").includes(explanation));

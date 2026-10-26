@@ -24,6 +24,8 @@ fn assert_survivor(
     engine: &mut Engine,
     out: &Arc<Mutex<Vec<crate::engine::program_batch::Outcome>>>,
 ) {
+    // Opening rows exercises E's D check after each synchronous solo fallback.
+    assert!(engine.store().rows("counters").is_ok());
     let out = out.lock().unwrap();
     assert_eq!(out.len(), 2);
     assert!(
@@ -62,8 +64,22 @@ fn duplicate(client: &mut Client) -> crate::RuntimeError {
 #[test]
 #[ignore = "private Postgres"]
 fn g72_successor_own_23505_after_predecessor_commit_matches_depth_one() {
+    own_23505(false);
+}
+#[test]
+#[ignore = "private PG16"]
+fn g7e_successor_own_23505_after_predecessor_commit_matches_depth_one() {
+    own_23505(true);
+}
+fn own_23505(early: bool) {
     for pipelined in [false, true] {
         let mut engine = fixture(true);
+        if early {
+            engine
+                .store_mut()
+                .enable_postgres_early_lock_release()
+                .unwrap();
+        }
         let mut control = observer(&mut engine);
         let mut lane = Lane::new();
         let hold = Hold::new();
@@ -107,8 +123,22 @@ fn g72_successor_own_23505_after_predecessor_commit_matches_depth_one() {
 #[test]
 #[ignore = "private Postgres"]
 fn g72_successor_own_expired_member_solo_retries_peer_with_time_left() {
+    own_expired(false);
+}
+#[test]
+#[ignore = "private PG16"]
+fn g7e_successor_own_expired_member_solo_retries_peer_with_time_left() {
+    own_expired(true);
+}
+fn own_expired(early: bool) {
     for pipelined in [false, true] {
         let mut engine = fixture(true);
+        if early {
+            engine
+                .store_mut()
+                .enable_postgres_early_lock_release()
+                .unwrap();
+        }
         let mut lane = Lane::new();
         let hold = Hold::new();
         let events =
@@ -146,8 +176,14 @@ fn g72_successor_own_expired_member_solo_retries_peer_with_time_left() {
     }
 }
 
-fn cascade(dispatched: bool) {
+fn cascade(dispatched: bool, early: bool) {
     let mut engine = fixture(true);
+    if early {
+        engine
+            .store_mut()
+            .enable_postgres_early_lock_release()
+            .unwrap();
+    }
     let mut control = observer(&mut engine);
     let mut lane = Lane::new();
     let hold = Hold::new();
@@ -201,10 +237,21 @@ fn cascade(dispatched: bool) {
 #[test]
 #[ignore = "private Postgres"]
 fn g72_dispatched_cascade_second_failure_falls_through_to_solo() {
-    cascade(true);
+    cascade(true, false);
 }
 #[test]
 #[ignore = "private Postgres"]
 fn g72_undispatched_cascade_second_failure_falls_through_to_solo() {
-    cascade(false);
+    cascade(false, false);
+}
+
+#[test]
+#[ignore = "private PG16"]
+fn g7e_dispatched_cascade_second_failure_certifies_solo_survivor() {
+    cascade(true, true);
+}
+#[test]
+#[ignore = "private PG16"]
+fn g7e_undispatched_cascade_second_failure_certifies_solo_survivor() {
+    cascade(false, true);
 }

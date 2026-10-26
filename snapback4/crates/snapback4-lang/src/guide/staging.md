@@ -47,7 +47,11 @@ the mutation. SEC owns self-promotion diagnostics and invariant proofs.
 Run `npx snapback4 check` to generate the API. Save this as `staging.mjs` next to
 snapback/, then run `node staging.mjs`. Use `node staging.mjs --once` for CI setup
 and shutdown. Set `"probe:serve": "node staging.mjs"` in package.json and run
-`npm run --silent probe:serve` for a single JSON readiness line. SIGTERM stops
+`npm run --silent probe:serve` for a single JSON readiness line.
+Verify that process with `npx snapback4 serve-check --deployment staging --script probe:serve`;
+password starters provide `npm run --silent probe:check` with a fresh deployment.
+The verifier keeps readiness credentials out of its output and tests startup,
+30 seconds alive, SIGTERM reaping and store release. SIGTERM stops
 and reaps the backend and exits successfully. The deployment and private credentials file remain for inspection;
 choose fresh names for each independent run. Add both to .gitignore. PORT_LO and
 PORT_HI optionally choose a port range. The printed URL belongs to `serve`.
@@ -241,3 +245,8 @@ Advance beyond that window, keep the cumulative --clock-offset when continuing
 across restarts, or deploy a fresh staging directory for an independent test.
 `allowHeld:true` (CLI --allow-held) explicitly accepts an already-processed
 boundary. Never repeat an ambiguous advance; inspect clock and queued work first.
+
+A staging clock offset belongs to its deployment store. Every CLI advance and
+redeploy prints the retained offset; rerunning against that directory keeps
+advanced business time. Use a fresh directory for an independent run, and sample
+`host.now()` rather than Date.now() for business timestamps after an advance.

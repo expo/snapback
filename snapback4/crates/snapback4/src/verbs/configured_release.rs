@@ -296,7 +296,7 @@ pub(super) fn doctor(options: &Options, config: StoreConfig) -> Result<(), Strin
     for warning in &warnings { eprintln!("{warning}"); }
     println!(
         "{}",
-        serde_json::json!({"backend":"postgres", "store":state, "binding":config.binding, "profile":"initial-http", "ha":"none", "certifiedChanges":true, "readCacheTier":tier, "warnings":warnings})
+        serde_json::json!({"backend":"postgres", "store":state, "binding":config.binding, "profile":"initial-http", "ha":"none", "certifiedChanges":true, "readCacheTier":tier, "warnings":warnings, "commitMode":if config.early_lock_release {"early-lock-release"} else {"synchronous"}})
     );
     Ok(())
 }

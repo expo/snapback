@@ -162,7 +162,7 @@ query oversized(c: cursor ?):
   return queryPathRows last 50 by .at after c
 `;
     const p=await project(t,'table queryPathRoles:',[source], {expectedNotes:['N_QUERY_FALLTHROUGH','N_QUERY_RESERVATION']});
-    const consoleCheck=await invoke(process.execPath,[cliPath,'check'],p.cwd,env);
+    const consoleCheck=await invoke(process.execPath,[cliPath,'check','--review'],p.cwd,env);
     assert.match(consoleCheck,/N_QUERY_FALLTHROUGH/);assert.match(consoleCheck,/is false.*end/);
     await p.seed([
       {table:'queryPathRoles',row:{id:'role',principal:'dev:alice',role:'staff'}},

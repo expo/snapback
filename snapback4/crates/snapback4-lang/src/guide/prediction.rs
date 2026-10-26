@@ -238,7 +238,7 @@ membership `insert ... if absent` to set and `delete` to clear read most
 plainly; with the whole viewer partition held, the device can predict both. For a multi-valued
 reaction, use `upsert` to insert when absent and update the held row when present.
 An explicit existence branch needs a whole partition; a horizon miss is still unknown.
-`check --residency` labels an unprovable insert arm `predicts: conditional updates`
+`check --residency --verbose` labels an unprovable insert arm `predicts: conditional updates`
 and explains each update constraint. Missing population coverage queues without a row.
 `insert ... if absent` with an unprovable insert says `predicts: inserts queue
 without a row`. The summary and residency line name the horizon, read rule or

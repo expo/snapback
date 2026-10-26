@@ -78,6 +78,7 @@ pub(super) use crate::round_trips::CallCounter;
 
 
 pub struct Store {
+    pub(crate) early_release: Option<std::sync::Arc<super::early_release::Durability>>,
     pub(super) read_sessions: Cell<bool>,
     pub(super) unified: bool,
     pub(super) fence: Option<super::ownership::Fence>,
@@ -103,14 +104,19 @@ pub struct Store {
 impl Store {
     pub fn new(client: Client) -> Self { Self::with_connection(super::pipeline::Connection::Sync(client)) }
     pub(super) fn with_connection(client: super::pipeline::Connection) -> Self {
-        Self { read_sessions: Cell::new(false), unified: false, fence: None, read_grant: None, commit_warning: Default::default(), generation:1, read_only: false, client, qualified: false, batch_ordinal: Default::default(), reader_binding: false, next_program_deadline: None, literal_cache: BTreeMap::new(), cache: BTreeMap::new(), calls: CallCounter::new(0), prefetch: true, marked_reads: Cell::new(0), page_reads: Cell::new(0), prefetch_rows: Cell::new(0), prefetch_bytes: Cell::new(0) }
+        Self { early_release: None, read_sessions: Cell::new(false), unified: false, fence: None, read_grant: None, commit_warning: Default::default(), generation:1, read_only: false, client, qualified: false, batch_ordinal: Default::default(), reader_binding: false, next_program_deadline: None, literal_cache: BTreeMap::new(), cache: BTreeMap::new(), calls: CallCounter::new(0), prefetch: true, marked_reads: Cell::new(0), page_reads: Cell::new(0), prefetch_rows: Cell::new(0), prefetch_bytes: Cell::new(0) }
     }
 
     // @ref LLP 3000.009.001.000#8 — only future requests reconnect, with fresh binding checks.
     // A future request may replace a driver already known closed. Cached
     // statements belong to the old socket; no result or authority is reused.
     fn refresh_reader_connection(&mut self) -> Result<(),RuntimeError> {
+        // Observe loss before attempting replacement: a failed reconnect must
+        // not leave the old durability epoch live.
+        if self.client.is_closed() && let Some(gate)=&self.early_release {gate.break_history();}
+
         if self.client.refresh_closed()? {
+            if let Some(gate)=&self.early_release {gate.break_history();}
             if let Some(grant)=&self.read_grant {grant.revoke();}
             self.literal_cache.clear(); self.cache.clear();
             self.reader_binding = self.unified;
@@ -140,6 +146,7 @@ impl Store {
         self.begin_resuming(mode, opening, cpu_only, false)
     }
     fn begin_resuming(&mut self, mode: Option<WriteMode>, opening: bool, cpu_only: bool, resuming: bool) -> Result<Tx<'_>, RuntimeError> {
+        if !resuming && mode.is_some() && self.early_release.as_ref().is_some_and(|g|g.broken()) {return Err(RuntimeError::StoreOwnership("durability recovery required before writer admission".into()));}
         if !resuming && mode.is_some() && self.read_grant.as_ref().is_some_and(|g|g.uncertain.load(std::sync::atomic::Ordering::Acquire)) {return Err(RuntimeError::StoreOwnership("unknown COMMIT pauses writer admission until fenced reconciliation".into()));}
         let deadline = self.next_program_deadline.take();
         if self.read_only && mode.is_some() { return Err(RuntimeError::Store("Postgres reader is read-only".into())); }
@@ -155,11 +162,11 @@ impl Store {
         self.page_reads.set(0);
         let begin = match mode {
             None => "BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY;",
-            Some(WriteMode::Serialized) => "BEGIN ISOLATION LEVEL READ COMMITTED READ WRITE;",
-            Some(WriteMode::Serializable) => "BEGIN ISOLATION LEVEL SERIALIZABLE READ WRITE;",
+            Some(WriteMode::Serialized) => "BEGIN ISOLATION LEVEL READ COMMITTED READ WRITE; SET LOCAL synchronous_commit=on;",
+            Some(WriteMode::Serializable) => "BEGIN ISOLATION LEVEL SERIALIZABLE READ WRITE; SET LOCAL synchronous_commit=on;",
         };
-        let inner = super::flight::Session { client: &mut self.client, pending: if cpu_only {String::new()} else {begin.into()}, started: false, done: cpu_only, settings_refused: false, checks: Vec::new(), owner: None, owner_budget: None };
-        let tx = Tx { activation_relations: Default::default(), batch_store_id: self.fence.as_ref().map(|f| f.store_id.clone()), attempt: RefCell::new(if mode.is_some() { super::group_commit::fresh_attempt(self.fence.as_ref().map_or(0, |f| f.token))? } else { String::new() }), batch_ticket: None, predecessor_ticket: None, pipeline: false, batch_base: RefCell::new(None), generation_expected: self.generation, publication: RefCell::new(None), read_grant:self.read_grant.clone(), durable_write: mode.is_some(), revisions: Cell::new(0), lifecycle: opening, read_sessions: &self.read_sessions, read_sessions_installed: Cell::new(false), unified: self.unified, commit_warning: &self.commit_warning, inner: RefCell::new(inner),
+        let inner = super::flight::Session { client: &mut self.client, pending: if cpu_only {String::new()} else {begin.into()}, started: false, done: cpu_only, settings_refused: false, checks: Vec::new(), owner: None, owner_budget: None, continuity:self.early_release.clone(), durability: if mode.is_none() {self.early_release.clone()} else {None}, snapshot: None };
+        let tx = Tx { activation_relations: Default::default(), batch_end:RefCell::new(None), early_release:self.early_release.clone(), release_epoch:self.early_release.as_ref().map_or(0,|g|g.epoch()), batch_store_id: self.fence.as_ref().map(|f| f.store_id.clone()), attempt: RefCell::new(if mode.is_some() { super::group_commit::fresh_attempt(self.fence.as_ref().map_or(0, |f| f.token))? } else { String::new() }), batch_ticket: None, predecessor_ticket: None, pipeline: false, batch_base: RefCell::new(None), generation_expected: self.generation, publication: RefCell::new(None), read_grant:self.read_grant.clone(), durable_write: mode.is_some(), revisions: Cell::new(0), lifecycle: opening, read_sessions: &self.read_sessions, read_sessions_installed: Cell::new(false), unified: self.unified, commit_warning: &self.commit_warning, inner: RefCell::new(inner),
             bind_refused: Cell::new(false), program_deadline: Cell::new(deadline), read_cache: RefCell::new(super::read_plan::Answers::default()), pending_read: RefCell::new(None), receipt_cache: RefCell::new(None), placement_cache: RefCell::new(None), authority_cache: RefCell::new(None), commit_settings: Cell::new(false), literal_cache: RefCell::new(&mut self.literal_cache), cache: RefCell::new(&mut self.cache), calls: &self.calls, marked_reads: &self.marked_reads, page_reads: &self.page_reads, prefetch_rows: &self.prefetch_rows, prefetch_bytes: &self.prefetch_bytes,
             rows_cache: RefCell::new(super::prefetch::Cache::default()), prefetch_enabled: self.prefetch, head: Cell::new(None), serialized_head: Cell::new(false), tail: RefCell::new(super::tail::Tail::default()), group_head: Cell::new(None), group_tails: RefCell::new(Vec::new()), group_images: Default::default(), changes: Default::default(), savepoints: RefCell::new(Vec::new()) };
         if opening { super::managed_relations::verify(&tx)?; super::managed_relations::capture(&tx)?; }
@@ -207,6 +214,7 @@ impl Store {
     pub(crate) fn ingress_session_authority_facts(&mut self, digest: &str) -> Result<crate::identity::facts::SessionFacts, RuntimeError> {
         if absent_text_key(&[digest]) { return Ok(Default::default()); }
         self.refresh_reader_connection()?;
+        if self.early_release.is_some() {let (tx,facts)=self.session_authority_transaction(digest)?;tx.rollback()?;return Ok(facts);}
         let sql = super::authority::session_facts_sql(self.read_sessions.get());
         if self.client.is_reader() && self.read_sessions.get() {
             self.calls.set(self.calls.get() + 1);
@@ -417,6 +425,9 @@ impl Tx<'_> {
 
 pub struct Tx<'a> {
     pub(super) activation_relations: RefCell<BTreeMap<(u32, String), u32>>,
+    pub(crate) early_release: Option<std::sync::Arc<super::early_release::Durability>>,
+    pub(super) release_epoch: u64,
+    pub(super) batch_end: RefCell<Option<super::group_commit::Head>>,
     pub(super) batch_store_id: Option<String>,
     pub(super) attempt: RefCell<String>,
     pub(super) batch_ticket: Option<i64>,
@@ -434,7 +445,7 @@ pub struct Tx<'a> {
     pub(super) read_sessions: &'a Cell<bool>,
     pub(super) read_sessions_installed: Cell<bool>,
     unified: bool,
-    commit_warning: &'a std::sync::Arc<std::sync::atomic::AtomicBool>,
+    pub(super) commit_warning: &'a std::sync::Arc<std::sync::atomic::AtomicBool>,
     pub(super) inner: RefCell<super::flight::Session<'a>>,
     literal_cache: RefCell<&'a mut BTreeMap<String, super::literal::Prepared>>,
     bind_refused: Cell<bool>,
@@ -747,8 +758,9 @@ impl Tx<'_> {
     }
 
     pub(crate) fn commit_program(self) -> Result<(), crate::engine::committer::outcome::Failure> {
+        let early=self.early_release.is_some() && self.batch_ticket.is_some();
         self.commit().map_err(|error| {
-            let aborted=matches!(&error,RuntimeError::Postgres(source) if source.code().is_some_and(|code|matches!(code.code(),"40001"|"40P01")||code.code().starts_with("23")));
+            let aborted=matches!(&error,RuntimeError::Store(message) if message.starts_with("E_DATA_TRANSACTION_ABORTED:")) || (!early && matches!(&error,RuntimeError::Postgres(source) if source.code().is_some_and(|code|matches!(code.code(),"40001"|"40P01")||code.code().starts_with("23"))));
             crate::engine::committer::outcome::Failure {error,aborted,member:None}
         })
     }
@@ -784,18 +796,33 @@ impl Tx<'_> {
                 None => super::read_grant::Published::row(&self.query(super::read_grant::PUBLICATION, &[])?.remove(0))?,
             })
         } else { None };
+        let certificate=if self.durable_write && self.early_release.is_some() && self.batch_ticket.is_some() {
+            Some(self.batch_end.borrow().clone().ok_or_else(||RuntimeError::Store("missing validated E batch end".into()))?)
+        } else {None};
         let mut inner = self.inner.into_inner();
         if !self.commit_settings.get() {
             inner.pending.push_str("SET LOCAL statement_timeout = 0; SET LOCAL lock_timeout = 0;");
         }
         inner.flush(self.calls)?;
         self.calls.set(self.calls.get()+1);
-        // The last data flight verified the codec settings. Only client-side
-        // validation intervenes; COMMIT stays alone and decodes no row payload.
-        // Once COMMIT is sent, even transport loss must retain unknown-outcome classification.
-        if let (Some(grant),Some(published))=(grant,published) {
-            grant.commit(published,|| {inner.done=true;inner.client.commit_prepared(self.commit_warning)})?;
-        } else {inner.done=true;inner.client.commit_prepared(self.commit_warning)?;}
+        // The last data flight verified the codec settings. S keeps COMMIT
+        // separate; E's same-message marker certifies the preceding data WAL.
+        // Once COMMIT is sent, transport loss retains unknown-outcome classification.
+        let mut commit=|| {
+            inner.done=true;
+            if let Some(gate)=self.early_release.as_ref().filter(|_|self.durable_write) {
+                let snapshot=if let Some(head)=&certificate {
+                    let token=self.attempt.borrow().split_once(':').unwrap().0.parse::<i64>().map_err(|_|RuntimeError::Store("invalid E token".into()))?;
+                    let slot=(self.batch_ticket.unwrap() as u64 & 1) as i64;
+                    let postmaster=inner.client.commit_early(self.commit_warning,token,slot,head.xid.clone())?.1;
+                    super::early_release::head_snapshot(head,&head.attempt,postmaster)?
+                } else {inner.client.commit_synchronous_head(self.commit_warning)?};
+                gate.certify(self.release_epoch,snapshot,false)
+            } else {inner.client.commit_prepared(self.commit_warning)}
+        };
+        let result=if let (Some(grant),Some(published))=(grant,published) {grant.commit(published,&mut commit)} else {commit()};
+        if matches!(&result,Err(RuntimeError::CommitOutcomeUnknown(_))) && let Some(gate)=&self.early_release {gate.break_history();}
+        result?;
         if self.read_sessions_installed.get() { self.read_sessions.set(true); }
         Ok(())
     }
@@ -810,7 +837,8 @@ impl Tx<'_> {
         let aborted = inner.client.batch_execute("ROLLBACK");
         // @ref LLP 3000.009.001.000.000.002#3.6 — every durable preparation path, including depth-one barriers, closes G6 on an unacknowledged rollback.
         if aborted.is_err() && self.durable_write {
-            if let Some(grant) = self.read_grant.as_ref().filter(|g|g.configured.load(std::sync::atomic::Ordering::Acquire)) {
+            if let Some(gate)=&self.early_release {gate.break_history();}
+            else if let Some(grant) = self.read_grant.as_ref().filter(|g|g.configured.load(std::sync::atomic::Ordering::Acquire)) {
                 grant.close_uncertain();
             }
         }
@@ -1129,7 +1157,7 @@ impl Tx<'_> {
         let mut inner = self.inner.into_inner();
         inner.done = true; // custody transfers; dropping this borrowed view must not roll back
         Ok(super::writer_slot::Suspended {
-            head, ticket, predecessor, attempt:self.attempt.into_inner(),
+            head, release_epoch:self.release_epoch, ticket, predecessor, attempt:self.attempt.into_inner(),
             tails:self.group_tails.into_inner(), images:self.group_images.into_inner(),
             pending:std::mem::take(&mut inner.pending), checks:std::mem::take(&mut inner.checks), deadline,
             #[cfg(test)] hook:None,#[cfg(test)] ordinal:0,
@@ -1141,6 +1169,7 @@ impl Store {
         // No BEGIN, fence or facts are repeated: this is the same open server transaction.
         let mut tx = self.begin_resuming(Some(WriteMode::Serialized), false, false, true)?;
         tx.pipeline = true;
+        tx.release_epoch = frozen.release_epoch;
         tx.batch_ticket = Some(frozen.ticket);
         tx.predecessor_ticket = frozen.predecessor;
         tx.head.set(Some(frozen.head.seq as u64));
@@ -1160,7 +1189,7 @@ impl Store {
 }
 
 impl Store {
-    pub(super) fn recovery_transaction(&mut self) -> Result<Tx<'_>,RuntimeError> {
+    pub(crate) fn recovery_transaction(&mut self) -> Result<Tx<'_>,RuntimeError> {
         let owner=super::ownership::Fence::raising_command(self.fence.as_ref())?;
         let mut tx=self.begin_resuming(Some(WriteMode::Serialized),false,false,true)?;
         tx.inner.get_mut().owner=Some(owner);

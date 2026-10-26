@@ -18,5 +18,5 @@ pub(super) fn files(sources:&[(String,String)], proof:String)->Vec<(&'static str
         .replace("await fillRN(page.getByLabel(\"Email\", { exact: true }), `proof-${randomUUID()}@example.test`);", "const account = Object.values(dev.sessions).flat()[0];\n      await fillRN(page.getByLabel(\"Email\", { exact: true }), account.email);")
         .replace("await fillRN(page.getByLabel(\"Password\", { exact: true }), \"Proof-password-928!\");", "await fillRN(page.getByLabel(\"Password\", { exact: true }), account.password);")
         .replace("name: \"Sign up\", exact: true", "name: \"Sign in\", exact: true");
-    vec![("scripts/staging.mjs",staging),("scripts/probe-serve.mjs",include_str!("password-probe.mjs").into()),("scripts/frontend-proof.mjs",proof)]
+    vec![("scripts/probe-check.mjs",include_str!("password-probe-check.mjs").into()),("scripts/staging.mjs",staging),("scripts/probe-serve.mjs",include_str!("password-probe.mjs").into()),("scripts/frontend-proof.mjs",proof)]
 }

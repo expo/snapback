@@ -23,8 +23,10 @@ mutation writePrivateNote(body: text 1..2000):
   return insert privateNotes { patient: viewer, body }
 ```
 
-Run `snapback4 check` → `snapback4 test` → `snapback4 audit`. Check reports
-invariant counts, five ordinary note classes and all likely-hole questions; `--verbose` retains every reason.
+Run `snapback4 check` → `snapback4 test` → `snapback4 audit`. A passing default
+check prints its verdict and language-enforcement summary; pending gates stay
+visible. Use `snapback4 check --review` for advisory decisions and notes;
+`--verbose` retains every reason.
 Answer the rule questions from the product specification before editing intent.
 The restating advisory names each admitted role and its row conditions: for
 example, a coach branch with no assignment check asks whether coaches should
@@ -57,6 +59,10 @@ Fixture-free tests report that no authored business cases ran. Finite passing
 campaigns never prove security. Check bounds concrete exploration to 512 call/world
 reservations; its default verdict never depends on elapsed time. Work exhaustion
 stays unproved and points to the full test.
+Explicit `--review`, `--verbose`, JSON and `--ack-security` also search
+generated question witnesses with a separate deterministic 8192-work budget.
+This opt-in search cannot change a gate, decision ID or proof verdict; exhausted
+questions retain an explicit unavailable witness.
 `audit --json` retains all column audiences, grant writers, exclusions and uncovered
 role/row/effect exposures. Audit returns the permission map with bounded check
 evidence; run `test` for the full generated campaign. `audit --all` shows every
@@ -265,8 +271,8 @@ A completed `test` records concrete refutations under
 `snapback/generated/security-test.json`. The next `check` reports matching
 failures even when its short campaign cannot rediscover them. Exact source,
 fixture bytes and CLI identity bind the record; edits invalidate it. No cached
-passing result proves security. Every escalation note stays visible in short
-output. Rule-changing deploy previews print exposure counts and demand a test
+passing result proves security. Every escalation gate stays visible in short
+output; advisory escalation notes require `check --review`. Rule-changing deploy previews print exposure counts and demand a test
 for the selected source/fixtures when a matching full finite campaign is absent.
 
 ### N_SELF_CLAIMED_RELATIONSHIP
@@ -320,13 +326,25 @@ Shape validation grants no authority; the server still decides session validity.
 
 ## Individual security review
 
-Default check puts likely holes before result inventories and restating questions.
+Default check prints a verdict and the language-enforcement summary. Pending
+gates always print; advisory decisions and notes require `check --review` (or
+--verbose/JSON). A gate blocks; an advisory does not. The verdict counts pending
+advisories and points to --review. A decision with a concrete campaign witness
+shows the admitted operation, caller, arguments, old/new row and inferred
+candidate. An upsert's existing-row arm is an **edit**. Opaque text, JSON and
+asset values in these generated witnesses are redacted. A finite witness is
+behavior to judge against the specification, never a proof of safety.
 Questions about retained role grants and uploads with an explicit mandatory-media
 contract require a repair or an individual disposition. They fail check without claiming an invariant refutation. Analyzer changes
 invalidate older source-bound reviews; recheck current IDs and decisions.
 Read the note, compare it with the specification, then use
 `check --ack-security ID --reason 'specification rationale'` with its current ID
-from check or check --json. Bulk --ack-notes cannot clear these gates.
+from check --review or `securityReviews[].id` in check --json. Repeat
+`--ack-security ID` or pass comma-separated IDs to record several decisions
+with the same reason atomically; an unknown/stale member writes none. Audience
+family commands retain old member decisions when a new member appears; the new
+member remains pending. Historical family commands select only their original,
+still-current members. Bulk --ack-notes cannot clear these gates.
 Commit snapback/security-reviews.json when the decision should travel with source.
 Comments, line shifts and independent declarations preserve decisions. Changed
 rule/column dependencies or analyzer revisions require review again; the record never grants authority or proves safety. Audit retains the full

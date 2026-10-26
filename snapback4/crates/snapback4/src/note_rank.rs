@@ -1,4 +1,4 @@
-//! `check`'s advisory notes, ranked. A green check printed nine notes in
+//! `check --review`'s advisory notes, ranked. A green check printed nine notes in
 //! source order, and builders could not tell an FYI about offline coverage
 //! from a page that never completes. Notes stay advisory (they never fail a
 //! check); security review gates are decided by the caller. This module orders
@@ -75,7 +75,7 @@ pub(crate) fn verdict(code: &str, summary: &str, form: bool) -> &'static str {
         "N_UNIQUE_HIDDEN" => "review: hidden unique conflicts retain generic E_RULE",
         "N_PROBE_ONLY_READ" | "N_PUBLIC_AGGREGATE_COPY" | "N_MAINTAINED_COLUMN_DISCLOSURE" => "review: who can read this",
         "N_VACUOUS_RULE" => "review: who can write this",
-        "N_INSERT_WRITE_INTENT" => "review: confirm creation authority as well as edit authority",
+        "N_INSERT_WRITE_INTENT" => "review: confirm insert and existing-row edit authority",
         "N_COLUMN_RESULT_EXPOSURE" => "review: confirm every result/refusal audience",
         "N_IMMUTABLE_PATCH" => "review: readable conflicts require the original immutable value",
         "N_NO_CURSOR" => "no action for a top-N list",

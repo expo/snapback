@@ -1397,8 +1397,10 @@ fn handle(mut request: Request, shared: &Shared) {
                 };
                 let (owned_op, owned_id, owned_principal) = (op.clone(), id.clone(), principal.clone());
                 let diverted_capability = (principal.clone(), credential_kind.clone(), scope);
-                let boundary=Arc::new(Mutex::new(None));
+                let boundary=Arc::new(Mutex::new((None,None)));
                 let boundary_check=boundary.clone();
+                let hint_admission=admission.clone();
+                let hint_digest=admission.digest();
                 let diverted=Arc::new(AtomicBool::new(false));
                 let diverted_prepare=diverted.clone();
                 let result = shared.engine.program(request.accepted_at(), move |engine, shared| {
@@ -1414,19 +1416,33 @@ fn handle(mut request: Request, shared: &Shared) {
                     let generation=engine.generation();
                     Ok(snapback4_core::engine::program::Invocation::new(owned_op,owned_id,context.with_wire_args(args_json))
                         .authorized(admission.digest(),move ||sample_admission.sample(&sample_host),move |facts| {
-                            // Bind fresh store facts before refreshing the hint or accepting authority.
-                            let checked=admission.check_bound_facts(&shared,&expected,&facts,persona.clone(),Some(generation));
+                            // Every attempt checks fresh facts; only its released outcome may publish a hint.
+                            let checked=admission.check_mutation_facts(&shared,&expected,&facts,persona.clone(),generation);
                             #[cfg(test)] test_work(&shared.mutation_authority_checked);
+                            let mut observation=lock(&boundary_check);
+                            observation.1=None;
                             checked?;
-                            *lock(&boundary_check)=Some((facts.store_id.clone(),facts.head));
-                            head::intent_store_id(&payload,Some(&facts.store_id))
+                            observation.0=Some((facts.store_id.clone(),facts.head));
+                            head::intent_store_id(&payload,Some(&facts.store_id))?;
+                            observation.1=Some(facts);
+                            Ok(())
                         }))
                 },move |engine,shared,outcome| {
                     if diverted.load(Ordering::Acquire) {return Ok(None);}
-                    let boundary=lock(&boundary).clone();
+                    let (boundary,hint)=std::mem::take(&mut *lock(&boundary));
+                    // @ref LLP 3000.009.001.000.000.002#3.8 — hint publication follows the same certified release as the mutation; unknown outcomes publish no staged observation.
+                    if outcome.is_ok() {
+                        if let Some(facts)=hint { hint_admission.remember_facts(shared,&facts); }
+                    } else {
+                        // A failed attempt's facts may belong to an uncertified predecessor.
+                        // Eviction makes stale-kind retries rediscover through a certified reader.
+                        lock(&shared.carried).remove(&hint_admission.digest());
+                    }
                     if let Err(why)=&outcome && (boundary.is_none() || matches!(why.code.as_str(),"E_AUTH"|"E_COMMIT_OUTCOME_UNKNOWN")) {return Err(why.clone());}
                     Ok(Some(head::mutation_acknowledgement_at(shared,engine,outcome,boundary)))
                 });
+                // Queue refusal/unknown bypasses the result continuation too.
+                if result.is_err() { lock(&shared.carried).remove(&hint_digest); }
                 let (outcome, metadata, preserved, generation) = match result.and_then(|v| v) {
                     Ok(Some(value)) => value,
                     Ok(None) => return ephemeral::serve(request, shared, &op, &body, diverted_capability),

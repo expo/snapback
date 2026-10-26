@@ -153,7 +153,14 @@ impl crate::store_port::AnyStore {
     pub(crate) fn drain_program_tickets(&mut self, tickets: &[i64]) -> Result<(), RuntimeError> {
         if let Self::Postgres(super::handles::PostgresStore(h)) = self {
             h.reconnect_pipeline_writer()?;
-            h.store.get_mut().drain_program_tickets(tickets)
+            let result=h.store.get_mut().drain_program_tickets(tickets);
+            // An idle synchronous socket can discover its loss only on this
+            // first probe. Repeat fenced control locks once on a fresh socket,
+            // before any head reseed or data recovery.
+            if result.is_err() && h.early_pipeline_disconnected() {
+                h.reconnect_pipeline_writer()?;
+                h.store.get_mut().drain_program_tickets(tickets)
+            } else {result}
         } else { unreachable!() }
     }
 }

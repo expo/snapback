@@ -16,13 +16,16 @@ pub(super) struct Session<'a> {
     // first message. Kept separate so its PL/pgSQL semicolons are not controls.
     pub owner: Option<String>,
     pub owner_budget: Option<u32>,
+    pub continuity: Option<std::sync::Arc<super::early_release::Durability>>,
+    pub durability: Option<std::sync::Arc<super::early_release::Durability>>,
+    pub snapshot: Option<super::early_release::Snapshot>,
 }
 impl Drop for Session<'_> {
     fn drop(&mut self) {
         if self.started && !self.done {
             #[cfg(any(test, feature = "test-support"))]
             crate::round_trips::postgres(1);
-            let _ = self.client.batch_execute("ROLLBACK");
+            if self.client.batch_execute("ROLLBACK").is_err() && let Some(gate)=&self.continuity {gate.break_history();}
         }
         self.client.finish();
     }
@@ -50,6 +53,12 @@ impl Session<'_> {
         // an implicit transaction and prevent setting its isolation level.
         let opening = if sql.starts_with("BEGIN ") { sql.find(';').map_or(0, |n|n+1) } else { 0 };
         command.push_str(&sql[..opening]);
+        // A logical request can reopen after a composed read or failed
+        // speculation. Bind each physical snapshot to its own first head.
+        // @ref LLP 3000.009.001.000.000.002#3.8 — an earlier snapshot's head cannot certify fresh fallback rows.
+        if opening != 0 { self.snapshot = None; }
+        let bind_head=self.durability.is_some() && self.snapshot.is_none();
+        if bind_head {command.push_str(super::early_release::SNAPSHOT);command.push(';');}
         if !recovery { command.push_str(GUARD); }
         if let Some(owner) = &owner {
             if let Some(ms) = owner_budget {
@@ -62,10 +71,26 @@ impl Session<'_> {
         let mut messages = self.client.simple_query(&command).map_err(|error| {
             if error.code().is_some_and(|code| code.code() == "S4001") { self.settings_refused = true; }
             if error.code().is_some_and(|code| code.code() == "S4002") {
+                if let Some(gate)=&self.continuity {gate.break_history();}
                 return RuntimeError::StoreOwnership("stale owner token or logical store identity".into());
             }
+            if (error.as_db_error().is_none() || error.code().is_some_and(|c|matches!(c.code(),"57P01"|"57P02"|"57P03"))) && let Some(gate)=&self.continuity {gate.break_history();}
             RuntimeError::from(error)
         })?;
+        // The head is the first read in this REPEATABLE READ snapshot. Remove
+        // its wire messages before handing the original command results up.
+        if bind_head {
+            let index=usize::from(opening!=0);
+            let end=messages.iter().enumerate().skip(index).find_map(|(i,m)|matches!(m,SimpleQueryMessage::CommandComplete(_)).then_some(i))
+                .ok_or_else(||RuntimeError::Store("missing reader snapshot head".into()))?;
+            let snapshot=messages[index..end].iter().find_map(|m|if let SimpleQueryMessage::Row(r)=m {Some(super::early_release::Snapshot::text(r))} else {None})
+                .ok_or_else(||RuntimeError::Store("missing reader head row".into()))??;
+            self.snapshot=Some(snapshot);
+            messages.drain(index..=end);
+        }
+        if let (Some(gate),Some(snapshot))=(&self.durability,&self.snapshot) {
+            messages=gate.bind(snapshot.clone(),messages).open()?;
+        }
         let guard_index = usize::from(opening != 0);
         let guard = if recovery { messages.last() } else { messages.get(guard_index) };
         if !matches!(guard, Some(SimpleQueryMessage::CommandComplete(_))) {

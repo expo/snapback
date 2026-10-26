@@ -8,7 +8,8 @@ const SOURCE: &str = "use identity\ntable counters:\n  n: int\n  public\n  inser
 struct Fixture { host: Host, _directory: ReaderTestDirectory }
 impl Fixture {
     fn new(pg: bool) -> Self { Self::with_source(pg, SOURCE) }
-    fn with_source(pg: bool, source: &str) -> Self {
+    fn with_source(pg: bool, source: &str) -> Self { Self::with_source_commit(pg, source, false) }
+    fn with_source_commit(pg: bool, source: &str, early: bool) -> Self {
         let directory = ReaderTestDirectory::new();
         let store = if pg {
             #[cfg(feature = "postgres")]
@@ -16,6 +17,18 @@ impl Fixture {
             #[cfg(not(feature = "postgres"))]
             { unreachable!() }
         } else { snapback4_core::store_port::AnyStore::open(&directory.0.join("authority.sqlite")).unwrap() };
+        let mut store = store;
+        #[cfg(feature = "postgres")]
+        if early {
+            // E recovery needs the installed head before readers are created.
+            let bound=snapback4_lang::compile(&[("schema.q".into(),source.into())]);
+            assert!(bound.diagnostics.is_empty());
+            let mut bootstrap=Engine::new(store,bound.schema,bound.programs.into_iter().map(|p|p.program)).unwrap();
+            store=std::mem::replace(bootstrap.store_mut(),snapback4_core::store_port::AnyStore::memory().unwrap());
+            store.enable_postgres_early_lock_release().unwrap();
+        }
+        #[cfg(not(feature = "postgres"))]
+        assert!(!early);
         let host = Host::with_store(false, store, source);
         lock(&host.shared.engine).seed([("counters".into(), snapback4_core::wire::row_from_json(&lock(&host.shared.bound).schema.tables["counters"], &json!({"id":"c","n":0})).unwrap())]).unwrap();
         Self { host, _directory: directory }
@@ -508,9 +521,10 @@ fn carried_query(pg: bool) {
 fn rt3b_carried_query_postgres() { carried_query(true); }
 
 // @ref LLP 3000.009.001.000.001#13-g4a-read-refinement-2026-10-23 — mutation hints cannot authorize a batch after an intervening authority change.
-fn carried_mutation_batch(pg: bool) {
+fn carried_mutation_batch(pg: bool) { carried_mutation_batch_commit(pg, false); }
+fn carried_mutation_batch_commit(pg: bool, early: bool) {
     for change in ["revoke", "expiry", "scope", "kind", "generation", "read-generation"] {
-        let f=Fixture::new(pg);let session=f.session(false);
+        let f=Fixture::with_source_commit(pg, SOURCE, early);let session=f.session(false);
         assert_eq!(body(&f.host.request("POST","/q/count",&headers(&session),"{}"))["data"],0);
         assert_eq!(lock(&f.host.shared.carried).len(),1);
         let gate=Arc::new(WorkGate::default());let release=ReleaseGate(gate.clone());let hook=gate.clone();
@@ -567,3 +581,6 @@ fn carried_mutation_batch(pg: bool) {
 #[test] fn rt3b_carried_mutation_batch_sqlite(){carried_mutation_batch(false);}
 #[cfg(feature="postgres")] #[test] #[ignore="requires private Postgres; scripts/test-postgres.sh"]
 fn rt3b_carried_mutation_batch_postgres(){carried_mutation_batch(true);}
+
+#[cfg(feature="postgres")] #[test] #[ignore="private PG16"]
+fn g7e_lev_carried_mutation_batch_postgres(){carried_mutation_batch_commit(true, true);}

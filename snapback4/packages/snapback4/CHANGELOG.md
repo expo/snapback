@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.4.42
+
+### Guide changes
+
+- Passing `check` is a compact verdict plus language enforcement facts; advisory decisions and notes are in `check --review` or JSON. Gates remain explicit and blocking.
+- Security decisions carry redacted concrete campaign witnesses when available. Upsert questions name edits to existing rows. `check --ack-security` accepts repeated or comma-separated IDs with one rationale and commits them atomically; unrelated source edits preserve decisions.
+- `usePage` includes `loading` and `why` alongside `read`. Developer refusal evidence names column write grants and caller-filtered hidden rows without changing public refusal disclosure.
+- Schema-first React projects get a pinned starter hint. Expo starters include a web/native upload picker; upload overload errors explain sequential batches and Retry-After. Staging advances and redeploys print persisted clock offsets. Proof text is on-screen only; password starters include `probe:check` using `serve-check`.
+
+- Existing apps retain their authored workflows; stores retain rows, accounts and migration receipts. Restart serve processes with 0.4.42 and rebuild generated clients/devices to use the new hook fields. Analyzer revision `sec11-1` makes older security decisions unreviewed once: inspect `check --review --json` and renew current IDs with a specification rationale. Default check no longer prints advisory details; gates and refutations remain blocking. SEC10 is deferred to 0.4.43.
+
 ## 0.4.41
 
 ### Guide changes
@@ -19,7 +30,7 @@
 
 - PostgreSQL serving prepares readers before reporting readiness and bounds coalescing under load while preserving request deadlines and commit-outcome semantics. This does not establish a new capacity qualification. Activation verifies expected final images before removing live or dormant sources, preserving legal rename/backfill changes while refusing mismatches transactionally. PostgreSQL copy checks bound keys and compared payload bytes; `doctor` reports cache posture and enabled event triggers.
 
-- Existing apps keep their authored workflows and stores retain their rows, users and migration receipts. Restart running serve processes with 0.4.41 before deploying or rolling back. Older analyzer-bound decisions become unreviewed; use `check --json` and renew each required current ID with its specification rationale. Only the displayed advisory audience family accepts a shared disposition. Rebuild generated clients and devices after upgrading; custom proofs must adopt the new helpers explicitly. Preserve production roster files with their deployment. SEC10 security-semantic changes are deferred to 0.4.42.
+- Existing apps keep their authored workflows and stores retain their rows, users and migration receipts. Restart running serve processes with 0.4.41 before deploying or rolling back. Older analyzer-bound decisions become unreviewed; use `check --json` and renew each required current ID with its specification rationale. Only the displayed advisory audience family accepts a shared disposition. Rebuild generated clients and devices after upgrading; custom proofs must adopt the new helpers explicitly. Preserve production roster files with their deployment. SEC10 security-semantic changes remain outside this release (now planned for 0.4.43).
 
 #### Pending security changes (unpublished)
 

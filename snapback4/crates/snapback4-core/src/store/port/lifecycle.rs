@@ -18,6 +18,38 @@ impl From<sqlite::Store> for AnyStore {
 
 
 impl AnyStore {
+    /// Explicit store setting; default remains synchronous. Call before
+    /// creating readers or admitting requests, with a fenced owner handle.
+    #[cfg(feature="postgres")]
+    pub fn enable_postgres_early_lock_release(&mut self)->Result<(),RuntimeError> {
+        match self {Self::Postgres(PostgresStore(h))=>h.enable_early_release(),_=>Err(RuntimeError::StoreUnsupported {family:"early-lock-release"})}
+    }
+    #[cfg(feature="postgres")]
+    pub(crate) fn durability(&self)->Option<std::sync::Arc<crate::engine::postgres::early_release::Durability>> {
+        if let Self::Postgres(PostgresStore(h))=self {h.store.borrow().early_release.clone()} else {None}
+    }
+    #[cfg(feature="postgres")]
+    pub(crate) fn data_transaction_status(&mut self,xid:&str)->Result<Option<String>,RuntimeError> {
+        if let Self::Postgres(PostgresStore(h))=self {
+            h.reconnect_pipeline_writer()?;
+            let tx=h.store.get_mut().recovery_transaction()?;
+            let status=tx.query("SELECT pg_catalog.pg_xact_status($1::text::xid8)",&[&xid])?.remove(0).get(0);
+            tx.rollback()?;Ok(status)
+        } else {Ok(None)}
+    }
+    #[cfg(feature="postgres")]
+    pub(crate) fn recover_durability(&mut self)->Result<(),RuntimeError> {
+        if let Self::Postgres(PostgresStore(h))=self {
+            let result=h.store.get_mut().recover_early_release();
+            // A recovery writes only a fresh fenced nonce. The old recovery
+            // bumps its epoch on loss; this retry takes the head lock again
+            // and certifies only its own new synchronous commit.
+            if result.is_err() && h.early_pipeline_disconnected() {
+                h.reconnect_pipeline_writer()?;
+                h.store.get_mut().recover_early_release()
+            } else {result}
+        } else {Ok(())}
+    }
     #[cfg(feature="postgres")]
     pub(crate) fn read_grant(&self)->Option<std::sync::Arc<crate::engine::postgres::read_grant::Grant>> {
         if let Self::Postgres(PostgresStore(h))=self {return h.store.borrow().read_grant.clone();}None

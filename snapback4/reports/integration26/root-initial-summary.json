@@ -1,0 +1,18 @@
+[
+  {
+    "check": "ref-check",
+    "exit": 0
+  },
+  {
+    "check": "docs-budget",
+    "exit": 0
+  },
+  {
+    "check": "inventories",
+    "exit": 0
+  },
+  {
+    "check": "guide",
+    "exit": 0
+  }
+]

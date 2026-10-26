@@ -832,3 +832,6 @@ fn g6_group_tail_publishes_returned_head_and_revision_in_three_flights() {
     actual_hit(&mut reader, &digest, &viewer, "W1", SessionScope::Full);
     lease.release().unwrap();
 }
+
+#[path="revision_cache_early_tests.rs"]
+mod early_release;

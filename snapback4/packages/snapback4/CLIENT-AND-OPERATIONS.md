@@ -2,6 +2,18 @@
 
 [Back to the package guide](./README.md).
 
+`usePage(op, args)` returns `items`, `hasMore`, `loadMore`, `read`, `loading`
+and `why`. `loading` is true only while the combined read loads; `why` is its
+refusal or null. Empty, stale and partial data remain data; use `read` for
+completeness/freshness. `client.observe(op, args)` returns an observation:
+read `getSnapshot()`, register with `subscribe(listener)`, and `close()` on
+cleanup. It takes no callback argument. Asset display uses `useAsset(id)`;
+its result has `status` and, when ready, `url`. Upload with `client.upload(bytes)`
+or `useUpload`. Program lookups and `exists` are caller-filtered: hidden rows
+can look absent, and hidden columns are omitted rather than null. Developer
+diagnostics explain the refusing rule and known filtering without changing
+public refusal disclosure.
+
 For TypeScript actions use the generated `server()` wrapper described in
 [server handlers](./SERVER.md); it enforces the application's precise handler
 signatures. A custom runtime host can use the lower-level registry entry below

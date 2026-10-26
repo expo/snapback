@@ -60,12 +60,12 @@ fn peers(chat: id):
         project.source(&format!("{schema}\nquery search(q: text <=100, c: cursor ?):\n  return {read}\n"));
         let json = parsed(&project.run(&["check", "--json"]));
         let notes = json["notes"].as_array().unwrap().len() + json["search"].as_array().unwrap().len() + json["security"]["notes"].as_array().unwrap().len();
-        for flags in [vec!["check"], vec!["check", "--cost"], vec!["check", "--residency"], vec!["check", "--verbose"]] {
+        for flags in [vec!["check", "--review"], vec!["check", "--cost", "--review"], vec!["check", "--residency", "--review"], vec!["check", "--verbose"]] {
             let output = project.run(&flags);
             assert!(output.status.success(), "{output:?}");
             let text = String::from_utf8(output.stdout).unwrap();
             let summary = text.lines().next().unwrap();
-            assert!(summary.contains(" notes,") && summary.contains("decisions to record"), "{text}");
+            assert!(summary.contains(" notes") && summary.contains("advisory decisions: `check --review`"), "{text}");
             assert!(notes >= codes.len()); // JSON preserves the full diagnostics; questions are counted separately.
             for code in &codes {
                 let Some(line) = text.lines().find(|line| line.contains(code)) else {
@@ -165,7 +165,7 @@ fn reaction_constraint_residency_snapshots() {
             .replace("upsert reactions[parent, viewer]", "upsert reactions[parent = parent, principal = viewer]");
         if shape == "secondary-unique" { source = source.replace("  emoji: text <=32", "  emoji: text <=32\n  unique principal, emoji"); }
         project.source(&source);
-        let output = project.run(&["check", "--residency"]);
+        let output = project.run(&["check", "--residency", "--review"]);
         assert!(output.status.success(), "{output:?}");
         let text = String::from_utf8(output.stdout).unwrap();
         let normalized = text.lines().skip_while(|line| *line != "residency (facts)").collect::<Vec<_>>().join("\n") + "\n";

@@ -112,6 +112,8 @@ pub(crate) fn help(verb: &str) -> String {
     for name in allowed(verb).split_whitespace().chain(["help"]) {
         let value = value(verb, name);
         let description = match (verb, name) {
+            ("check", "review") => " — show advisory decisions, witnesses and notes; gates always print",
+            ("check", "ack-security") => " — repeat this flag or comma-separate decision IDs; all share --reason and record atomically",
             ("deploy", "schema") => " — deploy a saved complete source; keep it outside snapback/",
             ("deploy", "staging") => " — classify a new disposable deployment as staging; existing production stores refuse",
             ("dev", "unsafe-dev-doors") => " — explicitly open unauthenticated local fixture/clock/persona doors for password-only apps",

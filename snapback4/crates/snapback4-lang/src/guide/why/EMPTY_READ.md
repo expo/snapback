@@ -23,7 +23,7 @@ OPERATION, TABLE and DIR with your query, table and fixture directory:
   horizon. Follow any `read through` parent with `snapback4 why PARENT_TABLE`.
   `snapback4 guide rules` explains why hidden and missing rows look alike;
   empty data alone cannot tell which rule rejected a row.
-- `snapback4 check --residency` reports sync coverage and server/device
+- `snapback4 check --residency --verbose` reports sync coverage and server/device
   placement. `snapback4 test --fixture DIR --as alice --residency --fixture-only --verbose`
   measures that viewer's acquisition and runs queries on the fixture; replace
   alice with the declared persona or principal you are investigating.

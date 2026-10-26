@@ -1246,3 +1246,7 @@ fn g72_queued_second_wave_interprets_while_first_commit_is_held() {
     assert_eq!(early,0,"no continuation or reply may pass the held first COMMIT");
     assert!(results.iter().all(Result::is_ok));
 }
+
+#[cfg(feature="postgres")]
+#[path="program_g7e_tests.rs"]
+mod g7e_tests;

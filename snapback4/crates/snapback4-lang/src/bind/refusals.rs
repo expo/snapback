@@ -54,6 +54,7 @@ pub(super) fn sites(catalog: &Catalog) -> BTreeMap<(String, String), String> {
             }
         }
         for col in &info.decl.columns {
+            if col.write.is_some() {out.insert((name.clone(),format!("{} write rule",col.name)),col.site.to_string());}
             if col.written_by.is_some() { out.insert((name.clone(), format!("field authority {}", col.name)), col.site.to_string()); }
             if col.sequence.is_some() { out.insert((name.clone(), "sequence read authority".into()), col.site.to_string()); }
         }

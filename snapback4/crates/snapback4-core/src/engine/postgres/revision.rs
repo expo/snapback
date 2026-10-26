@@ -46,7 +46,7 @@ impl Tx<'_> {
         );
         let pipeline = {
             let inner = self.inner.borrow();
-            inner.client.is_reader() && !inner.started
+            self.early_release.is_none() && inner.client.is_reader() && !inner.started
         };
         let rows = if pipeline {
             super::literal::parameter(&digest, &postgres::types::Type::TEXT)?;

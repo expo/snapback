@@ -57,7 +57,7 @@ fn check_detects_inherited_day2_script_and_preview_shows_its_replacement() {
     let mut package: serde_json::Value = serde_json::from_str(&app.text("package.json")).unwrap();
     package["scripts"]["day2:proof"] = "node scripts/day2-proof.mjs".into();
     app.write("package.json", &serde_json::to_string_pretty(&package).unwrap());
-    let check = ok(app.run(&["check"]));
+    let check = ok(app.run(&["check", "--review"]));
     assert!(check.contains("info:") && check.contains("unmodified day-two starter needs") && check.contains("init --adapt"), "{check}");
     let preview = ok(app.run(&["init", "--adapt"]));
     assert!(preview.contains("scripts.day2:proof:") && preview.contains("versions/v1 versions/v2") && preview.contains("preview only"), "{preview}");
@@ -202,7 +202,7 @@ fn actual_router_social_starter_repairs_inherited_proofs_without_touching_routes
     let mut package: serde_json::Value = serde_json::from_str(&app.text("package.json")).unwrap();
     package["scripts"]["day2:proof"] = "node scripts/day2-proof.mjs".into();
     app.write("package.json", &serde_json::to_string_pretty(&package).unwrap());
-    assert!(ok(app.run(&["check"])).contains("unmodified day-two starter needs"));
+    assert!(ok(app.run(&["check", "--review"])).contains("unmodified day-two starter needs"));
     let preview = ok(app.run(&["init", "--adapt"]));
     assert!(preview.contains("replace scripts/frontend-proof.mjs"), "{preview}");
     assert_eq!(app.text("scripts/frontend-proof.mjs"), previous, "preview writes nothing");
@@ -286,7 +286,7 @@ fn day4_old_templates_capture_current_sources_without_copying_stale_evidence() {
         let mut pkg:serde_json::Value=serde_json::from_str(&app.text("package.json")).unwrap();
         pkg["snapback4"].as_object_mut().unwrap().remove("starter");
         pkg["scripts"]["day2:proof"]="node scripts/day2-proof.mjs versions/v1.q versions/v2.q".into(); app.write("package.json",&pkg.to_string());
-        let check=ok(app.run(&["check"])); assert!(check.contains("asserts no business rows"),"{check}");
+        let check=ok(app.run(&["check", "--review"])); assert!(check.contains("asserts no business rows"),"{check}");
         let preview=ok(app.run(&["init","--adapt"]));
         assert!(preview.contains("versions/v1 versions/v2"),"{preview}");
         assert!(!app.0.join("versions/v1").exists());
@@ -301,16 +301,16 @@ fn day4_old_templates_capture_current_sources_without_copying_stale_evidence() {
 fn day4_frontend_proof_heuristics_are_explicit_and_shared_by_check_and_adapt() {
     let app=App::new(); ok(app.run(&["init","--web"]));
     app.write("scripts/frontend-proof.mjs", "import {startStatic} from 'snapback4/proof';\nawait startStatic(\"dist\");\nspawn('npx', ['snapback4', 'dev']);\n");
-    for args in [&["check"][..],&["init","--adapt"][..]] {
+    for args in [&["check", "--review"][..],&["init","--adapt"][..]] {
         let text=ok(app.run(args));
         assert!(text.contains("no visible build step (heuristic") && text.contains("launches npx snapback4 dev (heuristic"),"{text}");
         assert!(!text.contains("no write scenario"),"custom proof owns its assertions");
     }
     let mut pkg:serde_json::Value=serde_json::from_str(&app.text("package.json")).unwrap();
     pkg["scripts"]["prefrontend:proof"]="npm run build".into();app.write("package.json",&pkg.to_string());
-    assert!(!ok(app.run(&["check"])).contains("no visible build step"));
+    assert!(!ok(app.run(&["check", "--review"])).contains("no visible build step"));
     fs::remove_file(app.0.join("scripts/frontend-proof.mjs")).unwrap();
-    assert!(ok(app.run(&["check"])).contains("missing but package.json still references"));
+    assert!(ok(app.run(&["check", "--review"])).contains("missing but package.json still references"));
     ok(app.run(&["init","--adapt","--apply"]));
     assert!(app.0.join("scripts/frontend-proof.mjs").is_file());
 }
@@ -322,7 +322,7 @@ fn day4_missing_referenced_day2_restores_a_runnable_command_and_sources() {
         fs::remove_file(app.0.join("scripts/day2-proof.mjs")).unwrap();
         let mut pkg:serde_json::Value=serde_json::from_str(&app.text("package.json")).unwrap();
         pkg["scripts"]["day2:proof"]=script.into();app.write("package.json",&pkg.to_string());
-        let check=ok(app.run(&["check"]));assert!(check.contains("missing but package.json still references"),"{check}");
+        let check=ok(app.run(&["check", "--review"]));assert!(check.contains("missing but package.json still references"),"{check}");
         ok(app.run(&["init","--adapt","--apply"]));
         assert!(app.text("package.json").contains("day2-proof.mjs versions/v1 versions/v2"));
         assert_eq!(app.text("versions/v1/schema.q"),V1);

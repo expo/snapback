@@ -149,14 +149,24 @@ pub(super) fn connect(mut config: Config) -> Result<(Client, Arc<AtomicBool>), R
 }
 
 // @ref LLP 3000.009.001.000#5.4.1 — COMMIT has no adapter timeout or cancellation; loss of acknowledgement is unknown.
+// PG16 must not execute a SET for PG17's new setting. The conditional stays
+// in the certificate message and has the same command tag on both versions.
+pub(super) const CERTIFICATE_SETTINGS: &str = "SET LOCAL synchronous_commit=on; SET LOCAL statement_timeout=0; SET LOCAL lock_timeout=0; DO $sb4_timeout$ BEGIN IF pg_catalog.current_setting('server_version_num')::int >= 170000 THEN SET LOCAL transaction_timeout=0; END IF; END $sb4_timeout$;";
+
 pub(super) fn commit(mut tx: Transaction<'_>, warning: &AtomicBool) -> Result<(), RuntimeError> {
-    tx.batch_execute("SET LOCAL statement_timeout = 0; SET LOCAL lock_timeout = 0")?;
+    tx.batch_execute(CERTIFICATE_SETTINGS)?;
     warning.store(false, Ordering::SeqCst);
     commit_result(tx.commit(), warning)
 }
 pub(super) fn commit_prepared(client: &mut Client, warning: &AtomicBool) -> Result<(), RuntimeError> {
     warning.store(false, Ordering::SeqCst);
     commit_result(client.batch_execute("COMMIT"), warning)
+}
+
+// @ref LLP 3000.009.001.000#5.4.1 — certificate waits, including recovery, cannot inherit session cancellation timeouts.
+pub(super) fn commit_synchronous(client: &mut Client, warning: &AtomicBool) -> Result<(), RuntimeError> {
+    warning.store(false, Ordering::SeqCst);
+    commit_result(client.batch_execute(&format!("{CERTIFICATE_SETTINGS} COMMIT")), warning)
 }
 
 fn commit_result(result: Result<(), postgres::Error>, warning: &AtomicBool) -> Result<(), RuntimeError> {

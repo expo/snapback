@@ -70,6 +70,10 @@ mod lane {
     type Finish = Box<dyn FnOnce(&mut Engine, Vec<Outcome>) + Send>;
     struct Flight {
         batch: Vec<Invocation>,
+        durability: Option<(
+            std::sync::Arc<super::super::postgres::early_release::Durability>,
+            u64,
+        )>,
         values: Vec<(usize, ProgramResolution)>,
         chain: Chain,
         receiver: mpsc::Receiver<Finished>,
@@ -101,6 +105,9 @@ mod lane {
         placeholder: Option<AnyStore>,
         active: bool,
         pub paused: bool,
+        recovery_after: Option<std::time::Instant>,
+        recovery_delay: std::time::Duration,
+        recovery_allowed: Option<std::sync::Arc<dyn Fn() -> bool + Send + Sync>>,
         #[cfg(test)]
         pub hook: Option<super::super::postgres::writer_slot::Hook>,
         #[cfg(test)]
@@ -116,12 +123,18 @@ mod lane {
                 placeholder: None,
                 active: true,
                 paused: false,
+                recovery_after: None,
+                recovery_delay: std::time::Duration::from_millis(10),
+                recovery_allowed: None,
                 #[cfg(test)]
                 hook: None,
                 #[cfg(test)]
                 next_ordinal: 0,
                 flights: VecDeque::new(),
             }
+        }
+        pub fn set_recovery_guard(&mut self, allowed: std::sync::Arc<dyn Fn() -> bool + Send + Sync>) {
+            self.recovery_allowed = Some(allowed);
         }
         pub fn len(&self) -> usize {
             self.flights.len()
@@ -130,6 +143,15 @@ mod lane {
             self.flights.is_empty()
         }
         pub fn close_uncertain(&self, engine: &Engine) {
+            // A depth-two dispatch can leave the engine's empty placeholder
+            // installed. Flights retain the same store-shared epoch and G6.
+            let durability = engine.store.durability().or_else(|| {
+                self.flights.iter().find_map(|f| f.durability.as_ref().map(|(d, _)| d.clone()))
+            });
+            if let Some(d) = durability {
+                d.break_history();
+                return;
+            }
             if let Some(grant) = engine
                 .store
                 .read_grant()
@@ -171,6 +193,7 @@ mod lane {
             self.start_planned(engine,batch,plans,finish);
         }
         pub fn start_planned(&mut self, engine: &mut Engine, mut batch: Vec<Invocation>, mut plans: super::super::program_batch::Plans, finish: Finish) {
+            if self.empty() { self.recover_idle_durability(engine); }
             if self.paused {
                 finish(
                     engine,
@@ -371,6 +394,7 @@ mod lane {
             finish: Finish,
             chain: Chain,
         ) {
+            let durability = engine.store.durability().map(|d| (d, frozen.release_epoch));
             let slot = self.active_slot;
             let (replacement, next_slot) = self.spare.take().unwrap_or_else(|| {
                 self.active = false;
@@ -413,6 +437,7 @@ mod lane {
             }));
             self.flights.push_back(Flight {
                 batch,
+                durability,
                 values,
                 chain,
                 receiver,
@@ -454,8 +479,27 @@ mod lane {
             #[cfg(any(test, feature = "test-support"))]
             crate::round_trips::add_commit_timing(timing);
             self.restore(engine, store, flight.slot);
-            let known_abort = result.as_ref().err().is_some_and(|f| f.aborted);
+            let result = result.and_then(|value| {
+                if let Some((d, epoch)) = &flight.durability {
+                    d.release_batch(*epoch, flight.chain.head.as_ref().unwrap())
+                        .map_err(|error| Failure {
+                            error,
+                            aborted: false,
+                            member: None,
+                        })?;
+                }
+                Ok(value)
+            });
+            let known_abort;
             if result.is_err() {
+                if result.as_ref().err().is_some_and(|f| !f.aborted)
+                    && let Some((d, _)) = &flight.durability
+                {
+                    if !d.broken() {
+                        d.break_history();
+                    }
+                }
+                let broken = engine.store.durability().filter(|d| d.broken());
                 // @ref LLP 3000.009.001.000.000.002#4.2 — resolve every dispatched successor before fresh facts, a barrier or a rerun.
                 let mut resolved = vec![(flight, result)];
                 while let Some(next) = self.flights.pop_front() {
@@ -483,6 +527,46 @@ mod lane {
                     self.paused = true;
                     let _ = engine.store.fence_pipeline_terminal();
                 }
+                if broken.is_some() && drained {
+                    // A lost connection is classified only after its backend
+                    // ended. This uses a surviving/reconnected writer, never
+                    // asks an in-progress xid to stand in for an abort witness.
+                    for (flight, outcome) in &mut resolved {
+                        if let Err(failure) = outcome {
+                            if !failure.aborted
+                                && engine
+                                    .store
+                                    .data_transaction_status(
+                                        &flight.chain.head.as_ref().unwrap().xid,
+                                    )
+                                    .ok()
+                                    .flatten()
+                                    .as_deref()
+                                    == Some("aborted")
+                            {
+                                failure.aborted = true;
+                                failure.error = RuntimeError::Store(
+                                    "data transaction provably aborted after drainage".into(),
+                                );
+                            }
+                        }
+                    }
+                }
+                if broken.is_some() {
+                    // Every above-D caller dispatched in the discarded epoch
+                    // stays unknown even if its marker arrived during drainage.
+                    for (_, outcome) in &mut resolved {
+                        if outcome.is_ok() {
+                            *outcome = Err(Failure {
+                                error: RuntimeError::CommitOutcomeUnknown(
+                                    "epoch ended before ordered release".into(),
+                                ),
+                                aborted: false,
+                                member: None,
+                            });
+                        }
+                    }
+                }
                 // Counted closures are settled together before any recovery attempt.
                 for (flight, result) in &mut resolved {
                     if let Some(gate) = flight.gate.take() {
@@ -492,8 +576,14 @@ mod lane {
                         );
                     }
                 }
+                if broken.is_some() && drained {
+                    self.recover_idle_durability(engine);
+                }
                 let lower_known = resolved[0].1.as_ref().err().is_some_and(|f| f.aborted);
                 let lower_unknown = resolved[0].1.as_ref().err().is_some_and(|f| !f.aborted);
+                // Classify after E release and drained xid checks. Committed but
+                // uncertified data never becomes a predecessor-abort witness.
+                known_abort = lower_known;
                 for (ordinal, (mut flight, result)) in resolved.into_iter().enumerate() {
                     let mut results = vec![None; flight.batch.len()];
                     let indices: Vec<_> = (0..flight.batch.len()).collect();
@@ -503,13 +593,13 @@ mod lane {
                             engine.finish_programs(&flight.batch, flight.values, &mut results)
                         }
                         Err(failure)
-                            if ordinal > 0 && lower_known && failure.may_rerun() && drained =>
+                            if ordinal > 0 && lower_known && failure.may_rerun() && drained && !self.paused =>
                         {
                             // Innocent conditional facts are discarded. One fresh whole
                             // batch fallback preserves deadlines and the original order.
                             engine.program_cascade_fallback(&mut flight.batch, &indices, &mut results);
                         }
-                        Err(failure) if drained && !(ordinal > 0 && lower_unknown) => engine
+                        Err(failure) if drained && !self.paused && !(ordinal > 0 && lower_unknown) => engine
                             .program_recover(
                                 &mut flight.batch,
                                 &indices,
@@ -526,6 +616,7 @@ mod lane {
                     (flight.finish)(engine, results.into_iter().map(Option::unwrap).collect());
                 }
             } else {
+                known_abort = false;
                 if let Some(gate) = flight.gate.take() {
                     gate.resolve(result.ok().flatten(), false);
                 }
@@ -536,10 +627,50 @@ mod lane {
             }
             known_abort
         }
+        fn recover_idle_durability(&mut self, engine: &mut Engine) {
+            // A failed drain/terminal fence still requires reacquisition. Only
+            // a drained E recovery failure arms this retry state.
+            if !self.empty() || (self.paused && self.recovery_after.is_none()) {
+                return;
+            }
+            let Some(gate) = engine.store.durability() else { return; };
+            // @ref LLP 3000.009.001.000.000.002#3.9 — retry failed/superseded recovery in the current epoch, bounded by backoff and live ownership.
+            // The watchdog can latch loss independently of blocked SQL. An
+            // already dispatched uncancellable certificate keeps its outcome;
+            // loss prevents the next attempt and never reopens queue admission.
+            if self.recovery_allowed.as_ref().is_some_and(|allowed| !allowed()) {
+                self.paused = true;
+                self.recovery_after = None;
+                return;
+            }
+            if self.recovery_after.is_some_and(|at| std::time::Instant::now() < at) {
+                return;
+            }
+            let result = engine.store.refresh_pipeline_writer().and_then(|()| {
+                if let Some((spare, _)) = &mut self.spare { spare.refresh_pipeline_writer()?; }
+                Ok(())
+            }).and_then(|()| {
+                if gate.broken() { engine.store.recover_durability() } else { Ok(()) }
+            });
+            match result {
+                Ok(()) => {
+                    self.paused = false;
+                    self.recovery_after = None;
+                    self.recovery_delay = std::time::Duration::from_millis(10);
+                }
+                Err(_) => {
+                    if !gate.broken() { gate.break_history(); }
+                    self.paused = true;
+                    self.recovery_after = Some(std::time::Instant::now() + self.recovery_delay);
+                    self.recovery_delay = (self.recovery_delay * 2).min(std::time::Duration::from_millis(250));
+                }
+            }
+        }
         pub fn drain(&mut self, engine: &mut Engine) {
             while !self.empty() {
                 self.poll(engine, true);
             }
+            self.recover_idle_durability(engine);
         }
     }
 }

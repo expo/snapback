@@ -713,6 +713,11 @@ impl Engine {
                         let mut outcome = entry.outcome.clone();
                         outcome.cache_lifetime = entry.lifetime.clone();
                         outcome.seq = entry.stamp.head;
+                        // @ref LLP 3000.009.001.000.000.002#3.8 — zero-flight hits open the certified publication through D too.
+                        if let Some(d)=self.store.durability() {
+                            return d.bind_publication(entry.stamp.revision,entry.stamp.head,outcome)
+                                .map(|bound|bound.open().map_err(|e|e.refusal())).transpose();
+                        }
                         Ok::<_, Refusal>(Some(outcome))
                     })();
                     match result {

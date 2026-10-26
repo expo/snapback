@@ -108,14 +108,19 @@ test('packed security card and starter run as written; broad reads refute', {tim
   writeFileSync(join(process.env.SNAPBACK4_SECURITY_PACK_EVIDENCE,'security-evidence.json'),JSON.stringify(result,null,2)+'\n');
 });
 
-// @ref LLP 3000.036.004#133-coverage-and-bounded-checking — compact output never drops structured evidence.
-test('check keeps invariant details behind verbose and preserves complete JSON', {timeout:120000}, t=>{
+// @ref LLP 3000.036.004#19-wave-28-output-and-witness-decisions-dx11 — compact output keeps structured evidence; advisory details are opt-in.
+test('check keeps invariant details opt-in and preserves complete JSON', {timeout:120000}, t=>{
  const dir=mkdtempSync(join(tmpdir(),'sb4-security-summary-'));t.after(()=>rmSync(dir,{recursive:true,force:true}));
  mkdirSync(join(dir,'snapback'));writeFileSync(join(dir,'package.json'),'{}');
  writeFileSync(join(dir,'snapback/schema.q'),"table notes:\n  owner: principal\n  read <- .owner = viewer\n  online only\n"+Array.from({length:8},()=>"invariant notes.read only .owner = viewer\n").join(''));
  const binary=process.env.SNAPBACK4_BIN||join(root,'target/debug/snapback4');
  const invoke=(...args)=>{const r=spawnSync(binary,args,{cwd:dir,encoding:'utf8',timeout:30000});assert.equal(r.status,0,r.stdout+r.stderr);return r;};
- const compact=invoke('check'),text=compact.stdout+compact.stderr;
+ const compact=invoke('check'),compactText=compact.stdout+compact.stderr;
+ assert.equal(compactText.trim().split('\n').length,2);
+ assert.match(compactText,/check --review/);
+ assert.match(compactText,/enforced by the language/);
+ assert.doesNotMatch(compactText,/security:|decision audience/);
+ const review=invoke('check','--review'),text=review.stdout+review.stderr;
  assert.match(text,/security: 0 proved, 0 refuted; 8 enforced by rule \(additional paths not proved\); 0 other unproved/);
  assert.equal((text.match(/decision audience \(N_INVARIANT_RESTATES_RULE\)/g)||[]).length,1,'restating sites share one source-bound questionnaire');
  assert.match(text,/Are these 8 row\/column audiences/);
@@ -128,13 +133,13 @@ test('check keeps invariant details behind verbose and preserves complete JSON',
  assert.equal(json.security.notes.filter(n=>n.code==='N_INVARIANT_RESTATES_RULE').length,8);
 });
 
-test('an escalation note stays visible above repeated broad-read advice', {timeout:60000}, t=>{
+test('review keeps an escalation note above repeated broad-read advice', {timeout:60000}, t=>{
  const dir=mkdtempSync(join(tmpdir(),'sb4-security-rank-'));t.after(()=>rmSync(dir,{recursive:true,force:true}));
  mkdirSync(join(dir,'snapback'));writeFileSync(join(dir,'package.json'),'{}');
  const source="table roles:\n  principal: principal\n  role: enum('owner','member')\n  unique principal\n  read <- allow\n  insert <- .principal = viewer\n  online only\ntable secrets:\n  read <- exists roles[viewer, role = 'owner']\n  online only\nmutation register(role: enum('owner','member')):\n  return insert roles {principal: viewer,role}\n"+Array.from({length:8},(_,n)=>`table public${n}:\n  read <- allow\n  online only\n`).join('');
  writeFileSync(join(dir,'snapback/schema.q'),source);
  const binary=process.env.SNAPBACK4_BIN||join(root,'target/debug/snapback4');
- const result=spawnSync(binary,['check'],{cwd:dir,encoding:'utf8',timeout:30000});
+ const result=spawnSync(binary,['check','--review'],{cwd:dir,encoding:'utf8',timeout:30000});
  assert.equal(result.status,0,result.stdout+result.stderr);
  assert.match(result.stdout,/N_PRIVILEGE_ESCALATION/);
  const broad=result.stdout.indexOf('N_BROAD_READ');

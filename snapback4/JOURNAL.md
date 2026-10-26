@@ -108443,3 +108443,296 @@ living, no recorded zombie, and no process executing this worktree's target
 binaries. Minimum observed free space is **35.471 GiB**, final audit
 **53.595 GiB**, above the commissioned 30 GiB stop floor. No push, stash or
 Git configuration change occurs. **PIDs left: none.**
+
+
+## 2026-10-25 — DX11: quiet checks and witnessed decisions
+
+Wave 28 asked for successful check output to stop competing with application
+work. Default check now prints its verdict and the bounded language-enforcement
+facts; advisory questions and compiler notes require --review. Pending gates
+still print their individual commands. On copies of all fifty wave-28 schemas,
+0.4.41 measured 38 median lines / 5300 characters; DX11 measures two lines.
+The available SEC10 release measured 58 lines / 9703 characters; feeding its
+structured reports through DX11's production rendering retains all nine gate
+outcomes and gives two median lines. No SEC10 gate semantics changed.
+
+Canonical source notes remove campaign-dependent duplicate ordinals. sec11-1
+keeps semantic dependency bindings, atomic repeated/comma-separated decisions
+and historical audience aliases that never absorb new members. Generated-only,
+redacted witness records exercise 011 F1/F2 and 019 F1, including an actual
+dispatcher balance edit from 54321 to zero. Authored refutations still refuse
+acknowledgment. Private diagnostics identify column grants without re-probing
+and explain caller-filtered rows without adding information to public replies.
+LLP 3000.036.004 §19 and its three Muse/fresh-Codex review rounds govern the
+change. Qualification and limitations are in the DX11 workstream report.
+
+
+## 2026-10-25 — DX11: client shapes and proof-loop reachability
+
+usePage now projects loading and why without discarding its combined read's
+freshness/completeness. The short client card stays within its existing
+114-line/1200-word budget; the linked reference spells out observation and
+asset result shapes. A schema-first React check points to the pinned starter.
+Expo starters include a web/native image picker and its pinned dependency.
+Upload admission refusals explain sequential batches and bounded Retry-After.
+Clock advance and redeploy expose the retained staging offset; the proof text
+card states its on-screen-only rule. Password starters expose probe:check,
+which drives the actual npm probe through serve-check in an owned temporary
+deployment and observes group shutdown/store release before cleanup.
+
+Installed tarballs passed typecheck, build and frontend proof for Expo, password
+web and password Expo. Packed probe:check and a real Chromium file selection
+passed. A copy of wave-28 lane 018 passed advance, redeploy and clock-retaining
+restart. Mac/device execution is skipped by this Linux workstream's brief.
+The 0.4.42 changes card entry records the surface; no version was bumped.
+
+## 2026-10-25 — G7-E: opt-in early lock release on Postgres
+
+[The G7-E report](reports/20261025-g7e-postgres/REPORT.md) records the functional
+arm on G7.2 `069520dc23`. The store URL's `commit=early` enables it; S remains
+the default pending an E S1 rerun. Each eligible depth-two batch retains three
+flights, with asynchronous data COMMIT and a WAL-generating, count-checked,
+explicitly synchronous marker in the third message. UPDATE 0, marker errors
+including 23514 after data COMMIT, missing replies and cancellation warnings
+remain unknown and never replay committed data. Barriers, solo, recovery and
+takeover explicitly commit synchronously.
+
+A shared D release lock binds revision, public sequence and each snapshot's
+attempt to a recovery epoch. E routes reader optimizations through the gated
+repeatable-read transport; G6 zero-flight hits open certified publication through
+the same rule. Queries, validation/fills, changes, replay, sync expansion and
+outbox reads are covered. SQL inspection and actions retain the existing named
+Postgres refusals. The deploy card discloses the raw-SQL visibility window.
+Reader holds are bounded at 250 ms per snapshot. Connection loss notifies the
+idle committer; after complete drainage, a fenced synchronous head write changes
+the attempt and rebuilds D without advancing revision/public sequence. The old
+G6 epoch stays revoked and reads use G5 until a new grant.
+
+Two additional failures found during qualification are fixed: a lazy closed
+idle writer now retries its fenced control probe/recovery once after reconnect,
+and a logical request reopening after composed-read fallback captures its new
+physical snapshot's head. The live PG crash witness reuses the actually lost
+revision with a fresh attempt and payload, without releasing its held reader.
+A direct effect claim is held at COMMIT and releases its payload only after
+the synchronous barrier advances D.
+The idle N=1 ratchet also caught an extra certificate flight (S/E 15/16).
+Sampling the synchronous post-write head in COMMIT's message restores parity;
+an undecodable head after COMMIT remains unknown. The final E suite includes
+both the before/after round-trip witness and a committed-data decode-failure case.
+
+The private SIGKILL witnesses preserve every acknowledged write and recover a
+whole-batch prefix. A PG marker-boundary kill actually loses eight visible,
+unacknowledged receipts while retaining all eight acknowledged keys. Restart
+rebuilds D before output; takeover during a blocked marker refuses the old owner,
+and old-token row locks do not block new-token provisioning. Qualification/test
+acknowledgements assert a data-commit LSN upper bound at or below the returned
+WAL flush position. Physical power cycling is unavailable on this shared host.
+
+Final counts, independent mechanism-disabled failures and PID custody are in
+the report. No throughput campaign, S1 qualification, publication, push, stash,
+Git configuration change or unowned signal occurs in this lane.
+
+## 2026-10-25 — G7-E rebased onto integrated main and G7.2 fix round
+
+Rebased arm E `9c6974b604` from `069520dc23` onto `20a45b73cb`, retaining
+G7.2 fix round `d5c1e41f13`, FF3 activation verification, R1 and 0.4.41.
+The predecessor-abort witness is computed after E's release/epoch and drained
+xid checks: committed but unconfirmed stays unknown and cannot authorize a
+cascade. Both cascade sites retain bounded solo fallthrough; each E solo
+commit certifies its own synchronous head. The SQLite pipeline feature gate,
+pipeline-aware fill and FF3 `activation_relations`/`verify_activation` remain.
+Doctor reports both commit mode and existing cache diagnostics; RFC/JOURNAL
+records are united. E variants of the four fix-round regressions and an
+unknown-predecessor/member-failure witness cover the composition.
+Rebase check results and process custody are recorded in
+[the G7-E report](reports/20261025-g7e-postgres/REPORT.md).
+
+Final checks: core 1,307/0, binary 612/0, E 32/0, G7.2 40/0, RT0 core/HTTP
+6/0 and 10/0, crash/kill 11/0. Postgres Rust targets are 791/1: only inherited
+`E_INPUT: 6`; the inherited evaluator lockfile also blocks that stage, before
+its known `40001`. S/E public serving and both feature checks pass. Ref-check:
+569 LLPs, 12,021 references, zero errors/unchecked. All six private clusters
+are independently stopped; no recorded PID remains. Minimum free disk:
+34.39 GiB, above the 25 GiB floor.
+
+## 2026-10-25 — G7-E fix round 1: recoverable epoch and G6 admission
+
+Fixed the P1 delayed-disconnect race on rebased arm E `d155f7a68e`.
+The disconnect's epoch bump and G6 uncertainty closure now hold both locks,
+in the existing grant-before-D order used by synchronous G6 commits and CPU
+hits. Recovery checks its captured epoch and clears writer uncertainty under
+the same locks. It cannot erase a newer break, and a delayed old closure
+cannot strand admission after D becomes healthy. The old G6 epoch and
+deadline stay revoked; recovery admits writes while reads use G5.
+
+The audit found the reverse two-step update in both drained-flight and idle
+recovery: each cleared uncertainty after certification had released D. Both
+external clears are removed. E rollback and lane failure closure use the
+coordinated transition once; an in-flight slot supplies D when the engine
+contains its depth-two placeholder. Flight resolution, ordinary G6 commits,
+ownership installation and grant revocation retain their existing lock or
+one-way-revocation protection.
+
+The deterministic notification hook pauses between bump and closure. Against
+the unfixed implementation, idle fenced recovery restores D before the hook
+resumes, then the real command queue rejects a subsequent mutation with
+`OwnershipLost`. The epoch-specific recovery witness also fails before the
+fix. The baseline E selection reports 31 passed / 2 failed (one crash helper
+filtered); both failures are the new witnesses. Their raw evidence stays in
+`/tmp/g7ef1-before/`. Final checks and PID custody are recorded in
+[the G7-E report](reports/20261025-g7e-postgres/REPORT.md).
+
+Final checks: core 1,308/0 (517 ignored), binary 612/0 (58 ignored), E 34/0,
+G7.2 40/0, RT0 core/HTTP 6/0 and 10/0, crash/kill 11/0. Postgres Rust
+targets report 791/1: the inherited difftest `E_INPUT: 6`; its stale evaluator
+lockfile blocks that stage before the known `40001`. No other red appears.
+Public serving passes in S and E; the SQLite feature check passes. Ref-check:
+569 LLPs, 12,022 references, zero errors/unchecked. All five private cluster
+directories independently confirm stopped. The combined 8,851 PID/birth audit,
+including zombies and explicit public-helper ledgers, has no matches.
+Minimum free disk is 34.06 GiB, above the 25 GiB floor. No throughput campaign
+or push occurs.
+
+
+## 2026-10-25 — G7-E rebase 2: write-lever composition
+
+Replayed `ce2a6ce622`'s three E commits from `20a45b73cb` onto the requested
+main snapshot `7e88aa041d` on `sb4-pg/g7e-land`. The shared base ref had
+advanced to `ba886e7be0`; the pinned commit is used and both input refs are
+preserved. Rebased commits are `1f70653988`, `5477844260`, `a1644584ef`.
+Only the controls RFC revision header and JOURNAL tail conflicted; both sides'
+records are retained. The code merges retain E certification/epoch/D, reader
+holds and grant-before-D liveness, together with fresh Full-scope/store-binding
+checks, HTTP 409 and retained plans through `prepare_chained`.
+
+The semantic audit found that final durable authority checks still refreshed
+mutation ingress hints during staging. They now retain a candidate beside the
+existing request boundary and publish it only in the released-result
+continuation. Failed and unknown attempts evict instead; retries rediscover
+through a certified reader. This adds no successful-path SQL flight or extra
+per-request shared allocation. Held-marker HTTP witnesses cover confirmed and
+23514-after-COMMIT outcomes, no above-D hint/reply, no unknown metadata and no
+committed-member rerun. E variants cover four-member and chained-successor
+fresh-authority changes. The E two-slot witness counts one plan per member;
+both E cascade-to-solo witnesses also retain LEV's exact original-member
+plan-build count. Physical recovery revalidates in place.
+
+[The G7-E report](reports/20261025-g7e-postgres/REPORT.md#g7-e-rebase-2--composition-with-write-levers)
+records every conflict, the semantic correction, requested check results and
+process custody. The two RT0 ratchets compose the warm-ingress savings with
+E's unchanged three-flight protocol. No throughput or S1 campaign, publication
+or push is commissioned by this rebase.
+
+Final checks: core **1,309/0** (518 ignored), binary
+**623/0** (74 ignored), core/HTTP E **34/0** and
+**4/0**, G7.2 **40/0**, plan/HTTP authority lever witnesses **2/0** and
+**87/0**, core/HTTP RT0 **6/0** and **10/0**, crash/kill **11/0**.
+Postgres Rust targets are **816/1**: inherited
+`E_INPUT: 6`; the evaluator's inherited stale lockfile blocks its known
+`40001` stage. S/E public serving, the binary build and SQLite feature check
+pass. The initial resolver-startup red passes isolated and in the final full
+serial run; an invalid diagnostic repeat overlapped a test-executable rebuild.
+Development helper-conversion and E-fixture ordering errors are corrected and
+recorded in the report. Ref-check: 569 LLPs, 12,031
+references, zero errors/unchecked. All 4
+private cluster directories confirm stopped; the combined
+13,152-pair audit and both public PID ledgers
+have no matches, including zombies. **PIDs left: none.** Monitored free disk
+stays above 62.96 GiB after the authorized
+own-target cleanup; the 25 GiB floor never fires.
+
+
+## 2026-10-25 — G7-E fix round 2: recovery liveness and certificate timeouts
+
+On pinned `f9a870b262`, a reader disconnect during the recovery SQL could
+supersede its sampled epoch and permanently pause the writer. Drained recovery
+failures now schedule another fenced recovery for the current epoch with a
+10 ms exponential backoff capped at 250 ms. Only a certified recovery clears
+uncertainty and resumes admission. The queue's independent lease-loss latch
+stops further attempts; failed ticket drainage and terminal fencing remain
+terminal. Program and solo work encountered while recovery is pending receive
+explicit unknown instead of a dropped reply channel.
+
+Marker and recovery certificate COMMIT messages explicitly set synchronous
+commit and locally disable statement/lock timeouts. These settings share the
+existing message, preserve the marker's exact command-count certificate, and
+leave the session's five-second settings intact after the transaction.
+
+Deterministic witnesses supersede three consecutive recovery attempts from a
+reader thread, observe restored write admission after the follow-up certificate,
+and exercise queued replies plus lease-loss retry cessation. Real marker lock
+and recovery COMMIT waits exceed five seconds. The before tree fails the
+concurrent-break, marker-lock and recovery-COMMIT witnesses; the additional
+queue/settings witnesses and final requested checks are recorded in
+[the G7-E report](reports/20261025-g7e-postgres/REPORT.md).
+
+
+## 2026-10-26 — G7-E fix round 2: queue hint boundary
+
+The `f9a870b262` hint audit found that queue errors bypass the mutation result
+continuation entirely, including its failure eviction. The caller now evicts
+the carried hint on that outer error too. The new HTTP witness warms a hint,
+loses queue ownership, and checks that the refusal carries no store metadata
+and leaves no hint. It fails before with the old hint retained and passes after.
+The existing held-marker success/unknown witnesses still gate hint publication
+on certified release. A late eviction of a newer certified observation only
+adds cold discovery; hints never authorize, and every execution checks fresh
+store, generation, principal, kind and Full scope.
+
+The core recovery/timeout change is `5eae13de38`. The six new regressions all
+have failing-before and passing-after evidence. Full core is 1,309/0 (523
+ignored), binary 623/0 (75 ignored), E core/HTTP 39/0 and 5/0, G7.2 40/0,
+lever core/HTTP 2/0 and 87/0, RT0 core/HTTP 6/0 and 10/0, and crash/kill 11/0
+with zero acknowledged loss. Final Postgres, reference and process-custody
+results are recorded in
+[the G7-E report](reports/20261025-g7e-postgres/REPORT.md).
+
+Final checks: Postgres Rust targets **816/1**, only inherited `E_INPUT: 6`;
+the evaluator's inherited stale lockfile blocks its known `40001` stage.
+Public S/E serving, full binary build and SQLite-only feature check pass.
+Ref-check: 569 LLPs, 12,033 references, zero errors/unchecked.
+All 7 private cluster directories confirm stopped; the combined
+12,623-pair audit, including zombies and both public PID ledgers,
+has no matches. Minimum monitored free disk: 59.35 GiB.
+**PIDs left: none.** No throughput campaign, publication or push.
+
+
+## 2026-10-26 — G7-E fix-forward: terminal completion and PG17 certificate timeout
+
+On integrated main `bcf780d307`, pause rejection could publish a second
+terminal outcome after ownership loss had already filled a command's reply
+channel. With recovery parked, the new witness enqueues a program and a
+solo command, loses ownership before consuming either reply, supersedes the
+recovery epoch, and drops the queue while both replies remain unread. The
+before implementation fails with `Queue::drop deadlocked on a second
+terminal reply`. Every program and solo terminal path now shares one
+completion sender: ownership loss, pause rejection, unknown outcomes,
+prepare/continuation panics and certified results atomically take it once
+and send without blocking. Reading a result cannot reopen completion;
+started work keeps its actual result.
+
+Marker and recovery certificates share settings that locally disable
+statement/lock timeouts and conditionally execute `SET LOCAL
+transaction_timeout=0` on PG17 and later. PG16 never executes that setting.
+The conditional stays in the existing certificate message and its command
+tag joins the marker's exact validation. On a separate private PG17
+cluster, both new deferred-COMMIT witnesses sleep 600 ms with a 300 ms
+session transaction timeout. Both fail before with unknown outcomes and
+server `terminating connection due to transaction timeout` records. The
+protected PG17 cluster on port 55440 is untouched. No throughput campaign
+or push is part of this lane; raw evidence remains under `/tmp/g7eff-*`.
+
+
+Final checks: full core **1,311/0** (526 ignored), full
+binary **626/0** (75 ignored), E core/HTTP **40/0** and **5/0**,
+private PG17 **2/0**, G7.2 **40/0**, RT0 core/HTTP **6/0** and **10/0**,
+crash/kill **11/0** with zero acknowledged loss or lost-history release.
+Full binary build and public serving pass. Postgres Rust targets are
+**817/1** across 26 targets: only inherited `E_INPUT: 6`; the inherited
+stale evaluator lockfile blocks its known `40001` stage. No additional red.
+Ref-check: **569 LLPs, 12,045 references, zero errors/unchecked**.
+All 7 private cluster directories confirm stopped; the combined
+8,020-pair audit, public PID ledger, test drivers and target executable
+scan find **no PIDs left**, including zombies. Minimum free disk is
+45.63 GiB. The ticket is resolved and moved to `issues/closed/`;
+the complete evidence is in [the G7-E report](reports/20261025-g7e-postgres/REPORT.md#g7-e-fix-forward--terminal-completion-and-pg17-transaction-timeout).

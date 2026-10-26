@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { serveUntilSignal } from "snapback4/proof";
 import { startStaging } from "./staging.mjs";
 
-const host = await startStaging();
+const host = await startStaging({ directory: process.env.SNAPBACK4_PROBE_DIRECTORY });
 try {
   const credentialsFile = join(host.directory, "users.json");
   writeFileSync(credentialsFile, JSON.stringify(host.sessions), { flag: "wx", mode: 0o600 });

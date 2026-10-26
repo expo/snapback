@@ -30,6 +30,9 @@ pub fn serve(
             if shown == 1 { "" } else { "s" }
         ));
     }
+    if let Mode::ConfiguredRelease {owner,..}=&mode {
+        snapback4_core::diagnostic!("Postgres commit mode: {}",if owner.config.early_lock_release {"E (early lock release, synchronous marker; S1 qualification pending)"} else {"S (synchronous)"});
+    }
     let dev = matches!(mode, Mode::Dev { .. });
     let full_runners = !matches!(mode, Mode::ConfiguredRelease { .. });
     // @ref LLP 3000.007#20.2 — replay suppresses new effects and holds schedule admission; ordinary holds keep their separate meanings.

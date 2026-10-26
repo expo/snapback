@@ -46,7 +46,7 @@ pub(super) fn identities(notes:&[snapback4_lang::Diagnostic],sources:&[(String,S
     notes.iter().map(|note|{
         let owner=decls.iter().find(|d|d.file==note.site.file&&d.line<=note.site.line&&note.site.line<d.end);
         let subject=owner.map(|d|format!("{}:{}:{}",d.file,d.kind,d.name)).unwrap_or_else(||note.site.file.clone());
-        let base=hash(&serde_json::to_vec(&(ANALYZER,&note.code,&subject,stable_message(&note.message),&note.rewrite)).unwrap());
+        let base=hash(&serde_json::to_vec(&(ANALYZER,&note.code,&subject,stable_message(&note.message),stable_message(&note.rewrite))).unwrap());
         let ordinal=occurrences.entry(base.clone()).or_default();let key=hash(&serde_json::to_vec(&(&base,*ordinal)).unwrap());*ordinal+=1;
         let mentioned=words(&note.message);
         let mut selected=decls.iter().enumerate().filter(|(_,d)|mentioned.contains(d.name.as_str())||owner.is_some_and(|o|std::ptr::eq(o,*d))).map(|(i,_)|i).collect::<BTreeSet<_>>();

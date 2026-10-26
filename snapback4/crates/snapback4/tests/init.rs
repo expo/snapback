@@ -877,7 +877,7 @@ fn package_scripts_compare_as_commands() {
 /// judging each by the starter's original bytes.
 #[test]
 fn init_first_then_schema_leftovers_are_named_and_adapted() {
-    let check = |dir: &Dir| Command::new(BIN).arg("check").current_dir(&dir.0).output().unwrap();
+    let check = |dir: &Dir| Command::new(BIN).args(["check", "--review"]).current_dir(&dir.0).output().unwrap();
     let check_json = |dir: &Dir| -> Value { serde_json::from_slice(&Command::new(BIN).args(["check", "--json"]).current_dir(&dir.0).output().unwrap().stdout).unwrap() };
     let dir = Dir::new();
     assert!(dir.init(&["--web", "--port", "4517"]).status.success());
@@ -967,7 +967,7 @@ fn adapt_names_an_old_expo_starters_ids_after_the_directory() {
     assert!(fresh.contains("\"4h-club\"") && fresh.contains("\"app4hclub\"") && fresh.contains("\"dev.snapback4.app4hclub\"") && !fresh.contains("todos"), "{fresh}");
     let old = fresh.replace("\"dev.snapback4.app4hclub\"", "\"dev.snapback4.todos\"").replace("\"app4hclub\"", "\"snapback4todos\"").replace("\"4h-club\"", "\"snapback4-todos\"");
     fs::write(dir.join("app.json"), &old).unwrap();
-    let checked = String::from_utf8_lossy(&run(&["check"]).stdout).into_owned();
+    let checked = String::from_utf8_lossy(&run(&["check", "--review"]).stdout).into_owned();
     assert!(checked.contains("app.json: the todo starter's ids") && checked.contains("dev.snapback4.app4hclub"), "{checked}");
     let adapted = run(&["init", "--adapt", "--apply"]);
     assert!(adapted.status.success() && String::from_utf8_lossy(&adapted.stdout).contains("rewrote") && String::from_utf8_lossy(&adapted.stdout).contains("app.json"), "{adapted:?}");
@@ -991,7 +991,7 @@ fn adapt_never_touches_a_file_the_project_changed() {
     let cases = format!("{}{{\"as\":\"carol\",\"op\":\"list\",\"args\":{{}}}}\n", fs::read_to_string(dir.0.join("fixtures/test.cases.jsonl")).unwrap());
     fs::write(dir.0.join("fixtures/test.cases.jsonl"), &cases).unwrap();
     let client = fs::read_to_string(dir.0.join("src/client.ts")).unwrap();
-    let checked = Command::new(BIN).arg("check").current_dir(&dir.0).output().unwrap();
+    let checked = Command::new(BIN).args(["check", "--review"]).current_dir(&dir.0).output().unwrap();
     let stdout = String::from_utf8_lossy(&checked.stdout);
     // Wave 6: the README is the starter's own, unmodified, so it follows the schema even beside a changed screen.
     assert!(stdout.contains("starter: 3 files from") && stdout.contains("fixtures/todos.jsonl") && stdout.contains("README.md") && !stdout.contains("App.tsx"), "{stdout}");
@@ -1228,7 +1228,7 @@ fn the_readme_says_what_works_offline_from_the_schemas_synced_tables() {
         assert!(readme.lines().all(|line| line.matches('`').count() % 2 == 0 || line.starts_with("```") || line.contains("``")), "{flag}: no code span is wrapped: {readme}");
         // The schema grows a synced table: adapt rewrites only that paragraph.
         fs::write(dir.0.join("snapback/schema.q"), &synced).unwrap();
-        let checked = Command::new(BIN).arg("check").current_dir(&dir.0).output().unwrap();
+        let checked = Command::new(BIN).args(["check", "--review"]).current_dir(&dir.0).output().unwrap();
         assert!(String::from_utf8_lossy(&checked.stdout).contains("README.md: the unmodified starter README says what works offline for another schema"), "{flag}: {checked:?}");
         let adapted = dir.init(&["--adapt", "--apply"]);
         assert!(adapted.status.success() && String::from_utf8_lossy(&adapted.stdout).contains("rewrote") && String::from_utf8_lossy(&adapted.stdout).contains("README.md"), "{flag}: {adapted:?}");

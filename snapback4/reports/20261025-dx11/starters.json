@@ -1,0 +1,106 @@
+{
+  "results": [
+    {
+      "starter": "expo",
+      "steps": [
+        {
+          "name": "install-cli",
+          "status": "passed"
+        },
+        {
+          "name": "init",
+          "status": "passed"
+        },
+        {
+          "name": "install",
+          "status": "passed"
+        },
+        {
+          "name": "check",
+          "status": "passed"
+        },
+        {
+          "name": "typecheck",
+          "status": "passed"
+        },
+        {
+          "name": "build",
+          "status": "passed"
+        },
+        {
+          "name": "frontend-proof",
+          "status": "passed"
+        }
+      ],
+      "mac": "skipped by DX9 brief"
+    },
+    {
+      "starter": "web-password",
+      "steps": [
+        {
+          "name": "install-cli",
+          "status": "passed"
+        },
+        {
+          "name": "init",
+          "status": "passed"
+        },
+        {
+          "name": "install",
+          "status": "passed"
+        },
+        {
+          "name": "check",
+          "status": "passed"
+        },
+        {
+          "name": "typecheck",
+          "status": "passed"
+        },
+        {
+          "name": "build",
+          "status": "passed"
+        },
+        {
+          "name": "frontend-proof",
+          "status": "passed"
+        }
+      ],
+      "mac": "skipped by DX9 brief"
+    },
+    {
+      "starter": "expo-password",
+      "steps": [
+        {
+          "name": "install-cli",
+          "status": "passed"
+        },
+        {
+          "name": "init",
+          "status": "passed"
+        },
+        {
+          "name": "install",
+          "status": "passed"
+        },
+        {
+          "name": "check",
+          "status": "passed"
+        },
+        {
+          "name": "typecheck",
+          "status": "passed"
+        },
+        {
+          "name": "build",
+          "status": "passed"
+        },
+        {
+          "name": "frontend-proof",
+          "status": "passed"
+        }
+      ],
+      "mac": "skipped by DX9 brief"
+    }
+  ]
+}
