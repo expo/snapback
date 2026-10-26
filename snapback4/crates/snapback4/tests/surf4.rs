@@ -56,7 +56,7 @@ fn new_help_is_about_templates_and_social_dry_run_writes_nothing() {
 #[test]
 fn init_redirected_output_has_no_ansi() {
     let app = App::new(); let output = success(app.run(&["init", "web", "--web"]));
-    assert!(!output.contains('\u{1b}')); assert!(output.contains("npm install"));
+    assert!(!output.contains('\u{1b}')); assert!(output.contains("node scripts/install.mjs"));
 }
 #[test]
 fn every_public_verb_help_matches_the_shared_parser_table_and_wrapper_synopsis() {
