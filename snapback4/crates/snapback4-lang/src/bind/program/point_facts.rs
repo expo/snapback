@@ -148,7 +148,7 @@ impl Binder<'_> {
                 // value. Clear shadowed roots too, and keep assignment revisions
                 // stable so a job sweep does not mistake a guard for an accumulator.
                 binding.fields.retain(|key, _| key.first().is_none_or(|k| {
-                    k != POINT && k != LOOKUP_POINT && k != "$sourceSnapshot" && k != maintain_types::AUTHORIZATION && k != aggregate_facts::NONEMPTY
+                    k != "$advisorySnapshot" && k != "$advisoryRead" && k != POINT && k != LOOKUP_POINT && k != "$sourceSnapshot" && k != maintain_types::AUTHORIZATION && k != aggregate_facts::NONEMPTY
                         && k != aggregate_facts::COUNT_CAPTURE
                 }));
             }
@@ -175,7 +175,7 @@ impl Binder<'_> {
         for scope in &mut self.scopes {
             for binding in scope.values_mut() {
                 binding.fields.retain(|key, _| match key.first().map(String::as_str) {
-                    Some(LOOKUP_POINT) => false,
+                    Some(LOOKUP_POINT) | Some("$advisoryRead") | Some("$advisorySnapshot") => false,
                     Some(POINT) => !key.iter().any(|part|part=="$field") && safe && key.get(1) == Some(table) && key.get(2)
                         .and_then(|index| definition.index(index)).is_some_and(|index|
                             !fields.iter().any(|field| index.columns().contains(&field.name)

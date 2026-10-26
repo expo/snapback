@@ -153,6 +153,9 @@ impl Binder<'_> {
                     self.scopes.last_mut().unwrap().get_mut(name).unwrap().fields
                         .insert(vec!["$sourceSnapshot".into()], Ty::Bool);
                 }
+                if matches!(value,A::Read(_))||matches!(value,A::Assert{value,..} if matches!(value.as_ref(),A::Read(_))){
+                    self.scopes.last_mut().unwrap().get_mut(name).unwrap().fields.insert(vec!["$advisorySnapshot".into()],Ty::Bool);
+                }
                 self.record_count_capture(name, count_capture);
                 Ok(())
             }
@@ -471,6 +474,8 @@ impl Binder<'_> {
 
     /// After `require x != null` or inside `if x != null:`, `x` is present.
     pub(super) fn narrow(&mut self, condition: &A, then_branch: bool) {
+        if let Some(advice)=super::super::advisory_guards::expand(self.catalog,condition)&&self.point_guard_safe(&advice){self.record_advice_authorization(&advice,then_branch);}
+
         // Aggregate facts may describe filtered domains, so they have a
         // slightly wider write-free admission check than point facts. Record
         // them once for the whole, already-evaluated condition: recursively

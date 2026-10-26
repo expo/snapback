@@ -605,3 +605,15 @@ removal takes one individual security decision. Unsupported or mutable ledger
 shapes remain coverage gaps; finite exploration never proves conservation.
 Derived effects run before general observers on each generated fixture; bounded
 production replay retains explicit coverage for paths it did not explore.
+
+Guard precision: advisory read checks expand bounded read-only role helpers and
+retain raw versus caller-filtered witness polarity. A prior live role snapshot
+can answer a read question; a later guard cannot authorize an earlier lookup.
+Operator-only provisioning from `guide staging` does not ask the recipient
+question; ordinary staff grants still do. Standing role/material/hold guards
+are reusable. Source-stage advances answer repeat-transition questions, while
+repeat creates and unconsumed one-use approvals remain reviewable.
+Edit advice distinguishes insertion and null-only initialization from later
+replacement. Non-default preapproval stages, null approval stamps and supported
+coalesces answer it; positive approval and broad cancellation exclusions do not.
+Remaining advisory messages name the observed guard and the case not proved.

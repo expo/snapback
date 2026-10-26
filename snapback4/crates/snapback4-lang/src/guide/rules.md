@@ -364,3 +364,8 @@ The complete runnable context is `guide rule-recipes --section "Column write aud
 ### E_COLUMN_WRITE
 
 E_COLUMN_WRITE means a column write/freeze rule names an invalid or duplicate payload column. Name an ordinary column once; use current-row rule syntax.
+
+Read-advice checks recognize bounded read-only role helpers and current captured
+role rows. A required enum on a total unique roster row can make a guarded else
+branch exhaustive. Hidden negative probes, nullable roles, stale snapshots and
+effectful helpers retain their questions. This changes advice, never authority.

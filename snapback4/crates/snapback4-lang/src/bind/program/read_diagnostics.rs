@@ -35,6 +35,72 @@ pub(super) fn fallthrough(decl: &ast::ProgramDecl) -> Diagnostic {
 }
 
 impl Binder<'_> {
+    fn advice_snapshot(&self,name:&str)->Option<ReadExpr>{
+        let binding=self.binding(name)?;
+        if binding.ty.is_optional()||binding.origins.len()!=1||!binding.fields.contains_key(&vec!["$advisorySnapshot".into()]){return None;}
+        let mut origin=&binding.origins[0].1;if let A::Assert{value,..}=origin{origin=value;}
+        let A::Read(read)=origin else{return None;};
+        let info=self.catalog.tables.get(&read.table)?;
+        if info.through.is_some()||info.maintained.is_some()||read.range.is_some()||read.filter.is_some()||read.matching.is_some()||!read.seeks.is_empty(){return None;}
+        let pins=super::super::auth_lints::pins(self.catalog,read)?;
+        info.indexes.iter().any(|index|info.total_unique(index)&&index.columns.iter().all(|c|pins.contains_key(c))).then(||read.clone())
+    }
+    fn advice_snapshot_condition(&self,value:&A)->A{
+        let mut value=value.clone();
+        super::super::intent_walk::expression(&mut value,&mut |node|{
+            let original=node.clone();
+            let A::Binary{op,left,right,site}=&original else{return;};if !matches!(op.as_str(),"="|"!="){return;}
+            for (field,literal) in [(left.as_ref(),right.as_ref()),(right.as_ref(),left.as_ref())]{
+                let (A::Member{base,name,..},A::Literal{..})=(field,literal)else{continue;};
+                let A::Name{name:binding,..}=base.as_ref()else{continue;};let Some(mut read)=self.advice_snapshot(binding)else{continue;};
+                let table=&self.schema.tables[&read.table];
+                if table.columns.get(name).is_none_or(|kind|kind.is_optional())||table.column_reads.contains_key(name)||table.written_by.get(name).is_some_and(|owner|!owner.audience){continue;}
+                read.keys.push(ast::KeyPart{column:Some(name.clone()),value:literal.clone(),site:site.clone()});
+                let probe=A::Exists{read,site:site.clone()};
+                *node=if op=="="{probe}else{A::Unary{op:"not".into(),value:Box::new(probe),site:site.clone()}};break;
+            }
+        });value
+    }
+    // Advisory-only helper implication. Existing lexical facts retain their
+    // rebinding/write invalidation; expanded values never enter runtime proofs.
+    // @ref LLP 3000.036.004.001#2-read-guards — pure role helpers are transparent to advice.
+    fn lookup_advice_proved(&self, table: &str, value: &A) -> bool {
+        let Some(expanded) = super::super::advisory_guards::expand(self.catalog,value)else{return false;};
+        if self.lookup_rule_proved(&expanded) { return true; }
+        let Some(info) = self.catalog.tables.get(table) else { return false; };
+        let bind = |value: A| super::super::schema::bind_rule(self.catalog, info,
+            &ast::RuleDecl { effect: ast::Effect::Read, bindings: Vec::new(), site: value.site().clone(), value }).ok();
+        fn caller_goal(value:&A)->A{
+            if let A::Binary{op,left,right,site}=value&&matches!(op.as_str(),"and"|"or"){
+                return A::Binary{op:op.clone(),left:Box::new(caller_goal(left)),right:Box::new(caller_goal(right)),site:site.clone()};
+            }
+            let mut copy=value.clone();let mut target=false;
+            super::super::intent_walk::expression(&mut copy,&mut |node|if matches!(node,A::Name{name,..} if name==TARGET_ROW){target=true;});
+            if target{A::Literal{value:Literal::Bool(false),site:value.site().clone()}}else{value.clone()}
+        }
+        let Some(need) = bind(caller_goal(&expanded)) else { return false; };
+        let bind_fact=|mut value:A|{
+            // Caller locals/constants and an enclosing projection's focal row
+            // never inhabit the target rule's namespace.
+            super::super::intent_walk::expression(&mut value,&mut |node|match node{
+                A::Name{name,site} if name!="viewer"&&self.binding(name).is_some()=>*node=A::Name{name:format!("$advisoryCaller:{name}"),site:site.clone()},
+                A::Focal{site}=>*node=A::Name{name:"$advisoryCallerFocal".into(),site:site.clone()},_=>{},
+            });bind(value)
+        };
+        let facts=self.advice_authorizations().into_iter().map(|(value,truth)|{
+            let value=self.advice_snapshot_condition(&value);
+            if truth{value}else{A::Unary{op:"not".into(),site:value.site().clone(),value:Box::new(value)}}
+        });
+        let mut have=facts.filter_map(|value|{
+            super::super::advisory_guards::raw_monotone(self.catalog,self.schema,&value,true).then(||bind_fact(value)).flatten()
+        }).collect::<Vec<_>>();
+        for name in self.scopes.iter().flat_map(|scope|scope.keys()){
+            if let Some(read)=self.advice_snapshot(name)&&let Some(probe)=bind_fact(A::Exists{site:read.site.clone(),read}){have.push(probe);}
+        }
+        have.extend(super::super::query_branches::finite_rosters(self.schema,&have));
+        super::super::query_branches::implies(&snapback4_core::schema::RuleExpr::And(have),&need)
+
+    }
     fn lookup_rule_proved(&self, value: &A) -> bool {
         let mut copy = value.clone();
         let mut target = false;
@@ -135,14 +201,15 @@ impl Binder<'_> {
                 if let A::Member { base, name, .. } = value && matches!(base.as_ref(), A::Name { name, .. } if name == TARGET_ROW)
                     && let Some(key) = keys.get(name) { *value = key.clone(); }
             });
-            if self.lookup_rule_proved(&condition) { return; }
+            if self.lookup_advice_proved(&read.table, &condition) { return; }
         }
         let rule = table.through.as_ref().map_or_else(|| format!("read <- {}", table.rules.read.quarry()), |through| format!("read through .{}", through.reference));
         let location = self.catalog.tables[&read.table].decl.rules.iter().find(|rule| rule.effect == ast::Effect::Read)
             .map(|rule| rule.site.to_string()).unwrap_or_else(|| self.catalog.tables[&read.table].decl.site.to_string());
         if self.notes.iter().any(|note| note.code == "N_LOOKUP_FILTERED" && note.site == read.site) { return; }
+        let saw=self.advice_authorizations().into_iter().map(|(value,truth)|format!("{}{}",if truth{""}else{"not "},crate::print::expression(&value))).collect::<Vec<_>>().join("; ");
         self.notes.push(Diagnostic::new(&read.site, "N_LOOKUP_FILTERED",
-            format!("mutation {}: lookup of {} uses `{rule}` ({location}); its key and preceding guards do not prove read authority. A hidden, expired or missing row returns null; `! else CODE` refuses with that authored code for all three. A later field/default or require may report a different business condition", self.name, read.table),
+            format!("mutation {}: saw lookup of {} `{}` and guards `{saw}`; not proved: read authority `{rule}` ({location}) at {}; hidden, expired or missing row returns null (`! else CODE` refuses with its authored code)", self.name, read.table, crate::print::read_expr(read), read.site),
             "review whether these callers should read this data; use a deliberately readable projection containing only the needed fields, or keep null as intentional absence. An id and a later write rule do not grant read authority; do not widen private rows just to read one field").guide("rules"));
     }
 }

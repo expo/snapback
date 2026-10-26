@@ -131,9 +131,20 @@ pub(super) fn source_notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnos
                     });
                 }
             }
+            let mut operator_sites=BTreeSet::new();
+            let mut grant_guards=BTreeMap::new();
             for (write,context) in super::authority_walk::writes(&catalog,p){
                 let Expr::Write{op,table,fields,site,..}=&write else{continue;};
                 let Some(t)=bound.schema.table(table)else{continue;};
+                grant_guards.insert(site.to_string(),context.body.iter().filter_map(|s|if let Stmt::Require{condition,..}=s{Some(crate::print::expression(condition))}else{None}).collect::<Vec<_>>().join("; "));
+
+                // @ref LLP 3000.036.004.001#4-operator-provisioning — the
+                // documented local operator chooses recipients deliberately.
+                let requirements=catalog.tables.get(table).map(|info|super::operation::requirements(&catalog,info,&context)).unwrap_or_default();
+                let operator=RuleExpr::Eq(RuleTerm::Viewer,RuleTerm::Literal(snapback4_core::Value::Id("service:operator".into())));
+                let gate=match op{ast::WriteOp::Insert=>t.rules.insert.clone(),ast::WriteOp::Update if t.written_by.is_empty()=>t.rules.update.clone(),ast::WriteOp::Upsert if t.written_by.is_empty()=>RuleExpr::Or(vec![t.rules.insert.clone(),t.rules.update.clone()]),_=>RuleExpr::Allow};
+                if kernel::implies(&RuleExpr::And(std::iter::once(gate).chain(requirements).collect()),&operator)==Ok(true){operator_sites.insert(site.to_string());}
+
                 let role_columns=super::privilege::role_columns(bound,table);
                 let principal=super::privilege::global_principal(bound,table);
                 let reassigns=principal.as_ref().is_some_and(|c|fields.iter().any(|f|&f.name==c)&&!t.constraints.iter().any(|k|matches!(k,snapback4_core::schema::Constraint::Immutable{fields} if fields.contains(c))));
@@ -172,8 +183,8 @@ pub(super) fn source_notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnos
                 let readers=reader_columns(&t.rules.read);
                 for f in fields.iter(){
                     let arg=f.value.as_ref().and_then(|e|if let Expr::Name{name,..}=e{Some(name.as_str())}else{None}).unwrap_or(f.name.as_str());
-                    if !guarded.contains(arg)&&readers.contains(&f.name)&&p.args.iter().any(|a|a.name==arg)&&seen.insert((table.clone(),f.name.clone())){
-                        note(&mut out,site,"N_ARGUMENT_GRANT",format!("{} writes argument {arg} straight into reader-grant column {table}.{}",p.name,f.name),"require the chosen principal's current role and relationship before granting access; caller authority alone does not validate the recipient");
+                    if !operator_sites.contains(&site.to_string())&&!guarded.contains(arg)&&readers.contains(&f.name)&&p.args.iter().any(|a|a.name==arg)&&seen.insert((table.clone(),f.name.clone())){
+                        note(&mut out,site,"N_ARGUMENT_GRANT",format!("{}: saw `{}`; not proved: recipient role/relationship at {site}; writes argument {arg} straight into reader-grant column {table}.{}",p.name,grant_guards.get(&site.to_string()).filter(|s|!s.is_empty()).map(String::as_str).unwrap_or("no dominating require"),f.name),"require the chosen principal's current role and relationship before granting access; caller authority alone does not validate the recipient");
                     }
 
                 }

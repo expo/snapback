@@ -1,6 +1,7 @@
 //! Binding: documents in, a core schema and typed programs out, with every
 //! problem as a located diagnostic.
 
+mod advisory_guards;
 pub mod catalog;
 mod sweep_deadline;
 mod columns;

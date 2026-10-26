@@ -171,6 +171,9 @@ fn live_and_stopped_token_warn_for_an_unmentioned_seat_without_counting_result_l
     for release in [false, true] {
         let p = Project::with_source(release, source);
         let host = Host::start(&p, "127.0.0.1");
+        let clock = p.mint("clock", "2");
+        assert!(clock.status.success());
+        assert!(clock.stderr.is_empty(), "wave30 lane 026E: built-in clock needs no schema mention");
         let admitted = p.mint("ops", "2");
         assert!(admitted.status.success(), "{}", String::from_utf8_lossy(&admitted.stderr));
         assert!(admitted.stderr.is_empty(), "an exact authorization mention suppresses the warning");

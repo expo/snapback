@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.44
+
+### Guide changes
+
+- Security advisories inspect pure role helpers, non-default lifecycle guards and exact resource windows; operator provisioning and the built-in clock seat avoid redundant warnings. Remaining questions name the guard observed and the case not proved.
+
 ## 0.4.43
 
 ### Guide changes
