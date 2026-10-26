@@ -108836,3 +108836,29 @@ set, and returns the exact empty event set when no write exists. Any possible
 write retains the full applicability/capture walk. A default-bearing pure-DAG
 compile and a helper-only two-hop write are opposing controls; no depth, engine
 time bound, witness allowance or security assertion is relaxed.
+
+## 2026-10-26 — Integration 27 publication-set fixture repairs
+
+The broad source client selection exposed eleven deterministic stale-fixture
+files after DX12/DX13. Complete release-reference assertions now explicitly ask
+for `--verbose`, release-history JSON callers ask for `--json`, and the H9
+noise assertion counts the grouped warning lines separately from verbose
+detail repeats. Short rollback still asserts both concrete query/count and
+safety-dependency facts. Reference facts moved out of the deploy card are
+checked through its `guide release-json` link. No compatibility assertion or
+output allowance was removed or raised. The installer fixture expects its
+progress wrapper, the Surf4 locator double implements the new scroll method,
+and browser positive/negative controls retain their visibility assertions
+while accepting the intended selector scroll. Security review ordering tests
+assert witnessed questions before unwitnessed advice, then existing priority
+within one tier. The client reference documents include executable calls of
+`withServeScript` and `devAccounts`; the day-two preview requests verbose
+column details. All eleven repaired files pass; the changed installed guide
+and CLI Surf4 suites pass (128 and 20 tests).
+
+The canonical 10,800-second affected command completed seven Rust packages
+(8,175 passed, 117 ignored), then reached its outer wall-clock limit during
+the isolated client timer group. Its separately bounded client child remains
+supervised. Preserve the incomplete raw receipt; finish remaining original
+plan commands and compose actual target results, without claiming a successful
+canonical command or rerunning unchanged Rust packages.

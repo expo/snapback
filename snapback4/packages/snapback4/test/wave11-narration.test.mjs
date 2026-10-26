@@ -84,7 +84,7 @@ test('probe and deploy guide agree on exact compatibility, schedule, dormancy an
   const zero = run('rollback', deployment, '--exact', '--verbose', '--to', '1', '--check').stdout;
   assert.match(zero, /note: notes: notes.status: no stored values are incompatible with release 1; no value repair is needed for this switch/);
   writeFileSync(schema, v3);
-  const preview = run('deploy', deployment, '--check');
+  const preview = run('deploy', deployment, '--check','--verbose');
   assert.match(preview.stdout, /job remind compiles differently because notes changed \(added color\); schedule remindDaily remains; verify the scheduled result if these dependencies matter/);
   const previewFacts=JSON.parse(run('deploy',deployment,'--check','--json').stdout);
   assert.ok(previewFacts.notes.some(line=>line.includes('job remind compiles differently')),JSON.stringify(previewFacts));
@@ -117,7 +117,9 @@ test('probe and deploy guide agree on exact compatibility, schedule, dormancy an
   const restored = (await old.post('/q/readNote', { note: ids[0] })).data;
   assert.equal(restored.status, 'archived'); assert.equal(restored.color, 'none');
   await old.stop();
-  const guide = run('guide', 'deploy', '--full').stdout;
+  const deployGuide = run('guide', 'deploy', '--full').stdout;
+  assert.match(deployGuide, /guide release-json/);
+  const guide = deployGuide + run('guide', 'release-json', '--full').stdout;
   for (const text of ['1 row, 2 cells, 0 index entries dormant', 'cells notes.color [B, C]', 'Point query or mutation with an explicit `! else CODE` guard', 'Ignored by the older release', 'Clients across rollback', 'capability, not authorization']) assert.ok(guide.includes(text), text);
 });
 
@@ -139,7 +141,7 @@ test('required-column removal and default-only edits never invent compatibility 
   writeFileSync(schema, old.replace("default 'a'", "default 'b'"));
   for (const flags of [['--check'], []]) { const result = run('deploy', deployment, ...flags); assert.doesNotMatch(result.stdout + result.stderr, /WARNING|note: values.status|admits ;/); }
   writeFileSync(schema, old.replace('  number: int\n', ''));
-  assert.match(run('deploy', deployment, '--check').stdout, /0 cells/); run('deploy', deployment);
+  assert.match(run('deploy', deployment, '--check','--verbose').stdout, /0 cells/); run('deploy', deployment);
 });
 
 test('edited module-qualified job source is distinct from dependencies', t => {
@@ -149,7 +151,7 @@ test('edited module-qualified job source is distinct from dependencies', t => {
   const source = "job remind(\n  periodStart: time,\n  periodEnd: time\n):\n  chunk n in notes first 10 by byId:\n    update notes[n.id] {\nbody: n.body\n    }\nschedule remindDaily every 1d: maintenance.remind\n";
   writeFileSync(job, source); run('deploy', deployment);
   writeFileSync(job, source.replace('body: n.body', "body: 'changed'"));
-  const plan = run('deploy', deployment, '--check').stdout;
+  const plan = run('deploy', deployment, '--check','--verbose').stdout;
   assert.match(plan, /WARNING release behavior: job maintenance.remind source changes/); assert.doesNotMatch(plan, /dependencies changed|source comparison unavailable/);
 });
 

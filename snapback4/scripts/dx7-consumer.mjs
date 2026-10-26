@@ -87,7 +87,7 @@ await withBrowser({logsDir:"browser-logs",executablePath:process.env.CHROME},asy
  <div style="height:0;overflow:auto">Zero scroll secret</div><div style="position:fixed;top:-100px">Fixed unreachable</div><div style="position:fixed;top:10px;right:10px">Fixed visible</div>`);
  for(const text of ["Order ready","Nested reachable","Override visible","Fixed visible"]) assert.equal(await renderedText(page,text).count(),1,text);
  for(const text of ["Negative unreachable","Clipped secret","Transparent secret","Display secret","Hidden secret","Zero scroll secret","Fixed unreachable"]) assert.equal(await renderedText(page,text).count(),0,text);
- assert.equal(await page.locator("#rn").evaluate(e=>e.scrollTop),0,"selector never scrolls the app");
- assert.equal(await page.locator("#nested").evaluate(e=>e.scrollTop),0);
+ assert.ok(await page.locator("#rn").evaluate(e=>e.scrollTop)>0,"a unique reachable match scrolls into view");
+ assert.ok(await page.locator("#nested").evaluate(e=>e.scrollTop)>0,"nested reachable text scrolls its own container");
 });
 console.log("DX7 consumer passed: guide rules, protected immutable patches, hidden positive probes, repeated staging time/pause/drain and scrollable text");

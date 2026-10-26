@@ -4078,7 +4078,7 @@ export async function readEveryRow<Row>(readPage: Parameters<typeof exhaustPages
 ```
 
 ```ts
-import { startDev, startServe, serveUntilSignal, serveCheck, startStatic, startVite, cli, command, deploy,
+import { startDev, startServe, serveUntilSignal, serveCheck, withServeScript, devAccounts, startStatic, startVite, cli, command, deploy,
   rollback, testSource, withBrowser, waitForFresh, waitForClock, fillRN, statusText,
   selectByValue, renderedText, frontPage, logsDir, bounded, cleanup, stopChild, portRange, sandboxUnavailable, loadFixtures }
   from "snapback4/proof";
@@ -4143,6 +4143,22 @@ export async function checkProductionServe(cwd: string) {
   const report = await serveCheck({ cwd, deployment: "deployment", script: "prod:serve" });
   if (!report.ok) throw Error(report.failures.map(f => `${f.code}: ${f.message}`).join("; "));
   return report;
+}
+
+// Reuse an app's npm serve script; the kit owns readiness and group shutdown.
+export async function scriptedProductionProof(cwd: string,
+  assertLive: (url: string, signal: AbortSignal) => Promise<void>) {
+  await withServeScript("prod:serve", async (ready, signal) => {
+    if (!ready.backendUrl) throw Error("prod:serve must report backendUrl");
+    await assertLive(ready.backendUrl, signal);
+  }, { cwd, deployment: "deployment" });
+}
+
+// For a password schema: real development users, without role provisioning.
+export async function developmentPasswordUsers(cwd: string) {
+  const backend = await startDev({ cwd });
+  try { return await devAccounts(backend, { users: 2 }); }
+  finally { await backend.stop(); }
 }
 
 // Pass a signed-in page with a registered witness after a dev clock advance.

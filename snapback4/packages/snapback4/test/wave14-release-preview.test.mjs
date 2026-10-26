@@ -62,7 +62,7 @@ mutation grouped(a: bool, b: bool, c: bool):
   const v2 = v1.replace("status: enum('old')", "status: enum('old', 'new')").replace("  return true\n", "  return true\n", 1).replace("  require a and (b or c) else BASE 'base refusal'", "  require a and (b or c) else BASE 'base refusal'\n  require b else EXTRA 'extra refusal'");
   writeFileSync(schema, v1); run('deploy', deployment);
   writeFileSync(schema, v2);
-  const preview = run('deploy', deployment, '--check').stdout;
+  const preview = run('deploy', deployment, '--check','--verbose').stdout;
   assert.doesNotMatch(preview, /roles changed: .*guards? unproved/);
   assert.match(preview, /note: .*release 2 tightens grouped\.require/);
   assert.match(preview, /require \(a and \(b or c\)\) else BASE 'base refusal'/);
@@ -70,7 +70,7 @@ mutation grouped(a: bool, b: bool, c: bool):
   const rollback = JSON.parse(run('rollback', deployment, '--exact', '--to', '1', '--check', '--json').stdout);
   assert.ok(rollback.hazards.some(line => line.includes('loosens grouped.require') && line.includes('rollback users lose a current safety guard') && line.includes('bridge release')), JSON.stringify(rollback.hazards));
   writeFileSync(schema, v2.replace("BASE 'base refusal'", "RENAMED 'changed refusal'"));
-  const changed = run('deploy', deployment, '--check').stdout;
+  const changed = run('deploy', deployment, '--check','--verbose').stdout;
   assert.match(changed, /WARNING.*grouped\.require.*BASE.*RENAMED/);
   assert.doesNotMatch(changed, /note:.*tightens grouped\.require/);
 });
@@ -98,7 +98,7 @@ mutation add():
   assert.equal((await host.post('/m/book', {})).why.code, 'BLOCKED');
   await host.stop();
   writeFileSync(schema, guarded.replace('default true', 'default false'));
-  assert.match(run('deploy', deployment, '--check').stdout, /gates changed: 1 guard unproved across book/);
+  assert.match(run('deploy', deployment, '--check','--verbose').stdout, /gates changed: 1 guard unproved across book/);
 });
 
 test('a changed helper behind a reused probe cannot masquerade as a trailing-require tightening', { timeout: hangBudget(4) }, async t => {
@@ -123,7 +123,7 @@ mutation book(ok: bool):
   assert.equal((await host.post('/m/book', {ok:true})).why.code, 'BLOCKED');
   await host.stop();
   writeFileSync(schema, v2);
-  const preview=run('deploy', deployment, '--check').stdout;
+  const preview=run('deploy', deployment, '--check','--verbose').stdout;
   assert.match(preview, /WARNING .*book\.require/);
   assert.doesNotMatch(preview, /note: .*tightens book\.require/);
 });
@@ -152,7 +152,7 @@ mutation add():
   assert.equal((await host.post('/m/limit', {})).state, 'sent');
   await host.stop();
   writeFileSync(schema, guarded.replace('default 0', 'default 20'));
-  assert.match(run('deploy', deployment, '--check').stdout, /gates changed: 1 guard unproved across limit/);
+  assert.match(run('deploy', deployment, '--check','--verbose').stdout, /gates changed: 1 guard unproved across limit/);
 });
 
 test('optional absence and row fallback defaults remain consulted dependencies', { timeout: hangBudget(4) }, async t => {
@@ -185,7 +185,7 @@ mutation fallback(a: gates, b: gates):
   await host.stop();
   const target = guarded.replace('flag: bool default true', 'flag: bool ? default true').replace('blocked: bool default true', 'blocked: bool default false') + '\ninvariant gates always .flag = null or .flag != null\n';
   writeFileSync(schema, target);
-  assert.match(run('deploy', deployment, '--check').stdout, /gates changed: 2 guards unproved across fallback, optionalGuard/);
+  assert.match(run('deploy', deployment, '--check','--verbose').stdout, /gates changed: 2 guards unproved across fallback, optionalGuard/);
   run('deploy', deployment);
   host = await serve(t, deployment);
   assert.equal((await host.post('/m/optionalGuard', {id:'gate'})).why.code, 'FLAG');
@@ -216,7 +216,7 @@ query entriesList():
   assert.equal((await host.post('/m/add', {})).state, 'sent');
   await host.stop();
 
-  const jsonResult = run('rollback', deployment, '--exact', '--to', '1', '--check', '--json');
+  const jsonResult = run('rollback', deployment, '--exact', '--to', '1', '--check', '--json', '--verbose');
   const plan = JSON.parse(jsonResult.stdout);
   assert.match(jsonResult.stderr, /resolved rollback target: release 1 \(current release 2\)/);
   for (const fragment of [
@@ -229,8 +229,8 @@ query entriesList():
   ]) assert.ok(plan.hazards.some(line => line.includes(fragment)), `${fragment}: ${JSON.stringify(plan.hazards)}`);
   assert.ok(!plan.hazards.some(line => /entries changed: .*guards? unproved/.test(line)), JSON.stringify(plan.hazards));
 
-  const preview = run('rollback', deployment, '--exact', '--to', '1', '--check').stdout;
+  const preview = run('rollback', deployment, '--exact', '--to', '1', '--check','--verbose').stdout;
   assert.ok(preview.indexOf('resolved rollback target: release 1') < preview.indexOf('preview: release 1 would be current'), preview);
-  const activated = run('rollback', deployment, '--exact', '--to', '1').stdout;
+  const activated = run('rollback', deployment, '--exact', '--to', '1', '--verbose').stdout;
   assert.ok(activated.indexOf('resolved rollback target: release 1') < activated.indexOf('release 1 is current as generation'), activated);
 });

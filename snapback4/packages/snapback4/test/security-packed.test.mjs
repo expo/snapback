@@ -96,7 +96,10 @@ test('packed security card and starter run as written; broad reads refute', {tim
    const text=run(process.execPath,[cli,'check','--review'],cwd);
    assert.match(text,/N_PRIVATE_CREATE_EDIT_ASYMMETRY/);
    const inventory=text.indexOf('N_INSERT_WRITE_INTENT');
-   assert.ok(inventory<0||text.indexOf('N_PRIVATE_CREATE_EDIT_ASYMMETRY')<inventory);
+   const witnessedInsert=checked.securityReviews.some(r=>r.code==='N_INSERT_WRITE_INTENT'&&r.witness&&!r.acknowledged);
+   const privateAdvice=text.indexOf('N_PRIVATE_CREATE_EDIT_ASYMMETRY');
+   if(witnessedInsert)assert.ok(inventory>=0&&inventory<privateAdvice,'concrete questions precede unwitnessed advice');
+   else assert.ok(inventory<0||privateAdvice<inventory,'within one tier, specific questions precede inventory');
   }
  }
  const disclosureCases=result.guideCases.filter(c=>c.broadRead);

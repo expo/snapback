@@ -734,7 +734,7 @@ query extras():
       assert.equal((await releasePost(url, headers, '/m/setExtra', { item: id, extra: 42 }, 'v2-extra')).state, 'sent');
       assert.equal((await releasePost(url, headers, '/m/addExtra', { n: 45 }, 'v2-row')).state, 'sent');
       await client.sync(); let local = await client.query({ kind: 'query', name: 'all' }, {}); assert.equal(local.data.find(row => row.id === id).extra, 42);
-      const oldGeneration = JSON.parse(run('releases', deployment)).generation;
+      const oldGeneration = JSON.parse(run('releases', deployment, '--json')).generation;
       await releasePost(url, headers, '/m/newStatus', { item: id }, 'v2-new-status');
       run('rollback', deployment, '--exact'); await client.sync();
       assert.ok((await client.query({kind:'query',name:'all'},{})).data.every(row=>row.id!==id));
@@ -742,7 +742,7 @@ query extras():
       assert.equal((await client.query({kind:'query',name:'all'},{})).data.find(row=>row.id===id).status,'new');
       await releasePost(url, headers, '/m/repairStatus', { item: id }, 'v2-repair');
       run('rollback', deployment, '--exact');
-      const current = JSON.parse(run('releases', deployment)); assert.equal(current.release, 1); assert.equal(current.generation, oldGeneration + 3);
+      const current = JSON.parse(run('releases', deployment, '--json')); assert.equal(current.release, 1); assert.equal(current.generation, oldGeneration + 3);
       const stale = await (await fetch(url + '/sync', { method: 'POST', headers: {...headers,'x-snapback-device':JSON.stringify(await processDevice({binary,dir:process.cwd()}).engineInfo())}, body: JSON.stringify({ generation: oldGeneration, from: 0, limit: 100, after: null, stream: false, pending: [] }) })).json(); assert.equal(stale.denied.code, 'E_SYNC_GENERATION');
       await client.sync(); local = await client.query({ kind: 'query', name: 'all' }, {}); assert.ok(local.data.every(row => !Object.hasOwn(row, 'extra')));
       assert.equal((await releasePost(url, headers, '/m/edit', { item: id, body: 'old write' }, 'v1-edit')).state, 'sent');
@@ -750,15 +750,15 @@ query extras():
       const newRow = await releasePost(url, headers, '/m/add', {}, 'v1-new'); assert.equal(newRow.state, 'sent');
       // Matching retained source selects its immutable identity and restoration intent.
       run('deploy', deployment);
-      assert.equal(JSON.parse(run('releases', deployment)).release,2);
+      assert.equal(JSON.parse(run('releases', deployment, '--json')).release,2);
       await client.sync(); local = await client.query({ kind: 'query', name: 'all' }, {});
       assert.equal(local.data.find(row => row.id === id).extra, 42); assert.equal(local.data.find(row => row.id === id).body, 'old write');
       assert.equal(local.data.find(row => row.id === newRow.result.id).extra, 7); assert.ok(local.data.every(row => row.id !== gone));
       assert.deepEqual((await releasePost(url, headers, '/q/extras')).data.map(row => row.n), [45]);
       // Failed hot narrowing leaves this generation and the connected client usable.
       writeFileSync(schema, second.replace('  body: text', '  mustBackfill: int\n  body: text').replace("{body: 'kept'}","{body: 'kept', mustBackfill: 1}"));
-      const before = JSON.parse(run('releases', deployment)); const failed = await invokeAsync(app, 'deploy', deployment); assert.equal(failed.status, 1); assert.match(failed.stderr, /E_ADOPT/);
-      const after = JSON.parse(run('releases', deployment)); assert.equal(after.release, before.release); assert.equal(after.generation, before.generation); assert.equal(after.revision, before.revision);
+      const before = JSON.parse(run('releases', deployment, '--json')); const failed = await invokeAsync(app, 'deploy', deployment); assert.equal(failed.status, 1); assert.match(failed.stderr, /E_ADOPT/);
+      const after = JSON.parse(run('releases', deployment, '--json')); assert.equal(after.release, before.release); assert.equal(after.generation, before.generation); assert.equal(after.revision, before.revision);
       assert.equal((await releasePost(url, headers, '/q/all')).data.find(row => row.id === id).extra, 42);
       run('rollback', deployment, '--exact', '--to', '1');
       const preview = run('prune', deployment); assert.match(preview, /extraRows/); assert.match(preview, /preview only/);
@@ -810,11 +810,11 @@ test('hot release replaces, adds and retires named workers without restarting se
     // The log line can precede the host's committed status row under load: wait for both.
     await waitFor(()=>logs().includes('ROLL_ALPHA_V1')&&statuses()['worker:status:alpha']?.pid,'first named worker starts',{diagnostics:()=>logs()+JSON.stringify(statuses())});
     const first=statuses()['worker:status:alpha'].pid;
-    const before=JSON.parse(run('releases',deployment));
+    const before=JSON.parse(run('releases', deployment, '--json'));
     writeFileSync(join(workers,'alpha.mjs'),"// snapback4 secrets: NOT_DECLARED\n"+worker('ROLL_BAD_SECRET'));
     const failure=spawnSync(binary,['deploy',deployment],{cwd:app,encoding:'utf8',timeout:hangBudget()});
     assert.equal(failure.status,1);assert.match(failure.stderr,/alpha.*NOT_DECLARED|NOT_DECLARED/);
-    const unchanged=JSON.parse(run('releases',deployment));
+    const unchanged=JSON.parse(run('releases', deployment, '--json'));
     for (const field of ['release','revision','generation'])assert.equal(unchanged[field],before[field]);
     assert.equal(statuses()['worker:status:alpha'].pid,first);assert.equal(logs().includes('ROLL_BAD_SECRET'),false);
 
@@ -826,7 +826,7 @@ test('hot release replaces, adds and retires named workers without restarting se
     rmSync(join(workers,'alpha.mjs'));writeFileSync(join(workers,'beta.mjs'),worker('ROLL_BETA_V3'));
     run('deploy',deployment);
     await waitFor(()=>logs().includes('ROLL_BETA_V3')&&statuses()['worker:status:alpha']?.state==='stopped','removed worker retires and remaining worker restarts',{diagnostics:()=>logs()+JSON.stringify(statuses())});
-    const history=JSON.parse(run('releases',deployment));assert.equal(history.release,3);
+    const history=JSON.parse(run('releases', deployment, '--json'));assert.equal(history.release,3);
     assert.equal(history.workers.find(([key])=>key==='worker:status:beta')[1].includes('running'),true);
   });
 });
@@ -875,9 +875,9 @@ test('REL identical source is a no-op; latest and exact previews never activate'
   assert.match(run('rollback','--help'),/dormant per row/);
   const first=run('deploy',deployment);assert.match(first,/release 1 is current as generation 1/);
   assert.match(first.trim().split('\n')[0],/^deploy verdict: READY/);
-  const before=JSON.parse(run('releases',deployment));
+  const before=JSON.parse(run('releases', deployment, '--json'));
   assert.match(run('deploy',deployment),/unchanged; release 1 stays current/);
-  assert.deepEqual(JSON.parse(run('releases',deployment)),before);
+  assert.deepEqual(JSON.parse(run('releases', deployment, '--json')),before);
   writeFileSync(schema,source.replace('return 1','return 2'));
   run('deploy',deployment);
   await serve(deployment,async(url,headers)=>{
@@ -887,9 +887,9 @@ test('REL identical source is a no-op; latest and exact previews never activate'
     assert.deepEqual(state(join(deployment,'store.sqlite')),saved);
     assert.equal((await releasePost(url,headers,'/q/q')).data,2);
     assert.match(run('rollback',deployment,'--to','1'),/release 1 is current as generation 3/);
-    const status=JSON.parse(run('releases',deployment));assert.equal(status.release,1);assert.equal(status.latest,2);
-    const selected=JSON.parse(run('releases',deployment,'latest'));assert.equal(selected.release,1);assert.equal(selected.selected.release,2);assert.equal(selected.selected.current,false);assert.equal(typeof selected.selected.digest,'string');
-    assert.equal(JSON.parse(run('releases',deployment,'1')).selected.current,true);
+    const status=JSON.parse(run('releases', deployment, '--json'));assert.equal(status.release,1);assert.equal(status.latest,2);
+    const selected=JSON.parse(run('releases', deployment, 'latest', '--json'));assert.equal(selected.release,1);assert.equal(selected.selected.release,2);assert.equal(selected.selected.current,false);assert.equal(typeof selected.selected.digest,'string');
+    assert.equal(JSON.parse(run('releases', deployment, '1', '--json')).selected.current,true);
     assert.match(run('rollback',deployment,'--to','latest'),/release 2 is current as generation 4/);
     assert.equal((await releasePost(url,headers,'/q/q')).data,2);
   });
@@ -962,7 +962,7 @@ query input(n: int):
     const inspect=failure.stderr.match(/inspect: snapback4 sql "([^"]+)"/);assert.ok(inspect,failure.stderr);
     run('sql',inspect[1],'--release',deployment,'--json');
     const saved=state(join(deployment,'store.sqlite'));
-    const plan=run('rollback',deployment, '--exact','--to','1','--check');
+    const plan=run('rollback',deployment, '--exact','--to','1','--check','--verbose');
     // The enum-incompatible row owns all its cells: count it once.
     assert.match(plan,/1 row, 0 cells, 0 index entries dormant/);assert.match(plan,/samples: rows values \[/);
     assert.doesNotMatch(plan,/its cells become dormant \(0 cells/);
@@ -985,7 +985,7 @@ query input(n: int):
     // A second row fits release 1, so only its removed-column cells count.
     const live=await releasePost(url,headers,'/m/add',{},'large-plan-live');assert.equal(live.state,'sent');
     const mixedSaved=state(join(deployment,'store.sqlite'));
-    const mixed=run('rollback',deployment, '--exact','--to','1','--check');
+    const mixed=run('rollback',deployment, '--exact','--to','1','--check','--verbose');
     assert.match(mixed,/1 row, 20 cells, 0 index entries dormant/);
     for(let n=0;n<20;n++) assert.ok(mixed.includes(`values.spare${n}: column values.spare${n} is removed; its cells become dormant (1 cells; restored on forward)`),mixed);
     const mixedJson=JSON.parse(run('rollback',deployment, '--exact','--to','1','--check','--json'));
@@ -1050,7 +1050,7 @@ test('matching retained deploy reactivates without a refused candidate', {timeou
   run('rollback',deployment,'--to','1');
   await serve(deployment,async()=>{
     run('deploy',deployment);assert.equal(state(join(deployment,'store.sqlite')).metadata.release,'2');
-    assert.equal(JSON.parse(run('releases',deployment)).latest,2);
+    assert.equal(JSON.parse(run('releases', deployment, '--json')).latest,2);
     assert.equal(existsSync(join(deployment,'releases/3')),false);
   });
 });
@@ -1064,11 +1064,11 @@ test('REL2 bare rollback follows active history and committed pending sources re
   assert.equal(state(join(deployment,'store.sqlite')).metadata.release,'3');
   // Models process loss after DB commit, before marker cleanup.
   writeFileSync(join(deployment,'releases/3/.pending-adoption'),'pending\n');
-  assert.equal(JSON.parse(run('releases',deployment)).latest,3);
+  assert.equal(JSON.parse(run('releases', deployment, '--json')).latest,3);
   run('rollback',deployment,'--to','3');
   // A crash-reserved directory without source is never latest.
   mkdirSync(join(deployment,'releases/99'));
-  assert.equal(JSON.parse(run('releases',deployment)).latest,3);
+  assert.equal(JSON.parse(run('releases', deployment, '--json')).latest,3);
 });
 
 test('REL2 CLI help, guide list and dry-run refusal are discoverable',t=>{
@@ -1102,12 +1102,12 @@ schedule sweepEvery every 1d: sweep
     await releasePost(url,headers,'/m/hold',{item:added.result.id},'rel2-preview-hold');
     const before=state(join(deployment,'store.sqlite'));
     writeFileSync(schema,source);
-    const preview=run('deploy',deployment,'--check');
+    const preview=run('deploy',deployment,'--check','--verbose');
     assert.doesNotMatch(preview,/rows are lost|values are lost|engine capture.*filled/);
     assert.match(preview,/WARNING holds:.*1 rows become dormant/);assert.match(preview,/samples:.*rows holds \[/);
     assert.match(preview,/WARNING release behavior: .*release 2 lacks schedule sweepEvery \(job sweep\)/);assert.match(preview,/target|release 2 lacks this table\'s behavior/);
     assert.deepEqual(state(join(deployment,'store.sqlite')),before);
-    assert.equal(JSON.parse(run('releases',deployment)).latest,1);
+    assert.equal(JSON.parse(run('releases', deployment, '--json')).latest,1);
     run('deploy',deployment);
     writeFileSync(schema,v1+'query fresh():\n  return true\n');
     assert.equal(invoke('deploy',deployment,'--check').status,1);
@@ -1215,7 +1215,7 @@ test('REL2 successful preview reports a rebuilt maintain instead of its speculat
     const first=(await releasePost(url,headers,'/m/add',{},'rel2-maintain-one')).result.id;
     await releasePost(url,headers,'/m/add',{},'rel2-maintain-two');
     await releasePost(url,headers,'/m/markNew',{item:first},'rel2-maintain-mark');
-    for(const flags of [[],['--json']]) {
+    for(const flags of [['--verbose'],['--json']]) {
       const preview=run('rollback',deployment, '--exact','--to','1','--check',...flags);
       assert.match(preview,/maintain noteCounts: rebuilt from 1 source rows/);
       assert.doesNotMatch(preview,/cannot adopt|rows are lost|values are lost|keep the prior maintain definition/);
@@ -1243,7 +1243,7 @@ test('REL2 successful preview validates uniqueness after narrowed rows become do
     await releasePost(url,headers,'/m/add',{},'rel2-unique-second');await releasePost(url,headers,'/m/makeNew',{item:first},'rel2-unique-mark');
     const narrower=broad.replace("enum('old','new')","enum('old')").replace('  read <- allow','  unique body\n  read <- allow').split('mutation makeNew')[0];
     writeFileSync(schema,narrower);
-    for(const flags of [[],['--json']]) {
+    for(const flags of [['--verbose'],['--json']]) {
       const preview=run('deploy',deployment,'--check',...flags);
       const facts=flags.includes('--json') ? JSON.parse(preview).hazards.join('\n') : preview;
       assert.doesNotMatch(facts,/unique.*conflict|repair.*unique|inspect:/);assert.match(preview,/active rows satisfy/);

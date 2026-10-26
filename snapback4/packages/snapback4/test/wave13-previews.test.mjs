@@ -76,14 +76,14 @@ test('H9 additive preview-noise budget: unchanged guards stay quiet beside rollb
   const {schema,deployment,run}=fixture(t);
   writeFileSync(schema,probe);run('deploy',deployment);
   writeFileSync(schema,additive);
-  const deploy=run('deploy',deployment,'--check').stdout;
-  assert.equal((deploy.match(/WARNING/g)??[]).length,1,deploy);
+  const deploy=run('deploy',deployment,'--check','--verbose').stdout;
+  assert.equal((deploy.match(/^  WARNING /gm)??[]).length,1,deploy);
   assert.match(deploy,/rollback foresight.*notes.status/);
   assert.match(deploy,/old-client compatibility.*RESULT REVIEW/);
   assert.doesNotMatch(deploy,/\.require|roles changed|guards unproved/);
   run('deploy',deployment);
-  const rollback=run('rollback',deployment, '--exact','--to','1','--check').stdout;
-  assert.equal((rollback.match(/WARNING/g)??[]).length,1,rollback);
+  const rollback=run('rollback',deployment, '--exact','--to','1','--check','--verbose').stdout;
+  assert.equal((rollback.match(/^  WARNING /gm)??[]).length,1,rollback);
   assert.match(rollback,/old-client compatibility.*RESULT REVIEW/);
   assert.doesNotMatch(rollback,/\.require|roles changed|guards unproved/);
   const guide=run('guide','deploy','--full').stdout;
@@ -95,14 +95,14 @@ test('changed probe dependencies group guards once; unused probe columns and unr
   const {schema,deployment,run}=fixture(t);
   writeFileSync(schema,probe);run('deploy',deployment);
   writeFileSync(schema,probe.replace('  role: enum',"  label: text <=20 default 'staff'\n  role: enum"));
-  assert.doesNotMatch(run('deploy',deployment,'--check').stdout,/WARNING|\.require/);
+  assert.doesNotMatch(run('deploy',deployment,'--check','--verbose').stdout,/WARNING|\.require/);
   writeFileSync(schema,probe.replace('  public\n  online only\ntable notes:',"  read <- .principal = viewer\n  online only\ntable notes:"));
-  const changed=run('deploy',deployment,'--check').stdout;
-  assert.equal((changed.match(/roles changed: 3 guards unproved across add, edit, remove/g)??[]).length,1,changed);
+  const changed=run('deploy',deployment,'--check','--verbose').stdout;
+  assert.equal((changed.match(/^  WARNING roles: roles changed: 3 guards unproved across add, edit, remove/gm)??[]).length,1,changed);
   assert.doesNotMatch(changed,/add.require|edit.require|remove.require/);
   // No guard warning when only a post-guard write changes.
   writeFileSync(schema,probe.replace("body: 'one'","body: 'other'"));
-  assert.doesNotMatch(run('deploy',deployment,'--check').stdout,/WARNING|\.require/);
+  assert.doesNotMatch(run('deploy',deployment,'--check','--verbose').stdout,/WARNING|\.require/);
 });
 
 test('stable exists probes participate in leading Boolean implication', t => {
@@ -110,7 +110,7 @@ test('stable exists probes participate in leading Boolean implication', t => {
   const source=probe.replace('mutation edit():','mutation edit(ok: bool):');
   writeFileSync(schema,source);run('deploy',deployment);
   writeFileSync(schema,source.replace("mutation edit(ok: bool):\n  require exists roles[principal = viewer, role = 'captain']", "mutation edit(ok: bool):\n  require exists roles[principal = viewer, role = 'captain'] and ok"));
-  assert.match(run('deploy',deployment,'--check').stdout,/note: .*release 2 tightens edit.require/);
+  assert.match(run('deploy',deployment,'--check','--verbose').stdout,/note: .*release 2 tightens edit.require/);
 });
 
 const safety = `use identity guests
@@ -158,10 +158,8 @@ test('DT7 golden preview: query/count populations, dormant dependents, then grou
     "release 1's safety dependencies on parents: `book`, `pay` cannot see 1 dormant parents row (sample ids [p]); verify refusal cases and preserve this gate in a bridge release or pause the workflow (guide deploy; dependency, not a predicate match)",
   ]);
   const text=run('rollback',deployment, '--exact','--to','1','--check').stdout;
-  const parentLine=text.split('\n').filter(line=>line.startsWith('  WARNING parents:'));
-  assert.equal(parentLine.length,1,text);
-  assert.match(parentLine[0],/queries\/counts/);
-  assert.match(parentLine[0],/safety dependencies/);
+  assert.equal(text.split('\n').filter(line=>line.includes('WARNING queries/counts dayCount, legsList read parents:')).length,1,text);
+  assert.equal(text.split('\n').filter(line=>line.includes("WARNING release 1's safety dependencies on parents:")).length,1,text);
   assert.doesNotMatch(text,/tables\.parents\.columns\.state/);
   const verbose=run('rollback',deployment, '--exact','--to','1','--check','--verbose').stdout;
   assert.match(verbose,/tables\.parents\.columns\.state/);
@@ -193,10 +191,10 @@ test('one changed dependency counts only the guards it affects, and a function b
   const source=probe.replace('mutation edit():',"fn allowed(): true\nmutation edit():").replaceAll("  require exists roles[principal = viewer, role = 'captain'] else NO\n  return true", "  require exists roles[principal = viewer, role = 'captain'] else NO\n  require allowed() else BLOCKED\n  return true");
   writeFileSync(schema,source);run('deploy',deployment);
   writeFileSync(schema,source.replace('fn allowed(): true','fn allowed(): false'));
-  const changed=run('deploy',deployment,'--check').stdout;
+  const changed=run('deploy',deployment,'--check','--verbose').stdout;
   assert.match(changed,/compiled guard changed: 2 guards unproved across edit, remove/);
   writeFileSync(schema,source.replace('  public\n  online only\ntable notes:',"  read <- .principal = viewer\n  online only\ntable notes:"));
-  const deps=run('deploy',deployment,'--check').stdout;
+  const deps=run('deploy',deployment,'--check','--verbose').stdout;
   assert.match(deps,/roles changed: 3 guards unproved across add, edit, remove/);
 });
 
@@ -257,9 +255,9 @@ mutation approve():
 `;
   writeFileSync(schema,source);run('deploy',deployment);
   writeFileSync(schema,source.replace('mutation edit():','mutation edit(unused: bool ?):'));
-  assert.doesNotMatch(run('deploy',deployment,'--check').stdout,/WARNING|edit.require/);
+  assert.doesNotMatch(run('deploy',deployment,'--check','--verbose').stdout,/WARNING|edit.require/);
   writeFileSync(schema,source.replace('  immutable principal\n  public','  immutable principal\n  read <- .principal = viewer'));
-  assert.match(run('deploy',deployment,'--check').stdout,/delegates changed: 1 guard unproved across approve/);
+  assert.match(run('deploy',deployment,'--check','--verbose').stdout,/delegates changed: 1 guard unproved across approve/);
 });
 
 test('row-presence guards and field guards ignore new unconsulted defaulted columns', t => {
@@ -271,11 +269,11 @@ test('row-presence guards and field guards ignore new unconsulted defaulted colu
 `;
   writeFileSync(schema,source);run('deploy',deployment);
   writeFileSync(schema,source.replace('  body: text <=80',"  body: text <=80\n  label: text <=20 default 'label'"));
-  const added=run('deploy',deployment,'--check').stdout;
+  const added=run('deploy',deployment,'--check','--verbose').stdout;
   assert.match(JSON.parse(run('deploy',deployment,'--check','--json').stdout).clientCompatibility.join('\n'),/operation add: RESULT NOTE/);
   assert.doesNotMatch(added,/publish.require|guards unproved|operation publish:/);
   writeFileSync(schema,source.replace('  body: text <=80','  body: text <=90'));
-  const widened=run('deploy',deployment,'--check').stdout;
+  const widened=run('deploy',deployment,'--check','--verbose').stdout;
   assert.doesNotMatch(widened,/notes changed: .*guards? unproved across publish/);
   assert.match(widened,/notes\.body admits values outside release 1/);
 });
@@ -293,7 +291,7 @@ mutation unrelated():
 `;
   writeFileSync(schema,source);run('deploy',deployment);
   writeFileSync(schema,source.replace("insert roles {principal: viewer, role: 'captain'}", "insert roles {principal: viewer, role: 'crew'}").replace("body: 'first'","body: 'second'"));
-  const plan=run('deploy',deployment,'--check').stdout;
+  const plan=run('deploy',deployment,'--check','--verbose').stdout;
   assert.match(plan,/compiled guard changed: 1 guard unproved across prepare/);
   assert.doesNotMatch(plan,/unrelated.require|across unrelated/);
 });
@@ -317,9 +315,9 @@ mutation accumulated():
 `;
   writeFileSync(schema,source);run('deploy',deployment);
   writeFileSync(schema,source.replaceAll('    ok = false','    ok = true'));
-  assert.match(run('deploy',deployment,'--check').stdout,/compiled guard changed: 1 guard unproved across branch/);
+  assert.match(run('deploy',deployment,'--check','--verbose').stdout,/compiled guard changed: 1 guard unproved across branch/);
   writeFileSync(schema,source.replace('  public\n  online only\ntable notes:',"  read <- deny\n  online only\ntable notes:"));
-  const changed=run('deploy',deployment,'--check').stdout;
+  const changed=run('deploy',deployment,'--check','--verbose').stdout;
   assert.match(changed,/roles changed: 4 guards unproved across accumulated, add, edit, remove/);
 });
 
@@ -379,7 +377,7 @@ mutation prepareRole():
 `;
   writeFileSync(schema,source);run('deploy',deployment);
   writeFileSync(schema,source.replace('  unique principal\n  public','  unique principal\n  read <- deny'));
-  assert.match(run('deploy',deployment,'--check').stdout,/permissions changed: 1 guard unproved across prepareRole/);
+  assert.match(run('deploy',deployment,'--check','--verbose').stdout,/permissions changed: 1 guard unproved across prepareRole/);
 });
 
 test('loop guards depend on the element type of used argument lists', t => {
@@ -391,7 +389,7 @@ test('loop guards depend on the element type of used argument lists', t => {
 `;
   writeFileSync(schema,source);run('deploy',deployment);
   writeFileSync(schema,source.replace('[int] <=3','[int 0..10] <=3'));
-  assert.match(run('deploy',deployment,'--check').stdout,/arguments changed: 1 guard unproved across fromList/);
+  assert.match(run('deploy',deployment,'--check','--verbose').stdout,/arguments changed: 1 guard unproved across fromList/);
 });
 
 test('tightening preserves warnings for changed codes/messages and first-failure regions', t => {
@@ -402,13 +400,13 @@ test('tightening preserves warnings for changed codes/messages and first-failure
 `;
   writeFileSync(schema,source);run('deploy',deployment);
   writeFileSync(schema,source.replace('require ok else OLD','require ok and extra else NEW'));
-  const renamed=run('deploy',deployment,'--check').stdout;
+  const renamed=run('deploy',deployment,'--check','--verbose').stdout;
   assert.match(renamed,/WARNING.*guarded.require.*OLD.*NEW/);
   assert.doesNotMatch(renamed,/note:.*tightens guarded.require/);
   const ordered=source.replace('require ok else OLD','require ok else FIRST\n  require extra else SECOND');
   writeFileSync(schema,ordered);run('deploy',deployment);
   writeFileSync(schema,ordered.replace('require ok else FIRST','require ok and third else FIRST'));
-  assert.match(run('deploy',deployment,'--check').stdout,/WARNING.*guarded.require/);
+  assert.match(run('deploy',deployment,'--check','--verbose').stdout,/WARNING.*guarded.require/);
 });
 
 test('optional-null narrowing retains rows dormant and never invents a literal backfill', {timeout:hangBudget(4)}, async t => {
@@ -439,7 +437,7 @@ test('later loop iterations include carried guard assignments', {timeout:hangBud
   const host=await serve(t,deployment);
   assert.equal((await host.post('/m/repeated',{values:[1,2]})).why.code,'BLOCKED');
   writeFileSync(schema,source.replace('    ok = false','    ok = true'));
-  assert.match(run('deploy',deployment,'--check').stdout,/compiled guard changed: 1 guard unproved across repeated/);
+  assert.match(run('deploy',deployment,'--check','--verbose').stdout,/compiled guard changed: 1 guard unproved across repeated/);
   run('deploy',deployment);
   assert.equal((await host.post('/m/repeated',{values:[1,2]})).state,'sent');await host.stop();
 });
@@ -471,7 +469,7 @@ mutation remove():
   const host=await serve(t,deployment);assert.equal((await host.post('/m/seed',{})).state,'sent');
   assert.equal((await host.post('/m/remove',{})).why.code,'MISSING');
   writeFileSync(schema,source.replace('on delete cascade','on delete keep'));
-  assert.match(run('deploy',deployment,'--check').stdout,/children changed: 1 guard unproved across remove/);
+  assert.match(run('deploy',deployment,'--check','--verbose').stdout,/children changed: 1 guard unproved across remove/);
   run('deploy',deployment);assert.equal((await host.post('/m/remove',{})).state,'sent');await host.stop();
 });
 
@@ -493,7 +491,7 @@ mutation conditional(values: [int] <=2):
 `;
   writeFileSync(schema,source);run('deploy',deployment);
   writeFileSync(schema,source.replace('  unique principal\n  public','  unique principal\n  read <- deny'));
-  assert.match(run('deploy',deployment,'--check').stdout,/permissions changed: 1 guard unproved across conditional/);
+  assert.match(run('deploy',deployment,'--check','--verbose').stdout,/permissions changed: 1 guard unproved across conditional/);
 });
 
 test('an effect retains its incoming condition when both branches overwrite that binding', {timeout:hangBudget(4)}, async t => {
@@ -523,7 +521,7 @@ mutation prepareRole():
   const host=await serve(t,deployment);assert.equal((await host.post('/m/permit',{})).state,'sent');
   assert.equal((await host.post('/m/prepareRole',{})).state,'sent');assert.equal((await host.post('/m/clear',{})).state,'sent');
   writeFileSync(schema,source.replace('  unique principal\n  public','  unique principal\n  read <- deny'));
-  assert.match(run('deploy',deployment,'--check').stdout,/permissions changed: 1 guard unproved across prepareRole/);
+  assert.match(run('deploy',deployment,'--check','--verbose').stdout,/permissions changed: 1 guard unproved across prepareRole/);
   run('deploy',deployment);assert.equal((await host.post('/m/prepareRole',{})).why.code,'NO');await host.stop();
 });
 
@@ -550,7 +548,7 @@ mutation repeated(values: [int] <=2):
   const host=await serve(t,deployment);assert.equal((await host.post('/m/permit',{})).state,'sent');
   assert.equal((await host.post('/m/repeated',{values:[1,2]})).state,'sent');
   writeFileSync(schema,source.replace('  unique principal\n  public','  unique principal\n  read <- deny'));
-  assert.match(run('deploy',deployment,'--check').stdout,/permissions changed: 1 guard unproved across repeated/);
+  assert.match(run('deploy',deployment,'--check','--verbose').stdout,/permissions changed: 1 guard unproved across repeated/);
   run('deploy',deployment);assert.equal((await host.post('/m/repeated',{values:[1,2]})).why.code,'BLOCKED');await host.stop();
 });
 
@@ -559,9 +557,9 @@ test('unused lexical bindings and guard positions do not invent dependency chang
   const source=probe.replace('mutation edit():\n', 'mutation edit():\n  unused = 1\n');
   writeFileSync(schema,source);run('deploy',deployment);
   writeFileSync(schema,source.replace('unused = 1','unused = 2'));
-  assert.doesNotMatch(run('deploy',deployment,'--check').stdout,/WARNING|edit.require/);
+  assert.doesNotMatch(run('deploy',deployment,'--check','--verbose').stdout,/WARNING|edit.require/);
   writeFileSync(schema,source.replace('unused = 1\n','unused = 1\n  another = 2\n'));
-  assert.doesNotMatch(run('deploy',deployment,'--check').stdout,/WARNING|edit.require/);
+  assert.doesNotMatch(run('deploy',deployment,'--check','--verbose').stdout,/WARNING|edit.require/);
 });
 
 test('moving an unchanged guard between then and else retains its control change warning', t => {
@@ -573,7 +571,7 @@ test('moving an unchanged guard between then and else retains its control change
 `;
   writeFileSync(schema,source);run('deploy',deployment);
   writeFileSync(schema,source.replace('  if flag:\n    require false else BLOCKED','  if flag:\n    unused = 1\n  else:\n    require false else BLOCKED'));
-  assert.match(run('deploy',deployment,'--check').stdout,/WARNING.*branchGuard.require/);
+  assert.match(run('deploy',deployment,'--check','--verbose').stdout,/WARNING.*branchGuard.require/);
 });
 
 test('authored object fields named site remain guard inputs', {timeout:hangBudget(4)}, async t => {
@@ -586,7 +584,7 @@ test('authored object fields named site remain guard inputs', {timeout:hangBudge
   writeFileSync(schema,source);run('deploy',deployment);
   const host=await serve(t,deployment);assert.equal((await host.post('/m/objectGuard',{})).why.code,'BLOCKED');
   writeFileSync(schema,source.replace('{site: false}','{site: true}'));
-  assert.match(run('deploy',deployment,'--check').stdout,/WARNING.*objectGuard.require/);
+  assert.match(run('deploy',deployment,'--check','--verbose').stdout,/WARNING.*objectGuard.require/);
   run('deploy',deployment);assert.equal((await host.post('/m/objectGuard',{})).state,'sent');await host.stop();
 });
 
@@ -594,7 +592,7 @@ test('changing a public rule explanation does not invent changed probe dependenc
   const {schema,deployment,run}=fixture(t);
   writeFileSync(schema,probe);run('deploy',deployment);
   writeFileSync(schema,probe.replace('  public\n  online only\ntable notes:', "  public 'Roles are readable by every signed-in caller.'\n  online only\ntable notes:"));
-  assert.doesNotMatch(run('deploy',deployment,'--check').stdout,/WARNING|\.require/);
+  assert.doesNotMatch(run('deploy',deployment,'--check','--verbose').stdout,/WARNING|\.require/);
 });
 
 test('authored fields named Literal do not hide used argument types', t => {
@@ -606,7 +604,7 @@ test('authored fields named Literal do not hide used argument types', t => {
 `;
   writeFileSync(schema,source);run('deploy',deployment);
   writeFileSync(schema,source.replace('value: int):','value: int 0..10):'));
-  assert.match(run('deploy',deployment,'--check').stdout,/arguments changed: 1 guard unproved across objectArg/);
+  assert.match(run('deploy',deployment,'--check','--verbose').stdout,/arguments changed: 1 guard unproved across objectArg/);
 });
 
 test('helper-expanded guards remain visible without a caller-authored require', {timeout:hangBudget(4)}, async t => {
@@ -620,7 +618,7 @@ mutation helperOnly():
   writeFileSync(schema,source);run('deploy',deployment);
   const host=await serve(t,deployment);assert.equal((await host.post('/m/helperOnly',{})).why.code,'BLOCKED');
   writeFileSync(schema,source.replace('require false else BLOCKED','require true else BLOCKED'));
-  assert.match(run('deploy',deployment,'--check').stdout,/compiled guard changed: 1 guard unproved across helperOnly/);
+  assert.match(run('deploy',deployment,'--check','--verbose').stdout,/compiled guard changed: 1 guard unproved across helperOnly/);
   run('deploy',deployment);assert.equal((await host.post('/m/helperOnly',{})).state,'sent');await host.stop();
 });
 
@@ -636,7 +634,7 @@ mutation combined(ok: bool):
   writeFileSync(schema,source);run('deploy',deployment);
   const host=await serve(t,deployment);assert.equal((await host.post('/m/combined',{ok:true})).why.code,'BLOCKED');
   writeFileSync(schema,source.replace('require ok else NO','require not not ok else NO').replace('require false else BLOCKED','require true else BLOCKED'));
-  const preview=run('deploy',deployment,'--check').stdout;
+  const preview=run('deploy',deployment,'--check','--verbose').stdout;
   assert.match(preview,/keeps equivalent combined.require/);
   assert.match(preview,/WARNING.*compiled guard changed: 1 guard unproved across combined/);
   run('deploy',deployment);assert.equal((await host.post('/m/combined',{ok:true})).state,'sent');await host.stop();
@@ -653,9 +651,9 @@ test('a shared branch retains only writes affecting a consulted population', t =
 `;
   writeFileSync(schema,source);run('deploy',deployment);
   writeFileSync(schema,source.replace("insert notes {body: 'one'}\n  require", "insert notes {body: 'two'}\n  require"));
-  assert.doesNotMatch(run('deploy',deployment,'--check').stdout,/WARNING|shared.require/);
+  assert.doesNotMatch(run('deploy',deployment,'--check','--verbose').stdout,/WARNING|shared.require/);
   writeFileSync(schema,source.replace("insert roles {principal: viewer, role: 'captain'}", "insert roles {principal: viewer, role: 'crew'}"));
-  assert.match(run('deploy',deployment,'--check').stdout,/compiled guard changed: 1 guard unproved across shared/);
+  assert.match(run('deploy',deployment,'--check','--verbose').stdout,/compiled guard changed: 1 guard unproved across shared/);
 });
 
 for (const filter of [false,true]) for (const caller of [false,true]) test(`aggregate expression-block helper refusals remain visible (filter: ${filter}, caller requirement: ${caller})`, {timeout:hangBudget(4)}, async t => {
@@ -677,7 +675,7 @@ ${caller?'  require ok else NO\n':''}  return ${filter?'max(gates where gate(.va
   const host=await serve(t,deployment);assert.equal((await host.post('/m/seedGate',{})).state,'sent');
   assert.equal((await host.post('/m/projected',{ok:true})).why.code,'BLOCKED');
   writeFileSync(schema,source.replace('require false else BLOCKED','require true else BLOCKED').replace('require ok else NO','require not not ok else NO'));
-  assert.match(run('deploy',deployment,'--check').stdout,/WARNING.*compiled guard changed: 1 guard unproved across projected/);
+  assert.match(run('deploy',deployment,'--check','--verbose').stdout,/WARNING.*compiled guard changed: 1 guard unproved across projected/);
   run('deploy',deployment);assert.equal((await host.post('/m/projected',{ok:true})).state,'sent');await host.stop();
 });
 
@@ -695,7 +693,7 @@ ${caller?'  require ok else NO\n':''}  return update notes['n'] {body: 'after'} 
   const host=await serve(t,deployment);assert.equal((await host.post('/m/seedNote',{})).state,'sent');
   assert.equal((await host.post('/m/conditionalUpdate',{ok:true})).why.code,'BLOCKED');
   writeFileSync(schema,source.replace('require false else BLOCKED','require true else BLOCKED').replace('require ok else NO','require not not ok else NO'));
-  assert.match(run('deploy',deployment,'--check').stdout,/WARNING.*compiled guard changed: 1 guard unproved across conditionalUpdate/);
+  assert.match(run('deploy',deployment,'--check','--verbose').stdout,/WARNING.*compiled guard changed: 1 guard unproved across conditionalUpdate/);
   run('deploy',deployment);assert.equal((await host.post('/m/conditionalUpdate',{ok:true})).state,'sent');await host.stop();
 });
 
@@ -712,11 +710,11 @@ mutation resultGuard():
   const host=await serve(t,deployment);assert.equal((await host.post('/m/seedNote',{})).state,'sent');
   assert.equal((await host.post('/m/resultGuard',{})).state,'sent');
   writeFileSync(schema,source.replace('  body: text <=80', "  body: text <=80\n  label: text <=20 default 'none'"));
-  const added=run('deploy',deployment,'--check').stdout;
+  const added=run('deploy',deployment,'--check','--verbose').stdout;
   assert.match(JSON.parse(run('deploy',deployment,'--check','--json').stdout).clientCompatibility.join('\n'),/operation seedNote: RESULT NOTE/);
   assert.doesNotMatch(added,/resultGuard.require|guards unproved|operation resultGuard:/);
   writeFileSync(schema,source.replace("{body: 'safe'}","{body: 'blocked'}"));
-  assert.match(run('deploy',deployment,'--check').stdout,/WARNING.*changes \(implication unproved\) resultGuard.require/);
+  assert.match(run('deploy',deployment,'--check','--verbose').stdout,/WARNING.*changes \(implication unproved\) resultGuard.require/);
   run('deploy',deployment);assert.equal((await host.post('/m/resultGuard',{})).why.code,'BLOCKED');await host.stop();
 });
 
@@ -736,7 +734,7 @@ mutation loopResult(values: [int] <=2):
   const host=await serve(t,deployment);assert.equal((await host.post('/m/seedNote',{})).state,'sent');
   assert.equal((await host.post('/m/loopResult',{values:[1,2]})).state,'sent');
   writeFileSync(schema,source.replace("{body: 'safe'}","{body: 'blocked'}"));
-  assert.match(run('deploy',deployment,'--check').stdout,/compiled guard changed: 1 guard unproved across loopResult/);
+  assert.match(run('deploy',deployment,'--check','--verbose').stdout,/compiled guard changed: 1 guard unproved across loopResult/);
   run('deploy',deployment);assert.equal((await host.post('/m/loopResult',{values:[1,2]})).why.code,'BLOCKED');await host.stop();
 });
 
@@ -754,7 +752,7 @@ mutation uniqueResult():
   const host=await serve(t,deployment);assert.equal((await host.post('/m/seedNote',{})).state,'sent');
   assert.equal((await host.post('/m/uniqueResult',{})).why.code,'PROBED');
   writeFileSync(schema,source.replace('  body: text <=80','  body: text <=80\n  unique body'));
-  assert.match(run('deploy',deployment,'--check').stdout,/notes changed: 1 guard unproved across uniqueResult/);
+  assert.match(run('deploy',deployment,'--check','--verbose').stdout,/notes changed: 1 guard unproved across uniqueResult/);
   run('deploy',deployment);assert.equal((await host.post('/m/uniqueResult',{})).why.code,'DUP');await host.stop();
 });
 
@@ -772,7 +770,7 @@ mutation discardedResult():
   const host=await serve(t,deployment);assert.equal((await host.post('/m/seedNote',{})).state,'sent');
   assert.equal((await host.post('/m/discardedResult',{})).why.code,'PROBED');
   writeFileSync(schema,source.replace('  body: text <=80','  body: text <=80\n  unique body'));
-  assert.match(run('deploy',deployment,'--check').stdout,/notes changed: 1 guard unproved across discardedResult/);
+  assert.match(run('deploy',deployment,'--check','--verbose').stdout,/notes changed: 1 guard unproved across discardedResult/);
   run('deploy',deployment);assert.equal((await host.post('/m/discardedResult',{})).why.code,'DUP');await host.stop();
 });
 
@@ -792,7 +790,7 @@ test('discarded conditional writes retain old-field default dependencies', {time
   writeFileSync(schema,candidate);run('deploy',deployment);
   assert.equal((await host.post('/m/conditionalDefault',{})).why.code,'PROBED');
   writeFileSync(schema,candidate.replace("mode: text <=10 default 'go'","mode: text <=10 default 'stop'"));
-  assert.match(run('deploy',deployment,'--check').stdout,/notes changed: 1 guard unproved across conditionalDefault/);
+  assert.match(run('deploy',deployment,'--check','--verbose').stdout,/notes changed: 1 guard unproved across conditionalDefault/);
   run('deploy',deployment);
   const result=await host.post('/m/conditionalDefault',{});
   assert.equal(result.state,'failed',JSON.stringify(result));assert.equal(result.why.code,'E_CONFLICT');await host.stop();
@@ -813,11 +811,11 @@ mutation grant():
   const host=await serve(t,deployment);assert.equal((await host.post('/m/grant',{})).state,'sent');
   const nullable=source.replace('  immutable principal, role', '  team: teams ?\n  immutable principal, role');
   writeFileSync(schema,nullable);
-  const forward=run('deploy',deployment,'--check').stdout;
+  const forward=run('deploy',deployment,'--check','--verbose').stdout;
   assert.match(JSON.parse(run('deploy',deployment,'--check','--json').stdout).clientCompatibility.join('\n'),/operation grant: RESULT NOTE/);
   assert.doesNotMatch(forward,/\.require|guards unproved|operation (add|edit|remove):/);
   run('deploy',deployment);
-  const backward=run('rollback',deployment, '--exact','--to','1','--check').stdout;
+  const backward=run('rollback',deployment, '--exact','--to','1','--check','--verbose').stdout;
   assert.match(JSON.parse(run('rollback',deployment,'--exact','--to','1','--check','--json').stdout).clientCompatibility.join('\n'),/operation grant: RESULT REVIEW/);
   assert.doesNotMatch(backward,/\.require|guards unproved|operation (add|edit|remove):/);
   const assigned=nullable+`mutation assignTeam():
@@ -825,8 +823,8 @@ mutation grant():
 `;
   writeFileSync(schema,assigned);run('deploy',deployment);
   assert.equal((await host.post('/m/assignTeam',{})).state,'sent');
-  assert.match(run('rollback',deployment, '--exact','--to','1','--check').stdout,/changed: 3 guards unproved across add, edit, remove/);
+  assert.match(run('rollback',deployment, '--exact','--to','1','--check','--verbose').stdout,/changed: 3 guards unproved across add, edit, remove/);
   run('rollback',deployment, '--exact','--to','1');
-  assert.match(run('deploy',deployment,'--check','--restore-dormant').stdout,/changed: 3 guards unproved across add, edit, remove/);
+  assert.match(run('deploy',deployment,'--check','--restore-dormant','--verbose').stdout,/changed: 3 guards unproved across add, edit, remove/);
   await host.stop();
 });

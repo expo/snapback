@@ -227,7 +227,7 @@ try {
   const ticket = first.result.id;
   assert.equal((await post("/q/ticket", reviewer, {ticket})).data.body, "historical ticket", "v1 reviewer can read");
   const historical = await snapshot(); assert.equal(historical.size, before.size + 1);
-  const preview = await checked(["deploy", directory, "--schema", "versions/v2", "--check", "--restore-dormant"]);
+  const preview = await checked(["deploy", directory, "--schema", "versions/v2", "--check", "--restore-dormant", "--verbose"]);
   assert.match(preview, /vehicleClass/);
   assert.deepEqual(await snapshot(), historical, "read-only preview");
   await deploy(directory, "versions/v2", {args:["--restore-dormant"]});

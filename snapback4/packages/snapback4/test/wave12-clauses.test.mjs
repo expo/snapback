@@ -84,22 +84,22 @@ test('guide and probe agree on widen, tighten, require, SIGTERM, rollback and fo
   const widened=JSON.parse(run('deploy',deployment,'--json').stdout);assert.ok(widened.preview.hazards.some(line=>line.includes('notes.status')));
   const tight=wide.replace('update <- allow','update <- .owner = viewer');
   writeFileSync(schema,tight);
-  const tightening=run('deploy',deployment,'--check').stdout;
+  const tightening=run('deploy',deployment,'--check','--verbose').stdout;
   assert.match(tightening,/note: notes: release \d+ tightens notes.update; old: allow \| new: .owner = viewer/);
   assert.doesNotMatch(tightening,/WARNING.*notes.update/);
   run('deploy',deployment);
   const required=tight.replace('  update notes[note]',"  require body != 'blocked' else BLOCKED\n  update notes[note]");
   writeFileSync(schema,required);
-  const requirePreview=run('deploy',deployment,'--check').stdout;
+  const requirePreview=run('deploy',deployment,'--check','--verbose').stdout;
   assert.match(requirePreview,/note: operation edit: release \d+ tightens edit.require; old: allow \| new: .*require \(body != 'blocked'\) else BLOCKED/);
   run('deploy',deployment);
   assert.equal((await host.post('/m/edit',{note:added.result.id,body:'blocked'})).why.code,'BLOCKED');
   await host.stop();
-  const rollback=run('rollback',deployment, '--exact','--to','2','--check').stdout;
+  const rollback=run('rollback',deployment, '--exact','--to','2','--check','--verbose').stdout;
   assert.match(rollback,/WARNING notes: release 2 loosens notes.update; old: .owner = viewer \| new: allow/);
   assert.match(rollback,/WARNING operation edit: release 2 loosens edit.require; old: .*BLOCKED \| new: allow/);
   run('rollback',deployment, '--exact','--to','2');
-  const forward=run('rollback',deployment, '--exact','--to','latest','--check').stdout;
+  const forward=run('rollback',deployment, '--exact','--to','latest','--check','--verbose').stdout;
   assert.match(forward,/note: notes: release \d+ tightens notes.update/);
   assert.match(forward,/note: operation edit: release \d+ tightens edit.require/);
   run('rollback',deployment, '--exact','--to','latest');
@@ -115,11 +115,11 @@ test('changed nested guards warn while unrelated body-column edits preserve rule
   const nested=initial.replace('  update notes[note]',"  if body = 'blocked':\n    require false else BLOCKED\n  update notes[note]");
   writeFileSync(schema,nested);run('deploy',deployment);
   writeFileSync(schema,nested.replace('require false else BLOCKED','require true else BLOCKED'));
-  assert.match(run('deploy',deployment,'--check').stdout,/WARNING.*implication unproved.*edit.require.*old:.*if \(body.*new:/);
+  assert.match(run('deploy',deployment,'--check','--verbose').stdout,/WARNING.*implication unproved.*edit.require.*old:.*if \(body.*new:/);
   writeFileSync(schema,initial);run('deploy',deployment);
   const changed=initial.replace('update <- allow','update <- .owner = viewer').replace('body: text 1..80','body: text 1..100');
   writeFileSync(schema,changed);
-  assert.match(run('deploy',deployment,'--check').stdout,/note:.*tightens notes.update/);
+  assert.match(run('deploy',deployment,'--check','--verbose').stdout,/note:.*tightens notes.update/);
 });
 
 test('missing reference Unknown cannot suppress a loosening warning as Boolean equivalence', {timeout:hangBudget(4)}, async t => {
@@ -147,7 +147,7 @@ mutation edit(note: notes):
   assert.equal(added.state,'sent',JSON.stringify(added));
   assert.equal((await host.post('/m/edit',{note:added.result.id})).why.code,'E_RULE');
   writeFileSync(schema,source.replace('update <- .parent.owner = viewer or .parent.owner != viewer','update <- allow'));
-  const preview=run('deploy',deployment,'--check').stdout;
+  const preview=run('deploy',deployment,'--check','--verbose').stdout;
   assert.match(preview,/WARNING notes: release 2 loosens notes.update; old:.*parents.*new: allow/);
   assert.doesNotMatch(preview,/keeps equivalent notes.update/);
   run('deploy',deployment);
@@ -158,13 +158,13 @@ test('identity changes retain warnings and equivalent requirements keep their re
   const {schema,deployment,run}=fixture(t);
   writeFileSync(schema,initial);run('deploy',deployment);
   writeFileSync(schema,initial.replace('identity guests','identity password').replace('update <- allow','update <- .owner = viewer'));
-  assert.match(run('deploy',deployment,'--check').stdout,/WARNING.*implication unproved.*notes.update/);
+  assert.match(run('deploy',deployment,'--check','--verbose').stdout,/WARNING.*implication unproved.*notes.update/);
   const guarded=initial.replace('  update notes[note]',"  require viewer = 'service:ops' else NOT_OPERATOR\n  update notes[note]");
   writeFileSync(schema,guarded);run('deploy',deployment);
   writeFileSync(schema,guarded.replace("viewer = 'service:ops'","'service:ops' = viewer"));
-  assert.match(run('deploy',deployment,'--check').stdout,/note:.*keeps equivalent edit.require/);
+  assert.match(run('deploy',deployment,'--check','--verbose').stdout,/note:.*keeps equivalent edit.require/);
   writeFileSync(schema,guarded.replace('else NOT_OPERATOR','else OPERATOR_REQUIRED'));
-  assert.match(run('deploy',deployment,'--check').stdout,/WARNING.*implication unproved.*edit.require.*NOT_OPERATOR.*OPERATOR_REQUIRED/);
+  assert.match(run('deploy',deployment,'--check','--verbose').stdout,/WARNING.*implication unproved.*edit.require.*NOT_OPERATOR.*OPERATOR_REQUIRED/);
 });
 
 test('self-table read changes cannot certify a reference-rule tightening', {timeout:hangBudget(4)}, async t => {
@@ -190,7 +190,7 @@ mutation bump(node: nodes):
   assert.equal((await host.post('/m/bump',{node:'child'})).why.code,'E_RULE');
   const next=source.replace('read <- .owner = viewer','read <- allow').replace('update <- .parent.owner != viewer','update <- .parent.owner != viewer and .owner = viewer');
   writeFileSync(schema,next);
-  const preview=run('deploy',deployment,'--check').stdout;
+  const preview=run('deploy',deployment,'--check','--verbose').stdout;
   assert.match(preview,/WARNING.*implication unproved.*nodes.update/);
   assert.doesNotMatch(preview,/note:.*tightens nodes.update/);
   run('deploy',deployment);
@@ -207,14 +207,14 @@ test('equivalent conjunctions preserve first-failure association and local guard
   assert.equal((await host.post('/m/edit',{note,body:'a'})).why.code,'FIRST');
   const swapped=guarded.replace("body != 'a' else FIRST","body != 'b' else FIRST").replace("body != 'b' else SECOND","body != 'a' else SECOND");
   writeFileSync(schema,swapped);
-  assert.match(run('deploy',deployment,'--check').stdout,/WARNING.*implication unproved.*edit.require/);
+  assert.match(run('deploy',deployment,'--check','--verbose').stdout,/WARNING.*implication unproved.*edit.require/);
   run('deploy',deployment);
   assert.equal((await host.post('/m/edit',{note,body:'a'})).why.code,'SECOND');
   const local=initial.replace('  update notes[note]',"  allowed = body != 'blocked'\n  require allowed else BLOCKED\n  update notes[note]");
   writeFileSync(schema,local);run('deploy',deployment);
   assert.equal((await host.post('/m/edit',{note,body:'blocked'})).why.code,'BLOCKED');
   writeFileSync(schema,local.replace("allowed = body != 'blocked'",'allowed = true'));
-  const preview=run('deploy',deployment,'--check').stdout;
+  const preview=run('deploy',deployment,'--check','--verbose').stdout;
   assert.match(preview,/WARNING.*implication unproved.*edit.require/);
   assert.match(preview,/old:.*allowed = \(body != 'blocked'\).*new:.*allowed = true/);
   run('deploy',deployment);
@@ -232,7 +232,7 @@ test('leading program equality stays total for nullable scalar arguments', {time
   const added=await host.post('/m/add',{body:'before'});
   assert.equal((await host.post('/m/nullable',{note:added.result.id,x:null})).state,'sent');
   writeFileSync(schema,source.replace("x = 'a' or x != 'a'","x != 'a' or x = 'a'"));
-  assert.match(run('deploy',deployment,'--check').stdout,/note:.*keeps equivalent nullable.require/);
+  assert.match(run('deploy',deployment,'--check','--verbose').stdout,/note:.*keeps equivalent nullable.require/);
 });
 
 test('nested guards display changed enclosing bindings across control-flow scopes', {timeout:hangBudget(4)}, async t => {
@@ -243,7 +243,7 @@ test('nested guards display changed enclosing bindings across control-flow scope
   const added=await host.post('/m/add',{body:'before'});
   assert.equal((await host.post('/m/edit',{note:added.result.id,body:'blocked'})).why.code,'BLOCKED');
   writeFileSync(schema,source.replace("allowed = body != 'blocked'",'allowed = true'));
-  const preview=run('deploy',deployment,'--check').stdout;
+  const preview=run('deploy',deployment,'--check','--verbose').stdout;
   assert.match(preview,/WARNING.*implication unproved.*edit.require/);
   assert.match(preview,/old:.*\/then\/0 with allowed = \(body != 'blocked'\).*new:.*\/then\/0 with allowed = true/);
   run('deploy',deployment);
@@ -260,17 +260,17 @@ test('the farm named-image tightening compares effective old/next rules and prot
   const added=await host.post('/m/add',{body:'before'});
   const tight=source.replace('update <- .owner = viewer',"update (old, next) <- next.owner = viewer and old.owner = viewer and old.status != 'archived'");
   writeFileSync(schema,tight);
-  const preview=run('deploy',deployment,'--check').stdout;
+  const preview=run('deploy',deployment,'--check','--verbose').stdout;
   assert.match(preview,/note: notes: release 2 tightens notes.update/);
   assert.doesNotMatch(preview,/WARNING.*notes.update/);
   run('deploy',deployment);
-  assert.match(run('rollback',deployment, '--exact','--to','1','--check').stdout,/WARNING notes: release 1 loosens notes.update/);
+  assert.match(run('rollback',deployment, '--exact','--to','1','--check','--verbose').stdout,/WARNING notes: release 1 loosens notes.update/);
   run('rollback',deployment, '--exact','--to','1');
   const other=await (await fetch(host.url+'/auth/guest',{method:'POST',body:'{}'})).json();
   const take=async()=> (await fetch(host.url+'/m/transfer',{method:'POST',headers:{authorization:'Bearer '+other.session.token,'content-type':'application/json'},body:JSON.stringify({args:{note:added.result.id,owner:other.session.principal}})})).json();
   assert.equal((await take()).why.code,'E_RULE');
   writeFileSync(schema,source.replace('update <- .owner = viewer','update (old, next) <- next.owner = viewer'));
-  assert.match(run('deploy',deployment,'--check').stdout,/WARNING.*loosens notes.update/);
+  assert.match(run('deploy',deployment,'--check','--verbose').stdout,/WARNING.*loosens notes.update/);
   run('deploy',deployment);
   assert.equal((await take()).state,'sent');
 });

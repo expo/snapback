@@ -97,7 +97,7 @@ if (!baseline) {
    const pkg=JSON.parse(readFileSync(join(cwd,'package.json')));
    assert.equal(pkg.name,'my-product');assert.equal(pkg.version,'7.2.1');
    assert.match(result.stdout,/http:\/\/127.0.0.1:29120/);assert.match(result.stdout,/localhost:29121/);
-   assert.equal(result.stdout.trim().split('\n').at(-1),'npm install');
+   assert.equal(result.stdout.trim().split('\n').at(-1),'node scripts/install.mjs');
    assert.equal(pkg.scripts['day2:proof'],'node scripts/day2-proof.mjs versions/v1 versions/v2');
    assert.equal(readFileSync(join(cwd,'versions/v1/schema.q'),'utf8'),readFileSync(join(cwd,'snapback/schema.q'),'utf8'));
    writeFileSync(join(cwd,'snapback/schema.q'),source);
