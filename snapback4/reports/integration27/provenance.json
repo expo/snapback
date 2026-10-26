@@ -1,0 +1,224 @@
+{
+  "productHead": "80411b9d8f631a807655bebf147665142298171d",
+  "preMergeMain": "799e42a6bb560c310ac8f3a3411d740b7380b372",
+  "versionBump": "0efca3dcd3",
+  "initialMainMerge": "091bf460fd",
+  "laneMerges": {
+    "dx13IncludingDx12": "90f12a39b2",
+    "rel2": "adc65e74a2",
+    "sec10": "9aaeb6d3a1"
+  },
+  "native": {
+    "head": "80411b9d8f",
+    "sha256": "278210037b3e2adb503ab908d27529757c338cdbefb28624ae2f5ae1689446d5",
+    "profile": "optimized Cargo test",
+    "bytes": 86635272
+  },
+  "wasm": {
+    "raw": 2416590,
+    "gzip": 738613,
+    "brotli": 555952,
+    "sha256": "d703ec2e9df43a17ad3e0ea7ff4bef21fb64bf08ed3b06cbeef324db1e409e64",
+    "budget": 739113,
+    "headroom": 500,
+    "measurement": "GNU gzip -9 with shipped basename, Brotli 1.1.0 q11; same optimized stamped artifact as build-wasm.sh",
+    "incomingMainMerge": "8eabb1f777",
+    "incomingRebuildSha256Identical": true
+  },
+  "rawEvidenceDirectory": "/home/ccheever/sb4-loop/reports/integration27",
+  "rawSha256": {
+    "affected.log": "cf25924c1d570caf7b6d00b12146c5cb22719c7753c110054467a2563a57575d",
+    "affected-final.log": "e5bcebe668a48028b291c710d9e3566b35e1a75a3690243c0f6d2627b571cfe9",
+    "affected-shared-final.log": "59952938563be4755e5369b14558d1af6e73a37c6e6d4faa346053e098e81c13",
+    "proof-load.json": "b194f1e59667f7c3e25e80fd84488879e25cb119ea3de16a67c22bd28dcd6292",
+    "proof-injected-failure.log": "73d4e1c5b1b76231f6df3870ca27eab96b90616da174135ded3983deaceb6809",
+    "incoming-core.log": "1338659bb08557a8b6d15b2f9b9856b5d3202268ee38e1bd58df3e4a12e8cce9",
+    "incoming-cli.log": "06a1001c611f4297875313c06642598296011bdeebff7a37c4fa022347e2888a",
+    "export-final.log": "bca70fc91eb329259a3488f4a8d6915cacadaef9a20f143eed4205d27152a190",
+    "merged-main-clients.log": "aa8bf0887e0767bfe8d56f6f57e5f5ea9c0a5d64e1fc74a49c182b863bfc8476",
+    "survey-merged-main/results.json": "bccaa993f17cd43479b47033b3914b9e5f742a3a544b8f300cad9c51e5c608af",
+    "replay-merged-main.json": "7d451b82c8019678d1643448bd2699b3544a4d2f02e3d92d8a94d233e01b3bb4",
+    "write-free-regenerate-retry.log": "cd8b9796b8322b83c97cf93e9e063054b8fae24718e3ca656e866061b8f20da0",
+    "survey/results.json": "7178968299565d762a855600fa1559a2bdb84efedd4c2df18ef40b0fa07be232",
+    "survey-write-free/results.json": "86d97957163af1d4af8f99a8bece2fe7d07cb5150f025cbab497d5c9532245d3",
+    "replay-write-free.json": "c26911130e6a768163eb60ab53de91e297b71d4844f280ccdd6d1573398cb2d4",
+    "proof-load-1.log": "2aea2cab84a01a14b28ede92fb13345b5f3da333f4b671ed6bc42645e1b841ed",
+    "proof-load-2.log": "d12bfd236b69da3bc30f52c34057f81f2293e758b5fa7f929c5f2ff2d9dcf453",
+    "proof-load-3.log": "adbbf3f9492d05c8f83984fdd40ce3f07097a3266f4bf0abe0b2ee0554864c4e",
+    "proof-load-4.log": "3b7403abd2d12587c655e7ffdc17c88b45ed62a099608ef4da3c4ce780a68b71",
+    "proof-load-5.log": "3606ae56ec57a6b9afdb6fa623e926874e08e3fb71a3a2dbbdb3598b3eb9054e",
+    "proof-load-6.log": "c5ca88769cc9fd2edf49879afce2ba95e35e6790a313bd351d96c6d7ad74cbf2",
+    "proof-load-7.log": "79a5a1d6c913716f6f748666a4a4119db7b1064cceaea75c71b146722a99f91f",
+    "proof-load-8.log": "9f8da8893b44201d45579fb38407c5660a299251189cb957df8bbae2f98a011d",
+    "proof-load-9.log": "7137ca41a9f5eae51cff4c548cd238cb2df76e8c24ebc0a15fea3d3b20d4d5f0",
+    "proof-load-10.log": "bdf9ad0bd804f14ed2eb54f162931b78ee2699314711604d326b649df7c5cca2"
+  },
+  "stageP": {
+    "merge": "02cf700f71832dc30550148bc9454cbfa5364729",
+    "mainTip": "9ee365bbd6",
+    "documentationCommit": "f8e52af152ff8b9d6595004700990637ff0edeaa",
+    "checks": {
+      "stage-p-core.log": [
+        {
+          "passed": 49,
+          "failed": 0,
+          "ignored": 367
+        }
+      ],
+      "stage-p-census.log": [
+        {
+          "passed": 9,
+          "failed": 0,
+          "ignored": 0
+        }
+      ],
+      "stage-p-batch.log": [
+        {
+          "passed": 20,
+          "failed": 0,
+          "ignored": 38
+        }
+      ],
+      "stage-p-fixtures.log": [
+        {
+          "passed": 0,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 2,
+          "failed": 0,
+          "ignored": 2
+        }
+      ],
+      "stage-p-guide.log": [
+        {
+          "passed": 128,
+          "failed": 0,
+          "ignored": 0
+        },
+        {
+          "passed": 1,
+          "failed": 0,
+          "ignored": 0
+        }
+      ]
+    },
+    "inventories": {
+      "passed": true,
+      "packageTests": 365,
+      "scriptTests": 35,
+      "demos": 31,
+      "publicationLeaves": 487
+    },
+    "wasmSha256": "d703ec2e9df43a17ad3e0ea7ff4bef21fb64bf08ed3b06cbeef324db1e409e64",
+    "wasmBytesIdentical": true,
+    "wasmSizes": {
+      "raw": 2416590,
+      "gzip": 738613,
+      "brotli": 555952,
+      "budget": 739113
+    },
+    "landingNative": {
+      "sha256": "d79a71a69b5229f9fb88a22b7b76530c199d635db4d148da0ad9578c909fdbf4",
+      "bytes": 86870512,
+      "profile": "optimized Cargo test-profile build with default features; publication qualification remains separate"
+    },
+    "guideChanges": "exactly one 0.4.43 entry; installed current guide includes all lane and PostgreSQL upgrade facts",
+    "sourceScope": "Production changes after8eabb confined to engine/postgres; remaining Rust changes are cfg-test/test-support. SQLite runtime, authoring analysis and client semantic inputs unchanged. The zero-match preliminary fixture filter is not counted; corrected batch filter runs20cases.",
+    "privatePG": "reuse incoming StageP receipts, explicitly not rerun here; own checks preserve existing ignores",
+    "rawZeroMatchRetained": true,
+    "finalPlan": {
+      "head": "f8e52af152ff8b9d6595004700990637ff0edeaa",
+      "sameSelectedRustAndClientAndStepSets": true,
+      "rustPackages": [
+        "snapback4",
+        "snapback4-core",
+        "snapback4-device",
+        "snapback4-difftest",
+        "snapback4-lang",
+        "snapback4-native",
+        "snapback4-sim"
+      ],
+      "clientFiles": 446,
+      "steps": 31
+    }
+  },
+  "incomingMainMerge": "8eabb1f777da3297dace2939271851b4c8f6b88b",
+  "incomingNative": {
+    "head": "8eabb1f777da3297dace2939271851b4c8f6b88b",
+    "sha256": "3e5b86eb9fdf84842c2fbf40ccb7019a64ec3ad02aef7e180801a1d4203fbffb",
+    "bytes": 86607984,
+    "profile": "Cargo optimized test profile; immutable private pin",
+    "binary": "/home/ccheever/sb4-loop/reports/integration27/snapback4-merged-main"
+  },
+  "proofSourceCommit": "08632e34c7",
+  "safety": {
+    "originalStoresOpenedWithSQLite": false,
+    "storeOwnerAndTokenFilesCopied": false,
+    "publicationWorktreesTouched": false,
+    "targetPublicationTouched": false,
+    "publicationQualified": false
+  },
+  "artifactSha256": {
+    "README.md": "8f11192e0be2804c697245c143ce205c90e1a4f958014c69d25caa5a6f863a7a",
+    "affected-receipt.json.gz": "2fffe48ef994edf51d3ca315064928b9c9accbaf08d1ec416727a7c0eb2606ec",
+    "affected.log.gz": "722d4553354d64755ba086654bd732367c08e87bf2943913f14d736c4a8e5577",
+    "calibration-coverage.json": "00bc2bf058b0aa4e6aaf43a0db24c7f13776513b265883c5c8a6ff308afa93dd",
+    "cleanup-pins.json": "d492a7b645046193e03821f7924a3d4b8cd35b01a9f09d0fb233df7a7d408a41",
+    "cleanup-test-executables.json": "a28cd39f2ff5a5b7b5b63ea8e3b3e90dc7fdf0b33012bcd807c7fc9ece3c34b6",
+    "client-file-outcomes.json": "c3a8269816cce196889121812aad14e314c8bd75473d83996e1e2aaf1eddd826",
+    "export-final-receipt.json": "3e5c0a86dd707bf6eb7f99c9205a7263244cf78b8588ddc3d4479b54b05a39e5",
+    "export-final.log.gz": "791dd7f60b7effbd2083861b264cdb84c7fd36fc2d5b7282b560120b5c99d225",
+    "incoming-cli-receipt.json": "119e976746f6a15d6cb0aec85f32dd0bf8d7f25b6d4b474f354c5ca6d106728c",
+    "incoming-cli.log.gz": "fe8088580f84299658286c02350e4c3ed9ddb94d14c9f1ab47cc8416e81c20aa",
+    "incoming-core-receipt.json": "0cce027ebcb42cfde31d24c5323994eff1fdb6a8bb1a60dc7631524835a0b6a5",
+    "incoming-core.log.gz": "b65686d8090c0cc5937744a9cad9d8925733bac934b2259129bb11c8f4fac312",
+    "known-reds.json": "d7a498ee0701fa92f81aea576782487a853256ac48d80b20246f32a0c1bdd2c3",
+    "landing-plan.json.gz": "7cb4958ae565a34c0f17313031e97b16cbcb331166b3ca6ddf5a23ec7b70d68b",
+    "lean-baseline-comparison.json": "7012e7eecc08f0062c4027f274bd1bc0a245d6b665dcfbd5fde8c69e504410b0",
+    "merged-main-clients.log.gz": "e9c89cc79d9e534425c501a3d207b3fb957334f66e803aa9c09a9d405fd551fd",
+    "merged-main-summary.json": "013f651cb0613ad8a303a32f41834b6be86b39c48f55d29a458afc3748209802",
+    "proof-injected-failure.log": "73d4e1c5b1b76231f6df3870ca27eab96b90616da174135ded3983deaceb6809",
+    "proof-load.json": "b194f1e59667f7c3e25e80fd84488879e25cb119ea3de16a67c22bd28dcd6292",
+    "replay-merged-main.json.gz": "e57ae0e1d3bdef55ec2056f28cbb220f7dd6a69609289bd6a5d1d585324bd44e",
+    "replay-refusal-audit.json": "45f5ec678c814b5bd3f2d55c4c2161514b2e09b6b4b6b019836cc1f5b9c173d7",
+    "replay-summary.json": "991073a789c496f624c3b8d46d08b67d35c478501518652fbe9fe0b26d01ab4d",
+    "replay.json.gz": "d6e702dc0c72037ed08d1b730737e93c016f546f3b5884199d502e159f16b786",
+    "root-receipt.json.gz": "769e4842c44027b3ebd94c87529bf49d91f6530eeacdd24d8a0c1c4f3f8668ad",
+    "semantic-receipt.json.gz": "259112b3ce37940976e89b3724eaf1d6fa7622659d5929ce918b0bc0c72debbf",
+    "stage-p-batch.log.gz": "a581fbcf9f796069c9f4505307b459193d0f4fe5f19c45249062b77bf81933aa",
+    "stage-p-census.log.gz": "db19d0d381471fc0e78f328c8da3b4a99b4d30895ff506d8116e17a20236b4f6",
+    "stage-p-core.log.gz": "3551da3a37d6aadf4705c4bc9b69e2295da93d325b5c472d06a78c2431a2677e",
+    "stage-p-guide.log.gz": "d664ffcfbdf4536edcb7505c7792169abdcb4eca1b531c7894fc997604e29a20",
+    "stage-p-summary.json": "5158d308ef60d64ba9653c49c80d27842b27887712baf0f9924e45966a9a8d60",
+    "survey-all800.json.gz": "8c44708e690b8ec10206272133e9cb5031114e3f9f8e5a1ec4629861e2e1e330",
+    "survey-final-summary.json": "e6c52c2408f12f1df32cb856625ee60fafe2d81a4d535108e649f8793bb5278b",
+    "survey-final.json.gz": "95015e330ae99df6c8f55043692f3c89b2a6c96b2a2f3022de47e95906a8d857",
+    "survey-merged-main.json.gz": "f8b2880b6bb01260acb311d22ddae5493745b671d01403b2948fb0f23ba9c19a",
+    "survey-summary.json": "ff7c192a115f910215cbb42cf93640ce1b78b65ccd38498ef04fc9d0b218f808",
+    "tools/audit-final-replay.py": "63094971ec51a9b6633ce35f04068280da7b8b4985c4543dccaed5b3dda5fb5f",
+    "tools/classify-survey.py": "106b71b907d8de95a08a9b623119c7cd8979a4e5c95f511ec7ac7e554a586886",
+    "tools/collect-final-evidence.py": "63bd01b1166c4de7fb7100afb2b7645aa71de7eaa9e6af9611b0e23b10973a25",
+    "tools/compare-lean.py": "a51cf2812bcedaa998ccb9c080d2e9884f5b04a9b36cfb0dffa6c5c89e36c44d",
+    "tools/finish-steps.py": "506dbbcd7e913c91cf39fc5a6a74b7fcb3c75b07f0550d334e3259a3c633eba3",
+    "tools/replay-security.py": "ce71c558edca087041a108b68efddcaa1dee6f6a88cf902b3f2bc2df4d8b2b8e",
+    "tools/stress-proof.py": "44ce24f3d58fe66cb4b9e0bcec5d3e988e22525817a1462a6dff3f8a57b22089",
+    "tools/summarize-final-survey.py": "5b9da574d5141171487eaf614f93ca33f087f7f01ce5c75667a269544f63fc47",
+    "tools/summarize-merged-main.py": "056fec921b13cda1fe54a97e13bd241d9bcd344c590127607f37a20d63999e59",
+    "tools/summarize-replay.py": "706fefce853003ed98cae2096b2de4989b6000b0a5a1b2811027bddf1372a8dc",
+    "tools/survey-final.py": "0be7e310af01f4018977b0d6f073f5aa67af4b846e6596a151a6877b196ec312",
+    "tools/survey.py": "a781426ac0c4fa6708f8aec0845446cb9982743f21bd5d5e4042835a3765a340",
+    "verification-summary.json": "1eff2cd7bc2d937aab15b9332ff8d5c62159a1350b0b4217fb7e595f77cc904f",
+    "wasm.json": "d42e3bc18719721655c65a3d85db54e85e5f8f37b798aa7b24180d45ae59bdaa",
+    "write-free-controls.json": "48847ac604dec5408005b5a2a38ee98ed80a7aee7dee0039d3dbe42c4ec8fb7b"
+  },
+  "workstreamReportSha256": "c01746b7738a8d501ea0e822ef3c48355ede14d3faaa8cf49b32341c65177439",
+  "finalRefCheck": {
+    "documents": 571,
+    "refs": 12726,
+    "errors": 0,
+    "unchecked": 0
+  },
+  "sourceAndDocumentationCommit": "f8e52af152ff8b9d6595004700990637ff0edeaa"
+}

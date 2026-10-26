@@ -1,0 +1,249 @@
+{
+  "stores": 150,
+  "moves": 750,
+  "successful": 724,
+  "expectedRefusals": 26,
+  "falseRefusals": 0,
+  "all750PhaseExitAndCodePairsMatchPriorReplay": true,
+  "exactRefusalMatrix": [
+    {
+      "wave": 25,
+      "lane": "004",
+      "phase": "deploy",
+      "codes": [
+        "E_ADOPT"
+      ],
+      "operation": null
+    },
+    {
+      "wave": 25,
+      "lane": "004",
+      "phase": "rollback1",
+      "codes": [
+        "E_ADOPT"
+      ],
+      "operation": null
+    },
+    {
+      "wave": 25,
+      "lane": "004",
+      "phase": "forward1",
+      "codes": [
+        "E_ADOPT"
+      ],
+      "operation": null
+    },
+    {
+      "wave": 25,
+      "lane": "004",
+      "phase": "rollback2",
+      "codes": [
+        "E_ADOPT"
+      ],
+      "operation": null
+    },
+    {
+      "wave": 25,
+      "lane": "004",
+      "phase": "forward2",
+      "codes": [
+        "E_ADOPT"
+      ],
+      "operation": null
+    },
+    {
+      "wave": 25,
+      "lane": "024",
+      "phase": "deploy",
+      "codes": [
+        "E_ADOPT",
+        "E_QUARRY_TYPE"
+      ],
+      "operation": null
+    },
+    {
+      "wave": 25,
+      "lane": "024",
+      "phase": "rollback1",
+      "codes": [
+        "E_ADOPT"
+      ],
+      "operation": null
+    },
+    {
+      "wave": 25,
+      "lane": "024",
+      "phase": "forward1",
+      "codes": [
+        "E_ADOPT",
+        "E_QUARRY_TYPE"
+      ],
+      "operation": null
+    },
+    {
+      "wave": 25,
+      "lane": "024",
+      "phase": "rollback2",
+      "codes": [
+        "E_ADOPT"
+      ],
+      "operation": null
+    },
+    {
+      "wave": 25,
+      "lane": "024",
+      "phase": "forward2",
+      "codes": [
+        "E_ADOPT",
+        "E_QUARRY_TYPE"
+      ],
+      "operation": null
+    },
+    {
+      "wave": 25,
+      "lane": "030",
+      "phase": "rollback1",
+      "codes": [
+        "E_ADOPT"
+      ],
+      "operation": null
+    },
+    {
+      "wave": 25,
+      "lane": "030",
+      "phase": "rollback2",
+      "codes": [
+        "E_ADOPT"
+      ],
+      "operation": null
+    },
+    {
+      "wave": 27,
+      "lane": "008",
+      "phase": "forward1",
+      "codes": [
+        "E_SECURITY_REVIEW"
+      ],
+      "operation": "advanceWall"
+    },
+    {
+      "wave": 27,
+      "lane": "008",
+      "phase": "forward2",
+      "codes": [
+        "E_SECURITY_REVIEW"
+      ],
+      "operation": "advanceWall"
+    },
+    {
+      "wave": 27,
+      "lane": "012",
+      "phase": "rollback1",
+      "codes": [
+        "E_ADOPT"
+      ],
+      "operation": null
+    },
+    {
+      "wave": 27,
+      "lane": "012",
+      "phase": "rollback2",
+      "codes": [
+        "E_ADOPT"
+      ],
+      "operation": null
+    },
+    {
+      "wave": 27,
+      "lane": "018",
+      "phase": "forward1",
+      "codes": [
+        "E_SECURITY_REVIEW"
+      ],
+      "operation": "addRescan"
+    },
+    {
+      "wave": 27,
+      "lane": "018",
+      "phase": "forward2",
+      "codes": [
+        "E_SECURITY_REVIEW"
+      ],
+      "operation": "addRescan"
+    },
+    {
+      "wave": 27,
+      "lane": "020",
+      "phase": "forward1",
+      "codes": [
+        "E_SECURITY_REVIEW"
+      ],
+      "operation": "removeOutingHiker"
+    },
+    {
+      "wave": 27,
+      "lane": "020",
+      "phase": "forward2",
+      "codes": [
+        "E_SECURITY_REVIEW"
+      ],
+      "operation": "removeOutingHiker"
+    },
+    {
+      "wave": 27,
+      "lane": "025",
+      "phase": "forward1",
+      "codes": [
+        "E_SECURITY_REVIEW"
+      ],
+      "operation": "retest"
+    },
+    {
+      "wave": 27,
+      "lane": "025",
+      "phase": "forward2",
+      "codes": [
+        "E_SECURITY_REVIEW"
+      ],
+      "operation": "retest"
+    },
+    {
+      "wave": 27,
+      "lane": "033",
+      "phase": "forward1",
+      "codes": [
+        "E_SECURITY_REVIEW"
+      ],
+      "operation": "signFailing"
+    },
+    {
+      "wave": 27,
+      "lane": "033",
+      "phase": "forward2",
+      "codes": [
+        "E_SECURITY_REVIEW"
+      ],
+      "operation": "signFailing"
+    },
+    {
+      "wave": 27,
+      "lane": "042",
+      "phase": "rollback1",
+      "codes": [
+        "E_ADOPT"
+      ],
+      "operation": null
+    },
+    {
+      "wave": 27,
+      "lane": "042",
+      "phase": "rollback2",
+      "codes": [
+        "E_ADOPT"
+      ],
+      "operation": null
+    }
+  ],
+  "securityRefusalsHaveConcreteOperationTraces": true,
+  "binarySha256": "278210037b3e2adb503ab908d27529757c338cdbefb28624ae2f5ae1689446d5"
+}

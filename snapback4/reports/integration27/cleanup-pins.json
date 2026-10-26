@@ -1,0 +1,26 @@
+{
+  "removed": [
+    {
+      "file": "snapback4-final",
+      "bytes": 86622800,
+      "sha256": "da9d6f98e04660b78892389971970b4796f5fc8a4f40552d94cbea9750904217"
+    },
+    {
+      "file": "snapback4-candidate",
+      "bytes": 86436064,
+      "sha256": "442d89a17c4257e116448bfdf28d4e103986f853d3e6dac4beeac44a95ca672f"
+    },
+    {
+      "file": "snapback4-final-output",
+      "bytes": 86615992,
+      "sha256": "322b09b3e5d314a53654aee774e91a58172cb630b4e6a305eb7c9d17bb88c6eb"
+    },
+    {
+      "file": "snapback4-write-free",
+      "bytes": 86635272,
+      "sha256": "278210037b3e2adb503ab908d27529757c338cdbefb28624ae2f5ae1689446d5"
+    }
+  ],
+  "bytesFreed": 346310128,
+  "retained": "snapback4-merged-main measurement native; target/debug/snapback4 current landing native"
+}

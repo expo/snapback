@@ -1,0 +1,11 @@
+{
+  "raw": 2416590,
+  "gzip": 738613,
+  "brotli": 555952,
+  "sha256": "d703ec2e9df43a17ad3e0ea7ff4bef21fb64bf08ed3b06cbeef324db1e409e64",
+  "budget": 739113,
+  "headroom": 500,
+  "measurement": "GNU gzip -9 with shipped basename, Brotli 1.1.0 q11; same optimized stamped artifact as build-wasm.sh",
+  "incomingMainMerge": "8eabb1f777",
+  "incomingRebuildSha256Identical": true
+}

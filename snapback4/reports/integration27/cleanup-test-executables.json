@@ -1,0 +1,2081 @@
+{
+  "testExecutables": 517,
+  "bytesFreed": 17828465800,
+  "removed": [
+    {
+      "path": "target/debug/deps/acquisition_crash-9a1d0a98aaaaa494",
+      "bytes": 47343712
+    },
+    {
+      "path": "target/debug/deps/action_context-8f1621820b12cdd0",
+      "bytes": 25182312
+    },
+    {
+      "path": "target/debug/deps/action_context-9f2974bbe0fbbbc3",
+      "bytes": 20403048
+    },
+    {
+      "path": "target/debug/deps/actions-12e15b56896850d7",
+      "bytes": 18653160
+    },
+    {
+      "path": "target/debug/deps/adoption-142d71941b32e58e",
+      "bytes": 46310728
+    },
+    {
+      "path": "target/debug/deps/adoption-a7379e0ae57bed77",
+      "bytes": 36881376
+    },
+    {
+      "path": "target/debug/deps/adoption_scale-5be9320c35596e61",
+      "bytes": 41819792
+    },
+    {
+      "path": "target/debug/deps/adoption_scale-c54889e34ac865f2",
+      "bytes": 36665448
+    },
+    {
+      "path": "target/debug/deps/aggregate_copies-74647b56ea325ab2",
+      "bytes": 36785288
+    },
+    {
+      "path": "target/debug/deps/aggregate_identity_upgrade-224733557fa4256f",
+      "bytes": 20716168
+    },
+    {
+      "path": "target/debug/deps/asset_lists-09825a00f185d31a",
+      "bytes": 37740024
+    },
+    {
+      "path": "target/debug/deps/asset_lists-3483f276af0f9818",
+      "bytes": 33243368
+    },
+    {
+      "path": "target/debug/deps/asset_lists-be153309483cc9c7",
+      "bytes": 46041232
+    },
+    {
+      "path": "target/debug/deps/attribution_guide-1991dc43f78ee47d",
+      "bytes": 37648640
+    },
+    {
+      "path": "target/debug/deps/audience_bounds-c1988f819a0cd10f",
+      "bytes": 20248280
+    },
+    {
+      "path": "target/debug/deps/audience_bounds_runtime-106da4b946081638",
+      "bytes": 36360544
+    },
+    {
+      "path": "target/debug/deps/background_durability-e3b9813b79ee7193",
+      "bytes": 43494624
+    },
+    {
+      "path": "target/debug/deps/born_perf-4e1adfb23eab6a9d",
+      "bytes": 32352904
+    },
+    {
+      "path": "target/debug/deps/born_perf-f74461350b4b27f0",
+      "bytes": 36733408
+    },
+    {
+      "path": "target/debug/deps/bound_session-2169d6dbd83b3f58",
+      "bytes": 25375792
+    },
+    {
+      "path": "target/debug/deps/bound_session-836885178d96f505",
+      "bytes": 20541480
+    },
+    {
+      "path": "target/debug/deps/bounded_calendar_caps-4aff2a938c880775",
+      "bytes": 37976192
+    },
+    {
+      "path": "target/debug/deps/bounded_calendar_caps-f206c66bc465f985",
+      "bytes": 46241456
+    },
+    {
+      "path": "target/debug/deps/bounded_following-57b005c2c185e33b",
+      "bytes": 18814352
+    },
+    {
+      "path": "target/debug/deps/bounded_following-dce23c5d25be97f6",
+      "bytes": 46043080
+    },
+    {
+      "path": "target/debug/deps/branch_merge-36b58e4cdbb4bc3f",
+      "bytes": 36226320
+    },
+    {
+      "path": "target/debug/deps/branch_merge-9190f20a0a55fb1f",
+      "bytes": 45617160
+    },
+    {
+      "path": "target/debug/deps/builder_guidance-136517a2e9df9fe3",
+      "bytes": 20163456
+    },
+    {
+      "path": "target/debug/deps/chat-664791f58b67afd3",
+      "bytes": 36754712
+    },
+    {
+      "path": "target/debug/deps/check-d843e65873c14a93",
+      "bytes": 44712584
+    },
+    {
+      "path": "target/debug/deps/check_cost_source-af75eda3d32168af",
+      "bytes": 40392168
+    },
+    {
+      "path": "target/debug/deps/check_notes-a2fcd9f59faf17c5",
+      "bytes": 19223384
+    },
+    {
+      "path": "target/debug/deps/cli_friction-d22d5dea66934b1d",
+      "bytes": 4231544
+    },
+    {
+      "path": "target/debug/deps/clique-02acb6f79e077af2",
+      "bytes": 53538344
+    },
+    {
+      "path": "target/debug/deps/clique_03-343b5223ab9a0d08",
+      "bytes": 42849880
+    },
+    {
+      "path": "target/debug/deps/clock-14c802e42fa488a9",
+      "bytes": 38194144
+    },
+    {
+      "path": "target/debug/deps/codec-8cee8bade9cc5c24",
+      "bytes": 46885640
+    },
+    {
+      "path": "target/debug/deps/column_activation-8d36e121f3181982",
+      "bytes": 45284608
+    },
+    {
+      "path": "target/debug/deps/column_commit-a1ac36280ab5d51f",
+      "bytes": 37673984
+    },
+    {
+      "path": "target/debug/deps/column_read_lanes-3dcf26b4b6247351",
+      "bytes": 35965048
+    },
+    {
+      "path": "target/debug/deps/column_reads-6801118b3b9edacc",
+      "bytes": 39751360
+    },
+    {
+      "path": "target/debug/deps/column_reads-dcc4539bcc4107fd",
+      "bytes": 46133248
+    },
+    {
+      "path": "target/debug/deps/column_reads_lean-a3e33cb0a4e77a6c",
+      "bytes": 37425912
+    },
+    {
+      "path": "target/debug/deps/column_writes-e2f120fc9038a791",
+      "bytes": 39502136
+    },
+    {
+      "path": "target/debug/deps/committer_ratchet-f939c441139b59f6",
+      "bytes": 1171688
+    },
+    {
+      "path": "target/debug/deps/components-2493ba146a706c5c",
+      "bytes": 19316632
+    },
+    {
+      "path": "target/debug/deps/components-5dcfe2d606987c12",
+      "bytes": 47430072
+    },
+    {
+      "path": "target/debug/deps/condition_authority-9cd88965152aff4f",
+      "bytes": 43369648
+    },
+    {
+      "path": "target/debug/deps/constraint_diagnostics-a763d823094d2088",
+      "bytes": 37767912
+    },
+    {
+      "path": "target/debug/deps/control_flow-c7c5ba7dc69fe573",
+      "bytes": 35607856
+    },
+    {
+      "path": "target/debug/deps/corpus-510b254911711793",
+      "bytes": 24748592
+    },
+    {
+      "path": "target/debug/deps/corpus-b86cced3e8291088",
+      "bytes": 30333528
+    },
+    {
+      "path": "target/debug/deps/cursor_advice-7393bc165be2b4cb",
+      "bytes": 18380136
+    },
+    {
+      "path": "target/debug/deps/cut-c0819a3e175e592c",
+      "bytes": 46229456
+    },
+    {
+      "path": "target/debug/deps/day3-b90689949ab657d0",
+      "bytes": 36912448
+    },
+    {
+      "path": "target/debug/deps/day4-e3db1427db37ffa1",
+      "bytes": 1138224
+    },
+    {
+      "path": "target/debug/deps/day5_evidence-eb8b1205fe4f3a5e",
+      "bytes": 1312232
+    },
+    {
+      "path": "target/debug/deps/day5_previews-ada2e243ee0b02fa",
+      "bytes": 3716672
+    },
+    {
+      "path": "target/debug/deps/day5_starters-cb933fda842bbc95",
+      "bytes": 1374920
+    },
+    {
+      "path": "target/debug/deps/declarative_receipts-614a280ff69ee01b",
+      "bytes": 48968024
+    },
+    {
+      "path": "target/debug/deps/decorated_search-ebe35a3dbc2e9924",
+      "bytes": 36172576
+    },
+    {
+      "path": "target/debug/deps/delivery-43bdb00a103a41b0",
+      "bytes": 45185216
+    },
+    {
+      "path": "target/debug/deps/delivery-f40eab5d67d4d71e",
+      "bytes": 37143488
+    },
+    {
+      "path": "target/debug/deps/delivery_bounds-88edfd290246ed21",
+      "bytes": 33026856
+    },
+    {
+      "path": "target/debug/deps/delivery_bounds-d72c555fbc5cf5ea",
+      "bytes": 37406040
+    },
+    {
+      "path": "target/debug/deps/delivery_clause-45a18b4bed1f1495",
+      "bytes": 21909888
+    },
+    {
+      "path": "target/debug/deps/delivery_integration-877018fd63c57eb6",
+      "bytes": 36314208
+    },
+    {
+      "path": "target/debug/deps/delivery_page-6a52259d2f3d682d",
+      "bytes": 40490128
+    },
+    {
+      "path": "target/debug/deps/delivery_replay_conversion-7fdb5aeeeb3f4c11",
+      "bytes": 32945464
+    },
+    {
+      "path": "target/debug/deps/denied_writes-6ac8ccd2741a2db3",
+      "bytes": 19636136
+    },
+    {
+      "path": "target/debug/deps/derived_maintains-59be6a53758ce258",
+      "bytes": 42231744
+    },
+    {
+      "path": "target/debug/deps/dev_refusals-1bd5fcf506abd708",
+      "bytes": 37246696
+    },
+    {
+      "path": "target/debug/deps/dev_reset-4ed6b074102ddfed",
+      "bytes": 1449712
+    },
+    {
+      "path": "target/debug/deps/dev_reset-73d1fae3a20222b7",
+      "bytes": 41558520
+    },
+    {
+      "path": "target/debug/deps/dev_reset-c852660907ea9dc2",
+      "bytes": 36642088
+    },
+    {
+      "path": "target/debug/deps/device-1d1a7c08c84b5e90",
+      "bytes": 39900224
+    },
+    {
+      "path": "target/debug/deps/device-a6d52f78c715c3c4",
+      "bytes": 58565104
+    },
+    {
+      "path": "target/debug/deps/device_diet-b4672eb08cd9161b",
+      "bytes": 45239000
+    },
+    {
+      "path": "target/debug/deps/devices-4b1fc624ab4720f0",
+      "bytes": 46630744
+    },
+    {
+      "path": "target/debug/deps/diet_timing-3f217d28e1c9b284",
+      "bytes": 33029760
+    },
+    {
+      "path": "target/debug/deps/digest_count-a549af42631f53a3",
+      "bytes": 36229224
+    },
+    {
+      "path": "target/debug/deps/disclosure-100eb0650b99823c",
+      "bytes": 46882240
+    },
+    {
+      "path": "target/debug/deps/disclosure-56cc6ae1339cd109",
+      "bytes": 37617048
+    },
+    {
+      "path": "target/debug/deps/disclosure-898c3ac2a35ca130",
+      "bytes": 42560416
+    },
+    {
+      "path": "target/debug/deps/dx11-eb91d2a91ed83a2a",
+      "bytes": 1443920
+    },
+    {
+      "path": "target/debug/deps/dx11_refusals-3b28964cdb9c3e2a",
+      "bytes": 1295728
+    },
+    {
+      "path": "target/debug/deps/dx12_output-1b5478b9126f82e0",
+      "bytes": 1311304
+    },
+    {
+      "path": "target/debug/deps/dx13-84efe4d2f27f8bdc",
+      "bytes": 1160792
+    },
+    {
+      "path": "target/debug/deps/dx7_gates-509fad070a17bdd2",
+      "bytes": 1321016
+    },
+    {
+      "path": "target/debug/deps/dx7_rules-23a6e33905410ad4",
+      "bytes": 18407688
+    },
+    {
+      "path": "target/debug/deps/dx9_ergonomics-06dfd2744eb04c55",
+      "bytes": 35621040
+    },
+    {
+      "path": "target/debug/deps/effect_policy-13d7fbe07c8e26d3",
+      "bytes": 33581160
+    },
+    {
+      "path": "target/debug/deps/effect_policy-8052fc4070602d85",
+      "bytes": 38392536
+    },
+    {
+      "path": "target/debug/deps/effect_reads-337b8911668bfd80",
+      "bytes": 34248392
+    },
+    {
+      "path": "target/debug/deps/emit_compatibility-13bd62059acf6485",
+      "bytes": 35906480
+    },
+    {
+      "path": "target/debug/deps/ephemeral-3a36a606fb443a1d",
+      "bytes": 37001888
+    },
+    {
+      "path": "target/debug/deps/ephemeral-46b6939cdf2fa31c",
+      "bytes": 21522360
+    },
+    {
+      "path": "target/debug/deps/ephemeral-79219e33d64e6a63",
+      "bytes": 42189104
+    },
+    {
+      "path": "target/debug/deps/ephemeral-c69a68e1acdbca1a",
+      "bytes": 43475872
+    },
+    {
+      "path": "target/debug/deps/ephemeral_compat-da10b5505bc54e82",
+      "bytes": 21347072
+    },
+    {
+      "path": "target/debug/deps/ergonomics-14e14fc401ed3fd1",
+      "bytes": 36420864
+    },
+    {
+      "path": "target/debug/deps/event_slot_snapshot-a798aaea7731f520",
+      "bytes": 22636680
+    },
+    {
+      "path": "target/debug/deps/event_slot_snapshot-cb3d4df6340011ec",
+      "bytes": 23418744
+    },
+    {
+      "path": "target/debug/deps/event_slots-9a372131800ef01d",
+      "bytes": 45847856
+    },
+    {
+      "path": "target/debug/deps/event_slots_trace-78c3e28ba5f363e1",
+      "bytes": 44134104
+    },
+    {
+      "path": "target/debug/deps/exhaustive-b28307559d6ac80b",
+      "bytes": 33765976
+    },
+    {
+      "path": "target/debug/deps/expiring_adoption-3275496be5f5687d",
+      "bytes": 34274304
+    },
+    {
+      "path": "target/debug/deps/expiring_adoption-9e81549700d64a8a",
+      "bytes": 31309792
+    },
+    {
+      "path": "target/debug/deps/expiring_counts-f3989382fdaaec7e",
+      "bytes": 46221120
+    },
+    {
+      "path": "target/debug/deps/expiring_counts_probe-b8c72136e6ea33da",
+      "bytes": 39127744
+    },
+    {
+      "path": "target/debug/deps/expiring_counts_upgrade-6f2e9e99df16e6ef",
+      "bytes": 43728368
+    },
+    {
+      "path": "target/debug/deps/expiring_mutations-5845389085dfe599",
+      "bytes": 45281776
+    },
+    {
+      "path": "target/debug/deps/expiring_mutations-954b0e22dc2ff2ec",
+      "bytes": 37689928
+    },
+    {
+      "path": "target/debug/deps/expiry_maintained_columns-13e67c9506f66f1a",
+      "bytes": 45939248
+    },
+    {
+      "path": "target/debug/deps/expiry_reference_actions-cadfafaf561be1dd",
+      "bytes": 33199544
+    },
+    {
+      "path": "target/debug/deps/expiry_writes-acb779344d70c623",
+      "bytes": 50479616
+    },
+    {
+      "path": "target/debug/deps/extrema-48feaaf970b054e6",
+      "bytes": 45439544
+    },
+    {
+      "path": "target/debug/deps/extrema-4a70c8b6b52eeb9f",
+      "bytes": 36249128
+    },
+    {
+      "path": "target/debug/deps/extremum_expressions-38405fd8f38cc8c9",
+      "bytes": 45557712
+    },
+    {
+      "path": "target/debug/deps/extremum_expressions-ba951811132b7c52",
+      "bytes": 36689224
+    },
+    {
+      "path": "target/debug/deps/familiar-84df790549f97b8e",
+      "bytes": 1386320
+    },
+    {
+      "path": "target/debug/deps/familiar_guesses-43c4a5d753547d84",
+      "bytes": 35894504
+    },
+    {
+      "path": "target/debug/deps/familiar_predicates-ddb178ad83fa1363",
+      "bytes": 18404592
+    },
+    {
+      "path": "target/debug/deps/familiar_repairs-58fdb2fbc9ebf5a2",
+      "bytes": 18403416
+    },
+    {
+      "path": "target/debug/deps/familiar_source_repairs-ee3225e06c41d326",
+      "bytes": 35818152
+    },
+    {
+      "path": "target/debug/deps/familiar_verified_repairs-213c569a645d49dc",
+      "bytes": 36040352
+    },
+    {
+      "path": "target/debug/deps/feed_bridge-f5c43247eb7ea7f1",
+      "bytes": 41471376
+    },
+    {
+      "path": "target/debug/deps/feed_forms-1c45326f5a0fbd9f",
+      "bytes": 36290288
+    },
+    {
+      "path": "target/debug/deps/file_assets-2bdfb162a545675d",
+      "bytes": 45931672
+    },
+    {
+      "path": "target/debug/deps/file_assets-348fda50f8634e37",
+      "bytes": 36341784
+    },
+    {
+      "path": "target/debug/deps/file_assets-4dd336fa830752d7",
+      "bytes": 18531936
+    },
+    {
+      "path": "target/debug/deps/file_assets-b2dc5ac90aab4659",
+      "bytes": 41365608
+    },
+    {
+      "path": "target/debug/deps/filters-48634139222bb26a",
+      "bytes": 36032608
+    },
+    {
+      "path": "target/debug/deps/first_instinct-1281a2904a81bb96",
+      "bytes": 46950400
+    },
+    {
+      "path": "target/debug/deps/first_paste-308561af789798de",
+      "bytes": 45022320
+    },
+    {
+      "path": "target/debug/deps/first_paste-82a3d9e204fe3db4",
+      "bytes": 36374088
+    },
+    {
+      "path": "target/debug/deps/fix-d08956d8d6ed4171",
+      "bytes": 20695336
+    },
+    {
+      "path": "target/debug/deps/following_adoption_research-7e51023846eff495",
+      "bytes": 36787240
+    },
+    {
+      "path": "target/debug/deps/following_atomic_launch-da5455ead245cf3f",
+      "bytes": 37457960
+    },
+    {
+      "path": "target/debug/deps/following_history-85a343d841049a07",
+      "bytes": 33540744
+    },
+    {
+      "path": "target/debug/deps/following_history_research-0e02f07eb096668d",
+      "bytes": 36090816
+    },
+    {
+      "path": "target/debug/deps/following_meters-e100a4574c5491ee",
+      "bytes": 38646416
+    },
+    {
+      "path": "target/debug/deps/following_model-7440d44703b59147",
+      "bytes": 45960200
+    },
+    {
+      "path": "target/debug/deps/following_view-8c2675abf695ee40",
+      "bytes": 3723616
+    },
+    {
+      "path": "target/debug/deps/following_view-b9b386edb313e6ac",
+      "bytes": 36231248
+    },
+    {
+      "path": "target/debug/deps/following_view-f6ba66175b7f0f1b",
+      "bytes": 46186904
+    },
+    {
+      "path": "target/debug/deps/front_semantics-7347782b3229c12f",
+      "bytes": 41880048
+    },
+    {
+      "path": "target/debug/deps/frontend_regressions-26d9de56e8218901",
+      "bytes": 37138592
+    },
+    {
+      "path": "target/debug/deps/group_commit_measure-41317b207185356d",
+      "bytes": 1060112
+    },
+    {
+      "path": "target/debug/deps/group_commit_measure-cc6c5600fda1f997",
+      "bytes": 39576424
+    },
+    {
+      "path": "target/debug/deps/guide-631e206c40b2b906",
+      "bytes": 47448160
+    },
+    {
+      "path": "target/debug/deps/heavy_acquisition-0b66e285d6b89a11",
+      "bytes": 46051880
+    },
+    {
+      "path": "target/debug/deps/held_unknown-759361a21ad93270",
+      "bytes": 19693048
+    },
+    {
+      "path": "target/debug/deps/helper_pages-0e99c67e16d0eed4",
+      "bytes": 36158944
+    },
+    {
+      "path": "target/debug/deps/helper_pages-650aae46d7787b01",
+      "bytes": 45424728
+    },
+    {
+      "path": "target/debug/deps/helper_placement-03a609c9d8b8e8fb",
+      "bytes": 18594040
+    },
+    {
+      "path": "target/debug/deps/helper_sweep-9d3546ae4b0f3d46",
+      "bytes": 35682864
+    },
+    {
+      "path": "target/debug/deps/http-9be5cebca8772852",
+      "bytes": 4414520
+    },
+    {
+      "path": "target/debug/deps/http_emfile-31a507da071468ea",
+      "bytes": 4533008
+    },
+    {
+      "path": "target/debug/deps/identity-0845c4eab920e3b0",
+      "bytes": 4993984
+    },
+    {
+      "path": "target/debug/deps/identity-de802df81ee37fba",
+      "bytes": 8884760
+    },
+    {
+      "path": "target/debug/deps/index_key_bound-456cd8835ebae698",
+      "bytes": 35507264
+    },
+    {
+      "path": "target/debug/deps/init-c2bb27285b78d084",
+      "bytes": 38486384
+    },
+    {
+      "path": "target/debug/deps/init_dx3-ec1945c798c37dea",
+      "bytes": 1342240
+    },
+    {
+      "path": "target/debug/deps/init_production-9eab29d96ef74aa0",
+      "bytes": 37512112
+    },
+    {
+      "path": "target/debug/deps/intent_aggregate_safety-ff48d41125869a17",
+      "bytes": 35951080
+    },
+    {
+      "path": "target/debug/deps/intent_delta10-c7c29db85f745c99",
+      "bytes": 35990768
+    },
+    {
+      "path": "target/debug/deps/intent_followup-b6669b94309d97cc",
+      "bytes": 36265808
+    },
+    {
+      "path": "target/debug/deps/intent_integration-0960a84580073bdf",
+      "bytes": 36939872
+    },
+    {
+      "path": "target/debug/deps/intent_issue_tracker-f49b07d1f7749389",
+      "bytes": 48009048
+    },
+    {
+      "path": "target/debug/deps/intent_nulls-67a56c692c3350cd",
+      "bytes": 36374720
+    },
+    {
+      "path": "target/debug/deps/intent_order-b38b1192ac670769",
+      "bytes": 35995104
+    },
+    {
+      "path": "target/debug/deps/intent_predicates-6b1cc2f4ae1a8873",
+      "bytes": 36082056
+    },
+    {
+      "path": "target/debug/deps/intent_review-89efc3b52ee112ef",
+      "bytes": 36302928
+    },
+    {
+      "path": "target/debug/deps/intent_target-e9fac815d71bddca",
+      "bytes": 37128360
+    },
+    {
+      "path": "target/debug/deps/intent_variants-22d0e5e70360b516",
+      "bytes": 45285504
+    },
+    {
+      "path": "target/debug/deps/intent_variants-f799c8ddf46fbcab",
+      "bytes": 36206080
+    },
+    {
+      "path": "target/debug/deps/intent_variants_review-cb33ce948a4a9378",
+      "bytes": 36580888
+    },
+    {
+      "path": "target/debug/deps/intent_views-34eabc5f5e6a8de3",
+      "bytes": 45509384
+    },
+    {
+      "path": "target/debug/deps/job_time_audiences-0a6f7f5fa12938ae",
+      "bytes": 41724512
+    },
+    {
+      "path": "target/debug/deps/job_time_audiences-46d78bf765f2c413",
+      "bytes": 36868504
+    },
+    {
+      "path": "target/debug/deps/job_viewer-55fa7506b7fc1fd7",
+      "bytes": 41336592
+    },
+    {
+      "path": "target/debug/deps/joined_shapes-1edf0b93658af0a4",
+      "bytes": 36125464
+    },
+    {
+      "path": "target/debug/deps/lane_domains-08866c39475487f8",
+      "bytes": 18384536
+    },
+    {
+      "path": "target/debug/deps/lane_source-00cabac189edf2ef",
+      "bytes": 21553232
+    },
+    {
+      "path": "target/debug/deps/lane_source-c67582a88a4da86f",
+      "bytes": 22188208
+    },
+    {
+      "path": "target/debug/deps/lang2-409aefa7a2a36786",
+      "bytes": 45488280
+    },
+    {
+      "path": "target/debug/deps/latency-88877f215464f4c0",
+      "bytes": 4145184
+    },
+    {
+      "path": "target/debug/deps/lean-910f51da7783aca0",
+      "bytes": 47712896
+    },
+    {
+      "path": "target/debug/deps/lean_emit-f4161bc8de84d9ef",
+      "bytes": 19202224
+    },
+    {
+      "path": "target/debug/deps/lifecycle-7f1e642318c8988a",
+      "bytes": 41188824
+    },
+    {
+      "path": "target/debug/deps/list_expressions-ed4a9f9e91882441",
+      "bytes": 36071120
+    },
+    {
+      "path": "target/debug/deps/list_lower_bounds-411a8093adef88f4",
+      "bytes": 45424016
+    },
+    {
+      "path": "target/debug/deps/list_lower_bounds-e944ae48f2655754",
+      "bytes": 34797040
+    },
+    {
+      "path": "target/debug/deps/list_reference_repair-d1ef6b2daba1f524",
+      "bytes": 37238800
+    },
+    {
+      "path": "target/debug/deps/list_widening-bedd3afd29e69a36",
+      "bytes": 35702360
+    },
+    {
+      "path": "target/debug/deps/live_parent-4d99725e895d9215",
+      "bytes": 40040680
+    },
+    {
+      "path": "target/debug/deps/live_parent-e0567f6ab42381f7",
+      "bytes": 47006720
+    },
+    {
+      "path": "target/debug/deps/live_parent_admission-8dfb8a0cf556d0d5",
+      "bytes": 32600144
+    },
+    {
+      "path": "target/debug/deps/lookup_selection-df45af8c77f7e362",
+      "bytes": 35923504
+    },
+    {
+      "path": "target/debug/deps/loopbar-8bd3a16e710caa7c",
+      "bytes": 35901688
+    },
+    {
+      "path": "target/debug/deps/lowering-027c0711470b0aaf",
+      "bytes": 37882464
+    },
+    {
+      "path": "target/debug/deps/maintain_measurement-226b00b1ba4fc985",
+      "bytes": 36314640
+    },
+    {
+      "path": "target/debug/deps/maintained_columns-cc36431b803a2bac",
+      "bytes": 38888896
+    },
+    {
+      "path": "target/debug/deps/maintained_columns_review-0ba5eaae684b76d7",
+      "bytes": 37166368
+    },
+    {
+      "path": "target/debug/deps/maintained_columns_review-8761a04137afde06",
+      "bytes": 32775552
+    },
+    {
+      "path": "target/debug/deps/maintained_result_types-9bfceeb49834ec32",
+      "bytes": 35731912
+    },
+    {
+      "path": "target/debug/deps/maintains-40f99c489594e6e2",
+      "bytes": 20375688
+    },
+    {
+      "path": "target/debug/deps/maintains-db4effc7df8cf126",
+      "bytes": 44084408
+    },
+    {
+      "path": "target/debug/deps/maintains_recorded-62bd5222cfba8781",
+      "bytes": 38229472
+    },
+    {
+      "path": "target/debug/deps/maintains_review-a1ec134e9fda9045",
+      "bytes": 43407200
+    },
+    {
+      "path": "target/debug/deps/maintenance_chunks-fd6c9c7d0e012f18",
+      "bytes": 41260016
+    },
+    {
+      "path": "target/debug/deps/maintenance_latency-f51bf2db5a9a69db",
+      "bytes": 37532488
+    },
+    {
+      "path": "target/debug/deps/matching_order-23889ce5309d2575",
+      "bytes": 47020136
+    },
+    {
+      "path": "target/debug/deps/matching_order-f96cfb5faa982180",
+      "bytes": 19999040
+    },
+    {
+      "path": "target/debug/deps/membership-843106d75bfac1c1",
+      "bytes": 37863464
+    },
+    {
+      "path": "target/debug/deps/membership_discovery_steps-0e968100f7c55cb7",
+      "bytes": 40639168
+    },
+    {
+      "path": "target/debug/deps/membership_discovery_steps-b5e43bbf10b33f5e",
+      "bytes": 35832696
+    },
+    {
+      "path": "target/debug/deps/membership_nullable_authorization-e5b7ceecf3f3a3b8",
+      "bytes": 35772696
+    },
+    {
+      "path": "target/debug/deps/membership_paths-0a41b66bf8d16d66",
+      "bytes": 35885096
+    },
+    {
+      "path": "target/debug/deps/membership_search-0825302cc2972bea",
+      "bytes": 36648304
+    },
+    {
+      "path": "target/debug/deps/meter-cdff49b4a8b4ed95",
+      "bytes": 28961608
+    },
+    {
+      "path": "target/debug/deps/meter-ea1062551d189793",
+      "bytes": 24092896
+    },
+    {
+      "path": "target/debug/deps/mixed_keys-597eda91327572ff",
+      "bytes": 37872456
+    },
+    {
+      "path": "target/debug/deps/mixed_keys-cd833da7f8871d42",
+      "bytes": 45417680
+    },
+    {
+      "path": "target/debug/deps/monotonic_ids-2672af2b50354277",
+      "bytes": 45534296
+    },
+    {
+      "path": "target/debug/deps/mp_builder-84e06163aed74550",
+      "bytes": 45663280
+    },
+    {
+      "path": "target/debug/deps/mp_reproduction-8e44cc238191ae27",
+      "bytes": 38235752
+    },
+    {
+      "path": "target/debug/deps/mutation_result_types-cbfe3b77fb8a4c83",
+      "bytes": 33171376
+    },
+    {
+      "path": "target/debug/deps/named_key_lookup-247f4217ed2d57cc",
+      "bytes": 45805720
+    },
+    {
+      "path": "target/debug/deps/native-23b3673ad0534a86",
+      "bytes": 45797136
+    },
+    {
+      "path": "target/debug/deps/native-46c2581eb6c0bfb4",
+      "bytes": 37816888
+    },
+    {
+      "path": "target/debug/deps/native_following-536cd6b43b88d5f0",
+      "bytes": 46356176
+    },
+    {
+      "path": "target/debug/deps/native_reads-49d1715208078e02",
+      "bytes": 46829328
+    },
+    {
+      "path": "target/debug/deps/natural_forms-863e0b128af31adb",
+      "bytes": 38006296
+    },
+    {
+      "path": "target/debug/deps/natural_forms-ed182b4a6135a9bb",
+      "bytes": 45709416
+    },
+    {
+      "path": "target/debug/deps/nl_qe2_integration-d6163fafc1d03991",
+      "bytes": 46136560
+    },
+    {
+      "path": "target/debug/deps/nul_chokepoints-6244e6f0ead9fd92",
+      "bytes": 33334832
+    },
+    {
+      "path": "target/debug/deps/nul_chokepoints-d3bd68b74f1b33f3",
+      "bytes": 37894000
+    },
+    {
+      "path": "target/debug/deps/operation_evolution-1779ea666c88030a",
+      "bytes": 39270192
+    },
+    {
+      "path": "target/debug/deps/optional_lookup_notes-a0824c2ded1ca318",
+      "bytes": 36269024
+    },
+    {
+      "path": "target/debug/deps/ordinary_search-0d880e312c82452f",
+      "bytes": 36516592
+    },
+    {
+      "path": "target/debug/deps/overlay_measure-595454457b8fad09",
+      "bytes": 39550200
+    },
+    {
+      "path": "target/debug/deps/overlay_measure-f84742cda0ba3478",
+      "bytes": 1060088
+    },
+    {
+      "path": "target/debug/deps/overload-6c47ea75e06c143b",
+      "bytes": 1240072
+    },
+    {
+      "path": "target/debug/deps/own_keys-734a53ab3dd9ef0a",
+      "bytes": 46282792
+    },
+    {
+      "path": "target/debug/deps/own_keys-e2456c250033b9fb",
+      "bytes": 21259960
+    },
+    {
+      "path": "target/debug/deps/own_keys_cost-c9f7952b483bd0d2",
+      "bytes": 42905160
+    },
+    {
+      "path": "target/debug/deps/page2_membership-16f61b0897ba79db",
+      "bytes": 35868896
+    },
+    {
+      "path": "target/debug/deps/page3-e3db01f476f3ecd4",
+      "bytes": 35943232
+    },
+    {
+      "path": "target/debug/deps/page4-5e51397c23dfc979",
+      "bytes": 37042536
+    },
+    {
+      "path": "target/debug/deps/page_admission-e44855aec128ba49",
+      "bytes": 43808720
+    },
+    {
+      "path": "target/debug/deps/papercuts-d5585cd8b15b3188",
+      "bytes": 18381568
+    },
+    {
+      "path": "target/debug/deps/pending_metadata_heap-46014451db8f67e0",
+      "bytes": 19962352
+    },
+    {
+      "path": "target/debug/deps/pending_metadata_heap-631cbb5353b3630d",
+      "bytes": 24314240
+    },
+    {
+      "path": "target/debug/deps/point_probe_admission-7c453181c964dece",
+      "bytes": 45610240
+    },
+    {
+      "path": "target/debug/deps/postgres_evolution-1058cee719d881d7",
+      "bytes": 36334720
+    },
+    {
+      "path": "target/debug/deps/postgres_evolution-9667f1b84ab7c701",
+      "bytes": 42470568
+    },
+    {
+      "path": "target/debug/deps/prediction_write_set-7524c65cdd6c2ea0",
+      "bytes": 45978192
+    },
+    {
+      "path": "target/debug/deps/prefix_reads-663f785381694b2f",
+      "bytes": 18411464
+    },
+    {
+      "path": "target/debug/deps/presence-5a801f24204145d4",
+      "bytes": 34269424
+    },
+    {
+      "path": "target/debug/deps/printed_rewrites-7a6768013dadadd5",
+      "bytes": 35805440
+    },
+    {
+      "path": "target/debug/deps/pure_call_narrowing-d0257ccf5c4007d7",
+      "bytes": 36024080
+    },
+    {
+      "path": "target/debug/deps/qe2_allocations-39133cc61c5a32e6",
+      "bytes": 45293952
+    },
+    {
+      "path": "target/debug/deps/qe2_ergonomics-1afe003f1a33f66e",
+      "bytes": 45390416
+    },
+    {
+      "path": "target/debug/deps/qe2_ergonomics-ea8be939a334336c",
+      "bytes": 33334840
+    },
+    {
+      "path": "target/debug/deps/query_read_paths-8be755c3819cbb3e",
+      "bytes": 36051856
+    },
+    {
+      "path": "target/debug/deps/query_settlement-19d896c1e8fcdacc",
+      "bytes": 20739992
+    },
+    {
+      "path": "target/debug/deps/query_unavailable-b9b75cf9fa944ba5",
+      "bytes": 46283208
+    },
+    {
+      "path": "target/debug/deps/read_latency-631def8093c13cf3",
+      "bytes": 41420024
+    },
+    {
+      "path": "target/debug/deps/read_sessions-56bf5333d9fe1cc3",
+      "bytes": 5320912
+    },
+    {
+      "path": "target/debug/deps/read_sessions-ecb769e876d2c826",
+      "bytes": 9673336
+    },
+    {
+      "path": "target/debug/deps/read_through-641c589ae34e1eec",
+      "bytes": 46531184
+    },
+    {
+      "path": "target/debug/deps/read_through-dcfe6eaaa25da2a5",
+      "bytes": 37736120
+    },
+    {
+      "path": "target/debug/deps/read_through_provenance-de12dae0497c4cf0",
+      "bytes": 35833848
+    },
+    {
+      "path": "target/debug/deps/read_through_review-4f98c950f3ac3cf6",
+      "bytes": 46353168
+    },
+    {
+      "path": "target/debug/deps/read_through_review-f7b618c5b659fe03",
+      "bytes": 37971816
+    },
+    {
+      "path": "target/debug/deps/read_through_sync-59eb4b0c2b0d83a8",
+      "bytes": 18550024
+    },
+    {
+      "path": "target/debug/deps/read_through_transactions-860be0c03db934da",
+      "bytes": 38159648
+    },
+    {
+      "path": "target/debug/deps/readauth-a4a1f632d70f4bd9",
+      "bytes": 50568336
+    },
+    {
+      "path": "target/debug/deps/receipt_gaps-c74e1257d2cad727",
+      "bytes": 38182520
+    },
+    {
+      "path": "target/debug/deps/recorded_coverage-22c85de5d2205b81",
+      "bytes": 47519040
+    },
+    {
+      "path": "target/debug/deps/recorded_round1-b572dcfbf145876d",
+      "bytes": 18815632
+    },
+    {
+      "path": "target/debug/deps/reference_actions-66b9384760342d5b",
+      "bytes": 47384280
+    },
+    {
+      "path": "target/debug/deps/reference_actions-aa50663aed23f222",
+      "bytes": 33560752
+    },
+    {
+      "path": "target/debug/deps/reference_exhaustive-662d4c291603b354",
+      "bytes": 33500920
+    },
+    {
+      "path": "target/debug/deps/refused_open-b5cd9a4d3ae15152",
+      "bytes": 33239832
+    },
+    {
+      "path": "target/debug/deps/refused_open-eb0957d3f2a38686",
+      "bytes": 37887616
+    },
+    {
+      "path": "target/debug/deps/release_bridge_security-ebb934f822d52222",
+      "bytes": 39819824
+    },
+    {
+      "path": "target/debug/deps/repair_b-910ffed80636cdcb",
+      "bytes": 47975680
+    },
+    {
+      "path": "target/debug/deps/repair_b_boundaries-4877558f4dc93801",
+      "bytes": 45576936
+    },
+    {
+      "path": "target/debug/deps/repair_b_counterexample-19981309ae08b3ad",
+      "bytes": 46117520
+    },
+    {
+      "path": "target/debug/deps/repair_b_legacy_r6-4ec32a24d463fe8c",
+      "bytes": 46113024
+    },
+    {
+      "path": "target/debug/deps/repair_b_round2_counterexample-1035ffb0eee91b0a",
+      "bytes": 46224840
+    },
+    {
+      "path": "target/debug/deps/repair_b_round3_counterexample-3138e641ba915447",
+      "bytes": 46118720
+    },
+    {
+      "path": "target/debug/deps/repairs-5c7b25b5b3eda3e1",
+      "bytes": 36288000
+    },
+    {
+      "path": "target/debug/deps/replay-ea2d86c0065503b9",
+      "bytes": 38260344
+    },
+    {
+      "path": "target/debug/deps/reservation_app_headroom-5a76e47bf5eb92a1",
+      "bytes": 43470200
+    },
+    {
+      "path": "target/debug/deps/residency-4956b211b8484af0",
+      "bytes": 44854744
+    },
+    {
+      "path": "target/debug/deps/residency-ebc323f2d50e2f1a",
+      "bytes": 37204672
+    },
+    {
+      "path": "target/debug/deps/residency_notes-4b5a03cf538c8f26",
+      "bytes": 38265488
+    },
+    {
+      "path": "target/debug/deps/retained_history-f80f1f561d28c4e1",
+      "bytes": 46298624
+    },
+    {
+      "path": "target/debug/deps/retained_release-d1e0c709d7a68013",
+      "bytes": 43165440
+    },
+    {
+      "path": "target/debug/deps/retained_release-f657be8f39bc3cbd",
+      "bytes": 45772864
+    },
+    {
+      "path": "target/debug/deps/review_corrections-7ef39b38a1c7cd33",
+      "bytes": 37690096
+    },
+    {
+      "path": "target/debug/deps/review_parent_floor-e353fa3cdab7748f",
+      "bytes": 45177248
+    },
+    {
+      "path": "target/debug/deps/review_walk-0f493c6fda4238ee",
+      "bytes": 42768696
+    },
+    {
+      "path": "target/debug/deps/review_walk-aff9b334b547d6c2",
+      "bytes": 37910032
+    },
+    {
+      "path": "target/debug/deps/reviews-1f5725c0e2846203",
+      "bytes": 41602104
+    },
+    {
+      "path": "target/debug/deps/revocation_history-2748db255e2daa26",
+      "bytes": 36743320
+    },
+    {
+      "path": "target/debug/deps/revocation_history-8da7e84ecb84d065",
+      "bytes": 32369808
+    },
+    {
+      "path": "target/debug/deps/revocation_soundness-2af260eff8a8121e",
+      "bytes": 37797120
+    },
+    {
+      "path": "target/debug/deps/roll_views-3b7b9730fb5c73db",
+      "bytes": 42801160
+    },
+    {
+      "path": "target/debug/deps/roster-83d8cd90f7f55b52",
+      "bytes": 33538616
+    },
+    {
+      "path": "target/debug/deps/routes-27d0327d153e680d",
+      "bytes": 20551968
+    },
+    {
+      "path": "target/debug/deps/routes-95d0423541afca40",
+      "bytes": 20306048
+    },
+    {
+      "path": "target/debug/deps/routes-d78259a0a7cf7063",
+      "bytes": 25089584
+    },
+    {
+      "path": "target/debug/deps/row_keyed_views-72307638eb2f572e",
+      "bytes": 46380048
+    },
+    {
+      "path": "target/debug/deps/row_keyed_views-a905b8dd04080e11",
+      "bytes": 39955008
+    },
+    {
+      "path": "target/debug/deps/row_view_accounting-0885bbe0e3c7be85",
+      "bytes": 36414832
+    },
+    {
+      "path": "target/debug/deps/row_view_accounting-35c1c13e53038262",
+      "bytes": 41255712
+    },
+    {
+      "path": "target/debug/deps/row_view_disclosure-b092bf6a1b95009c",
+      "bytes": 46635712
+    },
+    {
+      "path": "target/debug/deps/row_view_disclosure-bd1d2bfd12e60a3d",
+      "bytes": 42252488
+    },
+    {
+      "path": "target/debug/deps/row_view_disclosure-e75a8d9e667c93ec",
+      "bytes": 37356816
+    },
+    {
+      "path": "target/debug/deps/row_view_expiry-c56ddf524b1dac9e",
+      "bytes": 47017528
+    },
+    {
+      "path": "target/debug/deps/row_view_legacy-4fb23095791afeca",
+      "bytes": 40669888
+    },
+    {
+      "path": "target/debug/deps/row_view_legacy-9bf8566a838625bc",
+      "bytes": 35877592
+    },
+    {
+      "path": "target/debug/deps/row_view_witness-0356b13b48c69c1e",
+      "bytes": 41610496
+    },
+    {
+      "path": "target/debug/deps/row_view_witness-a510b841efc40027",
+      "bytes": 36744912
+    },
+    {
+      "path": "target/debug/deps/rows-33dead9efdfa3057",
+      "bytes": 21218240
+    },
+    {
+      "path": "target/debug/deps/rows-d9aade57666de876",
+      "bytes": 25650360
+    },
+    {
+      "path": "target/debug/deps/run_admission-f4754873d8abf3f4",
+      "bytes": 45807920
+    },
+    {
+      "path": "target/debug/deps/rx_legacy_identity-3cdb9dbb20c1931d",
+      "bytes": 20130744
+    },
+    {
+      "path": "target/debug/deps/rx_rule_enforcement-eeb43d5a43e456f2",
+      "bytes": 33580608
+    },
+    {
+      "path": "target/debug/deps/rx_rule_hops-6870a34b7a013103",
+      "bytes": 45719560
+    },
+    {
+      "path": "target/debug/deps/rx_rule_hops-8c42516a74ffc1cc",
+      "bytes": 20005088
+    },
+    {
+      "path": "target/debug/deps/scale-86433f6aaf04f296",
+      "bytes": 43592720
+    },
+    {
+      "path": "target/debug/deps/scale_curves-c9e532564fcd46a4",
+      "bytes": 40633384
+    },
+    {
+      "path": "target/debug/deps/scale_extremum_expressions-80cdafabe9099bb0",
+      "bytes": 41391888
+    },
+    {
+      "path": "target/debug/deps/scale_intent-856fe99617f8b2f8",
+      "bytes": 42139592
+    },
+    {
+      "path": "target/debug/deps/scale_row_ranges-8c099e4ed0a3522d",
+      "bytes": 42582936
+    },
+    {
+      "path": "target/debug/deps/scale_variants-5f0709dc4aacb54d",
+      "bytes": 20733144
+    },
+    {
+      "path": "target/debug/deps/scale_windows_expiry-36368a5de91f837c",
+      "bytes": 41702976
+    },
+    {
+      "path": "target/debug/deps/schedule_durations-3e441d567782646f",
+      "bytes": 35874832
+    },
+    {
+      "path": "target/debug/deps/schema_capabilities-8abe3fee5990e00d",
+      "bytes": 22379664
+    },
+    {
+      "path": "target/debug/deps/schema_capabilities-ca16c94f4de3f4b6",
+      "bytes": 21773616
+    },
+    {
+      "path": "target/debug/deps/schema_capabilities-fb825acf78d0cd1b",
+      "bytes": 46880712
+    },
+    {
+      "path": "target/debug/deps/schema_capabilities_legacy-cb38f0eca2358165",
+      "bytes": 32333112
+    },
+    {
+      "path": "target/debug/deps/schema_capabilities_legacy-d98f902d838bcb17",
+      "bytes": 42107448
+    },
+    {
+      "path": "target/debug/deps/schema_capabilities_legacy-e23276010778fc20",
+      "bytes": 36668728
+    },
+    {
+      "path": "target/debug/deps/search_exists-71f218db1c0902a3",
+      "bytes": 45436784
+    },
+    {
+      "path": "target/debug/deps/search_guidance-eeb9898298800d04",
+      "bytes": 19624528
+    },
+    {
+      "path": "target/debug/deps/search_merge-fd7548e937cebc01",
+      "bytes": 35960096
+    },
+    {
+      "path": "target/debug/deps/security-23ef773448bb4f49",
+      "bytes": 34186320
+    },
+    {
+      "path": "target/debug/deps/security-b1245655edce6faa",
+      "bytes": 40991592
+    },
+    {
+      "path": "target/debug/deps/security_custody-eb0317ee2633f62e",
+      "bytes": 36125128
+    },
+    {
+      "path": "target/debug/deps/security_histories-213a60ac3381dcbf",
+      "bytes": 39266720
+    },
+    {
+      "path": "target/debug/deps/security_observers-23392587a2147921",
+      "bytes": 38670512
+    },
+    {
+      "path": "target/debug/deps/security_reviews-3bc0e63dd41b8508",
+      "bytes": 1361592
+    },
+    {
+      "path": "target/debug/deps/security_sec10-621c9bc29f3e87c7",
+      "bytes": 41781296
+    },
+    {
+      "path": "target/debug/deps/security_sec4-3c349cb2241ff854",
+      "bytes": 41027080
+    },
+    {
+      "path": "target/debug/deps/security_sec5_intent-ccedf901251bc7bb",
+      "bytes": 38375400
+    },
+    {
+      "path": "target/debug/deps/security_sec5_notes-c971a0622b4d4426",
+      "bytes": 40609144
+    },
+    {
+      "path": "target/debug/deps/security_sec5_output-27f835834e779c61",
+      "bytes": 38481040
+    },
+    {
+      "path": "target/debug/deps/security_sec5_refutations-3a3a93aafca870ac",
+      "bytes": 38737280
+    },
+    {
+      "path": "target/debug/deps/security_sec6-07fd8fbfaec6ac9a",
+      "bytes": 40863040
+    },
+    {
+      "path": "target/debug/deps/security_sec7-fe8b27e41ff2540c",
+      "bytes": 41084224
+    },
+    {
+      "path": "target/debug/deps/security_sec7_day2-2e1d6bb073986841",
+      "bytes": 40991416
+    },
+    {
+      "path": "target/debug/deps/security_sec8-a524f2cb1df3536e",
+      "bytes": 40889576
+    },
+    {
+      "path": "target/debug/deps/security_sec9-86a4f28b51f7ba1e",
+      "bytes": 40867936
+    },
+    {
+      "path": "target/debug/deps/security_wave16-aed7b448abf0b4f3",
+      "bytes": 38545104
+    },
+    {
+      "path": "target/debug/deps/security_wave19-85ac22c7e1506b3c",
+      "bytes": 1387712
+    },
+    {
+      "path": "target/debug/deps/security_wave19-bf3cb94de9e5dd45",
+      "bytes": 41174552
+    },
+    {
+      "path": "target/debug/deps/security_wave27-cc8ee1817d76e2cf",
+      "bytes": 41057920
+    },
+    {
+      "path": "target/debug/deps/security_wave27_authored-4094c58e7ec52373",
+      "bytes": 38995336
+    },
+    {
+      "path": "target/debug/deps/security_wave27_conservation-6f50bac6b32b2d65",
+      "bytes": 38927080
+    },
+    {
+      "path": "target/debug/deps/security_wave28-f2ec03c0d916ef67",
+      "bytes": 41222296
+    },
+    {
+      "path": "target/debug/deps/selected_prefix-dd514e34135d48c9",
+      "bytes": 36039248
+    },
+    {
+      "path": "target/debug/deps/selected_prefix_cursors-fd81e78e42aaa226",
+      "bytes": 35967888
+    },
+    {
+      "path": "target/debug/deps/selected_prefix_regressions-41acf4125caf54af",
+      "bytes": 35840520
+    },
+    {
+      "path": "target/debug/deps/sequence_by-4923aa848cdc5d1f",
+      "bytes": 37633744
+    },
+    {
+      "path": "target/debug/deps/sequence_by-749fcde5dc6334d2",
+      "bytes": 42518640
+    },
+    {
+      "path": "target/debug/deps/sequence_by-8fcf4d12ff0c708c",
+      "bytes": 46435400
+    },
+    {
+      "path": "target/debug/deps/sequence_by-a536b1bd1cb14483",
+      "bytes": 22756456
+    },
+    {
+      "path": "target/debug/deps/sequence_disclosure-63026a2dbe038b15",
+      "bytes": 46446880
+    },
+    {
+      "path": "target/debug/deps/sequence_disclosure-7f1ce49f431fe142",
+      "bytes": 37575448
+    },
+    {
+      "path": "target/debug/deps/sequence_disclosure-c022769b537db700",
+      "bytes": 42524568
+    },
+    {
+      "path": "target/debug/deps/server_clock-9065801a4db09822",
+      "bytes": 43573512
+    },
+    {
+      "path": "target/debug/deps/server_opt_in-c7d75665ec57ba43",
+      "bytes": 20832360
+    },
+    {
+      "path": "target/debug/deps/shape_meter-da6722627431004c",
+      "bytes": 36000968
+    },
+    {
+      "path": "target/debug/deps/shape_overrides-24f292987cfe8f37",
+      "bytes": 45473424
+    },
+    {
+      "path": "target/debug/deps/shape_overrides-6ad2be951dc62f8a",
+      "bytes": 37802984
+    },
+    {
+      "path": "target/debug/deps/smoke-19c0e2d7c27de9ad",
+      "bytes": 47379944
+    },
+    {
+      "path": "target/debug/deps/snapback4-529bb1c32cfccb0b",
+      "bytes": 82040088
+    },
+    {
+      "path": "target/debug/deps/snapback4_core-b6225f709b4babf9",
+      "bytes": 75101240
+    },
+    {
+      "path": "target/debug/deps/snapback4_core-d0e294d0e0aa51d8",
+      "bytes": 55585192
+    },
+    {
+      "path": "target/debug/deps/snapback4_device-3cbd4f92b30f1c9a",
+      "bytes": 45017160
+    },
+    {
+      "path": "target/debug/deps/snapback4_difftest-34d88c7ae9f90c33",
+      "bytes": 35879040
+    },
+    {
+      "path": "target/debug/deps/snapback4_difftest-8bd703ae4191d10d",
+      "bytes": 3035128
+    },
+    {
+      "path": "target/debug/deps/snapback4_lang-8cbb58ce66c056ed",
+      "bytes": 41102792
+    },
+    {
+      "path": "target/debug/deps/snapback4_native-3694cf48fc1fe8be",
+      "bytes": 1060088
+    },
+    {
+      "path": "target/debug/deps/snapback4_sim-40aaeafa08cd2fcf",
+      "bytes": 37163608
+    },
+    {
+      "path": "target/debug/deps/sparse_filter-f1bd3e0fd5a8de7f",
+      "bytes": 18572856
+    },
+    {
+      "path": "target/debug/deps/spelling-3c8c5b8b2d231ce9",
+      "bytes": 36417920
+    },
+    {
+      "path": "target/debug/deps/spread_metadata-7afb458460f25509",
+      "bytes": 46062168
+    },
+    {
+      "path": "target/debug/deps/spread_pending_union-c0bfbec111f91456",
+      "bytes": 46088224
+    },
+    {
+      "path": "target/debug/deps/sqlite_bulk-7020c11a4a236b90",
+      "bytes": 44064104
+    },
+    {
+      "path": "target/debug/deps/store_handle_census-a04d680db96a3a3f",
+      "bytes": 1252560
+    },
+    {
+      "path": "target/debug/deps/store_handle_traits-7bc2840d8bb43ebc",
+      "bytes": 1060736
+    },
+    {
+      "path": "target/debug/deps/store_handle_traits-e9e500ea5392e8e3",
+      "bytes": 1060736
+    },
+    {
+      "path": "target/debug/deps/store_port_ratchet-fb772eb579fcdc87",
+      "bytes": 1254528
+    },
+    {
+      "path": "target/debug/deps/stores-408f51a208549951",
+      "bytes": 1060040
+    },
+    {
+      "path": "target/debug/deps/stream_receipts-cc58d66ea19f372f",
+      "bytes": 37864512
+    },
+    {
+      "path": "target/debug/deps/stream_receipts-fd2b52b83b40f3cf",
+      "bytes": 33421872
+    },
+    {
+      "path": "target/debug/deps/surf4-2c859447011b70e0",
+      "bytes": 7366504
+    },
+    {
+      "path": "target/debug/deps/surf4_guide-15c9d6910b997bb1",
+      "bytes": 6022040
+    },
+    {
+      "path": "target/debug/deps/sync_audiences-c8aacee5d38a9d37",
+      "bytes": 20072112
+    },
+    {
+      "path": "target/debug/deps/sync_count_batch-4b2d7ac84bc3d5e3",
+      "bytes": 23733560
+    },
+    {
+      "path": "target/debug/deps/sync_count_batch-930d0701560d6860",
+      "bytes": 22954960
+    },
+    {
+      "path": "target/debug/deps/sync_windows-18ce63c05e5f66a0",
+      "bytes": 37919680
+    },
+    {
+      "path": "target/debug/deps/sync_windows-3bf9614424251838",
+      "bytes": 46124960
+    },
+    {
+      "path": "target/debug/deps/system_principal-ae23137907c0f323",
+      "bytes": 18390328
+    },
+    {
+      "path": "target/debug/deps/time_audiences-1b0f95ac879a60d7",
+      "bytes": 37439432
+    },
+    {
+      "path": "target/debug/deps/time_audiences-2211cfca508db768",
+      "bytes": 45974368
+    },
+    {
+      "path": "target/debug/deps/time_audiences-3ef41e7e385cdb10",
+      "bytes": 36944872
+    },
+    {
+      "path": "target/debug/deps/time_audiences-4da0cfc19e009f6d",
+      "bytes": 18787880
+    },
+    {
+      "path": "target/debug/deps/time_audiences-5577794cc38ace73",
+      "bytes": 42515472
+    },
+    {
+      "path": "target/debug/deps/time_indexes-8abc3e759604f04c",
+      "bytes": 18383720
+    },
+    {
+      "path": "target/debug/deps/timed_search-248f71bd85c57466",
+      "bytes": 42807376
+    },
+    {
+      "path": "target/debug/deps/timed_search-440ee7566b40ceac",
+      "bytes": 35811920
+    },
+    {
+      "path": "target/debug/deps/timeline-44bd311aa285760c",
+      "bytes": 43463320
+    },
+    {
+      "path": "target/debug/deps/timeline-6a5ebb824519aeaf",
+      "bytes": 46483000
+    },
+    {
+      "path": "target/debug/deps/timeline_adoption-1c3828d92f351bab",
+      "bytes": 42331856
+    },
+    {
+      "path": "target/debug/deps/timeline_background-153f1c332bc8c686",
+      "bytes": 36720432
+    },
+    {
+      "path": "target/debug/deps/timeline_delivery-93642a4c27fc0696",
+      "bytes": 37759144
+    },
+    {
+      "path": "target/debug/deps/timeline_delivery_counterexample-b6fe68dcc361d535",
+      "bytes": 37551736
+    },
+    {
+      "path": "target/debug/deps/timeline_design-121f6372554a681c",
+      "bytes": 37352488
+    },
+    {
+      "path": "target/debug/deps/timeline_epoch_counterexample-c877d29ea577727f",
+      "bytes": 32896944
+    },
+    {
+      "path": "target/debug/deps/timeline_fairness-87a740991a0e7bc4",
+      "bytes": 36269800
+    },
+    {
+      "path": "target/debug/deps/timeline_guide-34b39a503e00fce0",
+      "bytes": 36332080
+    },
+    {
+      "path": "target/debug/deps/timeline_live_latency-6b2b7ed378244141",
+      "bytes": 36214376
+    },
+    {
+      "path": "target/debug/deps/token_live-60bf8c9a77ca06ef",
+      "bytes": 5874272
+    },
+    {
+      "path": "target/debug/deps/topn_complete-011d389373726ed3",
+      "bytes": 35847400
+    },
+    {
+      "path": "target/debug/deps/topn_complete-a476489cd9b67fc7",
+      "bytes": 45530856
+    },
+    {
+      "path": "target/debug/deps/typed_positional_keys-32831f9dd7d829ba",
+      "bytes": 33008152
+    },
+    {
+      "path": "target/debug/deps/typed_positional_sync-cd5019550fd39496",
+      "bytes": 18446984
+    },
+    {
+      "path": "target/debug/deps/unicode-dee2e3f9a782df0f",
+      "bytes": 45057408
+    },
+    {
+      "path": "target/debug/deps/unicode_fold-93c61750529dbfff",
+      "bytes": 4396672
+    },
+    {
+      "path": "target/debug/deps/unicode_fold-ae316d73d6384a51",
+      "bytes": 3744296
+    },
+    {
+      "path": "target/debug/deps/union-0092417527562b36",
+      "bytes": 42496352
+    },
+    {
+      "path": "target/debug/deps/union_limits-4e75837ddb29befe",
+      "bytes": 18404264
+    },
+    {
+      "path": "target/debug/deps/unread_range-1a06834648816e20",
+      "bytes": 49077448
+    },
+    {
+      "path": "target/debug/deps/update_rule_images-445dd38e481321a3",
+      "bytes": 36340904
+    },
+    {
+      "path": "target/debug/deps/update_rule_images-5157b9832ca6a348",
+      "bytes": 41146512
+    },
+    {
+      "path": "target/debug/deps/upload_intents-4cb0fa4829053d38",
+      "bytes": 45967088
+    },
+    {
+      "path": "target/debug/deps/upload_intents-843ad2c4503b1216",
+      "bytes": 37752888
+    },
+    {
+      "path": "target/debug/deps/upload_intents-8b3e7c20e629fc50",
+      "bytes": 33097064
+    },
+    {
+      "path": "target/debug/deps/upload_receipts-d6921d25d1eee21e",
+      "bytes": 45773008
+    },
+    {
+      "path": "target/debug/deps/upsert_constraints-589c00f490bfe89f",
+      "bytes": 46451384
+    },
+    {
+      "path": "target/debug/deps/verified_index_repairs-ddfcc5bb9c0ffe6c",
+      "bytes": 18439072
+    },
+    {
+      "path": "target/debug/deps/visible_text-056938684680d9ab",
+      "bytes": 45274464
+    },
+    {
+      "path": "target/debug/deps/w13g_probe-4e497752c1349d9f",
+      "bytes": 49138632
+    },
+    {
+      "path": "target/debug/deps/wave10_guard_notes-d88816b8924f62b5",
+      "bytes": 18437936
+    },
+    {
+      "path": "target/debug/deps/wave10_rules_expressiveness-aa63cbf509394925",
+      "bytes": 37828360
+    },
+    {
+      "path": "target/debug/deps/wave10_runtime_diagnostics-b58dedfb5adce183",
+      "bytes": 36696592
+    },
+    {
+      "path": "target/debug/deps/wave11_docs-232e56638263e902",
+      "bytes": 37945416
+    },
+    {
+      "path": "target/debug/deps/wave11_qdiag-6f295a017ab73f9f",
+      "bytes": 43116472
+    },
+    {
+      "path": "target/debug/deps/wave11_qdiag-a9a57b687850fefe",
+      "bytes": 46238248
+    },
+    {
+      "path": "target/debug/deps/wave11_qdiag-b0974de1a2235095",
+      "bytes": 19356808
+    },
+    {
+      "path": "target/debug/deps/wave11_qdiag-c4b167643a5d128a",
+      "bytes": 37556080
+    },
+    {
+      "path": "target/debug/deps/wave11_runtime-00a58b3b0d6e62d4",
+      "bytes": 36177896
+    },
+    {
+      "path": "target/debug/deps/wave12_diagnostics-7bfddf6d5508f654",
+      "bytes": 19657680
+    },
+    {
+      "path": "target/debug/deps/wave12_expiry_actions_generated-014ad3844a27117d",
+      "bytes": 42844696
+    },
+    {
+      "path": "target/debug/deps/wave12_generated_semantics-5faa38539beb9ae7",
+      "bytes": 43175320
+    },
+    {
+      "path": "target/debug/deps/wave12_language-552137622a0fa4b1",
+      "bytes": 45890560
+    },
+    {
+      "path": "target/debug/deps/wave12_language-f4e155c150845a8a",
+      "bytes": 36136720
+    },
+    {
+      "path": "target/debug/deps/wave12_rule_composition-83c507d03f88cec5",
+      "bytes": 33021664
+    },
+    {
+      "path": "target/debug/deps/wave12_rule_recipes-4bfeb6e53a8d48a2",
+      "bytes": 37739080
+    },
+    {
+      "path": "target/debug/deps/wave12_semantics-f74bde3f97f2e9ed",
+      "bytes": 36718856
+    },
+    {
+      "path": "target/debug/deps/wave13_lang2-3f364a72099444aa",
+      "bytes": 46569512
+    },
+    {
+      "path": "target/debug/deps/wave13_lang2-59086612a63a8578",
+      "bytes": 45488296
+    },
+    {
+      "path": "target/debug/deps/wave13_lang2-d2bbc8d1e2d8b4f0",
+      "bytes": 37378728
+    },
+    {
+      "path": "target/debug/deps/wave13_lang2-fb2125cf09e655d2",
+      "bytes": 37363800
+    },
+    {
+      "path": "target/debug/deps/wave13_rules-6423a0cdef3ad540",
+      "bytes": 45772944
+    },
+    {
+      "path": "target/debug/deps/wave13_rules-ecebba17ba6ecd53",
+      "bytes": 33389096
+    },
+    {
+      "path": "target/debug/deps/wave14_authorization-d295e80d63d51fac",
+      "bytes": 34309064
+    },
+    {
+      "path": "target/debug/deps/wave14_client_docs-b4fbac446f6ed5ad",
+      "bytes": 18520496
+    },
+    {
+      "path": "target/debug/deps/wave14_lang3-633602a2b2b1d8d9",
+      "bytes": 37154632
+    },
+    {
+      "path": "target/debug/deps/wave14_snapshot_ir-94a0f4c4399698e3",
+      "bytes": 35819128
+    },
+    {
+      "path": "target/debug/deps/wave15_notes-bbb9d756ae045d52",
+      "bytes": 37539144
+    },
+    {
+      "path": "target/debug/deps/wave1_rule_language-9d6a5a94d910efb1",
+      "bytes": 34458864
+    },
+    {
+      "path": "target/debug/deps/wave26_security-10edd6f40b5520cf",
+      "bytes": 19139024
+    },
+    {
+      "path": "target/debug/deps/wave26_security-aceec476607a6250",
+      "bytes": 40995416
+    },
+    {
+      "path": "target/debug/deps/wave2_rule_language-1203259bf3313512",
+      "bytes": 37979128
+    },
+    {
+      "path": "target/debug/deps/wave3_rule_language-188ed0a29e37293b",
+      "bytes": 36636832
+    },
+    {
+      "path": "target/debug/deps/wave4_rule_language-d2b058eced17931c",
+      "bytes": 37485568
+    },
+    {
+      "path": "target/debug/deps/wave5_rule_language-016d82e2a70954c4",
+      "bytes": 36316512
+    },
+    {
+      "path": "target/debug/deps/wave6_rule_language-26702bd90e2c06a7",
+      "bytes": 36326624
+    },
+    {
+      "path": "target/debug/deps/wave7_rule_language-b7ca0a52d684e095",
+      "bytes": 36460592
+    },
+    {
+      "path": "target/debug/deps/wave8_rule_language-6f6dddc6ad06e9b2",
+      "bytes": 35807000
+    },
+    {
+      "path": "target/debug/deps/wave9_completeness_notes-439dd9bf4263d2e2",
+      "bytes": 35787512
+    },
+    {
+      "path": "target/debug/deps/wave9_rule_diagnostic_rewrites-3a8363dbde9edc53",
+      "bytes": 36358632
+    },
+    {
+      "path": "target/debug/deps/witness-e0ff77ae88204a4c",
+      "bytes": 4328840
+    },
+    {
+      "path": "target/debug/deps/witness_web-a1c7660980448676",
+      "bytes": 1086232
+    },
+    {
+      "path": "target/debug/deps/work_intent-2f212acb0ef003c2",
+      "bytes": 37027656
+    },
+    {
+      "path": "target/debug/deps/work_intent_review-49cd6ecbabc174c5",
+      "bytes": 36540512
+    },
+    {
+      "path": "target/debug/deps/work_intent_review2-f4867ed77b51eaed",
+      "bytes": 36216568
+    },
+    {
+      "path": "target/debug/deps/work_intent_review3-31cbd89df1851d25",
+      "bytes": 36033208
+    },
+    {
+      "path": "target/debug/deps/work_intent_review4-4d5daac316586c1a",
+      "bytes": 36199288
+    },
+    {
+      "path": "target/debug/deps/work_records-43a5a30ead2ac3a2",
+      "bytes": 21004120
+    },
+    {
+      "path": "target/debug/deps/work_records-c3f76716eefd7b35",
+      "bytes": 37717104
+    },
+    {
+      "path": "target/debug/deps/work_records-c6903731af1d523b",
+      "bytes": 25810728
+    },
+    {
+      "path": "target/debug/deps/write_authority-24c41a92745e783c",
+      "bytes": 46634832
+    },
+    {
+      "path": "target/debug/deps/write_authority-d1b791b83d5d00b3",
+      "bytes": 43999584
+    },
+    {
+      "path": "target/debug/deps/written_by-139a6ced30531e57",
+      "bytes": 23288400
+    },
+    {
+      "path": "target/debug/deps/written_by-750ec7c958c2e84e",
+      "bytes": 1243544
+    },
+    {
+      "path": "target/debug/deps/written_by-bfdfd7f2bdc63d2e",
+      "bytes": 46684688
+    }
+  ],
+  "skippedActive": [],
+  "kept": [
+    "target/debug/snapback4",
+    "wasm/client build outputs",
+    "all .rlib/.rmeta and library cache files"
+  ],
+  "scope": "Only completed test executables enumerated in this integration logs. No target/publication access."
+}

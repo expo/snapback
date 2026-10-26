@@ -1,0 +1,6 @@
+{
+  "status": 0,
+  "command": "timeout 5400s env CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 RUST_MIN_STACK=33554432 cargo test --no-fail-fast -p snapback4-core --features postgres,test-support -- --test-threads=4",
+  "method": "actual exec session54918 exit0; raw log retained",
+  "head": "8eabb1f777da3297dace2939271851b4c8f6b88b"
+}

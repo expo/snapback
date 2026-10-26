@@ -1,0 +1,141 @@
+{
+  "calibratedMHoles": 14,
+  "defaultVisible": 1,
+  "assessments": [
+    {
+      "lane": "002",
+      "finding": "F1",
+      "rule": "The front desk opens each fitting with a scan of the pediatrician's referral and the quoted helmet fee.",
+      "defaultVisible": false,
+      "evidence": [],
+      "assessment": "No default gate/question matches this calibrated requirement; unrelated recipient or creation-audience questions are not counted."
+    },
+    {
+      "lane": "004",
+      "finding": "F1",
+      "rule": "The family's phone number, care needs and price on a job are visible only to that job's case coordinator and the company owner.",
+      "defaultVisible": false,
+      "evidence": [],
+      "assessment": "No default gate/question matches this calibrated requirement; unrelated recipient or creation-audience questions are not counted."
+    },
+    {
+      "lane": "006",
+      "finding": "F1",
+      "rule": "The customer has 30 days after return to report a drag fault for a free re-service.",
+      "defaultVisible": false,
+      "evidence": [],
+      "assessment": "No default gate/question matches this calibrated requirement; unrelated recipient or creation-audience questions are not counted."
+    },
+    {
+      "lane": "010",
+      "finding": "F1",
+      "rule": "A trip cancelled for high water may be rebooked within 12 months or refunded.",
+      "defaultVisible": false,
+      "evidence": [],
+      "assessment": "No default gate/question matches this calibrated requirement; unrelated recipient or creation-audience questions are not counted."
+    },
+    {
+      "lane": "014",
+      "finding": "F1",
+      "rule": "The client's phone number, venue contract and fee on a project are visible only to that project's lead and the company owner.",
+      "defaultVisible": false,
+      "evidence": [],
+      "assessment": "No default gate/question matches this calibrated requirement; unrelated recipient or creation-audience questions are not counted."
+    },
+    {
+      "lane": "018",
+      "finding": "F1",
+      "rule": "Only the lead pruner can approve pruning an orchard under a fire blight quarantine, recording the inspector's permit and the extra fee.",
+      "defaultVisible": false,
+      "evidence": [],
+      "assessment": "No default gate/question matches this calibrated requirement; unrelated recipient or creation-audience questions are not counted."
+    },
+    {
+      "lane": "025",
+      "finding": "F1",
+      "rule": "A candidate who fails may retest within 30 days at half price; only the school manager can approve a retest beyond the second attempt, recording the reason and ",
+      "defaultVisible": false,
+      "evidence": [],
+      "assessment": "No default gate/question matches this calibrated requirement; unrelated recipient or creation-audience questions are not counted."
+    },
+    {
+      "lane": "025",
+      "finding": "F2",
+      "rule": "Only the school manager can approve a retest beyond the second attempt, recording the reason and the instructor\u2019s recommendation.",
+      "defaultVisible": false,
+      "evidence": [],
+      "assessment": "No default gate/question matches this calibrated requirement; unrelated recipient or creation-audience questions are not counted."
+    },
+    {
+      "lane": "030",
+      "finding": "F1",
+      "rule": "The dispatcher opens each study with the sound recording files and the quoted price.",
+      "defaultVisible": false,
+      "evidence": [],
+      "assessment": "No default gate/question matches this calibrated requirement; unrelated recipient or creation-audience questions are not counted."
+    },
+    {
+      "lane": "030",
+      "finding": "F2",
+      "rule": "Jobs move from booked to measured, reviewed and reported.",
+      "defaultVisible": false,
+      "evidence": [],
+      "assessment": "No default gate/question matches this calibrated requirement; unrelated recipient or creation-audience questions are not counted."
+    },
+    {
+      "lane": "033",
+      "finding": "F1",
+      "rule": "Only the company owner can approve coating over a slab the customer signed off as damp, recording the customer's consent.",
+      "defaultVisible": true,
+      "evidence": [
+        {
+          "code": "N_APPROVAL_NOT_ENFORCED",
+          "site": "schema.q:84:3",
+          "operation": "advanceJob",
+          "candidate": "invariant jobs.advanceJob only (not .dampSigned or .dampApproved)"
+        }
+      ],
+      "assessment": "Exact damp-approval bypass is default-visible."
+    },
+    {
+      "lane": "033",
+      "finding": "F2",
+      "rule": "The estimator opens each job with before photos of every crack and oil stain and the quoted price.",
+      "defaultVisible": false,
+      "evidence": [],
+      "assessment": "No default gate/question matches this calibrated requirement; unrelated recipient or creation-audience questions are not counted."
+    },
+    {
+      "lane": "035",
+      "finding": "F1",
+      "rule": "Batches move from inspection through cleaning, flameproofing and pleating before being finished.",
+      "defaultVisible": false,
+      "evidence": [],
+      "assessment": "No default gate/question matches this calibrated requirement; unrelated recipient or creation-audience questions are not counted."
+    },
+    {
+      "lane": "038",
+      "finding": "F1",
+      "rule": "An unpaid delivery older than 30 days stops further standing deliveries; only the account manager can approve an emergency delivery for an account with a past-d",
+      "defaultVisible": false,
+      "evidence": [],
+      "assessment": "No default gate/question matches this calibrated requirement; unrelated recipient or creation-audience questions are not counted."
+    }
+  ],
+  "falsePositiveControls": [
+    {
+      "lane": "008-snapback-brick-repointing-jobs",
+      "check": 0,
+      "defaultDeploy": 0,
+      "jsonDeploy": 0,
+      "gates": 0
+    },
+    {
+      "lane": "028-snapback-lamp-post-restorations",
+      "check": 0,
+      "defaultDeploy": 0,
+      "jsonDeploy": 0,
+      "gates": 0
+    }
+  ]
+}

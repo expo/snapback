@@ -1,0 +1,46 @@
+{
+  "finalCopies": 117,
+  "timingCopies": 100,
+  "issues": [],
+  "sourceVerdictsAndFixesUnchanged": true,
+  "blockingFindingsNeverAlsoQuestions": true,
+  "baselineGateWitnessIds": [
+    {
+      "wave": 28,
+      "lane": "011-snapback-home-battery-installs",
+      "sameWitnessId": true
+    },
+    {
+      "wave": 29,
+      "lane": "011-snapback-home-battery-installs",
+      "sameWitnessId": true
+    },
+    {
+      "wave": 30,
+      "lane": "033-snapback-garage-floor-coatings",
+      "sameWitnessId": true
+    }
+  ],
+  "all800DefaultCheckLines": {
+    "median": 2.0,
+    "p90": 6,
+    "max": 12
+  },
+  "all800DefaultDeployLines": {
+    "median": 5.0,
+    "p90": 9,
+    "max": 20
+  },
+  "finalWaves29And30ColdCheckSeconds": {
+    "median": 4.7545,
+    "p90": 21.371,
+    "max": 36.889
+  },
+  "finalWaves29And30ProductionDeploySeconds": {
+    "median": 8.519,
+    "p90": 25.264,
+    "max": 58.121
+  },
+  "binarySha256": "278210037b3e2adb503ab908d27529757c338cdbefb28624ae2f5ae1689446d5",
+  "measurement": "Final 80411b9d8f optimized Cargo test profile, eight workers and concurrent host verification. All waves 29/30 and every prior refused source copy rerun after the write-free call-graph optimization; output/verdict/witness identity parity checked against prior final sample. Other source/engine outcomes retain the complete 800-schema classified survey."
+}

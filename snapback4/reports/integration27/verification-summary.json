@@ -1,0 +1,463 @@
+{
+  "schema": "integration27.affected-final.v1",
+  "base": "799e42a6bb560c310ac8f3a3411d740b7380b372",
+  "productHead": "80411b9d8f631a807655bebf147665142298171d",
+  "started": "2026-10-26T18:32:29.313Z",
+  "finished": "2026-10-26T21:48:41.520245+00:00",
+  "planCommands": 31,
+  "rustPackages": [
+    "snapback4",
+    "snapback4-core",
+    "snapback4-device",
+    "snapback4-difftest",
+    "snapback4-lang",
+    "snapback4-native",
+    "snapback4-sim"
+  ],
+  "clientFiles": 446,
+  "status": "PASS affected product targets; Lean retains 18 known baseline disagreements",
+  "qualification": false,
+  "results": [
+    {
+      "id": "install-client",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 31
+    },
+    {
+      "id": "build-cli",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 25185
+    },
+    {
+      "id": "build-wasm",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 36866
+    },
+    {
+      "id": "build-client",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 3466
+    },
+    {
+      "id": "typecheck:snapback4",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 2849
+    },
+    {
+      "id": "rust:snapback4",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 2539150
+    },
+    {
+      "id": "rust:snapback4-core",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 810248
+    },
+    {
+      "id": "rust:snapback4-device",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 1687904
+    },
+    {
+      "id": "rust:snapback4-difftest",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 77209
+    },
+    {
+      "id": "rust:snapback4-lang",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 3622541
+    },
+    {
+      "id": "rust:snapback4-native",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 120
+    },
+    {
+      "id": "rust:snapback4-sim",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 631964
+    },
+    {
+      "id": "fixture-tests",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 11196
+    },
+    {
+      "id": "client-tests",
+      "status": 0,
+      "method": "per-file captured exits; repaired files supersede documented stale-fixture failures"
+    },
+    {
+      "id": "client-models",
+      "status": 0,
+      "elapsedSeconds": 326.0132677555084,
+      "log": "finish-client-models.log",
+      "argv": [
+        "node",
+        "scripts/run-client-tests.mjs",
+        "1",
+        "models",
+        "packages/snapback4/test/app-session-model.test.mjs",
+        "packages/snapback4/test/online-client-model.test.mjs"
+      ],
+      "cwd": "snapback4"
+    },
+    {
+      "id": "lean-build",
+      "status": 0,
+      "elapsedSeconds": 0.14679479598999023,
+      "log": "finish-lean-build.log",
+      "argv": [
+        "lake",
+        "build"
+      ],
+      "cwd": "snapback4/lean"
+    },
+    {
+      "id": "difftest:run-lean",
+      "status": 1,
+      "elapsedSeconds": 52.61140537261963,
+      "log": "finish-difftest-run-lean.log",
+      "argv": [
+        "cargo",
+        "run",
+        "--release",
+        "-p",
+        "snapback4-difftest",
+        "--",
+        "run-lean",
+        "--seed",
+        "0",
+        "--cases",
+        "2000",
+        "--workers",
+        "2",
+        "--out",
+        "target/affected/difftest-run-lean"
+      ],
+      "cwd": "snapback4"
+    },
+    {
+      "id": "difftest:run",
+      "status": 0,
+      "elapsedSeconds": 110.39097380638123,
+      "log": "finish-difftest-run.log",
+      "argv": [
+        "cargo",
+        "run",
+        "--release",
+        "-p",
+        "snapback4-difftest",
+        "--",
+        "run",
+        "--seed",
+        "0",
+        "--cases",
+        "2000",
+        "--workers",
+        "2",
+        "--out",
+        "target/affected/difftest-run"
+      ],
+      "cwd": "snapback4"
+    },
+    {
+      "id": "chat-check",
+      "status": 0,
+      "elapsedSeconds": 0.8970718383789062,
+      "log": "finish-chat-check.log",
+      "argv": [
+        "../../target/debug/snapback4",
+        "check"
+      ],
+      "cwd": "snapback4/apps/chat"
+    },
+    {
+      "id": "chat-typecheck",
+      "status": 0,
+      "elapsedSeconds": 1.1601569652557373,
+      "log": "finish-chat-typecheck.log",
+      "argv": [
+        "bun",
+        "run",
+        "--cwd",
+        "apps/chat",
+        "typecheck"
+      ],
+      "cwd": "snapback4"
+    },
+    {
+      "id": "diagnostics",
+      "status": 0,
+      "elapsedSeconds": 194.48465633392334,
+      "log": "finish-diagnostics.log",
+      "argv": [
+        "node",
+        "scripts/generate-diagnostics-registry.mjs",
+        "--check"
+      ],
+      "cwd": "."
+    },
+    {
+      "id": "docs-budget",
+      "status": 0,
+      "elapsedSeconds": 47.77937436103821,
+      "log": "finish-docs-budget.log",
+      "argv": [
+        "node",
+        "scripts/docs-budget.mjs"
+      ],
+      "cwd": "snapback4"
+    },
+    {
+      "id": "expo-typecheck",
+      "status": 0,
+      "elapsedSeconds": 1.0876264572143555,
+      "log": "finish-expo-typecheck.log",
+      "argv": [
+        "bun",
+        "run",
+        "--cwd",
+        "apps/chat-expo",
+        "typecheck"
+      ],
+      "cwd": "snapback4"
+    },
+    {
+      "id": "generated",
+      "status": 0,
+      "elapsedSeconds": 241.1617341041565,
+      "log": "finish-generated.log",
+      "argv": [
+        "bash",
+        "scripts/check-generated-artifacts"
+      ],
+      "cwd": "."
+    },
+    {
+      "id": "guide",
+      "status": 0,
+      "elapsedSeconds": 211.84619617462158,
+      "log": "finish-guide.log",
+      "argv": [
+        "node",
+        "scripts/check-guide.mjs"
+      ],
+      "cwd": "."
+    },
+    {
+      "id": "inventories",
+      "status": 0,
+      "elapsedSeconds": 196.11535930633545,
+      "log": "finish-inventories.log",
+      "argv": [
+        "node",
+        "scripts/check-inventories.mjs"
+      ],
+      "cwd": "."
+    },
+    {
+      "id": "packaged-docs",
+      "status": 0,
+      "elapsedSeconds": 0.03589320182800293,
+      "log": "finish-packaged-docs.log",
+      "argv": [
+        "node",
+        "--input-type=module",
+        "-e",
+        "import { lintPackagedDocs } from './scripts/packaged-docs.mjs'; lintPackagedDocs(process.cwd());"
+      ],
+      "cwd": "snapback4"
+    },
+    {
+      "id": "ref-check",
+      "status": 0,
+      "elapsedSeconds": 5.051117658615112,
+      "log": "finish-ref-check.log",
+      "argv": [
+        "./ref-check"
+      ],
+      "cwd": "."
+    },
+    {
+      "id": "release-guard",
+      "status": 0,
+      "elapsedSeconds": 21.139031648635864,
+      "log": "finish-release-guard.log",
+      "argv": [
+        "bash",
+        "scripts/check-release-guard.sh"
+      ],
+      "cwd": "snapback4"
+    },
+    {
+      "id": "selector-tests",
+      "status": 0,
+      "elapsedSeconds": 16.66889786720276,
+      "log": "finish-selector-tests.log",
+      "argv": [
+        "node",
+        "--test",
+        "snapback4/scripts/affected.test.mjs",
+        "tests/local_proof_selection_v0.mjs",
+        "tests/local_proof_inventory_v0.mjs",
+        "tests/ci_workflows_v0.mjs"
+      ],
+      "cwd": "."
+    },
+    {
+      "id": "wasm-measurement",
+      "status": 0,
+      "elapsedSeconds": 72.74551820755005,
+      "log": "finish-wasm-measurement.log",
+      "argv": [
+        "bash",
+        "scripts/measure-wasm.sh",
+        "--no-record"
+      ],
+      "cwd": "snapback4"
+    }
+  ],
+  "rustCounts": {
+    "rust:snapback4": {
+      "targets": 79,
+      "passed": 1653,
+      "failed": 0,
+      "ignored": 85
+    },
+    "rust:snapback4-core": {
+      "targets": 50,
+      "passed": 1248,
+      "failed": 0,
+      "ignored": 5
+    },
+    "rust:snapback4-device": {
+      "targets": 105,
+      "passed": 1577,
+      "failed": 0,
+      "ignored": 4
+    },
+    "rust:snapback4-difftest": {
+      "targets": 13,
+      "passed": 100,
+      "failed": 0,
+      "ignored": 0
+    },
+    "rust:snapback4-lang": {
+      "targets": 195,
+      "passed": 2848,
+      "failed": 0,
+      "ignored": 16
+    },
+    "rust:snapback4-native": {
+      "targets": 2,
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0
+    },
+    "rust:snapback4-sim": {
+      "targets": 45,
+      "passed": 749,
+      "failed": 0,
+      "ignored": 7
+    }
+  },
+  "rawReceipt": "/home/ccheever/projects/snapback-sb4loop/target/affected/80411b9d8f63-1793039549314.json",
+  "rawComplete": false,
+  "rawUnchanged": null,
+  "rawOk": null,
+  "composedVerified": true,
+  "canonicalExit": 124,
+  "lean": {
+    "sameFindings": true,
+    "findingFiles": 16,
+    "sameOracleTotals": true,
+    "before": {
+      "lean": {
+        "attempted": 2000,
+        "passed": 1658,
+        "unsupported": {
+          "call-max": 36,
+          "call-min": 21,
+          "call-sum": 26,
+          "index-computed-or-words": 46,
+          "loop": 54,
+          "now": 7,
+          "page-compound-where-branches": 1,
+          "page-static-key-expression": 4,
+          "prelude-now": 18,
+          "shape": 111
+        },
+        "disagreeing": 18,
+        "signatures": {
+          "lean--continuation-next--next~no-next": 5,
+          "lean--next--next~no-next": 8,
+          "lean--prelude-code--E_RULE~NOT_FOUND": 5
+        },
+        "meter_fields_omitted": 0
+      }
+    },
+    "after": {
+      "lean": {
+        "attempted": 2000,
+        "passed": 1658,
+        "unsupported": {
+          "call-max": 36,
+          "call-min": 21,
+          "call-sum": 26,
+          "index-computed-or-words": 46,
+          "loop": 54,
+          "now": 7,
+          "page-compound-where-branches": 1,
+          "page-static-key-expression": 4,
+          "prelude-now": 18,
+          "shape": 111
+        },
+        "disagreeing": 18,
+        "signatures": {
+          "lean--continuation-next--next~no-next": 5,
+          "lean--next--next~no-next": 8,
+          "lean--prelude-code--E_RULE~NOT_FOUND": 5
+        },
+        "meter_fields_omitted": 0
+      }
+    },
+    "newFiles": [],
+    "missingFiles": [],
+    "changedFiles": [],
+    "findingSha256": {
+      "lean--next--next~no-next/case.q": "b48ff3d899fa12723943fc859c92d66e4fb9f76751018e2c5da1d092c8652589",
+      "lean--next--next~no-next/case.json": "903160257db0c3d7cbcb0d6aee77d2296b9506384b207c5aaba0bc6314e37815",
+      "lean--continuation-next--next~no-next/case.q": "958878aa69b4a16850d61b17705f5d6a9542b5823509c7f8351fdd2394ee73e8",
+      "lean--continuation-next--next~no-next/case.json": "00ba50b9d1ea24f7808455639e0cc3fc2b21bb787625cfd6261d3b8bc839085f",
+      "lean--prelude-code--E_RULE~NOT_FOUND/case.q": "956906e7a45142a18f693129aa18e314627f0caac3a43299b4a5b7eca2f0c423",
+      "lean--prelude-code--E_RULE~NOT_FOUND/case.json": "f519c582e1b28d8ba990a4c9abcd1c718ab0b1719c556649c43d61784de6774b",
+      "worker-0/lean--next--next~no-next/case.q": "d085c9327ffb75c3a4dbbcae244d884a23e08f74f87f6442c1fddfa445317c54",
+      "worker-0/lean--next--next~no-next/case.json": "a8abc7e7867a06ea2913dca9f7d7d53fdccad51559ca00c00b49e00c98751ad2",
+      "worker-0/lean--continuation-next--next~no-next/case.q": "958878aa69b4a16850d61b17705f5d6a9542b5823509c7f8351fdd2394ee73e8",
+      "worker-0/lean--continuation-next--next~no-next/case.json": "00ba50b9d1ea24f7808455639e0cc3fc2b21bb787625cfd6261d3b8bc839085f",
+      "worker-1/lean--next--next~no-next/case.q": "b48ff3d899fa12723943fc859c92d66e4fb9f76751018e2c5da1d092c8652589",
+      "worker-1/lean--next--next~no-next/case.json": "903160257db0c3d7cbcb0d6aee77d2296b9506384b207c5aaba0bc6314e37815",
+      "worker-1/lean--continuation-next--next~no-next/case.q": "2aa693a161bca21fb053b4252ac3ae2f735fdbc6b8ab41ebf5a120a5e26b41f7",
+      "worker-1/lean--continuation-next--next~no-next/case.json": "74d73ff0147be64e39d49b858339d2128ff3836a3689712f70af80d3e507a057",
+      "worker-1/lean--prelude-code--E_RULE~NOT_FOUND/case.q": "956906e7a45142a18f693129aa18e314627f0caac3a43299b4a5b7eca2f0c423",
+      "worker-1/lean--prelude-code--E_RULE~NOT_FOUND/case.json": "f519c582e1b28d8ba990a4c9abcd1c718ab0b1719c556649c43d61784de6774b"
+    },
+    "comparison": "All sixteen reproducer source/JSON files byte-for-byte, plus complete by_oracle totals; nondeterministic worker runtime logs are retained separately and do not encode findings."
+  },
+  "method": "Canonical 10800-second command timed out after all seven Rust packages and ordinary clients, during the serial timer group. Its independently bounded client process was supervised to completion. Raw incomplete receipt remains unchanged. Actual per-file exits and separately executed remaining original plan commands compose this verification; all product targets pass after explicit fixture repairs, while Lean retains the independently matched baseline. Feature/runtime seam evidence is scoped to80411b9d8f; fixture repairs c6874cb0b7 and incoming-main merge8eabb1f777 receive explicit supplemental target checks and immutable-native survey/replay repeats. No canonical PASS or unchanged-HEAD claim is made."
+}

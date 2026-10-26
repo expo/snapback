@@ -1,0 +1,91 @@
+{
+  "merge": "02cf700f71832dc30550148bc9454cbfa5364729",
+  "mainTip": "9ee365bbd6",
+  "documentationCommit": "f8e52af152ff8b9d6595004700990637ff0edeaa",
+  "checks": {
+    "stage-p-core.log": [
+      {
+        "passed": 49,
+        "failed": 0,
+        "ignored": 367
+      }
+    ],
+    "stage-p-census.log": [
+      {
+        "passed": 9,
+        "failed": 0,
+        "ignored": 0
+      }
+    ],
+    "stage-p-batch.log": [
+      {
+        "passed": 20,
+        "failed": 0,
+        "ignored": 38
+      }
+    ],
+    "stage-p-fixtures.log": [
+      {
+        "passed": 0,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "passed": 2,
+        "failed": 0,
+        "ignored": 2
+      }
+    ],
+    "stage-p-guide.log": [
+      {
+        "passed": 128,
+        "failed": 0,
+        "ignored": 0
+      },
+      {
+        "passed": 1,
+        "failed": 0,
+        "ignored": 0
+      }
+    ]
+  },
+  "inventories": {
+    "passed": true,
+    "packageTests": 365,
+    "scriptTests": 35,
+    "demos": 31,
+    "publicationLeaves": 487
+  },
+  "wasmSha256": "d703ec2e9df43a17ad3e0ea7ff4bef21fb64bf08ed3b06cbeef324db1e409e64",
+  "wasmBytesIdentical": true,
+  "wasmSizes": {
+    "raw": 2416590,
+    "gzip": 738613,
+    "brotli": 555952,
+    "budget": 739113
+  },
+  "landingNative": {
+    "sha256": "d79a71a69b5229f9fb88a22b7b76530c199d635db4d148da0ad9578c909fdbf4",
+    "bytes": 86870512,
+    "profile": "optimized Cargo test-profile build with default features; publication qualification remains separate"
+  },
+  "guideChanges": "exactly one 0.4.43 entry; installed current guide includes all lane and PostgreSQL upgrade facts",
+  "sourceScope": "Production changes after8eabb confined to engine/postgres; remaining Rust changes are cfg-test/test-support. SQLite runtime, authoring analysis and client semantic inputs unchanged. The zero-match preliminary fixture filter is not counted; corrected batch filter runs20cases.",
+  "privatePG": "reuse incoming StageP receipts, explicitly not rerun here; own checks preserve existing ignores",
+  "rawZeroMatchRetained": true,
+  "finalPlan": {
+    "head": "f8e52af152ff8b9d6595004700990637ff0edeaa",
+    "sameSelectedRustAndClientAndStepSets": true,
+    "rustPackages": [
+      "snapback4",
+      "snapback4-core",
+      "snapback4-device",
+      "snapback4-difftest",
+      "snapback4-lang",
+      "snapback4-native",
+      "snapback4-sim"
+    ],
+    "clientFiles": 446,
+    "steps": 31
+  }
+}

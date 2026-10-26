@@ -1,0 +1,66 @@
+{
+  "cpus": [
+    88,
+    89,
+    90,
+    91,
+    92,
+    93,
+    94,
+    95
+  ],
+  "busyLoops": 16,
+  "serialClientFiles": true,
+  "results": [
+    {
+      "run": 1,
+      "status": 0,
+      "seconds": 56.769
+    },
+    {
+      "run": 2,
+      "status": 0,
+      "seconds": 54.35
+    },
+    {
+      "run": 3,
+      "status": 0,
+      "seconds": 61.954
+    },
+    {
+      "run": 4,
+      "status": 0,
+      "seconds": 59.905
+    },
+    {
+      "run": 5,
+      "status": 0,
+      "seconds": 60.515
+    },
+    {
+      "run": 6,
+      "status": 0,
+      "seconds": 59.987
+    },
+    {
+      "run": 7,
+      "status": 0,
+      "seconds": 65.594
+    },
+    {
+      "run": 8,
+      "status": 0,
+      "seconds": 62.696
+    },
+    {
+      "run": 9,
+      "status": 0,
+      "seconds": 65.562
+    },
+    {
+      "run": 10,
+      "status": 0,
+      "seconds": 61.299
+    }
+  ]
+}

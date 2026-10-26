@@ -1,0 +1,28 @@
+(node:3219363) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✖ proof command cleanup owns npm descendants and caller death (1227.726837ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 0
+ℹ fail 1
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1482.237273
+
+✖ failing tests:
+
+test at snapback4/packages/snapback4/test/integration27-injected-proof.mjs:339:1
+✖ proof command cleanup owns npm descendants and caller death (1227.726837ms)
+  AssertionError [ERR_ASSERTION]: process tree npm-pids.json cleanup: condition not reached
+      at cleanupCondition (file:///home/ccheever/projects/snapback-sb4loop/snapback4/packages/snapback4/test/integration27-injected-proof.mjs:330:12)
+      at async TestContext.<anonymous> (file:///home/ccheever/projects/snapback-sb4loop/snapback4/packages/snapback4/test/integration27-injected-proof.mjs:360:3)
+      at async Test.run (node:internal/test_runner/test:1110:7)
+      at async startSubtestAfterBootstrap (node:internal/test_runner/harness:358:3) {
+    generatedMessage: false,
+    code: 'ERR_ASSERTION',
+    actual: false,
+    expected: true,
+    operator: '==',
+    diff: 'simple'
+  }

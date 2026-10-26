@@ -1,0 +1,221 @@
+{
+  "before": {
+    "sha256": "9043ac3e799a80e9b0de2c4aec6ae749bfa2bb49c88e1361ebf8f7423dbde0b3",
+    "waves": {
+      "25": {
+        "successfulMoves": 236,
+        "refusedMoves": 14,
+        "exact": 33,
+        "view": 14,
+        "checkedRollbackPopulations": 94,
+        "consistentShapeFields": 0,
+        "defaultRefused": 3,
+        "rowShapeFieldAvailable": false,
+        "hiddenV1Rows": 0,
+        "falseRefusals": [],
+        "extractions": []
+      },
+      "27": {
+        "successfulMoves": 246,
+        "refusedMoves": 4,
+        "exact": 30,
+        "view": 18,
+        "checkedRollbackPopulations": 96,
+        "consistentShapeFields": 0,
+        "defaultRefused": 2,
+        "rowShapeFieldAvailable": false,
+        "hiddenV1Rows": 0,
+        "falseRefusals": [],
+        "extractions": []
+      },
+      "29": {
+        "successfulMoves": 250,
+        "refusedMoves": 0,
+        "exact": 27,
+        "view": 23,
+        "checkedRollbackPopulations": 100,
+        "consistentShapeFields": 0,
+        "defaultRefused": 0,
+        "rowShapeFieldAvailable": false,
+        "hiddenV1Rows": 0,
+        "falseRefusals": [],
+        "extractions": []
+      }
+    }
+  },
+  "after": {
+    "sha256": "278210037b3e2adb503ab908d27529757c338cdbefb28624ae2f5ae1689446d5",
+    "waves": {
+      "25": {
+        "successfulMoves": 238,
+        "refusedMoves": 12,
+        "exact": 33,
+        "view": 14,
+        "checkedRollbackPopulations": 94,
+        "consistentShapeFields": 94,
+        "defaultRefused": 3,
+        "rowShapeFieldAvailable": true,
+        "hiddenV1Rows": 0,
+        "falseRefusals": [],
+        "extractions": []
+      },
+      "27": {
+        "successfulMoves": 236,
+        "refusedMoves": 14,
+        "exact": 30,
+        "view": 18,
+        "checkedRollbackPopulations": 96,
+        "consistentShapeFields": 96,
+        "defaultRefused": 2,
+        "rowShapeFieldAvailable": true,
+        "hiddenV1Rows": 0,
+        "falseRefusals": [],
+        "extractions": []
+      },
+      "29": {
+        "successfulMoves": 250,
+        "refusedMoves": 0,
+        "exact": 28,
+        "view": 22,
+        "checkedRollbackPopulations": 100,
+        "consistentShapeFields": 100,
+        "defaultRefused": 0,
+        "rowShapeFieldAvailable": true,
+        "hiddenV1Rows": 0,
+        "falseRefusals": [],
+        "extractions": [
+          {
+            "lane": "008",
+            "exact": false,
+            "v1RowShape": false,
+            "missingV1Columns": {
+              "jobs": [
+                "defectKinds",
+                "defectNotes",
+                "photos"
+              ]
+            },
+            "exactCheck": 1
+          },
+          {
+            "lane": "012",
+            "exact": false,
+            "v1RowShape": false,
+            "missingV1Columns": {
+              "jobs": [
+                "floorPlan"
+              ]
+            },
+            "exactCheck": 1
+          },
+          {
+            "lane": "016",
+            "exact": false,
+            "v1RowShape": false,
+            "missingV1Columns": {
+              "tractors": [
+                "enginePhoto",
+                "framePhoto",
+                "paintPhoto"
+              ]
+            },
+            "exactCheck": 1
+          },
+          {
+            "lane": "020",
+            "exact": false,
+            "v1RowShape": false,
+            "missingV1Columns": {
+              "bookings": [
+                "permitPhoto"
+              ]
+            },
+            "exactCheck": 1
+          },
+          {
+            "lane": "024",
+            "exact": false,
+            "v1RowShape": false,
+            "missingV1Columns": {
+              "moves": [
+                "accessNotes",
+                "doorwayPhoto",
+                "safePhoto",
+                "stairwayPhoto",
+                "weightLbs"
+              ]
+            },
+            "exactCheck": 1
+          },
+          {
+            "lane": "028",
+            "exact": false,
+            "v1RowShape": false,
+            "missingV1Columns": {
+              "projects": [
+                "basin",
+                "statuary",
+                "tiers"
+              ]
+            },
+            "exactCheck": 1
+          },
+          {
+            "lane": "032",
+            "exact": false,
+            "v1RowShape": false,
+            "missingV1Columns": {
+              "placements": [
+                "scan"
+              ]
+            },
+            "exactCheck": 1
+          },
+          {
+            "lane": "036",
+            "exact": false,
+            "v1RowShape": false,
+            "missingV1Columns": {
+              "figures": [
+                "likenessScan"
+              ]
+            },
+            "exactCheck": 1
+          },
+          {
+            "lane": "040",
+            "exact": true,
+            "v1RowShape": true,
+            "missingV1Columns": {},
+            "exactCheck": 0
+          },
+          {
+            "lane": "044",
+            "exact": false,
+            "v1RowShape": false,
+            "missingV1Columns": {
+              "jobs": [
+                "boards",
+                "railings",
+                "stairs"
+              ]
+            },
+            "exactCheck": 1
+          },
+          {
+            "lane": "048",
+            "exact": false,
+            "v1RowShape": false,
+            "missingV1Columns": {
+              "orders": [
+                "footingPhoto",
+                "sitePhoto"
+              ]
+            },
+            "exactCheck": 1
+          }
+        ]
+      }
+    }
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "source": "80411b9d8f",
+  "controls": {
+    "helper_only_writes_keep_the_complete_walk": [
+      "test bind::security::authority_walk::sec10_execution_controls::helper_only_writes_keep_the_complete_walk ... ok"
+    ],
+    "write_free_alias_graph_with_literal_defaults_compiles": [
+      "test bind::security::authority_walk::sec10_execution_controls::write_free_alias_graph_with_literal_defaults_compiles ... ok"
+    ],
+    "captured_helper_results_execute_once": [
+      "test bind::security::authority_walk::sec10_execution_controls::captured_helper_results_execute_once ... ok"
+    ],
+    "w15a4_alias_dag_independent_guard_is_bounded": [
+      "test grace_effects::review::w15a4_alias_dag_independent_guard_is_bounded ... ok"
+    ],
+    "w15a4_alias_dag_independent_operand_is_bounded": [
+      "test grace_effects::review::w15a4_alias_dag_independent_operand_is_bounded ... ok"
+    ]
+  },
+  "simulatorOverrides": {
+    "W15A_ALIAS_DEPTH": null,
+    "W15A_ALIAS_BUDGET_MS": null
+  },
+  "simulatorDefaultDepth": 200,
+  "simulatorRuntimeBudgetMs": 5000
+}

@@ -1,0 +1,13 @@
+{
+  "status": 0,
+  "elapsedSeconds": 418.41555404663086,
+  "argv": [
+    "node",
+    "scripts/run-client-tests.mjs",
+    "1",
+    "files",
+    "packages/snapback4/test/export-background.test.mjs"
+  ],
+  "binary": "/home/ccheever/sb4-loop/reports/integration27/snapback4-write-free",
+  "reason": "Two original controls failed after native executable replacement. Both pass separately on frozen binary; full-file rerun uses immutable native path."
+}

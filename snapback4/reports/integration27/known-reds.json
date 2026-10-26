@@ -1,0 +1,15 @@
+{
+  "deploy_recipe_bootstraps_an_admin_without_a_public_privilege_race": [
+    "test deploy::deploy_recipe_bootstraps_an_admin_without_a_public_privilege_race ... ok"
+  ],
+  "every_emitted_code_is_explained": [
+    "test audit::every_emitted_code_is_explained ... ok"
+  ],
+  "release_json_reference_is_discoverable_without_growing_the_deploy_card": [
+    "test release_json_reference_is_discoverable_without_growing_the_deploy_card ... ok"
+  ],
+  "enforced_derived_witness_is_only_in_the_blocking_tier": [
+    "test enforced_derived_witness_is_only_in_the_blocking_tier ... ok"
+  ],
+  "store_port_ratchet": "9 passed; 0 failed; production allowance stays zero"
+}
