@@ -478,18 +478,23 @@ pub fn deploy(options: &Options) -> i32 {
                 .filter(|n| !super::rollback_views::is_view(&dir,*n) && selectable(&dir, *n).is_ok())
                 .collect::<Vec<_>>();
             matching.sort_unstable_by(|a,b| b.cmp(a));
-            let mut matched = None;
+            let mut matched = None;let mut source_origin=None;let mut source_matches=Vec::new();
             for n in matching {
-                if crate::release_files::executable_digest(&releases.join(n.to_string()))? == staged_digest { matched=Some(n); break; }
+                if crate::release_files::executable_digest(&releases.join(n.to_string()))? == staged_digest {
+                    matched.get_or_insert(n);source_origin=Some(n);source_matches.push(n);
+                }
             }
             let mut n=std::fs::read_dir(&releases).map_err(|e|e.to_string())?.filter_map(Result::ok).filter_map(|e|e.file_name().to_str()?.parse::<u64>().ok()).max().unwrap_or(0);
             let staged_bound=bound_at(stage.clone())?;
             let parent=n.checked_add(1).ok_or("release identity exhausted")?;
-            // Reactivation selects retained source and its immutable view manifest.
-            // Changing predecessor context alone never mints a duplicate source.
-            let views=if let Some(origin)=matched.filter(|n|Some(*n)!=latest(&dir).ok()&&releases.join(n.to_string()).join("rollback-views.json").is_file()) {
-                super::rollback_views::manifest(&releases.join(origin.to_string()))?
-            } else {super::rollback_views::prepare(&dir,&stage,&staged_bound,parent)?};
+            // Match executable source independently of generated registry metadata.
+            // Only releases preceding its first identity are rollback predecessors.
+            let views=super::rollback_views::prepare_for_source(&dir,&stage,&staged_bound,parent,source_origin)?;
+            // A historical duplicate may carry the wrong registry. Reuse an
+            // already-qualified matching source/registry before minting anything.
+            for candidate in source_matches {
+                if !super::rollback_views::needs_registration(&dir,Some(candidate),&views)? {matched=Some(candidate);break;}
+            }
             let register_views=super::rollback_views::needs_registration(&dir,matched,&views)?;
             if let Some(origin)=matched {check_change(&dir,previous,&bound,options,Some(origin))?;}
             if let Some(previous)=previous {
@@ -516,7 +521,7 @@ pub fn deploy(options: &Options) -> i32 {
                 return Ok(());
             }
             let mut qualified_options=options.clone();
-            if let Some(origin)=matched.filter(|_|register_views){qualified_options.flags.insert("source-release".into(),origin.to_string());qualified_options.flags.insert("restore-dormant".into(),String::new());}
+            if let Some(origin)=source_origin.filter(|_|register_views){qualified_options.flags.insert("source-release".into(),origin.to_string());qualified_options.flags.insert("restore-dormant".into(),String::new());}
             let options=&qualified_options;
             if options.flags.contains_key("check") {
                 let mut preview_options=options.clone();

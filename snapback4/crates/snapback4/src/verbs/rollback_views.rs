@@ -91,12 +91,20 @@ pub(super) fn prepare(
     bound: &snapback4_lang::Bound,
     parent: u64,
 ) -> Result<Vec<View>, String> {
+    prepare_for_source(dir,stage,bound,parent,None)
+}
+
+pub(super) fn prepare_for_source(
+    dir:&Path,stage:&Path,bound:&snapback4_lang::Bound,parent:u64,source_origin:Option<u64>,
+)->Result<Vec<View>,String> {
     let current = Project { root: stage.into() }
         .sources()
         .map_err(|e| e.to_string())?;
     let mut views = Vec::new();
     let mut id = parent;
-    for target in super::releases::ordinary_releases(dir)? {
+    // Source identity has its own timeline: reactivation does not acquire
+    // predecessor obligations toward sources authored after that source.
+    for target in super::releases::ordinary_releases(dir)?.into_iter().filter(|n|source_origin.is_none_or(|origin|*n<origin)) {
         let old_root = dir.join("releases").join(target.to_string());
         let old = super::releases::bound_at(old_root.clone())?;
         let original=Project{root:old_root.clone()}.sources().map_err(|e|e.to_string())?;

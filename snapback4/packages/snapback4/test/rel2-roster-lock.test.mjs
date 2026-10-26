@@ -57,3 +57,19 @@ test('a failed lease renewal fences each delayed identity retry',async t=>{
  t.mock.timers.tick(5000);await done;
  assert.equal(calls,1,'no account request after renewal failure');
 });
+
+test('concurrent processes reclaim one kernel owner without replacing its inode',async t=>{
+ const {createInterface}=await import('node:readline');const path=fixture(t);
+ const children=Array.from({length:4},()=>{
+  const source=`import {rosterLock} from ${JSON.stringify(moduleUrl)};process.stdout.write('ready\\n');process.stdin.once('data',()=>{try{const lock=rosterLock(${JSON.stringify(path)});process.stdout.write('held\\n');process.stdin.once('end',()=>{lock.release();process.exit(0)});}catch(error){if(!String(error).includes('E_PRODUCTION_ROSTER_BUSY'))throw error;process.stdout.write('busy\\n');process.exit(0)}});`;
+  const child=spawn(process.execPath,['--input-type=module','-e',source],{stdio:['pipe','pipe','pipe']});
+  t.after(()=>{if(child.exitCode===null&&child.signalCode===null)child.kill('SIGKILL');});
+  const lines=createInterface({input:child.stdout})[Symbol.asyncIterator]();return {child,lines,exited:once(child,'exit')};
+ });
+ await Promise.all(children.map(async({lines})=>assert.equal((await lines.next()).value,'ready')));
+ for(const {child}of children)child.stdin.write('claim\n');
+ const results=await Promise.all(children.map(async({lines})=>(await lines.next()).value));
+ assert.equal(results.filter(r=>r==='held').length,1);assert.equal(results.filter(r=>r==='busy').length,3);
+ for(const {child}of children)child.stdin.end();await Promise.all(children.map(c=>c.exited));
+ rosterLock(path).release();
+});

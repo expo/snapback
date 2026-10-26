@@ -864,7 +864,13 @@ fn populated_extraction_accepts_inclusive_list_bounds_and_reverse_checks_new_val
     let mut engine=snapback4_core::Engine::new_release(store,b.schema,b.programs.into_iter().map(|p|p.program),1,Some(1)).unwrap();
     let asset=engine.store_file("alice",b"photo",Some("text/plain"),"photo.txt",1000).unwrap();
     engine.seed(vec![("customers".into(),snapback4_core::wire::row_from_json(&schema.tables["customers"],&json!({"id":"customer"})).unwrap()),("orders".into(),snapback4_core::wire::row_from_json(&schema.tables["orders"],&json!({"id":"kept","owner":"alice","buyer":"customer","scan":snapback4_core::wire::to_json(&asset.column_value()),"kinds":["a"]})).unwrap())]).unwrap();drop(engine);
-    app.source(&current);app.ok(&["deploy","deployment"]);
+    app.source(&current);
+    if let Ok(binary)=std::env::var("REL2_BASELINE_BIN") {
+        let before=Command::new(binary).current_dir(&app.0).args(["deploy","deployment","--check"]).output().unwrap();
+        assert!(!before.status.success(),"baseline unexpectedly admitted the original one-step widening");
+        assert!(text(&before).contains("requires identical authoritative types"),"{}",text(&before));
+    }
+    app.ok(&["deploy","deployment"]);
     assert_eq!(app.json(&["sql","SELECT kinds FROM scans","--release","deployment","--json"])["rows"][0][0],json!(r#"{"Array":[{"String":"a"}]}"#));
     app.ok(&["rollback","deployment","--to","1","--exact","--check"]);
 }
@@ -923,4 +929,25 @@ fn live_writer_rechecks_projection_for_a_parent_born_after_a_fitting_preview() {
     assert!(error.to_string().contains("without a validated child projection"),"{error}");
     assert_eq!(app.json(&["releases","deployment"])["current"],2);
     assert_eq!(app.json(&["rollback","deployment","--to","1","--json"])["live"]["rowShape"]["matchesTarget"],false);
+}
+
+#[test]
+fn extraction_preserves_expression_guards_argument_defaults_and_parent_dataflow() {
+    let(base,current)=publication_media();let source=|text:String|vec![("schema.q".into(),text)];
+    let audit="table audit:\n  n: int\n  public\n  online only\n";
+    let old=base.to_owned()+audit+"mutation protected():\n  return (insert audit {n:1}) if true else null\n";
+    let next=current.clone()+audit+"mutation protected():\n  return (insert audit {n:1}) if viewer = 'alice' else null\n";
+    for text in [&old,&next]{let b=snapback4_lang::compile(&source(text.clone()));assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);}
+    assert!(!snapback4_lang::release_bridge::extraction_preserves_predecessor(&source(old),&source(next)));
+    let mutation="mutation protected(approved: bool default true):\n  require approved else FORBIDDEN\n  return insert audit {n:1}\n";
+    assert!(!snapback4_lang::release_bridge::extraction_preserves_predecessor(&source(base.to_owned()+audit+mutation),&source(current.clone()+audit+&mutation.replace("default true","default false"))));
+    let links="table links:\n  order: orders\n  public\n  online only\n";
+    let head="mutation linked(buyer: customers, x: file <=1000, y: file <=1000):\n";
+    let old=base.to_owned()+links+head+"  a = insert orders {owner:viewer,buyer,scan:x}\n  b = insert orders {owner:viewer,buyer,scan:y}\n  return insert links {order:a.id}\n";
+    let current=current.replace("customer: customers renamed from buyer","buyer: customers");
+    let next=current+links+head+"  b = insert orders {owner:viewer,buyer}\n  insert scans {order:b.id,scan:x}\n  a = insert orders {owner:viewer,buyer}\n  insert scans {order:a.id,scan:y}\n  return insert links {order:a.id}\n";
+    for text in [&old,&next]{let b=snapback4_lang::compile(&source(text.clone()));assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);}
+    assert!(!snapback4_lang::release_bridge::extraction_preserves_predecessor(&source(old.clone()),&source(next.clone())));
+    let equivalent=next.replace("return insert links {order:a.id}","return insert links {order:b.id}");
+    assert!(snapback4_lang::release_bridge::extraction_preserves_predecessor(&source(old),&source(equivalent)));
 }

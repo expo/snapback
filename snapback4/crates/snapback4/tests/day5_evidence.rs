@@ -112,6 +112,12 @@ fn saving_the_configured_baseline_is_not_circular_and_failure_cleans_it() {
     let app=App::new();
     app.write("snapback/schema.q","query alive():\n  return true\n");
     app.write("snapback/client-compatibility.json",r#"{"baseline":"versions/v1","since_release":2}"#);
+    if let Ok(binary)=std::env::var("REL2_BASELINE_BIN") {
+        let before=Command::new(binary).current_dir(&app.0).args(["deploy","deployment","--schema","snapback/schema.q","--save-version","versions/v1"]).output().unwrap();
+        assert!(!before.status.success(),"baseline unexpectedly resolved its circular snapshot");
+        assert!(String::from_utf8_lossy(&before.stderr).contains("not saved yet"));
+        assert!(!app.0.join("versions/v1").exists());
+    }
     app.ok(&["deploy","deployment","--schema","snapback/schema.q","--save-version","versions/v1"]);
     assert!(app.0.join("versions/v1/release.json").is_file());
     app.ok(&["check"]);

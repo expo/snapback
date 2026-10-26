@@ -467,6 +467,8 @@ pub(super) fn extraction_context_safe(target:&[(String,String)],current:&[(Strin
         let name=super::release_bridge::operation_name(&doc.file,&previous.name);
         let Some(current)=next.iter().flat_map(|d|d.programs.iter().map(move |p|(d,p)))
             .find(|(d,p)|super::release_bridge::operation_name(&d.file,&p.name)==name).map(|(_,p)|p) else {continue};
+        let defaults=|p:&crate::ast::ProgramDecl|p.args.iter().map(|a|(a.name.clone(),a.alias.clone(),a.default.as_ref().map(expression_signature))).collect::<Vec<_>>();
+        if defaults(previous)!=defaults(current){return false;}
         let context=|p:&crate::ast::ProgramDecl| {
             let body=p.prelude.iter().chain(&p.body).collect::<Vec<_>>();
             // Nested branches/scopes/loops retain their whole ordered context.
@@ -474,7 +476,11 @@ pub(super) fn extraction_context_safe(target:&[(String,String)],current:&[(Strin
                 else {body.iter().rposition(|s|matches!(s,Stmt::Require{..})).map(|i|i+1).unwrap_or(0)};
             body[..end].iter().map(|s|normalized_statement(s)).collect::<Vec<_>>()
         };
-        if context(previous)!=context(current){return false;}
+        let expression_context=|p:&crate::ast::ProgramDecl| {
+            let mut doc=crate::ast::Document::default();doc.programs.push(p.clone());let mut out=Vec::new();
+            crate::bind::intent_walk::document(&mut doc,&mut |e|if matches!(e,crate::ast::Expr::If{..}|crate::ast::Expr::Assert{..}|crate::ast::Expr::Read(_)|crate::ast::Expr::Exists{..}|crate::ast::Expr::Created{..}|crate::ast::Expr::Call{..}|crate::ast::Expr::ShapeUse{..}|crate::ast::Expr::Walk{..}|crate::ast::Expr::Merge(_)){out.push(expression_signature(e));});out
+        };
+        if context(previous)!=context(current)||expression_context(previous)!=expression_context(current){return false;}
         if !matches!(previous.kind,crate::ast::ProgramKind::Query)
             &&write_projection(previous,extractions)!=write_projection(current,extractions){return false;}
         if !matches!(previous.kind,crate::ast::ProgramKind::Query)&&write_projection(previous,extractions).is_none(){return false;}
@@ -489,7 +495,7 @@ fn write_projection(p:&crate::ast::ProgramDecl,extractions:&[snapback4_core::sch
     ->Option<(Vec<String>,Vec<(usize,String,Vec<(String,String)>)>,Vec<String>)> {
     use crate::ast::{Expr,WriteOp};
     let field_value=|field:&crate::ast::ObjectField|field.value.clone().unwrap_or_else(||Expr::Name{name:field.name.clone(),site:field.site.clone()});
-    let mut bindings=std::collections::BTreeMap::new();let mut ordinary=Vec::new();
+    let mut bindings=std::collections::BTreeMap::new();let mut ordinary_nodes=Vec::new();
     for stmt in p.prelude.iter().chain(&p.body) {
         if let Stmt::Bind{names,value,..}=stmt {
             if let Expr::Write{op:WriteOp::Insert,table,site,..}=value {
@@ -498,13 +504,32 @@ fn write_projection(p:&crate::ast::ProgramDecl,extractions:&[snapback4_core::sch
                     continue;
                 }
             }
-            ordinary.push(normalized_statement(stmt));
-        } else if matches!(stmt,Stmt::Emit{..}|Stmt::Break{..}|Stmt::Continue{..}){ordinary.push(normalized_statement(stmt));}
+            ordinary_nodes.push(stmt);
+        } else if matches!(stmt,Stmt::Emit{..}|Stmt::Break{..}|Stmt::Continue{..}|Stmt::Expr{value:crate::ast::Expr::Call{..},..}){ordinary_nodes.push(stmt);}
     }
     // A later rebinding must not inherit an earlier parent identity.
     for name in bindings.keys() {
         if p.prelude.iter().chain(&p.body).filter(|s|matches!(s,Stmt::Bind{names,..}if names.contains(name))).count()!=1{return None;}
     }
+    let mut before=crate::ast::Document::default();before.programs.push(p.clone());
+    let mut all_positions=std::collections::BTreeMap::new();let mut ordinal=0;
+    crate::bind::intent_walk::document(&mut before,&mut |expr|if let Expr::Write{table,site,..}=expr {
+        if !extractions.iter().any(|e|e.child==*table){all_positions.insert((site.line,site.col),ordinal);ordinal+=1;}
+    });
+    let canonical=|expr:&mut Expr|if let Expr::Name{name,..}=expr {
+        if let Some(index)=bindings.get(name).and_then(|site|all_positions.get(site)){*name=format!("$extraction-parent-{index}");}
+    };
+    let mut ordinary=Vec::new();
+    for stmt in ordinary_nodes {
+        let mut node=p.clone();node.prelude.clear();node.body=vec![stmt.clone()];
+        let mut doc=crate::ast::Document::default();doc.programs.push(node);
+        crate::bind::intent_walk::document(&mut doc,&mut |e|canonical(e));
+        ordinary.push((stmt_site(stmt),normalized_statement(&doc.programs[0].body[0])));
+    }
+    let pure_payload=|expr:&Expr| {
+        fn pure(expr:&Expr)->bool {match expr {Expr::Name{..}|Expr::Literal{..}=>true,Expr::Array{items,..}=>items.iter().all(pure),_=>false}}
+        pure(expr)
+    };
     let mut doc=crate::ast::Document::default();doc.programs.push(p.clone());
     let mut writes=Vec::new();let mut payloads=Vec::new();let mut children=Vec::new();let mut positions=std::collections::BTreeMap::new();let mut valid=true;
     crate::bind::intent_walk::document(&mut doc,&mut |expr| {
@@ -517,25 +542,29 @@ fn write_projection(p:&crate::ast::ProgramDecl,extractions:&[snapback4_core::sch
                 Expr::Member{base,name,..}if name=="id"=>if let Expr::Name{name,..}=base.as_ref(){Some(name.clone())}else{None},_=>None,
             });
             let Some(parent)=parent else{valid=false;return};
+            if fields.iter().filter(|f|e.fields.contains_key(&f.name)).any(|f|!pure_payload(&field_value(f))){valid=false;return;}
             let values=e.fields.iter().map(|(dest,source)|fields.iter().find(|f|f.name==*dest).map(|f|(source.clone(),expression_signature(&field_value(f))))).collect::<Option<Vec<_>>>();
             let Some(values)=values else{valid=false;return};children.push((parent,e.child.clone(),values));return;
         }
-        let index=writes.len();positions.insert((site.line,site.col),index);
+        let index=writes.len();let line=site.line;positions.insert((site.line,site.col),index);
         let mut value=expr.clone();
         if let Expr::Write{table,fields,..}=&mut value {
             for e in extractions.iter().filter(|e|e.parent==*table) {
                 let values=e.fields.values().filter_map(|source|fields.iter().find(|f|f.name==*source).map(|f|(source.clone(),expression_signature(&field_value(f))))).collect::<Vec<_>>();
+                if fields.iter().filter(|f|e.fields.values().any(|source|*source==f.name)).any(|f|!pure_payload(&field_value(f))){valid=false;return;}
                 if !values.is_empty(){payloads.push((index,e.child.clone(),values));}
                 fields.retain(|f|!e.fields.values().any(|source|*source==f.name));
             }
-            fields.sort_by(|a,b|a.name.cmp(&b.name));
+
         }
-        writes.push(expression_signature(&value));
+        crate::bind::intent_walk::expression(&mut value,&mut |e|canonical(e));
+        let signature=expression_signature(&value);ordinary.push((line,format!("write {signature}")));writes.push(signature);
     });
     if !valid{return None;}
     for (name,child,values) in children {
         let index=*positions.get(bindings.get(&name)?)?;
         payloads.push((index,child,values));
     }
+    ordinary.sort_by_key(|(line,_)|*line);let ordinary=ordinary.into_iter().map(|(_,value)|value).collect();
     payloads.sort();Some((writes,payloads,ordinary))
 }
