@@ -259,3 +259,105 @@ Reclaimed 6.57 GiB from 44 completed integration-test executables in this
 worktree's own target directory while retaining active/remaining binaries.
 Raw logs, custody records and baseline artifacts remain outside Git under
 `/tmp/wff1-*` and `/tmp/wf-*`. No push, publication or throughput campaign.
+
+
+## WF fix round 2 — delivery reserve and COMMIT-entry witness
+
+Input is `e8c2e34d56`, same commissioned host/worktree and private-cluster
+custody, Cargo `-j 5`, line-tables-only, no throughput campaign. Stage P is
+routed to the separate `~/projects/sb4-s10a` evaluator workspace.
+
+**P2.** Before the fix, the socket proxy held the real batch opener and
+final request for 300,271 / 300,086 µs on one connection. The final still
+sent 997,960 µs of server budget; its 751,354 µs tail fit that budget but
+completed 1,069,488 µs after the client clock sample (69,488 µs past expiry).
+The regression failed 0 passed / 1 failed: xid **committed**, COMMIT-entry sequence called,
+and COMMIT plus idle ReadyForQuery on the wire.
+
+The physical writer now retains 32 successful non-final batch-call timings
+and subtracts their maximum full RTT plus 5 ms from the remaining deadline
+after encoding. The minimum reserve is 5 ms. This prices observed driver
+scheduling, transport, server work and return transit conservatively, using
+existing flights. No positive headroom causes a known rollback before final
+dispatch; the reserve is never clipped to make a deadline fit. An oversized
+reserve only rolls back early. A new delay exceeding the historical reserve
+can exceed this estimate; it is not an arbitrary-delay guarantee. The
+existing uncancellable COMMIT can still finish after its entry deadline.
+The governing pipelined-commit §4.4 and parent round-trip §3.5/store-port
+§5.2 carry that qualification.
+
+**P3.** The original cumulative witness now checks `is_called = false` as
+well as `last_value = 1`. A temporary negative control made exactly one
+`nextval('wf_commit_entered')` call after the acknowledged rollback, before
+the probe: the original assertion falsely passed **1/0**; the strengthened
+assertion correctly failed **0/1** at the COMMIT-entry check. Both runs had
+aborted xids and completed the same ticket/tail work. The injected call was
+removed before final verification. The earlier round's `last_value`-only
+probe did not independently prove zero COMMIT entry.
+
+The fixed delayed wire run passes **1/0**: reserve 306,274 µs, wire budget
+691,762 µs, forwarding 300,112 µs, tail 751,277 µs and elapsed 1,058,399 µs.
+The xid is **aborted**, `is_called = false`, and the wire requires `S4006`,
+ReadyForQuery `E` and no COMMIT tag. The first focused Rust run already
+passed; the proxy's exact-two-delay assertion exposed a later inspection
+read being delayed too. Disarming after the final fixes that harness issue.
+The complete repaired wire set passes **14/0 across five runs** (10 G7.3,
+three transport cuts, one delayed-forwarding case).
+
+The default reserve, retention of the high sample through 32 observations,
+window rollover and connection isolation are checked directly. An oversized
+20 s sample with 10 s still remaining proves acknowledged rollback before
+`start_final_dispatch`, with no head advance or retained receipt/effect.
+Original member deadlines and the existing recovery classification remain
+unchanged. PG16 G7.3 passes **10/0**, E core **40/0**, all G7 **93/0**
+(including the eligible-S two-flight ratchet), private PG17 **2/0 + 10/0**.
+The proxy-only case executes in its dedicated delay run; bulk suites leave
+that mode unarmed.
+
+The first full-core attempt was interrupted by the 25 GiB disk floor.
+All recorded children and its private cluster were stopped and confirmed;
+8.27 GiB of stale duplicate executables in this worktree's own target were
+removed, restoring 29.72 GiB. The incomplete core result is discarded;
+completed G7 evidence was retained and full core was restarted.
+
+| Check | Passed | Failed | Notes |
+| --- | ---: | ---: | --- |
+| Full core | 1,312 | 0 | 49 targets; 535 ignored |
+| Full `snapback4` binary | 626 | 0 | 75 ignored |
+| All G7 / G7.3 | 93 / 10 | 0 / 0 | Includes eligible-S two-flight ratchet |
+| E core / HTTP | 40 / 5 | 0 / 0 | Opt-in E protocol retained |
+| HTTP lever witnesses | 87 | 0 | Authority and retry cuts |
+| RT0 core / HTTP | 6 / 10 | 0 / 0 | Eligible S remains two flights |
+| Private PG17 E / G7.3 | 2 / 10 | 0 / 0 | Real PG17 timeout reset cases |
+| Wire suite | 14 | 0 | Five runs, including all three loss cuts and delivery delay |
+| E crash/kill matrix | 11 | 0 | Zero acknowledged loss or lost-history release |
+| `bash scripts/test-postgres.sh` | 819 | 1 | 26 Cargo targets; inherited `E_INPUT: 6`; exit 1 |
+
+The Postgres total counts Cargo targets; its nested one-test subprocess
+witness is not counted a second time. Its only failed Rust test is
+`both_stores_all_public_boundaries_and_write_observations`, with
+`runtime_refused_unexpected: { "E_INPUT": 6 }`. The separate Stage P command
+in `sb4-s10a` is blocked by its inherited stale evaluator lockfile under
+`--locked`; the previously known `40001` case therefore **did not run**.
+No additional red appeared. In particular, the cold-plan timing witness,
+`g72_first_ticket_deadline_never_reruns_later_deadline_peers` and
+`parallel_matches_serial_overlay_postgres` all pass in this full run.
+Public Postgres serving completes successfully, including release parity,
+restart/takeover, actual G6 owner declaration and the maintained-count
+fixture with 24 seeded messages plus one public post. No throughput campaign was run.
+
+The full binary build and SQLite-only check pass. `./ref-check --verbose`
+passes: **569 LLP documents, 12,049 references, 0 errors, 0 unchecked**.
+After full core passed, another 6.57 GiB of completed core-only integration
+executables were reclaimed from the owned target; all remaining Postgres
+executables and libraries were retained. Verification continued over the
+same code/test/script fingerprint:
+`9b6aaa60fa937a1b56a2f5cb1d6c6c50a140774d415c13bd5889eeb36cb9da25`.
+
+The independent final audit covers **9,697 unique PID/birth pairs** and
+**11 private cluster directories** across the negative controls, fixed
+witnesses, interrupted/restarted verification and crash/serving helpers.
+Every cluster reports `pg_ctl status = 3`, with no `postmaster.pid`; no
+recorded process or unexpected worktree test helper remains. Final free
+space is 33.62 GiB. No push, publication, protected-cluster access or raw
+logs committed.

@@ -28,6 +28,38 @@ fn stage(store: &mut Store) -> Tx<'_> {
 }
 fn status(client: &mut Client,xid: &str) -> String {client.query_one("SELECT pg_xact_status($1::text::xid8)",&[&xid]).unwrap().get(0)}
 #[test]
+fn g73_dispatch_reserve_retains_recent_high_latency_per_connection() {
+    use std::time::Duration;
+    let a=DispatchBound::default();let b=DispatchBound::default();
+    assert_eq!(a.reserve(),Duration::from_millis(5));
+    a.observe(Duration::from_millis(100));
+    for _ in 0..31 {a.observe(Duration::from_millis(2));}
+    assert_eq!(a.reserve(),Duration::from_millis(105),"retain the high sample, not its average");
+    assert_eq!(b.reserve(),Duration::from_millis(5),"a different connection starts fresh");
+    a.observe(Duration::from_millis(2));
+    assert_eq!(a.reserve(),Duration::from_millis(7),"only the latest 32 samples survive");
+}
+#[test]
+#[ignore="private Postgres"]
+fn g73_oversized_delivery_reserve_rolls_back_before_final_dispatch() {
+    use std::time::{Duration,Instant};
+    let mut engine=fixture();let mut client=observer(&mut engine);
+    let before=engine.seq().unwrap();
+    let store=engine.store_mut().test_postgres_handle_mut().store.get_mut();
+    let tx=stage(store);let xid=tx.batch_base.borrow().as_ref().unwrap().xid.clone();
+    tx.dispatch_bound.observe(Duration::from_secs(20));
+    let deadline=Instant::now()+Duration::from_secs(10);
+    tx.program_deadline.set(Some(deadline));
+    let failure=tx.commit_group_final().unwrap_err();
+    assert!(Instant::now()<deadline,"reserve refuses before the real deadline");
+    assert!(tx.program_deadline.get().is_some(),"start_final_dispatch was never called");
+    assert!(failure.aborted && failure.may_rerun());
+    assert!(matches!(&failure.error,RuntimeError::Store(message) if message=="program invocation's remaining deadline elapsed"),"{}",failure.error);
+    drop(tx);assert_eq!(status(&mut client,&xid),"aborted");
+    assert_eq!(engine.seq().unwrap(),before);
+    assert_eq!(client.query_one("SELECT (SELECT count(*) FROM _ops WHERE id='wf-op')+(SELECT count(*) FROM _outbox WHERE id='wf-effect')",&[]).unwrap().get::<_,i64>(0),0);
+}
+#[test]
 #[ignore="private Postgres"]
 fn g73_every_suppressed_tail_count_raises_and_skips_commit() {
     for (table,event) in [("_head","UPDATE"),("r","UPDATE"),("_commits","INSERT"),("_change_evidence","INSERT"),("_log","INSERT"),("_outbox","INSERT"),("_effect_presence","INSERT"),("_ops","INSERT")] {
@@ -115,7 +147,9 @@ fn g73_cumulative_ticket_and_tail_deadline_skips_commit_and_recovers_live_member
     assert!(wait+tail>1_000_000,"combined budget exceeded");
     eprintln!("G73 cumulative budget: ticket_us={wait} tail_us={tail} budget_us=1000000 xid_status={}",status(&mut client,&xid));
     assert_eq!(status(&mut client,&xid),"aborted","expired combined message must skip COMMIT");
-    assert_eq!(client.query_one("SELECT last_value FROM wf_commit_entered",&[]).unwrap().get::<_,i64>(0),1,"COMMIT was never entered");
+    let entry=client.query_one("SELECT last_value,is_called FROM wf_commit_entered",&[]).unwrap();
+    assert_eq!(entry.get::<_,i64>(0),1);
+    assert!(!entry.get::<_,bool>(1),"COMMIT was never entered");
     let failure=result.unwrap_err();assert!(failure.aborted);assert!(failure.may_rerun());
     assert!(matches!(&failure.error,RuntimeError::Store(message) if message=="program invocation's remaining deadline elapsed after tail"),"{}",failure.error);
     assert_eq!(engine.seq().unwrap(),before);
@@ -136,6 +170,49 @@ fn g73_cumulative_ticket_and_tail_deadline_skips_commit_and_recovers_live_member
     assert!(batch[0].attempts.is_empty(),"expired member must not rerun");
     assert_eq!(batch[1].attempts.len(),1,"live member gets one fresh attempt");
     assert_eq!(engine.seq().unwrap(),before+1);
+}
+#[test]
+#[ignore="private Postgres, via scripts/test-g73-wire.py with WF_WIRE_DELAY_MS=300"]
+fn g73_dispatch_to_receipt_delay_consumes_budget() {
+    use std::time::{Duration,Instant};
+    if std::env::var_os("WF_WIRE_DELAY_MS").is_none() { return; }
+    let mut engine=fixture();let mut client=observer(&mut engine);
+    let before=engine.seq().unwrap();
+    client.batch_execute("CREATE SEQUENCE wf_delivery_tail_us; CREATE SEQUENCE wf_delivery_commit_entered;
+        CREATE FUNCTION wf_delivery_tail() RETURNS trigger LANGUAGE plpgsql AS $f$
+        DECLARE started timestamptz := clock_timestamp();
+        BEGIN
+          PERFORM pg_sleep(0.75);
+          PERFORM setval('wf_delivery_tail_us',(extract(epoch FROM (clock_timestamp()-started))*1000000)::bigint);
+          RETURN NEW;
+        END $f$;
+        CREATE TRIGGER wf_delivery_tail BEFORE UPDATE ON _head FOR EACH ROW EXECUTE FUNCTION wf_delivery_tail();
+        CREATE FUNCTION wf_delivery_commit() RETURNS trigger LANGUAGE plpgsql AS $f$
+        BEGIN PERFORM nextval('wf_delivery_commit_entered'); RETURN NEW; END $f$;
+        CREATE CONSTRAINT TRIGGER wf_delivery_commit AFTER UPDATE ON _head DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION wf_delivery_commit()").unwrap();
+    let store=engine.store_mut().test_postgres_handle_mut().store.get_mut();
+    // Arm only this physical socket, after fixture/opening work. The proxy
+    // delays both its real batch opener (a measured sample) and its final.
+    store.client.batch_execute("SELECT 1 /* wf_dispatch_delay */").unwrap();
+    let tx=stage(store);let xid=tx.batch_base.borrow().as_ref().unwrap().xid.clone();
+    let reserve=tx.dispatch_bound.reserve();
+    assert!(reserve>=Duration::from_millis(305),"the real delayed opener must train this socket's reserve: {reserve:?}");
+    let started=Instant::now();
+    tx.program_deadline.set(Some(started+Duration::from_secs(1)));
+    let result=tx.commit_group_final();drop(tx);
+    let elapsed=started.elapsed();
+    let tail:i64=client.query_one("SELECT last_value FROM wf_delivery_tail_us",&[]).unwrap().get(0);
+    let called:bool=client.query_one("SELECT is_called FROM wf_delivery_commit_entered",&[]).unwrap().get(0);
+    let outcome=status(&mut client,&xid);
+    eprintln!("G73 delivery budget: reserve_us={} elapsed_us={} tail_us={tail} budget_us=1000000 xid_status={outcome} commit_entered={called}",reserve.as_micros(),elapsed.as_micros());
+    assert!(elapsed>Duration::from_secs(1),"the forwarding delay must cross the client deadline");
+    assert!((750_000..1_000_000).contains(&tail),"tail alone must fit the original budget: {tail}");
+    assert_eq!(outcome,"aborted","dispatch-to-receipt delay must consume the budget");
+    assert!(!called,"COMMIT was never entered");
+    let failure=result.unwrap_err();assert!(failure.aborted);assert!(failure.may_rerun());
+    assert!(matches!(&failure.error,RuntimeError::Store(message) if message=="program invocation's remaining deadline elapsed after tail"),"{}",failure.error);
+    assert_eq!(engine.seq().unwrap(),before);
+    assert_eq!(client.query_one("SELECT (SELECT count(*) FROM _ops WHERE id='wf-op')+(SELECT count(*) FROM _outbox WHERE id='wf-effect')",&[]).unwrap().get::<_,i64>(0),0);
 }
 #[test]
 #[ignore="private Postgres"]

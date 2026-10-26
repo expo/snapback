@@ -5,6 +5,8 @@ config=dict(re.findall(r'(host|port|user|dbname)=([^ ]+)',os.environ['SNAPBACK4_
 server=socket.socket();server.bind(('127.0.0.1',0));server.listen(64);server.settimeout(.2)
 stop=threading.Event();lock=threading.Lock();records=[];sockets=[];workers=[];next_id=0
 fault=os.environ.get('WF_WIRE_FAULT');injected=False
+delay_ms=int(os.environ.get('WF_WIRE_DELAY_MS','0'));forward_delays=[]
+assert delay_ms in [0,300] and not (delay_ms and fault)
 
 def read(s,n):
  out=bytearray()
@@ -28,12 +30,13 @@ def connection(front,ident):
  with lock:sockets.extend([front,back])
  def requests():
   global injected
-  extended=False
+  extended=False;delay_armed=False
   try:
    size=read(front,4);payload=read(front,struct.unpack('!I',size)[0]-4);back.sendall(size+payload)
    while True:
     tag,length,payload=packet(front)
     if tag==b'Q':
+     if b'/* wf_dispatch_delay */' in payload:delay_armed=True
      with lock:
       final=payload.rstrip(b'\x00; \n').upper().endswith(b'COMMIT')
       cut=bool(fault and final and b'EXECUTE sb4_rt6_' in payload and not injected)
@@ -41,6 +44,11 @@ def connection(front,ident):
       replies.append(dict(final=final,error=None,commit=False,cut=cut,combined=bool(final and b'EXECUTE sb4_rt6_' in payload)))
      if cut and fault=='before-forward':
       front.shutdown(socket.SHUT_RDWR);back.shutdown(socket.SHUT_RDWR);return
+     if delay_ms and delay_armed and b'EXECUTE sb4_rt6_' in payload:
+      started=time.monotonic_ns();time.sleep(delay_ms/1000)
+      budget=re.search(rb'sb4_assert_deadline\((\d+)\)',payload)
+      with lock:forward_delays.append(dict(connection=ident,final=final,delay_us=(time.monotonic_ns()-started)//1000,budget_us=int(budget[1]) if budget else None))
+      if final:delay_armed=False
     elif tag in [b'P',b'B',b'D',b'E',b'C']:
      if not extended:
       with lock:replies.append(empty())
@@ -85,7 +93,7 @@ listener=threading.Thread(target=accept);listener.start()
 env=dict(os.environ,SNAPBACK4_EVAL_POSTGRES=f'host=127.0.0.1 port={server.getsockname()[1]} user={config["user"]} dbname={config["dbname"]} sslmode=disable')
 if fault:env['WF_WIRE_LOSS']='1'
 try:
- child=subprocess.run([sys.argv[1],'g73_lost_combined_message' if fault else 'g73_','--include-ignored','--nocapture','--test-threads','1'],env=env)
+ child=subprocess.run([sys.argv[1],'g73_dispatch_to_receipt_delay' if delay_ms else 'g73_lost_combined_message' if fault else 'g73_','--include-ignored','--nocapture','--test-threads','1'],env=env)
 finally:
  stop.set();server.close();listener.join(5)
  for s in sockets:
@@ -96,8 +104,12 @@ finally:
 finals=[r for r in records if r['combined']]
 checks={'complete_idle_commits':sum(r['commit'] and r['rfq']=='I' and r['error'] is None for r in finals),'assertion_aborts_skip_commit':sum(r['error']=='S4003' and r['rfq']=='E' and not r['commit'] for r in finals),'ticket_timeouts_skip_commit':sum(r['error'] in ['55P03','57014'] and r['rfq']=='E' and not r['commit'] for r in finals),'identity_aborts_skip_commit':sum(r['error'] in ['S4004','S4005'] and r['rfq']=='E' and not r['commit'] for r in finals)}
 checks['cumulative_deadline_aborts_skip_commit']=sum(r['error']=='S4006' and r['rfq']=='E' and not r['commit'] for r in finals)
-pathlib.Path(os.environ.get('WF_WIRE_OUT','/tmp/wf-wire.json')).write_text(json.dumps({'checks':checks,'records':records,'child_exit':child.returncode},indent=2))
-print(json.dumps(dict(checks, fault=fault,injected=injected)),flush=True)
+pathlib.Path(os.environ.get('WF_WIRE_OUT','/tmp/wf-wire.json')).write_text(json.dumps({'checks':checks,'records':records,'forward_delays':forward_delays,'child_exit':child.returncode},indent=2))
+print(json.dumps(dict(checks, fault=fault,injected=injected,forward_delays=forward_delays)),flush=True)
 assert child.returncode==0
-if fault:assert injected
+if delay_ms:
+ assert len(forward_delays)==2 and len({r['connection'] for r in forward_delays})==1
+ assert all(r['delay_us']>=delay_ms*1000 for r in forward_delays)
+ assert checks['cumulative_deadline_aborts_skip_commit']==1 and checks['complete_idle_commits']==0
+elif fault:assert injected
 else:assert checks['complete_idle_commits']>=1 and checks['assertion_aborts_skip_commit']==8 and checks['ticket_timeouts_skip_commit']==1 and checks['identity_aborts_skip_commit']==2 and checks['cumulative_deadline_aborts_skip_commit']==1

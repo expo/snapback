@@ -3,6 +3,29 @@
 use super::store::{Store, Tx};
 use crate::{RuntimeError, engine::committer::outcome::Failure};
 use std::sync::atomic::Ordering;
+use std::{cell::Cell, time::Duration};
+
+// @ref LLP 3000.009.001.000.000.002#4.4 — receipt-relative server time needs a conservative allowance for delivery before receipt.
+#[derive(Default)]
+pub(super) struct DispatchBound {
+    samples: Cell<[Duration; 32]>,
+    next: Cell<usize>,
+}
+impl DispatchBound {
+    pub(super) fn observe(&self, round_trip: Duration) {
+        let mut samples = self.samples.get();
+        samples[self.next.get()] = round_trip;
+        self.samples.set(samples);
+        self.next.set((self.next.get() + 1) % samples.len());
+    }
+    pub(super) fn reserve(&self) -> Duration {
+        // Full RTT tolerates observed asymmetry and includes driver scheduling,
+        // server work and return transit. Padding is also the unsampled floor.
+        // Never clip a large reserve to the remaining invocation budget.
+        self.samples.get().into_iter().max().unwrap_or_default()
+            .saturating_add(Duration::from_millis(5))
+    }
+}
 
 pub(super) const IDENTITY: &str = "SELECT generation,store_id FROM pg_temp.sb4_identity($1,$2)";
 const HELPERS: &str = r#"

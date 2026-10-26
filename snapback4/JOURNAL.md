@@ -108818,3 +108818,57 @@ concurrent reds remain recorded in the report; no thresholds were weakened.
 All 10 private cluster directories confirm
 stopped, all 10,651 audited PID/birth pairs are gone,
 and minimum free disk is 31.92 GiB. No owned PIDs left.
+
+
+## 2026-10-26 — WF fix round 2: include delivery before server receipt
+
+Review of `e8c2e34d56` identified the unsampled interval between final
+budget selection and server receipt. A socket proxy now holds the real
+opener and final message for 300 ms on the same writer connection. Before
+the fix, a 751 ms tail under a one-second budget commits after 1.069 s;
+the regression fails 0/1 with a committed xid, a called COMMIT-entry
+sequence and idle COMMIT confirmation on the wire.
+
+Each physical writer retains its last 32 successful non-final batch-flight
+RTTs. The final message's budget subtracts their maximum full RTT plus
+5 ms, with a 5 ms minimum; there is no extra round trip. Insufficient
+headroom rolls back before dispatch. Overestimation causes an earlier
+known rollback, while novel delays beyond the historical estimate remain
+an explicit limitation. COMMIT is still uncancellable. The three governing
+LLP sections document the bound and this qualification.
+
+The cumulative witness now requires `is_called = false`: the sequence's
+first `nextval()` leaves `last_value = 1`. A temporary one-call negative
+control falsely passes the old assertion (1/0), and correctly fails the
+strengthened one (0/1). The injection is removed. This corrects round 1's
+claim that the original `last_value`-only probe proved zero COMMIT entry.
+
+The fixed delayed run reserves 306 ms and sends 692 ms of server budget;
+its 751 ms tail now raises `S4006`, confirms an aborted xid and leaves the
+COMMIT-entry sequence uncalled (1/0). Wire verification passes 14/0 across
+five modes. G7 passes 93/0, E core 40/0 and PG17 2/0 + 10/0; eligible S
+batches retain two flights. The historical reserve does not alter original
+per-member recovery deadlines.
+
+The initial full-core run hit the disk floor. Its owned processes and
+cluster were stopped and confirmed, 8.27 GiB of stale duplicate executables
+were removed from this worktree's target, and the incomplete check was
+restarted above the floor.
+
+Final checks pass at full core 1,312/0 (535 ignored), full binary 626/0
+(75 ignored), HTTP authority 87/0, E HTTP 5/0, RT0 6/0 + 10/0 and E
+crash/kill 11/0. Binary and SQLite-only builds pass; ref-check validates
+12,049 references with 0 errors/unchecked. Full Postgres reports 819/1:
+its sole Rust red is inherited difftest `E_INPUT: 6`. Stage P in `sb4-s10a`
+is blocked by the inherited locked evaluator lockfile, so known `40001`
+does not execute. No additional red appears; the prior cold-plan,
+first-ticket-deadline and parallel-overlay flakes all pass this time.
+Public Postgres serving passes. Completed core-only executables were
+reclaimed after their successful run to keep disk above the floor.
+
+The final independent audit confirms all 11 private cluster directories
+stopped (status 3, no PID files), all 9,697 recorded PID/birth pairs gone,
+and no unexpected worktree helpers. Free space is 33.62 GiB. The product,
+tests and proxy retain the same verified source fingerprint. See the
+[WF report](reports/20261026-wf-postgres/REPORT.md). No push or publication;
+no throughput campaign.
