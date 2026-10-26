@@ -334,7 +334,7 @@ pub fn run_selected_after(bound:&Bound,sites:Option<&BTreeSet<String>>,mut out:C
                     match attempt.mutate(operation,None,replay_ids::context(viewer,args.clone()).at(NOW).with_fixture_trace(trace.clone())) {
                         Ok(result) if matches!(result.state,snapback4_core::WriteState::Sent{..})=>{
                             if let Ok(after)=readback(&attempt){
-                                let steps=vec![histories::Step{clock:Some(NOW),operation:operation.clone(),viewer:viewer.into(),args,result:serde_json::to_value(&result.state).unwrap()}];
+                                let steps=vec![histories::Step{observed_data:None,clock:Some(NOW),operation:operation.clone(),viewer:viewer.into(),args,result:serde_json::to_value(&result.state).unwrap()}];
                                 let first=out.violations.len();
                                 executed::record(bound,&p.program,&trace,&result.state,&after,&rows,viewer,&steps,&mut attempt,&mut out);
                                 for witness in &mut out.violations[first..]{witness.reachability=Reachability::SyntheticOperation;witness.scope="actual executed boundaries from a schema-valid synthetic initial snapshot; application reachability is not claimed".into();}
@@ -538,7 +538,7 @@ pub fn operations(bound:&Bound,fixture:&Engine,campaign:&mut Campaign){
                     match engine.mutate(&p.program.name,None,replay_ids::context(viewer,args.clone()).at(NOW).with_fixture_trace(trace.clone())){
                         Ok(result) if matches!(result.state,snapback4_core::WriteState::Sent{..})=>{
                             if let Ok(after)=readback(&engine){
-                                let steps=vec![histories::Step{clock:None,operation:p.program.name.clone(),viewer:viewer.clone(),args:args.clone(),result:serde_json::to_value(&result.state).unwrap()}];
+                                let steps=vec![histories::Step{observed_data:None,clock:None,operation:p.program.name.clone(),viewer:viewer.clone(),args:args.clone(),result:serde_json::to_value(&result.state).unwrap()}];
                                 let first_observation=campaign.violations.len();
                                 executed::record(bound,&p.program,&trace,&result.state,&after,&rows,viewer,&steps,&mut engine,campaign);
                                 if !has_fixture{for v in &mut campaign.violations[first_observation..]{v.reachability=Reachability::SyntheticOperation;v.scope="authored matrix operation on an invented schema snapshot; no trusted fixture or initialization trace".into();}}

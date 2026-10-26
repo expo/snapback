@@ -7,7 +7,9 @@ pub(in crate::verbs) fn concrete(value:&serde_json::Value)->bool {
         && value["candidate"].as_str().is_some_and(|s|!s.is_empty())
         && value["operation"].as_str().is_some_and(|s|!s.is_empty())
         && history.last().is_some_and(|step|step["operation"]==value["operation"]&&step["viewer"]==value["viewer"]
-            && (step["state"]=="sent" || value["kind"]=="read-payload" && step["state"]=="observed"))
+            && (step["state"]=="sent" || value["kind"]=="read-payload" && step["state"]=="observed"
+                && value["observation"]["complete"].is_boolean()
+                && (value["observation"]["data"].is_object()||value["observation"]["data"].is_array())))
 }
 fn canonical(value:&serde_json::Value)->serde_json::Value {
     use serde_json::Value;

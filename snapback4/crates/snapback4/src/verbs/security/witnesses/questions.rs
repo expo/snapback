@@ -227,6 +227,15 @@ pub(super) fn repeat(bound:&Bound,inv:&security::Invariant,c:&Counterexample,n:&
         for v in values{assert!(v["history"].as_array().unwrap().last().unwrap()["clock"].is_i64());let mut later=v.clone();later["history"].as_array_mut().unwrap().last_mut().unwrap()["clock"]=json!(challenges::NOW+1);assert_ne!(super::super::super::super::security_reviews::witness::id(&v),super::super::super::super::security_reviews::witness::id(&later));assert_eq!(v["kind"],"read-payload");assert_eq!(v["operation"],"read");assert_eq!(v["history"].as_array().unwrap().last().unwrap()["state"],"observed");}
         let fixed=source.replace(" or viewer = 'dev:reader'","");assert!(examples(&fixed,"N_BROAD_READ","docs.read: broad exception").is_empty());
     }
+    #[test]fn changing_delivered_fields_renews_a_read_decision_with_the_same_policy_row(){
+        let source="use personas owner,reader\ntable docs:\n  owner: principal\n  secret: text <=50 read <- .owner = viewer\n  read <- .owner = viewer or viewer = 'dev:reader'\n  insert <- allow\n  online only\nquery read(doc: docs):\n  return docs[doc]\n";
+        let before=examples(source,"N_BROAD_READ","docs.read: broad exception");assert!(!before.is_empty());
+        let changed=source.replace("secret: text <=50 read <- .owner = viewer","secret: text <=50");
+        let after=examples(&changed,"N_BROAD_READ","docs.read: broad exception");assert!(!after.is_empty());
+        let (a,b)=(&before[0],&after[0]);assert_eq!(a["row"],b["row"]);
+        assert_ne!(a["observation"]["data"],b["observation"]["data"]);assert_ne!(a["id"],b["id"]);
+        assert_eq!(b["observation"]["data"]["secret"],"<redacted>");
+    }
     #[test]fn missing_child_is_observed_at_the_named_transition(){
         let prefix="table docs:\n  state: enum('draft','done') default 'draft'\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\ntable photos:\n  doc: docs\n  image: image <=1000\n  read <- allow\n  online only\n";
         let source=format!("{prefix}mutation finish(doc: docs):\n  d = docs[doc] ! else MISSING\n  require d.state = 'draft' else STATE\n  update docs[doc] {{state:'done'}}\n");

@@ -56,6 +56,25 @@ fn image(bound: &Bound, table: &str, row: &snapback4_core::Value) -> serde_json:
             .collect::<BTreeMap<_, _>>()
     )
 }
+// Preserve delivered field sets and typed row values separately from the
+// physical policy image. Opaque JSON/text/assets never expose their payload.
+// @ref LLP 3000.036.004.001#read-payloads — a changed disclosure renews the witness decision.
+fn observed_data(bound:&Bound,ty:&snapback4_lang::types::Ty,value:&snapback4_core::Value)->serde_json::Value {
+    use snapback4_lang::types::Ty;
+    use snapback4_core::Value;
+    if *value==Value::Null{return serde_json::Value::Null;}
+    match ty {
+        Ty::Row(table)|Ty::WriteRow(table)=>image(bound,table,value),
+        Ty::Page(table,_)=>if let Value::Array(rows)=value{json!(rows.iter().map(|r|image(bound,table,r)).collect::<Vec<_>>())}else{json!("<redacted>")},
+        Ty::Optional(inner)|Ty::Omittable(inner)=>observed_data(bound,inner,value),
+        Ty::List(inner,_)|Ty::Collection(inner,_)=>if let Value::Array(values)=value{json!(values.iter().map(|v|observed_data(bound,inner,v)).collect::<Vec<_>>())}else{json!("<redacted>")},
+        Ty::Object(fields)|Ty::RowShape(fields)|Ty::RowObject(fields)=>json!(fields.iter().filter_map(|(name,ty)|value.field(name).ok().map(|v|(name,observed_data(bound,ty,v)))).collect::<BTreeMap<_,_>>()),
+        Ty::Id|Ty::Principal|Ty::Ref(_) if matches!(value,Value::Id(_))=>snapback4_core::wire::to_json(value),
+        Ty::Enum(variants) if matches!(value,Value::String(s) if variants.contains(s))=>snapback4_core::wire::to_json(value),
+        Ty::Json|Ty::Text(_)|Ty::Bytes|Ty::Image|Ty::Video|Ty::File|Ty::Cursor|Ty::Unknown=>json!("<redacted>"),
+        _=>safe(value,None),
+    }
+}
 fn actual_args(c: &Counterexample) -> &BTreeMap<String, snapback4_core::Value> {
     if !c.args.is_empty() {
         return &c.args;
@@ -93,6 +112,12 @@ fn dependencies(sources:&[(String,String)],bound:&Bound,inv:&security::Invariant
     }tables
 }
 pub(in crate::verbs) fn evidence(sources:&[(String,String)],bound: &Bound, inv: &security::Invariant, c: &Counterexample) -> serde_json::Value {
+    let observation=c.history.last().filter(|step|step.result["state"]=="observed").and_then(|step|{
+        let data=step.observed_data.as_ref()?.clone();
+        let result=&bound.programs.iter().find(|p|p.program.name==c.operation)?.result;
+        let visible=observed_data(bound,result,&data);
+        Some((data,visible,step.result["complete"].clone()))
+    });
     let args = actual_args(c)
         .iter()
         .map(|(name, value)| (name, safe(value, None)))
@@ -147,11 +172,23 @@ pub(in crate::verbs) fn evidence(sources:&[(String,String)],bound: &Bound, inv: 
     for (table,rows) in &c.supporting_rows{if dependencies.contains(table){for row in rows{row_ids(table,row,&mut add_id);}}}
     if let Some(rows)=&committed{for (table,rows) in rows{if dependencies.contains(table){for row in rows{row_ids(table,row,&mut add_id);}}}}
     for value in actual_args(c).values(){add_id(value);}for step in &c.history{for value in step.args.values(){add_id(value);}}
+    fn observation_ids(value:&snapback4_core::Value,add:&mut dyn FnMut(&snapback4_core::Value)) {
+        use snapback4_core::Value;
+        match value{Value::Id(_)=>add(value),Value::Row(fields)=>for v in fields.values(){observation_ids(v,add)},Value::Map(fields)=>for v in fields.values(){observation_ids(v,add)},Value::Array(values)=>for v in values{observation_ids(v,add)},_=>{}}
+    }
+    if let Some((data,visible,_))=&observation{
+        fn strings(value:&serde_json::Value,out:&mut std::collections::BTreeSet<String>){match value{
+            serde_json::Value::String(s)=>{out.insert(s.clone());},serde_json::Value::Object(fields)=>for v in fields.values(){strings(v,out)},serde_json::Value::Array(values)=>for v in values{strings(v,out)},_=>{}
+        }}
+        let mut shown=std::collections::BTreeSet::new();strings(visible,&mut shown);
+        observation_ids(data,&mut |v|if let snapback4_core::Value::Id(id)=v&&shown.contains(id){add_id(v)});
+    }
     let mut value=json!({"compactSummary":compact_summary,"generatedIds":generated_ids,"history":history,"supportingRows":supporting,"summary":summary,"candidate":format!("invariant {} only {}",inv.target_label(),inv.predicate),"operation":c.operation,"viewer":c.viewer,"args":args,"effect":c.effect,"old":old,"row":next,"reachability":c.reachability,"scope":c.scope});
-    if c.history.last().is_some_and(|step|step.result["state"]=="observed") {
+    if let Some((_,data,complete))=observation {
         value["kind"]="read-payload".into();
-        value["summary"]=format!("{}({}) as {} → returned {} {}; candidate invariant {} only {} (repeatable typed payload on a finite generated-fixture replay, not proof)",c.operation,serde_json::to_string(&args).unwrap(),c.viewer,inv.target_label(),next,inv.target_label(),inv.predicate).into();
-        value["compactSummary"]=format!("{} as {} → returned {} {} (bounded replay; not proof)",c.operation,c.viewer,inv.target_label(),focused(&next)).into();
+        value["observation"]=json!({"data":data,"complete":complete});
+        value["summary"]=format!("{}({}) as {} → disclosed {}; policy image {}; observed result {}; candidate invariant {} only {} (repeatable typed payload on a finite generated-fixture replay, not proof)",c.operation,serde_json::to_string(&args).unwrap(),c.viewer,inv.target_label(),next,data,inv.target_label(),inv.predicate).into();
+        value["compactSummary"]=format!("{} as {} → disclosed {}; policy fields {} (bounded replay; not proof)",c.operation,c.viewer,inv.target_label(),focused(&next)).into();
     }
     if let Some(rows)=committed{value["committedRows"]=json!(rows.iter().filter(|(table,_)|dependencies.contains(*table)).map(|(table,rows)|(table,rows.iter().map(|row|image(bound,table,row)).collect::<Vec<_>>())).collect::<BTreeMap<_,_>>());}
     super::super::security_reviews::witness::stamp(value)
@@ -579,5 +616,11 @@ mod tests {
             assert!(safe(&snapback4_core::Value::Null,Some(&kind)).is_null());
             assert_eq!(safe(&secret,Some(&kind)),json!("<redacted>"));
         }
+        let bound=snapback4_lang::compile(&[("schema.q".into(),"query q():\n  return true\n".into())]);
+        let opaque=snapback4_lang::types::Ty::Json;
+        assert_eq!(observed_data(&bound,&opaque,&snapback4_core::Value::Int(987654321)),json!("<redacted>"));
+        let object=snapback4_lang::types::Ty::Object(BTreeMap::from([("opaque".into(),opaque)]));
+        let value=snapback4_core::Value::Row(BTreeMap::from([("opaque".into(),snapback4_core::Value::Int(987654321))]).into());
+        assert_eq!(observed_data(&bound,&object,&value),json!({"opaque":"<redacted>"}));
     }
 }

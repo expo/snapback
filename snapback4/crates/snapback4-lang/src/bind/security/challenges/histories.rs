@@ -2,8 +2,15 @@
 // @ref LLP 3000.036.004#122-reproducible-campaigns-and-reachability — only actual fixture traces establish application reachability.
 use super::*;
 const LIMIT:usize=512;
-#[derive(Clone,Debug,Serialize,serde::Deserialize)]
-pub struct Step {#[serde(default,skip_serializing_if="Option::is_none")] pub clock:Option<i64>,pub operation:String,pub viewer:String,pub args:BTreeMap<String,Value>,pub result:serde_json::Value}
+#[derive(Clone,Serialize,serde::Deserialize)]
+pub struct Step {#[serde(default,skip_serializing_if="Option::is_none")] pub clock:Option<i64>,pub operation:String,pub viewer:String,pub args:BTreeMap<String,Value>,pub result:serde_json::Value,
+    /// Live-only input to the CLI's typed redactor; never a public report field.
+    #[serde(skip)] pub observed_data:Option<Value>}
+impl std::fmt::Debug for Step {
+    fn fmt(&self,f:&mut std::fmt::Formatter<'_>)->std::fmt::Result {
+        f.debug_struct("Step").field("clock",&self.clock).field("operation",&self.operation).field("viewer",&self.viewer).field("args",&self.args).field("result",&self.result).finish_non_exhaustive()
+    }
+}
 
 pub(super) fn viewers(bound:&Bound)->Vec<String>{
     let mut out=BTreeSet::from([VIEWER.into(),OTHER.into(),"account:security-no-role".into(),"service:security".into()]);
@@ -245,7 +252,7 @@ fn observe(bound:&Bound,e:&mut Engine,rows:&BTreeMap<String,Vec<Value>>,initial:
                         if added&&let Some(v)=out.violations.last_mut(){
                             v.operation=bp.program.name.clone();v.args=args.clone();
                             // @ref LLP 3000.036.004.001#read-payloads — record the actual observer, including a query on an unchanged generated fixture.
-                            v.history.push(Step{clock:Some(history_clock(steps)),operation:bp.program.name.clone(),viewer:viewer.clone(),args,result:serde_json::json!({"state":"observed","complete":q.complete})});
+                            v.history.push(Step{observed_data:Some(q.data),clock:Some(history_clock(steps)),operation:bp.program.name.clone(),viewer:viewer.clone(),args,result:serde_json::json!({"state":"observed","complete":q.complete})});
                             v.rule_path="authored query repeatably returned a compiler-typed row/column payload of the protected table while current policy is false".into();
                         }
                         continue 'actors;
@@ -531,7 +538,7 @@ pub(super) fn lifecycle_observers_to(bound:&Bound,fixture:&Engine,out:&mut Campa
                     if !matches!(result.state,snapback4_core::WriteState::Sent{..}){out.refused+=1;continue;}
                     let Ok(after)=readback(&engine)else{continue;};
 
-                    let mut history=steps.clone();history.push(Step{clock:Some(clock),operation:p.name.clone(),viewer:viewer.clone(),args:args.clone(),result:serde_json::to_value(&result.state).unwrap()});
+                    let mut history=steps.clone();history.push(Step{observed_data:None,clock:Some(clock),operation:p.name.clone(),viewer:viewer.clone(),args:args.clone(),result:serde_json::to_value(&result.state).unwrap()});
                     super::executed::record(bound,p,&trace,&result.state,&after,&initial,viewer,&history,&mut engine,out);
                     changed(bound,p,&before,&after,&initial,viewer,&history,&mut prior,&mut engine,out);
                     let changed_tables=after.iter().filter(|(t,rs)|before.get(*t)!=Some(*rs)).map(|(t,_)|t.clone()).collect();
@@ -697,7 +704,7 @@ pub(super) fn run(bound:&Bound,fixture:&Engine,out:&mut Campaign){
             match engine.mutate(&p.name,None,replay_ids::context(viewer,args.clone()).at(NOW).with_fixture_trace(trace.clone())){
                 Ok(result)=>{
                     let sent=matches!(result.state,snapback4_core::WriteState::Sent{..});
-                    steps.push(Step{clock:None,operation:p.name.clone(),viewer:viewer.clone(),args:args.clone(),result:serde_json::to_value(&result.state).unwrap()});
+                    steps.push(Step{observed_data:None,clock:None,operation:p.name.clone(),viewer:viewer.clone(),args:args.clone(),result:serde_json::to_value(&result.state).unwrap()});
                     let after=match readback(&engine){Ok(r)=>r,Err(e)=>{out.unsupported.insert(e);break;}};
                     if sent&&n<singles{
                         if before!=after{
@@ -852,9 +859,14 @@ pub(super) fn principal_preferences(bound:&Bound,p:&Program,rows:&BTreeMap<Strin
 
 #[cfg(test)]mod sec11_observer_tests {
     use super::*;
+    #[test]fn live_observations_never_enter_serialized_or_debug_reports(){
+        let step=Step{observed_data:Some(Value::String("live-observation-secret-sentinel".into())),clock:Some(NOW),operation:"read".into(),viewer:VIEWER.into(),args:BTreeMap::new(),result:serde_json::json!({"state":"observed","complete":true})};
+        let public=serde_json::to_value(&step).unwrap();assert!(!public.to_string().contains("secret-sentinel"));assert!(!format!("{step:?}").contains("secret-sentinel"));
+        let restored:Step=serde_json::from_value(public).unwrap();assert!(restored.observed_data.is_none());
+    }
     #[test]fn the_observer_does_not_change_the_mutation_prefix_dedup_key(){
-        let write=Step{clock:Some(NOW),operation:"create".into(),viewer:VIEWER.into(),args:BTreeMap::new(),result:serde_json::json!({"state":"sent"})};
-        let read=Step{clock:Some(NOW),operation:"read".into(),viewer:VIEWER.into(),args:BTreeMap::new(),result:serde_json::json!({"state":"observed"})};
+        let write=Step{observed_data:None,clock:Some(NOW),operation:"create".into(),viewer:VIEWER.into(),args:BTreeMap::new(),result:serde_json::json!({"state":"sent"})};
+        let read=Step{observed_data:None,clock:Some(NOW),operation:"read".into(),viewer:VIEWER.into(),args:BTreeMap::new(),result:serde_json::json!({"state":"observed"})};
         assert_eq!(trace_key(&[write.clone()]),trace_key(&[write.clone(),read]));
         assert_ne!(trace_key(&[write.clone()]),trace_key(&[write.clone(),write]));
     }
