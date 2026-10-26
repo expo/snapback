@@ -1,0 +1,9 @@
+{
+  "trials": 3,
+  "passes": 3,
+  "rate": 100,
+  "overlap_confirmed": true,
+  "fixture_shared_with_matrix": true,
+  "fresh_service_every_cell": true,
+  "time": 1793010479.544603
+}

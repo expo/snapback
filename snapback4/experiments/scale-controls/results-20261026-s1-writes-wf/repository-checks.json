@@ -1,0 +1,26 @@
+{
+  "ref_check": {
+    "command": "./ref-check --verbose",
+    "passed": true,
+    "summary": "ref-check: ok \u2014 569 LLP docs, 12048 refs in 45389 files, 0 errors, 0 unchecked"
+  },
+  "packaged_docs_lint": {
+    "passed": true
+  },
+  "scope": "report, links, arithmetic, source/binary integrity, archived evidence; no product battery or publication claim",
+  "complete_product_battery_executed": false,
+  "supplemental_monitor_failed": true,
+  "unchanged_runner_qualification_passed": true,
+  "independent_report_verification": {
+    "passed": true,
+    "source_repetitions": 105,
+    "archive_sha256": "bdb0764b63f422b1ef2f21ea77167147ee80f35b0ad8710eac3f81df5596cf5c"
+  },
+  "affected_selector": {
+    "command": "node snapback4/scripts/affected.mjs --base 55c44e465d --worktree --json",
+    "plan_only": true,
+    "broad": true,
+    "reason": "experimental result paths are unknown; product and runner source unchanged",
+    "complete_product_battery_executed": false
+  }
+}

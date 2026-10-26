@@ -1,0 +1,65 @@
+[
+  {
+    "campaign": "matrix-g6",
+    "pid": 3494016,
+    "start_ticks": 1556997419,
+    "time": 1793010378.676778,
+    "clock_bounds": "1000,250",
+    "cache_metrics_enabled": false,
+    "read_trace_enabled": false
+  },
+  {
+    "campaign": "matrix-g6",
+    "pid": 3495262,
+    "start_ticks": 1557007786,
+    "time": 1793010482.3736777,
+    "clock_bounds": "1000,250",
+    "cache_metrics_enabled": false,
+    "read_trace_enabled": false
+  },
+  {
+    "campaign": "matrix-g6",
+    "pid": 3500332,
+    "start_ticks": 1557046215,
+    "time": 1793010866.655564,
+    "clock_bounds": "1000,250",
+    "cache_metrics_enabled": false,
+    "read_trace_enabled": false
+  },
+  {
+    "campaign": "matrix-g6",
+    "pid": 3505070,
+    "start_ticks": 1557084828,
+    "time": 1793011252.8559065,
+    "clock_bounds": "1000,250",
+    "cache_metrics_enabled": false,
+    "read_trace_enabled": false
+  },
+  {
+    "campaign": "matrix-g6",
+    "pid": 3513372,
+    "start_ticks": 1557160445,
+    "time": 1793012008.8584697,
+    "clock_bounds": "1000,250",
+    "cache_metrics_enabled": false,
+    "read_trace_enabled": false
+  },
+  {
+    "campaign": "matrix-g6",
+    "pid": 3558768,
+    "start_ticks": 1557246031,
+    "time": 1793012864.7298872,
+    "clock_bounds": "1000,250",
+    "cache_metrics_enabled": false,
+    "read_trace_enabled": false
+  },
+  {
+    "campaign": "matrix-g6",
+    "pid": 3596477,
+    "start_ticks": 1557303381,
+    "time": 1793013438.368702,
+    "clock_bounds": "1000,250",
+    "cache_metrics_enabled": false,
+    "read_trace_enabled": false
+  }
+]

@@ -1,0 +1,105 @@
+{
+  "link": "B",
+  "scope": "outside-Git release helper, public Queue::start defaults, owned G6 store, cloned 1M S1 fixture, direct Context/no HTTP token-auth; unchanged deadlines; no capacity claim",
+  "aggregate": [
+    {
+      "cell": "W4",
+      "depth": 2,
+      "repetitions": 1,
+      "mean_N": 14.883720930232558,
+      "in_flight_at_dispatch": [
+        0,
+        1,
+        85
+      ],
+      "N_histogram": {
+        "1": 14,
+        "2": 18,
+        "23": 2,
+        "24": 1,
+        "25": 4,
+        "26": 5,
+        "27": 3,
+        "28": 3,
+        "29": 1,
+        "3": 2,
+        "30": 14,
+        "31": 8,
+        "4": 3,
+        "5": 4,
+        "6": 1,
+        "7": 1,
+        "8": 1,
+        "9": 1
+      },
+      "counter_delta": 1505,
+      "acknowledged_including_warmup": 1505,
+      "counter_ok": true,
+      "errors_including_warmup": {
+        "E_STORE": 31
+      }
+    },
+    {
+      "cell": "W5-exact",
+      "depth": 2,
+      "repetitions": 1,
+      "mean_N": 15.058823529411764,
+      "in_flight_at_dispatch": [
+        0,
+        1,
+        84
+      ],
+      "N_histogram": {
+        "1": 1,
+        "10": 2,
+        "11": 5,
+        "12": 6,
+        "13": 8,
+        "14": 3,
+        "15": 1,
+        "16": 11,
+        "18": 4,
+        "19": 5,
+        "2": 11,
+        "20": 6,
+        "21": 4,
+        "22": 1,
+        "25": 1,
+        "26": 2,
+        "30": 9,
+        "4": 1,
+        "6": 2,
+        "8": 1,
+        "9": 1
+      },
+      "counter_delta": 1536,
+      "acknowledged_including_warmup": 1536,
+      "counter_ok": true,
+      "errors_including_warmup": {}
+    },
+    {
+      "cell": "W5-mix",
+      "depth": 2,
+      "repetitions": 1,
+      "mean_N": 15.802469135802468,
+      "in_flight_at_dispatch": [
+        0,
+        1,
+        80
+      ],
+      "N_histogram": {
+        "1": 39,
+        "2": 1,
+        "28": 1,
+        "29": 1,
+        "31": 38,
+        "4": 1
+      },
+      "counter_delta": 1536,
+      "acknowledged_including_warmup": 1536,
+      "counter_ok": true,
+      "errors_including_warmup": {}
+    }
+  ],
+  "shipped_http_batch_statistics_exposed": false
+}
