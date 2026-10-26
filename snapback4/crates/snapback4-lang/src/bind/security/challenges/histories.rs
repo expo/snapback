@@ -147,7 +147,8 @@ fn directed_cases(bound:&Bound,p:&Program,cases:Vec<BTreeMap<String,Value>>,camp
     if original.iter().any(|case|!out.contains(case)){campaign.unsupported.insert(format!("{}: directed argument grouping omits correlated/non-status alternatives; remaining combinations uncovered",p.name));}
     out
 }
-pub(super) fn trace_key(steps:&[Step])->Vec<(&str,&str)>{steps.iter().map(|s|(s.operation.as_str(),s.viewer.as_str())).collect()}
+// @ref LLP 3000.036.004.001#read-payloads — the observer belongs to the witness, not its mutation-prefix search key.
+pub(super) fn trace_key(steps:&[Step])->Vec<(&str,&str)>{steps.iter().filter(|s|s.result["state"]!="observed").map(|s|(s.operation.as_str(),s.viewer.as_str())).collect()}
 pub(super) fn violation(out:&mut Campaign,inv:&Invariant,steps:&[Step],viewer:&str,row:&Value,old:Option<&Value>,initial:&BTreeMap<String,Vec<Value>>,effect:&str)->bool{
     if out.violations.iter().any(|v|v.invariant_site==inv.site.to_string()&&v.viewer==viewer&&v.reachability==Reachability::AuthoredFixtureTrace&&trace_key(&v.history)==trace_key(steps)){return false;}
     out.violations.push(Counterexample{reachability:Reachability::AuthoredFixtureTrace,observations:None,history:steps.to_vec(),invariant_site:inv.site.to_string(),args:BTreeMap::new(),viewer:viewer.into(),operation:steps.last().map(|s|s.operation.clone()).unwrap_or("$fixture.read".into()),effect:effect.into(),row:row.clone(),old:old.cloned(),supporting_rows:initial.clone(),rule_path:"actual authored operation/read from the trusted fixture".into(),scope:"reachable from recorded trusted fixture; finite trace, not an all-history proof".into()});true
@@ -847,4 +848,14 @@ pub(super) fn principal_preferences(bound:&Bound,p:&Program,rows:&BTreeMap<Strin
  let deferred=|name:&str|out.unsupported.iter().any(|why|why.starts_with(name)&&why.contains("unreferenced payload-only"));
  assert!(deferred("setUnused"),"{:?}",out.unsupported);assert!(!deferred("setBody"));assert!(!deferred("setOpening"));
 }
+}
+
+#[cfg(test)]mod sec11_observer_tests {
+    use super::*;
+    #[test]fn the_observer_does_not_change_the_mutation_prefix_dedup_key(){
+        let write=Step{clock:Some(NOW),operation:"create".into(),viewer:VIEWER.into(),args:BTreeMap::new(),result:serde_json::json!({"state":"sent"})};
+        let read=Step{clock:Some(NOW),operation:"read".into(),viewer:VIEWER.into(),args:BTreeMap::new(),result:serde_json::json!({"state":"observed"})};
+        assert_eq!(trace_key(&[write.clone()]),trace_key(&[write.clone(),read]));
+        assert_ne!(trace_key(&[write.clone()]),trace_key(&[write.clone(),write]));
+    }
 }
