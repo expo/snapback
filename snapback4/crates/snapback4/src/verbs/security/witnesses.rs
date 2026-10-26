@@ -14,6 +14,9 @@ fn hash(bytes: &[u8]) -> String {
 fn safe(value: &snapback4_core::Value, kind: Option<&ColumnType>) -> serde_json::Value {
     use snapback4_core::Value;
     match (value, kind.map(ColumnType::required)) {
+        // Absence is the material fact in presence questions, not an opaque
+        // payload. Preserve it for optional text/assets while redacting bytes.
+        (Value::Null, _) => serde_json::Value::Null,
         (
             _,
             Some(
@@ -457,13 +460,14 @@ pub(in crate::verbs) fn apply_report(sources:&[(String,String)],bound:&Bound,rep
 /// Fixed work per mode; a generated presentation cache never supplies a gate.
 // @ref LLP 3000.036.004.000#13-witness-backed-enforcement-and-shipping-precision — every gate replays current source even when advice is cached.
 pub(in crate::verbs) fn collect(project:&Project,bound:&Bound,sources:&[(String,String)],notes:&[Diagnostic],expanded:bool,options:&Options)->Vec<Option<serde_json::Value>> {
-    let key=hash(&serde_json::to_vec(&("sec11-witness-1",sources,notes,record::capture(sources,None).ok())).unwrap());
+    let key=hash(&serde_json::to_vec(&("sec11-witness-2",sources,notes,record::capture(sources,None).ok())).unwrap());
     let path=project.schema_dir().join("generated/security-witnesses.json");
     let gate=|index:usize|super::super::security_reviews::gated(&notes[index].code)&&precise_approval(bound,&notes[index]);
     let cached=std::fs::read(&path).ok().and_then(|b|serde_json::from_slice::<serde_json::Value>(&b).ok()).filter(|v|v["key"]==key).and_then(|v|serde_json::from_value::<Vec<Option<serde_json::Value>>>(v["values"].clone()).ok()).filter(|v|v.len()==notes.len());
     let mut result=vec![None;notes.len()];
     if let Some(cached)=&cached{for (index,value) in cached.iter().enumerate(){if !gate(index)&&notes[index].code!="N_DERIVED_WRITE_AUTHORITY"{result[index]=value.clone();}}}
     let selected=candidates(bound,sources,notes);
+    let stages=security::derived::workflow_columns_from_sources(sources,bound);
     for enforcement in [true,false] {
         if !enforcement&&(!expanded||cached.is_some()){continue;}
         let selected=selected.iter().filter(|(index,_)|gate(*index)==enforcement).collect::<Vec<_>>();
@@ -473,7 +477,7 @@ pub(in crate::verbs) fn collect(project:&Project,bound:&Bound,sources:&[(String,
         challenges::generated_campaign(&questions,&mut campaign,false);
         for (index,inv) in selected {
             if result[*index].is_some()&&notes[*index].code!="N_INSERT_WRITE_INTENT"{continue;}
-            if let Some(c)=campaign.violations.iter().filter(|c|c.invariant_site==inv.site.to_string()&&c.reachability.is_reachable()&&(notes[*index].code!="N_GUARD_NOT_CONSUMED"||c.history.len()==1&&c.effect=="insert")).max_by_key(|c| {
+            if let Some(c)=campaign.violations.iter().filter(|c|c.invariant_site==inv.site.to_string()&&c.reachability.is_reachable()&&(notes[*index].code!="N_GUARD_NOT_CONSUMED"||c.history.len()==1&&c.effect=="insert")&&(notes[*index].code!="N_CHILD_EVIDENCE_PRESENCE"||questions::transition(inv,c,&stages))).max_by_key(|c| {
                 let decrease=inv.column.as_ref().and_then(|column|Some((c.old.as_ref()?.field(column).ok()?,c.row.field(column).ok()?))).is_some_and(|(old,next)|matches!((old,next),(snapback4_core::Value::Int(a),snapback4_core::Value::Int(b)) if a>b));
                 (decrease,c.history.len())
             }) {let replay=decreasing_edit(bound,inv,c);let mut value=evidence(sources,bound,inv,replay.as_ref().unwrap_or(c));
@@ -571,5 +575,9 @@ mod tests {
             safe(&snapback4_core::Value::Int(42), None),
             json!(42)
         );
+        for kind in [ColumnType::Text{max:100},ColumnType::Image{max:1000,once:false}] {
+            assert!(safe(&snapback4_core::Value::Null,Some(&kind)).is_null());
+            assert_eq!(safe(&secret,Some(&kind)),json!("<redacted>"));
+        }
     }
 }

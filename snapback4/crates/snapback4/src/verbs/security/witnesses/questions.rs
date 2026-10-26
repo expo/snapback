@@ -84,7 +84,7 @@ fn single_mint(program:&ir::Program)->bool {
     fn inspect(value:&serde_json::Value,mints:&mut usize)->bool {
         match value {
             serde_json::Value::Object(fields)=>{
-                if ["For","Emit","JobAs","JobQuery"].iter().any(|key|fields.contains_key(*key)){return false;}
+                if ["If","For","Emit","JobAs","JobQuery"].iter().any(|key|fields.contains_key(*key)){return false;}
                 if fields.get("Input").is_some_and(|v|v=="NewId"){*mints+=1;}
                 fields.values().all(|v|inspect(v,mints))
             },
@@ -93,6 +93,50 @@ fn single_mint(program:&ir::Program)->bool {
     }
     let mut mints=0;
     !program.native&&inspect(&serde_json::to_value(program).unwrap(),&mut mints)&&mints<=1
+}
+fn direct_guard(program:&ir::Program,table:&str,column:&str,arg:&str)->bool {
+    use ir::{Expr as E,Stmt as S};
+    fn identity(e:&E,vars:&BTreeMap<String,E>,arg:&str,depth:usize)->bool {
+        if depth>32{return false;}
+        matches!(e,E::Variable(name) if vars.get(name).map_or(name==arg,|e|identity(e,vars,arg,depth+1)))
+    }
+    fn row(e:&E,vars:&BTreeMap<String,E>,table:&str,arg:&str,depth:usize)->bool {
+        if depth>32{return false;}
+        match e {
+            E::Get(read)=>read.table==table&&read.index=="byId"&&read.key.len()==1&&identity(&read.key[0],vars,arg,0),
+            E::Variable(name)=>vars.get(name).is_some_and(|e|row(e,vars,table,arg,depth+1)),
+            E::Block{body,value}=>{
+                let mut vars=vars.clone();for stmt in body{match stmt{
+                    S::Const{name,value}|S::Let{name,value}=>{vars.insert(name.clone(),value.clone());},S::Require{..}=>{},_=>return false,
+                }}row(value,&vars,table,arg,depth+1)
+            },_=>false,
+        }
+    }
+    fn necessary(e:&E,vars:&BTreeMap<String,E>,table:&str,column:&str,arg:&str,negated:bool,depth:usize)->bool {
+        if depth>32{return false;}
+        let field=|e:&E|matches!(e,E::Field{base,name} if name==column&&row(base,vars,table,arg,0));
+        match e {
+            E::Field{..}=>field(e),
+            E::Variable(name)=>vars.get(name).is_some_and(|e|necessary(e,vars,table,column,arg,negated,depth+1)),
+            E::Unary{op:ir::UnaryOp::Not,value}=>necessary(value,vars,table,column,arg,!negated,depth+1),
+            E::Binary{op:ir::BinaryOp::And|ir::BinaryOp::Or,left,right}=>{
+                let a=necessary(left,vars,table,column,arg,negated,depth+1);let b=necessary(right,vars,table,column,arg,negated,depth+1);
+                if matches!(e,E::Binary{op:ir::BinaryOp::And,..})!=negated{a||b}else{a&&b}
+            },
+            E::Binary{op:ir::BinaryOp::Eq|ir::BinaryOp::Ne,left,right}=>[(left.as_ref(),right.as_ref()),(right.as_ref(),left.as_ref())].into_iter().any(|(a,b)|field(a)&&matches!(b,E::Literal(snapback4_core::Value::Bool(_)|snapback4_core::Value::String(_)))),_=>false,
+        }
+    }
+    let mut vars=BTreeMap::new();let mut found=false;
+    for stmt in &program.body{match stmt{
+        S::Const{name,value}|S::Let{name,value}=>{if vars.contains_key(name)||program.args.contains_key(name){return false;}vars.insert(name.clone(),value.clone());},
+        S::Require{condition,..}=>found|=necessary(condition,&vars,table,column,arg,false,0),
+        S::Assign{..}|S::If{..}|S::For{..}=>return false,
+        S::Return(_)=>break,_=>{},
+    }}found
+}
+pub(super) fn transition(inv:&security::Invariant,c:&Counterexample,stages:&std::collections::BTreeSet<(String,String)>)->bool {
+    c.effect=="update"&&stages.iter().filter(|(table,_)|table==&inv.table).any(|(_,column)|
+        c.old.as_ref().and_then(|r|r.field(column).ok()).zip(c.row.field(column).ok()).is_some_and(|(old,next)|old!=next))
 }
 
 // A narrow repeat replay: one real producer on a validated generated world,
@@ -109,6 +153,7 @@ pub(super) fn repeat(bound:&Bound,inv:&security::Invariant,c:&Counterexample,n:&
     if !single_mint(&p.program){return None;}
     let refs=p.program.args.iter().filter(|(_,kind)|matches!(kind,ir::ArgType::Ref{table:t} if t==table)).collect::<Vec<_>>();
     if refs.len()!=1{return None;}
+    if !direct_guard(&p.program,table,column,refs[0].0){return None;}
     let key=step.args.get(refs[0].0)?;
     let initial=c.supporting_rows.get(table)?.iter().find(|r|r.field("id").ok()==Some(key))?;
     let guard_value=initial.field(column).ok()?;
@@ -152,10 +197,12 @@ pub(super) fn repeat(bound:&Bound,inv:&security::Invariant,c:&Counterexample,n:&
         let sources=vec![("schema.q".into(),source.into())];let mut bound=snapback4_lang::compile(&sources);
         assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);
         let n=Diagnostic::new(&Default::default(),code,message,"state intent");
+        let stages=security::derived::workflow_columns_from_sources(&sources,&bound);
         let selected=candidates(&bound,&sources,0,&n);assert!(!selected.is_empty(),"no candidate for {message}");
         bound.invariants=selected.iter().map(|(_,i)|i.clone()).collect();
         let mut campaign=challenges::Campaign::work_bounded(8192);challenges::generated_campaign(&bound,&mut campaign,false);
         selected.iter().flat_map(|(_,inv)|campaign.violations.iter().filter(|c|c.invariant_site==inv.site.to_string()&&c.reachability.is_reachable()).filter_map(|c|{
+            if code=="N_CHILD_EVIDENCE_PRESENCE"&&!transition(inv,c,&stages){return None;}
             let value=if code=="N_GUARD_NOT_CONSUMED" {repeat(&bound,inv,c,&n,&sources)?}else{evidence(&sources,&bound,inv,c)};
             super::super::super::super::security_reviews::witness::concrete(&value).then_some(value)
         })).collect()
@@ -182,10 +229,24 @@ pub(super) fn repeat(bound:&Bound,inv:&security::Invariant,c:&Counterexample,n:&
     }
     #[test]fn missing_child_is_observed_at_the_named_transition(){
         let prefix="table docs:\n  state: enum('draft','done') default 'draft'\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\ntable photos:\n  doc: docs\n  image: image <=1000\n  read <- allow\n  online only\n";
-        let source=format!("{prefix}mutation finish(doc: docs):\n  update docs[doc] {{state:'done'}}\n");
+        let source=format!("{prefix}mutation finish(doc: docs):\n  d = docs[doc] ! else MISSING\n  require d.state = 'draft' else STATE\n  update docs[doc] {{state:'done'}}\n");
         assert!(!examples(&source,"N_CHILD_EVIDENCE_PRESENCE","docs: transitions finish do not require attached photos[doc = parent].image; evidence?").is_empty());
         let fixed=source.replace("  update docs[doc]","  require exists photos[doc = doc] else MISSING\n  update docs[doc]");
         assert!(examples(&fixed,"N_CHILD_EVIDENCE_PRESENCE","docs: transitions finish do not require attached photos[doc = parent].image; evidence?").is_empty());
+    }
+    #[test]fn indirect_same_table_guards_do_not_borrow_the_argument_rows_identity(){
+        let source="table credits:\n  parent: credits ?\n  spent: bool default false\n  read <- allow\n  insert <- allow\n  online only\ntable receipts:\n  credit: credits\n  insert <- allow\n  online only\nmutation redeem(credit: credits):\n  c = credits[credit] ! else MISSING\n  require c.parent != null else PARENT\n  p = credits[c.parent] ! else MISSING\n  require not p.spent else USED\n  return insert receipts {credit}\n";
+        let bound=snapback4_lang::compile(&[("schema.q".into(),source.into())]);assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);
+        assert!(!direct_guard(&bound.programs[0].program,"credits","spent","credit"));
+    }
+    #[test]fn a_childless_draft_edit_cannot_supply_a_transition_witness(){
+        let source="table docs:\n  state: enum('draft','done') default 'draft'\n  note: text <=30 default ''\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\ntable photos:\n  doc: docs\n  image: image <=1000\n  read <- allow\n  online only\nmutation finish(doc: docs, advance: bool):\n  d = docs[doc] ! else MISSING\n  if advance:\n    require d.state = 'draft' else STATE\n    require count(photos[doc = doc]) > 0 else PHOTO\n    update docs[doc] {state:'done'}\n  else:\n    update docs[doc] {note:'draft edit'}\n";
+        let sources=vec![("schema.q".into(),source.into())];let mut bound=snapback4_lang::compile(&sources);assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);
+        let stages=security::derived::workflow_columns_from_sources(&sources,&bound);assert!(stages.contains(&("docs".into(),"state".into())));
+        let inv=candidate(&sources,"invariant docs.finish only count(photos[doc = .id]) > 0").unwrap();bound.invariants=vec![inv.clone()];
+        let mut campaign=challenges::Campaign::work_bounded(2048);challenges::generated_campaign(&bound,&mut campaign,false);
+        assert!(campaign.violations.iter().any(|c|c.old.as_ref().and_then(|r|r.field("note").ok())!=c.row.field("note").ok()),"the harmless edit must actually execute");
+        assert!(campaign.violations.iter().all(|c|!transition(&inv,c,&stages)));
     }
     #[test]fn one_insert_followed_by_more_than_the_id_reservation_remains_uncovered(){
         let source="table docs:\n  insert <- allow\n  online only\nmutation create():\n  return insert docs {}\n";
@@ -198,6 +259,9 @@ pub(super) fn repeat(bound:&Bound,inv:&security::Invariant,c:&Counterexample,n:&
     }
     #[test]fn guard_reuse_requires_two_distinct_effects_and_an_unchanged_resource(){
         let source="table credits:\n  spent: bool default false\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\ntable receipts:\n  credit: credits\n  read <- allow\n  insert <- allow\n  online only\nmutation redeem(credit: credits):\n  c = credits[credit] ! else MISSING\n  require not c.spent else USED\n  return insert receipts {credit}\n";
+        let b=snapback4_lang::compile(&[("schema.q".into(),source.into())]);assert!(direct_guard(&b.programs[0].program,"credits","spent","credit"));
+        let conditional=source.replace("require not c.spent else USED","require not (c.spent and false) else USED");
+        let conditional=snapback4_lang::compile(&[("schema.q".into(),conditional)]);assert!(conditional.diagnostics.is_empty());assert!(!direct_guard(&conditional.programs[0].program,"credits","spent","credit"));
         let message="redeem: checks credits.spent but leaves it unchanged while changing receipts state; reuse?";
         let values=examples(source,"N_GUARD_NOT_CONSUMED",message);assert!(!values.is_empty());assert!(values.iter().all(|v|v["kind"]=="guard-reuse"&&v["history"].as_array().unwrap().len()==2));
         let again=examples(source,"N_GUARD_NOT_CONSUMED",message);assert_eq!(values.iter().map(|v|&v["id"]).collect::<Vec<_>>(),again.iter().map(|v|&v["id"]).collect::<Vec<_>>());
