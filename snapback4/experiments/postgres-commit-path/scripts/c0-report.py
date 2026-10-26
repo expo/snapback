@@ -19,7 +19,7 @@ def label(x):return f'{x["n"]}/{x["k"]}/{x["hold_ms"]:g}'
 def means(x):return f'{x["mean_ms"][0]:.2f}–{x["mean_ms"][1]:.2f}'
 def cpu(x):return '/'.join(f'{x["cpu"][r]:.2f}' for r in ['PG','app','client'])
 def main():
-    p=argparse.ArgumentParser();p.add_argument('--raw',type=Path,required=True);p.add_argument('--baseline',type=Path,required=True);p.add_argument('--literal',type=Path,required=True);p.add_argument('--out',type=Path,required=True);a=p.parse_args();a.out.mkdir(exist_ok=True,parents=True)
+    p=argparse.ArgumentParser();p.add_argument('--raw',type=Path,required=True);p.add_argument('--baseline',type=Path,required=True);p.add_argument('--literal',type=Path,required=True);p.add_argument('--diagnostics',type=Path,required=True);p.add_argument('--out',type=Path,required=True);a=p.parse_args();a.out.mkdir(exist_ok=True,parents=True)
     rows=[read(p) for p in a.raw.glob('[AB]/confirmation/*/rate*/r[0-2].json')];confirmation=aggregate(rows)
     assert confirmation and all(x['repetitions']==3 for x in confirmation)
     searches=read(a.raw/'searches.json');screen=[x for x in searches if x['phase']=='screen'];caps=[x for x in searches if x['phase']=='confirmed-capacity'];assert len(screen)==108 and len(caps)==18
@@ -82,6 +82,20 @@ def main():
         lines += ['### '+arm,'','| Link | N/K/h ms | Screen capacity/s | Next failed/s | Status |','|---|---|---:|---:|---|']
         for x in sorted((x for x in screen if x['arm']==arm),key=lambda x:(x['link'],x['n'],x['k'],x['hold_ms'])):lines.append(f'| {x["link"]} | {label(x)} | {x["capacity"] if x["capacity"] is not None else "withheld"} | {x["upper"]} | {"abandoned below 70%" if x["abandoned"] else "bracketed within 5%"} |')
         lines+=['']
+    diagnostic_rows=[]
+    for path in a.diagnostics.glob('[AB]/*/r0.json'):
+        x=read(path)
+        if not x.get('prefix_hammer'):continue
+        samples=read(path.with_suffix('.cpu.json'))
+        diagnostic_rows.append(dict(arm=x['arm'],link=x['link'],elapsed_s=samples[-1]['time']-samples[0]['time'],**x['prefix_hammer']))
+    witness=read(a.diagnostics/'witness.stdout')
+    assert len(diagnostic_rows)==6 and all(x['violations']==0 for x in diagnostic_rows)
+    assert witness['tripwire'] and witness['committed_key_beats_void'] and witness['void_after_recorded_backend_kill']
+    write(a.out/'diagnostics.json',dict(prefix=diagnostic_rows,witness=witness))
+    lines+=['## Diagnostic witnesses','','The prefix hammer runs in the 16,000/s overload smokes, not in capacity trials. Every smoke ends cleanly with counter equality; no statement prefix violation is observed. These are experimental witnesses, not qualification of every product reader/recovery entry point. [Diagnostic aggregate](./diagnostics.json).','','| Arm | Link | Prefix reads | Reader mean / p99 ms | Stale restarts | Violations |','|---|---|---:|---:|---:|---:|']
+    for x in sorted(diagnostic_rows,key=lambda x:(x['arm'],x['link'])):
+        m=x['reader_ms'];lines.append(f'| {x["arm"]} | {x["link"]} | {m["n"]} | {m["mean"]:.2f} / {m["p99"]:.2f} | {x["stale_restarts"]} | {x["violations"]} |')
+    lines+=['','The independently injected stale snapshot raises S4004; settings drift raises S4001, stale ownership S4002 and a wrong tail count S4003 before commit. A committed batch key beats a void; a void follows a recorded backend kill and refuses the late commit.','']
     lines+=['## Verification and custody','','[Verification](./verification.json), [secret scan](./secret-audit.json), and [archive receipt](./archive.json) bind the retained evidence. The 205 interrupted fixed-rung trials remain as **superseded-by-capacity-search**, including their original incorrect late-intended throughput accounting. They are never used to select or pass a new configuration. The interrupted campaign had no living recorded identities at resume; its private runtime was removed after sealing its known secrets. Clean shutdown was not observed for that interrupted run. All new campaign clusters stop through the runner’s normal cleanup.','',
     'The old timeout attempts contain worker panics (owner/settings errors or an invalid SQL column), not evidence of a 120-second overload drain. Startup now checks failed worker joins against a single bounded readiness deadline; the main loop observes maintenance/release worker failure and has a 10-second drain bound. The outer process has warm-up+measurement+15 seconds. Nonzero exits/timeouts write failed trial JSON and stop capacity qualification for diagnosis. Injected startup failures and 16,000/s overloads on all arms/links verify bounded failure, continued counter equality and prefix checks.','',
     'Exact-value secret scans cover both benchmark passwords, sealed campaign credentials, JWT/native tokens and PEM payloads. No raw per-request, per-batch or per-rate trial files enter Git. Raw archive path and SHA-256 are in archive.json. No push, stash or Git configuration change. **PIDs left: none.**','']

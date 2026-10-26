@@ -62,6 +62,19 @@ def main():
         now=identity(r['pid'])
         if now and now['start_ticks']==r.get('start_ticks'):left.append(now)
     assert not left,left
+    # A target/runtime scan also catches a descendant missed between observer
+    # ticks. Never signal a process discovered only by this scan.
+    runtimes=[read(root/'custody.json')['private_root'].encode() for root in a.roots if (root/'custody.json').exists()]
+    target=str(Path.home()/'sb4scale/c0-target')
+    target_left=[]
+    for proc in Path('/proc').iterdir():
+        if not proc.name.isdigit() or int(proc.name)==os.getpid():continue
+        try:
+            executable=os.readlink(proc/'exe');command=(proc/'cmdline').read_bytes();environment=(proc/'environ').read_bytes().split(b'\0')
+            if executable.startswith(target+'/') or ('CARGO_TARGET_DIR='+target).encode() in environment or any(runtime in command for runtime in runtimes):
+                target_left.append(identity(int(proc.name)))
+        except (OSError,ProcessLookupError):pass
+    assert not target_left,target_left
     provenance=read(a.primary/'provenance.json')
     for path,want in provenance['source_sha256'].items():
         assert hashlib.sha256((a.primary/'source'/Path(path).name).read_bytes()).hexdigest()==want,path
@@ -74,6 +87,6 @@ def main():
     for x in searches:
         if x.get('abandoned'):assert x['upper']<.7*x['best_at_screen']
         elif x['phase'] in ['screen','refine','confirmed-capacity']:assert 0<x['capacity']<x['upper'] and x['upper']/x['capacity']<=1.05
-    result=dict(retained_trial_jsons=total,completed_trials=completed,recorded_execution_failures=failed,measured_arrivals=arrivals,whole_cohort_writes=requests,batches=batches,counters_and_request_ledgers_equal=True,per_cell=[dict(arm=k[0],link=k[1],phase=k[2],trials=v) for k,v in sorted(percell.items())],affinity=[dict(role=r,cpus=list(c),thread_observations=n) for (r,c),n in sorted(affinity.items())],disk=dict(minimum_free_bytes=min(disk),guard_bytes=25*1024**3),host_start=dict(clean_boundaries=len(last),busy_wait_observations=sum(bool(r['unrelated_over_one_core']) for r in starts)),rtt=[dict(path=str(p.relative_to(a.primary)),**read(p)) for p in a.primary.rglob('rtt-*.json')],process_custody=dict(records=len(records),distinct_identities=len({(r['pid'],r.get('start_ticks')) for r in records}),left=[],cleanup=cleanup),source_and_binary_frozen=True,screen_configurations=len(screens),superseded_trials=205,product_changes=False)
+    result=dict(retained_trial_jsons=total,completed_trials=completed,recorded_execution_failures=failed,measured_arrivals=arrivals,whole_cohort_writes=requests,batches=batches,counters_and_request_ledgers_equal=True,per_cell=[dict(arm=k[0],link=k[1],phase=k[2],trials=v) for k,v in sorted(percell.items())],affinity=[dict(role=r,cpus=list(c),thread_observations=n) for (r,c),n in sorted(affinity.items())],disk=dict(minimum_free_bytes=min(disk),guard_bytes=25*1024**3),host_start=dict(clean_boundaries=len(last),busy_wait_observations=sum(bool(r['unrelated_over_one_core']) for r in starts)),rtt=[dict(path=str(p.relative_to(a.primary)),**read(p)) for p in a.primary.rglob('rtt-*.json')],process_custody=dict(records=len(records),distinct_identities=len({(r['pid'],r.get('start_ticks')) for r in records}),left=[],target_scan_left=target_left,cleanup=cleanup),source_and_binary_frozen=True,screen_configurations=len(screens),superseded_trials=205,product_changes=False)
     a.out.parent.mkdir(parents=True,exist_ok=True);a.out.write_text(json.dumps(result,indent=2)+'\n');print(json.dumps({k:result[k] for k in ['completed_trials','recorded_execution_failures','measured_arrivals','batches']}))
 if __name__=='__main__':main()
