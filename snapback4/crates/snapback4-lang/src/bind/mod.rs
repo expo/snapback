@@ -2,6 +2,7 @@
 //! problem as a located diagnostic.
 
 mod advisory_guards;
+mod advisory_model;
 pub mod catalog;
 mod sweep_deadline;
 mod columns;
@@ -180,6 +181,7 @@ pub(crate) fn bind_unverified(mut documents: Vec<Document>) -> Bound {
     for d in catalog.documents.iter().flat_map(|d|&d.extractions){
         if let Some(e)=schema.extractions.iter().find(|e|e.child==d.child){if let Err(why)=e.admit(&schema){diagnostics.push(crate::diag::type_error(&d.site,why,"declare an authoritative child with a required cascade/restrict parent reference and mapped asset field").guide("deploy"));}}
     }
+    catalog.advisory=advisory_model::derive(&catalog,&schema);
     // @ref LLP 3000.015#1 — timeline mappings exist only after lowering both spellings.
     for issue in snapback4_core::schema::field_authority::validate(&schema) {
         if !diagnostics.iter().any(|d| d.code == "E_FIELD_AUTHORITY" && d.message == issue.message) {

@@ -54,7 +54,7 @@ pub(super) fn expand(catalog:&Catalog,value:&Expr)->Option<Expr>{
                             Stmt::Bind{names,value,..} if names.len()==1=>{let size=weight(catalog,value,&locals,stack)?;total=add(total?,size);locals.insert(names[0].clone(),size);},
                             Stmt::Require{condition,..}|Stmt::Expr{value:condition,..}=>total=add(total?,weight(catalog,condition,&locals,stack)?),
                             Stmt::Return{value,..}=>{result=add(total?,weight(catalog,value,&locals,stack)?);break;},_=>return None,
-                        }}result
+                        }}result.or(total)
                     },
                 };
                 stack.pop();add(arguments,result?)
@@ -65,6 +65,20 @@ pub(super) fn expand(catalog:&Catalog,value:&Expr)->Option<Expr>{
     weight(catalog,value,&Weights::new(),&mut Vec::new())?;
     Some(super::security::authority_walk::returned(catalog,value,0))
 }
+pub(super) fn requirements(catalog:&Catalog,value:&Expr)->Vec<Expr>{
+    if expand(catalog,value).is_none(){return Vec::new();}
+    super::security::authority_walk::helper_guards(catalog,value,&Default::default(),0).into_iter().filter_map(|stmt|if let Stmt::Require{condition,..}=stmt{Some(condition)}else{None}).collect()
+}
+
+// A successful helper may establish a caller-only consequence even when its
+// row-specific conjunct cannot be transported out of the helper's scope.
+pub(super) fn caller_condition(value:&Expr)->Expr{
+    match value{
+        Expr::Binary{op,left,right,site} if op=="and"||op=="or"=>Expr::Binary{op:op.clone(),left:Box::new(caller_condition(left)),right:Box::new(caller_condition(right)),site:site.clone()},
+        _=>{let mut unsupported=false;super::intent_walk::expression(&mut value.clone(),&mut |e|if matches!(e,Expr::Read(_)|Expr::Member{..}|Expr::Call{..}){unsupported=true;});if unsupported{Expr::Literal{value:crate::ast::Literal::Bool(true),site:value.site().clone()}}else{value.clone()}},
+    }
+}
+
 // Extra named equalities test the same unique row. For negative advice facts,
 // prove that row readable from its complete key before dropping any tests.
 pub(super) fn raw_monotone(catalog:&Catalog,schema:&snapback4_core::schema::Schema,value:&Expr,positive:bool)->bool{

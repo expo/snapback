@@ -86,7 +86,8 @@ const SWEEP:&str="table docs:\n  status:enum('open','expired','done') default 'o
     let source="table roles:\n  principal:principal\n  role:enum('client','maker','owner')\n  unique principal\n  read <- .principal = viewer\n  online only\ntable docs:\n  value:text\n  read <- exists roles[viewer,role='maker'] or exists roles[viewer,role='owner']\n  online only\nquery board(c:cursor ?):\n  require exists roles[viewer] else NO_ROLE\n  if exists roles[viewer,role='client']:\n    return []\n  return docs last 20 by .id after c\n";
     assert!(!notes(source).iter().any(|n|n.code=="N_QUERY_FILTERED"));
     let restricted=source.replace("read <- .principal = viewer","read <- exists roles[viewer,role='owner']");
-    assert!(notes(&restricted).iter().any(|n|n.code=="N_QUERY_FILTERED"));
+    // A successful visible role point itself establishes the owner policy.
+    assert!(!notes(&restricted).iter().any(|n|n.code=="N_QUERY_FILTERED"));
     let nullable=source.replace("role:enum('client','maker','owner')","role:enum('client','maker','owner') ?");
     assert!(notes(&nullable).iter().any(|n|n.code=="N_QUERY_FILTERED"));
 }
@@ -127,4 +128,31 @@ const SWEEP:&str="table docs:\n  status:enum('open','expired','done') default 'o
     let source="table parents:\n  dueAt:time\n  returnedAt:time\n  read <- allow\n  online only\ntable children:\n  parent:parents\n  dueAt:time\n  read <- allow\n  insert <- allow\n  online only\nmutation create(parent:parents,proposed:time,bypass:bool):\n  p=parents[parent] ! else NO\n  require proposed > now else PAST\n  require bypass or proposed <= p.returnedAt else OUTSIDE\n  return insert children {parent,dueAt:proposed}\n";
     assert!(notes(source).iter().any(|n|n.code=="N_DEPENDENT_WINDOW"));
     assert!(!notes(&source.replace("bypass or proposed <= p.returnedAt","not (proposed > p.returnedAt)")).iter().any(|n|n.code=="N_DEPENDENT_WINDOW"));
+}
+
+#[test]fn potentially_aliasing_writes_expire_lifecycle_and_window_snapshots(){
+    let source="table docs:\n  stage:enum('quoted','approved') default 'quoted'\n  photo:image <=10000\n  read <- allow\n  update <- allow\n  online only\nmutation edit(doc:docs,other:docs,photo:image <=10000):\n  d=docs[doc] ! else NO\n  require d.stage = 'quoted' else NO\n  update docs[other] {stage:'approved'}\n  update docs[doc] {photo}\n";
+    assert!(notes(source).iter().any(|n|n.code=="N_EDIT_AFTER_APPROVAL"));
+    let base="table parents:\n  due:time\n  read <- allow\n  update <- allow\n  online only\ntable children:\n  parent:parents\n  due:time\n  read <- allow\n  insert <- allow\n  online only\nmutation create(parent:parents,proposed:time,flag:bool):\n  p=parents[parent] ! else NO\n  require proposed > now else NO\n  require BOUND else NO\n  return insert children {parent,due:proposed}\n";
+    for bound in ["proposed <= (now + 365d if flag else p.due)","proposed <= p.due + (proposed - p.due)"]{
+        assert!(notes(&base.replace("BOUND",bound)).iter().any(|n|n.code=="N_DEPENDENT_WINDOW"),"{bound}");
+    }
+}
+#[test]fn wave30_036_source_stamp_reset_keeps_sweep_question(){
+    let source=include_str!("security/wave30/036.schema.q");
+    assert!(!notes(source).iter().any(|n|n.code=="N_SWEEP_DEADLINE"&&n.message.starts_with("mutation requestChange:")));
+    let reset=format!("{source}\nmutation reset(mascot:mascots):\n  update mascots[mascot] {{stage:'approval'}}\n");
+    assert!(notes(&reset).iter().any(|n|n.code=="N_SWEEP_DEADLINE"&&n.message.starts_with("mutation requestChange:")));
+}
+#[test]fn wave30_033_020_constructor_mismatch_keeps_linked_reader_questions(){
+    let source=include_str!("security/wave30/033.schema.q").replace("customer: j.customer, amountCents","customer: viewer, amountCents");
+    assert!(notes(&source).iter().any(|n|n.code=="N_QUERY_FILTERED"&&n.message.starts_with("query jobInvoices:")));
+    let source=include_str!("security/wave30/020.schema.q").replace("ride: ride.id, rider, priceCents","ride: ride.id, rider: viewer, priceCents");
+    assert!(notes(&source).iter().any(|n|n.code=="N_LOOKUP_FILTERED"&&n.message.starts_with("mutation cancelRide:")));
+}
+#[test]fn wave30_043_amendment_edit_needs_its_atomic_approval(){
+    let source=include_str!("security/wave30/043.schema.q");
+    for changed in [source.replace("  update amendments[a.id] {approvedBy: viewer, approvedAt: now}\n",""),source.replace("report: a.proposedReport","report: 'unreviewed replacement'")]{
+        assert!(notes(&changed).iter().any(|n|n.code=="N_EDIT_AFTER_APPROVAL"&&n.message.starts_with("approveAmendment:")));
+    }
 }

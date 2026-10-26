@@ -299,6 +299,12 @@ impl Binder<'_> {
                 {
                     let (value, _) = self.fn_call(&function, args, call_site, out)?;
                     out.push(Stmt::Let { name: self.temp("discarded"), value });
+                    for condition in super::super::advisory_guards::requirements(self.catalog,&A::Call{name:name.clone(),args:args.clone(),site:call_site.clone()}){
+                        if let Some(condition)=super::super::advisory_guards::expand(self.catalog,&condition){
+                            let condition=super::super::advisory_guards::caller_condition(&condition);
+                            if self.point_guard_safe(&condition){self.record_advice_authorization(&condition,true);}
+                        }
+                    }
                     return Ok(());
                 }
                 // @ref LLP 3000.017#2.2 — a bare signal write

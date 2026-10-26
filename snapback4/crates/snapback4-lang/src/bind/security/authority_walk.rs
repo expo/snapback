@@ -99,7 +99,7 @@ fn conditional(guards:Vec<Stmt>,premise:Expr,site:&Site)->Vec<Stmt>{guards.into_
 
 // Guaranteed evaluated operands export helper requirements. Conditional
 // operands retain applicability implications, never an unconditional assumption.
-pub(super) fn helper_guards(catalog:&Catalog,expr:&Expr,env:&Env,depth:usize)->Vec<Stmt>{
+pub(in crate::bind) fn helper_guards(catalog:&Catalog,expr:&Expr,env:&Env,depth:usize)->Vec<Stmt>{
     if evaluated(expr){return Vec::new();}
     if depth>=32{return vec![Stmt::Require{condition:Expr::Name{name:"$advice_helper_cut".into(),site:expr.site().clone()},code:"$advice:cut".into(),message:None,site:expr.site().clone()}];}
     let expression=resolve(expr,env);if evaluated(&expression){return Vec::new();}

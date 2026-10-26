@@ -95,6 +95,7 @@ fn allows(expr:&Expr, table:&str, column:&str, value:&Literal, alias:&str, alias
             for (field,literal) in [(left.as_ref(),right.as_ref()),(right.as_ref(),left.as_ref())] {
                 if member(field,aliases).is_some_and(|(t,c,a)|t==table&&c==column&&a==alias)
                     && let Expr::Literal{value:other,..}=literal {
+                    if matches!(value,Literal::Number(value) if value=="$nonnull")&&!matches!(other,Literal::Null){return None;}
                     return Some((other==value)==(op=="="));
                 }
             }None
@@ -125,6 +126,15 @@ fn shifted(expr:&Expr)->(&Expr,i64){
 }
 fn time_comparison(expr:&Expr,table:&str,column:&str,alias:&str,bindings:&BTreeMap<String,String>,period:bool)->Option<(i64,u8)>{
     let Expr::Binary{op,left,right,..}=expr else{return None;};
+    for (elapsed,amount,reverse) in [(left.as_ref(),right.as_ref(),false),(right.as_ref(),left.as_ref(),true)]{
+        if let (Expr::Binary{op:subtract,left:a,right:b,site},Expr::Literal{value:Literal::Number(duration),..})=(elapsed,amount)&&subtract=="-"&&duration.parse::<i64>().is_ok(){
+            let swap=|op:&str|match op{"<"=>">",">"=>"<","<="=>">=",">="=>"<=",x=>x}.to_string();
+            let op=if reverse{swap(op)}else{op.clone()};
+            let (field,clock,op,offset)=if matches!(a.as_ref(),Expr::Name{name,..} if name=="now"||period&&name=="periodEnd"){(b,a,swap(&op),"-")}else if matches!(b.as_ref(),Expr::Name{name,..} if name=="now"||period&&name=="periodEnd"){(a,b,op,"+")}else{continue;};
+            return time_comparison(&Expr::Binary{op,left:field.clone(),right:Box::new(Expr::Binary{op:offset.into(),left:clock.clone(),right:Box::new(amount.clone()),site:site.clone()}),site:site.clone()},table,column,alias,bindings,period);
+        }
+    }
+
     for (field,time,reverse) in [(left.as_ref(),right.as_ref(),false),(right.as_ref(),left.as_ref(),true)]{
         let (field,field_shift)=shifted(field);let (time,time_shift)=shifted(time);
         if !matches!(time,Expr::Name{name,..} if name=="now"||period&&name=="periodEnd"){continue;}
@@ -133,7 +143,8 @@ fn time_comparison(expr:&Expr,table:&str,column:&str,alias:&str,bindings:&BTreeM
         return Some((time_shift.checked_sub(field_shift)?,if reverse{(mask&1)<<2 | mask&2 | (mask&4)>>2}else{mask}));
     }None
 }
-fn time_mask(expr:&Expr,table:&str,column:&str,alias:&str,bindings:&BTreeMap<String,String>,period:bool,offset:i64)->Option<u8>{
+fn time_mask(expr:&Expr,table:&str,column:&str,alias:&str,bindings:&BTreeMap<String,String>,period:bool,offset:i64,state:Option<(&str,&Literal)>)->Option<u8>{
+    if let Some((column,value))=state&&let Some(admitted)=allows(expr,table,column,value,alias,bindings){return Some(if admitted{7}else{0});}
     match expr{
         Expr::Unary{op,value,..} if op=="not"=>{
             // Negate atoms exactly; unknown conjunctions must not become a
@@ -141,21 +152,21 @@ fn time_mask(expr:&Expr,table:&str,column:&str,alias:&str,bindings:&BTreeMap<Str
             match value.as_ref(){
                 Expr::Binary{op,left,right,site} if op=="and"||op=="or"=>{
                     let negate=|value:&Expr|Expr::Unary{op:"not".into(),value:Box::new(value.clone()),site:site.clone()};
-                    time_mask(&Expr::Binary{op:if op=="and"{"or"}else{"and"}.into(),left:Box::new(negate(left)),right:Box::new(negate(right)),site:site.clone()},table,column,alias,bindings,period,offset)
+                    time_mask(&Expr::Binary{op:if op=="and"{"or"}else{"and"}.into(),left:Box::new(negate(left)),right:Box::new(negate(right)),site:site.clone()},table,column,alias,bindings,period,offset,state)
                 },
-                Expr::Unary{op,value,..} if op=="not"=>time_mask(value,table,column,alias,bindings,period,offset),
+                Expr::Unary{op,value,..} if op=="not"=>time_mask(value,table,column,alias,bindings,period,offset,state),
                 _=>time_comparison(value,table,column,alias,bindings,period).and_then(|(shift,mask)|(shift==offset).then_some(7^mask)),
             }
         },
         Expr::Binary{op,left,right,..} if op=="and"||op=="or"=>{
-            let a=time_mask(left,table,column,alias,bindings,period,offset);let b=time_mask(right,table,column,alias,bindings,period,offset);
+            let a=time_mask(left,table,column,alias,bindings,period,offset,state);let b=time_mask(right,table,column,alias,bindings,period,offset,state);
             if op=="and" {if a.is_some()||b.is_some(){Some(a.unwrap_or(7)&b.unwrap_or(7))}else{None}}else{Some(a? | b?)}
         },
         _=>time_comparison(expr,table,column,alias,bindings,period).and_then(|(shift,mask)|(shift==offset).then_some(mask)),
     }
 }
-fn path_time(body:&[Stmt],table:&str,column:&str,alias:&str,bindings:&BTreeMap<String,String>,period:bool,offset:i64)->u8{
-    body.iter().filter_map(|s|if let Stmt::Require{condition,..}=s{time_mask(condition,table,column,alias,bindings,period,offset)}else{None}).fold(7,|a,b|a&b)
+fn path_time(body:&[Stmt],table:&str,column:&str,alias:&str,bindings:&BTreeMap<String,String>,period:bool,offset:i64,state:Option<(&str,&Literal)>)->u8{
+    body.iter().filter_map(|s|if let Stmt::Require{condition,..}=s{time_mask(condition,table,column,alias,bindings,period,offset,state)}else{None}).fold(7,|a,b|a&b)
 }
 pub(super) fn notes(catalog: &Catalog) -> Vec<Diagnostic> {
     let programs: Vec<_> = catalog.documents.iter().flat_map(|doc| {
@@ -173,7 +184,7 @@ pub(super) fn notes(catalog: &Catalog) -> Vec<Diagnostic> {
             let mut job_conditions=BTreeSet::new();condition_fields(&job_path.body,&job_aliases,&mut job_conditions);
             for (mutation_name,mutation) in programs.iter().filter(|(_,p)|p.kind==ProgramKind::Mutation&&!p.native){
                 let mut mutation_aliases=BTreeMap::new();aliases(&mutation.body,&mut mutation_aliases);
-                for (_,path) in super::security::authority_walk::writes(catalog,mutation){
+                for (mutation_write,path) in super::security::authority_walk::writes(catalog,mutation){
                     let mut conditions=BTreeSet::new();condition_fields(&path.body,&mutation_aliases,&mut conditions);
                     let mutation_writes=literal_updates(&mutation.body);
                     for (deadline_table,deadline,job_alias,comparison) in &deadlines {
@@ -182,19 +193,33 @@ pub(super) fn notes(catalog: &Catalog) -> Vec<Diagnostic> {
                             let direct=fields.iter().any(|f|&f.name==status&&matches!(f.value,Some(Expr::Literal{..})));
                             let coupled=job_writes.iter().any(|(t,_)|t==&table)&&job_conditions.iter().any(|(t,c,_)|t==&table&&c==status)&&mutation_writes.contains(&(table.clone(),status.clone()));
                             if target!=&table||(!direct&&!coupled){continue;}
+                            let destination=fields.iter().find(|f|&f.name==status).and_then(|f|f.value.as_ref());
+                            if let Some(Expr::Literal{value:after,..})=destination{
+                                let accepts_after=path.body.iter().filter_map(|s|if let Stmt::Require{condition,..}=s{Some(condition)}else{None}).filter(|condition|{let mut found=false;super::intent_walk::expression(&mut (*condition).clone(),&mut |e|if member(e,&mutation_aliases).is_some_and(|(t,c,a)|t==table&&c==*status&&a==*alias){found=true;});found}).all(|condition|allows(condition,&table,status,after,alias,&mutation_aliases)==Some(true));
+                                if accepts_after&&matches!(catalog.tables[&table].columns.get(status).map(|kind|&kind.kind),Some(TypeKind::Enum{..})){continue;}
+                                if matches!(&mutation_write,Expr::Write{table:target,fields,..} if target==&table&&fields.iter().any(|f|f.name==*status&&matches!(f.value.as_ref(),Some(Expr::Literal{value,..}) if value==after))){continue;}
+                            }
+                            let columns=&catalog.tables[&table].columns;
+                            let finite=|column:&str|match columns.get(column){
+                                Some(ScalarType{kind:TypeKind::Bool,optional})=>{let mut xs=vec![Literal::Bool(false),Literal::Bool(true)];if *optional{xs.push(Literal::Null);}xs},
+                                Some(ScalarType{kind:TypeKind::Enum{variants},optional})=>{let mut xs=variants.iter().cloned().map(Literal::Str).collect::<Vec<_>>();if *optional{xs.push(Literal::Null);}xs},
+                                Some(ScalarType{kind:TypeKind::Time,optional:true})=>vec![Literal::Null,Literal::Number("$nonnull".into())],_=>Vec::new(),
+                            };
+                            if columns.keys().any(|column|{
+                                let values=finite(column);!values.is_empty()&&!values.iter().any(|value|admitted(&job_path.body,&table,column,value,job_alias,&job_aliases)&&admitted(&path.body,&table,column,value,alias,&mutation_aliases))
+                            }){continue;}
+                            let states=finite(status).into_iter().filter(|state|admitted(&job_path.body,&table,status,state,job_alias,&job_aliases)&&admitted(&path.body,&table,status,state,alias,&mutation_aliases)).collect::<Vec<_>>();
+                            if !states.is_empty()&&columns.iter().any(|(stamp,kind)|kind.optional&&matches!(kind.kind,TypeKind::Time)&&!admitted(&path.body,&table,stamp,&Literal::Null,alias,&mutation_aliases)&&states.iter().all(|state|super::advisory_model::nonnull_excludes(catalog,&table,stamp,status,state))){continue;}
                             let offset=time_comparison(comparison,&table,deadline,job_alias,&job_aliases,true).map(|(offset,_)|offset);
                             if let Some(offset)=offset{
-                                let due=path_time(&job_path.body,&table,deadline,job_alias,&job_aliases,true,offset);
-                                let admitted_time=path_time(&path.body,&table,deadline,alias,&mutation_aliases,false,offset);
-                                if due!=7&&due&admitted_time==0{continue;}
+                                let bounded=|state:Option<(&str,&Literal)>|{
+                                    let due=path_time(&job_path.body,&table,deadline,job_alias,&job_aliases,true,offset,state);
+                                    let allowed=path_time(&path.body,&table,deadline,alias,&mutation_aliases,false,offset,state);
+                                    due!=7&&due&allowed==0
+                                };
+                                if if states.is_empty(){bounded(None)}else{states.iter().all(|value|bounded(Some((status.as_str(),value))))}{continue;}
                             }
                             let offset=offset.map(|n|n.to_string()).unwrap_or_else(||"unknown".into());
-                            let states=match catalog.tables.get(&table).and_then(|t|t.columns.get(status)).map(|c|&c.kind){
-                                Some(TypeKind::Bool)=>vec![Literal::Bool(false),Literal::Bool(true)],
-                                Some(TypeKind::Enum{variants})=>variants.iter().cloned().map(Literal::Str).collect(),
-                                _=>Vec::new(),
-                            };
-                            if !states.is_empty()&&!states.iter().any(|state|admitted(&job_path.body,&table,status,state,job_alias,&job_aliases)&&admitted(&path.body,&table,status,state,alias,&mutation_aliases)){continue;}
                             if !emitted.insert((mutation_name.clone(),table.clone(),deadline.clone(),status.clone())){continue;}
                             let relation=if direct{format!("tests {alias}.{status} (column {table}.{status}); scheduled job {job_name} has a literal update of that column")}
                                 else{format!("tests {alias}.{status} and writes column {table}.{status}; scheduled job {job_name} also tests that column")};

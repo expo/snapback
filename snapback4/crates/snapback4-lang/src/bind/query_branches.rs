@@ -113,6 +113,18 @@ fn mentions(value: &Expr, name: &str) -> bool {
     super::intent_walk::expression(&mut value, &mut |e| { if matches!(e, Expr::Name { name: n, .. } if n == name) { found = true; } });
     found
 }
+fn captured_condition(value:&Expr,locals:&Locals,args:&[ArgDecl])->Expr{
+    match value{
+        Expr::Binary{op,left,right,site} if op=="and"||op=="or"=>Expr::Binary{op:op.clone(),left:Box::new(captured_condition(left,locals,args)),right:Box::new(captured_condition(right,locals,args)),site:site.clone()},
+        Expr::Binary{op,left,right,site} if op=="="=>{
+            for (field,chosen) in [(left.as_ref(),right.as_ref()),(right.as_ref(),left.as_ref())]{
+                if let Expr::Member{base,name,..}=field&&let Expr::Name{name:alias,..}=base.as_ref()&&let Some(origins)=locals.get(alias)&&origins.len()==1&&matches!(chosen,Expr::Name{name,..} if name=="viewer"){
+                    let mut read=origins[0].read.clone();super::advisory_model::normalize_point(&mut read,args);read.keys.push(KeyPart{column:Some(name.clone()),value:chosen.clone(),site:site.clone()});return Expr::Exists{read,site:site.clone()};
+                }
+            }value.clone()
+        },_=>value.clone(),
+    }
+}
 pub(super) fn notes(catalog: &Catalog, schema: &Schema) -> Vec<Diagnostic> {
     let mut notes = Vec::new();
     for program in catalog.documents.iter().flat_map(|d| &d.programs).filter(|p| p.kind == ProgramKind::Query && !p.native) {
@@ -144,7 +156,7 @@ fn inspect(catalog: &Catalog, schema: &Schema, program: &ProgramDecl, body: &[St
             match statement {
                 Stmt::Return { value, .. } => inspect_result(catalog, schema, program, value, &state, notes),
                 Stmt::Expr { value, .. } if completes => inspect_result(catalog, schema, program, value, &state, notes),
-                Stmt::Require { condition, .. } => { state.gates.push(condition.clone()); flow.normal.push(state); }
+                Stmt::Require { condition, .. } => { state.gates.push(captured_condition(condition,&state.locals,&program.args)); flow.normal.push(state); }
                 Stmt::If { condition, then_body, else_body, .. } => {
                     let mut no = state.clone();
                     state.gates.push(condition.clone());
@@ -187,7 +199,8 @@ fn inspect(catalog: &Catalog, schema: &Schema, program: &ProgramDecl, body: &[St
                 }
                 Stmt::Break { .. } => flow.broken.push(state),
                 Stmt::Continue { .. } => flow.continued.push(state),
-                Stmt::Expr { .. } | Stmt::Emit { .. } => flow.normal.push(state),
+                Stmt::Expr { value,.. } => {state.gates.extend(super::advisory_guards::requirements(catalog,value));flow.normal.push(state);}
+                Stmt::Emit { .. } => flow.normal.push(state),
                 Stmt::As { .. } => { state.gates.clear(); flow.normal.push(state); }
             }
         }
@@ -237,8 +250,9 @@ fn inspect_read(catalog: &Catalog, schema: &Schema, program: &ProgramDecl, read:
     super::intent_walk::expression(&mut expected, &mut |expr| {
         if let Expr::Member { base, name, .. } = expr && matches!(base.as_ref(), Expr::Focal { .. }) && let Some(value) = pins.get(name) { *expr = value.clone(); }
     });
+    let expected=super::advisory_model::child_policy(catalog,&read.table,&expected,&pins);
     let Some(expected) = bind(&expected) else { return };
-    let expand = |value: &Expr| super::advisory_guards::expand(catalog,value).unwrap_or_else(||value.clone());
+    let expand = |value: &Expr| super::advisory_model::visible_guard(catalog,&super::advisory_guards::expand(catalog,value).unwrap_or_else(||value.clone()),&program.args,true);
     let mut conditions: Vec<_> = gates.iter().map(|g| caller_facts(catalog,schema, &expand(g), &bind)).collect();
     if let Some(filter) = &read.filter { conditions.push(caller_facts(catalog,schema, &expand(filter), &bind)); }
     if !conditions.iter().any(positive_probe) { return; }

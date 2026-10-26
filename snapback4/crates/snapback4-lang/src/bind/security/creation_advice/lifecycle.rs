@@ -38,9 +38,10 @@ fn excludes_on(w:&Write<'_>,column:&str,value:&ast::Literal,bound:&Bound,context
     })
 }
 fn excludes(w:&Write<'_>,column:&str,value:&ast::Literal,bound:&Bound)->bool{excludes_on(w,column,value,bound,&w.context)}
-fn earlier_change(w:&Write<'_>,writes:&[Write<'_>],column:&str,bound:&Bound)->bool{
-    writes.iter().take_while(|other|!std::ptr::eq(*other,w)).any(|other|std::ptr::eq(other.p,w.p)&&other.table==w.table&&other.keys.len()==w.keys.len()&&other.keys.iter().zip(&w.keys).all(|(a,b)|(a.column==b.column||a.column.as_deref().is_none_or(|c|c=="id")&&b.column.as_deref().is_none_or(|c|c=="id"))&&resource_key(&a.value,w.p,bound)==resource_key(&b.value,w.p,bound))&&other.fields.iter().any(|field|field.name==column))
+fn prior_field_write(w:&Write<'_>,writes:&[Write<'_>],table:&str,column:&str)->bool{
+    writes.iter().take_while(|other|!std::ptr::eq(*other,w)).any(|other|std::ptr::eq(other.p,w.p)&&other.table==table&&other.fields.iter().any(|field|field.name==column))
 }
+fn earlier_change(w:&Write<'_>,writes:&[Write<'_>],column:&str,_bound:&Bound)->bool{prior_field_write(w,writes,&w.table,column)}
 fn lifecycle_guard(w:&Write<'_>,writes:&[Write<'_>],bound:&Bound)->bool{
     bound.schema.tables[&w.table].columns.iter().any(|(column,kind)|{
         if !lifecycle_column(column,kind)||earlier_change(w,writes,column,bound){return false;}
@@ -87,6 +88,15 @@ fn guard_description(w:&Write<'_>)->String{
 }
 fn preserves_nonnull(w:&Write<'_>,field:&ast::ObjectField,bound:&Bound)->bool{
     matches!(field_value(field),Some(Expr::Binary{op,left,..}) if op=="??"&&matches!(left.as_ref(),Expr::Member{base,name,..} if name==&field.name&&advice_target(base,w,bound)))
+}
+fn approved_request_payload(w:&Write<'_>,field:&ast::ObjectField,writes:&[Write<'_>],bound:&Bound)->bool{
+    let Some(Expr::Member{base,name:payload,..})=field_value(field)else{return false;};
+    let base=if let Expr::Assert{value,..}=base.as_ref(){value.as_ref()}else{base.as_ref()};
+    let Expr::Read(request)=base else{return false;};
+    let Some(t)=bound.schema.table(&request.table)else{return false;};
+    if !t.constraints.iter().any(|c|matches!(c,snapback4_core::schema::Constraint::Immutable{fields} if fields.contains(payload))){return false;}
+    let linked=t.columns.iter().any(|(reference,kind)|matches!(kind,ColumnType::Ref{table} if table==&w.table)&&w.keys.iter().any(|key|super::approval_records::origin(&key.value,w.p,bound).is_some_and(|origin|super::approval_records::origin(&Expr::Member{base:Box::new(base.clone()),name:reference.clone(),site:base.site().clone()},w.p,bound)==Some(origin))));
+    linked&&writes.iter().any(|stamp|stamp.table==request.table&&super::approval_records::coexec(stamp,w)&&advice_target(base,stamp,bound)&&stamp.fields.iter().any(|f|t.columns.get(&f.name).is_some_and(|kind|super::super::derived::named_approval(&f.name,kind)&&super::super::derived::fresh_recording(kind,field_value(f)))&&excludes(stamp,&f.name,&ast::Literal::Number("1".into()),bound))&&!earlier_change(stamp,writes,payload,bound))
 }
 fn requires_child(w:&Write<'_>,child:&str,reference:&str)->bool{
     conditions(&w.context).into_iter().flat_map(conjunction).any(|e|if let Expr::Exists{read,..}=e&&read.table==child{
@@ -422,7 +432,9 @@ pub(super) fn notes(bound:&Bound,writes:&[Write<'_>],out:&mut Vec<Diagnostic>){
             let state_guard=creation_state_guard(w,writes,bound);
             let initialized=kind.is_optional()&&!earlier_change(w,writes,&f.name,bound)&&conditions(&w.context).into_iter().flat_map(conjunction).any(|e|matches!(e,Expr::Binary{op,left,right,..} if op=="="&&[(left.as_ref(),right.as_ref()),(right.as_ref(),left.as_ref())].iter().any(|(field,null)|matches!(null,Expr::Literal{value:ast::Literal::Null,..})&&matches!(field,Expr::Member{base,name,..} if name==&f.name&&advice_target(base,w,bound)))));
             let immutable=t.constraints.iter().any(|constraint|matches!(constraint,snapback4_core::schema::Constraint::Immutable{fields} if fields.contains(&f.name)));
-            if protected&&w.op!=WriteOp::Insert&&!initialized&&!immutable&&!super::super::privilege::role_columns(bound,&w.table).contains(&f.name)&&!state_guard&&!(preserves_nonnull(w,f,bound)&&!earlier_change(w,writes,&f.name,bound))&&!lifecycle_column(&f.name,kind){
+            let one_way=matches!(kind.required(),ColumnType::Bool)&&matches!(field_value(f),Some(Expr::Literal{value:ast::Literal::Bool(true),..}))&&writes.iter().filter(|other|other.table==w.table).all(|other|other.fields.iter().all(|field|!field.spread&&(field.name!=f.name||other.op==WriteOp::Insert||matches!(field_value(field),Some(Expr::Literal{value:ast::Literal::Bool(true),..})))))&&writes.iter().filter(|other|other.name!=w.name&&other.table==w.table&&approves(other,bound)&&inspected(other,&w.table,&f.name)).all(|other|excludes(other,&f.name,&ast::Literal::Bool(false),bound));
+            let derived_once=matches!(kind.required(),ColumnType::Bool)&&!super::super::derived::named_approval(&f.name,kind)&&field_value(f).is_some_and(|value|uses(value,"now")&&!w.p.args.iter().any(|arg|!matches!(arg.type_.kind,TypeKind::Ref{..})&&uses(value,&arg.name)))&&advances_source_stage(w,bound);
+            if protected&&!approved_request_payload(w,f,writes,bound)&&!one_way&&!derived_once&&w.op!=WriteOp::Insert&&!initialized&&!immutable&&!super::super::privilege::role_columns(bound,&w.table).contains(&f.name)&&!state_guard&&!(preserves_nonnull(w,f,bound)&&!earlier_change(w,writes,&f.name,bound))&&!lifecycle_column(&f.name,kind){
                 note(out,&w.site,"N_EDIT_AFTER_APPROVAL",format!("{}: saw `{}`; not proved: edit of {}.{} at {} is restricted by lifecycle/approval; should checked values remain editable?",w.name,guard_description(w),w.table,f.name,w.site),&format!("declare column update intent for approved states or authorized reapproval; to freeze this value use `immutable {} when {}`; enforce replacement as well as removal, then test approve -> edit",f.name,approval_columns.iter().find_map(|c|match t.columns[*c].required(){ColumnType::Bool=>Some(format!(".{c} = true")),ColumnType::Time=>Some(format!(".{c} != null")),_=>None}).unwrap_or_else(||"<approved-state-policy>".into())));
             }
         }
@@ -463,10 +475,14 @@ pub(super) fn notes(bound:&Bound,writes:&[Write<'_>],out:&mut Vec<Diagnostic>){
                     (w.op!=WriteOp::Insert).then(||Expr::Member{base:Box::new(Expr::Read(ast::ReadExpr{cursor_prefix:None,computed:Default::default(),order_keys:Vec::new(),table:w.table.clone(),keys:w.keys.clone(),index:None,range:None,matching:None,filter:None,seeks:Vec::new(),site:w.site.clone()})),name:column.clone(),site:w.site.clone()})
                 })?;
                 if matches!(value,Expr::Literal{value:ast::Literal::Null,..}){return None;}
-                Some((table,value))
+                Some((table,value,column))
             }).collect::<Vec<_>>();
-            for (dep,reference) in dependencies{
-                let deadlines=bound.schema.tables[dep].columns.iter().filter(|(name,kind)|matches!(kind.required(),ColumnType::Time)&&["due","deadline","until","expire"].iter().any(|part|name.to_lowercase().contains(part))).map(|(name,_)|name.clone()).collect::<Vec<_>>();
+            for (dep,reference,reference_column) in dependencies{
+                let reference_current=w.fields.iter().any(|field|field.name==*reference_column)||!earlier_change(w,writes,reference_column,bound);
+                let deadlines=bound.schema.tables[dep].columns.iter().filter(|(name,kind)|{
+                    if name.starts_with('$')||!matches!(kind.required(),ColumnType::Time)||!["due","deadline","until","expire"].iter().any(|part|name.to_lowercase().contains(part)){return false;}
+                    !kind.is_optional()||conditions(&w.context).iter().any(|e|matches!(e,Expr::Binary{op,left,right,..} if op=="!="&&[(left.as_ref(),right.as_ref()),(right.as_ref(),left.as_ref())].iter().any(|(field,null)|matches!(null,Expr::Literal{value:ast::Literal::Null,..})&&matches!(field,Expr::Member{name:field,..} if field==*name))))||writes.iter().any(|other|other.table==*dep&&super::approval_records::coexec(other,w)&&other.keys.len()==1&&resource_key(&other.keys[0].value,w.p,bound)==resource_key(&reference,w.p,bound)&&other.fields.iter().any(|field|field.name==**name&&field_value(field).is_some_and(|assigned|crate::print::expression(assigned)==crate::print::expression(value))))
+                }).map(|(name,_)|name.clone()).collect::<Vec<_>>();
                 let mut paired=false;
                 // Pair the actual reference with its read, allowing differently
                 // named return/approval timestamps to define this window.
@@ -476,14 +492,18 @@ pub(super) fn notes(bound:&Bound,writes:&[Write<'_>],out:&mut Vec<Diagnostic>){
                         let a=relationship(left,positive,w,written,dep,reference,bound);let b=relationship(right,positive,w,written,dep,reference,bound);
                         if (op=="and")==positive{a||b}else{a&&b}
                     },
-                    Expr::Binary{op,..} if ["<","<=",">",">="].contains(&op.as_str())&&w.p.args.iter().any(|arg|matches!(arg.type_.kind,TypeKind::Time)&&uses(written,&arg.name)&&uses(e,&arg.name))=>{
-                        let mut paired=false;walk(e,|e|if let Expr::Member{base,name,..}=e&&bound.schema.tables[dep].columns.get(name).is_some_and(|kind|matches!(kind.required(),ColumnType::Time)){
-                            let base=if let Expr::Assert{value,..}=base.as_ref(){value.as_ref()}else{base.as_ref()};
-                            if let Expr::Read(read)=base&&read.table==dep&&read.keys.len()==1&&read.keys[0].column.as_deref().is_none_or(|name|name=="id")&&resource_key(&read.keys[0].value,w.p,bound)==resource_key(reference,w.p,bound){paired=true;}
-                        });paired
+                    Expr::Binary{op,left,right,..} if ["<","<=",">",">="].contains(&op.as_str())=>{
+                        fn anchor(e:&Expr,w:&Write<'_>,dep:&str,reference:&Expr,bound:&Bound)->Option<String>{match e{
+                            Expr::Member{base,name,..} if bound.schema.tables[dep].columns.get(name).is_some_and(|kind|matches!(kind.required(),ColumnType::Time))=>{
+                                let base=if let Expr::Assert{value,..}=base.as_ref(){value.as_ref()}else{base.as_ref()};
+                                if let Expr::Read(read)=base&&read.table==dep&&read.keys.len()==1&&read.keys[0].column.as_deref().is_none_or(|name|name=="id")&&resource_key(&read.keys[0].value,w.p,bound)==resource_key(reference,w.p,bound){Some(name.clone())}else{None}
+                            },
+                            Expr::Binary{op,left,right,..} if matches!(op.as_str(),"+"|"-")&&matches!(right.as_ref(),Expr::Literal{value:ast::Literal::Number(_),..})=>anchor(left,w,dep,reference,bound),_=>None,
+                        }}
+                        [(left.as_ref(),right.as_ref()),(right.as_ref(),left.as_ref())].iter().any(|(time,base)|crate::print::expression(time)==crate::print::expression(written)&&anchor(base,w,dep,reference,bound).is_some())
                     },_=>false,
                 }}
-                paired|=conditions(&w.context).iter().any(|e|relationship(e,true,w,value,dep,&reference,bound));
+                paired|=reference_current&&!bound.schema.tables[dep].columns.iter().any(|(column,kind)|matches!(kind.required(),ColumnType::Time)&&prior_field_write(w,writes,dep,column))&&conditions(&w.context).iter().any(|e|relationship(e,true,w,value,dep,&reference,bound));
                 if !deadlines.is_empty()&&!paired{
                     note(out,&w.site,"N_DEPENDENT_WINDOW",format!("{}: saw `{}` bounding {}.{}; not proved: window uses linked {dep}[{}].{} at {}",w.name,guard_description(w),w.table,f.name,crate::print::expression(&reference),deadlines.join(","),w.site),"compare the actual written deadline with the linked resource's bound as well as server now; declare independent window intent and test the boundary");
                 }

@@ -157,7 +157,14 @@ impl Binder<'_> {
 
     // @ref LLP 3000.013#2.2 — post-write presence follows only a stable
     // point key and a read grant whose deciding state the write cannot change.
-    pub(super) fn invalidate_after_write(&mut self, expr: &A) {
+    pub(super) fn invalidate_after_write(&mut self, expr:&A){
+        let saved=self.stable_advice_after(expr);
+        self.invalidate_after_write_inner(expr);
+        for binding in self.scopes.iter_mut().flat_map(|scope|scope.values_mut()){
+            if let Some(facts)=saved.get(&binding.runtime){binding.fields.extend(facts.iter().cloned());}
+        }
+    }
+    fn invalidate_after_write_inner(&mut self, expr: &A) {
         let A::Write { op: WriteOp::Update, table, fields, .. } = expr else {
             self.invalidate_points(); return;
         };

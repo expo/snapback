@@ -42,7 +42,9 @@ impl Binder<'_> {
         let A::Read(read)=origin else{return None;};
         let info=self.catalog.tables.get(&read.table)?;
         if info.through.is_some()||info.maintained.is_some()||read.range.is_some()||read.filter.is_some()||read.matching.is_some()||!read.seeks.is_empty(){return None;}
-        let pins=super::super::auth_lints::pins(self.catalog,read)?;
+        let mut read=read.clone();
+        if read.keys.len()==1&&read.keys[0].column.is_none()&&matches!(&read.keys[0].value,A::Name{name,..} if self.binding(name).is_some_and(|b|b.ty.required()==Ty::Ref(read.table.clone()))){read.keys[0].column=Some("id".into());}
+        let pins=super::super::auth_lints::pins(self.catalog,&read)?;
         info.indexes.iter().any(|index|info.total_unique(index)&&index.columns.iter().all(|c|pins.contains_key(c))).then(||read.clone())
     }
     fn advice_snapshot_condition(&self,value:&A)->A{
@@ -51,7 +53,8 @@ impl Binder<'_> {
             let original=node.clone();
             let A::Binary{op,left,right,site}=&original else{return;};if !matches!(op.as_str(),"="|"!="){return;}
             for (field,literal) in [(left.as_ref(),right.as_ref()),(right.as_ref(),left.as_ref())]{
-                let (A::Member{base,name,..},A::Literal{..})=(field,literal)else{continue;};
+                let A::Member{base,name,..}=field else{continue;};
+                if !matches!(literal,A::Literal{..})&&!matches!(literal,A::Name{name,..} if name=="viewer"){continue;}
                 let A::Name{name:binding,..}=base.as_ref()else{continue;};let Some(mut read)=self.advice_snapshot(binding)else{continue;};
                 let table=&self.schema.tables[&read.table];
                 if table.columns.get(name).is_none_or(|kind|kind.is_optional())||table.column_reads.contains_key(name)||table.written_by.get(name).is_some_and(|owner|!owner.audience){continue;}
@@ -61,6 +64,32 @@ impl Binder<'_> {
             }
         });value
     }
+    // Preserve only transaction facts whose raw rows cannot change through
+    // this direct write. Unsupported implicit/lifetime dependencies stay cut.
+    pub(super) fn stable_advice_after(&self,value:&A)->BTreeMap<String,Vec<(Vec<String>,Ty)>>{
+        let A::Write{table,op,..}=value else{return BTreeMap::new();};
+        if *op==WriteOp::Delete||!self.schema.maintains.is_empty()||self.schema.tables.values().any(|t|!t.maintained.is_empty()||!t.sequences.is_empty()){return BTreeMap::new();}
+        let plain=|name:&str|name!=table&&self.schema.table(name).is_some_and(|t|t.through.is_none()&&t.ephemeral.is_none());
+        let mut saved=BTreeMap::new();
+        for binding in self.scopes.iter().flat_map(|scope|scope.values()){
+            for (key,ty) in &binding.fields{
+                let stable=match key.first().map(String::as_str){
+                    Some("$advisoryRead")=>key.last().and_then(|identity|self.advisory_predicates.get(identity)).is_some_and(|(condition,_)|{
+                        let mut condition=self.advice_snapshot_condition(condition);let mut stable=true;
+                        super::super::intent_walk::expression(&mut condition,&mut |node|match node{
+                            A::Read(read)|A::Exists{read,..}=>stable&=plain(&read.table),
+                            A::Call{..}|A::Member{..}=>stable=false,_=>{},
+                        });stable
+                    }),
+                    Some("$advisorySnapshot")=>binding.origins.len()==1&&{
+                        let mut origin=&binding.origins[0].1;if let A::Assert{value,..}=origin{origin=value;}
+                        matches!(origin,A::Read(read) if plain(&read.table))
+                    },_=>false,
+                };
+                if stable{saved.entry(binding.runtime.clone()).or_insert_with(Vec::new).push((key.clone(),ty.clone()));}
+            }
+        }saved
+    }
     // Advisory-only helper implication. Existing lexical facts retain their
     // rebinding/write invalidation; expanded values never enter runtime proofs.
     // @ref LLP 3000.036.004.001#2-read-guards — pure role helpers are transparent to advice.
@@ -68,22 +97,36 @@ impl Binder<'_> {
         let Some(expanded) = super::super::advisory_guards::expand(self.catalog,value)else{return false;};
         if self.lookup_rule_proved(&expanded) { return true; }
         let Some(info) = self.catalog.tables.get(table) else { return false; };
-        let bind = |value: A| super::super::schema::bind_rule(self.catalog, info,
-            &ast::RuleDecl { effect: ast::Effect::Read, bindings: Vec::new(), site: value.site().clone(), value }).ok();
-        fn caller_goal(value:&A)->A{
+        let mut context=info.clone();
+        for scope in &self.scopes{for (name,_binding) in scope{
+            if let Some(read)=self.advice_snapshot(name){for (field,kind) in &self.catalog.tables[&read.table].columns{context.columns.insert(format!("$advisoryField:{name}:{field}"),kind.clone());}}
+        }}
+        // Argument identities and captured fields occupy synthetic columns only
+        // in this diagnostic binder. No fact enters runtime authority.
+        for doc in &self.catalog.documents{for program in &doc.programs{if program.name==self.name{for arg in &program.args{context.columns.insert(format!("$advisoryCaller:{}",arg.name),arg.type_.clone());}}}}
+        let bind = |mut value: A| {
+            super::super::intent_walk::expression(&mut value,&mut |node|{
+                if let A::Member{base,name,site}=node&&let A::Name{name:alias,..}=base.as_ref()&&context.columns.contains_key(&format!("$advisoryField:{alias}:{name}")){*node=A::Member{base:Box::new(A::Focal{site:site.clone()}),name:format!("$advisoryField:{alias}:{name}"),site:site.clone()};}
+                if let A::Name{name,site}=node&&context.columns.contains_key(&format!("$advisoryCaller:{name}")){*node=A::Member{base:Box::new(A::Focal{site:site.clone()}),name:format!("$advisoryCaller:{name}"),site:site.clone()};}
+            });
+            super::super::intent_walk::expression(&mut value,&mut |node|if let A::Name{name,site}=node&&name=="$advisoryFieldRoot"{*node=A::Focal{site:site.clone()};});
+            super::super::schema::bind_rule(self.catalog,&context,&ast::RuleDecl{effect:ast::Effect::Read,bindings:Vec::new(),site:value.site().clone(),value}).ok()
+        };
+        fn caller_goal(value:&A,bind:&impl Fn(A)->Option<snapback4_core::schema::RuleExpr>)->A{
             if let A::Binary{op,left,right,site}=value&&matches!(op.as_str(),"and"|"or"){
-                return A::Binary{op:op.clone(),left:Box::new(caller_goal(left)),right:Box::new(caller_goal(right)),site:site.clone()};
+                return A::Binary{op:op.clone(),left:Box::new(caller_goal(left,bind)),right:Box::new(caller_goal(right,bind)),site:site.clone()};
             }
             let mut copy=value.clone();let mut target=false;
             super::super::intent_walk::expression(&mut copy,&mut |node|if matches!(node,A::Name{name,..} if name==TARGET_ROW){target=true;});
-            if target{A::Literal{value:Literal::Bool(false),site:value.site().clone()}}else{value.clone()}
+            if target||bind(value.clone()).is_none(){A::Literal{value:Literal::Bool(false),site:value.site().clone()}}else{value.clone()}
         }
-        let Some(need) = bind(caller_goal(&expanded)) else { return false; };
+        let Some(need) = bind(caller_goal(&expanded,&bind)) else { return false; };
         let bind_fact=|mut value:A|{
+            super::super::intent_walk::expression(&mut value,&mut |node|if let A::Member{base,name,site}=node&&let A::Name{name:alias,..}=base.as_ref()&&context.columns.contains_key(&format!("$advisoryField:{alias}:{name}")){*node=A::Member{base:Box::new(A::Name{name:"$advisoryFieldRoot".into(),site:site.clone()}),name:format!("$advisoryField:{alias}:{name}"),site:site.clone()};});
             // Caller locals/constants and an enclosing projection's focal row
             // never inhabit the target rule's namespace.
             super::super::intent_walk::expression(&mut value,&mut |node|match node{
-                A::Name{name,site} if name!="viewer"&&self.binding(name).is_some()=>*node=A::Name{name:format!("$advisoryCaller:{name}"),site:site.clone()},
+                A::Name{name,site} if name!="viewer"&&self.binding(name).is_some()&&!context.columns.contains_key(&format!("$advisoryCaller:{name}"))=>*node=A::Name{name:format!("$advisoryCaller:{name}"),site:site.clone()},
                 A::Focal{site}=>*node=A::Name{name:"$advisoryCallerFocal".into(),site:site.clone()},_=>{},
             });bind(value)
         };
@@ -91,9 +134,11 @@ impl Binder<'_> {
             let value=self.advice_snapshot_condition(&value);
             if truth{value}else{A::Unary{op:"not".into(),site:value.site().clone(),value:Box::new(value)}}
         });
-        let mut have=facts.filter_map(|value|{
-            super::super::advisory_guards::raw_monotone(self.catalog,self.schema,&value,true).then(||bind_fact(value)).flatten()
-        }).collect::<Vec<_>>();
+        fn lower(value:&A,bind:&impl Fn(A)->Option<snapback4_core::schema::RuleExpr>,catalog:&super::super::catalog::Catalog,schema:&snapback4_core::schema::Schema)->snapback4_core::schema::RuleExpr{
+            if super::super::advisory_guards::raw_monotone(catalog,schema,value,true)&&let Some(rule)=bind(value.clone()){return rule;}
+            match value{A::Binary{op,left,right,..} if op=="and"=>snapback4_core::schema::RuleExpr::And(vec![lower(left,bind,catalog,schema),lower(right,bind,catalog,schema)]),A::Binary{op,left,right,..} if op=="or"=>snapback4_core::schema::RuleExpr::Or(vec![lower(left,bind,catalog,schema),lower(right,bind,catalog,schema)]),_=>snapback4_core::schema::RuleExpr::Allow}
+        }
+        let mut have=facts.map(|value|lower(&value,&bind_fact,self.catalog,self.schema)).collect::<Vec<_>>();
         for name in self.scopes.iter().flat_map(|scope|scope.keys()){
             if let Some(read)=self.advice_snapshot(name)&&let Some(probe)=bind_fact(A::Exists{site:read.site.clone(),read}){have.push(probe);}
         }
@@ -183,6 +228,11 @@ impl Binder<'_> {
         let index = &table.indexes[&point.index];
         let pinned = index.components.iter().zip(&point.key).filter_map(|(part, value)| part.column().map(|name| (name, value))).collect();
         if snapback4_core::engine::rules::prefix_visibility(&read.table, table, &table.rules.read, &pinned).decided_true { return; }
+        if let Some(through)=&table.through&&let Some(parent)=self.catalog.tables.get(&through.parent)&&let Some(rule)=parent.decl.rules.iter().find(|rule|rule.effect==ast::Effect::Read){
+            let mut value=rule.value.clone();maintain_types::normalize_rule_constants(&mut value);
+            super::super::intent_walk::expression(&mut value,&mut |e|if let A::Member{base,..}=e&&let A::Focal{site}=base.as_ref(){**base=A::Name{name:TARGET_ROW.into(),site:site.clone()};});
+            if self.lookup_advice_proved(&through.parent,&value){return;}
+        }
         if let Some(rule) = self.catalog.tables[&read.table].decl.rules.iter().find(|rule| rule.effect == ast::Effect::Read) {
             let named = read.keys.iter().all(|key| key.column.is_some());
             let keys: BTreeMap<_, _> = read.keys.iter().enumerate().filter_map(|(at, key)|
@@ -192,6 +242,10 @@ impl Binder<'_> {
             // Rule constants and target fields occupy their own namespaces.
             // Freeze/seal them before injecting lexical caller key expressions.
             maintain_types::normalize_rule_constants(&mut condition);
+            condition=super::super::advisory_model::child_policy(self.catalog,&read.table,&condition,&keys);
+            super::super::intent_walk::expression(&mut condition,&mut |node|{
+                if let A::Member{base,name,..}=node&&matches!(base.as_ref(),A::Focal{..})&&let Some(id)=keys.get("id")&&let A::Member{base:child,name:reference,..}=id&&let A::Name{name:alias,..}=child.as_ref()&&let Some(child_read)=self.advice_snapshot(alias)&&self.catalog.advisory.links.iter().any(|link|link.parent==read.table&&link.parent_field==*name&&link.child==child_read.table&&link.reference==*reference){*node=A::Member{base:child.clone(),name:name.clone(),site:node.site().clone()};}
+            });
             super::super::intent_walk::expression(&mut condition, &mut |value| {
                 if let A::Member { base, .. } = value && let A::Focal { site } = base.as_ref() {
                     **base = A::Name { name: TARGET_ROW.into(), site: site.clone() };
