@@ -1,0 +1,83 @@
+**NOT READY**
+
+**P1 — Exact extraction rollback can bypass the child’s effective insert authority.**
+
+In [release_bridge.rs](/home/ccheever/projects/sb4-b29-rel2/snapback4/crates/snapback4-lang/src/release_bridge.rs), `extraction_preserves_predecessor` proves `child.rules.insert`, but omits the read-through insertion gate. The runtime’s `capture_insert_inner` additionally requires the newly referenced parent to be readable.
+
+Consequently, v1 can permit a blind parent insert that v2 refuses when creating its child. The extraction proof nevertheless accepts v1. An empty deployment passes the projection preview, allowing default rollback to restore this unauthorized workflow. A null payload suffices; no assets or credentials are needed.
+
+Concrete reproducer, as a `snapback4` integration test:
+
+```rust
+use snapback4_core::{Context, Engine, Value, engine::WriteState};
+use std::collections::BTreeMap;
+
+#[test]
+fn rel2_must_preserve_read_through_insert_authority() {
+    let parent = "\
+table items:
+  owner: principal
+  immutable owner
+  read <- .owner = viewer
+  insert <- allow
+  online only
+";
+    let old = parent.replace(
+        "  immutable owner",
+        "  scan: file <=1000 ?\n  immutable owner",
+    ) + "\
+mutation add(owner: principal):
+  return insert items {owner, scan:null}
+";
+
+    let current = parent.to_owned() + "\
+table scans:
+  item: items on delete cascade
+  scan: file <=1000 ?
+  immutable item
+  read through .item
+  insert <- allow
+  online only
+extract scans from items via item: {scan:scan}
+mutation add(owner: principal):
+  p = insert items {owner}
+  insert scans {item:p, scan:null}
+  return p
+";
+
+    let old = vec![("schema.q".into(), old)];
+    let current = vec![("schema.q".into(), current)];
+
+    let sent = |sources: &[(String, String)]| {
+        let bound = snapback4_lang::compile(sources);
+        assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+        let mut engine = Engine::memory(
+            bound.schema,
+            bound.programs.into_iter().map(|p| p.program),
+        ).unwrap();
+        let outcome = engine.mutate(
+            "add",
+            None,
+            Context::new("bob", BTreeMap::from([
+                ("owner".into(), Value::Id("alice".into())),
+            ])),
+        ).unwrap();
+        matches!(outcome.state, WriteState::Sent { .. })
+    };
+
+    assert!(sent(&old));       // Blind parent insert succeeds.
+    assert!(!sent(&current));  // Child capture refuses unreadable parent.
+    assert!(
+        !snapback4_lang::release_bridge::extraction_preserves_predecessor(
+            &old, &current,
+        ),
+        "must retain the view when effective child insertion refuses"
+    );
+}
+```
+
+Run with `cargo test -p snapback4 --test <test-file-stem>`. The final assertion exposes the incorrect eligibility verdict.
+
+The proof must include the inherited read/capture requirement and preserve its dependency closure throughout the shared mutation.
+
+Source-derived finding; the reproducer was not executed. No files were edited, and no credentials or original stores were accessed.

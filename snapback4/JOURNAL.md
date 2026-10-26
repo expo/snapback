@@ -108701,6 +108701,29 @@ released: 141.178 s total, median 2.410 s. The two slow call scripts themselves
 take about a minute; no new builder-time savings are claimed. Existing release
 and security semantics are unchanged (REL2/SEC10 own those). LLP 3000.036.004
 §19.1 records presentation; detailed evidence is in reports/20261026-dx12.
+## 2026-10-26 — REL2 release identity and wave-29 refusals
+
+REL2 makes a fitting one-child reverse projection eligible for original-source
+selection despite current invariants or declaration layout. The closed proof
+retains authored guards, invariant content, shape/helper meaning and write
+payloads; the writer requires a validated parent projection for every child and
+parent. A v2-born singleton can establish that receipt atomically; a competing
+child cannot. Previews and live release JSON disclose bound predecessor result
+shape differences. Historical source reactivation reuses its source/manifest;
+latest-source compiler registry upgrades retain the existing qualification path.
+List-bound inclusion and self-baseline saving remove 008/011's false refusals.
+Roster provisioning uses a kernel writer lock plus a diagnostic holder lease,
+including per-attempt fencing of delayed identity requests. See LLP 3000.000.000
+§22 and the verbatim dual-family reviews in `llp/reviews/rel2-wave29/`.
+
+The final affected sweep caught a source-origin cutoff which refused restoration
+of rows made dormant by intervening narrowing. Reactivation now preserves the
+complete committed rollback closure. Equivalent qualification targets share
+registry coverage by executable digest, guarded bytes and hiding policy;
+alternating A/B deploys stabilize, and alias lookup cannot borrow a different
+hiding acknowledgment. CLI regressions cover restoration, repeated deployment,
+every retained target and a mismatched legacy policy. Changelog verb ownership
+and the unchanged non-delivery await classification are checked explicitly.
 
 ## 2026-10-26 — G7-E fix-forward: terminal completion and PG17 certificate timeout
 

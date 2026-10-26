@@ -1,0 +1,29 @@
+**NOT READY.** Two material defects remain in the supplied snapshot.
+
+1. **Shorthand write fields bypass parent-binding normalization.** In the final supplied dataflow regression, change `links.order` to `links.a` and change both final writes to:
+
+   ```quarry
+   return insert links {a}
+   ```
+
+   Keep the existing insertion order: old source binds `a` to the first parent and `b` to the second; current source binds `b` first and `a` second, pairing payloads correctly.
+
+   `extraction_preserves_predecessor` now accepts this pair, although the link points to different parent ordinals. Default rollback can therefore restore the wrong relationship for subsequent mutations.
+
+   **Cause:** `write_projection` normalizes only `Expr::Name`. Shorthand fields have `value: None`; traversal never exposes their implicit variable reference, so `{a}` compares identically across both workflows.
+
+   **Correction:** Expand shorthand values into explicit name expressions before canonicalization, preserving field keys and order. Normalize those references to insertion ordinals and add this reproducer as a rejecting regression.
+
+2. **`rollback --check` lacks the required `rowShape` record.** Its path still calls baseline `release_preview::plan`, whose returned JSON payload contains no `rowShape`. The supplied changes add shape reporting through `live_identity`, which preview does not call.
+
+   **Reproducer:** Create two ordinary releases, then run:
+
+   ```sh
+   snapback4 rollback deployment --to 1 --check --json
+   ```
+
+   The response lacks the §22-required shape verdict, including when the selected source exactly matches release 1. The supplied regression assertions accessing `preview["rowShape"]["matchesTarget"]` cannot pass through this implementation.
+
+   **Correction:** Wire the selected-source/logical-target shape comparison into preview output, sharing the comparison with live reporting.
+
+These findings are static; I made no edits or test runs.

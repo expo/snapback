@@ -1,0 +1,113 @@
+NOT READY.
+
+1. **Payload rebinding can falsely qualify exact rollback.** In [release_bridge_guards.rs](/home/ccheever/projects/sb4-b29-rel2/snapback4/crates/snapback4-lang/src/release_bridge_guards.rs), `write_projection` accepts every `Expr::Name` as a pure payload and compares its spelling without its binding revision. Moving child insertion across a local reassignment therefore passes: v1 stores null, while v2 stores the supplied file. Scalar statement order remains identical, so the existing comparison misses the changed payload. This violates §22’s direct-input restriction and corresponding-write requirement.
+
+2. **Read-through capture does not prove the parent survives until child insertion.** In [release_bridge.rs](/home/ccheever/projects/sb4-b29-rel2/snapback4/crates/snapback4-lang/src/release_bridge.rs), the synthetic parent-read proof checks the read predicate’s dependencies. For `read <- allow`, that set is empty; physical parent existence is absent. A shared mutation can insert and delete the parent before inserting its child, yet qualify for exact rollback. V2 refuses capture of the missing parent; v1 succeeds and can commit subsequent writes. The restrict-edge check does not cover this cascade case.
+
+This executable reproducer exercises both proof failures against a checkout containing the supplied files. Both results should be `false`; the supplied implementation produces `true`. I have not executed it, respecting the read-only restriction.
+
+```bash
+set -eu
+repo=/home/ccheever/projects/sb4-b29-rel2
+scratch=$(mktemp -d)
+trap 'rm -rf "$scratch"' EXIT
+mkdir "$scratch/src"
+
+cat > "$scratch/Cargo.toml" <<EOF
+[package]
+name = "rel2-independent-reproducer"
+version = "0.0.0"
+edition = "2024"
+
+[dependencies]
+snapback4-lang = { path = "$repo/snapback4/crates/snapback4-lang" }
+EOF
+
+cat > "$scratch/src/main.rs" <<'RS'
+fn parent(payload: bool) -> String {
+    format!(
+        "table items:\n{}\
+         \x20 read <- allow\n\
+         \x20 insert <- allow\n\
+         \x20 delete <- allow\n\
+         \x20 online only\n",
+        if payload { "  scan: file <=1000 ?\n" } else { "" }
+    )
+}
+
+const CHILD: &str = "\
+table scans:
+  item: items on delete cascade
+  scan: file <=1000 ?
+  immutable item
+  read through .item
+  insert <- allow
+  online only
+extract scans from items via item: {scan:scan}
+";
+
+fn eligible(old: String, current: String) -> bool {
+    let old = vec![("schema.q".into(), old)];
+    let current = vec![("schema.q".into(), current)];
+    for sources in [&old, &current] {
+        let bound = snapback4_lang::compile(sources);
+        assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    }
+    snapback4_lang::release_bridge::extraction_preserves_predecessor(
+        &old, &current,
+    )
+}
+
+fn main() {
+    let rebound = eligible(
+        parent(true) + "\
+mutation add(photo: file <=1000):
+  payload = null
+  p = insert items {scan:payload}
+  payload = photo
+  return p
+",
+        parent(false) + CHILD + "\
+mutation add(photo: file <=1000):
+  payload = null
+  p = insert items {}
+  payload = photo
+  insert scans {item:p,scan:payload}
+  return p
+",
+    );
+
+    let audit = "\
+table audit:
+  n: int
+  public
+  online only
+";
+    let deleted_parent = eligible(
+        parent(true) + audit + "\
+mutation add():
+  p = insert items {scan:null}
+  delete items[p.id]
+  insert audit {n:1}
+  return null
+",
+        parent(false) + CHILD + audit + "\
+mutation add():
+  p = insert items {}
+  delete items[p.id]
+  insert scans {item:p,scan:null}
+  insert audit {n:1}
+  return null
+",
+    );
+
+    println!("rebound payload: {rebound}");
+    println!("deleted capture parent: {deleted_parent}");
+    assert_eq!([rebound, deleted_parent], [false, false]);
+}
+RS
+
+cargo run --offline --quiet \
+  --manifest-path "$scratch/Cargo.toml" \
+  --target-dir "$scratch/target"
+```

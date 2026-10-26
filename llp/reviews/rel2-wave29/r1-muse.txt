@@ -1,0 +1,17 @@
+muse: workspace root: /home/ccheever/projects/sb4-b29-rel2 (cwd default)
+muse: workspace trust: trusted source=run-flag
+muse: retrying meta model stream in 60000ms (attempt 2/10)
+READY
+
+No material correctness, security, data-loss, concurrency, or contract defect found in the wave-29 snapshot.
+
+Checked:
+- exact rollback guard preservation: `extraction_preserves_predecessor` now proves reachable parent writes against child `insert`/`update` via `exact_authority`, requires full top-level prefix and full nested `If`/`For`/`As` context via `extraction_context_safe`, retains helper meaning and `same_workflows` on carried source, and keeps table equality via `canonical_table` (immutable grouping/order only). `prefer_original` adds `check_change` authority plus private `VACUUM INTO` preview requiring `hiddenRows==0` and `newlyEmptyCells==0`, with live CAS refusal.
+- row shape: `release_shape::compare` covers every target export by name+kind, skips `Job`, abstracts `Ref`/`Id` to `id`, `Text` to `text`, `Page`/`Collection` to paged shape, preserves `nullable`/`omittable`, lists served columns and extraction children. `at`/`print` wiring for `rollback --check`, `releases --json` (`rowShape` + `live.rowShape`), and view `live:` output matches §22 wording.
+- dedupe/reactivation: `executable_digest` excludes `provenance`, device/worker reports and view manifests but includes Quarry + companions, so companion changes still mint new releases. Path-form normalization via `proof_source` (`schema.q`) plus `manifest` reuse vs `prepare` fallback and `needs_registration` comparison preserves immutable view manifests; legacy missing-manifest path still prepares.
+- list-bound widening: `payload_accepts` enforces identical element type with `bmin<=amin` and `amax<=bmax`, composes required→optional, refuses null→required and element changes. Scalar `Ref`/`Optional` sources still refused by existing immutable-source rule; reverse asset path validates via `validate_column`, scalar divergence blocked by equality/immutability plus hidden-row preview.
+- self-baseline: `SavedVersion::prepare` materializes selected bytes with `create_new` before compatibility/codegen, `Drop` removes provisional dir on failure, `finish` writes generated/fixtures/`release.json` only on success, refresh path never rewrites source/fixtures.
+- roster ownership: `rosterLock` holds SQLite `BEGIN IMMEDIATE` on stable `.lock.sqlite` inode as authority, JSON `.lock` as diagnostic holder/lease with 10s renewal/30s expiry, `assertHeld` gates account requests/saves, `release` marks released then closes, death releases kernel lock, no `unlink` reclaim races, legacy empty marker reclaimable. Mixed old/new drivers explicitly out of protocol.
+
+No reproducer; no file edits made.
+

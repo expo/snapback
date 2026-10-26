@@ -13,6 +13,8 @@
 - Test anything against an app's npm serve script with `serve-check --then '<cmd>'` or `withServeScript`; startup, command deadlines, process-group shutdown and lock release are owned by the kit. Never write a serve driver. Readiness stays private; commands receive it through environment variables.
 - Deploy, rollback and releases lead with verdict and live identity. Advisory decisions are counted; `--review` expands them and `--verbose` expands previews. JSON retains full evidence.
 - `renderedText` scrolls unique candidates into view, including Expo web document scrolling. `devAccounts` provisions real development password users with the production helper's plan and return shape. `beginForm` accepts a subset of argument constraints, retaining exact checks on named values and trusted-click custody.
+- Fitting extraction rollbacks prefer original source while preserving guards; previews and release JSON report `rowShape.matchesTarget` and concrete result differences. Live views print the columns/children they still serve. Reactivating identical source reuses a qualified retained release.
+- Extraction admits safe list-bound widening; `deploy --save-version` can create its own configured baseline. Production roster locks record a renewable holder/lease and recover automatically when the kernel releases a dead holder.
 
 ## 0.4.42
 

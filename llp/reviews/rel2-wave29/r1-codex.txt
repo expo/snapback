@@ -1,0 +1,43 @@
+**NOT READY**
+
+1. **Child write audiences are evaluated against the wrong row.**  
+   Location: `release_bridge.rs`, `extraction_preserves_predecessor`, where `gate.clone()` becomes a parent `column_writes` rule.
+
+   Reproducer: the predecessor parent has `owner: principal`, `insert <- .owner = viewer`, and an insertion operation supplying an extracted asset. The current child adds its own unmapped `owner: principal ?` and `insert <- .owner = viewer`. Historical extraction initializes that child owner to null. The proof nevertheless accepts because it compares the child predicate against the parent’s same-named owner field. Exact rollback then restores writes without establishing the child audience.
+
+   **Correction:** transport child predicates through the declared extraction mapping and prove their bound meaning. Refuse unmapped child fields and unsupported row-relative predicates.
+
+2. **Alias exports can lose current guards during exact rollback.**  
+   Location: `release_bridge.rs`, the replacement of `loosen_guarded`; `release_bridge_guards.rs`, `same_workflows` and `extraction_context_safe`.
+
+   Reproducer: alongside a fitting extraction, v1 declares:
+   ```quarry
+   mutation create():
+     return insert audit {n:1}
+   alias protected = create
+   ```
+   V2 replaces those declarations with:
+   ```quarry
+   mutation protected():
+     require viewer = 'service:ops' else OPS
+     return insert audit {n:1}
+   ```
+   The new checks iterate target AST programs, excluding its `protected` alias. They skip the removed `create` program and never compare the matching exported `protected` endpoint. With otherwise fitting data, default rollback can select v1 and restore its unguarded alias. Column-authority and population checks do not enforce this operation guard.
+
+   **Correction:** compare every bound exported operation, expanding aliases on both sides, and preserve its guard, ordered context, argument bindings, and helper closure.
+
+3. **`rowShape.matchesTarget` can falsely certify a removed `id`.**  
+   Location: `release_shape.rs`, `shape`, the `RowShape`/`RowObject` branch calling `fields.entry("id")`.
+
+   Reproducer: compare the same query returning `items[id] {id, label}` in the target and `items[id] {label}` in the served source. The binder’s projected field maps differ, and runtime `Expr::Shape` does not automatically restore `id`. This encoder inserts `id` into the served description anyway, making both shapes equal and reporting `matchesTarget: true`.
+
+   **Correction:** serialize projected types’ actual bound fields without inventing `id`. Add coverage for removing it inside optional results, nested objects, and collections.
+
+4. **Identity retries continue after lease refresh fails.**  
+   Location: `proof-accounts.ts`, both `identityRequest(..., fetch, ...)` calls.
+
+   Reproducer: signup receives a retryable 429 with a 15-second delay; the lease refresh fails at 10 seconds. `fault` is recorded, but `identityRequest` retries through raw `fetch` without calling `assertHeld()`. It can create a production account after the required stop condition; the subsequent save then refuses.
+
+   **Correction:** pass a fetch wrapper that checks ownership before every attempt, or cancel retry/request activity when renewal fails.
+
+This was a read-only static review of the supplied snapshot and baseline. Reproducers were not executed.

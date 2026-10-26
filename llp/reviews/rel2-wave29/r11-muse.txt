@@ -1,0 +1,18 @@
+muse: workspace root: /home/ccheever/projects/sb4-b29-rel2 (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY
+
+No material correctness, security, data-loss, contract, or concurrency defects found in the supplied REL2 sources.
+
+Checked:
+
+- Child row authority for null/omitted payloads lives in [extractions.rs](/home/ccheever/projects/sb4-b29-rel2/snapback4/crates/snapback4-core/src/store/extractions.rs) and [release_bridge.rs](/home/ccheever/projects/sb4-b29-rel2/snapback4/crates/snapback4-lang/src/release_bridge.rs). `row_insert` bypasses the column-write null exemption. Explicit-null with `allow` preserves. Omitted child payloads refuse as unmapped.
+- Probe dependency stability uses full closure in `exact_authority`. It covers direct writes, delete cascades, `set-null`, and maintained mirrors. `probe_context` keeps index/read meaning. `leading_guard` keeps finite stable guards.
+- Retained constraints and lifetime guards: `canonical_table` treats immutable grouping as presentation. Child model allows only parent/id unique, immutable parent, per-parent cap >=1. Restrict with deletable or expiring or cascade ancestor keeps the view. `prepare` keeps hard constraints, expiry, `not_before`, `through`, `on_delete`, sync, and `leave`.
+- Unchanged schedules stay eligible. Changed schedules and native/action/route keep the view.
+- Source predecessor identity uses executable digest independent of path and metadata. Earliest match defines timeline. Reactivation filters `n < origin`. No path-form duplicate is minted.
+- Shape introspection in [release_shape.rs](/home/ccheever/projects/sb4-b29-rel2/snapback4/crates/snapback4/src/verbs/release_shape.rs) compares every predecessor export. Missing operations and fields, nullability, nesting, and collections participate. Tables exclude compiler cells. Children list extraction cells.
+- Roster locking in [proof-roster-lock.ts](/home/ccheever/projects/sb4-b29-rel2/snapback4/packages/snapback4/src/proof-roster-lock.ts) uses persistent SQLite writer inode. Lease expiry never evicts. Creation closes staging before no-replace link. No unlink of live inode. Release writes `released` before close. Failed renewal fences later requests.
+- Live reverse checks every parent and child receipt. Late-born parents refuse. Private preview never mutates live receipts. `v2`-born singletons with lifetime evidence can establish receipts.
+
+Narrow baseline check only read `ColumnType` via `git show` to confirm payload bounds handling.

@@ -1,0 +1,17 @@
+muse: workspace root: /home/ccheever/projects/sb4-b29-rel2 (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY
+
+No material correctness, security, data-loss, contract, or concurrency defect found in the supplied REL2 sources against §22.
+
+Checks performed:
+
+* Child row authority for null/omitted payloads: [extractions.rs](/home/ccheever/projects/sb4-b29-rel2/snapback4/crates/snapback4-core/src/store/extractions.rs:405) uses `payload_accepts` inclusive-bounds plus optional-wrapping, with no null-to-required coercion. [release_bridge.rs](/home/ccheever/projects/sb4-b29-rel2/snapback4/crates/snapback4-lang/src/release_bridge.rs:120) proves insert/update audience via fixed-patch plus stable leading guard, with `row_insert=true` only for insert, so null/omitted inserts still require the child gate, separate from the column-write null exemption.
+* Probe stability through shared mutation: `probe_context` plus dependency-closure versus direct, cascade/set-null, and maintained writes disjointness check in `exact_authority`; unmapped, effectful, ambiguous, native, action, and route effects refuse.
+* Retained constraints, lifetime, schedules: hard-child check allows only immutable parent anchor and parent/id uniques or per-parent caps >=1; incoming `restrict` retains the view when old code or expiring/cascading ancestors can delete the parent; identical schedules required, native/action/route and changed schedules retain the view.
+* Source predecessor identity: [rollback_views.rs](/home/ccheever/projects/sb4-b29-rel2/snapback4/crates/snapback4/src/verbs/rollback_views.rs:53) `prefer_original` requires `extraction_preserves_predecessor`, exact authority against current and latest, and private real-activation preview with zero hidden rows and zero newly empty cells; live activation re-validates projection receipts under revision CAS. Digest excludes path spelling and compiler/registration metadata; reactivation does not acquire later-authored predecessors.
+* Shape introspection: [release_shape.rs](/home/ccheever/projects/sb4-b29-rel2/snapback4/crates/snapback4/src/verbs/release_shape.rs:1) compares every predecessor export wire shape, including missing ops, fields, nullable/omittable, nested, and collections; tables and children listed; no behavior or auth promise.
+* Roster locking: [proof-roster-lock.ts](/home/ccheever/projects/sb4-b29-rel2/snapback4/packages/snapback4/src/proof-roster-lock.ts:10) uses persistent SQLite `BEGIN IMMEDIATE` writer inode as authority, separate JSON holder/lease for diagnostics, `wx` creation, no unlink/reclaim, `fsync` plus atomic rename, release-then-close, failed renewal fences via `assertHeld`.
+
+No reproducer: no failing case to reproduce.
+

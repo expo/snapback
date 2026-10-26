@@ -7,6 +7,10 @@ pub(super) struct SavedVersion { path: PathBuf, files: Vec<(PathBuf, Vec<u8>)>, 
 impl Drop for SavedVersion {
     fn drop(&mut self) { if !self.complete && !self.refresh { let _ = std::fs::remove_dir_all(&self.path); } }
 }
+struct Provisional { path:PathBuf, pending:bool }
+impl Drop for Provisional {
+    fn drop(&mut self){if self.pending {let _=std::fs::remove_dir_all(&self.path);}}
+}
 impl SavedVersion {
     pub(super) fn prepare(project: &Project, sources: &[(String,String)], bound: &snapback4_lang::Bound, options: &Options, deployment: &std::path::Path) -> Result<Option<Self>,String> {
         let Some(name) = options.flags.get("save-version") else {return Ok(None);};
@@ -32,7 +36,8 @@ impl SavedVersion {
             Err(error) if error.kind()==std::io::ErrorKind::NotFound => {std::fs::create_dir(&path).map_err(|e|format!("cannot save {name}: {e}"))?;false}
             Err(error) => return Err(format!("cannot inspect {name}: {error}")),
         };
-        let mut files = if refresh {Vec::new()} else {sources.iter().map(|(name,text)|(PathBuf::from(name),text.as_bytes().to_vec())).collect()};
+        let mut provisional=Provisional{path:path.clone(),pending:!refresh};
+        let mut files = Vec::new();
         // Keep the generated module boundary and every sibling artifact.
         // A saved-source selection draws siblings from that saved unit.
         let unit=match options.flags.get("schema").map(PathBuf::from) {
@@ -52,6 +57,7 @@ impl SavedVersion {
         let generated=[("generated/api.ts",snapback4_lang::emit::typescript(bound)),("generated/server.ts",snapback4_lang::emit::server_typescript(bound)),("generated/package.json",crate::project::GENERATED_PACKAGE.to_owned()),("generated/security-invariants.q.draft",snapback4_lang::security::draft(bound))];
         for(name,text)in generated {files.retain(|(path,_)|path!=std::path::Path::new(name));files.push((PathBuf::from(name),text.into_bytes()));}
         let mut saved=Self {path,files,complete:false,refresh};
+        provisional.pending=false;
         let fixture = match options.flags.get("schema").map(PathBuf::from) {
             None=>project.root.join("fixtures"),
             Some(source) if source.is_dir()=>source.join("fixtures"),
@@ -69,6 +75,18 @@ impl SavedVersion {
             }
         }
         if !refresh {saved.files.push((PathBuf::from("fixtures/.gitkeep"),Vec::new()));}
+        // Materialize selected baseline bytes before compatibility/codegen reads
+        // them. Drop removes this provisional snapshot if activation fails.
+        // @ref LLP 3000.000.000#22-wave-29-release-identity-rel2 — saving a baseline may consume its own selected source.
+        if !refresh {
+            for (name, text) in sources {
+                let destination = saved.path.join(name);
+                std::fs::create_dir_all(destination.parent().unwrap()).map_err(|e|e.to_string())?;
+                use std::io::Write;
+                let mut file = std::fs::OpenOptions::new().write(true).create_new(true).open(destination).map_err(|e|e.to_string())?;
+                file.write_all(text.as_bytes()).map_err(|e|e.to_string())?;
+            }
+        }
         Ok(Some(saved))
     }
     pub(super) fn finish(&mut self, release: u64, source_hash: &str) -> Result<(),String> {

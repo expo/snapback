@@ -1,0 +1,11 @@
+**NOT READY**
+
+Material issues remain in the supplied `release_bridge_guards.rs`:
+
+- **P1 — Shorthand references bypass parent normalization.** The baseline AST walker is post-order. `canonical` expands `{a}` into `{a: a}` after visiting its children, so the newly created `Name("a")` never becomes its insertion ordinal. With old bindings `a, b` and current bindings `b, a`, `insert links {a}` compares equal while linking different parents. This violates §22’s shared-write dataflow requirement.
+
+- **P1 — Ordinary return references are omitted.** `write_projection` excludes `Stmt::Return` from ordinary nodes and records only writes within it. `expression_context` also ignores a plain `return a.id` or `return {order:a.id}`. The same binding swap therefore passes comparison while returning a different parent’s identity, allowing original-source selection despite changed parent dataflow.
+
+- **P2 — Current argument domains need not survive.** `extraction_context_safe` compares argument names, aliases and defaults, but omits types. `endpoint_contract(old, current)` checks inclusion in the opposite direction needed here: old `text <=10`, current `text <=20` passes, although selecting the original rejects currently accepted 11–20-character inputs. That contradicts §22’s input-domain preservation requirement.
+
+Static review only; no edits, agents, credential access or store access.

@@ -1,0 +1,5 @@
+READY.
+
+No material counterexample found. `Id`, `Principal`, and `Ref` share the supplied wire decoding and argument validation, including identity checks and reserved-principal rejection. Normalizing them recursively through optional/list arguments therefore preserves their admitted input domains.
+
+The delta changes only comparison copies; retained source bindings and executable behavior remain intact. Other input restrictions still participate in inclusion checks.

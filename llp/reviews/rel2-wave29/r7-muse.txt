@@ -1,0 +1,18 @@
+muse: workspace root: /home/ccheever/projects/sb4-b29-rel2 (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY
+
+No material correctness, security, data-loss, contract, or concurrency defect found in the supplied REL2 files.
+
+Checked in the supplied sources, not baselines:
+
+- [extractions.rs](/home/ccheever/projects/sb4-b29-rel2/snapback4/crates/snapback4-core/src/store/extractions.rs): inclusive list-bounds inclusion only, required-to-optional only, no null-to-required or element conversion. Reverse validates values against original bounds.
+- [rollback_visibility.rs](/home/ccheever/projects/sb4-b29-rel2/snapback4/crates/snapback4-core/src/store/rollback_visibility.rs): live writer requires validated projection for every former parent and child, including v2-born singletons. Preview receipts stay private.
+- [tooling.rs](/home/ccheever/projects/sb4-b29-rel2/snapback4/crates/snapback4-core/src/store/tooling.rs): extracted null uses definition- and parent-scoped cell receipt joined to a before-image child. Existing empty optionals are retained, not invented.
+- [release_bridge.rs](/home/ccheever/projects/sb4-b29-rel2/snapback4/crates/snapback4-lang/src/release_bridge.rs) and [release_bridge_guards.rs](/home/ccheever/projects/sb4-b29-rel2/snapback4/crates/snapback4-lang/src/release_bridge_guards.rs): separate post-order shorthand expansion, lexical parent ordinal pairing, shared child effective rules including default deny, expression guards, defaults, and return identity preserved. Exact v1 may refuse v2-only inputs but never admits out-of-domain history.
+- [release_shape.rs](/home/ccheever/projects/sb4-b29-rel2/snapback4/crates/snapback4/src/verbs/release_shape.rs), [releases.rs](/home/ccheever/projects/sb4-b29-rel2/snapback4/crates/snapback4/src/verbs/releases.rs), [rollback_views.rs](/home/ccheever/projects/sb4-b29-rel2/snapback4/crates/snapback4/src/verbs/rollback_views.rs): `rowShape` identity separate from behavior, `matchesTarget` on bound wire shapes, live reports preserved shape verdict.
+- [saved_version.rs](/home/ccheever/projects/sb4-b29-rel2/snapback4/crates/snapback4/src/verbs/saved_version.rs): baseline bytes materialized before codegen reads them. New provisional directories clean on preparation failure via `Provisional` plus `SavedVersion` drops. Refresh never deletes existing evidence.
+- [proof-roster-lock.ts](/home/ccheever/projects/sb4-b29-rel2/snapback4/packages/snapback4/src/proof-roster-lock.ts) with [proof-accounts.ts](/home/ccheever/projects/sb4-b29-rel2/snapback4/packages/snapback4/src/proof-accounts.ts): `wx` create only for new database, `EEXIST` does no outside-SQLite open or close. Kernel SQLite writer lock authoritative, JSON lease diagnostic only. Failed renewal fences further requests. No unlink or reclaim race.
+
+No executable reproducer: no failing case constructed read-only.
+

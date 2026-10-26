@@ -1,0 +1,14 @@
+muse: workspace root: /home/ccheever/projects/sb4-b29-rel2 (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY
+
+No material defect in this final delta against the declared contract.
+
+The removals delete the prototype global input veto (`historical_input_contract` / `exact_historical_inputs` / `source_origin`) from ordinary `requires_view`, `loosen_inner`, and explicit `--exact` admission. Hard column-authority gates via `exact_write_authority` remain. This preserves the documented deliberate original-source semantics with broader reads.
+
+Automatic one-child preference still has its own complete proof via `extraction_preserves_predecessor` (`endpoint_contract`, guard carry / `same_workflows` / `extraction_context_safe`, payload inclusion, authority and dependency checks) plus preview visibility. This matches the amendment: new workflow/input proof governs automatic, no new global policy for ordinary reactivation or enum-spelling `down` migrations.
+
+The added closed-layout guard correctly restricts the automatic proof to id, parent reference, mapped payloads and compiler-owned scalar captures. Other fields, reference edges, and by comment defaults/assets/lifetimes retain the view.
+
+Both final regressions align: narrowed `record` input refuses automatic but allows explicit; truthful enum `down` keeps original wire spelling and workflow.
+

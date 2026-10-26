@@ -1,0 +1,55 @@
+NOT READY.
+
+1. **Conditional-expression guards are lost.** In [release_bridge_guards.rs](/home/ccheever/projects/sb4-b29-rel2/snapback4/crates/snapback4-lang/src/release_bridge_guards.rs), `write_projection` flattens expression writes, while `context` recognizes statement-level branches only.
+
+   Reproducer: append an unchanged public `audit(n: int)` table and this mutation to the supplied fitting extraction pair:
+
+   ```quarry
+   # predecessor
+   mutation protected():
+     return (insert audit {n:1}) if true else null
+
+   # current
+   mutation protected():
+     return (insert audit {n:1}) if viewer = 'alice' else null
+   ```
+
+   The proof accepts identical flattened writes. On an empty snapshot, default rollback can select original source, allowing Bob’s formerly suppressed insertion.
+
+   **Correction:** preserve enclosing expression conditions and execution paths in effect comparison, or refuse these expressions and select the registered view.
+
+2. **Parent-binding permutations can change shared write targets.** `write_projection` drops parent insertion bindings and retains their names only for pairing child payloads.
+
+   Reproducer: use a fitting `items.photo → photos.photo` extraction, unchanged `items.label`, and an unchanged public `links(item: items)` table. Give the child inherited reads and allow inserts. Compare these mutation bodies with identical file arguments `x, y`:
+
+   ```quarry
+   # predecessor
+   a = insert items {label:'first', photo:x}
+   b = insert items {label:'second', photo:y}
+   return insert links {item:a.id}
+
+   # current
+   b = insert items {label:'first'}
+   insert photos {item:b.id, photo:x}
+   a = insert items {label:'second'}
+   insert photos {item:a.id, photo:y}
+   return insert links {item:a.id}
+   ```
+
+   Both produce identical projected writes and correctly paired payload ordinals, so the proof accepts them. Current source links the second item; selected predecessor source links the first.
+
+   **Correction:** normalize parent bindings and every subsequent use to insertion ordinals. Compare that dataflow alongside payload pairing.
+
+3. **Changed argument defaults escape guard-dependency comparison.** Endpoint contract inclusion compares wire argument types; workflow/context signatures omit argument initialization.
+
+   Reproducer: append an unchanged public `audit(n: int)` table and:
+
+   ```quarry
+   mutation protected(approved: bool default true):
+     require approved else FORBIDDEN
+     return insert audit {n:1}
+   ```
+
+   In current source, change only `default true` to `default false`, alongside the fitting extraction. Both arguments bind as optional Boolean wire inputs, and the authored bodies compare identically. The proof accepts original source, restoring insertion for `{}` where current source returns `FORBIDDEN`.
+
+   **Correction:** include bound argument initialization/defaults in guard-dependency comparison; differing defaults must retain the registered workflow.

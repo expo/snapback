@@ -695,7 +695,7 @@ fn publication_media()->(&'static str,String) {
 }
 
 #[test]
-fn native_singleton_keeps_its_identity_in_the_registered_rollback_view() {
+fn native_singleton_projects_to_exact_shape_and_keeps_its_forward_identity() {
     let(old,current)=publication_media();let app=App::new();app.source(old);app.ok(&["deploy","deployment"]);
     app.source(&current);app.ok(&["deploy","deployment"]);
     let b=snapback4_lang::compile(&[("schema.q".into(),current.clone())]);
@@ -706,16 +706,22 @@ fn native_singleton_keeps_its_identity_in_the_registered_rollback_view() {
     engine.seed(rows.into_iter().map(|(t,row)|(t.into(),snapback4_core::wire::row_from_json(&schema.tables[t],&row).unwrap())).collect::<Vec<_>>()).unwrap();drop(engine);
     let receipts=||{let conn=rusqlite::Connection::open_with_flags(app.0.join("deployment/store.sqlite"),rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY).unwrap();conn.query_row("SELECT COUNT(*) FROM _extraction_rows WHERE child_id='native-child'",[],|r|r.get::<_,i64>(0)).unwrap()};
     assert_eq!(receipts(),0,"this native singleton has lifetime evidence but no extraction receipt");
-    for _ in 0..2 {
-        let selected=app.json(&["rollback","deployment","--to","1","--json"]);assert_eq!(selected["rollbackView"]["target"],1,"a receipt minted by reverse preview must not authorize hiding a native singleton");
-        assert_eq!(receipts(),0,"private reverse preview rolls its new receipt back");
-        let release=selected["release"].as_u64().unwrap();let b=snapback4_lang::compile(&[("schema.q".into(),current.clone())]);
-        let store=snapback4_core::store_port::AnyStore::open(&app.0.join("deployment/store.sqlite")).unwrap();let mut engine=snapback4_core::Engine::new_release(store,b.schema,b.programs.into_iter().map(|p|p.program),release,Some(release)).unwrap();
+    for cycle in 0..2 {
+        let preview=app.json(&["rollback","deployment","--to","1","--check","--json"]);
+        assert_eq!(preview["rowShape"]["matchesTarget"],true);
+        assert_eq!(receipts(),if cycle==0{0}else{1},"private preview never changes live receipts");
+        let selected=app.json(&["rollback","deployment","--to","1","--json"]);assert_eq!(selected["release"],1);
+        assert_eq!(receipts(),1,"real reverse adoption records the proven projection");
+        let values=app.json(&["sql","SELECT scan FROM orders","--release","deployment","--json"]);
+        let restored:snapback4_core::Value=serde_json::from_str(values["rows"][0][0].as_str().unwrap()).unwrap();
+        assert_eq!(snapback4_core::wire::to_json(&restored),scan);
+        app.ok(&["rollback","deployment","--to","latest"]);
+        let b=snapback4_lang::compile(&[("schema.q".into(),current.clone())]);
+        let store=snapback4_core::store_port::AnyStore::open(&app.0.join("deployment/store.sqlite")).unwrap();let mut engine=snapback4_core::Engine::new_release(store,b.schema,b.programs.into_iter().map(|p|p.program),2,Some(2)).unwrap();
         for viewer in ["alice","bob"] {
             let out=engine.query("scan",snapback4_core::Context::new(viewer,std::collections::BTreeMap::from([("id".into(),snapback4_core::Value::Id("native-child".into()))]))).unwrap();let data=snapback4_core::wire::to_json(&out.data);
             if viewer=="alice"{assert_eq!(data["id"],"native-child");assert_eq!(data["order"],"native-parent");assert_eq!(data["scan"],scan);}else{assert_eq!(data,json!(null));}
         }
-        drop(engine);app.ok(&["rollback","deployment","--to","latest"]);
     }
 }
 
@@ -735,6 +741,7 @@ fn fitting_extraction_with_rename_restores_predecessor_shape_twice() {
     for _ in 0..2 {
         let preview=app.json(&["rollback","deployment","--to","1","--check","--json"]);
         assert_eq!(preview["visibility"]["hiddenRows"],0);
+        assert_eq!(preview["rowShape"]["matchesTarget"],true);
         let selected=app.json(&["rollback","deployment","--to","1","--json"]);
         assert_eq!(selected["release"],1,"a fitting reverse extraction keeps the old query shape");
         let b=snapback4_lang::compile(&[("schema.q".into(),old.into())]);
@@ -758,6 +765,8 @@ fn fitting_extraction_with_rename_restores_predecessor_shape_twice() {
     engine.seed(vec![("scans".into(),snapback4_core::wire::row_from_json(&schema.tables["scans"],&json!({"id":"native","order":"kept","scan":snapback4_core::wire::to_json(&asset.column_value())})).unwrap())]).unwrap();
     drop(engine);
     let selected=app.json(&["rollback","deployment","--to","1","--json"]);
+    assert_eq!(selected["live"]["rowShape"]["matchesTarget"],false);
+    assert_eq!(app.json(&["releases","deployment","--json"])["rowShape"]["matchesTarget"],false);
     assert_eq!(selected["rollbackView"]["target"],1,"independent children keep the current population visible");
     assert_eq!(app.json(&["sql","SELECT COUNT(*) FROM scans","--release","deployment","--json"])["rows"][0][0],2);
 }
@@ -800,4 +809,536 @@ fn equal_historical_source_cannot_bypass_authority_by_registering_new_views() {
         assert!(text(&out).contains("items.body")&&text(&out).contains("write <-"),"{}",text(&out));
         assert_eq!(app.json(&["releases","deployment"])["current"],active);
     }
+}
+
+#[test]
+fn extraction_exact_selection_ignores_invariants_sites_and_immutable_grouping_but_keeps_guards() {
+    let (old,current)=publication_media();
+    for split in [false,true] {
+        let old=old.replace("  buyer: customers", "  immutable buyer\n  buyer: customers")
+            +"invariant orders.read only .owner = viewer\n";
+        let current=current.replace("  customer: customers", "  immutable customer\n  customer: customers")
+            +"invariant orders.read only .owner = viewer\ninvariant scans.read only .order.owner = viewer\n";
+        let current=if split{current.replace("  immutable owner\n", "  immutable owner, customer\n").replace("  immutable customer\n", "")}else{current};
+        let old=old.replace("query order(id: orders):\n", "query order(id: orders):\n  require viewer != 'blocked' else BLOCKED\n");
+        let current=current.replace("query order(id: orders):\n", "query order(id: orders):\n  require viewer != 'blocked' else BLOCKED\n");
+        assert!(snapback4_lang::release_bridge::extraction_preserves_predecessor(&[("schema.q".into(),old.clone())],&[("schema.q".into(),current.clone())]));
+        let app=App::new();app.source(&old);app.ok(&["deploy","deployment"]);app.source(&current);app.ok(&["deploy","deployment"]);
+        let preview=app.json(&["rollback","deployment","--to","1","--check","--json"]);
+        assert_eq!(preview["rowShape"]["matchesTarget"],true,"{preview}");
+        assert_eq!(app.json(&["rollback","deployment","--to","1","--json"])["release"],1);
+        app.ok(&["deploy","deployment"]);
+        let guarded=current.replace("require viewer != 'blocked' else BLOCKED", "require viewer = 'alice' else BLOCKED");
+        assert!(!snapback4_lang::release_bridge::extraction_preserves_predecessor(&[("schema.q".into(),old)],&[("schema.q".into(),guarded)]));
+    }
+}
+
+#[test]
+fn alternating_deploys_reuse_guarded_sources_and_resolve_qualification_aliases() {
+    let app=App::new();
+    let a="table items:\n  n: int\n  public 'identity regression'\n  online only\ninvariant items.read only true\nquery value():\n  return 1\n";
+    let b=a.replace("return 1","return 2");
+    app.source(a);app.ok(&["deploy","deployment"]);
+    app.seed(a,vec![json!({"id":"retained","n":1})]);
+    app.source(&b);let b_id=app.json(&["deploy","deployment","--json"])["release"].as_u64().unwrap();
+    app.source(a);let a_id=app.json(&["deploy","deployment","--json"])["release"].as_u64().unwrap();
+    assert_ne!(a_id,1,"a genuinely new rollback registry qualifies the retained source once");
+    let leaves=fs::read_dir(app.0.join("deployment/releases")).unwrap().count();
+    if let Ok(binary)=std::env::var("REL2_PRE_ALIAS_BIN") {
+        app.source(&b);
+        let before=Command::new(binary).current_dir(&app.0).args(["deploy","deployment","--check","--json"]).output().unwrap();
+        assert!(before.status.success(),"{}",text(&before));
+        let planned:Value=serde_json::from_slice(&before.stdout).unwrap();
+        assert!(planned["plan"]["release"].as_u64().unwrap()>a_id,"the ID-only registry must demonstrate another qualification parent: {planned}");
+        assert_eq!(app.json(&["releases","deployment","--json"])["current"],a_id);
+    }
+    for _ in 0..3 {
+        for (source,id) in [(&b[..],b_id),(a,a_id)] {
+            app.source(source);let deployed=app.json(&["deploy","deployment","--json"]);
+            assert_eq!(deployed["release"],id,"{deployed}");
+            assert_eq!(app.count(),1);
+            assert_eq!(fs::read_dir(app.0.join("deployment/releases")).unwrap().count(),leaves);
+        }
+    }
+    for (target,canonical,source) in [(1,1,&b[..]),(b_id,b_id,a),(a_id,1,&b[..])] {
+        app.source(source);let parent=app.json(&["deploy","deployment","--json"])["release"].clone();
+        let target=target.to_string();
+        let check=app.json(&["rollback","deployment","--to",&target,"--check","--json"]);
+        assert_eq!(check["rowShape"]["matchesTarget"],true,"{check}");
+        let rolled=app.json(&["rollback","deployment","--to",&target,"--json"]);
+        assert_eq!(rolled["live"]["exact"],false,"{rolled}");
+        assert_eq!(rolled["live"]["parent"],parent,"{rolled}");
+        assert_eq!(rolled["live"]["target"],canonical,"{rolled}");
+        assert_eq!(app.count(),1);
+    }
+    assert_eq!(fs::read_dir(app.0.join("deployment/releases")).unwrap().count(),leaves);
+    // A legacy registry with a different hiding acknowledgement cannot lend
+    // that authority to an equivalent physical target, or fall back to exact.
+    app.source(&b);app.ok(&["deploy","deployment"]);
+    let parent=app.0.join(format!("deployment/releases/{b_id}"));
+    let mut registry:Value=serde_json::from_slice(&fs::read(parent.join("rollback-views.json")).unwrap()).unwrap();
+    let view=registry.as_array_mut().unwrap().iter_mut().find(|view|view["target"]==1).unwrap();
+    view["hides"]=json!(["items where n = null because legacy different policy"]);
+    fs::write(app.0.join(format!("deployment/releases/{}/rollback-view.json",view["release"].as_u64().unwrap())),serde_json::to_vec(view).unwrap()).unwrap();
+    fs::write(parent.join("rollback-views.json"),serde_json::to_vec(&registry).unwrap()).unwrap();
+    let generation=app.json(&["releases","deployment","--json"])["generation"].clone();
+    let alias=a_id.to_string();let refused=app.run(&["rollback","deployment","--to",&alias,"--check"]);
+    assert!(!refused.status.success(),"{}",text(&refused));
+    assert!(text(&refused).contains("registration with matching hiding policy"),"{}",text(&refused));
+    assert_eq!(app.json(&["releases","deployment","--json"])["generation"],generation);
+    assert_eq!(app.count(),1);
+}
+
+#[test]
+fn source_reactivation_restores_dormant_rows_and_keeps_intervening_rollback_guards() {
+    let app=App::new();
+    let wide="table items:\n  n: enum('kept','wide')\n  public 'restoration regression'\n  online only\nquery list():\n  return items first 10 by .id\n";
+    app.source(wide);app.ok(&["deploy","deployment"]);
+    app.seed(wide,vec![json!({"id":"retained","n":"wide"})]);
+    app.source(&wide.replace("enum('kept','wide')","enum('kept')"));
+    app.ok(&["deploy","deployment"]);assert_eq!(app.count(),0);
+    app.source(wide);
+    if let Ok(binary)=std::env::var("REL2_CUTOFF_BIN") {
+        let before=Command::new(binary).current_dir(&app.0).args(["deploy","deployment","--check"]).output().unwrap();
+        assert!(!before.status.success(),"the source-origin cutoff unexpectedly admits restoration");
+        assert!(text(&before).contains("would hide 1 old-table rows on rollback to release 2"),"{}",text(&before));
+    }
+    app.ok(&["deploy","deployment","--check"]);
+    let restored=app.json(&["deploy","deployment","--json"]);
+    assert_eq!(restored["sourceRelease"],1);assert_eq!(app.count(),1);
+    let selected=restored["release"].as_u64().unwrap();
+    let views:Value=serde_json::from_slice(&fs::read(app.0.join(format!("deployment/releases/{selected}/rollback-views.json"))).unwrap()).unwrap();
+    assert!(views.as_array().unwrap().iter().any(|view|view["target"]==2),"{views}");
+    let latest=app.json(&["releases","deployment","--json"])["latest"].clone();
+    for _ in 0..2 {
+        app.ok(&["rollback","deployment","--to","2"]);assert_eq!(app.count(),1);
+        let redeployed=app.json(&["deploy","deployment","--json"]);
+        assert_eq!(redeployed["release"],selected);assert_eq!(app.count(),1);
+        assert_eq!(app.json(&["releases","deployment","--json"])["latest"],latest);
+    }
+}
+
+#[test]
+fn source_reactivation_dedupes_path_forms_without_new_registration_parents() {
+    let app=App::new();app.source(OLD);app.ok(&["deploy","deployment","--save-version","versions/v1"]);
+    app.source_with_presence(&newer(),"amount");app.ok(&["deploy","deployment"]);
+    for path in ["versions/v1/schema.q","versions/v1","./versions/v1/schema.q"] {
+        let result=app.json(&["deploy","deployment","--schema",path,"--json"]);
+        assert_eq!(result["release"],1,"{result}");
+        assert_eq!(app.json(&["releases","deployment","--json"])["latest"],2);
+        app.ok(&["deploy","deployment"]);
+    }
+}
+
+#[test]
+fn populated_extraction_accepts_inclusive_list_bounds_and_reverse_checks_new_values() {
+    let (base,current)=publication_media();
+    let old=base.replace("  scan: file <=1000\n", "  scan: file <=1000\n  kinds: [text <=20] 1..12\n  immutable kinds\n")
+        .replace("scan: file <=1000):", "scan: file <=1000, kinds: [text <=20] 1..12):")
+        .replace("{owner:viewer,buyer,scan}", "{owner:viewer,buyer,scan,kinds}");
+    let current=current.replace("  scan: file <=1000\n", "  scan: file <=1000\n  kinds: [text <=20] <=12\n  immutable kinds\n")
+        .replace("{scan:scan}", "{scan:scan,kinds:kinds}");
+    let app=App::new();app.source(&old);app.ok(&["deploy","deployment"]);
+    let b=snapback4_lang::compile(&[("schema.q".into(),old.clone())]);let schema=b.schema.clone();
+    let store=snapback4_core::store_port::AnyStore::open(&app.0.join("deployment/store.sqlite")).unwrap();
+    let mut engine=snapback4_core::Engine::new_release(store,b.schema,b.programs.into_iter().map(|p|p.program),1,Some(1)).unwrap();
+    let asset=engine.store_file("alice",b"photo",Some("text/plain"),"photo.txt",1000).unwrap();
+    engine.seed(vec![("customers".into(),snapback4_core::wire::row_from_json(&schema.tables["customers"],&json!({"id":"customer"})).unwrap()),("orders".into(),snapback4_core::wire::row_from_json(&schema.tables["orders"],&json!({"id":"kept","owner":"alice","buyer":"customer","scan":snapback4_core::wire::to_json(&asset.column_value()),"kinds":["a"]})).unwrap())]).unwrap();drop(engine);
+    app.source(&current);
+    if let Ok(binary)=std::env::var("REL2_BASELINE_BIN") {
+        let before=Command::new(binary).current_dir(&app.0).args(["deploy","deployment","--check"]).output().unwrap();
+        assert!(!before.status.success(),"baseline unexpectedly admitted the original one-step widening");
+        assert!(text(&before).contains("requires identical authoritative types"),"{}",text(&before));
+    }
+    app.ok(&["deploy","deployment"]);
+    assert_eq!(app.json(&["sql","SELECT kinds FROM scans","--release","deployment","--json"])["rows"][0][0],json!(r#"{"Array":[{"String":"a"}]}"#));
+    app.ok(&["rollback","deployment","--to","1","--exact","--check"]);
+}
+
+#[test]
+fn extraction_proof_checks_alias_guards_and_never_rebinds_child_focal_fields() {
+    let (base,current)=publication_media();
+    let audit="table audit:\n  n: int\n  public\n  online only\n";
+    let old=base.to_owned()+audit+"mutation create():\n  return insert audit {n:1}\nalias protected = create\n";
+    let next=current.clone()+audit+"mutation protected():\n  require viewer = 'service:ops' else OPS\n  return insert audit {n:1}\n";
+    for source in [&old,&next]{assert!(snapback4_lang::compile(&[("schema.q".into(),source.to_string())]).diagnostics.is_empty());}
+    assert!(!snapback4_lang::release_bridge::extraction_preserves_predecessor(&[("schema.q".into(),old)],&[("schema.q".into(),next)]));
+    let next=current.replace("table scans:\n","table scans:\n  owner: principal ?\n  insert <- .owner = viewer\n");
+    assert!(snapback4_lang::compile(&[("schema.q".into(),next.clone())]).diagnostics.is_empty());
+    assert!(!snapback4_lang::release_bridge::extraction_preserves_predecessor(&[("schema.q".into(),base.into())],&[("schema.q".into(),next)]));
+    let next=current.replace("table scans:\n","table scans:\n  insert <- deny\n");
+    assert!(!snapback4_lang::release_bridge::extraction_preserves_predecessor(&[("schema.q".into(),base.into())],&[("schema.q".into(),next)]));
+}
+
+#[test]
+fn extraction_keeps_retained_intent_named_shape_guards_and_write_repairs() {
+    let(base,current)=publication_media();
+    let source=|s:String|vec![("schema.q".into(),s)];
+    let strengthened=current.clone()+"invariant orders.read only viewer = 'alice'\n";
+    assert!(!snapback4_lang::release_bridge::extraction_preserves_predecessor(&source(base.into()),&source(strengthened)));
+    let existence=current.replace("  immutable order\n","  immutable order\n  unique order\n")+"invariant orders always exists scans[order = .id]\n";
+    assert!(snapback4_lang::compile(&source(existence.clone())).diagnostics.is_empty());
+    assert!(snapback4_lang::release_bridge::extraction_preserves_predecessor(&source(base.into()),&source(existence)));
+    let shared="table documents:\n  owner: principal\n  amount: int\n  public\n  online only\nshape access = { allowed: true }\nmutation change(id: documents):\n  row = documents[id] ! else MISSING\n  gate = row access\n  require gate.allowed else FORBIDDEN\n  update documents[id] {amount:1}\n";
+    let old=base.to_owned()+shared;
+    let changed=current.clone()+&shared.replace("allowed: true","allowed: .owner = viewer");
+    assert!(snapback4_lang::compile(&source(old.clone())).diagnostics.is_empty());
+    assert!(snapback4_lang::compile(&source(changed.clone())).diagnostics.is_empty());
+    assert!(!snapback4_lang::release_bridge::extraction_preserves_predecessor(&source(old.clone()),&source(changed)));
+    let repaired=current+&shared.replace("amount:1}","amount:2}");
+    assert!(!snapback4_lang::release_bridge::extraction_preserves_predecessor(&source(old),&source(repaired)));
+}
+
+#[test]
+fn live_writer_rechecks_projection_for_a_parent_born_after_a_fitting_preview() {
+    let (base,current)=publication_media();
+    let old=base.replace("scan: file <=1000","scan: file <=1000 ?");
+    let current=current.replace("scan: file <=1000","scan: file <=1000 ?");
+    let app=App::new();app.source(&old);app.ok(&["deploy","deployment"]);app.source(&current);app.ok(&["deploy","deployment"]);
+    let preview=app.json(&["rollback","deployment","--to","1","--check","--json"]);
+    assert_eq!(preview["rowShape"]["matchesTarget"],true);
+    let b=snapback4_lang::compile(&[("schema.q".into(),current)]);let schema=b.schema.clone();
+    let store=snapback4_core::store_port::AnyStore::open(&app.0.join("deployment/store.sqlite")).unwrap();
+    let mut engine=snapback4_core::Engine::new_release(store,b.schema,b.programs.into_iter().map(|p|p.program),2,Some(2)).unwrap();
+    engine.seed(vec![("customers".into(),snapback4_core::wire::row_from_json(&schema.tables["customers"],&json!({"id":"customer"})).unwrap()),("orders".into(),snapback4_core::wire::row_from_json(&schema.tables["orders"],&json!({"id":"late","owner":"alice","customer":"customer"})).unwrap())]).unwrap();drop(engine);
+    let b=snapback4_lang::compile(&[("schema.q".into(),old)]);
+    let store=snapback4_core::store_port::AnyStore::open(&app.0.join("deployment/store.sqlite")).unwrap();
+    let mut activation=snapback4_core::engine::release::ReleaseActivation::new(1,Some(2));activation.visibility=Some(Default::default());
+    let result=snapback4_core::Engine::new_release_prepared_at(store,b.schema,b.programs.into_iter().map(|p|p.program),&activation,false,snapback4_core::now_ms());
+    let Err(error)=result else{panic!("writer admitted an invented predecessor cell")};
+    assert!(error.to_string().contains("without a validated child projection"),"{error}");
+    assert_eq!(app.json(&["releases","deployment"])["current"],2);
+    assert_eq!(app.json(&["rollback","deployment","--to","1","--json"])["live"]["rowShape"]["matchesTarget"],false);
+}
+
+#[test]
+fn extraction_preserves_expression_guards_argument_defaults_and_parent_dataflow() {
+    let(base,current)=publication_media();let source=|text:String|vec![("schema.q".into(),text)];
+    let audit="table audit:\n  n: int\n  public\n  online only\n";
+    let old=base.to_owned()+audit+"mutation protected():\n  return (insert audit {n:1}) if true else null\n";
+    let next=current.clone()+audit+"mutation protected():\n  return (insert audit {n:1}) if viewer = 'alice' else null\n";
+    for text in [&old,&next]{let b=snapback4_lang::compile(&source(text.clone()));assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);}
+    assert!(!snapback4_lang::release_bridge::extraction_preserves_predecessor(&source(old),&source(next)));
+    let mutation="mutation protected(approved: bool default true):\n  require approved else FORBIDDEN\n  return insert audit {n:1}\n";
+    assert!(!snapback4_lang::release_bridge::extraction_preserves_predecessor(&source(base.to_owned()+audit+mutation),&source(current.clone()+audit+&mutation.replace("default true","default false"))));
+    let links="table links:\n  order: orders\n  public\n  online only\n";
+    let head="mutation linked(buyer: customers, x: file <=1000, y: file <=1000):\n";
+    let old=base.to_owned()+links+head+"  a = insert orders {owner:viewer,buyer,scan:x}\n  b = insert orders {owner:viewer,buyer,scan:y}\n  return insert links {order:a.id}\n";
+    let current=current.replace("customer: customers renamed from buyer","buyer: customers").replace("table scans:\n","table scans:\n  insert <- allow\n");
+    let next=current+links+head+"  b = insert orders {owner:viewer,buyer}\n  insert scans {order:b.id,scan:x}\n  a = insert orders {owner:viewer,buyer}\n  insert scans {order:a.id,scan:y}\n  return insert links {order:a.id}\n";
+    for text in [&old,&next]{let b=snapback4_lang::compile(&source(text.clone()));assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);}
+    assert!(!snapback4_lang::release_bridge::extraction_preserves_predecessor(&source(old.clone()),&source(next.clone())));
+    let short_old=old.replace("  order: orders\n","  a: orders\n").replace("return insert links {order:a.id}","return insert links {a}");
+    let short_next=next.replace("  order: orders\n","  a: orders\n").replace("return insert links {order:a.id}","return insert links {a}");
+    for text in [&short_old,&short_next]{assert!(snapback4_lang::compile(&source(text.clone())).diagnostics.is_empty());}
+    assert!(!snapback4_lang::release_bridge::extraction_preserves_predecessor(&source(short_old),&source(short_next)));
+    for result in ["a.id","{order:a.id}","{a}"] {
+        let old_return=old.replace("return insert links {order:a.id}",&format!("return {result}"));
+        let next_return=next.replace("return insert links {order:a.id}",&format!("return {result}"));
+        assert!(!snapback4_lang::release_bridge::extraction_preserves_predecessor(&source(old_return),&source(next_return)),"return parent identity: {result}");
+    }
+    let equivalent=next.replace("return insert links {order:a.id}","return insert links {order:b.id}");
+    assert!(snapback4_lang::release_bridge::extraction_preserves_predecessor(&source(old),&source(equivalent)));
+}
+
+#[test]
+fn extraction_rejects_shadowed_arguments_and_preserves_shared_child_defaults() {
+    let(base,current)=publication_media();let source=|text:String|vec![("schema.q".into(),text)];
+    let current=current.replace("customer: customers renamed from buyer","buyer: customers");
+    let head="mutation shadow(a: id, b: id, buyer: customers, photo: file <=1000):\n";
+    let old=base.to_owned()+head+"  a = insert orders {id:a,owner:viewer,buyer,scan:photo}\n  return a\n";
+    let next=current.clone().replace("table scans:\n","table scans:\n  insert <- allow\n")+head+"  b = insert orders {id:b,owner:viewer,buyer}\n  insert scans {order:b.id,scan:photo}\n  return b\n";
+    for text in [&old,&next]{let b=snapback4_lang::compile(&source(text.clone()));assert!(b.diagnostics.iter().any(|d|d.message.contains("cannot shadow arguments")),"{:?}",b.diagnostics);}
+    assert!(!snapback4_lang::release_bridge::extraction_preserves_predecessor(&source(old),&source(next)));
+    let head="mutation deferred(m: orders, buyer: customers, photo: file <=1000):\n";
+    let old=base.to_owned()+head+"  m = insert orders {owner:viewer,buyer,scan:photo}\n  return m\n";
+    let next=current.clone().replace("table scans:\n","table scans:\n  insert <- allow\n")+head+"  insert scans {order:m,scan:photo}\n  m = insert orders {owner:viewer,buyer}\n  return m\n";
+    for text in [&old,&next]{let b=snapback4_lang::compile(&source(text.clone()));assert!(b.diagnostics.iter().any(|d|d.message.contains("cannot shadow arguments")),"{:?}",b.diagnostics);}
+    assert!(!snapback4_lang::release_bridge::extraction_preserves_predecessor(&source(old),&source(next)));
+    let head="mutation shared(buyer: customers, photo: file <=1000):\n";
+    let old=base.to_owned()+head+"  return insert orders {owner:viewer,buyer,scan:photo}\n";
+    let next=current+head+"  m = insert orders {owner:viewer,buyer}\n  insert scans {order:m,scan:photo}\n  return m\n";
+    for text in [&old,&next]{assert!(snapback4_lang::compile(&source(text.clone())).diagnostics.is_empty());}
+    assert!(!snapback4_lang::release_bridge::extraction_preserves_predecessor(&source(old),&source(next)),"the shared current workflow's default deny must survive");
+}
+
+#[test]
+fn original_input_domains_remain_inside_current_safety_domains() {
+    let(base,current)=publication_media();let source=|text:String|vec![("schema.q".into(),text)];
+    let audit="table audit:\n  label: text <=20\n  public\n  online only\n";
+    let narrow="mutation record(label: text <=10):\n  return insert audit {label}\n";
+    let wide=narrow.replace("text <=10","text <=20");
+    assert!(snapback4_lang::release_bridge::extraction_preserves_predecessor(&source(base.to_owned()+audit+narrow),&source(current.clone()+audit+&wide)),"original inputs fit current guards; v2-only inputs may refuse on exact v1");
+    assert!(!snapback4_lang::release_bridge::extraction_preserves_predecessor(&source(base.to_owned()+audit+&wide),&source(current+audit+narrow)),"old broader input cannot bypass a current domain guard");
+}
+
+#[test]
+fn extracted_null_is_existing_empty_evidence_and_restores_exact_shape_twice() {
+    let(base,current)=publication_media();let old=base.replace("scan: file <=1000","scan: file <=1000 ?");let current=current.replace("scan: file <=1000","scan: file <=1000 ?");
+    let app=App::new();app.source(&old);app.ok(&["deploy","deployment"]);
+    let b=snapback4_lang::compile(&[("schema.q".into(),old)]);let schema=b.schema.clone();
+    let store=snapback4_core::store_port::AnyStore::open(&app.0.join("deployment/store.sqlite")).unwrap();
+    let mut engine=snapback4_core::Engine::new_release(store,b.schema,b.programs.into_iter().map(|p|p.program),1,Some(1)).unwrap();
+    engine.seed(vec![("customers".into(),snapback4_core::wire::row_from_json(&schema.tables["customers"],&json!({"id":"customer"})).unwrap()),("orders".into(),snapback4_core::wire::row_from_json(&schema.tables["orders"],&json!({"id":"kept","owner":"alice","buyer":"customer","scan":null})).unwrap())]).unwrap();drop(engine);
+    app.source(&current);app.ok(&["deploy","deployment"]);
+    for _ in 0..2 {
+        let preview=app.json(&["rollback","deployment","--to","1","--check","--json"]);
+        assert_eq!(preview["rowShape"]["matchesTarget"],true,"{preview}");
+        assert_eq!(preview["visibility"]["newlyEmptyCells"],0);assert_eq!(preview["visibility"]["retainedEmptyCells"],1);
+        assert_eq!(app.json(&["rollback","deployment","--to","1","--json"])["release"],1);
+        assert_eq!(app.json(&["sql","SELECT scan FROM orders","--release","deployment","--json"])["rows"][0][0],json!(null));
+        app.ok(&["rollback","deployment","--to","latest"]);
+    }
+}
+
+#[test]
+fn extracted_child_row_insert_audience_applies_to_null_and_omitted_payloads() {
+    let source=|text:String|vec![("schema.q".into(),text)];
+    for (before,after) in [("{scan:null}","{item:p,scan:null}"),("{}","{item:p}")] {
+        let old=format!("table items:\n  scan: file <=1000 ?\n  read <- allow\n  insert <- allow\n  online only\nmutation add():\n  return insert items {before}\n");
+        for gate in ["  insert <- deny\n","","  insert <- allow\n"] {
+            let current=format!("table items:\n  read <- allow\n  insert <- allow\n  online only\ntable scans:\n  item: items on delete cascade\n  scan: file <=1000 ?\n  immutable item\n  read through .item\n{gate}  online only\nextract scans from items via item: {{scan:scan}}\nmutation add():\n  p = insert items {{}}\n  insert scans {after}\n  return p\n");
+            let old=source(old.clone());let current=source(current);
+            for sources in [&old,&current] {let bound=snapback4_lang::compile(sources);assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);}
+            assert_eq!(snapback4_lang::release_bridge::extraction_preserves_predecessor(&old,&current),gate.contains("allow")&&before!="{}","payload {before}, gate {gate:?}");
+        }
+    }
+}
+
+#[test]
+fn extracted_child_authority_cannot_reuse_a_parent_gate_after_its_dependency_changes() {
+    let common="table roles:\n  member: principal\n  unique member\n  read <- allow\n  delete <- allow\n  online only\n";
+    let old=format!("{common}table items:\n  scan: file <=1000 ?\n  insert <- exists roles[viewer]\n  online only\nmutation add():\n  p = insert items {{scan:null}}\n  delete roles[viewer]\n  return p\n");
+    let current=format!("{common}table items:\n  insert <- exists roles[viewer]\n  online only\ntable scans:\n  item: items on delete cascade\n  scan: file <=1000 ?\n  immutable item\n  read through .item\n  insert <- exists roles[viewer]\n  online only\nextract scans from items via item: {{scan:scan}}\nmutation add():\n  p = insert items {{}}\n  delete roles[viewer]\n  insert scans {{item:p,scan:null}}\n  return p\n");
+    let source=|text:String|vec![("schema.q".into(),text)];let old=source(old);let current=source(current);
+    for sources in [&old,&current] {let bound=snapback4_lang::compile(sources);assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);}
+    assert!(!snapback4_lang::release_bridge::extraction_preserves_predecessor(&old,&current));
+}
+
+#[test]
+fn extracted_child_constraints_and_restrict_lifetime_keep_the_guarded_view() {
+    let(base,current)=publication_media();let source=|text:String|vec![("schema.q".into(),text)];
+    for guarded in [current.replace("immutable order","immutable order, scan"),current.replace("immutable order","immutable order\n  cap 1")] {
+        let guarded=source(guarded);let bound=snapback4_lang::compile(&guarded);assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);
+        assert!(!snapback4_lang::release_bridge::extraction_preserves_predecessor(&source(base.into()),&guarded));
+    }
+    let old=base.replace("  insert <- .owner = viewer","  insert <- .owner = viewer\n  delete <- .owner = viewer")+"mutation remove(id: orders):\n  delete orders[id]\n";
+    let current=current.replace("  insert <- .owner = viewer","  insert <- .owner = viewer\n  delete <- .owner = viewer").replace("on delete cascade","on delete restrict")+"mutation remove(id: orders):\n  delete orders[id]\n";
+    let old=source(old);let current=source(current);
+    for sources in [&old,&current] {let bound=snapback4_lang::compile(sources);assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);}
+    assert!(!snapback4_lang::release_bridge::extraction_preserves_predecessor(&old,&current));
+}
+
+#[test]
+fn wave29_040_exact_projection_preserves_the_real_guarded_scheduled_workflow() {
+    let source=|text:&str|vec![("schema.q".into(),text.into())];
+    let old=source(include_str!("fixtures/rel2/wave29-040-v1.q"));let current=source(include_str!("fixtures/rel2/wave29-040-v2.q"));
+    for sources in [&old,&current] {let b=snapback4_lang::compile(sources);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);}
+    assert!(snapback4_lang::release_bridge::extraction_preserves_predecessor(&old,&current));
+}
+
+#[test]
+fn a_child_wide_invariant_is_not_an_inactive_new_endpoint() {
+    let(base,current)=publication_media();let source=|text:String|vec![("schema.q".into(),text)];
+    let guarded=current.clone().replace("scan: file <=1000","scan: file <=1000 ?")+"invariant scans always .scan != null\n";
+    let old=source(base.replace("scan: file <=1000","scan: file <=1000 ?"));let guarded=source(guarded);
+    assert!(snapback4_lang::compile(&guarded).diagnostics.is_empty());
+    assert!(!snapback4_lang::release_bridge::extraction_preserves_predecessor(&old,&guarded),"child-wide intent needs a proof even when its table is new");
+    let read=current.replace("scan: file <=1000","scan: file <=1000 ?")+"invariant scans.read only .order.owner = viewer\n";
+    assert!(snapback4_lang::release_bridge::extraction_preserves_predecessor(&old,&source(read)),"read-through projects to the existing parent audience");
+}
+
+#[test]
+fn ancestor_expiry_cannot_remove_an_extracted_child_restrict_guard() {
+    let old="table groups:\n  until: time\n  immutable until\n  expire at .until\n  read <- allow\n  online only\ntable items:\n  group: groups on delete cascade\n  cap 1 by group\n  scan: file <=1000 ?\n  read <- allow\n  online only\n";
+    let current=old.replace("  scan: file <=1000 ?\n","")+"table scans:\n  item: items on delete restrict\n  scan: file <=1000 ?\n  immutable item\n  read through .item\n  online only\nextract scans from items via item: {scan:scan}\n";
+    let old=vec![("schema.q".into(),old.into())];let current=vec![("schema.q".into(),current)];
+    for sources in [&old,&current] {let b=snapback4_lang::compile(sources);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);}
+    assert!(!snapback4_lang::release_bridge::extraction_preserves_predecessor(&old,&current));
+}
+
+#[test]
+fn projected_child_intent_uses_its_own_proof_in_a_multifile_source() {
+    let old="table items:\n  scan: file <=1000 ?\n  read <- allow\n  online only\n";
+    let current=old.replace("  scan: file <=1000 ?\n","")+"table scans:\n  item: items on delete cascade\n  scan: file <=1000 ?\n  immutable item\n  read through .item\n  online only\nextract scans from items via item: {scan:scan}\ninvariant scans.read only deny\n";
+    let extra="table extras:\n  read <- allow\n  online only\ninvariant extras.read only allow\n";
+    let source=|text:String|vec![("schema.q".into(),text),("z.q".into(),extra.into())];let old=source(old.into());let current=source(current);
+    for sources in [&old,&current] {let b=snapback4_lang::compile(sources);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);}
+    assert!(!snapback4_lang::release_bridge::extraction_preserves_predecessor(&old,&current));
+}
+
+#[test]
+fn child_intent_never_confuses_child_columns_with_parent_fields() {
+    let old="table items:\n  owner: principal\n  immutable owner\n  scan: file <=1000 ?\n  read <- .owner = viewer\n  online only\n";
+    let current=old.replace("  scan: file <=1000 ?\n","")+"table scans:\n  item: items on delete cascade\n  owner: principal ?\n  scan: file <=1000 ?\n  immutable item\n  read through .item\n  online only\nextract scans from items via item: {scan:scan}\ninvariant scans.read only .owner = viewer\n";
+    let old=vec![("schema.q".into(),old.into())];let current=vec![("schema.q".into(),current)];
+    for sources in [&old,&current] {let b=snapback4_lang::compile(sources);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);}
+    assert!(!snapback4_lang::release_bridge::extraction_preserves_predecessor(&old,&current));
+    let mut repeated=current.clone();repeated[0].1=repeated[0].1.replace("  item: items", "  owner: items").replace("  owner: principal ?\n", "").replace("immutable item", "immutable owner").replace("through .item", "through .owner").replace("via item:", "via owner:").replace("only .owner = viewer", "only .owner.owner = viewer");
+    let b=snapback4_lang::compile(&repeated);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+    assert!(snapback4_lang::release_bridge::extraction_preserves_predecessor(&old,&repeated),"only the original reference leaf projects; the parent owner field remains");
+}
+
+#[test]
+fn row_keyed_member_write_must_preserve_the_view() {
+    let common = r#"table groups:
+  read <- allow
+  online only
+table members:
+  group: groups
+  immutable group
+  cap 10 by group
+  read <- allow
+  insert <- allow
+  online only
+table messages:
+  group: groups
+  immutable group
+  read <- allow
+  online only
+view badges: count messages by members m
+  where .group = m.group
+  online only
+"#;
+    let old = common.to_owned() + r#"table items:
+  scan: file <=1000 ?
+  read <- allow
+  insert <- not exists badges[member = 'm']
+  online only
+mutation add():
+  p = insert items {scan:null}
+  insert members {id:'m',group:'g'}
+  return p
+"#;
+    let current = common.to_owned() + r#"table items:
+  read <- allow
+  insert <- not exists badges[member = 'm']
+  online only
+table scans:
+  item: items on delete cascade
+  scan: file <=1000 ?
+  immutable item
+  read through .item
+  insert <- not exists badges[member = 'm']
+  online only
+extract scans from items via item: {scan:scan}
+mutation add():
+  p = insert items {}
+  insert members {id:'m',group:'g'}
+  insert scans {item:p,scan:null}
+  return p
+"#;
+    let sources = |s: String| vec![("schema.q".into(), s)];
+    let old = sources(old);
+    let current = sources(current);
+    for s in [&old, &current] {
+        let b = snapback4_lang::compile(s);
+        assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    }
+    assert!(
+        !snapback4_lang::release_bridge::extraction_preserves_predecessor(
+            &old, &current
+        ),
+        "member insertion changes the child audience through badges"
+    );
+}
+
+#[test]
+fn child_insert_preserves_its_implicit_parent_read_audience_for_null_payloads() {
+    for read in ["allow","deny"] {
+        let old=format!("table items:\n  scan: file <=1000 ?\n  read <- {read}\n  insert <- allow\n  online only\nmutation add():\n  return insert items {{scan:null}}\n");
+        let current=format!("table items:\n  read <- {read}\n  insert <- allow\n  online only\ntable scans:\n  item: items on delete cascade\n  scan: file <=1000 ?\n  immutable item\n  read through .item\n  insert <- allow\n  online only\nextract scans from items via item: {{scan:scan}}\nmutation add():\n  p = insert items {{}}\n  insert scans {{item:p,scan:null}}\n  return p\n");
+        let source=|s:String|vec![("schema.q".into(),s)];let old=source(old);let current=source(current);
+        for sources in [&old,&current] {let b=snapback4_lang::compile(sources);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);}
+        assert_eq!(snapback4_lang::release_bridge::extraction_preserves_predecessor(&old,&current),read=="allow");
+    }
+}
+
+#[test]
+fn exact_source_does_not_restore_values_outside_the_current_child_domain() {
+    let(base,current)=publication_media();let source=|s:String|vec![("schema.q".into(),s)];
+    assert!(!snapback4_lang::release_bridge::extraction_preserves_predecessor(&source(base.replace("scan: file <=1000","scan: file <=1000 ?")),&source(current.clone())),"an empty store does not prove future historical null writes satisfy the current required child");
+    assert!(snapback4_lang::release_bridge::extraction_preserves_predecessor(&source(base.into()),&source(current.replace("scan: file <=1000","scan: file <=1000 ?"))));
+}
+
+#[test]
+fn read_through_capture_requires_a_live_parent_even_under_allow_rules() {
+    let old="table items:\n  until: time\n  immutable until\n  expire at .until\n  scan: file <=1000 ?\n  read <- allow\n  insert <- allow\n  online only\nmutation add():\n  return insert items {until:0,scan:null}\n";
+    let current=old.replace("  scan: file <=1000 ?\n","").replace("  return insert items {until:0,scan:null}","  p = insert items {until:0}\n  insert scans {item:p,scan:null}\n  return p")+"table scans:\n  item: items on delete restrict\n  scan: file <=1000 ?\n  immutable item\n  read through .item\n  insert <- allow\n  online only\nextract scans from items via item: {scan:scan}\n";
+    let old=vec![("schema.q".into(),old.into())];let current=vec![("schema.q".into(),current)];
+    for sources in [&old,&current] {let b=snapback4_lang::compile(sources);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);}
+    assert!(!snapback4_lang::release_bridge::extraction_preserves_predecessor(&old,&current));
+}
+
+#[test]
+fn extraction_payloads_are_inputs_and_capture_precedes_intervening_effects() {
+    let parent=|payload:bool|format!("table items:\n{}  read <- allow\n  insert <- allow\n  delete <- allow\n  online only\n",if payload{"  scan: file <=1000 ?\n"}else{""});
+    let child="table scans:\n  item: items on delete cascade\n  scan: file <=1000 ?\n  immutable item\n  unique item\n  read through .item\n  insert <- allow\n  online only\nextract scans from items via item: {scan:scan}\n";
+    let old=parent(true)+"mutation add(photo: file <=1000):\n  payload = null\n  p = insert items {scan:payload}\n  payload = photo\n  return p\n";
+    let current=parent(false)+child+"mutation add(photo: file <=1000):\n  payload = null\n  p = insert items {}\n  payload = photo\n  insert scans {item:p,scan:payload}\n  return p\n";
+    let audit="table audit:\n  n: int\n  public\n  online only\n";
+    let deleted=parent(true)+audit+"mutation add():\n  p = insert items {scan:null}\n  delete items[p.id]\n  insert audit {n:1}\n  return null\n";
+    let missing=parent(false)+child+audit+"mutation add():\n  p = insert items {}\n  delete items[p.id]\n  insert scans {item:p,scan:null}\n  insert audit {n:1}\n  return null\n";
+    for (old,current) in [(old,current),(deleted,missing)] {
+        let source=|s:String|vec![("schema.q".into(),s)];let old=source(old);let current=source(current);
+        for sources in [&old,&current] {let b=snapback4_lang::compile(sources);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);}
+        assert!(!snapback4_lang::release_bridge::extraction_preserves_predecessor(&old,&current));
+    }
+}
+
+#[test]
+fn exact_projection_cannot_restore_a_broader_parent_read_rule() {
+    let common="table roles:\n  member: principal\n  unique member\n  read <- allow\n  insert <- allow\n  online only\n";
+    let old=common.to_owned()+"table items:\n  scan: file <=1000 ?\n  read <- allow\n  insert <- allow\n  online only\nmutation add():\n  return insert items {scan:null}\n";
+    let current=common.to_owned()+"table items:\n  read <- exists roles[viewer]\n  insert <- allow\n  online only\ntable scans:\n  item: items on delete cascade\n  scan: file <=1000 ?\n  immutable item\n  read through .item\n  insert <- allow\n  online only\nextract scans from items via item: {scan:scan}\nmutation add():\n  p = insert items {}\n  insert scans {item:p,scan:null}\n  return p\n";
+    let old=vec![("schema.q".into(),old)];let current=vec![("schema.q".into(),current)];
+    for sources in [&old,&current] {let b=snapback4_lang::compile(sources);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);}
+    assert!(!snapback4_lang::release_bridge::extraction_preserves_predecessor(&old,&current));
+}
+
+#[test]
+fn unmapped_child_lifetime_edges_keep_the_view() {
+    let(old,current)=publication_media();
+    let old=old.replace("  insert <- allow\n", "  insert <- allow\n  delete <- allow\n")+"mutation removeCustomer(id: customers):\n  delete customers[id]\n";
+    let current=current.replace("  insert <- allow\n", "  insert <- allow\n  delete <- allow\n").replace("  order: orders on delete cascade", "  order: orders on delete cascade\n  hold: customers ? on delete restrict")+"mutation removeCustomer(id: customers):\n  delete customers[id]\n";
+    let old=vec![("schema.q".into(),old)];let current=vec![("schema.q".into(),current)];
+    for sources in [&old,&current] {let b=snapback4_lang::compile(sources);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);}
+    assert!(!snapback4_lang::release_bridge::extraction_preserves_predecessor(&old,&current));
+}
+
+#[test]
+fn default_extraction_preserves_input_guards_and_exact_keeps_its_documented_contract() {
+    let old="table items:\n  scan: file <=1000 ?\n  read <- allow\n  online only\ntable audit:\n  n: int\n  read <- allow\n  insert <- allow\n  online only\nmutation record(n: int):\n  return insert audit {n}\n";
+    let current=old.replace("  scan: file <=1000 ?\n","").replace("record(n: int)","record(n: int 1..10)")+"table scans:\n  item: items on delete cascade\n  scan: file <=1000 ?\n  immutable item\n  read through .item\n  online only\nextract scans from items via item: {scan:scan}\n";
+    let app=App::new();app.source(old);app.ok(&["deploy","deployment"]);app.source(&current);app.ok(&["deploy","deployment"]);
+    let selected=app.json(&["rollback","deployment","--to","1","--json"]);
+    assert_eq!(selected["live"]["exact"],false);assert_eq!(selected["live"]["rowShape"]["matchesTarget"],false);
+    let id=selected["release"].as_u64().unwrap();let source=fs::read_to_string(app.0.join(format!("deployment/releases/{id}/snapback/schema.q"))).unwrap();
+    let b=snapback4_lang::compile(&[("schema.q".into(),source)]);assert!(b.diagnostics.is_empty());
+    let mut engine=snapback4_core::Engine::memory(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
+    let inputs=||snapback4_core::Context::new("alice",std::collections::BTreeMap::from([("n".into(),snapback4_core::Value::Int(0))]));
+    match engine.mutate("record",None,inputs()) {
+        Ok(out)=>assert!(matches!(out.state,snapback4_core::engine::WriteState::Failed{..})),
+        Err(snapback4_core::RuntimeError::UnknownOp(name))=>assert_eq!(name,"record"),Err(error)=>panic!("{error}"),
+    }
+    // Explicit selection remains the deliberate original workflow from guide deploy.
+    let exact=app.json(&["rollback","deployment","--to","1","--exact","--json"]);assert_eq!(exact["live"]["exact"],true);
+    let b=snapback4_lang::compile(&[("schema.q".into(),old.into())]);let mut engine=snapback4_core::Engine::memory(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
+    assert!(matches!(engine.mutate("record",None,inputs()).unwrap().state,snapback4_core::engine::WriteState::Sent{..}));
+}
+
+#[test]
+fn a_truthful_enum_down_keeps_the_original_wire_spelling_and_workflow() {
+    let old="table items:\n  stage: enum('queued', 'done')\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\nmutation setStage(id: items, next: enum('queued', 'done')):\n  update items[id] {stage:next}\n  return items[id]\n";
+    let current=old.replace("stage: enum('queued', 'done')", "stage: enum('queued', 'done', 'work completed')").replace("next: enum('queued', 'done')", "next: enum('queued', 'work completed')")+"down items originalStage(stage: enum('queued', 'done', 'work completed')): {stage:'done' if stage = 'work completed' else stage}\n";
+    let app=App::new();app.source(old);app.ok(&["deploy","deployment"]);app.source(&current);app.ok(&["deploy","deployment"]);
+    app.seed(&current,vec![json!({"id":"kept","stage":"work completed"})]);
+    let selected=app.json(&["rollback","deployment","--to","1","--json"]);assert_eq!(selected["live"]["exact"],true);assert_eq!(selected["live"]["rowShape"]["matchesTarget"],true);
+    assert_eq!(app.json(&["sql","SELECT stage FROM items","--release","deployment","--json"])["rows"][0][0],"done");
+    let b=snapback4_lang::compile(&[("schema.q".into(),old.into())]);
+    let store=snapback4_core::store_port::AnyStore::open(&app.0.join("deployment/store.sqlite")).unwrap();
+    let mut engine=snapback4_core::Engine::new_release(store,b.schema,b.programs.into_iter().map(|p|p.program),1,Some(1)).unwrap();
+    let outcome=engine.mutate("setStage",None,snapback4_core::Context::new("alice",std::collections::BTreeMap::from([("id".into(),snapback4_core::Value::Id("kept".into())),("next".into(),snapback4_core::Value::String("done".into()))]))).unwrap();
+    assert!(matches!(outcome.state,snapback4_core::engine::WriteState::Sent{..}));drop(engine);
+    app.ok(&["deploy","deployment"]);
 }

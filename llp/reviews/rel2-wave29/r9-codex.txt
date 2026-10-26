@@ -1,0 +1,100 @@
+NOT READY — one material concurrency defect.
+
+**P1: first-time roster creation can cancel another worker’s SQLite lock.** In [proof-roster-lock.ts](/home/ccheever/projects/sb4-b29-rel2/snapback4/packages/snapback4/src/proof-roster-lock.ts), `openSync(database, "wx")` publishes the inode before `closeSync(fd)`. Another worker thread in the same process can acquire SQLite ownership between those calls. The creator’s subsequent raw `close()` cancels that process’s POSIX locks on the inode, allowing an external process to acquire the roster while the worker still considers itself owner.
+
+This violates §22’s kernel-authoritative exclusion and can permit concurrent provisioning and conflicting roster saves. The supplied tests cover existing-file BUSY attempts, but not this first-creation interleaving.
+
+Executable reproducer below, **not run to preserve the requested read-only review**. Run from the repository root with Node 24. It uses a synthetic temporary roster and pauses the existing creation window without modifying source.
+
+```bash
+node --input-type=module <<'JS'
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+import { syncBuiltinESMExports } from 'node:module';
+import { Worker } from 'node:worker_threads';
+import { spawnSync } from 'node:child_process';
+import { once } from 'node:events';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
+import { pathToFileURL } from 'node:url';
+
+const module = pathToFileURL(resolve(
+  'snapback4/packages/snapback4/src/proof-roster-lock.ts'
+)).href;
+const { rosterLock } = await import(module);
+const root = fs.mkdtempSync(join(tmpdir(), 'rel2-create-race-'));
+const path = join(root, 'roster.json.lock');
+const database = path + '.sqlite';
+const buffer = new SharedArrayBuffer(4);
+const state = new Int32Array(buffer);
+const realOpen = fs.openSync;
+const realClose = fs.closeSync;
+let creatorFd, worker, contender, outer;
+
+fs.openSync = function (p, flags, ...args) {
+  const fd = realOpen.call(fs, p, flags, ...args);
+  if (p === database && flags === 'wx') creatorFd = fd;
+  return fd;
+};
+
+fs.closeSync = function (fd) {
+  if (fd !== creatorFd) return realClose.call(fs, fd);
+  creatorFd = undefined;
+
+  worker = new Worker(new URL('data:text/javascript,' +
+    encodeURIComponent(`
+      import { workerData } from 'node:worker_threads';
+      const { rosterLock } = await import(workerData.module);
+      const held = rosterLock(workerData.path);
+      const state = new Int32Array(workerData.buffer);
+      Atomics.store(state, 0, 1);
+      Atomics.notify(state, 0);
+      Atomics.wait(state, 0, 1);
+      held.assertHeld();
+      held.release();
+    `)), { workerData: { module, path, buffer } });
+
+  assert.notEqual(Atomics.wait(state, 0, 0, 10000), 'timed-out');
+  assert.equal(Atomics.load(state, 0), 1); // Worker owns SQLite.
+  realClose.call(fs, fd);                // Cancels its POSIX locks.
+
+  contender = spawnSync(process.execPath, ['--input-type=module', '-e', `
+    const { rosterLock } = await import(${JSON.stringify(module)});
+    try {
+      const held = rosterLock(${JSON.stringify(path)});
+      console.log('ACQUIRED');
+      held.release();
+    } catch (error) {
+      if (!String(error).includes('E_PRODUCTION_ROSTER_BUSY')) throw error;
+      console.log('BUSY');
+    }
+  `], { encoding: 'utf8', timeout: 10000 });
+};
+syncBuiltinESMExports();
+
+try {
+  try { outer = rosterLock(path); }
+  catch (error) {
+    if (!String(error).includes('E_PRODUCTION_ROSTER_BUSY')) throw error;
+  }
+  assert.equal(contender.status, 0, contender.stderr);
+  assert.equal(contender.stdout.trim(), 'ACQUIRED',
+    'Expected reproduction: external contender enters while worker owns roster');
+  console.log('REPRODUCED: external contender acquired during worker ownership');
+} finally {
+  fs.openSync = realOpen;
+  fs.closeSync = realClose;
+  syncBuiltinESMExports();
+  outer?.release();
+  if (worker) {
+    const exited = once(worker, 'exit');
+    Atomics.store(state, 0, 2);
+    Atomics.notify(state, 0);
+    await exited;
+  }
+  fs.rmSync(root, { recursive: true, force: true });
+}
+JS
+```
+
+The inode must become available to contenders only after its raw creation descriptor is closed, or creation and acquisition must be coordinated across same-process workers.

@@ -1,0 +1,14 @@
+muse: workspace root: /home/ccheever/projects/sb4-b29-rel2 (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY
+
+No material defect introduced by this delta.
+
+Child-layout closure matches the amendment: closed to `id`, parent reference, mapped payloads, and compiler-owned scalar captures. The new guard rejects any unmapped child column that is non-engine or a required `Ref`. That forces the view for extra fields, reference edges, assets, and defaults.
+
+Conservative fallback preserved: the regression with unmapped `hold: customers ? on delete restrict` now returns `false` and keeps the view.
+
+Fitting one-child case preserved: `idCards` in `wave29-040-v2.q` has only `motor`, `serialPhoto`, `id`, plus engine scalars. None trigger the guard, so the ordinary extraction still proves.
+
+Enum canonicalization matches the amendment: label sets, not declaration order. `sort` plus `dedup` makes `('a','b')` equal `('b','a')` and unequal `('b','a','c')`, as the new test asserts.
+

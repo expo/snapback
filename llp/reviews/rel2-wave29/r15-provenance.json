@@ -1,0 +1,38 @@
+{
+  "baseline": "bcf780d30729158da09d731d2e9e84aa31738f30",
+  "brief_sha256": "bb6309cb403a06d1fd24cc5ba4ea784cfd3c1d667ea02a221ae3476234aa2982",
+  "files": {
+    "snapback4/crates/snapback4-core/src/schema/extraction.rs": "d28123a01d204da081edd18fa758cc0ff22af01fab4f3747bf77d18ac0f7358f",
+    "snapback4/crates/snapback4-core/src/store/extractions.rs": "2a08af63ca9c4b05db80dd8e0251607bc1df210eca27323694e08c4145c0be09",
+    "snapback4/crates/snapback4-core/src/store/rollback_visibility.rs": "39f5259717aa732325b42bc8b53b33d3d4e307e1d4a24f999fb0994cf368a98b",
+    "snapback4/crates/snapback4-core/src/store/tooling.rs": "37a9a5c97afd4f388af49f11b2e23301179c8c9b9bedee624a8f85f536ba7fd5",
+    "snapback4/crates/snapback4-lang/src/release_bridge.rs": "af4355c31e14043e2190de6734e8d59a3b4ec1ad47bac3dfba907059fc45ad42",
+    "snapback4/crates/snapback4-lang/src/release_bridge_guards.rs": "12927cd712466034e32060689f3ee9a2c0c6153ec217fae6386c9b69626690ac",
+    "snapback4/crates/snapback4/src/verbs.rs": "67b318c0d979d01cca27d784cd0793720db9d53b727180779621ed7d1243dc63",
+    "snapback4/crates/snapback4/src/verbs/release_preview.rs": "e70aa4682e2dd2588f41c8ca2cd2ebd289023849eebae333d7aa68f137a373b1",
+    "snapback4/crates/snapback4/src/verbs/release_shape.rs": "08fe71ec0060c63d9153b27c03c69c8431e50de79812ea49af4e615c7fca109d",
+    "snapback4/crates/snapback4/src/verbs/releases.rs": "ce4e0f484e9d108c3fac6b1acce8ca234a48321e940df904470f83457c91d023",
+    "snapback4/crates/snapback4/src/verbs/rollback_views.rs": "5d7720fac6b2162d2b560e85c2eeb925fe05a991e6208f0d2a54524581bff933",
+    "snapback4/crates/snapback4/src/verbs/saved_version.rs": "e2038bbec8dbeeeb6f2eed0d3cd2521bec806e9d6b219fcc731f24057774fdde",
+    "snapback4/packages/snapback4/src/proof-accounts.ts": "5d26779bec78d12cc306b44eda51a5dd859b72b3ee37281ae3bbf1ca9cf56293",
+    "snapback4/packages/snapback4/src/proof-roster-lock.ts": "847eafe7fae019505356d3ba7dbbf563f4b5940f687dffd4a7bbbabd3d7fb31d"
+  },
+  "muse": {
+    "model": "muse-spark-1.3-contributor",
+    "reasoning": "high",
+    "fresh_session": true,
+    "stdout_sha256": "07a05677a17a4350641cb9359dae66a95faf97cb56f964aee3820422dec59787",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "verbatim": true
+  },
+  "codex": {
+    "model": "gpt-6.1-sol",
+    "reasoning": "high",
+    "fresh_session": true,
+    "stdout_sha256": "f8d9869a556d8ca1e6f02d69fe8089025c011e5df7dbffa74cd2751aff73f9d1",
+    "stderr_sha256": "1bc255db43531b9535aa1a93c3fdaeb80b0a8e6e5868ef9ab6cec54079bb9a49",
+    "verbatim": true
+  },
+  "disposition": "Full snapshot: Muse READY; Codex extra lifetime edge finding repaired by a closed child layout; final child-layout and enum delta independently reviewed by both families in r16. Test-only paused-operation assertion now also accepts the expected UnknownOp/E_OP absence, and verifies the original writable operation succeeds before narrowing.",
+  "finalPolicyDisposition": "Prototype global input gate is not shipped. R18 independently reviews the final automatic-versus-explicit scope against the existing guide. R12 explicit-signature claim is declined for deliberate --exact source selection; its automatic-extraction safety concern is covered by the strict endpoint proof and an executable default-versus-explicit regression."
+}

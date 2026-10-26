@@ -11,6 +11,24 @@ pub struct Extraction {
     pub fields: BTreeMap<String, String>,
 }
 impl Extraction {
+    /// Closed payload-domain inclusion, shared by forward admission and reverse-source proof.
+    // @ref LLP 3000.000.000#22-wave-29-release-identity-rel2 — inclusion of collection bounds never invents or coerces a value.
+    pub fn payload_accepts(source: &ColumnType, destination: &ColumnType) -> bool {
+        if source == destination { return true; }
+        if let ColumnType::Optional(inner) = destination {
+            return Self::payload_accepts(match source { ColumnType::Optional(kind) => kind, kind => kind }, inner);
+        }
+        fn bounds(kind: &ColumnType) -> Option<(&ColumnType,u32,u32)> { match kind {
+            ColumnType::List { of, max } => Some((of.as_ref(), 0, *max)),
+            ColumnType::ListRange { of, min, max } => Some((of.as_ref(), *min, *max)),
+            _ => None,
+        }}
+        match (bounds(source), bounds(destination)) {
+            (Some((a, amin, amax)), Some((b, bmin, bmax))) => a == b && bmin <= amin && amax <= bmax,
+            _ => false,
+        }
+    }
+
     pub fn admit(&self, schema: &Schema) -> Result<(), String> {
         if schema.extractions.iter().filter(|e|e.child==self.child).count()>1 {
             return Err("one extraction declaration owns each child table; native children cannot be assigned to competing sources".into());

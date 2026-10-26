@@ -35,6 +35,7 @@ fn audience_subset(next:&crate::schema::RuleExpr,source:&crate::schema::RuleExpr
         _=>false,
     }
 }
+
 fn mapped_audience(parent:&Table,child:&Table,e:&Extraction,rule:&crate::schema::RuleExpr)->crate::schema::RuleExpr{
     let mut transported=parent.clone();
     let names=parent.columns.keys().map(|source|{
@@ -386,14 +387,14 @@ pub(super) fn transition(
             let kind = parent.columns.get(source).ok_or_else(|| {
                 refuse(format!("extraction source {}.{source} is absent", e.parent))
             })?;
-            let same = if e.each && asset(&child.columns[dest]) {each::item_type(kind)==Some(&child.columns[dest])} else {kind == &child.columns[dest] || matches!(&child.columns[dest],ColumnType::Optional(inner) if inner.as_ref()==kind)};
+            let same = if e.each && asset(&child.columns[dest]) {each::item_type(kind)==Some(&child.columns[dest])} else {Extraction::payload_accepts(kind, &child.columns[dest])};
             if !same
                 || parent.engine_field(source)
                 || parent.maintained.contains_key(source)
                 || parent.written_by.contains_key(source)
             {
                 return Err(refuse(
-                    format!("extraction {}.{source} → {}.{dest} requires identical authoritative types or required → optional widening",e.parent,e.child),
+                    format!("extraction {}.{source} → {}.{dest} requires identical authoritative element types with inclusive list bounds or required → optional widening",e.parent,e.child),
                 ));
             }
             if asset(kind) && next.tables[&e.parent].columns.contains_key(source) {
@@ -560,4 +561,20 @@ fn retain_cell(
     }
     tx.conn().execute("INSERT INTO _extraction_cells VALUES(?1,?2,?3,?4,?5) ON CONFLICT(definition,parent_t,parent_id,column_name) DO UPDATE SET data=excluded.data",params![key,t,id,column,canonical_json(value)])?;
     Ok(())
+}
+
+#[cfg(test)]
+mod payload_tests {
+    use super::*;
+    #[test]
+    fn collection_inclusion_preserves_elements_optional_direction_and_both_bounds() {
+        let list=|min,max|ColumnType::ListRange{of:Box::new(ColumnType::Text{max:20}),min,max};
+        assert!(Extraction::payload_accepts(&list(1,12),&ColumnType::List{of:Box::new(ColumnType::Text{max:20}),max:12}));
+        assert!(Extraction::payload_accepts(&list(1,12),&list(0,20)));
+        assert!(Extraction::payload_accepts(&list(1,12),&ColumnType::Optional(Box::new(list(0,20)))));
+        assert!(!Extraction::payload_accepts(&list(0,12),&list(1,12)));
+        assert!(!Extraction::payload_accepts(&list(1,12),&list(1,11)));
+        assert!(!Extraction::payload_accepts(&list(1,12),&ColumnType::List{of:Box::new(ColumnType::Text{max:21}),max:12}));
+        assert!(!Extraction::payload_accepts(&ColumnType::Optional(Box::new(list(1,12))),&list(0,20)));
+    }
 }

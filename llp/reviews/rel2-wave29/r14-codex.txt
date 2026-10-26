@@ -1,0 +1,20 @@
+**NOT READY — one material input-safety defect.**
+
+**P1: Default rollback bypasses input-only narrowing.** In [release_bridge.rs](/home/ccheever/projects/sb4-b29-rel2/snapback4/crates/snapback4-lang/src/release_bridge.rs), `requires_view()` detects narrowed arguments, but `loosen_inner()` selects `loosen_guarded()` for sources without extraction, invariants or field authority. That builder retains the predecessor’s broader argument types without checking them against current input domains.
+
+The resulting registered view then bypasses `exact_historical_inputs()` in [releases.rs](/home/ccheever/projects/sb4-b29-rel2/snapback4/crates/snapback4/src/verbs/releases.rs), because it has view metadata. Consequently, changing `record(n: int)` to `record(n: int 1..10)` rejects exact v1 selection, yet default rollback restores a callable operation accepting `n = 0`. This violates §22’s current safety-domain requirement.
+
+The supplied regression is an executable reproducer:
+
+```bash
+cd /home/ccheever/projects/sb4-b29-rel2/snapback4
+cargo test -p snapback4 --test roll_views \
+  explicit_historical_selection_keeps_current_inputs_and_forward_moves_still_work \
+  -- --exact --nocapture
+```
+
+Expected failure: the assertion that the guarded view rejects `n = 0`; the generated view retains `record(n: int)` and sends the mutation successfully.
+
+Input narrowing must select a view preserving current argument domains or pause the incompatible operation.
+
+Static review only; I did not execute the reproducer or modify files.

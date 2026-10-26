@@ -1,0 +1,60 @@
+**NOT READY — one material lifetime-guard defect.**
+
+In [release_bridge.rs](/home/ccheever/projects/sb4-b29-rel2/snapback4/crates/snapback4-lang/src/release_bridge.rs), `extraction_preserves_predecessor` checks `on delete restrict` only on the extraction’s parent reference. It ignores other child references.
+
+An unmapped optional child reference can therefore restrict deletion of another retained table in v2, while automatic original-source preference removes that restriction. Projection receipts account for the mapped payload; they do not preserve this additional lifetime guard. This violates §22’s incoming-restrict requirement.
+
+Executable regression reproducer for `roll_views.rs`:
+
+```rust
+#[test]
+fn rel2_preserves_unmapped_child_restrict_edges() {
+    let old = r#"table locks:
+  read <- allow
+  delete <- allow
+  online only
+table items:
+  scan: file <=1000 ?
+  read <- allow
+  online only
+mutation remove(id: locks):
+  delete locks[id]
+"#;
+
+    let current = old.replace("  scan: file <=1000 ?\n", "")
+        + r#"table scans:
+  item: items on delete cascade
+  blocker: locks ? on delete restrict
+  scan: file <=1000 ?
+  immutable item
+  cap 1 by item
+  read through .item
+  online only
+extract scans from items via item: {scan:scan}
+"#;
+
+    let sources = |text: &str| vec![("schema.q".into(), text.into())];
+    let before = sources(old);
+    let after = sources(&current);
+
+    for source in [&before, &after] {
+        let bound = snapback4_lang::compile(source);
+        assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    }
+
+    // With locks/l, items/p and scans/c
+    // {item:"p", blocker:"l", scan:null}, v2 refuses remove("l").
+    // V1 permits it. A null payload projects successfully but cannot
+    // represent scans.blocker's restrict edge.
+    assert!(
+        !snapback4_lang::release_bridge::extraction_preserves_predecessor(
+            &before, &after
+        ),
+        "automatic rollback must retain the additional restrict guard"
+    );
+}
+```
+
+The supplied implementation returns `true`, failing the assertion. Retain the view unless every additional child lifetime edge is proved compatible with predecessor deletions and expiry.
+
+Static read-only review; reproducer not executed. No edits, subagents, credentials, or original stores accessed.

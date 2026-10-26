@@ -1,0 +1,18 @@
+muse: workspace root: /home/ccheever/projects/sb4-b29-rel2 (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY — no material correctness, security, data-loss, contract, or concurrency defect found in the supplied REL2 scope.
+
+Child row authority: `writes_column(...,row_insert=true)` treats every insert/upsert as a protected write, bypassing the column-write null exemption; `write_projection` requires every extracted payload present and pairs it by parent-insertion ordinal with `$extraction-parent-{index}` normalization. Omitted/null child payloads therefore retain the view, as the new tests assert.
+
+Probe stability: `exact_authority(...,Some(...))` builds the full read-closure (read, through-parent, column reads) and refuses on any intersection with direct, cascade/set-null, or maintained `affected` sets; `leading_guard` keeps viewer/literal/probe-only stable guards; `probe_context` pins read/probe/index meaning.
+
+Constraints, lifetime, schedules: one-cell model allows only immutable-parent, parent/id unique, or per-parent cap ≥1; restrict re-checks old deletes plus expiring roots through cascade, including ancestor expiry; identical schedules required, native/action/route force the view.
+
+Predecessor identity: `executable_digest` ignores path spelling and compiler/registration metadata; `prepare_for_source` restricts predecessors to `< earliest_match`; unchanged registries reuse the retained release; companion executables stay new source; nothing edits immutable sources in place.
+
+Shape and roster: `release_shape::compare/at/print` reports `target/matchesTarget/differences/tables/children` on preview, `releases --json` (`rowShape`/`live.rowShape`), and beside every `live:` view move; `--exact` keeps original subject to gates. `rosterLock` holds a persistent SQLite `BEGIN IMMEDIATE` inode as authority, diagnostic `.lock` JSON never evicts, `wx` creation only, no unlink/reclaim race, renewal failure fences via `assertHeld`, release marks `released` before `db.close`.
+
+`--save-version` materializes baseline bytes with `create_new` before compatibility/codegen; only successful activation runs `finish`; failures drop the provisional dir; refresh never rewrites source/fixtures.
+
+Static read-only review of the supplied files and regression diff only; no commands run, no stores touched.
+

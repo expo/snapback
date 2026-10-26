@@ -1,0 +1,8 @@
+{
+  "actualValueNullEncoding": "\"Null\"",
+  "actualTaggedEquality": 1,
+  "reviewSyntheticJsonNullEquality": null,
+  "engineTest": "extracted_null_is_existing_empty_evidence_and_restores_exact_shape_twice",
+  "engineTestResult": "PASS; in full 53-test roll_views run /tmp/rel2-rollback-qualified5.log",
+  "valueSourceSha256": "30597b7c632966f017d5f04617af881693aae872b74e1f186dc04eaf62f31b26"
+}

@@ -1,0 +1,21 @@
+muse: workspace root: /home/ccheever/projects/sb4-b29-rel2 (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY
+
+Independent read-only review of the REL2 snapshot against baseline `bcf780d` finds no material correctness, security, data-loss, concurrency, or contract failure.
+
+Checked:
+
+- Bound alias expansion duplicates the target declaration under the alias name with source coordinates from the lexed declaration slice, removes the alias line in reverse order, and feeds both names into guard/dependency comparison. Same-file alias guard change correctly refuses exact.
+- Named-shape, helper, and ordered guard-prefix closure: shapes/helpers compared by complete definition; top-level `require` prefix retained, full body retained when any `If`/`For`/`As` present; trailing writes excluded from context and compared via write projection.
+- Write projection pairs each child payload with the same parent-insertion ordinal, rejects rebinding/duplicate parent binds, requires `Insert` with no keys/condition and only reference plus extraction fields, returns `None` on any unpairable write and refuses exact when `None`.
+- Retained invariant content: exact match by subject/operation/predicate or single allowed new `always exists child[ref=.id]` theorem requiring new child, single-key focal `.id` lookup, and required asset source. Strengthened/differently bound requirements refuse.
+- Writer validation: reverse adoption refuses competing children before minting; forward creates a child receipt for every parent including empty optionals; new `missing_parent` plus `unowned` checks against post-projection receipts catch late-born orphan parents and invented nulls. `prefer_original` now also requires `check_change` and `hiddenRows==0 && newlyEmptyCells==0`.
+- Projected `id` and maintained fields: `Row` always projects `id`; `WriteRow` omits maintained, reread restores it; nested/optional/collection `id` removal correctly mismatches.
+- Source dedupe: executable-digest match reuses retained release, reuses immutable manifest when present, falls back to prepare/upgrade path for legacy missing manifests; executable changes still mint a new release.
+- List-bound inclusion allows only identical element types with `dest_min<=src_min && src_max<=dest_max` plus required-to-optional wrapping; null-to-required and element changes refuse; reverse validates actual values against original bounds.
+- Self-baseline saving materializes selected bytes with `create_new` before compatibility/codegen reads, `Drop` cleans provisional snapshot on failure, refresh never mutates saved source.
+- Roster ownership: SQLite `BEGIN IMMEDIATE` is authoritative, JSON lease diagnostic only, expiry never evicts live holder, death releases kernel lock, reclaim serializes on same inode, every account attempt asserts held lease.
+
+No reproducer; no correction required.
+

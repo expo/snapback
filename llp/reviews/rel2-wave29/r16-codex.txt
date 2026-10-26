@@ -1,0 +1,7 @@
+READY — no material counterexample found in the supplied delta.
+
+- The concrete lifetime-edge case, `hold: customers ? on delete restrict`, now refuses predecessor preference: it is unmapped and not compiler-owned. Compiler-owned reference fields also refuse, preserving conservative fallback to the registered view.
+- The fitting `idCards` case remains eligible: its parent reference, mapped `serialPhoto`, id and compiler-owned scalar captures pass the new check.
+- Enum shape comparison now treats `['a','b']` and `['b','a']` identically, while adding `'c'` still produces a difference.
+
+This verdict covers only the supplied changes; it does not reopen unchanged runtime behavior.

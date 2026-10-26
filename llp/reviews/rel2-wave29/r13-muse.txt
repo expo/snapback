@@ -1,0 +1,7 @@
+muse: workspace root: /home/ccheever/projects/sb4-b29-rel2 (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY — no material correctness, security, data-loss, contract, or concurrency defect found in the supplied REL2 files.
+
+Checked extraction inclusion, child row/null-omitted authority with fixed-patch and stable-guard proof, read-through parent proof, dependency closure with cascade and maintained row-key members, hard-constraint and restrict lifetime guards, schedules, shape and helper and binding ordinal handling, invariant projection with reference-leaf only, empty-cell receipts with before-image child, live revalidation with parent and child receipts, digest predecessor timeline with earliest match, save-version materialize and cleanup, and roster kernel-lock with wx staging, hard-link publish, lease diagnostics, and fencing.
+
+Only narrow baseline read was `git show` of proof-source name normalization; no edits, stores, or broad scans used. No reproducer — no finding to reproduce.

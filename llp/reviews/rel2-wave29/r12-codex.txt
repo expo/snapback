@@ -1,0 +1,59 @@
+**NOT READY**
+
+**P1: `--exact` bypasses historical-input safety inclusion.** In [releases.rs](/home/ccheever/projects/sb4-b29-rel2/snapback4/crates/snapback4/src/verbs/releases.rs), `--exact` skips `prefer_original`, which contains the endpoint-domain proof. `check_change` only calls `exact_write_authority`; that returns immediately when there are no column-write/freeze rules. Consequently, exact rollback can restore `record(n: int)` after the current source restricts it to `int 1..10`. `record(0)` becomes admissible again, violating §22’s explicit historical-input requirement.
+
+Executable reproducer using an isolated temporary deployment:
+
+```bash
+SNAPBACK4_BIN="$PWD/snapback4/target/debug/snapback4" python3 - <<'PY'
+import os, pathlib, subprocess, tempfile
+
+binary = str(pathlib.Path(os.environ["SNAPBACK4_BIN"]).resolve())
+old = """table items:
+  scan: file <=1000 ?
+  public 'fixture'
+  online only
+table audit:
+  n: int
+  public 'fixture'
+  online only
+mutation record(n: int):
+  return insert audit {n}
+"""
+new = old.replace("  scan: file <=1000 ?\n", "", 1).replace(
+    "record(n: int)", "record(n: int 1..10)"
+) + """table scans:
+  item: items on delete cascade
+  scan: file <=1000 ?
+  immutable item
+  read through .item
+  online only
+extract scans from items via item: {scan:scan}
+"""
+
+with tempfile.TemporaryDirectory(prefix="rel2-domain-") as root:
+    source = pathlib.Path(root, "snapback/schema.q")
+    source.parent.mkdir()
+
+    def run(*args):
+        return subprocess.run(
+            [binary, *args], cwd=root, text=True, capture_output=True
+        )
+
+    for text in (old, new):
+        source.write_text(text)
+        result = run("deploy", "deployment", "--staging")
+        assert result.returncode == 0, result.stdout + result.stderr
+
+    result = run("rollback", "deployment", "--to", "1", "--exact", "--json")
+    print(result.stdout, result.stderr)
+    assert result.returncode != 0, (
+        "BUG: activated v1, restoring unrestricted record(n: int) "
+        "outside the current 1..10 safety domain"
+    )
+PY
+```
+
+Apply historical-input inclusion at the common historical-source admission boundary, including explicit exact selection.
+
+Reproducer supplied but not executed, preserving the requested read-only review.

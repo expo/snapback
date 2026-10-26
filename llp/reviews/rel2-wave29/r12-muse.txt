@@ -1,0 +1,25 @@
+muse: workspace root: /home/ccheever/projects/sb4-b29-rel2 (cwd default)
+muse: workspace trust: trusted source=run-flag
+NOT READY. Validated null extraction receipts are miscounted as newly empty cells.
+
+The retained-empty branch in [tooling.rs](/home/ccheever/projects/sb4-b29-rel2/snapback4/crates/snapback4-core/src/store/tooling.rs) compares JSON values with `=`:
+
+- line 348: extraction receipt `json_extract(c.data,'$')=json_extract(?3,'$')`
+- line 351: dormant `json_extract(c.data,'$')=json_extract(?3,'$')`
+
+For JSON `null`, both sides evaluate to SQL `NULL`. `NULL = NULL` is `NULL`, not true. So a proven `null` cell never counts as retained.
+
+This violates §22: empty-cell accounting must recognize validated receipts backed by a pre-activation child, including an existing null restored to its parent. Existing empty optionals are not misrepresentation.
+
+Effect: preview reports `newlyEmptyCells=1, retained=0` instead of `0, 1`. `prefer_original` in [rollback_views.rs](/home/ccheever/projects/sb4-b29-rel2/snapback4/crates/snapback4/src/verbs/rollback_views.rs) then refuses exact and forces the guarded view for a fitting extraction.
+
+Reproducer: `python3 /tmp/repro_null_retained.py`
+
+It builds the same `FROM` plus retained `EXISTS` query with one `_extraction_cells('null')` row joined to a before-image child. Output:
+
+`rows=1 retained=0 newly=1`
+`BUG REPRODUCED: validated null receipt not recognized`
+
+Expected: `rows=1 retained=1 newly=0`.
+
+Other checked areas looked correct: list-bound inclusion in [extractions.rs](/home/ccheever/projects/sb4-b29-rel2/snapback4/crates/snapback4-core/src/store/extractions.rs), reverse `validate_column` admission, digest/path independence in [release_files.rs](/home/ccheever/projects/sb4-b29-rel2/snapback4/crates/snapback4/src/release_files.rs), save-version materialize-then-finish in [saved_version.rs](/home/ccheever/projects/sb4-b29-rel2/snapback4/crates/snapback4/src/verbs/saved_version.rs), kernel-lock protocol in [proof-roster-lock.ts](/home/ccheever/projects/sb4-b29-rel2/snapback4/packages/snapback4/src/proof-roster-lock.ts), shape identity in [release_shape.rs](/home/ccheever/projects/sb4-b29-rel2/snapback4/crates/snapback4/src/verbs/release_shape.rs).

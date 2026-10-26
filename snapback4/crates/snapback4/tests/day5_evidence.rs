@@ -106,3 +106,41 @@ fn generated_password_campaign_prepares_live_read_through_without_a_dev_store() 
     assert!(text.contains("security unauthenticated serve HTTP"),"{text}");
     assert!(!app.0.join(".snapback4/store.sqlite").exists());
 }
+
+#[test]
+fn saving_the_configured_baseline_is_not_circular_and_failure_cleans_it() {
+    let app=App::new();
+    app.write("snapback/schema.q","query alive():\n  return true\n");
+    app.write("snapback/client-compatibility.json",r#"{"baseline":"versions/v1","since_release":2}"#);
+    if let Ok(binary)=std::env::var("REL2_BASELINE_BIN") {
+        let before=Command::new(binary).current_dir(&app.0).args(["deploy","deployment","--schema","snapback/schema.q","--save-version","versions/v1"]).output().unwrap();
+        assert!(!before.status.success(),"baseline unexpectedly resolved its circular snapshot");
+        assert!(String::from_utf8_lossy(&before.stderr).contains("not saved yet"));
+        assert!(!app.0.join("versions/v1").exists());
+    }
+    app.ok(&["deploy","deployment","--schema","snapback/schema.q","--save-version","versions/v1"]);
+    assert!(app.0.join("versions/v1/release.json").is_file());
+    app.ok(&["check"]);
+    let other=App::new();
+    other.write("snapback/schema.q","query alive():\n  return true\njob missing(): native\n");
+    other.write("snapback/client-compatibility.json",r#"{"baseline":"versions/v1","since_release":2}"#);
+    assert!(!other.run(&["deploy","deployment","--save-version","versions/v1"]).status.success());
+    assert!(!other.0.join("versions/v1").exists());
+    app.write("snapback/client-compatibility.json",r#"{"baseline":"versions/v99","since_release":2}"#);
+    assert!(!app.run(&["deploy","deployment","--save-version","versions/v2"]).status.success());
+    assert!(!app.0.join("versions/v2").exists());
+}
+
+#[cfg(unix)]
+#[test]
+fn preparation_failure_removes_a_new_provisional_baseline_before_retry() {
+    let app=App::new();app.write("snapback/schema.q","query alive():\n  return true\n");
+    app.write("snapback/client-compatibility.json",r#"{"baseline":"versions/v1","since_release":2}"#);
+    fs::create_dir_all(app.0.join("generated-target")).unwrap();
+    std::os::unix::fs::symlink(app.0.join("generated-target"),app.0.join("snapback/generated")).unwrap();
+    let refused=app.run(&["deploy","deployment","--save-version","versions/v1"]);
+    assert!(!refused.status.success());assert!(!app.0.join("versions/v1").exists(),"prepare must not strand an empty baseline");
+    fs::remove_file(app.0.join("snapback/generated")).unwrap();
+    app.ok(&["deploy","deployment","--save-version","versions/v1"]);
+    assert!(app.0.join("versions/v1/release.json").is_file());
+}

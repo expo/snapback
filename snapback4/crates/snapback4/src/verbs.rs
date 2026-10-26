@@ -1346,6 +1346,7 @@ mod release_preview;
 mod release_visibility;
 mod rollback_foresight;
 mod rollback_views;
+mod release_shape;
 mod release_bridge;
 mod release_summary;
 mod release_narration;

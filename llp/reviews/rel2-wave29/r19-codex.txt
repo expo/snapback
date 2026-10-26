@@ -1,0 +1,16 @@
+NEEDS WORK
+
+- **Registration-only parents can cause unbounded requalification when alternating two retained sources.** [rollback_views.rs:100](/home/ccheever/projects/sb4-b29-rel2/snapback4/crates/snapback4/src/verbs/rollback_views.rs:100) now includes every qualification parent as another target, while [needs_registration:332](/home/ccheever/projects/sb4-b29-rel2/snapback4/crates/snapback4/src/verbs/rollback_views.rs:332) requires identical target IDs.
+
+  Reproducer: use identical schemas containing `invariant items.read only true`, with source A’s query returning `1` and source B’s returning `2`. Their executable-body difference requires guarded views in both directions. Deploy A, B, A, B, A repeatedly. The static trace produces:
+  
+  - B₂ registers target A₁.
+  - A₄ registers target B₂.
+  - B₆ needs targets A₁ and A₄.
+  - A₉ needs targets B₂ and B₆.
+  
+  Every alternation adds another parent despite unchanged executable sources, compiler and guarded view contents. The new regression misses this because it alternates **rollback** and deploy, never reactivating both sources through deploy.
+
+  Preserve every committed target’s rollback obligation while recognizing equivalent qualification targets during registry matching/resolution. Add an alternating A/B deploy regression proving release identities stabilize after necessary qualification, and verify rollback selection for every retained target remains guarded.
+
+Read-only static review; no files changed or mutation-based probes run.

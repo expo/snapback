@@ -1,0 +1,3 @@
+READY
+
+No material defects found in the supplied delta. Automatic extraction preference retains its workflow/input proof, while removing the global policy preserves established ordinary rollback and explicit `--exact` semantics. Hard column-authority checks remain, and the closed child-layout check matches the amendment.
