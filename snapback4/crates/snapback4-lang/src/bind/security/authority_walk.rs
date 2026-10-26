@@ -281,7 +281,26 @@ pub(super) fn returned(catalog:&Catalog,value:&Expr,depth:usize)->Expr{
     });value
 }
 
+// Inspect the source call graph before substituting captured locals. A write-free
+// alias DAG can expand exponentially, but cannot contribute an authority event.
+// This overapproximates applicability: any reachable write keeps the full walk.
+fn may_write(catalog:&Catalog,p:&ProgramDecl)->bool{
+    let mut writes=false;let mut calls=BTreeSet::new();let mut seen=BTreeSet::new();
+    {
+        let mut visit=|e:&mut Expr|match e{Expr::Write{..}=>writes=true,Expr::Call{name,..}=>{calls.insert(name.clone());},_=>{}};
+        super::super::intent_walk::statements(&mut p.prelude.clone(),&mut visit);
+        super::super::intent_walk::statements(&mut p.body.clone(),&mut visit);
+    }
+    while !writes&&let Some(name)=calls.pop_first(){
+        if !seen.insert(name.clone()){continue;}
+        let Some(function)=catalog.functions.get(&name)else{continue;};
+        let mut visit=|e:&mut Expr|match e{Expr::Write{..}=>writes=true,Expr::Call{name,..}=>{calls.insert(name.clone());},_=>{}};
+        match function.body.clone(){FunctionBody::Expression(mut value)=>super::super::intent_walk::expression(&mut value,&mut visit),FunctionBody::Block(mut body)=>super::super::intent_walk::statements(&mut body,&mut visit)}
+    }
+    writes
+}
 fn walk_writes(catalog:&Catalog,p:&ProgramDecl,column:Option<&str>)->Vec<(Expr,ProgramDecl)>{
+    if !may_write(catalog,p){return Vec::new();}
     let mut out=Vec::new();let mut env=Env::new();let mut guards=Vec::new();let mut changes=Vec::new();
     statements(catalog,p,&p.prelude,&mut env,&mut guards,&mut changes,column,0,&mut out);
     statements(catalog,p,&p.body,&mut env,&mut guards,&mut changes,column,0,&mut out);
@@ -303,6 +322,22 @@ pub(super) fn source_gaps(sources:&[(String,String)],bound:&Bound)->BTreeSet<Str
 }
 
 #[cfg(test)]mod sec10_execution_controls{use super::*;
+#[test]fn helper_only_writes_keep_the_complete_walk(){
+    let source="table docs:\n  stage: enum('draft','done') default 'draft'\n  read <- allow\n  update <- allow\n  online only\nfn change(doc: docs):\n  update docs[doc] {stage:'done'}\n  return doc\nfn relay(doc: docs):\n  return change(doc)\nmutation finish(doc: docs):\n  return relay(doc)\n";
+    let (doc,diagnostics)=crate::parse_document("schema.q",source);assert!(diagnostics.is_empty(),"{diagnostics:?}");
+    let catalog=Catalog::build(vec![doc.clone()],&mut Vec::new());
+    let effects=writes(&catalog,&doc.programs[0]);
+    assert_eq!(effects.len(),1,"{effects:?}");
+    assert!(matches!(&effects[0].0,Expr::Write{table,..} if table=="docs"));
+}
+#[test]fn write_free_alias_graph_with_literal_defaults_compiles(){
+    let mut source="table unused:\n  value: bool default false\n  read <- allow\n  online only\neffect audit\nfn identity(value: bool):\n  return value\nmutation push():\n  a0 = true\n".to_string();
+    for n in 1..=200{source.push_str(&format!("  a{n} = a{} = a{}\n",n-1,n-1));}
+    source.push_str("  if identity(a200):\n    emit audit {online: true}\n");
+    let bound=crate::compile(&[("schema.q".into(),source)]);
+    assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);
+    assert!(bound.security_literal_defaults.is_empty());
+}
 #[test]fn captured_helper_results_execute_once(){
     let source="table docs:\n  stage: enum('draft','done') default 'draft'\n  note: text ?\n  read <- allow\n  update <- allow\n  online only\nfn change(doc: docs):\n  update docs[doc] {stage:'done'}\n  return doc\nmutation finish(doc: docs):\n  saved = change(doc)\n  update docs[saved] {note:'finished'}\n";
     let (doc,diagnostics)=crate::parse_document("schema.q",source);assert!(diagnostics.is_empty(),"{diagnostics:?}");let b=crate::compile(&[("schema.q".into(),source.into())]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);let catalog=Catalog::build(vec![doc.clone()],&mut Vec::new());let effects=writes(&catalog,&doc.programs[0]);assert_eq!(effects.len(),2,"{effects:?}");

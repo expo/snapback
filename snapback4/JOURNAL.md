@@ -108827,3 +108827,12 @@ text minima, literal-default initialization and the 0.4.43 stamp. This changes
 no runtime ceiling and makes no independent feature-cost or Mac qualification
 claim. Existing minimum-invalid stored values need repair before narrowing or
 adoption. Publication owns complete packed, Linux-host and Mac qualification.
+
+Final source verification exposed a new SEC10 compile-time regression in the
+existing depth-200 pure alias-DAG simulator controls: the literal-default
+capture pass unnecessarily substituted the entire write-free program. The
+authority walker now checks raw reachable helper syntax first, with a visited
+set, and returns the exact empty event set when no write exists. Any possible
+write retains the full applicability/capture walk. A default-bearing pure-DAG
+compile and a helper-only two-hop write are opposing controls; no depth, engine
+time bound, witness allowance or security assertion is relaxed.
