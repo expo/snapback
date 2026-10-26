@@ -831,7 +831,11 @@ pub(super) fn principal_preferences(bound:&Bound,p:&Program,rows:&BTreeMap<Strin
 #[cfg(test)]mod focused_read_dependencies_tests{use super::*;
 #[test]fn opening_visibility_and_word_fields_remain_focused_dependencies(){
  let source="table docs:\n  flag: bool default false\n  label: text <=30 default 'no'\n  body: text <=80 default 'alpha'\n  opensAt: time default now\n  category: enum('a','b') default 'a'\n  by byWords: words(body), id\n  not before .opensAt\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\nbackfill docs label(flag: bool):\n  {label:'yes' if flag else 'no'}\nmutation enable(doc: docs):\n  update docs[doc] {flag:true}\nmutation setLabel(doc: docs,label: text <=30):\n  require docs[doc].flag = true else NOT_ENABLED\n  update docs[doc] {label}\nmutation setBody(doc: docs,body: text <=80):\n  update docs[doc] {body}\nmutation setOpening(doc: docs,opensAt: time):\n  update docs[doc] {opensAt}\nmutation setUnused(doc: docs,category: enum('a','b')):\n  update docs[doc] {category}\nquery search(q: text <=30):\n  return docs matching q first 10 by byWords\n";
- let sources=vec![("schema.q".into(),source.into())];let b=crate::compile(&sources);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);let b=super::super::super::derived::augmented(&sources,&b);assert_eq!(b.invariants.len(),1);
+ let sources=vec![("schema.q".into(),source.into())];let b=crate::compile(&sources);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);let mut b=super::super::super::derived::augmented(&sources,&b);
+ // Backfill equations remain advice in production; opt this search-focus test
+ // into that question without promoting a migration formula into enforcement.
+ assert!(b.invariants.is_empty());
+ b.invariants=super::super::super::derived::invariants(&sources,&b).into_iter().filter(|i|i.site.file.contains("/label-consistency/")).collect();assert_eq!(b.invariants.len(),1);
  let mut e=Engine::memory(b.schema.clone(),b.programs.iter().map(|p|p.program.clone())).unwrap();
  let row=snapback4_core::wire::row_from_json(&b.schema.tables["docs"],&serde_json::json!({"id":"doc","flag":false,"label":"no","body":"alpha","opensAt":NOW,"category":"a"})).unwrap();e.seed_at([("docs".into(),row)],NOW).unwrap();
  let mut out=Campaign::work_bounded(1024);lifecycle_observers_to(&b,&e,&mut out,512);

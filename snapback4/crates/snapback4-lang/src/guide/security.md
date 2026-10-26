@@ -444,7 +444,7 @@ N_TABLE_QUESTIONNAIRE: Role-wide access and restating invariants share one table
 
 ### N_APPROVAL_NOT_ENFORCED
 
-N_APPROVAL_NOT_ENFORCED: An approval flag, timestamp, or separately authorized parent-linked approval table is recorded, and a plausible modeled act does not require it. A current admitted trace makes this an individual review gate; without one it remains advice. Add the matching approval requirement before its governed effect; if the approval is an informational record, record that specification decision with `check --ack-security ID --reason '<spec rationale>'`. A query returning the approval is not a transition guard. Edit/version timestamps such as `authorizationRouteUpdatedAt` are ordinary metadata, including when checked as data. Use a distinct approval-event field such as `approvedAt` or independent intent when the domain needs an approval marker.
+N_APPROVAL_NOT_ENFORCED: An approval flag, timestamp, or separately authorized parent-linked approval table is recorded, and a plausible modeled act does not require it. A current admitted trace with confirmed approval applicability makes this an individual review gate; without both it remains advice. Add the matching approval requirement before its governed effect; if the approval is an informational record, record that specification decision with `check --ack-security ID --reason '<spec rationale>'`. A query returning the approval is not a transition guard. Edit/version timestamps such as `authorizationRouteUpdatedAt` are ordinary metadata, including when checked as data. Use a distinct approval-event field such as `approvedAt` or independent intent when the domain needs an approval marker.
 
 ### N_EDIT_AFTER_APPROVAL
 
@@ -452,7 +452,7 @@ N_APPROVAL_INFORMATIONAL: No operation models the approved act. This advisory ca
 
 N_INSERT_TABLE_AUTHORITY: A table-only edit restriction remains advisory. Confirm the declared table insert and edit audiences against the specification; this note does not establish a distinct mutation require.
 
-N_INSERT_WRITE_INTENT: A mutation requires stricter authority to edit caller-controlled columns than an insert requires to create them. This individual gating question asks whether that asymmetry is deliberate. One matching `invariant T.c update only P` answers the named column; a column `write <- P` enforces its authority at creation too. An individual acknowledgment records the deliberate asymmetry for a grouped question. A table-only edit restriction remains advisory as N_INSERT_TABLE_AUTHORITY.
+N_INSERT_WRITE_INTENT: A mutation requires stricter authority to edit caller-controlled columns than an insert requires to create them. This advisory question asks whether that asymmetry is deliberate; an example of broader creation does not establish unwanted authority. One matching `invariant T.c update only P` declares the intended edit boundary; a column `write <- P` enforces its authority at creation too. A table-only edit restriction remains advisory as N_INSERT_TABLE_AUTHORITY.
 
 N_EDIT_AFTER_APPROVAL: A checked value or media artifact can change without a positive creation-state restriction. Decide whether approval must be renewed after edits or replacements; declare column update intent. To freeze approved evidence use `immutable photo when .approved = true` from the complete rule recipe. This is a specification question, never a proof or a new gate.
 
