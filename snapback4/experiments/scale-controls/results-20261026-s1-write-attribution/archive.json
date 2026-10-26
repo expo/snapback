@@ -1,0 +1,7 @@
+{
+  "path": "/home/ccheever/sb4scale/archive/s1-write-attribution-20261026.tar.gz",
+  "sha256": "883997dfafa4af2020d9a1a37c558b2a2887aee4c523b4aabf61e09ed8918c8c",
+  "bytes": 766679092,
+  "seconds": 27.486661911010742,
+  "scope": "All raw trials and HDR/stdout, numeric request/batch/PG clocks, observers, setup failures, immutable binaries, final probe sources and scripts. Credential vault and standalone private fixture cache outside this root are excluded. Archive receipt is external to its own digest."
+}
