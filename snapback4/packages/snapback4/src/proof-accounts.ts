@@ -127,10 +127,21 @@ async function accounts(host: Pick<ServeHost, "url" | "operatorToken">, options:
         const merged=Object.fromEntries(Object.entries(args).map(([key,value])=>[key,`<redacted ${value===null?"null":Array.isArray(value)?"array":typeof value}>`]));
         const refusal = result.why ?? result.denied;
         // Preserve the backend's explanation without echoing opaque arguments.
-        const opaque = (value: unknown): string[] => typeof value === "string" && value.length > 0 ? [value]
-          : Array.isArray(value) ? value.flatMap(opaque) : value && typeof value === "object" ? Object.values(value).flatMap(opaque) : [];
-        let explanation = typeof refusal?.message === "string" ? refusal.message.slice(0, 4096) : "";
-        for (const value of [...opaque(args), account.email, account.password, account.token].sort((a, b) => b.length - a.length)) explanation = explanation.replaceAll(value, "<redacted>");
+        const strings = [account.email, account.password, account.token], scalars = new Set<string>();
+        const opaque = (value: unknown): void => {
+          if (typeof value === "string") { if (value) strings.push(value); }
+          else if (value === null || typeof value === "number" || typeof value === "boolean") scalars.add(String(value));
+          else if (Array.isArray(value)) value.forEach(opaque);
+          else if (value && typeof value === "object") Object.values(value).forEach(opaque);
+        };
+        opaque(args);
+        let explanation: string = typeof refusal?.message === "string" ? refusal.message.slice(0, 4096) : "";
+        for (const value of strings.sort((a, b) => b.length - a.length)) explanation = explanation.replaceAll(value, "<redacted>");
+        // Backend value descriptions use scalar tokens ("the number 482719").
+        // Keep quoted schema names and whole identifiers/codes intact, so a
+        // numeric input cannot alter a field such as role482719 or E_INPUT.
+        explanation = explanation.replace(/"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[\p{L}_][\p{L}\p{N}_]*|-?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?/gu,
+          token => scalars.has(token) ? "<redacted>" : token);
         throw Error(`E_STAGING_PROVISION: ${options.provision?.name} refused (${refusal?.code ?? "invalid reply"})${explanation ? `: ${explanation}` : ""}; supplied arguments: ${Object.keys(args).sort().join(", ")}; merged args (opaque values redacted): ${JSON.stringify(merged)}; mutation parameters: ${parameters.length?parameters.join(", "):"unavailable"}; args(account) merges over {principal, role}, explicit keys win; ${partial}`);
       }
       entry.done = true; save();

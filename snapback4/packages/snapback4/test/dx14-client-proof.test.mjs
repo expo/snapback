@@ -87,3 +87,31 @@ test('DX14 027E provision refusal retains backend lookup explanation',{timeout:3
   assert.match(error.message,/E_STAGING_PROVISION/);assert.match(error.message,/NOT_FOUND/);assert.match(error.message,/: .*lookup|: .*row|: .*found/i);return true;
  });
 });
+
+test('DX14 R1 provisioning redacts numeric, boolean and null enum inputs with schema diagnostics intact',{timeout:30000},async t=>{
+ const cwd=mkdtempSync(join(tmpdir(),'dx14-provision-scalars-'));after(t,()=>rmSync(cwd,{recursive:true,force:true}));mkdirSync(join(cwd,'snapback'));
+ const source=readFileSync(join(root,'crates/snapback4-lang/src/guide/staging.md'),'utf8').match(/```quarry\n([\s\S]*?)\n```/)[1];
+ writeFileSync(join(cwd,'snapback/schema.q'),source);const host=await startDev({cwd});after(t,()=>host.stop());
+ // A harmless dummy value records the real backend's previously leaked form.
+ const raw=await fetch(host.url+'/m/provision',{method:'POST',headers:{'content-type':'application/json',authorization:`Bearer ${await host.operatorToken()}`},body:JSON.stringify({id:'scalar-validation-dummy',args:{principal:'user:dummy',role:482719}})}).then(response=>response.json());
+ assert.equal(raw.why.code,'E_INPUT');assert.match(raw.why.message,/expected "admin" or "member", got (?:a number|the number 482719)/);
+ // Older/backend-originated refusals include the supplied scalar. Preserve
+ // that reviewed dummy example while retaining real enum validation below.
+ const originalFetch=globalThis.fetch;after(t,()=>{globalThis.fetch=originalFetch;});
+ globalThis.fetch=async(input,init)=>{
+  const response=await originalFetch(input,init);
+  if(String(input)!==host.url+'/m/provision')return response;
+  const value=JSON.parse(init.body).args.role,reply=await response.json();assert.equal(reply.why.code,'E_INPUT');
+  const description=value===null?'null':typeof value==='boolean'?`the boolean ${value}`:`the number ${value}`;
+  reply.why.message=reply.why.message.replace(/got .+$/,`got ${description}`);
+  return Response.json(reply,{status:response.status});
+ };
+ for(const [role,type,description] of [[482719,'number','the number 482719'],[false,'boolean','the boolean false'],[null,'null','got null']]){
+  await assert.rejects(devAccounts(host,{roles:{member:1},provision:{name:'provision'},args:()=>({role})}),error=>{
+   assert.match(error.message,/E_STAGING_PROVISION.*E_INPUT/);assert.match(error.message,/mutation parameters: principal, role/);
+   assert.ok(error.message.includes(`"role":"<redacted ${type}>"`));assert.ok(!error.message.includes(description));
+   if(typeof role==='number')assert.ok(!error.message.includes(String(role)));
+   assert.match(error.message,/role/);assert.match(error.message,/<redacted>/);return true;
+  });
+ }
+});
