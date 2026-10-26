@@ -45,7 +45,7 @@ pub(super) fn notes(catalog: &Catalog, schema: &Schema) -> Vec<Diagnostic> {
     let guard_programs = catalog.documents.iter().flat_map(|doc| &doc.programs).filter(|p| !p.native).collect::<Vec<_>>();
     unreadable_guards(catalog, schema, &guard_programs, &mut notes);
     refused_requires(catalog, schema, &mutations, &mut notes);
-    unfiltered_roles(catalog, schema, &programs, &mut notes);
+    unfiltered_roles(catalog, schema, &mut notes);
     denied_role_writes(catalog, schema, &mutations, &mut notes);
     notes
 }
@@ -1388,7 +1388,7 @@ fn unreadable_guards(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDec
 
 // A single principal-keyed roster with a role enum is a mixed audience. Its
 // existence proves enrollment, not a particular role (wave 30: 003R, 041R).
-fn unfiltered_roles(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDecl], notes: &mut Vec<Diagnostic>) {
+fn unfiltered_roles(catalog: &Catalog, schema: &Schema, notes: &mut Vec<Diagnostic>) {
     let mut seen = BTreeSet::new();
     // A resource's own-reader branch identifies the subject role by exact
     // field/variant spelling; no customer/staff vocabulary is guessed.
@@ -1439,18 +1439,7 @@ fn unfiltered_roles(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDecl
             }
         }
     }
-    for program in programs {
-        let mut tested = Vec::new();
-        let body: Vec<_> = program.prelude.iter().chain(&program.body).cloned().collect();
-        requires(&body, Vec::new(), &mut tested);
-        for (condition, _, _) in tested {
-            let mut probes = Vec::new(); asserted_probes(&condition, &mut probes);
-            for read in probes {
-                if !read.seeks.is_empty() || read.filter.is_some() { continue; }
-                if let Some(pins) = pins(catalog, read) { add(&read.table, pins.into_keys().collect(), &read.site, &program.name); }
-            }
-        }
-    }
+
 }
 
 // A mutation's intent gate cannot grant an effect denied by the table

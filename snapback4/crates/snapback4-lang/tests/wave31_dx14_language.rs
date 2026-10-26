@@ -31,7 +31,8 @@ fn lanes_005e_021r_unique_roster_role_arms_do_not_hide_the_hidden_row_note() {
 fn lanes_003r_041r_bare_mixed_role_probes_name_the_entire_roster() {
     let b = checked(&format!("{ROSTER}table docs:\n  client: principal\n  read <- .client = viewer or exists roles[viewer]\n  online only\nmutation gate():\n  require exists roles[viewer] else STAFF_ONLY\n  return true\n"));
     let notes: Vec<_> = b.notes.iter().filter(|n| n.code == "N_ROLE_UNFILTERED").collect();
-    assert_eq!(notes.len(), 2, "{notes:?}");
+    assert_eq!(notes.len(), 1, "{notes:?}");
+    assert!(notes[0].message.starts_with("docs.read"), "enrollment require stays quiet: {notes:?}");
     assert!(notes.iter().all(|n| n.message.contains("'client'") && n.message.contains("'manager'")));
     let exact = checked(&format!("{ROSTER}table docs:\n  read <- exists roles[viewer, role = 'manager']\n  online only\n"));
     assert!(!exact.notes.iter().any(|n| n.code == "N_ROLE_UNFILTERED"));
@@ -150,4 +151,14 @@ fn bracket_predicates_keep_signed_literals_and_reject_expression_operands() {
     checked(&format!("{schema}table flags:\n  doc: docs\n  read <- exists docs[.doc, score != -1]\n  online only\n"));
     let b = compile(&[("schema.q".into(), format!("{schema}query other(doc: docs, score: int):\n  return exists docs[doc, score != score]\n"))]);
     assert!(b.diagnostics.iter().any(|d| d.message.contains("non-null literal")));
+}
+
+#[test]
+fn review_r1_ordinary_ordered_pages_refuse_bracket_inequality_without_panicking() {
+    let schema = "table docs:\n  score: int\n  by byScore: score, id\n  read <- allow\n  online only\n";
+    for body in ["return docs[score != 1] first 10 by byScore", "return count(docs[score != 1] by byScore)"] {
+        let b = compile(&[("schema.q".into(), format!("{schema}query page():\n  {body}\n"))]);
+        assert!(b.diagnostics.iter().any(|d| d.message.contains("not an ordered page seek") && d.rewrite.contains("where .score != 1")), "{body}: {:?}", b.diagnostics);
+    }
+    checked(&format!("{schema}query page():\n  return docs first 10 by byScore where .score != 1\n"));
 }

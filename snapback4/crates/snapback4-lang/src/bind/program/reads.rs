@@ -115,6 +115,10 @@ impl<'a> Binder<'a> {
     // @ref LLP 3000.007#5.3 — a seek constrains the first index column after the pinned prefix.
     pub(super) fn seek(&mut self, info: &'a TableInfo, read: &ReadExpr, index: &ast::IndexDecl, out: &mut setup::Body) -> Fallible<Option<ir::Range>> {
         if read.seeks.is_empty() { return Ok(None); }
+        if let Some(bound) = read.seeks.iter().find(|bound| bound.op == "!=") {
+            return Err(type_error(&bound.site, "bracket != is supported only in an exists probe after a complete unique key; it is not an ordered page seek",
+                format!("use `where .{} != {}` on a bounded page, or `exists {}[id = doc, {} != {}]` for a complete unique point probe", bound.column, print::expression(&bound.value), read.table, bound.column, print::expression(&bound.value))).guide("reads"));
+        }
         let mut range = ir::Range { gt: None, gte: None, lt: None, lte: None };
         for bound in &read.seeks {
             if index.columns.get(read.keys.len()) != Some(&bound.column) || read.matching.is_some() {
