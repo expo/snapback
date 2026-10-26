@@ -135,5 +135,24 @@
       ]
     }
   ],
-  "source_replays": "Read-only wave-30 app copies inspected under /tmp/dx14-replay/starters, then removed. Named regression behaviors executed on fresh packed starters; original full applications were not rebuilt."
+  "source_replays": "Read-only wave-30 app copies inspected under /tmp/dx14-replay/starters, then removed. Named regression behaviors executed on fresh packed starters; original full applications were not rebuilt.",
+  "focused_verification": {
+    "init_unit_tests": {
+      "passed": 10,
+      "failed": 0
+    },
+    "dx14_init_integration_tests": {
+      "passed": 3,
+      "failed": 0
+    },
+    "existing_one_screen_regression_after_count_update": {
+      "passed": 1,
+      "failed": 0
+    },
+    "broader_initial_init_run": {
+      "passed": 53,
+      "status": "incomplete",
+      "details": "Initial run used the old 28-file expectation; corrected 30-file bound passes separately. The unrelated w8b residency calibration loaded 416710 rows and was stopped after 441 seconds. No full init-suite pass is claimed."
+    }
+  }
 }
