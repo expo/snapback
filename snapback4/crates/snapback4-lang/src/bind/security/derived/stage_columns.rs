@@ -1,20 +1,21 @@
 //! Workflow discriminators are identified by guarded transitions, not spelling.
 // @ref LLP 3000.036.004.000#12-wave-28-inference-and-visible-evidence — preserve data checks while omitting lifecycle admission.
 use super::*;
+#[derive(Clone,Copy,PartialEq,Eq)]enum Prior<'a>{Literal(&'a str),Null,Other}
 // A guard can force a literal assignment to be a no-op, including negated
 // comparisons and Boolean alternatives. Project only this selected field;
 // unrelated role/argument checks stay unknown rather than becoming grants.
-fn projects(e:&ast::Expr,old:Option<&str>,table:&str,keys:&[ast::KeyPart],p:&ast::ProgramDecl,column:&str)->Option<bool>{
+fn projects(e:&ast::Expr,old:Prior<'_>,table:&str,keys:&[ast::KeyPart],p:&ast::ProgramDecl,column:&str)->Option<bool>{
     match e{
         ast::Expr::Literal{value:ast::Literal::Bool(value),..}=>Some(*value),
         ast::Expr::Unary{op,value,..} if op=="not"=>projects(value,old,table,keys,p,column).map(|v|!v),
         ast::Expr::Binary{op,left,right,..} if op=="and"||op=="or"=>{let a=projects(left,old,table,keys,p,column);let b=projects(right,old,table,keys,p,column);let decisive=op=="or";if a==Some(decisive)||b==Some(decisive){Some(decisive)}else if a.is_some()&&b.is_some(){Some(!decisive)}else{None}},
-        ast::Expr::Binary{op,left,right,..} if op=="="||op=="!="=>{if let (ast::Expr::Literal{value:ast::Literal::Str(a),..},ast::Expr::Literal{value:ast::Literal::Str(b),..})=(left.as_ref(),right.as_ref()){return Some((a==b)==(op=="="));}if let (Some(a),Some(b))=(projects(left,old,table,keys,p,column),projects(right,old,table,keys,p,column)){return Some((a==b)==(op=="="));}[(left.as_ref(),right.as_ref()),(right.as_ref(),left.as_ref())].into_iter().find_map(|(field,value)|if let ast::Expr::Member{base,name,..}=field&&name==column&&same_resource(base,table,keys,p)&&let ast::Expr::Literal{value:ast::Literal::Str(value),..}=value{Some((old==Some(value.as_str()))==(op=="="))}else{None})},_=>None,
+        ast::Expr::Binary{op,left,right,..} if op=="="||op=="!="=>{if let (ast::Expr::Literal{value:ast::Literal::Str(a),..},ast::Expr::Literal{value:ast::Literal::Str(b),..})=(left.as_ref(),right.as_ref()){return Some((a==b)==(op=="="));}if let (Some(a),Some(b))=(projects(left,old,table,keys,p,column),projects(right,old,table,keys,p,column)){return Some((a==b)==(op=="="));}[(left.as_ref(),right.as_ref()),(right.as_ref(),left.as_ref())].into_iter().find_map(|(field,value)|if let ast::Expr::Member{base,name,..}=field&&name==column&&same_resource(base,table,keys,p)&&let ast::Expr::Literal{value:ast::Literal::Str(value),..}=value{Some((old==Prior::Literal(value.as_str()))==(op=="="))}else if let ast::Expr::Member{base,name,..}=field&&name==column&&same_resource(base,table,keys,p)&&matches!(value,ast::Expr::Literal{value:ast::Literal::Null,..}){Some((old==Prior::Null)==(op=="="))}else{None})},_=>None,
     }
 }
 // Project selected-field atoms before asking whether independent conditions
 // may admit an old value. Residual selected-field predicates stay opaque.
-fn feasible(condition:&ast::Expr,old:Option<&str>,table:&str,keys:&[ast::KeyPart],p:&ast::ProgramDecl,column:&str)->bool{
+fn feasible(condition:&ast::Expr,old:Prior<'_>,table:&str,keys:&[ast::KeyPart],p:&ast::ProgramDecl,column:&str)->bool{
     if let Some(value)=projects(condition,old,table,keys,p,column){return value;}
     let mut expression=condition.clone();super::super::super::intent_walk::expression(&mut expression,&mut |e|if let Some(value)=projects(e,old,table,keys,p,column){*e=ast::Expr::Literal{value:ast::Literal::Bool(value),site:e.site().clone()};});
     expression=super::super::creation_advice::simplify_boolean(&expression);
@@ -24,7 +25,7 @@ fn feasible(condition:&ast::Expr,old:Option<&str>,table:&str,keys:&[ast::KeyPart
 // Source witnesses for a changing consumer. Resolve conditional/local stage
 // destinations; for an enum argument, project that chosen value into guards.
 pub(super) fn changing_consumer(value:&ast::Expr,table:&str,keys:&[ast::KeyPart],p:&ast::ProgramDecl,context:&ast::ProgramDecl,column:&str,bound:&Bound)->bool{
-    fn destinations(e:&ast::Expr,old:Option<&str>,table:&str,keys:&[ast::KeyPart],p:&ast::ProgramDecl,context:&ast::ProgramDecl,column:&str,depth:usize)->Vec<(String,Option<String>)>{
+    fn destinations(e:&ast::Expr,old:Prior<'_>,table:&str,keys:&[ast::KeyPart],p:&ast::ProgramDecl,context:&ast::ProgramDecl,column:&str,depth:usize)->Vec<(String,Option<String>)>{
         if depth>16{return Vec::new();}
         match e{
             ast::Expr::Literal{value:ast::Literal::Str(value),..}=>vec![(value.clone(),None)],
@@ -36,13 +37,28 @@ pub(super) fn changing_consumer(value:&ast::Expr,table:&str,keys:&[ast::KeyPart]
         }
     }
     let mut known=BTreeSet::new();for stmt in &context.body{if let ast::Stmt::Require{condition,..}=stmt{let mut e=condition.clone();super::super::super::intent_walk::expression(&mut e,&mut |e|if let ast::Expr::Literal{value:ast::Literal::Str(value),..}=e{known.insert(value.clone());});}}
-    let olds=match bound.schema.tables[table].columns[column].required(){snapback4_core::schema::ColumnType::Enum{variants}=>variants.iter().map(|value|Some(value.as_str())).collect::<Vec<_>>(),_=>known.iter().map(|value|Some(value.as_str())).chain([None]).collect()};
-    olds.into_iter().any(|old|destinations(value,old,table,keys,p,context,column,0).into_iter().any(|(destination,arg)|old!=Some(destination.as_str())&&context.body.iter().all(|stmt|{
+    let mut olds=match bound.schema.tables[table].columns[column].required(){snapback4_core::schema::ColumnType::Enum{variants}=>variants.iter().map(|value|Prior::Literal(value.as_str())).collect::<Vec<_>>(),_=>known.iter().map(|value|Prior::Literal(value.as_str())).chain([Prior::Other]).collect()};
+    if bound.schema.tables[table].columns[column].is_optional(){olds.push(Prior::Null);}
+    olds.into_iter().any(|old|destinations(value,old,table,keys,p,context,column,0).into_iter().any(|(destination,arg)|old!=Prior::Literal(destination.as_str())&&context.body.iter().all(|stmt|{
         let ast::Stmt::Require{condition,..}=stmt else{return true;};let mut condition=condition.clone();if let Some(arg)=&arg{super::super::super::intent_walk::expression(&mut condition,&mut |e|if matches!(e,ast::Expr::Name{name,..} if name==arg){*e=ast::Expr::Literal{value:ast::Literal::Str(destination.clone()),site:e.site().clone()};});}feasible(&condition,old,table,keys,p,column)
     })))
 }
+// A recording can exclude a terminal state while its consuming transition
+// reads only the receipt. This cross-operation workflow read is structural;
+// positive data equality and empty-string evidence checks do not qualify.
+fn exclusions(e:&ast::Expr,negative:bool,table:&str,keys:&[ast::KeyPart],p:&ast::ProgramDecl,column:&str)->BTreeSet<String>{
+    match e{
+        ast::Expr::Unary{op,value,..} if op=="not"=>exclusions(value,!negative,table,keys,p,column),
+        ast::Expr::Binary{op,left,right,..} if op==if negative{"or"}else{"and"}=>exclusions(left,negative,table,keys,p,column).into_iter().chain(exclusions(right,negative,table,keys,p,column)).collect(),
+        ast::Expr::Binary{op,left,right,..} if matches!(op.as_str(),"="|"!=")=>{
+            for (value,literal) in [(left.as_ref(),right.as_ref()),(right.as_ref(),left.as_ref())]{if let ast::Expr::Literal{value:ast::Literal::Bool(flag),..}=literal{return exclusions(value,negative^((op=="=")!=*flag),table,keys,p,column);}}
+            if (op=="!=")!=negative{for (field,value) in [(left.as_ref(),right.as_ref()),(right.as_ref(),left.as_ref())]{if let ast::Expr::Member{base,name,..}=field&&name==column&&same_resource(base,table,keys,p)&&let ast::Expr::Literal{value:ast::Literal::Str(value),..}=value&&!value.is_empty(){return BTreeSet::from([value.clone()]);}}}BTreeSet::new()
+        },_=>BTreeSet::new(),
+    }
+}
 pub(super) fn collect(catalog:&Catalog,bound:&Bound)->BTreeSet<(String,String)>{
     let mut observations=BTreeMap::<(String,String),BTreeSet<String>>::new();
+    let recordings=catalog.documents.iter().flat_map(|d|&d.programs).filter(|p|p.kind==ast::ProgramKind::Mutation).flat_map(|p|authority_walk::writes(catalog,p).into_iter().map(move |(write,context)|(p,write,context))).collect::<Vec<_>>();
     for p in catalog.documents.iter().flat_map(|d|&d.programs).filter(|p|p.kind==ast::ProgramKind::Mutation){
         for (write,context) in authority_walk::writes(catalog,p){
             let ast::Expr::Write{op:ast::WriteOp::Update|ast::WriteOp::Upsert,table,keys,fields,..}=write else{continue;};
@@ -55,12 +71,20 @@ pub(super) fn collect(catalog:&Catalog,bound:&Bound)->BTreeSet<(String,String)>{
                         if let ast::Expr::Binary{op,left,right,..}=e&&matches!(op.as_str(),"="|"!=")&&[(left.as_ref(),right.as_ref()),(right.as_ref(),left.as_ref())].iter().any(|(a,b)|matches!(a,ast::Expr::Member{base,name,..} if name==&field.name&&same_resource(base,&table,&keys,p))&&matches!(b,ast::Expr::Literal{value:ast::Literal::Str(value),..} if !value.is_empty())){guarded=true;for value in [left.as_ref(),right.as_ref()]{if let ast::Expr::Literal{value:ast::Literal::Str(value),..}=value{states.insert(value.clone());}}}
                     });
                 }}
+                if !guarded&&let Some(ast::Expr::Literal{value:ast::Literal::Str(destination),..})=&field.value{
+                    let mut stamps=BTreeSet::new();for stmt in &context.body{if let ast::Stmt::Require{condition,..}=stmt{for mut receipt in workflow::approval_receipts(condition){super::super::super::intent_walk::expression(&mut receipt,&mut |e|if let ast::Expr::Member{base,name,..}=e&&same_resource(base,&table,&keys,p)&&definition.columns.get(name).is_some_and(|kind|stamps::evidence(name,kind)){stamps.insert(name.clone());});}}}
+                    for (recording,write,scope) in &recordings{let ast::Expr::Write{table:owner,keys:selected,fields,..}=write else{continue;};if owner!=&table||!fields.iter().any(|field|stamps.contains(&field.name)&&definition.columns.get(&field.name).is_some_and(|kind|fresh_recording(kind,field.value.as_ref())||(matches!(kind.required(),snapback4_core::schema::ColumnType::Principal)&&matches!(&field.value,Some(ast::Expr::Name{name,..}) if name=="viewer")))){continue;}
+                        for stmt in &scope.body{if let ast::Stmt::Require{condition,..}=stmt{states.extend(exclusions(condition,false,&table,selected,recording,&field.name).into_iter().filter(|value|value!=destination));}}
+                    }
+                    guarded=!states.is_empty();
+                }
                 // Only a witnessed literal destination establishes a transition. An
                 // opaque condition involving this field is not evidence of a
                 // possible change; role/other-field conditions stay independent.
                 if guarded&&let Some(ast::Expr::Literal{value:ast::Literal::Str(value),..})=&field.value&&!value.is_empty(){
-                    let possible=match definition.columns[&field.name].required(){snapback4_core::schema::ColumnType::Enum{variants}=>variants.iter().map(|value|Some(value.as_str())).collect::<Vec<_>>(),_=>states.iter().map(|value|Some(value.as_str())).chain([None]).collect()};
-                    let changes=possible.into_iter().any(|old|old!=Some(value.as_str())&&context.body.iter().all(|stmt|match stmt{ast::Stmt::Require{condition,..}=>feasible(condition,old,&table,&keys,p,&field.name),_=>true}));
+                    let mut possible=match definition.columns[&field.name].required(){snapback4_core::schema::ColumnType::Enum{variants}=>variants.iter().map(|value|Prior::Literal(value.as_str())).collect::<Vec<_>>(),_=>states.iter().map(|value|Prior::Literal(value.as_str())).chain([Prior::Other]).collect()};
+                    if definition.columns[&field.name].is_optional(){possible.push(Prior::Null);}
+                    let changes=possible.into_iter().any(|old|old!=Prior::Literal(value.as_str())&&context.body.iter().all(|stmt|match stmt{ast::Stmt::Require{condition,..}=>feasible(condition,old,&table,&keys,p,&field.name),_=>true}));
                     if !changes{continue;}states.insert(value.clone());
                 }else{continue;}
                 if guarded{observations.entry((table.clone(),field.name.clone())).or_default().extend(states);}

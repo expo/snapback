@@ -230,12 +230,7 @@ pub(super) fn invariants(docs:&[ast::Document],catalog:&Catalog,bound:&Bound,out
                 }
             }
             for condition in guards(context).filter(|c|contains_approval(c)) {
-                let Some(mut contract)=scoped_contract(condition,context,&bound.schema,root,&args)else{continue;};
-                // The recorded destination is a post-state effect; comparisons
-                // on its overwritten workflow field admitted the old state.
-                // Existentially relax these atoms, preserving whole Boolean
-                // alternatives rather than exporting a false prior-stage freeze.
-                if table==root&&*op==WriteOp::Update{omit_conditions(&mut contract,false,&|field|matches!(field,Expr::Member{base,name,..} if matches!(base.as_ref(),Expr::Focal{..})&&stages.contains(&(table.clone(),name.clone()))&&fields.iter().any(|field|field.name==*name&&matches!(&field.value,Some(Expr::Literal{..})))),false);contract=super::super::creation_advice::simplify_boolean(&contract);}
+                let Some(contract)=scoped_contract(condition,context,&bound.schema,root,&args)else{continue;};
                 // Global/caller approval contracts are emitted once above.
                 if !resource_local(&contract)||!typed_approval(&contract,&bound.schema,root){continue;}
                 if matches!(op,WriteOp::Insert|WriteOp::Upsert)&&root==table{
@@ -275,11 +270,14 @@ pub(super) fn invariants(docs:&[ast::Document],catalog:&Catalog,bound:&Bound,out
                 }
 
                 for selected in &destinations{
+                let mut selected_contract=contract.clone();
+                if table==root&&let Some(column)=selected&&stages.contains(&(table.clone(),column.name.clone())){omit_conditions(&mut selected_contract,false,&|field|matches!(field,Expr::Member{base,name,..} if name==&column.name&&matches!(base.as_ref(),Expr::Focal{..})),false);selected_contract=super::super::creation_advice::simplify_boolean(&selected_contract);}
+                if !typed_approval(&selected_contract,&bound.schema,root){continue;}
                 for (candidate,_) in bound.schema.visible_tables(){
                     let descendants=paths(&bound.schema,candidate,table);if descendants.len()!=1{continue;}
                     if *op==WriteOp::Update&&candidate!=table{continue;}
                     let mut root_path=base.clone();let outer=&descendants[0];root_path=lift(&root_path,outer);
-                    let mut policy=lift(&contract,&root_path);
+                    let mut policy=lift(&selected_contract,&root_path);
                     if *op==WriteOp::Update{
                         let Some(column)=selected else{continue;};
                         policy=Expr::Binary{op:"or".into(),left:Box::new(Expr::Binary{op:"!=".into(),left:Box::new(member(focal(),&column.name)),right:Box::new(column.value.clone().unwrap()),site:site.clone()}),right:Box::new(policy),site:site.clone()};

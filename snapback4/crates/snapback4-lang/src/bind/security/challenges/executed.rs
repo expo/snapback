@@ -8,7 +8,8 @@ const PROVISION_RESULT:&str="$security.provision-result/";
 type ApprovedInputs=BTreeMap<(String,String),BTreeSet<String>>;
 fn approved_inputs(bound:&Bound)->ApprovedInputs{
     let mut inputs=bound.security_approval_inputs.clone();
-    for (table,t) in bound.schema.visible_tables(){for (column,kind) in &t.columns{if super::super::derived::named_approval(column,kind){inputs.entry((table.clone(),column.clone())).or_default();}}}inputs
+    for (table,t) in bound.schema.visible_tables(){for (column,kind) in &t.columns{if super::super::derived::named_approval(column,kind){inputs.entry((table.clone(),column.clone())).or_default();}}}
+    for key in super::super::derived::principal_receipt_columns(bound){inputs.entry(key).or_default();}inputs
 }
 fn cell(row:&Value,column:&str)->Value{row.field(column).cloned().unwrap_or(Value::Null)}
 fn put(row:&mut Value,column:&str,value:Value){match row{Value::Row(fields)=>{fields.insert(column.into(),value);},Value::Map(fields)=>{fields.insert(column.into(),value);},_=>{}}}
@@ -22,7 +23,7 @@ fn prerequisite_image(old:&Value,next:&Value,schema:&Schema,table:&str,inputs:&A
 type ReceiptKey=(String,String,String);
 #[derive(Clone)]struct Receipt{trusted:bool,stamp:Value,inputs:BTreeMap<String,Value>}
 type Receipts=BTreeMap<ReceiptKey,Receipt>;
-fn positive(value:&Value)->bool{matches!(value,Value::Bool(true)|Value::Int(_))}
+fn positive(value:&Value)->bool{matches!(value,Value::Bool(true)|Value::Int(_)|Value::Id(_))}
 fn receipt(table:&str,row:&Value,stamp:&str,columns:&BTreeSet<String>)->Option<(ReceiptKey,Receipt)>{
     let Value::Id(id)=row.field("id").ok()? else{return None;};let value=cell(row,stamp);if !positive(&value){return None;}
     Some(((table.into(),id.clone(),stamp.into()),Receipt{trusted:true,stamp:value,inputs:columns.iter().map(|column|(column.clone(),cell(row,column))).collect()}))
@@ -91,14 +92,16 @@ pub(super) fn trace(bound:&Bound,p:&Program,entry:&Engine)->Trace {
 
     if entry.is_some(){for ((owner,stamp),columns) in inputs.iter(){
         for trusted in [true,false]{
+            let principal=matches!(bound.schema.tables[owner].columns[stamp].required(),C::Principal);
+            if principal&&!trusted{continue;}
             let key=(p.name.clone(),owner.clone(),stamp.clone());
             let sites:Vec<String>=if trusted{bound.security_approval_reissues.get(&key)}else{bound.security_approval_uncertain_writes.get(&key)}.map(|sites|sites.iter().cloned().collect()).unwrap_or_default();
             if !trusted&&sites.is_empty(){continue;}
             let owner=owner.clone();let stamp=stamp.clone();let columns=columns.clone();let receipts=receipts.clone();let target=owner.clone();let column=stamp.clone();let bound=bound.clone();let program=p.name.clone();let entry=entry.clone();
-            intents.push(Intent{source:snapback4_core::engine::fixture_trace::SourceFilter{inserts_at:if trusted{None}else{Some(sites.clone())},unchanged_at:sites.clone(),updates_at:Some(sites),..Default::default()},paired:false,concrete:None,site:"$security.approval-receipt".into(),table:target,effects:vec![Effect::Insert,Effect::Update],column:Some(column),policy:RuleExpr::Allow,
+            intents.push(Intent{source:snapback4_core::engine::fixture_trace::SourceFilter{inserts_at:if trusted{None}else{Some(sites.clone())},unchanged_at:sites.clone(),updates_at:if principal{None}else{Some(sites)},..Default::default()},paired:false,concrete:None,site:"$security.approval-receipt".into(),table:target,effects:vec![Effect::Insert,Effect::Update],column:Some(column),policy:RuleExpr::Allow,
                 boundary:Some(snapback4_core::engine::fixture_trace::BoundaryPredicate(std::sync::Arc::new(move |rows,old,next,viewer,now,args,site|{if let Some(next)=next&&let Some((key,mut value))=receipt(&owner,next,&stamp,&columns){
                     let baseline=entry.as_ref().and_then(|entry|entry.get(&owner)).into_iter().flatten().find(|row|row.field("id").ok()==next.field("id").ok()).or(old);
-                    let checked=if trusted{baseline.map(|old|super::super::derived::revalidated(&bound,&program,&owner,&stamp,site,old,next,&columns,rows,viewer,now,args)).unwrap_or(Some(true))}else{None};
+                    let checked=if principal{Some(true)}else if trusted{baseline.map(|old|super::super::derived::revalidated(&bound,&program,&owner,&stamp,site,old,next,&columns,rows,viewer,now,args)).unwrap_or(Some(true))}else{None};
                     if checked!=Some(false){value.trusted=trusted&&checked==Some(true);receipts.lock().expect("approval receipt lock").insert(key,value);}
                 }Some(true)})))});
         }
@@ -174,10 +177,8 @@ pub(super) fn trace(bound:&Bound,p:&Program,entry:&Engine)->Trace {
     }
     // Record actual phase changes for inferred atomic lifecycle coupling.
     // These private always-true observations confer no admission authority.
-    if bound.invariants.iter().any(|i|i.site.file.contains("/parent-state/")||i.site.file.contains("/child-stage/")){
-        for (table,t) in bound.schema.visible_tables(){for (column,kind) in &t.columns{if matches!(column.as_str(),"status"|"stage"|"state"|"phase")&&matches!(kind.required(),C::Enum{..}){
-            intents.push(Intent{source:Default::default(),paired:false,boundary:None,concrete:None,site:format!("$security.lifecycle-change/{table}/{column}"),table:table.clone(),column:Some(column.clone()),policy:RuleExpr::Allow,effects:vec![Effect::Update]});
-        }}}
+    for (table,column) in super::super::derived::lifecycle_columns(bound){
+        intents.push(Intent{source:Default::default(),paired:false,boundary:None,concrete:None,site:format!("$security.lifecycle-change/{table}/{column}"),table,column:Some(column),policy:RuleExpr::Allow,effects:vec![Effect::Update]});
     }
     // A private executed-write witness exempts only the operator provisioner's
     // own roster result. It never exempts an ordinary query or a different row.
@@ -440,7 +441,8 @@ fn lifecycle_source(complete:&str,advance:&str)->String{
 fn lifecycle_observations(source:String,operation:&str,args:BTreeMap<String,Value>,a:&str,b:&str)->Vec<(String,Option<bool>)>{
     let sources=vec![("schema.q".into(),source)];let bound=super::super::super::derived::augmented(&sources,&crate::compile(&sources));assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);
     let mut engine=Engine::memory(bound.schema.clone(),bound.programs.iter().map(|p|p.program.clone())).unwrap();
-    for (table,json) in [("roles",serde_json::json!({"id":"role","principal":"dev:crew","role":"crew"})),("jobs",serde_json::json!({"id":"a","status":a})),("jobs",serde_json::json!({"id":"b","status":b})),("tasks",serde_json::json!({"id":"t1","job":"a"})),("tasks",serde_json::json!({"id":"t2","job":"a"})),("tasks",serde_json::json!({"id":"u","job":"b"}))]{let row=snapback4_core::wire::row_from_json(&bound.schema.tables[table],&json).unwrap();engine.seed_at([(table.into(),row)],NOW).unwrap();}
+    let parent_state=bound.schema.tables["jobs"].columns.iter().find(|(_,kind)|matches!(kind.required(),C::Enum{..})).unwrap().0;
+    for (table,mut json) in [("roles",serde_json::json!({"id":"role","principal":"dev:crew","role":"crew"})),("jobs",serde_json::json!({"id":"a","status":a})),("jobs",serde_json::json!({"id":"b","status":b})),("tasks",serde_json::json!({"id":"t1","job":"a"})),("tasks",serde_json::json!({"id":"t2","job":"a"})),("tasks",serde_json::json!({"id":"u","job":"b"}))]{if table=="jobs"&&parent_state!="status"{let fields=json.as_object_mut().unwrap();let value=fields.remove("status").unwrap();fields.insert(parent_state.clone(),value);}let row=snapback4_core::wire::row_from_json(&bound.schema.tables[table],&json).unwrap();engine.seed_at([(table.into(),row)],NOW).unwrap();}
     let p=&bound.programs.iter().find(|p|p.program.name==operation).unwrap().program;let trace=trace(&bound,p,&engine);
     let result=engine.mutate(operation,None,Context::new("dev:crew",args).at(NOW).with_fixture_trace(trace.clone())).unwrap();assert!(matches!(result.state,snapback4_core::WriteState::Sent{..}),"{result:?}");
     let after=readback(&engine).unwrap();let observations=trace.take();
@@ -461,18 +463,19 @@ fn lifecycle_observations(source:String,operation:&str,args:BTreeMap<String,Valu
     }
 }
 #[test]fn parent_window_coupling_requires_the_exact_changed_parent(){
-    for (body,touch,parent,astate,bstate,expected) in [
+    for column in ["status","workflow"]{for (body,touch,parent,astate,bstate,expected) in [
         ("  if touch:\n    update jobs[otherJob] {data:1}\n  update tasks[task] {stage:'done'}",false,"b","estimate","active",false),
         ("  if touch:\n    update jobs[otherJob] {status:'finished'}\n  update tasks[task] {stage:'done'}",true,"b","estimate","active",false),
         ("  update jobs[otherJob] {status:'finished'}\n  update tasks[task] {stage:'done'}",true,"a","finished","active",false),
         ("  update jobs[otherJob] {status:'finished'}\n  update tasks[task] {stage:'done'}",true,"a","active","active",true),
         ("  other = jobs[otherJob] ! else MISSING\n  require other.status = 'active' else BAD_STAGE\n  update tasks[task] {stage:'done'}",false,"b","estimate","active",false),
     ]{
-        let source=lifecycle_source("  update jobs[job] {status:'finished'}",body);
+        let source=lifecycle_source("  update jobs[job] {status:'finished'}",body).replace("status",column);
         let args=BTreeMap::from([("task".into(),Value::Id("t1".into())),("otherJob".into(),Value::Id(parent.into())),("touch".into(),Value::Bool(touch))]);
         let observations=lifecycle_observations(source,"advance",args,astate,bstate);
         assert!(observations.iter().any(|(site,allowed)|site.contains("parent-state")&&*allowed==Some(expected)),"{body}: {observations:?}");
     }
+}
 }
 
 #[test]fn an_old_parent_schema_gate_cannot_authorize_retargeted_work(){

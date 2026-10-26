@@ -73,6 +73,26 @@ fn plain_field(expression:&ast::Expr)->bool {
     matches!(expression,ast::Expr::Name{..})||matches!(expression,ast::Expr::Member{base,..} if plain_row(base))
 }
 
+// Preserve the owning table of typed member and key references, including
+// population-local focal expressions.
+fn referenced_columns(e:&ast::Expr,table:&str,bound:&Bound,out:&mut BTreeSet<(String,String)>){
+        match e{
+            ast::Expr::Member{base,name,..}=>{if let Some(owner)=super::concrete::reference_table(base,&bound.schema,table)&&bound.schema.tables[owner].columns.contains_key(name){out.insert((owner.into(),name.clone()));}referenced_columns(base,table,bound,out);},
+            ast::Expr::Read(read)|ast::Expr::Exists{read,..}=>{for key in &read.keys{if let Some(column)=&key.column&&bound.schema.tables[&read.table].columns.contains_key(column){out.insert((read.table.clone(),column.clone()));}referenced_columns(&key.value,table,bound,out);}if let Some(filter)=&read.filter{referenced_columns(filter,&read.table,bound,out);}},
+            ast::Expr::Binary{left,right,..}=>{referenced_columns(left,table,bound,out);referenced_columns(right,table,bound,out);},
+            ast::Expr::Unary{value,..}|ast::Expr::Assert{value,..}=>referenced_columns(value,table,bound,out),
+            ast::Expr::Call{name,args,..} if name=="sum"&&args.len()==2=>{referenced_columns(&args[0],table,bound,out);if let ast::Expr::Read(read)=&args[0]{referenced_columns(&args[1],&read.table,bound,out);}},
+            ast::Expr::Call{args,..}|ast::Expr::Array{items:args,..}=>for arg in args{referenced_columns(arg,table,bound,out)},
+            ast::Expr::If{condition,then,otherwise,..}=>{referenced_columns(condition,table,bound,out);referenced_columns(then,table,bound,out);referenced_columns(otherwise,table,bound,out);},_=>{},
+        }
+    }
+// Principal markers are identity capabilities, not payload approval.
+pub(crate) fn principal_receipt_columns(bound:&Bound)->BTreeSet<(String,String)>{
+    let mut out=BTreeSet::new();for inv in &bound.invariants{if let Some(syntax)=&inv.syntax{for receipt in workflow::approval_receipts(syntax){referenced_columns(&receipt,&inv.table,bound,&mut out);}}}out.retain(|(table,column)|{let kind=&bound.schema.tables[table].columns[column];matches!(kind.required(),snapback4_core::schema::ColumnType::Principal)&&stamps::evidence(column,kind)});out
+}
+pub(crate) fn lifecycle_columns(bound:&Bound)->BTreeSet<(String,String)>{
+    let mut out=BTreeSet::new();for inv in bound.invariants.iter().filter(|i|i.site.file.contains("/parent-state/")||i.site.file.contains("/child-stage/")){if let Some(column)=&inv.column{out.insert((inv.table.clone(),column.clone()));}if let Some(syntax)=&inv.syntax{referenced_columns(syntax,&inv.table,bound,&mut out);}}out.retain(|(table,column)|matches!(bound.schema.tables[table].columns[column].required(),snapback4_core::schema::ColumnType::Enum{..}|snapback4_core::schema::ColumnType::Text{..}));out
+}
 fn omit_preconditions(expression:&mut ast::Expr,negated:bool,stage:&impl Fn(&ast::Expr)->bool){omit_conditions(expression,negated,stage,true)}
 fn omit_conditions(expression:&mut ast::Expr,negated:bool,stage:&impl Fn(&ast::Expr)->bool,remove_absence:bool){
     match expression {
@@ -264,5 +284,11 @@ pub fn augmented(sources:&[(String,String)],bound:&Bound)->Bound{
     let source="table docs:\n  status: enum('draft','ready')\n  read <- allow\n  online only\nmutation approve(doc: docs,replacement: int):\n  d = docs[doc] ! else MISSING\n  require not (d.status = 'draft' or replacement <= 0) else INVALID\n";
     let (doc,diagnostics)=crate::parse_document("schema.q",source);assert!(diagnostics.is_empty(),"{diagnostics:?}");let mut predicate=doc.programs[0].body.iter().find_map(|stmt|if let ast::Stmt::Require{condition,..}=stmt{Some(condition.clone())}else{None}).unwrap();omit_preconditions(&mut predicate,false,&|e|matches!(e,ast::Expr::Member{name,..} if name=="status"));
     let rendered=crate::print::expression(&super::creation_advice::simplify_boolean(&predicate));assert!(rendered.contains("replacement")&&!rendered.contains("status"),"{rendered}");assert_ne!(rendered,"false");
+}
+}
+
+#[cfg(test)]mod principal_receipt_tests{use super::*;
+#[test]fn principal_receipt_populations_keep_their_own_table_type(){
+ let source="table docs:\n  approvedBy: principal ?\n  read <- allow\n  online only\ntable approvals:\n  doc: docs\n  approvedBy: principal ?\n  read <- allow\n  online only\ninvariant docs always exists approvals[doc = .id] where .approvedBy = viewer\n";for source in [source.to_owned(),source.replace("approvals[doc = .id] where .approvedBy = viewer","approvals[doc = .id, approvedBy = viewer]")]{let b=crate::compile(&[("schema.q".into(),source)]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);assert_eq!(principal_receipt_columns(&b),BTreeSet::from([("approvals".into(),"approvedBy".into())]));}
 }
 }
