@@ -18,9 +18,20 @@ impl<'a> Tail<'a> {
         let expected = self.column(expected, "int8");
         self.sql.push_str(&format!(",pg_temp.sb4_assert_counts(ARRAY[{}],{expected})", self.counts.join(",")));
     }
-    fn column<T: ToSql + Sync + 'a>(&mut self, values: T, ty: &str) -> String {
-        self.params.push(Box::new(values));
-        format!("${}::pg_catalog.{ty}[]", self.params.len())
+    fn column<T: ArrayElement>(&mut self, values: Vec<T>, ty: &str) -> String {
+        // One input value per typed column avoids a SQL expression tree for
+        // every text element in RT5's literal ARRAY transport. PostgreSQL's
+        // array input parser runs once; no JSON envelope is reconstructed.
+        let mut input = String::from("{");
+        for (i, value) in values.iter().enumerate() {
+            if i != 0 {
+                input.push(',');
+            }
+            value.append(&mut input);
+        }
+        input.push('}');
+        self.params.push(Box::new(input));
+        format!("${}::pg_catalog.text::pg_catalog.{ty}[]", self.params.len())
     }
     pub fn new(
         p: &'a Payload<'a>,
@@ -168,5 +179,107 @@ impl<'a> Tail<'a> {
         }
         out.counts = counts;
         Ok(out)
+    }
+}
+
+// Array input distinguishes NULL from a quoted string, and escapes only the
+// two array grammar characters inside quoted elements. Raw Unicode and control
+// characters remain bytes in the outer, existing RT5 UTF8 text encoder.
+trait ArrayElement {
+    fn append(&self, out: &mut String);
+}
+impl ArrayElement for str {
+    fn append(&self, out: &mut String) {
+        out.push('"');
+        for c in self.chars() {
+            if matches!(c, '"' | '\\') {
+                out.push('\\');
+            }
+            out.push(c);
+        }
+        out.push('"');
+    }
+}
+impl ArrayElement for String {
+    fn append(&self, out: &mut String) {
+        <str as ArrayElement>::append(self.as_str(),out);
+    }
+}
+impl<T: ArrayElement + ?Sized> ArrayElement for &T {
+    fn append(&self, out: &mut String) {
+        <T as ArrayElement>::append(*self,out);
+    }
+}
+impl<T: ArrayElement> ArrayElement for Option<T> {
+    fn append(&self, out: &mut String) {
+        if let Some(value) = self {
+            <T as ArrayElement>::append(value,out);
+        } else {
+            out.push_str("NULL");
+        }
+    }
+}
+impl ArrayElement for i64 {
+    fn append(&self, out: &mut String) {
+        use std::fmt::Write;
+        write!(out, "{self}").unwrap();
+    }
+}
+impl ArrayElement for bool {
+    fn append(&self, out: &mut String) {
+        out.push_str(if *self { "true" } else { "false" });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    #[ignore = "private Postgres"]
+    fn stage_p_compact_array_input_matches_binary_array_bytes() {
+        let mut c = postgres::Client::connect(
+            &std::env::var("SNAPBACK4_EVAL_POSTGRES").unwrap(),
+            postgres::NoTls,
+        )
+        .unwrap();
+        let values = vec![
+            Some(""),
+            None,
+            Some("NULL"),
+            Some("null"),
+            Some("{x,y}"),
+            Some("quote\"slash\\single'"),
+            Some("a\nb\rc\td"),
+            Some("Καλημέρα ☃ 東京"),
+            Some("$1; DROP TABLE r; --"),
+        ];
+        let mut tail = Tail {
+            sql: String::new(),
+            params: Vec::new(),
+        };
+        let expr = tail.column(values.clone(), "text");
+        let params = tail.params.iter().map(|v| v.as_ref()).collect::<Vec<_>>();
+        let actual = c
+            .query_one(&format!("SELECT {expr}"), &params)
+            .unwrap()
+            .get::<_, Vec<Option<String>>>(0);
+        let expected = c
+            .query_one("SELECT $1::pg_catalog.text[]", &[&values])
+            .unwrap()
+            .get::<_, Vec<Option<String>>>(0);
+        assert_eq!(actual, expected);
+        let numbers = vec![Some(i64::MIN), None, Some(0), Some(i64::MAX)];
+        let mut tail = Tail {
+            sql: String::new(),
+            params: Vec::new(),
+        };
+        let expr = tail.column(numbers.clone(), "int8");
+        let params = tail.params.iter().map(|v| v.as_ref()).collect::<Vec<_>>();
+        assert_eq!(
+            c.query_one(&format!("SELECT {expr}"), &params)
+                .unwrap()
+                .get::<_, Vec<Option<i64>>>(0),
+            numbers
+        );
     }
 }

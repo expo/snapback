@@ -95,7 +95,11 @@ fn stage_p_tampered_function_attributes_refuse_open_and_lease() {
             "owner"=>c.batch_execute(&format!("CREATE ROLE {role}; ALTER FUNCTION {signature} OWNER TO {role}")).unwrap(),
             "security"=>c.batch_execute(&format!("ALTER FUNCTION {signature} SECURITY DEFINER")).unwrap(),
             "volatility"=>c.batch_execute(&format!("ALTER FUNCTION {signature} STABLE")).unwrap(),
-            "signature"=>c.batch_execute(&format!("DROP FUNCTION {signature}")).unwrap(),
+            "signature"=>{
+                c.batch_execute(&format!("DROP FUNCTION {signature}")).unwrap();
+                let name=signature.split('(').next().unwrap();
+                c.batch_execute(&format!("CREATE FUNCTION {name}(pg_catalog.text) RETURNS pg_catalog.void LANGUAGE plpgsql VOLATILE SECURITY INVOKER SET search_path=pg_catalog AS 'BEGIN RETURN; END'")).unwrap();
+            },
             _=>c.batch_execute(&format!("CREATE OR REPLACE FUNCTION {signature} RETURNS void LANGUAGE {} VOLATILE SECURITY INVOKER SET search_path=pg_catalog AS '{}'",if tamper=="language" {"sql"} else {"plpgsql"},if tamper=="language" {"SELECT NULL::void"} else {"BEGIN RETURN; END"})).unwrap(),
         }
             assert!(reopen(&schema).is_err(), "{kind}/{tamper}");

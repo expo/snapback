@@ -108908,3 +108908,31 @@ snapshots. The HTTP negative control fails twice on the baseline and passes
 upgrade and missing-guard/fence checks on the new binary with zero data change.
 Full binary, G7/E/lever/RT0 and complete Postgres-script results, final loopback
 numbers, and final PID cleanup will be appended on completion. No push occurs.
+
+## 2026-10-26 — Stage P refinement: price parameter work and reconnect control
+
+The E disconnect oracle found a real Stage P admission error: catalog validation
+on a replacement connection waited on the broken D epoch that recovery must
+rebuild. Catalog-only validation now runs before that gate is reattached;
+application reads retain quarantine. The final serial PG16 G7/E run passes
+83/0, the two PG17 certificate witnesses pass, and the wrong-signature tamper
+witness now installs an incompatible overload rather than only dropping a function.
+
+The fixed-N=11 tail control exposes EXECUTE argument construction that root
+executor clocks omit. Per-element arrays, all empty CTEs and pruning retained,
+cut root execution substantially but barely reduce backend CPU. Omitting empty
+families and encoding one compact array input per typed column reduces completed
+statement mean from 0.534 to 0.294 ms and backend CPU median from 0.585 to
+0.340 ms. All 40000 exact-count checks pass. The final compact-array oracle
+also agrees with binary arrays for nulls, escaping, Unicode, controls and integer
+endpoints. The six focused witnesses, all 83 PG16 G7/E cases, three core RT0
+cases and eight HTTP PG RT0 cases pass. Flight budgets remain unchanged.
+
+On the native million-message fixture, the zero-error 32-client loopback pair
+reduces PG CPU per committed write from 182/203/186 to 129/129/137 us
+(W4 / 1%-hot mix / same key). W4 mean residence improves 25.51→19.66 ms;
+the W5 means regress 21.26→22.44 and 22.29→23.36 ms, with higher sampled
+COMMIT and ticket waits. The report keeps those regressions and the host-load
+samples; no one-host S1 or capacity-rung claim follows. The full binary passes
+626/0/75 after building its required ordinary debug launcher. The complete
+Postgres script and final census are still running at this checkpoint.

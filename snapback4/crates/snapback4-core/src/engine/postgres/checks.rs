@@ -131,6 +131,20 @@ pub(super) fn initialize(tx: &Tx<'_>) -> Result<(), RuntimeError> {
 }
 
 pub(super) fn load(store: &mut super::store::Store) -> Result<(), RuntimeError> {
+    // Reconnect admission reads only catalog/upgrade identity. It must not
+    // wait on the broken D epoch that the fenced writer is about to rebuild.
+    // Ordinary application reads retain their snapshot quarantine afterward.
+    let gate = store.early_release.take();
+    let result = load_catalog(store);
+    if result.is_err()
+        && let Some(gate) = &gate
+    {
+        gate.break_history();
+    }
+    store.early_release = gate;
+    result
+}
+fn load_catalog(store: &mut super::store::Store) -> Result<(), RuntimeError> {
     let tx = store.begin(None, true)?;
     if tx.meta("flight_checks_v1")?.as_deref() != Some("1") {
         tx.rollback()?;
