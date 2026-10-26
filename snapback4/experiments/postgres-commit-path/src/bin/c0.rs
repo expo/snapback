@@ -241,6 +241,54 @@ fn input_array(v: &[String]) -> String {
         .join(",");
     format!("{}::pg_catalog.text[]", sql::literal(&format!("{{{j}}}")))
 }
+// Diagnostic baseline only: preserve the current product's JSON tail and
+// separate COMMIT. It never replaces a Stage P arm in the capacity search.
+fn legacy_tail(
+    templates: &[Json],
+    images: &[Json],
+    ids: &[usize],
+    values: &[i64],
+    lo: i64,
+    k: u64,
+) -> (String, Vec<String>) {
+    let source =
+        include_str!("../../../../crates/snapback4-core/src/engine/postgres/group_tail.rs");
+    let (prefix, rest) = source
+        .split_once("concat!(r#\"")
+        .unwrap()
+        .1
+        .split_once("\"#, $update, $head, r#\"")
+        .unwrap();
+    let body = rest.split_once("\"#, $publication)").unwrap().0;
+    let tail = format!(
+        "{prefix}UPDATE _head SET seq=$3,revision=$4,attempt=$5 WHERE singleton AND seq OPERATOR(pg_catalog.=) $2 AND revision OPERATOR(pg_catalog.=) $6 AND attempt OPERATOR(pg_catalog.=) $7 RETURNING seq,revision{body}, (SELECT revision FROM head),(SELECT seq FROM head),(SELECT generation FROM _backend WHERE singleton),(SELECT value FROM _meta WHERE key='store_id'),(SELECT value FROM _meta WHERE key='schema_hash'),(SELECT value FROM _meta WHERE key='activation_hash')"
+    );
+    let commits = ids
+        .iter()
+        .enumerate()
+        .map(|(i, u)| {
+            let mut x = templates[*u].clone();
+            x["seq"] = json!(lo + i as i64 + 1);
+            x["at"] = json!(1700000000000i64 + lo + i as i64 + 1);
+            x
+        })
+        .collect::<Vec<_>>();
+    let imgs=ids.iter().zip(values).map(|(u,v)| { let mut x=images[*u].clone();x["Row"]["n"]["Int"]=json!(v);json!({"t":"counters","id":format!("c{u:04}"),"data":serde_json::to_string(&x).unwrap()}) }).collect::<Vec<_>>();
+    let payload =
+        json!({"commits":commits,"images":imgs,"log":[],"effects":[],"presence":[],"receipts":[]});
+    (
+        tail,
+        vec![
+            sql::literal(&payload.to_string()),
+            lo.to_string(),
+            (lo + ids.len() as i64).to_string(),
+            (lo + ids.len() as i64).to_string(),
+            sql::literal(&format!("c0-{k}")),
+            lo.to_string(),
+            sql::literal(&format!("c0-{}", k - 1)),
+        ],
+    )
+}
 fn worker(
     slot: usize,
     arm: String,
@@ -250,6 +298,7 @@ fn worker(
     images: Vec<Json>,
 ) {
     pin(true);
+    let baseline = std::env::var_os("C0_PRODUCT_CALIBRATION").is_some();
     let mut c = fixture::connect(false);
     c.batch_execute(
         "SET extra_float_digits=3; SET bytea_output=hex; SET plan_cache_mode=force_generic_plan",
@@ -258,6 +307,20 @@ fn worker(
     prepare_facts(&mut c, &arm);
     validation(&mut c, &arm);
     let mut prepared = false;
+    if std::env::var_os("C0_FAIL_STARTUP").is_some() {
+        panic!("injected startup failure");
+    }
+    let legacy_guard =
+        include_str!("../../../../crates/snapback4-core/src/engine/postgres/flight.rs")
+            .split_once("const GUARD: &str = \"")
+            .unwrap()
+            .1
+            .split_once("\";")
+            .unwrap()
+            .0;
+    let legacy_fence = "DO $sb4_owner$ DECLARE current_store pg_catalog.text; current_token pg_catalog.int8; BEGIN SELECT store_id,token INTO current_store,current_token FROM _owner WHERE singleton FOR KEY SHARE; IF NOT FOUND OR current_token IS NULL OR current_token OPERATOR(pg_catalog.<>) 1::pg_catalog.int8 OR current_store OPERATOR(pg_catalog.<>) '00000000000000000000000000000000'::pg_catalog.text THEN RAISE EXCEPTION 'stale owner token or logical store identity' USING ERRCODE='S4002'; END IF; END $sb4_owner$;";
+    let guard_sql = if baseline { legacy_guard } else { sql::GUARD };
+    let fence_sql = if baseline { legacy_fence } else { sql::FENCE };
     tx.send(Event::Ready).unwrap();
     while let Some(job) = rx.recv().unwrap() {
         let cpu_before = cpu();
@@ -266,8 +329,8 @@ fn worker(
         let hi = job.lo + n as i64;
         let begin = format!(
             "BEGIN ISOLATION LEVEL READ COMMITTED READ WRITE;{} SET LOCAL statement_timeout=1000; SET LOCAL lock_timeout=1000;{}SET LOCAL synchronous_commit={};",
-            sql::GUARD,
-            sql::FENCE,
+            guard_sql,
+            fence_sql,
             if arm == "OC" { "off" } else { "on" }
         );
         let ticket = if arm == "O1" || arm == "OC" {
@@ -292,7 +355,6 @@ fn worker(
                     }
                 ),
             );
-            tx.send(Event::Opened).unwrap();
         }
         let prep = job
             .req
@@ -300,17 +362,25 @@ fn worker(
             .map(|q| q.sample.prep / q.sample.n)
             .sum::<f64>();
         let fill = job.req.iter().map(|q| q.sample.fill).sum::<f64>() / n as f64;
-        let (tail, args) = sql::tail(
-            &templates,
-            &images,
-            &ids,
-            &job.values,
-            job.lo,
-            job.k,
-            job.wm,
-            &arm,
-        );
-        let raising = sql::raising_tail(&tail, n);
+        let (tail, args) = if baseline {
+            legacy_tail(&templates, &images, &ids, &job.values, job.lo, job.k)
+        } else {
+            sql::tail(
+                &templates,
+                &images,
+                &ids,
+                &job.values,
+                job.lo,
+                job.k,
+                job.wm,
+                &arm,
+            )
+        };
+        let raising = if baseline {
+            tail.clone()
+        } else {
+            sql::raising_tail(&tail, n)
+        };
         // The tail changes shape only with presence of families; N changes
         // parameters and expected counts. Use parameterized expected counts.
         let raising = raising.replace(
@@ -318,14 +388,23 @@ fn worker(
             "ARRAY[1,$18,$18,0,0,0,0,$18]::bigint[]",
         );
         if !prepared {
-            sql::prepare(&mut c, "c0_tail", &raising, &args);
+            if baseline {
+                c.batch_execute(&format!(
+                    "PREPARE c0_tail(text,bigint,bigint,bigint,text,bigint,text) AS {raising}"
+                ))
+                .unwrap();
+            } else {
+                sql::prepare(&mut c, "c0_tail", &raising, &args);
+            }
             prepared = true;
         }
         let mut args = args;
-        args.push(format!("('{n}')::pg_catalog.int8"));
-        args.push(format!("('{}')::pg_catalog.int8", job.wm));
+        if !baseline {
+            args.push(format!("('{n}')::pg_catalog.int8"));
+            args.push(format!("('{}')::pg_catalog.int8", job.wm));
+        }
         let mut final_msg = if arm == "O1" || arm == "OC" {
-            format!("{}", sql::GUARD)
+            format!("{}", guard_sql)
         } else {
             format!("{begin}{ticket}")
         };
@@ -361,15 +440,44 @@ fn worker(
             ));
         }
         final_msg.push_str(&sql::execute("c0_tail", &args));
-        final_msg.push_str("SET LOCAL statement_timeout=0;SET LOCAL lock_timeout=0;COMMIT;");
+        if !baseline {
+            final_msg.push_str("SET LOCAL statement_timeout=0;SET LOCAL lock_timeout=0;COMMIT;");
+        }
         if arm == "OC" {
             final_msg.push_str(&format!("BEGIN;{}SET LOCAL synchronous_commit=on;{}UPDATE _head SET seq={hi},revision={hi},attempt='c0-{}' WHERE singleton AND seq<{hi};SET LOCAL statement_timeout=0;SET LOCAL lock_timeout=0;COMMIT;",sql::GUARD,sql::FENCE,job.k));
         }
         burn((prep + fill - (cpu() - cpu_before)).max(0.));
         let prep_cpu = cpu() - cpu_before;
+        // The ordered committer completes this preparation before opening
+        // another batch; the final SQL may still overlap its predecessor.
+        if arm != "C" {
+            tx.send(Event::Opened).unwrap();
+        }
         let bytes = final_msg.len();
         let s = Instant::now();
         let result = query(&mut c, &final_msg);
+        if baseline {
+            let row = result
+                .iter()
+                .filter_map(|r| {
+                    if let SimpleQueryMessage::Row(r) = r {
+                        Some(r)
+                    } else {
+                        None
+                    }
+                })
+                .find(|r| r.len() >= 8)
+                .unwrap();
+            for (i, want) in [1, n, n, 0, 0, 0, 0, n].iter().enumerate() {
+                assert_eq!(row.get(i).unwrap().parse::<usize>().unwrap(), *want);
+            }
+            query(
+                &mut c,
+                &format!(
+                    "{guard_sql}SET LOCAL statement_timeout=0;SET LOCAL lock_timeout=0;COMMIT;"
+                ),
+            );
+        }
         assert!(matches!(
             result.last(),
             Some(SimpleQueryMessage::CommandComplete(_))
@@ -404,8 +512,7 @@ fn run(args: &[String]) {
     let warm: f64 = opt("--warmup", "1").parse().unwrap();
     let seconds: f64 = opt("--seconds", "4").parse().unwrap();
     let seed: u64 = opt("--seed", "1").parse().unwrap();
-    assert!([4, 8, 16, 32].contains(&n) && (1..=4).contains(&k));
-    assert!(arm != "O1" || k <= 2);
+    assert!((1..=32).contains(&n) && (1..=4).contains(&k));
     let samples = load_samples(&opt("--samples", ""));
     let mut rng = seed;
     let target = n.min(32_usize.div_ceil(k));
@@ -440,11 +547,20 @@ fn run(args: &[String]) {
         let im = images.clone();
         joins.push(thread::spawn(move || worker(slot, a, jrx, tx, t, im)));
     }
+    let ready_until = Instant::now() + Duration::from_secs(15);
     for _ in 0..k {
-        assert!(matches!(
-            rx.recv_timeout(Duration::from_secs(15)).unwrap(),
-            Event::Ready
-        ));
+        loop {
+            assert!(
+                !joins.iter().any(|j| j.is_finished()),
+                "writer failed during startup"
+            );
+            assert!(Instant::now() < ready_until, "writer startup deadline");
+            match rx.recv_timeout(Duration::from_millis(20)) {
+                Ok(Event::Ready) => break,
+                Err(mpsc::RecvTimeoutError::Timeout) => {}
+                _ => panic!("unexpected startup event"),
+            }
+        }
     }
     let (release_tx, release_rx) = mpsc::channel::<Option<Done>>();
     let release_events = tx.clone();
@@ -600,17 +716,28 @@ fn run(args: &[String]) {
     let mut bundle = Arc::new(samples[0].clone());
     let mut bundle_left = 0;
     let mut member = 0;
+    let mut disk_check = Instant::now();
     println!(
         "{}",
         json!({"event":"start","arm":arm,"n":n,"k":k,"cohort_target":target,"hold_ms":h,"samples":samples.len()})
     );
     std::io::stdout().flush().unwrap();
     loop {
+        assert!(!maint.is_finished(), "maintenance thread failed");
+        assert!(!release_thread.is_finished(), "release thread failed");
+        assert!(
+            start.elapsed().as_secs_f64() < warm + seconds + 10.,
+            "bounded overload drain exceeded"
+        );
         assert!(
             !joins.iter().any(|j| j.is_finished()),
             "request/writer thread exited unexpectedly"
         );
         let now = Instant::now();
+        if disk_check.elapsed() >= Duration::from_secs(1) {
+            guard();
+            disk_check = now;
+        }
         while next < arrivals {
             let at = start + Duration::from_secs_f64(next as f64 / rate);
             if at > now {
@@ -764,7 +891,10 @@ fn run(args: &[String]) {
         .iter()
         .map(|(q, e)| e.duration_since(q.admitted).as_secs_f64() * 1e3)
         .collect();
-    let late = intended_lat.iter().filter(|x| **x > 1000.).count();
+    // S1 expires before send and applies the HTTP timeout from send. A
+    // successful late-intended reply still contributes achieved throughput;
+    // intended p99 retains its full backlog and therefore fails overload.
+    let late = sent_lat.iter().filter(|x| **x > 1000.).count();
     let exp = expired.iter().filter(|at| **at >= t0 && **at < t1).count();
     let mut all = intended_lat.clone();
     all.extend(std::iter::repeat_n(1000., exp));

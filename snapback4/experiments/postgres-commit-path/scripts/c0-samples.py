@@ -12,7 +12,7 @@ def records(p):
 def extract(root,out):
     out.mkdir(parents=True,exist_ok=False);receipt={}
     for arm in ('S','E'):
-      for link,delay,rate in [('A',500,3200),('B',1000,2262)]:
+      for link,delay,rate in [('A',500,2262),('A',500,3200),('B',1000,1600),('B',1000,2262)]:
         d=root/'matrix'/('probe-'+arm.lower())/f'w4-n1000000-d{delay}-c32-disjoint'
         events=sorted(r for p in (d/'trace').glob('*.bin') for r in records(p))
         times=[r[0] for r in events]
@@ -51,9 +51,10 @@ def extract(root,out):
                 post_cpu_ms=(sum(e[7] for e in b.get(69,[]))+sum(e[7] for e in b.get(85,[]))+sum(e[7] for e in b.get(87,[])))/1e6,
                 members=mm,rep=rep))
         assert samples and all(x['members'] for x in samples)
-        path=out/f'{arm}-{link}.json';path.write_text(json.dumps(samples,separators=(',',':'))+'\n')
-        receipt[f'{arm}-{link}']=dict(batches=len(samples),requests=sum(len(x['members']) for x in samples),sha256=hashlib.sha256(path.read_bytes()).hexdigest(),
+        path=out/f'{arm}-{link}-{rate}.json';path.write_text(json.dumps(samples,separators=(',',':'))+'\n')
+        receipt[f'{arm}-{link}-{rate}']=dict(batches=len(samples),requests=sum(len(x['members']) for x in samples),sha256=hashlib.sha256(path.read_bytes()).hexdigest(),
             mean_source_n=sum(x['n'] for x in samples)/len(samples),mean_prep_ms=sum(x['prep_ms']+x['parallel_ms'] for x in samples)/len(samples))
+        if rate=={'A':3200,'B':2262}[link]:(out/f'{arm}-{link}.json').write_bytes(path.read_bytes())
     (out/'receipt.json').write_text(json.dumps(receipt,indent=2)+'\n')
     print(json.dumps(receipt,indent=2))
 if __name__=='__main__':

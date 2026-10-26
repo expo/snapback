@@ -10,21 +10,37 @@ spec=importlib.util.spec_from_file_location('g70',HERE/'g70-onehost.py');g=impor
 oh=g.oh
 
 def write(p,v):p.write_text(json.dumps(v,indent=2)+'\n')
-def trial(r,a,d,arm,n,k,h,rep,warm,seconds):
+def trial(r,a,d,arm,n,k,h,rep,warm,seconds,rate=None,phase=None):
+    rate=rate if rate is not None else (4525 if r.g70_link=='A' else 2262)
+    phase=phase or ('confirmation' if warm==10 and seconds==20 else 'screen')
     d.mkdir(parents=True,exist_ok=True);stem=d/f'r{rep}'
     g.cmd(r,[a.binary,'reset'],d/f'reset-r{rep}')
+    r.sqlpg('SELECT pg_stat_statements_reset()','g70')
     r.host_check(str(stem));sampler=g.Sampler(r,stem.with_suffix('.cpu.json'));sampler.start()
     env=dict(r.env,C0_TRACE=str(stem.with_suffix('.batches.jsonl')))
-    try:g.cmd(r,[a.binary,'run','--arm',arm,'--n',n,'--k',k,'--hold-ms',h,'--rate',4525 if r.g70_link=='A' else 2262,'--samples',a.samples/f'{"E" if arm=="OC" else "S"}-{r.g70_link}.json','--seed',0xC000+rep,'--warmup',warm,'--seconds',seconds,*(['--prefix-hammer'] if a.smoke else [])],stem,env=env,cpus=oh.LOAD_CORES,timeout=120)
+    sample=a.samples/f'{"E" if arm=="OC" else "S"}-{r.g70_link}.json'
+    if a.mode=='baseline':
+        env['C0_PRODUCT_CALIBRATION']='1';sample=a.samples/f'S-{r.g70_link}-{rate}.json'
+    failed=None
+    try:g.cmd(r,[a.binary,'run','--arm',arm,'--n',n,'--k',k,'--hold-ms',h,'--rate',rate,'--samples',sample,'--seed',0xC000+rep,'--warmup',warm,'--seconds',seconds,*(['--prefix-hammer'] if a.smoke else [])],stem,env=env,cpus=oh.LOAD_CORES,timeout=warm+seconds+15)
+    except (sp.TimeoutExpired,RuntimeError) as e:failed=dict(type=type(e).__name__,message=str(e))
     finally:cpu=sampler.close()
-    v=json.loads(stem.with_suffix('.stdout').read_text().splitlines()[-1]);v.update(cpu=cpu,link=r.g70_link,repeat=rep,phase='confirmation' if warm==10 and seconds==20 else 'sweep');write(stem.with_suffix('.json'),v)
-    print(f'{v["phase"]} {r.g70_link} {arm} N{n} K{k} h{h} r{rep}: {v["writes_per_s"]:.0f}/s mean={v["client_ms"]["mean"]:.2f} intended-p99={v["intended_ms"]["p99"]:.2f} errors={v["error_fraction"]:.3%} pass={v["slo_pass"]}',flush=True)
+    if failed:
+        v=dict(arm=arm,n=n,k=k,hold_ms=h,rate=rate,link=r.g70_link,repeat=rep,phase=phase,slo_pass=False,execution_failed=failed)
+        write(stem.with_suffix('.json'),v);print(f'FAILED {phase} {r.g70_link}/{arm} N{n} K{k} rate{rate}: {failed}',flush=True)
+        return v
+    v=json.loads(stem.with_suffix('.stdout').read_text().splitlines()[-1])
+    duration=sampler.samples[-1]['time']-sampler.samples[0]['time']
+    stats=json.loads(r.sqlpg("SELECT json_build_object('execution_ms',coalesce(sum(total_exec_time),0),'planning_ms',coalesce(sum(total_plan_time),0),'calls',coalesce(sum(calls),0),'ticket_exec_ms',coalesce(sum(total_exec_time) FILTER(WHERE query LIKE '%pg_advisory_xact_lock%'),0),'commit_exec_ms',coalesce(sum(total_exec_time) FILTER(WHERE query LIKE 'COMMIT%'),0)) FROM pg_stat_statements WHERE userid=(SELECT oid FROM pg_roles WHERE rolname='sb4scale')",'g70'))
+    v.update(cpu=cpu,cpu_window_s=duration,pg_statement_ms_per_batch=(stats['execution_ms']+stats['planning_ms']-stats['ticket_exec_ms']-stats['commit_exec_ms'])/v['total_batches'],pg_cpu_ms_per_batch=cpu['PG']*duration*1000/v['total_batches'],statement_totals=stats,link=r.g70_link,repeat=rep,phase=phase)
+    write(stem.with_suffix('.json'),v)
+    print(f'{phase} {r.g70_link} {arm} N{n} K{k} h{h} rate{rate} r{rep}: {v["writes_per_s"]:.0f}/s mean={v["client_ms"]["mean"]:.2f} p99={v["intended_ms"]["p99"]:.2f} errors={v["error_fraction"]:.3%} pass={v["slo_pass"]}',flush=True)
     return v
 
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--out',type=Path,required=True);p.add_argument('--binary',type=Path,required=True);p.add_argument('--samples',type=Path,required=True)
     p.add_argument('--harness',default=str(Path.home()/'sb4scale/g70-final-20261025/binaries/sb4-scale-controls'))
-    p.add_argument('--smoke',action='store_true');p.add_argument('--fixture-cache',type=Path);a=p.parse_args();a.binary=a.binary.resolve()
+    p.add_argument('--calibration',type=Path);p.add_argument('--mode',choices=['calibration','baseline','smoke','full'],default='calibration');p.add_argument('--smoke',action='store_true');p.add_argument('--fixture-cache',type=Path);a=p.parse_args();a.binary=a.binary.resolve()
     # User's lane-specific 25 GiB stop overrides the older common runner's 30.
     def disk(out):oh.append(out/'disk.jsonl',dict(time=time.time(),free_bytes=g.disk()))
     oh.disk=disk
@@ -42,29 +58,28 @@ def main():
             g.cmd(r,[oh.PGBIN/'pg_dump','-Fc','-d','g70','-f',cache],r.out/'fixture-dump')
         g.cmd(r,[a.binary,'history'],r.out/'history');g.cmd(r,[a.binary,'setup'],r.out/'c0-setup')
         g.cmd(r,[a.binary,'witness'],r.out/'witness',env=dict(r.env,C0_BACKENDS=str(r.out/'witness-backends.jsonl')))
-        sources=[Path(__file__),*sorted((HERE.parents[1]/'postgres-commit-path/src/c0').glob('*')),HERE.parents[1]/'postgres-commit-path/src/bin/c0.rs']
+        sources=[Path(__file__),HERE/'c0-capacity.py',*sorted((HERE.parents[1]/'postgres-commit-path/src/c0').glob('*')),HERE.parents[1]/'postgres-commit-path/src/bin/c0.rs']
+        snapshot=r.out/'source';snapshot.mkdir()
+        for f in sources:shutil.copyfile(f,snapshot/(f.name))
+        shutil.copyfile(a.binary,r.out/'c0-binary')
         write(r.out/'provenance.json',dict(base=sp.check_output(['git','rev-parse','HEAD'],text=True).strip(),binary_sha256=hashlib.sha256(a.binary.read_bytes()).hexdigest(),source_sha256={str(f):hashlib.sha256(f.read_bytes()).hexdigest() for f in sources},samples=json.loads((a.samples/'receipt.json').read_text()),fixture_sha256=hashlib.sha256(cache.read_bytes()).hexdigest(),command=sys.argv))
-        configurations=[(arm,n,k,h) for arm in ['O1','C','OC'] for n in [4,8,16,32] for k in ([1,2] if arm=='O1' else [1,2,3,4]) for h in [0,0.3,0.6,1.0]]
-        if a.smoke:configurations=[(arm,16,2,0.6) for arm in ['O1','C','OC']]
-        # Frozen traversal covers every requested N/K/h, with effective N
-        # allowed to vary under the cohort rule. No failing trial is replaced.
-        for link,delay in [('A',500),('B',1000)]:
-            r.g70_link=link;d=r.out/link;d.mkdir();r.ping(delay,d/'rtt-before.json')
-            for arm,n,k,h in configurations:
-                for rep in range(1 if a.smoke else 3):results.append(trial(r,a,d/f'{arm}-n{n}-k{k}-h{h}',arm,n,k,h,rep,.2 if a.smoke else 1,1 if a.smoke else 4))
-            r.ping(delay,d/'rtt-after.json')
-        if not a.smoke:
+        if a.mode in ['calibration','baseline']:
+            for link,delay,rates in [('A',500,[2262,3200]),('B',1000,[1600,2262])]:
+                r.g70_link=link;d=r.out/link;d.mkdir();r.ping(delay,d/'rtt-before.json')
+                for rate in rates:results.append(trial(r,a,d/f'calibration-rate{rate}','O1',32 if a.mode=='baseline' else 11,2 if a.mode=='baseline' else 1,0,0,10,20,rate,a.mode))
+                r.ping(delay,d/'rtt-after.json')
+        elif a.mode=='full':
+            assert a.calibration and a.calibration.exists()
+            spec=importlib.util.spec_from_file_location('capacity',HERE/'c0-capacity.py');capacity=importlib.util.module_from_spec(spec);spec.loader.exec_module(capacity)
+            results=capacity.run(r,a,trial)
+        else:
             for link,delay in [('A',500),('B',1000)]:
-                r.g70_link=link;d=r.out/f'long-{link}';d.mkdir();r.ping(delay,d/'rtt-before.json')
+                r.g70_link=link;d=r.out/link;d.mkdir();r.ping(delay,d/'rtt-before.json')
+                r.env['C0_FAIL_STARTUP']='1'
+                failed=trial(r,a,d/'startup-failure','O1',16,2,.6,0,.1,.2,1600,'startup-failure-witness');assert failed.get('execution_failed')
+                del r.env['C0_FAIL_STARTUP'];results.append(failed)
                 for arm in ['O1','C','OC']:
-                    groups={}
-                    for x in results:
-                        if x['link']==link and x['arm']==arm and x['phase']=='sweep':groups.setdefault((x['n'],x['k'],x['hold_ms']),[]).append(x)
-                    # Prefer a full SLO pass, then highest delivered rate,
-                    # then lowest mean service residence. Tie-break is frozen.
-                    config=max(groups,key=lambda cfg:(all(x['slo_pass'] for x in groups[cfg]),sum(x['writes_per_s'] for x in groups[cfg]),-sum(x['client_ms']['mean'] for x in groups[cfg])))
-                    n,k,h=config
-                    for rep in range(3):results.append(trial(r,a,d/f'{arm}-n{n}-k{k}-h{h}',arm,n,k,h,rep,10,20))
+                    results.append(trial(r,a,d/arm,arm,16,2,.6,0,.2,1,16000,'overload-witness'))
                 r.ping(delay,d/'rtt-after.json')
         write(r.out/'aggregate.json',results)
     finally:
