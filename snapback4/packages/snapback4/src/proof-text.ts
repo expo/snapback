@@ -1,4 +1,4 @@
-// @ref LLP 3000.000.000.001#12-wave-24-loop-repairs-dx7 — mounted scrollable text counts; hidden descendants never manufacture evidence.
+// @ref LLP 3000.011.003.000.000#17-wave-29-serve-proofs-and-proof-residue-dx12 — scroll unique reachable candidates; hidden descendants never manufacture evidence.
 import { randomUUID } from "node:crypto";
 import { createRequire } from "node:module";
 import type { Locator, FrameLocator, Selectors } from "playwright-core";
@@ -33,14 +33,23 @@ function renderedTextEngine() {
       if (style.position === "fixed" || style.position === "sticky") scrollCoupled = false;
       const clipsOverflow = style.display !== "contents" && style.display !== "inline";
       const x = clipsOverflow && style.overflowX !== "visible", y = clipsOverflow && style.overflowY !== "visible";
-      if (x || y) {
+      // Root overflow propagates to the viewport. A non-scrolling body box
+      // (Expo web) must not clip descendants that the document can scroll to.
+      const rootStyle = getComputedStyle(document.documentElement);
+      const bodyPropagates = rootStyle.overflowX === "visible" && rootStyle.overflowY === "visible";
+      const rootOverflow = element === document.documentElement || element === document.body && bodyPropagates;
+      if ((x || y) && !rootOverflow) {
         let box = element.getBoundingClientRect();
         const html = element as HTMLElement;
         let scaleX = 1, scaleY = 1;
         if (typeof html.offsetWidth === "number") {
           scaleX = html.offsetWidth ? box.width / html.offsetWidth : 1;
           scaleY = html.offsetHeight ? box.height / html.offsetHeight : 1;
-          box = new DOMRect(box.left + html.clientLeft * scaleX, box.top + html.clientTop * scaleY, html.clientWidth * scaleX, html.clientHeight * scaleY);
+          // Quirks-mode BODY.clientHeight names the viewport even when
+          // this body's overflow is an ordinary element clip.
+          const width = Math.min(html.clientWidth, Math.max(0, html.offsetWidth - html.clientLeft - parseFloat(style.borderRightWidth || "0")));
+          const height = Math.min(html.clientHeight, Math.max(0, html.offsetHeight - html.clientTop - parseFloat(style.borderBottomWidth || "0")));
+          box = new DOMRect(box.left + html.clientLeft * scaleX, box.top + html.clientTop * scaleY, width * scaleX, height * scaleY);
         }
         const scrollX = scrollCoupled && /^(auto|scroll)$/.test(style.overflowX) && html.clientWidth > 0;
         const scrollY = scrollCoupled && /^(auto|scroll)$/.test(style.overflowY) && html.clientHeight > 0;
@@ -50,6 +59,14 @@ function renderedTextEngine() {
           dx: scrollX ? [(html.scrollLeft - (rtl ? 0 : maxX)) * scaleX, (html.scrollLeft + (rtl ? maxX : 0)) * scaleX] : [0, 0],
           dy: scrollY ? [(html.scrollTop - maxY) * scaleY, html.scrollTop * scaleY] : [0, 0] });
       }
+    }
+    if (scrollCoupled) {
+      const root = document.scrollingElement ?? document.documentElement;
+      const style = getComputedStyle(root);
+      const canScrollX = style.overflowX !== "clip", canScrollY = style.overflowY !== "clip";
+      clips.push({box:new DOMRect(0, 0, document.documentElement.clientWidth, document.documentElement.clientHeight), x:true, y:true,
+        dx:canScrollX ? [root.scrollLeft - Math.max(0,root.scrollWidth-root.clientWidth),root.scrollLeft] : [0,0],
+        dy:canScrollY ? [root.scrollTop - Math.max(0,root.scrollHeight-root.clientHeight),root.scrollTop] : [0,0]});
     }
     if (!scrollCoupled) clips.push({ box: new DOMRect(0, 0, document.documentElement.clientWidth, document.documentElement.clientHeight), x: true, y: true, dx: [0, 0], dy: [0, 0] });
     // Compose legal scroll movement and clips from the nearest ancestor out.
@@ -156,7 +173,13 @@ export function registeredLocator<T extends Locator | FrameLocator>(locator: T):
         if (scopedLocators.has(wrapped) || scopedLocators.has(target)) scopedLocators.add(next);
         return next;
       };
-      return (...args: unknown[]) => selectorReady.then(() => Reflect.apply(value, target, args));
+      return (...args: unknown[]) => selectorReady.then(async () => {
+        if (["count", "isVisible", "innerText", "textContent", "evaluate"].includes(key) && "count" in target) {
+          const candidate = target as Locator;
+          if (await candidate.count() === 1) await candidate.scrollIntoViewIfNeeded({timeout:1000});
+        }
+        return Reflect.apply(value, target, args);
+      });
     },
   });
   locatorWrappers.set(locator, wrapped); locatorWrappers.set(wrapped, wrapped);

@@ -36,7 +36,7 @@ test('DX8 renderedText finds a full status line anywhere in a scrollable RN-styl
   const root=page.locator('main');
   assert.equal(await kit.renderedText(page,'Pump logged.',{within:root,exact:false}).count(),1);
   assert.equal(await kit.waitForFresh(kit.renderedText(page,'Pump logged.',{within:root,exact:false}),null,500),'Pump logged.');
-  assert.equal(await root.evaluate(element=>element.scrollTop),0,'proof observation does not scroll the app');
+  assert.ok(await root.evaluate(element=>element.scrollTop)>0,'proof observation scrolls the match into view');
 }));
 
 test('DX8 exhaustPages follows opaque cursors and refuses incomplete traversal', async () => {
@@ -209,18 +209,18 @@ document.querySelector('button').onclick=event=>{
   await page.evaluate(()=>window.mode='competing'); await arm(); await page.getByRole('button').click();
   const competing=await page.evaluate(()=>window.__snapback4Witness.formResult());
   assert.equal(competing.why.code,'E_WITNESS_UNCLAIMED'); assert.equal(competing.why.reason,'event');
-  await page.evaluate(()=>window.mode='wrong'); await arm(); await page.getByRole('button').click();
+  await page.evaluate(()=>window.mode='wrong'); await page.evaluate(()=>window.__snapback4Witness.beginForm('add',{secret:'expected'},document.querySelector('button'))); await page.getByRole('button').click();
   const wrong=await page.evaluate(()=>window.__snapback4Witness.formResult());
   assert.equal(wrong.why.reason,'arguments'); assert.match(wrong.why.message,/mismatched keys: secret/); assert.ok(!JSON.stringify(wrong).includes('must not enter proof logs'));
   const privateFile = readdirSync(join(browserCwd, 'logs')).find(name => name.endsWith('.witness.private.jsonl'));
   const privatePath = join(browserCwd, 'logs', privateFile);
   assert.equal(statSync(privatePath).mode & 0o777, 0o600);
   const diff = readFileSync(privatePath, 'utf8').trim().split('\n').map(JSON.parse).find(row => row.code === 'E_WITNESS_UNCLAIMED');
-  assert.deepEqual(diff.armed, {}); assert.deepEqual(diff.actual, {secret:'must not enter proof logs'});
+  assert.deepEqual(diff.armed, {secret:'expected'}); assert.deepEqual(diff.actual, {secret:'must not enter proof logs'});
   for (const fault of ['stall','throw']) {
     const before=await page.evaluate(()=>window.writes);
     await page.evaluate(fault=>{window.__snapback4ProofDiagnostic=()=>{if(fault==='throw')throw Error('diagnostic failed');return new Promise(()=>{});};},fault);
-    await arm();await page.getByRole('button').click();
+    await page.evaluate(()=>window.__snapback4Witness.beginForm('add',{secret:'expected'},document.querySelector('button')));await page.getByRole('button').click();
     await kit.waitForServer(()=>page.evaluate(()=>window.writes),writes=>writes===before+1,{timeoutMs:1000,label:'application write independent of diagnostic'});
     assert.equal((await page.evaluate(()=>window.__snapback4Witness.formResult())).why.reason,'arguments');
   }
@@ -318,4 +318,32 @@ test('DX9 proof scopes, substring ambiguity and typed HTML inputs', {timeout:300
   assert.equal(await page.locator('[type=text]').inputValue(),'ordinary RN input');
   assert.ok((await page.evaluate(()=>window.events)).includes('date'));
   assert.ok((await page.evaluate(()=>window.events)).includes('datetime-local'));
+}));
+
+test('DX12 Expo web body overflow uses document scrolling and never hidden text', {timeout:30000}, async t => browser(t, async page => {
+  await page.setViewportSize({width:700,height:300});
+  await page.setContent('<style>html{height:100%}body{margin:0;overflow:hidden;height:100%}#root{min-height:100vh}</style><div id="root"><div style="height:1800px"></div><p>Below fold receipt</p><p hidden>Hidden receipt</p></div>');
+  const locator=kit.renderedText(page,'Below fold receipt');
+  assert.equal(await kit.waitForFresh(locator,null,2000),'Below fold receipt');
+  assert.ok(await locator.evaluate(el=>{const box=el.getBoundingClientRect();return box.top>=0&&box.bottom<=innerHeight;}));
+  assert.equal(await kit.renderedText(page,'Hidden receipt').count(),0);
+}));
+test('DX12 beginForm constrains a subset while preserving trusted click and value matching', {timeout:30000}, async t => browser(t, async page => {
+  await page.route('http://dx12.test/**',route=>route.fulfill({body:'<html></html>',contentType:'text/html'}));
+  await page.goto('http://dx12.test/?witness=web');
+  await page.setContent(`<button>Save</button><script type="module">${witnessSource.replace(/export /g,'')}
+  const app={ready:Promise.resolve({ok:true}),mutate:async()=>({state:'sent',id:'real'}),client:{viewer:()=> 'user:one',onWrite:()=>()=>{},mutate:async()=>({state:'sent',id:'real'})}};
+  registerWebWitness(app,{save:{kind:'mutation',name:'save'}});
+  document.querySelector('button').onclick=()=>app.mutate({kind:'mutation',name:'save'},{id:'handler-id',title:'expected',extra:null});</script>`);
+  await page.waitForFunction(()=>window.__snapback4Witness);
+  const button=page.getByRole('button');
+  await button.evaluate(el=>window.__snapback4Witness.beginForm('save',{title:'expected'},el));await button.click();
+  assert.equal((await page.evaluate(()=>window.__snapback4Witness.formResult())).state,'sent');
+  await button.evaluate(el=>window.__snapback4Witness.beginForm('save',{title:'wrong'},el));await button.click();
+  const wrong=await page.evaluate(()=>window.__snapback4Witness.formResult());assert.equal(wrong.why.code,'E_WITNESS_UNCLAIMED');
+}));
+
+test('DX12 non-propagated body overflow still clips evidence', {timeout:30000}, async t => browser(t, async page => {
+  await page.setContent('<style>html{overflow:auto}body{height:30px;overflow:clip;margin:0}</style><div style="height:90px"></div><p>Clipped body receipt</p>');
+  assert.equal(await kit.renderedText(page,'Clipped body receipt').count(),0);
 }));

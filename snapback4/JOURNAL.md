@@ -108674,3 +108674,16 @@ All 7 private cluster directories confirm stopped; the combined
 12,623-pair audit, including zombies and both public PID ledgers,
 has no matches. Minimum monitored free disk: 59.35 GiB.
 **PIDs left: none.** No throughput campaign, publication or push.
+
+### 2026-10-26 — DX12: test the real npm serve script
+
+`serve-check --then` and `withServeScript` extend the DX10 keeper/process-group
+and pre-forced-cleanup lock barrier. Readiness stays private; commands receive
+it through environment and callbacks in memory. Command status, startup/proof
+deadlines and unsuccessful npm shutdown are separate observations. Password
+probe starters accept --then. Development real-user setup now shares the
+production account plan; rendered text scrolls unique reachable candidates,
+including propagated Expo body overflow, while ordinary clips still exclude
+text. beginForm constrains named arguments rather than silently losing a claim
+when the handler adds an id. LLP 3000.011.003.000.000 §17 records the contracts.
+Linux packed/browser/process regressions pass; native Mac execution is skipped.

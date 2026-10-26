@@ -39,10 +39,10 @@ function validatePlan(options: SeedAccountsOptions) {
 
 // @ref LLP 3000.000.000.001#2-real-staging-accounts — real credentials and ordinary operator mutations, never system seeding or auth bypass.
 /** @throws E_STAGING_INPUT for invalid plans; E_STAGING for production/dev hosts; E_STAGING_TIMEOUT, E_STAGING_SIGNUP or E_STAGING_PROVISION for incomplete setup. Partial accounts/grants may exist; inspect or discard the staging store before retrying. */
-async function accounts(host: Pick<ServeHost, "url" | "operatorToken">, options: SeedAccountsOptions, environment: "staging" | "production", roster?: Roster, save: () => void = () => {}): Promise<StagingSessions> {
+async function accounts(host: Pick<ServeHost, "url" | "operatorToken">, options: SeedAccountsOptions, environment: "staging" | "production" | "development", roster?: Roster, save: () => void = () => {}): Promise<StagingSessions> {
   const {service, roles, timeout} = validatePlan(options);
   const end = performance.now() + timeout;
-  const partial = environment === "staging" ? "inspect or discard this staging deployment" : "inspect partial production accounts/grants before retrying";
+  const partial = environment === "development" ? "inspect partial development accounts/grants or discard this development store" : environment === "staging" ? "inspect or discard this staging deployment" : "inspect partial production accounts/grants before retrying";
   const remaining = () => {
     const ms = Math.ceil(end - performance.now());
     if (ms <= 0) throw Error(`E_STAGING_TIMEOUT: setup incomplete; partial accounts/grants may exist; ${partial}`);
@@ -51,8 +51,8 @@ async function accounts(host: Pick<ServeHost, "url" | "operatorToken">, options:
   const request = (path: string, init?: RequestInit) => fetch(host.url + path, { ...init, signal: AbortSignal.timeout(Math.min(remaining(), 30_000)) });
   const config = await request("/auth/config");
   const identity = await config.json();
-  if (!config.ok || identity.environment !== environment || identity.development !== false || !identity.password) {
-    throw Error(environment === "staging"
+  if (!config.ok || identity.environment !== environment || identity.development !== (environment === "development") || !identity.password) {
+    throw Error(environment === "development" ? "E_DEV_ACCOUNTS: devAccounts requires startDev with password identity; serve hosts refuse before creating users" : environment === "staging"
       ? "E_STAGING: account seeding requires serve on a fresh deploy --staging with password identity; production and dev refuse before creating users"
       : "E_PRODUCTION_ACCOUNTS: account provisioning requires serve on a production deploy with password identity; staging and dev refuse before creating users");
   }
@@ -185,4 +185,11 @@ export async function provisionAccounts(host: Pick<ServeHost, "url" | "operatorT
     };
     return await accounts(host, options, "production", roster, save);
   } finally { closeSync(fd); unlinkSync(lock); }
+}
+
+/** Fresh password accounts with ordinary operator provisioning, for startDev acceptance proofs.
+ * Same role/count/provision/args plan and account shape as production.
+ * @throws invalid plan, non-development host, signup/provision refusal or bounded timeout. */
+export function devAccounts(host: Pick<ServeHost, "url" | "operatorToken">, options: SeedAccountsOptions): Promise<StagingSessions> {
+  return accounts(host, options, "development");
 }

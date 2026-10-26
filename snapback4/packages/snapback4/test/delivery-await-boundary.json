@@ -344,16 +344,16 @@
     "sha256": "2f439e3bfe64e4babef29361749bbc2a3cf91d4a15738e78e862112fd13359eb"
   },
   "proof-serve-check.ts": {
-    "count": 8,
-    "sha256": "c167b2058156c0dc8bf27c06d0a9333dad6f6b3ca800be6f0efec8779cd84e76"
+    "count": 12,
+    "sha256": "28a1244992f41103343bf0152e4be2e89ad84fa1bd2fd7f28101ef2a32adb7e1"
   },
   "proof-serve-driver.ts": {
     "count": 1,
     "sha256": "280d7adcbc2c964281173133dc80285e3cd7734df2346ec277b11ac6c5cae73a"
   },
   "proof-text.ts": {
-    "count": 1,
-    "sha256": "0d9140e989b8464106041fe7b70539aab515b2c530b8e2e0e4af64f135a4589a"
+    "count": 3,
+    "sha256": "8237b77f0b78215f8ea5e980aa9420cfb383f95cf531b4b191ab7e9081040167"
   },
   "proof.ts": {
     "count": 62,

@@ -484,3 +484,8 @@ export function awaitBoundary() {
 // shutdown. These Node-only process/operator paths never originate or settle SDK
 // delivery. Proof process/accounts/serve-check tests exercise their failure paths.
 // Regenerate the complete await seal; delivery sites and fault recipes stay fixed.
+
+// DX12: serve runner proof callbacks/commands, development account provisioning,
+// and rendered-locator scrolling own test resources, not SDK delivery custody.
+// Their added awaits are exercised by dx12-serve and proof-contract regressions;
+// existing classified transport/settlement fault sites remain unchanged.
