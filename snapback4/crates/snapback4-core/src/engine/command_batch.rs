@@ -413,6 +413,7 @@ pub(super) fn run(
             }
             #[cfg(feature="postgres")]
             { stats.lock().unwrap().pipeline_fill = matches!(engine.store, crate::store_port::AnyStore::Postgres(_)); }
+            let dispatched = Instant::now();
             let mut invocations = Vec::new();
             let mut slots = Vec::new();
             for mut task in tasks {
@@ -431,7 +432,23 @@ pub(super) fn run(
             let dispatch_stats = stats.clone();
             let finish = move |engine:&mut Engine, outcomes:Option<Vec<Outcome>>| {
                 let latencies:Vec<_>=admitted.iter().map(|i|i.elapsed().as_micros().min(u64::MAX as u128) as u64).collect();
-                stats.lock().unwrap().observe(latencies,count);
+                let service_us = dispatched.elapsed().as_micros() as u64;
+                let admitted_us = latencies.iter().copied().max().unwrap_or(0);
+                let mut stats = stats.lock().unwrap();
+                stats.observe(latencies,count);
+                // Numeric, opt-in diagnostic over the existing BatchStats surface.
+                static TRACE: std::sync::OnceLock<Option<Mutex<std::fs::File>>> = std::sync::OnceLock::new();
+                if let Some(file) = TRACE.get_or_init(|| std::env::var_os("SNAPBACK4_BATCH_TRACE").map(|path| {
+                    Mutex::new(std::fs::OpenOptions::new().create_new(true).write(true).open(path)
+                        .expect("SNAPBACK4_BATCH_TRACE must name a new writable file"))
+                })) {
+                    use std::io::Write;
+                    let _ = writeln!(file.lock().unwrap(), "{}", serde_json::json!({
+                        "n":count,"members":stats.members,"target":stats.target,
+                        "p99_us":stats.p99_micros,"admitted_us":admitted_us,"service_us":service_us
+                    }));
+                }
+                drop(stats);
                 let mut outcomes=outcomes.map(|outcomes|outcomes.into_iter().map(Some).collect::<Vec<_>>());
                 for (task,slot) in slots {
                     if let Some(outcomes)=&mut outcomes {task.finish(engine,match slot {Ok(i)=>outcomes[i].take().expect("one callback per invocation"),Err(why)=>Err(why)});}
