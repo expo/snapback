@@ -1,0 +1,2952 @@
+{
+  "method": "bounded G7.2 loopback fixture, 32 clients, 8 warmup+40 measured writes per client; two repetitions; S; test opt-level1; fsync/full_page_writes/synchronous_commit on; no injected RTT or HTTP",
+  "base": "5fc6e6449b",
+  "counter_checks": 48,
+  "cohorts": {
+    "before-probe": [
+      {
+        "N": {
+          "1": 1,
+          "11": 1,
+          "12": 1,
+          "14": 1,
+          "15": 1,
+          "20": 1,
+          "24": 1,
+          "25": 2,
+          "26": 7,
+          "27": 1,
+          "28": 2,
+          "29": 2,
+          "30": 5,
+          "32": 20,
+          "4": 1,
+          "5": 2,
+          "6": 1
+        },
+        "cell": "W4",
+        "clients": 32,
+        "counter_total": 1536,
+        "depth": 1,
+        "fsync": "on",
+        "full_page_writes": "on",
+        "in_flight_at_dispatch": [
+          0,
+          50,
+          0
+        ],
+        "load_after": "0.20 1.09 1.89 1/590 3860228\n",
+        "load_before": "0.20 1.09 1.89 2/622 3860228\n",
+        "mean_N": 25.6,
+        "mean_ms": 7.52175671875,
+        "measured_writes": 1280,
+        "repetition": 0,
+        "seconds": 0.338703744,
+        "synchronous_commit": "on",
+        "warmup_writes": 256,
+        "writes_s": 3779.11382048378,
+        "stages": {
+          "facts_interpret": {
+            "events": 59,
+            "members": 1534,
+            "wall_member_ns": 2331549096,
+            "cpu_ns": 18724149
+          },
+          "fill": {
+            "events": 1536,
+            "members": 1536,
+            "wall_member_ns": 100412129,
+            "cpu_ns": 0
+          },
+          "preparation": {
+            "events": 61,
+            "members": 1536,
+            "wall_member_ns": 11215813749,
+            "cpu_ns": 94756861
+          },
+          "queue": {
+            "events": 1536,
+            "members": 1536,
+            "wall_member_ns": 938066919,
+            "cpu_ns": 0
+          },
+          "tail_flight": {
+            "events": 59,
+            "members": 1534,
+            "wall_member_ns": 2975025597,
+            "cpu_ns": 11900923
+          }
+        }
+      },
+      {
+        "N": {
+          "10": 40,
+          "22": 40
+        },
+        "cell": "W4",
+        "clients": 32,
+        "counter_total": 1536,
+        "depth": 2,
+        "fsync": "on",
+        "full_page_writes": "on",
+        "in_flight_at_dispatch": [
+          0,
+          1,
+          79
+        ],
+        "load_after": "0.20 1.09 1.89 1/595 3860273\n",
+        "load_before": "0.20 1.09 1.89 3/627 3860270\n",
+        "mean_N": 16.0,
+        "mean_ms": 9.39701172421875,
+        "measured_writes": 1280,
+        "repetition": 0,
+        "seconds": 0.378809191,
+        "synchronous_commit": "on",
+        "warmup_writes": 256,
+        "writes_s": 3379.009882577004,
+        "stages": {
+          "done_to_poll": {
+            "events": 92,
+            "members": 1533,
+            "wall_member_ns": 251883139,
+            "cpu_ns": 0
+          },
+          "facts_interpret": {
+            "events": 93,
+            "members": 1535,
+            "wall_member_ns": 3218213839,
+            "cpu_ns": 32188902
+          },
+          "fill": {
+            "events": 1536,
+            "members": 1536,
+            "wall_member_ns": 27559906,
+            "cpu_ns": 0
+          },
+          "final": {
+            "events": 92,
+            "members": 1533,
+            "wall_member_ns": 9258395484,
+            "cpu_ns": 0
+          },
+          "preparation": {
+            "events": 94,
+            "members": 1536,
+            "wall_member_ns": 6093223531,
+            "cpu_ns": 148191388
+          },
+          "queue": {
+            "events": 1536,
+            "members": 1536,
+            "wall_member_ns": 939496793,
+            "cpu_ns": 0
+          },
+          "release_callbacks": {
+            "events": 92,
+            "members": 1533,
+            "wall_member_ns": 314168949,
+            "cpu_ns": 15838324
+          },
+          "reply_release": {
+            "events": 1536,
+            "members": 1536,
+            "wall_member_ns": 462390190,
+            "cpu_ns": 0
+          },
+          "tail_flight": {
+            "events": 93,
+            "members": 1535,
+            "wall_member_ns": 5038205747,
+            "cpu_ns": 21117641
+          }
+        }
+      },
+      {
+        "N": {
+          "1": 1,
+          "12": 1,
+          "13": 1,
+          "14": 1,
+          "2": 1,
+          "22": 2,
+          "24": 2,
+          "26": 1,
+          "27": 1,
+          "29": 3,
+          "31": 2,
+          "32": 29,
+          "7": 1,
+          "9": 1
+        },
+        "cell": "W5-exact",
+        "clients": 32,
+        "counter_total": 1536,
+        "depth": 1,
+        "fsync": "on",
+        "full_page_writes": "on",
+        "in_flight_at_dispatch": [
+          0,
+          47,
+          0
+        ],
+        "load_after": "0.20 1.09 1.89 1/583 3860310\n",
+        "load_before": "0.20 1.09 1.89 3/622 3860310\n",
+        "mean_N": 27.23404255319149,
+        "mean_ms": 13.6040458765625,
+        "measured_writes": 1280,
+        "repetition": 0,
+        "seconds": 0.582497026,
+        "synchronous_commit": "on",
+        "warmup_writes": 256,
+        "writes_s": 2197.4361118884067,
+        "stages": {
+          "facts_interpret": {
+            "events": 55,
+            "members": 1535,
+            "wall_member_ns": 2596726132,
+            "cpu_ns": 25947615
+          },
+          "fill": {
+            "events": 1536,
+            "members": 1536,
+            "wall_member_ns": 106785499,
+            "cpu_ns": 0
+          },
+          "preparation": {
+            "events": 56,
+            "members": 1536,
+            "wall_member_ns": 20075612959,
+            "cpu_ns": 345182717
+          },
+          "queue": {
+            "events": 1536,
+            "members": 1536,
+            "wall_member_ns": 973148199,
+            "cpu_ns": 0
+          },
+          "tail_flight": {
+            "events": 55,
+            "members": 1535,
+            "wall_member_ns": 4159788175,
+            "cpu_ns": 11501053
+          }
+        }
+      },
+      {
+        "N": {
+          "25": 40,
+          "7": 40
+        },
+        "cell": "W5-exact",
+        "clients": 32,
+        "counter_total": 1536,
+        "depth": 2,
+        "fsync": "on",
+        "full_page_writes": "on",
+        "in_flight_at_dispatch": [
+          0,
+          1,
+          79
+        ],
+        "load_after": "0.43 1.12 1.89 1/597 3860363\n",
+        "load_before": "0.43 1.12 1.89 4/627 3860359\n",
+        "mean_N": 16.0,
+        "mean_ms": 12.3699289296875,
+        "measured_writes": 1280,
+        "repetition": 0,
+        "seconds": 0.496974393,
+        "synchronous_commit": "on",
+        "warmup_writes": 256,
+        "writes_s": 2575.5854185428825,
+        "stages": {
+          "done_to_poll": {
+            "events": 92,
+            "members": 1534,
+            "wall_member_ns": 980421154,
+            "cpu_ns": 0
+          },
+          "facts_interpret": {
+            "events": 93,
+            "members": 1536,
+            "wall_member_ns": 2424227898,
+            "cpu_ns": 23198115
+          },
+          "fill": {
+            "events": 1536,
+            "members": 1536,
+            "wall_member_ns": 28696308,
+            "cpu_ns": 0
+          },
+          "final": {
+            "events": 92,
+            "members": 1534,
+            "wall_member_ns": 8579149119,
+            "cpu_ns": 0
+          },
+          "preparation": {
+            "events": 93,
+            "members": 1536,
+            "wall_member_ns": 9509258282,
+            "cpu_ns": 325943554
+          },
+          "queue": {
+            "events": 1536,
+            "members": 1536,
+            "wall_member_ns": 704108624,
+            "cpu_ns": 0
+          },
+          "release_callbacks": {
+            "events": 92,
+            "members": 1534,
+            "wall_member_ns": 315731806,
+            "cpu_ns": 14767371
+          },
+          "reply_release": {
+            "events": 1536,
+            "members": 1536,
+            "wall_member_ns": 1183627572,
+            "cpu_ns": 0
+          },
+          "tail_flight": {
+            "events": 93,
+            "members": 1536,
+            "wall_member_ns": 4140098657,
+            "cpu_ns": 13729815
+          }
+        }
+      },
+      {
+        "N": {
+          "28": 1,
+          "32": 39,
+          "4": 1
+        },
+        "cell": "W5-mix",
+        "clients": 32,
+        "counter_total": 1536,
+        "depth": 1,
+        "fsync": "on",
+        "full_page_writes": "on",
+        "in_flight_at_dispatch": [
+          0,
+          41,
+          0
+        ],
+        "load_after": "0.43 1.12 1.89 1/590 3860402\n",
+        "load_before": "0.43 1.12 1.89 2/622 3860400\n",
+        "mean_N": 31.21951219512195,
+        "mean_ms": 10.551822085156251,
+        "measured_writes": 1280,
+        "repetition": 0,
+        "seconds": 0.427973605,
+        "synchronous_commit": "on",
+        "warmup_writes": 256,
+        "writes_s": 2990.83865230427,
+        "stages": {
+          "facts_interpret": {
+            "events": 50,
+            "members": 1535,
+            "wall_member_ns": 3609505700,
+            "cpu_ns": 31328716
+          },
+          "fill": {
+            "events": 1536,
+            "members": 1536,
+            "wall_member_ns": 38889453,
+            "cpu_ns": 0
+          },
+          "preparation": {
+            "events": 51,
+            "members": 1536,
+            "wall_member_ns": 15972483038,
+            "cpu_ns": 152464529
+          },
+          "queue": {
+            "events": 1536,
+            "members": 1536,
+            "wall_member_ns": 364421773,
+            "cpu_ns": 0
+          },
+          "tail_flight": {
+            "events": 50,
+            "members": 1535,
+            "wall_member_ns": 4707884308,
+            "cpu_ns": 17303169
+          }
+        }
+      },
+      {
+        "N": {
+          "24": 40,
+          "8": 40
+        },
+        "cell": "W5-mix",
+        "clients": 32,
+        "counter_total": 1536,
+        "depth": 2,
+        "fsync": "on",
+        "full_page_writes": "on",
+        "in_flight_at_dispatch": [
+          0,
+          1,
+          79
+        ],
+        "load_after": "0.43 1.12 1.89 1/588 3860445\n",
+        "load_before": "0.43 1.12 1.89 4/620 3860444\n",
+        "mean_N": 16.0,
+        "mean_ms": 9.74257343515625,
+        "measured_writes": 1280,
+        "repetition": 0,
+        "seconds": 0.391938007,
+        "synchronous_commit": "on",
+        "warmup_writes": 256,
+        "writes_s": 3265.822597296618,
+        "stages": {
+          "done_to_poll": {
+            "events": 90,
+            "members": 1535,
+            "wall_member_ns": 279420363,
+            "cpu_ns": 0
+          },
+          "facts_interpret": {
+            "events": 90,
+            "members": 1535,
+            "wall_member_ns": 3275451697,
+            "cpu_ns": 31321161
+          },
+          "fill": {
+            "events": 1536,
+            "members": 1536,
+            "wall_member_ns": 27805632,
+            "cpu_ns": 0
+          },
+          "final": {
+            "events": 90,
+            "members": 1535,
+            "wall_member_ns": 8902161228,
+            "cpu_ns": 0
+          },
+          "preparation": {
+            "events": 91,
+            "members": 1536,
+            "wall_member_ns": 6193086791,
+            "cpu_ns": 143023735
+          },
+          "queue": {
+            "events": 1536,
+            "members": 1536,
+            "wall_member_ns": 589654732,
+            "cpu_ns": 0
+          },
+          "release_callbacks": {
+            "events": 90,
+            "members": 1535,
+            "wall_member_ns": 368129571,
+            "cpu_ns": 17022359
+          },
+          "reply_release": {
+            "events": 1536,
+            "members": 1536,
+            "wall_member_ns": 510501410,
+            "cpu_ns": 0
+          },
+          "tail_flight": {
+            "events": 90,
+            "members": 1535,
+            "wall_member_ns": 5079452628,
+            "cpu_ns": 19300454
+          }
+        }
+      },
+      {
+        "N": {
+          "23": 40,
+          "9": 40
+        },
+        "cell": "W4",
+        "clients": 32,
+        "counter_total": 1536,
+        "depth": 2,
+        "fsync": "on",
+        "full_page_writes": "on",
+        "in_flight_at_dispatch": [
+          0,
+          1,
+          79
+        ],
+        "load_after": "0.63 1.15 1.90 1/595 3860496\n",
+        "load_before": "0.63 1.15 1.90 4/627 3860494\n",
+        "mean_N": 16.0,
+        "mean_ms": 9.76365176640625,
+        "measured_writes": 1280,
+        "repetition": 1,
+        "seconds": 0.393038358,
+        "synchronous_commit": "on",
+        "warmup_writes": 256,
+        "writes_s": 3256.679593598343,
+        "stages": {
+          "done_to_poll": {
+            "events": 88,
+            "members": 1535,
+            "wall_member_ns": 202152483,
+            "cpu_ns": 0
+          },
+          "facts_interpret": {
+            "events": 88,
+            "members": 1535,
+            "wall_member_ns": 3242071748,
+            "cpu_ns": 30368110
+          },
+          "fill": {
+            "events": 1536,
+            "members": 1536,
+            "wall_member_ns": 9948899,
+            "cpu_ns": 0
+          },
+          "final": {
+            "events": 88,
+            "members": 1535,
+            "wall_member_ns": 9794647711,
+            "cpu_ns": 0
+          },
+          "preparation": {
+            "events": 89,
+            "members": 1536,
+            "wall_member_ns": 6270779018,
+            "cpu_ns": 137129201
+          },
+          "queue": {
+            "events": 1536,
+            "members": 1536,
+            "wall_member_ns": 451579014,
+            "cpu_ns": 0
+          },
+          "release_callbacks": {
+            "events": 88,
+            "members": 1535,
+            "wall_member_ns": 338953237,
+            "cpu_ns": 16076727
+          },
+          "reply_release": {
+            "events": 1535,
+            "members": 1535,
+            "wall_member_ns": 411297943,
+            "cpu_ns": 0
+          },
+          "tail_flight": {
+            "events": 88,
+            "members": 1535,
+            "wall_member_ns": 5313355213,
+            "cpu_ns": 21269201
+          }
+        }
+      },
+      {
+        "N": {
+          "1": 1,
+          "28": 2,
+          "32": 38,
+          "7": 1
+        },
+        "cell": "W4",
+        "clients": 32,
+        "counter_total": 1536,
+        "depth": 1,
+        "fsync": "on",
+        "full_page_writes": "on",
+        "in_flight_at_dispatch": [
+          0,
+          42,
+          0
+        ],
+        "load_after": "0.63 1.15 1.90 1/590 3860535\n",
+        "load_before": "0.63 1.15 1.90 2/622 3860533\n",
+        "mean_N": 30.476190476190474,
+        "mean_ms": 11.451446075,
+        "measured_writes": 1280,
+        "repetition": 1,
+        "seconds": 0.470509519,
+        "synchronous_commit": "on",
+        "warmup_writes": 256,
+        "writes_s": 2720.455056298234,
+        "stages": {
+          "facts_interpret": {
+            "events": 50,
+            "members": 1534,
+            "wall_member_ns": 4058565378,
+            "cpu_ns": 31942958
+          },
+          "fill": {
+            "events": 1536,
+            "members": 1536,
+            "wall_member_ns": 35406727,
+            "cpu_ns": 0
+          },
+          "preparation": {
+            "events": 52,
+            "members": 1536,
+            "wall_member_ns": 20002941414,
+            "cpu_ns": 157447333
+          },
+          "queue": {
+            "events": 1536,
+            "members": 1536,
+            "wall_member_ns": 524814142,
+            "cpu_ns": 0
+          },
+          "tail_flight": {
+            "events": 50,
+            "members": 1534,
+            "wall_member_ns": 5897453683,
+            "cpu_ns": 17988640
+          }
+        }
+      },
+      {
+        "N": {
+          "1": 1,
+          "23": 5,
+          "32": 35,
+          "8": 1,
+          "9": 4
+        },
+        "cell": "W5-exact",
+        "clients": 32,
+        "counter_total": 1536,
+        "depth": 2,
+        "fsync": "on",
+        "full_page_writes": "on",
+        "in_flight_at_dispatch": [
+          0,
+          38,
+          8
+        ],
+        "load_after": "0.63 1.15 1.90 2/607 3860593\n",
+        "load_before": "0.63 1.15 1.90 2/627 3860577\n",
+        "mean_N": 27.82608695652174,
+        "mean_ms": 14.2553386328125,
+        "measured_writes": 1280,
+        "repetition": 1,
+        "seconds": 0.574770419,
+        "synchronous_commit": "on",
+        "warmup_writes": 256,
+        "writes_s": 2226.976124183593,
+        "stages": {
+          "done_to_poll": {
+            "events": 55,
+            "members": 1534,
+            "wall_member_ns": 262593085,
+            "cpu_ns": 0
+          },
+          "facts_interpret": {
+            "events": 55,
+            "members": 1534,
+            "wall_member_ns": 2791140843,
+            "cpu_ns": 18873072
+          },
+          "fill": {
+            "events": 1536,
+            "members": 1536,
+            "wall_member_ns": 35281056,
+            "cpu_ns": 0
+          },
+          "final": {
+            "events": 55,
+            "members": 1534,
+            "wall_member_ns": 8961557712,
+            "cpu_ns": 0
+          },
+          "preparation": {
+            "events": 57,
+            "members": 1536,
+            "wall_member_ns": 12299101465,
+            "cpu_ns": 314841094
+          },
+          "queue": {
+            "events": 1536,
+            "members": 1536,
+            "wall_member_ns": 1031319355,
+            "cpu_ns": 0
+          },
+          "release_callbacks": {
+            "events": 55,
+            "members": 1534,
+            "wall_member_ns": 385123613,
+            "cpu_ns": 12782055
+          },
+          "reply_release": {
+            "events": 1536,
+            "members": 1536,
+            "wall_member_ns": 512751406,
+            "cpu_ns": 0
+          },
+          "tail_flight": {
+            "events": 55,
+            "members": 1534,
+            "wall_member_ns": 4533129564,
+            "cpu_ns": 9929455
+          }
+        }
+      },
+      {
+        "N": {
+          "32": 40
+        },
+        "cell": "W5-exact",
+        "clients": 32,
+        "counter_total": 1536,
+        "depth": 1,
+        "fsync": "on",
+        "full_page_writes": "on",
+        "in_flight_at_dispatch": [
+          0,
+          40,
+          0
+        ],
+        "load_after": "0.74 1.17 1.90 1/582 3860638\n",
+        "load_before": "0.74 1.17 1.90 3/615 3860636\n",
+        "mean_N": 32.0,
+        "mean_ms": 13.53266169765625,
+        "measured_writes": 1280,
+        "repetition": 1,
+        "seconds": 0.54259361,
+        "synchronous_commit": "on",
+        "warmup_writes": 256,
+        "writes_s": 2359.039945199502,
+        "stages": {
+          "facts_interpret": {
+            "events": 49,
+            "members": 1536,
+            "wall_member_ns": 2610420089,
+            "cpu_ns": 22753297
+          },
+          "fill": {
+            "events": 1536,
+            "members": 1536,
+            "wall_member_ns": 37306099,
+            "cpu_ns": 0
+          },
+          "preparation": {
+            "events": 49,
+            "members": 1536,
+            "wall_member_ns": 20882230090,
+            "cpu_ns": 333585920
+          },
+          "queue": {
+            "events": 1536,
+            "members": 1536,
+            "wall_member_ns": 314303860,
+            "cpu_ns": 0
+          },
+          "tail_flight": {
+            "events": 49,
+            "members": 1536,
+            "wall_member_ns": 4418611503,
+            "cpu_ns": 10142650
+          }
+        }
+      },
+      {
+        "N": {
+          "1": 17,
+          "2": 1,
+          "24": 24,
+          "30": 1,
+          "31": 15,
+          "6": 1,
+          "8": 23
+        },
+        "cell": "W5-mix",
+        "clients": 32,
+        "counter_total": 1536,
+        "depth": 2,
+        "fsync": "on",
+        "full_page_writes": "on",
+        "in_flight_at_dispatch": [
+          0,
+          5,
+          77
+        ],
+        "load_after": "0.74 1.17 1.90 1/589 3860704\n",
+        "load_before": "0.74 1.17 1.90 3/631 3860693\n",
+        "mean_N": 15.609756097560975,
+        "mean_ms": 9.59168569296875,
+        "measured_writes": 1280,
+        "repetition": 1,
+        "seconds": 0.38862553,
+        "synchronous_commit": "on",
+        "warmup_writes": 256,
+        "writes_s": 3293.659065579145,
+        "stages": {
+          "done_to_poll": {
+            "events": 88,
+            "members": 1533,
+            "wall_member_ns": 183903507,
+            "cpu_ns": 0
+          },
+          "facts_interpret": {
+            "events": 89,
+            "members": 1535,
+            "wall_member_ns": 3407981395,
+            "cpu_ns": 28580600
+          },
+          "fill": {
+            "events": 1536,
+            "members": 1536,
+            "wall_member_ns": 25008092,
+            "cpu_ns": 0
+          },
+          "final": {
+            "events": 88,
+            "members": 1533,
+            "wall_member_ns": 8724737320,
+            "cpu_ns": 0
+          },
+          "preparation": {
+            "events": 90,
+            "members": 1536,
+            "wall_member_ns": 6583339853,
+            "cpu_ns": 127426315
+          },
+          "queue": {
+            "events": 1536,
+            "members": 1536,
+            "wall_member_ns": 810835324,
+            "cpu_ns": 0
+          },
+          "release_callbacks": {
+            "events": 88,
+            "members": 1533,
+            "wall_member_ns": 341057235,
+            "cpu_ns": 14163296
+          },
+          "reply_release": {
+            "events": 1536,
+            "members": 1536,
+            "wall_member_ns": 404002072,
+            "cpu_ns": 0
+          },
+          "tail_flight": {
+            "events": 89,
+            "members": 1535,
+            "wall_member_ns": 4374110469,
+            "cpu_ns": 16676759
+          }
+        }
+      },
+      {
+        "N": {
+          "11": 1,
+          "12": 1,
+          "2": 1,
+          "26": 3,
+          "27": 2,
+          "28": 1,
+          "30": 4,
+          "31": 2,
+          "32": 28,
+          "5": 2,
+          "7": 1
+        },
+        "cell": "W5-mix",
+        "clients": 32,
+        "counter_total": 1536,
+        "depth": 1,
+        "fsync": "on",
+        "full_page_writes": "on",
+        "in_flight_at_dispatch": [
+          0,
+          46,
+          0
+        ],
+        "load_after": "0.74 1.17 1.90 2/584 3860743\n",
+        "load_before": "0.74 1.17 1.90 1/617 3860742\n",
+        "mean_N": 27.82608695652174,
+        "mean_ms": 11.3719491734375,
+        "measured_writes": 1280,
+        "repetition": 1,
+        "seconds": 0.485138703,
+        "synchronous_commit": "on",
+        "warmup_writes": 256,
+        "writes_s": 2638.4207074899155,
+        "stages": {
+          "facts_interpret": {
+            "events": 56,
+            "members": 1534,
+            "wall_member_ns": 3878807445,
+            "cpu_ns": 29876699
+          },
+          "fill": {
+            "events": 1536,
+            "members": 1536,
+            "wall_member_ns": 111423614,
+            "cpu_ns": 0
+          },
+          "preparation": {
+            "events": 58,
+            "members": 1536,
+            "wall_member_ns": 16057671958,
+            "cpu_ns": 145804572
+          },
+          "queue": {
+            "events": 1536,
+            "members": 1536,
+            "wall_member_ns": 899700301,
+            "cpu_ns": 0
+          },
+          "tail_flight": {
+            "events": 56,
+            "members": 1534,
+            "wall_member_ns": 4908353548,
+            "cpu_ns": 16441891
+          }
+        }
+      }
+    ],
+    "after-probe": [
+      {
+        "N": {
+          "32": 40
+        },
+        "cell": "W4",
+        "clients": 32,
+        "counter_total": 1536,
+        "depth": 1,
+        "fsync": "on",
+        "full_page_writes": "on",
+        "in_flight_at_dispatch": [
+          0,
+          40,
+          0
+        ],
+        "load_after": "0.84 1.18 1.90 1/577 3860793\n",
+        "load_before": "0.84 1.18 1.90 4/609 3860790\n",
+        "mean_N": 32.0,
+        "mean_ms": 8.8289454984375,
+        "measured_writes": 1280,
+        "repetition": 0,
+        "seconds": 0.354764044,
+        "synchronous_commit": "on",
+        "warmup_writes": 256,
+        "writes_s": 3608.031934600452,
+        "stages": {
+          "facts_interpret": {
+            "events": 48,
+            "members": 1535,
+            "wall_member_ns": 3592654815,
+            "cpu_ns": 29779751
+          },
+          "fill": {
+            "events": 1536,
+            "members": 1536,
+            "wall_member_ns": 17836372,
+            "cpu_ns": 0
+          },
+          "preparation": {
+            "events": 49,
+            "members": 1536,
+            "wall_member_ns": 13545182470,
+            "cpu_ns": 133002488
+          },
+          "queue": {
+            "events": 1536,
+            "members": 1536,
+            "wall_member_ns": 355114826,
+            "cpu_ns": 0
+          },
+          "tail_flight": {
+            "events": 48,
+            "members": 1535,
+            "wall_member_ns": 7146594750,
+            "cpu_ns": 19883600
+          }
+        }
+      },
+      {
+        "N": {
+          "1": 31,
+          "2": 1,
+          "27": 5,
+          "28": 1,
+          "29": 2,
+          "3": 2,
+          "30": 1,
+          "31": 31,
+          "4": 1,
+          "5": 5
+        },
+        "cell": "W4",
+        "clients": 32,
+        "counter_total": 1536,
+        "depth": 2,
+        "fsync": "on",
+        "full_page_writes": "on",
+        "in_flight_at_dispatch": [
+          0,
+          1,
+          79
+        ],
+        "load_after": "0.84 1.18 1.90 1/582 3860835\n",
+        "load_before": "0.84 1.18 1.90 2/614 3860835\n",
+        "mean_N": 16.0,
+        "mean_ms": 9.277002065625,
+        "measured_writes": 1280,
+        "repetition": 0,
+        "seconds": 0.372543638,
+        "synchronous_commit": "on",
+        "warmup_writes": 256,
+        "writes_s": 3435.839105645927,
+        "stages": {
+          "done_to_poll": {
+            "events": 97,
+            "members": 1536,
+            "wall_member_ns": 154070243,
+            "cpu_ns": 0
+          },
+          "facts_interpret": {
+            "events": 97,
+            "members": 1536,
+            "wall_member_ns": 3786015994,
+            "cpu_ns": 35921719
+          },
+          "fill": {
+            "events": 1536,
+            "members": 1536,
+            "wall_member_ns": 15026665,
+            "cpu_ns": 0
+          },
+          "final": {
+            "events": 97,
+            "members": 1536,
+            "wall_member_ns": 7745475081,
+            "cpu_ns": 0
+          },
+          "preparation": {
+            "events": 97,
+            "members": 1536,
+            "wall_member_ns": 6571298280,
+            "cpu_ns": 135252952
+          },
+          "queue": {
+            "events": 1536,
+            "members": 1536,
+            "wall_member_ns": 747704222,
+            "cpu_ns": 0
+          },
+          "release_callbacks": {
+            "events": 97,
+            "members": 1536,
+            "wall_member_ns": 317135298,
+            "cpu_ns": 12482656
+          },
+          "reply_release": {
+            "events": 1536,
+            "members": 1536,
+            "wall_member_ns": 363783338,
+            "cpu_ns": 0
+          },
+          "tail_flight": {
+            "events": 97,
+            "members": 1536,
+            "wall_member_ns": 7666561551,
+            "cpu_ns": 18293677
+          }
+        }
+      },
+      {
+        "N": {
+          "1": 2,
+          "13": 2,
+          "14": 1,
+          "18": 1,
+          "2": 1,
+          "20": 1,
+          "21": 3,
+          "22": 1,
+          "23": 2,
+          "24": 1,
+          "25": 1,
+          "28": 2,
+          "29": 2,
+          "3": 1,
+          "31": 1,
+          "32": 27,
+          "6": 1
+        },
+        "cell": "W5-exact",
+        "clients": 32,
+        "counter_total": 1536,
+        "depth": 1,
+        "fsync": "on",
+        "full_page_writes": "on",
+        "in_flight_at_dispatch": [
+          0,
+          50,
+          0
+        ],
+        "load_after": "0.84 1.18 1.90 2/577 3860874\n",
+        "load_before": "0.84 1.18 1.90 2/609 3860872\n",
+        "mean_N": 25.6,
+        "mean_ms": 11.8305053609375,
+        "measured_writes": 1280,
+        "repetition": 0,
+        "seconds": 0.519848504,
+        "synchronous_commit": "on",
+        "warmup_writes": 256,
+        "writes_s": 2462.2558113584564,
+        "stages": {
+          "facts_interpret": {
+            "events": 57,
+            "members": 1534,
+            "wall_member_ns": 2503718811,
+            "cpu_ns": 24639552
+          },
+          "fill": {
+            "events": 1536,
+            "members": 1536,
+            "wall_member_ns": 110115364,
+            "cpu_ns": 0
+          },
+          "preparation": {
+            "events": 59,
+            "members": 1536,
+            "wall_member_ns": 16971850472,
+            "cpu_ns": 308539442
+          },
+          "queue": {
+            "events": 1536,
+            "members": 1536,
+            "wall_member_ns": 1292610801,
+            "cpu_ns": 0
+          },
+          "tail_flight": {
+            "events": 57,
+            "members": 1534,
+            "wall_member_ns": 6454026857,
+            "cpu_ns": 11797684
+          }
+        }
+      },
+      {
+        "N": {
+          "11": 40,
+          "21": 40
+        },
+        "cell": "W5-exact",
+        "clients": 32,
+        "counter_total": 1536,
+        "depth": 2,
+        "fsync": "on",
+        "full_page_writes": "on",
+        "in_flight_at_dispatch": [
+          0,
+          1,
+          79
+        ],
+        "load_after": "0.86 1.18 1.90 1/589 3860925\n",
+        "load_before": "0.86 1.18 1.90 3/621 3860923\n",
+        "mean_N": 16.0,
+        "mean_ms": 9.8468039125,
+        "measured_writes": 1280,
+        "repetition": 0,
+        "seconds": 0.396264139,
+        "synchronous_commit": "on",
+        "warmup_writes": 256,
+        "writes_s": 3230.1686527329184,
+        "stages": {
+          "done_to_poll": {
+            "events": 88,
+            "members": 1535,
+            "wall_member_ns": 908869705,
+            "cpu_ns": 0
+          },
+          "facts_interpret": {
+            "events": 88,
+            "members": 1535,
+            "wall_member_ns": 2649810727,
+            "cpu_ns": 22307584
+          },
+          "fill": {
+            "events": 1536,
+            "members": 1536,
+            "wall_member_ns": 11683476,
+            "cpu_ns": 0
+          },
+          "final": {
+            "events": 88,
+            "members": 1535,
+            "wall_member_ns": 6910066984,
+            "cpu_ns": 0
+          },
+          "preparation": {
+            "events": 89,
+            "members": 1536,
+            "wall_member_ns": 8935287079,
+            "cpu_ns": 300666331
+          },
+          "queue": {
+            "events": 1536,
+            "members": 1536,
+            "wall_member_ns": 406829435,
+            "cpu_ns": 0
+          },
+          "release_callbacks": {
+            "events": 88,
+            "members": 1535,
+            "wall_member_ns": 217321907,
+            "cpu_ns": 11260235
+          },
+          "reply_release": {
+            "events": 1535,
+            "members": 1535,
+            "wall_member_ns": 1051102884,
+            "cpu_ns": 0
+          },
+          "tail_flight": {
+            "events": 88,
+            "members": 1535,
+            "wall_member_ns": 6814512826,
+            "cpu_ns": 14960529
+          }
+        }
+      },
+      {
+        "N": {
+          "32": 40
+        },
+        "cell": "W5-mix",
+        "clients": 32,
+        "counter_total": 1536,
+        "depth": 1,
+        "fsync": "on",
+        "full_page_writes": "on",
+        "in_flight_at_dispatch": [
+          0,
+          40,
+          0
+        ],
+        "load_after": "0.86 1.18 1.90 1/583 3860963\n",
+        "load_before": "0.86 1.18 1.90 3/615 3860963\n",
+        "mean_N": 32.0,
+        "mean_ms": 8.9734572640625,
+        "measured_writes": 1280,
+        "repetition": 0,
+        "seconds": 0.360425754,
+        "synchronous_commit": "on",
+        "warmup_writes": 256,
+        "writes_s": 3551.3555449203554,
+        "stages": {
+          "facts_interpret": {
+            "events": 49,
+            "members": 1536,
+            "wall_member_ns": 3923566456,
+            "cpu_ns": 30634713
+          },
+          "fill": {
+            "events": 1536,
+            "members": 1536,
+            "wall_member_ns": 37002609,
+            "cpu_ns": 0
+          },
+          "preparation": {
+            "events": 49,
+            "members": 1536,
+            "wall_member_ns": 13957980924,
+            "cpu_ns": 133455963
+          },
+          "queue": {
+            "events": 1536,
+            "members": 1536,
+            "wall_member_ns": 297085389,
+            "cpu_ns": 0
+          },
+          "tail_flight": {
+            "events": 49,
+            "members": 1536,
+            "wall_member_ns": 7168441764,
+            "cpu_ns": 17649220
+          }
+        }
+      },
+      {
+        "N": {
+          "26": 40,
+          "6": 40
+        },
+        "cell": "W5-mix",
+        "clients": 32,
+        "counter_total": 1536,
+        "depth": 2,
+        "fsync": "on",
+        "full_page_writes": "on",
+        "in_flight_at_dispatch": [
+          0,
+          1,
+          79
+        ],
+        "load_after": "0.86 1.18 1.90 1/588 3861007\n",
+        "load_before": "0.86 1.18 1.90 3/620 3861005\n",
+        "mean_N": 16.0,
+        "mean_ms": 8.721213345312501,
+        "measured_writes": 1280,
+        "repetition": 0,
+        "seconds": 0.351010033,
+        "synchronous_commit": "on",
+        "warmup_writes": 256,
+        "writes_s": 3646.619411588158,
+        "stages": {
+          "done_to_poll": {
+            "events": 97,
+            "members": 1536,
+            "wall_member_ns": 185045167,
+            "cpu_ns": 0
+          },
+          "facts_interpret": {
+            "events": 97,
+            "members": 1536,
+            "wall_member_ns": 3378279967,
+            "cpu_ns": 31524993
+          },
+          "fill": {
+            "events": 1536,
+            "members": 1536,
+            "wall_member_ns": 27513730,
+            "cpu_ns": 0
+          },
+          "final": {
+            "events": 97,
+            "members": 1536,
+            "wall_member_ns": 7795595946,
+            "cpu_ns": 0
+          },
+          "preparation": {
+            "events": 97,
+            "members": 1536,
+            "wall_member_ns": 5926436789,
+            "cpu_ns": 121365539
+          },
+          "queue": {
+            "events": 1536,
+            "members": 1536,
+            "wall_member_ns": 320511667,
+            "cpu_ns": 0
+          },
+          "release_callbacks": {
+            "events": 97,
+            "members": 1536,
+            "wall_member_ns": 299938866,
+            "cpu_ns": 12838745
+          },
+          "reply_release": {
+            "events": 1536,
+            "members": 1536,
+            "wall_member_ns": 384462595,
+            "cpu_ns": 0
+          },
+          "tail_flight": {
+            "events": 97,
+            "members": 1536,
+            "wall_member_ns": 7705262842,
+            "cpu_ns": 20967659
+          }
+        }
+      },
+      {
+        "N": {
+          "10": 40,
+          "22": 40
+        },
+        "cell": "W4",
+        "clients": 32,
+        "counter_total": 1536,
+        "depth": 2,
+        "fsync": "on",
+        "full_page_writes": "on",
+        "in_flight_at_dispatch": [
+          0,
+          1,
+          79
+        ],
+        "load_after": "0.95 1.19 1.90 1/589 3861051\n",
+        "load_before": "0.86 1.18 1.90 2/621 3861050\n",
+        "mean_N": 16.0,
+        "mean_ms": 9.6661077421875,
+        "measured_writes": 1280,
+        "repetition": 1,
+        "seconds": 0.389217228,
+        "synchronous_commit": "on",
+        "warmup_writes": 256,
+        "writes_s": 3288.6519606989236,
+        "stages": {
+          "done_to_poll": {
+            "events": 88,
+            "members": 1535,
+            "wall_member_ns": 27128157,
+            "cpu_ns": 0
+          },
+          "facts_interpret": {
+            "events": 88,
+            "members": 1535,
+            "wall_member_ns": 3318418538,
+            "cpu_ns": 28516034
+          },
+          "fill": {
+            "events": 1536,
+            "members": 1536,
+            "wall_member_ns": 8892353,
+            "cpu_ns": 0
+          },
+          "final": {
+            "events": 88,
+            "members": 1535,
+            "wall_member_ns": 9914204812,
+            "cpu_ns": 0
+          },
+          "preparation": {
+            "events": 89,
+            "members": 1536,
+            "wall_member_ns": 6235769705,
+            "cpu_ns": 127301292
+          },
+          "queue": {
+            "events": 1536,
+            "members": 1536,
+            "wall_member_ns": 429473833,
+            "cpu_ns": 0
+          },
+          "release_callbacks": {
+            "events": 88,
+            "members": 1535,
+            "wall_member_ns": 238892272,
+            "cpu_ns": 11937005
+          },
+          "reply_release": {
+            "events": 1535,
+            "members": 1535,
+            "wall_member_ns": 182080995,
+            "cpu_ns": 0
+          },
+          "tail_flight": {
+            "events": 88,
+            "members": 1535,
+            "wall_member_ns": 9827595417,
+            "cpu_ns": 18118120
+          }
+        }
+      },
+      {
+        "N": {
+          "32": 40
+        },
+        "cell": "W4",
+        "clients": 32,
+        "counter_total": 1536,
+        "depth": 1,
+        "fsync": "on",
+        "full_page_writes": "on",
+        "in_flight_at_dispatch": [
+          0,
+          40,
+          0
+        ],
+        "load_after": "0.95 1.19 1.90 1/585 3861091\n",
+        "load_before": "0.95 1.19 1.90 3/617 3861089\n",
+        "mean_N": 32.0,
+        "mean_ms": 8.804131525,
+        "measured_writes": 1280,
+        "repetition": 1,
+        "seconds": 0.353555126,
+        "synchronous_commit": "on",
+        "warmup_writes": 256,
+        "writes_s": 3620.3689491974724,
+        "stages": {
+          "facts_interpret": {
+            "events": 48,
+            "members": 1535,
+            "wall_member_ns": 3554838738,
+            "cpu_ns": 29623942
+          },
+          "fill": {
+            "events": 1536,
+            "members": 1536,
+            "wall_member_ns": 20064112,
+            "cpu_ns": 0
+          },
+          "preparation": {
+            "events": 49,
+            "members": 1536,
+            "wall_member_ns": 13663470098,
+            "cpu_ns": 131055731
+          },
+          "queue": {
+            "events": 1536,
+            "members": 1536,
+            "wall_member_ns": 358996922,
+            "cpu_ns": 0
+          },
+          "tail_flight": {
+            "events": 48,
+            "members": 1535,
+            "wall_member_ns": 7304766490,
+            "cpu_ns": 17564861
+          }
+        }
+      },
+      {
+        "N": {
+          "10": 40,
+          "22": 40
+        },
+        "cell": "W5-exact",
+        "clients": 32,
+        "counter_total": 1536,
+        "depth": 2,
+        "fsync": "on",
+        "full_page_writes": "on",
+        "in_flight_at_dispatch": [
+          0,
+          1,
+          79
+        ],
+        "load_after": "0.95 1.19 1.90 1/590 3861134\n",
+        "load_before": "0.95 1.19 1.90 2/622 3861134\n",
+        "mean_N": 16.0,
+        "mean_ms": 10.3029506703125,
+        "measured_writes": 1280,
+        "repetition": 1,
+        "seconds": 0.41462392,
+        "synchronous_commit": "on",
+        "warmup_writes": 256,
+        "writes_s": 3087.134963173374,
+        "stages": {
+          "done_to_poll": {
+            "events": 96,
+            "members": 1536,
+            "wall_member_ns": 1106205430,
+            "cpu_ns": 0
+          },
+          "facts_interpret": {
+            "events": 96,
+            "members": 1536,
+            "wall_member_ns": 2380769634,
+            "cpu_ns": 24233482
+          },
+          "fill": {
+            "events": 1536,
+            "members": 1536,
+            "wall_member_ns": 16603046,
+            "cpu_ns": 0
+          },
+          "final": {
+            "events": 96,
+            "members": 1536,
+            "wall_member_ns": 6744534250,
+            "cpu_ns": 0
+          },
+          "preparation": {
+            "events": 96,
+            "members": 1536,
+            "wall_member_ns": 8041092180,
+            "cpu_ns": 317006535
+          },
+          "queue": {
+            "events": 1536,
+            "members": 1536,
+            "wall_member_ns": 635000694,
+            "cpu_ns": 0
+          },
+          "release_callbacks": {
+            "events": 96,
+            "members": 1536,
+            "wall_member_ns": 234081030,
+            "cpu_ns": 12792597
+          },
+          "reply_release": {
+            "events": 1536,
+            "members": 1536,
+            "wall_member_ns": 1268493187,
+            "cpu_ns": 0
+          },
+          "tail_flight": {
+            "events": 96,
+            "members": 1536,
+            "wall_member_ns": 6664972296,
+            "cpu_ns": 13907045
+          }
+        }
+      },
+      {
+        "N": {
+          "1": 1,
+          "10": 3,
+          "13": 1,
+          "22": 1,
+          "25": 1,
+          "26": 2,
+          "27": 2,
+          "28": 2,
+          "29": 1,
+          "3": 3,
+          "30": 4,
+          "31": 2,
+          "32": 25,
+          "7": 1
+        },
+        "cell": "W5-exact",
+        "clients": 32,
+        "counter_total": 1536,
+        "depth": 1,
+        "fsync": "on",
+        "full_page_writes": "on",
+        "in_flight_at_dispatch": [
+          0,
+          49,
+          0
+        ],
+        "load_after": "0.95 1.19 1.89 1/585 3861180\n",
+        "load_before": "0.95 1.19 1.90 3/610 3861171\n",
+        "mean_N": 26.122448979591837,
+        "mean_ms": 11.80367583046875,
+        "measured_writes": 1280,
+        "repetition": 1,
+        "seconds": 0.516636155,
+        "synchronous_commit": "on",
+        "warmup_writes": 256,
+        "writes_s": 2477.5656670795715,
+        "stages": {
+          "facts_interpret": {
+            "events": 58,
+            "members": 1533,
+            "wall_member_ns": 2564005918,
+            "cpu_ns": 26712602
+          },
+          "fill": {
+            "events": 1536,
+            "members": 1536,
+            "wall_member_ns": 79877926,
+            "cpu_ns": 0
+          },
+          "preparation": {
+            "events": 61,
+            "members": 1536,
+            "wall_member_ns": 17197515866,
+            "cpu_ns": 306499695
+          },
+          "queue": {
+            "events": 1536,
+            "members": 1536,
+            "wall_member_ns": 1137968794,
+            "cpu_ns": 0
+          },
+          "tail_flight": {
+            "events": 58,
+            "members": 1533,
+            "wall_member_ns": 6639020258,
+            "cpu_ns": 12431969
+          }
+        }
+      },
+      {
+        "N": {
+          "26": 40,
+          "6": 40
+        },
+        "cell": "W5-mix",
+        "clients": 32,
+        "counter_total": 1536,
+        "depth": 2,
+        "fsync": "on",
+        "full_page_writes": "on",
+        "in_flight_at_dispatch": [
+          0,
+          1,
+          79
+        ],
+        "load_after": "0.95 1.19 1.89 1/591 3861226\n",
+        "load_before": "0.95 1.19 1.89 2/623 3861224\n",
+        "mean_N": 16.0,
+        "mean_ms": 8.41964856796875,
+        "measured_writes": 1280,
+        "repetition": 1,
+        "seconds": 0.339047994,
+        "synchronous_commit": "on",
+        "warmup_writes": 256,
+        "writes_s": 3775.2767238021174,
+        "stages": {
+          "done_to_poll": {
+            "events": 96,
+            "members": 1536,
+            "wall_member_ns": 147560264,
+            "cpu_ns": 0
+          },
+          "facts_interpret": {
+            "events": 96,
+            "members": 1536,
+            "wall_member_ns": 3309507016,
+            "cpu_ns": 30942278
+          },
+          "fill": {
+            "events": 1536,
+            "members": 1536,
+            "wall_member_ns": 28719590,
+            "cpu_ns": 0
+          },
+          "final": {
+            "events": 96,
+            "members": 1536,
+            "wall_member_ns": 7697554598,
+            "cpu_ns": 0
+          },
+          "preparation": {
+            "events": 96,
+            "members": 1536,
+            "wall_member_ns": 5965049368,
+            "cpu_ns": 122053189
+          },
+          "queue": {
+            "events": 1536,
+            "members": 1536,
+            "wall_member_ns": 278789817,
+            "cpu_ns": 0
+          },
+          "release_callbacks": {
+            "events": 96,
+            "members": 1536,
+            "wall_member_ns": 295993644,
+            "cpu_ns": 12581951
+          },
+          "reply_release": {
+            "events": 1536,
+            "members": 1536,
+            "wall_member_ns": 346448953,
+            "cpu_ns": 0
+          },
+          "tail_flight": {
+            "events": 96,
+            "members": 1536,
+            "wall_member_ns": 7612648329,
+            "cpu_ns": 20681816
+          }
+        }
+      },
+      {
+        "N": {
+          "32": 40
+        },
+        "cell": "W5-mix",
+        "clients": 32,
+        "counter_total": 1536,
+        "depth": 1,
+        "fsync": "on",
+        "full_page_writes": "on",
+        "in_flight_at_dispatch": [
+          0,
+          40,
+          0
+        ],
+        "load_after": "0.95 1.19 1.89 1/586 3861263\n",
+        "load_before": "0.95 1.19 1.89 2/618 3861263\n",
+        "mean_N": 32.0,
+        "mean_ms": 8.900116834375,
+        "measured_writes": 1280,
+        "repetition": 1,
+        "seconds": 0.357301603,
+        "synchronous_commit": "on",
+        "warmup_writes": 256,
+        "writes_s": 3582.4076613504585,
+        "stages": {
+          "facts_interpret": {
+            "events": 49,
+            "members": 1536,
+            "wall_member_ns": 3583891323,
+            "cpu_ns": 28991570
+          },
+          "fill": {
+            "events": 1536,
+            "members": 1536,
+            "wall_member_ns": 34116692,
+            "cpu_ns": 0
+          },
+          "preparation": {
+            "events": 49,
+            "members": 1536,
+            "wall_member_ns": 13361667685,
+            "cpu_ns": 125872256
+          },
+          "queue": {
+            "events": 1536,
+            "members": 1536,
+            "wall_member_ns": 251905726,
+            "cpu_ns": 0
+          },
+          "tail_flight": {
+            "events": 49,
+            "members": 1536,
+            "wall_member_ns": 7075498746,
+            "cpu_ns": 16577220
+          }
+        }
+      }
+    ],
+    "after-native": [
+      {
+        "N": {
+          "1": 1,
+          "14": 1,
+          "22": 3,
+          "23": 2,
+          "24": 2,
+          "26": 1,
+          "27": 1,
+          "28": 2,
+          "29": 1,
+          "32": 30,
+          "7": 1
+        },
+        "cell": "W4",
+        "clients": 32,
+        "counter_total": 1536,
+        "depth": 1,
+        "fsync": "on",
+        "full_page_writes": "on",
+        "in_flight_at_dispatch": [
+          0,
+          45,
+          0
+        ],
+        "load_after": "0.95 1.19 1.89 1/592 3861321\n",
+        "load_before": "0.95 1.19 1.89 2/616 3861313\n",
+        "mean_N": 28.444444444444443,
+        "mean_ms": 9.08036438515625,
+        "measured_writes": 1280,
+        "repetition": 0,
+        "seconds": 0.381411922,
+        "synchronous_commit": "on",
+        "warmup_writes": 256,
+        "writes_s": 3355.9517313672222,
+        "stages": {}
+      },
+      {
+        "N": {
+          "26": 40,
+          "6": 40
+        },
+        "cell": "W4",
+        "clients": 32,
+        "counter_total": 1536,
+        "depth": 2,
+        "fsync": "on",
+        "full_page_writes": "on",
+        "in_flight_at_dispatch": [
+          0,
+          1,
+          79
+        ],
+        "load_after": "1.04 1.20 1.89 1/596 3861363\n",
+        "load_before": "1.04 1.20 1.89 3/629 3861363\n",
+        "mean_N": 16.0,
+        "mean_ms": 8.46327295234375,
+        "measured_writes": 1280,
+        "repetition": 0,
+        "seconds": 0.340612693,
+        "synchronous_commit": "on",
+        "warmup_writes": 256,
+        "writes_s": 3757.93394170428,
+        "stages": {}
+      },
+      {
+        "N": {
+          "32": 40
+        },
+        "cell": "W5-exact",
+        "clients": 32,
+        "counter_total": 1536,
+        "depth": 1,
+        "fsync": "on",
+        "full_page_writes": "on",
+        "in_flight_at_dispatch": [
+          0,
+          40,
+          0
+        ],
+        "load_after": "1.04 1.20 1.89 1/591 3861402\n",
+        "load_before": "1.04 1.20 1.89 1/623 3861400\n",
+        "mean_N": 32.0,
+        "mean_ms": 11.157495478906249,
+        "measured_writes": 1280,
+        "repetition": 0,
+        "seconds": 0.447682917,
+        "synchronous_commit": "on",
+        "warmup_writes": 256,
+        "writes_s": 2859.166502437706,
+        "stages": {}
+      },
+      {
+        "N": {
+          "1": 16,
+          "26": 21,
+          "27": 2,
+          "28": 1,
+          "31": 16,
+          "4": 1,
+          "5": 2,
+          "6": 21
+        },
+        "cell": "W5-exact",
+        "clients": 32,
+        "counter_total": 1536,
+        "depth": 2,
+        "fsync": "on",
+        "full_page_writes": "on",
+        "in_flight_at_dispatch": [
+          0,
+          1,
+          79
+        ],
+        "load_after": "1.04 1.20 1.89 1/596 3861444\n",
+        "load_before": "1.04 1.20 1.89 2/628 3861444\n",
+        "mean_N": 16.0,
+        "mean_ms": 10.79260688125,
+        "measured_writes": 1280,
+        "repetition": 0,
+        "seconds": 0.433171174,
+        "synchronous_commit": "on",
+        "warmup_writes": 256,
+        "writes_s": 2954.951937775989,
+        "stages": {}
+      },
+      {
+        "N": {
+          "32": 40
+        },
+        "cell": "W5-mix",
+        "clients": 32,
+        "counter_total": 1536,
+        "depth": 1,
+        "fsync": "on",
+        "full_page_writes": "on",
+        "in_flight_at_dispatch": [
+          0,
+          40,
+          0
+        ],
+        "load_after": "1.11 1.21 1.89 1/585 3861485\n",
+        "load_before": "1.11 1.21 1.89 3/617 3861483\n",
+        "mean_N": 32.0,
+        "mean_ms": 8.656874502343749,
+        "measured_writes": 1280,
+        "repetition": 0,
+        "seconds": 0.347892975,
+        "synchronous_commit": "on",
+        "warmup_writes": 256,
+        "writes_s": 3679.292460562045,
+        "stages": {}
+      },
+      {
+        "N": {
+          "25": 40,
+          "7": 40
+        },
+        "cell": "W5-mix",
+        "clients": 32,
+        "counter_total": 1536,
+        "depth": 2,
+        "fsync": "on",
+        "full_page_writes": "on",
+        "in_flight_at_dispatch": [
+          0,
+          1,
+          79
+        ],
+        "load_after": "1.11 1.21 1.89 1/600 3861571\n",
+        "load_before": "1.11 1.21 1.89 3/636 3861559\n",
+        "mean_N": 16.0,
+        "mean_ms": 8.2070547515625,
+        "measured_writes": 1280,
+        "repetition": 0,
+        "seconds": 0.330271911,
+        "synchronous_commit": "on",
+        "warmup_writes": 256,
+        "writes_s": 3875.594494622342,
+        "stages": {}
+      },
+      {
+        "N": {
+          "23": 40,
+          "9": 40
+        },
+        "cell": "W4",
+        "clients": 32,
+        "counter_total": 1536,
+        "depth": 2,
+        "fsync": "on",
+        "full_page_writes": "on",
+        "in_flight_at_dispatch": [
+          0,
+          1,
+          79
+        ],
+        "load_after": "1.11 1.21 1.89 1/590 3861652\n",
+        "load_before": "1.11 1.21 1.89 3/622 3861652\n",
+        "mean_N": 16.0,
+        "mean_ms": 8.23378796015625,
+        "measured_writes": 1280,
+        "repetition": 1,
+        "seconds": 0.331903257,
+        "synchronous_commit": "on",
+        "warmup_writes": 256,
+        "writes_s": 3856.545463185979,
+        "stages": {}
+      },
+      {
+        "N": {
+          "13": 1,
+          "24": 1,
+          "25": 1,
+          "30": 1,
+          "32": 37,
+          "4": 1
+        },
+        "cell": "W4",
+        "clients": 32,
+        "counter_total": 1536,
+        "depth": 1,
+        "fsync": "on",
+        "full_page_writes": "on",
+        "in_flight_at_dispatch": [
+          0,
+          42,
+          0
+        ],
+        "load_after": "1.11 1.21 1.89 1/585 3861691\n",
+        "load_before": "1.11 1.21 1.89 2/617 3861689\n",
+        "mean_N": 30.476190476190474,
+        "mean_ms": 8.76548717734375,
+        "measured_writes": 1280,
+        "repetition": 1,
+        "seconds": 0.360707104,
+        "synchronous_commit": "on",
+        "warmup_writes": 256,
+        "writes_s": 3548.5855027684734,
+        "stages": {}
+      },
+      {
+        "N": {
+          "25": 40,
+          "7": 40
+        },
+        "cell": "W5-exact",
+        "clients": 32,
+        "counter_total": 1536,
+        "depth": 2,
+        "fsync": "on",
+        "full_page_writes": "on",
+        "in_flight_at_dispatch": [
+          0,
+          1,
+          79
+        ],
+        "load_after": "1.18 1.23 1.89 1/583 3861734\n",
+        "load_before": "1.18 1.23 1.89 1/615 3861734\n",
+        "mean_N": 16.0,
+        "mean_ms": 10.430245853125001,
+        "measured_writes": 1280,
+        "repetition": 1,
+        "seconds": 0.419243588,
+        "synchronous_commit": "on",
+        "warmup_writes": 256,
+        "writes_s": 3053.1176543599277,
+        "stages": {}
+      },
+      {
+        "N": {
+          "13": 1,
+          "2": 1,
+          "21": 1,
+          "23": 4,
+          "28": 1,
+          "30": 2,
+          "32": 33,
+          "8": 1
+        },
+        "cell": "W5-exact",
+        "clients": 32,
+        "counter_total": 1536,
+        "depth": 1,
+        "fsync": "on",
+        "full_page_writes": "on",
+        "in_flight_at_dispatch": [
+          0,
+          44,
+          0
+        ],
+        "load_after": "1.18 1.23 1.89 1/577 3861773\n",
+        "load_before": "1.18 1.23 1.89 2/610 3861771\n",
+        "mean_N": 29.09090909090909,
+        "mean_ms": 11.3987196640625,
+        "measured_writes": 1280,
+        "repetition": 1,
+        "seconds": 0.473617195,
+        "synchronous_commit": "on",
+        "warmup_writes": 256,
+        "writes_s": 2702.604579210854,
+        "stages": {}
+      },
+      {
+        "N": {
+          "25": 40,
+          "7": 40
+        },
+        "cell": "W5-mix",
+        "clients": 32,
+        "counter_total": 1536,
+        "depth": 2,
+        "fsync": "on",
+        "full_page_writes": "on",
+        "in_flight_at_dispatch": [
+          0,
+          1,
+          79
+        ],
+        "load_after": "1.18 1.23 1.89 1/582 3861815\n",
+        "load_before": "1.18 1.23 1.89 2/614 3861815\n",
+        "mean_N": 16.0,
+        "mean_ms": 8.402856639062499,
+        "measured_writes": 1280,
+        "repetition": 1,
+        "seconds": 0.33848641,
+        "synchronous_commit": "on",
+        "warmup_writes": 256,
+        "writes_s": 3781.5402987670905,
+        "stages": {}
+      },
+      {
+        "N": {
+          "32": 40
+        },
+        "cell": "W5-mix",
+        "clients": 32,
+        "counter_total": 1536,
+        "depth": 1,
+        "fsync": "on",
+        "full_page_writes": "on",
+        "in_flight_at_dispatch": [
+          0,
+          40,
+          0
+        ],
+        "load_after": "1.17 1.22 1.89 1/583 3861859\n",
+        "load_before": "1.18 1.23 1.89 1/615 3861859\n",
+        "mean_N": 32.0,
+        "mean_ms": 8.7755030171875,
+        "measured_writes": 1280,
+        "repetition": 1,
+        "seconds": 0.352531349,
+        "synchronous_commit": "on",
+        "warmup_writes": 256,
+        "writes_s": 3630.8827672514312,
+        "stages": {}
+      }
+    ],
+    "before-native": [
+      {
+        "N": {
+          "32": 40
+        },
+        "cell": "W4",
+        "clients": 32,
+        "counter_total": 1536,
+        "depth": 1,
+        "fsync": "on",
+        "full_page_writes": "on",
+        "in_flight_at_dispatch": [
+          0,
+          40,
+          0
+        ],
+        "load_after": "1.17 1.22 1.89 1/583 3861911\n",
+        "load_before": "1.17 1.22 1.89 2/615 3861911\n",
+        "mean_N": 32.0,
+        "mean_ms": 8.604361649218749,
+        "measured_writes": 1280,
+        "repetition": 0,
+        "seconds": 0.345506139,
+        "synchronous_commit": "on",
+        "warmup_writes": 256,
+        "writes_s": 3704.709860452002,
+        "stages": {}
+      },
+      {
+        "N": {
+          "26": 40,
+          "6": 40
+        },
+        "cell": "W4",
+        "clients": 32,
+        "counter_total": 1536,
+        "depth": 2,
+        "fsync": "on",
+        "full_page_writes": "on",
+        "in_flight_at_dispatch": [
+          0,
+          1,
+          79
+        ],
+        "load_after": "1.17 1.22 1.89 1/588 3861953\n",
+        "load_before": "1.17 1.22 1.89 2/620 3861953\n",
+        "mean_N": 16.0,
+        "mean_ms": 9.830590940625001,
+        "measured_writes": 1280,
+        "repetition": 0,
+        "seconds": 0.395639335,
+        "synchronous_commit": "on",
+        "warmup_writes": 256,
+        "writes_s": 3235.2698196704837,
+        "stages": {}
+      },
+      {
+        "N": {
+          "1": 1,
+          "12": 1,
+          "2": 1,
+          "23": 1,
+          "27": 2,
+          "28": 1,
+          "30": 1,
+          "31": 1,
+          "32": 34,
+          "5": 1,
+          "6": 1
+        },
+        "cell": "W5-exact",
+        "clients": 32,
+        "counter_total": 1536,
+        "depth": 1,
+        "fsync": "on",
+        "full_page_writes": "on",
+        "in_flight_at_dispatch": [
+          0,
+          45,
+          0
+        ],
+        "load_after": "1.17 1.22 1.89 1/583 3861994\n",
+        "load_before": "1.17 1.22 1.89 1/616 3861992\n",
+        "mean_N": 28.444444444444443,
+        "mean_ms": 13.81540779375,
+        "measured_writes": 1280,
+        "repetition": 0,
+        "seconds": 0.576358559,
+        "synchronous_commit": "on",
+        "warmup_writes": 256,
+        "writes_s": 2220.8397533313982,
+        "stages": {}
+      },
+      {
+        "N": {
+          "1": 1,
+          "23": 7,
+          "32": 33,
+          "8": 1,
+          "9": 6
+        },
+        "cell": "W5-exact",
+        "clients": 32,
+        "counter_total": 1536,
+        "depth": 2,
+        "fsync": "on",
+        "full_page_writes": "on",
+        "in_flight_at_dispatch": [
+          0,
+          36,
+          12
+        ],
+        "load_after": "1.24 1.24 1.89 1/589 3862042\n",
+        "load_before": "1.24 1.24 1.89 2/621 3862038\n",
+        "mean_N": 26.666666666666668,
+        "mean_ms": 15.026130396874999,
+        "measured_writes": 1280,
+        "repetition": 0,
+        "seconds": 0.605382382,
+        "synchronous_commit": "on",
+        "warmup_writes": 256,
+        "writes_s": 2114.366123063026,
+        "stages": {}
+      },
+      {
+        "N": {
+          "32": 40
+        },
+        "cell": "W5-mix",
+        "clients": 32,
+        "counter_total": 1536,
+        "depth": 1,
+        "fsync": "on",
+        "full_page_writes": "on",
+        "in_flight_at_dispatch": [
+          0,
+          40,
+          0
+        ],
+        "load_after": "1.24 1.24 1.89 1/583 3862081\n",
+        "load_before": "1.24 1.24 1.89 1/614 3862080\n",
+        "mean_N": 32.0,
+        "mean_ms": 8.5779829453125,
+        "measured_writes": 1280,
+        "repetition": 0,
+        "seconds": 0.344347096,
+        "synchronous_commit": "on",
+        "warmup_writes": 256,
+        "writes_s": 3717.179598343411,
+        "stages": {}
+      },
+      {
+        "N": {
+          "25": 40,
+          "7": 40
+        },
+        "cell": "W5-mix",
+        "clients": 32,
+        "counter_total": 1536,
+        "depth": 2,
+        "fsync": "on",
+        "full_page_writes": "on",
+        "in_flight_at_dispatch": [
+          0,
+          1,
+          79
+        ],
+        "load_after": "1.24 1.24 1.89 1/582 3862124\n",
+        "load_before": "1.24 1.24 1.89 3/621 3862124\n",
+        "mean_N": 16.0,
+        "mean_ms": 9.898619891406248,
+        "measured_writes": 1280,
+        "repetition": 0,
+        "seconds": 0.398400218,
+        "synchronous_commit": "on",
+        "warmup_writes": 256,
+        "writes_s": 3212.8496475872917,
+        "stages": {}
+      },
+      {
+        "N": {
+          "23": 40,
+          "9": 40
+        },
+        "cell": "W4",
+        "clients": 32,
+        "counter_total": 1536,
+        "depth": 2,
+        "fsync": "on",
+        "full_page_writes": "on",
+        "in_flight_at_dispatch": [
+          0,
+          1,
+          79
+        ],
+        "load_after": "1.30 1.25 1.89 1/589 3862175\n",
+        "load_before": "1.30 1.25 1.89 3/621 3862173\n",
+        "mean_N": 16.0,
+        "mean_ms": 9.44558171640625,
+        "measured_writes": 1280,
+        "repetition": 1,
+        "seconds": 0.380741112,
+        "synchronous_commit": "on",
+        "warmup_writes": 256,
+        "writes_s": 3361.8644261353106,
+        "stages": {}
+      },
+      {
+        "N": {
+          "32": 40
+        },
+        "cell": "W4",
+        "clients": 32,
+        "counter_total": 1536,
+        "depth": 1,
+        "fsync": "on",
+        "full_page_writes": "on",
+        "in_flight_at_dispatch": [
+          0,
+          40,
+          0
+        ],
+        "load_after": "1.30 1.25 1.89 1/584 3862212\n",
+        "load_before": "1.30 1.25 1.89 2/616 3862212\n",
+        "mean_N": 32.0,
+        "mean_ms": 10.56429865703125,
+        "measured_writes": 1280,
+        "repetition": 1,
+        "seconds": 0.423861953,
+        "synchronous_commit": "on",
+        "warmup_writes": 256,
+        "writes_s": 3019.851135353024,
+        "stages": {}
+      },
+      {
+        "N": {
+          "11": 40,
+          "21": 40
+        },
+        "cell": "W5-exact",
+        "clients": 32,
+        "counter_total": 1536,
+        "depth": 2,
+        "fsync": "on",
+        "full_page_writes": "on",
+        "in_flight_at_dispatch": [
+          0,
+          1,
+          79
+        ],
+        "load_after": "1.30 1.25 1.89 1/589 3862256\n",
+        "load_before": "1.30 1.25 1.89 5/621 3862254\n",
+        "mean_N": 16.0,
+        "mean_ms": 10.382252667187501,
+        "measured_writes": 1280,
+        "repetition": 1,
+        "seconds": 0.417888042,
+        "synchronous_commit": "on",
+        "warmup_writes": 256,
+        "writes_s": 3063.0213630281382,
+        "stages": {}
+      },
+      {
+        "N": {
+          "32": 40
+        },
+        "cell": "W5-exact",
+        "clients": 32,
+        "counter_total": 1536,
+        "depth": 1,
+        "fsync": "on",
+        "full_page_writes": "on",
+        "in_flight_at_dispatch": [
+          0,
+          40,
+          0
+        ],
+        "load_after": "1.27 1.25 1.89 1/591 3862301\n",
+        "load_before": "1.30 1.25 1.89 2/616 3862294\n",
+        "mean_N": 32.0,
+        "mean_ms": 12.73181585390625,
+        "measured_writes": 1280,
+        "repetition": 1,
+        "seconds": 0.510671038,
+        "synchronous_commit": "on",
+        "warmup_writes": 256,
+        "writes_s": 2506.5059593217034,
+        "stages": {}
+      },
+      {
+        "N": {
+          "25": 40,
+          "7": 40
+        },
+        "cell": "W5-mix",
+        "clients": 32,
+        "counter_total": 1536,
+        "depth": 2,
+        "fsync": "on",
+        "full_page_writes": "on",
+        "in_flight_at_dispatch": [
+          0,
+          1,
+          79
+        ],
+        "load_after": "1.27 1.25 1.89 1/596 3862345\n",
+        "load_before": "1.27 1.25 1.89 3/628 3862343\n",
+        "mean_N": 16.0,
+        "mean_ms": 10.11121995859375,
+        "measured_writes": 1280,
+        "repetition": 1,
+        "seconds": 0.40641607,
+        "synchronous_commit": "on",
+        "warmup_writes": 256,
+        "writes_s": 3149.4817613880277,
+        "stages": {}
+      },
+      {
+        "N": {
+          "32": 40
+        },
+        "cell": "W5-mix",
+        "clients": 32,
+        "counter_total": 1536,
+        "depth": 1,
+        "fsync": "on",
+        "full_page_writes": "on",
+        "in_flight_at_dispatch": [
+          0,
+          40,
+          0
+        ],
+        "load_after": "1.27 1.25 1.89 1/591 3862382\n",
+        "load_before": "1.27 1.25 1.89 2/623 3862382\n",
+        "mean_N": 32.0,
+        "mean_ms": 7.16941827109375,
+        "measured_writes": 1280,
+        "repetition": 1,
+        "seconds": 0.288190214,
+        "synchronous_commit": "on",
+        "warmup_writes": 256,
+        "writes_s": 4441.510980660849,
+        "stages": {}
+      }
+    ]
+  },
+  "summary": {
+    "W4": {
+      "before": {
+        "native_mean_ms": 9.638086328515627,
+        "probe_mean_ms": 9.580331745312499,
+        "mean_N": 16.0,
+        "phases": {
+          "done_to_poll": {
+            "wall_ms": 0.14799075032594525,
+            "cpu_us_per_member": 0.0,
+            "cpu_us_per_batch": 0.0,
+            "members": 3068,
+            "events": 180
+          },
+          "facts_interpret": {
+            "wall_ms": 2.1043275527687295,
+            "cpu_us_per_member": 20.37687687296417,
+            "cpu_us_per_batch": 345.61885082872925,
+            "members": 3070,
+            "events": 181
+          },
+          "fill": {
+            "wall_ms": 0.0122098974609375,
+            "cpu_us_per_member": 0.0,
+            "cpu_us_per_batch": 0.0,
+            "members": 3072,
+            "events": 3072
+          },
+          "final": {
+            "wall_ms": 6.2102487597783576,
+            "cpu_us_per_member": 0.0,
+            "cpu_us_per_batch": 0.0,
+            "members": 3068,
+            "events": 180
+          },
+          "preparation": {
+            "wall_ms": 4.024740413085937,
+            "cpu_us_per_member": 92.8777958984375,
+            "cpu_us_per_batch": 1559.1289016393441,
+            "members": 3072,
+            "events": 183
+          },
+          "queue": {
+            "wall_ms": 0.45282415592447917,
+            "cpu_us_per_member": 0.0,
+            "cpu_us_per_batch": 0.0,
+            "members": 3072,
+            "events": 3072
+          },
+          "release_callbacks": {
+            "wall_ms": 0.21288206844850066,
+            "cpu_us_per_member": 10.402558996088658,
+            "cpu_us_per_batch": 177.3058388888889,
+            "members": 3068,
+            "events": 180
+          },
+          "reply_release": {
+            "wall_ms": 0.28449629859980463,
+            "cpu_us_per_member": 0.0,
+            "cpu_us_per_batch": 0.0,
+            "members": 3071,
+            "events": 3071
+          },
+          "tail_flight": {
+            "wall_ms": 3.3718439609120523,
+            "cpu_us_per_member": 13.806788925081433,
+            "cpu_us_per_batch": 234.18144751381217,
+            "members": 3070,
+            "events": 181
+          }
+        }
+      },
+      "after": {
+        "native_mean_ms": 8.34853045625,
+        "probe_mean_ms": 9.471554903906249,
+        "mean_N": 16.0,
+        "phases": {
+          "done_to_poll": {
+            "wall_ms": 0.05900306089221752,
+            "cpu_us_per_member": 0.0,
+            "cpu_us_per_batch": 0.0,
+            "members": 3071,
+            "events": 185
+          },
+          "facts_interpret": {
+            "wall_ms": 2.313394507326604,
+            "cpu_us_per_member": 20.982661348095085,
+            "cpu_us_per_batch": 348.3121783783784,
+            "members": 3071,
+            "events": 185
+          },
+          "fill": {
+            "wall_ms": 0.007786138671875,
+            "cpu_us_per_member": 0.0,
+            "cpu_us_per_batch": 0.0,
+            "members": 3072,
+            "events": 3072
+          },
+          "final": {
+            "wall_ms": 5.75046561152719,
+            "cpu_us_per_member": 0.0,
+            "cpu_us_per_batch": 0.0,
+            "members": 3071,
+            "events": 185
+          },
+          "preparation": {
+            "wall_ms": 4.168967443033854,
+            "cpu_us_per_member": 85.46687630208334,
+            "cpu_us_per_batch": 1411.5819569892474,
+            "members": 3072,
+            "events": 186
+          },
+          "queue": {
+            "wall_ms": 0.3831959814453125,
+            "cpu_us_per_member": 0.0,
+            "cpu_us_per_batch": 0.0,
+            "members": 3072,
+            "events": 3072
+          },
+          "release_callbacks": {
+            "wall_ms": 0.1810574959296646,
+            "cpu_us_per_member": 7.951696841419733,
+            "cpu_us_per_batch": 131.99816756756758,
+            "members": 3071,
+            "events": 185
+          },
+          "reply_release": {
+            "wall_ms": 0.17774807326603712,
+            "cpu_us_per_member": 0.0,
+            "cpu_us_per_batch": 0.0,
+            "members": 3071,
+            "events": 3071
+          },
+          "tail_flight": {
+            "wall_ms": 5.696566905893845,
+            "cpu_us_per_member": 11.856658091826766,
+            "cpu_us_per_batch": 196.82052432432434,
+            "members": 3071,
+            "events": 185
+          }
+        }
+      }
+    },
+    "W5-exact": {
+      "before": {
+        "native_mean_ms": 12.704191532031249,
+        "probe_mean_ms": 13.31263378125,
+        "mean_N": 21.333333333333336,
+        "phases": {
+          "done_to_poll": {
+            "wall_ms": 0.4051545759452412,
+            "cpu_us_per_member": 0.0,
+            "cpu_us_per_batch": 0.0,
+            "members": 3068,
+            "events": 147
+          },
+          "facts_interpret": {
+            "wall_ms": 1.6988171794788274,
+            "cpu_us_per_member": 13.703969706840391,
+            "cpu_us_per_batch": 284.26477702702704,
+            "members": 3070,
+            "events": 148
+          },
+          "fill": {
+            "wall_ms": 0.02082596484375,
+            "cpu_us_per_member": 0.0,
+            "cpu_us_per_batch": 0.0,
+            "members": 3072,
+            "events": 3072
+          },
+          "final": {
+            "wall_ms": 5.717309918839636,
+            "cpu_us_per_member": 0.0,
+            "cpu_us_per_batch": 0.0,
+            "members": 3068,
+            "events": 147
+          },
+          "preparation": {
+            "wall_ms": 7.099075438476563,
+            "cpu_us_per_member": 208.58875260416664,
+            "cpu_us_per_batch": 4271.897653333333,
+            "members": 3072,
+            "events": 150
+          },
+          "queue": {
+            "wall_ms": 0.5649179619140625,
+            "cpu_us_per_member": 0.0,
+            "cpu_us_per_batch": 0.0,
+            "members": 3072,
+            "events": 3072
+          },
+          "release_callbacks": {
+            "wall_ms": 0.22844048859191657,
+            "cpu_us_per_member": 8.979604302477185,
+            "cpu_us_per_batch": 187.4110612244898,
+            "members": 3068,
+            "events": 147
+          },
+          "reply_release": {
+            "wall_ms": 0.5522066985677083,
+            "cpu_us_per_member": 0.0,
+            "cpu_us_per_batch": 0.0,
+            "members": 3072,
+            "events": 3072
+          },
+          "tail_flight": {
+            "wall_ms": 2.8251557723127037,
+            "cpu_us_per_member": 7.706602605863193,
+            "cpu_us_per_batch": 159.85993243243243,
+            "members": 3070,
+            "events": 148
+          }
+        }
+      },
+      "after": {
+        "native_mean_ms": 10.611426367187502,
+        "probe_mean_ms": 10.07487729140625,
+        "mean_N": 16.0,
+        "phases": {
+          "done_to_poll": {
+            "wall_ms": 0.6561625317486162,
+            "cpu_us_per_member": 0.0,
+            "cpu_us_per_batch": 0.0,
+            "members": 3071,
+            "events": 184
+          },
+          "facts_interpret": {
+            "wall_ms": 1.638091944317812,
+            "cpu_us_per_member": 15.15501986323673,
+            "cpu_us_per_batch": 252.94057608695653,
+            "members": 3071,
+            "events": 184
+          },
+          "fill": {
+            "wall_ms": 0.009207852213541666,
+            "cpu_us_per_member": 0.0,
+            "cpu_us_per_batch": 0.0,
+            "members": 3072,
+            "events": 3072
+          },
+          "final": {
+            "wall_ms": 4.446304537284272,
+            "cpu_us_per_member": 0.0,
+            "cpu_us_per_batch": 0.0,
+            "members": 3071,
+            "events": 184
+          },
+          "preparation": {
+            "wall_ms": 5.526165123372396,
+            "cpu_us_per_member": 201.06538606770835,
+            "cpu_us_per_batch": 3338.7722486486487,
+            "members": 3072,
+            "events": 185
+          },
+          "queue": {
+            "wall_ms": 0.3391374117838542,
+            "cpu_us_per_member": 0.0,
+            "cpu_us_per_batch": 0.0,
+            "members": 3072,
+            "events": 3072
+          },
+          "release_callbacks": {
+            "wall_ms": 0.14698890817323348,
+            "cpu_us_per_member": 7.832247476392054,
+            "cpu_us_per_batch": 130.72191304347825,
+            "members": 3071,
+            "events": 184
+          },
+          "reply_release": {
+            "wall_ms": 0.7553227193096711,
+            "cpu_us_per_member": 0.0,
+            "cpu_us_per_batch": 0.0,
+            "members": 3071,
+            "events": 3071
+          },
+          "tail_flight": {
+            "wall_ms": 4.389282032562683,
+            "cpu_us_per_member": 9.400056659068706,
+            "cpu_us_per_batch": 156.8889891304348,
+            "members": 3071,
+            "events": 184
+          }
+        }
+      }
+    },
+    "W5-mix": {
+      "before": {
+        "native_mean_ms": 10.004919925,
+        "probe_mean_ms": 9.6671295640625,
+        "mean_N": 16.0,
+        "phases": {
+          "done_to_poll": {
+            "wall_ms": 0.15101821056062584,
+            "cpu_us_per_member": 0.0,
+            "cpu_us_per_batch": 0.0,
+            "members": 3068,
+            "events": 178
+          },
+          "facts_interpret": {
+            "wall_ms": 2.1770140364820847,
+            "cpu_us_per_member": 19.511974267100978,
+            "cpu_us_per_batch": 334.6467094972067,
+            "members": 3070,
+            "events": 179
+          },
+          "fill": {
+            "wall_ms": 0.017191967447916668,
+            "cpu_us_per_member": 0.0,
+            "cpu_us_per_batch": 0.0,
+            "members": 3072,
+            "events": 3072
+          },
+          "final": {
+            "wall_ms": 5.745403698826597,
+            "cpu_us_per_member": 0.0,
+            "cpu_us_per_batch": 0.0,
+            "members": 3068,
+            "events": 178
+          },
+          "preparation": {
+            "wall_ms": 4.158993048177083,
+            "cpu_us_per_member": 88.03712565104168,
+            "cpu_us_per_batch": 1494.1991712707184,
+            "members": 3072,
+            "events": 181
+          },
+          "queue": {
+            "wall_ms": 0.45588869010416666,
+            "cpu_us_per_member": 0.0,
+            "cpu_us_per_batch": 0.0,
+            "members": 3072,
+            "events": 3072
+          },
+          "release_callbacks": {
+            "wall_ms": 0.23115606453715776,
+            "cpu_us_per_member": 10.164815840938722,
+            "cpu_us_per_batch": 175.20030898876405,
+            "members": 3068,
+            "events": 178
+          },
+          "reply_release": {
+            "wall_ms": 0.297689935546875,
+            "cpu_us_per_member": 0.0,
+            "cpu_us_per_batch": 0.0,
+            "members": 3072,
+            "events": 3072
+          },
+          "tail_flight": {
+            "wall_ms": 3.0793365136807815,
+            "cpu_us_per_member": 11.718961889250815,
+            "cpu_us_per_batch": 200.99001675977655,
+            "members": 3070,
+            "events": 179
+          }
+        }
+      },
+      "after": {
+        "native_mean_ms": 8.3049556953125,
+        "probe_mean_ms": 8.570430956640624,
+        "mean_N": 16.0,
+        "phases": {
+          "done_to_poll": {
+            "wall_ms": 0.1082699970703125,
+            "cpu_us_per_member": 0.0,
+            "cpu_us_per_batch": 0.0,
+            "members": 3072,
+            "events": 193
+          },
+          "facts_interpret": {
+            "wall_ms": 2.177013991861979,
+            "cpu_us_per_member": 20.33439811197917,
+            "cpu_us_per_batch": 323.66461658031085,
+            "members": 3072,
+            "events": 193
+          },
+          "fill": {
+            "wall_ms": 0.0183051171875,
+            "cpu_us_per_member": 0.0,
+            "cpu_us_per_batch": 0.0,
+            "members": 3072,
+            "events": 3072
+          },
+          "final": {
+            "wall_ms": 5.043343276041667,
+            "cpu_us_per_member": 0.0,
+            "cpu_us_per_batch": 0.0,
+            "members": 3072,
+            "events": 193
+          },
+          "preparation": {
+            "wall_ms": 3.8709264833984376,
+            "cpu_us_per_member": 79.2378671875,
+            "cpu_us_per_batch": 1261.236932642487,
+            "members": 3072,
+            "events": 193
+          },
+          "queue": {
+            "wall_ms": 0.19508511848958335,
+            "cpu_us_per_member": 0.0,
+            "cpu_us_per_batch": 0.0,
+            "members": 3072,
+            "events": 3072
+          },
+          "release_callbacks": {
+            "wall_ms": 0.193988447265625,
+            "cpu_us_per_member": 8.274966145833334,
+            "cpu_us_per_batch": 131.71345077720207,
+            "members": 3072,
+            "events": 193
+          },
+          "reply_release": {
+            "wall_ms": 0.23792693619791666,
+            "cpu_us_per_member": 0.0,
+            "cpu_us_per_batch": 0.0,
+            "members": 3072,
+            "events": 3072
+          },
+          "tail_flight": {
+            "wall_ms": 4.9862992093098955,
+            "cpu_us_per_member": 13.557771809895835,
+            "cpu_us_per_batch": 215.80038860103627,
+            "members": 3072,
+            "events": 193
+          }
+        }
+      }
+    }
+  },
+  "pg_executor": {
+    "before-probe": {
+      "executions": 827,
+      "cpu_us": 1378.3569794437726,
+      "wall_us": 1378.3087726723095
+    },
+    "after-probe": {
+      "executions": 871,
+      "cpu_us": 526.2584247990815,
+      "wall_us": 526.2572778415615
+    },
+    "after-native": {
+      "executions": 859,
+      "cpu_us": 522.5480162980209,
+      "wall_us": 522.5476204889407
+    },
+    "before-native": {
+      "executions": 798,
+      "cpu_us": 1277.634343358396,
+      "wall_us": 1277.5525
+    }
+  },
+  "binaries": {
+    "before": "039426e45c929c3fc04892d9e30861e22b8afdb8f66ebdb481e04ee4be7cf56a",
+    "after": "b5f52833093bc08460fbd6542b2a0b1f61205a58aa53cecd631336ba0c7d4e3a"
+  },
+  "clock_scope": "Stage clocks cover the whole cohort including warmup; native residence covers 1280 measured requests; stage means are not an additive native ledger."
+}

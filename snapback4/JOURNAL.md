@@ -108715,3 +108715,55 @@ All 7 private cluster directories confirm stopped; the combined
 scan find **no PIDs left**, including zombies. Minimum free disk is
 45.63 GiB. The ticket is resolved and moved to `issues/closed/`;
 the complete evidence is in [the G7-E report](reports/20261025-g7e-postgres/REPORT.md#g7-e-fix-forward--terminal-completion-and-pg17-transaction-timeout).
+
+
+## 2026-10-26 — WF: synchronous two-flight final, CPU and notified release
+
+On `5fc6e6449b`, eligible S ticket batches now co-dispatch apply/tail and
+COMMIT. Session-local raising identity checks and all eight count assertions
+precede it. The final settings explicitly select synchronous commit and zero
+statement/lock timeouts plus PG17 transaction timeout. Dispatch starts the
+wider unknown window; only explicit abort evidence plus the original
+transaction's acknowledged end permits recovery. Lost/undecodable results
+cannot turn a possibly committed final into a retryable rollback. The named
+round-trip and store-port amendments land with the implementation.
+
+The tail parses JSONB once. Preparation moves image maps and member contexts;
+static debug proof is checked once per program in the immutable wave, with
+per-member arguments/authority/dependencies retained. Each outcome moves into
+its sole callback. A version/condition notification wakes ordered prefix
+release without occupying mailbox capacity or retaining a sender cycle.
+Full slots still wait for the oldest result before accepting a third wave.
+A held single slot records zero idle polls in 20 ms; the test-only old timer
+records 127 and fails. The held-three-wave witness preserves overlap/order.
+
+All eight suppression cases abort their xids; wire captures ReadyForQuery E
+without COMMIT, while success is idle with COMMIT. Ticket expiry skips
+COMMIT, slow deferred COMMIT survives the reset, and PG17 restores its 80 ms
+session transaction timeout afterward. Lost results at three wire positions
+and termination inside deferred COMMIT remain unknown without rerun.
+S level-zero batches fall 3→2 flights; a dependent level falls 4→3. E stays
+opt-in at three flights, and idle/solo budgets remain unchanged.
+
+Paired loopback W4 residence falls 9.638→8.349 ms, and the 1% mix
+10.005→8.305 ms, at 32 clients with mean N=16 and exact counters. PG tail CPU
+falls 1.378→0.526 ms per probe vector execution; preparation CPU falls
+8–10% and finishing/callback CPU 19–24% per member. These are compact
+fixture checks without HTTP or injected RTT, not S1 qualification; the
+preparation-halving forecast is not achieved here. Ongoing preparation can
+still delay release.
+
+Full core passes 1,311/0 (531 ignored), binary 626/0 (75 ignored), all G7
+88/0, E core/HTTP 40/0 and 5/0, HTTP levers 87/0, both RT0 ratchets 6/0 and
+10/0, private PG17 2/0 plus 5/0, and crash/kill 11/0 with zero acknowledged
+loss or lost-history release. Full Postgres initially reports 817/2: its
+extra obsolete G6 three-flight assertion is corrected and passes 1/0;
+inherited E_INPUT:6 remains, and the stale evaluator lockfile blocks the
+known 40001 stage. Public serving, full binary build and SQLite-only check
+pass. Final test-only additions ran independently over the unchanged product
+implementation. The report records all counts and source fingerprints.
+
+All 30 private cluster directories confirm stopped, the 11,619-pair audit
+has no living helpers or zombies, and minimum free disk is 38.66 GiB.
+No push, publication, protected-cluster access or raw logs committed.
+See [the WF report](reports/20261026-wf-postgres/REPORT.md).

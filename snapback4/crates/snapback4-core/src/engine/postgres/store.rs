@@ -298,6 +298,7 @@ impl Store {
     // Parse/SQL PREPARE can retain relation locks until transaction end. Warm
     // the folded setup outside BEGIN so those locks cannot precede the head
     // and deadlock an adoption doing physical upgrades while holding it.
+    pub(super) fn has_prepared_group_final(&self) -> bool { self.cache.contains_key(super::group_final::IDENTITY) }
     pub(super) fn prewarm_flight(&mut self, sql: &'static str) -> Result<(),RuntimeError> {
         let bind = if let Some(bind) = self.cache.get(sql) {bind.clone()} else {
             self.calls.set(self.calls.get()+1);
@@ -432,16 +433,16 @@ pub struct Tx<'a> {
     pub(super) attempt: RefCell<String>,
     pub(super) batch_ticket: Option<i64>,
     pub(super) predecessor_ticket: Option<i64>,
-    pipeline: bool,
+    pub(super) pipeline: bool,
     pub(super) batch_base: RefCell<Option<super::group_commit::Head>>,
     pub(super) generation_expected: u64,
     pub(super) publication: RefCell<Option<super::read_grant::Published>>,
-    read_grant: Option<std::sync::Arc<super::read_grant::Grant>>,
+    pub(super) read_grant: Option<std::sync::Arc<super::read_grant::Grant>>,
     durable_write: bool,
     pub(super) revisions: Cell<u64>,
     // @ref LLP 3000.009.001.000.002#6 — restored images can precede their index/cap population rebuild.
     pub(super) lifecycle: bool,
-    program_deadline: Cell<Option<std::time::Instant>>,
+    pub(super) program_deadline: Cell<Option<std::time::Instant>>,
     pub(super) read_sessions: &'a Cell<bool>,
     pub(super) read_sessions_installed: Cell<bool>,
     unified: bool,
@@ -617,6 +618,9 @@ impl Tx<'_> {
 
     /// Only adapter constants are SQL; every value uses RT5's single encoder.
     pub(super) fn flight(&self, commands: &[(&str, &[&(dyn ToSql + Sync)])], end: &str) -> Result<Vec<super::flight::ResultSet>, RuntimeError> {
+        self.flight_end(commands,end,false)
+    }
+    pub(super) fn flight_end(&self, commands: &[(&str, &[&(dyn ToSql + Sync)])], end: &str, committing: bool) -> Result<Vec<super::flight::ResultSet>, RuntimeError> {
         self.ensure_active()?;
         self.refresh_program_budget()?;
         let mut sql = String::new();
@@ -639,10 +643,22 @@ impl Tx<'_> {
             statements.push(bind);
         }
         sql.push_str(end);
+        self.ensure_active()?;
+        if committing { self.start_final_dispatch(); }
         let mut inner = self.inner.borrow_mut();
         let controls = inner.pending.bytes().filter(|b| *b == b';').count();
         self.calls.set(self.calls.get() + 1);
-        let messages = inner.simple_query(&sql)?;
+        let messages = inner.simple_query(&sql);
+        if committing { self.final_warning()?; }
+        let messages=messages?;
+        if committing {
+            // simple_query returns only after ReadyForQuery. With the complete
+            // trailing COMMIT tag and no error this is an idle successful end.
+            let tags=messages.iter().filter(|m|matches!(m,postgres::SimpleQueryMessage::CommandComplete(_))).count();
+            if tags!=controls+statements.len()+5 || !matches!(messages.last(),Some(postgres::SimpleQueryMessage::CommandComplete(0))) {
+                return Err(RuntimeError::CommitOutcomeUnknown("incomplete two-flight COMMIT confirmation".into()));
+            }
+        }
         super::flight::results(&statements, controls, messages)
     }
 
@@ -758,6 +774,7 @@ impl Tx<'_> {
     }
 
     pub(crate) fn commit_program(self) -> Result<(), crate::engine::committer::outcome::Failure> {
+        if self.two_flight() { return self.commit_group_final(); }
         let early=self.early_release.is_some() && self.batch_ticket.is_some();
         self.commit().map_err(|error| {
             let aborted=matches!(&error,RuntimeError::Store(message) if message.starts_with("E_DATA_TRANSACTION_ABORTED:")) || (!early && matches!(&error,RuntimeError::Postgres(source) if source.code().is_some_and(|code|matches!(code.code(),"40001"|"40P01")||code.code().starts_with("23"))));

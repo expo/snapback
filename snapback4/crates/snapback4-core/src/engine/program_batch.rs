@@ -350,6 +350,15 @@ impl Engine {
         drop(_attribution);
         let mut pending = Vec::new();
         let admission_checked=wave.is_some();
+        #[cfg(debug_assertions)]
+        if admission_checked {
+            let mut checked=std::collections::BTreeSet::new();
+            for &i in indices {
+                if checked.insert(batch[i].name.as_str()) {
+                    debug_assert!(super::admission::check(host.schema,&host.programs[&batch[i].name]).is_ok());
+                }
+            }
+        }
         for (ordinal,&i) in indices.iter().enumerate() {
             let (prepared, conflict_rerun) = wave.as_mut().map(|w|w.take(ordinal)).unwrap_or((None,false));
             let overlay=wave.as_ref().map(|w|super::committer::overlay::Overlay::new(&w.base,&w.accepted));
@@ -440,6 +449,7 @@ impl Engine {
             let mut transcript = super::program_transcript::Attempt::default();
             transcript.buffered=overlay.is_some();transcript.conflict_rerun=conflict_rerun;
             let mut prepared=prepared;
+            let mut context=Some(context);
             let mut value = None;
             let mut run = || {
                 if value.is_some() {
@@ -448,7 +458,7 @@ impl Engine {
                 let member=Member::new(Kind::Program, |member| {
                         if authority.is_none() {
                             super::validate::write_identity(
-                                &context.viewer,
+                                &context.as_ref().unwrap().viewer,
                                 invocation.id.as_deref(),
                             )?;
                         }
@@ -464,7 +474,7 @@ impl Engine {
                             member,
                             &invocation.name,
                             invocation.id.as_deref(),
-                            context.clone(),
+                            context.take().expect("one physical member attempt"),
                             true,
                             &raw,
                             &mut authority,
@@ -497,7 +507,7 @@ impl Engine {
             invocation.scope = scope;
             invocation.attempts.push(transcript);
             let unsupported=overlay.as_ref().is_some_and(|o|o.reads.borrow().unsupported);
-            let images=overlay.as_ref().map(|o|o.writes.borrow().values().cloned().collect::<Vec<_>>()).unwrap_or_default();
+            let images=overlay.as_ref().map(|o|o.writes.take().into_values().collect::<Vec<_>>()).unwrap_or_default();
             drop(overlay);
             drop(budget);
             match value.unwrap() {
