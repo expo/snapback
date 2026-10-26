@@ -108872,3 +108872,39 @@ and no unexpected worktree helpers. Free space is 33.62 GiB. The product,
 tests and proxy retain the same verified source fingerprint. See the
 [WF report](reports/20261026-wf-postgres/REPORT.md). No push or publication;
 no throughput campaign.
+
+## 2026-10-26 — Stage P: ordered Postgres server cost, implementation checkpoint
+
+Lane `sb4-pg/stage-p` starts at `5fc6e6449b`, without the concurrent WF lane.
+P0 statement/plan attribution precedes the cuts; its diagnostic checkpoint is
+`7552977edc` and the [Stage P report](reports/20261026-stage-p/REPORT.md)
+explicitly distinguishes the first zero-message fixture from the later full
+S1 fixture. The latter is seeded through the native Engine and measured with
+32 loopback clients; it is not the authoritative one-host campaign.
+
+The group tail now sends typed collections, materializes commit input once,
+and omits empty family CTEs while returning int8 zero counts. Every present
+family, image count, head CAS, outcome class and G6 publication boundary remains
+checked before the separate COMMIT. Evidence pruning leaves application tails;
+owner renewal locks/republishes an available head and prunes only behind its
+1000-sequence floor. A busy head skips maintenance. Renewal notices an upgrade
+completed after the lease connected. Old snapshots retain evidence through MVCC.
+
+Schema ensure installs digest-named PL/pgSQL checks under the original inline
+owner fence. Exact signature, owner, body, search path, language, security,
+volatility and other execution attributes are admitted; present functions are
+never replaced. Opens, lease connection and reconnect validate them. Ordinary
+flights use qualified calls, with the volatile key-share fence still its own
+command before data. Binary single-statement reads reference the guard so a
+missing helper fails at Parse without another flight. Prepared state is cleared
+on upgrade/reconnect. Old versions are retained; privileged runtime DDL during
+a lease remains unsupported. SQLite product code and opt-in E routing are unchanged.
+
+At this checkpoint the full core run passes 1311/0/531 (passed/failed/ignored,
+isolated child excluded); the five focused witnesses and both PG17 certificate
+timeout witnesses pass. The expanded differential includes all-family and empty
+online-only tails, generic-plan use, SQLite and byte-identical generic/typed PG
+snapshots. The HTTP negative control fails twice on the baseline and passes
+upgrade and missing-guard/fence checks on the new binary with zero data change.
+Full binary, G7/E/lever/RT0 and complete Postgres-script results, final loopback
+numbers, and final PID cleanup will be appended on completion. No push occurs.

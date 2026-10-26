@@ -21,12 +21,15 @@ mod tail;
 mod revision;
 pub(crate) mod read_grant;
 mod group_tail;
+#[cfg(test)]
+pub(crate) use group_tail::generic as generic_tail;
 pub(crate) mod group_commit;
 pub(crate) mod writer_slot;
 mod writer_driver;
 mod batch;
 pub mod literal;
 mod flight;
+mod checks;
 pub(crate) mod early_release;
 #[cfg(test)]
 mod early_release_tests;

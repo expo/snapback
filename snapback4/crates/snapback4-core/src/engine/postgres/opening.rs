@@ -90,6 +90,7 @@ impl Handle {
             tx.rollback()?;
             store.read_sessions.set(read_sessions);
             store.generation = generation;
+            super::checks::load(&mut store)?;
 
         }
         Ok(Self { store: RefCell::new(store), report: AdoptionReport::default(), connection: (config, name.into()), fresh, readers: RefCell::new(pool), bootstrap_id: None })
@@ -201,6 +202,7 @@ pub(super) fn initialize(tx: &Tx<'_>, schema: &Schema) -> Result<(), RuntimeErro
     super::metadata::initialize(tx)?;
     super::receipts::initialize(tx)?;
     super::change_evidence::initialize(tx)?;
+    super::checks::initialize(tx)?;
     tx.install_read_sessions()?;
     tx.batch(super::identity::DDL)?;
     super::requests::initialize(tx)?;

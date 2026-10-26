@@ -82,6 +82,7 @@ pub struct Store {
     pub(super) read_sessions: Cell<bool>,
     pub(super) unified: bool,
     pub(super) fence: Option<super::ownership::Fence>,
+    pub(super) check_functions: RefCell<Option<super::checks::Checks>>,
     pub(crate) read_grant: Option<std::sync::Arc<super::read_grant::Grant>>,
     pub(super) commit_warning: std::sync::Arc<std::sync::atomic::AtomicBool>,
     pub generation: u64,
@@ -105,7 +106,7 @@ pub struct Store {
 impl Store {
     pub fn new(client: Client) -> Self { Self::with_connection(super::pipeline::Connection::Sync(client)) }
     pub(super) fn with_connection(client: super::pipeline::Connection) -> Self {
-        Self { early_release: None, read_sessions: Cell::new(false), unified: false, fence: None, read_grant: None, commit_warning: Default::default(), generation:1, read_only: false, client, qualified: false, batch_ordinal: Default::default(), reader_binding: false, next_program_deadline: None, dispatch_bound: Default::default(), literal_cache: BTreeMap::new(), cache: BTreeMap::new(), calls: CallCounter::new(0), prefetch: true, marked_reads: Cell::new(0), page_reads: Cell::new(0), prefetch_rows: Cell::new(0), prefetch_bytes: Cell::new(0) }
+        Self { check_functions: RefCell::new(None), early_release: None, read_sessions: Cell::new(false), unified: false, fence: None, read_grant: None, commit_warning: Default::default(), generation:1, read_only: false, client, qualified: false, batch_ordinal: Default::default(), reader_binding: false, next_program_deadline: None, dispatch_bound: Default::default(), literal_cache: BTreeMap::new(), cache: BTreeMap::new(), calls: CallCounter::new(0), prefetch: true, marked_reads: Cell::new(0), page_reads: Cell::new(0), prefetch_rows: Cell::new(0), prefetch_bytes: Cell::new(0) }
     }
 
     // @ref LLP 3000.009.001.000#8 — only future requests reconnect, with fresh binding checks.
@@ -116,7 +117,9 @@ impl Store {
         // not leave the old durability epoch live.
         if self.client.is_closed() && let Some(gate)=&self.early_release {gate.break_history();}
 
-        if self.client.refresh_closed()? {
+        let refreshed=self.client.refresh_closed()?;
+        if refreshed {
+            self.check_functions.borrow_mut().take();
             if let Some(gate)=&self.early_release {gate.break_history();}
             if let Some(grant)=&self.read_grant {grant.revoke();}
             self.literal_cache.clear(); self.cache.clear();
@@ -138,6 +141,7 @@ impl Store {
             // Keep the validation pending after any mismatch or failed query.
             self.reader_binding = false;
         }
+        if refreshed && self.unified { super::checks::load(self)?; }
         Ok(())
     }
 
@@ -166,8 +170,9 @@ impl Store {
             Some(WriteMode::Serialized) => "BEGIN ISOLATION LEVEL READ COMMITTED READ WRITE; SET LOCAL synchronous_commit=on;",
             Some(WriteMode::Serializable) => "BEGIN ISOLATION LEVEL SERIALIZABLE READ WRITE; SET LOCAL synchronous_commit=on;",
         };
-        let inner = super::flight::Session { client: &mut self.client, pending: if cpu_only {String::new()} else {begin.into()}, started: false, done: cpu_only, settings_refused: false, checks: Vec::new(), owner: None, owner_budget: None, continuity:self.early_release.clone(), durability: if mode.is_none() {self.early_release.clone()} else {None}, snapshot: None };
-        let tx = Tx { activation_relations: Default::default(), batch_end:RefCell::new(None), early_release:self.early_release.clone(), release_epoch:self.early_release.as_ref().map_or(0,|g|g.epoch()), batch_store_id: self.fence.as_ref().map(|f| f.store_id.clone()), attempt: RefCell::new(if mode.is_some() { super::group_commit::fresh_attempt(self.fence.as_ref().map_or(0, |f| f.token))? } else { String::new() }), batch_ticket: None, predecessor_ticket: None, pipeline: false, batch_base: RefCell::new(None), generation_expected: self.generation, publication: RefCell::new(None), read_grant:self.read_grant.clone(), durable_write: mode.is_some(), revisions: Cell::new(0), lifecycle: opening, read_sessions: &self.read_sessions, read_sessions_installed: Cell::new(false), unified: self.unified, commit_warning: &self.commit_warning, inner: RefCell::new(inner),
+        let guard = if opening {None} else {self.check_functions.borrow().clone()};
+        let inner = super::flight::Session { guard: guard.as_ref().map(|g|g.guard.clone()), client: &mut self.client, pending: if cpu_only {String::new()} else {begin.into()}, started: false, done: cpu_only, settings_refused: false, checks: Vec::new(), owner: None, owner_budget: None, continuity:self.early_release.clone(), durability: if mode.is_none() {self.early_release.clone()} else {None}, snapshot: None };
+        let tx = Tx { check_functions: &self.check_functions, activation_relations: Default::default(), batch_end:RefCell::new(None), early_release:self.early_release.clone(), release_epoch:self.early_release.as_ref().map_or(0,|g|g.epoch()), batch_store_id: self.fence.as_ref().map(|f| f.store_id.clone()), attempt: RefCell::new(if mode.is_some() { super::group_commit::fresh_attempt(self.fence.as_ref().map_or(0, |f| f.token))? } else { String::new() }), batch_ticket: None, predecessor_ticket: None, pipeline: false, batch_base: RefCell::new(None), generation_expected: self.generation, publication: RefCell::new(None), read_grant:self.read_grant.clone(), durable_write: mode.is_some(), revisions: Cell::new(0), lifecycle: opening, read_sessions: &self.read_sessions, read_sessions_installed: Cell::new(false), unified: self.unified, commit_warning: &self.commit_warning, inner: RefCell::new(inner),
             bind_refused: Cell::new(false), program_deadline: Cell::new(deadline), dispatch_bound: &self.dispatch_bound, read_cache: RefCell::new(super::read_plan::Answers::default()), pending_read: RefCell::new(None), receipt_cache: RefCell::new(None), placement_cache: RefCell::new(None), authority_cache: RefCell::new(None), commit_settings: Cell::new(false), literal_cache: RefCell::new(&mut self.literal_cache), cache: RefCell::new(&mut self.cache), calls: &self.calls, marked_reads: &self.marked_reads, page_reads: &self.page_reads, prefetch_rows: &self.prefetch_rows, prefetch_bytes: &self.prefetch_bytes,
             rows_cache: RefCell::new(super::prefetch::Cache::default()), prefetch_enabled: self.prefetch, head: Cell::new(None), serialized_head: Cell::new(false), tail: RefCell::new(super::tail::Tail::default()), group_head: Cell::new(None), group_tails: RefCell::new(Vec::new()), group_images: Default::default(), changes: Default::default(), savepoints: RefCell::new(Vec::new()) };
         if opening { super::managed_relations::verify(&tx)?; super::managed_relations::capture(&tx)?; }
@@ -193,7 +198,7 @@ impl Store {
             if exists && !opening && mode == Some(WriteMode::Serialized) {
                 // BEGIN, raising owner fence, then the first facts commands
                 // travel together. No CTE pulls facts into the lock snapshot.
-                tx.inner.borrow_mut().owner = Some(super::ownership::Fence::raising_command(self.fence.as_ref())?);
+                tx.inner.borrow_mut().owner = Some(if let Some(checks)=self.check_functions.borrow().as_ref() {checks.fence(self.fence.as_ref())?} else {super::ownership::Fence::raising_command(self.fence.as_ref())?});
             } else if exists {
                 // @ref LLP 3000.009.001.000#5.1 — first row lock, before head, generation or any family write.
                 let rows = tx.query("SELECT store_id,token FROM _owner WHERE singleton FOR KEY SHARE", &[]).map_err(|error| {
@@ -216,7 +221,9 @@ impl Store {
         if absent_text_key(&[digest]) { return Ok(Default::default()); }
         self.refresh_reader_connection()?;
         if self.early_release.is_some() {let (tx,facts)=self.session_authority_transaction(digest)?;tx.rollback()?;return Ok(facts);}
-        let sql = super::authority::session_facts_sql(self.read_sessions.get());
+        let source = super::authority::session_facts_sql(self.read_sessions.get());
+        let guarded=self.check_functions.borrow().as_ref().map(|checks|checks.binary_read(source));
+        let sql=guarded.as_deref().unwrap_or(source);
         if self.client.is_reader() && self.read_sessions.get() {
             self.calls.set(self.calls.get() + 1);
             let facts = super::authority::session_facts_rows(self.client.independent(sql, &[(&digest, postgres::types::Type::TEXT)])?);
@@ -426,6 +433,7 @@ impl Tx<'_> {
 }
 
 pub struct Tx<'a> {
+    pub(super) check_functions: &'a RefCell<Option<super::checks::Checks>>,
     pub(super) activation_relations: RefCell<BTreeMap<(u32, String), u32>>,
     pub(crate) early_release: Option<std::sync::Arc<super::early_release::Durability>>,
     pub(super) release_epoch: u64,
@@ -619,6 +627,10 @@ impl Tx<'_> {
     }
 
     /// Only adapter constants are SQL; every value uses RT5's single encoder.
+    pub(super) fn clear_prepared_checks(&self) {
+        self.cache.borrow_mut().clear();
+        self.literal_cache.borrow_mut().clear();
+    }
     pub(super) fn flight(&self, commands: &[(&str, &[&(dyn ToSql + Sync)])], end: &str) -> Result<Vec<super::flight::ResultSet>, RuntimeError> {
         self.flight_end(commands,end,false)
     }
@@ -1230,7 +1242,7 @@ impl Store {
 
 impl Store {
     pub(crate) fn recovery_transaction(&mut self) -> Result<Tx<'_>,RuntimeError> {
-        let owner=super::ownership::Fence::raising_command(self.fence.as_ref())?;
+        let owner=if let Some(checks)=self.check_functions.borrow().as_ref() {checks.fence(self.fence.as_ref())?} else {super::ownership::Fence::raising_command(self.fence.as_ref())?};
         let mut tx=self.begin_resuming(Some(WriteMode::Serialized),false,false,true)?;
         tx.inner.get_mut().owner=Some(owner);
         Ok(tx)

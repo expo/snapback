@@ -10,8 +10,6 @@ macro_rules! tail_sql { ($head:literal, $publication:literal) => { concat!("WITH
             INSERT INTO _commits(seq,at,program,principal,kind,touched,writes) SELECT seq,$2,$3,$4,$5,$6,$7 FROM head RETURNING seq
         ), evidence AS (
             INSERT INTO _change_evidence(seq,footprint) SELECT seq,$26 FROM committed RETURNING seq
-        ), pruned AS (
-            DELETE FROM _change_evidence WHERE seq <= $27 AND EXISTS (SELECT 1 FROM committed)
         ), logged AS (
             INSERT INTO _log(partition,seq,ord,t,kind,id,data) SELECT l.partition,c.seq,l.ord,l.t,l.kind,l.id,l.data FROM committed c
             CROSS JOIN unnest($8::pg_catalog.text[],$9::pg_catalog.int8[],$10::pg_catalog.text[],$11::pg_catalog.text[],$12::pg_catalog.text[],$13::pg_catalog.text[]) AS l(partition,ord,t,kind,id,data) RETURNING seq
@@ -92,7 +90,7 @@ impl Tx<'_> {
         let results = self.flight(&[(if self.publication_enabled() { PUBLICATION_SQL } else { SQL }, &[
             &signed(commit.seq)?, &commit.at, &commit.program, &commit.principal, &commit.kind, &commit.touched, &signed(commit.writes)?,
             &tail.partitions, &tail.ords, &tail.tables, &tail.kinds, &tail.ids, &tail.data, &ids, &effects, &payloads, &next_at, &work, &deadlines, &contracts, &principals, &presence_ids, &presence_deadlines, &explicit_release, &releases,
-            &commit.footprint, &signed(commit.seq.saturating_sub(1000))?,
+            &commit.footprint,
         ])],end)?;
         let rows = &results[0].rows;
         if rows[0].get::<_, i64>(0) != 1 {

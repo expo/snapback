@@ -98,6 +98,7 @@ impl Handle {
         let mut replacement=Store::new(client);
         replacement.early_release=old.early_release.clone();replacement.fence=old.fence.clone();replacement.unified=true;replacement.generation=old.generation;
         replacement.read_sessions.set(old.read_sessions.get());replacement.read_grant=old.read_grant.clone();replacement.commit_warning=warning;replacement.batch_ordinal=old.batch_ordinal.clone();
+        super::checks::load(&mut replacement)?;
         replacement.client.writer_thread();*old=replacement;Ok(())
     }
 }

@@ -162,7 +162,7 @@ pub(super) fn snapshot(engine: &mut Engine) -> serde_json::Value {
         metadata_rows(
             &tx,
             "SELECT json_build_array(t,encode(k,'hex'),n)::text FROM _cap_counts ORDER BY t,k",
-            "SELECT json_array(t,lower(hex(k)),n) FROM _cap_counts ORDER BY t,k",
+            "SELECT json_array(c.name,lower(hex(k)),n) FROM _cap_counts JOIN _catalog c ON c.num=t ORDER BY c.name,k",
         )
     } else {
         Vec::new()
@@ -1428,3 +1428,7 @@ fn grouped_column_security_sqlite() { grouped_column_security(false); }
 #[test]
 #[ignore = "private PG16; column authority and conditional immutability across grouped execution"]
 fn grouped_column_security_postgres() { grouped_column_security(true); }
+
+#[cfg(feature="postgres")]
+#[path="stage_p_tests.rs"]
+mod stage_p_tests;

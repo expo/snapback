@@ -3,7 +3,16 @@
 // @ref LLP 3000.009.001.000.000.002#3.4 — ticket batches advance the complete head identity with one exact CAS.
 use super::store::{Tx, signed};
 use crate::RuntimeError;
+mod typed;
+#[cfg(test)]
+thread_local! { static GENERIC: std::cell::Cell<bool> = const {std::cell::Cell::new(false)}; }
+#[cfg(test)]
+pub(crate) fn generic<T>(run: impl FnOnce()->T)->T {
+    struct Reset; impl Drop for Reset {fn drop(&mut self){GENERIC.with(|g|g.set(false));}}
+    GENERIC.with(|g|g.set(true));let _reset=Reset;run()
+}
 
+#[cfg(test)]
 macro_rules! tail_sql { ($update:literal, $head:literal, $publication:literal) => { concat!(r#"WITH
 payload AS MATERIALIZED (SELECT $1::text::jsonb AS data),
 head AS ("#, $update, $head, r#"),
@@ -20,8 +29,6 @@ committed AS (
  INSERT INTO _change_evidence(seq,footprint)
  SELECT c.seq,c.footprint FROM jsonb_to_recordset((SELECT data FROM payload)->'commits') AS c(seq bigint,footprint text)
  JOIN committed USING(seq) RETURNING seq
-), pruned AS (
- DELETE FROM _change_evidence WHERE seq > $2-1000 AND seq <= $3-1000 AND EXISTS(SELECT 1 FROM committed)
 ), logged AS (
  INSERT INTO _log(partition,seq,ord,t,kind,id,data)
  SELECT l.partition,l.seq,l.ord,l.t,l.kind,l.id,l.data
@@ -45,19 +52,18 @@ committed AS (
 )
 SELECT (SELECT count(*) FROM head),(SELECT count(*) FROM committed),(SELECT count(*) FROM evidence),
  (SELECT count(*) FROM logged),(SELECT count(*) FROM effects),(SELECT count(*) FROM presence),(SELECT count(*) FROM receipts),(SELECT count(*) FROM images)"#, $publication) }; }
+#[cfg(test)]
 pub(super) const SQL: &str = tail_sql!("UPDATE _head SET seq=$3 WHERE singleton AND seq=$2 ", "RETURNING seq", "");
+#[cfg(test)]
 const PUBLICATION_SQL: &str = tail_sql!("UPDATE _head SET seq=$3 WHERE singleton AND seq=$2 ", "RETURNING seq,revision", r#",
  (SELECT revision FROM head),(SELECT seq FROM head),(SELECT generation FROM _backend WHERE singleton),
  (SELECT value FROM _meta WHERE key='store_id'),(SELECT value FROM _meta WHERE key='schema_hash'),(SELECT value FROM _meta WHERE key='activation_hash')"#);
+#[cfg(test)]
 const CAS_SQL: &str = tail_sql!("UPDATE _head SET seq=$3,revision=$4,attempt=$5 WHERE singleton AND seq OPERATOR(pg_catalog.=) $2 AND revision OPERATOR(pg_catalog.=) $6 AND attempt OPERATOR(pg_catalog.=) $7 ", "RETURNING seq", "");
+#[cfg(test)]
 const CAS_PUBLICATION_SQL: &str = tail_sql!("UPDATE _head SET seq=$3,revision=$4,attempt=$5 WHERE singleton AND seq OPERATOR(pg_catalog.=) $2 AND revision OPERATOR(pg_catalog.=) $6 AND attempt OPERATOR(pg_catalog.=) $7 ", "RETURNING seq,revision", r#",
  (SELECT revision FROM head),(SELECT seq FROM head),(SELECT generation FROM _backend WHERE singleton),
  (SELECT value FROM _meta WHERE key='store_id'),(SELECT value FROM _meta WHERE key='schema_hash'),(SELECT value FROM _meta WHERE key='activation_hash')"#);
-
-const FINAL_SQL: &str = tail_sql!("UPDATE _head SET seq=$3,revision=$4,attempt=$5 WHERE singleton AND seq OPERATOR(pg_catalog.=) $2 AND revision OPERATOR(pg_catalog.=) $6 AND attempt OPERATOR(pg_catalog.=) $7 ", "RETURNING seq", ",pg_temp.sb4_assert_counts(ARRAY[(SELECT count(*) FROM head),(SELECT count(*) FROM committed),(SELECT count(*) FROM evidence),(SELECT count(*) FROM logged),(SELECT count(*) FROM effects),(SELECT count(*) FROM presence),(SELECT count(*) FROM receipts),(SELECT count(*) FROM images)],$8::bigint[])");
-const FINAL_PUBLICATION_SQL: &str = tail_sql!("UPDATE _head SET seq=$3,revision=$4,attempt=$5 WHERE singleton AND seq OPERATOR(pg_catalog.=) $2 AND revision OPERATOR(pg_catalog.=) $6 AND attempt OPERATOR(pg_catalog.=) $7 ", "RETURNING seq,revision", r#",
- (SELECT revision FROM head),(SELECT seq FROM head),(SELECT generation FROM _backend WHERE singleton),
- (SELECT value FROM _meta WHERE key='store_id'),(SELECT value FROM _meta WHERE key='schema_hash'),(SELECT value FROM _meta WHERE key='activation_hash'),pg_temp.sb4_assert_counts(ARRAY[(SELECT count(*) FROM head),(SELECT count(*) FROM committed),(SELECT count(*) FROM evidence),(SELECT count(*) FROM logged),(SELECT count(*) FROM effects),(SELECT count(*) FROM presence),(SELECT count(*) FROM receipts),(SELECT count(*) FROM images)],$8::bigint[])"#);
 
 #[derive(Clone, serde::Serialize)]
 pub(super) struct Receipt {
@@ -100,9 +106,9 @@ struct Presence<'a> {
     deadline: i64,
 }
 #[derive(serde::Serialize)]
-struct Image<'a> {
-    t: &'a str,
-    id: &'a str,
+struct Image {
+    t: String,
+    id: String,
     data: String,
 }
 #[derive(serde::Serialize)]
@@ -112,7 +118,7 @@ struct Payload<'a> {
     effects: Vec<Effect<'a>>,
     presence: Vec<Presence<'a>>,
     receipts: Vec<&'a Receipt>,
-    images: Vec<Image<'a>>,
+    images: Vec<Image>,
 }
 
 impl Tx<'_> {
@@ -208,27 +214,26 @@ impl Tx<'_> {
             receipts.len(),
             self.group_images.borrow().len(),
         ];
-        // Serialize borrowed records directly: no per-field JSON tree or
-        // duplicate strings between the per-member tails and the wire payload.
+        // Build logical collections without a JSON envelope; the tail sends
+        // typed columns and materializes commit input once on the server.
         let payload = {
             let images = self.group_images.borrow();
             let images = images
                 .iter()
                 .map(|image| Image {
-                    t: &image.table,
-                    id: image.new.field("id").unwrap().as_str().unwrap(),
+                    t: image.table.clone(),
+                    id: image.new.field("id").unwrap().as_str().unwrap().to_string(),
                     data: crate::value::canonical_json(&image.new),
                 })
                 .collect();
-            serde_json::to_string(&Payload {
+            Payload {
                 commits,
                 log,
                 effects,
                 presence,
                 receipts,
                 images,
-            })
-            .unwrap()
+            }
         };
         let sets = if self.batch_ticket.is_some() {
             let base = self.batch_base.borrow();
@@ -240,15 +245,14 @@ impl Tx<'_> {
             let predecessor_params: &[&(dyn postgres::types::ToSql + Sync)] = &[&predecessor];
             let generation = self.generation_expected as i64;
             let identity_params: &[&(dyn postgres::types::ToSql + Sync)] = if committing { &[&generation,&self.batch_store_id] } else { &[] };
-            let expected_counts: Vec<i64> = expected.iter().map(|n|*n as i64).collect();
-            let tail_params: &[&(dyn postgres::types::ToSql + Sync)] = &[&payload, &signed(first)?, &signed(last)?, &revision, &*attempt, &base.revision, &base.attempt];
-            let final_params: &[&(dyn postgres::types::ToSql + Sync)] = &[&payload, &signed(first)?, &signed(last)?, &revision, &*attempt, &base.revision, &base.attempt,&expected_counts];
+            let mut typed = typed::Tail::new(&payload, true, self.publication_enabled(), signed(first)?, signed(last)?, revision, &attempt, base.revision, &base.attempt)?;
+            if committing { typed.assert_counts(expected.iter().map(|n|*n as i64).collect()); }
+            let tail_params: Vec<&(dyn postgres::types::ToSql + Sync)> = typed.params.iter().map(|p|p.as_ref()).collect();
             let mut commands = Vec::new();
             if predecessor.is_some() { commands.push((super::group_commit::TICKET, predecessor_params)); }
             commands.extend([
                 (if committing {super::group_final::IDENTITY} else {super::group_commit::IDENTITY}, identity_params),
-                (if committing {if self.publication_enabled() { FINAL_PUBLICATION_SQL } else { FINAL_SQL }} else if self.publication_enabled() { CAS_PUBLICATION_SQL } else { CAS_SQL },
-                 if committing {final_params} else {tail_params}),
+                (&typed.sql, tail_params.as_slice()),
             ]);
             let final_controls = format!("{} COMMIT",super::ownership::CERTIFICATE_SETTINGS);
             let mut sets = self.flight_end(&commands, if committing {&final_controls} else {"SET LOCAL statement_timeout=0; SET LOCAL lock_timeout=0"}, committing)?;
@@ -263,10 +267,11 @@ impl Tx<'_> {
                     observed.get::<_,i64>(0), observed.get::<_,i64>(1), observed.get::<_,String>(2))));
             }
             sets.into_iter().skip(1).collect::<Vec<_>>()
-        } else { self.flight(
-            &[(if self.publication_enabled() { PUBLICATION_SQL } else { SQL }, &[&payload, &signed(first)?, &signed(last)?])],
-            "SET LOCAL statement_timeout=0; SET LOCAL lock_timeout=0",
-        )? };
+        } else {
+            let typed = typed::Tail::new(&payload, false, self.publication_enabled(), signed(first)?, signed(last)?, 0, "", 0, "")?;
+            let params: Vec<&(dyn postgres::types::ToSql + Sync)> = typed.params.iter().map(|p|p.as_ref()).collect();
+            self.flight(&[(&typed.sql, &params)], "SET LOCAL statement_timeout=0; SET LOCAL lock_timeout=0")?
+        };
         let row = sets[0]
             .rows
             .first()
