@@ -1043,7 +1043,7 @@ fn expo_starters_override_the_config_plugins_uuid() {
     assert!(stdout.contains("unpatched high advisory") && stdout.contains("do not run `npm audit fix --force`"), "{stdout}");
     let readme = fs::read_to_string(dir.0.join("README.md")).unwrap();
     let notice = readme.find("do not run `npm audit fix --force`").expect("the README names the advisories");
-    assert!(notice < readme.find("npm install\n").unwrap(), "{readme}");
+    assert!(notice < readme.find("node scripts/install.mjs\n").unwrap(), "{readme}");
     let web = Dir::new();
     let output = web.init(&["--web"]);
     assert!(output.status.success() && !String::from_utf8_lossy(&output.stdout).contains("advisories"), "{output:?}");

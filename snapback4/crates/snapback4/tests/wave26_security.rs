@@ -80,7 +80,7 @@ const PASSWORD:&str="use identity password\ntable notes:\n  owner: principal\n  
  let app=App::new(PASSWORD);
  let text=app.ok(&["check"]);
  let summary=text.lines().find(|line|line.starts_with("check: ok")).unwrap();
- assert!(summary.contains("advisory decisions")&&summary.contains("check --review")&&summary.contains("0 gates pending"),"{text}");
+ assert!(summary.contains("advisories (don't block)")&&summary.contains("check --review")&&summary.contains("0 gates pending"),"{text}");
  assert!(text.contains("check: enforced by the language — 0 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)"),"{text}");
  assert!(!text.contains("0 self-assignable roles")&&!text.contains("all security proved"));
  let checked:serde_json::Value=serde_json::from_str(&app.ok(&["check","--json"])).unwrap();

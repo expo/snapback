@@ -95,7 +95,7 @@ pub(super) fn without_offline(text: &str) -> String {
         ("started from the Snapback 4 Expo starter. Development and production builds\nopen the native device and work offline; Expo Go uses the online client; web\nuses the wasm device.\n",
             "started from the Snapback 4 Expo starter. Development and production builds\nopen the native device; Expo Go uses the online client; web uses the wasm\ndevice.\n\nOFFLINE\n"),
     ];
-    let mut text = super::proof::without_readme(text).to_owned();
+    let mut text = super::proof::without_readme(text).replace("node scripts/install.mjs", "npm install");
     // Recognize the exact previous quick-start command while moving generated
     // READMEs onto launchers. Application prose still participates byte-for-byte.
     text = text.split_inclusive('\n').map(|line| {

@@ -42,10 +42,10 @@ fn check_invalidates_positive_test_evidence_when_source_or_fixture_changes(){
 #[test]
 fn rule_changing_deploy_preview_demands_a_campaign_and_prints_exposure(){
  let app=App::new();let source="table docs:\n  owner: principal\n  read <- .owner = viewer\n  online only\nquery alive():\n  return true\n";app.write("snapback/schema.q",source);let out=app.run(&["deploy","deployment"]);assert!(out.status.success(),"{}",text(&out));
- app.write("snapback/schema.q",&source.replace("read <- .owner = viewer","read <- allow"));let preview=app.run(&["deploy","deployment","--check"]);assert!(preview.status.success(),"{}",text(&preview));let body=text(&preview);assert!(body.contains("advisory decisions:")&&body.contains("last test: NEVER RECORDED"),"{body}");assert!(body.contains("security: enforced by the language"),"{body}");
+ app.write("snapback/schema.q",&source.replace("read <- .owner = viewer","read <- allow"));let preview=app.run(&["deploy","deployment","--check"]);assert!(preview.status.success(),"{}",text(&preview));let body=text(&preview);assert!(body.contains("advisories (don't block):")&&body.contains("last test: NEVER RECORDED"),"{body}");assert!(body.contains("security: enforced by the language"),"{body}");
  let test=app.run(&["test"]);assert!(test.status.success(),"{}",text(&test));let preview=app.run(&["deploy","deployment","--check","--review"]);assert!(text(&preview).contains("matching test campaign recorded"),"{}",text(&preview));
  // A second source change invalidates the record, including a newly added table.
- app.write("snapback/schema.q",&format!("{source}table extra:\n  read <- allow\n  online only\n"));let preview=app.run(&["deploy","deployment","--check"]);assert!(text(&preview).contains("advisory decisions:")&&text(&preview).contains("STALE"),"{}",text(&preview));
+ app.write("snapback/schema.q",&format!("{source}table extra:\n  read <- allow\n  online only\n"));let preview=app.run(&["deploy","deployment","--check"]);assert!(text(&preview).contains("advisories (don't block):")&&text(&preview).contains("STALE"),"{}",text(&preview));
 }
 
 #[test]

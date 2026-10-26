@@ -70,7 +70,7 @@ pub fn init(options: &Options) -> i32 {
     }
     let online_web = modes == 2 && options.flags.contains_key("online") && (options.flags.contains_key("web") || options.flags.contains_key("expo"));
     if options.flags.contains_key("expo") && options.flags.contains_key("online") && !options.flags.contains_key("password") {
-        eprintln!("{usage}\nE_INPUT: --expo already selects the online client for schemas without synced tables; use --expo --online --password for the password starter");return 2;
+        eprintln!("{usage}\nE_INPUT: --expo already selects the online client in Expo Go and for schemas without synced tables; use --expo --online --password for the password starter");return 2;
     }
     if options.flags.contains_key("day2") && !(social || options.flags.contains_key("web") || options.flags.contains_key("expo")) {
         eprintln!("E_INPUT: --day2 adds saved-release proofs to a UI starter; use `snapback4 init --web --day2` or `snapback4 init --expo --day2`"); return 2;
@@ -323,7 +323,7 @@ pub fn init(options: &Options) -> i32 {
     println!("init: files: {}", written_files(&files.iter().map(|(name, _)| *name).collect::<Vec<_>>()));
     // @ref LLP 3000.011.003.000#7.4 — the advisories are read before the install that reports them, not after.
     if expo && files.iter().any(|(name, _)| *name == "package.json") {
-        println!("init: Expo dependencies are pinned; next: `npm install`, then `npx snapback4 check`. Adapter-first installs constrain React Native 0.86.3 and compatible React 19; this starter pins React/React DOM 19.2.3 and supplies the app/scripts.");
+        println!("init: Expo dependencies are pinned; next: `node scripts/install.mjs`, then `npx snapback4 check`. Adapter-first installs constrain React Native 0.86.3 and compatible React 19; this starter pins React/React DOM 19.2.3 and supplies the app/scripts.");
         println!("init: `npm install` takes a few minutes and reports an unpatched high advisory from Expo's node-forge code-signing dependency; qualification warns under a dated exception until a patch or recheck date — do not run `npm audit fix --force`, which downgrades Expo to SDK 44 (README)");
     }
     if web {

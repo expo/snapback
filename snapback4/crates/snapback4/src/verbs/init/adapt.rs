@@ -151,6 +151,7 @@ fn readme(dir: &Path, own: &OwnSchema, todos: bool, found: &mut Vec<Leftover>, m
         let wanted = super::localize(path, &super::without_design_references(&starter::identity_readme(platform, &title, &wanted_body, personas, &own.offline, own.identity.is_some_and(|(password, guests)| password && !guests))), port, web_port);
         let wanted = if explicit_online { starter::online_readme(&wanted) } else { wanted };
         let wanted = if todos { super::proof::readme(wanted) } else { wanted };
+        let wanted = if dir.join("scripts/install.mjs").is_file() {wanted.replace("npm install", "node scripts/install.mjs")} else {wanted};
         if wanted == text { continue; }
         let about = if todos { "the todo starter's operations, which your snapback/*.q declares again" } else { "your snapback/*.q and the Home screen, named after this directory" };
         let only_proof = super::proof::without_readme(&wanted) == text;

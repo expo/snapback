@@ -65,7 +65,7 @@ fn peers(chat: id):
             assert!(output.status.success(), "{output:?}");
             let text = String::from_utf8(output.stdout).unwrap();
             let summary = text.lines().next().unwrap();
-            assert!(summary.contains(" notes") && summary.contains("advisory decisions: `check --review`"), "{text}");
+            assert!(summary.contains(" notes") && summary.contains("advisories (don't block): `check --review`"), "{text}");
             assert!(notes >= codes.len()); // JSON preserves the full diagnostics; questions are counted separately.
             for code in &codes {
                 let Some(line) = text.lines().find(|line| line.contains(code)) else {

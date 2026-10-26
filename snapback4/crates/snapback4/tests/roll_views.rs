@@ -352,7 +352,7 @@ fn deploy_verdict_leads_scoped_security_is_last_and_json_keeps_all_notes() {
     let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(stdout.starts_with("deploy verdict: READY"), "{stdout}");
     assert!(!stderr.contains("decision "), "advisory decisions require --review: {stderr}");
-    assert!(stderr.contains("advisory decisions:"), "{stderr}");
+    assert!(stderr.contains("advisories (don't block):"), "{stderr}");
     let full = app.json(&[
         "deploy",
         "deployment",
