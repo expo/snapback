@@ -1,0 +1,2703 @@
+{
+  "best": [
+    {
+      "arm": "O1",
+      "link": "A",
+      "n": 32,
+      "k": 2,
+      "hold_ms": 0.6,
+      "phase": "confirmed-capacity",
+      "capacity": 2350,
+      "upper": 2467,
+      "repetitions": 3,
+      "fixed": [
+        3200,
+        3805,
+        4525
+      ],
+      "metrics": {
+        "arm": "O1",
+        "link": "A",
+        "n": 32,
+        "k": 2,
+        "hold_ms": 0.6,
+        "rate": 2350.0,
+        "repetitions": 3,
+        "s1_all": true,
+        "mean_ms": [
+          10.829689486085128,
+          11.30763579153196
+        ],
+        "intended_mean_ms": [
+          10.966149175085196,
+          14.373428103404196
+        ],
+        "p50_ms": 10.732128000000001,
+        "p99_ms": 86.68176,
+        "error_fraction": 0.0,
+        "delivered_per_s": 2350.0,
+        "mean_n": 9.593141924071302,
+        "syncs_per_batch": 1.0457095935404406,
+        "wal_sync_mean_ms": 2.6271619196254266,
+        "cpu": {
+          "PG": 0.4426866191647019,
+          "app": 1.1029902295686176,
+          "client": 0.228050682599998
+        },
+        "prep_cpu_ms": 1.4108129620356575,
+        "pg_statement_ms_per_batch": 1.0540912886106963,
+        "pg_cpu_ms_per_batch": 2.020683086134168
+      }
+    },
+    {
+      "arm": "O1",
+      "link": "B",
+      "n": 32,
+      "k": 2,
+      "hold_ms": 0,
+      "phase": "confirmed-capacity",
+      "capacity": 2166,
+      "upper": 2262,
+      "repetitions": 3,
+      "fixed": [
+        2262,
+        3200
+      ],
+      "metrics": {
+        "arm": "O1",
+        "link": "B",
+        "n": 32,
+        "k": 2,
+        "hold_ms": 0.0,
+        "rate": 2166.0,
+        "repetitions": 3,
+        "s1_all": true,
+        "mean_ms": [
+          11.73978238566478,
+          12.103425192428487
+        ],
+        "intended_mean_ms": [
+          11.829230838919578,
+          12.421284796214165
+        ],
+        "p50_ms": 11.616873,
+        "p99_ms": 21.069246,
+        "error_fraction": 0.0,
+        "delivered_per_s": 2166.0,
+        "mean_n": 9.152112676056339,
+        "syncs_per_batch": 1.0453842911339046,
+        "wal_sync_mean_ms": 2.5576661275103456,
+        "cpu": {
+          "PG": 0.408006525843496,
+          "app": 1.1035062613004474,
+          "client": 0.22226483690702295
+        },
+        "prep_cpu_ms": 1.446612704084505,
+        "pg_statement_ms_per_batch": 0.843748697344387,
+        "pg_cpu_ms_per_batch": 1.9169014084507043
+      }
+    },
+    {
+      "arm": "C",
+      "link": "A",
+      "n": 16,
+      "k": 4,
+      "hold_ms": 0.6,
+      "phase": "confirmed-capacity",
+      "capacity": 2871,
+      "upper": 2950,
+      "repetitions": 3,
+      "fixed": [
+        3200,
+        3805,
+        4525
+      ],
+      "metrics": {
+        "arm": "C",
+        "link": "A",
+        "n": 16,
+        "k": 4,
+        "hold_ms": 0.6,
+        "rate": 2871.0,
+        "repetitions": 3,
+        "s1_all": true,
+        "mean_ms": [
+          9.644145060867334,
+          10.10170865863811
+        ],
+        "intended_mean_ms": [
+          9.794132965586948,
+          17.43770885306518
+        ],
+        "p50_ms": 9.667805999999999,
+        "p99_ms": 90.27163300000001,
+        "error_fraction": 0.0,
+        "delivered_per_s": 2871.0,
+        "mean_n": 5.607056832237484,
+        "syncs_per_batch": 0.7383037114479875,
+        "wal_sync_mean_ms": 2.575238162669297,
+        "cpu": {
+          "PG": 0.8524879396787677,
+          "app": 1.2644427521793888,
+          "client": 0.28095492881720247
+        },
+        "prep_cpu_ms": 0.8294212600742136,
+        "pg_statement_ms_per_batch": 1.6984313762775822,
+        "pg_cpu_ms_per_batch": 1.9061259032615063
+      }
+    },
+    {
+      "arm": "C",
+      "link": "B",
+      "n": 8,
+      "k": 4,
+      "hold_ms": 0.6,
+      "phase": "confirmed-capacity",
+      "capacity": 2871,
+      "upper": 2950,
+      "repetitions": 3,
+      "fixed": [
+        2262,
+        3200
+      ],
+      "metrics": {
+        "arm": "C",
+        "link": "B",
+        "n": 8,
+        "k": 4,
+        "hold_ms": 0.6,
+        "rate": 2871.0,
+        "repetitions": 3,
+        "s1_all": true,
+        "mean_ms": [
+          9.833528209700493,
+          10.293798638296806
+        ],
+        "intended_mean_ms": [
+          10.100991383786297,
+          16.5386769342738
+        ],
+        "p50_ms": 9.898169,
+        "p99_ms": 85.345959,
+        "error_fraction": 0.0,
+        "delivered_per_s": 2871.0,
+        "mean_n": 5.711538461538462,
+        "syncs_per_batch": 0.7474901934711787,
+        "wal_sync_mean_ms": 2.614054719320041,
+        "cpu": {
+          "PG": 0.6587954600211681,
+          "app": 1.3042863164413323,
+          "client": 0.2839954827642482
+        },
+        "prep_cpu_ms": 0.9056244763262593,
+        "pg_statement_ms_per_batch": 0.8874731867562012,
+        "pg_cpu_ms_per_batch": 1.5045542184695166
+      }
+    },
+    {
+      "arm": "OC",
+      "link": "A",
+      "n": 8,
+      "k": 4,
+      "hold_ms": 0.6,
+      "phase": "confirmed-capacity",
+      "capacity": 2149,
+      "upper": 2211,
+      "repetitions": 3,
+      "fixed": [
+        3200,
+        3805,
+        4525
+      ],
+      "metrics": {
+        "arm": "OC",
+        "link": "A",
+        "n": 8,
+        "k": 4,
+        "hold_ms": 0.6,
+        "rate": 2149.0,
+        "repetitions": 3,
+        "s1_all": true,
+        "mean_ms": [
+          11.605616793997244,
+          13.271192870497922
+        ],
+        "intended_mean_ms": [
+          11.771328452908344,
+          16.485911620102478
+        ],
+        "p50_ms": 12.737171,
+        "p99_ms": 87.783208,
+        "error_fraction": 0.0,
+        "delivered_per_s": 2149.0,
+        "mean_n": 6.138246215367038,
+        "syncs_per_batch": 1.0390364657716842,
+        "wal_sync_mean_ms": 2.5886030991538957,
+        "cpu": {
+          "PG": 0.9112790581611642,
+          "app": 1.1319771123917062,
+          "client": 0.2326925136995931
+        },
+        "prep_cpu_ms": 0.8980644245453742,
+        "pg_statement_ms_per_batch": 4.314521107534887,
+        "pg_cpu_ms_per_batch": 2.8934590117109398
+      }
+    },
+    {
+      "arm": "OC",
+      "link": "B",
+      "n": 16,
+      "k": 4,
+      "hold_ms": 0,
+      "phase": "confirmed-capacity",
+      "capacity": 2238,
+      "upper": 2262,
+      "repetitions": 3,
+      "fixed": [
+        2262,
+        3200
+      ],
+      "metrics": {
+        "arm": "OC",
+        "link": "B",
+        "n": 16,
+        "k": 4,
+        "hold_ms": 0.0,
+        "rate": 2238.0,
+        "repetitions": 3,
+        "s1_all": true,
+        "mean_ms": [
+          12.100989987533483,
+          13.62854173972303
+        ],
+        "intended_mean_ms": [
+          12.306740914611206,
+          16.39805194859266
+        ],
+        "p50_ms": 13.162472,
+        "p99_ms": 40.75519,
+        "error_fraction": 0.0,
+        "delivered_per_s": 2238.0,
+        "mean_n": 8.737636647579386,
+        "syncs_per_batch": 1.058042686100989,
+        "wal_sync_mean_ms": 2.6347020158696774,
+        "cpu": {
+          "PG": 0.8506032875818188,
+          "app": 1.142520994513277,
+          "client": 0.22624649375829195
+        },
+        "prep_cpu_ms": 1.3708956896147868,
+        "pg_statement_ms_per_batch": 3.148101074310263,
+        "pg_cpu_ms_per_batch": 3.6972930765226444
+      }
+    }
+  ],
+  "confirmed": [
+    {
+      "arm": "O1",
+      "link": "A",
+      "n": 16,
+      "k": 2,
+      "hold_ms": 0.6,
+      "phase": "confirmed-capacity",
+      "capacity": 2249,
+      "upper": 2311,
+      "repetitions": 3,
+      "fixed": [
+        3200,
+        3805,
+        4525
+      ]
+    },
+    {
+      "arm": "O1",
+      "link": "A",
+      "n": 32,
+      "k": 2,
+      "hold_ms": 0.6,
+      "phase": "confirmed-capacity",
+      "capacity": 2350,
+      "upper": 2467,
+      "repetitions": 3,
+      "fixed": [
+        3200,
+        3805,
+        4525
+      ]
+    },
+    {
+      "arm": "O1",
+      "link": "A",
+      "n": 11,
+      "k": 1,
+      "hold_ms": 0,
+      "phase": "confirmed-capacity",
+      "capacity": 1363,
+      "upper": 1402,
+      "repetitions": 3,
+      "fixed": [
+        3200,
+        3805,
+        4525
+      ]
+    },
+    {
+      "arm": "C",
+      "link": "A",
+      "n": 16,
+      "k": 2,
+      "hold_ms": 0.6,
+      "phase": "confirmed-capacity",
+      "capacity": 2741,
+      "upper": 2809,
+      "repetitions": 3,
+      "fixed": [
+        3200,
+        3805,
+        4525
+      ]
+    },
+    {
+      "arm": "C",
+      "link": "A",
+      "n": 16,
+      "k": 4,
+      "hold_ms": 0.6,
+      "phase": "confirmed-capacity",
+      "capacity": 2871,
+      "upper": 2950,
+      "repetitions": 3,
+      "fixed": [
+        3200,
+        3805,
+        4525
+      ]
+    },
+    {
+      "arm": "C",
+      "link": "A",
+      "n": 11,
+      "k": 1,
+      "hold_ms": 0,
+      "phase": "confirmed-capacity",
+      "capacity": 1630,
+      "upper": 1670,
+      "repetitions": 3,
+      "fixed": [
+        3200,
+        3805,
+        4525
+      ]
+    },
+    {
+      "arm": "OC",
+      "link": "A",
+      "n": 8,
+      "k": 4,
+      "hold_ms": 0.6,
+      "phase": "confirmed-capacity",
+      "capacity": 2149,
+      "upper": 2211,
+      "repetitions": 3,
+      "fixed": [
+        3200,
+        3805,
+        4525
+      ]
+    },
+    {
+      "arm": "OC",
+      "link": "A",
+      "n": 16,
+      "k": 4,
+      "hold_ms": 0,
+      "phase": "confirmed-capacity",
+      "capacity": 2114,
+      "upper": 2214,
+      "repetitions": 3,
+      "fixed": [
+        3200,
+        3805,
+        4525
+      ]
+    },
+    {
+      "arm": "OC",
+      "link": "A",
+      "n": 11,
+      "k": 1,
+      "hold_ms": 0,
+      "phase": "confirmed-capacity",
+      "capacity": 1325,
+      "upper": 1363,
+      "repetitions": 3,
+      "fixed": [
+        3200,
+        3805,
+        4525
+      ]
+    },
+    {
+      "arm": "O1",
+      "link": "B",
+      "n": 16,
+      "k": 2,
+      "hold_ms": 0,
+      "phase": "confirmed-capacity",
+      "capacity": 2154,
+      "upper": 2207,
+      "repetitions": 3,
+      "fixed": [
+        2262,
+        3200
+      ]
+    },
+    {
+      "arm": "O1",
+      "link": "B",
+      "n": 32,
+      "k": 2,
+      "hold_ms": 0,
+      "phase": "confirmed-capacity",
+      "capacity": 2166,
+      "upper": 2262,
+      "repetitions": 3,
+      "fixed": [
+        2262,
+        3200
+      ]
+    },
+    {
+      "arm": "O1",
+      "link": "B",
+      "n": 11,
+      "k": 1,
+      "hold_ms": 0,
+      "phase": "confirmed-capacity",
+      "capacity": 1288,
+      "upper": 1334,
+      "repetitions": 3,
+      "fixed": [
+        2262,
+        3200
+      ]
+    },
+    {
+      "arm": "C",
+      "link": "B",
+      "n": 8,
+      "k": 4,
+      "hold_ms": 0.6,
+      "phase": "confirmed-capacity",
+      "capacity": 2871,
+      "upper": 2950,
+      "repetitions": 3,
+      "fixed": [
+        2262,
+        3200
+      ]
+    },
+    {
+      "arm": "C",
+      "link": "B",
+      "n": 8,
+      "k": 4,
+      "hold_ms": 0,
+      "phase": "confirmed-capacity",
+      "capacity": 2749,
+      "upper": 2840,
+      "repetitions": 3,
+      "fixed": [
+        2262,
+        3200
+      ]
+    },
+    {
+      "arm": "C",
+      "link": "B",
+      "n": 11,
+      "k": 1,
+      "hold_ms": 0,
+      "phase": "confirmed-capacity",
+      "capacity": 1495,
+      "upper": 1532,
+      "repetitions": 3,
+      "fixed": [
+        2262,
+        3200
+      ]
+    },
+    {
+      "arm": "OC",
+      "link": "B",
+      "n": 32,
+      "k": 4,
+      "hold_ms": 0,
+      "phase": "confirmed-capacity",
+      "capacity": 2041,
+      "upper": 2143,
+      "repetitions": 3,
+      "fixed": [
+        2262,
+        3200
+      ]
+    },
+    {
+      "arm": "OC",
+      "link": "B",
+      "n": 16,
+      "k": 4,
+      "hold_ms": 0,
+      "phase": "confirmed-capacity",
+      "capacity": 2238,
+      "upper": 2262,
+      "repetitions": 3,
+      "fixed": [
+        2262,
+        3200
+      ]
+    },
+    {
+      "arm": "OC",
+      "link": "B",
+      "n": 11,
+      "k": 1,
+      "hold_ms": 0,
+      "phase": "confirmed-capacity",
+      "capacity": 1125,
+      "upper": 1181,
+      "repetitions": 3,
+      "fixed": [
+        2262,
+        3200
+      ]
+    }
+  ],
+  "screen": [
+    {
+      "arm": "O1",
+      "link": "A",
+      "n": 32,
+      "k": 2,
+      "hold_ms": 0.6,
+      "phase": "screen",
+      "capacity": 2576,
+      "upper": 2690,
+      "abandoned": false,
+      "best_at_screen": 0,
+      "rates": [
+        1600,
+        2262,
+        2467,
+        2576,
+        2690,
+        3200
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "O1",
+      "link": "A",
+      "n": 32,
+      "k": 4,
+      "hold_ms": 0.6,
+      "phase": "screen",
+      "capacity": 1986,
+      "upper": 2074,
+      "abandoned": false,
+      "best_at_screen": 2576,
+      "rates": [
+        1600,
+        1902,
+        1986,
+        2074,
+        2262
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "O1",
+      "link": "A",
+      "n": 16,
+      "k": 2,
+      "hold_ms": 0.6,
+      "phase": "screen",
+      "capacity": 2576,
+      "upper": 2690,
+      "abandoned": false,
+      "best_at_screen": 2576,
+      "rates": [
+        1600,
+        2262,
+        2467,
+        2576,
+        2690,
+        3200
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "O1",
+      "link": "A",
+      "n": 32,
+      "k": 4,
+      "hold_ms": 0,
+      "phase": "screen",
+      "capacity": 1902,
+      "upper": 1986,
+      "abandoned": false,
+      "best_at_screen": 2576,
+      "rates": [
+        1600,
+        1902,
+        1986,
+        2074,
+        2262
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "O1",
+      "link": "A",
+      "n": 32,
+      "k": 2,
+      "hold_ms": 0,
+      "phase": "screen",
+      "capacity": 2467,
+      "upper": 2576,
+      "abandoned": false,
+      "best_at_screen": 2576,
+      "rates": [
+        1600,
+        2262,
+        2467,
+        2576,
+        2690,
+        3200
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "O1",
+      "link": "A",
+      "n": 32,
+      "k": 1,
+      "hold_ms": 0.6,
+      "phase": "screen",
+      "capacity": 1744,
+      "upper": 1821,
+      "abandoned": false,
+      "best_at_screen": 2576,
+      "rates": [
+        1600,
+        1744,
+        1821,
+        1902,
+        2262
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "O1",
+      "link": "A",
+      "n": 32,
+      "k": 1,
+      "hold_ms": 0,
+      "phase": "screen",
+      "capacity": 1821,
+      "upper": 1902,
+      "abandoned": false,
+      "best_at_screen": 2576,
+      "rates": [
+        1600,
+        1744,
+        1821,
+        1902,
+        2262
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "O1",
+      "link": "A",
+      "n": 16,
+      "k": 4,
+      "hold_ms": 0.6,
+      "phase": "screen",
+      "capacity": 1902,
+      "upper": 1986,
+      "abandoned": false,
+      "best_at_screen": 2576,
+      "rates": [
+        1600,
+        1902,
+        1986,
+        2074,
+        2262
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "O1",
+      "link": "A",
+      "n": 16,
+      "k": 4,
+      "hold_ms": 0,
+      "phase": "screen",
+      "capacity": 1986,
+      "upper": 2074,
+      "abandoned": false,
+      "best_at_screen": 2576,
+      "rates": [
+        1600,
+        1902,
+        1986,
+        2074,
+        2262
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "O1",
+      "link": "A",
+      "n": 16,
+      "k": 2,
+      "hold_ms": 0,
+      "phase": "screen",
+      "capacity": 2166,
+      "upper": 2262,
+      "abandoned": false,
+      "best_at_screen": 2576,
+      "rates": [
+        1600,
+        1902,
+        2074,
+        2166,
+        2262
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "O1",
+      "link": "A",
+      "n": 16,
+      "k": 1,
+      "hold_ms": 0.6,
+      "phase": "screen",
+      "capacity": 1821,
+      "upper": 1902,
+      "abandoned": false,
+      "best_at_screen": 2576,
+      "rates": [
+        1600,
+        1744,
+        1821,
+        1902,
+        2262
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "O1",
+      "link": "A",
+      "n": 16,
+      "k": 1,
+      "hold_ms": 0,
+      "phase": "screen",
+      "capacity": 1821,
+      "upper": 1902,
+      "abandoned": false,
+      "best_at_screen": 2576,
+      "rates": [
+        1600,
+        1744,
+        1821,
+        1902,
+        2262
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "O1",
+      "link": "A",
+      "n": 8,
+      "k": 4,
+      "hold_ms": 0.6,
+      "phase": "screen",
+      "capacity": 1986,
+      "upper": 2074,
+      "abandoned": false,
+      "best_at_screen": 2576,
+      "rates": [
+        1600,
+        1902,
+        1986,
+        2074,
+        2262
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "O1",
+      "link": "A",
+      "n": 8,
+      "k": 4,
+      "hold_ms": 0,
+      "phase": "screen",
+      "capacity": 1902,
+      "upper": 1986,
+      "abandoned": false,
+      "best_at_screen": 2576,
+      "rates": [
+        1600,
+        1902,
+        1986,
+        2074,
+        2262
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "O1",
+      "link": "A",
+      "n": 8,
+      "k": 2,
+      "hold_ms": 0.6,
+      "phase": "screen",
+      "capacity": 2262,
+      "upper": 2362,
+      "abandoned": false,
+      "best_at_screen": 2576,
+      "rates": [
+        1600,
+        2262,
+        2362,
+        2467,
+        2690,
+        3200
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "O1",
+      "link": "A",
+      "n": 8,
+      "k": 2,
+      "hold_ms": 0,
+      "phase": "screen",
+      "capacity": 2262,
+      "upper": 2362,
+      "abandoned": false,
+      "best_at_screen": 2576,
+      "rates": [
+        1600,
+        2262,
+        2362,
+        2467,
+        2690,
+        3200
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "O1",
+      "link": "A",
+      "n": 8,
+      "k": 1,
+      "hold_ms": 0.6,
+      "phase": "screen",
+      "capacity": null,
+      "upper": 1600,
+      "abandoned": true,
+      "best_at_screen": 2576,
+      "rates": [
+        1600
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "O1",
+      "link": "A",
+      "n": 8,
+      "k": 1,
+      "hold_ms": 0,
+      "phase": "screen",
+      "capacity": null,
+      "upper": 1600,
+      "abandoned": true,
+      "best_at_screen": 2576,
+      "rates": [
+        1600
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "C",
+      "link": "A",
+      "n": 32,
+      "k": 2,
+      "hold_ms": 0.6,
+      "phase": "screen",
+      "capacity": 2576,
+      "upper": 2690,
+      "abandoned": false,
+      "best_at_screen": 0,
+      "rates": [
+        1600,
+        2262,
+        2467,
+        2576,
+        2690,
+        3200
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "C",
+      "link": "A",
+      "n": 32,
+      "k": 4,
+      "hold_ms": 0.6,
+      "phase": "screen",
+      "capacity": 2576,
+      "upper": 2690,
+      "abandoned": false,
+      "best_at_screen": 2576,
+      "rates": [
+        1600,
+        2262,
+        2467,
+        2576,
+        2690,
+        3200
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "C",
+      "link": "A",
+      "n": 16,
+      "k": 2,
+      "hold_ms": 0.6,
+      "phase": "screen",
+      "capacity": 3064,
+      "upper": 3200,
+      "abandoned": false,
+      "best_at_screen": 2576,
+      "rates": [
+        1600,
+        2262,
+        2690,
+        2934,
+        3064,
+        3200
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "C",
+      "link": "A",
+      "n": 32,
+      "k": 4,
+      "hold_ms": 0,
+      "phase": "screen",
+      "capacity": 2362,
+      "upper": 2467,
+      "abandoned": false,
+      "best_at_screen": 3064,
+      "rates": [
+        1600,
+        2262,
+        2362,
+        2467,
+        2690,
+        3200
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "C",
+      "link": "A",
+      "n": 32,
+      "k": 2,
+      "hold_ms": 0,
+      "phase": "screen",
+      "capacity": 2576,
+      "upper": 2690,
+      "abandoned": false,
+      "best_at_screen": 3064,
+      "rates": [
+        1600,
+        2262,
+        2467,
+        2576,
+        2690,
+        3200
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "C",
+      "link": "A",
+      "n": 32,
+      "k": 1,
+      "hold_ms": 0.6,
+      "phase": "screen",
+      "capacity": 1986,
+      "upper": 2074,
+      "abandoned": false,
+      "best_at_screen": 3064,
+      "rates": [
+        1600,
+        1902,
+        1986,
+        2074,
+        2262
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "C",
+      "link": "A",
+      "n": 32,
+      "k": 1,
+      "hold_ms": 0,
+      "phase": "screen",
+      "capacity": 2074,
+      "upper": 2166,
+      "abandoned": false,
+      "best_at_screen": 3064,
+      "rates": [
+        1600,
+        1902,
+        2074,
+        2166,
+        2262
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "C",
+      "link": "A",
+      "n": 16,
+      "k": 4,
+      "hold_ms": 0.6,
+      "phase": "screen",
+      "capacity": 3064,
+      "upper": 3200,
+      "abandoned": false,
+      "best_at_screen": 3064,
+      "rates": [
+        1600,
+        2262,
+        2690,
+        2934,
+        3064,
+        3200
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "C",
+      "link": "A",
+      "n": 16,
+      "k": 4,
+      "hold_ms": 0,
+      "phase": "screen",
+      "capacity": 2934,
+      "upper": 3064,
+      "abandoned": false,
+      "best_at_screen": 3064,
+      "rates": [
+        1600,
+        2262,
+        2690,
+        2934,
+        3064,
+        3200
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "C",
+      "link": "A",
+      "n": 16,
+      "k": 2,
+      "hold_ms": 0,
+      "phase": "screen",
+      "capacity": 2934,
+      "upper": 3064,
+      "abandoned": false,
+      "best_at_screen": 3064,
+      "rates": [
+        1600,
+        2262,
+        2690,
+        2934,
+        3064,
+        3200
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "C",
+      "link": "A",
+      "n": 16,
+      "k": 1,
+      "hold_ms": 0.6,
+      "phase": "screen",
+      "capacity": 2074,
+      "upper": 2166,
+      "abandoned": false,
+      "best_at_screen": 3064,
+      "rates": [
+        1600,
+        1902,
+        2074,
+        2166,
+        2262
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "C",
+      "link": "A",
+      "n": 16,
+      "k": 1,
+      "hold_ms": 0,
+      "phase": "screen",
+      "capacity": 2166,
+      "upper": 2262,
+      "abandoned": false,
+      "best_at_screen": 3064,
+      "rates": [
+        1600,
+        1902,
+        2074,
+        2166,
+        2262
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "C",
+      "link": "A",
+      "n": 8,
+      "k": 4,
+      "hold_ms": 0.6,
+      "phase": "screen",
+      "capacity": 2576,
+      "upper": 2690,
+      "abandoned": false,
+      "best_at_screen": 3064,
+      "rates": [
+        1600,
+        2262,
+        2467,
+        2576,
+        2690,
+        3200
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "C",
+      "link": "A",
+      "n": 8,
+      "k": 4,
+      "hold_ms": 0,
+      "phase": "screen",
+      "capacity": 2809,
+      "upper": 2934,
+      "abandoned": false,
+      "best_at_screen": 3064,
+      "rates": [
+        1600,
+        2262,
+        2690,
+        2809,
+        2934,
+        3200
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "C",
+      "link": "A",
+      "n": 8,
+      "k": 2,
+      "hold_ms": 0.6,
+      "phase": "screen",
+      "capacity": 2690,
+      "upper": 2809,
+      "abandoned": false,
+      "best_at_screen": 3064,
+      "rates": [
+        1600,
+        2262,
+        2690,
+        2809,
+        2934,
+        3200
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "C",
+      "link": "A",
+      "n": 8,
+      "k": 2,
+      "hold_ms": 0,
+      "phase": "screen",
+      "capacity": 2690,
+      "upper": 2809,
+      "abandoned": false,
+      "best_at_screen": 3064,
+      "rates": [
+        1600,
+        2262,
+        2690,
+        2809,
+        2934,
+        3200
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "C",
+      "link": "A",
+      "n": 8,
+      "k": 1,
+      "hold_ms": 0.6,
+      "phase": "screen",
+      "capacity": null,
+      "upper": 1600,
+      "abandoned": true,
+      "best_at_screen": 3064,
+      "rates": [
+        1600
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "C",
+      "link": "A",
+      "n": 8,
+      "k": 1,
+      "hold_ms": 0,
+      "phase": "screen",
+      "capacity": null,
+      "upper": 1600,
+      "abandoned": true,
+      "best_at_screen": 3064,
+      "rates": [
+        1600
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "OC",
+      "link": "A",
+      "n": 32,
+      "k": 2,
+      "hold_ms": 0.6,
+      "phase": "screen",
+      "capacity": 2362,
+      "upper": 2467,
+      "abandoned": false,
+      "best_at_screen": 0,
+      "rates": [
+        1600,
+        2262,
+        2362,
+        2467,
+        2690,
+        3200
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "OC",
+      "link": "A",
+      "n": 32,
+      "k": 4,
+      "hold_ms": 0.6,
+      "phase": "screen",
+      "capacity": 2467,
+      "upper": 2576,
+      "abandoned": false,
+      "best_at_screen": 2362,
+      "rates": [
+        1600,
+        2262,
+        2467,
+        2576,
+        2690,
+        3200
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "OC",
+      "link": "A",
+      "n": 16,
+      "k": 2,
+      "hold_ms": 0.6,
+      "phase": "screen",
+      "capacity": 2074,
+      "upper": 2166,
+      "abandoned": false,
+      "best_at_screen": 2467,
+      "rates": [
+        1600,
+        1902,
+        2074,
+        2166,
+        2262
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "OC",
+      "link": "A",
+      "n": 32,
+      "k": 4,
+      "hold_ms": 0,
+      "phase": "screen",
+      "capacity": 2362,
+      "upper": 2467,
+      "abandoned": false,
+      "best_at_screen": 2467,
+      "rates": [
+        1600,
+        2262,
+        2362,
+        2467,
+        2690,
+        3200
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "OC",
+      "link": "A",
+      "n": 32,
+      "k": 2,
+      "hold_ms": 0,
+      "phase": "screen",
+      "capacity": 2262,
+      "upper": 2362,
+      "abandoned": false,
+      "best_at_screen": 2467,
+      "rates": [
+        1600,
+        2262,
+        2362,
+        2467,
+        2690,
+        3200
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "OC",
+      "link": "A",
+      "n": 32,
+      "k": 1,
+      "hold_ms": 0.6,
+      "phase": "screen",
+      "capacity": null,
+      "upper": 1600,
+      "abandoned": true,
+      "best_at_screen": 2467,
+      "rates": [
+        1600
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "OC",
+      "link": "A",
+      "n": 32,
+      "k": 1,
+      "hold_ms": 0,
+      "phase": "screen",
+      "capacity": null,
+      "upper": 1600,
+      "abandoned": true,
+      "best_at_screen": 2467,
+      "rates": [
+        1600
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "OC",
+      "link": "A",
+      "n": 16,
+      "k": 4,
+      "hold_ms": 0.6,
+      "phase": "screen",
+      "capacity": 2467,
+      "upper": 2576,
+      "abandoned": false,
+      "best_at_screen": 2467,
+      "rates": [
+        1600,
+        2262,
+        2467,
+        2576,
+        2690,
+        3200
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "OC",
+      "link": "A",
+      "n": 16,
+      "k": 4,
+      "hold_ms": 0,
+      "phase": "screen",
+      "capacity": 2576,
+      "upper": 2690,
+      "abandoned": false,
+      "best_at_screen": 2467,
+      "rates": [
+        1600,
+        2262,
+        2467,
+        2576,
+        2690,
+        3200
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "OC",
+      "link": "A",
+      "n": 16,
+      "k": 2,
+      "hold_ms": 0,
+      "phase": "screen",
+      "capacity": 2166,
+      "upper": 2262,
+      "abandoned": false,
+      "best_at_screen": 2576,
+      "rates": [
+        1600,
+        1902,
+        2074,
+        2166,
+        2262
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "OC",
+      "link": "A",
+      "n": 16,
+      "k": 1,
+      "hold_ms": 0.6,
+      "phase": "screen",
+      "capacity": null,
+      "upper": 1600,
+      "abandoned": true,
+      "best_at_screen": 2576,
+      "rates": [
+        1600
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "OC",
+      "link": "A",
+      "n": 16,
+      "k": 1,
+      "hold_ms": 0,
+      "phase": "screen",
+      "capacity": 1744,
+      "upper": 1821,
+      "abandoned": false,
+      "best_at_screen": 2576,
+      "rates": [
+        1600,
+        1744,
+        1821,
+        1902,
+        2262
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "OC",
+      "link": "A",
+      "n": 8,
+      "k": 4,
+      "hold_ms": 0.6,
+      "phase": "screen",
+      "capacity": 2576,
+      "upper": 2690,
+      "abandoned": false,
+      "best_at_screen": 2576,
+      "rates": [
+        1600,
+        2262,
+        2467,
+        2576,
+        2690,
+        3200
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "OC",
+      "link": "A",
+      "n": 8,
+      "k": 4,
+      "hold_ms": 0,
+      "phase": "screen",
+      "capacity": 2262,
+      "upper": 2362,
+      "abandoned": false,
+      "best_at_screen": 2576,
+      "rates": [
+        1600,
+        2262,
+        2362,
+        2467,
+        2690,
+        3200
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "OC",
+      "link": "A",
+      "n": 8,
+      "k": 2,
+      "hold_ms": 0.6,
+      "phase": "screen",
+      "capacity": 1902,
+      "upper": 1986,
+      "abandoned": false,
+      "best_at_screen": 2576,
+      "rates": [
+        1600,
+        1902,
+        1986,
+        2074,
+        2262
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "OC",
+      "link": "A",
+      "n": 8,
+      "k": 2,
+      "hold_ms": 0,
+      "phase": "screen",
+      "capacity": 1902,
+      "upper": 1986,
+      "abandoned": false,
+      "best_at_screen": 2576,
+      "rates": [
+        1600,
+        1902,
+        1986,
+        2074,
+        2262
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "OC",
+      "link": "A",
+      "n": 8,
+      "k": 1,
+      "hold_ms": 0.6,
+      "phase": "screen",
+      "capacity": null,
+      "upper": 1600,
+      "abandoned": true,
+      "best_at_screen": 2576,
+      "rates": [
+        1600
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "OC",
+      "link": "A",
+      "n": 8,
+      "k": 1,
+      "hold_ms": 0,
+      "phase": "screen",
+      "capacity": null,
+      "upper": 1600,
+      "abandoned": true,
+      "best_at_screen": 2576,
+      "rates": [
+        1600
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "O1",
+      "link": "B",
+      "n": 32,
+      "k": 2,
+      "hold_ms": 0.6,
+      "phase": "screen",
+      "capacity": 2262,
+      "upper": 2362,
+      "abandoned": false,
+      "best_at_screen": 0,
+      "rates": [
+        1600,
+        2262,
+        2362,
+        2467,
+        2690,
+        3200
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "O1",
+      "link": "B",
+      "n": 32,
+      "k": 4,
+      "hold_ms": 0.6,
+      "phase": "screen",
+      "capacity": 1986,
+      "upper": 2074,
+      "abandoned": false,
+      "best_at_screen": 2262,
+      "rates": [
+        1600,
+        1902,
+        1986,
+        2074,
+        2262
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "O1",
+      "link": "B",
+      "n": 16,
+      "k": 2,
+      "hold_ms": 0.6,
+      "phase": "screen",
+      "capacity": 2166,
+      "upper": 2262,
+      "abandoned": false,
+      "best_at_screen": 2262,
+      "rates": [
+        1600,
+        1902,
+        2074,
+        2166,
+        2262
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "O1",
+      "link": "B",
+      "n": 32,
+      "k": 4,
+      "hold_ms": 0,
+      "phase": "screen",
+      "capacity": 1986,
+      "upper": 2074,
+      "abandoned": false,
+      "best_at_screen": 2262,
+      "rates": [
+        1600,
+        1902,
+        1986,
+        2074,
+        2262
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "O1",
+      "link": "B",
+      "n": 32,
+      "k": 2,
+      "hold_ms": 0,
+      "phase": "screen",
+      "capacity": 2262,
+      "upper": 2362,
+      "abandoned": false,
+      "best_at_screen": 2262,
+      "rates": [
+        1600,
+        2262,
+        2362,
+        2467,
+        2690,
+        3200
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "O1",
+      "link": "B",
+      "n": 32,
+      "k": 1,
+      "hold_ms": 0.6,
+      "phase": "screen",
+      "capacity": 1532,
+      "upper": 1600,
+      "abandoned": false,
+      "best_at_screen": 2262,
+      "rates": [
+        1131,
+        1345,
+        1467,
+        1532,
+        1600
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "O1",
+      "link": "B",
+      "n": 32,
+      "k": 1,
+      "hold_ms": 0,
+      "phase": "screen",
+      "capacity": 1670,
+      "upper": 1744,
+      "abandoned": false,
+      "best_at_screen": 2262,
+      "rates": [
+        1600,
+        1670,
+        1744,
+        1902,
+        2262
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "O1",
+      "link": "B",
+      "n": 16,
+      "k": 4,
+      "hold_ms": 0.6,
+      "phase": "screen",
+      "capacity": 1821,
+      "upper": 1902,
+      "abandoned": false,
+      "best_at_screen": 2262,
+      "rates": [
+        1600,
+        1744,
+        1821,
+        1902,
+        2262
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "O1",
+      "link": "B",
+      "n": 16,
+      "k": 4,
+      "hold_ms": 0,
+      "phase": "screen",
+      "capacity": 1986,
+      "upper": 2074,
+      "abandoned": false,
+      "best_at_screen": 2262,
+      "rates": [
+        1600,
+        1902,
+        1986,
+        2074,
+        2262
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "O1",
+      "link": "B",
+      "n": 16,
+      "k": 2,
+      "hold_ms": 0,
+      "phase": "screen",
+      "capacity": 2262,
+      "upper": 2362,
+      "abandoned": false,
+      "best_at_screen": 2262,
+      "rates": [
+        1600,
+        2262,
+        2362,
+        2467,
+        2690,
+        3200
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "O1",
+      "link": "B",
+      "n": 16,
+      "k": 1,
+      "hold_ms": 0.6,
+      "phase": "screen",
+      "capacity": 1670,
+      "upper": 1744,
+      "abandoned": false,
+      "best_at_screen": 2262,
+      "rates": [
+        1600,
+        1670,
+        1744,
+        1902,
+        2262
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "O1",
+      "link": "B",
+      "n": 16,
+      "k": 1,
+      "hold_ms": 0,
+      "phase": "screen",
+      "capacity": 1670,
+      "upper": 1744,
+      "abandoned": false,
+      "best_at_screen": 2262,
+      "rates": [
+        1600,
+        1670,
+        1744,
+        1902,
+        2262
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "O1",
+      "link": "B",
+      "n": 8,
+      "k": 4,
+      "hold_ms": 0.6,
+      "phase": "screen",
+      "capacity": 1986,
+      "upper": 2074,
+      "abandoned": false,
+      "best_at_screen": 2262,
+      "rates": [
+        1600,
+        1902,
+        1986,
+        2074,
+        2262
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "O1",
+      "link": "B",
+      "n": 8,
+      "k": 4,
+      "hold_ms": 0,
+      "phase": "screen",
+      "capacity": 1532,
+      "upper": 1600,
+      "abandoned": false,
+      "best_at_screen": 2262,
+      "rates": [
+        1131,
+        1345,
+        1467,
+        1532,
+        1600
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "O1",
+      "link": "B",
+      "n": 8,
+      "k": 2,
+      "hold_ms": 0.6,
+      "phase": "screen",
+      "capacity": 1986,
+      "upper": 2074,
+      "abandoned": false,
+      "best_at_screen": 2262,
+      "rates": [
+        1600,
+        1902,
+        1986,
+        2074,
+        2262
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "O1",
+      "link": "B",
+      "n": 8,
+      "k": 2,
+      "hold_ms": 0,
+      "phase": "screen",
+      "capacity": 1986,
+      "upper": 2074,
+      "abandoned": false,
+      "best_at_screen": 2262,
+      "rates": [
+        1600,
+        1902,
+        1986,
+        2074,
+        2262
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "O1",
+      "link": "B",
+      "n": 8,
+      "k": 1,
+      "hold_ms": 0.6,
+      "phase": "screen",
+      "capacity": null,
+      "upper": 1131,
+      "abandoned": true,
+      "best_at_screen": 2262,
+      "rates": [
+        1131,
+        1600
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "O1",
+      "link": "B",
+      "n": 8,
+      "k": 1,
+      "hold_ms": 0,
+      "phase": "screen",
+      "capacity": null,
+      "upper": 1131,
+      "abandoned": true,
+      "best_at_screen": 2262,
+      "rates": [
+        1131,
+        1600
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "C",
+      "link": "B",
+      "n": 32,
+      "k": 2,
+      "hold_ms": 0.6,
+      "phase": "screen",
+      "capacity": 2690,
+      "upper": 2809,
+      "abandoned": false,
+      "best_at_screen": 0,
+      "rates": [
+        1600,
+        2262,
+        2690,
+        2809,
+        2934,
+        3200
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "C",
+      "link": "B",
+      "n": 32,
+      "k": 4,
+      "hold_ms": 0.6,
+      "phase": "screen",
+      "capacity": 2166,
+      "upper": 2262,
+      "abandoned": false,
+      "best_at_screen": 2690,
+      "rates": [
+        1600,
+        1902,
+        2074,
+        2166,
+        2262
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "C",
+      "link": "B",
+      "n": 16,
+      "k": 2,
+      "hold_ms": 0.6,
+      "phase": "screen",
+      "capacity": 2809,
+      "upper": 2934,
+      "abandoned": false,
+      "best_at_screen": 2690,
+      "rates": [
+        1600,
+        2262,
+        2690,
+        2809,
+        2934,
+        3200
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "C",
+      "link": "B",
+      "n": 32,
+      "k": 4,
+      "hold_ms": 0,
+      "phase": "screen",
+      "capacity": 2362,
+      "upper": 2467,
+      "abandoned": false,
+      "best_at_screen": 2809,
+      "rates": [
+        1600,
+        2262,
+        2362,
+        2467,
+        2690,
+        3200
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "C",
+      "link": "B",
+      "n": 32,
+      "k": 2,
+      "hold_ms": 0,
+      "phase": "screen",
+      "capacity": 2467,
+      "upper": 2576,
+      "abandoned": false,
+      "best_at_screen": 2809,
+      "rates": [
+        1600,
+        2262,
+        2467,
+        2576,
+        2690,
+        3200
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "C",
+      "link": "B",
+      "n": 32,
+      "k": 1,
+      "hold_ms": 0.6,
+      "phase": "screen",
+      "capacity": null,
+      "upper": 1600,
+      "abandoned": true,
+      "best_at_screen": 2809,
+      "rates": [
+        1600
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "C",
+      "link": "B",
+      "n": 32,
+      "k": 1,
+      "hold_ms": 0,
+      "phase": "screen",
+      "capacity": 1902,
+      "upper": 1986,
+      "abandoned": false,
+      "best_at_screen": 2809,
+      "rates": [
+        1600,
+        1902,
+        1986,
+        2074,
+        2262
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "C",
+      "link": "B",
+      "n": 16,
+      "k": 4,
+      "hold_ms": 0.6,
+      "phase": "screen",
+      "capacity": 2809,
+      "upper": 2934,
+      "abandoned": false,
+      "best_at_screen": 2809,
+      "rates": [
+        1600,
+        2262,
+        2690,
+        2809,
+        2934,
+        3200
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "C",
+      "link": "B",
+      "n": 16,
+      "k": 4,
+      "hold_ms": 0,
+      "phase": "screen",
+      "capacity": 2690,
+      "upper": 2809,
+      "abandoned": false,
+      "best_at_screen": 2809,
+      "rates": [
+        1600,
+        2262,
+        2690,
+        2809,
+        2934,
+        3200
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "C",
+      "link": "B",
+      "n": 16,
+      "k": 2,
+      "hold_ms": 0,
+      "phase": "screen",
+      "capacity": 2934,
+      "upper": 3064,
+      "abandoned": false,
+      "best_at_screen": 2809,
+      "rates": [
+        1600,
+        2262,
+        2690,
+        2934,
+        3064,
+        3200
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "C",
+      "link": "B",
+      "n": 16,
+      "k": 1,
+      "hold_ms": 0.6,
+      "phase": "screen",
+      "capacity": 1986,
+      "upper": 2074,
+      "abandoned": false,
+      "best_at_screen": 2934,
+      "rates": [
+        1600,
+        1902,
+        1986,
+        2074,
+        2262
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "C",
+      "link": "B",
+      "n": 16,
+      "k": 1,
+      "hold_ms": 0,
+      "phase": "screen",
+      "capacity": 1986,
+      "upper": 2074,
+      "abandoned": false,
+      "best_at_screen": 2934,
+      "rates": [
+        1600,
+        1902,
+        1986,
+        2074,
+        2262
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "C",
+      "link": "B",
+      "n": 8,
+      "k": 4,
+      "hold_ms": 0.6,
+      "phase": "screen",
+      "capacity": 3064,
+      "upper": 3200,
+      "abandoned": false,
+      "best_at_screen": 2934,
+      "rates": [
+        1600,
+        2262,
+        2690,
+        2934,
+        3064,
+        3200
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "C",
+      "link": "B",
+      "n": 8,
+      "k": 4,
+      "hold_ms": 0,
+      "phase": "screen",
+      "capacity": 2934,
+      "upper": 3064,
+      "abandoned": false,
+      "best_at_screen": 3064,
+      "rates": [
+        1600,
+        2262,
+        2690,
+        2934,
+        3064,
+        3200
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "C",
+      "link": "B",
+      "n": 8,
+      "k": 2,
+      "hold_ms": 0.6,
+      "phase": "screen",
+      "capacity": 2467,
+      "upper": 2576,
+      "abandoned": false,
+      "best_at_screen": 3064,
+      "rates": [
+        1600,
+        2262,
+        2467,
+        2576,
+        2690,
+        3200
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "C",
+      "link": "B",
+      "n": 8,
+      "k": 2,
+      "hold_ms": 0,
+      "phase": "screen",
+      "capacity": 2362,
+      "upper": 2467,
+      "abandoned": false,
+      "best_at_screen": 3064,
+      "rates": [
+        1600,
+        2262,
+        2362,
+        2467,
+        2690,
+        3200
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "C",
+      "link": "B",
+      "n": 8,
+      "k": 1,
+      "hold_ms": 0.6,
+      "phase": "screen",
+      "capacity": null,
+      "upper": 1600,
+      "abandoned": true,
+      "best_at_screen": 3064,
+      "rates": [
+        1600
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "C",
+      "link": "B",
+      "n": 8,
+      "k": 1,
+      "hold_ms": 0,
+      "phase": "screen",
+      "capacity": null,
+      "upper": 1600,
+      "abandoned": true,
+      "best_at_screen": 3064,
+      "rates": [
+        1600
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "OC",
+      "link": "B",
+      "n": 32,
+      "k": 2,
+      "hold_ms": 0.6,
+      "phase": "screen",
+      "capacity": 2074,
+      "upper": 2166,
+      "abandoned": false,
+      "best_at_screen": 0,
+      "rates": [
+        1600,
+        1902,
+        2074,
+        2166,
+        2262
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "OC",
+      "link": "B",
+      "n": 32,
+      "k": 4,
+      "hold_ms": 0.6,
+      "phase": "screen",
+      "capacity": 2262,
+      "upper": 2362,
+      "abandoned": false,
+      "best_at_screen": 2074,
+      "rates": [
+        1600,
+        2262,
+        2362,
+        2467,
+        2690,
+        3200
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "OC",
+      "link": "B",
+      "n": 16,
+      "k": 2,
+      "hold_ms": 0.6,
+      "phase": "screen",
+      "capacity": 1902,
+      "upper": 1986,
+      "abandoned": false,
+      "best_at_screen": 2262,
+      "rates": [
+        1600,
+        1902,
+        1986,
+        2074,
+        2262
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "OC",
+      "link": "B",
+      "n": 32,
+      "k": 4,
+      "hold_ms": 0,
+      "phase": "screen",
+      "capacity": 2467,
+      "upper": 2576,
+      "abandoned": false,
+      "best_at_screen": 2262,
+      "rates": [
+        1600,
+        2262,
+        2467,
+        2576,
+        2690,
+        3200
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "OC",
+      "link": "B",
+      "n": 32,
+      "k": 2,
+      "hold_ms": 0,
+      "phase": "screen",
+      "capacity": 1986,
+      "upper": 2074,
+      "abandoned": false,
+      "best_at_screen": 2467,
+      "rates": [
+        1600,
+        1902,
+        1986,
+        2074,
+        2262
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "OC",
+      "link": "B",
+      "n": 32,
+      "k": 1,
+      "hold_ms": 0.6,
+      "phase": "screen",
+      "capacity": null,
+      "upper": 1600,
+      "abandoned": true,
+      "best_at_screen": 2467,
+      "rates": [
+        1600
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "OC",
+      "link": "B",
+      "n": 32,
+      "k": 1,
+      "hold_ms": 0,
+      "phase": "screen",
+      "capacity": null,
+      "upper": 1600,
+      "abandoned": true,
+      "best_at_screen": 2467,
+      "rates": [
+        1600
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "OC",
+      "link": "B",
+      "n": 16,
+      "k": 4,
+      "hold_ms": 0.6,
+      "phase": "screen",
+      "capacity": 2262,
+      "upper": 2362,
+      "abandoned": false,
+      "best_at_screen": 2467,
+      "rates": [
+        1600,
+        2262,
+        2362,
+        2467,
+        2690,
+        3200
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "OC",
+      "link": "B",
+      "n": 16,
+      "k": 4,
+      "hold_ms": 0,
+      "phase": "screen",
+      "capacity": 2362,
+      "upper": 2467,
+      "abandoned": false,
+      "best_at_screen": 2467,
+      "rates": [
+        1600,
+        2262,
+        2362,
+        2467,
+        2690,
+        3200
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "OC",
+      "link": "B",
+      "n": 16,
+      "k": 2,
+      "hold_ms": 0,
+      "phase": "screen",
+      "capacity": 1986,
+      "upper": 2074,
+      "abandoned": false,
+      "best_at_screen": 2467,
+      "rates": [
+        1600,
+        1902,
+        1986,
+        2074,
+        2262
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "OC",
+      "link": "B",
+      "n": 16,
+      "k": 1,
+      "hold_ms": 0.6,
+      "phase": "screen",
+      "capacity": null,
+      "upper": 1600,
+      "abandoned": true,
+      "best_at_screen": 2467,
+      "rates": [
+        1600
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "OC",
+      "link": "B",
+      "n": 16,
+      "k": 1,
+      "hold_ms": 0,
+      "phase": "screen",
+      "capacity": null,
+      "upper": 1600,
+      "abandoned": true,
+      "best_at_screen": 2467,
+      "rates": [
+        1600
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "OC",
+      "link": "B",
+      "n": 8,
+      "k": 4,
+      "hold_ms": 0.6,
+      "phase": "screen",
+      "capacity": 2074,
+      "upper": 2166,
+      "abandoned": false,
+      "best_at_screen": 2467,
+      "rates": [
+        1600,
+        1902,
+        2074,
+        2166,
+        2262
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "OC",
+      "link": "B",
+      "n": 8,
+      "k": 4,
+      "hold_ms": 0,
+      "phase": "screen",
+      "capacity": 2074,
+      "upper": 2166,
+      "abandoned": false,
+      "best_at_screen": 2467,
+      "rates": [
+        1600,
+        1902,
+        2074,
+        2166,
+        2262
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "OC",
+      "link": "B",
+      "n": 8,
+      "k": 2,
+      "hold_ms": 0.6,
+      "phase": "screen",
+      "capacity": 1744,
+      "upper": 1821,
+      "abandoned": false,
+      "best_at_screen": 2467,
+      "rates": [
+        1600,
+        1744,
+        1821,
+        1902,
+        2262
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "OC",
+      "link": "B",
+      "n": 8,
+      "k": 2,
+      "hold_ms": 0,
+      "phase": "screen",
+      "capacity": 1670,
+      "upper": 1744,
+      "abandoned": false,
+      "best_at_screen": 2467,
+      "rates": [
+        1600,
+        1670,
+        1744,
+        1902,
+        2262
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "OC",
+      "link": "B",
+      "n": 8,
+      "k": 1,
+      "hold_ms": 0.6,
+      "phase": "screen",
+      "capacity": null,
+      "upper": 1600,
+      "abandoned": true,
+      "best_at_screen": 2467,
+      "rates": [
+        1600
+      ],
+      "repetitions": 1
+    },
+    {
+      "arm": "OC",
+      "link": "B",
+      "n": 8,
+      "k": 1,
+      "hold_ms": 0,
+      "phase": "screen",
+      "capacity": null,
+      "upper": 1600,
+      "abandoned": true,
+      "best_at_screen": 2467,
+      "rates": [
+        1600
+      ],
+      "repetitions": 1
+    }
+  ]
+}

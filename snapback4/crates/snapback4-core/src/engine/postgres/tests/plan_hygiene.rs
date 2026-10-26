@@ -151,6 +151,8 @@ fn log_integrity_commit_rollback_prune_and_legacy_conversion() {
                 .unwrap();
             tx.flush_tail().unwrap();
         }
+        assert_eq!(tx.query("SELECT min(seq) FROM _change_evidence",&[]).unwrap()[0].get::<_,i64>(0),1,"tails retain evidence until head maintenance");
+        tx.prune_evidence_for_test().unwrap();
         assert_eq!(
             tx.query("SELECT min(seq) FROM _change_evidence", &[])
                 .unwrap()[0]

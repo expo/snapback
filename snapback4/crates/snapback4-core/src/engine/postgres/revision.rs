@@ -44,6 +44,7 @@ impl Tx<'_> {
             "SELECT facts.*,pg_catalog.current_setting('client_encoding') FROM ({}) AS facts",
             super::authority::session_facts_sql(self.read_sessions.get())
         );
+        let sql=self.check_functions.borrow().as_ref().map_or_else(||sql.clone(),|checks|checks.binary_read(&sql));
         let pipeline = {
             let inner = self.inner.borrow();
             self.early_release.is_none() && inner.client.is_reader() && !inner.started

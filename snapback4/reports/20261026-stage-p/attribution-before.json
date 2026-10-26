@@ -1,0 +1,401 @@
+[
+  {
+    "seq0": 5457,
+    "seq1": 23941,
+    "workload": "W4",
+    "clients": 32,
+    "seconds": 10.017364105209708,
+    "requests": 18500,
+    "ok": 18484,
+    "failures": [
+      [
+        503,
+        "failed",
+        null
+      ],
+      [
+        503,
+        "failed",
+        null
+      ],
+      [
+        503,
+        "failed",
+        null
+      ],
+      [
+        503,
+        null,
+        "E_STORE"
+      ],
+      [
+        503,
+        "failed",
+        null
+      ],
+      [
+        503,
+        "failed",
+        null
+      ],
+      [
+        503,
+        "failed",
+        null
+      ],
+      [
+        503,
+        "failed",
+        null
+      ],
+      [
+        503,
+        "failed",
+        null
+      ],
+      [
+        503,
+        null,
+        "E_STORE"
+      ]
+    ],
+    "mean_ms": 17.288544504425012,
+    "p50_ms": 16.60110615193844,
+    "p99_ms": 24.243826046586037,
+    "pg_cpu_us_per_write": 363.2432432432432,
+    "load_before": "5.03 6.00 3.94 2/738 3908765\n",
+    "load_after": "4.80 5.92 3.94 2/726 3927339\n",
+    "label": "before",
+    "batches": 1752,
+    "mean_n": 10.550228310502282,
+    "per_batch": {
+      "controls": {
+        "calls": 8.077054794520548,
+        "exec_ms": 0.013857711187214615,
+        "plan_ms": 0.0006934394977168951
+      },
+      "ticket_wait": {
+        "calls": 1.9885844748858448,
+        "exec_ms": 3.336217887557078,
+        "plan_ms": 0.0
+      },
+      "facts": {
+        "calls": 5.0159817351598175,
+        "exec_ms": 0.2660570901826481,
+        "plan_ms": 0.004698099885844749
+      },
+      "commit_utility_only": {
+        "calls": 1.0114155251141552,
+        "exec_ms": 0.0003993812785388119,
+        "plan_ms": 0.0
+      },
+      "tail": {
+        "calls": 1.0,
+        "exec_ms": 2.457360936073055,
+        "plan_ms": 0.0010121957762557075
+      },
+      "settings": {
+        "calls": 2.0131278538812785,
+        "exec_ms": 0.13261428253424667,
+        "plan_ms": 0.0
+      },
+      "owner_fence": {
+        "calls": 1.0005707762557077,
+        "exec_ms": 0.15890281906392692,
+        "plan_ms": 0.0
+      }
+    },
+    "fixture_message_rows": 0,
+    "hot_key_mix_fraction": 0.25
+  },
+  {
+    "seq0": 23941,
+    "seq1": 41151,
+    "workload": "W5-mix",
+    "clients": 32,
+    "seconds": 10.018407415598631,
+    "requests": 17210,
+    "ok": 17210,
+    "failures": [],
+    "mean_ms": 18.588365521119613,
+    "p50_ms": 18.43658834695816,
+    "p99_ms": 23.260824382305145,
+    "pg_cpu_us_per_write": 432.8878558977338,
+    "load_before": "4.80 5.92 3.94 2/726 3927343\n",
+    "load_after": "4.37 5.79 3.92 2/726 3944652\n",
+    "label": "before",
+    "batches": 1619,
+    "mean_n": 10.630018529956763,
+    "per_batch": {
+      "controls": {
+        "calls": 9.713403335392217,
+        "exec_ms": 0.016668442248301427,
+        "plan_ms": 0.0007088462013588635
+      },
+      "ticket_wait": {
+        "calls": 1.996294008647313,
+        "exec_ms": 3.471601759728223,
+        "plan_ms": 0.0
+      },
+      "facts": {
+        "calls": 5.82273008029648,
+        "exec_ms": 0.315397499073502,
+        "plan_ms": 0.0010237523162445956
+      },
+      "commit_utility_only": {
+        "calls": 1.012353304508956,
+        "exec_ms": 0.00040830389129092,
+        "plan_ms": 0.0
+      },
+      "tail": {
+        "calls": 1.0,
+        "exec_ms": 3.0217154712785703,
+        "plan_ms": 0.0002418282890673255
+      },
+      "settings": {
+        "calls": 2.8245830759728228,
+        "exec_ms": 0.18548780049413208,
+        "plan_ms": 0.0
+      },
+      "owner_fence": {
+        "calls": 1.0,
+        "exec_ms": 0.17631457504632528,
+        "plan_ms": 0.0
+      }
+    },
+    "fixture_message_rows": 0,
+    "hot_key_mix_fraction": 0.25
+  },
+  {
+    "seq0": 41151,
+    "seq1": 58311,
+    "workload": "W5-same",
+    "clients": 32,
+    "seconds": 10.019532922655344,
+    "requests": 17160,
+    "ok": 17160,
+    "failures": [],
+    "mean_ms": 18.643272981820477,
+    "p50_ms": 18.255267292261124,
+    "p99_ms": 25.75714886188507,
+    "pg_cpu_us_per_write": 435.8974358974359,
+    "load_before": "4.37 5.79 3.92 2/726 3944656\n",
+    "load_after": "4.17 5.70 3.91 2/727 3961946\n",
+    "label": "before",
+    "batches": 1619,
+    "mean_n": 10.599135268684373,
+    "per_batch": {
+      "controls": {
+        "calls": 10.073502161828289,
+        "exec_ms": 0.0163295608400247,
+        "plan_ms": 0.0006515176034589253
+      },
+      "ticket_wait": {
+        "calls": 1.9981470043236567,
+        "exec_ms": 3.3624101507103203,
+        "plan_ms": 0.0
+      },
+      "facts": {
+        "calls": 6.002470660901791,
+        "exec_ms": 0.32585075602223623,
+        "plan_ms": 0.0006731710932674492
+      },
+      "commit_utility_only": {
+        "calls": 1.012353304508956,
+        "exec_ms": 0.00039104138357010456,
+        "plan_ms": 0.0
+      },
+      "tail": {
+        "calls": 1.0,
+        "exec_ms": 3.0717418060531236,
+        "plan_ms": 0.0001329197035206918
+      },
+      "settings": {
+        "calls": 3.003088326127239,
+        "exec_ms": 0.18342013279802352,
+        "plan_ms": 0.0
+      },
+      "owner_fence": {
+        "calls": 1.0,
+        "exec_ms": 0.1748940759728226,
+        "plan_ms": 0.0
+      }
+    },
+    "fixture_message_rows": 0,
+    "hot_key_mix_fraction": 0.25
+  },
+  {
+    "seq0": 4170,
+    "seq1": 18093,
+    "workload": "W4",
+    "clients": 32,
+    "seconds": 10.023410618305206,
+    "requests": 13923,
+    "ok": 13923,
+    "failures": [],
+    "mean_ms": 22.985020856965868,
+    "p50_ms": 23.35444651544094,
+    "p99_ms": 30.10825254023075,
+    "pg_cpu_us_per_write": 351.9356460532931,
+    "load_before": "2.44 4.10 3.58 2/711 3967767\n",
+    "load_after": "2.82 4.12 3.59 1/702 3981808\n",
+    "label": "before-timed",
+    "batches": 1308,
+    "mean_n": 10.644495412844037,
+    "per_batch": {
+      "controls": {
+        "calls": 8.09250764525994,
+        "exec_ms": 0.014598312691131498,
+        "plan_ms": 0.0008786873088685016
+      },
+      "ticket_wait": {
+        "calls": 1.9977064220183487,
+        "exec_ms": 5.455325500764529,
+        "plan_ms": 0.0
+      },
+      "facts": {
+        "calls": 5.0015290519877675,
+        "exec_ms": 0.260416000764526,
+        "plan_ms": 0.0006238019877675841
+      },
+      "commit_utility_only": {
+        "calls": 1.0152905198776758,
+        "exec_ms": 0.00042045259938837973,
+        "plan_ms": 0.0
+      },
+      "tail": {
+        "calls": 1.0,
+        "exec_ms": 2.367386505351682,
+        "plan_ms": 0.00013690290519877677
+      },
+      "settings": {
+        "calls": 2.0022935779816513,
+        "exec_ms": 0.13277915519877698,
+        "plan_ms": 0.0
+      },
+      "owner_fence": {
+        "calls": 1.0,
+        "exec_ms": 0.15869260856269107,
+        "plan_ms": 0.0
+      }
+    },
+    "fixture_message_rows": 0,
+    "hot_key_mix_fraction": 0.25
+  },
+  {
+    "seq0": 18093,
+    "seq1": 31790,
+    "workload": "W5-mix",
+    "clients": 32,
+    "seconds": 10.02188573218882,
+    "requests": 13697,
+    "ok": 13697,
+    "failures": [],
+    "mean_ms": 23.36654886252503,
+    "p50_ms": 23.090075701475143,
+    "p99_ms": 31.709160655736923,
+    "pg_cpu_us_per_write": 404.4681317076732,
+    "load_before": "2.82 4.12 3.59 1/702 3981812\n",
+    "load_after": "2.85 4.09 3.58 1/720 3995725\n",
+    "label": "before-timed",
+    "batches": 1285,
+    "mean_n": 10.659143968871595,
+    "per_batch": {
+      "controls": {
+        "calls": 10.093385214007782,
+        "exec_ms": 0.01693901789883269,
+        "plan_ms": 0.0008939478599221793
+      },
+      "ticket_wait": {
+        "calls": 1.9992217898832685,
+        "exec_ms": 5.152674729961093,
+        "plan_ms": 0.0
+      },
+      "commit_utility_only": {
+        "calls": 1.0155642023346303,
+        "exec_ms": 0.0004711221789883274,
+        "plan_ms": 0.0
+      },
+      "facts": {
+        "calls": 6.0007782101167315,
+        "exec_ms": 0.30651220544747004,
+        "plan_ms": 0.00028978521400778207
+      },
+      "tail": {
+        "calls": 1.0,
+        "exec_ms": 2.7194280988326835,
+        "plan_ms": 0.0
+      },
+      "settings": {
+        "calls": 3.0,
+        "exec_ms": 0.1845503424124513,
+        "plan_ms": 0.0
+      },
+      "owner_fence": {
+        "calls": 1.0,
+        "exec_ms": 0.16870397354085587,
+        "plan_ms": 0.0
+      }
+    },
+    "fixture_message_rows": 0,
+    "hot_key_mix_fraction": 0.25
+  },
+  {
+    "seq0": 31790,
+    "seq1": 44847,
+    "workload": "W5-same",
+    "clients": 32,
+    "seconds": 10.023091183975339,
+    "requests": 13057,
+    "ok": 13057,
+    "failures": [],
+    "mean_ms": 24.51897222022897,
+    "p50_ms": 24.232005700469017,
+    "p99_ms": 39.18352536857128,
+    "pg_cpu_us_per_write": 422.7617369993108,
+    "load_before": "2.85 4.09 3.58 1/720 3995729\n",
+    "load_after": "2.87 4.05 3.58 1/710 4008885\n",
+    "label": "before-timed",
+    "batches": 1224,
+    "mean_n": 10.667483660130719,
+    "per_batch": {
+      "controls": {
+        "calls": 10.097222222222221,
+        "exec_ms": 0.01732475980392156,
+        "plan_ms": 0.0009118880718954247
+      },
+      "ticket_wait": {
+        "calls": 1.9975490196078431,
+        "exec_ms": 5.297867301470577,
+        "plan_ms": 0.0
+      },
+      "facts": {
+        "calls": 6.003267973856209,
+        "exec_ms": 0.3333503169934643,
+        "plan_ms": 0.0009971879084967321
+      },
+      "commit_utility_only": {
+        "calls": 1.0163398692810457,
+        "exec_ms": 0.0004621789215686268,
+        "plan_ms": 0.0
+      },
+      "tail": {
+        "calls": 1.0,
+        "exec_ms": 2.887968288398692,
+        "plan_ms": 0.00017687009803921567
+      },
+      "settings": {
+        "calls": 3.0040849673202614,
+        "exec_ms": 0.18487099509804003,
+        "plan_ms": 0.0
+      },
+      "owner_fence": {
+        "calls": 1.0,
+        "exec_ms": 0.17906943954248347,
+        "plan_ms": 0.0
+      }
+    },
+    "fixture_message_rows": 0,
+    "hot_key_mix_fraction": 0.25
+  }
+]

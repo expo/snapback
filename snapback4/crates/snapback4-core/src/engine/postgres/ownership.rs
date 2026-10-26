@@ -106,6 +106,7 @@ pub struct StoreLease {
     claimed: bool,
     pub(crate) read_grant: Arc<super::read_grant::Grant>,
     read_clock: Option<(super::read_grant::ReadClockBounds, String)>,
+    prune_evidence: bool,
 }
 #[derive(Debug, PartialEq, Eq)]
 pub struct LeaseAcquisition {
@@ -294,7 +295,7 @@ impl StoreLease {
         fence.tag()?;
         let config: Config = connection.parse()?;
         let (mut client, warning) = connect(config.clone())?;
-        client.batch_execute(&format!("SET search_path = {quoted}, pg_catalog; SET statement_timeout='5s'; SET lock_timeout='5s'"))?;
+        client.batch_execute(&format!("SET search_path = {quoted}, pg_catalog, pg_temp; SET statement_timeout='5s'; SET lock_timeout='5s'"))?;
         // Verify the owner relation before any conditional UPDATE can invoke
         // database-owned rules/triggers or weaken its immediate singleton key.
         let mut checked = store::Store::new(client);
@@ -308,6 +309,8 @@ impl StoreLease {
             ));
         }
         tx.rollback()?;
+        super::checks::load(&mut checked)?;
+        let prune_evidence=checked.check_functions.borrow().is_some();
         let client = checked.client.into_sync();
         Ok(Self {
             client,
@@ -320,6 +323,7 @@ impl StoreLease {
             claimed: false,
             read_grant: Default::default(),
             read_clock: None,
+            prune_evidence,
         })
     }
     pub fn lease_duration(&self) -> Duration { self.policy.lease }
@@ -477,6 +481,16 @@ impl StoreLease {
             if let Some((_,epoch))=&renewing {
                 let grants=tx.execute("UPDATE _read_grant SET valid_until=clock_timestamp()+make_interval(secs=>$1) WHERE singleton AND store_id=$2 AND token=$3 AND holder=$4 AND epoch=$5 AND valid_until>clock_timestamp()",&[&self.policy.lease.as_secs_f64(),&self.fence.store_id,&self.fence.token,&self.fence.holder,epoch])?;
                 if rows!=1 || grants!=1 {return Err(RuntimeError::StoreOwnership("read grant renewal lost its exact epoch".into()));}
+            }
+            // A legacy store is upgraded by Engine::open after this lease was
+            // connected. Observe that committed marker on the next renewal.
+            if rows==1 && !self.prune_evidence {
+                self.prune_evidence=tx.query_one("SELECT EXISTS(SELECT 1 FROM _meta WHERE key='flight_checks_v1' AND value IN ('1','digests'))", &[])?.get(0);
+            }
+            if rows==1 && self.prune_evidence {
+                // Lease maintenance is outside the ordered batch critical path.
+                // Skip a busy head; never delay renewal behind a writer.
+                tx.execute(super::change_evidence::PRUNE, &[])?;
             }
             commit(tx, &self.warning)?;
             Ok::<_, RuntimeError>(rows)

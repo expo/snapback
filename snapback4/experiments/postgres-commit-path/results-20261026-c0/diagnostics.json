@@ -1,0 +1,94 @@
+{
+  "prefix": [
+    {
+      "arm": "C",
+      "link": "A",
+      "elapsed_s": 2.7879233080893755,
+      "reader_ms": {
+        "mean": 3.055629232209742,
+        "n": 534,
+        "p50": 2.85406,
+        "p99": 5.079656999999999
+      },
+      "stale_restarts": 0,
+      "violations": 0
+    },
+    {
+      "arm": "OC",
+      "link": "A",
+      "elapsed_s": 2.888575755059719,
+      "reader_ms": {
+        "mean": 3.051010459107807,
+        "n": 538,
+        "p50": 2.961221,
+        "p99": 4.1314020000000005
+      },
+      "stale_restarts": 0,
+      "violations": 0
+    },
+    {
+      "arm": "O1",
+      "link": "A",
+      "elapsed_s": 2.7880790643393993,
+      "reader_ms": {
+        "mean": 2.907125764388489,
+        "n": 556,
+        "p50": 2.8848480000000003,
+        "p99": 3.86417
+      },
+      "stale_restarts": 0,
+      "violations": 0
+    },
+    {
+      "arm": "C",
+      "link": "B",
+      "elapsed_s": 2.8003956768661737,
+      "reader_ms": {
+        "mean": 4.055717553488372,
+        "n": 430,
+        "p50": 3.882795,
+        "p99": 6.805353
+      },
+      "stale_restarts": 0,
+      "violations": 0
+    },
+    {
+      "arm": "OC",
+      "link": "B",
+      "elapsed_s": 2.737885683774948,
+      "reader_ms": {
+        "mean": 3.930961232505642,
+        "n": 443,
+        "p50": 3.815348,
+        "p99": 5.138707999999999
+      },
+      "stale_restarts": 0,
+      "violations": 0
+    },
+    {
+      "arm": "O1",
+      "link": "B",
+      "elapsed_s": 2.8018113169819117,
+      "reader_ms": {
+        "mean": 3.9024837707865188,
+        "n": 445,
+        "p50": 3.794108,
+        "p99": 5.249106
+      },
+      "stale_restarts": 0,
+      "violations": 0
+    }
+  ],
+  "witness": {
+    "committed_key_beats_void": true,
+    "late_commit_refused": true,
+    "owner_fence": "S4002",
+    "prefix_old_and_new": true,
+    "product_recovery_qualification": false,
+    "raising_count": "S4003",
+    "settings_guard": "S4001",
+    "stale_restart": "S4004",
+    "tripwire": true,
+    "void_after_recorded_backend_kill": true
+  }
+}

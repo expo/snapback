@@ -61,7 +61,7 @@ impl Handle {
         #[cfg(any(test, feature = "test-support"))]
         crate::round_trips::postgres(1);
         let reader_setting = if read_only { "; SET default_transaction_read_only = on" } else { "" };
-        client.batch_execute(&format!("SET search_path = {quoted}, pg_catalog; SET statement_timeout = '5s'; SET lock_timeout = '5s'{reader_setting}"))?;
+        client.batch_execute(&format!("SET search_path = {quoted}, pg_catalog, pg_temp; SET statement_timeout = '5s'; SET lock_timeout = '5s'{reader_setting}"))?;
         let mut store = store::Store::with_connection(client);
         store.unified = true;
         store.read_only = read_only;
@@ -90,6 +90,7 @@ impl Handle {
             tx.rollback()?;
             store.read_sessions.set(read_sessions);
             store.generation = generation;
+            super::checks::load(&mut store)?;
 
         }
         Ok(Self { store: RefCell::new(store), report: AdoptionReport::default(), connection: (config, name.into()), fresh, readers: RefCell::new(pool), bootstrap_id: None })
@@ -120,7 +121,7 @@ impl Handle {
             let expected_generation = store.generation;
             let tx = solo.open_solo_with(|| store.opening_transaction())?;
             if fresh {
-                tx.batch(&format!("CREATE SCHEMA {quoted}; SET search_path = {quoted}, pg_catalog;"))?;
+                tx.batch(&format!("CREATE SCHEMA {quoted}; SET search_path = {quoted}, pg_catalog, pg_temp;"))?;
                 if let Some(fence) = &bootstrap_fence {
                     super::ownership::install(&tx, &fence.store_id)?;
                     tx.query("SELECT token FROM _owner WHERE singleton FOR KEY SHARE", &[])?;
@@ -201,6 +202,7 @@ pub(super) fn initialize(tx: &Tx<'_>, schema: &Schema) -> Result<(), RuntimeErro
     super::metadata::initialize(tx)?;
     super::receipts::initialize(tx)?;
     super::change_evidence::initialize(tx)?;
+    super::checks::initialize(tx)?;
     tx.install_read_sessions()?;
     tx.batch(super::identity::DDL)?;
     super::requests::initialize(tx)?;

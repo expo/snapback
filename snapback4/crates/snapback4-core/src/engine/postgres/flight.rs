@@ -6,6 +6,7 @@ use crate::RuntimeError;
 use postgres::{ SimpleQueryMessage, Statement, row::RowIndex, types::{FromSql, Type}};
 
 pub(super) struct Session<'a> {
+    pub guard: Option<String>,
     pub client: &'a mut super::pipeline::Connection,
     pub pending: String,
     pub started: bool,
@@ -41,14 +42,17 @@ impl Session<'_> {
     // application values enter this constant control command.
     fn guarded_query(&mut self, sql: &str) -> Result<Vec<SimpleQueryMessage>, RuntimeError> {
         self.ensure_settings()?;
-        const GUARD: &str = "DO $sb4_settings$ BEGIN IF pg_catalog.current_setting('client_encoding') OPERATOR(pg_catalog.<>) 'UTF8' OR pg_catalog.current_setting('extra_float_digits') OPERATOR(pg_catalog.<>) '3' OR pg_catalog.current_setting('bytea_output') OPERATOR(pg_catalog.<>) 'hex' THEN RAISE EXCEPTION 'Postgres flight output settings drifted' USING ERRCODE = 'S4001'; END IF; END $sb4_settings$;";
-        let mut command = String::with_capacity(GUARD.len() + sql.len());
-        let owner = self.owner.take();
+        let guard_command = self.guard.as_deref().unwrap_or(super::checks::INLINE_GUARD);
+        let mut command = String::with_capacity(guard_command.len() + sql.len());
         let owner_budget = self.owner_budget.take();
         // An aborted transaction accepts only rollback. These recovery flights
         // contain controls alone: restore the savepoint before checking settings,
         // which may themselves have been restored by that rollback.
         let recovery = sql.starts_with("ROLLBACK TO SAVEPOINT ");
+        // Every data flight rechecks the provisioned fence, including the
+        // combined final. Recovery controls must restore the transaction first.
+        // @ref LLP 3000.009.001.000.000.002#3.11 — checks fail closed before data without adding a flight.
+        let owner = if recovery { None } else { self.owner.clone() };
         // BEGIN must precede the guard too: a query before BEGIN would start
         // an implicit transaction and prevent setting its isolation level.
         let opening = if sql.starts_with("BEGIN ") { sql.find(';').map_or(0, |n|n+1) } else { 0 };
@@ -58,8 +62,8 @@ impl Session<'_> {
         // @ref LLP 3000.009.001.000.000.002#3.8 — an earlier snapshot's head cannot certify fresh fallback rows.
         if opening != 0 { self.snapshot = None; }
         let bind_head=self.durability.is_some() && self.snapshot.is_none();
+        if !recovery { command.push_str(guard_command); }
         if bind_head {command.push_str(super::early_release::SNAPSHOT);command.push(';');}
-        if !recovery { command.push_str(GUARD); }
         if let Some(owner) = &owner {
             if let Some(ms) = owner_budget {
                 command.push_str(&format!("SET LOCAL statement_timeout={ms}; SET LOCAL lock_timeout={ms};"));
@@ -67,7 +71,7 @@ impl Session<'_> {
             command.push_str(owner);
         }
         command.push_str(&sql[opening..]);
-        if recovery { command.push(';'); command.push_str(GUARD); }
+        if recovery { command.push(';'); command.push_str(guard_command); }
         let mut messages = self.client.simple_query(&command).map_err(|error| {
             if error.code().is_some_and(|code| code.code() == "S4001") { self.settings_refused = true; }
             if error.code().is_some_and(|code| code.code() == "S4002") {
@@ -80,7 +84,7 @@ impl Session<'_> {
         // The head is the first read in this REPEATABLE READ snapshot. Remove
         // its wire messages before handing the original command results up.
         if bind_head {
-            let index=usize::from(opening!=0);
+            let index=command_range(&messages,usize::from(opening!=0)+1)?.0;
             let end=messages.iter().enumerate().skip(index).find_map(|(i,m)|matches!(m,SimpleQueryMessage::CommandComplete(_)).then_some(i))
                 .ok_or_else(||RuntimeError::Store("missing reader snapshot head".into()))?;
             let snapshot=messages[index..end].iter().find_map(|m|if let SimpleQueryMessage::Row(r)=m {Some(super::early_release::Snapshot::text(r))} else {None})
@@ -92,17 +96,16 @@ impl Session<'_> {
             messages=gate.bind(snapshot.clone(),messages).open()?;
         }
         let guard_index = usize::from(opening != 0);
-        let guard = if recovery { messages.last() } else { messages.get(guard_index) };
-        if !matches!(guard, Some(SimpleQueryMessage::CommandComplete(_))) {
-            return Err(RuntimeError::Store("missing Postgres output settings guard".into()));
+        if recovery {
+            let ordinal=messages.iter().filter(|m|matches!(m,SimpleQueryMessage::CommandComplete(_))).count().checked_sub(1)
+                .ok_or_else(||RuntimeError::Store("missing Postgres settings guard".into()))?;
+            let (a,b)=command_range(&messages,ordinal)?;messages.drain(a..=b);
+        } else {
+            let (a,b)=command_range(&messages,guard_index)?;messages.drain(a..=b);
         }
-        if recovery { messages.pop(); } else { messages.remove(guard_index); }
         if owner.is_some() {
             for _ in 0..if owner_budget.is_some() { 3 } else { 1 } {
-                if !matches!(messages.get(guard_index), Some(SimpleQueryMessage::CommandComplete(_))) {
-                    return Err(RuntimeError::StoreOwnership("missing raising owner fence/budget".into()));
-                }
-                messages.remove(guard_index);
+                let (a,b)=command_range(&messages,guard_index)?;messages.drain(a..=b);
             }
         }
         Ok(messages)
@@ -140,6 +143,17 @@ impl Session<'_> {
         self.validate(&messages)?;
         Ok(messages)
     }
+}
+
+fn command_range(messages: &[SimpleQueryMessage], ordinal: usize) -> Result<(usize,usize),RuntimeError> {
+    let mut start=0;let mut n=0;
+    for (i,m) in messages.iter().enumerate() {
+        if matches!(m,SimpleQueryMessage::CommandComplete(_)) {
+            if n==ordinal {return Ok((start,i));}
+            n+=1;start=i+1;
+        }
+    }
+    Err(RuntimeError::Store("missing Postgres check command".into()))
 }
 
 /// Keep the ordinary typed row interface for adapters. Text output is decoded

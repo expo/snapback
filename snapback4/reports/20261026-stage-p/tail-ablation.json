@@ -1,0 +1,438 @@
+{
+  "rows": 1000000,
+  "batch_size": 11,
+  "attempts": 1000,
+  "synthetic": true,
+  "forced_generic_plan": true,
+  "results": [
+    {
+      "calls": 1000,
+      "exec_ms": 207.96564999999995,
+      "plan_ms": 0.898602,
+      "backend_cpu_ms_per_batch": 0.55,
+      "repeat": 0,
+      "variant": "arrays-all-prune",
+      "ms_per_batch": 0.20886425199999997,
+      "count_checks": 1000
+    },
+    {
+      "calls": 1000,
+      "exec_ms": 188.56844500000005,
+      "plan_ms": 0.512931,
+      "backend_cpu_ms_per_batch": 0.44,
+      "repeat": 0,
+      "variant": "arrays-sparse-no-prune",
+      "ms_per_batch": 0.18908137600000005,
+      "count_checks": 1000
+    },
+    {
+      "calls": 1000,
+      "exec_ms": 200.65699100000006,
+      "plan_ms": 0.604114,
+      "backend_cpu_ms_per_batch": 0.46,
+      "repeat": 0,
+      "variant": "arrays-sparse-prune",
+      "ms_per_batch": 0.20126110500000008,
+      "count_checks": 1000
+    },
+    {
+      "calls": 1000,
+      "exec_ms": 214.85076300000014,
+      "plan_ms": 0.598133,
+      "backend_cpu_ms_per_batch": 0.34,
+      "repeat": 0,
+      "variant": "compact-arrays-sparse-no-prune",
+      "ms_per_batch": 0.21544889600000014,
+      "count_checks": 1000
+    },
+    {
+      "calls": 1000,
+      "exec_ms": 448.4328770000009,
+      "plan_ms": 0.838789,
+      "backend_cpu_ms_per_batch": 0.59,
+      "repeat": 0,
+      "variant": "json-all-prune",
+      "ms_per_batch": 0.4492716660000009,
+      "count_checks": 1000
+    },
+    {
+      "calls": 1000,
+      "exec_ms": 196.93835800000022,
+      "plan_ms": 0.534231,
+      "backend_cpu_ms_per_batch": 0.3,
+      "repeat": 1,
+      "variant": "compact-arrays-sparse-no-prune",
+      "ms_per_batch": 0.19747258900000023,
+      "count_checks": 1000
+    },
+    {
+      "calls": 1000,
+      "exec_ms": 427.30003700000026,
+      "plan_ms": 0.800055,
+      "backend_cpu_ms_per_batch": 0.56,
+      "repeat": 1,
+      "variant": "json-all-prune",
+      "ms_per_batch": 0.42810009200000027,
+      "count_checks": 1000
+    },
+    {
+      "calls": 1000,
+      "exec_ms": 186.3263600000001,
+      "plan_ms": 0.52273,
+      "backend_cpu_ms_per_batch": 0.45,
+      "repeat": 1,
+      "variant": "arrays-sparse-no-prune",
+      "ms_per_batch": 0.1868490900000001,
+      "count_checks": 1000
+    },
+    {
+      "calls": 1000,
+      "exec_ms": 199.25663000000006,
+      "plan_ms": 0.601149,
+      "backend_cpu_ms_per_batch": 0.47,
+      "repeat": 1,
+      "variant": "arrays-sparse-prune",
+      "ms_per_batch": 0.19985777900000004,
+      "count_checks": 1000
+    },
+    {
+      "calls": 1000,
+      "exec_ms": 211.85392500000006,
+      "plan_ms": 0.918399,
+      "backend_cpu_ms_per_batch": 0.55,
+      "repeat": 1,
+      "variant": "arrays-all-prune",
+      "ms_per_batch": 0.21277232400000007,
+      "count_checks": 1000
+    },
+    {
+      "calls": 1000,
+      "exec_ms": 412.49490099999963,
+      "plan_ms": 0.92415,
+      "backend_cpu_ms_per_batch": 0.54,
+      "repeat": 2,
+      "variant": "json-all-prune",
+      "ms_per_batch": 0.41341905099999965,
+      "count_checks": 1000
+    },
+    {
+      "calls": 1000,
+      "exec_ms": 205.4043939999999,
+      "plan_ms": 0.599976,
+      "backend_cpu_ms_per_batch": 0.32,
+      "repeat": 2,
+      "variant": "compact-arrays-sparse-no-prune",
+      "ms_per_batch": 0.2060043699999999,
+      "count_checks": 1000
+    },
+    {
+      "calls": 1000,
+      "exec_ms": 183.50450400000022,
+      "plan_ms": 0.663186,
+      "backend_cpu_ms_per_batch": 0.43,
+      "repeat": 2,
+      "variant": "arrays-sparse-prune",
+      "ms_per_batch": 0.18416769000000022,
+      "count_checks": 1000
+    },
+    {
+      "calls": 1000,
+      "exec_ms": 191.47173800000016,
+      "plan_ms": 0.526898,
+      "backend_cpu_ms_per_batch": 0.45,
+      "repeat": 2,
+      "variant": "arrays-sparse-no-prune",
+      "ms_per_batch": 0.19199863600000014,
+      "count_checks": 1000
+    },
+    {
+      "calls": 1000,
+      "exec_ms": 209.36078799999996,
+      "plan_ms": 0.846583,
+      "backend_cpu_ms_per_batch": 0.55,
+      "repeat": 2,
+      "variant": "arrays-all-prune",
+      "ms_per_batch": 0.21020737099999998,
+      "count_checks": 1000
+    },
+    {
+      "calls": 1000,
+      "exec_ms": 182.1075369999999,
+      "plan_ms": 0.452637,
+      "backend_cpu_ms_per_batch": 0.42,
+      "repeat": 3,
+      "variant": "arrays-sparse-prune",
+      "ms_per_batch": 0.1825601739999999,
+      "count_checks": 1000
+    },
+    {
+      "calls": 1000,
+      "exec_ms": 174.89313299999992,
+      "plan_ms": 0.293626,
+      "backend_cpu_ms_per_batch": 0.41,
+      "repeat": 3,
+      "variant": "arrays-sparse-no-prune",
+      "ms_per_batch": 0.17518675899999991,
+      "count_checks": 1000
+    },
+    {
+      "calls": 1000,
+      "exec_ms": 407.41645300000084,
+      "plan_ms": 0.44361,
+      "backend_cpu_ms_per_batch": 0.54,
+      "repeat": 3,
+      "variant": "json-all-prune",
+      "ms_per_batch": 0.4078600630000008,
+      "count_checks": 1000
+    },
+    {
+      "calls": 1000,
+      "exec_ms": 202.693675,
+      "plan_ms": 0.324484,
+      "backend_cpu_ms_per_batch": 0.31,
+      "repeat": 3,
+      "variant": "compact-arrays-sparse-no-prune",
+      "ms_per_batch": 0.20301815900000003,
+      "count_checks": 1000
+    },
+    {
+      "calls": 1000,
+      "exec_ms": 211.40636899999993,
+      "plan_ms": 0.843016,
+      "backend_cpu_ms_per_batch": 0.56,
+      "repeat": 3,
+      "variant": "arrays-all-prune",
+      "ms_per_batch": 0.21224938499999993,
+      "count_checks": 1000
+    },
+    {
+      "calls": 1000,
+      "exec_ms": 213.693526,
+      "plan_ms": 0.857394,
+      "backend_cpu_ms_per_batch": 0.34,
+      "repeat": 4,
+      "variant": "compact-arrays-sparse-no-prune",
+      "ms_per_batch": 0.21455091999999998,
+      "count_checks": 1000
+    },
+    {
+      "calls": 1000,
+      "exec_ms": 215.54604100000037,
+      "plan_ms": 0.881088,
+      "backend_cpu_ms_per_batch": 0.58,
+      "repeat": 4,
+      "variant": "arrays-all-prune",
+      "ms_per_batch": 0.21642712900000038,
+      "count_checks": 1000
+    },
+    {
+      "calls": 1000,
+      "exec_ms": 200.18988600000012,
+      "plan_ms": 0.557265,
+      "backend_cpu_ms_per_batch": 0.47,
+      "repeat": 4,
+      "variant": "arrays-sparse-no-prune",
+      "ms_per_batch": 0.20074715100000012,
+      "count_checks": 1000
+    },
+    {
+      "calls": 1000,
+      "exec_ms": 484.1284290000001,
+      "plan_ms": 0.847536,
+      "backend_cpu_ms_per_batch": 0.65,
+      "repeat": 4,
+      "variant": "json-all-prune",
+      "ms_per_batch": 0.48497596500000006,
+      "count_checks": 1000
+    },
+    {
+      "calls": 1000,
+      "exec_ms": 208.09071699999993,
+      "plan_ms": 0.636506,
+      "backend_cpu_ms_per_batch": 0.48,
+      "repeat": 4,
+      "variant": "arrays-sparse-prune",
+      "ms_per_batch": 0.20872722299999993,
+      "count_checks": 1000
+    },
+    {
+      "calls": 1000,
+      "exec_ms": 223.55884300000008,
+      "plan_ms": 0.580419,
+      "backend_cpu_ms_per_batch": 0.35,
+      "repeat": 5,
+      "variant": "compact-arrays-sparse-no-prune",
+      "ms_per_batch": 0.2241392620000001,
+      "count_checks": 1000
+    },
+    {
+      "calls": 1000,
+      "exec_ms": 186.0430760000001,
+      "plan_ms": 0.362487,
+      "backend_cpu_ms_per_batch": 0.44,
+      "repeat": 5,
+      "variant": "arrays-sparse-prune",
+      "ms_per_batch": 0.18640556300000008,
+      "count_checks": 1000
+    },
+    {
+      "calls": 1000,
+      "exec_ms": 436.4680070000002,
+      "plan_ms": 0.777232,
+      "backend_cpu_ms_per_batch": 0.58,
+      "repeat": 5,
+      "variant": "json-all-prune",
+      "ms_per_batch": 0.43724523900000023,
+      "count_checks": 1000
+    },
+    {
+      "calls": 1000,
+      "exec_ms": 207.29372299999991,
+      "plan_ms": 0.636516,
+      "backend_cpu_ms_per_batch": 0.55,
+      "repeat": 5,
+      "variant": "arrays-all-prune",
+      "ms_per_batch": 0.2079302389999999,
+      "count_checks": 1000
+    },
+    {
+      "calls": 1000,
+      "exec_ms": 195.96924399999997,
+      "plan_ms": 0.528451,
+      "backend_cpu_ms_per_batch": 0.46,
+      "repeat": 5,
+      "variant": "arrays-sparse-no-prune",
+      "ms_per_batch": 0.19649769499999997,
+      "count_checks": 1000
+    },
+    {
+      "calls": 1000,
+      "exec_ms": 193.03947500000012,
+      "plan_ms": 0.432028,
+      "backend_cpu_ms_per_batch": 0.45,
+      "repeat": 6,
+      "variant": "arrays-sparse-prune",
+      "ms_per_batch": 0.19347150300000013,
+      "count_checks": 1000
+    },
+    {
+      "calls": 1000,
+      "exec_ms": 216.96240699999987,
+      "plan_ms": 0.89207,
+      "backend_cpu_ms_per_batch": 0.57,
+      "repeat": 6,
+      "variant": "arrays-all-prune",
+      "ms_per_batch": 0.21785447699999985,
+      "count_checks": 1000
+    },
+    {
+      "calls": 1000,
+      "exec_ms": 224.09949400000016,
+      "plan_ms": 0.541215,
+      "backend_cpu_ms_per_batch": 0.36,
+      "repeat": 6,
+      "variant": "compact-arrays-sparse-no-prune",
+      "ms_per_batch": 0.22464070900000016,
+      "count_checks": 1000
+    },
+    {
+      "calls": 1000,
+      "exec_ms": 451.43093499999986,
+      "plan_ms": 0.782712,
+      "backend_cpu_ms_per_batch": 0.59,
+      "repeat": 6,
+      "variant": "json-all-prune",
+      "ms_per_batch": 0.4522136469999999,
+      "count_checks": 1000
+    },
+    {
+      "calls": 1000,
+      "exec_ms": 201.82815499999973,
+      "plan_ms": 0.545323,
+      "backend_cpu_ms_per_batch": 0.49,
+      "repeat": 6,
+      "variant": "arrays-sparse-no-prune",
+      "ms_per_batch": 0.20237347799999972,
+      "count_checks": 1000
+    },
+    {
+      "calls": 1000,
+      "exec_ms": 208.23642400000017,
+      "plan_ms": 0.64431,
+      "backend_cpu_ms_per_batch": 0.49,
+      "repeat": 7,
+      "variant": "arrays-sparse-prune",
+      "ms_per_batch": 0.20888073400000015,
+      "count_checks": 1000
+    },
+    {
+      "calls": 1000,
+      "exec_ms": 439.4320469999998,
+      "plan_ms": 0.819933,
+      "backend_cpu_ms_per_batch": 0.59,
+      "repeat": 7,
+      "variant": "json-all-prune",
+      "ms_per_batch": 0.44025197999999977,
+      "count_checks": 1000
+    },
+    {
+      "calls": 1000,
+      "exec_ms": 202.3983830000001,
+      "plan_ms": 0.582323,
+      "backend_cpu_ms_per_batch": 0.49,
+      "repeat": 7,
+      "variant": "arrays-sparse-no-prune",
+      "ms_per_batch": 0.20298070600000012,
+      "count_checks": 1000
+    },
+    {
+      "calls": 1000,
+      "exec_ms": 228.99029899999982,
+      "plan_ms": 0.543169,
+      "backend_cpu_ms_per_batch": 0.36,
+      "repeat": 7,
+      "variant": "compact-arrays-sparse-no-prune",
+      "ms_per_batch": 0.22953346799999982,
+      "count_checks": 1000
+    },
+    {
+      "calls": 1000,
+      "exec_ms": 213.61378600000012,
+      "plan_ms": 0.499696,
+      "backend_cpu_ms_per_batch": 0.56,
+      "repeat": 7,
+      "variant": "arrays-all-prune",
+      "ms_per_batch": 0.2141134820000001,
+      "count_checks": 1000
+    }
+  ],
+  "completed_statement_samples": {
+    "arrays-all-prune": {
+      "samples": 148,
+      "mean_ms": 0.5229864864864865,
+      "median_ms": 0.4725
+    },
+    "arrays-sparse-no-prune": {
+      "samples": 155,
+      "mean_ms": 0.42540645161290325,
+      "median_ms": 0.376
+    },
+    "arrays-sparse-prune": {
+      "samples": 169,
+      "mean_ms": 0.42430769230769233,
+      "median_ms": 0.384
+    },
+    "compact-arrays-sparse-no-prune": {
+      "samples": 135,
+      "mean_ms": 0.2938888888888889,
+      "median_ms": 0.266
+    },
+    "json-all-prune": {
+      "samples": 143,
+      "mean_ms": 0.5344965034965035,
+      "median_ms": 0.488
+    }
+  },
+  "backend_cpu_definition": "backend /proc/self/stat utime+stime delta per 1000 attempts; includes SQL parsing/EXECUTE argument work and rollback controls; no fsync",
+  "completed_statement_definition": "2% sampled duration log for single EXECUTE, includes parse/argument work; not added to pg_stat_statements clock"
+}

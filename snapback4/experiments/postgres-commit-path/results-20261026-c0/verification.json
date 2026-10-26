@@ -1,0 +1,391 @@
+{
+  "retained_trial_jsons": 1380,
+  "completed_trials": 1378,
+  "recorded_execution_failures": 2,
+  "measured_arrivals": 28629670,
+  "whole_cohort_writes": 32911180,
+  "batches": 4274530,
+  "counters_and_request_ledgers_equal": true,
+  "per_cell": [
+    {
+      "arm": "C",
+      "link": "A",
+      "phase": "confirmation",
+      "trials": 57
+    },
+    {
+      "arm": "C",
+      "link": "A",
+      "phase": "overload-witness",
+      "trials": 1
+    },
+    {
+      "arm": "C",
+      "link": "A",
+      "phase": "refine",
+      "trials": 51
+    },
+    {
+      "arm": "C",
+      "link": "A",
+      "phase": "screen",
+      "trials": 94
+    },
+    {
+      "arm": "C",
+      "link": "A",
+      "phase": "sweep",
+      "trials": 113
+    },
+    {
+      "arm": "C",
+      "link": "B",
+      "phase": "confirmation",
+      "trials": 51
+    },
+    {
+      "arm": "C",
+      "link": "B",
+      "phase": "overload-witness",
+      "trials": 1
+    },
+    {
+      "arm": "C",
+      "link": "B",
+      "phase": "refine",
+      "trials": 51
+    },
+    {
+      "arm": "C",
+      "link": "B",
+      "phase": "screen",
+      "trials": 89
+    },
+    {
+      "arm": "C",
+      "link": "B",
+      "phase": "sweep",
+      "trials": 3
+    },
+    {
+      "arm": "O1",
+      "link": "A",
+      "phase": "baseline",
+      "trials": 2
+    },
+    {
+      "arm": "O1",
+      "link": "A",
+      "phase": "calibration",
+      "trials": 2
+    },
+    {
+      "arm": "O1",
+      "link": "A",
+      "phase": "confirmation",
+      "trials": 66
+    },
+    {
+      "arm": "O1",
+      "link": "A",
+      "phase": "overload-witness",
+      "trials": 1
+    },
+    {
+      "arm": "O1",
+      "link": "A",
+      "phase": "refine",
+      "trials": 48
+    },
+    {
+      "arm": "O1",
+      "link": "A",
+      "phase": "screen",
+      "trials": 87
+    },
+    {
+      "arm": "O1",
+      "link": "A",
+      "phase": "sweep",
+      "trials": 101
+    },
+    {
+      "arm": "O1",
+      "link": "B",
+      "phase": "baseline",
+      "trials": 2
+    },
+    {
+      "arm": "O1",
+      "link": "B",
+      "phase": "calibration",
+      "trials": 2
+    },
+    {
+      "arm": "O1",
+      "link": "B",
+      "phase": "confirmation",
+      "trials": 42
+    },
+    {
+      "arm": "O1",
+      "link": "B",
+      "phase": "overload-witness",
+      "trials": 1
+    },
+    {
+      "arm": "O1",
+      "link": "B",
+      "phase": "refine",
+      "trials": 48
+    },
+    {
+      "arm": "O1",
+      "link": "B",
+      "phase": "screen",
+      "trials": 87
+    },
+    {
+      "arm": "O1",
+      "link": "B",
+      "phase": "sweep",
+      "trials": 3
+    },
+    {
+      "arm": "OC",
+      "link": "A",
+      "phase": "confirmation",
+      "trials": 78
+    },
+    {
+      "arm": "OC",
+      "link": "A",
+      "phase": "overload-witness",
+      "trials": 1
+    },
+    {
+      "arm": "OC",
+      "link": "A",
+      "phase": "refine",
+      "trials": 45
+    },
+    {
+      "arm": "OC",
+      "link": "A",
+      "phase": "screen",
+      "trials": 78
+    },
+    {
+      "arm": "OC",
+      "link": "A",
+      "phase": "sweep",
+      "trials": 3
+    },
+    {
+      "arm": "OC",
+      "link": "B",
+      "phase": "confirmation",
+      "trials": 45
+    },
+    {
+      "arm": "OC",
+      "link": "B",
+      "phase": "overload-witness",
+      "trials": 1
+    },
+    {
+      "arm": "OC",
+      "link": "B",
+      "phase": "refine",
+      "trials": 51
+    },
+    {
+      "arm": "OC",
+      "link": "B",
+      "phase": "screen",
+      "trials": 70
+    },
+    {
+      "arm": "OC",
+      "link": "B",
+      "phase": "sweep",
+      "trials": 3
+    }
+  ],
+  "affinity": [
+    {
+      "role": "PG",
+      "cpus": [
+        0,
+        1,
+        2,
+        6,
+        7,
+        8
+      ],
+      "thread_observations": 1433237
+    },
+    {
+      "role": "app",
+      "cpus": [
+        3,
+        4,
+        9,
+        10
+      ],
+      "thread_observations": 7003999
+    },
+    {
+      "role": "app",
+      "cpus": [
+        5,
+        11
+      ],
+      "thread_observations": 140311
+    }
+  ],
+  "disk": {
+    "minimum_free_bytes": 57348444160,
+    "guard_bytes": 26843545600
+  },
+  "host_start": {
+    "clean_boundaries": 1138,
+    "busy_wait_observations": 0
+  },
+  "rtt": [
+    {
+      "path": "A/rtt-after.json",
+      "count": 1000,
+      "p50_ms": 0.563,
+      "p99_ms": 0.578,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-d2k6qlu6/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "path": "A/rtt-before.json",
+      "count": 1000,
+      "p50_ms": 0.563,
+      "p99_ms": 0.617,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-d2k6qlu6/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "path": "B/rtt-after.json",
+      "count": 1000,
+      "p50_ms": 1.071,
+      "p99_ms": 1.153,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-d2k6qlu6/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "path": "B/rtt-before.json",
+      "count": 1000,
+      "p50_ms": 1.069,
+      "p99_ms": 1.129,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-d2k6qlu6/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    }
+  ],
+  "process_custody": {
+    "records": 17845,
+    "distinct_identities": 14934,
+    "left": [],
+    "target_scan_left": [],
+    "cleanup": [
+      {
+        "run": "c0-20261026",
+        "pid_records": 2132,
+        "stopped": true,
+        "clean_shutdown_observed": false
+      },
+      {
+        "run": "c0-resume-baseline-01",
+        "pid_records": 48,
+        "stopped": true,
+        "clean_shutdown_observed": true
+      },
+      {
+        "run": "c0-resume-baseline-02",
+        "pid_records": 107,
+        "stopped": true,
+        "clean_shutdown_observed": true
+      },
+      {
+        "run": "c0-resume-bounds-01",
+        "pid_records": 154,
+        "stopped": true,
+        "clean_shutdown_observed": true
+      },
+      {
+        "run": "c0-resume-calibration-01",
+        "pid_records": 102,
+        "stopped": true,
+        "clean_shutdown_observed": true
+      },
+      {
+        "run": "c0-smoke-01",
+        "pid_records": 56,
+        "stopped": true,
+        "clean_shutdown_observed": true
+      },
+      {
+        "run": "c0-smoke-02",
+        "pid_records": 50,
+        "stopped": true,
+        "clean_shutdown_observed": true
+      },
+      {
+        "run": "c0-smoke-03",
+        "pid_records": 65,
+        "stopped": true,
+        "clean_shutdown_observed": true
+      },
+      {
+        "run": "c0-smoke-04",
+        "pid_records": 124,
+        "stopped": true,
+        "clean_shutdown_observed": true
+      },
+      {
+        "run": "c0-smoke-candidate",
+        "pid_records": 130,
+        "stopped": true,
+        "clean_shutdown_observed": true
+      },
+      {
+        "run": "c0-smoke-final",
+        "pid_records": 124,
+        "stopped": true,
+        "clean_shutdown_observed": true
+      },
+      {
+        "run": "c0-smoke-qualify",
+        "pid_records": 83,
+        "stopped": true,
+        "clean_shutdown_observed": true
+      },
+      {
+        "run": "c0-capacity-20261026",
+        "pid_records": 14644,
+        "stopped": true,
+        "clean_shutdown_observed": true
+      }
+    ]
+  },
+  "source_and_binary_frozen": true,
+  "screen_configurations": 108,
+  "superseded_trials": 205,
+  "product_changes": false
+}

@@ -109018,3 +109018,326 @@ and no unexpected worktree helpers. Free space is 33.62 GiB. The product,
 tests and proxy retain the same verified source fingerprint. See the
 [WF report](reports/20261026-wf-postgres/REPORT.md). No push or publication;
 no throughput campaign.
+
+## 2026-10-26 — Stage P: ordered Postgres server cost, implementation checkpoint
+
+Lane `sb4-pg/stage-p` starts at `5fc6e6449b`, without the concurrent WF lane.
+P0 statement/plan attribution precedes the cuts; its diagnostic checkpoint is
+`7552977edc` and the [Stage P report](reports/20261026-stage-p/REPORT.md)
+explicitly distinguishes the first zero-message fixture from the later full
+S1 fixture. The latter is seeded through the native Engine and measured with
+32 loopback clients; it is not the authoritative one-host campaign.
+
+The group tail now sends typed collections, materializes commit input once,
+and omits empty family CTEs while returning int8 zero counts. Every present
+family, image count, head CAS, outcome class and G6 publication boundary remains
+checked before the separate COMMIT. Evidence pruning leaves application tails;
+owner renewal locks/republishes an available head and prunes only behind its
+1000-sequence floor. A busy head skips maintenance. Renewal notices an upgrade
+completed after the lease connected. Old snapshots retain evidence through MVCC.
+
+Schema ensure installs digest-named PL/pgSQL checks under the original inline
+owner fence. Exact signature, owner, body, search path, language, security,
+volatility and other execution attributes are admitted; present functions are
+never replaced. Opens, lease connection and reconnect validate them. Ordinary
+flights use qualified calls, with the volatile key-share fence still its own
+command before data. Binary single-statement reads reference the guard so a
+missing helper fails at Parse without another flight. Prepared state is cleared
+on upgrade/reconnect. Old versions are retained; privileged runtime DDL during
+a lease remains unsupported. SQLite product code and opt-in E routing are unchanged.
+
+At this checkpoint the full core run passes 1311/0/531 (passed/failed/ignored,
+isolated child excluded); the five focused witnesses and both PG17 certificate
+timeout witnesses pass. The expanded differential includes all-family and empty
+online-only tails, generic-plan use, SQLite and byte-identical generic/typed PG
+snapshots. The HTTP negative control fails twice on the baseline and passes
+upgrade and missing-guard/fence checks on the new binary with zero data change.
+Full binary, G7/E/lever/RT0 and complete Postgres-script results, final loopback
+numbers, and final PID cleanup will be appended on completion. No push occurs.
+
+## 2026-10-26 — Stage P refinement: price parameter work and reconnect control
+
+The E disconnect oracle found a real Stage P admission error: catalog validation
+on a replacement connection waited on the broken D epoch that recovery must
+rebuild. Catalog-only validation now runs before that gate is reattached;
+application reads retain quarantine. The final serial PG16 G7/E run passes
+83/0, the two PG17 certificate witnesses pass, and the wrong-signature tamper
+witness now installs an incompatible overload rather than only dropping a function.
+
+The fixed-N=11 tail control exposes EXECUTE argument construction that root
+executor clocks omit. Per-element arrays, all empty CTEs and pruning retained,
+cut root execution substantially but barely reduce backend CPU. Omitting empty
+families and encoding one compact array input per typed column reduces completed
+statement mean from 0.534 to 0.294 ms and backend CPU median from 0.585 to
+0.340 ms. All 40000 exact-count checks pass. The final compact-array oracle
+also agrees with binary arrays for nulls, escaping, Unicode, controls and integer
+endpoints. The six focused witnesses, all 83 PG16 G7/E cases, three core RT0
+cases and eight HTTP PG RT0 cases pass. Flight budgets remain unchanged.
+
+On the native million-message fixture, the zero-error 32-client loopback pair
+reduces PG CPU per committed write from 182/203/186 to 129/129/137 us
+(W4 / 1%-hot mix / same key). W4 mean residence improves 25.51→19.66 ms;
+the W5 means regress 21.26→22.44 and 22.29→23.36 ms, with higher sampled
+COMMIT and ticket waits. The report keeps those regressions and the host-load
+samples; no one-host S1 or capacity-rung claim follows. The full binary passes
+626/0/75 after building its required ordinary debug launcher. The complete
+Postgres script and final census are still running at this checkpoint.
+
+## 2026-10-26 — Stage P review: persistent reconnect admission
+
+Fresh review found that a failed helper catalog check on a replacement reader
+connection could clear admission state and select inline checks on the next
+request. Failed admission now remains pending until identity, generation,
+managed-relation and helper validation succeed. The regression witness fails
+on `1e1bf2925e` at the second request (`guard/missing admitted retry 1`); it
+covers missing and modified guard/fence bodies, three same-connection retries,
+and admission after restoring the exact definition. This changes reconnect
+admission only; the measured steady-state batch SQL is unchanged.
+
+Three old Rust witnesses now invoke explicit head maintenance or use the new
+26-argument solo tail. The public serving witness waits for lease maintenance
+while checking that every observation retains at least 1000 sequences. Their
+focused reruns pass 4/0; the final full script and reconnect-positive checks are
+recorded in the report on completion. No raw logs are committed.
+
+## 2026-10-26 — Stage P completed: verification and cleanup
+
+Final source `c0d78c37a1` has a fresh read-only no-material-finding verdict.
+Full core passes **1311/0/533** (passed/failed/ignored; isolated child excluded),
+and the full binary passes **626/0/75** (13 passing isolated child runs excluded).
+Stage P witnesses pass **7/0**, serial PG16 G7/E **83/0**, private PG17 E **2/0**
+plus attribute tampering **1/0**, levers **87/0**, and RT0 core/PG HTTP/SQLite
+**3/0**, **8/0**, **1/0**, with unchanged exact flight ratchets.
+
+The complete Postgres script finishes **824/1** across 27 Rust summaries and
+its public deploy/serve witness passes, including byte-identical both-store
+wire/meters, the 1000-sequence retention window, bootstrap refusals, takeover,
+crash/restart, and the unchanged S1 Quarry application. The script exits 1:
+only inherited `E_INPUT: 6` on both stores and the stale evaluator lockfile
+remain; the known evaluator `40001` stage is blocked by that lockfile, not run.
+No additional unresolved red remains. Final ref-check passes **569 documents,
+12054 references**, zero errors or unchecked references.
+
+The final **38-ledger / 25796-entry** census finds no living or zombie lane PIDs,
+no unexpected lane executable and no postmaster PID file. The abandoned public
+cluster was stopped using its recorded identity; its dead outer master's stale
+metadata was independently verified and preserved outside Git. Final free space
+is 28.53 GiB, above the 25 GiB stop floor. No push, shared PG17 reconfiguration,
+or `~/q24` access occurred. Full timing limits, W5 residence regressions, source
+and release-binary custody are in the [Stage P report](reports/20261026-stage-p/REPORT.md).
+The later WF rebase remains separate work.
+
+## 2026-10-26 — Stage P fix round 1: namespace, NULLs, digest lifecycle and doctor
+
+The Stage P review reproduced namespace drift admitting a data write, a new
+helper digest refusing to open, and doctor accepting ALTERed function attributes
+on the pre-fix source. A separate pre-fix control also admits a write after
+`array_nulls=off`. The guard now receives the caller's effective schema path,
+checks exactly the fenced namespace plus pg_catalog, and checks array_nulls.
+Connection qualification pins array_nulls on. Both changes stay in the existing
+flight; compact arrays retain their measured transport form.
+
+Each admitted digest now carries its exact contract in _meta. Admission checks
+all versions, installs only new names under the opening fence/head lock, retains
+older functions/OIDs and refuses missing admitted names. The original boolean
+marker migrates only after its exact original functions validate. Doctor shares
+the same read-only catalog validator and returns E_STORE_OWNERSHIP for tampering.
+The accepted pipelined-commit RFC §3.11 records these mechanisms.
+
+Focused tests cover both drift refusals, two binary revisions coexisting, older
+binary admission of the newer contract, missing admitted functions, every
+catalog tamper attribute through doctor/open/lease, and emitted SQL omitting
+empty families. The randomized durable-state oracle is extended to hostile
+initial array_nulls settings, explicit grouped tombstones and nullable integer
+effect fields on both PG tails and SQLite. Full verification, the short W4
+server-cost pair and process cleanup are pending and will be appended to the
+Stage P report; no push or throughput campaign is authorized.
+
+## 2026-10-26 — Stage P fix round 1: keep scratch tables behind durable data
+
+The first complete Postgres script exposed an overstrict namespace guard:
+legitimate evolution creates a temporary scratch schema, which PostgreSQL
+implicitly searched before the store. The isolated maintained-column witness
+reproduces S4001 on fa23547aed. Forty-five Rust tests and the public evolution
+witness reached this restriction; their names and raw failures are retained
+outside Git for individual reruns. The same run passes full core 1312/0/536,
+full binary 626/0/75, focused witnesses 11/0, PG16 G7/E 83/0, levers 87/0 and
+all RT0 ratchets; its complete script remains a failure, not qualification.
+
+Product connections now explicitly put pg_temp after the store and pg_catalog.
+The guard permits only that session's own temporary schema in last position;
+implicit or explicit temporary precedence still refuses before data. A shadow
+_head witness proves a normal write reaches the durable table while the temp
+copy stays unchanged, then moving pg_temp first raises S4001. This keeps
+legitimate scratch work and binds data resolution to the fenced namespace.
+
+Nonempty per-digest contracts remain authoritative if an original v1 binary
+rewrites its legacy marker to 1. The version witness checks reopening after that
+rewrite before dropping an admitted newer function and requiring refusal.
+No helper is replaced. LLP §3.11 records both refinements. Corrected focused,
+isolated and complete qualification plus final loopback confirmation follow.
+
+## 2026-10-26 — Stage P fix round 1: recovered writers retain the temp pin
+
+Fresh review of f6148eb02a found the owning/slot writer recovery path still
+selected only store + pg_catalog. The expanded temporary-shadow witness passes
+its initial-connection half and fails after a recorded writer termination and
+replacement on f6148eb02a, with S4001 on the first post-temp mutation. That
+reconnect now also puts pg_temp last. The witness checks both connection paths,
+then requires a temp-first drift refusal with no durable head change. The
+previous 12 focused witnesses pass on f6148eb02a; individual reruns of all 45
+initial script failures and qualification of this final recovery correction
+are in progress. Only the recorded witness backend was terminated.
+
+## 2026-10-26 — Stage P fix round 1: make the old TEMP-r control actually shadow
+
+The restarted complete script found one stale FF3 expectation:
+activation_scratch_requires_owned_plain_heap created TEMP r and assumed that
+its mere presence intercepted the durable r. With pg_temp pinned last it no
+longer does. The original witness fails in isolation on unchanged product code.
+Its TEMP-r case now explicitly moves pg_temp before the store; all six DDL
+variants still require the same named managed-relation refusal and unchanged
+generation. The isolated corrected witness passes 1/0, including every variant.
+This changes test setup only; production bytes remain those of 3b138076e8 and
+its measured release binary. The complete script's earlier stale-expectation
+red is retained in the report rather than erased by the successful isolated
+repeat. The governing RFC notes the setup required for an actual shadow.
+
+## 2026-10-26 — Stage P fix round 1: final qualification and stopped-process census
+
+Final production 3b138076e8 passes focused 12/0, full core 1312/0/537 and full
+binary 626/0/75 (passed/failed/ignored; passing isolated children excluded),
+PG16 G7/E 83/0, private PG17 certificates 2/0, levers 87/0, and RT0 core/PG
+HTTP/SQLite 3/8/1 with zero failures and unchanged flight counts. All 45 initial
+additional Rust failures pass individual reruns. The test-only 0a0ee9def0
+alignment passes its corrected shadow control 1/0 and entire FF1 group 35/0.
+
+The complete Postgres script exits 1, with 827/2 across 27 Rust summaries:
+inherited E_INPUT: 6 and the old shadow-test expectation executed before its
+correction. That test's named refusal/rollback checks remain intact and its
+reruns pass. The inherited evaluator lockfile refusal persists; its known 40001
+stage is not reached. The separate public serving milestone passes all wire,
+meters, retention, bootstrap, takeover, crash/restart, evolution and S1 checks.
+Final ref-check passes 569 documents / 12055 references, zero errors/unchecked.
+
+The final-code short W4 pair measures 0.63149→0.59844 ms/batch server execution
+plus planning, with guard cost +0.00170 ms/batch and unequal N 8.516→9.446.
+There is one E_RATE_LIMIT refusal per cell and zero PostgreSQL ERROR lines;
+this is a cost confirmation, not capacity/SLO qualification. The report records
+all load, clocks, hashes, controls and the clean intermediate-code pair.
+
+A shared-host disk dip to 24.85 GiB stopped every recorded workload. The
+independent stopped-process census was empty. Only inactive own incremental
+caches and confirmed-stopped test data were removed, retaining binaries/source/
+logs; at 38.89 GiB only the interrupted Postgres script restarted. No completed
+product check was rerun for that infrastructure event. The final 28-ledger /
+18722-identity audit finds no living or zombie lane process, unexpected lane
+executable or postmaster PID file. Final PG16/PG17 pg_ctl probes return 3;
+completion free space is 32.08 GiB. No push, repository-config change, protected
+cluster action or q24 access occurred. See the appended Stage P report and its
+aggregate JSON; raw evidence remains outside Git. WF integration is separate.
+
+## 2026-10-26 — Stage P rebased onto WF: preserve the combined final
+
+Rebase `94ada27114` onto local `sb4-pg/main-wf` (`e0ad590a1b`) on
+`sb4-pg/stage-p-wf`. Five files conflicted. The pipelined-commit RFC retains
+both revision histories, WF's budget/dispatch and outcome contract, and Stage P
+§3.11; the JOURNAL retains both lanes' entries. `store.rs` combines provisioned
+check state with WF's per-connection dispatch reserve and final-flight path.
+`group_tail.rs` uses typed, family-specialised tails while retaining raising
+identity and all eight count assertions before the co-dispatched COMMIT.
+`group_tail/typed.rs` combines the compact array encoder with those assertions;
+its two direct test constructors also initialise the new count-expression state.
+The initial focused build caught those missing constructor fields before tests
+ran; they are corrected.
+
+Post-rebase inspection found the owner command was consumed by the opener.
+Writer data flights now repeat it, including the combined final, without adding
+a round trip. Recovery-only savepoint controls restore the transaction first.
+The effective final order is guard → fence → ticket/identity and typed tail
+with raising counts → cumulative deadline assertion → certificate timeout
+resets and synchronous COMMIT. The fence's timeout controls precede its lock;
+COMMIT remains uncancellable. WF's dispatch reserve, transaction-status
+classification, notified release and CPU cuts remain intact. Stage P's
+namespace/array_nulls guard, admitted digest set, doctor validation and pruning
+behind the locked head remain intact.
+
+The wire witness now checks this order in every combined-final message. A new
+real-transaction witness drops each helper or drifts namespace/array_nulls
+after the opener and requires neither tail nor deferred-COMMIT entry (using
+nontransactional sequences), an aborted xid and unchanged durable state. It
+retains conservative unknown classification for missing-function errors.
+Verification and the single loopback cost sample follow in the Stage P report.
+Cargo is capped at five jobs, with this worktree's own target directory;
+no push or throughput campaign is authorised.
+
+The first G7 run passes 93 existing tests and fails the new namespace subcase:
+its empty search path makes tail preparation refuse before the guard executes.
+The corrected witness drifts to a second valid same-generation store instead;
+it now passes all four after-opener fault cases (1/0) with neither tail nor
+COMMIT-entry sequence called. This changes witness setup only. The complete
+G7 repeat, Stage P, core/binary, wire and remaining checks use this fixture.
+
+The first loopback sample exposed the resumable writer seam still clearing its
+owner command (`resume_program`). The initial wire assertion examined only
+completed replies, which missed finals lost before ReadyForQuery. The stronger
+wire witness records ordering when dispatch is observed; its before-forward
+control fails on unchanged `ee58886f7a` (Rust fault test 1/0, wire-order refusal).
+Resume now rebuilds the qualified fence without a BEGIN/facts flight. The
+final-check witness exercises both direct and suspended/resumed transactions.
+The earlier full-core attempt was stopped under recorded PID custody because
+this production correction superseded its source; its incomplete run is not
+qualification. A fresh complete check starts on the corrected source.
+
+The early notification warmup failed once through the wire proxy and once
+alone; the diagnostic repeat passes with zero idle polls, unchanged bounds and
+unchanged production code. The assertion now prints any returned refusal.
+Those initial failures remain in the report. The preliminary short W4/W5
+loopback sample predates the resume correction and cannot price final code;
+one final W4-only sample replaces it, without a campaign or capacity claim.
+
+The complete Postgres script's first Rust group reports one extra setup red:
+`rt3b_cold_ingress_reader_is_physically_read_only_after_owner_loss` fails at
+`test_request_owner_loss`, before reader construction. Its isolated repeat
+fails 0/1 on unchanged final production. The old corruption hook changes its
+own token and then asks that stale writer to commit a revision tail; repeating
+the fence now correctly refuses it. The test-support-only hook instead uses an
+independent schema-qualified connection for the token corruption. The isolated
+corrected witness passes 1/0, retaining physical read-only enforcement and the
+one-statement warm ingress ratchet. All HTTP owner-loss consumers run in the
+full binary/lever checks. Production fencing and ordinary commit behavior are
+unchanged; the script's initial red remains recorded, with its isolated rerun.
+
+
+## 2026-10-26 — Stage P/WF rebase: final verification and stopped-process census
+
+Final production `625331534c` plus test-support-only `cff3695e58` passes core
+**1313/0/547** and binary **626/0/75** (passed/failed/ignored; isolated children
+excluded), G7 **94/0**, Stage P **13/0**, G7.3 wire **15/0** across five modes,
+private PG17 **2/0 + 11/0**, E HTTP **5/0**, crash/kill **11/0**, RT0 core/binary
+**6/0 + 10/0**, and the full-script lever repeat **87/0**. Eligible S batches
+remain **two flights**. The initial lever **86/1** has an unchanged named
+isolated **1/0** rerun before that complete repeat; no bound is relaxed.
+
+The full Postgres script exits 1 at **829/2 raw Rust summaries** (27 summaries;
+828/2 over outer targets). Its additional owner-loss setup red is corrected
+and passes **1/0** in isolation; inherited difftest **E_INPUT: 6** remains.
+The inherited evaluator lockfile refusal still blocks its known **40001**
+stage. Public serving passes every wire/meter, 1000-sequence retention,
+bootstrap, takeover, crash/restart, evolution and unchanged S1 check. Ref-check
+passes **570 documents / 12060 references**, zero errors or unchecked refs.
+
+One final W4-only sample at 32 loopback clients records **0.64106 ms/batch**
+PG planning + execution excluding **1.42255 ms/batch** ticket wait,
+mean **N=9.4588**, **13999/13999** successful requests and zero refusals.
+Guard and fence each average **2.0169 calls/batch**. This is a short final-code
+cost observation, not S1 qualification or a controlled comparison. The earlier
+pre-handoff-fix sample remains excluded from final-code timing.
+
+The independent **22-ledger / 12749-identity** audit confirms all **23 private
+clusters stopped (pg_ctl status 3, no PID files), no living/zombie lane process
+and no unexpected helper. Free space is **36.14 GiB**; only inactive own build
+caches are reclaimed and the 25 GiB stop monitor never fires. No push,
+publication, protected-cluster action, q24 access or git-config change occurs.
+The [Stage P report](reports/20261026-stage-p/REPORT.md) records all five conflict
+resolutions, controls, initial reds and final evidence; raw logs stay outside Git.

@@ -249,14 +249,14 @@ fn rt6_encoder_bind_difftest_uses_serving_statements_and_full_tail() {
     let data=c.query_one("SELECT data FROM r WHERE t='counters' AND id='c0000'",&[]).unwrap().get::<_,String>(0);
     super::check(&mut c,&p,&[&"counters",&"c0000",&data]);
     let p=Prepared::new(&mut c,"rt6_tail",tail::SQL).unwrap();
-    assert_eq!(p.bind.params().len(),27,"includes current change-evidence arguments");
+    assert_eq!(p.bind.params().len(),26,"includes evidence footprint; pruning belongs to head maintenance");
     let seq=c.query_one("SELECT seq+1 FROM _head WHERE singleton",&[]).unwrap().get::<_,i64>(0);
     let text="O'Reilly \\ π e\u{301}\n";
     let partitions=vec!["rt6/p"];let ords=vec![0i64];let tables=vec!["counters"];let kinds=vec!["put"];let ids=vec!["c0000"];let images=vec![Some(data.as_str())];
     let effects=vec!["effect1"];let names=vec!["notify"];let payloads=vec!["{}"];
     let next=vec![None::<i64>];let work=vec!["{}"];let deadlines=vec![Some(i64::MAX)];let contracts=vec![text];
     let principals=vec!["alice"];let presence=vec!["effect1"];let expires=vec![2000i64];let explicit=vec![true];let releases=vec![None::<&str>];
-    let args:&[&(dyn postgres::types::ToSql+Sync)]=&[&seq,&1000i64,&text,&"alice",&"mutation",&"[]",&1i64,&partitions,&ords,&tables,&kinds,&ids,&images,&effects,&names,&payloads,&next,&work,&deadlines,&contracts,&principals,&presence,&expires,&explicit,&releases,&"{}",&0i64];
+    let args:&[&(dyn postgres::types::ToSql+Sync)]=&[&seq,&1000i64,&text,&"alice",&"mutation",&"[]",&1i64,&partitions,&ords,&tables,&kinds,&ids,&images,&effects,&names,&payloads,&next,&work,&deadlines,&contracts,&principals,&presence,&expires,&explicit,&releases,&"{}"];
     c.batch_execute("SAVEPOINT native_tail").unwrap();
     let native=c.query(&p.bind,args).unwrap();assert_eq!(native.len(),1);
     let counts:Vec<_>=(0..5).map(|column|native[0].get::<_,i64>(column)).collect();

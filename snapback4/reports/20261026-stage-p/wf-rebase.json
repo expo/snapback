@@ -1,0 +1,153 @@
+{
+  "branch": "sb4-pg/stage-p-wf",
+  "original_stage_p": "94ada27114292af154353f95e0b2060a7c65ff8b",
+  "wf_base": "e0ad590a1bd39d629753c2cbc22ba0038f0beabf",
+  "production_semantics": "625331534cf59adc9c232a8c9cf7526bcfc32c5f",
+  "test_support_source": "cff3695e58a785b52c1a82910a2f0d6c0a71d7bd",
+  "release_sha256": "7f094725a775ad34dd7c6633b8cab5b8f53aa4c043d83356e84794dd4b47e5c5",
+  "cargo_jobs": 5,
+  "debug": "line-tables-only",
+  "script_test_threads": 1,
+  "checks": {
+    "core": {
+      "passed": 1313,
+      "failed": 0,
+      "ignored": 547
+    },
+    "binary": {
+      "passed": 626,
+      "failed": 0,
+      "ignored": 75
+    },
+    "stage_p": {
+      "passed": 13,
+      "failed": 0
+    },
+    "g7_including_e": {
+      "passed": 94,
+      "failed": 0
+    },
+    "wire": {
+      "passed": 15,
+      "failed": 0,
+      "modes": 5,
+      "observed_ordered_dispatches": 30
+    },
+    "pg17_certificates": {
+      "passed": 2,
+      "failed": 0
+    },
+    "pg17_g73": {
+      "passed": 11,
+      "failed": 0
+    },
+    "e_http": {
+      "passed": 5,
+      "failed": 0
+    },
+    "e_crash": {
+      "passed": 11,
+      "failed": 0
+    },
+    "rt0_core": {
+      "passed": 6,
+      "failed": 0
+    },
+    "rt0_binary": {
+      "passed": 10,
+      "failed": 0
+    },
+    "lever_initial": {
+      "passed": 86,
+      "failed": 1
+    },
+    "lever_failed_case_isolated": {
+      "passed": 1,
+      "failed": 0
+    },
+    "lever_full_script_repeat": {
+      "passed": 87,
+      "failed": 0
+    },
+    "owner_loss_setup_before": {
+      "passed": 0,
+      "failed": 1
+    },
+    "owner_loss_setup_after": {
+      "passed": 1,
+      "failed": 0
+    },
+    "postgres_script": {
+      "exit": 1,
+      "raw": {
+        "passed": 829,
+        "failed": 2,
+        "ignored": 0
+      },
+      "outer": {
+        "passed": 828,
+        "failed": 2,
+        "ignored": 0
+      },
+      "raw_summaries": 27,
+      "outer_targets": 26,
+      "public_serving": true
+    },
+    "ref_check": {
+      "docs": 570,
+      "refs": 12060,
+      "errors": 0,
+      "unchecked": 0
+    }
+  },
+  "loopback": {
+    "wall_start": 1793048473.1833804,
+    "wall_end": 1793048478.2536724,
+    "seq0": 297880,
+    "seq1": 311879,
+    "workload": "W4",
+    "clients": 32,
+    "seconds": 5.01159350015223,
+    "requests": 13999,
+    "ok": 13999,
+    "failures": [],
+    "mean_ms": 11.415233586897074,
+    "p50_ms": 9.967347607016563,
+    "p99_ms": 22.17979170382023,
+    "pg_cpu_us_per_write": 141.43867419101366,
+    "pg_cpu_us_per_attempt": 141.43867419101366,
+    "load_before": "2.58 3.61 4.67 1/1163 1222143\n",
+    "load_after": "3.09 3.70 4.69 1/725 1236238\n",
+    "tail_calls": 1480,
+    "mean_batch_size": 9.458783783783783,
+    "guard_calls_per_batch": 2.016891891891892,
+    "fence_calls_per_batch": 2.016891891891892,
+    "server_ms_per_batch": {
+      "controls_commit": 0.05382842432432425,
+      "ticket_wait": 1.422548602027025,
+      "facts": 0.24223098648648667,
+      "maintenance": 0.0011742344594594595,
+      "tail": 0.20249620472972998,
+      "identity": 0.02184863175675676,
+      "guard": 0.04786082567567566,
+      "deadline": 0.012708927027027033,
+      "fence": 0.05890800135135134
+    },
+    "nonwait_ms_per_batch": 0.6410562358108112
+  },
+  "cleanup": {
+    "ledgers": 22,
+    "pid_birth_pairs": 12749,
+    "clusters": 23,
+    "all_clusters_stopped": true,
+    "living_or_zombie": [],
+    "unexpected": [],
+    "free_GiB": 36.13906478881836
+  },
+  "inherited": {
+    "difftest": "E_INPUT: 6",
+    "evaluator": "stale --locked evaluator lockfile",
+    "known_40001": "not executed behind stale evaluator lockfile"
+  },
+  "raw_evidence": "/tmp/stprb-20261026"
+}

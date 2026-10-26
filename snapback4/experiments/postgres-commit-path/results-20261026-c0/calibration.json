@@ -1,0 +1,92 @@
+{
+  "product_shape_control": [
+    {
+      "link": "A",
+      "offered": 2262.0,
+      "reference_rate": 2177,
+      "reference_mean": 14.99,
+      "achieved": 2041.15,
+      "mean": 15.884432502216717,
+      "p99": 1018.190079,
+      "s1": false,
+      "rate_delta": -0.06240238860817637,
+      "mean_delta": 0.05966861255615186,
+      "actual_n": 10.67165685449958
+    },
+    {
+      "link": "A",
+      "offered": 3200.0,
+      "reference_rate": 2223,
+      "reference_mean": 14.39,
+      "achieved": 2003.4,
+      "mean": 15.96340517587603,
+      "p99": 1018.5512779999999,
+      "s1": false,
+      "rate_delta": -0.09878542510121457,
+      "mean_delta": 0.10934017900458848,
+      "actual_n": 10.674281758393908
+    },
+    {
+      "link": "B",
+      "offered": 1600.0,
+      "reference_rate": 1600,
+      "reference_mean": 13.9,
+      "achieved": 1600.0,
+      "mean": 14.872697009593711,
+      "p99": 91.80612,
+      "s1": true,
+      "rate_delta": 0.0,
+      "mean_delta": 0.06997820212904404,
+      "actual_n": 8.78316559926807
+    },
+    {
+      "link": "B",
+      "offered": 2262.0,
+      "reference_rate": 1889,
+      "reference_mean": 16.94,
+      "achieved": 1777.15,
+      "mean": 17.99770485699015,
+      "p99": 1020.022315,
+      "s1": false,
+      "rate_delta": -0.05921122286924296,
+      "mean_delta": 0.06243830324617172,
+      "actual_n": 10.674985377266523
+    }
+  ],
+  "literal_n11_k1": [
+    {
+      "link": "A",
+      "offered": 2262.0,
+      "achieved": 1482.65,
+      "mean": 21.57313959501583,
+      "rate_delta": -0.3189480937069361,
+      "mean_delta": 0.4391687521691683
+    },
+    {
+      "link": "A",
+      "offered": 3200.0,
+      "achieved": 1486.55,
+      "mean": 21.51624194453602,
+      "rate_delta": -0.3312865497076024,
+      "mean_delta": 0.4952218168544835
+    },
+    {
+      "link": "B",
+      "offered": 1600.0,
+      "achieved": 1293.5,
+      "mean": 24.73028022957101,
+      "rate_delta": -0.19156249999999997,
+      "mean_delta": 0.7791568510482743
+    },
+    {
+      "link": "B",
+      "offered": 2262.0,
+      "achieved": 1311.2,
+      "mean": 24.40149048318335,
+      "rate_delta": -0.30587612493382743,
+      "mean_delta": 0.440465790034436
+    }
+  ],
+  "passes": true,
+  "literal_passes": false
+}

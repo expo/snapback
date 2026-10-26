@@ -142,7 +142,13 @@ fn activation_scratch_requires_owned_plain_heap() {
         "CREATE ROLE ff3_other_owner; CREATE TEMP TABLE _adopt_groups(n int); ALTER TABLE pg_temp._adopt_groups OWNER TO ff3_other_owner",
     ] {
         let (s, p) = bound("table notes:\n  n: int\n  public\n  online only\n");
-        let (st, _, _) = store(true);
+        let (st, _, namespace) = store(true);
+        // @ref LLP 3000.009.001.000.000.002#3.11 — pg_temp is pinned last; force real shadowing for this interception control.
+        let ddl = if ddl == "CREATE TEMP TABLE r(n int)" {
+            format!("{ddl}; SET LOCAL search_path=pg_temp,\"{namespace}\",pg_catalog")
+        } else {
+            ddl.to_string()
+        };
         let mut e = Engine::new_release(st, s.clone(), p, 1, None).unwrap();
         let generation = e.generation();
         let programs = BTreeMap::new();

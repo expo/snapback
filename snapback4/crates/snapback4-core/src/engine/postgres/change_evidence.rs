@@ -1,4 +1,5 @@
 //! Bounded Postgres evidence facts; missing/legacy commit evidence widens in shared policy.
+// @ref LLP 3000.009.001.000.000.002#3.11 — ordered checks, typed tails and head-bound evidence maintenance.
 // @ref LLP 3000.023#12 — no interval certifies authority unless its complete evidence is proven.
 use super::store::{Store, Tx};
 use crate::{
@@ -6,6 +7,13 @@ use crate::{
     revocation::{self, ChangeEvidence, EvidenceRecord},
 };
 use std::cell::RefCell;
+
+// The ordered lane already publishes _head in every tail. Maintenance locks
+// and republishes that same boundary atomically with deletion. A snapshot that
+// observes the deletion necessarily observes a head retaining >=1000 sequences;
+// an older snapshot continues to see the deleted tuples through MVCC.
+// SKIP LOCKED keeps this optional work off the owner's renewal wait path.
+pub(super) const PRUNE: &str = "WITH locked AS (SELECT seq FROM _head WHERE singleton FOR UPDATE SKIP LOCKED), head AS (UPDATE _head SET seq=locked.seq FROM locked WHERE singleton RETURNING _head.seq) DELETE FROM _change_evidence WHERE seq <= (SELECT seq-1000 FROM head)";
 
 pub(super) fn initialize(tx: &Tx<'_>) -> Result<(), RuntimeError> {
     super::foundation_schema::verify(
@@ -73,5 +81,14 @@ impl ChangeEvidence for RefCell<&mut Store> {
         let result = result?;
         rollback?;
         Ok(result)
+    }
+}
+
+#[cfg(test)]
+impl Tx<'_> {
+    pub(crate) fn prune_evidence_for_test(&self) -> Result<(),RuntimeError> {
+        self.require_serialized_head_fence("evidence maintenance witness")?;
+        self.execute(PRUNE,&[])?;
+        Ok(())
     }
 }

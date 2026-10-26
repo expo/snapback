@@ -14,6 +14,17 @@ pub struct Handle {
     pub(super) bootstrap_id: Option<String>,
 }
 impl Handle {
+    #[cfg(feature = "test-support")]
+    pub(crate) fn test_request_owner_loss(&self) -> Result<(), RuntimeError> {
+        // A corruption fixture must act as an independent owner, rather than
+        // revoke itself and ask its now-stale writer to commit a data tail.
+        let mut client = self.connection.0.connect(postgres::NoTls)?;
+        let namespace = super::store::namespace(&self.connection.1)?;
+        let changed = client.execute(&format!("UPDATE {namespace}._owner SET token=token+1 WHERE singleton"), &[])?;
+        if changed != 1 { return Err(RuntimeError::Store("owner-loss fixture requires one owner row".into())); }
+        Ok(())
+    }
+
     pub(crate) fn early_pipeline_disconnected(&self)->bool {
         let store=self.store.borrow();store.early_release.is_some() && store.client.is_closed()
     }
@@ -93,11 +104,12 @@ impl Handle {
         let (mut client,warning)=super::ownership::connect(self.connection.0.clone())?;
         let namespace=super::store::namespace(&self.connection.1)?;
         let tag=old.fence.as_ref().ok_or_else(||RuntimeError::StoreOwnership("missing recovery fence".into()))?.tag()?;
-        client.batch_execute(&format!("SET search_path={namespace},pg_catalog;SET statement_timeout='5s';SET lock_timeout='5s'"))?;
+        client.batch_execute(&format!("SET search_path={namespace},pg_catalog,pg_temp;SET statement_timeout='5s';SET lock_timeout='5s'"))?;
         client.execute("SELECT set_config('application_name',$1,false)",&[&tag])?;
         let mut replacement=Store::new(client);
         replacement.early_release=old.early_release.clone();replacement.fence=old.fence.clone();replacement.unified=true;replacement.generation=old.generation;
         replacement.read_sessions.set(old.read_sessions.get());replacement.read_grant=old.read_grant.clone();replacement.commit_warning=warning;replacement.batch_ordinal=old.batch_ordinal.clone();
+        super::checks::load(&mut replacement)?;
         replacement.client.writer_thread();*old=replacement;Ok(())
     }
 }
