@@ -1,25 +1,29 @@
 // Read-only wave inputs; no stdout/stderr/credential payload enters measurements.
 import {cpSync,existsSync,mkdirSync,readFileSync,readdirSync,rmSync,symlinkSync,writeFileSync,statSync} from 'node:fs';
 import {join,resolve} from 'node:path';
-import {spawn} from 'node:child_process';
+import {spawn,execFileSync} from 'node:child_process';
 import {createHash} from 'node:crypto';
 import {withServeScript,command,cli} from '../../packages/snapback4/dist/proof.js';
 const root=resolve(import.meta.dirname,'../..'), repo=resolve(root,'..');
 const evidence='/home/ccheever/sb4-loop/wave29/apps', work='/tmp/dx12-replay', out=import.meta.dirname;
-const before=join(work,'control/package/snapback4'),after=join(root,'target/debug/snapback4');
+const before=join(work,'control/package/snapback4'),after=process.argv.includes('--deploys')?join(work,'control-after/snapback4'):join(root,'target/debug/snapback4');
 const digest=path=>createHash('sha256').update(readFileSync(path)).digest('hex');
 const rows=[];mkdirSync(work,{recursive:true,mode:0o700});
 function run(bin,args,cwd,timeout=60000){return new Promise(resolve=>{
- const began=performance.now();let stdout='',stderr='';const child=spawn(bin,args,{cwd,env:{...process.env,SNAPBACK4_BIN:bin},stdio:['ignore','pipe','pipe']});
+ const binarySha256=digest(bin), began=performance.now();let stdout='',stderr='';const child=spawn(bin,args,{cwd,env:{...process.env,SNAPBACK4_BIN:bin},stdio:['ignore','pipe','pipe']});
  child.stdout.on('data',b=>stdout+=b);child.stderr.on('data',b=>stderr+=b);const timer=setTimeout(()=>child.kill('SIGKILL'),timeout);
- child.on('close',(code,signal)=>{clearTimeout(timer);resolve({code,signal,ms:Math.round(performance.now()-began),lines:(stdout+stderr).split('\n').filter(Boolean).length,stdout,stderr});});
+ child.on('close',(code,signal)=>{clearTimeout(timer);resolve({code,signal,binarySha256,ms:Math.round(performance.now()-began),lines:(stdout+stderr).split('\n').filter(Boolean).length,stdout,stderr});});
 });}
 const apps=readdirSync(evidence).filter(n=>/^\d+-snapback-/.test(n));
-const publicResult=r=>({code:r.code,signal:r.signal,ms:r.ms,lines:r.lines});
+const publicResult=r=>({code:r.code,signal:r.signal,binarySha256:r.binarySha256,ms:r.ms,lines:r.lines});
 try {
 if(process.argv.includes('--deploys')){
- let next=0;const workers=await Promise.allSettled(Array.from({length:4},async()=>{while(next<apps.length){const name=apps[next++];const row={lane:name,before:{},after:{}};
- for(const [label,bin] of [['before',before],['after',after]]){const cwd=join(work,'deploys',name,label);mkdirSync(join(cwd,'snapback'),{recursive:true});
+ mkdirSync(join(work,'control'),{recursive:true});if(!existsSync(before))execFileSync('tar',['-xzf','/home/ccheever/sb4-loop/dist/0.4.42/snapback4-linux-x64-0.4.42.tgz','-C',join(work,'control')]);
+ mkdirSync(join(work,'control-after'),{recursive:true});if(!process.argv.includes('--resume')||!existsSync(after))cpSync(join(root,'target/debug/snapback4'),after);
+ if(process.argv.includes('--resume')&&existsSync(join(out,'deploy-measurements.json'))){const prior=JSON.parse(readFileSync(join(out,'deploy-measurements.json'),'utf8'));if(prior.provenance.before===digest(before)&&prior.provenance.after===digest(after))rows.push(...prior.rows);}
+ const selected=apps.filter(name=>!rows.some(row=>row.lane===name));
+ let next=0;const workers=await Promise.allSettled(Array.from({length:4},async()=>{while(next<selected.length){const name=selected[next++];const row={lane:name,before:{},after:{}};
+ for(const [label,bin] of [['before',before],['after',after]]){const cwd=join(work,'deploys',name,label);rmSync(cwd,{recursive:true,force:true});mkdirSync(join(cwd,'snapback'),{recursive:true});
  for(const name2 of readdirSync(join(evidence,name,'snapback')))if(name2.endsWith('.q'))cpSync(join(evidence,name,'snapback',name2),join(cwd,'snapback',name2));
  row[label]=publicResult(await run(bin,['deploy','production'],cwd));}
  rows.push(row);writeFileSync(join(out,'deploy-measurements.json'),JSON.stringify({provenance:{before:digest(before),after:digest(after),method:'fresh production deploy; identical copied .q modules; four workers; complete stdout+stderr line counts; no source decisions/fixtures'},rows},null,2)+'\n');
@@ -57,6 +61,6 @@ if(process.argv.includes('--serves')){
 
 } finally {
   // This script owns only its named replay copies; callers own the unpacked controls.
-  if(process.argv.includes('--deploys')) rmSync(join(work,'deploys'),{recursive:true,force:true});
+  if(process.argv.includes('--deploys')) {rmSync(join(work,'deploys'),{recursive:true,force:true});rmSync(join(work,'control-after'),{recursive:true,force:true});}
   if(process.argv.includes('--serves')) rmSync(join(work,'serves'),{recursive:true,force:true});
 }

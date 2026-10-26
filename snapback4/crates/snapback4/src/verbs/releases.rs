@@ -641,7 +641,7 @@ pub fn rollback(options: &Options) -> i32 {
             let options=&selected_options;
             selectable(&dir, previous)?;
             let bound = bound_at(dir.join("releases").join(previous.to_string()))?;
-            // @ref LLP 3000.000.000#14-wave-14-rollback-narration — resolve bare/latest selection visibly before any preview or live activation.
+            // @ref LLP 3000.036.004#191-deploy-rollback-and-release-inspection-dx12 — resolve now; default output leads with the outcome and live identity.
             let target_line=format!("resolved rollback target: release {previous} (current release {active})");
             if options.flags.contains_key("verbose") {if options.json {eprintln!("{target_line}");} else {println!("{target_line}");}}
             let legacy_refusal=|error:String| {

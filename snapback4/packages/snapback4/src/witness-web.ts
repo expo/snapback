@@ -90,6 +90,7 @@ export function registerWebWitness(app: App, api?: Operations): void {
         const eventMatches = options?.[handlerClaim] !== undefined
           ? handlerClaimed && options[handlerClaim] === handlerToken
           : !!click && (window.event === click || (!!submit && window.event === submit));
+        // @ref LLP 3000.011.003.000.000#17-wave-29-serve-proofs-and-proof-residue-dx12 — constrain named values while retaining trusted-click custody.
         // An explicit object constrains its named arguments. Generated IDs and
         // other handler-owned arguments remain in the real claimed write.
         const argsMatch = expected == null || Object.keys(expected).every(key => Object.hasOwn(args, key) && JSON.stringify(canonical(expected[key])) === JSON.stringify(canonical(args[key])));

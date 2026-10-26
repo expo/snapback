@@ -4,12 +4,13 @@
     {
       "label": "before",
       "code": 1,
-      "ms": 4361
+      "failureKind": "renderedText missing fresh text",
+      "ms": 4430
     },
     {
       "label": "after",
       "code": 0,
-      "ms": 2487
+      "ms": 2616
     }
   ]
 }

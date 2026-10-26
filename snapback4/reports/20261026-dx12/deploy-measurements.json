@@ -1,7 +1,7 @@
 {
   "provenance": {
     "before": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
-    "after": "0128c86db3f37d968bb09c126030fc2fd6f4dcf6e7d1c59703cd90a50b667c76",
+    "after": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
     "method": "fresh production deploy; identical copied .q modules; four workers; complete stdout+stderr line counts; no source decisions/fixtures"
   },
   "rows": [
@@ -10,13 +10,15 @@
       "before": {
         "code": 0,
         "signal": null,
-        "ms": 4310,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 4128,
         "lines": 28
       },
       "after": {
         "code": 0,
         "signal": null,
-        "ms": 4998,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 5050,
         "lines": 5
       }
     },
@@ -25,28 +27,15 @@
       "before": {
         "code": 0,
         "signal": null,
-        "ms": 10243,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 10220,
         "lines": 26
       },
       "after": {
         "code": 0,
         "signal": null,
-        "ms": 10331,
-        "lines": 5
-      }
-    },
-    {
-      "lane": "003-snapback-antique-telephone-restorations",
-      "before": {
-        "code": 0,
-        "signal": null,
-        "ms": 10272,
-        "lines": 40
-      },
-      "after": {
-        "code": 0,
-        "signal": null,
-        "ms": 10449,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 10356,
         "lines": 5
       }
     },
@@ -55,13 +44,32 @@
       "before": {
         "code": 0,
         "signal": null,
-        "ms": 10250,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 10288,
         "lines": 37
       },
       "after": {
         "code": 0,
         "signal": null,
-        "ms": 10653,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 10462,
+        "lines": 5
+      }
+    },
+    {
+      "lane": "003-snapback-antique-telephone-restorations",
+      "before": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 10367,
+        "lines": 40
+      },
+      "after": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 10602,
         "lines": 5
       }
     },
@@ -70,13 +78,15 @@
       "before": {
         "code": 0,
         "signal": null,
-        "ms": 3181,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 3363,
         "lines": 46
       },
       "after": {
         "code": 0,
         "signal": null,
-        "ms": 3944,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 3947,
         "lines": 5
       }
     },
@@ -85,13 +95,32 @@
       "before": {
         "code": 0,
         "signal": null,
-        "ms": 10236,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 10265,
         "lines": 38
       },
       "after": {
         "code": 0,
         "signal": null,
-        "ms": 10375,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 10411,
+        "lines": 5
+      }
+    },
+    {
+      "lane": "006-snapback-binocular-overhaul-jobs",
+      "before": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 10246,
+        "lines": 25
+      },
+      "after": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 10371,
         "lines": 5
       }
     },
@@ -100,29 +129,16 @@
       "before": {
         "code": 0,
         "signal": null,
-        "ms": 9803,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 10259,
         "lines": 30
       },
       "after": {
         "code": 0,
         "signal": null,
-        "ms": 10380,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 10393,
         "lines": 6
-      }
-    },
-    {
-      "lane": "006-snapback-binocular-overhaul-jobs",
-      "before": {
-        "code": 0,
-        "signal": null,
-        "ms": 10238,
-        "lines": 25
-      },
-      "after": {
-        "code": 0,
-        "signal": null,
-        "ms": 10485,
-        "lines": 5
       }
     },
     {
@@ -130,12 +146,14 @@
       "before": {
         "code": 0,
         "signal": null,
-        "ms": 10226,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 10275,
         "lines": 43
       },
       "after": {
         "code": 0,
         "signal": null,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
         "ms": 10361,
         "lines": 5
       }
@@ -145,13 +163,15 @@
       "before": {
         "code": 0,
         "signal": null,
-        "ms": 10220,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 10234,
         "lines": 33
       },
       "after": {
         "code": 0,
         "signal": null,
-        "ms": 10402,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 10344,
         "lines": 5
       }
     },
@@ -160,13 +180,15 @@
       "before": {
         "code": 0,
         "signal": null,
-        "ms": 6283,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 6220,
         "lines": 40
       },
       "after": {
         "code": 0,
         "signal": null,
-        "ms": 8018,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 7357,
         "lines": 5
       }
     },
@@ -175,13 +197,15 @@
       "before": {
         "code": 0,
         "signal": null,
-        "ms": 10312,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 10277,
         "lines": 33
       },
       "after": {
         "code": 0,
         "signal": null,
-        "ms": 10389,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 10370,
         "lines": 6
       }
     },
@@ -190,13 +214,15 @@
       "before": {
         "code": 0,
         "signal": null,
-        "ms": 6531,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 6186,
         "lines": 17
       },
       "after": {
         "code": 0,
         "signal": null,
-        "ms": 7863,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 7266,
         "lines": 5
       }
     },
@@ -205,13 +231,15 @@
       "before": {
         "code": 0,
         "signal": null,
-        "ms": 10219,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 10236,
         "lines": 25
       },
       "after": {
         "code": 0,
         "signal": null,
-        "ms": 10351,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 10343,
         "lines": 5
       }
     },
@@ -220,13 +248,15 @@
       "before": {
         "code": 0,
         "signal": null,
-        "ms": 5844,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 5096,
         "lines": 35
       },
       "after": {
         "code": 0,
         "signal": null,
-        "ms": 6367,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 6181,
         "lines": 6
       }
     },
@@ -235,13 +265,15 @@
       "before": {
         "code": 0,
         "signal": null,
-        "ms": 10269,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 10278,
         "lines": 37
       },
       "after": {
         "code": 0,
         "signal": null,
-        "ms": 10404,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 10400,
         "lines": 5
       }
     },
@@ -250,43 +282,15 @@
       "before": {
         "code": 0,
         "signal": null,
-        "ms": 2625,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 2637,
         "lines": 30
       },
       "after": {
         "code": 0,
         "signal": null,
-        "ms": 3148,
-        "lines": 5
-      }
-    },
-    {
-      "lane": "020-snapback-snowshoe-guided-hikes",
-      "before": {
-        "code": 0,
-        "signal": null,
-        "ms": 3348,
-        "lines": 30
-      },
-      "after": {
-        "code": 0,
-        "signal": null,
-        "ms": 3121,
-        "lines": 6
-      }
-    },
-    {
-      "lane": "022-snapback-custom-wetsuit-fittings",
-      "before": {
-        "code": 0,
-        "signal": null,
-        "ms": 225,
-        "lines": 23
-      },
-      "after": {
-        "code": 0,
-        "signal": null,
-        "ms": 347,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 3183,
         "lines": 5
       }
     },
@@ -295,14 +299,50 @@
       "before": {
         "code": 0,
         "signal": null,
-        "ms": 10247,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 10264,
         "lines": 28
       },
       "after": {
         "code": 0,
         "signal": null,
-        "ms": 10374,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 10396,
         "lines": 5
+      }
+    },
+    {
+      "lane": "022-snapback-custom-wetsuit-fittings",
+      "before": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 235,
+        "lines": 23
+      },
+      "after": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 345,
+        "lines": 5
+      }
+    },
+    {
+      "lane": "020-snapback-snowshoe-guided-hikes",
+      "before": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 5368,
+        "lines": 30
+      },
+      "after": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 3669,
+        "lines": 6
       }
     },
     {
@@ -310,13 +350,15 @@
       "before": {
         "code": 0,
         "signal": null,
-        "ms": 222,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 230,
         "lines": 23
       },
       "after": {
         "code": 0,
         "signal": null,
-        "ms": 341,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 442,
         "lines": 5
       }
     },
@@ -325,13 +367,15 @@
       "before": {
         "code": 0,
         "signal": null,
-        "ms": 2615,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 3167,
         "lines": 32
       },
       "after": {
         "code": 0,
         "signal": null,
-        "ms": 3379,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 3309,
         "lines": 5
       }
     },
@@ -340,13 +384,15 @@
       "before": {
         "code": 0,
         "signal": null,
-        "ms": 10229,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 10245,
         "lines": 39
       },
       "after": {
         "code": 0,
         "signal": null,
-        "ms": 10383,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 10401,
         "lines": 5
       }
     },
@@ -355,13 +401,15 @@
       "before": {
         "code": 0,
         "signal": null,
-        "ms": 10309,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 10246,
         "lines": 33
       },
       "after": {
         "code": 0,
         "signal": null,
-        "ms": 10386,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 10369,
         "lines": 6
       }
     },
@@ -370,13 +418,15 @@
       "before": {
         "code": 0,
         "signal": null,
-        "ms": 10283,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 10259,
         "lines": 44
       },
       "after": {
         "code": 0,
         "signal": null,
-        "ms": 10382,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 10366,
         "lines": 5
       }
     },
@@ -385,13 +435,15 @@
       "before": {
         "code": 0,
         "signal": null,
-        "ms": 10246,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 10232,
         "lines": 29
       },
       "after": {
         "code": 0,
         "signal": null,
-        "ms": 10339,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 10343,
         "lines": 5
       }
     },
@@ -400,13 +452,15 @@
       "before": {
         "code": 0,
         "signal": null,
-        "ms": 10278,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 10279,
         "lines": 45
       },
       "after": {
         "code": 0,
         "signal": null,
-        "ms": 10412,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 10370,
         "lines": 5
       }
     },
@@ -415,13 +469,15 @@
       "before": {
         "code": 0,
         "signal": null,
-        "ms": 290,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 315,
         "lines": 47
       },
       "after": {
         "code": 0,
         "signal": null,
-        "ms": 438,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 419,
         "lines": 5
       }
     },
@@ -430,13 +486,15 @@
       "before": {
         "code": 0,
         "signal": null,
-        "ms": 7482,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 6896,
         "lines": 39
       },
       "after": {
         "code": 0,
         "signal": null,
-        "ms": 9096,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 8039,
         "lines": 6
       }
     },
@@ -445,13 +503,15 @@
       "before": {
         "code": 0,
         "signal": null,
-        "ms": 10257,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 10261,
         "lines": 32
       },
       "after": {
         "code": 0,
         "signal": null,
-        "ms": 10393,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 10373,
         "lines": 5
       }
     },
@@ -460,13 +520,15 @@
       "before": {
         "code": 0,
         "signal": null,
-        "ms": 10228,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 9819,
         "lines": 24
       },
       "after": {
         "code": 0,
         "signal": null,
-        "ms": 10344,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 10337,
         "lines": 5
       }
     },
@@ -475,13 +537,15 @@
       "before": {
         "code": 0,
         "signal": null,
-        "ms": 6876,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 6588,
         "lines": 34
       },
       "after": {
         "code": 0,
         "signal": null,
-        "ms": 8077,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 7767,
         "lines": 6
       }
     },
@@ -490,13 +554,15 @@
       "before": {
         "code": 0,
         "signal": null,
-        "ms": 10268,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 10246,
         "lines": 28
       },
       "after": {
         "code": 0,
         "signal": null,
-        "ms": 10359,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 10365,
         "lines": 5
       }
     },
@@ -505,13 +571,15 @@
       "before": {
         "code": 0,
         "signal": null,
-        "ms": 10231,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 10255,
         "lines": 22
       },
       "after": {
         "code": 0,
         "signal": null,
-        "ms": 10357,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 10360,
         "lines": 5
       }
     },
@@ -520,13 +588,15 @@
       "before": {
         "code": 0,
         "signal": null,
-        "ms": 10249,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 10293,
         "lines": 31
       },
       "after": {
         "code": 0,
         "signal": null,
-        "ms": 10369,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 10389,
         "lines": 5
       }
     },
@@ -535,13 +605,15 @@
       "before": {
         "code": 0,
         "signal": null,
-        "ms": 10244,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 10252,
         "lines": 42
       },
       "after": {
         "code": 0,
         "signal": null,
-        "ms": 10470,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 10382,
         "lines": 6
       }
     },
@@ -550,13 +622,15 @@
       "before": {
         "code": 0,
         "signal": null,
-        "ms": 3960,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 3859,
         "lines": 35
       },
       "after": {
         "code": 0,
         "signal": null,
-        "ms": 4739,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 4458,
         "lines": 5
       }
     },
@@ -565,13 +639,15 @@
       "before": {
         "code": 0,
         "signal": null,
-        "ms": 2566,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 2624,
         "lines": 41
       },
       "after": {
         "code": 0,
         "signal": null,
-        "ms": 3057,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 3076,
         "lines": 5
       }
     },
@@ -580,13 +656,15 @@
       "before": {
         "code": 0,
         "signal": null,
-        "ms": 3639,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 3435,
         "lines": 32
       },
       "after": {
         "code": 0,
         "signal": null,
-        "ms": 4205,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 4063,
         "lines": 6
       }
     },
@@ -595,13 +673,15 @@
       "before": {
         "code": 0,
         "signal": null,
-        "ms": 4024,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 3814,
         "lines": 31
       },
       "after": {
         "code": 0,
         "signal": null,
-        "ms": 4519,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 4473,
         "lines": 5
       }
     },
@@ -610,13 +690,15 @@
       "before": {
         "code": 0,
         "signal": null,
-        "ms": 2004,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 2021,
         "lines": 28
       },
       "after": {
         "code": 0,
         "signal": null,
-        "ms": 2468,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 2481,
         "lines": 5
       }
     },
@@ -625,13 +707,15 @@
       "before": {
         "code": 0,
         "signal": null,
-        "ms": 4159,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 4248,
         "lines": 34
       },
       "after": {
         "code": 0,
         "signal": null,
-        "ms": 4941,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 5097,
         "lines": 5
       }
     },
@@ -640,13 +724,15 @@
       "before": {
         "code": 0,
         "signal": null,
-        "ms": 10228,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 10256,
         "lines": 18
       },
       "after": {
         "code": 0,
         "signal": null,
-        "ms": 10347,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 10354,
         "lines": 5
       }
     },
@@ -655,13 +741,15 @@
       "before": {
         "code": 0,
         "signal": null,
-        "ms": 2467,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 2506,
         "lines": 33
       },
       "after": {
         "code": 0,
         "signal": null,
-        "ms": 2989,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 3047,
         "lines": 5
       }
     },
@@ -670,13 +758,15 @@
       "before": {
         "code": 0,
         "signal": null,
-        "ms": 4884,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 5110,
         "lines": 57
       },
       "after": {
         "code": 0,
         "signal": null,
-        "ms": 6255,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 6169,
         "lines": 6
       }
     },
@@ -685,13 +775,15 @@
       "before": {
         "code": 0,
         "signal": null,
-        "ms": 4532,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 4513,
         "lines": 39
       },
       "after": {
         "code": 0,
         "signal": null,
-        "ms": 5287,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 5423,
         "lines": 5
       }
     },
@@ -700,12 +792,14 @@
       "before": {
         "code": 0,
         "signal": null,
-        "ms": 2557,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 2599,
         "lines": 29
       },
       "after": {
         "code": 0,
         "signal": null,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
         "ms": 3201,
         "lines": 5
       }
@@ -715,13 +809,15 @@
       "before": {
         "code": 0,
         "signal": null,
-        "ms": 2833,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 2854,
         "lines": 33
       },
       "after": {
         "code": 0,
         "signal": null,
-        "ms": 3463,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 3508,
         "lines": 5
       }
     },
@@ -730,13 +826,15 @@
       "before": {
         "code": 0,
         "signal": null,
-        "ms": 7677,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 7860,
         "lines": 45
       },
       "after": {
         "code": 0,
         "signal": null,
-        "ms": 9236,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 8973,
         "lines": 6
       }
     },
@@ -745,13 +843,15 @@
       "before": {
         "code": 0,
         "signal": null,
-        "ms": 10209,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 10216,
         "lines": 18
       },
       "after": {
         "code": 0,
         "signal": null,
-        "ms": 10331,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 10328,
         "lines": 5
       }
     }

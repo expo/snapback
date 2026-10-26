@@ -1,3 +1,4 @@
+// @ref LLP 3000.011.003.000.000#17-wave-29-serve-proofs-and-proof-residue-dx12 — the proof command shares the pinned serve group and private readiness.
 // @ref LLP 3000.011.003.000.000#16-wave-27-process-checks-dx10 — keep group identity pinned until inspection, then reap it on EOF.
 import { spawn } from "node:child_process";
 import { constants } from "node:os";

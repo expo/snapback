@@ -6,7 +6,7 @@ mkdirSync(join(ROOT,'target/affected'),{recursive:true});
 writeFileSync(join(ROOT,'target/affected/dx12-full-plan.json'),JSON.stringify(full,null,2)+'\n');
 const step=(id,cwd,argv,timeoutSeconds=1800)=>({id,cwd,argv,reason:'DX12 touched-code verification; brief excludes complete client pool',timeoutSeconds,requires:[]});
 const prefix='snapback4/packages/snapback4/test/';
-const scoped={...full,scopeOverride:{fullSelectorPlanExecuted:false,qualification:false,reason:'The requested selector expands to all client files because shared CLI imports have computed process consumers; the explicit no-full-client-pool instruction takes precedence.',fullRustPackages:full.rustPackages,fullClientFiles:full.clientFiles.length,fullStepCount:full.steps.length},steps:[
+const scoped={...full,scopeOverride:{fullSelectorPlanExecuted:false,qualification:false,reason:'The conservative selector expands shared await-support and CLI imports to seven Rust crates and the complete client pool. The brief explicitly excludes both complete runs; this retained plan is executed only for the disclosed touched CLI/language and proof/packed-consumer steps.',fullRustPackages:full.rustPackages,fullClientFiles:full.clientFiles.length,fullStepCount:full.steps.length},steps:[
  step('build-cli','snapback4',['cargo','build','-p','snapback4']),
  step('build-client','snapback4',['bun','run','--cwd','packages/snapback4','build']),
  step('types','snapback4',['bun','run','--cwd','packages/snapback4','typecheck']),

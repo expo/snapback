@@ -1,5 +1,5 @@
 //! CLI security reporting; compile/test evidence share one analyzer.
-// @ref LLP 3000.036.004#19-wave-28-output-and-witness-decisions-dx11 — gates lead; advisory questions are opt-in.
+// @ref LLP 3000.036.004#191-deploy-rollback-and-release-inspection-dx12 — gates lead; deploy advisory questions are opt-in.
 use super::*;
 use snapback4_lang::security::{self,Report};
 mod http;

@@ -1,11 +1,13 @@
 // Compare proof observations on actual copied Expo web apps; retain counts only.
-import {cpSync,mkdirSync,readFileSync,readdirSync,symlinkSync,writeFileSync,statSync,rmSync} from 'node:fs';
-import {join,resolve} from 'node:path';import {pathToFileURL} from 'node:url';
+import {cpSync,mkdirSync,readFileSync,readdirSync,symlinkSync,writeFileSync,statSync,rmSync,existsSync} from 'node:fs';
+import {join,resolve} from 'node:path';import {pathToFileURL} from 'node:url';import {execFileSync} from 'node:child_process';
 import {withServeScript,withBrowser,startStatic,fillRN,renderedText,waitForFresh} from '../../packages/snapback4/dist/proof.js';
 import {chromiumExecutable} from '../../witness/lib.mjs';
-const old=await import(pathToFileURL('/tmp/dx12-replay/control-client/package/dist/proof.js'));
 const root=resolve(import.meta.dirname,'../..'),evidence='/home/ccheever/sb4-loop/wave29/apps',rows=[];
+const control='/tmp/dx12-replay/control-client',createdControl=!existsSync(join(control,'package/dist/proof.js'));
 try {
+if(createdControl){mkdirSync(control,{recursive:true,mode:0o700});execFileSync('tar',['-xzf','/home/ccheever/sb4-loop/dist/0.4.42/snapback4-0.4.42.tgz','-C',control]);symlinkSync(join(root,'node_modules'),join(control,'package/node_modules'));}
+const old=await import(pathToFileURL(join(control,'package/dist/proof.js')));
 for(const number of ['015']){
  const name=readdirSync(evidence).find(n=>n.startsWith(number+'-snapback-')),src=join(evidence,name),cwd=join('/tmp/dx12-replay/text',name);mkdirSync(cwd,{recursive:true});
  for(const entry of readdirSync(src,{withFileTypes:true}))if(!['node_modules','.agent.ndjson','.git','.harness','logs','.scratch','.checkpoint'].includes(entry.name)&&(entry.isDirectory()||entry.isFile()))cpSync(join(src,entry.name),join(cwd,entry.name),{recursive:true,filter:p=>{try{return !statSync(p).isSocket();}catch{return false;}}});
@@ -31,4 +33,4 @@ for(const number of ['015']){
 }
 writeFileSync(join(import.meta.dirname,'text-measurements.json'),JSON.stringify({method:'actual copied Expo dist and prod:serve; real password login; unique below-fold leaf; baseline kit0.4.42 vs DX12; count and on-screen geometry only',rows},null,2)+'\n');
 
-} finally { rmSync('/tmp/dx12-replay/text',{recursive:true,force:true}); }
+} finally { rmSync('/tmp/dx12-replay/text',{recursive:true,force:true});if(createdControl)rmSync(control,{recursive:true,force:true}); }

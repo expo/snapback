@@ -187,6 +187,7 @@ export async function provisionAccounts(host: Pick<ServeHost, "url" | "operatorT
   } finally { closeSync(fd); unlinkSync(lock); }
 }
 
+// @ref LLP 3000.011.003.000.000#17-wave-29-serve-proofs-and-proof-residue-dx12 — development shares the production plan and real-user authority path.
 /** Fresh password accounts with ordinary operator provisioning, for startDev acceptance proofs.
  * Same role/count/provision/args plan and account shape as production.
  * @throws invalid plan, non-development host, signup/provision refusal or bounded timeout. */
