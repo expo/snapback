@@ -109030,3 +109030,15 @@ rewrites its legacy marker to 1. The version witness checks reopening after that
 rewrite before dropping an admitted newer function and requiring refusal.
 No helper is replaced. LLP §3.11 records both refinements. Corrected focused,
 isolated and complete qualification plus final loopback confirmation follow.
+
+## 2026-10-26 — Stage P fix round 1: recovered writers retain the temp pin
+
+Fresh review of f6148eb02a found the owning/slot writer recovery path still
+selected only store + pg_catalog. The expanded temporary-shadow witness passes
+its initial-connection half and fails after a recorded writer termination and
+replacement on f6148eb02a, with S4001 on the first post-temp mutation. That
+reconnect now also puts pg_temp last. The witness checks both connection paths,
+then requires a temp-first drift refusal with no durable head change. The
+previous 12 focused witnesses pass on f6148eb02a; individual reruns of all 45
+initial script failures and qualification of this final recovery correction
+are in progress. Only the recorded witness backend was terminated.

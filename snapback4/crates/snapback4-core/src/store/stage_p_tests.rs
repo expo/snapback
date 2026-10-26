@@ -577,45 +577,74 @@ fn stage_p_delayed_reader_keeps_evidence_across_maintenance_prune() {
 #[test]
 #[ignore = "private Postgres"]
 fn stage_p_temporary_tables_follow_durable_namespace_and_drift_refuses() {
-    let mut e = fixture(true);
-    let (mut c, schema) = observer(&mut e);
-    let before = c
-        .query_one("SELECT seq FROM _head", &[])
-        .unwrap()
-        .get::<_, i64>(0);
-    let store = e.store_mut().test_postgres_handle_mut().store.get_mut();
-    store.client.batch_execute(&format!("CREATE TEMP TABLE _head AS TABLE \"{schema}\"._head; CREATE TEMP TABLE _stp_scratch (n int) ON COMMIT DROP")).unwrap();
-    // Even an identically named temp relation is behind the durable namespace.
-    increment(&mut e).expect("temporary scratch schemas must remain usable");
-    assert_eq!(
-        c.query_one("SELECT seq FROM _head", &[])
+    for reconnect in [false, true] {
+        let mut e = fixture(true);
+        let (mut c, schema) = observer(&mut e);
+        drop(e);
+        let mut e = reopen(&schema).unwrap();
+        if reconnect {
+            let handle = e.store_mut().test_postgres_handle_mut();
+            let store = handle.store.get_mut();
+            let pid = store
+                .client
+                .query_one("SELECT pg_backend_pid()", &[])
+                .unwrap()
+                .get::<_, i32>(0);
+            eprintln!("Stage P temp witness owns writer backend {pid}");
+            assert!(
+                c.query_one("SELECT pg_terminate_backend($1)", &[&pid])
+                    .unwrap()
+                    .get::<_, bool>(0)
+            );
+            let until = std::time::Instant::now() + Duration::from_secs(5);
+            while !store
+                .client
+                .query_one("SELECT 1", &[])
+                .is_err_and(|error| error.is_closed())
+            {
+                assert!(std::time::Instant::now() < until);
+                std::thread::sleep(Duration::from_millis(5));
+            }
+            handle.reconnect_pipeline_writer().unwrap();
+        }
+        let before = c
+            .query_one("SELECT seq FROM _head", &[])
             .unwrap()
-            .get::<_, i64>(0),
-        before + 1
-    );
-    let store = e.store_mut().test_postgres_handle_mut().store.get_mut();
-    assert_eq!(
+            .get::<_, i64>(0);
+        let store = e.store_mut().test_postgres_handle_mut().store.get_mut();
+        store.client.batch_execute(&format!("CREATE TEMP TABLE _head AS TABLE \"{schema}\"._head; CREATE TEMP TABLE _stp_scratch (n int) ON COMMIT DROP")).unwrap();
+        // Even an identically named temp relation is behind the durable namespace.
+        increment(&mut e).expect("temporary scratch schemas must remain usable");
+        assert_eq!(
+            c.query_one("SELECT seq FROM _head", &[])
+                .unwrap()
+                .get::<_, i64>(0),
+            before + 1
+        );
+        let store = e.store_mut().test_postgres_handle_mut().store.get_mut();
+        assert_eq!(
+            store
+                .client
+                .query_one("SELECT seq FROM pg_temp._head", &[])
+                .unwrap()
+                .get::<_, i64>(0),
+            before
+        );
         store
             .client
-            .query_one("SELECT seq FROM pg_temp._head", &[])
-            .unwrap()
-            .get::<_, i64>(0),
-        before
-    );
-    store
-        .client
-        .batch_execute(&format!("SET search_path=pg_temp,\"{schema}\",pg_catalog"))
-        .unwrap();
-    let error =
-        increment(&mut e).expect_err("a preceding temporary schema must refuse before data");
-    assert!(
-        matches!(error, RuntimeError::Postgres(ref error) if error.code().is_some_and(|c| c.code()=="S4001")),
-        "{error:?}"
-    );
-    assert_eq!(
-        c.query_one("SELECT seq FROM _head", &[])
-            .unwrap()
-            .get::<_, i64>(0),
-        before + 1
-    );
+            .batch_execute(&format!("SET search_path=pg_temp,\"{schema}\",pg_catalog"))
+            .unwrap();
+        let error =
+            increment(&mut e).expect_err("a preceding temporary schema must refuse before data");
+        assert!(
+            matches!(error, RuntimeError::Postgres(ref error) if error.code().is_some_and(|c| c.code()=="S4001")),
+            "{error:?}"
+        );
+        assert_eq!(
+            c.query_one("SELECT seq FROM _head", &[])
+                .unwrap()
+                .get::<_, i64>(0),
+            before + 1
+        );
+    }
 }

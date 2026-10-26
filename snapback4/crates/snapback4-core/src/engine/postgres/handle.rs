@@ -93,7 +93,7 @@ impl Handle {
         let (mut client,warning)=super::ownership::connect(self.connection.0.clone())?;
         let namespace=super::store::namespace(&self.connection.1)?;
         let tag=old.fence.as_ref().ok_or_else(||RuntimeError::StoreOwnership("missing recovery fence".into()))?.tag()?;
-        client.batch_execute(&format!("SET search_path={namespace},pg_catalog;SET statement_timeout='5s';SET lock_timeout='5s'"))?;
+        client.batch_execute(&format!("SET search_path={namespace},pg_catalog,pg_temp;SET statement_timeout='5s';SET lock_timeout='5s'"))?;
         client.execute("SELECT set_config('application_name',$1,false)",&[&tag])?;
         let mut replacement=Store::new(client);
         replacement.early_release=old.early_release.clone();replacement.fence=old.fence.clone();replacement.unified=true;replacement.generation=old.generation;
