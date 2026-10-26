@@ -167,12 +167,12 @@ pub fn extraction_preserves_predecessor(target:&[(String,String)],current:&[(Str
             // delete this parent (including through cascade) needs the view.
             if child.on_delete.get(&e.reference)==Some(&snapback4_core::schema::references::OnDelete::Restrict) {
                 let mut roots=old.programs.iter().flat_map(|p|snapback4_core::ir::write_tables(&p.program)).filter(|(_,effect)|*effect=="delete").map(|(name,_)|name).collect::<Vec<_>>();
+                roots.extend(old.schema.tables.iter().filter(|(_,table)|table.is_expiring()).map(|(name,_)|name.clone()));
                 let mut deleted=std::collections::BTreeSet::new();
                 while let Some(root)=roots.pop(){if !deleted.insert(root.clone()){continue;}
                     if root==*name{return false;}
                     for (child,definition) in &old.schema.tables {if definition.columns.iter().any(|(field,kind)|matches!(kind.required(),snapback4_core::schema::ColumnType::Ref{table}if table==&root)&&definition.on_delete.get(field)==Some(&snapback4_core::schema::references::OnDelete::Cascade)){roots.push(child.clone());}}
                 }
-                if table.expire.is_some(){return false;}
             }
             // A removed child is not a way around its write audience. Prove
             // each reachable old parent-cell write against the child's gate,
@@ -199,7 +199,7 @@ pub fn extraction_preserves_predecessor(target:&[(String,String)],current:&[(Str
         if canonical_table(projected)!=canonical_table(now){return false;}
     }
     if old.schema.auth!=next.schema.auth {return false;}
-    if !extraction_invariants_preserved(&old,&next){return false;}
+    if !extraction_invariants_preserved(target,&old,&next){return false;}
     if old.programs.iter().any(|p|next.programs.iter().find(|n|n.program.name==p.program.name)
         .is_some_and(|n|!super::release_bridge_current::endpoint_contract(&p.program,&n.program))){return false;}
 
@@ -215,9 +215,41 @@ pub fn extraction_preserves_predecessor(target:&[(String,String)],current:&[(Str
 // Retained independent intent cannot disappear merely because a separate
 // extraction now fits. One structural theorem transports child existence into
 // the predecessor's required payload cell; all other retained intents must match.
-fn extraction_invariants_preserved(old:&crate::Bound,next:&crate::Bound)->bool {
+fn extraction_invariants_preserved(target:&[(String,String)],old:&crate::Bound,next:&crate::Bound)->bool {
     next.invariants.iter().all(|inv| {
-        if old.schema.table(&inv.table).is_none(){return true;}
+        if old.schema.table(&inv.table).is_none(){
+            let Some(extraction)=next.schema.extractions.iter().find(|e|e.child==inv.table&&old.schema.table(&e.parent).is_some())else{return true;};
+            // A new-only endpoint has no historical caller. A child-wide
+            // promise still governs the old cell that will represent it.
+            if inv.operation.as_ref().is_some_and(|name|!old.programs.iter().any(|p|p.program.name==*name)){return true;}
+            if inv.target!="read"||inv.column.is_some(){return false;}
+            let Some(mut predicate)=inv.syntax.clone()else{return false;};
+            let mut unsupported=false;
+            // Mark only the original child-reference leaf. Rewriting directly
+            // to focal in this post-order walk would also consume a same-named
+            // parent field. Other child fields have no proven parent identity.
+            const PARENT:&str="\0REL2_PARENT";
+            crate::bind::intent_walk::expression(&mut predicate,&mut |expression|{
+                if let ast::Expr::Member{base,name,..}=expression {if matches!(base.as_ref(),ast::Expr::Focal{..}){
+                    if name==&extraction.reference{*expression=ast::Expr::Name{name:PARENT.into(),site:crate::Site::default()};}
+                    else{unsupported=true;}
+                }}
+            });
+            if unsupported{return false;}
+            crate::bind::intent_walk::expression(&mut predicate,&mut |expression|{
+                if matches!(expression,ast::Expr::Name{name,..}if name==PARENT){
+                    *expression=ast::Expr::Focal{site:crate::Site::default()};
+                }
+            });
+            let mut proof=target.to_vec();
+            let Some((file,text))=proof.iter_mut().find(|(file,text)|parser::parse_document(file,text).0.tables.iter().any(|t|t.name==extraction.parent))else{return false;};
+            let proof_file=file.clone();let proof_line=text.bytes().filter(|b|*b==b'\n').count() as u32+2;
+            text.push_str(&format!("\ninvariant {}.read only {}\n",extraction.parent,crate::print::expression(&predicate)));
+            let bound=crate::compile(&proof);if !bound.diagnostics.is_empty(){return false;}
+            let Some(projected)=bound.invariants.iter().find(|i|i.site.file==proof_file&&i.site.line==proof_line&&i.table==extraction.parent&&i.target=="read").and_then(|i|i.policy.as_ref())else{return false;};
+            return old.schema.tables[&extraction.parent].rules.read==*projected
+                ||old.invariants.iter().any(|prior|prior.table==extraction.parent&&prior.target=="read"&&prior.column.is_none()&&prior.policy.as_ref()==Some(projected));
+        }
         if old.invariants.iter().any(|prior|prior.table==inv.table&&prior.target==inv.target&&prior.column==inv.column
             &&prior.operation==inv.operation&&prior.predicate==inv.predicate&&prior.policy==inv.policy){return true;}
         if inv.target!="always"||inv.column.is_some(){return false;}

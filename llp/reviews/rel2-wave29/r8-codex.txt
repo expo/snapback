@@ -1,0 +1,61 @@
+**NOT READY**
+
+**P1 — Expiry through a cascading ancestor bypasses the child’s lifetime guard.**
+
+In `release_bridge.rs::extraction_preserves_predecessor`, the restrict check starts its cascade traversal from explicit program deletes. It separately checks only `table.expire` on the extracted parent. It misses expiry of an ancestor whose deletion cascades into that parent.
+
+Consequently, exact rollback can remove a child lifetime guard that §22 expressly requires preserving. With a fitting singleton, reverse projection can succeed, then the predecessor’s expiry sweep can delete the restored parent and release its payload.
+
+Concrete reproducer, suitable as an integration test in `roll_views.rs`:
+
+```rust
+#[test]
+fn rel2_ancestor_expiry_must_retain_view() {
+    let old = r#"table groups:
+  until: time
+  immutable until
+  expire at .until
+  read <- allow
+  online only
+table items:
+  group: groups on delete cascade
+  cap 1 by group
+  scan: file <=1000 ?
+  read <- allow
+  online only
+"#;
+    let current = old.replace("  scan: file <=1000 ?\n", "")
+        + r#"table scans:
+  item: items on delete restrict
+  scan: file <=1000 ?
+  immutable item
+  read through .item
+  online only
+extract scans from items via item: {scan:scan}
+"#;
+    let before = vec![("schema.q".into(), old.into())];
+    let after = vec![("schema.q".into(), current)];
+
+    for sources in [&before, &after] {
+        let bound = snapback4_lang::compile(sources);
+        assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    }
+
+    assert!(
+        !snapback4_lang::release_bridge::extraction_preserves_predecessor(
+            &before, &after
+        ),
+        "ancestor expiry can delete items through cascade; retain the view"
+    );
+}
+```
+
+Run from `snapback4/`:
+
+```sh
+cargo test -p snapback4 --test roll_views rel2_ancestor_expiry_must_retain_view
+```
+
+The supplied implementation returns `true`, failing the final assertion. The deletion closure must also include expiry roots and their cascading descendants, including inherited expiry.
+
+Reproducer not executed; this review remained read-only. No subagents, credentials or original stores were accessed.

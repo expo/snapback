@@ -83,3 +83,42 @@ test('same-process BUSY attempts cannot cancel another process exclusion',async 
  let result='';child.stdout.on('data',chunk=>{result+=chunk});await once(child,'exit');
  assert.equal(result,'busy');owned.assertHeld();
 });
+
+test('a worker owning the first published inode survives a delayed creator close',async t=>{
+ const fs=await import('node:fs');const {syncBuiltinESMExports}=await import('node:module');
+ const {Worker}=await import('node:worker_threads');const {spawnSync}=await import('node:child_process');
+ const path=fixture(t),database=path+'.sqlite',state=new Int32Array(new SharedArrayBuffer(4));
+ const originalOpen=fs.default.openSync,originalClose=fs.default.closeSync;
+ let creator,worker,contender;
+ fs.default.openSync=function(p,flags,...args){
+  const fd=originalOpen.call(this,p,flags,...args);
+  if(String(p).startsWith(database+'.create-')&&flags==='wx')creator=fd;
+  return fd;
+ };
+ fs.default.closeSync=function(fd){
+  if(fd!==creator)return originalClose.call(this,fd);creator=undefined;
+  worker=new Worker(new URL('data:text/javascript,'+encodeURIComponent(`
+   import {workerData} from 'node:worker_threads';
+   const {rosterLock}=await import(workerData.moduleUrl);
+   const owned=rosterLock(workerData.path),state=new Int32Array(workerData.buffer);
+   Atomics.store(state,0,1);Atomics.notify(state,0);Atomics.wait(state,0,1);
+   owned.assertHeld();owned.release();
+  `)),{workerData:{moduleUrl,path,buffer:state.buffer}});
+  assert.notEqual(Atomics.wait(state,0,0,10000),'timed-out');assert.equal(Atomics.load(state,0),1);
+  originalClose.call(this,fd);
+  contender=spawnSync(process.execPath,['--input-type=module','-e',`
+   import {rosterLock} from ${JSON.stringify(moduleUrl)};
+   try{const owned=rosterLock(${JSON.stringify(path)});owned.release();console.log('ACQUIRED');}
+   catch(error){if(!String(error).includes('E_PRODUCTION_ROSTER_BUSY'))throw error;console.log('BUSY');}
+  `],{encoding:'utf8',timeout:10000});
+ };
+ syncBuiltinESMExports();
+ try{
+  assert.throws(()=>rosterLock(path),/E_PRODUCTION_ROSTER_BUSY/);
+  assert.equal(contender.status,0,contender.stderr);assert.equal(contender.stdout.trim(),'BUSY');
+ }finally{
+  fs.default.openSync=originalOpen;fs.default.closeSync=originalClose;syncBuiltinESMExports();
+  if(worker){const exit=once(worker,'exit');Atomics.store(state,0,2);Atomics.notify(state,0);await exit;}
+ }
+ rosterLock(path).release();
+});

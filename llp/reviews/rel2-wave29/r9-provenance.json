@@ -1,0 +1,42 @@
+{
+  "baseline": "bcf780d30729158da09d731d2e9e84aa31738f30",
+  "brief_sha256": "b2c0542fef38e2b164d0e6fc3a9e678d5f4ac160c824bd89fa20bb427cd2d241",
+  "files": {
+    "snapback4/crates/snapback4-core/src/engine/command.rs": "7a949da860b258676684dff2b42aa4d04f66663e612225eac65032b10ee2fb10",
+    "snapback4/crates/snapback4-core/src/engine/command_batch.rs": "48d8c6fbbe08e2d9e0da81ea0a6ee4de2760f8f911c3dc71049b973e36be4d78",
+    "snapback4/crates/snapback4-core/src/engine/command_tests.rs": "129e3be2fd11c718c2f22a83999236bac59b1f1ec9762294f616a3e76a9e6883",
+    "snapback4/crates/snapback4-core/src/engine/postgres/early_release.rs": "99e5410c2562fdca35880404e7ec5bfc3af71efb652e785ef6ded1ddf681b081",
+    "snapback4/crates/snapback4-core/src/engine/postgres/early_release_tests.rs": "e1a914b22f6bfc478113cbb9cbbf553496f89486fe40aaf233a12a65445b49d4",
+    "snapback4/crates/snapback4-core/src/engine/postgres/ownership.rs": "a7d58fda30697edfd2c79be604f3eead50dcd67aa6d8633314938b8b126ad514",
+    "snapback4/crates/snapback4-core/src/store/extractions.rs": "964c4730b78697b4e456940e4c6d09a799fa2506688a2b91342e5e07c0a86f73",
+    "snapback4/crates/snapback4-core/src/store/rollback_visibility.rs": "39f5259717aa732325b42bc8b53b33d3d4e307e1d4a24f999fb0994cf368a98b",
+    "snapback4/crates/snapback4-core/src/store/tooling.rs": "37a9a5c97afd4f388af49f11b2e23301179c8c9b9bedee624a8f85f536ba7fd5",
+    "snapback4/crates/snapback4-lang/src/release_bridge.rs": "2e69d50951c8d2bc0f9fd612919630c64c135fd9ec5a94a0cd1e32fe93b83e2d",
+    "snapback4/crates/snapback4-lang/src/release_bridge_guards.rs": "14959aaf18f4054f2c64b4d10a6fb0dd3c99269b8b0cc52ba9173e1e3c29a8d0",
+    "snapback4/crates/snapback4/src/verbs.rs": "67b318c0d979d01cca27d784cd0793720db9d53b727180779621ed7d1243dc63",
+    "snapback4/crates/snapback4/src/verbs/release_preview.rs": "e70aa4682e2dd2588f41c8ca2cd2ebd289023849eebae333d7aa68f137a373b1",
+    "snapback4/crates/snapback4/src/verbs/release_shape.rs": "08fe71ec0060c63d9153b27c03c69c8431e50de79812ea49af4e615c7fca109d",
+    "snapback4/crates/snapback4/src/verbs/releases.rs": "f6a56f398e2cc0a41ac3bc33287c73ac32b6a1e7e4a5cbb8132aac31353828c9",
+    "snapback4/crates/snapback4/src/verbs/rollback_views.rs": "5d7720fac6b2162d2b560e85c2eeb925fe05a991e6208f0d2a54524581bff933",
+    "snapback4/crates/snapback4/src/verbs/saved_version.rs": "e2038bbec8dbeeeb6f2eed0d3cd2521bec806e9d6b219fcc731f24057774fdde",
+    "snapback4/packages/snapback4/src/proof-accounts.ts": "5d26779bec78d12cc306b44eda51a5dd859b72b3ee37281ae3bbf1ca9cf56293",
+    "snapback4/packages/snapback4/src/proof-roster-lock.ts": "8606c6b3f297b9a8907160f08ecc4cd3d2680d44133f3c60fec036d8541d8c9f"
+  },
+  "muse": {
+    "model": "muse-spark-1.3-contributor",
+    "reasoning": "high",
+    "fresh_session": true,
+    "stdout_sha256": "1af57ac6747c9f7f7d8266a7e6107d18ababa8a791472f2f29fb33969c81b6ce",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "verbatim": true
+  },
+  "codex": {
+    "model": "gpt-6.1-sol",
+    "reasoning": "high",
+    "fresh_session": true,
+    "stdout_sha256": "7e232337e0ca632ce4bf977e9956d693abeab6e7cc36df3fe956e58a549a53ae",
+    "stderr_sha256": "f51959599c0f686083e58e6f66235fcc6b22ebc57643ed0ad1a0c490b43d6d34",
+    "verbatim": true
+  },
+  "disposition": "Muse READY; Codex first-creation worker interleaving repaired by closing a private staging inode before atomic no-replace publication. Deterministic worker/creator-close/external-contender test passes. Subsequent review covers the complete protocol. Multifile proof-site selection and focal-reference projection are independently hardened."
+}

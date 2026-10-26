@@ -1,0 +1,19 @@
+muse: workspace root: /home/ccheever/projects/sb4-b29-rel2 (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY
+
+Reviewed the normative amendment (§22 REL2) against the complete supplied files. No material correctness, security, data-loss, contract, or concurrency defects found.
+
+Checked:
+
+- Child row authority for null/omitted payloads uses row-insert proof, not column-write null exemption — [extractions.rs](snapback4/crates/snapback4-core/src/store/extractions.rs), [release_bridge.rs](snapback4/crates/snapback4-lang/src/release_bridge.rs) `exact_authority` with `row_insert`, plus `extracted_child_row_insert_audience` test.
+- Probe dependency stability across direct/cascade/set-null/maintained writes — `exact_authority` dependency-closure vs affected-set disjoint check.
+- Retained constraints/lifetime guards, restrict edges, schedules, native/action/route refusal — `extraction_preserves_predecessor` inherited/through/plain-read, hard-constraint allowlist, restrict-cascade walk, `maintains`/native/schedule equality.
+- Source predecessor identity via executable digest, earliest-match timeline, requalification without path duplicates — [release_files.rs](snapback4/crates/snapback4/src/release_files.rs), [rollback_views.rs](snapback4/crates/snapback4/src/verbs/rollback_views.rs) `prepare_for_source`.
+- Shape introspection (`target`/`matchesTarget`/`differences`/`tables`/`children`) separate from behavior/auth — [release_shape.rs](snapback4/crates/snapback4/src/verbs/release_shape.rs), `print_live`.
+- Empty-cell accounting with validated extraction receipts including restored nulls, live revalidation under CAS — [rollback_visibility.rs](snapback4/crates/snapback4-core/src/store/rollback_visibility.rs), [tooling.rs](snapback4/crates/snapback4-core/src/store/tooling.rs) `preview_empty_population`.
+- Roster kernel ownership (persistent SQLite inode authoritative, `wx` create, no unlink, OFD-safe, lease diagnostic, renewal fencing, release-before-close) — [proof-roster-lock.ts](snapback4/packages/snapback4/src/proof-roster-lock.ts), [proof-accounts.ts](snapback4/packages/snapback4/src/proof-accounts.ts).
+- Saved-version baseline materialization before compatibility reads, provisional cleanup, refresh preserving source/fixtures — [saved_version.rs](snapback4/crates/snapback4/src/verbs/saved_version.rs).
+
+No executable reproducer — no failing case to reproduce.
+

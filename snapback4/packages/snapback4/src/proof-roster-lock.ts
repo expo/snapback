@@ -2,7 +2,7 @@
 import { DatabaseSync } from "node:sqlite";
 import { randomUUID } from "node:crypto";
 import { hostname } from "node:os";
-import { openSync, closeSync, writeFileSync, fsyncSync, renameSync, unlinkSync, lstatSync } from "node:fs";
+import { openSync, closeSync, writeFileSync, fsyncSync, renameSync, unlinkSync, lstatSync, linkSync } from "node:fs";
 
 /** A stable SQLite writer lock is the authority. The JSON lease is diagnostic:
  * expiry never evicts a live writer; process death releases the kernel lock.
@@ -13,10 +13,14 @@ export function rosterLock(path: string) {
     try { if (!lstatSync(file).isFile()) throw Error("E_PRODUCTION_ROSTER: lock must be a regular file"); }
     catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
   }
-  // Never open/close an existing database outside SQLite: POSIX close() can
-  // cancel another connection's process-wide locks on that inode.
-  try { const fd = openSync(database, "wx", 0o600); closeSync(fd); }
-  catch (error) { if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error; }
+  // Publish a closed inode. Publishing at open(wx) would let a same-process
+  // worker acquire SQLite before our raw close(), which cancels POSIX locks.
+  const staging = database + ".create-" + randomUUID();
+  try {
+    const fd = openSync(staging, "wx", 0o600); closeSync(fd);
+    try { linkSync(staging, database); }
+    catch (error) { if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error; }
+  } finally { try { unlinkSync(staging); } catch {} }
   const db = new DatabaseSync(database);
   try { db.exec("PRAGMA busy_timeout = 0; BEGIN IMMEDIATE"); }
   catch (error) {

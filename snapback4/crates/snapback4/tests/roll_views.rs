@@ -1056,3 +1056,45 @@ fn wave29_040_exact_projection_preserves_the_real_guarded_scheduled_workflow() {
     for sources in [&old,&current] {let b=snapback4_lang::compile(sources);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);}
     assert!(snapback4_lang::release_bridge::extraction_preserves_predecessor(&old,&current));
 }
+
+#[test]
+fn a_child_wide_invariant_is_not_an_inactive_new_endpoint() {
+    let(base,current)=publication_media();let source=|text:String|vec![("schema.q".into(),text)];
+    let guarded=current.clone().replace("scan: file <=1000","scan: file <=1000 ?")+"invariant scans always .scan != null\n";
+    let old=source(base.replace("scan: file <=1000","scan: file <=1000 ?"));let guarded=source(guarded);
+    assert!(snapback4_lang::compile(&guarded).diagnostics.is_empty());
+    assert!(!snapback4_lang::release_bridge::extraction_preserves_predecessor(&old,&guarded),"child-wide intent needs a proof even when its table is new");
+    let read=current.replace("scan: file <=1000","scan: file <=1000 ?")+"invariant scans.read only .order.owner = viewer\n";
+    assert!(snapback4_lang::release_bridge::extraction_preserves_predecessor(&old,&source(read)),"read-through projects to the existing parent audience");
+}
+
+#[test]
+fn ancestor_expiry_cannot_remove_an_extracted_child_restrict_guard() {
+    let old="table groups:\n  until: time\n  immutable until\n  expire at .until\n  read <- allow\n  online only\ntable items:\n  group: groups on delete cascade\n  cap 1 by group\n  scan: file <=1000 ?\n  read <- allow\n  online only\n";
+    let current=old.replace("  scan: file <=1000 ?\n","")+"table scans:\n  item: items on delete restrict\n  scan: file <=1000 ?\n  immutable item\n  read through .item\n  online only\nextract scans from items via item: {scan:scan}\n";
+    let old=vec![("schema.q".into(),old.into())];let current=vec![("schema.q".into(),current)];
+    for sources in [&old,&current] {let b=snapback4_lang::compile(sources);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);}
+    assert!(!snapback4_lang::release_bridge::extraction_preserves_predecessor(&old,&current));
+}
+
+#[test]
+fn projected_child_intent_uses_its_own_proof_in_a_multifile_source() {
+    let old="table items:\n  scan: file <=1000 ?\n  read <- allow\n  online only\n";
+    let current=old.replace("  scan: file <=1000 ?\n","")+"table scans:\n  item: items on delete cascade\n  scan: file <=1000 ?\n  immutable item\n  read through .item\n  online only\nextract scans from items via item: {scan:scan}\ninvariant scans.read only deny\n";
+    let extra="table extras:\n  read <- allow\n  online only\ninvariant extras.read only allow\n";
+    let source=|text:String|vec![("schema.q".into(),text),("z.q".into(),extra.into())];let old=source(old.into());let current=source(current);
+    for sources in [&old,&current] {let b=snapback4_lang::compile(sources);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);}
+    assert!(!snapback4_lang::release_bridge::extraction_preserves_predecessor(&old,&current));
+}
+
+#[test]
+fn child_intent_never_confuses_child_columns_with_parent_fields() {
+    let old="table items:\n  owner: principal\n  immutable owner\n  scan: file <=1000 ?\n  read <- .owner = viewer\n  online only\n";
+    let current=old.replace("  scan: file <=1000 ?\n","")+"table scans:\n  item: items on delete cascade\n  owner: principal ?\n  scan: file <=1000 ?\n  immutable item\n  read through .item\n  online only\nextract scans from items via item: {scan:scan}\ninvariant scans.read only .owner = viewer\n";
+    let old=vec![("schema.q".into(),old.into())];let current=vec![("schema.q".into(),current)];
+    for sources in [&old,&current] {let b=snapback4_lang::compile(sources);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);}
+    assert!(!snapback4_lang::release_bridge::extraction_preserves_predecessor(&old,&current));
+    let mut repeated=current.clone();repeated[0].1=repeated[0].1.replace("  item: items", "  owner: items").replace("  owner: principal ?\n", "").replace("immutable item", "immutable owner").replace("through .item", "through .owner").replace("via item:", "via owner:").replace("only .owner = viewer", "only .owner.owner = viewer");
+    let b=snapback4_lang::compile(&repeated);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+    assert!(snapback4_lang::release_bridge::extraction_preserves_predecessor(&old,&repeated),"only the original reference leaf projects; the parent owner field remains");
+}

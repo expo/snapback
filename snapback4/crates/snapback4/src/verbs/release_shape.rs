@@ -40,7 +40,9 @@ pub(super) fn compare(target:u64,old:&Bound,served:&Bound)->Value {
         let current=served.programs.iter().find(|p|p.program.name==previous.program.name&&p.program.kind==previous.program.kind).map(|p|shape(&p.result,served));
         if current.as_ref()!=Some(&expected){differences.push(json!({"operation":previous.program.name,"expected":expected,"served":current}));}
     }
-    let tables=served.schema.tables.iter().map(|(name,table)|(name.clone(),table.columns.keys().cloned().collect::<Vec<_>>())).collect::<std::collections::BTreeMap<_,_>>();
+    let tables=served.schema.tables.iter().map(|(name,table)|(name.clone(),table.columns.keys()
+        .filter(|column|!table.engine_field(column)&&!snapback4_core::schema::timeline::is_slot(column)&&column.as_str()!="$global")
+        .cloned().collect::<Vec<_>>())).collect::<std::collections::BTreeMap<_,_>>();
     let children=served.schema.extractions.iter().map(|e|json!({"parent":e.parent,"child":e.child,"columns":e.fields.keys().collect::<Vec<_>>()})).collect::<Vec<_>>();
     json!({"target":target,"matchesTarget":differences.is_empty(),"differences":differences,"tables":tables,"children":children})
 }
@@ -78,6 +80,16 @@ mod tests {
             assert_eq!(compare(1,&old,&now)["matchesTarget"],false);
             assert_eq!(compare(1,&old,&old)["matchesTarget"],true);
         }
+    }
+    #[test]
+    fn served_columns_exclude_compiler_owned_storage_cells() {
+        let current=include_str!("../../tests/fixtures/rel2/wave29-040-v2.q");
+        let b=snapback4_lang::compile(&[("schema.q".into(),current.into())]);
+        assert!(b.diagnostics.is_empty());
+        let result=compare(2,&b,&b);
+        let columns=result["tables"]["idCards"].as_array().unwrap();
+        assert!(columns.contains(&json!("serialPhoto")));
+        assert!(!columns.iter().any(|c|c.as_str().unwrap().starts_with('$')));
     }
     #[test]
     fn maintained_cells_are_absent_from_write_rows_and_present_after_reread() {
