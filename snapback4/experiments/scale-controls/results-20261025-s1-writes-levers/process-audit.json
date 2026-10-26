@@ -1,0 +1,14 @@
+{
+  "events": 2389,
+  "distinct_pid_identities": 1694,
+  "live_owned": [],
+  "owned_zombies": [],
+  "checks": "PID/start identity; builders, diagnostic, HTTP services, private clusters, controllers, monitors; socket/pidfile absence; final postprocessor rechecked separately",
+  "finalization_events_checked": 2411,
+  "finalization_pid_identities": 1714,
+  "postprocessor_and_verifiers_exited": true,
+  "all_private_roots_removed": true,
+  "finalization_live_owned": [],
+  "finalization_owned_zombies": [],
+  "final_tool_and_commit_steps": "rechecked after completion in outside-Git final audit"
+}
