@@ -1,0 +1,908 @@
+[
+  {
+    "campaign": "matrix-g6",
+    "part": "smoke-w4-n1000000-d1000-c32-disjoint",
+    "arm": "smoke",
+    "cell": {
+      "workload": "W4",
+      "rows": 1000000,
+      "delay_us": 1000,
+      "writers": 32,
+      "keys": "disjoint",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/replay-w4-n1000000-d1000-c32-disjoint-NEW",
+        "--workload",
+        "W4",
+        "--keys",
+        "disjoint",
+        "--link",
+        "B",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/bin/sb4-postgres-scale-seed",
+        "--rates",
+        "100"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "summary": {
+      "highest_passing_offered_per_s": null,
+      "lowest_failing_offered_per_s": 100,
+      "bracketed": false,
+      "rates": [
+        100
+      ],
+      "repeats": 3
+    },
+    "selected": null,
+    "headline_eligible": true
+  },
+  {
+    "campaign": "matrix-g6",
+    "part": "w4-n1000000-d1000-c32-disjoint",
+    "arm": "g6",
+    "cell": {
+      "workload": "W4",
+      "rows": 1000000,
+      "delay_us": 1000,
+      "writers": 32,
+      "keys": "disjoint",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/replay-w4-n1000000-d1000-c32-disjoint-NEW",
+        "--workload",
+        "W4",
+        "--keys",
+        "disjoint",
+        "--link",
+        "B",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/bin/sb4-postgres-scale-seed",
+        "--rates",
+        "3200",
+        "1600",
+        "2262",
+        "4525"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "summary": {
+      "highest_passing_offered_per_s": 1600,
+      "lowest_failing_offered_per_s": 2262,
+      "bracketed": true,
+      "rates": [
+        1600,
+        2262,
+        3200,
+        4525
+      ],
+      "repeats": 3
+    },
+    "selected": {
+      "rate": 1600,
+      "all_pass": true,
+      "p50_ms": {
+        "min": 10.747903,
+        "median": 10.797055,
+        "max": 10.870783
+      },
+      "p99_ms": {
+        "min": 17.481727,
+        "median": 17.727487,
+        "max": 41.058303
+      },
+      "p999_ms": {
+        "min": 22.953983,
+        "median": 24.264703,
+        "max": 83.361791
+      },
+      "achieved_per_s": {
+        "min": 1600.0,
+        "median": 1600.0,
+        "max": 1600.0
+      },
+      "errors": 0,
+      "dispatch_lag_p99_ms": {
+        "min": 0.088639,
+        "median": 0.187007,
+        "max": 21.184511
+      },
+      "http_service_p99_ms": {
+        "min": 17.137663,
+        "median": 17.694719,
+        "max": 20.742143
+      },
+      "resources": {
+        "generator_cpu_us_per_ack_including_warmup": {
+          "min": 220.20833333333334,
+          "median": 220.625,
+          "max": 220.83333333333334
+        },
+        "serve_sample_count": {
+          "min": 118,
+          "median": 118,
+          "max": 118
+        },
+        "generator_cpu_s": {
+          "min": 10.57,
+          "median": 10.59,
+          "max": 10.6
+        },
+        "serve_mean_logical_cores": {
+          "min": 0.7109997181893178,
+          "median": 0.7123444008854706,
+          "max": 0.7131826274626536
+        },
+        "serve_cpu_us_per_ack_including_warmup": {
+          "min": 446.0416666666667,
+          "median": 446.6666666666667,
+          "max": 447.0833333333333
+        },
+        "serve_cpu_s": {
+          "min": 21.41,
+          "median": 21.44,
+          "max": 21.46
+        },
+        "generator_mean_logical_cores": {
+          "min": 0.3510166754442358,
+          "median": 0.3518529480119931,
+          "max": 0.35227100890513174
+        },
+        "generator_sample_count": {
+          "min": 118,
+          "median": 118,
+          "max": 118
+        }
+      }
+    },
+    "headline_eligible": true
+  },
+  {
+    "campaign": "matrix-g6",
+    "part": "w4-n1000000-d500-c32-disjoint",
+    "arm": "g6",
+    "cell": {
+      "workload": "W4",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 32,
+      "keys": "disjoint",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/replay-w4-n1000000-d500-c32-disjoint-NEW",
+        "--workload",
+        "W4",
+        "--keys",
+        "disjoint",
+        "--link",
+        "A",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/bin/sb4-postgres-scale-seed",
+        "--rates",
+        "3200",
+        "1600",
+        "2262",
+        "4525"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "summary": {
+      "highest_passing_offered_per_s": 2262,
+      "lowest_failing_offered_per_s": 3200,
+      "bracketed": true,
+      "rates": [
+        1600,
+        2262,
+        3200,
+        4525
+      ],
+      "repeats": 3
+    },
+    "selected": {
+      "rate": 2262,
+      "all_pass": true,
+      "p50_ms": {
+        "min": 9.928703,
+        "median": 9.928703,
+        "max": 10.084351
+      },
+      "p99_ms": {
+        "min": 18.759679,
+        "median": 39.321599,
+        "max": 73.531391
+      },
+      "p999_ms": {
+        "min": 25.706495,
+        "median": 73.334783,
+        "max": 111.280127
+      },
+      "achieved_per_s": {
+        "min": 2261.95,
+        "median": 2262.0,
+        "max": 2262.0
+      },
+      "errors": 1,
+      "dispatch_lag_p99_ms": {
+        "min": 4.648959,
+        "median": 25.165823,
+        "max": 59.408383
+      },
+      "http_service_p99_ms": {
+        "min": 14.770175,
+        "median": 15.384575,
+        "max": 15.761407
+      },
+      "resources": {
+        "generator_cpu_us_per_ack_including_warmup": {
+          "min": 213.67521367521368,
+          "median": 215.29937075406357,
+          "max": 215.8856469201297
+        },
+        "serve_sample_count": {
+          "min": 117,
+          "median": 118,
+          "max": 118
+        },
+        "generator_cpu_s": {
+          "min": 14.5,
+          "median": 14.61,
+          "max": 14.65
+        },
+        "serve_mean_logical_cores": {
+          "min": 0.9276716863262381,
+          "median": 0.9319064959573827,
+          "max": 0.9390818246685467
+        },
+        "serve_cpu_us_per_ack_including_warmup": {
+          "min": 408.7827880931329,
+          "median": 413.4983790156204,
+          "max": 416.5991246555357
+        },
+        "serve_cpu_s": {
+          "min": 27.74,
+          "median": 28.06,
+          "max": 28.27
+        },
+        "generator_mean_logical_cores": {
+          "min": 0.48490408982445754,
+          "median": 0.4853196129609999,
+          "max": 0.4865441969271439
+        },
+        "generator_sample_count": {
+          "min": 117,
+          "median": 118,
+          "max": 118
+        }
+      }
+    },
+    "headline_eligible": true
+  },
+  {
+    "campaign": "matrix-g6",
+    "part": "w5-n1000000-d1000-c32-hot1",
+    "arm": "g6",
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 1000,
+      "writers": 32,
+      "keys": "hot1",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/replay-w5-n1000000-d1000-c32-hot1-NEW",
+        "--workload",
+        "W5",
+        "--keys",
+        "hot1",
+        "--link",
+        "B",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/bin/sb4-postgres-scale-seed",
+        "--rates",
+        "3200",
+        "1600",
+        "2262",
+        "4525"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "summary": {
+      "highest_passing_offered_per_s": 1600,
+      "lowest_failing_offered_per_s": 2262,
+      "bracketed": true,
+      "rates": [
+        1600,
+        2262,
+        3200,
+        4525
+      ],
+      "repeats": 3
+    },
+    "selected": {
+      "rate": 1600,
+      "all_pass": true,
+      "p50_ms": {
+        "min": 11.018239,
+        "median": 11.059199,
+        "max": 11.075583
+      },
+      "p99_ms": {
+        "min": 18.006015,
+        "median": 19.988479,
+        "max": 45.449215
+      },
+      "p999_ms": {
+        "min": 25.378815,
+        "median": 28.000255,
+        "max": 83.296255
+      },
+      "achieved_per_s": {
+        "min": 1600.0,
+        "median": 1600.0,
+        "max": 1600.0
+      },
+      "errors": 0,
+      "dispatch_lag_p99_ms": {
+        "min": 0.116031,
+        "median": 0.462591,
+        "max": 25.444351
+      },
+      "http_service_p99_ms": {
+        "min": 17.383423,
+        "median": 18.120703,
+        "max": 19.513343
+      },
+      "resources": {
+        "generator_cpu_us_per_ack_including_warmup": {
+          "min": 218.33333333333334,
+          "median": 220.0,
+          "max": 220.625
+        },
+        "serve_sample_count": {
+          "min": 117,
+          "median": 118,
+          "max": 118
+        },
+        "generator_cpu_s": {
+          "min": 10.48,
+          "median": 10.56,
+          "max": 10.59
+        },
+        "serve_mean_logical_cores": {
+          "min": 0.7087484741568849,
+          "median": 0.7098074604895828,
+          "max": 0.7148552345126986
+        },
+        "serve_cpu_us_per_ack_including_warmup": {
+          "min": 441.4583333333333,
+          "median": 445.2083333333333,
+          "max": 448.3333333333333
+        },
+        "serve_cpu_s": {
+          "min": 21.19,
+          "median": 21.37,
+          "max": 21.52
+        },
+        "generator_mean_logical_cores": {
+          "min": 0.35052779656272554,
+          "median": 0.3507518382204021,
+          "max": 0.35178052664913934
+        },
+        "generator_sample_count": {
+          "min": 117,
+          "median": 118,
+          "max": 118
+        }
+      }
+    },
+    "headline_eligible": true
+  },
+  {
+    "campaign": "matrix-g6",
+    "part": "w5-n1000000-d1000-c32-same",
+    "arm": "g6",
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 1000,
+      "writers": 32,
+      "keys": "same",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/replay-w5-n1000000-d1000-c32-same-NEW",
+        "--workload",
+        "W5",
+        "--keys",
+        "same",
+        "--link",
+        "B",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/bin/sb4-postgres-scale-seed",
+        "--rates",
+        "100",
+        "50",
+        "70",
+        "2262",
+        "3200",
+        "4525"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "summary": {
+      "highest_passing_offered_per_s": 70,
+      "lowest_failing_offered_per_s": 100,
+      "bracketed": true,
+      "rates": [
+        50,
+        70,
+        100,
+        2262,
+        3200,
+        4525
+      ],
+      "repeats": 3
+    },
+    "selected": {
+      "rate": 70,
+      "all_pass": true,
+      "p50_ms": {
+        "min": 23.068671,
+        "median": 23.134207,
+        "max": 23.199743
+      },
+      "p99_ms": {
+        "min": 30.654463,
+        "median": 30.883839,
+        "max": 30.932991
+      },
+      "p999_ms": {
+        "min": 33.406975,
+        "median": 35.323903,
+        "max": 35.815423
+      },
+      "achieved_per_s": {
+        "min": 70.0,
+        "median": 70.0,
+        "max": 70.0
+      },
+      "errors": 0,
+      "dispatch_lag_p99_ms": {
+        "min": 0.033599,
+        "median": 0.042175,
+        "max": 0.046271
+      },
+      "http_service_p99_ms": {
+        "min": 30.638079,
+        "median": 30.867455,
+        "max": 30.900223
+      },
+      "resources": {
+        "generator_cpu_us_per_ack_including_warmup": {
+          "min": 300.0,
+          "median": 300.0,
+          "max": 309.5238095238095
+        },
+        "serve_sample_count": {
+          "min": 119,
+          "median": 119,
+          "max": 119
+        },
+        "generator_cpu_s": {
+          "min": 0.63,
+          "median": 0.63,
+          "max": 0.65
+        },
+        "serve_mean_logical_cores": {
+          "min": 0.08082232324749569,
+          "median": 0.08122180635723439,
+          "max": 0.08251846684446827
+        },
+        "serve_cpu_us_per_ack_including_warmup": {
+          "min": 1157.142857142857,
+          "median": 1161.904761904762,
+          "max": 1180.952380952381
+        },
+        "serve_cpu_s": {
+          "min": 2.43,
+          "median": 2.44,
+          "max": 2.48
+        },
+        "generator_mean_logical_cores": {
+          "min": 0.02095393565675814,
+          "median": 0.02097120410043347,
+          "max": 0.02162782397133241
+        },
+        "generator_sample_count": {
+          "min": 119,
+          "median": 119,
+          "max": 119
+        }
+      }
+    },
+    "headline_eligible": true
+  },
+  {
+    "campaign": "matrix-g6",
+    "part": "w5-n1000000-d500-c32-hot1",
+    "arm": "g6",
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 32,
+      "keys": "hot1",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/replay-w5-n1000000-d500-c32-hot1-NEW",
+        "--workload",
+        "W5",
+        "--keys",
+        "hot1",
+        "--link",
+        "A",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/bin/sb4-postgres-scale-seed",
+        "--rates",
+        "3200",
+        "1600",
+        "2262",
+        "4525"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "summary": {
+      "highest_passing_offered_per_s": 2262,
+      "lowest_failing_offered_per_s": 3200,
+      "bracketed": true,
+      "rates": [
+        1600,
+        2262,
+        3200,
+        4525
+      ],
+      "repeats": 3
+    },
+    "selected": {
+      "rate": 2262,
+      "all_pass": true,
+      "p50_ms": {
+        "min": 10.174463,
+        "median": 10.321919,
+        "max": 10.354687
+      },
+      "p99_ms": {
+        "min": 21.626879,
+        "median": 46.956543,
+        "max": 53.673983
+      },
+      "p999_ms": {
+        "min": 26.886143,
+        "median": 69.730303,
+        "max": 71.303167
+      },
+      "achieved_per_s": {
+        "min": 2261.85,
+        "median": 2262.0,
+        "max": 2262.0
+      },
+      "errors": 3,
+      "dispatch_lag_p99_ms": {
+        "min": 7.536639,
+        "median": 32.817151,
+        "max": 39.518207
+      },
+      "http_service_p99_ms": {
+        "min": 15.622143,
+        "median": 17.235967,
+        "max": 17.661951
+      },
+      "resources": {
+        "generator_cpu_us_per_ack_including_warmup": {
+          "min": 213.96993810786915,
+          "median": 214.42150404527166,
+          "max": 214.55938697318007
+        },
+        "serve_sample_count": {
+          "min": 117,
+          "median": 118,
+          "max": 118
+        },
+        "generator_cpu_s": {
+          "min": 14.52,
+          "median": 14.55,
+          "max": 14.56
+        },
+        "serve_mean_logical_cores": {
+          "min": 0.9291335530942169,
+          "median": 0.9311315243173042,
+          "max": 0.9359742199593042
+        },
+        "serve_cpu_us_per_ack_including_warmup": {
+          "min": 410.10904804008254,
+          "median": 411.60086652814005,
+          "max": 414.82463896257
+        },
+        "serve_cpu_s": {
+          "min": 27.83,
+          "median": 27.93,
+          "max": 28.15
+        },
+        "generator_mean_logical_cores": {
+          "min": 0.48402768340568764,
+          "median": 0.48411313117610905,
+          "max": 0.48580775181772395
+        },
+        "generator_sample_count": {
+          "min": 117,
+          "median": 118,
+          "max": 118
+        }
+      }
+    },
+    "headline_eligible": true
+  },
+  {
+    "campaign": "matrix-g6",
+    "part": "w5-n1000000-d500-c32-same",
+    "arm": "g6",
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 32,
+      "keys": "same",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/replay-w5-n1000000-d500-c32-same-NEW",
+        "--workload",
+        "W5",
+        "--keys",
+        "same",
+        "--link",
+        "A",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/bin/sb4-postgres-scale-seed",
+        "--rates",
+        "100",
+        "50",
+        "70",
+        "2262",
+        "3200",
+        "4525"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "summary": {
+      "highest_passing_offered_per_s": 2262,
+      "lowest_failing_offered_per_s": 100,
+      "bracketed": true,
+      "rates": [
+        50,
+        70,
+        100,
+        2262,
+        3200,
+        4525
+      ],
+      "repeats": 3
+    },
+    "selected": {
+      "rate": 2262,
+      "all_pass": true,
+      "p50_ms": {
+        "min": 12.083199,
+        "median": 15.589375,
+        "max": 21.184511
+      },
+      "p99_ms": {
+        "min": 26.411007,
+        "median": 68.550655,
+        "max": 73.531391
+      },
+      "p999_ms": {
+        "min": 29.999103,
+        "median": 79.364095,
+        "max": 84.017151
+      },
+      "achieved_per_s": {
+        "min": 2261.6,
+        "median": 2261.75,
+        "max": 2261.9
+      },
+      "errors": 15,
+      "dispatch_lag_p99_ms": {
+        "min": 12.263423,
+        "median": 54.394879,
+        "max": 59.736063
+      },
+      "http_service_p99_ms": {
+        "min": 17.743871,
+        "median": 18.366463,
+        "max": 18.710527
+      },
+      "resources": {
+        "generator_cpu_us_per_ack_including_warmup": {
+          "min": 212.25163610636164,
+          "median": 213.56561726211532,
+          "max": 214.42150404527166
+        },
+        "serve_sample_count": {
+          "min": 118,
+          "median": 118,
+          "max": 118
+        },
+        "generator_cpu_s": {
+          "min": 14.4,
+          "median": 14.49,
+          "max": 14.55
+        },
+        "serve_mean_logical_cores": {
+          "min": 0.7666722148318498,
+          "median": 0.7877721563165677,
+          "max": 0.795642709047528
+        },
+        "serve_cpu_us_per_ack_including_warmup": {
+          "min": 339.68492565247504,
+          "median": 349.89977596981487,
+          "max": 353.45793290489945
+        },
+        "serve_cpu_s": {
+          "min": 23.05,
+          "median": 23.74,
+          "max": 23.98
+        },
+        "generator_mean_logical_cores": {
+          "min": 0.47778377857733123,
+          "median": 0.4808263919556473,
+          "max": 0.4839514414665256
+        },
+        "generator_sample_count": {
+          "min": 118,
+          "median": 118,
+          "max": 118
+        }
+      }
+    },
+    "headline_eligible": true
+  }
+]

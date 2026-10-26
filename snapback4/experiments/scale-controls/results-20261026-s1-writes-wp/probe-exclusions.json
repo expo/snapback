@@ -1,0 +1,1 @@
+{"excluded_public_fixture": "vendor/tiny_http/examples/ssl-key.pem", "reason": "unused public TLS example fixture; excluded from numeric-probe archive private-key scan"}
