@@ -170,6 +170,46 @@ fn stage_p_missing_function_refuses_before_any_data() {
 
 #[test]
 #[ignore = "private Postgres"]
+fn stage_p_reconnect_keeps_failed_helper_admission_pending() {
+    for kind in ["guard", "fence"] {
+        for tamper in ["missing", "body"] {
+            let mut e = fixture(true);
+            let (mut c, _) = observer(&mut e);
+            let mut reader = e.reader().unwrap();
+            let store = reader.store_mut().test_postgres_handle_mut().store.get_mut();
+            let pid = store.client.independent("SELECT pg_backend_pid()", &[])
+                .unwrap()[0].get::<_, i32>(0);
+            eprintln!("Stage P reconnect witness owns reader backend {pid}");
+            let (_, signature) = functions(&mut c).into_iter()
+                .find(|(name, _)| name.contains(kind)).unwrap();
+            let definition = c.query_one("SELECT pg_get_functiondef($1::text::regprocedure)", &[&signature])
+                .unwrap().get::<_, String>(0);
+            if tamper == "missing" {
+                c.batch_execute(&format!("DROP FUNCTION {signature}")).unwrap();
+            } else {
+                c.batch_execute(&format!("CREATE OR REPLACE FUNCTION {signature} RETURNS void LANGUAGE plpgsql VOLATILE SECURITY INVOKER SET search_path=pg_catalog AS 'BEGIN RETURN; END'")).unwrap();
+            }
+            assert!(c.query_one("SELECT pg_terminate_backend($1)", &[&pid])
+                .unwrap().get::<_, bool>(0));
+            let until = std::time::Instant::now() + Duration::from_secs(5);
+            while !store.client.query_one("SELECT 1", &[]).is_err_and(|error| error.is_closed()) {
+                assert!(std::time::Instant::now() < until);
+                std::thread::sleep(Duration::from_millis(5));
+            }
+            // Retry on the same replacement socket. A failed catalog admission
+            // must never become the legacy inline-check path on attempt two.
+            for attempt in 0..3 {
+                let result = store.transaction(None).and_then(|tx| tx.rollback());
+                assert!(result.is_err(), "{kind}/{tamper} admitted retry {attempt}");
+            }
+            c.batch_execute(&definition).unwrap();
+            store.transaction(None).unwrap().rollback().unwrap();
+        }
+    }
+}
+
+#[test]
+#[ignore = "private Postgres"]
 fn stage_p_typed_shapes_match_generic_tail_and_sqlite_randomized() {
     for (fast, seed) in [false, true]
         .into_iter()

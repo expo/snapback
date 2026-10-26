@@ -83,3 +83,12 @@ impl ChangeEvidence for RefCell<&mut Store> {
         Ok(result)
     }
 }
+
+#[cfg(test)]
+impl Tx<'_> {
+    pub(crate) fn prune_evidence_for_test(&self) -> Result<(),RuntimeError> {
+        self.require_serialized_head_fence("evidence maintenance witness")?;
+        self.execute(PRUNE,&[])?;
+        Ok(())
+    }
+}

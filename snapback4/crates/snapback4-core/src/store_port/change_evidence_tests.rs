@@ -97,7 +97,12 @@ fn prune(pg: bool) {
         complete(&tx, seq, &[]);
         if seq == 1000 { assert!(revocation::footprint_between(&tx, 0, 1).is_some(), "exactly 1000 retains the first sequence"); }
     }
-    assert!(revocation::footprint_between(&tx, 0, 1).is_none(), "1001 prunes sequence 1");
+    #[cfg(feature="postgres")]
+    if pg {
+        assert!(revocation::footprint_between(&tx,0,1).is_some(),"Postgres tails retain evidence until head maintenance");
+        tx.test_postgres_tx().prune_evidence_for_test().unwrap();
+    }
+    assert!(revocation::footprint_between(&tx, 0, 1).is_none(), "head maintenance prunes sequence 1 at 1001");
     assert!(revocation::footprint_between(&tx, 1, 2).is_some());
     assert!(revocation::footprint_between(&tx, 501, 1001).is_some(), "exactly 500 commits certify");
     assert!(revocation::footprint_between(&tx, 500, 1001).is_none(), "501 commits widen");

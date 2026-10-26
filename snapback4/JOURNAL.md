@@ -108936,3 +108936,20 @@ COMMIT and ticket waits. The report keeps those regressions and the host-load
 samples; no one-host S1 or capacity-rung claim follows. The full binary passes
 626/0/75 after building its required ordinary debug launcher. The complete
 Postgres script and final census are still running at this checkpoint.
+
+## 2026-10-26 — Stage P review: persistent reconnect admission
+
+Fresh review found that a failed helper catalog check on a replacement reader
+connection could clear admission state and select inline checks on the next
+request. Failed admission now remains pending until identity, generation,
+managed-relation and helper validation succeed. The regression witness fails
+on `1e1bf2925e` at the second request (`guard/missing admitted retry 1`); it
+covers missing and modified guard/fence bodies, three same-connection retries,
+and admission after restoring the exact definition. This changes reconnect
+admission only; the measured steady-state batch SQL is unchanged.
+
+Three old Rust witnesses now invoke explicit head maintenance or use the new
+26-argument solo tail. The public serving witness waits for lease maintenance
+while checking that every observation retains at least 1000 sequences. Their
+focused reruns pass 4/0; the final full script and reconnect-positive checks are
+recorded in the report on completion. No raw logs are committed.

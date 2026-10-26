@@ -226,8 +226,18 @@ def change_evidence_witness(pg_url):
             sent = mutate('put','p1ce-fill-'+str(i),{'key':'note','n':i})
             assert sent['state']=='sent' and sent['seq']==i+4,sent
         if backend=='postgres':
-            result=run(['psql',connection,'-Atc','SELECT min(seq),max(seq),count(*) FROM p1ce._change_evidence'])
-            assert result.returncode==0 and result.stdout.strip()=='5|1004|1000',result
+            # Stage P reclaims on owner renewal, after the application tail.
+            # Every observation must retain the full window; wait for the
+            # next maintenance/head transaction to reach its exact floor.
+            deadline=time.monotonic()+10
+            while True:
+                result=run(['psql',connection,'-Atc','SELECT min(seq),max(seq),count(*) FROM p1ce._change_evidence'])
+                assert result.returncode==0,result
+                low,high,count=map(int,result.stdout.strip().split('|'))
+                assert high==1004 and count>=1000 and low<=5,result
+                if (low,high,count)==(5,1004,1000):break
+                assert child.poll() is None and time.monotonic()<deadline,result
+                time.sleep(.05)
         else:
             import sqlite3
             with sqlite3.connect(deployment/'store.sqlite') as db:

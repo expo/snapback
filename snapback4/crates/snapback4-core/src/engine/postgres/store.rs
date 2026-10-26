@@ -125,7 +125,8 @@ impl Store {
             self.literal_cache.clear(); self.cache.clear();
             self.reader_binding = self.unified;
         }
-        if self.reader_binding {
+        let rebind = self.reader_binding;
+        if rebind {
             self.calls.set(self.calls.get()+2);
             let row = self.client.query_one("SELECT (SELECT value FROM _meta WHERE key='store_id'),generation FROM _backend WHERE singleton", &[])?;
             if row.try_get::<_,Option<&str>>(0)? != self.fence.as_ref().map(|f|f.store_id.as_str()) || self.fence.is_none() {
@@ -141,7 +142,15 @@ impl Store {
             // Keep the validation pending after any mismatch or failed query.
             self.reader_binding = false;
         }
-        if refreshed && self.unified { super::checks::load(self)?; }
+        if self.unified && (refreshed || rebind) {
+            // Catalog loading opens a metadata transaction on this connection.
+            // Clear the flag while it does so, then preserve failed admission
+            // for every later request instead of falling back to inline checks.
+            if let Err(error) = super::checks::load(self) {
+                self.reader_binding = true;
+                return Err(error);
+            }
+        }
         Ok(())
     }
 

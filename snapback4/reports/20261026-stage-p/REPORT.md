@@ -188,3 +188,12 @@ the assigned target and line-tables-only dev/test debug settings; measurements
 use release. Only recorded PIDs are stopped. Port 55440 and `~/q24` are untouched.
 A 2.97 GB inactive lane-owned release incremental cache was removed after
 confirming no compiler used it; the /home stop threshold was never crossed.
+
+Fresh source review found one further reconnect admission defect: after a failed
+helper catalog check, a later request on the same replacement reader connection
+could select legacy inline checks. Validation remains pending after failure.
+The regression witness fails on `1e1bf2925e` with `guard/missing admitted retry 1`
+and covers missing and altered guard/fence helpers, three refused retries, and
+restoration. This admission-only correction leaves the measured steady-state
+SQL unchanged; `loopback.json` binds the measured release binaries by SHA-256.
+The initial review's other implementation paths had no material findings.
