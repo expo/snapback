@@ -2,6 +2,13 @@
 //! These facts supplement the definition pins. A code label alone cannot tell
 //! a caller whether to retry, replace intent, change a declaration, or show no data.
 pub(super) const ACTIONS: &[(&str, &[&str])] = &[
+    ("E_DEV_ACCOUNTS", &["Use devAccounts only on development; seedAccounts for staging and provisionAccounts for production. guide staging."]),
+    ("E_SERVE_STOP_FAILED", &["Inspect shutdown handlers; a successful proof command cannot clear this failure. guide testing."]),
+    ("E_SERVE_THEN_FAILED", &["Cleanup still checks group shutdown and lock release; repair the callback and rerun. guide testing."]),
+    ("E_SERVE_THEN_TIMEOUT", &["Inspect stuck work; commands are stopped with the owned serve group, callbacks must honor their signal. guide testing."]),
+    ("E_WITNESS_ARGUMENTS", &["Named values are compared exactly; handler-owned additional keys are allowed. guide testing."]),
+    ("E_DATA_TRANSACTION_ABORTED", &["No success receipt is issued. Inspect the server outcome and retry through the identified-write path with the original intent id. See snapback4 guide deploy."]),
+
     ("E_PRODUCTION_ROSTER", &["Inspect the roster and deployment. Keep credentials with their store; use stable arguments and never silently create replacement accounts."]),
     ("E_PRODUCTION_ROSTER_BUSY", &["Wait for its driver. After confirming an interrupted driver is gone, inspect partial grants and remove only that roster lock; setup is not rolled back."]),
     ("E_SERVE_CHECK", &["Check options with serve-check --help and rerun. No passing script qualification is claimed."]),

@@ -1,4 +1,5 @@
 pub const CODES: &[(&str, &str)] = &[
+    ("E_DATA_TRANSACTION_ABORTED", "Postgres confirmed that an early-release data transaction aborted after acknowledged drainage. No success receipt is issued. Inspect the server outcome and retry through the identified-write path with the original intent id. guide deploy."),
     ("E_WITNESS_ARGUMENTS", "beginForm expected must be an argument constraint object or null for dynamic arguments. Named values are compared exactly; handler-owned additional keys are allowed. guide testing."),
     ("E_SERVE_THEN_TIMEOUT", "The serve proof command or callback exceeded thenTimeoutMs. Inspect stuck work; commands are stopped with the owned serve group, callbacks must honor their signal. guide testing."),
     ("E_SERVE_THEN_FAILED", "The serve proof callback failed. Cleanup still checks group shutdown and lock release; repair the callback and rerun. guide testing."),

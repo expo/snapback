@@ -137,6 +137,13 @@ fn w11_every_registered_code_quotes_its_definition() {
 // independent of the paragraph selector: do not regenerate them to bless a new
 // first mention. Whitespace may change; the reason for the code must survive.
 const DEFINITIONS: &[(&str, &str)] = &[
+    ("E_DEV_ACCOUNTS", "E_DEV_ACCOUNTS means development account setup requires startDev with password identity."),
+    ("E_SERVE_STOP_FAILED", "E_SERVE_STOP_FAILED means the npm serve script exited unsuccessfully during shutdown."),
+    ("E_SERVE_THEN_FAILED", "E_SERVE_THEN_FAILED means the serve proof callback failed."),
+    ("E_SERVE_THEN_TIMEOUT", "E_SERVE_THEN_TIMEOUT means the serve proof command or callback exceeded thenTimeoutMs."),
+    ("E_WITNESS_ARGUMENTS", "E_WITNESS_ARGUMENTS means beginForm expected must be an argument constraint object or null for dynamic arguments."),
+    ("E_DATA_TRANSACTION_ABORTED", "E_DATA_TRANSACTION_ABORTED means postgres confirmed that the early-release data transaction aborted after acknowledged drainage."),
+
     ("E_PRODUCTION_ROSTER", "E_PRODUCTION_ROSTER means the saved production roster is unsafe, changed, or cannot log in as its known principal."),
     ("E_PRODUCTION_ROSTER_BUSY", "E_PRODUCTION_ROSTER_BUSY means the named production roster has an exclusive setup lock."),
     ("E_SERVE_CHECK", "E_SERVE_CHECK means the serve-check invocation or owned-process inspection failed."),

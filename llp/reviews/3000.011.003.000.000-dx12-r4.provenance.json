@@ -1,0 +1,12 @@
+{
+  "date": "2026-10-26T01:41:57.062141+00:00",
+  "round": 4,
+  "scope": "Narrow follow-up on allSettled-before-cleanup correction only; production scope was accepted in round 3.",
+  "family": "OpenAI",
+  "model": "gpt-6.1-sol",
+  "effort": "high",
+  "freshSession": true,
+  "file": "3000.011.003.000.000-dx12-r4.codex.md",
+  "sha256": "05817eee0ecdfb30ebb17adb60eca3cf5275f1139c2071eeb2a5ae3afbecfa17",
+  "verdict": "READY"
+}

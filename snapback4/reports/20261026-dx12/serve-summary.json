@@ -1,0 +1,67 @@
+{
+  "lanes": 8,
+  "passed": 8,
+  "lockReleased": 8,
+  "totalMs": 141178,
+  "medianMs": 2410.0,
+  "rows": [
+    {
+      "lane": "009-snapback-antique-doll-restorations",
+      "ok": true,
+      "commandCode": 0,
+      "ms": 2008,
+      "lockReleased": true
+    },
+    {
+      "lane": "010-snapback-via-ferrata-guided-climbs",
+      "ok": true,
+      "commandCode": 0,
+      "ms": 2533,
+      "lockReleased": true
+    },
+    {
+      "lane": "021-snapback-cotton-gin-runs",
+      "ok": true,
+      "commandCode": 0,
+      "ms": 2287,
+      "lockReleased": true
+    },
+    {
+      "lane": "031-snapback-dryer-vent-cleanings",
+      "ok": true,
+      "commandCode": 0,
+      "ms": 3384,
+      "lockReleased": true
+    },
+    {
+      "lane": "039-snapback-koi-breeder-reservations",
+      "ok": true,
+      "commandCode": 0,
+      "ms": 2181,
+      "lockReleased": true
+    },
+    {
+      "lane": "041-snapback-gramophone-restorations",
+      "ok": true,
+      "commandCode": 0,
+      "ms": 1919,
+      "lockReleased": true
+    },
+    {
+      "lane": "043-snapback-playground-safety-inspections",
+      "ok": true,
+      "commandCode": 0,
+      "ms": 62661,
+      "lockReleased": true
+    },
+    {
+      "lane": "050-snapback-home-generator-servicing",
+      "ok": true,
+      "commandCode": 0,
+      "ms": 64205,
+      "lockReleased": true
+    }
+  ],
+  "initialFailures": "031 missing copied .bin/vite link; 043/050 command runs exceeded the exploratory 45s guard. Dependency links restored and command guard raised to 120s; unmodified scripts passed. No product bounds were raised (default proof deadline was already 120s).",
+  "historicalBaseline": "Bakeoff \u00a73.1: about 121 minutes excess serve/background waiting in these eight lanes. No new builder-time estimate; measured script replays only."
+}
