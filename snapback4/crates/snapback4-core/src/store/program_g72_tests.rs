@@ -849,7 +849,7 @@ fn g73_single_slot_completion_uses_notification_without_idle_polling() {
     let invocation=|n|Invocation::new("increment",None,Context::new("alice",[("counter".into(),Value::Id(format!("k{n}")))].into()).at(1000));
     for _ in 0..2 {
         let warm=(0..8).map(|n|queue.submit_program(ProgramCommand::new(invocation(n),|_,v|v)).unwrap()).collect::<Vec<_>>();
-        for reply in warm {assert!(reply.wait().unwrap().is_ok());}
+        for reply in warm {let outcome=reply.wait().unwrap();assert!(outcome.is_ok(),"notification warmup: {outcome:?}");}
     }
     control.query_one("SELECT pg_advisory_lock($1)",&[&key]).unwrap();
     control.batch_execute(&format!("CREATE FUNCTION wf_idle_hold() RETURNS trigger LANGUAGE plpgsql AS $f$ BEGIN PERFORM pg_advisory_xact_lock({key}); RETURN NEW; END $f$; CREATE CONSTRAINT TRIGGER wf_idle_hold AFTER INSERT ON _commits DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION wf_idle_hold()")).unwrap();

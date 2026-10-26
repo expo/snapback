@@ -255,7 +255,7 @@ fn g73_backend_termination_during_trailing_commit_is_unknown() {
 #[test]
 #[ignore="private Postgres"]
 fn g73_stage_p_final_checks_refuse_before_tail_and_commit() {
-    for fault in ["guard", "fence", "array_nulls", "namespace"] {
+    for (resumed,fault) in [false,true].into_iter().flat_map(|resumed| ["guard", "fence", "array_nulls", "namespace"].map(move |fault|(resumed,fault))) {
         let mut engine=fixture();let mut client=observer(&mut engine);
         client.batch_execute("CREATE SEQUENCE wf_final_tail_entered; CREATE SEQUENCE wf_final_commit_entered;
             CREATE FUNCTION wf_final_entry() RETURNS trigger LANGUAGE plpgsql AS $f$
@@ -268,7 +268,12 @@ fn g73_stage_p_final_checks_refuse_before_tail_and_commit() {
         } else {None};
         let before=engine.seq().unwrap();
         let store=engine.store_mut().test_postgres_handle_mut().store.get_mut();
-        let tx=stage(store);let xid=tx.batch_base.borrow().as_ref().unwrap().xid.clone();
+        let tx=stage(store);
+        let tx=if resumed {
+            let frozen=tx.suspend_program(None,std::time::Instant::now()+std::time::Duration::from_secs(10)).unwrap();
+            store.resume_program(frozen).unwrap()
+        } else {tx};
+        let xid=tx.batch_base.borrow().as_ref().unwrap().xid.clone();
         let sabotage=match fault {
             "guard"|"fence" => {
                 let signature:String=client.query_one("SELECT pg_catalog.format('%I.%I(%s)',n.nspname,p.proname,pg_get_function_identity_arguments(p.oid)) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname=current_schema() AND p.proname LIKE $1", &[&format!("_sb4_{fault}_%")]).unwrap().get(0);

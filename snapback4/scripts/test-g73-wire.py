@@ -5,7 +5,7 @@ config=dict(re.findall(r'(host|port|user|dbname)=([^ ]+)',os.environ['SNAPBACK4_
 server=socket.socket();server.bind(('127.0.0.1',0));server.listen(64);server.settimeout(.2)
 stop=threading.Event();lock=threading.Lock();records=[];sockets=[];workers=[];next_id=0
 fault=os.environ.get('WF_WIRE_FAULT');injected=False
-delay_ms=int(os.environ.get('WF_WIRE_DELAY_MS','0'));forward_delays=[]
+delay_ms=int(os.environ.get('WF_WIRE_DELAY_MS','0'));forward_delays=[];combined_orders=[]
 assert delay_ms in [0,300] and not (delay_ms and fault)
 
 def read(s,n):
@@ -48,6 +48,7 @@ def connection(front,ident):
       commit=payload.rfind(b'COMMIT')
       ordered=bool(guard and fence and guard.start()<fence.start()<tail and
                    (deadline<0 or tail<deadline<commit))
+      if final and tail>=0:combined_orders.append(dict(connection=ident,ordered=ordered))
       replies.append(dict(final=final,error=None,commit=False,cut=cut,combined=bool(final and tail>=0),checks_before_data=ordered))
      if cut and fault=='before-forward':
       front.shutdown(socket.SHUT_RDWR);back.shutdown(socket.SHUT_RDWR);return
@@ -111,10 +112,10 @@ finally:
 finals=[r for r in records if r['combined']]
 checks={'complete_idle_commits':sum(r['commit'] and r['rfq']=='I' and r['error'] is None for r in finals),'assertion_aborts_skip_commit':sum(r['error']=='S4003' and r['rfq']=='E' and not r['commit'] for r in finals),'ticket_timeouts_skip_commit':sum(r['error'] in ['55P03','57014'] and r['rfq']=='E' and not r['commit'] for r in finals),'identity_aborts_skip_commit':sum(r['error'] in ['S4004','S4005'] and r['rfq']=='E' and not r['commit'] for r in finals)}
 checks['cumulative_deadline_aborts_skip_commit']=sum(r['error']=='S4006' and r['rfq']=='E' and not r['commit'] for r in finals)
-pathlib.Path(os.environ.get('WF_WIRE_OUT','/tmp/wf-wire.json')).write_text(json.dumps({'checks':checks,'records':records,'forward_delays':forward_delays,'child_exit':child.returncode},indent=2))
+pathlib.Path(os.environ.get('WF_WIRE_OUT','/tmp/wf-wire.json')).write_text(json.dumps({'checks':checks,'records':records,'forward_delays':forward_delays,'child_exit':child.returncode,'combined_orders':combined_orders},indent=2))
 print(json.dumps(dict(checks, fault=fault,injected=injected,forward_delays=forward_delays)),flush=True)
 assert child.returncode==0
-assert all(r['checks_before_data'] for r in finals)
+assert combined_orders and all(r['ordered'] for r in combined_orders)
 if delay_ms:
  assert len(forward_delays)==2 and len({r['connection'] for r in forward_delays})==1
  assert all(r['delay_us']>=delay_ms*1000 for r in forward_delays)

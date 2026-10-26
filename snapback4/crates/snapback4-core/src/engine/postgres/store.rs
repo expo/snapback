@@ -1227,7 +1227,9 @@ impl Tx<'_> {
 }
 impl Store {
     pub(crate) fn resume_program(&mut self, frozen: super::writer_slot::Suspended) -> Result<Tx<'_>, RuntimeError> {
-        // No BEGIN, fence or facts are repeated: this is the same open server transaction.
+        // Resume the same open transaction without another BEGIN or facts
+        // flight. Its final message must still repeat the provisioned fence.
+        let owner=if let Some(checks)=self.check_functions.borrow().as_ref() {checks.fence(self.fence.as_ref())?} else {super::ownership::Fence::raising_command(self.fence.as_ref())?};
         let mut tx = self.begin_resuming(Some(WriteMode::Serialized), false, false, true)?;
         tx.pipeline = true;
         tx.release_epoch = frozen.release_epoch;
@@ -1243,7 +1245,7 @@ impl Store {
         let inner = tx.inner.get_mut();
         inner.pending = frozen.pending;
         inner.checks = frozen.checks;
-        inner.owner = None;
+        inner.owner = Some(owner);
         inner.started = true;
         Ok(tx)
     }

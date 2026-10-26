@@ -109131,3 +109131,21 @@ The corrected witness drifts to a second valid same-generation store instead;
 it now passes all four after-opener fault cases (1/0) with neither tail nor
 COMMIT-entry sequence called. This changes witness setup only. The complete
 G7 repeat, Stage P, core/binary, wire and remaining checks use this fixture.
+
+The first loopback sample exposed the resumable writer seam still clearing its
+owner command (`resume_program`). The initial wire assertion examined only
+completed replies, which missed finals lost before ReadyForQuery. The stronger
+wire witness records ordering when dispatch is observed; its before-forward
+control fails on unchanged `ee58886f7a` (Rust fault test 1/0, wire-order refusal).
+Resume now rebuilds the qualified fence without a BEGIN/facts flight. The
+final-check witness exercises both direct and suspended/resumed transactions.
+The earlier full-core attempt was stopped under recorded PID custody because
+this production correction superseded its source; its incomplete run is not
+qualification. A fresh complete check starts on the corrected source.
+
+The early notification warmup failed once through the wire proxy and once
+alone; the diagnostic repeat passes with zero idle polls, unchanged bounds and
+unchanged production code. The assertion now prints any returned refusal.
+Those initial failures remain in the report. The preliminary short W4/W5
+loopback sample predates the resume correction and cannot price final code;
+one final W4-only sample replaces it, without a campaign or capacity claim.
