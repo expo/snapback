@@ -105,6 +105,7 @@ impl<T> Reply<T> {
 /// retains its solo commits and synchronous continuations.
 pub struct Queue {
     sender: Option<mpsc::SyncSender<Queued>>,
+    notice: Arc<notice::Notice>,
     worker: Option<thread::JoinHandle<()>>,
     admission: Arc<Mutex<Admission>>,
     batching: Arc<Mutex<BatchStats>>,
@@ -167,9 +168,11 @@ impl Queue {
         let stats = batching.clone();
         let admission = Arc::new(Mutex::new(Admission::default()));
         let worker_admission = admission.clone();
+        let notice=Arc::new(notice::Notice::default());
+        let worker_notice=notice.clone();
         let worker = thread::Builder::new().name("snapback4-committer".into())
-            .spawn(move || batching::run(receiver, execute, stats, depth, worker_admission))?;
-        Ok(Self { sender:Some(sender), worker:Some(worker), admission, batching,
+            .spawn(move || batching::run(receiver, execute, stats, depth, worker_admission, worker_notice))?;
+        Ok(Self { notice, sender:Some(sender), worker:Some(worker), admission, batching,
             #[cfg(feature="postgres")] lease:None })
     }
     /// Controlled N=1/4/16/32 witnesses use the same queue and transaction path.
@@ -250,6 +253,7 @@ impl Queue {
         let task = ProgramTask::new(command, sent, ticket);
         self.sender.as_ref().ok_or(SubmitError::Stopped)?.try_send(Queued::Program(Box::new(task)))
             .map_err(|error| match error { mpsc::TrySendError::Full(_) => self.check_admission().err().unwrap_or(SubmitError::Full), mpsc::TrySendError::Disconnected(_) => SubmitError::Stopped })?;
+        self.notice.notify();
         Ok(Reply { receiver, started })
     }
     pub fn submit<T: Send + 'static>(&self, command: Command<T>) -> Result<Reply<T>, SubmitError> {
@@ -265,6 +269,7 @@ impl Queue {
                 }
                 mpsc::TrySendError::Disconnected(_) => SubmitError::Stopped,
             })?;
+        self.notice.notify();
         Ok(reply)
     }
     /// Control work waits at most 100 ms for space (one short scheduling burst).
@@ -293,6 +298,7 @@ impl Queue {
                 }
             }
         }
+        self.notice.notify();
         reply.wait()
     }
     fn check_admission(&self) -> Result<(), SubmitError> {
@@ -458,6 +464,7 @@ impl Drop for LeaseRenewal {
 impl Drop for Queue {
     fn drop(&mut self) {
         drop(self.sender.take());
+        self.notice.notify();
         if let Some(worker) = self.worker.take() {
             // The last host reference can be released by a finishing command.
             if worker.thread().id() != thread::current().id() {
@@ -470,3 +477,6 @@ impl Drop for Queue {
 #[cfg(test)]
 #[path = "command_tests.rs"]
 mod tests;
+
+#[path = "command_notice.rs"]
+mod notice;

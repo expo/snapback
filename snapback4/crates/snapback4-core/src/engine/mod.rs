@@ -1409,3 +1409,6 @@ pub(crate) mod query_response_tests;
 
 #[cfg(feature = "evaluation-support")]
 mod evaluation;
+
+#[cfg(test)]
+pub(crate) mod wf_profile;

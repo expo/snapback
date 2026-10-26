@@ -1,6 +1,6 @@
 //! Ordered SimpleQuery transport. A session owns BEGIN through rollback;
 //! commands retain separate READ COMMITTED snapshots inside each message.
-// @ref LLP 3000.009.001.000.001#35-each-command-keeps-its-own-place — client validation always precedes the separate COMMIT flight.
+// @ref LLP 3000.009.001.000.001#35-each-command-keeps-its-own-place — ordinary client validation precedes COMMIT; G7.3 substitutes server raising checks and widens ambiguity from dispatch.
 use super::{literal, store::CallCounter};
 use crate::RuntimeError;
 use postgres::{ SimpleQueryMessage, Statement, row::RowIndex, types::{FromSql, Type}};

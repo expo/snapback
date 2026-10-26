@@ -89,6 +89,7 @@ fn g72_loopback_relative_sanity_32_clients() {
                     .enumerate()
                     .filter_map(|(n, (a, b))| (a > b).then_some((n, a - b)))
                     .collect::<std::collections::BTreeMap<_, _>>();
+                crate::engine::wf_profile::flush();
                 eprintln!(
                     "G72_MEASURE {}",
                     serde_json::json!({"cell":cell,"depth":depth,"repetition":repetition,"clients":32,"warmup_writes":256,"measured_writes":1280,"seconds":elapsed.as_secs_f64(),"writes_s":1280.0/elapsed.as_secs_f64(),"mean_ms":nanos as f64/1280.0/1e6,"mean_N":mean_n,"in_flight_at_dispatch":in_flight,"N":histogram,"counter_total":total,"load_before":load_before,"load_after":std::fs::read_to_string("/proc/loadavg").ok(),"fsync":settings.get::<_,String>(0),"synchronous_commit":settings.get::<_,String>(1),"full_page_writes":settings.get::<_,String>(2)})

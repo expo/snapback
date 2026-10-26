@@ -91,6 +91,7 @@ pub struct Store {
     pub(super) batch_ordinal: std::sync::Arc<std::sync::atomic::AtomicU64>,
     reader_binding: bool,
     pub(crate) next_program_deadline: Option<std::time::Instant>,
+    dispatch_bound: super::group_final::DispatchBound,
     literal_cache: BTreeMap<String, super::literal::Prepared>,
     cache: BTreeMap<String, Statement>,
     pub calls: CallCounter,
@@ -104,7 +105,7 @@ pub struct Store {
 impl Store {
     pub fn new(client: Client) -> Self { Self::with_connection(super::pipeline::Connection::Sync(client)) }
     pub(super) fn with_connection(client: super::pipeline::Connection) -> Self {
-        Self { early_release: None, read_sessions: Cell::new(false), unified: false, fence: None, read_grant: None, commit_warning: Default::default(), generation:1, read_only: false, client, qualified: false, batch_ordinal: Default::default(), reader_binding: false, next_program_deadline: None, literal_cache: BTreeMap::new(), cache: BTreeMap::new(), calls: CallCounter::new(0), prefetch: true, marked_reads: Cell::new(0), page_reads: Cell::new(0), prefetch_rows: Cell::new(0), prefetch_bytes: Cell::new(0) }
+        Self { early_release: None, read_sessions: Cell::new(false), unified: false, fence: None, read_grant: None, commit_warning: Default::default(), generation:1, read_only: false, client, qualified: false, batch_ordinal: Default::default(), reader_binding: false, next_program_deadline: None, dispatch_bound: Default::default(), literal_cache: BTreeMap::new(), cache: BTreeMap::new(), calls: CallCounter::new(0), prefetch: true, marked_reads: Cell::new(0), page_reads: Cell::new(0), prefetch_rows: Cell::new(0), prefetch_bytes: Cell::new(0) }
     }
 
     // @ref LLP 3000.009.001.000#8 — only future requests reconnect, with fresh binding checks.
@@ -167,7 +168,7 @@ impl Store {
         };
         let inner = super::flight::Session { client: &mut self.client, pending: if cpu_only {String::new()} else {begin.into()}, started: false, done: cpu_only, settings_refused: false, checks: Vec::new(), owner: None, owner_budget: None, continuity:self.early_release.clone(), durability: if mode.is_none() {self.early_release.clone()} else {None}, snapshot: None };
         let tx = Tx { activation_relations: Default::default(), batch_end:RefCell::new(None), early_release:self.early_release.clone(), release_epoch:self.early_release.as_ref().map_or(0,|g|g.epoch()), batch_store_id: self.fence.as_ref().map(|f| f.store_id.clone()), attempt: RefCell::new(if mode.is_some() { super::group_commit::fresh_attempt(self.fence.as_ref().map_or(0, |f| f.token))? } else { String::new() }), batch_ticket: None, predecessor_ticket: None, pipeline: false, batch_base: RefCell::new(None), generation_expected: self.generation, publication: RefCell::new(None), read_grant:self.read_grant.clone(), durable_write: mode.is_some(), revisions: Cell::new(0), lifecycle: opening, read_sessions: &self.read_sessions, read_sessions_installed: Cell::new(false), unified: self.unified, commit_warning: &self.commit_warning, inner: RefCell::new(inner),
-            bind_refused: Cell::new(false), program_deadline: Cell::new(deadline), read_cache: RefCell::new(super::read_plan::Answers::default()), pending_read: RefCell::new(None), receipt_cache: RefCell::new(None), placement_cache: RefCell::new(None), authority_cache: RefCell::new(None), commit_settings: Cell::new(false), literal_cache: RefCell::new(&mut self.literal_cache), cache: RefCell::new(&mut self.cache), calls: &self.calls, marked_reads: &self.marked_reads, page_reads: &self.page_reads, prefetch_rows: &self.prefetch_rows, prefetch_bytes: &self.prefetch_bytes,
+            bind_refused: Cell::new(false), program_deadline: Cell::new(deadline), dispatch_bound: &self.dispatch_bound, read_cache: RefCell::new(super::read_plan::Answers::default()), pending_read: RefCell::new(None), receipt_cache: RefCell::new(None), placement_cache: RefCell::new(None), authority_cache: RefCell::new(None), commit_settings: Cell::new(false), literal_cache: RefCell::new(&mut self.literal_cache), cache: RefCell::new(&mut self.cache), calls: &self.calls, marked_reads: &self.marked_reads, page_reads: &self.page_reads, prefetch_rows: &self.prefetch_rows, prefetch_bytes: &self.prefetch_bytes,
             rows_cache: RefCell::new(super::prefetch::Cache::default()), prefetch_enabled: self.prefetch, head: Cell::new(None), serialized_head: Cell::new(false), tail: RefCell::new(super::tail::Tail::default()), group_head: Cell::new(None), group_tails: RefCell::new(Vec::new()), group_images: Default::default(), changes: Default::default(), savepoints: RefCell::new(Vec::new()) };
         if opening { super::managed_relations::verify(&tx)?; super::managed_relations::capture(&tx)?; }
         if !resuming && self.unified && mode.is_some() {
@@ -298,6 +299,7 @@ impl Store {
     // Parse/SQL PREPARE can retain relation locks until transaction end. Warm
     // the folded setup outside BEGIN so those locks cannot precede the head
     // and deadlock an adoption doing physical upgrades while holding it.
+    pub(super) fn has_prepared_group_final(&self) -> bool { self.cache.contains_key(super::group_final::IDENTITY) }
     pub(super) fn prewarm_flight(&mut self, sql: &'static str) -> Result<(),RuntimeError> {
         let bind = if let Some(bind) = self.cache.get(sql) {bind.clone()} else {
             self.calls.set(self.calls.get()+1);
@@ -432,16 +434,17 @@ pub struct Tx<'a> {
     pub(super) attempt: RefCell<String>,
     pub(super) batch_ticket: Option<i64>,
     pub(super) predecessor_ticket: Option<i64>,
-    pipeline: bool,
+    pub(super) pipeline: bool,
     pub(super) batch_base: RefCell<Option<super::group_commit::Head>>,
     pub(super) generation_expected: u64,
     pub(super) publication: RefCell<Option<super::read_grant::Published>>,
-    read_grant: Option<std::sync::Arc<super::read_grant::Grant>>,
+    pub(super) read_grant: Option<std::sync::Arc<super::read_grant::Grant>>,
     durable_write: bool,
     pub(super) revisions: Cell<u64>,
     // @ref LLP 3000.009.001.000.002#6 — restored images can precede their index/cap population rebuild.
     pub(super) lifecycle: bool,
-    program_deadline: Cell<Option<std::time::Instant>>,
+    pub(super) program_deadline: Cell<Option<std::time::Instant>>,
+    pub(super) dispatch_bound: &'a super::group_final::DispatchBound,
     pub(super) read_sessions: &'a Cell<bool>,
     pub(super) read_sessions_installed: Cell<bool>,
     unified: bool,
@@ -617,6 +620,9 @@ impl Tx<'_> {
 
     /// Only adapter constants are SQL; every value uses RT5's single encoder.
     pub(super) fn flight(&self, commands: &[(&str, &[&(dyn ToSql + Sync)])], end: &str) -> Result<Vec<super::flight::ResultSet>, RuntimeError> {
+        self.flight_end(commands,end,false)
+    }
+    pub(super) fn flight_end(&self, commands: &[(&str, &[&(dyn ToSql + Sync)])], end: &str, committing: bool) -> Result<Vec<super::flight::ResultSet>, RuntimeError> {
         self.ensure_active()?;
         self.refresh_program_budget()?;
         let mut sql = String::new();
@@ -638,11 +644,44 @@ impl Tx<'_> {
             sql.push_str(&command); sql.push(';');
             statements.push(bind);
         }
+        self.ensure_active()?;
+        // @ref LLP 3000.009.001.000.000.002#4.4 — per-statement timeouts cannot bound ticket + tail together; raise before the uncancellable COMMIT.
+        // Compute the duration after encoding, reserving delivery time before
+        // server receipt from recent round trips on this physical writer.
+        // Both elapsed-time timestamps
+        // are server-side, with statement_timestamp fixed for this whole
+        // simple-query message, so client/server clock skew is irrelevant.
+        let final_budget = if committing {
+            self.program_deadline.get().map(|deadline| {
+                deadline.checked_duration_since(std::time::Instant::now())
+                    .and_then(|r|r.checked_sub(self.dispatch_bound.reserve())).filter(|r|!r.is_zero())
+                    .map(|r|r.as_micros().min(i64::MAX as u128))
+                    .ok_or_else(||RuntimeError::Store("program invocation's remaining deadline elapsed".into()))
+            }).transpose()?
+        } else { None };
+        if let Some(us)=final_budget {
+            sql.push_str(&format!("SELECT pg_temp.sb4_assert_deadline({us});"));
+        }
         sql.push_str(end);
+        if committing { self.start_final_dispatch(); }
         let mut inner = self.inner.borrow_mut();
         let controls = inner.pending.bytes().filter(|b| *b == b';').count();
         self.calls.set(self.calls.get() + 1);
-        let messages = inner.simple_query(&sql)?;
+        let dispatched = std::time::Instant::now();
+        let messages = inner.simple_query(&sql);
+        if !committing && self.batch_ticket.is_some() && messages.is_ok() {
+            self.dispatch_bound.observe(dispatched.elapsed());
+        }
+        if committing { self.final_warning()?; }
+        let messages=messages?;
+        if committing {
+            // simple_query returns only after ReadyForQuery. With the complete
+            // trailing COMMIT tag and no error this is an idle successful end.
+            let tags=messages.iter().filter(|m|matches!(m,postgres::SimpleQueryMessage::CommandComplete(_))).count();
+            if tags!=controls+statements.len()+5+usize::from(final_budget.is_some()) || !matches!(messages.last(),Some(postgres::SimpleQueryMessage::CommandComplete(0))) {
+                return Err(RuntimeError::CommitOutcomeUnknown("incomplete two-flight COMMIT confirmation".into()));
+            }
+        }
         super::flight::results(&statements, controls, messages)
     }
 
@@ -758,6 +797,7 @@ impl Tx<'_> {
     }
 
     pub(crate) fn commit_program(self) -> Result<(), crate::engine::committer::outcome::Failure> {
+        if self.two_flight() { return self.commit_group_final(); }
         let early=self.early_release.is_some() && self.batch_ticket.is_some();
         self.commit().map_err(|error| {
             let aborted=matches!(&error,RuntimeError::Store(message) if message.starts_with("E_DATA_TRANSACTION_ABORTED:")) || (!early && matches!(&error,RuntimeError::Postgres(source) if source.code().is_some_and(|code|matches!(code.code(),"40001"|"40P01")||code.code().starts_with("23"))));

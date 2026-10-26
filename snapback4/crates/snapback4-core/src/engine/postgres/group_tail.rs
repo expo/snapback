@@ -1,45 +1,46 @@
-//! One verified vector tail, followed by a separate, uncancellable COMMIT.
+//! Vector tail; eligible S batches assert every count before a co-dispatched COMMIT.
 // @ref LLP 3000.009.001.000.002#3.2 — preserve every intermediate commit/image; advance the head once.
 // @ref LLP 3000.009.001.000.000.002#3.4 — ticket batches advance the complete head identity with one exact CAS.
 use super::store::{Tx, signed};
 use crate::RuntimeError;
 
 macro_rules! tail_sql { ($update:literal, $head:literal, $publication:literal) => { concat!(r#"WITH
+payload AS MATERIALIZED (SELECT $1::text::jsonb AS data),
 head AS ("#, $update, $head, r#"),
 images AS (
- UPDATE r SET data=w.data FROM jsonb_to_recordset(($1::text::jsonb)->'images') AS w(t text,id text,data text)
+ UPDATE r SET data=w.data FROM jsonb_to_recordset((SELECT data FROM payload)->'images') AS w(t text,id text,data text)
  CROSS JOIN head WHERE r.t=w.t AND r.id=w.id RETURNING r.id
 ),
 committed AS (
  INSERT INTO _commits(seq,at,program,principal,kind,touched,writes)
  SELECT c.seq,c.at,c.program,c.principal,c.kind,c.touched,c.writes
- FROM jsonb_to_recordset(($1::text::jsonb)->'commits') AS c(seq bigint,at bigint,program text,principal text,kind text,touched text,writes bigint)
+ FROM jsonb_to_recordset((SELECT data FROM payload)->'commits') AS c(seq bigint,at bigint,program text,principal text,kind text,touched text,writes bigint)
  CROSS JOIN head RETURNING seq
 ), evidence AS (
  INSERT INTO _change_evidence(seq,footprint)
- SELECT c.seq,c.footprint FROM jsonb_to_recordset(($1::text::jsonb)->'commits') AS c(seq bigint,footprint text)
+ SELECT c.seq,c.footprint FROM jsonb_to_recordset((SELECT data FROM payload)->'commits') AS c(seq bigint,footprint text)
  JOIN committed USING(seq) RETURNING seq
 ), pruned AS (
  DELETE FROM _change_evidence WHERE seq > $2-1000 AND seq <= $3-1000 AND EXISTS(SELECT 1 FROM committed)
 ), logged AS (
  INSERT INTO _log(partition,seq,ord,t,kind,id,data)
  SELECT l.partition,l.seq,l.ord,l.t,l.kind,l.id,l.data
- FROM jsonb_to_recordset(($1::text::jsonb)->'log') AS l(partition text,seq bigint,ord bigint,t text,kind text,id text,data text)
+ FROM jsonb_to_recordset((SELECT data FROM payload)->'log') AS l(partition text,seq bigint,ord bigint,t text,kind text,id text,data text)
  JOIN committed USING(seq) RETURNING seq
 ), effects AS (
  INSERT INTO _outbox(id,seq,effect,payload,state,attempts,at,next_at,work_spec,deadline,contract,release)
  SELECT e.id,e.seq,e.effect,e.payload,'queued',0,e.at,e.next_at,e.work,e.deadline,e.contract,
  CASE WHEN e.explicit_release THEN e.release ELSE (SELECT value FROM _meta WHERE key='release') END
- FROM jsonb_to_recordset(($1::text::jsonb)->'effects') AS e(id text,seq bigint,effect text,payload text,at bigint,next_at bigint,work text,deadline bigint,contract text,explicit_release bool,release text)
+ FROM jsonb_to_recordset((SELECT data FROM payload)->'effects') AS e(id text,seq bigint,effect text,payload text,at bigint,next_at bigint,work text,deadline bigint,contract text,explicit_release bool,release text)
  JOIN committed USING(seq) RETURNING id
 ), presence AS (
  INSERT INTO _effect_presence(principal,id,deadline)
- SELECT p.principal,p.id,p.deadline FROM jsonb_to_recordset(($1::text::jsonb)->'presence') AS p(principal text,id text,deadline bigint)
+ SELECT p.principal,p.id,p.deadline FROM jsonb_to_recordset((SELECT data FROM payload)->'presence') AS p(principal text,id text,deadline bigint)
  JOIN effects USING(id) RETURNING id
 ), receipts AS (
  INSERT INTO _ops(principal,id,seq,outcome,name,args_digest,at)
  SELECT r.principal,r.id,r.seq,r.outcome,r.name,r.args_digest,r.at
- FROM jsonb_to_recordset(($1::text::jsonb)->'receipts') AS r(principal text,id text,seq bigint,outcome text,name text,args_digest text,at bigint)
+ FROM jsonb_to_recordset((SELECT data FROM payload)->'receipts') AS r(principal text,id text,seq bigint,outcome text,name text,args_digest text,at bigint)
  CROSS JOIN head RETURNING id
 )
 SELECT (SELECT count(*) FROM head),(SELECT count(*) FROM committed),(SELECT count(*) FROM evidence),
@@ -52,6 +53,11 @@ const CAS_SQL: &str = tail_sql!("UPDATE _head SET seq=$3,revision=$4,attempt=$5 
 const CAS_PUBLICATION_SQL: &str = tail_sql!("UPDATE _head SET seq=$3,revision=$4,attempt=$5 WHERE singleton AND seq OPERATOR(pg_catalog.=) $2 AND revision OPERATOR(pg_catalog.=) $6 AND attempt OPERATOR(pg_catalog.=) $7 ", "RETURNING seq,revision", r#",
  (SELECT revision FROM head),(SELECT seq FROM head),(SELECT generation FROM _backend WHERE singleton),
  (SELECT value FROM _meta WHERE key='store_id'),(SELECT value FROM _meta WHERE key='schema_hash'),(SELECT value FROM _meta WHERE key='activation_hash')"#);
+
+const FINAL_SQL: &str = tail_sql!("UPDATE _head SET seq=$3,revision=$4,attempt=$5 WHERE singleton AND seq OPERATOR(pg_catalog.=) $2 AND revision OPERATOR(pg_catalog.=) $6 AND attempt OPERATOR(pg_catalog.=) $7 ", "RETURNING seq", ",pg_temp.sb4_assert_counts(ARRAY[(SELECT count(*) FROM head),(SELECT count(*) FROM committed),(SELECT count(*) FROM evidence),(SELECT count(*) FROM logged),(SELECT count(*) FROM effects),(SELECT count(*) FROM presence),(SELECT count(*) FROM receipts),(SELECT count(*) FROM images)],$8::bigint[])");
+const FINAL_PUBLICATION_SQL: &str = tail_sql!("UPDATE _head SET seq=$3,revision=$4,attempt=$5 WHERE singleton AND seq OPERATOR(pg_catalog.=) $2 AND revision OPERATOR(pg_catalog.=) $6 AND attempt OPERATOR(pg_catalog.=) $7 ", "RETURNING seq,revision", r#",
+ (SELECT revision FROM head),(SELECT seq FROM head),(SELECT generation FROM _backend WHERE singleton),
+ (SELECT value FROM _meta WHERE key='store_id'),(SELECT value FROM _meta WHERE key='schema_hash'),(SELECT value FROM _meta WHERE key='activation_hash'),pg_temp.sb4_assert_counts(ARRAY[(SELECT count(*) FROM head),(SELECT count(*) FROM committed),(SELECT count(*) FROM evidence),(SELECT count(*) FROM logged),(SELECT count(*) FROM effects),(SELECT count(*) FROM presence),(SELECT count(*) FROM receipts),(SELECT count(*) FROM images)],$8::bigint[])"#);
 
 #[derive(Clone, serde::Serialize)]
 pub(super) struct Receipt {
@@ -127,7 +133,10 @@ impl Tx<'_> {
         }
         self.group_tails.borrow_mut().push(tail);
     }
-    pub(super) fn flush_group_tail(&self) -> Result<(), RuntimeError> {
+    pub(super) fn flush_group_tail(&self) -> Result<(), RuntimeError> { self.flush_group_tail_end(false) }
+    pub(super) fn flush_group_tail_end(&self, committing: bool) -> Result<(), RuntimeError> {
+        #[cfg(test)]
+        let _profile = crate::engine::wf_profile::Scope::new("tail_flight", self.group_tails.borrow().len());
         let Some(first) = self.group_head.get() else {
             return Ok(());
         };
@@ -229,16 +238,20 @@ impl Tx<'_> {
             let attempt = self.attempt.borrow();
             let predecessor = self.predecessor_ticket;
             let predecessor_params: &[&(dyn postgres::types::ToSql + Sync)] = &[&predecessor];
-            let identity_params: &[&(dyn postgres::types::ToSql + Sync)] = &[];
+            let generation = self.generation_expected as i64;
+            let identity_params: &[&(dyn postgres::types::ToSql + Sync)] = if committing { &[&generation,&self.batch_store_id] } else { &[] };
+            let expected_counts: Vec<i64> = expected.iter().map(|n|*n as i64).collect();
             let tail_params: &[&(dyn postgres::types::ToSql + Sync)] = &[&payload, &signed(first)?, &signed(last)?, &revision, &*attempt, &base.revision, &base.attempt];
+            let final_params: &[&(dyn postgres::types::ToSql + Sync)] = &[&payload, &signed(first)?, &signed(last)?, &revision, &*attempt, &base.revision, &base.attempt,&expected_counts];
             let mut commands = Vec::new();
             if predecessor.is_some() { commands.push((super::group_commit::TICKET, predecessor_params)); }
             commands.extend([
-                (super::group_commit::IDENTITY, identity_params),
-                (if self.publication_enabled() { CAS_PUBLICATION_SQL } else { CAS_SQL },
-                 tail_params),
+                (if committing {super::group_final::IDENTITY} else {super::group_commit::IDENTITY}, identity_params),
+                (if committing {if self.publication_enabled() { FINAL_PUBLICATION_SQL } else { FINAL_SQL }} else if self.publication_enabled() { CAS_PUBLICATION_SQL } else { CAS_SQL },
+                 if committing {final_params} else {tail_params}),
             ]);
-            let mut sets = self.flight(&commands, "SET LOCAL statement_timeout=0; SET LOCAL lock_timeout=0")?;
+            let final_controls = format!("{} COMMIT",super::ownership::CERTIFICATE_SETTINGS);
+            let mut sets = self.flight_end(&commands, if committing {&final_controls} else {"SET LOCAL statement_timeout=0; SET LOCAL lock_timeout=0"}, committing)?;
             if predecessor.is_some() { sets.remove(0); }
             let identity = &sets[0].rows[0];
             self.check_batch_identity(identity.get(0), identity.get(1))?;

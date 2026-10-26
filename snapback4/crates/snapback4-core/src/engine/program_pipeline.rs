@@ -66,6 +66,8 @@ mod lane {
         result: Result<Option<Published>, Failure>,
         #[cfg(any(test, feature = "test-support"))]
         timing: crate::round_trips::CommitTiming,
+        #[cfg(test)]
+        confirmed: std::time::Instant,
     }
     type Finish = Box<dyn FnOnce(&mut Engine, Vec<Outcome>) + Send>;
     struct Flight {
@@ -107,6 +109,7 @@ mod lane {
         pub paused: bool,
         recovery_after: Option<std::time::Instant>,
         recovery_delay: std::time::Duration,
+        completion_notify: Option<std::sync::Arc<dyn Fn() + Send + Sync>>,
         recovery_allowed: Option<std::sync::Arc<dyn Fn() -> bool + Send + Sync>>,
         #[cfg(test)]
         pub hook: Option<super::super::postgres::writer_slot::Hook>,
@@ -115,6 +118,7 @@ mod lane {
         flights: VecDeque<Flight>,
     }
     impl Lane {
+        pub fn set_completion_notify(&mut self, notify: std::sync::Arc<dyn Fn() + Send + Sync>) {self.completion_notify=Some(notify);}
         pub fn new() -> Self {
             Self {
                 spare: None,
@@ -125,6 +129,7 @@ mod lane {
                 paused: false,
                 recovery_after: None,
                 recovery_delay: std::time::Duration::from_millis(10),
+                completion_notify: None,
                 recovery_allowed: None,
                 #[cfg(test)]
                 hook: None,
@@ -394,6 +399,10 @@ mod lane {
             finish: Finish,
             chain: Chain,
         ) {
+            #[cfg(test)]
+            let dispatched = std::time::Instant::now();
+            #[cfg(test)]
+            let n = batch.len();
             let durability = engine.store.durability().map(|d| (d, frozen.release_epoch));
             let slot = self.active_slot;
             let (replacement, next_slot) = self.spare.take().unwrap_or_else(|| {
@@ -405,6 +414,7 @@ mod lane {
             let (send, receiver) = mpsc::sync_channel(1);
             #[cfg(any(test, feature = "test-support"))]
             let attribution = batch[0].attribution.clone();
+            let notify=self.completion_notify.clone();
             self.drivers[slot].send(Box::new(move || {
                 #[cfg(any(test, feature = "test-support"))]
                 let _attribution = attribution.map(crate::round_trips::Handle::enter);
@@ -428,12 +438,17 @@ mod lane {
                         nanos: after.nanos - before.nanos,
                     }
                 };
+                #[cfg(test)]
+                crate::engine::wf_profile::record("final", dispatched.elapsed(), 0, n);
                 let _ = send.send(Finished {
+                    #[cfg(test)]
+                    confirmed: std::time::Instant::now(),
                     store,
                     result,
                     #[cfg(any(test, feature = "test-support"))]
                     timing,
                 });
+                if let Some(notify)=notify {notify();}
             }));
             self.flights.push_back(Flight {
                 batch,
@@ -475,9 +490,15 @@ mod lane {
                 result,
                 #[cfg(any(test, feature = "test-support"))]
                 timing,
+                #[cfg(test)]
+                confirmed,
             } = result.expect("slot always returns custody");
             #[cfg(any(test, feature = "test-support"))]
             crate::round_trips::add_commit_timing(timing);
+            #[cfg(test)]
+            {crate::engine::wf_profile::record("done_to_poll", confirmed.elapsed(), 0, flight.batch.len());crate::engine::wf_profile::confirmed(confirmed);}
+            #[cfg(test)]
+            let _profile = crate::engine::wf_profile::Scope::new("release_callbacks", flight.batch.len());
             self.restore(engine, store, flight.slot);
             let result = result.and_then(|value| {
                 if let Some((d, epoch)) = &flight.durability {
@@ -508,6 +529,8 @@ mod lane {
                         result,
                         #[cfg(any(test, feature = "test-support"))]
                         timing,
+                        #[cfg(test)]
+                        confirmed: _,
                     } = next.receiver.recv().expect("slot terminal result");
                     #[cfg(any(test, feature = "test-support"))]
                     crate::round_trips::add_commit_timing(timing);

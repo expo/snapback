@@ -796,7 +796,7 @@ fn g6_already_admitted_writer_rolls_back_if_gate_refuses_dispatch() {
 
 #[test]
 #[ignore = "private PG16"]
-fn g6_group_tail_publishes_returned_head_and_revision_in_three_flights() {
+fn g6_group_tail_publishes_returned_head_and_revision_in_two_flights() {
     let (mut w, digest, viewer, mut lease, mut c) = fixture_owned();
     w.seed_at((0..4).map(|n| ("counters".into(), crate::value::object([
         ("id", Value::Id(format!("r1-{n}"))), ("n", Value::Int(0)),
@@ -815,7 +815,7 @@ fn g6_group_tail_publishes_returned_head_and_revision_in_three_flights() {
     let outcomes = w.invoke_program_batch(&mut invocations());
     let flights = trips.counts().postgres; drop(trips);
     assert!(outcomes.iter().all(Result::is_ok), "{outcomes:?}");
-    assert_eq!(flights, 3, "fused fenced batch facts, apply+publication tail, separate COMMIT");
+    assert_eq!(flights, 2, "fused fenced batch facts, raising apply/publication tail with COMMIT");
     let after = revision(&mut w);
     assert_eq!(after, (before.0 + 4, before.1 + 4));
     let persisted = c.query_one("SELECT h.revision,h.seq,b.generation,(SELECT value FROM _meta WHERE key='store_id'),(SELECT value FROM _meta WHERE key='schema_hash'),(SELECT value FROM _meta WHERE key='activation_hash') FROM _head h CROSS JOIN _backend b WHERE h.singleton AND b.singleton", &[]).unwrap();

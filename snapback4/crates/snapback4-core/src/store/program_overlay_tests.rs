@@ -559,7 +559,7 @@ fn overlay_owned_commit_loss_and_takeover() {
     held.wait().unwrap();
     let until = Instant::now() + Duration::from_secs(10);
     let pid = loop {
-        if let Some(row)=control.query_opt("SELECT pid FROM pg_stat_activity WHERE application_name=$1 AND query='COMMIT' AND wait_event='advisory'",&[&format!("sb:{id}:b001:1")]).unwrap(){break row.get::<_,i32>(0);}
+        if let Some(row)=control.query_opt("SELECT pid FROM pg_stat_activity WHERE application_name=$1 AND state='active' AND wait_event='advisory'",&[&format!("sb:{id}:b001:1")]).unwrap(){break row.get::<_,i32>(0);}
         assert!(Instant::now() < until);
         std::thread::sleep(Duration::from_millis(5));
     };
@@ -828,7 +828,7 @@ fn counts_with_grant(pg: bool, g6: bool) {
                 if repetition == 3 {
                     eprintln!("G3b RT0 pg={pg} g6={g6} shared={shared} N={n}: {measured:?}");
                     if pg && n > 1 {
-                        assert_eq!(measured.postgres, if shared { 4 } else { 3 });
+                        assert_eq!(measured.postgres, if shared { 3 } else { 2 });
                     }
                 }
             }
@@ -1226,7 +1226,7 @@ fn g72_queued_second_wave_interprets_while_first_commit_is_held() {
     let barrier=queue.submit(Command::new(move|_|{started.send(()).unwrap();resume.recv_timeout(Duration::from_secs(10)).unwrap();})).unwrap();
     ready.recv_timeout(Duration::from_secs(10)).unwrap();
     let (interpreted,seen)=mpsc::channel();let published=Arc::new(AtomicUsize::new(0));
-    let replies=(0..16).map(|i| {
+    let replies=(0..24).map(|i| {
         let signal=interpreted.clone();let count=published.clone();
         let intent=invocation(i).instrument(move|run|{run();if i>=8 {signal.send(()).unwrap();}});
         queue.submit_program(ProgramCommand::new(intent,move|_,v|{count.fetch_add(1,Ordering::SeqCst);v})).unwrap()
@@ -1234,15 +1234,19 @@ fn g72_queued_second_wave_interprets_while_first_commit_is_held() {
     release.send(()).unwrap();barrier.wait().unwrap();
     let until=Instant::now()+Duration::from_secs(10);
     loop {
-        let waiting:bool=watch.query_one("SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE application_name=$1 AND query='COMMIT' AND wait_event='advisory')",&[&tag]).unwrap().get(0);
+        let waiting:bool=watch.query_one("SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE application_name=$1 AND state='active' AND wait_event='advisory')",&[&tag]).unwrap().get(0);
         if waiting {break;}assert!(Instant::now()<until,"first final must reach held COMMIT");std::thread::sleep(Duration::from_millis(1));
     }
     let overlap=seen.recv_timeout(Duration::from_secs(1)).is_ok();
     let early=published.load(Ordering::SeqCst);
+    let polls=queue.batch_stats().result_polls;
+    std::thread::sleep(Duration::from_millis(20));
+    let idle_polls=queue.batch_stats().result_polls-polls;
     watch.query_one("SELECT pg_advisory_unlock($1)",&[&key]).unwrap();
     let results=replies.into_iter().map(|r|r.wait().unwrap()).collect::<Vec<_>>();
     drop(queue);watch.batch_execute("DROP TRIGGER g72_queue_hold ON _commits;DROP FUNCTION g72_queue_hold()").unwrap();
     assert!(overlap,"the second wave must interpret before the first COMMIT confirmation");
+    assert!(idle_polls<=2,"held results must wait for notification, got {idle_polls} idle polls");
     assert_eq!(early,0,"no continuation or reply may pass the held first COMMIT");
     assert!(results.iter().all(Result::is_ok));
 }

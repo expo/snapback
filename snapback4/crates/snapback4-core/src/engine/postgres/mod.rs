@@ -594,3 +594,5 @@ pub(crate) fn evaluation_namespace(name: &str) -> Result<String, RuntimeError> {
     if !name.starts_with("sb4_eval_") { return Err(RuntimeError::Input("evaluation schema must start with sb4_eval_".into())); }
     namespace(name)
 }
+
+mod group_final;

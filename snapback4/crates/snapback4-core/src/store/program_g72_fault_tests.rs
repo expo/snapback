@@ -622,12 +622,8 @@ fn g72_takeover_terminates_both_tagged_slots_and_reopens_with_fresh_token() {
     let acquisition = lease.acquire().unwrap().unwrap();
     assert_eq!(acquisition.token, 1);
     for pid in pids {
-        assert!(
-            client
-                .query_opt("SELECT pid FROM pg_stat_activity WHERE pid=$1", &[&pid])
-                .unwrap()
-                .is_none()
-        );
+        // pg_terminate_backend may return before activity cleanup is visible.
+        wait(||client.query_opt("SELECT pid FROM pg_stat_activity WHERE pid=$1", &[&pid]).unwrap().is_none());
     }
     hold.open();
     lane.drain(&mut engine);

@@ -698,7 +698,7 @@ mod faults;
 
 #[test]
 #[ignore = "private Postgres"]
-fn g72_two_slot_rt0_is_three_flights_per_eligible_batch_for_every_n() { two_slot_rt0(false); }
+fn g72_two_slot_rt0_is_two_flights_per_eligible_batch_for_every_n() { two_slot_rt0(false); }
 #[test]
 #[ignore = "private Postgres"]
 fn g7e_two_slot_rt0_includes_marker_in_three_flights_for_every_n() { two_slot_rt0(true); }
@@ -781,8 +781,8 @@ fn two_slot_rt0(early:bool) {
             });
             assert_eq!(
                 scope.counts().postgres,
-                6,
-                "g6={g6} N={n}: exactly three flights on each slot"
+                if early {6} else {4},
+                "g6={g6} N={n}: S two flights / E three flights on each slot"
             );
         }
     }
@@ -818,4 +818,58 @@ fn g72_second_writer_leaves_29_physical_readers_within_32_total() {
         "two writers plus 29 readers; a production owner adds the 32nd connection"
     );
     drop(readers);
+}
+
+#[test]
+#[ignore="controlled private wire-loss witness"]
+fn g73_lost_combined_message_never_reruns_or_publishes() {
+    if std::env::var("WF_WIRE_LOSS").as_deref()!=Ok("1") {return;}
+    let mut engine=fixture(true);let mut client=observer(&mut engine);let mut lane=Lane::new();
+    let xids=Arc::new(Mutex::new(Vec::new()));let capture=xids.clone();
+    lane.hook=Some(Arc::new(move |w|{if w.point==Point::BeforeFinal {capture.lock().unwrap().push(w.xid);}Ok(())}));
+    let out=Arc::new(Mutex::new(Vec::new()));let capture=out.clone();
+    lane.start(&mut engine,members(0),Box::new(move |_,values|capture.lock().unwrap().extend(values)));
+    lane.drain(&mut engine);
+    let out=out.lock().unwrap();assert_eq!(out.len(),8);
+    assert!(out.iter().all(|v|v.as_ref().err().is_some_and(|e|e.code=="E_COMMIT_OUTCOME_UNKNOWN")),"{out:?}");
+    assert_eq!(xids.lock().unwrap().len(),1,"no automatic rerun after final dispatch");
+    let state=sql_status(&mut client,&xids.lock().unwrap()[0]);
+    assert!(matches!(state.as_str(),"aborted"|"committed"));
+    contiguous(&mut client);
+}
+
+#[test]
+#[ignore="private Postgres single-slot notification witness"]
+fn g73_single_slot_completion_uses_notification_without_idle_polling() {
+    use crate::engine::command::{Command,ProgramCommand,Queue};
+    let mut engine=fixture(true);let mut control=observer(&mut engine);
+    let tag=format!("sb:{}:0000:0",engine.store_id);
+    let key=(crate::ids::seed()&i64::MAX as u64)as i64;
+    let queue=Queue::start_fixed(engine,32,8).unwrap();
+    let invocation=|n|Invocation::new("increment",None,Context::new("alice",[("counter".into(),Value::Id(format!("k{n}")))].into()).at(1000));
+    for _ in 0..2 {
+        let warm=(0..8).map(|n|queue.submit_program(ProgramCommand::new(invocation(n),|_,v|v)).unwrap()).collect::<Vec<_>>();
+        for reply in warm {assert!(reply.wait().unwrap().is_ok());}
+    }
+    control.query_one("SELECT pg_advisory_lock($1)",&[&key]).unwrap();
+    control.batch_execute(&format!("CREATE FUNCTION wf_idle_hold() RETURNS trigger LANGUAGE plpgsql AS $f$ BEGIN PERFORM pg_advisory_xact_lock({key}); RETURN NEW; END $f$; CREATE CONSTRAINT TRIGGER wf_idle_hold AFTER INSERT ON _commits DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION wf_idle_hold()")).unwrap();
+    let (entered,ready)=mpsc::channel();let (release,resume)=mpsc::channel();
+    let barrier=queue.submit(Command::new(move|_|{entered.send(()).unwrap();resume.recv_timeout(Duration::from_secs(10)).unwrap();})).unwrap();
+    ready.recv_timeout(Duration::from_secs(10)).unwrap();
+    let replies=(0..8).map(|n|queue.submit_program(ProgramCommand::new(invocation(n),|_,value|value)).unwrap()).collect::<Vec<_>>();
+    let baseline=queue.batch_stats().result_polls;
+    release.send(()).unwrap();barrier.wait().unwrap();
+    wait(||control.query_one("SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE application_name=$1 AND state='active' AND wait_event='advisory')",&[&tag]).unwrap().get::<_,bool>(0));
+    let until=Instant::now()+Duration::from_millis(200);
+    while queue.batch_stats().result_polls==baseline && Instant::now()<until {std::thread::sleep(Duration::from_millis(1));}
+    let before=queue.batch_stats().result_polls;
+    std::thread::sleep(Duration::from_millis(20));
+    let polls=queue.batch_stats().result_polls-before;
+    control.query_one("SELECT pg_advisory_unlock($1)",&[&key]).unwrap();
+    let values=replies.into_iter().map(|r|r.wait().unwrap()).collect::<Vec<_>>();
+    drop(queue);
+    assert!(values.iter().all(Result::is_ok));
+    eprintln!("G73_IDLE_POLLS {{\"polls\":{polls},\"before\":{before},\"baseline\":{baseline}}}");
+    assert!(before>baseline,"witness must hold a dispatched async slot");
+    assert!(polls<=2,"one held slot must await notification: {polls} idle polls in 20 ms");
 }

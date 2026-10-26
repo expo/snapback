@@ -79,6 +79,7 @@ pub(super) const IDENTITY: &str = "SELECT generation,(SELECT value FROM _meta WH
 
 impl Store {
     pub(crate) fn batch_transaction(&mut self) -> Result<Tx<'_>, RuntimeError> {
+        if self.early_release.is_none() { self.prepare_group_final()?; }
         let store_id = self
             .fence
             .as_ref()

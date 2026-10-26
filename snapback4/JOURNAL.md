@@ -108862,3 +108862,159 @@ the isolated client timer group. Its separately bounded client child remains
 supervised. Preserve the incomplete raw receipt; finish remaining original
 plan commands and compose actual target results, without claiming a successful
 canonical command or rerunning unchanged Rust packages.
+
+## 2026-10-26 — WF: synchronous two-flight final, CPU and notified release
+
+On `5fc6e6449b`, eligible S ticket batches now co-dispatch apply/tail and
+COMMIT. Session-local raising identity checks and all eight count assertions
+precede it. The final settings explicitly select synchronous commit and zero
+statement/lock timeouts plus PG17 transaction timeout. Dispatch starts the
+wider unknown window; only explicit abort evidence plus the original
+transaction's acknowledged end permits recovery. Lost/undecodable results
+cannot turn a possibly committed final into a retryable rollback. The named
+round-trip and store-port amendments land with the implementation.
+
+The tail parses JSONB once. Preparation moves image maps and member contexts;
+static debug proof is checked once per program in the immutable wave, with
+per-member arguments/authority/dependencies retained. Each outcome moves into
+its sole callback. A version/condition notification wakes ordered prefix
+release without occupying mailbox capacity or retaining a sender cycle.
+Full slots still wait for the oldest result before accepting a third wave.
+A held single slot records zero idle polls in 20 ms; the test-only old timer
+records 127 and fails. The held-three-wave witness preserves overlap/order.
+
+All eight suppression cases abort their xids; wire captures ReadyForQuery E
+without COMMIT, while success is idle with COMMIT. Ticket expiry skips
+COMMIT, slow deferred COMMIT survives the reset, and PG17 restores its 80 ms
+session transaction timeout afterward. Lost results at three wire positions
+and termination inside deferred COMMIT remain unknown without rerun.
+S level-zero batches fall 3→2 flights; a dependent level falls 4→3. E stays
+opt-in at three flights, and idle/solo budgets remain unchanged.
+
+Paired loopback W4 residence falls 9.638→8.349 ms, and the 1% mix
+10.005→8.305 ms, at 32 clients with mean N=16 and exact counters. PG tail CPU
+falls 1.378→0.526 ms per probe vector execution; preparation CPU falls
+8–10% and finishing/callback CPU 19–24% per member. These are compact
+fixture checks without HTTP or injected RTT, not S1 qualification; the
+preparation-halving forecast is not achieved here. Ongoing preparation can
+still delay release.
+
+Full core passes 1,311/0 (531 ignored), binary 626/0 (75 ignored), all G7
+88/0, E core/HTTP 40/0 and 5/0, HTTP levers 87/0, both RT0 ratchets 6/0 and
+10/0, private PG17 2/0 plus 5/0, and crash/kill 11/0 with zero acknowledged
+loss or lost-history release. Full Postgres initially reports 817/2: its
+extra obsolete G6 three-flight assertion is corrected and passes 1/0;
+inherited E_INPUT:6 remains, and the stale evaluator lockfile blocks the
+known 40001 stage. Public serving, full binary build and SQLite-only check
+pass. Final test-only additions ran independently over the unchanged product
+implementation. The report records all counts and source fingerprints.
+
+All 30 private cluster directories confirm stopped, the 11,619-pair audit
+has no living helpers or zombies, and minimum free disk is 38.66 GiB.
+No push, publication, protected-cluster access or raw logs committed.
+See [the WF report](reports/20261026-wf-postgres/REPORT.md).
+
+
+## 2026-10-26 — WF fix round 1: cumulative deadline before the combined COMMIT
+
+The review of `55c44e465d` found that S cleared the client deadline at final
+dispatch, while the ticket and tail each received a fresh statement timeout.
+The new deterministic witness holds a real predecessor ticket for 600 ms
+and sleeps 600 ms in the tail under a one-second remaining budget. On the
+unchanged product code it records 604,774 + 600,975 µs and a committed xid
+(0 passed / 1 failed).
+
+The final simple-query message now calls a raising elapsed-budget helper
+after the tail, before the certificate controls and COMMIT. The remaining
+microseconds come from the client monotonic deadline after command encoding;
+server elapsed time is `clock_timestamp() - statement_timestamp()` for that
+message, so client/server clock epochs are never compared. `S4006` plus
+acknowledged rollback proves a known abort. G2/G3 recovery refuses expired
+members and permits one fresh attempt for a peer whose original deadline is
+still live. The ticket-timeout no-peer-rerun rule remains separate, and COMMIT
+still has zero statement, lock and PG17 transaction timeouts.
+
+The focused fixed witness records 605,243 + 601,440 µs, an aborted xid,
+no deferred COMMIT-trigger entry, no retained receipt/effect or head advance,
+and the expired/live recovery split (1/0). G7 suites pass 90/0, including the
+S two-flight ratchet; E core passes 40/0. Private PG17 passes 2/0 timeout cases
+and all 7/0 G7.3 cases. The wire witness requires `S4006`, ReadyForQuery `E`
+and no COMMIT tag, alongside all eight count aborts and three unknown-window
+cuts. Its observer now pairs requests with ReadyForQuery in FIFO order;
+a queued ROLLBACK previously erased one preceding error record. All four
+wire runs pass after that repair.
+
+The review's conservative classification of non-allowlisted server errors
+is retained: safely widening it needs statement-phase evidence. Final full
+verification and process-custody counts are recorded in the
+[WF report](reports/20261026-wf-postgres/REPORT.md). No throughput campaign.
+
+Full verification completes at core 1,311/0 (533 ignored), binary 626/0
+(75 ignored), HTTP authority 87/0, E HTTP 5/0, RT0 6/0 + 10/0, crash/kill
+11/0, and successful binary/SQLite-only builds and `ref-check` (12,048 refs,
+0 errors/unchecked). Full Postgres is 816/4 plus the inherited evaluator
+lockfile block; known `40001` is not re-executed behind that block. Its
+Rust reds are inherited difftest `E_INPUT: 6` and three additional cases:
+`log_plan_hygiene_cold_backend_tail_scan_witness` (99.589 > 70 µs/member),
+`g72_first_ticket_deadline_never_reruns_later_deadline_peers`, and
+`parallel_matches_serial_overlay_postgres` (remaining deadline elapsed).
+After the battery stopped, all five isolated current/pre-fix follow-ups
+pass, including a 9.504 µs/member upgraded cold-plan slope. The original
+concurrent reds remain recorded in the report; no thresholds were weakened.
+All 10 private cluster directories confirm
+stopped, all 10,651 audited PID/birth pairs are gone,
+and minimum free disk is 31.92 GiB. No owned PIDs left.
+
+
+## 2026-10-26 — WF fix round 2: include delivery before server receipt
+
+Review of `e8c2e34d56` identified the unsampled interval between final
+budget selection and server receipt. A socket proxy now holds the real
+opener and final message for 300 ms on the same writer connection. Before
+the fix, a 751 ms tail under a one-second budget commits after 1.069 s;
+the regression fails 0/1 with a committed xid, a called COMMIT-entry
+sequence and idle COMMIT confirmation on the wire.
+
+Each physical writer retains its last 32 successful non-final batch-flight
+RTTs. The final message's budget subtracts their maximum full RTT plus
+5 ms, with a 5 ms minimum; there is no extra round trip. Insufficient
+headroom rolls back before dispatch. Overestimation causes an earlier
+known rollback, while novel delays beyond the historical estimate remain
+an explicit limitation. COMMIT is still uncancellable. The three governing
+LLP sections document the bound and this qualification.
+
+The cumulative witness now requires `is_called = false`: the sequence's
+first `nextval()` leaves `last_value = 1`. A temporary one-call negative
+control falsely passes the old assertion (1/0), and correctly fails the
+strengthened one (0/1). The injection is removed. This corrects round 1's
+claim that the original `last_value`-only probe proved zero COMMIT entry.
+
+The fixed delayed run reserves 306 ms and sends 692 ms of server budget;
+its 751 ms tail now raises `S4006`, confirms an aborted xid and leaves the
+COMMIT-entry sequence uncalled (1/0). Wire verification passes 14/0 across
+five modes. G7 passes 93/0, E core 40/0 and PG17 2/0 + 10/0; eligible S
+batches retain two flights. The historical reserve does not alter original
+per-member recovery deadlines.
+
+The initial full-core run hit the disk floor. Its owned processes and
+cluster were stopped and confirmed, 8.27 GiB of stale duplicate executables
+were removed from this worktree's target, and the incomplete check was
+restarted above the floor.
+
+Final checks pass at full core 1,312/0 (535 ignored), full binary 626/0
+(75 ignored), HTTP authority 87/0, E HTTP 5/0, RT0 6/0 + 10/0 and E
+crash/kill 11/0. Binary and SQLite-only builds pass; ref-check validates
+12,049 references with 0 errors/unchecked. Full Postgres reports 819/1:
+its sole Rust red is inherited difftest `E_INPUT: 6`. Stage P in `sb4-s10a`
+is blocked by the inherited locked evaluator lockfile, so known `40001`
+does not execute. No additional red appears; the prior cold-plan,
+first-ticket-deadline and parallel-overlay flakes all pass this time.
+Public Postgres serving passes. Completed core-only executables were
+reclaimed after their successful run to keep disk above the floor.
+
+The final independent audit confirms all 11 private cluster directories
+stopped (status 3, no PID files), all 9,697 recorded PID/birth pairs gone,
+and no unexpected worktree helpers. Free space is 33.62 GiB. The product,
+tests and proxy retain the same verified source fingerprint. See the
+[WF report](reports/20261026-wf-postgres/REPORT.md). No push or publication;
+no throughput campaign.

@@ -139,6 +139,8 @@ impl<T: Send + 'static> Task for ProgramTask<T> {
             (command.finish)(engine, outcome)
         }));
         sent.complete(Ok(value));
+        #[cfg(test)]
+        crate::engine::wf_profile::reply();
     }
     fn unknown(self: Box<Self>) {
         self.sent.complete(Err(SubmitError::OutcomeUnknown));
@@ -152,6 +154,8 @@ pub enum BatchPolicy {
 }
 #[derive(Clone, Debug, serde::Serialize)]
 pub struct BatchStats {
+    #[cfg(any(test,feature="test-support"))]
+    pub result_polls: u64,
     pub fills: Vec<u64>,
     /// Dispatch samples by number of outstanding batches, including this one.
     pub in_flight_at_dispatch: [u64; 3],
@@ -179,6 +183,8 @@ impl BatchStats {
             }
         };
         Self {
+            #[cfg(any(test,feature="test-support"))]
+            result_polls: 0,
             fills: vec![0; 33],
             in_flight_at_dispatch: [0; 3],
             members: 0,
@@ -270,6 +276,7 @@ pub(super) fn run(
     stats: Arc<Mutex<BatchStats>>,
     depth:usize,
     admission: Arc<Mutex<super::Admission>>,
+    notice: Arc<super::notice::Notice>,
 ) {
     #[cfg(not(feature="postgres"))]
     let _=(depth, &admission);
@@ -289,6 +296,8 @@ pub(super) fn run(
     #[cfg(feature="postgres")]
     let lane={
         let mut lane=super::super::program_pipeline::Lane::new();
+        let completion=notice.clone();
+        lane.set_completion_notify(Arc::new(move ||completion.notify()));
         lane.set_recovery_guard(Arc::new(move || {
             super::latch_expired(&admission);
             !admission.lock().unwrap().lost
@@ -305,15 +314,25 @@ pub(super) fn run(
     let mut arrivals = Arrivals::default();
     loop {
         #[cfg(feature="postgres")]
-        if !lane.lock().unwrap().empty() {
+        let observed=notice.version();
+        #[cfg(feature="postgres")]
+        while !lane.lock().unwrap().empty() {
             let state=lane.clone();
-            execute(Box::new(move |engine|{let mut lane=state.lock().unwrap();let wait=lane.len()==2;lane.poll(engine,wait);}));
+            let before=lane.lock().unwrap().len();
+            #[cfg(any(test,feature="test-support"))]
+            { stats.lock().unwrap().result_polls+=1; }
+            // A third wave stays in the mailbox until an oldest-slot notification
+            // frees capacity. With one slot active, release without polling timers.
+            execute(Box::new(move |engine|{state.lock().unwrap().poll(engine,before==2);}));
+            if lane.lock().unwrap().len()==before {break;}
         }
         let received = if let Some(work)=pending.take() { Ok(work) } else {
             #[cfg(feature="postgres")]
             if !lane.lock().unwrap().empty() {
-                match receiver.recv_timeout(Duration::from_micros(100)) {
-                    Ok(work)=>Ok(work), Err(mpsc::RecvTimeoutError::Timeout)=>continue,
+                // @ref LLP 3000.009.001.000.000.002#3.6 — completions wake the sole release owner; every ready prefix releases before collecting more work.
+                match receiver.try_recv() {
+                    Ok(work)=>Ok(work),
+                    Err(mpsc::TryRecvError::Empty)=>{notice.wait(observed);continue;}
                     Err(_)=>Err(mpsc::RecvError),
                 }
             } else if let Some(gate)=&recovery_gate {
@@ -371,10 +390,19 @@ pub(super) fn run(
                 Err(_) => break,
             }
         }
+        #[cfg(test)]
+        let collected=Instant::now();
+        #[cfg(test)]
+        for task in &tasks {
+            crate::engine::wf_profile::record("queue", started.saturating_duration_since(task.arrived()), 0, 1);
+            crate::engine::wf_profile::record("fill", collected.duration_since(started.max(task.arrived())), 0, 1);
+        }
         let stats = stats.clone();
         #[cfg(feature="postgres")]
         let state=lane.clone();
         execute(Box::new(move |engine| {
+            #[cfg(test)]
+            let _profile = crate::engine::wf_profile::Scope::new("preparation", tasks.len());
             #[cfg(feature="postgres")]
             {
                 let mut lane=state.lock().unwrap();
@@ -404,8 +432,9 @@ pub(super) fn run(
             let finish = move |engine:&mut Engine, outcomes:Option<Vec<Outcome>>| {
                 let latencies:Vec<_>=admitted.iter().map(|i|i.elapsed().as_micros().min(u64::MAX as u128) as u64).collect();
                 stats.lock().unwrap().observe(latencies,count);
+                let mut outcomes=outcomes.map(|outcomes|outcomes.into_iter().map(Some).collect::<Vec<_>>());
                 for (task,slot) in slots {
-                    if let Some(outcomes)=&outcomes {task.finish(engine,match slot {Ok(i)=>outcomes[i].clone(),Err(why)=>Err(why)});}
+                    if let Some(outcomes)=&mut outcomes {task.finish(engine,match slot {Ok(i)=>outcomes[i].take().expect("one callback per invocation"),Err(why)=>Err(why)});}
                     else {task.unknown();}
                 }
             };

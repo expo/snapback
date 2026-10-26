@@ -86,6 +86,8 @@ impl Wave {
         plans: Vec<Closure>,
     ) -> Result<Option<Self>, RuntimeError> {
         assert_eq!(plans.len(),indices.len(),"one validated plan per member");
+        #[cfg(test)]
+        let _profile = crate::engine::wf_profile::Scope::new("facts_interpret", indices.len());
         let requests = indices
             .iter()
             .map(|&i| Request {

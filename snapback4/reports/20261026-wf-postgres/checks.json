@@ -1,0 +1,180 @@
+{
+  "checks": [
+    {
+      "name": "core",
+      "exit": 0,
+      "passed": 1311,
+      "failed": 0,
+      "ignored": 531,
+      "seconds": 1464.2
+    },
+    {
+      "name": "build",
+      "exit": 0,
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0,
+      "seconds": 47.1
+    },
+    {
+      "name": "binary",
+      "exit": 0,
+      "passed": 626,
+      "failed": 0,
+      "ignored": 75,
+      "seconds": 284.1
+    },
+    {
+      "name": "levers-http",
+      "exit": 0,
+      "passed": 87,
+      "failed": 0,
+      "ignored": 0,
+      "seconds": 215.9
+    },
+    {
+      "name": "early",
+      "exit": 0,
+      "passed": 40,
+      "failed": 0,
+      "ignored": 0,
+      "seconds": 125.5
+    },
+    {
+      "name": "early-http",
+      "exit": 0,
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "seconds": 84.2
+    },
+    {
+      "name": "g72",
+      "exit": 0,
+      "passed": 88,
+      "failed": 0,
+      "ignored": 0,
+      "seconds": 250.8
+    },
+    {
+      "name": "g73",
+      "exit": 0,
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "seconds": 185.3
+    },
+    {
+      "name": "rt0-core",
+      "exit": 0,
+      "passed": 6,
+      "failed": 0,
+      "ignored": 0,
+      "seconds": 17.2
+    },
+    {
+      "name": "rt0-http",
+      "exit": 0,
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "seconds": 17.2
+    },
+    {
+      "name": "sqlite-only",
+      "exit": 0,
+      "passed": 0,
+      "failed": 0,
+      "ignored": 0,
+      "seconds": 9.4
+    },
+    {
+      "name": "pg17",
+      "exit": 0,
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "seconds": 2.6,
+      "store": "PG17"
+    },
+    {
+      "name": "g73-pg17",
+      "exit": 0,
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "seconds": 2.6,
+      "store": "PG17"
+    },
+    {
+      "name": "g6-ratchet",
+      "exit": 0,
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "seconds": 88.2,
+      "expected_failure": false
+    },
+    {
+      "name": "notification",
+      "exit": 0,
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "seconds": 1.6,
+      "expected_failure": false
+    },
+    {
+      "name": "legacy-timer",
+      "exit": 101,
+      "passed": 0,
+      "failed": 1,
+      "ignored": 0,
+      "seconds": 2.6,
+      "expected_failure": true
+    },
+    {
+      "name": "postgres",
+      "exit": 1,
+      "passed": 817,
+      "failed": 2,
+      "ignored": 0,
+      "seconds": 3027.6,
+      "targets": 26,
+      "resolved": "G6 expected budget 3\u21922; targeted g6-ratchet passes",
+      "remaining": "inherited difftest E_INPUT:6; evaluator --locked stale lockfile blocks known40001 stage"
+    },
+    {
+      "name": "core-plan-argument-levers",
+      "passed": 2,
+      "failed": 0,
+      "within": "full core/Postgres script"
+    }
+  ],
+  "wire": {
+    "complete_idle_commits": 1,
+    "assertion_aborts_skip_commit": 8,
+    "ticket_timeouts_skip_commit": 1,
+    "identity_aborts_skip_commit": 2
+  },
+  "lost_reply_cuts": {
+    "passed": 3,
+    "failed": 0
+  },
+  "crash": {
+    "passed": 11,
+    "failed": 0,
+    "acknowledged_write_loss": 0,
+    "lost_history_reader_released": false
+  },
+  "qualification_note": "Final edits add only a test-only legacy polling switch, a single-slot witness and the corrected G6 ratchet. Complete batteries cover the same product implementation; the added/changed witnesses run separately. Counts overlap; do not sum suites.",
+  "reference_check": {
+    "exit": 0,
+    "llp_docs": 569,
+    "references": 12047,
+    "errors": 0,
+    "unchecked": 0
+  },
+  "full_battery_source_fingerprint": "1bde246c0f7b2f748f5d37cf1a53e4791149bc25001b1e0a4b1f4c6cb05c5c18",
+  "final_source_fingerprint": "95cdeeb860ec5f885404d413c5058b264d48d3eb642b8640acca8fee7c4c6a55"
+}

@@ -29,6 +29,8 @@ pub(crate) struct Suspended {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Point {
     BeforeFinal,
+    // In S these are local staged-tail / dispatch checkpoints: the server
+    // tail and COMMIT have no client hook between them. E keeps three flights.
     AfterTail,
     BeforeCommit,
     AfterCommit,
@@ -159,6 +161,27 @@ impl Store {
                 Ok(())
             }
         };
+        if tx.two_flight() {
+            #[cfg(test)]
+            let ready = before.and_then(|()|hook_check(Point::AfterTail)).and_then(|()|hook_check(Point::BeforeCommit));
+            #[cfg(not(test))]
+            let ready: Result<(),RuntimeError> = Ok(());
+            if let Err(error)=ready {
+                let rollback=tx.rollback();
+                let aborted=rollback.is_ok();
+                let error=match rollback {Ok(())=>error,Err(rollback)=>RuntimeError::CommitOutcomeUnknown(format!("slot rollback unacknowledged: {rollback}; original: {error}"))};
+                return Err(Failure{error,aborted,member:None});
+            }
+            #[cfg(any(test,feature="test-support"))]
+            let started=Instant::now();
+            let result=tx.commit_group_final();
+            #[cfg(any(test,feature="test-support"))]
+            crate::round_trips::committed_in(started.elapsed());
+            result?;
+            #[cfg(test)]
+            if let Err(error)=hook_check(Point::AfterCommit) {return Err(Failure{error:RuntimeError::CommitOutcomeUnknown(format!("lost final confirmation: {error}")),aborted:false,member:None});}
+            return Ok(tx.publication.borrow().clone());
+        }
         #[cfg(test)]
         let prepared = before
             .and_then(|()| tx.flush_tail())

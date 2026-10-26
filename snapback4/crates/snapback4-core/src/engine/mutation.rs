@@ -185,7 +185,8 @@ pub(super) fn program_attempt<'m, 's>(host: &ProgramHost<'_>, tx: super::committ
                 return Err(RuntimeError::UnknownOp(format!("{name} is a job: a schedule fires it, or `snapback4 run {name}` does; no caller can")));
             }
             // @ref LLP 3000.009.001.000.002#33-in-batch-concurrent-execution-under-the-head-lock — only a wave's validated closure proves static admission for this host; arguments and final authority remain per member.
-            debug_assert!(!admission_checked || super::admission::check(host.schema,program).is_ok());
+            // The wave checks the static debug proof once per distinct program;
+            // all argument and final authority checks below remain per member.
             let validated=if admission_checked {validate::validate_arguments(host.schema,program,&mut context.args)}
                 else {validate::validate_inputs(host.schema,program,&mut context.args)};
             if let Err(error) = validated {

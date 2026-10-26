@@ -1,0 +1,223 @@
+{
+  "recorded_pid_birth_pairs": 11619,
+  "private_cluster_directories": 30,
+  "clusters": [
+    {
+      "directory": "/tmp/s10d3-serve-q5xq9f15/data",
+      "pid": 3839721,
+      "birth": "1556314333",
+      "pg_ctl_status": 3,
+      "postmaster_pid_absent": true
+    },
+    {
+      "directory": "/tmp/sb4-g7e-crash-a6m86teb/data",
+      "pid": 3846585,
+      "birth": "1556336785",
+      "pg_ctl_status": 3,
+      "postmaster_pid_absent": true
+    },
+    {
+      "directory": "/tmp/wf-after/data",
+      "pid": 3781613,
+      "birth": "1556014356",
+      "pg_ctl_status": 3,
+      "postmaster_pid_absent": true
+    },
+    {
+      "directory": "/tmp/wf-after17/data",
+      "pid": 3788324,
+      "birth": "1556088663",
+      "pg_ctl_status": 3,
+      "postmaster_pid_absent": true
+    },
+    {
+      "directory": "/tmp/wf-after2/data",
+      "pid": 3782496,
+      "birth": "1556023574",
+      "pg_ctl_status": 3,
+      "postmaster_pid_absent": true
+    },
+    {
+      "directory": "/tmp/wf-after3/data",
+      "pid": 3786117,
+      "birth": "1556065463",
+      "pg_ctl_status": 3,
+      "postmaster_pid_absent": true
+    },
+    {
+      "directory": "/tmp/wf-focus/data",
+      "pid": 3762502,
+      "birth": "1555819379",
+      "pg_ctl_status": 3,
+      "postmaster_pid_absent": true
+    },
+    {
+      "directory": "/tmp/wf-focus2/data",
+      "pid": 3763431,
+      "birth": "1555825384",
+      "pg_ctl_status": 3,
+      "postmaster_pid_absent": true
+    },
+    {
+      "directory": "/tmp/wf-focus3/data",
+      "pid": 3765225,
+      "birth": "1555848646",
+      "pg_ctl_status": 3,
+      "postmaster_pid_absent": true
+    },
+    {
+      "directory": "/tmp/wf-focus4/data",
+      "pid": 3767010,
+      "birth": "1555872116",
+      "pg_ctl_status": 3,
+      "postmaster_pid_absent": true
+    },
+    {
+      "directory": "/tmp/wf-focus5/data",
+      "pid": 3768583,
+      "birth": "1555887329",
+      "pg_ctl_status": 3,
+      "postmaster_pid_absent": true
+    },
+    {
+      "directory": "/tmp/wf-focus6/data",
+      "pid": 3772528,
+      "birth": "1555931224",
+      "pg_ctl_status": 3,
+      "postmaster_pid_absent": true
+    },
+    {
+      "directory": "/tmp/wf-idle-final/data",
+      "pid": 3855186,
+      "birth": "1556418848",
+      "pg_ctl_status": 3,
+      "postmaster_pid_absent": true
+    },
+    {
+      "directory": "/tmp/wf-idle-final2/data",
+      "pid": 3858232,
+      "birth": "1556461028",
+      "pg_ctl_status": 3,
+      "postmaster_pid_absent": true
+    },
+    {
+      "directory": "/tmp/wf-measure-base/data",
+      "pid": 3760556,
+      "birth": "1555799812",
+      "pg_ctl_status": 3,
+      "postmaster_pid_absent": true
+    },
+    {
+      "directory": "/tmp/wf-measure-before/data",
+      "pid": 3759384,
+      "birth": "1555782444",
+      "pg_ctl_status": 3,
+      "postmaster_pid_absent": true
+    },
+    {
+      "directory": "/tmp/wf-mutant/data",
+      "pid": 3778313,
+      "birth": "1555982853",
+      "pg_ctl_status": 3,
+      "postmaster_pid_absent": true
+    },
+    {
+      "directory": "/tmp/wf-native-final/data",
+      "pid": 3789561,
+      "birth": "1556093283",
+      "pg_ctl_status": 3,
+      "postmaster_pid_absent": true
+    },
+    {
+      "directory": "/tmp/wf-paired-final/data",
+      "pid": 3860173,
+      "birth": "1556492200",
+      "pg_ctl_status": 3,
+      "postmaster_pid_absent": true
+    },
+    {
+      "directory": "/tmp/wf-postgres/data",
+      "pid": 3786952,
+      "birth": "1556076741",
+      "pg_ctl_status": 3,
+      "postmaster_pid_absent": true
+    },
+    {
+      "directory": "/tmp/wf-profile-app-final/data",
+      "pid": 3862847,
+      "birth": "1556508172",
+      "pg_ctl_status": 3,
+      "postmaster_pid_absent": true
+    },
+    {
+      "directory": "/tmp/wf-profile-base/data",
+      "pid": 3762645,
+      "birth": "1555820398",
+      "pg_ctl_status": 3,
+      "postmaster_pid_absent": true
+    },
+    {
+      "directory": "/tmp/wf-profile-pg-after/data",
+      "pid": 3775877,
+      "birth": "1555961441",
+      "pg_ctl_status": 3,
+      "postmaster_pid_absent": true
+    },
+    {
+      "directory": "/tmp/wf-profile-pg-base/data",
+      "pid": 3767767,
+      "birth": "1555882170",
+      "pg_ctl_status": 3,
+      "postmaster_pid_absent": true
+    },
+    {
+      "directory": "/tmp/wf-profile-pg-final/data",
+      "pid": 3788319,
+      "birth": "1556088651",
+      "pg_ctl_status": 3,
+      "postmaster_pid_absent": true
+    },
+    {
+      "directory": "/tmp/wf-wire-final/data",
+      "pid": 3789602,
+      "birth": "1556093400",
+      "pg_ctl_status": 3,
+      "postmaster_pid_absent": true
+    },
+    {
+      "directory": "/tmp/wf-wire/data",
+      "pid": 3773356,
+      "birth": "1555939711",
+      "pg_ctl_status": 3,
+      "postmaster_pid_absent": true
+    },
+    {
+      "directory": "/tmp/wf-wire2/data",
+      "pid": 3774692,
+      "birth": "1555952464",
+      "pg_ctl_status": 3,
+      "postmaster_pid_absent": true
+    },
+    {
+      "directory": "/tmp/wf-wire3/data",
+      "pid": 3774935,
+      "birth": "1555954182",
+      "pg_ctl_status": 3,
+      "postmaster_pid_absent": true
+    },
+    {
+      "directory": "/tmp/wf-wire4/data",
+      "pid": 3777377,
+      "birth": "1555971179",
+      "pg_ctl_status": 3,
+      "postmaster_pid_absent": true
+    }
+  ],
+  "two_empty_inspections": true,
+  "pids_left": [],
+  "target_executables_left": [],
+  "drivers_left": [],
+  "private_ports_exclude_55440": true,
+  "minimum_free_GiB": 38.66300964355469,
+  "final_free_GiB": 38.66537094116211
+}
