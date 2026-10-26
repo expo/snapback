@@ -358,6 +358,7 @@ fn activate(
         if let Some(origin)=options.flags.get("source-release").and_then(|v|v.parse::<u64>().ok()){result["sourceRelease"]=origin.into();}
         result["live"]=live_identity(dir,release)?;
         if options.json {println!("{}",result);} else {
+            completed_verdict(options);
             print_live(&result["live"]);
             println!("release {release} is current as generation {}; {}; running serve adopted the release",result["generation"],result["adoption"].as_str().unwrap_or("adopted"));
             if let Some(origin)=options.flags.get("source-release"){println!("  retained source {origin} requalified as release {release} to register its current rollback views");}
@@ -375,6 +376,7 @@ fn report(verb: &str, result: Result<(), String>) -> i32 {
     match result {
         Ok(()) => 0,
         Err(error) => {
+            if verb!="deploy" {eprintln!("{verb} verdict: REFUSED");}
             eprintln!("{verb}: {error}");
             1
         }
@@ -410,7 +412,7 @@ pub fn deploy(options: &Options) -> i32 {
             if options.flags.contains_key("staging") {
                 staging::classify(&dir, _deployment.as_ref(), existed, checking)?;
             }
-            if let Some(notice)=staging::clock_notice(&dir){eprintln!("{notice}");}
+            let clock_notice=staging::clock_notice(&dir);
             std::fs::create_dir_all(dir.join("releases")).map_err(|e| e.to_string())?;
             let held = if checking {
                 if dir.join("store.sqlite").exists() {snapback4_core::store_port::AnyStore::open_read_only(&dir.join("store.sqlite")).and_then(|mut s|s.release_status(0,None,None)).map_err(|e|e.to_string())?}
@@ -493,7 +495,7 @@ pub fn deploy(options: &Options) -> i32 {
                     std::fs::remove_dir_all(&stage).map_err(|e|e.to_string())?;
                     if let Some(saved) = &mut saved_version { saved.finish(previous,&source_hash)?; }
                     if options.json {println!("{}",serde_json::json!({"unchanged":true,"release":previous,"generation":held["generation"],"live":live_identity(&dir,previous)?}));}
-                    else {print_live(&live_identity(&dir,previous)?);println!("deploy verdict: UNCHANGED; {}",super::security::release_verdict(security_summary.as_ref()));println!("unchanged; release {previous} stays current as generation {}",held["generation"]);}
+                    else {println!("deploy verdict: UNCHANGED; {}",super::security::release_verdict(security_summary.as_ref()));print_live(&live_identity(&dir,previous)?);println!("unchanged; release {previous} stays current as generation {}",held["generation"]);if let Some(notice)=&clock_notice {eprintln!("{notice}");}}
                     return Ok(());
                 }
             }
@@ -581,12 +583,13 @@ pub fn deploy(options: &Options) -> i32 {
                     return Err(error);
                 }
             }
+            if let Some(notice)=clock_notice {eprintln!("{notice}");}
             Ok(())
         })();
     if !options.json {
-        if let Err(error)=&result {eprintln!("deploy: {error}");eprintln!("deploy verdict: REFUSED; {}",super::security::release_verdict(security_summary.as_ref()));}
+        if result.is_err() && failure_problems.is_none() {eprintln!("deploy verdict: REFUSED; {}",super::security::release_verdict(security_summary.as_ref()));}
         super::security::print_release(security_summary.as_ref());
-        eprintln!("deploy verdict: {}; {}",if result.is_ok(){"READY / completed"}else{"REFUSED"},super::security::release_verdict(security_summary.as_ref()));
+
     }
     if options.json {if let Err(error)=&result {println!("{}",serde_json::json!({"ok":false,"message":error,"dormant":failure_inventory,"compilation":failure_problems,"security":security_summary.as_ref().and_then(|s|serde_json::from_str::<serde_json::Value>(s).ok())}));}}
     report("deploy",result)
@@ -628,10 +631,11 @@ pub fn rollback(options: &Options) -> i32 {
             }
             let previous=view.as_ref().map(|v|v.release).unwrap_or(logical);
             if let Some(view)=&view {
-                eprintln!("rollback target: release {} via bridge {} (registered by release {})",view.target,view.release,view.parent);
-                for reason in &view.hides {eprintln!("intentional rollback hiding: {reason}");}
+                if options.flags.contains_key("verbose") {eprintln!("rollback target: release {} via bridge {} (registered by release {})",view.target,view.release,view.parent);
+                for reason in &view.hides {eprintln!("intentional rollback hiding: {reason}");}}
             }
             let mut selected_options=options.clone();
+            selected_options.flags.insert("output-verb".into(),"rollback".into());
             if !options.flags.contains_key("exact"){selected_options.flags.insert("visible-rollback".into(),String::new());}
             if let Some(view)=&view{selected_options.flags.insert("rollback-view".into(),serde_json::to_string(view).unwrap());}
             let options=&selected_options;
@@ -639,7 +643,7 @@ pub fn rollback(options: &Options) -> i32 {
             let bound = bound_at(dir.join("releases").join(previous.to_string()))?;
             // @ref LLP 3000.000.000#14-wave-14-rollback-narration — resolve bare/latest selection visibly before any preview or live activation.
             let target_line=format!("resolved rollback target: release {previous} (current release {active})");
-            if options.json {eprintln!("{target_line}");} else {println!("{target_line}");}
+            if options.flags.contains_key("verbose") {if options.json {eprintln!("{target_line}");} else {println!("{target_line}");}}
             let legacy_refusal=|error:String| {
                 if view.is_none() && !options.flags.contains_key("exact") && parent_predates_views(&dir.join("releases").join(active.to_string())) {
                     format!("{error}; this parent predates rollback views; deploy the current source with this CLI to register needed views, or explicitly select the historical workflow with `snapback4 rollback {} --to {logical} --exact` (preview its hiding with --check first)",dir.display())
@@ -712,7 +716,14 @@ pub fn releases(options: &Options) -> i32 {
                 selectable(&dir,n)?;let root=dir.join("releases").join(n.to_string());bound_at(root.clone())?;
                 result["selected"]=serde_json::json!({"release":n,"current":result["release"].as_u64()==Some(n),"digest":crate::release_files::digest(&root)?});
             }
-            println!("{}", serde_json::to_string_pretty(&result).unwrap());
+            if options.json {println!("{}", serde_json::to_string_pretty(&result).unwrap());}
+            else {
+                println!("releases verdict: READY; current {}; latest {}; generation {}",result["current"],result["latest"],result["generation"]);
+                print_live(&result["live"]);
+                println!("{} events; {} dormant items on this page; next: releases --json for full evidence and paging; --review for details",result["events"].as_array().map_or(0,Vec::len),result["items"].as_array().map_or(0,Vec::len));
+                if let Some(selected)=result.get("selected") {println!("selected: {selected}");}
+                if options.flags.contains_key("review")||options.flags.contains_key("verbose") {println!("{}",serde_json::to_string_pretty(&result).unwrap());}
+            }
             super::sql::dormant_notice(super::sql::dormant_rows(&retained), "use `snapback4 sql 'SELECT …' --release <dir> --dormant` to inspect them");
             Ok(())
         })(),
@@ -967,9 +978,12 @@ mod tests {
     }
 }
 
+fn completed_verdict(options:&Options) {
+    println!("{} verdict: READY / completed; {}",options.flags.get("output-verb").map(String::as_str).unwrap_or("deploy"),super::security::release_verdict(options.flags.get("security-summary")));
+}
 fn receipt(release:u64,generation:u64,report:&snapback4_core::store_port::report::AdoptionReport,options:&Options,live:&serde_json::Value){
     if options.json {println!("{}",serde_json::json!({"live":live,"sourceRelease":options.flags.get("source-release").and_then(|s|s.parse::<u64>().ok()),"release":release,"generation":generation,"adoption":report.compact(),"details":report.summary(),"backfills":report.backfills,"security":options.flags.get("security-summary").and_then(|s|serde_json::from_str::<serde_json::Value>(s).ok()),"rollbackView":options.flags.get("rollback-view").and_then(|s|serde_json::from_str::<serde_json::Value>(s).ok()),"preview":options.flags.get("release-preview").and_then(|s|serde_json::from_str::<serde_json::Value>(s).ok())}));}
-    else {print_live(live);println!("release {release} is current as generation {generation}; {}",report.compact());if let Some(origin)=options.flags.get("source-release"){println!("  retained source {origin} requalified as release {release} to register its current rollback views");}for fill in &report.backfills {println!("  backfill: {fill}");}if options.flags.contains_key("verbose"){println!("{}",report.summary());}}
+    else {completed_verdict(options);print_live(live);println!("release {release} is current as generation {generation}; {}",report.compact());if let Some(origin)=options.flags.get("source-release"){println!("  retained source {origin} requalified as release {release} to register its current rollback views");}for fill in &report.backfills {println!("  backfill: {fill}");}if options.flags.contains_key("verbose"){println!("{}",report.summary());}}
 }
 pub(super) fn latest(dir:&Path)->Result<u64,String>{
     std::fs::read_dir(dir.join("releases")).map_err(|e|e.to_string())?.filter_map(Result::ok)

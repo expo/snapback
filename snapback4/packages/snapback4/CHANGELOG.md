@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.43
+
+### Guide changes
+
+- Test anything against an app's npm serve script with `serve-check --then '<cmd>'` or `withServeScript`; startup, command deadlines, process-group shutdown and lock release are owned by the kit. Never write a serve driver. Readiness stays private; commands receive it through environment variables.
+- Deploy, rollback and releases lead with verdict and live identity. Advisory decisions are counted; `--review` expands them and `--verbose` expands previews. JSON retains full evidence.
+- `renderedText` scrolls unique candidates into view, including Expo web document scrolling. `devAccounts` provisions real development password users with the production helper's plan and return shape. `beginForm` accepts a subset of argument constraints, retaining exact checks on named values and trusted-click custody.
+
 ## 0.4.42
 
 ### Guide changes

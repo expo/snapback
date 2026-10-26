@@ -156,7 +156,8 @@ impl App {
         o
     }
     fn json(&self, args: &[&str]) -> Value {
-        let o = self.ok(args);
+        let mut flags=args.to_vec();if !flags.contains(&"--json") {flags.push("--json");}
+        let o = self.ok(&flags);
         serde_json::from_slice(&o.stdout).unwrap_or_else(|e| panic!("{e}: {}", text(&o)))
     }
     fn seed(&self, source: &str, rows: Vec<Value>) {
@@ -350,14 +351,8 @@ fn deploy_verdict_leads_scoped_security_is_last_and_json_keeps_all_notes() {
     let stdout = String::from_utf8_lossy(&out.stdout);
     let stderr = String::from_utf8_lossy(&out.stderr);
     assert!(stdout.starts_with("deploy verdict: READY"), "{stdout}");
-    assert!(
-        stderr
-            .lines()
-            .last()
-            .unwrap()
-            .starts_with("deploy verdict: READY"),
-        "{stderr}"
-    );
+    assert!(!stderr.contains("decision "), "advisory decisions require --review: {stderr}");
+    assert!(stderr.contains("advisory decisions:"), "{stderr}");
     let full = app.json(&[
         "deploy",
         "deployment",

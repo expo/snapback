@@ -108687,3 +108687,17 @@ including propagated Expo body overflow, while ordinary clips still exclude
 text. beginForm constrains named arguments rather than silently losing a claim
 when the handler adds an id. LLP 3000.011.003.000.000 §17 records the contracts.
 Linux packed/browser/process regressions pass; native Mac execution is skipped.
+
+### 2026-10-26 — DX12: short release output
+
+Deploy uses DX11's render_mode: gates/refutations remain actionable; advisory
+decisions are counted and expanded with --review. Activation leads with verdict
+then REL's live identity and keeps validation previews behind --verbose.
+Releases is compact by default and retains structured evidence with --json.
+Fifty identical copied wave-29 schemas deploy successfully in both controls:
+median complete stdout+stderr is 33 lines with published 0.4.42 and 5 with DX12.
+All eight Muse serve/client-call pairs finish through the kit, with every lock
+released: 141.178 s total, median 2.410 s. The two slow call scripts themselves
+take about a minute; no new builder-time savings are claimed. Existing release
+and security semantics are unchanged (REL2/SEC10 own those). LLP 3000.036.004
+§19.1 records presentation; detailed evidence is in reports/20261026-dx12.

@@ -1,4 +1,9 @@
 pub const CODES: &[(&str, &str)] = &[
+    ("E_WITNESS_ARGUMENTS", "beginForm expected must be an argument constraint object or null for dynamic arguments. Named values are compared exactly; handler-owned additional keys are allowed. guide testing."),
+    ("E_SERVE_THEN_TIMEOUT", "The serve proof command or callback exceeded thenTimeoutMs. Inspect stuck work; commands are stopped with the owned serve group, callbacks must honor their signal. guide testing."),
+    ("E_SERVE_THEN_FAILED", "The serve proof callback failed. Cleanup still checks group shutdown and lock release; repair the callback and rerun. guide testing."),
+    ("E_SERVE_STOP_FAILED", "The npm serve script exited unsuccessfully during shutdown. Inspect shutdown handlers; a successful proof command cannot clear this failure. guide testing."),
+    ("E_DEV_ACCOUNTS", "Development account setup requires startDev with password identity. Use devAccounts only on development; seedAccounts for staging and provisionAccounts for production. guide staging."),
     ("N_TABLE_QUESTIONNAIRE", "Role-wide access and restating invariants share one table questionnaire. Answer from the specification; JSON retains every underlying note and individual decision ID. The grouped line is advisory and has no separate ID. Advisory only. guide security."),
     ("N_APPROVAL_NOT_ENFORCED", "An approval flag is written but not inspected by a lifecycle transition. Decide which transitions require approval, declare independent intent, and test both gating boolean values. Advisory only. guide security."),
     ("N_EDIT_AFTER_APPROVAL", "A checked value or media artifact can change without a positive creation-state restriction. Decide whether approval must be renewed after edits or replacements; declare column update intent. Advisory only. guide security."),

@@ -10,7 +10,7 @@ try { console.log(dev.url); } finally { await cleanup(() => dev.stop()); }
 ```
 
 To verify a brief's `probe:serve` process, use `snapback4 serve-check
---deployment staging --script probe:serve`: it checks one JSON readiness line,
+--deployment staging --script probe:serve --then 'node scripts/acceptance.mjs'`. Never write a serve driver. Without --then it checks one JSON readiness line,
 30 seconds alive, group SIGTERM cleanup and store release. Password starters
 include `npm run --silent probe:check`, which runs that same helper against a
 fresh deployment. Use this as the process verification driver; it withholds
@@ -275,8 +275,9 @@ Without it, beginForm/mutate throws E_WITNESS_DISABLED: add &witness=web.
 After signing in, get the actual submit button Element from the page.
 beginForm(name, expected | null, button) arms one durable mutation.
 name is the generated operation name; undefined accepts any durable operation.
-expected matches canonical JSON exactly: object key order is ignored.
-Include every argument, including explicit nulls; null skips argument matching.
+expected constrains the named arguments: key order is ignored, nested values match canonical JSON exactly.
+Handler-owned extra arguments (such as generated IDs) are allowed; null skips argument matching.
+A mismatched named argument produces E_WITNESS_UNCLAIMED in formResult; the real application write still runs.
 Click the armed button with Playwright; script clicks do not qualify.
 A synchronous form onSubmit caused by that button also qualifies.
 Timers or later requestSubmit calls do not inherit a prior click.
@@ -499,7 +500,7 @@ separately. Script stdout may contain credentials and is never echoed or saved.
 Use a disposable copy of production: this runs the script's real startup work.
 Never tail a live serve pipeline or signal only npm; signal the owned group.
 
-The same check is available to a Node driver:
+The same liveness check is available from Node:
 
 ```js
 import { serveCheck } from "snapback4/proof";
@@ -507,6 +508,31 @@ const result = await serveCheck({ script: "prod:serve", deployment: "production"
 console.log(JSON.stringify(result));
 if (!result.ok) process.exitCode = 1;
 ```
+
+For any test against a running app, use `npx snapback4 serve-check --deployment production --script prod:serve --then 'npm run client:calls'`.
+Never write a serve driver: the runner starts the real npm script, waits for its
+first JSON line, runs the command, stops the entire group and waits for the lock.
+The command receives `SNAPBACK4_SERVE_JSON` (the complete readiness object),
+`SNAPBACK_URL`/`BACKEND_URL` and `FRONTEND_URL`. Treat readiness as credentials:
+never print it. The exit status is the command's status; a startup or shutdown
+failure makes an otherwise successful command fail. `--then-timeout-ms` defaults
+to 120000; a hung command is reported separately from missing startup JSON,
+early serve exit, children ignoring TERM and a retained store lock.
+
+For an in-process proof callback, use this complete example (set `probe:serve`
+and its deployment first). Callback work must honor its AbortSignal or bound
+its own browser/network operations; cleanup runs even when the callback throws.
+<!-- DX12 RUN SERVE BEGIN -->
+```js
+import assert from "node:assert/strict";
+import { withServeScript } from "snapback4/proof";
+await withServeScript("probe:serve", async (ready, signal) => {
+  const response = await fetch(`${ready.backendUrl}/auth/config`, { signal });
+  assert.equal(response.ok, true);
+  assert.equal((await response.json()).development, false);
+}, { deployment: "production", thenTimeoutMs: 30000 });
+```
+<!-- DX12 RUN SERVE END -->
 
 ## Production moves in a stage script
 
@@ -521,15 +547,14 @@ await rollback("production", 1);
 ```
 
 With a live owner, the same moves use its authenticated local control path.
-This variant owns that serve and waits for its lock release during cleanup:
+This variant tests the real npm serve script and waits for its lock release:
 
 ```js
-import { deploy, rollback, startServe } from "snapback4/proof";
-const host = await startServe("production");
-try {
+import { deploy, rollback, withServeScript } from "snapback4/proof";
+await withServeScript("prod:serve", async () => {
   await deploy("production", "versions/v2");
   await rollback("production", 1);
-} finally { await host.stop(); }
+}, { deployment: "production" });
 ```
 
 If another script already owns serve, use the first variant and leave shutdown

@@ -121,13 +121,14 @@ pub(super) fn release_loop(project:&Project,bound:&Bound,sources:&[(String,Strin
     let acknowledged=derived.iter().filter(|n|report.notes.iter().zip(&dispositions).any(|(r,d)|r.site==n.site&&r.code==n.code&&r.message==n.message&&d.acknowledged)).map(|n|n.site.to_string()).collect::<std::collections::BTreeSet<_>>();
     let pending=super::security_reviews::pending(&dispositions);
     let fixes=report.invariants.iter().filter(|v|v.status==security::Status::Refuted&&v.counterexample.as_ref().is_some_and(|c|c.reachability.is_reachable())&&(!security::derived::is_derived(&v.invariant)||!acknowledged.contains(&v.invariant.site.to_string()))).count();
-    eprintln!("security deploy campaign: {} ms; bounded replay, remaining paths retain coverage gaps",started.elapsed().as_millis());
+    if options.flags.contains_key("verbose") { eprintln!("security deploy campaign: {} ms; bounded replay, remaining paths retain coverage gaps",started.elapsed().as_millis()); }
     let scope=release_scope(bound,prior,sources);
-    let mut notice=String::from("SECURITY REVIEW — rules changed; changed tables and operations only\n");
+    let review=options.flags.contains_key("review")||options.flags.contains_key("verbose");
+    let mut notice=String::new();
     for v in report.invariants.iter().filter(|v|v.status==security::Status::Refuted&&v.counterexample.as_ref().is_some_and(|c|c.reachability.is_reachable())){
         let c=v.counterexample.as_ref().unwrap();
         if security::derived::is_derived(&v.invariant)&&acknowledged.contains(&v.invariant.site.to_string()){
-            notice.push_str(&format!("  REVIEWED derived {}: individual specification decision retained\n",v.invariant.target_label()));continue;
+            if review {notice.push_str(&format!("  REVIEWED derived {}: individual specification decision retained\n",v.invariant.target_label()));} continue;
         }
         notice.push_str(&format!("  FIX {} {}: refuted via {} as {} ({:?}); repair enforcement to match intent, then run snapback4 test\n",v.invariant.site,v.invariant.target_label(),c.operation,c.viewer,c.reachability));
         if !security::derived::is_derived(&v.invariant) {
@@ -165,18 +166,20 @@ pub(super) fn release_loop(project:&Project,bound:&Bound,sources:&[(String,Strin
     notes.sort_by_key(|n|crate::note_rank::summary_order(&n.code));
     let count=notes.len();
     // Never suppress a gate or write-authority question behind the display cap.
-    for (i,n) in notes.into_iter().enumerate(){if crate::note_rank::tier(&n.code)!=crate::note_rank::Tier::Review&&(i<5||security::note_priority(&n.code)<=3){notice.push_str(&format!("  REVIEW {} {}: {}\n    {}\n",n.site,n.code,n.message,n.rewrite));}}
-    if count>5 {notice.push_str(&format!("  {count} changed-scope notes in deploy --check --json\n"));}
+    for (i,n) in notes.into_iter().enumerate(){if review&&crate::note_rank::tier(&n.code)!=crate::note_rank::Tier::Review&&(i<5||security::note_priority(&n.code)<=3){notice.push_str(&format!("  REVIEW {} {}: {}\n    {}\n",n.site,n.code,n.message,n.rewrite));}}
+    if review&&count>5 {notice.push_str(&format!("  {count} changed-scope notes in deploy --check --json\n"));}
     let selected=report.notes.iter().zip(&dispositions).filter(|(n,d)|d.gated || n.code!="N_SECURITY_INTENT" && scope.iter().any(|(file,start,end)| n.site.file==*file&&n.site.line>=*start&&n.site.line<*end)).collect::<Vec<_>>();
     let complete_family=dispositions.iter().filter(|d|d.family.is_some()).count()==selected.iter().filter(|(_,d)|d.family.is_some()).count();
     let scoped_notes=selected.iter().map(|(n,_)|(*n).clone()).collect::<Vec<_>>();
     let scoped_dispositions=selected.iter().map(|(_,d)| {let mut d=(*d).clone(); if !complete_family {d.family=None;} d}).collect::<Vec<_>>();
     // A scoped deploy cannot silently acknowledge unseen family members. It
     // prints their individual commands; ordinary check offers the whole family.
-    notice.push_str(&super::security_reviews::render(&scoped_dispositions,&scoped_notes));
+    notice.push_str(&super::security_reviews::render_mode(&scoped_dispositions,&scoped_notes,review));
     let test=release_notice(project,bound,sources,options);
-    notice.push_str(&format!("  security exposure: {} tables; {} independent invariants; {} coverage gaps\n  {}",report.exposures.len(),bound.invariants.len(),report.campaign_coverage.len(),test));
-    let verdict=format!("security FIX {fixes}; {} pending review; {test}",dispositions.iter().filter(|d|d.gated&&!d.acknowledged).count());
+    let advice=scoped_dispositions.iter().filter(|d|!d.gated).count();
+    notice.push_str(&format!("{}; {advice} advisory decisions: deploy --review (or check --review)\n",enforced_text(&report,bound).replacen("check:","security:",1)));
+    if review||test.contains("run `snapback4 test")||test.contains("FAILED") {notice.push_str(&format!("  {test}\n"));}
+    let verdict=format!("security FIX {fixes}; {} pending review",dispositions.iter().filter(|d|d.gated&&!d.acknowledged).count());
     Ok(Some(serde_json::json!({"notice":notice,"verdict":verdict,"fixes":fixes,"pending":pending,"changedNotes":count,"report":report,"securityReviews":dispositions}).to_string()))
 }
 fn age(timestamp:Option<i64>,now:i64)->String{
@@ -192,7 +195,7 @@ fn release_notice(project:&Project,bound:&Bound,sources:&[(String,String)],optio
         Some(record)=>{
             let result=if !record.complete{"incomplete"}else if record.run_violations.unwrap_or(record.violations.len())>0{"FAILED"}else{"completed, no observed violation"};
             let current=if matches{"matches selected source/fixtures/CLI"}else{"STALE: source, fixtures or CLI differ; does not qualify selected release"};
-            let next=if matches&&record.complete{"matching test campaign recorded (finite, not proof)".into()}else{format!("run `snapback4 test{selection}{fixture}` before deployment")};
+            let next=if matches&&record.complete&&record.run_violations.unwrap_or(record.violations.len())==0{"matching test campaign recorded (finite, not proof)".into()}else{format!("run `snapback4 test{selection}{fixture}` before deployment")};
             format!("last test: {result}, {}; {current}; {} retained reachable refutations, {} coverage gaps; last completed test {}; {next}",age(record.recorded_at,now),record.violations.len(),record.coverage_gaps,age(record.last_completed_at,now))
         },
         None=>format!("last test: NEVER RECORDED; run `snapback4 test{selection}{fixture}` before deployment; no matching completed campaign for this source, fixtures and CLI; {} independent invariants",bound.invariants.len()),

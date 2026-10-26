@@ -48,7 +48,9 @@ Run `npx snapback4 check` to generate the API. Save this as `staging.mjs` next t
 snapback/, then run `node staging.mjs`. Use `node staging.mjs --once` for CI setup
 and shutdown. Set `"probe:serve": "node staging.mjs"` in package.json and run
 `npm run --silent probe:serve` for a single JSON readiness line.
-Verify that process with `npx snapback4 serve-check --deployment staging --script probe:serve`;
+Test any running staging app with `npx snapback4 serve-check --deployment staging --script probe:serve --then 'node scripts/acceptance.mjs'`.
+Never write a serve driver; the command reads SNAPBACK4_SERVE_JSON, SNAPBACK_URL and FRONTEND_URL from its environment and the runner owns shutdown.
+For liveness alone, verify that process with `npx snapback4 serve-check --deployment staging --script probe:serve`;
 password starters provide `npm run --silent probe:check` with a fresh deployment.
 The verifier keeps readiness credentials out of its output and tests startup,
 30 seconds alive, SIGTERM reaping and store release. SIGTERM stops
@@ -250,3 +252,13 @@ A staging clock offset belongs to its deployment store. Every CLI advance and
 redeploy prints the retained offset; rerunning against that directory keeps
 advanced business time. Use a fresh directory for an independent run, and sample
 `host.now()` rather than Date.now() for business timestamps after an advance.
+
+## Development acceptance accounts
+
+For password accounts under `startDev`, use `devAccounts(dev, plan)` or
+`dev.devAccounts(plan)`. It accepts the same `roles`, `provision`, `service`,
+`args(account)` and `timeoutMs` plan as `provisionAccounts`, and returns the same
+role-keyed arrays with email, password, principal and token. It signs up real
+password users and runs the ordinary operator mutation; rules still decide.
+It refuses staging/production hosts before creating users. Use persistent
+`provisionAccounts` for production, and `seedAccounts` for fresh staging batches.

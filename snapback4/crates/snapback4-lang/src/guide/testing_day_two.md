@@ -8,6 +8,13 @@ compiles and builds that UI, then signs in through its production account form.
 The production entry recipe is maintained on `guide production`.
 Adapt the assertions to your own business model when replacing this example.
 
+When adapting an existing app's `prod:serve` or `probe:serve`, run business
+assertions with `serve-check --then 'npm run day2:business'` or
+`withServeScript` (`guide testing --section Check an npm serve script`). Never
+write a serve driver. Keep release moves awaited inside that command/callback;
+read credentials from SNAPBACK4_SERVE_JSON without printing them. The complete
+recipe below owns its disposable deployment and frontend directly.
+
 The proof keeps one live serve process and one browser page through v1 → v2 →
 rollback → forward. It tests real password accounts, a rendered durable write,
 existing-row defaults, a widened title, a new membership, authorization refusals,
