@@ -1,7 +1,9 @@
 // The brief forbids the full crate/client pool even when the selector fails broad.
 // Preserve that plan, then run its affected steps with the explicit lane override.
 import {planAffected,runPlan} from '../../scripts/affected.mjs';
-import {mkdirSync,writeFileSync,copyFileSync} from 'node:fs';
+import {mkdirSync,writeFileSync,copyFileSync,readFileSync,readdirSync} from 'node:fs';
+import {execFileSync} from 'node:child_process';
+import {createHash} from 'node:crypto';
 import {resolve} from 'node:path';
 const out=resolve(process.argv[2]??'/home/ccheever/sb4-loop/sec10-affected');mkdirSync(out,{recursive:true});
 const plan=planAffected({base:'origin/main',worktree:true});
@@ -19,6 +21,28 @@ for(const step of plan.steps){
 }
 // This 96-core host can run the four independent packages in parallel. Keep
 // CLI's process-global custody tests serial within that package.
+const finalDelta=process.argv.includes('--final-delta');
+if(finalDelta){
+ const predecessor=resolve(out,'../sec10-w28-final-affected');
+ const results=JSON.parse(readFileSync(resolve(predecessor,'rust-results.json'),'utf8'));
+ const expected=new Map([['rust:snapback4',0],['rust:snapback4-core',0],['rust:snapback4-lang',101],['rust:snapback4-device',101]]);
+ for(const result of results){if(result.status!==expected.get(result.id))throw new Error(`unexpected predecessor result ${result.id}: ${result.status}`);}
+ if(results.length!==4)throw new Error('missing full-package predecessor evidence');
+ const known=new Set(['generated_column_worlds_decline_changed_recorded_captures','census::authoring_census']);
+ const actual=results.flatMap(result=>[...readFileSync(result.log,'utf8').matchAll(/^test (.+) \.\.\. FAILED$/gm)].map(match=>match[1]));
+ if(actual.length!==2||actual.some(name=>!known.has(name)))throw new Error(`unclassified predecessor failures: ${actual.join(', ')}`);
+ const allowed=new Set(['snapback4/crates/snapback4-lang/src/bind/security/derived/stage_columns.rs','snapback4/crates/snapback4/src/verbs/security.rs','snapback4/crates/snapback4/src/verbs/security/derived_tests.rs','snapback4/crates/snapback4-lang/tests/security_wave28.rs','snapback4/crates/snapback4-lang/tests/security_observers.rs','snapback4/crates/snapback4-device/tests/readauth/census.txt']);
+ const changed=execFileSync('timeout',['10s','git','diff','--name-only','50b7dbd05f','HEAD','--','snapback4/crates'],{encoding:'utf8'}).trim().split('\n').filter(Boolean);
+ if(changed.some(path=>!allowed.has(path)))throw new Error(`Rust source exceeds reviewed final delta: ${changed.join(', ')}`);
+ const hash=path=>createHash('sha256').update(readFileSync(path)).digest('hex');
+ plan.scopeAdjustment.contentBoundReuse={authority:'LLP0189D-2/LLP0232 and SEC10 preapproved affected-scope adjustments',fullPackageCommit:'50b7dbd05f',predecessorResults:resolve(predecessor,'rust-results.json'),predecessorResultsSha256:hash(resolve(predecessor,'rust-results.json')),predecessorFailures:actual,changedRustInputs:changed,explanation:'Reuse complete four-package precursor results for unchanged semantic inputs; neither failed precursor target is represented as passing. Re-run all core units, all language units/security integration targets, all CLI units and its three security integration targets, and all device read-authority tests including the corrected census. Retain the four packed/process/Wasm clients and all selected root, build, Unicode, Lean and 2k differential checks.'};
+ const language=readdirSync(resolve('snapback4/crates/snapback4-lang/tests')).filter(name=>name.endsWith('.rs')&&/security/i.test(name)).map(name=>name.slice(0,-3)).sort();
+ for(const step of plan.steps.filter(step=>step.id.startsWith('rust:'))){
+  const index=step.argv.indexOf('--');if(index<0)throw new Error('missing Cargo test separator');
+  const selected=step.id==='rust:snapback4-core'?['--lib']:step.id==='rust:snapback4-device'?['--test','readauth']:step.id==='rust:snapback4'?['--bin','snapback4','--test','security_reviews','--test','security_wave19','--test','wave26_security']:['--lib',...language.flatMap(name=>['--test',name])];
+  step.argv.splice(index,0,...selected);
+ }
+}
 const rust=plan.steps.filter(step=>step.id.startsWith('rust:'));
 for(const step of rust){const threads=step.id==='rust:snapback4-lang'?'16':step.id==='rust:snapback4-core'?'8':step.id==='rust:snapback4-device'?'4':'1';step.argv=step.argv.map(arg=>arg.startsWith('--test-threads=')?`--test-threads=${threads}`:arg);}
 for(const step of plan.steps){if(step.id==='wasm-measurement')step.argv=['bash','scripts/measure-wasm.sh','--no-record'];}
