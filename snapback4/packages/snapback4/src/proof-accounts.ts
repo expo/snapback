@@ -1,3 +1,4 @@
+import { rosterLock } from "./proof-roster-lock.ts";
 import { identityRequest } from "./identity-request.ts";
 import { randomUUID, randomBytes } from "node:crypto";
 import { mkdirSync, openSync, closeSync, readFileSync, writeFileSync, renameSync, unlinkSync, lstatSync, fsyncSync } from "node:fs";
@@ -39,16 +40,18 @@ function validatePlan(options: SeedAccountsOptions) {
 
 // @ref LLP 3000.000.000.001#2-real-staging-accounts — real credentials and ordinary operator mutations, never system seeding or auth bypass.
 /** @throws E_STAGING_INPUT for invalid plans; E_STAGING for production/dev hosts; E_STAGING_TIMEOUT, E_STAGING_SIGNUP or E_STAGING_PROVISION for incomplete setup. Partial accounts/grants may exist; inspect or discard the staging store before retrying. */
-async function accounts(host: Pick<ServeHost, "url" | "operatorToken">, options: SeedAccountsOptions, environment: "staging" | "production", roster?: Roster, save: () => void = () => {}): Promise<StagingSessions> {
+async function accounts(host: Pick<ServeHost, "url" | "operatorToken">, options: SeedAccountsOptions, environment: "staging" | "production", roster?: Roster, save: () => void = () => {}, assertHeld: () => void = () => {}): Promise<StagingSessions> {
   const {service, roles, timeout} = validatePlan(options);
   const end = performance.now() + timeout;
   const partial = environment === "staging" ? "inspect or discard this staging deployment" : "inspect partial production accounts/grants before retrying";
   const remaining = () => {
+    assertHeld();
     const ms = Math.ceil(end - performance.now());
     if (ms <= 0) throw Error(`E_STAGING_TIMEOUT: setup incomplete; partial accounts/grants may exist; ${partial}`);
     return ms;
   };
-  const request = (path: string, init?: RequestInit) => fetch(host.url + path, { ...init, signal: AbortSignal.timeout(Math.min(remaining(), 30_000)) });
+  const guardedFetch: typeof fetch = (url, init) => { assertHeld(); return fetch(url, init); };
+  const request = (path: string, init?: RequestInit) => guardedFetch(host.url + path, { ...init, signal: AbortSignal.timeout(Math.min(remaining(), 30_000)) });
   const config = await request("/auth/config");
   const identity = await config.json();
   if (!config.ok || identity.environment !== environment || identity.development !== false || !identity.password) {
@@ -78,7 +81,7 @@ async function accounts(host: Pick<ServeHost, "url" | "operatorToken">, options:
       if (roster && !fresh) {
         const result = await identityRequest(host.url + "/auth/login", {
           method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify({email,password}),
-        }, fetch, {timeoutMs:remaining()}).catch(error => {
+        }, guardedFetch, {timeoutMs:remaining()}).catch(error => {
           if ((error as {code?:string})?.code === "E_IDENTITY_TIMEOUT") throw Error(`E_STAGING_TIMEOUT: login deadline expired; ${partial}`);
           remaining(); throw error;
         });
@@ -88,7 +91,7 @@ async function accounts(host: Pick<ServeHost, "url" | "operatorToken">, options:
       if (!reply.session) {
       const result = await identityRequest(host.url + "/auth/signup", {
         method:"POST", headers:{"content-type":"application/json"}, body:JSON.stringify({email,password}),
-      }, fetch, {timeoutMs:remaining()}).catch(error => {
+      }, guardedFetch, {timeoutMs:remaining()}).catch(error => {
         if ((error as {code?: string})?.code === "E_IDENTITY_TIMEOUT") throw Error(`E_STAGING_TIMEOUT: signup deadline expired; partial accounts/grants may exist; ${partial}`);
         remaining(); throw error;
       });
@@ -150,9 +153,7 @@ export async function provisionAccounts(host: Pick<ServeHost, "url" | "operatorT
   // Persist the newly created roster directory's link as well as each snapshot.
   const parent = openSync(base, "r"); try { fsyncSync(parent); } finally { closeSync(parent); }
   const path = join(folder, name + ".json"), lock = path + ".lock";
-  let fd: number;
-  try { fd = openSync(lock, "wx", 0o600); }
-  catch { throw Error("E_PRODUCTION_ROSTER_BUSY: roster already in use; after an interrupted driver inspect and remove its .lock before retrying"); }
+  const owned = rosterLock(lock);
   try {
     const plan = JSON.stringify({roles:Object.entries(options.roles).sort(), provision:options.provision.name, service:options.service ?? "operator"});
     let roster: Roster;
@@ -177,12 +178,13 @@ export async function provisionAccounts(host: Pick<ServeHost, "url" | "operatorT
       roster = {version:1, plan, entries:[]};
     }
     const save = () => {
+      owned.assertHeld();
       const temporary = path + "." + randomUUID() + ".tmp";
       const snapshot = openSync(temporary, "wx", 0o600);
       try { writeFileSync(snapshot, JSON.stringify(roster)); fsyncSync(snapshot); } finally { closeSync(snapshot); }
       renameSync(temporary, path);
       const parent = openSync(folder, "r"); try { fsyncSync(parent); } finally { closeSync(parent); }
     };
-    return await accounts(host, options, "production", roster, save);
-  } finally { closeSync(fd); unlinkSync(lock); }
+    return await accounts(host, options, "production", roster, save, () => owned.assertHeld());
+  } finally { owned.release(); }
 }
