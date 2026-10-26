@@ -1,0 +1,14 @@
+{
+  "date": "2026-10-26",
+  "scope": "DX13/SEC10 authored conflict resolutions only",
+  "briefSha256": "6eb66c0dcd84292da26c15d99bbb25c13fe854a35614f13c9cd8df731a9435fe",
+  "models": {
+    "muse": "muse-spark-1.3-contributor / high",
+    "codex": "gpt-6.1-sol / high / fresh codex exec"
+  },
+  "verdicts": {
+    "muse": "READY",
+    "codex": "NOT READY"
+  },
+  "resolution": "Codex P1: current enforced derived refutations are gates in deploy, excluded from nonblocking question counts and labels; authored FIX count is separate. P2: compactSummary excluded from canonical witness identity, with regression. One review round each as commissioned; no later independent approval claimed."
+}

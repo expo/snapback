@@ -1,0 +1,14 @@
+muse: workspace root: /home/ccheever/projects/snapback-sb4loop (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY
+
+Integration 27 seam delta is correct against the stated contract:
+
+- Disjoint tiers agree: `check` verdict counts in [verbs.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4/src/verbs.rs:442) are now `gated&&!ack` / `!gated&&!ack&&witness.is_some()` / `!gated&&!ack&&witness.is_none()` — exhaustive and disjoint, matching `render_mode` default visibility (gated plus witnessed nonblocking) and `pending()` refusal (`gated&&!ack`, with `witness::gate` requiring current concrete evidence except `N_PRESENCE_LOOSENING`). The old `tier==Review` filter left a fourth uncounted bucket; removing it fixes count/refusal/display agreement. All live security codes are `Review`-tier anyway, so behavior is preserved.
+- Deploy agrees: [security.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/src/verbs/security.rs:198) uses the same witnessed/advisory partition, and refusal on `fixes>0` (witnessed reachable, derived only if unacknowledged) plus `pending` matches `check`.
+- Exact answer validation preserved: [decisions.rs](/home/ccheever/projects/snapback-sb4loop/snapback4/src/verbs/security_reviews/decisions.rs:86) now shows `reason_template` only when `witness::concrete`, else `<spec rationale>`. This matches `validate_reason` (exact `witness <digest>; permit <op> as <caller>; audience:/intended effect:` enforced only when concrete, no-op otherwise). Previously it displayed a template validation would not require.
+- Visibility predicate correctly untouched: default shows `witness.is_some()`; real `collect` only stores `concrete()` values, so production default-visible set equals concrete witnesses. Unwitnessed stays behind `--review`; unavailable-wording lines untouched.
+- Preserved, untouched: unconditional `collect(..., true, ...)` question search in check and deploy, deterministic 3072 gate / 8192 advisory budgets, unavailable-witness wording, `validate_reason` exactness.
+- LLP §14 seam sentence ("supersedes §§10–13's source-only default exemption where they conflict") is a safe qualifier, not an overclaim; DX13 literal-default init sharing `Table::column_initialization` is outside this seam.
+
+No correctness blockers found.

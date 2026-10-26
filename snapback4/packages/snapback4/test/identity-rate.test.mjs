@@ -77,14 +77,15 @@ test("proof provisionAccounts gives production-safe partial setup advice",async 
 });
 
 function signupDeadline(t) {
- let clock=0;const controllers=new WeakMap();
- t.mock.method(performance,"now",()=>clock);
- t.mock.method(AbortSignal,"timeout",()=>{const controller=new AbortController();controllers.set(controller.signal,controller);return controller.signal;});
+ // Setup filesystem work must not consume the tiny active-request test budget.
+ // The real identity timer is armed only when signup starts, and aborts its signal.
+ t.mock.method(performance,"now",()=>0);
  return signal=>new Promise((_,reject)=>{
-  signal.addEventListener("abort",()=>reject(signal.reason),{once:true});
-  queueMicrotask(()=>{clock+=1000;controllers.get(signal).abort(new DOMException("deadline", "TimeoutError"));});
+  const abort=()=>reject(signal.reason);
+  signal.addEventListener("abort",abort,{once:true});if(signal.aborted)abort();
  });
 }
+
 test("an active production signup deadline never recommends discarding production",async t=>{
  const expire=signupDeadline(t);let calls=0;t.mock.method(globalThis,"fetch",async(url,init)=>{
   if(url.endsWith("/auth/config"))return response({environment:"production",development:false,password:true});

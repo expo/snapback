@@ -1,0 +1,1134 @@
+Review only the authored Integration 27 DX13/SEC10 conflict-resolution delta below. Do not review unrelated lane implementations or propose extra reviewer rounds. You may read current source for context. Return READY or NOT READY with concrete correctness findings. Required behavior: current concrete applicable approvals gate production; every other unacknowledged concrete witness is a default-visible nonblocking question; unwitnessed advice stays behind --review; counts and actual refusal agree with disjoint tiers. Preserve DX13 literal-default insertion initialization with SEC10 analysis parity, deterministic SEC10 work budgets and unconditional DX13 question search, plus unavailable-witness wording and exact witness-answer validation. This is one requested independent review, not policy acceptance. Do not edit any files or spawn agents.
+
+COMBINED MERGE RESOLUTIONS
+diff --cc llp/3000.036.004-security-invariants-and-exposure.rfc.md
+index 93168a98f5,c8c956ebd3..43dc9df08d
+--- a/llp/3000.036.004-security-invariants-and-exposure.rfc.md
++++ b/llp/3000.036.004-security-invariants-and-exposure.rfc.md
+@@@ -5,7 -5,7 +5,7 @@@
+  **Systems:** Snapback 4 Quarry authorization, check, audit, generated security tests, validation
+  **Author:** Codex for Charlie Cheever (SEC)
+  **Date:** 2026-10-18
+- **Revised:** 2026-10-26 (DX12 §19.1 release presentation, Muse and fresh Codex reviewed); 2026-10-25 (DX11 §19, Muse and fresh Codex reviewed); 2026-10-24 (DX9 wave-26 amendments; Muse and fresh Codex READY); 2026-10-24 (Integration 24 §15.1 boundary clarification, governed by LLP 3000.036.004.000 §9); 2026-10-23 (SEC7 §16 design: Muse and fresh Codex READY; implementation qualification in progress); previously 2026-10-21 (SEC5 §14 and SEC6 §15; both independently reviewed; SEC6 scoped qualification complete; code snapshot4578e98bed)
+ -**Revised:** 2026-10-26 (SEC10 visible scalar minima and recursive list-leaf constraints, §6; DX11 output and combined analyzer, §19); 2026-10-24 (DX9 wave-26 amendments; Muse and fresh Codex READY); 2026-10-24 (Integration 24 §15.1 boundary clarification, governed by LLP 3000.036.004.000 §9); 2026-10-23 (SEC7 §16 design: Muse and fresh Codex READY; implementation qualification in progress); previously 2026-10-21 (SEC5 §14 and SEC6 §15; both independently reviewed; SEC6 scoped qualification complete; code snapshot4578e98bed)
+++**Revised:** 2026-10-26 (Integration 27: DX12 release presentation and DX13 default questions; SEC10 visible scalar minima and recursive list-leaf constraints, §6; DX11 output and combined analyzer, §19); 2026-10-24 (DX9 wave-26 amendments; Muse and fresh Codex READY); 2026-10-24 (Integration 24 §15.1 boundary clarification, governed by LLP 3000.036.004.000 §9); 2026-10-23 (SEC7 §16 design: Muse and fresh Codex READY; implementation qualification in progress); previously 2026-10-21 (SEC5 §14 and SEC6 §15; both independently reviewed; SEC6 scoped qualification complete; code snapshot4578e98bed)
+  **Related:** [LLP 3000.036](./3000.036-what-the-app-farm-asks-of-the-rule-language.rfc.md), [LLP 3000.035](./3000.035-quarry-semantics-in-lean.plan.md), [LLP 3000.014](./3000.014-a-child-reads-through-its-parent.rfc.md), [LLP 3000.038](./3000.038-file-assets.rfc.md)
+  
+  ## 19. Wave-28 output and witness decisions (DX11)
+diff --cc llp/3000.036.004.000-structural-write-authority.rfc.md
+index c69cd830a0,aa748c2caa..38ba910dd5
+--- a/llp/3000.036.004.000-structural-write-authority.rfc.md
++++ b/llp/3000.036.004.000-structural-write-authority.rfc.md
+@@@ -5,9 -5,24 +5,24 @@@
+  **Systems:** Snapback 4 language, store, security checker and deployment
+  **Author:** Charlie Cheever / Codex
+  **Date:** 2026-10-23
+- **Revised:** 2026-10-26 (§10: DX13 literal-default initialization; independent Muse and fresh Codex reviews); 2026-10-24 (§9: Integration 24 wave-26 precision)
+ -**Revised:** 2026-10-26 (§13: witness-backed shipping precision; qualification and independent review recorded separately); 2026-10-26 (wave-28 structural precision, visible evidence and deterministic preflight, §12); 2026-10-25 (§11: wave-27 precision, conservation, labels and deterministic ordering)
+++**Revised:** 2026-10-26 (Integration 27 combines DX13 literal-default initialization with SEC10; §13: witness-backed shipping precision; qualification and independent review recorded separately); 2026-10-26 (wave-28 structural precision, visible evidence and deterministic preflight, §12); 2026-10-25 (§11: wave-27 precision, conservation, labels and deterministic ordering)
+  **Related:** LLP 3000.036.004, LLP 3000.036, LLP 3000.015
+  
++ Wave-28 §12 semantic acceptance (2026-10-26): the complete base amendment
++ has independent READY reviews from [fresh Codex](reviews/3000.036.004.000-sec10-wave28-r35.codex.md)
++ and [Muse](reviews/3000.036.004.000-sec10-wave28-r35.muse.md). The final finite-destination,
++ replay-budget and regression delta has independent READY reviews from
++ [fresh Codex](reviews/3000.036.004.000-sec10-wave28-r39.codex.md) and
++ [Muse](reviews/3000.036.004.000-sec10-wave28-r39.muse.md).
++ The full-test setup correction also has independent READY reviews from
++ [fresh Codex](reviews/3000.036.004.000-sec10-wave28-r41.codex.md) and
++ [Muse](reviews/3000.036.004.000-sec10-wave28-r41.muse.md).
++ The composed SEC10/DX11 snapshot/witness integration has independent READY
++ reviews from [fresh Codex](reviews/3000.036.004.000-sec10-wave28-r42.codex.md)
++ and [Muse](reviews/3000.036.004.000-sec10-wave28-r42.muse.md).
++ [Content-bound provenance](reviews/3000.036.004.000-sec10-wave28-r42.provenance.json)
++ keeps semantic review separate from product measurement and qualification.
++ 
+  ## 1. Scope
+  
+  SEC9 implements the wave-25 bakeoff §8c shapes. Finite adversarial testing is
+@@@ -203,14 -215,868 +218,880 @@@ Earlier readiness applies only to its c
+  not qualify the pending full-platform/corpus execution or accept policy on an
+  application author's behalf.
+  
+- ## 10. Wave-30 default initialization (DX13)
++ 
++ ## 10. SEC10: approvals and deterministic exploration
++ 
++ Implementer: Codex for Charlie Cheever, 2026-10-24. Status: implementation in
++ progress; semantic review and measured qualification are recorded below before
++ landing. This amendment is the wave-26 SEC10 commission and supersedes §9's
++ Boolean/enum/principal exclusions and the default wall-clock exploration caps
++ in LLP 3000.036.004 §§13.3, 16.3 and 17.2.
++ 
++ ### Context pack
++ 
++ Scope: source inference, finite concrete histories, review/deploy admission and
++ required-text evidence. Governing documents: LLP 3000 §7 (the engine and guide
++ contract); LLP 3000.036.004 §§3–4, 15.1, 16.2 and 17 (proof versus observation,
++ actual executed writes, individual source-bound decisions); this document §§5–9
++ (derived contracts, insertion exemptions, invalidation and production refusals).
++ The root and security RFC are in `llp/current/`; this child is an implemented
++ amendment outside the overlay. Names select review questions; they do not prove
++ product intent. Unknown predicates and finite cuts never become permission or
++ proof. Reviews bind the complete semantic delta, not a moving main HEAD.
++ 
++ ### Inference boundary
++ 
++ An approval-named Bool set true or approval-named Time written non-null, with
++ lifecycle effects but no transition inspecting it, requires individual review.
++ Approval-named tables with a parent reference, a separately authorized writer
++ and broader parent/child effect writers receive the same question when no effect
++ requires the record. Recording approval atomically with its parent effect, using a co-written state/provenance token as the guard, or consuming an approval table in schema authority is excluded. Merely querying an approval is not enforcement. Repair with a matching
++ `require`, or acknowledge that this particular approval is informational. Use
++ existing review-tier rendering and source-bound IDs; bulk notes never clear it.
++ 
++ An explicit approval prerequisite on an effect supplies a *candidate*, preserving
++ conditional branches as implications. Normalize resolved aliases onto the
++ resource and replay sibling effects and direct reference descendants. Insert
++ and status-destination boundaries remain distinct. Where creation copies a
++ stable subject identity from a guarded prior row, compare matching prior rows
++ instead of trusting a caller-reset attempt counter. This prevents a sibling
++ creator from silently resetting the approval's history. Any ambiguous mapping
++ is omitted, with no safety claim. Alternative workflow policies take one exact
++ candidate disposition. A positive FIX still requires ordinary admitted mutation
++ replay and an actually false predicate at that executed boundary.
++ 
++ Approval/edit candidates include inspected Bool, Enum, Principal and Ref inputs.
++ Absence/stage preconditions stay excluded as §9 says. Edits that invalidate
++ approval remain permitted by the paired candidate; immutable and explicit
++ column-authority semantics are unchanged.
++ 
++ Parent/child candidate policies use explicit reference relationships and shared
++ writer authority. Parent state prerequisites on work derive a child-work state
++ question; a terminal parent transition derives a child-terminal-stage question
++ only when the child's terminal stage is unambiguous from the authored graph.
++ Repeatable creators reading an unchanged prior-state guard get a one-use
++ candidate and actual repeated-create replay. State/read preferences follow lowered assertion aliases as well as direct reads. Focused workflow search keeps its current clock, defers unrelated roster changes, and prioritizes referenced target rows before the general temporal/role campaign; every deferred combination remains explicit coverage. These are reviewable derived
++ contracts, not implicit runtime grants or changes to authored schemas.
++ 
++ ### Evidence and advice
++ 
++ Text photo/scan/sketch fields ask whether verified uploaded evidence is required;
++ the next step is a typed `image` column/argument, which enables the existing upload
++ gate. Broader media beside private column audiences asks whether the media itself
++ carries those fields; use `image read <- P`. Caller times bounded on only one side
++ of an anchor ask for both boundaries; `month()` arithmetic asks about day precision (its ordinal retains the year). Global uniques excluding an owner scope get an existence
++ question. These remain advisory.
++ 
++ `text 1..N` already counts Unicode non-whitespace scalar values for the minimum
++ and all scalars for the maximum. Retain this existing language semantics; no
++ new modifier, schema capability or store migration is necessary. Optional text
++ without a minimum still accepts whitespace. An explicitly authored empty-string
++ guard on reason/consent/assessment data that admits such input needs a review
++ question: use `trim(value) != ''` or a positive text minimum on every input.
++ This closes the wave-26 assessment's min-zero/coalesced-input gap without changing
++ string equality, trimming stored data or retroactively rewriting existing stores.
++ A reviewed whitespace-sensitive workflow may retain it.
++ 
++ ### Determinism and campaign reach
++ 
++ Default check and deploy use fixed work counts (512 and 8192 initially), shared
++ across their existing phases; no wall-clock deadline participates in default
++ verdict selection. Explicit safety deadlines report `stopped early (time)` as an
++ incomplete campaign, never a completed clean result. Finite work exhaustion stays
++ coverage, not proof. Elapsed milliseconds are telemetry. Keep actual engine
++ admission, authenticated contexts, logical lifetime, raw-snapshot concrete
++ judgment and generated-fixture provenance. Multi-target authored writes are
++ judged independently by their executed boundaries. Preserve opposing restricted
++ flags, empty child populations and source-clock old-date controls through finite
++ frontier ordering. Every cut remains explicit.
++ 
++ ### Qualification and review
++ 
++ Test exact affected crates/targets, guide snippets as packed consumers, reference
++ integrity and the affected selector. Re-measure wave-26 real holes and SEC9's
++ wave-24/25 set on copies; survey every new gate/refusal across waves 15–26 both
++ fresh and after test. Classify every result, retaining inherited findings. No
++ Mac run: Studio is unreachable and M5 is reserved for publication. Integration
++ 25/publication owns complete suites, full difftest and Linux qualification.
++ 
++ 
++ ### SEC10 implementation constraints
++ 
++ Source identities are typed selected resources. A primary selected row's `.id`
++ normalizes to its reference argument. A named secondary reference key never
++ becomes an id. Every typed reference-field hop remains part of resource identity: two links
++ from the same row to the same table can still select different resources.
++ Fresh-child exemptions prove each exact stored parent reference fresh on every
++ reachable value arm, using known immutable caller facts, and for every same-table
++ parent link, including retained/key-bound links on existing-row writes. Missing
++ insert links may be absent only when their optional default is null; existing-row
++ links are never presumed absent. Global creation-ledger exemptions share this
++ exact reference proof. A nested insert in a dead arm, another link, or another returned
++ field is not fresh provenance for the selected reference.
++ Edit/version timestamps (UpdatedAt, ChangedAt, EditedAt and ModifiedAt variants)
++ are ordinary data even when their names include authorization or approval. A
++ presence or timing check does not turn a route-edit clock into approval of its
++ constructor inputs. Use a distinct approval-event field such as ApprovedAt or
++ ApprovalAt, or independent intent, when the domain needs an approval marker.
++ Receipt restoration uses this same classification: ordinary metadata remains
++ part of the complete prerequisite and clearing it cannot consume a capability.
++ Sibling discovery classifies normalized typed fields and each population filter
++ in its own row scope; an edit-clock-only guard cannot anchor an approval
++ contract. Explicitly checked approval identity/token fields remain evidence;
++ only Bool/time approval events mint restorable stamps. Real approval contracts
++ retain ordinary metadata branch premises.
++ Replacement validation and factual-decision accompaniment use the same classifier.
++ Caller-row approval use excludes inner-population focal fields, including inner
++ populations of the same table; independently keyed caller populations retain
++ their own matching proof. Nested caller discovery preserves Boolean polarity;
++ a negated existence cannot consume positive approval. Double negation and
++ positive count contracts retain their corresponding positive use. Selected-row
++ and captured loop-row scalar uses select actual positive operands too; a
++ positive container cannot lend its polarity to negated descendants.
++ A dereferenced row retains its reference path even when it belongs to the
++ selected row’s own table. Potentially changed dereferences remain unknown unless
++ snapshot correspondence is established; table equality alone gives no credit.
++ Schema-policy reference hops resolve through the actual supplied/stored parent
++ links and typed key pins too; a policy on `pair.secondary` cannot discharge
++ approval for a child linked only to `pair.primary`. Self-parent links retain
++ their own identity without rebinding a secondary key to the selected row id.
++ Unknown targets are omitted, never guessed. Quoted enum values
++ are AST values. Population focals remain local; unresolved captured arguments
++ are omitted with no proof claim. Pure helper returns and dominating requirements
++ may be expanded; effects and unknown control flow do not supply guessed values.
++ 
++ Approval-table questions are scoped per creator and parent reference. A positive
++ matching prerequisite on a governed parent/child effect consumes that record;
++ reading an unrelated parent's approval, or merely querying a table, does not.
++ Positive `count(approvals[...])` bounds also establish a prerequisite and retain
++ the complete original cardinality predicate in sibling replay. Schema authority
++ must govern the actual effect, including every potentially changed column for a negative
++ freeze contract, for scalar stamps AND approval-table probes (an unchanged
++ copied field cannot cover another field); an empty set of freeze guards proves nothing. A read audience
++ alone is not write enforcement. An explicit recipient ACL is different: a
++ matching approval row that grants its stored principal access to the parent
++ row is enforced authorization, even if it does not authorize a lifecycle change.
++ Typed positional approval keys, named/filter keys and a keyed progress row's
++ parent reference retain their selected resource. A global caller-principal
++ approval and a typed child approval loop before its parent transition are also
++ actual approval use; another arbitrary row's flag is not. A parent approval
++ loop must dominate the actual effect in its execution path; an untaken branch
++ or a loop placed after it cannot discharge this question. Control transfers
++ (`break`, `continue`, `return`) end reachable inspection in their branch; later
++ unreachable requirements cannot supply use. Quantifying over no
++ children is legitimate vacuous parent intent, not a promise that children exist. A time field actually
++ bounding a write is used as a window, even when its name includes "approved".
++ Checked enum decision proxies remain meaningful. An approval also has actual
++ use when it freezes its inspected non-lifecycle input, or its negative guard
++ is atomically consumed while producing a linked child/payment. These data and
++ one-shot contracts do not come from an arbitrary lifecycle-column freeze.
++ A timestamp may audit an enforced Boolean decision on a related row only when
++ the selected reference proves the link and the Boolean write executes with the
++ stamp. Unrelated rows, opposite branches and zero-iteration loop possibilities
++ cannot establish that custody. Private expansion retains caller statement ownership for a preceding
++ approval loop whose parent effect is expanded from a helper. It also retains
++ lexical loop markers
++ through helper calls so this check also works when the writes live in helpers.
++ Actual branch identity includes its lexical site; repeated text at different
++ snapshot epochs cannot establish coexecution. Rejoined require-only implications
++ are admission predicates, not execution-branch markers. Preserve their complete
++ conditional scope: an approval required only for restricted work is real use
++ and defines a conditional sibling contract. Statically vacuous predicates such
++ as `if false: require approval` supply no use. Do not invent unconditional
++ approval intent by dropping the author's applicability condition.
++ Upsert
++ participates through its existing-row state transition as well as its separately
++ observed insert arm. Negative matching requirements are intentional freeze contracts: they count as
++ enforcement when every otherwise broader effect has that contract. An isolated
++ negative check cannot hide an unchecked broader writer or a different parent.
++ This preserves the builder's explicitly declared negative intent rather than
++ inventing a positive prerequisite from a name.
++ 
++ An audit exemption belongs to its exact creator/resource, not the whole table.
++ A co-created reference must resolve to a real unconditional parent insertion
++ on every expression arm. An existing-parent audit needs a preceding
++ unconditional write to the actual selected resource, establishing a literal
++ stage that broader writers cannot enter on an existing row (including upserts).
++ Birth in the initial stage is distinct from resetting an existing row to that
++ stage: ordinary new walls at `removal` do not authorize an owner-only strip
++ reset of an existing wall. This follows the insert/update effect distinction
++ in §10 rather than treating every equal stage label as one operation. Proved self-loops
++ never count; Boolean enum guards are projected over every possible old value,
++ including null. Idempotent re-entry into an exclusively authorized decision
++ stage remains legitimate. Attached ancestor references may be provenance for
++ that same audited child decision when the operation does not retarget any
++ reference hop in its provenance path, including self-references whose root
++ and target table names are equal. Pure same-row reference copies do not
++ retarget the path.
++ Potential positive Boolean/time writes, including caller values and copies
++ from another row, participate in the unused-record question; a known clear
++ or a pure same-stamp copy is not a new record. A concrete, non-approval-named Boolean consequence also counts when its exact old value is
++ guarded and consumed by the opposite literal assignment (for example, keeping
++ a deposit exactly once while recording approval time). The complete Boolean
++ guard must exclude the already-written value; a free-standing marker does not
++ establish that one-shot decision. An unlinked co-written Boolean
++ marker, whether true or false, cannot turn an ignored approval into a decision
++ audit; an informational timestamp beside it needs the individual acknowledgment.
++ A derived factual Boolean computed from stored state (for example, whether
++ approval occurred after cutting) may accompany an applied lifecycle decision
++ and a separately known positive approval stamp. It is metadata about that
++ decision, not another caller-selected approval result. Scalar caller choices
++ are excluded from this factual-value recognition. A possible caller-supplied
++ approval value likewise cannot establish a known
++ positive atomic decision merely by sharing a write with a literal stage. A literal
++ lifecycle decision or an applied matching decision value also needs its
++ existing-row authority to exclude broader producers of that same decision.
++ A checked Bool/Time decision may be mirrored by an audit row in either order
++ in the same atomic caller branch and loop instance. It must target the same selected row, broader
++ writers cannot issue that positive decision (including creating defaults),
++ and actual effects must inspect it. Preserving the same old stamp does not
++ issue a new positive decision.
++ A newly created child decision may carry the preexisting parent as provenance
++ when the created row's stored reference matches it. Proven selected-row filter
++ bindings likewise retain that provenance. Each exclusion is per creator and
++ reference; an arbitrary unrelated reference is not audit provenance.
++ A separate independent creator still receives its own unused-record question.
++ These rules retain wave-26's owner-only `approveStrip` wall-reset audit while
++ rejecting conditional, unrelated and no-op-write tricks.
++ 
++ Creating, default and upsert approvals retain checked stored arguments as well
++ as same-resource inspected inputs, including Bool, Enum, Principal and Ref.
++ Absence and source-stage preconditions are not approved payload. Old inspections
++ of a co-written changed input do not approve its new value unless the new stored
++ argument is checked; copying the same inspected input retains its dependency.
++ Immutable/frozen fields may make an edit candidate redundant but cannot erase
++ private input identities. A paired invalidation candidate permits approval to
++ be cleared before or with the edit. Explicit reapproval may co-write checked
++ new data and a positive stamp. Reevaluate complete relevant Boolean checks on
++ each changed input's replacement image, with actual caller arguments; an old
++ check alone cannot validate replacement data. Unsupported expressions or changed
++ foreign snapshots remain unknown. Apply the same validation before refreshing
++ a consumed-approval receipt, including edits earlier in that operation. Shared
++ helper source sites retain separate invocation checks. Actual caller branches
++ and stored argument bindings select possible invocations; ambiguous verdicts
++ remain unknown, never a conjunction of mutually exclusive checks. Only the
++ exact executed source write gets
++ that exemption; conditional sibling writes and copied old flags do not.
++ 
++ Receipt custody is private fixture-host metadata, never schema, IR, store or
++ wire data. A transaction-local ledger starts with positive entry stamps and
++ actual positive birth records. Both changed and unchanged stamp updates require
++ exact recording-source custody. Copying a saved stamp after clear/edit cannot
++ refresh a receipt. Locals are resolved through lexical bindings. Timestamp
++ custody defaults to unknown: `now`, literals and expressions composed of fresh
++ values establish a record; an old approval stamp plus zero stays a copy;
++ caller-supplied times, nonliteral Boolean values, mixed old-or-now and
++ transformed old stamps remain unknown. Unknown/mixed insertion sites also
++ record uncertain receipts, restricted to their actual source sites. A copy
++ from a different row or a different stamp is not a reissue of this stamp. Shared helper sites used for both copying and recording also remain
++ unknown. Ordinary edits cannot refresh unchanged stamps. Each receipt binds
++ its typed table, row id, stamp and inspected inputs. Insert temporary-to-source
++ ownership stays beside the compiler's IR, like diagnostic ownership; fixture
++ tracing receives it privately. This lets ordinary insert/insert-if-absent events
++ retain exact source custody without serializing a new IR field or protocol.
++ 
++ The fixed point validates the complete dependency graph, including currently
++ positive stamps. Invalid upstream custody invalidates dependents even when an
++ old positive flag is copied back. Original Boolean/filter/named-key predicates
++ run unchanged on private snapshots clearing invalid positive stamps and
++ restoring valid consumed stamps; application data and admission do not change.
++ Evaluate the validated current image first, then consistent subsets of at most
++ eight consumed receipts. Every occurrence of one typed stamp shares its choice,
++ so negated and positive predicates remain consistent. Larger cuts are unknown.
++ Trusted-only subsets precede uncertain subsets; an uncertain-only solution is
++ unknown. A deleted approval record without a current input image stays unknown.
++ The same deleted-image ambiguity applies to positive counts and negated-zero
++ counts; population extraction leaves the complete replay predicate unchanged. Nested
++ filters evaluate under each selected historical row, never the effect row.
++ For programs with explicit or possible implicit deletion, private pre-write
++ snapshots also cover approvals born and removed inside the transaction. Keep
++ at most 64 such snapshots; overflow with a deletion is an explicit unknown,
++ never FIX. Ordinary metadata populations cannot consume approval. Typed sibling
++ classification preserves polarity through each population filter too.
++ An unknown result propagates through the nested optional ledger result. Failure
++ to obtain an entry ledger also stays unknown, never a raw-current pass. Analyzer
++ `sec10-51` invalidates earlier local dispositions.
++ 
++ Parent/child inference uses the authored graph across roles. A parent completion
++ needs a real predecessor transition, not a self-loop. No-op parent/child edges
++ do not manufacture work windows or erase terminality. Parent operations'
++ incidental child writes cannot redefine the independent child's terminal stage.
++ Only an unambiguous child terminal and known parent targets produce candidates.
++ At replay, completion checks every actual child in the committed transaction;
++ finishing all children atomically, in either write order, is valid. Conditional,
++ partial, unrelated or unchanged child writes cannot exempt completion. Parent
++ phase coupling needs an actual phase change on the exact selected parent.
++ Retargeting checks the destination parent; a named old-parent rule counts only
++ when the association is unchanged. Column authority counts for the actual
++ changed stage, not an unrelated field. Authored invariants retain their original
++ executed-boundary semantics; only inferred lifecycle aggregation judges commit.
++ 
++ Directed histories retain changed numeric payload alternatives, including
++ coalesced optional arguments, at the existing eight-argument/4096-attempt caps.
++ Early initialization passes consume at most 2048 directed attempts, leaving a
++ final continuation allowance within the shared cap. Focused creators may follow
++ typed reference rows or a copied principal identity, such as `logExam(candidate)`
++ after failed retests. Once only history goals remain, prospective identity
++ projections order currently relevant proposals; only actual committed authored
++ replay and a false boundary predicate produce a finding. Already-found repeated
++ creates do not consume every continuation slot while the history is satisfied.
++ Actor, dependency, tuple, clock and frontier limits remain explicit coverage
++ gaps. Finite witnesses/refusals and review questions are not all-history proofs.
++ 
++ Existing-row upserts participate under update authority as well as birth authority;
++ the normalized existing-row arms are shared by sibling inference, consumption/
++ ledger coupling and the complete parent/child lifecycle graph. Birth arms remain
++ separate and acquire no existing-row lifecycle obligation.
++ audit exemptions cannot inherit only an owner-restricted insert gate. Constant
++ Boolean rule branches and typed constant comparisons are simplified before a syntactic approval use counts.
++ Early-return fallthrough paths remain part of coexecution custody: an earlier
++ audit cannot borrow a later decision skipped by a committing return, conditional break or continue. Nested loop transfers
++ respect their loop boundary; unknown loop-return continuation withholds audit
++ coexecution custody. Continuation analysis follows local bindings and keeps
++ ambiguous branch/iteration joins unknown. Captured expressions retain immutable
++ value-site identity rather than rebinding their names later; the parent-loop
++ approval scanner shares binding-aware resolution and reachability. Nested
++ iterations invalidate assigned locals; an unknown binding controlling a transfer
++ cannot supply a later approval-use exemption. Unknown local conditions themselves
++ cannot establish approval use in a speculative branch. Known prefix branches retain their
++ bindings rather than reverting to stale inputs. Guaranteed pure helper returns
++ are expanded before loop scanning. Their guaranteed require prefix is scanned
++ at the call’s lexical position alongside the returned value, so expansion
++ cannot erase actual approval enforcement. Guard extraction includes guaranteed
++ evaluated unary/binary operands and call arguments. Short-circuit/conditional
++ operands retain their applicability; S1 conditional use is the same whether
++ expressed by an if or a short-circuit caller condition, and does not claim an
++ unconditional all-child obligation. Per-item aggregate projections are not eager
++ arguments and supply no unconditional prefix. Helpers in require/if conditions
++ and loop domains retain their evaluated prefixes. Static vacuity is eliminated
++ before collecting approval-input dependencies or replacement checks. Nested
++ helper require conditions retain their own evaluated prefixes under the same
++ depth budget. Branch joins preserve provably equal values and Boolean caller
++ choices, choosing only continuing branch states after transfers. Dominating
++ facts over immutable caller arguments are cofactored through later conditions
++ and parent-loop branches; a caller branch already excluded by continuation
++ cannot invent approval use. Private unknown applicability cannot supply a
++ source-use exemption. An unrelated opaque conjunct does not erase a separate
++ unconditional approval require; unknown branch applicability and explicit cuts
++ still withhold the corresponding effect’s exemption. Unexpanded custom calls
++ and conditional values are opaque applicability; an independent approval OR arm
++ remains conditional use when another alternative is opaque. Synthesized
++ implications retain their applicability provenance: an opaque premise cannot be
++ dropped like an independent authored OR alternative. Parent-loop requirements
++ share the same condition extraction as direct effects. A helper condition retains
++ its guaranteed prefixes even when its branches cannot export requirements. Actual
++ write contexts also retain requirements evaluated in their keys, fields and
++ conditions before return expansion; these do not become unconditional post-write
++ facts. Loop approval credit retains the selected parent reference. Literal
++ approval kinds without later authored changes are matched per creator against prerequisite keys and filters,
++ including schema and audience probes; incompatible kinds cannot exempt each
++ other. Mutable stages can enter a required subset after a later authored edit.
++ Loop selection matches the actual target row identity, never its attached
++ self-references. No-op copies and statically denied/unreachable writes do not
++ make an approval kind mutable; unconditional immutable columns and false write
++ conditions also retain their literals. Paved row-alias updates normalize to their
++ selected table/key while retaining the authored site; unresolved targets remain
++ uncovered rather than panicking. The private signed-out HTTP host gives deploy
++ its 180-second outer safety budget; expiry reports stopped early (time) and no
++ HTTP qualification, rather than a refutation. Statically impossible effects
++ (literal-false write conditions, contradictory immutable caller facts and empty
++ populations) supply neither approval use nor sibling contracts. Same-row child
++ stage copies (including conditional and required-value coalescing copies) and
++ self-loops are removed before terminality ambiguity. Expression effect discovery
++ follows evaluated ternary, short-circuit and null-coalescing arms, preserving
++ each arm’s applicability. Captured argument and binding values never execute
++ their helper effects again. Keys, fields and eager call arguments accumulate
++ their evaluated prefixes in order. Lazy projections retain explicit unknown
++ applicability. Approval-input freeze credit also checks applicability and
++ resolves schema rules to the selected resource. Sibling contracts preserve
++ enclosing branch/write applicability as an implication; an unmappable caller
++ premise supplies no unconditional contract and has explicit coverage with
++ stored-condition/intent repair. Rejoined conditional requirements retain their
++ complete predicate, including helper forms; unmappable implications report the
++ same source gap without promoting their approval arms into unconditional
++ contracts. Potentially positive caller-supplied Boolean/time approvals retain
++ inspected dependencies independently of trusted source-custody classification.
++ Co-written inspected row inputs retain their dependency whenever the stored
++ expression uses that input. Equivalent copies normalize; other mappings leave
++ replacement validation unknown and report an explicit direct-copy/intent repair.
++ Equivalent stored argument expressions share one normalization for dependency
++ capture, clause association and replacement binding. Non-identity scalar
++ argument mappings retain their stored-output dependency but leave replacement
++ validation unknown. Schema row/column approval credit observes the same
++ applicability and cut checks as operation guards. An upsert’s existing-row
++ transition supplies update prerequisites separately from its birth/history arm,
++ with the exact selected identity and literal destination. Write conditions
++ remain in exported effect contexts; unresolved applicability withholds S1 credit
++ and S2 origins and appears in coverage with an explicit-condition repair.
++ Unresolved
++ source targets carry an explicit coverage entry with the explicit-target repair.
++ Truncated helper requirements remain unknown during replacement validation,
++ never a known absence of validation. Unrelated, unresolved or statically empty parent
++ selections supply no loop credit.
++ Salvaged OR arms establish use, never caller continuation facts. Required Boolean caller
++ equalities/inequalities and negation share one fact identity. Rejoining
++ require-only branches retains nested helper prefixes and explicit conditional
++ cut metadata before return expansion. Constant
++ conditional values, null coalescing, literal object members and non-null literal
++ assertions normalize consistently; coalesced helper requirements retain their
++ null-only applicability. The partial evaluator follows the same null-coalescing
++ semantics and keeps unknown input unknown. A skipped
++ Bool field is not evidence being approved. Skipped operands supply no unconditional
++ requirement. Recursive guard scanning shares a depth-32 ceiling and over-deep
++ continuation remains unknown without supplying use. The depth cut is an explicit
++ private marker, distinguishable from no guards, and blocks source-use exemptions. Unresolved local calls/conditional values
++ cannot justify speculative approval applicability or continuation. Supported
++ conditional caller bindings remain conditional. Unknown
++ destructured bindings replace stale locals, and evaluator coverage diagnostics
++ include checked numeric negation. Numeric constant negation uses checked
++ i53 semantics before source-vacuity detection. Erasing a
++ stage/absence precondition during replacement validation preserves its Boolean
++ polarity, so a negated precondition cannot refute a valid replacement. Focused
++ workflow goals are discharged per producing operation, never globally by shared
++ candidate site; a retry witness cannot prune the fresh-creation sibling.
++ 
++ Historical intermediate designs and the concerns that replaced them are retained
++ verbatim in the independent review artifacts, not as competing current rules.
++ 
++ Captured parent creations retain the same authored birth identity for the existing
++ optional-upload, optional-child-evidence and destructive-evidence analysis. The
++ private evaluated-value marker prevents re-execution; it does not change the
++ parent's source site. Evidence linkage compares the exact table and authored site
++ after removing only that marker, rather than conflating separate parent inserts.
++ 
++ ## 11. Wave-27 precision and workflow conservation
++ 
++ Commission: SEC10 follow-up, 2026-10-25. This amendment supersedes section 10's
++ assumption that an unrelated lifecycle effect is enough to gate an approval.
++ Reviews and measured qualification are recorded with the implementation.
++ 
++ Approval names identify questions, not unmodeled physical acts. Gate only a
++ plausibly governed modeled effect: the approval's own entity-wide decision,
++ a matching act or payload change, an existing child artifact operation that
++ can perform the approved act, or an entity workflow qualified by a birth-only
++ Boolean feature, or an approval operation whose alternative branch changes the same resource lifecycle. An approval producer’s literal cancellation-only existing-row state update does not establish a pending approved effect, including for generic approval names. Active lower-authority branches and separate effects remain eligible; an approval explicitly governing cancellation (including suffix names), an upsert that can initialize defaults, or a patch with additional non-state effects is not exempt. Explicit cancellation governance uses whole act words adjacent to approval/authorization markers (CamelCase, snake case and lower-case concatenation) or the leading approve/authorize act word. State matching retains its specific act family; ordinary matching acts such as financial withdrawal still count. Interior substrings in hardening/denim are not cancellation cues. Literal false/null input resets alone do not perform the named act. Upsert birth evidence uses the binder’s actual target index: key values precede defaults, and explicit payloads override both. Ambiguous index/source correspondence supplies no inferred birth evidence. Unrelated states do not establish that act. A separately modeled request/approval record with no such
++ effect is informational. Offer its individual acknowledgment first, without
++ blocking deploy. Preserve exact resource/authority, vacuity and consumption
++ checks from section 10. Record plausibility and source evidence in the note.
++ 
++ A mutation require protecting an edit but absent at caller-supplied creation
++ is a source-bound gating question. One update-only column intent declares the
++ deliberate asymmetry; a column write rule applies authority at both boundaries.
++ An individual source-bound acknowledgment also records a deliberate exception.
++ Table authority alone remains the existing inventory/advice surface.
++ 
++ A stable participant identity shared by an authored charge and refund ledger
++ supplies a conservation candidate: after an admitted removal, retained charged
++ value must be refunded, or the removal must be refused. Infer only exact,
++ unambiguous shared typed keys with the same captured evaluation source (repeated mutable reads, existence decisions and implicit reference hops are distinct; helper expansion retains invocation-specific sites, including through nested calls and reuse of captured results; lexical name resolution distinguishes bare world reads, stable inputs and capture versions before expansion), a co-created participant/charge, and an authored
++ refund path. The initial source mapping requires unconditional coexecuted births; helper/branch correlations stay uncovered. Separate money ledgers require one unambiguous compatible refund ledger and currency/amount mapping. Every ledger reference action must preserve the records; no cascade/set-null path qualifies. Ambiguous numeric amounts never degrade to event counts. Judge actual deleted old rows against the committed ledger so an
++ atomic refund before or after deletion is equivalent. Full amounts are compared
++ when numeric/money values exist, otherwise explicitly modeled charge/refund
++ events are counted. Unstable identity, disappearing ledgers and unsupported
++ mappings remain coverage, never FIX. A deliberate no-refund removal takes one
++ candidate decision; inferred conservation is not a runtime grant or schema rule.
++ 
++ A request/flag operation does not perform the requested act. A specifically named producer narrows a generic approval table to that decision; it does not govern unrelated parent stages. Actual named performance still supplies a gate candidate.
++ 
++ Requiring the exact selected existing identity to exist is not a stricter edit role. Discharge only a matching unfiltered identity probe over id/principal/reference keys; the identity pins must also establish the caller-filtered row read audience, with no expiry/not-before/through scope. Additional role filters, private audiences, other selected rows and unsupported identities remain restrictions. This is private advice reduction, not an admission change.
++ 
++ Immutable identity columns repeated by a guarded upsert do not establish an edit restriction: they cannot change. Exclude them from insert/edit questions, while retaining questions for mutable payload columns in the same upsert.
++ 
++ An explicit forward backfill from current, type-compatible other columns plus
++ a generic setter supplies a label-consistency candidate. Use its deterministic
++ expression and current focal fields, not a guessed label rule. Self-migrations
++ and predecessor-only input types do not establish ongoing consistency.
++ A deliberate manual override takes one candidate decision.
++ 
++ An authored column write intent ignores a birth initializer explicitly equal
++ to its literal default; caller-controlled writes and later edits remain events.
++ Null/false initialization semantics and structural column write rules are
++ unchanged. Positive approvals and scoped or global role grants are never exempted by this rule.
++ Compiler-side source custody is private, not a stored-schema or wire change.
++ 
++ Keep deterministic default work budgets. Prioritize unresolved derived candidate
++ operations and dependencies before independent observer sweeps; avoid duplicate
++ fixture construction and reserve bounded work for generic coverage. Empty-start replay uses at most one quarter of remaining work (capped at 512); initialization leaves one quarter available; derived replay uses at most half of the next remaining work (capped at 4096). Full test retains an unbounded overall campaign while enforcing finite empty/derived phase slices and phase-local workflow limits. Each observer phase has its own directed-history ceiling: derived attempts cannot consume the subsequent authored observer ceiling. The overall deterministic work reservation remains shared. Each phase cut is reported separately from overall budget exhaustion.
++ Focused derived lifecycle replay defers a known update-only patch when none of its fields is referenced by any program read, policy, selected index or candidate. Unknown patches and insert/delete/upsert effects remain. The ordinary campaign retains those payload combinations. This is search ordering only, never a witness or a discharged obligation.
++ Every deferred combination and exhausted reservation stays visible.
++ Verdicts never use elapsed time as an exploration budget.
++ 
++ An individually reviewed derived alternative remains in the full report and full
++ `test` evidence, but is removed from production replay obligations. It cannot
++ consume priority work ahead of independent, unreviewed approval contracts.
++ Authored assertions are never removed. Only a reachable cached failure matching
++ a current unreviewed obligation may skip bounded resampling; a reviewed or stale
++ failure cannot suppress exploration of the remaining obligations.
++ 
++ One immutable decision snapshot supplies both replay priority and the final
++ dispositions. Semantic decision-file changes during preflight refuse with the
++ exact next step to rerun deploy; formatting alone does not invalidate it.
++ Malformed decision files fail closed before replay. This changes private
++ exploration scheduling only, not source binding, authority, or full-test reach.
++ 
++ Analyzer revision `sec10-wave27-2` renews earlier dispositions. The audience family retains §18 of LLP 3000.036.004's exact advisory eligibility and source binding; every new gate and derived candidate remains an individual decision.
++ 
++ Re-measure carried/new findings, seven informational controls, insert questions
++ and label/conservation decisions; survey waves 15–27 on copies with fresh and
++ post-test deploys. Report real holes separately from deliberate policy questions.
++ Measure campaign timing sequentially on an idle host. REL owns release_bridge,
++ rollback_views, extractions and releases; this amendment does not alter them.
++ Mac remains skipped by commission.
++ 
++ 
++ ## 12. Wave-28 inference and visible evidence
++ 
++ Parent/child lifecycle coupling uses the same structural workflow discriminators
++ as approval-input projection. An enum used only as a recomputed clearance or
++ other description does not establish a child lifecycle, even when named stage
++ or status. It must participate in the authored guarded transition structure;
++ otherwise no parent-state contract is inferred. This preserves independent
++ child transitions and avoids freezing maintenance descriptions after completion.
++ 
++ Question-witness replay consumes these typed workflow effects directly rather
++ than parsing the prose of an approval note. Its separate deterministic budget,
++ redaction, unavailable-witness result and lack of enforcement authority remain
++ as stated in LLP 3000.036.004 §19. This does not change decision identity or
++ acknowledgment bindings. The shorter required-text diagnostic has identical
++ Unicode validation semantics and preserves the existing Wasm byte ceiling.
++ 
++ Commission: SEC10 wave-28 follow-up, 2026-10-25. This amendment supersedes
++ section 11's birth-only feature restriction and exact workflow-field names.
++ The existing individual decision and review-tier renderer remain authoritative;
++ DX11 owns output layout and REL owns release/rollback inference.
++ 
++ Workflow discrimination depends on source structure: an enum or text field
++ changed by a guarded transition with at least two distinct nonempty literal
++ states (prior states or explicitly stored destinations) on that same selected
++ field is a lifecycle discriminator. A recording's mandatory nonempty negated
++ state comparison can also supply the workflow read when an actual consuming
++ transition writes a different literal state while reading that same receipt;
++ the producer need not repeat the old-state guard. Positive data equality and
++ empty-string validation do not establish this cross-operation classification. A literal self-assignment alone does not
++ establish a transition. A literal, resolved local/conditional literal, or finite enum-argument destination
++ with a changing prior value allowed by the projected selected-field guards
++ establishes this classification;
++ Boolean wrappers are evaluated recursively. Opaque predicates on that field
++ and unresolved destinations do not establish workflow discrimination. Independent
++ role/other-field conditions remain unknown and do not erase the structural
++ transition witness: known selected-field atoms are projected before testing
++ for any opaque residual selected-field dependence. Omit that field's nonempty equality/inequality admission comparisons only
++ when this selected-row invocation itself admits/excludes multiple literal
++ states, or the recorded specifically named approval identifies other data as
++ its subject, or an actual same-resource transition uses that recorded
++ approval (or its same-subject approving principal recorded together with
++ the positive stamp, including equality to the nonnull current viewer) while
++ changing the discriminator: e.g. coilApprovedAt with coilReason makes the separate workflow
++ status guard admission context, including a single current-stage comparison.
++ A consuming writer must have a projected changing destination: literal,
++ resolved conditional/local literal, or a finite enum argument projected into
++ its guards. Literal and argument self-assignments do not qualify. The complete
++ applicable consumer predicate may include deliberate alternatives; a receipt
++ mention in an alternative does not establish an unconditional approval contract.
++ The sibling contract retains that whole conditional policy. A named typed
++ principal referenced by a positive receipt predicate is an exact identity
++ capability: record its observed value at entry and actual admitted writes,
++ restore it through same-transaction null consumption, and invalidate a receipt
++ on reassignment to a different principal. Population binders retain their own
++ table type when collecting such markers. This does not turn principal metadata
++ into general payload approval: Boolean/time input-validation and reissue
++ inference remain responsible for approved-data contracts. No implicit subject
++ approval or new unused-approval gate is inferred merely from a principal name. This classifies
++ workflow admission, rather than proving all callers must present approval.
++ Approval/authorization metadata never identifies itself as other subject data.
++ Effect selection prefers the structural field set and also admits categorical
++ enum effects without a prior-stage guard: an operation requiring approval to
++ store an enum destination establishes that effect contract independently of
++ workflow admission classification. Global effects, related ledgers and lifecycle
++ coupling share this selection and do not revert to four exact field names.
++ Projection distinguishes exact string states, null, and other text: null is
++ a real prior state of an optional categorical field, even with a single enum
++ variant. Every eligible changing literal categorical destination is considered; copied
++ or parallel fields cannot shadow another effect. Dynamic destinations remain
++ uncovered rather than supplying an invented literal contract. This broader
++ effect selection never erases a checked input from an approval. Atomic lifecycle
++ coupling observes the exact enum/text columns referenced by inferred coupling
++ predicates, including population-local fields; observation never falls back to
++ four literal field names.
++ A column matching the approval subject remains data; merely staging it
++ elsewhere cannot erase its inspection. Checked caller values are always kept
++ as approved inputs. Current-stage admission is retained by workflow effect
++ contracts, not converted into a perpetual freeze of the workflow position.
++ For a literal stage destination, sibling effect contracts relax comparisons
++ on that overwritten selected-row stage using the existing polarity-aware
++ Boolean omission; they never evaluate the prior-stage requirement against the
++ stored destination. This stage-only projection retains all other absence
++ checks and branch premises; evidence-inspection absence omission is not used
++ for sibling policy projection. Projection is per selected effect: comparisons
++ on another concurrently written workflow field remain that effect's prior-image
++ policy, rather than disappearing before destination enumeration. Complete alternatives and remaining approval conditions
++ are retained; a relaxed tautology supplies no approval contract. Both dependency and replacement checks use the same resource-aware
++ occurrence classification, including Boolean equality/inequality wrappers.
++ Positive approval-receipt extraction recursively respects the same operand
++ polarity, including nested not/equality wrappers; negative guards are not receipts. A single-value data check remains evidence even
++ when other mutations transition its column; empty-string checks always remain
++ evidence. An approval operation which itself overwrites a stage retains the
++ existing replacement-use rules.
++ A data enum/principal/Boolean remains approved input when its value is actually
++ inspected. Empty-string validation is evidence validation, not a workflow
++ transition. Unsupported source/resource correspondence stays unknown.
++ 
++ Approval-act plausibility follows actual state/payload/child effects. Recording
++ an installation that advances its lifecycle performs a modeled act; `record*`
++ is not an exemption. A same-resource feature explicitly qualifying approval
++ can govern the lifecycle even if a separate operation sets that feature.
++ Request flags and approval-only records with no modeled governed act remain
++ informational. The advice path shares projected categorical-change checking
++ with contract inference: guarded literal/enum-argument self-assignments do not
++ create an act and therefore do not create an ignored-approval gate. Preserve the seven wave-27 external-record controls and exact
++ cancellation families; no operation name alone establishes a governed effect.
++ 
++ A specifically named approval also governs the matching named media subject
++ (e.g. likenessApproved and likenessScan), even if the approval operation merely
++ sets its stamp without explicitly reading the media. Such evidence edits must
++ invalidate or reapprove. Subject dependencies also attach to insert and
++ positive-default recordings, not only explicit update recordings. This initial additional subject inference is limited
++ to unambiguous same-row named typed assets (including lists), with an actual
++ word boundary after the approval subject (CamelCase or underscore); arbitrary foreign
++ subjects and unrecognized names remain uncovered, not proven safe. Existing
++ explicit inspected-input inference is unchanged. Exact metadata tails (approved/approval/authorized/authorization and their
++ at forms, consent/reason/cost/at) are excluded. These are whole tails, not
++ prefixes: likenessCostume, likenessAtlas and likenessConsentForm images remain
++ evidence subjects.
++ A separately authored operation-specific approval intent plus an enforced
++ nontrivial authority predicate can identify an explicit matching subject
++ reapproval that does not rewrite an already-positive stamp. Both the named
++ subject and executed guard are required; renaming an unchecked setter does
++ not grant an exemption. All other relevant replacement checks must still pass.
++ 
++ Text evidence advice descends optional/list containers, recommends an image
++ or image list, and remains advisory. It cannot claim text has verified content.
++ 
++ Positive text minima count visible Unicode scalar values: exclude Unicode
++ whitespace, Unicode 17.0.0 General_Category=Cf, and that version's
++ Default_Ignorable_Code_Point. This is an explicit pinned classification, not
++ a font/glyph or grapheme visibility claim. Upper bounds still count the entire
++ value and stored bytes are never normalized. This applies at the shared
++ argument/row validator, including optional/list values, on server and device.
++ Quarry trim returns empty for invisible-only text, so the published
++ trim(value) != '' repair rejects format-only text. Otherwise it preserves
++ ordinary Unicode-whitespace edge trimming and every internal/attached format
++ character, including emoji variation selectors, joiners and tag sequences.
++ The table is derived from the official Unicode 17 files and ships their license.
++ 
++ Scalar text hardening makes no schema/IR/wire encoding change. Stored text
++ list leaves previously lost their declared minimum/format during lowering;
++ they now retain the existing field Text constraint, applied recursively. No
++ new wire tag is introduced. Adding that formerly omitted constraint follows
++ ordinary checked-narrowing/retention semantics; old native schema validators
++ refuse text constraints on list columns. Rebuild devices and restart old
++ servers: older executors are not this hardening's enforcement boundary. Existing stored bytes remain readable and are not silently rewritten.
++ A subsequent row write validates the full candidate row, so legacy format-only
++ required text must be repaired through an authorized application mutation
++ before unrelated edits can succeed. Adoption which validates such rows/defaults
++ can refuse; repair invalid defaults and collect actual replacement evidence
++ using the previous binary before upgrading when necessary. Never synthesize
++ consent or bypass authority with raw-store writes. Pin old-binary creation,
++ new-binary read, atomic invalid-write refusal and authorized repair in upgrade
++ qualification; do not describe a finite inspection as universal data migration.
++ Older executors must not be used as an enforcement boundary for this hardening.
++ 
++ The deterministic deploy preflight reserves 3,072 call/world work units rather
++ than 8,192; check retains 512 and full test retains its prior complete campaign.
++ The smaller 2,048 proposal misses an existing nested sibling-approval history
++ on a fresh deploy; the production-path regression requires that no-intent
++ replay before accepting a reduced budget. This remains a finite work limit,
++ not a wall-clock verdict or a guarantee for every possible workflow depth.
++ Derived obligations and their dependencies replay before independent broad
++ sweeps, with bounded phase shares retained. Within derived replay, direct probes
++ and creator continuations each reserve at most a quarter of the then-current
++ remainder (capped at 128), leaving real multi-step lifecycle replay a turn.
++ Evidence-column writers and stamp recorders take priority over unrelated
++ lifecycle preparation. Directed signature deduplication retains the full
++ values of inferred approval inputs and selected candidate columns (including
++ required text and optional payload values), before priority scoring; unrelated
++ payload worlds can still merge with an explicit coverage gap. Principal
++ identities named by candidate policies remain distinct actor classes from
++ ordinary principals during bounded actor deduplication. Concrete equality
++ to a literal has known principal context when its other operand is viewer,
++ so replay uses that same principal value on either side. Other unsupported
++ principal/id string coercions remain unknown; no generic host-string comparison
++ is introduced. The focused
++ history beam also retains checked-input
++ preparation and actual positive approval states ahead of unrelated phase hops;
++ these are priorities on real replayed states, never synthesized approval.
++ Full-test initialization and setup checkpoints retain no call/world work
++ reservation; their existing per-checkpoint directed-history ceilings remain.
++ Each setup checkpoint also keeps a fresh finite workflow-continuation phase,
++ restoring the enclosing workflow baseline afterward.
++ Only explicitly work-bounded check/deploy campaigns divide remaining work
++ there. An unrelated finite helper slice must not turn full initialization
++ into a work-bounded command. The unchanged authored pickup/suspension
++ regression must retain its exact reachable witness. Full-test broad phases
++ remain. Pre-transition and pre-loosening setup
++ checkpoints remain eligible with at least 256 remaining units and each gets
++ at most one quarter of its current remainder (capped at 1,024), rather than
++ being disabled whenever fewer than 4,096 units remain. This trades finite generic deploy
++ coverage for predictable latency; every cut remains explicitly unproved and
++ never changes to proved because time passed. Full-test refutations matching
++ current unreviewed obligations still refuse deploy, and stale/reviewed failures
++ cannot suppress remaining obligations. Qualify fresh/post-test carried
++ approval, conservation and sibling captures and measure p90 under 15 seconds
++ sequentially on an unloaded host; adjust scheduling rather than report a
++ loaded run as an unloaded qualification.
++ 
++ Analyzer revision sec10-wave28-dx11-1 renews source-bound dispositions
++ from both prior detector and witness revisions. Captured deployment decisions
++ retain their stored witnesses without rereading authorization; current
++ acknowledgments alone set the recorded flag. The same canonical source/note
++ identities feed immutable replay decisions and generated audience-family
++ display history; that presentation cache cannot acknowledge a member or
++ change the captured decision set. Qualification
++ includes waves 15–28 fresh and post-test deploys, zero false derived refusals,
++ gate precision with intentional questions separated from product holes, pinned
++ Unicode vectors, focused upgrade/device validation, Lean run-lean plus a short
++ 2k differential campaign. No full suites, 20k campaign, qualify-linux or Mac
++ runs are commissioned. Both independent reviews must be READY before shipping.
++ 
++ 
++ ## 13. Witness-backed enforcement and shipping precision
++ 
++ Commission: SEC10 wave-29/30 follow-up, 2026-10-26. This amendment supersedes
++ sections 10–12 and LLP 3000.036.004 section 19 where they permit SEC10 gates
++ without concrete evidence, invalidate witnessed decisions merely on source or
++ analyzer revision, or treat backfill formulas as enduring label meaning.
++ DX11 retains presentation ownership. REL-owned release files remain outside
++ this workstream. Further inference/reach work is SEC11, not a shipping blocker
++ silently added to this commission.
++ 
++ A SEC10 gate requires a current deterministic campaign witness: an admitted
++ operation/effect, actual caller/arguments, old/new image and nonempty executed
++ history from a validated authored/generated fixture. A synthetic judgment,
++ unsupported shape, exhausted campaign, old rationale or presentation cache
++ cannot create a gate. Generated initialization remains explicit and is never
++ claimed reachable from an empty application. Required-to-optional predecessor
++ review is an explicit adoption contract, not this inferred-effect rule.
++ Inferred production FIX results likewise require actual replay evidence;
++ a counterexample to a guessed requirement does not establish domain intent.
++ 
++ `N_INSERT_WRITE_INTENT` is advice: wave 29 calibrated only four of sixteen
++ mixed gates as holes; a broader initial audience can be explicitly intended.
++ The review retains concrete creation/upsert examples but does not gate merely
++ because an edit path is narrower. The same low-precision projected-guard
++ hypotheses are advisory in derived augmentation too: a static advisory must
++ not reappear as a production FIX under another code. Retain paired approval
++ invalidation, explicit sibling/lifecycle/conservation contracts and authored
++ or runtime-enforced column authority; guesses from an edit restriction alone
++ are not global creation/update intent. Other SEC10 questions without current
++ witnesses remain behind `check --review`. Every code's final calibrated
++ precision is reported across waves 26–29 (with wave 30 separately added);
++ a code below approximately 80% real remains advice. Structural policy questions
++ are not reclassified as holes to improve this denominator.
++ 
++ Backfill label equations are advice, including when a generic setter differs.
++ A backfill describes migration-time initialization. Only independently authored
++ intent declares the formula an enduring meaning. Label candidates remain
++ available for review, but are excluded from deploy/full-test augmentation;
++ changing an intentional label cannot itself refuse production. Actual lifecycle
++ discriminators never become perpetual frozen data merely because a recording
++ has a single prior-state exclusion. Branch-scoped if/elif transitions and
++ ordinary require guards share the existing lexical write walker. A column that
++ is the approval's actual named subject remains protected.
++ 
++ Approval act inference uses actual receipt reads and typed effects, including
++ inserts into the approved subject. An operation's verb cannot establish or
++ exclude an act on its own. A linked consent record preceding approval is not
++ the approved act merely because its operation shares the approval's suffix.
++ Known modeled approval contracts are not labeled external informational acts
++ when the current finite campaign cannot reach the bypass. Missing cross-child
++ reach remains advice/coverage and is recorded for SEC11. Witness descriptions
++ name the operation that actually admits the effect, not a diagnostic's earlier
++ approximation. Operation-scoped hypotheses can isolate that actual producer.
++ 
++ Approval gating additionally needs a coupled Boolean activation flag positively
++ required on the exact row before its approval is recorded. Unknown applicability
++ (including unmatched feature names) stays advice even with a counterexample to
++ an unconditional guess. Reapply that classification after reading advisory caches;
++ cache edits cannot promote a question into a gate. This conservative precision
++ boundary leaves broader applicability inference to SEC11.
++ 
++ The current gate evidence search has a deterministic 3,072-work limit on all
++ check modes and deploy. Opt-in advisory evidence retains its separate
++ 8,192-work limit and redaction. Cached advisory evidence is source/executable
++ bound and cannot supply gate authority; gate evidence always replays selected
++ current sources. Production derived witnesses reuse the actual deploy campaign. Explicit review,
++ JSON and acknowledgment obtain that same 3,072-work deployment report when a
++ non-label derived question exists; only its derived evidence is displayed,
++ without relabeling inferred hypotheses as authored contradictions. Initial
++ authority/evidence ordering and unconditional authored failures stay intact.
++ Typed numeric guard literals join hydrated media tuples, and direct creator
++ probes match write/operation hypotheses even when generated target populations
++ are already filled; these are actual engine calls within existing phase caps.
++ Default check still prints DX11's verdict/enforcement pair plus pending gates;
++ advice stays behind --review. No new top-level output section is introduced.
++ Work exhaustion is coverage, and a wall-clock watchdog is not a verdict.
++ 
++ Custom committed-state judgments retain the actual committed dependency images
++ in the executed history. Identity includes these images as well as the initial
++ world: changing a partial refund changes its witness despite an unchanged deletion.
++ Witness evidence retains the trace’s transitive bound read/write, invariant,
++ reference, maintain and authority dependencies, including the charge and separate
++ refund ledgers of custom conservation judgments; unrelated fixture populations
++ are excluded. Unknown/native footprints conservatively retain all populations.
++ Every blocking derived FIX renders its individual decision, witness digest and
++ required reason template in ordinary deploy through the existing review renderer.
++ A witnessed decision is keyed to the canonical current evidence and code,
++ excluding presentation summary/scope, advisory classification and incidental source locations. Typed
++ generated row/reference IDs are consistently alpha-normalized, preserving
++ reference/equality edges; random minted bytes do not stale unchanged behavior.
++ Opaque text and enum values are not treated as row IDs. Canonical typed occurrence contexts include the supporting relationship graph;
++ tied local rows do not depend on original IDs or population ordering. Deployment and its prescribed
++ acknowledgment use the same bounded deployment report's counterexample selection;
++ an opt-in display campaign cannot substitute a different derived witness.
++ Finite campaigns supply deterministic, time-ordered ULIDs through the existing
++ `Context::with_ids` replay boundary. Each actual context reserves the ordinary
++ mutation meter's maximum admitted write count; unused slots are skipped. The
++ stream is scoped to the campaign thread, nested phases share it, and scope exit
++ restores the ordinary context behavior. Host/fork entropy cannot reorder fixture
++ populations between deploy and acknowledgment. Runtime minting is unchanged.
++ Source edits alone do not stale an unchanged witness. A changed witness is pending
++ with the new witness and no old rationale. Current evidence is recomputed
++ before a gate is cleared; neither an old record nor an analyzer-version string
++ supplies it. Existing unwitnessed advisory source bindings and atomic batch,
++ writer-lock, source-race, family and authored-refutation boundaries remain.
++ A witnessed acknowledgment must name its witness digest and explicitly state
++ `permit OPERATION as CALLER` as a complete affirmative semicolon-delimited
++ clause with the exact operation and witnessed caller (no suffix or negation).
++ A reason that claims the witnessed caller is excluded cannot substitute for
++ that affirmative decision. This is explicit acceptance, not English truth checking.
++ For a creating path it must explicitly state `audience:` and intended roles;
++ other witnessed decisions state `intended effect:` and specification rationale.
++ The audience/effect marker must have its own nonempty semicolon-delimited payload;
++ following witness or permission clauses cannot supply an empty payload.
++ Nonempty filler such as “one decision” refuses atomically with the exact next
++ step. This validates an explicit declaration, not truth of prose or permission
++ to override authored intent. A truthful narrower requirement must be repaired
++ in source; an acknowledgment never grants runtime authority or proves safety.
++ 
++ Qualification: focused regressions and installed-tarball authoring examples;
++ affected language/CLI/client checks and root generators/inventories/guide/ref;
++ read-only copied-schema surveys across waves 15,16,18–30, fresh and post-test
++ deploy, with every gate/FIX classified; default output lines on waves 26–29;
++ unloaded p50/p90 deployment time with the retained CPU-load criterion and
++ under-15-second p90 target. Report missed/unproved/domain requirements honestly.
++ No full suites/client pool, 20k differential run, Mac or publication qualification
++ is commissioned. Both fresh Muse and fresh Codex review this amendment/delta;
++ verbatim provenance is retained under llp/reviews. Author acceptance and actual
++ verification outcomes are recorded separately.
+++
+++## 14. Wave-30 default initialization (DX13)
+ +
+ +This amendment supersedes §2's "Defaults count" and §5's null-only creation
+ +exemption for declared literal defaults. At insert, null and equality to the
+ +column's declared literal default are initialization, whether omitted or supplied.
+ +Both retain the table insert rule. Other creation values and all changed edits
+ +require the column grant; edits judge old and next images, including resetting
+ +to a default. Upsert and insert-if-absent use their executed arm. Dynamic defaults
+ +retain ordinary authority. Runtime enforcement, authored column-write intent and generated enforced contracts
+ +share Table::column_initialization. LLP 3000.037.000 records the DX13 review and
+ +verification scope. Authored row assertions remain independent of this exemption.
+diff --cc snapback4/crates/snapback4-lang/src/guide/security.md
+index be4bb041f4,49cf31addd..41270884ec
+--- a/snapback4/crates/snapback4-lang/src/guide/security.md
++++ b/snapback4/crates/snapback4-lang/src/guide/security.md
+@@@ -57,12 -56,15 +57,13 @@@ initial state, not proof that app opera
+  fixtures retain `authored-fixture-trace`. Both fail acceptance on actual observed
+  violations; seed-only/synthetic table probes remain non-failing supplemental evidence.
+  Fixture-free tests report that no authored business cases ran. Finite passing
+- campaigns never prove security. Default check bounds concrete exploration to 512
+- call/world reservations and 1500 ms; exhaustion stays unproved and points to the
+- full test. Every check and changed deploy also searches
+- generated question witnesses with a separate deterministic 8192-work budget.
+- This bounded search cannot change a gate, decision ID or proof verdict; exhausted
+- questions retain an explicit unavailable witness.
++ campaigns never prove security. Check bounds concrete exploration to 512 call/world
++ reservations; its default verdict never depends on elapsed time. Work exhaustion
+ -stays unproved and points to the full test.
+ -Explicit `--review`, `--verbose`, JSON and `--ack-security` also search
+ -generated question witnesses with a separate deterministic 8192-work budget.
+ -A separate fixed 3072-work current-source search obtains gate evidence in every
+ -check mode and deploy. Without an admitted trace the question stays advice.
+ -The opt-in search cannot turn advisory guesses into authored refutations;
+ -exhausted questions retain an explicit unavailable witness.
+++stays unproved and points to the full test. Every check and changed deploy also
+++searches generated question witnesses with a separate deterministic 8192-work
+++budget. A separate fixed 3072-work current-source search obtains gate evidence
+++in every check mode and deploy. Without an admitted trace the question stays
+++advice. Exhausted questions retain an explicit unavailable witness.
+  `audit --json` retains all column audiences, grant writers, exclusions and uncovered
+  role/row/effect exposures. Audit returns the permission map with bounded check
+  evidence; run `test` for the full generated campaign. `audit --all` shows every
+diff --cc snapback4/crates/snapback4-lang/tests/guide/refusal_actions.rs
+index 9b8e7c0a93,de3ebf9657..f166ed19bf
+--- a/snapback4/crates/snapback4-lang/tests/guide/refusal_actions.rs
++++ b/snapback4/crates/snapback4-lang/tests/guide/refusal_actions.rs
+@@@ -2,13 -2,8 +2,15 @@@
+  //! These facts supplement the definition pins. A code label alone cannot tell
+  //! a caller whether to retry, replace intent, change a declaration, or show no data.
+  pub(super) const ACTIONS: &[(&str, &[&str])] = &[
+ +    ("E_DEV_ACCOUNTS", &["Use devAccounts only on development; seedAccounts for staging and provisionAccounts for production. guide staging."]),
+ +    ("E_SERVE_STOP_FAILED", &["Inspect shutdown handlers; a successful proof command cannot clear this failure. guide testing."]),
+ +    ("E_SERVE_THEN_FAILED", &["Cleanup still checks group shutdown and lock release; repair the callback and rerun. guide testing."]),
+ +    ("E_SERVE_THEN_TIMEOUT", &["Inspect stuck work; commands are stopped with the owned serve group, callbacks must honor their signal. guide testing."]),
+ +    ("E_WITNESS_ARGUMENTS", &["Named values are compared exactly; handler-owned additional keys are allowed. guide testing."]),
+ +    ("E_DATA_TRANSACTION_ABORTED", &["No success receipt is issued. Inspect the server outcome and retry through the identified-write path with the original intent id. See snapback4 guide deploy."]),
+ +
++     ("N_APPROVAL_INFORMATIONAL", &["offers the individual acknowledgment as the default next step.", "It does not block deployment.", "Adding the governed effect can create a new approval question."]),
++     ("N_INSERT_TABLE_AUTHORITY", &["remains advisory", "Confirm the declared table insert and edit audiences", "does not establish a distinct mutation require."]),
+      ("E_PRODUCTION_ROSTER", &["Inspect the roster and deployment. Keep credentials with their store; use stable arguments and never silently create replacement accounts."]),
+      ("E_PRODUCTION_ROSTER_BUSY", &["Wait for its driver. After confirming an interrupted driver is gone, inspect partial grants and remove only that roster lock; setup is not rolled back."]),
+      ("E_SERVE_CHECK", &["Check options with serve-check --help and rerun. No passing script qualification is claimed."]),
+diff --cc snapback4/crates/snapback4/src/verbs.rs
+index c7b05b2b0e,281847b989..761c1b5996
+--- a/snapback4/crates/snapback4/src/verbs.rs
++++ b/snapback4/crates/snapback4/src/verbs.rs
+@@@ -409,7 -409,9 +409,7 @@@ pub fn check(options: &Options) -> i32 
+      let acknowledgment_not_applied = (security.refuted() && options.flags.contains_key("ack-security")).then_some(
+          "--ack-security was not applied: a security invariant is refuted; an acknowledgment records specification rationale for a review note and cannot override a concrete counterexample. Repair the policy or the invariant and rerun check.");
+      if !options.json { if let Some(message) = acknowledgment_not_applied { eprintln!("check: {message}"); } }
+-     let evidence=security::witnesses::collect(&project,&bound,&compiled_sources,&security.notes,true);
+ -    let evidence=if options.json || options.flags.contains_key("review") || options.flags.contains_key("verbose") || options.flags.contains_key("ack-security") || security.notes.iter().any(|n|security_reviews::gated(&n.code)) {
+ -        security::witnesses::collect(&project,&bound,&compiled_sources,&security.notes,options.json || options.flags.contains_key("review") || options.flags.contains_key("verbose") || options.flags.contains_key("ack-security"),options)
+ -    } else { Vec::new() };
+++    let evidence=security::witnesses::collect(&project,&bound,&compiled_sources,&security.notes,true,options);
+      let dispositions = match security_reviews::review_evidence(&project,&compiled_sources,&security.notes,
+          if security.refuted(){None}else{options.flags.get("ack-security").map(|id|(id.as_str(),options.flags.get("reason").map(String::as_str).unwrap_or("")))},&evidence) {
+          Ok(d)=>d,Err(error)=>{if options.json {println!("{}",json!({"ok":false,"security":&security,"problems":[{"code":"E_SECURITY_NOTES","message":error}]}));}else{eprintln!("check: E_SECURITY_NOTES: {error}");}return 2;}
+diff --cc snapback4/crates/snapback4/src/verbs/security.rs
+index 134444e2af,cef4fa75ca..757ada873a
+--- a/snapback4/crates/snapback4/src/verbs/security.rs
++++ b/snapback4/crates/snapback4/src/verbs/security.rs
+@@@ -113,24 -123,30 +123,31 @@@ pub(super) fn release_loop(project:&Pro
+      // @ref LLP 3000.036.004#153-rule-changing-deployment-review — review is prominent, strictness is explicit and failure-origin aware.
+      let started=std::time::Instant::now();
+      let mut preflight=options.clone();if !options.flags.contains_key("staging")||options.flags.contains_key("strict"){preflight.flags.insert("security-deploy".into(),String::new());}
+-     let mut report=report(project,bound,sources,&preflight);
++     let decisions=super::security_reviews::ReviewSnapshot::capture(project)?;
++     let derived=security::derived::notes(sources,bound);
++     // A legacy rationale cannot skip the replay that establishes its current
++     // witness. Individual alternatives are applied only after actual evidence.
++     let mut report=report_with_reviewed(project,bound,sources,&preflight,&Default::default());
+      report.notes.extend(presence::notes(project,bound,prior,sources)?);
+      if super::proof_source::sources(project,options,"schema")?!=sources{return Err("selected Quarry sources changed during deployment security preflight".into());}
+-     let mut dispositions=super::security_reviews::review_snapshot(project,sources,&report.notes)?;
+-     let evidence=witnesses::collect(project,bound,sources,&report.notes,true);
+-     for (d,w) in dispositions.iter_mut().zip(evidence) {if d.witness.is_none(){d.witness=w;}}
+-     let derived=security::derived::notes(sources,bound);
+ -    let mut evidence=witnesses::collect(project,bound,sources,&report.notes,false,options);
+++    let mut evidence=witnesses::collect(project,bound,sources,&report.notes,true,options);
++     witnesses::apply_report(sources,bound,&report,&report.notes,&mut evidence);
++     if super::proof_source::sources(project,options,"schema")?!=sources{return Err("selected Quarry sources changed during deployment witness replay; rerun deploy".into());}
++     let dispositions=decisions.dispositions_with_evidence(sources,&report.notes,&evidence);
++     super::security_reviews::remember_families(project,sources,&report.notes);
++     decisions.ensure_current(project)?;
+      let acknowledged=derived.iter().filter(|n|report.notes.iter().zip(&dispositions).any(|(r,d)|r.site==n.site&&r.code==n.code&&r.message==n.message&&d.acknowledged)).map(|n|n.site.to_string()).collect::<std::collections::BTreeSet<_>>();
+      let pending=super::security_reviews::pending(&dispositions);
+-     let fixes=report.invariants.iter().filter(|v|v.status==security::Status::Refuted&&v.counterexample.as_ref().is_some_and(|c|c.reachability.is_reachable())&&(!security::derived::is_derived(&v.invariant)||!acknowledged.contains(&v.invariant.site.to_string()))).count();
++     let witnessed=|v:&&security::Verdict|v.status==security::Status::Refuted&&v.counterexample.as_ref().is_some_and(|c|c.reachability.is_reachable()&&(!security::derived::is_derived(&v.invariant)||super::security_reviews::witness::concrete(&witnesses::evidence(sources,bound,&v.invariant,c))));
++     let fixes=report.invariants.iter().filter(witnessed).filter(|v|!security::derived::is_derived(&v.invariant)||!acknowledged.contains(&v.invariant.site.to_string())).count();
+ -    eprintln!("security deploy campaign: {} ms; bounded replay, remaining paths retain coverage gaps",started.elapsed().as_millis());
+ +    if options.flags.contains_key("verbose") { eprintln!("security deploy campaign: {} ms; bounded replay, remaining paths retain coverage gaps",started.elapsed().as_millis()); }
+      let scope=release_scope(bound,prior,sources);
+ -    let mut notice=String::from("SECURITY REVIEW — rules changed; changed tables and operations only\n");
+ +    let review=options.flags.contains_key("review")||options.flags.contains_key("verbose");
+ +    let mut notice=String::new();
+-     for v in report.invariants.iter().filter(|v|v.status==security::Status::Refuted&&v.counterexample.as_ref().is_some_and(|c|c.reachability.is_reachable())){
++     for v in report.invariants.iter().filter(witnessed){
+          let c=v.counterexample.as_ref().unwrap();
+          if security::derived::is_derived(&v.invariant)&&acknowledged.contains(&v.invariant.site.to_string()){
+ -            notice.push_str(&format!("  REVIEWED derived {}: individual specification decision retained\n",v.invariant.target_label()));continue;
+ +            if review {notice.push_str(&format!("  REVIEWED derived {}: individual specification decision retained\n",v.invariant.target_label()));} continue;
+          }
+          notice.push_str(&format!("  FIX {} {}: refuted via {} as {} ({:?}); repair enforcement to match intent, then run snapback4 test\n",v.invariant.site,v.invariant.target_label(),c.operation,c.viewer,c.reachability));
+          if !security::derived::is_derived(&v.invariant) {
+diff --cc snapback4/crates/snapback4/src/verbs/security/witnesses.rs
+index c9a5090a71,ccadb43b52..ca2f1147be
+--- a/snapback4/crates/snapback4/src/verbs/security/witnesses.rs
++++ b/snapback4/crates/snapback4/src/verbs/security/witnesses.rs
+@@@ -84,19 -109,9 +109,21 @@@ pub(in crate::verbs) fn evidence(source
+          inv.target,
+          inv.predicate
+      );
+ +    // @ref LLP 3000.037.000#1-default-verdict — compact exact fields retain the full replay in JSON.
+ +    // The default verdict shows the candidate's exact fields; full images and
+ +    // replay history remain in JSON and the expanded review summary.
+ +    let mut fields=std::collections::BTreeSet::new();
+ +    if let Some(column)=&inv.column {fields.insert(column.clone());}
+ +    let selected=std::cell::RefCell::new(fields);
+ +    if let Some(policy)=&inv.policy {policy.any_term(&|term| {
+ +        if let snapback4_core::schema::RuleTerm::Field(column)|snapback4_core::schema::RuleTerm::OldField(column)|snapback4_core::schema::RuleTerm::NextField(column)=term {selected.borrow_mut().insert(column.clone());}
+ +        false
+ +    });}
+ +    let focused=|row:&serde_json::Value| row.as_object().map(|row|row.iter().filter(|(key,_)|selected.borrow().contains(*key)).map(|(k,v)|(k.clone(),v.clone())).collect::<serde_json::Map<_,_>>()).map(serde_json::Value::Object).unwrap_or(serde_json::Value::Null);
+ +    let compact_summary=format!("{} as {} → ok; {} {} -> {} (bounded replay; not proof)",c.operation,c.viewer,inv.target_label(),old.as_ref().map(|row|focused(row).to_string()).unwrap_or_else(||"absent".into()),focused(&next));
+      let history=c.history.iter().map(|step|json!({"operation":step.operation,"viewer":step.viewer,"args":step.args.iter().map(|(k,v)|(k,safe(v,None))).collect::<BTreeMap<_,_>>(),"state":step.result["state"]})).collect::<Vec<_>>();
++     let dependencies=dependencies(sources,bound,inv,c);
++     let committed=c.history.last().and_then(|step|step.result.get("committedRows")).and_then(|value|serde_json::from_value::<BTreeMap<String,Vec<snapback4_core::Value>>>(value.clone()).ok());
+      let supporting = c
+          .supporting_rows
+          .iter()
+@@@ -109,8 -125,19 +137,19 @@@
+              )
+          })
+          .collect::<BTreeMap<_, _>>();
+-     json!({"compactSummary":compact_summary,"history":history,"supportingRows":supporting,"summary":summary,"candidate":format!("invariant {} only {}",inv.target_label(),inv.predicate),"operation":c.operation,"viewer":c.viewer,"args":args,"effect":c.effect,"old":old,"row":next,"reachability":c.reachability,"scope":c.scope})
++     let mut generated_ids=std::collections::BTreeSet::new();
++     let mut add_id=|value:&snapback4_core::Value|{if let snapback4_core::Value::Id(value)=value&&value.len()==26&&value.bytes().all(|b|b"0123456789ABCDEFGHJKMNPQRSTVWXYZ".contains(&b)){generated_ids.insert(value.clone());}};
++     let row_ids=|table:&str,row:&snapback4_core::Value,add:&mut dyn FnMut(&snapback4_core::Value)|{if let snapback4_core::Value::Row(fields)=row{for (column,value) in fields.iter(){if column=="id"||bound.schema.table(table).and_then(|t|t.columns.get(column)).is_some_and(|k|matches!(k.required(),ColumnType::Id|ColumnType::Ref{..}|ColumnType::Principal)){add(value);}}}};
++     row_ids(&inv.table,&c.row,&mut add_id);if let Some(old)=&c.old{row_ids(&inv.table,old,&mut add_id);}
++     for (table,rows) in &c.supporting_rows{if dependencies.contains(table){for row in rows{row_ids(table,row,&mut add_id);}}}
++     if let Some(rows)=&committed{for (table,rows) in rows{if dependencies.contains(table){for row in rows{row_ids(table,row,&mut add_id);}}}}
++     for value in actual_args(c).values(){add_id(value);}for step in &c.history{for value in step.args.values(){add_id(value);}}
+ -    let mut value=json!({"generatedIds":generated_ids,"history":history,"supportingRows":supporting,"summary":summary,"candidate":format!("invariant {} only {}",inv.target_label(),inv.predicate),"operation":c.operation,"viewer":c.viewer,"args":args,"effect":c.effect,"old":old,"row":next,"reachability":c.reachability,"scope":c.scope});
+++    let mut value=json!({"compactSummary":compact_summary,"generatedIds":generated_ids,"history":history,"supportingRows":supporting,"summary":summary,"candidate":format!("invariant {} only {}",inv.target_label(),inv.predicate),"operation":c.operation,"viewer":c.viewer,"args":args,"effect":c.effect,"old":old,"row":next,"reachability":c.reachability,"scope":c.scope});
++     if let Some(rows)=committed{value["committedRows"]=json!(rows.iter().filter(|(table,_)|dependencies.contains(*table)).map(|(table,rows)|(table,rows.iter().map(|row|image(bound,table,row)).collect::<Vec<_>>())).collect::<BTreeMap<_,_>>());}
++     super::super::security_reviews::witness::stamp(value)
+  }
++ mod approval_applicability;
++ use approval_applicability::{approval_trigger,precise_approval};
+  fn candidate(sources: &[(String, String)], line: &str) -> Option<security::Invariant> {
+      let mut sources = sources.to_vec();
+      sources.push(("$dx11-question.q".into(), format!("{line}\n")));
+
+POST-MERGE SEAM DELTA
+diff --git a/llp/3000.036.004.000-structural-write-authority.rfc.md b/llp/3000.036.004.000-structural-write-authority.rfc.md
+index 38ba910dd5..736ee94aed 100644
+--- a/llp/3000.036.004.000-structural-write-authority.rfc.md
++++ b/llp/3000.036.004.000-structural-write-authority.rfc.md
+@@ -1086,7 +1086,7 @@ verification outcomes are recorded separately.
+ 
+ ## 14. Wave-30 default initialization (DX13)
+ 
+-This amendment supersedes §2's "Defaults count" and §5's null-only creation
++This amendment supersedes §§10–13's source-only default exemption where they conflict, §2's "Defaults count" and §5's null-only creation
+ exemption for declared literal defaults. At insert, null and equality to the
+ column's declared literal default are initialization, whether omitted or supplied.
+ Both retain the table insert rule. Other creation values and all changed edits
+diff --git a/snapback4/crates/snapback4/src/verbs.rs b/snapback4/crates/snapback4/src/verbs.rs
+index 761c1b5996..1776cc5b5d 100644
+--- a/snapback4/crates/snapback4/src/verbs.rs
++++ b/snapback4/crates/snapback4/src/verbs.rs
+@@ -439,7 +439,7 @@ pub fn check(options: &Options) -> i32 {
+     if options.json {
+         println!("{}", json!({ "ok": !security_failed, "acknowledgmentNotApplied": acknowledgment_not_applied, "securityReviews": &dispositions, "security": &security, "followingHistory": bound.programs.iter().filter_map(|p| crate::scale::following::certificate(&bound.schema, &p.program)).collect::<Vec<_>>(), "rowViews": row_views, "fieldAuthority": field_authority, "sequences": sequences, "scaleSummary": scale_summary, "search": certificates.iter().flat_map(|certificate| &certificate.search).collect::<Vec<_>>(), "plans": if options.flags.contains_key("cost") { Some(bound.programs.iter().map(|p| (&p.program.name, p.selections())).collect::<BTreeMap<_, _>>()) } else { None }, "scale": if options.flags.contains_key("cost") { Some(&certificates) } else { None }, "tables": bound.schema.visible_tables().filter(|(name, _)| bound.schema.maintain_for(name).is_none()).count(), "views": bound.schema.visible_tables().filter(|(name, _)| bound.schema.maintain_for(name).is_some()).count(), "synced": synced, "operations": bound.programs.len(), "heldQueries": bound.schema.operations.iter().filter(|(_, fact)| fact.held).map(|(name, _)| name).collect::<Vec<_>>(), "notes": bound.notes, "newNotes": reviewed.new, "acknowledgedNotes": reviewed.acknowledged, "predictionSummary": snapback4_lang::bind::residency::prediction_summary(&bound), "starterLeftovers": init::starter_leftovers_json(&project.root), "acquisition": acquisition, "residency": if options.flags.contains_key("residency") { Some(residency::facts(&bound)) } else { None }, "native": native.as_ref().map(|b| json!({ "module": b.path, "bytes": b.bytes, "jobs": b.jobs, "ms": b.ms })), "ms": elapsed.as_millis() }));
+     } else {
+-        println!("{}",crate::presentation::check_verdict(security_failed,&table_counts(&bound.schema),synced,bound.programs.len(),if security.refuted(){"security invariant refuted"}else if security_failed{"security review required"}else{"compiled"},dispositions.iter().filter(|d|d.gated&&!d.acknowledged).count(),dispositions.iter().filter(|d|!d.gated&&!d.acknowledged&&d.witness.is_some()).count(),dispositions.iter().filter(|d|!d.gated&&!d.acknowledged&&d.witness.is_none()&&crate::note_rank::tier(&d.code)==crate::note_rank::Tier::Review).count(),dispositions.iter().filter(|d|d.acknowledged).count(),note_count,elapsed.as_secs_f64()*1000.0,init::client_setup_hint(&project.root),&native.as_ref().map(|b|format!("; native: {} → {} ({} B, {} ms)",b.jobs.join(", "),b.path.display(),b.bytes,b.ms)).unwrap_or_default()));
++        println!("{}",crate::presentation::check_verdict(security_failed,&table_counts(&bound.schema),synced,bound.programs.len(),if security.refuted(){"security invariant refuted"}else if security_failed{"security review required"}else{"compiled"},dispositions.iter().filter(|d|d.gated&&!d.acknowledged).count(),dispositions.iter().filter(|d|!d.gated&&!d.acknowledged&&d.witness.is_some()).count(),dispositions.iter().filter(|d|!d.gated&&!d.acknowledged&&d.witness.is_none()).count(),dispositions.iter().filter(|d|d.acknowledged).count(),note_count,elapsed.as_secs_f64()*1000.0,init::client_setup_hint(&project.root),&native.as_ref().map(|b|format!("; native: {} → {} ({} B, {} ms)",b.jobs.join(", "),b.path.display(),b.bytes,b.ms)).unwrap_or_default()));
+         security::enforced(&security,&bound);
+         if review && !reviewed.acknowledged.is_empty() { println!("{} reviewed notes (check --verbose to inspect); source edits require review again", reviewed.acknowledged.len()); }
+         if options.flags.contains_key("verbose") {
+diff --git a/snapback4/crates/snapback4/src/verbs/security_reviews/decisions.rs b/snapback4/crates/snapback4/src/verbs/security_reviews/decisions.rs
+index b3d504e6a4..01634d866f 100644
+--- a/snapback4/crates/snapback4/src/verbs/security_reviews/decisions.rs
++++ b/snapback4/crates/snapback4/src/verbs/security_reviews/decisions.rs
+@@ -83,7 +83,8 @@ pub(in crate::verbs) fn render_mode(dispositions:&[Disposition],notes:&[Diagnost
+             if d.gated&&!d.acknowledged || d.recorded {
+                 output.push_str(&render(&[d.clone()],&[n.clone()]));
+             } else if !d.acknowledged && let Some(w)=&d.witness {
+-                output.push_str(&format!("fix question {} at {}: {}; is this intended?\n  Witness: {} — repair or check --ack-security {} --reason '<spec rationale>' (doesn't block)\n",d.code,d.site,n.message.trim_end_matches(['.','?']),w["compactSummary"].as_str().or_else(||w["summary"].as_str()).unwrap_or("see check --json for replay"),d.id));
++                let rationale=if witness::concrete(w) {witness::reason_template(w)} else {"<spec rationale>".into()};
++                output.push_str(&format!("fix question {} at {}: {}; is this intended?\n  Witness: {} — repair or check --ack-security {} --reason '{}' (doesn't block)\n",d.code,d.site,n.message.trim_end_matches(['.','?']),w["compactSummary"].as_str().or_else(||w["summary"].as_str()).unwrap_or("see check --json for replay"),d.id,rationale));
+             }
+         }
+         return output;

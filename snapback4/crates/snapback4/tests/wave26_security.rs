@@ -84,3 +84,17 @@ const PASSWORD:&str="use identity password\ntable notes:\n  owner: principal\n  
  let reviewed=app.ok(&["check","--ack-security",family,"--reason","The product specification intentionally admits this owner's audience"]);
  assert!(reviewed.contains("security reviewed"));
 }
+
+// @ref LLP 3000.037.000#1-default-verdict — an enforced derived witness cannot also be a nonblocking question.
+#[test]fn enforced_derived_witness_is_only_in_the_blocking_tier(){
+ let app=App::new(include_str!("../../snapback4-lang/tests/security/wave27/018.q"));
+ let output=app.run(&["deploy","deployment","--json"]);
+ assert!(!output.status.success(),"the calibrated sibling bypass must still refuse");
+ let value:serde_json::Value=serde_json::from_slice(&output.stdout).unwrap();
+ let security=value["security"].as_str().map(|s|serde_json::from_str::<serde_json::Value>(s).unwrap()).unwrap_or_else(||value["security"].clone());
+ let reviews=security["securityReviews"].as_array().unwrap();
+ let blockers=reviews.iter().filter(|d|d["code"]=="N_DERIVED_WRITE_AUTHORITY"&&d["gated"]==true&&!d["acknowledged"].as_bool().unwrap()).collect::<Vec<_>>();
+ assert!(!blockers.is_empty(),"{security}");
+ let notice=security["notice"].as_str().unwrap();
+ for blocker in blockers {assert!(!notice.lines().any(|line|line.starts_with("fix question N_DERIVED_WRITE_AUTHORITY")&&line.contains(blocker["site"].as_str().unwrap())),"{notice}");}
+}
