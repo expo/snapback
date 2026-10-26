@@ -320,8 +320,8 @@
     "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
   },
   "proof-accounts.ts": {
-    "count": 10,
-    "sha256": "66d0acb25f18a52970131841ee3354002da7c33dd233b64d7345c5d37d42a7b8"
+    "count": 12,
+    "sha256": "2d6e57e6f0125d53bd5cd7197ed83ce9ac04a4d47f1eceeeba57a984d32daa61"
   },
   "proof-command.ts": {
     "count": 1,
@@ -360,8 +360,8 @@
     "sha256": "8237b77f0b78215f8ea5e980aa9420cfb383f95cf531b4b191ab7e9081040167"
   },
   "proof.ts": {
-    "count": 62,
-    "sha256": "a979c1f3a8d0a0902a8b01f3dec8bdb38bc6e8db47116f3aab1e9bfc5180fe13"
+    "count": 63,
+    "sha256": "8a113f7e082cc79aea5508a864153f273261b9515eab421f6bfc090f535ca368"
   },
   "query-custody.ts": {
     "count": 1,

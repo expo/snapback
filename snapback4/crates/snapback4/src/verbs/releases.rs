@@ -1061,7 +1061,11 @@ fn print_live(live:&serde_json::Value){
     if live["exact"]==true {println!("live: release {} = exact source {}",live["release"],live["source"]);}
     else {println!("live: release {} = rollback view of release {} (registered by release {})",live["release"],live["target"],live["parent"]);
         println!("  view retains the registered workflow and guards; --exact selects original release {}",live["target"]);
-        super::release_shape::print(&live["rowShape"]);
+        // Short output discloses changes and retained extraction children;
+        // a preserved shape is already available in the complete JSON record.
+        if live["rowShape"]["matchesTarget"]!=true || live["rowShape"]["children"].as_array().is_some_and(|children|!children.is_empty()) {
+            super::release_shape::print(&live["rowShape"]);
+        }
     }
 }
 

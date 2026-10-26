@@ -5,12 +5,16 @@ fn scratch(name:&str)->Scratch {let p=std::env::temp_dir().join(format!("dx13-{n
 fn run(p:&Scratch,args:&[&str])->std::process::Output {Command::new(env!("CARGO_BIN_EXE_snapback4")).current_dir(&p.0).args(args).output().unwrap()}
 #[test]
 fn cold_default_check_and_deploy_show_concrete_witnesses_without_review() {
- let p=scratch("witness");fs::write(p.0.join("snapback/schema.q"),include_str!("fixtures/dx11/011.q")).unwrap();
+ let p=scratch("witness");
+ // Enforce the genuine approval gate first, retaining the independent
+ // witnessed recipient question as the nonblocking default-output control.
+ let source=include_str!("fixtures/dx11/011.q").replace("  update installs[install] { stage: 'inspection'", "  require not inst.indoorMount or inst.indoorApproved else APPROVAL_REQUIRED\n  update installs[install] { stage: 'inspection'");
+ fs::write(p.0.join("snapback/schema.q"),source).unwrap();
  for args in [vec!["check"],vec!["deploy","release"]] {
   let out=run(&p,&args);let text=format!("{}{}",String::from_utf8_lossy(&out.stdout),String::from_utf8_lossy(&out.stderr));
   assert!(out.status.success(),"{text}");
   let verdict=text.lines().next().unwrap();assert!(verdict.contains("witnessed questions")&&verdict.contains("don't block"),"{verdict}");
-  assert!(text.contains("Witness:")&&text.contains("indoorApproved")&&text.contains("is this intended?"),"{text}");
+  assert!(text.contains("Witness:")&&text.contains("N_ARGUMENT_GRANT")&&text.contains("is this intended?"),"{text}");
   assert!(text.contains("don't block"),"{text}");
  }
 }
@@ -51,7 +55,10 @@ fn pre_dx13_password_clients_adapt_and_keep_application_edits() {
 }
 #[test]
 fn first_deploy_does_not_drop_a_derived_witness_virtual_source_site() {
- let p=scratch("derived");fs::write(p.0.join("snapback/schema.q"),"table docs:\n  owner: principal\n  cell: text ?\n  read <- allow\n  insert <- allow\n  update (old, next) <- old.cell = next.cell or viewer = 'service:desk'\n  online only\nmutation create(owner: principal, cell: text ?):\n  return insert docs { owner, cell }\n").unwrap();
+ let p=scratch("derived");
+ fs::write(p.0.join("snapback/schema.q"),include_str!("../../snapback4-lang/tests/security/wave27/018.q")).unwrap();
  let out=run(&p,&["deploy","release"]);let text=format!("{}{}",String::from_utf8_lossy(&out.stdout),String::from_utf8_lossy(&out.stderr));
- assert!(text.contains("N_DERIVED_WRITE_AUTHORITY")&&text.contains("  Witness:"),"{text}");
+ assert!(!out.status.success(),"the concrete sibling bypass remains blocking: {text}");
+ assert!(text.contains("N_DERIVED_WRITE_AUTHORITY")&&text.contains("$derived/")&&text.contains("  Witness:"),"{text}");
+ assert!(!text.contains("fix question N_DERIVED_WRITE_AUTHORITY"),"a blocking witness is not also a nonblocking question: {text}");
 }

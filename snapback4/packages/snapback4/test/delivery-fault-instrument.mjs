@@ -493,3 +493,8 @@ export function awaitBoundary() {
 // and rendered-locator scrolling own test resources, not SDK delivery custody.
 // Their added awaits are exercised by dx12-serve and proof-contract regressions;
 // existing classified transport/settlement fault sites remain unchanged.
+
+// Integration 27: REL2 roster lease fences and DX12 development accounts combine
+// in proof-accounts; the merged proof export has one additional operator wait.
+// Both are Node-only setup/proof custody, outside SDK delivery. Regenerate the
+// complete await boundary from source; existing delivery fault sites stay fixed.

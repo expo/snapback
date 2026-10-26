@@ -23,6 +23,11 @@ const SOURCE:&str="table notes:\n  title: text <=80\n  public 'fixture'\nquery l
 }
 #[test]fn gates_remain_explicit_and_blocking_with_next_steps(){
  let app=App::new();app.write("table docs:\n  photo: image <=10000 ?\n  read <- allow\n  insert <- deny\n  online only\ninvariant docs always .photo != null\nmutation add(photo: image <=10000 ?):\n  return insert docs {photo}\n");
- let r=app.run(&["deploy","production"]);assert!(!r.status.success());let err=String::from_utf8_lossy(&r.stderr);assert!(err.contains("deploy verdict: REFUSED")&&err.contains("N_OPTIONAL_UPLOAD_CREATE")&&err.contains("Intended:")&&err.contains("Repair:"),"{err}");
+ // SEC10 does not gate an unreachable insertion. Use the explicit prior
+ // required-presence contract so this remains a real blocking-gate control.
+ let optional=fs::read_to_string(app.0.join("snapback/schema.q")).unwrap().replace("invariant docs always .photo != null\n", "");
+ app.write(&optional.replace("image <=10000 ?","image <=10000"));app.ok(&["check"]);
+ app.write(&optional);
+ let r=app.run(&["deploy","production"]);assert!(!r.status.success());let err=String::from_utf8_lossy(&r.stderr);assert!(err.contains("deploy verdict: REFUSED")&&err.contains("N_PRESENCE_LOOSENING")&&err.contains("Intended:")&&err.contains("Repair:"),"{err}");
  let json:serde_json::Value=serde_json::from_slice(&app.run(&["deploy","production","--json"]).stdout).unwrap();assert_eq!(json["ok"],false);assert!(json["security"]["securityReviews"].as_array().unwrap().iter().any(|d|d["gated"]==true&&d["acknowledged"]==false));
 }
