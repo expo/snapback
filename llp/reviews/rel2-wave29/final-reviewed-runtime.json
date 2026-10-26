@@ -1,20 +1,20 @@
 {
   "reviewComposition": [
     "r15 full runtime",
-    "r16 child-layout and enum-label-set delta",
-    "r17 wire-ID input-domain delta"
+    "r16 closed child layout and enum-label metadata",
+    "r18 automatic-versus-explicit scope correction; supersedes prototype global input policy"
   ],
   "files": {
     "snapback4/crates/snapback4-core/src/schema/extraction.rs": "d28123a01d204da081edd18fa758cc0ff22af01fab4f3747bf77d18ac0f7358f",
     "snapback4/crates/snapback4-core/src/store/extractions.rs": "2a08af63ca9c4b05db80dd8e0251607bc1df210eca27323694e08c4145c0be09",
     "snapback4/crates/snapback4-core/src/store/rollback_visibility.rs": "39f5259717aa732325b42bc8b53b33d3d4e307e1d4a24f999fb0994cf368a98b",
     "snapback4/crates/snapback4-core/src/store/tooling.rs": "37a9a5c97afd4f388af49f11b2e23301179c8c9b9bedee624a8f85f536ba7fd5",
-    "snapback4/crates/snapback4-lang/src/release_bridge.rs": "d6b266200013d75bce83280c5a4b61edc68eb7cd92de4e020d2f63463e529c5a",
+    "snapback4/crates/snapback4-lang/src/release_bridge.rs": "a4bcedd9640947db91ae02fd5a1e5ddec394cbeb2628f1524f91de81383ea230",
     "snapback4/crates/snapback4-lang/src/release_bridge_guards.rs": "12927cd712466034e32060689f3ee9a2c0c6153ec217fae6386c9b69626690ac",
     "snapback4/crates/snapback4/src/verbs.rs": "67b318c0d979d01cca27d784cd0793720db9d53b727180779621ed7d1243dc63",
     "snapback4/crates/snapback4/src/verbs/release_preview.rs": "e70aa4682e2dd2588f41c8ca2cd2ebd289023849eebae333d7aa68f137a373b1",
     "snapback4/crates/snapback4/src/verbs/release_shape.rs": "3f8d6ccf65150f03d3ed1b61088c05b0c2df652e82b666a85dc76a4ab674a68d",
-    "snapback4/crates/snapback4/src/verbs/releases.rs": "ce4e0f484e9d108c3fac6b1acce8ca234a48321e940df904470f83457c91d023",
+    "snapback4/crates/snapback4/src/verbs/releases.rs": "f6a56f398e2cc0a41ac3bc33287c73ac32b6a1e7e4a5cbb8132aac31353828c9",
     "snapback4/crates/snapback4/src/verbs/rollback_views.rs": "5d7720fac6b2162d2b560e85c2eeb925fe05a991e6208f0d2a54524581bff933",
     "snapback4/crates/snapback4/src/verbs/saved_version.rs": "e2038bbec8dbeeeb6f2eed0d3cd2521bec806e9d6b219fcc731f24057774fdde",
     "snapback4/packages/snapback4/src/proof-accounts.ts": "5d26779bec78d12cc306b44eda51a5dd859b72b3ee37281ae3bbf1ca9cf56293",

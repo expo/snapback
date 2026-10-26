@@ -1191,41 +1191,6 @@ fn read_through_capture_requires_a_live_parent_even_under_allow_rules() {
 }
 
 #[test]
-fn explicit_historical_selection_keeps_current_inputs_and_forward_moves_still_work() {
-    let old="table audit:\n  n: int\n  read <- allow\n  insert <- allow\n  online only\nmutation record(n: int):\n  return insert audit {n}\n";
-    let b=snapback4_lang::compile(&[("schema.q".into(),old.into())]);assert!(b.diagnostics.is_empty());
-    let mut baseline=snapback4_core::Engine::memory(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
-    let original=baseline.mutate("record",None,snapback4_core::Context::new("alice",std::collections::BTreeMap::from([("n".into(),snapback4_core::Value::Int(0))]))).unwrap();
-    assert!(matches!(original.state,snapback4_core::engine::WriteState::Sent{..}),"the predecessor accepts the value before narrowing");
-    let current=old.replace("record(n: int)","record(n: int 1..10)");
-    let app=App::new();app.source(old);app.ok(&["deploy","deployment"]);app.source(&current);app.ok(&["deploy","deployment"]);
-    let active=app.json(&["releases","deployment"])["current"].clone();
-    for check in [true,false] {
-        let mut args=vec!["rollback","deployment","--to","1","--exact"];if check{args.push("--check");}
-        let out=app.run(&args);assert!(!out.status.success(),"{}",text(&out));assert!(text(&out).contains("inputs outside the current contract"),"{}",text(&out));
-        assert_eq!(app.json(&["releases","deployment"])["current"],active);
-    }
-    app.ok(&["rollback","deployment","--to","1"]);
-    let selected=app.json(&["releases","deployment"])["current"].as_u64().unwrap();
-    let text=fs::read_to_string(app.0.join(format!("deployment/releases/{selected}/snapback/schema.q"))).unwrap();
-    let b=snapback4_lang::compile(&[("schema.q".into(),text)]);assert!(b.diagnostics.is_empty());
-    let mut engine=snapback4_core::Engine::memory(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
-    match engine.mutate("record",None,snapback4_core::Context::new("alice",std::collections::BTreeMap::from([("n".into(),snapback4_core::Value::Int(0))]))) {
-        Ok(outcome)=>assert!(matches!(outcome.state,snapback4_core::engine::WriteState::Failed{..}),"the guarded view must not admit the narrowed-away value"),
-        Err(snapback4_core::RuntimeError::UnknownOp(name))=>assert_eq!(name,"record","incompatible export is paused (E_OP)"),
-        Err(error)=>panic!("unexpected domain-check failure: {error}"),
-    }
-    app.ok(&["rollback","deployment","--to","latest"]);
-    app.ok(&["deploy","deployment"]);
-    let wider=current.replace("1..10","0..20");app.source(&wider);app.ok(&["deploy","deployment"]);
-    app.ok(&["rollback","deployment","--to","latest","--exact"]);
-    let wider_release=app.json(&["releases","deployment"])["current"].clone();
-    app.source(&format!("{current}\n-- current authored contract\n"));app.ok(&["deploy","deployment"]);
-    app.source(&wider);app.ok(&["deploy","deployment"]);
-    assert_eq!(app.json(&["releases","deployment"])["current"],wider_release,"deploying the authored wider source reuses its identity without an old-signature veto");
-}
-
-#[test]
 fn extraction_payloads_are_inputs_and_capture_precedes_intervening_effects() {
     let parent=|payload:bool|format!("table items:\n{}  read <- allow\n  insert <- allow\n  delete <- allow\n  online only\n",if payload{"  scan: file <=1000 ?\n"}else{""});
     let child="table scans:\n  item: items on delete cascade\n  scan: file <=1000 ?\n  immutable item\n  unique item\n  read through .item\n  insert <- allow\n  online only\nextract scans from items via item: {scan:scan}\n";
@@ -1262,13 +1227,38 @@ fn unmapped_child_lifetime_edges_keep_the_view() {
 }
 
 #[test]
-fn reference_retargeting_is_not_wire_input_narrowing_or_an_argument_conversion() {
-    let old="table before:\n  read <- allow\n  delete <- allow\n  online only\nmutation remove(id: before):\n  delete before[id]\n";
-    let current=old.replace("before","after");
-    let source=|s:String|vec![("schema.q".into(),s)];let old=source(old.into());let current=source(current);
-    for sources in [&old,&current] {let b=snapback4_lang::compile(sources);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);}
-    assert!(snapback4_lang::release_bridge::exact_historical_inputs(&old,&current).is_ok());
-    assert!(!snapback4_lang::release_bridge::requires_view(&old,&current),"a different source table keeps its nominal binding without inventing a wire-domain guard");
-    let incompatible=source("table after:\n  read <- allow\n  online only\nmutation remove(id: int):\n  return id\n".into());
-    assert!(snapback4_lang::release_bridge::exact_historical_inputs(&old,&incompatible).is_err());
+fn default_extraction_preserves_input_guards_and_exact_keeps_its_documented_contract() {
+    let old="table items:\n  scan: file <=1000 ?\n  read <- allow\n  online only\ntable audit:\n  n: int\n  read <- allow\n  insert <- allow\n  online only\nmutation record(n: int):\n  return insert audit {n}\n";
+    let current=old.replace("  scan: file <=1000 ?\n","").replace("record(n: int)","record(n: int 1..10)")+"table scans:\n  item: items on delete cascade\n  scan: file <=1000 ?\n  immutable item\n  read through .item\n  online only\nextract scans from items via item: {scan:scan}\n";
+    let app=App::new();app.source(old);app.ok(&["deploy","deployment"]);app.source(&current);app.ok(&["deploy","deployment"]);
+    let selected=app.json(&["rollback","deployment","--to","1","--json"]);
+    assert_eq!(selected["live"]["exact"],false);assert_eq!(selected["live"]["rowShape"]["matchesTarget"],false);
+    let id=selected["release"].as_u64().unwrap();let source=fs::read_to_string(app.0.join(format!("deployment/releases/{id}/snapback/schema.q"))).unwrap();
+    let b=snapback4_lang::compile(&[("schema.q".into(),source)]);assert!(b.diagnostics.is_empty());
+    let mut engine=snapback4_core::Engine::memory(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
+    let inputs=||snapback4_core::Context::new("alice",std::collections::BTreeMap::from([("n".into(),snapback4_core::Value::Int(0))]));
+    match engine.mutate("record",None,inputs()) {
+        Ok(out)=>assert!(matches!(out.state,snapback4_core::engine::WriteState::Failed{..})),
+        Err(snapback4_core::RuntimeError::UnknownOp(name))=>assert_eq!(name,"record"),Err(error)=>panic!("{error}"),
+    }
+    // Explicit selection remains the deliberate original workflow from guide deploy.
+    let exact=app.json(&["rollback","deployment","--to","1","--exact","--json"]);assert_eq!(exact["live"]["exact"],true);
+    let b=snapback4_lang::compile(&[("schema.q".into(),old.into())]);let mut engine=snapback4_core::Engine::memory(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
+    assert!(matches!(engine.mutate("record",None,inputs()).unwrap().state,snapback4_core::engine::WriteState::Sent{..}));
+}
+
+#[test]
+fn a_truthful_enum_down_keeps_the_original_wire_spelling_and_workflow() {
+    let old="table items:\n  stage: enum('queued', 'done')\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\nmutation setStage(id: items, next: enum('queued', 'done')):\n  update items[id] {stage:next}\n  return items[id]\n";
+    let current=old.replace("stage: enum('queued', 'done')", "stage: enum('queued', 'done', 'work completed')").replace("next: enum('queued', 'done')", "next: enum('queued', 'work completed')")+"down items originalStage(stage: enum('queued', 'done', 'work completed')): {stage:'done' if stage = 'work completed' else stage}\n";
+    let app=App::new();app.source(old);app.ok(&["deploy","deployment"]);app.source(&current);app.ok(&["deploy","deployment"]);
+    app.seed(&current,vec![json!({"id":"kept","stage":"work completed"})]);
+    let selected=app.json(&["rollback","deployment","--to","1","--json"]);assert_eq!(selected["live"]["exact"],true);assert_eq!(selected["live"]["rowShape"]["matchesTarget"],true);
+    assert_eq!(app.json(&["sql","SELECT stage FROM items","--release","deployment","--json"])["rows"][0][0],"done");
+    let b=snapback4_lang::compile(&[("schema.q".into(),old.into())]);
+    let store=snapback4_core::store_port::AnyStore::open(&app.0.join("deployment/store.sqlite")).unwrap();
+    let mut engine=snapback4_core::Engine::new_release(store,b.schema,b.programs.into_iter().map(|p|p.program),1,Some(1)).unwrap();
+    let outcome=engine.mutate("setStage",None,snapback4_core::Context::new("alice",std::collections::BTreeMap::from([("id".into(),snapback4_core::Value::Id("kept".into())),("next".into(),snapback4_core::Value::String("done".into()))]))).unwrap();
+    assert!(matches!(outcome.state,snapback4_core::engine::WriteState::Sent{..}));drop(engine);
+    app.ok(&["deploy","deployment"]);
 }

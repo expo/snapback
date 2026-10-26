@@ -1,0 +1,25 @@
+{
+  "scope": "automatic extraction proof versus deliberate explicit version semantics; remove prototype global input gate",
+  "brief_sha256": "0ad343f66854842eb26be6efa61328af16686e4011750c1f92d8eb9390f0a3d8",
+  "files": {
+    "snapback4/crates/snapback4-lang/src/release_bridge.rs": "a4bcedd9640947db91ae02fd5a1e5ddec394cbeb2628f1524f91de81383ea230",
+    "snapback4/crates/snapback4/src/verbs/releases.rs": "f6a56f398e2cc0a41ac3bc33287c73ac32b6a1e7e4a5cbb8132aac31353828c9"
+  },
+  "muse": {
+    "model": "muse-spark-1.3-contributor",
+    "reasoning": "high",
+    "fresh_session": true,
+    "stdout_sha256": "48c033c5537fdbd1296abeab74b321257c565dcd2457e460f4f95ab6ccd20643",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "verbatim": true
+  },
+  "codex": {
+    "model": "gpt-6.1-sol",
+    "reasoning": "high",
+    "fresh_session": true,
+    "stdout_sha256": "b5071002ce5b466e15de8b1b710bda57aba903f1fccf30d8f7dcbcf54787b1ae",
+    "stderr_sha256": "782c72ce2b3553c3466baba104113e69774ddcb11f156d141a2acd9172a72eac",
+    "verbatim": true
+  },
+  "disposition": "Both independent reviewers READY. Automatic extraction selection retains the complete guard/input proof. Prototype global input restrictions are removed to preserve the existing documented explicit version semantics and truthful enum migrations. Final regression tests explicitly distinguish default guarded selection from deliberate --exact source selection."
+}

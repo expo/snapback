@@ -20,5 +20,6 @@
     "stderr_sha256": "8d6c37c3e63abb4e85b0370ee2055bfa99eae3357700c06756126d8c6769ebef",
     "verbatim": true
   },
-  "disposition": "Both independent reviewers READY for this scoped final semantic delta."
+  "disposition": "Both independent reviewers READY for this scoped final semantic delta.",
+  "finalPolicyDisposition": "Prototype global input gate is not shipped. R18 independently reviews the final automatic-versus-explicit scope against the existing guide. R12 explicit-signature claim is declined for deliberate --exact source selection; its automatic-extraction safety concern is covered by the strict endpoint proof and an executable default-versus-explicit regression."
 }
