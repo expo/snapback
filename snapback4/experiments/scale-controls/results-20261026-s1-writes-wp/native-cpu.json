@@ -1,0 +1,456 @@
+[
+  {
+    "cell": {
+      "workload": "W4",
+      "rows": 1000000,
+      "delay_us": 1000,
+      "writers": 32,
+      "keys": "disjoint",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/replay-w4-n1000000-d1000-c32-disjoint-NEW",
+        "--workload",
+        "W4",
+        "--keys",
+        "disjoint",
+        "--link",
+        "B",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/bin/sb4-postgres-scale-seed",
+        "--rates",
+        "3200",
+        "1600",
+        "2262",
+        "4525"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "rate": 1600,
+    "cpu": {
+      "pg_cpu_us_per_ack": {
+        "median": 300.625,
+        "min": 295.2083333333333,
+        "max": 306.4583333333333
+      },
+      "server_cpu_us_per_ack": {
+        "median": 446.875,
+        "min": 446.25,
+        "max": 447.7083333333333
+      },
+      "proxy_cpu_us_per_ack": {
+        "median": 89.16666666666667,
+        "min": 89.16666666666667,
+        "max": 89.79166666666667
+      },
+      "app_cpu_us_per_ack": {
+        "median": 536.0416666666666,
+        "min": 536.0416666666666,
+        "max": 536.875
+      },
+      "sample_span_s": {
+        "median": 31.022102572,
+        "min": 31.020211016,
+        "max": 31.049409697
+      }
+    }
+  },
+  {
+    "cell": {
+      "workload": "W4",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 32,
+      "keys": "disjoint",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/replay-w4-n1000000-d500-c32-disjoint-NEW",
+        "--workload",
+        "W4",
+        "--keys",
+        "disjoint",
+        "--link",
+        "A",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/bin/sb4-postgres-scale-seed",
+        "--rates",
+        "3200",
+        "1600",
+        "2262",
+        "4525"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "rate": 2262,
+    "cpu": {
+      "pg_cpu_us_per_ack": {
+        "median": 239.31976598535195,
+        "min": 237.69525493663423,
+        "max": 246.09490126731507
+      },
+      "server_cpu_us_per_ack": {
+        "median": 413.64574123194814,
+        "min": 411.8773946360153,
+        "max": 416.8938534313798
+      },
+      "proxy_cpu_us_per_ack": {
+        "median": 67.78761844412679,
+        "min": 67.78661951075745,
+        "max": 68.37606837606837
+      },
+      "app_cpu_us_per_ack": {
+        "median": 481.43236074270555,
+        "min": 480.25346301208367,
+        "max": 484.6814718755066
+      },
+      "sample_span_s": {
+        "median": 31.026581218,
+        "min": 30.794571932,
+        "max": 31.05916352
+      }
+    }
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 1000,
+      "writers": 32,
+      "keys": "hot1",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/replay-w5-n1000000-d1000-c32-hot1-NEW",
+        "--workload",
+        "W5",
+        "--keys",
+        "hot1",
+        "--link",
+        "B",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/bin/sb4-postgres-scale-seed",
+        "--rates",
+        "3200",
+        "1600",
+        "2262",
+        "4525"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "rate": 1600,
+    "cpu": {
+      "pg_cpu_us_per_ack": {
+        "median": 306.0416666666667,
+        "min": 303.9583333333333,
+        "max": 312.5
+      },
+      "server_cpu_us_per_ack": {
+        "median": 445.625,
+        "min": 445.0,
+        "max": 448.5416666666667
+      },
+      "proxy_cpu_us_per_ack": {
+        "median": 90.20833333333333,
+        "min": 89.79166666666667,
+        "max": 90.41666666666667
+      },
+      "app_cpu_us_per_ack": {
+        "median": 535.8333333333334,
+        "min": 534.7916666666666,
+        "max": 538.9583333333334
+      },
+      "sample_span_s": {
+        "median": 30.985458952,
+        "min": 30.843074017,
+        "max": 30.991940797
+      }
+    }
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 1000,
+      "writers": 32,
+      "keys": "same",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/replay-w5-n1000000-d1000-c32-same-NEW",
+        "--workload",
+        "W5",
+        "--keys",
+        "same",
+        "--link",
+        "B",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/bin/sb4-postgres-scale-seed",
+        "--rates",
+        "100",
+        "50",
+        "70",
+        "2262",
+        "3200",
+        "4525"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "rate": 70,
+    "cpu": {
+      "pg_cpu_us_per_ack": {
+        "median": 2928.5714285714284,
+        "min": 2880.9523809523807,
+        "max": 3014.285714285714
+      },
+      "server_cpu_us_per_ack": {
+        "median": 1161.904761904762,
+        "min": 1161.904761904762,
+        "max": 1190.4761904761904
+      },
+      "proxy_cpu_us_per_ack": {
+        "median": 2085.714285714286,
+        "min": 2076.190476190476,
+        "max": 2100.0
+      },
+      "app_cpu_us_per_ack": {
+        "median": 3247.6190476190477,
+        "min": 3238.095238095238,
+        "max": 3290.4761904761904
+      },
+      "sample_span_s": {
+        "median": 30.954391252,
+        "min": 30.924444158,
+        "max": 30.958835749
+      }
+    }
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 32,
+      "keys": "hot1",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/replay-w5-n1000000-d500-c32-hot1-NEW",
+        "--workload",
+        "W5",
+        "--keys",
+        "hot1",
+        "--link",
+        "A",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/bin/sb4-postgres-scale-seed",
+        "--rates",
+        "3200",
+        "1600",
+        "2262",
+        "4525"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "rate": 2262,
+    "cpu": {
+      "pg_cpu_us_per_ack": {
+        "median": 244.76864132036545,
+        "min": 243.60051284318496,
+        "max": 245.94753905098736
+      },
+      "server_cpu_us_per_ack": {
+        "median": 413.4983790156204,
+        "min": 412.337710184653,
+        "max": 415.4140878278809
+      },
+      "proxy_cpu_us_per_ack": {
+        "median": 69.11287945770704,
+        "min": 68.81815502505158,
+        "max": 69.11593498091575
+      },
+      "app_cpu_us_per_ack": {
+        "median": 482.31653404067197,
+        "min": 481.4536451655688,
+        "max": 484.52696728558794
+      },
+      "sample_span_s": {
+        "median": 30.96287194,
+        "min": 30.861699959,
+        "max": 30.995083558
+      }
+    }
+  },
+  {
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 32,
+      "keys": "same",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/replay-w5-n1000000-d500-c32-same-NEW",
+        "--workload",
+        "W5",
+        "--keys",
+        "same",
+        "--link",
+        "A",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/bin/sb4-postgres-scale-seed",
+        "--rates",
+        "100",
+        "50",
+        "70",
+        "2262",
+        "3200",
+        "4525"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "rate": 2262,
+    "cpu": {
+      "pg_cpu_us_per_ack": {
+        "median": 237.44251857092323,
+        "min": 235.34786389023978,
+        "max": 237.60391486351043
+      },
+      "server_cpu_us_per_ack": {
+        "median": 350.0471642494989,
+        "min": 340.421769308988,
+        "max": 353.45793290489945
+      },
+      "proxy_cpu_us_per_ack": {
+        "median": 80.18395141795885,
+        "min": 80.03183586841175,
+        "max": 82.67385826075423
+      },
+      "app_cpu_us_per_ack": {
+        "median": 430.07900011791065,
+        "min": 423.09562756974225,
+        "max": 433.6418843228583
+      },
+      "sample_span_s": {
+        "median": 31.008329275,
+        "min": 30.937720236,
+        "max": 31.030044456
+      }
+    }
+  }
+]

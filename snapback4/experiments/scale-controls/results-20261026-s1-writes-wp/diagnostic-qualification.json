@@ -1,0 +1,20 @@
+{
+  "audit": {
+    "cells": 6,
+    "trials": 24,
+    "scheduled_arrivals": 931080,
+    "cells_with_passing_rate": 1,
+    "unknown_write_outcome_trials": 0,
+    "checks": "arrival accounting, every repetition, histogram counts and lossless archive, SLO/counter qualification, brackets"
+  },
+  "disqualified": 19,
+  "counter_audit": {
+    "trials": 24,
+    "mismatches": 0
+  },
+  "capacity_eligible": false,
+  "measured_error_types": {
+    "http_503": 36857
+  },
+  "phase_means_scope": "successful requests with matched pipeline phases; all W4 rows have full successful-request coverage; exact/B uses 903/4200 pipeline requests"
+}

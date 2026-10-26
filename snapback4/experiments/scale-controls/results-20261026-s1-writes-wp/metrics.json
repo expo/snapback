@@ -1,0 +1,407 @@
+[
+  {
+    "workload": "W4",
+    "keys": "disjoint",
+    "link": "A",
+    "rate": 2262,
+    "native_cpu": {
+      "pg_cpu_us_per_ack": {
+        "median": 239.31976598535195,
+        "min": 237.69525493663423,
+        "max": 246.09490126731507
+      },
+      "server_cpu_us_per_ack": {
+        "median": 413.64574123194814,
+        "min": 411.8773946360153,
+        "max": 416.8938534313798
+      },
+      "proxy_cpu_us_per_ack": {
+        "median": 67.78761844412679,
+        "min": 67.78661951075745,
+        "max": 68.37606837606837
+      },
+      "app_cpu_us_per_ack": {
+        "median": 481.43236074270555,
+        "min": 480.25346301208367,
+        "max": 484.6814718755066
+      },
+      "sample_span_s": {
+        "median": 31.026581218,
+        "min": 30.794571932,
+        "max": 31.05916352
+      }
+    },
+    "diagnostic": {
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "A",
+      "rate": 2262,
+      "repetitions": 3,
+      "passes": 0,
+      "pipeline_parts_exposed": true,
+      "nonpipeline_requests": 0,
+      "matched_requests": 135030,
+      "successful_measured": 135030,
+      "missing": {},
+      "residence_ms": {
+        "H_in": 0.07033555052951196,
+        "intake_to_queue": 0.049657609731170844,
+        "Q": 1.8840852728875066,
+        "fill": 0.0046256435088498854,
+        "X": 2.2800889646671108,
+        "C": 4.649187576057172,
+        "release": 0.0729836332074354,
+        "reply": 0.1517119298230023,
+        "H_out": 0.09254141359697844,
+        "residence": 9.25521759400874
+      },
+      "flights_hist": {
+        "2": 17037
+      },
+      "dispatch_hist": {
+        "2": 17037
+      },
+      "mean_N": 7.918015482054891,
+      "time_weighted_unreleased_batches": 1.32340498475,
+      "flights_per_batch": 2
+    }
+  },
+  {
+    "workload": "W4",
+    "keys": "disjoint",
+    "link": "B",
+    "rate": 1600,
+    "native_cpu": {
+      "pg_cpu_us_per_ack": {
+        "median": 300.625,
+        "min": 295.2083333333333,
+        "max": 306.4583333333333
+      },
+      "server_cpu_us_per_ack": {
+        "median": 446.875,
+        "min": 446.25,
+        "max": 447.7083333333333
+      },
+      "proxy_cpu_us_per_ack": {
+        "median": 89.16666666666667,
+        "min": 89.16666666666667,
+        "max": 89.79166666666667
+      },
+      "app_cpu_us_per_ack": {
+        "median": 536.0416666666666,
+        "min": 536.0416666666666,
+        "max": 536.875
+      },
+      "sample_span_s": {
+        "median": 31.022102572,
+        "min": 31.020211016,
+        "max": 31.049409697
+      }
+    },
+    "diagnostic": {
+      "workload": "W4",
+      "keys": "disjoint",
+      "link": "B",
+      "rate": 1600,
+      "repetitions": 3,
+      "passes": 1,
+      "pipeline_parts_exposed": true,
+      "nonpipeline_requests": 0,
+      "matched_requests": 95868,
+      "successful_measured": 95868,
+      "missing": {},
+      "residence_ms": {
+        "H_in": 0.08454110956732173,
+        "intake_to_queue": 0.07860963291192057,
+        "Q": 2.3844033221304293,
+        "fill": 0.007137467038010598,
+        "X": 3.157476847853298,
+        "C": 5.328810619508073,
+        "release": 0.19954627921725707,
+        "reply": 0.2300901833249885,
+        "H_out": 0.07361903939792214,
+        "residence": 11.544234500949223
+      },
+      "flights_hist": {
+        "2": 13685
+      },
+      "dispatch_hist": {
+        "2": 13685
+      },
+      "mean_N": 7.0006567425569175,
+      "time_weighted_unreleased_batches": 1.2514406954,
+      "flights_per_batch": 2
+    }
+  },
+  {
+    "workload": "W5",
+    "keys": "same",
+    "link": "A",
+    "rate": 2262,
+    "native_cpu": {
+      "pg_cpu_us_per_ack": {
+        "median": 237.44251857092323,
+        "min": 235.34786389023978,
+        "max": 237.60391486351043
+      },
+      "server_cpu_us_per_ack": {
+        "median": 350.0471642494989,
+        "min": 340.421769308988,
+        "max": 353.45793290489945
+      },
+      "proxy_cpu_us_per_ack": {
+        "median": 80.18395141795885,
+        "min": 80.03183586841175,
+        "max": 82.67385826075423
+      },
+      "app_cpu_us_per_ack": {
+        "median": 430.07900011791065,
+        "min": 423.09562756974225,
+        "max": 433.6418843228583
+      },
+      "sample_span_s": {
+        "median": 31.008329275,
+        "min": 30.937720236,
+        "max": 31.030044456
+      }
+    },
+    "diagnostic": {
+      "workload": "W5",
+      "keys": "same",
+      "link": "A",
+      "rate": 2262,
+      "repetitions": 3,
+      "passes": 0,
+      "pipeline_parts_exposed": true,
+      "nonpipeline_requests": 0,
+      "matched_requests": 134606,
+      "successful_measured": 134606,
+      "missing": {},
+      "residence_ms": {
+        "H_in": 0.06878728876870273,
+        "intake_to_queue": 0.04382344931132342,
+        "Q": 2.2444648521314057,
+        "fill": 0.005106289214448093,
+        "X": 3.487642035414469,
+        "C": 4.496779926080561,
+        "release": 0.2519570109133322,
+        "reply": 0.15724298546870125,
+        "H_out": 0.09989800920464169,
+        "residence": 10.855701846507584
+      },
+      "flights_hist": {
+        "3": 14451
+      },
+      "dispatch_hist": {
+        "2": 14451
+      },
+      "mean_N": 9.313083143271822,
+      "time_weighted_unreleased_batches": 1.13218941345,
+      "flights_per_batch": 3
+    }
+  },
+  {
+    "workload": "W5",
+    "keys": "same",
+    "link": "B",
+    "rate": 70,
+    "native_cpu": {
+      "pg_cpu_us_per_ack": {
+        "median": 2928.5714285714284,
+        "min": 2880.9523809523807,
+        "max": 3014.285714285714
+      },
+      "server_cpu_us_per_ack": {
+        "median": 1161.904761904762,
+        "min": 1161.904761904762,
+        "max": 1190.4761904761904
+      },
+      "proxy_cpu_us_per_ack": {
+        "median": 2085.714285714286,
+        "min": 2076.190476190476,
+        "max": 2100.0
+      },
+      "app_cpu_us_per_ack": {
+        "median": 3247.6190476190477,
+        "min": 3238.095238095238,
+        "max": 3290.4761904761904
+      },
+      "sample_span_s": {
+        "median": 30.954391252,
+        "min": 30.924444158,
+        "max": 30.958835749
+      }
+    },
+    "diagnostic": {
+      "workload": "W5",
+      "keys": "same",
+      "link": "B",
+      "rate": 70,
+      "repetitions": 3,
+      "passes": 3,
+      "pipeline_parts_exposed": true,
+      "nonpipeline_requests": 3297,
+      "matched_requests": 903,
+      "successful_measured": 4200,
+      "missing": {},
+      "residence_ms": {
+        "H_in": 0.08547572093023255,
+        "intake_to_queue": 0.07994130232558139,
+        "Q": 8.066156678848284,
+        "fill": 0.004224946843853821,
+        "X": 3.96745280841639,
+        "C": 4.918747395348837,
+        "release": 0.09045160797342193,
+        "reply": 0.10114975636766334,
+        "H_out": 0.08899410077519379,
+        "residence": 17.402594317829458
+      },
+      "flights_hist": {
+        "3": 460
+      },
+      "dispatch_hist": {
+        "1": 444,
+        "2": 16
+      },
+      "mean_N": 1.1191047162270185,
+      "time_weighted_unreleased_batches": 0.03686740295,
+      "flights_per_batch": 3
+    }
+  },
+  {
+    "workload": "W5",
+    "keys": "hot1",
+    "link": "A",
+    "rate": 2262,
+    "native_cpu": {
+      "pg_cpu_us_per_ack": {
+        "median": 244.76864132036545,
+        "min": 243.60051284318496,
+        "max": 245.94753905098736
+      },
+      "server_cpu_us_per_ack": {
+        "median": 413.4983790156204,
+        "min": 412.337710184653,
+        "max": 415.4140878278809
+      },
+      "proxy_cpu_us_per_ack": {
+        "median": 69.11287945770704,
+        "min": 68.81815502505158,
+        "max": 69.11593498091575
+      },
+      "app_cpu_us_per_ack": {
+        "median": 482.31653404067197,
+        "min": 481.4536451655688,
+        "max": 484.52696728558794
+      },
+      "sample_span_s": {
+        "median": 30.96287194,
+        "min": 30.861699959,
+        "max": 30.995083558
+      }
+    },
+    "diagnostic": {
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "A",
+      "rate": 2262,
+      "repetitions": 3,
+      "passes": 0,
+      "pipeline_parts_exposed": true,
+      "nonpipeline_requests": 0,
+      "matched_requests": 134841,
+      "successful_measured": 134841,
+      "missing": {},
+      "residence_ms": {
+        "H_in": 0.07021628875490392,
+        "intake_to_queue": 0.049149075896796963,
+        "Q": 1.9438506049717816,
+        "fill": 0.004793631528985992,
+        "X": 2.3699820547237116,
+        "C": 4.718845263673512,
+        "release": 0.08076632708152565,
+        "reply": 0.15337959629489548,
+        "H_out": 0.09388067777604735,
+        "residence": 9.484863520702161
+      },
+      "flights_hist": {
+        "2": 15286,
+        "3": 1346
+      },
+      "dispatch_hist": {
+        "2": 16632
+      },
+      "mean_N": 8.060297011987833,
+      "time_weighted_unreleased_batches": 1.30947278235,
+      "flights_per_batch": 2.0803363750223656
+    }
+  },
+  {
+    "workload": "W5",
+    "keys": "hot1",
+    "link": "B",
+    "rate": 1600,
+    "native_cpu": {
+      "pg_cpu_us_per_ack": {
+        "median": 306.0416666666667,
+        "min": 303.9583333333333,
+        "max": 312.5
+      },
+      "server_cpu_us_per_ack": {
+        "median": 445.625,
+        "min": 445.0,
+        "max": 448.5416666666667
+      },
+      "proxy_cpu_us_per_ack": {
+        "median": 90.20833333333333,
+        "min": 89.79166666666667,
+        "max": 90.41666666666667
+      },
+      "app_cpu_us_per_ack": {
+        "median": 535.8333333333334,
+        "min": 534.7916666666666,
+        "max": 538.9583333333334
+      },
+      "sample_span_s": {
+        "median": 30.985458952,
+        "min": 30.843074017,
+        "max": 30.991940797
+      }
+    },
+    "diagnostic": {
+      "workload": "W5",
+      "keys": "hot1",
+      "link": "B",
+      "rate": 1600,
+      "repetitions": 3,
+      "passes": 1,
+      "pipeline_parts_exposed": true,
+      "nonpipeline_requests": 0,
+      "matched_requests": 95871,
+      "successful_measured": 95871,
+      "missing": {},
+      "residence_ms": {
+        "H_in": 0.0845939006581761,
+        "intake_to_queue": 0.07869359720874926,
+        "Q": 2.3988511533727612,
+        "fill": 0.007895163532246455,
+        "X": 3.2657324820748714,
+        "C": 5.262902455998164,
+        "release": 0.23928129236161091,
+        "reply": 0.22826735398608547,
+        "H_out": 0.0728454319658708,
+        "residence": 11.639062831158537
+      },
+      "flights_hist": {
+        "3": 958,
+        "2": 12596
+      },
+      "dispatch_hist": {
+        "2": 13554
+      },
+      "mean_N": 7.093937375083278,
+      "time_weighted_unreleased_batches": 1.2314109461,
+      "flights_per_batch": 2.071063735287586
+    }
+  }
+]
