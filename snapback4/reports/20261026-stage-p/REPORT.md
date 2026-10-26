@@ -418,3 +418,155 @@ under `/tmp/stpf1-20261026/` and the named public-witness directories. The retai
 million-message measurement fixture remains stopped under its original `/tmp`
 path. Only aggregate evidence is committed. The later WF integration remains
 separate work.
+
+## Stage P + fix round 1 rebased onto WF (2026-10-26)
+
+Local branch `sb4-pg/stage-p-wf` starts from the required Stage P tip
+`94ada27114` and rebases all ten commits onto local `sb4-pg/main-wf`,
+`e0ad590a1b`. Original Stage P remains at its required tip. No push occurs.
+The final production semantics are `625331534c`; `cff3695e58` changes only
+feature-gated test support. Raw logs, PID ledgers and preliminary measurements
+remain under `/tmp/stprb-20261026/`, outside Git.
+
+| Conflicted file | Semantic resolution |
+| --- | --- |
+| `llp/3000.009.001.000.000.002-pipelined-group-commit.rfc.md` | Keep both revision histories, Stage P §3.11 and WF's two-flight/deadline/outcome contract; reconcile the current combined ordering. |
+| `snapback4/JOURNAL.md` | Retain both lanes' entries and append the integration decisions, failures, corrections and final evidence. |
+| `engine/postgres/store.rs` | Combine installed-check state and admission with WF's dispatch reserve and `flight_end`; retain the fence when resuming a suspended writer. |
+| `engine/postgres/group_tail.rs` | Use Stage P's typed/omitted-family tail, WF's raising identity check and all eight raising count assertions, and co-dispatch the final COMMIT. Keep WF's one-time JSON parse in the test-only generic oracle. |
+| `engine/postgres/group_tail/typed.rs` | Keep the compact array encoder; retain the shape's count expressions and add a typed expected-count parameter for the server assertion. Initialise that field in both direct encoder-test constructors. |
+
+The final message is **guard → fence → predecessor ticket/identity and typed
+tail with raising counts → cumulative deadline assertion → synchronous COMMIT**.
+Fence timeout controls precede its lock; certificate timeout resets follow the
+deadline assertion and precede COMMIT. No extra validation flight is introduced.
+The settings guard still checks the fenced namespace, own pg_temp last and
+array_nulls. Per-digest contracts, doctor validation, typed NULL transport,
+family omission and pruning behind the locked head remain Stage P's. WF's
+original member deadlines, historical dispatch reserve, transaction-status
+classification, preparation/callback CPU cuts and notified prefix release remain.
+The WF `group_final.rs`, preparation and command-batch implementations are
+unchanged from the WF base.
+
+### Integration findings and controls
+
+- The first compile caught two direct encoder-test constructors missing the
+  count-expression field; no test executed in that failed attempt.
+- The new direct final-flight witness initially used an empty namespace path,
+  causing preparation to refuse before the guard. Its corrected second valid
+  store exercises the intended S4001 refusal. The initial G7 result was 93/1;
+  the corrected isolated test and final G7 repeat pass.
+- A cost sample exposed `resume_program` clearing the fence. The first wire
+  assertion saw only completed replies, missing finals whose reply was lost.
+  The dispatch-time ordering control fails on `ee58886f7a` even while its Rust
+  loss test passes (1/0): the before-forward final lacks the fence. Resume now
+  rebuilds the qualified fence; direct and resumed transactions both exercise
+  missing guard, missing fence, namespace drift and array_nulls drift. Neither
+  tail nor COMMIT-entry sequence is called, xids abort and durable state is
+  unchanged. Missing-function errors keep WF's conservative unknown result.
+- Notification warmup failed once through the proxy and once in isolation;
+  unchanged-threshold diagnostic and final isolated repeats pass, as do final
+  G7 and wire runs. The diagnostic assertion now prints the returned refusal.
+  The original failures remain raw evidence; their cause was not established.
+- The full Postgres script's first group fails the old owner-loss corruption
+  hook before reader construction. The isolated unchanged control fails 0/1.
+  That hook revoked itself inside an ordinary transaction and then asked the
+  stale writer to commit. The feature-gated hook now corrupts through an
+  independent schema-qualified connection. Its isolated rerun passes 1/0,
+  preserving physical read-only enforcement and one warm ingress statement.
+  The initial script red remains in its raw totals. All HTTP hook consumers
+  are covered by the binary and lever suites.
+- The preliminary W4/W5 cost sample predates the resume correction and is not
+  final-code evidence. It is retained outside Git. One final W4-only sample
+  replaces it; neither run is a throughput/S1 campaign.
+
+The superseded full-core attempt was stopped when the handoff correction
+changed production inputs. Its recorded controller and remaining children
+were stopped and independently confirmed gone; incomplete results are excluded.
+The fresh complete core uses the corrected production. The later feature-gated
+corruption-hook change is unused by its nonignored cases; its affected consumers
+receive isolated, full-binary and lever verification without repeating unrelated
+expensive model tests.
+
+### Verification
+
+Counts are passed/failed; core and binary exclude their isolated child runs.
+No assertion, timeout, ratchet or admission bound was weakened.
+
+| Check | Passed / failed | Detail |
+| --- | ---: | --- |
+| Full core | 1313 / 0 | 547 ignored; 49 outer targets, including docs |
+| Full `snapback4` binary | 626 / 0 | 75 ignored; debug and release builds pass |
+| G7, including E core | 94 / 0 | S remains two flights at every tested N |
+| Stage P | 13 / 0 | Includes direct/resumed final-flight faults |
+| G7.3 wire | 15 / 0 | Five modes; all 30 observed combined dispatches ordered |
+| Private PG17 | 2 / 0 + 11 / 0 | Certificate timeout cases + G7.3 |
+| E HTTP / crash-kill | 5 / 0 + 11 / 0 | Zero acknowledged loss or lost-history release |
+| RT0 core / binary | 6 / 0 + 10 / 0 | Exact flight ratchets unchanged |
+| Levers | 87 / 0 | Full script repeat; initial 86/1, named isolated rerun 1/0 |
+| Owner-loss setup correction | 1 / 0 | Unchanged control fails 0/1 before fixture correction |
+| Full Postgres script | 829 / 2 | 27 raw Rust summaries; 828/2 over 26 outer targets |
+| Public deploy/serve | pass | Both-store wire/meters, retention, bootstrap, takeover, crash/restart, evolution and unchanged S1 |
+| `./ref-check` | pass | 570 documents / 12060 references, zero errors/unchecked |
+
+The script exits 1. Its two Rust reds are inherited difftest
+`both_stores_all_public_boundaries_and_write_observations` (`E_INPUT: 6`, zero
+store-oracle disagreements) and the old owner-loss setup executed before its
+correction. The latter passes its isolated rerun, and all HTTP consumers pass
+in the full lever repeat. The stale evaluator lockfile still refuses `--locked`;
+the known evaluator `40001` stage does not execute behind that block. No other
+unresolved red appears. The complete overlap corpus checks 295 cases across
+SQLite and both unified/retained evaluator prefetch modes, with zero failures
+or outcome disagreements. Filesystem skips remain explicitly counted.
+
+The first full lever run additionally reports
+`rt3b_lev_pipeline_successor_warm_unkeyed_authority_postgres` failing while
+initialising its writer slots (`failed` versus `sent`). The unchanged isolated
+repeat passes 1/0 and the later complete script lever repeat passes 87/0. No
+production or threshold change follows; the original failure remains recorded.
+
+### One final W4-only loopback cost sample
+
+Private PG16.15, retained native million-message fixture, 32 closed-loop clients,
+3 s warmup followed by 5.0116 s measured, no injected RTT. All **13999/13999**
+requests succeed, with no refusals. There are **1480** typed group tails and
+mean **N = 9.4588**. Guard and fence both average **2.0169 calls/batch**, confirming
+that resuming a writer retains the final fence. The release binary SHA-256 is
+`7f094725a775ad34dd7c6633b8cab5b8f53aa4c043d83356e84794dd4b47e5c5`.
+
+| PostgreSQL planning + execution | ms/batch |
+| --- | ---: |
+| Guard | 0.04786 |
+| Fence | 0.05891 |
+| Facts | 0.24223 |
+| Identity | 0.02185 |
+| Typed tail and raising counts | 0.20250 |
+| Cumulative deadline assertion | 0.01271 |
+| Controls / COMMIT | 0.05383 |
+| Maintenance | 0.00117 |
+| **Non-wait total** | **0.64106** |
+| Ticket wait, separate elapsed time | 1.42255 |
+
+Including ticket wait, reported server elapsed time is
+**2.06360 ms/batch**. Mean request residence is
+**11.415 ms**; sampled PG CPU is **141.44 µs/write**.
+Host load moves 2.58/3.61/4.67 → 3.09/3.70/4.69. Planning/execution clocks,
+ticket waiting, process CPU and HTTP residence remain distinct measurements.
+This is one short final-code cost sample, not a capacity/SLO claim or an S1
+campaign; it is not a controlled before/after comparison to the original
+Stage P timing.
+
+### Process and disk custody
+
+The final independent audit covers **22 ledgers / 12749 PID-birth pairs**.
+All **23 private cluster directories** independently return pg_ctl status 3,
+with no postmaster PID file. It finds **no living or zombie lane process** and
+no unexpected lane executable/compiler/helper. The final benchmark's reused
+cluster is also stopped. Completion free space is **36.14 GiB**.
+
+Only this worktree's inactive incremental cache and stale, unmapped local build
+artifacts are reclaimed. The latter cleanup observes 26.21 GiB free and restores
+36.58 GiB before continuing; the 25 GiB monitor never fires. No shared cluster,
+q24, repository configuration, push or publication is touched. The full
+[aggregate evidence](wf-rebase.json) contains counts, hashes and timing; raw logs,
+SQL, PID ledgers and preliminary-code measurements stay outside Git.

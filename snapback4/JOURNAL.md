@@ -109161,3 +109161,37 @@ corrected witness passes 1/0, retaining physical read-only enforcement and the
 one-statement warm ingress ratchet. All HTTP owner-loss consumers run in the
 full binary/lever checks. Production fencing and ordinary commit behavior are
 unchanged; the script's initial red remains recorded, with its isolated rerun.
+
+
+## 2026-10-26 — Stage P/WF rebase: final verification and stopped-process census
+
+Final production `625331534c` plus test-support-only `cff3695e58` passes core
+**1313/0/547** and binary **626/0/75** (passed/failed/ignored; isolated children
+excluded), G7 **94/0**, Stage P **13/0**, G7.3 wire **15/0** across five modes,
+private PG17 **2/0 + 11/0**, E HTTP **5/0**, crash/kill **11/0**, RT0 core/binary
+**6/0 + 10/0**, and the full-script lever repeat **87/0**. Eligible S batches
+remain **two flights**. The initial lever **86/1** has an unchanged named
+isolated **1/0** rerun before that complete repeat; no bound is relaxed.
+
+The full Postgres script exits 1 at **829/2 raw Rust summaries** (27 summaries;
+828/2 over outer targets). Its additional owner-loss setup red is corrected
+and passes **1/0** in isolation; inherited difftest **E_INPUT: 6** remains.
+The inherited evaluator lockfile refusal still blocks its known **40001**
+stage. Public serving passes every wire/meter, 1000-sequence retention,
+bootstrap, takeover, crash/restart, evolution and unchanged S1 check. Ref-check
+passes **570 documents / 12060 references**, zero errors or unchecked refs.
+
+One final W4-only sample at 32 loopback clients records **0.64106 ms/batch**
+PG planning + execution excluding **1.42255 ms/batch** ticket wait,
+mean **N=9.4588**, **13999/13999** successful requests and zero refusals.
+Guard and fence each average **2.0169 calls/batch**. This is a short final-code
+cost observation, not S1 qualification or a controlled comparison. The earlier
+pre-handoff-fix sample remains excluded from final-code timing.
+
+The independent **22-ledger / 12749-identity** audit confirms all **23 private
+clusters stopped (pg_ctl status 3, no PID files), no living/zombie lane process
+and no unexpected helper. Free space is **36.14 GiB**; only inactive own build
+caches are reclaimed and the 25 GiB stop monitor never fires. No push,
+publication, protected-cluster action, q24 access or git-config change occurs.
+The [Stage P report](reports/20261026-stage-p/REPORT.md) records all five conflict
+resolutions, controls, initial reds and final evidence; raw logs stay outside Git.
