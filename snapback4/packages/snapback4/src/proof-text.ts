@@ -9,7 +9,7 @@ let selectorReady: Promise<void> = Promise.resolve();
 export async function registerRenderedSelector(selectors: Selectors): Promise<void> {
   let registration = registrations.get(selectors);
   if (!registration) {
-    registration = selectors.register(renderedSelector, renderedTextEngine, { contentScript: true });
+    registration = selectors.register(renderedSelector, { content: renderedTextSource() }, { contentScript: true });
     registrations.set(selectors, registration);
     selectorReady = Promise.all([selectorReady, registration]).then(() => {});
     void selectorReady.catch(() => {}); // Observations await and surface this rejection.
@@ -99,7 +99,7 @@ function renderedTextEngine() {
     return result;
   }
   function queryAll(root: Document | Element | ShadowRoot, selector: string): Element[] {
-    const options = JSON.parse(selector) as { source: string; flags: string; regex: boolean; exact: boolean };
+    const options = JSON.parse(selector) as { source: string; flags: string; regex: boolean; exact: boolean; control?: boolean };
     const regex = options.regex ? new RegExp(options.source, options.flags) : null;
     const needle = options.source.replace(/\s+/g, " ").trim();
     const found: Element[] = [];
@@ -108,6 +108,16 @@ function renderedTextEngine() {
       if (regex) { regex.lastIndex = 0; return regex.test(text); }
       return options.exact ? text === needle : text.toLowerCase().includes(needle.toLowerCase());
     };
+    if (options.control) {
+      const labelText = (label: HTMLLabelElement): string => {
+        const clone = label.cloneNode(true) as Element;
+        for (const control of clone.querySelectorAll("input, select, textarea, button, [aria-hidden='true']")) control.remove();
+        return (clone.textContent ?? "").replace(/\s+/g, " ").trim();
+      };
+      const controls = [...root.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>("input, select, textarea")];
+      return controls.filter(control => !control.getAttribute("aria-label")?.trim() && !control.getAttribute("aria-labelledby")?.trim()
+        && matches([...(control.labels ?? [])].map(labelText).join(" ")));
+    }
     const walk = (node: Node, ancestorSuppressed = false): { text: string; matched: boolean } => {
       if (node.nodeType === Node.TEXT_NODE) return { text: ancestorSuppressed ? "" : textInView(node), matched: false };
       if (node.nodeType !== Node.ELEMENT_NODE && node.nodeType !== Node.DOCUMENT_NODE && node.nodeType !== Node.DOCUMENT_FRAGMENT_NODE) return { text: "", matched: false };
@@ -141,10 +151,16 @@ function renderedTextEngine() {
     text: (root: Element) => { queryAll(root, '{"source":"","flags":"","regex":false,"exact":true}'); return observedText; } };
 }
 
+// tsx/esbuild may insert __name into nested functions. Supply that helper in
+// the serialized lexical scope, never in the app's global or selector world.
+function renderedTextSource(): string {
+  return `(() => { const __name = (target, _name) => target; return (${renderedTextEngine.toString()})(); })()`;
+}
+
 export function visibleText(locator: Locator, timeout: number): Promise<string> {
   // Build the function in Node, then let Playwright serialize it. Passing an
   // arrow as a string would evaluate to the function rather than invoke it.
-  const reader = new Function("element", `return (${renderedTextEngine.toString()})().text(element);`) as (element: Element) => string;
+  const reader = new Function("element", `return (${renderedTextSource()}).text(element);`) as (element: Element) => string;
   return locator.evaluate(reader, undefined, { timeout });
 }
 

@@ -378,6 +378,22 @@ export function renderedText(page: Page, text: string | RegExp, options: { withi
   return locator;
 }
 
+/** Locate a labelled form control by role and name, excluding option/value text
+ * from wrapping labels. Exact names are the default; duplicate controls remain
+ * ambiguous. Prefer explicit aria-label or label/htmlFor in the application. */
+/** @throws Locator observations preserve Playwright's strict ambiguity and visibility rules. */
+export function labelledControl(page: Page, role: "textbox" | "combobox" | "checkbox" | "radio" | "spinbutton" | "slider" | "switch", name: string | RegExp, options: { within?: Locator; exact?: boolean } = {}): Locator {
+  const root = options.within ?? page, exact = options.exact ?? true;
+  const named = root.getByRole(role, { name, exact });
+  const labelled = root.locator(`${renderedSelector}=${JSON.stringify({
+    control: true, source: typeof name === "string" ? name : name.source,
+    flags: typeof name === "string" ? "" : name.flags, regex: typeof name !== "string", exact,
+  })}`).and(root.getByRole(role));
+  const locator = registeredLocator(named.or(labelled));
+  if (options.within) scopedLocators.add(locator);
+  return locator;
+}
+
 export interface ExhaustPagesOptions {
   /** Refuse rather than loop forever when a backend returns bad continuations. */
   maxPages?: number;

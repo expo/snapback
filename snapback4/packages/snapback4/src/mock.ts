@@ -1,3 +1,4 @@
+import { refuseWatchGuess, validateObserveOptions } from "./observe-watch.ts";
 import { QueryChanges, validateDependencies, type Changes, type QueryDependencies } from "./query-dependencies.ts";
 import { registerPendingIntents, pendingIntent } from "./pending-items.ts";
 import { readyRead } from "./read-existence.ts";
@@ -11,7 +12,7 @@ import { mockSignals } from "./mock-ephemeral.ts";
 // against the card before the mechanism exists. Nothing here is measured.
 
 import { ServerClock } from "./clock.ts";
-import type { Act, Client, Cursor, Link, Mutation, Observed, Principal, Query, Read, Refusal, UploadOptions, Write } from "./contract.ts";
+import type { ObserveOptions, Act, Client, Cursor, Link, Mutation, Observed, Principal, Query, Read, Refusal, UploadOptions, Write } from "./contract.ts";
 import { uploadFile } from "./files.ts";
 import { mutationWaitSeconds, MutationIds, WriteHistory } from "./writes.ts";
 import { pendingChanges } from "./pending-writes.ts";
@@ -154,7 +155,8 @@ export function createMockClient(options: MockOptions): MockClient {
       };
     }, () => terminalQueryRefusal({ scope: null, store: null, closed: closed ? unavailable() : null,
       session: link === "signed-out" ? unavailable() : null, changes: null, partition: null, inherited: null }), queries.signal),
-    observe<A, R>(op: Query<A, R>, args: A): Observed<R> {
+    observe<A, R>(op: Query<A, R>, args: A, options?: ObserveOptions): Observed<R> {
+      validateObserveOptions(options);
       let seen = -1;
       let snapshot: Read<R> = { loading: true };
       const subs = new Set<() => void>();
@@ -258,5 +260,5 @@ export function createMockClient(options: MockOptions): MockClient {
   };
   registerPendingIntents(client, { scope: () => unavailable() ? undefined : viewer,
     read: () => client.pendingWrites().then(writes => unavailable() ? [] : writes.map(write => pendingIntent(write))) });
-  return client;
+  return refuseWatchGuess(client);
 }

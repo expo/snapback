@@ -162,6 +162,7 @@ window.testApp=app;registerWebWitness(app,{add:{kind:'mutation',name:'add'}});
   const result = await kit.bounded(page.evaluate(() => window.oldResult), 2500, 'no-write result');
   assert.equal(result.state,'failed'); assert.equal(result.why.code,'E_WITNESS_NO_WRITE'); assert.equal(result.why.reason,'returned-early');
   assert.match(result.why.message,/armed click produced no durable mutation/);
+  assert.match(result.why.message,/witnessForm\(app, event, async mutate/,'DX14 041R directs awaited uploads to explicit per-arm custody');
   const old = await page.evaluate(async () => {
     window.__snapback4Witness.beginForm('add',{},document.querySelector('button'));
     const previous=window.__snapback4Witness.formResult();

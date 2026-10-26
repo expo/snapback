@@ -125,7 +125,13 @@ async function accounts(host: Pick<ServeHost, "url" | "operatorToken">, options:
           parameters=Object.keys(program?.args??{}).sort();
         } catch { /* failure diagnostics must not mask the original refusal */ }
         const merged=Object.fromEntries(Object.entries(args).map(([key,value])=>[key,`<redacted ${value===null?"null":Array.isArray(value)?"array":typeof value}>`]));
-        throw Error(`E_STAGING_PROVISION: ${options.provision?.name} refused (${result.why?.code ?? result.denied?.code ?? "invalid reply"}); supplied arguments: ${Object.keys(args).sort().join(", ")}; merged args (opaque values redacted): ${JSON.stringify(merged)}; mutation parameters: ${parameters.length?parameters.join(", "):"unavailable"}; args(account) merges over {principal, role}, explicit keys win; ${partial}`);
+        const refusal = result.why ?? result.denied;
+        // Preserve the backend's explanation without echoing opaque arguments.
+        const opaque = (value: unknown): string[] => typeof value === "string" && value.length > 0 ? [value]
+          : Array.isArray(value) ? value.flatMap(opaque) : value && typeof value === "object" ? Object.values(value).flatMap(opaque) : [];
+        let explanation = typeof refusal?.message === "string" ? refusal.message.slice(0, 4096) : "";
+        for (const value of [...opaque(args), account.email, account.password, account.token].sort((a, b) => b.length - a.length)) explanation = explanation.replaceAll(value, "<redacted>");
+        throw Error(`E_STAGING_PROVISION: ${options.provision?.name} refused (${refusal?.code ?? "invalid reply"})${explanation ? `: ${explanation}` : ""}; supplied arguments: ${Object.keys(args).sort().join(", ")}; merged args (opaque values redacted): ${JSON.stringify(merged)}; mutation parameters: ${parameters.length?parameters.join(", "):"unavailable"}; args(account) merges over {principal, role}, explicit keys win; ${partial}`);
       }
       entry.done = true; save();
       }
