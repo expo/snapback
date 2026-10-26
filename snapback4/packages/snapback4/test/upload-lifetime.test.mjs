@@ -290,7 +290,14 @@ for (const tier of ["online", "web"]) for (const [failure, refresh] of Object.en
       assert.equal((await client.refreshSession()).ok, false);
       assert.equal(client.session().token, "old");
       response.resolve();
-      assert.deepEqual(await uploading, reply === "success" ? { ok: true, asset } : { ok: false, why: rateLimit });
+      const result = await uploading;
+      if (reply === "success") assert.deepEqual(result, { ok: true, asset });
+      else {
+        assert.equal(result.ok, false);
+        assert.ok(result.why.message.startsWith(`${rateLimit.message};`), "retain the server's refusal cause");
+        assert.match(result.why.message, /sequentially.*same selected bytes.*Retry-After/);
+        assert.deepEqual({ ...result, why: { ...result.why, message: rateLimit.message } }, { ok: false, why: rateLimit });
+      }
       assert.deepEqual(requests, Array(reply === "success" ? 1 : 4).fill("Bearer old"));
       if (tier === "web" && reply === "success") assert.deepEqual(JSON.parse(await receipt()), asset);
     });

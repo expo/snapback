@@ -5,7 +5,7 @@
 ### Guide changes
 
 - Passing `check` is a compact verdict plus language enforcement facts; advisory decisions and notes are in `check --review` or JSON. Gates remain explicit and blocking.
-- Security decisions carry redacted concrete campaign witnesses when available. Upsert questions name edits to existing rows. Repeated or comma-separated `--ack-security` IDs share one rationale and commit atomically; unrelated source edits preserve decisions.
+- Security decisions carry redacted concrete campaign witnesses when available. Upsert questions name edits to existing rows. `check --ack-security` accepts repeated or comma-separated IDs with one rationale and commits them atomically; unrelated source edits preserve decisions.
 - `usePage` includes `loading` and `why` alongside `read`. Developer refusal evidence names column write grants and caller-filtered hidden rows without changing public refusal disclosure.
 - Schema-first React projects get a pinned starter hint. Expo starters include a web/native upload picker; upload overload errors explain sequential batches and Retry-After. Staging advances and redeploys print persisted clock offsets. Proof text is on-screen only; password starters include `probe:check` using `serve-check`.
 

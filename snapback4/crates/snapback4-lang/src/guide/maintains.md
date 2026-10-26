@@ -221,7 +221,7 @@ partition. Unheld, retained-only and expired targets queue without a predicted
 row. A continuous membership renewal preserves coverage. After a membership gap,
 only targets delivered again count as covered until a replacement snapshot.
 An unswept expired membership never hides a live replacement for the same key.
-The server's capture is authoritative. check --residency lists that implicit
+The server's capture is authoritative. `check --residency --verbose` lists that implicit
 target dependency; check --cost lists the extra point reads.
 
 A UTC day is not a rolling 24-hour window. For posts younger than a day,
