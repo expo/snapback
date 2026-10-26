@@ -1,0 +1,9 @@
+{
+  "commit": "784641ce400d42c16509f8ed63d94c29b641f820",
+  "sha256": {
+    "checks.rs": "19685f6c8da79aca20cde342249751b2f5ba8b6d6eac20af0f1e7cf1972bab9e",
+    "group_tail/typed.rs": "7bced42fc537c040af7b8e49fc368c5c8f4200cc4e97f6e9946a9beb27fb4aee",
+    "literal.rs": "271d46617a0d50c9fb0ecf59f93ff17f904d0a8ac5694072501498cfc4fb26e1",
+    "batch.rs": "90aac28042380111838a88953676d043d7f5bf58e7cc6ec39b63c0ab9405907c"
+  }
+}
