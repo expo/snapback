@@ -1,0 +1,39 @@
+{
+  "commands": [
+    {
+      "command": [
+        "git",
+        "diff",
+        "--check"
+      ],
+      "status": 0,
+      "log": "repository-check-0.log"
+    },
+    {
+      "command": [
+        "./ref-check",
+        "--verbose"
+      ],
+      "status": 0,
+      "log": "repository-check-1.log"
+    },
+    {
+      "command": [
+        "node",
+        "snapback4/scripts/affected.mjs",
+        "--base",
+        "6b73305aa1",
+        "--worktree",
+        "--json"
+      ],
+      "status": 0,
+      "log": "repository-check-2.log"
+    }
+  ],
+  "json_files_validated": 30,
+  "markdown_links_checked": 35,
+  "missing_local_targets": [],
+  "product_tests": "report-only change; no product battery or publication qualification; affected plan retained",
+  "all_pass": true,
+  "initial_affected_planner_failure": "cargo absent from inherited PATH; rerun only failed planner with prescribed lane PATH"
+}

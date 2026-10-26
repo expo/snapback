@@ -1,0 +1,807 @@
+{
+  "rtt": [
+    {
+      "arm": "E",
+      "cell": "smoke-w4-n1000000-d1000-c32-disjoint",
+      "phase": "before",
+      "count": 1000,
+      "p50_ms": 1.092,
+      "p99_ms": 1.134,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-e8kug3j5/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "arm": "E",
+      "cell": "smoke-w4-n1000000-d1000-c32-disjoint",
+      "phase": "after",
+      "count": 1000,
+      "p50_ms": 1.086,
+      "p99_ms": 1.134,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-e8kug3j5/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "arm": "E",
+      "cell": "w1-n1000000-d1000-c128-disjoint",
+      "phase": "before",
+      "count": 1000,
+      "p50_ms": 1.097,
+      "p99_ms": 1.149,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-e8kug3j5/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "arm": "E",
+      "cell": "w1-n1000000-d1000-c128-disjoint",
+      "phase": "after",
+      "count": 1000,
+      "p50_ms": 1.097,
+      "p99_ms": 1.142,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-e8kug3j5/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "arm": "E",
+      "cell": "w1-n1000000-d500-c128-disjoint",
+      "phase": "before",
+      "count": 1000,
+      "p50_ms": 0.563,
+      "p99_ms": 0.596,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-e8kug3j5/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "arm": "E",
+      "cell": "w1-n1000000-d500-c128-disjoint",
+      "phase": "after",
+      "count": 1000,
+      "p50_ms": 0.57,
+      "p99_ms": 0.666,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-e8kug3j5/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "arm": "E",
+      "cell": "w2-n1000000-d1000-c128-disjoint",
+      "phase": "before",
+      "count": 1000,
+      "p50_ms": 1.093,
+      "p99_ms": 1.138,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-e8kug3j5/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "arm": "E",
+      "cell": "w2-n1000000-d1000-c128-disjoint",
+      "phase": "after",
+      "count": 1000,
+      "p50_ms": 1.097,
+      "p99_ms": 1.117,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-e8kug3j5/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "arm": "E",
+      "cell": "w2-n1000000-d500-c128-disjoint",
+      "phase": "before",
+      "count": 1000,
+      "p50_ms": 0.577,
+      "p99_ms": 0.596,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-e8kug3j5/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "arm": "E",
+      "cell": "w2-n1000000-d500-c128-disjoint",
+      "phase": "after",
+      "count": 1000,
+      "p50_ms": 0.572,
+      "p99_ms": 0.603,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-e8kug3j5/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "arm": "E",
+      "cell": "w3-n1000000-d1000-c128-disjoint",
+      "phase": "before",
+      "count": 1000,
+      "p50_ms": 1.079,
+      "p99_ms": 1.144,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-e8kug3j5/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "arm": "E",
+      "cell": "w3-n1000000-d1000-c128-disjoint",
+      "phase": "after",
+      "count": 1000,
+      "p50_ms": 1.074,
+      "p99_ms": 1.12,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-e8kug3j5/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "arm": "E",
+      "cell": "w3-n1000000-d500-c128-disjoint",
+      "phase": "before",
+      "count": 1000,
+      "p50_ms": 0.563,
+      "p99_ms": 0.61,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-e8kug3j5/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "arm": "E",
+      "cell": "w3-n1000000-d500-c128-disjoint",
+      "phase": "after",
+      "count": 1000,
+      "p50_ms": 0.567,
+      "p99_ms": 0.601,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-e8kug3j5/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "arm": "E",
+      "cell": "w4-n1000000-d1000-c32-disjoint",
+      "phase": "before",
+      "count": 1000,
+      "p50_ms": 1.087,
+      "p99_ms": 1.137,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-e8kug3j5/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "arm": "E",
+      "cell": "w4-n1000000-d1000-c32-disjoint",
+      "phase": "after",
+      "count": 1000,
+      "p50_ms": 1.085,
+      "p99_ms": 1.11,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-e8kug3j5/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "arm": "E",
+      "cell": "w4-n1000000-d500-c32-disjoint",
+      "phase": "before",
+      "count": 1000,
+      "p50_ms": 0.564,
+      "p99_ms": 0.609,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-e8kug3j5/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "arm": "E",
+      "cell": "w4-n1000000-d500-c32-disjoint",
+      "phase": "after",
+      "count": 1000,
+      "p50_ms": 0.563,
+      "p99_ms": 0.586,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-e8kug3j5/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "arm": "E",
+      "cell": "w5-n1000000-d1000-c32-hot1",
+      "phase": "before",
+      "count": 1000,
+      "p50_ms": 1.074,
+      "p99_ms": 1.122,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-e8kug3j5/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "arm": "E",
+      "cell": "w5-n1000000-d1000-c32-hot1",
+      "phase": "after",
+      "count": 1000,
+      "p50_ms": 1.077,
+      "p99_ms": 1.136,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-e8kug3j5/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "arm": "E",
+      "cell": "w5-n1000000-d1000-c32-same",
+      "phase": "before",
+      "count": 1000,
+      "p50_ms": 1.081,
+      "p99_ms": 1.113,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-e8kug3j5/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "arm": "E",
+      "cell": "w5-n1000000-d1000-c32-same",
+      "phase": "after",
+      "count": 1000,
+      "p50_ms": 1.08,
+      "p99_ms": 1.133,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-e8kug3j5/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "arm": "E",
+      "cell": "w5-n1000000-d500-c32-hot1",
+      "phase": "before",
+      "count": 1000,
+      "p50_ms": 0.562,
+      "p99_ms": 0.573,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-e8kug3j5/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "arm": "E",
+      "cell": "w5-n1000000-d500-c32-hot1",
+      "phase": "after",
+      "count": 1000,
+      "p50_ms": 0.562,
+      "p99_ms": 0.597,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-e8kug3j5/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "arm": "E",
+      "cell": "w5-n1000000-d500-c32-same",
+      "phase": "before",
+      "count": 1000,
+      "p50_ms": 0.572,
+      "p99_ms": 0.626,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-e8kug3j5/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "arm": "E",
+      "cell": "w5-n1000000-d500-c32-same",
+      "phase": "after",
+      "count": 1000,
+      "p50_ms": 0.563,
+      "p99_ms": 0.578,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-e8kug3j5/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "arm": "S",
+      "cell": "w1-n1000000-d1000-c128-disjoint",
+      "phase": "before",
+      "count": 1000,
+      "p50_ms": 1.085,
+      "p99_ms": 1.138,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-lefl46pz/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "arm": "S",
+      "cell": "w1-n1000000-d1000-c128-disjoint",
+      "phase": "after",
+      "count": 1000,
+      "p50_ms": 1.09,
+      "p99_ms": 1.14,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-lefl46pz/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "arm": "S",
+      "cell": "w1-n1000000-d500-c128-disjoint",
+      "phase": "before",
+      "count": 1000,
+      "p50_ms": 0.563,
+      "p99_ms": 0.607,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-lefl46pz/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "arm": "S",
+      "cell": "w1-n1000000-d500-c128-disjoint",
+      "phase": "after",
+      "count": 1000,
+      "p50_ms": 0.567,
+      "p99_ms": 0.66,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-lefl46pz/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "arm": "S",
+      "cell": "w2-n1000000-d1000-c128-disjoint",
+      "phase": "before",
+      "count": 1000,
+      "p50_ms": 1.073,
+      "p99_ms": 1.131,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-lefl46pz/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "arm": "S",
+      "cell": "w2-n1000000-d1000-c128-disjoint",
+      "phase": "after",
+      "count": 1000,
+      "p50_ms": 1.075,
+      "p99_ms": 1.152,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-lefl46pz/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "arm": "S",
+      "cell": "w2-n1000000-d500-c128-disjoint",
+      "phase": "before",
+      "count": 1000,
+      "p50_ms": 0.581,
+      "p99_ms": 0.597,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-lefl46pz/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "arm": "S",
+      "cell": "w2-n1000000-d500-c128-disjoint",
+      "phase": "after",
+      "count": 1000,
+      "p50_ms": 0.574,
+      "p99_ms": 0.605,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-lefl46pz/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "arm": "S",
+      "cell": "w3-n1000000-d1000-c128-disjoint",
+      "phase": "before",
+      "count": 1000,
+      "p50_ms": 1.096,
+      "p99_ms": 1.131,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-lefl46pz/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "arm": "S",
+      "cell": "w3-n1000000-d1000-c128-disjoint",
+      "phase": "after",
+      "count": 1000,
+      "p50_ms": 1.074,
+      "p99_ms": 1.132,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-lefl46pz/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "arm": "S",
+      "cell": "w3-n1000000-d500-c128-disjoint",
+      "phase": "before",
+      "count": 1000,
+      "p50_ms": 0.563,
+      "p99_ms": 0.609,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-lefl46pz/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "arm": "S",
+      "cell": "w3-n1000000-d500-c128-disjoint",
+      "phase": "after",
+      "count": 1000,
+      "p50_ms": 0.576,
+      "p99_ms": 0.602,
+      "port": 55440,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-lefl46pz/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    }
+  ],
+  "released_starts": [
+    {
+      "campaign": "matrix-e",
+      "time": 1792973653.5034707,
+      "label": "link-B E release public-Queue probe",
+      "loadavg": "1.39 1.41 1.42 1/939 3099555",
+      "unrelated_over_one_core": [],
+      "top": [
+        {
+          "pid": 3082086,
+          "cores": 0.08777101275707196,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "campaign": "matrix-e",
+      "time": 1792973670.8606832,
+      "label": "('W4', 1000000, 1000, 32, 'disjoint')",
+      "loadavg": "1.53 1.44 1.43 1/986 3099863",
+      "unrelated_over_one_core": [],
+      "top": [
+        {
+          "pid": 3082086,
+          "cores": 0.07861697358106548,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "campaign": "matrix-e",
+      "time": 1792973775.0197105,
+      "label": "('W4', 1000000, 500, 32, 'disjoint')",
+      "loadavg": "1.07 1.30 1.38 2/934 3100950",
+      "unrelated_over_one_core": [],
+      "top": [
+        {
+          "pid": 3082086,
+          "cores": 0.09561852467088214,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "campaign": "matrix-e",
+      "time": 1792974160.793463,
+      "label": "('W4', 1000000, 1000, 32, 'disjoint')",
+      "loadavg": "3.80 3.08 2.19 1/949 3104773",
+      "unrelated_over_one_core": [],
+      "top": [
+        {
+          "pid": 3082086,
+          "cores": 0.06881284880403463,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "campaign": "matrix-e",
+      "time": 1792974551.1244495,
+      "label": "('W5', 1000000, 500, 32, 'same')",
+      "loadavg": "3.43 3.46 2.68 12/961 3108754",
+      "unrelated_over_one_core": [],
+      "top": [
+        {
+          "pid": 3082086,
+          "cores": 0.09696828390592056,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "campaign": "matrix-e",
+      "time": 1792975309.5379114,
+      "label": "('W5', 1000000, 1000, 32, 'same')",
+      "loadavg": "2.87 3.15 2.79 1/940 3115239",
+      "unrelated_over_one_core": [],
+      "top": [
+        {
+          "pid": 3082086,
+          "cores": 0.0786258013540451,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "campaign": "matrix-e",
+      "time": 1792976164.0393338,
+      "label": "('W5', 1000000, 500, 32, 'hot1')",
+      "loadavg": "3.40 3.21 2.80 4/975 3122913",
+      "unrelated_over_one_core": [],
+      "top": [
+        {
+          "pid": 3082086,
+          "cores": 0.0981811408998969,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "campaign": "matrix-e",
+      "time": 1792976551.5360048,
+      "label": "('W5', 1000000, 1000, 32, 'hot1')",
+      "loadavg": "3.06 3.04 2.86 1/973 3126767",
+      "unrelated_over_one_core": [],
+      "top": [
+        {
+          "pid": 3082086,
+          "cores": 0.07922537249522074,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "campaign": "matrix-e",
+      "time": 1792976942.4444926,
+      "label": "('W1', 1000000, 500, 128, 'disjoint')",
+      "loadavg": "3.94 3.25 2.98 1/980 3130772",
+      "unrelated_over_one_core": [],
+      "top": [
+        {
+          "pid": 3082086,
+          "cores": 0.08841698620007456,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "campaign": "matrix-e",
+      "time": 1792977818.0343273,
+      "label": "('W1', 1000000, 1000, 128, 'disjoint')",
+      "loadavg": "17.85 16.25 10.11 1/962 3145648",
+      "unrelated_over_one_core": [],
+      "top": [
+        {
+          "pid": 3082086,
+          "cores": 0.07920935719599381,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "campaign": "matrix-e",
+      "time": 1792978696.2560031,
+      "label": "('W2', 1000000, 500, 128, 'disjoint')",
+      "loadavg": "19.13 16.25 12.35 1/939 3161220",
+      "unrelated_over_one_core": [],
+      "top": [
+        {
+          "pid": 3082086,
+          "cores": 0.078569452852817,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "campaign": "matrix-e",
+      "time": 1792979447.8577,
+      "label": "('W2', 1000000, 1000, 128, 'disjoint')",
+      "loadavg": "19.01 17.77 14.18 1/943 3174109",
+      "unrelated_over_one_core": [],
+      "top": [
+        {
+          "pid": 3082086,
+          "cores": 0.07862702339215144,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "campaign": "matrix-e",
+      "time": 1792980202.5012083,
+      "label": "('W3', 1000000, 500, 128, 'disjoint')",
+      "loadavg": "17.11 16.80 14.54 2/950 3186449",
+      "unrelated_over_one_core": [],
+      "top": [
+        {
+          "pid": 100,
+          "cores": 0.146955935072071,
+          "owned": false,
+          "comm": "kcompactd0"
+        },
+        {
+          "pid": 3082086,
+          "cores": 0.0881735610432426,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "campaign": "matrix-e",
+      "time": 1792980954.524042,
+      "label": "('W3', 1000000, 1000, 128, 'disjoint')",
+      "loadavg": "24.02 22.22 18.05 1/968 3199141",
+      "unrelated_over_one_core": [],
+      "top": [
+        {
+          "pid": 3082086,
+          "cores": 0.06936399563149451,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "campaign": "matrix-s",
+      "time": 1792983372.669899,
+      "label": "('W1', 1000000, 500, 128, 'disjoint')",
+      "loadavg": "1.38 1.44 4.24 1/946 3222995",
+      "unrelated_over_one_core": [],
+      "top": [
+        {
+          "pid": 3082086,
+          "cores": 0.07859496876597519,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "campaign": "matrix-s",
+      "time": 1792984369.8266206,
+      "label": "('W1', 1000000, 1000, 128, 'disjoint')",
+      "loadavg": "21.97 20.67 13.38 1/947 3240622",
+      "unrelated_over_one_core": [],
+      "top": [
+        {
+          "pid": 3082086,
+          "cores": 0.08844721958026933,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "campaign": "matrix-s",
+      "time": 1792985370.3685968,
+      "label": "('W2', 1000000, 500, 128, 'disjoint')",
+      "loadavg": "18.99 19.40 15.54 1/968 3258251",
+      "unrelated_over_one_core": [],
+      "top": [
+        {
+          "pid": 3082086,
+          "cores": 0.08797109924450322,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "campaign": "matrix-s",
+      "time": 1792986244.7600658,
+      "label": "('W2', 1000000, 1000, 128, 'disjoint')",
+      "loadavg": "21.10 21.20 17.48 1/962 3273251",
+      "unrelated_over_one_core": [],
+      "top": [
+        {
+          "pid": 3082086,
+          "cores": 0.07865467722674763,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "campaign": "matrix-s",
+      "time": 1792987121.8892086,
+      "label": "('W3', 1000000, 500, 128, 'disjoint')",
+      "loadavg": "21.31 20.83 17.85 2/949 3288746",
+      "unrelated_over_one_core": [],
+      "top": [
+        {
+          "pid": 3082086,
+          "cores": 0.0777660979954666,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    },
+    {
+      "campaign": "matrix-s",
+      "time": 1792987873.1467474,
+      "label": "('W3', 1000000, 1000, 128, 'disjoint')",
+      "loadavg": "24.04 23.42 19.72 1/951 3301199",
+      "unrelated_over_one_core": [],
+      "top": [
+        {
+          "pid": 3082086,
+          "cores": 0.06881262855642716,
+          "owned": true,
+          "comm": "python3"
+        }
+      ]
+    }
+  ],
+  "busy_observations": []
+}

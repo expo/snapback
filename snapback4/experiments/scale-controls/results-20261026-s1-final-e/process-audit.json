@@ -1,0 +1,12 @@
+{
+  "events": 38469,
+  "distinct_pid_identities": 35002,
+  "live_owned": [],
+  "owned_zombies": [],
+  "finalizer_pending_external_recheck": false,
+  "scope": "build/Queue/serve/proxy/generators/observers/private PG/controller/watch; PID/start identities plus cluster socket and pidfile absence",
+  "final_helpers_checked": true,
+  "private_roots_absent": true,
+  "record_files": 18,
+  "audit_process_excluded": 3317432
+}

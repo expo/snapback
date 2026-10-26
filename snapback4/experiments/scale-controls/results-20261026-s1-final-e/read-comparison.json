@@ -1,0 +1,290 @@
+[
+  {
+    "workload": "W1",
+    "link": "A",
+    "values": {
+      "S": {
+        "rate": 8000,
+        "p50_ms": 2.046975,
+        "p99_ms": 13.418495,
+        "source": "matrix-s/w1-n1000000-d500-c128-disjoint"
+      },
+      "E": {
+        "rate": 4000,
+        "p50_ms": 2.758655,
+        "p99_ms": 6.594559,
+        "source": "matrix-e/w1-n1000000-d500-c128-disjoint"
+      }
+    },
+    "verdict": "LOSS",
+    "highest_common_passing_rate": 4000,
+    "matched": {
+      "S": {
+        "rate": 4000,
+        "p50_ms": {
+          "min": 1.169407,
+          "median": 1.169407,
+          "max": 1.174527
+        },
+        "p99_ms": {
+          "min": 1.520639,
+          "median": 1.530879,
+          "max": 1.553407
+        }
+      },
+      "E": {
+        "rate": 4000,
+        "p50_ms": {
+          "min": 2.723839,
+          "median": 2.758655,
+          "max": 2.895871
+        },
+        "p99_ms": {
+          "min": 6.377471,
+          "median": 6.594559,
+          "max": 21.561343
+        }
+      }
+    }
+  },
+  {
+    "workload": "W1",
+    "link": "B",
+    "values": {
+      "S": {
+        "rate": 8000,
+        "p50_ms": 2.879487,
+        "p99_ms": 39.911423,
+        "source": "matrix-s/w1-n1000000-d1000-c128-disjoint"
+      },
+      "E": {
+        "rate": 4000,
+        "p50_ms": 2.811903,
+        "p99_ms": 7.045119,
+        "source": "matrix-e/w1-n1000000-d1000-c128-disjoint"
+      }
+    },
+    "verdict": "LOSS",
+    "highest_common_passing_rate": 4000,
+    "matched": {
+      "S": {
+        "rate": 4000,
+        "p50_ms": {
+          "min": 1.677311,
+          "median": 1.678335,
+          "max": 1.685503
+        },
+        "p99_ms": {
+          "min": 2.037759,
+          "median": 2.046975,
+          "max": 2.062335
+        }
+      },
+      "E": {
+        "rate": 4000,
+        "p50_ms": {
+          "min": 2.705407,
+          "median": 2.811903,
+          "max": 2.813951
+        },
+        "p99_ms": {
+          "min": 6.623231,
+          "median": 7.045119,
+          "max": 7.151615
+        }
+      }
+    }
+  },
+  {
+    "workload": "W2",
+    "link": "A",
+    "values": {
+      "S": {
+        "rate": 4000,
+        "p50_ms": 2.590719,
+        "p99_ms": 7.069695,
+        "source": "matrix-s/w2-n1000000-d500-c128-disjoint"
+      },
+      "E": {
+        "rate": 2828,
+        "p50_ms": 4.403199,
+        "p99_ms": 12.582911,
+        "source": "matrix-e/w2-n1000000-d500-c128-disjoint"
+      }
+    },
+    "verdict": "LOSS",
+    "highest_common_passing_rate": 2000,
+    "matched": {
+      "S": {
+        "rate": 2000,
+        "p50_ms": {
+          "min": 1.635327,
+          "median": 1.658879,
+          "max": 1.668095
+        },
+        "p99_ms": {
+          "min": 5.091327,
+          "median": 5.230591,
+          "max": 5.246975
+        }
+      },
+      "E": {
+        "rate": 2000,
+        "p50_ms": {
+          "min": 3.864575,
+          "median": 3.971071,
+          "max": 4.030463
+        },
+        "p99_ms": {
+          "min": 10.280959,
+          "median": 10.305535,
+          "max": 12.238847
+        }
+      }
+    }
+  },
+  {
+    "workload": "W2",
+    "link": "B",
+    "values": {
+      "S": {
+        "rate": 4000,
+        "p50_ms": 3.346431,
+        "p99_ms": 13.369343,
+        "source": "matrix-s/w2-n1000000-d1000-c128-disjoint"
+      },
+      "E": {
+        "rate": 2828,
+        "p50_ms": 4.607999,
+        "p99_ms": 12.623871,
+        "source": "matrix-e/w2-n1000000-d1000-c128-disjoint"
+      }
+    },
+    "verdict": "LOSS",
+    "highest_common_passing_rate": 2000,
+    "matched": {
+      "S": {
+        "rate": 2000,
+        "p50_ms": {
+          "min": 2.197503,
+          "median": 2.213887,
+          "max": 2.306047
+        },
+        "p99_ms": {
+          "min": 6.213631,
+          "median": 6.311935,
+          "max": 6.316031
+        }
+      },
+      "E": {
+        "rate": 2000,
+        "p50_ms": {
+          "min": 4.157439,
+          "median": 4.202495,
+          "max": 4.300799
+        },
+        "p99_ms": {
+          "min": 11.476991,
+          "median": 11.763711,
+          "max": 12.378111
+        }
+      }
+    }
+  },
+  {
+    "workload": "W3",
+    "link": "A",
+    "values": {
+      "S": {
+        "rate": 2000,
+        "p50_ms": 4.134911,
+        "p99_ms": 9.060351,
+        "source": "matrix-s/w3-n1000000-d500-c128-disjoint"
+      },
+      "E": {
+        "rate": 2000,
+        "p50_ms": 7.675903,
+        "p99_ms": 18.776063,
+        "source": "matrix-e/w3-n1000000-d500-c128-disjoint"
+      }
+    },
+    "verdict": "TIE",
+    "highest_common_passing_rate": 2000,
+    "matched": {
+      "S": {
+        "rate": 2000,
+        "p50_ms": {
+          "min": 4.083711,
+          "median": 4.134911,
+          "max": 4.147199
+        },
+        "p99_ms": {
+          "min": 9.027583,
+          "median": 9.060351,
+          "max": 9.240575
+        }
+      },
+      "E": {
+        "rate": 2000,
+        "p50_ms": {
+          "min": 7.565311,
+          "median": 7.675903,
+          "max": 7.872511
+        },
+        "p99_ms": {
+          "min": 18.481151,
+          "median": 18.776063,
+          "max": 28.180479
+        }
+      }
+    }
+  },
+  {
+    "workload": "W3",
+    "link": "B",
+    "values": {
+      "S": {
+        "rate": 2000,
+        "p50_ms": 4.718591,
+        "p99_ms": 10.346495,
+        "source": "matrix-s/w3-n1000000-d1000-c128-disjoint"
+      },
+      "E": {
+        "rate": 2000,
+        "p50_ms": 8.163327,
+        "p99_ms": 19.349503,
+        "source": "matrix-e/w3-n1000000-d1000-c128-disjoint"
+      }
+    },
+    "verdict": "TIE",
+    "highest_common_passing_rate": 2000,
+    "matched": {
+      "S": {
+        "rate": 2000,
+        "p50_ms": {
+          "min": 4.644863,
+          "median": 4.718591,
+          "max": 4.726783
+        },
+        "p99_ms": {
+          "min": 10.280959,
+          "median": 10.346495,
+          "max": 10.354687
+        }
+      },
+      "E": {
+        "rate": 2000,
+        "p50_ms": {
+          "min": 8.159231,
+          "median": 8.163327,
+          "max": 8.302591
+        },
+        "p99_ms": {
+          "min": 19.202047,
+          "median": 19.349503,
+          "max": 40.828927
+        }
+      }
+    }
+  }
+]

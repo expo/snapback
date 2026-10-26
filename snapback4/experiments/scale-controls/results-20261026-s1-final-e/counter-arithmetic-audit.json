@@ -1,0 +1,7 @@
+{
+  "write_cell_trials": 102,
+  "background_writer_trials": 240,
+  "checks": 342,
+  "mismatches": 0,
+  "check": "independent before/after durable sum and whole-cohort acknowledgements; includes all warm-up writes"
+}

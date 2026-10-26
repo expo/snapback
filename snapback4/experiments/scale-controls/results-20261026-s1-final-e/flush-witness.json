@@ -1,0 +1,12 @@
+{
+  "assertion_enabled": true,
+  "assertion_failures": 0,
+  "serve_logs_scanned": 19,
+  "release_core_debug_assertions": true,
+  "test_support": false,
+  "planted_violation": "existing g7e_flush_position_assertion_rejects_an_unflushed_reply; expected panic 1/20 > 1/10",
+  "source": "snapback4/crates/snapback4-core/src/engine/postgres/early_release.rs",
+  "prior_qualification": "snapback4/reports/20261025-g7e-postgres/REPORT.md",
+  "rerun_planted_test": false,
+  "physical_power_cut": false
+}
