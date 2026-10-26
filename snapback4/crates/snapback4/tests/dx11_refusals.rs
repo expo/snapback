@@ -26,8 +26,11 @@ fn run(p: &Scratch, args: &[&str]) -> std::process::Output {
 }
 #[test]
 fn column_grant_is_named_only_in_developer_evidence() {
+    for default in ["", " default 'initial'"] {
     let p = scratch();
-    fs::write(p.0.join("snapback/schema.q"),"use personas alice, bob\ntable docs:\n  owner:principal\n  body:text <=100 write <- .owner = viewer\n  read <- allow\n  insert <- allow\n  online only\nmutation add(owner:principal,body:text <=100):\n  return insert docs {owner,body}\n").unwrap();
+    let source="use personas alice, bob\ntable docs:\n  owner:principal\n  body:text <=100 write <- .owner = viewer\n  read <- allow\n  insert <- allow\n  online only\nmutation add(owner:principal,body:text <=100):\n  return insert docs {owner,body}\n";
+    let source=source.replace("body:text <=100 write", &format!("body:text <=100{default} write"));
+    fs::write(p.0.join("snapback/schema.q"),&source).unwrap();
     let out = run(
         &p,
         &[
@@ -48,9 +51,10 @@ fn column_grant_is_named_only_in_developer_evidence() {
         "{public}"
     );
     assert!(
-        private.contains("column write grant body") && private.contains("body:text <=100 write <-"),
+        private.contains("column write grant body") && private.contains(&format!("body:text <=100{default} write <-")),
         "{private}"
     );
+    }
 }
 #[test]
 fn hidden_query_rows_are_explained_only_to_the_local_developer() {

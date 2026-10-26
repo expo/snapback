@@ -361,7 +361,7 @@ impl super::rules::Probe for SequenceProbe<'_, '_> {
         let RuleExpr::And(terms)=self.root else{return;};
         if !terms.iter().any(|term|std::ptr::eq(term,rule)){return;}
         for (column,policy) in &self.runner.schema.tables[self.table].column_writes {
-            let insert=RuleExpr::Or(vec![RuleExpr::Eq(RuleTerm::Field(column.clone()),RuleTerm::Literal(Value::Null)),policy.clone()]);
+            let insert=RuleExpr::Or(vec![self.runner.schema.tables[self.table].column_initialization(column),policy.clone()]);
             let update=RuleExpr::Or(vec![RuleExpr::Eq(RuleTerm::OldField(column.clone()),RuleTerm::Field(column.clone())),policy.old_and_next()]);
             if rule==&insert || rule==&update {
                 self.runner.refusing_phase(self.table,&format!("column write grant {column}"),&format!("{column} write rule"));
