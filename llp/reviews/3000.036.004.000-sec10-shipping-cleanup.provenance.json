@@ -1,0 +1,28 @@
+{
+  "base": "f3c5beaf10b0f49705bc9736e675b87a0413568f",
+  "cleanupCommit": "aa094de6de",
+  "patchSha256": "9993b766875da380f7ce36172ada1ac133c885f328b40744fbcca260ee0f23b0",
+  "inputs": {
+    "snapback4/crates/snapback4-lang/src/bind/security/challenges/histories.rs": "7afb316d35c088ffef34f6914c465717173fc1381608cb832cb1da868596f205",
+    "snapback4/crates/snapback4-lang/src/guide/codes.rs": "5080d1a630c21d2d8e37bb60209a07aad49dc7c6a9f001d84cc898d34a7407f6",
+    "snapback4/crates/snapback4-lang/src/guide/security.md": "e27c080f91450f05267e989ea49f0dc44904a7c4ad3609d9188721550fbf77fe",
+    "snapback4/crates/snapback4-lang/tests/guide/refusal_actions.rs": "8bae27c33d7006ac5576f4e6c62fb9011c7fd1277271a4c920addef2d8c53279"
+  },
+  "reviews": {
+    "muse": {
+      "verdict": "READY",
+      "model": "muse-spark-1.3-contributor",
+      "reasoning": "high",
+      "rawLogSha256": "503897761525a1e1ae4e62bc960c6d7f0a5a3c8c0d33e6b397dee21a94f7ec0e",
+      "responseSha256": "8307d5b85833300d5d67cba812142e12186e6a0be678fc37a3c75981290d2285"
+    },
+    "codex": {
+      "verdict": "READY",
+      "model": "gpt-6.1-sol",
+      "reasoning": "high",
+      "rawLogSha256": "87af11af65f53c89ffc95d35fb358ee89ea27ff419498abf043bae9adf9caabc",
+      "responseSha256": "55c02e80247e0198f33edf6919cd5e0277351c09207f642eecf822adac9a52f1"
+    }
+  },
+  "scope": "Test/prose alignment only, no semantic/runtime change; R9 semantic contract remains READY; qualification is separately recorded"
+}
