@@ -19,9 +19,11 @@ pub fn requires_view(target:&[(String,String)],current:&[(String,String)])->bool
     if same_data_and_intent(target,current)
         && !crate::compile(current).invariants.is_empty()
         && modules(target)!=modules(current) {return true;}
-    let before_schema=crate::compile(target).schema;
+    let before=crate::compile(target);let after=crate::compile(current);
+    if historical_input_contract(&before,&after).is_err(){return true;}
+    let before_schema=before.schema;
     // @ref LLP 3000.000.000#21-wave-27-release-semantics-rel — column authority alone is not a visibility risk.
-    let after_schema=crate::compile(current).schema;
+    let after_schema=after.schema;
     // One historical child is not a uniqueness promise for future parents.
     // Retain the current child population when old source has only one cell.
     if after_schema.extractions.iter().any(|e|!e.each&&before_schema.table(&e.parent).is_some_and(|t|e.fields.values().any(|c|t.columns.contains_key(c)))) {return true;}
@@ -155,6 +157,10 @@ pub fn extraction_preserves_predecessor(target:&[(String,String)],current:&[(Str
                 .is_some_and(|t|t.rules.iter().filter(|r|r.effect==ast::Effect::Read).all(|r|matches!(&r.value,ast::Expr::Call{name,..}if name=="$readThrough")));
             if !inherited||!plain_read||child.expire.is_some()||child.not_before.is_some()
                 ||!child.column_reads.is_empty()||!child.column_writes.is_empty()||!child.frozen_columns.is_empty(){return false;}
+            // A parent cell proves only this closed child layout. Unmapped
+            // fields can carry additional lifetime edges, assets or defaults.
+            if child.columns.iter().any(|(column,kind)|column!=&e.reference&&column!="id"&&!e.fields.contains_key(column)
+                &&(!child.engine_field(column)||matches!(kind.required(),snapback4_core::schema::ColumnType::Ref{..}))){return false;}
             use snapback4_core::schema::{Constraint,IndexComponent};
             if child.constraints.iter().any(|constraint|!match constraint {
                 Constraint::Capabilities(_)|Constraint::Recorded=>true,
@@ -178,7 +184,15 @@ pub fn extraction_preserves_predecessor(target:&[(String,String)],current:&[(Str
             // each reachable old parent-cell write against the child's gate,
             // using the same fixed-object, stable-guard and implicit-write proof
             // as historical column authority. Unknown row-relative gates refuse.
-            for column in e.fields.values(){
+            if table.is_expiring()&&old.programs.iter().any(|p|snapback4_core::ir::write_tables(&p.program).iter().any(|(parent,effect)|parent==name&&matches!(*effect,"insert"|"upsert"))){return false;}
+            for (destination,column) in &e.fields{
+                let Some(kind)=table.columns.get(column)else{return false;};
+                if !child.columns.get(destination).is_some_and(|next|snapback4_core::schema::Extraction::payload_accepts(kind,next)){return false;}
+                // Read-through insertion independently requires a readable
+                // parent, including for an empty/null payload and allow rule.
+                let mut proof=crate::compile(target);
+                proof.schema.tables.get_mut(name).unwrap().column_writes.insert(column.clone(),now.rules.read.clone());
+                if exact_authority(target,target,&old,&proof,Some("insert")).is_err(){return false;}
                 for (effect,gate) in [("insert",&child.rules.insert),("update",&child.rules.update)] {
                     let authored=after_docs.iter().flat_map(|d|&d.tables).find(|t|t.name==e.child)
                         .is_some_and(|t|t.rules.iter().any(|r|matches!((effect,r.effect),("insert",ast::Effect::Insert)|("update",ast::Effect::Update))));
@@ -297,7 +311,8 @@ fn canonical_table(mut table:snapback4_core::schema::Table)->snapback4_core::sch
 
 fn loosen_inner(target:&[(String,String)],current:&[(String,String)])->Bridge {
     let current_bound=crate::compile(current);
-    if current_bound.schema.extractions.iter().any(|e|!e.each)||!current_bound.invariants.is_empty()||current_bound.schema.tables.values().any(|t|!t.column_writes.is_empty()||!t.frozen_columns.is_empty()) {
+    if historical_input_contract(&crate::compile(target),&current_bound).is_err()
+        ||current_bound.schema.extractions.iter().any(|e|!e.each)||!current_bound.invariants.is_empty()||current_bound.schema.tables.values().any(|t|!t.column_writes.is_empty()||!t.frozen_columns.is_empty()) {
         let mut allow_guarded=false;
         let complete=super::release_bridge_current::prepare(target,current,&mut allow_guarded);
         if complete.diagnostics.is_empty() || !allow_guarded{return complete;}
@@ -628,6 +643,51 @@ pub fn exact_write_authority(target:&[(String,String)],current:&[(String,String)
     let old=crate::compile(target);let next=crate::compile(current);
     exact_authority(target,current,&old,&next,None)
 }
+/// Admission of a retained original source, including explicit exact selection.
+/// Forward moves to a newer source and compiler-owned guarded views are routed
+/// separately by the release owner, using the source's first digest identity.
+// @ref LLP 3000.000.000#22-wave-29-release-identity-rel2 — explicit historical selection retains corresponding current input safety domains.
+pub fn exact_historical_inputs(target:&[(String,String)],current:&[(String,String)])->Result<(),String>{
+    let old=crate::compile(target);let next=crate::compile(current);
+    if !old.diagnostics.is_empty()||!next.diagnostics.is_empty(){return Err("historical authority needs valid complete sources".into());}
+    historical_input_contract(&old,&next)?;
+    Ok(())
+}
+fn historical_input_contract(old:&crate::Bound,next:&crate::Bound)->Result<BTreeMap<String,String>,String>{
+    let aliases=next.schema.table_renames.iter().filter(|(_,prior)|old.schema.tables.contains_key(*prior)).map(|(new,prior)|(new.clone(),prior.clone()))
+        .chain(old.schema.table_renames.iter().filter(|(new,prior)|!next.schema.tables.contains_key(*new)&&next.schema.tables.contains_key(*prior)).map(|(new,prior)|(prior.clone(),new.clone()))).collect::<BTreeMap<_,_>>();
+    fn normalize(kind:&mut snapback4_core::ir::ArgType,names:&BTreeMap<String,String>){
+        use snapback4_core::ir::ArgType;
+        match kind {
+            ArgType::Ref{table}=>{if let Some(prior)=names.get(table){*table=prior.clone();}},
+            ArgType::Optional(inner)=>normalize(inner,names),
+            ArgType::List{of:Some(inner),..}|ArgType::ListRange{of:Some(inner),..}=>normalize(inner,names),_=>(),
+        }
+    }
+    fn wire_ids(kind:&mut snapback4_core::ir::ArgType){
+        use snapback4_core::ir::ArgType;
+        match kind {
+            ArgType::Id|ArgType::Principal|ArgType::Ref{..}=>*kind=ArgType::Id,
+            ArgType::Optional(inner)=>wire_ids(inner),
+            ArgType::List{of:Some(inner),..}|ArgType::ListRange{of:Some(inner),..}=>wire_ids(inner),_=>(),
+        }
+    }
+    for prior in &old.programs {if let Some(current)=next.programs.iter().find(|p|p.program.name==prior.program.name){
+        for (name,kind) in &prior.program.args {
+            let spellings=std::iter::once(name.as_str()).chain(prior.program.arg_aliases.iter().filter(|(_,owner)|*owner==name).map(|(alias,_)|alias.as_str()));
+            for spelling in spellings {if let Some((_,next))=current.program.argument(spelling){
+                let mut aligned=next.clone();normalize(&mut aligned,&aliases);let mut original=kind.clone();
+                // This gate compares admitted argument values, not a program
+                // rewrite: every nominal ID is validated as Value::Id. Source
+                // table bindings and the extraction proof remain nominal.
+                wire_ids(&mut original);wire_ids(&mut aligned);
+                if !crate::client_contracts::accepts(&original,&aligned){return Err(format!("{}: historical operation {} inputs outside the current contract at argument {spelling}; retain the guarded view or author a compatible bridge",prior.site,prior.program.name));}
+            }}
+        }
+    }}
+    Ok(aliases)
+}
+
 fn exact_authority(target:&[(String,String)],current:&[(String,String)],old:&crate::Bound,next:&crate::Bound,effect_filter:Option<&str>)->Result<(),String>{
     use snapback4_core::schema::RuleExpr;
     if next.schema.tables.values().all(|t|t.column_writes.is_empty()&&t.frozen_columns.is_empty()){return Ok(());}
@@ -725,7 +785,7 @@ fn exact_authority(target:&[(String,String)],current:&[(String,String)],old:&cra
         // an unrelated maintained table or cascading edge is not a write.
         if writes.iter().any(|(name,effect)|proof.schema.table(name).is_none_or(|t|
             !t.maintained.is_empty()||!t.sequences.is_empty()
-            ||proof.schema.maintains.iter().any(|m|m.source==*name||m.target==*name)
+            ||proof.schema.maintains.iter().any(|m|m.source==*name||m.target==*name||m.row_key.as_ref().is_some_and(|key|key.table==*name))
             ||*effect=="delete"&&proof.schema.tables.values().any(|child|child.columns.iter().any(|(column,kind)|
                 matches!(kind.required(),snapback4_core::schema::ColumnType::Ref{table} if table==name)&&child.on_delete.get(column).is_some_and(|a|a.writes()))))) {return false;}
         let require=&proof.schema.tables[&guard].rules.read;
@@ -778,6 +838,10 @@ fn exact_authority(target:&[(String,String)],current:&[(String,String)],old:&cra
                         let mut visited=std::collections::BTreeSet::new();
                         while let Some(dependency)=dependencies.iter().find(|name|!visited.contains(*name)).cloned() {
                             visited.insert(dependency.clone());
+                            for maintain in old.schema.maintains.iter().filter(|m|m.target==dependency||m.private.as_ref().is_some_and(|owner|owner.table==dependency)) {
+                                dependencies.insert(maintain.source.clone());
+                                if let Some(key)=&maintain.row_key{dependencies.insert(key.table.clone());}
+                            }
                             if let Some(table)=old.schema.table(&dependency) {
                                 dependencies.extend(crate::security::kernel::dependencies(&table.rules.read));
                                 if let Some(through)=&table.through{dependencies.insert(through.parent.clone());}
@@ -800,7 +864,8 @@ fn exact_authority(target:&[(String,String)],current:&[(String,String)],old:&cra
                         loop {
                             let before=affected.len();
                             for maintain in &old.schema.maintains {
-                                if affected.contains(&maintain.source)||maintain.private.as_ref().is_some_and(|owner|affected.contains(&owner.table)) {
+                                if affected.contains(&maintain.source)||maintain.private.as_ref().is_some_and(|owner|affected.contains(&owner.table))
+                                    ||maintain.row_key.as_ref().is_some_and(|key|affected.contains(&key.table)) {
                                     affected.insert(maintain.target.clone());
                                     if let Some(owner)=&maintain.private{affected.insert(owner.table.clone());}
                                 }

@@ -27,7 +27,7 @@ fn shape(ty:&Ty,bound:&Bound)->Value {
             json!({"row":fields})
         },
         Ty::Text(_)=>json!("text"),Ty::Ref(_)|Ty::Id=>json!("id"),
-        Ty::Enum(values)=>json!({"enum":values}),
+        Ty::Enum(values)=>{let mut labels=values.clone();labels.sort();labels.dedup();json!({"enum":labels})},
         other=>json!(format!("{other:?}")),
     }
 }
@@ -80,6 +80,16 @@ mod tests {
             assert_eq!(compare(1,&old,&now)["matchesTarget"],false);
             assert_eq!(compare(1,&old,&old)["matchesTarget"],true);
         }
+    }
+    #[test]
+    fn enum_label_order_is_not_a_wire_shape_change_but_new_labels_are() {
+        let source="table items:\n  status: enum('a', 'b')\n  read <- allow\n  online only\nquery get(id: items):\n  return items[id] {status}\n";
+        let compile=|s:String|{let b=snapback4_lang::compile(&[("schema.q".into(),s)]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);b};
+        let old=compile(source.into());
+        let reordered=compile(source.replace("'a', 'b'","'b', 'a'"));
+        assert_eq!(compare(1,&old,&reordered)["matchesTarget"],true);
+        let widened=compile(source.replace("'a', 'b'","'b', 'a', 'c'"));
+        assert_eq!(compare(1,&old,&widened)["matchesTarget"],false);
     }
     #[test]
     fn served_columns_exclude_compiler_owned_storage_cells() {

@@ -1,0 +1,167 @@
+**NOT READY.** Two material defects remain.
+
+**P1: Child authority can change through an untracked row-keyed view write.**
+
+In [release_bridge.rs](/home/ccheever/projects/sb4-b29-rel2/snapback4/crates/snapback4-lang/src/release_bridge.rs), `exact_authority` expands maintained effects through `maintain.source` and `maintain.private`, but omits `maintain.row_key.table`. Its dependency closure also omits that member table.
+
+Consequently, a shared mutation can insert a parent while `not exists badges[...]` holds, insert the member that makes that probe true, then encounter a denied child insert. The proof can nevertheless approve exact v1, which commits without enforcing that child audience. This violates §22’s complete-mutation stability requirement.
+
+Executable regression for `snapback4-lang/tests/rel2_readiness.rs`; run `cargo test -p snapback4-lang --test rel2_readiness` from `snapback4/`:
+
+```rust
+#[test]
+fn row_keyed_member_write_must_preserve_the_view() {
+    let common = r#"table groups:
+  read <- allow
+  online only
+table members:
+  group: groups
+  immutable group
+  cap 10 by group
+  read <- allow
+  insert <- allow
+  online only
+table messages:
+  group: groups
+  immutable group
+  read <- allow
+  online only
+view badges: count messages by members m
+  where .group = m.group
+  online only
+"#;
+    let old = common.to_owned() + r#"table items:
+  scan: file <=1000 ?
+  read <- allow
+  insert <- not exists badges[member = 'm']
+  online only
+mutation add():
+  p = insert items {scan:null}
+  insert members {id:'m',group:'g'}
+  return p
+"#;
+    let current = common.to_owned() + r#"table items:
+  read <- allow
+  insert <- not exists badges[member = 'm']
+  online only
+table scans:
+  item: items on delete cascade
+  scan: file <=1000 ?
+  immutable item
+  read through .item
+  insert <- not exists badges[member = 'm']
+  online only
+extract scans from items via item: {scan:scan}
+mutation add():
+  p = insert items {}
+  insert members {id:'m',group:'g'}
+  insert scans {item:p,scan:null}
+  return p
+"#;
+    let sources = |s: String| vec![("schema.q".into(), s)];
+    let old = sources(old);
+    let current = sources(current);
+    for s in [&old, &current] {
+        let b = snapback4_lang::compile(s);
+        assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    }
+    assert!(
+        !snapback4_lang::release_bridge::extraction_preserves_predecessor(
+            &old, &current
+        ),
+        "member insertion changes the child audience through badges"
+    );
+}
+```
+
+The final assertion exposes the incorrect eligibility decision. With group `g` present and member `m` absent, v1’s `add` succeeds; v2’s child insert refuses.
+
+**P1: First-creation descriptor close can cancel another roster owner’s kernel lock.**
+
+In [proof-roster-lock.ts](/home/ccheever/projects/sb4-b29-rel2/snapback4/packages/snapback4/src/proof-roster-lock.ts), creation performs `openSync(database, "wx")` followed by `closeSync(fd)`. Between those calls, another thread in the same process can acquire SQLite ownership of that inode. The creator’s raw close then cancels the holder’s POSIX locks. An independent process can acquire ownership while the original holder’s `assertHeld()` still succeeds.
+
+This Node 24 reproducer forces that worker-thread interleaving. Run from `snapback4/`; it uses only a disposable temporary directory:
+
+```javascript
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import { join, resolve } from "node:path";
+import { tmpdir } from "node:os";
+import { pathToFileURL } from "node:url";
+import { Worker } from "node:worker_threads";
+import { once } from "node:events";
+import { spawnSync } from "node:child_process";
+
+const url = pathToFileURL(resolve(
+  "packages/snapback4/src/proof-roster-lock.ts"
+)).href;
+const { rosterLock } = await import(url);
+const root = fs.mkdtempSync(join(tmpdir(), "rel2-lock-race-"));
+const path = join(root, "roster.lock");
+const gate = new Int32Array(new SharedArrayBuffer(4));
+
+const worker = new Worker(`
+const fs = require("node:fs");
+const { syncBuiltinESMExports } = require("node:module");
+const { parentPort, workerData: d } = require("node:worker_threads");
+(async () => {
+  const { rosterLock } = await import(d.url);
+  const open = fs.openSync, close = fs.closeSync;
+  let created = -1;
+  fs.openSync = (...args) => {
+    const fd = open(...args);
+    if (args[0] === d.path + ".sqlite" && args[1] === "wx")
+      created = fd;
+    return fd;
+  };
+  fs.closeSync = fd => {
+    if (fd === created) {
+      parentPort.postMessage("created");
+      Atomics.wait(new Int32Array(d.gate), 0, 0);
+    }
+    return close(fd);
+  };
+  syncBuiltinESMExports();
+  try { rosterLock(d.path).release(); }
+  catch (e) {
+    if (!String(e).includes("E_PRODUCTION_ROSTER_BUSY")) throw e;
+  }
+  parentPort.postMessage("finished");
+})();
+`, { eval: true, workerData: { url, path, gate: gate.buffer } });
+
+let held;
+try {
+  assert.equal((await once(worker, "message"))[0], "created");
+  held = rosterLock(path);
+  Atomics.store(gate, 0, 1);
+  Atomics.notify(gate, 0);
+  assert.equal((await once(worker, "message"))[0], "finished");
+
+  const child = spawnSync(process.execPath, [
+    "--input-type=module", "-e", `
+import { rosterLock } from ${JSON.stringify(url)};
+try {
+  const held = rosterLock(${JSON.stringify(path)});
+  process.stdout.write("acquired");
+  held.release();
+} catch (e) {
+  if (!String(e).includes("E_PRODUCTION_ROSTER_BUSY")) throw e;
+  process.stdout.write("busy");
+}
+`], { encoding: "utf8" });
+
+  assert.equal(child.status, 0, child.stderr);
+  held.assertHeld();
+  assert.equal(child.stdout, "busy",
+    "independent process acquired while the original owner remained held");
+} finally {
+  Atomics.store(gate, 0, 1);
+  Atomics.notify(gate, 0);
+  await worker.terminate();
+  held?.release();
+  fs.rmSync(root, { recursive: true, force: true });
+}
+```
+
+The Quarry syntax was checked through stdin. The semantic reproducers were not executed; no files were edited, and no credentials or original stores were accessed.

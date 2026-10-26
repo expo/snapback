@@ -1,0 +1,36 @@
+{
+  "baseline": "bcf780d30729158da09d731d2e9e84aa31738f30",
+  "brief_sha256": "f245a9b33b11a63e6b440ef12658161089cf9a3d2d165eb19de63689ff763f5b",
+  "files": {
+    "snapback4/crates/snapback4-core/src/store/extractions.rs": "964c4730b78697b4e456940e4c6d09a799fa2506688a2b91342e5e07c0a86f73",
+    "snapback4/crates/snapback4-core/src/store/rollback_visibility.rs": "39f5259717aa732325b42bc8b53b33d3d4e307e1d4a24f999fb0994cf368a98b",
+    "snapback4/crates/snapback4-core/src/store/tooling.rs": "37a9a5c97afd4f388af49f11b2e23301179c8c9b9bedee624a8f85f536ba7fd5",
+    "snapback4/crates/snapback4-lang/src/release_bridge.rs": "e93097693ce2e372cd159f222c12d15a8aa1d000d548d9b927099a76a8eb2a6d",
+    "snapback4/crates/snapback4-lang/src/release_bridge_guards.rs": "14959aaf18f4054f2c64b4d10a6fb0dd3c99269b8b0cc52ba9173e1e3c29a8d0",
+    "snapback4/crates/snapback4/src/verbs.rs": "67b318c0d979d01cca27d784cd0793720db9d53b727180779621ed7d1243dc63",
+    "snapback4/crates/snapback4/src/verbs/release_preview.rs": "e70aa4682e2dd2588f41c8ca2cd2ebd289023849eebae333d7aa68f137a373b1",
+    "snapback4/crates/snapback4/src/verbs/release_shape.rs": "08fe71ec0060c63d9153b27c03c69c8431e50de79812ea49af4e615c7fca109d",
+    "snapback4/crates/snapback4/src/verbs/releases.rs": "f6a56f398e2cc0a41ac3bc33287c73ac32b6a1e7e4a5cbb8132aac31353828c9",
+    "snapback4/crates/snapback4/src/verbs/rollback_views.rs": "5d7720fac6b2162d2b560e85c2eeb925fe05a991e6208f0d2a54524581bff933",
+    "snapback4/crates/snapback4/src/verbs/saved_version.rs": "e2038bbec8dbeeeb6f2eed0d3cd2521bec806e9d6b219fcc731f24057774fdde",
+    "snapback4/packages/snapback4/src/proof-accounts.ts": "5d26779bec78d12cc306b44eda51a5dd859b72b3ee37281ae3bbf1ca9cf56293",
+    "snapback4/packages/snapback4/src/proof-roster-lock.ts": "8606c6b3f297b9a8907160f08ecc4cd3d2680d44133f3c60fec036d8541d8c9f"
+  },
+  "muse": {
+    "model": "muse-spark-1.3-contributor",
+    "reasoning": "high",
+    "fresh_session": true,
+    "stdout_sha256": "bcce464f38ff0105188d620abf1fd6d4c0f75d8d53a144b15e2a6f5b199b47a0",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "verbatim": true
+  },
+  "codex": {
+    "model": "gpt-6.1-sol",
+    "reasoning": "high",
+    "fresh_session": true,
+    "stdout_sha256": "fccc2517cf4ecb775cc59558bc7dc26e43d70b3aa4eeda821dcab75e0cf0b06b",
+    "stderr_sha256": "f4c1424768f7c355553066e5ad8fac6e8fbe76b177ce5e45c37b8f0a6f50f411",
+    "verbatim": true
+  },
+  "disposition": "Row-keyed member effects added to both dependency and affected maintained closures, with a compile-checked regression. First-creation descriptor finding repaired by closed staging inode publication and deterministic worker regression."
+}

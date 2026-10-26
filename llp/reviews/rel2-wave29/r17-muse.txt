@@ -1,0 +1,16 @@
+muse: workspace root: /home/ccheever/projects/sb4-b29-rel2 (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY — no material correctness/security/contract defect introduced by this delta.
+
+Why: the delta only collapses `Id|Principal|Ref{..} → Id` on both sides before `accepts`, recursively under `Optional/List/ListRange`.
+
+Supplied engine shows wire identity:
+
+* Wire decode: `from_json` maps all three to `Value::Id(s)` from `Json::String`.
+* Runtime admission: `fits` accepts all three iff `Value::Id(_)`, with explicit `@ref` that typed references do not imply target existence.
+* Argument validation: `validate_arg` applies common `validate_identities` + `contains_system_principal` checks, then `fits` via `arg_as_column`.
+
+So any `Value` admitted/rejected by old nominal-ID is admitted/rejected identically by new nominal-ID. Collapsing cannot admit a historical input outside the current safety domain, and preserves `Optional/List` structure and all non-ID bounds (`IntRange`, `Text`, `List` max, etc.).
+
+This matches the amendment: gate compares admitted wire values, source bindings/extraction proof stay nominal. Regression holds: `Ref[before]->Ref[after]` stays `Id->Id` pass; `Ref->int` stays `Id vs Int` fail.
+

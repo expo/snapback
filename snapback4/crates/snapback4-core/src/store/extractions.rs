@@ -35,22 +35,7 @@ fn audience_subset(next:&crate::schema::RuleExpr,source:&crate::schema::RuleExpr
         _=>false,
     }
 }
-// @ref LLP 3000.000.000#22-wave-29-release-identity-rel2 — inclusion of collection bounds never invents or coerces a value.
-fn payload_accepts(source: &ColumnType, destination: &ColumnType) -> bool {
-    if source == destination { return true; }
-    if let ColumnType::Optional(inner) = destination {
-        return payload_accepts(match source { ColumnType::Optional(kind) => kind, kind => kind }, inner);
-    }
-    fn bounds(kind: &ColumnType) -> Option<(&ColumnType,u32,u32)> { match kind {
-        ColumnType::List { of, max } => Some((of.as_ref(), 0, *max)),
-        ColumnType::ListRange { of, min, max } => Some((of.as_ref(), *min, *max)),
-        _ => None,
-    }}
-    match (bounds(source), bounds(destination)) {
-        (Some((a, amin, amax)), Some((b, bmin, bmax))) => a == b && bmin <= amin && amax <= bmax,
-        _ => false,
-    }
-}
+
 fn mapped_audience(parent:&Table,child:&Table,e:&Extraction,rule:&crate::schema::RuleExpr)->crate::schema::RuleExpr{
     let mut transported=parent.clone();
     let names=parent.columns.keys().map(|source|{
@@ -402,7 +387,7 @@ pub(super) fn transition(
             let kind = parent.columns.get(source).ok_or_else(|| {
                 refuse(format!("extraction source {}.{source} is absent", e.parent))
             })?;
-            let same = if e.each && asset(&child.columns[dest]) {each::item_type(kind)==Some(&child.columns[dest])} else {payload_accepts(kind, &child.columns[dest])};
+            let same = if e.each && asset(&child.columns[dest]) {each::item_type(kind)==Some(&child.columns[dest])} else {Extraction::payload_accepts(kind, &child.columns[dest])};
             if !same
                 || parent.engine_field(source)
                 || parent.maintained.contains_key(source)
@@ -584,12 +569,12 @@ mod payload_tests {
     #[test]
     fn collection_inclusion_preserves_elements_optional_direction_and_both_bounds() {
         let list=|min,max|ColumnType::ListRange{of:Box::new(ColumnType::Text{max:20}),min,max};
-        assert!(payload_accepts(&list(1,12),&ColumnType::List{of:Box::new(ColumnType::Text{max:20}),max:12}));
-        assert!(payload_accepts(&list(1,12),&list(0,20)));
-        assert!(payload_accepts(&list(1,12),&ColumnType::Optional(Box::new(list(0,20)))));
-        assert!(!payload_accepts(&list(0,12),&list(1,12)));
-        assert!(!payload_accepts(&list(1,12),&list(1,11)));
-        assert!(!payload_accepts(&list(1,12),&ColumnType::List{of:Box::new(ColumnType::Text{max:21}),max:12}));
-        assert!(!payload_accepts(&ColumnType::Optional(Box::new(list(1,12))),&list(0,20)));
+        assert!(Extraction::payload_accepts(&list(1,12),&ColumnType::List{of:Box::new(ColumnType::Text{max:20}),max:12}));
+        assert!(Extraction::payload_accepts(&list(1,12),&list(0,20)));
+        assert!(Extraction::payload_accepts(&list(1,12),&ColumnType::Optional(Box::new(list(0,20)))));
+        assert!(!Extraction::payload_accepts(&list(0,12),&list(1,12)));
+        assert!(!Extraction::payload_accepts(&list(1,12),&list(1,11)));
+        assert!(!Extraction::payload_accepts(&list(1,12),&ColumnType::List{of:Box::new(ColumnType::Text{max:21}),max:12}));
+        assert!(!Extraction::payload_accepts(&ColumnType::Optional(Box::new(list(1,12))),&list(0,20)));
     }
 }

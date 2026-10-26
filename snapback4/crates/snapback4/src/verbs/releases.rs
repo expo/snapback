@@ -194,6 +194,17 @@ pub(super) fn check_change(
         let target=Project{root:dir.join("releases").join(target_release.unwrap().to_string())}.sources().map_err(|e|e.to_string())?;
         snapback4_lang::release_bridge::exact_write_authority(&target,&current).map_err(|e|format!("E_ADOPT: {e}"))?;
         let latest=latest(dir)?;
+        let target_root=dir.join("releases").join(target_release.unwrap().to_string());
+        if options.flags.contains_key("exact")&&super::rollback_views::metadata(&target_root)?.is_none(){
+            let target_origin=source_origin(dir,target_release.unwrap())?;
+            if target_origin<source_origin(dir,n)? {
+                snapback4_lang::release_bridge::exact_historical_inputs(&target,&current).map_err(|e|format!("E_ADOPT: {e}"))?;
+            }
+            if latest!=n&&target_origin<source_origin(dir,latest)? {
+                let source=Project{root:dir.join("releases").join(latest.to_string())}.sources().map_err(|e|e.to_string())?;
+                snapback4_lang::release_bridge::exact_historical_inputs(&target,&source).map_err(|e|format!("E_ADOPT: latest source {latest}: {e}"))?;
+            }
+        }
         if latest!=n {let source=Project{root:dir.join("releases").join(latest.to_string())}.sources().map_err(|e|e.to_string())?;
             snapback4_lang::release_bridge::exact_write_authority(&target,&source).map_err(|e|format!("E_ADOPT: latest source {latest}: {e}"))?;
         }
@@ -221,6 +232,18 @@ pub(super) fn check_change(
         );
     }
     Ok(())
+}
+
+// Digest identity, rather than a later compiler qualification number, determines
+// whether a retained original is older than the active/latest ordinary source.
+fn source_origin(dir:&Path,release:u64)->Result<u64,String>{
+    let root=dir.join("releases").join(release.to_string());
+    let source=super::rollback_views::metadata(&root)?.map(|view|view.parent).unwrap_or(release);
+    let digest=crate::release_files::executable_digest(&dir.join("releases").join(source.to_string()))?;
+    for candidate in ordinary_releases(dir)?.into_iter().filter(|n|*n<=source){
+        if crate::release_files::executable_digest(&dir.join("releases").join(candidate.to_string()))?==digest{return Ok(candidate);}
+    }
+    Err("ordinary source identity is missing".into())
 }
 
 pub(super) fn command_lock(dir: &Path) -> Result<std::fs::File, String> {

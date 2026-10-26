@@ -1,0 +1,24 @@
+{
+  "scope": "wire-ID input-domain comparison only; full r15 + child-layout/enum r16 unchanged",
+  "brief_sha256": "7cb5ee417b450c7dd9dd4f6dc91e40393e6c4060ed8e86fc5a47cee55ecb1439",
+  "files": {
+    "snapback4/crates/snapback4-lang/src/release_bridge.rs": "d6b266200013d75bce83280c5a4b61edc68eb7cd92de4e020d2f63463e529c5a"
+  },
+  "muse": {
+    "model": "muse-spark-1.3-contributor",
+    "reasoning": "high",
+    "fresh_session": true,
+    "stdout_sha256": "666f89bd859fd8951c8063c8a3944679e3051fa936e7506367b3b238e3e39cb9",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "verbatim": true
+  },
+  "codex": {
+    "model": "gpt-6.1-sol",
+    "reasoning": "high",
+    "fresh_session": true,
+    "stdout_sha256": "5bbe6f28068855c4c042beb9308d41dced97395c45bac4885bfb538ebf4eddef",
+    "stderr_sha256": "8d6c37c3e63abb4e85b0370ee2055bfa99eae3357700c06756126d8c6769ebef",
+    "verbatim": true
+  },
+  "disposition": "Both independent reviewers READY for this scoped final semantic delta."
+}

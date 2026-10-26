@@ -1,0 +1,18 @@
+muse: workspace root: /home/ccheever/projects/sb4-b29-rel2 (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY — no material correctness/security/data-loss/contract/concurrency defect in the supplied REL2 sources against §22.
+
+Checked:
+
+- `payload_accepts`: closed list-bound inclusion with required→optional outer compose, exact element equality, null-to-required refused; reverse validates actual values.
+- Child row authority: `exact_authority` with `row_insert` counts every `insert/upsert` as a cell write, bypassing the column-write null exemption; null/omitted payloads, default-deny, explicit deny and authored audiences preserved; implicit parent-read proved separately; expiring-parent insert fails closed.
+- Probe stability: dependency closure expands `maintains` source plus `row_key` member, `through`/reads, and is disjoint from direct/cascade/`set-null`/maintained writes; `probe_context` pins index/read meaning.
+- Constraints/lifetime: only immutable parent anchor, parent/`id` uniques, per-parent `cap>=1` pass; extra payload/global constraints, changed `expire`/`through`/`on_delete`/sync/auth, changed schedules, native/action/route, non-plain `read through`, non-adjacent child insert, rebound/effectful payloads, reordered writes/bindings, changed guards/helpers/shapes/defaults/conditionals/prefixes all retain the view; restrict-with-deletable/cascading/expiring ancestor retains.
+- Invariants: subject/operation/predicate match order-independent; only original reference leaf projects; `always exists child[ref=.id]` proved by file/site synthetic proof; stronger/differently-bound never passes by row fit; new-only endpoints add no old gate.
+- Visibility/receipts: preview requires zero hidden/empty; `preview_empty_population` credits validated `_extraction_cells`+`_extraction_rows`+before-image child including restored null; live `rollback_visibility::validate` checks every parent/child receipt post-transition under revision CAS; competing/independent child forces view; preview private, live preserves ids; v2-born singleton receipt only with valid `$extract` lifetime.
+- Predecessor identity/shape: earliest executable digest defines timeline, path-form dedupes, reactivation adds no later obligations, `exact_historical_inputs` enforces old⊆current, narrowing registers a guarded view without restoring old signature; `rowShape`/`live.rowShape` compares every export wire shape with differences/tables/children, printed beside `live:`.
+- `--save-version`: `create_new` materializes selected bytes before baseline reads, `Drop` removes new provisional on failure, refresh never rewrites source/fixtures.
+- Roster lock: `wx` staging closed then `link` no-replace, same-inode `BEGIN IMMEDIATE` authoritative, expiry never evicts live holder, death releases, no unlink/reclaim, no non-SQLite DB opens, 10s renewal fenced via `assertHeld`, `released` written before `close`, 0600/0700 private, old empty markers reclaimable.
+
+No reproducer — no failing case found.
+

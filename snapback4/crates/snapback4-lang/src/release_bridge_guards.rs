@@ -540,8 +540,11 @@ fn write_projection(p:&crate::ast::ProgramDecl,extractions:&[snapback4_core::sch
         ordinary.push((stmt_site(stmt),normalized_statement(&doc.programs[0].body[0])));
     }
     let pure_payload=|expr:&Expr| {
-        fn pure(expr:&Expr)->bool {match expr {Expr::Name{..}|Expr::Literal{..}=>true,Expr::Array{items,..}=>items.iter().all(pure),_=>false}}
-        pure(expr)
+        fn pure(expr:&Expr,p:&crate::ast::ProgramDecl)->bool {match expr {
+            Expr::Name{name,..}=>p.args.iter().any(|arg|arg.name==*name)
+                &&!p.prelude.iter().chain(&p.body).any(|s|matches!(s,Stmt::Bind{names,..}if names.contains(name))),
+            Expr::Literal{..}=>true,Expr::Array{items,..}=>items.iter().all(|e|pure(e,p)),_=>false}}
+        pure(expr,p)
     };
     let mut doc=crate::ast::Document::default();doc.programs.push(p.clone());
     let mut writes=Vec::new();let mut payloads=Vec::new();let mut children=Vec::new();let mut positions=std::collections::BTreeMap::new();let mut valid=true;
@@ -555,6 +558,12 @@ fn write_projection(p:&crate::ast::ProgramDecl,extractions:&[snapback4_core::sch
                 Expr::Member{base,name,..}if name=="id"=>if let Expr::Name{name,site}=base.as_ref(){Some((name.clone(),site.line))}else{None},_=>None,
             });
             let Some(parent)=parent else{valid=false;return};
+            // The child captures the just-inserted parent before another
+            // statement can rebind payloads, delete it, or change its audience.
+            let adjacent=statements.windows(2).any(|pair|
+                matches!(pair[0],Stmt::Bind{names,value:Expr::Write{op:WriteOp::Insert,table,..},..}if names.len()==1&&names[0]==parent.0&&table==&e.parent)
+                &&matches!(pair[1],Stmt::Expr{value:Expr::Write{site:child_site,..},..}if child_site==site));
+            if !adjacent{valid=false;return;}
             if fields.iter().filter(|f|e.fields.contains_key(&f.name)).any(|f|!pure_payload(&field_value(f))){valid=false;return;}
             let values=e.fields.iter().map(|(dest,source)|fields.iter().find(|f|f.name==*dest).map(|f|(source.clone(),expression_signature(&field_value(f))))).collect::<Option<Vec<_>>>();
             let Some(values)=values else{valid=false;return};children.push((parent,e.child.clone(),values));return;

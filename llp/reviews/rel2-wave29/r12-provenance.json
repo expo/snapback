@@ -1,0 +1,36 @@
+{
+  "baseline": "bcf780d30729158da09d731d2e9e84aa31738f30",
+  "brief_sha256": "bed2fdd8123716365f411d98af4bc5ef9f0124a2307efa07f4d30c8155105b2f",
+  "files": {
+    "snapback4/crates/snapback4-core/src/store/extractions.rs": "964c4730b78697b4e456940e4c6d09a799fa2506688a2b91342e5e07c0a86f73",
+    "snapback4/crates/snapback4-core/src/store/rollback_visibility.rs": "39f5259717aa732325b42bc8b53b33d3d4e307e1d4a24f999fb0994cf368a98b",
+    "snapback4/crates/snapback4-core/src/store/tooling.rs": "37a9a5c97afd4f388af49f11b2e23301179c8c9b9bedee624a8f85f536ba7fd5",
+    "snapback4/crates/snapback4-lang/src/release_bridge.rs": "b692f294fdcf210fce51b19fbf4b9e6ea67f33ee198ab95b9724ad1062e61351",
+    "snapback4/crates/snapback4-lang/src/release_bridge_guards.rs": "14959aaf18f4054f2c64b4d10a6fb0dd3c99269b8b0cc52ba9173e1e3c29a8d0",
+    "snapback4/crates/snapback4/src/verbs.rs": "67b318c0d979d01cca27d784cd0793720db9d53b727180779621ed7d1243dc63",
+    "snapback4/crates/snapback4/src/verbs/release_preview.rs": "e70aa4682e2dd2588f41c8ca2cd2ebd289023849eebae333d7aa68f137a373b1",
+    "snapback4/crates/snapback4/src/verbs/release_shape.rs": "08fe71ec0060c63d9153b27c03c69c8431e50de79812ea49af4e615c7fca109d",
+    "snapback4/crates/snapback4/src/verbs/releases.rs": "f6a56f398e2cc0a41ac3bc33287c73ac32b6a1e7e4a5cbb8132aac31353828c9",
+    "snapback4/crates/snapback4/src/verbs/rollback_views.rs": "5d7720fac6b2162d2b560e85c2eeb925fe05a991e6208f0d2a54524581bff933",
+    "snapback4/crates/snapback4/src/verbs/saved_version.rs": "e2038bbec8dbeeeb6f2eed0d3cd2521bec806e9d6b219fcc731f24057774fdde",
+    "snapback4/packages/snapback4/src/proof-accounts.ts": "5d26779bec78d12cc306b44eda51a5dd859b72b3ee37281ae3bbf1ca9cf56293",
+    "snapback4/packages/snapback4/src/proof-roster-lock.ts": "847eafe7fae019505356d3ba7dbbf563f4b5940f687dffd4a7bbbabd3d7fb31d"
+  },
+  "muse": {
+    "model": "muse-spark-1.3-contributor",
+    "reasoning": "high",
+    "fresh_session": true,
+    "stdout_sha256": "10c44c81c153321f3d4d07b3799ccd96730dade6d26d9aecb0f2eb1067bc15ca",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "verbatim": true
+  },
+  "codex": {
+    "model": "gpt-6.1-sol",
+    "reasoning": "high",
+    "fresh_session": true,
+    "stdout_sha256": "ad4f35635a10eca4d7df0268c02276d69d0524daa81ccda03a1018623dc692d7",
+    "stderr_sha256": "566d488734e0770d44de419789a240fc02cc44d97661533394d5a9fc25e2ee81",
+    "verbatim": true
+  },
+  "disposition": "Codex input-safety finding repaired at ordinary historical-source admission using earliest digest identity; forward moves and generated guarded views remain valid. Muse finding is a false positive: receipts store serde Value::Null as JSON string \"Null\", not JSON null. Actual engine reverse-projection test retains empty evidence twice; value.rs and store serialization establish the envelope. SQL countercheck retained separately."
+}

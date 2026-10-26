@@ -1,0 +1,37 @@
+{
+  "baseline": "bcf780d30729158da09d731d2e9e84aa31738f30",
+  "brief_sha256": "5c7b79ecf8f72001740890619a5f569c07244f6b7fe543ca5deca63acc6716ed",
+  "files": {
+    "snapback4/crates/snapback4-core/src/schema/extraction.rs": "d28123a01d204da081edd18fa758cc0ff22af01fab4f3747bf77d18ac0f7358f",
+    "snapback4/crates/snapback4-core/src/store/extractions.rs": "2a08af63ca9c4b05db80dd8e0251607bc1df210eca27323694e08c4145c0be09",
+    "snapback4/crates/snapback4-core/src/store/rollback_visibility.rs": "39f5259717aa732325b42bc8b53b33d3d4e307e1d4a24f999fb0994cf368a98b",
+    "snapback4/crates/snapback4-core/src/store/tooling.rs": "37a9a5c97afd4f388af49f11b2e23301179c8c9b9bedee624a8f85f536ba7fd5",
+    "snapback4/crates/snapback4-lang/src/release_bridge.rs": "8d44737793aec4bea8e4fb22cd73e46a340f3a7e30caf8eab8dc4cdcaad6dd3a",
+    "snapback4/crates/snapback4-lang/src/release_bridge_guards.rs": "14959aaf18f4054f2c64b4d10a6fb0dd3c99269b8b0cc52ba9173e1e3c29a8d0",
+    "snapback4/crates/snapback4/src/verbs.rs": "67b318c0d979d01cca27d784cd0793720db9d53b727180779621ed7d1243dc63",
+    "snapback4/crates/snapback4/src/verbs/release_preview.rs": "e70aa4682e2dd2588f41c8ca2cd2ebd289023849eebae333d7aa68f137a373b1",
+    "snapback4/crates/snapback4/src/verbs/release_shape.rs": "08fe71ec0060c63d9153b27c03c69c8431e50de79812ea49af4e615c7fca109d",
+    "snapback4/crates/snapback4/src/verbs/releases.rs": "f6a56f398e2cc0a41ac3bc33287c73ac32b6a1e7e4a5cbb8132aac31353828c9",
+    "snapback4/crates/snapback4/src/verbs/rollback_views.rs": "5d7720fac6b2162d2b560e85c2eeb925fe05a991e6208f0d2a54524581bff933",
+    "snapback4/crates/snapback4/src/verbs/saved_version.rs": "e2038bbec8dbeeeb6f2eed0d3cd2521bec806e9d6b219fcc731f24057774fdde",
+    "snapback4/packages/snapback4/src/proof-accounts.ts": "5d26779bec78d12cc306b44eda51a5dd859b72b3ee37281ae3bbf1ca9cf56293",
+    "snapback4/packages/snapback4/src/proof-roster-lock.ts": "847eafe7fae019505356d3ba7dbbf563f4b5940f687dffd4a7bbbabd3d7fb31d"
+  },
+  "muse": {
+    "model": "muse-spark-1.3-contributor",
+    "reasoning": "high",
+    "fresh_session": true,
+    "stdout_sha256": "26808c6dc96745f7cd1f8ae1cb64c3b24121ddd3c0f1c0b9f27b14f47a5d72a2",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "verbatim": true
+  },
+  "codex": {
+    "model": "gpt-6.1-sol",
+    "reasoning": "high",
+    "fresh_session": true,
+    "stdout_sha256": "81fada3100ef0876248b496a4b717779433d1f43f0908127dcd0be335b74883d",
+    "stderr_sha256": "943086abc506541c1a08fef9df330863c49401b2e278aa4b64c10503207bcdf2",
+    "verbatim": true
+  },
+  "disposition": "Local/rebound payload names no longer qualify as direct inputs, and split insertion must immediately follow its parent binding. This also rules out a parent deletion or dependency change between insertion and capture. Both compiler-valid repro shapes are regression-tested (a finite unique reference is added to satisfy cascade admission)."
+}

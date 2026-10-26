@@ -1,0 +1,34 @@
+muse: workspace root: /home/ccheever/projects/sb4-b29-rel2 (cwd default)
+muse: workspace trust: trusted source=run-flag
+NOT READY — one material audience-broadening defect.
+
+The exact one-child proof uses the wrong parent read for the implicit read-through requirement.
+
+In [extraction bridge](/home/ccheever/projects/sb4-b29-rel2/snapback4/crates/snapback4-lang/src/release_bridge.rs), `extraction_preserves_predecessor` builds the implicit parent-read proof with old parent authority:
+
+`proof … column_writes.insert(column, table.rules.read)` where `table` is `old.schema.tables[name]`.
+
+It then calls `exact_authority` old-vs-old. When the current parent read is strictly narrower, old writes satisfying the old broader read still pass, but they do not satisfy the current read required by `read through` child insertion.
+
+The subset check only proves `audience_subset(new_parent_read, old_parent_read)`. It does not prove old writes satisfy the new parent read. Exact rollback would then broaden from the current stricter audience back to the old broader audience.
+
+Reproducer: old parent `read <- allow`, current parent `read <- exists roles[viewer]`, same columns modulo the extracted cell, old `add()` inserts a null payload, current `add()` splits parent plus child. The bridge currently returns `true`; it must return `false`.
+
+Save as `repro.rs` in a `snapback4-lang` test and run `cargo test`:
+
+```rust
+let old = "table roles:\n  member: principal\n  unique member\n  read <- allow\n  insert <- allow\n  online only\ntable items:\n  scan: file <=1000 ?\n  read <- allow\n  insert <- allow\n  online only\nmutation add():\n  return insert items {scan:null}\n";
+let current = "table roles:\n  member: principal\n  unique member\n  read <- allow\n  insert <- allow\n  online only\ntable items:\n  read <- exists roles[viewer]\n  insert <- allow\n  online only\ntable scans:\n  item: items on delete cascade\n  scan: file <=1000 ?\n  immutable item\n  read through .item\n  insert <- allow\n  online only\nextract scans from items via item: {scan:scan}\nmutation add():\n  p = insert items {}\n  insert scans {item:p,scan:null}\n  return p\n";
+let old_src = vec![("schema.q".into(), old.to_owned())];
+let cur_src = vec![("schema.q".into(), current.to_owned())];
+for s in [&old_src, &cur_src] {
+  assert!(snapback4_lang::compile(s).diagnostics.is_empty());
+}
+assert!(
+  snapback4_lang::release_bridge::extraction_preserves_predecessor(&old_src, &cur_src),
+  "bug present: exact allowed despite stricter current parent read"
+);
+```
+
+Other REL2 clauses reviewed without a second material finding in this pass: null and omitted child-row authority via `row_insert`, probe and dependency closure including row-keyed member inputs, immutable grouping canonicalization, hard-constraint and restrict-lifetime retention, identical schedules, predecessor digest chronology, row-shape separation, saved-version materialization, and roster kernel-versus-lease ownership in [roster lock](/home/ccheever/projects/sb4-b29-rel2/snapback4/packages/snapback4/src/proof-roster-lock.ts).
+

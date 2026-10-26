@@ -1098,3 +1098,177 @@ fn child_intent_never_confuses_child_columns_with_parent_fields() {
     let b=snapback4_lang::compile(&repeated);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
     assert!(snapback4_lang::release_bridge::extraction_preserves_predecessor(&old,&repeated),"only the original reference leaf projects; the parent owner field remains");
 }
+
+#[test]
+fn row_keyed_member_write_must_preserve_the_view() {
+    let common = r#"table groups:
+  read <- allow
+  online only
+table members:
+  group: groups
+  immutable group
+  cap 10 by group
+  read <- allow
+  insert <- allow
+  online only
+table messages:
+  group: groups
+  immutable group
+  read <- allow
+  online only
+view badges: count messages by members m
+  where .group = m.group
+  online only
+"#;
+    let old = common.to_owned() + r#"table items:
+  scan: file <=1000 ?
+  read <- allow
+  insert <- not exists badges[member = 'm']
+  online only
+mutation add():
+  p = insert items {scan:null}
+  insert members {id:'m',group:'g'}
+  return p
+"#;
+    let current = common.to_owned() + r#"table items:
+  read <- allow
+  insert <- not exists badges[member = 'm']
+  online only
+table scans:
+  item: items on delete cascade
+  scan: file <=1000 ?
+  immutable item
+  read through .item
+  insert <- not exists badges[member = 'm']
+  online only
+extract scans from items via item: {scan:scan}
+mutation add():
+  p = insert items {}
+  insert members {id:'m',group:'g'}
+  insert scans {item:p,scan:null}
+  return p
+"#;
+    let sources = |s: String| vec![("schema.q".into(), s)];
+    let old = sources(old);
+    let current = sources(current);
+    for s in [&old, &current] {
+        let b = snapback4_lang::compile(s);
+        assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    }
+    assert!(
+        !snapback4_lang::release_bridge::extraction_preserves_predecessor(
+            &old, &current
+        ),
+        "member insertion changes the child audience through badges"
+    );
+}
+
+#[test]
+fn child_insert_preserves_its_implicit_parent_read_audience_for_null_payloads() {
+    for read in ["allow","deny"] {
+        let old=format!("table items:\n  scan: file <=1000 ?\n  read <- {read}\n  insert <- allow\n  online only\nmutation add():\n  return insert items {{scan:null}}\n");
+        let current=format!("table items:\n  read <- {read}\n  insert <- allow\n  online only\ntable scans:\n  item: items on delete cascade\n  scan: file <=1000 ?\n  immutable item\n  read through .item\n  insert <- allow\n  online only\nextract scans from items via item: {{scan:scan}}\nmutation add():\n  p = insert items {{}}\n  insert scans {{item:p,scan:null}}\n  return p\n");
+        let source=|s:String|vec![("schema.q".into(),s)];let old=source(old);let current=source(current);
+        for sources in [&old,&current] {let b=snapback4_lang::compile(sources);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);}
+        assert_eq!(snapback4_lang::release_bridge::extraction_preserves_predecessor(&old,&current),read=="allow");
+    }
+}
+
+#[test]
+fn exact_source_does_not_restore_values_outside_the_current_child_domain() {
+    let(base,current)=publication_media();let source=|s:String|vec![("schema.q".into(),s)];
+    assert!(!snapback4_lang::release_bridge::extraction_preserves_predecessor(&source(base.replace("scan: file <=1000","scan: file <=1000 ?")),&source(current.clone())),"an empty store does not prove future historical null writes satisfy the current required child");
+    assert!(snapback4_lang::release_bridge::extraction_preserves_predecessor(&source(base.into()),&source(current.replace("scan: file <=1000","scan: file <=1000 ?"))));
+}
+
+#[test]
+fn read_through_capture_requires_a_live_parent_even_under_allow_rules() {
+    let old="table items:\n  until: time\n  immutable until\n  expire at .until\n  scan: file <=1000 ?\n  read <- allow\n  insert <- allow\n  online only\nmutation add():\n  return insert items {until:0,scan:null}\n";
+    let current=old.replace("  scan: file <=1000 ?\n","").replace("  return insert items {until:0,scan:null}","  p = insert items {until:0}\n  insert scans {item:p,scan:null}\n  return p")+"table scans:\n  item: items on delete restrict\n  scan: file <=1000 ?\n  immutable item\n  read through .item\n  insert <- allow\n  online only\nextract scans from items via item: {scan:scan}\n";
+    let old=vec![("schema.q".into(),old.into())];let current=vec![("schema.q".into(),current)];
+    for sources in [&old,&current] {let b=snapback4_lang::compile(sources);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);}
+    assert!(!snapback4_lang::release_bridge::extraction_preserves_predecessor(&old,&current));
+}
+
+#[test]
+fn explicit_historical_selection_keeps_current_inputs_and_forward_moves_still_work() {
+    let old="table audit:\n  n: int\n  read <- allow\n  insert <- allow\n  online only\nmutation record(n: int):\n  return insert audit {n}\n";
+    let b=snapback4_lang::compile(&[("schema.q".into(),old.into())]);assert!(b.diagnostics.is_empty());
+    let mut baseline=snapback4_core::Engine::memory(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
+    let original=baseline.mutate("record",None,snapback4_core::Context::new("alice",std::collections::BTreeMap::from([("n".into(),snapback4_core::Value::Int(0))]))).unwrap();
+    assert!(matches!(original.state,snapback4_core::engine::WriteState::Sent{..}),"the predecessor accepts the value before narrowing");
+    let current=old.replace("record(n: int)","record(n: int 1..10)");
+    let app=App::new();app.source(old);app.ok(&["deploy","deployment"]);app.source(&current);app.ok(&["deploy","deployment"]);
+    let active=app.json(&["releases","deployment"])["current"].clone();
+    for check in [true,false] {
+        let mut args=vec!["rollback","deployment","--to","1","--exact"];if check{args.push("--check");}
+        let out=app.run(&args);assert!(!out.status.success(),"{}",text(&out));assert!(text(&out).contains("inputs outside the current contract"),"{}",text(&out));
+        assert_eq!(app.json(&["releases","deployment"])["current"],active);
+    }
+    app.ok(&["rollback","deployment","--to","1"]);
+    let selected=app.json(&["releases","deployment"])["current"].as_u64().unwrap();
+    let text=fs::read_to_string(app.0.join(format!("deployment/releases/{selected}/snapback/schema.q"))).unwrap();
+    let b=snapback4_lang::compile(&[("schema.q".into(),text)]);assert!(b.diagnostics.is_empty());
+    let mut engine=snapback4_core::Engine::memory(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
+    match engine.mutate("record",None,snapback4_core::Context::new("alice",std::collections::BTreeMap::from([("n".into(),snapback4_core::Value::Int(0))]))) {
+        Ok(outcome)=>assert!(matches!(outcome.state,snapback4_core::engine::WriteState::Failed{..}),"the guarded view must not admit the narrowed-away value"),
+        Err(snapback4_core::RuntimeError::UnknownOp(name))=>assert_eq!(name,"record","incompatible export is paused (E_OP)"),
+        Err(error)=>panic!("unexpected domain-check failure: {error}"),
+    }
+    app.ok(&["rollback","deployment","--to","latest"]);
+    app.ok(&["deploy","deployment"]);
+    let wider=current.replace("1..10","0..20");app.source(&wider);app.ok(&["deploy","deployment"]);
+    app.ok(&["rollback","deployment","--to","latest","--exact"]);
+    let wider_release=app.json(&["releases","deployment"])["current"].clone();
+    app.source(&format!("{current}\n-- current authored contract\n"));app.ok(&["deploy","deployment"]);
+    app.source(&wider);app.ok(&["deploy","deployment"]);
+    assert_eq!(app.json(&["releases","deployment"])["current"],wider_release,"deploying the authored wider source reuses its identity without an old-signature veto");
+}
+
+#[test]
+fn extraction_payloads_are_inputs_and_capture_precedes_intervening_effects() {
+    let parent=|payload:bool|format!("table items:\n{}  read <- allow\n  insert <- allow\n  delete <- allow\n  online only\n",if payload{"  scan: file <=1000 ?\n"}else{""});
+    let child="table scans:\n  item: items on delete cascade\n  scan: file <=1000 ?\n  immutable item\n  unique item\n  read through .item\n  insert <- allow\n  online only\nextract scans from items via item: {scan:scan}\n";
+    let old=parent(true)+"mutation add(photo: file <=1000):\n  payload = null\n  p = insert items {scan:payload}\n  payload = photo\n  return p\n";
+    let current=parent(false)+child+"mutation add(photo: file <=1000):\n  payload = null\n  p = insert items {}\n  payload = photo\n  insert scans {item:p,scan:payload}\n  return p\n";
+    let audit="table audit:\n  n: int\n  public\n  online only\n";
+    let deleted=parent(true)+audit+"mutation add():\n  p = insert items {scan:null}\n  delete items[p.id]\n  insert audit {n:1}\n  return null\n";
+    let missing=parent(false)+child+audit+"mutation add():\n  p = insert items {}\n  delete items[p.id]\n  insert scans {item:p,scan:null}\n  insert audit {n:1}\n  return null\n";
+    for (old,current) in [(old,current),(deleted,missing)] {
+        let source=|s:String|vec![("schema.q".into(),s)];let old=source(old);let current=source(current);
+        for sources in [&old,&current] {let b=snapback4_lang::compile(sources);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);}
+        assert!(!snapback4_lang::release_bridge::extraction_preserves_predecessor(&old,&current));
+    }
+}
+
+#[test]
+fn exact_projection_cannot_restore_a_broader_parent_read_rule() {
+    let common="table roles:\n  member: principal\n  unique member\n  read <- allow\n  insert <- allow\n  online only\n";
+    let old=common.to_owned()+"table items:\n  scan: file <=1000 ?\n  read <- allow\n  insert <- allow\n  online only\nmutation add():\n  return insert items {scan:null}\n";
+    let current=common.to_owned()+"table items:\n  read <- exists roles[viewer]\n  insert <- allow\n  online only\ntable scans:\n  item: items on delete cascade\n  scan: file <=1000 ?\n  immutable item\n  read through .item\n  insert <- allow\n  online only\nextract scans from items via item: {scan:scan}\nmutation add():\n  p = insert items {}\n  insert scans {item:p,scan:null}\n  return p\n";
+    let old=vec![("schema.q".into(),old)];let current=vec![("schema.q".into(),current)];
+    for sources in [&old,&current] {let b=snapback4_lang::compile(sources);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);}
+    assert!(!snapback4_lang::release_bridge::extraction_preserves_predecessor(&old,&current));
+}
+
+#[test]
+fn unmapped_child_lifetime_edges_keep_the_view() {
+    let(old,current)=publication_media();
+    let old=old.replace("  insert <- allow\n", "  insert <- allow\n  delete <- allow\n")+"mutation removeCustomer(id: customers):\n  delete customers[id]\n";
+    let current=current.replace("  insert <- allow\n", "  insert <- allow\n  delete <- allow\n").replace("  order: orders on delete cascade", "  order: orders on delete cascade\n  hold: customers ? on delete restrict")+"mutation removeCustomer(id: customers):\n  delete customers[id]\n";
+    let old=vec![("schema.q".into(),old)];let current=vec![("schema.q".into(),current)];
+    for sources in [&old,&current] {let b=snapback4_lang::compile(sources);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);}
+    assert!(!snapback4_lang::release_bridge::extraction_preserves_predecessor(&old,&current));
+}
+
+#[test]
+fn reference_retargeting_is_not_wire_input_narrowing_or_an_argument_conversion() {
+    let old="table before:\n  read <- allow\n  delete <- allow\n  online only\nmutation remove(id: before):\n  delete before[id]\n";
+    let current=old.replace("before","after");
+    let source=|s:String|vec![("schema.q".into(),s)];let old=source(old.into());let current=source(current);
+    for sources in [&old,&current] {let b=snapback4_lang::compile(sources);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);}
+    assert!(snapback4_lang::release_bridge::exact_historical_inputs(&old,&current).is_ok());
+    assert!(!snapback4_lang::release_bridge::requires_view(&old,&current),"a different source table keeps its nominal binding without inventing a wire-domain guard");
+    let incompatible=source("table after:\n  read <- allow\n  online only\nmutation remove(id: int):\n  return id\n".into());
+    assert!(snapback4_lang::release_bridge::exact_historical_inputs(&old,&incompatible).is_err());
+}
