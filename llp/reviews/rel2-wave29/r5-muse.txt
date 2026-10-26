@@ -1,0 +1,7 @@
+muse: workspace root: /home/ccheever/projects/sb4-b29-rel2 (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY
+
+No material correctness, security, data-loss, contract, or concurrency defect found in the supplied REL2 sources.
+
+Exact rollback keeps guards, defaults, shapes, and write authority; preview and live paths recheck hidden rows, empty cells, and projections under CAS. Digests ignore path and registry metadata with a stable oldest-match timeline. List inclusion is inclusive-only with transactional reverse checks. Saved baselines materialize before reads and clean on failure. Roster kernel locks own; leases only diagnose, with renewal fencing and no inode replacement.

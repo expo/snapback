@@ -73,3 +73,13 @@ test('concurrent processes reclaim one kernel owner without replacing its inode'
  for(const {child}of children)child.stdin.end();await Promise.all(children.map(c=>c.exited));
  rosterLock(path).release();
 });
+
+test('same-process BUSY attempts cannot cancel another process exclusion',async t=>{
+ const path=fixture(t),owned=rosterLock(path);t.after(()=>owned.release());
+ for(let i=0;i<3;i++)assert.throws(()=>rosterLock(path),/E_PRODUCTION_ROSTER_BUSY/);
+ const source=`import {rosterLock} from ${JSON.stringify(moduleUrl)};try{const lock=rosterLock(${JSON.stringify(path)});lock.release();process.stdout.write('acquired')}catch(error){if(!String(error).includes('E_PRODUCTION_ROSTER_BUSY'))throw error;process.stdout.write('busy')}`;
+ const child=spawn(process.execPath,['--input-type=module','-e',source],{stdio:['ignore','pipe','pipe']});
+ t.after(()=>{if(child.exitCode===null&&child.signalCode===null)child.kill('SIGKILL');});
+ let result='';child.stdout.on('data',chunk=>{result+=chunk});await once(child,'exit');
+ assert.equal(result,'busy');owned.assertHeld();
+});

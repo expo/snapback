@@ -7,6 +7,10 @@ pub(super) struct SavedVersion { path: PathBuf, files: Vec<(PathBuf, Vec<u8>)>, 
 impl Drop for SavedVersion {
     fn drop(&mut self) { if !self.complete && !self.refresh { let _ = std::fs::remove_dir_all(&self.path); } }
 }
+struct Provisional { path:PathBuf, pending:bool }
+impl Drop for Provisional {
+    fn drop(&mut self){if self.pending {let _=std::fs::remove_dir_all(&self.path);}}
+}
 impl SavedVersion {
     pub(super) fn prepare(project: &Project, sources: &[(String,String)], bound: &snapback4_lang::Bound, options: &Options, deployment: &std::path::Path) -> Result<Option<Self>,String> {
         let Some(name) = options.flags.get("save-version") else {return Ok(None);};
@@ -32,6 +36,7 @@ impl SavedVersion {
             Err(error) if error.kind()==std::io::ErrorKind::NotFound => {std::fs::create_dir(&path).map_err(|e|format!("cannot save {name}: {e}"))?;false}
             Err(error) => return Err(format!("cannot inspect {name}: {error}")),
         };
+        let mut provisional=Provisional{path:path.clone(),pending:!refresh};
         let mut files = Vec::new();
         // Keep the generated module boundary and every sibling artifact.
         // A saved-source selection draws siblings from that saved unit.
@@ -52,6 +57,7 @@ impl SavedVersion {
         let generated=[("generated/api.ts",snapback4_lang::emit::typescript(bound)),("generated/server.ts",snapback4_lang::emit::server_typescript(bound)),("generated/package.json",crate::project::GENERATED_PACKAGE.to_owned()),("generated/security-invariants.q.draft",snapback4_lang::security::draft(bound))];
         for(name,text)in generated {files.retain(|(path,_)|path!=std::path::Path::new(name));files.push((PathBuf::from(name),text.into_bytes()));}
         let mut saved=Self {path,files,complete:false,refresh};
+        provisional.pending=false;
         let fixture = match options.flags.get("schema").map(PathBuf::from) {
             None=>project.root.join("fixtures"),
             Some(source) if source.is_dir()=>source.join("fixtures"),

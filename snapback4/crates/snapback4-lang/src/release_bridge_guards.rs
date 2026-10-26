@@ -496,11 +496,14 @@ fn write_projection(p:&crate::ast::ProgramDecl,extractions:&[snapback4_core::sch
     use crate::ast::{Expr,WriteOp};
     let field_value=|field:&crate::ast::ObjectField|field.value.clone().unwrap_or_else(||Expr::Name{name:field.name.clone(),site:field.site.clone()});
     let mut bindings=std::collections::BTreeMap::new();let mut ordinary_nodes=Vec::new();
-    for stmt in p.prelude.iter().chain(&p.body) {
+    let statements=p.prelude.iter().chain(&p.body).collect::<Vec<_>>();
+    let mut visible_from=std::collections::BTreeMap::new();
+    for (at,stmt) in statements.iter().copied().enumerate() {
         if let Stmt::Bind{names,value,..}=stmt {
             if let Expr::Write{op:WriteOp::Insert,table,site,..}=value {
                 if names.len()==1&&extractions.iter().any(|e|e.parent==*table){
                     if bindings.insert(names[0].clone(),(site.line,site.col)).is_some(){return None;}
+                    visible_from.insert(names[0].clone(),statements.get(at+1).map(|s|stmt_site(s)).unwrap_or(u32::MAX));
                     continue;
                 }
             }
@@ -516,13 +519,23 @@ fn write_projection(p:&crate::ast::ProgramDecl,extractions:&[snapback4_core::sch
     crate::bind::intent_walk::document(&mut before,&mut |expr|if let Expr::Write{table,site,..}=expr {
         if !extractions.iter().any(|e|e.child==*table){all_positions.insert((site.line,site.col),ordinal);ordinal+=1;}
     });
-    let canonical=|expr:&mut Expr|if let Expr::Name{name,..}=expr {
-        if let Some(index)=bindings.get(name).and_then(|site|all_positions.get(site)){*name=format!("$extraction-parent-{index}");}
+    let expand=|expr:&mut Expr| {
+        if let Expr::Object{fields,..}|Expr::Write{fields,..}=expr {
+            for field in fields {if field.value.is_none(){field.value=Some(Expr::Name{name:field.name.clone(),site:field.site.clone()});}}
+        }
+    };
+    let canonical=|expr:&mut Expr|if let Expr::Name{name,site}=expr {
+        // The initializer sees the outer binding. The freshly inserted parent
+        // becomes visible only after its complete statement has evaluated.
+        if visible_from.get(name).is_some_and(|ready|site.line>=*ready) {
+            if let Some(index)=bindings.get(name).and_then(|site|all_positions.get(site)){*name=format!("$extraction-parent-{index}");}
+        }
     };
     let mut ordinary=Vec::new();
     for stmt in ordinary_nodes {
         let mut node=p.clone();node.prelude.clear();node.body=vec![stmt.clone()];
         let mut doc=crate::ast::Document::default();doc.programs.push(node);
+        crate::bind::intent_walk::document(&mut doc,&mut |e|expand(e));
         crate::bind::intent_walk::document(&mut doc,&mut |e|canonical(e));
         ordinary.push((stmt_site(stmt),normalized_statement(&doc.programs[0].body[0])));
     }
@@ -538,8 +551,8 @@ fn write_projection(p:&crate::ast::ProgramDecl,extractions:&[snapback4_core::sch
             if *op!=WriteOp::Insert||!keys.is_empty()||condition.is_some()||*if_absent {valid=false;return;}
             if fields.iter().any(|f|f.name!=e.reference&&!e.fields.contains_key(&f.name)){valid=false;return;}
             let parent=fields.iter().find(|f|f.name==e.reference).and_then(|f|match &field_value(f) {
-                Expr::Name{name,..}=>Some(name.clone()),
-                Expr::Member{base,name,..}if name=="id"=>if let Expr::Name{name,..}=base.as_ref(){Some(name.clone())}else{None},_=>None,
+                Expr::Name{name,site}=>Some((name.clone(),site.line)),
+                Expr::Member{base,name,..}if name=="id"=>if let Expr::Name{name,site}=base.as_ref(){Some((name.clone(),site.line))}else{None},_=>None,
             });
             let Some(parent)=parent else{valid=false;return};
             if fields.iter().filter(|f|e.fields.contains_key(&f.name)).any(|f|!pure_payload(&field_value(f))){valid=false;return;}
@@ -557,13 +570,35 @@ fn write_projection(p:&crate::ast::ProgramDecl,extractions:&[snapback4_core::sch
             }
 
         }
+        crate::bind::intent_walk::expression(&mut value,&mut |e|expand(e));
         crate::bind::intent_walk::expression(&mut value,&mut |e|canonical(e));
         let signature=expression_signature(&value);ordinary.push((line,format!("write {signature}")));writes.push(signature);
     });
     if !valid{return None;}
-    for (name,child,values) in children {
+    for ((name,line),child,values) in children {
+        if line<*visible_from.get(&name)?{return None;}
         let index=*positions.get(bindings.get(&name)?)?;
         payloads.push((index,child,values));
+    }
+    // Return identities are parent dataflow too. A returned insertion and its
+    // fresh binding denote the same row; every other use keeps its expression.
+    for stmt in &statements {
+        let Stmt::Return{value,site}=stmt else{continue};
+        let mut result=value.clone();let mut related=false;
+        crate::bind::intent_walk::expression(&mut result,&mut |e|expand(e));
+        crate::bind::intent_walk::expression(&mut result,&mut |e| {
+            if let Expr::Name{name,site}=e {
+                related|=visible_from.get(name).is_some_and(|ready|site.line>=*ready);
+            }
+            canonical(e);
+            if let Expr::Write{table,site,..}=e {
+                if let Some(index)=all_positions.get(&(site.line,site.col)) {
+                    let name=if extractions.iter().any(|x|x.parent==*table){format!("$extraction-parent-{index}")}else{format!("$extraction-write-{index}")};
+                    *e=Expr::Name{name,site:site.clone()};related=true;
+                }
+            }
+        });
+        if related {ordinary.push((site.line,format!("return {}",expression_signature(&result))));}
     }
     ordinary.sort_by_key(|(line,_)|*line);let ordinary=ordinary.into_iter().map(|(_,value)|value).collect();
     payloads.sort();Some((writes,payloads,ordinary))

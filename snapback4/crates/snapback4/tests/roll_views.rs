@@ -944,10 +944,115 @@ fn extraction_preserves_expression_guards_argument_defaults_and_parent_dataflow(
     let links="table links:\n  order: orders\n  public\n  online only\n";
     let head="mutation linked(buyer: customers, x: file <=1000, y: file <=1000):\n";
     let old=base.to_owned()+links+head+"  a = insert orders {owner:viewer,buyer,scan:x}\n  b = insert orders {owner:viewer,buyer,scan:y}\n  return insert links {order:a.id}\n";
-    let current=current.replace("customer: customers renamed from buyer","buyer: customers");
+    let current=current.replace("customer: customers renamed from buyer","buyer: customers").replace("table scans:\n","table scans:\n  insert <- allow\n");
     let next=current+links+head+"  b = insert orders {owner:viewer,buyer}\n  insert scans {order:b.id,scan:x}\n  a = insert orders {owner:viewer,buyer}\n  insert scans {order:a.id,scan:y}\n  return insert links {order:a.id}\n";
     for text in [&old,&next]{let b=snapback4_lang::compile(&source(text.clone()));assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);}
     assert!(!snapback4_lang::release_bridge::extraction_preserves_predecessor(&source(old.clone()),&source(next.clone())));
+    let short_old=old.replace("  order: orders\n","  a: orders\n").replace("return insert links {order:a.id}","return insert links {a}");
+    let short_next=next.replace("  order: orders\n","  a: orders\n").replace("return insert links {order:a.id}","return insert links {a}");
+    for text in [&short_old,&short_next]{assert!(snapback4_lang::compile(&source(text.clone())).diagnostics.is_empty());}
+    assert!(!snapback4_lang::release_bridge::extraction_preserves_predecessor(&source(short_old),&source(short_next)));
+    for result in ["a.id","{order:a.id}","{a}"] {
+        let old_return=old.replace("return insert links {order:a.id}",&format!("return {result}"));
+        let next_return=next.replace("return insert links {order:a.id}",&format!("return {result}"));
+        assert!(!snapback4_lang::release_bridge::extraction_preserves_predecessor(&source(old_return),&source(next_return)),"return parent identity: {result}");
+    }
     let equivalent=next.replace("return insert links {order:a.id}","return insert links {order:b.id}");
     assert!(snapback4_lang::release_bridge::extraction_preserves_predecessor(&source(old),&source(equivalent)));
+}
+
+#[test]
+fn extraction_rejects_shadowed_arguments_and_preserves_shared_child_defaults() {
+    let(base,current)=publication_media();let source=|text:String|vec![("schema.q".into(),text)];
+    let current=current.replace("customer: customers renamed from buyer","buyer: customers");
+    let head="mutation shadow(a: id, b: id, buyer: customers, photo: file <=1000):\n";
+    let old=base.to_owned()+head+"  a = insert orders {id:a,owner:viewer,buyer,scan:photo}\n  return a\n";
+    let next=current.clone().replace("table scans:\n","table scans:\n  insert <- allow\n")+head+"  b = insert orders {id:b,owner:viewer,buyer}\n  insert scans {order:b.id,scan:photo}\n  return b\n";
+    for text in [&old,&next]{let b=snapback4_lang::compile(&source(text.clone()));assert!(b.diagnostics.iter().any(|d|d.message.contains("cannot shadow arguments")),"{:?}",b.diagnostics);}
+    assert!(!snapback4_lang::release_bridge::extraction_preserves_predecessor(&source(old),&source(next)));
+    let head="mutation deferred(m: orders, buyer: customers, photo: file <=1000):\n";
+    let old=base.to_owned()+head+"  m = insert orders {owner:viewer,buyer,scan:photo}\n  return m\n";
+    let next=current.clone().replace("table scans:\n","table scans:\n  insert <- allow\n")+head+"  insert scans {order:m,scan:photo}\n  m = insert orders {owner:viewer,buyer}\n  return m\n";
+    for text in [&old,&next]{let b=snapback4_lang::compile(&source(text.clone()));assert!(b.diagnostics.iter().any(|d|d.message.contains("cannot shadow arguments")),"{:?}",b.diagnostics);}
+    assert!(!snapback4_lang::release_bridge::extraction_preserves_predecessor(&source(old),&source(next)));
+    let head="mutation shared(buyer: customers, photo: file <=1000):\n";
+    let old=base.to_owned()+head+"  return insert orders {owner:viewer,buyer,scan:photo}\n";
+    let next=current+head+"  m = insert orders {owner:viewer,buyer}\n  insert scans {order:m,scan:photo}\n  return m\n";
+    for text in [&old,&next]{assert!(snapback4_lang::compile(&source(text.clone())).diagnostics.is_empty());}
+    assert!(!snapback4_lang::release_bridge::extraction_preserves_predecessor(&source(old),&source(next)),"the shared current workflow's default deny must survive");
+}
+
+#[test]
+fn original_input_domains_remain_inside_current_safety_domains() {
+    let(base,current)=publication_media();let source=|text:String|vec![("schema.q".into(),text)];
+    let audit="table audit:\n  label: text <=20\n  public\n  online only\n";
+    let narrow="mutation record(label: text <=10):\n  return insert audit {label}\n";
+    let wide=narrow.replace("text <=10","text <=20");
+    assert!(snapback4_lang::release_bridge::extraction_preserves_predecessor(&source(base.to_owned()+audit+narrow),&source(current.clone()+audit+&wide)),"original inputs fit current guards; v2-only inputs may refuse on exact v1");
+    assert!(!snapback4_lang::release_bridge::extraction_preserves_predecessor(&source(base.to_owned()+audit+&wide),&source(current+audit+narrow)),"old broader input cannot bypass a current domain guard");
+}
+
+#[test]
+fn extracted_null_is_existing_empty_evidence_and_restores_exact_shape_twice() {
+    let(base,current)=publication_media();let old=base.replace("scan: file <=1000","scan: file <=1000 ?");let current=current.replace("scan: file <=1000","scan: file <=1000 ?");
+    let app=App::new();app.source(&old);app.ok(&["deploy","deployment"]);
+    let b=snapback4_lang::compile(&[("schema.q".into(),old)]);let schema=b.schema.clone();
+    let store=snapback4_core::store_port::AnyStore::open(&app.0.join("deployment/store.sqlite")).unwrap();
+    let mut engine=snapback4_core::Engine::new_release(store,b.schema,b.programs.into_iter().map(|p|p.program),1,Some(1)).unwrap();
+    engine.seed(vec![("customers".into(),snapback4_core::wire::row_from_json(&schema.tables["customers"],&json!({"id":"customer"})).unwrap()),("orders".into(),snapback4_core::wire::row_from_json(&schema.tables["orders"],&json!({"id":"kept","owner":"alice","buyer":"customer","scan":null})).unwrap())]).unwrap();drop(engine);
+    app.source(&current);app.ok(&["deploy","deployment"]);
+    for _ in 0..2 {
+        let preview=app.json(&["rollback","deployment","--to","1","--check","--json"]);
+        assert_eq!(preview["rowShape"]["matchesTarget"],true,"{preview}");
+        assert_eq!(preview["visibility"]["newlyEmptyCells"],0);assert_eq!(preview["visibility"]["retainedEmptyCells"],1);
+        assert_eq!(app.json(&["rollback","deployment","--to","1","--json"])["release"],1);
+        assert_eq!(app.json(&["sql","SELECT scan FROM orders","--release","deployment","--json"])["rows"][0][0],json!(null));
+        app.ok(&["rollback","deployment","--to","latest"]);
+    }
+}
+
+#[test]
+fn extracted_child_row_insert_audience_applies_to_null_and_omitted_payloads() {
+    let source=|text:String|vec![("schema.q".into(),text)];
+    for (before,after) in [("{scan:null}","{item:p,scan:null}"),("{}","{item:p}")] {
+        let old=format!("table items:\n  scan: file <=1000 ?\n  read <- allow\n  insert <- allow\n  online only\nmutation add():\n  return insert items {before}\n");
+        for gate in ["  insert <- deny\n","","  insert <- allow\n"] {
+            let current=format!("table items:\n  read <- allow\n  insert <- allow\n  online only\ntable scans:\n  item: items on delete cascade\n  scan: file <=1000 ?\n  immutable item\n  read through .item\n{gate}  online only\nextract scans from items via item: {{scan:scan}}\nmutation add():\n  p = insert items {{}}\n  insert scans {after}\n  return p\n");
+            let old=source(old.clone());let current=source(current);
+            for sources in [&old,&current] {let bound=snapback4_lang::compile(sources);assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);}
+            assert_eq!(snapback4_lang::release_bridge::extraction_preserves_predecessor(&old,&current),gate.contains("allow")&&before!="{}","payload {before}, gate {gate:?}");
+        }
+    }
+}
+
+#[test]
+fn extracted_child_authority_cannot_reuse_a_parent_gate_after_its_dependency_changes() {
+    let common="table roles:\n  member: principal\n  unique member\n  read <- allow\n  delete <- allow\n  online only\n";
+    let old=format!("{common}table items:\n  scan: file <=1000 ?\n  insert <- exists roles[viewer]\n  online only\nmutation add():\n  p = insert items {{scan:null}}\n  delete roles[viewer]\n  return p\n");
+    let current=format!("{common}table items:\n  insert <- exists roles[viewer]\n  online only\ntable scans:\n  item: items on delete cascade\n  scan: file <=1000 ?\n  immutable item\n  read through .item\n  insert <- exists roles[viewer]\n  online only\nextract scans from items via item: {{scan:scan}}\nmutation add():\n  p = insert items {{}}\n  delete roles[viewer]\n  insert scans {{item:p,scan:null}}\n  return p\n");
+    let source=|text:String|vec![("schema.q".into(),text)];let old=source(old);let current=source(current);
+    for sources in [&old,&current] {let bound=snapback4_lang::compile(sources);assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);}
+    assert!(!snapback4_lang::release_bridge::extraction_preserves_predecessor(&old,&current));
+}
+
+#[test]
+fn extracted_child_constraints_and_restrict_lifetime_keep_the_guarded_view() {
+    let(base,current)=publication_media();let source=|text:String|vec![("schema.q".into(),text)];
+    for guarded in [current.replace("immutable order","immutable order, scan"),current.replace("immutable order","immutable order\n  cap 1")] {
+        let guarded=source(guarded);let bound=snapback4_lang::compile(&guarded);assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);
+        assert!(!snapback4_lang::release_bridge::extraction_preserves_predecessor(&source(base.into()),&guarded));
+    }
+    let old=base.replace("  insert <- .owner = viewer","  insert <- .owner = viewer\n  delete <- .owner = viewer")+"mutation remove(id: orders):\n  delete orders[id]\n";
+    let current=current.replace("  insert <- .owner = viewer","  insert <- .owner = viewer\n  delete <- .owner = viewer").replace("on delete cascade","on delete restrict")+"mutation remove(id: orders):\n  delete orders[id]\n";
+    let old=source(old);let current=source(current);
+    for sources in [&old,&current] {let bound=snapback4_lang::compile(sources);assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);}
+    assert!(!snapback4_lang::release_bridge::extraction_preserves_predecessor(&old,&current));
+}
+
+#[test]
+fn wave29_040_exact_projection_preserves_the_real_guarded_scheduled_workflow() {
+    let source=|text:&str|vec![("schema.q".into(),text.into())];
+    let old=source(include_str!("fixtures/rel2/wave29-040-v1.q"));let current=source(include_str!("fixtures/rel2/wave29-040-v2.q"));
+    for sources in [&old,&current] {let b=snapback4_lang::compile(sources);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);}
+    assert!(snapback4_lang::release_bridge::extraction_preserves_predecessor(&old,&current));
 }

@@ -1,0 +1,18 @@
+**NOT READY**
+
+1. **P1 — Same-process contention can release the roster’s kernel lock.** In [proof-roster-lock.ts](/home/ccheever/projects/sb4-b29-rel2/snapback4/packages/snapback4/src/proof-roster-lock.ts), every attempt performs `openSync(database, "a"); closeSync(fd)`. On Unix, closing that descriptor cancels the process’s existing POSIX locks on the same inode. SQLite explicitly documents this hazard. [SQLite locking warning](https://www.sqlite.org/howtocorrupt.html#posix_advisory_locks_canceled_by_a_separate_thread_doing_close_)
+
+   Reproducer:
+   - Process A acquires `first = rosterLock(path)`.
+   - In A, call `rosterLock(path)` again and catch BUSY.
+   - While `first` remains unreleased, process B calls `rosterLock(path)`.
+
+   B can acquire ownership; A’s `first.assertHeld()` still passes. Both drivers can issue provisioning requests and overwrite roster snapshots.
+
+2. **P2 — An existing extracted null incorrectly prevents exact-original selection.** [rollback_views.rs](/home/ccheever/projects/sb4-b29-rel2/snapback4/crates/snapback4/src/verbs/rollback_views.rs), `prefer_original`, requires `newlyEmptyCells == 0`, but the preview’s empty-cell accounting does not recognize an existing null transported from the child.
+
+   Reproducer: use `publication_media()`, make `scan` optional in both versions, deploy v1, seed a customer and an order with `scan: null`, then deploy v2’s extraction. Run `rollback deployment --to 1 --check --json`.
+
+   The reverse projection faithfully restores null, yet accounting reports it as newly empty because the current parent lacks `scan` and the saved extraction cell is not included in retained-empty evidence. Default rollback therefore selects the view and changes the result shape. This contradicts §22’s treatment of existing empty optional cells.
+
+These are source-derived reproducers; I did not execute them or modify files.

@@ -338,8 +338,17 @@ impl Store {
             .map_err(|e| e.to_string())?
             .collect::<Result<Vec<_>, _>>()
             .map_err(|e| e.to_string())?;
+        // A validated reverse projection can restore a real null from an
+        // extracted child, including a v2-born singleton. It is existing empty
+        // evidence, not a newly invented parent default. Require that child in
+        // the before-image as well as the definition-scoped projection receipt.
+        // @ref LLP 3000.000.000#22-wave-29-release-identity-rel2 — transported empty payloads remain truthful.
+        let extraction_cells:bool=conn.query_row("SELECT EXISTS(SELECT 1 FROM main.sqlite_schema WHERE type='table' AND name='_extraction_cells')",[],|r|r.get(0)).map_err(|e|e.to_string())?;
+        let projected=if extraction_cells {
+            " OR EXISTS(SELECT 1 FROM main._extraction_cells c JOIN main._extraction_rows e ON e.definition=c.definition AND e.parent_t=c.parent_t AND e.parent_id=c.parent_id JOIN main._release_preview_active b ON b.t=e.child_t AND b.id=e.child_id WHERE c.parent_t=p.t AND c.parent_id=p.id AND c.column_name=?6 AND json_extract(c.data,'$')=json_extract(?3,'$'))"
+        }else{""};
         let retained_empty_rows = {
-            conn.query_row(&format!("SELECT count(*) {from} AND EXISTS(SELECT 1 FROM main._release_preview_cells c WHERE c.t=p.t AND c.id=p.id AND c.column_name=?6 AND json_extract(c.data,'$')=json_extract(?3,'$'))"),rusqlite::params![name,path,encoded,prior_missing,prior,column,prior_path],|r|r.get::<_,i64>(0).map(|n|n as u64)).map_err(|e|e.to_string())?
+            conn.query_row(&format!("SELECT count(*) {from} AND (EXISTS(SELECT 1 FROM main._release_preview_cells c WHERE c.t=p.t AND c.id=p.id AND c.column_name=?6 AND json_extract(c.data,'$')=json_extract(?3,'$')){projected})"),rusqlite::params![name,path,encoded,prior_missing,prior,column,prior_path],|r|r.get::<_,i64>(0).map(|n|n as u64)).map_err(|e|e.to_string())?
         };
         Ok((rows, sample_ids, retained_empty_rows))
     }

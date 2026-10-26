@@ -13,7 +13,10 @@ export function rosterLock(path: string) {
     try { if (!lstatSync(file).isFile()) throw Error("E_PRODUCTION_ROSTER: lock must be a regular file"); }
     catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
   }
-  const fd = openSync(database, "a", 0o600); closeSync(fd);
+  // Never open/close an existing database outside SQLite: POSIX close() can
+  // cancel another connection's process-wide locks on that inode.
+  try { const fd = openSync(database, "wx", 0o600); closeSync(fd); }
+  catch (error) { if ((error as NodeJS.ErrnoException).code !== "EEXIST") throw error; }
   const db = new DatabaseSync(database);
   try { db.exec("PRAGMA busy_timeout = 0; BEGIN IMMEDIATE"); }
   catch (error) {

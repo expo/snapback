@@ -130,3 +130,17 @@ fn saving_the_configured_baseline_is_not_circular_and_failure_cleans_it() {
     assert!(!app.run(&["deploy","deployment","--save-version","versions/v2"]).status.success());
     assert!(!app.0.join("versions/v2").exists());
 }
+
+#[cfg(unix)]
+#[test]
+fn preparation_failure_removes_a_new_provisional_baseline_before_retry() {
+    let app=App::new();app.write("snapback/schema.q","query alive():\n  return true\n");
+    app.write("snapback/client-compatibility.json",r#"{"baseline":"versions/v1","since_release":2}"#);
+    fs::create_dir_all(app.0.join("generated-target")).unwrap();
+    std::os::unix::fs::symlink(app.0.join("generated-target"),app.0.join("snapback/generated")).unwrap();
+    let refused=app.run(&["deploy","deployment","--save-version","versions/v1"]);
+    assert!(!refused.status.success());assert!(!app.0.join("versions/v1").exists(),"prepare must not strand an empty baseline");
+    fs::remove_file(app.0.join("snapback/generated")).unwrap();
+    app.ok(&["deploy","deployment","--save-version","versions/v1"]);
+    assert!(app.0.join("versions/v1/release.json").is_file());
+}

@@ -1,0 +1,35 @@
+{
+  "baseline": "bcf780d30729158da09d731d2e9e84aa31738f30",
+  "brief_sha256": "92a16ea7619c1f5f1880bb0a3e5aeec5b1b3f8807f72022d37a924eebf1b0313",
+  "files": {
+    "snapback4/crates/snapback4-lang/src/release_bridge.rs": "71fb7aa80278a0d764d1e46bafb486ccfa5d377a45f9817c57c953029ba3a56f",
+    "snapback4/crates/snapback4-lang/src/release_bridge_guards.rs": "afe3a57e0c8463d5e6aa49594eae76f4f1bc09985e214516ddafaf3ce9fd2964",
+    "snapback4/crates/snapback4-core/src/store/rollback_visibility.rs": "39f5259717aa732325b42bc8b53b33d3d4e307e1d4a24f999fb0994cf368a98b",
+    "snapback4/crates/snapback4-core/src/store/extractions.rs": "964c4730b78697b4e456940e4c6d09a799fa2506688a2b91342e5e07c0a86f73",
+    "snapback4/crates/snapback4/src/verbs/releases.rs": "f6a56f398e2cc0a41ac3bc33287c73ac32b6a1e7e4a5cbb8132aac31353828c9",
+    "snapback4/crates/snapback4/src/verbs/rollback_views.rs": "5d7720fac6b2162d2b560e85c2eeb925fe05a991e6208f0d2a54524581bff933",
+    "snapback4/crates/snapback4/src/verbs/release_shape.rs": "69148e3bcc51acb004b0fd467078a1edfb8d3499e7f05f76e03ae06c036788a9",
+    "snapback4/crates/snapback4/src/verbs/saved_version.rs": "2ca2ba2e6612dcdb2f7a01236daf1e70f0697c8105ffc499c9b967a4c5b89e6b",
+    "snapback4/packages/snapback4/src/proof-accounts.ts": "5d26779bec78d12cc306b44eda51a5dd859b72b3ee37281ae3bbf1ca9cf56293",
+    "snapback4/packages/snapback4/src/proof-roster-lock.ts": "2c414f4be3df5f48ea7bc7a090c473c6792bdf9210161ea5a35b37f1958fbc76"
+  },
+  "muse": {
+    "model": "muse-spark-1.3-contributor",
+    "reasoning": "high",
+    "fresh_session": true,
+    "stdout_sha256": "a2871fadc159567f0ddd851ab00e67c569cbdcc81735e8513cb9823b50c3d2ca",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "stderr_file": "r4-muse.stderr.gz",
+    "verbatim": true
+  },
+  "codex": {
+    "model": "gpt-6.1-sol",
+    "reasoning": "high",
+    "fresh_session": true,
+    "stdout_sha256": "4242d5bf15cb363b0ac0dfac135a203cadc60115177c203a0d23aa07da640586",
+    "stderr_sha256": "39426a36379640b09d0cbe5ca5b82a0d3d4565b03706e2d7a020a5cd5f8c206d",
+    "stderr_file": "r4-codex.stderr.gz",
+    "verbatim": true
+  },
+  "packet_correction": "release_preview.rs changed in 2da8a106e3 was omitted from round4; round5 supplies it. Actual preview shape tests pass."
+}

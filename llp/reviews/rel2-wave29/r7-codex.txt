@@ -1,0 +1,58 @@
+**NOT READY**
+
+**P1: Literal-null inserts bypass the extracted child’s insert audience.** In [release_bridge.rs](/home/ccheever/projects/sb4-b29-rel2/snapback4/crates/snapback4-lang/src/release_bridge.rs), `extraction_preserves_predecessor` delegates child-audience validation to `exact_authority`. Its `writes_column` helper exempts literal-null inserts because null placement is exempt from column-write authorization. That exemption does not establish permission to create a child row.
+
+Consequently, a shared v2 mutation denied by the child’s explicit or default-deny insert rule can qualify for original-source rollback, restoring a callable v1 mutation. This violates §22’s shared effective audience requirement.
+
+Executable regression test; the final assertion should pass but the supplied implementation accepts the predecessor. Not executed under this read-only review.
+
+```rust
+#[test]
+fn extracted_null_must_preserve_child_insert_denial() {
+    let old = r#"table items:
+  scan: file <=1000 ?
+  read <- allow
+  insert <- allow
+  online only
+mutation add():
+  return insert items {scan:null}
+"#;
+
+    for gate in ["  insert <- deny\n", ""] {
+        let current = format!(
+            r#"table items:
+  read <- allow
+  insert <- allow
+  online only
+table scans:
+  item: items
+  scan: file <=1000 ?
+  immutable item
+  read through .item
+{gate}  online only
+extract scans from items via item: {{scan:scan}}
+mutation add():
+  p = insert items {{}}
+  insert scans {{item:p,scan:null}}
+  return p
+"#
+        );
+        let target = vec![("schema.q".into(), old.into())];
+        let current = vec![("schema.q".into(), current)];
+
+        for sources in [&target, &current] {
+            let bound = snapback4_lang::compile(sources);
+            assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+        }
+
+        assert!(
+            !snapback4_lang::release_bridge::extraction_preserves_predecessor(
+                &target, &current
+            ),
+            "null payload must not erase the child's insert audience"
+        );
+    }
+}
+```
+
+The child-row audience proof must cover null and omitted optional payloads independently of the column-write exemption.
