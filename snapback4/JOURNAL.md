@@ -109042,3 +109042,17 @@ then requires a temp-first drift refusal with no durable head change. The
 previous 12 focused witnesses pass on f6148eb02a; individual reruns of all 45
 initial script failures and qualification of this final recovery correction
 are in progress. Only the recorded witness backend was terminated.
+
+## 2026-10-26 — Stage P fix round 1: make the old TEMP-r control actually shadow
+
+The restarted complete script found one stale FF3 expectation:
+activation_scratch_requires_owned_plain_heap created TEMP r and assumed that
+its mere presence intercepted the durable r. With pg_temp pinned last it no
+longer does. The original witness fails in isolation on unchanged product code.
+Its TEMP-r case now explicitly moves pg_temp before the store; all six DDL
+variants still require the same named managed-relation refusal and unchanged
+generation. The isolated corrected witness passes 1/0, including every variant.
+This changes test setup only; production bytes remain those of 3b138076e8 and
+its measured release binary. The complete script's earlier stale-expectation
+red is retained in the report rather than erased by the successful isolated
+repeat. The governing RFC notes the setup required for an actual shadow.
