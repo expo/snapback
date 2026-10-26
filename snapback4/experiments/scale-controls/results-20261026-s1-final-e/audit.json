@@ -1,0 +1,18 @@
+{
+  "matrix-e": {
+    "cells": 13,
+    "trials": 216,
+    "scheduled_arrivals": 24258060,
+    "cells_with_passing_rate": 13,
+    "unknown_write_outcome_trials": 0,
+    "checks": "arrival accounting, every repetition, histogram counts and lossless archive, SLO/counter qualification, brackets"
+  },
+  "matrix-s": {
+    "cells": 6,
+    "trials": 126,
+    "scheduled_arrivals": 23731080,
+    "cells_with_passing_rate": 6,
+    "unknown_write_outcome_trials": 0,
+    "checks": "arrival accounting, every repetition, histogram counts and lossless archive, SLO/counter qualification, brackets"
+  }
+}

@@ -1,0 +1,122 @@
+{
+  "link": "B",
+  "arm": "E",
+  "diagnostic": "release public Queue default depth 2, owned G6 store, early release enabled; cloned 1M S1 fixture; direct Context, no HTTP auth; no capacity claim",
+  "samples": [
+    {
+      "N": {
+        "1": 1,
+        "10": 11,
+        "12": 1,
+        "13": 11,
+        "14": 3,
+        "15": 8,
+        "16": 9,
+        "17": 5,
+        "18": 2,
+        "19": 9,
+        "21": 1,
+        "22": 11,
+        "23": 4,
+        "3": 1,
+        "4": 1,
+        "9": 6
+      },
+      "cell": "W4",
+      "clients": 32,
+      "counter_delta": 1505,
+      "counter_ok": true,
+      "depth": "shipped default 2",
+      "errors_including_warmup": {
+        "E_STORE": 31
+      },
+      "in_flight_at_dispatch": [
+        0,
+        1,
+        83
+      ],
+      "mean_N": 15.238095238095237,
+      "measured_attempts": 1280,
+      "seconds": 0.547886379,
+      "successes_including_warmup": 1505,
+      "warmup_attempts": 256
+    },
+    {
+      "N": {
+        "1": 11,
+        "13": 1,
+        "14": 3,
+        "15": 5,
+        "16": 5,
+        "17": 3,
+        "18": 2,
+        "19": 1,
+        "2": 1,
+        "23": 10,
+        "24": 1,
+        "25": 2,
+        "26": 2,
+        "27": 1,
+        "29": 3,
+        "3": 5,
+        "30": 1,
+        "31": 10,
+        "4": 1,
+        "6": 3,
+        "7": 1,
+        "8": 2,
+        "9": 9
+      },
+      "cell": "W5-exact",
+      "clients": 32,
+      "counter_delta": 1536,
+      "counter_ok": true,
+      "depth": "shipped default 2",
+      "errors_including_warmup": {},
+      "in_flight_at_dispatch": [
+        0,
+        1,
+        82
+      ],
+      "mean_N": 15.421686746987952,
+      "measured_attempts": 1280,
+      "seconds": 0.630402553,
+      "successes_including_warmup": 1536,
+      "warmup_attempts": 256
+    },
+    {
+      "N": {
+        "1": 4,
+        "10": 2,
+        "11": 4,
+        "12": 2,
+        "13": 5,
+        "14": 8,
+        "15": 12,
+        "16": 25,
+        "17": 14,
+        "18": 5,
+        "2": 1,
+        "30": 1,
+        "31": 2,
+        "9": 1
+      },
+      "cell": "W5-mix",
+      "clients": 32,
+      "counter_delta": 1536,
+      "counter_ok": true,
+      "depth": "shipped default 2",
+      "errors_including_warmup": {},
+      "in_flight_at_dispatch": [
+        0,
+        1,
+        85
+      ],
+      "mean_N": 14.883720930232558,
+      "measured_attempts": 1280,
+      "seconds": 0.651172675,
+      "successes_including_warmup": 1536,
+      "warmup_attempts": 256
+    }
+  ]
+}

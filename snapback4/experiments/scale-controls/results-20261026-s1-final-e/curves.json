@@ -1,0 +1,7602 @@
+[
+  {
+    "arm": "E",
+    "cell": {
+      "workload": "W4",
+      "rows": 1000000,
+      "delay_us": 1000,
+      "writers": 32,
+      "keys": "disjoint",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/replay-w4-n1000000-d1000-c32-disjoint-NEW",
+        "--workload",
+        "W4",
+        "--keys",
+        "disjoint",
+        "--link",
+        "B",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/bin/sb4-postgres-scale-seed",
+        "--rates",
+        "100"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "part": "smoke-w4-n1000000-d1000-c32-disjoint",
+    "smoke": true,
+    "concurrent_writes": false,
+    "rate": 100,
+    "selected": {
+      "rate": 100,
+      "all_pass": true,
+      "runner_read_or_write_all_pass": true,
+      "p50_ms": {
+        "min": 16.146431,
+        "median": 16.162815,
+        "max": 16.326655
+      },
+      "p99_ms": {
+        "min": 22.937599,
+        "median": 22.953983,
+        "max": 23.330815
+      },
+      "p999_ms": {
+        "min": 25.722879,
+        "median": 27.017215,
+        "max": 35.586047
+      },
+      "achieved_per_s": {
+        "min": 100.0,
+        "median": 100.0,
+        "max": 100.0
+      },
+      "errors": 0,
+      "dispatch_lag_p99_ms": {
+        "min": 0.034399,
+        "median": 0.036479,
+        "max": 0.038879
+      },
+      "http_service_p99_ms": {
+        "min": 22.904831,
+        "median": 22.937599,
+        "max": 23.298047
+      }
+    },
+    "rates": [
+      {
+        "rate": 100,
+        "all_pass": true,
+        "runner_read_or_write_all_pass": true,
+        "p50_ms": {
+          "min": 16.146431,
+          "median": 16.162815,
+          "max": 16.326655
+        },
+        "p99_ms": {
+          "min": 22.937599,
+          "median": 22.953983,
+          "max": 23.330815
+        },
+        "p999_ms": {
+          "min": 25.722879,
+          "median": 27.017215,
+          "max": 35.586047
+        },
+        "achieved_per_s": {
+          "min": 100.0,
+          "median": 100.0,
+          "max": 100.0
+        },
+        "errors": 0,
+        "dispatch_lag_p99_ms": {
+          "min": 0.034399,
+          "median": 0.036479,
+          "max": 0.038879
+        },
+        "http_service_p99_ms": {
+          "min": 22.904831,
+          "median": 22.937599,
+          "max": 23.298047
+        }
+      }
+    ]
+  },
+  {
+    "arm": "E",
+    "cell": {
+      "workload": "W1",
+      "rows": 1000000,
+      "delay_us": 1000,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/replay-w1-n1000000-d1000-c128-disjoint-NEW",
+        "--workload",
+        "W1",
+        "--keys",
+        "disjoint",
+        "--link",
+        "B",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/bin/sb4-postgres-scale-seed",
+        "--rates",
+        "1000",
+        "2000",
+        "4000",
+        "8000",
+        "5656",
+        "19027",
+        "22627"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "part": "w1-n1000000-d1000-c128-disjoint",
+    "smoke": false,
+    "concurrent_writes": true,
+    "rate": 4000,
+    "selected": {
+      "rate": 4000,
+      "all_pass": true,
+      "runner_read_or_write_all_pass": true,
+      "p50_ms": {
+        "min": 2.705407,
+        "median": 2.811903,
+        "max": 2.813951
+      },
+      "p99_ms": {
+        "min": 6.623231,
+        "median": 7.045119,
+        "max": 7.151615
+      },
+      "p999_ms": {
+        "min": 9.166847,
+        "median": 10.002431,
+        "max": 10.985471
+      },
+      "achieved_per_s": {
+        "min": 4000.0,
+        "median": 4000.0,
+        "max": 4000.0
+      },
+      "errors": 0,
+      "dispatch_lag_p99_ms": {
+        "min": 0.092735,
+        "median": 0.101439,
+        "max": 0.113407
+      },
+      "http_service_p99_ms": {
+        "min": 6.598655,
+        "median": 7.000063,
+        "max": 7.114751
+      },
+      "background": {
+        "all_pass": true,
+        "p50_ms": {
+          "min": 12.296191,
+          "median": 12.443647,
+          "max": 12.509183
+        },
+        "p99_ms": {
+          "min": 18.579455,
+          "median": 19.185663,
+          "max": 21.118975
+        },
+        "achieved_per_s": {
+          "min": 400.0,
+          "median": 400.0,
+          "max": 400.0
+        },
+        "errors": 0
+      }
+    },
+    "rates": [
+      {
+        "rate": 1000,
+        "all_pass": true,
+        "runner_read_or_write_all_pass": true,
+        "p50_ms": {
+          "min": 2.564095,
+          "median": 2.592767,
+          "max": 6.180863
+        },
+        "p99_ms": {
+          "min": 5.623807,
+          "median": 6.217727,
+          "max": 11.829247
+        },
+        "p999_ms": {
+          "min": 7.696383,
+          "median": 9.560063,
+          "max": 25.362431
+        },
+        "achieved_per_s": {
+          "min": 1000.0,
+          "median": 1000.0,
+          "max": 1000.0
+        },
+        "errors": 0,
+        "dispatch_lag_p99_ms": {
+          "min": 0.102975,
+          "median": 0.125055,
+          "max": 0.126783
+        },
+        "http_service_p99_ms": {
+          "min": 5.599231,
+          "median": 6.193151,
+          "max": 11.788287
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 11.804671,
+            "median": 11.984895,
+            "max": 11.993087
+          },
+          "p99_ms": {
+            "min": 18.415615,
+            "median": 18.989055,
+            "max": 19.038207
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 2000,
+        "all_pass": true,
+        "runner_read_or_write_all_pass": true,
+        "p50_ms": {
+          "min": 2.508799,
+          "median": 2.529279,
+          "max": 2.641919
+        },
+        "p99_ms": {
+          "min": 6.221823,
+          "median": 6.385663,
+          "max": 8.220671
+        },
+        "p999_ms": {
+          "min": 8.462335,
+          "median": 9.109503,
+          "max": 14.352383
+        },
+        "achieved_per_s": {
+          "min": 2000.0,
+          "median": 2000.0,
+          "max": 2000.0
+        },
+        "errors": 0,
+        "dispatch_lag_p99_ms": {
+          "min": 0.119167,
+          "median": 0.164351,
+          "max": 0.170879
+        },
+        "http_service_p99_ms": {
+          "min": 6.180863,
+          "median": 6.361087,
+          "max": 8.204287
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 11.657215,
+            "median": 11.771903,
+            "max": 11.886591
+          },
+          "p99_ms": {
+            "min": 17.612799,
+            "median": 17.727487,
+            "max": 19.300351
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 4000,
+        "all_pass": true,
+        "runner_read_or_write_all_pass": true,
+        "p50_ms": {
+          "min": 2.705407,
+          "median": 2.811903,
+          "max": 2.813951
+        },
+        "p99_ms": {
+          "min": 6.623231,
+          "median": 7.045119,
+          "max": 7.151615
+        },
+        "p999_ms": {
+          "min": 9.166847,
+          "median": 10.002431,
+          "max": 10.985471
+        },
+        "achieved_per_s": {
+          "min": 4000.0,
+          "median": 4000.0,
+          "max": 4000.0
+        },
+        "errors": 0,
+        "dispatch_lag_p99_ms": {
+          "min": 0.092735,
+          "median": 0.101439,
+          "max": 0.113407
+        },
+        "http_service_p99_ms": {
+          "min": 6.598655,
+          "median": 7.000063,
+          "max": 7.114751
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 12.296191,
+            "median": 12.443647,
+            "max": 12.509183
+          },
+          "p99_ms": {
+            "min": 18.579455,
+            "median": 19.185663,
+            "max": 21.118975
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 5656,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 3.315711,
+          "median": 3.383295,
+          "max": 3.516415
+        },
+        "p99_ms": {
+          "min": 9.068543,
+          "median": 33.980415,
+          "max": 55.541759
+        },
+        "p999_ms": {
+          "min": 15.695871,
+          "median": 58.589183,
+          "max": 83.623935
+        },
+        "achieved_per_s": {
+          "min": 5656.0,
+          "median": 5656.0,
+          "max": 5656.0
+        },
+        "errors": 0,
+        "dispatch_lag_p99_ms": {
+          "min": 0.110911,
+          "median": 11.337727,
+          "max": 32.899071
+        },
+        "http_service_p99_ms": {
+          "min": 9.011199,
+          "median": 18.710527,
+          "max": 19.873791
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 13.582335,
+            "median": 13.590527,
+            "max": 13.598719
+          },
+          "p99_ms": {
+            "min": 21.528575,
+            "median": 22.052863,
+            "max": 23.363583
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 8000,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 1009.778687,
+          "median": 1009.778687,
+          "max": 1010.302975
+        },
+        "p99_ms": {
+          "min": 1022.361599,
+          "median": 1022.361599,
+          "max": 1022.885887
+        },
+        "p999_ms": {
+          "min": 1026.555903,
+          "median": 1027.604479,
+          "max": 1028.128767
+        },
+        "achieved_per_s": {
+          "min": 6474.0,
+          "median": 6556.35,
+          "max": 6557.7
+        },
+        "errors": 88239,
+        "dispatch_lag_p99_ms": {
+          "min": 1006.108671,
+          "median": 1006.108671,
+          "max": 1007.157247
+        },
+        "http_service_p99_ms": {
+          "min": 25.640959,
+          "median": 25.739263,
+          "max": 26.263551
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 15.867903,
+            "median": 16.097279,
+            "max": 16.105471
+          },
+          "p99_ms": {
+            "min": 25.509887,
+            "median": 25.853951,
+            "max": 26.755071
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 19027,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 1010.302975,
+          "median": 1010.302975,
+          "max": 1010.302975
+        },
+        "p99_ms": {
+          "min": 1022.885887,
+          "median": 1022.885887,
+          "max": 1023.410175
+        },
+        "p999_ms": {
+          "min": 1027.604479,
+          "median": 1029.701631,
+          "max": 1041.760255
+        },
+        "achieved_per_s": {
+          "min": 6427.1,
+          "median": 6432.5,
+          "max": 6509.9
+        },
+        "errors": 754230,
+        "dispatch_lag_p99_ms": {
+          "min": 1016.070143,
+          "median": 1016.070143,
+          "max": 1016.594431
+        },
+        "http_service_p99_ms": {
+          "min": 24.608767,
+          "median": 24.854527,
+          "max": 24.870911
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 16.310271,
+            "median": 16.334847,
+            "max": 16.343039
+          },
+          "p99_ms": {
+            "min": 26.656767,
+            "median": 26.918911,
+            "max": 27.033599
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 22627,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 1009.778687,
+          "median": 1010.302975,
+          "max": 1010.302975
+        },
+        "p99_ms": {
+          "min": 1022.885887,
+          "median": 1022.885887,
+          "max": 1022.885887
+        },
+        "p999_ms": {
+          "min": 1028.128767,
+          "median": 1028.128767,
+          "max": 1029.177343
+        },
+        "achieved_per_s": {
+          "min": 6460.05,
+          "median": 6463.85,
+          "max": 6527.6
+        },
+        "errors": 968590,
+        "dispatch_lag_p99_ms": {
+          "min": 1017.118719,
+          "median": 1017.118719,
+          "max": 1017.118719
+        },
+        "http_service_p99_ms": {
+          "min": 24.510463,
+          "median": 24.559615,
+          "max": 24.641535
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 16.121855,
+            "median": 16.195583,
+            "max": 16.383999
+          },
+          "p99_ms": {
+            "min": 26.165247,
+            "median": 26.820607,
+            "max": 27.459583
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      }
+    ]
+  },
+  {
+    "arm": "E",
+    "cell": {
+      "workload": "W1",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/replay-w1-n1000000-d500-c128-disjoint-NEW",
+        "--workload",
+        "W1",
+        "--keys",
+        "disjoint",
+        "--link",
+        "A",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/bin/sb4-postgres-scale-seed",
+        "--rates",
+        "1000",
+        "2000",
+        "4000",
+        "8000",
+        "5656",
+        "19027",
+        "22627"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "part": "w1-n1000000-d500-c128-disjoint",
+    "smoke": false,
+    "concurrent_writes": true,
+    "rate": 4000,
+    "selected": {
+      "rate": 4000,
+      "all_pass": true,
+      "runner_read_or_write_all_pass": true,
+      "p50_ms": {
+        "min": 2.723839,
+        "median": 2.758655,
+        "max": 2.895871
+      },
+      "p99_ms": {
+        "min": 6.377471,
+        "median": 6.594559,
+        "max": 21.561343
+      },
+      "p999_ms": {
+        "min": 9.150463,
+        "median": 9.748479,
+        "max": 58.523647
+      },
+      "achieved_per_s": {
+        "min": 4000.0,
+        "median": 4000.0,
+        "max": 4000.0
+      },
+      "errors": 0,
+      "dispatch_lag_p99_ms": {
+        "min": 0.071935,
+        "median": 0.075967,
+        "max": 0.200831
+      },
+      "http_service_p99_ms": {
+        "min": 6.361087,
+        "median": 6.565887,
+        "max": 18.513919
+      },
+      "background": {
+        "all_pass": true,
+        "p50_ms": {
+          "min": 9.502719,
+          "median": 9.592831,
+          "max": 9.830399
+        },
+        "p99_ms": {
+          "min": 15.220735,
+          "median": 16.400383,
+          "max": 18.743295
+        },
+        "achieved_per_s": {
+          "min": 400.0,
+          "median": 400.0,
+          "max": 400.0
+        },
+        "errors": 0
+      }
+    },
+    "rates": [
+      {
+        "rate": 1000,
+        "all_pass": true,
+        "runner_read_or_write_all_pass": true,
+        "p50_ms": {
+          "min": 2.398207,
+          "median": 2.471935,
+          "max": 5.529599
+        },
+        "p99_ms": {
+          "min": 5.419007,
+          "median": 7.090175,
+          "max": 9.617407
+        },
+        "p999_ms": {
+          "min": 10.084351,
+          "median": 12.058623,
+          "max": 14.581759
+        },
+        "achieved_per_s": {
+          "min": 1000.0,
+          "median": 1000.0,
+          "max": 1000.0
+        },
+        "errors": 0,
+        "dispatch_lag_p99_ms": {
+          "min": 0.103167,
+          "median": 0.113855,
+          "max": 0.155903
+        },
+        "http_service_p99_ms": {
+          "min": 5.394431,
+          "median": 7.049215,
+          "max": 9.601023
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 9.101311,
+            "median": 9.412607,
+            "max": 9.748479
+          },
+          "p99_ms": {
+            "min": 13.901823,
+            "median": 15.474687,
+            "max": 16.424959
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 2000,
+        "all_pass": true,
+        "runner_read_or_write_all_pass": true,
+        "p50_ms": {
+          "min": 2.420735,
+          "median": 2.478079,
+          "max": 2.549759
+        },
+        "p99_ms": {
+          "min": 5.857279,
+          "median": 6.467583,
+          "max": 7.757823
+        },
+        "p999_ms": {
+          "min": 8.601599,
+          "median": 9.019391,
+          "max": 15.106047
+        },
+        "achieved_per_s": {
+          "min": 1999.95,
+          "median": 2000.0,
+          "max": 2000.0
+        },
+        "errors": 1,
+        "dispatch_lag_p99_ms": {
+          "min": 0.099071,
+          "median": 0.143103,
+          "max": 0.153855
+        },
+        "http_service_p99_ms": {
+          "min": 5.820415,
+          "median": 6.438911,
+          "max": 7.725055
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 9.191423,
+            "median": 9.215999,
+            "max": 9.215999
+          },
+          "p99_ms": {
+            "min": 14.139391,
+            "median": 14.761983,
+            "max": 14.778367
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 4000,
+        "all_pass": true,
+        "runner_read_or_write_all_pass": true,
+        "p50_ms": {
+          "min": 2.723839,
+          "median": 2.758655,
+          "max": 2.895871
+        },
+        "p99_ms": {
+          "min": 6.377471,
+          "median": 6.594559,
+          "max": 21.561343
+        },
+        "p999_ms": {
+          "min": 9.150463,
+          "median": 9.748479,
+          "max": 58.523647
+        },
+        "achieved_per_s": {
+          "min": 4000.0,
+          "median": 4000.0,
+          "max": 4000.0
+        },
+        "errors": 0,
+        "dispatch_lag_p99_ms": {
+          "min": 0.071935,
+          "median": 0.075967,
+          "max": 0.200831
+        },
+        "http_service_p99_ms": {
+          "min": 6.361087,
+          "median": 6.565887,
+          "max": 18.513919
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 9.502719,
+            "median": 9.592831,
+            "max": 9.830399
+          },
+          "p99_ms": {
+            "min": 15.220735,
+            "median": 16.400383,
+            "max": 18.743295
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 5656,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 3.252223,
+          "median": 3.332095,
+          "max": 3.405823
+        },
+        "p99_ms": {
+          "min": 8.577023,
+          "median": 15.802367,
+          "max": 51.118079
+        },
+        "p999_ms": {
+          "min": 12.836863,
+          "median": 56.459263,
+          "max": 82.444287
+        },
+        "achieved_per_s": {
+          "min": 5656.0,
+          "median": 5656.0,
+          "max": 5656.0
+        },
+        "errors": 0,
+        "dispatch_lag_p99_ms": {
+          "min": 0.108671,
+          "median": 0.304895,
+          "max": 28.459007
+        },
+        "http_service_p99_ms": {
+          "min": 8.536063,
+          "median": 13.844479,
+          "max": 18.661375
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 10.797055,
+            "median": 10.895359,
+            "max": 10.903551
+          },
+          "p99_ms": {
+            "min": 18.022399,
+            "median": 18.382847,
+            "max": 21.315583
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 8000,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 1009.778687,
+          "median": 1009.778687,
+          "max": 1009.778687
+        },
+        "p99_ms": {
+          "min": 1021.837311,
+          "median": 1021.837311,
+          "max": 1022.885887
+        },
+        "p999_ms": {
+          "min": 1026.555903,
+          "median": 1026.555903,
+          "max": 1038.614527
+        },
+        "achieved_per_s": {
+          "min": 6716.35,
+          "median": 6728.65,
+          "max": 6729.3
+        },
+        "errors": 76514,
+        "dispatch_lag_p99_ms": {
+          "min": 1006.108671,
+          "median": 1006.108671,
+          "max": 1006.632959
+        },
+        "http_service_p99_ms": {
+          "min": 25.411583,
+          "median": 25.477119,
+          "max": 25.837567
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 14.401535,
+            "median": 14.434303,
+            "max": 14.491647
+          },
+          "p99_ms": {
+            "min": 24.412159,
+            "median": 24.444927,
+            "max": 24.821759
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 19027,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 1009.778687,
+          "median": 1009.778687,
+          "max": 1009.778687
+        },
+        "p99_ms": {
+          "min": 1021.837311,
+          "median": 1021.837311,
+          "max": 1022.361599
+        },
+        "p999_ms": {
+          "min": 1027.080191,
+          "median": 1028.128767,
+          "max": 1028.128767
+        },
+        "achieved_per_s": {
+          "min": 6650.35,
+          "median": 6766.1,
+          "max": 6767.4
+        },
+        "errors": 737943,
+        "dispatch_lag_p99_ms": {
+          "min": 1015.021567,
+          "median": 1015.545855,
+          "max": 1016.070143
+        },
+        "http_service_p99_ms": {
+          "min": 23.789567,
+          "median": 23.953407,
+          "max": 24.657919
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 14.516223,
+            "median": 14.737407,
+            "max": 14.811135
+          },
+          "p99_ms": {
+            "min": 24.985599,
+            "median": 25.362431,
+            "max": 25.706495
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 22627,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 1009.778687,
+          "median": 1009.778687,
+          "max": 1009.778687
+        },
+        "p99_ms": {
+          "min": 1022.361599,
+          "median": 1022.361599,
+          "max": 1022.885887
+        },
+        "p999_ms": {
+          "min": 1028.128767,
+          "median": 1028.653055,
+          "max": 1028.653055
+        },
+        "achieved_per_s": {
+          "min": 6664.55,
+          "median": 6674.9,
+          "max": 6696.3
+        },
+        "errors": 956905,
+        "dispatch_lag_p99_ms": {
+          "min": 1017.118719,
+          "median": 1017.118719,
+          "max": 1017.118719
+        },
+        "http_service_p99_ms": {
+          "min": 24.150015,
+          "median": 24.150015,
+          "max": 24.559615
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 14.385151,
+            "median": 14.622719,
+            "max": 14.745599
+          },
+          "p99_ms": {
+            "min": 24.936447,
+            "median": 25.886719,
+            "max": 25.985023
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      }
+    ]
+  },
+  {
+    "arm": "E",
+    "cell": {
+      "workload": "W2",
+      "rows": 1000000,
+      "delay_us": 1000,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/replay-w2-n1000000-d1000-c128-disjoint-NEW",
+        "--workload",
+        "W2",
+        "--keys",
+        "disjoint",
+        "--link",
+        "B",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/bin/sb4-postgres-scale-seed",
+        "--rates",
+        "1000",
+        "2000",
+        "4000",
+        "2828",
+        "19027",
+        "22627"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "part": "w2-n1000000-d1000-c128-disjoint",
+    "smoke": false,
+    "concurrent_writes": true,
+    "rate": 2828,
+    "selected": {
+      "rate": 2828,
+      "all_pass": true,
+      "runner_read_or_write_all_pass": true,
+      "p50_ms": {
+        "min": 4.550655,
+        "median": 4.607999,
+        "max": 4.718591
+      },
+      "p99_ms": {
+        "min": 12.410879,
+        "median": 12.623871,
+        "max": 13.180927
+      },
+      "p999_ms": {
+        "min": 16.351231,
+        "median": 16.539647,
+        "max": 18.300927
+      },
+      "achieved_per_s": {
+        "min": 2828.0,
+        "median": 2828.0,
+        "max": 2828.0
+      },
+      "errors": 0,
+      "dispatch_lag_p99_ms": {
+        "min": 0.104191,
+        "median": 0.108607,
+        "max": 0.111487
+      },
+      "http_service_p99_ms": {
+        "min": 12.386303,
+        "median": 12.607487,
+        "max": 13.156351
+      },
+      "background": {
+        "all_pass": true,
+        "p50_ms": {
+          "min": 13.402111,
+          "median": 13.410303,
+          "max": 13.615103
+        },
+        "p99_ms": {
+          "min": 20.676607,
+          "median": 20.987903,
+          "max": 21.004287
+        },
+        "achieved_per_s": {
+          "min": 400.0,
+          "median": 400.0,
+          "max": 400.0
+        },
+        "errors": 0
+      }
+    },
+    "rates": [
+      {
+        "rate": 1000,
+        "all_pass": true,
+        "runner_read_or_write_all_pass": true,
+        "p50_ms": {
+          "min": 3.852287,
+          "median": 4.243455,
+          "max": 4.374527
+        },
+        "p99_ms": {
+          "min": 9.281535,
+          "median": 9.543679,
+          "max": 9.871359
+        },
+        "p999_ms": {
+          "min": 11.476991,
+          "median": 11.894783,
+          "max": 12.255231
+        },
+        "achieved_per_s": {
+          "min": 1000.0,
+          "median": 1000.0,
+          "max": 1000.0
+        },
+        "errors": 0,
+        "dispatch_lag_p99_ms": {
+          "min": 0.177663,
+          "median": 0.179711,
+          "max": 0.193663
+        },
+        "http_service_p99_ms": {
+          "min": 9.232383,
+          "median": 9.519103,
+          "max": 9.830399
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 12.222463,
+            "median": 12.304383,
+            "max": 12.320767
+          },
+          "p99_ms": {
+            "min": 18.841599,
+            "median": 19.251199,
+            "max": 19.316735
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 2000,
+        "all_pass": true,
+        "runner_read_or_write_all_pass": true,
+        "p50_ms": {
+          "min": 4.157439,
+          "median": 4.202495,
+          "max": 4.300799
+        },
+        "p99_ms": {
+          "min": 11.476991,
+          "median": 11.763711,
+          "max": 12.378111
+        },
+        "p999_ms": {
+          "min": 15.663103,
+          "median": 21.741567,
+          "max": 24.821759
+        },
+        "achieved_per_s": {
+          "min": 2000.0,
+          "median": 2000.0,
+          "max": 2000.0
+        },
+        "errors": 0,
+        "dispatch_lag_p99_ms": {
+          "min": 0.171647,
+          "median": 0.179711,
+          "max": 0.181887
+        },
+        "http_service_p99_ms": {
+          "min": 11.427839,
+          "median": 11.755519,
+          "max": 12.369919
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 12.746751,
+            "median": 12.820479,
+            "max": 12.951551
+          },
+          "p99_ms": {
+            "min": 19.922943,
+            "median": 20.873215,
+            "max": 22.315007
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 2828,
+        "all_pass": true,
+        "runner_read_or_write_all_pass": true,
+        "p50_ms": {
+          "min": 4.550655,
+          "median": 4.607999,
+          "max": 4.718591
+        },
+        "p99_ms": {
+          "min": 12.410879,
+          "median": 12.623871,
+          "max": 13.180927
+        },
+        "p999_ms": {
+          "min": 16.351231,
+          "median": 16.539647,
+          "max": 18.300927
+        },
+        "achieved_per_s": {
+          "min": 2828.0,
+          "median": 2828.0,
+          "max": 2828.0
+        },
+        "errors": 0,
+        "dispatch_lag_p99_ms": {
+          "min": 0.104191,
+          "median": 0.108607,
+          "max": 0.111487
+        },
+        "http_service_p99_ms": {
+          "min": 12.386303,
+          "median": 12.607487,
+          "max": 13.156351
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 13.402111,
+            "median": 13.410303,
+            "max": 13.615103
+          },
+          "p99_ms": {
+            "min": 20.676607,
+            "median": 20.987903,
+            "max": 21.004287
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 4000,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 304.349183,
+          "median": 359.661567,
+          "max": 542.638079
+        },
+        "p99_ms": {
+          "min": 600.834047,
+          "median": 710.410239,
+          "max": 865.075199
+        },
+        "p999_ms": {
+          "min": 657.981439,
+          "median": 788.004863,
+          "max": 945.815551
+        },
+        "achieved_per_s": {
+          "min": 4000.0,
+          "median": 4000.0,
+          "max": 4000.0
+        },
+        "errors": 0,
+        "dispatch_lag_p99_ms": {
+          "min": 568.852479,
+          "median": 678.428671,
+          "max": 833.093631
+        },
+        "http_service_p99_ms": {
+          "min": 43.417599,
+          "median": 43.810815,
+          "max": 44.695551
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 18.038783,
+            "median": 18.169855,
+            "max": 18.333695
+          },
+          "p99_ms": {
+            "min": 28.704767,
+            "median": 29.114367,
+            "max": 30.228479
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 19027,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 1016.594431,
+          "median": 1016.594431,
+          "max": 1017.118719
+        },
+        "p99_ms": {
+          "min": 1037.565951,
+          "median": 1038.090239,
+          "max": 1039.138815
+        },
+        "p999_ms": {
+          "min": 1044.381695,
+          "median": 1044.905983,
+          "max": 1054.343167
+        },
+        "achieved_per_s": {
+          "min": 3843.95,
+          "median": 3866.75,
+          "max": 3884.45
+        },
+        "errors": 909717,
+        "dispatch_lag_p99_ms": {
+          "min": 1031.274495,
+          "median": 1031.274495,
+          "max": 1032.323071
+        },
+        "http_service_p99_ms": {
+          "min": 39.911423,
+          "median": 40.370175,
+          "max": 40.763391
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 18.644991,
+            "median": 18.759679,
+            "max": 18.874367
+          },
+          "p99_ms": {
+            "min": 29.573119,
+            "median": 30.588927,
+            "max": 30.621695
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 22627,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 1016.594431,
+          "median": 1017.118719,
+          "max": 1017.118719
+        },
+        "p99_ms": {
+          "min": 1037.565951,
+          "median": 1038.614527,
+          "max": 1038.614527
+        },
+        "p999_ms": {
+          "min": 1043.857407,
+          "median": 1044.905983,
+          "max": 1045.430271
+        },
+        "achieved_per_s": {
+          "min": 3840.65,
+          "median": 3850.25,
+          "max": 3910.3
+        },
+        "errors": 1125596,
+        "dispatch_lag_p99_ms": {
+          "min": 1031.798783,
+          "median": 1032.847359,
+          "max": 1032.847359
+        },
+        "http_service_p99_ms": {
+          "min": 39.190527,
+          "median": 40.075263,
+          "max": 40.271871
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 18.857983,
+            "median": 18.874367,
+            "max": 19.136511
+          },
+          "p99_ms": {
+            "min": 29.442047,
+            "median": 30.212095,
+            "max": 30.769151
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      }
+    ]
+  },
+  {
+    "arm": "E",
+    "cell": {
+      "workload": "W2",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/replay-w2-n1000000-d500-c128-disjoint-NEW",
+        "--workload",
+        "W2",
+        "--keys",
+        "disjoint",
+        "--link",
+        "A",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/bin/sb4-postgres-scale-seed",
+        "--rates",
+        "1000",
+        "2000",
+        "4000",
+        "2828",
+        "19027",
+        "22627"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "part": "w2-n1000000-d500-c128-disjoint",
+    "smoke": false,
+    "concurrent_writes": true,
+    "rate": 2828,
+    "selected": {
+      "rate": 2828,
+      "all_pass": true,
+      "runner_read_or_write_all_pass": true,
+      "p50_ms": {
+        "min": 4.378623,
+        "median": 4.403199,
+        "max": 4.542463
+      },
+      "p99_ms": {
+        "min": 11.837439,
+        "median": 12.582911,
+        "max": 25.722879
+      },
+      "p999_ms": {
+        "min": 16.359423,
+        "median": 17.219583,
+        "max": 60.456959
+      },
+      "achieved_per_s": {
+        "min": 2828.0,
+        "median": 2828.0,
+        "max": 2828.0
+      },
+      "errors": 0,
+      "dispatch_lag_p99_ms": {
+        "min": 0.111871,
+        "median": 0.113599,
+        "max": 0.126335
+      },
+      "http_service_p99_ms": {
+        "min": 11.804671,
+        "median": 12.550143,
+        "max": 24.559615
+      },
+      "background": {
+        "all_pass": true,
+        "p50_ms": {
+          "min": 10.903551,
+          "median": 10.911743,
+          "max": 10.919935
+        },
+        "p99_ms": {
+          "min": 18.235391,
+          "median": 18.382847,
+          "max": 19.464191
+        },
+        "achieved_per_s": {
+          "min": 400.0,
+          "median": 400.0,
+          "max": 400.0
+        },
+        "errors": 0
+      }
+    },
+    "rates": [
+      {
+        "rate": 1000,
+        "all_pass": true,
+        "runner_read_or_write_all_pass": true,
+        "p50_ms": {
+          "min": 3.551231,
+          "median": 3.700735,
+          "max": 3.880959
+        },
+        "p99_ms": {
+          "min": 9.215999,
+          "median": 9.355263,
+          "max": 10.158079
+        },
+        "p999_ms": {
+          "min": 11.886591,
+          "median": 12.435455,
+          "max": 19.382271
+        },
+        "achieved_per_s": {
+          "min": 1000.0,
+          "median": 1000.0,
+          "max": 1000.0
+        },
+        "errors": 0,
+        "dispatch_lag_p99_ms": {
+          "min": 0.171519,
+          "median": 0.173823,
+          "max": 0.190207
+        },
+        "http_service_p99_ms": {
+          "min": 9.183231,
+          "median": 9.330687,
+          "max": 10.059775
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 9.461759,
+            "median": 9.551871,
+            "max": 9.674751
+          },
+          "p99_ms": {
+            "min": 14.688255,
+            "median": 15.433727,
+            "max": 15.851519
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 2000,
+        "all_pass": true,
+        "runner_read_or_write_all_pass": true,
+        "p50_ms": {
+          "min": 3.864575,
+          "median": 3.971071,
+          "max": 4.030463
+        },
+        "p99_ms": {
+          "min": 10.280959,
+          "median": 10.305535,
+          "max": 12.238847
+        },
+        "p999_ms": {
+          "min": 13.287423,
+          "median": 13.697023,
+          "max": 23.560191
+        },
+        "achieved_per_s": {
+          "min": 2000.0,
+          "median": 2000.0,
+          "max": 2000.0
+        },
+        "errors": 0,
+        "dispatch_lag_p99_ms": {
+          "min": 0.104895,
+          "median": 0.171775,
+          "max": 0.175871
+        },
+        "http_service_p99_ms": {
+          "min": 10.256383,
+          "median": 10.280959,
+          "max": 12.206079
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 9.846783,
+            "median": 10.166271,
+            "max": 10.305535
+          },
+          "p99_ms": {
+            "min": 15.114239,
+            "median": 16.105471,
+            "max": 17.186815
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 2828,
+        "all_pass": true,
+        "runner_read_or_write_all_pass": true,
+        "p50_ms": {
+          "min": 4.378623,
+          "median": 4.403199,
+          "max": 4.542463
+        },
+        "p99_ms": {
+          "min": 11.837439,
+          "median": 12.582911,
+          "max": 25.722879
+        },
+        "p999_ms": {
+          "min": 16.359423,
+          "median": 17.219583,
+          "max": 60.456959
+        },
+        "achieved_per_s": {
+          "min": 2828.0,
+          "median": 2828.0,
+          "max": 2828.0
+        },
+        "errors": 0,
+        "dispatch_lag_p99_ms": {
+          "min": 0.111871,
+          "median": 0.113599,
+          "max": 0.126335
+        },
+        "http_service_p99_ms": {
+          "min": 11.804671,
+          "median": 12.550143,
+          "max": 24.559615
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 10.903551,
+            "median": 10.911743,
+            "max": 10.919935
+          },
+          "p99_ms": {
+            "min": 18.235391,
+            "median": 18.382847,
+            "max": 19.464191
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 4000,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 15.982591,
+          "median": 86.704127,
+          "max": 200.015871
+        },
+        "p99_ms": {
+          "min": 57.147391,
+          "median": 214.564863,
+          "max": 398.196735
+        },
+        "p999_ms": {
+          "min": 91.750399,
+          "median": 246.939647,
+          "max": 472.383487
+        },
+        "achieved_per_s": {
+          "min": 4000.0,
+          "median": 4000.0,
+          "max": 4000.0
+        },
+        "errors": 0,
+        "dispatch_lag_p99_ms": {
+          "min": 26.165247,
+          "median": 182.583295,
+          "max": 366.215167
+        },
+        "http_service_p99_ms": {
+          "min": 37.453823,
+          "median": 43.352063,
+          "max": 43.515903
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 16.941055,
+            "median": 16.973823,
+            "max": 17.022975
+          },
+          "p99_ms": {
+            "min": 28.655615,
+            "median": 29.032447,
+            "max": 29.147135
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 19027,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 1016.070143,
+          "median": 1016.594431,
+          "max": 1016.594431
+        },
+        "p99_ms": {
+          "min": 1037.041663,
+          "median": 1037.041663,
+          "max": 1037.565951
+        },
+        "p999_ms": {
+          "min": 1043.333119,
+          "median": 1043.857407,
+          "max": 1043.857407
+        },
+        "achieved_per_s": {
+          "min": 3955.35,
+          "median": 3971.4,
+          "max": 3987.3
+        },
+        "errors": 903339,
+        "dispatch_lag_p99_ms": {
+          "min": 1030.225919,
+          "median": 1030.750207,
+          "max": 1030.750207
+        },
+        "http_service_p99_ms": {
+          "min": 39.256063,
+          "median": 39.419903,
+          "max": 39.714815
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 17.547263,
+            "median": 17.629183,
+            "max": 17.743871
+          },
+          "p99_ms": {
+            "min": 29.081599,
+            "median": 29.556735,
+            "max": 29.900799
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 22627,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 1016.070143,
+          "median": 1016.070143,
+          "max": 1016.594431
+        },
+        "p99_ms": {
+          "min": 1037.041663,
+          "median": 1037.041663,
+          "max": 1037.565951
+        },
+        "p999_ms": {
+          "min": 1043.333119,
+          "median": 1043.857407,
+          "max": 1044.905983
+        },
+        "achieved_per_s": {
+          "min": 3961.65,
+          "median": 3987.55,
+          "max": 3999.6
+        },
+        "errors": 1118644,
+        "dispatch_lag_p99_ms": {
+          "min": 1031.274495,
+          "median": 1031.798783,
+          "max": 1031.798783
+        },
+        "http_service_p99_ms": {
+          "min": 38.633471,
+          "median": 38.797311,
+          "max": 39.092223
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 17.448959,
+            "median": 17.563647,
+            "max": 17.694719
+          },
+          "p99_ms": {
+            "min": 29.589503,
+            "median": 29.802495,
+            "max": 29.999103
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      }
+    ]
+  },
+  {
+    "arm": "E",
+    "cell": {
+      "workload": "W3",
+      "rows": 1000000,
+      "delay_us": 1000,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/replay-w3-n1000000-d1000-c128-disjoint-NEW",
+        "--workload",
+        "W3",
+        "--keys",
+        "disjoint",
+        "--link",
+        "B",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/bin/sb4-postgres-scale-seed",
+        "--rates",
+        "1000",
+        "2000",
+        "4000",
+        "2828",
+        "19027",
+        "22627"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "part": "w3-n1000000-d1000-c128-disjoint",
+    "smoke": false,
+    "concurrent_writes": true,
+    "rate": 2000,
+    "selected": {
+      "rate": 2000,
+      "all_pass": true,
+      "runner_read_or_write_all_pass": true,
+      "p50_ms": {
+        "min": 8.159231,
+        "median": 8.163327,
+        "max": 8.302591
+      },
+      "p99_ms": {
+        "min": 19.202047,
+        "median": 19.349503,
+        "max": 40.828927
+      },
+      "p999_ms": {
+        "min": 25.100287,
+        "median": 25.116671,
+        "max": 59.637759
+      },
+      "achieved_per_s": {
+        "min": 2000.0,
+        "median": 2000.0,
+        "max": 2000.0
+      },
+      "errors": 0,
+      "dispatch_lag_p99_ms": {
+        "min": 0.115583,
+        "median": 0.152575,
+        "max": 0.156927
+      },
+      "http_service_p99_ms": {
+        "min": 19.169279,
+        "median": 19.333119,
+        "max": 40.370175
+      },
+      "background": {
+        "all_pass": true,
+        "p50_ms": {
+          "min": 17.039359,
+          "median": 17.235967,
+          "max": 17.252351
+        },
+        "p99_ms": {
+          "min": 29.065215,
+          "median": 30.195711,
+          "max": 32.505855
+        },
+        "achieved_per_s": {
+          "min": 400.0,
+          "median": 400.0,
+          "max": 400.0
+        },
+        "errors": 0
+      }
+    },
+    "rates": [
+      {
+        "rate": 1000,
+        "all_pass": true,
+        "runner_read_or_write_all_pass": true,
+        "p50_ms": {
+          "min": 4.820991,
+          "median": 4.919295,
+          "max": 4.927487
+        },
+        "p99_ms": {
+          "min": 11.091967,
+          "median": 12.746751,
+          "max": 12.976127
+        },
+        "p999_ms": {
+          "min": 13.508607,
+          "median": 16.744447,
+          "max": 26.951679
+        },
+        "achieved_per_s": {
+          "min": 1000.0,
+          "median": 1000.0,
+          "max": 1000.0
+        },
+        "errors": 0,
+        "dispatch_lag_p99_ms": {
+          "min": 0.159231,
+          "median": 0.160767,
+          "max": 0.169215
+        },
+        "http_service_p99_ms": {
+          "min": 11.051007,
+          "median": 12.697599,
+          "max": 12.951551
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 12.369919,
+            "median": 12.673023,
+            "max": 12.746751
+          },
+          "p99_ms": {
+            "min": 19.333119,
+            "median": 19.415039,
+            "max": 20.201471
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 2000,
+        "all_pass": true,
+        "runner_read_or_write_all_pass": true,
+        "p50_ms": {
+          "min": 8.159231,
+          "median": 8.163327,
+          "max": 8.302591
+        },
+        "p99_ms": {
+          "min": 19.202047,
+          "median": 19.349503,
+          "max": 40.828927
+        },
+        "p999_ms": {
+          "min": 25.100287,
+          "median": 25.116671,
+          "max": 59.637759
+        },
+        "achieved_per_s": {
+          "min": 2000.0,
+          "median": 2000.0,
+          "max": 2000.0
+        },
+        "errors": 0,
+        "dispatch_lag_p99_ms": {
+          "min": 0.115583,
+          "median": 0.152575,
+          "max": 0.156927
+        },
+        "http_service_p99_ms": {
+          "min": 19.169279,
+          "median": 19.333119,
+          "max": 40.370175
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 17.039359,
+            "median": 17.235967,
+            "max": 17.252351
+          },
+          "p99_ms": {
+            "min": 29.065215,
+            "median": 30.195711,
+            "max": 32.505855
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 2828,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 1028.653055,
+          "median": 1028.653055,
+          "max": 1028.653055
+        },
+        "p99_ms": {
+          "min": 1063.256063,
+          "median": 1063.256063,
+          "max": 1063.256063
+        },
+        "p999_ms": {
+          "min": 1072.168959,
+          "median": 1072.168959,
+          "max": 1072.168959
+        },
+        "achieved_per_s": {
+          "min": 2251.2,
+          "median": 2255.05,
+          "max": 2255.15
+        },
+        "errors": 34452,
+        "dispatch_lag_p99_ms": {
+          "min": 1017.643007,
+          "median": 1017.643007,
+          "max": 1018.167295
+        },
+        "http_service_p99_ms": {
+          "min": 72.286207,
+          "median": 72.482815,
+          "max": 73.334783
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 25.362431,
+            "median": 25.362431,
+            "max": 25.542655
+          },
+          "p99_ms": {
+            "min": 45.711359,
+            "median": 46.104575,
+            "max": 46.727167
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 4000,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 1028.653055,
+          "median": 1028.653055,
+          "max": 1028.653055
+        },
+        "p99_ms": {
+          "min": 1062.731775,
+          "median": 1063.256063,
+          "max": 1063.256063
+        },
+        "p999_ms": {
+          "min": 1071.644671,
+          "median": 1072.168959,
+          "max": 1072.693247
+        },
+        "achieved_per_s": {
+          "min": 2248.55,
+          "median": 2252.55,
+          "max": 2256.75
+        },
+        "errors": 104843,
+        "dispatch_lag_p99_ms": {
+          "min": 1030.750207,
+          "median": 1031.274495,
+          "max": 1031.274495
+        },
+        "http_service_p99_ms": {
+          "min": 70.778879,
+          "median": 71.172095,
+          "max": 71.499775
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 25.083903,
+            "median": 25.165823,
+            "max": 25.214975
+          },
+          "p99_ms": {
+            "min": 44.990463,
+            "median": 45.154303,
+            "max": 45.187071
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 19027,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 1029.177343,
+          "median": 1029.177343,
+          "max": 1029.177343
+        },
+        "p99_ms": {
+          "min": 1063.256063,
+          "median": 1063.780351,
+          "max": 1064.304639
+        },
+        "p999_ms": {
+          "min": 1072.168959,
+          "median": 1073.217535,
+          "max": 1074.790399
+        },
+        "achieved_per_s": {
+          "min": 2222.3,
+          "median": 2231.0,
+          "max": 2233.5
+        },
+        "errors": 1007884,
+        "dispatch_lag_p99_ms": {
+          "min": 1056.964607,
+          "median": 1056.964607,
+          "max": 1057.488895
+        },
+        "http_service_p99_ms": {
+          "min": 65.339391,
+          "median": 65.470463,
+          "max": 65.830911
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 24.592383,
+            "median": 24.772607,
+            "max": 25.051135
+          },
+          "p99_ms": {
+            "min": 43.941887,
+            "median": 46.039039,
+            "max": 47.906815
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 22627,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 1028.653055,
+          "median": 1029.177343,
+          "max": 1029.177343
+        },
+        "p99_ms": {
+          "min": 1063.780351,
+          "median": 1063.780351,
+          "max": 1064.304639
+        },
+        "p999_ms": {
+          "min": 1072.693247,
+          "median": 1073.217535,
+          "max": 1075.838975
+        },
+        "achieved_per_s": {
+          "min": 2225.65,
+          "median": 2227.2,
+          "max": 2235.0
+        },
+        "errors": 1223863,
+        "dispatch_lag_p99_ms": {
+          "min": 1058.013183,
+          "median": 1058.013183,
+          "max": 1058.537471
+        },
+        "http_service_p99_ms": {
+          "min": 64.520191,
+          "median": 64.946175,
+          "max": 65.077247
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 25.034751,
+            "median": 25.247743,
+            "max": 25.313279
+          },
+          "p99_ms": {
+            "min": 44.826623,
+            "median": 45.809663,
+            "max": 46.268415
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      }
+    ]
+  },
+  {
+    "arm": "E",
+    "cell": {
+      "workload": "W3",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/replay-w3-n1000000-d500-c128-disjoint-NEW",
+        "--workload",
+        "W3",
+        "--keys",
+        "disjoint",
+        "--link",
+        "A",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/bin/sb4-postgres-scale-seed",
+        "--rates",
+        "1000",
+        "2000",
+        "4000",
+        "2828",
+        "19027",
+        "22627"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "part": "w3-n1000000-d500-c128-disjoint",
+    "smoke": false,
+    "concurrent_writes": true,
+    "rate": 2000,
+    "selected": {
+      "rate": 2000,
+      "all_pass": true,
+      "runner_read_or_write_all_pass": true,
+      "p50_ms": {
+        "min": 7.565311,
+        "median": 7.675903,
+        "max": 7.872511
+      },
+      "p99_ms": {
+        "min": 18.481151,
+        "median": 18.776063,
+        "max": 28.180479
+      },
+      "p999_ms": {
+        "min": 24.690687,
+        "median": 25.051135,
+        "max": 46.792703
+      },
+      "achieved_per_s": {
+        "min": 2000.0,
+        "median": 2000.0,
+        "max": 2000.0
+      },
+      "errors": 0,
+      "dispatch_lag_p99_ms": {
+        "min": 0.115967,
+        "median": 0.146815,
+        "max": 0.148991
+      },
+      "http_service_p99_ms": {
+        "min": 18.464767,
+        "median": 18.743295,
+        "max": 28.164095
+      },
+      "background": {
+        "all_pass": true,
+        "p50_ms": {
+          "min": 14.688255,
+          "median": 14.778367,
+          "max": 15.007743
+        },
+        "p99_ms": {
+          "min": 26.034175,
+          "median": 26.378239,
+          "max": 28.344319
+        },
+        "achieved_per_s": {
+          "min": 400.0,
+          "median": 400.0,
+          "max": 400.0
+        },
+        "errors": 0
+      }
+    },
+    "rates": [
+      {
+        "rate": 1000,
+        "all_pass": true,
+        "runner_read_or_write_all_pass": true,
+        "p50_ms": {
+          "min": 4.521983,
+          "median": 4.579327,
+          "max": 4.583423
+        },
+        "p99_ms": {
+          "min": 10.821631,
+          "median": 11.091967,
+          "max": 11.673599
+        },
+        "p999_ms": {
+          "min": 14.360575,
+          "median": 16.334847,
+          "max": 25.821183
+        },
+        "achieved_per_s": {
+          "min": 1000.0,
+          "median": 1000.0,
+          "max": 1000.0
+        },
+        "errors": 0,
+        "dispatch_lag_p99_ms": {
+          "min": 0.155007,
+          "median": 0.158591,
+          "max": 0.165247
+        },
+        "http_service_p99_ms": {
+          "min": 10.788863,
+          "median": 11.075583,
+          "max": 11.624447
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 10.248191,
+            "median": 10.412031,
+            "max": 10.436607
+          },
+          "p99_ms": {
+            "min": 17.629183,
+            "median": 17.842175,
+            "max": 18.792447
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 2000,
+        "all_pass": true,
+        "runner_read_or_write_all_pass": true,
+        "p50_ms": {
+          "min": 7.565311,
+          "median": 7.675903,
+          "max": 7.872511
+        },
+        "p99_ms": {
+          "min": 18.481151,
+          "median": 18.776063,
+          "max": 28.180479
+        },
+        "p999_ms": {
+          "min": 24.690687,
+          "median": 25.051135,
+          "max": 46.792703
+        },
+        "achieved_per_s": {
+          "min": 2000.0,
+          "median": 2000.0,
+          "max": 2000.0
+        },
+        "errors": 0,
+        "dispatch_lag_p99_ms": {
+          "min": 0.115967,
+          "median": 0.146815,
+          "max": 0.148991
+        },
+        "http_service_p99_ms": {
+          "min": 18.464767,
+          "median": 18.743295,
+          "max": 28.164095
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 14.688255,
+            "median": 14.778367,
+            "max": 15.007743
+          },
+          "p99_ms": {
+            "min": 26.034175,
+            "median": 26.378239,
+            "max": 28.344319
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 2828,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 1028.128767,
+          "median": 1028.128767,
+          "max": 1028.128767
+        },
+        "p99_ms": {
+          "min": 1062.731775,
+          "median": 1062.731775,
+          "max": 1063.256063
+        },
+        "p999_ms": {
+          "min": 1071.644671,
+          "median": 1072.693247,
+          "max": 1076.887551
+        },
+        "achieved_per_s": {
+          "min": 2278.3,
+          "median": 2282.95,
+          "max": 2284.2
+        },
+        "errors": 32771,
+        "dispatch_lag_p99_ms": {
+          "min": 1017.643007,
+          "median": 1017.643007,
+          "max": 1018.167295
+        },
+        "http_service_p99_ms": {
+          "min": 72.417279,
+          "median": 72.548351,
+          "max": 73.727999
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 24.264703,
+            "median": 24.444927,
+            "max": 24.543231
+          },
+          "p99_ms": {
+            "min": 46.301183,
+            "median": 49.283071,
+            "max": 49.315839
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 4000,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 1028.128767,
+          "median": 1028.128767,
+          "max": 1028.128767
+        },
+        "p99_ms": {
+          "min": 1062.207487,
+          "median": 1062.207487,
+          "max": 1062.731775
+        },
+        "p999_ms": {
+          "min": 1071.120383,
+          "median": 1072.168959,
+          "max": 1074.790399
+        },
+        "achieved_per_s": {
+          "min": 2278.9,
+          "median": 2281.5,
+          "max": 2286.95
+        },
+        "errors": 103053,
+        "dispatch_lag_p99_ms": {
+          "min": 1030.225919,
+          "median": 1030.225919,
+          "max": 1030.750207
+        },
+        "http_service_p99_ms": {
+          "min": 70.647807,
+          "median": 70.975487,
+          "max": 71.368703
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 23.953407,
+            "median": 24.018943,
+            "max": 24.297471
+          },
+          "p99_ms": {
+            "min": 45.678591,
+            "median": 45.776895,
+            "max": 46.661631
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 19027,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 1028.653055,
+          "median": 1028.653055,
+          "max": 1028.653055
+        },
+        "p99_ms": {
+          "min": 1063.256063,
+          "median": 1063.256063,
+          "max": 1063.780351
+        },
+        "p999_ms": {
+          "min": 1072.693247,
+          "median": 1072.693247,
+          "max": 1073.741823
+        },
+        "achieved_per_s": {
+          "min": 2253.05,
+          "median": 2264.2,
+          "max": 2264.95
+        },
+        "errors": 1005976,
+        "dispatch_lag_p99_ms": {
+          "min": 1056.440319,
+          "median": 1056.440319,
+          "max": 1056.964607
+        },
+        "http_service_p99_ms": {
+          "min": 64.913407,
+          "median": 64.946175,
+          "max": 65.208319
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 23.805951,
+            "median": 23.986175,
+            "max": 24.133631
+          },
+          "p99_ms": {
+            "min": 45.907967,
+            "median": 46.923775,
+            "max": 47.841279
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 22627,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 1028.653055,
+          "median": 1028.653055,
+          "max": 1028.653055
+        },
+        "p99_ms": {
+          "min": 1063.256063,
+          "median": 1063.256063,
+          "max": 1063.780351
+        },
+        "p999_ms": {
+          "min": 1072.168959,
+          "median": 1073.217535,
+          "max": 1074.790399
+        },
+        "achieved_per_s": {
+          "min": 2260.25,
+          "median": 2260.55,
+          "max": 2264.7
+        },
+        "errors": 1221910,
+        "dispatch_lag_p99_ms": {
+          "min": 1057.488895,
+          "median": 1057.488895,
+          "max": 1058.013183
+        },
+        "http_service_p99_ms": {
+          "min": 64.094207,
+          "median": 64.290815,
+          "max": 64.389119
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 23.969791,
+            "median": 24.330239,
+            "max": 24.395775
+          },
+          "p99_ms": {
+            "min": 45.907967,
+            "median": 46.825471,
+            "max": 48.365567
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      }
+    ]
+  },
+  {
+    "arm": "E",
+    "cell": {
+      "workload": "W4",
+      "rows": 1000000,
+      "delay_us": 1000,
+      "writers": 32,
+      "keys": "disjoint",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/replay-w4-n1000000-d1000-c32-disjoint-NEW",
+        "--workload",
+        "W4",
+        "--keys",
+        "disjoint",
+        "--link",
+        "B",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/bin/sb4-postgres-scale-seed",
+        "--rates",
+        "3200",
+        "1600",
+        "2262",
+        "4525"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "part": "w4-n1000000-d1000-c32-disjoint",
+    "smoke": false,
+    "concurrent_writes": false,
+    "rate": 1600,
+    "selected": {
+      "rate": 1600,
+      "all_pass": true,
+      "runner_read_or_write_all_pass": true,
+      "p50_ms": {
+        "min": 14.565375,
+        "median": 14.737407,
+        "max": 14.950399
+      },
+      "p99_ms": {
+        "min": 21.135359,
+        "median": 21.643263,
+        "max": 88.932351
+      },
+      "p999_ms": {
+        "min": 23.642111,
+        "median": 25.133055,
+        "max": 103.284735
+      },
+      "achieved_per_s": {
+        "min": 1600.0,
+        "median": 1600.0,
+        "max": 1600.0
+      },
+      "errors": 0,
+      "dispatch_lag_p99_ms": {
+        "min": 1.340415,
+        "median": 1.714175,
+        "max": 68.943871
+      },
+      "http_service_p99_ms": {
+        "min": 20.840447,
+        "median": 21.544959,
+        "max": 22.396927
+      }
+    },
+    "rates": [
+      {
+        "rate": 1600,
+        "all_pass": true,
+        "runner_read_or_write_all_pass": true,
+        "p50_ms": {
+          "min": 14.565375,
+          "median": 14.737407,
+          "max": 14.950399
+        },
+        "p99_ms": {
+          "min": 21.135359,
+          "median": 21.643263,
+          "max": 88.932351
+        },
+        "p999_ms": {
+          "min": 23.642111,
+          "median": 25.133055,
+          "max": 103.284735
+        },
+        "achieved_per_s": {
+          "min": 1600.0,
+          "median": 1600.0,
+          "max": 1600.0
+        },
+        "errors": 0,
+        "dispatch_lag_p99_ms": {
+          "min": 1.340415,
+          "median": 1.714175,
+          "max": 68.943871
+        },
+        "http_service_p99_ms": {
+          "min": 20.840447,
+          "median": 21.544959,
+          "max": 22.396927
+        }
+      },
+      {
+        "rate": 2262,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 1008.730111,
+          "median": 1008.730111,
+          "max": 1008.730111
+        },
+        "p99_ms": {
+          "min": 1018.167295,
+          "median": 1018.691583,
+          "max": 1018.691583
+        },
+        "p999_ms": {
+          "min": 1020.264447,
+          "median": 1021.313023,
+          "max": 1026.555903
+        },
+        "achieved_per_s": {
+          "min": 1888.65,
+          "median": 1905.8,
+          "max": 1926.15
+        },
+        "errors": 21308,
+        "dispatch_lag_p99_ms": {
+          "min": 1004.011519,
+          "median": 1004.535807,
+          "max": 1004.535807
+        },
+        "http_service_p99_ms": {
+          "min": 20.578303,
+          "median": 21.004287,
+          "max": 21.413887
+        }
+      },
+      {
+        "rate": 3200,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 1008.730111,
+          "median": 1008.730111,
+          "max": 1008.730111
+        },
+        "p99_ms": {
+          "min": 1018.691583,
+          "median": 1018.691583,
+          "max": 1019.740159
+        },
+        "p999_ms": {
+          "min": 1020.264447,
+          "median": 1021.313023,
+          "max": 1022.885887
+        },
+        "achieved_per_s": {
+          "min": 1855.9,
+          "median": 1927.05,
+          "max": 1938.65
+        },
+        "errors": 77568,
+        "dispatch_lag_p99_ms": {
+          "min": 1008.730111,
+          "median": 1008.730111,
+          "max": 1009.778687
+        },
+        "http_service_p99_ms": {
+          "min": 20.463615,
+          "median": 20.922367,
+          "max": 22.315007
+        }
+      },
+      {
+        "rate": 4525,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 1008.730111,
+          "median": 1008.730111,
+          "max": 1008.730111
+        },
+        "p99_ms": {
+          "min": 1018.691583,
+          "median": 1018.691583,
+          "max": 1019.740159
+        },
+        "p999_ms": {
+          "min": 1020.788735,
+          "median": 1021.313023,
+          "max": 1026.555903
+        },
+        "achieved_per_s": {
+          "min": 1891.4,
+          "median": 1896.45,
+          "max": 1912.6
+        },
+        "errors": 157491,
+        "dispatch_lag_p99_ms": {
+          "min": 1011.351551,
+          "median": 1011.875839,
+          "max": 1012.924415
+        },
+        "http_service_p99_ms": {
+          "min": 20.365311,
+          "median": 20.725759,
+          "max": 21.495807
+        }
+      }
+    ]
+  },
+  {
+    "arm": "E",
+    "cell": {
+      "workload": "W4",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 32,
+      "keys": "disjoint",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/replay-w4-n1000000-d500-c32-disjoint-NEW",
+        "--workload",
+        "W4",
+        "--keys",
+        "disjoint",
+        "--link",
+        "A",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/bin/sb4-postgres-scale-seed",
+        "--rates",
+        "3200",
+        "1600",
+        "2262",
+        "4525"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "part": "w4-n1000000-d500-c32-disjoint",
+    "smoke": false,
+    "concurrent_writes": false,
+    "rate": 1600,
+    "selected": {
+      "rate": 1600,
+      "all_pass": true,
+      "runner_read_or_write_all_pass": true,
+      "p50_ms": {
+        "min": 11.591679,
+        "median": 11.821055,
+        "max": 11.894783
+      },
+      "p99_ms": {
+        "min": 16.973823,
+        "median": 18.497535,
+        "max": 34.078719
+      },
+      "p999_ms": {
+        "min": 19.529727,
+        "median": 27.787263,
+        "max": 67.829759
+      },
+      "achieved_per_s": {
+        "min": 1600.0,
+        "median": 1600.0,
+        "max": 1600.0
+      },
+      "errors": 0,
+      "dispatch_lag_p99_ms": {
+        "min": 0.061375,
+        "median": 0.108735,
+        "max": 14.147583
+      },
+      "http_service_p99_ms": {
+        "min": 16.957439,
+        "median": 18.153471,
+        "max": 18.366463
+      }
+    },
+    "rates": [
+      {
+        "rate": 1600,
+        "all_pass": true,
+        "runner_read_or_write_all_pass": true,
+        "p50_ms": {
+          "min": 11.591679,
+          "median": 11.821055,
+          "max": 11.894783
+        },
+        "p99_ms": {
+          "min": 16.973823,
+          "median": 18.497535,
+          "max": 34.078719
+        },
+        "p999_ms": {
+          "min": 19.529727,
+          "median": 27.787263,
+          "max": 67.829759
+        },
+        "achieved_per_s": {
+          "min": 1600.0,
+          "median": 1600.0,
+          "max": 1600.0
+        },
+        "errors": 0,
+        "dispatch_lag_p99_ms": {
+          "min": 0.061375,
+          "median": 0.108735,
+          "max": 14.147583
+        },
+        "http_service_p99_ms": {
+          "min": 16.957439,
+          "median": 18.153471,
+          "max": 18.366463
+        }
+      },
+      {
+        "rate": 2262,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 134.086655,
+          "median": 321.388543,
+          "max": 485.490687
+        },
+        "p99_ms": {
+          "min": 258.736127,
+          "median": 437.518335,
+          "max": 805.306367
+        },
+        "p999_ms": {
+          "min": 272.367615,
+          "median": 467.664895,
+          "max": 839.909375
+        },
+        "achieved_per_s": {
+          "min": 2261.5,
+          "median": 2261.6,
+          "max": 2261.65
+        },
+        "errors": 25,
+        "dispatch_lag_p99_ms": {
+          "min": 244.580351,
+          "median": 423.362559,
+          "max": 790.626303
+        },
+        "http_service_p99_ms": {
+          "min": 18.595839,
+          "median": 19.136511,
+          "max": 19.447807
+        }
+      },
+      {
+        "rate": 3200,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 1007.681535,
+          "median": 1007.681535,
+          "max": 1007.681535
+        },
+        "p99_ms": {
+          "min": 1016.594431,
+          "median": 1017.118719,
+          "max": 1032.847359
+        },
+        "p999_ms": {
+          "min": 1018.691583,
+          "median": 1026.555903,
+          "max": 1178.599423
+        },
+        "achieved_per_s": {
+          "min": 2103.25,
+          "median": 2145.85,
+          "max": 2212.85
+        },
+        "errors": 62761,
+        "dispatch_lag_p99_ms": {
+          "min": 1006.632959,
+          "median": 1007.157247,
+          "max": 1022.885887
+        },
+        "http_service_p99_ms": {
+          "min": 18.612223,
+          "median": 19.005439,
+          "max": 19.988479
+        }
+      },
+      {
+        "rate": 4525,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 1007.681535,
+          "median": 1007.681535,
+          "max": 1007.681535
+        },
+        "p99_ms": {
+          "min": 1016.594431,
+          "median": 1016.594431,
+          "max": 1017.118719
+        },
+        "p999_ms": {
+          "min": 1018.691583,
+          "median": 1019.215871,
+          "max": 1026.031615
+        },
+        "achieved_per_s": {
+          "min": 2202.2,
+          "median": 2212.85,
+          "max": 2214.45
+        },
+        "errors": 138910,
+        "dispatch_lag_p99_ms": {
+          "min": 1009.254399,
+          "median": 1009.778687,
+          "max": 1009.778687
+        },
+        "http_service_p99_ms": {
+          "min": 18.186239,
+          "median": 18.513919,
+          "max": 18.546687
+        }
+      }
+    ]
+  },
+  {
+    "arm": "E",
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 1000,
+      "writers": 32,
+      "keys": "hot1",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/replay-w5-n1000000-d1000-c32-hot1-NEW",
+        "--workload",
+        "W5",
+        "--keys",
+        "hot1",
+        "--link",
+        "B",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/bin/sb4-postgres-scale-seed",
+        "--rates",
+        "3200",
+        "1600",
+        "2262",
+        "4525"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "part": "w5-n1000000-d1000-c32-hot1",
+    "smoke": false,
+    "concurrent_writes": false,
+    "rate": 1600,
+    "selected": {
+      "rate": 1600,
+      "all_pass": true,
+      "runner_read_or_write_all_pass": true,
+      "p50_ms": {
+        "min": 14.811135,
+        "median": 14.991359,
+        "max": 15.024127
+      },
+      "p99_ms": {
+        "min": 21.364735,
+        "median": 21.430271,
+        "max": 30.818303
+      },
+      "p999_ms": {
+        "min": 24.215551,
+        "median": 26.148863,
+        "max": 53.968895
+      },
+      "achieved_per_s": {
+        "min": 1600.0,
+        "median": 1600.0,
+        "max": 1600.0
+      },
+      "errors": 0,
+      "dispatch_lag_p99_ms": {
+        "min": 1.398783,
+        "median": 1.446911,
+        "max": 10.821631
+      },
+      "http_service_p99_ms": {
+        "min": 20.987903,
+        "median": 21.315583,
+        "max": 21.807103
+      }
+    },
+    "rates": [
+      {
+        "rate": 1600,
+        "all_pass": true,
+        "runner_read_or_write_all_pass": true,
+        "p50_ms": {
+          "min": 14.811135,
+          "median": 14.991359,
+          "max": 15.024127
+        },
+        "p99_ms": {
+          "min": 21.364735,
+          "median": 21.430271,
+          "max": 30.818303
+        },
+        "p999_ms": {
+          "min": 24.215551,
+          "median": 26.148863,
+          "max": 53.968895
+        },
+        "achieved_per_s": {
+          "min": 1600.0,
+          "median": 1600.0,
+          "max": 1600.0
+        },
+        "errors": 0,
+        "dispatch_lag_p99_ms": {
+          "min": 1.398783,
+          "median": 1.446911,
+          "max": 10.821631
+        },
+        "http_service_p99_ms": {
+          "min": 20.987903,
+          "median": 21.315583,
+          "max": 21.807103
+        }
+      },
+      {
+        "rate": 2262,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 1008.730111,
+          "median": 1008.730111,
+          "max": 1008.730111
+        },
+        "p99_ms": {
+          "min": 1018.691583,
+          "median": 1018.691583,
+          "max": 1019.215871
+        },
+        "p999_ms": {
+          "min": 1020.788735,
+          "median": 1021.313023,
+          "max": 1022.361599
+        },
+        "achieved_per_s": {
+          "min": 1845.3,
+          "median": 1882.7,
+          "max": 1885.4
+        },
+        "errors": 23452,
+        "dispatch_lag_p99_ms": {
+          "min": 1004.535807,
+          "median": 1004.535807,
+          "max": 1005.060095
+        },
+        "http_service_p99_ms": {
+          "min": 21.184511,
+          "median": 21.200895,
+          "max": 21.544959
+        }
+      },
+      {
+        "rate": 3200,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 1008.730111,
+          "median": 1008.730111,
+          "max": 1008.730111
+        },
+        "p99_ms": {
+          "min": 1019.215871,
+          "median": 1019.215871,
+          "max": 1019.740159
+        },
+        "p999_ms": {
+          "min": 1021.837311,
+          "median": 1021.837311,
+          "max": 1027.604479
+        },
+        "achieved_per_s": {
+          "min": 1843.8,
+          "median": 1865.0,
+          "max": 1894.3
+        },
+        "errors": 79938,
+        "dispatch_lag_p99_ms": {
+          "min": 1009.254399,
+          "median": 1009.254399,
+          "max": 1009.778687
+        },
+        "http_service_p99_ms": {
+          "min": 21.217279,
+          "median": 21.561343,
+          "max": 21.741567
+        }
+      },
+      {
+        "rate": 4525,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 1008.730111,
+          "median": 1008.730111,
+          "max": 1008.730111
+        },
+        "p99_ms": {
+          "min": 1019.215871,
+          "median": 1019.215871,
+          "max": 1019.740159
+        },
+        "p999_ms": {
+          "min": 1021.313023,
+          "median": 1021.837311,
+          "max": 1023.934463
+        },
+        "achieved_per_s": {
+          "min": 1854.95,
+          "median": 1858.9,
+          "max": 1864.95
+        },
+        "errors": 159924,
+        "dispatch_lag_p99_ms": {
+          "min": 1011.875839,
+          "median": 1012.400127,
+          "max": 1012.400127
+        },
+        "http_service_p99_ms": {
+          "min": 20.725759,
+          "median": 21.053439,
+          "max": 21.659647
+        }
+      }
+    ]
+  },
+  {
+    "arm": "E",
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 1000,
+      "writers": 32,
+      "keys": "same",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/replay-w5-n1000000-d1000-c32-same-NEW",
+        "--workload",
+        "W5",
+        "--keys",
+        "same",
+        "--link",
+        "B",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/bin/sb4-postgres-scale-seed",
+        "--rates",
+        "100",
+        "200",
+        "400",
+        "800",
+        "1600",
+        "1131",
+        "2262",
+        "3200",
+        "4525"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "part": "w5-n1000000-d1000-c32-same",
+    "smoke": false,
+    "concurrent_writes": false,
+    "rate": 1131,
+    "selected": {
+      "rate": 1131,
+      "all_pass": true,
+      "runner_read_or_write_all_pass": true,
+      "p50_ms": {
+        "min": 15.122431,
+        "median": 15.163391,
+        "max": 15.187967
+      },
+      "p99_ms": {
+        "min": 20.594687,
+        "median": 20.660223,
+        "max": 24.264703
+      },
+      "p999_ms": {
+        "min": 22.872063,
+        "median": 23.134207,
+        "max": 45.383679
+      },
+      "achieved_per_s": {
+        "min": 1131.0,
+        "median": 1131.0,
+        "max": 1131.0
+      },
+      "errors": 0,
+      "dispatch_lag_p99_ms": {
+        "min": 0.053887,
+        "median": 0.059679,
+        "max": 0.178815
+      },
+      "http_service_p99_ms": {
+        "min": 20.578303,
+        "median": 20.643839,
+        "max": 22.020095
+      }
+    },
+    "rates": [
+      {
+        "rate": 100,
+        "all_pass": true,
+        "runner_read_or_write_all_pass": true,
+        "p50_ms": {
+          "min": 16.515071,
+          "median": 16.556031,
+          "max": 16.637951
+        },
+        "p99_ms": {
+          "min": 25.346047,
+          "median": 25.591807,
+          "max": 25.821183
+        },
+        "p999_ms": {
+          "min": 28.655615,
+          "median": 29.261823,
+          "max": 29.507583
+        },
+        "achieved_per_s": {
+          "min": 100.0,
+          "median": 100.0,
+          "max": 100.0
+        },
+        "errors": 0,
+        "dispatch_lag_p99_ms": {
+          "min": 0.029039,
+          "median": 0.031887,
+          "max": 0.037791
+        },
+        "http_service_p99_ms": {
+          "min": 25.313279,
+          "median": 25.559039,
+          "max": 25.804799
+        }
+      },
+      {
+        "rate": 200,
+        "all_pass": true,
+        "runner_read_or_write_all_pass": true,
+        "p50_ms": {
+          "min": 9.781247,
+          "median": 9.945087,
+          "max": 10.141695
+        },
+        "p99_ms": {
+          "min": 15.065087,
+          "median": 15.802367,
+          "max": 20.873215
+        },
+        "p999_ms": {
+          "min": 17.678335,
+          "median": 27.328511,
+          "max": 27.475967
+        },
+        "achieved_per_s": {
+          "min": 200.0,
+          "median": 200.0,
+          "max": 200.0
+        },
+        "errors": 0,
+        "dispatch_lag_p99_ms": {
+          "min": 0.036191,
+          "median": 0.036863,
+          "max": 0.038271
+        },
+        "http_service_p99_ms": {
+          "min": 15.040511,
+          "median": 15.777791,
+          "max": 20.840447
+        }
+      },
+      {
+        "rate": 400,
+        "all_pass": true,
+        "runner_read_or_write_all_pass": true,
+        "p50_ms": {
+          "min": 12.861439,
+          "median": 12.984319,
+          "max": 13.066239
+        },
+        "p99_ms": {
+          "min": 17.776639,
+          "median": 17.842175,
+          "max": 19.611647
+        },
+        "p999_ms": {
+          "min": 19.382271,
+          "median": 19.464191,
+          "max": 28.098559
+        },
+        "achieved_per_s": {
+          "min": 400.0,
+          "median": 400.0,
+          "max": 400.0
+        },
+        "errors": 0,
+        "dispatch_lag_p99_ms": {
+          "min": 0.025967,
+          "median": 0.028047,
+          "max": 0.031919
+        },
+        "http_service_p99_ms": {
+          "min": 17.760255,
+          "median": 17.825791,
+          "max": 19.595263
+        }
+      },
+      {
+        "rate": 800,
+        "all_pass": true,
+        "runner_read_or_write_all_pass": true,
+        "p50_ms": {
+          "min": 14.155775,
+          "median": 14.295039,
+          "max": 14.311423
+        },
+        "p99_ms": {
+          "min": 19.120127,
+          "median": 19.333119,
+          "max": 20.414463
+        },
+        "p999_ms": {
+          "min": 21.348351,
+          "median": 21.364735,
+          "max": 28.917759
+        },
+        "achieved_per_s": {
+          "min": 800.0,
+          "median": 800.0,
+          "max": 800.0
+        },
+        "errors": 0,
+        "dispatch_lag_p99_ms": {
+          "min": 0.032239,
+          "median": 0.032799,
+          "max": 0.036127
+        },
+        "http_service_p99_ms": {
+          "min": 19.103743,
+          "median": 19.316735,
+          "max": 20.381695
+        }
+      },
+      {
+        "rate": 1131,
+        "all_pass": true,
+        "runner_read_or_write_all_pass": true,
+        "p50_ms": {
+          "min": 15.122431,
+          "median": 15.163391,
+          "max": 15.187967
+        },
+        "p99_ms": {
+          "min": 20.594687,
+          "median": 20.660223,
+          "max": 24.264703
+        },
+        "p999_ms": {
+          "min": 22.872063,
+          "median": 23.134207,
+          "max": 45.383679
+        },
+        "achieved_per_s": {
+          "min": 1131.0,
+          "median": 1131.0,
+          "max": 1131.0
+        },
+        "errors": 0,
+        "dispatch_lag_p99_ms": {
+          "min": 0.053887,
+          "median": 0.059679,
+          "max": 0.178815
+        },
+        "http_service_p99_ms": {
+          "min": 20.578303,
+          "median": 20.643839,
+          "max": 22.020095
+        }
+      },
+      {
+        "rate": 1600,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 18.219007,
+          "median": 40.861695,
+          "max": 43.515903
+        },
+        "p99_ms": {
+          "min": 106.102783,
+          "median": 109.510655,
+          "max": 132.644863
+        },
+        "p999_ms": {
+          "min": 116.654079,
+          "median": 124.649471,
+          "max": 154.009599
+        },
+        "achieved_per_s": {
+          "min": 1599.7,
+          "median": 1599.8,
+          "max": 1599.95
+        },
+        "errors": 11,
+        "dispatch_lag_p99_ms": {
+          "min": 86.114303,
+          "median": 89.522175,
+          "max": 112.918527
+        },
+        "http_service_p99_ms": {
+          "min": 23.150591,
+          "median": 23.363583,
+          "max": 23.773183
+        }
+      },
+      {
+        "rate": 2262,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 1010.302975,
+          "median": 1010.302975,
+          "max": 1010.302975
+        },
+        "p99_ms": {
+          "min": 1020.788735,
+          "median": 1021.313023,
+          "max": 1021.313023
+        },
+        "p999_ms": {
+          "min": 1022.885887,
+          "median": 1023.410175,
+          "max": 1027.080191
+        },
+        "achieved_per_s": {
+          "min": 1602.45,
+          "median": 1613.4,
+          "max": 1622.45
+        },
+        "errors": 38954,
+        "dispatch_lag_p99_ms": {
+          "min": 1006.632959,
+          "median": 1007.157247,
+          "max": 1007.157247
+        },
+        "http_service_p99_ms": {
+          "min": 23.052287,
+          "median": 23.412735,
+          "max": 23.805951
+        }
+      },
+      {
+        "rate": 3200,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 1010.302975,
+          "median": 1010.302975,
+          "max": 1010.302975
+        },
+        "p99_ms": {
+          "min": 1020.788735,
+          "median": 1020.788735,
+          "max": 1021.313023
+        },
+        "p999_ms": {
+          "min": 1022.885887,
+          "median": 1022.885887,
+          "max": 1028.653055
+        },
+        "achieved_per_s": {
+          "min": 1605.35,
+          "median": 1608.45,
+          "max": 1623.15
+        },
+        "errors": 95261,
+        "dispatch_lag_p99_ms": {
+          "min": 1010.827263,
+          "median": 1010.827263,
+          "max": 1011.351551
+        },
+        "http_service_p99_ms": {
+          "min": 22.937599,
+          "median": 22.953983,
+          "max": 23.265279
+        }
+      },
+      {
+        "rate": 4525,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 1010.302975,
+          "median": 1010.302975,
+          "max": 1010.302975
+        },
+        "p99_ms": {
+          "min": 1021.313023,
+          "median": 1021.313023,
+          "max": 1021.313023
+        },
+        "p999_ms": {
+          "min": 1023.410175,
+          "median": 1023.934463,
+          "max": 1027.604479
+        },
+        "achieved_per_s": {
+          "min": 1610.45,
+          "median": 1620.75,
+          "max": 1621.8
+        },
+        "errors": 174440,
+        "dispatch_lag_p99_ms": {
+          "min": 1013.972991,
+          "median": 1013.972991,
+          "max": 1013.972991
+        },
+        "http_service_p99_ms": {
+          "min": 22.642687,
+          "median": 22.675455,
+          "max": 22.888447
+        }
+      }
+    ]
+  },
+  {
+    "arm": "E",
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 32,
+      "keys": "hot1",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/replay-w5-n1000000-d500-c32-hot1-NEW",
+        "--workload",
+        "W5",
+        "--keys",
+        "hot1",
+        "--link",
+        "A",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/bin/sb4-postgres-scale-seed",
+        "--rates",
+        "3200",
+        "1600",
+        "2262",
+        "4525"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "part": "w5-n1000000-d500-c32-hot1",
+    "smoke": false,
+    "concurrent_writes": false,
+    "rate": 1600,
+    "selected": {
+      "rate": 1600,
+      "all_pass": true,
+      "runner_read_or_write_all_pass": true,
+      "p50_ms": {
+        "min": 12.017663,
+        "median": 12.042239,
+        "max": 12.189695
+      },
+      "p99_ms": {
+        "min": 17.629183,
+        "median": 21.020671,
+        "max": 36.962303
+      },
+      "p999_ms": {
+        "min": 19.808255,
+        "median": 28.295167,
+        "max": 68.747263
+      },
+      "achieved_per_s": {
+        "min": 1600.0,
+        "median": 1600.0,
+        "max": 1600.0
+      },
+      "errors": 0,
+      "dispatch_lag_p99_ms": {
+        "min": 0.069631,
+        "median": 1.317887,
+        "max": 16.973823
+      },
+      "http_service_p99_ms": {
+        "min": 17.612799,
+        "median": 18.923519,
+        "max": 19.234815
+      }
+    },
+    "rates": [
+      {
+        "rate": 1600,
+        "all_pass": true,
+        "runner_read_or_write_all_pass": true,
+        "p50_ms": {
+          "min": 12.017663,
+          "median": 12.042239,
+          "max": 12.189695
+        },
+        "p99_ms": {
+          "min": 17.629183,
+          "median": 21.020671,
+          "max": 36.962303
+        },
+        "p999_ms": {
+          "min": 19.808255,
+          "median": 28.295167,
+          "max": 68.747263
+        },
+        "achieved_per_s": {
+          "min": 1600.0,
+          "median": 1600.0,
+          "max": 1600.0
+        },
+        "errors": 0,
+        "dispatch_lag_p99_ms": {
+          "min": 0.069631,
+          "median": 1.317887,
+          "max": 16.973823
+        },
+        "http_service_p99_ms": {
+          "min": 17.612799,
+          "median": 18.923519,
+          "max": 19.234815
+        }
+      },
+      {
+        "rate": 2262,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 262.275071,
+          "median": 636.485631,
+          "max": 722.993151
+        },
+        "p99_ms": {
+          "min": 661.127167,
+          "median": 1013.972991,
+          "max": 1014.497279
+        },
+        "p999_ms": {
+          "min": 699.924479,
+          "median": 1016.594431,
+          "max": 1017.643007
+        },
+        "achieved_per_s": {
+          "min": 2239.65,
+          "median": 2243.4,
+          "max": 2261.65
+        },
+        "errors": 826,
+        "dispatch_lag_p99_ms": {
+          "min": 645.922815,
+          "median": 999.817215,
+          "max": 1000.341503
+        },
+        "http_service_p99_ms": {
+          "min": 18.808831,
+          "median": 19.185663,
+          "max": 19.628031
+        }
+      },
+      {
+        "rate": 3200,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 1007.157247,
+          "median": 1007.681535,
+          "max": 1007.681535
+        },
+        "p99_ms": {
+          "min": 1016.594431,
+          "median": 1016.594431,
+          "max": 1017.118719
+        },
+        "p999_ms": {
+          "min": 1019.215871,
+          "median": 1019.740159,
+          "max": 1020.264447
+        },
+        "achieved_per_s": {
+          "min": 2183.05,
+          "median": 2186.2,
+          "max": 2231.85
+        },
+        "errors": 59978,
+        "dispatch_lag_p99_ms": {
+          "min": 1006.632959,
+          "median": 1006.632959,
+          "max": 1007.157247
+        },
+        "http_service_p99_ms": {
+          "min": 18.776063,
+          "median": 18.890751,
+          "max": 19.136511
+        }
+      },
+      {
+        "rate": 4525,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 1007.681535,
+          "median": 1007.681535,
+          "max": 1007.681535
+        },
+        "p99_ms": {
+          "min": 1016.594431,
+          "median": 1017.118719,
+          "max": 1017.118719
+        },
+        "p999_ms": {
+          "min": 1019.215871,
+          "median": 1019.740159,
+          "max": 1026.555903
+        },
+        "achieved_per_s": {
+          "min": 2172.3,
+          "median": 2183.55,
+          "max": 2187.65
+        },
+        "errors": 140630,
+        "dispatch_lag_p99_ms": {
+          "min": 1009.778687,
+          "median": 1009.778687,
+          "max": 1009.778687
+        },
+        "http_service_p99_ms": {
+          "min": 18.481151,
+          "median": 18.759679,
+          "max": 18.825215
+        }
+      }
+    ]
+  },
+  {
+    "arm": "E",
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 32,
+      "keys": "same",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/replay-w5-n1000000-d500-c32-same-NEW",
+        "--workload",
+        "W5",
+        "--keys",
+        "same",
+        "--link",
+        "A",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/bin/sb4-postgres-scale-seed",
+        "--rates",
+        "100",
+        "200",
+        "400",
+        "800",
+        "1600",
+        "3200",
+        "2262",
+        "4525"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "part": "w5-n1000000-d500-c32-same",
+    "smoke": false,
+    "concurrent_writes": false,
+    "rate": 1600,
+    "selected": {
+      "rate": 1600,
+      "all_pass": true,
+      "runner_read_or_write_all_pass": true,
+      "p50_ms": {
+        "min": 13.205503,
+        "median": 13.426687,
+        "max": 13.492223
+      },
+      "p99_ms": {
+        "min": 18.350079,
+        "median": 18.546687,
+        "max": 52.494335
+      },
+      "p999_ms": {
+        "min": 20.512767,
+        "median": 21.069823,
+        "max": 77.791231
+      },
+      "achieved_per_s": {
+        "min": 1600.0,
+        "median": 1600.0,
+        "max": 1600.0
+      },
+      "errors": 0,
+      "dispatch_lag_p99_ms": {
+        "min": 0.067967,
+        "median": 0.070719,
+        "max": 32.489471
+      },
+      "http_service_p99_ms": {
+        "min": 18.268159,
+        "median": 18.497535,
+        "max": 20.119551
+      }
+    },
+    "rates": [
+      {
+        "rate": 100,
+        "all_pass": true,
+        "runner_read_or_write_all_pass": true,
+        "p50_ms": {
+          "min": 16.383999,
+          "median": 16.457727,
+          "max": 16.482303
+        },
+        "p99_ms": {
+          "min": 23.166975,
+          "median": 23.183359,
+          "max": 23.248895
+        },
+        "p999_ms": {
+          "min": 24.674303,
+          "median": 24.723455,
+          "max": 25.264127
+        },
+        "achieved_per_s": {
+          "min": 100.0,
+          "median": 100.0,
+          "max": 100.0
+        },
+        "errors": 0,
+        "dispatch_lag_p99_ms": {
+          "min": 0.030703,
+          "median": 0.035487,
+          "max": 0.039359
+        },
+        "http_service_p99_ms": {
+          "min": 23.150591,
+          "median": 23.166975,
+          "max": 23.183359
+        }
+      },
+      {
+        "rate": 200,
+        "all_pass": true,
+        "runner_read_or_write_all_pass": true,
+        "p50_ms": {
+          "min": 7.938047,
+          "median": 7.983103,
+          "max": 7.995391
+        },
+        "p99_ms": {
+          "min": 10.543103,
+          "median": 10.739711,
+          "max": 10.747903
+        },
+        "p999_ms": {
+          "min": 12.812287,
+          "median": 13.402111,
+          "max": 38.109183
+        },
+        "achieved_per_s": {
+          "min": 200.0,
+          "median": 200.0,
+          "max": 200.0
+        },
+        "errors": 0,
+        "dispatch_lag_p99_ms": {
+          "min": 0.027375,
+          "median": 0.030303,
+          "max": 0.031247
+        },
+        "http_service_p99_ms": {
+          "min": 10.518527,
+          "median": 10.715135,
+          "max": 10.731519
+        }
+      },
+      {
+        "rate": 400,
+        "all_pass": true,
+        "runner_read_or_write_all_pass": true,
+        "p50_ms": {
+          "min": 10.125311,
+          "median": 10.166271,
+          "max": 10.190847
+        },
+        "p99_ms": {
+          "min": 14.663679,
+          "median": 15.171583,
+          "max": 16.400383
+        },
+        "p999_ms": {
+          "min": 16.392191,
+          "median": 18.038783,
+          "max": 28.311551
+        },
+        "achieved_per_s": {
+          "min": 400.0,
+          "median": 400.0,
+          "max": 400.0
+        },
+        "errors": 0,
+        "dispatch_lag_p99_ms": {
+          "min": 0.034111,
+          "median": 0.034463,
+          "max": 0.036671
+        },
+        "http_service_p99_ms": {
+          "min": 14.647295,
+          "median": 15.147007,
+          "max": 16.383999
+        }
+      },
+      {
+        "rate": 800,
+        "all_pass": true,
+        "runner_read_or_write_all_pass": true,
+        "p50_ms": {
+          "min": 11.214847,
+          "median": 11.280383,
+          "max": 11.362303
+        },
+        "p99_ms": {
+          "min": 15.769599,
+          "median": 15.810559,
+          "max": 18.382847
+        },
+        "p999_ms": {
+          "min": 17.399807,
+          "median": 18.219007,
+          "max": 28.721151
+        },
+        "achieved_per_s": {
+          "min": 800.0,
+          "median": 800.0,
+          "max": 800.0
+        },
+        "errors": 0,
+        "dispatch_lag_p99_ms": {
+          "min": 0.032463,
+          "median": 0.033823,
+          "max": 0.038623
+        },
+        "http_service_p99_ms": {
+          "min": 15.745023,
+          "median": 15.794175,
+          "max": 18.366463
+        }
+      },
+      {
+        "rate": 1600,
+        "all_pass": true,
+        "runner_read_or_write_all_pass": true,
+        "p50_ms": {
+          "min": 13.205503,
+          "median": 13.426687,
+          "max": 13.492223
+        },
+        "p99_ms": {
+          "min": 18.350079,
+          "median": 18.546687,
+          "max": 52.494335
+        },
+        "p999_ms": {
+          "min": 20.512767,
+          "median": 21.069823,
+          "max": 77.791231
+        },
+        "achieved_per_s": {
+          "min": 1600.0,
+          "median": 1600.0,
+          "max": 1600.0
+        },
+        "errors": 0,
+        "dispatch_lag_p99_ms": {
+          "min": 0.067967,
+          "median": 0.070719,
+          "max": 32.489471
+        },
+        "http_service_p99_ms": {
+          "min": 18.268159,
+          "median": 18.497535,
+          "max": 20.119551
+        }
+      },
+      {
+        "rate": 2262,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 1005.060095,
+          "median": 1005.060095,
+          "max": 1005.584383
+        },
+        "p99_ms": {
+          "min": 1017.118719,
+          "median": 1017.118719,
+          "max": 1017.643007
+        },
+        "p999_ms": {
+          "min": 1019.215871,
+          "median": 1019.740159,
+          "max": 1026.031615
+        },
+        "achieved_per_s": {
+          "min": 2057.15,
+          "median": 2058.5,
+          "max": 2066.15
+        },
+        "errors": 12084,
+        "dispatch_lag_p99_ms": {
+          "min": 1002.962943,
+          "median": 1002.962943,
+          "max": 1003.487231
+        },
+        "http_service_p99_ms": {
+          "min": 19.628031,
+          "median": 19.824639,
+          "max": 19.841023
+        }
+      },
+      {
+        "rate": 3200,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 1008.205823,
+          "median": 1008.205823,
+          "max": 1008.205823
+        },
+        "p99_ms": {
+          "min": 1017.118719,
+          "median": 1017.643007,
+          "max": 1018.167295
+        },
+        "p999_ms": {
+          "min": 1019.740159,
+          "median": 1019.740159,
+          "max": 1026.031615
+        },
+        "achieved_per_s": {
+          "min": 2002.45,
+          "median": 2005.2,
+          "max": 2065.3
+        },
+        "errors": 70541,
+        "dispatch_lag_p99_ms": {
+          "min": 1007.157247,
+          "median": 1007.681535,
+          "max": 1008.205823
+        },
+        "http_service_p99_ms": {
+          "min": 19.152895,
+          "median": 19.513343,
+          "max": 20.070399
+        }
+      },
+      {
+        "rate": 4525,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 1008.205823,
+          "median": 1008.205823,
+          "max": 1008.205823
+        },
+        "p99_ms": {
+          "min": 1017.643007,
+          "median": 1017.643007,
+          "max": 1017.643007
+        },
+        "p999_ms": {
+          "min": 1019.740159,
+          "median": 1019.740159,
+          "max": 1020.264447
+        },
+        "achieved_per_s": {
+          "min": 2026.9,
+          "median": 2033.1,
+          "max": 2046.8
+        },
+        "errors": 149364,
+        "dispatch_lag_p99_ms": {
+          "min": 1010.302975,
+          "median": 1010.827263,
+          "max": 1010.827263
+        },
+        "http_service_p99_ms": {
+          "min": 19.218431,
+          "median": 19.382271,
+          "max": 19.578879
+        }
+      }
+    ]
+  },
+  {
+    "arm": "S",
+    "cell": {
+      "workload": "W1",
+      "rows": 1000000,
+      "delay_us": 1000,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/replay-w1-n1000000-d1000-c128-disjoint-NEW",
+        "--workload",
+        "W1",
+        "--keys",
+        "disjoint",
+        "--link",
+        "B",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/bin/sb4-postgres-scale-seed",
+        "--rates",
+        "1000",
+        "2000",
+        "4000",
+        "8000",
+        "16000",
+        "11313",
+        "19027",
+        "22627"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "part": "w1-n1000000-d1000-c128-disjoint",
+    "smoke": false,
+    "concurrent_writes": true,
+    "rate": 8000,
+    "selected": {
+      "rate": 8000,
+      "all_pass": true,
+      "runner_read_or_write_all_pass": true,
+      "p50_ms": {
+        "min": 2.834431,
+        "median": 2.879487,
+        "max": 2.912255
+      },
+      "p99_ms": {
+        "min": 13.565951,
+        "median": 39.911423,
+        "max": 47.710207
+      },
+      "p999_ms": {
+        "min": 38.469631,
+        "median": 67.305471,
+        "max": 72.155135
+      },
+      "achieved_per_s": {
+        "min": 7999.4,
+        "median": 8000.0,
+        "max": 8000.0
+      },
+      "errors": 12,
+      "dispatch_lag_p99_ms": {
+        "min": 0.212991,
+        "median": 23.953407,
+        "max": 31.735807
+      },
+      "http_service_p99_ms": {
+        "min": 12.337151,
+        "median": 14.860287,
+        "max": 15.106047
+      },
+      "background": {
+        "all_pass": true,
+        "p50_ms": {
+          "min": 14.589951,
+          "median": 14.663679,
+          "max": 14.671871
+        },
+        "p99_ms": {
+          "min": 21.856255,
+          "median": 25.198591,
+          "max": 25.575423
+        },
+        "achieved_per_s": {
+          "min": 400.0,
+          "median": 400.0,
+          "max": 400.0
+        },
+        "errors": 0
+      }
+    },
+    "rates": [
+      {
+        "rate": 1000,
+        "all_pass": true,
+        "runner_read_or_write_all_pass": true,
+        "p50_ms": {
+          "min": 1.811455,
+          "median": 1.823743,
+          "max": 4.927487
+        },
+        "p99_ms": {
+          "min": 2.111487,
+          "median": 2.134015,
+          "max": 5.558271
+        },
+        "p999_ms": {
+          "min": 2.347007,
+          "median": 2.527231,
+          "max": 6.430719
+        },
+        "achieved_per_s": {
+          "min": 1000.0,
+          "median": 1000.0,
+          "max": 1000.0
+        },
+        "errors": 0,
+        "dispatch_lag_p99_ms": {
+          "min": 0.089471,
+          "median": 0.095935,
+          "max": 0.131071
+        },
+        "http_service_p99_ms": {
+          "min": 2.077695,
+          "median": 2.105343,
+          "max": 5.525503
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 11.354111,
+            "median": 11.370495,
+            "max": 11.395071
+          },
+          "p99_ms": {
+            "min": 15.171583,
+            "median": 16.187391,
+            "max": 18.251775
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 2000,
+        "all_pass": true,
+        "runner_read_or_write_all_pass": true,
+        "p50_ms": {
+          "min": 1.612799,
+          "median": 1.612799,
+          "max": 1.631231
+        },
+        "p99_ms": {
+          "min": 1.878015,
+          "median": 1.881087,
+          "max": 2.039807
+        },
+        "p999_ms": {
+          "min": 2.787327,
+          "median": 2.846719,
+          "max": 4.898815
+        },
+        "achieved_per_s": {
+          "min": 2000.0,
+          "median": 2000.0,
+          "max": 2000.0
+        },
+        "errors": 0,
+        "dispatch_lag_p99_ms": {
+          "min": 0.025695,
+          "median": 0.048863,
+          "max": 0.072063
+        },
+        "http_service_p99_ms": {
+          "min": 1.859583,
+          "median": 1.862655,
+          "max": 1.956863
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 10.936319,
+            "median": 11.051007,
+            "max": 11.272191
+          },
+          "p99_ms": {
+            "min": 15.187967,
+            "median": 15.638527,
+            "max": 19.316735
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 4000,
+        "all_pass": true,
+        "runner_read_or_write_all_pass": true,
+        "p50_ms": {
+          "min": 1.677311,
+          "median": 1.678335,
+          "max": 1.685503
+        },
+        "p99_ms": {
+          "min": 2.037759,
+          "median": 2.046975,
+          "max": 2.062335
+        },
+        "p999_ms": {
+          "min": 2.277375,
+          "median": 2.330623,
+          "max": 3.133439
+        },
+        "achieved_per_s": {
+          "min": 4000.0,
+          "median": 4000.0,
+          "max": 4000.0
+        },
+        "errors": 0,
+        "dispatch_lag_p99_ms": {
+          "min": 0.048255,
+          "median": 0.048351,
+          "max": 0.060671
+        },
+        "http_service_p99_ms": {
+          "min": 2.020351,
+          "median": 2.030591,
+          "max": 2.046975
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 11.304959,
+            "median": 11.395071,
+            "max": 11.575295
+          },
+          "p99_ms": {
+            "min": 16.343039,
+            "median": 16.474111,
+            "max": 18.120703
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 8000,
+        "all_pass": true,
+        "runner_read_or_write_all_pass": true,
+        "p50_ms": {
+          "min": 2.834431,
+          "median": 2.879487,
+          "max": 2.912255
+        },
+        "p99_ms": {
+          "min": 13.565951,
+          "median": 39.911423,
+          "max": 47.710207
+        },
+        "p999_ms": {
+          "min": 38.469631,
+          "median": 67.305471,
+          "max": 72.155135
+        },
+        "achieved_per_s": {
+          "min": 7999.4,
+          "median": 8000.0,
+          "max": 8000.0
+        },
+        "errors": 12,
+        "dispatch_lag_p99_ms": {
+          "min": 0.212991,
+          "median": 23.953407,
+          "max": 31.735807
+        },
+        "http_service_p99_ms": {
+          "min": 12.337151,
+          "median": 14.860287,
+          "max": 15.106047
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 14.589951,
+            "median": 14.663679,
+            "max": 14.671871
+          },
+          "p99_ms": {
+            "min": 21.856255,
+            "median": 25.198591,
+            "max": 25.575423
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 11313,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 1007.681535,
+          "median": 1007.681535,
+          "max": 1007.681535
+        },
+        "p99_ms": {
+          "min": 1016.070143,
+          "median": 1016.070143,
+          "max": 1016.070143
+        },
+        "p999_ms": {
+          "min": 1022.361599,
+          "median": 1024.983039,
+          "max": 1026.555903
+        },
+        "achieved_per_s": {
+          "min": 8580.05,
+          "median": 8581.3,
+          "max": 8585.7
+        },
+        "errors": 163839,
+        "dispatch_lag_p99_ms": {
+          "min": 1005.060095,
+          "median": 1005.060095,
+          "max": 1005.060095
+        },
+        "http_service_p99_ms": {
+          "min": 18.104319,
+          "median": 18.120703,
+          "max": 18.137087
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 16.891903,
+            "median": 16.957439,
+            "max": 16.973823
+          },
+          "p99_ms": {
+            "min": 26.099711,
+            "median": 26.263551,
+            "max": 28.786687
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 16000,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 1007.681535,
+          "median": 1007.681535,
+          "max": 1007.681535
+        },
+        "p99_ms": {
+          "min": 1016.070143,
+          "median": 1016.070143,
+          "max": 1016.070143
+        },
+        "p999_ms": {
+          "min": 1021.313023,
+          "median": 1022.361599,
+          "max": 1023.410175
+        },
+        "achieved_per_s": {
+          "min": 8590.45,
+          "median": 8597.95,
+          "max": 8606.15
+        },
+        "errors": 444109,
+        "dispatch_lag_p99_ms": {
+          "min": 1008.205823,
+          "median": 1008.205823,
+          "max": 1008.205823
+        },
+        "http_service_p99_ms": {
+          "min": 17.678335,
+          "median": 17.793023,
+          "max": 17.809407
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 16.752639,
+            "median": 16.875519,
+            "max": 17.055743
+          },
+          "p99_ms": {
+            "min": 25.313279,
+            "median": 25.870335,
+            "max": 29.589503
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 19027,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 1007.681535,
+          "median": 1007.681535,
+          "max": 1007.681535
+        },
+        "p99_ms": {
+          "min": 1016.070143,
+          "median": 1016.070143,
+          "max": 1016.594431
+        },
+        "p999_ms": {
+          "min": 1022.885887,
+          "median": 1025.507327,
+          "max": 1028.128767
+        },
+        "achieved_per_s": {
+          "min": 8553.5,
+          "median": 8571.9,
+          "max": 8572.35
+        },
+        "errors": 627665,
+        "dispatch_lag_p99_ms": {
+          "min": 1009.254399,
+          "median": 1009.778687,
+          "max": 1009.778687
+        },
+        "http_service_p99_ms": {
+          "min": 17.629183,
+          "median": 17.678335,
+          "max": 17.809407
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 16.957439,
+            "median": 16.957439,
+            "max": 17.170431
+          },
+          "p99_ms": {
+            "min": 25.591807,
+            "median": 26.066943,
+            "max": 27.623423
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 22627,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 1007.681535,
+          "median": 1007.681535,
+          "max": 1007.681535
+        },
+        "p99_ms": {
+          "min": 1016.070143,
+          "median": 1016.070143,
+          "max": 1016.070143
+        },
+        "p999_ms": {
+          "min": 1022.885887,
+          "median": 1023.934463,
+          "max": 1024.983039
+        },
+        "achieved_per_s": {
+          "min": 8545.0,
+          "median": 8546.6,
+          "max": 8587.05
+        },
+        "errors": 844047,
+        "dispatch_lag_p99_ms": {
+          "min": 1010.302975,
+          "median": 1010.827263,
+          "max": 1010.827263
+        },
+        "http_service_p99_ms": {
+          "min": 17.481727,
+          "median": 17.530879,
+          "max": 17.563647
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 16.842751,
+            "median": 16.891903,
+            "max": 17.137663
+          },
+          "p99_ms": {
+            "min": 25.821183,
+            "median": 28.999679,
+            "max": 29.229055
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      }
+    ]
+  },
+  {
+    "arm": "S",
+    "cell": {
+      "workload": "W1",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/replay-w1-n1000000-d500-c128-disjoint-NEW",
+        "--workload",
+        "W1",
+        "--keys",
+        "disjoint",
+        "--link",
+        "A",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/bin/sb4-postgres-scale-seed",
+        "--rates",
+        "1000",
+        "2000",
+        "4000",
+        "8000",
+        "16000",
+        "11313",
+        "19027",
+        "22627"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "part": "w1-n1000000-d500-c128-disjoint",
+    "smoke": false,
+    "concurrent_writes": true,
+    "rate": 8000,
+    "selected": {
+      "rate": 8000,
+      "all_pass": true,
+      "runner_read_or_write_all_pass": true,
+      "p50_ms": {
+        "min": 2.032639,
+        "median": 2.046975,
+        "max": 2.046975
+      },
+      "p99_ms": {
+        "min": 11.747327,
+        "median": 13.418495,
+        "max": 41.648127
+      },
+      "p999_ms": {
+        "min": 40.435711,
+        "median": 42.041343,
+        "max": 71.434239
+      },
+      "achieved_per_s": {
+        "min": 8000.0,
+        "median": 8000.0,
+        "max": 8000.0
+      },
+      "errors": 0,
+      "dispatch_lag_p99_ms": {
+        "min": 0.170623,
+        "median": 0.539135,
+        "max": 25.886719
+      },
+      "http_service_p99_ms": {
+        "min": 10.321919,
+        "median": 11.968511,
+        "max": 13.918207
+      },
+      "background": {
+        "all_pass": true,
+        "p50_ms": {
+          "min": 11.624447,
+          "median": 11.649023,
+          "max": 11.722751
+        },
+        "p99_ms": {
+          "min": 18.481151,
+          "median": 21.413887,
+          "max": 21.626879
+        },
+        "achieved_per_s": {
+          "min": 400.0,
+          "median": 400.0,
+          "max": 400.0
+        },
+        "errors": 0
+      }
+    },
+    "rates": [
+      {
+        "rate": 1000,
+        "all_pass": true,
+        "runner_read_or_write_all_pass": true,
+        "p50_ms": {
+          "min": 1.388543,
+          "median": 1.394687,
+          "max": 3.852287
+        },
+        "p99_ms": {
+          "min": 1.682431,
+          "median": 1.698815,
+          "max": 4.493311
+        },
+        "p999_ms": {
+          "min": 2.375679,
+          "median": 2.619391,
+          "max": 5.464063
+        },
+        "achieved_per_s": {
+          "min": 1000.0,
+          "median": 1000.0,
+          "max": 1000.0
+        },
+        "errors": 0,
+        "dispatch_lag_p99_ms": {
+          "min": 0.050431,
+          "median": 0.073407,
+          "max": 0.118463
+        },
+        "http_service_p99_ms": {
+          "min": 1.645567,
+          "median": 1.647615,
+          "max": 4.448255
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 10.076159,
+            "median": 10.166271,
+            "max": 10.248191
+          },
+          "p99_ms": {
+            "min": 13.672447,
+            "median": 15.441919,
+            "max": 19.726335
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 2000,
+        "all_pass": true,
+        "runner_read_or_write_all_pass": true,
+        "p50_ms": {
+          "min": 1.095679,
+          "median": 1.115135,
+          "max": 1.129471
+        },
+        "p99_ms": {
+          "min": 1.330175,
+          "median": 1.347583,
+          "max": 1.399807
+        },
+        "p999_ms": {
+          "min": 1.816575,
+          "median": 3.655679,
+          "max": 3.809279
+        },
+        "achieved_per_s": {
+          "min": 2000.0,
+          "median": 2000.0,
+          "max": 2000.0
+        },
+        "errors": 0,
+        "dispatch_lag_p99_ms": {
+          "min": 0.036799,
+          "median": 0.093695,
+          "max": 0.102783
+        },
+        "http_service_p99_ms": {
+          "min": 1.311743,
+          "median": 1.321983,
+          "max": 1.366015
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 9.641983,
+            "median": 9.658367,
+            "max": 9.797631
+          },
+          "p99_ms": {
+            "min": 12.836863,
+            "median": 14.794751,
+            "max": 15.163391
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 4000,
+        "all_pass": true,
+        "runner_read_or_write_all_pass": true,
+        "p50_ms": {
+          "min": 1.169407,
+          "median": 1.169407,
+          "max": 1.174527
+        },
+        "p99_ms": {
+          "min": 1.520639,
+          "median": 1.530879,
+          "max": 1.553407
+        },
+        "p999_ms": {
+          "min": 2.852863,
+          "median": 3.870719,
+          "max": 3.893247
+        },
+        "achieved_per_s": {
+          "min": 4000.0,
+          "median": 4000.0,
+          "max": 4000.0
+        },
+        "errors": 0,
+        "dispatch_lag_p99_ms": {
+          "min": 0.038463,
+          "median": 0.041727,
+          "max": 0.046815
+        },
+        "http_service_p99_ms": {
+          "min": 1.503231,
+          "median": 1.514495,
+          "max": 1.531903
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 9.879551,
+            "median": 10.018815,
+            "max": 10.190847
+          },
+          "p99_ms": {
+            "min": 13.205503,
+            "median": 14.639103,
+            "max": 18.399231
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 8000,
+        "all_pass": true,
+        "runner_read_or_write_all_pass": true,
+        "p50_ms": {
+          "min": 2.032639,
+          "median": 2.046975,
+          "max": 2.046975
+        },
+        "p99_ms": {
+          "min": 11.747327,
+          "median": 13.418495,
+          "max": 41.648127
+        },
+        "p999_ms": {
+          "min": 40.435711,
+          "median": 42.041343,
+          "max": 71.434239
+        },
+        "achieved_per_s": {
+          "min": 8000.0,
+          "median": 8000.0,
+          "max": 8000.0
+        },
+        "errors": 0,
+        "dispatch_lag_p99_ms": {
+          "min": 0.170623,
+          "median": 0.539135,
+          "max": 25.886719
+        },
+        "http_service_p99_ms": {
+          "min": 10.321919,
+          "median": 11.968511,
+          "max": 13.918207
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 11.624447,
+            "median": 11.649023,
+            "max": 11.722751
+          },
+          "p99_ms": {
+            "min": 18.481151,
+            "median": 21.413887,
+            "max": 21.626879
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 11313,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 1007.157247,
+          "median": 1007.157247,
+          "max": 1007.157247
+        },
+        "p99_ms": {
+          "min": 1015.545855,
+          "median": 1015.545855,
+          "max": 1016.070143
+        },
+        "p999_ms": {
+          "min": 1020.788735,
+          "median": 1021.313023,
+          "max": 1022.361599
+        },
+        "achieved_per_s": {
+          "min": 8950.75,
+          "median": 8969.3,
+          "max": 8976.15
+        },
+        "errors": 140856,
+        "dispatch_lag_p99_ms": {
+          "min": 1004.535807,
+          "median": 1004.535807,
+          "max": 1004.535807
+        },
+        "http_service_p99_ms": {
+          "min": 17.907711,
+          "median": 17.940479,
+          "max": 18.153471
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 15.687679,
+            "median": 15.851519,
+            "max": 15.949823
+          },
+          "p99_ms": {
+            "min": 24.625151,
+            "median": 25.378815,
+            "max": 26.214399
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 16000,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 1007.157247,
+          "median": 1007.157247,
+          "max": 1007.157247
+        },
+        "p99_ms": {
+          "min": 1015.545855,
+          "median": 1016.070143,
+          "max": 1016.070143
+        },
+        "p999_ms": {
+          "min": 1021.313023,
+          "median": 1023.410175,
+          "max": 1023.934463
+        },
+        "achieved_per_s": {
+          "min": 8951.25,
+          "median": 8959.55,
+          "max": 8963.45
+        },
+        "errors": 422515,
+        "dispatch_lag_p99_ms": {
+          "min": 1007.681535,
+          "median": 1007.681535,
+          "max": 1008.205823
+        },
+        "http_service_p99_ms": {
+          "min": 17.498111,
+          "median": 17.612799,
+          "max": 17.776639
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 15.753215,
+            "median": 15.826943,
+            "max": 15.851519
+          },
+          "p99_ms": {
+            "min": 24.739839,
+            "median": 25.493503,
+            "max": 25.985023
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 19027,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 1007.157247,
+          "median": 1007.157247,
+          "max": 1007.681535
+        },
+        "p99_ms": {
+          "min": 1016.070143,
+          "median": 1016.070143,
+          "max": 1016.070143
+        },
+        "p999_ms": {
+          "min": 1021.313023,
+          "median": 1022.361599,
+          "max": 1028.653055
+        },
+        "achieved_per_s": {
+          "min": 8921.2,
+          "median": 8945.25,
+          "max": 8959.55
+        },
+        "errors": 605100,
+        "dispatch_lag_p99_ms": {
+          "min": 1009.254399,
+          "median": 1009.254399,
+          "max": 1009.778687
+        },
+        "http_service_p99_ms": {
+          "min": 17.399807,
+          "median": 17.498111,
+          "max": 17.842175
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 15.622143,
+            "median": 15.769599,
+            "max": 15.908863
+          },
+          "p99_ms": {
+            "min": 24.625151,
+            "median": 25.427967,
+            "max": 27.541503
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 22627,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 1007.157247,
+          "median": 1007.681535,
+          "max": 1007.681535
+        },
+        "p99_ms": {
+          "min": 1015.545855,
+          "median": 1016.070143,
+          "max": 1016.070143
+        },
+        "p999_ms": {
+          "min": 1020.264447,
+          "median": 1021.837311,
+          "max": 1023.410175
+        },
+        "achieved_per_s": {
+          "min": 8923.95,
+          "median": 8928.9,
+          "max": 8953.4
+        },
+        "errors": 821495,
+        "dispatch_lag_p99_ms": {
+          "min": 1010.302975,
+          "median": 1010.302975,
+          "max": 1010.302975
+        },
+        "http_service_p99_ms": {
+          "min": 17.235967,
+          "median": 17.334271,
+          "max": 17.432575
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 15.769599,
+            "median": 15.826943,
+            "max": 15.958015
+          },
+          "p99_ms": {
+            "min": 25.329663,
+            "median": 25.395199,
+            "max": 26.017791
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      }
+    ]
+  },
+  {
+    "arm": "S",
+    "cell": {
+      "workload": "W2",
+      "rows": 1000000,
+      "delay_us": 1000,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/replay-w2-n1000000-d1000-c128-disjoint-NEW",
+        "--workload",
+        "W2",
+        "--keys",
+        "disjoint",
+        "--link",
+        "B",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/bin/sb4-postgres-scale-seed",
+        "--rates",
+        "1000",
+        "2000",
+        "4000",
+        "8000",
+        "5656",
+        "19027",
+        "22627"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "part": "w2-n1000000-d1000-c128-disjoint",
+    "smoke": false,
+    "concurrent_writes": true,
+    "rate": 4000,
+    "selected": {
+      "rate": 4000,
+      "all_pass": true,
+      "runner_read_or_write_all_pass": true,
+      "p50_ms": {
+        "min": 3.309567,
+        "median": 3.346431,
+        "max": 3.547135
+      },
+      "p99_ms": {
+        "min": 8.368127,
+        "median": 13.369343,
+        "max": 13.459455
+      },
+      "p999_ms": {
+        "min": 10.584063,
+        "median": 21.020671,
+        "max": 49.807359
+      },
+      "achieved_per_s": {
+        "min": 4000.0,
+        "median": 4000.0,
+        "max": 4000.0
+      },
+      "errors": 0,
+      "dispatch_lag_p99_ms": {
+        "min": 0.123135,
+        "median": 0.180607,
+        "max": 0.387583
+      },
+      "http_service_p99_ms": {
+        "min": 8.343551,
+        "median": 12.861439,
+        "max": 13.131775
+      },
+      "background": {
+        "all_pass": true,
+        "p50_ms": {
+          "min": 12.845055,
+          "median": 12.951551,
+          "max": 13.008895
+        },
+        "p99_ms": {
+          "min": 22.396927,
+          "median": 24.870911,
+          "max": 25.608191
+        },
+        "achieved_per_s": {
+          "min": 400.0,
+          "median": 400.0,
+          "max": 400.0
+        },
+        "errors": 0
+      }
+    },
+    "rates": [
+      {
+        "rate": 1000,
+        "all_pass": true,
+        "runner_read_or_write_all_pass": true,
+        "p50_ms": {
+          "min": 2.316287,
+          "median": 2.404351,
+          "max": 2.437119
+        },
+        "p99_ms": {
+          "min": 6.033407,
+          "median": 6.139903,
+          "max": 6.152191
+        },
+        "p999_ms": {
+          "min": 6.582271,
+          "median": 6.606847,
+          "max": 6.737919
+        },
+        "achieved_per_s": {
+          "min": 1000.0,
+          "median": 1000.0,
+          "max": 1000.0
+        },
+        "errors": 0,
+        "dispatch_lag_p99_ms": {
+          "min": 0.100415,
+          "median": 0.115647,
+          "max": 0.134143
+        },
+        "http_service_p99_ms": {
+          "min": 6.004735,
+          "median": 6.103039,
+          "max": 6.123519
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 11.517951,
+            "median": 11.558911,
+            "max": 11.640831
+          },
+          "p99_ms": {
+            "min": 15.917055,
+            "median": 16.179199,
+            "max": 17.727487
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 2000,
+        "all_pass": true,
+        "runner_read_or_write_all_pass": true,
+        "p50_ms": {
+          "min": 2.197503,
+          "median": 2.213887,
+          "max": 2.306047
+        },
+        "p99_ms": {
+          "min": 6.213631,
+          "median": 6.311935,
+          "max": 6.316031
+        },
+        "p999_ms": {
+          "min": 6.758399,
+          "median": 6.811647,
+          "max": 7.188479
+        },
+        "achieved_per_s": {
+          "min": 2000.0,
+          "median": 2000.0,
+          "max": 2000.0
+        },
+        "errors": 0,
+        "dispatch_lag_p99_ms": {
+          "min": 0.104319,
+          "median": 0.115071,
+          "max": 0.150655
+        },
+        "http_service_p99_ms": {
+          "min": 6.189055,
+          "median": 6.266879,
+          "max": 6.287359
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 11.370495,
+            "median": 11.583487,
+            "max": 11.689983
+          },
+          "p99_ms": {
+            "min": 15.220735,
+            "median": 17.661951,
+            "max": 18.071551
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 4000,
+        "all_pass": true,
+        "runner_read_or_write_all_pass": true,
+        "p50_ms": {
+          "min": 3.309567,
+          "median": 3.346431,
+          "max": 3.547135
+        },
+        "p99_ms": {
+          "min": 8.368127,
+          "median": 13.369343,
+          "max": 13.459455
+        },
+        "p999_ms": {
+          "min": 10.584063,
+          "median": 21.020671,
+          "max": 49.807359
+        },
+        "achieved_per_s": {
+          "min": 4000.0,
+          "median": 4000.0,
+          "max": 4000.0
+        },
+        "errors": 0,
+        "dispatch_lag_p99_ms": {
+          "min": 0.123135,
+          "median": 0.180607,
+          "max": 0.387583
+        },
+        "http_service_p99_ms": {
+          "min": 8.343551,
+          "median": 12.861439,
+          "max": 13.131775
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 12.845055,
+            "median": 12.951551,
+            "max": 13.008895
+          },
+          "p99_ms": {
+            "min": 22.396927,
+            "median": 24.870911,
+            "max": 25.608191
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 5656,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 1013.448703,
+          "median": 1013.448703,
+          "max": 1013.448703
+        },
+        "p99_ms": {
+          "min": 1029.701631,
+          "median": 1029.701631,
+          "max": 1030.225919
+        },
+        "p999_ms": {
+          "min": 1033.371647,
+          "median": 1033.895935,
+          "max": 1033.895935
+        },
+        "achieved_per_s": {
+          "min": 4769.05,
+          "median": 4771.5,
+          "max": 4773.8
+        },
+        "errors": 53073,
+        "dispatch_lag_p99_ms": {
+          "min": 1007.157247,
+          "median": 1007.157247,
+          "max": 1007.157247
+        },
+        "http_service_p99_ms": {
+          "min": 33.587199,
+          "median": 33.652735,
+          "max": 33.783807
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 18.366463,
+            "median": 18.694143,
+            "max": 18.808831
+          },
+          "p99_ms": {
+            "min": 28.360703,
+            "median": 29.147135,
+            "max": 29.982719
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 8000,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 1013.448703,
+          "median": 1013.448703,
+          "max": 1013.448703
+        },
+        "p99_ms": {
+          "min": 1029.701631,
+          "median": 1030.225919,
+          "max": 1030.225919
+        },
+        "p999_ms": {
+          "min": 1033.895935,
+          "median": 1034.420223,
+          "max": 1036.517375
+        },
+        "achieved_per_s": {
+          "min": 4765.05,
+          "median": 4769.35,
+          "max": 4769.45
+        },
+        "errors": 193923,
+        "dispatch_lag_p99_ms": {
+          "min": 1013.972991,
+          "median": 1013.972991,
+          "max": 1014.497279
+        },
+        "http_service_p99_ms": {
+          "min": 33.161215,
+          "median": 33.177599,
+          "max": 33.488895
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 18.251775,
+            "median": 18.546687,
+            "max": 18.710527
+          },
+          "p99_ms": {
+            "min": 28.131327,
+            "median": 29.016063,
+            "max": 29.671423
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 19027,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 1013.448703,
+          "median": 1013.448703,
+          "max": 1013.972991
+        },
+        "p99_ms": {
+          "min": 1030.225919,
+          "median": 1030.225919,
+          "max": 1030.225919
+        },
+        "p999_ms": {
+          "min": 1034.420223,
+          "median": 1034.420223,
+          "max": 1034.944511
+        },
+        "achieved_per_s": {
+          "min": 4751.15,
+          "median": 4758.3,
+          "max": 4770.85
+        },
+        "errors": 856014,
+        "dispatch_lag_p99_ms": {
+          "min": 1023.410175,
+          "median": 1023.410175,
+          "max": 1023.410175
+        },
+        "http_service_p99_ms": {
+          "min": 31.965183,
+          "median": 32.030719,
+          "max": 32.063487
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 18.661375,
+            "median": 18.677759,
+            "max": 18.743295
+          },
+          "p99_ms": {
+            "min": 28.901375,
+            "median": 29.179903,
+            "max": 29.229055
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 22627,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 1013.448703,
+          "median": 1013.972991,
+          "max": 1013.972991
+        },
+        "p99_ms": {
+          "min": 1030.225919,
+          "median": 1030.225919,
+          "max": 1030.225919
+        },
+        "p999_ms": {
+          "min": 1034.420223,
+          "median": 1034.944511,
+          "max": 1035.468799
+        },
+        "achieved_per_s": {
+          "min": 4749.45,
+          "median": 4755.1,
+          "max": 4766.8
+        },
+        "errors": 1072193,
+        "dispatch_lag_p99_ms": {
+          "min": 1024.458751,
+          "median": 1024.458751,
+          "max": 1024.458751
+        },
+        "http_service_p99_ms": {
+          "min": 31.719423,
+          "median": 31.817727,
+          "max": 31.948799
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 18.661375,
+            "median": 18.726911,
+            "max": 18.759679
+          },
+          "p99_ms": {
+            "min": 29.114367,
+            "median": 29.245439,
+            "max": 29.671423
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      }
+    ]
+  },
+  {
+    "arm": "S",
+    "cell": {
+      "workload": "W2",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/replay-w2-n1000000-d500-c128-disjoint-NEW",
+        "--workload",
+        "W2",
+        "--keys",
+        "disjoint",
+        "--link",
+        "A",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/bin/sb4-postgres-scale-seed",
+        "--rates",
+        "1000",
+        "2000",
+        "4000",
+        "8000",
+        "5656",
+        "19027",
+        "22627"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "part": "w2-n1000000-d500-c128-disjoint",
+    "smoke": false,
+    "concurrent_writes": true,
+    "rate": 4000,
+    "selected": {
+      "rate": 4000,
+      "all_pass": true,
+      "runner_read_or_write_all_pass": true,
+      "p50_ms": {
+        "min": 2.535423,
+        "median": 2.590719,
+        "max": 2.758655
+      },
+      "p99_ms": {
+        "min": 6.619135,
+        "median": 7.069695,
+        "max": 15.458303
+      },
+      "p999_ms": {
+        "min": 8.302591,
+        "median": 11.968511,
+        "max": 26.476543
+      },
+      "achieved_per_s": {
+        "min": 4000.0,
+        "median": 4000.0,
+        "max": 4000.0
+      },
+      "errors": 0,
+      "dispatch_lag_p99_ms": {
+        "min": 0.084287,
+        "median": 0.099327,
+        "max": 0.157055
+      },
+      "http_service_p99_ms": {
+        "min": 6.590463,
+        "median": 6.959103,
+        "max": 15.450111
+      },
+      "background": {
+        "all_pass": true,
+        "p50_ms": {
+          "min": 10.665983,
+          "median": 10.854399,
+          "max": 10.862591
+        },
+        "p99_ms": {
+          "min": 16.121855,
+          "median": 19.824639,
+          "max": 20.365311
+        },
+        "achieved_per_s": {
+          "min": 400.0,
+          "median": 400.0,
+          "max": 400.0
+        },
+        "errors": 0
+      }
+    },
+    "rates": [
+      {
+        "rate": 1000,
+        "all_pass": true,
+        "runner_read_or_write_all_pass": true,
+        "p50_ms": {
+          "min": 1.857535,
+          "median": 1.862655,
+          "max": 1.943551
+        },
+        "p99_ms": {
+          "min": 4.968447,
+          "median": 5.054463,
+          "max": 5.189631
+        },
+        "p999_ms": {
+          "min": 5.353471,
+          "median": 5.738495,
+          "max": 5.816319
+        },
+        "achieved_per_s": {
+          "min": 1000.0,
+          "median": 1000.0,
+          "max": 1000.0
+        },
+        "errors": 0,
+        "dispatch_lag_p99_ms": {
+          "min": 0.107519,
+          "median": 0.121151,
+          "max": 0.124607
+        },
+        "http_service_p99_ms": {
+          "min": 4.935679,
+          "median": 5.013503,
+          "max": 5.160959
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 10.158079,
+            "median": 10.174463,
+            "max": 10.313727
+          },
+          "p99_ms": {
+            "min": 14.393343,
+            "median": 14.721023,
+            "max": 16.687103
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 2000,
+        "all_pass": true,
+        "runner_read_or_write_all_pass": true,
+        "p50_ms": {
+          "min": 1.635327,
+          "median": 1.658879,
+          "max": 1.668095
+        },
+        "p99_ms": {
+          "min": 5.091327,
+          "median": 5.230591,
+          "max": 5.246975
+        },
+        "p999_ms": {
+          "min": 5.660671,
+          "median": 5.971967,
+          "max": 6.275071
+        },
+        "achieved_per_s": {
+          "min": 2000.0,
+          "median": 2000.0,
+          "max": 2000.0
+        },
+        "errors": 0,
+        "dispatch_lag_p99_ms": {
+          "min": 0.087359,
+          "median": 0.128703,
+          "max": 0.132351
+        },
+        "http_service_p99_ms": {
+          "min": 5.070847,
+          "median": 5.201919,
+          "max": 5.222399
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 9.854975,
+            "median": 9.863167,
+            "max": 10.133503
+          },
+          "p99_ms": {
+            "min": 13.418495,
+            "median": 15.720447,
+            "max": 18.235391
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 4000,
+        "all_pass": true,
+        "runner_read_or_write_all_pass": true,
+        "p50_ms": {
+          "min": 2.535423,
+          "median": 2.590719,
+          "max": 2.758655
+        },
+        "p99_ms": {
+          "min": 6.619135,
+          "median": 7.069695,
+          "max": 15.458303
+        },
+        "p999_ms": {
+          "min": 8.302591,
+          "median": 11.968511,
+          "max": 26.476543
+        },
+        "achieved_per_s": {
+          "min": 4000.0,
+          "median": 4000.0,
+          "max": 4000.0
+        },
+        "errors": 0,
+        "dispatch_lag_p99_ms": {
+          "min": 0.084287,
+          "median": 0.099327,
+          "max": 0.157055
+        },
+        "http_service_p99_ms": {
+          "min": 6.590463,
+          "median": 6.959103,
+          "max": 15.450111
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 10.665983,
+            "median": 10.854399,
+            "max": 10.862591
+          },
+          "p99_ms": {
+            "min": 16.121855,
+            "median": 19.824639,
+            "max": 20.365311
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 5656,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 1013.448703,
+          "median": 1013.448703,
+          "max": 1013.448703
+        },
+        "p99_ms": {
+          "min": 1029.177343,
+          "median": 1029.177343,
+          "max": 1029.177343
+        },
+        "p999_ms": {
+          "min": 1032.847359,
+          "median": 1033.371647,
+          "max": 1033.371647
+        },
+        "achieved_per_s": {
+          "min": 4891.7,
+          "median": 4891.85,
+          "max": 4895.85
+        },
+        "errors": 45772,
+        "dispatch_lag_p99_ms": {
+          "min": 1006.632959,
+          "median": 1006.632959,
+          "max": 1006.632959
+        },
+        "http_service_p99_ms": {
+          "min": 33.161215,
+          "median": 33.193983,
+          "max": 33.210367
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 17.055743,
+            "median": 17.399807,
+            "max": 17.399807
+          },
+          "p99_ms": {
+            "min": 27.049983,
+            "median": 27.672575,
+            "max": 28.688383
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 8000,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 1013.448703,
+          "median": 1013.448703,
+          "max": 1013.448703
+        },
+        "p99_ms": {
+          "min": 1029.177343,
+          "median": 1029.701631,
+          "max": 1029.701631
+        },
+        "p999_ms": {
+          "min": 1033.895935,
+          "median": 1034.420223,
+          "max": 1035.468799
+        },
+        "achieved_per_s": {
+          "min": 4879.25,
+          "median": 4882.95,
+          "max": 4896.95
+        },
+        "errors": 186817,
+        "dispatch_lag_p99_ms": {
+          "min": 1013.448703,
+          "median": 1013.448703,
+          "max": 1013.448703
+        },
+        "http_service_p99_ms": {
+          "min": 32.702463,
+          "median": 32.751615,
+          "max": 33.046527
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 17.252351,
+            "median": 17.252351,
+            "max": 17.367039
+          },
+          "p99_ms": {
+            "min": 28.852223,
+            "median": 29.196287,
+            "max": 30.146559
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 19027,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 1013.448703,
+          "median": 1013.448703,
+          "max": 1013.448703
+        },
+        "p99_ms": {
+          "min": 1029.177343,
+          "median": 1029.701631,
+          "max": 1029.701631
+        },
+        "p999_ms": {
+          "min": 1033.895935,
+          "median": 1035.993087,
+          "max": 1036.517375
+        },
+        "achieved_per_s": {
+          "min": 4868.85,
+          "median": 4871.05,
+          "max": 4880.5
+        },
+        "errors": 849212,
+        "dispatch_lag_p99_ms": {
+          "min": 1022.885887,
+          "median": 1022.885887,
+          "max": 1022.885887
+        },
+        "http_service_p99_ms": {
+          "min": 31.440895,
+          "median": 31.588351,
+          "max": 31.604735
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 17.088511,
+            "median": 17.203199,
+            "max": 17.448959
+          },
+          "p99_ms": {
+            "min": 28.360703,
+            "median": 28.671999,
+            "max": 29.048831
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 22627,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 1013.448703,
+          "median": 1013.448703,
+          "max": 1013.448703
+        },
+        "p99_ms": {
+          "min": 1029.701631,
+          "median": 1029.701631,
+          "max": 1029.701631
+        },
+        "p999_ms": {
+          "min": 1033.895935,
+          "median": 1033.895935,
+          "max": 1046.478847
+        },
+        "achieved_per_s": {
+          "min": 4869.8,
+          "median": 4874.8,
+          "max": 4875.85
+        },
+        "errors": 1065211,
+        "dispatch_lag_p99_ms": {
+          "min": 1023.934463,
+          "median": 1023.934463,
+          "max": 1023.934463
+        },
+        "http_service_p99_ms": {
+          "min": 31.162367,
+          "median": 31.178751,
+          "max": 31.244287
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 17.367039,
+            "median": 17.399807,
+            "max": 17.448959
+          },
+          "p99_ms": {
+            "min": 28.295167,
+            "median": 29.425663,
+            "max": 30.867455
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      }
+    ]
+  },
+  {
+    "arm": "S",
+    "cell": {
+      "workload": "W3",
+      "rows": 1000000,
+      "delay_us": 1000,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/replay-w3-n1000000-d1000-c128-disjoint-NEW",
+        "--workload",
+        "W3",
+        "--keys",
+        "disjoint",
+        "--link",
+        "B",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/bin/sb4-postgres-scale-seed",
+        "--rates",
+        "1000",
+        "2000",
+        "4000",
+        "2828",
+        "19027",
+        "22627"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "part": "w3-n1000000-d1000-c128-disjoint",
+    "smoke": false,
+    "concurrent_writes": true,
+    "rate": 2000,
+    "selected": {
+      "rate": 2000,
+      "all_pass": true,
+      "runner_read_or_write_all_pass": true,
+      "p50_ms": {
+        "min": 4.644863,
+        "median": 4.718591,
+        "max": 4.726783
+      },
+      "p99_ms": {
+        "min": 10.280959,
+        "median": 10.346495,
+        "max": 10.354687
+      },
+      "p999_ms": {
+        "min": 11.788287,
+        "median": 11.984895,
+        "max": 12.115967
+      },
+      "achieved_per_s": {
+        "min": 2000.0,
+        "median": 2000.0,
+        "max": 2000.0
+      },
+      "errors": 0,
+      "dispatch_lag_p99_ms": {
+        "min": 0.117887,
+        "median": 0.123519,
+        "max": 0.123775
+      },
+      "http_service_p99_ms": {
+        "min": 10.256383,
+        "median": 10.313727,
+        "max": 10.321919
+      },
+      "background": {
+        "all_pass": true,
+        "p50_ms": {
+          "min": 12.828671,
+          "median": 13.058047,
+          "max": 13.123583
+        },
+        "p99_ms": {
+          "min": 19.480575,
+          "median": 19.873791,
+          "max": 20.463615
+        },
+        "achieved_per_s": {
+          "min": 400.0,
+          "median": 400.0,
+          "max": 400.0
+        },
+        "errors": 0
+      }
+    },
+    "rates": [
+      {
+        "rate": 1000,
+        "all_pass": true,
+        "runner_read_or_write_all_pass": true,
+        "p50_ms": {
+          "min": 3.487743,
+          "median": 3.493887,
+          "max": 3.510271
+        },
+        "p99_ms": {
+          "min": 7.643135,
+          "median": 7.647231,
+          "max": 7.655423
+        },
+        "p999_ms": {
+          "min": 8.413183,
+          "median": 8.429567,
+          "max": 8.568831
+        },
+        "achieved_per_s": {
+          "min": 1000.0,
+          "median": 1000.0,
+          "max": 1000.0
+        },
+        "errors": 0,
+        "dispatch_lag_p99_ms": {
+          "min": 0.141951,
+          "median": 0.146431,
+          "max": 0.155391
+        },
+        "http_service_p99_ms": {
+          "min": 7.602175,
+          "median": 7.618559,
+          "max": 7.630847
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 11.337727,
+            "median": 11.747327,
+            "max": 11.902975
+          },
+          "p99_ms": {
+            "min": 15.294463,
+            "median": 16.736255,
+            "max": 21.069823
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 2000,
+        "all_pass": true,
+        "runner_read_or_write_all_pass": true,
+        "p50_ms": {
+          "min": 4.644863,
+          "median": 4.718591,
+          "max": 4.726783
+        },
+        "p99_ms": {
+          "min": 10.280959,
+          "median": 10.346495,
+          "max": 10.354687
+        },
+        "p999_ms": {
+          "min": 11.788287,
+          "median": 11.984895,
+          "max": 12.115967
+        },
+        "achieved_per_s": {
+          "min": 2000.0,
+          "median": 2000.0,
+          "max": 2000.0
+        },
+        "errors": 0,
+        "dispatch_lag_p99_ms": {
+          "min": 0.117887,
+          "median": 0.123519,
+          "max": 0.123775
+        },
+        "http_service_p99_ms": {
+          "min": 10.256383,
+          "median": 10.313727,
+          "max": 10.321919
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 12.828671,
+            "median": 13.058047,
+            "max": 13.123583
+          },
+          "p99_ms": {
+            "min": 19.480575,
+            "median": 19.873791,
+            "max": 20.463615
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 2828,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 1024.983039,
+          "median": 1024.983039,
+          "max": 1024.983039
+        },
+        "p99_ms": {
+          "min": 1054.867455,
+          "median": 1054.867455,
+          "max": 1055.391743
+        },
+        "p999_ms": {
+          "min": 1061.683199,
+          "median": 1061.683199,
+          "max": 1062.731775
+        },
+        "achieved_per_s": {
+          "min": 2543.2,
+          "median": 2544.2,
+          "max": 2550.95
+        },
+        "errors": 16913,
+        "dispatch_lag_p99_ms": {
+          "min": 1009.778687,
+          "median": 1009.778687,
+          "max": 1009.778687
+        },
+        "http_service_p99_ms": {
+          "min": 63.078399,
+          "median": 63.209471,
+          "max": 63.373311
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 23.347199,
+            "median": 23.461887,
+            "max": 23.674879
+          },
+          "p99_ms": {
+            "min": 41.418751,
+            "median": 41.910271,
+            "max": 44.924927
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 4000,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 1025.507327,
+          "median": 1025.507327,
+          "max": 1025.507327
+        },
+        "p99_ms": {
+          "min": 1054.867455,
+          "median": 1054.867455,
+          "max": 1054.867455
+        },
+        "p999_ms": {
+          "min": 1061.683199,
+          "median": 1061.683199,
+          "max": 1061.683199
+        },
+        "achieved_per_s": {
+          "min": 2544.85,
+          "median": 2548.15,
+          "max": 2556.0
+        },
+        "errors": 87020,
+        "dispatch_lag_p99_ms": {
+          "min": 1022.885887,
+          "median": 1022.885887,
+          "max": 1022.885887
+        },
+        "http_service_p99_ms": {
+          "min": 61.800447,
+          "median": 61.865983,
+          "max": 61.898751
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 22.822911,
+            "median": 22.839295,
+            "max": 23.150591
+          },
+          "p99_ms": {
+            "min": 40.861695,
+            "median": 41.058303,
+            "max": 41.091071
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 19027,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 1025.507327,
+          "median": 1025.507327,
+          "max": 1025.507327
+        },
+        "p99_ms": {
+          "min": 1055.391743,
+          "median": 1055.391743,
+          "max": 1055.916031
+        },
+        "p999_ms": {
+          "min": 1062.207487,
+          "median": 1062.731775,
+          "max": 1063.780351
+        },
+        "achieved_per_s": {
+          "min": 2521.35,
+          "median": 2526.75,
+          "max": 2529.65
+        },
+        "errors": 990065,
+        "dispatch_lag_p99_ms": {
+          "min": 1048.575999,
+          "median": 1048.575999,
+          "max": 1049.100287
+        },
+        "http_service_p99_ms": {
+          "min": 57.737215,
+          "median": 57.769983,
+          "max": 57.999359
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 22.544383,
+            "median": 22.757375,
+            "max": 22.888447
+          },
+          "p99_ms": {
+            "min": 39.616511,
+            "median": 39.911423,
+            "max": 41.910271
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 22627,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 1025.507327,
+          "median": 1025.507327,
+          "max": 1025.507327
+        },
+        "p99_ms": {
+          "min": 1055.391743,
+          "median": 1055.916031,
+          "max": 1055.916031
+        },
+        "p999_ms": {
+          "min": 1062.207487,
+          "median": 1062.731775,
+          "max": 1062.731775
+        },
+        "achieved_per_s": {
+          "min": 2520.3,
+          "median": 2524.35,
+          "max": 2529.4
+        },
+        "errors": 1206139,
+        "dispatch_lag_p99_ms": {
+          "min": 1049.624575,
+          "median": 1050.148863,
+          "max": 1050.148863
+        },
+        "http_service_p99_ms": {
+          "min": 57.049087,
+          "median": 57.278463,
+          "max": 57.311231
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 22.347775,
+            "median": 22.790143,
+            "max": 23.248895
+          },
+          "p99_ms": {
+            "min": 39.976959,
+            "median": 40.796159,
+            "max": 41.189375
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      }
+    ]
+  },
+  {
+    "arm": "S",
+    "cell": {
+      "workload": "W3",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 128,
+      "keys": "disjoint",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/replay-w3-n1000000-d500-c128-disjoint-NEW",
+        "--workload",
+        "W3",
+        "--keys",
+        "disjoint",
+        "--link",
+        "A",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-final-e-20261026/bin/sb4-postgres-scale-seed",
+        "--rates",
+        "1000",
+        "2000",
+        "4000",
+        "2828",
+        "19027",
+        "22627"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "part": "w3-n1000000-d500-c128-disjoint",
+    "smoke": false,
+    "concurrent_writes": true,
+    "rate": 2000,
+    "selected": {
+      "rate": 2000,
+      "all_pass": true,
+      "runner_read_or_write_all_pass": true,
+      "p50_ms": {
+        "min": 4.083711,
+        "median": 4.134911,
+        "max": 4.147199
+      },
+      "p99_ms": {
+        "min": 9.027583,
+        "median": 9.060351,
+        "max": 9.240575
+      },
+      "p999_ms": {
+        "min": 10.379263,
+        "median": 10.952703,
+        "max": 11.935743
+      },
+      "achieved_per_s": {
+        "min": 2000.0,
+        "median": 2000.0,
+        "max": 2000.0
+      },
+      "errors": 0,
+      "dispatch_lag_p99_ms": {
+        "min": 0.124799,
+        "median": 0.136959,
+        "max": 0.145919
+      },
+      "http_service_p99_ms": {
+        "min": 9.003007,
+        "median": 9.027583,
+        "max": 9.215999
+      },
+      "background": {
+        "all_pass": true,
+        "p50_ms": {
+          "min": 11.173887,
+          "median": 11.304959,
+          "max": 11.411455
+        },
+        "p99_ms": {
+          "min": 17.104895,
+          "median": 17.661951,
+          "max": 18.857983
+        },
+        "achieved_per_s": {
+          "min": 400.0,
+          "median": 400.0,
+          "max": 400.0
+        },
+        "errors": 0
+      }
+    },
+    "rates": [
+      {
+        "rate": 1000,
+        "all_pass": true,
+        "runner_read_or_write_all_pass": true,
+        "p50_ms": {
+          "min": 2.955263,
+          "median": 2.965503,
+          "max": 2.971647
+        },
+        "p99_ms": {
+          "min": 6.623231,
+          "median": 6.623231,
+          "max": 6.660095
+        },
+        "p999_ms": {
+          "min": 7.368703,
+          "median": 7.467007,
+          "max": 7.544831
+        },
+        "achieved_per_s": {
+          "min": 1000.0,
+          "median": 1000.0,
+          "max": 1000.0
+        },
+        "errors": 0,
+        "dispatch_lag_p99_ms": {
+          "min": 0.136191,
+          "median": 0.139775,
+          "max": 0.160127
+        },
+        "http_service_p99_ms": {
+          "min": 6.586367,
+          "median": 6.590463,
+          "max": 6.623231
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 9.936895,
+            "median": 10.313727,
+            "max": 10.510335
+          },
+          "p99_ms": {
+            "min": 14.008319,
+            "median": 15.654911,
+            "max": 16.138239
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 2000,
+        "all_pass": true,
+        "runner_read_or_write_all_pass": true,
+        "p50_ms": {
+          "min": 4.083711,
+          "median": 4.134911,
+          "max": 4.147199
+        },
+        "p99_ms": {
+          "min": 9.027583,
+          "median": 9.060351,
+          "max": 9.240575
+        },
+        "p999_ms": {
+          "min": 10.379263,
+          "median": 10.952703,
+          "max": 11.935743
+        },
+        "achieved_per_s": {
+          "min": 2000.0,
+          "median": 2000.0,
+          "max": 2000.0
+        },
+        "errors": 0,
+        "dispatch_lag_p99_ms": {
+          "min": 0.124799,
+          "median": 0.136959,
+          "max": 0.145919
+        },
+        "http_service_p99_ms": {
+          "min": 9.003007,
+          "median": 9.027583,
+          "max": 9.215999
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 11.173887,
+            "median": 11.304959,
+            "max": 11.411455
+          },
+          "p99_ms": {
+            "min": 17.104895,
+            "median": 17.661951,
+            "max": 18.857983
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 2828,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 1023.934463,
+          "median": 1024.458751,
+          "max": 1024.458751
+        },
+        "p99_ms": {
+          "min": 1054.867455,
+          "median": 1054.867455,
+          "max": 1054.867455
+        },
+        "p999_ms": {
+          "min": 1061.683199,
+          "median": 1062.731775,
+          "max": 1063.256063
+        },
+        "achieved_per_s": {
+          "min": 2569.8,
+          "median": 2571.7,
+          "max": 2575.35
+        },
+        "errors": 15343,
+        "dispatch_lag_p99_ms": {
+          "min": 1009.254399,
+          "median": 1009.254399,
+          "max": 1009.778687
+        },
+        "http_service_p99_ms": {
+          "min": 63.307775,
+          "median": 63.471615,
+          "max": 63.602687
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 22.200319,
+            "median": 22.216703,
+            "max": 22.233087
+          },
+          "p99_ms": {
+            "min": 42.467327,
+            "median": 42.696703,
+            "max": 43.253759
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 4000,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 1024.983039,
+          "median": 1025.507327,
+          "max": 1025.507327
+        },
+        "p99_ms": {
+          "min": 1054.867455,
+          "median": 1054.867455,
+          "max": 1055.391743
+        },
+        "p999_ms": {
+          "min": 1062.731775,
+          "median": 1063.256063,
+          "max": 1063.780351
+        },
+        "achieved_per_s": {
+          "min": 2556.8,
+          "median": 2562.3,
+          "max": 2572.25
+        },
+        "errors": 86173,
+        "dispatch_lag_p99_ms": {
+          "min": 1022.885887,
+          "median": 1022.885887,
+          "max": 1023.410175
+        },
+        "http_service_p99_ms": {
+          "min": 62.226431,
+          "median": 62.390271,
+          "max": 62.554111
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 21.725183,
+            "median": 21.921791,
+            "max": 21.970943
+          },
+          "p99_ms": {
+            "min": 41.713663,
+            "median": 42.139647,
+            "max": 44.400639
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 19027,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 1025.507327,
+          "median": 1025.507327,
+          "max": 1025.507327
+        },
+        "p99_ms": {
+          "min": 1055.391743,
+          "median": 1055.391743,
+          "max": 1055.916031
+        },
+        "p999_ms": {
+          "min": 1063.256063,
+          "median": 1063.780351,
+          "max": 1064.304639
+        },
+        "achieved_per_s": {
+          "min": 2536.95,
+          "median": 2539.25,
+          "max": 2542.25
+        },
+        "errors": 989251,
+        "dispatch_lag_p99_ms": {
+          "min": 1049.100287,
+          "median": 1049.100287,
+          "max": 1049.100287
+        },
+        "http_service_p99_ms": {
+          "min": 57.638911,
+          "median": 57.737215,
+          "max": 57.835519
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 21.102591,
+            "median": 21.446655,
+            "max": 21.856255
+          },
+          "p99_ms": {
+            "min": 40.337407,
+            "median": 41.058303,
+            "max": 43.679743
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      },
+      {
+        "rate": 22627,
+        "all_pass": false,
+        "runner_read_or_write_all_pass": false,
+        "p50_ms": {
+          "min": 1025.507327,
+          "median": 1025.507327,
+          "max": 1025.507327
+        },
+        "p99_ms": {
+          "min": 1055.916031,
+          "median": 1055.916031,
+          "max": 1055.916031
+        },
+        "p999_ms": {
+          "min": 1063.780351,
+          "median": 1064.304639,
+          "max": 1064.828927
+        },
+        "achieved_per_s": {
+          "min": 2533.75,
+          "median": 2538.6,
+          "max": 2541.25
+        },
+        "errors": 1205348,
+        "dispatch_lag_p99_ms": {
+          "min": 1050.148863,
+          "median": 1050.148863,
+          "max": 1050.148863
+        },
+        "http_service_p99_ms": {
+          "min": 57.081855,
+          "median": 57.245695,
+          "max": 57.311231
+        },
+        "background": {
+          "all_pass": true,
+          "p50_ms": {
+            "min": 21.135359,
+            "median": 21.315583,
+            "max": 21.479423
+          },
+          "p99_ms": {
+            "min": 41.844735,
+            "median": 42.696703,
+            "max": 42.827775
+          },
+          "achieved_per_s": {
+            "min": 400.0,
+            "median": 400.0,
+            "max": 400.0
+          },
+          "errors": 0
+        }
+      }
+    ]
+  }
+]

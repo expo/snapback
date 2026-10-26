@@ -1,0 +1,18 @@
+{
+  "status": 0,
+  "profile": "release opt-level=3; core-only debug-assertions=true; test-support disabled",
+  "qualification_override": "profile.release.package.snapback4-core.debug-assertions=true",
+  "commit": "6b73305aa14fed20f39ccb0dc2498a336ae0a70a",
+  "binaries": {
+    "s1-wr-queue-probe": "14ef448999c45a35b1d9ed600544e2a13b2df51cc948c9ccd8d851276f6b42e8",
+    "snapback4": "de7aef0cede132d8d9fdff757d69eaa415e859ed9d0b9b4fedf4a1da6da1ac81",
+    "sb4-scale-controls": "f8ad59703851f2cb5c0fccfaf59e3e49d536a27a859918f38af569c98f1db1ef",
+    "sb4-postgres-scale-seed": "d0ac8e6f5564a28bdbbf2dad5d024f40a244f2a9373199a33377ee3b92c1a460"
+  },
+  "seed": {
+    "source_identical": true,
+    "manifest_change": "only core dependency path made absolute",
+    "lock_refreshed_offline": true,
+    "repository_unchanged": true
+  }
+}
