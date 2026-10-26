@@ -123,3 +123,17 @@ fn campaign(source:&str)->security::challenges::Campaign{let(s,b)=bound(source);
 #[test]fn enum_self_assignments_are_informational_approval_records(){
  for (args,guard,value) in [("","d.workflow = 'ready'","'ready'"),("","(d.workflow != 'done') = true","'ready'"),(",workflow: enum('ready','done')","workflow = d.workflow","workflow")]{let source=format!("table docs:\n  workflow: enum('ready','done') default 'ready'\n  approved: bool default false\n  read <- allow\n  update <- allow\n  online only\nmutation approve(doc: docs):\n  update docs[doc] {{approved:true}}\nmutation keep(doc: docs{args}):\n  d = docs[doc] ! else MISSING\n  require {guard} else STAGE\n  update docs[doc] {{workflow:{value}}}\n");for source in [source.clone(),source.replace("approved","readyApproved").replace("mutation keep(","mutation performReady(")]{let ns=notes(&source);assert!(!ns.iter().any(|n|n.code=="N_APPROVAL_NOT_ENFORCED"),"{ns:?}");assert!(ns.iter().any(|n|n.code=="N_APPROVAL_INFORMATIONAL"),"{ns:?}");}}
 }
+
+#[test]fn finite_enum_and_local_destinations_do_not_freeze_workflow_admission(){
+ for kind in ["enum('booked','prepped','tinted') default 'booked'","text <=30 default 'booked'"]{for (binding,value) in [("","to"),("  nextState = to\n","nextState"),("  nextState = 'prepped' if d.workflow = 'booked' else 'tinted'\n","nextState")]{
+  let source=format!("table docs:\n  workflow: {kind}\n  material: enum('steel','wood') default 'steel'\n  approved: bool default false\n  read <- allow\n  update <- allow\n  online only\nmutation approve(doc: docs):\n  d = docs[doc] ! else MISSING\n  require d.workflow = 'booked' or d.workflow = 'prepped' else STAGE\n  require d.material = 'steel' else MATERIAL\n  update docs[doc] {{approved:true}}\nmutation advance(doc: docs,to: enum('prepped','tinted')):\n  d = docs[doc] ! else MISSING\n  if to = 'prepped':\n    require d.workflow = 'booked' else STAGE\n  else:\n    require d.workflow = 'prepped' else STAGE\n    require d.approved else APPROVAL\n{binding}  update docs[doc] {{workflow:{value}}}\n");
+  let(s,b)=bound(&source);let cs=security::derived::invariants(&s,&b);
+  assert!(!cs.iter().any(|i|i.column.as_deref()==Some("workflow")&&i.predicate.contains("old.approved")),"{kind} {value}: {cs:?}");
+  assert!(cs.iter().any(|i|i.column.as_deref()==Some("material")&&i.predicate.contains("old.approved")),"actual inspected data remains protected: {cs:?}");
+ }}
+}
+
+#[test]fn clearing_text_is_not_a_nonempty_workflow_destination(){
+ let source="table docs:\n  material: text <=30 default 'steel'\n  approved: bool default false\n  read <- allow\n  update <- allow\n  online only\nmutation approve(doc: docs):\n  d = docs[doc] ! else MISSING\n  require d.material = 'steel' or d.material = 'wood' else MATERIAL\n  update docs[doc] {approved:true}\nmutation clear(doc: docs):\n  d = docs[doc] ! else MISSING\n  require d.material = 'steel' or d.material = 'wood' else MATERIAL\n  update docs[doc] {material:''}\n";
+ let(s,b)=bound(source);let cs=security::derived::invariants(&s,&b);assert!(cs.iter().any(|i|i.column.as_deref()==Some("material")&&i.predicate.contains("old.approved")),"empty destination must retain inspected data: {cs:?}");
+}

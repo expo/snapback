@@ -32,7 +32,7 @@ fn report_with_reviewed(project:&Project,bound:&Bound,sources:&[(String,String)]
     if let Some(snapshot)=&inputs{selection.flags.insert("fixture".into(),snapshot.0.to_string_lossy().into_owned());}
     let cached=record::matching(project,&selection,sources);
     let known_failure=cached.as_ref().is_some_and(|r|if reviewed.is_empty(){!r.violations.is_empty()}else{r.violations.iter().any(|v|v.reachability.is_reachable()&&replay.invariants.iter().any(|i|i.site.to_string()==v.invariant_site))})&&!options.flags.contains_key("security-full");
-    let mut campaign=if options.flags.contains_key("security-full"){security::challenges::Campaign::default()}else{if options.flags.contains_key("security-deploy"){security::challenges::Campaign::work_bounded(2048)}else{security::challenges::Campaign::work_bounded(512)}};
+    let mut campaign=if options.flags.contains_key("security-full"){security::challenges::Campaign::default()}else{if options.flags.contains_key("security-deploy"){security::challenges::Campaign::work_bounded(3072)}else{security::challenges::Campaign::work_bounded(512)}};
     if known_failure {campaign.work_remaining=Some(0);campaign.unsupported.insert("matching full-test refutations retained; bounded resampling skipped; repair and rerun snapback4 test".into());}
     // An explicitly selected fixture remains the initial-state assumption.
     // Static generation runs only on the fixture-free path; both share this

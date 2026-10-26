@@ -48,3 +48,17 @@ struct Scratch(std::path::PathBuf);impl Drop for Scratch{fn drop(&mut self){let 
     assert!(value["report"]["invariants"].as_array().unwrap().iter().any(|v|v["status"]=="refuted"&&v["invariant"]["column"]=="customerConsent"&&v["counterexample"]["operation"]=="signFailing"),"reviewed cached failure must not hide independent approval: {cached}");
     assert!(cached.contains("REVIEWED derived"));assert!(enforce_release(Some(&cached),&options).is_err());
 }
+
+#[test]fn fresh_deploy_replays_nested_sibling_approval_without_authored_intent(){
+    let dir=std::env::temp_dir().join(format!("sb4-sec10-nested-sibling-{}",std::process::id()));let _scratch=Scratch(dir.clone());
+    std::fs::create_dir_all(dir.join("snapback")).unwrap();let project=Project{root:dir};
+    let source=include_str!("../../../../snapback4-lang/tests/security/wave26/018.q").lines().filter(|line|!line.trim_start().starts_with("invariant ")).collect::<Vec<_>>().join("\n")+"\n";
+    std::fs::write(project.schema_dir().join("schema.q"),source).unwrap();let sources=project.sources().unwrap();let bound=snapback4_lang::compile(&sources);assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);
+    let options=Options{positionals:Vec::new(),flags:BTreeMap::new(),json:false};
+    let summary=release_loop(&project,&bound,&sources,None,&options).unwrap().unwrap();let value:serde_json::Value=serde_json::from_str(&summary).unwrap();
+    let witness=value["report"]["invariants"].as_array().unwrap().iter().find(|v|v["status"]=="refuted"&&v["invariant"]["site"]["file"].as_str().is_some_and(|s|s.contains("/sibling-approval/"))&&v["counterexample"]["operation"]=="addRescan"&&matches!(v["counterexample"]["reachability"].as_str(),Some("authored-fixture-trace"|"generated-fixture-trace"))).expect("fresh deploy must retain a reachable nested sibling witness");
+    let history=witness["counterexample"]["history"].as_array().unwrap();
+    for operation in ["addScan","setRestriction","addRescan"]{assert!(history.iter().any(|step|step["operation"]==operation),"actual approval-bypassing history must include {operation}: {witness}");}
+    assert!(value["fixes"].as_u64().unwrap()>0,"a reachable violation must count as a FIX");
+    assert!(enforce_release(Some(&summary),&options).unwrap_err().contains("production deploy refuses reachable FIX"));
+}
