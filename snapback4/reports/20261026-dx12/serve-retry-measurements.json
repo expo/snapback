@@ -1,0 +1,29 @@
+{
+  "provenance": {
+    "binary": "a5a11aa9ea115f58d49f708dce85a29667a83bd86e0c1c841feb7246ae153781",
+    "method": "unchanged copied prod:serve + client:calls through withServeScript; private 0600 users bridge for legacy CALLS_USERS; 60s startup/proof bounds; no credentials or command output retained"
+  },
+  "rows": [
+    {
+      "lane": "031-snapback-dryer-vent-cleanings",
+      "ok": true,
+      "commandCode": 0,
+      "ms": 3384,
+      "lockReleased": true
+    },
+    {
+      "lane": "043-snapback-playground-safety-inspections",
+      "ok": true,
+      "commandCode": 0,
+      "ms": 62661,
+      "lockReleased": true
+    },
+    {
+      "lane": "050-snapback-home-generator-servicing",
+      "ok": true,
+      "commandCode": 0,
+      "ms": 64205,
+      "lockReleased": true
+    }
+  ]
+}

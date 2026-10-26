@@ -68,13 +68,13 @@ fn approval_freezes_replacement_and_removal_even_in_a_thawing_patch(){
     }}
 }
 #[test]
-fn defaults_are_writes_and_the_schema_carries_a_capability(){
+fn defaults_initialize_and_the_schema_carries_a_capability(){
     let source=SOURCE.replace("cell: text ? write", "cell: text ? default 'initial' write")+"\nmutation defaults(owner: principal):\n  return insert docs {owner}\n";
     let b=snapback4_lang::compile(&[("schema.q".into(),source.clone())]);
     assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
     assert!(b.schema.required_capabilities().contains("column-write-v1"));
     let mut e=engine(&source);
-    for (viewer,expected) in [("bob",false),("alice",true)]{
+    for (viewer,expected) in [("bob",true),("alice",true)]{
         let result=e.mutate("defaults",None,Context::new(viewer,BTreeMap::from([("owner".into(),Value::Id("alice".into()))])).at(1_800_000_000_000)).unwrap();
         assert_eq!(matches!(result.state,WriteState::Sent{..}),expected,"default grant as {viewer}: {result:?}");
     }
@@ -169,4 +169,36 @@ fn schema_role_enumeration_covers_every_outside_role_and_write_arm(){
   let mut e=engine(source);e.seed([("roles".into(),object([("id",Value::Id(role.clone())),("principal",Value::Id(actor.clone())),("role",Value::String(role.clone()))]))]).unwrap();
   assert!(!sent(&mut e,"put",Context::new(&actor,BTreeMap::from([("id".into(),Value::Id("missing".into())),("cell".into(),Value::String("forged".into()))])).at(1_800_000_000_000)));
  }
+}
+
+#[test]
+fn wave30_zero_and_false_initialize_but_changed_updates_still_require_owner() {
+    // 008 extraCents, 011 homeownerConsent, 017 refundApproved.
+    for (column,kind,initial,changed) in [
+        ("extraCents","int","0",Value::Int(100)),
+        ("homeownerConsent","bool","false",Value::Bool(true)),
+        ("refundApproved","bool","false",Value::Bool(true)),
+    ] {
+        let source=format!("table jobs:\n  {column}: {kind} default {initial} write <- viewer = 'owner'\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\nmutation omitted():\n  return insert jobs {{}}\nmutation explicit(value: {kind}):\n  return insert jobs {{{column}:value}}\nmutation absent(value: {kind}):\n  return insert jobs {{{column}:value}} if absent\nmutation put(id: jobs,value: {kind}):\n  return upsert jobs[id] {{{column}:value}}\nmutation edit(id: jobs,value: {kind}):\n  update jobs[id] {{{column}:value}}\n");
+        let init=if kind=="bool" {Value::Bool(false)}else{Value::Int(0)};
+        for op in ["explicit","absent","put"] {
+            let mut e=engine(&source);
+            let ctx=|who:&str,value:Value|Context::new(who,BTreeMap::from([("id".into(),Value::Id("job".into())),("value".into(),value)]).into_iter().filter(|(k,_)|k!="id"||op=="put").collect()).at(1_800_000_000_000);
+            assert!(matches!(e.mutate(op,None,ctx("staff",init.clone())).unwrap().state,WriteState::Sent{..}),"{column} {op} default");
+            let mut e=engine(&source);
+            assert!(!matches!(e.mutate(op,None,ctx("staff",changed.clone())).unwrap().state,WriteState::Sent{..}),"{column} {op} forged");
+        }
+        let mut e=engine(&source);
+        assert!(matches!(e.mutate("omitted",None,Context::new("staff",BTreeMap::new())).unwrap().state,WriteState::Sent{..}));
+        let id=e.store().rows("jobs").unwrap()[0].field("id").unwrap().clone();
+        let ctx=|who:&str,value:Value|Context::new(who,BTreeMap::from([("id".into(),id.clone()),("value".into(),value)])).at(1_800_000_000_000);
+        assert!(!matches!(e.mutate("edit",None,ctx("staff",changed.clone())).unwrap().state,WriteState::Sent{..}));
+        assert!(matches!(e.mutate("edit",None,ctx("owner",changed)).unwrap().state,WriteState::Sent{..}));
+        for op in ["edit","put"] {assert!(!matches!(e.mutate(op,None,ctx("staff",init.clone())).unwrap().state,WriteState::Sent{..}),"reset via {op}");}
+        let sources=vec![("schema.q".into(),format!("{source}\ninvariant jobs.{column} write only viewer = 'owner'\n"))];let bound=snapback4_lang::compile(&sources);
+        let bound=snapback4_lang::security::derived::augmented(&sources,&bound);
+        let mut campaign=snapback4_lang::security::challenges::Campaign::default();
+        snapback4_lang::security::challenges::generated_campaign(&bound,&mut campaign,true);
+        assert!(!campaign.violations.iter().any(|v|v.reachability.is_reachable()),"{column} {:?}",campaign.violations);
+    }
 }

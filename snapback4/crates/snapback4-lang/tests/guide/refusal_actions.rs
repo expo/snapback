@@ -2,6 +2,13 @@
 //! These facts supplement the definition pins. A code label alone cannot tell
 //! a caller whether to retry, replace intent, change a declaration, or show no data.
 pub(super) const ACTIONS: &[(&str, &[&str])] = &[
+    ("E_DEV_ACCOUNTS", &["Use devAccounts only on development; seedAccounts for staging and provisionAccounts for production. guide staging."]),
+    ("E_SERVE_STOP_FAILED", &["Inspect shutdown handlers; a successful proof command cannot clear this failure. guide testing."]),
+    ("E_SERVE_THEN_FAILED", &["Cleanup still checks group shutdown and lock release; repair the callback and rerun. guide testing."]),
+    ("E_SERVE_THEN_TIMEOUT", &["Inspect stuck work; commands are stopped with the owned serve group, callbacks must honor their signal. guide testing."]),
+    ("E_WITNESS_ARGUMENTS", &["Named values are compared exactly; handler-owned additional keys are allowed. guide testing."]),
+    ("E_DATA_TRANSACTION_ABORTED", &["No success receipt is issued. Inspect the server outcome and retry through the identified-write path with the original intent id. See snapback4 guide deploy."]),
+
     ("E_PRODUCTION_ROSTER", &["Inspect the roster and deployment. Keep credentials with their store; use stable arguments and never silently create replacement accounts."]),
     ("E_PRODUCTION_ROSTER_BUSY", &["Wait for its driver. After confirming an interrupted driver is gone, inspect partial grants and remove only that roster lock; setup is not rolled back."]),
     ("E_SERVE_CHECK", &["Check options with serve-check --help and rerun. No passing script qualification is claimed."]),
@@ -11,7 +18,10 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("E_SERVE_EARLY_EXIT", &["Hold an owned referenced lifetime until SIGTERM, then await host cleanup. A readiness line alone does not qualify uptime."]),
     ("E_SERVE_CHILD_RUNNING", &["Stop every owned host and inspect the driver. Forced group cleanup happens after inspection and cannot make this failed check pass."]),
     ("E_SERVE_DRIVER_EXIT", &["Investigate the driver failure and rerun. Lost custody never qualifies a serve script."]),
-    ("E_SERVE_LOCK_HELD", &["Inspect the intended owner and deployment before rerunning. The observation precedes forced cleanup; the check does not delete a lock."]),
+    ("E_SERVE_LOCK_HELD", &["Inspect that owner and deployment before rerunning. The observation precedes forced cleanup; the check does not delete a lock."]),
+    ("E_SERVE_DEPLOYMENT_MISMATCH", &["Align --deployment with the script’s --dir; the diagnostic names both resolved paths."]),
+    ("E_SERVE_STORE_MISSING", &["Deploy it first or correct --deployment and the script’s --dir.", "A missing store is a path error, not a held lock."]),
+    ("E_SERVE_LOCK_BARRIER", &["Inspect the named store and rerun; neither held nor released is established, and no lock is deleted."]),
     ("E_SERVE_INSPECTION", &["Restore a working ps command and rerun. An unknown group never passes cleanup; only the pinned group is reclaimed."]),
     ("E_SERVE_START", &["Check npm and the script name, then rerun. No readiness or custody claim is made without the handshake."]),
 

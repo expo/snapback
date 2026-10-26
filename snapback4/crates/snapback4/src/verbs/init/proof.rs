@@ -53,7 +53,12 @@ pub(super) fn files(files: &mut Vec<(&'static str, String)>, options: &Options, 
         }
     }
     if has_frontend {
-        if shape.password { files.extend(super::password_proof::files(&sources,proof)); }
+        if shape.password {
+            let proof=if options.flags.contains_key("password") && super::own_schema(dir).ok().flatten().is_none() {
+                frontend_proof(include_str!("frontend-proof.mjs"),None,web).replace("BUILD_SCRIPT",if web {"build"}else{"build:web"}).replace("Task","Note").replace("todo-results","note-results").replace("RESULTS_SCOPE",if web {"page.getByRole(\"list\")"}else{"page.getByTestId(\"todo-results\")"})
+            } else {proof};
+            files.extend(super::password_proof::files(&sources,proof));
+        }
         else {files.push(("scripts/frontend-proof.mjs",proof));}
     }
     if day2 { files.push(("scripts/day2-proof.mjs", include_str!("day2-proof.mjs").to_owned())); }

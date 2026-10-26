@@ -1,8 +1,8 @@
 export { loadFixtures, type FixtureRow, type LoadFixturesOptions } from "./proof-fixtures.ts";
-import { provisionAccounts, seedAccounts, type ProvisionAccountsOptions, type ProvisionedSessions, type SeedAccountsOptions, type StagingSessions } from "./proof-accounts.ts";
-export { provisionAccounts, seedAccounts, type SeedAccountsOptions, type StagingAccount, type StagingSessions, type ProvisionAccountsOptions, type ProvisionedAccount, type ProvisionedSessions } from "./proof-accounts.ts";
+import { devAccounts, provisionAccounts, seedAccounts, type ProvisionAccountsOptions, type ProvisionedSessions, type SeedAccountsOptions, type StagingSessions } from "./proof-accounts.ts";
+export { devAccounts, provisionAccounts, seedAccounts, type SeedAccountsOptions, type StagingAccount, type StagingSessions, type ProvisionAccountsOptions, type ProvisionedAccount, type ProvisionedSessions } from "./proof-accounts.ts";
 // @ref LLP 3000.011.003.000.000#1 — the packaged proof kit owns hosts; builders own assertions.
-import { mkdirSync, openSync, closeSync, writeSync } from "node:fs";
+import { appendFileSync, mkdirSync, openSync, closeSync, writeSync } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
@@ -49,6 +49,7 @@ async function nativeHost(verb: "dev" | "serve", prefix: string[], options: Proo
   } catch (error) { await stopChild(run.child, deadline(options.stopTimeoutMs, 5000)); throw error; }
 }
 export interface DevHost extends ProofHost {
+  devAccounts(options: SeedAccountsOptions): Promise<StagingSessions>;
   personas: string[];
   /** Read the current authoritative development time, including all clock advances. */
   now(): Promise<number>;
@@ -82,7 +83,7 @@ export function startDev(options: ProofOptions | readonly string[] = {}): Promis
       const now = result.now!;
       return { now, fired: result.fired ?? [], held: result.held ?? [], maintenancePaused: result.maintenancePaused ?? false, valueOf() { return now; } };
     };
-    return { ...host, personas: host.personas!, operatorToken, now: async () => (await clockCall()).now,
+    return { ...host, personas: host.personas!, operatorToken, devAccounts: (options: SeedAccountsOptions) => devAccounts({...host, operatorToken}, options), now: async () => (await clockCall()).now,
       advance: (duration: string, advanceOptions: AdvanceOptions = {}) => {
         if (typeof duration !== "string" || (!/^\+?\d+(ms|s|m|h|d|w)$/.test(duration) || BigInt(duration.replace(/\D/g, "")) === 0n)) throw new TypeError("E_PROOF_USAGE: advance requires a positive whole duration");
         return clockCall({duration, ...advanceOptions});
@@ -135,6 +136,11 @@ export async function startServe(deployDir: string, options: ServeOptions | read
   if (opts.clockOffset !== undefined && (typeof opts.clockOffset !== "string" || !/^[+-]?\d+(ms|s|m|h|d|w)$/.test(opts.clockOffset))) throw new TypeError("E_PROOF_USAGE: clockOffset is a signed duration such as +25h");
   if (opts.clockOffset !== undefined && opts.args?.some(arg => arg === "--clock-offset" || arg.startsWith("--clock-offset="))) throw new TypeError("E_PROOF_USAGE: pass clockOffset once");
   const host = await nativeHost("serve", [directory], { ...opts, args: [...(opts.args ?? []), ...(opts.clockOffset === undefined ? [] : ["--clock-offset", opts.clockOffset])] });
+  // A private path-only observation lets serve-check compare the script's actual
+  // startServe directory with its requested lock barrier. Never record readiness.
+  try {
+    if (process.env.SNAPBACK4_SERVE_CHECK_STORES) appendFileSync(process.env.SNAPBACK4_SERVE_CHECK_STORES, JSON.stringify({directory}) + "\n");
+  } catch {await host.stop();throw Error("E_SERVE_INSPECTION: cannot record the script's deployment path");}
   const clockCall = async (body?: object): Promise<ClockAdvance> => {
     const config = await fetchIdentity(`${host.url}/auth/config`, deadline(opts.timeoutMs, 10_000));
     if (!config.response.ok || config.body.environment !== "staging") throw Error("E_CLOCK_DEV_ONLY: clock controls require a deploy --staging store");
@@ -352,7 +358,7 @@ export async function serveUntilSignal(hosts: readonly Pick<ProofHost, "stop">[]
   }
 }
 const substringLocators = new WeakMap<Locator, { locator: Locator; scoped: boolean }>();
-/** Match the smallest visible element whose composed descendant text matches.
+/** Match the smallest reachable element whose composed descendant text matches; scroll a unique candidate into view when observed.
  * Strings normalize whitespace and match substrings by default; regexes keep their
  * own semantics. Editable values never count. Independent matches remain
  * ambiguous, including repeated rows. */
@@ -490,4 +496,4 @@ export function statusText(page: Page, text: string | RegExp = /^(?:Ready|pendin
 /** @throws locator ambiguity, unavailable option or Playwright deadline. */
 export async function selectByValue(locator: Locator, value: string): Promise<void> { await locator.selectOption({ value }); }
 
-export { serveCheck, type ServeCheckOptions, type ServeCheckReport } from "./proof-serve-check.ts";
+export { serveCheck, withServeScript, type ServeScriptReady, type ServeCheckOptions, type ServeCheckReport } from "./proof-serve-check.ts";

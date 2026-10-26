@@ -1,0 +1,16 @@
+{
+  "method": "actual lane009 frontend journey; reuse existing bundled dist instead of rebuild; replace body.innerText workaround with renderedText, reset scroll before assertion; no payload output retained",
+  "rows": [
+    {
+      "label": "before",
+      "code": 1,
+      "failureKind": "renderedText missing fresh text",
+      "ms": 4430
+    },
+    {
+      "label": "after",
+      "code": 0,
+      "ms": 2616
+    }
+  ]
+}

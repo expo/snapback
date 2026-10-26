@@ -1,0 +1,9 @@
+{
+  "time": "2026-10-26T02:30:29.837155+00:00",
+  "path": "/tmp/dx12-replay",
+  "deleted": true,
+  "method": "after owned replay processes completed and deployment lock barriers passed; controls and credential copies removed",
+  "includesDevelopmentReplay": true,
+  "includesPinnedDeployRerun": true,
+  "includesStandaloneTextReruns": true
+}

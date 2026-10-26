@@ -6,6 +6,7 @@
 
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
 pub(crate) enum Tier {
+    Fix,
     /// Can cost correctness or completeness: a page that never completes, a
     /// write no caller can pass, a disclosure, a read a device cannot answer.
     Review,
@@ -16,6 +17,7 @@ pub(crate) enum Tier {
 }
 
 pub(crate) fn tier(code: &str) -> Tier {
+    if matches!(code,"N_WRITE_DENIED"|"N_REQUIRE_HIDDEN"|"N_NEVER_COMPLETE"|"N_UNREADABLE_PROBE") {return Tier::Fix;}
     if snapback4_lang::security::gated_note(code)||snapback4_lang::security::note_priority(code)<=2{return Tier::Review;}
     match code {
         "N_IMMUTABLE_PATCH" | "N_PERSONA_PRINCIPAL" | "N_UNREADABLE_PROBE" | "N_NO_PRODUCTION_WRITER" | "N_FIXTURE_ARGUMENT_DRIFT" | "N_REFERENCE_UNCHECKED" | "N_MAINTAIN_AUTHORIZATION" | "N_WRITE_DENIED" | "N_DELETE_RESTRICTED" | "N_DELETE_NEEDS_READ" | "N_PATCH_CLEARS" | "N_NEVER_COMPLETE" | "N_CONDITIONAL_COMPLETE" | "N_PROBE_ONLY_READ" | "N_VACUOUS_RULE" | "N_LOOKUP_HIDDEN" | "N_LOOKUP_FILTERED" | "N_UNIQUE_HIDDEN" | "N_LOOKUP_NEVER_VISIBLE" | "N_REQUIRE_HIDDEN" | "N_REQUIRE_REFUSED" | "N_QUERY_FILTERED" | "N_SHAPE_METER" | "N_HELD_UNKNOWN" | "N_SEQUENCE_READ"
@@ -80,6 +82,7 @@ pub(crate) fn verdict(code: &str, summary: &str, form: bool) -> &'static str {
         "N_IMMUTABLE_PATCH" => "review: readable conflicts require the original immutable value",
         "N_NO_CURSOR" => "no action for a top-N list",
         _ => match tier(code) {
+            Tier::Fix => "fix",
             Tier::Review => "review",
             Tier::Performance => "no action unless it is slow (`check --cost` measures it)",
             Tier::Design => "no action for an online app",
@@ -89,6 +92,7 @@ pub(crate) fn verdict(code: &str, summary: &str, form: bool) -> &'static str {
 
 fn heading(tier: Tier) -> &'static str {
     match tier {
+        Tier::Fix => "fix — actionable correctness or completeness:",
         Tier::Review => "review — can cost correctness or completeness:",
         Tier::Performance => "performance — costs speed, meter headroom or offline coverage:",
         Tier::Design => "by design — what a declaration implies; no action needed for online use:",
@@ -328,7 +332,7 @@ mod tests {
         assert!(lines[0].starts_with("5 things to review"), "{lines:?}");
         let body: Vec<&str> = lines[1..].iter().map(String::as_str).collect();
         assert_eq!(body, [
-            "review — can cost correctness or completeness:",
+            "fix — actionable correctness or completeness:",
             "note: schema.q:104:1 — N_WRITE_DENIED: fix: this write refuses E_RULE for callers you admit. mutation rangers inserts rows no caller may insert (×2 at this site) — snapback4 why N_WRITE_DENIED",
             "performance — costs speed, meter headroom or offline coverage:",
             "note: schema.q:95:1 — N_WIDE_MERGE: no action unless it is slow (`check --cost` measures it). query feed: read cost grows — snapback4 why N_WIDE_MERGE",
@@ -366,7 +370,7 @@ mod integration20_tests {
 pub(crate) fn shortlist(notes:&mut Vec<Note>){
  let mut ordinary=std::collections::BTreeSet::new();
  notes.retain(|note|{
-  if snapback4_lang::security::note_priority(&note.code)<=3 || (tier(&note.code)==Tier::Review && !hygiene(&note.code)){return true;}
+  if snapback4_lang::security::note_priority(&note.code)<=3 || (tier(&note.code)<=Tier::Review && !hygiene(&note.code)){return true;}
   if ordinary.contains(&note.code){return true;}
   if ordinary.len()<5{ordinary.insert(note.code.clone());true}else{false}
  });

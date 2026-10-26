@@ -137,6 +137,13 @@ fn w11_every_registered_code_quotes_its_definition() {
 // independent of the paragraph selector: do not regenerate them to bless a new
 // first mention. Whitespace may change; the reason for the code must survive.
 const DEFINITIONS: &[(&str, &str)] = &[
+    ("E_DEV_ACCOUNTS", "E_DEV_ACCOUNTS means development account setup requires startDev with password identity."),
+    ("E_SERVE_STOP_FAILED", "E_SERVE_STOP_FAILED means the npm serve script exited unsuccessfully during shutdown."),
+    ("E_SERVE_THEN_FAILED", "E_SERVE_THEN_FAILED means the serve proof callback failed."),
+    ("E_SERVE_THEN_TIMEOUT", "E_SERVE_THEN_TIMEOUT means the serve proof command or callback exceeded thenTimeoutMs."),
+    ("E_WITNESS_ARGUMENTS", "E_WITNESS_ARGUMENTS means beginForm expected must be an argument constraint object or null for dynamic arguments."),
+    ("E_DATA_TRANSACTION_ABORTED", "E_DATA_TRANSACTION_ABORTED means postgres confirmed that the early-release data transaction aborted after acknowledged drainage."),
+
     ("E_PRODUCTION_ROSTER", "E_PRODUCTION_ROSTER means the saved production roster is unsafe, changed, or cannot log in as its known principal."),
     ("E_PRODUCTION_ROSTER_BUSY", "E_PRODUCTION_ROSTER_BUSY means the named production roster has an exclusive setup lock."),
     ("E_SERVE_CHECK", "E_SERVE_CHECK means the serve-check invocation or owned-process inspection failed."),
@@ -146,7 +153,10 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("E_SERVE_EARLY_EXIT", "E_SERVE_EARLY_EXIT means the npm serve script exited before the requested up interval completed."),
     ("E_SERVE_CHILD_RUNNING", "E_SERVE_CHILD_RUNNING means an owned child remained alive after group SIGTERM and the stop grace."),
     ("E_SERVE_DRIVER_EXIT", "E_SERVE_DRIVER_EXIT means the checker driver or keeper exited or lost IPC before inspection completed."),
-    ("E_SERVE_LOCK_HELD", "E_SERVE_LOCK_HELD means the requested deployment lock remained held after group SIGTERM, or its lock barrier refused."),
+    ("E_SERVE_LOCK_HELD", "E_SERVE_LOCK_HELD means the requested deployment lock remained held after group SIGTERM."),
+    ("E_SERVE_DEPLOYMENT_MISMATCH", "E_SERVE_DEPLOYMENT_MISMATCH means the requested deployment store differs from the store started by the script."),
+    ("E_SERVE_STORE_MISSING", "E_SERVE_STORE_MISSING means the requested deployment store does not exist."),
+    ("E_SERVE_LOCK_BARRIER", "E_SERVE_LOCK_BARRIER means the store lock barrier failed without a classified held-lock report."),
     ("E_SERVE_INSPECTION", "E_SERVE_INSPECTION means the process-group listing could not be classified."),
     ("E_SERVE_START", "E_SERVE_START means the npm script could not start or its keeper handshake was not received."),
 

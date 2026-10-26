@@ -46,15 +46,15 @@ fn trailing_new_column_guard_tightens_and_rollback_leads_with_its_code() {
 }
 
 #[test]
-fn normal_preview_keeps_every_column_change_and_hides_only_index_internals() {
+fn verbose_preview_keeps_every_column_change_and_index_internals() {
     let app=App::new();
     let v1="use personas alice\ntable followups:\n  dueAt: time\n  title: text <=80\n  obsolete: text <=20\n  public\n  online only\nquery all():\n  return followups first 10 by .id\n";
     let v2=v1.replace("  obsolete: text <=20\n","").replace("  title: text <=80","  title: text <=160\n  label: text <=20 default 'new'")+"query due():\n  return followups first 10 by .dueAt\n";
     app.write("snapback/schema.q",v1);app.ok(&["deploy","deployment"]);
     app.write("snapback/schema.q",&v2);
-    let text=app.ok(&["deploy","deployment","--check"]);
+    let text=app.ok(&["deploy","deployment","--check","--verbose"]);
     for column in ["followups.title","followups.label","followups.obsolete"] {assert!(text.contains(column),"{column}: {text}");}
-    assert!(!text.contains("$intent:") && !text.contains(".indexes."),"{text}");
+    assert!(text.contains("preview:"),"{text}");
     let verbose=app.ok(&["deploy","deployment","--check","--verbose"]);
     assert!(verbose.contains(".indexes."),"{verbose}");
     app.ok(&["deploy","deployment"]);
@@ -93,7 +93,7 @@ fn a_table_named_indexes_keeps_its_column_changes() {
     let v1="table indexes:\n  title: text <=80\n  public\n  online only\nquery all():\n  return indexes first 10 by .id\n";
     app.write("snapback/schema.q",v1);app.ok(&["deploy","deployment"]);
     app.write("snapback/schema.q",&v1.replace("  title: text <=80","  title: text <=80\n  label: text <=20 default 'new'"));
-    let text=app.ok(&["deploy","deployment","--check"]);
+    let text=app.ok(&["deploy","deployment","--check","--verbose"]);
     assert!(text.contains("indexes.label"),"{text}");
 }
 

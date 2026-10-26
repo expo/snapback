@@ -151,6 +151,7 @@ fn readme(dir: &Path, own: &OwnSchema, todos: bool, found: &mut Vec<Leftover>, m
         let wanted = super::localize(path, &super::without_design_references(&starter::identity_readme(platform, &title, &wanted_body, personas, &own.offline, own.identity.is_some_and(|(password, guests)| password && !guests))), port, web_port);
         let wanted = if explicit_online { starter::online_readme(&wanted) } else { wanted };
         let wanted = if todos { super::proof::readme(wanted) } else { wanted };
+        let wanted = if dir.join("scripts/install.mjs").is_file() {wanted.replace("npm install", "node scripts/install.mjs")} else {wanted};
         if wanted == text { continue; }
         let about = if todos { "the todo starter's operations, which your snapback/*.q declares again" } else { "your snapback/*.q and the Home screen, named after this directory" };
         let only_proof = super::proof::without_readme(&wanted) == text;
@@ -248,7 +249,7 @@ fn screens(dir: &Path, platform: Platform, own: &OwnSchema, todos: bool, found: 
         let (persona_app, persona_client) = screens(Some(&[]), false);
         let (password_app, password_client) = screens(None, true);
         if matches_app(&guest_app) && matches_client(&guest_client, false) { Some((SignIn::Guest, body.clone())) }
-        else if matches_app(&password_app) && matches_client(&password_client, false) { Some((SignIn::Password, body.clone())) }
+        else if matches_app(&password_app) && (matches_client(&password_client, false) || matches_client(starter::pre_dx13_password_client(platform), false)) { Some((SignIn::Password, body.clone())) }
         else if matches_app(&persona_app) && matches_client(&persona_client, true) { Some((SignIn::Personas(personas_of(&client)), body.clone())) }
         else { None }
     }));

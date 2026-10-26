@@ -1,0 +1,859 @@
+{
+  "provenance": {
+    "before": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+    "after": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+    "method": "fresh production deploy; identical copied .q modules; four workers; complete stdout+stderr line counts; no source decisions/fixtures"
+  },
+  "rows": [
+    {
+      "lane": "004-snapback-smoke-damage-cleanups",
+      "before": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 4128,
+        "lines": 28
+      },
+      "after": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 5050,
+        "lines": 5
+      }
+    },
+    {
+      "lane": "001-snapback-barometer-restorations",
+      "before": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 10220,
+        "lines": 26
+      },
+      "after": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 10356,
+        "lines": 5
+      }
+    },
+    {
+      "lane": "002-snapback-scleral-lens-fittings",
+      "before": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 10288,
+        "lines": 37
+      },
+      "after": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 10462,
+        "lines": 5
+      }
+    },
+    {
+      "lane": "003-snapback-antique-telephone-restorations",
+      "before": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 10367,
+        "lines": 40
+      },
+      "after": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 10602,
+        "lines": 5
+      }
+    },
+    {
+      "lane": "007-snapback-custom-wallpaper-commissions",
+      "before": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 3363,
+        "lines": 46
+      },
+      "after": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 3947,
+        "lines": 5
+      }
+    },
+    {
+      "lane": "005-snapback-wrought-iron-gate-commissions",
+      "before": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 10265,
+        "lines": 38
+      },
+      "after": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 10411,
+        "lines": 5
+      }
+    },
+    {
+      "lane": "006-snapback-binocular-overhaul-jobs",
+      "before": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 10246,
+        "lines": 25
+      },
+      "after": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 10371,
+        "lines": 5
+      }
+    },
+    {
+      "lane": "008-snapback-log-home-chinking-repairs",
+      "before": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 10259,
+        "lines": 30
+      },
+      "after": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 10393,
+        "lines": 6
+      }
+    },
+    {
+      "lane": "009-snapback-antique-doll-restorations",
+      "before": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 10275,
+        "lines": 43
+      },
+      "after": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 10361,
+        "lines": 5
+      }
+    },
+    {
+      "lane": "010-snapback-via-ferrata-guided-climbs",
+      "before": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 10234,
+        "lines": 33
+      },
+      "after": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 10344,
+        "lines": 5
+      }
+    },
+    {
+      "lane": "011-snapback-home-battery-installs",
+      "before": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 6220,
+        "lines": 40
+      },
+      "after": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 7357,
+        "lines": 5
+      }
+    },
+    {
+      "lane": "012-snapback-architectural-rendering-jobs",
+      "before": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 10277,
+        "lines": 33
+      },
+      "after": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 10370,
+        "lines": 6
+      }
+    },
+    {
+      "lane": "013-snapback-lifting-sling-inspections",
+      "before": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 6186,
+        "lines": 17
+      },
+      "after": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 7266,
+        "lines": 5
+      }
+    },
+    {
+      "lane": "014-snapback-holiday-light-installations",
+      "before": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 10236,
+        "lines": 25
+      },
+      "after": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 10343,
+        "lines": 5
+      }
+    },
+    {
+      "lane": "016-snapback-vintage-tractor-restorations",
+      "before": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 5096,
+        "lines": 35
+      },
+      "after": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 6181,
+        "lines": 6
+      }
+    },
+    {
+      "lane": "015-snapback-mobility-scooter-rentals",
+      "before": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 10278,
+        "lines": 37
+      },
+      "after": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 10400,
+        "lines": 5
+      }
+    },
+    {
+      "lane": "019-snapback-mature-tree-transplants",
+      "before": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 2637,
+        "lines": 30
+      },
+      "after": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 3183,
+        "lines": 5
+      }
+    },
+    {
+      "lane": "017-snapback-mobile-bartending-bookings",
+      "before": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 10264,
+        "lines": 28
+      },
+      "after": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 10396,
+        "lines": 5
+      }
+    },
+    {
+      "lane": "022-snapback-custom-wetsuit-fittings",
+      "before": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 235,
+        "lines": 23
+      },
+      "after": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 345,
+        "lines": 5
+      }
+    },
+    {
+      "lane": "020-snapback-snowshoe-guided-hikes",
+      "before": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 5368,
+        "lines": 30
+      },
+      "after": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 3669,
+        "lines": 6
+      }
+    },
+    {
+      "lane": "023-snapback-rv-roof-repairs",
+      "before": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 230,
+        "lines": 23
+      },
+      "after": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 442,
+        "lines": 5
+      }
+    },
+    {
+      "lane": "021-snapback-cotton-gin-runs",
+      "before": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 3167,
+        "lines": 32
+      },
+      "after": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 3309,
+        "lines": 5
+      }
+    },
+    {
+      "lane": "018-snapback-poultry-flock-vaccinations",
+      "before": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 10245,
+        "lines": 39
+      },
+      "after": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 10401,
+        "lines": 5
+      }
+    },
+    {
+      "lane": "024-snapback-safe-moving-jobs",
+      "before": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 10246,
+        "lines": 33
+      },
+      "after": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 10369,
+        "lines": 6
+      }
+    },
+    {
+      "lane": "025-snapback-boating-license-exams",
+      "before": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 10259,
+        "lines": 44
+      },
+      "after": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 10366,
+        "lines": 5
+      }
+    },
+    {
+      "lane": "026-snapback-brass-instrument-repairs",
+      "before": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 10232,
+        "lines": 29
+      },
+      "after": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 10343,
+        "lines": 5
+      }
+    },
+    {
+      "lane": "027-snapback-haunted-house-set-builds",
+      "before": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 10279,
+        "lines": 45
+      },
+      "after": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 10370,
+        "lines": 5
+      }
+    },
+    {
+      "lane": "031-snapback-dryer-vent-cleanings",
+      "before": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 315,
+        "lines": 47
+      },
+      "after": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 419,
+        "lines": 5
+      }
+    },
+    {
+      "lane": "028-snapback-garden-fountain-restorations",
+      "before": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 6896,
+        "lines": 39
+      },
+      "after": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 8039,
+        "lines": 6
+      }
+    },
+    {
+      "lane": "029-snapback-aircraft-ferry-flights",
+      "before": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 10261,
+        "lines": 32
+      },
+      "after": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 10373,
+        "lines": 5
+      }
+    },
+    {
+      "lane": "030-snapback-ground-radar-surveys",
+      "before": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 9819,
+        "lines": 24
+      },
+      "after": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 10337,
+        "lines": 5
+      }
+    },
+    {
+      "lane": "032-snapback-assisted-living-placements",
+      "before": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 6588,
+        "lines": 34
+      },
+      "after": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 7767,
+        "lines": 6
+      }
+    },
+    {
+      "lane": "033-snapback-tennis-court-resurfacing",
+      "before": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 10246,
+        "lines": 28
+      },
+      "after": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 10365,
+        "lines": 5
+      }
+    },
+    {
+      "lane": "034-snapback-fountain-pen-restorations",
+      "before": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 10255,
+        "lines": 22
+      },
+      "after": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 10360,
+        "lines": 5
+      }
+    },
+    {
+      "lane": "035-snapback-fur-cleaning-batches",
+      "before": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 10293,
+        "lines": 31
+      },
+      "after": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 10389,
+        "lines": 5
+      }
+    },
+    {
+      "lane": "036-snapback-wax-figure-commissions",
+      "before": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 10252,
+        "lines": 42
+      },
+      "after": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 10382,
+        "lines": 6
+      }
+    },
+    {
+      "lane": "037-snapback-bespoke-hat-commissions",
+      "before": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 3859,
+        "lines": 35
+      },
+      "after": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 4458,
+        "lines": 5
+      }
+    },
+    {
+      "lane": "039-snapback-koi-breeder-reservations",
+      "before": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 2624,
+        "lines": 41
+      },
+      "after": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 3076,
+        "lines": 5
+      }
+    },
+    {
+      "lane": "040-snapback-outboard-motor-repairs",
+      "before": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 3435,
+        "lines": 32
+      },
+      "after": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 4063,
+        "lines": 6
+      }
+    },
+    {
+      "lane": "041-snapback-gramophone-restorations",
+      "before": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 3814,
+        "lines": 31
+      },
+      "after": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 4473,
+        "lines": 5
+      }
+    },
+    {
+      "lane": "043-snapback-playground-safety-inspections",
+      "before": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 2021,
+        "lines": 28
+      },
+      "after": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 2481,
+        "lines": 5
+      }
+    },
+    {
+      "lane": "042-snapback-vintage-guitar-consignments",
+      "before": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 4248,
+        "lines": 34
+      },
+      "after": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 5097,
+        "lines": 5
+      }
+    },
+    {
+      "lane": "038-snapback-toner-cartridge-deliveries",
+      "before": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 10256,
+        "lines": 18
+      },
+      "after": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 10354,
+        "lines": 5
+      }
+    },
+    {
+      "lane": "046-snapback-furnace-repair-calls",
+      "before": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 2506,
+        "lines": 33
+      },
+      "after": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 3047,
+        "lines": 5
+      }
+    },
+    {
+      "lane": "044-snapback-wooden-deck-refinishing",
+      "before": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 5110,
+        "lines": 57
+      },
+      "after": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 6169,
+        "lines": 6
+      }
+    },
+    {
+      "lane": "045-snapback-geothermal-loop-installs",
+      "before": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 4513,
+        "lines": 39
+      },
+      "after": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 5423,
+        "lines": 5
+      }
+    },
+    {
+      "lane": "047-snapback-henna-artist-bookings",
+      "before": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 2599,
+        "lines": 29
+      },
+      "after": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 3201,
+        "lines": 5
+      }
+    },
+    {
+      "lane": "050-snapback-home-generator-servicing",
+      "before": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 2854,
+        "lines": 33
+      },
+      "after": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 3508,
+        "lines": 5
+      }
+    },
+    {
+      "lane": "048-snapback-pergola-builds",
+      "before": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 7860,
+        "lines": 45
+      },
+      "after": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 8973,
+        "lines": 6
+      }
+    },
+    {
+      "lane": "049-snapback-string-quartet-bookings",
+      "before": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "d8513d7d91c0685955f519f69693c74e0a87bae2e2a69328449b88d3f8909e46",
+        "ms": 10216,
+        "lines": 18
+      },
+      "after": {
+        "code": 0,
+        "signal": null,
+        "binarySha256": "63aef8d7d42a45b87d6278106ed9c4a5d291dc174a07061d40dd187220d2ab3f",
+        "ms": 10328,
+        "lines": 5
+      }
+    }
+  ]
+}

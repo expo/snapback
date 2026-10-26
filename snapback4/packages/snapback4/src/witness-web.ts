@@ -41,6 +41,7 @@ export function registerWebWitness(app: App, api?: Operations): void {
     beginForm: (name: string | undefined, expected: Record<string, unknown> | null | undefined, button: Element) => {
       armed();
       if (!app.client) throw Error("E_WITNESS_AUTH: no signed-in client");
+      if (expected != null && (typeof expected !== "object" || Array.isArray(expected))) throw Error("E_WITNESS_ARGUMENTS: expected must be an argument constraint object or null for dynamic arguments");
       form?.cancel();
       const client = app.client, originalClient = client.mutate, originalApp = app.mutate;
       let click: Event | undefined, submit: Event | undefined, clickTimer: ReturnType<typeof setTimeout> | undefined, claimed = false, cancelObserver = () => {};
@@ -89,7 +90,10 @@ export function registerWebWitness(app: App, api?: Operations): void {
         const eventMatches = options?.[handlerClaim] !== undefined
           ? handlerClaimed && options[handlerClaim] === handlerToken
           : !!click && (window.event === click || (!!submit && window.event === submit));
-        const argsMatch = expected == null || JSON.stringify(canonical(expected)) === JSON.stringify(canonical(args));
+        // @ref LLP 3000.011.003.000.000#17-wave-29-serve-proofs-and-proof-residue-dx12 — constrain named values while retaining trusted-click custody.
+        // An explicit object constrains its named arguments. Generated IDs and
+        // other handler-owned arguments remain in the real claimed write.
+        const argsMatch = expected == null || Object.keys(expected).every(key => Object.hasOwn(args, key) && JSON.stringify(canonical(expected[key])) === JSON.stringify(canonical(args[key])));
         const eligible = !claimed && eventMatches && !options?.[outsideClick] && durable && (!name || name === op.name) && argsMatch;
         let forwarded = options;
         if (!eligible && receiver === app && durable) {
@@ -102,7 +106,7 @@ export function registerWebWitness(app: App, api?: Operations): void {
             claimed = true; restore();
             const reason = !eventMatches || options?.[outsideClick] ? "event: expected the armed click or its synchronous submit"
               : name && name !== op.name ? `operation: expected ${name}, got ${op.name}`
-              : `arguments: mismatched keys: ${[...new Set([...Object.keys(expected ?? {}), ...Object.keys(args)])].sort().filter(key => JSON.stringify(canonical(expected?.[key])) !== JSON.stringify(canonical(args[key]))).join(", ")}`;
+              : `arguments: mismatched keys: ${Object.keys(expected ?? {}).sort().filter(key => JSON.stringify(canonical(expected?.[key])) !== JSON.stringify(canonical(args[key]))).join(", ")}`;
             if (eventMatches && !options?.[outsideClick] && (!name || name === op.name) && !argsMatch) {
               const diagnostic = (window as unknown as { __snapback4ProofDiagnostic?: (value: unknown) => Promise<void> }).__snapback4ProofDiagnostic;
               // The proof driver writes values only to its mode-0600 private log.

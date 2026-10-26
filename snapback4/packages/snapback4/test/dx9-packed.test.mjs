@@ -1,7 +1,7 @@
 // @ref LLP 3000.000.000.001#13-wave-26-developer-loop-repairs-dx9 — changed snippets and password proof scaffolds execute from installed packs.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, copyFileSync, rmSync, statSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, copyFileSync, rmSync, statSync, readdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { execFileSync, spawn } from 'node:child_process';
@@ -30,9 +30,13 @@ test('DX9 packed staging recipe, password templates, task links and Quarry forms
     run(cli,['check']);
     writeFileSync(join(dir,'staging.mjs'),fence(staging,'js')[0]);
     run(process.execPath,['staging.mjs','--once']);
-    assert.equal(statSync(join(dir,'staging-users.json')).mode&0o777,0o600);
+    const snapshots=()=>readdirSync(dir).filter(name=>/^staging-users-[^.]+\.json$/.test(name));
+    const first=snapshots();assert.equal(first.length,1);
+    run(process.execPath,['staging.mjs','--once']);
+    const repeated=snapshots();assert.equal(repeated.length,2);assert.ok(repeated.includes(first[0]));
     // Never copy/print credential bytes to evidence.
-    rmSync(join(dir,'staging-users.json'));rmSync(join(dir,'staging'),{recursive:true,force:true});
+    for(const name of repeated){assert.equal(statSync(join(dir,name)).mode&0o777,0o600);rmSync(join(dir,name));}
+    rmSync(join(dir,'staging'),{recursive:true,force:true});
     const tasks=guide('tasks');
     for(const line of fence(tasks,'sh').flatMap(block=>block.trim().split('\n'))) assert.ok(run(cli,line.split(' ').slice(1)).length);
     for(const command of tasks.matchAll(/`snapback4 guide ([a-z-]+)(?: --section "([^"]+)"| --full)`/g)) {
@@ -70,7 +74,7 @@ test('DX9 packed staging recipe, password templates, task links and Quarry forms
         assert.ok(JSON.parse(readFileSync(join(app,'package.json'))).devDependencies['@types/node']);
       }
       if(flag==='--web') {
-        const result=run('npm',['run','--silent','probe:check'],app);
+        const result=run('npm',['run','--silent','probe:check','--','--then',`node --input-type=module -e 'const ready=JSON.parse(process.env.SNAPBACK4_SERVE_JSON);const response=await fetch(ready.backendUrl+"/auth/config");if(!response.ok)process.exit(9)'`],app);
         assert.equal(JSON.parse(result).ok,true);
       }
       const child=spawn(process.execPath,['scripts/probe-serve.mjs'],{cwd:app,env,stdio:['ignore','pipe','pipe']});

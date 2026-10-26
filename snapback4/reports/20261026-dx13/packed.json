@@ -1,0 +1,91 @@
+{
+  "binarySha256": "68b72dd59153becd6d2ef01adea0a56487a8311bcda4f8f0af21af8e4c46e8e5",
+  "results": [
+    {
+      "kind": "web",
+      "steps": [
+        {
+          "name": "packed-init",
+          "ok": true
+        },
+        {
+          "name": "install-progress",
+          "ok": true
+        },
+        {
+          "name": "why-E_SERVE_DEPLOYMENT_MISMATCH",
+          "ok": true
+        },
+        {
+          "name": "why-E_SERVE_STORE_MISSING",
+          "ok": true
+        },
+        {
+          "name": "why-E_SERVE_LOCK_BARRIER",
+          "ok": true
+        },
+        {
+          "name": "check",
+          "ok": true
+        },
+        {
+          "name": "typecheck",
+          "ok": true
+        },
+        {
+          "name": "frontend-proof",
+          "ok": true
+        },
+        {
+          "name": "guide-check",
+          "ok": true
+        },
+        {
+          "name": "literal-staging-recipe-1",
+          "ok": true
+        },
+        {
+          "name": "literal-staging-recipe-2",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "kind": "expo",
+      "steps": [
+        {
+          "name": "packed-init",
+          "ok": true
+        },
+        {
+          "name": "install-progress",
+          "ok": true
+        },
+        {
+          "name": "why-E_SERVE_DEPLOYMENT_MISMATCH",
+          "ok": true
+        },
+        {
+          "name": "why-E_SERVE_STORE_MISSING",
+          "ok": true
+        },
+        {
+          "name": "why-E_SERVE_LOCK_BARRIER",
+          "ok": true
+        },
+        {
+          "name": "check",
+          "ok": true
+        },
+        {
+          "name": "typecheck",
+          "ok": true
+        },
+        {
+          "name": "frontend-proof",
+          "ok": true
+        }
+      ]
+    }
+  ]
+}

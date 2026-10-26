@@ -1,0 +1,71 @@
+{
+  "provenance": {
+    "binary": "0128c86db3f37d968bb09c126030fc2fd6f4dcf6e7d1c59703cd90a50b667c76",
+    "method": "unchanged copied prod:serve + client:calls through withServeScript; private 0600 users bridge for legacy CALLS_USERS; 60s startup/proof bounds; no credentials or command output retained"
+  },
+  "rows": [
+    {
+      "lane": "009-snapback-antique-doll-restorations",
+      "ok": true,
+      "commandCode": 0,
+      "ms": 2008,
+      "lockReleased": true
+    },
+    {
+      "lane": "010-snapback-via-ferrata-guided-climbs",
+      "ok": true,
+      "commandCode": 0,
+      "ms": 2533,
+      "lockReleased": true
+    },
+    {
+      "lane": "021-snapback-cotton-gin-runs",
+      "ok": true,
+      "commandCode": 0,
+      "ms": 2287,
+      "lockReleased": true
+    },
+    {
+      "lane": "031-snapback-dryer-vent-cleanings",
+      "ok": false,
+      "error": [
+        "E_SERVE_NO_JSON",
+        "E_SERVE_EARLY_EXIT"
+      ],
+      "ms": 2366,
+      "lockReleased": true
+    },
+    {
+      "lane": "039-snapback-koi-breeder-reservations",
+      "ok": true,
+      "commandCode": 0,
+      "ms": 2181,
+      "lockReleased": true
+    },
+    {
+      "lane": "041-snapback-gramophone-restorations",
+      "ok": true,
+      "commandCode": 0,
+      "ms": 1919,
+      "lockReleased": true
+    },
+    {
+      "lane": "043-snapback-playground-safety-inspections",
+      "ok": false,
+      "error": [
+        "E_SERVE_THEN_FAILED"
+      ],
+      "ms": 46490,
+      "lockReleased": true
+    },
+    {
+      "lane": "050-snapback-home-generator-servicing",
+      "ok": false,
+      "error": [
+        "E_SERVE_THEN_FAILED"
+      ],
+      "ms": 47001,
+      "lockReleased": true
+    }
+  ]
+}

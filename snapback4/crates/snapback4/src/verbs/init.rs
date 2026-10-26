@@ -13,6 +13,7 @@ mod production;
 mod ports;
 mod proof;
 mod password_proof;
+mod password_online;
 mod proof_advice;
 pub(crate) use adapt::{report as starter_leftovers, report_json as starter_leftovers_json};
 
@@ -67,10 +68,9 @@ pub fn init(options: &Options) -> i32 {
         eprintln!("{usage}\nE_RECIPE_RETIRED: recipe is a retired spelling; no files written\n  rewrite: use `snapback4 init [dir] --web` for todos, or `snapback4 init [dir] --web --template chat` for chat; use --expo for Expo. See snapback4 guide recipes for schema patterns.");
         return 2;
     }
-    let online_web = modes == 2 && options.flags.contains_key("online") && options.flags.contains_key("web");
-    if options.flags.contains_key("expo") && options.flags.contains_key("online") {
-        eprintln!("{usage}\nE_INPUT: --expo already selects the online client in Expo Go and for schemas without synced tables; --online is the backend/web starter selection. Use `snapback4 init --expo`, then declare online-only tables for an entirely online app.");
-        return 2;
+    let online_web = modes == 2 && options.flags.contains_key("online") && (options.flags.contains_key("web") || options.flags.contains_key("expo"));
+    if options.flags.contains_key("expo") && options.flags.contains_key("online") && !options.flags.contains_key("password") {
+        eprintln!("{usage}\nE_INPUT: --expo already selects the online client in Expo Go and for schemas without synced tables; use --expo --online --password for the password starter");return 2;
     }
     if options.flags.contains_key("day2") && !(social || options.flags.contains_key("web") || options.flags.contains_key("expo")) {
         eprintln!("E_INPUT: --day2 adds saved-release proofs to a UI starter; use `snapback4 init --web --day2` or `snapback4 init --expo --day2`"); return 2;
@@ -132,18 +132,26 @@ pub fn init(options: &Options) -> i32 {
         Ok(own) => own,
         Err(error) => { eprintln!("init: {error}"); return 2; }
     };
+    if options.flags.contains_key("password") && (social || chat || !(web || expo)) {
+        eprintln!("E_INPUT: --password requires --web or --expo without a template"); return 2;
+    }
+    if options.flags.contains_key("password") && own.as_ref().is_some_and(|s|s.identity!=Some((true,false))) {
+        eprintln!("E_INPUT: --password requires the kept schema to declare use identity password without guests"); return 2;
+    }
+    let password_starter = own.is_none() && options.flags.contains_key("password");
     let shape = starter::Shape {
         title: title(dir),
-        password: own.as_ref().is_some_and(|own| own.identity.is_some_and(|(password, guests)| password && !guests)),
+        password: options.flags.contains_key("password") || own.as_ref().is_some_and(|own| own.identity.is_some_and(|(password, guests)| password && !guests)),
         personas: own.as_ref().filter(|own| own.identity.is_none() && !own.personas.is_empty()).map(|own| own.personas.clone()),
         body: match own.as_ref() { Some(own) if !adapt::fits_todos(own) => starter::Body::Home(own.reads.first().cloned()), _ => starter::Body::Todos },
-        offline: own.as_ref().map(|own| own.offline.clone()).unwrap_or_else(|| starter::Offline::Tables { synced: vec!["todos".into()], total: 1 }),
+        offline: own.as_ref().map(|own| own.offline.clone()).unwrap_or_else(|| starter::Offline::Tables { synced: if password_starter {vec![]} else {vec!["todos".into()]}, total: 1 }),
     };
     let home = matches!(shape.body, starter::Body::Home(_));
     let mut files = if social { social::files() }
         else if chat && web { web::files() } else if chat { expo_files() }
         else if web { starter::web_files(&shape) } else if expo { starter::expo_files(&shape) }
         else if online { online_files() } else { vec![("snapback/schema.q", snapback4_lang::guide::TEMPLATE.to_owned())] };
+    if password_starter { password_online::configure(&mut files, &shape, web); }
     if online_web {
         for (name, text) in &mut files {
             if *name == "src/client.ts" { *text = starter::online_web_client(text.clone()); }
@@ -174,8 +182,10 @@ pub fn init(options: &Options) -> i32 {
         // this repository; a new project gets the explanation alone.
         if *name != "package.json" { *text = without_design_references(text); }
         *text = localize(name, text, port, web_port);
+        if (web || expo) && *name=="README.md" {*text=text.replace("npm install","node scripts/install.mjs");}
     }
     if web || expo {
+        files.push(("scripts/install.mjs", include_str!("init/install.mjs").into()));
         ports::scripts(&mut files, port.unwrap_or(4400), web_port.unwrap_or(if web { 5173 } else { 8081 }), range, web);
         proof::files(&mut files, options, port.unwrap_or(4400), web_port.unwrap_or(if web { 5173 } else { 8081 }), web, &shape);
     }
@@ -301,9 +311,9 @@ pub fn init(options: &Options) -> i32 {
     }
     // A starter that wrote package.json dependencies needs them installed before
     // its typecheck, build or `npm start` can run.
-    let install = if files.iter().any(|(name, _)| *name == "package.json") { "`npm install`, then " } else { "" };
+    let install = if web || expo { "`node scripts/install.mjs`, then " } else if files.iter().any(|(name, _)| *name == "package.json") { "`npm install`, then " } else { "" };
     let dev = port.map(|port| format!("snapback4 dev --port {port}")).unwrap_or_else(|| "snapback4 dev".into());
-    let kind = if social { "Expo Router social app" } else if chat && expo { "Expo chat app" } else if chat { "Vite chat app" }
+    let kind = if password_starter {"password app, online reads and journaled writes"} else if social { "Expo Router social app" } else if chat && expo { "Expo chat app" } else if chat { "Vite chat app" }
         else if expo && home { &format!("Expo app: sign-in and a Home screen for your snapback/*.q, native when available, online in Expo Go{}", shape.offline.summary()) }
         else if expo { "Expo todos: native when available, online in Expo Go" }
         else if online_web { "Vite + React app, online reads and journaled writes (no device)" }
@@ -313,7 +323,7 @@ pub fn init(options: &Options) -> i32 {
     println!("init: files: {}", written_files(&files.iter().map(|(name, _)| *name).collect::<Vec<_>>()));
     // @ref LLP 3000.011.003.000#7.4 — the advisories are read before the install that reports them, not after.
     if expo && files.iter().any(|(name, _)| *name == "package.json") {
-        println!("init: Expo dependencies are pinned; next: `npm install`, then `npx snapback4 check`. Adapter-first installs constrain React Native 0.86.3 and compatible React 19; this starter pins React/React DOM 19.2.3 and supplies the app/scripts.");
+        println!("init: Expo dependencies are pinned; next: `node scripts/install.mjs`, then `npx snapback4 check`. Adapter-first installs constrain React Native 0.86.3 and compatible React 19; this starter pins React/React DOM 19.2.3 and supplies the app/scripts.");
         println!("init: `npm install` takes a few minutes and reports an unpatched high advisory from Expo's node-forge code-signing dependency; qualification warns under a dated exception until a patch or recheck date — do not run `npm audit fix --force`, which downgrades Expo to SDK 44 (README)");
     }
     if web {
@@ -356,7 +366,7 @@ pub fn init(options: &Options) -> i32 {
             Some(_) => {},
         }
     }
-    if web || expo { println!("npm install"); }
+    if web || expo { println!("node scripts/install.mjs"); }
     0
 }
 
@@ -705,7 +715,9 @@ pub(super) fn client_setup_hint(root: &Path) -> Option<&'static str> {
     let package: serde_json::Value = serde_json::from_slice(&std::fs::read(root.join("package.json")).ok()?).ok()?;
     let react = package["dependencies"]["react"].is_string() || package["devDependencies"]["react"].is_string();
     let expo = package["dependencies"]["expo"].is_string();
+    let wired = package.pointer("/snapback4/starter").is_some()
+        || root.join("scripts/launch.mjs").is_file() && root.join("src/client.ts").is_file();
     let reference:serde_json::Value=serde_json::from_str(include_str!("../../../../apps/chat/package.json")).ok()?;
-    (react && !expo && (!package["scripts"]["probe:serve"].is_string() || package["devDependencies"]["vite"] != reference["devDependencies"]["vite"]))
+    (react && !expo && !wired && (!package["scripts"]["probe:serve"].is_string() || package["devDependencies"]["vite"] != reference["devDependencies"]["vite"]))
         .then_some("React setup: `snapback4 guide start` has the pinned starter and verification recipe (`init /tmp/my-starter --web`)")
 }

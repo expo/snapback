@@ -1043,7 +1043,7 @@ fn expo_starters_override_the_config_plugins_uuid() {
     assert!(stdout.contains("unpatched high advisory") && stdout.contains("do not run `npm audit fix --force`"), "{stdout}");
     let readme = fs::read_to_string(dir.0.join("README.md")).unwrap();
     let notice = readme.find("do not run `npm audit fix --force`").expect("the README names the advisories");
-    assert!(notice < readme.find("npm install\n").unwrap(), "{readme}");
+    assert!(notice < readme.find("node scripts/install.mjs\n").unwrap(), "{readme}");
     let web = Dir::new();
     let output = web.init(&["--web"]);
     assert!(output.status.success() && !String::from_utf8_lossy(&output.stdout).contains("advisories"), "{output:?}");
@@ -1312,7 +1312,7 @@ fn password_starters_and_expo_web_journal_follow_schema() {
             assert!(!client.contains("webDevice"), "{client}");
             assert!(client.contains("get(\"api\")"), "{client}");
             if identity.contains("password") {
-                assert!(!client.contains("registerWebWitness") && !client.contains("witnessPersona") && !client.contains("snapback/generated/api"), "password clients leave proof observation to the driver: {client}");
+                assert!(client.contains("registerWebWitness(app, api)") && !client.contains("witnessPersona") && client.contains("snapback/generated/api"), "password clients retain explicit proof registration without personas: {client}");
                 assert!(client.contains("localStorageSessionStore()") && client.contains("sessionStore:"), "password clients retain browser session custody: {client}");
             } else {
                 assert!(client.contains("registerWebWitness"), "persona starters retain explicit witness registration: {client}");
@@ -1371,7 +1371,7 @@ fn untouched_previous_release_clients_adapt_to_password_but_edits_stay_owned() {
         let app = fs::read_to_string(&app_path).unwrap(); assert!(app.contains("auth.signup") && !app.contains("auth.guest()"), "{app}");
         let adapted = fs::read_to_string(dir.0.join("src/client.ts")).unwrap();
         assert!(adapted.contains("127.0.0.1:4517") && adapted.contains("get(\"api\")"), "adaptation preserves the chosen backend and runtime URL override: {adapted}");
-        assert!(!adapted.contains("registerWebWitness") && !adapted.contains("witnessPersona") && !adapted.contains("snapback/generated/api"), "adapted password clients leave proof observation to the driver: {adapted}");
+        assert!(adapted.contains("registerWebWitness(app, api)") && !adapted.contains("witnessPersona") && adapted.contains("snapback/generated/api"), "adapted password clients retain explicit proof registration without personas: {adapted}");
         assert!(adapted.contains("localStorageSessionStore()") && adapted.contains("sessionStore:"), "adapted password clients retain session custody: {adapted}");
         fs::write(dir.0.join("src/client.ts"), format!("{client}\n// An application edit.\n")).unwrap();
         let before = fs::read_to_string(&app_path).unwrap();

@@ -31,7 +31,7 @@ if (process.argv[2] === "serve-check") {
       console.log(`usage: ${synopsis("serve-check")}`);
       process.exit(0);
     }
-    const keys = {"--deployment":"deployment", "--script":"script", "--up-ms":"upMs", "--timeout-ms":"timeoutMs"};
+    const keys = {"--deployment":"deployment", "--script":"script", "--up-ms":"upMs", "--timeout-ms":"timeoutMs", "--then":"then", "--then-timeout-ms":"thenTimeoutMs", "--stop-timeout-ms":"stopTimeoutMs"};
     for (let i = 0; i < args.length; i += 2) {
       const key = keys[args[i]];
       if (!key || args[i + 1] === undefined) throw Error("unknown/missing serve-check option; see --help");
@@ -39,7 +39,7 @@ if (process.argv[2] === "serve-check") {
     }
     const {serveCheck} = await import("../dist/proof-serve-check.js");
     const report = await serveCheck(options);
-    console.log(JSON.stringify(report)); process.exitCode = report.ok ? 0 : 1;
+    console.log(JSON.stringify(report)); process.exitCode = report.commandCode !== undefined && report.commandCode !== 0 ? report.commandCode : report.ok ? 0 : 1;
   } catch (error) { console.error(`E_SERVE_CHECK: ${error.message}`); process.exitCode = 2; }
 } else {
 let binary;

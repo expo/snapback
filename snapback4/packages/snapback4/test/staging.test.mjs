@@ -222,7 +222,7 @@ query readReport(id: reports):
    const expiresAt=Date.now()+10800000;
    const fact=await post(host,"/m/fact",account.session.token,{opensAt:Date.now()+3600000,expiresAt});assert.equal(fact.state,"sent",JSON.stringify(fact));
    const report=await post(host,"/m/report",account.session.token,{fact:fact.result.id});assert.equal(report.state,"sent",JSON.stringify(report));
-   const preview=await cli(["deploy",dir,"--schema","v2","--check"],{cwd});assert.equal(preview.code,0,preview.stderr+preview.stdout);assert.match(preview.stdout,/transformed 1 row/);
+   const preview=await cli(["deploy",dir,"--schema","v2","--check","--verbose"],{cwd});assert.equal(preview.code,0,preview.stderr+preview.stdout);assert.match(preview.stdout,/transformed 1 row/);
    await deploy(dir,"v2",{cwd});
    const got=await post(host,"/q/readReport",account.session.token,{id:report.result.id});assert.equal(got.data.copied,expiresAt);
    const status=await cli(["releases",dir,"--json"],{cwd});assert.equal(status.code,0,status.stderr);if(!bind)assert.ok(Math.abs((await host.now()) - Date.now() - 7200000)<5000);

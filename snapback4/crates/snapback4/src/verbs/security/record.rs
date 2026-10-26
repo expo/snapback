@@ -81,7 +81,7 @@ mod tests{
   assert!(!super::super::report(&project,&selected,&other,&options).refuted(),"evidence for current disk source must not refute an independently compiled selection");
   remember(&project,&options,&c,true,&consumed).unwrap();
   assert!(super::super::release_notice(&project,&selected,&other,&options).contains("run `snapback4 test"));
-  assert!(super::super::release_notice(&project,&bound,&[("schema.q".into(),source.into())],&options).contains("matching test campaign recorded"));
+  let notice=super::super::release_notice(&project,&bound,&[("schema.q".into(),source.into())],&options);assert!(notice.contains("FAILED")&&notice.contains("run `snapback4 test"),"{notice}");
  }
  #[test]
  fn review_labels_missing_stale_and_incomplete_evidence_and_strict_refuses_only_reachable_intent(){

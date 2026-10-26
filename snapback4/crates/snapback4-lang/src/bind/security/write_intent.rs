@@ -3,21 +3,21 @@
 use super::*;
 use snapback4_core::{Value,schema::ColumnDefault};
 
-fn unapproved_default(bound:&Bound,inv:&Invariant)->bool {
-    inv.column.as_ref().is_some_and(|column|
-        matches!(bound.schema.tables[&inv.table].defaults.get(column),Some(ColumnDefault::Literal(Value::Bool(false)))))
+// @ref LLP 3000.036.004.000#10-wave-30-default-initialization-dx13 — authored write intent and runtime grants share literal initialization.
+fn declared_default(bound:&Bound,inv:&Invariant,row:&Value)->bool {
+    inv.column.as_ref().is_some_and(|column|matches!(
+        bound.schema.tables[&inv.table].defaults.get(column),
+        Some(ColumnDefault::Literal(value)) if row.field(column).ok()==Some(value)))
 }
 pub(super) fn empty_creation(bound:&Bound,inv:&Invariant,old:Option<&Value>,row:&Value)->bool {
     inv.target=="write" && old.is_none() && inv.column.as_ref().is_some_and(|column|
-        matches!(row.field(column),Ok(Value::Null)) || unapproved_default(bound,inv)&&matches!(row.field(column),Ok(Value::Bool(false))))
+        matches!(row.field(column),Ok(Value::Null)) || declared_default(bound,inv,row))
 }
 pub(super) fn policy(bound:&Bound,inv:&Invariant,effect:&str)->Option<RuleExpr> {
     let policy=inv.policy.clone()?;
     if effect!="insert"||inv.target!="write" {return Some(policy);}
     let Some(column)=&inv.column else{return Some(policy);};
-    let mut alternatives=vec![RuleExpr::Eq(RuleTerm::Field(column.clone()),RuleTerm::Literal(Value::Null)),policy];
-    if unapproved_default(bound,inv){alternatives.push(RuleExpr::Eq(RuleTerm::Field(column.clone()),RuleTerm::Literal(Value::Bool(false))));}
-    Some(RuleExpr::Or(alternatives))
+    Some(RuleExpr::Or(vec![bound.schema.tables[&inv.table].column_initialization(column),policy]))
 }
 
 #[cfg(test)]mod tests {

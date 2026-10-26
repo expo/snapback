@@ -7,17 +7,22 @@ fn campaign(source:&str)->Campaign {
     challenges::generated_campaign(&bound,&mut out,false);out
 }
 const APPROVAL:&str="table treatments:\n  approvalReason: text <=80 ?\n  inpaintApproved: bool default false\n  read <- allow\n  insert <- viewer = 'service:registrar'\n  update <- allow\n  online only\nmutation intakePainting():\n  return insert treatments {}\ninvariant treatments.approvalReason write only viewer = 'service:director'\ninvariant treatments.inpaintApproved write only viewer = 'service:director'\n";
-#[test]fn absent_reason_and_unapproved_default_are_not_approval_writes(){
-    let c=campaign(APPROVAL);assert!(c.operations.get("intakePainting").is_some_and(|n|*n>0));
-    assert!(c.violations.iter().all(|v|!v.reachability.is_reachable()),"{c:?}");
+#[test]fn absent_reason_and_literal_defaults_are_initialization_not_approval_writes(){
+    for source in [APPROVAL.to_owned(),
+        APPROVAL.replace("insert treatments {}","insert treatments {inpaintApproved:false}"),
+        APPROVAL.replace("default false","default true"),
+        APPROVAL.replace("default false","default true").replace("insert treatments {}","insert treatments {inpaintApproved:true}")] {
+        let c=campaign(&source);assert!(c.operations.get("intakePainting").is_some_and(|n|*n>0));
+        assert!(c.violations.iter().all(|v|!v.reachability.is_reachable()),"{source}\n{c:?}");
+    }
 }
-#[test]fn nonnull_approval_creation_and_approval_edits_still_refute(){
+#[test]fn nondefault_approval_creation_and_approval_edits_still_refute(){
     for source in [
         APPROVAL.replace("insert treatments {}","insert treatments {approvalReason:'approved'}"),
         APPROVAL.replace("insert treatments {}","insert treatments {inpaintApproved:true}"),
+        APPROVAL.replace("default false","default true").replace("insert treatments {}","insert treatments {inpaintApproved:false}"),
         format!("{APPROVAL}mutation badApprove(treatment: treatments):\n  update treatments[treatment] {{inpaintApproved:true}}\n"),
         format!("{APPROVAL}mutation badReason(treatment: treatments):\n  update treatments[treatment] {{approvalReason:'changed'}}\n"),
-        APPROVAL.replace("default false","default true"),
     ] {let c=campaign(&source);assert!(c.violations.iter().any(|v|v.reachability.is_reachable()),"{source}\n{c:?}");}
 }
 const ROSTER:&str="table roles:\n  principal: principal\n  role: enum('member','director')\n  unique principal\n  immutable principal\n  read <- .principal = viewer or viewer = 'service:operator'\n  insert <- viewer = 'service:operator'\n  update <- viewer = 'service:operator'\n  online only\nmutation provision(principal: principal, role: enum('member','director')):\n  require viewer = 'service:operator' else NOT_OPERATOR\n  return upsert roles[principal] {principal,role}\nquery mine():\n  return roles[viewer]\ninvariant roles.read only .principal = viewer\n";
@@ -39,12 +44,18 @@ const ROSTER:&str="table roles:\n  principal: principal\n  role: enum('member','
     let c=campaign(source);assert!(c.operations.get("advanceStage").is_some_and(|n|*n>0));assert!(!c.violations.iter().any(|v|v.reachability.is_reachable()),"{c:?}");
 }
 
-#[test]fn structural_write_audiences_still_judge_nonnull_defaults(){
-    let source=APPROVAL.replace("inpaintApproved: bool default false","inpaintApproved: bool default false write <- viewer = 'service:director'");
-    let b=compile(&[("schema.q".into(),source)]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
-    let mut engine=snapback4_core::Engine::memory(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
-    let result=engine.mutate("intakePainting",None,snapback4_core::Context::new("service:registrar",Default::default()).at(challenges::NOW)).unwrap();
-    assert!(matches!(result.state,snapback4_core::WriteState::Failed{..}),"structural audiences still count defaults: {result:?}");
+#[test]fn structural_write_audiences_allow_only_default_initialization(){
+    for (default,other) in [("false","true"),("true","false")] {
+        for value in [None,Some(default),Some(other)] {
+            let source=APPROVAL.replace("inpaintApproved: bool default false",&format!("inpaintApproved: bool default {default} write <- viewer = 'service:director'"));
+            let insertion=value.map_or_else(||"insert treatments {}".to_owned(),|v|format!("insert treatments {{inpaintApproved:{v}}}"));
+            let source=source.replace("insert treatments {}",&insertion);
+            let b=compile(&[("schema.q".into(),source)]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+            let mut engine=snapback4_core::Engine::memory(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
+            let result=engine.mutate("intakePainting",None,snapback4_core::Context::new("service:registrar",Default::default()).at(challenges::NOW)).unwrap();
+            assert_eq!(matches!(result.state,snapback4_core::WriteState::Sent{..}),value.is_none_or(|v|v==default),"default={default}, supplied={value:?}: {result:?}");
+        }
+    }
 }
 
 #[test]fn provision_preimage_and_mixed_before_after_results_are_not_exempt(){

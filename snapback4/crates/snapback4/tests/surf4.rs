@@ -56,7 +56,7 @@ fn new_help_is_about_templates_and_social_dry_run_writes_nothing() {
 #[test]
 fn init_redirected_output_has_no_ansi() {
     let app = App::new(); let output = success(app.run(&["init", "web", "--web"]));
-    assert!(!output.contains('\u{1b}')); assert!(output.contains("npm install"));
+    assert!(!output.contains('\u{1b}')); assert!(output.contains("node scripts/install.mjs"));
 }
 #[test]
 fn every_public_verb_help_matches_the_shared_parser_table_and_wrapper_synopsis() {
@@ -128,7 +128,7 @@ fn release_preflight_uses_database_selection_without_convenience_pointer() {
     success(app.run(&["deploy", "deployment"]));
     fs::remove_file(app.0.join("deployment/current")).unwrap();
     success(app.run(&["token", "--release", "deployment", "--service", "ops", "--quiet"]));
-    let value: serde_json::Value = serde_json::from_str(&success(app.run(&["releases", "deployment"]))).unwrap();
+    let value: serde_json::Value = serde_json::from_str(&success(app.run(&["releases", "deployment", "--json"]))).unwrap();
     assert_eq!(value["release"], 1);
     fs::write(app.0.join("deployment/current"), "999\n").unwrap();
     success(app.run(&["token", "--release", "deployment", "--service", "ops", "--quiet"]));

@@ -1,0 +1,166 @@
+{
+  "method": "all23 wave29 Codex schemas on copies; infer existing provision role enum; devAccounts 1 real password user per role then ordinary password login; no credentials retained",
+  "rows": [
+    {
+      "lane": "002-snapback-scleral-lens-fittings",
+      "ok": true,
+      "roles": 4,
+      "realPasswordLogins": 4,
+      "ms": 3281
+    },
+    {
+      "lane": "003-snapback-antique-telephone-restorations",
+      "ok": true,
+      "roles": 4,
+      "realPasswordLogins": 4,
+      "ms": 3219
+    },
+    {
+      "lane": "004-snapback-smoke-damage-cleanups",
+      "ok": true,
+      "roles": 4,
+      "realPasswordLogins": 4,
+      "ms": 3322
+    },
+    {
+      "lane": "005-snapback-wrought-iron-gate-commissions",
+      "ok": true,
+      "roles": 4,
+      "realPasswordLogins": 4,
+      "ms": 3274
+    },
+    {
+      "lane": "006-snapback-binocular-overhaul-jobs",
+      "ok": true,
+      "roles": 4,
+      "realPasswordLogins": 4,
+      "ms": 3327
+    },
+    {
+      "lane": "007-snapback-custom-wallpaper-commissions",
+      "ok": true,
+      "roles": 4,
+      "realPasswordLogins": 4,
+      "ms": 3238
+    },
+    {
+      "lane": "008-snapback-log-home-chinking-repairs",
+      "ok": true,
+      "roles": 4,
+      "realPasswordLogins": 4,
+      "ms": 3388
+    },
+    {
+      "lane": "012-snapback-architectural-rendering-jobs",
+      "ok": true,
+      "roles": 4,
+      "realPasswordLogins": 4,
+      "ms": 3256
+    },
+    {
+      "lane": "014-snapback-holiday-light-installations",
+      "ok": true,
+      "roles": 4,
+      "realPasswordLogins": 4,
+      "ms": 3225
+    },
+    {
+      "lane": "017-snapback-mobile-bartending-bookings",
+      "ok": true,
+      "roles": 4,
+      "realPasswordLogins": 4,
+      "ms": 3263
+    },
+    {
+      "lane": "020-snapback-snowshoe-guided-hikes",
+      "ok": true,
+      "roles": 4,
+      "realPasswordLogins": 4,
+      "ms": 3767
+    },
+    {
+      "lane": "022-snapback-custom-wetsuit-fittings",
+      "ok": true,
+      "roles": 4,
+      "realPasswordLogins": 4,
+      "ms": 507
+    },
+    {
+      "lane": "025-snapback-boating-license-exams",
+      "ok": true,
+      "roles": 4,
+      "realPasswordLogins": 4,
+      "ms": 478
+    },
+    {
+      "lane": "027-snapback-haunted-house-set-builds",
+      "ok": true,
+      "roles": 4,
+      "realPasswordLogins": 4,
+      "ms": 488
+    },
+    {
+      "lane": "028-snapback-garden-fountain-restorations",
+      "ok": true,
+      "roles": 4,
+      "realPasswordLogins": 4,
+      "ms": 501
+    },
+    {
+      "lane": "029-snapback-aircraft-ferry-flights",
+      "ok": true,
+      "roles": 4,
+      "realPasswordLogins": 4,
+      "ms": 466
+    },
+    {
+      "lane": "030-snapback-ground-radar-surveys",
+      "ok": true,
+      "roles": 4,
+      "realPasswordLogins": 4,
+      "ms": 465
+    },
+    {
+      "lane": "033-snapback-tennis-court-resurfacing",
+      "ok": true,
+      "roles": 4,
+      "realPasswordLogins": 4,
+      "ms": 514
+    },
+    {
+      "lane": "034-snapback-fountain-pen-restorations",
+      "ok": true,
+      "roles": 4,
+      "realPasswordLogins": 4,
+      "ms": 466
+    },
+    {
+      "lane": "035-snapback-fur-cleaning-batches",
+      "ok": true,
+      "roles": 4,
+      "realPasswordLogins": 4,
+      "ms": 512
+    },
+    {
+      "lane": "044-snapback-wooden-deck-refinishing",
+      "ok": true,
+      "roles": 4,
+      "realPasswordLogins": 4,
+      "ms": 512
+    },
+    {
+      "lane": "045-snapback-geothermal-loop-installs",
+      "ok": true,
+      "roles": 5,
+      "realPasswordLogins": 5,
+      "ms": 535
+    },
+    {
+      "lane": "048-snapback-pergola-builds",
+      "ok": true,
+      "roles": 4,
+      "realPasswordLogins": 4,
+      "ms": 498
+    }
+  ]
+}

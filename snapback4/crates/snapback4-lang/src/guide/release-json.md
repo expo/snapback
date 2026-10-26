@@ -122,3 +122,28 @@ logical identity, owner token/holder and database-clock lease state without raw 
 SQL inspection currently refuses `E_STORE_UNSUPPORTED`. An unknown activation
 COMMIT is resolved from persisted selection, without replaying activation; an
 unresolved result keeps its exact source for recovery.
+
+## Postgres durability modes and read grants
+
+Postgres defaults to synchronous commit (S). The explicit store URL setting
+`commit=early` opts into E: for example append `&commit=early` to the configured
+`SNAPBACK4_STORE_URL`; `commit=synchronous` selects S explicitly. Serve and
+`doctor` disclose the selected mode. E releases writer locks at the data commit,
+then acknowledges only after a WAL-generating, count-checked synchronous marker
+covers that commit. Snapback readers and cache fills wait for their own snapshot
+head to be durable, with a 250 ms hold bound per snapshot and retryable failure
+on a history break or hold expiry. S1 qualification of E is still pending; this
+setting makes no throughput or publication claim.
+
+A raw PostgreSQL client outside Snapback can see the data transaction in the
+window before its marker is durable. A PostgreSQL crash can lose that visible,
+unacknowledged suffix. Use Snapback's reader APIs for the acknowledged-durability
+contract; direct SQL observers must account for this window. E does not admit
+SQL inspection or actions that the Postgres profile currently refuses.
+
+
+Managed storage refuses foreign triggers, rewrite rules or row security with `E_STORE` / `SNAPBACK_MANAGED_RELATION_INTERCEPTION` on open, activation, reconnect and `doctor`, including foreign incoming foreign keys. Remove the reported interception and retry. Snapback's own index-key and device-residency triggers require their exact installed definitions; only recognized legacy constraints and their exact built-in triggers are admitted. Database event triggers are allowed. Doctor warns with every enabled trigger's name, event, tags (`all` when no command-tag filter is declared), owner, function and enabled mode; activation logs the same list once. Privileged code (event triggers or superuser-level DDL hooks) that rewrites activation DDL or movement semantics is outside the supported contract. Activation checks observable effects after installer DDL, after scratch DDL before first use, and immediately before COMMIT: managed and TEMP movement relations, by captured OID, must be plain heaps owned by the activation role without foreign interception. Replaced OIDs, views, materialized views, partitioned and foreign tables refuse. Before removing a live/dormant source, activation verifies the destination's expected final images and count in the same transaction; mismatch rolls back. Intentional overlays, backfills and narrowing advance the expected image. SQLite compares decoded values, so JSON key order from a rename is harmless. Postgres verification pages cap keys at 64 and combined compared payloads at 4 MiB, admitting one oversized row to ensure progress, under the existing five-second statement timeout. SQLite managed names match identifiers without ASCII case distinctions, including quoted table names.
+
+Runtime DDL on managed relations while serving is explicitly outside the store fence model. Owner/head locks do not prevent external DDL, and admission does not poll catalogs on each request. Doctor and the next open, activation or connection replacement detect such changes.
+
+For a single-owner Linux Postgres deployment, zero-flight revision-cache hits are opt-in through `SNAPBACK4_READ_GRANT_CLOCK_BOUNDS=rate_ppm,forward_jump_ms`. These numbers declare a guarantee: during any grant, database time advances at most `(1 + rate_ppm/1000000) * CLOCK_BOOTTIME_elapsed + forward_jump_ms`, including suspend and every supported failover. They are not tuning estimates. For example, `1000,250` declares a maximum 0.1% relative rate excess and 250 ms cumulative forward adjustment; the three-second grant gets a local deadline below 2.747 s. Use this only when the deployment guarantees those bounds and all writers run the grant-aware protocol. Unset it for arbitrary clock steps, unqualified failover or mixed versions, and do not use it across VM pause/migration longer than the lease. Explicit malformed or non-UTF-8 bounds refuse startup. The ordinary one-statement G5 validation remains the default. Serve startup and doctor print cache diagnostics. Serve reports its local startup tier; doctor reports the owner's persisted grant and clock declaration, with local activity explicitly unconfirmed: reconnect or local revocation can fall back to G5 before the persisted grant expires. Doctor does not use its own environment for that status. Opt-in is the default posture even with `ha=none`. Revisit default-on only after the roughly one-second G6 stall is explained, G5-versus-G6 write cost is measured, a durable compatibility marker makes pre-G6 binaries refuse grant-enabled stores, and Snapback can witness the clock contract instead of assuming it. A grant hit rechecks bearer authority and expiry with a fresh clock. Every local commit invalidates revision equality. Grant loss falls back to database reads; unknown COMMIT stops cached reads and new writers until fenced reacquisition with a fresh process/epoch. Graceful release drains cached reads first.
