@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.4.44
+
+### Guide changes
+
+- Caller-filtered required probes explain incompatible roster role arms and explicit service exceptions; mixed owner/customer and staff rosters need an explicit role predicate. A mutation require cannot replace denied table write authority.
+- Default web forms ship explicitly labelled textareas and select controls with a combobox proof. Expo web labels editable and status controls using current React Native props. Shared TypeScript modules import directly from Node 24; starters retain strict optional/index checks and witness registration through adaptation. Generated runtime imports remain available in versioned app copies.
+- Job sweeps catch up rows before the latest coalesced period and put deadline refusals before status checks. Live staging clocks keep ticking; exact boundaries use pinned local runs or one captured fixture clock. Staging password budgets and fixture operator reads are explained.
+- Callback/watch guesses refuse with the actual observation call. Headless settleMutation waits for the same pending receipt through recovery; imperative asset and sentResult export shapes are explicit. The proof selector works under tsx; labelledControl excludes option text from wrapped control labels. Awaited-upload witness claims use witnessForm.
+- Test output separates completed finite campaigns, authored cases and query-probe coverage, with elapsed-time progress during long campaigns. Audit JSON is pretty-printed.
+- Dense guide cards show content with byte-based previews; functions opens programs. The optional account/avatar/thread walkthrough is shipped as the linked client walkthrough, keeping every example behind one link from the shorter quickstart. Money minor units and column privacy are in the cheatsheet.
+- Full-key probe brackets accept non-null literal inequality residuals on required readable scalar columns. Typed record-list parameters refuse with a bounded parallel-list rewrite; partial existence checks retain structural fanout rules.
+
 ## 0.4.43
 
 ### Guide changes

@@ -4,6 +4,31 @@ use super::*;
 
 const CASE_SUMMARY: &str = "SNAPBACK4_TEST_CASES";
 
+/// Finite campaigns can spend minutes inside one synchronous phase. Keep the
+/// process visibly alive without implying that elapsed time measures coverage.
+struct CampaignProgress {
+    stop: Option<std::sync::mpsc::Sender<()>>,
+    worker: Option<std::thread::JoinHandle<()>>,
+}
+impl CampaignProgress {
+    fn start() -> Self {
+        let (stop, receiver) = std::sync::mpsc::channel();
+        let worker = std::thread::spawn(move || {
+            let started = Instant::now();
+            while matches!(receiver.recv_timeout(std::time::Duration::from_secs(10)), Err(std::sync::mpsc::RecvTimeoutError::Timeout)) {
+                eprintln!("security: campaign running ({} s elapsed; finite exploration, not proof)", started.elapsed().as_secs());
+            }
+        });
+        Self { stop: Some(stop), worker: Some(worker) }
+    }
+}
+impl Drop for CampaignProgress {
+    fn drop(&mut self) {
+        if let Some(stop) = self.stop.take() { let _ = stop.send(()); }
+        if let Some(worker) = self.worker.take() { let _ = worker.join(); }
+    }
+}
+
 fn case_count(path: &std::path::Path) -> Result<usize, String> {
     let text = std::fs::read_to_string(path).map_err(|error| format!("cannot read {}: {error}", path.display()))?;
     Ok(text.lines().filter(|line| {
@@ -109,6 +134,7 @@ pub fn test(options: &Options) -> i32 {
     for gap in &evaluation_gaps {println!("security invariant NOT FULLY EVALUATED: {gap}");}
     println!("security invariant evaluation: {} declared, {} evaluation gaps; zero violations does not establish coverage or safety",bound.invariants.len(),evaluation_gaps.len());
     println!("security: running full finite campaigns; replayed violations fail; coverage limits follow");
+    let progress = CampaignProgress::start();
     let mut security_campaign = snapback4_lang::security::challenges::Campaign::default();
     let populated_fixture=bound.schema.tables.keys().any(|table|engine.store().rows(table).is_ok_and(|rows|!rows.is_empty()));
     if options.flags.contains_key("fixture")&&populated_fixture{
@@ -125,6 +151,7 @@ pub fn test(options: &Options) -> i32 {
     for gap in &security_campaign.evaluation_unknowns {println!("security invariant NOT EVALUATED on a visited image: {gap}");}
     println!("security runtime evaluation: {} unknown judgments (target and source site listed above)",security_campaign.evaluation_unknowns.len());
     let security_http_ok=security::unauthenticated(&project,&bound,&sources);
+    drop(progress);
     if !options.flags.contains_key("residency") {if let Err(why)=security::remember(&project,&evidence_options,&security_campaign,security_http_ok,&consumed){eprintln!("security: campaign record unavailable: {why}; check cannot reuse these refutations");}}
     if security_http_ok{security_campaign.unsupported.retain(|s|!s.starts_with("unauthenticated HTTP attempts require"));}
     println!("security directed histories: {} mutation attempts; peak {} retained frontier worlds; finite exploration",security_campaign.directed_attempts,security_campaign.directed_peak_worlds);
@@ -279,11 +306,15 @@ pub fn test(options: &Options) -> i32 {
     if generated_only {println!("test not covered: no authored business cases; {} (finite, not proof)",if populated_fixture{"trusted-fixture campaign only"}else{"generated-fixture only"});}
     let no_cases = passed + failed_cases == 0 && !options.flags.contains_key("fixture-only") && skipped_business_cases > 0;
     let security_failed = security_campaign.violations.iter().any(|c|c.reachability.is_reachable()) || !security_campaign.boundary_failures.is_empty() || !security_http_ok;
-    let verdict = if failures > 0 || failed_cases > 0 || no_cases || security_failed { "FAIL" } else if !skipped.is_empty() || held_not_run > 0 || !evaluation_gaps.is_empty() || !security_campaign.evaluation_unknowns.is_empty() { "incomplete" } else { "pass" };
+    println!("security campaign: {} — finite execution; coverage limits are reported separately", if security_failed { "FAIL" } else { "completed" });
+    let cases_status = if failed_cases > 0 || no_cases { "FAIL" } else if skipped_business_cases > 0 { "incomplete" } else if passed > 0 { "pass" } else { "not provided" };
+    println!("authored cases: {cases_status} — {passed} passed, {failed_cases} failed, {skipped_business_cases} skipped");
+    let probe_verdict = if failures > 0 { "FAIL" } else if !skipped.is_empty() || held_not_run > 0 { "incomplete" } else { "pass" };
     // @ref LLP 3000.036.002#9 — derived probe refusals are expected exploration, not failed cases.
-    println!("test: {complete} complete, {capped} capped, {expected} refused as your cases expect, {refused_derived} probe refusals on derived arguments (expected), {} not run, {failures} denied{} — {verdict}",
+    println!("query probes: {complete} complete, {capped} capped, {expected} refused as your cases expect, {refused_derived} probe refusals on derived arguments (expected), {} not run, {failures} denied{} — {probe_verdict}",
         skipped.len() + held_not_run, if passed + failed_cases > 0 { format!("; cases: {passed} passed, {failed_cases} failed") } else if options.flags.contains_key("fixture") { format!("; no {} (see snapback4 guide testing)", test_cases::FILE) } else { String::new() });
     if !evaluation_gaps.is_empty() || !security_campaign.evaluation_unknowns.is_empty(){println!("test security coverage: incomplete — {} static invariant gaps; {} runtime unknown judgments; see the named target/sites above",evaluation_gaps.len(),security_campaign.evaluation_unknowns.len());}
+    println!("test: {}", if failures > 0 || failed_cases > 0 || no_cases || security_failed { "FAIL" } else { "no failing observations (coverage and authored-case status above)" });
     // @ref LLP 3000.011.003.000.000#11-wave-14-truthful-starter-custody-day4 — query-sweep reads are not application business cases.
     if options.flags.contains_key("source") {
         println!("{CASE_SUMMARY} {{\"run\":{},\"skipped\":{skipped_business_cases}}}", passed + failed_cases);

@@ -53,7 +53,7 @@ const APP_FILES: &[&str] = &[
     ".snapback4/dev-refusals/<storeId>/<instance>.json",
     "app/dm/[other].tsx", "app/conversation/[id].tsx", "src/Direct.tsx",
     "src/BoundedConversation.tsx", "src/PageLifetime.ts", "src/QuotedMessage.tsx",
-    "src/UploadPicker.tsx", "src/client.ts", "src/Inbox.tsx", "src/Thread.tsx", "src/witness.ts",
+    "src/package.json", "src/shared.ts", "src/UploadPicker.tsx", "src/client.ts", "src/Inbox.tsx", "src/Thread.tsx", "src/witness.ts",
     "about/index.html", "artifacts/native-smoke/smoke-ios-run.json", "artifacts/native-smoke/<timestamp>/smoke-ios-run.json",
     "snapback/organizations.q", "src/following.ts", "generated/residency.json",
     "api.ts", "server.ts", "schema.q", "m.q", "digest.q", "mail.q", "hooks.q",
@@ -190,6 +190,8 @@ fn published_path_guard_rejects_astras_counterexample_and_unlisted_files() {
 #[test]
 fn client_teaches_sdk_delivery_and_screen_seen() {
     let client = card("client").unwrap();
+    assert!(client.contains("CLIENT-AND-OPERATIONS.md#client-tier-and-proof-details"));
+    let client = include_str!("../../../../packages/snapback4/CLIENT-AND-OPERATIONS.md").split_once("## Client tier and proof details").unwrap().1;
     assert!(client.contains("SDK owns delivery reporting"));
     assert!(client.contains("screen owns visible `seen` reporting"));
     for name in ["client", "receipts", "sync"] {

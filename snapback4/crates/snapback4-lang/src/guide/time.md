@@ -194,6 +194,7 @@ fixture/persona doors closed while its `service:operator` clock remains availabl
   after restart; --resume-clock continues the store’s advanced clock. clockOffsetMs
   and offsetMs report the exact configured process offset, unchanged on refusal.
 - `snapback4 run <op> --now +2h` (or milliseconds) pins the clock for one local run.
+- Live staging time continues ticking after `advance`; it is not frozen (008R, 020E). For exact `deadline-1`, `deadline`, `deadline+1` checks, use separate local `run --now <integer-ms>` calls or fixture cases: their typed `now` values share one captured test clock. Live tests should assert before/after behavior with margin, not equality to the returned millisecond. `--no-drain` pauses maintenance, not the clock.
 - In the client, `client.now()` is the server's time estimate; `useNow(deadline)` from `snapback4/react`
   re-renders at a deadline.
 

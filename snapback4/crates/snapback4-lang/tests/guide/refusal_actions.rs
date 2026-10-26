@@ -2,6 +2,8 @@
 //! These facts supplement the definition pins. A code label alone cannot tell
 //! a caller whether to retry, replace intent, change a declaration, or show no data.
 pub(super) const ACTIONS: &[(&str, &[&str])] = &[
+    ("E_OBSERVE_USAGE", &["observed.subscribe(listener)", "unsubscribe and observed.close()"]),
+    ("N_ROLE_UNFILTERED", &["Pin role in the full unique key probe", "If every roster variant is intended"]),
     ("E_DEV_ACCOUNTS", &["Use devAccounts only on development; seedAccounts for staging and provisionAccounts for production. guide staging."]),
     ("E_SERVE_STOP_FAILED", &["Inspect shutdown handlers; a successful proof command cannot clear this failure. guide testing."]),
     ("E_SERVE_THEN_FAILED", &["Cleanup still checks group shutdown and lock release; repair the callback and rerun. guide testing."]),

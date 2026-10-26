@@ -167,7 +167,7 @@ fn main() -> ExitCode {
                     None => match guide::explain_code(keyword) {
                         Some(text) => println!("{text}"),
                         None => {
-                            println!("no card named {keyword}; nearest: {}\n{}", guide::nearest(keyword).join(", "), guide::listing());
+                            println!("no card named {keyword}; nearest: {}\nOpen one with snapback4 guide <name>; guide --list lists all cards.", guide::nearest(keyword).join(", "));
                             return ExitCode::from(1);
                         }
                     },

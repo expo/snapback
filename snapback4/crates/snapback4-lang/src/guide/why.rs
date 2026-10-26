@@ -66,6 +66,8 @@ pub(super) fn detail(code: &str) -> Option<&'static str> {
         "N_LOOKUP_HIDDEN" => include_str!("why/N_LOOKUP_HIDDEN.md"),
         "N_NO_PRODUCTION_WRITER" => include_str!("why/N_NO_PRODUCTION_WRITER.md"),
         "N_UNREADABLE_PROBE" => include_str!("why/N_UNREADABLE_PROBE.md"),
+        "E_OBSERVE_USAGE" => "# E_OBSERVE_USAGE\n\nE_OBSERVE_USAGE means observe received a callback or an unsupported watch method was called. Use const observed = client.observe(op, args); read observed.getSnapshot(), register observed.subscribe(listener), then call the returned unsubscribe and observed.close() on cleanup. No callback overload is admitted. React screens use useQuery or usePage. guide client.",
+        "N_ROLE_UNFILTERED" => "# N_ROLE_UNFILTERED\n\nN_ROLE_UNFILTERED means an own-or-roster rule probes a mixed owner/customer and staff roster without selecting role. Every row in that roster can satisfy the bare exists, including an owner/customer viewing another owner’s records. Pin role in the full unique key probe, for example exists roles[principal = viewer, role = 'staff']. Use OR for several intended staff variants. If every roster variant is intended, the broad probe is deliberate; this note grants no authority and does not block. Composite unique principal, role rosters still require the full point key. guide rules.",
         "N_REQUIRE_HIDDEN" => include_str!("why/N_REQUIRE_HIDDEN.md"),
         "N_QUERY_FILTERED" => include_str!("why/N_QUERY_FILTERED.md"),
         "N_REQUIRE_REFUSED" => include_str!("why/N_REQUIRE_REFUSED.md"),

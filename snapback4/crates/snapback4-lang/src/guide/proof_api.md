@@ -13,6 +13,7 @@ Every runtime and type export of `snapback4/proof` is listed below. Signatures, 
 | `exhaustPages<Row>(readPage: (cursor: Cursor \| null) => Promise<ProofPage<Row>>, options?: ExhaustPagesOptions): Promise<Row[]>` | `Array of Awaited<Row>` | E_PROOF_PAGE for a refused, loading, malformed, repeated, incomplete or over-limit traversal; callback errors propagate. |
 | `fillRN(locator: Locator, value: string \| Parameters<Locator["setInputFiles"]>[0]): Promise<void>` | `void` | locator ambiguity, disabled/closed control, or Playwright deadline. |
 | `frontPage(page: Page): Promise<Page>` | `Page` | page closed or browser activation failed. |
+| `labelledControl(page: Page, role: "textbox" \| "combobox" \| "checkbox" \| "radio" \| "spinbutton" \| "slider" \| "switch", name: string \| RegExp, options?: { within?: Locator; exact?: boolean; }): Locator` | `Locator` | Locator observations preserve Playwright's strict ambiguity and visibility rules. |
 | `loadFixtures(directory: string, options: LoadFixturesOptions): Promise<FixtureRow[]>` | `Array of { table: string; row: Record<string, unknown> }` | E_PROOF_USAGE for missing url or invalid timeout; E_AUTH naming attempted credential; catalog, clock, filesystem, row JSON/table or E_FIXTURE_TIME validation failure. |
 | `logsDir(options?: Pick<ProofOptions, "cwd" \| "logsDir">): string` | `string` | None; returns the resolved explicit or cwd/logs path. |
 | `portRange(env?: NodeJS.ProcessEnv): string` | `string` | partial, invalid or reversed PORT_LO/PORT_HI pair. |
