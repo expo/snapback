@@ -639,7 +639,9 @@ query staffNotes(c: cursor ?):\n  require exists staff[viewer] else NOT_STAFF\n 
     project.write("fx/test.cases.jsonl", "{\"as\":\"carol\",\"op\":\"staffNotes\",\"count\":5}\n");
     let output = project.run(&["test", "--fixture", "fx"]);
     assert_eq!(output.status.code(), Some(1));
-    assert!(text(&output).contains("cases: 0 passed, 1 failed — FAIL"), "{}", text(&output));
+    let out = text(&output);
+    assert!(out.contains("authored cases: FAIL — 0 passed, 1 failed") && out.lines().any(|line| line.starts_with("test: FAIL")), "{out}");
+    assert!(out.lines().any(|line| line.starts_with("query probes:") && line.ends_with("— pass")), "an authored-case failure does not change probe coverage: {out}");
 }
 
 /// Wave 7 (HTTP acceptance, 11 lanes): the guide's script handles both refusal
