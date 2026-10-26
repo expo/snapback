@@ -241,7 +241,12 @@ fn observe(bound:&Bound,e:&mut Engine,rows:&BTreeMap<String,Vec<Value>>,initial:
                             out.unsupported.insert(format!("{}: typed read payload is not repeatable on the committed image",bp.program.name));continue;
                         }
                         let added=violation(out,inv,steps,viewer,row,None,initial,if inv.column.is_some(){"column read observation"}else{"read"});
-                        if added&&let Some(v)=out.violations.last_mut(){v.operation=bp.program.name.clone();v.args=args;v.rule_path="authored query repeatably returned a compiler-typed row/column payload of the protected table while current policy is false".into();}
+                        if added&&let Some(v)=out.violations.last_mut(){
+                            v.operation=bp.program.name.clone();v.args=args.clone();
+                            // @ref LLP 3000.036.004.001#read-payloads — record the actual observer, including a query on an unchanged generated fixture.
+                            v.history.push(Step{clock:Some(history_clock(steps)),operation:bp.program.name.clone(),viewer:viewer.clone(),args,result:serde_json::json!({"state":"observed","complete":q.complete})});
+                            v.rule_path="authored query repeatably returned a compiler-typed row/column payload of the protected table while current policy is false".into();
+                        }
                         continue 'actors;
                     }
                 }

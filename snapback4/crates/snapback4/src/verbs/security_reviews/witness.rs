@@ -6,7 +6,8 @@ pub(in crate::verbs) fn concrete(value:&serde_json::Value)->bool {
     matches!(value["reachability"].as_str(),Some("generated-fixture-trace"|"authored-fixture-trace"))
         && value["candidate"].as_str().is_some_and(|s|!s.is_empty())
         && value["operation"].as_str().is_some_and(|s|!s.is_empty())
-        && history.last().is_some_and(|step|step["operation"]==value["operation"]&&step["viewer"]==value["viewer"]&&step["state"]=="sent")
+        && history.last().is_some_and(|step|step["operation"]==value["operation"]&&step["viewer"]==value["viewer"]
+            && (step["state"]=="sent" || value["kind"]=="read-payload" && step["state"]=="observed"))
 }
 fn canonical(value:&serde_json::Value)->serde_json::Value {
     use serde_json::Value;
@@ -92,7 +93,7 @@ pub(super) fn validate_reason(reason:&str,value:&serde_json::Value)->Result<(),S
     let answers=clauses.iter().filter_map(|clause|clause.strip_prefix(marker).map(str::trim)).collect::<Vec<_>>();
     let answer=if answers.len()==1{answers[0]}else{""};
     if !clauses.contains(&format!("witness {witness}").as_str())||!clauses.contains(&permits.as_str())||snapback4_core::visible_text::visible_length(answer)<8||answer.contains('<')||answer.contains('>'){
-        return Err(format!("this decision must answer the current witness and name its operation; use --reason '{}', replacing the placeholders with the intended audience/effect and specification rationale, or repair the source and rerun check",reason_template(value)));
+        return Err(format!("this decision must answer the current witness and name its operation; use --reason '{}', replacing the placeholders with the intended audience/effect and specification rationale, or repair the source and rerun check\nWitness {witness}: {}",reason_template(value),value["summary"].as_str().unwrap_or("see check --review --json for the replay")));
     }Ok(())
 }
 pub(super) fn retained(entry:&Entry,fingerprint:&str,evidence:Option<&serde_json::Value>)->bool {

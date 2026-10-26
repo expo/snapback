@@ -65,7 +65,6 @@ fn review_inner(project:&Project,sources:&[(String,String)],notes:&[snapback4_la
     let mut file=read_file(project)?;
     let mut recorded=std::collections::BTreeSet::new();
     if let Some((key,reason))=ack{
-        if reason.trim().is_empty(){return Err("--reason needs the specification rationale for this individual note".into());}
         // Validate the complete batch against the same captured source/note set.
         // Nothing is published when even one member is stale or unknown.
         let mut selected=std::collections::BTreeSet::new();
@@ -91,6 +90,7 @@ fn review_inner(project:&Project,sources:&[(String,String)],notes:&[snapback4_la
         for index in selected {
             let (id,fingerprint,_)=&identities[index];
             if let Some(value)=evidence.get(index).and_then(Option::as_ref){witness::validate_reason(reason,value)?;}
+            if reason.trim().is_empty(){return Err("--reason needs the specification rationale for this individual note".into());}
             file.entries.insert(id.clone(),Entry{sources:fingerprint.clone(),analyzer:ANALYZER.into(),reason:reason.trim().into(),witness:evidence.get(index).cloned().flatten()});
         }
         let temporary=path.with_extension(format!("json.{}.tmp",std::process::id()));
@@ -193,5 +193,25 @@ pub(super) struct Scratch(pub(super) std::path::PathBuf);impl Drop for Scratch{f
   let retained=review(&p,&sources,&changed,Some((&family,"old decision"))).unwrap();
   assert!(retained[0].acknowledged&&retained[1].acknowledged);assert!(!retained[2].acknowledged&&!retained[3].acknowledged);
   assert!(review(&p,&sources,&notes,Some((&family,"  "))).is_err());
+ }
+}
+
+#[cfg(test)]mod sec11_tests {
+ use super::*;
+ #[test]fn every_invalid_witness_answer_prints_the_replay_and_preserves_the_file(){
+  let root=std::env::temp_dir().join(format!("sb4-sec11-refusal-{}",std::process::id()));std::fs::create_dir_all(root.join("snapback")).unwrap();let _scratch=super::tests::Scratch(root.clone());let p=Project{root};
+  std::fs::write(p.schema_dir().join("schema.q"),"query q():\n  return true\n").unwrap();let sources=p.sources().unwrap();
+  let notes=[snapback4_lang::Diagnostic::new(&Default::default(),"N_OPTIONAL_EVIDENCE","docs.scan: presence","require scan")];
+  let value=witness::stamp(json!({"candidate":"question: missing evidence","operation":"create","viewer":"dev:clerk","effect":"insert","history":[{"operation":"create","viewer":"dev:clerk","state":"sent"}],"reachability":"generated-fixture-trace","summary":"create as dev:clerk -> ok; scan=null"}));
+  let evidence=[Some(value.clone())];let ds=review_evidence(&p,&sources,&notes,None,&evidence).unwrap();
+  let path=p.schema_dir().join("security-reviews.json");
+  for reason in ["","   ","the specification requires a scan","audience: managers only; intended effect: clerks must not create"]{
+   let error=review_evidence(&p,&sources,&notes,Some((&ds[0].id,reason)),&evidence).err().expect("invalid answer");
+   assert!(error.contains("create as dev:clerk -> ok; scan=null")&&error.contains(value["id"].as_str().unwrap()),"{error}");assert!(!path.exists());
+  }
+  let reason=format!("witness {}; permit create as dev:clerk; audience: clerks deliberately open drafts without scans",value["id"].as_str().unwrap());
+  assert!(review_evidence(&p,&sources,&notes,Some((&ds[0].id,&reason)),&evidence).unwrap()[0].acknowledged);
+  let saved=std::fs::read(&path).unwrap();
+  assert!(review_evidence(&p,&sources,&notes,Some((&ds[0].id,"a different reason")),&evidence).is_err());assert_eq!(std::fs::read(path).unwrap(),saved);
  }
 }
