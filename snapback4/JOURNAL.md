@@ -109149,3 +109149,15 @@ unchanged production code. The assertion now prints any returned refusal.
 Those initial failures remain in the report. The preliminary short W4/W5
 loopback sample predates the resume correction and cannot price final code;
 one final W4-only sample replaces it, without a campaign or capacity claim.
+
+The complete Postgres script's first Rust group reports one extra setup red:
+`rt3b_cold_ingress_reader_is_physically_read_only_after_owner_loss` fails at
+`test_request_owner_loss`, before reader construction. Its isolated repeat
+fails 0/1 on unchanged final production. The old corruption hook changes its
+own token and then asks that stale writer to commit a revision tail; repeating
+the fence now correctly refuses it. The test-support-only hook instead uses an
+independent schema-qualified connection for the token corruption. The isolated
+corrected witness passes 1/0, retaining physical read-only enforcement and the
+one-statement warm ingress ratchet. All HTTP owner-loss consumers run in the
+full binary/lever checks. Production fencing and ordinary commit behavior are
+unchanged; the script's initial red remains recorded, with its isolated rerun.

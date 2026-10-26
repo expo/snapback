@@ -14,6 +14,17 @@ pub struct Handle {
     pub(super) bootstrap_id: Option<String>,
 }
 impl Handle {
+    #[cfg(feature = "test-support")]
+    pub(crate) fn test_request_owner_loss(&self) -> Result<(), RuntimeError> {
+        // A corruption fixture must act as an independent owner, rather than
+        // revoke itself and ask its now-stale writer to commit a data tail.
+        let mut client = self.connection.0.connect(postgres::NoTls)?;
+        let namespace = super::store::namespace(&self.connection.1)?;
+        let changed = client.execute(&format!("UPDATE {namespace}._owner SET token=token+1 WHERE singleton"), &[])?;
+        if changed != 1 { return Err(RuntimeError::Store("owner-loss fixture requires one owner row".into())); }
+        Ok(())
+    }
+
     pub(crate) fn early_pipeline_disconnected(&self)->bool {
         let store=self.store.borrow();store.early_release.is_some() && store.client.is_closed()
     }

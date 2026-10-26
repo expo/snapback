@@ -125,15 +125,10 @@ impl AnyStore {
 
     #[cfg(feature = "postgres")]
     pub fn test_request_owner_loss(&mut self) -> Result<(), RuntimeError> {
-        let tx = self.transaction()?;
-        match &tx {
-            AnyTx::Postgres(super::handles::PostgresTx(inner)) => {
-                inner.query("SELECT token FROM _owner WHERE singleton FOR UPDATE", &[])?;
-                inner.execute("UPDATE _owner SET token=token+1 WHERE singleton", &[])?;
-            }
-            _ => return Err(RuntimeError::StoreUnsupported { family: "Postgres owner-token fixture" }),
+        match self {
+            Self::Postgres(super::handles::PostgresStore(handle)) => handle.test_request_owner_loss(),
+            _ => Err(RuntimeError::StoreUnsupported { family: "Postgres owner-token fixture" }),
         }
-        tx.commit()
     }
 }
 
