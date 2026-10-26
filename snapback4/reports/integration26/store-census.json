@@ -1,0 +1,13 @@
+{
+  "exit": 0,
+  "before": {
+    "snapback4/crates/snapback4/tests/store_port_ratchet.allow.txt": "5cda4c8e833bf1ce5a80c224c8df1aec2bafb4a8aeccc427eb0d5021cd888827",
+    "snapback4/crates/snapback4/tests/store_port_ratchet.test-allow.txt": "0852c35337f9b0df2b1272bc48f115f06c8691cf4f9c0e5949a9f5e29e441f61"
+  },
+  "after": {
+    "snapback4/crates/snapback4/tests/store_port_ratchet.allow.txt": "5cda4c8e833bf1ce5a80c224c8df1aec2bafb4a8aeccc427eb0d5021cd888827",
+    "snapback4/crates/snapback4/tests/store_port_ratchet.test-allow.txt": "0852c35337f9b0df2b1272bc48f115f06c8691cf4f9c0e5949a9f5e29e441f61"
+  },
+  "changed": false,
+  "noAllowanceRaise": true
+}

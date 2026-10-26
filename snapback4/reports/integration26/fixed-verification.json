@@ -1,0 +1,30 @@
+{
+  "sourceCommit": "e109c2fbcd34df4a2c252d87af6265b2c8756f8b",
+  "noProductionLogicChanges": true,
+  "results": [
+    {
+      "id": "fixed-guide",
+      "status": 0
+    },
+    {
+      "id": "fixed-cli-build",
+      "status": 0
+    },
+    {
+      "id": "fixed-client-targets",
+      "status": 0
+    },
+    {
+      "id": "fixed-verb-help",
+      "status": 0
+    },
+    {
+      "id": "fixed-packaged-docs",
+      "status": 0
+    },
+    {
+      "id": "fixed-ref-check",
+      "status": 0
+    }
+  ]
+}

@@ -1,0 +1,90 @@
+{
+  "originalReceiptComplete": true,
+  "originalReceiptUnchanged": true,
+  "originalReceiptOk": false,
+  "originalNonzeroSteps": [
+    {
+      "id": "client-tests",
+      "status": 1,
+      "signal": null,
+      "elapsedMs": 1640187
+    },
+    {
+      "id": "generated",
+      "status": 1,
+      "signal": null,
+      "elapsedMs": 78
+    },
+    {
+      "id": "guide",
+      "status": 1,
+      "signal": null,
+      "elapsedMs": 241838
+    },
+    {
+      "id": "inventories",
+      "status": 1,
+      "signal": null,
+      "elapsedMs": 203941
+    },
+    {
+      "id": "difftest:run-lean",
+      "status": 1,
+      "signal": null,
+      "elapsedMs": 16178
+    }
+  ],
+  "fixCommit": "e109c2fbcd34df4a2c252d87af6265b2c8756f8b",
+  "correctionScope": "documentation, guide command spelling and stale output expectations only; no runtime logic changes",
+  "correctedClientFiles": [
+    "packages/snapback4/test/qualify-linux.test.mjs",
+    "packages/snapback4/test/residency.test.mjs",
+    "packages/snapback4/test/wave12-surface.test.mjs",
+    "packages/snapback4/test/upload-lifetime.test.mjs",
+    "packages/snapback4/test/wave14-rule-recipes.test.mjs",
+    "packages/snapback4/test/security-packed.test.mjs"
+  ],
+  "correctedClientTests": {
+    "tests": 153,
+    "pass": 153,
+    "fail": 0,
+    "cancelled": 0,
+    "skipped": 0,
+    "todo": 0
+  },
+  "effectiveSourceClients": {
+    "files": 439,
+    "tests": 8004,
+    "passed": 7948,
+    "failed": 0,
+    "skipped": 56
+  },
+  "clientModels": {
+    "files": 2,
+    "tests": 89,
+    "passed": 89,
+    "failed": 0
+  },
+  "rust": {
+    "packages": 7,
+    "targets": 467,
+    "passed": 7870,
+    "failed": 0,
+    "ignored": 111
+  },
+  "rootGeneratedRecoveryStatus": 0,
+  "rootFinalParity": [
+    {
+      "id": "guide",
+      "status": 0
+    },
+    {
+      "id": "inventories",
+      "status": 0
+    }
+  ],
+  "remainingNonzeroStep": "difftest:run-lean \u2014 18 inherited findings, exact baseline match; not normalized into a pass",
+  "incomingMain": "45d6a1a56b8850b25ca36189276b2453cc87b349",
+  "incomingMerge": "b039450461b79652afe32fa8d06316492d0f21fd",
+  "incomingScope": "36 benchmark result files only; no runtime/client/manifest/test/guide changes; semantic verification reused under LLP 0189/0232"
+}

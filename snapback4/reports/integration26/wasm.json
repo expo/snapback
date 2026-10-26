@@ -1,0 +1,18 @@
+{
+  "at": "2026-10-25T23:59:39Z",
+  "sha": "3978d14da6",
+  "dirty": false,
+  "wasm": {
+    "raw": 2415568,
+    "gzip": 738130,
+    "brotli": 555808
+  },
+  "glue": {
+    "raw": 16053,
+    "gzip": 3695,
+    "brotli": 3260
+  },
+  "wasmOpt": true,
+  "budget": 738630,
+  "over": 0
+}

@@ -1,0 +1,12 @@
+{
+  "priorProjects": 650,
+  "currentProjects": 700,
+  "sourceOrFixtureDifferences": [],
+  "exitDifferences": [],
+  "gateCodeSiteDifferences": [],
+  "newWave28Projects": 50,
+  "newWave28AllFiveCallsPass": true,
+  "newWave28DefaultMaxLines": 2,
+  "observedFalseGates": 0,
+  "observedFalseRefusals": 0
+}

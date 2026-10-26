@@ -1,0 +1,8 @@
+{
+  "sourceCommit": "e109c2fbcd34df4a2c252d87af6265b2c8756f8b",
+  "binary": "/home/ccheever/sb4-loop/reports/integration26/bin-final-0.4.42",
+  "sha256": "7f8e8eb6e791988eafd9b8333e573bd31d068917ded3b546df923228b6bd1b42",
+  "profile": "test",
+  "feature": "snapback4-core/test-support",
+  "semanticCodeUnchangedSince": "3978d14da6"
+}

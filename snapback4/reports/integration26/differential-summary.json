@@ -1,0 +1,37 @@
+{
+  "cases": 2000,
+  "generated": 2000,
+  "lean": {
+    "attempted": 2000,
+    "passed": 1658,
+    "unsupported": {
+      "call-max": 36,
+      "call-min": 21,
+      "call-sum": 26,
+      "index-computed-or-words": 46,
+      "loop": 54,
+      "now": 7,
+      "page-compound-where-branches": 1,
+      "page-static-key-expression": 4,
+      "prelude-now": 18,
+      "shape": 111
+    },
+    "disagreeing": 18,
+    "signatures": {
+      "lean--continuation-next--next~no-next": 5,
+      "lean--next--next~no-next": 8,
+      "lean--prelude-code--E_RULE~NOT_FOUND": 5
+    },
+    "meter_fields_omitted": 0
+  },
+  "sameOracleTotals": true,
+  "unchangedFindingFiles": 16,
+  "newFindingFiles": [],
+  "plainCases": 2000,
+  "plainDisagreements": 0,
+  "plainUnexpected": {
+    "binder_refused_unexpected": 0,
+    "generator_errors": {},
+    "runtime_refused_unexpected": {}
+  }
+}

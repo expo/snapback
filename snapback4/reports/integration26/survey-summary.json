@@ -1,0 +1,122 @@
+{
+  "projects": 700,
+  "defaultCheckOutput": {
+    "min": 2,
+    "max": 14,
+    "median": 2.0,
+    "p90": 2,
+    "histogram": {
+      "2": 657,
+      "3": 8,
+      "5": 21,
+      "8": 8,
+      "14": 6
+    }
+  },
+  "gated": 35,
+  "freshRefused": 39,
+  "afterTestRefused": 49,
+  "testsFailed": 54,
+  "timedOut": {
+    "defaultCheck": [],
+    "check": [],
+    "freshDeploy": [],
+    "test": [],
+    "afterTestDeploy": []
+  },
+  "waves": {
+    "15": {
+      "projects": 100,
+      "gated": 1,
+      "freshRefused": 1,
+      "afterTestRefused": 1,
+      "testsFailed": 2
+    },
+    "16": {
+      "projects": 50,
+      "gated": 3,
+      "freshRefused": 3,
+      "afterTestRefused": 3,
+      "testsFailed": 3
+    },
+    "18": {
+      "projects": 50,
+      "gated": 4,
+      "freshRefused": 6,
+      "afterTestRefused": 9,
+      "testsFailed": 11
+    },
+    "19": {
+      "projects": 50,
+      "gated": 6,
+      "freshRefused": 8,
+      "afterTestRefused": 11,
+      "testsFailed": 13
+    },
+    "20": {
+      "projects": 50,
+      "gated": 3,
+      "freshRefused": 3,
+      "afterTestRefused": 4,
+      "testsFailed": 4
+    },
+    "21": {
+      "projects": 50,
+      "gated": 6,
+      "freshRefused": 6,
+      "afterTestRefused": 7,
+      "testsFailed": 7
+    },
+    "22": {
+      "projects": 50,
+      "gated": 1,
+      "freshRefused": 1,
+      "afterTestRefused": 1,
+      "testsFailed": 1
+    },
+    "23": {
+      "projects": 50,
+      "gated": 8,
+      "freshRefused": 8,
+      "afterTestRefused": 8,
+      "testsFailed": 8
+    },
+    "24": {
+      "projects": 50,
+      "gated": 0,
+      "freshRefused": 0,
+      "afterTestRefused": 1,
+      "testsFailed": 1
+    },
+    "25": {
+      "projects": 50,
+      "gated": 3,
+      "freshRefused": 3,
+      "afterTestRefused": 4,
+      "testsFailed": 4
+    },
+    "26": {
+      "projects": 50,
+      "gated": 0,
+      "freshRefused": 0,
+      "afterTestRefused": 0,
+      "testsFailed": 0
+    },
+    "27": {
+      "projects": 50,
+      "gated": 0,
+      "freshRefused": 0,
+      "afterTestRefused": 0,
+      "testsFailed": 0
+    },
+    "28": {
+      "projects": 50,
+      "gated": 0,
+      "freshRefused": 0,
+      "afterTestRefused": 0,
+      "testsFailed": 0
+    }
+  },
+  "binarySha256": "71f0e7128937977f7511ecbf6839f7738729a99a2fb3e1fc8b40ab57dc91c887",
+  "twoInterruptedRowsReplaced": true
+}

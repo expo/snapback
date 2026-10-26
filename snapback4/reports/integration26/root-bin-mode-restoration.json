@@ -1,0 +1,32 @@
+[
+  {
+    "path": "packages/create-snapback-app/cli.mjs",
+    "beforeMode": "0o777",
+    "restoredMode": "0o644",
+    "unchangedContentSha256": "aeaf11f5e4cf15d2d3129525c2e1555ae089649bca286cb91c53a8a788087d3c"
+  },
+  {
+    "path": "packages/snapback-hosted-supervisor/bootstrap.mjs",
+    "beforeMode": "0o777",
+    "restoredMode": "0o644",
+    "unchangedContentSha256": "7c52c88b372a5ca2b2433ea76f7b7e6de8327e0fa345f3172e6f631ad43e9ae3"
+  },
+  {
+    "path": "packages/snapback-hosted-supervisor/cli.mjs",
+    "beforeMode": "0o777",
+    "restoredMode": "0o644",
+    "unchangedContentSha256": "84737a8942eac4e7390b4e05348bf1ef49fb323a0d785638291954e56447ab55"
+  },
+  {
+    "path": "packages/snapback-hosted-supervisor/target-onboarding.mjs",
+    "beforeMode": "0o777",
+    "restoredMode": "0o644",
+    "unchangedContentSha256": "4d424fca2639751ffc3d622b5d2c65dd2725d469b196cd84c168c82a41489738"
+  },
+  {
+    "path": "packages/snapback-publication-authority/service.mjs",
+    "beforeMode": "0o777",
+    "restoredMode": "0o644",
+    "unchangedContentSha256": "bb8a088b3ceba99d8b3199ed3cb253f82214c2efb7359080e60e9e5099b3c448"
+  }
+]

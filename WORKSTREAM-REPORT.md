@@ -1,226 +1,70 @@
-# FIX41 — 0.4.41 publication repairs
+# Integration 26 — DX11 and Snapback 4 0.4.42
 
-Worktree: `/home/ccheever/projects/snapback-sb4loop`; branch `sb4-loop`.
-Starting revision: `5c4716af14`. Version remains **0.4.41**.
-**Complete: pushed main `ba886e7be07e522df2b0fdd35a341e57ea7229dc`**.
-Remote `refs/heads/main` independently verified at that exact SHA.
-Non-forced push; no npm publication performed.
-Publisher evidence was read only; no `sb4-pub-*` worktree or kit was changed.
-Replay used copies and verified all 300 original files were unchanged.
+Release 0.4.42 integrates DX11 with FIX41/main. SEC10 is excluded and planned for 0.4.43. Publication qualification is separate. Landing destination: `sb4-loop:main`, without force.
 
-Used `llp-orient` and `llp-ship`, following the Snapback 4 fence, LLP 3000,
-retained-storage §21 and starters §10. User branch/merge instructions took
-precedence over generic skill branch rules. No RFC status was accepted for
-its author. Four rounds of actual independent Muse/fresh Codex reviews,
-including their findings and fixes, are preserved under `llp/reviews/`.
-Both final semantic reviews returned READY at `c8ef2ccafc`.
+## Commits and integration
 
-## 1. Workspace feature unification
+- Initial status was clean on `sb4-loop` at `d66264efbd`; fetched main was `ba886e7be0`, already contained, so the requested first merge was a no-op.
+- DX11 merge: `71aa5cdc91`, merging `sb4-b28-dx11` tip `968423b233` with `--no-ff`.
+- Own version bump: `24d787d427`, `snapback4 0.4.42: compact security review and clearer client workflows`. It precedes affected verification and updates the same manifests, locks, fixtures and version expectations as the previous bump.
+- Wasm measurement/budget: `3978d14da6`, before affected verification.
+- Final incoming-main merge: `b039450461`, merging main `45d6a1a56b`; only 36 benchmark result files arrived, with no semantic inputs changed. Report/evidence is a metadata-only final commit.
 
-Commits: `6c79375cbb`, fixture-boundary cleanup `97e59e6d2f`.
-Core's debug test-support constant reports the actual compiled evaluation
-feature. The test refuses an exact evaluation tracker in package-only mode,
-admits it when core is workspace-unified with evaluation support, and always
-refuses a maliciously changed body. Package target: 1/1 passed. Workspace
-main test binary: 612 passed, 57 ignored. Publisher-style runner completed
-459 binaries / 1,177 executions; its two initial development-fixture failures
-were corrected and retested. No further workspace/package feature blind spot
-was found. The initial runner is not claimed as entirely green.
+The only conflict was `upload-retry.test.mjs`. Main's FIX41 continuous connection-saturation bank and worker fixture are retained; DX11's retry-guidance assertions remain. The superseded authenticated probe was unnecessary with the retained saturation witness. The complete conflict file passed (36 tests) in the source client pool. No production semantic conflict resolution was authored, so no integration reviewer round ran.
 
-## 2. Nested identity binding
+## Changes and upgrade
 
-Commit: `0be6995c45`. Stable-point facts are checked before speculative key
-selection, and the field AST is borrowed. DX9 semantics remain covered.
-Original eight-level case: 721.5 ms before, 6.3–6.7 ms after. New twelve-level
-case: 76.7 ms, below the retained 1 s guard, with 12 runtime reads.
-Positional keys: 11/11; DX9 ergonomics: 3/3. Plain 2k differential campaign:
-120,026 executions, zero disagreements. Lean 2k reports only the 18 existing
-classified C2/W4 signatures, tracked by the existing Quarry tickets and
-`lean/OPEN.md`; no new signature was introduced. A separate standalone
-full-language run hit its 1,200 s guard after 1,857 passes and no failures;
-the later full affected language step passed.
+- Passing default check prints a verdict and language-enforcement summary; advisory details move to `--review`/JSON, while gates and refutations remain visible and blocking.
+- Concrete redacted question witnesses accompany supported decisions. Multi-ID acknowledgments validate and commit atomically; identity ignores incidental locations, and independent source edits retain current decisions.
+- Hooks expose `usePage.loading`/`why`; local developer refusal evidence names actual grants and filtered reads without adding public disclosure.
+- Schema-first React apps receive a starter hint. Expo starters gain upload picking; overload, persisted staging clock and on-screen proof guidance improve; password starters gain `probe:check`.
 
-## 3. Original rollback shape and receipt ownership
+One coherent 0.4.42 **Guide changes** entry describes upgrading existing apps and stores. Rows, accounts and migration receipts remain; restart serve processes and regenerate clients/devices. Analyzer revision `sec11-1` requires renewing older decisions once with current IDs and independent specification rationale. LLP 3000.037 §20.11 records this release's response. The candidate's version, one-entry count, upgrade words and `--review` help smoke all pass.
 
-Commits: `39cdc9cea7`, `caefb60f5c`, `c8ef2ccafc`; final replay record
-`4685131d7f`. Prefer a fitting original extraction shape under current
-static/visibility checks and private activation. Normalize only generated
-reference labels under the declared rename. Capture receipt ownership before
-reverse adoption can mint receipts, preserving independent native children.
-The regression reads the exact publication media schema and checks `scan`.
-Eligibility target: 1/1; receipt snapshot transaction test: 1/1;
-`roll_views`: 29/29. Actual installed `proveMigrations` and
-`proveRollInstalled` passed, including reference rename, private file
-extraction, current guards, worker cases and two rollback cycles.
+## Verification
 
-The first complete packed attempt found the reference mismatch and was not
-counted as success. The final fresh packed consumer qualification passed.
+One prescribed affected run used base `ba886e7be0`, tested `3978d14da6`, and completed all 31 steps with `unchanged:true`. It selected seven Rust packages and 441 client files. Its raw receipt is retained as **FAIL**, including the stale expectation files, root dependency preconditions and inherited Lean findings; it is not relabeled green.
 
-| Replay metric | Before | Final |
-|---|---:|---:|
-| Stores / moves | 100 / 500 | 100 / 500 |
-| Successful moves | 482 | 482 |
-| Expected true refusals | 18 | 18 |
-| False refusals | 0 | 0 |
-| Correct live result lines | 482 | 482 |
-| Ordinary source forwards | 194 | 194 |
-| Hidden v1 rows | 0 | 0 |
-| Original files unchanged | 300 | 300 |
+| Rust package | Targets | Passed | Ignored |
+| --- | ---: | ---: | ---: |
+| snapback4 | 64 | 1575 | 79 |
+| snapback4-core | 49 | 1243 | 5 |
+| snapback4-device | 104 | 1575 | 4 |
+| snapback4-difftest | 13 | 100 | 0 |
+| snapback4-lang | 190 | 2628 | 16 |
+| snapback4-native | 2 | 0 | 0 |
+| snapback4-sim | 45 | 749 | 7 |
 
-Checked-in digest-only records:
-`snapback4/reports/20261025-fix41/replay-{before,after}.json`.
-Final replay binary SHA256:
-`adef6f93afc7fc35e45190a018652dca68ab925bdaf35af1d4231be6812ee82c`.
+All **7,870 Rust tests pass** (111 ignored). Source client pool: 439 files/8,004 tests, initially 47 failed assertions across six files. Commit `e109c2fbcd` corrects explicit command ownership, opt-in detail callers, upload guidance assertions and stale guide commands. All six complete files then pass **153/153 tests**, preserving the original refusal fields/prefix, questionnaire counts and ordering. Effective source pool: **7,948 passed / 56 skipped / zero failed**. The two full-count model files pass **89/89**; fixture file passes 9/9.
 
-## 4. Unremediable advisory policy
+Focused verification also passes the 127-test Rust guide target, canonical CLI rebuild, strict changelog-versus-help guard, packaged-doc lint and ref-check. No manifests, lockfiles, shared test support or runtime implementation changed after the broad run; no broad rerun was needed. The survey and replay semantic inputs remain unchanged.
 
-Commits: `2a9b9871dc`, `97e59e6d2f`, `3595b5f091`.
-The checked-in allowlist records advisory, package, dependency path, reason,
-affected starters and **2026-11-08** recheck date. Unknown or fixable advisories,
-concrete remediation candidates, new reviewed-package versions and expired
-reviews fail. Allowed unfixable advisories print and retain warnings in every
-starter result, including template and Docker/proot paths.
+During the final root pass, ignored root dependencies were absent. Locked installation restored them; the root workspace additionally needed its hoisted layout (`bun 1.3.14 --linker hoisted`). Generated artifacts, guide and inventory then pass. Installer-only executable-bit changes on five byte-identical legacy bin files were restored. These are separately recorded environment recoveries, not relaxed checks.
 
-The specific npm meta-advisory anomaly is recorded separately: all versions
-are affected, `fixAvailable:true` supplies no concrete candidate, and the exact
-unfixable node-forge chain remains after upgrading the wrapper to its latest
-0.0.7. Audit dry-run offers no remediation. This exception cannot hide a
-concrete candidate, changed chain, new reviewed version or expired review.
-No ineffective pin or forced downgrade was introduced.
+Root checks pass: generated artifacts; diagnostics regeneration; guide-manifest generation; inventories; guide (22 groups); ref-check; docs budget (README 320/320). Root regeneration produced no tracked differences. Inventories report 365 package tests, 35 scripts tests, 31 demos/catalog entries, 487 publication leaves and 162 guide pages/1937 snippets. Authoring census regenerated 906 items and matches committed bytes. Store-port census regenerated unchanged: **0 production sites; 116 test sites across 16 files**; no allowance was raised.
 
-node-forge reaches Expo development/code-signing tooling, not the generated
-app runtime. The ticket records this inspection and the coordinator ruling.
-Qualifier regressions: 63 passed; day-5 proofs: 5 passed; Expo README regression
-passed. All six real packed diagnostic starters passed; all three Expo results
-retained their advisory warnings. The final clean-distribution qualification
-also passed.
+## Survey on copies
 
-## 5. Browser admission under load
+700 schemas across waves 15,16,18–28: default check output **median 2 lines / p90 2**, range 2–14; 657 schemas print exactly two lines. All gates stay visible. Raw authored-state results: 35 gated projects, 39 fresh-deploy refusals, 49 deploy-after-test refusals and 54 app-test exits. All four command exit statuses and gate code/sites match 0.4.41 for every one of the prior 650 projects, with identical schema/fixture inputs. The new wave28 has 50/50 projects passing all five commands and a two-line maximum.
 
-Commit: `438e676638`. The fixture uses a bounded replenishing socket bank and
-requires an actual received raw 503 plus the host diagnostic. It no longer
-treats kernel connection completion as admitted ownership. The bank replaces
-refused and expired leases; product capacity, five-second deadlines, browser
-CORS/Retry-After and four-attempt assertions remain unchanged.
-Deterministic warm/refused/expired lease regression passed.
-20/20 alone (2.999–3.217 s); 20/20 beside an eight-file heavy client pool
-(3.019–3.131 s). Pool: 8/8 files, 187/187 tests. Related tests: 114/114.
+All 49 conditional refusal cases are audited, with zero unresolved check/deploy refusals; **0 observed false gates and 0 observed false refusals**. Final audit reuses 49 same-source/binary case receipts. There are no timeouts.
 
-The broad run found another copy of the defective saturation fixture in
-`upload-retry.test.mjs`. Its test-only follow-up preserves all real upload
-assertions, waits for authenticated recovery, and has independent fresh Codex
-READY review. Entire file: 36/36; 20/20 alone and 20/20 under the same heavy
-pool, which stayed active throughout and passed 187/187.
+Only copied schemas/fixtures were executed. Wave 15 uses its older app naming and contributes 100 schemas; the other twelve waves contribute 50 each. Raw authored findings and stale starter-fixture test exits are recorded separately from release regression tests. Conditional audit applies the previously recorded app repairs and individually justified current decisions on copies. Final input verification confirms **709 Quarry files and 777 fixture files unchanged** across all 700 original projects.
 
-## Integration follow-ups and verification
+The final survey uses the already-built selector test-profile CLI, SHA-256 `71f0e7128937977f7511ecbf6839f7738729a99a2fb3e1fc8b40ab57dc91c887`. An interrupted unoptimized dev survey is supplemental only. Two late interrupted cache rows (wave15 097/099) were quarantined and rerun alone on the canonical pin; all five commands pass and each prints two lines. The final summary is rebuilt from corrected per-row files. Prewarming compiled only pending selector targets and prerequisites; it added no repeated broad test execution.
 
-The newly merged G7.2 local neutral adapter types exposed a static census
-false positive. The narrow test-only repair preserves the zero production
-allowance and conservative driver alias handling, with negative controls.
-Fresh full and guard-delta Codex reviews returned READY. Candidate: 9/9 tests;
-production 0 sites, existing test census unchanged at 116 sites / 16 files.
+## Day-two replay on copies
 
-The same broad run exposed a separate store-reset fixture race: an error
-reply with no generation satisfied `generation !== oldGeneration`. Two
-consecutive HTTP 503 / retryable generation-family `E_GENERATION` replies
-reproduced it (original 19/20 passed). The test-only correction waits only
-through that declared transient, validates a successful sync reply and retains
-it, while malformed metadata and other refusals assert immediately. The
-head/store/client-health assertions are unchanged. Deterministic consecutive-
-refusal regression and full file: 13/13; 20 selected repeats: 80/80; fresh
-Codex high review READY. No extra heavy pool overlapped isolated timer proofs.
+100 distinct wave25/wave27 production stores; 500 moves (deploy, default rollback/forward twice). 491 successful moves all print correct live-source metadata; 195 forwards select exact ordinary source. Nine genuine refusals across four stores (`w25-004`:3, `024`:3, `030`:2, `045`:1). All four refusing stores replay on the retained 0.4.41 control with identical exits and normalized reasons: **0 false refusals; 0 hidden v1 rows**. All 300 original database/WAL/SHM file hashes remain unchanged. Ownership/token files are excluded from copies; originals are never opened with SQLite.
 
-Full requested selection (`--base 5c4716af14 --run`) completed against unchanged
-`b168eb27352a8ed0ebdc398b48a85390999d0a42`. Receipt:
-`target/affected/b168eb27352a-1792949143432.json` (`complete:true`,
-`unchanged:true`, `ok:false`). Raw nonzero steps are snapback4's inherited
-census classification, the store-reset fixture, and the existing Lean findings.
-The first two are corrected in the test-only follow-ups; their final in-tree
-checks are recorded below. The original upload fixture happened to pass this
-run but failed the earlier broad run, hence its independently verified repair.
+This deliberately uses default predecessor selection. Integration25 used explicit `--to 1`, hence its 18-refusal count is not the matching control. The separate default-selection 0.4.41 control validates this release's nine refusals. Replay uses the immutable dev 0.4.42 pin `9ddf58d9ddc73bab90c88b1430ff5622310e8d91d301b1be53f04af5c834f4f0`; source differs from tested `3978d14da6` only by the budget record.
 
-All other Rust packages, fixture tests, models, chat/Expo typechecks, diagnostics,
-generated artifacts, guide (22/22), inventory, packaged docs, ref-check,
-release guard, selector tests and WebAssembly measurement passed. The broad
-client pool ran 438 files / 8,001 tests: 7,944 passed, 56 skipped and the single
-store-reset failure described above. Browser overload passed in 2.990 s.
-Plain differential campaign: 2,000 cases, zero disagreements and zero
-unexpected runtime refusals. Lean: 1,658 passed, 324 unsupported, 18 existing
-classified disagreements (5 continuation-next, 8 next, 5 prelude-code).
+## Wasm
 
-Fetched and cleanly merged main through `b2959e2455` as `d536592e23`. No
-semantic conflict resolution was needed. Final corrections: `8c6a5ac256`
-(census; closes the inherited G7.2 ticket), `89b1133db0` (upload lease fixture),
-`f3930086b6` (successful adoption barrier). Their actual fresh reviews and
-patch/review hashes are retained under `llp/reviews/`. Merged-tree standalone
-census: 9/9, zero production sites and unchanged test allowance.
+Locked Linux merged device: **2,415,568 B raw / 738,130 B gzip / 555,808 B Brotli**. Budget **738,630 B = measurement + exactly 500 B**, with the merged-layout/version reason in `wasm-budget.json`. Whole-artifact delta versus Integration25 is +44 B raw/+22 B gzip. Strict serde-family/server-only absence audits pass. The final selector remeasurement is identical, clean (`dirty:false`), at `3978d14da6`, with `over:0`.
 
-Post-merge product targets all passed at `f3930086b6`:
+## Delivery, evidence and deferrals
 
-- Feature-sensitive tracker: 1/1 in a workspace library/bin test build and
-  1/1 in package-only binary mode.
-- Receipt before-image transaction unit: 1/1.
-- Rollback views: 29/29 (143.83 s).
-- Positional keys: 11/11 (0.08 s total), including the original 1 s budget and
-  the deeper unstable-key regression; DX9 ergonomics: 3/3.
+Small summaries, source/binary bindings and verification receipt are under `snapback4/reports/integration26/`; full logs and reproduction harnesses are retained outside Git at `/home/ccheever/sb4-loop/reports/integration26/`. Reclaimed **15,697,173,080 B across 461 completed test executables**. Only this worktree was modified; temporary replay/survey stores are disposed after their cases.
 
-Final affected selection for the three test-only corrections:
-`node snapback4/scripts/affected.mjs --base d536592e23 --run` at `f3930086b6`
-**PASS**, with `complete:true`, `unchanged:true`, `ok:true`:
-`target/affected/f3930086b671-1792960235015.json`.
-All seven commands passed: CLI/WASM/client builds, in-tree census 9/9,
-in-tree client files 49/49 (upload 36, store-reset 13), and ref-check.
-The production census remains zero; test allowance remains 116 sites / 16 files.
-
-The execution closeout was committed as `58b7b5e802`. A final affected run
-for that documentation-only delta (`--base f3930086b6 --run`) also passed:
-`target/affected/58b7b5e8026e-1792960522491.json`. Ref-check: 569 LLPs,
-12,642 refs, zero errors/unchecked. Full-branch whitespace inspection only
-flags intentional Markdown hard breaks in the verbatim original review output;
-changed code passes whitespace validation. Reviews were preserved verbatim.
-
-The final fetch brought only `7e88aa041d` benchmark-result files. Clean merge
-`ba886e7be0` introduced no product source or configuration changes. The tested
-semantic delta and review content survived unchanged; expensive tests were
-not repeated for benchmark records (LLP 0189 / LLP 0232). Landing ref-check
-passed again. Push `git push origin sb4-loop:main` succeeded; remote main was
-verified at `ba886e7be07e522df2b0fdd35a341e57ea7229dc`. The pre-push hook
-allowed the update with the normal scheduled frozen-record gate deferral.
-
-Fresh prepared client/Expo packs at source
-`b168eb27352a8ed0ebdc398b48a85390999d0a42`, version **0.4.41**:
-`snapback4/target/publication/fix41-final2-client-0.4.41/`.
-`qualify-linux.mjs --consumer-only` completed **exit 0** via proot. Every
-required host, Ubuntu 24.04 and Alpine consumer proof passed, including
-migrations/rollback and all starters. Receipt:
-`snapback4/target/fix41-consumer-final2/consumer.json`.
-Its unchanged SHA256 is
-`6fe1c818ba47d8c9d07a4e9fd6141b19dc2f02842d29316db3d11f0b64818409`.
-Expo results pass with the checked-in advisory warnings. Consumer-only mode
-correctly records `publicationQualified:false`.
-
-Owned FIX41 work has no remaining implementation or verification deferral.
-The 18 inherited Lean findings remain their existing tracked follow-ups; the
-unfixable Expo advisory remains explicitly reviewed until 2026-11-08. The
-publisher owns the full publication retry and npm publication from pushed main.
-No version bump was made.
-
-The consumer receipt is **consumer-only**, not a full publication receipt;
-full publication qualification and npm publication belong to the publisher.
-All commands had timeouts. Required nonincremental/debug-zero Cargo flags
-were supplied on subsequent checks; two early standalone inventory/budget
-preflights inherited default Cargo settings through child processes, which
-was corrected. Their 3.4 GB incremental scratch was removed. Missing root
-workspace dependencies were installed and hoisted with repository scripts;
-generated artifacts and inventories then passed without source/lock changes.
-Owned completed consumer projects and large scratch were removed; compact
-receipts, packs, replay digests and logs were retained. No credentials were
-read into repository artifacts.
-
-Cleanup: completed consumer projects were removed. After all checks and the
-verified push, removed local `snapback4/target/debug/{deps,build,.fingerprint}`
-and the private `/tmp/fix41-npm-cache` (about 40 GiB combined), retaining the
-normal CLI, production/musl binaries, packed tarballs, JSON receipts, replay
-digests and small logs. Shared free disk increased from 44 GiB to 85 GiB.
-Retained CLI still prints `snapback4 0.4.41`. No other worktree/cache was touched.
-The final report is intentionally left uncommitted as permitted by the brief.
+No publication worktree or `target/publication/` content was touched. Deferred to publication: packed five-crate qualification, publication client pool, `qualify-linux`, Mac, Exact app builds, and 20k/devices differential campaigns. SEC10 remains excluded. The 2k ordinary differential smoke completes with zero disagreements, zero unexpected binder/runtime refusals and no generator errors. Lean's 2k smoke remains nonzero: **1,658 passed / 324 unsupported / 18 inherited disagreements** (5 continuation-next, 8 next, 5 prelude-code). Oracle totals match the retained 0.4.41 baseline exactly; all 16 finding files are byte-identical and there are no new finding files. Unsupported cases are not counted as passes. This inherited/open model scope remains recorded under LLP 3000.035, `lean/OPEN.md` and the existing continuation ticket; it is not a new 0.4.42 finding or a green Lean claim.

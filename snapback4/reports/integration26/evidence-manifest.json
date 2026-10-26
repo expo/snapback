@@ -1,0 +1,111 @@
+{
+  "externalEvidenceRoot": "/home/ccheever/sb4-loop/reports/integration26",
+  "logs": [
+    {
+      "file": "affected.log",
+      "bytes": 4001664,
+      "sha256": "04d871ea590a1a0450b7d7aaa703370c4f8371a45102b2f21909aa1810da48f7"
+    },
+    {
+      "file": "fixed-client-targets.log",
+      "bytes": 35870,
+      "sha256": "484fb5c91e75b113cce955a0adb346565b40f79f74e1422dfa3701b6d8e5e6cb"
+    },
+    {
+      "file": "fixed-guide.log",
+      "bytes": 16976,
+      "sha256": "3d03c12fe0ecfcfce9bc4175d45c46e9621f41232b8dd92ccaae98c22f905389"
+    },
+    {
+      "file": "fixed-cli-build.log",
+      "bytes": 12772,
+      "sha256": "8e93e5cd91333f9a52b681299f1fe45eecbcf4d7a1beda3979b12cf26e7dcca5"
+    },
+    {
+      "file": "fixed-verb-help.log",
+      "bytes": 49,
+      "sha256": "894c8db1bb9709acb223bac6800740b39670e7e80a7e0b75fea08bf6188ba72e"
+    },
+    {
+      "file": "fixed-packaged-docs.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "file": "fixed-ref-check.log",
+      "bytes": 81,
+      "sha256": "28d2acd904c5f07822d28bf62ad2b5d18bf994498136828c88dafd105c328633"
+    },
+    {
+      "file": "root-ref-check.log",
+      "bytes": 81,
+      "sha256": "6c7f3b56397d559c5cb64d60ad56244d9893540daee1a792a093db84b320ac76"
+    },
+    {
+      "file": "root-docs-budget.log",
+      "bytes": 10236,
+      "sha256": "8974ea815f8204e42e7565756bb52acf6f4854d7117692c664b50e5c51159069"
+    },
+    {
+      "file": "recovered-generated.log",
+      "bytes": 60771,
+      "sha256": "4dc0b40d6f1862909ad1b665a9548f839b927ee6edd7372e22e783699f0e5fe7"
+    },
+    {
+      "file": "final-root-guide.log",
+      "bytes": 19451,
+      "sha256": "ffd2e7f73864b5566cdaa84b86c9a827097996f0ae2b771d81e98f10474ec8b6"
+    },
+    {
+      "file": "final-root-inventories.log",
+      "bytes": 3499,
+      "sha256": "2e5bdbb81fb0a90d0048b15c79190ef3773fdfa33b8646930fe455f717a57813"
+    },
+    {
+      "file": "store-census-regenerated.log",
+      "bytes": 12968,
+      "sha256": "b9d20a771bb2ecbd974a4d270064275bdb7a9d10c74cf4a439de933ff2e4913a"
+    },
+    {
+      "file": "authoring-census.log",
+      "bytes": 89140,
+      "sha256": "8362a1e9c113d2335645fb7a3830912b69cd0c2a6e3e631e6361fab1b1eaf281"
+    },
+    {
+      "file": "wasm.log",
+      "bytes": 90419,
+      "sha256": "6cb96acfd403406e0c8e70ab92d4448cbe2bf404e26becfeb00bf31554c3dbbb"
+    },
+    {
+      "file": "replay.log",
+      "bytes": 3942,
+      "sha256": "639764533d14f2c50b6576c0dafd9ddc796a91b8e9e3f427a9f2ba441d74f738"
+    },
+    {
+      "file": "replay-control.log",
+      "bytes": 239,
+      "sha256": "79dfe80dba7d55d9208201e5d43fc9715c0079d446fbea3d0e04ff12560be4a8"
+    },
+    {
+      "file": "survey.log",
+      "bytes": 71973,
+      "sha256": "12d23ad60d70816cee5b67c5cf38fc25c3efb4928dfa3e89a23f9c80eea884a8"
+    },
+    {
+      "file": "audit.log",
+      "bytes": 3768,
+      "sha256": "e3db5ae5ec689ca8c397805d53797f2f1947c45de4578b16315a96b318a38591"
+    },
+    {
+      "file": "finish-survey.log",
+      "bytes": 1968,
+      "sha256": "28a6a32c28ac6427b105697be8b0a9e0a47a4210c4eeab744d5788040fb9125c"
+    },
+    {
+      "file": "final-report-ref-check.log",
+      "bytes": 81,
+      "sha256": "0fe424572852db2f4ce625a52ef9eb3b1f5d4c57b79669d6a2a1c7b9d86bc669"
+    }
+  ],
+  "sec10TipIsAncestor": false
+}

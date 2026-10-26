@@ -1,0 +1,25 @@
+{
+  "stores": 100,
+  "moves": 500,
+  "knownTrueRefusals": {
+    "w25-004": 3,
+    "w25-024": 3,
+    "w25-030": 2,
+    "w25-045": 1
+  },
+  "successfulMoves": 491,
+  "correctLiveLines": 491,
+  "ordinarySourceForwards": 195,
+  "hiddenV1Rows": 0,
+  "originalFilesUnchanged": 300,
+  "binarySha256": "9ddf58d9ddc73bab90c88b1430ff5622310e8d91d301b1be53f04af5c834f4f0",
+  "rollbackSelection": "default predecessor, without --to; Integration 25 used explicit --to 1",
+  "explicitV1BaselineCountsMatch": false,
+  "defaultSelectionControl": {
+    "source": "retained 0.4.41 binary from Integration 25",
+    "stores": 4,
+    "sameAllExits": true,
+    "sameAllReasons": true
+  },
+  "falseRefusals": 0
+}

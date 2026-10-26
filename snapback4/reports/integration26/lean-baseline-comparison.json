@@ -1,0 +1,27 @@
+{
+  "beforeFiles": 19,
+  "unchangedFiles": [
+    "lean--continuation-next--next~no-next/case.json",
+    "lean--continuation-next--next~no-next/case.q",
+    "lean--next--next~no-next/case.json",
+    "lean--next--next~no-next/case.q",
+    "lean--prelude-code--E_RULE~NOT_FOUND/case.json",
+    "lean--prelude-code--E_RULE~NOT_FOUND/case.q",
+    "worker-0/lean--continuation-next--next~no-next/case.json",
+    "worker-0/lean--continuation-next--next~no-next/case.q",
+    "worker-0/lean--next--next~no-next/case.json",
+    "worker-0/lean--next--next~no-next/case.q",
+    "worker-1/lean--continuation-next--next~no-next/case.json",
+    "worker-1/lean--continuation-next--next~no-next/case.q",
+    "worker-1/lean--next--next~no-next/case.json",
+    "worker-1/lean--next--next~no-next/case.q",
+    "worker-1/lean--prelude-code--E_RULE~NOT_FOUND/case.json",
+    "worker-1/lean--prelude-code--E_RULE~NOT_FOUND/case.q"
+  ],
+  "changedFiles": [
+    "report.json",
+    "worker-0/report.json",
+    "worker-1/report.json"
+  ],
+  "newFiles": []
+}
