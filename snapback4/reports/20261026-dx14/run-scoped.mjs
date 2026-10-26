@@ -1,12 +1,14 @@
 // Disclosed task scope using the existing selector's execution/receipt machinery.
 import {planAffected,runPlan,ROOT} from '../../scripts/affected.mjs';
-import {mkdirSync,writeFileSync} from 'node:fs';
+import {mkdirSync,writeFileSync,existsSync} from 'node:fs';
 import {join} from 'node:path';
+const transientLogs=['logs','snapback4/logs'];
+if(transientLogs.some(path=>existsSync(join(ROOT,path)))) throw Error('remove this task’s owned proof logs before binding the final snapshot; existing logs are never deleted by this runner');
 const full=planAffected({base:'origin/main',worktree:process.argv.includes('--worktree')});
 mkdirSync(join(ROOT,'target/affected'),{recursive:true});
 writeFileSync(join(ROOT,'target/affected/dx14-full-plan.json'),JSON.stringify(full,null,2)+'\n');
 const step=(id,cwd,argv,timeoutSeconds=1800)=>({id,cwd,argv,reason:'DX14 affected source/consumer verification; brief excludes complete crate battery and client pool',timeoutSeconds,requires:[]});
-const scoped={...full,scopeOverride:{fullSelectorPlanExecuted:false,qualification:false,reason:'Same disclosed override as DX11/DX12: the selector treats embedded init assets as broad inputs and client sources select the entire client package. The brief explicitly forbids the complete crate battery and client pool. This receipt covers only the listed affected tests/checks.',fullRustPackages:full.rustPackages,fullClientFiles:full.clientFiles.length,fullStepCount:full.steps.length},steps:[
+const scoped={...full,scopeOverride:{transientProofLogDirectoriesAbsentAtStart:transientLogs,fullSelectorPlanExecuted:false,qualification:false,reason:'Same disclosed override as DX11/DX12: the selector treats embedded init assets as broad inputs and client sources select the entire client package. The brief explicitly forbids the complete crate battery and client pool. This receipt covers only the listed affected tests/checks.',fullRustPackages:full.rustPackages,fullClientFiles:full.clientFiles.length,fullStepCount:full.steps.length},steps:[
  step('build-cli-test-profile','snapback4',['cargo','build','--profile','test','-p','snapback4']),
  step('client-build','snapback4',['bun','run','--cwd','packages/snapback4','build']),
  step('client-types','snapback4',['bun','run','--cwd','packages/snapback4','typecheck']),
@@ -24,6 +26,7 @@ const scoped={...full,scopeOverride:{fullSelectorPlanExecuted:false,qualificatio
  step('generated','.', ['bash','scripts/check-generated-artifacts']),
  step('diagnostics','.', ['node','scripts/generate-diagnostics-registry.mjs','--check']),
  step('inventories','.', ['node','scripts/check-inventories.mjs']),
+ step('cleanup-owned-test-logs','.', ['node','-e',"const f=require('node:fs');for(const p of ['logs','snapback4/logs']){if(f.existsSync(p)){if(!f.lstatSync(p).isDirectory())throw Error('unexpected proof log path');f.rmSync(p,{recursive:true})}}console.log('Removed proof-log directories bound absent at run start; no pre-existing directory was authorized for cleanup')"]),
  step('refs','.', ['./ref-check']),
 ]};
 const {receiptPath,receipt}=await runPlan(scoped);

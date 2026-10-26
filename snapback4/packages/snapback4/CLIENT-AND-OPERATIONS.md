@@ -4579,3 +4579,5 @@ Browser: no sync → journal; sync → webDevice(); online writes: writes:"onlin
 Shared web/Expo and Node 24 modules use explicit `.ts` imports, including generated api.ts. The starter's src/package.json selects ESM inside src while Expo config files retain CommonJS. Keep its allowImportingTsExtensions/noEmit settings. Under exactOptionalPropertyTypes omit absent properties with `...(device ? {device} : {})`; under noUncheckedIndexedAccess check indexed values or keep Promise.all inputs as a tuple (`as const`).
 
 Never gate sign-in with `useAppReady()`: it needs a signed-in client; sign-out/replacement resets it. Keep drafts above gates; readiness is not authority. Invalid online/device/readOnly combinations set `useAuth().why` and fail app.ready; recreate corrected. Storage failures throw `E_ADMISSION`.
+
+Node-shared functions accept a Client or operation arguments; keep the platform URL/session bootstrap in the app. Node scripts create their own client/session while importing the same pure helpers and generated operations.
