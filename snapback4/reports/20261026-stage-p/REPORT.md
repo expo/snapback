@@ -242,3 +242,179 @@ Completion free space is **28.53 GiB**; the 25 GiB stop threshold did not trigge
 Only recorded PIDs were stopped. No push occurred; the shared port-55440 PG17
 cluster and `~/q24` were untouched. Raw logs, PID ledgers and databases remain
 outside Git under the recorded `/tmp` paths.
+
+## 2026-10-26 — Stage P fix round 1
+
+Required base `784641ce40`; code commits `fa23547aed`, `f6148eb02a`,
+`3b138076e8`; test-only alignment `0a0ee9def0`. Final production code is `3b138076e8efc726d9e5bf117428a384efd2c424`.
+The branch/worktree are preserved; no push, publication, WF integration or
+throughput campaign occurs. The accepted Stage P mechanism in LLP
+3000.009.001.000.000.002 §3.11 is updated (the later `.003` RFC is absent from
+this checkout). Fresh read-only review of the final code reports **no material
+finding remains**; that reviewer ran no builds, tests or measurements.
+
+### Five findings and behavioral evidence
+
+1. **Fence/data namespace.** The qualified guard takes the caller-evaluated
+   `current_schemas(true)::text[]`, before its own pinned function path applies.
+   Product connections pin `store,pg_catalog,pg_temp`. The guard requires store
+   then catalog, followed only by this session's own temporary schema if one
+   exists. The temporary namespace cannot precede/shadow durable data. This
+   adds a predicate to the existing flight rather than qualifying every data
+   statement or adding another flight. The same-generation A→B drift witness
+   admits a write on the original code and refuses after the fix, before either
+   head or counter image changes. The volatile key-share fence remains its own
+   command before facts and writes.
+2. **array_nulls.** Connection qualification pins it on, including asynchronous
+   reader setup; inline/provisioned guards reject later off before data. This
+   keeps the measured compact transport instead of rebuilding per-element SQL
+   arrays or changing the wire protocol. Text-array encoding is explicitly
+   setting-dependent. The original code admits a post-qualification off write;
+   the fix refuses it without a head/image change. The expanded randomized
+   oracle starts with both on/off, qualifies the sessions, then compares full
+   outcomes/meters and durable snapshots across generic PG, compact PG and
+   SQLite: three seeds × three shapes × two settings, 192 randomized invocations
+   per history, plus explicit grouped deletes. SQL assertions require NULL log
+   tombstones and nullable integer effect deadlines. The same final oracle is
+   replayed against the original array/settings code as a failing-before control.
+3. **Per-digest installation.** Each admitted digest has its own `_meta`
+   signature/body contract. All recorded versions validate, including newer
+   names unknown to an older binary. Only unrecorded names can be installed,
+   create-only under the inline owner fence/head lock; a missing or incompatible
+   admitted function refuses. Legacy boolean-marker import validates the exact
+   original definitions first. Nonempty contracts stay authoritative even if an
+   original v1 binary rewrites its marker to 1. The version witness fails before
+   at v2 open, passes with both versions, unchanged v1 OIDs/definitions and v1/v2
+   writes, then refuses a dropped admitted newer function. Existing upgrade,
+   missing-function and reconnect witnesses pass. The real release pair also
+   exercises original-v1 open followed by the new upgrade without resetting
+   metadata. No older function is replaced or removed by installation.
+4. **Doctor.** The shared read-only catalog validator checks signature/result,
+   owner, pinned search path, language, security, volatility, parallel/strict/set/
+   argument/default attributes, digest and body. Both guard/fence tamper matrices
+   run through doctor/open/lease. The actual CLI control ALTERs a recorded guard
+   SECURITY DEFINER: the original doctor exits 0, the final doctor exits 1 with
+   `E_STORE_OWNERSHIP`. Exact definitions are restored before measurement. Doctor
+   diagnoses; it does not seize another process's lease. Privileged runtime DDL
+   during an existing serving lease remains outside the supported boundary.
+5. **Empty-family witness.** Emitted SQL is checked for all four CAS/publication
+   variants: no empty image/commit/evidence/log/effect/presence/receipt CTE and
+   seven typed zero counts. A deliberately reintroduced empty log CTE must fail
+   this assertion, although its durable result is unchanged.
+
+### Corrections found during this round
+
+The first strict path guard rejected legitimate evolution scratch schemas.
+The complete initial script exposed 45 additional Rust failures and a public
+CLI evolution failure. The isolated maintained-column control reproduces S4001
+on `fa23547aed`. Explicit pg_temp-last pinning plus the guarded last-position
+exception resolves all **45/45 individual reruns**; their names/results are in
+[the aggregate](fix-round1.json). The expanded temp `_head` witness proves a
+normal mutation advances the durable head while its temporary copy stays
+unchanged, then requires S4001 when temp moves first.
+
+Fresh review of `f6148eb02a` found one missed pin in writer recovery. The extended
+witness fails there only after a recorded writer termination/replacement, with
+S4001 on its first post-temp mutation. `3b138076e8` pins that path too; the final
+witness covers initial and replaced connections. Failed helper admission stays
+pending across retries. No public claim relies on the intermediate strict guard.
+
+The restarted complete script also exposed an old FF3 test assumption:
+`activation_scratch_requires_owned_plain_heap` treated a temporary `r` as
+shadowing even behind the new path pin. Its unchanged isolated repeat fails.
+Test-only commit `0a0ee9def0` makes that case explicitly put `pg_temp` first;
+all six DDL variants retain the named managed-relation refusal and generation
+rollback assertions. The corrected isolated repeat passes **1/0**, and its complete FF1 group passes
+**35/0** at the script's four-thread setting. The script's
+earlier stale-test red remains in the totals. No production code changed, so
+all product-code qualification and release hashes remain bound to `3b138076e8`.
+
+The final-code full core, binary, G7/E and RT0 checks passed before a shared-host
+resource stop interrupted its first Postgres-script attempt. The monitor saw
+**24.85 GiB free**, stopped the recorded workloads immediately, and an independent
+census confirmed zero living/zombie lane processes and no postmaster PID file.
+Only inactive lane-owned incremental caches and confirmed-stopped test data were
+removed, retaining source, binaries, raw logs and ledgers. At **38.89 GiB free**,
+only the unfinished Postgres script was restarted on a new private PG16 cluster.
+The interrupted attempt is not counted as a complete script pass. Code and all
+completed-check semantic inputs remain unchanged at `3b138076e8`.
+
+### Brief final-code loopback confirmation
+
+One paired W4 cell: private PG16.15, retained native million-message fixture,
+release builds, 32 closed-loop clients, 3 s warmup plus **5 s measured per arm**,
+no added RTT, 1% analyzed-plan and 2% completed-statement sampling. No W5/capacity
+sweep is run. [Aggregates](fix-round1.json) record hashes, clocks, load and custody.
+The original measured Stage P release is the before binary (its later base
+reconnect-only correction does not change steady-state SQL); the after binary
+is built from final code `3b138076e8`.
+
+| Execution + planning, ms/batch | Before fixes | Final code |
+| --- | ---: | ---: |
+| Mean N | 8.516 | 9.446 |
+| Guard | 0.05544 | 0.05714 |
+| Fence | 0.04746 | 0.04151 |
+| Tail | 0.22160 | 0.20476 |
+| Facts | 0.27272 | 0.26767 |
+| Other controls | 0.02098 | 0.01975 |
+| Off-path maintenance | 0.01330 | 0.00763 |
+| **Non-wait total** | **0.63149** | **0.59844** |
+| Ticket waits, separately | 1.18601 | 1.14958 |
+
+Guard cost grows **0.00170 ms/batch**; total non-wait cost does not give back
+the Stage P gain. Unequal N and changing load preclude a marginal slope/speedup
+claim. The original pre-Stage-P W4 ledger (1.149 ms/batch) remains contextual.
+The final pair has **one E_RATE_LIMIT refusal per cell**, no database error:
+11,940/11,941 and 13,640/13,641 requests succeed. These cells price server work
+per physical committed batch; they do not qualify capacity or an HTTP SLO.
+Mean residence is 13.384→11.729 ms, p99 28.502→19.695 ms, and PG CPU per
+committed write 158.29→139.30 us. Recorded load (1/5/15 min) moves
+0.55/2.69/3.02→1.07/2.77/3.05 before and
+1.68/2.84/3.07→2.27/2.94/3.10 after. The earlier clean intermediate-code pair
+(0.491→0.545 ms/batch) is retained in the aggregate, not substituted for this
+final-code measurement. Both final measurement controllers confirm zero living
+or zombie descendants and no postmaster PID file.
+
+### Final checks and process custody
+
+| Check | Passed | Failed | Qualification |
+| --- | ---: | ---: | --- |
+| Final focused Stage P | 12 | 0 | includes both writer connection paths and durable NULL oracle |
+| Full core | 1312 | 0 | 537 ignored; one passing isolated child excluded |
+| Full snapback4 binary | 626 | 0 | 75 ignored; 13 passing isolated children excluded |
+| Serial PG16 G7/E | 83 | 0 | all enabled PG16 cases |
+| Private PG17-only E certificates | 2 | 0 | both transaction-timeout witnesses |
+| Levers | 87 | 0 | complete script run |
+| RT0 core / PG HTTP / SQLite | 3 / 8 / 1 | 0 | exact flight ratchets unchanged |
+| Initial additional failures, individual reruns | 45 | 0 | every named initial Rust red; names in aggregate |
+| Corrected shadow fixture / full FF1 group | 1 / 35 | 0 | all six DDL variants; group at four threads |
+| Complete Postgres script, Rust summary totals | 827 | 2 | 27 summaries; script exits 1 |
+| Public deploy/serve milestone | 1 | 0 | both-store wire/meters, retention, bootstrap, takeover, crash/restart and S1 |
+| ref-check | 569 documents | 0 | 12055 references; zero unchecked |
+
+The complete script is **not a pass**. Its two Rust failures are the inherited
+`both_stores_all_public_boundaries_and_write_observations` (`E_INPUT: 6`) and
+the old shadow-fixture execution before its test-only correction. The latter
+passes its corrected isolated repeat and entire 35-test FF1 group, retaining
+all named refusal/rollback assertions; it is not an unresolved product failure.
+The inherited evaluator Cargo.lock refusal also reproduces. Its known `40001`
+stage is **not reached**, not counted as passed. No other unresolved red remains.
+The full core/binary/G7/E/RT0 product checks bind production `3b138076e8`; the
+subsequent `0a0ee9def0` changes only the ignored FF3 test setup, RFC and journal.
+The public evolution/retention/S1 witness completes successfully on the final
+production implementation. No expensive unchanged check is silently substituted
+for an unrun result.
+
+Final cleanup audits **28 ledgers / 18722 recorded PID identities**, including
+two public-witness cluster directories. It finds **zero living processes, zero
+zombies, zero unexpected lane executables and zero postmaster PID files**.
+Independent pg_ctl status probes return 3 for both final PG16 and private PG17
+clusters. Sampled completion free space is **32.08 GiB**. The earlier 24.85 GiB
+floor event and stopped-work recovery are disclosed above and in the aggregate.
+Only recorded lane PIDs were signalled; `~/q24`, the shared port-55440 cluster,
+repository configuration and remote refs were untouched. No push occurred.
+Raw logs, controls, PID ledgers and remaining private databases stay outside Git
+under `/tmp/stpf1-20261026/` and the named public-witness directories. The retained
+million-message measurement fixture remains stopped under its original `/tmp`
+path. Only aggregate evidence is committed. The later WF integration remains
+separate work.

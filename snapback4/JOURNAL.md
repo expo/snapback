@@ -109056,3 +109056,37 @@ This changes test setup only; production bytes remain those of 3b138076e8 and
 its measured release binary. The complete script's earlier stale-expectation
 red is retained in the report rather than erased by the successful isolated
 repeat. The governing RFC notes the setup required for an actual shadow.
+
+## 2026-10-26 — Stage P fix round 1: final qualification and stopped-process census
+
+Final production 3b138076e8 passes focused 12/0, full core 1312/0/537 and full
+binary 626/0/75 (passed/failed/ignored; passing isolated children excluded),
+PG16 G7/E 83/0, private PG17 certificates 2/0, levers 87/0, and RT0 core/PG
+HTTP/SQLite 3/8/1 with zero failures and unchanged flight counts. All 45 initial
+additional Rust failures pass individual reruns. The test-only 0a0ee9def0
+alignment passes its corrected shadow control 1/0 and entire FF1 group 35/0.
+
+The complete Postgres script exits 1, with 827/2 across 27 Rust summaries:
+inherited E_INPUT: 6 and the old shadow-test expectation executed before its
+correction. That test's named refusal/rollback checks remain intact and its
+reruns pass. The inherited evaluator lockfile refusal persists; its known 40001
+stage is not reached. The separate public serving milestone passes all wire,
+meters, retention, bootstrap, takeover, crash/restart, evolution and S1 checks.
+Final ref-check passes 569 documents / 12055 references, zero errors/unchecked.
+
+The final-code short W4 pair measures 0.63149→0.59844 ms/batch server execution
+plus planning, with guard cost +0.00170 ms/batch and unequal N 8.516→9.446.
+There is one E_RATE_LIMIT refusal per cell and zero PostgreSQL ERROR lines;
+this is a cost confirmation, not capacity/SLO qualification. The report records
+all load, clocks, hashes, controls and the clean intermediate-code pair.
+
+A shared-host disk dip to 24.85 GiB stopped every recorded workload. The
+independent stopped-process census was empty. Only inactive own incremental
+caches and confirmed-stopped test data were removed, retaining binaries/source/
+logs; at 38.89 GiB only the interrupted Postgres script restarted. No completed
+product check was rerun for that infrastructure event. The final 28-ledger /
+18722-identity audit finds no living or zombie lane process, unexpected lane
+executable or postmaster PID file. Final PG16/PG17 pg_ctl probes return 3;
+completion free space is 32.08 GiB. No push, repository-config change, protected
+cluster action or q24 access occurred. See the appended Stage P report and its
+aggregate JSON; raw evidence remains outside Git. WF integration is separate.

@@ -1,0 +1,927 @@
+{
+  "method": "Private PG16.15, retained native million-message fixture, final-code release pair; W4 only; 32 closed-loop clients; 3s warmup plus 5s measured per arm; 1% analyzed-plan and 2% completed-statement sampling; no added RTT; no capacity/SLO qualification",
+  "source_after": "3b138076e8efc726d9e5bf117428a384efd2c424",
+  "before_binary": {
+    "binary": "/tmp/stpf1-20261026/snapback4-before",
+    "sha256": "7ad10589cec79842336a5773f5c25ef8f6221a0b09f594e6934eedfdf94d4b43"
+  },
+  "after_binary": {
+    "binary": "/home/ccheever/projects/sb4-s10a/snapback4/target/release/snapback4",
+    "sha256": "6119172e38f7e9866f19c07429e5946d60bdeea8fb5f992163180dea568f907d"
+  },
+  "before_binary_custody": "Retained measured Stage P release. Base reconnect-only correction does not change steady-state SQL.",
+  "results": [
+    {
+      "wall_start": 1793034975.0770216,
+      "wall_end": 1793034980.1630065,
+      "seq0": 226674,
+      "seq1": 238614,
+      "workload": "W4",
+      "clients": 32,
+      "seconds": 5.015457008033991,
+      "requests": 11941,
+      "ok": 11940,
+      "failures": [
+        [
+          503,
+          null,
+          "E_RATE_LIMIT"
+        ]
+      ],
+      "mean_ms": 13.384423166489732,
+      "p50_ms": 12.39115186035633,
+      "p99_ms": 28.50228175520897,
+      "pg_cpu_us_per_write": 158.29145728643218,
+      "pg_cpu_us_per_attempt": 158.27820115568213,
+      "load_before": "0.55 2.69 3.02 1/714 803906\n",
+      "load_after": "1.07 2.77 3.05 7/739 816224\n",
+      "arm": "before",
+      "tail_calls": 1402,
+      "mean_batch_size": 8.516405135520685,
+      "server_ms_per_batch": {
+        "guard": 0.055437995007132666,
+        "fence": 0.04745619115549216,
+        "tail": 0.22159633238231113,
+        "facts": 0.2727234151212553,
+        "controls": 0.020981144793152627,
+        "maintenance": 0.013297300285306707,
+        "ticket": 1.186006412981454
+      },
+      "nonwait_ms_per_batch": 0.6314923787446506
+    },
+    {
+      "wall_start": 1793034988.5366123,
+      "wall_end": 1793034993.6062686,
+      "seq0": 246793,
+      "seq1": 260433,
+      "workload": "W4",
+      "clients": 32,
+      "seconds": 5.014994697645307,
+      "requests": 13641,
+      "ok": 13640,
+      "failures": [
+        [
+          503,
+          null,
+          "E_RATE_LIMIT"
+        ]
+      ],
+      "mean_ms": 11.729335154990945,
+      "p50_ms": 10.727345943450928,
+      "p99_ms": 19.69488523900509,
+      "pg_cpu_us_per_write": 139.29618768328444,
+      "pg_cpu_us_per_attempt": 139.28597610145883,
+      "load_before": "1.68 2.84 3.07 2/711 824717\n",
+      "load_after": "2.27 2.94 3.10 2/704 838407\n",
+      "arm": "after",
+      "tail_calls": 1444,
+      "mean_batch_size": 9.445983379501385,
+      "server_ms_per_batch": {
+        "guard": 0.057136697368420974,
+        "fence": 0.04150552770083101,
+        "tail": 0.20475643005540176,
+        "facts": 0.2676667659279779,
+        "controls": 0.019746446675900274,
+        "maintenance": 0.007629065789473685,
+        "ticket": 1.149577409972301
+      },
+      "nonwait_ms_per_batch": 0.5984409335180056
+    }
+  ],
+  "intermediate_pair": {
+    "source_after": "fa23547aedb4b60a7baa401961c018b55b11235e",
+    "results": [
+      {
+        "wall_start": 1793030262.5806482,
+        "wall_end": 1793030267.6522412,
+        "seq0": 178394,
+        "seq1": 192847,
+        "workload": "W4",
+        "clients": 32,
+        "seconds": 5.010422075167298,
+        "requests": 14453,
+        "ok": 14453,
+        "failures": [],
+        "mean_ms": 11.056995242529943,
+        "p50_ms": 10.550498962402344,
+        "p99_ms": 18.23216676712036,
+        "pg_cpu_us_per_write": 126.61731128485435,
+        "pg_cpu_us_per_attempt": 126.61731128485435,
+        "load_before": "1.90 2.13 2.08 1/675 676728\n",
+        "load_after": "1.83 2.11 2.08 1/661 691258\n",
+        "arm": "before",
+        "tail_calls": 1644,
+        "mean_batch_size": 8.791362530413625,
+        "server_ms_per_batch": {
+          "guard": 0.034886328467153296,
+          "fence": 0.035213368613138736,
+          "tail": 0.17889000851581544,
+          "facts": 0.22345144829683697,
+          "controls": 0.013646360705596113,
+          "maintenance": 0.0047119592457420915,
+          "ticket": 1.3271900973236022
+        },
+        "nonwait_ms_per_batch": 0.49079947384428263
+      },
+      {
+        "wall_start": 1793030275.9633775,
+        "wall_end": 1793030281.0281022,
+        "seq0": 202551,
+        "seq1": 217820,
+        "workload": "W4",
+        "clients": 32,
+        "seconds": 5.011211475357413,
+        "requests": 15269,
+        "ok": 15269,
+        "failures": [],
+        "mean_ms": 10.468140801118293,
+        "p50_ms": 9.615873917937279,
+        "p99_ms": 28.80166471004486,
+        "pg_cpu_us_per_write": 117.23099089658785,
+        "pg_cpu_us_per_attempt": 117.23099089658785,
+        "load_before": "1.78 2.09 2.07 1/665 701202\n",
+        "load_after": "1.72 2.07 2.07 2/660 716612\n",
+        "arm": "after",
+        "tail_calls": 1495,
+        "mean_batch_size": 10.213377926421405,
+        "server_ms_per_batch": {
+          "guard": 0.044116911036789316,
+          "fence": 0.035693998662207356,
+          "tail": 0.19459802140468213,
+          "facts": 0.2540454414715717,
+          "controls": 0.012809784615384616,
+          "maintenance": 0.003930577926421405,
+          "ticket": 1.458780436789298
+        },
+        "nonwait_ms_per_batch": 0.5451947351170565
+      }
+    ],
+    "not_final_code": true
+  },
+  "doctor_alter_security_definer": [
+    {
+      "arm": "before",
+      "exit": 0,
+      "coded": false
+    },
+    {
+      "arm": "after",
+      "exit": 1,
+      "coded": true
+    }
+  ],
+  "resolved_initial_failures": [
+    {
+      "name": "isolated-00",
+      "code": 0,
+      "counts": [
+        [
+          1,
+          0,
+          0
+        ]
+      ],
+      "test": "cascade_omitted::postgres_in_place_and_restore"
+    },
+    {
+      "name": "isolated-01",
+      "code": 0,
+      "counts": [
+        [
+          1,
+          0,
+          0
+        ]
+      ],
+      "test": "default_only::postgres_in_place_and_restore"
+    },
+    {
+      "name": "isolated-02",
+      "code": 0,
+      "counts": [
+        [
+          1,
+          0,
+          0
+        ]
+      ],
+      "test": "email_invalid::postgres_in_place_and_restore"
+    },
+    {
+      "name": "isolated-03",
+      "code": 0,
+      "counts": [
+        [
+          1,
+          0,
+          0
+        ]
+      ],
+      "test": "email_valid::postgres_in_place_and_restore"
+    },
+    {
+      "name": "isolated-04",
+      "code": 0,
+      "counts": [
+        [
+          1,
+          0,
+          0
+        ]
+      ],
+      "test": "engine::postgres::tests::maintained_columns::maintained_columns_release_backfill_redefine_drop_readd_and_atomic_failure"
+    },
+    {
+      "name": "isolated-05",
+      "code": 0,
+      "counts": [
+        [
+          1,
+          0,
+          0
+        ]
+      ],
+      "test": "engine::revision_cache::tests::g5_deployed_native_marker_and_local_activation_keep_a_working_code_identity"
+    },
+    {
+      "name": "isolated-06",
+      "code": 0,
+      "counts": [
+        [
+          1,
+          0,
+          0
+        ]
+      ],
+      "test": "ev1_dual_store_large_default_bytes"
+    },
+    {
+      "name": "isolated-07",
+      "code": 0,
+      "counts": [
+        [
+          1,
+          0,
+          0
+        ]
+      ],
+      "test": "ev1_dual_store_large_default_changes"
+    },
+    {
+      "name": "isolated-08",
+      "code": 0,
+      "counts": [
+        [
+          1,
+          0,
+          0
+        ]
+      ],
+      "test": "ev1_dual_store_large_default_meters"
+    },
+    {
+      "name": "isolated-09",
+      "code": 0,
+      "counts": [
+        [
+          1,
+          0,
+          0
+        ]
+      ],
+      "test": "ev1_dual_store_restored_sibling_bytes"
+    },
+    {
+      "name": "isolated-10",
+      "code": 0,
+      "counts": [
+        [
+          1,
+          0,
+          0
+        ]
+      ],
+      "test": "ev1_postgres_generation_and_named_refusals"
+    },
+    {
+      "name": "isolated-11",
+      "code": 0,
+      "counts": [
+        [
+          1,
+          0,
+          0
+        ]
+      ],
+      "test": "ev1_postgres_inventory_contract"
+    },
+    {
+      "name": "isolated-12",
+      "code": 0,
+      "counts": [
+        [
+          1,
+          0,
+          0
+        ]
+      ],
+      "test": "ev1_postgres_reference_lifetimes"
+    },
+    {
+      "name": "isolated-13",
+      "code": 0,
+      "counts": [
+        [
+          1,
+          0,
+          0
+        ]
+      ],
+      "test": "ev1_postgres_release_contract"
+    },
+    {
+      "name": "isolated-14",
+      "code": 0,
+      "counts": [
+        [
+          1,
+          0,
+          0
+        ]
+      ],
+      "test": "ev2::caps_unique_null_groups_and_rollback"
+    },
+    {
+      "name": "isolated-15",
+      "code": 0,
+      "counts": [
+        [
+          1,
+          0,
+          0
+        ]
+      ],
+      "test": "ev2::default_change_rebuilds_unique_groups_atomically"
+    },
+    {
+      "name": "isolated-16",
+      "code": 0,
+      "counts": [
+        [
+          1,
+          0,
+          0
+        ]
+      ],
+      "test": "ev2::fix2::compatible_dormant_image_restores_identical_bytes"
+    },
+    {
+      "name": "isolated-17",
+      "code": 0,
+      "counts": [
+        [
+          1,
+          0,
+          0
+        ]
+      ],
+      "test": "ev2::fix2::large_dormant_image_skips_bound_until_compatible"
+    },
+    {
+      "name": "isolated-18",
+      "code": 0,
+      "counts": [
+        [
+          1,
+          0,
+          0
+        ]
+      ],
+      "test": "ev2::large_retained_definition_restores_and_allows_later_release"
+    },
+    {
+      "name": "isolated-19",
+      "code": 0,
+      "counts": [
+        [
+          1,
+          0,
+          0
+        ]
+      ],
+      "test": "ev2::narrowed_ids_and_deleted_parent_lifetime"
+    },
+    {
+      "name": "isolated-20",
+      "code": 0,
+      "counts": [
+        [
+          1,
+          0,
+          0
+        ]
+      ],
+      "test": "ev2::partial_row_restore_and_removed_cells"
+    },
+    {
+      "name": "isolated-21",
+      "code": 0,
+      "counts": [
+        [
+          1,
+          0,
+          0
+        ]
+      ],
+      "test": "ev2::required_and_context_default_columns"
+    },
+    {
+      "name": "isolated-22",
+      "code": 0,
+      "counts": [
+        [
+          1,
+          0,
+          0
+        ]
+      ],
+      "test": "ev2::requiredness_and_defaults"
+    },
+    {
+      "name": "isolated-23",
+      "code": 0,
+      "counts": [
+        [
+          1,
+          0,
+          0
+        ]
+      ],
+      "test": "ev2::restored_unique_refusal_bounds_samples_and_matches_text"
+    },
+    {
+      "name": "isolated-24",
+      "code": 0,
+      "counts": [
+        [
+          1,
+          0,
+          0
+        ]
+      ],
+      "test": "ev2::set_null_cap_groups"
+    },
+    {
+      "name": "isolated-25",
+      "code": 0,
+      "counts": [
+        [
+          1,
+          0,
+          0
+        ]
+      ],
+      "test": "ev2::text_constraints_and_retained_definitions"
+    },
+    {
+      "name": "isolated-26",
+      "code": 0,
+      "counts": [
+        [
+          1,
+          0,
+          0
+        ]
+      ],
+      "test": "ev2::transitive_references_and_partial_restore"
+    },
+    {
+      "name": "isolated-27",
+      "code": 0,
+      "counts": [
+        [
+          1,
+          0,
+          0
+        ]
+      ],
+      "test": "ev2::type_and_bounds"
+    },
+    {
+      "name": "isolated-28",
+      "code": 0,
+      "counts": [
+        [
+          1,
+          0,
+          0
+        ]
+      ],
+      "test": "ev2::whole_table_restore_with_edited_domain"
+    },
+    {
+      "name": "isolated-29",
+      "code": 0,
+      "counts": [
+        [
+          1,
+          0,
+          0
+        ]
+      ],
+      "test": "identical_url::postgres_in_place_and_restore"
+    },
+    {
+      "name": "isolated-30",
+      "code": 0,
+      "counts": [
+        [
+          1,
+          0,
+          0
+        ]
+      ],
+      "test": "min_invalid::postgres_in_place_and_restore"
+    },
+    {
+      "name": "isolated-31",
+      "code": 0,
+      "counts": [
+        [
+          1,
+          0,
+          0
+        ]
+      ],
+      "test": "min_valid::postgres_in_place_and_restore"
+    },
+    {
+      "name": "isolated-32",
+      "code": 0,
+      "counts": [
+        [
+          1,
+          0,
+          0
+        ]
+      ],
+      "test": "optional_required::postgres_in_place_and_restore"
+    },
+    {
+      "name": "isolated-33",
+      "code": 0,
+      "counts": [
+        [
+          1,
+          0,
+          0
+        ]
+      ],
+      "test": "restrict_keep::postgres_in_place_and_restore"
+    },
+    {
+      "name": "isolated-34",
+      "code": 0,
+      "counts": [
+        [
+          1,
+          0,
+          0
+        ]
+      ],
+      "test": "store::ff1_fix_tests::ff3::activation_verification_large_cell_pages_fit_statement_timeout"
+    },
+    {
+      "name": "isolated-35",
+      "code": 0,
+      "counts": [
+        [
+          1,
+          0,
+          0
+        ]
+      ],
+      "test": "store::ff1_fix_tests::ff3::activation_verification_large_narrowed_pages_fit_statement_timeout"
+    },
+    {
+      "name": "isolated-36",
+      "code": 0,
+      "counts": [
+        [
+          1,
+          0,
+          0
+        ]
+      ],
+      "test": "store::ff1_fix_tests::ff3::activation_verification_large_population_pages_fit_statement_timeout"
+    },
+    {
+      "name": "isolated-37",
+      "code": 0,
+      "counts": [
+        [
+          1,
+          0,
+          0
+        ]
+      ],
+      "test": "store::ff1_fix_tests::ff3::activation_verify_before_destroy_postgres"
+    },
+    {
+      "name": "isolated-38",
+      "code": 0,
+      "counts": [
+        [
+          1,
+          0,
+          0
+        ]
+      ],
+      "test": "store::ff1_fix_tests::ff3::narrowed_same_count_corruption_refuses_postgres"
+    },
+    {
+      "name": "isolated-39",
+      "code": 0,
+      "counts": [
+        [
+          1,
+          0,
+          0
+        ]
+      ],
+      "test": "store::ff1_fix_tests::ff3::restoration_rechecks_destination_before_destroy_postgres"
+    },
+    {
+      "name": "isolated-40",
+      "code": 0,
+      "counts": [
+        [
+          1,
+          0,
+          0
+        ]
+      ],
+      "test": "store::ff1_fix_tests::fix2::activation_benign_event_trigger_is_legal"
+    },
+    {
+      "name": "isolated-41",
+      "code": 0,
+      "counts": [
+        [
+          1,
+          0,
+          0
+        ]
+      ],
+      "test": "store::ff1_fix_tests::fix2::activation_event_trigger_effect_rolls_back_before_movement"
+    },
+    {
+      "name": "isolated-42",
+      "code": 0,
+      "counts": [
+        [
+          1,
+          0,
+          0
+        ]
+      ],
+      "test": "store::ff1_fix_tests::fix2::activation_temp_event_trigger_refuses_before_restoration"
+    },
+    {
+      "name": "isolated-43",
+      "code": 0,
+      "counts": [
+        [
+          1,
+          0,
+          0
+        ]
+      ],
+      "test": "store::ff1_fix_tests::fix2::activation_temp_view_redirection_refuses_without_movement"
+    },
+    {
+      "name": "isolated-44",
+      "code": 0,
+      "counts": [
+        [
+          1,
+          0,
+          0
+        ]
+      ],
+      "test": "store::ff1_fix_tests::fix2::foreign_incoming_cascade_refused"
+    }
+  ],
+  "negative_controls": {
+    "base": "784641ce400d42c16509f8ed63d94c29b641f820",
+    "namespace_drift": "Original code admits data write; fixed witness checks no head/counter change on A or B.",
+    "array_nulls_drift": "Original code admits post-qualification off; fixed witness refuses.",
+    "new_digest": "Original code refuses v2 open as missing incompatible helper; fixed coexisting-version witness passes.",
+    "doctor": "Original actual CLI exits 0 after ALTER; fixed actual CLI exits 1/E_STORE_OWNERSHIP.",
+    "durable_null_differential": {
+      "expected_test_failure": true,
+      "normalized_server_error": "invalid input syntax for type bigint: \"NULL\"",
+      "array_settings_source": "Original product array/settings code plus final oracle",
+      "other_mutation": "Unused empty log CTE reintroduced independently for shape negative control"
+    },
+    "empty_cte_reintroduced": {
+      "expected_test_failure": true,
+      "assertion": "empty logged CTE returned"
+    },
+    "scratch_temp_regression": {
+      "source": "fa23547aed",
+      "isolated_expected_failure": true,
+      "error": "S4001"
+    },
+    "recovered_writer_temp_regression": {
+      "source": "f6148eb02a",
+      "expected_failure_after_reconnect": true,
+      "error": "S4001"
+    }
+  },
+  "review": {
+    "source": "3b138076e8efc726d9e5bf117428a384efd2c424",
+    "verdict": "no material finding remains",
+    "read_only": true,
+    "runtime_checks_run_by_reviewer": false
+  },
+  "measurement_cleanup": {
+    "recorded_processes": 86,
+    "living": 0,
+    "zombies": 0,
+    "postmaster_pid_files": 0
+  },
+  "qualification": {
+    "production_source": "3b138076e8efc726d9e5bf117428a384efd2c424",
+    "test_only_alignment": "0a0ee9def018bf815530e42c0b7ed4e5496fd60e",
+    "focused": {
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0
+    },
+    "full_core": {
+      "passed": 1312,
+      "failed": 0,
+      "ignored": 537,
+      "passing_isolated_child_runs_excluded": 1
+    },
+    "full_binary": {
+      "passed": 626,
+      "failed": 0,
+      "ignored": 75,
+      "passing_isolated_child_runs_excluded": 13
+    },
+    "pg16_g7_e": {
+      "passed": 83,
+      "failed": 0
+    },
+    "pg17_e_certificate": {
+      "passed": 2,
+      "failed": 0
+    },
+    "levers": {
+      "passed": 87,
+      "failed": 0
+    },
+    "rt0_core": {
+      "passed": 3,
+      "failed": 0
+    },
+    "rt0_pg_http": {
+      "passed": 8,
+      "failed": 0
+    },
+    "rt0_sqlite": {
+      "passed": 1,
+      "failed": 0
+    },
+    "initial_additional_failures_isolated": {
+      "passed": 45,
+      "failed": 0
+    },
+    "shadow_fixture_after": {
+      "passed": 1,
+      "failed": 0
+    },
+    "ff1_group_after": {
+      "passed": 35,
+      "failed": 0
+    },
+    "postgres_script": {
+      "exit_code": 1,
+      "rust_summary_count": 27,
+      "passed": 827,
+      "failed": 2,
+      "ignored": 0,
+      "failures": [
+        "both_stores_all_public_boundaries_and_write_observations: inherited E_INPUT: 6",
+        "store::ff1_fix_tests::ff3::activation_scratch_requires_owned_plain_heap: stale expectation executed before test-only correction, later isolated1/0 and full group35/0"
+      ],
+      "evaluator_lockfile_refusal_inherited": true,
+      "known_40001_stage_reached": false,
+      "public_serving_milestone_passed": true
+    },
+    "ref_check": {
+      "documents": 569,
+      "references": 12055,
+      "errors": 0,
+      "unchecked": 0
+    },
+    "review": {
+      "source": "0a0ee9def018bf815530e42c0b7ed4e5496fd60e",
+      "verdict": "no material finding remains",
+      "read_only": true
+    }
+  },
+  "final_cleanup": {
+    "external_public_cluster_dirs": 2,
+    "record_files": 28,
+    "records": 18722,
+    "unique_pid_identities": 18722,
+    "living_including_zombies": [],
+    "unexpected_lane_processes": [],
+    "postmaster_pid_files": [],
+    "parse_errors": [],
+    "free_gib": 32.07586669921875
+  },
+  "resource_stop": {
+    "pg_ctl_status": 3,
+    "postmaster_pid_exists": false,
+    "free_gib": 24.848094940185547
+  },
+  "resource_stop_census": {
+    "external_public_cluster_dirs": 1,
+    "record_files": 23,
+    "records": 10765,
+    "unique_pid_identities": 10765,
+    "living_including_zombies": [],
+    "unexpected_lane_processes": [],
+    "postmaster_pid_files": [],
+    "parse_errors": [],
+    "free_gib": 24.84809112548828
+  },
+  "resource_recovery": {
+    "active_lane_compilers": [],
+    "free_gib_before": 24.848060607910156,
+    "free_gib_after": 38.88510513305664,
+    "removed_inactive_incremental_cache": "/home/ccheever/projects/sb4-s10a/snapback4/target/debug/incremental",
+    "removed_confirmed_stopped_data": "/tmp/stpf1-20261026/checks-fix3/data",
+    "source_binaries_logs_reports_retained": true
+  },
+  "test_only_alignment_commit": "0a0ee9def0",
+  "shadow_interception_witness": {
+    "test": "store::ff1_fix_tests::ff3::activation_scratch_requires_owned_plain_heap",
+    "before": {
+      "expected_failure": true,
+      "counts": [
+        0,
+        1,
+        0
+      ],
+      "source": "3b138076e8",
+      "reason": "Unchanged fixture assumed temp r behind durable schema was interception"
+    },
+    "after": {
+      "counts": [
+        1,
+        0,
+        0
+      ],
+      "source": "0a0ee9def0",
+      "ddl_variants": 6,
+      "named_refusal_and_generation_rollback_assertions_unchanged": true,
+      "actual_temp_precedence_for_r": true
+    },
+    "production_code_unchanged": true
+  },
+  "affected_ff1_suite_after_alignment": {
+    "source": "0a0ee9def018bf815530e42c0b7ed4e5496fd60e",
+    "counts": [
+      35,
+      0,
+      0
+    ],
+    "rust_test_threads": 4
+  },
+  "test_alignment_review": {
+    "source": "0a0ee9def018bf815530e42c0b7ed4e5496fd60e",
+    "verdict": "no material finding remains",
+    "read_only": true,
+    "production_source_unchanged": "3b138076e8efc726d9e5bf117428a384efd2c424"
+  },
+  "measurement_postgres_error_lines": 0,
+  "final_cluster_status": [
+    {
+      "cluster": "poststop1",
+      "version": "16",
+      "pg_ctl_status": 3,
+      "postmaster_pid_file": false
+    },
+    {
+      "cluster": "pg17-final",
+      "version": "17",
+      "pg_ctl_status": 3,
+      "postmaster_pid_file": false
+    }
+  ]
+}
