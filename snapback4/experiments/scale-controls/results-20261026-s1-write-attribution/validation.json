@@ -1,0 +1,42 @@
+{
+  "warmup_errors": 119543,
+  "measured_errors": 346987,
+  "expired_before_send": 343762,
+  "trials": 48,
+  "measured_scheduled_arrivals": 2109760,
+  "all_whole_cohort_counter_checks": 48,
+  "all_counter_equalities_match": true,
+  "deadlocks": 0,
+  "disqualified_trials": 32,
+  "probe_successful_measured": 1311686,
+  "probe_joined": 1311686,
+  "all_additive_ledgers_reconcile": true,
+  "ordinary_W4_batches_three_flights": true,
+  "W5_batches_with_dependent_membership_flight": 4093,
+  "unconfirmed_original_batches": 1,
+  "all_pg_data_marker_commit_counts_match": true,
+  "all_time_weighted_distributions_sum_to_one": true,
+  "process-audit": {
+    "recorded_pid_birth_pairs": 1803,
+    "living_recorded": [],
+    "target_executables": [],
+    "including_zombies": true,
+    "private_cluster_stopped": true,
+    "pidfile_absent": true,
+    "socket_absent": true,
+    "measurement_pids_left": "none"
+  },
+  "secret-audit": {
+    "files_scanned": 4066,
+    "bytes_scanned": 4021494679,
+    "known_private_values": 516,
+    "matches": [],
+    "values_withheld": true
+  },
+  "private-cleanup": {
+    "private_root_removed": true,
+    "private_roots_removed": 2,
+    "benchmark_password_files_untouched": true,
+    "raw_logs_scanned_first": true
+  }
+}
