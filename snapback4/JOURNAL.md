@@ -109124,3 +109124,10 @@ retains conservative unknown classification for missing-function errors.
 Verification and the single loopback cost sample follow in the Stage P report.
 Cargo is capped at five jobs, with this worktree's own target directory;
 no push or throughput campaign is authorised.
+
+The first G7 run passes 93 existing tests and fails the new namespace subcase:
+its empty search path makes tail preparation refuse before the guard executes.
+The corrected witness drifts to a second valid same-generation store instead;
+it now passes all four after-opener fault cases (1/0) with neither tail nor
+COMMIT-entry sequence called. This changes witness setup only. The complete
+G7 repeat, Stage P, core/binary, wire and remaining checks use this fixture.

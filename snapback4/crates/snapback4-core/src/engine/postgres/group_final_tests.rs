@@ -262,6 +262,10 @@ fn g73_stage_p_final_checks_refuse_before_tail_and_commit() {
             BEGIN PERFORM nextval(TG_ARGV[0]::regclass); RETURN NEW; END $f$;
             CREATE TRIGGER wf_final_tail_entry BEFORE UPDATE ON _head FOR EACH ROW EXECUTE FUNCTION wf_final_entry('wf_final_tail_entered');
             CREATE CONSTRAINT TRIGGER wf_final_commit_entry AFTER UPDATE ON _head DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION wf_final_entry('wf_final_commit_entered')").unwrap();
+        let other_namespace=if fault=="namespace" {
+            let mut other=fixture();let mut other_client=observer(&mut other);
+            Some(other_client.query_one("SELECT current_schema()",&[]).unwrap().get::<_,String>(0))
+        } else {None};
         let before=engine.seq().unwrap();
         let store=engine.store_mut().test_postgres_handle_mut().store.get_mut();
         let tx=stage(store);let xid=tx.batch_base.borrow().as_ref().unwrap().xid.clone();
@@ -271,13 +275,13 @@ fn g73_stage_p_final_checks_refuse_before_tail_and_commit() {
                 format!("DROP FUNCTION {signature}")
             },
             "array_nulls" => "SET array_nulls=off".into(),
-            _ => "SET search_path=pg_catalog".into(),
+            _ => format!("SET search_path={},pg_catalog,pg_temp",other_namespace.unwrap()),
         };
         // Same-transaction DDL avoids an external catalog-lock wait. Rollback
         // restores the helper; production runtime DDL remains unsupported.
         tx.inner.borrow_mut().client.batch_execute(&sabotage).unwrap();
         let failure=tx.commit_group_final().expect_err(fault);
-        assert!(matches!(&failure.error,RuntimeError::Postgres(e) if e.code().is_some_and(|c|c.code()=="S4001")) || matches!(&failure.error,RuntimeError::CommitOutcomeUnknown(_)),"{fault}: {}",failure.error);
+        assert!(matches!(&failure.error,RuntimeError::Postgres(e) if e.code().is_some_and(|c|c.code()=="S4001")) || matches!(&failure.error,RuntimeError::CommitOutcomeUnknown(_)),"{fault}: {:?}",failure.error);
         // Missing-function errors retain WF's conservative unknown result;
         // end this deliberately sabotaged session explicitly for test cleanup.
         tx.inner.borrow_mut().client.batch_execute("ROLLBACK").unwrap();
