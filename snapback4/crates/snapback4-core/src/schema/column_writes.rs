@@ -2,12 +2,22 @@
 // @ref LLP 3000.036.004.000#2-column-write-authority — defaults and both upsert arms use the ordinary rule boundary.
 use super::*;
 impl Table {
+    /// Literal defaults are initialization, whether omitted or explicitly supplied.
+    // @ref LLP 3000.036.004.000#10-wave-30-default-initialization-dx13 — equality is limited to the insert arm.
+    pub fn column_initialization(&self, column: &str) -> RuleExpr {
+        let field = RuleTerm::Field(column.into());
+        let mut alternatives = vec![RuleExpr::Eq(field.clone(), RuleTerm::Literal(Value::Null))];
+        if let Some(ColumnDefault::Literal(value)) = self.defaults.get(column) {
+            alternatives.push(RuleExpr::Eq(field, RuleTerm::Literal(value.clone())));
+        }
+        RuleExpr::Or(alternatives)
+    }
     pub fn guarded_rule(&self, effect: Effect) -> std::borrow::Cow<'_, RuleExpr> {
         let base = if effect == Effect::Update { self.update_rule_judged() } else { std::borrow::Cow::Borrowed(self.rules.for_effect(effect)) };
         if self.column_writes.is_empty() || !matches!(effect,Effect::Insert|Effect::Update) { return base; }
         let mut rules=vec![base.into_owned()];
         for (column,policy) in &self.column_writes {
-            let same = if effect == Effect::Insert { RuleExpr::Eq(RuleTerm::Field(column.clone()),RuleTerm::Literal(Value::Null)) }
+            let same = if effect == Effect::Insert { self.column_initialization(column) }
                 else { RuleExpr::Eq(RuleTerm::OldField(column.clone()),RuleTerm::Field(column.clone())) };
             rules.push(RuleExpr::Or(vec![same,if effect==Effect::Insert {policy.clone()} else {policy.old_and_next()}]));
         }

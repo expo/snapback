@@ -127,7 +127,9 @@ pub fn augmented(sources:&[(String,String)],bound:&Bound)->Bound{
     // Their replay failures cannot be acknowledged as deliberate asymmetry.
     let mut contracts=Vec::new();
     for (table,t) in bound.schema.visible_tables(){for (column,policy) in &t.column_writes{
-        add(&mut contracts,table,column,"write",policy.clone(),&Site::new("column-write-contract",1,1));
+        let site=Site::new("column-write-contract",1,1);
+        add(&mut contracts,table,column,"insert",RuleExpr::Or(vec![t.column_initialization(column),policy.clone()]),&site);
+        add(&mut contracts,table,column,"update",policy.clone(),&site);
     }}
     for contract in &mut contracts{contract.site.file=contract.site.file.replacen("$derived/","$enforced/",1);}
     out.invariants.extend(contracts);out
