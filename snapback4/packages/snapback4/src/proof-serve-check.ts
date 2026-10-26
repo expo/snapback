@@ -2,7 +2,9 @@
 import { spawn, execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
-import { resolve } from "node:path";
+import { mkdtempSync, readFileSync, rmSync, existsSync, realpathSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 import { bounded, deadline, register } from "./proof-process.ts";
 import { cli } from "./proof.ts";
@@ -46,8 +48,12 @@ export async function serveCheck(options: ServeCheckOptions): Promise<ServeCheck
   const startup = deadline(options.timeoutMs, 30_000), up = deadline(options.upMs, 30_000), stop = deadline(options.stopTimeoutMs, 5000);
   const cwd = resolve(options.cwd ?? "."), failures: ServeCheckReport["failures"] = [];
   const add = (code:string, message:string) => { if (!failures.some(f => f.code === code)) failures.push({code,message}); };
+  const observations = mkdtempSync(join(tmpdir(), "snapback4-serve-paths-"));
+  const observedStores = join(observations,"stores.jsonl");
+  const requested = resolve(cwd,options.deployment), storePath = join(requested,"store.sqlite");
+  const canonical = (path:string) => { try {return realpathSync(path);} catch {return resolve(path);} };
   const child = spawn(process.execPath, [fileURLToPath(new URL("./proof-serve-driver.js", import.meta.url)), script], {
-    cwd, env:{...process.env, ...options.env}, detached:true, stdio:["pipe", "pipe", "pipe", "ipc"],
+    cwd, env:{...process.env, ...options.env, SNAPBACK4_SERVE_CHECK_STORES:observedStores}, detached:true, stdio:["pipe", "pipe", "pipe", "ipc"],
   });
   register(child); child.stdin!.on("error", () => {});
   let serveExitCode: number | null | undefined, serveExitSignal: string | null | undefined;
@@ -124,12 +130,25 @@ export async function serveCheck(options: ServeCheckOptions): Promise<ServeCheck
     // Observe lock BEFORE the keeper kills leftovers: forced cleanup cannot earn a pass.
     const lock = await cli(["serve", resolve(cwd, options.deployment), "--wait-stopped"], {cwd, ...(options.env ? {env:options.env} : {}), timeoutMs:7000});
     lockReleased = lock.code === 0;
-    if (!lockReleased) add("E_SERVE_LOCK_HELD", "deployment lock held after group SIGTERM (or lock barrier refused)");
+    let actual: string[] = [];
+    try {actual=readFileSync(observedStores,"utf8").trim().split("\n").filter(Boolean).map(line=>JSON.parse(line).directory).filter((value):value is string=>typeof value==="string");} catch { /* no kit-owned serve observation */ }
+    const differing=[...new Set(actual)].filter(path=>canonical(path)!==canonical(requested));
+    if (differing.length && !actual.some(path=>canonical(path)===canonical(requested))) add("E_SERVE_DEPLOYMENT_MISMATCH", `requested store ${storePath}; the serve script actually opened ${differing.map(path=>join(path,"store.sqlite")).join(", ")}. Set --deployment to the directory the script's --dir/startServe resolves to`);
+    if (!lockReleased) {
+      if (!existsSync(storePath)) add("E_SERVE_STORE_MISSING", `no store at ${storePath}; the serve script may have deployed elsewhere; --deployment must match its --dir/startServe directory`);
+      else {
+        // Only the CLI's bounded ownership fields are safe to render. Raw stderr
+        // may include app diagnostics or credentials and remains withheld.
+        const holder=/owned by ([^;\n]+)/.exec(lock.stderr)?.[1];
+        const safeHolder=holder?.match(/^(?:https?:\/\/[^\s/]+(?: \(pid \d+\))?|another CLI command or a server starting up \(address pending\))$/)?.[0];
+        add(lock.stderr.includes("E_STORE_BUSY")?"E_SERVE_LOCK_HELD":"E_SERVE_LOCK_BARRIER", `store ${storePath}: ${lock.stderr.includes("E_STORE_BUSY")?`lock held after group SIGTERM; actual holder ${safeHolder??"unavailable from the ownership record"}`:"lock barrier refused (store/inspection failure, not evidence of a live holder)"}`);
+      }
+    }
   } finally {
     cleaning = true;
     child.stdin!.destroy(); // keeper EOF kills only its pinned group, including itself.
-    await bounded(closed, 7000, "serve-check group reap");
-    child.stdout!.destroy(); child.stderr!.destroy();
+    try { await bounded(closed, 7000, "serve-check group reap"); }
+    finally {child.stdout!.destroy(); child.stderr!.destroy();rmSync(observations,{recursive:true,force:true});}
   }
   // Pipe bytes may be delivered while the lock barrier is running or during final drain.
   if (buffer.length) add("E_SERVE_EXTRA_OUTPUT", "stdout contains an unterminated line");

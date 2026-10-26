@@ -2,7 +2,7 @@ export { loadFixtures, type FixtureRow, type LoadFixturesOptions } from "./proof
 import { devAccounts, provisionAccounts, seedAccounts, type ProvisionAccountsOptions, type ProvisionedSessions, type SeedAccountsOptions, type StagingSessions } from "./proof-accounts.ts";
 export { devAccounts, provisionAccounts, seedAccounts, type SeedAccountsOptions, type StagingAccount, type StagingSessions, type ProvisionAccountsOptions, type ProvisionedAccount, type ProvisionedSessions } from "./proof-accounts.ts";
 // @ref LLP 3000.011.003.000.000#1 — the packaged proof kit owns hosts; builders own assertions.
-import { mkdirSync, openSync, closeSync, writeSync } from "node:fs";
+import { appendFileSync, mkdirSync, openSync, closeSync, writeSync } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import { resolve } from "node:path";
@@ -136,6 +136,11 @@ export async function startServe(deployDir: string, options: ServeOptions | read
   if (opts.clockOffset !== undefined && (typeof opts.clockOffset !== "string" || !/^[+-]?\d+(ms|s|m|h|d|w)$/.test(opts.clockOffset))) throw new TypeError("E_PROOF_USAGE: clockOffset is a signed duration such as +25h");
   if (opts.clockOffset !== undefined && opts.args?.some(arg => arg === "--clock-offset" || arg.startsWith("--clock-offset="))) throw new TypeError("E_PROOF_USAGE: pass clockOffset once");
   const host = await nativeHost("serve", [directory], { ...opts, args: [...(opts.args ?? []), ...(opts.clockOffset === undefined ? [] : ["--clock-offset", opts.clockOffset])] });
+  // A private path-only observation lets serve-check compare the script's actual
+  // startServe directory with its requested lock barrier. Never record readiness.
+  try {
+    if (process.env.SNAPBACK4_SERVE_CHECK_STORES) appendFileSync(process.env.SNAPBACK4_SERVE_CHECK_STORES, JSON.stringify({directory}) + "\n");
+  } catch {await host.stop();throw Error("E_SERVE_INSPECTION: cannot record the script's deployment path");}
   const clockCall = async (body?: object): Promise<ClockAdvance> => {
     const config = await fetchIdentity(`${host.url}/auth/config`, deadline(opts.timeoutMs, 10_000));
     if (!config.response.ok || config.body.environment !== "staging") throw Error("E_CLOCK_DEV_ONLY: clock controls require a deploy --staging store");

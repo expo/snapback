@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { serveUntilSignal } from "snapback4/proof";
@@ -5,7 +6,7 @@ import { startStaging } from "./staging.mjs";
 
 const host = await startStaging({ directory: process.env.SNAPBACK4_PROBE_DIRECTORY });
 try {
-  const credentialsFile = join(host.directory, "users.json");
+  const credentialsFile = join(host.directory, `users-${randomUUID()}.json`);
   writeFileSync(credentialsFile, JSON.stringify(host.sessions), { flag: "wx", mode: 0o600 });
   // Sample this clock for time arguments, including after staging advances.
   const now = await host.now();

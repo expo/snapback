@@ -4,6 +4,12 @@
 
 ### Guide changes
 
+- Default check and changed deploy show concrete witnessed questions; unwitnessed advisories stay behind `--review` and explicitly do not block. Actionable write/completeness notes remain visible. An acknowledgment without a replay witness states that limitation.
+- Insert values equal to a declared literal default (including false/zero) initialize write-gated columns without the column grant; non-default inserts and changed updates still need it. Existing apps/stores keep their data; rebuild clients and restart servers to use the corrected rule.
+- `serve-check` distinguishes missing stores, wrong script deployments, held locks and barrier failures, naming the resolved store and recorded holder. Readiness credentials remain private.
+- `init --web --online --password` (or `--expo --online --password`) provides a small online password app, operator roles and working staging proofs, without guest/persona/todo fixtures. Password adaptation preserves web witness registration. Starter install helpers stream npm output with progress; React setup hints recognize existing starter wiring.
+- Staging credential filenames are unique on each run. Account plans accept roleless `users` alongside provisioned roles; provisioning errors show redacted merged argument shapes and declared parameter names.
+
 - Test anything against an app's npm serve script with `serve-check --then '<cmd>'` or `withServeScript`; startup, command deadlines, process-group shutdown and lock release are owned by the kit. Never write a serve driver. Readiness stays private; commands receive it through environment variables.
 - Deploy, rollback and releases lead with verdict and live identity. Advisory decisions are counted; `--review` expands them and `--verbose` expands previews. JSON retains full evidence.
 - `renderedText` scrolls unique candidates into view, including Expo web document scrolling. `devAccounts` provisions real development password users with the production helper's plan and return shape. `beginForm` accepts a subset of argument constraints, retaining exact checks on named values and trusted-click custody.

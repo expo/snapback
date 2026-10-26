@@ -51,7 +51,10 @@ and shutdown. Set `"probe:serve": "node staging.mjs"` in package.json and run
 Test any running staging app with `npx snapback4 serve-check --deployment staging --script probe:serve --then 'node scripts/acceptance.mjs'`.
 Never write a serve driver; the command reads SNAPBACK4_SERVE_JSON, SNAPBACK_URL and FRONTEND_URL from its environment and the runner owns shutdown.
 For liveness alone, verify that process with `npx snapback4 serve-check --deployment staging --script probe:serve`;
-password starters provide `npm run --silent probe:check` with a fresh deployment.
+The script must serve the exact directory named by `--deployment`; the barrier
+checks `<deployment>/store.sqlite`. A missing store is a path error; a held
+lock names that store and its recorded holder.
+Password starters provide `npm run --silent probe:check` with a fresh deployment.
 The verifier keeps readiness credentials out of its output and tests startup,
 30 seconds alive, SIGTERM reaping and store release. SIGTERM stops
 and reaps the backend and exits successfully. The deployment and private credentials file remain for inspection;
@@ -59,6 +62,7 @@ choose fresh names for each independent run. Add both to .gitignore. PORT_LO and
 PORT_HI optionally choose a port range. The printed URL belongs to `serve`.
 
 ```js
+import { randomUUID } from "node:crypto";
 import { openSync, writeFileSync, closeSync } from "node:fs";
 import { deploy, startServe, serveUntilSignal } from "snapback4/proof";
 import { api } from "./snapback/generated/api.ts";
@@ -69,7 +73,8 @@ const host = await startServe("staging", { seedUsers: {
 } });
 try {
   // This file contains real passwords and bearer tokens. Never commit it.
-  const fd = openSync("staging-users.json", "wx", 0o600);
+  const credentialsFile = `staging-users-${randomUUID()}.json`;
+  const fd = openSync(credentialsFile, "wx", 0o600);
   try { writeFileSync(fd, JSON.stringify(host.sessions)); } finally { closeSync(fd); }
   for (const accounts of Object.values(host.sessions)) {
     for (const account of accounts) {
@@ -85,14 +90,17 @@ try {
   const before = await host.now();
   const advanced = await host.advance("1h");
   if (advanced.now < before + 3600000) throw Error("clock did not advance");
-  console.log(JSON.stringify({ backendUrl: host.url, credentialsFile: "staging-users.json" }));
+  console.log(JSON.stringify({ backendUrl: host.url, credentialsFile }));
   // A pending promise alone does not keep Node alive. The helper owns shutdown.
   if (!process.argv.includes("--once")) await serveUntilSignal([host]);
 } finally { await host.stop(); }
 ```
 
 `host.seedAccounts({roles, provision, args?})` performs additional batches; an
-optional `args(account)` merges over `{principal, role}` (explicit keys win).
+optional `users: 2` creates a separate roleless batch in `sessions.users`
+without calling provision. A users-only plan is `{users: 2}`. Roleless users
+exercise signup and denied writes without inventing a roster role.
+An optional `args(account)` merges over `{principal, role}` (explicit keys win).
 Use `service: "ops"` for a provisioning mutation authorized as `service:ops`.
 Each call creates new random email/password pairs and returns role arrays of
 `{kind:"user",role,email,password,principal,token,expiresAt}`. These complete
@@ -262,3 +270,13 @@ role-keyed arrays with email, password, principal and token. It signs up real
 password users and runs the ordinary operator mutation; rules still decide.
 It refuses staging/production hosts before creating users. Use persistent
 `provisionAccounts` for production, and `seedAccounts` for fresh staging batches.
+
+## Password and online starter
+
+`npx snapback4 init my-app --web --online --password` writes a password screen,
+online client, operator-only provision, and a small notes app with no personas
+or fixture files. For Expo use `--expo --online --password`.
+Run `node scripts/install.mjs` from the generated directory for streaming npm
+output and an elapsed-time heartbeat. `npm run frontend:proof` uses real staging
+accounts with provisioned roles. Development uses the same plan through
+`devAccounts` (`guide testing`); production uses `provisionAccounts`.

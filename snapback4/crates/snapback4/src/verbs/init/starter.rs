@@ -224,7 +224,8 @@ pub(super) fn expo_client(client: String, offline: &Offline) -> String {
 // @ref LLP 3000.013.000#3 — explicit online writes choose the journal even if the retained schema syncs.
 pub(super) fn online_web_client(client: String) -> String {
     web_client(client, &Offline::Tables { synced: vec![], total: 0 })
-        .replace("createApp({ ", "createApp({ writes: \"online\", ")
+        .replace("createApp({ writes: \"online\",", "createApp({")
+        .replace("createApp({", "createApp({ writes: \"online\",")
         .replace("// A device supplies offline reads for synced tables and queues writes.\n// With no synced table, init omits the device and uses the browser write journal.", "// Reads execute on the server; browser writes use the principal journal.")
 }
 
@@ -402,9 +403,11 @@ pub(super) const EXPO_ENV: &str = include_str!("starter/expo-env.d.ts");
 // @ref LLP 3000.011.003.000#8 — password identity gets an executable sign-in screen.
 pub(super) fn identity_screens(platform: Platform, personas: Option<&[String]>, body: &Body, password: bool) -> (String, String) {
     let (app, client) = identity_screens_version(platform, personas, body, password, false, true);
-    // Keep the published guest --as and direct SDK witness paths. Password
-    // clients use the driver-owned observer and carry no witness plumbing.
     let client = if !password && personas.is_none() { known_client(platform, false, false).to_owned() } else { client };
+    let client = if password {
+        let registration = if platform == Platform::Web { "registerWebWitness(app, api);" } else { r#"if (Platform.OS === "web") registerWebWitness(app, api);"# };
+        format!("import {{ registerWebWitness }} from \"snapback4/witness-web\";\nimport {{ api }} from \"../snapback/generated/api.ts\";\n{client}\n{registration}\n")
+    } else { client };
     let app = if platform == Platform::Expo { app.replace("import { useNativeSmokeGuest } from \"./src/native-smoke\";", "import { useNativeSmoke } from \"snapback4-expo/native-smoke\";")
         .replace("useNativeSmokeGuest();", if password { "useNativeSmoke(true);" } else { "useNativeSmoke();" }) } else { app };
     (app, client)

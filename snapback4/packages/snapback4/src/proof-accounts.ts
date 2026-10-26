@@ -17,8 +17,10 @@ export interface ProvisionAccountsOptions extends SeedAccountsOptions {
   rosterDir?: string;
 }
 export interface SeedAccountsOptions {
-  roles: Record<string, number>;
-  provision: { readonly name: string };
+  roles?: Record<string, number>;
+  provision?: { readonly name: string };
+  /** Additional password users with no provision call; returned under sessions.users. */
+  users?: number;
   /** Service seat authorized by the provisioning mutation. Default operator. */
   service?: string;
   args?: (account: StagingAccount) => Record<string, unknown>;
@@ -29,12 +31,12 @@ export interface SeedAccountsOptions {
 function validatePlan(options: SeedAccountsOptions) {
   // @ref LLP 3000.000.000.001#8-wave-18-developer-loop-amendment-dx4 — custom argument keys override defaults; the seat grants no extra authority.
   const service = options.service ?? "operator";
-  const roles = Object.entries(options.roles), timeout = options.timeoutMs ?? 300_000;
-  if (!/^[A-Za-z0-9_-]{1,64}$/.test(service) || !Number.isSafeInteger(timeout) || timeout < 1 || !roles.length || roles.some(([role, n]) => !/^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(role) || !Number.isSafeInteger(n) || n < 1)
-      || roles.reduce((sum, [, n]) => sum + n, 0) > 100 || !/^[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)*$/.test(options.provision?.name ?? "")) {
+  const roles = Object.entries(options.roles ?? {}), users=options.users ?? 0, timeout = options.timeoutMs ?? 300_000;
+  if (!/^[A-Za-z0-9_-]{1,64}$/.test(service) || !Number.isSafeInteger(timeout) || timeout < 1 || !Number.isSafeInteger(users) || users<0 || (!roles.length&&!users) || (users>0&&roles.some(([role])=>role==="users")) || roles.some(([role, n]) => !/^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(role) || !Number.isSafeInteger(n) || n < 1)
+      || roles.reduce((sum, [, n]) => sum + n, users) > 100 || roles.length>0 && !/^[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)*$/.test(options.provision?.name ?? "")) {
     throw Error("E_STAGING_INPUT: provide 1..100 accounts across named roles, a mutation handle and a positive timeoutMs");
   }
-  return {service, roles, timeout};
+  return {service, roles:[...roles,...(users ? [["users",users] as [string,number]] : [])], timeout};
 }
 
 // @ref LLP 3000.000.000.001#2-real-staging-accounts — real credentials and ordinary operator mutations, never system seeding or auth bypass.
@@ -56,11 +58,11 @@ async function accounts(host: Pick<ServeHost, "url" | "operatorToken">, options:
       ? "E_STAGING: account seeding requires serve on a fresh deploy --staging with password identity; production and dev refuse before creating users"
       : "E_PRODUCTION_ACCOUNTS: account provisioning requires serve on a production deploy with password identity; staging and dev refuse before creating users");
   }
-  const operator = await host.operatorToken(service);
-  if (environment === "production") {
+  const operator = Object.keys(options.roles??{}).length ? await host.operatorToken(service) : "";
+  if (environment === "production" && operator) {
     const response = await request("/schema", { headers: { authorization: `Bearer ${operator}` } }), schema = await response.json();
     const named = response.ok && Array.isArray(schema.service_identities) && schema.service_identities.includes(`service:${service}`);
-    if (!named) process.stderr.write(`snapback4: WARNING minted service:${service}, but the served schema reports no explicit positive authorization mention for that service identity; rules still decide every operation and provisionAccounts(${options.provision.name}) will likely refuse.\n`);
+    if (!named) process.stderr.write(`snapback4: WARNING minted service:${service}, but the served schema reports no explicit positive authorization mention for that service identity; rules still decide every operation and provisionAccounts(${options.provision?.name}) will likely refuse.\n`);
   }
   const sessions: StagingSessions = Object.create(null);
   for (const [role, count] of roles) {
@@ -104,14 +106,24 @@ async function accounts(host: Pick<ServeHost, "url" | "operatorToken">, options:
       const account: StagingAccount = { kind: session.kind, role, email, password, principal: session.principal, token: session.token, expiresAt: session.expiresAt };
       if (entry.principal && entry.principal !== account.principal) throw Error("E_PRODUCTION_ROSTER: principal differs from saved roster; inspect deployment");
       entry.principal = account.principal; save();
+      if (role==="users" && (options.users??0)>0) {entry.done=true;save();sessions[role]!.push(account);continue;}
       const args = { principal: account.principal, role, ...options.args?.(account) };
       const encodedArgs = canonical(args);
       if (entry.args && entry.args !== encodedArgs) throw Error("E_PRODUCTION_ROSTER: provisioning arguments changed; inspect roster instead of silently reassigning roles");
       entry.args = encodedArgs; save();
       if (!entry.done) {
-      const response = await request(`/m/${options.provision.name}`, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${operator}` }, body: JSON.stringify({ id: entry.id, args }) });
+      const response = await request(`/m/${options.provision?.name}`, { method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${operator}` }, body: JSON.stringify({ id: entry.id, args }) });
       const result = await response.json();
-      if (!response.ok || result.state !== "sent") throw Error(`E_STAGING_PROVISION: ${options.provision.name} refused (${result.why?.code ?? result.denied?.code ?? "invalid reply"}); supplied arguments: ${Object.keys(args).sort().join(", ")}; default provision arguments are principal and role; use args(account) for custom names; partial accounts/grants may exist; ${partial}`);
+      if (!response.ok || result.state !== "sent") {
+        let parameters:string[]=[];
+        try {
+          const response=await request("/schema",{headers:{authorization:`Bearer ${operator}`}}), schema=await response.json();
+          const program=schema.programs?.find((p:{name:string})=>p.name===options.provision?.name);
+          parameters=Object.keys(program?.args??{}).sort();
+        } catch { /* failure diagnostics must not mask the original refusal */ }
+        const merged=Object.fromEntries(Object.entries(args).map(([key,value])=>[key,`<redacted ${value===null?"null":Array.isArray(value)?"array":typeof value}>`]));
+        throw Error(`E_STAGING_PROVISION: ${options.provision?.name} refused (${result.why?.code ?? result.denied?.code ?? "invalid reply"}); supplied arguments: ${Object.keys(args).sort().join(", ")}; merged args (opaque values redacted): ${JSON.stringify(merged)}; mutation parameters: ${parameters.length?parameters.join(", "):"unavailable"}; args(account) merges over {principal, role}, explicit keys win; ${partial}`);
+      }
       entry.done = true; save();
       }
       sessions[role]!.push(account);
@@ -154,7 +166,7 @@ export async function provisionAccounts(host: Pick<ServeHost, "url" | "operatorT
   try { fd = openSync(lock, "wx", 0o600); }
   catch { throw Error("E_PRODUCTION_ROSTER_BUSY: roster already in use; after an interrupted driver inspect and remove its .lock before retrying"); }
   try {
-    const plan = JSON.stringify({roles:Object.entries(options.roles).sort(), provision:options.provision.name, service:options.service ?? "operator"});
+    const plan = JSON.stringify({...(options.users?{users:options.users}:{}),roles:Object.entries(options.roles??{}).sort(), provision:options.provision?.name, service:options.service ?? "operator"});
     let roster: Roster;
     try {
       if (!lstatSync(path).isFile() || (lstatSync(path).mode & 0o077)) throw Error("unsafe roster file");
@@ -165,11 +177,11 @@ export async function provisionAccounts(host: Pick<ServeHost, "url" | "operatorT
         if (!entry) throw Error("invalid roster entry");
         const slot = `${entry.role}:${entry.index}`;
         if (!entry || typeof entry.role !== "string" || !Number.isSafeInteger(entry.index) || entry.index < 0
-            || entry.index >= (options.roles[entry.role] ?? 0) || slots.has(slot)
+            || entry.index >= (entry.role==="users"&&options.users ? options.users : options.roles?.[entry.role] ?? 0) || slots.has(slot)
             || typeof entry.email !== "string" || !entry.email.endsWith("@example.test") || typeof entry.password !== "string" || entry.password.length < 20
             || typeof entry.id !== "string" || !/^[a-f0-9-]{36}$/.test(entry.id) || typeof entry.done !== "boolean"
             || (entry.principal !== undefined && typeof entry.principal !== "string") || (entry.args !== undefined && typeof entry.args !== "string")
-            || (entry.done && (!entry.principal || !entry.args))) throw Error("invalid roster entry");
+            || (entry.done && (!entry.principal || !(entry.role==="users"&&(options.users??0)>0)&&!entry.args))) throw Error("invalid roster entry");
         slots.add(slot);
       }
     } catch (error) {
