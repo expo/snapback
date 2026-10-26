@@ -1,0 +1,10 @@
+{
+  "frozenSourceReview": true,
+  "allManifestInputsUnchanged": true,
+  "patchSha256": "96f58d2215e30005870d20e7587c851ad92e592caa6682e65a6b4a7b34757295",
+  "verdicts": {
+    "muse": "READY",
+    "codex": "NOT READY"
+  },
+  "qualification": "Intermediate round: require dependency-scoped witness identity and visible ordinary-deploy derived acknowledgment commands. Round4 was author-aborted with no verdict after an independent CLI regression; round5 only identifies a local test attempt, not a review."
+}

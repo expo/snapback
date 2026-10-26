@@ -1,0 +1,9 @@
+{
+  "frozenSourceReview": true,
+  "allManifestInputsUnchanged": true,
+  "verdicts": {
+    "muse": "READY",
+    "codex": "unavailable: provider capacity; no verdict"
+  },
+  "qualification": "Intermediate review only. A separately executed real deploy/ack regression exposed nondeterministic fixture-row selection. Another frozen pair follows the repair."
+}
