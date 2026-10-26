@@ -295,7 +295,7 @@ impl StoreLease {
         fence.tag()?;
         let config: Config = connection.parse()?;
         let (mut client, warning) = connect(config.clone())?;
-        client.batch_execute(&format!("SET search_path = {quoted}, pg_catalog; SET statement_timeout='5s'; SET lock_timeout='5s'"))?;
+        client.batch_execute(&format!("SET search_path = {quoted}, pg_catalog, pg_temp; SET statement_timeout='5s'; SET lock_timeout='5s'"))?;
         // Verify the owner relation before any conditional UPDATE can invoke
         // database-owned rules/triggers or weaken its immediate singleton key.
         let mut checked = store::Store::new(client);

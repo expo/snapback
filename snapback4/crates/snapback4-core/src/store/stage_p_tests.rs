@@ -154,6 +154,13 @@ fn stage_p_new_digest_adds_names_and_preserves_admitted_versions() {
         );
     }
     increment(&mut v1).unwrap();
+    // A real original v1 binary rewrites its legacy boolean on every open.
+    c.execute(
+        "UPDATE _meta SET value='1' WHERE key='flight_checks_v1'",
+        &[],
+    )
+    .unwrap();
+    drop(reopen(&schema).expect("admitted digest records survive a v1 marker rewrite"));
     // Even an older binary validates the newer admitted version, not just its own.
     let newer = functions(&mut c)
         .into_iter()
@@ -565,4 +572,50 @@ fn stage_p_delayed_reader_keeps_evidence_across_maintenance_prune() {
     assert!(at.elapsed() < Duration::from_secs(1));
     c.batch_execute("ROLLBACK").unwrap();
     assert!(lease.release().unwrap());
+}
+
+#[test]
+#[ignore = "private Postgres"]
+fn stage_p_temporary_tables_follow_durable_namespace_and_drift_refuses() {
+    let mut e = fixture(true);
+    let (mut c, schema) = observer(&mut e);
+    let before = c
+        .query_one("SELECT seq FROM _head", &[])
+        .unwrap()
+        .get::<_, i64>(0);
+    let store = e.store_mut().test_postgres_handle_mut().store.get_mut();
+    store.client.batch_execute(&format!("CREATE TEMP TABLE _head AS TABLE \"{schema}\"._head; CREATE TEMP TABLE _stp_scratch (n int) ON COMMIT DROP")).unwrap();
+    // Even an identically named temp relation is behind the durable namespace.
+    increment(&mut e).expect("temporary scratch schemas must remain usable");
+    assert_eq!(
+        c.query_one("SELECT seq FROM _head", &[])
+            .unwrap()
+            .get::<_, i64>(0),
+        before + 1
+    );
+    let store = e.store_mut().test_postgres_handle_mut().store.get_mut();
+    assert_eq!(
+        store
+            .client
+            .query_one("SELECT seq FROM pg_temp._head", &[])
+            .unwrap()
+            .get::<_, i64>(0),
+        before
+    );
+    store
+        .client
+        .batch_execute(&format!("SET search_path=pg_temp,\"{schema}\",pg_catalog"))
+        .unwrap();
+    let error =
+        increment(&mut e).expect_err("a preceding temporary schema must refuse before data");
+    assert!(
+        matches!(error, RuntimeError::Postgres(ref error) if error.code().is_some_and(|c| c.code()=="S4001")),
+        "{error:?}"
+    );
+    assert_eq!(
+        c.query_one("SELECT seq FROM _head", &[])
+            .unwrap()
+            .get::<_, i64>(0),
+        before + 1
+    );
 }

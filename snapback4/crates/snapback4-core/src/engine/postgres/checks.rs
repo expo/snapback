@@ -26,11 +26,12 @@ fn definitions(namespace: &str, legacy: bool) -> Result<[Function; 2], RuntimeEr
     );
     // current_schemas is evaluated in the caller, before the function's SET
     // search_path=pg_catalog takes effect. Bind the entire effective path;
-    // extra/shadow/temp schemas refuse even when current_schema alone matches.
+    // Only this session's temporary schema may follow the store and catalog.
+    // Connect pins pg_temp last so scratch tables cannot shadow durable data.
     let guard = if legacy {
         GUARD_BODY.to_string()
     } else {
-        GUARD_BODY.replacen("BEGIN IF ", &format!("BEGIN IF $1 IS DISTINCT FROM ARRAY['{namespace}','pg_catalog']::pg_catalog.text[] OR pg_catalog.current_setting('array_nulls') OPERATOR(pg_catalog.<>) 'on' OR "), 1)
+        GUARD_BODY.replacen("BEGIN IF ", &format!("BEGIN IF ($1 IS DISTINCT FROM ARRAY['{namespace}','pg_catalog']::pg_catalog.text[] AND $1 IS DISTINCT FROM ARRAY['{namespace}','pg_catalog',pg_catalog.pg_my_temp_schema()::pg_catalog.regnamespace::pg_catalog.text]::pg_catalog.text[]) OR pg_catalog.current_setting('array_nulls') OPERATOR(pg_catalog.<>) 'on' OR "), 1)
     };
     Ok([
         (
@@ -164,7 +165,7 @@ fn admitted(
     let expected = match marker.first().map(|r| r.get::<_, &str>(0)) {
         None if records.is_empty() => Vec::new(),
         Some("1") if records.is_empty() => definitions(namespace, true)?.to_vec(),
-        Some("digests") if !records.is_empty() => records
+        Some("digests" | "1") if !records.is_empty() => records
             .iter()
             .map(|r| {
                 let f: Function = serde_json::from_str(r.get(1))

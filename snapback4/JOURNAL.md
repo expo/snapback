@@ -109006,3 +109006,27 @@ initial array_nulls settings, explicit grouped tombstones and nullable integer
 effect fields on both PG tails and SQLite. Full verification, the short W4
 server-cost pair and process cleanup are pending and will be appended to the
 Stage P report; no push or throughput campaign is authorized.
+
+## 2026-10-26 — Stage P fix round 1: keep scratch tables behind durable data
+
+The first complete Postgres script exposed an overstrict namespace guard:
+legitimate evolution creates a temporary scratch schema, which PostgreSQL
+implicitly searched before the store. The isolated maintained-column witness
+reproduces S4001 on fa23547aed. Forty-five Rust tests and the public evolution
+witness reached this restriction; their names and raw failures are retained
+outside Git for individual reruns. The same run passes full core 1312/0/536,
+full binary 626/0/75, focused witnesses 11/0, PG16 G7/E 83/0, levers 87/0 and
+all RT0 ratchets; its complete script remains a failure, not qualification.
+
+Product connections now explicitly put pg_temp after the store and pg_catalog.
+The guard permits only that session's own temporary schema in last position;
+implicit or explicit temporary precedence still refuses before data. A shadow
+_head witness proves a normal write reaches the durable table while the temp
+copy stays unchanged, then moving pg_temp first raises S4001. This keeps
+legitimate scratch work and binds data resolution to the fenced namespace.
+
+Nonempty per-digest contracts remain authoritative if an original v1 binary
+rewrites its legacy marker to 1. The version witness checks reopening after that
+rewrite before dropping an admitted newer function and requiring refusal.
+No helper is replaced. LLP §3.11 records both refinements. Corrected focused,
+isolated and complete qualification plus final loopback confirmation follow.

@@ -13,7 +13,7 @@ impl AnyStore {
     pub fn postgres_diagnostics(connection: &str, namespace: &str) -> Result<(String, Vec<String>), RuntimeError> {
         let quoted=store::namespace(namespace)?;
         let (mut client,_)=ownership::connect(connection.parse()?)?;
-        client.batch_execute(&format!("SET search_path={quoted},pg_catalog; SET statement_timeout='5s'"))?;
+        client.batch_execute(&format!("SET search_path={quoted},pg_catalog,pg_temp; SET statement_timeout='5s'"))?;
         let mut tx=client.build_transaction().read_only(true).start()?;
         super::checks::diagnose(&mut tx, namespace)?;
         let warnings=tx.query(super::managed_relations::EVENT_TRIGGERS,&[])?.iter().map(|row|
@@ -83,7 +83,7 @@ impl AnyStore {
             return Ok(None);
         }
         client.batch_execute(&format!(
-            "SET search_path={quoted},pg_catalog; SET statement_timeout='5s'"
+            "SET search_path={quoted},pg_catalog,pg_temp; SET statement_timeout='5s'"
         ))?;
         let mut tx = client.build_transaction().read_only(true).start()?;
         if let Some(row) = tx.query(super::managed_relations::SQL, &[&crate::managed_relations::TABLES])?.first() {
