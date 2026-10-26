@@ -1,0 +1,36 @@
+{
+  "baseline": "bcf780d30729158da09d731d2e9e84aa31738f30",
+  "cases": [
+    {
+      "wave": 29,
+      "lane": "008",
+      "case": "inclusive list widening during populated extraction",
+      "before": "false refusal: requires identical authoritative types",
+      "after": "admitted; reverse actual-value admission retained",
+      "test": "populated_extraction_accepts_inclusive_list_bounds_and_reverse_checks_new_values",
+      "baselineComparisonLog": "/tmp/rel2-before-after-list.log"
+    },
+    {
+      "wave": 29,
+      "lane": "011",
+      "case": "save-version creates its configured compatibility baseline",
+      "before": "false refusal: missing baseline being created",
+      "after": "admitted; failed preparation/activation cleans new snapshot",
+      "test": "saving_the_configured_baseline_is_not_circular_and_failure_cleans_it",
+      "baselineComparisonLog": "/tmp/rel2-before-after-save.log"
+    },
+    {
+      "wave": 29,
+      "lane": "023",
+      "case": "stale holderless roster marker",
+      "before": "E_PRODUCTION_ROSTER_BUSY",
+      "after": "success; kernel holder/lease protocol",
+      "baselineComparisonLog": "/tmp/rel2-roster-before-after.json",
+      "candidateConcurrencyTests": 7
+    }
+  ],
+  "historicalFalseDeployRefusalsBefore": 2,
+  "historicalFalseDeployRefusalsAfter": 0,
+  "staleLockDefectsBefore": 1,
+  "staleLockDefectsAfter": 0
+}

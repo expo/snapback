@@ -1,0 +1,23 @@
+{
+  "baselineSourceCommit": "bcf780d30729158da09d731d2e9e84aa31738f30",
+  "candidateSourceCommit": "837ac659c4",
+  "mergedOriginMain": "5059edecb3",
+  "baselineBinarySha256": "9043ac3e799a80e9b0de2c4aec6ae749bfa2bb49c88e1361ebf8f7423dbde0b3",
+  "candidateBinarySha256": "9d1a6498fd57c8e6f526ed0ab4c2425e8567cb18eb72f9a750bad164e6ee31b1",
+  "platform": "Linux x86_64; production-feature debug build; no Mac or publication claim",
+  "command": "python3 snapback4/reports/20261026-rel2/measure.py --binary PINNED_BINARY --out PRIVATE_JSON --workers 12",
+  "runtimeReviewManifest": "../../../llp/reviews/rel2-wave29/final-reviewed-runtime.json",
+  "runtimeHashesChecked": true,
+  "manifestRedactions": [
+    "sampleIds",
+    "sampleValues"
+  ],
+  "artifacts": {
+    "before-lanes.json.gz": "355ee5be8d5fa40409f9506e9ed1b9aa1fe59b0f7470e6eb275f051141d756dd",
+    "after-lanes.json.gz": "e7c740b43f77dee081031b836fce37c17c9faeae86259f6446b63ddfdd5fba21",
+    "summary.json": "bbf9dba3ed22ebf5e4611037366de83f93f336ca304e9dac8d09ddc14f45ace8",
+    "false-refusal-fixtures.json": "57a70c8289c3229d710a50c49d99c5b535d4f1e788cda39b8052e9f03936b2cb",
+    "measure.py": "7976b784ccf20a4a1d4946fa8dbdd0e4f8daa1edfd1c8e8ec31a9bf3fc57a723",
+    "summarize.py": "3e19c02d5cf47f14f0517463b0ac2d48f9ee408697498d1b9ba4a14092ddc243"
+  }
+}

@@ -28,6 +28,8 @@ def copy(lane,dst):
  for link in (dst/'deploy/releases').glob('*/.snapback4/store.sqlite'):
   if link.is_symlink():link.unlink();link.symlink_to('../../../store.sqlite')
  # Open only the copied bytes, including their copied WAL, never the source.
+ for copied in (dst/'deploy').glob('store.sqlite*'):
+  if copied.is_symlink() or not copied.is_file():raise RuntimeError('copied DB/WAL must be private regular files')
  conn=sqlite3.connect(dst/'deploy/store.sqlite');conn.execute('PRAGMA wal_checkpoint(TRUNCATE)');conn.close()
 
 def invoke(cwd,args):
