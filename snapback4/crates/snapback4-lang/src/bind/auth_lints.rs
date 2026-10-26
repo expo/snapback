@@ -394,15 +394,15 @@ pub(super) fn pins(catalog: &Catalog, read: &ReadExpr) -> Option<BTreeMap<String
         let columns = match read.index.as_ref().and_then(|name| info.indexes.iter().find(|index| &index.name == name)) {
             Some(index) => index.columns.clone(),
             None => {
-                let unique: Vec<&IndexDecl> = info.indexes.iter().filter(|index| index.unique && index.is_plain() && index.columns.len() == read.keys.len() && !index.columns.iter().any(|c| c == "id")).collect();
+                let unique: Vec<&IndexDecl> = info.indexes.iter().filter(|index| index.unique && index.is_plain() && index.columns.len() >= positional.len() && !index.columns.iter().any(|c| c == "id")
+                    && index.columns.iter().skip(positional.len()).all(|column| read.keys.iter().any(|key| key.column.as_ref() == Some(column)))).collect();
                 match unique.as_slice() { [index] => index.columns.clone(), _ => return None }
             }
         };
-        if columns.len() < read.keys.len() { return None; }
-        for (column, key) in columns.iter().zip(&read.keys) { out.insert(key.column.clone().unwrap_or_else(|| column.clone()), key.value.clone()); }
-    } else {
-        for key in &read.keys { out.insert(key.column.clone()?, key.value.clone()); }
+        if columns.len() < positional.len() { return None; }
+        for (column, key) in columns.iter().zip(positional) { out.insert(column.clone(), key.value.clone()); }
     }
+    for key in read.keys.iter().filter(|key| key.column.is_some()) { out.insert(key.column.clone()?, key.value.clone()); }
     let mut filters = Vec::new();
     if let Some(filter) = &read.filter { super::intent::split((**filter).clone(), &mut filters); }
     for filter in filters {

@@ -18,6 +18,8 @@ fn lanes_005e_021r_unique_roster_role_arms_do_not_hide_the_hidden_row_note() {
     let service = checked(&format!("{}{body}", ROSTER.replace("role = 'manager']", "role = 'manager'] or viewer = 'service:operator'")));
     let conditional = service.notes.iter().find(|n| n.code == "N_REQUIRE_HIDDEN").unwrap();
     assert!(conditional.message.contains("outside the explicit service grant (service:operator)"), "{conditional:?}");
+    let mixed_service = checked(&format!("{}{}", ROSTER.replace("role = 'manager']", "role = 'manager'] or viewer = 'service:operator'"), body.replace("principal = viewer,", "viewer,").replace("principal = client,", "client,")));
+    assert!(mixed_service.notes.iter().any(|n| n.code == "N_REQUIRE_HIDDEN" && n.message.contains("NOT_CLIENT")), "{:?}", mixed_service.notes);
     // Independent role rows may coexist, so a clerk can also be a manager.
     let overlapping = checked(&format!("{}{body}", ROSTER.replace("unique principal", "unique principal, role")));
     assert!(!overlapping.notes.iter().any(|n| n.code == "N_REQUIRE_HIDDEN"));
