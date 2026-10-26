@@ -89,8 +89,8 @@ deadline/queue/unknown-outcome errors; it is excluded from performance claims.
 | Ticket waiting, separately | 6.081 → 4.439 | 4.385 → 5.458 | 4.544 → 5.166 |
 | Completed COMMIT, sampled mean | 9.329 → 5.779 | 5.979 → 6.674 | 6.598 → 7.514 |
 
-The supplied ≈2.4 ms intercept is a fitted flight-residence term, not entirely
-root executor time. At N≈10.6 its P1+tail formula predicts ≈3.31 ms; the full
+The supplied ≈2.4 ms intercept comes from the earlier P1+tail server-residence
+fit. This root-statement ledger does not fully attribute it. At N≈10.6 its P1+tail formula predicts ≈3.31 ms; the full
 fixture's root statement ledger is only 1.15–1.28 ms before these cuts.
 Parsing/EXECUTE argument work, transport scheduling and waiting must not be
 assigned invented values to force equality. The fixed-N control below measures
@@ -173,7 +173,7 @@ constructor/flight/catch-up overlap against WF.
 
 ## Verification and custody
 
-Final check totals and PID census are recorded in the completion update.
+Final check totals and PID census are recorded below.
 The initial binary attempt lacked the ordinary debug CLI needed by its worker
 and witness launcher; building it resolves all 28 failures. G7's PG17-only cases
 are run on private PG17, separately from the serial PG16 suite. A parallel
@@ -197,3 +197,48 @@ and covers missing and altered guard/fence helpers, three refused retries, and
 restoration. This admission-only correction leaves the measured steady-state
 SQL unchanged; `loopback.json` binds the measured release binaries by SHA-256.
 The initial review's other implementation paths had no material findings.
+
+## Final verification and process custody
+
+The final source is `c0d78c37a1856af8c5c10a57e2edcfc1a3960fec`.
+A fresh read-only review of that commit reports **no material finding remains**.
+The completion commit changes documentation only. Measurements remain bound to
+the release binary hashes in `loopback.json`; the final reconnect correction
+changes failed admission, not the measured steady-state SQL.
+
+| Check | Passed | Failed | Ignored / qualification |
+| --- | ---: | ---: | --- |
+| Full core, postgres feature, all ordinary targets and doctests | 1311 | 0 | 533; plus one passing isolated child run |
+| Full snapback4 binary, postgres feature | 626 | 0 | 75; plus 13 passing isolated child runs |
+| Stage P focused witnesses | 7 | 0 | all private witnesses enabled |
+| Serial PG16 G7/E | 83 | 0 | PG17-only cases run separately |
+| Private PG17 E certificate witnesses | 2 | 0 | final source; tampered-attributes witness also 1/0 |
+| Lever suites in complete Postgres script | 87 | 0 | complete current rerun |
+| RT0 core / HTTP Postgres / SQLite | 3 / 8 / 1 | 0 | exact flight ratchets unchanged; SQLite source unchanged |
+| Complete Postgres script, Rust summary totals | 824 | 1 | 27 summaries; inherited fixed-seed store refusal only |
+| Public Postgres deploy/serve witness | 1 | 0 | includes both-store parity, retention, bootstrap, takeover, crash and S1 Quarry checks |
+| ref-check | 569 documents | 0 | 12054 references, zero unchecked |
+
+`bash scripts/test-postgres.sh` exits **1**, not a pass. Its sole Rust test
+failure is `both_stores_all_public_boundaries_and_write_observations` with
+`E_INPUT: 6` on both stores. The inherited evaluator `Cargo.lock` refusal is
+also reproduced; the evaluator's known `40001` stage is **not reached**, not
+counted as passed. There are no additional unresolved reds. The initial stale
+pruning/solo-tail witnesses and public retention expectation are fixed, and
+all pass in this complete rerun. The earlier missing debug CLI and parallel
+lever deadline are resolved by the built launcher and successful full/serial
+reruns; the reconnect admission defect is covered by its failing pre-fix
+control and passing final witness.
+
+Final cleanup audits **38 PID ledgers, 25796 recorded entries**, including the
+three public-witness cluster directories, and finds **zero living processes,
+zero zombies, zero unexpected lane executables, and zero postmaster PID files**.
+The interrupted public run's recorded orphan master `500388` was stopped and
+confirmed gone with all five children. Its already-dead outer master `500350`
+was independently checked with `pg_ctl status` (3, no server); its stale PID
+metadata is preserved outside Git after clearing the active PID-file path.
+The final PG16 and PG17 controllers both confirm stopped clusters and no leaks.
+Completion free space is **28.53 GiB**; the 25 GiB stop threshold did not trigger.
+Only recorded PIDs were stopped. No push occurred; the shared port-55440 PG17
+cluster and `~/q24` were untouched. Raw logs, PID ledgers and databases remain
+outside Git under the recorded `/tmp` paths.

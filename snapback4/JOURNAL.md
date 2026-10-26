@@ -108953,3 +108953,30 @@ Three old Rust witnesses now invoke explicit head maintenance or use the new
 while checking that every observation retains at least 1000 sequences. Their
 focused reruns pass 4/0; the final full script and reconnect-positive checks are
 recorded in the report on completion. No raw logs are committed.
+
+## 2026-10-26 — Stage P completed: verification and cleanup
+
+Final source `c0d78c37a1` has a fresh read-only no-material-finding verdict.
+Full core passes **1311/0/533** (passed/failed/ignored; isolated child excluded),
+and the full binary passes **626/0/75** (13 passing isolated child runs excluded).
+Stage P witnesses pass **7/0**, serial PG16 G7/E **83/0**, private PG17 E **2/0**
+plus attribute tampering **1/0**, levers **87/0**, and RT0 core/PG HTTP/SQLite
+**3/0**, **8/0**, **1/0**, with unchanged exact flight ratchets.
+
+The complete Postgres script finishes **824/1** across 27 Rust summaries and
+its public deploy/serve witness passes, including byte-identical both-store
+wire/meters, the 1000-sequence retention window, bootstrap refusals, takeover,
+crash/restart, and the unchanged S1 Quarry application. The script exits 1:
+only inherited `E_INPUT: 6` on both stores and the stale evaluator lockfile
+remain; the known evaluator `40001` stage is blocked by that lockfile, not run.
+No additional unresolved red remains. Final ref-check passes **569 documents,
+12054 references**, zero errors or unchecked references.
+
+The final **38-ledger / 25796-entry** census finds no living or zombie lane PIDs,
+no unexpected lane executable and no postmaster PID file. The abandoned public
+cluster was stopped using its recorded identity; its dead outer master's stale
+metadata was independently verified and preserved outside Git. Final free space
+is 28.53 GiB, above the 25 GiB stop floor. No push, shared PG17 reconfiguration,
+or `~/q24` access occurred. Full timing limits, W5 residence regressions, source
+and release-binary custody are in the [Stage P report](reports/20261026-stage-p/REPORT.md).
+The later WF rebase remains separate work.
