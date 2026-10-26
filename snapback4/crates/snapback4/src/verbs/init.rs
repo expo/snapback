@@ -297,9 +297,11 @@ pub fn init(options: &Options) -> i32 {
         }
         let gitignore = dir.join(".gitignore");
         let existing = match std::fs::read_to_string(&gitignore) { Ok(text) => text, Err(e) if e.kind() == std::io::ErrorKind::NotFound => String::new(), Err(e) => return Err(e) };
+        let original = existing.clone();
+        let existing = starter_gitignore(&existing);
         let ignores = format!("{GITIGNORE}{}{}", if expo || web { "dist/\n" } else { "" }, if expo { ".snapback4-witness/\nartifacts/native-smoke/\n" } else { "" });
         let missing = ignores.lines().filter(|line| !existing.lines().any(|old| old == *line)).collect::<Vec<_>>().join("\n");
-        if !missing.is_empty() { replace_file(&gitignore, &format!("{existing}{}{missing}\n", if existing.is_empty() || existing.ends_with('\n') { "" } else { "\n" }))?; }
+        if !missing.is_empty() || existing != original { replace_file(&gitignore, &format!("{existing}{}{missing}\n", if existing.is_empty() || existing.ends_with('\n') { "" } else { "\n" }))?; }
         Ok(())
     };
     if let Err(error) = write() {
@@ -449,6 +451,14 @@ pub(super) fn title(dir: &Path) -> String {
 }
 
 /// Vite's config is `vite.config.mts`, so the reference tsconfig names that.
+// @ref LLP 3000.037.000#3-password-online-starters — Expo examples retain strict optional and indexed access checks.
+fn strict_expo_config(text: &str) -> String {
+    let mut config: Value = serde_json::from_str(text).unwrap();
+    config["compilerOptions"]["exactOptionalPropertyTypes"] = json!(true);
+    config["compilerOptions"]["noUncheckedIndexedAccess"] = json!(true);
+    pretty(&config)
+}
+
 fn esm_vite_config(tsconfig: &str) -> String { tsconfig.replace("\"vite.config.ts\"", "\"vite.config.mts\"").replace("\"types\": []", "\"types\": [\"node\"]") }
 
 /// npm scripts compare as commands: the same program and subcommand, then the
@@ -720,4 +730,9 @@ pub(super) fn client_setup_hint(root: &Path) -> Option<&'static str> {
     let reference:serde_json::Value=serde_json::from_str(include_str!("../../../../apps/chat/package.json")).ok()?;
     (react && !expo && !wired && (!package["scripts"]["probe:serve"].is_string() || package["devDependencies"]["vite"] != reference["devDependencies"]["vite"]))
         .then_some("React setup: `snapback4 guide start` has the pinned starter and verification recipe (`init /tmp/my-starter --web`)")
+}
+
+// @ref LLP 3000.037.000#3-password-online-starters — preserve the generated runtime API across git copies.
+fn starter_gitignore(text: &str) -> String {
+    text.replace("# snapback4\n.snapback4/\nsnapback/generated/\n", "# snapback4\n.snapback4/\n")
 }

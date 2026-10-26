@@ -94,6 +94,8 @@ pub(super) fn frontend_proof(source: &str, template: Option<&str>, web: bool) ->
     let mut proof = source.replace("// TEMPLATE_READY", if template == Some("social") {
         "await page.getByText(\"Profile\", { exact: true }).click();"
     } else { "" });
+    proof = proof.replace("// SHARED_IMPORT", if template.is_none() { "import { matchesFilter } from \"../src/shared.ts\";\nassert.equal(matchesFilter(false, \"open\"), true);" } else { "" });
+    proof = proof.replace("// LABELLED_CONTROLS", if template.is_none() && web { "const filter = page.getByRole(\"combobox\", { name: \"Task status\", exact: true });\n    await filter.selectOption(\"open\");\n    await filter.selectOption(\"all\");" } else if template.is_none() { "await page.getByLabel(\"Write status\", { exact: true }).waitFor();" } else { "" });
     if template == Some("social") {
         proof = proof.replace("getByLabel(\"Task\"", "getByLabel(\"Display name\"")
             .replace("name: \"Add\"", "name: \"Save profile\"")
@@ -127,7 +129,8 @@ pub(super) fn frontend_proof(source: &str, template: Option<&str>, web: bool) ->
 
 // @ref LLP 3000.000.000.001#10-wave-20-loop-repairs-dx5 — a rendered starter is not an application write proof.
 pub(super) fn frontend_scaffold(web: bool) -> String {
-    let proof = frontend_proof(include_str!("frontend-proof.mjs"), None, web);
+    let source = include_str!("frontend-proof.mjs").replace("// SHARED_IMPORT", "").replace("// LABELLED_CONTROLS", "");
+    let proof = frontend_proof(&source, None, web);
     let (setup, _) = proof.split_once("    const task =").expect("frontend proof's write section");
     // A public custom schema need not invent identity just to prove rendering.
     let setup = setup.replace(r#"} else {

@@ -75,6 +75,15 @@ fn plan(dir: &Path) -> (Vec<Leftover>, Vec<String>, Vec<String>) {
     if !todos && let Some(web) = [false, true].into_iter().find(|web| super::proof_advice::frontend_template(dir, *web).is_some_and(|(_, template)| template.is_none())) {
         found.push(Leftover { path: "scripts/frontend-proof.mjs", why: "the unmodified todo proof needs your screen's write assertions; keep a runnable frontend scaffold that explicitly reports the missing scenario".into(), rewrite: Some(super::proof::frontend_scaffold(web)) });
     }
+    if found.iter().any(|change| change.rewrite.as_ref().is_some_and(|text| text.contains("/shared.ts\""))) {
+        for (path, source) in [("src/shared.ts", include_str!("starter/shared.ts")), ("src/package.json", "{\"type\":\"module\"}\n")] {
+            if !dir.join(path).exists() { found.push(Leftover { path, why: "shared TypeScript imported by the starter and Node proof".into(), rewrite: Some(source.into()) }); }
+        }
+    }
+    if let Some(text) = read(dir, ".gitignore") {
+        let revised = super::starter_gitignore(&text);
+        if revised != text { found.push(Leftover { path: ".gitignore", why: "the starter's generated runtime imports must survive a git copy".into(), rewrite: Some(revised) }); }
+    }
     readme(dir, &own, todos, &mut found, &mut modified);
     app_json(dir, &mut found);
     expo_favicon(dir, &mut found);
@@ -243,8 +252,8 @@ fn screens(dir: &Path, platform: Platform, own: &OwnSchema, todos: bool, found: 
     let matches_client = |reference: &str, personas: bool| [reference, starter::previous_client(platform, personas)].iter().any(|reference|
         client_shape == normalized(reference) || client_shape == normalized(&starter::web_client((*reference).to_owned(), &journal_shape)) || client_shape == normalized(&starter::online_web_client((*reference).to_owned())) || client_shape == normalized(&starter::expo_client((*reference).to_owned(), &journal_shape)));
     let matches_app = |reference: &str| app == reference || app == reference.replace("export default function App", "export function App");
-    let current = [Body::Todos, Body::Home(first_read(&app))].into_iter().find_map(|body| [0, 1, 2, 3, 4].into_iter().find_map(|version| {
-        let screens = |personas: Option<&[String]>, password| match version { 1 => starter::previous_screens(platform, personas, &body, password), 2 => starter::wave14_screens(platform, personas, &body, password), 3 => starter::wave20_screens(platform, personas, &body, password), 4 => starter::wave22_screens(platform, personas, &body, password), _ => starter::identity_screens(platform, personas, &body, password) };
+    let current = [Body::Todos, Body::Home(first_read(&app))].into_iter().find_map(|body| [0, 1, 2, 3, 4, 5].into_iter().find_map(|version| {
+        let screens = |personas: Option<&[String]>, password| match version { 5 => starter::dx13_screens(platform, personas, &body, password), 1 => starter::previous_screens(platform, personas, &body, password), 2 => starter::wave14_screens(platform, personas, &body, password), 3 => starter::wave20_screens(platform, personas, &body, password), 4 => starter::wave22_screens(platform, personas, &body, password), _ => starter::identity_screens(platform, personas, &body, password) };
         let (guest_app, guest_client) = screens(None, false);
         let (persona_app, persona_client) = screens(Some(&[]), false);
         let (password_app, password_client) = screens(None, true);
@@ -271,6 +280,11 @@ fn screens(dir: &Path, platform: Platform, own: &OwnSchema, todos: bool, found: 
         }
     };
     let (app_text, mut client_text) = starter::identity_screens(platform, wanted_sign_in.personas(), &wanted_body, wanted_sign_in == SignIn::Password);
+    if app_text.contains("/shared.ts\"") && dir.join("src/shared.ts").symlink_metadata().is_ok()
+        && read(dir, "src/shared.ts").as_deref() != Some(include_str!("starter/shared.ts")) {
+        advice.push(format!("{app_path}: keep your screen while src/shared.ts is application-owned; the refreshed starter needs its prepareTitle/matchesFilter exports"));
+        return false;
+    }
     client_text = if explicit_online { starter::online_web_client(client_text) } else if platform == Platform::Expo { starter::expo_client(client_text, &own.offline) } else { starter::web_client(client_text, &own.offline) };
     let client_changed = client_shape != normalized(&client_text);
     if platform == Platform::Expo && app_text.contains("export default function App") {
@@ -543,11 +557,42 @@ fn untouched_wave22_lists_and_clients_adapt_without_rewriting_owned_source() {
             std::fs::write(dir.join(client_path), &client).unwrap();
             let (changes, _) = leftovers(&dir);
             assert!(changes.iter().any(|change| change.path == app_path), "{platform:?} password={password}: upgrade teaches ReadState");
-            assert_eq!(changes.iter().any(|change| change.path == client_path), password, "{platform:?} password={password}: only password upgrades remove witness plumbing; guest persona and direct-SDK proofs stay supported");
+            assert_eq!(changes.iter().any(|change| change.path == client_path), password || platform == Platform::Expo, "{platform:?} password={password}: password upgrades retain explicit witnesses; Expo omits absent optional device props");
             std::fs::write(dir.join(client_path), format!("{client}\n// application-owned edit\n")).unwrap();
             let (changes, _) = leftovers(&dir);
             assert!(!changes.iter().any(|change| change.path == app_path || change.path == client_path));
             std::fs::remove_dir_all(dir).unwrap();
         }
     }
+}
+
+#[test]
+fn dx14_exact_dx13_screens_adapt_with_witness_registration_and_preserve_edits() {
+    for platform in [Platform::Web, Platform::Expo] { for password in [false, true] {
+        let dir = std::env::temp_dir().join(format!("sb4-dx14-adapt-{}-{platform:?}-{password}", std::process::id()));
+        std::fs::create_dir_all(dir.join("snapback")).unwrap();
+        std::fs::create_dir_all(dir.join("src")).unwrap();
+        let source = include_str!("starter/schema.q");
+        let source = if password { source.replace("use identity ", "use identity password ") } else { source.to_owned() };
+        std::fs::write(dir.join("snapback/schema.q"), source).unwrap();
+        let (app, client) = starter::dx13_screens(platform, None, &Body::Todos, password);
+        let (app_path, client_path) = platform.paths();
+        std::fs::write(dir.join(app_path), &app).unwrap();
+        std::fs::write(dir.join(client_path), &client).unwrap();
+        std::fs::write(dir.join(".gitignore"), "# snapback4\n.snapback4/\nsnapback/generated/\nprivate/\n").unwrap();
+        let (changes, _) = leftovers(&dir);
+        assert!(changes.iter().any(|change| change.path == app_path), "{platform:?} password={password}: DX13 screen is recognized");
+        let resulting_client = changes.iter().find(|change| change.path == client_path).and_then(|change| change.rewrite.as_deref()).unwrap_or(&client);
+        assert!(resulting_client.contains("registerWebWitness(app, api)"), "{platform:?} password={password}: {resulting_client}");
+        let ignore = changes.iter().find(|change| change.path == ".gitignore").unwrap().rewrite.as_deref().unwrap();
+        assert!(ignore.contains("private/") && !ignore.contains("snapback/generated/"));
+        std::fs::write(dir.join(app_path), format!("{app}\n// mine\n")).unwrap();
+        let (changes, _) = leftovers(&dir);
+        assert!(!changes.iter().any(|change| change.path == app_path || change.path == client_path));
+        std::fs::write(dir.join(app_path), app).unwrap();
+        std::fs::write(dir.join("src/shared.ts"), "// application-owned helper\n").unwrap();
+        let (changes, _) = leftovers(&dir);
+        assert!(!changes.iter().any(|change| change.path == app_path || change.path == client_path), "custom shared modules keep the screen owned");
+        std::fs::remove_dir_all(dir).unwrap();
+    }}
 }

@@ -23,6 +23,11 @@ pub(super) fn native_template(text: &str) -> Option<(&'static str, bool)> {
 }
 pub(super) fn frontend_template(dir: &Path, web: bool) -> Option<(&'static str, Option<&'static str>)> {
     let text = std::fs::read_to_string(dir.join("scripts/frontend-proof.mjs")).ok()?;
+    for template in [None, Some("chat"), Some("social")] {
+        if text == super::proof::frontend_proof(include_str!("frontend-proof.mjs"), template, web) {
+            return Some((env!("CARGO_PKG_VERSION"), template));
+        }
+    }
     let hash = digest(&text);
     templates().iter().find(|t| t.file == "frontend" && t.web == web && t.sha256 == hash)
         .map(|t| (t.version.as_str(), t.template.as_deref()))
@@ -146,7 +151,7 @@ mod tests {
             ("0.4.30",include_str!("previous/frontend-proof-0.4.30.mjs"),include_str!("previous/day2-proof-0.4.30.mjs")),
             ("0.4.31",include_str!("previous/frontend-proof-0.4.31.mjs"),include_str!("previous/day2-proof-0.4.40.mjs")),
             ("0.4.32",include_str!("previous/frontend-proof-0.4.32.mjs"),include_str!("previous/day2-proof-0.4.32.mjs")),
-            ("0.4.33",include_str!("frontend-proof.mjs"),include_str!("previous/day2-proof-0.4.40.mjs")),
+            ("0.4.33",include_str!("previous/frontend-proof-dx13.mjs"),include_str!("previous/day2-proof-0.4.40.mjs")),
         ] {
             for web in [false,true] { for template in [None,Some("chat"),Some("social")] {
                 expected.push(serde_json::json!({"file":"frontend","version":version,"web":web,"template":template,"sha256":digest(&super::super::proof::frontend_proof(frontend,template,web))}));

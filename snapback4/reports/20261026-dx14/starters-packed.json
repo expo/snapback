@@ -1,0 +1,139 @@
+{
+  "scope": "Installed packed default and password-online web/Expo starters; no publication or Mac qualification",
+  "node": "v24.13.1",
+  "packs": {
+    "snapback4-expo-0.4.43.tgz": "31702fb579a0cd6ed8422df824d7489f91a0dfa73f83070f126bff43dbaf7c38",
+    "snapback4-linux-x64-0.4.43.tgz": "906b800145facb1578959920989a871cddc4e3ca485e759cce79a16be62ab5b0",
+    "snapback4-0.4.43.tgz": "325a56691a40203b4286ac4ab153ce46b05e4505fa0e8ecc20f88e2126bc0199"
+  },
+  "lane_regressions": [
+    "014R",
+    "030R",
+    "044R",
+    "050R",
+    "027E",
+    "012E",
+    "037E",
+    "003R",
+    "021R"
+  ],
+  "results": [
+    {
+      "name": "web-default",
+      "steps": [
+        {
+          "name": "packed-init",
+          "ok": true
+        },
+        {
+          "name": "install",
+          "ok": true
+        },
+        {
+          "name": "check",
+          "ok": true
+        },
+        {
+          "name": "strict-typecheck",
+          "ok": true
+        },
+        {
+          "name": "node-shared-and-generated-import",
+          "ok": true
+        },
+        {
+          "name": "frontend-proof",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "name": "web-password",
+      "steps": [
+        {
+          "name": "packed-init",
+          "ok": true
+        },
+        {
+          "name": "install",
+          "ok": true
+        },
+        {
+          "name": "check",
+          "ok": true
+        },
+        {
+          "name": "strict-typecheck",
+          "ok": true
+        },
+        {
+          "name": "node-shared-and-generated-import",
+          "ok": true
+        },
+        {
+          "name": "frontend-proof",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "name": "expo-default",
+      "steps": [
+        {
+          "name": "packed-init",
+          "ok": true
+        },
+        {
+          "name": "install",
+          "ok": true
+        },
+        {
+          "name": "check",
+          "ok": true
+        },
+        {
+          "name": "strict-typecheck",
+          "ok": true
+        },
+        {
+          "name": "node-shared-and-generated-import",
+          "ok": true
+        },
+        {
+          "name": "frontend-proof",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "name": "expo-password",
+      "steps": [
+        {
+          "name": "packed-init",
+          "ok": true
+        },
+        {
+          "name": "install",
+          "ok": true
+        },
+        {
+          "name": "check",
+          "ok": true
+        },
+        {
+          "name": "strict-typecheck",
+          "ok": true
+        },
+        {
+          "name": "node-shared-and-generated-import",
+          "ok": true
+        },
+        {
+          "name": "frontend-proof",
+          "ok": true
+        }
+      ]
+    }
+  ],
+  "source_replays": "Read-only wave-30 app copies inspected under /tmp/dx14-replay/starters, then removed. Named regression behaviors executed on fresh packed starters; original full applications were not rebuilt."
+}
