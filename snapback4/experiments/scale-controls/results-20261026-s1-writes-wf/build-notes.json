@@ -1,0 +1,8 @@
+{
+  "generator_build": "exact archived S1-C source and required sibling proxy module copied before generator build; no source changes",
+  "seed": "copied unchanged seed main.rs outside Git, made core path absolute, refreshed copy lockfile offline to avoid inherited stale lock",
+  "release_product_from_current_tree": true,
+  "diagnostic": "same outside-Git public Queue probe as G7.2 rebuilt release against current core",
+  "target": "/home/ccheever/projects/sb4-s1sk/snapback4/target/s1-wf",
+  "no_repository_source_or_lock_changes": true
+}

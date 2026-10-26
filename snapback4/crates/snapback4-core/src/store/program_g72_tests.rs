@@ -185,8 +185,13 @@ fn until_event(events: &mpsc::Receiver<Witness>, ordinal: usize, point: Point) -
 }
 #[test]
 #[ignore = "private Postgres"]
-fn g72_known_abort_cascades_whole_successor_after_both_transactions_end() {
+fn g72_known_abort_cascades_whole_successor_after_both_transactions_end() { known_abort_cascade(false); }
+#[test]
+#[ignore="private Postgres"]
+fn g7e_known_abort_cascades_whole_successor_and_discards_provisional_state() {known_abort_cascade(true);}
+fn known_abort_cascade(early:bool) {
     let mut engine = fixture(true);
+    if early {engine.store_mut().enable_postgres_early_lock_release().unwrap();}
     let mut client = observer(&mut engine);
     let mut lane = Lane::new();
     let hold = Hold::new();
@@ -366,7 +371,11 @@ fn g72_ticket_deadline_aborts_without_commit_and_preserves_original_deadline() {
 
 #[test]
 #[ignore = "private Postgres"]
-fn g72_held_random_histories_match_n1_with_refusals_replays_and_barriers() {
+fn g72_held_random_histories_match_n1_with_refusals_replays_and_barriers() { held_histories(false); }
+#[test]
+#[ignore="private Postgres"]
+fn g7e_held_random_histories_match_n1_with_refusals_replays_and_barriers() {held_histories(true);}
+fn held_histories(early:bool) {
     for seed in [1u64, 19, 0xdecaf] {
         let make = |i: usize| {
             let old = if i > 3 && i % 11 == 0 { i - 3 } else { i };
@@ -401,6 +410,7 @@ fn g72_held_random_histories_match_n1_with_refusals_replays_and_barriers() {
             .map(|i| outcome(expected.invoke_program(&mut make(i))))
             .collect::<Vec<_>>();
         let mut actual = fixture(true);
+        if early {actual.store_mut().enable_postgres_early_lock_release().unwrap();}
         let mut lane = Lane::new();
         let outputs = Arc::new(Mutex::new(Vec::new()));
         let mut next = 0usize;
@@ -688,7 +698,11 @@ mod faults;
 
 #[test]
 #[ignore = "private Postgres"]
-fn g72_two_slot_rt0_is_three_flights_per_eligible_batch_for_every_n() {
+fn g72_two_slot_rt0_is_three_flights_per_eligible_batch_for_every_n() { two_slot_rt0(false); }
+#[test]
+#[ignore = "private Postgres"]
+fn g7e_two_slot_rt0_includes_marker_in_three_flights_for_every_n() { two_slot_rt0(true); }
+fn two_slot_rt0(early:bool) {
     for g6 in [false, true] {
         for n in [1, 8, 32] {
             let mut engine = fixture(true);
@@ -702,6 +716,7 @@ fn g72_two_slot_rt0_is_three_flights_per_eligible_batch_for_every_n() {
                     .get_mut()
                     .read_grant = Some(grant);
             }
+            if early {engine.store_mut().enable_postgres_early_lock_release().unwrap();}
             let intent = |start: usize, n: usize| {
                 (start..start + n)
                     .map(|i| {

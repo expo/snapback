@@ -27,6 +27,9 @@ mod writer_driver;
 mod batch;
 pub mod literal;
 mod flight;
+pub(crate) mod early_release;
+#[cfg(test)]
+mod early_release_tests;
 mod pipeline;
 pub(crate) mod read_plan;
 pub(super) mod read_closure;

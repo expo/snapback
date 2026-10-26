@@ -219,12 +219,14 @@ fn rt3b_lev_ownership_postgres() { ownership(true); }
 #[cfg(feature = "postgres")]
 #[test]
 #[ignore = "private PG16"]
-fn rt3b_lev_pipeline_successor_warm_unkeyed_authority_postgres() {
+fn rt3b_lev_pipeline_successor_warm_unkeyed_authority_postgres() { pipeline_successor(false); }
+#[cfg(feature = "postgres")]
+fn pipeline_successor(early: bool) {
     for change in ["scope-stale", "scope-read", "store"] {
         // Use G3b's admitted explicit point-read/update form.
         let source=SOURCE.replace("  update counters[\"c\"] { n: (counters[\"c\"].n ?? 0) + n }",
             "  c = counters[\"c\"] ! else NOT_FOUND\n  update counters[c.id] { n: c.n + n }");
-        let f = Fixture::with_source(true, &source);
+        let f = Fixture::with_source_commit(true, &source, early);
         let first = f.session(false);
         let successor = f.session(false);
         for session in [&first, &successor] {
@@ -235,8 +237,9 @@ fn rt3b_lev_pipeline_successor_warm_unkeyed_authority_postgres() {
             if change == "scope-read" {
                 let reply = f.host.request("POST", "/m/change", &headers(&successor), r#"{"args":{"n":1}}"#);
                 refused(&reply, "E_AUTH"); no_store_metadata(&reply);
-                // The next batch plans from a matching Read hint. It must
-                // still independently require fresh Full mutation scope.
+                // Failed mutations evict staged hints. A certified query can
+                // supply a matching Read hint, which still cannot grant writes.
+                assert_eq!(body(&f.host.request("POST", "/q/count", &headers(&successor), "{}"))["data"], 0);
             }
         }
         let pair = || {
@@ -283,4 +286,67 @@ fn rt3b_lev_pipeline_successor_warm_unkeyed_authority_postgres() {
         assert!(held && (overlapped || change=="store"), "{change}: the chained successor must check fresh authority while its predecessor's COMMIT is held; stats={:?}",f.host.shared.engine.batch_stats());
         assert_eq!(f.count(),4,"{change}: successor authority must publish no write");
     }
+}
+
+#[cfg(feature="postgres")] #[test] #[ignore="private PG16"]
+fn g7e_lev_pipeline_successor_warm_unkeyed_authority_postgres() { pipeline_successor(true); }
+
+#[cfg(feature="postgres")]
+fn marker_hint_release(fail: bool) {
+    let source=SOURCE.replace("  update counters[\"c\"] { n: (counters[\"c\"].n ?? 0) + n }",
+        "  c = counters[\"c\"] ! else NOT_FOUND\n  update counters[c.id] { n: c.n + n }");
+    let f=Fixture::with_source_commit(true, &source, true);
+    let session=f.session(false);
+    assert_eq!(body(&f.host.request("POST", "/q/count", &headers(&session), "{}"))["data"],0);
+    let pair=|clear: bool| {
+        let gate=Arc::new(WorkGate::default()); let release=ReleaseGate(gate.clone()); let hook=gate.clone();
+        let shared=f.host.shared.clone();
+        let parked=thread::spawn(move || shared.engine.submit(move |_,_|hook.park()));
+        wait_until(||gate.entered.load(Ordering::Acquire)==1);
+        let mut tasks=Vec::new();
+        for n in 1..=2 {
+            let address=f.host.address;let request=wire("/m/change",&session,&json!({"args":{"n":1}}));
+            tasks.push(thread::spawn(move || exchange_held(address,2*WAIT_TIMEOUT,request)));
+            wait_until(||f.host.shared.engine.queued()>=n+1);
+        }
+        // Both requests already used warm ingress. Remove the old observation
+        // before final authority; staging must not republish it ahead of D.
+        if clear { lock(&f.host.shared.carried).clear(); }
+        drop(release);parked.join().unwrap().unwrap();tasks
+    };
+    for task in pair(false) { assert_eq!(body(&task.join().unwrap())["state"],"sent"); }
+    let mut hold=lock(&f.host.shared.engine).store_mut().test_request_marker_hold(fail).unwrap();
+    let tasks=pair(true);
+    wait_until(||hold.waiting().unwrap());
+    let hint_before=lock(&f.host.shared.carried).clone();
+    let replies_before=tasks.iter().any(|t|t.is_finished());
+    hold.release().unwrap();
+    let replies:Vec<_>=tasks.into_iter().map(|t|t.join().unwrap()).collect();
+    assert!(hint_before.is_empty(),"staging refreshed a hint above D: {hint_before:?}");
+    assert!(!replies_before,"marker must gate HTTP output");
+    for reply in &replies {
+        if fail {refused(reply,"E_COMMIT_OUTCOME_UNKNOWN");no_store_metadata(reply);}
+        else {assert_eq!(body(reply)["state"],"sent","{reply}");}
+    }
+    assert_eq!(lock(&f.host.shared.carried).is_empty(),fail,"only certified outcomes publish hints");
+    // A failed marker's foreign trigger intentionally prevents D recovery.
+    // The control connection, rather than a Snapback reader, observes data.
+    assert_eq!(hold.counter_value().unwrap(),4,"committed but unconfirmed members must not rerun");
+}
+#[cfg(feature="postgres")] #[test] #[ignore="private PG16"]
+fn g7e_lev_hint_waits_for_marker_certificate(){marker_hint_release(false);}
+#[cfg(feature="postgres")] #[test] #[ignore="private PG16"]
+fn g7e_lev_unknown_marker_does_not_refresh_hint(){marker_hint_release(true);}
+
+#[cfg(feature="postgres")] #[test] #[ignore="private PG16"]
+fn g7e_lev_queue_rejection_evicts_warm_hint() {
+    let f = Fixture::with_source_commit(true, SOURCE, true);
+    let session = f.session(false);
+    assert_eq!(body(&f.host.request("POST", "/q/count", &headers(&session), "{}"))["data"], 0);
+    assert_eq!(lock(&f.host.shared.carried).len(), 1);
+    f.host.shared.engine.test_ownership_loss();
+    let reply = f.host.request("POST", "/m/change", &headers(&session), r#"{"args":{"n":1}}"#);
+    refused(&reply, "E_STORE_OWNERSHIP");
+    no_store_metadata(&reply);
+    assert!(lock(&f.host.shared.carried).is_empty(), "queue failure bypassed the continuation and retained its hint");
 }

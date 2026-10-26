@@ -266,6 +266,9 @@ impl Tx<'_> {
             }
         }
         self.capture_tail_publication(row, 8)?;
+        if let Some(base)=self.batch_base.borrow().as_ref() {
+            *self.batch_end.borrow_mut()=Some(super::group_commit::Head {seq:signed(last)?,revision:base.revision+tails.len() as i64,attempt:self.attempt.borrow().clone(),xid:base.xid.clone()});
+        }
         drop(tails);
         self.group_tails.borrow_mut().clear();
         self.group_images.borrow_mut().clear();

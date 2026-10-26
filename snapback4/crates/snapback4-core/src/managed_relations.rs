@@ -31,6 +31,7 @@ pub(crate) const TABLES: &[&str] = &[
     "_dormant_tables",
     "_dormant_values",
     "_downfill_definitions",
+    "_durable",
     "_effect_keys",
     "_effect_presence",
     "_effect_steps",

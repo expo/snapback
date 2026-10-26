@@ -1,0 +1,10 @@
+{
+  "path": "/home/ccheever/sb4scale/archive/s1-final-e-20261026.tar.gz",
+  "sha256": "30bc6d1db976ccc540d0ccdf206c41429d6b5dbdb200bc3b6d409c07d7821758",
+  "bytes": 764501647,
+  "members": 4367,
+  "main_trial_jsons": 342,
+  "background_trial_jsons": 240,
+  "prior_levers_archive_sha256": "34760fd372799a78431e96f576646cc515e04c4f3896355966717ce0c15b06d9",
+  "prior_archive_embedded": true
+}

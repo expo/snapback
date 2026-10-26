@@ -1,0 +1,22 @@
+{
+  "results-20261024-s1-onehost-controls": {
+    "comparison_sha256": "e5e872aa643ae7024420a0a65408abac4536ffb4b954332bcb068aea3d13354c",
+    "archive_sha256": "2ad9953ae6e01a790171e3778547e2703f4d0db9e991039f2833c03543ecb7fb",
+    "archive_bytes": 189826768
+  },
+  "results-20261024-s1-onehost-final": {
+    "comparison_sha256": "d601feffdd271f676c82e353d346b05fda4dac18922efe04a1dc840f1e7b9df9",
+    "archive_sha256": "f5e46efdd1a8a9de67eac775e324c5300cb9aadd41f79345d67c44a5bce166b0",
+    "archive_bytes": 405957913
+  },
+  "results-20261025-s1-writes-g72": {
+    "comparison_sha256": "abbe534524891b8e73368a46a8680185524983e52a7196243422fb518b2e9ff1",
+    "archive_sha256": "18499e06b6b6070575fe5b7524ba9ed7983caf7aea5b725f6d0f1a0546e86244",
+    "archive_bytes": 557275766
+  },
+  "results-20261025-s1-writes-levers": {
+    "comparison_sha256": "7d1c06cc3c35f8455b249bf891f3d371e9a879dd5eed2e5149d9f731a361d0d7",
+    "archive_sha256": "34760fd372799a78431e96f576646cc515e04c4f3896355966717ce0c15b06d9",
+    "archive_bytes": 620545263
+  }
+}

@@ -1,4 +1,4 @@
-//! Synchronous ticket batches, with exact identities for chained successors.
+//! Ticket batches, with exact identities for chained successors.
 // @ref LLP 3000.009.001.000.000.002#3.4 — store-keyed tickets and an exact head identity prevent ABA.
 use super::store::{Store, Tx};
 use crate::RuntimeError;

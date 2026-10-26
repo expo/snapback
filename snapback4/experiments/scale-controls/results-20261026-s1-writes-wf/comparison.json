@@ -1,0 +1,326 @@
+[
+  {
+    "levers_snapback": {
+      "rate": 2262,
+      "p50_ms": 12.099583,
+      "p99_ms": 27.901951,
+      "source": "matrix-g6/w4-n1000000-d500-c32-disjoint"
+    },
+    "levers_verdict": "TIE",
+    "g72_snapback": {
+      "rate": 1600,
+      "p50_ms": 12.140543,
+      "p99_ms": 17.547263,
+      "source": "matrix-g6/w4-n1000000-d500-c32-disjoint"
+    },
+    "g72_verdict": "WIN",
+    "workload": "W4",
+    "keys": "disjoint",
+    "link": "A",
+    "control": "supabase",
+    "best_control": {
+      "rate": 3200,
+      "p50_ms": 8.019967,
+      "p99_ms": 29.442047,
+      "source": "S1-C"
+    },
+    "prior_snapback": {
+      "rate": 800,
+      "p50_ms": 18.579455,
+      "p99_ms": 27.312127,
+      "source": "matrix-snapback-g6-rest/w4-n1000000-d500-c32-disjoint"
+    },
+    "current": {
+      "rate": 2262,
+      "p50_ms": 10.190847,
+      "p99_ms": 14.819327,
+      "source": "matrix-g6/w4-n1000000-d500-c32-disjoint"
+    },
+    "control_verdict": "LOSS",
+    "prior_verdict": "WIN",
+    "values": {
+      "supabase": {
+        "rate": 3200,
+        "p50_ms": 8.019967,
+        "p99_ms": 29.442047,
+        "source": "S1-C"
+      },
+      "convex": {
+        "rate": null,
+        "p50_ms": null,
+        "p99_ms": null,
+        "source": "S1-C"
+      }
+    }
+  },
+  {
+    "levers_snapback": {
+      "rate": 1600,
+      "p50_ms": 12.926975,
+      "p99_ms": 17.989631,
+      "source": "matrix-g6/w4-n1000000-d1000-c32-disjoint"
+    },
+    "levers_verdict": "WIN",
+    "g72_snapback": {
+      "rate": 1600,
+      "p50_ms": 14.966783,
+      "p99_ms": 20.578303,
+      "source": "matrix-g6/w4-n1000000-d1000-c32-disjoint"
+    },
+    "g72_verdict": "WIN",
+    "workload": "W4",
+    "keys": "disjoint",
+    "link": "B",
+    "control": "supabase",
+    "best_control": {
+      "rate": 1600,
+      "p50_ms": 9.363455,
+      "p99_ms": 17.907711,
+      "source": "S1-C"
+    },
+    "prior_snapback": {
+      "rate": 800,
+      "p50_ms": 23.478271,
+      "p99_ms": 31.309823,
+      "source": "matrix-snapback-g6-rest/w4-n1000000-d1000-c32-disjoint"
+    },
+    "current": {
+      "rate": 2262,
+      "p50_ms": 12.681215,
+      "p99_ms": 53.051391,
+      "source": "matrix-g6/w4-n1000000-d1000-c32-disjoint"
+    },
+    "control_verdict": "WIN",
+    "prior_verdict": "WIN",
+    "values": {
+      "supabase": {
+        "rate": 1600,
+        "p50_ms": 9.363455,
+        "p99_ms": 17.907711,
+        "source": "S1-C"
+      },
+      "convex": {
+        "rate": 141,
+        "p50_ms": 16.842751,
+        "p99_ms": 23.379967,
+        "source": "S1-C"
+      }
+    }
+  },
+  {
+    "levers_snapback": {
+      "rate": 1600,
+      "p50_ms": 12.287999,
+      "p99_ms": 17.252351,
+      "source": "matrix-g6/w5-n1000000-d500-c32-same"
+    },
+    "levers_verdict": "TIE",
+    "g72_snapback": {
+      "rate": 1600,
+      "p50_ms": 12.795903,
+      "p99_ms": 21.807103,
+      "source": "matrix-g6/w5-n1000000-d500-c32-same"
+    },
+    "g72_verdict": "TIE",
+    "workload": "W5",
+    "keys": "same",
+    "link": "A",
+    "control": "convex",
+    "best_control": {
+      "rate": 25,
+      "p50_ms": 22.560767,
+      "p99_ms": 28.803071,
+      "source": "S1-C"
+    },
+    "prior_snapback": {
+      "rate": 800,
+      "p50_ms": 20.267007,
+      "p99_ms": 29.294591,
+      "source": "matrix-snapback-g6-rest/w5-n1000000-d500-c32-same"
+    },
+    "current": {
+      "rate": 1600,
+      "p50_ms": 11.116543,
+      "p99_ms": 14.966783,
+      "source": "matrix-g6/w5-n1000000-d500-c32-same"
+    },
+    "control_verdict": "WIN",
+    "prior_verdict": "WIN",
+    "values": {
+      "supabase": {
+        "rate": 8,
+        "p50_ms": 14.172159,
+        "p99_ms": 15.294463,
+        "source": "S1-C"
+      },
+      "convex": {
+        "rate": 25,
+        "p50_ms": 22.560767,
+        "p99_ms": 28.803071,
+        "source": "S1-C"
+      }
+    }
+  },
+  {
+    "levers_snapback": {
+      "rate": 1131,
+      "p50_ms": 14.442495,
+      "p99_ms": 19.628031,
+      "source": "matrix-g6/w5-n1000000-d1000-c32-same"
+    },
+    "levers_verdict": "LOSS",
+    "g72_snapback": {
+      "rate": 1131,
+      "p50_ms": 16.908287,
+      "p99_ms": 21.741567,
+      "source": "matrix-g6/w5-n1000000-d1000-c32-same"
+    },
+    "g72_verdict": "LOSS",
+    "workload": "W5",
+    "keys": "same",
+    "link": "B",
+    "control": "supabase",
+    "best_control": {
+      "rate": 70,
+      "p50_ms": 8.069119,
+      "p99_ms": 8.822783,
+      "source": "S1-C"
+    },
+    "prior_snapback": {
+      "rate": 141,
+      "p50_ms": 23.445503,
+      "p99_ms": 34.111487,
+      "source": "matrix-snapback-g6-rest/w5-n1000000-d1000-c32-same"
+    },
+    "current": {
+      "rate": 800,
+      "p50_ms": 11.853823,
+      "p99_ms": 15.515647,
+      "source": "matrix-g6/w5-n1000000-d1000-c32-same"
+    },
+    "control_verdict": "WIN",
+    "prior_verdict": "WIN",
+    "values": {
+      "supabase": {
+        "rate": 70,
+        "p50_ms": 8.069119,
+        "p99_ms": 8.822783,
+        "source": "S1-C"
+      },
+      "convex": {
+        "rate": 25,
+        "p50_ms": 24.084479,
+        "p99_ms": 30.949375,
+        "source": "S1-C"
+      }
+    }
+  },
+  {
+    "levers_snapback": {
+      "rate": 1600,
+      "p50_ms": 11.313151,
+      "p99_ms": 54.919167,
+      "source": "matrix-g6/w5-n1000000-d500-c32-hot1"
+    },
+    "levers_verdict": "LOSS",
+    "g72_snapback": {
+      "rate": 1600,
+      "p50_ms": 12.754943,
+      "p99_ms": 17.711103,
+      "source": "matrix-g6/w5-n1000000-d500-c32-hot1"
+    },
+    "g72_verdict": "LOSS",
+    "workload": "W5",
+    "keys": "hot1",
+    "link": "A",
+    "control": "supabase",
+    "best_control": {
+      "rate": 800,
+      "p50_ms": 7.200767,
+      "p99_ms": 13.885439,
+      "source": "S1-C"
+    },
+    "prior_snapback": {
+      "rate": 1131,
+      "p50_ms": 19.480575,
+      "p99_ms": 27.246591,
+      "source": "matrix-snapback-g6-rest/w5-n1000000-d500-c32-hot1"
+    },
+    "current": {
+      "rate": 800,
+      "p50_ms": 8.921087,
+      "p99_ms": 26.902527,
+      "source": "matrix-g6/w5-n1000000-d500-c32-hot1"
+    },
+    "control_verdict": "TIE",
+    "prior_verdict": "LOSS",
+    "values": {
+      "supabase": {
+        "rate": 800,
+        "p50_ms": 7.200767,
+        "p99_ms": 13.885439,
+        "source": "S1-C"
+      },
+      "convex": {
+        "rate": 400,
+        "p50_ms": 38.764543,
+        "p99_ms": 64.749567,
+        "source": "S1-C"
+      }
+    }
+  },
+  {
+    "levers_snapback": {
+      "rate": 1600,
+      "p50_ms": 13.189119,
+      "p99_ms": 56.229887,
+      "source": "matrix-g6/w5-n1000000-d1000-c32-hot1"
+    },
+    "levers_verdict": "TIE",
+    "g72_snapback": {
+      "rate": 1600,
+      "p50_ms": 15.359999,
+      "p99_ms": 22.102015,
+      "source": "matrix-g6/w5-n1000000-d1000-c32-hot1"
+    },
+    "g72_verdict": "TIE",
+    "workload": "W5",
+    "keys": "hot1",
+    "link": "B",
+    "control": "supabase",
+    "best_control": {
+      "rate": 1600,
+      "p50_ms": 9.297919,
+      "p99_ms": 14.327807,
+      "source": "S1-C"
+    },
+    "prior_snapback": {
+      "rate": 800,
+      "p50_ms": 24.297471,
+      "p99_ms": 33.816575,
+      "source": "matrix-snapback-g6-rest/w5-n1000000-d1000-c32-hot1"
+    },
+    "current": {
+      "rate": 1600,
+      "p50_ms": 11.485183,
+      "p99_ms": 47.284223,
+      "source": "matrix-g6/w5-n1000000-d1000-c32-hot1"
+    },
+    "control_verdict": "TIE",
+    "prior_verdict": "WIN",
+    "values": {
+      "supabase": {
+        "rate": 1600,
+        "p50_ms": 9.297919,
+        "p99_ms": 14.327807,
+        "source": "S1-C"
+      },
+      "convex": {
+        "rate": 25,
+        "p50_ms": 27.328511,
+        "p99_ms": 35.717119,
+        "source": "S1-C"
+      }
+    }
+  }
+]

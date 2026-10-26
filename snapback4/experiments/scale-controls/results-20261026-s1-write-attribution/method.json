@@ -1,0 +1,209 @@
+{
+  "base": "5059edecb3416a993b61604c7c91e5f97efe3130",
+  "host": "expose-builder-pixel-a",
+  "profile": "release opt-level3; core-only debug-assertions=true; no test-support",
+  "configuration": {
+    "g6": "1000,250",
+    "owner": "ha=none",
+    "S": "synchronous default",
+    "E": "commit=early, synchronous marker",
+    "writer_depth": 2,
+    "clients": 32,
+    "warmup_s": 10,
+    "measured_s": 20,
+    "native_repetitions": 1,
+    "probe_repetitions": 3,
+    "pg_affinity": "0-2,6-8",
+    "server_proxy_affinity": "3-4,9-10",
+    "generator_affinity": "5,11",
+    "A_us_per_direction": 250,
+    "B_us_per_direction": 500
+  },
+  "instrumentation": {
+    "time": 1792993463.865267,
+    "binaries": {
+      "snapback4": "2e4b990efad881549aa6d2698d1739715db9ddb00396a6910795bfd63c0a3758",
+      "generator-probe": "dba5213e3e449a32b1dc2ab399bbe613001aebbb6473f0c366efe0658a1bf7cc",
+      "snapback4-probe": "58e20fe7e7c4c1c72dc0bb36babee1885f36b4f8d29c526cfee0a47d5699391d",
+      "sb4-scale-controls": "a8c2372df10d55dcfd123e5b0c7241025c8d35d0da50e14300b48a866620099a",
+      "sb4-postgres-scale-seed": "ed1d9fc092d26b63e2e06edaf15dbb31bc596a90677cbb6e56c3126c1c35e27a"
+    },
+    "pgprobe_sha256": "8b0dd47216c1fd639afadc01fb412b4db2100fefb08a4da85e47782c5c5eeac2",
+    "sources": {
+      "crates/snapback4-core/Cargo.toml": {
+        "product": "99299d61c362cfb2530751b81958b7e17a365b2d62d16a143eb19cca61d5a762",
+        "probe": "ad6f6565057c95cd17291a97a343f5adf21e2b2c62039ffa7d717a0a74694514"
+      },
+      "crates/snapback4-core/src/lib.rs": {
+        "product": "9cbf55ca92da16c5b765c42c2042d09f2aeda6308348a9199cdc44a9cf6164a2",
+        "probe": "3a2ef280699270a9141cd56d66b2fbabdaf2dffc3a6c59fe39ca810f418a7704"
+      },
+      "crates/snapback4-core/src/diagnosis.rs": {
+        "product": null,
+        "probe": "745becac7ae4a52187b0697e02bcba0affc2a7588deb12bed44da873e414436b"
+      },
+      "crates/snapback4-core/src/engine/program_batch.rs": {
+        "product": "efeb222f75bb87157691817ee0ce66e1ec6d1969412e658bf9a285367f414df0",
+        "probe": "2517e6c282f9e6ac570439ba818b6720091d096622f99bbb0ec154161f624af0"
+      },
+      "crates/snapback4-core/src/engine/command_batch.rs": {
+        "product": "48d8c6fbbe08e2d9e0da81ea0a6ee4de2760f8f911c3dc71049b973e36be4d78",
+        "probe": "8784e1604d5a986ec221a134d240f1a0eaa168fd8e728fa44f75e1ccaf97cdd3"
+      },
+      "crates/snapback4-core/src/engine/program_pipeline.rs": {
+        "product": "1571ca31a15e31f97beb47cdbe191ee2654e764232bcf35e3b9197de0c6c6bec",
+        "probe": "896a4870ca70bfc863f54108da062c6ee3b9dd0b5224383c244f49f36f1a20dc"
+      },
+      "crates/snapback4-core/src/engine/postgres/writer_slot.rs": {
+        "product": "7ff4dbc74d64a2a42c1d0d1a361eb63a8eb44e3f4160289922230a611aff02e8",
+        "probe": "24631a5e70420a937017962bfd647d33003e96223dfeb45a100acc876a63d1dd"
+      },
+      "crates/snapback4-core/src/engine/postgres/flight.rs": {
+        "product": "66000cfaa3791543d5d8ce0c812fdc4a26dbf7c1d2551eb6b209897891f5c9f1",
+        "probe": "0b064c4273291992f2b94b462737f63424a53bb5bafe2b62235349942e214576"
+      },
+      "crates/snapback4-core/src/engine/postgres/early_release.rs": {
+        "product": "99e5410c2562fdca35880404e7ec5bfc3af71efb652e785ef6ded1ddf681b081",
+        "probe": "4a189f966457b95cc78bc06ac1b08d1e327b448b3ab6cadcfda9885ffd51fccf"
+      },
+      "crates/snapback4-core/src/engine/postgres/ownership.rs": {
+        "product": "a7d58fda30697edfd2c79be604f3eead50dcd67aa6d8633314938b8b126ad514",
+        "probe": "ec03eb39320c8b9da03ec03eff18d1cf35548565e918f0ea27046355f08c9aad"
+      },
+      "crates/snapback4-core/src/engine/postgres/read_grant.rs": {
+        "product": "096fa86f741c911464db23f14913006016241bb9e15c4ae4eb381f2b91c94746",
+        "probe": "5e2b13a771df9274d35b820ad85e112467bb6e8725dfd44cf505f297027dd5da"
+      },
+      "crates/snapback4-core/src/engine/committer/wave.rs": {
+        "product": "d7ee8c68a477872b08a71012f0ca7a189199e2430ea3d9a035dae5a8789d3033",
+        "probe": "ae033026d4969755a7073d04ec706e01dc420acce668ed8bd2bc136cda8108b2"
+      },
+      "crates/snapback4/src/serve_trace.rs": {
+        "product": "8c602d450bbdc5aeb1f1c60bf4ce5e91a3472668ca3e1c8ae534bdf772c65202",
+        "probe": "ba194e9c8add3efa0bbec1ed59201ec740dd2bbd968e9b41fec75c9ace976cbb"
+      },
+      "crates/snapback4/src/serve.rs": {
+        "product": "d4231b93c2b3e5a447b88dec249d911233a85608257c81c00bc6be8735e8efc2",
+        "probe": "27f7f00d1fce11ab0b63f33b0a73b1d6a53389086a27a5ca19bf3812293436cc"
+      },
+      "crates/snapback4/src/serve_ephemeral.rs": {
+        "product": "d6d56338fa8d69f60847fa85a2d4e5b7d3e417de107953cc152c4a8fc297f547",
+        "probe": "3f5435d39150329198dcb20d165551fe592ab449fabadcdbfa31362771992fa6"
+      }
+    },
+    "committer_events": "collection, intents, classification/plan, facts/flights, parallel, members/merge, tail, COMMIT, poll, publication, reply, solo and owner renewal",
+    "pg_commit_scope": "XID-bearing PRE_COMMIT to COMMIT callbacks; actual flush included",
+    "product_source_unchanged": true
+  },
+  "fixture": {
+    "ops": 0,
+    "head": {
+      "seq": 6696,
+      "attempt": "4:1954",
+      "revision": 6960,
+      "singleton": true
+    },
+    "commits": 6696,
+    "counters": 257,
+    "messages": 1000000,
+    "commit_index_bytes": 172032,
+    "server_version_num": "160015"
+  },
+  "generator_source": {
+    "source_commit": "b5e34d8912",
+    "all_archived_source_hashes_match": true,
+    "probe_changes": "load.rs numeric clocks/header only; distinct package name to prevent Cargo artifact reuse",
+    "native_source_unchanged": true
+  },
+  "RTT": {
+    "captures": 24,
+    "minimum_p50_ms": 0.562,
+    "maximum_p99_ms": 1.172
+  },
+  "host_start_checks": {
+    "observations": 12,
+    "busy_observations": 0,
+    "loadavg_ranges": [
+      [
+        0.82,
+        4.59
+      ],
+      [
+        1.18,
+        3.98
+      ],
+      [
+        1.55,
+        3.0
+      ]
+    ]
+  },
+  "minimum_observed_home_free_gib": 28.391376495361328,
+  "generator_affinity_witnesses": 49,
+  "flush_position_assertion_failures": 0,
+  "fixture_cache": {
+    "path": "/home/ccheever/sb4scale/s1-write-attribution-20261026-fixture.dump",
+    "sha256": "93d96701adb317e43e7da0bbdac34dff1a635ca4f3606d8dc3f5697e1ad488c8",
+    "private_mode": "0600",
+    "outside_git": true
+  },
+  "setup": {
+    "reason": "ALTER ROLE quoted empty preload list is a filename; use RESET",
+    "main_matrix_trials_started": 0,
+    "original_cluster_stopped": true,
+    "original_seed_removed_by_original_runner_cleanup": true,
+    "first_attempt_retained": "setup-attempt-1-matrix",
+    "replacement_fixture_will_be_cached": true,
+    "time": 1792992610.3503056
+  },
+  "process_tracking_limit": "One 4.85-second manual probe-generator rebuild did not retain its full PID/birth census; final recorded-identity and target-executable scans cover cleanup. Every main benchmark subprocess is recorded by the runner.",
+  "integrity": {
+    "commit": "5059edecb3416a993b61604c7c91e5f97efe3130",
+    "binaries": {
+      "snapback4": "2e4b990efad881549aa6d2698d1739715db9ddb00396a6910795bfd63c0a3758",
+      "generator-probe": "dba5213e3e449a32b1dc2ab399bbe613001aebbb6473f0c366efe0658a1bf7cc",
+      "snapback4-probe": "58e20fe7e7c4c1c72dc0bb36babee1885f36b4f8d29c526cfee0a47d5699391d",
+      "sb4-scale-controls": "a8c2372df10d55dcfd123e5b0c7241025c8d35d0da50e14300b48a866620099a",
+      "sb4-postgres-scale-seed": "ed1d9fc092d26b63e2e06edaf15dbb31bc596a90677cbb6e56c3126c1c35e27a"
+    },
+    "product_tracked_sources_unchanged": true,
+    "probe_only_outside_repository": true,
+    "flush_assertion_in_both_binaries": true,
+    "observer_has_numeric_records_only": true
+  },
+  "trace_validation": {
+    "ordered_release_census_passed": true,
+    "probe_service_cells": 6,
+    "failed_original_finals": 4,
+    "measured_cascade": "E W4/A3200 r1: 19/5 members; five successor survivors recover",
+    "warmup_cascade": "S W4/B1600 r0, offset0.3s: 13/7 members"
+  },
+  "cohort_window_UTC": [
+    "2026-10-26T05:58:53.176843+00:00",
+    "2026-10-26T06:26:08.656064+00:00"
+  ],
+  "repository_checks": {
+    "ref_check": {
+      "passed": true,
+      "LLPs": 569,
+      "refs": 12046,
+      "errors": 0,
+      "unchecked": 0
+    },
+    "JSON_and_Markdown_targets": true,
+    "affected_plan": {
+      "base": "sb4-pg/main-wa",
+      "fetched": false,
+      "broad": true,
+      "reason": "unknown experiment result paths",
+      "executed": false
+    },
+    "product_source_unchanged": true,
+    "no_product_battery_or_publication_claim": true
+  },
+  "archive_process_cleanup": {
+    "pid_birth_pairs": 4,
+    "living": [],
+    "including_zombies": true
+  }
+}

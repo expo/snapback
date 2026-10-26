@@ -54,6 +54,30 @@ pub enum SubmitError {
     OwnershipLost,
 }
 
+type Terminal<T> = Result<thread::Result<T>, SubmitError>;
+
+// @ref LLP 3000.009.001.000.000.002#4.4 — ownership refusal, pause rejection and actual results share one terminal claim.
+struct Completion<T>(Arc<Mutex<Option<mpsc::SyncSender<Terminal<T>>>>>);
+impl<T> Clone for Completion<T> {
+    fn clone(&self) -> Self { Self(self.0.clone()) }
+}
+impl<T> Completion<T> {
+    fn new(sender: mpsc::SyncSender<Terminal<T>>) -> Self {
+        Self(Arc::new(Mutex::new(Some(sender))))
+    }
+    fn complete(&self, outcome: Terminal<T>) -> bool {
+        // Taking the only sender arbitrates even after the receiver consumes
+        // the first outcome. Never hold admission or the worker on a send.
+        let sender = self.0.lock().unwrap().take();
+        if let Some(sender) = sender {
+            let _ = sender.try_send(outcome);
+            true
+        } else {
+            false
+        }
+    }
+}
+
 pub struct Reply<T> {
     receiver: mpsc::Receiver<Result<thread::Result<T>, SubmitError>>,
     started: Arc<std::sync::atomic::AtomicBool>,
@@ -141,9 +165,11 @@ impl Queue {
         let (sender, receiver) = mpsc::sync_channel::<Queued>(capacity);
         let batching = Arc::new(Mutex::new(BatchStats::new(policy)));
         let stats = batching.clone();
+        let admission = Arc::new(Mutex::new(Admission::default()));
+        let worker_admission = admission.clone();
         let worker = thread::Builder::new().name("snapback4-committer".into())
-            .spawn(move || batching::run(receiver, execute, stats, depth))?;
-        Ok(Self { sender:Some(sender), worker:Some(worker), admission:Arc::new(Mutex::new(Admission::default())), batching,
+            .spawn(move || batching::run(receiver, execute, stats, depth, worker_admission))?;
+        Ok(Self { sender:Some(sender), worker:Some(worker), admission, batching,
             #[cfg(feature="postgres")] lease:None })
     }
     /// Controlled N=1/4/16/32 witnesses use the same queue and transaction path.
@@ -169,6 +195,7 @@ impl Queue {
             ..command
         };
         let (sent, receiver) = mpsc::sync_channel(1);
+        let sent = Completion::new(sent);
         let started = Arc::new(std::sync::atomic::AtomicBool::new(false));
         let ticket = {
             let mut state = self.admission.lock().unwrap();
@@ -181,7 +208,7 @@ impl Queue {
             state.waiting.insert(
                 id,
                 Box::new(move || {
-                    let _ = refused.send(Err(SubmitError::OwnershipLost));
+                    refused.complete(Err(SubmitError::OwnershipLost));
                 }),
             );
             Ticket {
@@ -190,6 +217,7 @@ impl Queue {
                 started: started.clone(),
             }
         };
+        let unknown = sent.clone();
         let work = Box::new(move |engine: &mut Engine| {
             // @ref LLP 3000.009.001.000#5.1 — loss is terminal for this writer; drain every queued acknowledgement without executing its body.
             // Command start and lease loss share one lock: running work keeps its real
@@ -202,20 +230,21 @@ impl Queue {
                 command.execute_on(engine)
             }));
             // A lost submitter does not cancel an admitted write or its continuation.
-            let _ = sent.send(Ok(result));
+            sent.complete(Ok(result));
         });
-        Ok((Queued::Solo(work), Reply { receiver, started }))
+        Ok((Queued::Solo(work, Box::new(move || { unknown.complete(Err(SubmitError::OutcomeUnknown)); })), Reply { receiver, started }))
     }
     pub fn submit_program<T: Send + 'static>(&self, command: ProgramCommand<T>) -> Result<Reply<T>, SubmitError> {
         self.check_admission()?;
         let (sent, receiver) = mpsc::sync_channel(1);
+        let sent = Completion::new(sent);
         let started = Arc::new(std::sync::atomic::AtomicBool::new(false));
         let ticket = {
             let mut state = self.admission.lock().unwrap();
             if state.lost { return Err(SubmitError::OwnershipLost); }
             let id = state.next; state.next = state.next.wrapping_add(1);
             let refused = sent.clone();
-            state.waiting.insert(id, Box::new(move ||{ let _ = refused.send(Err(SubmitError::OwnershipLost)); }));
+            state.waiting.insert(id, Box::new(move ||{ refused.complete(Err(SubmitError::OwnershipLost)); }));
             Ticket { admission:self.admission.clone(), id, started:started.clone() }
         };
         let task = ProgramTask::new(command, sent, ticket);

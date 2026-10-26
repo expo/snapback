@@ -1,0 +1,12 @@
+{
+  "serving_processes_observed": [
+    {
+      "pid": 3494016,
+      "time": 1793010418.1769187,
+      "store_url_selects_early_commit": false,
+      "clock_bounds": "1000,250",
+      "pipeline_depth_override_present": false,
+      "wf_profile_enabled": false
+    }
+  ]
+}

@@ -632,3 +632,33 @@ fn r1_reader_factory_unwind_and_retired_epoch_cannot_consume_slots() {
     assert!(!Arc::ptr_eq(&old, &epoch));
     assert!(Arc::ptr_eq(&epoch, &lock(&host.shared.readers).epoch), "a constructor must retry after its native/backend epoch retires");
 }
+
+#[cfg(feature="postgres")]
+#[test]
+#[ignore="private PG16; arm E three-flight batch ratchet"]
+fn round_trips_postgres_early_batches_include_marker() {
+    use snapback4_core::{Engine,Value,store_port::AnyStore};
+    let source=include_str!("../../../../reports/20261022-rt-a-round-trips/admitted-s1.q");
+    let bound=snapback4_lang::compile(&[("schema.q".into(),source.into())]);
+    assert!(bound.diagnostics.is_empty());
+    let store=AnyStore::create_postgres(&std::env::var("SNAPBACK4_EVAL_POSTGRES").unwrap(),&format!("rt0_e_{:x}",snapback4_core::ids::seed())).unwrap();
+    let mut bootstrap=Engine::new(store,bound.schema,bound.programs.into_iter().map(|p|p.program)).unwrap();
+    let mut store=std::mem::replace(bootstrap.store_mut(),AnyStore::memory().unwrap());
+    store.enable_postgres_early_lock_release().unwrap();
+    let host=Host::with_store(false,store,source);let now=host.shared.now();
+    let token={let e=lock(&host.shared.engine);identity::open_session(e.store(),"guest:rt0-e","guest",now).unwrap().token};
+    let headers=format!("Authorization: Bearer {token}\r\n");
+    let setup=host.request("POST","/m/setup",&headers,&json!({"args":{}}).to_string());
+    assert_eq!(body(&setup)["state"],"sent","{setup}");
+    for n in [4,8,32] {
+        for repetition in 0..4 {
+            let counts=host.shared.engine.call(move|engine,_| {
+                let scope=Scope::begin();
+                let mut invocations=(0..n).map(|_|snapback4_core::engine::program::Invocation::new("increment",None,Context::new("guest:rt0-e",[("counter".into(),Value::Id("c0000".into()))].into()).at(now))).collect::<Vec<_>>();
+                let output=engine.invoke_program_batch(&mut invocations);
+                assert!(output.iter().all(Result::is_ok),"{output:?}");scope.counts()
+            }).unwrap();
+            if repetition>0 {assert_eq!(counts.postgres,3,"E N={n}, marker must share COMMIT's message");assert_eq!(counts.sqlite,0);}
+        }
+    }
+}

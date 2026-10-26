@@ -122,16 +122,27 @@ impl Admission {
         }
         Ok(())
     }
-    pub(crate) fn check_bound_facts(&self, shared: &Shared, expected: &snapback4_core::identity::Capability, facts: &snapback4_core::identity::RequestAuthority, persona: Option<snapback4_core::identity::Capability>, generation: Option<u64>) -> Result<(), Refusal> {
+    fn check_binding(&self, shared: &Shared, facts: &snapback4_core::identity::RequestAuthority, generation: Option<u64>) -> Result<(), Refusal> {
         self.check_store(shared, &facts.store_id)?;
         if generation.is_some() && facts.generation != generation {
             let mut why=Refusal::new("E_GENERATION","generation","the serving generation changed; retry current admission");
             why.retryable=true;
             return Err(why);
         }
+        Ok(())
+    }
+    pub(crate) fn remember_facts(&self, shared: &Shared, facts: &snapback4_core::identity::RequestAuthority) {
         if let (Some(current), Some(generation)) = (&facts.capability, facts.generation) {
             self.remember(shared, current, &facts.store_id, generation, facts.supervisor_revision);
         }
+    }
+    pub(crate) fn check_bound_facts(&self, shared: &Shared, expected: &snapback4_core::identity::Capability, facts: &snapback4_core::identity::RequestAuthority, persona: Option<snapback4_core::identity::Capability>, generation: Option<u64>) -> Result<(), Refusal> {
+        self.check_binding(shared, facts, generation)?;
+        self.remember_facts(shared, facts);
+        self.check_facts(expected, facts, persona)
+    }
+    pub(crate) fn check_mutation_facts(&self, shared: &Shared, expected: &snapback4_core::identity::Capability, facts: &snapback4_core::identity::RequestAuthority, persona: Option<snapback4_core::identity::Capability>, generation: u64) -> Result<(), Refusal> {
+        self.check_binding(shared, facts, Some(generation))?;
         self.check_facts(expected, facts, persona)
     }
     pub(crate) fn query_expected(mut self, capability: &snapback4_core::identity::Capability) -> Self { self.expected_query=Some(capability.clone()); self }

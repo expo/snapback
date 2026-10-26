@@ -1,0 +1,13 @@
+{
+  "component": "supplemental outer monitor",
+  "exit_status": 1,
+  "error": "JSONDecodeError: pretty-printed campaign.pid.json was incorrectly consumed one line at a time",
+  "last_monitor_sample_time": 1793008349.7537374,
+  "monitor_samples": 5,
+  "build_guard": "active in build supervisor: 25 GiB checked each 0.5 s",
+  "runner_guard": "unchanged 30 GiB checks at start, cell host checks, every trial and shutdown",
+  "runner_pid_observer": "unchanged RecordedPopen and descendant observer active throughout benchmark",
+  "qualification_changed": false,
+  "continuous_outer_monitor_coverage_claimed": false,
+  "raw_monitor_source_retained": true
+}

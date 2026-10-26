@@ -1,0 +1,38 @@
+{
+  "control_report": "snapback4/experiments/scale-controls/results-20261024-s1-onehost-controls/README.md",
+  "prior_snapback_report": "snapback4/experiments/scale-controls/results-20261024-s1-onehost-final/README.md",
+  "comparison_sha256": "d601feffdd271f676c82e353d346b05fda4dac18922efe04a1dc840f1e7b9df9",
+  "archive": {
+    "path": "/home/ccheever/sb4scale/archive/s1-onehost-final-20261024.tar.gz",
+    "sha256": "f5e46efdd1a8a9de67eac775e324c5300cb9aadd41f79345d67c44a5bce166b0",
+    "bytes": 405957913,
+    "members": 4610,
+    "new_trial_jsons": 486,
+    "prior_control_archive_sha256": "2ad9953ae6e01a790171e3778547e2703f4d0db9e991039f2833c03543ecb7fb",
+    "prior_control_archive_embedded": true
+  },
+  "g72_snapback_report": "snapback4/experiments/scale-controls/results-20261025-s1-writes-g72/README.md",
+  "g72_archive": {
+    "path": "/home/ccheever/sb4scale/archive/s1-writes-g72-20261025.tar.gz",
+    "sha256": "18499e06b6b6070575fe5b7524ba9ed7983caf7aea5b725f6d0f1a0546e86244",
+    "bytes": 557275766,
+    "members": 1080,
+    "trial_jsons": 102,
+    "prior_final_archive_sha256": "f5e46efdd1a8a9de67eac775e324c5300cb9aadd41f79345d67c44a5bce166b0",
+    "prior_archive_embedded": true
+  },
+  "no_controls_rerun": true,
+  "strict_verdicts": "current highest complete passing offered rate > max(Supabase, Convex); ties are not wins",
+  "levers_report": "snapback4/experiments/scale-controls/results-20261025-s1-writes-levers/README.md",
+  "levers_archive": {
+    "path": "/home/ccheever/sb4scale/archive/s1-writes-levers-20261025.tar.gz",
+    "sha256": "34760fd372799a78431e96f576646cc515e04c4f3896355966717ce0c15b06d9",
+    "bytes": 620545263,
+    "members": 999,
+    "trial_jsons": 102,
+    "prior_final_archive_sha256": "f5e46efdd1a8a9de67eac775e324c5300cb9aadd41f79345d67c44a5bce166b0",
+    "prior_archive_embedded_transitively": true,
+    "g72_archive_sha256": "18499e06b6b6070575fe5b7524ba9ed7983caf7aea5b725f6d0f1a0546e86244",
+    "g72_archive_embedded": true
+  }
+}

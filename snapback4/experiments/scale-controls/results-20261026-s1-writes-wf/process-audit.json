@@ -1,0 +1,14 @@
+{
+  "events": 1639,
+  "distinct_pid_identities": 1448,
+  "live_owned": [],
+  "owned_zombies": [],
+  "checks": "PID/start identity; builders, diagnostic, HTTP services, private clusters, controllers, monitors; socket/pidfile absence; final postprocessor rechecked separately",
+  "final_audit_events": 1651,
+  "final_distinct_pid_identities": 1457,
+  "final_live_owned": [],
+  "final_owned_zombies": [],
+  "postprocessors_and_verifiers_exited": true,
+  "independent_scope_process_mapping_scan": [],
+  "final_check_time": 1793014145.7459214
+}
