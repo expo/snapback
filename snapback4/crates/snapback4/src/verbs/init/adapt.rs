@@ -248,7 +248,7 @@ fn screens(dir: &Path, platform: Platform, own: &OwnSchema, todos: bool, found: 
         let (persona_app, persona_client) = screens(Some(&[]), false);
         let (password_app, password_client) = screens(None, true);
         if matches_app(&guest_app) && matches_client(&guest_client, false) { Some((SignIn::Guest, body.clone())) }
-        else if matches_app(&password_app) && matches_client(&password_client, false) { Some((SignIn::Password, body.clone())) }
+        else if matches_app(&password_app) && (matches_client(&password_client, false) || matches_client(starter::pre_dx13_password_client(platform), false)) { Some((SignIn::Password, body.clone())) }
         else if matches_app(&persona_app) && matches_client(&persona_client, true) { Some((SignIn::Personas(personas_of(&client)), body.clone())) }
         else { None }
     }));

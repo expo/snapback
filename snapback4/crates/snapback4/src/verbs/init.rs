@@ -70,7 +70,7 @@ pub fn init(options: &Options) -> i32 {
     }
     let online_web = modes == 2 && options.flags.contains_key("online") && (options.flags.contains_key("web") || options.flags.contains_key("expo"));
     if options.flags.contains_key("expo") && options.flags.contains_key("online") && !options.flags.contains_key("password") {
-        eprintln!("E_INPUT: --expo already selects the online client for schemas without synced tables; use --expo --online --password for the password starter");return 2;
+        eprintln!("{usage}\nE_INPUT: --expo already selects the online client for schemas without synced tables; use --expo --online --password for the password starter");return 2;
     }
     if options.flags.contains_key("day2") && !(social || options.flags.contains_key("web") || options.flags.contains_key("expo")) {
         eprintln!("E_INPUT: --day2 adds saved-release proofs to a UI starter; use `snapback4 init --web --day2` or `snapback4 init --expo --day2`"); return 2;

@@ -140,7 +140,7 @@ export async function serveCheck(options: ServeCheckOptions): Promise<ServeCheck
         // Only the CLI's bounded ownership fields are safe to render. Raw stderr
         // may include app diagnostics or credentials and remains withheld.
         const holder=/owned by ([^;\n]+)/.exec(lock.stderr)?.[1];
-        const safeHolder=holder?.match(/^(?:https?:\/\/[^\s/]+(?: \(pid \d+\))?|another CLI command or a server starting up \(address pending\))$/)?.[0];
+        const safeHolder=holder?.match(/^(?:https?:\/\/(?:[A-Za-z0-9.-]+|\[[0-9a-fA-F:]+\]):\d+(?: \(pid \d+\))?|another CLI command or a server starting up \(address pending\))$/)?.[0];
         add(lock.stderr.includes("E_STORE_BUSY")?"E_SERVE_LOCK_HELD":"E_SERVE_LOCK_BARRIER", `store ${storePath}: ${lock.stderr.includes("E_STORE_BUSY")?`lock held after group SIGTERM; actual holder ${safeHolder??"unavailable from the ownership record"}`:"lock barrier refused (store/inspection failure, not evidence of a live holder)"}`);
       }
     }

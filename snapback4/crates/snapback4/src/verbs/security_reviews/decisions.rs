@@ -48,7 +48,7 @@ pub(in crate::verbs) fn render(dispositions: &[Disposition], notes: &[Diagnostic
             else { if !family_printed {output.push_str(&family_output);family_printed=true;}
             continue; }
         }
-        if !d.gated && d.witness.is_none() && crate::note_rank::tier(&n.code)!=crate::note_rank::Tier::Review { continue; }
+        if !d.gated && d.witness.is_none() && crate::note_rank::tier(&n.code)>crate::note_rank::Tier::Review { continue; }
         let subject=n.message.split(": ").next().unwrap_or(&n.message);
         let concise=match n.code.as_str() {
             "N_COLUMN_RESULT_EXPOSURE"=>format!("{subject}: should operation results/refusals expose protected or projected-out columns to every admitted caller"),
@@ -81,7 +81,7 @@ pub(in crate::verbs) fn render_mode(dispositions:&[Disposition],notes:&[Diagnost
             if d.gated&&!d.acknowledged || d.recorded {
                 output.push_str(&render(&[d.clone()],&[n.clone()]));
             } else if !d.acknowledged && let Some(w)=&d.witness {
-                output.push_str(&format!("fix question {} at {}: {}; is this intended?\n  Witness: {} — repair or check --ack-security {} --reason '<spec rationale>' (doesn't block)\n",d.code,d.site,n.message.trim_end_matches(['.','?']),w["summary"].as_str().unwrap_or("see check --json for replay"),d.id));
+                output.push_str(&format!("fix question {} at {}: {}; is this intended?\n  Witness: {} — repair or check --ack-security {} --reason '<spec rationale>' (doesn't block)\n",d.code,d.site,n.message.trim_end_matches(['.','?']),w["compactSummary"].as_str().or_else(||w["summary"].as_str()).unwrap_or("see check --json for replay"),d.id));
             }
         }
         return output;

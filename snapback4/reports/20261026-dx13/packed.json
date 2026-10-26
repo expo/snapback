@@ -1,0 +1,67 @@
+{
+  "binarySha256": "978dbd1f459052d47967c0a19d7d4924f8168652d84cdc032f65de5ae5020d1f",
+  "results": [
+    {
+      "kind": "web",
+      "steps": [
+        {
+          "name": "init",
+          "ok": true
+        },
+        {
+          "name": "install-progress",
+          "ok": true
+        },
+        {
+          "name": "check",
+          "ok": true
+        },
+        {
+          "name": "typecheck",
+          "ok": true
+        },
+        {
+          "name": "frontend-proof",
+          "ok": true
+        },
+        {
+          "name": "guide-check",
+          "ok": true
+        },
+        {
+          "name": "literal-staging-recipe-1",
+          "ok": true
+        },
+        {
+          "name": "literal-staging-recipe-2",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "kind": "expo",
+      "steps": [
+        {
+          "name": "init",
+          "ok": true
+        },
+        {
+          "name": "install-progress",
+          "ok": true
+        },
+        {
+          "name": "check",
+          "ok": true
+        },
+        {
+          "name": "typecheck",
+          "ok": true
+        },
+        {
+          "name": "frontend-proof",
+          "ok": true
+        }
+      ]
+    }
+  ]
+}

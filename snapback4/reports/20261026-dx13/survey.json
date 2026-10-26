@@ -1,0 +1,2433 @@
+{
+  "binarySha256": "978dbd1f459052d47967c0a19d7d4924f8168652d84cdc032f65de5ae5020d1f",
+  "summary": {
+    "schemas": 50,
+    "medianLines": 2.0,
+    "p90Lines": 4,
+    "maxLines": 6,
+    "checkPass": 50,
+    "deployPass": 50,
+    "coldMedianMs": 1770.5,
+    "coldP90Ms": 24485,
+    "exactRealHoleDefaultWitnesses": 1,
+    "originalsUnchanged": true
+  },
+  "rows": [
+    {
+      "lane": "001-snapback-weathervane-restorations",
+      "sourceDigests": {
+        "/home/ccheever/sb4-loop/wave30/apps/001-snapback-weathervane-restorations/snapback/schema.q": "727aa3f5008f555c269791bd236c0b9461fb1f23a1b4d70770505a6131265d58"
+      },
+      "results": {
+        "default": {
+          "exit": 0,
+          "ms": 1763,
+          "lines": 2,
+          "chars": 462,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": true,
+          "approvalWitness": false
+        },
+        "review": {
+          "exit": 0,
+          "ms": 1769,
+          "lines": 34,
+          "chars": 4588,
+          "witnesses": 4,
+          "fixNotes": 0,
+          "hint": true
+        },
+        "json": {
+          "exit": 0,
+          "ms": 1761,
+          "lines": 1,
+          "chars": 42027,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "gates": 0,
+          "witnessCodes": []
+        },
+        "deploy": {
+          "exit": 0,
+          "ms": 9242,
+          "lines": 6,
+          "chars": 611,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false
+        }
+      }
+    },
+    {
+      "lane": "002-snapback-infant-helmet-fittings",
+      "sourceDigests": {
+        "/home/ccheever/sb4-loop/wave30/apps/002-snapback-infant-helmet-fittings/snapback/schema.q": "13a27232340e32586262037ae39f2c9630f8d8f308da6bbeb334749afac30175"
+      },
+      "results": {
+        "default": {
+          "exit": 0,
+          "ms": 8686,
+          "lines": 4,
+          "chars": 826,
+          "witnesses": 1,
+          "fixNotes": 0,
+          "hint": false,
+          "approvalWitness": false
+        },
+        "review": {
+          "exit": 0,
+          "ms": 904,
+          "lines": 42,
+          "chars": 5720,
+          "witnesses": 4,
+          "fixNotes": 0,
+          "hint": false
+        },
+        "json": {
+          "exit": 0,
+          "ms": 905,
+          "lines": 1,
+          "chars": 62189,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "gates": 0,
+          "witnessCodes": [
+            {
+              "code": "N_ARGUMENT_GRANT",
+              "site": "schema.q:60:10",
+              "acknowledged": false
+            }
+          ]
+        },
+        "deploy": {
+          "exit": 0,
+          "ms": 3697,
+          "lines": 8,
+          "chars": 1091,
+          "witnesses": 1,
+          "fixNotes": 0,
+          "hint": false
+        }
+      }
+    },
+    {
+      "lane": "003-snapback-music-box-restorations",
+      "sourceDigests": {
+        "/home/ccheever/sb4-loop/wave30/apps/003-snapback-music-box-restorations/snapback/schema.q": "cccd2fe046e8299acd1378677df9506d8b2da3aafd945483f5389a4e17c2fe25"
+      },
+      "results": {
+        "default": {
+          "exit": 0,
+          "ms": 18899,
+          "lines": 4,
+          "chars": 975,
+          "witnesses": 1,
+          "fixNotes": 0,
+          "hint": false,
+          "approvalWitness": false
+        },
+        "review": {
+          "exit": 0,
+          "ms": 1723,
+          "lines": 33,
+          "chars": 5738,
+          "witnesses": 4,
+          "fixNotes": 0,
+          "hint": false
+        },
+        "json": {
+          "exit": 0,
+          "ms": 1712,
+          "lines": 1,
+          "chars": 34349,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "gates": 0,
+          "witnessCodes": [
+            {
+              "code": "N_APPROVAL_NOT_ENFORCED",
+              "site": "schema.q:75:3",
+              "acknowledged": false
+            }
+          ]
+        },
+        "deploy": {
+          "exit": 0,
+          "ms": 10405,
+          "lines": 8,
+          "chars": 1239,
+          "witnesses": 1,
+          "fixNotes": 0,
+          "hint": false
+        }
+      }
+    },
+    {
+      "lane": "004-snapback-accessible-home-remodels",
+      "sourceDigests": {
+        "/home/ccheever/sb4-loop/wave30/apps/004-snapback-accessible-home-remodels/snapback/schema.q": "9b9794afc2d8ee22f89bca08d6fef0f0efc5386120fb1da31f451b94681f4778"
+      },
+      "results": {
+        "default": {
+          "exit": 0,
+          "ms": 1776,
+          "lines": 2,
+          "chars": 346,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "approvalWitness": false
+        },
+        "review": {
+          "exit": 0,
+          "ms": 1778,
+          "lines": 39,
+          "chars": 5584,
+          "witnesses": 4,
+          "fixNotes": 0,
+          "hint": false
+        },
+        "json": {
+          "exit": 0,
+          "ms": 1786,
+          "lines": 1,
+          "chars": 49111,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "gates": 0,
+          "witnessCodes": []
+        },
+        "deploy": {
+          "exit": 0,
+          "ms": 10449,
+          "lines": 6,
+          "chars": 611,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false
+        }
+      }
+    },
+    {
+      "lane": "005-snapback-spiral-staircase-commissions",
+      "sourceDigests": {
+        "/home/ccheever/sb4-loop/wave30/apps/005-snapback-spiral-staircase-commissions/snapback/schema.q": "0b246b1844525aecea13968c486a9808548da31bf0c5d83843b17a9e24e8ad16"
+      },
+      "results": {
+        "default": {
+          "exit": 0,
+          "ms": 946,
+          "lines": 2,
+          "chars": 346,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "approvalWitness": false
+        },
+        "review": {
+          "exit": 0,
+          "ms": 957,
+          "lines": 52,
+          "chars": 6757,
+          "witnesses": 7,
+          "fixNotes": 0,
+          "hint": false
+        },
+        "json": {
+          "exit": 0,
+          "ms": 942,
+          "lines": 1,
+          "chars": 55857,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "gates": 0,
+          "witnessCodes": []
+        },
+        "deploy": {
+          "exit": 0,
+          "ms": 4329,
+          "lines": 6,
+          "chars": 612,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false
+        }
+      }
+    },
+    {
+      "lane": "006-snapback-fishing-reel-servicing",
+      "sourceDigests": {
+        "/home/ccheever/sb4-loop/wave30/apps/006-snapback-fishing-reel-servicing/snapback/schema.q": "a6a78dc7e09a4a5bae8122553199710e294bc00e6308611c1ffebadf941894a9"
+      },
+      "results": {
+        "default": {
+          "exit": 0,
+          "ms": 864,
+          "lines": 2,
+          "chars": 346,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "approvalWitness": false
+        },
+        "review": {
+          "exit": 0,
+          "ms": 868,
+          "lines": 47,
+          "chars": 5217,
+          "witnesses": 3,
+          "fixNotes": 0,
+          "hint": false
+        },
+        "json": {
+          "exit": 0,
+          "ms": 873,
+          "lines": 1,
+          "chars": 81588,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "gates": 0,
+          "witnessCodes": []
+        },
+        "deploy": {
+          "exit": 0,
+          "ms": 7117,
+          "lines": 6,
+          "chars": 612,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false
+        }
+      }
+    },
+    {
+      "lane": "007-snapback-tile-mosaic-commissions",
+      "sourceDigests": {
+        "/home/ccheever/sb4-loop/wave30/apps/007-snapback-tile-mosaic-commissions/snapback/schema.q": "1f8e8306492455d5655a72df9517b051eafc1d41393a5a56502371174ebca552"
+      },
+      "results": {
+        "default": {
+          "exit": 0,
+          "ms": 11183,
+          "lines": 6,
+          "chars": 1321,
+          "witnesses": 2,
+          "fixNotes": 0,
+          "hint": false,
+          "approvalWitness": false
+        },
+        "review": {
+          "exit": 0,
+          "ms": 579,
+          "lines": 64,
+          "chars": 9579,
+          "witnesses": 9,
+          "fixNotes": 0,
+          "hint": false
+        },
+        "json": {
+          "exit": 0,
+          "ms": 595,
+          "lines": 1,
+          "chars": 104864,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "gates": 0,
+          "witnessCodes": [
+            {
+              "code": "N_ARGUMENT_GRANT",
+              "site": "schema.q:75:10",
+              "acknowledged": false
+            },
+            {
+              "code": "N_ARGUMENT_GRANT",
+              "site": "schema.q:129:10",
+              "acknowledged": false
+            }
+          ]
+        },
+        "deploy": {
+          "exit": 0,
+          "ms": 3605,
+          "lines": 10,
+          "chars": 1585,
+          "witnesses": 2,
+          "fixNotes": 0,
+          "hint": false
+        }
+      }
+    },
+    {
+      "lane": "008-snapback-brick-repointing-jobs",
+      "sourceDigests": {
+        "/home/ccheever/sb4-loop/wave30/apps/008-snapback-brick-repointing-jobs/snapback/schema.q": "c12019cdf80dbf3d7bd115730ac7c68c7c3676c65f263db98f2a56804caaa67f"
+      },
+      "results": {
+        "default": {
+          "exit": 0,
+          "ms": 1773,
+          "lines": 2,
+          "chars": 347,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "approvalWitness": false
+        },
+        "review": {
+          "exit": 0,
+          "ms": 1779,
+          "lines": 36,
+          "chars": 4446,
+          "witnesses": 3,
+          "fixNotes": 0,
+          "hint": false
+        },
+        "json": {
+          "exit": 0,
+          "ms": 1784,
+          "lines": 1,
+          "chars": 58472,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "gates": 0,
+          "witnessCodes": []
+        },
+        "deploy": {
+          "exit": 0,
+          "ms": 9532,
+          "lines": 6,
+          "chars": 611,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false
+        }
+      }
+    },
+    {
+      "lane": "009-snapback-antique-globe-restorations",
+      "sourceDigests": {
+        "/home/ccheever/sb4-loop/wave30/apps/009-snapback-antique-globe-restorations/snapback/schema.q": "f8371aecb4a4e753efd0c9f07e84473c5f64c616386c64fad96ed9d2acaaed74"
+      },
+      "results": {
+        "default": {
+          "exit": 0,
+          "ms": 874,
+          "lines": 2,
+          "chars": 346,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "approvalWitness": false
+        },
+        "review": {
+          "exit": 0,
+          "ms": 880,
+          "lines": 55,
+          "chars": 7599,
+          "witnesses": 8,
+          "fixNotes": 0,
+          "hint": false
+        },
+        "json": {
+          "exit": 0,
+          "ms": 881,
+          "lines": 1,
+          "chars": 66052,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "gates": 0,
+          "witnessCodes": []
+        },
+        "deploy": {
+          "exit": 0,
+          "ms": 9599,
+          "lines": 6,
+          "chars": 611,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false
+        }
+      }
+    },
+    {
+      "lane": "010-snapback-whitewater-rafting-trips",
+      "sourceDigests": {
+        "/home/ccheever/sb4-loop/wave30/apps/010-snapback-whitewater-rafting-trips/snapback/schema.q": "c1efcb5a6c4d77820dc8b1956a5db9f0a313d7cec54f66269e2338f91d1a65b0"
+      },
+      "results": {
+        "default": {
+          "exit": 0,
+          "ms": 9691,
+          "lines": 4,
+          "chars": 806,
+          "witnesses": 1,
+          "fixNotes": 0,
+          "hint": false,
+          "approvalWitness": false
+        },
+        "review": {
+          "exit": 0,
+          "ms": 739,
+          "lines": 51,
+          "chars": 7888,
+          "witnesses": 7,
+          "fixNotes": 0,
+          "hint": false
+        },
+        "json": {
+          "exit": 0,
+          "ms": 711,
+          "lines": 1,
+          "chars": 57659,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "gates": 0,
+          "witnessCodes": [
+            {
+              "code": "N_ARGUMENT_GRANT",
+              "site": "schema.q:124:10",
+              "acknowledged": false
+            }
+          ]
+        },
+        "deploy": {
+          "exit": 0,
+          "ms": 2741,
+          "lines": 8,
+          "chars": 1063,
+          "witnesses": 1,
+          "fixNotes": 0,
+          "hint": false
+        }
+      }
+    },
+    {
+      "lane": "011-snapback-wood-stove-installs",
+      "sourceDigests": {
+        "/home/ccheever/sb4-loop/wave30/apps/011-snapback-wood-stove-installs/snapback/schema.q": "f41211c28fc48889355df8ef53d458852b75751bace1817e93c6e990a4a00c3d"
+      },
+      "results": {
+        "default": {
+          "exit": 0,
+          "ms": 1768,
+          "lines": 2,
+          "chars": 347,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "approvalWitness": false
+        },
+        "review": {
+          "exit": 0,
+          "ms": 1778,
+          "lines": 54,
+          "chars": 7860,
+          "witnesses": 8,
+          "fixNotes": 0,
+          "hint": false
+        },
+        "json": {
+          "exit": 0,
+          "ms": 1777,
+          "lines": 1,
+          "chars": 45790,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "gates": 0,
+          "witnessCodes": []
+        },
+        "deploy": {
+          "exit": 0,
+          "ms": 10438,
+          "lines": 6,
+          "chars": 612,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false
+        }
+      }
+    },
+    {
+      "lane": "012-snapback-animated-explainer-videos",
+      "sourceDigests": {
+        "/home/ccheever/sb4-loop/wave30/apps/012-snapback-animated-explainer-videos/snapback/schema.q": "80e3fe01a7ee61797be48dc2933f8044bf1e237ddce8255a5575e33dda9a3859"
+      },
+      "results": {
+        "default": {
+          "exit": 0,
+          "ms": 1778,
+          "lines": 2,
+          "chars": 348,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "approvalWitness": false
+        },
+        "review": {
+          "exit": 0,
+          "ms": 1778,
+          "lines": 72,
+          "chars": 10473,
+          "witnesses": 11,
+          "fixNotes": 0,
+          "hint": false
+        },
+        "json": {
+          "exit": 0,
+          "ms": 1786,
+          "lines": 1,
+          "chars": 93718,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "gates": 0,
+          "witnessCodes": []
+        },
+        "deploy": {
+          "exit": 0,
+          "ms": 10180,
+          "lines": 6,
+          "chars": 613,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false
+        }
+      }
+    },
+    {
+      "lane": "013-snapback-ladder-safety-inspections",
+      "sourceDigests": {
+        "/home/ccheever/sb4-loop/wave30/apps/013-snapback-ladder-safety-inspections/snapback/schema.q": "a8ba9bcebc8b9f14ebdee14e88eec989c0bb84cb68790969e5a892417e595fd3"
+      },
+      "results": {
+        "default": {
+          "exit": 0,
+          "ms": 20886,
+          "lines": 2,
+          "chars": 348,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "approvalWitness": false
+        },
+        "review": {
+          "exit": 0,
+          "ms": 1459,
+          "lines": 66,
+          "chars": 10248,
+          "witnesses": 11,
+          "fixNotes": 0,
+          "hint": false
+        },
+        "json": {
+          "exit": 0,
+          "ms": 1435,
+          "lines": 1,
+          "chars": 54272,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "gates": 0,
+          "witnessCodes": []
+        },
+        "deploy": {
+          "exit": 0,
+          "ms": 4734,
+          "lines": 6,
+          "chars": 612,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false
+        }
+      }
+    },
+    {
+      "lane": "014-snapback-balloon-decor-installs",
+      "sourceDigests": {
+        "/home/ccheever/sb4-loop/wave30/apps/014-snapback-balloon-decor-installs/snapback/schema.q": "99c9823228cc50930a3229f0eecb2e4e6628c82d5d0d9f1cf403c2121981a4ab"
+      },
+      "results": {
+        "default": {
+          "exit": 0,
+          "ms": 1449,
+          "lines": 2,
+          "chars": 347,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "approvalWitness": false
+        },
+        "review": {
+          "exit": 0,
+          "ms": 1449,
+          "lines": 42,
+          "chars": 5339,
+          "witnesses": 5,
+          "fixNotes": 0,
+          "hint": false
+        },
+        "json": {
+          "exit": 0,
+          "ms": 1456,
+          "lines": 1,
+          "chars": 48946,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "gates": 0,
+          "witnessCodes": []
+        },
+        "deploy": {
+          "exit": 0,
+          "ms": 8244,
+          "lines": 6,
+          "chars": 611,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false
+        }
+      }
+    },
+    {
+      "lane": "015-snapback-baby-gear-rentals",
+      "sourceDigests": {
+        "/home/ccheever/sb4-loop/wave30/apps/015-snapback-baby-gear-rentals/snapback/schema.q": "c7bed55e1c4ebd374e5a376fccc83c60ed7ef28c25160c3c26057033ee4f2da6"
+      },
+      "results": {
+        "default": {
+          "exit": 0,
+          "ms": 1485,
+          "lines": 2,
+          "chars": 347,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "approvalWitness": false
+        },
+        "review": {
+          "exit": 0,
+          "ms": 1463,
+          "lines": 36,
+          "chars": 4545,
+          "witnesses": 3,
+          "fixNotes": 0,
+          "hint": false
+        },
+        "json": {
+          "exit": 0,
+          "ms": 1567,
+          "lines": 1,
+          "chars": 47416,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "gates": 0,
+          "witnessCodes": []
+        },
+        "deploy": {
+          "exit": 0,
+          "ms": 3411,
+          "lines": 6,
+          "chars": 611,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false
+        }
+      }
+    },
+    {
+      "lane": "016-snapback-fire-engine-restorations",
+      "sourceDigests": {
+        "/home/ccheever/sb4-loop/wave30/apps/016-snapback-fire-engine-restorations/snapback/schema.q": "309c7a3b3c222a3fdace21481129a4ab45742ab744bcfc7207c20895462a1089"
+      },
+      "results": {
+        "default": {
+          "exit": 0,
+          "ms": 1773,
+          "lines": 3,
+          "chars": 1137,
+          "witnesses": 0,
+          "fixNotes": 1,
+          "hint": false,
+          "approvalWitness": false
+        },
+        "review": {
+          "exit": 0,
+          "ms": 1787,
+          "lines": 43,
+          "chars": 6661,
+          "witnesses": 4,
+          "fixNotes": 0,
+          "hint": false
+        },
+        "json": {
+          "exit": 0,
+          "ms": 1771,
+          "lines": 1,
+          "chars": 48460,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "gates": 0,
+          "witnessCodes": []
+        },
+        "deploy": {
+          "exit": 0,
+          "ms": 10450,
+          "lines": 6,
+          "chars": 611,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false
+        }
+      }
+    },
+    {
+      "lane": "017-snapback-petting-zoo-parties",
+      "sourceDigests": {
+        "/home/ccheever/sb4-loop/wave30/apps/017-snapback-petting-zoo-parties/snapback/invariants.q": "27aa5e06af79980ded22fde3a1115344bb10e9f101c3574a2e172458d2fa4ee4",
+        "/home/ccheever/sb4-loop/wave30/apps/017-snapback-petting-zoo-parties/snapback/schema.q": "3c56c99bcbc0ffd5b3c53bd6b49d6d1331afab97ece77ed9cbe6f78cb0481d24"
+      },
+      "results": {
+        "default": {
+          "exit": 0,
+          "ms": 9900,
+          "lines": 4,
+          "chars": 964,
+          "witnesses": 1,
+          "fixNotes": 0,
+          "hint": true,
+          "approvalWitness": false
+        },
+        "review": {
+          "exit": 0,
+          "ms": 789,
+          "lines": 50,
+          "chars": 7126,
+          "witnesses": 6,
+          "fixNotes": 0,
+          "hint": true
+        },
+        "json": {
+          "exit": 0,
+          "ms": 814,
+          "lines": 1,
+          "chars": 79608,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "gates": 0,
+          "witnessCodes": [
+            {
+              "code": "N_ARGUMENT_GRANT",
+              "site": "schema.q:82:10",
+              "acknowledged": false
+            }
+          ]
+        },
+        "deploy": {
+          "exit": 0,
+          "ms": 2966,
+          "lines": 8,
+          "chars": 1105,
+          "witnesses": 1,
+          "fixNotes": 0,
+          "hint": false
+        }
+      }
+    },
+    {
+      "lane": "018-snapback-orchard-pruning-visits",
+      "sourceDigests": {
+        "/home/ccheever/sb4-loop/wave30/apps/018-snapback-orchard-pruning-visits/snapback/schema.q": "5227a0fe8239f3b39617bb9dd57bb3f7cdc863baa82b17a34596688c57a7c30f"
+      },
+      "results": {
+        "default": {
+          "exit": 0,
+          "ms": 12944,
+          "lines": 4,
+          "chars": 958,
+          "witnesses": 1,
+          "fixNotes": 0,
+          "hint": true,
+          "approvalWitness": false
+        },
+        "review": {
+          "exit": 0,
+          "ms": 329,
+          "lines": 51,
+          "chars": 8219,
+          "witnesses": 9,
+          "fixNotes": 0,
+          "hint": true
+        },
+        "json": {
+          "exit": 0,
+          "ms": 298,
+          "lines": 1,
+          "chars": 57251,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "gates": 0,
+          "witnessCodes": [
+            {
+              "code": "N_ARGUMENT_GRANT",
+              "site": "schema.q:81:10",
+              "acknowledged": false
+            }
+          ]
+        },
+        "deploy": {
+          "exit": 0,
+          "ms": 459,
+          "lines": 8,
+          "chars": 1105,
+          "witnesses": 1,
+          "fixNotes": 0,
+          "hint": false
+        }
+      }
+    },
+    {
+      "lane": "019-snapback-pet-relocation-flights",
+      "sourceDigests": {
+        "/home/ccheever/sb4-loop/wave30/apps/019-snapback-pet-relocation-flights/snapback/schema.q": "310c6d5e6f0e526f792f6568d8979a3e71cdb234d06b125d2eec577861dbf263"
+      },
+      "results": {
+        "default": {
+          "exit": 0,
+          "ms": 24485,
+          "lines": 4,
+          "chars": 813,
+          "witnesses": 1,
+          "fixNotes": 0,
+          "hint": false,
+          "approvalWitness": false
+        },
+        "review": {
+          "exit": 0,
+          "ms": 1765,
+          "lines": 49,
+          "chars": 7119,
+          "witnesses": 7,
+          "fixNotes": 0,
+          "hint": false
+        },
+        "json": {
+          "exit": 0,
+          "ms": 1759,
+          "lines": 1,
+          "chars": 61105,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "gates": 0,
+          "witnessCodes": [
+            {
+              "code": "N_ARGUMENT_GRANT",
+              "site": "schema.q:80:10",
+              "acknowledged": false
+            }
+          ]
+        },
+        "deploy": {
+          "exit": 0,
+          "ms": 10412,
+          "lines": 8,
+          "chars": 1076,
+          "witnesses": 1,
+          "fixNotes": 0,
+          "hint": false
+        }
+      }
+    },
+    {
+      "lane": "020-snapback-fat-bike-tours",
+      "sourceDigests": {
+        "/home/ccheever/sb4-loop/wave30/apps/020-snapback-fat-bike-tours/snapback/schema.q": "b84589669357771e4072496e3fcd98884bcd16b2e41d7e6ea6ff5b919dd15057"
+      },
+      "results": {
+        "default": {
+          "exit": 0,
+          "ms": 22485,
+          "lines": 2,
+          "chars": 348,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "approvalWitness": false
+        },
+        "review": {
+          "exit": 0,
+          "ms": 858,
+          "lines": 47,
+          "chars": 6452,
+          "witnesses": 6,
+          "fixNotes": 0,
+          "hint": false
+        },
+        "json": {
+          "exit": 0,
+          "ms": 840,
+          "lines": 1,
+          "chars": 45715,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "gates": 0,
+          "witnessCodes": []
+        },
+        "deploy": {
+          "exit": 0,
+          "ms": 4558,
+          "lines": 6,
+          "chars": 611,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false
+        }
+      }
+    },
+    {
+      "lane": "021-snapback-rice-mill-lots",
+      "sourceDigests": {
+        "/home/ccheever/sb4-loop/wave30/apps/021-snapback-rice-mill-lots/snapback/schema.q": "825f006d5dcda774d603c817669063a6d52385acaeba0814234eac6b53e0cf7c"
+      },
+      "results": {
+        "default": {
+          "exit": 0,
+          "ms": 813,
+          "lines": 2,
+          "chars": 346,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "approvalWitness": false
+        },
+        "review": {
+          "exit": 0,
+          "ms": 811,
+          "lines": 35,
+          "chars": 4159,
+          "witnesses": 3,
+          "fixNotes": 0,
+          "hint": false
+        },
+        "json": {
+          "exit": 0,
+          "ms": 811,
+          "lines": 1,
+          "chars": 55225,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "gates": 0,
+          "witnessCodes": []
+        },
+        "deploy": {
+          "exit": 0,
+          "ms": 3475,
+          "lines": 6,
+          "chars": 611,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false
+        }
+      }
+    },
+    {
+      "lane": "022-snapback-motorcycle-leathers-fittings",
+      "sourceDigests": {
+        "/home/ccheever/sb4-loop/wave30/apps/022-snapback-motorcycle-leathers-fittings/snapback/schema.q": "8137a00c7e123d36e7a5d27c3677b2b52e808da9306f9a44ceaa1838531cc160"
+      },
+      "results": {
+        "default": {
+          "exit": 0,
+          "ms": 21144,
+          "lines": 2,
+          "chars": 348,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "approvalWitness": false
+        },
+        "review": {
+          "exit": 0,
+          "ms": 1755,
+          "lines": 34,
+          "chars": 4319,
+          "witnesses": 3,
+          "fixNotes": 0,
+          "hint": false
+        },
+        "json": {
+          "exit": 0,
+          "ms": 1774,
+          "lines": 1,
+          "chars": 60663,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "gates": 0,
+          "witnessCodes": []
+        },
+        "deploy": {
+          "exit": 0,
+          "ms": 10435,
+          "lines": 6,
+          "chars": 611,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false
+        }
+      }
+    },
+    {
+      "lane": "023-snapback-gutter-repair-calls",
+      "sourceDigests": {
+        "/home/ccheever/sb4-loop/wave30/apps/023-snapback-gutter-repair-calls/snapback/schema.q": "7333e8663d05405f38e057c594f64b6832b52cc94abd3d8757500e416f94533d"
+      },
+      "results": {
+        "default": {
+          "exit": 0,
+          "ms": 14211,
+          "lines": 4,
+          "chars": 809,
+          "witnesses": 1,
+          "fixNotes": 0,
+          "hint": false,
+          "approvalWitness": false
+        },
+        "review": {
+          "exit": 0,
+          "ms": 1762,
+          "lines": 46,
+          "chars": 7439,
+          "witnesses": 6,
+          "fixNotes": 0,
+          "hint": false
+        },
+        "json": {
+          "exit": 0,
+          "ms": 1760,
+          "lines": 1,
+          "chars": 49913,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "gates": 0,
+          "witnessCodes": [
+            {
+              "code": "N_ARGUMENT_GRANT",
+              "site": "schema.q:105:10",
+              "acknowledged": false
+            }
+          ]
+        },
+        "deploy": {
+          "exit": 0,
+          "ms": 10418,
+          "lines": 8,
+          "chars": 1073,
+          "witnesses": 1,
+          "fixNotes": 0,
+          "hint": false
+        }
+      }
+    },
+    {
+      "lane": "024-snapback-home-gym-installs",
+      "sourceDigests": {
+        "/home/ccheever/sb4-loop/wave30/apps/024-snapback-home-gym-installs/snapback/schema.q": "0baf1d11c520d9cd0124b65d7bcbe5cfc769949f1b83168bd8b8e07121a09e79"
+      },
+      "results": {
+        "default": {
+          "exit": 0,
+          "ms": 1761,
+          "lines": 2,
+          "chars": 347,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "approvalWitness": false
+        },
+        "review": {
+          "exit": 0,
+          "ms": 1794,
+          "lines": 49,
+          "chars": 6223,
+          "witnesses": 6,
+          "fixNotes": 0,
+          "hint": false
+        },
+        "json": {
+          "exit": 0,
+          "ms": 1788,
+          "lines": 1,
+          "chars": 75038,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "gates": 0,
+          "witnessCodes": []
+        },
+        "deploy": {
+          "exit": 0,
+          "ms": 10448,
+          "lines": 6,
+          "chars": 612,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false
+        }
+      }
+    },
+    {
+      "lane": "025-snapback-chainsaw-safety-certifications",
+      "sourceDigests": {
+        "/home/ccheever/sb4-loop/wave30/apps/025-snapback-chainsaw-safety-certifications/snapback/schema.q": "3d0aa3a00136e31027bd2b59ce44e4ec26c424be80638ed83b297d4cbdcbebe6"
+      },
+      "results": {
+        "default": {
+          "exit": 0,
+          "ms": 8950,
+          "lines": 2,
+          "chars": 347,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "approvalWitness": false
+        },
+        "review": {
+          "exit": 0,
+          "ms": 790,
+          "lines": 53,
+          "chars": 6638,
+          "witnesses": 8,
+          "fixNotes": 0,
+          "hint": false
+        },
+        "json": {
+          "exit": 0,
+          "ms": 800,
+          "lines": 1,
+          "chars": 53200,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "gates": 0,
+          "witnessCodes": []
+        },
+        "deploy": {
+          "exit": 0,
+          "ms": 3217,
+          "lines": 6,
+          "chars": 611,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false
+        }
+      }
+    },
+    {
+      "lane": "026-snapback-film-camera-repairs",
+      "sourceDigests": {
+        "/home/ccheever/sb4-loop/wave30/apps/026-snapback-film-camera-repairs/snapback/schema.q": "85314bdadafbc52eada714a3fb57927288e07ef2c8c5b0142f6331aa1b2cbf9d"
+      },
+      "results": {
+        "default": {
+          "exit": 0,
+          "ms": 44883,
+          "lines": 2,
+          "chars": 347,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "approvalWitness": false
+        },
+        "review": {
+          "exit": 0,
+          "ms": 1767,
+          "lines": 40,
+          "chars": 6180,
+          "witnesses": 5,
+          "fixNotes": 0,
+          "hint": false
+        },
+        "json": {
+          "exit": 0,
+          "ms": 1763,
+          "lines": 1,
+          "chars": 32850,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "gates": 0,
+          "witnessCodes": []
+        },
+        "deploy": {
+          "exit": 0,
+          "ms": 10448,
+          "lines": 6,
+          "chars": 611,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false
+        }
+      }
+    },
+    {
+      "lane": "027-snapback-museum-diorama-builds",
+      "sourceDigests": {
+        "/home/ccheever/sb4-loop/wave30/apps/027-snapback-museum-diorama-builds/snapback/schema.q": "827cb182bcf5df2659450f8d3c8394508c2cc8a1e58292ce1a564a67f46cd2f2"
+      },
+      "results": {
+        "default": {
+          "exit": 0,
+          "ms": 1501,
+          "lines": 4,
+          "chars": 814,
+          "witnesses": 0,
+          "fixNotes": 2,
+          "hint": false,
+          "approvalWitness": false
+        },
+        "review": {
+          "exit": 0,
+          "ms": 1464,
+          "lines": 60,
+          "chars": 9210,
+          "witnesses": 7,
+          "fixNotes": 1,
+          "hint": false
+        },
+        "json": {
+          "exit": 0,
+          "ms": 1495,
+          "lines": 1,
+          "chars": 87382,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "gates": 0,
+          "witnessCodes": []
+        },
+        "deploy": {
+          "exit": 0,
+          "ms": 5067,
+          "lines": 6,
+          "chars": 611,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false
+        }
+      }
+    },
+    {
+      "lane": "028-snapback-lamp-post-restorations",
+      "sourceDigests": {
+        "/home/ccheever/sb4-loop/wave30/apps/028-snapback-lamp-post-restorations/snapback/schema.q": "4f62a7b48e3e645656d47e5333cd13d49229664c555276782952f50ca82ac05d"
+      },
+      "results": {
+        "default": {
+          "exit": 0,
+          "ms": 24617,
+          "lines": 2,
+          "chars": 463,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": true,
+          "approvalWitness": false
+        },
+        "review": {
+          "exit": 0,
+          "ms": 1758,
+          "lines": 32,
+          "chars": 5037,
+          "witnesses": 3,
+          "fixNotes": 0,
+          "hint": true
+        },
+        "json": {
+          "exit": 0,
+          "ms": 1756,
+          "lines": 1,
+          "chars": 42134,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "gates": 0,
+          "witnessCodes": []
+        },
+        "deploy": {
+          "exit": 0,
+          "ms": 7918,
+          "lines": 6,
+          "chars": 611,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false
+        }
+      }
+    },
+    {
+      "lane": "029-snapback-enclosed-car-shipping",
+      "sourceDigests": {
+        "/home/ccheever/sb4-loop/wave30/apps/029-snapback-enclosed-car-shipping/snapback/schema.q": "641717865a28f06b21dc547b81cd612ac76e5762568a5a4b03350cb9360a630b"
+      },
+      "results": {
+        "default": {
+          "exit": 0,
+          "ms": 1766,
+          "lines": 2,
+          "chars": 348,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "approvalWitness": false
+        },
+        "review": {
+          "exit": 0,
+          "ms": 1770,
+          "lines": 41,
+          "chars": 5769,
+          "witnesses": 4,
+          "fixNotes": 0,
+          "hint": false
+        },
+        "json": {
+          "exit": 0,
+          "ms": 1770,
+          "lines": 1,
+          "chars": 72794,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "gates": 0,
+          "witnessCodes": []
+        },
+        "deploy": {
+          "exit": 0,
+          "ms": 10416,
+          "lines": 6,
+          "chars": 611,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false
+        }
+      }
+    },
+    {
+      "lane": "030-snapback-acoustic-noise-studies",
+      "sourceDigests": {
+        "/home/ccheever/sb4-loop/wave30/apps/030-snapback-acoustic-noise-studies/snapback/schema.q": "4bd4dcab293956bdc4bfb7dca17f9a717fdfec735287ccb90550f18716428e08"
+      },
+      "results": {
+        "default": {
+          "exit": 0,
+          "ms": 259,
+          "lines": 2,
+          "chars": 345,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "approvalWitness": false
+        },
+        "review": {
+          "exit": 0,
+          "ms": 265,
+          "lines": 36,
+          "chars": 5148,
+          "witnesses": 5,
+          "fixNotes": 0,
+          "hint": false
+        },
+        "json": {
+          "exit": 0,
+          "ms": 263,
+          "lines": 1,
+          "chars": 32464,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "gates": 0,
+          "witnessCodes": []
+        },
+        "deploy": {
+          "exit": 0,
+          "ms": 428,
+          "lines": 6,
+          "chars": 611,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false
+        }
+      }
+    },
+    {
+      "lane": "031-snapback-cooling-tower-cleanings",
+      "sourceDigests": {
+        "/home/ccheever/sb4-loop/wave30/apps/031-snapback-cooling-tower-cleanings/snapback/schema.q": "7fafaa7d760c88ca3e4561729946fa897af7b9ef31f1136b6ca6919fb332710e"
+      },
+      "results": {
+        "default": {
+          "exit": 0,
+          "ms": 892,
+          "lines": 2,
+          "chars": 346,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "approvalWitness": false
+        },
+        "review": {
+          "exit": 0,
+          "ms": 897,
+          "lines": 45,
+          "chars": 6526,
+          "witnesses": 4,
+          "fixNotes": 0,
+          "hint": false
+        },
+        "json": {
+          "exit": 0,
+          "ms": 901,
+          "lines": 1,
+          "chars": 87467,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "gates": 0,
+          "witnessCodes": []
+        },
+        "deploy": {
+          "exit": 0,
+          "ms": 2942,
+          "lines": 6,
+          "chars": 612,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false
+        }
+      }
+    },
+    {
+      "lane": "032-snapback-private-school-placements",
+      "sourceDigests": {
+        "/home/ccheever/sb4-loop/wave30/apps/032-snapback-private-school-placements/snapback/schema.q": "36e4c35bf4fc4de4ee5a715ec293e8f08fbae9aac03279f94d65cf5ae835aa1d"
+      },
+      "results": {
+        "default": {
+          "exit": 0,
+          "ms": 1762,
+          "lines": 2,
+          "chars": 347,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "approvalWitness": false
+        },
+        "review": {
+          "exit": 0,
+          "ms": 1519,
+          "lines": 52,
+          "chars": 7522,
+          "witnesses": 6,
+          "fixNotes": 0,
+          "hint": false
+        },
+        "json": {
+          "exit": 0,
+          "ms": 1769,
+          "lines": 1,
+          "chars": 67298,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "gates": 0,
+          "witnessCodes": []
+        },
+        "deploy": {
+          "exit": 0,
+          "ms": 4628,
+          "lines": 6,
+          "chars": 611,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false
+        }
+      }
+    },
+    {
+      "lane": "033-snapback-garage-floor-coatings",
+      "sourceDigests": {
+        "/home/ccheever/sb4-loop/wave30/apps/033-snapback-garage-floor-coatings/snapback/schema.q": "3cefc074528db8e63dd1d1a2b2e84b1c7f3f873b18e8fc656564e28e57283825"
+      },
+      "results": {
+        "default": {
+          "exit": 0,
+          "ms": 18723,
+          "lines": 4,
+          "chars": 982,
+          "witnesses": 1,
+          "fixNotes": 0,
+          "hint": false,
+          "approvalWitness": true
+        },
+        "review": {
+          "exit": 0,
+          "ms": 293,
+          "lines": 53,
+          "chars": 9261,
+          "witnesses": 8,
+          "fixNotes": 0,
+          "hint": false
+        },
+        "json": {
+          "exit": 0,
+          "ms": 293,
+          "lines": 1,
+          "chars": 60396,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "gates": 0,
+          "witnessCodes": [
+            {
+              "code": "N_APPROVAL_NOT_ENFORCED",
+              "site": "schema.q:84:3",
+              "acknowledged": false
+            }
+          ]
+        },
+        "deploy": {
+          "exit": 0,
+          "ms": 458,
+          "lines": 8,
+          "chars": 1245,
+          "witnesses": 1,
+          "fixNotes": 0,
+          "hint": false
+        }
+      }
+    },
+    {
+      "lane": "034-snapback-vintage-handbag-restorations",
+      "sourceDigests": {
+        "/home/ccheever/sb4-loop/wave30/apps/034-snapback-vintage-handbag-restorations/snapback/schema.q": "aba0e248e38a7d2824cae5d05a1ac8ffb3158dd3582ac83124ecf793c2880aec"
+      },
+      "results": {
+        "default": {
+          "exit": 0,
+          "ms": 24982,
+          "lines": 2,
+          "chars": 348,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "approvalWitness": false
+        },
+        "review": {
+          "exit": 0,
+          "ms": 897,
+          "lines": 41,
+          "chars": 7484,
+          "witnesses": 13,
+          "fixNotes": 0,
+          "hint": false
+        },
+        "json": {
+          "exit": 0,
+          "ms": 885,
+          "lines": 1,
+          "chars": 65307,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "gates": 0,
+          "witnessCodes": []
+        },
+        "deploy": {
+          "exit": 0,
+          "ms": 4236,
+          "lines": 6,
+          "chars": 612,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false
+        }
+      }
+    },
+    {
+      "lane": "035-snapback-drapery-cleaning-batches",
+      "sourceDigests": {
+        "/home/ccheever/sb4-loop/wave30/apps/035-snapback-drapery-cleaning-batches/snapback/schema.q": "2e94a75b665e15957bf820a67ab33154839d41916d9614d4eb705b2eefc52f05"
+      },
+      "results": {
+        "default": {
+          "exit": 0,
+          "ms": 880,
+          "lines": 2,
+          "chars": 345,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "approvalWitness": false
+        },
+        "review": {
+          "exit": 0,
+          "ms": 896,
+          "lines": 30,
+          "chars": 4147,
+          "witnesses": 2,
+          "fixNotes": 0,
+          "hint": false
+        },
+        "json": {
+          "exit": 0,
+          "ms": 890,
+          "lines": 1,
+          "chars": 47242,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "gates": 0,
+          "witnessCodes": []
+        },
+        "deploy": {
+          "exit": 0,
+          "ms": 5087,
+          "lines": 6,
+          "chars": 611,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false
+        }
+      }
+    },
+    {
+      "lane": "036-snapback-mascot-costume-commissions",
+      "sourceDigests": {
+        "/home/ccheever/sb4-loop/wave30/apps/036-snapback-mascot-costume-commissions/snapback/schema.q": "7bacd86fd0513b7672377f6b56793facbe8a10d78b1dd66a0cc9aaa683aa6d6d"
+      },
+      "results": {
+        "default": {
+          "exit": 0,
+          "ms": 1765,
+          "lines": 2,
+          "chars": 347,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "approvalWitness": false
+        },
+        "review": {
+          "exit": 0,
+          "ms": 1796,
+          "lines": 42,
+          "chars": 6208,
+          "witnesses": 4,
+          "fixNotes": 0,
+          "hint": false
+        },
+        "json": {
+          "exit": 0,
+          "ms": 1782,
+          "lines": 1,
+          "chars": 55989,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "gates": 0,
+          "witnessCodes": []
+        },
+        "deploy": {
+          "exit": 0,
+          "ms": 9788,
+          "lines": 6,
+          "chars": 611,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false
+        }
+      }
+    },
+    {
+      "lane": "037-snapback-bespoke-glove-commissions",
+      "sourceDigests": {
+        "/home/ccheever/sb4-loop/wave30/apps/037-snapback-bespoke-glove-commissions/snapback/schema.q": "7c4a2d8dd04ff88da871cc963652e478f095841361ac6fc9c6c3196304e3a660"
+      },
+      "results": {
+        "default": {
+          "exit": 0,
+          "ms": 1763,
+          "lines": 2,
+          "chars": 347,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "approvalWitness": false
+        },
+        "review": {
+          "exit": 0,
+          "ms": 1767,
+          "lines": 47,
+          "chars": 6230,
+          "witnesses": 6,
+          "fixNotes": 0,
+          "hint": false
+        },
+        "json": {
+          "exit": 0,
+          "ms": 1760,
+          "lines": 1,
+          "chars": 66935,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "gates": 0,
+          "witnessCodes": []
+        },
+        "deploy": {
+          "exit": 0,
+          "ms": 9284,
+          "lines": 6,
+          "chars": 611,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false
+        }
+      }
+    },
+    {
+      "lane": "038-snapback-welding-gas-deliveries",
+      "sourceDigests": {
+        "/home/ccheever/sb4-loop/wave30/apps/038-snapback-welding-gas-deliveries/snapback/schema.q": "02af6074edb2e0c644676d43db64845b80576d075fe2602a4019e6b1557cdb7c"
+      },
+      "results": {
+        "default": {
+          "exit": 0,
+          "ms": 1538,
+          "lines": 3,
+          "chars": 1515,
+          "witnesses": 0,
+          "fixNotes": 1,
+          "hint": false,
+          "approvalWitness": false
+        },
+        "review": {
+          "exit": 0,
+          "ms": 1536,
+          "lines": 56,
+          "chars": 7780,
+          "witnesses": 7,
+          "fixNotes": 0,
+          "hint": false
+        },
+        "json": {
+          "exit": 0,
+          "ms": 1598,
+          "lines": 1,
+          "chars": 47539,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "gates": 0,
+          "witnessCodes": []
+        },
+        "deploy": {
+          "exit": 0,
+          "ms": 10456,
+          "lines": 6,
+          "chars": 611,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false
+        }
+      }
+    },
+    {
+      "lane": "039-snapback-parrot-chick-reservations",
+      "sourceDigests": {
+        "/home/ccheever/sb4-loop/wave30/apps/039-snapback-parrot-chick-reservations/snapback/schema.q": "d47c92c7aba86f7b4dcba0406ca9bca5740c6ad3046dd6b3f102292c1bfcea8e"
+      },
+      "results": {
+        "default": {
+          "exit": 0,
+          "ms": 1792,
+          "lines": 2,
+          "chars": 347,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "approvalWitness": false
+        },
+        "review": {
+          "exit": 0,
+          "ms": 1799,
+          "lines": 57,
+          "chars": 8386,
+          "witnesses": 8,
+          "fixNotes": 0,
+          "hint": false
+        },
+        "json": {
+          "exit": 0,
+          "ms": 1808,
+          "lines": 1,
+          "chars": 72066,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "gates": 0,
+          "witnessCodes": []
+        },
+        "deploy": {
+          "exit": 0,
+          "ms": 10486,
+          "lines": 6,
+          "chars": 612,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false
+        }
+      }
+    },
+    {
+      "lane": "040-snapback-snowmobile-repairs",
+      "sourceDigests": {
+        "/home/ccheever/sb4-loop/wave30/apps/040-snapback-snowmobile-repairs/snapback/schema.q": "ddd7899378a97f1648b8f34101461febe44e5803b5261754fbf199d56fb1c47a"
+      },
+      "results": {
+        "default": {
+          "exit": 0,
+          "ms": 1751,
+          "lines": 2,
+          "chars": 346,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "approvalWitness": false
+        },
+        "review": {
+          "exit": 0,
+          "ms": 1742,
+          "lines": 29,
+          "chars": 3608,
+          "witnesses": 2,
+          "fixNotes": 0,
+          "hint": false
+        },
+        "json": {
+          "exit": 0,
+          "ms": 1764,
+          "lines": 1,
+          "chars": 38491,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "gates": 0,
+          "witnessCodes": []
+        },
+        "deploy": {
+          "exit": 0,
+          "ms": 10422,
+          "lines": 6,
+          "chars": 611,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false
+        }
+      }
+    },
+    {
+      "lane": "041-snapback-steamer-trunk-restorations",
+      "sourceDigests": {
+        "/home/ccheever/sb4-loop/wave30/apps/041-snapback-steamer-trunk-restorations/snapback/schema.q": "3e06fb4e697e782aa6060b68cd2ff2a2fecaf4b0f5c53965ee1bd988e1db0c04"
+      },
+      "results": {
+        "default": {
+          "exit": 0,
+          "ms": 30720,
+          "lines": 2,
+          "chars": 348,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "approvalWitness": false
+        },
+        "review": {
+          "exit": 0,
+          "ms": 927,
+          "lines": 34,
+          "chars": 6088,
+          "witnesses": 11,
+          "fixNotes": 0,
+          "hint": false
+        },
+        "json": {
+          "exit": 0,
+          "ms": 919,
+          "lines": 1,
+          "chars": 44335,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "gates": 0,
+          "witnessCodes": []
+        },
+        "deploy": {
+          "exit": 0,
+          "ms": 4531,
+          "lines": 6,
+          "chars": 611,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false
+        }
+      }
+    },
+    {
+      "lane": "042-snapback-sports-memorabilia-consignments",
+      "sourceDigests": {
+        "/home/ccheever/sb4-loop/wave30/apps/042-snapback-sports-memorabilia-consignments/snapback/schema.q": "2e2c93118514509089b1b2eb9fb9c95da253058bf536ad34c2eefb665cc68dc3"
+      },
+      "results": {
+        "default": {
+          "exit": 0,
+          "ms": 904,
+          "lines": 2,
+          "chars": 346,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "approvalWitness": false
+        },
+        "review": {
+          "exit": 0,
+          "ms": 919,
+          "lines": 51,
+          "chars": 7000,
+          "witnesses": 6,
+          "fixNotes": 0,
+          "hint": false
+        },
+        "json": {
+          "exit": 0,
+          "ms": 911,
+          "lines": 1,
+          "chars": 92902,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "gates": 0,
+          "witnessCodes": []
+        },
+        "deploy": {
+          "exit": 0,
+          "ms": 4715,
+          "lines": 6,
+          "chars": 611,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false
+        }
+      }
+    },
+    {
+      "lane": "043-snapback-pool-fence-inspections",
+      "sourceDigests": {
+        "/home/ccheever/sb4-loop/wave30/apps/043-snapback-pool-fence-inspections/snapback/schema.q": "d02b4a889064bd52f9a2866020667666ea28d752ff261c24c39145a0d050944f"
+      },
+      "results": {
+        "default": {
+          "exit": 0,
+          "ms": 1792,
+          "lines": 2,
+          "chars": 347,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "approvalWitness": false
+        },
+        "review": {
+          "exit": 0,
+          "ms": 1799,
+          "lines": 37,
+          "chars": 6296,
+          "witnesses": 5,
+          "fixNotes": 0,
+          "hint": false
+        },
+        "json": {
+          "exit": 0,
+          "ms": 1799,
+          "lines": 1,
+          "chars": 61113,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "gates": 0,
+          "witnessCodes": []
+        },
+        "deploy": {
+          "exit": 0,
+          "ms": 10453,
+          "lines": 6,
+          "chars": 612,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false
+        }
+      }
+    },
+    {
+      "lane": "044-snapback-sash-window-restorations",
+      "sourceDigests": {
+        "/home/ccheever/sb4-loop/wave30/apps/044-snapback-sash-window-restorations/snapback/schema.q": "f29b86dee259db59cbfc12e9d9a5eb40918ea44a75470251b85953a9757338e6"
+      },
+      "results": {
+        "default": {
+          "exit": 0,
+          "ms": 1758,
+          "lines": 2,
+          "chars": 347,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "approvalWitness": false
+        },
+        "review": {
+          "exit": 0,
+          "ms": 1764,
+          "lines": 38,
+          "chars": 4457,
+          "witnesses": 3,
+          "fixNotes": 0,
+          "hint": false
+        },
+        "json": {
+          "exit": 0,
+          "ms": 1771,
+          "lines": 1,
+          "chars": 59532,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "gates": 0,
+          "witnessCodes": []
+        },
+        "deploy": {
+          "exit": 0,
+          "ms": 10449,
+          "lines": 6,
+          "chars": 612,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false
+        }
+      }
+    },
+    {
+      "lane": "045-snapback-rainwater-cistern-installs",
+      "sourceDigests": {
+        "/home/ccheever/sb4-loop/wave30/apps/045-snapback-rainwater-cistern-installs/snapback/schema.q": "54a96a50fc374933b6ae3810d4715ed717c00d82f6e00039054569677cde0ad3"
+      },
+      "results": {
+        "default": {
+          "exit": 0,
+          "ms": 12479,
+          "lines": 4,
+          "chars": 864,
+          "witnesses": 1,
+          "fixNotes": 0,
+          "hint": false,
+          "approvalWitness": false
+        },
+        "review": {
+          "exit": 0,
+          "ms": 867,
+          "lines": 38,
+          "chars": 6183,
+          "witnesses": 4,
+          "fixNotes": 0,
+          "hint": false
+        },
+        "json": {
+          "exit": 0,
+          "ms": 859,
+          "lines": 1,
+          "chars": 45208,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "gates": 0,
+          "witnessCodes": [
+            {
+              "code": "N_ARGUMENT_GRANT",
+              "site": "schema.q:58:10",
+              "acknowledged": false
+            }
+          ]
+        },
+        "deploy": {
+          "exit": 0,
+          "ms": 6138,
+          "lines": 8,
+          "chars": 1128,
+          "witnesses": 1,
+          "fixNotes": 0,
+          "hint": false
+        }
+      }
+    },
+    {
+      "lane": "046-snapback-walk-in-cooler-repairs",
+      "sourceDigests": {
+        "/home/ccheever/sb4-loop/wave30/apps/046-snapback-walk-in-cooler-repairs/snapback/schema.q": "3b9d2c6167fc092dfc347e34ba66a3ace6eec194baf9461073e11e1cad569b7c"
+      },
+      "results": {
+        "default": {
+          "exit": 0,
+          "ms": 914,
+          "lines": 3,
+          "chars": 1058,
+          "witnesses": 0,
+          "fixNotes": 1,
+          "hint": false,
+          "approvalWitness": false
+        },
+        "review": {
+          "exit": 0,
+          "ms": 947,
+          "lines": 44,
+          "chars": 6608,
+          "witnesses": 5,
+          "fixNotes": 0,
+          "hint": false
+        },
+        "json": {
+          "exit": 0,
+          "ms": 924,
+          "lines": 1,
+          "chars": 70864,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "gates": 0,
+          "witnessCodes": []
+        },
+        "deploy": {
+          "exit": 0,
+          "ms": 5258,
+          "lines": 6,
+          "chars": 611,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false
+        }
+      }
+    },
+    {
+      "lane": "047-snapback-live-wedding-painters",
+      "sourceDigests": {
+        "/home/ccheever/sb4-loop/wave30/apps/047-snapback-live-wedding-painters/snapback/schema.q": "7e831a89e91f6946d8f1c1c5fd7f6eb85add5c062fbe532c62382af0772cfb99"
+      },
+      "results": {
+        "default": {
+          "exit": 0,
+          "ms": 893,
+          "lines": 2,
+          "chars": 346,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "approvalWitness": false
+        },
+        "review": {
+          "exit": 0,
+          "ms": 917,
+          "lines": 42,
+          "chars": 7874,
+          "witnesses": 14,
+          "fixNotes": 0,
+          "hint": false
+        },
+        "json": {
+          "exit": 0,
+          "ms": 903,
+          "lines": 1,
+          "chars": 69557,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "gates": 0,
+          "witnessCodes": []
+        },
+        "deploy": {
+          "exit": 0,
+          "ms": 3120,
+          "lines": 6,
+          "chars": 611,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false
+        }
+      }
+    },
+    {
+      "lane": "048-snapback-treehouse-builds",
+      "sourceDigests": {
+        "/home/ccheever/sb4-loop/wave30/apps/048-snapback-treehouse-builds/snapback/schema.q": "dcf2c9c6ec543642d7ffd52e75c62478503eb7c5faaab3d17978390b9bdc8295"
+      },
+      "results": {
+        "default": {
+          "exit": 0,
+          "ms": 259,
+          "lines": 2,
+          "chars": 345,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "approvalWitness": false
+        },
+        "review": {
+          "exit": 0,
+          "ms": 268,
+          "lines": 44,
+          "chars": 6667,
+          "witnesses": 6,
+          "fixNotes": 0,
+          "hint": false
+        },
+        "json": {
+          "exit": 0,
+          "ms": 257,
+          "lines": 1,
+          "chars": 26737,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "gates": 0,
+          "witnessCodes": []
+        },
+        "deploy": {
+          "exit": 0,
+          "ms": 412,
+          "lines": 6,
+          "chars": 611,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false
+        }
+      }
+    },
+    {
+      "lane": "049-snapback-wedding-officiant-bookings",
+      "sourceDigests": {
+        "/home/ccheever/sb4-loop/wave30/apps/049-snapback-wedding-officiant-bookings/snapback/schema.q": "d169b24bafee2ab5700a8fc0df2a071239a9966e6cd890eec1307b79340c1efb"
+      },
+      "results": {
+        "default": {
+          "exit": 0,
+          "ms": 1674,
+          "lines": 2,
+          "chars": 347,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "approvalWitness": false
+        },
+        "review": {
+          "exit": 0,
+          "ms": 1736,
+          "lines": 33,
+          "chars": 4358,
+          "witnesses": 3,
+          "fixNotes": 0,
+          "hint": false
+        },
+        "json": {
+          "exit": 0,
+          "ms": 1719,
+          "lines": 1,
+          "chars": 48602,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "gates": 0,
+          "witnessCodes": []
+        },
+        "deploy": {
+          "exit": 0,
+          "ms": 10415,
+          "lines": 6,
+          "chars": 611,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false
+        }
+      }
+    },
+    {
+      "lane": "050-snapback-grain-dryer-servicing",
+      "sourceDigests": {
+        "/home/ccheever/sb4-loop/wave30/apps/050-snapback-grain-dryer-servicing/snapback/schema.q": "09127c02e2910cb70ee3268f5d7716480abf2951ef3e68ccfa8176c165c86593"
+      },
+      "results": {
+        "default": {
+          "exit": 0,
+          "ms": 34726,
+          "lines": 2,
+          "chars": 348,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "approvalWitness": false
+        },
+        "review": {
+          "exit": 0,
+          "ms": 1612,
+          "lines": 49,
+          "chars": 8133,
+          "witnesses": 6,
+          "fixNotes": 0,
+          "hint": false
+        },
+        "json": {
+          "exit": 0,
+          "ms": 1625,
+          "lines": 1,
+          "chars": 60631,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false,
+          "gates": 0,
+          "witnessCodes": []
+        },
+        "deploy": {
+          "exit": 0,
+          "ms": 7055,
+          "lines": 6,
+          "chars": 611,
+          "witnesses": 0,
+          "fixNotes": 0,
+          "hint": false
+        }
+      }
+    }
+  ]
+}

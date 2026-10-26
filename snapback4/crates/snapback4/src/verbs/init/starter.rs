@@ -412,6 +412,13 @@ pub(super) fn identity_screens(platform: Platform, personas: Option<&[String]>, 
         .replace("useNativeSmokeGuest();", if password { "useNativeSmoke(true);" } else { "useNativeSmoke();" }) } else { app };
     (app, client)
 }
+/// Exact pre-DX13 password clients; app-owned edits still fail byte matching.
+pub(super) fn pre_dx13_password_client(platform: Platform) -> &'static str {
+    match platform {
+        Platform::Web => include_str!("starter/previous/wave30/web-password-client.ts"),
+        Platform::Expo => include_str!("starter/previous/wave30/expo-password-client.ts"),
+    }
+}
 pub(super) fn wave22_screens(platform: Platform, personas: Option<&[String]>, body: &Body, password: bool) -> (String, String) {
     let (app, client) = wave20_screens(platform, personas, body, password);
     let app = if platform == Platform::Expo { app.replace("import { useNativeSmokeGuest } from \"./src/native-smoke\";", "import { useNativeSmoke } from \"snapback4-expo/native-smoke\";")

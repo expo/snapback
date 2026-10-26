@@ -170,7 +170,7 @@ pub(super) fn release_loop(project:&Project,bound:&Bound,sources:&[(String,Strin
     // Never suppress a gate or write-authority question behind the display cap.
     for (i,n) in notes.into_iter().enumerate(){if (review||crate::note_rank::tier(&n.code)==crate::note_rank::Tier::Fix)&&crate::note_rank::tier(&n.code)!=crate::note_rank::Tier::Review&&(i<5||security::note_priority(&n.code)<=3||crate::note_rank::tier(&n.code)==crate::note_rank::Tier::Fix){notice.push_str(&format!("  REVIEW {} {}: {}\n    {}\n",n.site,n.code,n.message,n.rewrite));}}
     if review&&count>5 {notice.push_str(&format!("  {count} changed-scope notes in deploy --check --json\n"));}
-    let selected=report.notes.iter().zip(&dispositions).filter(|(n,d)|d.gated || n.code!="N_SECURITY_INTENT" && scope.iter().any(|(file,start,end)| n.site.file==*file&&n.site.line>=*start&&n.site.line<*end)).collect::<Vec<_>>();
+    let selected=report.notes.iter().zip(&dispositions).filter(|(n,d)|d.gated || d.witness.is_some()&&!d.acknowledged || n.code!="N_SECURITY_INTENT" && scope.iter().any(|(file,start,end)| n.site.file==*file&&n.site.line>=*start&&n.site.line<*end)).collect::<Vec<_>>();
     let complete_family=dispositions.iter().filter(|d|d.family.is_some()).count()==selected.iter().filter(|(_,d)|d.family.is_some()).count();
     let scoped_notes=selected.iter().map(|(n,_)|(*n).clone()).collect::<Vec<_>>();
     let scoped_dispositions=selected.iter().map(|(_,d)| {let mut d=(*d).clone(); if !complete_family {d.family=None;} d}).collect::<Vec<_>>();

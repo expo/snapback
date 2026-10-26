@@ -84,6 +84,18 @@ fn evidence(bound: &Bound, inv: &security::Invariant, c: &Counterexample) -> ser
         inv.target,
         inv.predicate
     );
+    // @ref LLP 3000.037.000#1-default-verdict — compact exact fields retain the full replay in JSON.
+    // The default verdict shows the candidate's exact fields; full images and
+    // replay history remain in JSON and the expanded review summary.
+    let mut fields=std::collections::BTreeSet::new();
+    if let Some(column)=&inv.column {fields.insert(column.clone());}
+    let selected=std::cell::RefCell::new(fields);
+    if let Some(policy)=&inv.policy {policy.any_term(&|term| {
+        if let snapback4_core::schema::RuleTerm::Field(column)|snapback4_core::schema::RuleTerm::OldField(column)|snapback4_core::schema::RuleTerm::NextField(column)=term {selected.borrow_mut().insert(column.clone());}
+        false
+    });}
+    let focused=|row:&serde_json::Value| row.as_object().map(|row|row.iter().filter(|(key,_)|selected.borrow().contains(*key)).map(|(k,v)|(k.clone(),v.clone())).collect::<serde_json::Map<_,_>>()).map(serde_json::Value::Object).unwrap_or(serde_json::Value::Null);
+    let compact_summary=format!("{} as {} → ok; {} {} -> {} (bounded replay; not proof)",c.operation,c.viewer,inv.target_label(),old.as_ref().map(|row|focused(row).to_string()).unwrap_or_else(||"absent".into()),focused(&next));
     let history=c.history.iter().map(|step|json!({"operation":step.operation,"viewer":step.viewer,"args":step.args.iter().map(|(k,v)|(k,safe(v,None))).collect::<BTreeMap<_,_>>(),"state":step.result["state"]})).collect::<Vec<_>>();
     let supporting = c
         .supporting_rows
@@ -97,7 +109,7 @@ fn evidence(bound: &Bound, inv: &security::Invariant, c: &Counterexample) -> ser
             )
         })
         .collect::<BTreeMap<_, _>>();
-    json!({"history":history,"supportingRows":supporting,"summary":summary,"candidate":format!("invariant {} only {}",inv.target_label(),inv.predicate),"operation":c.operation,"viewer":c.viewer,"args":args,"effect":c.effect,"old":old,"row":next,"reachability":c.reachability,"scope":c.scope})
+    json!({"compactSummary":compact_summary,"history":history,"supportingRows":supporting,"summary":summary,"candidate":format!("invariant {} only {}",inv.target_label(),inv.predicate),"operation":c.operation,"viewer":c.viewer,"args":args,"effect":c.effect,"old":old,"row":next,"reachability":c.reachability,"scope":c.scope})
 }
 fn candidate(sources: &[(String, String)], line: &str) -> Option<security::Invariant> {
     let mut sources = sources.to_vec();
@@ -419,7 +431,7 @@ pub(in crate::verbs) fn collect(
 ) -> Vec<Option<serde_json::Value>> {
     let key = hash(
         &serde_json::to_vec(&(
-            "dx11-witness-5",
+            "dx13-witness-1",
             sources,
             notes,
             record::capture(sources, None).ok(),
