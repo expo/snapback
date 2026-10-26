@@ -108767,3 +108767,54 @@ All 30 private cluster directories confirm stopped, the 11,619-pair audit
 has no living helpers or zombies, and minimum free disk is 38.66 GiB.
 No push, publication, protected-cluster access or raw logs committed.
 See [the WF report](reports/20261026-wf-postgres/REPORT.md).
+
+
+## 2026-10-26 — WF fix round 1: cumulative deadline before the combined COMMIT
+
+The review of `55c44e465d` found that S cleared the client deadline at final
+dispatch, while the ticket and tail each received a fresh statement timeout.
+The new deterministic witness holds a real predecessor ticket for 600 ms
+and sleeps 600 ms in the tail under a one-second remaining budget. On the
+unchanged product code it records 604,774 + 600,975 µs and a committed xid
+(0 passed / 1 failed).
+
+The final simple-query message now calls a raising elapsed-budget helper
+after the tail, before the certificate controls and COMMIT. The remaining
+microseconds come from the client monotonic deadline after command encoding;
+server elapsed time is `clock_timestamp() - statement_timestamp()` for that
+message, so client/server clock epochs are never compared. `S4006` plus
+acknowledged rollback proves a known abort. G2/G3 recovery refuses expired
+members and permits one fresh attempt for a peer whose original deadline is
+still live. The ticket-timeout no-peer-rerun rule remains separate, and COMMIT
+still has zero statement, lock and PG17 transaction timeouts.
+
+The focused fixed witness records 605,243 + 601,440 µs, an aborted xid,
+no deferred COMMIT-trigger entry, no retained receipt/effect or head advance,
+and the expired/live recovery split (1/0). G7 suites pass 90/0, including the
+S two-flight ratchet; E core passes 40/0. Private PG17 passes 2/0 timeout cases
+and all 7/0 G7.3 cases. The wire witness requires `S4006`, ReadyForQuery `E`
+and no COMMIT tag, alongside all eight count aborts and three unknown-window
+cuts. Its observer now pairs requests with ReadyForQuery in FIFO order;
+a queued ROLLBACK previously erased one preceding error record. All four
+wire runs pass after that repair.
+
+The review's conservative classification of non-allowlisted server errors
+is retained: safely widening it needs statement-phase evidence. Final full
+verification and process-custody counts are recorded in the
+[WF report](reports/20261026-wf-postgres/REPORT.md). No throughput campaign.
+
+Full verification completes at core 1,311/0 (533 ignored), binary 626/0
+(75 ignored), HTTP authority 87/0, E HTTP 5/0, RT0 6/0 + 10/0, crash/kill
+11/0, and successful binary/SQLite-only builds and `ref-check` (12,048 refs,
+0 errors/unchecked). Full Postgres is 816/4 plus the inherited evaluator
+lockfile block; known `40001` is not re-executed behind that block. Its
+Rust reds are inherited difftest `E_INPUT: 6` and three additional cases:
+`log_plan_hygiene_cold_backend_tail_scan_witness` (99.589 > 70 µs/member),
+`g72_first_ticket_deadline_never_reruns_later_deadline_peers`, and
+`parallel_matches_serial_overlay_postgres` (remaining deadline elapsed).
+After the battery stopped, all five isolated current/pre-fix follow-ups
+pass, including a 9.504 µs/member upgraded cold-plan slope. The original
+concurrent reds remain recorded in the report; no thresholds were weakened.
+All 10 private cluster directories confirm
+stopped, all 10,651 audited PID/birth pairs are gone,
+and minimum free disk is 31.92 GiB. No owned PIDs left.

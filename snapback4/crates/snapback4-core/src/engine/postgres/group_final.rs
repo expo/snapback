@@ -26,6 +26,14 @@ BEGIN
  END IF;
  RETURN 0;
 END $sb4$;
+CREATE OR REPLACE FUNCTION pg_temp.sb4_assert_deadline(remaining_us bigint)
+RETURNS void LANGUAGE plpgsql VOLATILE AS $sb4$
+BEGIN
+ IF (pg_catalog.clock_timestamp() OPERATOR(pg_catalog.-) pg_catalog.statement_timestamp())
+    OPERATOR(pg_catalog.>=) (remaining_us OPERATOR(pg_catalog.*) '1 microsecond'::pg_catalog.interval) THEN
+  RAISE EXCEPTION 'program invocation remaining deadline elapsed after tail' USING ERRCODE='S4006';
+ END IF;
+END $sb4$;
 "#;
 impl Store {
     pub(super) fn prepare_group_final(&mut self) -> Result<(), RuntimeError> {
@@ -53,7 +61,7 @@ impl Tx<'_> {
             Ok(()) => Ok(()),
             Err(error) => {
                 let abort_reply = matches!(&error, RuntimeError::Postgres(e) if e.code().is_some_and(|c|
-                    matches!(c.code(),"S4001"|"S4002"|"S4003"|"S4004"|"S4005"|"55P03"|"57014"|"40001"|"40P01") || c.code().starts_with("23")));
+                    matches!(c.code(),"S4001"|"S4002"|"S4003"|"S4004"|"S4005"|"S4006"|"55P03"|"57014"|"40001"|"40P01") || c.code().starts_with("23")));
                 // After dispatch, only an explicit abort reply AND the original
                 // transaction's acknowledged end authorize a retry. Transport,
                 // decoding and warning failures remain unknown, even after ROLLBACK.
@@ -64,6 +72,9 @@ impl Tx<'_> {
                 self.inner.borrow_mut().done = true;
                 let error = match error {
                     RuntimeError::Postgres(ref e) if aborted && e.code().is_some_and(|c|matches!(c.code(),"55P03"|"57014")) => RuntimeError::Store("pipeline ticket deadline elapsed".into()),
+                    // This is the old post-tail deadline check: only expired
+                    // members fail; live peers retain their original fallback.
+                    RuntimeError::Postgres(ref e) if aborted && e.code().is_some_and(|c|c.code()=="S4006") => RuntimeError::Store("program invocation's remaining deadline elapsed after tail".into()),
                     RuntimeError::Postgres(ref e) if aborted && e.code().is_some_and(|c|c.code()=="S4004") => RuntimeError::Generation("ticket batch generation changed".into()),
                     RuntimeError::Postgres(ref e) if aborted && e.code().is_some_and(|c|c.code()=="S4005") => RuntimeError::Structural{code:"E_STORE_REPLACED",message:"ticket batch store identity changed".into()},
                     error if aborted => error,

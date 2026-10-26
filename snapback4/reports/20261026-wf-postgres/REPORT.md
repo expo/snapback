@@ -138,3 +138,124 @@ free disk is **38.66 GiB**, above the 25 GiB stop floor. Private ports exclude
 is in [cleanup.json](./cleanup.json). Raw logs, traces, binary snapshots and
 setup attempts remain outside Git under `/tmp/wf-*`; only source and curated
 aggregates are committed.
+
+
+## WF fix round 1 — cumulative deadline before COMMIT
+
+Parent: `55c44e465d9f150c74ca554e29eb436946b23170`, branch `sb4-pg/wf`.
+The review identified a gap in the two-flight S final: clearing the client
+deadline at dispatch left the ticket and tail with independent statement
+limits. Their combined duration could exceed the invocation budget and
+still reach COMMIT.
+
+After encoding the final commands, the client now computes remaining
+microseconds from the original monotonic deadline. In that same message,
+after the tail and before certificate settings, `pg_temp.sb4_assert_deadline`
+compares this duration with server elapsed time since receipt of the whole
+simple-query message (`clock_timestamp() - statement_timestamp()`). Both
+timestamps are on the server, so client/server clock skew does not affect
+the comparison. Expiry raises `S4006` and skips COMMIT. An acknowledged
+ROLLBACK proves a known abort with no named failed member: G2/G3 recovery
+refuses expired members and gives a live peer its existing fresh-fact
+fallback within its original deadline. It does not use the ticket-timeout
+class that prevents all peer reruns. The certificate still zeros statement,
+lock and PG17 transaction timeouts before entering uncancellable COMMIT.
+
+| Deterministic witness | Ticket wait ms | Tail ms | Budget ms | Original xid | Passed / failed |
+| --- | ---: | ---: | ---: | --- | ---: |
+| New witness on unchanged `55c44e465d` product code | 604.774 | 600.975 | 1,000 | committed | 0 / 1 |
+| Fixed focused run | 605.243 | 601.440 | 1,000 | aborted | 1 / 0 |
+
+The witness rendezvous waits until the worker is actually blocked on its
+predecessor ticket before holding it another 600 ms. A trigger spends
+another 600 ms in the tail. Nontransactional sequence counters verify both
+individual durations remain below the statement limit, the combined budget
+is exceeded, and the deferred COMMIT trigger is never entered. The fixed
+run also checks no receipt, effect or head advance remains, known-abort
+classification permits recovery, the expired member never reruns, and the
+live member gets exactly one successful fresh attempt.
+
+The wire observer requires one `S4006` + ReadyForQuery `E` result without
+COMMIT, eight count-assertion aborts, one ticket timeout and two identity
+aborts. It also confirms successful idle COMMIT ends. Its first run exposed
+an observer race: a queued ROLLBACK replaced the preceding request's error
+before ReadyForQuery was recorded, counting only seven of eight count
+aborts despite all seven Rust tests passing. The observer now pairs replies
+with startup/simple-query/extended-Sync requests in FIFO order. The repaired
+normal run and all three wire cuts pass; cuts before forwarding, after a
+row and after COMMIT retain unknown outcomes without automatic rerun.
+
+All 90 G7 cases pass, including the two-slot S ratchet for N=1/8/32 with
+G5/G6: successful eligible S batches remain **2 flights**, with no new
+flight for this guard. E core passes 40/0. Private PG17 passes both
+certificate-timeout cases and all seven G7.3 cases; the slow deferred
+COMMIT still outlives the statement and session transaction budgets.
+
+The review's low-priority non-allowlisted SQLSTATE observation remains
+conservatively unknown. Widening that classifier safely needs statement
+phase evidence, rather than treating a later successful ROLLBACK as proof.
+No throughput campaign, push or publication was performed.
+
+
+### Fix-round full verification
+
+Counts are per run, not a sum of unique tests; targeted suites overlap.
+Rust-case counts are shown except where commands/runs are explicitly named.
+
+| Check | Passed | Failed | Detail |
+| --- | ---: | ---: | --- |
+| Full core | 1,311 | 0 | 49 targets; 533 ignored |
+| Full `snapback4` binary tests | 626 | 0 | 75 ignored |
+| Full binary build | 1 | 0 | command, Postgres enabled |
+| G7.3 | 7 | 0 | includes cumulative expiry, unknown window and uncancellable COMMIT |
+| All G7, private PG16 | 90 | 0 | PG17-only cases run separately |
+| E core / HTTP | 40 / 5 | 0 / 0 | explicit opt-in regression suites |
+| Private PG17 | 2 + 7 | 0 | certificate timeouts + G7.3 |
+| HTTP authority witnesses | 87 | 0 | both stores |
+| RT0 core / HTTP | 6 / 10 | 0 / 0 | eligible S remains two flights |
+| Wire observer | 4 | 0 | runs: normal plus three cuts |
+| E crash/kill matrix | 11 | 0 | zero acknowledged loss; no lost-history reader release |
+| `bash scripts/test-postgres.sh` | 816 | 4 | 26 Rust targets; exit 1; evaluator additionally blocked |
+| Public serving milestone | 1 | 0 | script; release/restore, changes/sync, deploy/serve and wire parity |
+| SQLite-only build / `ref-check` | 1 / 1 | 0 / 0 | commands; 569 LLP docs, 12,048 refs, 0 errors/unchecked |
+
+The Postgres script's four Rust reds are recorded without hiding retries:
+
+- Inherited `both_stores_all_public_boundaries_and_write_observations`:
+  unsupported accounting reports `E_INPUT: 6`.
+- Additional `log_plan_hygiene_cold_backend_tail_scan_witness`: upgraded
+  slope **99.588766 µs/member**, outside its `<70` margin. Zero-scan checks
+  pass; this is the direct-SQL timing arm, outside the changed final path.
+- Additional `g72_first_ticket_deadline_never_reruns_later_deadline_peers`:
+  the four-thread battery sees a later peer succeed, violating the fixture's
+  all-error expectation. The same case passes in the serial G7 suite.
+- Additional `parallel_matches_serial_overlay_postgres`: the chain's
+  grouped outcomes expire with `program invocation's remaining deadline
+  elapsed`, while its serial comparison succeeds.
+
+The inherited evaluator lockfile still refuses `--locked`; that evaluator
+stage is blocked before executing tests. Its previously known `40001` red
+is therefore not re-executed in this run. The script continues through all
+other stages, including the passing overlap corpus (22/0) and public
+serving milestone. No unrelated threshold or test deadline was weakened.
+
+
+After the complete battery stopped, one fresh private-PG16 follow-up run
+passed **5/0** cases: the cold-plan witness (fresh slope 21.795, upgraded
+9.504 µs/member; legacy negative control 310.549), both deadline/differential
+cases on the current binary (2/0), and those same two cases on the retained
+pre-fix WF binary `/tmp/wf-after-core` (2/0). The original concurrent
+battery result remains **816/4**; these isolated passes do not replace it.
+The stricter cumulative-budget witness remains green with no code changes
+throughout verification.
+
+Every private cluster is stopped: **16 starts across
+10 directories**, each confirmed by
+`pg_ctl status=3` and no `postmaster.pid`. A fresh birth-checked audit of
+**10,651 PID/birth pairs across 8 runs**
+finds **0 living helpers or zombies**. Minimum free disk was
+**31.92 GiB**, above the 25 GiB stop threshold.
+Reclaimed 6.57 GiB from 44 completed integration-test executables in this
+worktree's own target directory while retaining active/remaining binaries.
+Raw logs, custody records and baseline artifacts remain outside Git under
+`/tmp/wff1-*` and `/tmp/wf-*`. No push, publication or throughput campaign.

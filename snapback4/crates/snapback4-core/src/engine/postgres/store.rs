@@ -642,8 +642,22 @@ impl Tx<'_> {
             sql.push_str(&command); sql.push(';');
             statements.push(bind);
         }
-        sql.push_str(end);
         self.ensure_active()?;
+        // @ref LLP 3000.009.001.000.000.002#4.4 — per-statement timeouts cannot bound ticket + tail together; raise before the uncancellable COMMIT.
+        // Compute the duration after encoding. Both elapsed-time timestamps
+        // are server-side, with statement_timestamp fixed for this whole
+        // simple-query message, so client/server clock skew is irrelevant.
+        let final_budget = if committing {
+            self.program_deadline.get().map(|deadline| {
+                deadline.checked_duration_since(std::time::Instant::now()).filter(|r|!r.is_zero())
+                    .map(|r|r.as_micros().min(i64::MAX as u128))
+                    .ok_or_else(||RuntimeError::Store("program invocation's remaining deadline elapsed".into()))
+            }).transpose()?
+        } else { None };
+        if let Some(us)=final_budget {
+            sql.push_str(&format!("SELECT pg_temp.sb4_assert_deadline({us});"));
+        }
+        sql.push_str(end);
         if committing { self.start_final_dispatch(); }
         let mut inner = self.inner.borrow_mut();
         let controls = inner.pending.bytes().filter(|b| *b == b';').count();
@@ -655,7 +669,7 @@ impl Tx<'_> {
             // simple_query returns only after ReadyForQuery. With the complete
             // trailing COMMIT tag and no error this is an idle successful end.
             let tags=messages.iter().filter(|m|matches!(m,postgres::SimpleQueryMessage::CommandComplete(_))).count();
-            if tags!=controls+statements.len()+5 || !matches!(messages.last(),Some(postgres::SimpleQueryMessage::CommandComplete(0))) {
+            if tags!=controls+statements.len()+5+usize::from(final_budget.is_some()) || !matches!(messages.last(),Some(postgres::SimpleQueryMessage::CommandComplete(0))) {
                 return Err(RuntimeError::CommitOutcomeUnknown("incomplete two-flight COMMIT confirmation".into()));
             }
         }

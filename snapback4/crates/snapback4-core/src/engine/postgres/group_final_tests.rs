@@ -66,6 +66,79 @@ fn g73_ticket_timeout_skips_commit_and_slow_commit_survives_reset() {
 }
 #[test]
 #[ignore="private Postgres"]
+fn g73_cumulative_ticket_and_tail_deadline_skips_commit_and_recovers_live_members() {
+    use std::time::{Duration, Instant};
+    let mut engine=fixture();let mut client=observer(&mut engine);
+    let before=engine.seq().unwrap();
+    // Sequences retain numeric timing/COMMIT-entry evidence even on rollback.
+    client.batch_execute("CREATE SEQUENCE wf_wait_us; CREATE SEQUENCE wf_tail_us; CREATE SEQUENCE wf_commit_entered;
+        CREATE FUNCTION wf_budget_tail() RETURNS trigger LANGUAGE plpgsql AS $f$
+        DECLARE started timestamptz := clock_timestamp();
+        BEGIN
+          PERFORM setval('wf_wait_us',greatest(1,(extract(epoch FROM (started-statement_timestamp()))*1000000)::bigint));
+          PERFORM pg_sleep(0.6);
+          PERFORM setval('wf_tail_us',(extract(epoch FROM (clock_timestamp()-started))*1000000)::bigint);
+          RETURN NEW;
+        END $f$;
+        CREATE TRIGGER wf_budget_tail BEFORE UPDATE ON _head FOR EACH ROW EXECUTE FUNCTION wf_budget_tail();
+        CREATE FUNCTION wf_budget_commit() RETURNS trigger LANGUAGE plpgsql AS $f$
+        BEGIN PERFORM nextval('wf_commit_entered'); RETURN NEW; END $f$;
+        CREATE CONSTRAINT TRIGGER wf_budget_commit AFTER UPDATE ON _head DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION wf_budget_commit()").unwrap();
+    let ticket=919230744i64;client.query_one("SELECT pg_advisory_lock($1)",&[&ticket]).unwrap();
+    let (send,receive)=std::sync::mpsc::channel();
+    let worker=std::thread::spawn(move || {
+        let (result,deadline)={
+            let store=engine.store_mut().test_postgres_handle_mut().store.get_mut();
+            let pid:i32=store.client.query_one("SELECT pg_backend_pid()",&[]).unwrap().get(0);
+            let mut tx=stage(store);let xid=tx.batch_base.borrow().as_ref().unwrap().xid.clone();
+            let deadline=Instant::now()+Duration::from_secs(1);
+            tx.predecessor_ticket=Some(ticket);tx.program_deadline.set(Some(deadline));
+            send.send((pid,xid)).unwrap();
+            (tx.commit_group_final(),deadline)
+        };
+        (engine,result,deadline)
+    });
+    let (pid,xid)=receive.recv_timeout(Duration::from_secs(10)).unwrap();
+    let until=Instant::now()+Duration::from_secs(10);
+    while !client.query_one("SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE pid=$1 AND backend_xid::text=$2 AND state='active' AND wait_event='advisory')",&[&pid,&xid]).unwrap().get::<_,bool>(0) {
+        assert!(Instant::now()<until);std::thread::sleep(Duration::from_millis(1));
+    }
+    // Release only after a real ticket wait has begun, then spend another
+    // 600 ms in the tail. Neither statement reaches its one-second limit.
+    client.batch_execute("SELECT pg_sleep(0.6)").unwrap();
+    client.query_one("SELECT pg_advisory_unlock($1)",&[&ticket]).unwrap();
+    let (mut engine,result,deadline)=worker.join().unwrap();
+    let wait:i64=client.query_one("SELECT last_value FROM wf_wait_us",&[]).unwrap().get(0);
+    let tail:i64=client.query_one("SELECT last_value FROM wf_tail_us",&[]).unwrap().get(0);
+    assert!(wait>=600_000 && wait<1_000_000,"ticket wait {wait} us");
+    assert!(tail>=600_000 && tail<1_000_000,"tail {tail} us");
+    assert!(wait+tail>1_000_000,"combined budget exceeded");
+    eprintln!("G73 cumulative budget: ticket_us={wait} tail_us={tail} budget_us=1000000 xid_status={}",status(&mut client,&xid));
+    assert_eq!(status(&mut client,&xid),"aborted","expired combined message must skip COMMIT");
+    assert_eq!(client.query_one("SELECT last_value FROM wf_commit_entered",&[]).unwrap().get::<_,i64>(0),1,"COMMIT was never entered");
+    let failure=result.unwrap_err();assert!(failure.aborted);assert!(failure.may_rerun());
+    assert!(matches!(&failure.error,RuntimeError::Store(message) if message=="program invocation's remaining deadline elapsed after tail"),"{}",failure.error);
+    assert_eq!(engine.seq().unwrap(),before);
+    assert_eq!(client.query_one("SELECT (SELECT count(*) FROM _ops WHERE id='wf-op')+(SELECT count(*) FROM _outbox WHERE id='wf-effect')",&[]).unwrap().get::<_,i64>(0),0);
+    client.batch_execute("DROP TRIGGER wf_budget_tail ON _head; DROP TRIGGER wf_budget_commit ON _head").unwrap();
+    // The cumulative expiry follows the G2/G3 per-member deadline rule,
+    // unlike a ticket timeout which refuses every peer without rerunning.
+    let mut batch:Vec<_>=(0..2).map(|i| {
+        let mut invocation=crate::engine::program::Invocation::new("increment",Some(format!("wf-budget-{i}")),crate::Context::new("alice",[
+            ("key".into(),crate::Value::Id("a".into())),("delta".into(),crate::Value::Int(1)),("reject".into(),crate::Value::Bool(false))
+        ].into()).at(1000).with_ids([format!("wf-entry-{i}")]));
+        invocation.deadline=if i==0 {deadline} else {Instant::now()+Duration::from_secs(10)};
+        invocation.bind(&engine).unwrap();invocation
+    }).collect();
+    let mut results=vec![None,None];
+    engine.program_recover(&mut batch,&[0,1],&mut results,(failure,None));
+    assert!(results[0].as_ref().unwrap().is_err());assert!(results[1].as_ref().unwrap().is_ok(),"{:?}",results[1]);
+    assert!(batch[0].attempts.is_empty(),"expired member must not rerun");
+    assert_eq!(batch[1].attempts.len(),1,"live member gets one fresh attempt");
+    assert_eq!(engine.seq().unwrap(),before+1);
+}
+#[test]
+#[ignore="private Postgres"]
 fn g73_identity_raises_before_any_tail_or_commit() {
     for change in ["UPDATE _backend SET generation=generation+1 WHERE singleton", "UPDATE _meta SET value='replaced' WHERE key='store_id'"] {
         let mut engine=fixture();let mut client=observer(&mut engine);

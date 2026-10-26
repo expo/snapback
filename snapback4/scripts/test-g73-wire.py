@@ -1,5 +1,6 @@
 """Numeric-only wire witness over a private loopback PG connection."""
 import json,os,pathlib,re,socket,struct,subprocess,sys,threading,time
+from collections import deque
 config=dict(re.findall(r'(host|port|user|dbname)=([^ ]+)',os.environ['SNAPBACK4_EVAL_POSTGRES_TCP']))
 server=socket.socket();server.bind(('127.0.0.1',0));server.listen(64);server.settimeout(.2)
 stop=threading.Event();lock=threading.Lock();records=[];sockets=[];workers=[];next_id=0
@@ -20,10 +21,14 @@ def connection(front,ident):
  back=socket.create_connection(('127.0.0.1',int(config['port'])))
  front.setsockopt(socket.IPPROTO_TCP,socket.TCP_NODELAY,1)
  back.setsockopt(socket.IPPROTO_TCP,socket.TCP_NODELAY,1)
- state={'final':False,'error':None,'commit':False,'cut':False,'combined':False}
+ def empty():return dict(final=False,error=None,commit=False,cut=False,combined=False)
+ # Startup, each simple query and each extended-protocol Sync get one
+ # ReadyForQuery. A queued ROLLBACK must not erase its predecessor's error.
+ replies=deque([empty()])
  with lock:sockets.extend([front,back])
  def requests():
   global injected
+  extended=False
   try:
    size=read(front,4);payload=read(front,struct.unpack('!I',size)[0]-4);back.sendall(size+payload)
    while True:
@@ -33,9 +38,17 @@ def connection(front,ident):
       final=payload.rstrip(b'\x00; \n').upper().endswith(b'COMMIT')
       cut=bool(fault and final and b'EXECUTE sb4_rt6_' in payload and not injected)
       if cut:injected=True
-      state.update(final=final,error=None,commit=False,cut=cut,combined=bool(final and b'EXECUTE sb4_rt6_' in payload))
+      replies.append(dict(final=final,error=None,commit=False,cut=cut,combined=bool(final and b'EXECUTE sb4_rt6_' in payload)))
      if cut and fault=='before-forward':
       front.shutdown(socket.SHUT_RDWR);back.shutdown(socket.SHUT_RDWR);return
+    elif tag in [b'P',b'B',b'D',b'E',b'C']:
+     if not extended:
+      with lock:replies.append(empty())
+      extended=True
+    elif tag==b'S':
+     if not extended:
+      with lock:replies.append(empty())
+     extended=False
     back.sendall(tag+length+payload)
   except (EOFError,OSError):
    try:back.shutdown(socket.SHUT_WR)
@@ -45,9 +58,11 @@ def connection(front,ident):
   while True:
    tag,length,payload=packet(back)
    with lock:
+    state=replies[0]
     if tag==b'E':state['error']=next((x[1:].decode('ascii','replace') for x in payload.split(b'\x00') if x.startswith(b'C')),None)
     if tag==b'C' and payload==b'COMMIT\x00':state['commit']=True
-    if tag==b'Z':records.append(dict(connection=ident,rfq=payload.decode(),**state))
+    if tag==b'Z':
+     records.append(dict(connection=ident,rfq=payload.decode(),**state));replies.popleft()
     cut=state['cut'] and ((fault=='after-row' and tag==b'D') or (fault=='after-commit' and tag==b'C' and payload==b'COMMIT\x00'))
    if cut:break
    front.sendall(tag+length+payload)
@@ -80,8 +95,9 @@ finally:
  assert not any(t.is_alive() for t in workers)
 finals=[r for r in records if r['combined']]
 checks={'complete_idle_commits':sum(r['commit'] and r['rfq']=='I' and r['error'] is None for r in finals),'assertion_aborts_skip_commit':sum(r['error']=='S4003' and r['rfq']=='E' and not r['commit'] for r in finals),'ticket_timeouts_skip_commit':sum(r['error'] in ['55P03','57014'] and r['rfq']=='E' and not r['commit'] for r in finals),'identity_aborts_skip_commit':sum(r['error'] in ['S4004','S4005'] and r['rfq']=='E' and not r['commit'] for r in finals)}
+checks['cumulative_deadline_aborts_skip_commit']=sum(r['error']=='S4006' and r['rfq']=='E' and not r['commit'] for r in finals)
 pathlib.Path(os.environ.get('WF_WIRE_OUT','/tmp/wf-wire.json')).write_text(json.dumps({'checks':checks,'records':records,'child_exit':child.returncode},indent=2))
 print(json.dumps(dict(checks, fault=fault,injected=injected)),flush=True)
 assert child.returncode==0
 if fault:assert injected
-else:assert checks['complete_idle_commits']>=1 and checks['assertion_aborts_skip_commit']==8 and checks['ticket_timeouts_skip_commit']==1 and checks['identity_aborts_skip_commit']==2
+else:assert checks['complete_idle_commits']>=1 and checks['assertion_aborts_skip_commit']==8 and checks['ticket_timeouts_skip_commit']==1 and checks['identity_aborts_skip_commit']==2 and checks['cumulative_deadline_aborts_skip_commit']==1
