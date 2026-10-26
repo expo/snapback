@@ -410,7 +410,7 @@ pub fn check(options: &Options) -> i32 {
         "--ack-security was not applied: a security invariant is refuted; an acknowledgment records specification rationale for a review note and cannot override a concrete counterexample. Repair the policy or the invariant and rerun check.");
     if !options.json { if let Some(message) = acknowledgment_not_applied { eprintln!("check: {message}"); } }
     let evidence=if options.json || options.flags.contains_key("review") || options.flags.contains_key("verbose") || options.flags.contains_key("ack-security") || security.notes.iter().any(|n|security_reviews::gated(&n.code)) {
-        security::witnesses::collect(&project,&bound,&compiled_sources,&security.notes,options.json || options.flags.contains_key("review") || options.flags.contains_key("verbose") || options.flags.contains_key("ack-security"))
+        security::witnesses::collect(&project,&bound,&compiled_sources,&security.notes,options.json || options.flags.contains_key("review") || options.flags.contains_key("verbose") || options.flags.contains_key("ack-security"),options)
     } else { Vec::new() };
     let dispositions = match security_reviews::review_evidence(&project,&compiled_sources,&security.notes,
         if security.refuted(){None}else{options.flags.get("ack-security").map(|id|(id.as_str(),options.flags.get("reason").map(String::as_str).unwrap_or("")))},&evidence) {

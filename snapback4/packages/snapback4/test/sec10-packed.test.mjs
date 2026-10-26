@@ -23,9 +23,9 @@ test('packed approval decisions, nonblank guards and text minimums run as docume
  const recipe=[...card.matchAll(/```quarry\n([\s\S]*?)\n```/g)].map(m=>m[1]).find(s=>s.includes("query required(value: text 1..30)"));assert.ok(recipe,'complete installed recipe');
  let source=recipe.replace("trim(value) != ''","value != ''").replace("  d = docs[doc] ! else NOT_FOUND\n  require d.approved else NO_APPROVAL\n",'')+'\n';
  const write=()=>writeFileSync(join(dir,'snapback/schema.q'),source);write();
- let checked=JSON.parse(run(process.execPath,[cli,'check','--json'],dir,1));assert.ok(checked.securityReviews.some(r=>r.code==='N_BLANK_TEXT_GUARD'&&r.gated));assert.ok(checked.securityReviews.some(r=>r.code==='N_APPROVAL_NOT_ENFORCED'&&r.gated));
+ let checked=JSON.parse(run(process.execPath,[cli,'check','--json'],dir));assert.ok(checked.securityReviews.some(r=>r.code==='N_BLANK_TEXT_GUARD'&&!r.gated));assert.ok(checked.securityReviews.some(r=>r.code==='N_APPROVAL_NOT_ENFORCED'&&!r.gated));
  source=source.replace("value != ''","trim(value) != ''");write();
- checked=JSON.parse(run(process.execPath,[cli,'check','--json'],dir,1));assert.ok(!checked.securityReviews.some(r=>r.code==='N_BLANK_TEXT_GUARD'));
+ checked=JSON.parse(run(process.execPath,[cli,'check','--json'],dir));assert.ok(!checked.securityReviews.some(r=>r.code==='N_BLANK_TEXT_GUARD'));
  const decision=checked.securityReviews.find(r=>r.code==='N_APPROVAL_NOT_ENFORCED');assert.ok(decision);
  run(process.execPath,[cli,'check','--ack-security',decision.id,'--reason','informational approval record: this draft may finish independently']);
  source=recipe+'\n';write();
@@ -45,10 +45,23 @@ test('packed approval decisions, nonblank guards and text minimums run as docume
  for(const [code,fact] of [['N_APPROVAL_INFORMATIONAL','It does not block deployment.'],['N_INSERT_TABLE_AUTHORITY','Confirm the declared table insert and edit audiences']]){const why=run(process.execPath,[cli,'why',code]);assert.match(why,new RegExp(code));assert.ok(why.includes(fact),why);}
  const edit=join(dir,'edit-guard');mkdirSync(join(edit,'snapback'),{recursive:true});
  source="table docs:\n  title: text <=80\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\nmutation create(title: text <=80):\n  return insert docs {title}\nmutation edit(doc: docs,title: text <=80):\n  require viewer = 'service:editor' else NOT_EDITOR\n  update docs[doc] {title}\n";
- writeFileSync(join(edit,'snapback/schema.q'),source);checked=JSON.parse(run(process.execPath,[cli,'check','--json'],edit,1));
- assert.ok(checked.securityReviews.some(r=>r.code==='N_INSERT_WRITE_INTENT'&&r.gated));
+ writeFileSync(join(edit,'snapback/schema.q'),source);checked=JSON.parse(run(process.execPath,[cli,'check','--json'],edit));
+ assert.ok(checked.securityReviews.some(r=>r.code==='N_INSERT_WRITE_INTENT'&&!r.gated));
  source+="invariant docs.title update only viewer = 'service:editor'\n";writeFileSync(join(edit,'snapback/schema.q'),source);
  checked=JSON.parse(run(process.execPath,[cli,'check','--json'],edit));
  assert.ok(!checked.securityReviews.some(r=>r.code==='N_INSERT_WRITE_INTENT'));
+
+ // The installed wrapper must execute the guide's witness-specific answer,
+ // including explicit permission for the observed operation and caller.
+ const witnessed=join(dir,'witnessed');mkdirSync(join(witnessed,'snapback'),{recursive:true});
+ const original=readFileSync(new URL('../../../crates/snapback4-lang/tests/security/sec10-shipping/w30-033.q',import.meta.url),'utf8');
+ writeFileSync(join(witnessed,'snapback/schema.q'),original);
+ checked=JSON.parse(run(process.execPath,[cli,'check','--json'],witnessed,1));
+ const concrete=checked.securityReviews.find(r=>r.code==='N_APPROVAL_NOT_ENFORCED'&&r.witness?.operation==='advanceJob');assert.ok(concrete?.gated,'a concrete workflow effect is gated');
+ const rejected=JSON.parse(run(process.execPath,[cli,'check','--ack-security',concrete.id,'--reason','one decision','--json'],witnessed,2));assert.equal(rejected.problems[0].code,'E_SECURITY_NOTES');
+ const answer=`witness ${concrete.witness.id}; permit advanceJob as ${concrete.witness.viewer}; intended effect: advanceJob may deliberately proceed under this explicit test specification`;
+ const answered=JSON.parse(run(process.execPath,[cli,'check','--ack-security',concrete.id,'--reason',answer,'--json'],witnessed));assert.ok(answered.securityReviews.some(r=>r.id===concrete.id&&r.acknowledged));
+ writeFileSync(join(witnessed,'snapback/schema.q'),'-- independent comment\n'+original);
+ const retained=JSON.parse(run(process.execPath,[cli,'check','--json'],witnessed));assert.ok(retained.securityReviews.some(r=>r.id===concrete.id&&r.acknowledged));
 
 });

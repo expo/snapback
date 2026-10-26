@@ -33,7 +33,7 @@ fn report_with_reviewed(project:&Project,bound:&Bound,sources:&[(String,String)]
     };
     if let Some(snapshot)=&inputs{selection.flags.insert("fixture".into(),snapshot.0.to_string_lossy().into_owned());}
     let cached=record::matching(project,&selection,sources);
-    let known_failure=cached.as_ref().is_some_and(|r|if reviewed.is_empty(){!r.violations.is_empty()}else{r.violations.iter().any(|v|v.reachability.is_reachable()&&replay.invariants.iter().any(|i|i.site.to_string()==v.invariant_site))})&&!options.flags.contains_key("security-full");
+    let known_failure=cached.as_ref().is_some_and(|record|record.violations.iter().any(|v|v.reachability.is_reachable()&&replay.invariants.iter().any(|i|!security::derived::is_derived(i)&&i.site.to_string()==v.invariant_site)))&&!options.flags.contains_key("security-full");
     let mut campaign=if options.flags.contains_key("security-full"){security::challenges::Campaign::default()}else{if options.flags.contains_key("security-deploy"){security::challenges::Campaign::work_bounded(3072)}else{security::challenges::Campaign::work_bounded(512)}};
     if known_failure {campaign.work_remaining=Some(0);campaign.unsupported.insert("matching full-test refutations retained; bounded resampling skipped; repair and rerun snapback4 test".into());}
     // An explicitly selected fixture remains the initial-state assumption.
@@ -124,21 +124,26 @@ pub(super) fn release_loop(project:&Project,bound:&Bound,sources:&[(String,Strin
     let started=std::time::Instant::now();
     let mut preflight=options.clone();if !options.flags.contains_key("staging")||options.flags.contains_key("strict"){preflight.flags.insert("security-deploy".into(),String::new());}
     let decisions=super::security_reviews::ReviewSnapshot::capture(project)?;
-    let derived=if decisions.has_decisions(){security::derived::notes(sources,bound)}else{Vec::new()};
-    let reviewed=derived.iter().zip(decisions.dispositions(sources,&derived)).filter(|(_,d)|d.acknowledged).map(|(n,_)|n.site.to_string()).collect();
-    let mut report=report_with_reviewed(project,bound,sources,&preflight,&reviewed);
+    let derived=security::derived::notes(sources,bound);
+    // A legacy rationale cannot skip the replay that establishes its current
+    // witness. Individual alternatives are applied only after actual evidence.
+    let mut report=report_with_reviewed(project,bound,sources,&preflight,&Default::default());
     report.notes.extend(presence::notes(project,bound,prior,sources)?);
     if super::proof_source::sources(project,options,"schema")?!=sources{return Err("selected Quarry sources changed during deployment security preflight".into());}
-    let dispositions=decisions.dispositions(sources,&report.notes);
+    let mut evidence=witnesses::collect(project,bound,sources,&report.notes,false,options);
+    witnesses::apply_report(sources,bound,&report,&report.notes,&mut evidence);
+    if super::proof_source::sources(project,options,"schema")?!=sources{return Err("selected Quarry sources changed during deployment witness replay; rerun deploy".into());}
+    let dispositions=decisions.dispositions_with_evidence(sources,&report.notes,&evidence);
     super::security_reviews::remember_families(project,sources,&report.notes);
     decisions.ensure_current(project)?;
     let acknowledged=derived.iter().filter(|n|report.notes.iter().zip(&dispositions).any(|(r,d)|r.site==n.site&&r.code==n.code&&r.message==n.message&&d.acknowledged)).map(|n|n.site.to_string()).collect::<std::collections::BTreeSet<_>>();
     let pending=super::security_reviews::pending(&dispositions);
-    let fixes=report.invariants.iter().filter(|v|v.status==security::Status::Refuted&&v.counterexample.as_ref().is_some_and(|c|c.reachability.is_reachable())&&(!security::derived::is_derived(&v.invariant)||!acknowledged.contains(&v.invariant.site.to_string()))).count();
+    let witnessed=|v:&&security::Verdict|v.status==security::Status::Refuted&&v.counterexample.as_ref().is_some_and(|c|c.reachability.is_reachable()&&(!security::derived::is_derived(&v.invariant)||super::security_reviews::witness::concrete(&witnesses::evidence(sources,bound,&v.invariant,c))));
+    let fixes=report.invariants.iter().filter(witnessed).filter(|v|!security::derived::is_derived(&v.invariant)||!acknowledged.contains(&v.invariant.site.to_string())).count();
     eprintln!("security deploy campaign: {} ms; bounded replay, remaining paths retain coverage gaps",started.elapsed().as_millis());
     let scope=release_scope(bound,prior,sources);
     let mut notice=String::from("SECURITY REVIEW — rules changed; changed tables and operations only\n");
-    for v in report.invariants.iter().filter(|v|v.status==security::Status::Refuted&&v.counterexample.as_ref().is_some_and(|c|c.reachability.is_reachable())){
+    for v in report.invariants.iter().filter(witnessed){
         let c=v.counterexample.as_ref().unwrap();
         if security::derived::is_derived(&v.invariant)&&acknowledged.contains(&v.invariant.site.to_string()){
             notice.push_str(&format!("  REVIEWED derived {}: individual specification decision retained\n",v.invariant.target_label()));continue;
@@ -181,7 +186,7 @@ pub(super) fn release_loop(project:&Project,bound:&Bound,sources:&[(String,Strin
     // Never suppress a gate or write-authority question behind the display cap.
     for (i,n) in notes.into_iter().enumerate(){if crate::note_rank::tier(&n.code)!=crate::note_rank::Tier::Review&&(i<5||security::note_priority(&n.code)<=3){notice.push_str(&format!("  REVIEW {} {}: {}\n    {}\n",n.site,n.code,n.message,n.rewrite));}}
     if count>5 {notice.push_str(&format!("  {count} changed-scope notes in deploy --check --json\n"));}
-    let selected=report.notes.iter().zip(&dispositions).filter(|(n,d)|d.gated || n.code!="N_SECURITY_INTENT" && scope.iter().any(|(file,start,end)| n.site.file==*file&&n.site.line>=*start&&n.site.line<*end)).collect::<Vec<_>>();
+    let selected=report.notes.iter().zip(&dispositions).filter(|(n,d)|d.gated || n.code=="N_DERIVED_WRITE_AUTHORITY"&&report.invariants.iter().any(|v|v.invariant.site==n.site&&witnessed(&v)) || n.code!="N_SECURITY_INTENT" && scope.iter().any(|(file,start,end)| n.site.file==*file&&n.site.line>=*start&&n.site.line<*end)).collect::<Vec<_>>();
     let complete_family=dispositions.iter().filter(|d|d.family.is_some()).count()==selected.iter().filter(|(_,d)|d.family.is_some()).count();
     let scoped_notes=selected.iter().map(|(n,_)|(*n).clone()).collect::<Vec<_>>();
     let scoped_dispositions=selected.iter().map(|(_,d)| {let mut d=(*d).clone(); if !complete_family {d.family=None;} d}).collect::<Vec<_>>();

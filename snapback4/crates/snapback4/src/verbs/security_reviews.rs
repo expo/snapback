@@ -1,10 +1,11 @@
-//! Individually justified source-bound dispositions; never proof or authority.
+//! Individually justified dispositions; current evidence is never runtime authority.
 // @ref LLP 3000.036.004#162-narrow-gates-and-individual-dispositions — bulk compiler-note review cannot clear security gates.
 use super::*;
 use serde::{Serialize,Deserialize};
 use sha2::{Digest,Sha256};
 const ANALYZER:&str="sec10-wave28-dx11-1";
 mod binding;
+pub(super) mod witness;
 mod decisions;
 #[derive(Serialize,Deserialize,PartialEq,Eq)]
 #[serde(deny_unknown_fields)]
@@ -29,7 +30,8 @@ pub(super) struct ReviewSnapshot{file:File}
 impl ReviewSnapshot{
     pub(super) fn capture(project:&Project)->Result<Self,String>{Ok(Self{file:read_file(project)?})}
     pub(super) fn has_decisions(&self)->bool{!self.file.entries.is_empty()}
-    pub(super) fn dispositions(&self,sources:&[(String,String)],notes:&[snapback4_lang::Diagnostic])->Vec<Disposition>{dispositions(&self.file,notes,binding::identities(notes,sources),&Default::default(),&[])}
+    pub(super) fn dispositions(&self,sources:&[(String,String)],notes:&[snapback4_lang::Diagnostic])->Vec<Disposition>{self.dispositions_with_evidence(sources,notes,&[])}
+    pub(super) fn dispositions_with_evidence(&self,sources:&[(String,String)],notes:&[snapback4_lang::Diagnostic],evidence:&[Option<serde_json::Value>])->Vec<Disposition>{dispositions(&self.file,notes,witness::identities(notes,sources,evidence),&Default::default(),evidence)}
     pub(super) fn ensure_current(&self,project:&Project)->Result<(),String>{
         if read_file(project)?!=self.file{return Err("security review decisions changed during deployment preflight; rerun this deploy command to replay current individual decisions".into());}Ok(())
     }
@@ -48,7 +50,7 @@ pub(super) fn review_evidence(project:&Project,sources:&[(String,String)],notes:
 }
 fn review_inner(project:&Project,sources:&[(String,String)],notes:&[snapback4_lang::Diagnostic],ack:Option<(&str,&str)>,snapshot:bool,evidence:&[Option<serde_json::Value>])->Result<Vec<Disposition>,String>{
     if !snapshot&&project.sources().map_err(|e|e.to_string())?!=sources{return Err("Quarry sources changed during security review; rerun check".into());}
-    let identities=binding::identities(notes,sources);
+    let identities=witness::identities(notes,sources,evidence);
     let path=project.schema_dir().join("security-reviews.json");
     // Keep the lock inode in ignored generated output. Do not unlink a lock
     // while another process can be waiting on that inode. Kernel ownership
@@ -88,6 +90,7 @@ fn review_inner(project:&Project,sources:&[(String,String)],notes:&[snapback4_la
         recorded=selected.clone();
         for index in selected {
             let (id,fingerprint,_)=&identities[index];
+            if let Some(value)=evidence.get(index).and_then(Option::as_ref){witness::validate_reason(reason,value)?;}
             file.entries.insert(id.clone(),Entry{sources:fingerprint.clone(),analyzer:ANALYZER.into(),reason:reason.trim().into(),witness:evidence.get(index).cloned().flatten()});
         }
         let temporary=path.with_extension(format!("json.{}.tmp",std::process::id()));
@@ -115,8 +118,8 @@ fn remember_family_identities(project:&Project,notes:&[snapback4_lang::Diagnosti
 }
 fn dispositions(file:&File,notes:&[snapback4_lang::Diagnostic],identities:Vec<(String,String,String)>,recorded:&std::collections::BTreeSet<usize>,evidence:&[Option<serde_json::Value>])->Vec<Disposition>{
     let family=decisions::family(notes,&identities);
-    notes.iter().zip(identities).enumerate().map(|(i,(n,(key,fingerprint,scope)))|{let entry=file.entries.get(&key).filter(|e|e.sources==fingerprint&&e.analyzer==ANALYZER);
-        Disposition{family:decisions::audience(&n.code).then(||family.clone()).flatten(),id:key,code:n.code.clone(),site:n.site.to_string(),gated:gated(&n.code),acknowledged:entry.is_some(),recorded:recorded.contains(&i),scope,reason:entry.map(|e|e.reason.clone()),witness:entry.and_then(|e|e.witness.clone()).or_else(||evidence.get(i).cloned().flatten())}
+    notes.iter().zip(identities).enumerate().map(|(i,(n,(key,fingerprint,scope)))|{let entry=file.entries.get(&key).filter(|e|witness::retained(e,&fingerprint,evidence.get(i).and_then(Option::as_ref)));
+        Disposition{family:decisions::audience(&n.code).then(||family.clone()).flatten(),id:key,code:n.code.clone(),site:n.site.to_string(),gated:witness::gate(&n.code,evidence.get(i).and_then(Option::as_ref)),acknowledged:entry.is_some(),recorded:recorded.contains(&i),scope,reason:entry.map(|e|e.reason.clone()),witness:evidence.get(i).cloned().flatten().or_else(||entry.and_then(|e|e.witness.clone()))}
     }).collect()
 }
 
@@ -130,7 +133,7 @@ pub(super) struct Scratch(pub(super) std::path::PathBuf);impl Drop for Scratch{f
  let _scratch=Scratch(root.clone());let p=Project{root:root.clone()};std::fs::write(p.schema_dir().join("schema.q"),"query q():\n  return true\n").unwrap();let sources=p.sources().unwrap();
  let a=snapback4_lang::Diagnostic::new(&Default::default(),"N_OPTIONAL_UPLOAD_CREATE","a","");let b=snapback4_lang::Diagnostic::new(&Default::default(),"N_RETAINED_ROLE_GRANT","b","");let notes=[a.clone(),b];let key=binding::identities(&notes,&sources)[0].0.clone();
  assert!(review(&p,&sources,&notes,Some((&key,"  "))).is_err());assert!(review(&p,&sources,&notes,Some(("unknown","intended"))).is_err());
- let ds=review(&p,&sources,&notes,Some((&key,"the specification allows optional draft evidence"))).unwrap();assert!(ds[0].acknowledged);assert!(!ds[1].acknowledged);assert!(pending(&ds));
+ let ds=review(&p,&sources,&notes,Some((&key,"the specification allows optional draft evidence"))).unwrap();assert!(ds[0].acknowledged);assert!(!ds[1].acknowledged);assert!(!pending(&ds),"static questions without witnesses remain advice");
  let changed=[snapback4_lang::Diagnostic::new(&Default::default(),"N_OPTIONAL_UPLOAD_CREATE","changed","")];assert!(!review(&p,&sources,&changed,None).unwrap()[0].acknowledged);
  let path=p.schema_dir().join("security-reviews.json");let mut f:File=serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();for old in ["sec7-2","sec7-3","sec7-4","sec7-5","sec7-6","sec7-7","sec7-8","sec7-9","sec9-1","sec9-2","sec10-1","sec10-2","sec10-3","sec10-4","sec10-5","sec10-6","sec10-7","sec10-8","sec10-9","sec10-10","sec10-11","sec10-12","sec10-13","sec10-14","sec10-15","sec10-16","sec10-17","sec9-3","sec10-wave28-1","sec11-1"]{f.entries.get_mut(&key).unwrap().analyzer=old.into();std::fs::write(&path,serde_json::to_vec(&f).unwrap()).unwrap();assert!(!review(&p,&sources,&notes,None).unwrap()[0].acknowledged);}
  std::fs::write(p.schema_dir().join("schema.q"),"query q():\n  return false\n").unwrap();assert!(review(&p,&sources,&notes,Some((&key,"intended"))).is_err());assert!(!review(&p,&p.sources().unwrap(),&notes,None).unwrap()[0].acknowledged);

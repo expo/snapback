@@ -56,15 +56,11 @@ const PASSWORD:&str="use identity password\ntable notes:\n  owner: principal\n  
  app.write("snapback/schema.q",&changed);app.ok(&["test"]);app.ok(&["deploy","deployment"]);
 }
 
-#[test]fn private_http_test_retains_individual_decisions_and_rejects_stale_ones(){
+#[test]fn private_http_test_keeps_unreachable_media_advisory_without_a_blind_gate(){
  let source="use identity password\ntable docs:\n  photo: image <=10000 ?\n  read <- allow\n  insert <- deny\n  online only\ninvariant docs always .photo != null\nmutation add(photo: image <=10000 ?):\n  return insert docs {photo}\n";
- let app=App::new(source);let out=app.run(&["check","--json"]);assert_eq!(out.status.code(),Some(1),"{out:?}");
- let checked:serde_json::Value=serde_json::from_slice(&out.stdout).unwrap();let ids=checked["securityReviews"].as_array().unwrap().iter().filter(|d|d["gated"]==true).map(|d|d["id"].as_str().unwrap().to_owned()).collect::<Vec<_>>();assert!(!ids.is_empty(),"{checked}");
- for id in ids {let out=app.run(&["check","--ack-security",&id,"--reason","The draft helper is unreachable because insert is denied; this individually reviewed question grants no write authority."]);assert!([Some(0),Some(1)].contains(&out.status.code()),"{out:?}");}
+ let app=App::new(source);let checked:serde_json::Value=serde_json::from_str(&app.ok(&["check","--json"])).unwrap();assert!(!checked["securityReviews"].as_array().unwrap().iter().any(|d|d["gated"]==true));
  let tested=app.ok(&["test"]);assert!(tested.contains("security unauthenticated serve HTTP")&&tested.contains("no authored business cases"),"{tested}");
- app.write("versions/v1/schema.q",source);app.write("snapback/schema.q",&source.replace("10000","20000"));
- app.ok(&["test","--source","versions/v1"]);
- let stale=app.run(&["test"]);assert_eq!(stale.status.code(),Some(1),"{stale:?}");let error=String::from_utf8_lossy(&stale.stderr);assert!(error.contains("private serve preparation")&&error.contains("--ack-security"),"{error}");
+ app.write("versions/v1/schema.q",source);app.write("snapback/schema.q",&source.replace("10000","20000"));app.ok(&["test","--source","versions/v1"]);app.ok(&["test"]);
 }
 
 #[test]fn inherited_read_repair_omits_a_generated_maintained_index(){
