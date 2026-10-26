@@ -31,7 +31,7 @@ if(finalDelta){
  const known=new Set(['generated_column_worlds_decline_changed_recorded_captures','directed_wave22_pickup_and_suspension_refute_spec_intent','census::authoring_census']);
  const actual=results.flatMap(result=>[...readFileSync(result.log,'utf8').matchAll(/^test (.+) \.\.\. FAILED$/gm)].map(match=>match[1]));
  if(actual.length!==3||actual.some(name=>!known.has(name)))throw new Error(`unclassified predecessor failures: ${actual.join(', ')}`);
- const allowed=new Set(['snapback4/crates/snapback4-lang/src/bind/security/derived/stage_columns.rs','snapback4/crates/snapback4/src/verbs/security.rs','snapback4/crates/snapback4/src/verbs/security/derived_tests.rs','snapback4/crates/snapback4-lang/tests/security_wave28.rs','snapback4/crates/snapback4-lang/tests/security_observers.rs','snapback4/crates/snapback4-device/tests/readauth/census.txt','snapback4/crates/snapback4-lang/src/bind/security/challenges.rs','snapback4/crates/snapback4-lang/src/bind/security/challenges/generated.rs']);
+ const allowed=new Set(['snapback4/crates/snapback4-lang/src/bind/security/derived/workflow.rs','snapback4/crates/snapback4-lang/src/bind/security/derived.rs','snapback4/crates/snapback4/src/verbs/security/witnesses.rs','snapback4/crates/snapback4-core/src/engine/validate.rs','snapback4/crates/snapback4-lang/tests/security/sec10-controls/w19-045.q','snapback4/crates/snapback4-lang/src/bind/security/derived/stage_columns.rs','snapback4/crates/snapback4/src/verbs/security.rs','snapback4/crates/snapback4/src/verbs/security/derived_tests.rs','snapback4/crates/snapback4-lang/tests/security_wave28.rs','snapback4/crates/snapback4-lang/tests/security_observers.rs','snapback4/crates/snapback4-device/tests/readauth/census.txt','snapback4/crates/snapback4-lang/src/bind/security/challenges.rs','snapback4/crates/snapback4-lang/src/bind/security/challenges/generated.rs']);
  const incoming=execFileSync('timeout',['10s','git','diff','--name-only','45d6a1a56b8850b25ca36189276b2453cc87b349','da64e0ee2df1c772d43d3bc439b1bbdffa8bcb56','--','snapback4/crates'],{encoding:'utf8'}).trim().split('\n').filter(Boolean);
  for(const path of incoming)allowed.add(path);
  execFileSync('timeout',['10s','git','merge-base','--is-ancestor','da64e0ee2df1c772d43d3bc439b1bbdffa8bcb56','HEAD']);
@@ -46,13 +46,31 @@ if(finalDelta){
   step.argv.splice(index,0,...selected);
  }
 }
-const rust=plan.steps.filter(step=>step.id.startsWith('rust:'));
+let rust=plan.steps.filter(step=>step.id.startsWith('rust:'));
 for(const step of rust){const threads=step.id==='rust:snapback4-lang'?'16':step.id==='rust:snapback4-core'?'8':step.id==='rust:snapback4-device'?'4':'1';step.argv=step.argv.map(arg=>arg.startsWith('--test-threads=')?`--test-threads=${threads}`:arg);}
+// Keep exactly the same selected language unit/security targets. Four disjoint
+// target shards avoid serializing their independent generated-history campaigns.
+if(finalDelta){
+ const lang=rust.find(step=>step.id==='rust:snapback4-lang');
+ if(!lang)throw new Error('missing selected language step');
+ const start=lang.argv.indexOf('--lib');const separator=lang.argv.indexOf('--');
+ if(start<0||separator<start)throw new Error('unrecognized selected language argv');
+ const names=[];for(let i=start+1;i<separator;i+=2){if(lang.argv[i]!=='--test'||!lang.argv[i+1])throw new Error('unrecognized language target');names.push(lang.argv[i+1]);}
+ const groups=Array.from({length:4},()=>[]);const loads=[30,0,0,0];
+ // Rough earlier target durations balance execution only; no verdict or budget
+ // depends on these weights. The complete target set is asserted below.
+ const weights={security_histories:644,security_sec6:307,security_sec10:205,security_sec8:138,security_sec4:113,security_wave27:100,security_wave27_conservation:90,security_wave16:84,security_sec5_refutations:74,security_sec7:71};
+ for(const name of [...names].sort((a,b)=>(weights[b]??30)-(weights[a]??30)||a.localeCompare(b))){const i=loads.indexOf(Math.min(...loads));groups[i].push(name);loads[i]+=weights[name]??30;}
+ if(JSON.stringify(groups.flat().sort())!==JSON.stringify([...names].sort()))throw new Error('language shard target set changed');
+ const shards=groups.map((targets,i)=>({...lang,id:`rust:snapback4-lang:${i+1}`,argv:[...lang.argv.slice(0,start),...(i===0?['--lib']:[]),...targets.flatMap(name=>['--test',name]),'--','--test-threads=8']}));
+ rust=rust.flatMap(step=>step===lang?shards:[step]);
+ plan.scopeAdjustment.languageTargetShards={authority:'SEC10 affected-scope execution adjustment; target coverage unchanged',shards:groups,unitShard:1,threadsPerShard:8,explanation:'Every selected target runs exactly once, with the same features. Only independent binary execution changes; Cargo retains its normal target build lock.'};
+}
 for(const step of plan.steps){if(step.id==='wasm-measurement')step.argv=['bash','scripts/measure-wasm.sh','--no-record'];}
 if(process.env.SEC10_QUALIFIED_NATIVE){const path=resolve(process.env.SEC10_QUALIFIED_NATIVE);plan.scopeAdjustment.packedNative={path,sha256:createHash('sha256').update(readFileSync(path)).digest('hex'),reason:'The six client/packed consumers use the immutable normal-publication release native; Rust tests keep their own expected Cargo executables.'};}
 plan.scopeAdjustment.cheapGuards='Retain the client typecheck and release-feature negative build guards alongside the affected builds; omit only unrelated/broad pool work.';
 plan.scopeAdjustment.metrology='Use canonical measure-wasm.sh --no-record; retain the line in the receipt without mutating source metrology. The pinned integrated gzip budget remains enforced; this lane adds no allowance.';
-plan.scopeAdjustment.rustExecution=finalDelta?'Four final affected Rust commands with explicit content-bound target selection above; language16/core8/device4/CLI1 threads. Every selected target/feature runs; omitted precursor coverage is identified explicitly.':'Same four complete affected-package Cargo commands, concurrent across packages; language16/core8/device4/CLI1 threads on a96-core host. No target or feature omitted.';
+plan.scopeAdjustment.rustExecution=finalDelta?'Four final affected Rust packages with explicit content-bound target selection above; language four disjoint target shards of8 threads, core8/device4/CLI1 threads. Every selected target/feature runs; omitted precursor coverage is identified explicitly.':'Same four complete affected-package Cargo commands, concurrent across packages; language16/core8/device4/CLI1 threads on a96-core host. No target or feature omitted.';
 const group={id:'rust:affected-scope',cwd:'snapback4',argv:['node','reports/20261024-sec10/run-rust-scope.mjs',JSON.stringify(rust),out],reason:'Run all four affected packages without serializing independent tests',timeoutSeconds:10800,requires:[...new Set(rust.flatMap(step=>step.requires??[]))]};
 const first=plan.steps.findIndex(step=>step.id.startsWith('rust:'));plan.steps=plan.steps.filter(step=>!step.id.startsWith('rust:'));plan.steps.splice(first,0,group);
 writeFileSync(resolve(out,'scoped-plan.json'),JSON.stringify(plan,null,2)+'\n');
