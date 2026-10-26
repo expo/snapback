@@ -90,7 +90,7 @@ test('DX14 027E provision refusal retains backend lookup explanation',{timeout:3
  });
 });
 
-test('DX14 R1 provisioning redacts numeric, boolean and null enum inputs with schema diagnostics intact',{timeout:30000},async t=>{
+test('DX14 R1/R2 provisioning redacts plain and quoted scalar enum inputs with schema diagnostics intact',{timeout:30000},async t=>{
  const cwd=mkdtempSync(join(tmpdir(),'dx14-provision-scalars-'));after(t,()=>rmSync(cwd,{recursive:true,force:true}));mkdirSync(join(cwd,'snapback'));
  const source=readFileSync(join(root,'crates/snapback4-lang/src/guide/staging.md'),'utf8').match(/```quarry\n([\s\S]*?)\n```/)[1];
  writeFileSync(join(cwd,'snapback/schema.q'),source);const host=await startDev({cwd});after(t,()=>host.stop());
@@ -105,14 +105,15 @@ test('DX14 R1 provisioning redacts numeric, boolean and null enum inputs with sc
   if(String(input)!==host.url+'/m/provision')return response;
   const value=JSON.parse(init.body).args.role,reply=await response.json();assert.equal(reply.why.code,'E_INPUT');
   const description=value===null?'null':typeof value==='boolean'?`the boolean ${value}`:`the number ${value}`;
-  reply.why.message=reply.why.message.replace(/got .+$/,`got ${description}`);
+  reply.why.message=reply.why.message.replace(/got .+$/,`got ${description}; quoted '${value}'; double quoted "${value}"; field 'role'; code E_INPUT${typeof value==='number'?`; argument '${value}'`:''}`);
   return Response.json(reply,{status:response.status});
  };
  for(const [role,type,description] of [[482719,'number','the number 482719'],[false,'boolean','the boolean false'],[null,'null','got null']]){
   await assert.rejects(devAccounts(host,{roles:{member:1},provision:{name:'provision'},args:()=>({role})}),error=>{
    assert.match(error.message,/E_STAGING_PROVISION.*E_INPUT/);assert.match(error.message,/mutation parameters: principal, role/);
    assert.ok(error.message.includes(`"role":"<redacted ${type}>"`));assert.ok(!error.message.includes(description));
-   if(typeof role==='number')assert.ok(!error.message.includes(String(role)));
+   assert.match(error.message,/quoted '<redacted>'; double quoted "<redacted>"; field 'role'; code E_INPUT/);
+   if(typeof role==='number'){assert.ok(!error.message.includes(String(role)));assert.match(error.message,/argument '<redacted>'/,'a number cannot name a schema argument');}
    assert.match(error.message,/role/);assert.match(error.message,/<redacted>/);return true;
   });
  }

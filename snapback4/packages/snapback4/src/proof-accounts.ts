@@ -145,10 +145,16 @@ async function accounts(host: Pick<ServeHost, "url" | "operatorToken">, options:
             /(?:argument|field|column|table|operation|mutation|code)\s+["']?$/.test(text.slice(0, offset)) ? token : "<redacted>");
         }
         // Backend value descriptions use scalar tokens ("the number 482719").
-        // Keep quoted schema names and whole identifiers/codes intact, so a
-        // numeric input cannot alter a field such as role482719 or E_INPUT.
+        // Quoted scalar echoes are values too. Preserve explicitly named
+        // schema sites and whole identifiers/codes, not arbitrary quoted values.
         explanation = explanation.replace(/"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[\p{L}_][\p{L}\p{N}_]*|-?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?/gu,
-          token => scalars.has(token) ? "<redacted>" : token);
+          (token, offset: number, text: string) => {
+            const quoted = token[0] === '"' || token[0] === "'", value = quoted ? token.slice(1, -1) : token;
+            const schemaSite = /^[\p{L}_][\p{L}\p{N}_]*$/u.test(value)
+              && /(?:argument|field|column|table|operation|mutation|code)\s+$/.test(text.slice(0, offset));
+            if (!scalars.has(value) || schemaSite) return token;
+            return quoted ? `${token[0]}<redacted>${token[0]}` : "<redacted>";
+          });
         throw Error(`E_STAGING_PROVISION: ${options.provision?.name} refused (${refusal?.code ?? "invalid reply"})${explanation ? `: ${explanation}` : ""}; supplied arguments: ${Object.keys(args).sort().join(", ")}; merged args (opaque values redacted): ${JSON.stringify(merged)}; mutation parameters: ${parameters.length?parameters.join(", "):"unavailable"}; args(account) merges over {principal, role}, explicit keys win; ${partial}`);
       }
       entry.done = true; save();
