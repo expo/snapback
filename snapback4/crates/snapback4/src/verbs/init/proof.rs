@@ -145,7 +145,7 @@ fn previous_frontend(dir: &std::path::Path, web: bool) -> Option<Option<&'static
 
 /// Adapt adds missing proof infrastructure, preserving files and script names
 /// already owned by the application. It never runs a package manager.
-pub(super) fn plan(dir: &std::path::Path, own: &super::OwnSchema, enable_day2: bool) -> std::io::Result<Vec<(&'static str, String)>> {
+pub(super) fn plan(dir: &std::path::Path, own: &super::OwnSchema, enable_day2: bool, refresh_default_frontend: bool) -> std::io::Result<Vec<(&'static str, String)>> {
     let web = dir.join("src/App.tsx").is_file();
     let router = dir.join("app/_layout.tsx").is_file();
     if !web && !dir.join("App.tsx").is_file() && !router { return Ok(Vec::new()); }
@@ -180,6 +180,7 @@ pub(super) fn plan(dir: &std::path::Path, own: &super::OwnSchema, enable_day2: b
     if router { flags.insert("template".into(), "social".into()); }
     else if let Some(Some(template)) = previous_frontend(dir, web) { flags.insert("template".into(), template.into()); }
     if day2 { flags.insert("day2".into(), String::new()); }
+    let default_todos = shape.body == super::starter::Body::Todos && !flags.contains_key("template");
     files(&mut generated, &Options { positionals: vec![dir.to_string_lossy().into_owned()], flags, json: false }, backend, frontend, web, &shape);
     // A saved version is immutable application evidence. Never fill its missing
     // fixture files from today's working release during an adaptation.
@@ -217,7 +218,8 @@ pub(super) fn plan(dir: &std::path::Path, own: &super::OwnSchema, enable_day2: b
             if normalized == reference { config_changes.push(("vite.config.mts", runtime_vite(&current, backend, numbers.first().copied().unwrap_or(5173)))); }
         }
     }
-    let inherited_frontend = previous_frontend(dir, web).filter(|template| super::adapt::fits_todos(own) || template.is_some());
+    let inherited_frontend = previous_frontend(dir, web).filter(|template| template.is_some()
+        || super::adapt::fits_todos(own) && refresh_default_frontend);
     if let Some(template) = inherited_frontend {
         if let Some((_, text)) = generated.iter_mut().find(|(name, _)| *name == "scripts/frontend-proof.mjs") {
             *text = frontend_proof(include_str!("frontend-proof.mjs"), template, web);
@@ -226,7 +228,10 @@ pub(super) fn plan(dir: &std::path::Path, own: &super::OwnSchema, enable_day2: b
     let referenced_after = |path: &str| package["scripts"].as_object().is_some_and(|scripts| scripts.values().any(|v|v.as_str().is_some_and(|s|s.contains(path))));
     let mut additions: Vec<_> = generated.into_iter().skip(1)
         .filter(|(name, text)| {
-            if *name == "scripts/frontend-proof.mjs" { return inherited_frontend.is_some() || !dir.join(name).exists() && referenced_after(name); }
+            if *name == "scripts/frontend-proof.mjs" {
+                return (!default_todos || refresh_default_frontend)
+                    && (inherited_frontend.is_some() || !dir.join(name).exists() && referenced_after(name));
+            }
             if *name == "scripts/day2-proof.mjs" { return day2 && (managed_day2 || !dir.join(name).exists() && (enable_day2 || referenced_day2))
                 && std::fs::read_to_string(dir.join(name)).ok().as_deref()!=Some(text.as_str()); }
             if !dir.join(name).exists() {
@@ -287,6 +292,7 @@ mod tests {
             (29, include_str!("previous/frontend-proof-0.4.29.mjs")),
             (30, include_str!("previous/frontend-proof-0.4.30.mjs")),
             (31, include_str!("previous/frontend-proof-0.4.31.mjs")),
+            (32, include_str!("previous/frontend-proof-0.4.32.mjs")),
         ] {
             for web in [false, true] {
                 for template in [None, Some("chat"), Some("social")] {
@@ -301,14 +307,14 @@ mod tests {
                     let path = dir.join("scripts/frontend-proof.mjs");
                     std::fs::write(&path, frontend_proof(source, template, web)).unwrap();
                     let own = super::super::own_schema(&dir).unwrap().unwrap();
-                    let changes = plan(&dir, &own, false).unwrap();
+                    let changes = plan(&dir, &own, false, true).unwrap();
                     let updated = &changes.iter().find(|(name, _)| *name == "scripts/frontend-proof.mjs").unwrap().1;
                     assert_eq!(updated, &frontend_proof(include_str!("frontend-proof.mjs"), template, web));
                     assert!(updated.contains(if web { "[\"run\", \"build\"]" } else { "[\"run\", \"build:web\"]" }));
                     if template == Some("social") { assert!(updated.contains("Save profile") && updated.contains("getByText(\"Profile\"")); }
                     if template == Some("chat") { assert!(updated.contains("Proof room") && updated.contains("name: \"Send\"")); }
                     std::fs::write(path, format!("{}\n// app-owned assertion\n", frontend_proof(source, template, web))).unwrap();
-                    assert!(!plan(&dir, &own, false).unwrap().iter().any(|(name, _)| *name == "scripts/frontend-proof.mjs"));
+                    assert!(!plan(&dir, &own, false, true).unwrap().iter().any(|(name, _)| *name == "scripts/frontend-proof.mjs"));
                     std::fs::remove_dir_all(dir).unwrap();
                 }
             }

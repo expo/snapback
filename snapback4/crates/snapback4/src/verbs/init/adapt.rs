@@ -90,6 +90,19 @@ fn plan(dir: &Path) -> (Vec<Leftover>, Vec<String>, Vec<String>) {
     (found, advice, modified)
 }
 
+// Default proof upgrades share the screen's custody decision. Read planned
+// helper bytes so a proof cannot acquire imports or controls its kept app lacks.
+fn default_frontend_ready(dir: &Path, changes: &[Leftover], modified: &[String]) -> bool {
+    let app_path = if dir.join("src/App.tsx").is_file() { "src/App.tsx" } else { "App.tsx" };
+    if read(dir, app_path).is_none() || read(dir, "src/client.ts").is_none()
+        || modified.iter().any(|path| path == app_path || path == "src/client.ts") { return false; }
+    [("src/shared.ts", include_str!("starter/shared.ts")), ("src/package.json", "{\"type\":\"module\"}\n")].into_iter().all(|(path, expected)| {
+        if let Some(change) = changes.iter().find(|change| change.path == path) {
+            change.rewrite.as_deref() == Some(expected)
+        } else { read(dir, path).as_deref() == Some(expected) }
+    })
+}
+
 // A custom entry/component/proof can reference the helper too. Generated trees
 // and dependency directories are not authored source; do not follow symlinks.
 fn smoke_referenced(root: &Path, changes: &[Leftover]) -> bool {
@@ -397,7 +410,7 @@ pub(super) fn adapt(dir: &Path, dry_run: bool, apply: bool, day2: bool) -> i32 {
     };
     let (found, mut advice, modified) = plan(dir);
     advice.extend(super::proof_advice::report(dir));
-    let proof = match super::proof::plan(dir, &own, day2) {
+    let proof = match super::proof::plan(dir, &own, day2, default_frontend_ready(dir, &found, &modified)) {
         Ok(proof) => proof,
         Err(error) => { eprintln!("init --adapt proof: {error}"); return 2; }
     };
@@ -593,6 +606,48 @@ fn dx14_exact_dx13_screens_adapt_with_witness_registration_and_preserve_edits() 
         std::fs::write(dir.join("src/shared.ts"), "// application-owned helper\n").unwrap();
         let (changes, _) = leftovers(&dir);
         assert!(!changes.iter().any(|change| change.path == app_path || change.path == client_path), "custom shared modules keep the screen owned");
+        std::fs::remove_dir_all(dir).unwrap();
+    }}
+}
+
+#[test]
+fn historical_032_default_proof_refresh_requires_the_screen_and_shared_helpers() {
+    for platform in [Platform::Web, Platform::Expo] { for custody in ["authored-screen", "shared-collision", "missing-client", "refresh"] {
+        let dir = std::env::temp_dir().join(format!("sb4-dx14-proof-custody-{}-{platform:?}-{custody}", std::process::id()));
+        std::fs::create_dir_all(dir.join("snapback")).unwrap();
+        std::fs::create_dir_all(dir.join("scripts")).unwrap();
+        std::fs::create_dir_all(dir.join("src")).unwrap();
+        std::fs::write(dir.join("snapback/schema.q"), include_str!("starter/schema.q")).unwrap();
+        std::fs::write(dir.join("package.json"), r#"{"scripts":{"frontend:proof":"node scripts/frontend-proof.mjs"}}"#).unwrap();
+        let (mut app, client) = starter::dx13_screens(platform, None, &Body::Todos, false);
+        if custody == "authored-screen" { app.push_str("\n// application-owned screen\n"); }
+        let (app_path, client_path) = platform.paths();
+        std::fs::write(dir.join(app_path), &app).unwrap();
+        std::fs::write(dir.join(client_path), client).unwrap();
+        if custody == "shared-collision" { std::fs::write(dir.join("src/shared.ts"), "// application-owned helper\n").unwrap(); }
+        if custody == "missing-client" {
+            std::fs::remove_file(dir.join(client_path)).unwrap();
+            std::fs::write(dir.join("src/shared.ts"), include_str!("starter/shared.ts")).unwrap();
+            std::fs::write(dir.join("src/package.json"), "{\"type\":\"module\"}\n").unwrap();
+        }
+        let web = platform == Platform::Web;
+        let old_proof = super::proof::frontend_proof(include_str!("previous/frontend-proof-0.4.32.mjs"), None, web);
+        std::fs::write(dir.join("scripts/frontend-proof.mjs"), &old_proof).unwrap();
+        assert!(matches!(super::proof_advice::frontend_template(&dir, web), Some(("0.4.31" | "0.4.32", None))), "the actual historical proof must be recognized (0.4.31 and 0.4.32 share some bytes)");
+        assert_eq!(adapt(&dir, false, true, false), 0);
+        let proof = std::fs::read_to_string(dir.join("scripts/frontend-proof.mjs")).unwrap();
+        if custody == "refresh" {
+            assert_ne!(proof, old_proof);
+            assert!(proof.contains("../src/shared.ts"));
+            assert_eq!(std::fs::read_to_string(dir.join("src/shared.ts")).unwrap(), include_str!("starter/shared.ts"));
+            assert!(std::fs::read_to_string(dir.join(app_path)).unwrap().contains("/shared.ts\""));
+            assert!(proof.contains(if web { "combobox" } else { "Write status" }));
+        } else {
+            assert_eq!(proof, old_proof, "{platform:?} {custody}: keep the proof when its screen refresh is refused");
+            assert_eq!(std::fs::read_to_string(dir.join(app_path)).unwrap(), app);
+            if custody == "authored-screen" { assert!(!dir.join("src/shared.ts").exists()); }
+            else if custody == "shared-collision" { assert_eq!(std::fs::read_to_string(dir.join("src/shared.ts")).unwrap(), "// application-owned helper\n"); }
+        }
         std::fs::remove_dir_all(dir).unwrap();
     }}
 }

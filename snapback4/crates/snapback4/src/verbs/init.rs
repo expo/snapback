@@ -734,5 +734,5 @@ pub(super) fn client_setup_hint(root: &Path) -> Option<&'static str> {
 
 // @ref LLP 3000.037.000#3-password-online-starters — preserve the generated runtime API across git copies.
 fn starter_gitignore(text: &str) -> String {
-    text.replace("# snapback4\n.snapback4/\nsnapback/generated/\n", "# snapback4\n.snapback4/\n")
+    text.split_inclusive('\n').filter(|line| line.trim_end_matches(['\r', '\n']) != "snapback/generated/").collect()
 }
