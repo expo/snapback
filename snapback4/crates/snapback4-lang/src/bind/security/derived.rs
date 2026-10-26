@@ -152,6 +152,11 @@ fn checked_arguments(context:&ast::ProgramDecl,p:&ast::ProgramDecl)->BTreeSet<St
 }
 pub(super) fn opaque_payloads(fields:&[ast::ObjectField],context:&ast::ProgramDecl,p:&ast::ProgramDecl)->Vec<String>{let checked=checked_arguments(context,p);fields.iter().filter(|field|field.value.as_ref().is_some_and(|value|stored_argument(value,p).is_none()&&!payload_arguments(value,p).is_disjoint(&checked))).map(|field|field.name.clone()).collect()}
 pub(super) fn workflow_gaps(sources:&[(String,String)],bound:&Bound)->BTreeSet<String>{let docs=sources.iter().map(|(file,text)|crate::parse_document(file,text).0).collect::<Vec<_>>();let catalog=Catalog::build(docs.clone(),&mut Vec::new());workflow::source_gaps(&docs,&catalog,bound).into_iter().chain(conservation::source_gaps(&docs,&catalog,bound)).collect()}
+/// Structural workflow discriminators, shared with presentation-only question replay.
+pub fn workflow_columns_from_sources(sources:&[(String,String)],bound:&Bound)->BTreeSet<(String,String)>{
+    let docs=sources.iter().map(|(file,source)|crate::parse_document(file,source).0).collect();
+    workflow_columns(&Catalog::build(docs,&mut Vec::new()),bound)
+}
 pub fn invariants(sources:&[(String,String)],bound:&Bound)->Vec<Invariant>{collect(sources,bound,&mut BTreeMap::new(),&mut BTreeMap::new(),&mut BTreeMap::new())}
 fn collect(sources:&[(String,String)],bound:&Bound,inputs:&mut BTreeMap<(String,String),BTreeSet<String>>,reissues:&mut BTreeMap<(String,String,String),BTreeSet<String>>,uncertain:&mut BTreeMap<(String,String,String),BTreeSet<String>>)->Vec<Invariant>{
     let docs=sources.iter().map(|(f,s)|crate::parse_document(f,s).0).collect::<Vec<_>>();

@@ -119,6 +119,7 @@ fn candidates(
     notes: &[Diagnostic],
 ) -> Vec<(usize, security::Invariant)> {
     let derived = security::derived::invariants(sources, bound);
+    let stages = security::derived::workflow_columns_from_sources(sources, bound);
     let mut out = Vec::new();
     for (index, n) in notes.iter().enumerate() {
         if n.code == "N_DERIVED_WRITE_AUTHORITY" {
@@ -217,14 +218,6 @@ fn candidates(
             let predicate = trigger
                 .map(|trigger| format!("not .{trigger} or .{column}"))
                 .unwrap_or_else(|| format!(".{column}"));
-            let Some(ops) = n
-                .message
-                .split("transitions ")
-                .nth(1)
-                .and_then(|s| s.split(" do not").next())
-            else {
-                continue;
-            };
             // A column-change candidate uses the campaign's mature transition
             // exploration; it observes the same operation, without adding a rule.
             fn columns(
@@ -259,14 +252,19 @@ fn candidates(
                     _ => {}
                 }
             }
-            for op in ops.split(", ").collect::<Vec<_>>().into_iter().rev() {
-                if let Some(program) = bound.programs.iter().find(|p| p.program.name == op) {
+            // Read actual typed workflow effects, not the diagnostic's prose.
+            // These inferred questions remain separate from enforcement.
+            for program in bound.programs.iter().rev() {
+                if program.program.kind == snapback4_core::ir::ProgramKind::Mutation {
                     let mut changed = std::collections::BTreeSet::new();
                     columns(
                         &serde_json::to_value(&program.program).unwrap(),
                         table,
                         &mut changed,
                     );
+                    if !changed.iter().any(|column| stages.contains(&(table.into(), column.clone()))) {
+                        continue;
+                    }
                     for col in changed.into_iter().filter(|c| {
                         matches!(
                             t.columns.get(c).map(ColumnType::required),
@@ -419,7 +417,7 @@ pub(in crate::verbs) fn collect(
 ) -> Vec<Option<serde_json::Value>> {
     let key = hash(
         &serde_json::to_vec(&(
-            "dx11-witness-5",
+            "dx11-witness-6",
             sources,
             notes,
             record::capture(sources, None).ok(),

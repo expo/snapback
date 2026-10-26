@@ -299,9 +299,10 @@ fn effect_fields<'a>(p:&ast::ProgramDecl,write:&'a Expr,context:&ast::ProgramDec
 }
 
 fn state_field<'a>(p:&ast::ProgramDecl,write:&'a Expr,bound:&Bound,stages:&BTreeSet<(String,String)>)->Option<&'a ast::ObjectField>{
-    let Expr::Write{table,keys,fields,..}=write else{return None;};let definition=bound.schema.tables.get(table)?;
+    let Expr::Write{table,keys,fields,..}=write else{return None;};bound.schema.tables.get(table)?;
     let changed=|field:&&ast::ObjectField|field.value.as_ref().is_some_and(|value|!stage_copy(value,p,table,keys,&field.name,bound));
-    fields.iter().filter(changed).find(|field|stages.contains(&(table.clone(),field.name.clone()))).or_else(||fields.iter().filter(changed).find(|field|matches!(definition.columns.get(&field.name).map(C::required),Some(C::Enum{..}))))
+    // A categorical description is not a lifecycle merely because it is an enum.
+    fields.iter().filter(changed).find(|field|stages.contains(&(table.clone(),field.name.clone())))
 }
 fn roles(context:&ast::ProgramDecl,bound:&Bound)->BTreeSet<String>{
     guards(context).filter(|c|{let mut c=(*c).clone();let mut found=false;walk(&mut c,&mut |e|if let Expr::Exists{read,..}=e&& !privilege::role_columns(bound,&read.table).is_empty(){found=true;});found}).map(crate::print::expression).collect()

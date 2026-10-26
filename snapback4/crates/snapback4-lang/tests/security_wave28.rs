@@ -137,3 +137,18 @@ fn campaign(source:&str)->security::challenges::Campaign{let(s,b)=bound(source);
  let source="table docs:\n  material: text <=30 default 'steel'\n  approved: bool default false\n  read <- allow\n  update <- allow\n  online only\nmutation approve(doc: docs):\n  d = docs[doc] ! else MISSING\n  require d.material = 'steel' or d.material = 'wood' else MATERIAL\n  update docs[doc] {approved:true}\nmutation clear(doc: docs):\n  d = docs[doc] ! else MISSING\n  require d.material = 'steel' or d.material = 'wood' else MATERIAL\n  update docs[doc] {material:''}\n";
  let(s,b)=bound(source);let cs=security::derived::invariants(&s,&b);assert!(cs.iter().any(|i|i.column.as_deref()==Some("material")&&i.predicate.contains("old.approved")),"empty destination must retain inspected data: {cs:?}");
 }
+
+#[test]
+fn clearance_descriptions_are_not_child_lifecycle_stages() {
+    let original=include_str!("security/sec10-controls/w19-045.q");
+    for name in ["clearance", "benchStatus", "stage"] {
+        let source=original.replace("clearance",name);
+        let sources=vec![("schema.q".into(),source)];
+        let bound=snapback4_lang::compile(&sources);
+        assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);
+        let stages=security::derived::workflow_columns_from_sources(&sources,&bound);
+        assert!(!stages.contains(&("papers".into(),name.into())),"{stages:?}");
+        let contracts=security::derived::invariants(&sources,&bound);
+        assert!(!contracts.iter().any(|i| i.table=="papers" && i.site.file.contains("/parent-state/")),"{contracts:?}");
+    }
+}

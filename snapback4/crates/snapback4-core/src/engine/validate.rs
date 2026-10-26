@@ -150,7 +150,7 @@ pub fn validate_text(label: &str, text: &str, min: u32, format: Option<TextForma
     // @ref LLP 3000.036.004#6-bakeoff-repairs — minimums measure evidence, while maxima still measure the complete value.
     let length = crate::visible_text::visible_length(text);
     if length < min as usize {
-        return Err(RuntimeError::Input(format!("{label} needs at least {min} non-whitespace characters (visible; excluding zero-width/format characters); got {length}")));
+        return Err(RuntimeError::Input(format!("{label} needs at least {min} visible characters (excluding whitespace/zero-width/format); got {length}")));
     }
     if let Some(format) = format
         && !format.matches(text)
