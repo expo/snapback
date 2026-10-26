@@ -118,3 +118,13 @@ const SWEEP:&str="table docs:\n  status:enum('open','expired','done') default 'o
         assert!(!notes(&source).iter().any(|n|n.code=="N_SWEEP_DEADLINE"&&n.message.contains("mutation acceptQuote:")));
     }
 }
+
+#[test]fn captured_preapproval_and_null_initialization_expire_when_written(){
+    let source="table docs:\n  stage:enum('draft','quoted','approved') default 'draft'\n  photo:image <=10000\n  read <- allow\n  update <- allow\n  online only\nmutation approveThenReplace(doc:docs,photo:image <=10000):\n  row=docs[doc] ! else NO\n  require row.stage = 'quoted' else NO\n  require row.photo != null else NO\n  update docs[doc] {stage:'approved'}\n  update docs[doc] {photo}\n";
+    assert!(notes(source).iter().any(|n|n.code=="N_EDIT_AFTER_APPROVAL"&&n.message.contains("docs.photo")));
+}
+#[test]fn an_optional_window_comparison_cannot_discharge_the_write_path(){
+    let source="table parents:\n  dueAt:time\n  returnedAt:time\n  read <- allow\n  online only\ntable children:\n  parent:parents\n  dueAt:time\n  read <- allow\n  insert <- allow\n  online only\nmutation create(parent:parents,proposed:time,bypass:bool):\n  p=parents[parent] ! else NO\n  require proposed > now else PAST\n  require bypass or proposed <= p.returnedAt else OUTSIDE\n  return insert children {parent,dueAt:proposed}\n";
+    assert!(notes(source).iter().any(|n|n.code=="N_DEPENDENT_WINDOW"));
+    assert!(!notes(&source.replace("bypass or proposed <= p.returnedAt","not (proposed > p.returnedAt)")).iter().any(|n|n.code=="N_DEPENDENT_WINDOW"));
+}

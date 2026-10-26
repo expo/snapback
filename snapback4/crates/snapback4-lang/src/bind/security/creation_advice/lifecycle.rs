@@ -38,9 +38,12 @@ fn excludes_on(w:&Write<'_>,column:&str,value:&ast::Literal,bound:&Bound,context
     })
 }
 fn excludes(w:&Write<'_>,column:&str,value:&ast::Literal,bound:&Bound)->bool{excludes_on(w,column,value,bound,&w.context)}
-fn lifecycle_guard(w:&Write<'_>,bound:&Bound)->bool{
+fn earlier_change(w:&Write<'_>,writes:&[Write<'_>],column:&str,bound:&Bound)->bool{
+    writes.iter().take_while(|other|!std::ptr::eq(*other,w)).any(|other|std::ptr::eq(other.p,w.p)&&other.table==w.table&&other.keys.len()==w.keys.len()&&other.keys.iter().zip(&w.keys).all(|(a,b)|(a.column==b.column||a.column.as_deref().is_none_or(|c|c=="id")&&b.column.as_deref().is_none_or(|c|c=="id"))&&resource_key(&a.value,w.p,bound)==resource_key(&b.value,w.p,bound))&&other.fields.iter().any(|field|field.name==column))
+}
+fn lifecycle_guard(w:&Write<'_>,writes:&[Write<'_>],bound:&Bound)->bool{
     bound.schema.tables[&w.table].columns.iter().any(|(column,kind)|{
-        if !lifecycle_column(column,kind){return false;}
+        if !lifecycle_column(column,kind)||earlier_change(w,writes,column,bound){return false;}
         let mut domain=match kind.required(){
             ColumnType::Enum{variants}=>variants.iter().filter(|v|["approved","authorized","authorised","accepted","issued"].contains(&v.as_str())).cloned().map(ast::Literal::Str).collect::<Vec<_>>(),
             ColumnType::Bool=>vec![ast::Literal::Bool(true)],
@@ -77,7 +80,7 @@ fn advances_source_stage(w:&Write<'_>,bound:&Bound)->bool{
         })
     })
 }
-fn creation_state_guard(w:&Write<'_>,bound:&Bound)->bool{lifecycle_guard(w,bound)}
+fn creation_state_guard(w:&Write<'_>,writes:&[Write<'_>],bound:&Bound)->bool{lifecycle_guard(w,writes,bound)}
 fn guard_description(w:&Write<'_>)->String{
     let guards=conditions(&w.context).iter().map(|e|crate::print::expression(e)).collect::<Vec<_>>();
     if guards.is_empty(){"no dominating require".into()}else{guards.join("; ")}
@@ -416,10 +419,10 @@ pub(super) fn notes(bound:&Bound,writes:&[Write<'_>],out:&mut Vec<Diagnostic>){
             let approval_columns=t.columns.keys().filter(|c|["approv","authoriz"].iter().any(|s|c.to_lowercase().contains(s))).collect::<Vec<_>>();
             let protected=kind.contains_asset()&&(!approval_columns.is_empty()||t.columns.keys().any(|c|c=="stage"))
                 ||writes.iter().any(|other|other.name!=w.name&&approves(other,bound)&&(other.table==w.table||other.fields.iter().any(|field|bound.schema.tables[&other.table].columns.get(&field.name).is_some_and(|kind|super::super::derived::named_approval(&field.name,kind)&&recording(kind,field_value(field)))))&&inspected(other,&w.table,&f.name));
-            let state_guard=creation_state_guard(w,bound);
-            let initialized=kind.is_optional()&&conditions(&w.context).into_iter().flat_map(conjunction).any(|e|matches!(e,Expr::Binary{op,left,right,..} if op=="="&&[(left.as_ref(),right.as_ref()),(right.as_ref(),left.as_ref())].iter().any(|(field,null)|matches!(null,Expr::Literal{value:ast::Literal::Null,..})&&matches!(field,Expr::Member{base,name,..} if name==&f.name&&advice_target(base,w,bound)))));
+            let state_guard=creation_state_guard(w,writes,bound);
+            let initialized=kind.is_optional()&&!earlier_change(w,writes,&f.name,bound)&&conditions(&w.context).into_iter().flat_map(conjunction).any(|e|matches!(e,Expr::Binary{op,left,right,..} if op=="="&&[(left.as_ref(),right.as_ref()),(right.as_ref(),left.as_ref())].iter().any(|(field,null)|matches!(null,Expr::Literal{value:ast::Literal::Null,..})&&matches!(field,Expr::Member{base,name,..} if name==&f.name&&advice_target(base,w,bound)))));
             let immutable=t.constraints.iter().any(|constraint|matches!(constraint,snapback4_core::schema::Constraint::Immutable{fields} if fields.contains(&f.name)));
-            if protected&&w.op!=WriteOp::Insert&&!initialized&&!immutable&&!super::super::privilege::role_columns(bound,&w.table).contains(&f.name)&&!state_guard&&!preserves_nonnull(w,f,bound)&&!lifecycle_column(&f.name,kind){
+            if protected&&w.op!=WriteOp::Insert&&!initialized&&!immutable&&!super::super::privilege::role_columns(bound,&w.table).contains(&f.name)&&!state_guard&&!(preserves_nonnull(w,f,bound)&&!earlier_change(w,writes,&f.name,bound))&&!lifecycle_column(&f.name,kind){
                 note(out,&w.site,"N_EDIT_AFTER_APPROVAL",format!("{}: saw `{}`; not proved: edit of {}.{} at {} is restricted by lifecycle/approval; should checked values remain editable?",w.name,guard_description(w),w.table,f.name,w.site),&format!("declare column update intent for approved states or authorized reapproval; to freeze this value use `immutable {} when {}`; enforce replacement as well as removal, then test approve -> edit",f.name,approval_columns.iter().find_map(|c|match t.columns[*c].required(){ColumnType::Bool=>Some(format!(".{c} = true")),ColumnType::Time=>Some(format!(".{c} != null")),_=>None}).unwrap_or_else(||"<approved-state-policy>".into())));
             }
         }
@@ -467,12 +470,20 @@ pub(super) fn notes(bound:&Bound,writes:&[Write<'_>],out:&mut Vec<Diagnostic>){
                 let mut paired=false;
                 // Pair the actual reference with its read, allowing differently
                 // named return/approval timestamps to define this window.
-                for condition in conditions(&w.context){walk(condition,|comparison|if let Expr::Binary{op,..}=comparison&&["<","<=",">",">="].contains(&op.as_str())&&w.p.args.iter().any(|arg|matches!(arg.type_.kind,TypeKind::Time)&&uses(value,&arg.name)&&uses(comparison,&arg.name)){
-                    walk(comparison,|e|if let Expr::Member{base,name,..}=e&&bound.schema.tables[dep].columns.get(name).is_some_and(|kind|matches!(kind.required(),ColumnType::Time)){
-                    let base=if let Expr::Assert{value,..}=base.as_ref(){value.as_ref()}else{base.as_ref()};
-                    if let Expr::Read(read)=base&&read.table==*dep&&read.keys.len()==1&&read.keys[0].column.as_deref().is_none_or(|name|name=="id")&&resource_key(&read.keys[0].value,w.p,bound)==resource_key(&reference,w.p,bound){paired=true;}
-                    });
-                });}
+                fn relationship(e:&Expr,positive:bool,w:&Write<'_>,written:&Expr,dep:&str,reference:&Expr,bound:&Bound)->bool{match e{
+                    Expr::Unary{op,value,..} if op=="not"=>relationship(value,!positive,w,written,dep,reference,bound),
+                    Expr::Binary{op,left,right,..} if op=="and"||op=="or"=>{
+                        let a=relationship(left,positive,w,written,dep,reference,bound);let b=relationship(right,positive,w,written,dep,reference,bound);
+                        if (op=="and")==positive{a||b}else{a&&b}
+                    },
+                    Expr::Binary{op,..} if ["<","<=",">",">="].contains(&op.as_str())&&w.p.args.iter().any(|arg|matches!(arg.type_.kind,TypeKind::Time)&&uses(written,&arg.name)&&uses(e,&arg.name))=>{
+                        let mut paired=false;walk(e,|e|if let Expr::Member{base,name,..}=e&&bound.schema.tables[dep].columns.get(name).is_some_and(|kind|matches!(kind.required(),ColumnType::Time)){
+                            let base=if let Expr::Assert{value,..}=base.as_ref(){value.as_ref()}else{base.as_ref()};
+                            if let Expr::Read(read)=base&&read.table==dep&&read.keys.len()==1&&read.keys[0].column.as_deref().is_none_or(|name|name=="id")&&resource_key(&read.keys[0].value,w.p,bound)==resource_key(reference,w.p,bound){paired=true;}
+                        });paired
+                    },_=>false,
+                }}
+                paired|=conditions(&w.context).iter().any(|e|relationship(e,true,w,value,dep,&reference,bound));
                 if !deadlines.is_empty()&&!paired{
                     note(out,&w.site,"N_DEPENDENT_WINDOW",format!("{}: saw `{}` bounding {}.{}; not proved: window uses linked {dep}[{}].{} at {}",w.name,guard_description(w),w.table,f.name,crate::print::expression(&reference),deadlines.join(","),w.site),"compare the actual written deadline with the linked resource's bound as well as server now; declare independent window intent and test the boundary");
                 }
