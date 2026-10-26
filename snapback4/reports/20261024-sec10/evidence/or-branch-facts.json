@@ -1,0 +1,34 @@
+{
+  "binarySha256": "98778a8b1fec77f1ab308383f485f74c69ecd7e716f0999cfdf3db133dc98ce5",
+  "sourceSha256": "96175c10636fbb3ac35666c41526cf11fdb64f806d599e20f6021cd472ecd054",
+  "steps": [
+    {
+      "phase": "check",
+      "exit": 0,
+      "gates": [],
+      "violations": 0,
+      "securityRefused": false
+    },
+    {
+      "phase": "fresh",
+      "exit": 0,
+      "gates": [],
+      "violations": 0,
+      "securityRefused": false
+    },
+    {
+      "phase": "test",
+      "exit": 0,
+      "gates": [],
+      "violations": 0,
+      "securityRefused": false
+    },
+    {
+      "phase": "afterTest",
+      "exit": 0,
+      "gates": [],
+      "violations": 0,
+      "securityRefused": false
+    }
+  ]
+}

@@ -106552,6 +106552,18 @@ allowance falls from four to two. The six store-handle checks pass and the
 actual authoring-census output regenerates the same 884 canonical entries.
 Registry/guide-manifest regeneration also produces no changes.
 
+
+### 2026-10-24 — SEC10 structural approval inference
+
+SEC10 extends the existing security review tiers with unused approval timestamps
+and approval records, inferred sibling/parent/child and repeated-create contracts,
+and nonblank justification reviews. Actual admitted mutation traces remain the
+only source of production FIX refusals. Derived status prerequisites inspect the
+pre-effect transaction and permit consuming approval in the same write; this is a
+private fixture observer, not application authority. Default check/deploy use
+fixed work counts rather than elapsed-time verdicts. Existing Unicode nonblank
+text minima remain unchanged, with no store migration. LLP 3000.036.004.000 §10
+records the decision, independent reviews and qualification scope.
 ### 2026-10-24 — RCPU: pooled closed-loop read diagnostics
 
 The commissioned RCPU lane starts from PIPE `c7a0a597ee` on expo-build-450a.
@@ -107674,6 +107686,15 @@ Both lane PG16 clusters and both public-witness clusters stop with status 3 and
 no pidfiles; all 1,077 unique recorded PIDs are absent. PIDs left: none. Final
 available disk is 79.67 GiB, above the 40 GiB stop floor. No push or Git
 configuration change occurs.
+
+
+2026-10-25 — SEC10 wave-27 follow-up: approval gates now need a plausible
+modeled effect; external-act records are informational. Mutation require edit
+asymmetry becomes an individual question. Stable participant ledgers and
+current-input backfill labels generate replay candidates. Authored literal
+default initialization retains exact insert-source custody; structural grants
+are unchanged. Deterministic campaigns reuse each generated fixture and try
+derived effects first. Semantic amendment: LLP 3000.036.004.000 §11.
 
 ### 2026-10-25 — FF3: opt-in G6 posture and the privileged activation boundary
 

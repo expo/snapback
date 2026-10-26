@@ -1,0 +1,14 @@
+{
+  "time": "2026-10-24T14:56:39.599199+00:00",
+  "deltaSha256": "a24b83f8d183b6d39ff8b03983545a9b1f9c54ee803b6c00a302030260a03def",
+  "deltaArtifact": "llp/reviews/3000.036.004.000-sec10-r3.delta.patch.gz",
+  "briefSha256": "9fb3469aa4f460c386e9445845a8864093a5301b84987cf35aeccf4ae4f532e2",
+  "reviewers": [
+    "Muse muse-spark-1.3-contributor high via muse-exec.sh",
+    "fresh codex gpt-6.1-sol high"
+  ],
+  "verdicts": {
+    "Muse": "unavailable: 1200s timeout after plan quota fallback; no verdict",
+    "Codex": "NOT READY"
+  }
+}

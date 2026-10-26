@@ -1,0 +1,21 @@
+{
+  "revision": "d1bff9d53ff5b2eafa7ff503e433478ac3efc1fd",
+  "semanticRevision": "cdc4c97004",
+  "mergedMain": "20a45b73cbfcf7ca03e7d5d494e50f0e4a8ffc35",
+  "date": "2026-10-25",
+  "briefSha256": "464e800c9b9ad37f99f5aa521f86250410000d59d1188119af7a864505d6cfa0",
+  "reviews": {
+    "codex": {
+      "verdict": "READY",
+      "model": "gpt-6.1-sol high",
+      "verbatim": "3000.036.004.000-sec10-wave27-r18.codex.md",
+      "logSha256": "5c947229f334b32d9076feb89996d8fabd351f0ceb27ca4c72abf4b0bd41b502"
+    },
+    "muse": {
+      "verdict": "READY",
+      "model": "muse-spark-1.3-contributor high via muse-exec quota fallback",
+      "verbatim": "3000.036.004.000-sec10-wave27-r18.muse.md",
+      "logSha256": "f150e99c772e5bb4751c10f0b726c472e043be03ea620db91e65c8d94e6a9ef7"
+    }
+  }
+}

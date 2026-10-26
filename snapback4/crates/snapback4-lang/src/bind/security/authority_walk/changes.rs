@@ -15,11 +15,11 @@ impl Change{
 // Unknown calls and writes end the pending interval; pure leading helper
 // requirements can be recovered only inside the immediately tested branch.
 pub(super) fn expression_effectful(e:&Expr)->bool{
-    let mut e=e.clone();let mut unknown=false;super::super::super::intent_walk::expression(&mut e,&mut |e|if matches!(e,Expr::Write{..}|Expr::Call{..}){unknown=true;});unknown
+    let mut e=e.clone();let mut unknown=false;super::super::super::intent_walk::expression(&mut e,&mut |e|if !evaluated(e)&&matches!(e,Expr::Write{..}|Expr::Call{..}){unknown=true;});unknown
 }
 pub(super) fn prior_effects(e:&Expr)->bool{
     let mut e=e.clone();let(mut calls,mut writes)=(false,0);
-    super::super::super::intent_walk::expression(&mut e,&mut |e|match e{Expr::Write{..}=>writes+=1,Expr::Call{..}=>calls=true,_=>{}});
+    super::super::super::intent_walk::expression(&mut e,&mut |e|if !evaluated(e){match e{Expr::Write{..}=>writes+=1,Expr::Call{..}=>calls=true,_=>{}}});
     calls||writes>1
 }
 pub(super) fn effectful(s:&Stmt)->bool{match s{

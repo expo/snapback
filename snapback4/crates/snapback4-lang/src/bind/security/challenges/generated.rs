@@ -81,6 +81,7 @@ fn proposals(bound:&Bound,out:&mut Campaign)->Result<Engine,String>{
 
 // @ref LLP 3000.036.004#137-wave-19-correction-admissible-starts-and-persistent-refutations — creator guards/copies are part of generated initialization.
 pub fn fixture(bound:&Bound,out:&mut Campaign)->Result<Engine,String>{
+    let _replay_ids = replay_ids::Scope::new();
     let proposed=proposals(bound,out)?;
     let rows=readback(&proposed)?;
     let actors=histories::actors(bound,&rows);
@@ -163,8 +164,8 @@ pub fn fixture(bound:&Bound,out:&mut Campaign)->Result<Engine,String>{
             let related_creator=p.args.values().any(|kind|matches!(kind,ir::ArgType::Ref{table} if created.contains(table)&&engine.store().rows(table).is_ok_and(|rows|!rows.is_empty())&&dependent_children.get(table).is_some_and(|children|writes.iter().any(|(child,kind)|matches!(*kind,"insert"|"upsert")&&children.contains(child)))));
             if !root_observed&&(related_creator||writes.iter().any(|(_,kind)|matches!(*kind,"update"|"upsert"|"delete"))){
                 root_observed=true;
-                if out.generated_fixture&&out.work_remaining.is_none()&&validate_fixture(bound,&mut engine).is_ok(){
-                    let first=out.violations.len();histories::lifecycle_observers_to(bound,&engine,out,1024);
+                if out.generated_fixture&&out.work_remaining.is_none_or(|work|work>=256)&&validate_fixture(bound,&mut engine).is_ok(){
+                    let first=out.violations.len();let limit=if out.work_remaining.is_none(){out.directed_base.saturating_add(1024)}else{out.directed_attempts.saturating_add(1024)};out.setup_checkpoint("pre-transition checkpoint",|out|histories::lifecycle_observers_to(bound,&engine,out,limit));
                     for witness in &mut out.violations[first..]{if witness.reachability==Reachability::AuthoredFixtureTrace{witness.reachability=Reachability::GeneratedFixtureTrace;witness.scope="actual authored observation from a validated generated early setup checkpoint; initialization is not claimed application-reachable".into();}}
                 }
             }
@@ -174,19 +175,25 @@ pub fn fixture(bound:&Bound,out:&mut Campaign)->Result<Engine,String>{
             let current=readback(&engine)?;
             let targets=writes.iter().filter(|(_,kind)|matches!(*kind,"insert"|"upsert")).map(|(t,_)|t).collect::<Vec<_>>();
             if targets.iter().all(|t|current.get(*t).map_or(0,Vec::len)>=2){
-                if p.args.values().any(|kind|matches!(kind,ir::ArgType::Bool)){out.unsupported.insert(format!("{}: two-row target population cap skips creator boolean alternatives; combinations remain uncovered",p.name));}
+                if p.args.values().any(|kind|matches!(kind,ir::ArgType::Bool|ir::ArgType::Enum{..})){out.unsupported.insert(format!("{}: two-row target population cap skips creator Boolean/enum alternatives; combinations remain uncovered",p.name));}
                 continue;
             }
             let mut cases=histories::fixture_cases(bound,p,&current,&creator_actors,out);
+            let clock_intent=bound.invariants.iter().filter_map(|i|i.syntax.as_ref()).any(|e|{let mut e=e.clone();let mut now=false;crate::bind::intent_walk::expression(&mut e,&mut |e|if matches!(e,ast::Expr::Name{name,..} if name=="now"){now=true;});now});
+            if clock_intent {
+                let calendar=out.time_samples.as_ref().and_then(|samples|samples.first()).filter(|value|matches!(value,Value::Int(n) if *n<NOW));
+                let calendar_case=calendar.and_then(|date|cases.iter().position(|args|p.args.iter().any(|(name,kind)|matches!(kind,ir::ArgType::Time)&&args.get(name)==Some(date))));
+                if let Some(index)=calendar_case.or_else(||cases.iter().position(|args|p.args.iter().any(|(name,kind)|matches!(kind,ir::ArgType::Time)&&matches!(args.get(name),Some(Value::Int(n)) if *n<NOW-183*86_400_000)))){let old=cases.remove(index);cases.insert(0,old);}
+            }
             // Do not let two actors on the first tuple consume both root
             // slots before the opposite gating boolean is tried.
             if let Some(first)=cases.first().cloned(){
-                if let Some(index)=cases.iter().position(|case|p.args.iter().any(|(name,kind)|matches!(kind,ir::ArgType::Bool)&&case.get(name)!=first.get(name))){
+                if let Some(index)=cases.iter().position(|case|p.args.iter().any(|(name,kind)|matches!(kind,ir::ArgType::Bool|ir::ArgType::Enum{..})&&case.get(name)!=first.get(name))){
                     let alternate=cases.remove(index);cases.insert(1,alternate);
-                    if p.args.values().filter(|kind|matches!(kind,ir::ArgType::Bool)).count()>1{out.unsupported.insert(format!("{}: generated roots keep two boolean tuples; additional correlated boolean combinations remain uncovered",p.name));}
+                    if p.args.values().filter(|kind|matches!(kind,ir::ArgType::Bool|ir::ArgType::Enum{..})).count()>1{out.unsupported.insert(format!("{}: generated roots keep two Boolean/enum tuples; additional correlated Boolean/enum combinations remain uncovered",p.name));}
                 }
             }
-            let boolean_names=p.args.iter().filter(|(_,kind)|matches!(kind,ir::ArgType::Bool)).map(|(name,_)|name.clone()).collect::<Vec<_>>();
+            let boolean_names=p.args.iter().filter(|(_,kind)|matches!(kind,ir::ArgType::Bool|ir::ArgType::Enum{..})).map(|(name,_)|name.clone()).collect::<Vec<_>>();
             let projection=|args:&BTreeMap<String,Value>|boolean_names.iter().filter_map(|name|args.get(name).map(|value|(name.clone(),value.clone()))).collect::<BTreeMap<_,_>>();
             let possible=cases.iter().map(|args|serde_json::to_string(&projection(args)).unwrap()).collect::<BTreeSet<_>>();
             let mut attempted_booleans=BTreeSet::new();let admitted_booleans=creator_decisions.entry(p.name.clone()).or_default();
@@ -209,10 +216,10 @@ pub fn fixture(bound:&Bound,out:&mut Campaign)->Result<Engine,String>{
                 }
                 let mut candidate=engine.fork_fixture().map_err(|e|e.to_string())?;
                 let args=match materialize_arguments(&mut candidate,&p.args,&args,actor){Ok(a)=>a,Err(_)=>continue};
-                let result=candidate.mutate(&p.name,None,Context::new(actor,args.clone()).at(NOW));
+                let result=candidate.mutate(&p.name,None,replay_ids::context(actor,args.clone()).at(NOW));
                 if matches!(result,Ok(r) if matches!(r.state,snapback4_core::WriteState::Sent{..})) {
                     let after=readback(&candidate)?;
-                    let loosens=if !stricter_observed&&watched_transition&&out.generated_fixture&&out.work_remaining.is_none(){
+                    let loosens=if !stricter_observed&&watched_transition&&out.generated_fixture&&out.work_remaining.is_none_or(|work|work>=256){
                         let before=readback(&engine)?;
                         bound.invariants.iter().any(|inv|before.get(&inv.table).into_iter().flatten().any(|row|{
                             let Some(next)=after.get(&inv.table).into_iter().flatten().find(|next|next.field("id").ok()==row.field("id").ok())else{return false;};
@@ -222,7 +229,7 @@ pub fn fixture(bound:&Bound,out:&mut Campaign)->Result<Engine,String>{
                     if !stricter_observed&&loosens {
                         stricter_observed=true;
                         if validate_fixture(bound,&mut engine).is_ok(){
-                            let first=out.violations.len();let limit=out.directed_attempts.saturating_add(1024).min(2048);histories::lifecycle_observers_to(bound,&engine,out,limit);
+                            let first=out.violations.len();let limit=out.directed_attempts.saturating_add(1024).min(out.directed_base.saturating_add(2048));out.setup_checkpoint("pre-loosening checkpoint",|out|histories::lifecycle_observers_to(bound,&engine,out,limit));
                             for witness in &mut out.violations[first..]{if witness.reachability==Reachability::AuthoredFixtureTrace{witness.reachability=Reachability::GeneratedFixtureTrace;witness.scope="actual authored observation from a validated generated root before an admitted dependency-changing creator; initialization is not claimed application-reachable".into();}}
                         }
                     }
@@ -232,11 +239,11 @@ pub fn fixture(bound:&Bound,out:&mut Campaign)->Result<Engine,String>{
                     }
                     if targets.iter().any(|t|after.get(*t).map_or(0,Vec::len)>current.get(*t).map_or(0,Vec::len)) {admitted_booleans.insert(serde_json::to_string(&projection(&args)).unwrap());engine=candidate;}
                     let after=readback(&engine)?;
-                    if targets.iter().all(|t|after.get(*t).map_or(0,Vec::len)>=2){break 'cases;}
+                    if targets.iter().all(|t|after.get(*t).map_or(0,Vec::len)>=2){if p.args.values().any(|kind|matches!(kind,ir::ArgType::Time)){out.unsupported.insert(format!("{}: two-row creator population omits additional time tuples; remaining date combinations uncovered",p.name));}break 'cases;}
                     if targets.iter().any(|t|after.get(*t).map_or(0,Vec::len)>current.get(*t).map_or(0,Vec::len)){continue 'cases;}
                 }
             }}
-            if !boolean_names.is_empty()&&possible.difference(&attempted_booleans).next().is_some(){out.unsupported.insert(format!("{}: creator tuple/population cap omits {} generated boolean projections; remaining combinations uncovered",p.name,possible.difference(&attempted_booleans).count()));}
+            if !boolean_names.is_empty()&&possible.difference(&attempted_booleans).next().is_some(){out.unsupported.insert(format!("{}: creator tuple/population cap omits {} generated Boolean/enum projections; remaining combinations uncovered",p.name,possible.difference(&attempted_booleans).count()));}
         }
         if readback(&engine)?==before{break;}
     }
@@ -267,8 +274,8 @@ use super::*;
  let mut e=fixture(&b,&mut out).unwrap();let inspections=e.store().rows("inspections").unwrap();assert!(!inspections.is_empty(),"{:?}",out.unsupported);
  let row=inspections.iter().find(|r|r.field("authorization").map_or(true,|v|*v==Value::Null)).expect("generated roots retain missing evidence");
  let actor=row.field("inspector").unwrap().as_str().unwrap();let clock=match row.field("scheduledAt").unwrap(){Value::Int(n)=>(*n).max(NOW),_=>panic!("typed time")};
- let p=&b.programs.iter().find(|p|p.program.name=="markInspected").unwrap().program;let trace=super::executed::trace(&b,p);
- let result=e.mutate("markInspected",None,Context::new(actor,BTreeMap::from([("inspection".into(),row.field("id").unwrap().clone())])).at(clock).with_fixture_trace(trace.clone())).unwrap();
+ let p=&b.programs.iter().find(|p|p.program.name=="markInspected").unwrap().program;let trace=super::executed::trace(&b,p,&e);
+ let result=e.mutate("markInspected",None,replay_ids::context(actor,BTreeMap::from([("inspection".into(),row.field("id").unwrap().clone())])).at(clock).with_fixture_trace(trace.clone())).unwrap();
  assert!(matches!(result.state,snapback4_core::WriteState::Sent{..}),"{result:?}");assert!(trace.take().iter().any(|o|o.allowed==Some(false)));
 
 }
@@ -281,8 +288,8 @@ use super::*;
  assert!(!rows["payments"].is_empty(),"{:?}",out.unsupported);
  let row=rows["payments"].iter().find(|r|matches!(r.field("dueAt"),Ok(Value::Int(n)) if *n>=NOW)).expect("one generated payment is due in the future");
  let actor=rows["roles"].iter().find(|r|r.field("role").ok()==Some(&Value::String("desk".into()))).unwrap().field("principal").unwrap().as_str().unwrap();
- let p=&b.programs.iter().find(|bp|bp.program.name=="markMissed").unwrap().program;let trace=super::executed::trace(&b,p);
- let result=e.mutate("markMissed",None,Context::new(actor,BTreeMap::from([("payment".into(),row.field("id").unwrap().clone())])).at(NOW).with_fixture_trace(trace.clone())).unwrap();
+ let p=&b.programs.iter().find(|bp|bp.program.name=="markMissed").unwrap().program;let trace=super::executed::trace(&b,p,&e);
+ let result=e.mutate("markMissed",None,replay_ids::context(actor,BTreeMap::from([("payment".into(),row.field("id").unwrap().clone())])).at(NOW).with_fixture_trace(trace.clone())).unwrap();
  assert!(matches!(result.state,snapback4_core::WriteState::Sent{..}),"{result:?}");assert!(trace.take().iter().any(|o|o.allowed==Some(false)));
 }
 }
@@ -293,5 +300,19 @@ use super::*;
  let b=crate::compile(&[("schema.q".into(),source.into())]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);let mut c=Campaign::bounded(15000);c.work_remaining=Some(8192);let e=fixture(&b,&mut c).unwrap();
  let decisions=e.store().rows("decisions").unwrap();assert_eq!(decisions.len(),2,"{:?}",c.unsupported);
  for passed in [false,true]{assert!(decisions.iter().any(|r|r.field("passed").ok()==Some(&Value::Bool(passed))),"{decisions:?}");}
+}
+}
+
+#[cfg(test)]mod sec10_clock_reach_tests{use super::*;
+#[test]fn an_old_caller_date_reaches_the_named_order_transition(){
+    let source=format!("{}\ninvariant fittings.orderGarment only .prescriptionDate >= now - 182d\n",include_str!("../../../../tests/security/wave26/002.q"));let sources=vec![("schema.q".into(),source)];let b=super::super::super::derived::augmented(&sources,&crate::compile(&sources));assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+    let mut out=Campaign::default();out.generated_fixture=true;let mut engine=fixture(&b,&mut out).unwrap();let rows=readback(&engine).unwrap();
+    let dates=rows.get("fittings").into_iter().flatten().map(|row|row.field("prescriptionDate").unwrap()).collect::<Vec<_>>();
+    let fitting=rows.get("fittings").into_iter().flatten().find(|row|matches!(row.field("prescriptionDate"),Ok(Value::Int(n)) if *n<NOW-183*86_400_000)).unwrap_or_else(||panic!("no old date: {dates:?}; {:?}",out.unsupported));
+    let actor=rows["roles"].iter().find(|row|row.field("role").ok()==Some(&Value::String("frontdesk".into()))).unwrap().field("principal").unwrap().as_str().unwrap();
+    let p=&b.programs.iter().find(|p|p.program.name=="orderGarment").unwrap().program;let trace=super::executed::trace(&b,p,&engine);
+    let result=engine.mutate("orderGarment",None,replay_ids::context(actor,BTreeMap::from([("fitting".into(),fitting.field("id").unwrap().clone())])).at(NOW).with_fixture_trace(trace.clone())).unwrap();
+    assert!(matches!(result.state,snapback4_core::WriteState::Sent{..}),"{result:?}; dates={dates:?}");
+    assert!(trace.take().iter().any(|o|o.allowed==Some(false)),"the named operation must violate the independent clock intent");
 }
 }

@@ -1,0 +1,20 @@
+muse: workspace root: /home/ccheever/projects/sb4-b26-sec10 (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=eb94cc6e-59c1-4380-87f8-72cfb16d5b58]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-b26-sec10 (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY — no material false gate, refusal, or bypass in §10 / frozen r7 delta.
+
+Verified the [SEC10 amendment](</home/ccheever/projects/sb4-b26-sec10/llp/3000.036.004.000-structural-write-authority.rfc.md>) against the [frozen patch](</home/ccheever/sb4-loop/sec10-r7-delta.patch>) source. All prompt-critical rules hold in code. Prior reviews and artifacts were not read. Nothing was changed.
+
+- Positive matching only exempts downstream inference. `requires_child` splits only `and` conjunctions and matches `Exists` with the exact reference key. Absence (`not exists`) and unrelated reads do not match.
+- Consumption is typed and input-bound. `target_arg`, `same_resource`, and `normalize` accept only `id` selections on the actual typed `Ref` argument. Secondary keys and ambiguous targets return `None` and are omitted. `receipt_identity` plus `approved_inputs` compares the same receipt identity and the actually inspected `Bool`/`Enum`/`Principal` inputs across entry and effect snapshots. Retargeting approved A to unapproved B is not consumption and stays FIX. Clearing a stamp while changing its approved inputs cannot finish on the old approval.
+- Destination versus source handling matches §10. Sibling effects evaluate the prerequisite on the next `Ref`/`Principal` image with pre-effect primitive state. Parent-state checks the new association on retarget and the old parent otherwise.
+- Paired old/next invalidation permits ordinary clearing edits. Non-sibling paired contracts keep two-image `Or` semantics.
+- Only admitted executed traces establish FIX. Synthetic and derived paths require `Sent` admission plus an actually false predicate at the executed boundary. Unknown stays uncovered, never permission.
+- Informational records keep individual S1 acknowledgement. `N_APPROVAL_NOT_ENFORCED` and `N_BLANK_TEXT_GUARD` are gated. Co-written numeric price alone does not suppress the price-approval question. Atomic recording and timestamp consumption share one classifier.
+- Month handling retains year and drops day precision via month-start proposals. `text 1..N` semantics are unchanged. Blank-text gating distinguishes requiring empty from requiring nonempty.
+- Determinism holds. Default check and deploy use fixed 512 and 8192 work budgets with no wall-clock verdict input. Explicit deadlines report `stopped early (time)` as incomplete. No arbitrary-specification proof is claimed. Supersede of §§13.3, 16.3, 17.2 wall-clock caps matches the parent text.
+
+No repairs required. Execution qualification remains ongoing and is not a readiness objection. READY means no material semantic concern, not qualification or author acceptance.

@@ -522,7 +522,7 @@ fn historical_lifetime_outputs_refuse_before_transforming_or_retiring_children()
 #[test]
 fn computed_text_minimum_and_format_failures_refuse_the_whole_adoption() {
  let old="table items:\n  n: int\n  public 'fixture'\n  online only\n";
- for (kind,value,reason) in [("text 2..30","' '","non-whitespace"),("text 2..30 format handle","'Not A Handle'","handle"),("text <=80 format email","'bad@@example.test'","email")] {
+ for (kind,value,reason) in [("text 2..30","' '","needs at least 2 visible characters"),("text 2..30 format handle","'Not A Handle'","handle"),("text <=80 format email","'bad@@example.test'","email")] {
   let next=old.replace("  n:",&format!("  label: {kind}\n  n:"))+&format!("backfill items label():\n  {{label:{value}}}\n");
   let mut e=engine(old);for id in ["a","b"]{seed(&mut e,"items",json!({"id":id,"n":3}));}let generation=e.generation();let error=adopt(&mut e,&next,2).unwrap_err().to_string();assert!(error.contains(reason)&&error.contains("2 affected rows"),"{error}");assert_eq!(e.generation(),generation);assert_eq!(e.store().count("items").unwrap(),2);assert!(row(&mut e,"items","a").field("label").is_err());
  }

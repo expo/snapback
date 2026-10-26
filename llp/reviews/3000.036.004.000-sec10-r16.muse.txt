@@ -1,0 +1,28 @@
+muse: workspace root: /home/ccheever/projects/sb4-b26-sec10 (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=7a0f0783-43f1-46ed-a787-45e1f17e52af]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-b26-sec10 (cwd default)
+muse: workspace trust: trusted source=run-flag
+NOT READY — one concrete advisory-soundness defect in the new scalar enforcement, with a minimal repair. No runtime (enforcement) hole found in the reapproval path.
+
+**Defect: vacuous `frozen` suppresses a required unused-approval question.** In [lifecycle.rs](/home/ccheever/projects/sb4-b26-sec10/snapback4/crates/snapback4-lang/src/bind/security/creation_advice/lifecycle.rs:90):
+
+```rust
+let frozen=approval_effects.iter().filter(|w|!(w.table==*table&&records(w,column,kind,t))).all(|w|scalar_enforced(w,table,column,bound,true));
+```
+
+When every approval effect records the approval on the same table, the filtered iterator is empty and `all()` on empty is `true`, so `consumed` becomes true via `frozen` with zero freeze guards anywhere. Concrete shape: a parameterized status transition such as `update docs[doc] {status:newStatus, approved:true}` (non-literal status, so `decision_effect`/`atomic` do not fire), no `require` inspecting `approved`, no rules referencing it. Here `recorded=true`, `atomic/rule_use/child_rule_use/positive-any` are all false, yet `frozen=true` suppresses `N_APPROVAL_NOT_ENFORCED`. §10 requires individual review exactly here ("approval-named Bool set true ... with lifecycle effects but no transition inspecting it, requires individual review"; freeze contracts count "only if all otherwise unchecked effects freeze" — zero guards is not a matching guard). This partially reintroduces the wholesale fresh-literal exemption the amendment removes on the runtime side.
+
+**Repair (one line):** require a non-empty otherwise-set:
+
+```rust
+let others=approval_effects.iter().filter(|w|!(w.table==*table&&records(w,column,kind,t))).collect::<Vec<_>>();
+let frozen=!others.is_empty()&&others.iter().all(|w|scalar_enforced(w,table,column,bound,true));
+```
+
+**Checked and found sound (read-only):** `approval_checks.rs` collect/revalidated correctly scopes to the selected row, evaluates complete `and`-clauses (not disjunct fragments) on the replacement image with actual args/viewer, returns unknown (never pass) for foreign-row/unsupported predicates, and returns `Some(false)` for changed inputs with no covering check; old-row/local-binding checks (`saved = d.consent`, `approved:d.approved` copies) correctly fail to validate replacement data. Receipt refresh compares entry-baseline vs stamp-write image so split clear/edit/stamp cannot refresh stale data; copied/ordinary writes are skipped by site custody, not refreshed. The `consumed()` fixed point restores only valid receipts, invalidates dependents of invalidated upstream stamps, caps at 8 subsets with larger cuts unknown, keeps deleted-record ambiguity unknown, and never falls back to raw positive flags. Copy-bool sites landing in neither custody map (via [derived.rs:167](/home/ccheever/projects/sb4-b26-sec10/snapback4/crates/snapback4-lang/src/bind/security/derived.rs:167)) correctly yields `Some(false)` rather than unknown for copied stamps, matching "copied old flags do not [get exemption]". Positive-`any` vs negative-`all` asymmetry matches the alternative-workflow vs freeze-contract distinction.
+
+**Non-blocking note:** write-site custody in `write_target.rs` is gated `#[cfg(feature="sqlite")]`; non-sqlite builds degrade fail-closed (receipt intents blind, paired candidate `Some(false)` on retained approval). Default builds are unaffected, so this is portability robustness, not a bypass.
+
+No edits made per instructions; no builds/tests run.

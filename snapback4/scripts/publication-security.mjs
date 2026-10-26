@@ -82,7 +82,17 @@ export async function proveSecurity(clientTarball, platformTarball, directory) {
   assert.ok(blocks.length > 0, "installed security guide contains executable Quarry");
   const guideCases = [];
   for (const [index, source] of blocks.entries()) {
-    const project = schemaProject(`card-${index}`, source), security = checked(project);
+    const project = schemaProject(`card-${index}`, source);
+    // Additional complete recipes have their own installed mutation witnesses
+    // (sec10-packed). Compile each exact block here as well; the disclosure
+    // counterexample below belongs specifically to the privateNotes example.
+    if (!source.includes("table privateNotes:")) {
+      const result = JSON.parse(command(["check", "--json"], project));
+      assert.equal(result.ok, true);
+      guideCases.push({ block: index, compile: "passed", invariants: result.security?.invariants.length ?? 0 });
+      continue;
+    }
+    const security = checked(project);
     assert.ok(security.invariants.every(verdict => verdict.direct_rule === "proved"));
     assert.match(readFileSync(join(project, "snapback/generated/security-invariants.q.draft"), "utf8"), /DRAFT: NOT ACCEPTED/);
     const audited = JSON.parse(command(["audit", "--json"], project));

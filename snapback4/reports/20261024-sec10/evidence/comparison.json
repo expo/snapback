@@ -1,0 +1,587 @@
+{
+  "baseline": "packed npm 0.4.40",
+  "candidate": {
+    "binarySha256": "98778a8b1fec77f1ab308383f485f74c69ecd7e716f0999cfdf3db133dc98ce5",
+    "projects": 600,
+    "waves": "15,16,18,19,20,21,22,23,24,25,26",
+    "checkOnly": false,
+    "stripIntent": false
+  },
+  "projects": 600,
+  "sourceHashesMatch": true,
+  "watchdogs": [],
+  "newGates": [
+    {
+      "wave": 15,
+      "lane": "083-syllabus-approval-chain",
+      "code": "N_BLANK_TEXT_GUARD",
+      "site": "schema.q:102:3",
+      "messages": [
+        "submit: a reason/consent/assessment is compared with empty text but whitespace still passes; is nonblank evidence required?"
+      ],
+      "classification": "genuine review gate",
+      "reason": "An authored empty-string evidence/justification guard accepts whitespace with the declared optional/minimum-zero argument. The guard itself supplies nonblank intent; trim or text 1..N is the exact repair."
+    },
+    {
+      "wave": 15,
+      "lane": "084-day2-cube-comp-scrambles",
+      "code": "N_BLANK_TEXT_GUARD",
+      "site": "schema.q:163:3",
+      "messages": [
+        "correctResult: a reason/consent/assessment is compared with empty text but whitespace still passes; is nonblank evidence required?"
+      ],
+      "classification": "genuine review gate",
+      "reason": "An authored empty-string evidence/justification guard accepts whitespace with the declared optional/minimum-zero argument. The guard itself supplies nonblank intent; trim or text 1..N is the exact repair."
+    },
+    {
+      "wave": 18,
+      "lane": "010-snapback-cobbler-repair-tickets",
+      "code": "N_APPROVAL_NOT_ENFORCED",
+      "site": "schema.q:108:3",
+      "messages": [
+        "tickets.repriceApproved: approval is recorded but no lifecycle effect inspects it; is this an informational record or a required approval?"
+      ],
+      "classification": "genuine review gate",
+      "reason": "Declared approval is recorded without a matching governed effect. S1 intentionally requires an individual enforce-or-informational decision; this is a genuine review question, not a claim that every unused record is an exploit."
+    },
+    {
+      "wave": 19,
+      "lane": "010-snapback-cobbler-repair-tickets",
+      "code": "N_APPROVAL_NOT_ENFORCED",
+      "site": "schema.q:123:3",
+      "messages": [
+        "tickets.repriceApproved: approval is recorded but no lifecycle effect inspects it; is this an informational record or a required approval?"
+      ],
+      "classification": "genuine review gate",
+      "reason": "Declared approval is recorded without a matching governed effect. S1 intentionally requires an individual enforce-or-informational decision; this is a genuine review question, not a claim that every unused record is an exploit."
+    },
+    {
+      "wave": 20,
+      "lane": "002-snapback-bridal-alteration-fittings",
+      "code": "N_APPROVAL_NOT_ENFORCED",
+      "site": "schema.q:151:3",
+      "messages": [
+        "gowns.rushApproved: approval is recorded but no lifecycle effect inspects it; is this an informational record or a required approval?"
+      ],
+      "classification": "genuine review gate",
+      "reason": "Declared approval is recorded without a matching governed effect. S1 intentionally requires an individual enforce-or-informational decision; this is a genuine review question, not a claim that every unused record is an exploit."
+    },
+    {
+      "wave": 20,
+      "lane": "028-snapback-trade-in-appraisals",
+      "code": "N_BLANK_TEXT_GUARD",
+      "site": "schema.q:81:10",
+      "messages": [
+        "valueOffer: a reason/consent/assessment is compared with empty text but whitespace still passes; is nonblank evidence required?"
+      ],
+      "classification": "genuine review gate",
+      "reason": "An authored empty-string evidence/justification guard accepts whitespace with the declared optional/minimum-zero argument. The guard itself supplies nonblank intent; trim or text 1..N is the exact repair."
+    },
+    {
+      "wave": 21,
+      "lane": "002-snapback-bridal-alteration-fittings",
+      "code": "N_APPROVAL_NOT_ENFORCED",
+      "site": "schema.q:153:3",
+      "messages": [
+        "gowns.rushApproved: approval is recorded but no lifecycle effect inspects it; is this an informational record or a required approval?"
+      ],
+      "classification": "genuine review gate",
+      "reason": "Declared approval is recorded without a matching governed effect. S1 intentionally requires an individual enforce-or-informational decision; this is a genuine review question, not a claim that every unused record is an exploit."
+    },
+    {
+      "wave": 21,
+      "lane": "028-snapback-trade-in-appraisals",
+      "code": "N_BLANK_TEXT_GUARD",
+      "site": "schema.q:96:13",
+      "messages": [
+        "valueOffer: a reason/consent/assessment is compared with empty text but whitespace still passes; is nonblank evidence required?"
+      ],
+      "classification": "genuine review gate",
+      "reason": "An authored empty-string evidence/justification guard accepts whitespace with the declared optional/minimum-zero argument. The guard itself supplies nonblank intent; trim or text 1..N is the exact repair."
+    },
+    {
+      "wave": 22,
+      "lane": "018-snapback-film-lab-rolls",
+      "code": "N_APPROVAL_NOT_ENFORCED",
+      "site": "schema.q:121:5",
+      "messages": [
+        "rolls.pushPullApproved: approval is recorded but no lifecycle effect inspects it; is this an informational record or a required approval?"
+      ],
+      "classification": "genuine review gate",
+      "reason": "Declared approval is recorded without a matching governed effect. S1 intentionally requires an individual enforce-or-informational decision; this is a genuine review question, not a claim that every unused record is an exploit."
+    },
+    {
+      "wave": 23,
+      "lane": "018-snapback-film-lab-rolls",
+      "code": "N_APPROVAL_NOT_ENFORCED",
+      "site": "schema.q:133:5",
+      "messages": [
+        "rolls.pushPullApproved: approval is recorded but no lifecycle effect inspects it; is this an informational record or a required approval?"
+      ],
+      "classification": "genuine review gate",
+      "reason": "Declared approval is recorded without a matching governed effect. S1 intentionally requires an individual enforce-or-informational decision; this is a genuine review question, not a claim that every unused record is an exploit."
+    },
+    {
+      "wave": 24,
+      "lane": "001-snapback-organ-pipe-voicing",
+      "code": "N_APPROVAL_NOT_ENFORCED",
+      "site": "schema.q:90:3",
+      "messages": [
+        "ranks.replacementApprovedAt: approval is recorded but no lifecycle effect inspects it; is this an informational record or a required approval?"
+      ],
+      "classification": "genuine review gate",
+      "reason": "Declared approval is recorded without a matching governed effect. S1 intentionally requires an individual enforce-or-informational decision; this is a genuine review question, not a claim that every unused record is an exploit."
+    },
+    {
+      "wave": 24,
+      "lane": "003-snapback-typewriter-restoration-jobs",
+      "code": "N_APPROVAL_NOT_ENFORCED",
+      "site": "schema.q:92:3",
+      "messages": [
+        "machines.extraApproved: approval is recorded but no lifecycle effect inspects it; is this an informational record or a required approval?"
+      ],
+      "classification": "genuine review gate",
+      "reason": "Declared approval is recorded without a matching governed effect. S1 intentionally requires an individual enforce-or-informational decision; this is a genuine review question, not a claim that every unused record is an exploit."
+    },
+    {
+      "wave": 24,
+      "lane": "006-snapback-telescope-mirror-recoating",
+      "code": "N_APPROVAL_NOT_ENFORCED",
+      "site": "schema.q:150:10",
+      "messages": [
+        "refigureApprovals.mirror: a separately authorized approval for mirrors is recorded but no effect requires it; is it informational?"
+      ],
+      "classification": "genuine review gate",
+      "reason": "Declared approval is recorded without a matching governed effect. S1 intentionally requires an individual enforce-or-informational decision; this is a genuine review question, not a claim that every unused record is an exploit."
+    },
+    {
+      "wave": 24,
+      "lane": "011-snapback-radon-mitigation-jobs",
+      "code": "N_APPROVAL_NOT_ENFORCED",
+      "site": "schema.q:98:3",
+      "messages": [
+        "jobs.finishedRoomApproved: approval is recorded but no lifecycle effect inspects it; is this an informational record or a required approval?"
+      ],
+      "classification": "genuine review gate",
+      "reason": "Declared approval is recorded without a matching governed effect. S1 intentionally requires an individual enforce-or-informational decision; this is a genuine review question, not a claim that every unused record is an exploit."
+    },
+    {
+      "wave": 24,
+      "lane": "026-snapback-accordion-repair-tickets",
+      "code": "N_APPROVAL_NOT_ENFORCED",
+      "site": "schema.q:87:3",
+      "messages": [
+        "tickets.retuneApproved: approval is recorded but no lifecycle effect inspects it; is this an informational record or a required approval?"
+      ],
+      "classification": "genuine review gate",
+      "reason": "Declared approval is recorded without a matching governed effect. S1 intentionally requires an individual enforce-or-informational decision; this is a genuine review question, not a claim that every unused record is an exploit."
+    },
+    {
+      "wave": 24,
+      "lane": "037-snapback-uniform-embroidery-orders",
+      "code": "N_APPROVAL_NOT_ENFORCED",
+      "site": "schema.q:132:3",
+      "messages": [
+        "orders.reprintApproved: approval is recorded but no lifecycle effect inspects it; is this an informational record or a required approval?"
+      ],
+      "classification": "genuine review gate",
+      "reason": "Declared approval is recorded without a matching governed effect. S1 intentionally requires an individual enforce-or-informational decision; this is a genuine review question, not a claim that every unused record is an exploit."
+    },
+    {
+      "wave": 24,
+      "lane": "041-snapback-pinball-machine-repairs",
+      "code": "N_APPROVAL_NOT_ENFORCED",
+      "site": "schema.q:82:10",
+      "messages": [
+        "machines.playfieldApproved: approval is recorded but no lifecycle effect inspects it; is this an informational record or a required approval?"
+      ],
+      "classification": "genuine review gate",
+      "reason": "Declared approval is recorded without a matching governed effect. S1 intentionally requires an individual enforce-or-informational decision; this is a genuine review question, not a claim that every unused record is an exploit."
+    },
+    {
+      "wave": 24,
+      "lane": "047-snapback-golf-club-regrip-orders",
+      "code": "N_APPROVAL_NOT_ENFORCED",
+      "site": "schema.q:104:7",
+      "messages": [
+        "approvals.order: a separately authorized approval for orders is recorded but no effect requires it; is it informational?"
+      ],
+      "classification": "genuine review gate",
+      "reason": "Declared approval is recorded without a matching governed effect. S1 intentionally requires an individual enforce-or-informational decision; this is a genuine review question, not a claim that every unused record is an exploit."
+    },
+    {
+      "wave": 25,
+      "lane": "003-snapback-typewriter-restoration-jobs",
+      "code": "N_APPROVAL_NOT_ENFORCED",
+      "site": "schema.q:102:3",
+      "messages": [
+        "machines.extraApproved: approval is recorded but no lifecycle effect inspects it; is this an informational record or a required approval?"
+      ],
+      "classification": "genuine review gate",
+      "reason": "Declared approval is recorded without a matching governed effect. S1 intentionally requires an individual enforce-or-informational decision; this is a genuine review question, not a claim that every unused record is an exploit."
+    },
+    {
+      "wave": 25,
+      "lane": "006-snapback-telescope-mirror-recoating",
+      "code": "N_APPROVAL_NOT_ENFORCED",
+      "site": "schema.q:169:10",
+      "messages": [
+        "refigureApprovals.mirror: a separately authorized approval for mirrors is recorded but no effect requires it; is it informational?"
+      ],
+      "classification": "genuine review gate",
+      "reason": "Declared approval is recorded without a matching governed effect. S1 intentionally requires an individual enforce-or-informational decision; this is a genuine review question, not a claim that every unused record is an exploit."
+    },
+    {
+      "wave": 25,
+      "lane": "011-snapback-radon-mitigation-jobs",
+      "code": "N_APPROVAL_NOT_ENFORCED",
+      "site": "schema.q:106:3",
+      "messages": [
+        "jobs.finishedRoomApproved: approval is recorded but no lifecycle effect inspects it; is this an informational record or a required approval?"
+      ],
+      "classification": "genuine review gate",
+      "reason": "Declared approval is recorded without a matching governed effect. S1 intentionally requires an individual enforce-or-informational decision; this is a genuine review question, not a claim that every unused record is an exploit."
+    },
+    {
+      "wave": 25,
+      "lane": "026-snapback-accordion-repair-tickets",
+      "code": "N_APPROVAL_NOT_ENFORCED",
+      "site": "schema.q:87:3",
+      "messages": [
+        "tickets.retuneApproved: approval is recorded but no lifecycle effect inspects it; is this an informational record or a required approval?"
+      ],
+      "classification": "genuine review gate",
+      "reason": "Declared approval is recorded without a matching governed effect. S1 intentionally requires an individual enforce-or-informational decision; this is a genuine review question, not a claim that every unused record is an exploit."
+    },
+    {
+      "wave": 25,
+      "lane": "037-snapback-uniform-embroidery-orders",
+      "code": "N_APPROVAL_NOT_ENFORCED",
+      "site": "schema.q:142:3",
+      "messages": [
+        "orders.reprintApproved: approval is recorded but no lifecycle effect inspects it; is this an informational record or a required approval?"
+      ],
+      "classification": "genuine review gate",
+      "reason": "Declared approval is recorded without a matching governed effect. S1 intentionally requires an individual enforce-or-informational decision; this is a genuine review question, not a claim that every unused record is an exploit."
+    },
+    {
+      "wave": 25,
+      "lane": "041-snapback-pinball-machine-repairs",
+      "code": "N_APPROVAL_NOT_ENFORCED",
+      "site": "schema.q:89:10",
+      "messages": [
+        "machines.playfieldApproved: approval is recorded but no lifecycle effect inspects it; is this an informational record or a required approval?"
+      ],
+      "classification": "genuine review gate",
+      "reason": "Declared approval is recorded without a matching governed effect. S1 intentionally requires an individual enforce-or-informational decision; this is a genuine review question, not a claim that every unused record is an exploit."
+    },
+    {
+      "wave": 25,
+      "lane": "047-snapback-golf-club-regrip-orders",
+      "code": "N_APPROVAL_NOT_ENFORCED",
+      "site": "schema.q:105:7",
+      "messages": [
+        "approvals.order: a separately authorized approval for orders is recorded but no effect requires it; is it informational?"
+      ],
+      "classification": "genuine review gate",
+      "reason": "Declared approval is recorded without a matching governed effect. S1 intentionally requires an individual enforce-or-informational decision; this is a genuine review question, not a claim that every unused record is an exploit."
+    },
+    {
+      "wave": 26,
+      "lane": "001-snapback-longcase-clock-restorations",
+      "code": "N_APPROVAL_NOT_ENFORCED",
+      "site": "schema.q:139:10",
+      "messages": [
+        "partApprovals.restoration: a separately authorized approval for restorations is recorded but no effect requires it; is it informational?"
+      ],
+      "classification": "genuine review gate",
+      "reason": "Declared approval is recorded without a matching governed effect. S1 intentionally requires an individual enforce-or-informational decision; this is a genuine review question, not a claim that every unused record is an exploit."
+    },
+    {
+      "wave": 26,
+      "lane": "003-snapback-vintage-amplifier-repairs",
+      "code": "N_APPROVAL_NOT_ENFORCED",
+      "site": "schema.q:78:3",
+      "messages": [
+        "amplifiers.rewindApproved: approval is recorded but no lifecycle effect inspects it; is this an informational record or a required approval?"
+      ],
+      "classification": "genuine review gate",
+      "reason": "Declared approval is recorded without a matching governed effect. S1 intentionally requires an individual enforce-or-informational decision; this is a genuine review question, not a claim that every unused record is an exploit."
+    },
+    {
+      "wave": 26,
+      "lane": "006-snapback-microscope-overhaul-jobs",
+      "code": "N_APPROVAL_NOT_ENFORCED",
+      "site": "schema.q:139:10",
+      "messages": [
+        "objectiveApprovals.microscope: a separately authorized approval for microscopes is recorded but no effect requires it; is it informational?"
+      ],
+      "classification": "genuine review gate",
+      "reason": "Declared approval is recorded without a matching governed effect. S1 intentionally requires an individual enforce-or-informational decision; this is a genuine review question, not a claim that every unused record is an exploit."
+    },
+    {
+      "wave": 26,
+      "lane": "009-snapback-painting-conservation-treatments",
+      "code": "N_APPROVAL_NOT_ENFORCED",
+      "site": "schema.q:102:3",
+      "messages": [
+        "treatments.inpaintApproved: approval is recorded but no lifecycle effect inspects it; is this an informational record or a required approval?"
+      ],
+      "classification": "genuine review gate",
+      "reason": "Declared approval is recorded without a matching governed effect. S1 intentionally requires an individual enforce-or-informational decision; this is a genuine review question, not a claim that every unused record is an exploit."
+    },
+    {
+      "wave": 26,
+      "lane": "017-snapback-personal-chef-bookings",
+      "code": "N_APPROVAL_NOT_ENFORCED",
+      "site": "schema.q:97:3",
+      "messages": [
+        "dinners.refundApproved: approval is recorded but no lifecycle effect inspects it; is this an informational record or a required approval?"
+      ],
+      "classification": "genuine review gate",
+      "reason": "Declared approval is recorded without a matching governed effect. S1 intentionally requires an individual enforce-or-informational decision; this is a genuine review question, not a claim that every unused record is an exploit."
+    },
+    {
+      "wave": 26,
+      "lane": "020-snapback-llama-trekking-trips",
+      "code": "N_APPROVAL_NOT_ENFORCED",
+      "site": "schema.q:108:3",
+      "messages": [
+        "treks.routeApproved: approval is recorded but no lifecycle effect inspects it; is this an informational record or a required approval?"
+      ],
+      "classification": "genuine review gate",
+      "reason": "Declared approval is recorded without a matching governed effect. S1 intentionally requires an individual enforce-or-informational decision; this is a genuine review question, not a claim that every unused record is an exploit."
+    },
+    {
+      "wave": 26,
+      "lane": "028-snapback-chandelier-restorations",
+      "code": "N_APPROVAL_NOT_ENFORCED",
+      "site": "schema.q:99:10",
+      "messages": [
+        "crystalApprovals.project: a separately authorized approval for projects is recorded but no effect requires it; is it informational?"
+      ],
+      "classification": "genuine review gate",
+      "reason": "Declared approval is recorded without a matching governed effect. S1 intentionally requires an individual enforce-or-informational decision; this is a genuine review question, not a claim that every unused record is an exploit."
+    },
+    {
+      "wave": 26,
+      "lane": "036-snapback-bronze-statue-casting",
+      "code": "N_APPROVAL_NOT_ENFORCED",
+      "site": "schema.q:105:5",
+      "messages": [
+        "castings.modelApprovedAt: approval is recorded but no lifecycle effect inspects it; is this an informational record or a required approval?"
+      ],
+      "classification": "genuine review gate",
+      "reason": "Declared approval is recorded without a matching governed effect. S1 intentionally requires an individual enforce-or-informational decision; this is a genuine review question, not a claim that every unused record is an exploit."
+    },
+    {
+      "wave": 26,
+      "lane": "037-snapback-bespoke-shoe-commissions",
+      "code": "N_APPROVAL_NOT_ENFORCED",
+      "site": "schema.q:101:5",
+      "messages": [
+        "pairs.remakeApproved: approval is recorded but no lifecycle effect inspects it; is this an informational record or a required approval?"
+      ],
+      "classification": "genuine individual specification decision",
+      "reason": "approveRemake writes pairs.remakeApproved through a row alias; advanceStatus and the other lifecycle effects do not inspect it. Displaying it in a query is not enforcement. Require it before a governed effect, or individually acknowledge the informational record. Source regression: security/sec10-controls/w26-037.q."
+    },
+    {
+      "wave": 26,
+      "lane": "045-snapback-storm-shelter-installs",
+      "code": "N_BLANK_TEXT_GUARD",
+      "site": "schema.q:160:3",
+      "messages": [
+        "decideClaim: a reason/consent/assessment is compared with empty text but whitespace still passes; is nonblank evidence required?"
+      ],
+      "classification": "genuine review gate",
+      "reason": "An authored empty-string evidence/justification guard accepts whitespace with the declared optional/minimum-zero argument. The guard itself supplies nonblank intent; trim or text 1..N is the exact repair."
+    },
+    {
+      "wave": 26,
+      "lane": "046-snapback-sump-pump-repairs",
+      "code": "N_APPROVAL_NOT_ENFORCED",
+      "site": "schema.q:158:10",
+      "messages": [
+        "backupApprovals.job: a separately authorized approval for jobs is recorded but no effect requires it; is it informational?"
+      ],
+      "classification": "genuine review gate",
+      "reason": "Declared approval is recorded without a matching governed effect. S1 intentionally requires an individual enforce-or-informational decision; this is a genuine review question, not a claim that every unused record is an exploit."
+    },
+    {
+      "wave": 26,
+      "lane": "050-snapback-hot-tub-servicing-visits",
+      "code": "N_APPROVAL_NOT_ENFORCED",
+      "site": "schema.q:159:10",
+      "messages": [
+        "workshopApprovals.hotTub: a separately authorized approval for hotTubs is recorded but no effect requires it; is it informational?"
+      ],
+      "classification": "genuine review gate",
+      "reason": "Declared approval is recorded without a matching governed effect. S1 intentionally requires an individual enforce-or-informational decision; this is a genuine review question, not a claim that every unused record is an exploit."
+    }
+  ],
+  "newDeploymentFixes": [
+    {
+      "wave": 26,
+      "lane": "008-snapback-stucco-repair-jobs",
+      "site": "$derived/child-stage/16c68cbdeab94206ae0a04b64feb30dbbbda706306a645e1dfd325e1d3ab28fd/schema.q:157:3",
+      "operation": "finishJob",
+      "classification": "genuine replayed violation",
+      "reason": "Parent completion commits while an actual linked child remains unfinished."
+    },
+    {
+      "wave": 26,
+      "lane": "008-snapback-stucco-repair-jobs",
+      "site": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q:151:3",
+      "operation": "advanceWall",
+      "classification": "genuine replayed violation",
+      "reason": "Child work commits outside the exact parent phase required by the corresponding parent transition."
+    },
+    {
+      "wave": 26,
+      "lane": "018-snapback-livestock-ultrasound-scans",
+      "site": "$derived/sibling-approval/8659fc62e316e43a5802e0df26bd7606683cd128ac2f54a99b259f8a84afb039/schema.q:182:10",
+      "operation": "addRescan",
+      "classification": "genuine replayed violation",
+      "reason": "Sibling creator commits the governed rescan without the same livestock approval."
+    },
+    {
+      "wave": 26,
+      "lane": "025-snapback-lifeguard-certification-exams",
+      "site": "$derived/approval-history/45c341e20643b838f9d857be4564d87583029455f58518c4f61fd8cd95c51cdf/schema.q:174:10",
+      "operation": "logExam",
+      "classification": "genuine replayed violation",
+      "reason": "A new attempt for the same principal bypasses the declared prior-failure approval contract; actual authored continuation is retained."
+    },
+    {
+      "wave": 26,
+      "lane": "025-snapback-lifeguard-certification-exams",
+      "site": "$derived/repeat-create/b7309e662794afc3369c6d457f05bfb258569f304777e30b79b861b211a29325/schema.q:174:10",
+      "operation": "retest",
+      "classification": "genuine replayed violation",
+      "reason": "The same admitted retry guard produces a second child because it is not consumed."
+    },
+    {
+      "wave": 26,
+      "lane": "033-snapback-asphalt-sealcoating-jobs",
+      "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+      "operation": "signFailing",
+      "classification": "genuine replayed violation",
+      "reason": "Approved consent changes while its stored approval remains valid; the paired history contract observes the stale decision at the actual write."
+    }
+  ],
+  "newTestFixes": [
+    {
+      "wave": 26,
+      "lane": "008-snapback-stucco-repair-jobs",
+      "site": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q:151:3",
+      "operation": "advanceWall",
+      "history": [
+        "advanceWall"
+      ],
+      "classification": "genuine replayed violation",
+      "reason": "Child work commits outside the exact parent phase required by the corresponding parent transition."
+    },
+    {
+      "wave": 26,
+      "lane": "008-snapback-stucco-repair-jobs",
+      "site": "$derived/child-stage/16c68cbdeab94206ae0a04b64feb30dbbbda706306a645e1dfd325e1d3ab28fd/schema.q:157:3",
+      "operation": "finishJob",
+      "history": [
+        "acceptQuote",
+        "startWork",
+        "finishJob"
+      ],
+      "classification": "genuine replayed violation",
+      "reason": "Parent completion commits while an actual linked child remains unfinished."
+    },
+    {
+      "wave": 26,
+      "lane": "018-snapback-livestock-ultrasound-scans",
+      "site": "$derived/sibling-approval/8659fc62e316e43a5802e0df26bd7606683cd128ac2f54a99b259f8a84afb039/schema.q:182:10",
+      "operation": "addRescan",
+      "history": [
+        "confirmVisit",
+        "advanceVisit",
+        "addScan",
+        "setRestriction",
+        "addRescan"
+      ],
+      "classification": "genuine replayed violation",
+      "reason": "Sibling creator commits the governed rescan without the same livestock approval."
+    },
+    {
+      "wave": 26,
+      "lane": "025-snapback-lifeguard-certification-exams",
+      "site": "$derived/repeat-create/b7309e662794afc3369c6d457f05bfb258569f304777e30b79b861b211a29325/schema.q:174:10",
+      "operation": "retest",
+      "history": [
+        "recordWritten",
+        "recordSwim",
+        "recordRescue",
+        "retest",
+        "retest"
+      ],
+      "classification": "genuine replayed violation",
+      "reason": "The same admitted retry guard produces a second child because it is not consumed."
+    },
+    {
+      "wave": 26,
+      "lane": "025-snapback-lifeguard-certification-exams",
+      "site": "$derived/approval-history/45c341e20643b838f9d857be4564d87583029455f58518c4f61fd8cd95c51cdf/schema.q:174:10",
+      "operation": "logExam",
+      "history": [
+        "recordWritten",
+        "recordSwim",
+        "recordRescue",
+        "retest",
+        "recordWritten",
+        "recordSwim",
+        "recordRescue",
+        "logExam"
+      ],
+      "classification": "genuine replayed violation",
+      "reason": "A new attempt for the same principal bypasses the declared prior-failure approval contract; actual authored continuation is retained."
+    },
+    {
+      "wave": 26,
+      "lane": "025-snapback-lifeguard-certification-exams",
+      "site": "$derived/approval-history/45c341e20643b838f9d857be4564d87583029455f58518c4f61fd8cd95c51cdf/schema.q:174:10",
+      "operation": "retest",
+      "history": [
+        "recordWritten",
+        "recordSwim",
+        "recordRescue",
+        "retest",
+        "recordWritten",
+        "recordSwim",
+        "recordRescue",
+        "retest"
+      ],
+      "classification": "genuine replayed violation",
+      "reason": "A new attempt for the same principal bypasses the declared prior-failure approval contract; actual authored continuation is retained."
+    },
+    {
+      "wave": 26,
+      "lane": "033-snapback-asphalt-sealcoating-jobs",
+      "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+      "operation": "signFailing",
+      "history": [
+        "signFailing",
+        "signFailing",
+        "acceptQuote",
+        "acceptQuote",
+        "approveSeal",
+        "signFailing"
+      ],
+      "classification": "genuine replayed violation",
+      "reason": "Approved consent changes while its stored approval remains valid; the paired history contract observes the stale decision at the actual write."
+    }
+  ],
+  "unexpectedFailures": [],
+  "projectsWithNewGates": 37,
+  "newlyRefusingFresh": 41,
+  "newlyRefusingAfterTest": 39,
+  "classificationsComplete": true,
+  "falseGates": 0,
+  "falseRefusals": 0
+}

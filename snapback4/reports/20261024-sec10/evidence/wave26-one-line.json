@@ -1,0 +1,6290 @@
+{
+  "measurement": {
+    "binarySha256": "98778a8b1fec77f1ab308383f485f74c69ecd7e716f0999cfdf3db133dc98ce5",
+    "findings": [
+      "002-specF1",
+      "008-specF1",
+      "008-specF2",
+      "018-specF1",
+      "020-specF1",
+      "024-specF1",
+      "024-specF2",
+      "031-specF1",
+      "033-specF1",
+      "033-specF2",
+      "036-specF1",
+      "049-specF1"
+    ]
+  },
+  "results": [
+    {
+      "finding": "002-specF1",
+      "sourceSha256": "eeac6b1edaa826f6e144a578189a41ddb1df2e288585f8d7788a4531903aa662",
+      "spec": "invariant fittings.orderGarment only .prescriptionDate >= now - 182d",
+      "specSite": "schema.q:128:1",
+      "exit": 1,
+      "specWitnesses": 63,
+      "witnesses": [
+        {
+          "site": "schema.q:128:1",
+          "operation": "orderGarment",
+          "effect": "update",
+          "history": [
+            "orderGarment"
+          ]
+        },
+        {
+          "site": "schema.q:128:1",
+          "operation": "orderGarment",
+          "effect": "update",
+          "history": [
+            "orderGarment"
+          ]
+        },
+        {
+          "site": "schema.q:128:1",
+          "operation": "orderGarment",
+          "effect": "update",
+          "history": [
+            "orderGarment",
+            "orderGarment"
+          ]
+        },
+        {
+          "site": "schema.q:128:1",
+          "operation": "orderGarment",
+          "effect": "update",
+          "history": [
+            "orderGarment",
+            "orderGarment"
+          ]
+        },
+        {
+          "site": "schema.q:128:1",
+          "operation": "orderGarment",
+          "effect": "update",
+          "history": [
+            "waiveFee",
+            "orderGarment"
+          ]
+        },
+        {
+          "site": "schema.q:128:1",
+          "operation": "orderGarment",
+          "effect": "update",
+          "history": [
+            "waiveFee",
+            "orderGarment"
+          ]
+        },
+        {
+          "site": "schema.q:128:1",
+          "operation": "orderGarment",
+          "effect": "update",
+          "history": [
+            "updateClinical",
+            "orderGarment"
+          ]
+        },
+        {
+          "site": "schema.q:128:1",
+          "operation": "orderGarment",
+          "effect": "update",
+          "history": [
+            "updateClinical",
+            "orderGarment"
+          ]
+        },
+        {
+          "site": "schema.q:128:1",
+          "operation": "orderGarment",
+          "effect": "update",
+          "history": [
+            "waiveFee",
+            "waiveFee",
+            "orderGarment"
+          ]
+        },
+        {
+          "site": "schema.q:128:1",
+          "operation": "orderGarment",
+          "effect": "update",
+          "history": [
+            "waiveFee",
+            "waiveFee",
+            "orderGarment"
+          ]
+        },
+        {
+          "site": "schema.q:128:1",
+          "operation": "orderGarment",
+          "effect": "update",
+          "history": [
+            "orderGarment",
+            "waiveFee",
+            "orderGarment"
+          ]
+        },
+        {
+          "site": "schema.q:128:1",
+          "operation": "orderGarment",
+          "effect": "update",
+          "history": [
+            "orderGarment",
+            "waiveFee",
+            "orderGarment"
+          ]
+        },
+        {
+          "site": "schema.q:128:1",
+          "operation": "orderGarment",
+          "effect": "update",
+          "history": [
+            "waiveFee",
+            "updateClinical",
+            "orderGarment"
+          ]
+        },
+        {
+          "site": "schema.q:128:1",
+          "operation": "orderGarment",
+          "effect": "update",
+          "history": [
+            "waiveFee",
+            "updateClinical",
+            "orderGarment"
+          ]
+        },
+        {
+          "site": "schema.q:128:1",
+          "operation": "orderGarment",
+          "effect": "update",
+          "history": [
+            "waiveFee",
+            "waiveFee",
+            "updateClinical",
+            "orderGarment"
+          ]
+        },
+        {
+          "site": "schema.q:128:1",
+          "operation": "orderGarment",
+          "effect": "update",
+          "history": [
+            "waiveFee",
+            "waiveFee",
+            "updateClinical",
+            "orderGarment"
+          ]
+        },
+        {
+          "site": "schema.q:128:1",
+          "operation": "orderGarment",
+          "effect": "update",
+          "history": [
+            "orderGarment",
+            "waiveFee",
+            "updateClinical",
+            "orderGarment"
+          ]
+        },
+        {
+          "site": "schema.q:128:1",
+          "operation": "orderGarment",
+          "effect": "update",
+          "history": [
+            "orderGarment",
+            "waiveFee",
+            "updateClinical",
+            "orderGarment"
+          ]
+        },
+        {
+          "site": "schema.q:128:1",
+          "operation": "orderGarment",
+          "effect": "update",
+          "history": [
+            "orderGarment"
+          ]
+        },
+        {
+          "site": "schema.q:128:1",
+          "operation": "orderGarment",
+          "effect": "update",
+          "history": [
+            "orderGarment"
+          ]
+        },
+        {
+          "site": "schema.q:128:1",
+          "operation": "orderGarment",
+          "effect": "update",
+          "history": [
+            "orderGarment",
+            "orderGarment"
+          ]
+        },
+        {
+          "site": "schema.q:128:1",
+          "operation": "orderGarment",
+          "effect": "update",
+          "history": [
+            "orderGarment",
+            "orderGarment"
+          ]
+        },
+        {
+          "site": "schema.q:128:1",
+          "operation": "orderGarment",
+          "effect": "update",
+          "history": [
+            "waiveFee",
+            "orderGarment"
+          ]
+        },
+        {
+          "site": "schema.q:128:1",
+          "operation": "orderGarment",
+          "effect": "update",
+          "history": [
+            "waiveFee",
+            "orderGarment"
+          ]
+        },
+        {
+          "site": "schema.q:128:1",
+          "operation": "orderGarment",
+          "effect": "update",
+          "history": [
+            "updateClinical",
+            "orderGarment"
+          ]
+        },
+        {
+          "site": "schema.q:128:1",
+          "operation": "orderGarment",
+          "effect": "update",
+          "history": [
+            "updateClinical",
+            "orderGarment"
+          ]
+        },
+        {
+          "site": "schema.q:128:1",
+          "operation": "orderGarment",
+          "effect": "update",
+          "history": [
+            "waiveFee",
+            "waiveFee",
+            "orderGarment"
+          ]
+        },
+        {
+          "site": "schema.q:128:1",
+          "operation": "orderGarment",
+          "effect": "update",
+          "history": [
+            "waiveFee",
+            "waiveFee",
+            "orderGarment"
+          ]
+        },
+        {
+          "site": "schema.q:128:1",
+          "operation": "orderGarment",
+          "effect": "update",
+          "history": [
+            "orderGarment",
+            "waiveFee",
+            "orderGarment"
+          ]
+        },
+        {
+          "site": "schema.q:128:1",
+          "operation": "orderGarment",
+          "effect": "update",
+          "history": [
+            "orderGarment",
+            "waiveFee",
+            "orderGarment"
+          ]
+        },
+        {
+          "site": "schema.q:128:1",
+          "operation": "orderGarment",
+          "effect": "update",
+          "history": [
+            "waiveFee",
+            "updateClinical",
+            "orderGarment"
+          ]
+        },
+        {
+          "site": "schema.q:128:1",
+          "operation": "orderGarment",
+          "effect": "update",
+          "history": [
+            "waiveFee",
+            "updateClinical",
+            "orderGarment"
+          ]
+        },
+        {
+          "site": "schema.q:128:1",
+          "operation": "orderGarment",
+          "effect": "update",
+          "history": [
+            "waiveFee",
+            "waiveFee",
+            "updateClinical",
+            "orderGarment"
+          ]
+        },
+        {
+          "site": "schema.q:128:1",
+          "operation": "orderGarment",
+          "effect": "update",
+          "history": [
+            "waiveFee",
+            "waiveFee",
+            "updateClinical",
+            "orderGarment"
+          ]
+        },
+        {
+          "site": "schema.q:128:1",
+          "operation": "orderGarment",
+          "effect": "update",
+          "history": [
+            "orderGarment",
+            "waiveFee",
+            "updateClinical",
+            "orderGarment"
+          ]
+        },
+        {
+          "site": "schema.q:128:1",
+          "operation": "orderGarment",
+          "effect": "update",
+          "history": [
+            "orderGarment",
+            "waiveFee",
+            "updateClinical",
+            "orderGarment"
+          ]
+        },
+        {
+          "site": "schema.q:128:1",
+          "operation": "orderGarment",
+          "effect": "update",
+          "history": [
+            "waiveFee",
+            "waiveFee",
+            "updateClinical",
+            "updateClinical",
+            "orderGarment"
+          ]
+        },
+        {
+          "site": "schema.q:128:1",
+          "operation": "orderGarment",
+          "effect": "update",
+          "history": [
+            "waiveFee",
+            "waiveFee",
+            "updateClinical",
+            "updateClinical",
+            "orderGarment"
+          ]
+        },
+        {
+          "site": "schema.q:128:1",
+          "operation": "orderGarment",
+          "effect": "update",
+          "history": [
+            "orderGarment",
+            "waiveFee",
+            "updateClinical",
+            "updateClinical",
+            "orderGarment"
+          ]
+        },
+        {
+          "site": "schema.q:128:1",
+          "operation": "orderGarment",
+          "effect": "update",
+          "history": [
+            "orderGarment",
+            "waiveFee",
+            "updateClinical",
+            "updateClinical",
+            "orderGarment"
+          ]
+        },
+        {
+          "site": "schema.q:128:1",
+          "operation": "orderGarment",
+          "effect": "update",
+          "history": [
+            "waiveFee",
+            "waiveFee",
+            "updateClinical",
+            "orderGarment",
+            "orderGarment"
+          ]
+        },
+        {
+          "site": "schema.q:128:1",
+          "operation": "orderGarment",
+          "effect": "update",
+          "history": [
+            "waiveFee",
+            "waiveFee",
+            "updateClinical",
+            "orderGarment",
+            "orderGarment"
+          ]
+        },
+        {
+          "site": "schema.q:128:1",
+          "operation": "orderGarment",
+          "effect": "update",
+          "history": [
+            "waiveFee",
+            "waiveFee",
+            "updateClinical",
+            "updateClinical",
+            "orderGarment",
+            "orderGarment"
+          ]
+        },
+        {
+          "site": "schema.q:128:1",
+          "operation": "orderGarment",
+          "effect": "update",
+          "history": [
+            "waiveFee",
+            "waiveFee",
+            "updateClinical",
+            "updateClinical",
+            "orderGarment",
+            "orderGarment"
+          ]
+        },
+        {
+          "site": "schema.q:128:1",
+          "operation": "orderGarment",
+          "effect": "update",
+          "history": [
+            "waiveFee",
+            "waiveFee",
+            "updateClinical",
+            "orderGarment",
+            "markFitted",
+            "orderGarment"
+          ]
+        },
+        {
+          "site": "schema.q:128:1",
+          "operation": "orderGarment",
+          "effect": "update",
+          "history": [
+            "waiveFee",
+            "waiveFee",
+            "updateClinical",
+            "orderGarment",
+            "markFitted",
+            "orderGarment"
+          ]
+        },
+        {
+          "site": "schema.q:128:1",
+          "operation": "orderGarment",
+          "effect": "update",
+          "history": [
+            "waiveFee",
+            "waiveFee",
+            "updateClinical",
+            "updateClinical",
+            "orderGarment",
+            "markFitted",
+            "orderGarment"
+          ]
+        },
+        {
+          "site": "schema.q:128:1",
+          "operation": "orderGarment",
+          "effect": "update",
+          "history": [
+            "waiveFee",
+            "waiveFee",
+            "updateClinical",
+            "updateClinical",
+            "orderGarment",
+            "markFitted",
+            "orderGarment"
+          ]
+        },
+        {
+          "site": "schema.q:128:1",
+          "operation": "orderGarment",
+          "effect": "update",
+          "history": [
+            "orderGarment"
+          ]
+        },
+        {
+          "site": "schema.q:128:1",
+          "operation": "orderGarment",
+          "effect": "update",
+          "history": [
+            "orderGarment"
+          ]
+        },
+        {
+          "site": "schema.q:128:1",
+          "operation": "orderGarment",
+          "effect": "update",
+          "history": [
+            "orderGarment"
+          ]
+        },
+        {
+          "site": "schema.q:128:1",
+          "operation": "orderGarment",
+          "effect": "update",
+          "history": [
+            "orderGarment"
+          ]
+        },
+        {
+          "site": "schema.q:128:1",
+          "operation": "orderGarment",
+          "effect": "update",
+          "history": [
+            "updateClinical",
+            "orderGarment"
+          ]
+        },
+        {
+          "site": "schema.q:128:1",
+          "operation": "orderGarment",
+          "effect": "update",
+          "history": [
+            "updateClinical",
+            "orderGarment"
+          ]
+        },
+        {
+          "site": "schema.q:128:1",
+          "operation": "orderGarment",
+          "effect": "update",
+          "history": [
+            "updateClinical",
+            "orderGarment"
+          ]
+        },
+        {
+          "site": "schema.q:128:1",
+          "operation": "orderGarment",
+          "effect": "update",
+          "history": [
+            "updateClinical",
+            "orderGarment"
+          ]
+        },
+        {
+          "site": "schema.q:128:1",
+          "operation": "orderGarment",
+          "effect": "update",
+          "history": [
+            "updateClinical",
+            "orderGarment"
+          ]
+        },
+        {
+          "site": "schema.q:128:1",
+          "operation": "orderGarment",
+          "effect": "update",
+          "history": [
+            "orderGarment"
+          ]
+        },
+        {
+          "site": "schema.q:128:1",
+          "operation": "orderGarment",
+          "effect": "update",
+          "history": [
+            "orderGarment"
+          ]
+        },
+        {
+          "site": "schema.q:128:1",
+          "operation": "orderGarment",
+          "effect": "update",
+          "history": [
+            "orderGarment"
+          ]
+        },
+        {
+          "site": "schema.q:128:1",
+          "operation": "orderGarment",
+          "effect": "update",
+          "history": [
+            "orderGarment"
+          ]
+        },
+        {
+          "site": "schema.q:128:1",
+          "operation": "orderGarment",
+          "effect": "update",
+          "history": [
+            "orderGarment"
+          ]
+        },
+        {
+          "site": "schema.q:128:1",
+          "operation": "orderGarment",
+          "effect": "update",
+          "history": [
+            "orderGarment"
+          ]
+        }
+      ]
+    },
+    {
+      "finding": "008-specF1",
+      "sourceSha256": "1088e4979d17c6f5010b776119c083fd5756352d12bc9bd0be4b036a139ee4ab",
+      "spec": "invariant walls.stage update only .job.status = 'accepted' or .job.status = 'in_progress'",
+      "specSite": "schema.q:236:1",
+      "exit": 1,
+      "specWitnesses": 10,
+      "witnesses": [
+        {
+          "site": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q:151:3",
+          "operation": "advanceWall",
+          "effect": "update",
+          "history": [
+            "advanceWall"
+          ]
+        },
+        {
+          "site": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q:151:3",
+          "operation": "advanceWall",
+          "effect": "update",
+          "history": [
+            "acceptQuote",
+            "advanceWall"
+          ]
+        },
+        {
+          "site": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q:151:3",
+          "operation": "advanceWall",
+          "effect": "update",
+          "history": [
+            "acceptQuote",
+            "advanceWall"
+          ]
+        },
+        {
+          "site": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q:151:3",
+          "operation": "advanceWall",
+          "effect": "update",
+          "history": [
+            "advanceWall",
+            "advanceWall"
+          ]
+        },
+        {
+          "site": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q:151:3",
+          "operation": "advanceWall",
+          "effect": "update",
+          "history": [
+            "approveStrip",
+            "advanceWall"
+          ]
+        },
+        {
+          "site": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q:151:3",
+          "operation": "advanceWall",
+          "effect": "update",
+          "history": [
+            "acceptQuote",
+            "advanceWall",
+            "advanceWall"
+          ]
+        },
+        {
+          "site": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q:151:3",
+          "operation": "advanceWall",
+          "effect": "update",
+          "history": [
+            "acceptQuote",
+            "startWork",
+            "advanceWall"
+          ]
+        },
+        {
+          "site": "$derived/child-stage/16c68cbdeab94206ae0a04b64feb30dbbbda706306a645e1dfd325e1d3ab28fd/schema.q:157:3",
+          "operation": "finishJob",
+          "effect": "update",
+          "history": [
+            "acceptQuote",
+            "startWork",
+            "finishJob"
+          ]
+        },
+        {
+          "site": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q:151:3",
+          "operation": "advanceWall",
+          "effect": "update",
+          "history": [
+            "advanceWall"
+          ]
+        },
+        {
+          "site": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q:151:3",
+          "operation": "advanceWall",
+          "effect": "update",
+          "history": [
+            "advanceWall"
+          ]
+        },
+        {
+          "site": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q:151:3",
+          "operation": "advanceWall",
+          "effect": "update",
+          "history": [
+            "startWork",
+            "advanceWall"
+          ]
+        },
+        {
+          "site": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q:151:3",
+          "operation": "advanceWall",
+          "effect": "update",
+          "history": [
+            "startWork",
+            "advanceWall"
+          ]
+        },
+        {
+          "site": "schema.q:236:1",
+          "operation": "advanceWall",
+          "effect": "update",
+          "history": [
+            "advanceWall"
+          ]
+        },
+        {
+          "site": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q:151:3",
+          "operation": "advanceWall",
+          "effect": "update",
+          "history": [
+            "advanceWall"
+          ]
+        },
+        {
+          "site": "schema.q:236:1",
+          "operation": "advanceWall",
+          "effect": "update",
+          "history": [
+            "advanceWall"
+          ]
+        },
+        {
+          "site": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q:151:3",
+          "operation": "advanceWall",
+          "effect": "update",
+          "history": [
+            "advanceWall"
+          ]
+        },
+        {
+          "site": "schema.q:236:1",
+          "operation": "advanceWall",
+          "effect": "update",
+          "history": [
+            "advanceWall"
+          ]
+        },
+        {
+          "site": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q:151:3",
+          "operation": "advanceWall",
+          "effect": "update",
+          "history": [
+            "advanceWall"
+          ]
+        },
+        {
+          "site": "schema.q:236:1",
+          "operation": "advanceWall",
+          "effect": "update",
+          "history": [
+            "approveStrip",
+            "advanceWall"
+          ]
+        },
+        {
+          "site": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q:151:3",
+          "operation": "advanceWall",
+          "effect": "update",
+          "history": [
+            "approveStrip",
+            "advanceWall"
+          ]
+        },
+        {
+          "site": "schema.q:236:1",
+          "operation": "advanceWall",
+          "effect": "update",
+          "history": [
+            "approveStrip",
+            "advanceWall"
+          ]
+        },
+        {
+          "site": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q:151:3",
+          "operation": "advanceWall",
+          "effect": "update",
+          "history": [
+            "approveStrip",
+            "advanceWall"
+          ]
+        },
+        {
+          "site": "schema.q:236:1",
+          "operation": "advanceWall",
+          "effect": "update",
+          "history": [
+            "approveStrip",
+            "advanceWall"
+          ]
+        },
+        {
+          "site": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q:151:3",
+          "operation": "advanceWall",
+          "effect": "update",
+          "history": [
+            "approveStrip",
+            "advanceWall"
+          ]
+        },
+        {
+          "site": "schema.q:236:1",
+          "operation": "advanceWall",
+          "effect": "update",
+          "history": [
+            "approveStrip",
+            "advanceWall"
+          ]
+        },
+        {
+          "site": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q:151:3",
+          "operation": "advanceWall",
+          "effect": "update",
+          "history": [
+            "approveStrip",
+            "advanceWall"
+          ]
+        },
+        {
+          "site": "schema.q:236:1",
+          "operation": "advanceWall",
+          "effect": "update",
+          "history": [
+            "startWork",
+            "advanceWall"
+          ]
+        },
+        {
+          "site": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q:151:3",
+          "operation": "advanceWall",
+          "effect": "update",
+          "history": [
+            "startWork",
+            "advanceWall"
+          ]
+        },
+        {
+          "site": "schema.q:236:1",
+          "operation": "advanceWall",
+          "effect": "update",
+          "history": [
+            "advanceWall"
+          ]
+        },
+        {
+          "site": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q:151:3",
+          "operation": "advanceWall",
+          "effect": "update",
+          "history": [
+            "advanceWall"
+          ]
+        },
+        {
+          "site": "schema.q:236:1",
+          "operation": "advanceWall",
+          "effect": "update",
+          "history": [
+            "advanceWall"
+          ]
+        },
+        {
+          "site": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q:151:3",
+          "operation": "advanceWall",
+          "effect": "update",
+          "history": [
+            "advanceWall"
+          ]
+        }
+      ]
+    },
+    {
+      "finding": "008-specF2",
+      "sourceSha256": "5ef56a01c88c18d6d51ece89299e96d8e2098405bf07d00efd52ac496b1071d4",
+      "spec": "invariant jobs.finishedAt update only not exists walls[job = .id, stage = 'removal']",
+      "specSite": "schema.q:236:1",
+      "exit": 1,
+      "specWitnesses": 1,
+      "witnesses": [
+        {
+          "site": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q:151:3",
+          "operation": "advanceWall",
+          "effect": "update",
+          "history": [
+            "advanceWall"
+          ]
+        },
+        {
+          "site": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q:151:3",
+          "operation": "advanceWall",
+          "effect": "update",
+          "history": [
+            "acceptQuote",
+            "advanceWall"
+          ]
+        },
+        {
+          "site": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q:151:3",
+          "operation": "advanceWall",
+          "effect": "update",
+          "history": [
+            "acceptQuote",
+            "advanceWall"
+          ]
+        },
+        {
+          "site": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q:151:3",
+          "operation": "advanceWall",
+          "effect": "update",
+          "history": [
+            "advanceWall",
+            "advanceWall"
+          ]
+        },
+        {
+          "site": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q:151:3",
+          "operation": "advanceWall",
+          "effect": "update",
+          "history": [
+            "approveStrip",
+            "advanceWall"
+          ]
+        },
+        {
+          "site": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q:151:3",
+          "operation": "advanceWall",
+          "effect": "update",
+          "history": [
+            "acceptQuote",
+            "advanceWall",
+            "advanceWall"
+          ]
+        },
+        {
+          "site": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q:151:3",
+          "operation": "advanceWall",
+          "effect": "update",
+          "history": [
+            "acceptQuote",
+            "startWork",
+            "advanceWall"
+          ]
+        },
+        {
+          "site": "$derived/child-stage/16c68cbdeab94206ae0a04b64feb30dbbbda706306a645e1dfd325e1d3ab28fd/schema.q:157:3",
+          "operation": "finishJob",
+          "effect": "update",
+          "history": [
+            "acceptQuote",
+            "startWork",
+            "finishJob"
+          ]
+        },
+        {
+          "site": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q:151:3",
+          "operation": "advanceWall",
+          "effect": "update",
+          "history": [
+            "advanceWall"
+          ]
+        },
+        {
+          "site": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q:151:3",
+          "operation": "advanceWall",
+          "effect": "update",
+          "history": [
+            "advanceWall"
+          ]
+        },
+        {
+          "site": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q:151:3",
+          "operation": "advanceWall",
+          "effect": "update",
+          "history": [
+            "startWork",
+            "advanceWall"
+          ]
+        },
+        {
+          "site": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q:151:3",
+          "operation": "advanceWall",
+          "effect": "update",
+          "history": [
+            "startWork",
+            "advanceWall"
+          ]
+        },
+        {
+          "site": "schema.q:236:1",
+          "operation": "finishJob",
+          "effect": "update",
+          "history": [
+            "acceptQuote",
+            "acceptQuote",
+            "startWork",
+            "finishJob"
+          ]
+        },
+        {
+          "site": "$derived/child-stage/16c68cbdeab94206ae0a04b64feb30dbbbda706306a645e1dfd325e1d3ab28fd/schema.q:157:3",
+          "operation": "finishJob",
+          "effect": "update",
+          "history": [
+            "acceptQuote",
+            "acceptQuote",
+            "startWork",
+            "finishJob"
+          ]
+        },
+        {
+          "site": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q:151:3",
+          "operation": "advanceWall",
+          "effect": "update",
+          "history": [
+            "advanceWall"
+          ]
+        },
+        {
+          "site": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q:151:3",
+          "operation": "advanceWall",
+          "effect": "update",
+          "history": [
+            "advanceWall"
+          ]
+        },
+        {
+          "site": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q:151:3",
+          "operation": "advanceWall",
+          "effect": "update",
+          "history": [
+            "approveStrip",
+            "advanceWall"
+          ]
+        },
+        {
+          "site": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q:151:3",
+          "operation": "advanceWall",
+          "effect": "update",
+          "history": [
+            "approveStrip",
+            "advanceWall"
+          ]
+        },
+        {
+          "site": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q:151:3",
+          "operation": "advanceWall",
+          "effect": "update",
+          "history": [
+            "approveStrip",
+            "advanceWall"
+          ]
+        },
+        {
+          "site": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q:151:3",
+          "operation": "advanceWall",
+          "effect": "update",
+          "history": [
+            "approveStrip",
+            "advanceWall"
+          ]
+        },
+        {
+          "site": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q:151:3",
+          "operation": "advanceWall",
+          "effect": "update",
+          "history": [
+            "startWork",
+            "advanceWall"
+          ]
+        },
+        {
+          "site": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q:151:3",
+          "operation": "advanceWall",
+          "effect": "update",
+          "history": [
+            "advanceWall"
+          ]
+        },
+        {
+          "site": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q:151:3",
+          "operation": "advanceWall",
+          "effect": "update",
+          "history": [
+            "advanceWall"
+          ]
+        }
+      ]
+    },
+    {
+      "finding": "018-specF1",
+      "sourceSha256": "0d656c8299df8eb91029b7ff77feebb5d901fea954e2da66e536c88c22207ba6",
+      "spec": "invariant rescans.insert only not .scan.visit.herd.restricted or exists approvals[visit = .scan.visit]",
+      "specSite": "schema.q:216:1",
+      "exit": 1,
+      "specWitnesses": 0,
+      "witnesses": [
+        {
+          "site": "$derived/sibling-approval/8659fc62e316e43a5802e0df26bd7606683cd128ac2f54a99b259f8a84afb039/schema.q:182:10",
+          "operation": "addRescan",
+          "effect": "insert",
+          "history": [
+            "confirmVisit",
+            "advanceVisit",
+            "addScan",
+            "setRestriction",
+            "addRescan"
+          ]
+        },
+        {
+          "site": "$derived/sibling-approval/8659fc62e316e43a5802e0df26bd7606683cd128ac2f54a99b259f8a84afb039/schema.q:182:10",
+          "operation": "addRescan",
+          "effect": "insert",
+          "history": [
+            "confirmVisit",
+            "advanceVisit",
+            "addScan",
+            "setRestriction",
+            "addRescan"
+          ]
+        },
+        {
+          "site": "$derived/sibling-approval/8659fc62e316e43a5802e0df26bd7606683cd128ac2f54a99b259f8a84afb039/schema.q:182:10",
+          "operation": "addRescan",
+          "effect": "insert",
+          "history": [
+            "confirmVisit",
+            "advanceVisit",
+            "addScan",
+            "setRestriction",
+            "addRescan"
+          ]
+        },
+        {
+          "site": "$derived/sibling-approval/8659fc62e316e43a5802e0df26bd7606683cd128ac2f54a99b259f8a84afb039/schema.q:182:10",
+          "operation": "addRescan",
+          "effect": "insert",
+          "history": [
+            "confirmVisit",
+            "advanceVisit",
+            "addScan",
+            "setRestriction",
+            "addRescan"
+          ]
+        },
+        {
+          "site": "$derived/sibling-approval/8659fc62e316e43a5802e0df26bd7606683cd128ac2f54a99b259f8a84afb039/schema.q:182:10",
+          "operation": "addRescan",
+          "effect": "insert",
+          "history": [
+            "confirmVisit",
+            "advanceVisit",
+            "addScan",
+            "setRestriction",
+            "addRescan"
+          ]
+        },
+        {
+          "site": "$derived/sibling-approval/8659fc62e316e43a5802e0df26bd7606683cd128ac2f54a99b259f8a84afb039/schema.q:182:10",
+          "operation": "addRescan",
+          "effect": "insert",
+          "history": [
+            "confirmVisit",
+            "advanceVisit",
+            "addScan",
+            "setRestriction",
+            "addRescan"
+          ]
+        },
+        {
+          "site": "$derived/sibling-approval/8659fc62e316e43a5802e0df26bd7606683cd128ac2f54a99b259f8a84afb039/schema.q:182:10",
+          "operation": "addRescan",
+          "effect": "insert",
+          "history": [
+            "confirmVisit",
+            "advanceVisit",
+            "addScan",
+            "setRestriction",
+            "addRescan"
+          ]
+        },
+        {
+          "site": "$derived/sibling-approval/8659fc62e316e43a5802e0df26bd7606683cd128ac2f54a99b259f8a84afb039/schema.q:182:10",
+          "operation": "addRescan",
+          "effect": "insert",
+          "history": [
+            "confirmVisit",
+            "advanceVisit",
+            "addScan",
+            "setRestriction",
+            "addRescan"
+          ]
+        }
+      ]
+    },
+    {
+      "finding": "020-specF1",
+      "sourceSha256": "012ccba33a0f7868a4a3f69f232432a2c4bf5470366ba690b18bff9e40924ae5",
+      "spec": "invariant treks.status update only not .crossesPrivateLand or .routeApproved or .status = 'booked'",
+      "specSite": "schema.q:139:1",
+      "exit": 1,
+      "specWitnesses": 115,
+      "witnesses": [
+        {
+          "site": "schema.q:139:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "cancelTrek",
+          "effect": "update",
+          "history": [
+            "cancelTrek"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "cancelTrek",
+          "effect": "update",
+          "history": [
+            "cancelTrek"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "cancelTrek",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "cancelTrek"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "cancelTrek",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "cancelTrek"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "cancelTrek",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "cancelTrek",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "cancelTrek",
+          "effect": "update",
+          "history": [
+            "cancelTrek",
+            "cancelTrek"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "cancelTrek",
+          "effect": "update",
+          "history": [
+            "cancelTrek",
+            "cancelTrek"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "cancelTrek",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "advanceStatus",
+            "cancelTrek"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "cancelTrek",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "advanceStatus",
+            "cancelTrek"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "cancelTrek",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "cancelTrek",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "cancelTrek",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "cancelTrek",
+            "cancelTrek"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "cancelTrek",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "cancelTrek",
+            "cancelTrek"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "cancelTrek",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "cancelTrek"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "cancelTrek",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "cancelTrek"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "cancelTrek",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "cancelTrek"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "cancelTrek",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "cancelTrek"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "cancelTrek",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "cancelTrek"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "cancelTrek",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "cancelTrek"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "cancelTrek",
+          "effect": "update",
+          "history": [
+            "cancelTrek"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "cancelTrek",
+          "effect": "update",
+          "history": [
+            "cancelTrek"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "cancelTrek",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "cancelTrek"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "cancelTrek",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "cancelTrek"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "cancelTrek",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "cancelTrek",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "cancelTrek",
+          "effect": "update",
+          "history": [
+            "cancelTrek",
+            "cancelTrek"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "cancelTrek",
+          "effect": "update",
+          "history": [
+            "cancelTrek",
+            "cancelTrek"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "cancelTrek",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "advanceStatus",
+            "cancelTrek"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "cancelTrek",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "advanceStatus",
+            "cancelTrek"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "cancelTrek",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "cancelTrek",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "cancelTrek",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "cancelTrek",
+            "cancelTrek"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "cancelTrek",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "cancelTrek",
+            "cancelTrek"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "cancelTrek",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "cancelTrek"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "cancelTrek",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "cancelTrek"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "cancelTrek",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "cancelTrek"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "cancelTrek",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "cancelTrek"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "cancelTrek",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "cancelTrek"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "cancelTrek",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "cancelTrek"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "cancelTrek",
+          "effect": "update",
+          "history": [
+            "cancelTrek"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "cancelTrek",
+          "effect": "update",
+          "history": [
+            "cancelTrek"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "cancelTrek",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "cancelTrek"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "cancelTrek",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "cancelTrek"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "cancelTrek",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "cancelTrek",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "cancelTrek",
+          "effect": "update",
+          "history": [
+            "cancelTrek",
+            "cancelTrek"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "cancelTrek",
+          "effect": "update",
+          "history": [
+            "cancelTrek",
+            "cancelTrek"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "cancelTrek",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "advanceStatus",
+            "cancelTrek"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "cancelTrek",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "advanceStatus",
+            "cancelTrek"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "cancelTrek",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "cancelTrek",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "cancelTrek",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "cancelTrek",
+            "cancelTrek"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "cancelTrek",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "cancelTrek",
+            "cancelTrek"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "cancelTrek",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "cancelTrek"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "cancelTrek",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "cancelTrek"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "cancelTrek",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "cancelTrek"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "cancelTrek",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "cancelTrek"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "cancelTrek",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "cancelTrek"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "cancelTrek",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "cancelTrek"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "cancelTrek",
+          "effect": "update",
+          "history": [
+            "cancelTrek"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "cancelTrek",
+          "effect": "update",
+          "history": [
+            "cancelTrek"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "addHiker",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "cancelTrek",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "cancelTrek"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "addHiker",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "addHiker",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "cancelTrek",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "cancelTrek"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "addHiker",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "cancelTrek",
+          "effect": "update",
+          "history": [
+            "advanceStatus",
+            "cancelTrek"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "cancelTrek",
+          "effect": "update",
+          "history": [
+            "cancelTrek"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "cancelTrek",
+          "effect": "update",
+          "history": [
+            "cancelTrek"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "cancelTrek",
+          "effect": "update",
+          "history": [
+            "cancelTrek"
+          ]
+        },
+        {
+          "site": "schema.q:139:1",
+          "operation": "cancelTrek",
+          "effect": "update",
+          "history": [
+            "cancelTrek"
+          ]
+        }
+      ]
+    },
+    {
+      "finding": "024-specF1",
+      "sourceSha256": "67a14bd3c821bae3417e856ea2c3068952f5f5b960a87082c5bf7a8f1cf5cfc7",
+      "spec": "invariant moves always .photoTable != null and .photoSlate != null and .photoStair != null",
+      "specSite": "schema.q:134:1",
+      "exit": 1,
+      "specWitnesses": 159,
+      "witnesses": [
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "approveFreeCloth",
+          "effect": "always",
+          "history": [
+            "approveFreeCloth"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markLeveled",
+          "effect": "always",
+          "history": [
+            "markMoved",
+            "markLeveled"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markLeveled",
+          "effect": "always",
+          "history": [
+            "markMoved",
+            "markLeveled"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "approveFreeCloth",
+          "effect": "always",
+          "history": [
+            "markMoved",
+            "approveFreeCloth"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "markMoved",
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "markMoved",
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "approveFreeCloth",
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "approveFreeCloth",
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "approveFreeCloth",
+          "effect": "always",
+          "history": [
+            "approveFreeCloth",
+            "approveFreeCloth"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "provision",
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "provision",
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "approveFreeCloth",
+          "effect": "always",
+          "history": [
+            "provision",
+            "approveFreeCloth"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markLeveled",
+          "effect": "always",
+          "history": [
+            "markMoved",
+            "markMoved",
+            "markLeveled"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markLeveled",
+          "effect": "always",
+          "history": [
+            "markMoved",
+            "markMoved",
+            "markLeveled"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "approveFreeCloth",
+          "effect": "always",
+          "history": [
+            "markMoved",
+            "markMoved",
+            "approveFreeCloth"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "approveFreeCloth",
+            "approveFreeCloth",
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "approveFreeCloth",
+            "approveFreeCloth",
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markLeveled",
+          "effect": "always",
+          "history": [
+            "markMoved",
+            "approveFreeCloth",
+            "markLeveled"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markLeveled",
+          "effect": "always",
+          "history": [
+            "markMoved",
+            "approveFreeCloth",
+            "markLeveled"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "approveFreeCloth",
+          "effect": "always",
+          "history": [
+            "markMoved",
+            "approveFreeCloth",
+            "approveFreeCloth"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "markMoved",
+            "approveFreeCloth",
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "markMoved",
+            "approveFreeCloth",
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "approveFreeCloth",
+          "effect": "always",
+          "history": [
+            "markMoved",
+            "markLeveled",
+            "approveFreeCloth"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markLeveled",
+          "effect": "always",
+          "history": [
+            "approveFreeCloth",
+            "approveFreeCloth",
+            "markMoved",
+            "markLeveled"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markLeveled",
+          "effect": "always",
+          "history": [
+            "approveFreeCloth",
+            "approveFreeCloth",
+            "markMoved",
+            "markLeveled"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "approveFreeCloth",
+            "approveFreeCloth",
+            "markMoved",
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "approveFreeCloth",
+            "approveFreeCloth",
+            "markMoved",
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "approveFreeCloth",
+          "effect": "always",
+          "history": [
+            "markMoved",
+            "approveFreeCloth",
+            "markLeveled",
+            "approveFreeCloth"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "markMoved",
+            "approveFreeCloth",
+            "markLeveled",
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "markMoved",
+            "approveFreeCloth",
+            "markLeveled",
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "approveFreeCloth",
+          "effect": "always",
+          "history": [
+            "markMoved",
+            "markMoved",
+            "markLeveled",
+            "approveFreeCloth"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markLeveled",
+          "effect": "always",
+          "history": [
+            "approveFreeCloth",
+            "approveFreeCloth",
+            "markMoved",
+            "markMoved",
+            "markLeveled"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markLeveled",
+          "effect": "always",
+          "history": [
+            "approveFreeCloth",
+            "approveFreeCloth",
+            "markMoved",
+            "markMoved",
+            "markLeveled"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "approveFreeCloth",
+          "effect": "always",
+          "history": [
+            "markMoved",
+            "approveFreeCloth",
+            "markLeveled",
+            "markMoved",
+            "approveFreeCloth"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markLeveled",
+          "effect": "always",
+          "history": [
+            "markMoved",
+            "approveFreeCloth",
+            "markLeveled",
+            "markMoved",
+            "markLeveled"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markLeveled",
+          "effect": "always",
+          "history": [
+            "markMoved",
+            "approveFreeCloth",
+            "markLeveled",
+            "markMoved",
+            "markLeveled"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "approveFreeCloth",
+            "approveFreeCloth",
+            "markMoved",
+            "markLeveled",
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "approveFreeCloth",
+            "approveFreeCloth",
+            "markMoved",
+            "markLeveled",
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markLeveled",
+          "effect": "always",
+          "history": [
+            "approveFreeCloth",
+            "approveFreeCloth",
+            "markMoved",
+            "markMoved",
+            "markLeveled",
+            "markLeveled"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markLeveled",
+          "effect": "always",
+          "history": [
+            "approveFreeCloth",
+            "approveFreeCloth",
+            "markMoved",
+            "markMoved",
+            "markLeveled",
+            "markLeveled"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "approveFreeCloth",
+          "effect": "always",
+          "history": [
+            "markMoved",
+            "approveFreeCloth",
+            "markLeveled",
+            "markMoved",
+            "markLeveled",
+            "approveFreeCloth"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markLeveled",
+          "effect": "always",
+          "history": [
+            "approveFreeCloth",
+            "approveFreeCloth",
+            "markMoved",
+            "markMoved",
+            "provision",
+            "markLeveled"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markLeveled",
+          "effect": "always",
+          "history": [
+            "approveFreeCloth",
+            "approveFreeCloth",
+            "markMoved",
+            "markMoved",
+            "provision",
+            "markLeveled"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markLeveled",
+          "effect": "always",
+          "history": [
+            "approveFreeCloth",
+            "approveFreeCloth",
+            "markMoved",
+            "markMoved",
+            "markLeveled",
+            "provision",
+            "markLeveled"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markLeveled",
+          "effect": "always",
+          "history": [
+            "approveFreeCloth",
+            "approveFreeCloth",
+            "markMoved",
+            "markMoved",
+            "markLeveled",
+            "provision",
+            "markLeveled"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "approveFreeCloth",
+          "effect": "always",
+          "history": [
+            "approveFreeCloth"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markLeveled",
+          "effect": "always",
+          "history": [
+            "markMoved",
+            "markLeveled"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markLeveled",
+          "effect": "always",
+          "history": [
+            "markMoved",
+            "markLeveled"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "approveFreeCloth",
+          "effect": "always",
+          "history": [
+            "markMoved",
+            "approveFreeCloth"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "markMoved",
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "markMoved",
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "approveFreeCloth",
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "approveFreeCloth",
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "approveFreeCloth",
+          "effect": "always",
+          "history": [
+            "approveFreeCloth",
+            "approveFreeCloth"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "provision",
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "provision",
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "approveFreeCloth",
+          "effect": "always",
+          "history": [
+            "provision",
+            "approveFreeCloth"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markLeveled",
+          "effect": "always",
+          "history": [
+            "markMoved",
+            "markMoved",
+            "markLeveled"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markLeveled",
+          "effect": "always",
+          "history": [
+            "markMoved",
+            "markMoved",
+            "markLeveled"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "approveFreeCloth",
+          "effect": "always",
+          "history": [
+            "markMoved",
+            "markMoved",
+            "approveFreeCloth"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "approveFreeCloth",
+            "approveFreeCloth",
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "approveFreeCloth",
+            "approveFreeCloth",
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markLeveled",
+          "effect": "always",
+          "history": [
+            "markMoved",
+            "approveFreeCloth",
+            "markLeveled"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markLeveled",
+          "effect": "always",
+          "history": [
+            "markMoved",
+            "approveFreeCloth",
+            "markLeveled"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "approveFreeCloth",
+          "effect": "always",
+          "history": [
+            "markMoved",
+            "approveFreeCloth",
+            "approveFreeCloth"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "markMoved",
+            "approveFreeCloth",
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "markMoved",
+            "approveFreeCloth",
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "approveFreeCloth",
+          "effect": "always",
+          "history": [
+            "markMoved",
+            "markLeveled",
+            "approveFreeCloth"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markLeveled",
+          "effect": "always",
+          "history": [
+            "approveFreeCloth",
+            "approveFreeCloth",
+            "markMoved",
+            "markLeveled"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markLeveled",
+          "effect": "always",
+          "history": [
+            "approveFreeCloth",
+            "approveFreeCloth",
+            "markMoved",
+            "markLeveled"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "approveFreeCloth",
+            "approveFreeCloth",
+            "markMoved",
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "approveFreeCloth",
+            "approveFreeCloth",
+            "markMoved",
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "approveFreeCloth",
+          "effect": "always",
+          "history": [
+            "markMoved",
+            "approveFreeCloth",
+            "markLeveled",
+            "approveFreeCloth"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "markMoved",
+            "approveFreeCloth",
+            "markLeveled",
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "markMoved",
+            "approveFreeCloth",
+            "markLeveled",
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "approveFreeCloth",
+          "effect": "always",
+          "history": [
+            "markMoved",
+            "markMoved",
+            "markLeveled",
+            "approveFreeCloth"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markLeveled",
+          "effect": "always",
+          "history": [
+            "approveFreeCloth",
+            "approveFreeCloth",
+            "markMoved",
+            "markMoved",
+            "markLeveled"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markLeveled",
+          "effect": "always",
+          "history": [
+            "approveFreeCloth",
+            "approveFreeCloth",
+            "markMoved",
+            "markMoved",
+            "markLeveled"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "approveFreeCloth",
+          "effect": "always",
+          "history": [
+            "markMoved",
+            "approveFreeCloth",
+            "markLeveled",
+            "markMoved",
+            "approveFreeCloth"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markLeveled",
+          "effect": "always",
+          "history": [
+            "markMoved",
+            "approveFreeCloth",
+            "markLeveled",
+            "markMoved",
+            "markLeveled"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markLeveled",
+          "effect": "always",
+          "history": [
+            "markMoved",
+            "approveFreeCloth",
+            "markLeveled",
+            "markMoved",
+            "markLeveled"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "approveFreeCloth",
+            "approveFreeCloth",
+            "markMoved",
+            "markLeveled",
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "approveFreeCloth",
+            "approveFreeCloth",
+            "markMoved",
+            "markLeveled",
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markLeveled",
+          "effect": "always",
+          "history": [
+            "approveFreeCloth",
+            "approveFreeCloth",
+            "markMoved",
+            "markMoved",
+            "markLeveled",
+            "markLeveled"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markLeveled",
+          "effect": "always",
+          "history": [
+            "approveFreeCloth",
+            "approveFreeCloth",
+            "markMoved",
+            "markMoved",
+            "markLeveled",
+            "markLeveled"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "approveFreeCloth",
+          "effect": "always",
+          "history": [
+            "markMoved",
+            "approveFreeCloth",
+            "markLeveled",
+            "markMoved",
+            "markLeveled",
+            "approveFreeCloth"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markLeveled",
+          "effect": "always",
+          "history": [
+            "approveFreeCloth",
+            "approveFreeCloth",
+            "markMoved",
+            "markMoved",
+            "provision",
+            "markLeveled"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markLeveled",
+          "effect": "always",
+          "history": [
+            "approveFreeCloth",
+            "approveFreeCloth",
+            "markMoved",
+            "markMoved",
+            "provision",
+            "markLeveled"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markLeveled",
+          "effect": "always",
+          "history": [
+            "approveFreeCloth",
+            "approveFreeCloth",
+            "markMoved",
+            "markMoved",
+            "markLeveled",
+            "provision",
+            "markLeveled"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markLeveled",
+          "effect": "always",
+          "history": [
+            "approveFreeCloth",
+            "approveFreeCloth",
+            "markMoved",
+            "markMoved",
+            "markLeveled",
+            "provision",
+            "markLeveled"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "$fixture.assertion",
+          "effect": "always",
+          "history": []
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "createMove",
+          "effect": "always",
+          "history": [
+            "createMove"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "createMove",
+          "effect": "always",
+          "history": [
+            "createMove"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "createMove",
+          "effect": "always",
+          "history": [
+            "createMove"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "createMove",
+          "effect": "always",
+          "history": [
+            "createMove"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "approveFreeCloth",
+          "effect": "always",
+          "history": [
+            "approveFreeCloth"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "createMove",
+          "effect": "always",
+          "history": [
+            "provision",
+            "createMove"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "createMove",
+          "effect": "always",
+          "history": [
+            "provision",
+            "createMove"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "createMove",
+          "effect": "always",
+          "history": [
+            "provision",
+            "createMove"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "createMove",
+          "effect": "always",
+          "history": [
+            "provision",
+            "createMove"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "createMove",
+          "effect": "always",
+          "history": [
+            "provision",
+            "createMove"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "createMove",
+          "effect": "always",
+          "history": [
+            "provision",
+            "createMove"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "createMove",
+          "effect": "always",
+          "history": [
+            "provision",
+            "createMove"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "createMove",
+          "effect": "always",
+          "history": [
+            "provision",
+            "createMove"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "createMove",
+          "effect": "always",
+          "history": [
+            "provision",
+            "createMove"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "createMove",
+          "effect": "always",
+          "history": [
+            "provision",
+            "createMove"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "createMove",
+          "effect": "always",
+          "history": [
+            "provision",
+            "createMove"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "createMove",
+          "effect": "always",
+          "history": [
+            "provision",
+            "createMove"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "createMove",
+          "effect": "always",
+          "history": [
+            "provision",
+            "createMove"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "createMove",
+          "effect": "always",
+          "history": [
+            "provision",
+            "createMove"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "createMove",
+          "effect": "always",
+          "history": [
+            "provision",
+            "createMove"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "createMove",
+          "effect": "always",
+          "history": [
+            "provision",
+            "createMove"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "createMove",
+          "effect": "always",
+          "history": [
+            "provision",
+            "createMove"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "createMove",
+          "effect": "always",
+          "history": [
+            "provision",
+            "createMove"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "provision",
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "provision",
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "provision",
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "provision",
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "provision",
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "provision",
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "provision",
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "provision",
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "provision",
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "provision",
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "provision",
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "provision",
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "provision",
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "provision",
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "provision",
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "provision",
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "provision",
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "provision",
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "provision",
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "provision",
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "provision",
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "createMove",
+          "effect": "always",
+          "history": [
+            "approveFreeCloth",
+            "createMove"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "createMove",
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "createMove",
+          "effect": "always",
+          "history": [
+            "approveFreeCloth",
+            "createMove"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "createMove",
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markLeveled",
+          "effect": "always",
+          "history": [
+            "markMoved",
+            "markLeveled"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "createMove",
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markLeveled",
+          "effect": "always",
+          "history": [
+            "markMoved",
+            "markLeveled"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "createMove",
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markLeveled",
+          "effect": "always",
+          "history": [
+            "markMoved",
+            "markLeveled"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "createMove",
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markLeveled",
+          "effect": "always",
+          "history": [
+            "markMoved",
+            "markLeveled"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "approveFreeCloth",
+          "effect": "always",
+          "history": [
+            "recordVisit",
+            "approveFreeCloth"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markMoved",
+          "effect": "always",
+          "history": [
+            "createMove",
+            "markMoved"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "markLeveled",
+          "effect": "always",
+          "history": [
+            "markMoved",
+            "markLeveled"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "approveFreeCloth",
+          "effect": "always",
+          "history": [
+            "recordVisit",
+            "approveFreeCloth"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "approveFreeCloth",
+          "effect": "always",
+          "history": [
+            "recordVisit",
+            "approveFreeCloth"
+          ]
+        }
+      ]
+    },
+    {
+      "finding": "024-specF2",
+      "sourceSha256": "f99499948d16341e817f392d333350a45ceb7d67016d92d254144880affea3d3",
+      "spec": "invariant visits always .visitedAt >= .move.movedAt",
+      "specSite": "schema.q:134:1",
+      "exit": 1,
+      "specWitnesses": 22,
+      "witnesses": [
+        {
+          "site": "schema.q:134:1",
+          "operation": "recordVisit",
+          "effect": "always",
+          "history": [
+            "markMoved",
+            "recordVisit"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "recordVisit",
+          "effect": "always",
+          "history": [
+            "markMoved",
+            "recordVisit"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "recordVisit",
+          "effect": "always",
+          "history": [
+            "markMoved",
+            "markMoved",
+            "recordVisit"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "recordVisit",
+          "effect": "always",
+          "history": [
+            "markMoved",
+            "markMoved",
+            "recordVisit"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "recordVisit",
+          "effect": "always",
+          "history": [
+            "markMoved",
+            "approveFreeCloth",
+            "recordVisit"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "recordVisit",
+          "effect": "always",
+          "history": [
+            "markMoved",
+            "approveFreeCloth",
+            "recordVisit"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "recordVisit",
+          "effect": "always",
+          "history": [
+            "markMoved",
+            "markLeveled",
+            "recordVisit"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "recordVisit",
+          "effect": "always",
+          "history": [
+            "markMoved",
+            "markLeveled",
+            "recordVisit"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "recordVisit",
+          "effect": "always",
+          "history": [
+            "approveFreeCloth",
+            "approveFreeCloth",
+            "markMoved",
+            "recordVisit"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "recordVisit",
+          "effect": "always",
+          "history": [
+            "approveFreeCloth",
+            "approveFreeCloth",
+            "markMoved",
+            "recordVisit"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "recordVisit",
+          "effect": "always",
+          "history": [
+            "markMoved",
+            "approveFreeCloth",
+            "markLeveled",
+            "recordVisit"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "recordVisit",
+          "effect": "always",
+          "history": [
+            "markMoved",
+            "approveFreeCloth",
+            "markLeveled",
+            "recordVisit"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "recordVisit",
+          "effect": "always",
+          "history": [
+            "markMoved",
+            "markMoved",
+            "markLeveled",
+            "recordVisit"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "recordVisit",
+          "effect": "always",
+          "history": [
+            "markMoved",
+            "markMoved",
+            "markLeveled",
+            "recordVisit"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "recordVisit",
+          "effect": "always",
+          "history": [
+            "approveFreeCloth",
+            "approveFreeCloth",
+            "markMoved",
+            "markMoved",
+            "recordVisit"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "recordVisit",
+          "effect": "always",
+          "history": [
+            "approveFreeCloth",
+            "approveFreeCloth",
+            "markMoved",
+            "markMoved",
+            "recordVisit"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "recordVisit",
+          "effect": "always",
+          "history": [
+            "markMoved",
+            "approveFreeCloth",
+            "markLeveled",
+            "markMoved",
+            "recordVisit"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "recordVisit",
+          "effect": "always",
+          "history": [
+            "markMoved",
+            "approveFreeCloth",
+            "markLeveled",
+            "markMoved",
+            "recordVisit"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "recordVisit",
+          "effect": "always",
+          "history": [
+            "approveFreeCloth",
+            "approveFreeCloth",
+            "markMoved",
+            "markLeveled",
+            "recordVisit"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "recordVisit",
+          "effect": "always",
+          "history": [
+            "approveFreeCloth",
+            "approveFreeCloth",
+            "markMoved",
+            "markLeveled",
+            "recordVisit"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "recordVisit",
+          "effect": "always",
+          "history": [
+            "approveFreeCloth",
+            "approveFreeCloth",
+            "markMoved",
+            "markMoved",
+            "markLeveled",
+            "recordVisit"
+          ]
+        },
+        {
+          "site": "schema.q:134:1",
+          "operation": "recordVisit",
+          "effect": "always",
+          "history": [
+            "approveFreeCloth",
+            "approveFreeCloth",
+            "markMoved",
+            "markMoved",
+            "markLeveled",
+            "recordVisit"
+          ]
+        }
+      ]
+    },
+    {
+      "finding": "031-specF1",
+      "sourceSha256": "b9d7afcb1b259ef5694a4ee57bbfc5b1499b269a3c1dbf4ce85e175b10e86d2e",
+      "spec": "invariant cleanings always .scheduledAt <= .restaurant.dueAt or .restaurant.dueAt = null",
+      "specSite": "schema.q:203:1",
+      "exit": 1,
+      "specWitnesses": 2,
+      "witnesses": [
+        {
+          "site": "schema.q:203:1",
+          "operation": "scheduleCleaning",
+          "effect": "always",
+          "history": [
+            "scheduleCleaning"
+          ]
+        },
+        {
+          "site": "schema.q:203:1",
+          "operation": "$fixture.assertion",
+          "effect": "always",
+          "history": []
+        }
+      ]
+    },
+    {
+      "finding": "033-specF1",
+      "sourceSha256": "b562a086ce6ca69301fc54207a0b4d8a076f8bdceba3eaa5f42905dc103abc66",
+      "spec": "invariant jobs.status update only not .customerSignedFailing or .customerConsent or .status != 'crack_filling'",
+      "specSite": "schema.q:213:1",
+      "exit": 1,
+      "specWitnesses": 8,
+      "witnesses": [
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "approveSeal",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "approveSeal",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "advanceStatus",
+            "approveSeal",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "advanceStatus",
+            "approveSeal",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "approveSeal",
+            "advanceStatus",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "approveSeal",
+            "advanceStatus",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "approveSeal",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "approveSeal",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "advanceStatus",
+            "approveSeal",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "advanceStatus",
+            "approveSeal",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "approveSeal",
+            "advanceStatus",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "approveSeal",
+            "advanceStatus",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "advanceStatus",
+            "approveSeal",
+            "advanceStatus",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "advanceStatus",
+            "advanceStatus",
+            "approveSeal",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "advanceStatus",
+            "advanceStatus",
+            "approveSeal",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "approveSeal",
+            "advanceStatus",
+            "advanceStatus",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "approveSeal",
+            "advanceStatus",
+            "advanceStatus",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "advanceStatus",
+            "approveSeal",
+            "advanceStatus",
+            "advanceStatus",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "approveSeal",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "approveSeal",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "advanceStatus",
+            "approveSeal",
+            "advanceStatus",
+            "advanceStatus",
+            "approveSeal",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "approveSeal",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "approveSeal",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "approveSeal",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "signFailing",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "approveSeal",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "signFailing",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "approveSeal",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "signFailing",
+            "advanceStatus",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "approveSeal",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "approveSeal",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "approveSeal",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "signFailing",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "approveSeal",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "signFailing",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "schema.q:213:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:213:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:213:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:213:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:213:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:213:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:213:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "advanceStatus",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:213:1",
+          "operation": "advanceStatus",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "advanceStatus",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "approveSeal",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "approveSeal",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "advanceStatus",
+            "approveSeal",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "advanceStatus",
+            "approveSeal",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "approveSeal",
+            "advanceStatus",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "approveSeal",
+            "advanceStatus",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "advanceStatus",
+            "approveSeal",
+            "advanceStatus",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "approveSeal",
+            "provision",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "approveSeal",
+            "provision",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "approveSeal",
+            "advanceStatus",
+            "advanceStatus",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "approveSeal",
+            "advanceStatus",
+            "advanceStatus",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "advanceStatus",
+            "approveSeal",
+            "advanceStatus",
+            "advanceStatus",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "approveSeal",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "signFailing"
+          ]
+        }
+      ]
+    },
+    {
+      "finding": "033-specF2",
+      "sourceSha256": "59a6f3f37ad803832cb905faddfd3fd77a40aa0605ebe53362147ce5b001325f",
+      "spec": "invariant jobs always .status = 'quoted' or exists photos[job = .id]",
+      "specSite": "schema.q:213:1",
+      "exit": 1,
+      "specWitnesses": 36,
+      "witnesses": [
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "approveSeal",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "approveSeal",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "advanceStatus",
+            "approveSeal",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "advanceStatus",
+            "approveSeal",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "approveSeal",
+            "advanceStatus",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "approveSeal",
+            "advanceStatus",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "approveSeal",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "approveSeal",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "advanceStatus",
+            "approveSeal",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "advanceStatus",
+            "approveSeal",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "approveSeal",
+            "advanceStatus",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "approveSeal",
+            "advanceStatus",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "advanceStatus",
+            "approveSeal",
+            "advanceStatus",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "advanceStatus",
+            "advanceStatus",
+            "approveSeal",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "advanceStatus",
+            "advanceStatus",
+            "approveSeal",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "approveSeal",
+            "advanceStatus",
+            "advanceStatus",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "approveSeal",
+            "advanceStatus",
+            "advanceStatus",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "advanceStatus",
+            "approveSeal",
+            "advanceStatus",
+            "advanceStatus",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "approveSeal",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "approveSeal",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "advanceStatus",
+            "approveSeal",
+            "advanceStatus",
+            "advanceStatus",
+            "approveSeal",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "approveSeal",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "approveSeal",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "approveSeal",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "signFailing",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "approveSeal",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "signFailing",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "approveSeal",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "signFailing",
+            "advanceStatus",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "approveSeal",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "approveSeal",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "approveSeal",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "signFailing",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "approveSeal",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "signFailing",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "schema.q:213:1",
+          "operation": "acceptQuote",
+          "effect": "always",
+          "history": [
+            "acceptQuote"
+          ]
+        },
+        {
+          "site": "schema.q:213:1",
+          "operation": "acceptQuote",
+          "effect": "always",
+          "history": [
+            "acceptQuote"
+          ]
+        },
+        {
+          "site": "schema.q:213:1",
+          "operation": "acceptQuote",
+          "effect": "always",
+          "history": [
+            "acceptQuote",
+            "acceptQuote"
+          ]
+        },
+        {
+          "site": "schema.q:213:1",
+          "operation": "signFailing",
+          "effect": "always",
+          "history": [
+            "acceptQuote",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "schema.q:213:1",
+          "operation": "advanceStatus",
+          "effect": "always",
+          "history": [
+            "acceptQuote",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:213:1",
+          "operation": "advanceStatus",
+          "effect": "always",
+          "history": [
+            "acceptQuote",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:213:1",
+          "operation": "acceptQuote",
+          "effect": "always",
+          "history": [
+            "acceptQuote",
+            "acceptQuote"
+          ]
+        },
+        {
+          "site": "schema.q:213:1",
+          "operation": "signFailing",
+          "effect": "always",
+          "history": [
+            "acceptQuote",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "schema.q:213:1",
+          "operation": "advanceStatus",
+          "effect": "always",
+          "history": [
+            "acceptQuote",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:213:1",
+          "operation": "advanceStatus",
+          "effect": "always",
+          "history": [
+            "acceptQuote",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:213:1",
+          "operation": "acceptQuote",
+          "effect": "always",
+          "history": [
+            "signFailing",
+            "acceptQuote"
+          ]
+        },
+        {
+          "site": "schema.q:213:1",
+          "operation": "acceptQuote",
+          "effect": "always",
+          "history": [
+            "signFailing",
+            "acceptQuote"
+          ]
+        },
+        {
+          "site": "schema.q:213:1",
+          "operation": "acceptQuote",
+          "effect": "always",
+          "history": [
+            "signFailing",
+            "acceptQuote"
+          ]
+        },
+        {
+          "site": "schema.q:213:1",
+          "operation": "acceptQuote",
+          "effect": "always",
+          "history": [
+            "signFailing",
+            "acceptQuote"
+          ]
+        },
+        {
+          "site": "schema.q:213:1",
+          "operation": "signFailing",
+          "effect": "always",
+          "history": [
+            "acceptQuote",
+            "acceptQuote",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "schema.q:213:1",
+          "operation": "signFailing",
+          "effect": "always",
+          "history": [
+            "acceptQuote",
+            "acceptQuote",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "schema.q:213:1",
+          "operation": "advanceStatus",
+          "effect": "always",
+          "history": [
+            "acceptQuote",
+            "acceptQuote",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:213:1",
+          "operation": "advanceStatus",
+          "effect": "always",
+          "history": [
+            "acceptQuote",
+            "acceptQuote",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:213:1",
+          "operation": "acceptQuote",
+          "effect": "always",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote"
+          ]
+        },
+        {
+          "site": "schema.q:213:1",
+          "operation": "acceptQuote",
+          "effect": "always",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote"
+          ]
+        },
+        {
+          "site": "schema.q:213:1",
+          "operation": "acceptQuote",
+          "effect": "always",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote"
+          ]
+        },
+        {
+          "site": "schema.q:213:1",
+          "operation": "acceptQuote",
+          "effect": "always",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote"
+          ]
+        },
+        {
+          "site": "schema.q:213:1",
+          "operation": "acceptQuote",
+          "effect": "always",
+          "history": [
+            "acceptQuote",
+            "signFailing",
+            "acceptQuote"
+          ]
+        },
+        {
+          "site": "schema.q:213:1",
+          "operation": "signFailing",
+          "effect": "always",
+          "history": [
+            "acceptQuote",
+            "signFailing",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "schema.q:213:1",
+          "operation": "advanceStatus",
+          "effect": "always",
+          "history": [
+            "acceptQuote",
+            "signFailing",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:213:1",
+          "operation": "advanceStatus",
+          "effect": "always",
+          "history": [
+            "acceptQuote",
+            "signFailing",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:213:1",
+          "operation": "acceptQuote",
+          "effect": "always",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote"
+          ]
+        },
+        {
+          "site": "schema.q:213:1",
+          "operation": "signFailing",
+          "effect": "always",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "schema.q:213:1",
+          "operation": "approveSeal",
+          "effect": "always",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "approveSeal"
+          ]
+        },
+        {
+          "site": "schema.q:213:1",
+          "operation": "advanceStatus",
+          "effect": "always",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:213:1",
+          "operation": "advanceStatus",
+          "effect": "always",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:213:1",
+          "operation": "acceptQuote",
+          "effect": "always",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote"
+          ]
+        },
+        {
+          "site": "schema.q:213:1",
+          "operation": "signFailing",
+          "effect": "always",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "schema.q:213:1",
+          "operation": "approveSeal",
+          "effect": "always",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "approveSeal"
+          ]
+        },
+        {
+          "site": "schema.q:213:1",
+          "operation": "advanceStatus",
+          "effect": "always",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "schema.q:213:1",
+          "operation": "advanceStatus",
+          "effect": "always",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "advanceStatus"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "approveSeal",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "approveSeal",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "advanceStatus",
+            "approveSeal",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "advanceStatus",
+            "approveSeal",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "approveSeal",
+            "advanceStatus",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "approveSeal",
+            "advanceStatus",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "advanceStatus",
+            "approveSeal",
+            "advanceStatus",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "approveSeal",
+            "provision",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "approveSeal",
+            "provision",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "approveSeal",
+            "advanceStatus",
+            "advanceStatus",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "approveSeal",
+            "advanceStatus",
+            "advanceStatus",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "advanceStatus",
+            "approveSeal",
+            "advanceStatus",
+            "advanceStatus",
+            "signFailing"
+          ]
+        },
+        {
+          "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:163:3",
+          "operation": "signFailing",
+          "effect": "update",
+          "history": [
+            "signFailing",
+            "signFailing",
+            "acceptQuote",
+            "acceptQuote",
+            "approveSeal",
+            "approveSeal",
+            "advanceStatus",
+            "advanceStatus",
+            "advanceStatus",
+            "signFailing"
+          ]
+        }
+      ]
+    },
+    {
+      "finding": "036-specF1",
+      "sourceSha256": "5e2242aeb6745e04dba1d404642ebf6001ad56c2e2c5b42ed5e0b5d3bb80bd13",
+      "spec": "invariant castings always .stage = 'molding' or .stage = 'cancelled' or .modelApprovedAt != null",
+      "specSite": "schema.q:168:1",
+      "exit": 1,
+      "specWitnesses": 0,
+      "witnesses": []
+    },
+    {
+      "finding": "049-specF1",
+      "sourceSha256": "e1d946d9935904eaba9ecfe2a9806bd20e5fb57ff58e614613aa6531f699a165",
+      "spec": "invariant bookings.contract read only .couple = viewer or exists roles[principal = viewer, role = 'owner'] or exists roles[principal = viewer, role = 'desk']",
+      "specSite": "schema.q:127:1",
+      "exit": 1,
+      "specWitnesses": 12,
+      "witnesses": [
+        {
+          "site": "schema.q:127:1",
+          "operation": "board",
+          "effect": "column read observation",
+          "history": [
+            "assignDj"
+          ]
+        },
+        {
+          "site": "schema.q:127:1",
+          "operation": "board",
+          "effect": "column read observation",
+          "history": [
+            "assignDj"
+          ]
+        },
+        {
+          "site": "schema.q:127:1",
+          "operation": "board",
+          "effect": "column read observation",
+          "history": []
+        },
+        {
+          "site": "schema.q:127:1",
+          "operation": "board",
+          "effect": "column read observation",
+          "history": []
+        },
+        {
+          "site": "schema.q:127:1",
+          "operation": "board",
+          "effect": "column read observation",
+          "history": [
+            "provision"
+          ]
+        },
+        {
+          "site": "schema.q:127:1",
+          "operation": "board",
+          "effect": "column read observation",
+          "history": [
+            "provision"
+          ]
+        },
+        {
+          "site": "schema.q:127:1",
+          "operation": "board",
+          "effect": "column read observation",
+          "history": [
+            "assignDj"
+          ]
+        },
+        {
+          "site": "schema.q:127:1",
+          "operation": "board",
+          "effect": "column read observation",
+          "history": [
+            "assignDj"
+          ]
+        },
+        {
+          "site": "schema.q:127:1",
+          "operation": "setStatus",
+          "effect": "mutation result",
+          "history": [
+            "setStatus"
+          ]
+        },
+        {
+          "site": "schema.q:127:1",
+          "operation": "setStatus",
+          "effect": "mutation result",
+          "history": [
+            "setStatus"
+          ]
+        },
+        {
+          "site": "schema.q:127:1",
+          "operation": "setStatus",
+          "effect": "mutation result",
+          "history": [
+            "setStatus"
+          ]
+        },
+        {
+          "site": "schema.q:127:1",
+          "operation": "setStatus",
+          "effect": "mutation result",
+          "history": [
+            "setStatus"
+          ]
+        }
+      ]
+    }
+  ]
+}

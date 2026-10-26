@@ -1,0 +1,16 @@
+{
+  "time": "2026-10-25T01:49:20.700429+00:00",
+  "base": "3ab910436781ec6639f99613270540cf29a6871e",
+  "head": "f97bd0526851113c02d510cffb52f063e40dd27b",
+  "deltaSha256": "93abd9d511e7b432dcbf069243827ecc64a9363b76987901e33896cd17227161",
+  "deltaArtifact": "llp/reviews/3000.036.004.000-sec10-r30.delta.patch.gz",
+  "briefSha256": "e9ebee2cda06e7596481d1dc4a34f5667f8be7a51d90da6c7f82397a3a9fc332",
+  "reviewers": [
+    "Muse muse-spark-1.3-contributor high via muse-exec.sh",
+    "fresh codex gpt-6.1-sol high"
+  ],
+  "verdicts": {
+    "muse": "NO REVIEW RECEIVED: Meta stream retry unavailable; superseded after concrete Codex concern",
+    "codex": "NOT READY"
+  }
+}

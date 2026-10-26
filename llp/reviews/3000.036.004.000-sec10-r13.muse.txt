@@ -1,0 +1,19 @@
+muse: workspace root: /home/ccheever/projects/sb4-b26-sec10 (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=ea7b5db8-6430-4e30-aad6-64ea3eefc0fc]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-b26-sec10 (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY — no material false gate, refusal, or bypass found in SEC10 §10 or the frozen r13 delta.
+
+What I reviewed: [§10](llp/3000.036.004.000-structural-write-authority.rfc.md) (lines 204–507, including the Round 10 addenda) against the frozen patch at `/home/ccheever/sb4-loop/sec10-r13-delta.patch` (52 files; heaviest: `challenges/executed.rs`, `derived/workflow.rs`, `challenges/workflow.rs`). I did not read prior reviews.
+
+Mechanisms verified in the patch:
+
+- **Fixed-point custody, no copied-flag bypass.** `consumed()` in `challenges/executed.rs` validates the complete graph including currently-positive stamps, iterating to a fixed point; a positive dependency whose upstream inputs were invalidated (or whose receipt is missing/stale) invalidates dependents even when the copied flag still reads positive. Private snapshot clears invalid positives (Bool→false, Time→null) and restores only valid consumed stamps; no application data changes.
+- **Current-first, then ≤8 consistent subsets.** Baseline evaluates the validated current image first, so a currently-true raw predicate cannot skip dependency validation. Larger-than-8 cases return unknown and preserve it (the entry-gated `None` propagates instead of falling back to the raw verdict). Each subset choice is shared across every occurrence of that typed stamp, preserving mixed positive/negative predicates. Trusted-only graph is evaluated first; uncertain-inclusive results can only downgrade to unknown, never manufacture a pass or a refusal.
+- **Timestamp/source custody.** `stamp_source` treats `now + 0ms` as fresh, `old-stamp + 0` as a copy, and mixed/transformed old-stamp expressions as unknown; Bool copies fall to the uncertain path, and shared record/copy helper sites are forced unknown. Copy sites land in neither reissue nor uncertain sets, so copying never refreshes a receipt but the write is still judged normally. Reapproval exemption (`except_at`) applies only at the exact proven write site.
+- **Creation binding and identity.** Creating/default/upsert approvals bind checked stored args and same-resource inspected inputs; `.id` normalizes to the typed key while secondary keys are never reinterpreted as ids (`target_arg`, `normalize`, `same_resource`).
+- **Parent coupling on committed rows.** `lifecycle_judgment` judges committed images; retargeting cannot borrow the old parent's authority; completion requires all actual children and the exact changed selected-parent phase. Conditional/unrelated/partial/no-op writes do not exempt, and terminal self-loops stay excluded. No parser/planner/store/wire/admission semantics change; text minima unchanged.
+
+Execution evidence (prebuilt binaries only, no builds): 5 focused controls pass — `consuming_approval_and_later_edits_are_not_a_sibling_bypass` (full campaign, 26s), `secondary_reference_updates_do_not_rebind_a_predecessor_approval`, `a_nested_trim_does_not_validate_an_untrimmed_selected_reason`, plus `newly_issued_approval_can_be_consumed_but_not_refreshed_by_ordinary_edits` and `completion_coupling_uses_all_actual_children_not_incidental_writes` (0.03s/0.11s). The full 43-test binary exceeds a 120s foreground window; per the brief, continued qualification is not a readiness objection. No repairs required; author preapproval of semantics is noted and I found nothing that contradicts it.

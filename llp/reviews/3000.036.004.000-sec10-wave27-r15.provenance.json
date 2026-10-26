@@ -1,0 +1,16 @@
+{
+  "revision": "11d3033f9a",
+  "date": "2026-10-25",
+  "briefSha256": "f078af7cbed0545c7051abe2c40ff2d5e9e870d771ba190bcac3672ef2d11a42",
+  "reviews": {
+    "codex": {
+      "logSha256": "8d758f0f5620e57166e185eff79dcde0690706df6deaea9cc55f78ecee642b69",
+      "verdict": "NOT READY",
+      "verbatim": "3000.036.004.000-sec10-wave27-r15.codex.md"
+    },
+    "muse": {
+      "logSha256": "997937b1cf67a7bcda1fe0af5a5cdb206d95feabc796b372ad970a235e0ff03d",
+      "status": "Superseded request stopped after concrete Codex NOT READY; plan quota fallback had produced no completed review. No Muse verdict claimed."
+    }
+  }
+}

@@ -10,6 +10,7 @@ mod audit;
 mod presentation;
 pub use presentation::{note_priority,questionnaire_notes,gated_note,GATED_NOTE_CODES};
 mod write_intent;
+pub(crate) fn capture_literal_defaults(catalog:&Catalog,bound:&mut Bound){write_intent::capture(catalog,bound)}
 pub mod challenges;
 mod lints;
 mod write_advice;
@@ -49,6 +50,18 @@ pub struct Invariant {
     pub unsupported: Option<String>,
 }
 impl Invariant {
+    /// Bound policy and syntactic row dependencies for a concrete witness.
+    pub fn dependencies(&self)->BTreeSet<String>{
+        let mut tables=BTreeSet::from([self.table.clone()]);
+        for rule in self.policy.iter().chain(&self.requirements){tables.extend(kernel::dependencies(rule));}
+        if let Some(mut syntax)=self.syntax.clone(){crate::bind::intent_walk::expression(&mut syntax,&mut |expr|match expr{
+            ast::Expr::Read(read)|ast::Expr::Exists{read,..}|ast::Expr::Created{read,..}=>{tables.insert(read.table.clone());},
+            ast::Expr::Write{table,..}|ast::Expr::Walk{table,..}=>{tables.insert(table.clone());},
+            ast::Expr::Merge(merge)=>{tables.insert(merge.table.clone());for lane in &merge.lanes{
+                tables.extend(lane.table.iter().cloned());if let Some(read)=&lane.planned{tables.insert(read.table.clone());}if let Some((_,read))=&lane.nulls{tables.insert(read.table.clone());}
+            }},_=>{}
+        });}tables
+    }
     pub fn target_label(&self)->String {match &self.column{Some(c)=>format!("{}.{} {}",self.table,c,self.target),None=>format!("{}.{}",self.table,self.target)}}
 }
 pub(super) fn bind(catalog: &Catalog, diagnostics: &mut Vec<Diagnostic>) -> Vec<Invariant> {
@@ -140,7 +153,7 @@ fn effect(word:&str)->Effect {match word {"read"=>Effect::Read,"insert"=>Effect:
 fn effects(inv:&Invariant)->Vec<&str> { if inv.operation.is_some(){vec!["insert","update","delete"]}else if inv.target=="write" {vec!["insert","update"]} else {vec![inv.target.as_str()]} }
 /// Analyze declarations without using fixtures as proof assumptions.
 pub fn analyze(bound:&Bound)->Report {
-    analyze_with_campaign(bound,&mut challenges::Campaign::bounded(1500))
+    analyze_with_campaign(bound,&mut challenges::Campaign::work_bounded(512))
 }
 /// The CLI supplies its single campaign budget, shared with remaining paths.
 pub fn analyze_with_campaign(bound:&Bound,campaign:&mut challenges::Campaign)->Report {
@@ -256,7 +269,10 @@ fn blockers(bound:&Bound,inv:&Invariant)->Vec<String> {
     out.into_iter().collect()
 }
 
+#[doc(hidden)]
+pub fn source_inference_gaps(sources:&[(String,String)],bound:&Bound)->BTreeSet<String>{authority_walk::source_gaps(sources,bound).into_iter().chain(derived::workflow_gaps(sources,bound)).collect()}
 pub fn add_source_notes(report:&mut Report,sources:&[(String,String)],bound:&Bound){
+    report.campaign_coverage.extend(source_inference_gaps(sources,bound));
     report.notes.extend(lints::source_notes(sources,bound));
     report.notes.extend(write_advice::notes(sources,bound));
     report.notes.extend(creation_advice::notes(sources,bound));

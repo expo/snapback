@@ -1,0 +1,24 @@
+{
+  "base": "46004da960",
+  "briefSha256": "f7cc0b3f2ff879f259d9fc0ca4f549217bf70d8fc24be8e2def1bdf05ed32857",
+  "proposalPatchSha256": "41d4a06002471a0be9a02502a847cb8c2d959fa3ef0ad220e1c8f3b6274a3451",
+  "frozenSourceReview": false,
+  "scopeNote": "Both reviewers could inspect the live worktree. Muse explicitly reports drift beyond the captured proposal. These are intermediate supporting reviews; a new source-frozen review is required for the repairs.",
+  "reviews": {
+    "codex": {
+      "model": "gpt-6.1-sol",
+      "reasoning": "high",
+      "verdict": "NOT READY",
+      "rawLogSha256": "7956baa20c773934eec04ed7a3110bb4d6674853cc47cf751ee07b6959e69b36",
+      "command": "fresh codex exec -m gpt-6.1-sol -c model_reasoning_effort=high --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox - < brief"
+    },
+    "muse": {
+      "model": "muse-spark-1.3-contributor",
+      "reasoning": "high",
+      "verdict": "READY (intermediate live worktree)",
+      "rawLogSha256": "e09dfa813729f5dd35f4aa8d9f7142daa31719efb17518c3e4205de1cc955720",
+      "command": "muse-exec.sh --yolo --model muse-spark-1.3-contributor --reasoning-effort high --prompt-file brief"
+    }
+  },
+  "qualification": "Not a final READY pair. Generated-id identity and real deploy/ack evidence selection were repaired following the Codex concerns; final review/verification remains required."
+}

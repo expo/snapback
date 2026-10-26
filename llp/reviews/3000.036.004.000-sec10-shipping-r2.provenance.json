@@ -1,0 +1,22 @@
+{
+  "base": "46004da960",
+  "proposalPatchSha256": "e30001f81d97e47dc639a713979194f483492fa5700adcfd20a10d78f0289b87",
+  "frozenSourceReview": true,
+  "verdicts": {
+    "codex": "NOT READY",
+    "muse": "READY"
+  },
+  "qualification": "Intermediate round. Both reviewers verified all 41 exact frozen input hashes. Codex caller-clause boundary and graph alpha-equivalence defects require repair and another independent pair.",
+  "reviews": {
+    "codex": {
+      "rawLogSha256": "79b8a025cc2284d90f3c62a725e3b4ce01eabdb7517087a98f649556ccc0028f",
+      "model": "gpt-6.1-sol",
+      "reasoning": "high"
+    },
+    "muse": {
+      "rawLogSha256": "6e84c887dfc7f9e6ae2d14bd3e660a774de4c8c9baf7ab422b165ae5eebc087d",
+      "model": "muse-spark-1.3-contributor",
+      "reasoning": "high"
+    }
+  }
+}

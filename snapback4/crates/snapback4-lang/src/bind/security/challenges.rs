@@ -14,10 +14,12 @@ mod paired;
 mod timed;
 mod histories;
 mod executed;
+mod deleted_approvals;
 mod assets;
 mod column_reads;
 mod stability;
 mod generated;
+mod workflow;
 pub use generated::fixture as generated_fixture;
 #[derive(Clone,Debug,Serialize,serde::Deserialize,PartialEq,Eq)]
 #[serde(rename_all="kebab-case")]
@@ -28,9 +30,30 @@ impl Reachability {
 #[derive(Clone,Debug,Serialize,serde::Deserialize)]
 pub struct Counterexample {pub reachability:Reachability,pub invariant_site:String,pub args:BTreeMap<String,Value>,pub viewer:String,pub operation:String,pub effect:String,pub row:Value,pub old:Option<Value>,pub supporting_rows:BTreeMap<String,Vec<Value>>,pub rule_path:String,pub scope:String, pub observations:Option<paired::Observations>,pub history:Vec<histories::Step>}
 #[derive(Clone,Debug,Default,Serialize)]
-pub struct Campaign {#[doc(hidden)] #[serde(skip)] pub time_samples:Option<Vec<Value>>,pub evaluation_unknowns:BTreeSet<String>,pub directed_attempts:usize,pub directed_peak_worlds:usize,#[serde(skip)] pub history_limit:usize,#[serde(skip)] pub generated_fixture:bool,#[serde(skip)] pub work_remaining:Option<usize>,#[serde(skip)] pub deadline:Option<std::time::Instant>,pub paired_observer_calls:usize,pub history_observer_calls:usize,pub column_observer_calls:usize,pub operations:BTreeMap<String,usize>,pub sequences:usize,pub attempted:usize,pub admitted:usize,pub refused:usize,pub violations:Vec<Counterexample>,pub boundary_failures:Vec<String>,pub unsupported:BTreeSet<String>}
+pub struct Campaign {#[doc(hidden)] #[serde(skip)] pub directed_base:usize,#[doc(hidden)] #[serde(skip)] pub workflow_base:usize,#[doc(hidden)] #[serde(skip)] pub time_samples:Option<Vec<Value>>,pub evaluation_unknowns:BTreeSet<String>,pub directed_attempts:usize,pub workflow_attempts:usize,pub directed_peak_worlds:usize,#[serde(skip)] pub history_limit:usize,#[serde(skip)] pub generated_fixture:bool,#[serde(skip)] pub work_remaining:Option<usize>,#[serde(skip)] pub deadline:Option<std::time::Instant>,pub paired_observer_calls:usize,pub history_observer_calls:usize,pub column_observer_calls:usize,pub operations:BTreeMap<String,usize>,pub sequences:usize,pub attempted:usize,pub admitted:usize,pub refused:usize,pub violations:Vec<Counterexample>,pub boundary_failures:Vec<String>,pub unsupported:BTreeSet<String>}
 impl Campaign {
+    /// Deterministic production/check exploration. Elapsed time is not a verdict input.
+    pub fn work_bounded(work:usize)->Self {Self{work_remaining:Some(work),..Self::default()}}
+    /// Explicit caller-selected safety deadline; default commands use work_bounded.
     pub fn bounded(milliseconds:u64)->Self {Self{work_remaining:Some(512),deadline:Some(std::time::Instant::now()+std::time::Duration::from_millis(milliseconds)),..Self::default()}}
+    fn slice(&mut self,work:usize,label:&str,run:impl FnOnce(&mut Self)){
+        let original=self.work_remaining;
+        let workflow_base=self.workflow_base;self.workflow_base=self.workflow_attempts;
+        let allowance=original.map_or(work,|left|left.min(work));
+        self.work_remaining=Some(allowance);run(self);
+        let used=allowance.saturating_sub(self.work_remaining.unwrap_or(0));
+        self.work_remaining=original.map(|left|left.saturating_sub(used));self.workflow_base=workflow_base;
+        if used==allowance&&allowance>0&&self.work_remaining!=Some(0){
+            self.unsupported.remove("check concrete exploration work budget exhausted; remaining paths unproved; run snapback4 test for the full campaign");
+            self.unsupported.insert(format!("{label}: deterministic phase work slice exhausted; deferred combinations remain uncovered"));
+        }
+    }
+    // @ref LLP 3000.036.004.000#12-wave-28-inference-and-visible-evidence — full-test setup keeps directed/workflow ceilings without an overall work slice.
+    fn setup_checkpoint(&mut self,label:&str,run:impl FnOnce(&mut Self)){
+        if let Some(work)=self.work_remaining{self.slice((work/4).min(1024),label,run)}else{
+            let base=self.workflow_base;self.workflow_base=self.workflow_attempts;run(self);self.workflow_base=base;
+        }
+    }
     pub(super) fn reserve(&mut self,cost:usize)->bool {
         if self.exhausted(){return false;}
         if let Some(remaining)=&mut self.work_remaining {
@@ -40,7 +63,7 @@ impl Campaign {
     }
     pub(super) fn exhausted(&mut self)->bool {
         if self.work_remaining==Some(0){self.unsupported.insert("check concrete exploration work budget exhausted; remaining paths unproved; run snapback4 test for the full campaign".into());return true;}
-        if self.deadline.is_some_and(|deadline|std::time::Instant::now()>=deadline){self.unsupported.insert("check concrete exploration time budget exhausted; remaining paths unproved; run snapback4 test for the full campaign".into());true}else{false}
+        if self.deadline.is_some_and(|deadline|std::time::Instant::now()>=deadline){self.unsupported.insert("stopped early (time); no completed campaign verdict; run snapback4 test to complete exploration".into());true}else{false}
     }
 }
 fn id(table:&str)->Value {Value::Id(format!("security-{table}"))}
@@ -208,8 +231,8 @@ fn replay(bound:&Bound,inv:&Invariant,rows:&BTreeMap<String,Vec<Value>>,viewer:&
         },_=>return Err("row integrity/transition challenge is not an operation admission test".into()),
     };
     let mut engine=engine(bound,&seeds,probe)?;
-    if word=="read"{return engine.query(name,Context::new(viewer,BTreeMap::new()).at(NOW)).map(|q|(q.data!=Value::Null,row.clone())).map_err(|e|e.to_string());}
-    let outcome=engine.mutate(name,None,Context::new(viewer,BTreeMap::new()).at(NOW)).map_err(|e|e.to_string())?;
+    if word=="read"{return engine.query(name,replay_ids::context(viewer,BTreeMap::new()).at(NOW)).map(|q|(q.data!=Value::Null,row.clone())).map_err(|e|e.to_string());}
+    let outcome=engine.mutate(name,None,replay_ids::context(viewer,BTreeMap::new()).at(NOW)).map_err(|e|e.to_string())?;
     if !matches!(outcome.state,snapback4_core::WriteState::Sent{..}){return Ok((false,row.clone()));}
     let next=engine.store().rows(&inv.table).map_err(|e|e.to_string())?.into_iter().find(|r|r.field("id").ok()==row.field("id").ok());
     if word=="delete"{return if next.is_none(){Ok((true,row.clone()))}else{Err("delete returned sent without removing the target".into())};}
@@ -222,23 +245,12 @@ fn replay(bound:&Bound,inv:&Invariant,rows:&BTreeMap<String,Vec<Value>>,viewer:&
     }
     Ok((true,next))
 }
+mod replay_ids;
 fn readback(engine:&Engine)->Result<BTreeMap<String,Vec<Value>>,String>{engine.schema().tables.keys().map(|t|engine.store().rows(t).map(|rs|(t.clone(),rs)).map_err(|e|e.to_string())).collect()}
 
 fn operation_preflight(bound:&Bound,inv:&Invariant)->Result<(),String>{
-    let Some(name)=&inv.operation else{return Ok(());};
-    let p=&bound.programs.iter().find(|p|&p.program.name==name).ok_or("operation did not bind")?.program;
-    if !super::census::body(&p.body){return Err(format!("{name}: opaque/loop/scan path requires write-boundary tracing"));}
-    let rule=inv.policy.as_ref().ok_or("operation policy outside rule fragment")?;
-    if rule.any_term(&|t|!matches!(t,RuleTerm::Viewer|RuleTerm::Literal(_))){return Err("operation policy requires write-boundary row-image tracing".into());}
-    let writes=ir::write_tables(p);
-    if writes.iter().filter(|(t,_)|t==&inv.table).count()>1{return Err(format!("{name}: multiple target writes need executed-effect tracing; net images do not identify delete/reinsert"));}
-    let unstable=kernel::dependencies(rule).iter().any(|dep|{
-        let hits=writes.iter().filter(|(t,_)|t==dep).collect::<Vec<_>>();
-        !hits.is_empty()&&!(dep==&inv.table&&hits.len()==1&&hits[0].1=="insert")
-    });
-    if unstable||!bound.schema.maintains.is_empty()||bound.schema.tables.values().any(|t|!t.sequences.is_empty()||!t.maintained.is_empty()||t.on_delete.values().any(|a|a.writes())){
-        return Err("operation policy dependency may change before/after its write boundary; snapshot correspondence unproved".into());
-    }Ok(())
+    if let Some(name)=&inv.operation&&!bound.programs.iter().any(|p|&p.program.name==name){return Err("operation did not bind".into());}
+    Ok(())
 }
 
 /// Schema-only engine challenges. Successful synthetic operations refute the
@@ -249,6 +261,7 @@ pub fn run(bound:&Bound)->Campaign{run_selected(bound,None)}
 pub fn run_selected(bound:&Bound,sites:Option<&BTreeSet<String>>)->Campaign{run_selected_after(bound,sites,Campaign::default())}
 /// Continue after trusted observations, preserving one set of work budgets.
 pub fn run_selected_after(bound:&Bound,sites:Option<&BTreeSet<String>>,mut out:Campaign)->Campaign{
+    let _replay_ids = replay_ids::Scope::new();
     // A direct component theorem needs no repeated concrete search for that
     // same component. Indirect observers, temporal reads and actual authored
     // operations below still run; the whole declaration remains unproved.
@@ -313,23 +326,19 @@ pub fn run_selected_after(bound:&Bound,sites:Option<&BTreeSet<String>>,mut out:C
                 if let Some(operation)=&inv.operation {
                     let Some(p)=bound.programs.iter().find(|p|&p.program.name==operation)else{continue;};
                     if ephemeral_operation(bound,&p.program,&mut out){continue;}
-                    let permitted=match judged(inv,policy(bound,inv,&rows,viewer,None,row),&mut out){Ok(p)=>p,Err(why)=>{out.unsupported.insert(format!("{operation}: operation intent not judged: {why}"));continue;}};
-                    let Some(args)=arguments(&p.program.args,variant)else{out.unsupported.insert(format!("{operation}: arguments need fixture assets or unsupported samples"));continue;};
-                    if !out.reserve(1){break;}
+                    let mut attempt=match seeded.fork_fixture(){Ok(e)=>e,Err(why)=>{out.unsupported.insert(why.to_string());continue;}};
+                    let args=match arguments(&p.program.args,variant){Some(a)=>a,None=>{out.unsupported.insert(format!("{operation}: typed arguments unavailable"));continue;}};
+                    let args=match materialize_arguments(&mut attempt,&p.program.args,&args,viewer){Ok(a)=>a,Err(why)=>{out.unsupported.insert(format!("{operation}: argument ledger unavailable: {why}"));continue;}};
+                    let trace=executed::trace(bound,&p.program,&attempt);
                     out.attempted+=1;
-                    let mut seeded=match engine(bound,&rows,program("$security.seed",ProgramKind::Query,vec![Stmt::Return(Expr::Literal(Value::Null))])){Ok(e)=>e,Err(e)=>{out.unsupported.insert(e);continue;}};
-                    let args=match materialize_arguments(&mut seeded,&p.program.args,&args,viewer){Ok(a)=>a,Err(why)=>{out.unsupported.insert(format!("{operation}: argument ledger unavailable: {why}"));continue;}};
-                    match seeded.mutate(operation,None,Context::new(viewer,args.clone()).at(NOW)) {
+                    match attempt.mutate(operation,None,replay_ids::context(viewer,args.clone()).at(NOW).with_fixture_trace(trace.clone())) {
                         Ok(result) if matches!(result.state,snapback4_core::WriteState::Sent{..})=>{
-                            let current=readback(&seeded).unwrap_or_default();
-                            let changed=current.get(&inv.table).into_iter().flatten().filter(|r|!rows.get(&inv.table).is_some_and(|old|old.contains(r))).collect::<Vec<_>>();
-                            for next in changed {
-                                let old=rows.get(&inv.table).into_iter().flatten().find(|old|old.field("id").ok()==next.field("id").ok());
-                                // An upsert must be attributed to its executed arm;
-                                // a column contract cannot be refuted by editing a sibling.
-                                if inv.target=="update"&&old.is_none() || inv.target=="insert"&&old.is_some() || inv.target=="delete" {continue;}
-                                if let Some(column)=&inv.column && old.is_some_and(|old|old.field(column).ok()==next.field(column).ok()){continue;}
-                                if !permitted{out.admitted+=1;out.violations.push(Counterexample{reachability:Reachability::SyntheticOperation,history:Vec::new(),observations:None,invariant_site:inv.site.to_string(),args:args.clone(),viewer:viewer.into(),operation:operation.clone(),effect:if old.is_some(){"update"}else{"insert"}.into(),row:next.clone(),old:old.cloned(),supporting_rows:rows.clone(),rule_path:format!("authored operation {operation}"),scope:"actual authored mutation committed a changed image from a schema-valid seeded snapshot".into()});found=true;break;}
+                            if let Ok(after)=readback(&attempt){
+                                let steps=vec![histories::Step{clock:Some(NOW),operation:operation.clone(),viewer:viewer.into(),args,result:serde_json::to_value(&result.state).unwrap()}];
+                                let first=out.violations.len();
+                                executed::record(bound,&p.program,&trace,&result.state,&after,&rows,viewer,&steps,&mut attempt,&mut out);
+                                for witness in &mut out.violations[first..]{witness.reachability=Reachability::SyntheticOperation;witness.scope="actual executed boundaries from a schema-valid synthetic initial snapshot; application reachability is not claimed".into();}
+                                found=out.violations.len()>first;
                             }
                         },_=>out.refused+=1,
                     }
@@ -342,7 +351,7 @@ pub fn run_selected_after(bound:&Bound,sites:Option<&BTreeSet<String>>,mut out:C
                     if allowed{continue;}
                     if !out.reserve(1){break;}
                     out.attempted+=1;
-                    let replayed=if word=="read" {seeded.query("$security.seed",Context::new(viewer,BTreeMap::new()).at(NOW)).map(|q|(q.data!=Value::Null,row.clone())).map_err(|e|e.to_string())}else{replay(bound,inv,&rows,viewer,word,row)};
+                    let replayed=if word=="read" {seeded.query("$security.seed",replay_ids::context(viewer,BTreeMap::new()).at(NOW)).map(|q|(q.data!=Value::Null,row.clone())).map_err(|e|e.to_string())}else{replay(bound,inv,&rows,viewer,word,row)};
                     match replayed{
                         Ok((false,_))=>out.refused+=1,
                         Ok((true,next))=>{
@@ -411,25 +420,57 @@ pub fn evaluation_gaps(bound:&Bound)->Vec<String>{
 }
 
 pub fn generated_campaign(bound:&Bound,campaign:&mut Campaign,matrix:bool){
+    let _replay_ids = replay_ids::Scope::new();
+    // @ref LLP 3000.036.004.000#11-wave-27-precision-and-workflow-conservation — build each world once; actual derived effects get the first deterministic work slice.
+    campaign.directed_base=campaign.directed_attempts;
     for (name,_) in bound.schema.visible_tables().filter(|(_,t)|t.ephemeral.is_some()){campaign.unsupported.insert(format!("ephemeral {name}: generated memory populations and ephemeral mutation histories remain uncovered; durable campaigns use isolated hub copies"));}
     campaign.history_limit=64;campaign.generated_fixture=false;
     if !campaign.reserve(1){return;}
     match engine_with(bound,&BTreeMap::new(),Vec::new()){
-        Ok(empty)=>fixture_observers(bound,&empty,campaign),
+        Ok(empty)=>{let allowance=campaign.work_remaining.map_or(512,|left|(left/4).clamp(1,512));campaign.slice(allowance,"empty-start phase",|campaign|fixture_observers(bound,&empty,campaign));},
         Err(why)=>{campaign.unsupported.insert(format!("empty initial campaign unavailable: {why}"));}
     }
     campaign.history_limit=448;campaign.generated_fixture=true;
-    match generated_fixture(bound,campaign){
-        Ok(fixture)=>if matrix{operations(bound,&fixture,campaign)}else{fixture_observers(bound,&fixture,campaign)},
-        Err(why)=>{campaign.unsupported.insert(format!("generated fixture campaign unavailable: {why}"));}
-    }
+    let mut fixture=None;
+    let mut initialize=|campaign:&mut Campaign|{match generated_fixture(bound,campaign){
+        Ok(world)=>fixture=Some(world),Err(why)=>{campaign.unsupported.insert(format!("generated fixture campaign unavailable: {why}"));}
+    }};
+    if let Some(left)=campaign.work_remaining{campaign.slice(left.saturating_sub(left/4),"generated initialization",initialize)}else{initialize(campaign)}
+    if let Some(fixture)=fixture{if matrix{operations(bound,&fixture,campaign)}else{fixture_observers(bound,&fixture,campaign)}}
+
     campaign.history_limit=0;campaign.generated_fixture=false;
 }
 /// Exercise every authored query/mutation with cross-principal candidates.
 /// This is conformance exploration, not a guessed spec oracle: only declared
 /// policies and replayed violations can fail security acceptance.
 pub fn fixture_observers(bound:&Bound,fixture:&Engine,campaign:&mut Campaign){
-    let first=campaign.violations.len();
+    let _replay_ids = replay_ids::Scope::new();
+    let first=campaign.violations.len();campaign.workflow_base=campaign.workflow_attempts;
+    if bound.invariants.iter().any(super::derived::is_derived){
+        let mut focused=bound.clone();focused.invariants.retain(super::derived::is_derived);
+        let allowance=campaign.work_remaining.map_or(4096,|left|(left/2).min(4096));
+        campaign.slice(allowance,"derived replay",|campaign|{
+            if let Ok(rows)=readback(fixture){
+                let changed=rows.keys().cloned().collect();
+                let allowance=campaign.work_remaining.map_or(128,|left|(left/4).min(128));
+                campaign.slice(allowance,"derived direct probes",|out|workflow::direct(&focused,fixture,&rows,out));
+                let allowance=campaign.work_remaining.map_or(128,|left|(left/4).min(128));
+                campaign.slice(allowance,"derived creator continuations",|out|workflow::run(&focused,fixture,&rows,&[],&changed,out));
+            }
+            let limit=campaign.directed_attempts.saturating_add(4096);
+            histories::lifecycle_observers_to(&focused,fixture,campaign,limit);
+        });
+    }
+    if !bound.invariants.iter().any(super::derived::is_derived)&&bound.invariants.iter().any(|i|i.target=="insert"||i.target=="write"||i.operation.is_some()) {
+        // Creators with hydrated image/file arguments deserve direct replay
+        // even when their target already has two generated fixture rows.
+        let allowance=campaign.work_remaining.map_or(128,|left|(left/4).min(128));
+        if let Ok(rows)=readback(fixture){campaign.slice(allowance,"authored creator input probes",|out|workflow::direct(bound,fixture,&rows,out));}
+    }
+    campaign.workflow_base=campaign.workflow_attempts;
+    // Derived-first replay must not spend the authored phase's directed ceiling.
+    // The overall deterministic work reservation is still shared.
+    campaign.directed_base=campaign.directed_attempts;
     column_reads::direct_fixture(bound,fixture,campaign);
     histories::initial_observers(bound,fixture,campaign);
     histories::lifecycle_observers(bound,fixture,campaign);
@@ -443,6 +484,7 @@ pub fn fixture_observers(bound:&Bound,fixture:&Engine,campaign:&mut Campaign){
 
 // @ref LLP 3000.036.004#143-concrete-role-refutations-and-coupled-worlds — failed implication only orders a concrete, authored replay.
 pub(super) fn direct_refutations(bound:&Bound,campaign:&mut Campaign){
+    let _replay_ids = replay_ids::Scope::new();
     let first=campaign.violations.len();
     campaign.generated_fixture=true;
     match generated_fixture(bound,campaign){
@@ -461,6 +503,7 @@ pub(super) fn direct_refutations(bound:&Bound,campaign:&mut Campaign){
     campaign.generated_fixture=false;
 }
 pub fn operations(bound:&Bound,fixture:&Engine,campaign:&mut Campaign){
+    let _replay_ids = replay_ids::Scope::new();
     let first=campaign.violations.len();
     fixture_observers(bound,fixture,campaign);
     assets::run(bound,fixture,campaign);
@@ -489,10 +532,10 @@ pub fn operations(bound:&Bound,fixture:&Engine,campaign:&mut Campaign){
                 let args=match materialize_arguments(&mut engine,&p.program.args,&args,viewer){Ok(a)=>a,Err(why)=>{campaign.unsupported.insert(format!("{}: argument ledger unavailable: {why}",p.program.name));continue;}};
                 campaign.attempted+=1;*campaign.operations.entry(p.program.name.clone()).or_default()+=1;
                 if p.program.kind==ProgramKind::Query{
-                    match engine.query(&p.program.name,Context::new(viewer,args.clone()).at(NOW)){Ok(_)=>{},Err(e) if e.code=="E_INPUT"=>{campaign.unsupported.insert(format!("{}: generated arguments rejected as E_INPUT",p.program.name));},Err(_)=>campaign.refused+=1,}
+                    match engine.query(&p.program.name,replay_ids::context(viewer,args.clone()).at(NOW)){Ok(_)=>{},Err(e) if e.code=="E_INPUT"=>{campaign.unsupported.insert(format!("{}: generated arguments rejected as E_INPUT",p.program.name));},Err(_)=>campaign.refused+=1,}
                 }else{
-                    let trace=executed::trace(bound,&p.program);
-                    match engine.mutate(&p.program.name,None,Context::new(viewer,args.clone()).at(NOW).with_fixture_trace(trace.clone())){
+                    let trace=executed::trace(bound,&p.program,&engine);
+                    match engine.mutate(&p.program.name,None,replay_ids::context(viewer,args.clone()).at(NOW).with_fixture_trace(trace.clone())){
                         Ok(result) if matches!(result.state,snapback4_core::WriteState::Sent{..})=>{
                             if let Ok(after)=readback(&engine){
                                 let steps=vec![histories::Step{clock:None,operation:p.program.name.clone(),viewer:viewer.clone(),args:args.clone(),result:serde_json::to_value(&result.state).unwrap()}];
@@ -539,4 +582,29 @@ fn trusted_reads(bound:&Bound,fixture:&Engine,out:&mut Campaign){
             break 'rows;
         }}
     }
+}
+
+
+#[cfg(test)]mod wave27_budget_tests{
+ use super::*;
+ #[test]fn setup_can_replay_an_actual_write_after_a_previous_workflow_phase_is_spent(){
+  let source="table docs:\n  value: bool default false\n  read <- allow\n  insert <- allow\n  online only\nmutation create():\n  return insert docs {}\ninvariant docs.insert only viewer = 'service:reviewer'\n";
+  let bound=crate::compile(&[("schema.q".into(),source.into())]);assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);
+  let engine=engine_with(&bound,&BTreeMap::new(),Vec::new()).unwrap();let rows=readback(&engine).unwrap();
+  for bounded in [false,true]{let mut out=if bounded{Campaign::work_bounded(4096)}else{Campaign::default()};out.workflow_attempts=512;
+   out.setup_checkpoint("new setup root",|out|workflow::direct(&bound,&engine,&rows,out));
+   assert!(out.violations.iter().any(|v|v.operation=="create"&&v.reachability.is_reachable()&&v.invariant_site==bound.invariants[0].site.to_string()&&v.history.iter().any(|step|step.operation=="create")),"new setup needs a real write witness after the earlier phase: {out:?}");
+  }
+ }
+ #[test]fn focused_slice_preserves_general_work_and_reports_its_cut(){
+  let mut unbounded=Campaign::default();unbounded.slice(8,"finite phase",|out|while out.reserve(1){});
+  assert_eq!(unbounded.work_remaining,None);assert!(unbounded.reserve(1));assert!(unbounded.unsupported.iter().any(|why|why.contains("finite phase")));
+  for budget in [512,8192]{
+   let mut out=Campaign::work_bounded(budget);
+   out.slice(budget/2,"derived replay",|out|while out.reserve(1){});
+   assert_eq!(out.work_remaining,Some(budget/2));assert!(out.reserve(1));
+   assert!(out.unsupported.iter().any(|why|why.contains("derived replay")&&why.contains("slice exhausted")));
+   assert!(!out.unsupported.iter().any(|why|why.starts_with("check concrete exploration work budget exhausted")));
+  }
+ }
 }

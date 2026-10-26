@@ -56,7 +56,7 @@ fn check_exhaustion_is_explicit_and_retains_no_proof_assumptions(){
     let b=bound("table notes:\n  owner: principal\n  body: text <=80\n  read <- allow\n  insert <- allow\n  online only\ninvariant notes.body read only .owner = viewer\nquery notes():\n  return notes first 100 by .id\n");
     let r=security::analyze_rules(&b);assert!(r.invariants.iter().all(|v|v.status==security::Status::Unproved));
     let c=challenges::run_selected_after(&b,None,Campaign::bounded(0));
-    assert!(c.unsupported.iter().any(|s|s.contains("time budget exhausted")));assert!(c.violations.is_empty());
+    assert!(c.unsupported.iter().any(|s|s.contains("stopped early (time)")));assert!(c.violations.is_empty());
     let mut r=security::analyze_rules(&b);challenges::apply(&mut r,&c);assert!(!r.refuted());
 }
 #[test]

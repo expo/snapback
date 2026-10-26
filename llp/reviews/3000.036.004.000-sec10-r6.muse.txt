@@ -1,0 +1,30 @@
+muse: workspace root: /home/ccheever/projects/sb4-b26-sec10 (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=72d6e5f6-f7d0-46e9-8e2c-8a705d79c29f]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-b26-sec10 (cwd default)
+muse: workspace trust: trusted source=run-flag
+muse: retrying meta model stream in 60000ms (attempt 2/10)
+muse: retrying meta model stream in 60000ms (attempt 2/10)
+READY — no material false gates, refusals, or bypasses in §10 or the frozen delta. Every advice bullet checks out against the changed security code and its tests.
+
+**Approval advice (creation_advice/lifecycle.rs, evidence flow)**
+- Typed loop-row requires count as approval use via `program_inspects`, which resolves locals through `For` bindings; unfiltered-loop test gates, non-approval loop still gates ([security_sec10.rs](`/home/ccheever/projects/sb4-b26-sec10/snapback4/crates/snapback4-lang/tests/security_sec10.rs`) `approval_guards_inside_typed_loops_are_still_enforcement`).
+- Co-created prerequisite children are inputs, not effects: `fresh_parent_child` plus the downstream filter that drops tables read by the recording writer's own context. The test proves both directions — no gate for the pure co-created consent child, gate appears once a real `work` effect is added.
+- Initially-approved enum state suppresses via the atomic default-approved branch, with a dedicated test.
+- The price-flag case holds the S1 line: `proxies` admits only Enum/Bool/Principal/Time co-writes and `decision_effect` rejects `int`, so `price`+`approved:true` still raises `N_APPROVAL_NOT_ENFORCED`, and the added price-only `bypass` stays gated. Numeric co-writes never suppress.
+
+**Calendar (histories.rs, generated.rs, time_advice.rs)**
+- Ordinal semantics match [LLP 3000.040 §2.2](`/home/ccheever/projects/sb4-b26-sec10/llp/3000.040-bounded-ints-calendar-months-and-small-table-caps.rfc.md`) and [guide time](`/home/ccheever/projects/sb4-b26-sec10/snapback4/crates/snapback4-lang/src/guide/time.md`): month retains year, `monthStart` is the first instant. The `N_CALENDAR_DURATION` note asks only about day precision, and `month_windows` proposes exactly `month_start(month_of(NOW)-n)` for source-authored offsets 1–1200 with an explicit sixteen-offset cut note.
+- Under clock intent the caller-date case is moved first (`calendar_case`), the old-date wave26/002 test replays the named order operation to a real refusal, and the two-row frontier cut is recorded explicitly.
+
+**Consumption and FIX (derived/workflow.rs, challenges/executed.rs, fixture_trace.rs)**
+- Receipts must be true at entry and false at the effect boundary with identical typed identities (`receipt_identity` equality); retarget A→B stays FIX, secondary-key updates never rebind (`target_arg` id-only), ambiguous/unknown stays uncovered rather than permission or refutation. Each has a passing test in the delta.
+- Only admitted (`Sent`) executed traces feed violations; `is_reachable` admits fixture traces alone, and `run_selected_after` explicitly stamps synthetic witnesses non-reachable, so deploy refuses only real FIX plus pending individual gates. Boundary takes precedence over concrete with no double-judging (`concrete` is `None` whenever `boundary` exists), and the trace only observes — application admission is unchanged.
+
+**Determinism (challenges.rs, verbs/security.rs, guides)**
+- Default check/deploy are `work_bounded(512/8192)` with no deadline; explicit safety deadlines report `stopped early (time)` as incomplete, never clean. Elapsed time is telemetry. Analyzer `sec10-3` invalidates prior acks, and ack identity binds analyzer, code, owner declaration, message, rewrite, and per-note source fingerprint, so interim-delta acks cannot leak across semantic changes.
+
+**Out of verdict scope, reviewed for admission impact only:** the delta bundles the G5 revision-cache removal (postgres `revision`/`revision_cache` plumbing, `result_validation_snapshot`). Session resolution never consumed those fields, SQLite validation is untouched, and removal is fail-safe; compile and suite qualification remain open work, which per instructions is not a readiness objection. Two non-material edges noted without repair demand: a vacuously pre-filtered loop domain could suppress an approval note, and `run_selected_after` no longer draws from the shared work budget (verdict-neutral since its witnesses are non-reachable and finite).
+
+No changes made; no external actions taken.

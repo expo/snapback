@@ -13,8 +13,17 @@ pub(super) fn unauthenticated(project:&Project,bound:&Bound,sources:&[(String,St
     match http::run(project,bound,sources){Ok(_)=>true,Err(why)=>{eprintln!("security HTTP failure: {why}");false}}
 }
 pub(super) fn report(project:&Project,bound:&Bound,sources:&[(String,String)],options:&Options)->Report{
+    report_with_reviewed(project,bound,sources,options,&Default::default())
+}
+fn report_with_reviewed(project:&Project,bound:&Bound,sources:&[(String,String)],options:&Options,reviewed:&std::collections::BTreeSet<String>)->Report{
     let augmented=if options.flags.contains_key("security-deploy"){security::derived::augmented(sources,bound)}else{bound.clone()};
     let bound=&augmented;
+    // Reviewed alternatives remain in the report and full-test evidence, but
+    // cannot spend the production replay budget ahead of other obligations.
+    let replay=if reviewed.is_empty(){std::borrow::Cow::Borrowed(bound)}else{
+        let mut replay=bound.clone();replay.invariants.retain(|i|!security::derived::is_derived(i)||!reviewed.contains(&i.site.to_string()));std::borrow::Cow::Owned(replay)
+    };
+    let replay=replay.as_ref();
     let mut selection=options.clone();
     selection.json=true; // Internal fixture loading must not print a second check transcript.
     let selected_fixture=record::selected_fixture(project,options);
@@ -24,8 +33,8 @@ pub(super) fn report(project:&Project,bound:&Bound,sources:&[(String,String)],op
     };
     if let Some(snapshot)=&inputs{selection.flags.insert("fixture".into(),snapshot.0.to_string_lossy().into_owned());}
     let cached=record::matching(project,&selection,sources);
-    let known_failure=cached.as_ref().is_some_and(|r|!r.violations.is_empty())&&!options.flags.contains_key("security-full");
-    let mut campaign=if options.flags.contains_key("security-full"){security::challenges::Campaign::default()}else{if options.flags.contains_key("security-deploy"){let mut campaign=security::challenges::Campaign::bounded(10000);campaign.work_remaining=Some(8192);campaign}else{security::challenges::Campaign::bounded(1500)}};
+    let known_failure=cached.as_ref().is_some_and(|record|record.violations.iter().any(|v|v.reachability.is_reachable()&&replay.invariants.iter().any(|i|!security::derived::is_derived(i)&&i.site.to_string()==v.invariant_site)))&&!options.flags.contains_key("security-full");
+    let mut campaign=if options.flags.contains_key("security-full"){security::challenges::Campaign::default()}else{if options.flags.contains_key("security-deploy"){security::challenges::Campaign::work_bounded(3072)}else{security::challenges::Campaign::work_bounded(512)}};
     if known_failure {campaign.work_remaining=Some(0);campaign.unsupported.insert("matching full-test refutations retained; bounded resampling skipped; repair and rerun snapback4 test".into());}
     // An explicitly selected fixture remains the initial-state assumption.
     // Static generation runs only on the fixture-free path; both share this
@@ -34,23 +43,24 @@ pub(super) fn report(project:&Project,bound:&Bound,sources:&[(String,String)],op
         security::analyze_rules(bound)
     }else{security::analyze_with_campaign(bound,&mut campaign)};
     security::add_source_notes(&mut report,sources,bound);
-    if !bound.invariants.is_empty()&&!known_failure{
+    if !replay.invariants.is_empty()&&!known_failure{
         if selection.flags.contains_key("fixture"){
-            match super::test_fixture::engine_at(project,bound,&selection,1_800_000_000_000){
-                Ok(fixture)=>if bound.schema.tables.keys().any(|t|fixture.store().rows(t).is_ok_and(|rs|!rs.is_empty())){security::challenges::fixture_observers(bound,&fixture,&mut campaign)}else{
+            match super::test_fixture::engine_at(project,replay,&selection,1_800_000_000_000){
+                Ok(fixture)=>if bound.schema.tables.keys().any(|t|fixture.store().rows(t).is_ok_and(|rs|!rs.is_empty())){security::challenges::fixture_observers(replay,&fixture,&mut campaign)}else{
                     // An empty starter directory selects generation, just as
                     // no fixture does. Give the direct contradiction its turn
                     // before empty-start mutation permutations spend the cap.
-                    report=security::analyze_with_campaign(bound,&mut campaign);
+                    let explored=security::analyze_with_campaign(replay,&mut campaign);
+                    if reviewed.is_empty(){report=explored;}
                     security::add_source_notes(&mut report,sources,bound);
-                    security::challenges::generated_campaign(bound,&mut campaign,false)
+                    security::challenges::generated_campaign(replay,&mut campaign,false)
                 },
                 Err(why)=>{campaign.unsupported.insert(format!("fixture reachability not covered: {why}"));}
             }
-        }else{security::challenges::generated_campaign(bound,&mut campaign,false);}
+        }else{security::challenges::generated_campaign(replay,&mut campaign,false);}
     }
     let sites=report.invariants.iter().filter(|v|v.status==security::Status::Unproved&&!campaign.violations.iter().any(|c|c.invariant_site==v.invariant.site.to_string()&&c.reachability.is_reachable())).map(|v|v.invariant.site.to_string()).collect();
-    let campaign=security::challenges::run_selected_after(bound,Some(&sites),campaign);
+    let campaign=security::challenges::run_selected_after(replay,Some(&sites),campaign);
     security::challenges::apply(&mut report,&campaign);
     report.notes.extend(presence::notes(project,bound,None,sources).unwrap_or_else(|why|vec![snapback4_lang::Diagnostic::new(&Default::default(),"N_PRESENCE_LOOSENING",why,"repair the unreadable generated presence baseline").guide("security")]));
     if let Some(record)=cached {security::challenges::apply(&mut report,&security::challenges::Campaign{violations:record.violations,..Default::default()});}
@@ -113,21 +123,28 @@ pub(super) fn release_loop(project:&Project,bound:&Bound,sources:&[(String,Strin
     // @ref LLP 3000.036.004#153-rule-changing-deployment-review — review is prominent, strictness is explicit and failure-origin aware.
     let started=std::time::Instant::now();
     let mut preflight=options.clone();if !options.flags.contains_key("staging")||options.flags.contains_key("strict"){preflight.flags.insert("security-deploy".into(),String::new());}
-    let mut report=report(project,bound,sources,&preflight);
+    let decisions=super::security_reviews::ReviewSnapshot::capture(project)?;
+    let derived=security::derived::notes(sources,bound);
+    // A legacy rationale cannot skip the replay that establishes its current
+    // witness. Individual alternatives are applied only after actual evidence.
+    let mut report=report_with_reviewed(project,bound,sources,&preflight,&Default::default());
     report.notes.extend(presence::notes(project,bound,prior,sources)?);
     if super::proof_source::sources(project,options,"schema")?!=sources{return Err("selected Quarry sources changed during deployment security preflight".into());}
-    let mut dispositions=super::security_reviews::review_snapshot(project,sources,&report.notes)?;
-    let evidence=witnesses::collect(project,bound,sources,&report.notes,true);
-    for (d,w) in dispositions.iter_mut().zip(evidence) {if d.witness.is_none(){d.witness=w;}}
-    let derived=security::derived::notes(sources,bound);
+    let mut evidence=witnesses::collect(project,bound,sources,&report.notes,true,options);
+    witnesses::apply_report(sources,bound,&report,&report.notes,&mut evidence);
+    if super::proof_source::sources(project,options,"schema")?!=sources{return Err("selected Quarry sources changed during deployment witness replay; rerun deploy".into());}
+    let dispositions=decisions.dispositions_with_evidence(sources,&report.notes,&evidence);
+    super::security_reviews::remember_families(project,sources,&report.notes);
+    decisions.ensure_current(project)?;
     let acknowledged=derived.iter().filter(|n|report.notes.iter().zip(&dispositions).any(|(r,d)|r.site==n.site&&r.code==n.code&&r.message==n.message&&d.acknowledged)).map(|n|n.site.to_string()).collect::<std::collections::BTreeSet<_>>();
     let pending=super::security_reviews::pending(&dispositions);
-    let fixes=report.invariants.iter().filter(|v|v.status==security::Status::Refuted&&v.counterexample.as_ref().is_some_and(|c|c.reachability.is_reachable())&&(!security::derived::is_derived(&v.invariant)||!acknowledged.contains(&v.invariant.site.to_string()))).count();
+    let witnessed=|v:&&security::Verdict|v.status==security::Status::Refuted&&v.counterexample.as_ref().is_some_and(|c|c.reachability.is_reachable()&&(!security::derived::is_derived(&v.invariant)||super::security_reviews::witness::concrete(&witnesses::evidence(sources,bound,&v.invariant,c))));
+    let fixes=report.invariants.iter().filter(witnessed).filter(|v|!security::derived::is_derived(&v.invariant)||!acknowledged.contains(&v.invariant.site.to_string())).count();
     if options.flags.contains_key("verbose") { eprintln!("security deploy campaign: {} ms; bounded replay, remaining paths retain coverage gaps",started.elapsed().as_millis()); }
     let scope=release_scope(bound,prior,sources);
     let review=options.flags.contains_key("review")||options.flags.contains_key("verbose");
     let mut notice=String::new();
-    for v in report.invariants.iter().filter(|v|v.status==security::Status::Refuted&&v.counterexample.as_ref().is_some_and(|c|c.reachability.is_reachable())){
+    for v in report.invariants.iter().filter(witnessed){
         let c=v.counterexample.as_ref().unwrap();
         if security::derived::is_derived(&v.invariant)&&acknowledged.contains(&v.invariant.site.to_string()){
             if review {notice.push_str(&format!("  REVIEWED derived {}: individual specification decision retained\n",v.invariant.target_label()));} continue;

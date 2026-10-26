@@ -158,19 +158,12 @@ fn wave28_false_premise_decisions_retain_the_concrete_witness() {
                 );
             }
             let id = decision["id"].as_str().unwrap();
-            let result = json(
-                &p,
-                &[
-                    "--ack-security",
-                    id,
-                    "--reason",
-                    match code {
-                        "N_APPROVAL_NOT_ENFORCED" => "Owner approval is not a gate on quote acceptance or work progress",
-                        "N_ARGUMENT_GRANT" => "The homeowner acceptance handshake confirms the relationship; a mis-addressed quote can never be accepted",
-                        _ => "Distinct creation vs forgiveness authority is intended; only the owner can reduce a balance via writeOff",
-                    },
-                ],
-            );
+            let refused=json(&p,&["--ack-security",id,"--reason","one decision"]);
+            assert_eq!(refused["ok"],false,"a witnessed question cannot accept filler");
+            assert_eq!(refused["problems"][0]["code"],"E_SECURITY_NOTES");
+            let answer=if matches!(witness["effect"].as_str(),Some("insert"|"upsert")){"audience: the listed caller is intentionally admitted"}else{"intended effect: the listed effect is deliberate"};
+            let reason=format!("witness {}; permit {} as {}; {}; operation {} is intended by this test specification",witness["id"].as_str().unwrap(),witness["operation"].as_str().unwrap(),witness["viewer"].as_str().unwrap(),answer,witness["operation"].as_str().unwrap());
+            let result=json(&p,&["--ack-security",id,"--reason",&reason]);
             assert_eq!(
                 result["securityReviews"]
                     .as_array()
@@ -184,7 +177,10 @@ fn wave28_false_premise_decisions_retain_the_concrete_witness() {
                 &fs::read(p.0.join("snapback/security-reviews.json")).unwrap(),
             )
             .unwrap();
-            assert_eq!(recorded["entries"][id]["witness"], *witness);
+            let current=result["securityReviews"].as_array().unwrap().iter().find(|d|d["id"]==id).unwrap();
+            assert_eq!(recorded["entries"][id]["witness"],current["witness"],"persist the exact witness replayed by the acknowledgment command");
+            assert_eq!(current["witness"]["id"],witness["id"],"fresh minted row ids preserve the canonical witness");
+            assert_eq!(current["witness"]["operation"],witness["operation"]);
         }
         // 019's result-exposure ID used to be listed by JSON and then refused.
         if source.contains("mutation setAccount") {
@@ -252,4 +248,65 @@ fn schema_first_react_projects_get_the_pinned_starter_hint_on_the_verdict() {
         "{text}"
     );
     assert_eq!(text.lines().count(), 2);
+}
+
+#[test]
+fn wave29_image_arguments_obtain_a_creation_witness_without_a_blind_gate() {
+    let p=scratch();let source=include_str!("../../snapback4-lang/tests/security/sec10-shipping/w29-016.q");fs::write(p.0.join("snapback/schema.q"),source).unwrap();
+    let report=json(&p,&[]);let ds=report["securityReviews"].as_array().unwrap();
+    let d=ds.iter().find(|d|d["code"]=="N_INSERT_WRITE_INTENT"&&d["witness"]["operation"]=="logTractor"&&d["witness"]["effect"]=="insert").expect("three typed image arguments must reach the actual inline album creation");
+    assert_eq!(d["gated"],false,"the low-precision initial/edit code is advisory");
+    assert!(d["witness"]["history"].as_array().is_some_and(|h|!h.is_empty()));
+    let out=json(&p,&["--ack-security",d["id"].as_str().unwrap(),"--reason","one decision"]);assert_eq!(out["problems"][0]["code"],"E_SECURITY_NOTES");
+    let reason=format!("witness {}; permit logTractor as {}; audience: logTractor deliberately allows barn owners and intake managers for initial albums",d["witness"]["id"].as_str().unwrap(),d["witness"]["viewer"].as_str().unwrap());
+    let out=json(&p,&["--ack-security",d["id"].as_str().unwrap(),"--reason",&reason]);assert!(out["securityReviews"].as_array().unwrap().iter().any(|n|n["id"]==d["id"]&&n["acknowledged"]==true));
+}
+#[test]
+fn wave30_approval_witness_names_the_actual_workflow_effect() {
+    let p=scratch();fs::write(p.0.join("snapback/schema.q"),include_str!("../../snapback4-lang/tests/security/sec10-shipping/w30-033.q")).unwrap();
+    let report=json(&p,&[]);let d=report["securityReviews"].as_array().unwrap().iter().find(|d|d["code"]=="N_APPROVAL_NOT_ENFORCED").unwrap();
+    assert_eq!(d["witness"]["operation"],"advanceJob","the quote acceptance is not the coating effect: {d}");assert_eq!(d["gated"],true);
+    let out=run(&p,&["check"]);let text=String::from_utf8(out.stdout).unwrap();assert!(text.contains("via advanceJob"),"{text}");assert!(!text.contains("modeled acceptQuote effect"),"{text}");
+}
+
+#[test]
+fn a_deploys_derived_decision_is_accepted_by_its_real_cli_command() {
+ let p=scratch();let source="table docs:\n  value: int\n  approved: bool default false\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\nmutation create(value: int):\n  return insert docs {value}\nmutation approve(doc: docs):\n  require viewer = 'service:reviewer' else NOT_REVIEWER\n  d = docs[doc] ! else MISSING\n  require d.value >= 0 else NEGATIVE\n  update docs[doc] {approved:true}\nmutation edit(doc: docs,value: int):\n  update docs[doc] {value}\n";fs::write(p.0.join("snapback/schema.q"),source).unwrap();
+ let refused=run(&p,&["deploy","deployment","--json"]);assert_eq!(refused.status.code(),Some(1));let refused:Value=serde_json::from_slice(&refused.stdout).unwrap();
+ let decision=refused["security"]["securityReviews"].as_array().unwrap().iter().find(|d|d["code"]=="N_DERIVED_WRITE_AUTHORITY"&&d["witness"].is_object()).expect("production reports its actual derived witness");
+ let ordinary=run(&p,&["deploy","deployment"]);assert_eq!(ordinary.status.code(),Some(1));
+ let printed=format!("{}\n{}",String::from_utf8_lossy(&ordinary.stdout),String::from_utf8_lossy(&ordinary.stderr));
+ let command=printed.lines().filter_map(|line|line.trim().strip_prefix("Intended: snapback4 check --ack-security ")).find(|command|command.starts_with(&format!("{} --reason",decision["id"].as_str().unwrap()))).expect("ordinary deploy must print the blocking derived decision command");
+ let (printed_id,template)=command.split_once(" --reason '").unwrap();assert_eq!(printed_id,decision["id"].as_str().unwrap());
+ assert!(template.contains(&format!("witness {}; permit {} as {}",decision["witness"]["id"].as_str().unwrap(),decision["witness"]["operation"].as_str().unwrap(),decision["witness"]["viewer"].as_str().unwrap())),"{printed}");
+ let checked=json(&p,&[]);assert!(checked["securityReviews"].as_array().unwrap().iter().any(|d|d["id"]==decision["id"]),"deploy decision must exist in the prescribed check command");
+ let witness=&decision["witness"];let reason=format!("witness {}; permit {} as {}; intended effect: this test specification deliberately allows edits without invalidating the validation flag",witness["id"].as_str().unwrap(),witness["operation"].as_str().unwrap(),witness["viewer"].as_str().unwrap());
+ let ack=run(&p,&["check","--ack-security",printed_id,"--reason",&reason]);assert!(ack.status.success(),"{}",String::from_utf8_lossy(&ack.stderr));
+ let deployed=run(&p,&["deploy","deployment","--json"]);assert!(deployed.status.success(),"{} {}",String::from_utf8_lossy(&deployed.stdout),String::from_utf8_lossy(&deployed.stderr));
+}
+#[test]
+fn fresh_gate_replays_preserve_ids_and_changed_witnesses_show_no_old_rationale() {
+ let p=scratch();let source=include_str!("../../snapback4-lang/tests/security/sec10-shipping/w30-033.q");fs::write(p.0.join("snapback/schema.q"),source).unwrap();
+ let first=json(&p,&[]);let decision=first["securityReviews"].as_array().unwrap().iter().find(|d|d["code"]=="N_APPROVAL_NOT_ENFORCED"&&d["witness"].is_object()).unwrap();
+ let again=json(&p,&[]);assert!(again["securityReviews"].as_array().unwrap().iter().any(|d|d["id"]==decision["id"]),"fresh random fixture ids must not change the witness identity");
+ let reason=format!("witness {}; permit advanceJob as {}; intended effect: advanceJob is deliberately independent under this explicit test specification",decision["witness"]["id"].as_str().unwrap(),decision["witness"]["viewer"].as_str().unwrap());
+ let recorded=json(&p,&["--ack-security",decision["id"].as_str().unwrap(),"--reason",&reason]);assert!(recorded["securityReviews"].as_array().unwrap().iter().any(|d|d["id"]==decision["id"]&&d["acknowledged"]==true));
+ fs::write(p.0.join("snapback/schema.q"),format!("-- independent comment\n{source}")).unwrap();let unchanged=json(&p,&[]);assert!(unchanged["securityReviews"].as_array().unwrap().iter().any(|d|d["id"]==decision["id"]&&d["acknowledged"]==true));
+ let independent=format!("{source}\ntable independentNotes:\n  label: text <= 20\n  read <- allow\n  insert <- allow\n  online only\n");
+ fs::write(p.0.join("snapback/schema.q"),&independent).unwrap();let unrelated=json(&p,&[]);assert!(unrelated["securityReviews"].as_array().unwrap().iter().any(|d|d["id"]==decision["id"]&&d["acknowledged"]==true),"an unused table cannot change a current witness");
+ fs::write(p.0.join("snapback/schema.q"),source.replace("advanceJob","progressJob")).unwrap();let changed=json(&p,&[]);let next=changed["securityReviews"].as_array().unwrap().iter().find(|d|d["code"]=="N_APPROVAL_NOT_ENFORCED").unwrap();
+ assert_ne!(next["id"],decision["id"]);assert_eq!(next["acknowledged"],false);assert!(next["reason"].is_null());assert_eq!(next["witness"]["operation"],"progressJob");
+}
+
+#[test]
+fn unresolved_approval_applicability_is_advice_even_with_cached_examples(){
+ for source in [include_str!("../../snapback4-lang/tests/security/wave24/011.q"),include_str!("../../snapback4-lang/tests/security/wave26/020.q")]{
+  let p=scratch();fs::write(p.0.join("snapback/schema.q"),source).unwrap();let report=json(&p,&[]);
+  assert!(report["securityReviews"].as_array().unwrap().iter().any(|d|d["code"]=="N_APPROVAL_NOT_ENFORCED"));
+  assert!(report["securityReviews"].as_array().unwrap().iter().filter(|d|d["code"]=="N_APPROVAL_NOT_ENFORCED").all(|d|d["gated"]==false),"an unconditional guessed requirement must not gate: {report}");
+  let path=p.0.join("snapback/generated/security-witnesses.json");let mut cache:Value=serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();
+  for value in cache["values"].as_array_mut().unwrap(){if value.is_object(){value["advisory"]=false.into();}}
+  fs::write(&path,serde_json::to_vec(&cache).unwrap()).unwrap();let cached=json(&p,&[]);
+  assert!(cached["securityReviews"].as_array().unwrap().iter().filter(|d|d["code"]=="N_APPROVAL_NOT_ENFORCED").all(|d|d["gated"]==false),"an editable presentation cache cannot establish applicability");
+ }
 }

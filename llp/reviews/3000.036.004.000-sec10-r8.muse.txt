@@ -1,0 +1,27 @@
+muse: workspace root: /home/ccheever/projects/sb4-b26-sec10 (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=ee58c71e-dec1-4808-9654-2570de24939f]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-b26-sec10 (cwd default)
+muse: workspace trust: trusted source=run-flag
+Verification in progress: all four admitted-resource control tests pass and derived-contract checks pass; awaiting the 008/018/025/033 campaign regression run before the final verdict.READY — no material semantic concern in SEC10 §10's frozen r8 delta. No edits made; all verification was read-only plus existing tests.
+
+What I checked: the §10 text in [llp/3000.036.004.000-structural-write-authority.rfc.md](/home/ccheever/projects/sb4-b26-sec10/llp/3000.036.004.000-structural-write-authority.rfc.md) (§§1–9 context included) and the complete frozen delta [/home/ccheever/sb4-loop/sec10-r8-delta.patch](/home/ccheever/sb4-loop/sec10-r8-delta.patch) (47 files), with source follow-ups confined to the changed security files.
+
+Executed evidence (fresh binaries, observed output):
+- 4/4 focused admitted-resource controls pass: `sec10_resource_tests` (retargeting is not consumption, reparented stage checks new parent's window, clearing approval with changed inputs cannot finish, filtered exists receipts keep inspected inputs) — `4 passed; 0 failed`.
+- Round 7 fast tests pass on a fresh incremental build (63 s compile): `a_secondary_key_is_not_the_approved_parent_identity`, `child_schema_write_authority_consumes_the_matching_parent_approval`, `secondary_reference_updates_do_not_rebind_a_predecessor_approval` — `3 passed; 0 failed`.
+- Ledger / one-use / predecessor tests pass: `atomic_stage_ledgers_do_not_require_approval_for_every_event`, `a_repeated_create_without_an_approval_cap_is_a_question`, `a_single_parent_close_toggle_does_not_establish_child_completion` — `3 passed; 0 failed`.
+- 008/018/025/033 campaign regressions pass (181 s): `sibling_approval_contracts_cover_reference_descendants` (018), `bool_approval_input_edits_are_replayed` (033), `parent_child_and_repeat_create_candidates_replay` (008 + 025) — `3 passed; 0 failed`, each asserting both candidate derivation and a reachable replayed violation.
+- Derived-workflow unit tests pass: `filtered_approval_keeps_its_population_focal`, `descendant_approval_policy_uses_the_same_visit` — `2 passed; 0 failed`.
+
+Clause-by-clause findings:
+- Filtered receipt identity: `receipt_identity` strips only the consumed stamp filter, resolves the selected row, requires exactly one subject, and appends the approval's actually inspected input columns; ambiguous/deleted subjects return unknown (never permission). Retargeting A→B yields unequal identities so consumption is false and the violation stands.
+- Secondary keys: `target_arg` admits only the actual id-selected argument for same-table updates; `docs[predecessor = doc]` derives no sibling contract while `docs[doc]` does, and prerequisite-child matching requires the same id-selected row. No substitution path found.
+- Governed child schema authority: `child_rule_use` treats a matching parent-approval field in the child's insert/update/column-write rules as enforcement. The paired test (gate present with `allow`, absent with `.doc.approved = true`) passes.
+- Ledger narrowing: the skip applies only to related inserts atomic with a literal-destination parent stage effect; the parent's own update contract is still derived. Test confirms docs keeps the contract and events does not gain one.
+- One-use and predecessor: repeat-create candidates require a positive authored approval cap (bare state guard yields only advisory `N_GUARD_NOT_CONSUMED`); child-terminal inference requires an authored predecessor transition into the completion's source phase, so a lone open/closed toggle derives nothing.
+- Campaign determinism: `work_bounded(512)` check / `work_bounded(8192)` deploy carry no deadline; explicit deadlines report `stopped early (time)` as incomplete; every cap (4-tuple, 8-actor, 512-continuation, work exhaustion) pushes an explicit `unsupported` entry. Analyzer `sec10-5` invalidates older receipts/reviews.
+- No runtime admission or stored-schema change: the new `BoundaryPredicate` feeds only the private fixture-trace observation; authored policies still judge admission, and all guidance changes are advisory or individual review gates with source-bound IDs.
+
+Not verified (out of readiness scope per the commission): full complete suite, Linux difftest/publication, and Mac execution — §10 assigns those to Integration 25/publication. READY here means no material semantic concern, not author acceptance or complete qualification.

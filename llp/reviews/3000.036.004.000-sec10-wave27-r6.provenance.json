@@ -1,0 +1,11 @@
+{
+  "reviewedSemanticCommit": "f13b9d8d48760a6151c45007f49737c891419d8f",
+  "verdicts": {
+    "muse": "READY",
+    "freshCodex": "READY"
+  },
+  "mergeCommit": "872e3f37af",
+  "incomingMain": "22412ba20ba8ef3ba63a9970221aa673500821b2",
+  "integration": "Only append-only JOURNAL needed conflict resolution; all SEC10 semantic files match reviewed content. Imported FF3 activation semantics retain upstream qualification and are exercised by final affected core/lang/CLI scope.",
+  "briefSha256": "6e19e1fa8a07db241373064f1ce39ce4823e90105c5ea96c5bb1cb174a7b352f"
+}

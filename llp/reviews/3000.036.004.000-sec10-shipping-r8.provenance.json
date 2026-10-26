@@ -1,0 +1,10 @@
+{
+  "frozenSourceReview": true,
+  "all49ManifestInputsUnchanged": true,
+  "patchSha256": "6a4fc2d66b7b519979ed7765bfdaa62d3100b50f2b577e70488c819912147141",
+  "verdicts": {
+    "muse": "READY",
+    "codex": "NOT READY"
+  },
+  "qualification": "Intermediate: custom committed-state judgments require their committed dependency images in witness identity. A concurrent survey also exposes inferred-approval applicability false examples; these need precision before shipping."
+}

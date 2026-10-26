@@ -11,7 +11,7 @@ import {spawnSync} from 'node:child_process';
 const root=fileURLToPath(new URL('../../../',import.meta.url));
 test('packed security card and starter run as written; broad reads refute', {timeout:900000}, async t=>{
  const dir=mkdtempSync(join(tmpdir(),'sb4-security-packed-'));t.after(()=>rmSync(dir,{recursive:true,force:true}));
- const run=(cmd,args,cwd=dir,expected=0)=>{const r=spawnSync(cmd,args,{cwd,encoding:'utf8',timeout:120000,env:{...process.env,SNAPBACK4_BIN:''}});assert.equal(r.status,expected,`${cmd} ${args.join(' ')}\n${r.stdout}\n${r.stderr}`);return r.stdout;};
+ const run=(cmd,args,cwd=dir,expected=0)=>{const r=spawnSync(cmd,args,{cwd,encoding:'utf8',timeout:120000,env:{...process.env,SNAPBACK4_BIN:'',npm_config_cache:join(dir,'npm-cache')}});assert.equal(r.status,expected,`${cmd} ${args.join(' ')}\n${r.stdout}\n${r.stderr}`);return r.stdout;};
  const pack=source=>join(dir,JSON.parse(run('npm',['pack','--ignore-scripts','--json','--pack-destination',dir],source))[0].filename);
  const client=pack(join(root,'packages/snapback4'));const nativeName=`snapback4-${process.platform}-${process.arch}`;
  const native=join(dir,'native');mkdirSync(native);copyFileSync(join(root,'packages',nativeName,'package.json'),join(native,'package.json'));copyFileSync(process.env.SNAPBACK4_BIN||join(root,'target/debug/snapback4'),join(native,'snapback4'));
@@ -56,7 +56,7 @@ test('packed security card and starter run as written; broad reads refute', {tim
   const optional=schema.replace("  scan: file <=10000 ('application/pdf')","  scan: file <=10000 ('application/pdf') ?").replace("mutation place(scan: file <=10000 ('application/pdf')):","mutation place(scan: file <=10000 ('application/pdf') ?):");
   writeFileSync(join(presenceDir,'snapback/schema.q'),optional+'\n'+candidate.slice(1,-1)+'\n');
   const result=JSON.parse(run(process.execPath,[cli,'check','--json'],presenceDir,1));
-  assert.ok(result.securityReviews.some(r=>r.code==='N_OPTIONAL_UPLOAD_CREATE'&&r.gated));
+  assert.ok(result.security.invariants.some(v=>v.status==='refuted'&&['generated-fixture-trace','authored-fixture-trace'].includes(v.counterexample?.reachability)),'the concrete authored mandatory-media contradiction still refuses');
  }
  // SEC9's complete recipe is extracted verbatim from the installed tarball.
  const rules=run(process.execPath,[cli,'guide','rule-recipes','--full'],project);
@@ -81,9 +81,10 @@ test('packed security card and starter run as written; broad reads refute', {tim
  for(const lane of ['003','040','030','042','028']){
   const cwd=join(dir,'day-two-'+lane);mkdirSync(join(cwd,'snapback'),{recursive:true});
   writeFileSync(join(cwd,'snapback/schema.q'),readFileSync(new URL('../../../crates/snapback4-lang/tests/security/wave23/'+lane+'.q',import.meta.url)));
-  const checked=JSON.parse(run(process.execPath,[cli,'check','--json'],cwd,lane==='042'?1:0));
-  assert.equal(checked.ok,lane!=='042',`installed day-two check ${lane}`);
+  const checked=JSON.parse(run(process.execPath,[cli,'check','--json'],cwd));
+  assert.equal(checked.ok,true,`unwitnessed policy questions stay advisory: ${lane}`);
   assert.ok(!checked.securityReviews.some(r=>r.code==='N_OPTIONAL_UPLOAD_CREATE'));
+  if(lane==='040')assert.equal(checked.securityReviews.filter(r=>r.code==='N_INSERT_WRITE_INTENT'&&!r.gated).length,2,'creation authority remains an individual advisory question');
   if(lane==='030'){
    const stale=checked.security.notes.filter(n=>n.code==='N_STALE_CREATION_CHECK');
    assert.equal(stale.length,2,'independent applications and permits eligibility questions stay separate');
@@ -92,13 +93,16 @@ test('packed security card and starter run as written; broad reads refute', {tim
   }
   if(lane==='028')assert.equal(checked.security.notes.filter(n=>n.code==='N_EVIDENCE_REMOVAL').length,1);
   if(lane==='042'){
-   const text=run(process.execPath,[cli,'check'],cwd,1);
+   const text=run(process.execPath,[cli,'check','--review'],cwd);
    assert.match(text,/N_PRIVATE_CREATE_EDIT_ASYMMETRY/);
    const inventory=text.indexOf('N_INSERT_WRITE_INTENT');
    assert.ok(inventory<0||text.indexOf('N_PRIVATE_CREATE_EDIT_ASYMMETRY')<inventory);
   }
  }
- assert.ok(result.guideCases.every(c=>c.broadRead==='refuted'));
+ const disclosureCases=result.guideCases.filter(c=>c.broadRead);
+ assert.ok(disclosureCases.length>0);
+ assert.ok(disclosureCases.every(c=>c.broadRead==='refuted'));
+ assert.ok(result.guideCases.every(c=>c.broadRead==='refuted'||c.compile==='passed'));
  assert.equal(result.starters.length,7);
  if(process.env.SNAPBACK4_SECURITY_PACK_EVIDENCE)
   writeFileSync(join(process.env.SNAPBACK4_SECURITY_PACK_EVIDENCE,'security-evidence.json'),JSON.stringify(result,null,2)+'\n');

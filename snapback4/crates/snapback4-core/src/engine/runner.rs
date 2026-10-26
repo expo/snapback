@@ -621,6 +621,8 @@ impl<'a> Runner<'a> {
                     Flow::Next
                 }
                 Stmt::InsertIfAbsent { table, row, result } => {
+                    #[cfg(feature="sqlite")]
+                    let _fixture_insert_scope=self.context.fixture_trace.as_ref().and_then(|trace|trace.at_insert(row));
                     let row = self.expr(row)?;
                     let consumed = self.insert_uses.as_ref().is_none_or(|uses| uses.contains_key(result));
                     if consumed {
@@ -632,6 +634,8 @@ impl<'a> Runner<'a> {
                     Flow::Next
                 }
                 Stmt::Insert { table, row } => {
+                    #[cfg(feature="sqlite")]
+                    let _fixture_insert_scope=self.context.fixture_trace.as_ref().and_then(|trace|trace.at_insert(row));
                     let image = self.expr(row)?;
                     // @ref LLP 3000.007#5.4 — the compiler also creates a
                     // temporary for discarded inserts; only another use demands its result.
@@ -1125,7 +1129,7 @@ impl<'a> Runner<'a> {
             Builtin::Civil(function) => Ok(Value::Int(function.apply(args[0].as_int()?)?)),
             Builtin::Lower | Builtin::Trim => {
                 let text = args[0].as_str()?;
-                let value = Value::String(if matches!(builtin, Builtin::Lower) { text.to_lowercase() } else { text.trim().to_owned() });
+                let value = Value::String(if matches!(builtin, Builtin::Lower) { text.to_lowercase() } else { crate::visible_text::trim(text).to_owned() });
                 // @ref LLP 3000.007#5.3 — the small text library charges every new result to the heap meter.
                 self.meter.heap(expression_heap(&value))?;
                 Ok(value)

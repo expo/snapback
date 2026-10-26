@@ -1,0 +1,16 @@
+{
+  "time": "2026-10-25T01:59:30.369816+00:00",
+  "base": "3ab910436781ec6639f99613270540cf29a6871e",
+  "head": "81184ed5da08ae688c89babcd478a8a79cee2b1d",
+  "deltaSha256": "01f7079ab5fc5d1ec4278e746134561bc6f777905d93f0ed716453ea585c86ee",
+  "deltaArtifact": "llp/reviews/3000.036.004.000-sec10-r32.delta.patch.gz",
+  "briefSha256": "29b0e9338e4d589f27289dd319aa1b1d5dcea5c055fa437df31a3ec0fbb1d435",
+  "reviewers": [
+    "Muse muse-spark-1.3-contributor high via muse-exec.sh",
+    "fresh codex gpt-6.1-sol high"
+  ],
+  "verdicts": {
+    "muse": "READY (nonblocking concern confirmed as native false gate and repaired in following revision)",
+    "codex": "NOT READY"
+  }
+}

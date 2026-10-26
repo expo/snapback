@@ -1,0 +1,1997 @@
+{
+  "measurement": {
+    "binarySha256": "98778a8b1fec77f1ab308383f485f74c69ecd7e716f0999cfdf3db133dc98ce5",
+    "projects": 13,
+    "waves": "26",
+    "checkOnly": false,
+    "stripIntent": true
+  },
+  "results": [
+    {
+      "wave": 26,
+      "lane": "002-snapback-compression-garment-fittings",
+      "sha256": "2bfaf3df0db49c26ac916fc7ad7604986d305072286931c4628d46b3fe397e4d",
+      "checkExit": 0,
+      "gates": [],
+      "checkFixes": [],
+      "fresh": {
+        "exit": 0,
+        "seconds": 0.639,
+        "securityRefused": false,
+        "gates": [],
+        "fixes": []
+      },
+      "test": {
+        "exit": 0,
+        "seconds": 17.389,
+        "witnesses": []
+      },
+      "afterTest": {
+        "exit": 0,
+        "seconds": 0.442,
+        "securityRefused": false,
+        "gates": [],
+        "fixes": []
+      }
+    },
+    {
+      "wave": 26,
+      "lane": "008-snapback-stucco-repair-jobs",
+      "sha256": "641dbcc7ebe0a3f32da98897d9bdea83b12abbe8a691b6f7a3ee4c05bed793b0",
+      "checkExit": 0,
+      "gates": [],
+      "checkFixes": [],
+      "fresh": {
+        "exit": 1,
+        "seconds": 34.539,
+        "securityRefused": true,
+        "gates": [],
+        "fixes": [
+          {
+            "site": {
+              "col": 3,
+              "file": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q",
+              "line": 151
+            },
+            "operation": "advanceWall"
+          },
+          {
+            "site": {
+              "col": 3,
+              "file": "$derived/child-stage/16c68cbdeab94206ae0a04b64feb30dbbbda706306a645e1dfd325e1d3ab28fd/schema.q",
+              "line": 157
+            },
+            "operation": "finishJob"
+          }
+        ]
+      },
+      "test": {
+        "exit": 1,
+        "seconds": 82.119,
+        "witnesses": [
+          {
+            "site": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q:151:3",
+            "operation": "advanceWall",
+            "effect": "update",
+            "history": [
+              "advanceWall"
+            ]
+          },
+          {
+            "site": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q:151:3",
+            "operation": "advanceWall",
+            "effect": "update",
+            "history": [
+              "acceptQuote",
+              "advanceWall"
+            ]
+          },
+          {
+            "site": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q:151:3",
+            "operation": "advanceWall",
+            "effect": "update",
+            "history": [
+              "acceptQuote",
+              "advanceWall"
+            ]
+          },
+          {
+            "site": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q:151:3",
+            "operation": "advanceWall",
+            "effect": "update",
+            "history": [
+              "advanceWall",
+              "advanceWall"
+            ]
+          },
+          {
+            "site": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q:151:3",
+            "operation": "advanceWall",
+            "effect": "update",
+            "history": [
+              "approveStrip",
+              "advanceWall"
+            ]
+          },
+          {
+            "site": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q:151:3",
+            "operation": "advanceWall",
+            "effect": "update",
+            "history": [
+              "acceptQuote",
+              "advanceWall",
+              "advanceWall"
+            ]
+          },
+          {
+            "site": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q:151:3",
+            "operation": "advanceWall",
+            "effect": "update",
+            "history": [
+              "acceptQuote",
+              "startWork",
+              "advanceWall"
+            ]
+          },
+          {
+            "site": "$derived/child-stage/16c68cbdeab94206ae0a04b64feb30dbbbda706306a645e1dfd325e1d3ab28fd/schema.q:157:3",
+            "operation": "finishJob",
+            "effect": "update",
+            "history": [
+              "acceptQuote",
+              "startWork",
+              "finishJob"
+            ]
+          },
+          {
+            "site": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q:151:3",
+            "operation": "advanceWall",
+            "effect": "update",
+            "history": [
+              "advanceWall"
+            ]
+          },
+          {
+            "site": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q:151:3",
+            "operation": "advanceWall",
+            "effect": "update",
+            "history": [
+              "advanceWall"
+            ]
+          },
+          {
+            "site": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q:151:3",
+            "operation": "advanceWall",
+            "effect": "update",
+            "history": [
+              "startWork",
+              "advanceWall"
+            ]
+          },
+          {
+            "site": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q:151:3",
+            "operation": "advanceWall",
+            "effect": "update",
+            "history": [
+              "startWork",
+              "advanceWall"
+            ]
+          },
+          {
+            "site": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q:151:3",
+            "operation": "advanceWall",
+            "effect": "update",
+            "history": [
+              "advanceWall"
+            ]
+          },
+          {
+            "site": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q:151:3",
+            "operation": "advanceWall",
+            "effect": "update",
+            "history": [
+              "advanceWall"
+            ]
+          },
+          {
+            "site": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q:151:3",
+            "operation": "advanceWall",
+            "effect": "update",
+            "history": [
+              "startWork",
+              "advanceWall"
+            ]
+          },
+          {
+            "site": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q:151:3",
+            "operation": "advanceWall",
+            "effect": "update",
+            "history": [
+              "startWork",
+              "advanceWall"
+            ]
+          },
+          {
+            "site": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q:151:3",
+            "operation": "advanceWall",
+            "effect": "update",
+            "history": [
+              "advanceWall"
+            ]
+          },
+          {
+            "site": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q:151:3",
+            "operation": "advanceWall",
+            "effect": "update",
+            "history": [
+              "advanceWall"
+            ]
+          }
+        ]
+      },
+      "afterTest": {
+        "exit": 1,
+        "seconds": 0.465,
+        "securityRefused": true,
+        "gates": [],
+        "fixes": [
+          {
+            "site": {
+              "col": 3,
+              "file": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q",
+              "line": 151
+            },
+            "operation": "advanceWall"
+          },
+          {
+            "site": {
+              "col": 3,
+              "file": "$derived/child-stage/16c68cbdeab94206ae0a04b64feb30dbbbda706306a645e1dfd325e1d3ab28fd/schema.q",
+              "line": 157
+            },
+            "operation": "finishJob"
+          }
+        ]
+      }
+    },
+    {
+      "wave": 26,
+      "lane": "018-snapback-livestock-ultrasound-scans",
+      "sha256": "2c2291b716f699e4b0e367b4fae916cb727a2947d0ee261682e6773bf9fa4938",
+      "checkExit": 0,
+      "gates": [],
+      "checkFixes": [],
+      "fresh": {
+        "exit": 1,
+        "seconds": 67.348,
+        "securityRefused": true,
+        "gates": [],
+        "fixes": [
+          {
+            "site": {
+              "col": 10,
+              "file": "$derived/sibling-approval/8659fc62e316e43a5802e0df26bd7606683cd128ac2f54a99b259f8a84afb039/schema.q",
+              "line": 182
+            },
+            "operation": "addRescan"
+          }
+        ]
+      },
+      "test": {
+        "exit": 1,
+        "seconds": 194.286,
+        "witnesses": [
+          {
+            "site": "$derived/sibling-approval/8659fc62e316e43a5802e0df26bd7606683cd128ac2f54a99b259f8a84afb039/schema.q:182:10",
+            "operation": "addRescan",
+            "effect": "insert",
+            "history": [
+              "confirmVisit",
+              "advanceVisit",
+              "addScan",
+              "setRestriction",
+              "addRescan"
+            ]
+          },
+          {
+            "site": "$derived/sibling-approval/8659fc62e316e43a5802e0df26bd7606683cd128ac2f54a99b259f8a84afb039/schema.q:182:10",
+            "operation": "addRescan",
+            "effect": "insert",
+            "history": [
+              "confirmVisit",
+              "advanceVisit",
+              "addScan",
+              "setRestriction",
+              "addRescan"
+            ]
+          },
+          {
+            "site": "$derived/sibling-approval/8659fc62e316e43a5802e0df26bd7606683cd128ac2f54a99b259f8a84afb039/schema.q:182:10",
+            "operation": "addRescan",
+            "effect": "insert",
+            "history": [
+              "confirmVisit",
+              "advanceVisit",
+              "addScan",
+              "setRestriction",
+              "addRescan"
+            ]
+          },
+          {
+            "site": "$derived/sibling-approval/8659fc62e316e43a5802e0df26bd7606683cd128ac2f54a99b259f8a84afb039/schema.q:182:10",
+            "operation": "addRescan",
+            "effect": "insert",
+            "history": [
+              "confirmVisit",
+              "advanceVisit",
+              "addScan",
+              "setRestriction",
+              "addRescan"
+            ]
+          },
+          {
+            "site": "$derived/sibling-approval/8659fc62e316e43a5802e0df26bd7606683cd128ac2f54a99b259f8a84afb039/schema.q:182:10",
+            "operation": "addRescan",
+            "effect": "insert",
+            "history": [
+              "confirmVisit",
+              "advanceVisit",
+              "addScan",
+              "setRestriction",
+              "addRescan"
+            ]
+          },
+          {
+            "site": "$derived/sibling-approval/8659fc62e316e43a5802e0df26bd7606683cd128ac2f54a99b259f8a84afb039/schema.q:182:10",
+            "operation": "addRescan",
+            "effect": "insert",
+            "history": [
+              "confirmVisit",
+              "advanceVisit",
+              "addScan",
+              "setRestriction",
+              "addRescan"
+            ]
+          },
+          {
+            "site": "$derived/sibling-approval/8659fc62e316e43a5802e0df26bd7606683cd128ac2f54a99b259f8a84afb039/schema.q:182:10",
+            "operation": "addRescan",
+            "effect": "insert",
+            "history": [
+              "confirmVisit",
+              "advanceVisit",
+              "addScan",
+              "setRestriction",
+              "addRescan"
+            ]
+          },
+          {
+            "site": "$derived/sibling-approval/8659fc62e316e43a5802e0df26bd7606683cd128ac2f54a99b259f8a84afb039/schema.q:182:10",
+            "operation": "addRescan",
+            "effect": "insert",
+            "history": [
+              "confirmVisit",
+              "advanceVisit",
+              "addScan",
+              "setRestriction",
+              "addRescan"
+            ]
+          }
+        ]
+      },
+      "afterTest": {
+        "exit": 1,
+        "seconds": 0.623,
+        "securityRefused": true,
+        "gates": [],
+        "fixes": [
+          {
+            "site": {
+              "col": 10,
+              "file": "$derived/sibling-approval/8659fc62e316e43a5802e0df26bd7606683cd128ac2f54a99b259f8a84afb039/schema.q",
+              "line": 182
+            },
+            "operation": "addRescan"
+          }
+        ]
+      }
+    },
+    {
+      "wave": 26,
+      "lane": "020-snapback-llama-trekking-trips",
+      "sha256": "af9b0c4e848274d2998b09549265aa2da47101a4c4f7d91f8ce659b5c26195f0",
+      "checkExit": 1,
+      "gates": [
+        {
+          "code": "N_APPROVAL_NOT_ENFORCED",
+          "site": "schema.q:108:3",
+          "id": "54aa3f289c38c6063e23cb9bda60dec85f8340a3c3d5286ae303d126d7a90a0f",
+          "message": "treks.routeApproved: approval is recorded but no lifecycle effect inspects it; is this an informational record or a required approval?"
+        }
+      ],
+      "checkFixes": [],
+      "fresh": {
+        "exit": 1,
+        "seconds": 51.127,
+        "securityRefused": true,
+        "gates": [
+          {
+            "code": "N_APPROVAL_NOT_ENFORCED",
+            "site": "schema.q:108:3",
+            "id": "54aa3f289c38c6063e23cb9bda60dec85f8340a3c3d5286ae303d126d7a90a0f",
+            "message": "treks.routeApproved: approval is recorded but no lifecycle effect inspects it; is this an informational record or a required approval?"
+          }
+        ],
+        "fixes": []
+      },
+      "test": {
+        "exit": 1,
+        "seconds": 119.197,
+        "witnesses": []
+      },
+      "afterTest": {
+        "exit": 1,
+        "seconds": 51.504,
+        "securityRefused": true,
+        "gates": [
+          {
+            "code": "N_APPROVAL_NOT_ENFORCED",
+            "site": "schema.q:108:3",
+            "id": "54aa3f289c38c6063e23cb9bda60dec85f8340a3c3d5286ae303d126d7a90a0f",
+            "message": "treks.routeApproved: approval is recorded but no lifecycle effect inspects it; is this an informational record or a required approval?"
+          }
+        ],
+        "fixes": []
+      }
+    },
+    {
+      "wave": 26,
+      "lane": "024-snapback-billiard-table-relocations",
+      "sha256": "8ae7c25b3219976a069f179b3432da1dba2902a4b4aa8c76c2cf042f46f5f94a",
+      "checkExit": 0,
+      "gates": [],
+      "checkFixes": [],
+      "fresh": {
+        "exit": 0,
+        "seconds": 0.644,
+        "securityRefused": false,
+        "gates": [],
+        "fixes": []
+      },
+      "test": {
+        "exit": 0,
+        "seconds": 21.475,
+        "witnesses": []
+      },
+      "afterTest": {
+        "exit": 0,
+        "seconds": 0.471,
+        "securityRefused": false,
+        "gates": [],
+        "fixes": []
+      }
+    },
+    {
+      "wave": 26,
+      "lane": "025-snapback-lifeguard-certification-exams",
+      "sha256": "517e71211d367585cead916eda6c8cb27993d24921788ea5368ab36643249a1c",
+      "checkExit": 0,
+      "gates": [],
+      "checkFixes": [],
+      "fresh": {
+        "exit": 1,
+        "seconds": 41.983,
+        "securityRefused": true,
+        "gates": [],
+        "fixes": [
+          {
+            "site": {
+              "col": 10,
+              "file": "$derived/repeat-create/b7309e662794afc3369c6d457f05bfb258569f304777e30b79b861b211a29325/schema.q",
+              "line": 174
+            },
+            "operation": "retest"
+          },
+          {
+            "site": {
+              "col": 10,
+              "file": "$derived/approval-history/45c341e20643b838f9d857be4564d87583029455f58518c4f61fd8cd95c51cdf/schema.q",
+              "line": 174
+            },
+            "operation": "logExam"
+          }
+        ]
+      },
+      "test": {
+        "exit": 1,
+        "seconds": 101.823,
+        "witnesses": [
+          {
+            "site": "$derived/repeat-create/b7309e662794afc3369c6d457f05bfb258569f304777e30b79b861b211a29325/schema.q:174:10",
+            "operation": "retest",
+            "effect": "insert",
+            "history": [
+              "recordWritten",
+              "recordSwim",
+              "recordRescue",
+              "retest",
+              "retest"
+            ]
+          },
+          {
+            "site": "$derived/repeat-create/b7309e662794afc3369c6d457f05bfb258569f304777e30b79b861b211a29325/schema.q:174:10",
+            "operation": "retest",
+            "effect": "insert",
+            "history": [
+              "recordWritten",
+              "recordSwim",
+              "recordRescue",
+              "retest",
+              "retest"
+            ]
+          },
+          {
+            "site": "$derived/repeat-create/b7309e662794afc3369c6d457f05bfb258569f304777e30b79b861b211a29325/schema.q:174:10",
+            "operation": "retest",
+            "effect": "insert",
+            "history": [
+              "recordWritten",
+              "recordSwim",
+              "recordRescue",
+              "retest",
+              "recordWritten",
+              "retest"
+            ]
+          },
+          {
+            "site": "$derived/repeat-create/b7309e662794afc3369c6d457f05bfb258569f304777e30b79b861b211a29325/schema.q:174:10",
+            "operation": "retest",
+            "effect": "insert",
+            "history": [
+              "recordWritten",
+              "recordSwim",
+              "recordRescue",
+              "retest",
+              "recordWritten",
+              "retest"
+            ]
+          },
+          {
+            "site": "$derived/repeat-create/b7309e662794afc3369c6d457f05bfb258569f304777e30b79b861b211a29325/schema.q:174:10",
+            "operation": "retest",
+            "effect": "insert",
+            "history": [
+              "recordWritten",
+              "recordSwim",
+              "recordRescue",
+              "retest",
+              "recordWritten",
+              "recordWritten",
+              "retest"
+            ]
+          },
+          {
+            "site": "$derived/repeat-create/b7309e662794afc3369c6d457f05bfb258569f304777e30b79b861b211a29325/schema.q:174:10",
+            "operation": "retest",
+            "effect": "insert",
+            "history": [
+              "recordWritten",
+              "recordSwim",
+              "recordRescue",
+              "retest",
+              "recordWritten",
+              "recordWritten",
+              "retest"
+            ]
+          },
+          {
+            "site": "$derived/approval-history/45c341e20643b838f9d857be4564d87583029455f58518c4f61fd8cd95c51cdf/schema.q:174:10",
+            "operation": "logExam",
+            "effect": "insert",
+            "history": [
+              "recordWritten",
+              "recordSwim",
+              "recordRescue",
+              "retest",
+              "recordWritten",
+              "recordSwim",
+              "recordRescue",
+              "logExam"
+            ]
+          },
+          {
+            "site": "$derived/approval-history/45c341e20643b838f9d857be4564d87583029455f58518c4f61fd8cd95c51cdf/schema.q:174:10",
+            "operation": "logExam",
+            "effect": "insert",
+            "history": [
+              "recordWritten",
+              "recordSwim",
+              "recordRescue",
+              "retest",
+              "recordWritten",
+              "recordSwim",
+              "recordRescue",
+              "logExam",
+              "logExam"
+            ]
+          },
+          {
+            "site": "$derived/repeat-create/b7309e662794afc3369c6d457f05bfb258569f304777e30b79b861b211a29325/schema.q:174:10",
+            "operation": "retest",
+            "effect": "insert",
+            "history": [
+              "recordWritten",
+              "recordSwim",
+              "recordRescue",
+              "retest",
+              "recordWritten",
+              "recordSwim",
+              "recordRescue",
+              "retest"
+            ]
+          },
+          {
+            "site": "$derived/approval-history/45c341e20643b838f9d857be4564d87583029455f58518c4f61fd8cd95c51cdf/schema.q:174:10",
+            "operation": "retest",
+            "effect": "insert",
+            "history": [
+              "recordWritten",
+              "recordSwim",
+              "recordRescue",
+              "retest",
+              "recordWritten",
+              "recordSwim",
+              "recordRescue",
+              "retest"
+            ]
+          },
+          {
+            "site": "$derived/repeat-create/b7309e662794afc3369c6d457f05bfb258569f304777e30b79b861b211a29325/schema.q:174:10",
+            "operation": "retest",
+            "effect": "insert",
+            "history": [
+              "recordWritten",
+              "recordSwim",
+              "recordRescue",
+              "retest",
+              "recordWritten",
+              "recordSwim",
+              "recordRescue",
+              "retest",
+              "retest"
+            ]
+          },
+          {
+            "site": "$derived/approval-history/45c341e20643b838f9d857be4564d87583029455f58518c4f61fd8cd95c51cdf/schema.q:174:10",
+            "operation": "retest",
+            "effect": "insert",
+            "history": [
+              "recordWritten",
+              "recordSwim",
+              "recordRescue",
+              "retest",
+              "recordWritten",
+              "recordSwim",
+              "recordRescue",
+              "retest",
+              "retest"
+            ]
+          }
+        ]
+      },
+      "afterTest": {
+        "exit": 1,
+        "seconds": 0.575,
+        "securityRefused": true,
+        "gates": [],
+        "fixes": [
+          {
+            "site": {
+              "col": 10,
+              "file": "$derived/repeat-create/b7309e662794afc3369c6d457f05bfb258569f304777e30b79b861b211a29325/schema.q",
+              "line": 174
+            },
+            "operation": "retest"
+          },
+          {
+            "site": {
+              "col": 10,
+              "file": "$derived/approval-history/45c341e20643b838f9d857be4564d87583029455f58518c4f61fd8cd95c51cdf/schema.q",
+              "line": 174
+            },
+            "operation": "logExam"
+          }
+        ]
+      }
+    },
+    {
+      "wave": 26,
+      "lane": "031-snapback-ice-machine-cleanings",
+      "sha256": "ef0a727b03b295ac02e41bd61ffb33e14ab3f2b4aa52e230f49ba4e25ccaa1bc",
+      "checkExit": 0,
+      "gates": [],
+      "checkFixes": [],
+      "fresh": {
+        "exit": 0,
+        "seconds": 0.665,
+        "securityRefused": false,
+        "gates": [],
+        "fixes": []
+      },
+      "test": {
+        "exit": 0,
+        "seconds": 28.658,
+        "witnesses": []
+      },
+      "afterTest": {
+        "exit": 0,
+        "seconds": 0.592,
+        "securityRefused": false,
+        "gates": [],
+        "fixes": []
+      }
+    },
+    {
+      "wave": 26,
+      "lane": "033-snapback-asphalt-sealcoating-jobs",
+      "sha256": "3c988108bc905a72ae4c7f7ed2a5b9678dc0a950a03171c759ca4496a1cf1cbf",
+      "checkExit": 0,
+      "gates": [],
+      "checkFixes": [],
+      "fresh": {
+        "exit": 1,
+        "seconds": 82.276,
+        "securityRefused": true,
+        "gates": [],
+        "fixes": [
+          {
+            "site": {
+              "col": 3,
+              "file": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489",
+              "line": 154
+            },
+            "operation": "signFailing"
+          }
+        ]
+      },
+      "test": {
+        "exit": 1,
+        "seconds": 211.195,
+        "witnesses": [
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "approveSeal",
+              "signFailing"
+            ]
+          },
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "approveSeal",
+              "approveSeal",
+              "signFailing"
+            ]
+          },
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "approveSeal",
+              "approveSeal",
+              "signFailing"
+            ]
+          },
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "advanceStatus",
+              "approveSeal",
+              "signFailing"
+            ]
+          },
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "advanceStatus",
+              "approveSeal",
+              "signFailing"
+            ]
+          },
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "approveSeal",
+              "approveSeal",
+              "advanceStatus",
+              "signFailing"
+            ]
+          },
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "approveSeal",
+              "approveSeal",
+              "advanceStatus",
+              "signFailing"
+            ]
+          },
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "approveSeal",
+              "signFailing"
+            ]
+          },
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "approveSeal",
+              "approveSeal",
+              "signFailing"
+            ]
+          },
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "approveSeal",
+              "approveSeal",
+              "signFailing"
+            ]
+          },
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "advanceStatus",
+              "approveSeal",
+              "signFailing"
+            ]
+          },
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "advanceStatus",
+              "approveSeal",
+              "signFailing"
+            ]
+          },
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "approveSeal",
+              "approveSeal",
+              "advanceStatus",
+              "signFailing"
+            ]
+          },
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "approveSeal",
+              "approveSeal",
+              "advanceStatus",
+              "signFailing"
+            ]
+          },
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "advanceStatus",
+              "approveSeal",
+              "advanceStatus",
+              "signFailing"
+            ]
+          },
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "advanceStatus",
+              "advanceStatus",
+              "approveSeal",
+              "signFailing"
+            ]
+          },
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "advanceStatus",
+              "advanceStatus",
+              "approveSeal",
+              "signFailing"
+            ]
+          },
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "approveSeal",
+              "approveSeal",
+              "advanceStatus",
+              "advanceStatus",
+              "signFailing"
+            ]
+          },
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "approveSeal",
+              "approveSeal",
+              "advanceStatus",
+              "advanceStatus",
+              "signFailing"
+            ]
+          },
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "advanceStatus",
+              "approveSeal",
+              "advanceStatus",
+              "advanceStatus",
+              "signFailing"
+            ]
+          },
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "approveSeal",
+              "approveSeal",
+              "advanceStatus",
+              "advanceStatus",
+              "advanceStatus",
+              "signFailing"
+            ]
+          },
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "approveSeal",
+              "approveSeal",
+              "advanceStatus",
+              "advanceStatus",
+              "advanceStatus",
+              "signFailing"
+            ]
+          },
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "advanceStatus",
+              "approveSeal",
+              "advanceStatus",
+              "advanceStatus",
+              "approveSeal",
+              "signFailing"
+            ]
+          },
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "approveSeal",
+              "approveSeal",
+              "advanceStatus",
+              "advanceStatus",
+              "advanceStatus",
+              "advanceStatus",
+              "signFailing"
+            ]
+          },
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "approveSeal",
+              "approveSeal",
+              "advanceStatus",
+              "advanceStatus",
+              "advanceStatus",
+              "advanceStatus",
+              "signFailing"
+            ]
+          },
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "approveSeal",
+              "approveSeal",
+              "advanceStatus",
+              "advanceStatus",
+              "advanceStatus",
+              "signFailing",
+              "signFailing"
+            ]
+          },
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "approveSeal",
+              "approveSeal",
+              "advanceStatus",
+              "advanceStatus",
+              "advanceStatus",
+              "signFailing",
+              "signFailing"
+            ]
+          },
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "approveSeal",
+              "approveSeal",
+              "advanceStatus",
+              "advanceStatus",
+              "advanceStatus",
+              "signFailing",
+              "advanceStatus",
+              "signFailing"
+            ]
+          },
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "approveSeal",
+              "approveSeal",
+              "advanceStatus",
+              "advanceStatus",
+              "advanceStatus",
+              "advanceStatus",
+              "advanceStatus",
+              "signFailing"
+            ]
+          },
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "approveSeal",
+              "approveSeal",
+              "advanceStatus",
+              "advanceStatus",
+              "advanceStatus",
+              "advanceStatus",
+              "advanceStatus",
+              "signFailing"
+            ]
+          },
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "approveSeal",
+              "approveSeal",
+              "advanceStatus",
+              "advanceStatus",
+              "advanceStatus",
+              "advanceStatus",
+              "signFailing",
+              "signFailing"
+            ]
+          },
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "approveSeal",
+              "approveSeal",
+              "advanceStatus",
+              "advanceStatus",
+              "advanceStatus",
+              "advanceStatus",
+              "signFailing",
+              "signFailing"
+            ]
+          },
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "approveSeal",
+              "signFailing"
+            ]
+          },
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "approveSeal",
+              "approveSeal",
+              "signFailing"
+            ]
+          },
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "approveSeal",
+              "approveSeal",
+              "signFailing"
+            ]
+          },
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "advanceStatus",
+              "approveSeal",
+              "signFailing"
+            ]
+          },
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "advanceStatus",
+              "approveSeal",
+              "signFailing"
+            ]
+          },
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "approveSeal",
+              "approveSeal",
+              "advanceStatus",
+              "signFailing"
+            ]
+          },
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "approveSeal",
+              "approveSeal",
+              "advanceStatus",
+              "signFailing"
+            ]
+          },
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "approveSeal",
+              "signFailing"
+            ]
+          },
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "approveSeal",
+              "approveSeal",
+              "signFailing"
+            ]
+          },
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "approveSeal",
+              "approveSeal",
+              "signFailing"
+            ]
+          },
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "advanceStatus",
+              "approveSeal",
+              "signFailing"
+            ]
+          },
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "advanceStatus",
+              "approveSeal",
+              "signFailing"
+            ]
+          },
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "approveSeal",
+              "approveSeal",
+              "advanceStatus",
+              "signFailing"
+            ]
+          },
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "approveSeal",
+              "approveSeal",
+              "advanceStatus",
+              "signFailing"
+            ]
+          },
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "advanceStatus",
+              "approveSeal",
+              "advanceStatus",
+              "signFailing"
+            ]
+          },
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "advanceStatus",
+              "advanceStatus",
+              "approveSeal",
+              "signFailing"
+            ]
+          },
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "advanceStatus",
+              "advanceStatus",
+              "approveSeal",
+              "signFailing"
+            ]
+          },
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "approveSeal",
+              "approveSeal",
+              "advanceStatus",
+              "advanceStatus",
+              "signFailing"
+            ]
+          },
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "approveSeal",
+              "approveSeal",
+              "advanceStatus",
+              "advanceStatus",
+              "signFailing"
+            ]
+          },
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "advanceStatus",
+              "approveSeal",
+              "advanceStatus",
+              "advanceStatus",
+              "signFailing"
+            ]
+          },
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "approveSeal",
+              "approveSeal",
+              "advanceStatus",
+              "advanceStatus",
+              "advanceStatus",
+              "signFailing"
+            ]
+          },
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "approveSeal",
+              "approveSeal",
+              "advanceStatus",
+              "advanceStatus",
+              "advanceStatus",
+              "signFailing"
+            ]
+          },
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "advanceStatus",
+              "approveSeal",
+              "advanceStatus",
+              "advanceStatus",
+              "approveSeal",
+              "signFailing"
+            ]
+          },
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "approveSeal",
+              "approveSeal",
+              "advanceStatus",
+              "advanceStatus",
+              "advanceStatus",
+              "advanceStatus",
+              "signFailing"
+            ]
+          },
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "approveSeal",
+              "approveSeal",
+              "advanceStatus",
+              "advanceStatus",
+              "advanceStatus",
+              "advanceStatus",
+              "signFailing"
+            ]
+          },
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "approveSeal",
+              "approveSeal",
+              "advanceStatus",
+              "advanceStatus",
+              "advanceStatus",
+              "signFailing",
+              "signFailing"
+            ]
+          },
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "approveSeal",
+              "approveSeal",
+              "advanceStatus",
+              "advanceStatus",
+              "advanceStatus",
+              "signFailing",
+              "signFailing"
+            ]
+          },
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "approveSeal",
+              "approveSeal",
+              "advanceStatus",
+              "advanceStatus",
+              "advanceStatus",
+              "signFailing",
+              "advanceStatus",
+              "signFailing"
+            ]
+          },
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "approveSeal",
+              "approveSeal",
+              "advanceStatus",
+              "advanceStatus",
+              "advanceStatus",
+              "advanceStatus",
+              "advanceStatus",
+              "signFailing"
+            ]
+          },
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "approveSeal",
+              "approveSeal",
+              "advanceStatus",
+              "advanceStatus",
+              "advanceStatus",
+              "advanceStatus",
+              "advanceStatus",
+              "signFailing"
+            ]
+          },
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "approveSeal",
+              "approveSeal",
+              "advanceStatus",
+              "advanceStatus",
+              "advanceStatus",
+              "advanceStatus",
+              "signFailing",
+              "signFailing"
+            ]
+          },
+          {
+            "site": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489:154:3",
+            "operation": "signFailing",
+            "effect": "update",
+            "history": [
+              "signFailing",
+              "signFailing",
+              "acceptQuote",
+              "acceptQuote",
+              "approveSeal",
+              "approveSeal",
+              "advanceStatus",
+              "advanceStatus",
+              "advanceStatus",
+              "advanceStatus",
+              "signFailing",
+              "signFailing"
+            ]
+          }
+        ]
+      },
+      "afterTest": {
+        "exit": 1,
+        "seconds": 0.649,
+        "securityRefused": true,
+        "gates": [],
+        "fixes": [
+          {
+            "site": {
+              "col": 3,
+              "file": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489",
+              "line": 154
+            },
+            "operation": "signFailing"
+          }
+        ]
+      }
+    },
+    {
+      "wave": 26,
+      "lane": "034-snapback-luxury-watch-servicing",
+      "sha256": "13adf0cd2438746824b697da4d93c31720c0560ba2dd45eb0a77b76bdfe4cc51",
+      "checkExit": 0,
+      "gates": [],
+      "checkFixes": [],
+      "fresh": {
+        "exit": 0,
+        "seconds": 0.452,
+        "securityRefused": false,
+        "gates": [],
+        "fixes": []
+      },
+      "test": {
+        "exit": 0,
+        "seconds": 28.467,
+        "witnesses": []
+      },
+      "afterTest": {
+        "exit": 0,
+        "seconds": 0.424,
+        "securityRefused": false,
+        "gates": [],
+        "fixes": []
+      }
+    },
+    {
+      "wave": 26,
+      "lane": "036-snapback-bronze-statue-casting",
+      "sha256": "39de347c3b8e982bb25cb4a7fa708c1e2cc82d12432dc4fa58df779ca7a82905",
+      "checkExit": 1,
+      "gates": [
+        {
+          "code": "N_APPROVAL_NOT_ENFORCED",
+          "site": "schema.q:93:5",
+          "id": "167c92106e311bdef9811f7c353204c82753ca614a6ac694abe9b83c2d517576",
+          "message": "castings.modelApprovedAt: approval is recorded but no lifecycle effect inspects it; is this an informational record or a required approval?"
+        }
+      ],
+      "checkFixes": [],
+      "fresh": {
+        "exit": 1,
+        "seconds": 0.58,
+        "securityRefused": true,
+        "gates": [
+          {
+            "code": "N_APPROVAL_NOT_ENFORCED",
+            "site": "schema.q:93:5",
+            "id": "167c92106e311bdef9811f7c353204c82753ca614a6ac694abe9b83c2d517576",
+            "message": "castings.modelApprovedAt: approval is recorded but no lifecycle effect inspects it; is this an informational record or a required approval?"
+          }
+        ],
+        "fixes": []
+      },
+      "test": {
+        "exit": 1,
+        "seconds": 14.057,
+        "witnesses": []
+      },
+      "afterTest": {
+        "exit": 1,
+        "seconds": 0.459,
+        "securityRefused": true,
+        "gates": [
+          {
+            "code": "N_APPROVAL_NOT_ENFORCED",
+            "site": "schema.q:93:5",
+            "id": "167c92106e311bdef9811f7c353204c82753ca614a6ac694abe9b83c2d517576",
+            "message": "castings.modelApprovedAt: approval is recorded but no lifecycle effect inspects it; is this an informational record or a required approval?"
+          }
+        ],
+        "fixes": []
+      }
+    },
+    {
+      "wave": 26,
+      "lane": "045-snapback-storm-shelter-installs",
+      "sha256": "0b2bbdf528d296c72f7b6fef6ac03e6123e199c22a111687baa27799244a9685",
+      "checkExit": 1,
+      "gates": [
+        {
+          "code": "N_BLANK_TEXT_GUARD",
+          "site": "schema.q:160:3",
+          "id": "dfeca7137133d44d2510cf8d45f63d4c600797a1d146d05a4a40e4ee788b27eb",
+          "message": "decideClaim: a reason/consent/assessment is compared with empty text but whitespace still passes; is nonblank evidence required?"
+        }
+      ],
+      "checkFixes": [],
+      "fresh": {
+        "exit": 1,
+        "seconds": 0.971,
+        "securityRefused": true,
+        "gates": [
+          {
+            "code": "N_BLANK_TEXT_GUARD",
+            "site": "schema.q:160:3",
+            "id": "dfeca7137133d44d2510cf8d45f63d4c600797a1d146d05a4a40e4ee788b27eb",
+            "message": "decideClaim: a reason/consent/assessment is compared with empty text but whitespace still passes; is nonblank evidence required?"
+          }
+        ],
+        "fixes": []
+      },
+      "test": {
+        "exit": 1,
+        "seconds": 15.052,
+        "witnesses": []
+      },
+      "afterTest": {
+        "exit": 1,
+        "seconds": 0.816,
+        "securityRefused": true,
+        "gates": [
+          {
+            "code": "N_BLANK_TEXT_GUARD",
+            "site": "schema.q:160:3",
+            "id": "dfeca7137133d44d2510cf8d45f63d4c600797a1d146d05a4a40e4ee788b27eb",
+            "message": "decideClaim: a reason/consent/assessment is compared with empty text but whitespace still passes; is nonblank evidence required?"
+          }
+        ],
+        "fixes": []
+      }
+    },
+    {
+      "wave": 26,
+      "lane": "046-snapback-sump-pump-repairs",
+      "sha256": "9c58e1e646f2e04d498b73ba69fa804b24b6b9678885de6d0d82b45f0765a666",
+      "checkExit": 1,
+      "gates": [
+        {
+          "code": "N_APPROVAL_NOT_ENFORCED",
+          "site": "schema.q:158:10",
+          "id": "be5cda9541ab36a9a51325ca445ba695232e74fdbaab9277524882c41235ead6",
+          "message": "backupApprovals.job: a separately authorized approval for jobs is recorded but no effect requires it; is it informational?"
+        }
+      ],
+      "checkFixes": [],
+      "fresh": {
+        "exit": 1,
+        "seconds": 0.531,
+        "securityRefused": true,
+        "gates": [
+          {
+            "code": "N_APPROVAL_NOT_ENFORCED",
+            "site": "schema.q:158:10",
+            "id": "be5cda9541ab36a9a51325ca445ba695232e74fdbaab9277524882c41235ead6",
+            "message": "backupApprovals.job: a separately authorized approval for jobs is recorded but no effect requires it; is it informational?"
+          }
+        ],
+        "fixes": []
+      },
+      "test": {
+        "exit": 1,
+        "seconds": 23.908,
+        "witnesses": []
+      },
+      "afterTest": {
+        "exit": 1,
+        "seconds": 0.649,
+        "securityRefused": true,
+        "gates": [
+          {
+            "code": "N_APPROVAL_NOT_ENFORCED",
+            "site": "schema.q:158:10",
+            "id": "be5cda9541ab36a9a51325ca445ba695232e74fdbaab9277524882c41235ead6",
+            "message": "backupApprovals.job: a separately authorized approval for jobs is recorded but no effect requires it; is it informational?"
+          }
+        ],
+        "fixes": []
+      }
+    },
+    {
+      "wave": 26,
+      "lane": "049-snapback-wedding-dj-bookings",
+      "sha256": "c634519d6f4540619b2a5ee3939745e7515d7a47f995eeb7f04acac1c905faf5",
+      "checkExit": 0,
+      "gates": [],
+      "checkFixes": [],
+      "fresh": {
+        "exit": 0,
+        "seconds": 0.511,
+        "securityRefused": false,
+        "gates": [],
+        "fixes": []
+      },
+      "test": {
+        "exit": 0,
+        "seconds": 21.57,
+        "witnesses": []
+      },
+      "afterTest": {
+        "exit": 0,
+        "seconds": 0.53,
+        "securityRefused": false,
+        "gates": [],
+        "fixes": []
+      }
+    }
+  ]
+}

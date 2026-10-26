@@ -636,6 +636,9 @@ card/rules/6:claimLadderKey | never
 card/rules/7:writeLadderNote | never
 card/rules/8:ladderPut | never
 card/security/1:writePrivateNote | never
+card/security/2:approve | never
+card/security/2:create | never
+card/security/2:finish | never
 card/sequences/1:createConversation | never
 card/sequences/1:delivered | never
 card/sequences/1:send | never

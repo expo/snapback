@@ -227,7 +227,8 @@ fn bind_table(catalog: &Catalog, info: &TableInfo, diagnostics: &mut Vec<Diagnos
         constraints.push(Constraint::Immutable { fields: fields.clone() });
     }
     for column in &decl.columns {
-        if let TypeKind::Text { min, format, .. } = &column.type_.kind
+        let mut kind=&column.type_.kind;while let TypeKind::List{item,..}=kind{kind=&item.kind;}
+        if let TypeKind::Text { min, format, .. } = kind
             && (min.is_some() || format.is_some())
         {
             constraints.push(Constraint::Text { field: column.name.clone(), min: min.unwrap_or(0), format: format.as_deref().map(|f| match f { "handle" => core::TextFormat::Handle, "url" => core::TextFormat::Url, "email" => core::TextFormat::Email, _ => unreachable!("parser text format") }) });

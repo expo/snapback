@@ -33,7 +33,7 @@ pub(crate) fn validate_adoption_input(schema:&Schema,name:&str,row:&Value)->Resu
         if !table.engine_field(column) {validate_column(name,column,kind,row.field(column).ok())?;}
     }
     for constraint in &table.constraints {
-        if let Constraint::Text{field,min,format}=constraint && !table.engine_field(field) && let Ok(Value::String(text))=row.field(field){validate_text(&format!("{name}.{field}"),text,*min,*format)?;}
+        if let Constraint::Text{field,min,format}=constraint && !table.engine_field(field) && let Ok(value)=row.field(field){validate_text_value(&format!("{name}.{field}"),value,*min,*format)?;}
     }
     Ok(())
 }
@@ -78,9 +78,9 @@ fn validate_image(schema: &Schema, table_name: &str, row: &Value, viewer: Option
     }
     for constraint in &table.constraints {
         if let Constraint::Text { field, min, format } = constraint
-            && let Some(Value::String(text)) = object.get(field)
+            && let Some(value) = object.get(field)
         {
-            validate_text(&format!("{table_name}.{field}"), text, *min, *format).map_err(|error| RuntimeError::Constraint(error.to_string().trim_start_matches("E_INPUT: ").to_owned()))?;
+            validate_text_value(&format!("{table_name}.{field}"), value, *min, *format).map_err(|error| RuntimeError::Constraint(error.to_string().trim_start_matches("E_INPUT: ").to_owned()))?;
         }
     }
     Ok(())
@@ -141,11 +141,16 @@ fn describe(value: &Value) -> String {
     }
 }
 
+// @ref LLP 3000.036.004.000#12-wave-28-inference-and-visible-evidence — list leaves retain the same persisted text constraint.
+pub fn validate_text_value(label:&str,value:&Value,min:u32,format:Option<TextFormat>)->Result<(),RuntimeError>{
+    match value{Value::String(text)=>validate_text(label,text,min,format),Value::Array(items)=>{for item in items{validate_text_value(label,item,min,format)?;}Ok(())},_=>Ok(())}
+}
+
 pub fn validate_text(label: &str, text: &str, min: u32, format: Option<TextFormat>) -> Result<(), RuntimeError> {
     // @ref LLP 3000.036.004#6-bakeoff-repairs — minimums measure evidence, while maxima still measure the complete value.
-    let length = text.chars().filter(|c| !c.is_whitespace()).count();
+    let length = crate::visible_text::visible_length(text);
     if length < min as usize {
-        return Err(RuntimeError::Input(format!("{label} needs at least {min} non-whitespace characters; got {length}")));
+        return Err(RuntimeError::Input(format!("{label} needs at least {min} visible characters (excluding whitespace/zero-width/format); got {length}")));
     }
     if let Some(format) = format
         && !format.matches(text)

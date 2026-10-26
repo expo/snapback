@@ -1,0 +1,37 @@
+#!/usr/bin/env python3
+"""Produce a portable, argument-free comparison for manual gate/refusal review."""
+import argparse,hashlib,json,pathlib
+from collections import Counter
+p=argparse.ArgumentParser();p.add_argument('--measurement-root',required=True);p.add_argument('--candidate',required=True);p.add_argument('--out',required=True);a=p.parse_args();root=pathlib.Path(a.measurement_root);candidate=root/a.candidate;out=pathlib.Path(a.out);out.mkdir(parents=True,exist_ok=True)
+def load(path):return json.loads(path.read_text())
+def site(s):return f"{s['file']}:{s['line']}:{s.get('col',1)}" if isinstance(s,dict) else s
+def fixes(r):return {(site(v['site']),v.get('operation','')) for phase in ['fresh','afterTest'] for v in r[phase]['fixes']}
+def gates(r):
+ groups={}
+ for n in r['notes']:groups.setdefault((n['code'],site(n['site'])),[]).append(n['message'])
+ check=[]
+ for g in r['gates']:
+  values=groups.get((g['code'],site(g['site'])),[]);message=g.get('message') or (values.pop(0) if values else '')
+  check.append((g['code'],site(g['site']),message))
+ combined=Counter(check)
+ for phase in ['fresh','afterTest']:combined|=Counter((g['code'],site(g['site']),g.get('message','')) for g in r[phase].get('gates',[]))
+ return combined
+base={(r['wave'],r['lane']):r for name in ['sec10-survey-baseline','sec10-survey-baseline-w15'] for r in load(root/name/'results.json')};rows=load(candidate/'results.json');assert len(rows)==len(base)==600
+newg=[];newf=[];newtests=[];unexpected=[];portable=[];watchdogs=[]
+for r in rows:
+ key=(r['wave'],r['lane']);b=base[key];assert r['sha256']==b['sha256'],key
+ if r['checkExit'] in [124,137] or r['checkExit']<0 or any(r[p]['exit'] in [124,137] or r[p]['exit']<0 or r[p]['exit']>=126 for p in ['fresh','test','afterTest']):watchdogs.append(key)
+ for phase in ['fresh','afterTest']:
+  if b[phase]['exit']==0 and r[phase]['exit']!=0 and not r[phase]['securityRefused']:unexpected.append(dict(wave=key[0],lane=key[1],phase=phase,exit=r[phase]['exit'],failure=r[phase].get('failure'),classification='pending manual review',reason='New non-security deployment failure; inspect external phase log before classifying.'))
+ if b['test']['exit']==0 and r['test']['exit']!=0 and not r['test']['witnesses'] and not r['gates']:unexpected.append(dict(wave=key[0],lane=key[1],phase='test',exit=r['test']['exit'],failure=r['test'].get('failure'),classification='pending manual review',reason='New test failure without parsed reachable evidence or a security gate.'))
+ for code,where,message in sorted((gates(r)-gates(b)).elements()):
+  descriptions=[message]
+  newg.append(dict(wave=key[0],lane=key[1],code=code,site=where,messages=descriptions,classification='pending manual review'))
+ for where,operation in sorted(fixes(r)-fixes(b)):newf.append(dict(wave=key[0],lane=key[1],site=where,operation=operation,classification='pending manual review'))
+ previous={(site(v['site']),v['operation']) for v in b['test']['witnesses']}
+ for witness in r['test']['witnesses']:
+  identity=(site(witness['site']),witness['operation'])
+  if identity not in previous and not any(x['wave']==key[0] and x['lane']==key[1] and (x['site'],x['operation'])==identity for x in newtests):newtests.append(dict(wave=key[0],lane=key[1],site=identity[0],operation=identity[1],history=witness['history'],classification='pending manual review'))
+ portable.append(dict(wave=key[0],lane=key[1],sourceSha256=r['sha256'],checkExit=r['checkExit'],gates=[dict(code=c,site=s,message=m) for c,s,m in sorted(gates(r).elements())],fresh=dict(exit=r['fresh']['exit'],securityRefused=r['fresh']['securityRefused'],gates=r['fresh'].get('gates',[]),fixes=[dict(site=site(v['site']),operation=v['operation']) for v in r['fresh']['fixes']]),test=dict(exit=r['test']['exit'],witnesses=r['test']['witnesses']),afterTest=dict(exit=r['afterTest']['exit'],securityRefused=r['afterTest']['securityRefused'],gates=r['afterTest'].get('gates',[]),fixes=[dict(site=site(v['site']),operation=v['operation']) for v in r['afterTest']['fixes']]),deploymentFixes=[dict(site=s,operation=o) for s,o in sorted(fixes(r))]))
+summary=dict(baseline='packed npm 0.4.40',candidate=load(candidate/'measurement.json'),projects=len(rows),sourceHashesMatch=True,watchdogs=watchdogs,newGates=newg,newDeploymentFixes=newf,newTestFixes=newtests,unexpectedFailures=unexpected,projectsWithNewGates=len({(x['wave'],x['lane']) for x in newg}),newlyRefusingFresh=sum(not base[(r['wave'],r['lane'])]['fresh']['securityRefused'] and r['fresh']['securityRefused'] for r in rows),newlyRefusingAfterTest=sum(not base[(r['wave'],r['lane'])]['afterTest']['securityRefused'] and r['afterTest']['securityRefused'] for r in rows))
+(out/'survey.json').write_text(json.dumps(portable,indent=2)+'\n');(out/'comparison.json').write_text(json.dumps(summary,indent=2)+'\n');print(json.dumps(dict(projects=len(rows),newGates=len(newg),newDeploymentFixes=len(newf),watchdogs=len(watchdogs))))

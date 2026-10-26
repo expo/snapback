@@ -15,19 +15,52 @@ fn probe_implies(admission:&RuleExpr,policy:&RuleExpr)->bool {
         _=>false,
     }
 }
+// Existing-row writes already establish existence of their exact selected
+// identity. A registration/edit split needs no role decision merely because
+// editing one's profile first requires that same profile to exist.
+fn existing_identity(catalog:&Catalog,bound:&Bound,write:&ast::Expr)->Option<RuleExpr>{
+    let ast::Expr::Write{op:ast::WriteOp::Update|ast::WriteOp::Upsert,table,keys,site,..}=write else{return None;};
+    let mut read=ast::ReadExpr{cursor_prefix:None,computed:Default::default(),order_keys:Vec::new(),table:table.clone(),keys:keys.clone(),index:None,range:None,matching:None,filter:None,seeks:Vec::new(),site:site.clone()};
+    if keys.len()==1&&keys[0].column.as_deref().is_none_or(|column|column=="id"){
+        let mut value=&keys[0].value;while let ast::Expr::Assert{value:inner,..}=value{value=inner;}
+        if let ast::Expr::Member{base,name,..}=value&&name=="id"{
+            let mut base=base.as_ref();while let ast::Expr::Assert{value:inner,..}=base{base=inner;}
+            if let ast::Expr::Read(selected)=base&&selected.table==*table{read=selected.clone();}
+        }
+    }
+    if read.filter.is_some()||read.range.is_some()||read.matching.is_some()||!read.seeks.is_empty()||!read.computed.is_empty(){return None;}
+    let decl=ast::RuleDecl{effect:ast::Effect::Read,bindings:Vec::new(),value:ast::Expr::Exists{read,site:site.clone()},site:site.clone()};
+    let rule=super::super::schema::bind_rule(catalog,&catalog.tables[table],&decl).ok()?;
+    let RuleExpr::Exists{table,index,key,equalities,..}=&rule else{return None;};
+    if !super::operation::safe(&rule)||!equalities.is_empty(){return None;}
+    let pairs=super::privilege::probe_pairs(bound,table,index,key,equalities);
+    if pairs.is_empty()||!pairs.iter().all(|(column,_)|matches!(bound.schema.tables[table].columns.get(column).map(snapback4_core::schema::ColumnType::required),Some(snapback4_core::schema::ColumnType::Id|snapback4_core::schema::ColumnType::Principal|snapback4_core::schema::ColumnType::Ref{..}))){return None;}
+    // Source exists is read-filtered; physical write selection alone must not
+    // erase a role/private audience carried by that existence requirement.
+    let definition=&bound.schema.tables[table];
+    if definition.expire.is_some()||definition.not_before.is_some()||definition.through.is_some(){return None;}
+    let read=terms(&definition.rules.read,&mut |term|if let RuleTerm::Field(column)=term&&let Some((_,value))=pairs.iter().find(|(name,_)|name==column){*term=value.clone();});
+    (kernel::implies(&RuleExpr::Allow,&read)==Ok(true)).then_some(rule)
+}
+fn without_identity(rule:RuleExpr,identity:&RuleExpr)->RuleExpr{
+    if probe_implies(identity,&rule){return RuleExpr::Allow;}
+    match rule{RuleExpr::And(parts)=>RuleExpr::And(parts.into_iter().map(|part|without_identity(part,identity)).collect()),other=>other}
+}
 pub(super) fn notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnostic>{
     let documents=sources.iter().map(|(file,text)|crate::parse_document(file,text).0).collect::<Vec<_>>();
     let catalog=Catalog::build(documents.clone(),&mut Vec::new());
     let mut writes=Vec::new();
     for doc in &documents{for p in &doc.programs{if p.kind!=ast::ProgramKind::Mutation{continue;}
         for (write,context) in super::authority_walk::writes(&catalog,p){
+            let identity=existing_identity(&catalog,bound,&write);
             let ast::Expr::Write{op,table,fields,site,..}=write else{continue;};
             let Some(info)=catalog.tables.get(&table)else{continue;};
-            let requirements=super::operation::requirements(&catalog,info,&context);
+            let requirements=super::operation::requirements(&catalog,info,&context).into_iter().map(|rule|if let Some(identity)=&identity{without_identity(rule,identity)}else{rule}).collect::<Vec<_>>();
             let t=&bound.schema.tables[&table];
             let gate=if op==ast::WriteOp::Update{t.update_rule_judged().into_owned()}else{t.rules.insert.clone()};
+            let require_guard=kernel::implies(&RuleExpr::Allow,&necessary(&RuleExpr::And(requirements.clone())))!=Ok(true);
             let admission=RuleExpr::And(requirements.into_iter().chain([gate]).collect());
-            writes.push((p,p.name.clone(),op,table,fields,site,admission));
+            writes.push((p,p.name.clone(),op,table,fields,site,admission,require_guard));
         }
     }}
     fn necessary(rule:&RuleExpr)->RuleExpr{match rule{
@@ -51,7 +84,7 @@ pub(super) fn notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnostic>{
         }}
     }}
     let mut out=Vec::new();let mut table_replaced=BTreeSet::new();
-    for (creator,name,op,table,fields,site,admission) in &writes {
+    for (creator,name,op,table,fields,site,admission,_) in &writes {
         if !matches!(op,ast::WriteOp::Insert|ast::WriteOp::Upsert){continue;}
         for (column,guard) in table_guards(&bound.schema.tables[table].rules.update) {
             let t=&bound.schema.tables[table];
@@ -66,7 +99,7 @@ pub(super) fn notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnostic>{
         }
     }
     let mut seen=BTreeSet::new();let mut replaced=table_replaced;
-    for (creator,name,op,table,fields,site,admission) in &writes{
+    for (creator,name,op,table,fields,site,admission,_) in &writes{
         if !matches!(op,ast::WriteOp::Insert|ast::WriteOp::Upsert){continue;}
         for ((file,editor,target,column),(conditional,guards)) in &specific{
             if !conditional||replaced.contains(&(creator.site.file.clone(),name.clone(),table.clone(),column.clone())){continue;}
@@ -89,15 +122,19 @@ pub(super) fn notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnostic>{
         }
     }
     seen.clear();
-    for (creator,name,op,table,fields,site,admission) in &writes{
+    for (creator,name,op,table,fields,site,admission,_) in &writes{
         if !matches!(op,ast::WriteOp::Insert|ast::WriteOp::Upsert){continue;}
-        for (_,editor,edit,other,patch,_,restricted) in &writes{
-            if *edit!=ast::WriteOp::Update||other!=table{continue;}
+        for (_,editor,edit,other,patch,_,restricted,from_require) in &writes{
+            if !matches!(edit,ast::WriteOp::Update|ast::WriteOp::Upsert)||other!=table{continue;}
             let restriction=necessary(restricted);
             if kernel::implies(&RuleExpr::Allow,&restriction)==Ok(true)||kernel::implies(admission,&restriction)!=Ok(false)||probe_implies(admission,&restriction){continue;}
-            let columns=patch.iter().filter(|f|!replaced.contains(&(creator.site.file.clone(),name.clone(),table.clone(),f.name.clone()))&&fields.iter().any(|insert|insert.name==f.name&&supplied(insert,creator))).map(|f|f.name.clone()).collect::<BTreeSet<_>>();
+            // Immutable identities repeated by an upsert are never edits.
+            // They do not supply an edit restriction to compare with birth.
+            let columns=patch.iter().filter(|f|!bound.schema.tables[table].immutable_fields().any(|c|c==&f.name)&&!replaced.contains(&(creator.site.file.clone(),name.clone(),table.clone(),f.name.clone()))&&!bound.schema.tables[table].column_writes.get(&f.name).is_some_and(|rule|probe_implies(&RuleExpr::And(vec![admission.clone(),rule.clone()]),&restriction))&&!update_only(bound,table,&f.name,&restriction)&&fields.iter().any(|insert|insert.name==f.name&&supplied(insert,creator))).map(|f|f.name.clone()).collect::<BTreeSet<_>>();
             if columns.is_empty()||!seen.insert((creator.site.file.clone(),name.clone(),table.clone(),columns.clone(),restriction.quarry())){continue;}
-            out.push(Diagnostic::new(site,"N_INSERT_WRITE_INTENT",format!("{name}: {table}.{} can be supplied at insert/upsert without the edit restriction of {editor}: {}; creation admission: {}",columns.into_iter().collect::<Vec<_>>().join(","),restriction.quarry(),admission.quarry()),"confirm whether the spec permits different creation authority; otherwise guard every insert/upsert arm too and declare column write only intent, then run snapback4 test").guide("security"));
+            let code=if *from_require{"N_INSERT_WRITE_INTENT"}else{"N_INSERT_TABLE_AUTHORITY"};
+            let repair=format!("declare `invariant {table}.COLUMN update only {}` for the named column to retain deliberate creation authority, or apply `COLUMN: <type> write <- {}` at both boundaries; one decision also suffices: check --ack-security ID --reason '<spec rationale>'",restriction.quarry(),restriction.quarry());
+            out.push(Diagnostic::new(site,code,format!("{name}: {table}.{} can be supplied at insert/upsert without the edit restriction of {editor}: {}; creation admission: {}",columns.into_iter().collect::<Vec<_>>().join(","),restriction.quarry(),admission.quarry()),repair).guide("security"));
         }
     }out
 }

@@ -5,18 +5,105 @@ use ast::{Expr, Stmt, WriteOp, ProgramKind, TypeKind};
 use snapback4_core::schema::ColumnType;
 mod eligibility;
 mod lifecycle;
+mod evidence;
+mod approval_records;
+mod approval_effects;
+pub(super) fn fresh_reference(value:&Expr,context:&ast::ProgramDecl,p:&ast::ProgramDecl,catalog:&Catalog,parent:&str)->bool{approval_records::fresh_reference(value,context,p,catalog,parent)}
+pub(super) fn approval_recording(kind:&ColumnType,value:Option<&Expr>)->bool{lifecycle::recording(kind,value)}
 fn note(out:&mut Vec<Diagnostic>,site:&Site,code:&str,message:String,repair:&str){out.push(Diagnostic::new(site,code,message,repair).guide("security"));}
 fn walk(e:&Expr,mut f:impl FnMut(&Expr)){let mut e=e.clone();super::super::intent_walk::expression(&mut e,&mut |e|f(e));}
 fn uses(e:&Expr,arg:&str)->bool{let mut found=false;walk(e,|e|if matches!(e,Expr::Name{name,..} if name==arg){found=true;});found}
 fn conjunction(e:&Expr)->Vec<&Expr>{match e{Expr::Binary{op,left,right,..} if op=="and"=>conjunction(left).into_iter().chain(conjunction(right)).collect(),_=>vec![e]}}
 fn conditions(p:&ast::ProgramDecl)->Vec<&Expr>{p.body.iter().filter_map(|s|if let Stmt::Require{condition,..}=s{Some(condition)}else{None}).collect()}
+// Keep authored conditional prerequisites, but erase statically vacuous reads.
+pub(super) fn simplify_boolean(expression:&Expr)->Expr{
+    let mut expression=expression.clone();super::super::intent_walk::expression(&mut expression,&mut |e|{
+        let boolean=|e:&Expr|if let Expr::Literal{value:ast::Literal::Bool(value),..}=e{Some(*value)}else{None};
+        fn constant(e:&Expr)->bool{match e{Expr::Literal{..}=>true,Expr::Unary{value,..}=>constant(value),Expr::Binary{left,right,..}=>constant(left)&&constant(right),Expr::Array{items,..}=>items.iter().all(constant),Expr::Call{name,args,..} if matches!(name.as_str(),"len"|"count")=>args.iter().all(constant),_=>false}}
+        if constant(e)&&let Some(value)=super::concrete::evaluate(e,&snapback4_core::Value::Null,&BTreeMap::new(),&snapback4_core::schema::Schema::default(),"","",0){*e=Expr::Literal{value:ast::Literal::Bool(value),site:e.site().clone()};return;}
+        match e{
+            Expr::If{condition,then,otherwise,..}=>if let Some(value)=boolean(condition){*e=if value{*then.clone()}else{*otherwise.clone()};},
+            Expr::Binary{op,left,right,..} if op=="??"=>if let Expr::Literal{value,..}=left.as_ref(){*e=if matches!(value,ast::Literal::Null){*right.clone()}else{*left.clone()};},
+            Expr::Member{base,name,..}=>if let Expr::Object{fields,..}=base.as_ref()&&let Some(value)=fields.iter().find(|field|field.name==*name).and_then(|field|field.value.clone()){*e=value;},
+            Expr::Assert{value,..} if matches!(value.as_ref(),Expr::Literal{value,..} if !matches!(value,ast::Literal::Null))=>*e=*value.clone(),
+            Expr::Unary{op,value,site} if op=="not"=>if let Some(value)=boolean(value){*e=Expr::Literal{value:ast::Literal::Bool(!value),site:site.clone()};}else if let Expr::Unary{op:inner,value,..}=value.as_ref()&&inner=="not"{*e=*value.clone();},
+            Expr::Binary{op,left,right,site} if op=="and"||op=="or"=>{let decisive=op=="or";if boolean(left)==Some(decisive)||boolean(right)==Some(decisive){*e=Expr::Literal{value:ast::Literal::Bool(decisive),site:site.clone()};}else if boolean(left)==Some(!decisive){*e=*right.clone();}else if boolean(right)==Some(!decisive){*e=*left.clone();}},_=>{},
+        }
+    });expression
+}
+// Fold only constant Boolean rule branches; conditional approval use remains use.
+fn simplify_rule(rule:&RuleExpr)->RuleExpr{match rule{
+    RuleExpr::Public{..}=>RuleExpr::Allow,
+    RuleExpr::Eq(RuleTerm::Literal(a),RuleTerm::Literal(b))|RuleExpr::Ne(RuleTerm::Literal(a),RuleTerm::Literal(b))=>if (a==b)==matches!(rule,RuleExpr::Eq(..)){RuleExpr::Allow}else{RuleExpr::Deny},
+    RuleExpr::Compare(op,RuleTerm::Literal(a),RuleTerm::Literal(b))=>{
+        use snapback4_core::{Value,ir::BinaryOp};let pass=match (op,a,b){(BinaryOp::Gt,Value::Int(a),Value::Int(b))=>a>b,(BinaryOp::Gte,Value::Int(a),Value::Int(b))=>a>=b,(BinaryOp::Lt,Value::Int(a),Value::Int(b))=>a<b,(BinaryOp::Lte,Value::Int(a),Value::Int(b))=>a<=b,_=>false};if pass{RuleExpr::Allow}else{RuleExpr::Deny}
+    },
+    RuleExpr::Not(rule)=>match simplify_rule(rule){RuleExpr::Allow=>RuleExpr::Deny,RuleExpr::Deny=>RuleExpr::Allow,rule=>RuleExpr::Not(Box::new(rule))},
+    RuleExpr::And(parts)|RuleExpr::Or(parts)=>{
+        let disjunction=matches!(rule,RuleExpr::Or(_));let mut out=Vec::new();
+        for part in parts{let part=simplify_rule(part);if matches!((&part,disjunction),(RuleExpr::Allow,true)|(RuleExpr::Deny,false)){return part;}if !matches!((&part,disjunction),(RuleExpr::Deny,true)|(RuleExpr::Allow,false)){out.push(part);}}
+        if out.is_empty(){if disjunction{RuleExpr::Deny}else{RuleExpr::Allow}}else if out.len()==1{out.remove(0)}else if disjunction{RuleExpr::Or(out)}else{RuleExpr::And(out)}
+    },_=>rule.clone(),
+}}
+struct CallerArguments{names:BTreeSet<String>,booleans:BTreeSet<String>}
+fn caller_names(p:&ast::ProgramDecl)->CallerArguments{CallerArguments{names:p.args.iter().map(|arg|arg.name.clone()).collect(),booleans:p.args.iter().filter(|arg|matches!(arg.type_.kind,TypeKind::Bool)&&!arg.type_.optional).map(|arg|arg.name.clone()).collect()}}
+fn caller_predicate(expression:&Expr,names:&CallerArguments)->bool{
+    let mut supported=true;walk(expression,|e|match e{Expr::Literal{..}=>{},Expr::Name{name,..} if names.names.contains(name)||matches!(name.as_str(),"viewer"|"now")=>{},Expr::Unary{..}|Expr::Binary{..}|Expr::Assert{..}=>{},_=>supported=false});supported
+}
+fn predicate_fact(expression:&Expr,names:&CallerArguments)->Option<(String,bool)>{
+    if !caller_predicate(expression,names){return None;}let mut expression=expression;let mut value=true;while let Expr::Unary{op,value:inner,..}=expression{if op!="not"{break;}expression=inner;value=!value;}
+    if let Expr::Binary{op,left,right,..}=expression&&matches!(op.as_str(),"="|"!="){
+        for (name,boolean) in [(left.as_ref(),right.as_ref()),(right.as_ref(),left.as_ref())]{if let (Expr::Name{name,..},Expr::Literal{value:ast::Literal::Bool(expected),..})=(name,boolean)&&names.booleans.contains(name){return Some((name.clone(),value==(*expected==(op=="="))));}}
+    }
+    (!matches!(expression,Expr::Literal{..})).then(||(crate::print::expression(expression),value))
+}
+fn apply_facts(expression:&Expr,facts:&BTreeMap<String,bool>,names:&CallerArguments)->Expr{
+    let mut expression=expression.clone();super::super::intent_walk::expression(&mut expression,&mut |e|if let Some((key,positive))=predicate_fact(e,names)&&let Some(value)=facts.get(&key){*e=Expr::Literal{value:ast::Literal::Bool(*value==positive),site:e.site().clone()};});simplify_boolean(&expression)
+}
+fn private_unknown(expression:&Expr,catalog:&Catalog)->bool{let mut unknown=false;walk(expression,|e|match e{Expr::Name{name,..} if name.starts_with("$advice_")=>unknown=true,Expr::Call{name,..} if catalog.functions.contains_key(name)=>unknown=true,Expr::If{..}=>unknown=true,_=>{}});unknown}
+fn context_facts(p:&ast::ProgramDecl,catalog:&Catalog)->Option<BTreeMap<String,bool>>{
+    let names=caller_names(p);let mut facts=BTreeMap::new();
+    for stmt in &p.body{let Stmt::Require{condition,code,..}=stmt else{continue;};if code=="$advice:cut"||code=="$advice"&&private_unknown(condition,catalog){return None;}
+        let condition=simplify_boolean(condition);for part in conjunction(&condition){if private_unknown(part,catalog){continue;}if matches!(part,Expr::Literal{value:ast::Literal::Bool(false),..}){return None;}if let Some((key,value))=predicate_fact(part,&names){if facts.insert(key,value).is_some_and(|old|old!=value){return None;}}}
+    }Some(facts)
+}
+fn known_condition(condition:&Expr,catalog:&Catalog)->Option<Expr>{
+    if !private_unknown(condition,catalog){return Some(condition.clone());}
+    // S1 recognizes real conditional use. An opaque alternative in an OR
+    // does not erase its independent approval arm; an opaque applicability
+    // premise (AND or the enclosing branch) cannot establish use.
+    if let Expr::Binary{op,left,right,site}=condition&&op=="or"{return match (known_condition(left,catalog),known_condition(right,catalog)){
+        (Some(left),Some(right))=>Some(Expr::Binary{op:op.clone(),left:Box::new(left),right:Box::new(right),site:site.clone()}),
+        (Some(value),None)|(None,Some(value))=>Some(value),_=>None,
+    };}None
+}
+fn condition_parts(condition:&Expr,code:&str,catalog:&Catalog)->Vec<Expr>{
+    if code=="$advice:implication"&&private_unknown(condition,catalog){return Vec::new();}
+    conjunction(condition).into_iter().filter_map(|condition|known_condition(condition,catalog)).collect()
+}
+pub(super) fn applicability_known(p:&ast::ProgramDecl,catalog:&Catalog)->bool{!p.body.iter().any(|stmt|matches!(stmt,Stmt::Require{condition,code,..} if code=="$advice:cut"||code=="$advice"&&private_unknown(condition,catalog)))}
+pub(super) fn known_impossible(p:&ast::ProgramDecl,catalog:&Catalog)->bool{
+    let names=caller_names(p);let mut facts=BTreeMap::new();
+    // Source applicability may depend on opaque data. Only contradictions over
+    // immutable caller arguments or literal false can remove an effect.
+    for _ in 0..=p.body.len(){let before=facts.clone();
+        for condition in conditions(p){let condition=apply_facts(condition,&facts,&names);
+            for part in conjunction(&condition){if matches!(part,Expr::Literal{value:ast::Literal::Bool(false),..}){return true;}if private_unknown(part,catalog){continue;}
+                let mut ambient=false;walk(part,|e|if matches!(e,Expr::Name{name,..} if name=="viewer"||name=="now"){ambient=true;});if ambient{continue;}
+                if let Some((key,value))=predicate_fact(part,&names)&&facts.insert(key,value).is_some_and(|old|old!=value){return true;}
+            }
+        }if facts==before{break;}
+    }false
+}
+fn effective_conditions(p:&ast::ProgramDecl,catalog:&Catalog)->Vec<Expr>{let Some(facts)=context_facts(p,catalog)else{return vec![Expr::Literal{value:ast::Literal::Bool(false),site:p.site.clone()}];};let names=caller_names(p);p.body.iter().filter_map(|stmt|if let Stmt::Require{condition,code,..}=stmt{Some((condition,code))}else{None}).flat_map(|(condition,code)|condition_parts(&apply_facts(condition,&facts,&names),code,catalog)).collect()}
+
 fn reads(e:&Expr)->BTreeSet<String>{let mut out=BTreeSet::new();walk(e,|e|match e{Expr::Read(r)|Expr::Exists{read:r,..}=>{out.insert(r.table.clone());},_=>{}});out}
 fn nonnull(p:&ast::ProgramDecl,arg:&str)->bool{nonnull_mode(p,arg,false)}
-fn nonnull_mode(p:&ast::ProgramDecl,arg:&str,branches:bool)->bool{p.body.iter().filter_map(|s|if let Stmt::Require{condition,code,..}=s&&(branches||code!="$advice"){Some(condition)}else{None}).flat_map(conjunction).any(|e|match e{
+fn nonnull_mode(p:&ast::ProgramDecl,arg:&str,branches:bool)->bool{p.body.iter().filter_map(|s|if let Stmt::Require{condition,code,..}=s&&(branches||!code.starts_with("$advice")){Some(condition)}else{None}).flat_map(conjunction).any(|e|match e{
     Expr::Binary{op,left,right,..} if op=="!="=>[(left.as_ref(),right.as_ref()),(right.as_ref(),left.as_ref())].iter().any(|(a,b)|matches!(a,Expr::Name{name,..} if name==arg)&&matches!(b,Expr::Literal{value:ast::Literal::Null,..})),_=>false,
 })}
 fn field_value<'a>(f:&'a ast::ObjectField)->Option<&'a Expr>{f.value.as_ref()}
-struct Write<'a>{p:&'a ast::ProgramDecl,op:WriteOp,table:String,fields:Vec<ast::ObjectField>,keys:Vec<ast::KeyPart>,site:Site,context:ast::ProgramDecl,gate:RuleExpr,conditional:bool,name:String}
+struct Write<'a>{stages:&'a BTreeSet<(String,String)>,p:&'a ast::ProgramDecl,catalog:&'a Catalog,op:WriteOp,table:String,fields:Vec<ast::ObjectField>,keys:Vec<ast::KeyPart>,site:Site,context:ast::ProgramDecl,gate:RuleExpr,conditional:bool,name:String}
 fn bound_role(bound:&Bound,catalog:&Catalog,info:&super::super::catalog::TableInfo,expr:&Expr,recipient:&str)->Option<RuleExpr>{
     let Expr::Exists{read,..}=expr else{return None;};
     // Bind a positive recipient probe after substituting only its principal.
@@ -39,7 +126,7 @@ fn bound_role(bound:&Bound,catalog:&Catalog,info:&super::super::catalog::TableIn
 }
 pub(super) fn notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnostic>{
     let docs=sources.iter().map(|(file,text)|crate::parse_document(file,text).0).collect::<Vec<_>>();
-    let catalog=Catalog::build(docs.clone(),&mut Vec::new());let mut writes=Vec::new();
+    let catalog=Catalog::build(docs.clone(),&mut Vec::new());let stages=super::derived::workflow_columns(&catalog,bound);let mut writes=Vec::new();
     for p in docs.iter().flat_map(|d|&d.programs).filter(|p|p.kind==ProgramKind::Mutation){
         for (write,context) in super::authority_walk::writes(&catalog,p){
             let Expr::Write{op,table,fields,keys,site,if_absent,condition}=write else{continue;};
@@ -49,8 +136,8 @@ pub(super) fn notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnostic>{
                 super::super::intent_walk::expression(&mut value,&mut |e|if let Expr::Member{base,..}=e&&reads(base).contains(&table){*base=Box::new(Expr::Focal{site:site.clone()});});
                 if let Ok(rule)=super::super::schema::bind_rule(&catalog,info,&ast::RuleDecl{effect:ast::Effect::Read,bindings:Vec::new(),value,site:site.clone()}){requirements.push(rule);}
             }
-            let t=&bound.schema.tables[&table];let rule=if op==WriteOp::Update{t.update_rule_judged().into_owned()}else{t.rules.insert.clone()};
-            writes.push(Write{p,name:super::super::operation_name(std::path::Path::new(&p.site.file).file_stem().and_then(|s|s.to_str()).unwrap_or(""),&p.name),op,table,fields,keys,site,context,conditional:if_absent||condition.is_some(),gate:RuleExpr::And(requirements.into_iter().chain([rule]).collect())});
+            let t=&bound.schema.tables[&table];let rule=match op{WriteOp::Update=>t.update_rule_judged().into_owned(),WriteOp::Upsert=>RuleExpr::Or(vec![t.rules.insert.clone(),t.update_rule_judged().into_owned()]),_=>t.rules.insert.clone()};
+            writes.push(Write{stages:&stages,p,catalog:&catalog,name:super::super::operation_name(std::path::Path::new(&p.site.file).file_stem().and_then(|s|s.to_str()).unwrap_or(""),&p.name),op,table,fields,keys,site,context,conditional:if_absent||condition.is_some(),gate:RuleExpr::And(requirements.into_iter().chain([rule]).collect())});
         }
     }
     // @ref LLP 3000.036.004#168-typed-upsert-key-binding — reuse checked type-directed selection.
@@ -139,6 +226,7 @@ pub(super) fn notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnostic>{
     evidence_notes(bound,&writes,&mut out);
     duration_notes(&writes,&mut out);
     lifecycle::notes(bound,&writes,&mut out);
+    evidence::notes(bound,&writes,&mut out);
     let mut dedup=BTreeSet::new();out.retain(|n|dedup.insert((n.code.clone(),n.message.clone(),n.site.to_string())));out
 }
 fn same_target(base:&Expr,w:&Write<'_>)->bool{match base{
@@ -234,7 +322,7 @@ fn evidence_notes(bound:&Bound,writes:&[Write<'_>],out:&mut Vec<Diagnostic>){
         for (reference,kind) in &t.columns{let ColumnType::Ref{table:parent}=kind.required()else{continue;};
             let declared=required_child(bound,parent,child,reference);
             let media=assets.iter().filter(|c|required_media(bound,child,c)).cloned().collect::<Vec<_>>();if media.is_empty()&&!declared{continue;}
-            let created_together=writes.iter().any(|w|w.table==*child&&matches!(w.op,WriteOp::Insert|WriteOp::Upsert)&&writes.iter().any(|p|std::ptr::eq(p.p,w.p)&&p.table==*parent&&matches!(p.op,WriteOp::Insert|WriteOp::Upsert)&&w.fields.iter().find(|f|&f.name==reference).and_then(field_value).is_some_and(|e|matches!(e,Expr::Member{base,name,..} if name=="id"&&matches!(base.as_ref(),Expr::Write{table,site,..} if table==parent&&site==&p.site))))&&media.iter().any(|c|w.fields.iter().find(|f|&f.name==c).and_then(field_value).is_some_and(|e|w.p.args.iter().any(|a|!a.type_.optional&&uses(e,&a.name)))));
+            let created_together=writes.iter().any(|w|w.table==*child&&matches!(w.op,WriteOp::Insert|WriteOp::Upsert)&&writes.iter().any(|p|std::ptr::eq(p.p,w.p)&&p.table==*parent&&matches!(p.op,WriteOp::Insert|WriteOp::Upsert)&&w.fields.iter().find(|f|&f.name==reference).and_then(field_value).is_some_and(|e|matches!(e,Expr::Member{base,name,..} if name=="id"&&created_at(base,p))))&&media.iter().any(|c|w.fields.iter().find(|f|&f.name==c).and_then(field_value).is_some_and(|e|w.p.args.iter().any(|a|!a.type_.optional&&uses(e,&a.name)))));
             if !declared&&!created_together{continue;}
             let removing=writes.iter().filter(|w|w.table==*child&&(w.op==WriteOp::Delete||matches!(w.op,WriteOp::Update|WriteOp::Upsert)&&w.fields.iter().any(|f|{
                 if &f.name==reference{return !field_value(f).is_some_and(|e|matches!(e,Expr::Member{base,name,..} if name==reference&&same_target(base,w)));}
@@ -256,7 +344,7 @@ fn required_child(bound:&Bound,parent:&str,child:&str,reference:&str)->bool{
 // The obligation names a relationship and any literal discriminator, not every
 // attachment in the child table (e.g. required checkout vs optional return).
 fn mandatory_parent_for(bound:&Bound,w:&Write<'_>,writes:&[Write<'_>],arg:&str)->bool{
-    fn linked(w:&Write<'_>,reference:&str,parent:&Write<'_>)->bool{w.fields.iter().find(|f|f.name==reference).and_then(field_value).is_some_and(|e|matches!(e,Expr::Member{base,name,..} if name=="id"&&matches!(base.as_ref(),Expr::Write{table,site,..} if table==&parent.table&&site==&parent.site)))}
+    fn linked(w:&Write<'_>,reference:&str,parent:&Write<'_>)->bool{w.fields.iter().find(|f|f.name==reference).and_then(field_value).is_some_and(|e|matches!(e,Expr::Member{base,name,..} if name=="id"&&created_at(base,parent)))}
     fn literal(e:&Expr,v:&snapback4_core::Value)->bool{match(e,v){
         (Expr::Literal{value:ast::Literal::Str(a),..},snapback4_core::Value::String(b))=>a==b,
         (Expr::Literal{value:ast::Literal::Bool(a),..},snapback4_core::Value::Bool(b))=>a==b,
@@ -298,8 +386,15 @@ fn asserted_argument(value:&Expr,arg:&str)->bool{
     match value{Expr::Assert{value,..}=>matches!(value.as_ref(),Expr::Name{name,..} if name==arg)||asserted_argument(value,arg),_=>false}
 }
 
+// Captured values retain a private evaluation marker, not a different birth site.
+fn created_at(value:&Expr,parent:&Write<'_>)->bool{
+    let Expr::Write{table,site,..}=value else{return false;};
+    let mut site=site.clone();
+    if let Some(file)=site.file.strip_prefix("$advice/evaluated/"){site.file=file.to_string();}
+    table==&parent.table&&site==parent.site
+}
 fn links_created_parent(w:&Write<'_>,writes:&[&Write<'_>])->bool{
-    writes.iter().any(|p|w.fields.iter().any(|f|matches!(field_value(f),Some(Expr::Member{base,name,..}) if name=="id"&&matches!(base.as_ref(),Expr::Write{table,site,..} if table==&p.table&&site==&p.site))))
+    writes.iter().any(|p|w.fields.iter().any(|f|matches!(field_value(f),Some(Expr::Member{base,name,..}) if name=="id"&&created_at(base,p))))
 }
 
 fn branch_nonnull(p:&ast::ProgramDecl,arg:&str)->bool{

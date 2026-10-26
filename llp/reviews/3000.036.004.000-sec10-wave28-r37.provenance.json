@@ -1,0 +1,25 @@
+{
+  "baseCommit": "50b7dbd05f",
+  "reviewedProposal": "/home/ccheever/sb4-loop/sec10-w28-r37-proposed.patch",
+  "patchSha256": "ec5852f7436577d2eeae8dbcaf6162a570ab80f4ce1ff38c15c4317e34a0f50f",
+  "brief": "/home/ccheever/sb4-loop/sec10-w28-r37-brief.md",
+  "briefSha256": "354c359047f7566669e14e148a1240fc12ec436f926c07649d284fbdbc9286a6",
+  "reviews": {
+    "codex": {
+      "model": "gpt-6.1-sol",
+      "reasoning": "high",
+      "command": "fresh codex exec -m gpt-6.1-sol -c model_reasoning_effort=high --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox -",
+      "rawLog": "/home/ccheever/sb4-loop/sec10-w28-r37-codex.log",
+      "rawLogSha256": "ce9fcd5b66f69433c02ad4c09705573010aa109f95f1a15663eb40a976d4a862",
+      "verdict": "READY"
+    },
+    "muse": {
+      "model": "muse-spark-1.3-contributor",
+      "reasoning": "high",
+      "command": "muse-exec.sh --yolo --model muse-spark-1.3-contributor --reasoning-effort high",
+      "rawLog": "/home/ccheever/sb4-loop/sec10-w28-r37-muse.log",
+      "rawLogSha256": "726712c36fb15a0e018b1bc37f5c33532026fdbbd6235c1a34fb625f0d34c16c",
+      "verdict": "NOT READY"
+    }
+  }
+}

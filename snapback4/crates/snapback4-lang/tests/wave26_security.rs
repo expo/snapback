@@ -37,11 +37,16 @@ const ROSTER:&str="table roles:\n  principal: principal\n  role: enum('member','
 }
 #[test]fn approval_null_and_stage_preconditions_are_not_frozen_evidence(){
     let source="table machines:\n  readyAt: time ?\n  boilerApprovedAt: time ?\n  consent: text ?\n  stage: text\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\nmutation add():\n  return insert machines {stage:'pressure-test',consent:'signed'}\nmutation approveBoiler(machine: machines):\n  m = machines[machine] ! else NOT_FOUND\n  require m.readyAt = null and m.stage != 'returned' else WRONG_STAGE\n  require m.consent != null else NO_CONSENT\n  update machines[machine] {boilerApprovedAt:now}\nmutation advanceStage(machine: machines):\n  m = machines[machine] ! else NOT_FOUND\n  require m.boilerApprovedAt != null else NOT_APPROVED\n  update machines[machine] {stage:'ready',readyAt:now}\n";
-    let sources=vec![("schema.q".into(),source.into())];let bound=compile(&sources);assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);
+    for column in ["stage","workflowMarker"]{let source=source.replace("stage",column);
+    let sources=vec![("schema.q".into(),source.clone())];let bound=compile(&sources);assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);
     let inferred=security::derived::invariants(&sources,&bound);
-    assert!(!inferred.iter().any(|i|matches!(i.column.as_deref(),Some("readyAt"|"stage"))),"{inferred:?}");
+    // Stage is an effect destination in the new sibling contract, not an
+    // inspected input frozen by approval invalidation.
+    assert!(!inferred.iter().filter(|i|i.policy.is_some()).any(|i|i.column.as_deref().is_some_and(|name|name=="readyAt"||name==column)),"{inferred:?}");
+    assert!(inferred.iter().any(|i|i.site.file.starts_with("$derived/sibling-approval/")&&i.column.as_deref()==Some(column)),"the approval still governs entry to ready");
     assert!(inferred.iter().any(|i|i.column.as_deref()==Some("consent")),"actual non-null evidence stays inspected");
-    let c=campaign(source);assert!(c.operations.get("advanceStage").is_some_and(|n|*n>0));assert!(!c.violations.iter().any(|v|v.reachability.is_reachable()),"{c:?}");
+    let c=campaign(&source);assert!(c.operations.get("advanceStage").is_some_and(|n|*n>0));assert!(!c.violations.iter().any(|v|v.reachability.is_reachable()),"{c:?}");
+}
 }
 
 #[test]fn structural_write_audiences_allow_only_default_initialization(){

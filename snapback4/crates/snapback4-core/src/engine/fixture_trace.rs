@@ -8,10 +8,32 @@ pub type FixtureRows = std::collections::BTreeMap<String,Vec<Value>>;
 #[derive(Clone)]
 pub struct ConcretePredicate(pub Arc<dyn Fn(&FixtureRows,&Value,&str,i64)->Option<bool> + Send + Sync>);
 impl std::fmt::Debug for ConcretePredicate {fn fmt(&self,f:&mut std::fmt::Formatter<'_>)->std::fmt::Result{f.write_str("concrete fixture predicate")}}
+/// Private inferred effect prerequisites see the pre-effect transaction and
+/// the actual old/next pair, so consuming approval is distinct from bypassing it.
+// @ref LLP 3000.036.004.000#10-sec10-approvals-and-deterministic-exploration — inferred transitions never change application admission.
+#[derive(Clone)]
+pub struct BoundaryPredicate(pub Arc<dyn Fn(&FixtureRows,Option<&Value>,Option<&Value>,&str,i64,&std::collections::BTreeMap<String,Value>,Option<&str>)->Option<bool> + Send + Sync>);
+impl std::fmt::Debug for BoundaryPredicate {fn fmt(&self,f:&mut std::fmt::Formatter<'_>)->std::fmt::Result{f.write_str("effect prerequisite")}}
+#[derive(Clone,Debug,Default)]
+pub struct SourceFilter {
+    pub inserts_at: Option<Vec<String>>,
+    /// An authored literal default at this exact source is initialization of this intent column only.
+    pub insert_initializers_at: Vec<(String,Value)>,
+    /// Reissuing an approval may touch an unchanged stamp at these exact sites.
+    pub unchanged_at: Vec<String>,
+    /// Restrict update observations to these executed sources; inserts are independent.
+    pub updates_at: Option<Vec<String>>,
+    /// A source-proven reapproval write is outside an invalidation-only probe.
+    pub except_at: Vec<String>,
+    /// Shared helper sites with unresolved recording provenance stay uncovered.
+    pub unknown_at: Vec<String>,
+}
 #[derive(Clone, Debug)]
 pub struct Intent {
+    pub source: SourceFilter,
     /// Private derived contracts may compare the actual old/next pair once.
     pub paired: bool,
+    pub boundary: Option<BoundaryPredicate>,
     pub concrete: Option<ConcretePredicate>,
     pub site: String,
     pub table: String,
@@ -33,9 +55,17 @@ pub struct Observation {
 pub struct Trace {
     pub(crate) intents: Arc<Vec<Intent>>,
     pub(crate) observations: Arc<Mutex<Vec<Observation>>>,
+    write_sites: Arc<Mutex<Vec<String>>>,
+    insert_sites: Arc<std::collections::BTreeMap<String,String>>,
 }
+pub(super) struct WriteScope(Arc<Mutex<Vec<String>>>);
+impl Drop for WriteScope {fn drop(&mut self){self.0.lock().expect("fixture write-site lock").pop();}}
 impl Trace {
-    pub fn new(intents: Vec<Intent>) -> Self { Self { intents: Arc::new(intents), observations: Arc::default() } }
+    pub fn new(intents: Vec<Intent>) -> Self { Self { intents: Arc::new(intents), observations: Arc::default(),write_sites:Arc::default(),insert_sites:Arc::default() } }
+    pub fn with_insert_sites(mut self,sites:std::collections::BTreeMap<String,String>)->Self{self.insert_sites=Arc::new(sites);self}
+    pub(super) fn at_insert(&self,row:&crate::ir::Expr)->Option<WriteScope>{let crate::ir::Expr::Variable(name)=row else{return None;};self.insert_sites.get(name).map(|site|self.at_write(site))}
+    // @ref LLP 3000.036.004.000#10-sec10-approvals-and-deterministic-exploration — exact executed write custody distinguishes reapproval from copied stamps.
+    pub(super) fn at_write(&self,site:&str)->WriteScope{self.write_sites.lock().expect("fixture write-site lock").push(site.into());WriteScope(self.write_sites.clone())}
     pub fn take(&self) -> Vec<Observation> { std::mem::take(&mut *self.observations.lock().expect("fixture trace lock")) }
 }
 impl Context {
@@ -44,12 +74,20 @@ impl Context {
 impl Runner<'_> {
     pub(super) fn fixture_write(&self, table: &str, effect: Effect, old: Option<&Value>, next: Option<&Value>) {
         let Some(trace) = self.context.fixture_trace.as_ref() else { return; };
+        let write_site=trace.write_sites.lock().expect("fixture write-site lock").last().cloned();
         for intent in trace.intents.iter().filter(|i| i.table == table && i.effects.contains(&effect)) {
-            if effect == Effect::Update && intent.column.as_ref().is_some_and(|c|old.and_then(|r|r.field(c).ok()) == next.and_then(|r|r.field(c).ok())) { continue; }
+            if effect==Effect::Insert&&intent.source.inserts_at.as_ref().is_some_and(|sites|!write_site.as_ref().is_some_and(|site|sites.contains(site))){continue;}
+            // @ref LLP 3000.036.004.000#11-wave-27-precision-and-workflow-conservation — only source-bound authored intent initialization; structural rules still execute normally.
+            if effect==Effect::Insert&&write_site.as_ref().is_some_and(|site|intent.source.insert_initializers_at.iter().any(|(source,value)|source==site&&intent.column.as_ref().is_some_and(|column|next.and_then(|row|row.field(column).ok())==Some(value)))){continue;}
+            if effect==Effect::Update&&intent.source.updates_at.as_ref().is_some_and(|sites|!write_site.as_ref().is_some_and(|site|sites.contains(site))){continue;}
+            if write_site.as_ref().is_some_and(|site|intent.source.except_at.contains(site)){continue;}
+            if effect == Effect::Update && !write_site.as_ref().is_some_and(|site|intent.source.unchanged_at.contains(site)) && intent.column.as_ref().is_some_and(|c|old.and_then(|r|r.field(c).ok()) == next.and_then(|r|r.field(c).ok())) { continue; }
             let judge = |image: &Value| self.fixture_judgment(&intent.policy, old, image).ok().and_then(|v| match v {
                 rules::Verdict::Readable => Some(true), rules::Verdict::Denied => Some(false), rules::Verdict::Unknown => None,
             });
-            let allowed = if let Some(predicate)=&intent.concrete {
+            let allowed = if write_site.as_ref().is_some_and(|site|intent.source.unknown_at.contains(site)){None}else if let Some(predicate)=&intent.boundary {
+                self.fixture_snapshot().ok().and_then(|before|(predicate.0)(&before,old,next,&self.context.viewer,self.context.now.unwrap_or(0),&self.context.args,write_site.as_deref()))
+            } else if let Some(predicate)=&intent.concrete {
                 // Private fixture inspection, bounded and independent of the
                 // application's logical meter. Overlay the pending write:
                 // fixture_write runs immediately before the store put/remove.

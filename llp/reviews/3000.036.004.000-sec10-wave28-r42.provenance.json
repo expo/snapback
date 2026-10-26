@@ -1,0 +1,36 @@
+{
+  "sec10Parent": "a28a06b711",
+  "selectedMain": "da64e0ee2df1c772d43d3bc439b1bbdffa8bcb56",
+  "brief": "/home/ccheever/sb4-loop/sec10-w28-r42-brief.md",
+  "briefSha256": "424f3003dc8ecc0688ff4f2bf465a4044c3ea08b39bf193846e9778e35e4649b",
+  "sourcePatch": "/home/ccheever/sb4-loop/sec10-w28-r42-merge-source.patch",
+  "sourcePatchSha256": "c17583cc676db8c96da0073af1a0d5dc7b03b0ed65140eb12719683882146814",
+  "designExcerptsSha256": "e2084321fcbaa3ea451306b46fa66bfc3b0f1c0fd6e00fed2f09db4995ae69e4",
+  "reviews": {
+    "codex": {
+      "model": "gpt-6.1-sol",
+      "reasoning": "high",
+      "verdict": "READY",
+      "command": "fresh codex exec -m gpt-6.1-sol -c model_reasoning_effort=high --skip-git-repo-check --dangerously-bypass-approvals-and-sandbox -",
+      "rawLog": "/home/ccheever/sb4-loop/sec10-w28-r42-codex.log",
+      "rawLogSha256": "00d5392562554adea9bf88b76adedf3232c2507db8c482ce13f00a3f90f407c1"
+    },
+    "muse": {
+      "model": "muse-spark-1.3-contributor",
+      "reasoning": "high",
+      "verdict": "READY",
+      "command": "muse-exec.sh --yolo --model muse-spark-1.3-contributor --reasoning-effort high",
+      "rawLog": "/home/ccheever/sb4-loop/sec10-w28-r42-muse.log",
+      "rawLogSha256": "01fa85ba53a4e113468852e6081334acb9c01bafe0fed5f4a1bdc1ce9f4ae2e8"
+    }
+  },
+  "resolutionSourceSha256": {
+    "snapback4/crates/snapback4/src/verbs/security.rs": "2e662f5904aa2e7864125a74deba0d14f4eeb49ea73badb65929b12ee97d9314",
+    "snapback4/crates/snapback4/src/verbs/security_reviews.rs": "e7a05132437dea75394a928e00f9c8311f91f17cb38d8b6aba384bb7ff943a30",
+    "snapback4/crates/snapback4/src/verbs/security_reviews/binding.rs": "fcf68ee36235da7a3aab48a0f42605f5298381c61a683c514f30d405ee067175",
+    "snapback4/crates/snapback4/src/verbs/security_reviews/decisions.rs": "397d467483f1a0230a2793c9fa8ec46b660df03e2626fa6ffc5db7b398059dff",
+    "snapback4/crates/snapback4/src/verbs/security/witnesses.rs": "c9a2f9fedb615a1ae4a23f9ceaaf8e3cf3a9932a03bed0f7a7e8fbe5ece60508",
+    "snapback4/crates/snapback4-lang/src/guide/security.md": "c54d15a12271211a3b15e78b4664b3465389419762d98fab01667f2c522bc398"
+  },
+  "qualification": "Semantic integration acceptance only.17 decision/snapshot/family units passed. Final merged affected checks,700copied schemas and unloaded50-schema timing remain independent requirements."
+}

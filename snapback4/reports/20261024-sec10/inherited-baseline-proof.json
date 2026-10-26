@@ -1,0 +1,104 @@
+{
+  "baselineCommit": "4c6b386072dfe05d838e9b2e30e22287f4627344",
+  "sourceArchive": "tracked Snapback4 source/fixtures only; separate copied tree and Cargo target",
+  "guide": {
+    "operationalLines": 181,
+    "operationalCeiling": 150,
+    "totalLines": 312,
+    "totalCeiling": 280,
+    "method": "Deterministic line-count assertions on byte-identical origin/main card and unchanged guide test; both ceilings violated.",
+    "failedTests": [
+      "deploy::deploy_recipe_bootstraps_an_admin_without_a_public_privilege_race",
+      "release_json_reference_is_discoverable_without_growing_the_deploy_card"
+    ]
+  },
+  "files": [
+    {
+      "path": "snapback4/crates/snapback4-lang/src/guide/deploy.md",
+      "sha256": "c97bd8008a1243d4cd17074b3b930c501d0d4503c61e973cebae94cedb4fb5d7",
+      "identicalToLane": true
+    },
+    {
+      "path": "snapback4/crates/snapback4-lang/tests/guide/deploy.rs",
+      "sha256": "fd22529657765b6fd47c2e27cc7f1f7ff722a44a847bb91d401bfad81f3a69b6",
+      "identicalToLane": true
+    },
+    {
+      "path": "snapback4/crates/snapback4-lang/tests/maintained_columns/activation.rs",
+      "sha256": "a5668b9b700499064f569d1ac55fe7a241107f3c9143ae8141e467339d8796dd",
+      "identicalToLane": true
+    },
+    {
+      "path": "snapback4/crates/snapback4/tests/expiry_writes/stores.rs",
+      "sha256": "502a4331bc1ea0c7e50a609002a51c2dd3496b2962ccdd88ca32ec2133c754e8",
+      "identicalToLane": true
+    },
+    {
+      "path": "snapback4/experiments/p19-one-query/builder.q",
+      "sha256": "3cac14ad097703a0106d0a2f64256b096e03c07702d34d577b5f52ed7a33c99e",
+      "identicalToLane": true
+    },
+    {
+      "path": "snapback4/crates/snapback4/tests/store_port_ratchet.rs",
+      "sha256": "1ceb09f6ec41faa719d06d6a2b471595f7e49aa6c8ee0fb0ea82cadae2ded8e0",
+      "identicalToLane": true
+    },
+    {
+      "path": "snapback4/crates/snapback4-core/src/engine/command.rs",
+      "sha256": "5a19482c499d7588532ce92f6cc4ebcd2a70fb9a5a0d9c8776833db8f71c0121",
+      "identicalToLane": true
+    },
+    {
+      "path": "snapback4/crates/snapback4-core/src/engine/revision_cache.rs",
+      "sha256": "d1994b221ed369efb4ce6109240ac06b50f0fdb2dcf63df2b92f16e1f779149d",
+      "identicalToLane": true
+    },
+    {
+      "path": "snapback4/crates/snapback4/src/serve_start.rs",
+      "sha256": "b7db0f56fd5fcf759fe6224d90347d78fbb820695c95077b7a2dc871bebe829b",
+      "identicalToLane": true
+    },
+    {
+      "path": "snapback4/crates/snapback4-lang/tests/surf4_guide.rs",
+      "sha256": "934f1015dde6fd4201f5802cf5469a87100c05f4681c159dbbbf5d082eaa8265",
+      "identicalToLane": true
+    }
+  ],
+  "toolchain": "1.97.0 (baseline pinned file copied; initial preflight useddefault1.93.1, excluded from final proof)",
+  "controls": {
+    "maintained": {
+      "log": "/home/ccheever/sb4-loop/sec10-inherited-baseline-maintained.log",
+      "failedTests": [
+        "activation::expired_parent_skipped_on_activation_then_swept_and_recreated_right",
+        "activation::activation_mirror_is_event_free_in_place_and_zero_additions_stay_unwritten",
+        "activation::redefinition_zero_removal_and_readdition_preserve_other_fields",
+        "activation::activation_uses_host_clock_on_both_sides_of_parent_expiry"
+      ],
+      "expectedBaselineFailures": 4
+    },
+    "expiry": {
+      "log": "/home/ccheever/sb4-loop/sec10-inherited-baseline-expiry.log",
+      "failedTests": [
+        "stores::refused_legacy_counter_upgrade_preserves_bytes_and_accepted_upgrade_runs_once"
+      ],
+      "expectedBaselineFailures": 1
+    },
+    "ratchet": {
+      "log": "/home/ccheever/sb4-loop/sec10-inherited-baseline-ratchet.log",
+      "failedTests": [
+        "store_port_ratchet"
+      ],
+      "expectedBaselineFailures": 1
+    }
+  },
+  "ratchetMethod": "Same std-only Rust integration test compiled with rustc1.97.0 --test and baseline CARGO_MANIFEST_DIR; identical six-site result.",
+  "baselineProvenFailureCount": 8,
+  "cleanup": {
+    "removed": [
+      "sec10-inherited-baseline",
+      "sec10-inherited-baseline-target",
+      "sec10-inherited-baseline-ratchet"
+    ],
+    "logsAndHashesPreserved": true
+  }
+}

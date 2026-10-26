@@ -1,0 +1,16 @@
+{
+  "revision": "c00bacbd87",
+  "date": "2026-10-25",
+  "briefSha256": "72e8b7051ac9ca369258555d6d32b909e0563a53847153079b803ae66f7cf55d",
+  "reviews": {
+    "codex": {
+      "verbatim": "3000.036.004.000-sec10-wave27-r17.codex.md",
+      "logSha256": "3798b59c5507fa8af4765274767c546f3aea3800815385b4a1a63c5df36cee59"
+    },
+    "muse": {
+      "verbatim": "3000.036.004.000-sec10-wave27-r17.muse.md",
+      "logSha256": "d243c92b475f3c3c2347bdb9db9df685ebcd47ca98a6c5872ced80ab71a86021"
+    }
+  },
+  "blindnessLimitation": "Codex disclosed accidental prior peer-artifact exposure through unfiltered git show HEAD. NOT READY retained; no blind acceptance claimed."
+}

@@ -1,0 +1,11 @@
+{
+  "binarySha256": "98778a8b1fec77f1ab308383f485f74c69ecd7e716f0999cfdf3db133dc98ce5",
+  "sourceSha256": "680bf6e44d3475fbf5ef1c8447e6b8af007e95d273b0520c639013e85aa38c91",
+  "testExit": 0,
+  "violations": 0,
+  "summary": [
+    "security tests: 2597 attempted, 660 refused, 0 reachable violations; 1 seed/synthetic observations (non-failing); finite campaign, not proof",
+    "test: operation (persona)          examined  entries   probes    steps     heap B   output B",
+    "test: 0 complete, 0 capped, 0 refused as your cases expect, 0 probe refusals on derived arguments (expected), 0 not run, 0 denied \u2014 pass"
+  ]
+}

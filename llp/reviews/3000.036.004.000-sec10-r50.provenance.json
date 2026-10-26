@@ -1,0 +1,14 @@
+{
+  "time": "2026-10-25T07:09:50.296383+00:00",
+  "head": "7fed7b12cfc96aa90c2aedad58f012ed790e11dd",
+  "deltaSha256": "0d8aae6d4b93b6e8265e3a385c1637f39f006117ac175ed82c89d8e06999046a",
+  "briefSha256": "afe3c1b41ab3ffc1c9c9fab241880234862bf7ac9dd524b339a7e94ba8e4ccb6",
+  "reviewers": [
+    "Muse muse-spark-1.3-contributor high via muse-exec.sh",
+    "fresh codex gpt-6.1-sol high"
+  ],
+  "verdicts": {
+    "muse": "READY",
+    "codex": "NOT READY"
+  }
+}

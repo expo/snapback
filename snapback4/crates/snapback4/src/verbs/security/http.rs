@@ -14,7 +14,7 @@ fn wait(child:&mut Process,budget:Duration)->Result<(),String>{
     loop{match child.0.try_wait().map_err(|e|e.to_string())?{
         Some(status)=>return if status.success(){Ok(())}else{Err(format!("private serve preparation exited {status}"))},
         None if Instant::now()<until=>std::thread::sleep(Duration::from_millis(20)),
-        _=>return Err("private serve preparation exceeded 30 seconds".into()),
+        _=>return Err(format!("private serve preparation stopped early (time) after {} seconds; rerun snapback4 test; HTTP admission was not qualified",budget.as_secs())),
     }}
 }
 fn request(address:SocketAddr,path:&str,persona:bool)->Result<(u16,serde_json::Value),String>{
@@ -202,7 +202,7 @@ pub(super) fn run(project:&super::Project,bound:&Bound,sources:&[(String,String)
             .stdout(output.try_clone().map_err(|e|e.to_string())?).stderr(output.try_clone().map_err(|e|e.to_string())?);Ok(c)
     };
     let mut deploy=Process(command("deploy")?.args(["deployment"]).spawn().map_err(|e|e.to_string())?);
-    wait(&mut deploy,Duration::from_secs(30)).map_err(|why| {
+    wait(&mut deploy,Duration::from_secs(180)).map_err(|why| {
         let log=fs::read_to_string(scratch.0.join("host.log")).unwrap_or_default();
         let tail=log.chars().rev().take(8192).collect::<String>().chars().rev().collect::<String>();
         format!("{why}\n{tail}")

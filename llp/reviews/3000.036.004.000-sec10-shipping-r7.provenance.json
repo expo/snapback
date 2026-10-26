@@ -1,0 +1,11 @@
+{
+  "frozenSourceReview": true,
+  "all48ManifestInputsUnchanged": true,
+  "patchSha256": "b034742b396184a7ea6c01ed02bc1a450b190299bdd4c61f632e6645f60ccf7d",
+  "verdicts": {
+    "muse": "READY",
+    "codex": "NOT READY",
+    "initialCodex": "no verdict: provider capacity"
+  },
+  "qualification": "Intermediate round. Repair semicolon-clause payload validation and source-derived conservation ledger dependencies; obtain another same-input independent READY pair."
+}

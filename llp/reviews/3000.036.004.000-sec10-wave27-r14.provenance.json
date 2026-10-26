@@ -1,0 +1,15 @@
+{
+  "revision": "b70d1dbaf7d6e8a90dc8ba4d9306104ea4cb46cc",
+  "date": "2026-10-25",
+  "briefSha256": "3c93f6a76f0ee66cfcbde54feb9f52884b3f4f92040485360e7f624af71526e4",
+  "reviews": {
+    "muse": {
+      "verbatim": "3000.036.004.000-sec10-wave27-r14.muse.md",
+      "logSha256": "d032c748b1df90396a730fbbb9ca64043de4366f2c4cb02e4163fdece6703e03"
+    },
+    "codex": {
+      "verbatim": "3000.036.004.000-sec10-wave27-r14.codex.md",
+      "logSha256": "2f9e4b6727fe01066b2d93ca5212cb71f7051c99b0b04564e1b077367ae01c4f"
+    }
+  }
+}

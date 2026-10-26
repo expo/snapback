@@ -626,6 +626,9 @@ pub enum ColumnType {
     ListRange { of: Box<ColumnType>, min: u32, max: u32 },
 }
 impl ColumnType {
+    /// The scalar element type, descending optional and homogeneous list wrappers.
+    pub fn leaf(&self)->&ColumnType{match self.required(){ColumnType::List{of,..}|ColumnType::ListRange{of,..}=>of.leaf(),other=>other}}
+
     pub fn required(&self) -> &ColumnType {
         match self {
             Self::Optional(inner) => inner,
@@ -1309,7 +1312,7 @@ pub fn validate(schema: &Schema) -> Vec<SchemaIssue> {
                     }
                 }
                 Constraint::Text { field, .. } => {
-                    if !matches!(table.columns.get(field).map(ColumnType::required), Some(ColumnType::Text { .. })) {
+                    if !matches!(table.columns.get(field).map(ColumnType::leaf), Some(ColumnType::Text { .. })) {
                         issue(&mut issues, cpath, format!("text constraint on non-text column {field}"));
                     }
                 }

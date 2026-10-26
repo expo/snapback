@@ -96,3 +96,5 @@ pub mod diagnostics;
 pub mod device_protocol;
 
 pub mod text;
+
+pub mod visible_text;

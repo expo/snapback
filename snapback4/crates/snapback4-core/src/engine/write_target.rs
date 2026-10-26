@@ -171,6 +171,8 @@ impl Runner<'_> {
     }
 
     pub(in crate::engine) fn write_target(&mut self, target: &Read, patch: &Expr, upsert: bool, condition: Option<&WriteCondition>, valued: bool) -> Result<Value, RuntimeError> {
+        #[cfg(feature="sqlite")]
+        let _fixture_write_scope=self.context.fixture_trace.as_ref().map(|trace|trace.at_write(&target.site));
         self.target_attempt(&target.table, |runner| runner.resolve_write_target(target, patch, upsert, condition, valued))
     }
 

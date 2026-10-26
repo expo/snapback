@@ -409,7 +409,7 @@ pub fn check(options: &Options) -> i32 {
     let acknowledgment_not_applied = (security.refuted() && options.flags.contains_key("ack-security")).then_some(
         "--ack-security was not applied: a security invariant is refuted; an acknowledgment records specification rationale for a review note and cannot override a concrete counterexample. Repair the policy or the invariant and rerun check.");
     if !options.json { if let Some(message) = acknowledgment_not_applied { eprintln!("check: {message}"); } }
-    let evidence=security::witnesses::collect(&project,&bound,&compiled_sources,&security.notes,true);
+    let evidence=security::witnesses::collect(&project,&bound,&compiled_sources,&security.notes,true,options);
     let dispositions = match security_reviews::review_evidence(&project,&compiled_sources,&security.notes,
         if security.refuted(){None}else{options.flags.get("ack-security").map(|id|(id.as_str(),options.flags.get("reason").map(String::as_str).unwrap_or("")))},&evidence) {
         Ok(d)=>d,Err(error)=>{if options.json {println!("{}",json!({"ok":false,"security":&security,"problems":[{"code":"E_SECURITY_NOTES","message":error}]}));}else{eprintln!("check: E_SECURITY_NOTES: {error}");}return 2;}

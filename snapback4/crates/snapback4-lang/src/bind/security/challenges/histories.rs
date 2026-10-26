@@ -37,12 +37,24 @@ fn time_samples(bound:&Bound,out:&mut Campaign)->Vec<Value>{
         }
         match value{serde_json::Value::Object(xs)=>for v in xs.values(){offsets(v,found,cut)},serde_json::Value::Array(xs)=>for v in xs{offsets(v,found,cut)},_=>{}}
     }
+    fn month_windows(value:&serde_json::Value,out:&mut BTreeSet<i64>,cut:&mut bool){
+        fn month(value:&serde_json::Value)->bool{if value.get("Civil").and_then(|v|v.as_str())==Some("month"){return true;}match value{serde_json::Value::Object(xs)=>xs.values().any(month),serde_json::Value::Array(xs)=>xs.iter().any(month),_=>false}}
+        if let Some(binary)=value.get("Binary"){for (a,b) in [("left","right"),("right","left")]{
+            if binary.get(a).is_some_and(month)&&let Some(n)=binary.get(b).and_then(|v|v.get("Literal")).and_then(|v|v.get("Int")).and_then(|v|v.as_i64()).filter(|n|(1..=1200).contains(n)){if out.len()<16||out.contains(&n){out.insert(n);}else{*cut=true;}}
+        }}
+        match value{serde_json::Value::Object(xs)=>for x in xs.values(){month_windows(x,out,cut)},serde_json::Value::Array(xs)=>for x in xs{month_windows(x,out,cut)},_=>{}}
+    }
+    let mut months=BTreeSet::new();let mut calendar_cut=false;for p in &bound.programs{month_windows(&serde_json::to_value(&p.program).unwrap(),&mut months,&mut calendar_cut);}
     let mut durations=BTreeSet::from([DAY]);let mut cut=false;
     for bp in &bound.programs{offsets(&serde_json::to_value(&bp.program).unwrap(),&mut durations,&mut cut);}
     let mut samples=Vec::new();
     let mut add=|time:Option<i64>|if let Some(time)=time{let value=Value::Int(time);if !samples.contains(&value){samples.push(value);}};
+    // A month ordinal retains year but omits day precision. The start of
+    // an authored offset month exercises that exact older calendar edge.
+    for months in months{add(snapback4_core::calendar::month_of(NOW).checked_sub(months).and_then(|month|snapback4_core::calendar::month_start(month).ok()));}
+    if calendar_cut{out.unsupported.insert("calendar time proposals keep sixteen source month offsets; remaining calendar windows uncovered".into());}
     add(durations.last().and_then(|d|NOW.checked_add(*d)).and_then(|n|n.checked_add(1)));
-    for time in [NOW-DAY,NOW+DAY,NOW]{add(Some(time));}
+    for time in [NOW-DAY,NOW+DAY,NOW,NOW-400*DAY,NOW-200*DAY]{add(Some(time));}
     for d in durations.iter().rev(){for sign in [1,-1]{for delta in [1,0,-1]{add(d.checked_mul(sign).and_then(|d|NOW.checked_add(d)).and_then(|n|n.checked_add(delta)));}}}
     if cut||samples.len()>16{out.unsupported.insert("time arguments keep sixteen source-offset boundary samples from at most 64 offsets; other windows remain uncovered".into());}
     samples.truncate(16);out.time_samples=Some(samples.clone());samples
@@ -80,11 +92,12 @@ pub(super) fn fixture_cases(bound:&Bound,p:&Program,rows:&BTreeMap<String,Vec<Va
     let mut cases=vec![BTreeMap::new()];
     for (name,k) in args{
         let Some(mut vals)=values(name,k,rows,actors,&times)else{out.unsupported.insert(format!("{name}: history needs a typed asset argument"));return Vec::new();};
+        if vals.is_empty()||cases.is_empty(){out.unsupported.insert(format!("{}: no typed history tuples available for {name}; remaining combinations uncovered",p.name));return Vec::new();}
         if let Some(preferred)=preferences.get(name){vals.sort_by_key(|v|!preferred.contains(v));}
         for literal in literals.get(name).into_iter().flatten() {
             let valid=match (k,literal){
-                (ir::ArgType::Text{min,max,..},Value::String(s))=>s.chars().filter(|c|!c.is_whitespace()).count()>=*min as usize&&s.chars().count()<=*max as usize,
-                (ir::ArgType::Int,Value::Int(_))=>true,
+                (ir::ArgType::Text{min,max,..},Value::String(s))=>snapback4_core::visible_text::visible_length(s)>=*min as usize&&s.chars().count()<=*max as usize,
+                (ir::ArgType::Int|ir::ArgType::Money{..}|ir::ArgType::Decimal{..},Value::Int(_))=>true,
                 (ir::ArgType::IntRange{min,max},Value::Int(n))=>(*min..=*max).contains(n),_=>false,
             };
             if valid&&!vals.contains(literal){vals.insert(0,literal.clone());}
@@ -118,13 +131,13 @@ pub(super) fn fixture_cases(bound:&Bound,p:&Program,rows:&BTreeMap<String,Vec<Va
 }
 // Preserve status/decision alternatives on each resource tuple before the
 // small directed cap; text/noise arguments must not correlate bools with ids.
-fn directed_cases(p:&Program,cases:Vec<BTreeMap<String,Value>>,campaign:&mut Campaign)->Vec<BTreeMap<String,Value>>{
+fn directed_cases(bound:&Bound,p:&Program,cases:Vec<BTreeMap<String,Value>>,campaign:&mut Campaign)->Vec<BTreeMap<String,Value>>{
     let identities=p.args.iter().filter(|(_,k)|matches!(k,ir::ArgType::Ref{..}|ir::ArgType::Principal)).map(|(n,_)|n).collect::<Vec<_>>();
-    let original=cases.clone();
+    let original=cases.clone();let focused=super::executed::write_arguments(bound,p);
     let mut seen=BTreeSet::new();let mut groups=Vec::new();
     for base in cases{let key=serde_json::to_string(&identities.iter().map(|n|(*n,base.get(*n))).collect::<Vec<_>>()).unwrap();if !seen.insert(key){continue;}
         let mut group=vec![base.clone()];
-        for (name,kind) in &p.args{let values=match kind{ir::ArgType::Bool=>vec![Value::Bool(false),Value::Bool(true)],ir::ArgType::Enum{variants}=>variants.iter().cloned().map(Value::String).collect(),ir::ArgType::Time=>original.iter().filter_map(|case|case.get(name).cloned()).collect(),ir::ArgType::Optional(inner) if matches!(inner.as_ref(),ir::ArgType::Time)=>original.iter().filter_map(|case|case.get(name).cloned()).collect(),_=>Vec::new()};
+        for (name,kind) in &p.args{let values=match kind{ir::ArgType::Bool=>vec![Value::Bool(false),Value::Bool(true)],ir::ArgType::Enum{variants}=>variants.iter().cloned().map(Value::String).collect(),ir::ArgType::Int|ir::ArgType::IntRange{..} if focused.contains(name)=>original.iter().filter_map(|case|case.get(name).cloned()).collect(),ir::ArgType::Optional(inner) if focused.contains(name)&&matches!(inner.as_ref(),ir::ArgType::Int|ir::ArgType::IntRange{..})=>original.iter().filter_map(|case|case.get(name).cloned()).collect(),ir::ArgType::Time=>original.iter().filter_map(|case|case.get(name).cloned()).collect(),ir::ArgType::Optional(inner) if matches!(inner.as_ref(),ir::ArgType::Time)=>original.iter().filter_map(|case|case.get(name).cloned()).collect(),_=>Vec::new()};
             for value in values{let mut candidate=base.clone();candidate.insert(name.clone(),value);if !group.contains(&candidate){group.push(candidate);}}
         }groups.push(group);
     }
@@ -222,9 +235,9 @@ fn observe(bound:&Bound,e:&mut Engine,rows:&BTreeMap<String,Vec<Value>>,initial:
                     if !reserve_observers(out,2){return;}
                     let args=match materialize_arguments(e,&bp.program.args,&args,viewer){Ok(a)=>a,Err(why)=>{out.unsupported.insert(format!("{}: typed history observer asset/input preparation: {why}",bp.program.name));continue;}};
                     out.attempted+=1;
-                    if let Ok(q)=e.query(&bp.program.name,Context::new(viewer,args.clone()).at(history_clock(steps)))&&!q.unavailable&&typed_disclosure(&bp.result,&q.data,&inv.table,key,inv.column.as_deref(),row){
+                    if let Ok(q)=e.query(&bp.program.name,replay_ids::context(viewer,args.clone()).at(history_clock(steps)))&&!q.unavailable&&typed_disclosure(&bp.result,&q.data,&inv.table,key,inv.column.as_deref(),row){
                         out.attempted+=1;
-                        if !matches!(e.query(&bp.program.name,Context::new(viewer,args.clone()).at(history_clock(steps))),Ok(again) if !again.unavailable&&again.data==q.data){
+                        if !matches!(e.query(&bp.program.name,replay_ids::context(viewer,args.clone()).at(history_clock(steps))),Ok(again) if !again.unavailable&&again.data==q.data){
                             out.unsupported.insert(format!("{}: typed read payload is not repeatable on the committed image",bp.program.name));continue;
                         }
                         let added=violation(out,inv,steps,viewer,row,None,initial,if inv.column.is_some(){"column read observation"}else{"read"});
@@ -272,7 +285,7 @@ fn observe(bound:&Bound,e:&mut Engine,rows:&BTreeMap<String,Vec<Value>>,initial:
 fn prior_policy(bound:&Bound,inv:&Invariant,rows:&BTreeMap<String,Vec<Value>>,viewer:&str,old:Option<&Value>,row:&Value,prior:&mut Option<Engine>,now:i64)->Result<bool,String>{
     match prior.as_mut(){Some(e)=>policy_in_at(bound,inv,rows,viewer,old,row,e,now),None=>policy_at(bound,inv,rows,viewer,old,row,now)}
 }
-fn assertions(bound:&Bound,before:&BTreeMap<String,Vec<Value>>,after:&BTreeMap<String,Vec<Value>>,initial:&BTreeMap<String,Vec<Value>>,viewer:&str,steps:&[Step],prior:&mut Option<Engine>,current:&mut Engine,out:&mut Campaign){
+pub(super) fn assertions(bound:&Bound,before:&BTreeMap<String,Vec<Value>>,after:&BTreeMap<String,Vec<Value>>,initial:&BTreeMap<String,Vec<Value>>,viewer:&str,steps:&[Step],prior:&mut Option<Engine>,current:&mut Engine,out:&mut Campaign){
     for inv in bound.invariants.iter().filter(|i|i.target=="always"){
         for row in after.get(&inv.table).into_iter().flatten(){
             let old=before.get(&inv.table).into_iter().flatten().find(|r|r.field("id").ok()==row.field("id").ok());
@@ -350,7 +363,7 @@ fn relationship_candidates<'a>(bound:&Bound,p:&'a Program,initial:&BTreeMap<Stri
             if attempts>=128||candidates.len()>=16||!out.reserve(1){return candidates;}attempts+=1;
             let Ok(mut e)=fixture.fork_fixture()else{continue;};
             let Ok(materialized)=materialize_arguments(&mut e,&p.args,args,actor)else{continue;};
-            if !matches!(e.mutate(&p.name,None,Context::new(actor,materialized).at(NOW)),Ok(r) if matches!(r.state,snapback4_core::WriteState::Sent{..})){continue;}
+            if !matches!(e.mutate(&p.name,None,replay_ids::context(actor,materialized).at(NOW)),Ok(r) if matches!(r.state,snapback4_core::WriteState::Sent{..})){continue;}
             let Ok(after)=readback(&e)else{continue;};
             if writes.iter().any(|(t,_)|initial.get(t).into_iter().flatten().any(|old|after.get(t).into_iter().flatten().find(|r|r.field("id").ok()==old.field("id").ok()).is_some_and(|new|bound.schema.tables[t].columns.iter().any(|(c,k)|matches!(k.required(),C::Principal)&&old.field(c).ok()!=new.field(c).ok())))){
                 candidates.push((p,actor.clone(),args.clone()));
@@ -369,7 +382,7 @@ pub(super) fn initial_observers(bound:&Bound,fixture:&Engine,out:&mut Campaign){
 // Prefer real lifecycle successors before the general diagonal history matrix.
 // @ref LLP 3000.036.004#163-directed-finite-histories — pruning orders finite replay, never proves safety.
 pub(super) fn lifecycle_observers(bound:&Bound,fixture:&Engine,out:&mut Campaign){
-    lifecycle_observers_to(bound,fixture,out,4096)
+    lifecycle_observers_to(bound,fixture,out,out.directed_base.saturating_add(4096))
 }
 pub(super) fn lifecycle_observers_to(bound:&Bound,fixture:&Engine,out:&mut Campaign,limit:usize){
     if bound.invariants.is_empty()||out.exhausted()||bound.invariants.iter().all(|i|out.violations.iter().any(|v|v.invariant_site==i.site.to_string()&&v.reachability.is_reachable())){return;}
@@ -381,6 +394,10 @@ pub(super) fn lifecycle_observers_to(bound:&Bound,fixture:&Engine,out:&mut Campa
     if interesting.is_empty(){return;}
     let selected_sites=interesting.iter().map(|i|i.site.to_string()).collect::<BTreeSet<_>>();
     let mut relevant=interesting.iter().flat_map(|i|std::iter::once(i.table.clone()).chain(i.policy.iter().flat_map(kernel::dependencies))).collect::<BTreeSet<_>>();
+    for inv in &interesting{
+        if let Some(mut syntax)=inv.syntax.clone(){crate::bind::intent_walk::expression(&mut syntax,&mut |e|if let ast::Expr::Read(read)|ast::Expr::Exists{read,..}=e{relevant.insert(read.table.clone());});}
+        if let Some(contract)=bound.security_conservation.get(&inv.site.to_string()){relevant.insert(contract.ledger.clone());relevant.extend(contract.refund_ledger.iter().cloned());}
+    }
     for _ in 0..bound.schema.tables.len(){let old=relevant.clone();for name in &old{for kind in bound.schema.tables[name].columns.values(){if let C::Ref{table}=kind.required(){relevant.insert(table.clone());}}}if old==relevant{break;}}
     let has_lifecycle=relevant.iter().any(|name|bound.schema.tables[name].columns.values().any(|k|matches!(k.required(),C::Enum{..}|C::Bool|C::Principal|C::Ref{..})));
     if !has_lifecycle{return;}
@@ -388,22 +405,74 @@ pub(super) fn lifecycle_observers_to(bound:&Bound,fixture:&Engine,out:&mut Campa
         ir::write_tables(&bp.program).iter().any(|(name,kind)|relevant.contains(name)&&(*kind!="insert"||bound.invariants.iter().any(|i|&i.table==name)))
     }).collect::<Vec<_>>();
     let focused=interesting.iter().filter(|i|i.policy.as_ref().is_none_or(|policy|kernel::implies(&RuleExpr::And(i.requirements.clone()),policy)!=Ok(true))).filter_map(|i|i.operation.as_ref()).collect::<BTreeSet<_>>();
-    transitions.sort_by_key(|bp|(!focused.contains(&bp.program.name),ir::write_tables(&bp.program).iter().all(|(t,_)|!super::super::privilege::role_columns(bound,t).is_empty())));
+    if !bound.invariants.is_empty()&&bound.invariants.iter().all(super::super::derived::is_derived){
+        transitions.retain(|bp|ir::write_tables(&bp.program).iter().any(|(t,_)|super::super::privilege::role_columns(bound,t).is_empty()||bound.invariants.iter().any(|i|i.table==*t)));
+        out.unsupported.insert("focused derived workflows defer unrelated roster mutations to the general campaign".into());
+    }
+    if !bound.invariants.is_empty()&&bound.invariants.iter().all(super::super::derived::is_derived){
+        // @ref LLP 3000.036.004.000#11-wave-27-precision-and-workflow-conservation — deferred payloads remain general coverage.
+        // A generic category setter must not displace lifecycle preparation
+        // when its payload is absent from every program read, policy and
+        // candidate. Unknown patches and structural effects remain eligible;
+        // the ordinary campaign retains these deferred payload combinations.
+        fn fields(value:&serde_json::Value,out:&mut BTreeSet<String>){
+            match value{serde_json::Value::Object(xs)=>{for (tag,value) in xs{
+                if matches!(tag.as_str(),"Field"|"OldField"|"NextField"|"field"|"column"|"expire"|"notBefore"){
+                    if let Some(name)=value.as_str().or_else(||value.get("name").and_then(|v|v.as_str())){out.insert(name.into());}
+                }
+                if tag=="WordPrefixes"&&let Some(columns)=value.get("fields").and_then(|v|v.as_array()){out.extend(columns.iter().filter_map(|v|v.as_str().map(str::to_owned)));}
+                fields(value,out);
+            }},serde_json::Value::Array(xs)=>for value in xs{fields(value,out)},_=>{}}
+        }
+        fn patches(value:&serde_json::Value,out:&mut BTreeSet<String>,unknown:&mut bool){
+            match value{serde_json::Value::Object(xs)=>{for (tag,value) in xs{
+                if matches!(tag.as_str(),"Update"|"WriteTarget"){
+                    if let Some(object)=value.get("patch").and_then(|v|v.get("Object")).and_then(|v|v.as_object()){out.extend(object.keys().cloned());}else{*unknown=true;}
+                }
+                patches(value,out,unknown);
+            }},serde_json::Value::Array(xs)=>for value in xs{patches(value,out,unknown)},_=>{}}
+        }
+        let mut dependencies=BTreeSet::new();
+        fields(&serde_json::to_value(&bound.schema).unwrap(),&mut dependencies);
+        fields(&serde_json::to_value(&bound.invariants).unwrap(),&mut dependencies);
+        for inv in &bound.invariants{dependencies.extend(inv.column.iter().cloned());if let Some(mut syntax)=inv.syntax.clone(){crate::bind::intent_walk::expression(&mut syntax,&mut |e|if let ast::Expr::Member{name,..}=e{dependencies.insert(name.clone());});}}
+        for bp in &bound.programs{
+            fields(&serde_json::to_value(&bp.program).unwrap(),&mut dependencies);
+            for read in ir::read_sites(&bp.program){if let Some(index)=bound.schema.tables[&read.table].index(&read.index){dependencies.extend(index.columns());dependencies.extend(bound.schema.tables[&read.table].columns.keys().filter(|column|index.uses_column(column)).cloned());}}
+        }
+        transitions.retain(|bp|{
+            if ir::write_tables(&bp.program).iter().any(|(_,kind)|*kind!="update"){return true;}
+            let mut columns=BTreeSet::new();let mut unknown=false;patches(&serde_json::to_value(&bp.program).unwrap(),&mut columns,&mut unknown);
+            let keep=unknown||columns.is_empty()||!columns.is_disjoint(&dependencies);
+            if !keep{out.unsupported.insert(format!("{}: focused derived replay defers unreferenced payload-only updates; their combinations remain in general replay",bp.program.name));}keep
+        });
+    }
+    // Relevant evidence writers and approval recorders precede unrelated
+    // lifecycle preparation; this orders real replay, never fabricates a state.
+    let derived_only=!bound.invariants.is_empty()&&bound.invariants.iter().all(super::super::derived::is_derived);
+    transitions.sort_by_key(|bp|{
+        let program=serde_json::to_string(&bp.program).unwrap();let writes=ir::write_tables(&bp.program);
+        let evidence=derived_only&&interesting.iter().any(|inv|writes.iter().any(|(table,_)|table==&inv.table)&&bound.schema.tables[&inv.table].columns.keys().any(|column|(inv.column.as_ref()==Some(column)||inv.policy.as_ref().is_some_and(|policy|policy.any_term(&|term|matches!(term,RuleTerm::Field(name)|RuleTerm::OldField(name)|RuleTerm::NextField(name) if name==column))))&&program.contains(&format!("\"{column}\":"))));
+        (!focused.contains(&bp.program.name),!evidence,writes.iter().all(|(t,_)|!super::super::privilege::role_columns(bound,t).is_empty()))
+    });
     if transitions.is_empty(){return;}
     let Ok(initial)=readback(fixture)else{return;};
     if !relevant.iter().any(|name|super::super::privilege::role_columns(bound,name).is_empty()&&initial.get(name).is_some_and(|rs|!rs.is_empty())){
         out.unsupported.insert("directed lifecycle needs a populated resource root; generated initialization and breadth retain bootstraps, longer empty-start histories remain uncovered".into());return;
     }
     let actors=actors(bound,&initial);
+    let identity_policies=serde_json::to_string(&bound.invariants).unwrap();
+    let named_actors=actors.iter().filter(|actor|identity_policies.contains(&serde_json::to_string(actor).unwrap())).cloned().collect::<BTreeSet<_>>();
     if !out.reserve(1){return;}
     let Ok(root)=fixture.fork_fixture()else{return;};
     let mut frontier=vec![(root,Vec::<Step>::new())];
-    fn signature(bound:&Bound,rows:&BTreeMap<String,Vec<Value>>)->String{
+    let signature_fields=bound.security_approval_inputs.iter().flat_map(|((table,_),columns)|columns.iter().map(move |column|(table.clone(),column.clone()))).chain(interesting.iter().filter_map(|inv|inv.column.as_ref().map(|column|(inv.table.clone(),column.clone())))).collect::<BTreeSet<_>>();
+    fn signature(bound:&Bound,rows:&BTreeMap<String,Vec<Value>>,preserved:&BTreeSet<(String,String)>)->String{
         // Equality of this projection is only an exploration heuristic. Missing
         // worlds are explicitly uncovered; it never discharges an obligation.
-        let projected=rows.iter().map(|(name,rs)|{let t=&bound.schema.tables[name];let mut images=rs.iter().map(|r|t.columns.iter().filter(|(c,k)|c.as_str()!="id"&&(k.is_optional()||matches!(k.required(),C::Enum{..}|C::Bool|C::Principal|C::Ref{..}|C::Time))).filter_map(|(c,k)|r.field(c).ok().map(|v|(c.clone(),if k.is_optional()&&!matches!(k.required(),C::Enum{..}|C::Bool|C::Principal|C::Ref{..}|C::Time){Value::Bool(*v!=Value::Null)}else{v.clone()}))).collect::<BTreeMap<_,_>>()).collect::<Vec<_>>();images.sort_by_key(|r|serde_json::to_string(r).unwrap());(name.clone(),images)}).collect::<BTreeMap<_,_>>();serde_json::to_string(&projected).unwrap()
+        let projected=rows.iter().map(|(name,rs)|{let t=&bound.schema.tables[name];let mut images=rs.iter().map(|r|t.columns.iter().filter(|(c,k)|c.as_str()!="id"&&(preserved.contains(&(name.clone(),(*c).clone()))||k.is_optional()||matches!(k.required(),C::Enum{..}|C::Bool|C::Principal|C::Ref{..}|C::Time))).filter_map(|(c,k)|r.field(c).ok().map(|v|(c.clone(),if k.is_optional()&&!preserved.contains(&(name.clone(),c.clone()))&&!matches!(k.required(),C::Enum{..}|C::Bool|C::Principal|C::Ref{..}|C::Time){Value::Bool(*v!=Value::Null)}else{v.clone()}))).collect::<BTreeMap<_,_>>()).collect::<Vec<_>>();images.sort_by_key(|r|serde_json::to_string(r).unwrap());(name.clone(),images)}).collect::<BTreeMap<_,_>>();serde_json::to_string(&projected).unwrap()
     }
-    let mut seen=BTreeSet::from([signature(bound,&initial)]);
+    let mut seen=BTreeSet::from([signature(bound,&initial,&signature_fields)]);
     for _ in 0..12{
         let mut next=Vec::new();let frontier_count=frontier.len();
         for (base,steps) in frontier{
@@ -412,11 +481,11 @@ pub(super) fn lifecycle_observers_to(bound:&Bound,fixture:&Engine,out:&mut Campa
                 let p=&bp.program;
                 let targets=ir::write_tables(p);
 
-                if targets.iter().all(|(t,kind)|*kind=="insert"&&before.get(t).is_some_and(|rs|rs.len()>=2)){out.unsupported.insert("directed lifecycle omits further insert-only expansion of populated tables; additional populations uncovered".into());continue;}
+                if targets.iter().all(|(t,kind)|*kind=="insert"&&before.get(t).is_some_and(|rs|rs.len()>=if p.args.values().any(|k|matches!(k,ir::ArgType::Ref{table} if table==t))&&bound.invariants.iter().any(|i|super::super::derived::is_derived(i)&&i.target=="insert"&&i.table==*t){4}else{2})){out.unsupported.insert("directed lifecycle omits further insert-only expansion of populated tables; additional populations uncovered".into());continue;}
                 let ordinary=fixture_cases(bound,p,&before,&actors,out);
                 let mut cases=role_candidates(bound,p,&before,&actors,&ordinary,&base,out).into_iter().map(|(_,_,args)|args).collect::<Vec<_>>();
                 cases.extend(ordinary);let mut argument_keys=BTreeSet::new();cases.retain(|args|argument_keys.insert(serde_json::to_string(args).unwrap()));
-                let cases=directed_cases(p,cases,out);
+                let cases=directed_cases(bound,p,cases,out);
                 if cases.len()>8{out.unsupported.insert(format!("{}: directed lifecycle arguments capped at 8",p.name));}
                 let mut successors=Vec::<(Engine,Vec<Step>,usize,String)>::new();
                 let program_json=serde_json::to_string(p).unwrap();
@@ -429,6 +498,12 @@ pub(super) fn lifecycle_observers_to(bound:&Bound,fixture:&Engine,out:&mut Campa
                             if !roles.is_empty()&&roles.iter().any(|c|row.field(c).is_ok_and(|v|matches!(v,Value::String(role) if program_json.contains(&format!("\"String\":\"{role}\""))))){score+=4;}
                             if p.args.iter().any(|(name,k)|matches!(k,ir::ArgType::Ref{table:t} if t==table)&&args.get(name)==row.field("id").ok()){score+=2;class.insert(format!("owns target {table}"));}
                         }}
+                        // Keep the best owner within a role, then leave a slot
+                        // for another role admitted by an argument-conditioned
+                        // branch. Ownership must not split one global role into
+                        // both of the two retained actor classes.
+                        if class.iter().any(|label|!label.starts_with("owns target ")){class.retain(|label|!label.starts_with("owns target "));}
+                        if named_actors.contains(actor){class.insert(format!("named policy principal {actor}"));}
                         if program_json.contains(&format!("\"{}\"",actor)){score+=8;}
                         (actor,score,class)
                     }).collect::<Vec<_>>();ordered.sort_by_key(|(_,score,_)|std::cmp::Reverse(*score));
@@ -445,26 +520,52 @@ pub(super) fn lifecycle_observers_to(bound:&Bound,fixture:&Engine,out:&mut Campa
                     let mut prior=None;
                     if bound.invariants.iter().any(|i|i.target!="read"&&i.policy.as_ref().is_some_and(RuleExpr::has_reference)){if !out.reserve(1){return;}prior=base.fork_fixture().ok();}
                     out.attempted+=1;*out.operations.entry(p.name.clone()).or_default()+=1;
-                    let trace=super::executed::trace(bound,p);
-                    let Ok(result)=engine.mutate(&p.name,None,Context::new(viewer,args.clone()).at(clock).with_fixture_trace(trace.clone()))else{continue;};
+                    let trace=super::executed::trace(bound,p,&engine);
+                    let Ok(result)=engine.mutate(&p.name,None,replay_ids::context(viewer,args.clone()).at(clock).with_fixture_trace(trace.clone()))else{continue;};
                     if !matches!(result.state,snapback4_core::WriteState::Sent{..}){out.refused+=1;continue;}
                     let Ok(after)=readback(&engine)else{continue;};
+
                     let mut history=steps.clone();history.push(Step{clock:Some(clock),operation:p.name.clone(),viewer:viewer.clone(),args:args.clone(),result:serde_json::to_value(&result.state).unwrap()});
                     super::executed::record(bound,p,&trace,&result.state,&after,&initial,viewer,&history,&mut engine,out);
                     changed(bound,p,&before,&after,&initial,viewer,&history,&mut prior,&mut engine,out);
+                    let changed_tables=after.iter().filter(|(t,rs)|before.get(*t)!=Some(*rs)).map(|(t,_)|t.clone()).collect();
+                    super::workflow::run(bound,&engine,&initial,&history,&changed_tables,out);
                     if selected_sites.iter().all(|site|out.violations.iter().any(|v|&v.invariant_site==site&&v.reachability.is_reachable())){
                         out.unsupported.insert("directed lifecycle stopped after every selected independent intent had a replayed violation; additional histories uncovered".into());return;
                     }
                     if before==after{continue;}
                     out.sequences+=1;
-                    if !seen.insert(signature(bound,&after)){out.unsupported.insert("directed lifecycle signature merges worlds differing in non-status payload; remaining worlds uncovered".into());continue;}
+                    if !seen.insert(signature(bound,&after,&signature_fields)){out.unsupported.insert("directed lifecycle signature merges worlds differing in unselected payload; remaining worlds uncovered".into());continue;}
                     observe(bound,&mut engine,&after,&initial,&actors,&history,out);
                     column_reads::after_history(bound,&engine,&initial,&history,out);
                     if selected_sites.iter().all(|site|out.violations.iter().any(|v|&v.invariant_site==site&&v.reachability.is_reachable())){
                         out.unsupported.insert("directed lifecycle stopped after every selected independent intent had a replayed violation; additional histories uncovered".into());return;
                     }
                     let progress=after.iter().filter(|(name,_)|relevant.contains(*name)).map(|(name,rs)|{let t=&bound.schema.tables[name];rs.iter().map(|r|t.columns.iter().map(|(c,k)|match k.required(){C::Enum{..} if !super::super::privilege::role_columns(bound,name).contains(c)=>before.get(name).into_iter().flatten().find(|old|old.field("id").ok()==r.field("id").ok()).is_some_and(|old|old.field(c).ok()!=r.field(c).ok()) as usize*4,C::Bool=>matches!(r.field(c),Ok(Value::Bool(true))) as usize,C::Time=>before.get(name).into_iter().flatten().find(|old|old.field("id").ok()==r.field("id").ok()).is_some_and(|old|old.field(c).ok()!=r.field(c).ok()) as usize*3,_ if k.is_optional()=>before.get(name).into_iter().flatten().find(|old|old.field("id").ok()==r.field("id").ok()).is_some_and(|old|(old.field(c).ok()==Some(&Value::Null))!=(r.field(c).ok()==Some(&Value::Null))) as usize*3,_=>0}).sum::<usize>()).sum::<usize>()}).sum::<usize>();
-                    let state_key=signature(bound,&after.iter().filter(|(name,_)|relevant.contains(*name)).map(|(name,rs)|(name.clone(),rs.clone())).collect());
+                    let progress=progress+after.iter().filter(|(t,_)|relevant.contains(*t)&&super::super::privilege::role_columns(bound,t).is_empty()).map(|(t,rs)|rs.len().saturating_sub(initial.get(t).map_or(0,Vec::len))*2).sum::<usize>();
+                    // Preparing checked evidence, then actually recording its
+                    // approval, must not lose the beam to unrelated stage hops.
+                    let approval_progress=if derived_only{interesting.iter().filter_map(|inv|{
+                        let column=inv.column.as_ref()?;let policy=inv.policy.as_ref()?;
+                        Some(bound.security_approval_inputs.iter().filter(|((table,stamp),columns)|table==&inv.table&&columns.contains(column)&&policy.any_term(&|term|matches!(term,RuleTerm::OldField(name)|RuleTerm::NextField(name) if name==stamp))).map(|((table,stamp),_)|after.get(table).into_iter().flatten().map(|row|{
+                            if matches!(row.field(stamp),Ok(Value::Bool(true)|Value::Int(_))){64}else{initial.get(table).into_iter().flatten().find(|old|old.field("id").ok()==row.field("id").ok()).is_some_and(|old|old.field(column).ok()!=row.field(column).ok()) as usize*8}
+                        }).sum::<usize>()).sum::<usize>())
+                    }).sum::<usize>()}else{0};
+                    let progress=progress+approval_progress;
+                    let goal_tables=interesting.iter().filter(|i|super::super::derived::is_derived(i)&&i.target=="insert").map(|i|i.table.clone()).collect::<BTreeSet<_>>();
+                    let mut goal_tables=goal_tables;
+                    for _ in 0..4{
+                        let dependencies=bound.programs.iter().map(|b|&b.program).filter(|p|ir::write_tables(p).iter().any(|(t,k)|goal_tables.contains(t)&&matches!(*k,"insert"|"upsert"))).flat_map(|p|p.args.values().filter_map(|kind|if let ir::ArgType::Ref{table}=kind{Some(table.clone())}else{None})).collect::<BTreeSet<_>>();
+                        let old=goal_tables.len();goal_tables.extend(dependencies);if old==goal_tables.len(){break;}
+                    }
+                    let goal_creators=bound.programs.iter().map(|b|&b.program).filter(|p|ir::write_tables(p).iter().any(|(t,k)|goal_tables.contains(t)&&matches!(*k,"insert"|"upsert"))).collect::<Vec<_>>();
+                    let mut progress=progress;
+                    for goal in goal_creators {
+                        for kind in goal.args.values(){if let ir::ArgType::Ref{table}=kind{progress+=after.get(table).map_or(0,Vec::len).min(2)*20;}}
+                        let preferred=principal_preferences(bound,goal,&after);
+                        progress+=preferred.iter().filter(|(name,_)|matches!(goal.args.get(*name),Some(ir::ArgType::Ref{..}))).map(|(_,ids)|ids.len().min(2)*40).sum::<usize>();
+                    }
+                    let state_key=signature(bound,&after.iter().filter(|(name,_)|relevant.contains(*name)).map(|(name,rs)|(name.clone(),rs.clone())).collect(),&signature_fields);
                     if successors.iter().any(|(_,_,_,key)|key==&state_key){out.unsupported.insert("directed successor diversity merges audit-only attribution variants; additional histories uncovered".into());continue;}
                     successors.push((engine,history,progress,state_key));
                     out.directed_peak_worlds=out.directed_peak_worlds.max(frontier_count+next.len()+successors.len()+1);
@@ -586,8 +687,8 @@ pub(super) fn run(bound:&Bound,fixture:&Engine,out:&mut Campaign){
             let args=match materialize_arguments(&mut engine,&p.args,args,viewer){Ok(a)=>a,Err(why)=>{out.unsupported.insert(format!("{}: history asset arguments: {why}",p.name));break;}};
             let mut prior=if bound.invariants.iter().any(|i|i.target!="read"&&i.policy.as_ref().is_some_and(RuleExpr::has_reference)){if !out.reserve(1){break;}match fork(bound,&engine,Vec::new()){Ok(e)=>Some(e),Err(why)=>{out.unsupported.insert(why);None}}}else{None};
             out.attempted+=1;*out.operations.entry(p.name.clone()).or_default()+=1;
-            let trace=super::executed::trace(bound,p);
-            match engine.mutate(&p.name,None,Context::new(viewer,args.clone()).at(NOW).with_fixture_trace(trace.clone())){
+            let trace=super::executed::trace(bound,p,&engine);
+            match engine.mutate(&p.name,None,replay_ids::context(viewer,args.clone()).at(NOW).with_fixture_trace(trace.clone())){
                 Ok(result)=>{
                     let sent=matches!(result.state,snapback4_core::WriteState::Sent{..});
                     steps.push(Step{clock:None,operation:p.name.clone(),viewer:viewer.clone(),args:args.clone(),result:serde_json::to_value(&result.state).unwrap()});
@@ -623,12 +724,15 @@ pub(super) fn run(bound:&Bound,fixture:&Engine,out:&mut Campaign){
  let bound=crate::compile(&[("schema.q".into(),"table docs:\n  x: bool\n  read <- allow\n  insert <- allow\n  online only\nmutation add(a: bool,b: bool):\n  return insert docs {x:a and b}\n".into())]);
  assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);let p=&bound.programs[0].program;
  let cases=[(false,false),(false,true),(true,false),(true,true)].into_iter().map(|(a,b)|BTreeMap::from([("a".into(),Value::Bool(a)),("b".into(),Value::Bool(b))])).collect();
- let mut out=Campaign::default();let selected=directed_cases(p,cases,&mut out);assert_eq!(selected.len(),3);assert!(out.unsupported.iter().any(|s|s.contains("argument grouping")));
+ let mut out=Campaign::default();let selected=directed_cases(&bound,p,cases,&mut out);assert_eq!(selected.len(),3);assert!(out.unsupported.iter().any(|s|s.contains("argument grouping")));
 }}
 
 pub(super) fn history_clock(steps:&[Step])->i64{steps.iter().rev().find_map(|s|s.clock).unwrap_or(NOW)}
 fn clock_candidates(bound:&Bound,p:&Program,rows:&BTreeMap<String,Vec<Value>>,steps:&[Step],out:&mut Campaign)->Vec<i64>{
     let current=history_clock(steps);
+    if !bound.invariants.is_empty()&&bound.invariants.iter().all(super::super::derived::is_derived){
+        out.unsupported.insert("focused derived workflows keep the current clock; temporal boundary combinations remain in the general campaign".into());return vec![current];
+    }
     fn walk(value:&serde_json::Value,f:&mut impl FnMut(&serde_json::Value)){f(value);match value{serde_json::Value::Array(xs)=>for x in xs{walk(x,f)},serde_json::Value::Object(xs)=>for x in xs.values(){walk(x,f)},_=>{}}}
     let json=serde_json::to_value(p).unwrap();let mut bindings=BTreeMap::new();
     walk(&json,&mut |v|{for tag in ["Let","Const"]{if let Some(b)=v.get(tag)&&let(Some(name),Some(value))=(b.get("name").and_then(|v|v.as_str()),b.get("value")){bindings.insert(name.to_owned(),value.clone());}}});
@@ -666,7 +770,10 @@ pub(super) fn principal_preferences(bound:&Bound,p:&Program,rows:&BTreeMap<Strin
     }
     let json=serde_json::to_value(p).unwrap();
     let mut probes=BTreeMap::new();
-    walk(&json,&mut |value|{if let Some(binding)=value.get("Let")&&let (Some(name),Some(site))=(binding.get("name").and_then(|v|v.as_str()),binding.pointer("/value/Get/site").and_then(|v|v.as_str())){probes.insert(name.to_owned(),site.to_owned());}});
+    walk(&json,&mut |value|{if let Some(binding)=value.get("Let")&&let Some(name)=binding.get("name").and_then(|v|v.as_str()){
+        if let Some(site)=binding.pointer("/value/Get/site").and_then(|v|v.as_str()){probes.insert(name.to_owned(),site.to_owned());}
+        else if let Some(alias)=binding.pointer("/value/Variable").and_then(|v|v.as_str())&&let Some(site)=probes.get(alias).cloned(){probes.insert(name.to_owned(),site);}
+    }});
     let mut filters=BTreeMap::<String,Vec<(String,Value)>>::new();
     walk(&json,&mut |value|{if let Some(eq)=value.get("Binary")&&eq.get("op").and_then(|v|v.as_str())==Some("Eq") {for (a,b) in [("left","right"),("right","left")] {
         if let (Some(field),Some(literal))=(eq.get(a).and_then(|v|v.get("Field")),eq.get(b).and_then(|v|v.get("Literal")))&&let (Some(probe),Some(column),Ok(literal))=(field.pointer("/base/Variable").and_then(|v|v.as_str()),field.get("name").and_then(|v|v.as_str()),serde_json::from_value::<Value>(literal.clone()))&&let Some(site)=probes.get(probe){filters.entry(site.clone()).or_default().push((column.into(),literal));}
@@ -683,7 +790,7 @@ pub(super) fn principal_preferences(bound:&Bound,p:&Program,rows:&BTreeMap<Strin
         if pins.is_empty(){continue;}
         for (column,key) in &pairs {
             let Some(arg)=key.get("Variable").and_then(|v|v.as_str())else{continue;};
-            if !matches!(p.args.get(arg),Some(ir::ArgType::Principal)){continue;}
+            if !matches!(p.args.get(arg),Some(ir::ArgType::Principal|ir::ArgType::Ref{..})){continue;}
             for row in rows.get(table).into_iter().flatten().filter(|r|pins.iter().all(|(c,v)|r.field(c).ok()==Some(v))){
                 if let Ok(value@Value::Id(_))=row.field(column){let values=out.entry(arg.into()).or_default();if !values.contains(value){values.push(value.clone());}}
             }
@@ -712,5 +819,27 @@ pub(super) fn principal_preferences(bound:&Bound,p:&Program,rows:&BTreeMap<Strin
   assert_eq!(clocks.iter().any(|time|*time>NOW),guarded);
   assert_eq!(clocks[0],NOW);
  }
+}
+}
+
+#[cfg(test)]mod sec10_payload_tests{use super::*;
+#[test]fn lifecycle_replays_changed_optional_numeric_payloads(){
+    let sources=vec![("schema.q".into(),"table docs:\n  status: enum('draft','done') default 'draft'\n  weight: int 1..100\n  read <- allow\n  update <- allow\n  online only\nmutation edit(doc: docs,weight: int 1..100 ?):\n  d = docs[doc] ! else MISSING\n  update docs[doc] {weight:weight ?? d.weight}\ninvariant docs.weight update only .status = 'draft'\n".into())];let bound=crate::compile(&sources);assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);let mut engine=Engine::memory(bound.schema.clone(),bound.programs.iter().map(|p|p.program.clone())).unwrap();let row=snapback4_core::wire::row_from_json(&bound.schema.tables["docs"],&serde_json::json!({"id":"d","status":"done","weight":1})).unwrap();engine.seed_at([("docs".into(),row)],NOW).unwrap();let mut campaign=Campaign::work_bounded(1024);lifecycle_observers(&bound,&engine,&mut campaign);assert!(campaign.violations.iter().any(|v|v.operation=="edit"&&v.reachability.is_reachable()),"{:?}",campaign.unsupported);
+}
+}
+
+#[cfg(test)]mod focused_read_dependencies_tests{use super::*;
+#[test]fn opening_visibility_and_word_fields_remain_focused_dependencies(){
+ let source="table docs:\n  flag: bool default false\n  label: text <=30 default 'no'\n  body: text <=80 default 'alpha'\n  opensAt: time default now\n  category: enum('a','b') default 'a'\n  by byWords: words(body), id\n  not before .opensAt\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\nbackfill docs label(flag: bool):\n  {label:'yes' if flag else 'no'}\nmutation enable(doc: docs):\n  update docs[doc] {flag:true}\nmutation setLabel(doc: docs,label: text <=30):\n  require docs[doc].flag = true else NOT_ENABLED\n  update docs[doc] {label}\nmutation setBody(doc: docs,body: text <=80):\n  update docs[doc] {body}\nmutation setOpening(doc: docs,opensAt: time):\n  update docs[doc] {opensAt}\nmutation setUnused(doc: docs,category: enum('a','b')):\n  update docs[doc] {category}\nquery search(q: text <=30):\n  return docs matching q first 10 by byWords\n";
+ let sources=vec![("schema.q".into(),source.into())];let b=crate::compile(&sources);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);let mut b=super::super::super::derived::augmented(&sources,&b);
+ // Backfill equations remain advice in production; opt this search-focus test
+ // into that question without promoting a migration formula into enforcement.
+ assert!(b.invariants.is_empty());
+ b.invariants=super::super::super::derived::invariants(&sources,&b).into_iter().filter(|i|i.site.file.contains("/label-consistency/")).collect();assert_eq!(b.invariants.len(),1);
+ let mut e=Engine::memory(b.schema.clone(),b.programs.iter().map(|p|p.program.clone())).unwrap();
+ let row=snapback4_core::wire::row_from_json(&b.schema.tables["docs"],&serde_json::json!({"id":"doc","flag":false,"label":"no","body":"alpha","opensAt":NOW,"category":"a"})).unwrap();e.seed_at([("docs".into(),row)],NOW).unwrap();
+ let mut out=Campaign::work_bounded(1024);lifecycle_observers_to(&b,&e,&mut out,512);
+ let deferred=|name:&str|out.unsupported.iter().any(|why|why.starts_with(name)&&why.contains("unreferenced payload-only"));
+ assert!(deferred("setUnused"),"{:?}",out.unsupported);assert!(!deferred("setBody"));assert!(!deferred("setOpening"));
 }
 }

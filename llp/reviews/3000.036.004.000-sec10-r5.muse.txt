@@ -1,0 +1,21 @@
+muse: workspace root: /home/ccheever/projects/sb4-b26-sec10 (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=5148a6db-b9db-42d5-a750-bf5b68dd991b]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-b26-sec10 (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY. No material incorrect gates, refusals, or bypasses in the frozen SEC10 delta.
+
+What I checked: the full §10 amendment and §§1–9 of [the RFC](/home/ccheever/projects/sb4-b26-sec10/llp/3000.036.004.000-structural-write-authority.rfc.md), and every material hunk of [the frozen delta](/home/ccheever/sb4-loop/sec10-r5-delta.patch). I did not read prior-round reviews. I ran no builds; per the commission, execution qualification is ongoing and not a readiness input.
+
+Evidence against each stated bar:
+
+- Admitted traces required for FIX. `record()` in `challenges/executed.rs` only converts `allowed == Some(false)` observations into violations. Every caller (`lifecycle_observers_to`, `workflow::attempt`, history `run`, `operations`, `run_selected_after`) calls it only inside an admitted `Sent` branch. Unknown stays an explicit cut, never permission.
+- Operation-preflight relaxation is safe. The removed synthetic path in `run_selected_after` is replaced by executed-effect tracing with `BoundaryPredicate`. The new [test](/home/ccheever/projects/sb4-b26-sec10/snapback4/crates/snapback4-lang/tests/security_sec10.rs) `every_multi_target_arm_uses_executed_write_tracing` asserts no "multiple target writes" cut and a violation via "executed write boundary".
+- Consumption needs full prerequisite plus same-identity receipt flip. The update boundary requires `evaluate(prerequisite, entry-row, entry) == Some(true)`, then `consumed()` needs a positive receipt true at entry and false at effect with equal `receipt_identity`. Negative alternatives contribute no receipt. Retargeting A→B yields unequal identities and stays FIX, with an in-tree regression test.
+- Id-target binding. `target_arg` admits only single-key, column-none-or-`id`, `Name`-bound, typed-`Ref` arguments. Same-table updates must name the selected argument. Tests pin both directions: `docs[predecessor = doc]` yields no candidate while `docs[doc]` does, and `exists approvals[approval]` resolves to `id`, never the unique `job` reference.
+- Child terminality spans roles. `any_outgoing` carries no role filter while the activity window keeps one. Reset-to-declared-default is skipped as restart; any other source-free edge sets ambiguous and kills the inference. The 008 calibration test still replays its `child-stage` violation, so the stripping reset is preserved, not misclassified.
+- Determinism and cuts. Default check and deploy use `work_bounded(512)` / `work_bounded(8192)` with no deadline; only an explicit safety deadline reports `stopped early (time)`. Every cap (workflow 512, actor 8, tuple 8/4, time samples 16, directed ceilings off `directed_base`) records an explicit `unsupported` entry. A test asserts budgets are time-independent and none of the coverage strings mention time.
+- Inference stays candidate-only. Ambiguous mappings return `None` throughout `normalize`/`mask_locals`. New notes render through the existing review-tier registry with source-bound IDs; the analyzer moved to `sec10-3` and invalidates older evidence.
+
+Non-material observations, no repair demanded: the restart check keys on empty state-requirements rather than branch premises, so a branch-conditional reset reads as unconditional; approval-history identity uses the first `Principal`/`Ref` field only. Both still require an actually replayed violation for FIX and resolve through individual acknowledgment, so neither is a bypass or a false refusal on any calibrated shape.

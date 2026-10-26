@@ -1,0 +1,19 @@
+muse: workspace root: /home/ccheever/projects/sb4-b26-sec10 (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=12492f0d-deb6-4c97-b0d8-44e4cb2bd575]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-b26-sec10 (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY — no material design or correctness concern; targeted rerun remains as qualification, not an objection.
+
+Scope checked: frozen commit `f29a79e` touches only the §10 amendment text and the three evidence-linkage call sites plus the new `created_at` helper — matching the delta patch exactly. No other semantics changed.
+
+What I verified by reading code and tests:
+
+- Marker mechanism in [authority_walk.rs](/home/ccheever/projects/sb4-b26-sec10/snapback4/crates/snapback4-lang/src/bind/security/authority_walk.rs): `captured()` prepends `$advice/evaluated/` once (guarded by `starts_with`, so no double-mark), and `evaluated()` suppresses re-execution. Top-level `Write` entries in `writes` keep unmarked authored sites; only spliced `Member.base` values carry the marker.
+- Fix in [creation_advice.rs](/home/ccheever/projects/sb4-b26-sec10/snapback4/crates/snapback4-lang/src/bind/security/creation_advice.rs): `created_at()` strips only that one file prefix, then compares exact `table` plus full `Site` (`file`/`line`/`col` per [diag.rs](/home/ccheever/projects/sb4-b26-sec10/snapback4/crates/snapback4-lang/src/diag.rs)). All three old direct `site == parent.site` comparisons (`created_together`, `linked`, `links_created_parent`) now route through it.
+- Distinct inserts preserved: full-site equality keeps separate birth sites distinct; table equality prevents cross-table conflation. Other `site` comparisons (`other.site != w.site`, `parent_omits_argument`) operate on unmarked authored write sites and correctly need no stripping. `same_target` (read-key based) is unaffected.
+- Spec match: the §10 amendment ("same authored birth identity", "removing only that marker", "rather than conflating separate parent inserts") describes exactly what the code does.
+- Coverage exists for the claimed cases in [security_sec7_day2.rs](/home/ccheever/projects/sb4-b26-sec10/snapback4/crates/snapback4-lang/tests/security_sec7_day2.rs) and [security_sec7.rs](/home/ccheever/projects/sb4-b26-sec10/snapback4/crates/snapback4-lang/tests/security_sec7.rs): required/optional upload, discriminator (`mandatory_child_discriminators...`, `unknown_child_filters...`), last-child/removal (`deleting_the_only_booking_photo...`, `optional_attachments_and_unrelated_parent_insertions...`, `evidence_detachment...`, `separate_evidence...`, `explicit_parent_presence...`, `removing_an_independently_required_child...`), plus site-distinctness tests.
+
+No repair requested. Pending targeted rerun of `security_sec7` / `security_sec7_day2` is qualification only.

@@ -105,6 +105,20 @@ pub(super) fn notes(documents:&[ast::Document],catalog:&Catalog,bound:&Bound)->V
             let requirements=catalog.tables.get(&table).map(|info|super::operation::requirements(catalog,info,&context)).unwrap_or_default();
             if requirements.iter().any(|r|!r.disjuncts().is_empty()&&r.disjuncts().iter().all(|b|b.service_grant().is_some())){continue;}
             let bounded=bounded_arguments(&context,&times);
+            for arg in &times {
+                let mut directions=0u8;let mut anchor=false;
+                for condition in &context.body{if let Stmt::Require{condition,..}=condition{walk(condition,|e|if let Expr::Binary{op,left,right,..}=e&&matches!(op.as_str(),"<"|"<="|">"|">="){
+                    for (value,bound,reverse) in [(left.as_ref(),right.as_ref(),false),(right.as_ref(),left.as_ref(),true)]{
+                        if !argument_affine(value,arg){continue;}
+                        let mut stored=false;
+                        walk(bound,|e|if matches!(e,Expr::Member{base,..} if row_table(base).is_some()){stored=true;});
+                        if stored{anchor=true;directions|=if (op=="<"||op=="<=")!=reverse{2}else{1};}
+                    }
+                });}}
+                if anchor&&directions!=3&&seen.insert((table.clone(),"$anchor".into(),arg.to_string())){
+                    out.push(Diagnostic::new(&site,"N_CALLER_TIME",format!("{}: caller time {arg} is bounded on only one side of a stored anchor; does the window also forbid dates before/after that anchor?",p.name),"require both the anchor's lower and upper window bounds before writing the supplied date; declare independent clock intent and test old and future dates").guide("security"));
+                }
+            }
             for field in written{if !fields.contains(&(table.clone(),field.name.clone()))||!matches!(bound.schema.table(&table).and_then(|t|t.columns.get(&field.name)).map(|t|t.required()),Some(snapback4_core::schema::ColumnType::Time)){continue;}
                 let value=field.value.unwrap_or(Expr::Name{name:field.name.clone(),site:field.site});
                 for arg in &times{if !contains_arg(&value,arg)||bounded.contains(*arg)||!seen.insert((table.clone(),field.name.clone(),arg.to_string())){continue;}

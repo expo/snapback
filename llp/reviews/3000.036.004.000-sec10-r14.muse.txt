@@ -1,0 +1,19 @@
+muse: workspace root: /home/ccheever/projects/sb4-b26-sec10 (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=4586c831-3935-420e-9186-5be7f64a748e]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-b26-sec10 (cwd default)
+muse: workspace trust: trusted source=run-flag
+NOT READY — the frozen delta is internally red: its own focused test fails on a fresh prebuilt binary, and two inspection findings open bypass-class holes.
+
+What I ran (no builds, no edits, only the permitted prebuilt binary): `security_sec10-6a26bf94173fc8dc`, which postdates every source it tests (binary 21:37:52, newest source 21:37:22, no source newer — verified). Observed: 40 tests pass, 1 fails, full run exceeds 280s (qualification still in progress, not counted against readiness):
+
+- `atomic_approval_audits_and_checked_stage_proxies_do_not_gate ... FAILED` — panics at `tests/security_sec10.rs:54`: `notes(008.q)` emits `N_APPROVAL_NOT_ENFORCED`, but the test (added in this same delta) asserts it must not.
+
+Material concern 1 (false gate, executed): `approveStrip` in `008.q` atomically couples `update walls[wall] {stage:'removal'}` with `insert stripApprovals {...}` in one owner-gated mutation referencing the exact wall just reset. The new per-creator `approval_tables()` still emits the question because `coupled_parent()` demands a *genuine state change* from a top-level `=`/`!=` conjunct, and the guard here is the disjunction `w.stage='removal' or 'lath' or 'scratch'` (admits idempotent `removal→removal`). That contradicts the amendment's standing sentence, "Recording approval atomically with its parent effect … is excluded," and the delta's own test. No exploit path exists through this record (nothing reads it; minting is owner-gated; the reset is unconditional), so the question is noise on a realistic app. Repair (pick one, they conflict today): (a) widen the atomic-recording exclusion to accept an unconditional update that *establishes* the governed destination state under a same-field enum guard, even if re-entry is possible; or (b) keep the strict reading, and instead amend the spec sentence plus the test to require an informational ack for `008.q`. I recommend (a).
+
+Material concern 2 (fail-open custody, by inspection): `stamp_source()` in `derived.rs` defaults to `Fresh` for any Time expression without an approval-named member. A copy laundered through a local (`stamp = saved.approvedAt; … {approvedAt: stamp}`) or a caller-supplied Time arg is a bare `Name`, so it classifies `Fresh`, lands in `security_approval_reissues`, and mints trusted receipts — while direct member copies correctly go `uncertain` and old-or-now mixes go `Unknown` (both covered by passing tests). Repair: default `Unknown`; return `Fresh` only for `now`-rooted (or literal) expressions, resolving locals through bindings.
+
+Material concern 3 (unknown collapses to raw pass, by inspection): in `executed.rs` both sibling-approval boundaries do `match prior { Some(r) => r, None => current }`, where `current` is evaluated on unvalidated rows. When `consumed()` returns `None` for explicitly-unknown cases (more than eight consumed receipts, uncertain-only satisfaction, deleted-record ambiguity), a raw-true predicate built on an invalidated flag silently passes instead of reporting unknown. Repair: fall back to `current` only when there is no entry ledger (`entry.is_none()`); otherwise propagate `None` as an explicit coverage gap.
+
+Notes: the brief's "all pass" claim is factually false on the frozen tree (one red, run incomplete). Prior-review artifacts under `llp/reviews/` were not read. Author preapproval of semantics is recorded; these are semantic findings for repair, not acceptance.

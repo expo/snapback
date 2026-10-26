@@ -3,7 +3,7 @@
 use super::*;
 impl Table {
     /// Literal defaults are initialization, whether omitted or explicitly supplied.
-    // @ref LLP 3000.036.004.000#10-wave-30-default-initialization-dx13 — equality is limited to the insert arm.
+    // @ref LLP 3000.036.004.000#14-wave-30-default-initialization-dx13 — equality is limited to the insert arm.
     pub fn column_initialization(&self, column: &str) -> RuleExpr {
         let field = RuleTerm::Field(column.into());
         let mut alternatives = vec![RuleExpr::Eq(field.clone(), RuleTerm::Literal(Value::Null))];

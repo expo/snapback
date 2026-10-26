@@ -1,0 +1,28 @@
+muse: workspace root: /home/ccheever/projects/sb4-b26-sec10 (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=5f458dc2-a3fb-47bf-be2a-202d21c22a9d]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-b26-sec10 (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY — no material semantic concern. The amendment text and the frozen delta agree on every precision point, and the executed controls confirm it.
+
+What I checked: the full §10 text in [the RFC](llp/3000.036.004.000-structural-write-authority.rfc.md), and every security-relevant hunk of the frozen patch (receipt ledger and custody in `executed.rs` / [fixture_trace.rs](snapback4/crates/snapback4-core/src/engine/fixture_trace.rs), candidate derivation in [derived.rs](snapback4/crates/snapback4-lang/src/bind/security/derived.rs) and [derived/workflow.rs](snapback4/crates/snapback4-lang/src/bind/security/derived/workflow.rs), coupling judgment, campaign budgets, and the new test harnesses). No prior reviews read, no changes made.
+
+Findings, worst-first:
+
+- Receipt custody matches the addendum exactly. Changed updates are gated by `updates_at`, unchanged updates by `unchanged_at`, both set to the exact reissue sites. Copy sites record nothing. Pure-copy sites keep the paired probe (refusal); dual-use helper sites move to `unknown_at` (unknown, never proof or refusal). The `copied_positive_stamp` control pins the changed-stamp copy case.
+- Fixed-point dependency validation restores only stamps that are actually consumed, and only with intact inputs. Cross-stamp chains, conjunctions, alternatives, named keys, and filters keep their meaning. Consuming A cannot excuse B.
+- Parent/child coupling judges committed rows as specified. Completion counts all actual children, so conditional, unrelated, partial, and no-op writes cannot suppress it. Window coupling needs the exact changed parent with an in-window phase in the same mutation. Old-image schema gates cannot authorize retargeted work. Child terminal self-loops are excluded per-source via `changes_from`.
+- `.id` normalization only resolves primary selected rows through typed keys. Secondary keys are never reinterpreted as ids. The `secondary_reference` and `different_resource` controls pin both sides.
+- Enum source-phase projection uses actual predicates with negation and alternatives, excludes idempotent terminal writes, and retains unknown atoms. No-op writes cannot create work windows.
+- Campaigns are work-bounded (512 check, 8192 deploy) with no wall-clock verdict input. Explicit deadlines report `stopped early (time)` as incomplete. No language, parser, planner, store, wire, or admission changes. Instrumentation stays private to fixture hosts.
+
+Observed verification (this session, warm private target dir, since removed):
+
+- `18 passed; 0 failed` for `sec10_resource_tests` — the exact 18 controls the addendum claims.
+- `97 passed; 0 failed` for the full `snapback4-lang` lib suite — no regressions.
+- `4 passed; 0 failed` for targeted `security_sec10` campaign controls (consume-then-edit, child consume, id operands, idempotent terminals).
+
+Two non-material notes, no repair needed. The verdict-false path returns refusal even when an uncertain receipt sits in the valid set; restoring stamps only helps positive prerequisites, so the refusal never depends on the uncertain receipt in any realistic shape. Multi-stamp paired policies skip the `except_at`/`unknown_at` filtering that single-stamp policies get; that only affects exotic two-stamp candidates and fails toward explicit coverage. An explicit literal reapproval co-writing changed inputs is trusted as a reapproval without its own require — that is the specified semantic ("source-proven explicit reapproval"), not a mechanism hole.
+
+READY means what the brief says: no material semantic concern in this delta, not author acceptance or completed qualification. Full-suite, corpus, and Linux qualification remain with Integration 25/publication as the amendment states.

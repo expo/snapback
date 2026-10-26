@@ -9,6 +9,8 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("E_WITNESS_ARGUMENTS", &["Named values are compared exactly; handler-owned additional keys are allowed. guide testing."]),
     ("E_DATA_TRANSACTION_ABORTED", &["No success receipt is issued. Inspect the server outcome and retry through the identified-write path with the original intent id. See snapback4 guide deploy."]),
 
+    ("N_APPROVAL_INFORMATIONAL", &["offers the individual acknowledgment as the default next step.", "It does not block deployment.", "Adding the governed effect can create a new approval question."]),
+    ("N_INSERT_TABLE_AUTHORITY", &["remains advisory", "Confirm the declared table insert and edit audiences", "does not establish a distinct mutation require."]),
     ("E_PRODUCTION_ROSTER", &["Inspect the roster and deployment. Keep credentials with their store; use stable arguments and never silently create replacement accounts."]),
     ("E_PRODUCTION_ROSTER_BUSY", &["Wait for its driver. After confirming an interrupted driver is gone, inspect partial grants and remove only that roster lock; setup is not rolled back."]),
     ("E_SERVE_CHECK", &["Check options with serve-check --help and rerun. No passing script qualification is claimed."]),
@@ -29,7 +31,10 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("N_DERIVED_WRITE_AUTHORITY", &["Enforce the candidate", "record its individual specification decision"]),
     ("N_PRESENCE_LOOSENING", &["Declare presence intent", "production compares the selected release independently"]),
     ("N_TABLE_QUESTIONNAIRE", &["Answer from the specification", "JSON retains every underlying note and individual decision ID.", "The grouped line is advisory and has no separate ID."]),
-    ("N_APPROVAL_NOT_ENFORCED", &["Decide which transitions require approval", "declare independent intent", "test both gating boolean values."]),
+    ("N_APPROVAL_NOT_ENFORCED", &["Add the matching approval requirement", "informational record", "check --ack-security ID"]),
+    ("N_TEXT_EVIDENCE", &["Use an image column and image argument", "Intentional text references may remain text", "advisory"]),
+    ("N_MEDIA_PRIVATE_FIELDS", &["Apply the private audience", "declare independent media read intent", "advisory"]),
+    ("N_BLANK_TEXT_GUARD", &["Require trim(value) != ''", "text 1..N", "advisory"]),
     ("N_EDIT_AFTER_APPROVAL", &["Decide whether approval must be renewed after edits or replacements", "declare column update intent."]),
     ("N_CHILD_EVIDENCE_PRESENCE", &["Required child fields do not require a child row.", "Declare parent integrity intent with the specification's draft-state exceptions."]),
     ("N_TIME_TRANSITION", &["Confirm the relevant deadline against the specification", "test both sides of its boundary."]),
@@ -40,7 +45,7 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("N_CREATE_EDIT_ASYMMETRY", &["Confirm creation authority against the specification", "test independent column write intent with non-null input."]),
     ("N_PRIVATE_CREATE_EDIT_ASYMMETRY", &["Confirm who may supply this field at creation", "test independent column write intent with a non-null value."]),
     ("N_EVIDENCE_REMOVAL", &["confirm last-child retention against the specification.", "Guard deletion or detachment transactionally", "declare independent parent integrity intent and run test."]),
-    ("N_RETAINED_ROLE_GRANT", &["Recheck current role or revoke derived grants.", "Intentional retained authority needs an individual dependency-bound disposition."]),
+    ("N_RETAINED_ROLE_GRANT", &["Recheck current role or revoke derived grants.", "A current replay witness needs an individual disposition; without one this remains an advisory authority question."]),
     ("N_OPTIONAL_UPLOAD_CREATE", &["When independent intent requires a child, either require the upload before parent creation or always create the child with deliberately optional media; skipping the child on a null upload violates that presence intent.", "Optional media columns and guarded optional attachments do not require acknowledgment; a required child column alone does not require a child row."]),
     ("N_CREATION_REASON", &["Compare the justification requirement with the spec", "use text 1..N when required.", "This name-based question is advisory."]),
     ("N_CREATION_MONEY", &["Model and require the amount when the spec requires a fee or payment", "confirm intentional optional amounts against the spec.", "This name-based question is advisory."]),
@@ -49,7 +54,7 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("N_STALE_CREATION_CHECK", &["Decide whether eligibility must remain current", "write independent intent", "test create, eligibility change, approval."]),
     ("N_DURATION_BOUNDS", &["Compare the windows with the specification", "make them consistent or document deliberate differences."]),
     ("N_ROLE_WIDE_WRITE", &["Ask whether any role member may write any row", "model the target-to-owner relationship and guard it.", "See the Wall ownership rule recipe."]),
-    ("E_SECURITY_NOTES", &["Inspect snapback/security-reviews.json and run check --json for current IDs.", "Supply a nonempty specification reason for one current note", "neither bulk acknowledgments nor this file can clear an actual refutation."]),
+    ("E_SECURITY_NOTES", &["Inspect snapback/security-reviews.json and run check --json for current IDs.", "Use the printed current-witness answer form for witnessed decisions, including its permitted operation/caller and intended audience/effect", "unwitnessed advice accepts a nonempty specification rationale.", "Neither bulk acknowledgment nor this file can clear an authored refutation."]),
     ("E_STORE_OWNERSHIP", &["A stale token refuses before durable work.", "Stop admission, acquire ownership on the lease connection and reopen with the acquired token."]),
     ("E_COMMIT_OUTCOME_UNKNOWN", &["The operation may already be durable.", "Resolve its persisted receipt or operation key before any retry.", "Automatic retry is disabled"]),
     ("E_COMMITTER_STOPPED", &["The command was not applied.", "Retry only after the server recovers.", "A disconnection after execution starts is E_COMMIT_OUTCOME_UNKNOWN instead"]),
@@ -459,3 +464,15 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("SNAPBACK4_SIGNAL", &["Inspect the verb, generation, reason and any panic stack before restarting", "SIGKILL, power loss and an unwritable stderr cannot report from inside the process"]),
     ("SNAPBACK4_THREAD_EXIT", &["Inspect the verb, generation, reason and any panic stack before restarting", "an unexpected stop ends the server"]),
 ];
+
+#[test]
+fn shipping_why_prefixes_respect_current_witness_and_advice_boundaries() {
+ for code in ["N_INSERT_WRITE_INTENT", "N_BLANK_TEXT_GUARD"] {
+  let why=snapback4_lang::guide::explain_code(code).unwrap();let prefix=why.lines().next().unwrap();
+  assert!(prefix.contains("advisory"),"{prefix}");assert!(!prefix.contains("Review gate"),"{prefix}");
+ }
+ let why=snapback4_lang::guide::explain_code("N_APPROVAL_NOT_ENFORCED").unwrap();
+ assert!(why.lines().next().unwrap().contains("current witness and confirmed applicability"));
+ let why=snapback4_lang::guide::explain_code("E_SECURITY_NOTES").unwrap();
+ assert!(why.lines().next().unwrap().contains("witness-bound"));
+}

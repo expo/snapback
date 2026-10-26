@@ -1,0 +1,32 @@
+muse: workspace root: /home/ccheever/projects/sb4-b26-sec10 (cwd default)
+muse: workspace trust: trusted source=run-flag
+agent loop failed: model failed: API error 429 [request_id=fb5f585e-0ed6-448f-8774-dee8b44212ce]: Subscription quota exhausted. Your usage window resets at 2026-10-26T00:00:00Z. (rate_limit_error)
+[muse-exec] plan quota exhausted; retrying with the Meta API key
+muse: workspace root: /home/ccheever/projects/sb4-b26-sec10 (cwd default)
+muse: workspace trust: trusted source=run-flag
+muse: retrying meta model stream in 60000ms (attempt 2/10)
+muse: retrying meta model stream in 60000ms (attempt 2/10)
+muse: retrying meta model stream in 60000ms (attempt 2/10)
+muse: retrying meta model stream in 60000ms (attempt 2/10)
+READY. The SEC10 amendment (§10 of [structural-write-authority](file:///home/ccheever/projects/sb4-b26-sec10/llp/3000.036.004.000-structural-write-authority.rfc.md)) and its frozen implementation delta are semantically sound, precise within stated limits, and consistent with governing context. No material failure found. Files were only read; nothing was modified and no agents were spawned.
+
+What was reviewed: the full 3242-line frozen patch at `/home/ccheever/sb4-loop/sec10-r1-delta.patch` (LLP §10 text plus 16 source files, 12 new wave-26 fixtures, `security_sec10.rs`, deploy/check budget wiring, CHANGELOG, `measure.py`), checked against the post-patch worktree for the semantics the patch claims to preserve.
+
+Inference soundness and precision
+
+- Conditional-guard implications (`authority_walk.rs`, patch lines 130–157) are sound: only pure require-only branches export `not C or R` implications; any branch containing writes, returns, or assignments yields `None` and exports nothing. Implications are coded `$advice`, which the existing ward logic already excludes from enforcement-grade checks. Unknowns stay unknown: branch-assigned names become `$advice_unknown_*`, never requirements.
+- The `operation_preflight` relaxation (patch lines 187–204) is the highest-risk change and it holds: the old static exclusions (opaque bodies, non-viewer/literal terms, multi-target writes, unstable deps) are replaced by per-boundary executed tracing, and the trace layer filters intents by table and effect ([fixture_trace.rs](file:///home/ccheever/projects/sb4-b26-sec10/snapback4/crates/snapback4-core/src/engine/fixture_trace.rs), `i.table == table && i.effects.contains(&effect)`) with column-unchanged updates skipped — preserving the old upsert-arm attribution. `allowed == None` becomes an explicit unsupported entry, never a refutation ([executed.rs](file:///home/ccheever/projects/sb4-b26-sec10/snapback4/crates/snapback4-lang/src/bind/security/challenges/executed.rs:48)). Violations still require an actually-admitted mutation with a false predicate at the executed boundary, as §10 states.
+- Derived workflow candidates ([workflow.rs](file:///home/ccheever/projects/sb4-b26-sec10/snapback4/crates/snapback4-lang/src/bind/security/derived/workflow.rs)) only add refutable invariants; they cannot grant. Ambiguity is consistently dropped: non-unique ref paths, multi-path roots, non-literal update destinations, and any residual `Name` other than `now`/`viewer` all yield no candidate. The atomic record-with-effect exclusion and the different-resource guard (`contains('.')` check) are implemented as stated.
+
+Concrete filters, deterministic budgets, text compatibility
+
+- `concrete.rs` filter evaluation abstains the whole read on any `None` (unknown) row verdict — conservative and correct; the limitations-message update matches the new capability exactly.
+- Budgets match the stated limits: check 512, deploy 8192, full unbounded ([security.rs](file:///home/ccheever/projects/sb4-b26-sec10/snapback4/crates/snapback4/src/verbs/security.rs:31)); one shared campaign across the derived-first and full passes; `Campaign::bounded` (wall-clock) now occurs only in tests. The deadline message reports incompleteness, never a clean verdict.
+- `text 1..N` semantics claimed by §10 are corroborated in the untouched engine: minimum counts non-whitespace scalars, maximum counts all scalars ([validate.rs](file:///home/ccheever/projects/sb4-b26-sec10/snapback4/crates/snapback4-core/src/engine/validate.rs:144)), so the `trim(value) != ''` / positive-minimum repair is valid with no migration. I traced the `N_BLANK_TEXT_GUARD` firing on `wave26/045.q` through let-inlining in `authority_walk` (`Bind` env substitution) — the test's fire-and-clear pair is coherent.
+
+Review gates and stated limits
+
+- `N_APPROVAL_NOT_ENFORCED` and `N_BLANK_TEXT_GUARD` are gated with source-bound sites and per-note fingerprint-plus-analyzer dispositions; the `sec9-2` → `sec10-1` bump correctly invalidates prior acks. Advisory notes keep the existing fallback re-siting. The supersede targets exist (§9 exclusions; parent §§13.3, 16.3, 17.2 wall-clock caps). No runtime (`snapback4-core`) files change, so no implicit grants.
+- `measure.py` matches the plan: frozen `.q` copies with hashes, fresh plus post-test deploys, bounded local runs. The `waves` default omits wave17, which is harmless — every wave17 `.q` byte is identical to wave16, and the corpus bar already treats wave17 as supplementary (parent LLP line 1980).
+
+Non-material observations (no repair required): the "waves 15–26" phrasing is loose against the wave17 omission; the `work >= 4096` bonus-pass skip in `generated.rs` records no cut note, but that silence predates this patch and the patch strictly expands where the pass runs; one `expr(...).unwrap()` in the child-stage derivation is unreachable via the diagnostics gate since destinations must be declared enum variants.

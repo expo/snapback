@@ -51,6 +51,7 @@ pub(in crate::verbs) fn render(dispositions: &[Disposition], notes: &[Diagnostic
         if !d.gated && d.witness.is_none() && crate::note_rank::tier(&n.code)>crate::note_rank::Tier::Review { continue; }
         let subject=n.message.split(": ").next().unwrap_or(&n.message);
         let concise=match n.code.as_str() {
+            "N_APPROVAL_NOT_ENFORCED" if d.witness.as_ref().is_some_and(witness::concrete)=>format!("{subject}: the replayed {} effect via {} proceeds without this approval",d.witness.as_ref().unwrap()["effect"].as_str().unwrap_or("write"),d.witness.as_ref().unwrap()["operation"].as_str().unwrap_or("operation")),
             "N_COLUMN_RESULT_EXPOSURE"=>format!("{subject}: should operation results/refusals expose protected or projected-out columns to every admitted caller"),
             _=>n.message.trim_end_matches(['.', '?']).to_owned(),
         };
@@ -68,7 +69,8 @@ pub(in crate::verbs) fn render(dispositions: &[Disposition], notes: &[Diagnostic
             _=>n.rewrite.as_str(),
         };
         writeln!(&mut output,"  Repair: {repair}").unwrap();
-        writeln!(&mut output,"  Intended: snapback4 check --ack-security {} --reason '<spec rationale>'{}",d.id,if d.gated {" (required before check can pass)"}else{""}).unwrap();
+        let rationale=d.witness.as_ref().filter(|v|witness::concrete(v)).map(witness::reason_template).unwrap_or_else(||"<spec rationale>".into());
+        writeln!(&mut output,"  Intended: snapback4 check --ack-security {} --reason '{}'{}",d.id,rationale,if d.gated {" (required before check can pass)"}else{""}).unwrap();
     }
     output
 }
