@@ -1,15 +1,27 @@
 {
-  "binarySha256": "978dbd1f459052d47967c0a19d7d4924f8168652d84cdc032f65de5ae5020d1f",
+  "binarySha256": "68b72dd59153becd6d2ef01adea0a56487a8311bcda4f8f0af21af8e4c46e8e5",
   "results": [
     {
       "kind": "web",
       "steps": [
         {
-          "name": "init",
+          "name": "packed-init",
           "ok": true
         },
         {
           "name": "install-progress",
+          "ok": true
+        },
+        {
+          "name": "why-E_SERVE_DEPLOYMENT_MISMATCH",
+          "ok": true
+        },
+        {
+          "name": "why-E_SERVE_STORE_MISSING",
+          "ok": true
+        },
+        {
+          "name": "why-E_SERVE_LOCK_BARRIER",
           "ok": true
         },
         {
@@ -42,11 +54,23 @@
       "kind": "expo",
       "steps": [
         {
-          "name": "init",
+          "name": "packed-init",
           "ok": true
         },
         {
           "name": "install-progress",
+          "ok": true
+        },
+        {
+          "name": "why-E_SERVE_DEPLOYMENT_MISMATCH",
+          "ok": true
+        },
+        {
+          "name": "why-E_SERVE_STORE_MISSING",
+          "ok": true
+        },
+        {
+          "name": "why-E_SERVE_LOCK_BARRIER",
           "ok": true
         },
         {

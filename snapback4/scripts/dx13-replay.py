@@ -35,9 +35,10 @@ def main():
         apps=sorted(INPUT.glob('*-snapback-*'));assert len(apps)==50
         with concurrent.futures.ThreadPoolExecutor(max_workers=6) as pool: rows=list(pool.map(run,apps))
         lines=sorted(r['results']['default']['lines'] for r in rows)
-        summary={'schemas':len(rows),'medianLines':statistics.median(lines),'p90Lines':lines[44],'maxLines':max(lines),'checkPass':sum(r['results']['default']['exit']==0 for r in rows),'deployPass':sum(r['results']['deploy']['exit']==0 for r in rows),'coldMedianMs':statistics.median(r['results']['default']['ms'] for r in rows),'coldP90Ms':sorted(r['results']['default']['ms'] for r in rows)[44],'exactRealHoleDefaultWitnesses':sum(r['results']['default']['approvalWitness'] for r in rows),'originalsUnchanged':True}
+        deploy_lines=sorted(r['results']['deploy']['lines'] for r in rows)
+        summary={'deployMedianLines':statistics.median(deploy_lines),'deployP90Lines':deploy_lines[44],'deployMaxLines':max(deploy_lines),'schemas':len(rows),'medianLines':statistics.median(lines),'p90Lines':lines[44],'maxLines':max(lines),'checkPass':sum(r['results']['default']['exit']==0 for r in rows),'deployPass':sum(r['results']['deploy']['exit']==0 for r in rows),'coldMedianMs':statistics.median(r['results']['default']['ms'] for r in rows),'coldP90Ms':sorted(r['results']['default']['ms'] for r in rows)[44],'exactRealHoleDefaultWitnesses':sum(r['results']['default']['approvalWitness'] for r in rows),'originalsUnchanged':True}
         OUT.parent.mkdir(parents=True,exist_ok=True);OUT.write_text(json.dumps({'binarySha256':hashlib.sha256(BIN.read_bytes()).hexdigest(),'summary':summary,'rows':rows},indent=2)+'\n')
-        print(json.dumps(summary));assert summary['medianLines']<=5
+        print(json.dumps(summary));assert summary['medianLines']<=5 and summary['deployMedianLines']<=5
         assert next(r for r in rows if r['lane'].startswith('033-'))['results']['default']['approvalWitness']
     finally:shutil.rmtree(SCRATCH)
 if __name__=='__main__':main()

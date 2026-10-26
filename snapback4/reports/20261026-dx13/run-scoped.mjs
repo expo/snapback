@@ -2,11 +2,11 @@
 // Retain affected.mjs's complete selection and execute a disclosed subset through
 // its own timeout/input-digest/receipt machinery. This cannot qualify publication.
 import {planAffected,runPlan,ROOT} from '../../scripts/affected.mjs';
-import {mkdirSync,writeFileSync} from 'node:fs';
+import {mkdirSync,readFileSync,writeFileSync} from 'node:fs';
 import {join} from 'node:path';
 const full=planAffected({base:'origin/main',worktree:process.argv.includes('--worktree')});
 const folder=join(ROOT,'target/affected');mkdirSync(folder,{recursive:true});
-const fullPath=join(folder,'dx13-full-plan.json');writeFileSync(fullPath,JSON.stringify(full,null,2)+'\n');
+const fullPath=join(folder,`dx13-full-plan-${full.head.slice(0,12)}.json`);writeFileSync(fullPath,JSON.stringify(full,null,2)+'\n');
 const step=(id,cwd,argv,timeoutSeconds=1800,requires=[])=>({id,cwd,argv,timeoutSeconds,requires,reason:'DX13 touched-code verification; complete crate/client batteries excluded by brief'});
 const names=['proof-contract','proof','proof-fixtures','wave10-witness','dx10-process-accounts','dx12-serve','dx13-proof','staging','day3-proofs','day4-proofs','day5-proofs','production-starters','dx9-packed','delivery-integrated'];
 const files=names.map(name=>'packages/snapback4/test/'+name+'.test.mjs');
@@ -32,7 +32,19 @@ const steps=[
  step('wasm-measurement','snapback4',['bash','scripts/measure-wasm.sh','--no-record'],1800,['build-wasm']),
  ...['run-lean','run'].map(mode=>step('difftest:'+mode,'snapback4',['cargo','run','--release','-p','snapback4-difftest','--',mode,'--seed','0','--cases','2000','--workers','2','--out','target/affected/dx13-'+mode],5400)),
 ];
-const scoped={...full,rustPackages:['snapback4','snapback4-core','snapback4-lang'],clientFiles:files.map(file=>'snapback4/'+file),steps,
+const finalDelta=process.argv.includes('--final-delta');
+const priorPath=join(folder,'199df9644300-1792993157113.json');
+const prior=finalDelta?JSON.parse(readFileSync(priorPath,'utf8')):null;
+if(prior&&(!prior.complete||!prior.unchanged||prior.head!=='199df9644300523c577674c2f4fca25e6c5f6125'))throw Error('DX13 parent receipt must be complete and unchanged');
+const finalFiles=['wave10-witness','proof-contract','dx9-packed'].map(name=>'packages/snapback4/test/'+name+'.test.mjs');
+const finalSteps=finalDelta?[
+ ...steps.filter(s=>['build-cli','cli-unit'].includes(s.id)),
+ {...steps.find(s=>s.id==='cli-output'),argv:['cargo','test','--no-fail-fast','-p','snapback4','--features','snapback4-core/test-support',...['dx11','dx11_refusals','dx12_output','dx13','surf4','security_reviews','security_wave19'].flatMap(name=>['--test',name]),'--','--test-threads=2']},
+ step('language-followup','snapback4',['cargo','test','--no-fail-fast','-p','snapback4-lang','--test','guide','--test','wave26_security','--','--test-threads=4'],3600),
+ step('clients-followup','snapback4',['node','scripts/run-client-tests.mjs','3','files',...finalFiles],1800,['build-cli']),
+ ...steps.filter(s=>['doc-budget','packaged-docs','proof-api','diagnostics','inventories','generated','root-guide','refs'].includes(s.id)),
+]:steps;
+const scoped={...full,rustPackages:finalDelta?['snapback4','snapback4-lang']:['snapback4','snapback4-core','snapback4-lang'],clientFiles:(finalDelta?finalFiles:files).map(file=>'snapback4/'+file),steps:finalSteps,
  fullSelectorPlanExecuted:false,qualification:false,
- scopeOverride:{reason:'As in DX12: honor the brief prohibition on the complete five-crate battery and complete client pool. Three touched crates, direct proof/packed-consumer clients, root documentation checks and the two required 2k semantic campaigns are executed. The full CLI integrations additionally ran before this bounded receipt; its census failure is inherited and ticketed.',fullPlanPath:fullPath,fullRustPackages:full.rustPackages,fullClientFiles:full.clientFiles.length,fullStepCount:full.steps.length}};
+ scopeOverride:{reason:finalDelta?'Final delta: deploy rendering, diagnostic prose, generated API table and superseded test expectations only. Core/engine and non-guide language semantics are byte-unchanged from the complete parent receipt; retain that raw FAIL, its passed core/other language/eleven client files/wasm/plain 2k evidence, and its byte-identical inherited Lean findings. Rerun changed CLI output, guide/wave26 targets, three failed client files and documentation checks. This is not a complete selector pass.':'As in DX12: honor the brief prohibition on the complete five-crate battery and complete client pool. Three touched crates, direct proof/packed-consumer clients, root documentation checks and the two required 2k semantic campaigns are executed. The full CLI integrations additionally ran before this bounded receipt; its census failure is inherited and ticketed.',priorReceipt:prior?{path:priorPath,head:prior.head,inputDigest:prior.inputDigest,complete:prior.complete,unchanged:prior.unchanged,ok:prior.ok}:null,fullPlanPath:fullPath,fullRustPackages:full.rustPackages,fullClientFiles:full.clientFiles.length,fullStepCount:full.steps.length}};
 const {receiptPath,receipt}=await runPlan(scoped);console.log(JSON.stringify({receiptPath,ok:receipt.ok,fullSelectorPlanExecuted:false,qualification:false}));if(!receipt.ok)process.exitCode=1;
