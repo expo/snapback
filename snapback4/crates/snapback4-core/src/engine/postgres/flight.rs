@@ -44,12 +44,15 @@ impl Session<'_> {
         self.ensure_settings()?;
         let guard_command = self.guard.as_deref().unwrap_or(super::checks::INLINE_GUARD);
         let mut command = String::with_capacity(guard_command.len() + sql.len());
-        let owner = self.owner.take();
         let owner_budget = self.owner_budget.take();
         // An aborted transaction accepts only rollback. These recovery flights
         // contain controls alone: restore the savepoint before checking settings,
         // which may themselves have been restored by that rollback.
         let recovery = sql.starts_with("ROLLBACK TO SAVEPOINT ");
+        // Every data flight rechecks the provisioned fence, including the
+        // combined final. Recovery controls must restore the transaction first.
+        // @ref LLP 3000.009.001.000.000.002#3.11 — checks fail closed before data without adding a flight.
+        let owner = if recovery { None } else { self.owner.clone() };
         // BEGIN must precede the guard too: a query before BEGIN would start
         // an implicit transaction and prevent setting its isolation level.
         let opening = if sql.starts_with("BEGIN ") { sql.find(';').map_or(0, |n|n+1) } else { 0 };

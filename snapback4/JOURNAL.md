@@ -109090,3 +109090,37 @@ executable or postmaster PID file. Final PG16/PG17 pg_ctl probes return 3;
 completion free space is 32.08 GiB. No push, repository-config change, protected
 cluster action or q24 access occurred. See the appended Stage P report and its
 aggregate JSON; raw evidence remains outside Git. WF integration is separate.
+
+## 2026-10-26 — Stage P rebased onto WF: preserve the combined final
+
+Rebase `94ada27114` onto local `sb4-pg/main-wf` (`e0ad590a1b`) on
+`sb4-pg/stage-p-wf`. Five files conflicted. The pipelined-commit RFC retains
+both revision histories, WF's budget/dispatch and outcome contract, and Stage P
+§3.11; the JOURNAL retains both lanes' entries. `store.rs` combines provisioned
+check state with WF's per-connection dispatch reserve and final-flight path.
+`group_tail.rs` uses typed, family-specialised tails while retaining raising
+identity and all eight count assertions before the co-dispatched COMMIT.
+`group_tail/typed.rs` combines the compact array encoder with those assertions;
+its two direct test constructors also initialise the new count-expression state.
+The initial focused build caught those missing constructor fields before tests
+ran; they are corrected.
+
+Post-rebase inspection found the owner command was consumed by the opener.
+Writer data flights now repeat it, including the combined final, without adding
+a round trip. Recovery-only savepoint controls restore the transaction first.
+The effective final order is guard → fence → ticket/identity and typed tail
+with raising counts → cumulative deadline assertion → certificate timeout
+resets and synchronous COMMIT. The fence's timeout controls precede its lock;
+COMMIT remains uncancellable. WF's dispatch reserve, transaction-status
+classification, notified release and CPU cuts remain intact. Stage P's
+namespace/array_nulls guard, admitted digest set, doctor validation and pruning
+behind the locked head remain intact.
+
+The wire witness now checks this order in every combined-final message. A new
+real-transaction witness drops each helper or drifts namespace/array_nulls
+after the opener and requires neither tail nor deferred-COMMIT entry (using
+nontransactional sequences), an aborted xid and unchanged durable state. It
+retains conservative unknown classification for missing-function errors.
+Verification and the single loopback cost sample follow in the Stage P report.
+Cargo is capped at five jobs, with this worktree's own target directory;
+no push or throughput campaign is authorised.

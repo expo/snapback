@@ -41,7 +41,14 @@ def connection(front,ident):
       final=payload.rstrip(b'\x00; \n').upper().endswith(b'COMMIT')
       cut=bool(fault and final and b'EXECUTE sb4_rt6_' in payload and not injected)
       if cut:injected=True
-      replies.append(dict(final=final,error=None,commit=False,cut=cut,combined=bool(final and b'EXECUTE sb4_rt6_' in payload)))
+      guard=re.search(rb'SELECT [^;]*\._sb4_guard_[^;]*;',payload)
+      fence=re.search(rb'SELECT [^;]*\._sb4_fence_[^;]*;',payload)
+      tail=payload.find(b'EXECUTE sb4_rt6_')
+      deadline=payload.find(b'SELECT pg_temp.sb4_assert_deadline(')
+      commit=payload.rfind(b'COMMIT')
+      ordered=bool(guard and fence and guard.start()<fence.start()<tail and
+                   (deadline<0 or tail<deadline<commit))
+      replies.append(dict(final=final,error=None,commit=False,cut=cut,combined=bool(final and tail>=0),checks_before_data=ordered))
      if cut and fault=='before-forward':
       front.shutdown(socket.SHUT_RDWR);back.shutdown(socket.SHUT_RDWR);return
      if delay_ms and delay_armed and b'EXECUTE sb4_rt6_' in payload:
@@ -107,6 +114,7 @@ checks['cumulative_deadline_aborts_skip_commit']=sum(r['error']=='S4006' and r['
 pathlib.Path(os.environ.get('WF_WIRE_OUT','/tmp/wf-wire.json')).write_text(json.dumps({'checks':checks,'records':records,'forward_delays':forward_delays,'child_exit':child.returncode},indent=2))
 print(json.dumps(dict(checks, fault=fault,injected=injected,forward_delays=forward_delays)),flush=True)
 assert child.returncode==0
+assert all(r['checks_before_data'] for r in finals)
 if delay_ms:
  assert len(forward_delays)==2 and len({r['connection'] for r in forward_delays})==1
  assert all(r['delay_us']>=delay_ms*1000 for r in forward_delays)

@@ -251,3 +251,42 @@ fn g73_backend_termination_during_trailing_commit_is_unknown() {
     assert_eq!(status(&mut control,&xid),"aborted");
     assert_eq!(control.query_one("SELECT count(*) FROM _ops WHERE id='wf-op'",&[]).unwrap().get::<_,i64>(0),0);
 }
+
+#[test]
+#[ignore="private Postgres"]
+fn g73_stage_p_final_checks_refuse_before_tail_and_commit() {
+    for fault in ["guard", "fence", "array_nulls", "namespace"] {
+        let mut engine=fixture();let mut client=observer(&mut engine);
+        client.batch_execute("CREATE SEQUENCE wf_final_tail_entered; CREATE SEQUENCE wf_final_commit_entered;
+            CREATE FUNCTION wf_final_entry() RETURNS trigger LANGUAGE plpgsql AS $f$
+            BEGIN PERFORM nextval(TG_ARGV[0]::regclass); RETURN NEW; END $f$;
+            CREATE TRIGGER wf_final_tail_entry BEFORE UPDATE ON _head FOR EACH ROW EXECUTE FUNCTION wf_final_entry('wf_final_tail_entered');
+            CREATE CONSTRAINT TRIGGER wf_final_commit_entry AFTER UPDATE ON _head DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION wf_final_entry('wf_final_commit_entered')").unwrap();
+        let before=engine.seq().unwrap();
+        let store=engine.store_mut().test_postgres_handle_mut().store.get_mut();
+        let tx=stage(store);let xid=tx.batch_base.borrow().as_ref().unwrap().xid.clone();
+        let sabotage=match fault {
+            "guard"|"fence" => {
+                let signature:String=client.query_one("SELECT pg_catalog.format('%I.%I(%s)',n.nspname,p.proname,pg_get_function_identity_arguments(p.oid)) FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname=current_schema() AND p.proname LIKE $1", &[&format!("_sb4_{fault}_%")]).unwrap().get(0);
+                format!("DROP FUNCTION {signature}")
+            },
+            "array_nulls" => "SET array_nulls=off".into(),
+            _ => "SET search_path=pg_catalog".into(),
+        };
+        // Same-transaction DDL avoids an external catalog-lock wait. Rollback
+        // restores the helper; production runtime DDL remains unsupported.
+        tx.inner.borrow_mut().client.batch_execute(&sabotage).unwrap();
+        let failure=tx.commit_group_final().expect_err(fault);
+        assert!(matches!(&failure.error,RuntimeError::Postgres(e) if e.code().is_some_and(|c|c.code()=="S4001")) || matches!(&failure.error,RuntimeError::CommitOutcomeUnknown(_)),"{fault}: {}",failure.error);
+        // Missing-function errors retain WF's conservative unknown result;
+        // end this deliberately sabotaged session explicitly for test cleanup.
+        tx.inner.borrow_mut().client.batch_execute("ROLLBACK").unwrap();
+        drop(tx);
+        assert_eq!(status(&mut client,&xid),"aborted","{fault}");
+        assert_eq!(engine.seq().unwrap(),before,"{fault}");
+        for sequence in ["wf_final_tail_entered","wf_final_commit_entered"] {
+            assert!(!client.query_one(&format!("SELECT is_called FROM {sequence}"),&[]).unwrap().get::<_,bool>(0),"{fault}: {sequence}");
+        }
+        assert_eq!(client.query_one("SELECT (SELECT count(*) FROM _ops WHERE id='wf-op')+(SELECT count(*) FROM _outbox WHERE id='wf-effect')",&[]).unwrap().get::<_,i64>(0),0,"{fault}");
+    }
+}

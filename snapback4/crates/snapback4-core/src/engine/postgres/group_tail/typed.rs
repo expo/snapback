@@ -269,6 +269,7 @@ mod tests {
         ];
         let mut tail = Tail {
             sql: String::new(),
+            counts: Default::default(),
             params: Vec::new(),
         };
         let expr = tail.column(values.clone(), "text");
@@ -285,6 +286,7 @@ mod tests {
         let numbers = vec![Some(i64::MIN), None, Some(0), Some(i64::MAX)];
         let mut tail = Tail {
             sql: String::new(),
+            counts: Default::default(),
             params: Vec::new(),
         };
         let expr = tail.column(numbers.clone(), "int8");
