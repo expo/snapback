@@ -24,8 +24,8 @@ pub(in crate::verbs) fn render(dispositions: &[Disposition], notes: &[Diagnostic
     let mut output=String::new();
     let mut ordered=notes.iter().zip(dispositions).collect::<Vec<_>>();
     // @ref LLP 3000.036.004#165-review-clarification-exact-detector-and-command-boundaries — grouping must preserve gate/authority priority.
-    ordered.sort_by_key(|(n,_)|(crate::note_rank::summary_order(&n.code),n.site.file.clone(),n.site.line,n.site.col));
-    let members=ordered.iter().filter(|(_,d)|d.family.is_some()&&!d.acknowledged).collect::<Vec<_>>();
+    ordered.sort_by_key(|(n,d)|(if d.gated&&!d.acknowledged {0} else if d.witness.is_some(){1}else{2},crate::note_rank::summary_order(&n.code),n.site.file.clone(),n.site.line,n.site.col));
+    let members=ordered.iter().filter(|(_,d)|d.family.is_some()&&!d.acknowledged&&d.witness.is_none()).collect::<Vec<_>>();
     let mut family_output=String::new();
     if let Some((_,first))=members.first().copied() {
         let codes=members.iter().map(|(n,_)|n.code.as_str()).collect::<std::collections::BTreeSet<_>>().into_iter().collect::<Vec<_>>().join(", ");
@@ -42,12 +42,13 @@ pub(in crate::verbs) fn render(dispositions: &[Disposition], notes: &[Diagnostic
     }
     let mut family_printed=false;
     for (n,d) in ordered {
-        if d.acknowledged {if let Some(w)=&d.witness {writeln!(&mut output,"  Witness recorded: {}",w["summary"].as_str().unwrap_or("see check --json")).unwrap();} writeln!(&mut output,"security reviewed {} {}: {}",d.id,d.code,d.reason.as_deref().unwrap_or("")).unwrap(); continue; }
+        if d.acknowledged {if d.witness.is_none() {writeln!(&mut output,"  Witness: this code has no replay witness available; acknowledgment records specification rationale, not validation").unwrap();} if let Some(w)=&d.witness {writeln!(&mut output,"  Witness recorded: {}",w["summary"].as_str().unwrap_or("see check --json")).unwrap();} writeln!(&mut output,"security reviewed {} {}: {}",d.id,d.code,d.reason.as_deref().unwrap_or("")).unwrap(); continue; }
         if d.family.is_some() {
-            if !family_printed {output.push_str(&family_output);family_printed=true;}
-            continue;
+            if d.witness.is_some() { /* witnessed audience questions render individually below */ }
+            else { if !family_printed {output.push_str(&family_output);family_printed=true;}
+            continue; }
         }
-        if !d.gated && crate::note_rank::tier(&n.code)!=crate::note_rank::Tier::Review { continue; }
+        if !d.gated && d.witness.is_none() && crate::note_rank::tier(&n.code)!=crate::note_rank::Tier::Review { continue; }
         let subject=n.message.split(": ").next().unwrap_or(&n.message);
         let concise=match n.code.as_str() {
             "N_COLUMN_RESULT_EXPOSURE"=>format!("{subject}: should operation results/refusals expose protected or projected-out columns to every admitted caller"),
@@ -58,6 +59,9 @@ pub(in crate::verbs) fn render(dispositions: &[Disposition], notes: &[Diagnostic
         writeln!(&mut output,"decision {} at {}: {question}; is this intended?",d.code,d.site).unwrap();
         if let Some(witness)=&d.witness {writeln!(&mut output,"  Witness: {}",witness["summary"].as_str().unwrap_or("concrete campaign behavior; check --json for replay")).unwrap();}
         else if matches!(n.code.as_str(),"N_APPROVAL_NOT_ENFORCED"|"N_ARGUMENT_GRANT"|"N_INSERT_WRITE_INTENT"|"N_DERIVED_WRITE_AUTHORITY") {writeln!(&mut output,"  Witness: none obtained in this bounded campaign; `check --review` searches for concrete behavior; this remains a specification question").unwrap();}
+        if d.witness.is_none() && !matches!(n.code.as_str(),"N_APPROVAL_NOT_ENFORCED"|"N_ARGUMENT_GRANT"|"N_INSERT_WRITE_INTENT"|"N_DERIVED_WRITE_AUTHORITY") {
+            writeln!(&mut output,"  Witness: unavailable for this code; this is specification advice, not a validated behavior").unwrap();
+        }
         let repair=match n.code.as_str() {
             "N_COLUMN_RESULT_EXPOSURE"=>"restrict result/refusal audiences with column rules and independent intent; run snapback4 test",
             "N_ARGUMENT_GRANT"=>"validate the recipient's current role and relationship; caller authority alone is insufficient",
@@ -71,7 +75,18 @@ pub(in crate::verbs) fn render(dispositions: &[Disposition], notes: &[Diagnostic
 
 /// One mode selector for the CLI and captured-analyzer format replays.
 pub(in crate::verbs) fn render_mode(dispositions:&[Disposition],notes:&[Diagnostic],review:bool)->String {
-    let selected=dispositions.iter().zip(notes).filter(|(d,_)|review || d.recorded || d.gated&&!d.acknowledged).collect::<Vec<_>>();
+    if !review {
+        let mut output=String::new();
+        for (d,n) in dispositions.iter().zip(notes) {
+            if d.gated&&!d.acknowledged || d.recorded {
+                output.push_str(&render(&[d.clone()],&[n.clone()]));
+            } else if !d.acknowledged && let Some(w)=&d.witness {
+                output.push_str(&format!("fix question {} at {}: {}; is this intended?\n  Witness: {} — repair or check --ack-security {} --reason '<spec rationale>' (doesn't block)\n",d.code,d.site,n.message.trim_end_matches(['.','?']),w["summary"].as_str().unwrap_or("see check --json for replay"),d.id));
+            }
+        }
+        return output;
+    }
+    let selected=dispositions.iter().zip(notes).collect::<Vec<_>>();
     render(&selected.iter().map(|(d,_)|(*d).clone()).collect::<Vec<_>>(),&selected.iter().map(|(_,n)|(*n).clone()).collect::<Vec<_>>())
 }
 #[cfg(test)]mod tests {
@@ -118,11 +133,24 @@ pub(in crate::verbs) fn render_mode(dispositions:&[Disposition],notes:&[Diagnost
    let sources=project.sources().unwrap();let bound=snapback4_lang::compile(&sources);assert!(bound.diagnostics.is_empty());
    let mut report=snapback4_lang::security::analyze_rules(&bound);report.notes=notes.clone();
    let advice=ds.iter().filter(|d|!d.gated&&crate::note_rank::tier(&d.code)==crate::note_rank::Tier::Review).count();
-   let verdict=crate::presentation::check_verdict(gate_count>0,&crate::verbs::table_counts(&bound.schema),bound.schema.synced().count(),bound.programs.len(),if gate_count==0{"compiled"}else{"security review required"},gate_count,advice,0,row["noteCount"].as_u64().unwrap_or(0) as usize,row["ms"].as_f64().unwrap(),crate::verbs::init::client_setup_hint(&project.root),"");
+   let verdict=crate::presentation::check_verdict(gate_count>0,&crate::verbs::table_counts(&bound.schema),bound.schema.synced().count(),bound.programs.len(),if gate_count==0{"compiled"}else{"security review required"},gate_count,0,advice,0,row["noteCount"].as_u64().unwrap_or(0) as usize,row["ms"].as_f64().unwrap(),crate::verbs::init::client_setup_hint(&project.root),"");
    let text=format!("{verdict}\n{}\n{}",crate::verbs::security::enforced_text(&report,&bound),render_mode(&ds,&notes,false));
    let lines=text.lines().count();if gate_count==0{assert!(lines<=5);}
    measured.push(serde_json::json!({"lane":row["lane"],"exit":if gate_count==0{0}else{1},"lines":lines,"chars":text.chars().count(),"gates":gate_count}));
   }
   if let Ok(path)=std::env::var("SNAPBACK4_DX11_RENDER_OUTPUT"){std::fs::write(path,serde_json::to_vec_pretty(&measured).unwrap()).unwrap();}
+ }
+}
+
+#[cfg(test)] mod dx13_tests {
+ use super::*;
+ #[test] fn witnessed_questions_are_default_visible_and_unwitnessable_ack_is_explicit() {
+  let n=Diagnostic::new(&Default::default(),"N_APPROVAL_NOT_ENFORCED","jobs.approved: transitions do not inspect approval","add guard");
+  let mut d=Disposition{family:None,id:"question-id".into(),code:n.code.clone(),site:n.site.to_string(),gated:false,acknowledged:false,recorded:false,reason:None,witness:Some(serde_json::json!({"summary":"advance as staff -> ok; approved=false"})),scope:"test".into()};
+  let output=render_mode(&[d.clone()],&[n.clone()],false);assert!(output.contains("Witness: advance")&&output.contains("fix question")&&output.contains("doesn't block"));
+  d.code="N_CHILD_EVIDENCE_PRESENCE".into();d.witness=None;
+  assert!(render_mode(&[d.clone()],&[n.clone()],false).is_empty());
+  d.acknowledged=true;d.recorded=true;d.reason=Some("spec rationale".into());
+  let output=render_mode(&[d],&[n],false);assert!(output.contains("no replay witness available")&&output.contains("specification rationale, not validation"),"{output}");
  }
 }

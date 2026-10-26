@@ -409,9 +409,7 @@ pub fn check(options: &Options) -> i32 {
     let acknowledgment_not_applied = (security.refuted() && options.flags.contains_key("ack-security")).then_some(
         "--ack-security was not applied: a security invariant is refuted; an acknowledgment records specification rationale for a review note and cannot override a concrete counterexample. Repair the policy or the invariant and rerun check.");
     if !options.json { if let Some(message) = acknowledgment_not_applied { eprintln!("check: {message}"); } }
-    let evidence=if options.json || options.flags.contains_key("review") || options.flags.contains_key("verbose") || options.flags.contains_key("ack-security") || security.notes.iter().any(|n|security_reviews::gated(&n.code)) {
-        security::witnesses::collect(&project,&bound,&compiled_sources,&security.notes,options.json || options.flags.contains_key("review") || options.flags.contains_key("verbose") || options.flags.contains_key("ack-security"))
-    } else { Vec::new() };
+    let evidence=security::witnesses::collect(&project,&bound,&compiled_sources,&security.notes,true);
     let dispositions = match security_reviews::review_evidence(&project,&compiled_sources,&security.notes,
         if security.refuted(){None}else{options.flags.get("ack-security").map(|id|(id.as_str(),options.flags.get("reason").map(String::as_str).unwrap_or("")))},&evidence) {
         Ok(d)=>d,Err(error)=>{if options.json {println!("{}",json!({"ok":false,"security":&security,"problems":[{"code":"E_SECURITY_NOTES","message":error}]}));}else{eprintln!("check: E_SECURITY_NOTES: {error}");}return 2;}
@@ -441,7 +439,7 @@ pub fn check(options: &Options) -> i32 {
     if options.json {
         println!("{}", json!({ "ok": !security_failed, "acknowledgmentNotApplied": acknowledgment_not_applied, "securityReviews": &dispositions, "security": &security, "followingHistory": bound.programs.iter().filter_map(|p| crate::scale::following::certificate(&bound.schema, &p.program)).collect::<Vec<_>>(), "rowViews": row_views, "fieldAuthority": field_authority, "sequences": sequences, "scaleSummary": scale_summary, "search": certificates.iter().flat_map(|certificate| &certificate.search).collect::<Vec<_>>(), "plans": if options.flags.contains_key("cost") { Some(bound.programs.iter().map(|p| (&p.program.name, p.selections())).collect::<BTreeMap<_, _>>()) } else { None }, "scale": if options.flags.contains_key("cost") { Some(&certificates) } else { None }, "tables": bound.schema.visible_tables().filter(|(name, _)| bound.schema.maintain_for(name).is_none()).count(), "views": bound.schema.visible_tables().filter(|(name, _)| bound.schema.maintain_for(name).is_some()).count(), "synced": synced, "operations": bound.programs.len(), "heldQueries": bound.schema.operations.iter().filter(|(_, fact)| fact.held).map(|(name, _)| name).collect::<Vec<_>>(), "notes": bound.notes, "newNotes": reviewed.new, "acknowledgedNotes": reviewed.acknowledged, "predictionSummary": snapback4_lang::bind::residency::prediction_summary(&bound), "starterLeftovers": init::starter_leftovers_json(&project.root), "acquisition": acquisition, "residency": if options.flags.contains_key("residency") { Some(residency::facts(&bound)) } else { None }, "native": native.as_ref().map(|b| json!({ "module": b.path, "bytes": b.bytes, "jobs": b.jobs, "ms": b.ms })), "ms": elapsed.as_millis() }));
     } else {
-        println!("{}",crate::presentation::check_verdict(security_failed,&table_counts(&bound.schema),synced,bound.programs.len(),if security.refuted(){"security invariant refuted"}else if security_failed{"security review required"}else{"compiled"},dispositions.iter().filter(|d|d.gated&&!d.acknowledged).count(),dispositions.iter().filter(|d|!d.gated&&!d.acknowledged&&crate::note_rank::tier(&d.code)==crate::note_rank::Tier::Review).count(),dispositions.iter().filter(|d|d.acknowledged).count(),note_count,elapsed.as_secs_f64()*1000.0,init::client_setup_hint(&project.root),&native.as_ref().map(|b|format!("; native: {} → {} ({} B, {} ms)",b.jobs.join(", "),b.path.display(),b.bytes,b.ms)).unwrap_or_default()));
+        println!("{}",crate::presentation::check_verdict(security_failed,&table_counts(&bound.schema),synced,bound.programs.len(),if security.refuted(){"security invariant refuted"}else if security_failed{"security review required"}else{"compiled"},dispositions.iter().filter(|d|d.gated&&!d.acknowledged).count(),dispositions.iter().filter(|d|!d.gated&&!d.acknowledged&&d.witness.is_some()).count(),dispositions.iter().filter(|d|!d.gated&&!d.acknowledged&&d.witness.is_none()&&crate::note_rank::tier(&d.code)==crate::note_rank::Tier::Review).count(),dispositions.iter().filter(|d|d.acknowledged).count(),note_count,elapsed.as_secs_f64()*1000.0,init::client_setup_hint(&project.root),&native.as_ref().map(|b|format!("; native: {} → {} ({} B, {} ms)",b.jobs.join(", "),b.path.display(),b.bytes,b.ms)).unwrap_or_default()));
         security::enforced(&security,&bound);
         if review && !reviewed.acknowledged.is_empty() { println!("{} reviewed notes (check --verbose to inspect); source edits require review again", reviewed.acknowledged.len()); }
         if options.flags.contains_key("verbose") {
@@ -460,6 +458,12 @@ pub fn check(options: &Options) -> i32 {
             ranked.sort_by_key(|note| crate::note_rank::tier(&note.code));
             let ranked: Vec<snapback4_lang::Diagnostic> = ranked.into_iter().cloned().collect();
             for report in note_reports(&ranked, true) { println!("{}", present(&report)); }
+        } else if !review {
+            for note in &reviewed.new {
+                if crate::note_rank::tier(&note.code)==crate::note_rank::Tier::Fix {
+                    println!("fix: {} {}: {} — check --review for repair",note.site,note.code,present(&note_summary(note)));
+                }
+            }
         } else if review {
             // Notes are advisory: ranked and grouped after the ok line, repeats shortened (note_rank).
             let mut notes = reviewed.new.iter().chain(compact_security.iter()).map(|note| {

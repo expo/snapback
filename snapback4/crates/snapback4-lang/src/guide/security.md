@@ -25,7 +25,8 @@ mutation writePrivateNote(body: text 1..2000):
 
 Run `snapback4 check` → `snapback4 test` → `snapback4 audit`. A passing default
 check prints its verdict and language-enforcement summary; pending gates stay
-visible. Use `snapback4 check --review` for advisory decisions and notes;
+visible, as do witnessed questions and actionable write/completeness notes.
+Advisories do not block; acknowledgments are optional unless labelled as a gate. Use `snapback4 check --review` for advisory decisions and notes;
 `--verbose` retains every reason.
 Answer the rule questions from the product specification before editing intent.
 The restating advisory names each admitted role and its row conditions: for
@@ -58,9 +59,9 @@ violations; seed-only/synthetic table probes remain non-failing supplemental evi
 Fixture-free tests report that no authored business cases ran. Finite passing
 campaigns never prove security. Default check bounds concrete exploration to 512
 call/world reservations and 1500 ms; exhaustion stays unproved and points to the
-full test. Explicit `--review`, `--verbose`, JSON and `--ack-security` also search
+full test. Every check and changed deploy also searches
 generated question witnesses with a separate deterministic 8192-work budget.
-This opt-in search cannot change a gate, decision ID or proof verdict; exhausted
+This bounded search cannot change a gate, decision ID or proof verdict; exhausted
 questions retain an explicit unavailable witness.
 `audit --json` retains all column audiences, grant writers, exclusions and uncovered
 role/row/effect exposures. Audit returns the permission map with bounded check
@@ -74,7 +75,7 @@ reason, without increasing the search. Declaring one effect does not cover the o
 `invariant table.read only P` protects read intent; insert, update and delete
 name authority. `invariant table.column write only P` covers writes to a
 column (insert, inserted insert-if-absent, update and both upsert arms).
-A null creation or the declared `false` approval default is initialization, not an approval write. Mandatory creation presence needs whole-row insert/write or always intent; non-null/non-default creation still requires P. Tests judge each executed write in a committed mutation, including intermediate writes. `invariant table.column update only P` checks
+A null creation or a declared literal default (including `false` and `0`) is initialization, not an approval write. Mandatory creation presence needs whole-row insert/write or always intent; non-null/non-default creation still requires P. Tests judge each executed write in a committed mutation, including intermediate writes. `invariant table.column update only P` checks
 only edits, retaining old-and-next-image semantics; use it when creation is permitted
 to a different role (for example counter staff creating a ticket price). `invariant table always P` states row integrity.
 An update policy over `.field` constrains **both old and next images**.

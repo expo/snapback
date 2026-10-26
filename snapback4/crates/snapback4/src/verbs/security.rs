@@ -116,7 +116,9 @@ pub(super) fn release_loop(project:&Project,bound:&Bound,sources:&[(String,Strin
     let mut report=report(project,bound,sources,&preflight);
     report.notes.extend(presence::notes(project,bound,prior,sources)?);
     if super::proof_source::sources(project,options,"schema")?!=sources{return Err("selected Quarry sources changed during deployment security preflight".into());}
-    let dispositions=super::security_reviews::review_snapshot(project,sources,&report.notes)?;
+    let mut dispositions=super::security_reviews::review_snapshot(project,sources,&report.notes)?;
+    let evidence=witnesses::collect(project,bound,sources,&report.notes,true);
+    for (d,w) in dispositions.iter_mut().zip(evidence) {if d.witness.is_none(){d.witness=w;}}
     let derived=security::derived::notes(sources,bound);
     let acknowledged=derived.iter().filter(|n|report.notes.iter().zip(&dispositions).any(|(r,d)|r.site==n.site&&r.code==n.code&&r.message==n.message&&d.acknowledged)).map(|n|n.site.to_string()).collect::<std::collections::BTreeSet<_>>();
     let pending=super::security_reviews::pending(&dispositions);
@@ -166,7 +168,7 @@ pub(super) fn release_loop(project:&Project,bound:&Bound,sources:&[(String,Strin
     notes.sort_by_key(|n|crate::note_rank::summary_order(&n.code));
     let count=notes.len();
     // Never suppress a gate or write-authority question behind the display cap.
-    for (i,n) in notes.into_iter().enumerate(){if review&&crate::note_rank::tier(&n.code)!=crate::note_rank::Tier::Review&&(i<5||security::note_priority(&n.code)<=3){notice.push_str(&format!("  REVIEW {} {}: {}\n    {}\n",n.site,n.code,n.message,n.rewrite));}}
+    for (i,n) in notes.into_iter().enumerate(){if (review||crate::note_rank::tier(&n.code)==crate::note_rank::Tier::Fix)&&crate::note_rank::tier(&n.code)!=crate::note_rank::Tier::Review&&(i<5||security::note_priority(&n.code)<=3||crate::note_rank::tier(&n.code)==crate::note_rank::Tier::Fix){notice.push_str(&format!("  REVIEW {} {}: {}\n    {}\n",n.site,n.code,n.message,n.rewrite));}}
     if review&&count>5 {notice.push_str(&format!("  {count} changed-scope notes in deploy --check --json\n"));}
     let selected=report.notes.iter().zip(&dispositions).filter(|(n,d)|d.gated || n.code!="N_SECURITY_INTENT" && scope.iter().any(|(file,start,end)| n.site.file==*file&&n.site.line>=*start&&n.site.line<*end)).collect::<Vec<_>>();
     let complete_family=dispositions.iter().filter(|d|d.family.is_some()).count()==selected.iter().filter(|(_,d)|d.family.is_some()).count();
@@ -176,8 +178,9 @@ pub(super) fn release_loop(project:&Project,bound:&Bound,sources:&[(String,Strin
     // prints their individual commands; ordinary check offers the whole family.
     notice.push_str(&super::security_reviews::render_mode(&scoped_dispositions,&scoped_notes,review));
     let test=release_notice(project,bound,sources,options);
-    let advice=scoped_dispositions.iter().filter(|d|!d.gated).count();
-    notice.push_str(&format!("{}; {advice} advisory decisions: deploy --review (or check --review)\n",enforced_text(&report,bound).replacen("check:","security:",1)));
+    let advice=scoped_dispositions.iter().filter(|d|!d.gated&&!d.acknowledged&&d.witness.is_none()).count();
+    let witnessed=scoped_dispositions.iter().filter(|d|!d.gated&&!d.acknowledged&&d.witness.is_some()).count();
+    notice.push_str(&format!("{}; {witnessed} witnessed questions; {advice} advisories (don't block): deploy --review (or check --review)\n",enforced_text(&report,bound).replacen("check:","security:",1)));
     if review||test.contains("run `snapback4 test")||test.contains("FAILED") {notice.push_str(&format!("  {test}\n"));}
     let verdict=format!("security FIX {fixes}; {} pending review",dispositions.iter().filter(|d|d.gated&&!d.acknowledged).count());
     Ok(Some(serde_json::json!({"notice":notice,"verdict":verdict,"fixes":fixes,"pending":pending,"changedNotes":count,"report":report,"securityReviews":dispositions}).to_string()))
