@@ -37,7 +37,7 @@ function renderedTextEngine() {
       // (Expo web) must not clip descendants that the document can scroll to.
       const rootStyle = getComputedStyle(document.documentElement);
       const bodyPropagates = rootStyle.overflowX === "visible" && rootStyle.overflowY === "visible";
-      const rootOverflow = element === document.documentElement || element === document.body && bodyPropagates;
+      const rootOverflow = element === document.documentElement || (element === document.body && bodyPropagates);
       if ((x || y) && !rootOverflow) {
         let box = element.getBoundingClientRect();
         const html = element as HTMLElement;
@@ -62,7 +62,8 @@ function renderedTextEngine() {
     }
     if (scrollCoupled) {
       const root = document.scrollingElement ?? document.documentElement;
-      const style = getComputedStyle(root);
+      const rootStyle = getComputedStyle(document.documentElement);
+      const style = rootStyle.overflowX === "visible" && rootStyle.overflowY === "visible" ? getComputedStyle(document.body) : rootStyle;
       const canScrollX = style.overflowX !== "clip", canScrollY = style.overflowY !== "clip";
       clips.push({box:new DOMRect(0, 0, document.documentElement.clientWidth, document.documentElement.clientHeight), x:true, y:true,
         dx:canScrollX ? [root.scrollLeft - Math.max(0,root.scrollWidth-root.clientWidth),root.scrollLeft] : [0,0],

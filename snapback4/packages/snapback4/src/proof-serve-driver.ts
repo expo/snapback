@@ -1,5 +1,6 @@
 // @ref LLP 3000.011.003.000.000#16-wave-27-process-checks-dx10 — keep group identity pinned until inspection, then reap it on EOF.
 import { spawn } from "node:child_process";
+import { constants } from "node:os";
 import { fileURLToPath } from "node:url";
 process.stdin.resume();
 process.on("SIGTERM", () => {}); process.on("SIGINT", () => {});
@@ -24,7 +25,7 @@ if (process.argv[2] === "--keeper") {
       ...(typeof ready.frontendUrl === "string" ? {FRONTEND_URL:ready.frontendUrl} : {})}, stdio:["ignore","pipe","pipe"]});
     for (const stream of ["stdout", "stderr"] as const) command[stream].on("data", data => process.send?.({type:"then-output", stream, data:data.toString()}));
     command.once("error", () => process.send?.({type:"then-result", code:127}));
-    command.once("close", (code, signal) => process.send?.({type:"then-result", code:code ?? (signal === "SIGINT" ? 130 : signal === "SIGTERM" ? 143 : 1)}));
+    command.once("close", (code, signal) => process.send?.({type:"then-result", code:code ?? (signal ? 128 + (constants.signals[signal] ?? 0) : 1)}));
   });
   process.send?.({type:"started", keeper:guard.pid});
   child.once("error", () => process.send?.({type:"exited", code:null}));

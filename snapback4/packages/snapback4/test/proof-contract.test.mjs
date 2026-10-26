@@ -347,3 +347,9 @@ test('DX12 non-propagated body overflow still clips evidence', {timeout:30000}, 
   await page.setContent('<style>html{overflow:auto}body{height:30px;overflow:clip;margin:0}</style><div style="height:90px"></div><p>Clipped body receipt</p>');
   assert.equal(await kit.renderedText(page,'Clipped body receipt').count(),0);
 }));
+
+test('DX12 propagated body clip cannot invent viewport scrolling', {timeout:30000}, async t => browser(t, async page => {
+  await page.setViewportSize({width:700,height:300});
+  await page.setContent('<!doctype html><style>body{overflow:clip;margin:0}</style><div style="height:900px"></div><p>Outside clipped viewport</p>');
+  assert.equal(await kit.renderedText(page,'Outside clipped viewport').count(),0);
+}));

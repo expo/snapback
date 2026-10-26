@@ -70,7 +70,7 @@ test('DX9 packed staging recipe, password templates, task links and Quarry forms
         assert.ok(JSON.parse(readFileSync(join(app,'package.json'))).devDependencies['@types/node']);
       }
       if(flag==='--web') {
-        const result=run('npm',['run','--silent','probe:check'],app);
+        const result=run('npm',['run','--silent','probe:check','--','--then',`node --input-type=module -e 'const ready=JSON.parse(process.env.SNAPBACK4_SERVE_JSON);const response=await fetch(ready.backendUrl+"/auth/config");if(!response.ok)process.exit(9)'`],app);
         assert.equal(JSON.parse(result).ok,true);
       }
       const child=spawn(process.execPath,['scripts/probe-serve.mjs'],{cwd:app,env,stdio:['ignore','pipe','pipe']});

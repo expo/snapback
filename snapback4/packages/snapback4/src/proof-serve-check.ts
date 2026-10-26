@@ -119,7 +119,7 @@ export async function serveCheck(options: ServeCheckOptions): Promise<ServeCheck
       while (living.length && performance.now() < end) { await sleep(25); living = await members(); }
       if (living.length) add("E_SERVE_CHILD_RUNNING", "child left running after group SIGTERM");
     }
-    if (serveExitCode !== undefined && serveExitCode !== null && serveExitCode !== 0 || serveExitSignal && serveExitSignal !== "SIGTERM") add("E_SERVE_STOP_FAILED", `npm serve script shutdown failed (${serveExitCode ?? serveExitSignal}); inspect shutdown handlers`);
+    if ((serveExitCode !== undefined && serveExitCode !== null && serveExitCode !== 0) || (serveExitSignal && serveExitSignal !== "SIGTERM")) add("E_SERVE_STOP_FAILED", `npm serve script shutdown failed (${serveExitCode ?? serveExitSignal}); inspect shutdown handlers`);
     if (buffer.length) add("E_SERVE_EXTRA_OUTPUT", "stdout contains an unterminated line");
     // Observe lock BEFORE the keeper kills leftovers: forced cleanup cannot earn a pass.
     const lock = await cli(["serve", resolve(cwd, options.deployment), "--wait-stopped"], {cwd, ...(options.env ? {env:options.env} : {}), timeoutMs:7000});
@@ -133,7 +133,7 @@ export async function serveCheck(options: ServeCheckOptions): Promise<ServeCheck
   }
   // Pipe bytes may be delivered while the lock barrier is running or during final drain.
   if (buffer.length) add("E_SERVE_EXTRA_OUTPUT", "stdout contains an unterminated line");
-  if (serveExitCode !== undefined && serveExitCode !== null && serveExitCode !== 0 || serveExitSignal && serveExitSignal !== "SIGTERM") add("E_SERVE_STOP_FAILED", `npm serve script shutdown failed (${serveExitCode ?? serveExitSignal}); inspect shutdown handlers`);
+  if ((serveExitCode !== undefined && serveExitCode !== null && serveExitCode !== 0) || (serveExitSignal && serveExitSignal !== "SIGTERM")) add("E_SERVE_STOP_FAILED", `npm serve script shutdown failed (${serveExitCode ?? serveExitSignal}); inspect shutdown handlers`);
   const report = {ok:failures.length === 0 && (commandCode === undefined || commandCode === 0), script, failures, ready, upMs:observedUp, lockReleased, ...(commandCode === undefined ? {} : {commandCode})};
   if (callbackError !== undefined) throw Object.assign(callbackError instanceof Error ? callbackError : Error("serve callback failed"), {report});
   return report;
