@@ -19,6 +19,8 @@ const scoped={...full,scopeOverride:{fullSelectorPlanExecuted:false,qualificatio
  step('doc-budget','snapback4',['node','scripts/docs-budget.mjs']),
  step('packaged-docs','snapback4',['node','--input-type=module','-e',"import {lintPackagedDocs} from './scripts/packaged-docs.mjs';lintPackagedDocs(process.cwd())"]),
  step('proof-api','snapback4',['node','scripts/generate-proof-api.mjs','--check']),
+ step('root-inventory-dependencies','.', ['bun','install','--frozen-lockfile']),
+ step('root-workspace-import','.', ['node','-e',"const f=require('node:fs'),p=require('node:path'),link='node_modules/@expo/snapback-contract';if(!f.existsSync(link)){f.mkdirSync(p.dirname(link),{recursive:true});f.symlinkSync(p.resolve('packages/snapback-contract'),link,'dir')}console.log('local workspace import available for Node inventory inspection')"]),
  step('generated','.', ['bash','scripts/check-generated-artifacts']),
  step('diagnostics','.', ['node','scripts/generate-diagnostics-registry.mjs','--check']),
  step('inventories','.', ['node','scripts/check-inventories.mjs']),
