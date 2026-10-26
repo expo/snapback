@@ -192,6 +192,8 @@ fn neutral_adapter_type(site: &[Token<'_>], prefix: &[Token<'_>]) -> bool {
     if ["Grant", "GateStats", "Published", "FlightGuard"].iter().any(|name|
         exact(&["postgres", ":", ":", "read_grant", ":", ":", name]))
         || exact(&["postgres", ":", ":", "group_commit", ":", ":", "Head"])
+        // In-memory durability barrier handle; no driver or SQL access.
+        || exact(&["postgres", ":", ":", "early_release", ":", ":", "Durability"])
         || ["Suspended", "Hook"].iter().any(|name| exact(&["postgres", ":", ":", "writer_slot", ":", ":", name]))
         || exact(&["postgres", ":", ":", "read_closure", ":", ":", "Closure", ":", ":", "new"]) { return true; }
     // Only simple all-neutral type lists, no renames/globs/paths. Preserve the
@@ -603,6 +605,7 @@ fn neutral_postgres_adapter_types_are_not_external_driver_access() {
 fn neutral_type_census_handles_only_exact_paths_and_simple_local_groups() {
     for source in [
         "type H = super::postgres::group_commit::Head;",
+        "type D = super::super::postgres::early_release::Durability;",
         "type H = super::super::postgres::writer_slot::Hook;",
         "type S = crate::engine::postgres::writer_slot::Suspended;",
         "use crate::engine::{committer::Failure, postgres::read_grant::{FlightGuard, Published}, program::Invocation};",
@@ -611,6 +614,8 @@ fn neutral_type_census_handles_only_exact_paths_and_simple_local_groups() {
     ] { assert_eq!(count_source(source, false), (0, 0), "{source}"); }
     for source in [
         "type C = postgres::Client;",
+        "type D = postgres::early_release::Durability;",
+        "fn bad() { super::postgres::early_release::Durability::connect(url); }",
         "use postgres::read_grant::{FlightGuard, Published};",
         "use crate::engine::{postgres::read_grant::{Grant, Client}};",
         "use crate::engine::{postgres::read_grant::{Grant, *}};",

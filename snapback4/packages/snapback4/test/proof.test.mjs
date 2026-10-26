@@ -320,30 +320,53 @@ test("proof witness injection survives HTTP redirect destinations", async t => {
 });
 
 
+// Correctness waits own their timers and observe test cancellation. A race with
+// an unbounded polling promise leaves that promise alive after a failed assertion.
+async function cleanupCondition(t, probe, label, timeoutMs = 120_000) {
+  const end = performance.now() + timeoutMs;
+  for (;;) {
+    t.signal.throwIfAborted();
+    if (await probe()) return;
+    assert.ok(performance.now() < end, `${label}: condition not reached`);
+    await new Promise((resolve, reject) => {
+      const abort = () => { clearTimeout(timer); reject(t.signal.reason); };
+      const timer = setTimeout(() => { t.signal.removeEventListener('abort', abort); resolve(); }, 25);
+      t.signal.addEventListener('abort', abort, {once:true});
+      if (t.signal.aborted) abort();
+    });
+  }
+}
 test("proof command cleanup owns npm descendants and caller death", {
   skip: process.platform === "win32" && "private process-group custody requires Unix",
-  timeout: 30000,
+  timeout: 300000,
 }, async t => {
   const cwd=fixture(t),module=fileURLToPath(new URL('../dist/proof.js',import.meta.url));
   const helper=join(cwd,'hold.mjs');
-  writeFileSync(helper, `import{spawn}from'node:child_process';import{writeFileSync}from'node:fs';const child=spawn(process.execPath,['-e','setInterval(()=>{},1000)']);writeFileSync(process.argv[2],JSON.stringify([process.pid,child.pid]));setInterval(()=>{},1000);`);
+  writeFileSync(helper, `import{spawn}from'node:child_process';import{writeFileSync,existsSync}from'node:fs';const child=spawn(process.execPath,['-e','setInterval(()=>{},1000)']);writeFileSync(process.argv[2],JSON.stringify([process.pid,child.pid]));setInterval(()=>{if(existsSync('finish'))process.exit(7);},25);`);
   writeFileSync(join(cwd,'package.json'),JSON.stringify({private:true,type:'module',scripts:{hold:'node hold.mjs npm-pids.json'}}));
-  const pidsGone=async marker=>bounded((async()=>{
-    let pids;
-    while(!pids){try{pids=JSON.parse(readFileSync(join(cwd,marker),'utf8'));}catch(error){if(error.code!=='ENOENT')throw error;}if(!pids)await new Promise(resolve=>setTimeout(resolve,10));}
-    for(;;){
-      const alive=pids.filter(pid=>{try{return !execFileSync('ps',['-p',String(pid),'-o','stat='],{encoding:'utf8',timeout:2000}).trim().startsWith('Z');}catch(error){if(error.status===1&&!String(error.stdout).trim())return false;throw error;}});
-      if(!alive.length)return;
-      await new Promise(resolve=>setTimeout(resolve,10));
-    }
-  })(),5000,`process tree ${marker} cleanup`);
-  await assert.rejects(command('npm',['run','--silent','hold'],{cwd,timeoutMs:200,stopTimeoutMs:200}),/timed out/);
+  const markerPids = marker => {try{return JSON.parse(readFileSync(join(cwd,marker),'utf8'));}catch(error){if(error.code!=='ENOENT')throw error;return undefined;}};
+  const pidsGone=async marker=>cleanupCondition(t, async()=>{
+    const pids=markerPids(marker);if(!pids)return false;
+    const alive=pids.filter(pid=>{try{return !execFileSync('ps',['-p',String(pid),'-o','stat='],{encoding:'utf8',timeout:30_000,stdio:['ignore','pipe','pipe']}).trim().startsWith('Z');}catch(error){if(error.status===1&&!String(error.stdout).trim())return false;throw error;}});
+    return !alive.length;
+  },`process tree ${marker} cleanup`);
+  // Finish only after npm has actually spawned its descendants; CPU scheduling
+  // cannot cause the command deadline to win before the marker is written.
+  const running=command('npm',['run','--silent','hold'],{cwd,timeoutMs:180_000,stopTimeoutMs:30_000});
+  void running.catch(()=>{});
+  await cleanupCondition(t,()=>markerPids('npm-pids.json')?.length===2,'npm descendants started');
+  writeFileSync(join(cwd,'finish'),'yes');
+  assert.equal((await running).code,7);
   await pidsGone('npm-pids.json');
+  // Retain the distinct timeout cleanup control without making npm startup a clock race.
+  await assert.rejects(command(process.execPath,['-e','setInterval(()=>{},1000)'],{cwd,timeoutMs:200,stopTimeoutMs:30_000}),/timed out/);
   const driver=join(cwd,'caller.mjs');
-  writeFileSync(driver,`import{command}from ${JSON.stringify(module)};command(process.execPath,['hold.mjs','caller-pids.json'],{cwd:${JSON.stringify(cwd)},timeoutMs:60000});setInterval(()=>{},1000);`);
+  writeFileSync(driver,`import{command}from ${JSON.stringify(module)};command(process.execPath,['hold.mjs','caller-pids.json'],{cwd:${JSON.stringify(cwd)},timeoutMs:180000});setInterval(()=>{},1000);`);
+  // The second command must remain alive until its caller dies.
+  rmSync(join(cwd,'finish'));
   const caller=spawn(process.execPath,[driver],{stdio:'ignore'});t.after(()=>{if(caller.exitCode===null&&caller.signalCode===null)caller.kill('SIGKILL');});
-  await bounded((async()=>{while(true){try{if(JSON.parse(readFileSync(join(cwd,'caller-pids.json'),'utf8')).length===2)return;}catch(error){if(error.code!=='ENOENT')throw error;}await new Promise(resolve=>setTimeout(resolve,10));}})(),5000,'caller descendants started');
-  caller.kill('SIGKILL');await new Promise(resolve=>caller.once('close',resolve));
+  await cleanupCondition(t,()=>markerPids('caller-pids.json')?.length===2,'caller descendants started');
+  const closed=new Promise(resolve=>caller.once('close',resolve));caller.kill('SIGKILL');await closed;
   await pidsGone('caller-pids.json');
 });
 

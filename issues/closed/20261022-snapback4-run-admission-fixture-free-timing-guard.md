@@ -1,6 +1,6 @@
 # Snapback 4 fixture-free admission timing guard includes the security campaign
 
-Status: Open
+Status: Resolved
 Date: 2026-10-22
 Scope: `snapback4/crates/snapback4/tests/run_admission.rs`, fixture-free `test`
 Severity: P3 (timing-sensitive check; command succeeds)
@@ -48,3 +48,5 @@ at the unchanged five-second assertion (`tests/run_admission.rs:200`,
 (5.24 s). No guard or product behavior was changed. Logs:
 `/tmp/sb4-k0q-fix2-final/cli.log` and `cli-isolated-6.log`; the earlier fixture-free
 timing investigation remains above.
+
+Resolved by Integration 27: hold BEGIN IMMEDIATE on the live store for the entire fixture-free test, assert successful isolated completion and unchanged jobs/generation, then release the barrier. This replaces total campaign duration as a writer-wait proxy with a concrete exclusion witness; product deadlines remain unchanged.

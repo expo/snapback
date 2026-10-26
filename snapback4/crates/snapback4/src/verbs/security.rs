@@ -133,13 +133,24 @@ pub(super) fn release_loop(project:&Project,bound:&Bound,sources:&[(String,Strin
     let mut evidence=witnesses::collect(project,bound,sources,&report.notes,true,options);
     witnesses::apply_report(sources,bound,&report,&report.notes,&mut evidence);
     if super::proof_source::sources(project,options,"schema")?!=sources{return Err("selected Quarry sources changed during deployment witness replay; rerun deploy".into());}
-    let dispositions=decisions.dispositions_with_evidence(sources,&report.notes,&evidence);
+    let mut dispositions=decisions.dispositions_with_evidence(sources,&report.notes,&evidence);
+    // Current enforced derived refutations are blockers, never advisory questions.
+    // Standalone question-campaign witnesses retain their nonblocking tier.
+    for (note,disposition) in report.notes.iter().zip(&mut dispositions) {
+        if note.code=="N_DERIVED_WRITE_AUTHORITY" && report.invariants.iter().any(|v|
+            v.invariant.site==note.site && v.status==security::Status::Refuted &&
+            v.counterexample.as_ref().is_some_and(|c|c.reachability.is_reachable() &&
+                super::security_reviews::witness::concrete(&witnesses::evidence(sources,bound,&v.invariant,c)))) {
+            disposition.gated=true;
+        }
+    }
     super::security_reviews::remember_families(project,sources,&report.notes);
     decisions.ensure_current(project)?;
     let acknowledged=derived.iter().filter(|n|report.notes.iter().zip(&dispositions).any(|(r,d)|r.site==n.site&&r.code==n.code&&r.message==n.message&&d.acknowledged)).map(|n|n.site.to_string()).collect::<std::collections::BTreeSet<_>>();
     let pending=super::security_reviews::pending(&dispositions);
     let witnessed=|v:&&security::Verdict|v.status==security::Status::Refuted&&v.counterexample.as_ref().is_some_and(|c|c.reachability.is_reachable()&&(!security::derived::is_derived(&v.invariant)||super::security_reviews::witness::concrete(&witnesses::evidence(sources,bound,&v.invariant,c))));
     let fixes=report.invariants.iter().filter(witnessed).filter(|v|!security::derived::is_derived(&v.invariant)||!acknowledged.contains(&v.invariant.site.to_string())).count();
+    let authored_fixes=report.invariants.iter().filter(witnessed).filter(|v|!security::derived::is_derived(&v.invariant)).count();
     if options.flags.contains_key("verbose") { eprintln!("security deploy campaign: {} ms; bounded replay, remaining paths retain coverage gaps",started.elapsed().as_millis()); }
     let scope=release_scope(bound,prior,sources);
     let review=options.flags.contains_key("review")||options.flags.contains_key("verbose");
@@ -200,7 +211,7 @@ pub(super) fn release_loop(project:&Project,bound:&Bound,sources:&[(String,Strin
     notice.push_str(&format!("{}; {witnessed} witnessed questions; {advice} advisories (don't block): deploy --review (or check --review)\n",enforced_text(&report,bound).replacen("check:","security:",1)));
     if review||test.contains("run `snapback4 test")||test.contains("FAILED") {notice.push_str(&format!("  {test}\n"));}
     let gates=dispositions.iter().filter(|d|d.gated&&!d.acknowledged).count();
-    let verdict=format!("security FIX {fixes}; {gates} gates; {witnessed} witnessed questions; {advice} advisories (don't block): deploy --review");
+    let verdict=format!("security FIX {authored_fixes}; {gates} gates; {witnessed} witnessed questions; {advice} advisories (don't block): deploy --review");
     Ok(Some(serde_json::json!({"notice":notice,"verdict":verdict,"fixes":fixes,"pending":pending,"changedNotes":count,"report":report,"securityReviews":dispositions}).to_string()))
 }
 fn age(timestamp:Option<i64>,now:i64)->String{

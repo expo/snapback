@@ -58,7 +58,7 @@ fn canonical(value:&serde_json::Value)->serde_json::Value {
         }best.unwrap()
     }
     let generated=value["generatedIds"].as_array().into_iter().flatten().filter_map(Value::as_str).map(|s|(s.to_owned(),"$color-0000".to_owned())).collect();
-    let mut value=value.clone();if let Some(fields)=value.as_object_mut(){for key in ["id","summary","scope","generatedIds","advisory"]{fields.remove(key);}}
+    let mut value=value.clone();if let Some(fields)=value.as_object_mut(){for key in ["id","summary","compactSummary","scope","generatedIds","advisory"]{fields.remove(key);}}
     search(&value,generated)
 }
 
@@ -149,5 +149,5 @@ pub(super) fn retained(entry:&Entry,fingerprint:&str,evidence:Option<&serde_json
   let mut b=a.clone();b["supportingRows"]=json!({"links":[{"id":"d","next":"b"},{"id":"a","next":"c"},{"id":"b","next":"a"},{"id":"c","next":"d"}]});assert_eq!(id(&a),id(&b));
   b["supportingRows"]=json!({"links":[{"id":"a","next":"b"},{"id":"b","next":"a"},{"id":"c","next":"d"},{"id":"d","next":"c"}]});assert_ne!(id(&a),id(&b));
  }
- #[test]fn presentation_text_is_not_witness_identity(){let a=example("create");let mut b=a.clone();b["summary"]="new formatting".into();b["scope"]="another display".into();assert_eq!(id(&a),id(&b));}
+ #[test]fn presentation_text_is_not_witness_identity(){let a=example("create");let mut b=a.clone();b["summary"]="new formatting".into();b["compactSummary"]="fresh-id display only".into();b["scope"]="another display".into();assert_eq!(id(&a),id(&b));}
 }

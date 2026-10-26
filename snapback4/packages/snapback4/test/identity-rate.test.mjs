@@ -27,7 +27,7 @@ test("header-only identity refusals retry; legacy fetch argument still works",as
 test("identity refusals have bounded attempts and wait budget",async()=>{
  let calls=0;const answer=await login("http://example","a","b",{timeoutMs:1000},async()=>{calls++;return response(limited(0),429);});
  assert.equal(calls,4);assert.equal(answer.why.code,"E_RATE_LIMIT");
- calls=0;const long=await signup("http://example","a","b",{timeoutMs:10},async()=>{calls++;return response(limited(60000),429);});
+ calls=0;const long=await signup("http://example","a","b",{timeoutMs:1000},async()=>{calls++;return response(limited(60000),429);});
  assert.equal(calls,1);assert.equal(long.why.retryAfterMs,60000);
 });
 test("abort cancels an identity wait without a late signup",async()=>{
@@ -75,11 +75,21 @@ test("proof provisionAccounts gives production-safe partial setup advice",async 
   error=>error.message.includes("inspect partial production accounts/grants")&&!error.message.includes("discard")
  );
 });
+
+function signupDeadline(t) {
+ let clock=0;const controllers=new WeakMap();
+ t.mock.method(performance,"now",()=>clock);
+ t.mock.method(AbortSignal,"timeout",()=>{const controller=new AbortController();controllers.set(controller.signal,controller);return controller.signal;});
+ return signal=>new Promise((_,reject)=>{
+  signal.addEventListener("abort",()=>reject(signal.reason),{once:true});
+  queueMicrotask(()=>{clock+=1000;controllers.get(signal).abort(new DOMException("deadline", "TimeoutError"));});
+ });
+}
 test("an active production signup deadline never recommends discarding production",async t=>{
- let calls=0;t.mock.method(globalThis,"fetch",async(url,init)=>{
+ const expire=signupDeadline(t);let calls=0;t.mock.method(globalThis,"fetch",async(url,init)=>{
   if(url.endsWith("/auth/config"))return response({environment:"production",development:false,password:true});
   if(url.endsWith("/schema"))return response({service_identities:["service:setup"]});
-  calls++;return new Promise((_,reject)=>{const abort=()=>reject(init.signal.reason);init.signal.addEventListener("abort",abort,{once:true});if(init.signal.aborted)abort();});
+  calls++;return expire(init.signal);
  });
  await assert.rejects(
   provisionAccounts({deploymentDir:rosterDir(t),url:"http://example",operatorToken:async()=>"operator"},{roles:{member:1},provision:{name:"provision"},service:"setup",timeoutMs:10}),
@@ -106,9 +116,9 @@ test("zero and elapsed date Retry-After headers fit a short identity deadline",a
  }
 });
 test("an active signup deadline names partial staging setup and never replays",async t=>{
- let calls=0;t.mock.method(globalThis,"fetch",async(url,init)=>{
+ const expire=signupDeadline(t);let calls=0;t.mock.method(globalThis,"fetch",async(url,init)=>{
   if(url.endsWith("/auth/config"))return response({environment:"staging",development:false,password:true});calls++;
-  return new Promise((_,reject)=>{const abort=()=>reject(init.signal.reason);init.signal.addEventListener("abort",abort,{once:true});if(init.signal.aborted)abort();});
+  return expire(init.signal);
  });
  for(let n=0;n<20;n++) await assert.rejects(seedAccounts({url:"http://example",operatorToken:async()=>"operator"},{roles:{member:1},provision:{name:"provision"},timeoutMs:10}),/E_STAGING_TIMEOUT.*partial accounts/);assert.equal(calls,20);
 });

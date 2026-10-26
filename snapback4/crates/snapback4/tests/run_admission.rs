@@ -191,13 +191,18 @@ fn live_dev_forwards_run_refuses_other_offline_writers_with_its_address_and_rele
         let pinned = p.run(&["run", "rows", "--now", "+1h"]);
         let error = String::from_utf8_lossy(&pinned.stderr);
         assert!(!pinned.status.success() && error.contains("E_STORE_BUSY") && error.contains(&format!("curl -s -X POST {address}/q/rows -H 'x-snapback-persona: alice'")), "{error}");
-        let before = Instant::now();
+        // Hold a real writer barrier throughout the fixture-free campaign.
+        // Successful completion while it remains held directly proves isolation;
+        // total campaign latency is not a proxy for entering the writer wait.
+        let barrier = p.test_support_conn();
+        barrier.execute_batch("BEGIN IMMEDIATE").unwrap();
         let out = p.run(&["test"]);
         let error = String::from_utf8(out.stderr).unwrap();
         assert!(out.status.success(), "fixture-free test is isolated from the live developer store: {error}");
         assert!(!error.contains("E_STORE_BUSY"), "{error}");
         assert!(String::from_utf8_lossy(&out.stdout).contains("generated-fixture only"));
-        assert!(before.elapsed() < Duration::from_secs(5), "must not enter SQLite's writer wait");
+        assert!(!barrier.is_autocommit(), "writer barrier stayed held until completion");
+        barrier.execute_batch("ROLLBACK").unwrap();
         assert_eq!(p.jobs(), 1); assert_eq!(p.generation(), generation);
         let minted = p.run(&["token", "--service", "any"]);
         assert!(minted.status.success(), "{minted:?}");
