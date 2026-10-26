@@ -164,7 +164,7 @@ pub fn fixture(bound:&Bound,out:&mut Campaign)->Result<Engine,String>{
             if !root_observed&&(related_creator||writes.iter().any(|(_,kind)|matches!(*kind,"update"|"upsert"|"delete"))){
                 root_observed=true;
                 if out.generated_fixture&&out.work_remaining.is_none_or(|work|work>=256)&&validate_fixture(bound,&mut engine).is_ok(){
-                    let first=out.violations.len();let allowance=out.work_remaining.map_or(1024,|work|(work/4).min(1024));out.slice(allowance,"pre-transition checkpoint",|out|histories::lifecycle_observers_to(bound,&engine,out,out.directed_attempts.saturating_add(1024)));
+                    let first=out.violations.len();let limit=if out.work_remaining.is_none(){out.directed_base.saturating_add(1024)}else{out.directed_attempts.saturating_add(1024)};out.setup_checkpoint("pre-transition checkpoint",|out|histories::lifecycle_observers_to(bound,&engine,out,limit));
                     for witness in &mut out.violations[first..]{if witness.reachability==Reachability::AuthoredFixtureTrace{witness.reachability=Reachability::GeneratedFixtureTrace;witness.scope="actual authored observation from a validated generated early setup checkpoint; initialization is not claimed application-reachable".into();}}
                 }
             }
@@ -228,7 +228,7 @@ pub fn fixture(bound:&Bound,out:&mut Campaign)->Result<Engine,String>{
                     if !stricter_observed&&loosens {
                         stricter_observed=true;
                         if validate_fixture(bound,&mut engine).is_ok(){
-                            let first=out.violations.len();let limit=out.directed_attempts.saturating_add(1024).min(out.directed_base.saturating_add(2048));let allowance=out.work_remaining.map_or(1024,|work|(work/4).min(1024));out.slice(allowance,"pre-loosening checkpoint",|out|histories::lifecycle_observers_to(bound,&engine,out,limit));
+                            let first=out.violations.len();let limit=out.directed_attempts.saturating_add(1024).min(out.directed_base.saturating_add(2048));out.setup_checkpoint("pre-loosening checkpoint",|out|histories::lifecycle_observers_to(bound,&engine,out,limit));
                             for witness in &mut out.violations[first..]{if witness.reachability==Reachability::AuthoredFixtureTrace{witness.reachability=Reachability::GeneratedFixtureTrace;witness.scope="actual authored observation from a validated generated root before an admitted dependency-changing creator; initialization is not claimed application-reachable".into();}}
                         }
                     }

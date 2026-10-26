@@ -48,6 +48,12 @@ impl Campaign {
             self.unsupported.insert(format!("{label}: deterministic phase work slice exhausted; deferred combinations remain uncovered"));
         }
     }
+    // @ref LLP 3000.036.004.000#12-wave-28-inference-and-visible-evidence — full-test setup keeps directed/workflow ceilings without an overall work slice.
+    fn setup_checkpoint(&mut self,label:&str,run:impl FnOnce(&mut Self)){
+        if let Some(work)=self.work_remaining{self.slice((work/4).min(1024),label,run)}else{
+            let base=self.workflow_base;self.workflow_base=self.workflow_attempts;run(self);self.workflow_base=base;
+        }
+    }
     pub(super) fn reserve(&mut self,cost:usize)->bool {
         if self.exhausted(){return false;}
         if let Some(remaining)=&mut self.work_remaining {
@@ -422,11 +428,11 @@ pub fn generated_campaign(bound:&Bound,campaign:&mut Campaign,matrix:bool){
         Err(why)=>{campaign.unsupported.insert(format!("empty initial campaign unavailable: {why}"));}
     }
     campaign.history_limit=448;campaign.generated_fixture=true;
-    let allowance=campaign.work_remaining.map_or(usize::MAX,|left|left.saturating_sub(left/4));
     let mut fixture=None;
-    campaign.slice(allowance,"generated initialization",|campaign|{match generated_fixture(bound,campaign){
+    let mut initialize=|campaign:&mut Campaign|{match generated_fixture(bound,campaign){
         Ok(world)=>fixture=Some(world),Err(why)=>{campaign.unsupported.insert(format!("generated fixture campaign unavailable: {why}"));}
-    }});
+    }};
+    if let Some(left)=campaign.work_remaining{campaign.slice(left.saturating_sub(left/4),"generated initialization",initialize)}else{initialize(campaign)}
     if let Some(fixture)=fixture{if matrix{operations(bound,&fixture,campaign)}else{fixture_observers(bound,&fixture,campaign)}}
 
     campaign.history_limit=0;campaign.generated_fixture=false;
@@ -569,6 +575,15 @@ fn trusted_reads(bound:&Bound,fixture:&Engine,out:&mut Campaign){
 
 #[cfg(test)]mod wave27_budget_tests{
  use super::*;
+ #[test]fn setup_can_replay_an_actual_write_after_a_previous_workflow_phase_is_spent(){
+  let source="table docs:\n  value: bool default false\n  read <- allow\n  insert <- allow\n  online only\nmutation create():\n  return insert docs {}\ninvariant docs.insert only viewer = 'service:reviewer'\n";
+  let bound=crate::compile(&[("schema.q".into(),source.into())]);assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);
+  let engine=engine_with(&bound,&BTreeMap::new(),Vec::new()).unwrap();let rows=readback(&engine).unwrap();
+  for bounded in [false,true]{let mut out=if bounded{Campaign::work_bounded(4096)}else{Campaign::default()};out.workflow_attempts=512;
+   out.setup_checkpoint("new setup root",|out|workflow::direct(&bound,&engine,&rows,out));
+   assert!(out.violations.iter().any(|v|v.operation=="create"&&v.reachability.is_reachable()&&v.invariant_site==bound.invariants[0].site.to_string()&&v.history.iter().any(|step|step.operation=="create")),"new setup needs a real write witness after the earlier phase: {out:?}");
+  }
+ }
  #[test]fn focused_slice_preserves_general_work_and_reports_its_cut(){
   let mut unbounded=Campaign::default();unbounded.slice(8,"finite phase",|out|while out.reserve(1){});
   assert_eq!(unbounded.work_remaining,None);assert!(unbounded.reserve(1));assert!(unbounded.unsupported.iter().any(|why|why.contains("finite phase")));
