@@ -24,7 +24,7 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("N_APPROVAL_NOT_ENFORCED", &["Add the matching approval requirement", "informational record", "check --ack-security ID"]),
     ("N_TEXT_EVIDENCE", &["Use an image column and image argument", "Intentional text references may remain text", "advisory"]),
     ("N_MEDIA_PRIVATE_FIELDS", &["Apply the private audience", "declare independent media read intent", "advisory"]),
-    ("N_BLANK_TEXT_GUARD", &["Require trim(value) != ''", "text 1..N", "individual review gate"]),
+    ("N_BLANK_TEXT_GUARD", &["Require trim(value) != ''", "text 1..N", "advisory"]),
     ("N_EDIT_AFTER_APPROVAL", &["Decide whether approval must be renewed after edits or replacements", "declare column update intent."]),
     ("N_CHILD_EVIDENCE_PRESENCE", &["Required child fields do not require a child row.", "Declare parent integrity intent with the specification's draft-state exceptions."]),
     ("N_TIME_TRANSITION", &["Confirm the relevant deadline against the specification", "test both sides of its boundary."]),

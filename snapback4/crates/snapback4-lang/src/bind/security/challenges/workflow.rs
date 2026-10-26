@@ -32,7 +32,7 @@ fn attempt(bound:&Bound,base:&Engine,p:&Program,args:&BTreeMap<String,Value>,vie
     let mut engine=base.fork_fixture().ok()?;
     let args=materialize_arguments(&mut engine,&p.args,args,viewer).ok()?;
     let trace=executed::trace(bound,p,&engine);out.attempted+=1;*out.operations.entry(p.name.clone()).or_default()+=1;
-    let result=engine.mutate(&p.name,None,Context::new(viewer,args.clone()).at(histories::history_clock(steps)).with_fixture_trace(trace.clone())).ok()?;
+    let result=engine.mutate(&p.name,None,replay_ids::context(viewer,args.clone()).at(histories::history_clock(steps)).with_fixture_trace(trace.clone())).ok()?;
     if !matches!(result.state,snapback4_core::WriteState::Sent{..}){out.refused+=1;return None;}
     let mut history=steps.to_vec();history.push(histories::Step{clock:Some(histories::history_clock(steps)),operation:p.name.clone(),viewer:viewer.into(),args,result:serde_json::to_value(&result.state).ok()?});
     let before=readback(base).ok()?;let after=readback(&engine).ok()?;histories::assertions(bound,&before,&after,initial,viewer,&history,&mut None,&mut engine,out);executed::record(bound,p,&trace,&result.state,&after,initial,viewer,&history,&mut engine,out);
@@ -44,7 +44,7 @@ pub(super) fn direct(bound:&Bound,base:&Engine,initial:&BTreeMap<String,Vec<Valu
  let actors=histories::actors(bound,initial);
  for p in bound.programs.iter().map(|b|&b.program).filter(|p|p.kind==ProgramKind::Mutation&&!p.native){
   let targets=ir::write_tables(p);
-  if !bound.invariants.iter().any(|i|targets.iter().any(|(table,kind)|table==&i.table&&(i.target=="always"||i.target==*kind||i.target=="update"&&*kind=="upsert"))){continue;}
+  if !bound.invariants.iter().any(|i|targets.iter().any(|(table,kind)|table==&i.table&&(i.target=="always"||i.target=="write"||i.operation.as_deref()==Some(p.name.as_str())||i.target==*kind||i.target=="update"&&*kind=="upsert"))){continue;}
   let candidates=histories::fixture_cases(bound,p,initial,&actors,out);
   let eligible=actors_for(bound,p,initial,base,out);
   if candidates.len()>8{out.unsupported.insert(format!("{}: direct derived tuples capped at eight; remaining combinations uncovered",p.name));}

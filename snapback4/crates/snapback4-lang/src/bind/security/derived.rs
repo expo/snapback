@@ -125,6 +125,15 @@ pub(super) fn transition(inv:&Invariant)->Option<(&ast::Expr,&ast::Expr)>{
 }
 pub(super) fn approval_receipts(e:&ast::Expr)->Vec<ast::Expr>{workflow::approval_receipts(e)}
 pub fn is_derived(inv:&Invariant)->bool { inv.site.file.starts_with("$derived/") }
+// @ref LLP 3000.036.004.000#13-witness-backed-enforcement-and-shipping-precision — migration formulas do not declare enduring meaning.
+pub fn advisory(inv:&Invariant)->bool {
+    if inv.site.file.contains("/label-consistency/"){return true;}
+    if !is_derived(inv)||["/sibling-approval/","/approval-history/","/repeat-create/","/parent-state/","/child-stage/","/participant-conservation/"].iter().any(|family|inv.site.file.contains(family)){return false;}
+    // A narrower edit guard is not an implicit declaration about every create
+    // or other edit path. Keep actual paired approval invalidation contracts.
+    inv.target!="update"||!inv.policy.as_ref().is_some_and(|policy|
+        policy.any_term(&|term|matches!(term,RuleTerm::OldField(_)))&&policy.any_term(&|term|matches!(term,RuleTerm::NextField(_))))
+}
 fn add(out:&mut Vec<Invariant>,table:&str,column:&str,target:&str,policy:RuleExpr,site:&Site){
     if target=="write" {
         add(out,table,column,"insert",RuleExpr::Or(vec![RuleExpr::Eq(RuleTerm::Field(column.into()),RuleTerm::Literal(snapback4_core::Value::Null)),policy.clone()]),site);
@@ -263,16 +272,33 @@ fn collect(sources:&[(String,String)],bound:&Bound,inputs:&mut BTreeMap<(String,
     out
 }
 pub fn notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnostic>{
-    (if bound.invariants.iter().any(is_derived){bound.invariants.iter().filter(|i|is_derived(i)).cloned().collect()}else{invariants(sources,bound)}).into_iter().map(|i|{
+    invariants(sources,bound).into_iter().map(|i|{
         let transition=transition(&i).is_some();
         let workflow=["/sibling-approval/","/approval-history/","/repeat-create/","/parent-state/","/child-stage/"].iter().any(|label|i.site.file.contains(label));
         let message=if transition{format!("{}: inferred effect prerequisite {}; judge before entering the selected destination, permitting atomic approval consumption; a replayed violation needs a specification decision",i.target_label(),i.predicate)}else{format!("{}: derived candidate {} only {}; a replayed violation needs a specification decision",i.target_label(),i.target,i.predicate)};
-        let repair=if i.site.file.contains("/participant-conservation/"){"refund the matching participant charge in the removal transaction, refuse removal while a charge remains, or record this deliberate no-refund removal with check --ack-security ID --reason '<spec rationale>'"}else if i.site.file.contains("/label-consistency/"){"preserve the backfilled equation in every setter, declare invariant T always c = f(x), or acknowledge this individual manual override with check --ack-security ID --reason '<spec rationale>'"}else if workflow{"require the named approval/parent/child prerequisite before this governed effect, consume one-use guards atomically, or record this individual alternative path with check --ack-security ID --reason '<spec rationale>'"}else{"enforce column write/freeze authority, declare matching update-only creation intent, or record this individual rule's deliberate design with check --ack-security ID --reason '<spec rationale>'"};
+        let repair=if advisory(&i)&&!i.site.file.contains("/label-consistency/"){"initial and edit audiences may deliberately differ; this projected guard is advice only; declare independent creation/update intent if the specification requires it, then run test"}else if i.site.file.contains("/participant-conservation/"){"refund the matching participant charge in the removal transaction, refuse removal while a charge remains, or record this deliberate no-refund removal with check --ack-security ID --reason '<spec rationale>'"}else if i.site.file.contains("/label-consistency/"){"a backfill only initializes existing rows; if the formula is the ongoing meaning, declare invariant T always c = f(x); otherwise retain the intentional setter (advice only)"}else if workflow{"require the named approval/parent/child prerequisite before this governed effect, consume one-use guards atomically, or record this individual alternative path with check --ack-security ID --reason '<spec rationale>'"}else{"enforce column write/freeze authority, declare matching update-only creation intent, or record this individual rule's deliberate design with check --ack-security ID --reason '<spec rationale>'"};
         Diagnostic::new(&i.site,"N_DERIVED_WRITE_AUTHORITY",message,repair).guide("security")
     }).collect()
 }
+/// Semantic witness inputs include custom committed-state contracts whose
+/// dependency tables are not represented by a policy/syntax expression.
+pub fn witness_dependencies(sources:&[(String,String)],bound:&Bound,inv:&Invariant)->BTreeSet<String>{
+    let mut tables=inv.dependencies();
+    if inv.site.file.contains("/participant-conservation/"){
+        let cached=bound.security_conservation.get(&inv.site.to_string()).cloned();
+        let contract=cached.or_else(||{
+            let docs=sources.iter().map(|(file,text)|crate::parse_document(file,text).0).collect::<Vec<_>>();
+            let catalog=Catalog::build(docs.clone(),&mut Vec::new());
+            conservation::contracts(&docs,&catalog,bound).into_iter().find(|(candidate,_)|candidate.site==inv.site).map(|(_,contract)|contract)
+        });
+        if let Some(contract)=contract{tables.insert(contract.ledger);tables.extend(contract.refund_ledger);}else{
+            // A missing custom judgment cannot silently become dependency-free.
+            tables.extend(bound.schema.tables.keys().cloned());
+        }
+    }tables
+}
 pub fn augmented(sources:&[(String,String)],bound:&Bound)->Bound{
-    let mut out=bound.clone();let mut inputs=BTreeMap::new();let mut reissues=BTreeMap::new();let mut uncertain=BTreeMap::new();out.invariants.extend(collect(sources,bound,&mut inputs,&mut reissues,&mut uncertain));out.security_approval_checks=approval_checks::collect(sources,bound);out.security_approval_reissues.extend(reissues);out.security_approval_uncertain_writes.extend(uncertain);for (stamp,columns) in inputs{out.security_approval_inputs.entry(stamp).or_default().extend(columns);}
+    let mut out=bound.clone();let mut inputs=BTreeMap::new();let mut reissues=BTreeMap::new();let mut uncertain=BTreeMap::new();out.invariants.extend(collect(sources,bound,&mut inputs,&mut reissues,&mut uncertain).into_iter().filter(|i|!advisory(i)));out.security_approval_checks=approval_checks::collect(sources,bound);out.security_approval_reissues.extend(reissues);out.security_approval_uncertain_writes.extend(uncertain);for (stamp,columns) in inputs{out.security_approval_inputs.entry(stamp).or_default().extend(columns);}
     let docs=sources.iter().map(|(f,s)|crate::parse_document(f,s).0).collect::<Vec<_>>();let catalog=Catalog::build(docs.clone(),&mut Vec::new());
     out.security_conservation.extend(conservation::contracts(&docs,&catalog,bound).into_iter().map(|(inv,contract)|(inv.site.to_string(),contract)));
     // Declared write audiences are runtime contracts, not inferred spec intent.

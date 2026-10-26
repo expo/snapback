@@ -50,6 +50,18 @@ pub struct Invariant {
     pub unsupported: Option<String>,
 }
 impl Invariant {
+    /// Bound policy and syntactic row dependencies for a concrete witness.
+    pub fn dependencies(&self)->BTreeSet<String>{
+        let mut tables=BTreeSet::from([self.table.clone()]);
+        for rule in self.policy.iter().chain(&self.requirements){tables.extend(kernel::dependencies(rule));}
+        if let Some(mut syntax)=self.syntax.clone(){crate::bind::intent_walk::expression(&mut syntax,&mut |expr|match expr{
+            ast::Expr::Read(read)|ast::Expr::Exists{read,..}|ast::Expr::Created{read,..}=>{tables.insert(read.table.clone());},
+            ast::Expr::Write{table,..}|ast::Expr::Walk{table,..}=>{tables.insert(table.clone());},
+            ast::Expr::Merge(merge)=>{tables.insert(merge.table.clone());for lane in &merge.lanes{
+                tables.extend(lane.table.iter().cloned());if let Some(read)=&lane.planned{tables.insert(read.table.clone());}if let Some((_,read))=&lane.nulls{tables.insert(read.table.clone());}
+            }},_=>{}
+        });}tables
+    }
     pub fn target_label(&self)->String {match &self.column{Some(c)=>format!("{}.{} {}",self.table,c,self.target),None=>format!("{}.{}",self.table,self.target)}}
 }
 pub(super) fn bind(catalog: &Catalog, diagnostics: &mut Vec<Diagnostic>) -> Vec<Invariant> {

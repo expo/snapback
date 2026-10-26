@@ -127,7 +127,7 @@ fn schema_scalar(effect:&Write<'_>,table:&str,column:&str,bound:&Bound,negative:
 }
 // A positive container is not positive use of all its descendants. Select
 // actual scalar operands while retaining Boolean and population polarity.
-fn positive_approval_field(e:&Expr,ordered_time:bool,matches:&impl Fn(&Expr,&str)->bool)->bool{
+pub(super) fn positive_approval_field(e:&Expr,ordered_time:bool,matches:&impl Fn(&Expr,&str)->bool)->bool{
     fn operand(e:&Expr,matches:&impl Fn(&Expr,&str)->bool)->bool{match e{
         Expr::Member{base,name,..}=>matches(base,name),
         Expr::Binary{op,left,right,..} if matches!(op.as_str(),"+"|"-"|"*"|"/"|"%")=>operand(left,matches)||operand(right,matches),
@@ -321,7 +321,10 @@ pub(super) fn notes(bound:&Bound,writes:&[Write<'_>],out:&mut Vec<Diagnostic>){
             let others=approval_effects.iter().filter(|w|!(w.table==*table&&records(w,column,kind,t))).collect::<Vec<_>>();
             let frozen=!others.is_empty()&&others.iter().all(|w|scalar_enforced(w,table,column,bound,true)||schema_scalar(w,table,column,bound,true));
             let data_use=writes.iter().filter(|record|record.table==*table&&records(record,column,kind,t)).any(|record|locked_approval_input(record,column,writes,bound)||one_shot_decision(record,column,writes,bound)||linked_decision_stamp(record,column,writes,bound));
-            let consumed=atomic||data_use||frozen||writes.iter().any(|effect|schema_scalar(effect,table,column,bound,false))||writes.iter().filter(|effect|state(effect,bound)).any(|effect|parent_loop_guard(effect,table,column,bound))||approval_effects.iter().filter(|w|!(w.table==*table&&records(w,column,kind,t))).any(|w|scalar_enforced(w,table,column,bound,false)||schema_scalar(w,table,column,bound,false)||proxies.iter().any(|proxy|scalar_enforced(w,table,proxy,bound,false)));
+            // Reading an approval receipt during a real mutation consumes its
+            // audit timestamp as part of that record; it is not an external act.
+            let receipt_read=["approv","authoriz"].iter().any(|part|table.to_lowercase().contains(part))&&bound.programs.iter().any(|p|p.program.kind==snapback4_core::ir::ProgramKind::Mutation&&snapback4_core::ir::write_tables(&p.program).iter().any(|(target,_)|target!=table)&&snapback4_core::ir::read_sites(&p.program).iter().any(|read|read.table==*table&&read.kind!="write target"));
+            let consumed=receipt_read||atomic||data_use||frozen||writes.iter().any(|effect|schema_scalar(effect,table,column,bound,false))||writes.iter().filter(|effect|state(effect,bound)).any(|effect|parent_loop_guard(effect,table,column,bound))||approval_effects.iter().filter(|w|!(w.table==*table&&records(w,column,kind,t))).any(|w|scalar_enforced(w,table,column,bound,false)||schema_scalar(w,table,column,bound,false)||proxies.iter().any(|proxy|scalar_enforced(w,table,proxy,bound,false)));
             let downstream=approval_effects.iter().filter(|effect|effect.table==*table||!writes.iter().any(|writer|writer.table==*table&&records(writer,column,kind,t)&&bound.schema.tables[&effect.table].columns.iter().any(|(reference,kind)|matches!(kind.required(),ColumnType::Ref{table:parent} if parent==table)&&requires_child(writer,&effect.table,reference)))).collect::<Vec<_>>();
             if approval&&recorded&&!consumed {
                 let modeled=downstream.iter().copied().copied().chain(writes.iter().filter(|effect|effect.table==*table&&matches!(effect.op,WriteOp::Update|WriteOp::Upsert)&&!records(effect,column,kind,t))).find(|effect|

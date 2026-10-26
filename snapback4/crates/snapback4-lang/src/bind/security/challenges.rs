@@ -231,8 +231,8 @@ fn replay(bound:&Bound,inv:&Invariant,rows:&BTreeMap<String,Vec<Value>>,viewer:&
         },_=>return Err("row integrity/transition challenge is not an operation admission test".into()),
     };
     let mut engine=engine(bound,&seeds,probe)?;
-    if word=="read"{return engine.query(name,Context::new(viewer,BTreeMap::new()).at(NOW)).map(|q|(q.data!=Value::Null,row.clone())).map_err(|e|e.to_string());}
-    let outcome=engine.mutate(name,None,Context::new(viewer,BTreeMap::new()).at(NOW)).map_err(|e|e.to_string())?;
+    if word=="read"{return engine.query(name,replay_ids::context(viewer,BTreeMap::new()).at(NOW)).map(|q|(q.data!=Value::Null,row.clone())).map_err(|e|e.to_string());}
+    let outcome=engine.mutate(name,None,replay_ids::context(viewer,BTreeMap::new()).at(NOW)).map_err(|e|e.to_string())?;
     if !matches!(outcome.state,snapback4_core::WriteState::Sent{..}){return Ok((false,row.clone()));}
     let next=engine.store().rows(&inv.table).map_err(|e|e.to_string())?.into_iter().find(|r|r.field("id").ok()==row.field("id").ok());
     if word=="delete"{return if next.is_none(){Ok((true,row.clone()))}else{Err("delete returned sent without removing the target".into())};}
@@ -245,6 +245,7 @@ fn replay(bound:&Bound,inv:&Invariant,rows:&BTreeMap<String,Vec<Value>>,viewer:&
     }
     Ok((true,next))
 }
+mod replay_ids;
 fn readback(engine:&Engine)->Result<BTreeMap<String,Vec<Value>>,String>{engine.schema().tables.keys().map(|t|engine.store().rows(t).map(|rs|(t.clone(),rs)).map_err(|e|e.to_string())).collect()}
 
 fn operation_preflight(bound:&Bound,inv:&Invariant)->Result<(),String>{
@@ -260,6 +261,7 @@ pub fn run(bound:&Bound)->Campaign{run_selected(bound,None)}
 pub fn run_selected(bound:&Bound,sites:Option<&BTreeSet<String>>)->Campaign{run_selected_after(bound,sites,Campaign::default())}
 /// Continue after trusted observations, preserving one set of work budgets.
 pub fn run_selected_after(bound:&Bound,sites:Option<&BTreeSet<String>>,mut out:Campaign)->Campaign{
+    let _replay_ids = replay_ids::Scope::new();
     // A direct component theorem needs no repeated concrete search for that
     // same component. Indirect observers, temporal reads and actual authored
     // operations below still run; the whole declaration remains unproved.
@@ -329,7 +331,7 @@ pub fn run_selected_after(bound:&Bound,sites:Option<&BTreeSet<String>>,mut out:C
                     let args=match materialize_arguments(&mut attempt,&p.program.args,&args,viewer){Ok(a)=>a,Err(why)=>{out.unsupported.insert(format!("{operation}: argument ledger unavailable: {why}"));continue;}};
                     let trace=executed::trace(bound,&p.program,&attempt);
                     out.attempted+=1;
-                    match attempt.mutate(operation,None,Context::new(viewer,args.clone()).at(NOW).with_fixture_trace(trace.clone())) {
+                    match attempt.mutate(operation,None,replay_ids::context(viewer,args.clone()).at(NOW).with_fixture_trace(trace.clone())) {
                         Ok(result) if matches!(result.state,snapback4_core::WriteState::Sent{..})=>{
                             if let Ok(after)=readback(&attempt){
                                 let steps=vec![histories::Step{clock:Some(NOW),operation:operation.clone(),viewer:viewer.into(),args,result:serde_json::to_value(&result.state).unwrap()}];
@@ -349,7 +351,7 @@ pub fn run_selected_after(bound:&Bound,sites:Option<&BTreeSet<String>>,mut out:C
                     if allowed{continue;}
                     if !out.reserve(1){break;}
                     out.attempted+=1;
-                    let replayed=if word=="read" {seeded.query("$security.seed",Context::new(viewer,BTreeMap::new()).at(NOW)).map(|q|(q.data!=Value::Null,row.clone())).map_err(|e|e.to_string())}else{replay(bound,inv,&rows,viewer,word,row)};
+                    let replayed=if word=="read" {seeded.query("$security.seed",replay_ids::context(viewer,BTreeMap::new()).at(NOW)).map(|q|(q.data!=Value::Null,row.clone())).map_err(|e|e.to_string())}else{replay(bound,inv,&rows,viewer,word,row)};
                     match replayed{
                         Ok((false,_))=>out.refused+=1,
                         Ok((true,next))=>{
@@ -418,6 +420,7 @@ pub fn evaluation_gaps(bound:&Bound)->Vec<String>{
 }
 
 pub fn generated_campaign(bound:&Bound,campaign:&mut Campaign,matrix:bool){
+    let _replay_ids = replay_ids::Scope::new();
     // @ref LLP 3000.036.004.000#11-wave-27-precision-and-workflow-conservation — build each world once; actual derived effects get the first deterministic work slice.
     campaign.directed_base=campaign.directed_attempts;
     for (name,_) in bound.schema.visible_tables().filter(|(_,t)|t.ephemeral.is_some()){campaign.unsupported.insert(format!("ephemeral {name}: generated memory populations and ephemeral mutation histories remain uncovered; durable campaigns use isolated hub copies"));}
@@ -441,6 +444,7 @@ pub fn generated_campaign(bound:&Bound,campaign:&mut Campaign,matrix:bool){
 /// This is conformance exploration, not a guessed spec oracle: only declared
 /// policies and replayed violations can fail security acceptance.
 pub fn fixture_observers(bound:&Bound,fixture:&Engine,campaign:&mut Campaign){
+    let _replay_ids = replay_ids::Scope::new();
     let first=campaign.violations.len();campaign.workflow_base=campaign.workflow_attempts;
     if bound.invariants.iter().any(super::derived::is_derived){
         let mut focused=bound.clone();focused.invariants.retain(super::derived::is_derived);
@@ -456,6 +460,12 @@ pub fn fixture_observers(bound:&Bound,fixture:&Engine,campaign:&mut Campaign){
             let limit=campaign.directed_attempts.saturating_add(4096);
             histories::lifecycle_observers_to(&focused,fixture,campaign,limit);
         });
+    }
+    if !bound.invariants.iter().any(super::derived::is_derived)&&bound.invariants.iter().any(|i|i.target=="insert"||i.target=="write"||i.operation.is_some()) {
+        // Creators with hydrated image/file arguments deserve direct replay
+        // even when their target already has two generated fixture rows.
+        let allowance=campaign.work_remaining.map_or(128,|left|(left/4).min(128));
+        if let Ok(rows)=readback(fixture){campaign.slice(allowance,"authored creator input probes",|out|workflow::direct(bound,fixture,&rows,out));}
     }
     campaign.workflow_base=campaign.workflow_attempts;
     // Derived-first replay must not spend the authored phase's directed ceiling.
@@ -474,6 +484,7 @@ pub fn fixture_observers(bound:&Bound,fixture:&Engine,campaign:&mut Campaign){
 
 // @ref LLP 3000.036.004#143-concrete-role-refutations-and-coupled-worlds — failed implication only orders a concrete, authored replay.
 pub(super) fn direct_refutations(bound:&Bound,campaign:&mut Campaign){
+    let _replay_ids = replay_ids::Scope::new();
     let first=campaign.violations.len();
     campaign.generated_fixture=true;
     match generated_fixture(bound,campaign){
@@ -492,6 +503,7 @@ pub(super) fn direct_refutations(bound:&Bound,campaign:&mut Campaign){
     campaign.generated_fixture=false;
 }
 pub fn operations(bound:&Bound,fixture:&Engine,campaign:&mut Campaign){
+    let _replay_ids = replay_ids::Scope::new();
     let first=campaign.violations.len();
     fixture_observers(bound,fixture,campaign);
     assets::run(bound,fixture,campaign);
@@ -520,10 +532,10 @@ pub fn operations(bound:&Bound,fixture:&Engine,campaign:&mut Campaign){
                 let args=match materialize_arguments(&mut engine,&p.program.args,&args,viewer){Ok(a)=>a,Err(why)=>{campaign.unsupported.insert(format!("{}: argument ledger unavailable: {why}",p.program.name));continue;}};
                 campaign.attempted+=1;*campaign.operations.entry(p.program.name.clone()).or_default()+=1;
                 if p.program.kind==ProgramKind::Query{
-                    match engine.query(&p.program.name,Context::new(viewer,args.clone()).at(NOW)){Ok(_)=>{},Err(e) if e.code=="E_INPUT"=>{campaign.unsupported.insert(format!("{}: generated arguments rejected as E_INPUT",p.program.name));},Err(_)=>campaign.refused+=1,}
+                    match engine.query(&p.program.name,replay_ids::context(viewer,args.clone()).at(NOW)){Ok(_)=>{},Err(e) if e.code=="E_INPUT"=>{campaign.unsupported.insert(format!("{}: generated arguments rejected as E_INPUT",p.program.name));},Err(_)=>campaign.refused+=1,}
                 }else{
                     let trace=executed::trace(bound,&p.program,&engine);
-                    match engine.mutate(&p.program.name,None,Context::new(viewer,args.clone()).at(NOW).with_fixture_trace(trace.clone())){
+                    match engine.mutate(&p.program.name,None,replay_ids::context(viewer,args.clone()).at(NOW).with_fixture_trace(trace.clone())){
                         Ok(result) if matches!(result.state,snapback4_core::WriteState::Sent{..})=>{
                             if let Ok(after)=readback(&engine){
                                 let steps=vec![histories::Step{clock:None,operation:p.program.name.clone(),viewer:viewer.clone(),args:args.clone(),result:serde_json::to_value(&result.state).unwrap()}];

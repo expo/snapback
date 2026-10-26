@@ -97,7 +97,7 @@ pub(super) fn fixture_cases(bound:&Bound,p:&Program,rows:&BTreeMap<String,Vec<Va
         for literal in literals.get(name).into_iter().flatten() {
             let valid=match (k,literal){
                 (ir::ArgType::Text{min,max,..},Value::String(s))=>snapback4_core::visible_text::visible_length(s)>=*min as usize&&s.chars().count()<=*max as usize,
-                (ir::ArgType::Int,Value::Int(_))=>true,
+                (ir::ArgType::Int|ir::ArgType::Money{..}|ir::ArgType::Decimal{..},Value::Int(_))=>true,
                 (ir::ArgType::IntRange{min,max},Value::Int(n))=>(*min..=*max).contains(n),_=>false,
             };
             if valid&&!vals.contains(literal){vals.insert(0,literal.clone());}
@@ -235,9 +235,9 @@ fn observe(bound:&Bound,e:&mut Engine,rows:&BTreeMap<String,Vec<Value>>,initial:
                     if !reserve_observers(out,2){return;}
                     let args=match materialize_arguments(e,&bp.program.args,&args,viewer){Ok(a)=>a,Err(why)=>{out.unsupported.insert(format!("{}: typed history observer asset/input preparation: {why}",bp.program.name));continue;}};
                     out.attempted+=1;
-                    if let Ok(q)=e.query(&bp.program.name,Context::new(viewer,args.clone()).at(history_clock(steps)))&&!q.unavailable&&typed_disclosure(&bp.result,&q.data,&inv.table,key,inv.column.as_deref(),row){
+                    if let Ok(q)=e.query(&bp.program.name,replay_ids::context(viewer,args.clone()).at(history_clock(steps)))&&!q.unavailable&&typed_disclosure(&bp.result,&q.data,&inv.table,key,inv.column.as_deref(),row){
                         out.attempted+=1;
-                        if !matches!(e.query(&bp.program.name,Context::new(viewer,args.clone()).at(history_clock(steps))),Ok(again) if !again.unavailable&&again.data==q.data){
+                        if !matches!(e.query(&bp.program.name,replay_ids::context(viewer,args.clone()).at(history_clock(steps))),Ok(again) if !again.unavailable&&again.data==q.data){
                             out.unsupported.insert(format!("{}: typed read payload is not repeatable on the committed image",bp.program.name));continue;
                         }
                         let added=violation(out,inv,steps,viewer,row,None,initial,if inv.column.is_some(){"column read observation"}else{"read"});
@@ -363,7 +363,7 @@ fn relationship_candidates<'a>(bound:&Bound,p:&'a Program,initial:&BTreeMap<Stri
             if attempts>=128||candidates.len()>=16||!out.reserve(1){return candidates;}attempts+=1;
             let Ok(mut e)=fixture.fork_fixture()else{continue;};
             let Ok(materialized)=materialize_arguments(&mut e,&p.args,args,actor)else{continue;};
-            if !matches!(e.mutate(&p.name,None,Context::new(actor,materialized).at(NOW)),Ok(r) if matches!(r.state,snapback4_core::WriteState::Sent{..})){continue;}
+            if !matches!(e.mutate(&p.name,None,replay_ids::context(actor,materialized).at(NOW)),Ok(r) if matches!(r.state,snapback4_core::WriteState::Sent{..})){continue;}
             let Ok(after)=readback(&e)else{continue;};
             if writes.iter().any(|(t,_)|initial.get(t).into_iter().flatten().any(|old|after.get(t).into_iter().flatten().find(|r|r.field("id").ok()==old.field("id").ok()).is_some_and(|new|bound.schema.tables[t].columns.iter().any(|(c,k)|matches!(k.required(),C::Principal)&&old.field(c).ok()!=new.field(c).ok())))){
                 candidates.push((p,actor.clone(),args.clone()));
@@ -521,7 +521,7 @@ pub(super) fn lifecycle_observers_to(bound:&Bound,fixture:&Engine,out:&mut Campa
                     if bound.invariants.iter().any(|i|i.target!="read"&&i.policy.as_ref().is_some_and(RuleExpr::has_reference)){if !out.reserve(1){return;}prior=base.fork_fixture().ok();}
                     out.attempted+=1;*out.operations.entry(p.name.clone()).or_default()+=1;
                     let trace=super::executed::trace(bound,p,&engine);
-                    let Ok(result)=engine.mutate(&p.name,None,Context::new(viewer,args.clone()).at(clock).with_fixture_trace(trace.clone()))else{continue;};
+                    let Ok(result)=engine.mutate(&p.name,None,replay_ids::context(viewer,args.clone()).at(clock).with_fixture_trace(trace.clone()))else{continue;};
                     if !matches!(result.state,snapback4_core::WriteState::Sent{..}){out.refused+=1;continue;}
                     let Ok(after)=readback(&engine)else{continue;};
 
@@ -688,7 +688,7 @@ pub(super) fn run(bound:&Bound,fixture:&Engine,out:&mut Campaign){
             let mut prior=if bound.invariants.iter().any(|i|i.target!="read"&&i.policy.as_ref().is_some_and(RuleExpr::has_reference)){if !out.reserve(1){break;}match fork(bound,&engine,Vec::new()){Ok(e)=>Some(e),Err(why)=>{out.unsupported.insert(why);None}}}else{None};
             out.attempted+=1;*out.operations.entry(p.name.clone()).or_default()+=1;
             let trace=super::executed::trace(bound,p,&engine);
-            match engine.mutate(&p.name,None,Context::new(viewer,args.clone()).at(NOW).with_fixture_trace(trace.clone())){
+            match engine.mutate(&p.name,None,replay_ids::context(viewer,args.clone()).at(NOW).with_fixture_trace(trace.clone())){
                 Ok(result)=>{
                     let sent=matches!(result.state,snapback4_core::WriteState::Sent{..});
                     steps.push(Step{clock:None,operation:p.name.clone(),viewer:viewer.clone(),args:args.clone(),result:serde_json::to_value(&result.state).unwrap()});

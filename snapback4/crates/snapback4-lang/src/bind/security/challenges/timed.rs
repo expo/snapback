@@ -24,7 +24,7 @@ pub(super) fn run(bound:&Bound,out:&mut Campaign,sites:Option<&BTreeSet<String>>
                 for viewer in [VIEWER,OTHER] {
                     if !out.reserve(1){return;}
                     out.attempted+=1;
-                    let Ok(q)=engine.query(name,Context::new(viewer,BTreeMap::new()).at(now))else{continue;};
+                    let Ok(q)=engine.query(name,replay_ids::context(viewer,BTreeMap::new()).at(now))else{continue;};
                     if q.unavailable||!q.complete||q.data==Value::Null{continue;}
                     // Scalar clock atoms are evaluated only after a real
                     // engine read returned this committed row. This extra

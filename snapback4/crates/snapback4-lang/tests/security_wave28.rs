@@ -152,3 +152,40 @@ fn clearance_descriptions_are_not_child_lifecycle_stages() {
         assert!(!contracts.iter().any(|i| i.table=="papers" && i.site.file.contains("/parent-state/")),"{contracts:?}");
     }
 }
+
+#[test]
+fn shipping_label_setters_do_not_create_enduring_equation_refusals() {
+ for source in [include_str!("security/sec10-shipping/w29-001.q"),include_str!("security/sec10-shipping/w29-013.q"),include_str!("security/sec10-shipping/w29-041.q")] {
+  let(s,b)=bound(source);let augmented=security::derived::augmented(&s,&b);
+  assert!(!augmented.invariants.iter().any(security::derived::advisory));
+  assert!(security::derived::notes(&s,&augmented).iter().any(|n|n.site.file.contains("/label-consistency/")&&n.rewrite.contains("advice only")));
+ }
+}
+#[test]
+fn shipping_branch_scoped_stage_exclusions_never_freeze_the_workflow() {
+ let(s,b)=bound(include_str!("security/sec10-shipping/w30-028.q"));
+ let stages=security::derived::workflow_columns_from_sources(&s,&b);assert!(stages.contains(&("projects".into(),"stage".into())),"{stages:?}");
+ let candidates=security::derived::invariants(&s,&b);
+ assert!(!candidates.iter().any(|i|i.table=="projects"&&i.column.as_deref()==Some("stage")&&i.predicate.contains("approvedAt")),"{candidates:?}");
+}
+#[test]
+fn a_typed_approval_consumer_cannot_be_labeled_an_external_act() {
+ for source in [include_str!("security/sec10-shipping/w30-018.q"),include_str!("security/sec10-shipping/w30-025.q")] {
+  let(s,b)=bound(source);let mut report=security::analyze_rules(&b);security::add_source_notes(&mut report,&s,&b);
+  assert!(!report.notes.iter().any(|n|n.code=="N_APPROVAL_INFORMATIONAL"&&n.message.starts_with("approvals.")),"{:?}",report.notes);
+ }
+}
+
+#[test]
+fn shipping_three_image_creator_reaches_its_money_threshold() {
+ let source=format!("{}\ninvariant intakeAlbums.insert only exists roles[viewer, role = 'intake_manager']\n",include_str!("security/sec10-shipping/w29-016.q"));let(s,b)=bound(&source);
+ let mut out=security::challenges::Campaign::work_bounded(8192);security::challenges::generated_campaign(&b,&mut out,false);
+ assert!(out.violations.iter().any(|v|v.operation=="logTractor"&&v.effect=="insert"&&v.reachability.is_reachable()&&!v.history.is_empty()),"operations={:?}; unsupported={:?}",out.operations,out.unsupported);
+}
+
+#[test]
+fn projected_edit_guards_do_not_reintroduce_advisory_creation_refusals() {
+ let source="table docs:\n  cell:text ?\n  read <- allow\n  insert <- allow\n  update(old,next) <- old.cell = next.cell or viewer = 'service:editor'\n  online only\nmutation create(cell:text ?):\n  return insert docs {cell}\n";
+ let(s,b)=bound(source);let candidates=security::derived::invariants(&s,&b);assert!(candidates.iter().any(security::derived::advisory));let augmented=security::derived::augmented(&s,&b);assert!(!augmented.invariants.iter().any(|i|security::derived::is_derived(i)));
+ assert!(security::derived::notes(&s,&b).iter().any(|n|n.rewrite.contains("advice only")));
+}

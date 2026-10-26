@@ -96,7 +96,7 @@ pub(super) fn collect(catalog:&Catalog,bound:&Bound)->BTreeSet<(String,String)>{
     }observations.into_iter().filter(|(_,states)|states.len()>1).map(|(column,_)|column).collect()
 }
 
-/// Scope omission to a discriminator's multi-state admission check in this
+/// Scope omission to a discriminator's lifecycle admission check in this
 /// selected-row invocation. A staged column's unrelated single-value data
 /// inspection remains evidence even when other mutations transition it.
 pub(super) fn admissions(catalog:&Catalog,stages:&BTreeSet<(String,String)>,table:&str,keys:&[ast::KeyPart],p:&ast::ProgramDecl,context:&ast::ProgramDecl,fields:&[ast::ObjectField],bound:&Bound)->BTreeSet<String>{
@@ -106,7 +106,7 @@ pub(super) fn admissions(catalog:&Catalog,stages:&BTreeSet<(String,String)>,tabl
         let mut condition=condition.clone();super::super::super::intent_walk::expression(&mut condition,&mut |e|if let ast::Expr::Binary{op,left,right,..}=e&&matches!(op.as_str(),"="|"!="){
             for (field,value) in [(left.as_ref(),right.as_ref()),(right.as_ref(),left.as_ref())]{if let ast::Expr::Member{base,name,..}=field&&same_resource(base,table,keys,p)&&stages.contains(&(table.into(),name.clone()))&&let ast::Expr::Literal{value:ast::Literal::Str(value),..}=value&&!value.is_empty(){values.entry(name.clone()).or_default().insert(value.clone());}}
         });
-    }}values.into_iter().filter(|(column,values)|!subjects.iter().any(|stem|subject::same(stem,column))&&(values.len()>1||!subjects.is_empty()||{
+    }}values.into_iter().filter(|(column,values)|!subjects.iter().any(|stem|subject::same(stem,column))&&(values.len()>1||!subjects.is_empty()||context.body.iter().any(|stmt|matches!(stmt,ast::Stmt::Require{condition,..} if !exclusions(condition,false,table,keys,p,column).is_empty()))||{
         let recordings=fields.iter().filter(|field|bound.schema.tables[table].columns.get(&field.name).is_some_and(|kind|named_approval(&field.name,kind)&&fresh_recording(kind,field.value.as_ref()))).map(|field|subject::stem(&field.name)).collect::<BTreeSet<_>>();
         let stamps=fields.iter().filter(|field|bound.schema.tables[table].columns.get(&field.name).is_some_and(|kind|stamps::evidence(&field.name,kind)&&recordings.contains(&subject::stem(&field.name))&&(fresh_recording(kind,field.value.as_ref())||(matches!(kind.required(),snapback4_core::schema::ColumnType::Principal)&&field.value.as_ref().is_some_and(|value|matches!(value,ast::Expr::Name{name,..} if name=="viewer")))))).map(|field|field.name.as_str()).collect::<BTreeSet<_>>();
         !stamps.is_empty()&&catalog.documents.iter().flat_map(|d|&d.programs).filter(|p|p.kind==ast::ProgramKind::Mutation).any(|p|authority_walk::writes(catalog,p).iter().any(|(write,context)|{

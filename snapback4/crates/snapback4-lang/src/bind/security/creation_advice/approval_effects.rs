@@ -36,8 +36,7 @@ fn birth_act(write:&Write<'_>,name:&str,bound:&Bound)->bool{
 }
 fn modeled(write:&Write<'_>,name:&str,parent:&str,bound:&Bound)->bool{
     if known_impossible(&write.context,write.catalog){return false;}
-    let operation=write.p.name.to_lowercase();
-    if ["approv","authoriz","request","review","ask","flag"].iter().any(|prefix|operation.starts_with(prefix)){return false;}
+
     let t=&bound.schema.tables[&write.table];
     if write.table==parent{
         if !matches!(write.op,WriteOp::Update|WriteOp::Upsert){return false;}
@@ -46,17 +45,15 @@ fn modeled(write:&Write<'_>,name:&str,parent:&str,bound:&Bound)->bool{
         return default_act||write.fields.iter().any(|field|changes(field)&&!metadata(&field.name)&&!matches!(field_value(field).map(simplify_boolean),Some(Expr::Literal{value:ast::Literal::Bool(false)|ast::Literal::Null,..}))&&(
             field.name.to_lowercase().contains(name)||
             matches!(t.columns.get(&field.name).map(ColumnType::required),Some(ColumnType::Enum{..}))&&field_value(field).is_some_and(|value|literal_act(value,name))
-        ))||operation.contains(name)&&["perform","execute","install","replace","refund","move","take","remove"].iter().any(|prefix|operation.starts_with(prefix))&&(default_act||write.fields.iter().any(|field|changes(field)&&!metadata(&field.name)&&!matches!(field_value(field).map(simplify_boolean),Some(Expr::Literal{value:ast::Literal::Bool(false)|ast::Literal::Null,..}))));
+        ));
     }
     if !matches!(write.op,WriteOp::Insert|WriteOp::Upsert)||!t.columns.values().any(|kind|matches!(kind.required(),ColumnType::Ref{table} if table==parent)){return false;}
-    // Pure media attachments are evidence about an act, not its performance.
-    if t.columns.values().any(ColumnType::contains_asset)&&!operation.starts_with("install")&&!operation.starts_with("replace")&&!write.table.to_lowercase().contains(name)&&!operation.contains(name){return false;}
-    if write.table.to_lowercase().contains(name)||operation.contains(name){return true;}
-    // An open named installation models every installable item in this parent.
-    operation.starts_with("install")&&write.fields.iter().any(|field|
-        matches!(field.name.as_str(),"name"|"part"|"item"|"kind")&&
-        field_value(field).is_some_and(|value|write.p.args.iter().any(|arg|
-            matches!(arg.type_.kind,TypeKind::Text{..})&&uses(value,&arg.name))))
+    // Typed/literal effects establish subjects; verb names neither admit nor
+    // exclude an act. A consent or request row records a prerequisite.
+    if metadata(&write.table){return false;}
+    if write.table.to_lowercase().contains(name){return true;}
+    write.fields.iter().any(|field|["name","part","item","kind"].contains(&field.name.as_str())&&field_value(field).is_some_and(|value|literal_act(value,name)||write.p.args.iter().any(|arg|matches!(arg.type_.kind,TypeKind::Text{..})&&uses(value,&arg.name))))
+
 }
 const CANCELLATIONS:&[(&[&str],&[&str])]=&[
     (&["cancel","cancellation","cancelation","cancelled","canceled"],&["cancel","cancelled","canceled"]),
@@ -117,6 +114,21 @@ pub(super) fn scalar(name:&str,parent:&str,record:&Write<'_>,effect:&Write<'_>,w
     })
 }
 pub(super) fn record(name:&str,parent:&str,creator:&Write<'_>,effect:&Write<'_>,bound:&Bound)->bool{
+    // A typed read of this receipt on an operation that performs an effect
+    // establishes a modeled approval contract independently of verb names.
+    if !std::ptr::eq(creator.p,effect.p)&&bound.programs.iter().any(|p|p.program.name==effect.name&&snapback4_core::ir::read_sites(&p.program).iter().any(|read|read.table==creator.table)){return true;}
+    // A Boolean that must already be set to request this receipt is an
+    // antecedent, not the act that the receipt is supposed to authorize.
+    if effect.table==parent&&!effect.fields.is_empty()&&effect.fields.iter().all(|field|
+        matches!(bound.schema.tables[parent].columns.get(&field.name).map(ColumnType::required),Some(ColumnType::Bool))&&
+        matches!(field_value(field),Some(Expr::Literal{value:ast::Literal::Bool(true),..}))&&conditions(&creator.context).iter().any(|condition|{
+            super::lifecycle::positive_approval_field(condition,false,&|base,name|name==field.name&&super::approval_records::origin(base,creator.p,bound).is_some_and(|selected|super::approval_records::parent_values(creator,parent,bound).iter().any(|value|super::approval_records::origin(value,creator.p,bound)==Some(selected.clone()))))
+        })){return false;}
+    // If approval performs a concrete literal effect itself, another writer of
+    // that same subject/effect models the act independently of its verb.
+    if !std::ptr::eq(creator.p,effect.p)&&effect.table==parent&&authority_walk::writes(creator.catalog,creator.p).iter().any(|(write,_)|{
+        let Expr::Write{table,fields,..}=write else{return false;};table==parent&&fields.iter().any(|approved|!metadata(&approved.name)&&effect.fields.iter().any(|field|field.name==approved.name&&matches!(field_value(field),Some(Expr::Literal{..}))&&field_value(field).map(crate::print::expression)==field_value(approved).map(crate::print::expression)))
+    }){return true;}
     let original=name.to_owned();let mut name=stem(name);
     let cues=cancellation_cues(&original,creator);
     if !cues.is_empty(){return cancellation_effect(&cues,parent,effect,bound)||cues.iter().any(|cue|modeled(effect,cue,parent,bound));}

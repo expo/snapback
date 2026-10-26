@@ -61,8 +61,10 @@ reservations; its default verdict never depends on elapsed time. Work exhaustion
 stays unproved and points to the full test.
 Explicit `--review`, `--verbose`, JSON and `--ack-security` also search
 generated question witnesses with a separate deterministic 8192-work budget.
-This opt-in search cannot change a gate, decision ID or proof verdict; exhausted
-questions retain an explicit unavailable witness.
+A separate fixed 3072-work current-source search obtains gate evidence in every
+check mode and deploy. Without an admitted trace the question stays advice.
+The opt-in search cannot turn advisory guesses into authored refutations;
+exhausted questions retain an explicit unavailable witness.
 `audit --json` retains all column audiences, grant writers, exclusions and uncovered
 role/row/effect exposures. Audit returns the permission map with bounded check
 evidence; run `test` for the full generated campaign. `audit --all` shows every
@@ -334,9 +336,14 @@ shows the admitted operation, caller, arguments, old/new row and inferred
 candidate. An upsert's existing-row arm is an **edit**. Opaque text, JSON and
 asset values in these generated witnesses are redacted. A finite witness is
 behavior to judge against the specification, never a proof of safety.
-Questions about retained role grants and uploads with an explicit mandatory-media
-contract require a repair or an individual disposition. They fail check without claiming an invariant refutation. Analyzer changes
-invalidate older source-bound reviews; recheck current IDs and decisions.
+Approval gates also require a coupled activation flag positively checked on the
+exact row before recording approval. Unresolved applicability is advice; a trace
+refuting an unconditional guess does not establish that the approval applies.
+SEC10 gates require current concrete campaign evidence; unsupported or exhausted
+questions stay advisory. Initial versus edit audience differences remain advice
+because the broader initial path can be intentional; a projected edit guard
+cannot reintroduce that same guess as a derived production FIX. Backfill equations are
+advice unless independently authored as enduring intent.
 Read the note, compare it with the specification, then use
 `check --ack-security ID --reason 'specification rationale'` with its current ID
 from check --review or `securityReviews[].id` in check --json. Repeat
@@ -347,7 +354,14 @@ member remains pending. Historical family commands select only their original,
 still-current members. Bulk --ack-notes cannot clear these gates.
 Commit snapback/security-reviews.json when the decision should travel with source.
 Comments, line shifts and independent declarations preserve decisions. Changed
-rule/column dependencies or analyzer revisions require review again; the record never grants authority or proves safety. Audit retains the full
+rule/column dependencies require advisory review again. A witnessed decision is
+re-asked only when its canonical witness changes; a pending question shows the
+new witness, never an old rationale. A witnessed reason must reference its witness
+digest and explicitly permit its actual operation/caller with the printed
+`permit OPERATION as CALLER` phrase; creation answers state `audience:` and intended
+roles, while other answers state `intended effect:` and specification rationale.
+The printed command gives the exact required form. Filler such as “one decision”
+is refused atomically. The record never grants authority or proves safety. Audit retains the full
 notes and dispositions. JSON names each decision's exact-column/rule or conservative
 declaration/writer binding scope. Advisories accept individual decisions and stay
 non-failing; the grouped table questionnaire has no separate review ID.
@@ -374,11 +388,11 @@ fixtures retain their generated-fixture-trace origin and can fail acceptance.
 
 ### N_RETAINED_ROLE_GRANT
 
-N_RETAINED_ROLE_GRANT: A recipient role required when storing a grant is mutable and missing from a reader branch that trusts that grant, including column payload readers. Recheck current role or revoke derived grants. Intentional retained authority needs an individual dependency-bound disposition.
+N_RETAINED_ROLE_GRANT: A recipient role required when storing a grant is mutable and missing from a reader branch that trusts that grant, including column payload readers. Recheck current role or revoke derived grants. A current replay witness needs an individual disposition; without one this remains an advisory authority question.
 
 ### N_OPTIONAL_UPLOAD_CREATE
 
-N_OPTIONAL_UPLOAD_CREATE: An optional upload argument can be omitted in a direct nullable-media write or a skipped child that independent intent requires. When independent intent requires a child, either require the upload before parent creation or always create the child with deliberately optional media; skipping the child on a null upload violates that presence intent. Optional media columns and guarded optional attachments do not require acknowledgment; a required child column alone does not require a child row. Type-required media is already validated at each executed write. A direct non-null assertion also enforces media at that write; neither requires a skipped child row. Unknown helper returns and nullable expression alternatives remain advisory/test coverage, without an inferred argument-omission gate. A parent-omission gate needs a direct straight-line parent insert whose prefix does not inspect the upload argument; helper or conditional parent prefixes require independent integrity tests. Review an intentional exception with an individual dependency-bound disposition.
+N_OPTIONAL_UPLOAD_CREATE: An optional upload argument can be omitted in a direct nullable-media write or a skipped child that independent intent requires. When independent intent requires a child, either require the upload before parent creation or always create the child with deliberately optional media; skipping the child on a null upload violates that presence intent. Optional media columns and guarded optional attachments do not require acknowledgment; a required child column alone does not require a child row. Type-required media is already validated at each executed write. A direct non-null assertion also enforces media at that write; neither requires a skipped child row. Unknown helper returns and nullable expression alternatives remain advisory/test coverage, without an inferred argument-omission gate. A parent-omission gate needs a direct straight-line parent insert whose prefix does not inspect the upload argument; helper or conditional parent prefixes require independent integrity tests. Without a current admitted trace this remains advice; an authored mandatory-presence refutation still blocks and cannot be acknowledged away.
 
 ### N_CREATION_REASON
 
@@ -410,7 +424,7 @@ N_ROLE_WIDE_WRITE: A global role plus viewer attribution does not identify the o
 
 ### E_SECURITY_NOTES
 
-E_SECURITY_NOTES: the individual disposition file is malformed, cannot be written, or sources changed while recording a review. Inspect snapback/security-reviews.json and run check --json for current IDs. Supply a nonempty specification reason for one current note; neither bulk acknowledgments nor this file can clear an actual refutation.
+E_SECURITY_NOTES: the individual disposition file is malformed, cannot be written, or sources changed while recording a review. Inspect snapback/security-reviews.json and run check --json for current IDs. Use the printed current-witness answer form for witnessed decisions, including its permitted operation/caller and intended audience/effect; unwitnessed advice accepts a nonempty specification rationale. Neither bulk acknowledgment nor this file can clear an authored refutation.
 
 ### N_CREATE_EDIT_ASYMMETRY
 
@@ -430,7 +444,7 @@ N_TABLE_QUESTIONNAIRE: Role-wide access and restating invariants share one table
 
 ### N_APPROVAL_NOT_ENFORCED
 
-N_APPROVAL_NOT_ENFORCED: An approval flag, timestamp, or separately authorized parent-linked approval table is recorded, and a plausible modeled act does not require it. This is an individual review gate. Add the matching approval requirement before its governed effect; if the approval is an informational record, record that specification decision with `check --ack-security ID --reason '<spec rationale>'`. A query returning the approval is not a transition guard. Edit/version timestamps such as `authorizationRouteUpdatedAt` are ordinary metadata, including when checked as data. Use a distinct approval-event field such as `approvedAt` or independent intent when the domain needs an approval marker.
+N_APPROVAL_NOT_ENFORCED: An approval flag, timestamp, or separately authorized parent-linked approval table is recorded, and a plausible modeled act does not require it. A current admitted trace makes this an individual review gate; without one it remains advice. Add the matching approval requirement before its governed effect; if the approval is an informational record, record that specification decision with `check --ack-security ID --reason '<spec rationale>'`. A query returning the approval is not a transition guard. Edit/version timestamps such as `authorizationRouteUpdatedAt` are ordinary metadata, including when checked as data. Use a distinct approval-event field such as `approvedAt` or independent intent when the domain needs an approval marker.
 
 ### N_EDIT_AFTER_APPROVAL
 
@@ -472,7 +486,10 @@ retain unknown results and coverage gaps.
 
 N_DERIVED_WRITE_AUTHORITY identifies an inferred candidate from authored change
 guards or approval data. Enforce the candidate or record its individual specification
-decision; only replayed violations refuse deploy, never a failed abstract implication.
+decision; only concrete replayed violations of sufficiently precise contracts
+refuse deploy, never a failed abstract implication. Backfill-derived label
+formulas remain advice: a migration initializer does not establish the column’s
+ongoing meaning when a setter intentionally chooses other values.
 
 A derived approval/edit violation requires approval to survive the edit. Clearing approval in that edit invalidates it; this is not a derived FIX. Authored `immutable c when P` still uses its stricter old-image constraint.
 
@@ -503,9 +520,9 @@ the broader audience. This question is advisory.
 
 N_BLANK_TEXT_GUARD: An empty-string justification guard admits whitespace from
 a minimum-zero input. Require trim(value) != '' for the same justification,
-or use text 1..N on every supplied justification. This is an individual review
-gate; acknowledge an intentional whitespace-sensitive comparison with
-check --ack-security ID --reason '<spec rationale>'.
+or use text 1..N on every supplied justification. Without a concrete current
+campaign witness this is advisory; repair the named input or declare the intended
+whitespace-sensitive comparison explicitly.
 
 
 ### Approval contracts and text evidence
@@ -524,8 +541,9 @@ beside it; apply the corresponding column audience with `image read <- P`.
 
 `text 1..N` counts visible characters for its minimum, excluding whitespace,
 zero-width/format and Unicode 17 default-ignorable characters. Optional
-minimum-zero text permits whitespace. N_BLANK_TEXT_GUARD is a review gate for
-reason/consent/assessment empty-string checks on such inputs: require
+minimum-zero text permits whitespace. N_BLANK_TEXT_GUARD asks about
+reason/consent/assessment empty-string checks on such inputs; it stays advisory
+without a concrete current witness. Require
 `trim(value) != ''` for the same justification or use positive text minimums on
 all supplied values. A deliberate whitespace-sensitive comparison can be
 individually acknowledged. Existing stores are not rewritten; these semantics
@@ -573,11 +591,11 @@ application's real identities; this local example isolates the decision guard.
 The scan is deliberately optional and readable only by its owner.
 
 
-Current-input backfills plus generic setters derive label-consistency candidates.
-Replay checks the backfilled equation after committed writes. Keep the label in
-sync with its inputs, or acknowledge the individual manual override from the
-specification. Predecessor migrations, self-input backfills and constant fills
-do not declare current-input equations.
+Current-input backfills plus generic setters ask an advisory label-consistency
+question. A migration formula does not establish the column’s ongoing meaning;
+intentional setters may choose other values. If the formula is enduring intent,
+declare it independently as an invariant and test it. Predecessor migrations,
+self-input backfills and constant fills do not establish such intent.
 
 Co-created participant charges with stable typed identities and an authored
 refund path derive participant-conservation candidates. A committed participant

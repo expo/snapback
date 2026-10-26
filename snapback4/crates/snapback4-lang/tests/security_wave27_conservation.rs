@@ -124,3 +124,19 @@ fn bad(out:&Campaign)->bool{out.violations.iter().any(|v|v.operation=="remove"&&
   assert_eq!(security::derived::invariants(&sources,&b).iter().any(|i|i.site.file.contains("/participant-conservation/")),expected,"helper={helper},args={args}");
  }
 }
+
+#[test]fn delete_only_witnesses_bind_both_ledger_forms_without_augmented_metadata(){
+ let ordinary=SOURCE.replace("BEFORE","").replace("AFTER","");
+ let start=ordinary.find("table ledger:").unwrap();let end=ordinary.find("mutation add(").unwrap();
+ let refund_schema=ordinary[start..end].replace("table ledger:","table refunds:");
+ let mut separate=ordinary.replace("table ledger:","table charges:").replace("insert ledger","insert charges");
+ let boundary=separate.find("mutation add(").unwrap();separate.insert_str(boundary,&refund_schema);
+ separate=separate.replace("mutation refund(trip: trips,person: principal):\n  return insert charges", "mutation refund(trip: trips,person: principal):\n  return insert refunds");
+ separate=separate.replace("paidCents: int","paidCents: money USD");
+ for (source,ledgers) in [(ordinary,vec!["ledger"]),(separate,vec!["charges","refunds"]) ]{
+  let sources=vec![("schema.q".into(),source)];let bound=compile(&sources);assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);
+  let inv=security::derived::invariants(&sources,&bound).into_iter().find(|inv|inv.site.file.contains("/participant-conservation/")).unwrap();
+  assert!(inv.policy.is_none()&&inv.syntax.is_none(),"this contract has a custom committed-state judgment");
+  let dependencies=security::derived::witness_dependencies(&sources,&bound,&inv);for ledger in ledgers{assert!(dependencies.contains(ledger),"missing {ledger}: {dependencies:?}");}
+ }
+}

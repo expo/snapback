@@ -24,11 +24,11 @@ const ASYMMETRY:&str="table records:\n  owner: principal\n  value: text ?\n  rea
  let sources=vec![("schema.q".into(),wider.clone())];
  assert!(!security::derived::invariants(&sources,&bound(&wider)).is_empty());
 }
-#[test]fn non_null_creation_is_derived_without_specification_intent(){
- let sources=vec![("schema.q".into(),ASYMMETRY.into())];let b=security::derived::augmented(&sources,&bound(ASYMMETRY));
- assert!(!b.invariants.is_empty());assert!(b.invariants.iter().all(security::derived::is_derived));
- let mut c=Campaign::default();challenges::generated_campaign(&b,&mut c,false);
- assert!(c.violations.iter().any(|v|v.reachability.is_reachable()&&v.row.field("value").is_ok_and(|v|*v!=snapback4_core::Value::Null)),"{}",serde_json::to_string(&c).unwrap());
+#[test]fn non_null_creation_difference_is_advice_until_intent_is_declared(){
+ let sources=vec![("schema.q".into(),ASYMMETRY.into())];let b=security::derived::augmented(&sources,&bound(ASYMMETRY));assert!(b.invariants.is_empty(),"an edit restriction alone is not global creation intent");
+ assert!(security::derived::notes(&sources,&bound(ASYMMETRY)).iter().any(|n|n.rewrite.contains("advice only")));
+ let explicit=format!("{ASYMMETRY}\ninvariant records.value write only viewer = 'service:desk'\n");let b=bound(&explicit);let mut c=Campaign::work_bounded(8192);challenges::generated_campaign(&b,&mut c,false);
+ assert!(c.violations.iter().any(|v|v.reachability.is_reachable()&&v.row.field("value").is_ok_and(|v|*v!=snapback4_core::Value::Null)),"explicit authored creation authority still refutes actual non-null writes");
 }
 #[test]fn clock_cross_row_and_read_through_forms_have_no_syntactic_gap(){
  for (fixture,line) in [

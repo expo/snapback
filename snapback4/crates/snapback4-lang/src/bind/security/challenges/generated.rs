@@ -81,6 +81,7 @@ fn proposals(bound:&Bound,out:&mut Campaign)->Result<Engine,String>{
 
 // @ref LLP 3000.036.004#137-wave-19-correction-admissible-starts-and-persistent-refutations — creator guards/copies are part of generated initialization.
 pub fn fixture(bound:&Bound,out:&mut Campaign)->Result<Engine,String>{
+    let _replay_ids = replay_ids::Scope::new();
     let proposed=proposals(bound,out)?;
     let rows=readback(&proposed)?;
     let actors=histories::actors(bound,&rows);
@@ -215,7 +216,7 @@ pub fn fixture(bound:&Bound,out:&mut Campaign)->Result<Engine,String>{
                 }
                 let mut candidate=engine.fork_fixture().map_err(|e|e.to_string())?;
                 let args=match materialize_arguments(&mut candidate,&p.args,&args,actor){Ok(a)=>a,Err(_)=>continue};
-                let result=candidate.mutate(&p.name,None,Context::new(actor,args.clone()).at(NOW));
+                let result=candidate.mutate(&p.name,None,replay_ids::context(actor,args.clone()).at(NOW));
                 if matches!(result,Ok(r) if matches!(r.state,snapback4_core::WriteState::Sent{..})) {
                     let after=readback(&candidate)?;
                     let loosens=if !stricter_observed&&watched_transition&&out.generated_fixture&&out.work_remaining.is_none_or(|work|work>=256){
@@ -274,7 +275,7 @@ use super::*;
  let row=inspections.iter().find(|r|r.field("authorization").map_or(true,|v|*v==Value::Null)).expect("generated roots retain missing evidence");
  let actor=row.field("inspector").unwrap().as_str().unwrap();let clock=match row.field("scheduledAt").unwrap(){Value::Int(n)=>(*n).max(NOW),_=>panic!("typed time")};
  let p=&b.programs.iter().find(|p|p.program.name=="markInspected").unwrap().program;let trace=super::executed::trace(&b,p,&e);
- let result=e.mutate("markInspected",None,Context::new(actor,BTreeMap::from([("inspection".into(),row.field("id").unwrap().clone())])).at(clock).with_fixture_trace(trace.clone())).unwrap();
+ let result=e.mutate("markInspected",None,replay_ids::context(actor,BTreeMap::from([("inspection".into(),row.field("id").unwrap().clone())])).at(clock).with_fixture_trace(trace.clone())).unwrap();
  assert!(matches!(result.state,snapback4_core::WriteState::Sent{..}),"{result:?}");assert!(trace.take().iter().any(|o|o.allowed==Some(false)));
 
 }
@@ -288,7 +289,7 @@ use super::*;
  let row=rows["payments"].iter().find(|r|matches!(r.field("dueAt"),Ok(Value::Int(n)) if *n>=NOW)).expect("one generated payment is due in the future");
  let actor=rows["roles"].iter().find(|r|r.field("role").ok()==Some(&Value::String("desk".into()))).unwrap().field("principal").unwrap().as_str().unwrap();
  let p=&b.programs.iter().find(|bp|bp.program.name=="markMissed").unwrap().program;let trace=super::executed::trace(&b,p,&e);
- let result=e.mutate("markMissed",None,Context::new(actor,BTreeMap::from([("payment".into(),row.field("id").unwrap().clone())])).at(NOW).with_fixture_trace(trace.clone())).unwrap();
+ let result=e.mutate("markMissed",None,replay_ids::context(actor,BTreeMap::from([("payment".into(),row.field("id").unwrap().clone())])).at(NOW).with_fixture_trace(trace.clone())).unwrap();
  assert!(matches!(result.state,snapback4_core::WriteState::Sent{..}),"{result:?}");assert!(trace.take().iter().any(|o|o.allowed==Some(false)));
 }
 }
@@ -310,7 +311,7 @@ use super::*;
     let fitting=rows.get("fittings").into_iter().flatten().find(|row|matches!(row.field("prescriptionDate"),Ok(Value::Int(n)) if *n<NOW-183*86_400_000)).unwrap_or_else(||panic!("no old date: {dates:?}; {:?}",out.unsupported));
     let actor=rows["roles"].iter().find(|row|row.field("role").ok()==Some(&Value::String("frontdesk".into()))).unwrap().field("principal").unwrap().as_str().unwrap();
     let p=&b.programs.iter().find(|p|p.program.name=="orderGarment").unwrap().program;let trace=super::executed::trace(&b,p,&engine);
-    let result=engine.mutate("orderGarment",None,Context::new(actor,BTreeMap::from([("fitting".into(),fitting.field("id").unwrap().clone())])).at(NOW).with_fixture_trace(trace.clone())).unwrap();
+    let result=engine.mutate("orderGarment",None,replay_ids::context(actor,BTreeMap::from([("fitting".into(),fitting.field("id").unwrap().clone())])).at(NOW).with_fixture_trace(trace.clone())).unwrap();
     assert!(matches!(result.state,snapback4_core::WriteState::Sent{..}),"{result:?}; dates={dates:?}");
     assert!(trace.take().iter().any(|o|o.allowed==Some(false)),"the named operation must violate the independent clock intent");
 }

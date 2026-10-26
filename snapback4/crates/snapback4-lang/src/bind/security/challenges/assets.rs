@@ -32,7 +32,7 @@ pub(super) fn run(bound:&Bound,fixture:&Engine,out:&mut Campaign){
                 let Some(mut args)=arguments(&p.args,0)else{out.unsupported.insert(format!("{}: asset challenge needs remaining argument fixtures",p.name));continue;};
                 args.insert(arg.clone(),sample.clone());
                 out.attempted+=1;*out.operations.entry(p.name.clone()).or_default()+=1;
-                match e.mutate(&p.name,None,Context::new(VIEWER,args).at(NOW)){
+                match e.mutate(&p.name,None,replay_ids::context(VIEWER,args).at(NOW)){
                     Ok(result) if matches!(result.state,snapback4_core::WriteState::Failed{..})=>out.refused+=1,
                     Ok(_)=>{if let Ok(rows)=readback(&e)&&rows.values().flatten().any(|row|contains(row,&sample)){
                         out.boundary_failures.push(format!("{} placed {mode} through argument {arg}",p.name));

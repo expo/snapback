@@ -17,7 +17,7 @@ fn notes(source:&str)->Vec<snapback4_lang::Diagnostic>{
 }
 const EDIT:&str="table roles:\n  principal: principal\n  role: enum('clerk','editor')\n  unique principal\n  read <- allow\n  insert <- viewer = 'service:operator'\n  online only\ntable docs:\n  title: text <=80\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\nmutation create(title: text <=80):\n  return insert docs {title}\nmutation edit(doc: docs,title: text <=80):\n  require exists roles[viewer,role='editor'] else NOT_EDITOR\n  update docs[doc] {title}\n";
 #[test]fn mutation_edit_guard_question_has_one_line_answers(){
- assert!(notes(EDIT).iter().any(|n|n.code=="N_INSERT_WRITE_INTENT"));assert!(security::gated_note("N_INSERT_WRITE_INTENT"));
+ assert!(notes(EDIT).iter().any(|n|n.code=="N_INSERT_WRITE_INTENT"));assert!(!security::gated_note("N_INSERT_WRITE_INTENT"));
  let intent=format!("{EDIT}invariant docs.title update only exists roles[viewer,role='editor']\n");
  assert!(!notes(&intent).iter().any(|n|n.code=="N_INSERT_WRITE_INTENT"));
  let rule=EDIT.replace("title: text <=80\n","title: text <=80 write <- exists roles[viewer,role='editor']\n");
@@ -31,12 +31,14 @@ fn campaign(source:&str)->security::challenges::Campaign{
  let sources=vec![("schema.q".into(),source.into())];let b=compile(&sources);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
  let b=security::derived::augmented(&sources,&b);let mut out=security::challenges::Campaign::work_bounded(8192);security::challenges::generated_campaign(&b,&mut out,false);out
 }
-#[test]fn backfill_equations_produce_replayed_label_candidates(){
+#[test]fn backfill_equations_are_advice_without_declaring_enduring_meaning(){
  for source in [include_str!("security/wave27/033.q"),include_str!("security/wave27/037.q")]{
   let sources=vec![("schema.q".into(),source.into())];let b=compile(&sources);
   let candidates=security::derived::invariants(&sources,&b);
   assert!(candidates.iter().any(|i|i.site.file.contains("/label-consistency/")),"{candidates:?}");
-  let out=campaign(source);assert!(out.violations.iter().any(|v|v.invariant_site.contains("/label-consistency/")&&v.reachability.is_reachable()),"operations={:?}; violations={:?}",out.operations,out.violations.iter().map(|v|(&v.operation,&v.invariant_site)).collect::<Vec<_>>());
+  let augmented=security::derived::augmented(&sources,&b);assert!(!augmented.invariants.iter().any(security::derived::advisory));
+  assert!(security::derived::notes(&sources,&augmented).iter().any(|n|n.site.file.contains("/label-consistency/")&&n.rewrite.contains("advice only")));
+  assert!(!campaign(source).violations.iter().any(|v|v.invariant_site.contains("/label-consistency/")));
  }
 }
 #[test]fn participant_removal_replays_stable_charge_conservation(){
