@@ -153,7 +153,10 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("E_SERVE_EARLY_EXIT", "E_SERVE_EARLY_EXIT means the npm serve script exited before the requested up interval completed."),
     ("E_SERVE_CHILD_RUNNING", "E_SERVE_CHILD_RUNNING means an owned child remained alive after group SIGTERM and the stop grace."),
     ("E_SERVE_DRIVER_EXIT", "E_SERVE_DRIVER_EXIT means the checker driver or keeper exited or lost IPC before inspection completed."),
-    ("E_SERVE_LOCK_HELD", "E_SERVE_LOCK_HELD means the requested deployment lock remained held after group SIGTERM, or its lock barrier refused."),
+    ("E_SERVE_LOCK_HELD", "E_SERVE_LOCK_HELD means the requested deployment lock remained held after group SIGTERM."),
+    ("E_SERVE_DEPLOYMENT_MISMATCH", "E_SERVE_DEPLOYMENT_MISMATCH means the requested deployment store differs from the store started by the script."),
+    ("E_SERVE_STORE_MISSING", "E_SERVE_STORE_MISSING means the requested deployment store does not exist."),
+    ("E_SERVE_LOCK_BARRIER", "E_SERVE_LOCK_BARRIER means the store lock barrier failed without a classified held-lock report."),
     ("E_SERVE_INSPECTION", "E_SERVE_INSPECTION means the process-group listing could not be classified."),
     ("E_SERVE_START", "E_SERVE_START means the npm script could not start or its keeper handshake was not received."),
 

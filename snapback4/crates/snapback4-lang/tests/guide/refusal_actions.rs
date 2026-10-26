@@ -18,7 +18,10 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("E_SERVE_EARLY_EXIT", &["Hold an owned referenced lifetime until SIGTERM, then await host cleanup. A readiness line alone does not qualify uptime."]),
     ("E_SERVE_CHILD_RUNNING", &["Stop every owned host and inspect the driver. Forced group cleanup happens after inspection and cannot make this failed check pass."]),
     ("E_SERVE_DRIVER_EXIT", &["Investigate the driver failure and rerun. Lost custody never qualifies a serve script."]),
-    ("E_SERVE_LOCK_HELD", &["Inspect the intended owner and deployment before rerunning. The observation precedes forced cleanup; the check does not delete a lock."]),
+    ("E_SERVE_LOCK_HELD", &["Inspect that owner and deployment before rerunning. The observation precedes forced cleanup; the check does not delete a lock."]),
+    ("E_SERVE_DEPLOYMENT_MISMATCH", &["Align --deployment with the script’s --dir; the diagnostic names both resolved paths."]),
+    ("E_SERVE_STORE_MISSING", &["Deploy it first or correct --deployment and the script’s --dir.", "A missing store is a path error, not a held lock."]),
+    ("E_SERVE_LOCK_BARRIER", &["Inspect the named store and rerun; neither held nor released is established, and no lock is deleted."]),
     ("E_SERVE_INSPECTION", &["Restore a working ps command and rerun. An unknown group never passes cleanup; only the pinned group is reclaimed."]),
     ("E_SERVE_START", &["Check npm and the script name, then rerun. No readiness or custody claim is made without the handshake."]),
 
