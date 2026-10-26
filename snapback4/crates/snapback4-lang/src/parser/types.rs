@@ -45,6 +45,9 @@ impl Parser {
 
     pub(super) fn parse_type(&mut self, column: bool) -> Fallible<ScalarType> {
         let site = self.peek().site.clone();
+        if self.at("{") {
+            return Err(syntax_with(&site, "typed record arguments and record-list elements are not supported", "use bounded parallel scalar/media lists, for example names: [text 1..80] 1..12, photos: [image <=5MB] 1..12; require len(names) = len(photos) before looping over their indexes; use a child table for stored records").guide("types"));
+        }
         let mut kind;
         if self.maybe("[") {
             let item = self.parse_type(column)?;

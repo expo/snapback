@@ -810,6 +810,25 @@ fn rule_expr(catalog: &Catalog, info: &TableInfo, expr: &Expr, bindings: &RuleBi
             Ok(RuleExpr::Eq(term,RuleTerm::Literal(Value::Bool(true))))
         }
         Expr::Exists { read, site } => {
+            if read.seeks.iter().any(|bound| bound.op == "!=") {
+                if read.seeks.iter().any(|b| b.op != "!=") || read.filter.is_some() || read.range.is_some() || read.matching.is_some() {
+                    return Err(type_error(site, "probe != tests require a full unique key without range or where clauses", "pin one complete unique key, then add field != literal"));
+                }
+                let mut point = read.clone(); point.seeks.clear();
+                let base = rule_expr(catalog, info, &Expr::Exists { read: point.clone(), site: site.clone() }, bindings)?;
+                let target = &catalog.tables[&read.table];
+                let mut terms = vec![base];
+                for bound in &read.seeks {
+                    if target.columns.get(&bound.column).is_none_or(|ty| ty.optional) {
+                        return Err(type_error(&bound.site, "probe != needs a declared required field", "read the row by its unique key and compare the nullable field in the program"));
+                    }
+                    let mut equal = point.clone();
+                    equal.keys.push(KeyPart { column: Some(bound.column.clone()), value: bound.value.clone(), site: bound.site.clone() });
+                    let test = rule_expr(catalog, info, &Expr::Exists { read: equal, site: site.clone() }, bindings)?;
+                    terms.push(RuleExpr::Not(Box::new(test)));
+                }
+                return Ok(RuleExpr::And(terms));
+            }
             let (table, index, key, equalities) = probe(catalog, info, read, site, bindings, true).map_err(|error| super::bracket_ranges::refusal(read, true, error))?;
             Ok(RuleExpr::Exists { table, index, key, equalities, provenance: KeyProvenance::Shape })
         }

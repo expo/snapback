@@ -151,14 +151,28 @@ fn gate_note(catalog: &Catalog, p: &ProgramDecl, table: &str, rule: &RuleDecl, i
         expr
     }
     human = human_arm(human, &mut services);
-    let need = probe(catalog, human, env, Some(image))?;
-    let proves = |branch: &GateBranch| branch.probes.iter().any(|have| have.0 == need.0 && need.1.iter().all(|(key, value)| have.1.get(key) == Some(value)))
+    fn alternatives(catalog: &Catalog, expr: &Expr, env: &Env, image: &BTreeMap<String, String>) -> Option<Vec<Probe>> {
+        if let Expr::Binary { op, left, right, .. } = expr && op == "or" {
+            let mut out = alternatives(catalog, left, env, image)?;
+            out.extend(alternatives(catalog, right, env, image)?);
+            return (out.len() <= LIMIT).then_some(out);
+        }
+        Some(vec![probe(catalog, expr, env, Some(image))?])
+    }
+    let needs = alternatives(catalog, human, env, image)?;
+    let proves = |branch: &GateBranch| needs.iter().any(|need| branch.probes.iter().any(|have| have.0 == need.0 && need.1.iter().all(|(key, value)| have.1.get(key) == Some(value))))
         || services.iter().any(|service| !possible(&combine(combine(facts.clone(), branch.facts.clone(), true), predicate(service, env, Some(image), false, true), true)));
     let viable = |branch: &&GateBranch| possible(&combine(facts.clone(), branch.facts.clone(), true));
     let (gate, _) = env.gates.iter().find(|(_, branches)| {
         let Some(branches) = branches else { return false };
         let branches: Vec<_> = branches.iter().filter(viable).collect();
-        branches.iter().any(|b| proves(b)) && branches.iter().any(|b| !proves(b))
+        // An explicit role or ownership gate expresses caller intent. It can
+        // still lack table authority even when no sibling branch proves it
+        // (wave 30 007R/034R). Missing proof does not mean disjoint audiences.
+        let ownership = |branch: &&GateBranch| branch.facts.iter().flatten().any(|(a,b,eq)| *eq && catalog.tables[table].columns.iter().any(|(column, ty)|
+            matches!(ty.kind, TypeKind::Principal) && image.get(column).is_some_and(|value| (a == "viewer" && b == value) || (b == "viewer" && a == value))));
+        let global_roles = needs.iter().all(|need| need.1.values().all(|value| value == "viewer" || value.starts_with("literal:")));
+        branches.iter().any(|b| !proves(b)) && (branches.iter().any(|b| proves(b)) || global_roles && (branches.iter().any(|b| !b.probes.is_empty()) || branches.iter().any(ownership)))
     })?;
     if env.gates.iter().any(|(_, branches)| branches.as_ref().is_some_and(|branches| {
         let branches: Vec<_> = branches.iter().filter(viable).collect();

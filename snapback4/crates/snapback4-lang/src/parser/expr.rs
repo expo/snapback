@@ -384,20 +384,20 @@ impl Parser {
             if self.at_kind(Kind::Word) {
                 while self.peek_at(end).value == "." && self.peek_at(end + 1).kind == Kind::Word { end += 2; }
             }
-            if self.at_kind(Kind::Word) && self.peek_at(end).value == "!=" {
-                return Err(syntax_with(&key_site,
-                    "probe brackets take named equalities, not != tests",
-                    "pin a full unique key and compare the row field outside the brackets, or use a bounded program `exists table[key] where .column != value`; program probes see only caller-readable rows, while table-rule probes see all rows; use unique/cap/after insert constraints for invariants across hidden rows"));
-            }
             if self.at_kind(Kind::Word) && self.peek_at(end).value == "=" {
                 column = Some(self.maintain_column()?);
                 self.take("=")?;
             }
-            if column.is_none() && self.at_kind(Kind::Word) && matches!(self.peek_at(end).value.as_str(), ">" | ">=" | "<" | "<=") {
+            if column.is_none() && self.at_kind(Kind::Word) && matches!(self.peek_at(end).value.as_str(), ">" | ">=" | "<" | "<=" | "!=") {
                 let column = self.maintain_column()?;
                 let op = self.peek().value.clone();
                 self.position += 1;
                 let value = self.expression(0, &[",", "]", "and"])?;
+                let literal = matches!(&value, Expr::Literal { value: Literal::Str(_) | Literal::Number(_) | Literal::Bool(_), .. })
+                    || matches!(&value, Expr::Unary { op, value, .. } if op == "-" && matches!(value.as_ref(), Expr::Literal { value: Literal::Number(_), .. }));
+                if op == "!=" && !literal {
+                    return Err(syntax_with(&key_site, "a probe != test compares a field with a non-null literal after a full unique key", "pin the complete unique key, then write field != 'value'; use where for program predicates"));
+                }
                 seeks.push(SeekBound { column, op, value, site: key_site });
             } else {
                 if !seeks.is_empty() { return Err(syntax_with(&key_site, "pin the prefix before the seek comparisons", "t[prefix, col >= start, col < end] first 50 by index")); }

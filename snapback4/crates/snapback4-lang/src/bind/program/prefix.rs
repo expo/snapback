@@ -189,6 +189,9 @@ impl Binder<'_> {
             return Err(type_error(&read.site, format!("{} is one global maintained scalar, not an existence probe", read.table),
                 format!("compare the bare scalar instead: `{} > 0`", read.table)).guide("maintains"));
         }
+        if read.seeks.iter().any(|bound| bound.op == "!=") {
+            return self.literal_point_predicates(read, out).map(|value| (value, Ty::Bool));
+        }
         self.exists_probe(read, out).map_err(|error| super::super::bracket_ranges::refusal(read, false, error))
     }
 

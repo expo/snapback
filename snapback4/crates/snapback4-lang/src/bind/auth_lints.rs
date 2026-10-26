@@ -45,6 +45,8 @@ pub(super) fn notes(catalog: &Catalog, schema: &Schema) -> Vec<Diagnostic> {
     let guard_programs = catalog.documents.iter().flat_map(|doc| &doc.programs).filter(|p| !p.native).collect::<Vec<_>>();
     unreadable_guards(catalog, schema, &guard_programs, &mut notes);
     refused_requires(catalog, schema, &mutations, &mut notes);
+    unfiltered_roles(catalog, schema, &programs, &mut notes);
+    denied_role_writes(catalog, schema, &mutations, &mut notes);
     notes
 }
 
@@ -419,14 +421,64 @@ fn asserted_probes<'a>(condition: &'a Expr, out: &mut Vec<&'a ReadExpr>) {
     }
 }
 
-fn requires(body: &[Stmt], out: &mut Vec<(Expr, String)>) {
+// Keep only entry facts on this path. A later require, a sibling branch or
+// a helper/write cannot prove that an earlier read was visible.
+fn requires(body: &[Stmt], mut prior: Vec<Expr>, out: &mut Vec<(Expr, String, Vec<Expr>)>) {
     for statement in body {
-        match statement {
-            Stmt::Require { condition, code, .. } => out.push((condition.clone(), code.clone())),
-            Stmt::If { then_body, else_body, .. } => { requires(then_body, out); requires(else_body, out); }
-            Stmt::For { body, .. } | Stmt::As { body, .. } => requires(body, out),
-            _ => {}
+        let mut opaque = false;
+        if let Stmt::Require { condition, .. } | Stmt::If { condition, .. } = statement {
+            let mut copy = condition.clone();
+            super::intent_walk::expression(&mut copy, &mut |e| opaque |= matches!(e, Expr::Write { .. } | Expr::Call { .. }));
+            if opaque { prior.clear(); }
         }
+        match statement {
+            Stmt::Require { condition, code, .. } => {
+                out.push((condition.clone(), code.clone(), prior.clone()));
+                if !opaque { prior.push(condition.clone()); }
+            }
+            Stmt::If { condition, then_body, else_body, .. } => {
+                let mut yes = prior.clone(); if !opaque { yes.push(condition.clone()); }
+                requires(then_body, yes, out);
+                requires(else_body, prior.clone(), out);
+                prior.clear();
+            }
+            Stmt::For { body, .. } => { requires(body, Vec::new(), out); prior.clear(); }
+            Stmt::As { .. } => { prior.clear(); }
+            _ => {
+                let mut copy = vec![statement.clone()];
+                let mut invalidates = false;
+                super::intent_walk::statements(&mut copy, &mut |e| {
+                    invalidates |= matches!(e, Expr::Write { .. } | Expr::Call { .. });
+                });
+                if invalidates { prior.clear(); }
+            }
+        }
+    }
+}
+
+// Different values of a non-key column contradict only when both probes pin
+// the same *total unique* key. Composite principal/role rosters may overlap.
+fn incompatible_probes(catalog: &Catalog, schema: &Schema, a: &ReadExpr, b: &RuleExpr) -> bool {
+    let RuleExpr::Exists { table, index, key, equalities, .. } = b else { return false };
+    if a.table != *table { return false; }
+    let Some(info) = catalog.tables.get(table) else { return false };
+    let Some(index) = schema.table(table).and_then(|t| t.index(index)) else { return false };
+    let Some(a) = pins(catalog, a) else { return false };
+    let b: BTreeMap<_, _> = index.columns().into_iter().zip(key.iter()).chain(equalities.iter().map(|(c,v)| (c.clone(),v))).collect();
+    let same = |expr: &Expr, term: &RuleTerm| is_viewer(expr) && matches!(term, RuleTerm::Viewer)
+        || matches!((expr, term), (Expr::Literal { value: Literal::Str(a), .. }, RuleTerm::Literal(snapback4_core::Value::String(b) | snapback4_core::Value::Id(b))) if a == b);
+    let keyed = info.indexes.iter().any(|i| info.total_unique(i) && i.is_plain()
+        && i.columns.iter().all(|c| a.get(c).zip(b.get(c)).is_some_and(|(a,b)| same(a,b))));
+    keyed && a.iter().any(|(c,a)| b.get(c).is_some_and(|b|
+        matches!((a,*b), (Expr::Literal { value: Literal::Str(a), .. }, RuleTerm::Literal(snapback4_core::Value::String(b) | snapback4_core::Value::Id(b))) if a != b)))
+}
+
+fn excludes_role(catalog: &Catalog, schema: &Schema, condition: &Expr, role: &RuleExpr) -> bool {
+    match condition {
+        Expr::Exists { read, .. } => incompatible_probes(catalog, schema, read, role),
+        Expr::Binary { op, left, right, .. } if op == "and" => excludes_role(catalog, schema, left, role) || excludes_role(catalog, schema, right, role),
+        Expr::Binary { op, left, right, .. } if op == "or" => excludes_role(catalog, schema, left, role) && excludes_role(catalog, schema, right, role),
+        _ => false,
     }
 }
 
@@ -434,9 +486,9 @@ fn hidden_requires(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDecl]
     let mut seen = BTreeSet::new();
     for program in programs {
         let mut tested = Vec::new();
-        requires(&program.prelude, &mut tested);
-        requires(&program.body, &mut tested);
-        for (condition, code) in &tested {
+        let body: Vec<_> = program.prelude.iter().chain(&program.body).cloned().collect();
+        requires(&body, Vec::new(), &mut tested);
+        for (condition, code, prior) in &tested {
             let mut probes = Vec::new();
             asserted_probes(condition, &mut probes);
             for read in probes {
@@ -451,13 +503,23 @@ fn hidden_requires(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDecl]
                         pinned.get(column).filter(|value| !is_viewer(value)).map(|value| (column.clone(), crate::print::expression(value))),
                     _ => None,
                 })).collect();
-                if owners.is_empty() || owners.iter().any(Option::is_none) { continue; }
-                let Some((column, value)) = owners[0].clone() else { continue };
+                let disjuncts = table.rules.read.disjuncts();
+                let excluded: Vec<_> = disjuncts.iter().zip(&owners).filter(|(_, owner)| owner.is_none()).collect();
+                let services: Vec<_> = excluded.iter().filter_map(|(arm, _)| arm.service_grant()).collect();
+                let caller_roster = prior.iter().any(|condition| {
+                    let mut probes = Vec::new(); asserted_probes(condition, &mut probes);
+                    probes.iter().any(|read| pins(catalog, read).is_some_and(|pins| pins.values().any(is_viewer)))
+                });
+                if owners.is_empty() || !services.is_empty() && !caller_roster || excluded.iter().any(|(arm, _)| arm.service_grant().is_none() && !conjuncts(arm).iter().any(|part| prior.iter().any(|condition| excludes_role(catalog, schema, condition, part)))) { continue; }
+                let Some((column, value)) = owners.iter().flatten().next().cloned() else { continue };
+                let human_roles = excluded.iter().any(|(arm, _)| arm.service_grant().is_none());
+                let mut role_context = if human_roles { " for callers satisfying the preceding require/branch conditions (the declared unique roster key excludes the other read-role arms)".to_owned() } else { String::new() };
+                if !services.is_empty() { role_context.push_str(&format!(" outside the explicit service grant ({})", services.join(", "))); }
                 if !seen.insert((program.name.clone(), read.site.to_string())) { continue; }
                 let probe = crate::print::expression(&Expr::Exists { read: read.clone(), site: read.site.clone() });
                 let site = rule_site(catalog, &read.table, Effect::Read).map(|s| format!(" ({s})")).unwrap_or_default();
                 notes.push(Diagnostic::new(&read.site, "N_REQUIRE_HIDDEN",
-                    format!("{} {}: `{probe}` reads {} under its read rule `{}`{site}, which admits only the row whose {column} is the caller, so this require passes only when `{value}` is the caller: for every other {} row, which exists but is hidden, it refuses {code} (a program `exists` sees only readable rows; a rule probe sees every row)",
+                    format!("{} {}: `{probe}` reads {} under its read rule `{}`{site}, which{role_context} admits only the row whose {column} is the caller, so this require passes only when `{value}` is the caller: for every other {} row, which exists but is hidden, it refuses {code} (a program `exists` sees only readable rows; a rule probe sees every row)",
                         if program.kind == ProgramKind::Query { "query" } else { "mutation" }, program.name, read.table, table.rules.read.quarry(), read.table),
                     format!("let the callers who run this check read those rows: `read <- {} or exists {}[viewer]` (a roster its members read), or a role (`… or exists staff[viewer]`); if only the caller's own row is meant, write `{column} = viewer`", table.rules.read.quarry(), read.table)).guide("rules"));
             }
@@ -1322,4 +1384,90 @@ fn unreadable_guards(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDec
     // a later unguarded lookup of the same table.
     let mut shown = BTreeSet::new();
     notes.retain(|note| note.code != "N_LOOKUP_HIDDEN" || shown.insert(note.message.clone()));
+}
+
+// A single principal-keyed roster with a role enum is a mixed audience. Its
+// existence proves enrollment, not a particular role (wave 30: 003R, 041R).
+fn unfiltered_roles(catalog: &Catalog, schema: &Schema, programs: &[&ProgramDecl], notes: &mut Vec<Diagnostic>) {
+    let mut seen = BTreeSet::new();
+    // A resource's own-reader branch identifies the subject role by exact
+    // field/variant spelling; no customer/staff vocabulary is guessed.
+    let mut mixed = BTreeSet::new();
+    for (name, resource) in &schema.tables {
+        let owners: Vec<_> = resource.rules.read.disjuncts().into_iter().filter_map(|arm| match arm {
+            RuleExpr::Eq(RuleTerm::Field(column), RuleTerm::Viewer) | RuleExpr::Eq(RuleTerm::Viewer, RuleTerm::Field(column))
+                if catalog.tables.get(name).and_then(|t| t.columns.get(column)).is_some_and(|t| matches!(t.kind, TypeKind::Principal)) => Some(column.clone()),
+            _ => None,
+        }).collect();
+        for arm in resource.rules.read.disjuncts() {
+            for part in conjuncts(arm) {
+                if let RuleExpr::Exists { table, .. } = part {
+                    if let Some(ScalarType { kind: TypeKind::Enum { variants }, .. }) = catalog.tables.get(table).and_then(|t| t.columns.get("role")) {
+                        if owners.iter().any(|c| variants.contains(c)) { mixed.insert(table.clone()); }
+                    }
+                }
+            }
+        }
+    }
+    let describe = |table: &str, columns: &BTreeSet<String>| -> Option<String> {
+        if !mixed.contains(table) { return None; }
+        let info = catalog.tables.get(table)?;
+        let role = info.columns.get("role")?;
+        let TypeKind::Enum { variants } = &role.kind else { return None };
+        if variants.len() < 2 || columns.contains("role") { return None; }
+        let principal_key = info.indexes.iter().any(|i| info.total_unique(i) && i.columns.len() == 1
+            && info.columns.get(&i.columns[0]).is_some_and(|t| matches!(t.kind, TypeKind::Principal))
+            && columns.contains(&i.columns[0]));
+        principal_key.then(|| variants.iter().map(|v| format!("'{v}'")).collect::<Vec<_>>().join(", "))
+    };
+    let mut add = |table: &str, columns: BTreeSet<String>, site: &Site, context: &str| {
+        let Some(variants) = describe(table, &columns) else { return };
+        if !seen.insert((table.to_owned(), site.to_string())) { return; }
+        notes.push(Diagnostic::new(site, "N_ROLE_UNFILTERED", format!("{context}: this {table} roster probe accepts every role ({variants}); bare enrollment does not establish a particular role"),
+            format!("name each admitted role explicitly: `exists {table}[principal = viewer, role = '<allowed role>']`; keep the bare probe only if every roster role is intended")).guide("rule-recipes"));
+    };
+    // Inspect the authored predicate: lowering `role != 'x'` introduces a
+    // positive key-only probe plus a negative equality probe, not a bare grant.
+    for (name, info) in &catalog.tables {
+        for rule in &info.decl.rules {
+            let mut found = Vec::new(); asserted_probes(&rule.value, &mut found);
+            for read in found {
+                if !read.seeks.is_empty() || read.filter.is_some() { continue; }
+                if let Some(pins) = pins(catalog, read) {
+                    add(&read.table, pins.into_keys().collect(), &rule.site, &format!("{name}.{}", rule.effect.word()));
+                }
+            }
+        }
+    }
+    for program in programs {
+        let mut tested = Vec::new();
+        let body: Vec<_> = program.prelude.iter().chain(&program.body).cloned().collect();
+        requires(&body, Vec::new(), &mut tested);
+        for (condition, _, _) in tested {
+            let mut probes = Vec::new(); asserted_probes(&condition, &mut probes);
+            for read in probes {
+                if !read.seeks.is_empty() || read.filter.is_some() { continue; }
+                if let Some(pins) = pins(catalog, read) { add(&read.table, pins.into_keys().collect(), &read.site, &program.name); }
+            }
+        }
+    }
+}
+
+// A mutation's intent gate cannot grant an effect denied by the table
+// (wave 30: 007R, 034R), including an omitted rule, whose default is deny.
+fn denied_role_writes(catalog: &Catalog, schema: &Schema, mutations: &[&ProgramDecl], notes: &mut Vec<Diagnostic>) {
+    for program in mutations {
+        let body: Vec<_> = program.prelude.iter().chain(&program.body).cloned().collect();
+        let gated = body.iter().any(|s| matches!(s, Stmt::Require { condition, .. } if names_viewer(condition)));
+        if !gated || body.iter().any(|s| matches!(s, Stmt::As { .. })) { continue; }
+        for (op, name, _, _, site) in writes(program) {
+            let Some(table) = schema.table(&name) else { continue };
+            let effect = match op { WriteOp::Insert => Effect::Insert, WriteOp::Update => Effect::Update, WriteOp::Delete => Effect::Delete, _ => continue };
+            let rule = match effect { Effect::Insert => &table.rules.insert, Effect::Update => &table.rules.update, Effect::Delete => &table.rules.delete, _ => unreachable!() };
+            if !matches!(rule, RuleExpr::Deny) { continue; }
+            let location = rule_site(catalog, &name, effect).map(|site| format!(" at {site}")).unwrap_or_else(|| " (the rule is omitted and defaults to deny)".into());
+            notes.push(Diagnostic::new(&site, "N_REQUIRE_REFUSED", format!("{}: the mutation require checks caller intent, but {name}'s table {} rule denies every ordinary caller{location}; passing require still refuses E_RULE at this write", program.name, effect.word()),
+                format!("declare the intended {} authority on {name}; a mutation require does not grant table authority; retain the caller guard for its business refusal code", effect.word())).guide("rule-recipes"));
+        }
+    }
 }
