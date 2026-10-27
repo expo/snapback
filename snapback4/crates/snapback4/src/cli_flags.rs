@@ -327,10 +327,11 @@ mod surface_tests {
     }
     #[test]
     fn ignored_flags_refuse_before_any_work() {
-        for args in [vec!["check","--url","notaurl"],vec!["check","--release","1"],vec!["types","--json"],vec!["test","--json"],vec!["test","--verbose"],vec!["doctor","--instance","x"],vec!["run","x","--token-env","SECRET"],vec!["why","E_INPUT","--json"],vec!["why","E_INPUT","--instance","x"],vec!["reset","--release","x"],vec!["serve","x","--resume-clock"],vec!["serve","x","--now","1"],vec!["serve","x","--replay"]] {
+        for args in [vec!["check","--url","notaurl"],vec!["check","--release","1"],vec!["types","--json"],vec!["doctor","--instance","x"],vec!["run","x","--token-env","SECRET"],vec!["why","E_INPUT","--json"],vec!["why","E_INPUT","--instance","x"],vec!["reset","--release","x"],vec!["serve","x","--resume-clock"],vec!["serve","x","--now","1"],vec!["serve","x","--replay"]] {
             assert!(validate(&args.iter().map(|s|s.to_string()).collect::<Vec<_>>()).unwrap_err().starts_with("E_INPUT:"), "{args:?}");
         }
         assert!(validate(&["why","--instance","x","recent"].map(String::from)).is_ok());
+        for mode in ["--json","--verbose","--explain"] {assert!(validate(&["test",mode].map(String::from)).is_ok());}
         for suffix in [vec!["--as","alice"], vec!["--emit-lean","source.q","--cost"],vec!["--emit-lean","source.q","--store","db"],vec!["--store","db","--release","1","--fix"],vec!["--store","db","--release","1","--fixture","fixtures"]] {
             let args=std::iter::once("check").chain(suffix).map(String::from).collect::<Vec<_>>();
             assert!(validate(&args).unwrap_err().starts_with("E_INPUT:"),"{args:?}");

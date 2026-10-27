@@ -176,13 +176,13 @@ test("data and doctor inspect persisted state despite destructive or broken sour
   run("run", "add", "--as", "alice");
   const database = join(app, ".snapback4/store.sqlite"), before = state(database);
   writeFileSync(schema, "table items:\n  read <- allow\nquery q():\n  return 2\n");
-  assert.equal(JSON.parse(run("data", "items")).body, "kept");
+  assert.equal(JSON.parse(run("data", "items", "--json")).rows[0].body, "kept");
   const doctor = JSON.parse(run("doctor", "--json"));
   assert.ok(doctor.lines.some((line) => line.includes(`generation ${before.metadata.generation}`)));
   assert.equal(doctor.storage.row_count, 1);
   assert.deepEqual(state(database), before);
   writeFileSync(schema, "this is not valid Quarry\n");
-  assert.equal(JSON.parse(run("data", "items")).body, "kept");
+  assert.equal(JSON.parse(run("data", "items", "--json")).rows[0].body, "kept");
   const broken = invoke("doctor", "--json");
   assert.equal(broken.status, 1);
   assert.equal(JSON.parse(broken.stdout).storage.row_count, 1, "source diagnostics must not hide persisted state");
