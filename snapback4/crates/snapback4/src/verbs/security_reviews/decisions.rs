@@ -181,7 +181,7 @@ pub(in crate::verbs) fn render_mode(dispositions:&[Disposition],notes:&[Diagnost
    }
    let old=row["defaultCheck"]["stdout"].as_str().unwrap().to_owned()+row["defaultCheck"]["stderr"].as_str().unwrap();
    let lines=old.lines().collect::<Vec<_>>();let joins=lines.windows(2).filter(|pair|pair[0].starts_with("fix question ")&&pair[1].starts_with("  Witness:")).count();
-   results.push(serde_json::json!({"wave":row["wave"],"lane":row["lane"],"sourceSha256":row["sha256"],"rawLines":lines.len(),"lines":lines.len()-joins,"joinedWitnessLines":joins}));
+   results.push(serde_json::json!({"wave":row["wave"],"lane":row["lane"],"sourceSha256":row["sha256"],"rawLines":lines.len(),"projectedLines":lines.len()-joins,"joinedWitnessLines":joins}));
   }
   assert_eq!(results.len(),800);std::fs::write(output,serde_json::to_vec_pretty(&results).unwrap()).unwrap();
  }

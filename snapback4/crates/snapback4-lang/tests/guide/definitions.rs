@@ -221,6 +221,8 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("N_INVARIANT_RESTATES_RULE", "identifies matching enforcement or a weaker copy made from the same predicates"),
     ("N_ROLE_WIDE_READ", "names a role-wide table branch or a grouped set of columns with the same role audience"),
     ("N_SELF_CLAIMED_RELATIONSHIP", "means a caller can write their own principal into a relationship"),
+    ("N_MOVABLE_TIME_ANCHOR", "means a stored time used to measure a window has an edit path"),
+    ("N_EVENT_TIME_ANCHOR", "means a guard checks booking-time now while the operation stores a separate caller event time"),
     ("N_CALLER_TIME", "means a caller-supplied time reaches a field used by a deadline comparison"),
     ("N_ARGUMENT_GRANT", "an argument becomes a reader-grant column"),
     ("N_PRIVILEGE_ESCALATION", "identifies role assignments trusted by later rules without independent delegation"),
