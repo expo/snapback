@@ -103,6 +103,7 @@ pub(super) fn assignment_evidence(mut value:serde_json::Value,n:&Diagnostic,inv:
         value["assignment"]=json!({"relation":relation.quarry(),"principal":principal});
         assigned=format!(" assigned to {principal};");
     }
+    value["hypothesis"]=json!({"policy":inv.policy});
     value["questionKind"]="assignment-scope".into();
     value["candidate"]=format!("question: {}",n.message).into();
     value["summary"]=format!("{} as {} → actually disclosed {};{} {} (bounded typed payload replay; not proof or inferred assignment intent)",value["operation"].as_str().unwrap_or("query"),value["viewer"].as_str().unwrap_or("caller"),n.message.split(" read:").next().unwrap_or("payload"),assigned,n.message).into();
@@ -273,6 +274,14 @@ pub(super) fn repeat(bound:&Bound,inv:&security::Invariant,c:&Counterexample,n:&
         assert!(assignment_values(&id_only,"jobPrivate").is_empty(),"returning the resource id does not disclose private payload");
         let source=include_str!("../../../../../snapback4-lang/tests/security/sec10-shipping/w30-014.q");
         let values=assignment_values(source,"projects");assert!(!values.is_empty());assert!(values.iter().all(|v|v.get("assignment").is_none()&&v["candidate"].as_str().unwrap().contains("no modeled assignment constraint")));
+    }
+    #[test]fn changed_assignment_audience_renews_the_same_payload_question(){
+        let original=include_str!("../../../../../snapback4-lang/tests/security/sec10-shipping/w30-004.q");
+        let original=original.replace("  principal: principal\n","  principal: principal\n  active: bool default false\n");
+        let changed=original.replace("  read <- exists roles[viewer, role = 'owner'] or exists roles[viewer, role = 'coordinator']\n","  read <- exists roles[viewer, role = 'owner'] or exists roles[viewer, role = 'coordinator', active = false]\n");
+        let before=assignment_values(&original,"jobPrivate");let after=assignment_values(&changed,"jobPrivate");assert!(!before.is_empty()&&!after.is_empty());
+        let a=&before[0];let b=after.iter().find(|v|v["viewer"]==a["viewer"]&&v["operation"]==a["operation"]).unwrap();
+        assert_eq!(a["candidate"],b["candidate"],"the factual role/assignment question stays the same");assert_ne!(a["hypothesis"],b["hypothesis"]);assert_ne!(a["id"],b["id"],"changed audience qualifiers must renew the decision");
     }
     #[test]fn omitted_and_empty_media_are_actual_inserts(){
         let prefix="table docs:\n  photos: [image <=1000] <=3 ?\n  read <- allow\n  insert <- allow\n  online only\n";
