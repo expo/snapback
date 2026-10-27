@@ -8,9 +8,14 @@ SCRATCH=pathlib.Path('/tmp/lat3')
 PACK=pathlib.Path('/home/ccheever/sb4-loop/reports/integration28/ready-pack')
 
 def copy_source(src,dst):
+ empty=[]
  def ignore(path,names):
+  empty.extend(pathlib.Path(path).relative_to(src)/n for n in names if n in ['logs','.scratch'] and (pathlib.Path(path)/n).is_dir())
   return [n for n in names if n in ['node_modules','.git','logs','.scratch','target'] or 'store.sqlite-owner' in n or n.endswith('store.sqlite-token')]
  shutil.copytree(src,dst,ignore=ignore,symlinks=True)
+ # Preserve empty artifact-directory preconditions without carrying prior
+ # disposable proof worlds or credential logs into an independent proof.
+ for name in empty:(dst/name).mkdir(parents=True,exist_ok=True)
  for path in dst.rglob('*'):
   if not path.is_symlink():continue
   target=os.readlink(path)
@@ -18,6 +23,8 @@ def copy_source(src,dst):
    path.unlink();path.symlink_to(str(dst)+target[len(str(src)):])
   elif path.name.startswith('store.sqlite') and os.path.isabs(target):
    raise RuntimeError('external store symlink refused')
+  if path.name.startswith('store.sqlite') and not path.resolve().is_relative_to(dst.resolve()):
+   raise RuntimeError('escaping store symlink refused')
 
 def install(dst):
  p=dst/'package.json';pkg=json.loads(p.read_text())
@@ -67,13 +74,29 @@ def messages(path):
  return lines
 
 def main():
- ap=argparse.ArgumentParser();ap.add_argument('--worker',type=int,default=0);ap.add_argument('--workers',type=int,default=1);ap.add_argument('--waves',default='30,31,32,33,34');ap.add_argument('--lanes');ap.add_argument('--scripts',default='acceptance,frontend:proof,day2:proof,probe:serve/client:calls');a=ap.parse_args()
+ ap=argparse.ArgumentParser();ap.add_argument('--worker',type=int,default=0);ap.add_argument('--workers',type=int,default=1);ap.add_argument('--waves',default='30,31,32,33,34');ap.add_argument('--lanes');ap.add_argument('--scripts',default='acceptance,frontend:proof,day2:proof,probe:serve/client:calls');ap.add_argument('--resume',action='store_true');a=ap.parse_args()
  cases=[(w,p.parent) for w in map(int,a.waves.split(',')) for p in sorted(pathlib.Path(f'/home/ccheever/sb4-loop/wave{w}/apps').glob('*-snapback-*/package.json'))]
  if a.lanes:cases=[(w,p) for w,p in cases if p.name[:3] in a.lanes.split(',')]
  directory=SCRATCH/f'corpus-{a.worker}';directory.mkdir(exist_ok=True)
  results=SCRATCH/f'corpus-{a.worker}.jsonl'
+ previous=[json.loads(line) for line in results.read_text().splitlines()] if a.resume and results.exists() else []
  for index,(wave,src) in enumerate(cases):
   if index%a.workers!=a.worker:continue
+  authored=json.loads((src/'package.json').read_text()).get('scripts',{})
+  expected=[s for s in a.scripts.split(',') if (s in authored or s=='probe:serve/client:calls' and 'probe:serve'in authored and 'client:calls'in authored)]
+  old=[x for x in previous if x.get('wave')==wave and x.get('lane')==src.name]
+  copy_failure=any(not x.get('artifactDirectoriesPreserved') and 'ENOENT:' in m and ("'.scratch/" in m or "'logs/" in m) for x in old for v in ['before','after'] for m in x.get(v,{}).get('messages',[]))
+  if old and expected and all(any(x.get('script')==s for x in old) for s in expected) and not copy_failure:
+   print(f'w{wave}-{src.name}','resume complete',flush=True);continue
+  if old:
+   # Retain partial/invalid copy attempts; rerun the whole lane from identical
+   # fresh sources so earlier command side effects remain paired and ordered.
+   with (SCRATCH/f'corpus-{a.worker}.superseded.jsonl').open('a') as f:
+    for x in old:f.write(json.dumps(x)+'\n')
+   previous=[x for x in previous if x not in old]
+   current=[json.loads(line) for line in results.read_text().splitlines()]
+   current=[x for x in current if not(x.get('wave')==wave and x.get('lane')==src.name)]
+   temporary=results.with_suffix('.resume.tmp');temporary.write_text(''.join(json.dumps(x)+'\n' for x in current));temporary.replace(results)
   key=f'w{wave}-{src.name}';out=directory/key;logdir=SCRATCH/'corpus-logs'/key;logdir.mkdir(parents=True,exist_ok=True)
   if out.exists():shutil.rmtree(out)
   before=out/'before';after=out/'after'
@@ -90,7 +113,7 @@ def main():
      if 'probe:serve' not in scripts or 'client:calls' not in scripts:continue
     elif script not in scripts:continue
     name=script.replace(':','-').replace('/','-')
-    pair={'wave':wave,'lane':src.name,'script':script,'index':index}
+    pair={'wave':wave,'lane':src.name,'script':script,'index':index,'artifactDirectoriesPreserved':True}
     # Alternate order across lanes to reduce systematic shared-load/order bias.
     for variant,dst in ([('before',before),('after',after)] if index%2==0 else [('after',after),('before',before)]):
      path=logdir/f'{name}-{variant}.log';pair[variant]=run(dst,script,path)
