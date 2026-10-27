@@ -74,6 +74,12 @@ test("native proof commands retain helper environment, argument boundaries and s
   await assert.rejects(command(failed,[],{cwd}),error=>{
     assert.match(error.message,/EACCES/);assert.deepEqual(Object.keys(error),[]);return true;
   });
+  const delayed=join(cwd,"delay.mjs");
+  writeFileSync(delayed,`import {setTimeout as sleep} from 'node:timers/promises';
+    if (process.argv[1]?.endsWith('/proof-command.js') && process.argv[2] === ${JSON.stringify(failed)}) await sleep(600);
+    if (process.argv[1]?.endsWith('/bin/snapback4.js')) await sleep(900);
+  `);
+  await assert.rejects(cli(["token"],{cwd,timeoutMs:1200,env:{SNAPBACK4_BIN:failed,NODE_OPTIONS:`--import=${delayed}`}}),/proof cli close timed out after 1200 ms/);
 });
 test("runtime port range is inclusive, validated, and never cached", () => {
   assert.equal(portRange({}), "0"); assert.equal(portRange({ PORT_LO: "29040", PORT_HI: "29049" }), "29040-29049");

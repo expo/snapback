@@ -229,29 +229,42 @@ export function cli(args: readonly string[], options: ProofOptions = {}): Promis
       if (env.SNAPBACK4_BIN && !isAbsolute(env.SNAPBACK4_BIN)) env.SNAPBACK4_BIN = resolve(realpathSync(resolve(options.cwd ?? ".")), env.SNAPBACK4_BIN);
       binary = resolveBinary(env);
     } catch { /* The shim retains its established resolution/cwd refusal and exit code. */ }
-    if (binary) return command(binary, args, { ...options, secret: options.secret || args[0] === "token", env: {
-      ...env,
-      SNAPBACK4_ACQUIRE_HELPER: fileURLToPath(new URL("../bin/witness-acquire.js", import.meta.url)),
-      SNAPBACK4_UPGRADE_HELPER: fileURLToPath(new URL("../bin/upgrade.js", import.meta.url)),
-      SNAPBACK4_WEB_HELPER: fileURLToPath(new URL("../bin/witness-web.js", import.meta.url)),
-      SNAPBACK4_SUPERVISOR_PID: String(process.pid),
-      SNAPBACK4_PROOF_NATIVE_CLI: "1",
-    } }).catch(error => {
-      // A delivered inner spawn error proves the executable never started.
-      // Preserve the shim's returned code/diagnostic; never retry an executing
-      // native command, timeout, signal or ambiguous release operation.
-      if (!executableSpawnFailed(error)) throw error;
-      return command(process.execPath, [fileURLToPath(new URL("../bin/snapback4.js", import.meta.url)), ...args], { ...options, secret: options.secret || args[0] === "token" });
-    });
+    if (binary) {
+      const ms = deadline(options.timeoutMs, 120_000), closeDeadline = {ms, end:performance.now()+ms};
+      return executeCommand(binary, args, { ...options, secret: options.secret || args[0] === "token", env: {
+        ...env,
+        SNAPBACK4_ACQUIRE_HELPER: fileURLToPath(new URL("../bin/witness-acquire.js", import.meta.url)),
+        SNAPBACK4_UPGRADE_HELPER: fileURLToPath(new URL("../bin/upgrade.js", import.meta.url)),
+        SNAPBACK4_WEB_HELPER: fileURLToPath(new URL("../bin/witness-web.js", import.meta.url)),
+        SNAPBACK4_SUPERVISOR_PID: String(process.pid),
+        SNAPBACK4_PROOF_NATIVE_CLI: "1",
+      } }, closeDeadline).catch(error => {
+        // A delivered inner spawn error proves the executable never started.
+        // Preserve the shim's returned code/diagnostic; never retry an executing
+        // native command, timeout, signal or ambiguous release operation.
+        if (!executableSpawnFailed(error)) throw error;
+        return executeCommand(process.execPath, [fileURLToPath(new URL("../bin/snapback4.js", import.meta.url)), ...args], { ...options, secret: options.secret || args[0] === "token" }, closeDeadline);
+      });
+    }
   }
   return command(process.execPath, [fileURLToPath(new URL("../bin/snapback4.js", import.meta.url)), ...args], { ...options, secret: options.secret || args[0] === "token" });
 }
 /** A bounded directly spawned build/tool command, with the same file logs. */
 /** @throws spawn error or command deadline; nonzero exit is returned in code, not thrown. */
 export async function command(binary: string, args: readonly string[], options: ProofOptions = {}): Promise<CliResult> {
+  return executeCommand(binary, args, options);
+}
+async function executeCommand(binary: string, args: readonly string[], options: ProofOptions, closeDeadline?: {ms:number;end:number}): Promise<CliResult> {
+  const timeout = () => Error(`proof cli close timed out after ${closeDeadline!.ms} ms`);
+  if (closeDeadline && performance.now() >= closeDeadline.end) throw timeout();
   const run = logged(binary, args, { ...options, processGroup: true, env: { ...process.env, ...options.env } });
   try {
-    await bounded(run.closed, deadline(options.timeoutMs, 120_000), "proof cli close");
+    const waitMs = closeDeadline ? Math.max(1, closeDeadline.end-performance.now()) : deadline(options.timeoutMs, 120_000);
+    try { await bounded(run.closed, waitMs, "proof cli close"); }
+    catch(error) {
+      if (closeDeadline && error instanceof Error && error.message === `proof cli close timed out after ${waitMs} ms`) throw timeout();
+      throw error;
+    }
     if (run.error()) throw run.error();
     return { code: run.code(), signal: run.signal(), stdout: run.stdout(), stderr: logText(run.logs.stderr), logs: run.logs };
   } catch (error) { await stopChild(run.child, deadline(options.stopTimeoutMs, 5000)); throw error; }
