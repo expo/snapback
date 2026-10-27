@@ -72,7 +72,7 @@ test('upgrade captures the old installed compiler, checks the new one and points
   const oldApi = readFileSync(join(dir, 'snapback/generated/api.ts'), 'utf8').replaceAll('number | null', 'number');
   const packageRoot = join(dir, 'node_modules/snapback4'); mkdirSync(join(packageRoot, 'bin'), { recursive: true }); mkdirSync(join(packageRoot, 'dist'));
   writeFileSync(join(packageRoot, 'package.json'), JSON.stringify({ name: 'snapback4', version: '0.4.24', exports: { './bin-path': './dist/bin-path.js' } })); writeFileSync(join(packageRoot, 'dist/bin-path.js'), '');
-  writeFileSync(join(packageRoot, 'bin/snapback4.js'), `const fs=require('fs'); const p=require('../package.json'); if(p.version==='0.4.24'){fs.writeFileSync('snapback/generated/api.ts',${JSON.stringify(oldApi)});console.log(JSON.stringify({ok:true,notes:[]}));}else{const r=require('child_process').spawnSync(${JSON.stringify(bin)},process.argv.slice(2),{encoding:'utf8'});process.stdout.write(r.stdout);process.stderr.write(r.stderr);process.exit(r.status);}`);
+  writeFileSync(join(packageRoot, 'bin/snapback4.js'), `const fs=require('fs'); const p=require('../package.json'); if(p.version==='0.4.24'){fs.writeFileSync('snapback/generated/api.ts',${JSON.stringify(oldApi)});console.log(JSON.stringify({ok:true,notes:[]}));}else{const r=require('child_process').spawnSync(${JSON.stringify(bin)},process.argv.slice(2),{encoding:'utf8'});process.stdout.write(r.stdout);process.stderr.write(r.stderr);process.exitCode=r.status??1;}`);
   writeFileSync(join(dir, 'package.json'), JSON.stringify({ packageManager: 'npm@10', dependencies: { snapback4: '0.4.24' } }));
   writeFileSync(join(dir, 'exact.mjs'), '// Exact application marker; HS owns the rebuild implementation.');
   mkdirSync(join(dir, 'tools'));
@@ -108,7 +108,7 @@ test('upgrade resolves the new compiler after a pnpm-style package symlink repla
   for(const [folder,version] of [['old','0.4.24'],['new',releaseVersion]]){
     const pack=join(dir,folder);mkdirSync(join(pack,'dist'),{recursive:true});mkdirSync(join(pack,'bin'));
     writeFileSync(join(pack,'package.json'),JSON.stringify({name:'snapback4',version,exports:{'./bin-path':'./dist/bin-path.js'}}));writeFileSync(join(pack,'dist/bin-path.js'),'');
-    writeFileSync(join(pack,'bin/snapback4.js'),folder==='old'?`require('fs').writeFileSync('snapback/generated/api.ts',${JSON.stringify(oldApi)});console.log(JSON.stringify({ok:true,notes:[]}));`:`const r=require('child_process').spawnSync(${JSON.stringify(bin)},process.argv.slice(2),{encoding:'utf8'});process.stdout.write(r.stdout);process.stderr.write(r.stderr);process.exit(r.status);`);
+    writeFileSync(join(pack,'bin/snapback4.js'),folder==='old'?`require('fs').writeFileSync('snapback/generated/api.ts',${JSON.stringify(oldApi)});console.log(JSON.stringify({ok:true,notes:[]}));`:`const r=require('child_process').spawnSync(${JSON.stringify(bin)},process.argv.slice(2),{encoding:'utf8'});process.stdout.write(r.stdout);process.stderr.write(r.stderr);process.exitCode=r.status??1;`);
   }
   symlinkSync(join(dir,'old'),join(dir,'node_modules/snapback4'));
   writeFileSync(join(dir,'package.json'),JSON.stringify({packageManager:'pnpm@10',dependencies:{snapback4:'0.4.24'}}));
@@ -122,7 +122,7 @@ test('upgrade with a refused old check still narrates runtime changes from its p
   const dir = project(t); mkdirSync(join(dir, 'snapback')); writeFileSync(join(dir, 'snapback/schema.q'), aggregates);
   const packageRoot = join(dir, 'node_modules/snapback4'); mkdirSync(join(packageRoot, 'bin'), { recursive: true }); mkdirSync(join(packageRoot, 'dist'));
   writeFileSync(join(packageRoot, 'package.json'), JSON.stringify({ name: 'snapback4', version: '0.4.25', exports: { './bin-path': './dist/bin-path.js' } })); writeFileSync(join(packageRoot, 'dist/bin-path.js'), '');
-  writeFileSync(join(packageRoot, 'bin/snapback4.js'), `const p=require('../package.json');if(p.version==='0.4.25'){console.log(JSON.stringify({ok:false}));process.exit(1);}const r=require('child_process').spawnSync(${JSON.stringify(bin)},process.argv.slice(2),{encoding:'utf8'});process.stdout.write(r.stdout);process.stderr.write(r.stderr);process.exit(r.status);`);
+  writeFileSync(join(packageRoot, 'bin/snapback4.js'), `const p=require('../package.json');if(p.version==='0.4.25'){console.log(JSON.stringify({ok:false}));process.exit(1);}const r=require('child_process').spawnSync(${JSON.stringify(bin)},process.argv.slice(2),{encoding:'utf8'});process.stdout.write(r.stdout);process.stderr.write(r.stderr);process.exitCode=r.status??1;`);
   writeFileSync(join(dir, 'package.json'), JSON.stringify({ packageManager: 'npm@10', dependencies: { snapback4: '0.4.25' } }));
   mkdirSync(join(dir, 'tools')); writeFileSync(join(dir, 'tools/npm'), `#!${process.execPath}\nconst fs=require('fs');if(process.argv[2]==='view'){console.log('${JSON.stringify(releaseVersion)}')}else{for(const file of ['package.json','node_modules/snapback4/package.json']){const p=JSON.parse(fs.readFileSync(file));if(p.dependencies)p.dependencies.snapback4='${releaseVersion}';else p.version='${releaseVersion}';fs.writeFileSync(file,JSON.stringify(p));}}`, { mode: 0o755 });
   const result = invoke(['upgrade'], dir, { PATH: `${join(dir, 'tools')}:${process.env.PATH}` }); success(result);
@@ -158,7 +158,7 @@ function upgradeFixture(t, installed = releaseVersion, latest = releaseVersion) 
   writeFileSync(join(pack, 'dist/bin-path.js'), '');
   writeFileSync(join(pack, 'package.json'), JSON.stringify({ name: 'snapback4', version: installed, exports: { './bin-path': './dist/bin-path.js' } }));
   writeFileSync(join(pack, 'CHANGELOG.md'), readFileSync(new URL('../CHANGELOG.md', import.meta.url)));
-  writeFileSync(join(pack, 'bin/snapback4.js'), `const r=require('child_process').spawnSync(${JSON.stringify(bin)},process.argv.slice(2),{encoding:'utf8'});process.stdout.write(r.stdout);process.stderr.write(r.stderr);process.exit(r.status);`);
+  writeFileSync(join(pack, 'bin/snapback4.js'), `const r=require('child_process').spawnSync(${JSON.stringify(bin)},process.argv.slice(2),{encoding:'utf8'});process.stdout.write(r.stdout);process.stderr.write(r.stderr);process.exitCode=r.status??1;`);
   writeFileSync(join(dir, 'package.json'), JSON.stringify({ dependencies: { snapback4: installed }, packageManager: 'npm@10' }));
   mkdirSync(join(dir, 'tools')); writeFileSync(join(dir, 'tools/npm'), `#!${process.execPath}
 const fs=require('fs');if(process.argv[2]==='view')console.log('${JSON.stringify(latest)}');else{fs.appendFileSync('installs','install\\n');const v=process.argv.at(-1).split('@').at(-1);for(const file of ['package.json','node_modules/snapback4/package.json']){const p=JSON.parse(fs.readFileSync(file));if(p.dependencies)p.dependencies.snapback4=v;else p.version=v;fs.writeFileSync(file,JSON.stringify(p));}}`, { mode: 0o755 });
