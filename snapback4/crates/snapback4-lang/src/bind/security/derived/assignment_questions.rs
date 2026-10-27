@@ -85,7 +85,7 @@ fn emit(out:&mut Vec<(Diagnostic,Invariant)>,table:&str,column:&str,policy:RuleE
     #[test]fn another_coordinator_actually_reads_the_assigned_private_payload(){
         let (mut b,q)=compiled(HOME);let q=q.into_iter().filter(|(_,i)|i.table=="jobPrivate").collect::<Vec<_>>();assert_eq!(q.len(),1);
         b.invariants=q.iter().map(|(_,i)|i.clone()).collect();let mut c=challenges::Campaign::work_bounded(8192);challenges::generated_campaign(&b,&mut c,false);
-        let v=c.violations.iter().find(|v|v.invariant_site==q[0].1.site.to_string()&&v.operation=="privateDetail"&&v.reachability.is_reachable()).expect("actual privateDetail payload");
+        let v=c.violations.iter().find(|v|v.invariant_site==q[0].1.site.to_string()&&v.operation=="privateDetail"&&v.reachability.is_reachable()&&v.history.len()==1).expect("actual privateDetail payload");
         let job=v.supporting_rows["jobs"].iter().find(|r|r.field("id").ok()==v.row.field("job").ok()).unwrap();assert_ne!(job.field("coordinator").unwrap(),&Value::Id(v.viewer.clone()));
         assert!(v.supporting_rows["roles"].iter().any(|r|r.field("principal").ok()==Some(&Value::Id(v.viewer.clone()))&&r.field("role").ok()==Some(&Value::String("coordinator".into()))));
         assert!(v.history.last().unwrap().observed_data.is_some());assert!(!super::super::super::gated_note(&q[0].0.code));
@@ -93,7 +93,7 @@ fn emit(out:&mut Vec<(Diagnostic,Invariant)>,table:&str,column:&str,policy:RuleE
     #[test]fn an_unmodeled_lead_assignment_has_an_actual_private_column_read(){
         let (mut b,q)=compiled(BALLOONS);let q=q.into_iter().filter(|(_,i)|i.table=="projects"&&i.column.as_deref()==Some("clientPhone")).collect::<Vec<_>>();assert_eq!(q.len(),1);assert!(q[0].0.message.contains("no modeled assignment constraint"));
         b.invariants=q.iter().map(|(_,i)|i.clone()).collect();let mut c=challenges::Campaign::work_bounded(8192);challenges::generated_campaign(&b,&mut c,false);
-        assert!(c.violations.iter().any(|v|v.invariant_site==q[0].1.site.to_string()&&v.reachability.is_reachable()&&v.history.last().is_some_and(|s|s.observed_data.is_some())&&v.supporting_rows.get("roles").into_iter().flatten().any(|r|r.field("principal").ok()==Some(&Value::Id(v.viewer.clone()))&&r.field("role").ok()==Some(&Value::String("lead".into())))),"lead payload missing; attempts {}, gaps {:?}",c.attempted,c.unsupported);
+        assert!(c.violations.iter().any(|v|v.invariant_site==q[0].1.site.to_string()&&v.reachability.is_reachable()&&v.history.len()==1&&v.history.last().is_some_and(|s|s.observed_data.is_some())&&v.supporting_rows.get("roles").into_iter().flatten().any(|r|r.field("principal").ok()==Some(&Value::Id(v.viewer.clone()))&&r.field("role").ok()==Some(&Value::String("lead".into())))),"lead payload missing; attempts {}, gaps {:?}",c.attempted,c.unsupported);
     }
     #[test]fn scoped_role_repairs_do_not_reappear_as_global_owner_questions(){
         let fixed=HOME.replace("  read <- exists roles[viewer, role = 'owner'] or exists roles[viewer, role = 'coordinator']\n","  read <- exists roles[viewer, role = 'owner'] or (exists roles[viewer, role = 'coordinator'] and exists jobs[id = .job, coordinator = viewer])\n");

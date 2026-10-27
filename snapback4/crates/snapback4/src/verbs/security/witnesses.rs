@@ -516,12 +516,12 @@ pub(in crate::verbs) fn collect(project:&Project,bound:&Bound,sources:&[(String,
         challenges::generated_campaign(&questions,&mut campaign,false);
         for (index,inv) in selected {
             if result[*index].is_some()&&notes[*index].code!="N_INSERT_WRITE_INTENT"{continue;}
-            if let Some(c)=campaign.violations.iter().filter(|c|c.invariant_site==inv.site.to_string()&&c.reachability.is_reachable()&&(notes[*index].code!="N_GUARD_NOT_CONSUMED"||c.history.len()==1&&c.effect=="insert")&&(notes[*index].code!="N_CHILD_EVIDENCE_PRESENCE"||questions::transition(inv,c,&stages))).max_by_key(|c| {
+            if let Some(c)=campaign.violations.iter().filter(|c|c.invariant_site==inv.site.to_string()&&c.reachability.is_reachable()&&(notes[*index].code!="N_GUARD_NOT_CONSUMED"||c.history.len()==1&&c.effect=="insert")&&(notes[*index].code!="N_ASSIGNMENT_SCOPE"||c.history.len()==1&&c.history.last().is_some_and(|s|s.observed_data.is_some()))&&(notes[*index].code!="N_CHILD_EVIDENCE_PRESENCE"||questions::transition(inv,c,&stages))).max_by_key(|c| {
                 let decrease=inv.column.as_ref().and_then(|column|Some((c.old.as_ref()?.field(column).ok()?,c.row.field(column).ok()?))).is_some_and(|(old,next)|matches!((old,next),(snapback4_core::Value::Int(a),snapback4_core::Value::Int(b)) if a>b));
                 (decrease,if notes[*index].code=="N_ASSIGNMENT_SCOPE"{std::cmp::Reverse(c.viewer.clone())}else{std::cmp::Reverse(String::new())},c.history.len())
             }) {let replay=decreasing_edit(bound,inv,c);let mut value=evidence(sources,bound,inv,replay.as_ref().unwrap_or(c));
                 if notes[*index].code=="N_GUARD_NOT_CONSUMED" {let Some(repeated)=questions::repeat(bound,inv,c,&notes[*index],sources)else{continue;};value=repeated;}
-                if notes[*index].code=="N_ASSIGNMENT_SCOPE" {if value["kind"]!="read-payload"{continue;}value=questions::assignment_evidence(value,&notes[*index]);}
+                if notes[*index].code=="N_ASSIGNMENT_SCOPE" {if value["kind"]!="read-payload"{continue;}let Some(assigned)=questions::assignment_evidence(value,&notes[*index],inv)else{continue;};value=assigned;}
                 if notes[*index].code=="N_TEXT_EVIDENCE" {value=questions::text_evidence(value,&notes[*index]);}
                 if questions::advisory(&notes[*index].code){value["advisory"]=true.into();}
                 if super::super::security_reviews::witness::concrete(&value){

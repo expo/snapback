@@ -83,12 +83,31 @@ pub(super) fn candidates(bound:&Bound,sources:&[(String,String)],index:usize,n:&
     })).collect()
 }
 
-pub(super) fn assignment_evidence(mut value:serde_json::Value,n:&Diagnostic)->serde_json::Value {
+pub(super) fn assignment_evidence(mut value:serde_json::Value,n:&Diagnostic,inv:&security::Invariant)->Option<serde_json::Value> {
+    // One actual query on the recorded initial world keeps assignment facts
+    // tied to that observation, rather than borrowing a stale pre-history row.
+    if value["kind"]!="read-payload"||value["history"].as_array()?.len()!=1{return None;}
+    let mut assigned=String::new();
+    if let Some(RuleExpr::Or(parts))=&inv.policy&&let [_,relation]=parts.as_slice(){
+        let principal=match relation{
+            RuleExpr::Eq(RuleTerm::Field(column),RuleTerm::Viewer)=>value["row"].get(column)?.clone(),
+            RuleExpr::Exists{table,key,equalities,..}=>{
+                let [RuleTerm::Field(reference)]=key.as_slice()else{return None;};
+                let [(column,RuleTerm::Viewer)]=equalities.as_slice()else{return None;};
+                let parent=value["supportingRows"][table].as_array()?.iter().find(|row|row["id"]==value["row"][reference])?;
+                parent.get(column)?.clone()
+            },_=>return None,
+        };
+        let principal=principal.as_str()?;
+        if value["viewer"]==principal{return None;}
+        value["assignment"]=json!({"relation":relation.quarry(),"principal":principal});
+        assigned=format!(" assigned to {principal};");
+    }
     value["questionKind"]="assignment-scope".into();
     value["candidate"]=format!("question: {}",n.message).into();
-    value["summary"]=format!("{} as {} → actually disclosed {}; {} (bounded typed payload replay; not proof or inferred assignment intent)",value["operation"].as_str().unwrap_or("query"),value["viewer"].as_str().unwrap_or("caller"),n.message.split(" read:").next().unwrap_or("payload"),n.message).into();
+    value["summary"]=format!("{} as {} → actually disclosed {};{} {} (bounded typed payload replay; not proof or inferred assignment intent)",value["operation"].as_str().unwrap_or("query"),value["viewer"].as_str().unwrap_or("caller"),n.message.split(" read:").next().unwrap_or("payload"),assigned,n.message).into();
     value["compactSummary"]=value["summary"].clone();
-    super::super::super::security_reviews::witness::stamp(value)
+    Some(super::super::super::security_reviews::witness::stamp(value))
 }
 
 pub(super) fn text_evidence(mut value:serde_json::Value,n:&Diagnostic)->serde_json::Value {
@@ -239,6 +258,21 @@ pub(super) fn repeat(bound:&Bound,inv:&security::Invariant,c:&Counterexample,n:&
             let value=if code=="N_GUARD_NOT_CONSUMED" {repeat(&bound,inv,c,&n,&sources)?}else{evidence(&sources,&bound,inv,c)};
             super::super::super::super::security_reviews::witness::concrete(&value).then_some(value)
         })).collect()
+    }
+    fn assignment_values(source:&str,table:&str)->Vec<serde_json::Value>{
+        let sources=vec![("schema.q".into(),source.into())];let mut bound=snapback4_lang::compile(&sources);assert!(bound.diagnostics.is_empty());
+        let selected=security::derived::assignment_questions(&sources,&bound).into_iter().filter(|(_,i)|i.table==table).collect::<Vec<_>>();
+        assert!(!selected.is_empty());bound.invariants=selected.iter().map(|(_,i)|i.clone()).collect();let mut c=challenges::Campaign::work_bounded(8192);challenges::generated_campaign(&bound,&mut c,false);
+        selected.iter().flat_map(|(n,i)|c.violations.iter().filter(|v|v.invariant_site==i.site.to_string()&&v.history.len()==1&&v.history.last().is_some_and(|s|s.observed_data.is_some())).filter_map(|v|assignment_evidence(evidence(&sources,&bound,i,v),n,i))).collect()
+    }
+    #[test]fn assignment_cards_keep_actual_assignees_and_require_private_payloads(){
+        let source=include_str!("../../../../../snapback4-lang/tests/security/sec10-shipping/w30-004.q");
+        let values=assignment_values(source,"jobPrivate");assert!(!values.is_empty());
+        for v in values{assert_eq!(v["kind"],"read-payload");assert_ne!(v["assignment"]["principal"],v["viewer"]);assert!(v["candidate"].as_str().unwrap().starts_with("question:"));assert!(v["summary"].as_str().unwrap().contains(v["assignment"]["principal"].as_str().unwrap()));}
+        let id_only=source.replace("return { details: jobPrivate[job = job], cancellation: cancellations[job = job] }","return { id: job }");
+        assert!(assignment_values(&id_only,"jobPrivate").is_empty(),"returning the resource id does not disclose private payload");
+        let source=include_str!("../../../../../snapback4-lang/tests/security/sec10-shipping/w30-014.q");
+        let values=assignment_values(source,"projects");assert!(!values.is_empty());assert!(values.iter().all(|v|v.get("assignment").is_none()&&v["candidate"].as_str().unwrap().contains("no modeled assignment constraint")));
     }
     #[test]fn omitted_and_empty_media_are_actual_inserts(){
         let prefix="table docs:\n  photos: [image <=1000] <=3 ?\n  read <- allow\n  insert <- allow\n  online only\n";
