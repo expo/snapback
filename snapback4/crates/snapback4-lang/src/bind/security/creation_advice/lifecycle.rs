@@ -98,7 +98,7 @@ fn advances_source_stage(w:&Write<'_>,writes:&[Write<'_>],bound:&Bound)->bool{
 }
 fn creation_state_guard(w:&Write<'_>,writes:&[Write<'_>],bound:&Bound)->bool{lifecycle_guard(w,writes,bound)}
 fn guard_description(w:&Write<'_>)->String{
-    let guards=conditions(&w.context).iter().map(|e|crate::print::expression(e)).collect::<Vec<_>>();
+    let guards=conditions(&w.context).iter().map(|e|crate::print::expression(e)).collect::<BTreeSet<_>>().into_iter().collect::<Vec<_>>();
     if guards.is_empty(){"no dominating require".into()}else{guards.join("; ")}
 }
 fn preserves_nonnull(w:&Write<'_>,field:&ast::ObjectField,bound:&Bound)->bool{

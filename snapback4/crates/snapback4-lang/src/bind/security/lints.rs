@@ -151,7 +151,7 @@ pub(super) fn source_notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnos
             for (write,context) in writes{
                 let Expr::Write{op,table,keys,fields,site,..}=&write else{continue;};
                 let Some(t)=bound.schema.table(table)else{unknown_effect=true;continue;};
-                grant_guards.insert(site.to_string(),context.body.iter().filter_map(|s|if let Stmt::Require{condition,..}=s{Some(crate::print::expression(condition))}else{None}).collect::<Vec<_>>().join("; "));
+                grant_guards.insert(site.to_string(),context.body.iter().filter_map(|s|if let Stmt::Require{condition,..}=s{Some(crate::print::expression(condition))}else{None}).collect::<BTreeSet<_>>().into_iter().collect::<Vec<_>>().join("; "));
                 let links=t.columns.iter().filter_map(|(column,kind)|{
                     let snapback4_core::schema::ColumnType::Ref{table}=kind.required()else{return None;};
                     let value=fields.iter().find(|f|f.name==*column).and_then(|f|f.value.as_ref()).or_else(||keys.iter().find(|key|key.column.as_deref()==Some(column)).map(|key|&key.value))?;

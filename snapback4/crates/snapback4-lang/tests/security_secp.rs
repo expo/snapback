@@ -230,3 +230,8 @@ const SWEEP:&str="table docs:\n  status:enum('open','expired','done') default 'o
     let source="table receipts:\n  paid:bool default false\n  read <- allow\n  update <- allow\n  online only\ntable orders:\n  receipt:receipts\n  read <- allow\n  insert <- allow\n  online only\nmutation finish(receipt:receipts):\n  r=receipts[receipt] ! else NO\n  require r.paid else NOT_PAID\n  for step in [1,2]:\n    insert orders {receipt}\n    update receipts[receipt] {paid:false}\n";
     assert!(notes(source).iter().any(|n|n.code=="N_GUARD_NOT_CONSUMED"));
 }
+#[test]fn observed_guards_are_printed_once_even_when_owned_by_multiple_bindings(){
+    let source=format!("{READER}mutation inspect(doc:docs,other:roles):\n  r=roles[viewer] ! else NO\n  second=roles[other] ! else NO\n  require r.role = 'admin' or r.role = second.role else NO\n  return docs[doc]\n");
+    let ns=notes(&source);let note=ns.iter().find(|n|n.code=="N_LOOKUP_FILTERED"&&n.message.starts_with("mutation inspect:")).unwrap();
+    assert_eq!(note.message.matches("r.role = 'admin'").count(),1,"{note:?}");
+}

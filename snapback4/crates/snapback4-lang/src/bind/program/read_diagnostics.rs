@@ -1,5 +1,6 @@
 //! Query result paths and nullable reads of private side tables.
 use super::*;
+use std::collections::BTreeSet;
 
 pub(super) const VIEWER_KEY: &str = "$lookupViewerKey";
 const TARGET_ROW: &str = "$lookupTargetRow";
@@ -261,7 +262,8 @@ impl Binder<'_> {
         let location = self.catalog.tables[&read.table].decl.rules.iter().find(|rule| rule.effect == ast::Effect::Read)
             .map(|rule| rule.site.to_string()).unwrap_or_else(|| self.catalog.tables[&read.table].decl.site.to_string());
         if self.notes.iter().any(|note| note.code == "N_LOOKUP_FILTERED" && note.site == read.site) { return; }
-        let saw=self.advice_authorizations().into_iter().map(|(value,truth)|format!("{}{}",if truth{""}else{"not "},crate::print::expression(&value))).collect::<Vec<_>>().join("; ");
+        let saw=self.advice_authorizations().into_iter().map(|(value,truth)|format!("{}{}",if truth{""}else{"not "},crate::print::expression(&value))).collect::<BTreeSet<_>>().into_iter().collect::<Vec<_>>().join("; ");
+        let saw=if saw.is_empty(){"no current dominating guard".to_owned()}else{saw};
         self.notes.push(Diagnostic::new(&read.site, "N_LOOKUP_FILTERED",
             format!("mutation {}: saw lookup of {} `{}` and guards `{saw}`; not proved: read authority `{rule}` ({location}) at {}; hidden, expired or missing row returns null (`! else CODE` refuses with its authored code)", self.name, read.table, crate::print::read_expr(read), read.site),
             "review whether these callers should read this data; use a deliberately readable projection containing only the needed fields, or keep null as intentional absence. An id and a later write rule do not grant read authority; do not widen private rows just to read one field").guide("rules"));
