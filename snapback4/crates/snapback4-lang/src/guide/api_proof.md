@@ -40,4 +40,4 @@ export interface FreshUserOptions { role?: string; provision?: { readonly name: 
 
 Other exports/options: dist/proof.d.ts; follow its named imports only on demand.
 
-Declaration fingerprint: bc142aa7775217e0b28aa54150e2e34fb88ce913e653765666e66b46e93d319c
+Declaration fingerprint: b27b2a97d38baf0483de3c6dbced49b82963056dad1839414f95bcd85e0e0251

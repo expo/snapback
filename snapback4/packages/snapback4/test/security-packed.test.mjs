@@ -1,3 +1,4 @@
+import {guideReference} from '../../../scripts/publication-guide.mjs';
 // Execute the published security card and starter through actual npm packs.
 import test from 'node:test';
 import {proveSecurity} from '../../../scripts/publication-security.mjs';
@@ -44,7 +45,7 @@ test('packed security card and starter run as written; broad reads refute', {tim
  }
  // SEC8 presence intent is copied verbatim from the installed guide. Both
  // forms must compile and gate an optional creator through the actual pack.
- const uploads=run(process.execPath,[cli,'guide','uploads','--full'],project);
+ const uploads=guideReference(cli,'uploads',{cwd:project});
  const presence=uploads.match(/`invariant documents[^`]+`/g);
  assert.equal(presence.length,2);
  const presenceDir=join(dir,'presence-intent');mkdirSync(join(presenceDir,'snapback'),{recursive:true});
@@ -59,7 +60,7 @@ test('packed security card and starter run as written; broad reads refute', {tim
   assert.ok(result.security.invariants.some(v=>v.status==='refuted'&&['generated-fixture-trace','authored-fixture-trace'].includes(v.counterexample?.reachability)),'the concrete authored mandatory-media contradiction still refuses');
  }
  // SEC9's complete recipe is extracted verbatim from the installed tarball.
- const rules=run(process.execPath,[cli,'guide','rule-recipes','--full'],project);
+ const rules=guideReference(cli,'rule-recipes',{cwd:project});
  const evidenceSource=[...rules.matchAll(/```quarry\n([\s\S]*?)\n```/g)].map(m=>m[1]).find(s=>s.includes('table evidence:')&&s.includes('mutation openEvidence('));
  assert.ok(evidenceSource,'installed column write/freeze/save-while-missing recipe');
  const evidenceDir=join(dir,'column-authority');mkdirSync(join(evidenceDir,'snapback'),{recursive:true});
@@ -72,7 +73,7 @@ test('packed security card and starter run as written; broad reads refute', {tim
  assert.equal(call('saveEvidence',{item,photo:null},'dev:manager',1).state,'failed','missing evidence gates the entire save');
  assert.equal(call('saveEvidence',{item,photo:null},'dev:desk').state,'sent');
  assert.equal(call('approveEvidence',{item},'dev:desk').state,'sent');
- const securityCard=run(process.execPath,[cli,'guide','security','--full'],project);
+ const securityCard=guideReference(cli,'security',{cwd:project});
  const optionalLine=securityCard.match(/`invariant evidence always [^`]+`/)[0].slice(1,-1);
  writeFileSync(join(evidenceDir,'snapback/schema.q'),evidenceSource+'\n'+optionalLine+'\n');
  assert.equal(JSON.parse(run(process.execPath,[cli,'check','--json'],evidenceDir)).ok,true,'installed intentional-optional line runs unchanged');

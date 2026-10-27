@@ -28,10 +28,17 @@ pub(super) fn files(files: &mut Vec<(&'static str, String)>, options: &Options, 
     let sources = if let Ok(Some(own)) = super::own_schema(dir) {
         own.files.iter().filter_map(|name| std::fs::read_to_string(dir.join("snapback").join(name)).ok().map(|text| (name.clone(), text))).collect::<Vec<_>>()
     } else { files.iter().find(|(name, _)| *name == "snapback/schema.q").map(|(_, text)| vec![("schema.q".to_owned(), text.clone())]).unwrap_or_default() };
-    let day2 = options.flags.contains_key("day2") || !dir.join("package.json").is_file();
+    let mut day2 = options.flags.contains_key("day2") || !dir.join("package.json").is_file();
     if day2 {
         // Adapt's fallible preflight reports invalid captures before applying files.
-        files.extend(super::frozen::files(dir, &sources)?);
+        match super::frozen::files(dir,&sources) {
+            Ok(frozen)=>files.extend(frozen),
+            Err(error) if !options.flags.contains_key("day2") && error.kind()==std::io::ErrorKind::InvalidData && error.to_string().starts_with("cannot freeze an unchecked")=>{
+                day2=false;
+                eprintln!("init: day-two capture deferred until the existing schema checks; run check, then init --adapt --day2 --apply before editing v2");
+            }
+            Err(error)=>return Err(error),
+        }
     }
     for version in ["v1", "v2"].into_iter().filter(|_| day2) {
         if dir.join("versions").join(version).exists() { continue; }

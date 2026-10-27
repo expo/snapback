@@ -1,3 +1,4 @@
+import {guideReference} from '../../../scripts/publication-guide.mjs';
 import { after as teardownAfter } from "./helpers/teardown.mjs";
 import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 import { cleanup, withCleanup } from './helpers/cleanup.mjs';
@@ -866,7 +867,7 @@ import {writeFileSync,renameSync} from 'node:fs';writeFileSync('checked-value.tm
 
 for (const [mode, entry, alias] of [['dev','workers/push.mjs'], ['serve','workers/push.mjs'], ['dev','worker.mjs'], ['serve','external.mjs'], ['serve','workers/push.mjs',true], ['serve','external.mjs',true]])
 test(`${mode} ${entry} runs the published file-output recipe in the project data directory${alias ? ' through a deployment symlink' : ''}`, async t => {
-  const guide = spawnSync(binary, ['guide','effects','--full'], {encoding:'utf8'});
+  const guide = ({status:0,stderr:'',stdout:guideReference(binary,'effects')});
   assert.equal(guide.status, 0, guide.stderr);
   const recipe = guide.stdout.split('## Worker files and imports')[1].match(/```js\n([\s\S]*?)```/)[1];
   const reference = readFileSync(fileURLToPath(new URL('../CLIENT-AND-OPERATIONS.md', import.meta.url)), 'utf8')

@@ -152,7 +152,9 @@ fn main() -> ExitCode {
                         Ok(raw) => {
                             let name = format!("api {module}");
                             let card = guide::reader_card(&name, &raw);
-                            let chosen = if options.flags.contains_key("sections") || options.flags.contains_key("full") && raw.len() > guide::FULL_BYTES { Ok(guide::section_index(&name, &card)) }
+                            let chosen = if module == "proof" && options.flags.contains_key("sections") {
+                                Ok(format!("{}\nReference sections below are only for declarations missing from this digest.\n{}", guide_api::render(module,false).unwrap(), guide::section_index(&name,&card)))
+                            } else if options.flags.contains_key("sections") || options.flags.contains_key("full") && raw.len() > guide::FULL_BYTES { Ok(guide::section_index(&name, &card)) }
                                 else if let Some(words) = options.flags.get("section") { guide::section(&name, &card, words) }
                                 else { Ok(card) };
                             match chosen {

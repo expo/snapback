@@ -6,7 +6,7 @@ use serde_json::json;
 pub(super) fn files(dir: &Path, sources: &[(String, String)]) -> io::Result<Vec<(&'static str, String)>> {
     if dir.join("v1").symlink_metadata().is_ok() { return Ok(Vec::new()); }
     let bound = snapback4_lang::compile(sources);
-    if !bound.diagnostics.is_empty() { return Err(io::Error::other("cannot freeze an unchecked v1 client; fix current schema first")); }
+    if !bound.diagnostics.is_empty() { return Err(io::Error::new(io::ErrorKind::InvalidData,"cannot freeze an unchecked v1 client; fix current schema first")); }
     let mut files = Vec::new();
     fn push(files: &mut Vec<(&'static str,String)>, path: String, text: String) {
         if let Some((_,body))=files.iter_mut().find(|(name,_)|*name==path) { *body=text; }
@@ -75,12 +75,23 @@ pub(super) fn files(dir: &Path, sources: &[(String, String)]) -> io::Result<Vec<
     push(&mut files,"v1/snapback/generated/api.ts".into(),snapback4_lang::emit::typescript(&bound));
     push(&mut files,"v1/snapback/generated/package.json".into(),"{\"type\":\"module\"}\n".into());
     let command=package["scripts"]["client:calls"].as_str();
+    // The outer packet is ESM. Preserve a non-ESM application's original root
+    // package scope too, so ordinary .js require helpers keep their Node meaning.
+    let original_scope=command.is_some() && package["type"] != "module";
+    if original_scope {
+        for (name,_) in &mut files {
+            *name=Box::leak(format!("v1/.source/{}",name.strip_prefix("v1/").unwrap()).into_boxed_str());
+        }
+        push(&mut files,"v1/.source/package.json".into(),super::pretty(&package));
+        push(&mut files,"v1/snapback/generated/api.ts".into(),snapback4_lang::emit::typescript(&bound));
+        push(&mut files,"v1/snapback/generated/package.json".into(),"{\"type\":\"module\"}\n".into());
+    }
     let mut frozen=package.clone();
     frozen["private"]=json!(true);frozen["type"]=json!("module");
     if !frozen["scripts"].is_object() {frozen["scripts"]=json!({});}
     if package["scripts"].is_object() { frozen["scripts"]=package["scripts"].clone(); }
     frozen["scripts"]["client:calls"]=json!("node .snapback4-frozen-run.mjs");
-    if let Some(command)=command { frozen["scripts"]["client:calls:frozen"]=json!(command); }
+    if let Some(command)=command { frozen["scripts"]["client:calls:frozen"]=json!(if original_scope { "npm --prefix .source run --silent client:calls" } else { command }); }
     for group in ["dependencies","devDependencies"] { if package[group].is_object() { frozen[group]=package[group].clone(); } }
     push(&mut files,"v1/package.json".into(),super::pretty(&frozen));
     push(&mut files,"v1/.snapback4-frozen-run.mjs".into(),include_str!("frozen-run.mjs").into());

@@ -22,9 +22,10 @@ fn wave33_029_024_011_023_033_frozen_client_has_own_esm_api_and_inline_users() {
     let common=dir.join("commonjs");fs::create_dir_all(common.join("snapback")).unwrap();fs::create_dir_all(common.join("scripts/helpers")).unwrap();
     fs::copy(dir.join("snapback/schema.q"),common.join("snapback/schema.q")).unwrap();
     fs::write(common.join("package.json"),r#"{"scripts":{"client:calls":"node scripts/client.cjs"}}"#).unwrap();
-    fs::write(common.join("scripts/client.cjs"),"if(!require('./helpers').check())throw Error('missing CommonJS helper');console.log('CommonJS captured');\n").unwrap();
+    fs::write(common.join("scripts/client.cjs"),"if(!require('./helpers').check()||!require('./plain.js').check())throw Error('missing CommonJS helper');console.log('CommonJS captured');\n").unwrap();
     fs::write(common.join("scripts/helpers/package.json"),r#"{"main":"check.cjs"}"#).unwrap();
     fs::write(common.join("scripts/helpers/check.cjs"),"exports.check=()=>true;\n").unwrap();
+    fs::write(common.join("scripts/plain.js"),"exports.check=()=>true;\n").unwrap();
     let capture=Command::new(BIN).current_dir(&common).args(["init","--adapt","--day2","--apply"]).output().unwrap();assert!(capture.status.success(),"{}",String::from_utf8_lossy(&capture.stderr));
     let calls=Command::new("npm").current_dir(&common).args(["--prefix","v1","run","--silent","client:calls"]).output().unwrap();assert!(calls.status.success(),"{}",String::from_utf8_lossy(&calls.stderr));assert!(String::from_utf8_lossy(&calls.stdout).contains("CommonJS captured"));
     fs::remove_dir_all(dir).unwrap();
@@ -36,6 +37,7 @@ fn wave33_001_022_011_021_full_lists_sections_and_repeats_delta() {
     for name in ["deploy","production","evolution"] {let text=run(&["guide",name,"--full"]);assert!(text.len()<=8000);assert!(!text.contains("// day-two-production.mjs"));}
     let first=run(&["guide","deploy","--section","Keep v1 clients working"]);assert!(first.contains("alias greet"));let again=run(&["guide","deploy","--section","Keep v1 clients working"]);assert!(again.contains("new: 0 blocks"));assert!(again.len()<first.len());
     assert_eq!(first,run(&["guide","deploy","--section","Keep v1 clients working","--repeat"]));
+    let api=run(&["guide","api","proof","--sections"]);assert!(api.len()<=8000);for name in ["startServe","provisionAccounts","freshUser","proof-accounts/default.json"] {assert!(api.contains(name),"{name}");}
     let failed=Command::new(BIN).current_dir(&dir).args(["guide","deploy","--find","release NO_SUCH_WORD"]).output().unwrap();
     assert!(!failed.status.success());assert!(failed.stdout.len()<=8001);
     let opening=run(&["guide","deploy","--section","opening","--repeat"]);assert!(opening.contains("one durable store"));

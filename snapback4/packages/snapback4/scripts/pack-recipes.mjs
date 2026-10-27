@@ -18,6 +18,6 @@ writeFileSync(new URL("../dist/recipes/day2-accounts.mjs", import.meta.url), day
 const socialSource=new URL("../../../crates/snapback4/src/verbs/init/social/",import.meta.url);
 const socialTarget=new URL("../dist/recipes/social/",import.meta.url);mkdirSync(socialTarget,{recursive:true});
 for(const name of readdirSync(socialSource).filter(n=>/\.(ts|tsx)$/.test(n))){
- const text=readFileSync(new URL(name,socialSource),'utf8').split('\n').filter(line=>!line.includes('@'+'ref LLP')).join('\n');
+ const text=readFileSync(new URL(name,socialSource),'utf8').split('\n').map(line=>{const start=line.indexOf('@'+'ref LLP '),gloss=start<0?-1:line.indexOf(' — ',start);return gloss<0?line:line.slice(0,start)+line.slice(gloss+3);}).join('\n');
  writeFileSync(new URL(name,socialTarget),text);
 }

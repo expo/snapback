@@ -615,7 +615,11 @@ fn web_and_expo_starters_are_one_small_screen_with_product_comments() {
         let texts = starter_texts(&dir.0);
         // Kit scripts replace builder-owned process orchestration; DX14 adds one
         // shared TypeScript helper and its ESM scope for Node proof imports.
-        let app_files = texts.iter().filter(|(path, _)| !path.strip_prefix(&dir.0).unwrap().starts_with(".snapback4")).count();
+        // Frozen client evidence is separate from the live application scaffold.
+        let app_files = texts.iter().filter(|(path, _)| {
+            let relative=path.strip_prefix(&dir.0).unwrap();
+            !relative.starts_with(".snapback4") && !relative.starts_with("v1")
+        }).count();
         assert!(app_files <= 30, "{flag}: {app_files} application files");
         assert!(!dir.0.join("recipes").exists(), "ordinary starters must not ship unused guide recipes");
         let schema = fs::read_to_string(dir.0.join("snapback/schema.q")).unwrap();

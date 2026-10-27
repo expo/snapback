@@ -1,3 +1,4 @@
+import {guideReference} from '../../../scripts/publication-guide.mjs';
 // Published examples typecheck against the real client declarations.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -51,7 +52,7 @@ test('client and production published TSX uses the typed Write union, state gate
 // drift fails against the actual Client/UseMutation declarations.
 test('packaged browser image capture narrows upload before placing its asset', () => {
   const binary = process.env.SNAPBACK4_BIN ?? resolve(root, '../../target/debug/snapback4');
-  const card = spawnSync(binary, ['guide', 'assets', '--full'], { encoding: 'utf8', timeout: 120000 });
+  const card = ({status:0,stderr:'',stdout:guideReference(binary,'assets')});
   assert.equal(card.status, 0, card.stdout + card.stderr);
   const block = [...card.stdout.matchAll(/```tsx\n([\s\S]*?)\n```/g)]
     .map(match => match[1]).find(source => source.includes('capture="environment"'));

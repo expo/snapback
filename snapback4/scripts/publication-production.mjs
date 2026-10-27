@@ -117,6 +117,7 @@ export async function proveProduction(client, platform, expo, directory) {
     writeFileSync(join(cwd, "package.json"), JSON.stringify(pkg, null, 2));
     await run("npm", ["install", "--prefer-offline", "--no-audit", "--no-fund"], cwd);
     const guide = guideReference(cli, "production", {cwd,env});
+    writeFileSync(join(cwd,"production-guide.log"),guide);
     const blocks = [...guide.matchAll(/```sh\n([\s\S]*?)\n```/g)].map(match => match[1]).filter(text => text.startsWith("cp node_modules/snapback4/dist/recipes/production/"));
     assert.equal(blocks.length, 2, "packed guide carries React and Expo command recipes");
     if (kind === "web") {
