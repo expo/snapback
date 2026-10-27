@@ -20,7 +20,24 @@ responses and provenance remain verbatim under llp/reviews/.
   merely by disappearance of a syntactic detector. This also eliminates the
   disputed carve-out from the final source.
 
-Final independent review and native corpus measurement remain required.
+- Round3: both reviewers READY on4162765f5b. The additional guard/argument type
+  context regression ina4cc3fe3d9 preserves currency meaning even without a
+  money write; printed zero-valued rows do not erase units.
+- Round4 Codex: valid unreduced object spreads could index the nonexistent empty
+  field name. Fixed by92eecf3557 with explicit spread rejection and complete
+  Option-collected field types. Running the binder-valid regression also exposed
+  the legacy stage_copy panic;52551e6660 keeps all spread-derived effects
+  conservatively uncovered and safely looks up ordinary field types.
+- Round5 Codex: helper reduction could erase an asserted prerequisite inside a
+  computed anchor field. Fixesea60f9cd3f and3d8656abee check the original authored
+  fields and target before reduction; helpers returning a literal or target after
+  asserting a global window remain unsupported. Paved direct-row update syntax
+  retains its question through a trusted exact target read.
+- Actual reduced applicability is included by04c99f526e. Changing principal
+  uniqueness can change actor classification without changing printed guards or
+  column types; its regression requires different public hypothesis identities.
+
+Final native corpus measurement remains required.
 
 Round6, commit04c99f526e: Muse found no material defect in the new transition
 mechanism; Codex found a real production-precision gap in the legacy workflow

@@ -1,0 +1,10 @@
+--- original/snapback/schema.q
++++ fixed/snapback/schema.q
+@@ -94,6 +94,7 @@
+   require exists roles[principal = viewer, role = 'cleaner'] or exists roles[principal = viewer, role = 'owner'] else NOT_WORKROOM
+   require b.status = 'approved' else BAD_STATUS
+   require stage != b.stage else NO_CHANGE
++  require (b.stage = 'inspection' and stage = 'cleaning') or (b.stage = 'cleaning' and stage = 'flameproofing') or (b.stage = 'flameproofing' and stage = 'pleating') or (b.stage = 'pleating' and stage = 'finished') else BAD_TRANSITION
+   update batches[batch] { stage }
+   return null
+ 

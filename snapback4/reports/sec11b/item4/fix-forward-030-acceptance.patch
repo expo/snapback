@@ -1,0 +1,13 @@
+--- original/scripts/acceptance.mjs
++++ fixed/scripts/acceptance.mjs
+@@ -174,6 +174,10 @@
+   // --- report after 5 days: flagged late ---
+   await dev.advance("6d");
+   sentOf(await ce1.mutate(api.markMeasured, { study: studyB.id }), "e1 markMeasured B");
++  assert.equal(failedCode(await ce1.mutate(api.publishReport, {
++    study: studyB.id, body: "Venue bass overloaded the room.", quoteAmount: 250000,
++  })), "BAD_STATUS", "unreviewed B cannot publish");
++  sentOf(await ce2.mutate(api.markReviewed, { study: studyB.id }), "e2 markReviewed B before late publication");
+   await dev.advance("6d");
+   const reportB = sentOf(await ce1.mutate(api.publishReport, {
+     study: studyB.id, body: "Venue bass overloaded the room.", quoteAmount: 250000,
