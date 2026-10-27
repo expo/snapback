@@ -36,6 +36,8 @@ test('packed security card and starter run as written; broad reads refute', {tim
   ['N_CREATE_EDIT_ASYMMETRY','An argument-supplied column has a specific change guard'],
   ['N_PRIVATE_CREATE_EDIT_ASYMMETRY','A caller can initialize a private column'],
   ['N_EVIDENCE_REMOVAL','Delete, detachment or explicit clearing'],
+  ['N_MOVABLE_TIME_ANCHOR','a stored time used to measure a window'],
+  ['N_EVENT_TIME_ANCHOR','a guard checks booking-time now'],
   ['E_SECURITY_NOTES','the individual disposition file is malformed'],
  ]){
   const excerpt=run(process.execPath,[cli,'why',code],project).split('\n\n').slice(1).join('\n\n');
