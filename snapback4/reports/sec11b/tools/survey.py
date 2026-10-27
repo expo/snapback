@@ -2,7 +2,7 @@
 import os
 """Frozen source copies, fresh and post-test production attempts; no live servers."""
 import argparse, concurrent.futures, hashlib, json, pathlib, shutil, subprocess, tempfile, time, re
-p=argparse.ArgumentParser();p.add_argument('--binary',required=True);p.add_argument('--out',required=True);p.add_argument('--waves',default='15,16,18,19,20,21,22,23,24,25,26');p.add_argument('--filter',default='');p.add_argument('--workers',type=int,default=8);p.add_argument('--check-only',action='store_true');p.add_argument('--resume',action='store_true');p.add_argument('--default-output',action='store_true');p.add_argument('--strip-intent',action='store_true');p.add_argument('--check-timeout',type=int,default=120);p.add_argument('--test-timeout',type=int,default=900);p.add_argument('--deploy-timeout',type=int,default=180);p.add_argument('--cases');a=p.parse_args();assert a.check_timeout>0 and a.test_timeout>0
+p=argparse.ArgumentParser();p.add_argument('--binary',required=True);p.add_argument('--out',required=True);p.add_argument('--waves',default='15,16,18,19,20,21,22,23,24,25,26');p.add_argument('--filter',default='');p.add_argument('--workers',type=int,default=8);p.add_argument('--check-only',action='store_true');p.add_argument('--resume',action='store_true');p.add_argument('--default-output',action='store_true');p.add_argument('--strip-intent',action='store_true');p.add_argument('--check-timeout',type=int,default=120);p.add_argument('--test-timeout',type=int,default=900);p.add_argument('--deploy-timeout',type=int,default=180);p.add_argument('--cases');p.add_argument('--fresh-only',action='store_true');a=p.parse_args();assert a.check_timeout>0 and a.test_timeout>0
 out=pathlib.Path(a.out);out.mkdir(parents=True,exist_ok=True);home=pathlib.Path.home()/'sb4-loop'
 items=[(wave,folder) for wave in map(int,a.waves.split(',')) for folder in sorted((home/f'wave{wave}/apps').glob('*/snapback')) if list(folder.glob('*.q')) and (not a.filter or any(folder.parent.name.startswith(n+'-') for n in a.filter.split(',')))]
 if a.cases:
@@ -66,15 +66,16 @@ def measure(item):
    text=rendered.stdout+rendered.stderr
    row['defaultDeploy']=dict(exit=rendered.returncode,seconds=elapsed,lines=len(text.splitlines()),stdout=rendered.stdout,stderr=rendered.stderr)
    row['fresh']=deploy('fresh')
-   tested,elapsed=run(['test'],a.test_timeout)
-   row['test']=dict(exit=tested.returncode,seconds=elapsed,failure=failure(tested))
-   row['afterTest']=deploy('after-test')
+   if not a.fresh_only:
+    tested,elapsed=run(['test'],a.test_timeout)
+    row['test']=dict(exit=tested.returncode,seconds=elapsed,failure=failure(tested))
+    row['afterTest']=deploy('after-test')
   (out/(f'w{wave}-'+folder.parent.name+'.json')).write_text(json.dumps(row,indent=2)+'\n')
   return row
 with tempfile.TemporaryDirectory(prefix='sb4-sec10-shipping-binary-') as private:
  original=pathlib.Path(a.binary).resolve();snapshot=pathlib.Path(private)/'snapback4';shutil.copy2(original,snapshot);binary=str(snapshot)
  if a.resume and (out/'measurement.json').exists():assert json.loads((out/'measurement.json').read_text())['binarySha256']==hashlib.sha256(snapshot.read_bytes()).hexdigest(), 'resume requires identical binary'
- (out/'measurement.json').write_text(json.dumps(dict(binarySha256=hashlib.sha256(snapshot.read_bytes()).hexdigest(),projects=len(items),workers=a.workers,waves=a.waves,checkOnly=a.check_only,stripIntent=a.strip_intent,defaultOutput=a.default_output,binarySnapshot=str(snapshot),watchdogSeconds=dict(check=a.check_timeout,test=a.test_timeout,deploy=a.deploy_timeout)),indent=2)+'\n')
+ (out/'measurement.json').write_text(json.dumps(dict(binarySha256=hashlib.sha256(snapshot.read_bytes()).hexdigest(),projects=len(items),workers=a.workers,waves=a.waves,checkOnly=a.check_only,stripIntent=a.strip_intent,defaultOutput=a.default_output,freshOnly=a.fresh_only,binarySnapshot=str(snapshot),watchdogSeconds=dict(check=a.check_timeout,test=a.test_timeout,deploy=a.deploy_timeout)),indent=2)+'\n')
  results=[]
  with concurrent.futures.ThreadPoolExecutor(max_workers=a.workers) as pool:
   for f in concurrent.futures.as_completed([pool.submit(measure,item) for item in items]):

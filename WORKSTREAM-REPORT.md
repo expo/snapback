@@ -217,17 +217,47 @@ those scenarios with fresh candidates retains every original assertion and
 passes all 16 checks. Original failures, the fixture-only isolation patch and
 source hashes are retained; no unchanged-025-acceptance PASS is claimed.
 
-The complete 800-schema fresh/post-test precision and default-output survey
-has finished; 29 cases affected by external or internal watchdogs are being
-replayed at lower concurrency against the same immutable executable and source.
-The originals are retained and qualified retries have explicit provenance. Wave31 calibration is now available (16 Snapback M findings), so a
-separate 50-schema before/after coverage pass is included. No final measured
-coverage or zero-false-gate claim is made until those runs finish.
+Item 2 measured boundary (2026-10-27):
+
+| Corpus | Before visible | After visible | After gates / questions |
+| --- | ---: | ---: | ---: |
+| wave26 | 8/15 | 8/15 | 6 / 2 |
+| wave28 | 6/12 | 6/12 | 2 / 4 |
+| wave30 | 4/14 | 7/14 | 1 / 6 |
+| wave31 | 3/16 | 6/16 | 1 / 5 |
+
+Exact operation matching corrects the earlier broad helper's 018/025 names:
+only `pruneTouchup` and `logExam` supply the newly credited approval witnesses.
+All 800 fresh and 800 post-test JSON deployment verdicts completed normally:
+19 and 26 carried refusals, zero assessed false gates or false production
+refusals, zero unmatched gate/FIX/refusal records. The sole wave30 gate is hand
+reviewed: `advanceJob`, booked -> grinding, dampSigned=true/dampApproved=false.
+Its inherited static note still names acceptQuote, while its actual candidate,
+compact summary and last history step name advanceJob; no acceptQuote coverage
+credit is claimed.
+
+Default check median/p90 is 3/7 lines (800 completed); deploy is 5/9 (798
+completed, two external display attempts censored). The all-800 deploy median
+is bounded at exactly 5 for every nonnegative completion of those two counts.
+Five test campaigns remain incompletely qualified (four private HTTP
+preparation watchdogs and one external test watchdog), explicitly retained in
+`precision.json`. Deployment after the recorded test command is measured; a
+complete HTTP test PASS is not claimed. This is a disclosed infrastructure gap,
+not a security refusal, under LLP 0232; follow-up is
+`issues/20261027-snapback4-security-http-preparation-watchdog-under-survey-load.md`.
+Latency work remains SEC11L's. The first 800 run and all same-source/binary
+retries are retained, including an interrupted redundant single-worker retry.
+No failed or interrupted campaign is relabeled PASS. Further immutable-binary
+retries may finish after this snapshot; they cannot change its recorded scope.
+
+The evidence bundle is `snapback4/reports/sec11b/item2/`, including source
+hashes, compressed original/composed/retry records, per-hole coverage,
+precision classifications, the hand-reviewed gate and fix-forward patches.
 
 The 2,000-case standard differential run has zero disagreements. The 2,000-case
 Lean run reproduces the same 18 inherited disagreements and signature counts as
 item 1; this is not a clean Lean PASS. Root reference validation passes with
 573 documents / 12,122 references, zero errors.
 
-Items 3 and 4 have not started; item 2's completed measurement is their boundary.
+Item 2 is implemented and measured at this boundary. Items 3 and 4 follow in order.
 No push or version bump.

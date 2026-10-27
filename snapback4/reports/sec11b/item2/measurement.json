@@ -1,0 +1,46 @@
+{
+  "schemas": 800,
+  "defaultCheckLines": {
+    "median": 3.0,
+    "p90": 7,
+    "max": 14,
+    "completed": 800,
+    "censored": 0,
+    "medianBounds": [
+      3.0,
+      3.0
+    ]
+  },
+  "defaultDeployLines": {
+    "median": 5.0,
+    "p90": 9,
+    "max": 20,
+    "completed": 798,
+    "censored": 2,
+    "medianBounds": [
+      5.0,
+      5.0
+    ]
+  },
+  "freshExits": {
+    "0": 781,
+    "1": 19
+  },
+  "postTestExits": {
+    "0": 774,
+    "1": 26
+  },
+  "testExits": {
+    "0": 759,
+    "1": 40,
+    "124": 1
+  },
+  "toolFailures": [
+    {
+      "wave": 27,
+      "lane": "035-snapback-sheepskin-tannery-orders"
+    }
+  ],
+  "testQualificationComplete": false,
+  "scope": "Actual 800 fresh/post-test deployment verdicts. Known test/display watchdogs are retained in precision.json; this is not complete HTTP qualification."
+}
