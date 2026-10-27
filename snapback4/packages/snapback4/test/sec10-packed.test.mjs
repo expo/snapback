@@ -59,7 +59,9 @@ test('packed approval decisions, nonblank guards and text minimums run as docume
  checked=JSON.parse(run(process.execPath,[cli,'check','--json'],witnessed,1));
  const concrete=checked.securityReviews.find(r=>r.code==='N_APPROVAL_NOT_ENFORCED'&&r.witness?.operation==='advanceJob');assert.ok(concrete?.gated,'a concrete workflow effect is gated');
  const rejected=JSON.parse(run(process.execPath,[cli,'check','--ack-security',concrete.id,'--reason','one decision','--json'],witnessed,2));assert.equal(rejected.problems[0].code,'E_SECURITY_NOTES');
- const answer=`witness ${concrete.witness.id}; permit advanceJob as ${concrete.witness.viewer}; intended effect: advanceJob may deliberately proceed under this explicit test specification`;
+ const prose=`witness ${concrete.witness.id}; permit advanceJob as ${concrete.witness.viewer}; intended effect: advanceJob may deliberately proceed under this explicit test specification`;
+ const rejectedProse=JSON.parse(run(process.execPath,[cli,'check','--ack-security',concrete.id,'--reason',prose,'--json'],witnessed,2));assert.equal(rejectedProse.problems[0].code,'E_SECURITY_NOTES');
+ const answer=`witness ${concrete.witness.id}; allow jobs.advanceJob when true`;
  const answered=JSON.parse(run(process.execPath,[cli,'check','--ack-security',concrete.id,'--reason',answer,'--json'],witnessed));assert.ok(answered.securityReviews.some(r=>r.id===concrete.id&&r.acknowledged));
  writeFileSync(join(witnessed,'snapback/schema.q'),'-- independent comment\n'+original);
  const retained=JSON.parse(run(process.execPath,[cli,'check','--json'],witnessed));assert.ok(retained.securityReviews.some(r=>r.id===concrete.id&&r.acknowledged));

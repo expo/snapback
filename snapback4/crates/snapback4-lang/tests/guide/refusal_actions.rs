@@ -32,6 +32,8 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
 
     ("E_COLUMN_WRITE", &["Name an ordinary column once", "use current-row rule syntax"]),
     ("N_DERIVED_WRITE_AUTHORITY", &["Enforce the candidate", "record its individual specification decision"]),
+    ("N_RELEASE_CREATE_AUTHORITY", &["Narrow creation", "evaluated allowance", "unknown comparisons and unchanged asymmetry stay advisory"]),
+    ("N_RELEASE_CREATE_COVERAGE", &["Restore the private baseline", "immutable selected deployment predecessor", "never a gate"]),
     ("N_PRESENCE_LOOSENING", &["Declare presence intent", "production compares the selected release independently"]),
     ("N_TABLE_QUESTIONNAIRE", &["Answer from the specification", "JSON retains every underlying note and individual decision ID.", "The grouped line is advisory and has no separate ID."]),
     ("N_APPROVAL_NOT_ENFORCED", &["Add the matching approval requirement", "informational record", "check --ack-security ID"]),

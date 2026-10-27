@@ -109450,6 +109450,26 @@ unknown signup outcome (malformed/lost reply). The existing Unicode/byte-boundar
 checks and duplicate/lost-signup regressions pass. The old serve recipe extractor
 is bounded before the new observer section, and its redaction mock now echoes
 the actual generated credential rather than an unrelated password literal.
+## 2026-10-27 — SEC11 item 1 measured boundary
+
+LLP 3000.036.004.001 records current-witness decision refusals and bounded
+advisory replays for evidence absence/typing, direct guard reuse and actual
+structured read payloads. Commit-end parent survival and predicate evaluation
+exclude intermediate-only absence claims. Raw query observations stay live-only;
+redacted delivered fields and effective clocks participate in decision identity.
+No new production gate codes were added. Muse and fresh Codex source reviews
+are retained verbatim, including the cascade/expiry findings and corrections.
+
+On 800 source/fixture copies, no assessed false gates or production refusals;
+all fresh and post-test verdicts match their retained baselines. Default output
+medians are 3/5 check/deploy lines. Wave30 exact gate/default-question coverage
+is 4/14 (1 gate, 3 questions), up from 1/14; items 2–9 remain. Cold p90 review
+25.14 s and deploy 32.83 s miss the targets. The one-line wave30 lane033
+advanceJob fix clears its gate and preserves the unchanged app acceptance.
+Qualified affected security/language/client checks and the explicit test-only
+history assertion retry are recorded in `reports/sec11-item1/`; root legacy
+Snapback1 guide/codegen/inventory gates are outside this fence. The root
+WORKSTREAM-REPORT.md records the exact committed boundary and deferrals.
 
 ## 2026-10-27 — SQW: SQLite durable cycles and owned revision reuse
 
@@ -109586,3 +109606,21 @@ baseline retries are recorded by the root WORKSTREAM-REPORT.md. The report
 under reports/sec11-latency retains cold samples, phase profiles, classifier
 results, primary literal failure and secondary diagnostic limits. No push,
 publication, full suite or complete-battery capability claim is made.
+## 2026-10-27 — SEC12: evaluated creation and gate decisions
+
+LLP 3000.036.004.002 implements format-valid witness sampling, predecessor-backed
+creation gates, and live evaluated invariant/allowance answers. The exact setter
+fragment rejects unproved helper admission, fallible returns and changing authority
+dependencies. Current excluded creation is replayed; current setter audience is
+qualified by straight-line input/read/write judgments on that committed state.
+Free prose and wave31 lane033's false premise cannot acknowledge a gate.
+The first gate prints its usable answer template. Presence tautologies preserve
+ordinary rollback views; control records stay outside worker snapshots.
+
+Independent Muse/fresh Codex source reviews are READY for all three mechanisms,
+including the final S2 round18. Copied-source surveys, all 57 calibrated M
+classifications, default output measurement, four fix-forward replays and affected
+consumer/test evidence are retained in reports/sec12/ and WORKSTREAM-REPORT.md.
+The report identifies qualification composition, inherited differential failures,
+HTTP watchdog retries and finite unsupported fragments. Version remains 0.4.43;
+changes are described under the 0.4.44 guide entry. No publication or push.

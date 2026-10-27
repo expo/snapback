@@ -139,6 +139,8 @@ fn w11_every_registered_code_quotes_its_definition() {
 const DEFINITIONS: &[(&str, &str)] = &[
     ("E_OBSERVE_USAGE", "E_OBSERVE_USAGE means observe received a callback"),
     ("N_ROLE_UNFILTERED", "N_ROLE_UNFILTERED means an own-or-roster rule probes a mixed owner/customer"),
+    ("N_RELEASE_CREATE_AUTHORITY", "A predecessor-backed setter narrowing"),
+    ("N_RELEASE_CREATE_COVERAGE", "The local successful-check source baseline cannot be read or compiled"),
     ("E_DEV_ACCOUNTS", "E_DEV_ACCOUNTS means development account setup requires startDev with password identity."),
     ("E_SERVE_STOP_FAILED", "E_SERVE_STOP_FAILED means the npm serve script exited unsuccessfully during shutdown."),
     ("E_SERVE_THEN_FAILED", "E_SERVE_THEN_FAILED means the serve proof callback failed."),

@@ -14,6 +14,8 @@ pub(crate) fn capture_literal_defaults(catalog:&Catalog,bound:&mut Bound){write_
 pub mod challenges;
 mod lints;
 mod write_advice;
+pub mod release_create;
+mod release_authority;
 pub mod derived;
 mod creation_advice;
 mod result_advice;

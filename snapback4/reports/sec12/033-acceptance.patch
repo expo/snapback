@@ -1,0 +1,10 @@
+--- original/acceptance.mjs
++++ corrected/acceptance-sec12.mjs
+@@ -242,6 +242,7 @@
+   refused(await cCrew0.mutate(api.markDamp, { job: job1.id }), "NOT_CUSTOMER", "crew markDamp");
+   refused(await cEst0.mutate(api.approveDamp, { job: job1.id, consent: "ok" }), "NOT_OWNER", "estimator approveDamp");
+   refused(await cCrew0.mutate(api.approveDamp, { job: job1.id, consent: "ok" }), "NOT_OWNER", "crew approveDamp");
++  refused(await cCrew0.mutate(api.advanceJob, { job: job1.id }), "DAMP_APPROVAL_REQUIRED", "SEC12 crew cannot advance a damp slab without owner approval");
+   const appr = sent(await cOwner0.mutate(api.approveDamp, { job: job1.id, consent: "customer consented by phone 2026-10-26" }), "owner0 approveDamp");
+   assert.equal(appr.dampApproved, true);
+   assert.equal(appr.dampConsent, "customer consented by phone 2026-10-26");

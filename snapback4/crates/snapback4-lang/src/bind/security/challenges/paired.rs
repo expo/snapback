@@ -142,7 +142,7 @@ pub(super) fn run(bound:&Bound,out:&mut Campaign,sites:Option<&BTreeSet<String>>
                     if !matches!((execute(present,out),execute(&absent,out)),(Ok((aa,_)),Ok((bb,_))) if aa==a&&bb==b){
                         out.unsupported.insert(format!("{}: paired observation is not repeatable",p.name));continue;
                     }
-                    out.violations.push(Counterexample {reachability:Reachability::SyntheticOperation,history:Vec::new(),invariant_site:inv.site.to_string(),args:args.clone(),viewer:viewer.into(),
+                    out.violations.push(Counterexample {current_execution:false,reachability:Reachability::SyntheticOperation,history:Vec::new(),invariant_site:inv.site.to_string(),args:args.clone(),viewer:viewer.into(),
                         operation:p.name.clone(),effect:"read observation".into(),row:row.clone(),old:None,supporting_rows:rows,
                         rule_path:"paired present/absent engine executions differ while the declared privacy policy is false in both".into(),
                         scope:"schema-valid seed-ingress paired worlds; authenticated logical data/refusal only; no application reachability claim".into(),

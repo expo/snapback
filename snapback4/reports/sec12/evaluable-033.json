@@ -1,0 +1,70 @@
+[
+  {
+    "binary": "/home/ccheever/sb4-loop/reports/sec11/snapback4-committed",
+    "gate": "ff147556ef077653c04afedb8e6258b85f2e76b199007cfbdaf7c8ceb60f9f2b",
+    "witness": "c4428c9e55ba2297a40d1446c43925b960c1271bcebc04502d660e4436385953",
+    "operation": "advanceJob",
+    "truth": {
+      "dampSigned": true,
+      "dampApproved": false
+    },
+    "checkSeconds": 497.08,
+    "steps": [
+      {
+        "step": "current-digest original false-premise prose",
+        "exit": 0,
+        "seconds": 274.51,
+        "acknowledged": true
+      }
+    ]
+  },
+  {
+    "binary": "/home/ccheever/sb4-loop/reports/sec12/snapback4-qualified",
+    "gate": "ff147556ef077653c04afedb8e6258b85f2e76b199007cfbdaf7c8ceb60f9f2b",
+    "witness": "c4428c9e55ba2297a40d1446c43925b960c1271bcebc04502d660e4436385953",
+    "operation": "advanceJob",
+    "truth": {
+      "dampSigned": true,
+      "dampApproved": false
+    },
+    "checkSeconds": 545.21,
+    "steps": [
+      {
+        "step": "current-digest original false-premise prose",
+        "exit": 2,
+        "seconds": 244.93,
+        "acknowledged": false
+      },
+      {
+        "step": "false-invariant",
+        "intent": "invariant jobs.advanceJob only not .dampSigned or .dampApproved",
+        "exit": 2,
+        "seconds": 290.85,
+        "acknowledged": false,
+        "evaluations": []
+      },
+      {
+        "step": "explicit-allowance",
+        "intent": "allow jobs.advanceJob when true",
+        "exit": 0,
+        "seconds": 174.54,
+        "acknowledged": true,
+        "evaluations": [
+          [
+            {
+              "detail": "predicate holds on the current witnessed boundary",
+              "intent": "allow jobs.advanceJob when true",
+              "status": "holds"
+            }
+          ]
+        ]
+      },
+      {
+        "step": "audit-rechecks",
+        "exit": 0,
+        "seconds": 115.33,
+        "acknowledged": true
+      }
+    ]
+  }
+]

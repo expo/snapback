@@ -1,0 +1,26 @@
+[
+  {
+    "lane": "002-snapback-infant-helmet-fittings",
+    "script": "acceptance.mjs",
+    "exit": 0,
+    "seconds": 3.69
+  },
+  {
+    "lane": "014-snapback-balloon-decor-installs",
+    "script": "acceptance-sec12.mjs",
+    "exit": 0,
+    "seconds": 3.06
+  },
+  {
+    "lane": "019-snapback-pet-relocation-flights",
+    "script": "acceptance-sec12.mjs",
+    "exit": 0,
+    "seconds": 4.61
+  },
+  {
+    "lane": "033-snapback-garage-floor-coatings",
+    "script": "acceptance.mjs",
+    "exit": 1,
+    "seconds": 120.51
+  }
+]

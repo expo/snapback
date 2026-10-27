@@ -8,7 +8,7 @@ struct Scratch(std::path::PathBuf);impl Drop for Scratch{fn drop(&mut self){let 
     let source="table docs:\n  value: int\n  approved: bool default false\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\nmutation create(value: int):\n  return insert docs {value}\nmutation approve(doc: docs):\n  require viewer = 'service:reviewer' else NOT_REVIEWER\n  d = docs[doc] ! else MISSING\n  require d.value >= 0 else NEGATIVE\n  update docs[doc] {approved:true}\nmutation edit(doc: docs,value: int):\n  update docs[doc] {value}\n";
     std::fs::write(project.schema_dir().join("schema.q"),source).unwrap();let sources=project.sources().unwrap();
     let bound=snapback4_lang::compile(&sources);assert!(bound.diagnostics.is_empty());let options=Options{positionals:Vec::new(),flags:BTreeMap::new(),json:false};
-    let initial=release_loop(&project,&bound,&sources,None,&options).unwrap().unwrap();
+    let initial=release_loop(&project,&bound,&sources,None,None,&options).unwrap().unwrap();
     assert!(enforce_release(Some(&initial),&options).unwrap_err().contains("E_SECURITY_REVIEW"));
     let initial:serde_json::Value=serde_json::from_str(&initial).unwrap();
     let report=report(&project,&bound,&sources,&options);
@@ -16,16 +16,20 @@ struct Scratch(std::path::PathBuf);impl Drop for Scratch{fn drop(&mut self){let 
     let decisions=super::super::security_reviews::review_evidence(&project,&sources,&report.notes,None,&evidence).unwrap();
     let mut reviewed=0;
     for decision in decisions.iter().filter(|d|d.code=="N_DERIVED_WRITE_AUTHORITY"&&d.witness.is_some()){
-        let witness=decision.witness.as_ref().unwrap();let kind=if matches!(witness["effect"].as_str(),Some("insert"|"upsert")){"audience: creators deliberately have broader authority"}else{"intended effect: the observed edit is deliberate"};
-        let reason=format!("witness {}; permit {} as {}; {}; operation {} is explicitly intended",witness["id"].as_str().unwrap(),witness["operation"].as_str().unwrap(),witness["viewer"].as_str().unwrap(),kind,witness["operation"].as_str().unwrap());
+        let witness=decision.witness.as_ref().unwrap();
+        let target=witness["candidate"].as_str().unwrap().strip_prefix("invariant ").unwrap().split(" only ").next().unwrap();
+        let reason=format!("witness {}; allow {target} when true",witness["id"].as_str().unwrap());
+        let mut answering=options.clone();answering.flags.insert("reason".into(),reason.clone());
+        let current:serde_json::Value=serde_json::from_str(&release_loop(&project,&bound,&sources,None,None,&answering).unwrap().unwrap()).unwrap();
+        let evidence=report.notes.iter().map(|note|current["securityReviews"].as_array().unwrap().iter().find(|d|d["site"]==note.site.to_string()&&d["code"]==note.code).and_then(|d|d.get("witness").filter(|w|!w.is_null()).cloned())).collect::<Vec<_>>();
         super::super::security_reviews::review_evidence(&project,&sources,&report.notes,Some((&decision.id,&reason)),&evidence).unwrap();reviewed+=1;
     }
     assert!(reviewed>=1,"the actual production witness has an individual decision");
-    let notice=release_loop(&project,&bound,&sources,None,&options).unwrap().unwrap();
+    let notice=release_loop(&project,&bound,&sources,None,None,&options).unwrap().unwrap();
     assert!(!notice.contains("  FIX "),"acknowledged candidates must not remain outstanding FIX: {notice}");
     let changed_source=source.replace("update docs[doc] {value}","update docs[doc] {value: value + 1}");
     std::fs::write(project.schema_dir().join("schema.q"),&changed_source).unwrap();let changed=project.sources().unwrap();let changed_bound=snapback4_lang::compile(&changed);
-    assert!(enforce_release(release_loop(&project,&changed_bound,&changed,None,&options).unwrap().as_ref(),&options).is_err(),"a changed rule needs a new decision");
+    assert!(enforce_release(release_loop(&project,&changed_bound,&changed,None,None,&options).unwrap().as_ref(),&options).is_err(),"a changed rule needs a new decision");
 }
 
 #[test]fn a_reviewed_label_cannot_hide_an_independent_approval_contract(){
@@ -37,7 +41,7 @@ struct Scratch(std::path::PathBuf);impl Drop for Scratch{fn drop(&mut self){let 
     let label=decisions.iter().find(|d|d.site.contains("/label-consistency/")).unwrap();
     super::super::security_reviews::review(&project,&sources,&notes,Some((&label.id,"Manual summary overrides are intentional"))).unwrap();
     let options=Options{positionals:Vec::new(),flags:BTreeMap::new(),json:false};
-    let summary=release_loop(&project,&bound,&sources,None,&options).unwrap().unwrap();
+    let summary=release_loop(&project,&bound,&sources,None,None,&options).unwrap().unwrap();
     let value:serde_json::Value=serde_json::from_str(&summary).unwrap();
     assert!(value["report"]["invariants"].as_array().unwrap().iter().any(|v|v["status"]=="refuted"&&v["invariant"]["column"]=="customerConsent"&&v["counterexample"]["operation"]=="signFailing"),"independent approval must retain replay reach: {summary}");
     assert!(enforce_release(Some(&summary),&options).is_err());
@@ -50,7 +54,7 @@ struct Scratch(std::path::PathBuf);impl Drop for Scratch{fn drop(&mut self){let 
     assert!(!label_failures.is_empty());
     let consumed=capture(&sources,None).unwrap();
     remember(&project,&options,&security::challenges::Campaign{violations:label_failures,..Default::default()},true,&consumed).unwrap();
-    let cached=release_loop(&project,&bound,&sources,None,&options).unwrap().unwrap();let value:serde_json::Value=serde_json::from_str(&cached).unwrap();
+    let cached=release_loop(&project,&bound,&sources,None,None,&options).unwrap().unwrap();let value:serde_json::Value=serde_json::from_str(&cached).unwrap();
     assert!(value["report"]["invariants"].as_array().unwrap().iter().any(|v|v["status"]=="refuted"&&v["invariant"]["column"]=="customerConsent"&&v["counterexample"]["operation"]=="signFailing"),"reviewed cached failure must not hide independent approval: {cached}");
     assert!(!value["report"]["invariants"].as_array().unwrap().iter().any(|v|v["invariant"]["site"]["file"].as_str().is_some_and(|s|s.contains("/label-consistency/"))));assert!(enforce_release(Some(&cached),&options).is_err());
 }
@@ -61,7 +65,7 @@ struct Scratch(std::path::PathBuf);impl Drop for Scratch{fn drop(&mut self){let 
     let source=include_str!("../../../../snapback4-lang/tests/security/wave26/018.q").lines().filter(|line|!line.trim_start().starts_with("invariant ")).collect::<Vec<_>>().join("\n")+"\n";
     std::fs::write(project.schema_dir().join("schema.q"),source).unwrap();let sources=project.sources().unwrap();let bound=snapback4_lang::compile(&sources);assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);
     let options=Options{positionals:Vec::new(),flags:BTreeMap::new(),json:false};
-    let summary=release_loop(&project,&bound,&sources,None,&options).unwrap().unwrap();let value:serde_json::Value=serde_json::from_str(&summary).unwrap();
+    let summary=release_loop(&project,&bound,&sources,None,None,&options).unwrap().unwrap();let value:serde_json::Value=serde_json::from_str(&summary).unwrap();
     let witness=value["report"]["invariants"].as_array().unwrap().iter().find(|v|v["status"]=="refuted"&&v["invariant"]["site"]["file"].as_str().is_some_and(|s|s.contains("/sibling-approval/"))&&v["counterexample"]["operation"]=="addRescan"&&matches!(v["counterexample"]["reachability"].as_str(),Some("authored-fixture-trace"|"generated-fixture-trace"))).expect("fresh deploy must retain a reachable nested sibling witness");
     let history=witness["counterexample"]["history"].as_array().unwrap();
     for operation in ["addScan","setRestriction","addRescan"]{assert!(history.iter().any(|step|step["operation"]==operation),"actual approval-bypassing history must include {operation}: {witness}");}

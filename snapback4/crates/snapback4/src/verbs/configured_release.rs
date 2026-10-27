@@ -48,7 +48,8 @@ pub(super) fn deploy(options: &Options, config: StoreConfig) -> Result<(), Strin
         .and_then(|s| s.release)
         .map(|n| super::releases::bound_at(dir.join("releases").join(n.to_string())))
         .transpose()?;
-    super::security::release_loop(&project, &bound, &sources, prior.as_ref(), options)?;
+    let security_summary=super::security::release_loop(&project, &bound, &sources, prior.as_ref(), state.as_ref().and_then(|s|s.release).map(|n|Project{root:dir.join("releases").join(n.to_string())}.sources()).transpose().map_err(|e|e.to_string())?.as_deref(), options)?;
+    super::security::enforce_release(security_summary.as_ref(),options).map_err(|why|{super::security::print_release(security_summary.as_ref());why})?;
     let programs = bound
         .programs
         .iter()
@@ -114,6 +115,7 @@ pub(super) fn deploy(options: &Options, config: StoreConfig) -> Result<(), Strin
                     state.generation
                 );
             }
+            super::security::remember_write_release(&project,&sources);
             return Ok(());
         }
     }
@@ -187,6 +189,7 @@ pub(super) fn deploy(options: &Options, config: StoreConfig) -> Result<(), Strin
                                 engine.generation()
                             );
                         }
+                        super::security::remember_write_release(&project,&sources);
                         return Ok(());
                     }
                 }
@@ -206,6 +209,7 @@ pub(super) fn deploy(options: &Options, config: StoreConfig) -> Result<(), Strin
         .ok_or("store identity absent")?;
     config.record(&dir, &store_id)?;
     pointer.finish(engine.generation())?;
+    super::security::remember_write_release(&project,&sources);
     if options.json {
         println!(
             "{}",
