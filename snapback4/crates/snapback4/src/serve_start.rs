@@ -532,7 +532,20 @@ pub(super) fn serve_requests(
         }
         if worker.is_finished() { return Err("worker thread stopped".into()); }
         if let Some(request) = server.recv_timeout(Duration::from_millis(100)).map_err(crate::host_limits::listener_error)? {
+            probe_request();
             dispatch(request, shared.clone(), admission.clone(), server.server_addr().to_ip().is_some_and(|a| a.ip().is_loopback()));
         }
+    }
+}
+
+
+// @ref LLP 3000.037.000#8-wave-32-builder-reading-and-waiting-tok1 — only the explicit proof guard requests aggregate activity; never log request contents.
+fn probe_request() {
+    use std::sync::{OnceLock, atomic::{AtomicU64, Ordering}};
+    static PATH: OnceLock<Option<std::ffi::OsString>> = OnceLock::new();
+    static COUNT: AtomicU64 = AtomicU64::new(0);
+    if let Some(path) = PATH.get_or_init(|| std::env::var_os("SNAPBACK4_PROBE_ACTIVITY")) {
+        let n = COUNT.fetch_add(1, Ordering::Relaxed) + 1;
+        let _ = std::fs::write(path, n.to_string());
     }
 }

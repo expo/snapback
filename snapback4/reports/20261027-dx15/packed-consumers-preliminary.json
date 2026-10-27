@@ -1,0 +1,117 @@
+{
+  "qualification": false,
+  "binaryProfile": "dev debug=0, not production publication",
+  "packs": {
+    "snapback4-0.4.43.tgz": "18d37b7753148002ccc7a6fea3305afce55fa3087f81a37a43665011898f58f4",
+    "snapback4-linux-x64-0.4.43.tgz": "be95f19d231642a0a48aa90072f95ed83728ff7358cf453c5a5f09e10c56144e",
+    "snapback4-expo-0.4.43.tgz": "31702fb579a0cd6ed8422df824d7489f91a0dfa73f83070f126bff43dbaf7c38"
+  },
+  "steps": [
+    {
+      "name": "starters",
+      "ok": false,
+      "seconds": 9.176,
+      "error": "Error: npm: toolchain command exited 1"
+    },
+    {
+      "name": "proofKit",
+      "ok": true,
+      "seconds": 114.416,
+      "value": {
+        "status": "passed",
+        "dayTwo": "production accounts, UI sign-in, v1/hot v2/rollback/forward business assertions",
+        "wire": "literal first section, actual packed CLI trace",
+        "clock": "30-day coalesced jump, each-boundary cap, memory replay command, page sampling",
+        "aliases": "array index path through packed test"
+      }
+    },
+    {
+      "name": "staging",
+      "ok": true,
+      "seconds": 66.067,
+      "value": {
+        "status": "passed",
+        "guide": "staging",
+        "recipes": "verbatim installed card",
+        "roles": {
+          "admin": 2,
+          "member": 2
+        },
+        "mode": "serve",
+        "realPasswordLogin": "passed",
+        "data": "passed",
+        "selfGrant": "refused",
+        "productionBulkSeed": "refused before mint",
+        "productionRelabel": "refused",
+        "firstAdmin": "passed",
+        "privateCredentials": "0600"
+      }
+    },
+    {
+      "name": "production",
+      "ok": true,
+      "seconds": 182.197,
+      "value": {
+        "status": "passed",
+        "starters": [
+          {
+            "kind": "web",
+            "cwd": "/tmp/dx15-replay/consumers/production-web",
+            "status": "passed",
+            "commands": [
+              "cp node_modules/snapback4/dist/recipes/production/web/schema.q snapback/schema.q",
+              "cp node_modules/snapback4/dist/recipes/production/web/App.tsx src/App.tsx",
+              "cp node_modules/snapback4/dist/recipes/production/web/client.ts src/client.ts",
+              "npx snapback4 check",
+              "npx snapback4 test --fixture node_modules/snapback4/dist/recipes/production/web",
+              "npm run typecheck",
+              "npm run build"
+            ],
+            "schema": "compiled",
+            "savedTests": "passed",
+            "typecheck": "passed",
+            "build": "passed"
+          },
+          {
+            "kind": "expo",
+            "cwd": "/tmp/dx15-replay/consumers/production-expo",
+            "status": "passed",
+            "commands": [
+              "cp node_modules/snapback4/dist/recipes/production/expo/schema.q snapback/schema.q",
+              "cp node_modules/snapback4/dist/recipes/production/expo/App.tsx App.tsx",
+              "cp node_modules/snapback4/dist/recipes/production/expo/client.ts src/client.ts",
+              "npx snapback4 check",
+              "npx snapback4 test --fixture node_modules/snapback4/dist/recipes/production/expo",
+              "npm run typecheck",
+              "npm run build:web"
+            ],
+            "schema": "compiled",
+            "savedTests": "passed",
+            "typecheck": "passed",
+            "build": "passed"
+          }
+        ],
+        "realAccounts": "passed",
+        "browserRecipes": "passed",
+        "adaptation": [
+          {
+            "kind": "persona-only starter",
+            "status": "passed",
+            "preview": "unchanged",
+            "apply": "compiled",
+            "frontend": "unchanged",
+            "identity": [
+              "use identity"
+            ],
+            "writers": [
+              "bootstrapstaffRole1",
+              "bootstrapstaffRole2"
+            ],
+            "idempotent": true,
+            "alreadyProvisioned": false
+          }
+        ]
+      }
+    }
+  ]
+}

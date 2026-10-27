@@ -280,3 +280,13 @@ Run `node scripts/install.mjs` from the generated directory for streaming npm
 output and an elapsed-time heartbeat. `npm run frontend:proof` uses real staging
 accounts with provisioned roles. Development uses the same plan through
 `devAccounts` (`guide testing`); production uses `provisionAccounts`.
+
+## Parallel password tests
+
+Staging keeps production identity admission: 30 attempts per peer per minute,
+10 per email, and two concurrent password KDFs (030R, 043R). Denials consume
+the attempt budget too. Provision once with `seedAccounts`, share its sessions
+across tests, and serialize extra logins while honoring Retry-After/retryAfterMs.
+Use `startDev().devAccounts` for local setup when production admission is not
+the behavior being tested; loopback dev has no per-minute cap and still bounds
+KDF concurrency. No test flag weakens a shared staging server.

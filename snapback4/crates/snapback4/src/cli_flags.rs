@@ -178,6 +178,7 @@ pub(crate) fn help(verb: &str) -> String {
             (_, "verbose") => " — include complete diagnostic and execution details",
             (_, "values") => " — include stored values in the inspection",
             (_, "instance") => " — select one development instance's records",
+            ("data", "all") => " — inspect every active row in one read snapshot",
             (_, "limit") => " — maximum inspected rows (default 50)",
             (_, "json-objects") => " — JSON inspection envelope with rows as objects",
             (_, "url") => " — backend URL to inspect or exercise",

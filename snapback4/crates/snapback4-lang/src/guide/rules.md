@@ -24,6 +24,8 @@ table reactions:
 | `row = t[key] ! else CODE` | CODE; execution stops | row; execution continues |
 | `exists t[key]` in a program | false | true when its extra equalities match |
 
+An earlier role `require` does not widen what a later program `exists` may read (005E, 021R). A target row can exist and still yield false; `N_REQUIRE_HIDDEN` names incompatible role arms and any service exception.
+
 Later requires cannot replace earlier refusals. Defaults can mask hidden reads. N_LOOKUP_FILTERED names mutation lookups lacking proved read authority, including asserted reads and tables later written; prefer minimal readable projections. N_LOOKUP_HIDDEN reviews required read/write gates. Blind writes need no lookup. Rule `exists` uses separate witnesses. See `guide refusals` and local `why recent`.
 
 ### Column read rules
@@ -364,3 +366,7 @@ The complete runnable context is `guide rule-recipes --section "Column write aud
 ### E_COLUMN_WRITE
 
 E_COLUMN_WRITE means a column write/freeze rule names an invalid or duplicate payload column. Name an ordinary column once; use current-row rule syntax.
+
+## Mixed-role rosters
+
+A bare `exists roles[viewer]` checks roster membership, not staff membership. If that unique-principal roster stores customer/owner and staff variants, select the intended role in the probe; otherwise another customer can satisfy the staff arm of an own-or-roster rule (003R, 041R). `N_ROLE_UNFILTERED` flags this shape when the owner/customer column name exactly matches a roster enum variant; other spellings still need explicit review. For multiple simultaneous roles use a total `unique principal, role` key and provide both values. A mutation require never replaces the table write rule; `N_REQUIRE_REFUSED` names caller branches or explicit/omitted deny rules that may still refuse the effect after the require passes (007R, 034R).

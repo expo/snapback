@@ -1,3 +1,4 @@
+// API signatures: snapback4 guide api proof | client | auth | generated
 // Runtime launcher: copied apps read their current owner's range on every run.
 import { spawn } from "node:child_process";
 import { dirname, join } from "node:path";

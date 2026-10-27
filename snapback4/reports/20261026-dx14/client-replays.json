@@ -1,0 +1,74 @@
+{
+  "lane": "DX14 client/proof",
+  "date": "2026-10-26",
+  "runtime": "Node v24.13.1",
+  "tsx": "4.21.0",
+  "applicationReplay": {
+    "source": "wave30/apps/011-snapback-wood-stove-installs",
+    "isolation": "Copied without node_modules, dist, logs, artifacts or .git into /tmp/dx14-replay/client; original source untouched",
+    "commands": [
+      "snapback4 check",
+      "PORT_LO=53800 PORT_HI=53899 SNAPBACK4_BIN=<candidate> node scripts/acceptance.mjs"
+    ],
+    "result": "passed",
+    "assertions": 120,
+    "realRoleAccounts": 8,
+    "coverage": [
+      "ordinary authenticated reads and writes",
+      "valid, malformed and oversized PDF uploads",
+      "same-id terminal write recovery in original shared actions",
+      "deadlines and scheduled maintenance"
+    ],
+    "sanitizedStdout": "acceptance passed: 120 assertions, eight real role accounts, deadlines and scheduled maintenance"
+  },
+  "focusedTests": [
+    {
+      "file": "packages/snapback4/test/dx14-client-proof.test.mjs",
+      "passed": 8,
+      "skipped": 0,
+      "coverage": [
+        "044R/022E callback/watch refusal across online, web, mock and guarded clients",
+        "011E oversized-upload transport loss follows same mutation id to EXPECTED_REFUSAL, one successful mutation POST",
+        "044R/050R labelled controls exclude option text, honor ARIA precedence and multiple labels, retain strict ambiguity",
+        "022E/050R exact npm tarball through tsx and additional esbuild keepNames stress; withBrowser and caller-owned Chromium; selector registration and visibleText",
+        "027E hidden upsert null-assertion refusal retains backend explanation"
+      ]
+    },
+    {
+      "file": "packages/snapback4/test/dx13-proof.test.mjs",
+      "passed": 6,
+      "skipped": 0,
+      "coverage": [
+        "existing provisioning argument redaction and host ownership regressions"
+      ]
+    },
+    {
+      "file": "packages/snapback4/test/proof-contract.test.mjs",
+      "passed": 21,
+      "skipped": 0,
+      "coverage": [
+        "rendered text geometry and hidden-text controls",
+        "caller-owned and CommonJS selector registration",
+        "slow-upload witnessForm custody, unrelated/stale claim refusal",
+        "041R no-write guidance names explicit witnessForm path",
+        "generated proof API agrees with source"
+      ]
+    }
+  ],
+  "packedWitness": {
+    "testToolchain": "SNAPBACK4_TSX_CLI points to a private temporary tsx install; no repository dependency added",
+    "exactRootTarball": "/tmp/dx14-packs/snapback4-0.4.43.tgz passed before final native-label precedence refinement; final source was separately npm-packed and retested",
+    "scope": "consumer regression only; no publication qualification claim"
+  },
+  "checks": [
+    "bun run --cwd packages/snapback4 build",
+    "bun run --cwd packages/snapback4 typecheck",
+    "git diff --check (owned files)"
+  ],
+  "limitations": [
+    "Raw client.mutate may still return pending custody; settleMutation awaits the original terminal receipt and may wait across reconnect. Explicit waitSeconds:0 remains immediate custody.",
+    "The packed tsx regression explicitly skips when tsx is absent; the recorded run supplied tsx and skipped nothing.",
+    "No complete client pool or complete battery was run."
+  ],
+  "cleanup": "Copied application directories removed after verification. Private temporary tsx toolchain retained outside repository for lead final-tarball recheck; no account credentials or tokens retained in this artifact."
+}

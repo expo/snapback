@@ -14,6 +14,33 @@ workflow evidence needs a required mutation argument as well as a required colum
 a conditional child insertion does not require evidence on its parent.
 
 
+## Copy the same image into several columns
+
+One home means one table/row/**column**, even when two columns share a row.
+The account placing the image must upload it; an operator cannot lend its upload
+to a different user. Upload the selected bytes once per destination column.
+Asset IDs are placement identities, not content hashes: the two uploads below
+get distinct IDs. Shared bytes without separate placements should instead use
+references to the original readable home row.
+
+```js
+// `client` is signed in as the account calling the placing mutation.
+// `bytes` is the same selected image; api.open is your own two-image mutation.
+const first = await client.upload(bytes);
+if (!first.ok) throw Error(first.why.message);
+const second = await client.upload(bytes);
+if (!second.ok) throw Error(second.why.message);
+const write = await client.mutate(api.open, {
+  front: {id: first.asset.id}, back: {id: second.asset.id},
+});
+if (write.state === "failed") throw Error(write.why.message);
+```
+
+For durable App uploads, each `uploadAndPlace` intent owns one placement.
+For several columns in one mutation use the two explicit uploads above. Retrying a failed mutation with the same ID is
+separate from creating a second home. A fresh placement never transfers uploader
+or home authority. E_ASSET_PLACED carries this copy recipe in SDK responses.
+
 ## Placement replay: documents and one home
 
 Save this complete schema as `snapback/schema.q`; run `npx snapback4 check`.

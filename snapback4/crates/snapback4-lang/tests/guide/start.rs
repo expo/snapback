@@ -3,25 +3,11 @@ use super::{card, KEYWORDS};
 use snapback4_lang::guide::START_CARDS;
 
 #[test]
-fn start_is_the_same_eight_openings_in_order_with_registered_mistakes() {
-    let mut expected = String::new();
-    for name in START_CARDS {
-        let (opening, reference) = card(name).unwrap().split_once("\n## Reference").unwrap();
-        assert!(opening.lines().count() <= 15, "{name}: {} lines", opening.lines().count());
-        assert!(opening.contains("**Start here:**"));
-        assert!(!reference.trim().is_empty());
-        let mistakes: Vec<_> = opening.lines().filter(|line| line.starts_with("- `")).collect();
-        assert!((2..=3).contains(&mistakes.len()), "{name}: two or three first mistakes");
-        for line in mistakes {
-            let code = line.split('`').nth(1).unwrap();
-            assert!(snapback4_lang::guide::codes().contains(&code), "{name}: unknown {code}");
-            assert!(line.contains("; "), "{name}: a one-line fix follows the mistake");
-        }
-        expected.push_str(opening.trim_end()); expected.push_str("\n\n");
-    }
+fn start_is_one_compiling_workflow_before_feature_reference_reads() {
     let start = card("start").unwrap();
-    assert!(start.ends_with(&expected));
-    assert!(start.lines().count() <= 124, "{} lines", start.lines().count());
+    assert!(START_CARDS.is_empty(), "start no longer concatenates eight cards");
+    assert!(start.len() <= 8000);
+    for word in ["use identity password", "mutation approve", "photo: image", "internalNote", "guide api", "probe:check"] { assert!(start.contains(word), "{word}"); }
     assert_eq!(card("index"), Some(start));
     assert!(snapback4_lang::guide::listing().contains("snapback4 guide start"));
 }

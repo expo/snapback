@@ -613,9 +613,10 @@ fn web_and_expo_starters_are_one_small_screen_with_product_comments() {
             assert!(!dir.0.join(chat).exists(), "{flag}: the small starter carries no chat file {chat}");
         }
         let texts = starter_texts(&dir.0);
-        // Three kit scripts replace builder-owned process orchestration.
-        let app_files = texts.len();
-        assert!(app_files <= 28, "{flag}: {app_files} application files");
+        // Kit scripts replace builder-owned process orchestration; DX14 adds one
+        // shared TypeScript helper and its ESM scope for Node proof imports.
+        let app_files = texts.iter().filter(|(path, _)| !path.strip_prefix(&dir.0).unwrap().starts_with(".snapback4")).count();
+        assert!(app_files <= 30, "{flag}: {app_files} application files");
         assert!(!dir.0.join("recipes").exists(), "ordinary starters must not ship unused guide recipes");
         let schema = fs::read_to_string(dir.0.join("snapback/schema.q")).unwrap();
         let bound = snapback4_lang::compile(&[("schema.q".into(), schema)]);
@@ -1483,3 +1484,6 @@ fn every_expo_identity_head_matches_the_default_entry() {
   assert!(entry.contains("import App from"),"{entry}");
  }
 }
+
+#[path = "init/dx14.rs"]
+mod dx14;

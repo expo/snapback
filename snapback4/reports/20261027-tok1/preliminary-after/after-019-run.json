@@ -1,0 +1,8 @@
+{
+  "phase": "after",
+  "id": "019",
+  "model": "muse",
+  "code": 0,
+  "wallMinutes": 3.4811666666666667,
+  "scope": "first checked application schema plus SDK discovery; no frontend/provisioning/end-to-end score"
+}

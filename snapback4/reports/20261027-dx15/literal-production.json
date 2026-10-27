@@ -1,0 +1,23 @@
+{
+  "ok": true,
+  "recipe": "exact production serve fence, installed packs; generated api.provision; real role users; SPA fallback; two SIGTERM/lock-release runs with stable principals",
+  "snippetSha256": "398186f18b0178c945f818eecab12447a8740dff4f04f1e2fb48a92ec7ada0be",
+  "reports": [
+    {
+      "ok": true,
+      "script": "prod:serve",
+      "failures": [],
+      "ready": true,
+      "upMs": 150,
+      "lockReleased": true
+    },
+    {
+      "ok": true,
+      "script": "prod:serve",
+      "failures": [],
+      "ready": true,
+      "upMs": 150,
+      "lockReleased": true
+    }
+  ]
+}

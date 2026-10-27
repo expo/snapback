@@ -34,7 +34,7 @@ function validatePlan(options: SeedAccountsOptions) {
   const service = options.service ?? "operator";
   const roles = Object.entries(options.roles ?? {}), users=options.users ?? 0, timeout = options.timeoutMs ?? 300_000;
   if (!/^[A-Za-z0-9_-]{1,64}$/.test(service) || !Number.isSafeInteger(timeout) || timeout < 1 || !Number.isSafeInteger(users) || users<0 || (!roles.length&&!users) || (users>0&&roles.some(([role])=>role==="users")) || roles.some(([role, n]) => !/^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(role) || !Number.isSafeInteger(n) || n < 1)
-      || roles.reduce((sum, [, n]) => sum + n, users) > 100 || roles.length>0 && !/^[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)*$/.test(options.provision?.name ?? "")) {
+      || roles.reduce((sum, [, n]) => sum + n, users) > 100 || (roles.length>0 || options.provision!==undefined) && (typeof options.provision?.name!=="string" || !/^[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)*$/.test(options.provision.name))) {
     throw Error("E_STAGING_INPUT: provide 1..100 accounts across named roles, a mutation handle and a positive timeoutMs");
   }
   return {service, roles:[...roles,...(users ? [["users",users] as [string,number]] : [])], timeout};
@@ -125,7 +125,37 @@ async function accounts(host: Pick<ServeHost, "url" | "operatorToken">, options:
           parameters=Object.keys(program?.args??{}).sort();
         } catch { /* failure diagnostics must not mask the original refusal */ }
         const merged=Object.fromEntries(Object.entries(args).map(([key,value])=>[key,`<redacted ${value===null?"null":Array.isArray(value)?"array":typeof value}>`]));
-        throw Error(`E_STAGING_PROVISION: ${options.provision?.name} refused (${result.why?.code ?? result.denied?.code ?? "invalid reply"}); supplied arguments: ${Object.keys(args).sort().join(", ")}; merged args (opaque values redacted): ${JSON.stringify(merged)}; mutation parameters: ${parameters.length?parameters.join(", "):"unavailable"}; args(account) merges over {principal, role}, explicit keys win; ${partial}`);
+        const refusal = result.why ?? result.denied;
+        // Preserve the backend's explanation without echoing opaque arguments.
+        const strings = [account.email, account.password, account.token], scalars = new Set<string>();
+        const opaque = (value: unknown): void => {
+          if (typeof value === "string") { if (value) strings.push(value); }
+          else if (value === null || typeof value === "number" || typeof value === "boolean") scalars.add(String(value));
+          else if (Array.isArray(value)) value.forEach(opaque);
+          else if (value && typeof value === "object") Object.values(value).forEach(opaque);
+        };
+        opaque(args);
+        let explanation: string = typeof refusal?.message === "string" ? refusal.message.slice(0, 4096) : "";
+        for (const value of strings.sort((a, b) => b.length - a.length)) {
+          if (value.length > 3) { explanation = explanation.replaceAll(value, "<redacted>"); continue; }
+          // A one-letter selection must not turn "argument" into gibberish.
+          // Redact quoted/standalone echoes while retaining named schema sites.
+          const escaped = value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+          explanation = explanation.replace(new RegExp(`(?<![\\p{L}\\p{N}_.])${escaped}(?![\\p{L}\\p{N}_])`, "gu"), (token, offset: number, text: string) =>
+            /(?:argument|field|column|table|operation|mutation|code)\s+["']?$/.test(text.slice(0, offset)) ? token : "<redacted>");
+        }
+        // Backend value descriptions use scalar tokens ("the number 482719").
+        // Quoted scalar echoes are values too. Preserve explicitly named
+        // schema sites and whole identifiers/codes, not arbitrary quoted values.
+        explanation = explanation.replace(/"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|[\p{L}_][\p{L}\p{N}_]*|-?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?/gu,
+          (token, offset: number, text: string) => {
+            const quoted = token[0] === '"' || token[0] === "'", value = quoted ? token.slice(1, -1) : token;
+            const schemaSite = /^[\p{L}_][\p{L}\p{N}_]*$/u.test(value)
+              && /(?:argument|field|column|table|operation|mutation|code)\s+$/.test(text.slice(0, offset));
+            if (!scalars.has(value) || schemaSite) return token;
+            return quoted ? `${token[0]}<redacted>${token[0]}` : "<redacted>";
+          });
+        throw Error(`E_STAGING_PROVISION: ${options.provision?.name} refused (${refusal?.code ?? "invalid reply"})${explanation ? `: ${explanation}` : ""}; supplied arguments: ${Object.keys(args).sort().join(", ")}; merged args (opaque values redacted): ${JSON.stringify(merged)}; mutation parameters: ${parameters.length?parameters.join(", "):"unavailable"}; args(account) merges over {principal, role}, explicit keys win; ${partial}`);
       }
       entry.done = true; save();
       }
@@ -172,7 +202,15 @@ export async function provisionAccounts(host: Pick<ServeHost, "url" | "operatorT
     try {
       if (!lstatSync(path).isFile() || (lstatSync(path).mode & 0o077)) throw Error("unsafe roster file");
       roster = JSON.parse(readFileSync(path, "utf8"));
-      if (roster.version !== 1 || roster.plan !== plan || !Array.isArray(roster.entries)) throw Error("roster plan changed");
+      if (roster.version !== 1 || typeof roster.plan !== "string" || !Array.isArray(roster.entries)) throw Error("invalid roster");
+      if (roster.plan !== plan) {
+        // Render only validated plan fields, never arbitrary saved strings or entries.
+        const pinned = JSON.parse(roster.plan);
+        if (pinned.provision !== undefined && typeof pinned.provision !== "string") throw Error("invalid roster plan");
+        const normalized = validatePlan({...pinned, roles: Object.fromEntries(pinned.roles), provision: pinned.provision !== undefined ? {name:pinned.provision} : undefined});
+        const safe = JSON.stringify({...(pinned.users?{users:pinned.users}:{}),roles:Object.entries(Object.fromEntries(pinned.roles)).sort(),provision:pinned.provision,service:normalized.service});
+        throw Object.assign(Error(`E_PRODUCTION_ROSTER: supplied plan ${plan}; pinned plan ${safe}; reuse the pinned plan or intentionally choose a new roster name; no new accounts created`), {planMismatch:true});
+      }
       const slots = new Set<string>();
       for (const entry of roster.entries) {
         if (!entry) throw Error("invalid roster entry");
@@ -186,6 +224,7 @@ export async function provisionAccounts(host: Pick<ServeHost, "url" | "operatorT
         slots.add(slot);
       }
     } catch (error) {
+      if ((error as {planMismatch?:boolean}).planMismatch) throw error;
       if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw Error("E_PRODUCTION_ROSTER: unreadable, unsafe or changed roster; inspect it; no new accounts created");
       roster = {version:1, plan, entries:[]};
     }

@@ -11,7 +11,7 @@ export async function proveDX4(directory) {
   const env={...process.env};delete env.SNAPBACK4_BIN;delete env.PORT_LO;delete env.PORT_HI;
   const run=(args)=>runToolchainCommand(process.execPath,args,{cwd,env,timeout:180000});
   const card=async(name,section)=>{
-    const result=spawnSync(process.execPath,[cli,"guide",name,...(section?["--section",section]:["--full"])],{cwd,env,encoding:"utf8",timeout:30000,maxBuffer:4*1024*1024});
+    const result=spawnSync(process.execPath,[cli,"guide",name,"--repeat",...(section?["--section",section]:["--full"])],{cwd,env,encoding:"utf8",timeout:30000,maxBuffer:4*1024*1024});
     assert.equal(result.status,0,result.stderr);return result.stdout;
   };
   const fences=(text,kind)=>[...text.matchAll(new RegExp("```"+kind+"\\n([\\s\\S]*?)\\n```","g"))].map(m=>m[1]);
@@ -34,7 +34,7 @@ export async function proveDX4(directory) {
     await run(["local.mjs"]);
     // Builders first see the default truncated view, not --full.
     for (const name of ["start","cheatsheet","personas"]) {
-      const reply=spawnSync(process.execPath,[cli,"guide",name],{cwd,env,encoding:"utf8",timeout:30000});
+      const reply=spawnSync(process.execPath,[cli,"guide",name,"--repeat"],{cwd,env,encoding:"utf8",timeout:30000});
       assert.equal(reply.status,0,reply.stderr);assert.match(reply.stdout,/guide staging/,`default guide ${name} must surface staging`);
       if(name==="cheatsheet") {assert.match(reply.stdout,/deploy staging --staging/);assert.match(reply.stdout,/serve staging/);}
     }

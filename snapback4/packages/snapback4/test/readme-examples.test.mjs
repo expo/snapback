@@ -96,7 +96,7 @@ test("README TypeScript examples compile and call every public function", (t) =>
   writeFileSync(join(scratch, "snapback/generated/server.ts"), serverStub);
   writeFileSync(join(scratch, "src/generated/server.ts"), serverStub);
   // The orientation modules compile together against their generated API in first-account.test.mjs.
-  const readme = ["CLIENT-AND-OPERATIONS.md", "SERVER.md", "../../crates/snapback4-lang/src/guide/client.md", "../../crates/snapback4-lang/src/guide/offline_interactions.md"].map(name => read(join(root, name))).join("\n");
+  const readme = ["CLIENT-AND-OPERATIONS.md", "SERVER.md", "../../crates/snapback4-lang/src/guide/client.md", "../../crates/snapback4-lang/src/guide/offline_interactions.md"].map(name => read(join(root, name)).split("## Your first working account screen")[0]).join("\n");
   const blocks = [...readme.matchAll(/^```(tsx?)\s*\n([\s\S]*?)^```\s*$/gm)].map((match, index) => {
     const line = readme.slice(0, match.index).split("\n").length + 1;
     const file = join(scratch, "src", `block-${index + 1}.${match[1]}`);

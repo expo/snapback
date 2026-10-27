@@ -162,6 +162,9 @@ pub(super) fn choose_consumer(name: &str, args: &mut [Expr], tables: &BTreeMap<S
 }
 
 pub(super) fn choose(read: &mut ReadExpr, tables: &BTreeMap<String, TableInfo>, required: &BTreeSet<String>) {
+    // Literal inequality inside probe brackets is a residual test of one
+    // complete unique key, never an order/range used to choose a population.
+    if read.seeks.iter().any(|bound| bound.op == "!=") { return; }
     // A page bound makes row order observable even inside count/sum. Explicit
     // authored order/index choices also retain their existing meaning.
     if read.index.is_some() || !read.order_keys.is_empty() || read.range.is_some() || read.matching.is_some() { return; }

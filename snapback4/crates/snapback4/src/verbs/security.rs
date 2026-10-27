@@ -77,7 +77,7 @@ pub fn audit(options:&Options)->i32{
     // Audit is a permission map plus bounded evidence; `test` owns full campaigns.
     let report=report(&project,&bound,&sources,options);
     let dispositions=match super::security_reviews::review(&project,&sources,&report.notes,None){Ok(d)=>d,Err(error)=>{eprintln!("audit: E_SECURITY_NOTES: {error}");return 2;}};
-    if options.json {let mut value=serde_json::to_value(&report).unwrap();value["securityReviews"]=serde_json::to_value(&dispositions).unwrap();println!("{value}");}
+    if options.json {let mut value=serde_json::to_value(&report).unwrap();value["securityReviews"]=serde_json::to_value(&dispositions).unwrap();println!("{}",serde_json::to_string_pretty(&value).unwrap());}
     else {let mut human=report.clone();human.notes.retain(|n|crate::note_rank::tier(&n.code)!=crate::note_rank::Tier::Review);print!("{}",human.text_with_all(options.flags.contains_key("all")));super::security_reviews::print(&dispositions,&report.notes);}
     if report.refuted(){1}else{0}
 }

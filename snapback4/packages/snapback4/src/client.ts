@@ -1,3 +1,4 @@
+import { refuseWatchGuess, validateObserveOptions } from "./observe-watch.ts";
 import { reconciledTiming, requestMatchesSession } from "./session-timing.ts";
 import { suppliedOnlineSession } from "./session-input.ts";
 import { servedRelease } from "./release.ts";
@@ -19,6 +20,7 @@ import { onlineDelivery } from "./online-delivery.ts";
 import { offerDelivery } from "./delivery-acceptance.ts";
 export type { DeliveryRefused } from "./delivery-state.ts";
 // The card's words, from the module that returns them: `import { createClient, type Client } from "snapback4/client"`.
+export { settleMutation } from "./write-settlement.ts";
 export { saveAsset, type Saved } from "./files.ts";
 export type { Client, Principal, Session, Refusal, Read, Ready, SettledRead, Write, Signal, Act, Outcome, ActOptions, MutateOptions, MutationPromise, PendingWrite, Link, Query, Mutation, Ephemeral, Action, ArgsOf, ResultOf, RowOf, Observed, ObserveOptions, Cursor } from "./contract.ts";
 import { deferReadNotifications } from "./read-notifications.ts";
@@ -1156,6 +1158,7 @@ export function createClient(options: ClientOptions): Client {
       session: !credentials || link === "signed-out" ? auth() : null, changes: changesRefusal,
       partition: null, inherited: null }), aborter.signal),
     observe<A, R>(op: Query<A, R>, args: A, options?: ObserveOptions): Observed<R> {
+      validateObserveOptions(options);
       const keep = options?.keep;
       const key = observationKey(op, args, options);
       return observeWatch(watches, key,
@@ -1381,5 +1384,5 @@ export function createClient(options: ClientOptions): Client {
   } });
   if (intentPresentation) registerIntentObserver(client, ids => intentPresentation.observed(ids));
   bindSessionRefusal(client, () => authRefusal);
-  return client;
+  return refuseWatchGuess(client);
 }

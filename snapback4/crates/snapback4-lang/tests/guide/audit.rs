@@ -36,7 +36,7 @@ pub(super) fn clean(label: &str, source: &str) -> snapback4_lang::Bound {
     // These exact published ordinary-search examples teach both coverage notes.
     // Keep their codes, counts and query site pinned; no general note exemption.
     let search_examples = quarry(card("search").unwrap());
-    let package_examples = quarry(include_str!("../../../../packages/snapback4/README.md"));
+    let package_examples = quarry(concat!(include_str!("../../../../packages/snapback4/README.md"), "\n", include_str!("../../../../packages/snapback4/CLIENT-AND-OPERATIONS.md")));
     if search_examples.iter().skip(1).chain(package_examples.iter())
         .any(|block| block == source && block.contains("query search(q: text <=100, c: cursor ?):")) {
         let notes = if source.contains("query searchGrouped(") { guide_context::without_grouped_shape_note(&bound, "searchGrouped") } else { notes };

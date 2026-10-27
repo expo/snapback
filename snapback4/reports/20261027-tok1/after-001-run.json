@@ -1,0 +1,8 @@
+{
+  "phase": "after",
+  "id": "001",
+  "model": "codex",
+  "code": 0,
+  "wallMinutes": 4.367366666666666,
+  "scope": "first checked application schema plus SDK discovery; no frontend/provisioning/end-to-end score"
+}

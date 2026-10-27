@@ -109400,6 +109400,35 @@ stopped. The 25 GiB guard never fires; bookend free space is **82.07 GiB**.
 The exact staged audit compares 1028 generated fixture credentials with zero
 matches; raw logs/data remain outside Git.
 
+### 2026-10-27 — DX15 production proofs and inspection
+
+Wave-31 lanes 007/014/021/030/042 had to assemble a production proof recipe
+from staging and source. The production card now leads with reusable real-user
+rosters and the existing serve/static/SIGTERM helpers; upgrade points inherited
+drivers at serve-check --then. Fast business work preserves serveCheck upMs.
+Lane 023's transient text can be observed before its trigger through a stable
+element. Lane 042's capped admin inspection has data --all/snapshotAll; query
+comments name the existing next cursor. Lane 006's ambiguous signup returns
+an explicit unknown-outcome/login recovery in why; complete-empty lists are
+spelled out in guide reads. LLP 3000.037.000 §7 records the implemented bounds.
+No publication, version bump or Mac execution; affected packed consumers and
+read-only source-copy replays are recorded in reports/20261027-dx15.
+
+DX15 verification follow-up: the packed custom-Home qualifier still expected
+DX14's default-only filter/status controls after replacing that Home. Adapt the
+transported proof to the custom screen while retaining its named Task input,
+SDK receipt and rendered-row assertions; init-typecheck guards that distinction.
+Independent reviews caught users-only roster-field validation, bounded observer
+cleanup and nested shadow-root discovery; each is corrected and the final
+observer delta is READY from both families. Private npm caches isolate the
+consumer rerun from concurrent publication cache maintenance.
+
+DX15's affected client run also checked exact password validation messages.
+Preserve delivered auth refusals unchanged; append login recovery only for an
+unknown signup outcome (malformed/lost reply). The existing Unicode/byte-boundary
+checks and duplicate/lost-signup regressions pass. The old serve recipe extractor
+is bounded before the new observer section, and its redaction mock now echoes
+the actual generated credential rather than an unrelated password literal.
 
 ## 2026-10-27 — SQW: SQLite durable cycles and owned revision reuse
 
@@ -109480,3 +109509,27 @@ setup/refinement attempts, per-lever limits and the scoped ownership proof.
 Raw logs/HDR/events stay outside Git; private stores are removed, known-secret
 scans pass, and the owned process audit finds no remaining helper or zombie.
 No push or publication. [Full SQW report](experiments/scale-controls/results-20261027-s1-sqlite-w/README.md).
+
+
+## 2026-10-27 — TOK1: one first schema and bounded builder waiting
+
+LLP 3000.037.000 §8 replaces the eight-card orientation with a complete 7,969-byte
+workflow, a hard default budget, per-project repeat deltas and declaration-derived
+proof/client/auth digests. Init prints the recipe/file map and starts a private,
+request-bound background frontend install. Its IPC worker retains npm custody;
+failed initialization preserves existing metadata. Asset placement keeps one
+uploader-bound home and gives a tested upload-per-image-column copy recipe.
+
+Four fresh paired reading-to-schema replays (Codex 001/025, Muse 019/028) reduce
+docs-before-schema from 23,470–43,156 to 2,315–3,243 tokens. Aggregate input falls
+55.4% and elapsed time 21.8% on that milestone, not a full-application bakeoff.
+An earlier after-card attempt still cost Muse 028 15,206 tokens; its transcripts
+are retained. A fresh Muse foreground command exits at 60 seconds without tool
+timeout, then probe:check passes. Deliberate external probe drivers must pass
+--hold or SNAPBACK4_PROBE_HOLD=1 on the child only; check-owned drivers do this
+internally. The external bakeoff harness was inspected read-only.
+
+Both independent final reviews are READY. Packed consumer and affected receipts
+are recorded in reports/20261027-tok1 and WORKSTREAM-REPORT.md. Origin/main's
+SQLite work was merged with only append-only journal resolution. No publication,
+version bump, push, Mac run, security-binder or client-contract edit is made.

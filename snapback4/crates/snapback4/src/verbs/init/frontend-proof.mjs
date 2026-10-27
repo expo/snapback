@@ -1,8 +1,11 @@
+// API signatures: snapback4 guide api proof | client | auth | generated
 // Builds its own dist before starting proof servers.
 // Replace the application assertions when replacing the starter screen.
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { command, startDev, startStatic, withBrowser, renderedText, fillRN, statusText, waitForFresh, bounded, cleanup, portRange } from "snapback4/proof";
+
+// SHARED_IMPORT
 
 // For SVG/foreignObject controls, click the actual rendered box, not a text
 // descendant whose DOM geometry Playwright may interpret differently.
@@ -39,6 +42,7 @@ try {
     }
     // TEMPLATE_READY
     await page.getByRole("button", { name: /^(Sign out|Switch persona)$/, exact: true }).waitFor();
+    // LABELLED_CONTROLS
     const task = page.getByLabel("Task", { exact: true });
     assert.ok(await task.count(), "no write scenario: replace the Home assertions");
     {

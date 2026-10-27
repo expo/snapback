@@ -1,0 +1,88 @@
+{
+  "receiptFile": "target/affected/12e84f999da6-1793080096528.json",
+  "head": "12e84f999da65353fad9176cadf1c50ce1e97301",
+  "ok": false,
+  "complete": true,
+  "unchanged": false,
+  "results": [
+    {
+      "id": "cli-build",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 116769
+    },
+    {
+      "id": "client-build",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 4385
+    },
+    {
+      "id": "client-types",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 4212
+    },
+    {
+      "id": "guide-and-reading",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 30236
+    },
+    {
+      "id": "cli-inspection",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 52532
+    },
+    {
+      "id": "cli-flags",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 43210
+    },
+    {
+      "id": "clients",
+      "status": 1,
+      "signal": null,
+      "elapsedMs": 197315
+    },
+    {
+      "id": "doc-budget",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 24340
+    },
+    {
+      "id": "packaged-docs",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 60
+    },
+    {
+      "id": "proof-api",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 1798
+    },
+    {
+      "id": "root-check-receipt",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 40
+    },
+    {
+      "id": "cleanup-owned-test-logs",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 27
+    },
+    {
+      "id": "refs",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 6737
+    }
+  ],
+  "disposition": "Three affected findings: serve extraction included the new observer fence; redaction mock echoed a made-up password; generic login advice appended to definitive password-validation refusals. The first two fixtures were corrected. Auth now adds advice only to unknown outcomes and preserves delivered refusals unchanged. Targeted reruns pass; final affected run follows."
+}

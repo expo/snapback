@@ -1,3 +1,4 @@
+import { refuseWatchGuess, validateObserveOptions } from "./observe-watch.ts";
 import { reconciledTiming, requestMatchesSession } from "./session-timing.ts";
 import { suppliedSession } from "./session-input.ts";
 import { servedRelease } from "./release.ts";
@@ -1269,6 +1270,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       };
     }, () => terminalQueryRefusal({ scope: null, store: null, closed: closed ? unavailable() : null, session: sessionDead ? unavailable() : null, changes: changesStopped, partition: partitionDenied, inherited: null }), aborter.signal),
     observe<A, R>(op: Query<A, R>, args: A, options?: ObserveOptions): Observed<R> {
+      validateObserveOptions(options);
       const keep = options?.keep;
       const key = observationKey(op, args, options);
       return observeWatch(watches, key,
@@ -1552,7 +1554,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   Object.assign(client, { release });
   client.onSession(() => release?.invalidate());
   client.onViewer(() => release?.invalidate());
-  return client;
+  return refuseWatchGuess(client);
   } catch (error) {
     stopSuspend?.(); stopOutbox?.();
     stopClock?.(); stopSessionTiming();

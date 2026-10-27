@@ -1,0 +1,38 @@
+{
+  "qualification": false,
+  "installedFrom": "/tmp/tok1-replay/consumers-integrated/packs",
+  "steps": [
+    {
+      "name": "Day5",
+      "ok": true,
+      "seconds": 173.758,
+      "value": {
+        "status": "passed",
+        "directory": "/tmp/tok1-replay/additional-Day5",
+        "guideRecipe": "capture-release-and-bridge",
+        "starterCustody": [
+          "web",
+          "expo"
+        ]
+      }
+    },
+    {
+      "name": "DX4",
+      "ok": true,
+      "seconds": 237.311,
+      "value": {
+        "wave19": {
+          "identity": "real 30/minute limits: SDK guest and proof seedUsers honor retryAfterMs",
+          "lifecycle": "worker-held store release precedes stop resolution, rollback and deploy",
+          "inspection": "default 50-row JSON more and explicit limit boundaries"
+        },
+        "status": "passed",
+        "recipes": "verbatim installed guide",
+        "uploads": "file hint, one home, foreign upload refusal, reference and download",
+        "staging": "discoverable, custom seat and merged args",
+        "dev": "memory mint selection, clock and reset recovery",
+        "upgrade": "project warning scan"
+      }
+    }
+  ]
+}

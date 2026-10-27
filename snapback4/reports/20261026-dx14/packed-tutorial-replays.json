@@ -1,0 +1,74 @@
+{
+  "date": "2026-10-27",
+  "runtime": "v24.13.1",
+  "tarballs": {
+    "snapback4-0.4.43.tgz": "d841eb4464aa28b42256fc861d1ab67e7ea867cb6a829a6648b855a8fd315cdc",
+    "snapback4-expo-0.4.43.tgz": "31702fb579a0cd6ed8422df824d7489f91a0dfa73f83070f126bff43dbaf7c38",
+    "snapback4-linux-x64-0.4.43.tgz": "f5e8e08204fb28142c34be84aa2abdeda1a4d486b2111ebfa3b7435b91968b8b"
+  },
+  "native": {
+    "source": "/tmp/dx14-replay/language/final-snapback4",
+    "sourceSha256": "a8bfa4a9f16c1ccffd4f9c943a2e51c20b0b3e0a5787af3edefdfa6f024d8323",
+    "installedPackage": "snapback4-linux-x64",
+    "installedSha256": "a8bfa4a9f16c1ccffd4f9c943a2e51c20b0b3e0a5787af3edefdfa6f024d8323"
+  },
+  "harness": "existing packages/snapback4/test/first-account.test.mjs copied with path-only adaptations",
+  "adaptations": [
+    "captureStdout helper uses original repository helper URL",
+    "wait/hang-budget helper uses original repository helper URL",
+    "SDK app.js import resolves installed tarball dist",
+    "SDK auth.js import resolves installed tarball dist",
+    "SDK native.js import resolves installed tarball dist",
+    "pkg path points to installed tarball; appendix, application scratch dirs and public exports use it",
+    "Following comparison reads original repository feeds fixture",
+    "React Native and SecureStore type fixture resolver uses original repository Expo workspace",
+    "React root type path uses original repository type fixture",
+    "React subpath types use original repository type fixture"
+  ],
+  "unchangedApplicationBlocks": [
+    {
+      "language": "quarry",
+      "sha256": "d38b760e44f042371ac0f6408c05468be3362c5e07fa741c29725d9d61e0b6d6"
+    },
+    {
+      "language": "ts",
+      "sha256": "34177d00a7664ccdd5e49b802a764389aeb9448a906e7a407eb89f527fc09361"
+    },
+    {
+      "language": "tsx",
+      "sha256": "abfcbafc9a3730e2e8cba7ed384d6cc13d71ef27d67dc36d0f4884a0580d06f0"
+    },
+    {
+      "language": "ts",
+      "sha256": "96e13d943a3eb688ef6983f787ed67758a016727188677505cdc5808c78ad305"
+    },
+    {
+      "language": "quarry",
+      "sha256": "92edd27b9a52dfc4e5516a9c1ec07abbc0a7e36fbd63475b4faaf7a753b7fdf1"
+    }
+  ],
+  "checks": [
+    "ok 1 - README first-account package imports execute through public exports",
+    "ok 2 - README Following reader matches the feeds card",
+    "ok 3 - README first account: online, generated API, password, avatar, reopen and denied read",
+    "# first account online: generated_types=1 signup=1 login=1 profile=1 avatar=1 reopen=1 denied=1 pending_same_id=1",
+    "ok 4 - README first account: local, generated API, password, avatar, reopen and denied read",
+    "# first account local: generated_types=1 signup=1 login=1 profile=1 avatar=1 reopen=1 denied=1 pending_same_id=1",
+    "# tests 4",
+    "# pass 4",
+    "# fail 0",
+    "# skipped 0"
+  ],
+  "ok": true,
+  "scope": "All four original tests: public exports and kept intent, Following reader comparison, online/local generated API/password/profile/avatar/reopen/denied/same-id recovery.",
+  "limitations": [
+    "The Following card comparison and TypeScript/React/React Native/SecureStore compiler infrastructure use the repository fixtures.",
+    "SDK/runtime imports and tutorial text use npm-installed tarballs; Expo native module types use the installed Expo source package.",
+    "The two runtime device tiers are Node online and the packed Linux process device; no Expo/iOS native execution or publication qualification is claimed.",
+    "Application src/client.ts and App.tsx fences are typechecked unchanged by the original harness; runtime assertions use its generated-API flow rather than rendering an Expo screen."
+  ],
+  "cleanup": {
+    "temporaryApplicationsAndStoresRemoved": true,
+    "temporaryRootRemoved": true
+  }
+}

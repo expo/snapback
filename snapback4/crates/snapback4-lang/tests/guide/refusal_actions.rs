@@ -2,6 +2,9 @@
 //! These facts supplement the definition pins. A code label alone cannot tell
 //! a caller whether to retry, replace intent, change a declaration, or show no data.
 pub(super) const ACTIONS: &[(&str, &[&str])] = &[
+    ("E_PROBE_IDLE", &["Verify with npm run probe:check", "--hold for deliberate long-lived service", "does not establish authorization or deployment readiness"]),
+    ("E_OBSERVE_USAGE", &["observed.subscribe(listener)", "unsubscribe and observed.close()"]),
+    ("N_ROLE_UNFILTERED", &["Pin role in the full unique key probe", "If every roster variant is intended"]),
     ("E_DEV_ACCOUNTS", &["Use devAccounts only on development; seedAccounts for staging and provisionAccounts for production. guide staging."]),
     ("E_SERVE_STOP_FAILED", &["Inspect shutdown handlers; a successful proof command cannot clear this failure. guide testing."]),
     ("E_SERVE_THEN_FAILED", &["Cleanup still checks group shutdown and lock release; repair the callback and rerun. guide testing."]),
@@ -214,6 +217,7 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("E_QUARRY_RULE_SPELLING", &["declare separate insert, update and delete rules for the operations intended"]),
     ("E_QUARRY_RULE_OPERATOR", &["The rewrite moves your comparison into the", "filter the query"]),
     ("E_PROOF_BROWSER", &["Install playwright-core@1.55.1 in the proof project and rerun.", "precedes browser startup, application callbacks and log creation"]),
+    ("E_PROOF_SNAPSHOT", &["Inspect the CLI refusal, deployment path and table name", "Ephemeral rows have no disk snapshot"]),
     ("E_PROOF_PAGE", &["Repair its query, authority or bound", "pass each opaque next cursor back unchanged", "No partial snapshot is returned"]),
     ("E_DEV_RESET", &["Reopen the client after reset.", "Outstanding writes retain unknown outcomes and are never retried automatically"]),
     ("E_PROOF_AMBIGUOUS", &["Narrow within or pass exact: true", "never choose the first match silently"]),

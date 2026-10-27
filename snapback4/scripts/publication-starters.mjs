@@ -184,7 +184,11 @@ export function installCustomWriteScenario(cwd,kind,template) {
     : `<View nativeID="proof-rows"><ProofTextInput accessibilityLabel="Task" value={draft} onChangeText={setDraft}/><Button title="Add" onPress={()=>void writer.run({title:draft})}/><Text>{"data" in rows?JSON.stringify(rows.data):""}</Text></View>`;
   const component=`\nfunction ProofWrite(){const [draft,setDraft]=proofState("");const writer=proofMutation(api.add),rows=proofQuery(api.mine,{});return ${body};}\n`;
   const source=imports+original.replace("<FirstRead />","<FirstRead /><ProofWrite />")+component;
-  const assertion=proof.replace(needle,'const within = page.locator("#proof-rows");');
+  // Replacing Home also replaces its starter-only filter/status controls.
+  // Retain the custom Task write, SDK receipt and rendered-row assertions.
+  const assertion=proof.replace(needle,'const within = page.locator("#proof-rows");')
+    .replace('const filter = page.getByRole("combobox", { name: "Task status", exact: true });\n    await filter.selectOption("open");\n    await filter.selectOption("all");', '')
+    .replace('await page.getByLabel("Write status", { exact: true }).waitFor();', '');
   writeFileSync(screen,source);writeFileSync(proofPath,assertion);
 }
 
@@ -231,7 +235,7 @@ export async function proveStarters(client, platform, expo, directory, browserPr
   import {pathToFileURL} from 'node:url';
   const guideTypeScriptExport=${guideTypeScriptExport.toString()};
   const cli=${JSON.stringify(cli)}, testPersistent=${JSON.stringify(id === "web")};
-  const guide=execFileSync(cli,['guide','testing','--section','Loading fixture rows'],{encoding:'utf8',timeout:10000});
+  const guide=execFileSync(cli,['guide','testing','--section','Loading fixture rows','--repeat'],{encoding:'utf8',timeout:10000});
   const fence=String.fromCharCode(96).repeat(3), snippet=guide.split(fence+'js')[1].split(fence)[0].trim();
   writeFileSync('guide-fixtures-snippet.mjs',snippet);
   const schema='snapback/schema.q', original=readFileSync(schema,'utf8');
@@ -297,7 +301,7 @@ export async function proveStarters(client, platform, expo, directory, browserPr
     `], cwd);
     if (browserProofs && id === "web") {
       const card = join(cwd, "testing-card.md");
-      await run(process.execPath, ["--input-type=commonjs", "-e", `require('node:fs').writeFileSync(${JSON.stringify(card)},require('node:child_process').execFileSync(${JSON.stringify(cli)},['guide','testing','--section','An acceptance script'],{encoding:'utf8',timeout:30000}));`], cwd);
+      await run(process.execPath, ["--input-type=commonjs", "-e", `require('node:fs').writeFileSync(${JSON.stringify(card)},require('node:child_process').execFileSync(${JSON.stringify(cli)},['guide','testing','--section','An acceptance script','--repeat'],{encoding:'utf8',timeout:30000}));`], cwd);
       const acceptance = readFileSync(card, "utf8").match(/```js\n([\s\S]*?)\n```/);
       assert.ok(acceptance, "packed testing card carries its browser recipe");
       writeFileSync(join(cwd, "guide-acceptance.mjs"), acceptance[1]);
