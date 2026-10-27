@@ -188,3 +188,35 @@ publication qualification were outside this brief's scope.
 This is a committed, measured item 1 boundary. The wave30 14/14 target, the two latency
 targets, items 2–9's implementation, and the remaining hole-lane fix-forward acceptance
 matrix remain outstanding. No new gate is half-wired.
+
+
+## SEC11b
+
+Status: in progress. This continuation supersedes the stopping boundary above:
+it commissions and will finish items 2–4 in order, with measurements between
+items. Latency is owned by SEC11L; no deploy scheduling changes are made here.
+
+Item 2 source is committed as `c4935cc124`; independent Muse and fresh Codex
+round-3 reviews are READY and retained at `c44d763734`. Receipt/effect data
+identifies the governed act; exact advisory replays cover quarantine completion,
+caller-ordinal applicability bypass and an approval selected by an older subject.
+The gate and advisory work bounds remain 3,072 and 8,192. All 53 focused CLI
+unit tests pass. Broader language and CLI integration checks remain running.
+
+Production binary `c56d97f508b15d6dbb1a7e6d5631f2678103ef563d6501e6dba0fde045469c73`
+is source-hash bound. On wave30 source copies, the 018 quarantine guard, 025
+count/latest guards and existing 033 damp guard clear the targeted current
+witnesses. 018 and 033 unchanged acceptances pass (033: 66 checks). The 025
+acceptance reuses a candidate with attempt=1 in two independent scenarios; the
+untouched script therefore fails after a correct counter repair. Isolating
+those scenarios with fresh candidates retains every original assertion and
+passes all 16 checks. Original failures, the fixture-only isolation patch and
+source hashes are retained; no unchanged-025-acceptance PASS is claimed.
+
+The complete 800-schema fresh/post-test precision and default-output survey is
+running. Wave31 calibration is now available (16 Snapback M findings), so a
+separate 50-schema before/after coverage pass is included. No final measured
+coverage or zero-false-gate claim is made until those runs finish.
+
+Items 3 and 4 have not started; item 2's completed measurement is their boundary.
+No push or version bump.

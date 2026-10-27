@@ -1,8 +1,10 @@
 import argparse,gzip,json,pathlib,collections
-p=argparse.ArgumentParser();p.add_argument('--survey',required=True);p.add_argument('--out',required=True);p.add_argument('--baseline',default='snapback4/reports/sec11-item1/survey-all800.json.gz');a=p.parse_args()
+p=argparse.ArgumentParser();p.add_argument('--survey',required=True);p.add_argument('--out',required=True);p.add_argument('--baseline',default='snapback4/reports/sec11-item1/survey-all800.json.gz');p.add_argument('--baseline-extra');p.add_argument('--survey-extra');a=p.parse_args()
 root=pathlib.Path.home()/'sb4-loop'
 before=json.load(gzip.open(a.baseline,'rt')) if a.baseline.endswith('.gz') else json.loads(pathlib.Path(a.baseline).read_text())
 after=json.loads(pathlib.Path(a.survey).read_text())
+if a.baseline_extra:before+=json.loads(pathlib.Path(a.baseline_extra).read_text())
+if a.survey_extra:after+=json.loads(pathlib.Path(a.survey_extra).read_text())
 # Each rule is tied to the calibrated effect, not just any finding in its lane.
 rules={
 (26,'002','F1'):dict(codes=['N_CALENDAR_DURATION']),
@@ -47,6 +49,15 @@ rules={
 (30,'035','F1'):dict(codes=['N_TRANSITION_BYPASS'],ops=['finishBatch']),
 (30,'038','F1'):dict(codes=['N_DUPLICABLE_GUARD']),
 }
+for (wave,lane,finding),rule in list(rules.items()):
+ if wave==30:rules[(31,lane,finding)]=rule.copy()
+rules.update({
+ (31,'002','F2'):dict(codes=['N_INSERT_WRITE_INTENT'],ops=['openFitting'],term='referralScan'),
+ (31,'010','F2'):dict(codes=['N_TRANSITION_BYPASS','N_EDIT_AFTER_APPROVAL'],ops=['cancelHighWater'],oldValues=['equipped']),
+ (31,'014','F3'):dict(codes=['N_ASSIGNMENT_SCOPE'],ops=['setEntrancePhoto'],term='entrancePhoto',effect='update'),
+ (31,'014','F4'):dict(codes=['N_INSERT_WRITE_INTENT'],ops=['openProject'],term='entrancePhoto'),
+ (31,'019','F1'):dict(codes=['N_INSERT_WRITE_INTENT'],ops=['openMove'],term='price'),
+})
 def category(row,rule):
  if 'prevented'in rule:return dict(category='nothing',reason='No current finding/witness; the calibrated input is already rejected by inherited language semantics.',inheritedLanguagePrevention=rule['prevented'],targetVisible=False,evidence=[])
  ev=[]
@@ -58,6 +69,8 @@ def category(row,rule):
   if rule.get('term')and rule['term'].lower()not in material.lower():continue
   if any(w.get('row',{}).get(k)!=v for k,v in rule.get('truth',{}).items()):continue
   if any(not isinstance(w.get('row',{}).get(k),int) or w['row'][k]>=v for k,v in rule.get('less',{}).items()):continue
+  if rule.get('effect')and w.get('effect')!=rule['effect']:continue
+  if rule.get('oldValues')and not all(v in (w.get('old')or{}).values()for v in rule['oldValues']):continue
   if rule.get('decrease'):
    c=rule['decrease'];old=(w.get('old')or{}).get(c);new=(w.get('row')or{}).get(c)
    if not isinstance(old,int)or not isinstance(new,int)or old<=new:continue
@@ -72,10 +85,11 @@ def category(row,rule):
  return dict(category='advisory only'if notes else'nothing',targetVisible=False,evidence=[],notes=notes)
 indexes=[{(r['wave'],r['lane'][:3]):r for r in rows}for rows in [before,after]]
 assess=[]
-for wave in [26,28,30]:
+waves=[26,28,30]+([31]if a.baseline_extra and a.survey_extra else[])
+for wave in waves:
  for finding in json.loads((root/f'wave{wave}/analysis/calibration.json').read_text())['findings']:
   if finding['backend']!='snapback'or finding['cal']!='M':continue
   key=(wave,finding['lane'],finding['id']);rule=rules[key];records=[idx[(wave,finding['lane'])]for idx in indexes]
   assess.append(dict(wave=wave,lane=finding['lane'],finding=finding['id'],pattern=finding.get('pattern'),calibration=finding.get('rule')or finding.get('note'),match=rule,sourceHashMatches=records[0]['sha256']==records[1]['sha256'],before=category(records[0],rule),after=category(records[1],rule)))
-result=dict(method='Exact calibrated effects matched by operation, material predicate/column, and where relevant actual row values. Unrelated questions are excluded. The four requested finding categories are used; rows already prevented by inherited types have category nothing (no current finding/witness) and an explicit inheritedLanguagePrevention flag, never SEC11 credit.',assessments=assess,summary={str(w):{when:dict(collections.Counter(x[when]['category']for x in assess if x['wave']==w))for when in['before','after']}for w in[26,28,30]})
+result=dict(method='Exact calibrated effects matched by operation, material predicate/column, and where relevant actual row values. Unrelated questions are excluded. The four requested finding categories are used; rows already prevented by inherited types have category nothing (no current finding/witness) and an explicit inheritedLanguagePrevention flag, never SEC11 credit.',assessments=assess,summary={str(w):{when:dict(collections.Counter(x[when]['category']for x in assess if x['wave']==w))for when in['before','after']}for w in waves})
 pathlib.Path(a.out).write_text(json.dumps(result,indent=2)+'\n');print(json.dumps(result['summary'],indent=2))

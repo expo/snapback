@@ -1,0 +1,11 @@
+--- wave30/018/schema.q
++++ fixed/018/schema.q
+@@ -171,6 +171,8 @@
+   t = touchups[touchup] ! else NOT_FOUND
+   require t.done = false else BAD_STATUS 'This tree is already pruned.'
+   v = visits[t.visit] ! else NOT_FOUND
++  o = orchards[v.orchard] ! else NOT_FOUND
++  require not o.quarantine or exists approvals[v.id] else QUARANTINE_APPROVAL_REQUIRED
+   require now <= v.visitDate + 30d else TOUCHUP_WINDOW_PASSED 'A missed tree may be pruned within 30 days of the visit.'
+   update touchups[touchup] { done: true, doneAt: now }
+   return null
