@@ -596,7 +596,7 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
         }
         rebuild_reads(tx,&source,&reads)?;
     for fill in &entering {
-
+        let input_only=input_only(&fill.program.body);
         let t=tx.num(&fill.table)?;let key=fill.key();let table=&next.tables[&fill.table];let mut bad=super::adopt_refusals::Samples::default();let mut count=0;
         super::activation::walk(tx,t,|id,mut row|{
             if old_keys.contains(&key) && !tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM _dormant_narrow_rows WHERE t=?1 AND id=?2)",params![t,id],|r|r.get::<_,bool>(0))? {return Ok(())}
@@ -709,12 +709,19 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
                     if let Some(native)=native {
                         let native:Value=decode(&native)?;
                         if fields.get(c)==Some(&native) && crate::engine::validate::validate_column(&fill.table,c,&table.columns[c],Some(&native)).is_ok() {
+                            // A validated down receipt proves the native image,
+                            // not the forward transform's other dependencies.
+                            let unchanged=prior.inputs==inputs && if prior.computed.is_empty(){input_only}else{prior.computed==patch};
+                            if !unchanged && &native!=value {
+                                bad.add(id,&format!("{}.{} authored output {} conflicts with changed historical inputs/dependencies and recomputation {}; for forward selection retain a bridge, repair through an authorized mutation and use a fresh declaration name",fill.table,c,display_cell(Some(&native)),display_cell(Some(value))));return Ok(())
+                            }
                             desired.insert(c.clone(),native);
                             native_preserved.insert(c.clone());
                             continue;
                         }
                     }
-                    let deps_same=prior.inputs==inputs && prior.after==patch;
+                    let computation_same=if prior.computed.is_empty(){input_only && prior.after==patch}else{prior.computed==patch};
+                    let deps_same=prior.inputs==inputs && computation_same;
                     let current_field=fields.get(c);
                     let original=prior.before.get(c);
                     let expected=prior.reversed.get(c).cloned().unwrap_or_else(||original.cloned());
@@ -722,11 +729,10 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
                     if !transformed && actual.as_ref()!=expected.as_ref() && actual.as_ref()!=prior.after.get(c) && actual.as_ref()!=Some(value) {
                         bad.add(id,&format!("{}.{} changed while backfill {} was absent: older-release value {}, expected old view {}, retained newer value {}, recomputed value {}; for forward selection use a fresh declaration name for the repaired transform, preserve current values in a bridge and resolve through an authorized mutation; see guide rename",fill.table,c,fill.name,display_cell(actual.as_ref()),display_cell(expected.as_ref()),display_cell(prior.after.get(c)),display_cell(Some(value))));return Ok(())
                     }
-                    let computed=if prior.computed.is_empty(){&prior.after}else{&prior.computed};
-                    if prior.authored.contains(c)&&(prior.inputs!=inputs||computed!=&patch)&&current_field!=Some(value){
+                    if prior.authored.contains(c)&&(prior.inputs!=inputs||!computation_same)&&current_field!=Some(value){
                         bad.add(id,&format!("{}.{} authored output {} conflicts with changed historical inputs/dependencies and recomputation {}; retain a bridge and resolve explicitly",fill.table,c,display_cell(current_field),display_cell(Some(value))));return Ok(())
                     }
-                    if prior.authored.contains(c) && computed==&patch && prior.inputs==inputs && current_field==prior.after.get(c) && current_field.is_some() {
+                    if prior.authored.contains(c) && computation_same && prior.inputs==inputs && current_field==prior.after.get(c) && current_field.is_some() {
                         desired.insert(c.clone(),current_field.unwrap().clone());
                     } else if deps_same && transformed && current_field.is_some() {
                         // Added columns retain edits under v1's dormant storage.
@@ -781,6 +787,27 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
     // candidate key/cap/maintain validation, even when its declaration is equal.
     tx.set_meta("activation_population","true")?;
     Ok(())
+}
+// Index discovery is not purity: fileText also reads the ledger and file bytes.
+// Migration admission has already checked the deterministic instruction subset.
+fn input_only(body:&[crate::ir::Stmt])->bool {
+    use crate::ir::{Expr,Stmt,Builtin};
+    fn value(expr:&Expr)->bool {match expr {
+        Expr::Literal(_)|Expr::Variable(_)=>true,
+        Expr::Array(values)=>values.iter().all(value),Expr::Object(fields)=>fields.values().all(value),
+        Expr::Shape{base,fields}=>value(base)&&fields.values().all(value),
+        Expr::Field{base,..}|Expr::Unary{value:base,..}=>value(base),
+        Expr::Binary{left,right,..}=>value(left)&&value(right),
+        Expr::Block{body,value:result}=>input_only(body)&&value(result),
+        Expr::Builtin{builtin,args}=>!matches!(builtin,Builtin::FileText)&&args.iter().all(value),
+        _=>false,
+    }}
+    body.iter().all(|stmt|match stmt {
+        Stmt::Let{value:expr,..}|Stmt::Const{value:expr,..}|Stmt::Assign{value:expr,..}|Stmt::Return(expr)=>value(expr),
+        Stmt::Require{condition,..}=>value(condition),
+        Stmt::If{condition,then_body,else_body}=>value(condition)&&input_only(then_body)&&input_only(else_body),
+        _=>false,
+    })
 }
 fn collect_reads(body:&[crate::ir::Stmt],out:&mut BTreeSet<(String,String)>){
     use crate::ir::{Expr,Stmt};

@@ -206,7 +206,7 @@ pub fn compare(old: &Bound, new: &Bound, label: &str) -> Vec<String> {
         if change==ResultChange::Changed || aliases.is_some() {
             let reads=frozen.keys().filter(|path|!path.ends_with('?')).cloned().collect::<Vec<_>>();
             let missing=reads.iter().filter(|path|!served.contains_key(*path)).cloned().collect::<Vec<_>>();
-            let covered=aliases.into_iter().flat_map(|a|a.iter()).filter(|(alias,_)|reads.iter().any(|path|(path.as_str()==alias.as_str()||path.as_str()==format!("[].{alias}"))&&served.contains_key(path))).map(|(alias,current)|format!("covered by alias {name}.{alias} = {current}")).collect::<Vec<_>>();
+            let covered=aliases.into_iter().flat_map(|a|a.iter()).filter(|(alias,_)|reads.iter().any(|path|[alias.to_string(),format!("[].{alias}")].iter().any(|prefix|path==prefix||path.starts_with(&format!("{prefix}."))||path.starts_with(&format!("{prefix}[]")))&&served.contains_key(path))).map(|(alias,current)|format!("covered by alias {name}.{alias} = {current}")).collect::<Vec<_>>();
             lines.push(format!("{prefix}: RESULT REVIEW: frozen result reads [{}]; missing fields [{}]{}",reads.join(", "),missing.join(", "),if covered.is_empty(){String::new()}else{format!("; {}",covered.join("; "))}));
         }
 

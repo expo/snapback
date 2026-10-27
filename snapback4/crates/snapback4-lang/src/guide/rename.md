@@ -118,6 +118,8 @@ If an older runtime recorded a same-release rollback and forward now refuses,
 keep a backup and restart serve with the corrected CLI. Preview
 `snapback4 rollback DIR --to latest --exact --check`, then run the same command
 without `--check`. A validated native down receipt repairs the damaged forward
-bookkeeping without deleting history. An edited old projection still refuses:
+bookkeeping without deleting history. Missing computed evidence cannot certify
+external dependencies (including file reads); conflicting or unverifiable
+dependencies still refuse. An edited old projection still refuses:
 use the named row and old operation (or an authorized bridge) to resolve it. For
 new transform meaning, use a fresh declaration name; pruning never resets it.

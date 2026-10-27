@@ -847,7 +847,10 @@ fn wave27_exact_source_proves_column_audiences_or_refuses_the_named_write() {
     let old="table docs:\n  owner: principal\n  body: text <=40\n  public\n  insert <- allow\n  update <- allow\n  online only\nmutation add(owner: principal, body: text <=40):\n  return insert docs {owner,body}\n";
     let next=old.replace("body: text <=40\n","body: text <=40 write <- .owner = viewer\n");
     let before=vec![("schema.q".into(),old.into())];let current=vec![("schema.q".into(),next)];
-    assert!(!release_bridge::requires_view(&before,&current));
+    // REL3 keeps a guarded current view while exact old writes still refuse.
+    assert!(release_bridge::requires_view(&before,&current));
+    let view=release_bridge::loosen(&before,&current);assert!(view.diagnostics.is_empty(),"{:?}",view.diagnostics);
+    assert_eq!(compile(&view.sources).schema.tables["docs"].column_writes,compile(&current).schema.tables["docs"].column_writes);
     let error=release_bridge::exact_write_authority(&before,&current).unwrap_err();
     assert!(error.contains("docs.body")&&error.contains("add")&&error.contains("write <-"),"{error}");
     let guarded=old.replace("insert <- allow","insert <- .owner = viewer");

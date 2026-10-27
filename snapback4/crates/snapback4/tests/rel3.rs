@@ -31,20 +31,30 @@ fn wave31_041_redundant_rollback_records_nothing_and_forward_still_restores_nati
 }
 #[test]
 fn wave31_041_010_legacy_self_transition_repairs_only_validated_native_preimages(){
+    for computed in ["{\"stage\":{\"String\":\"wood_repair\"}}", "{}"] {
     let a=rolled();
     // Exact damaged forward receipt from the 0.4.43 lineage reproduction: the
     // down receipt and its native outer_covering remain untouched.
     let c=rusqlite::Connection::open(a.0.join("deploy/store.sqlite")).unwrap();
-    c.execute_batch("UPDATE _backfill_evidence SET after_image='{\"stage\":{\"String\":\"recovering\"}}',reversed_image='{\"stage\":{\"String\":\"recovering\"}}',computed_image='{\"stage\":{\"String\":\"wood_repair\"}}' WHERE definition IN (SELECT digest FROM _backfill_definitions); INSERT OR IGNORE INTO _backfill_absence SELECT t,id,'$authored:'||definition,'stage' FROM _backfill_evidence WHERE definition IN (SELECT digest FROM _backfill_definitions); INSERT INTO _release_events SELECT id+1,at,'rollback',1,1,generation,revision+1,summary FROM _release_events ORDER BY id DESC LIMIT 1; UPDATE _meta SET value=CAST(value AS INTEGER)+1 WHERE key='release_revision';").unwrap();drop(c);
+    c.execute_batch("UPDATE _backfill_evidence SET after_image='{\"stage\":{\"String\":\"recovering\"}}',reversed_image='{\"stage\":{\"String\":\"recovering\"}}',computed_image='{\"stage\":{\"String\":\"wood_repair\"}}' WHERE definition IN (SELECT digest FROM _backfill_definitions); INSERT OR IGNORE INTO _backfill_absence SELECT t,id,'$authored:'||definition,'stage' FROM _backfill_evidence WHERE definition IN (SELECT digest FROM _backfill_definitions); INSERT INTO _release_events SELECT id+1,at,'rollback',1,1,generation,revision+1,summary FROM _release_events ORDER BY id DESC LIMIT 1; UPDATE _meta SET value=CAST(value AS INTEGER)+1 WHERE key='release_revision';").unwrap();
+    c.execute("UPDATE _backfill_evidence SET computed_image=?1 WHERE definition IN (SELECT digest FROM _backfill_definitions)",[computed]).unwrap();drop(c);
     let preview=a.json(&["rollback","deploy","--to","latest","--exact","--check"]);assert_eq!(preview["visibility"]["hiddenRows"],0);
     a.ok(&["rollback","deploy","--to","latest","--exact"]);assert_eq!(a.stage(),"outer_covering");
     a.ok(&["rollback","deploy","--to","1"]);a.edit_stage("teardown");let out=a.run(&["rollback","deploy","--to","latest","--exact"]);
     let text=format!("{}{}",String::from_utf8_lossy(&out.stdout),String::from_utf8_lossy(&out.stderr));assert!(!out.status.success());assert!(text.contains("kept")&&text.contains("forward")&&text.contains("trunks.stage"),"{text}");
+    }
 }
 #[test]
 fn wave31_codex_012_024_rename_and_widen_use_one_release_and_direct_cycles(){
     let a=App::new();let old="table items:\n  amount: int 10..100\n  public\n  online only\nquery list():\n  return items first 20 by .id\n";a.source(old);a.ok(&["deploy","deploy"]);a.seed(old,"items",json!({"id":"v1","amount":50}));
     let new=old.replace("amount: int 10..100","price: int 0..1000 renamed from amount")+"alias result list.amount = price\n";a.source(&new);a.ok(&["deploy","deploy","--check"]);a.ok(&["deploy","deploy"]);a.seed(&new,"items",json!({"id":"v2","price":500}));
+    // Exact source retains out-of-domain native values as narrowed evidence;
+    // it must never serve price=500 as an amount in the old 10..100 domain.
+    let exact=a.json(&["rollback","deploy","--to","1","--exact","--check"]);assert_eq!(exact["visibility"]["hiddenRows"],1,"{exact}");
+    a.ok(&["rollback","deploy","--to","1","--exact"]);
+    let visible=a.json(&["data","items","--release","deploy"]);assert_eq!(visible["rows"].as_array().unwrap().len(),1);assert_eq!(visible["rows"][0]["id"],"v1");assert_eq!(visible["rows"][0]["amount"],50);
+    a.ok(&["rollback","deploy","--to","latest"]);assert_eq!(a.json(&["data","items","--release","deploy"])["rows"].as_array().unwrap().len(),2);
+
     for _ in 0..2{a.ok(&["rollback","deploy","--to","1"]);assert_eq!(a.json(&["data","items","--release","deploy"])["rows"].as_array().unwrap().len(),2);a.ok(&["rollback","deploy","--to","latest"]);}
 }
 

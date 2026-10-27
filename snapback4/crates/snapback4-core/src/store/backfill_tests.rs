@@ -1321,3 +1321,41 @@ fn wave31_024_requalification_does_not_treat_retained_rename_inputs_as_a_new_nat
  e.adopt_release(s,p,&ReleaseActivation::new(777,Some(previous)),false).unwrap();
  assert_eq!(field(&mut e,"items","kept","delivery"),Value::String("fits".into()));
 }
+
+fn migration_receipts(e:&Engine)->Vec<String>{
+    let conn=e.store().test_support_conn();let mut q=conn.prepare("SELECT json_object('definition',definition,'inputs',inputs,'before',before_image,'after',after_image,'computed',computed_image,'reversed',reversed_image,'active',active,'epoch',epoch) FROM _backfill_evidence ORDER BY t,id,definition").unwrap();let mut out=q.query_map([],|r|r.get(0)).unwrap().collect::<Result<Vec<String>,_>>().unwrap();drop(q);
+    let mut q=conn.prepare("SELECT json_object('absence',definition,'column',column_name,'t',t,'id',id) FROM _backfill_absence ORDER BY t,id,definition,column_name").unwrap();out.extend(q.query_map([],|r|r.get::<_,String>(0)).unwrap().collect::<Result<Vec<_>,_>>().unwrap());out
+}
+#[test]
+fn wave31_041_040_native_receipt_repair_still_refuses_changed_forward_inputs_and_point_dependencies() {
+    let base="table factors:\n  n: int\n  public 'fixture'\n  update <- allow\n  online only\ntable items:\n  n: int\n  score: int\n  public 'fixture'\n  update <- allow\n  online only\nmutation changeFactor():\n  update factors['factor'] {n:3}\nmutation zeroFactor():\n  update factors['factor'] {n:0}\nmutation changeInput():\n  update items['a'] {n:6}\n";
+
+    for (op,poison,multi,down) in [("changeFactor",false,false,true),("changeInput",false,false,true),("zeroFactor",true,false,true),("zeroFactor",true,true,true),("zeroFactor",true,false,false),("zeroFactor",true,true,false)] {
+        let old=if multi{base.replace("  score: int\n","  score: int\n  bonus: int\n")}else{base.to_owned()};
+        let mut next=old.clone()+"backfill items computed(n: int): {score:n * (factors['factor'] ! else NO_FACTOR).n}\ndown items legacy(score: int): {score:0}\nmutation editOutput():\n  update items['a'] {score:42}\n";
+        if multi{next=next.replace("NO_FACTOR).n}","NO_FACTOR).n,bonus:n + 1}").replace("legacy(score: int): {score:0}","legacy(score: int, bonus: int): {score:0,bonus:0}").replace("{score:42}","{score:42,bonus:99}");}
+        if !down{next=next.lines().filter(|line|!line.starts_with("down items legacy(")).collect::<Vec<_>>().join("\n")+"\n";}
+        let mut e=engine(&old);seed(&mut e,"factors",json!({"id":"factor","n":2}));let mut initial=json!({"id":"a","n":5,"score":0});if multi{initial["bonus"]=json!(0);}seed(&mut e,"items",initial);
+        adopt(&mut e,&next,2).unwrap();write(&mut e,"editOutput");adopt(&mut e,&old,1).unwrap();
+        if poison{let image=if multi{json!({"score":{"Int":0},"bonus":{"Int":6}})}else{json!({"score":{"Int":0}})};e.store().test_support_conn().execute("UPDATE _backfill_evidence SET after_image=?1,reversed_image=?1,computed_image='{}' WHERE definition IN (SELECT digest FROM _backfill_definitions)",[image.to_string()]).unwrap();}
+        write(&mut e,op);
+        let status=e.store_mut().release_status(0,None,None).unwrap();let receipt=migration_receipts(&e);let row=row(&mut e,"items","a");let generation=e.generation();
+        let error=adopt(&mut e,&next,2).unwrap_err().to_string();assert!(error.contains(if multi{"items.bonus"}else{"items.score"})&&error.contains("a")&&error.contains(if multi{"99"}else{"42"})&&(error.contains("dependencies")||!down&&error.contains("changed while backfill")),"{error}");
+        assert_eq!(e.generation(),generation);assert_eq!(e.store_mut().release_status(0,None,None).unwrap(),status);assert_eq!(migration_receipts(&e),receipt);assert_eq!(self::row(&mut e,"items","a"),row);
+    }
+}
+
+#[test]
+fn wave31_041_native_repair_needs_a_computation_certificate_for_file_text_reads_unless_values_agree() {
+    let old="table orders:\n  names: file <=1000\n  quantity: int default 0\n  public 'fixture'\n  insert <- allow\n  update <- allow\n  online only\n";
+    for agreement in [false,true] {
+        let mut e=engine(old);let asset=e.store_file("alice",b"Ada\nLin\nAda\n",Some("text/plain"),"names.txt",100).unwrap();seed(&mut e,"orders",json!({"id":"a","names":wire::to_json(&asset.column_value()),"quantity":0}));
+        let next=format!("{old}backfill orders quantity(names: file <=1000): {{quantity:nonemptyLines(fileText(names))}}\ndown orders legacy(quantity: int): {{quantity:0}}\nmutation editOutput():\n  update orders['a'] {{quantity:{}}}\n",if agreement{3}else{42});
+        adopt(&mut e,&next,2).unwrap();assert_eq!(field(&mut e,"orders","a","quantity"),Value::Int(3));write(&mut e,"editOutput");adopt(&mut e,old,1).unwrap();
+        e.store().test_support_conn().execute_batch("UPDATE _backfill_evidence SET after_image='{\"quantity\":{\"Int\":0}}',reversed_image='{\"quantity\":{\"Int\":0}}',computed_image='{}' WHERE definition IN (SELECT digest FROM _backfill_definitions);").unwrap();
+        let status=e.store_mut().release_status(0,None,None).unwrap();let receipts=migration_receipts(&e);let row=row(&mut e,"orders","a");let generation=e.generation();
+        let result=adopt(&mut e,&next,2);
+        if agreement {result.unwrap();assert_eq!(field(&mut e,"orders","a","quantity"),Value::Int(3));}
+        else{let error=result.unwrap_err().to_string();assert!(error.contains("orders.quantity")&&error.contains("42")&&error.contains("dependencies"),"{error}");assert_eq!(e.generation(),generation);assert_eq!(e.store_mut().release_status(0,None,None).unwrap(),status);assert_eq!(migration_receipts(&e),receipts);assert_eq!(self::row(&mut e,"orders","a"),row);}
+    }
+}

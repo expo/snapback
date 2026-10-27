@@ -88,3 +88,11 @@ fn rollback_photos_never_infer_parent_identity_from_an_object_or_replaced_id() {
         assert!(bridge.diagnostics.is_empty(),"{:?}",bridge.diagnostics);assert!(!bridge.sources[0].1.contains("rollbackResult_"),"{}",bridge.sources[0].1);
     }
 }
+
+#[test]
+fn frozen_alias_coverage_includes_descendants_of_the_aliased_root_object() {
+    let old=bound("query list():\n  return {legacy:{label:'old'}}\n");
+    let new=bound("query list():\n  return {details:{label:'new'}}\nalias result list.legacy = details\n");
+    let review=snapback4_lang::client_contracts::compare(&old,&new,"frozen nested UI").join("\n");
+    assert!(review.contains("legacy.label")&&review.contains("missing fields []")&&review.contains("covered by alias list.legacy = details"),"{review}");
+}
