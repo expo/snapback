@@ -6,7 +6,7 @@ use snapback4_core::{Context, Engine, ir, schema::{RuleExpr, RuleTerm}};
 pub(super) fn advisory(code:&str)->bool {
     matches!(code,"N_OPTIONAL_EVIDENCE"|"N_TEXT_EVIDENCE"|"N_CHILD_EVIDENCE_PRESENCE"|"N_GUARD_NOT_CONSUMED"|"N_BROAD_READ")
 }
-pub(super) fn candidates(bound:&Bound,sources:&[(String,String)],index:usize,n:&Diagnostic)->Vec<(usize,security::Invariant)> {
+pub(super) fn proposals(bound:&Bound,index:usize,n:&Diagnostic)->Vec<(usize,Candidate)> {
     let mut lines=Vec::new();
     if n.code=="N_OPTIONAL_EVIDENCE" {
         if let Some((table,column))=n.message.split_whitespace().next().and_then(|s|s.split_once('.'))
@@ -75,12 +75,13 @@ pub(super) fn candidates(bound:&Bound,sources:&[(String,String)],index:usize,n:&
             }
         }
     }
-    lines.into_iter().filter_map(|line|candidate(sources,&line).map(|mut inv|{
-        if matches!(n.code.as_str(),"N_OPTIONAL_EVIDENCE"|"N_CHILD_EVIDENCE_PRESENCE") {
-            inv.site.file=inv.site.file.replace("/dx11/","/sec11-absence/");
-        }
-        (index,inv)
-    })).collect()
+    let absence=matches!(n.code.as_str(),"N_OPTIONAL_EVIDENCE"|"N_CHILD_EVIDENCE_PRESENCE");
+    lines.into_iter().map(|line|(index,Candidate::Source(line,absence))).collect()
+}
+
+#[cfg(test)]
+fn candidates(bound:&Bound,sources:&[(String,String)],index:usize,n:&Diagnostic)->Vec<(usize,security::Invariant)> {
+    candidate_batch::resolve(sources,proposals(bound,index,n))
 }
 
 pub(super) fn text_evidence(mut value:serde_json::Value,n:&Diagnostic)->serde_json::Value {
@@ -223,7 +224,7 @@ pub(super) fn repeat(bound:&Bound,inv:&security::Invariant,c:&Counterexample,n:&
         assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);
         let n=Diagnostic::new(&Default::default(),code,message,"state intent");
         let stages=security::derived::workflow_columns_from_sources(&sources,&bound);
-        let selected=candidates(&bound,&sources,0,&n);assert!(!selected.is_empty(),"no candidate for {message}");
+        let selected=candidate_batch::resolve(&sources,proposals(&bound,0,&n));assert!(!selected.is_empty(),"no candidate for {message}");
         bound.invariants=selected.iter().map(|(_,i)|i.clone()).collect();
         let mut campaign=challenges::Campaign::work_bounded(8192);challenges::generated_campaign(&bound,&mut campaign,false);
         selected.iter().flat_map(|(_,inv)|campaign.violations.iter().filter(|c|c.invariant_site==inv.site.to_string()&&c.reachability.is_reachable()).filter_map(|c|{

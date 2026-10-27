@@ -130,7 +130,7 @@ pub(super) fn release_loop(project:&Project,bound:&Bound,sources:&[(String,Strin
     let mut report=phase::measure("deploy.report", || report_with_reviewed(project,bound,sources,&preflight,&Default::default()));
     report.notes.extend(presence::notes(project,bound,prior,sources)?);
     if super::proof_source::sources(project,options,"schema")?!=sources{return Err("selected Quarry sources changed during deployment security preflight".into());}
-    let mut evidence=phase::measure("deploy.witnesses", || witnesses::collect(project,bound,sources,&report.notes,true,options));
+    let mut evidence=phase::measure("deploy.witnesses", || witnesses::collect_with_report(project,bound,sources,&report.notes,true,options,preflight.flags.contains_key("security-deploy").then_some(&report)));
     witnesses::apply_report(sources,bound,&report,&report.notes,&mut evidence);
     if super::proof_source::sources(project,options,"schema")?!=sources{return Err("selected Quarry sources changed during deployment witness replay; rerun deploy".into());}
     let mut dispositions=decisions.dispositions_with_evidence(sources,&report.notes,&evidence);

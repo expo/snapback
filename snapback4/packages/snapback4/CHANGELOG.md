@@ -4,6 +4,8 @@
 
 ### Guide changes
 
+- Check and production deploy avoid repeated security compilation and replay, run independent witness campaigns concurrently, and construct isolated fixture copies without rebuilding discarded empty stores. The same gates, questions, replay budgets and decision identities apply.
+
 - Security decision refusals include the current redacted replay. Evidence presence, text evidence, child attachments, broad audiences and supported guard reuse can carry concrete advisory witnesses; acknowledging one must name that witness and explicitly permit its observed operation and caller. Witness identity now retains logical clocks, observable absence and delivered field sets; older answers can become pending once when these previously omitted inputs change the digest.
 
 ## 0.4.43

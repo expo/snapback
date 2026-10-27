@@ -279,11 +279,13 @@ impl Store {
         Ok(store)
     }
 
-    pub fn memory() -> Result<Self, RuntimeError> {
-        let assets_dir = std::env::temp_dir().join(format!(
+    fn memory_assets_dir() -> Result<PathBuf, RuntimeError> {
+        Ok(std::env::temp_dir().join(format!(
             "snapback4-{}-{}", std::process::id(), crate::ids::mint(crate::now_ms(), &mut crate::ids::Mint::default())?
-        ));
-        Self::prepare(Connection::open_in_memory()?, assets_dir, true, true)
+        )))
+    }
+    pub fn memory() -> Result<Self, RuntimeError> {
+        Self::prepare(Connection::open_in_memory()?, Self::memory_assets_dir()?, true, true)
     }
 
     // @ref LLP 3000.023#12 — create server metadata at open, before reads can

@@ -3,15 +3,21 @@ use super::*;
 impl Store {
     // @ref LLP 3000.036.004#122-reproducible-campaigns-and-reachability — fork committed state, never reinterpret stored rows as new seed input.
     pub fn fork_memory(&self) -> Result<Self, RuntimeError> {
-        let mut fork = Self::memory()?;
+        let started = crate::replay_profile::start();
+        let mut conn = Connection::open_in_memory()?;
         {
-            let backup = rusqlite::backup::Backup::new(&self.conn, &mut fork.conn)?;
+            let backup = rusqlite::backup::Backup::new(&self.conn, &mut conn)?;
             backup.run_to_completion(256, std::time::Duration::ZERO, None)?;
         }
-        fork.read_sessions = std::sync::Arc::new(super::ReadSessionStorage::new(super::identity::present(&fork.conn)?));
+        let copied = started.map(|t|t.elapsed().as_secs_f64());
+        // @ref LLP 3000.036.004.000.000#fixture-construction — prepare the copied world without discarded initialization.
+        // Prepare the copied database once. Initializing a blank schema before
+        // backup only builds tables that the backup immediately discards.
+        let mut fork = Self::prepare(conn, Self::memory_assets_dir()?, true, self.server)?;
         fork.catalog = self.catalog.clone();
         fork.identity = self.identity.clone();
         fork.server = self.server;
+        let prepared = started.map(|t|t.elapsed().as_secs_f64());
         if self.assets_dir.exists() {
             std::fs::create_dir_all(&fork.assets_dir).map_err(io)?;
             for entry in std::fs::read_dir(&self.assets_dir).map_err(io)? {
@@ -21,6 +27,10 @@ impl Store {
                 }
                 std::fs::copy(entry.path(), fork.assets_dir.join(entry.file_name())).map_err(io)?;
             }
+        }
+        if let (Some(started),Some(copied),Some(prepared))=(started,copied,prepared) {
+            let elapsed=started.elapsed().as_secs_f64();
+            crate::replay_profile::record(serde_json::json!({"phase":"replay.fork","seconds":elapsed,"copy":copied,"prepare":prepared-copied,"assets":elapsed-prepared}));
         }
         Ok(fork)
     }

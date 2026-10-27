@@ -38,7 +38,7 @@ mod security_reviews;
 mod saved_fixture_drift;
 mod saved_version;
 pub mod security;
-mod phase;
+pub(crate) mod phase;
 mod upgrade_history;
 #[cfg(test)]
 mod hand_tests;

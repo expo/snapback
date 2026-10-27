@@ -98,3 +98,6 @@ pub mod device_protocol;
 pub mod text;
 
 pub mod visible_text;
+
+#[doc(hidden)]
+pub mod replay_profile;

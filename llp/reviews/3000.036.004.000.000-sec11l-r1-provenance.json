@@ -1,0 +1,12 @@
+{
+  "brief": "Review the SEC11L performance implementation and amendment independently. Worktree /home/ccheever/projects/sb4-b31-sec11l. Read llp/3000.036.004.000.000-production-security-replay-latency.rfc.md and git diff since f5c1c2b36f (uncommitted). Focus on material correctness, changed verdicts or witnesses, unsafe reuse, lost fixture state, batch-vs-independent compiler equivalence, races and production/staging differences. Read necessary original implementations. Do not edit files. Do not run broad suites or use other worktrees. The 800-schema before/after and production latency measurements are in progress; do not assume them passed. Give concrete blockers with source locations, or READY if no material issue. The changes include telemetry in challenges.rs and store/fork.rs that must never influence campaign work/verdicts. Include whether the scope is justified. This is a source review, not a performance-qualification claim.\n",
+  "models": {
+    "codex": "gpt-6.1-sol high, fresh codex exec",
+    "muse": "muse-spark-1.3-contributor high via muse-exec.sh"
+  },
+  "sourceScope": "Uncommitted implementation after f5c1c2b36f. Worktree was refined during these reviews; this round does not qualify the later concurrent/buffered implementation. Findings retained and addressed; fresh final reviews required.",
+  "outputs": {
+    "codex": "cbb0613e35352a12c4014422d51c6b548669b4057052d65c930e63e1e0bb0323",
+    "muse": "c9989dfba30ba1611ce551a0828a1464c0d7234e34acd8c2f9ff6ab96614e7e2"
+  }
+}

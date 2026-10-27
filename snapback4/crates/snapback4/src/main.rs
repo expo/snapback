@@ -48,6 +48,7 @@ use std::process::ExitCode;
 
 
 fn main() -> ExitCode {
+    let _phase_trace=verbs::phase::Trace;
     // Before any thread: the wrapper's PID leaves the environment here.
     supervisor::adopt();
     snapback4_core::diagnostics::set_thread_start(thread_priority::background);

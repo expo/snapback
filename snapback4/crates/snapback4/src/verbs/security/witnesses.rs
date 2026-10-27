@@ -195,6 +195,8 @@ pub(in crate::verbs) fn evidence(sources:&[(String,String)],bound: &Bound, inv: 
 }
 mod approval_applicability;
 mod questions;
+mod candidate_batch;
+use candidate_batch::Candidate;
 use approval_applicability::{approval_trigger,precise_approval};
 fn candidate(sources: &[(String, String)], line: &str) -> Option<security::Invariant> {
     let mut sources = sources.to_vec();
@@ -219,7 +221,7 @@ fn candidates(
     let stages = security::derived::workflow_columns_from_sources(sources, bound);
     let mut out = Vec::new();
     for (index, n) in notes.iter().enumerate() {
-        out.extend(questions::candidates(bound,sources,index,n));
+        out.extend(questions::proposals(bound,index,n));
         if n.code == "N_INSERT_WRITE_INTENT" {
             if let Some(subject) = n
                 .message
@@ -233,7 +235,7 @@ fn candidates(
                 let subject=subject.split(',').next().unwrap_or(subject);
                 for inv in &derived {
                     if subject == format!("{}.{}", inv.table, inv.column.as_deref().unwrap_or("")) {
-                        out.push((index, inv.clone()));
+                        out.push((index, Candidate::Bound(inv.clone())));
                     }
                 }
                 if let Some(policy) = n
@@ -243,12 +245,7 @@ fn candidates(
                     .and_then(|s| s.split_once(": ").map(|(_, p)| p))
                     .and_then(|s| s.split("; creation admission:").next())
                 {
-                    if let Some(inv) = candidate(
-                        sources,
-                        &format!("invariant {subject} write only {policy}"),
-                    ) {
-                        out.push((index, inv));
-                    }
+                    out.push((index, Candidate::Source(format!("invariant {subject} write only {policy}"), false)));
                 }
             }
         }
@@ -267,14 +264,9 @@ fn candidates(
                             if let Some(principal) = t.columns.iter().find_map(|(c, k)| {
                                 matches!(k.required(), ColumnType::Principal).then_some(c)
                             }) {
-                                if let Some(inv) = candidate(
-                                    sources,
-                                    &format!(
-                                        "invariant {table} always exists {roles}[{principal} = .{column}, {role} = '{column}']"
-                                    ),
-                                ) {
-                                    out.push((index, inv));
-                                }
+                                out.push((index, Candidate::Source(format!(
+                                    "invariant {table} always exists {roles}[{principal} = .{column}, {role} = '{column}']"
+                                ), false)));
                             }
                         }
                     }
@@ -355,11 +347,11 @@ fn candidates(
                 let mut changed=std::collections::BTreeSet::new();
                 columns(&serde_json::to_value(&program.program).unwrap(),table,&mut changed);
                 if changed.contains(column)||!changed.iter().any(|column|stages.contains(&(table.into(),column.clone()))){continue;}
-                if let Some(inv)=candidate(sources,&format!("invariant {table}.{} only {predicate}",program.program.name)){out.push((index,inv));}
+                out.push((index,Candidate::Source(format!("invariant {table}.{} only {predicate}",program.program.name),false)));
             }
         }
     }
-    out
+    candidate_batch::resolve(sources, out)
 }
 /// Once an edit is admitted, try a concrete decreasing edit through that same
 /// operation. Both writes run on the engine; no fabricated old/new values.
@@ -497,21 +489,41 @@ pub(in crate::verbs) fn apply_report(sources:&[(String,String)],bound:&Bound,rep
 /// Fixed work per mode; a generated presentation cache never supplies a gate.
 // @ref LLP 3000.036.004.000#13-witness-backed-enforcement-and-shipping-precision — every gate replays current source even when advice is cached.
 pub(in crate::verbs) fn collect(project:&Project,bound:&Bound,sources:&[(String,String)],notes:&[Diagnostic],expanded:bool,options:&Options)->Vec<Option<serde_json::Value>> {
+    collect_with_report(project,bound,sources,notes,expanded,options,None)
+}
+pub(in crate::verbs) fn collect_with_report(project:&Project,bound:&Bound,sources:&[(String,String)],notes:&[Diagnostic],expanded:bool,options:&Options,current:Option<&security::Report>)->Vec<Option<serde_json::Value>> {
     let key=hash(&serde_json::to_vec(&("sec11-witness-2",sources,notes,record::capture(sources,None).ok())).unwrap());
     let path=project.schema_dir().join("generated/security-witnesses.json");
     let gate=|index:usize|super::super::security_reviews::gated(&notes[index].code)&&precise_approval(bound,&notes[index]);
     let cached=std::fs::read(&path).ok().and_then(|b|serde_json::from_slice::<serde_json::Value>(&b).ok()).filter(|v|v["key"]==key).and_then(|v|serde_json::from_value::<Vec<Option<serde_json::Value>>>(v["values"].clone()).ok()).filter(|v|v.len()==notes.len());
     let mut result=vec![None;notes.len()];
     if let Some(cached)=&cached{for (index,value) in cached.iter().enumerate(){if !gate(index)&&notes[index].code!="N_DERIVED_WRITE_AUTHORITY"{result[index]=value.clone();}}}
-    let selected=candidates(bound,sources,notes);
-    let stages=security::derived::workflow_columns_from_sources(sources,bound);
-    for enforcement in [true,false] {
-        if !enforcement&&(!expanded||cached.is_some()){continue;}
-        let selected=selected.iter().filter(|(index,_)|gate(*index)==enforcement).collect::<Vec<_>>();
-        if selected.is_empty(){continue;}
-        let mut questions=bound.clone();questions.invariants=selected.iter().map(|(_,inv)|inv.clone()).collect();
-        let mut campaign=challenges::Campaign::work_bounded(if enforcement{3072}else{8192});
-        phase::measure(if enforcement {"witness.gate_campaign"} else {"witness.question_campaign"}, || challenges::generated_campaign(&questions,&mut campaign,false));
+    let selected=phase::measure("witness.candidates", || candidates(bound,sources,notes));
+    let stages=phase::measure("witness.stages", || security::derived::workflow_columns_from_sources(sources,bound));
+    // @ref LLP 3000.036.004.000.000#independent-campaigns — independent searches join before ordered witness selection.
+    // Each campaign already has its own replay-ID scope and fixed work budget.
+    // Run independent searches concurrently, then reduce in the original order.
+    let need_derived=expanded&&notes.iter().any(|n|n.code=="N_DERIVED_WRITE_AUTHORITY"&&!n.site.file.contains("/label-consistency/"));
+    let (campaigns,derived_report)=std::thread::scope(|scope|{
+        let derived=if need_derived&&current.is_none(){Some(scope.spawn(||{
+            let mut deploy=options.clone();deploy.flags.insert("security-deploy".into(),String::new());
+            phase::measure("witness.derived_report", || super::report(project,bound,sources,&deploy))
+        }))}else{None};
+        let mut handles=Vec::new();
+        for enforcement in [true,false] {
+            if !enforcement&&(!expanded||cached.is_some()){continue;}
+            let selection=selected.iter().filter(|(index,_)|gate(*index)==enforcement).collect::<Vec<_>>();
+            if selection.is_empty(){continue;}
+            handles.push(scope.spawn(move||{
+                let mut questions=bound.clone();questions.invariants=selection.iter().map(|(_,inv)|inv.clone()).collect();
+                let mut campaign=challenges::Campaign::work_bounded(if enforcement{3072}else{8192});
+                phase::measure(if enforcement {"witness.gate_campaign"} else {"witness.question_campaign"}, || challenges::generated_campaign(&questions,&mut campaign,false));
+                (selection,campaign)
+            }));
+        }
+        (handles.into_iter().map(|h|h.join().expect("question campaign panicked")).collect::<Vec<_>>(),derived.map(|h|h.join().expect("derived campaign panicked")))
+    });
+    for (selected,campaign) in campaigns {
         for (index,inv) in selected {
             if result[*index].is_some()&&notes[*index].code!="N_INSERT_WRITE_INTENT"{continue;}
             if let Some(c)=campaign.violations.iter().filter(|c|c.invariant_site==inv.site.to_string()&&c.reachability.is_reachable()&&(notes[*index].code!="N_GUARD_NOT_CONSUMED"||c.history.len()==1&&c.effect=="insert")&&(notes[*index].code!="N_CHILD_EVIDENCE_PRESENCE"||questions::transition(inv,c,&stages))).max_by_key(|c| {
@@ -527,9 +539,8 @@ pub(in crate::verbs) fn collect(project:&Project,bound:&Bound,sources:&[(String,
             }}
         }
     }
-    if expanded&&notes.iter().any(|n|n.code=="N_DERIVED_WRITE_AUTHORITY"&&!n.site.file.contains("/label-consistency/")) {
-        let mut deploy=options.clone();deploy.flags.insert("security-deploy".into(),String::new());
-        let report=phase::measure("witness.derived_report", || super::report(project,bound,sources,&deploy));apply_report(sources,bound,&report,notes,&mut result);
+    if need_derived {
+        if let Some(report)=current.or(derived_report.as_ref()){apply_report(sources,bound,report,notes,&mut result);}
     }
     // Reapply current eligibility even to cached advice: editable presentation
     // evidence cannot promote an unresolved approval question into a gate.

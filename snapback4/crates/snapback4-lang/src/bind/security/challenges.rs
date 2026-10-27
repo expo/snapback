@@ -37,10 +37,12 @@ impl Campaign {
     /// Explicit caller-selected safety deadline; default commands use work_bounded.
     pub fn bounded(milliseconds:u64)->Self {Self{work_remaining:Some(512),deadline:Some(std::time::Instant::now()+std::time::Duration::from_millis(milliseconds)),..Self::default()}}
     fn slice(&mut self,work:usize,label:&str,run:impl FnOnce(&mut Self)){
+        let started=snapback4_core::replay_profile::start();
         let original=self.work_remaining;
         let workflow_base=self.workflow_base;self.workflow_base=self.workflow_attempts;
         let allowance=original.map_or(work,|left|left.min(work));
         self.work_remaining=Some(allowance);run(self);
+        if let Some(started)=started{snapback4_core::replay_profile::record(serde_json::json!({"phase":format!("campaign.{label}"),"seconds":started.elapsed().as_secs_f64()}));}
         let used=allowance.saturating_sub(self.work_remaining.unwrap_or(0));
         self.work_remaining=original.map(|left|left.saturating_sub(used));self.workflow_base=workflow_base;
         if used==allowance&&allowance>0&&self.work_remaining!=Some(0){
