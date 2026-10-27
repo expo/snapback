@@ -117,7 +117,7 @@ pub(crate) fn released(verb: &str, release: u64, generation: &impl fmt::Display,
     if live["exact"] == false {
         fact("source", format!("rollback view of release {} (registered by {}); --exact selects original source", live["target"], live["parent"]));
     }
-    if live["rowShape"]["matchesTarget"] == false { fact("row shape",format!("target row shape CHANGED: {}",live["rowShape"]["differences"])); }
+    if live["rowShape"]["matchesTarget"] == false { fact("row shape",crate::output_facts::row_shape(&live["rowShape"])); }
 }
 
 pub(crate) fn preview_decisions(preview: &Value) {
@@ -126,7 +126,7 @@ pub(crate) fn preview_decisions(preview: &Value) {
     if !hazards.is_empty() {fact("hazards",format!("WARNING {}; next: prove affected cases before activation",hazards.join("; WARNING ")));}
     backfills(&preview["backfills"]);
     if preview["rowShape"]["matchesTarget"]==false {
-        fact("row shape",format!("target row shape CHANGED: {}; retained children: {}",preview["rowShape"]["differences"],preview["rowShape"]["children"]));
+        fact("row shape",crate::output_facts::row_shape(&preview["rowShape"]));
     }
     for key in ["rollbackVisibility","rollbackViewEffects"] {
         let value=&preview[key];

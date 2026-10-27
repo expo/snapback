@@ -738,7 +738,7 @@ pub fn releases(options: &Options) -> i32 {
             crate::command_output::evidence(&result);
             crate::command_output::state(result.clone());
             if result["live"]["exact"] == false {crate::command_output::fact("source",format!("live: rollback view of release {}, registered by {}",result["live"]["target"],result["live"]["parent"]));}
-            if result["rowShape"]["matchesTarget"]==false {crate::command_output::fact("row shape",format!("target row shape CHANGED: {}; retained children: {}",result["rowShape"]["differences"],result["rowShape"]["children"]));}
+            if result["rowShape"]["matchesTarget"]==false {crate::command_output::fact("row shape",crate::output_facts::row_shape(&result["rowShape"]));}
             if let Some(selected) = result.get("selected") {crate::command_output::fact("selection",format!("selected: {selected}"));}
             if options.json {println!("{}", serde_json::to_string_pretty(&result).unwrap());}
             else {

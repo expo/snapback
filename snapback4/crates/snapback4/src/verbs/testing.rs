@@ -317,7 +317,7 @@ pub fn test(options: &Options) -> i32 {
     if !evaluation_gaps.is_empty() || !security_campaign.evaluation_unknowns.is_empty() {
         crate::command_output::fact("security coverage",format!("security coverage incomplete: {}; {}",evaluation_gaps.join("; "),security_campaign.evaluation_unknowns.iter().cloned().collect::<Vec<_>>().join("; ")));
     }
-    if !security_campaign.unsupported.is_empty() {crate::command_output::fact("campaign limits",format!("not covered: {}",security_campaign.unsupported.iter().cloned().collect::<Vec<_>>().join("; ")));}
+    if !security_campaign.unsupported.is_empty() {crate::command_output::fact("campaign limits",format!("not covered: {}",crate::output_facts::group_reasons(&security_campaign.unsupported,&bound.programs.iter().map(|p|p.program.name.as_str()).collect())));}
     if !skipped.is_empty() || held_not_run > 0 {crate::command_output::fact("query coverage",format!("queries not run: {}; {held_not_run} held queries not run; add fixtures/cases",skipped.join("; ")));}
     crate::command_output::evidence(&serde_json::json!({"security":security_campaign,"evaluationGaps":evaluation_gaps,"cases":{"passed":passed,"failed":failed_cases,"skipped":skipped_business_cases},"queries":{"complete":complete,"capped":capped,"expectedRefusals":expected,"derivedRefusals":refused_derived,"notRun":skipped,"heldNotRun":held_not_run,"denied":failures}}));
     // @ref LLP 3000.036.002#9 — derived probe refusals are expected exploration, not failed cases.

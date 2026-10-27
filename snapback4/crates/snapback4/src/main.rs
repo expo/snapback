@@ -40,6 +40,7 @@ mod column_cost;
 mod scale;
 mod presentation;
 mod command_output;
+mod output_facts;
 mod serve_output;
 mod service_identities;
 mod sync_wire;

@@ -34,7 +34,7 @@ let result=await cli(["deploy","deployment","--save-version","versions/v1"]);ass
 for(const path of ["versions/v1/generated/api.ts","versions/v1/generated/package.json","versions/v1/release.json"])assert.ok(readFileSync(path).length,path);
 let generated=await import(pathToFileURL(resolve("versions/v1/generated/api.ts")).href+"?first");assert.ok(generated.api.addPhoto&&generated.api.oneOrder,"saved-source client has exact v1 operations");
 rmSync("versions/v1/generated",{recursive:true});rmSync("versions/v1/release.json");
-result=await cli(["deploy","deployment","--save-version","versions/v1"]);assert.equal(result.code,0,result.stderr);assert.match(result.stderr,/refreshed release 1/);
+result=await cli(["deploy","deployment","--save-version","versions/v1"]);assert.equal(result.code,0,result.stderr);assert.match(result.stdout+result.stderr,/refreshed release 1/);
 generated=await import(pathToFileURL(resolve("versions/v1/generated/api.ts")).href+"?refresh");assert.ok(generated.api.addLegacy);
 writeFileSync("snapback/client-compatibility.json",JSON.stringify({baseline:"versions/v1",since_release:2}));
 
@@ -68,5 +68,5 @@ assert.match(objects.stderr,/result truncated at 1 rows/);assert.match(objects.s
 const positional=await cli(["sql","SELECT photo FROM photos ORDER BY id","--release","deployment","--json","--limit","1"]);assert.equal(positional.code,0,positional.stderr);assert.match(JSON.parse(positional.stdout).rows[0][0],/Map/);
 const missing=await cli(["sql","SELECT * FROM legacy","--release","deployment","--json"]);assert.equal(missing.code,1);assert.match(JSON.parse(missing.stdout).denied.message,/1 retained dormant row.*legacy/);
 const data=await cli(["data","legacy","--release","deployment"]);assert.equal(data.code,1);assert.match(data.stderr,/no active table legacy; 1 retained dormant row/);
-const releases=await cli(["releases","deployment"]);assert.equal(releases.code,0,releases.stderr);assert.match(releases.stderr,/1 dormant row retained/);
+const releases=await cli(["releases","deployment"]);assert.equal(releases.code,0,releases.stderr);assert.match(releases.stdout+releases.stderr,/1 dormant rows? retained/);
 console.log("DX8 inspection consumer passed: saved-source client refresh, media objects, truncation, dormant discovery and old-client diagnostics");

@@ -1,8 +1,5 @@
 # Deploy: upgrade, real accounts and schema evolution
 
-Release commands show a compact verdict and `.snapback4/last/<command>.txt` for the complete report. Hazards, gates, witnessed questions and dormant visibility decisions remain visible. Use `--explain` or `--verbose` for full text; `--json` keeps complete evidence. Repeated `deploy --check` and `releases` show only changes; unchanged results print one line.
-
-
 A release is immutable source over one durable store. JSON fields, bounded ready waits and worker roots: `guide release-json`. Deploy from the app directory:
 
 ```sh
@@ -11,6 +8,9 @@ bunx snapback4 test
 bunx snapback4 deploy ./deployment
 bunx snapback4 serve ./deployment --port 4400
 ```
+
+Release commands show a compact verdict and `.snapback4/last/<command>.txt` for the complete report. Hazards, gates, witnessed questions and dormant visibility decisions remain visible. Use `--explain` or `--verbose` for full text; `--json` keeps complete evidence. Repeated `deploy --check` and `releases` show only changes; unchanged results print one line.
+
 For Postgres, prefer `SNAPBACK4_STORE_URL` with explicit schema/ha=none and Unix sockets; a password in `--store-url` is visible in process arguments. Serve requires `--worker-state-dir /absolute/durable/path` or `SNAPBACK4_WORKER_STATE_DIR`. Queries, identified writes, sessions, ephemeral state and ordinary maintained count/sum columns are admitted. A deploy may add, redefine or drop those columns and indexes on them; it atomically recounts sources and mirrors parents before publishing the generation. Ordinary releases may also add tables, add optional or literal-defaulted columns, add/drop/redefine indexes, and retire ordinary tables or columns into dormant storage. Use `deploy DIR --restore-dormant` to restore retired names and their exact rows/values. A restored column must repeat its retained declaration: changing its type, default, text constraints or deletion policy refuses just as an in-place edit would. Unique collisions refuse the whole activation. Ordinary Postgres schema evolution currently refuses `evolution-authority` when the schema contains a durable temporal, read-through or recorded table, including an unchanged one. Their activation-time source retirement needs the later lifetime slice. Previously admitted maintained-column transitions with unchanged ordinary declarations remain available. Existing column types/defaults, rules, audiences and other authority declarations must stay unchanged. Type narrowing, backfills, renames, temporal/read-through/recorded evolution and retirement of tables with maintained columns remain named refusals. Token minting (`token`), SQL/data and release inspection, rollback, previews, prune, staging, saved versions and hot activation refuse; excluded runners, certified sync and complete configuration: `guide release-json`. SDK guest/signup/login and proof seedAccounts retry explicit identity 429 refusals using retryAfterMs (Retry-After for older servers). Sign-in has at most four attempts within timeoutMs (default three minutes); signal cancels requests/waits. No lost or malformed reply is replayed. Time-gated mutations on the real clock need a bounded retry of the authored refusal (for example `NOT_OPEN`), with a deadline and short delay; never retry unrelated refusals. Development and classified staging proofs can advance the clock (`guide time`); production always uses wall time.
 
 Postgres durability modes, early-release prerequisites and clock-qualified read-cache settings: `guide release-json`. These options retain their own qualification and failure boundaries; do not infer publication or throughput qualification from an ordinary deploy.

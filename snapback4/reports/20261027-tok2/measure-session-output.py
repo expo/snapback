@@ -1,12 +1,16 @@
 import json,re,sys,collections,glob
 from pathlib import Path
 import tiktoken
-enc=tiktoken.get_encoding('o200k_base'); rows=[]; seen=set()
+enc=tiktoken.get_encoding('o200k_base'); rows=[]; seen=set(); lane_scripts={}
 verbs='deploy rollback releases data serve dev test check init new guide why sql token doctor witness types seed clock reset stop prune upgrade'.split()
 pat=re.compile(r'(?<![\w-])(?:npx\s+)?(?:\S*/)?snapback4(?:\s+|["\']\s*,\s*["\'])('+ '|'.join(verbs) +r')\b')
 def add(w,l,model,c,t,ex=None):
  matches=list(pat.finditer(c or ''))
  indirect=re.findall(r'(?:npm\s+run\s+(?:--silent\s+)?|node\s+(?:\S*/)?)(day2[:-]proof|prod[:-](?:serve|rollback|forward)|probe[:-](?:serve|check)|frontend[:-]proof|acceptance)(?:\.mjs)?',c or '')
+ scripted=[]
+ for name in re.findall(r'(?:npm|bun)\s+(?:run\s+)?(?:--silent\s+)?([\w:-]+)',c or ''):
+  if 'snapback4' in lane_scripts.get((w,l),{}).get(name,''):scripted.append(name)
+ indirect+=scripted
  if not matches and not indirect:return
  commands=sorted(set(m[1]+(' --check' if m[1] in ['deploy','rollback'] and re.search(r'--check\b',c[m.end():].split('\n')[0]) else '') for m in matches))
  commands+=sorted(set('runner:'+x for x in indirect))
@@ -66,7 +70,8 @@ def parse_codex(path,w,lane):
     pairs=list(zip(inner,units))
    else:
     ex=re.search(r'(?:"exit_code"\s*:\s*|Process exited with code )(-?\d+)',text)
-    pairs=[(('exec','\n'.join(c if k=='exec' else sessions.get(str(c[0]),'') for k,c in inner)),(text,{'exit_code':int(ex[1]) if ex else None}))] if inner else []
+    sid=re.search(r'(?:Process running with session ID |"session_id"\s*:\s*)(\d+)',text)
+    pairs=[(('exec','\n'.join(c if k=='exec' else sessions.get(str(c[0]),'') for k,c in inner)),(text,{'exit_code':int(ex[1]) if ex else None,'session_id':sid[1] if sid else None}))] if inner else []
    for ((kind,value),(text,j))in pairs:
     command=value if kind=='exec' else sessions.get(str(value[0]),'')
     if j.get('session_id')is not None:sessions[str(j['session_id'])]=command
@@ -74,6 +79,8 @@ def parse_codex(path,w,lane):
 
 for w in [32,33,34]:
  for p in sorted((Path.home()/f'sb4-loop/wave{w}/apps').glob('*snapback*/.agent.ndjson')):
+  try:lane_scripts[(w,p.parent.name)]=json.loads((p.parent/'package.json').read_text()).get('scripts',{})
+  except:lane_scripts[(w,p.parent.name)]={}
   muse=[];codex=[];threads=[]
   for line in p.open(errors='replace'):
    try:o=json.loads(line)
@@ -124,5 +131,5 @@ for r in rows:
  for k in ['bytes','tokens']:a[k]+=r[k]
  a['calls']+=1;a['mixed']+=r['mixed']
 out=Path(sys.argv[1]);out.mkdir(parents=True,exist_ok=True)
-(out/'session-output.json').write_text(json.dumps(dict(method='o200k_base on actual tool-visible result text. Codex archived/local tool results paired with calls and process/cell polls; aggregate fallback explicitly labeled. Muse archived/local bash and bash_input results. Mixed shell and named indirect npm proof runners counted as composite records, not isolated process measurements. No raw commands or account values retained. Unresolved/dynamically assembled commands cannot be attributed.',records=rows,totals=agg),indent=2)+'\n')
+(out/'session-output.json').write_text(json.dumps(dict(method='o200k_base on actual tool-visible result text. Codex archived/local tool results paired with calls and process/cell polls; aggregate fallback explicitly labeled. Muse archived/local bash and bash_input results. Mixed shell, named indirect proof runners and lane-package scripts that mention Snapback counted as composite records, not isolated process measurements. Script inference uses the final package manifest, not a claim of historical manifest identity. No raw commands or account values retained. Unresolved/dynamically assembled commands cannot be attributed.',records=rows,totals=agg),indent=2)+'\n')
 print(json.dumps(dict(records=len(rows),bytes=sum(r['bytes'] for r in rows),tokens=sum(r['tokens'] for r in rows),museSessions=len(seen))))

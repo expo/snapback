@@ -1,8 +1,5 @@
 # Testing: fixtures and the packaged proof kit
 
-Default `test` output reports finite campaign status, authored cases and query coverage in at most three lines, with actionable coverage gaps and a private `.snapback4/last/test.txt` report. `test --explain` shows meters, observations and all recorded evidence; `test --json` returns the complete report and structured campaign/case/query counts. Proof checks print readiness, uptime, lock release and every failure; pass `--json` for the complete receipt or `--explain` for readable details. `data` prints row counts, truncation/dormant notices and a detail path; use `data --json` for rows or `--explain` to display them. Repeated data reads print changes only.
-
-
 Prove backend behavior with fixtures and the rendered UI with the packaged proof kit.
 Starters generate frontend:proof and day2:proof, and the kit owns server and browser lifecycles.
 
@@ -11,6 +8,8 @@ import { startDev, cleanup } from "snapback4/proof";
 const dev = await startDev();
 try { console.log(dev.url); } finally { await cleanup(() => dev.stop()); }
 ```
+
+Default `test` output reports finite campaign status, authored cases and query coverage in at most three lines, with actionable coverage gaps and a private `.snapback4/last/test.txt` report. `test --explain` shows meters, observations and all recorded evidence; `test --json` returns the complete report and structured campaign/case/query counts. Proof checks print readiness, uptime, lock release and every failure; pass `--json` for the complete receipt or `--explain` for readable details. `data` prints row counts, truncation/dormant notices and a detail path; use `data --json` for rows or `--explain` to display them. Repeated data reads print changes only.
 
 To verify a brief's `probe:serve` process, use `snapback4 serve-check
 --deployment staging --script probe:serve --then 'node scripts/acceptance.mjs'`. Never write a serve driver. With or without --then it checks one JSON readiness line,

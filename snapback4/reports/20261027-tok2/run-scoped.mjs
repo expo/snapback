@@ -24,6 +24,7 @@ const plan={...full,scopeOverride:{fullSelectorPlanExecuted:false,qualification:
  step('packaged-docs','snapback4',['node','--input-type=module','-e',"import {lintPackagedDocs} from './scripts/packaged-docs.mjs';lintPackagedDocs(process.cwd())"]),
  step('signature-drift','snapback4',['node','packages/snapback4/scripts/guide-api.mjs','--check']),
  step('proof-reference-drift','snapback4',['node','scripts/generate-proof-api.mjs','--check']),
+ step('cleanup-platform-test-binary','snapback4',['node','--input-type=module','-e',"import{rmSync}from'node:fs';rmSync('packages/snapback4-linux-x64/snapback4',{force:true})"]),
  step('refs','.', ['./ref-check']),
 ]};
 const {receiptPath,receipt}=await runPlan(plan);
