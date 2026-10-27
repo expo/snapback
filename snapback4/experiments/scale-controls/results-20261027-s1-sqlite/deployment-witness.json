@@ -1,0 +1,65 @@
+{
+  "live_processes_checked": 4,
+  "live_environments": [
+    {
+      "SNAPBACK4_STORE_URL": null,
+      "SNAPBACK4_READ_GRANT_CLOCK_BOUNDS": "1000,250",
+      "LD_PRELOAD": null,
+      "SNAPBACK4_READ_TRACE": null,
+      "SNAPBACK4_READ_CACHE_METRICS": null,
+      "SNAPBACK4_POSTGRES_PIPELINE_DEPTH": null
+    },
+    {
+      "SNAPBACK4_STORE_URL": null,
+      "SNAPBACK4_READ_GRANT_CLOCK_BOUNDS": "1000,250",
+      "LD_PRELOAD": null,
+      "SNAPBACK4_READ_TRACE": null,
+      "SNAPBACK4_READ_CACHE_METRICS": null,
+      "SNAPBACK4_POSTGRES_PIPELINE_DEPTH": null
+    },
+    {
+      "SNAPBACK4_STORE_URL": null,
+      "SNAPBACK4_READ_GRANT_CLOCK_BOUNDS": "1000,250",
+      "LD_PRELOAD": null,
+      "SNAPBACK4_READ_TRACE": null,
+      "SNAPBACK4_READ_CACHE_METRICS": null,
+      "SNAPBACK4_POSTGRES_PIPELINE_DEPTH": null
+    },
+    {
+      "SNAPBACK4_STORE_URL": null,
+      "SNAPBACK4_READ_GRANT_CLOCK_BOUNDS": "1000,250",
+      "LD_PRELOAD": null,
+      "SNAPBACK4_READ_TRACE": null,
+      "SNAPBACK4_READ_CACHE_METRICS": null,
+      "SNAPBACK4_POSTGRES_PIPELINE_DEPTH": null
+    }
+  ],
+  "all_affinities_correct": true,
+  "all_store_devices": [
+    [
+      {
+        "path": "/tmp/s1c-tu5okup8/deployment/store.sqlite",
+        "device": 66308
+      }
+    ],
+    [
+      {
+        "path": "/tmp/s1c-tu5okup8/deployment/store.sqlite",
+        "device": 66308
+      }
+    ],
+    [
+      {
+        "path": "/tmp/s1c-tu5okup8/deployment/store.sqlite",
+        "device": 66308
+      }
+    ],
+    [
+      {
+        "path": "/tmp/s1c-tu5okup8/deployment/store.sqlite",
+        "device": 66308
+      }
+    ]
+  ],
+  "coverage": "Independent live W3 and write-cell checks; W1/W2 rely on archived launch ownership/configuration. Full raw identities stay in archive."
+}

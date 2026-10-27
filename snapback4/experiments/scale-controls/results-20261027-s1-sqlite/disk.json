@@ -1,0 +1,8 @@
+{
+  "minimum_free_bytes": 44053098496,
+  "minimum_free_gib": 41.027645111083984,
+  "final_free_bytes": 44052672512,
+  "outer_floor_gib": 25,
+  "runner_boundary_floor_gib": 30,
+  "continuous_diagnostic_guard": true
+}

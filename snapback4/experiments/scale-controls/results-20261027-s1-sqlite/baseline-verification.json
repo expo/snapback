@@ -1,0 +1,6 @@
+{
+  "selected_baseline_repetitions": 51,
+  "all_pass_and_match_aggregate_latencies": true,
+  "hashes_verified": true,
+  "notes": "Original S1-C A/natural column, plus old SQLite; no later Convex W2 re-search substituted."
+}

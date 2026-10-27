@@ -1,0 +1,50 @@
+{
+  "product_commit": "9ee365bbd683c053158152ae352f420798dcbaa4",
+  "run_branch": "sb4-pg/s1-sq",
+  "no_fetch": true,
+  "product_source_delta": [],
+  "environment": {
+    "SNAPBACK4_READ_GRANT_CLOCK_BOUNDS": "1000,250",
+    "SNAPBACK4_STORE_URL": "unset",
+    "capacity_LD_PRELOAD": "unset"
+  },
+  "sources": {
+    "s1-onehost.py": "e2954faad0e458f71f14c066c7b65f34b98654f2b0c378dad9c6531981e66c02",
+    "sqlite_onehost.py": "9a41da88c6872caedd6a54e9de423bb0d56c515c6586763b33b5b20c4b373da1",
+    "sqlite-observe.c": "2ad7b2dc3d1a13258c0fd2289b98a1a2be3fedd217d40a41a2991a23f839ea2f",
+    "run.py": "c568af389e23793dc86cab0f272f6356ffb687b111687e4bdbdb31000ee5c4d9",
+    "snapback.py": "fea8a4f55c27624a3917c19a1f4145bd7e82b2d6ee21f54b73a8dcb1b48ff0c1",
+    "postgres-2.py": "3f57990f69b1c5e202bd97da37d17cbc60871e6f0a11b9c351dd60a90111966a"
+  },
+  "harness_build_source_verification": {
+    "all_source_sha256_match": true,
+    "source": "b5e34d8912",
+    "binary_sha256": "ea2ca655f19cd90824fc610b9fc2a1c6aa32ae61436c602595de0b037691d595"
+  },
+  "device": {
+    "source": "/dev/nvme0n1p3",
+    "filesystem": "ext4",
+    "mount_options": "rw,relatime",
+    "model": "SAMSUNG MZVL2512HCJQ-00B00",
+    "firmware": "GXA7401Q",
+    "write_cache": "write back",
+    "fua": "1"
+  },
+  "baseline_archives": {
+    "controls": {
+      "path": "/home/ccheever/sb4scale/archive/s1-onehost-20261024.tar.gz",
+      "sha256": "2ad9953ae6e01a790171e3778547e2703f4d0db9e991039f2833c03543ecb7fb",
+      "bytes": 189826768
+    },
+    "old_sqlite": {
+      "path": "/home/ccheever/sb4scale/archive/s1sk-20261022-snapback-sqlite.tar.gz",
+      "sha256": "0852a5a676a9d9e13766d4e6c746a86888b92a1264b8c662c725f16adf511d02"
+    }
+  },
+  "final_runner_source_sha256": {
+    "s1-onehost.py": "74504ed079615aa727460520d2664961eafd40c79e5a5552712ff0e0f50cb482",
+    "sqlite_onehost.py": "9a41da88c6872caedd6a54e9de423bb0d56c515c6586763b33b5b20c4b373da1",
+    "sqlite-observe.c": "84f4722cdd1c926d7dc0852cf4ac382486e30df8de0af2997cac2b5b32c9ef68"
+  },
+  "source_note": "Frozen capacity sources match ownership.json; post-launch CLI-only guards reject SQLite B and incompatible fixture flags. No running or timed workload changed."
+}

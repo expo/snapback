@@ -74,6 +74,10 @@ def configure(args):
         convex.BIN=run.BIN;convex.APP_CORES=APP_CORES
         return convex.ConvexRun
     import snapback
+    if getattr(args,'store','postgres')=='sqlite':
+        snapback.SB=Path(args.snapback_bin).resolve()
+        snapback.APP_CORES=APP_CORES;snapback.LOAD_CORES=LOAD_CORES;snapback.BIN=run.BIN
+        return snapback.Snapback
     spec=importlib.util.spec_from_file_location('native_pg',HERE/'scripts/postgres-2.py')
     native=importlib.util.module_from_spec(spec);spec.loader.exec_module(native)
     snapback.SB=Path(args.snapback_bin).resolve()
@@ -403,6 +407,8 @@ def checks_module():
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--system',required=True,choices=['snapback','rawpg','supabase','convex'])
+    p.add_argument('--store',choices=['postgres','sqlite'],default='postgres',help='SQLite is native Snapback only, with one natural/no-database-link column')
+    p.add_argument('--sqlite-seed-release',help='restore a stopped, owned SQLite fixture with a read-only backup; verify all fixture images before load')
     p.add_argument('--out',required=True)
     p.add_argument('--mode',choices=['matrix','smoke','cell'],default='matrix')
     p.add_argument('--workload',choices=['W1','W2','W3','W4','W5'],default='W2')
@@ -418,9 +424,16 @@ def main():
     p.add_argument('--duration-ms',type=int,default=20000)
     p.add_argument('--repeats',type=int,default=3)
     args=p.parse_args();args.rows=1000000;args.load_cores=LOAD_CORES
+    if args.store=='sqlite' and args.link!='A':p.error('SQLite has only the natural column (--link A); there is no database link B')
+    if args.sqlite_seed_release and args.store!='sqlite':p.error('--sqlite-seed-release requires --store sqlite')
     args.target='raw-pg' if args.system=='rawpg' else args.system
     if args.mode=='smoke':args.rates=[100];args.extra_read_rates=[]
-    base=configure(args);r=make_runner(base)(args)
+    if args.store=='sqlite' and args.system!='snapback':p.error('SQLite requires --system snapback')
+    base=configure(args);runner=make_runner(base)
+    if args.store=='sqlite':
+        import sqlite_onehost
+        runner=sqlite_onehost.adapt(runner)
+    r=runner(args)
     def interrupt(signum,frame):raise KeyboardInterrupt
     signal.signal(signal.SIGTERM,interrupt)
     try:
@@ -428,6 +441,7 @@ def main():
         # Convex reads first; the same order is fixed for every control.
         matrix=[(w,500 if link=='A' else 1000,keys) for w,keys in [('W1','disjoint'),('W2','disjoint'),('W3','disjoint'),('W4','disjoint'),('W5','same'),('W5','hot1')] for link in ('A','B')]
         if args.mode in ('smoke','cell'):matrix=[(args.workload,500 if args.link=='A' else 1000,args.keys)]
+        if args.store=='sqlite':matrix=[(w,0,k) for w,d,k in matrix if d==500]
         for w,d,k in matrix:r.cell(w,args.rows,d,128 if w in ('W1','W2','W3') else 32,k)
     finally:r.close()
 
