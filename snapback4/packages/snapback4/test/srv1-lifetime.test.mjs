@@ -69,8 +69,8 @@ test('SIGKILL holder stale record is reclaimed once, with a notice',{skip:proces
 // Linux-only kernel witness; the remaining process-shape tests run on Darwin.
 test('Linux PDEATHSIG spawning-thread exit does not kill a live-parent host',{skip:process.platform!=='linux',timeout:30000},async t=>{
  const cwd=await project(t);
- writeFileSync(join(cwd,'thread.py'),`import threading,subprocess,time\ndef spawn():\n subprocess.Popen([${JSON.stringify(binary)},'serve','production','--port','0'])\nt=threading.Thread(target=spawn);t.start();t.join()\nprint('spawning thread exited',flush=True)\nwhile True: time.sleep(1)\n`);
- const run=launch(t,cwd,'python3',['thread.py']);await until(()=>/SNAPBACK4_READY/.test(run.err()));await sleep(500);assert.equal(run.closed(),false,run.err());assert.match(run.out(),/spawning thread exited/);run.c.kill('SIGKILL');await until(run.closed);await restarted(cwd);
+ writeFileSync(join(cwd,'thread.py'),`import threading,subprocess,time,os\nrelease=threading.Event()\ndef spawn():\n subprocess.Popen([${JSON.stringify(binary)},'serve','production','--port','0'])\n release.wait()\nt=threading.Thread(target=spawn);t.start()\nwhile not os.path.exists('release-thread'): time.sleep(.01)\nrelease.set();t.join()\nprint('spawning thread exited',flush=True)\nwhile True: time.sleep(1)\n`);
+ const run=launch(t,cwd,'python3',['thread.py']);await until(()=>/SNAPBACK4_READY/.test(run.err()));writeFileSync(join(cwd,'release-thread'),'armed');await until(()=>/spawning thread exited/.test(run.out()));await sleep(500);assert.equal(run.closed(),false,run.err());run.c.kill('SIGKILL');await until(run.closed);await restarted(cwd);
 });
 
 
@@ -89,4 +89,18 @@ test('busy persistent dev has exact stop recovery without signalling a PID hint'
  const cwd=await project(t),run=launch(t,cwd,binary,['dev','--no-watch','--port','0']);await until(()=>/SNAPBACK4_READY/.test(run.err()));
  const stopped=await cli(['stop',join(cwd,'.snapback4')],{cwd,env});assert.equal(stopped.code,0,stopped.stderr);await until(run.closed);
  const again=launch(t,cwd,binary,['dev','--no-watch','--port','0']);await until(()=>/SNAPBACK4_READY/.test(again.err()));again.c.kill('SIGTERM');await until(again.closed);
+});
+
+test('Darwin design witness: C-locale ps captures npm argv and parent birth changes',async()=>{
+ const source=`import cp from 'node:child_process';import assert from 'node:assert/strict';import{syncBuiltinESMExports}from'node:module';Object.defineProperty(process,'platform',{value:'darwin'});Object.defineProperty(process,'ppid',{value:12345});let dead=false;cp.execFileSync=(cmd,args,options)=>{assert.equal(options.env.LC_ALL,'C');const pid=Number(args[1]);if(dead&&pid===12346)throw Error('gone');if(pid===12345)return '12346 S Tue Oct 27 21:00:00 2026 /bin/sh';if(pid===12346)return '1 S Tue Oct 27 21:00:00 2026 node /usr/local/lib/node_modules/npm/bin/npm-cli.js run prod:serve';throw Error('unexpected ancestor');};syncBuiltinESMExports();const {watchParent}=await import(${JSON.stringify(pathToFileURL(join(root,'packages/snapback4/dist/parent-lifetime.js')).href)});let observed=false;const stop=watchParent(()=>observed=true);dead=true;await new Promise(r=>setTimeout(r,550));stop();assert.equal(observed,true);`;
+ const child=spawn(process.execPath,['--input-type=module','-e',source],{stdio:'pipe'});let err='';child.stderr.on('data',d=>err+=d);assert.equal(await new Promise(r=>child.once('close',r)),0,err);
+});
+
+
+test('aliased database recovery names its actual deployment control directory',{skip:process.platform==='win32',timeout:30000},async t=>{
+ const cwd=await project(t);const deployed=await cli(['deploy','aliased','--store','external/store.sqlite'],{cwd,env});assert.equal(deployed.code,0,deployed.stderr);
+ const host=await startServe('aliased',{cwd,env});try{
+  const busy=await cli(['serve','aliased','--port','0'],{cwd,env});assert.notEqual(busy.code,0);assert.ok(busy.stderr.includes(`snapback4 stop '${cwd}/aliased'`),busy.stderr);
+  const stopped=await cli(['stop','aliased'],{cwd,env});assert.equal(stopped.code,0,stopped.stderr);
+ }finally{await host.stop();}
 });

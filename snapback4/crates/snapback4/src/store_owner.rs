@@ -8,6 +8,7 @@ pub(crate) struct Owner {
     _sidecar: std::sync::Arc<File>,
     identity: (u64, u64),
     path: PathBuf,
+    control_directory: PathBuf,
     record: Option<File>,
     pub(crate) token_authority: Option<crate::serve::token::Authority>,
 }
@@ -53,7 +54,7 @@ fn same_file(a: &fs::Metadata, b: &fs::Metadata) -> bool { a.dev() == b.dev() &&
 
 #[cfg(unix)]
 fn regular(path: &Path, create: bool, database: &Path) -> Result<File, String> {
-    snapback4_core::private_fs::auxiliary_file(database, path, create, 2048)
+    snapback4_core::private_fs::auxiliary_file(database, path, create, 16384)
         .map_err(|e| failure(path, e))
 }
 
@@ -134,6 +135,7 @@ fn acquire(store: &Path, shared: bool, wait: Duration, cleanup_only: bool) -> Re
         let database = snapback4_core::private_fs::database_metadata(&path).map_err(|e| failure(&path, e))?
             .ok_or_else(|| failure(&path, "database disappeared during ownership acquisition"))?;
         if before.as_ref().is_some_and(|old| !same_file(old, &database)) { continue; }
+        let control_directory = store.parent().filter(|p| !p.as_os_str().is_empty()).unwrap_or(Path::new(".")).canonicalize().map_err(|e|failure(store,e))?;
         let mut reclaimed = None;
         let record = if shared { None } else {
             let record_path = path.with_file_name("serve.lock");
@@ -145,11 +147,11 @@ fn acquire(store: &Path, shared: bool, wait: Duration, cleanup_only: bool) -> Re
             let file = regular(&record_path, true, &path)?;
             file.set_len(0).map_err(|e| failure(&record_path, e))?;
             let mut file = file;
-            write_record(&mut file, None)?;
+            write_record(&mut file, None, &control_directory)?;
             Some(file)
         };
         if let Some(note) = reclaimed { eprintln!("note: {note}"); }
-        return Ok(Owner { _sidecar: std::sync::Arc::new(sidecar), identity: (database.dev(), database.ino()), path, record, token_authority: None });
+        return Ok(Owner { _sidecar: std::sync::Arc::new(sidecar), identity: (database.dev(), database.ino()), path, control_directory, record, token_authority: None });
     }
     Err(failure(store, "database path kept changing during ownership acquisition"))
 }
@@ -168,9 +170,10 @@ pub(crate) fn stopped_host(path: &Path) -> bool {
 
 pub(crate) fn busy(path: &Path) -> String {
     let owner = holder(path).unwrap_or_else(|| "holder metadata unavailable (ownership sidecar is locked)".into());
-    let dir = path.parent().unwrap_or(Path::new("."));
+    let recovery = record_metadata(path).and_then(|meta|meta["controlDirectory"].as_str().map(PathBuf::from));
+    let dir = recovery.as_deref().unwrap_or_else(|| path.parent().unwrap_or(Path::new(".")));
     let quoted = format!("'{}'", dir.display().to_string().replace('\'', "'\\''"));
-    format!("E_STORE_BUSY at {}: owned by {owner}; address {}; directory {}; no work was admitted. Recovery: run `snapback4 stop {quoted}`, rerun this command once, then restart the server. For an active CLI command wait for it to finish. For a disposable parallel proof use `dev --memory` (startDev({{args:[\"--memory\"]}})). Leave <database>-owner in place; deleting it does not stop the holder and ends exclusion", path.display(), address(path).unwrap_or_else(|| "pending".into()), dir.display())
+    format!("E_STORE_BUSY at {}: owned by {owner}; address {}; directory {}; no work was admitted. Recovery: run `snapback4 stop {quoted}`, rerun this command once, then restart the server. For an active CLI command wait for it to finish. For a disposable parallel proof use `dev --memory` (startDev({{args:[\"--memory\"]}})). Leave <database>-owner in place; deleting it does not stop that process and ends exclusion", path.display(), address(path).unwrap_or_else(|| "pending".into()), dir.display())
 }
 
 #[cfg(unix)]
@@ -180,7 +183,7 @@ pub(crate) fn address(path: &Path) -> Option<String> {
     let record = path.with_file_name("serve.lock");
     let file = regular(&record, false, path).ok()?;
     let mut text = String::new();
-    file.take(2048).read_to_string(&mut text).ok()?;
+    file.take(16384).read_to_string(&mut text).ok()?;
     let mut lines = text.lines();
     let port = lines.next().and_then(|s| s.parse::<u16>().ok());
     lines.next().filter(|s| !s.is_empty()).map(str::to_owned).or_else(|| port.filter(|p| *p != 0).map(|p| format!("http://127.0.0.1:{p}")))
@@ -192,7 +195,7 @@ fn owner_pid(path: &Path) -> Option<u32> {
     let record = path.with_file_name("serve.lock");
     let file = regular(&record, false, path).ok()?;
     let mut text = String::new();
-    file.take(2048).read_to_string(&mut text).ok()?;
+    file.take(16384).read_to_string(&mut text).ok()?;
     text.lines().nth(2)?.strip_prefix("pid ")?.parse().ok()
 }
 
@@ -204,7 +207,7 @@ pub(crate) fn address(_: &Path) -> Option<String> { None }
 
 
 // @ref LLP 3000.037.000#9-serve-lifetime-and-store-recovery-srv1 — metadata explains a lock; it never authorizes a signal.
-fn write_record(file: &mut File, address: Option<std::net::SocketAddr>) -> Result<(), String> {
+fn write_record(file: &mut File, address: Option<std::net::SocketAddr>, control: &Path) -> Result<(), String> {
     let pid = std::process::id();
     let start = crate::supervisor::identity(pid).map(|(_, start)| start).unwrap_or_else(|| "unknown".into());
     #[cfg(target_os = "linux")]
@@ -217,12 +220,17 @@ fn write_record(file: &mut File, address: Option<std::net::SocketAddr>) -> Resul
     let started = start.clone();
     // Never persist arbitrary argv (tokens/passwords can occur there).
     let verb = std::env::args().nth(1).filter(|s| crate::cli_flags::VERBS.contains(&s.as_str())).unwrap_or_else(|| "command".into());
-    let metadata = serde_json::json!({"pid":pid,"birth":start,"startTime":started,"command":format!("snapback4 {verb}")});
+    let metadata = serde_json::json!({"pid":pid,"birth":start,"startTime":started,"command":format!("snapback4 {verb}"),"controlDirectory":control.to_string_lossy()});
     write!(file, "{}\n{}\npid {pid}\n{metadata}\n", address.map(|a|a.port()).unwrap_or(0), address.map(|a|format!("http://{a}")).unwrap_or_default()).map_err(|e|e.to_string())
+}
+fn record_metadata(path: &Path) -> Option<serde_json::Value> {
+    let mut text = String::new();
+    regular(&path.with_file_name("serve.lock"), false, path).ok()?.take(16384).read_to_string(&mut text).ok()?;
+    serde_json::from_str(text.lines().nth(3)?).ok()
 }
 fn holder(path: &Path) -> Option<String> {
     let mut text = String::new();
-    regular(&path.with_file_name("serve.lock"), false, path).ok()?.take(2048).read_to_string(&mut text).ok()?;
+    regular(&path.with_file_name("serve.lock"), false, path).ok()?.take(16384).read_to_string(&mut text).ok()?;
     let pid = owner_pid(path)?;
     let metadata: serde_json::Value = text.lines().nth(3).and_then(|s|serde_json::from_str(s).ok()).unwrap_or_default();
     let alive = crate::supervisor::identity(pid).is_some_and(|(_, birth)| metadata["birth"].as_str().is_none_or(|saved| saved == birth));
@@ -230,6 +238,7 @@ fn holder(path: &Path) -> Option<String> {
 }
 
 impl Owner {
+    pub(crate) fn control_directory(&self) -> &Path { &self.control_directory }
     // @ref LLP 3000.000.000#11-wave-11-factual-release-narration — unlink only our address inode; the ownership sidecar remains named.
     pub(crate) fn clear_address(&self) {
         #[cfg(unix)]
@@ -279,7 +288,7 @@ pub(crate) fn announce(owner: &mut Owner, address: std::net::SocketAddr) -> Resu
     let file = owner.record.as_mut().ok_or("device ownership has no server address record")?;
     file.set_len(0).and_then(|_| file.seek(SeekFrom::Start(0))).map_err(|e| e.to_string())?;
     // First-line port is retained for the dev inspector; the third line names the owning process.
-    write_record(file, Some(address))
+    write_record(file, Some(address), &owner.control_directory)
 }
 
 #[cfg(all(test, unix))]

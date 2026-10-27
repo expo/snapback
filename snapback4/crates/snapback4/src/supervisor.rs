@@ -64,11 +64,11 @@ pub(crate) fn adopt() {
     let host = std::env::args().nth(1).is_some_and(|verb| matches!(verb.as_str(), "serve" | "dev"));
     if !host && supplied.is_none() { return; }
     let parent = unsafe { libc::getppid() } as u32;
-    if parent <= 1 { return; }
     if let Some(pid) = supplied {
         if identity(pid).is_none() { std::process::exit(128 + libc::SIGTERM); }
         SUPERVISOR.store(pid, Ordering::Release);
     }
+    if parent <= 1 { return; }
     PARENT.store(parent, Ordering::Release);
     let mut watched = Vec::new();
     if let Some((_, birth)) = identity(parent) { watched.push((parent, birth)); }
