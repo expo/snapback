@@ -188,7 +188,7 @@ pub fn init(options: &Options) -> i32 {
     if web || expo {
         files.push(("scripts/install.mjs", include_str!("init/install.mjs").into()));
         ports::scripts(&mut files, port.unwrap_or(4400), web_port.unwrap_or(if web { 5173 } else { 8081 }), range, web);
-        if let Err(error) = proof::files(&mut files, options, port.unwrap_or(4400), web_port.unwrap_or(if web { 5173 } else { 8081 }), web, &shape) {eprintln!("init proof capture: {error}");return 2;}
+        if let Err(error) = proof::files(&mut files, options, port.unwrap_or(4400), web_port.unwrap_or(if web { 5173 } else { 8081 }), web, &shape, options.flags.contains_key("day2")) {eprintln!("init proof capture: {error}");return 2;}
     }
     for (name, text) in &mut files {
         if name.starts_with("scripts/") && (name.ends_with(".mjs") || name.ends_with(".ts")) && !text.contains("API signatures:") {

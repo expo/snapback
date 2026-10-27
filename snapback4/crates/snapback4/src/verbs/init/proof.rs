@@ -14,7 +14,7 @@ pub(super) fn readme(mut text: String) -> String {
     text
 }
 
-pub(super) fn files(files: &mut Vec<(&'static str, String)>, options: &Options, backend: u16, frontend: u16, web: bool, shape: &super::starter::Shape) -> std::io::Result<()> {
+pub(super) fn files(files: &mut Vec<(&'static str, String)>, options: &Options, backend: u16, frontend: u16, web: bool, shape: &super::starter::Shape, capture_client: bool) -> std::io::Result<()> {
     let has_frontend = true;
     let has_write_scenario = shape.body == super::starter::Body::Todos || options.flags.contains_key("template");
     for (_, text) in files.iter_mut().filter(|(name, _)| *name == "README.md") {
@@ -28,17 +28,11 @@ pub(super) fn files(files: &mut Vec<(&'static str, String)>, options: &Options, 
     let sources = if let Ok(Some(own)) = super::own_schema(dir) {
         own.files.iter().filter_map(|name| std::fs::read_to_string(dir.join("snapback").join(name)).ok().map(|text| (name.clone(), text))).collect::<Vec<_>>()
     } else { files.iter().find(|(name, _)| *name == "snapback/schema.q").map(|(_, text)| vec![("schema.q".to_owned(), text.clone())]).unwrap_or_default() };
-    let mut day2 = options.flags.contains_key("day2") || !dir.join("package.json").is_file();
-    if day2 {
-        // Adapt's fallible preflight reports invalid captures before applying files.
-        match super::frozen::files(dir,&sources) {
-            Ok(frozen)=>files.extend(frozen),
-            Err(error) if !options.flags.contains_key("day2") && error.kind()==std::io::ErrorKind::InvalidData && error.to_string().starts_with("cannot freeze an unchecked")=>{
-                day2=false;
-                eprintln!("init: day-two capture deferred until the existing schema checks; run check, then init --adapt --day2 --apply before editing v2");
-            }
-            Err(error)=>return Err(error),
-        }
+    let day2 = options.flags.contains_key("day2") || !dir.join("package.json").is_file();
+    // Starter proof sources are editable drafts. Freeze historical client code
+    // only at the explicit day-two handover, after day-one customization.
+    if capture_client {
+        files.extend(super::frozen::files(dir,&sources)?);
     }
     for version in ["v1", "v2"].into_iter().filter(|_| day2) {
         if dir.join("versions").join(version).exists() { continue; }
@@ -193,7 +187,7 @@ pub(super) fn plan(dir: &std::path::Path, own: &super::OwnSchema, enable_day2: b
     else if let Some(Some(template)) = previous_frontend(dir, web) { flags.insert("template".into(), template.into()); }
     if day2 { flags.insert("day2".into(), String::new()); }
     let default_todos = shape.body == super::starter::Body::Todos && !flags.contains_key("template");
-    files(&mut generated, &Options { positionals: vec![dir.to_string_lossy().into_owned()], flags, json: false }, backend, frontend, web, &shape)?;
+    files(&mut generated, &Options { positionals: vec![dir.to_string_lossy().into_owned()], flags, json: false }, backend, frontend, web, &shape, false)?;
     // A saved version is immutable application evidence. Never fill its missing
     // fixture files from today's working release during an adaptation.
     generated.retain(|(name, _)| !name.starts_with("versions/") || {

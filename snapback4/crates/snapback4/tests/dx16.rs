@@ -73,3 +73,31 @@ fn wave33_muse_021_all_merges_retired_cells_and_narrowed_rows_across_retained_re
 
     fs::remove_dir_all(dir).unwrap();
 }
+
+#[test]
+fn wave33_029_024_fresh_starter_freezes_the_business_client_only_at_day_two() {
+    let dir=std::env::temp_dir().join(format!("dx16-day-one-{}",std::process::id()));
+    fs::create_dir_all(&dir).unwrap();
+    std::os::unix::fs::symlink(std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../node_modules"),dir.join("node_modules")).unwrap();
+    let run=|args:&[&str]|Command::new(BIN).current_dir(&dir).args(args).env("SNAPBACK4_INIT_INSTALL","0").output().unwrap();
+    let initial=run(&["init","--web"]);assert!(initial.status.success(),"{}",String::from_utf8_lossy(&initial.stderr));
+    assert!(!dir.join("v1").exists(),"an editable starter is not the historical end-of-day-one client");
+    let ordinary=run(&["init","--adapt","--apply"]);assert!(ordinary.status.success(),"{}",String::from_utf8_lossy(&ordinary.stderr));
+    assert!(!dir.join("v1").exists(),"inferred proof enablement is not explicit historical capture");
+    let source="use identity password\ntable business:\n  title: text <=80\n  public 'business records'\n  online only\nquery listDayOne():\n  return business first 20 by .id\n";
+    fs::write(dir.join("snapback/schema.q"),source).unwrap();
+    // The builder completed the day-one schema check, which emitted this API.
+    let checked=snapback4_lang::compile(&[("schema.q".into(),source.into())]);assert!(checked.diagnostics.is_empty());
+    fs::write(dir.join("snapback/generated/api.ts"),snapback4_lang::emit::typescript(&checked)).unwrap();
+    let mut package:serde_json::Value=serde_json::from_slice(&fs::read(dir.join("package.json")).unwrap()).unwrap();
+    package["scripts"]["client:calls"]=serde_json::json!("node calls.mjs");
+    fs::write(dir.join("package.json"),serde_json::to_string_pretty(&package).unwrap()).unwrap();
+    fs::write(dir.join("calls.mjs"),"import {api} from './snapback/generated/api.ts'; if(!api.listDayOne)throw Error('wrong frozen API'); console.log('business client captured');\n").unwrap();
+    let capture=run(&["init","--adapt","--day2","--apply"]);assert!(capture.status.success(),"{}",String::from_utf8_lossy(&capture.stderr));
+    assert_eq!(fs::read_to_string(dir.join("v1/snapback/schema.q")).unwrap(),source);
+    let frozen=fs::read_to_string(dir.join("v1/snapback/generated/api.ts")).unwrap();assert!(frozen.contains("listDayOne"));
+    let calls=Command::new("npm").current_dir(&dir).args(["--prefix","v1","run","--silent","client:calls"]).output().unwrap();
+    assert!(calls.status.success(),"{}{}",String::from_utf8_lossy(&calls.stdout),String::from_utf8_lossy(&calls.stderr));
+    assert!(String::from_utf8_lossy(&calls.stdout).contains("business client captured"));
+    fs::remove_dir_all(dir).unwrap();
+}
