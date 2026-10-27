@@ -39,7 +39,58 @@ SELECT s.principal, s.family, s.kind, s.token_digest, s.expires_at, s.scope,
 FROM (SELECT 1) AS anchor LEFT JOIN sessions s ON true
 LEFT JOIN _principal_generations g ON g.principal = s.principal";
 
+const BATCH_FULL_FACTS: &str = "WITH sessions AS (SELECT principal, COALESCE(family, token_digest) AS family, kind, token_digest, expires_at, 0 AS scope, NULL AS cap_expires_at, NULL AS principal_generation FROM _sessions WHERE token_digest IN (SELECT value FROM json_each(?1)))
+SELECT s.principal, s.family, s.kind, s.token_digest, s.expires_at, s.scope,
+       s.cap_expires_at, s.principal_generation, COALESCE(g.generation, 0),
+       (SELECT value FROM _meta WHERE key = 'worker:session-family'),
+       (SELECT value FROM _meta WHERE key = 'worker:session-revision'),
+       (SELECT value FROM _meta WHERE key = 'worker:family:' || s.family),
+       (SELECT value FROM _meta WHERE key = 'generation'),
+       (SELECT value FROM _meta WHERE key = 'store_id'),
+       NULL,
+       (SELECT value FROM _meta WHERE key = 'schema_hash'),
+       (SELECT value FROM _meta WHERE key = 'activation_hash'),
+       (SELECT value FROM _meta WHERE key = 'device:generation'),
+       (SELECT COALESCE(MAX(seq), 0) FROM _commits), req.value
+FROM json_each(?1) AS req LEFT JOIN sessions s ON s.token_digest = req.value
+LEFT JOIN _principal_generations g ON g.principal = s.principal";
+const BATCH_READ_FACTS: &str = "WITH sessions AS (SELECT principal, COALESCE(family, token_digest) AS family, kind, token_digest, expires_at, 0 AS scope, NULL AS cap_expires_at, NULL AS principal_generation FROM _sessions WHERE token_digest IN (SELECT value FROM json_each(?1)) UNION ALL SELECT principal, family, kind, token_digest, expires_at, 1, cap_expires_at, principal_generation FROM _read_sessions WHERE token_digest IN (SELECT value FROM json_each(?1)))
+SELECT s.principal, s.family, s.kind, s.token_digest, s.expires_at, s.scope,
+       s.cap_expires_at, s.principal_generation, COALESCE(g.generation, 0),
+       (SELECT value FROM _meta WHERE key = 'worker:session-family'),
+       (SELECT value FROM _meta WHERE key = 'worker:session-revision'),
+       (SELECT value FROM _meta WHERE key = 'worker:family:' || s.family),
+       (SELECT value FROM _meta WHERE key = 'generation'),
+       (SELECT value FROM _meta WHERE key = 'store_id'),
+       NULL,
+       (SELECT value FROM _meta WHERE key = 'schema_hash'),
+       (SELECT value FROM _meta WHERE key = 'activation_hash'),
+       (SELECT value FROM _meta WHERE key = 'device:generation'),
+       (SELECT COALESCE(MAX(seq), 0) FROM _commits), req.value
+FROM json_each(?1) AS req LEFT JOIN sessions s ON s.token_digest = req.value
+LEFT JOIN _principal_generations g ON g.principal = s.principal";
+
 impl Tx<'_> {
+    // @ref LLP 3000.009.001.000.002#sqlite-overlay-layout-proof — a qualified wave cannot change managed authority; members still resolve these facts with fresh clocks.
+    pub(crate) fn batch_authority_facts(&self, requests: &[crate::store_port::batch::Request]) -> Result<Vec<crate::store_port::batch::Facts>, RuntimeError> {
+        use std::collections::{BTreeMap, BTreeSet};
+        let digests: BTreeSet<&str> = requests.iter().filter_map(|r| r.digest.as_deref()).filter(|d| !d.contains('\0')).collect();
+        if digests.is_empty() { return Ok(requests.iter().map(|_| Default::default()).collect()); }
+        let encoded = serde_json::to_string(&digests).map_err(|e| RuntimeError::Store(e.to_string()))?;
+        let mut read = self.read_sessions_at_start || self.read_sessions_installed.get();
+        let mut facts = BTreeMap::new();
+        loop {
+            facts.clear();
+            let mut stmt = self.conn().prepare_cached(if read { BATCH_READ_FACTS } else { BATCH_FULL_FACTS })?;
+            let mut rows = stmt.query([&encoded])?;
+            while let Some(row) = rows.next()? { append_fact_row(row, facts.entry(row.get::<_, String>(19)?).or_insert(None))?; }
+            if !read && facts.values().any(|f| f.as_ref().is_some_and(|f| f.sessions.is_empty())) && read_sessions::present(self.conn())? {
+                read = true; self.read_sessions_installed.set(true); continue;
+            }
+            break;
+        }
+        Ok(requests.iter().map(|r| crate::store_port::batch::Facts { authority: r.digest.as_ref().and_then(|d| facts.get(d).and_then(|f| f.clone()).map(|f| (d.clone(), f))), ..Default::default() }).collect())
+    }
     pub(crate) fn session_authority_facts(&self, digest: &str) -> Result<crate::identity::facts::SessionFacts, RuntimeError> {
         fetch(self.conn(), digest, self.read_sessions_installed.get() || self.read_sessions_at_start, &self.read_sessions_installed)
     }
@@ -69,6 +120,12 @@ fn fetch(conn: &rusqlite::Connection, digest: &str, read: bool, discovered: &std
                 discovered.set(true);
                 return fetch(conn, digest, true, discovered);
             }
+            append_fact_row(row, &mut facts)?;
+        }
+        Ok(facts.expect("anchor returns metadata even for an absent token"))
+}
+
+fn append_fact_row(row: &rusqlite::Row<'_>, facts: &mut Option<crate::identity::facts::SessionFacts>) -> rusqlite::Result<()> {
             let result = facts.get_or_insert_with(|| crate::identity::facts::SessionFacts {
                 revision: None,
                 head: 0, sessions: Vec::new(), current_generation: 0, worker_family: None,
@@ -88,8 +145,7 @@ fn fetch(conn: &rusqlite::Connection, digest: &str, read: bool, discovered: &std
                     cap_expires_at: row.get(6)?, principal_generation: row.get(7)?,
                 });
             }
-        }
-        Ok(facts.expect("anchor returns metadata even for an absent token"))
+    Ok(())
 }
 
 const WORK_COLUMNS: &str = "principal, state, claimed_by, session_digest, lease_until, deadline, family, principal_generation, admitted_expires_at, service_generation";
@@ -216,13 +272,26 @@ impl AuthorityTransaction for Tx<'_> {
 }
 
 impl Store {
+    // The caller validates the complete local revision before and after using
+    // these frozen authority facts. BEGIN DEFERRED performs no database read.
+    pub(crate) fn cached_authority_transaction(&mut self) -> Result<Tx<'_>, RuntimeError> {
+        self.check_ownership()?;
+        let sql = self.conn.transaction_with_behavior(rusqlite::TransactionBehavior::Deferred)?;
+        let read_storage = self.read_sessions.snapshot()?;
+        Ok(Tx { cache_revision: &self.cache_revision, group_tail: Default::default(), lifecycle: false, read_sessions: &self.read_sessions, read_sessions_installed: Default::default(), read_sessions_at_start: *read_storage, read_sessions_installation: Default::default(), activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx: sql, page_size: self.page_size, server: self.server, catalog: &self.catalog })
+    }
     pub(crate) fn session_authority_transaction(&self, digest: &str, validate_generation: bool) -> Result<(Tx<'_>, crate::identity::facts::SessionFacts), RuntimeError> {
         self.check_ownership()?;
+        let cache_before = self.cache_revision.sample();
         let sql = self.conn.unchecked_transaction()?;
         // Hold only until the SELECT pins the schema and authority snapshot.
         let read_storage = self.read_sessions.snapshot()?;
-        let tx = Tx { lifecycle: false, read_sessions: &self.read_sessions, read_sessions_installed: Default::default(), read_sessions_at_start: *read_storage, read_sessions_installation: Default::default(), activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx: sql, page_size: self.page_size, server: self.server, catalog: &self.catalog };
-        let facts = tx.session_authority_facts(digest)?;
+        let tx = Tx { cache_revision: &self.cache_revision, group_tail: Default::default(), lifecycle: false, read_sessions: &self.read_sessions, read_sessions_installed: Default::default(), read_sessions_at_start: *read_storage, read_sessions_installation: Default::default(), activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx: sql, page_size: self.page_size, server: self.server, catalog: &self.catalog };
+        let mut facts = tx.session_authority_facts(digest)?;
+        if self.cache_scope().is_some() {
+            facts.revision = self.cache_revision.snapshot(cache_before);
+            facts.backend_generation = facts.store_generation.as_deref().and_then(|g| g.parse().ok());
+        }
         drop(read_storage);
         // This dedicated snapshot has no writes: discovery observes committed
         // storage, so later snapshots can use the one-statement hit path.
@@ -308,6 +377,34 @@ mod tests {
 mod facts_tests {
     use super::*;
     use crate::{identity::{self, IdentityTransaction, Session, SessionScope}, round_trips::Scope};
+
+    #[test]
+    fn sqlite_batch_authority_facts_match_scalar_full_read_absent_and_duplicate() {
+        use crate::store_port::batch::Request;
+        for read_storage in [false, true] {
+            let mut store = Store::memory().unwrap();
+            if read_storage {
+                let tx = store.transaction().unwrap();
+                tx.insert_read_session(&Session { principal: "member:install".into(), kind: "member".into(), token: "ro.install".into(), expires_at: 10000, cap_expires_at: Some(10000), scope: SessionScope::Read }, 0, None).unwrap();
+                tx.commit().unwrap();
+            }
+            for (n, case) in identity::facts::tests::cases(read_storage).into_iter().enumerate() {
+                if n % 131 != 0 && case.edge == 0 { continue; }
+                let tx = store.transaction().unwrap();
+                tx.conn().execute_batch(&case.seed()).unwrap();
+                let requests: Vec<_> = [Some("digest"), Some("absent"), Some("digest"), None].into_iter().map(|d| Request { digest: d.map(str::to_owned), principal: "member:matrix".into(), id: None }).collect();
+                let batched = tx.batch_authority_facts(&requests).unwrap();
+                for (request, facts) in requests.iter().zip(batched) {
+                    match request.digest.as_deref() {
+                        Some(d) => assert_eq!(facts.authority.unwrap(), (d.to_owned(), tx.session_authority_facts(d).unwrap()), "{case:?}"),
+                        None => assert!(facts.authority.is_none()),
+                    }
+                }
+                assert!(tx.batch_authority_facts(&[]).unwrap().is_empty());
+                tx.rollback().unwrap();
+            }
+        }
+    }
 
     #[test]
     fn authority_facts_equivalence_sqlite_generated_matrix() {

@@ -109399,3 +109399,35 @@ live/zombie owned PID or private-path process; every private cluster is
 stopped. The 25 GiB guard never fires; bookend free space is **82.07 GiB**.
 The exact staged audit compares 1028 generated fixture credentials with zero
 matches; raw logs/data remain outside Git.
+
+
+## 2026-10-27 — SQW: SQLite durable cycles and owned revision reuse
+
+On `sb4-pg/sqlite-w`, from S1-SQ `99d9499be6`, the native SQLite build selects
+fdatasync while retaining FULL ordering and directory/WAL-creation syncs.
+Program groups use count-checked family tails, a guarded current-layout overlay
+at the actual deployment generation, one final-image UPDATE, and vector root
+and authority facts. Every member retains serial authority, clock, meter,
+receipt and history semantics. An exclusive backend owner can reuse immutable
+query results under a complete process revision stream; native shared devices,
+external writers and restarted caches cannot borrow that proof.
+
+A wholly empty bulk cycle now coalesces commit notifications to its 100 ms
+idle-probe boundary. Skipped pacing/clock turns do not establish emptiness;
+useful-work budgets, repayment and independent aged service remain. This removes
+empty solo writer turns without weakening durability. The adaptive size
+controller and queue policy are byte-identical to S1-SQ. A local fixed-32
+experiment also misses W4 and shows no adaptive target collapse; its override
+is removed. A two-millisecond collection experiment gives no useful gain and
+is reverted to one millisecond.
+
+Core: **873 passed / 0 failed / 498 ignored**. CLI: **627 passed / 0 failed /
+75 ignored**, including the lowered RT0 ratchet, ownership/serving and the new
+empty-cycle/job witness. The crash witness recovers acknowledged groups after
+SIGKILL and after loss of a later WAL suffix. Actual strace observes fdatasync
+and the directory sync. The final-code W4 development probe passes 4,525/s at
+26.36 ms p99 and 0.036% errors with exact counter equality; 6,400/s fails. This
+single repetition is not the S1 matrix qualification. The unchanged six-cell,
+three-repetition matrix and its separate cost observations belong in
+[the SQW report](experiments/scale-controls/results-20261027-s1-sqlite-w/README.md).
+No push or publication is authorized.

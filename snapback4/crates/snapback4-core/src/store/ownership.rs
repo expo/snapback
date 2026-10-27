@@ -55,7 +55,18 @@ impl Store {
     #[cfg(unix)]
     pub fn retain_ownership(&mut self, owner: std::sync::Arc<std::fs::File>) -> Result<(), RuntimeError> {
         self.ownership = Some(owner);
+        self.cache_owned = false;
         self.check_ownership()
+    }
+
+    /// The backend host retains an exclusive sidecar flock for this store's
+    /// entire lifetime. Shared device ownership must use retain_ownership.
+    // @ref LLP 3000.009.001.000.002#sqlite-snapshot-reuse — local cache observation requires one exclusive backend owner.
+    #[cfg(unix)]
+    pub fn retain_exclusive_ownership(&mut self, owner: std::sync::Arc<std::fs::File>) -> Result<(), RuntimeError> {
+        self.retain_ownership(owner)?;
+        self.cache_owned = true;
+        Ok(())
     }
 
     pub fn check_ownership(&self) -> Result<(), RuntimeError> {
