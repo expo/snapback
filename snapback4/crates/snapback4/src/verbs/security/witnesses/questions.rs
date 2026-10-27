@@ -438,4 +438,15 @@ pub(super) fn repeat(bound:&Bound,inv:&security::Invariant,c:&Counterexample,n:&
   let mut reverted=raw.clone();let id=reverted["row"]["id"].clone();let committed=reverted["committedRows"][&inv.table].as_array_mut().unwrap().iter_mut().find(|row|row["id"]==id).unwrap();committed[inv.column.as_ref().unwrap()]="measured".into();assert!(transition_evidence(reverted,n,inv).is_none());
   let mut noop=raw;noop["old"]=noop["row"].clone();assert!(transition_evidence(noop,n,inv).is_none());
  }
+ #[test]fn calibrated_questions_survive_the_complete_default_collector(){
+  for(label,source,code,operation)in[
+   ("030",include_str!(concat!(env!("CARGO_MANIFEST_DIR"),"/../snapback4-lang/tests/security/sec10-shipping/w30-030.q")),"N_TRANSITION_BYPASS","publishReport"),
+   ("035",include_str!(concat!(env!("CARGO_MANIFEST_DIR"),"/../snapback4-lang/tests/security/sec10-shipping/w30-035.q")),"N_TRANSITION_BYPASS","advanceStage"),
+   ("018",include_str!(concat!(env!("CARGO_MANIFEST_DIR"),"/../snapback4-lang/tests/security/sec10-shipping/w30-018.q")),"N_APPROVAL_PATH","pruneTouchup")]{
+   struct Scratch(std::path::PathBuf);impl Drop for Scratch{fn drop(&mut self){let _=std::fs::remove_dir_all(&self.0);}}
+   let root=std::env::temp_dir().join(format!("sb4-sec11-transition-collector-{}-{label}",std::process::id()));let _scratch=Scratch(root.clone());std::fs::create_dir_all(root.join("snapback")).unwrap();std::fs::write(root.join("snapback/schema.q"),source).unwrap();let project=Project{root};let sources=project.sources().unwrap();let bound=snapback4_lang::compile(&sources);assert!(bound.diagnostics.is_empty());let mut report=security::analyze_rules(&bound);security::add_source_notes(&mut report,&sources,&bound);let options=Options{positionals:Vec::new(),flags:Default::default(),json:false};let values=super::super::collect(&project,&bound,&sources,&report.notes,true,&options);
+   assert!(report.notes.iter().zip(values).any(|(n,w)|n.code==code&&w.is_some_and(|w|w["operation"]==operation)),"{label}: exact target question lost in the shared default campaign");
+  }
+ }
+
 }
