@@ -108,7 +108,7 @@ explicit mapping from retained parent data. Retiring a required old column
 needs a truthful `down` output or an authored bridge retaining that column;
 the refusal names each missing column.
 
-### Promote a real-time staging deployment
+### Promote a real-time staging deployment — E_PROMOTE
 
 Stop staging, then preview and create a **new**, absent production directory:
 ```sh

@@ -109,7 +109,10 @@ mod tests{
   let summary=super::super::release_loop(&project,&bound,&sources,None,None,&strict).unwrap();let denied=super::super::enforce_release(summary.as_ref(),&strict).unwrap_err();assert!(denied.contains("E_SECURITY_REVIEW"));
   let mut staging=options.clone();staging.flags.insert("staging".into(),String::new());
   let advisory=super::super::release_loop(&project,&bound,&sources,None,None,&staging).unwrap().unwrap();assert!(advisory.contains("FIX")&&advisory.contains("FAILED"));
-  assert!(super::super::release_loop(&project,&bound,&sources,Some(&bound),None,&strict).unwrap().is_none());
+  let unchanged=super::super::release_loop(&project,&bound,&sources,Some(&bound),None,&strict).unwrap();
+  assert!(unchanged.is_some());
+  assert!(super::super::enforce_release(unchanged.as_ref(),&strict).unwrap_err().contains("E_SECURITY_REVIEW"));
+  assert!(super::super::release_loop(&project,&bound,&sources,Some(&bound),None,&options).unwrap().is_none());
  }
 
 }
