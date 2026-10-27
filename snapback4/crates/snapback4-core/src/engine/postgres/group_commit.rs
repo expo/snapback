@@ -78,14 +78,8 @@ pub(super) const HEAD: &str = "SELECT seq,revision,attempt,pg_catalog.pg_current
 pub(super) const IDENTITY: &str = "SELECT generation,(SELECT value FROM _meta WHERE key='store_id') FROM _backend WHERE singleton";
 
 impl Store {
-    pub(crate) fn batch_transaction(&mut self) -> Result<Tx<'_>, RuntimeError> {
+    pub(crate) fn prepare_batch_protocol(&mut self) -> Result<(), RuntimeError> {
         if self.early_release.is_none() { self.prepare_group_final()?; }
-        let store_id = self
-            .fence
-            .as_ref()
-            .ok_or_else(|| RuntimeError::StoreOwnership("ticket requires owner fence".into()))?
-            .store_id
-            .clone();
         for sql in [
             TICKET,
             HEAD,
@@ -97,6 +91,16 @@ impl Store {
         ] {
             self.prewarm_flight(sql)?;
         }
+        Ok(())
+    }
+    pub(crate) fn batch_transaction(&mut self) -> Result<Tx<'_>, RuntimeError> {
+        self.prepare_batch_protocol()?;
+        let store_id = self
+            .fence
+            .as_ref()
+            .ok_or_else(|| RuntimeError::StoreOwnership("ticket requires owner fence".into()))?
+            .store_id
+            .clone();
         let ordinal = self.batch_ordinal.fetch_add(1, Ordering::Relaxed);
         if ordinal == u64::MAX { return Err(RuntimeError::Store("batch ordinal exhausted".into())); }
         let mut tx = self.begin(Some(super::store::WriteMode::Serialized), false)?;

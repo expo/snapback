@@ -170,8 +170,14 @@ impl Queue {
         let worker_admission = admission.clone();
         let notice=Arc::new(notice::Notice::default());
         let worker_notice=notice.clone();
+        let (ready, prepared) = mpsc::sync_channel(1);
         let worker = thread::Builder::new().name("snapback4-committer".into())
-            .spawn(move || batching::run(receiver, execute, stats, depth, worker_admission, worker_notice))?;
+            .spawn(move || batching::run(receiver, execute, stats, depth, worker_admission, worker_notice, ready))?;
+        if let Err(why) = prepared.recv().unwrap_or_else(|_| Err("committer exited before preparation".into())) {
+            drop(sender);
+            let _ = worker.join();
+            return Err(std::io::Error::other(why));
+        }
         Ok(Self { notice, sender:Some(sender), worker:Some(worker), admission, batching,
             #[cfg(feature="postgres")] lease:None })
     }

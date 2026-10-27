@@ -128,6 +128,12 @@ impl AnyTx<'_> {
 }
 #[cfg(feature="postgres")]
 impl crate::store_port::AnyStore {
+    pub(crate) fn prepare_pipeline_writer(&mut self) -> Result<(), RuntimeError> {
+        if let Self::Postgres(super::handles::PostgresStore(h)) = self {
+            h.store.get_mut().prepare_batch_protocol()?;
+        }
+        Ok(())
+    }
     pub(crate) fn refresh_pipeline_writer(&mut self) -> Result<(), RuntimeError> {
         match self {
             Self::Postgres(super::handles::PostgresStore(handle)) => handle.reconnect_pipeline_writer(),
