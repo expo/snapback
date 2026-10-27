@@ -232,7 +232,8 @@ All 800 fresh and 800 post-test JSON deployment verdicts completed normally:
 19 and 26 carried refusals, zero assessed false gates or false production
 refusals, zero unmatched gate/FIX/refusal records. The sole wave30 gate is hand
 reviewed: `advanceJob`, booked -> grinding, dampSigned=true/dampApproved=false.
-Its inherited static note still names acceptQuote, while its actual candidate,
+The approval gate renderer names the executed `advanceJob` operation. The raw
+static source hypothesis still names acceptQuote, while its actual candidate,
 compact summary and last history step name advanceJob; no acceptQuote coverage
 credit is claimed.
 
