@@ -4,6 +4,12 @@ ap=argparse.ArgumentParser();ap.add_argument('--out',required=True);a=ap.parse_a
 rows=[]
 for p in sorted(pathlib.Path('/tmp/lat3').glob('corpus-[0-9].jsonl')):
  rows.extend(json.loads(line) for line in p.read_text().splitlines())
+raw_count=len(rows);selected={};setups=[]
+for x in rows:
+ if 'script'not in x:setups.append(x);continue
+ key=(x['wave'],x['lane'],x['script'])
+ if key not in selected or x.get('measurementRevision',1)>selected[key].get('measurementRevision',1):selected[key]=x
+rows=[*selected.values(),*setups]
 def stats(values):
  if not values:return None
  values=sorted(values)
@@ -13,7 +19,7 @@ def failure_messages(lines):
  # Node process warnings are diagnostics, not failed assertions. Preserve raw
  # message lists separately; canonicalize copy roots and explicit launch/run
  # identities, never refusal codes, deadlines, rule text or assertion values.
- return [re.sub(r'run tag [0-9a-f]{8}', 'run tag <run-id>',re.sub(r'sb4rendered[0-9a-f]{32}', 'sb4rendered<launch-id>',re.sub(r'/tmp/lat3/corpus-\d/[^/]+/(?:before|after)', '<COPY>',line)))
+ return [re.sub(r'(<COPY>/logs/)[0-9a-f-]{36}(\.(?:stderr|stdout)\.log)',r'\1<command-id>\2',re.sub(r'run tag [0-9a-f]{8}', 'run tag <run-id>',re.sub(r'sb4rendered[0-9a-f]{32}', 'sb4rendered<launch-id>',re.sub(r'/tmp/lat3/corpus-\d/[^/]+/(?:before|after)', '<COPY>',line))))
          for line in lines if not re.match(r'^\s*(?:\|\s*)?\(node:\d+\).*Warning:',line)]
 call_differences=[];call_pairs=0
 for pair in rows:
@@ -42,7 +48,7 @@ for scope,waves in [('all',[30,31,32,33,34]),('day-one',[32,34]),('day-two',[33]
    complete=[p for p in pairs if metric in p['before'] and metric in p['after']]
    table[script+'/'+metric]={v:stats([x[v][metric] for x in complete]) for v in ['before','after']}
  tables[scope]=table
-summary={'completedPairs':sum('script'in x for x in rows),'lanes':len({(x['wave'],x['lane']) for x in rows}),
+summary={'completedPairs':sum('script'in x for x in rows),'rawRows':raw_count,'explicitlySupersededRows':raw_count-len(rows),'lanes':len({(x['wave'],x['lane']) for x in rows}),
  'setupErrors':[x for x in rows if 'setupError'in x],
  'exitDifferences':[{k:x[k] for k in ['wave','lane','script','before','after']} for x in rows if not x.get('sameExit',True)],
  'nonzeroPairs':[{'wave':x['wave'],'lane':x['lane'],'script':x['script'],'beforeCode':x['before']['code'],'afterCode':x['after']['code']} for x in rows if 'script'in x and (x['before']['code']!=0 or x['after']['code']!=0)],

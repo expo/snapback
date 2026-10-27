@@ -45,6 +45,11 @@ def run(dst,script,log,timeout=360):
   'PORT_LO':str(36000+int(dst.parents[1].name.split('-')[-1])*3000),'PORT_HI':str(37999+int(dst.parents[1].name.split('-')[-1])*3000),
   'npm_config_cache':str(SCRATCH/'npm-cache')}
  env.pop('NODE_OPTIONS',None);env.pop('LAT3_TRACE',None);env.pop('SNAPBACK4_LATENCY_TRACE',None)
+ # A historical script supports TMPDIR but defaults to a removed bakeoff
+ # scratch root. Supply its documented override, without rewriting assertions.
+ runtime=None
+ if script=='day2:proof' and any('process.env.TMPDIR' in p.read_text(errors='replace') and '/tmp/' in p.read_text(errors='replace') for p in (dst/'scripts').glob('day2-proof.*')):
+  runtime=SCRATCH/'runtime'/dst.parent.name/dst.name;runtime.mkdir(parents=True,exist_ok=True,mode=0o700);env['TMPDIR']=str(runtime)
  trace=log.with_suffix('.native.jsonl') if int(dst.parent.name.split('-')[0][1:])>=32 else None
  if trace:
   trace.write_text('');trace.chmod(0o600);env['SNAPBACK4_LATENCY_TRACE']=str(trace)
@@ -64,6 +69,7 @@ def run(dst,script,log,timeout=360):
    except subprocess.TimeoutExpired:os.killpg(child.pid,signal.SIGKILL);child.wait()
    raise
  result={'code':code,'seconds':time.monotonic()-start,'load':load}
+ if runtime:result['suppliedTmpdir']=True
  if script=='probe:serve/client:calls' and (dst/'lat3-probe.json').exists():
   result.update(json.loads((dst/'lat3-probe.json').read_text()))
   for suffix in ['stdout','stderr']:shutil.copyfile(dst/f'lat3-calls.{suffix}',log.with_suffix('.calls.'+suffix))
@@ -99,11 +105,12 @@ def messages(path):
  return lines
 
 def main():
- ap=argparse.ArgumentParser();ap.add_argument('--worker',type=int,default=0);ap.add_argument('--workers',type=int,default=1);ap.add_argument('--waves',default='30,31,32,33,34');ap.add_argument('--lanes');ap.add_argument('--scripts',default='acceptance,frontend:proof,day2:proof,probe:serve/client:calls');ap.add_argument('--resume',action='store_true');a=ap.parse_args()
+ ap=argparse.ArgumentParser();ap.add_argument('--worker',type=int,default=0);ap.add_argument('--workers',type=int,default=1);ap.add_argument('--waves',default='30,31,32,33,34');ap.add_argument('--lanes');ap.add_argument('--scripts',default='acceptance,frontend:proof,day2:proof,probe:serve/client:calls');ap.add_argument('--resume',action='store_true');ap.add_argument('--slot',type=int);ap.add_argument('--revision',type=int,default=1);a=ap.parse_args()
  cases=[(w,p.parent) for w in map(int,a.waves.split(',')) for p in sorted(pathlib.Path(f'/home/ccheever/sb4-loop/wave{w}/apps').glob('*-snapback-*/package.json'))]
  if a.lanes:cases=[(w,p) for w,p in cases if p.name[:3] in a.lanes.split(',')]
- directory=SCRATCH/f'corpus-{a.worker}';directory.mkdir(exist_ok=True)
- results=SCRATCH/f'corpus-{a.worker}.jsonl'
+ slot=a.worker if a.slot is None else a.slot
+ directory=SCRATCH/f'corpus-{slot}';directory.mkdir(exist_ok=True)
+ results=SCRATCH/f'corpus-{slot}.jsonl'
  previous=[json.loads(line) for line in results.read_text().splitlines()] if a.resume and results.exists() else []
  for index,(wave,src) in enumerate(cases):
   if index%a.workers!=a.worker:continue
@@ -116,7 +123,7 @@ def main():
   if old:
    # Retain partial/invalid copy attempts; rerun the whole lane from identical
    # fresh sources so earlier command side effects remain paired and ordered.
-   with (SCRATCH/f'corpus-{a.worker}.superseded.jsonl').open('a') as f:
+   with (SCRATCH/f'corpus-{slot}.superseded.jsonl').open('a') as f:
     for x in old:f.write(json.dumps(x)+'\n')
    previous=[x for x in previous if x not in old]
    current=[json.loads(line) for line in results.read_text().splitlines()]
@@ -138,7 +145,7 @@ def main():
      if 'probe:serve' not in scripts or 'client:calls' not in scripts:continue
     elif script not in scripts:continue
     name=script.replace(':','-').replace('/','-')
-    pair={'wave':wave,'lane':src.name,'script':script,'index':index,'artifactDirectoriesPreserved':True}
+    pair={'wave':wave,'lane':src.name,'script':script,'index':index,'artifactDirectoriesPreserved':True,'measurementRevision':a.revision}
     # Alternate order across lanes to reduce systematic shared-load/order bias.
     for variant,dst in ([('before',before),('after',after)] if index%2==0 else [('after',after),('before',before)]):
      inputs=client_digest(dst)
@@ -154,4 +161,6 @@ def main():
    print(key,'setup error',type(e).__name__,flush=True)
   finally:
    if out.exists():shutil.rmtree(out)
+   runtime=SCRATCH/'runtime'/key
+   if runtime.exists():shutil.rmtree(runtime)
 if __name__=='__main__':main()
