@@ -49,5 +49,5 @@ removed=[]
 for path in cases|binaries:
  assert path.parent==pathlib.Path('/tmp')and not path.is_symlink()
  if path.exists():shutil.rmtree(path);removed.append(str(path))
-record=dict(reason='Completed native800 composition does not require duplicate fleet attempts. In-flight unused attempts are interrupted, never PASS.',ownedIdentities=known,remainingLiveOwnedProcesses=remaining,removedOwnedTemporaryDirectories=removed,completedParentReceipt=(root/'remote-receipt.json').exists(),binarySha256=expected)
+record=dict(reason=sys.argv[2] if len(sys.argv)>2 else 'Completed native800 composition does not require duplicate fleet attempts. In-flight unused attempts are interrupted, never PASS.',ownedIdentities=known,remainingLiveOwnedProcesses=remaining,removedOwnedTemporaryDirectories=removed,completedParentReceipt=(root/'remote-receipt.json').exists(),binarySha256=expected)
 (root/'interruption-cleanup.json').write_text(json.dumps(record,indent=2)+'\n');print(json.dumps(dict(tracked=len(known),remaining=len(remaining),removed=len(removed))))
