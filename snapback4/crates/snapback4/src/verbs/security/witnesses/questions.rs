@@ -445,7 +445,8 @@ pub(super) fn repeat(bound:&Bound,inv:&security::Invariant,c:&Counterexample,n:&
    ("018",include_str!(concat!(env!("CARGO_MANIFEST_DIR"),"/../snapback4-lang/tests/security/sec10-shipping/w30-018.q")),"N_APPROVAL_PATH","pruneTouchup")]{
    struct Scratch(std::path::PathBuf);impl Drop for Scratch{fn drop(&mut self){let _=std::fs::remove_dir_all(&self.0);}}
    let root=std::env::temp_dir().join(format!("sb4-sec11-transition-collector-{}-{label}",std::process::id()));let _scratch=Scratch(root.clone());std::fs::create_dir_all(root.join("snapback")).unwrap();std::fs::write(root.join("snapback/schema.q"),source).unwrap();let project=Project{root};let sources=project.sources().unwrap();let bound=snapback4_lang::compile(&sources);assert!(bound.diagnostics.is_empty());let mut report=security::analyze_rules(&bound);security::add_source_notes(&mut report,&sources,&bound);let options=Options{positionals:Vec::new(),flags:Default::default(),json:false};let values=super::super::collect(&project,&bound,&sources,&report.notes,true,&options);
-   assert!(report.notes.iter().zip(values).any(|(n,w)|n.code==code&&w.is_some_and(|w|w["operation"]==operation)),"{label}: exact target question lost in the shared default campaign");
+   let witness=report.notes.iter().zip(values).find_map(|(n,w)|w.filter(|w|n.code==code&&w["operation"]==operation)).unwrap_or_else(||panic!("{label}: exact target question lost in the shared default campaign"));
+   if let Some(role)=match label{"030"=>Some("engineer"),"035"=>Some("cleaner"),_=>None}{assert!(witness["supportingRows"]["roles"].as_array().unwrap().iter().any(|r|r["principal"]==witness["viewer"]&&r["role"]==role),"{label}: expected actual {role} caller, got {}",witness["viewer"]);}
   }
  }
 

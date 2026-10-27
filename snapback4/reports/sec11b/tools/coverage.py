@@ -37,10 +37,10 @@ rules={
 (30,'025','F1'):dict(codes=['N_CALLER_HISTORY'],ops=['logExam'],less={'attempt':3}),
 (30,'025','F2'):dict(codes=['N_LATEST_SUBJECT'],ops=['logExam']),
 (30,'030','F1'):dict(codes=['N_OPTIONAL_EVIDENCE'],term='recordings'),
-(30,'030','F2'):dict(codes=['N_TRANSITION_BYPASS'],ops=['publishReport']),
+(30,'030','F2'):dict(codes=['N_TRANSITION_BYPASS'],ops=['publishReport'],viewerRole='engineer',oldTruth={'status':'measured'},truth={'status':'reported'}),
 (30,'033','F1'):dict(codes=['N_APPROVAL_NOT_ENFORCED'],ops=['advanceJob'],truth={'dampSigned':True,'dampApproved':False}),
 (30,'033','F2'):dict(codes=['N_CHILD_EVIDENCE_PRESENCE'],ops=['acceptQuote','advanceJob']),
-(30,'035','F1'):dict(codes=['N_TRANSITION_BYPASS'],ops=['finishBatch']),
+(30,'035','F1'):dict(codes=['N_TRANSITION_BYPASS'],ops=['advanceStage'],viewerRole='cleaner',oldTruth={'stage':'inspection'},truth={'stage':'finished'}),
 (30,'038','F1'):dict(codes=['N_DUPLICABLE_GUARD']),
 }
 for (wave,lane,finding),rule in list(rules.items()):
@@ -68,6 +68,7 @@ def category(row,rule):
   material=w.get('candidate','') if d['code']in['N_TEXT_EVIDENCE','N_OPTIONAL_EVIDENCE']else w.get('candidate','')+' '+json.dumps(w.get('row',{}))
   if rule.get('term')and rule['term'].lower()not in material.lower():continue
   if any(w.get('row',{}).get(k)!=v for k,v in rule.get('truth',{}).items()):continue
+  if any((w.get('old')or{}).get(k)!=v for k,v in rule.get('oldTruth',{}).items()):continue
   if any(not isinstance(w.get('row',{}).get(k),int) or w['row'][k]>=v for k,v in rule.get('less',{}).items()):continue
   if rule.get('effect')and w.get('effect')!=rule['effect']:continue
   if rule.get('oldValues')and not all(v in (w.get('old')or{}).values()for v in rule['oldValues']):continue
