@@ -27,6 +27,18 @@ test("process-only proof imports leave Playwright and SQLite unloaded", async t 
     const require = createRequire(import.meta.url);
     assert.ok(!Object.keys(require.cache).some(path => path.includes('playwright-core')));
     assert.ok(!process.moduleLoadList.some(name => name.includes('sqlite')));
+    const Module = require('node:module'), load = Module._load;
+    const {registeredLocator} = await import(${JSON.stringify(new URL('../dist/proof-text.js', import.meta.url).href)});
+    let attempts = 0;
+    Module._load = function(id, ...args) {
+      if (id === 'playwright-core' && attempts++ === 0) throw Error('transient peer failure');
+      return load.call(this, id, ...args);
+    };
+    try {
+      assert.throws(() => registeredLocator({count: async () => 0}), /transient peer failure/);
+      assert.equal(await registeredLocator({count: async () => 0}).count(), 0);
+      assert.equal(attempts, 2, 'failed require must not latch successful registration');
+    } finally { Module._load = load; }
   `], {cwd});
   assert.equal(result.code, 0, result.stderr);
 });
