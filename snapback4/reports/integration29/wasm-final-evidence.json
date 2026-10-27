@@ -1,0 +1,20 @@
+{
+  "at": "2026-10-27T20:51:27Z",
+  "sha": "c3c56b5057",
+  "dirty": false,
+  "wasm": {
+    "raw": 2416590,
+    "gzip": 738765,
+    "brotli": 556128
+  },
+  "glue": {
+    "raw": 16053,
+    "gzip": 3695,
+    "brotli": 3260
+  },
+  "wasmOpt": true,
+  "budget": 739265,
+  "over": 0,
+  "artifactSha256": "4379c82f6e5f2f190497e083cccd773002e06d82f8bffef00b66816adcb1ae77",
+  "reuse": "Final intent repair is Lang/CLI only; core/device/shared versions and wasm source inputs remain identical. Exact source/dist/final-packed wasm byte equality verified; prior strict family/server-only absence measurement retained."
+}
