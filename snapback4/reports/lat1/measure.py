@@ -1,6 +1,20 @@
 #!/usr/bin/env python3
 """Source/fixture copies only; paired binaries, exact security JSON, retained failures."""
 import argparse, concurrent.futures, hashlib, json, math, os, pathlib, shutil, statistics, subprocess, tempfile, time
+def canonical(value):
+ return json.dumps(value,sort_keys=True,separators=(',',':'),ensure_ascii=False,allow_nan=False).encode()
+# Comparison controls retain scalar types, complete payloads and array order.
+if __import__('sys').argv[1:]==['--self-test']:
+ original=dict(witness=dict(id='same',viewer='caller',args=dict(approved=True),history=[1,2]))
+ for changed in [dict(approved=1),dict(approved=1.0),dict(approved=False)]:
+  altered=json.loads(json.dumps(original));altered['witness']['args']=changed
+  assert canonical(original)!=canonical(altered)
+ for field,value in [('viewer','another-caller'),('history',[2,1]),('id','stale')]:
+  altered=json.loads(json.dumps(original));altered['witness'][field]=value
+  assert canonical(original)!=canonical(altered)
+ assert canonical(dict(a=1,b=True))==canonical(dict(b=True,a=1))
+ assert canonical(1)!=canonical(1.0)
+ print('canonical comparator: 8 negative/ordering controls pass');raise SystemExit(0)
 p=argparse.ArgumentParser();p.add_argument('--baseline',required=True);p.add_argument('--candidate',required=True);p.add_argument('--keys',required=True);p.add_argument('--out',required=True);p.add_argument('--workers',type=int,default=4);p.add_argument('--identity',action='store_true');p.add_argument('--resume',action='store_true');a=p.parse_args()
 out=pathlib.Path(a.out);out.mkdir(parents=True,exist_ok=True);keys=json.loads(pathlib.Path(a.keys).read_text());home=pathlib.Path.home()/'sb4-loop'
 binaries={k:pathlib.Path(v).resolve() for k,v in [('baseline',a.baseline),('candidate',a.candidate)]}
@@ -56,8 +70,8 @@ if a.identity:
  for wave,lane in keys:
   for mode,temp in [('check','cold'),('check','warm'),('staging','cold'),('staging','warm'),('production','cold')]:
    pair=[r for r in rows if(r['wave'],r['lane'],r['mode'],r['temperature'])==(wave,lane,mode,temp)]
-   if len(pair)!=2 or pair[0].get('security')!=pair[1].get('security'):
-    mismatches.append(dict(wave=wave,lane=lane,mode=mode,temperature=temp,fields=[k for k in set(pair[0].get('security',{}))|set(pair[1].get('security',{}))if pair[0].get('security',{}).get(k)!=pair[1].get('security',{}).get(k)]))
+   if len(pair)!=2 or canonical(pair[0].get('security'))!=canonical(pair[1].get('security')):
+    mismatches.append(dict(wave=wave,lane=lane,mode=mode,temperature=temp,fields=[k for k in set(pair[0].get('security',{}))|set(pair[1].get('security',{}))if canonical(pair[0].get('security',{}).get(k))!=canonical(pair[1].get('security',{}).get(k))]))
  summary['mismatches']=mismatches
 else:
  summary['timings']=[]
