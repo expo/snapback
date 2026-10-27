@@ -109687,3 +109687,15 @@ deadline and process-group drain instead of a second inner wall-clock fuse.
 Exact zero exit, current JSON, stock/edited-source optional-upload assertions and
 no decision-file assertion remain; the existing five-minute command and twenty-minute
 starter guards, fixed security work budgets and measured latency ticket are unchanged.
+
+## 2026-10-27 — LAT1 supplied replay IDs without unused strings
+
+The default check/staging profile exposed eager allocation of 1,024 supplied ID
+strings for each replay context, including queries and refused mutations. Keep
+the exact original reservation and clock advancement, but carry a private numeric
+range and encode each ID at the engine's existing consumption boundary. Explicit
+supplies replace the range; clones advance independently; exhaustion retains the
+same host-mint fallback. This representation adds no result cache and changes no
+campaign work, rule family, tier or restoration authority. LLP
+3000.036.004.000.000 records the mechanism; the lane retains paired production
+latency and full-corpus identity evidence separately.

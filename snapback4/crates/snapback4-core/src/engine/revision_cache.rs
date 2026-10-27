@@ -601,6 +601,7 @@ impl Engine {
             || c.refusal_trace.is_some()
             || c.fixture_trace.is_some()
             || !c.new_ids.is_empty()
+            || c.replay_id_range.as_ref().is_some_and(|range| !range.is_empty())
             || c.delivery_fingerprint.is_some()
             || !matches!(
                 c.request_credential_kind.as_deref()?,

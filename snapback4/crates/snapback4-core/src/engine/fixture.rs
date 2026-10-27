@@ -58,3 +58,39 @@ impl Engine {
         result
     }
 }
+
+#[cfg(test)]
+mod replay_id_tests {
+    use super::*;
+    #[test]
+    fn lazy_replay_ids_match_eager_supply_and_clone_independently() {
+        for first in [0, (1_800_000_000_000u128 << 80) + 1, u128::MAX - 1024] {
+            let range = first..first + 1024;
+            let mut eager = Context::new("viewer", BTreeMap::new()).with_ids(range.clone().map(crate::ids::encode));
+            let mut lazy = Context::new("viewer", BTreeMap::new()).with_replay_id_range(range);
+            assert!(lazy.new_ids.is_empty(), "unused supply allocates no strings");
+            let mut cloned = lazy.clone();
+            for _ in 0..1024 {
+                let expected = eager.mint().unwrap();
+                assert_eq!(lazy.mint().unwrap(), expected);
+                assert_eq!(cloned.mint().unwrap(), expected);
+            }
+            assert_eq!(lazy.minted_ids, eager.minted_ids);
+            assert_eq!(cloned.minted_ids, eager.minted_ids);
+            assert!(lazy.replay_id_range.as_ref().unwrap().is_empty());
+        }
+    }
+    #[test]
+    fn explicit_supply_replaces_range_and_empty_ranges_use_the_host_minter() {
+        let mut context = Context::new("viewer", BTreeMap::new()).with_replay_id_range(0..1024).with_ids(["explicit".into()]);
+        assert_eq!(context.mint().unwrap(), "explicit");
+        assert!(context.replay_id_range.is_none());
+        let minter = crate::ids::Mint::default();
+        let mut eager = Context::new("viewer", BTreeMap::new()).at(1000).with_minter(minter.clone()).with_ids([]);
+        let mut lazy = Context::new("viewer", BTreeMap::new()).at(1000).with_minter(minter).with_replay_id_range(0..0);
+        let first = eager.mint().unwrap();
+        let second = lazy.mint().unwrap();
+        assert_eq!(crate::ids::minted_at(&second), Some(1000));
+        assert!(second > first);
+    }
+}

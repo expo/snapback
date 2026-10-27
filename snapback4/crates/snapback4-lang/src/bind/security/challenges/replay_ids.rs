@@ -18,11 +18,7 @@ impl Pending {
    let first=((*last).saturating_add(1)).max((now.max(0) as u128)<<80);
    let count=snapback4_core::meter::Ceilings::default().rows_written as u128;
    *last=first+count;
-   context.with_ids((first..first+count).map(|mut value|{
-    const ALPHABET:&[u8;32]=b"0123456789ABCDEFGHJKMNPQRSTVWXYZ";
-    let mut bytes=[b'0';26];for byte in bytes.iter_mut().rev(){*byte=ALPHABET[(value&31)as usize];value>>=5;}
-    String::from_utf8(bytes.to_vec()).expect("ASCII fixture ID")
-   }))
+   context.with_replay_id_range(first..first+count)
   })
  }
 }

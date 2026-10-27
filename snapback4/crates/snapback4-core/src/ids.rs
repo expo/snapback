@@ -53,7 +53,7 @@ fn xorshift(state: &mut u64) -> u64 {
     x
 }
 
-fn encode(mut value: u128) -> String {
+pub(crate) fn encode(mut value: u128) -> String {
     let mut out = [b'0'; 26];
     for slot in out.iter_mut().rev() {
         *slot = ALPHABET[(value & 31) as usize];

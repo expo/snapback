@@ -226,6 +226,8 @@ pub struct Context {
     pub(crate) generation: u64,
     /// Ids the caller minted for this run, consumed in order by `new`.
     pub new_ids: VecDeque<String>,
+    #[cfg(feature = "sqlite")]
+    replay_id_range: Option<std::ops::Range<u128>>,
     entropy: u64,
     minter: crate::ids::Mint,
     /// Every id consumed by this execution, including newly minted ids.
@@ -253,7 +255,7 @@ impl Context {
     }
 
     pub fn new(viewer: impl Into<String>, args: BTreeMap<String, Value>) -> Self {
-        Self { #[cfg(feature="postgres")] revision_cache: false, #[cfg(feature = "sqlite")] fixture_trace: None, #[cfg(feature="sqlite")] migration_assets: None, #[cfg(feature = "sqlite")] refusal_trace: None, #[cfg(feature = "server-search")] search_retained_order: None, #[cfg(feature = "server-search")] search_retained_candidates: Vec::new(), retained_search: false, read_spent: None, viewer: viewer.into(), kind: "user".into(), #[cfg(feature = "postgres")] request_credential_kind: None, args, now: None, read_time: None, row_provenance: false, session_digest: None, wire_args: None, #[cfg(feature = "sqlite")] delivery_fingerprint: None, generation: 0, new_ids: VecDeque::new(), entropy: 0, minter: crate::ids::Mint::default(), minted_ids: Vec::new(), presence: None }
+        Self { #[cfg(feature="postgres")] revision_cache: false, #[cfg(feature = "sqlite")] fixture_trace: None, #[cfg(feature="sqlite")] migration_assets: None, #[cfg(feature = "sqlite")] refusal_trace: None, #[cfg(feature = "server-search")] search_retained_order: None, #[cfg(feature = "server-search")] search_retained_candidates: Vec::new(), retained_search: false, read_spent: None, viewer: viewer.into(), kind: "user".into(), #[cfg(feature = "postgres")] request_credential_kind: None, args, now: None, read_time: None, row_provenance: false, session_digest: None, wire_args: None, #[cfg(feature = "sqlite")] delivery_fingerprint: None, generation: 0, new_ids: VecDeque::new(), #[cfg(feature = "sqlite")] replay_id_range: None, entropy: 0, minter: crate::ids::Mint::default(), minted_ids: Vec::new(), presence: None }
     }
 
     #[cfg(feature = "sqlite")]
@@ -297,6 +299,18 @@ impl Context {
 
     pub fn with_ids(mut self, ids: impl IntoIterator<Item = String>) -> Self {
         self.new_ids = ids.into_iter().collect();
+        #[cfg(feature = "sqlite")] { self.replay_id_range = None; }
+        self
+    }
+
+    /// Private campaign representation of the same ordered supplied IDs.
+    /// Reservation happens at the caller; unused strings need no allocation.
+    #[cfg(feature = "sqlite")]
+    #[doc(hidden)]
+    // @ref LLP 3000.036.004.000.000#lazy-supplied-replay-ids — preserve every reserved ID and encode only consumed values.
+    pub fn with_replay_id_range(mut self, range: std::ops::Range<u128>) -> Self {
+        self.new_ids.clear();
+        self.replay_id_range = Some(range);
         self
     }
 
@@ -316,7 +330,10 @@ impl Context {
     }
 
     pub(crate) fn mint(&mut self) -> Result<String, crate::RuntimeError> {
-        let id = if let Some(id) = self.new_ids.pop_front() { id } else {
+        let supplied = self.new_ids.pop_front();
+        #[cfg(feature = "sqlite")]
+        let supplied = supplied.or_else(|| self.replay_id_range.as_mut()?.next().map(crate::ids::encode));
+        let id = if let Some(id) = supplied { id } else {
             crate::ids::mint(self.now.unwrap_or(0), &mut self.minter)?
         };
         self.minted_ids.push(id.clone());
