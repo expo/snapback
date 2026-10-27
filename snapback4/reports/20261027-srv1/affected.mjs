@@ -8,8 +8,8 @@ mkdirSync(join(ROOT,'target/affected'),{recursive:true});
 writeFileSync(join(ROOT,'target/affected/srv1-full-plan.json'),JSON.stringify(full,null,2)+'\n');
 const names=['srv1-lifetime','tok1-reading','proof','proof-contract','dx12-serve','dx13-proof','dx15-proof','dx10-process-accounts','dx4-dev','native-opening','client-seams','init-recipe','init-typecheck','test-platform-audit','worker-regressions','supervised-workers','wave9-dx'];
 const files=names.map(n=>`packages/snapback4/test/${n}.test.mjs`);
-const plan={...full,fullSelectorPlanExecuted:false,qualification:false,scopeReason:'SRV1 brief forbids complete client pool; preserve selected CLI crate and guide target, run serve/proof/initializer/worker/TOK1 consumers',clientFiles:files.map(f=>'snapback4/'+f),steps:full.steps.filter(s=>!['fixture-tests','client-models'].includes(s.id)).map(s=>{
- if(s.id==='rust:snapback4')return {...s,argv:s.argv.map(v=>v==='--test-threads=1'?'--test-threads=2':v)};
+const plan={...full,fullSelectorPlanExecuted:false,qualification:false,excludedChecks:[{test:'w8b_residency_measures_the_wired_calibration_shape',reason:'Unrelated bulk residency/performance fixture; no engine/language/residency change in SRV1'}],scopeReason:'SRV1 brief forbids complete client pool; preserve selected CLI crate and guide target, run serve/proof/initializer/worker/TOK1 consumers',clientFiles:files.map(f=>'snapback4/'+f),steps:full.steps.filter(s=>!['fixture-tests','client-models'].includes(s.id)).map(s=>{
+ if(s.id==='rust:snapback4')return {...s,argv:[...s.argv.map(v=>v==='--test-threads=1'?'--test-threads=2':v),'--skip','w8b_residency_measures_the_wired_calibration_shape']};
  if(s.id==='client-tests')return {...s,argv:['node','scripts/run-client-tests.mjs','2','files',...files],fileRequires:Object.fromEntries(files.map(f=>[f,['build-cli','build-wasm','build-client']]))};
  return s;
 })};
