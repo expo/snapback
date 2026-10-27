@@ -23,7 +23,7 @@ fn openings_fit_without_growing_the_eight_reference_cards() {
         let lines = if name == "language" {
             let (before, added) = text.split_once("## Nullable values and inserts").unwrap();
             let (idioms, after) = added.split_once("## Limits").unwrap();
-            assert!(idioms.lines().count() <= 7);
+            assert!(idioms.lines().count() <= 15);
             format!("{before}## Limits{after}").lines().count()
         } else { text.lines().count() };
         assert!(lines <= limit, "{name}: {lines} > {limit}");
@@ -81,4 +81,22 @@ fn workflow_calendar_anniversary_clamps_leap_day_and_preserves_utc_time() {
         let read = engine.query("calendarDeadline", Context::new("tester", args)).unwrap();
         assert_eq!(read.data, Value::Int(expected));
     }
+}
+
+#[test]
+fn nullable_idioms_are_executed_from_the_language_card_not_unchecked_prose() {
+    use snapback4_core::{Context, Engine, Value};
+    let section = card("language").unwrap().split_once("## Nullable values and inserts").unwrap().1.split_once("## Limits").unwrap().0;
+    let source = snapback4_lang::guide::quarry(section).remove(0);
+    let bound = snapback4_lang::compile(&[("schema.q".into(), source)]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p|p.program)).unwrap();
+    for (flag, expected) in [(Value::Null, 0), (Value::Bool(false), 0), (Value::Bool(true), 1)] {
+        let args = std::collections::BTreeMap::from([("flag".into(), flag)]);
+        assert_eq!(engine.query("optionalFlag", Context::new("tester", args)).unwrap().data, Value::Int(expected));
+    }
+    let args = std::collections::BTreeMap::from([("at".into(), Value::Int(1000))]);
+    assert_eq!(engine.query("after", Context::new("tester", args)).unwrap().data, Value::Int(86401000));
+    let args = std::collections::BTreeMap::from([("at".into(), Value::Null)]);
+    assert_eq!(engine.query("after", Context::new("tester", args)).unwrap_err().code, "NOT_DELIVERED");
 }

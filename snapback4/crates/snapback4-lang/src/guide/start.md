@@ -22,6 +22,22 @@ Build your screen and replace the marked proof assertions. Starting from a demo
 instead means adapting it after the schema changes: `init --adapt --apply`
 (preview: `init --adapt`). Do not repeatedly initialize or inspect infrastructure.
 All .q files share one namespace. Node 24.x is required.
+If a tool host reaps the background installer, run `node scripts/install.mjs`
+in the foreground rather than repeatedly polling a missing worker.
+
+## Syntax and time essentials
+
+Types: `text 1..120`, `text <=500`, `int 0..`, `bool`, `time`, `money USD`,
+`T ?` (nullable). Write `int 0..`, not literal brackets or `int >= 0`.
+Money is integer cents; time is Unix milliseconds; durations: `30d`, `1h`.
+An ordered comparison needs present operands: bind `t = row.deliveredAt ! else
+NOT_DELIVERED` before `t + 30d` or `t < now`. Optional Booleans: `flag ?? false`.
+Supply every required insert field without a default.
+
+A job's where/by cursor columns must be immutable. Sweep by id when the deadline
+can change; test mutable flags/deadlines inside the loop. Staging clocks keep
+ticking: test before/after with a margin. Exact boundaries use fixtures or pinned
+local calls, rather than assuming advance() freezes the server clock.
 
 ## Starter map: edit regions, keep infrastructure
 

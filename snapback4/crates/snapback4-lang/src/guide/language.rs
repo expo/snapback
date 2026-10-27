@@ -39,10 +39,17 @@ mutation addNote(body: text):
 
 ## Nullable values and inserts
 
-Arithmetic: `at = row.deliveredAt ! else NOT_DELIVERED`, then `at + 30d`.
-Conditions: `flag ?? false` or `(optionalTime < now) ?? false`.
-Inserts supply every required non-defaulted column, including evidence/price.
-See `guide workflow`.
+```quarry
+query optionalFlag(flag: bool ?):
+  if flag ?? false:
+    return 1
+  return 0
+query after(at: time ?):
+  t = at ! else NOT_DELIVERED
+  return t + 1d
+```
+
+Inserts need every required non-defaulted column, including evidence/price.
 
 ## Limits
 

@@ -95,7 +95,7 @@ then guard against that immutable deadline. nextYear clamps leap day to February
 28 at the same UTC time. Test such a deadline after 366d rather than 31d.
 
 Nullable arithmetic: `at = r.deliveredAt ! else NOT_DELIVERED`, then `at + 30d`.
-Nullable conditions: `(flag ?? false)` or `(optionalTime < now) ?? false`.
+Nullable conditions: `(flag ?? false)`. Assert nullable times before comparing.
 Inserts supply every required column without a default, including evidence/price.
 
 ## Uploads, live board and approval

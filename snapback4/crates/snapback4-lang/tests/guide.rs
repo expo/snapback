@@ -751,7 +751,7 @@ fn every_card_compiles_clean() {
     assert_eq!(card("grammar"), Some(LANGUAGE));
     assert_eq!(card("quarry"), Some(LANGUAGE));
     assert_eq!(card("nonsense"), None);
-    assert_eq!(quarry(LANGUAGE).len(), 23, "Start here, paved introduction, familiar forms, the core program, four more preserved language blocks, field-authority, ephemeral declarations, membership paths and historical backfills");
+    assert_eq!(quarry(LANGUAGE).len(), 24, "Start here, paved introduction, familiar forms, the core program, four more preserved language blocks, field-authority, ephemeral declarations, membership paths, historical backfills and executable nullable idioms");
     // The parts are one program: each compiles only as the whole, which the card runs against the engine.
     let parts: Vec<_> = quarry(LANGUAGE).into_iter().filter(|block| guide::language_part(block)).collect();
     assert_eq!((parts.len(), parts.concat()), (12, guide::language()));
