@@ -109376,3 +109376,47 @@ Qualified affected security/language/client checks and the explicit test-only
 history assertion retry are recorded in `reports/sec11-item1/`; root legacy
 Snapback1 guide/codegen/inventory gates are outside this fence. The root
 WORKSTREAM-REPORT.md records the exact committed boundary and deferrals.
+
+## 2026-10-27 — BCTL: retain batch capacity through queue pressure
+
+Lane BCTL reproduces the adaptive controller's low-rate trap on local,
+shared expo-build-1000. Main exact-W5/B at 100/s halves 32→16→8→4→2→1 and
+stays at 1 for 1661 completions: service p50 446 ms, completion rate 70/s.
+The last singleton takes 12.94 ms service but 431.59 ms admission age;
+queue age, rather than its own execution, keeps the old feedback signal high.
+The first cold two-member batch takes 124.81 ms service versus 16.26 ms after
+preparation moves before READY. The controller/exclusion predate S1-WF;
+Stage P's additional catalog admission on second-writer attach is new.
+
+Adaptive collection now always retains its 32-member cap. End-to-end p99 is
+a diagnostic and external SLO; it cannot shrink the capacity needed to drain
+its own queue. Both PG writer sessions and constant protocol statements are
+prepared before queue construction returns. Request-shaped plans stay lazy.
+SQLite retains depth-one collection with its original 1 ms bound; depth two
+still starts available work without waiting. Sizing/readiness amendments land
+in the committer §7, controls §3.4 and pipelined group-commit §§3.6/8.1 LLPs.
+
+The paired 32768-message, fixed-core, interleaved matrix completes 192
+counter-reconciled trials. Fix passes the cliff grid 24/24 versus main 22/24;
+all fix targets remain 32. No broad capacity lift is established: exact/B 1600
+is main 3/3 versus fix 1/3, and remains a material relative-run regression.
+One additional main ownership-loss attempt lacks a counter receipt after
+old cleanup deleted its cluster; it remains a failure, never a pass. The
+continuation reconciles independently after drain refusal, and the checked-in
+runner retains stopped data on an unhandled failure. No bound is relaxed.
+
+Verification: core lib 864/0, binary 626/0, focused controller/Arrivals 8/0,
+G7 incl E 92/0 plus PG17-only 2/0, Stage P 13/0, WF 9/0, program batch 147/0 plus
+repaired fixture 1/0, wire 15/0, levers 87/0, E HTTP 5/0, crash 11/0 and RT0
+core/binary 5/0+10/0. Initial setup reds and corrected controls are retained.
+The [BCTL report](reports/20261027-batch-ctl/REPORT.md) contains every paired
+cell, cap trajectories, rationale and final custody checks. These shared-host
+numbers are relative only; the authoritative expo-build-450b rerun remains.
+No fetch, push, stash, Git configuration change or publication occurs.
+
+Final ref-check passes **570 documents / 12064 references**, zero errors or
+unchecked refs. The independent **27603-identity** process census finds no
+live/zombie owned PID or private-path process; every private cluster is
+stopped. The 25 GiB guard never fires; bookend free space is **82.07 GiB**.
+The exact staged audit compares 1028 generated fixture credentials with zero
+matches; raw logs/data remain outside Git.
