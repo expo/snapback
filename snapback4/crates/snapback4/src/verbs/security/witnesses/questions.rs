@@ -450,4 +450,11 @@ pub(super) fn repeat(bound:&Bound,inv:&security::Invariant,c:&Counterexample,n:&
   }
  }
 
+ #[test]fn a_secondary_written_currency_renews_an_identical_zero_value_replay(){
+  let source=include_str!(concat!(env!("CARGO_MANIFEST_DIR"),"/../snapback4-lang/tests/security/sec10-shipping/w30-030.q"));let usd=source.replace("table studies:\n","table studies:\n  reviewFee: money USD default 0\n").replace("update studies[study] { status: 'reviewed' }","update studies[study] { status: 'reviewed', reviewFee: 100 }");let eur=usd.replace("reviewFee: money USD","reviewFee: money EUR");
+  let sources=vec![("schema.q".into(),usd)];let mut bound=snapback4_lang::compile(&sources);assert!(bound.diagnostics.is_empty());let qs=security::derived::transition_questions(&sources,&bound);assert_eq!(qs.len(),1);let(n,inv)=&qs[0];bound.invariants=vec![inv.clone()];let mut campaign=challenges::Campaign::work_bounded(8192);challenges::generated_campaign(&bound,&mut campaign,false);let c=campaign.violations.iter().find(|c|c.operation=="publishReport"&&c.reachability.is_reachable()).unwrap();let raw=evidence(&sources,&bound,inv,c);assert_eq!(raw["row"]["reviewFee"],0);let first=transition_evidence(raw.clone(),n,inv).unwrap();
+  let changed_sources=vec![("schema.q".into(),eur)];let changed=snapback4_lang::compile(&changed_sources);assert!(changed.diagnostics.is_empty());let qs2=security::derived::transition_questions(&changed_sources,&changed);let raw2=evidence(&changed_sources,&changed,&qs2[0].1,c);assert_eq!(raw["row"],raw2["row"]);assert_eq!(raw["old"],raw2["old"]);assert_eq!(raw["args"],raw2["args"]);
+  let second=transition_evidence(raw2,&qs2[0].0,&qs2[0].1).unwrap();assert_eq!(first["candidate"],second["candidate"]);assert_eq!(first["transition"],second["transition"]);assert_ne!(first["id"],second["id"],"identical zero-value JSON cannot erase the source write currency");
+ }
+
 }
