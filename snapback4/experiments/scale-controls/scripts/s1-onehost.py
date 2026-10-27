@@ -442,6 +442,9 @@ def main():
     if args.store=='sqlite' and args.link!='A':p.error('SQLite has only the natural column (--link A); there is no database link B')
     if args.sqlite_seed_release and args.store!='sqlite':p.error('--sqlite-seed-release requires --store sqlite')
     args.target='raw-pg' if args.system=='rawpg' else args.system
+    # Only the Snapback arm takes its socket name from --pg-port; raw-PG and
+    # Supabase consumers still connect to the default port.
+    if args.pg_port!=PGPORT and args.system!='snapback':p.error('--pg-port is supported only with --system snapback')
     if args.mode=='smoke':args.rates=[100];args.extra_read_rates=[]
     if args.store=='sqlite' and args.system!='snapback':p.error('SQLite requires --system snapback')
     base=configure(args);runner=make_runner(base)

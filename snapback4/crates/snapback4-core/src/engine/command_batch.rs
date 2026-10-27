@@ -439,9 +439,12 @@ pub(super) fn run(
                 stats.observe(latencies,count);
                 // Numeric, opt-in diagnostic over the existing BatchStats surface.
                 static TRACE: std::sync::OnceLock<Option<Mutex<std::fs::File>>> = std::sync::OnceLock::new();
-                if let Some(file) = TRACE.get_or_init(|| std::env::var_os("SNAPBACK4_BATCH_TRACE").map(|path| {
-                    Mutex::new(std::fs::OpenOptions::new().create_new(true).write(true).open(path)
-                        .expect("SNAPBACK4_BATCH_TRACE must name a new writable file"))
+                // A bad path disables the trace; it must never take down the committer.
+                if let Some(file) = TRACE.get_or_init(|| std::env::var_os("SNAPBACK4_BATCH_TRACE").and_then(|path| {
+                    match std::fs::OpenOptions::new().create_new(true).write(true).open(&path) {
+                        Ok(file) => Some(Mutex::new(file)),
+                        Err(error) => { eprintln!("snapback4: SNAPBACK4_BATCH_TRACE disabled ({}): {error}", std::path::Path::new(&path).display()); None }
+                    }
                 })) {
                     use std::io::Write;
                     let _ = writeln!(file.lock().unwrap(), "{}", serde_json::json!({
