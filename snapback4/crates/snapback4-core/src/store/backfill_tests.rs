@@ -9,11 +9,17 @@ fn compile(source:&str)->(Schema,Vec<crate::ir::Program>){
     assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
     (serde_json::from_str(&serde_json::to_string(&b.schema).unwrap()).unwrap(),b.programs.into_iter().map(|p|serde_json::from_str(&serde_json::to_string(&p.program).unwrap()).unwrap()).collect())
 }
-fn engine(source:&str)->Engine{let(s,p)=compile(source);Engine::new_release(Store::memory().unwrap(),s,p,1,None).unwrap()}
-fn adopt(e:&mut Engine,source:&str,n:u64)->Result<u64,RuntimeError>{
-    let(s,p)=compile(source);let previous=(&e.store()).test_support_meta("release").unwrap().map(|s|s.parse().unwrap());
-    e.adopt_release(s,p,&ReleaseActivation::new(n,previous),false)
+// Fixture stages can start at either schema and can change source within one
+// numeric slot. Give each capture a stable immutable id; a fresh stage still
+// exercises requalification, while repeating the same capture is a CLI no-op.
+fn release_id(source:&str,stage:u64)->u64{u64::from_str_radix(&crate::value::digest(&(source,stage))[..15],16).unwrap()+1}
+fn engine(source:&str)->Engine{let(s,p)=compile(source);Engine::new_release(Store::memory().unwrap(),s,p,release_id(source,0),None).unwrap()}
+fn adopt(e:&mut Engine,source:&str,stage:u64)->Result<u64,RuntimeError>{
+    let(s,p)=compile(source);let previous=(&e.store()).test_support_meta("release").unwrap().map(|s|s.parse().unwrap());let target=release_id(source,stage);
+    if previous==Some(target){return Ok(e.generation());}
+    e.adopt_release(s,p,&ReleaseActivation::new(target,previous),false)
 }
+fn selected(e:&Engine)->u64{e.store().test_support_meta("release").unwrap().unwrap().parse().unwrap()}
 fn seed(e:&mut Engine,table:&str,row:Json){let row=wire::row_from_json(&e.schema().tables[table],&row).unwrap();e.seed([(table.into(),row)]).unwrap();}
 fn row(e:&mut Engine,table:&str,id:&str)->Value{e.store_mut().transaction().unwrap().get(table,id).unwrap().unwrap()}
 fn field(e:&mut Engine,table:&str,id:&str,c:&str)->Value{row(e,table,id).field(c).unwrap().clone()}
@@ -201,7 +207,7 @@ fn expired_unswept_source_cannot_extend_its_dropped_expiry() {
  let old="table items:\n  until: time\n  expire at .until\n  public 'fixture'\n  online only\n";
  for dormant in [false,true] {
   let mut e=engine(old);let r=wire::row_from_json(&e.schema().tables["items"],&json!({"id":"a","until":50})).unwrap();e.seed_at([("items".into(),r)],0).unwrap();
-  if dormant {let(s,p)=compile("query empty():\n  return true\n");e.adopt_release_at(s,p,&ReleaseActivation::new(2,Some(1)),false,1).unwrap();}
+  if dormant {let(s,p)=compile("query empty():\n  return true\n");e.adopt_release_at(s,p,&ReleaseActivation::new(2,Some(selected(&e))),false,1).unwrap();}
   let next=old.replace("  expire at .until\n","")+"backfill items prolong(until: time):\n  {until:until + 1d}\n";
   let error=adopt(&mut e,&next,3).unwrap_err().to_string();assert!(error.contains("historical lifetime"),"{error}");
  }
@@ -768,13 +774,14 @@ fn identical_type_column_rename_carries_historical_and_native_rows_both_ways() {
 }
 
 #[test]
-fn column_rename_refuses_different_declared_types_even_when_present_values_fit_both() {
+fn wave31_012_024_column_rename_widens_but_never_infers_narrowing_from_present_values() {
  let old="table items:\n  title: text <=40\n  public 'fixture'\n  online only\n";
  let current="table items:\n  name: text <=80 renamed from title\n  public 'fixture'\n  online only\n";
  let mut e=engine(old);seed(&mut e,"items",json!({"id":"a","title":"fits"}));
- let error=adopt(&mut e,current,2).unwrap_err().to_string();assert!(error.contains("identical old and new cell types"),"{error}");
- let mut e=engine(current);seed(&mut e,"items",json!({"id":"a","name":"fits"}));
- let error=adopt(&mut e,old,1).unwrap_err().to_string();assert!(error.contains("identical old and new cell types"),"{error}");
+ adopt(&mut e,current,2).unwrap();assert_eq!(field(&mut e,"items","a","name"),Value::String("fits".into()));
+ adopt(&mut e,old,1).unwrap();assert_eq!(field(&mut e,"items","a","title"),Value::String("fits".into()));
+ let mut e=engine(old);seed(&mut e,"items",json!({"id":"a","title":"fits"}));
+ let narrow=current.replace("<=80","<=20");let error=adopt(&mut e,&narrow,3).unwrap_err().to_string();assert!(error.contains("include the old domain"),"{error}");
 }
 
 #[test]
@@ -1243,14 +1250,14 @@ fn rollback_view_enforces_null_acknowledgment_and_reference_closure_under_the_wr
     let next=old.replace("amount: int 0..100","amount: int 0..1000 ?");
     for acknowledge in [false,true] {
         let mut e=engine(&next);seed(&mut e,"bookings",json!({"id":"b","amount":null}));seed(&mut e,"fees",json!({"id":"f","booking":"b"}));
-        let(s,p)=compile(old);let mut activation=ReleaseActivation::new(3,Some(1));
+        let(s,p)=compile(old);let mut activation=ReleaseActivation::new(3,Some(selected(&e)));
         activation.visibility=Some(crate::engine::release::VisibilityPolicy{hides:if acknowledge {vec![crate::engine::release::HiddenNull{table:"bookings".into(),column:"amount".into(),reason:"unquoted must not read as free".into()}]}else{vec![]}});
         let before=e.generation();let result=e.adopt_release(s,p,&activation,false);
         if acknowledge {result.unwrap();assert_eq!(e.store().count("bookings").unwrap(),0);assert_eq!(e.store().count("fees").unwrap(),0);}
         else {assert!(result.unwrap_err().to_string().contains("unacknowledged hiding"));assert_eq!(e.generation(),before);assert_eq!(e.store().count("bookings").unwrap(),1);}
     }
     let mut e=engine(&next);seed(&mut e,"bookings",json!({"id":"b","amount":200}));
-    let(s,p)=compile(old);let mut activation=ReleaseActivation::new(3,Some(1));activation.visibility=Some(crate::engine::release::VisibilityPolicy{hides:vec![crate::engine::release::HiddenNull{table:"bookings".into(),column:"amount".into(),reason:"only unquoted rows".into()}]});
+    let(s,p)=compile(old);let mut activation=ReleaseActivation::new(3,Some(selected(&e)));activation.visibility=Some(crate::engine::release::VisibilityPolicy{hides:vec![crate::engine::release::HiddenNull{table:"bookings".into(),column:"amount".into(),reason:"only unquoted rows".into()}]});
     assert!(e.adopt_release(s,p,&activation,false).unwrap_err().to_string().contains("unacknowledged hiding"));assert_eq!(field(&mut e,"bookings","b","amount"),Value::Int(200));
 }
 
@@ -1280,7 +1287,7 @@ fn intentional_hiding_cannot_weaken_negative_policy_or_procedural_guards() {
         let guard=if policy==3 {"table access:\n  read <- exists blocks['b']\n  online only\ntable notes:\n  insert <- allow\n  online only\nmutation act():\n  require not exists access['a'] else BLOCKED\n  return insert notes {}\n"}else if policy==4 {"table docs:\n  permit: int ? read <- exists blocks['b']\n  public 'fixture'\n  online only\ntable notes:\n  insert <- allow\n  online only\nmutation act():\n  row = docs['d'] ! else MISSING\n  require row.permit = null else BLOCKED\n  return insert notes {}\n"}else if policy==0 {"table notes:\n  read <- not exists blocks['b']\n  insert <- allow\n  online only\n"}else if policy==2 {"table notes:\n  open: bool\n  read <- .open = true\n  insert <- allow\n  online only\nmutation act():\n  return insert notes {open:count(blocks where true) = 0}\n"}else{"table notes:\n  read <- deny\n  insert <- allow\n  online only\nmutation act():\n  require not exists blocks['b'] else BLOCKED\n  return insert notes {}\n"};
         let new=format!("table blocks:\n  value: int ?\n  public 'fixture'\n  online only\n{guard}");let old=new.replace("value: int ?","value: int");
         let mut e=engine(&new);seed(&mut e,"blocks",json!({"id":"b","value":null}));let before=e.generation();let(s,p)=compile(&old);
-        let mut activation=ReleaseActivation::new(2,Some(1));activation.visibility=Some(VisibilityPolicy{hides:vec![HiddenNull{table:"blocks".into(),column:"value".into(),reason:"unconfirmed".into()}]});
+        let mut activation=ReleaseActivation::new(2,Some(selected(&e)));activation.visibility=Some(VisibilityPolicy{hides:vec![HiddenNull{table:"blocks".into(),column:"value".into(),reason:"unconfirmed".into()}]});
         let error=e.adopt_release(s,p,&activation,false).unwrap_err().to_string();assert!(error.contains("lookup population"),"{error}");assert_eq!(e.generation(),before);assert_eq!(e.store().count("blocks").unwrap(),1);
     }
 }
@@ -1289,7 +1296,7 @@ fn intentional_hiding_cannot_weaken_negative_policy_or_procedural_guards() {
 fn hiding_keeps_positive_point_assertions_as_denials_without_inventing_values() {
     use crate::engine::release::{ReleaseActivation,VisibilityPolicy,HiddenNull};
     let new="table blocks:\n  value: int ?\n  public 'fixture'\n  update <- allow\n  online only\nmutation act(id: blocks):\n  row = blocks[id] ! else MISSING\n  require row.value != null else UNCONFIRMED\n  update blocks[id] {value:1}\n";let old=new.replace("value: int ?","value: int");
-    let mut e=engine(new);seed(&mut e,"blocks",json!({"id":"b","value":null}));let(s,p)=compile(&old);let mut activation=ReleaseActivation::new(2,Some(1));activation.visibility=Some(VisibilityPolicy{hides:vec![HiddenNull{table:"blocks".into(),column:"value".into(),reason:"unconfirmed".into()}]});e.adopt_release(s,p,&activation,false).unwrap();assert_eq!(e.store().count("blocks").unwrap(),0);
+    let mut e=engine(new);seed(&mut e,"blocks",json!({"id":"b","value":null}));let(s,p)=compile(&old);let mut activation=ReleaseActivation::new(2,Some(selected(&e)));activation.visibility=Some(VisibilityPolicy{hides:vec![HiddenNull{table:"blocks".into(),column:"value".into(),reason:"unconfirmed".into()}]});e.adopt_release(s,p,&activation,false).unwrap();assert_eq!(e.store().count("blocks").unwrap(),0);
 }
 
 #[test]
@@ -1304,3 +1311,13 @@ mod extraction_each_tests;
 
 #[path="release_cycle_tests.rs"]
 mod release_cycle_tests;
+
+#[test]
+fn wave31_024_requalification_does_not_treat_retained_rename_inputs_as_a_new_native_domain(){
+ let old="table items:\n  notes: text 3..500 ?\n  public\n  online only\n";
+ let current="table items:\n  delivery: text 3..1500 ? renamed from notes\n  public\n  online only\n";
+ let mut e=engine(old);seed(&mut e,"items",json!({"id":"kept","notes":"fits"}));adopt(&mut e,current,2).unwrap();
+ let(s,p)=compile(current);let previous=e.store().test_support_meta("release").unwrap().unwrap().parse().unwrap();
+ e.adopt_release(s,p,&ReleaseActivation::new(777,Some(previous)),false).unwrap();
+ assert_eq!(field(&mut e,"items","kept","delivery"),Value::String("fits".into()));
+}

@@ -298,9 +298,7 @@ fn stage_downfills(tx:&Tx<'_>,next:&Schema,previous:&Schema,sources:&BTreeMap<St
         if fill.name.starts_with("$rename:down:") {
                 if fill.inputs.len()!=1 || fill.outputs.len()!=1 {return Err(refusal("generated column rename must have exactly one input and output"))}
 
-            let source_kind=fill.inputs.values().next();let target_kind=target_outputs.iter().next().and_then(|c|target.columns.get(c));
-            if !target_kind.zip(source_kind).is_some_and(|(old_domain,new_domain)|crate::schema::backfill::rename_accepts(old_domain,new_domain))
-                || !crate::schema::backfill::rename_column_accepts(target,target_outputs.iter().next().unwrap(),&previous.tables[&fill.table],fill.inputs.keys().next().unwrap()) {return Err(refusal(format!("column rename on {} requires the new scalar domain to include the old domain; use a typed backfill/down for changed meaning",fill.table)))}
+            // @ref LLP 3000.000.000.003#3-one-release-evolution — a registered old view may widen beyond the native domain; reverse identity copies validate actual destination values below.
         }
         for c in &target_outputs {
             let kind=&target.columns[c];
@@ -442,10 +440,7 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
         if fill.name.starts_with("$rename:up:") {
                 if fill.inputs.len()!=1 || fill.outputs.len()!=1 {return Err(refusal("generated column rename must have exactly one input and output"))}
 
-            let source_kind=fill.inputs.keys().next().and_then(|c|sources.get(&fill.table).and_then(|t|t.columns.get(c)));
-            let target_kind=fill.outputs.iter().next().and_then(|c|next.tables[&fill.table].columns.get(c));
-            if source_kind.is_some() && (!source_kind.zip(target_kind).is_some_and(|(old_domain,new_domain)|crate::schema::backfill::rename_accepts(old_domain,new_domain))
-                || !crate::schema::backfill::rename_column_accepts(&sources[&fill.table],fill.inputs.keys().next().unwrap(),&next.tables[&fill.table],fill.outputs.iter().next().unwrap())) {return Err(refusal(format!("column rename on {} requires the new scalar domain to include the old domain; use a typed backfill/down for changed meaning",fill.table)))}
+
         }
         if let Some(old)=sources.get(&fill.table) {for c in &fill.outputs {
             if source_owned(old,c) {
@@ -1003,6 +998,19 @@ pub(crate) fn prepare_inputs(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>)->
     if next.backfills.is_empty() && next.downfills.is_empty()
         && previous.is_none_or(|s|s.backfills.is_empty() && s.downfills.is_empty()) && !present(tx)? {return Ok(());}
     enable(tx)?;
+    // Check the actual predecessor before prepare_inputs registers new definitions.
+    // Re-entry validates immutable receipts and actual rows; retired constraints
+    // are not a new native source domain.
+    for fill in next.backfills.iter().filter(|f|f.name.starts_with("$rename:up:")) {
+        let registered:bool=tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM _backfill_definitions WHERE digest=?1)",[fill.key()],|r|r.get(0))?;
+        if !registered {if let Some(source)=previous.and_then(|s|s.table(&fill.table)) {
+            if let (Some(input),Some(output))=(fill.inputs.keys().next(),fill.outputs.iter().next()) {
+                if source.columns.contains_key(input) && !crate::schema::backfill::rename_column_accepts(source,input,&next.tables[&fill.table],output) {
+                    return Err(refusal(format!("column rename on {} requires the new scalar domain to include the old domain; use a fresh declaration name with typed backfill/down for changed meaning",fill.table)));
+                }
+            }
+        }}
+    }
     tx.conn().execute("DELETE FROM _backfill_absence WHERE definition='$restored-native'",[])?;
     tx.conn().execute("DELETE FROM _backfill_active",[])?;
     for fill in &next.backfills {tx.conn().execute("INSERT INTO _backfill_active VALUES(?1,?2,?3)",params![tx.num(&fill.table)?,fill.key(),canonical_json(&fill.inputs.keys().filter(|c|!fill.outputs.contains(*c)).collect::<Vec<_>>())])?;}

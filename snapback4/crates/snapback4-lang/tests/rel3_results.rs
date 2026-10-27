@@ -62,3 +62,11 @@ fn frozen_aliases_keep_private_field_omission_and_evaluate_a_write_result_once()
     assert_eq!(other[0].get("label"),other[0].get("title"),"alias omission follows its canonical field: {other}");
     assert!(!other.to_string().contains("private-original"));
 }
+
+#[test]
+fn wave31_005_frozen_alias_preserves_explicit_null_branch() {
+    let source=format!("{TABLE}query one(id: items):\n  item = items[id]\n  if item = null:\n    return null\n  return item\nalias result one.label = title\n");
+    let b=bound(&source);let mut e=Engine::memory(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
+    let result=e.query("one",Context::new("alice",std::collections::BTreeMap::from([("id".into(),Value::Id("missing".into()))]))).unwrap();assert_eq!(result.data,Value::Null);
+    let b=snapback4_lang::compile(&[("schema.q".into(),format!("{TABLE}query one():\n  return null\nalias result one.label = title\n"))]);assert!(!b.diagnostics.is_empty());
+}
