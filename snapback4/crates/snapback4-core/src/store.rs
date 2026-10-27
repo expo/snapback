@@ -26,6 +26,7 @@ mod extractions;
 mod rollback_visibility;
 mod rollback_guard_population;
 mod fork;
+mod campaign_assets;
 mod device;
 mod device_residency;
 #[cfg(feature = "evaluation-support")]
@@ -128,6 +129,7 @@ pub struct Store {
     /// Where uploaded bytes live: `assets/` beside the database file, or a
     /// directory that dies with the store for a store in memory.
     assets_dir: PathBuf,
+    campaign_assets: std::cell::RefCell<Option<campaign_assets::Snapshot>>,
     /// A store in memory owns its assets directory: nothing creates it until
     /// the first upload, and dropping the store removes it. Before this, every
     /// `Store::memory()` created one and nothing removed it — one empty
@@ -200,7 +202,7 @@ impl Store {
         let assets_dir = real.parent().unwrap_or(Path::new(".")).join("assets");
         let page_size = conn.query_row("PRAGMA page_size", [], |row| row.get::<_, i64>(0))? as u64;
         Ok(Self { #[cfg(test)] full_adoption: false, adoption_report: Default::default(), read_sessions, conn,
-            server: false, ownership: None, #[cfg(unix)] file_identity, page_size, catalog, identity, assets_dir, ephemeral_assets: false })
+            server: false, ownership: None, #[cfg(unix)] file_identity, page_size, catalog, identity, assets_dir, campaign_assets: Default::default(), ephemeral_assets: false })
     }
 
     /// Classify against one read snapshot of the active generation and rows.
@@ -352,7 +354,7 @@ impl Store {
         let page_size = conn.query_row("PRAGMA page_size", [], |row| row.get::<_, i64>(0))? as u64;
         Ok(Self { #[cfg(test)] full_adoption: false, adoption_report: Default::default(), read_sessions, conn,
             server,
-            ownership: None, #[cfg(unix)] file_identity, page_size, catalog, assets_dir, ephemeral_assets, identity })
+            ownership: None, #[cfg(unix)] file_identity, page_size, catalog, assets_dir, campaign_assets: Default::default(), ephemeral_assets, identity })
     }
 
     pub(super) fn initialize_schema(conn: &Connection) -> Result<(), RuntimeError> {
@@ -508,7 +510,7 @@ impl Store {
         if identity::present(&conn)? { self.read_sessions.publish(true); }
         Ok(Self { #[cfg(test)] full_adoption: false, adoption_report: Default::default(), read_sessions: self.read_sessions.clone(), conn,
             server: self.server,
-            ownership: self.ownership.clone(), #[cfg(unix)] file_identity: self.file_identity, page_size, catalog: self.catalog.clone(), assets_dir: self.assets_dir.clone(), ephemeral_assets: false, identity: self.identity.clone() })
+            ownership: self.ownership.clone(), #[cfg(unix)] file_identity: self.file_identity, page_size, catalog: self.catalog.clone(), assets_dir: self.assets_dir.clone(), campaign_assets: Default::default(), ephemeral_assets: false, identity: self.identity.clone() })
     }
 
     pub(crate) fn exclude_ephemeral(&mut self, schema: &Schema) {

@@ -20,7 +20,7 @@ impl Store {
             read_sessions,conn,server:self.server,ownership:None,
             #[cfg(unix)] file_identity:None,
             page_size,catalog:self.catalog.clone(),identity:self.identity.clone(),
-            assets_dir:Self::memory_assets_dir()?,ephemeral_assets:true,
+            assets_dir:Self::memory_assets_dir()?,campaign_assets:self.campaign_assets.clone(),ephemeral_assets:true,
             #[cfg(test)] full_adoption:false,
             adoption_report:Default::default(),
         };
@@ -49,6 +49,7 @@ impl Store {
     /// Independent valid worlds share verified bytes, never source row state.
     pub fn empty_with_asset_ledger(&self)->Result<Self,RuntimeError>{
         let fresh=Self::memory()?;
+        fresh.campaign_assets.replace(self.campaign_assets.borrow().clone());
         let ids=self.conn.prepare("SELECT id FROM _assets")?.query_map([],|r|r.get::<_,String>(0))?.collect::<Result<Vec<_>,_>>()?;
         for id in ids{
             let mut asset=self.asset(&id)?.ok_or_else(||RuntimeError::Store("fixture asset disappeared".into()))?;

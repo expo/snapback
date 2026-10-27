@@ -167,7 +167,7 @@ fn engine(bound:&Bound,rows:&BTreeMap<String,Vec<Value>>,probe:Program)->Result<
     engine_with(bound,rows,vec![probe])
 }
 fn engine_with(bound:&Bound,rows:&BTreeMap<String,Vec<Value>>,probes:Vec<Program>)->Result<Engine,String>{
-    engine_on_store(bound,rows,probes,Store::memory().map_err(|e|e.to_string())?)
+    engine_on_store(bound,rows,probes,Store::memory_for_campaign().map_err(|e|e.to_string())?)
 }
 fn hydrate(engine:&mut Engine,kind:&C,value:&Value)->Result<Value,String>{
         match (kind,value) {
@@ -446,6 +446,7 @@ pub fn generated_campaign(bound:&Bound,campaign:&mut Campaign,matrix:bool){
 /// This is conformance exploration, not a guessed spec oracle: only declared
 /// policies and replayed violations can fail security acceptance.
 pub fn fixture_observers(bound:&Bound,fixture:&Engine,campaign:&mut Campaign){
+    let snapshot=fixture.campaign_snapshot().ok().flatten();let fixture=snapshot.as_ref().unwrap_or(fixture);
     let _replay_ids = replay_ids::Scope::new();
     let first=campaign.violations.len();campaign.workflow_base=campaign.workflow_attempts;
     if bound.invariants.iter().any(super::derived::is_derived){
