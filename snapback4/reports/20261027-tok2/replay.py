@@ -19,7 +19,7 @@ for lane in ['001-snapback-jukebox-restorations','027-snapback-animatronic-figur
  source='\n'.join(f.read_text() for f in (root/'snapback').glob('*.q'))
  tables=re.findall(r'^table (\w+)',source,re.M)
  if tables: commands += [['data',tables[0],'--release','deploy'],['data',tables[0],'--release','deploy']]
- if lane.startswith('001'):commands += [['test','--fixture-only','--source','deploy/releases/1']]
+ if lane.startswith('001'):commands += [['test','--fixture-only','--source','deploy/releases/1/snapback']]
  for cmd in commands:
   start=time.monotonic();p=subprocess.run([binary,*cmd],cwd=root,text=True,capture_output=True,timeout=600)
   text=p.stdout+p.stderr;name=f'{len(results):03d}'

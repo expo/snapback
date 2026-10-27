@@ -15,7 +15,7 @@ def add(w,l,model,c,t,ex=None):
  commands=sorted(set(m[1]+(' --check' if m[1] in ['deploy','rollback'] and re.search(r'--check\b',c[m.end():].split('\n')[0]) else '') for m in matches))
  commands+=sorted(set('runner:'+x for x in indirect))
  outcome='running/unknown' if ex is None else 'success' if ex==0 else 'refusal' if re.search(r'REFUSED|E_[A-Z_]+|gates? pending',t) else 'error'
- rows.append(dict(wave=w,lane=l,model=model,commands=commands,mixed=len(matches)>1,bytes=len(t.encode()),tokens=len(enc.encode(t,disallowed_special=())),outcome=outcome))
+ rows.append(dict(wave=w,lane=l,model=model,commands=commands,mixed=len(matches)>1 or bool(indirect) or bool(re.search(r'[;\n]|&&|\|\||\$\(',c or '')),bytes=len(t.encode()),tokens=len(enc.encode(t,disallowed_special=())),outcome=outcome))
 def codex_cmds(inp):
     """Commands inside an exec JS block."""
     out = []
@@ -56,7 +56,7 @@ def parse_codex(path,w,lane):
    pending[p.get('call_id')]=cmds
   elif ty in ['custom_tool_call_output','function_call_output']:
    cmds=pending.pop(p.get('call_id'),[]);out=p.get('output')
-   blocks=[x.get('text','') for x in out if x.get('type')=='text'] if isinstance(out,list) else [str(out or '')]
+   blocks=[x.get('text','') for x in out if x.get('type') in ['text','input_text','output_text']] if isinstance(out,list) else [str(out or '')]
    units=[]
    for text in blocks:
     try:j=json.loads(text)

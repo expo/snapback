@@ -1,0 +1,955 @@
+{
+  "tokenizer": "o200k_base",
+  "sessions": {
+    "records": 3785,
+    "bytes": 15570437,
+    "tokens": 3956005,
+    "wave": {
+      "32": {
+        "records": 1010,
+        "tokens": 1383764
+      },
+      "33": {
+        "records": 1748,
+        "tokens": 1409765
+      },
+      "34": {
+        "records": 1027,
+        "tokens": 1162476
+      }
+    }
+  },
+  "binaries": {
+    "before": "e2d3c3bb66c4c443dfbcd5dc8834de4b580d3dce67024ad75813c85dd33ab985",
+    "after": "1ef831eda613784575a7f02aae9f09dd2938bea95c447fff2f0f4123b25484b7"
+  },
+  "replay": {
+    "commands": 40,
+    "beforeTokens": 20072,
+    "afterTokens": 5435,
+    "sameCommandAndExitOutcomes": true,
+    "byCommand": {
+      "deploy": {
+        "commands": 9,
+        "beforeTokens": 2241,
+        "afterTokens": 2223,
+        "beforeBytes": 9007,
+        "afterBytes": 8763
+      },
+      "deploy --check": {
+        "commands": 6,
+        "beforeTokens": 204,
+        "afterTokens": 153,
+        "beforeBytes": 786,
+        "afterBytes": 549
+      },
+      "releases": {
+        "commands": 12,
+        "beforeTokens": 2268,
+        "afterTokens": 407,
+        "beforeBytes": 8490,
+        "afterBytes": 1483
+      },
+      "rollback --check": {
+        "commands": 3,
+        "beforeTokens": 3075,
+        "afterTokens": 1536,
+        "beforeBytes": 12407,
+        "afterBytes": 6648
+      },
+      "rollback": {
+        "commands": 3,
+        "beforeTokens": 945,
+        "afterTokens": 269,
+        "beforeBytes": 3532,
+        "afterBytes": 1000
+      },
+      "data": {
+        "commands": 6,
+        "beforeTokens": 10442,
+        "afterTokens": 149,
+        "beforeBytes": 23046,
+        "afterBytes": 520
+      },
+      "test": {
+        "commands": 1,
+        "beforeTokens": 897,
+        "afterTokens": 698,
+        "beforeBytes": 4102,
+        "afterBytes": 3838
+      }
+    },
+    "observations": [
+      {
+        "lane": "001-snapback-jukebox-restorations",
+        "command": [
+          "deploy",
+          "fresh"
+        ],
+        "code": 0,
+        "before": {
+          "bytes": 955,
+          "tokens": 235,
+          "lines": 5,
+          "seconds": 34.15143276215531
+        },
+        "after": {
+          "bytes": 751,
+          "tokens": 191,
+          "lines": 3,
+          "seconds": 35.02343292091973
+        }
+      },
+      {
+        "lane": "001-snapback-jukebox-restorations",
+        "command": [
+          "deploy",
+          "staging",
+          "--staging"
+        ],
+        "code": 0,
+        "before": {
+          "bytes": 1100,
+          "tokens": 269,
+          "lines": 6,
+          "seconds": 47.850341607118025
+        },
+        "after": {
+          "bytes": 898,
+          "tokens": 225,
+          "lines": 3,
+          "seconds": 48.82348226709291
+        }
+      },
+      {
+        "lane": "001-snapback-jukebox-restorations",
+        "command": [
+          "deploy",
+          "deploy",
+          "--check"
+        ],
+        "code": 0,
+        "before": {
+          "bytes": 131,
+          "tokens": 34,
+          "lines": 3,
+          "seconds": 4.209974661003798
+        },
+        "after": {
+          "bytes": 128,
+          "tokens": 35,
+          "lines": 2,
+          "seconds": 4.581631480017677
+        }
+      },
+      {
+        "lane": "001-snapback-jukebox-restorations",
+        "command": [
+          "deploy",
+          "deploy",
+          "--check"
+        ],
+        "code": 0,
+        "before": {
+          "bytes": 131,
+          "tokens": 34,
+          "lines": 3,
+          "seconds": 4.366734253009781
+        },
+        "after": {
+          "bytes": 55,
+          "tokens": 16,
+          "lines": 1,
+          "seconds": 4.464595125988126
+        }
+      },
+      {
+        "lane": "001-snapback-jukebox-restorations",
+        "command": [
+          "releases",
+          "deploy"
+        ],
+        "code": 0,
+        "before": {
+          "bytes": 207,
+          "tokens": 56,
+          "lines": 3,
+          "seconds": 1.1273108359891921
+        },
+        "after": {
+          "bytes": 154,
+          "tokens": 45,
+          "lines": 2,
+          "seconds": 1.163835361134261
+        }
+      },
+      {
+        "lane": "001-snapback-jukebox-restorations",
+        "command": [
+          "releases",
+          "deploy"
+        ],
+        "code": 0,
+        "before": {
+          "bytes": 207,
+          "tokens": 56,
+          "lines": 3,
+          "seconds": 1.156040201894939
+        },
+        "after": {
+          "bytes": 59,
+          "tokens": 16,
+          "lines": 1,
+          "seconds": 1.2137985590379685
+        }
+      },
+      {
+        "lane": "001-snapback-jukebox-restorations",
+        "command": [
+          "rollback",
+          "deploy",
+          "--to",
+          "1",
+          "--check"
+        ],
+        "code": 0,
+        "before": {
+          "bytes": 3464,
+          "tokens": 790,
+          "lines": 15,
+          "seconds": 2.144975335104391
+        },
+        "after": {
+          "bytes": 2181,
+          "tokens": 441,
+          "lines": 3,
+          "seconds": 2.2261464030016214
+        }
+      },
+      {
+        "lane": "001-snapback-jukebox-restorations",
+        "command": [
+          "rollback",
+          "deploy",
+          "--to",
+          "1"
+        ],
+        "code": 1,
+        "before": {
+          "bytes": 173,
+          "tokens": 47,
+          "lines": 2,
+          "seconds": 1.2893543739337474
+        },
+        "after": {
+          "bytes": 272,
+          "tokens": 74,
+          "lines": 3,
+          "seconds": 1.300183268962428
+        }
+      },
+      {
+        "lane": "001-snapback-jukebox-restorations",
+        "command": [
+          "releases",
+          "deploy"
+        ],
+        "code": 0,
+        "before": {
+          "bytes": 207,
+          "tokens": 56,
+          "lines": 3,
+          "seconds": 1.1299821219872683
+        },
+        "after": {
+          "bytes": 59,
+          "tokens": 16,
+          "lines": 1,
+          "seconds": 1.1330922760535032
+        }
+      },
+      {
+        "lane": "001-snapback-jukebox-restorations",
+        "command": [
+          "deploy",
+          "deploy"
+        ],
+        "code": 0,
+        "before": {
+          "bytes": 131,
+          "tokens": 34,
+          "lines": 3,
+          "seconds": 4.258744828170165
+        },
+        "after": {
+          "bytes": 128,
+          "tokens": 35,
+          "lines": 2,
+          "seconds": 4.386641203192994
+        }
+      },
+      {
+        "lane": "001-snapback-jukebox-restorations",
+        "command": [
+          "releases",
+          "deploy"
+        ],
+        "code": 0,
+        "before": {
+          "bytes": 207,
+          "tokens": 56,
+          "lines": 3,
+          "seconds": 1.1247762539424002
+        },
+        "after": {
+          "bytes": 59,
+          "tokens": 16,
+          "lines": 1,
+          "seconds": 1.1235052719712257
+        }
+      },
+      {
+        "lane": "001-snapback-jukebox-restorations",
+        "command": [
+          "data",
+          "profiles",
+          "--release",
+          "deploy"
+        ],
+        "code": 0,
+        "before": {
+          "bytes": 10123,
+          "tokens": 4518,
+          "lines": 51,
+          "seconds": 0.019769359147176147
+        },
+        "after": {
+          "bytes": 136,
+          "tokens": 38,
+          "lines": 2,
+          "seconds": 0.020575141068547964
+        }
+      },
+      {
+        "lane": "001-snapback-jukebox-restorations",
+        "command": [
+          "data",
+          "profiles",
+          "--release",
+          "deploy"
+        ],
+        "code": 0,
+        "before": {
+          "bytes": 10123,
+          "tokens": 4518,
+          "lines": 51,
+          "seconds": 0.017913394840434194
+        },
+        "after": {
+          "bytes": 51,
+          "tokens": 15,
+          "lines": 1,
+          "seconds": 0.018818227108567953
+        }
+      },
+      {
+        "lane": "001-snapback-jukebox-restorations",
+        "command": [
+          "test",
+          "--fixture-only",
+          "--source",
+          "deploy/releases/1/snapback"
+        ],
+        "code": 0,
+        "before": {
+          "bytes": 4102,
+          "tokens": 897,
+          "lines": 40,
+          "seconds": 105.28178589604795
+        },
+        "after": {
+          "bytes": 3838,
+          "tokens": 698,
+          "lines": 3,
+          "seconds": 90.99801133014262
+        }
+      },
+      {
+        "lane": "027-snapback-animatronic-figure-builds",
+        "command": [
+          "deploy",
+          "fresh"
+        ],
+        "code": 0,
+        "before": {
+          "bytes": 1335,
+          "tokens": 332,
+          "lines": 6,
+          "seconds": 27.136705511948094
+        },
+        "after": {
+          "bytes": 1131,
+          "tokens": 288,
+          "lines": 3,
+          "seconds": 27.26204425096512
+        }
+      },
+      {
+        "lane": "027-snapback-animatronic-figure-builds",
+        "command": [
+          "deploy",
+          "staging",
+          "--staging"
+        ],
+        "code": 0,
+        "before": {
+          "bytes": 1480,
+          "tokens": 366,
+          "lines": 7,
+          "seconds": 27.968589993892238
+        },
+        "after": {
+          "bytes": 1278,
+          "tokens": 322,
+          "lines": 3,
+          "seconds": 28.36198743293062
+        }
+      },
+      {
+        "lane": "027-snapback-animatronic-figure-builds",
+        "command": [
+          "deploy",
+          "deploy",
+          "--check"
+        ],
+        "code": 0,
+        "before": {
+          "bytes": 131,
+          "tokens": 34,
+          "lines": 3,
+          "seconds": 6.04534538090229
+        },
+        "after": {
+          "bytes": 128,
+          "tokens": 35,
+          "lines": 2,
+          "seconds": 6.124573040055111
+        }
+      },
+      {
+        "lane": "027-snapback-animatronic-figure-builds",
+        "command": [
+          "deploy",
+          "deploy",
+          "--check"
+        ],
+        "code": 0,
+        "before": {
+          "bytes": 131,
+          "tokens": 34,
+          "lines": 3,
+          "seconds": 6.0375600340776145
+        },
+        "after": {
+          "bytes": 55,
+          "tokens": 16,
+          "lines": 1,
+          "seconds": 6.1413313169032335
+        }
+      },
+      {
+        "lane": "027-snapback-animatronic-figure-builds",
+        "command": [
+          "releases",
+          "deploy"
+        ],
+        "code": 0,
+        "before": {
+          "bytes": 207,
+          "tokens": 56,
+          "lines": 3,
+          "seconds": 1.2041675141081214
+        },
+        "after": {
+          "bytes": 154,
+          "tokens": 45,
+          "lines": 2,
+          "seconds": 1.2125253109261394
+        }
+      },
+      {
+        "lane": "027-snapback-animatronic-figure-builds",
+        "command": [
+          "releases",
+          "deploy"
+        ],
+        "code": 0,
+        "before": {
+          "bytes": 207,
+          "tokens": 56,
+          "lines": 3,
+          "seconds": 1.206736538093537
+        },
+        "after": {
+          "bytes": 59,
+          "tokens": 16,
+          "lines": 1,
+          "seconds": 1.1975984789896756
+        }
+      },
+      {
+        "lane": "027-snapback-animatronic-figure-builds",
+        "command": [
+          "rollback",
+          "deploy",
+          "--to",
+          "1",
+          "--check"
+        ],
+        "code": 0,
+        "before": {
+          "bytes": 4397,
+          "tokens": 1137,
+          "lines": 13,
+          "seconds": 2.3171854219399393
+        },
+        "after": {
+          "bytes": 3302,
+          "tokens": 826,
+          "lines": 3,
+          "seconds": 2.3566361567936838
+        }
+      },
+      {
+        "lane": "027-snapback-animatronic-figure-builds",
+        "command": [
+          "rollback",
+          "deploy",
+          "--to",
+          "1"
+        ],
+        "code": 1,
+        "before": {
+          "bytes": 178,
+          "tokens": 49,
+          "lines": 2,
+          "seconds": 1.5782392909750342
+        },
+        "after": {
+          "bytes": 277,
+          "tokens": 76,
+          "lines": 3,
+          "seconds": 1.688523877877742
+        }
+      },
+      {
+        "lane": "027-snapback-animatronic-figure-builds",
+        "command": [
+          "releases",
+          "deploy"
+        ],
+        "code": 0,
+        "before": {
+          "bytes": 207,
+          "tokens": 56,
+          "lines": 3,
+          "seconds": 1.2146577769890428
+        },
+        "after": {
+          "bytes": 59,
+          "tokens": 16,
+          "lines": 1,
+          "seconds": 1.230138222919777
+        }
+      },
+      {
+        "lane": "027-snapback-animatronic-figure-builds",
+        "command": [
+          "deploy",
+          "deploy"
+        ],
+        "code": 0,
+        "before": {
+          "bytes": 131,
+          "tokens": 34,
+          "lines": 3,
+          "seconds": 6.021355539094657
+        },
+        "after": {
+          "bytes": 128,
+          "tokens": 35,
+          "lines": 2,
+          "seconds": 6.2283253718633205
+        }
+      },
+      {
+        "lane": "027-snapback-animatronic-figure-builds",
+        "command": [
+          "releases",
+          "deploy"
+        ],
+        "code": 0,
+        "before": {
+          "bytes": 207,
+          "tokens": 56,
+          "lines": 3,
+          "seconds": 1.23074072599411
+        },
+        "after": {
+          "bytes": 59,
+          "tokens": 16,
+          "lines": 1,
+          "seconds": 1.2519540381617844
+        }
+      },
+      {
+        "lane": "027-snapback-animatronic-figure-builds",
+        "command": [
+          "data",
+          "roster",
+          "--release",
+          "deploy"
+        ],
+        "code": 0,
+        "before": {
+          "bytes": 814,
+          "tokens": 414,
+          "lines": 8,
+          "seconds": 0.01588910911232233
+        },
+        "after": {
+          "bytes": 116,
+          "tokens": 33,
+          "lines": 2,
+          "seconds": 0.01550239510834217
+        }
+      },
+      {
+        "lane": "027-snapback-animatronic-figure-builds",
+        "command": [
+          "data",
+          "roster",
+          "--release",
+          "deploy"
+        ],
+        "code": 0,
+        "before": {
+          "bytes": 814,
+          "tokens": 414,
+          "lines": 8,
+          "seconds": 0.015499503817409277
+        },
+        "after": {
+          "bytes": 51,
+          "tokens": 15,
+          "lines": 1,
+          "seconds": 0.01494157500565052
+        }
+      },
+      {
+        "lane": "033-snapback-bathtub-reglazing-jobs",
+        "command": [
+          "deploy",
+          "fresh"
+        ],
+        "code": 0,
+        "before": {
+          "bytes": 1238,
+          "tokens": 312,
+          "lines": 6,
+          "seconds": 37.620142604922876
+        },
+        "after": {
+          "bytes": 1035,
+          "tokens": 268,
+          "lines": 3,
+          "seconds": 36.53068529302254
+        }
+      },
+      {
+        "lane": "033-snapback-bathtub-reglazing-jobs",
+        "command": [
+          "deploy",
+          "staging",
+          "--staging"
+        ],
+        "code": 0,
+        "before": {
+          "bytes": 1383,
+          "tokens": 346,
+          "lines": 7,
+          "seconds": 34.21257052011788
+        },
+        "after": {
+          "bytes": 1182,
+          "tokens": 302,
+          "lines": 3,
+          "seconds": 34.11072242120281
+        }
+      },
+      {
+        "lane": "033-snapback-bathtub-reglazing-jobs",
+        "command": [
+          "deploy",
+          "deploy",
+          "--check"
+        ],
+        "code": 0,
+        "before": {
+          "bytes": 131,
+          "tokens": 34,
+          "lines": 3,
+          "seconds": 8.277723371051252
+        },
+        "after": {
+          "bytes": 128,
+          "tokens": 35,
+          "lines": 2,
+          "seconds": 8.163275931030512
+        }
+      },
+      {
+        "lane": "033-snapback-bathtub-reglazing-jobs",
+        "command": [
+          "deploy",
+          "deploy",
+          "--check"
+        ],
+        "code": 0,
+        "before": {
+          "bytes": 131,
+          "tokens": 34,
+          "lines": 3,
+          "seconds": 8.17809337307699
+        },
+        "after": {
+          "bytes": 55,
+          "tokens": 16,
+          "lines": 1,
+          "seconds": 7.97680437611416
+        }
+      },
+      {
+        "lane": "033-snapback-bathtub-reglazing-jobs",
+        "command": [
+          "releases",
+          "deploy"
+        ],
+        "code": 0,
+        "before": {
+          "bytes": 207,
+          "tokens": 56,
+          "lines": 3,
+          "seconds": 1.5395943000912666
+        },
+        "after": {
+          "bytes": 154,
+          "tokens": 45,
+          "lines": 2,
+          "seconds": 1.524338060989976
+        }
+      },
+      {
+        "lane": "033-snapback-bathtub-reglazing-jobs",
+        "command": [
+          "releases",
+          "deploy"
+        ],
+        "code": 0,
+        "before": {
+          "bytes": 207,
+          "tokens": 56,
+          "lines": 3,
+          "seconds": 1.5088835330680013
+        },
+        "after": {
+          "bytes": 59,
+          "tokens": 16,
+          "lines": 1,
+          "seconds": 1.4706531611736864
+        }
+      },
+      {
+        "lane": "033-snapback-bathtub-reglazing-jobs",
+        "command": [
+          "rollback",
+          "deploy",
+          "--to",
+          "1",
+          "--check"
+        ],
+        "code": 0,
+        "before": {
+          "bytes": 4546,
+          "tokens": 1148,
+          "lines": 15,
+          "seconds": 3.57860259199515
+        },
+        "after": {
+          "bytes": 1165,
+          "tokens": 269,
+          "lines": 3,
+          "seconds": 3.564196913037449
+        }
+      },
+      {
+        "lane": "033-snapback-bathtub-reglazing-jobs",
+        "command": [
+          "rollback",
+          "deploy",
+          "--to",
+          "1"
+        ],
+        "code": 0,
+        "before": {
+          "bytes": 3181,
+          "tokens": 849,
+          "lines": 9,
+          "seconds": 3.26601714710705
+        },
+        "after": {
+          "bytes": 451,
+          "tokens": 119,
+          "lines": 3,
+          "seconds": 3.2395330381114036
+        }
+      },
+      {
+        "lane": "033-snapback-bathtub-reglazing-jobs",
+        "command": [
+          "releases",
+          "deploy"
+        ],
+        "code": 0,
+        "before": {
+          "bytes": 3210,
+          "tokens": 854,
+          "lines": 9,
+          "seconds": 1.7767878889571875
+        },
+        "after": {
+          "bytes": 549,
+          "tokens": 144,
+          "lines": 3,
+          "seconds": 1.8053814019076526
+        }
+      },
+      {
+        "lane": "033-snapback-bathtub-reglazing-jobs",
+        "command": [
+          "deploy",
+          "deploy"
+        ],
+        "code": 1,
+        "before": {
+          "bytes": 1254,
+          "tokens": 313,
+          "lines": 5,
+          "seconds": 38.357431792188436
+        },
+        "after": {
+          "bytes": 2232,
+          "tokens": 557,
+          "lines": 3,
+          "seconds": 39.200485493056476
+        }
+      },
+      {
+        "lane": "033-snapback-bathtub-reglazing-jobs",
+        "command": [
+          "releases",
+          "deploy"
+        ],
+        "code": 0,
+        "before": {
+          "bytes": 3210,
+          "tokens": 854,
+          "lines": 9,
+          "seconds": 1.6813497990369797
+        },
+        "after": {
+          "bytes": 59,
+          "tokens": 16,
+          "lines": 1,
+          "seconds": 1.8257960060145706
+        }
+      },
+      {
+        "lane": "033-snapback-bathtub-reglazing-jobs",
+        "command": [
+          "data",
+          "roles",
+          "--release",
+          "deploy"
+        ],
+        "code": 0,
+        "before": {
+          "bytes": 586,
+          "tokens": 289,
+          "lines": 6,
+          "seconds": 0.02497398410923779
+        },
+        "after": {
+          "bytes": 115,
+          "tokens": 33,
+          "lines": 2,
+          "seconds": 0.015674213878810406
+        }
+      },
+      {
+        "lane": "033-snapback-bathtub-reglazing-jobs",
+        "command": [
+          "data",
+          "roles",
+          "--release",
+          "deploy"
+        ],
+        "code": 0,
+        "before": {
+          "bytes": 586,
+          "tokens": 289,
+          "lines": 6,
+          "seconds": 0.01511276513338089
+        },
+        "after": {
+          "bytes": 51,
+          "tokens": 15,
+          "lines": 1,
+          "seconds": 0.013525011017918587
+        }
+      }
+    ]
+  },
+  "startup": [
+    {
+      "phase": "before",
+      "command": "serve staging --port 0 (startup only)",
+      "bytes": 803,
+      "tokens": 282,
+      "lines": 6,
+      "ready": true,
+      "urlFirstStdout": true
+    },
+    {
+      "phase": "after",
+      "command": "serve staging --port 0 (startup only)",
+      "bytes": 277,
+      "tokens": 88,
+      "lines": 3,
+      "ready": true,
+      "urlFirstStdout": true
+    }
+  ],
+  "proofSummary": {
+    "before": {
+      "bytes": 91,
+      "tokens": 29,
+      "lines": 1
+    },
+    "after": {
+      "bytes": 145,
+      "tokens": 38,
+      "lines": 2
+    }
+  }
+}

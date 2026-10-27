@@ -62,7 +62,8 @@ export async function proveSecurity(clientTarball, platformTarball, directory) {
     return result.security;
   }
   function campaign(project, requireHttp = false) {
-    const output = command(["test", "--fixture-only"], project);
+    // This consumer inspects full campaign counters/traces, not the brief verdict.
+    const output = command(["test", "--fixture-only", "--explain"], project);
     const counts = /security tests: (\d+) attempted, (\d+) refused, (\d+) reachable violations; (\d+) seed\/synthetic observations \(non-failing\); finite campaign, not proof/.exec(output);
     assert.ok(counts, "default test executes the generated finite security campaign");
     assert.equal(Number(counts[3]), 0);
@@ -221,7 +222,7 @@ invariant docs.body write only .owner = viewer
 `);
   const creationCheck = JSON.parse(command(["check", "--json"], creation, 1));
   assert.ok(creationCheck.security.notes.some(n => n.code === "N_INSERT_WRITE_INTENT"));
-  const creationOutput = command(["test", "--fixture-only"], creation, 1);
+  const creationOutput = command(["test", "--fixture-only", "--explain"], creation, 1);
   assert.match(creationOutput, /security violation:/);
   assert.match(creationOutput, /"operation":"add"/);
   const privacy = schemaProject("sec6-write-result", `table docs:
@@ -241,7 +242,7 @@ mutation edit(doc: docs):
   update docs[doc] {title:'changed'}
 invariant docs.secret read only .owner = viewer
 `);
-  const privacyOutput = command(["test", "--fixture-only"], privacy, 1);
+  const privacyOutput = command(["test", "--fixture-only", "--explain"], privacy, 1);
   assert.match(privacyOutput, /"effect":"mutation result"/);
   const privacyCheck = JSON.parse(command(["check", "--json"], privacy, 1));
   assert.ok(privacyCheck.security.notes.some(n => n.code === "N_COLUMN_RESULT_EXPOSURE"));
