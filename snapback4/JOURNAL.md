@@ -109745,3 +109745,7 @@ G6 still requires an enforced deployment clock contract. Defaults are unchanged.
 The refusal observer also covers identity-request decoding and browser auth replies, so a real failed login can name `/auth/login` and the anonymous role while discarding credentials and successful session bodies. The Horse Trailer Rentals auth shape has a real-server regression. The generic custom-code recovery route is `snapback4 why CODE`.
 
 The original-lane compiler replays exposed an additional verifier boundary: declaration-local checking removed other operations and invalidated authored invariant targets, withholding safe fixes in otherwise valid real applications. Safe fix verification now retains all original operations and their invariant referents, permits only identical unrelated pre-existing diagnostics, and refuses every new diagnostic or error in the edited declaration. A cross-file invariant plus an independent unknown-name regression pins this behavior.
+
+## 2026-10-28 — CALLS1: packed consumer install ownership
+
+Foreground init exposed publication fixtures that scaffolded before pinning unpublished tarballs. Those scaffolds now explicitly defer installation; the frontend and starter consumers pin their packed dependencies and then run the actual shipped install worker before their unchanged type, build and browser proofs. A separate packed default-init witness requires foreground completion, private npm output and exact success/failure exit propagation. No assertion or runtime rule is relaxed.

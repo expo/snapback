@@ -24,6 +24,20 @@ const selected={...plan,fullSelectorPlanExecuted:false,qualification:false,
  step('inventories','.', ['node','scripts/check-inventories.mjs']),
  step('refs','.', ['./ref-check']),
  ]};
+
+if(process.argv.includes('--consumer-fixtures')){
+ selected.productBaseline='04ac5744fa2c59041e7ed49cd684d57d6c96c68b';
+ selected.scopeRationale='Only consumer fixtures, the journal and this report runner changed since the functional receipt (all product steps passed; inventory environment was repaired). Product source identity is checked explicitly; actual packed fixture behavior runs in qualify-linux --consumer-only.';
+ selected.steps=[
+  step('unchanged-product','.', ['git','diff','--exit-code',selected.productBaseline,'HEAD','--','snapback4/crates','snapback4/packages','snapback4/Cargo.toml','snapback4/bun.lock']),
+  step('consumer-fixture-syntax','snapback4', ['node','--input-type=module','-e',"import {spawnSync} from 'node:child_process'; const files=[\"scripts/dx8-ergonomics-consumer.mjs\", \"scripts/publication-day2.mjs\", \"scripts/publication-day4.mjs\", \"scripts/publication-day5.mjs\", \"scripts/publication-dx5.mjs\", \"scripts/publication-frontend-proofs.mjs\", \"scripts/publication-production.mjs\", \"scripts/publication-regressions.mjs\", \"scripts/publication-security.mjs\", \"scripts/publication-starters.mjs\"];let failed=false;for(const file of files){const r=spawnSync(process.execPath,['--check',file],{stdio:'inherit'});if(r.status!==0)failed=true;}if(failed)process.exitCode=1;else console.log('publication fixture syntax: '+files.length+' files passed');"]),
+  step('generated','.', ['bash','scripts/check-generated-artifacts']),
+  step('guide','.', ['node','scripts/check-guide.mjs']),
+  step('inventories','.', ['node','scripts/check-inventories.mjs']),
+  step('refs','.', ['./ref-check'])
+ ];
+}
+
 const result=await runPlan(selected);
 writeFileSync('/tmp/calls1/final-affected-receipt.json',JSON.stringify(result,null,2));
 if(!result.receipt.ok)process.exitCode=1;

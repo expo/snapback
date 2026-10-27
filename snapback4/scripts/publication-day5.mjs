@@ -30,7 +30,7 @@ assert.notEqual((await cli(['test','--residency'],{cwd})).code,0);
 assert.equal((await cli(['test','--residency','--fixture-only','--fixture','fixtures','--as','alice'],{cwd})).code,0);
 for(const kind of ['web','expo']){
  const dir=join(cwd,kind);mkdirSync(join(dir,'snapback'),{recursive:true});writeFileSync(join(dir,'snapback/schema.q'),source);
- const init=await cli(['init','--'+kind],{cwd:dir});assert.equal(init.code,0,init.stdout+init.stderr);
+ const init=await cli(['init','--no-install','--'+kind],{cwd:dir});assert.equal(init.code,0,init.stdout+init.stderr);
  assert.equal(existsSync(join(dir,'scripts/frontend-proof.mjs')),true);
  assert.match(readFileSync(join(dir,'scripts/frontend-proof.mjs'),'utf8'),/E_FRONTEND_SCENARIO/);
  const packageJson=JSON.parse(readFileSync(join(dir,'package.json')));
@@ -57,7 +57,7 @@ for(const page of ['feeds','maintains','offline-interactions','testing','sync','
  for(const recipe of snippets)await measure(recipe);
 }
 const chat=join(cwd,'chat-readme');mkdirSync(chat);
-const chatInit=await cli(['init','--web','--template','chat'],{cwd:chat});assert.equal(chatInit.code,0,chatInit.stdout+chatInit.stderr);
+const chatInit=await cli(['init','--no-install','--web','--template','chat'],{cwd:chat});assert.equal(chatInit.code,0,chatInit.stdout+chatInit.stderr);
 mkdirSync(join(chat,'fixtures'),{recursive:true});
 await measure(readFileSync(join(chat,'README.md'),'utf8').match(/\x60(snapback4 test --residency --fixture-only[^\x60]+)\x60/)[1],chat);
 assert.ok(measurements.length>=8);

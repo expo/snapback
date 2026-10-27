@@ -24,7 +24,7 @@ export async function proveDX5(directory, client, platform, expo) {
     await run(["--test",join(root,"packages/snapback4/test/dx5-react.test.mjs")],root,{SNAPBACK4_CLIENT_DIST:join(parent,"node_modules/snapback4/dist")});
     // Retain proof commands and the dependency across an actual init-first adapt.
     const cwd=join(scratch,"adapt");mkdirSync(cwd);
-    await run([cli,"init","--expo"],cwd);
+    await run([cli,"init", "--no-install","--expo"],cwd);
     assert.equal(JSON.parse(readFileSync(join(cwd,"package.json"))).devDependencies["playwright-core"],"1.55.1");
     assert.match(readFileSync(join(cwd,"metro.config.cjs"),"utf8"),/snapback4-expo\/metro/);
     assert.match(readFileSync(join(cwd,"App.tsx"),"utf8"),/snapback4-expo\/native-smoke/);

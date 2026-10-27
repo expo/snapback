@@ -16,7 +16,7 @@ export async function proveGeneratedProofs(client, platform, expo, directory) {
     await run("npm", ["install", "--no-save", "--ignore-scripts", "--no-audit", "--no-fund", ...artifacts.slice(0, 2)], cwd);
     const cli = join(cwd, "node_modules/.bin/snapback4");
     // The init owner's environment must never survive in generated files.
-    await run(cli, ["init", ...flags], cwd, { PORT_LO: "29040", PORT_HI: "29049" });
+    await run(cli, ["init", "--no-install", ...flags], cwd, { PORT_LO: "29040", PORT_HI: "29049" });
     const pkg = JSON.parse(readFileSync(join(cwd, "package.json")));
     assert.equal(pkg.scripts["frontend:proof"], "node scripts/frontend-proof.mjs");
     assert.equal(pkg.devDependencies["playwright-core"], "1.55.1");
@@ -25,7 +25,7 @@ export async function proveGeneratedProofs(client, platform, expo, directory) {
     pkg.optionalDependencies = { [`snapback4-${process.platform}-${process.arch}`]: `file:${artifacts[1]}` };
     if (kind === "expo") pkg.dependencies["snapback4-expo"] = `file:${artifacts[2]}`;
     writeFileSync(join(cwd, "package.json"), JSON.stringify(pkg, null, 2));
-    await run("npm", ["install", "--prefer-offline", "--no-audit", "--no-fund"], cwd);
+    await run(process.execPath, ["scripts/install.mjs", "--prefer-offline", "--no-audit", "--no-fund"], cwd);
     await run(cli, ["check"], cwd);
     await run("npm", ["run", "typecheck"], cwd);
     await run("npm", ["run", kind === "web" ? "build" : "build:web"], cwd);
