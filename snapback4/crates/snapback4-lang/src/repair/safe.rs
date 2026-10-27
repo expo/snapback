@@ -147,6 +147,14 @@ mod tests {
         assert!(bound.diagnostics.iter().any(|d| d.code == "E_QUARRY_UNKNOWN"));
     }
     #[test]
+    fn present_literal_unique_population_has_a_safe_bound_rewrite() {
+        let source = "table tags:\n  slug: text <=40 ?\n  unique bySlug: slug\n  public\nquery q():\n  return tags[slug = 'one'] by .slug\n";
+        let bound = crate::compile(&[("schema.q".into(),source.into())]);
+        let repair = bound.diagnostics.iter().find(|d| d.code == "E_QUARRY_BOUND").unwrap();
+        assert!(repair.mechanical,"{:?}",bound.diagnostics);
+        assert!(repair.rewrite.contains("first 1"));
+    }
+    #[test]
     fn nullable_guard_has_an_exact_source_span() {
         let source = "query q(at: time ?):\n  require at + 1 > now else LATE\n  return 1\n";
         let (doc, _) = crate::parse_document("schema.q", source);
@@ -171,8 +179,12 @@ fn total_unique(expr: &A, documents: &[Document]) -> bool {
     let named = |column: &str| read.keys.iter().any(|key| key.column.as_deref() == Some(column));
     if named("id") { return true; }
     table.indexes.iter().any(|index| index.unique && index.is_plain() && index.columns.len() == read.keys.len()
-        && index.columns.iter().all(|column| (column == "id" || table.columns.iter().any(|c| c.name == *column && !c.type_.optional))
-            && (named(column) || read.index.as_ref() == Some(&index.name) && read.keys.iter().all(|key| key.column.is_none()))))
+        && index.columns.iter().enumerate().all(|(position,column)| {
+            let key = read.keys.iter().find(|key| key.column.as_deref() == Some(column))
+                .or_else(|| (read.index.as_ref() == Some(&index.name) && read.keys.iter().all(|key| key.column.is_none())).then(|| &read.keys[position]));
+            let non_null_literal = key.is_some_and(|key| matches!(&key.value,A::Literal {value,..} if !matches!(value,Literal::Null)));
+            key.is_some() && (column == "id" || non_null_literal || table.columns.iter().any(|c| c.name == *column && !c.type_.optional))
+        }))
 }
 
 // Keep every operation so authored invariants and security targets retain their
