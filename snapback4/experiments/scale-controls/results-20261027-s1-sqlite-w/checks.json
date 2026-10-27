@@ -1,0 +1,61 @@
+{
+  "core": {
+    "passed": 873,
+    "failed": 0,
+    "ignored": 498
+  },
+  "cli": {
+    "passed": 627,
+    "failed": 0,
+    "ignored": 75
+  },
+  "test_log_sha256": "c7407c11938193f5c9f21c7c447c361e34f569775f1c4b3ac5706edc239d6c71",
+  "ref_check": {
+    "documents": 570,
+    "references": 12074,
+    "errors": 0,
+    "unchecked": 0,
+    "files": 45473,
+    "log_sha256": "a3f1009247eb0951d401e551afa17c54d25b3dec4c4af0d74be3a025af22d373"
+  },
+  "rt0": {
+    "account_unkeyed_increment": 20,
+    "account_w1": 5,
+    "action_session_w1": 21,
+    "keyed_first": 28,
+    "narrowed_argument": 3,
+    "one_membership": 21,
+    "program_batch_32_total": 16,
+    "program_batch_4_total": 16,
+    "program_batch_8_total": 16,
+    "rate_limited": 0,
+    "replay_hit": 4,
+    "unauthenticated": 0,
+    "unkeyed_increment": 20,
+    "unknown_operation": 3,
+    "unknown_token": 2,
+    "w1_point": 5,
+    "w2_newest20": 5,
+    "w3_membership_totals": 132
+  },
+  "crash_witness": {
+    "kill9": "pass",
+    "durable_prefix_truncation": "pass",
+    "acknowledged_groups": "all retained",
+    "physical_power_cut": false
+  },
+  "initial_cli_checks": [
+    {
+      "passed": 597,
+      "failed": 29,
+      "ignored": 75,
+      "reason": "initial sibling executable precondition and stale RT0; some timing-sensitive tests retry only after real preparation"
+    },
+    {
+      "passed": 625,
+      "failed": 1,
+      "ignored": 75,
+      "reason": "expected RT0 table must fall after vector facts"
+    }
+  ]
+}

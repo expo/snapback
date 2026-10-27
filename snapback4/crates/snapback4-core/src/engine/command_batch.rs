@@ -217,8 +217,9 @@ impl BatchStats {
 }
 
 const COLLECTION: Duration = Duration::from_millis(1);
+const SQLITE_COLLECTION: Duration = Duration::from_millis(1);
 // A burst queued during a write cycle is still recent. This is history age,
-// not a fill budget: collection always ends at started + COLLECTION.
+// not a fill budget: collection always ends at its original window boundary.
 const RECENT: Duration = Duration::from_millis(20);
 /// An exponentially smoothed interarrival interval from actual mailbox intake,
 /// never response rate. A gap beyond the history horizon starts idle again.
@@ -249,8 +250,14 @@ impl Arrivals {
         Some(remaining.min(interval.max(Duration::from_micros(1))))
     }
     // @ref LLP 3000.009.001.000.000.002#8.1 — depth two starts available work rather than waiting for clients held by its predecessor.
-    fn collection_wait(&self, started: Instant, now: Instant, depth: usize) -> Option<Duration> {
-        if depth == 2 { None } else { self.wait(started, now) }
+    fn collection_wait(&self, started: Instant, now: Instant, depth: usize, sqlite_burst: bool) -> Option<Duration> {
+        if depth == 2 { return None; }
+        if sqlite_burst {
+            self.interval?;
+            if now.saturating_duration_since(self.last?) >= RECENT { return None; }
+            return (started + SQLITE_COLLECTION).checked_duration_since(now).filter(|r| !r.is_zero());
+        }
+        self.wait(started, now)
     }
 }
 
@@ -290,10 +297,10 @@ pub(super) fn run(
         Arc::new(Mutex::new(lane))
     };
     #[cfg(feature="postgres")]
-    let recovery_gate={
-        let slot=Arc::new(Mutex::new(None));let capture=slot.clone();
-        execute(Box::new(move|engine|*capture.lock().unwrap()=engine.store.durability()));
-        let gate=slot.lock().unwrap().clone();gate
+    let (recovery_gate, sqlite_collection)={
+        let slot=Arc::new(Mutex::new((None,false)));let capture=slot.clone();
+        execute(Box::new(move|engine|*capture.lock().unwrap()=(engine.store.durability(),matches!(engine.store,crate::store_port::AnyStore::Sqlite(_)))));
+        let configuration=slot.lock().unwrap().clone();configuration
     };
     #[cfg(feature="postgres")]
     let preparation = {
@@ -311,8 +318,11 @@ pub(super) fn run(
     let failed = preparation.is_err();
     let _ = ready.send(preparation);
     if failed { return; }
+    #[cfg(not(feature="postgres"))]
+    let sqlite_collection=true;
     let mut pending = None;
     let mut arrivals = Arrivals::default();
+    let mut sqlite_burst: Option<Instant> = None;
     loop {
         #[cfg(feature="postgres")]
         let observed=notice.version();
@@ -373,10 +383,12 @@ pub(super) fn run(
             (stats.target, if depth == 2 && stats.pipeline_fill { 2 } else { 1 })
         };
         let mut tasks = vec![first];
-        while tasks.len() < target && started.elapsed() < COLLECTION {
+        let sqlite_cohort = sqlite_collection && sqlite_burst.is_some_and(|at|at.elapsed()<RECENT);
+        let collection = if sqlite_cohort { SQLITE_COLLECTION } else { COLLECTION };
+        while tasks.len() < target && started.elapsed() < collection {
             let next = match receiver.try_recv() {
                 Ok(work) => Ok(work),
-                Err(mpsc::TryRecvError::Empty) => match arrivals.collection_wait(started, Instant::now(), fill_depth) {
+                Err(mpsc::TryRecvError::Empty) => match arrivals.collection_wait(started, Instant::now(), fill_depth, sqlite_cohort) {
                     Some(wait) => receiver.recv_timeout(wait).map_err(|_| ()),
                     None => Err(()),
                 },
@@ -391,6 +403,8 @@ pub(super) fn run(
                 Err(_) => break,
             }
         }
+        // @ref LLP 3000.009.001.000.002#sqlite-burst-collection — retain one fixed window for a known returning SQLite cohort, independently of size control.
+        if sqlite_collection && tasks.len()>1 { sqlite_burst=Some(started); }
         #[cfg(test)]
         let collected=Instant::now();
         #[cfg(test)]
@@ -497,8 +511,8 @@ mod tests {
         let mut arrivals = Arrivals::default();
         arrivals.observe(now - Duration::from_micros(100));
         arrivals.observe(now);
-        assert!(arrivals.collection_wait(now, now, 1).is_some());
-        assert!(arrivals.collection_wait(now, now, 2).is_none(),
+        assert!(arrivals.collection_wait(now, now, 1, false).is_some());
+        assert!(arrivals.collection_wait(now, now, 2, false).is_none(),
             "a free pipeline slot must start the available FIFO members");
     }
     #[test]
@@ -523,6 +537,23 @@ mod tests {
         }
         assert_eq!(old_targets, [16, 8, 4, 2, 1, 1]);
         assert!(current.p99_micros > 100_000, "queue pressure remains observable");
+    }
+    #[test]
+    fn sqlite_recent_cohort_uses_one_window_and_never_delays_an_idle_arrival() {
+        let now = Instant::now();
+        let mut arrivals = Arrivals::default();
+        arrivals.observe(now);
+        assert!(arrivals.collection_wait(now, now, 1, true).is_none());
+        arrivals.observe(now + Duration::from_millis(6));
+        let started = now + Duration::from_millis(6);
+        assert!(arrivals.collection_wait(started, started, 1, false).is_none());
+        assert_eq!(arrivals.collection_wait(started, started, 1, true), Some(SQLITE_COLLECTION));
+        arrivals.observe(started + Duration::from_micros(800));
+        assert_eq!(arrivals.collection_wait(started, started + Duration::from_micros(900), 1, true), Some(Duration::from_micros(100)));
+        assert!(arrivals.collection_wait(started, started + SQLITE_COLLECTION, 1, true).is_none());
+        assert!(arrivals.collection_wait(started, started, 2, true).is_none());
+        let idle = started + Duration::from_millis(30); arrivals.observe(idle);
+        assert!(arrivals.collection_wait(idle, idle, 1, true).is_none());
     }
     #[test]
     fn transient_service_spike_ages_out_without_reducing_available_fill() {

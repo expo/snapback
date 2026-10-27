@@ -1,0 +1,9 @@
+{
+  "path": "/home/ccheever/sb4scale/archive/s1-writes-wb-20261027.tar.gz",
+  "sha256": "0f482a25733f50723bcd7c1b237ca0aaefc6646bf4a14cd55188d466f6a3b8f6",
+  "bytes": 1082021148,
+  "members": 1929,
+  "trial_jsons": 192,
+  "prior_wp_sha256": "10066f91f7baa71c121b82fea2b4db055d6e75f470020dbc93e35b08b8c3b3fe",
+  "prior_archive_embedded": true
+}

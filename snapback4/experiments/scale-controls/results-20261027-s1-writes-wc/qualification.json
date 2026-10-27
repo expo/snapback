@@ -1,0 +1,23 @@
+{
+  "raw_trials": 36,
+  "selected_trials": 36,
+  "contaminated_attempts": 0,
+  "contaminated_selected": 0,
+  "clean_raw_passes": 29,
+  "clean_raw_failures": 7,
+  "measured_arrivals": 1486320,
+  "durable_counter_mismatches": 0,
+  "quiet_gates": 26,
+  "quiet_gate_min_s": 10.175047188997269,
+  "released_load_1m": {
+    "median": 1.34619140625,
+    "min": 0.962890625,
+    "max": 1.49609375
+  },
+  "max_cpu_sample_interval_s": 1.1191529389470816,
+  "rule": "exclude if >1.0 aggregate unrelated core for >2 s cumulative over whole trial; one rerun only; no clean failure replacement",
+  "errors": {
+    "http_503": 241,
+    "expired_before_send": 83637
+  }
+}
