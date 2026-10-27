@@ -1,0 +1,115 @@
+{
+  "schemas": 54,
+  "inputMismatches": [],
+  "toolFailures": [],
+  "timings": [
+    {
+      "label": "baseline",
+      "mode": "check",
+      "temperature": "cold",
+      "count": 54,
+      "median": 8.45086452853866,
+      "p90": 21.221406548982486,
+      "max": 37.56958585092798
+    },
+    {
+      "label": "baseline",
+      "mode": "check",
+      "temperature": "warm",
+      "count": 54,
+      "median": 6.027376781916246,
+      "p90": 16.271510111168027,
+      "max": 21.415917532052845
+    },
+    {
+      "label": "baseline",
+      "mode": "staging",
+      "temperature": "cold",
+      "count": 54,
+      "median": 9.241335227387026,
+      "p90": 24.384970251936466,
+      "max": 40.19149334495887
+    },
+    {
+      "label": "baseline",
+      "mode": "staging",
+      "temperature": "warm",
+      "count": 54,
+      "median": 1.4512540096184239,
+      "p90": 2.6523570630233735,
+      "max": 11.588006688049063
+    },
+    {
+      "label": "baseline",
+      "mode": "review",
+      "temperature": "cold",
+      "count": 54,
+      "median": 8.354006726061925,
+      "p90": 23.82200662093237,
+      "max": 35.760344565846026
+    },
+    {
+      "label": "baseline",
+      "mode": "production",
+      "temperature": "cold",
+      "count": 54,
+      "median": 12.164072324638255,
+      "p90": 25.335096592083573,
+      "max": 66.01764837303199
+    },
+    {
+      "label": "candidate",
+      "mode": "check",
+      "temperature": "cold",
+      "count": 54,
+      "median": 2.488560098572634,
+      "p90": 5.655315816868097,
+      "max": 7.280155633809045
+    },
+    {
+      "label": "candidate",
+      "mode": "check",
+      "temperature": "warm",
+      "count": 54,
+      "median": 2.397985275485553,
+      "p90": 4.938870701938868,
+      "max": 7.243078463943675
+    },
+    {
+      "label": "candidate",
+      "mode": "staging",
+      "temperature": "cold",
+      "count": 54,
+      "median": 2.582932102493942,
+      "p90": 5.58447819808498,
+      "max": 7.043013636954129
+    },
+    {
+      "label": "candidate",
+      "mode": "staging",
+      "temperature": "warm",
+      "count": 54,
+      "median": 0.07737115048803389,
+      "p90": 0.13762732106260955,
+      "max": 0.2774123379494995
+    },
+    {
+      "label": "candidate",
+      "mode": "review",
+      "temperature": "cold",
+      "count": 54,
+      "median": 2.545567397493869,
+      "p90": 5.6043506800197065,
+      "max": 7.081014627823606
+    },
+    {
+      "label": "candidate",
+      "mode": "production",
+      "temperature": "cold",
+      "count": 54,
+      "median": 3.232223338331096,
+      "p90": 7.778588014887646,
+      "max": 10.536033872980624
+    }
+  ]
+}

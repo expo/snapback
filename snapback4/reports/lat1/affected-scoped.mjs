@@ -24,6 +24,8 @@ if(process.env.LAT1_PUBLICATION_BINARY){
 const position=plan.steps.findIndex(s=>s.id==='rust:snapback4-core');plan.steps.splice(position+1,0,pg,lang,cli,packed);
 plan.scopeNote='LAT1 explicit brief overrides conservative full closure: do not run seven-crate suite, full client pool, full difftest or qualify-linux. Complete core crate plus changed language campaign/security integrations, all CLI unit tests and packed consumer; supporting builds and applicable docs/ref/selector checks. No language/planner/store semantic change, so no differential/Lean semantic claim. Snapback 1 generated/guide/inventory checks are outside this fence and have unchanged inputs. The compiled Snapback 4 guide integration and packaged-doc budget cover its amended docs. Full original plan is preserved; canonicalComplete:false.';
 plan.canonicalComplete=false;plan.omittedSteps=original.filter(s=>!retained.has(s.id)).map(s=>({id:s.id,reason:s.reason}));
+for(const step of plan.steps){if(step.argv[0]==='cargo')step.argv.splice(2,0,'-j','16');}
+plan.executionPolicy={cargoJobs:16,requiredScopeMemoryMax:'40G',maximumConcurrentHeavyJobs:2,maximumSurveyWorkers:4};
 writeFileSync(`${output}.scoped.json`,JSON.stringify(plan,null,2)+'\n');
 console.log(JSON.stringify({head:plan.head,steps:plan.steps.map(s=>s.id),scopeNote:plan.scopeNote},null,2));
 const result=await runPlan(plan,{root});writeFileSync(`${output}.result.json`,JSON.stringify(result,null,2)+'\n');if(!result.receipt.ok)process.exitCode=1;

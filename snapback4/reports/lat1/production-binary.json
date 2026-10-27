@@ -1,0 +1,12 @@
+{
+  "frozen": "2026-10-27T18:33:41.873441+00:00",
+  "path": "/home/ccheever/sb4-loop/reports/lat1/candidate-lazy",
+  "sha256": "155ba9bcdd5890e0d58aeaeaeca66085d2d9675dce75711780da27ef6045bff3",
+  "head": "a35405b8bb72a3857603d1460131bbd027ef347e",
+  "runtimeBuildStartedAt": "485a321e58",
+  "notes": "Later commits retain review artifacts and verification tooling only; no product source changed during build. Static ELF checker passed: no interpreter/no shared library requirements.",
+  "profile": "production",
+  "tool": "scripts/build-linux-musl.sh",
+  "cargoIncremental": 0,
+  "debug": 0
+}

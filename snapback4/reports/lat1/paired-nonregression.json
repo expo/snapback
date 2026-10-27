@@ -1,0 +1,12 @@
+{
+  "review": {
+    "pairs": 54,
+    "slowerPairs": 0,
+    "maximumRatio": 0.5483928733444604
+  },
+  "production": {
+    "pairs": 54,
+    "slowerPairs": 0,
+    "maximumRatio": 0.48350970127652004
+  }
+}

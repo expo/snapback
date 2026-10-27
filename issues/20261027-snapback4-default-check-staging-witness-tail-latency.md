@@ -64,3 +64,14 @@ retained evidence. Candidate follow-up: share immutable fixture initialization,
 or schedule independent replay concurrently with ordered reduction and current
 source/decision guards. Recompare exact verdicts and witness payloads against the
 uncached sequential control. No threshold or security assertion was weakened.
+
+## LAT1 branch qualification
+
+The LAT1 branch meets every requested timing target on the same matched 54-schema
+production sample. See `snapback4/reports/lat1/` for full values and provenance:
+check cold p90 5.655 s, warm median/p90 2.398/4.939 s; staging cold p90 5.584 s,
+warm median/p90 0.077/0.138 s. Review/production are faster in all 54 pairs.
+The independent 940-schema control comparison and final affected verification
+are recorded in `WORKSTREAM-REPORT.md`. Keep this main-branch ticket open until
+the coordinator integrates the qualified LAT1 commits; this lane is not authorized
+to push or perform publication. No budget, assertion or tier was weakened.

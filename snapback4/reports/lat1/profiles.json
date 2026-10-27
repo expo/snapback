@@ -1,0 +1,266 @@
+{
+  "method": "Diagnostic w20/017 fresh source/fixture copies; instrumented native static binaries, before/after sequential in the same window, alongside four identity workers. Nested/parallel phase times overlap; never sum them into command latency. This is not target qualification. Both commands preserve 14,063 cold and 6,748 warm forks; no search work removed.",
+  "scope": "systemd user scope MemoryMax=40G OOMPolicy=continue",
+  "rows": [
+    {
+      "label": "before-final-two-optimizations",
+      "temperature": "cold",
+      "seconds": 8.096141023095697,
+      "exit": 0,
+      "phases": {
+        "check.report": {
+          "calls": 1,
+          "seconds": 0.220913457
+        },
+        "replay.new_store": {
+          "calls": 9,
+          "seconds": 0.081432396
+        },
+        "replay.new_engine": {
+          "calls": 9,
+          "seconds": 0.020463806
+        },
+        "replay.fork": {
+          "calls": 14063,
+          "seconds": 5.248378096999993
+        },
+        "replay.engine_fork": {
+          "calls": 14063,
+          "seconds": 5.462814967999994
+        },
+        "replay.mutation": {
+          "calls": 14334,
+          "seconds": 2.877053100999999
+        },
+        "replay.upload_write": {
+          "calls": 307,
+          "seconds": 0.11831924500000005
+        },
+        "initializer.proposals": {
+          "calls": 2,
+          "seconds": 0.07187534500000001
+        },
+        "initializer.mutate": {
+          "calls": 568,
+          "seconds": 0.08804291299999992
+        },
+        "campaign.generated initialization": {
+          "calls": 2,
+          "seconds": 3.760534883
+        },
+        "witness.question_campaign": {
+          "calls": 2,
+          "seconds": 13.89425453
+        },
+        "check.restored_questions": {
+          "calls": 1,
+          "seconds": 6.581667485
+        },
+        "check.witnesses": {
+          "calls": 1,
+          "seconds": 7.5899068530000005
+        }
+      },
+      "forkSeconds": {
+        "copy": 0.9074121840000018,
+        "prepare": 3.542971665000007,
+        "assets": 0.7979942479999995
+      }
+    },
+    {
+      "label": "before-final-two-optimizations",
+      "temperature": "warm",
+      "seconds": 5.806284371996298,
+      "exit": 0,
+      "phases": {
+        "check.report": {
+          "calls": 1,
+          "seconds": 0.213910826
+        },
+        "check.witnesses": {
+          "calls": 1,
+          "seconds": 0.112808143
+        },
+        "replay.new_store": {
+          "calls": 5,
+          "seconds": 0.023898996
+        },
+        "replay.new_engine": {
+          "calls": 5,
+          "seconds": 0.010202329
+        },
+        "replay.fork": {
+          "calls": 6748,
+          "seconds": 1.7416834410000028
+        },
+        "replay.engine_fork": {
+          "calls": 6748,
+          "seconds": 1.829823427000004
+        },
+        "replay.mutation": {
+          "calls": 6974,
+          "seconds": 1.2136130579999989
+        },
+        "replay.upload_write": {
+          "calls": 188,
+          "seconds": 0.05821978800000001
+        },
+        "initializer.proposals": {
+          "calls": 1,
+          "seconds": 0.022230264
+        },
+        "initializer.mutate": {
+          "calls": 284,
+          "seconds": 0.03861101899999999
+        },
+        "campaign.generated initialization": {
+          "calls": 1,
+          "seconds": 1.021139131
+        },
+        "witness.question_campaign": {
+          "calls": 1,
+          "seconds": 5.227041078
+        },
+        "check.restored_questions": {
+          "calls": 1,
+          "seconds": 5.372667021
+        }
+      },
+      "forkSeconds": {
+        "copy": 0.28244983400000007,
+        "prepare": 1.0753905020000045,
+        "assets": 0.38384310499999935
+      }
+    },
+    {
+      "label": "final",
+      "temperature": "cold",
+      "seconds": 6.009728978155181,
+      "exit": 0,
+      "phases": {
+        "check.report": {
+          "calls": 1,
+          "seconds": 0.214494791
+        },
+        "replay.new_store": {
+          "calls": 9,
+          "seconds": 0.037444195
+        },
+        "replay.new_engine": {
+          "calls": 9,
+          "seconds": 0.018038428999999998
+        },
+        "replay.fork": {
+          "calls": 14063,
+          "seconds": 2.678351320000005
+        },
+        "replay.engine_fork": {
+          "calls": 14063,
+          "seconds": 2.8231301599999794
+        },
+        "replay.mutation": {
+          "calls": 14334,
+          "seconds": 2.4247210250000184
+        },
+        "replay.upload_write": {
+          "calls": 307,
+          "seconds": 0.09608650600000006
+        },
+        "initializer.proposals": {
+          "calls": 2,
+          "seconds": 0.044150723
+        },
+        "initializer.mutate": {
+          "calls": 568,
+          "seconds": 0.07255431400000004
+        },
+        "campaign.generated initialization": {
+          "calls": 2,
+          "seconds": 2.584390217
+        },
+        "witness.question_campaign": {
+          "calls": 2,
+          "seconds": 9.855257928
+        },
+        "check.restored_questions": {
+          "calls": 1,
+          "seconds": 4.588543788
+        },
+        "check.witnesses": {
+          "calls": 1,
+          "seconds": 5.530994304
+        }
+      },
+      "forkSeconds": {
+        "copy": 0.5746556269999984,
+        "prepare": 2.06795218699999,
+        "assets": 0.035743506000000064
+      }
+    },
+    {
+      "label": "final",
+      "temperature": "warm",
+      "seconds": 4.947825709125027,
+      "exit": 0,
+      "phases": {
+        "check.report": {
+          "calls": 1,
+          "seconds": 0.213747991
+        },
+        "check.witnesses": {
+          "calls": 1,
+          "seconds": 0.114432079
+        },
+        "replay.new_store": {
+          "calls": 5,
+          "seconds": 0.020696333000000004
+        },
+        "replay.new_engine": {
+          "calls": 5,
+          "seconds": 0.010211852
+        },
+        "replay.fork": {
+          "calls": 6748,
+          "seconds": 1.2473299640000068
+        },
+        "replay.engine_fork": {
+          "calls": 6748,
+          "seconds": 1.3151602020000033
+        },
+        "replay.mutation": {
+          "calls": 6974,
+          "seconds": 1.1544861059999951
+        },
+        "replay.upload_write": {
+          "calls": 188,
+          "seconds": 0.061798886999999976
+        },
+        "initializer.proposals": {
+          "calls": 1,
+          "seconds": 0.021541121
+        },
+        "initializer.mutate": {
+          "calls": 284,
+          "seconds": 0.03558624299999999
+        },
+        "campaign.generated initialization": {
+          "calls": 1,
+          "seconds": 0.862127123
+        },
+        "witness.question_campaign": {
+          "calls": 1,
+          "seconds": 4.364540654
+        },
+        "check.restored_questions": {
+          "calls": 1,
+          "seconds": 4.515580245
+        }
+      },
+      "forkSeconds": {
+        "copy": 0.2606894050000004,
+        "prepare": 0.9695948439999954,
+        "assets": 0.017045715000000117
+      }
+    }
+  ]
+}

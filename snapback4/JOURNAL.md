@@ -109734,3 +109734,22 @@ Only `serving()` arms the G6 exit. Deploy retains persisted-selection recovery,
 pointer/log completion and lease release. The report's new regressions fill a
 real stderr pipe and delay an unknown-but-durable activation's reconciliation
 probe. LLP 3000.009.001.000 §5.1 records the corrected lifecycle contract.
+
+## 2026-10-27 — LAT1 qualified default-loop latency
+
+Keep exact replay ID reservations but encode on consumption; share immutable
+activated code with copy-on-write edits; overlap independent omitted-question
+restoration and reduce in original order. Deploy reuses only exact invocation-local
+pure compilation, never authority results. Linux uses secure mimalloc (including
+static-musl C allocations), native SQLite omits unused global allocation statistics,
+and private forks create asset directories only when copying an actual file.
+The serialized SQLite image experiment was removed after review exposed a
+different growth limit. No search work, tier or guard was reduced.
+
+The matched 54-schema production run meets every latency target: default check
+cold p90 5.655 s, warm median/p90 2.398/4.939 s; staging cold p90 5.584 s, warm
+median/p90 0.077/0.138 s. Review and production deploy are faster in all 54 pairs.
+Evidence is in `reports/lat1/`; LLP 3000.036.004.000.000 records the mechanisms
+and independent Muse/fresh Codex reviews. Full-corpus identity and the final
+affected receipt are separate workstream qualifications. No version bump, public
+output change or publication is part of this lane.
