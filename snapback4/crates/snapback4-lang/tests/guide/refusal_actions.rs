@@ -9,6 +9,9 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("E_WITNESS_ARGUMENTS", &["Named values are compared exactly; handler-owned additional keys are allowed. guide testing."]),
     ("E_DATA_TRANSACTION_ABORTED", &["No success receipt is issued. Inspect the server outcome and retry through the identified-write path with the original intent id. See snapback4 guide deploy."]),
 
+    ("N_APPROVAL_PATH", &["These are advisory questions.", "An acknowledgment must address that exact witness and intended effect.", "Enforce a narrower specification in the operation and declare independent intent."]),
+    ("N_CALLER_HISTORY", &["These are advisory questions.", "An acknowledgment must address that exact witness and intended effect.", "Enforce a narrower specification in the operation and declare independent intent."]),
+    ("N_LATEST_SUBJECT", &["These are advisory questions.", "An acknowledgment must address that exact witness and intended effect.", "Enforce a narrower specification in the operation and declare independent intent."]),
     ("N_APPROVAL_INFORMATIONAL", &["offers the individual acknowledgment as the default next step.", "It does not block deployment.", "Adding the governed effect can create a new approval question."]),
     ("N_INSERT_TABLE_AUTHORITY", &["remains advisory", "Confirm the declared table insert and edit audiences", "does not establish a distinct mutation require."]),
     ("E_PRODUCTION_ROSTER", &["Inspect the roster and deployment. Keep credentials with their store; use stable arguments and never silently create replacement accounts."]),
