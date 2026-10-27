@@ -10,7 +10,7 @@ fn refusal(message: impl Into<String>) -> RuntimeError { RuntimeError::Structura
 fn forward_refusal(message:impl Into<String>)->RuntimeError {
     refusal(format!("{}; forward selection: preserve current values in a bridge and repair through an authorized mutation; use a fresh declaration name for new transform meaning (guide rename)",message.into()))
 }
-fn present(tx: &Tx<'_>) -> Result<bool, RuntimeError> {
+pub(super) fn present(tx: &Tx<'_>) -> Result<bool, RuntimeError> {
     Ok(tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE name='_backfill_evidence')",[],|r|r.get(0))?)
 }
 fn enable(tx: &Tx<'_>) -> Result<(), RuntimeError> {

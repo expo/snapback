@@ -1,0 +1,10 @@
+{
+  "path": "/home/ccheever/sb4scale/archive/s1-writes-wc-20261027.tar.gz",
+  "sha256": "7f8071e0bf782bf13dfa27d4991a67529b218b65e55b2a8b71539be8c30fb658",
+  "bytes": 85986571,
+  "members": 574,
+  "trial_jsons": 36,
+  "raw_histograms_cpu_samples_outside_git": true,
+  "prior_wb_archive_sha256": "0f482a25733f50723bcd7c1b237ca0aaefc6646bf4a14cd55188d466f6a3b8f6",
+  "prior_wb_archive_embedded": false
+}

@@ -232,6 +232,8 @@ impl Store {
             ));
         }
         Ok(Tx {
+            cache_revision: &self.cache_revision,
+            group_tail: Default::default(),
             lifecycle: false,
             read_sessions: &self.read_sessions,
             read_sessions_installed: Default::default(),

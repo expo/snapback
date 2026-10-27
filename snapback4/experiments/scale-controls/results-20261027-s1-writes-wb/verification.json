@@ -1,0 +1,14 @@
+{
+  "passed": true,
+  "source_repetitions_reread": 219,
+  "six_cell_comparisons": true,
+  "best_control_source_repetitions_verified": true,
+  "complete_required_rate_grid": true,
+  "latency_medians": true,
+  "strict_verdicts": true,
+  "all_native_counter_arithmetic": true,
+  "readme_links": true,
+  "table_matches": true,
+  "archive_sha256": true,
+  "no_raw_trial_files": true
+}

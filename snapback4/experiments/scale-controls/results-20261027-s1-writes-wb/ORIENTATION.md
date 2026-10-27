@@ -1,0 +1,6 @@
+Scope: six S1-WB write cells at d6fdc5b72b, unchanged checked-in one-host HTTP runner and archived S1-C native generator; result report only.
+Governing LLPs (current): LLP 3000#3-the-bakeoff-protocol; LLP 3000.009.001.002#5-workloads and #6-method-and-metrics; LLP 3000.009.001.000.002#3.4; LLP 3000.009.001.000.000#7-sizing; LLP 3000.009.001.000.000.002#3.6 and #8.3. Root Snapback 4 fence excludes Snapback 1 inventories and bootstraps.
+Active constraints: same 1M fixture, default pinning/links, G6 1000,250, synchronous arm S, depth 2, N<=32, original deadlines, three full 10s/20s repetitions, intended-arrival p99<=100ms, errors<=0.1%, durable counters equal all acknowledgements including warm-up. All failures retained. Inherited search plus every commissioned rate 100,200,400,800,1131,1600,2262,3200,4525 and upward sqrt(2) after passing 4525. No fetch/push, product changes or raw evidence in Git.
+Rationale: matched instrument and explicit nonmonotonic coverage; official BatchStats diagnostic separated from native capacity.
+Risks: historical control/search precision, shared host and probe overhead. No universal production capacity claim.
+Likely doc updates: result report only; no design changed. Hand-off: none.

@@ -1254,3 +1254,40 @@ fn g72_queued_second_wave_interprets_while_first_commit_is_held() {
 #[cfg(feature="postgres")]
 #[path="program_g7e_tests.rs"]
 mod g7e_tests;
+
+#[test]
+fn sqlite_code_activation_generation_uses_a_fenced_clean_layout_overlay() {
+    fn activated() -> Engine {
+        let mut e = fixture(false);
+        let mut programs = e.programs.values().cloned().collect::<Vec<_>>();
+        let mut alias = e.programs["increment"].clone(); alias.name = "incrementAlias".into(); programs.push(alias);
+        e.adopt_at(e.schema.clone(), programs, 1001).unwrap();
+        assert!(e.generation() > 1);
+        e
+    }
+    let mut reference = activated();
+    let mut actual = activated();
+    let make = || Invocation::new("increment", None, Context::new("alice", [("counter".into(), Value::Id("a".into()))].into()).at(1001));
+    let expected = (0..16).map(|_| outcome(reference.invoke_program(&mut make()))).collect::<Vec<_>>();
+    let mut batch = (0..16).map(|_| make()).collect::<Vec<_>>();
+    let got = actual.invoke_program_batch(&mut batch).into_iter().map(outcome).collect::<Vec<_>>();
+    assert_eq!(expected, got);
+    assert!(batch.iter().all(|i| i.attempts[0].buffered));
+    assert_eq!(super::tests::snapshot(&mut actual), super::tests::snapshot(&mut reference));
+    let tx = actual.store_mut().transaction().unwrap();
+    tx.test_support_conn().execute("INSERT INTO _meta(key,value) VALUES('activation_narrowed_restored_ids:counter','[]')", []).unwrap();
+    assert!(!tx.buffered_layout_compatible().unwrap());
+    tx.test_support_conn().execute("DELETE FROM _meta WHERE key='activation_narrowed_restored_ids:counter'", []).unwrap();
+    assert!(tx.buffered_layout_compatible().unwrap());
+    for name in ["_backfill_unqualified", "_BACKFILL_UNQUALIFIED", "_DORMANT_UNQUALIFIED", "_LIVE_UNQUALIFIED"] {
+        tx.test_support_conn().execute_batch(&format!("CREATE TEMP TABLE {name}(x)")).unwrap();
+        assert!(!tx.buffered_layout_compatible().unwrap(), "{name}");
+        tx.test_support_conn().execute_batch(&format!("DROP TABLE {name}")).unwrap();
+    }
+    for name in ["_ASSET_COLUMN_RENAMES", "_DORMANT_VALUES"] {
+        tx.test_support_conn().execute_batch(&format!("CREATE TEMP TABLE {name}(x); INSERT INTO {name} VALUES(1)")).unwrap();
+        assert!(!tx.buffered_layout_compatible().unwrap(), "occupied {name}");
+        tx.test_support_conn().execute_batch(&format!("DROP TABLE {name}")).unwrap();
+    }
+    tx.rollback().unwrap();
+}

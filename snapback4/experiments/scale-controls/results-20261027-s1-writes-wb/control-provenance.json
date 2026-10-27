@@ -1,0 +1,14 @@
+{
+  "wp_archive": {
+    "path": "/home/ccheever/sb4scale/archive/s1-writes-wp-20261026.tar.gz",
+    "sha256": "10066f91f7baa71c121b82fea2b4db055d6e75f470020dbc93e35b08b8c3b3fe",
+    "bytes": 1007772871,
+    "members": 4461,
+    "trial_jsons": 111,
+    "prior_wf_sha256": "bdb0764b63f422b1ef2f21ea77167147ee80f35b0ad8710eac3f81df5596cf5c",
+    "prior_archive_embedded": true
+  },
+  "controls_rerun": false,
+  "historical_controls": "2026-10-24",
+  "wf_embedded_transitively": true
+}

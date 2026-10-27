@@ -1,0 +1,17 @@
+{
+  "commit": "9ee365bbd683c053158152ae352f420798dcbaa4",
+  "git_blob_matches": 3326,
+  "source_manifest_sha256": "3a7400d1577cab0e2542e71ab1c1bf2d0191b90818b12cc35115aea3d06a27e9",
+  "archive_exclusions": [
+    {
+      "path": "snapback4/vendor/tiny_http/examples/ssl-key.pem",
+      "sha256": "e345c5c79dba8fd849f31fb06ee871a32d1f1bf1ef4c15b510e70a2524009626",
+      "reason": "public vendored tiny_http optional TLS example key; unused by measured build; omitted from scan/archive source snapshot, no product source changed"
+    }
+  ],
+  "setup_failures": [
+    "missing embedded changelog in initial extraction",
+    "missing embedded chat/chat-expo templates in second extraction"
+  ],
+  "all_failed_logs_retained": true
+}

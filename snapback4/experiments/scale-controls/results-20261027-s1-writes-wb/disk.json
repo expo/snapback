@@ -1,0 +1,5 @@
+{
+  "min_free_gib": 31.156105041503906,
+  "guard_seconds": 0.5,
+  "stop_gib": 25
+}

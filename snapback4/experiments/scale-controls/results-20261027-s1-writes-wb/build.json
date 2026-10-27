@@ -1,0 +1,15 @@
+{
+  "status": 0,
+  "commit": "d6fdc5b72b8e84f640e670e187c5b663768f49af",
+  "binaries": {
+    "snapback4": "c95bf3d6c6ff78ed596c91e5824af6be4c72008a2cd5274206b81bbfd2ce7f75",
+    "sb4-scale-controls": "d45a45607123e38114e25b7a7f379c384a342d1f9af42595c3047449171814e9",
+    "sb4-postgres-scale-seed": "15960ae0c9a3c54dcfcc37a4d44b4b520d1f1a937286d064b1fa3bf9ee49e89e"
+  },
+  "seed": {
+    "source_identical": true,
+    "manifest_change": "only core dependency path made absolute",
+    "lock_refreshed_offline": true,
+    "repository_unchanged": true
+  }
+}

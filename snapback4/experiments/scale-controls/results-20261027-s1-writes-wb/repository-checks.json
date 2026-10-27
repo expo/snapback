@@ -1,0 +1,45 @@
+{
+  "ref_check": {
+    "passed": true,
+    "summary": "ref-check: ok \u2014 571 LLP docs, 12116 refs in 45672 files, 0 errors, 0 unchecked"
+  },
+  "packaged_docs": {
+    "passed": true,
+    "command": "lintPackagedDocs"
+  },
+  "affected_selector": {
+    "passed": true,
+    "plan_only": true,
+    "broad": true,
+    "steps": 31,
+    "command": "node snapback4/scripts/affected.mjs --base sb4-pg/main-bc --worktree --json",
+    "reason": "unknown experimental result paths select broad product suite; product/runner diff is empty; same report-only scope as S1-WP"
+  },
+  "complete_product_battery_executed": false,
+  "independent_report_verification": {
+    "passed": true,
+    "source_repetitions_reread": 219,
+    "six_cell_comparisons": true,
+    "best_control_source_repetitions_verified": true,
+    "complete_required_rate_grid": true,
+    "latency_medians": true,
+    "strict_verdicts": true,
+    "all_native_counter_arithmetic": true,
+    "readme_links": true,
+    "table_matches": true,
+    "archive_sha256": true,
+    "no_raw_trial_files": true
+  },
+  "initial_check_errors": [
+    {
+      "check": "affected plan",
+      "reason": "Cargo absent from outer check PATH",
+      "corrected": true
+    },
+    {
+      "check": "report links",
+      "reason": "staged scan receipt not yet generated",
+      "corrected": true
+    }
+  ]
+}

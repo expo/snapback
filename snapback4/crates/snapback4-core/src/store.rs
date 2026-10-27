@@ -66,6 +66,8 @@ pub mod inspect;
 mod tooling;
 mod caps;
 mod managed_relations;
+mod cache_revision;
+mod group_tail;
 #[cfg(test)]
 mod ff1_fix_tests;
 pub(crate) mod dormant;
@@ -115,12 +117,14 @@ fn file_identity(conn: &Connection) -> Result<Option<(u64, u64)>, RuntimeError> 
 pub struct Store {
     read_sessions: std::sync::Arc<ReadSessionStorage>,
     conn: Connection,
+    cache_revision: cache_revision::Revision,
     /// Server stores own timed publication. Device stores receive only rows
     /// the server has already published and never consult this private ledger.
     server: bool,
     // Fields drop in declaration order: retain the sidecar ownership lock until
     // SQLite has closed. No raw descriptor to the database is held here.
     ownership: Option<std::sync::Arc<std::fs::File>>,
+    cache_owned: bool,
     #[cfg(unix)]
     file_identity: Option<(u64, u64)>,
     page_size: u64,
@@ -150,6 +154,8 @@ impl Drop for Store {
 
 /// One transaction over the store, with the catalog in reach.
 pub struct Tx<'a> {
+    cache_revision: &'a cache_revision::Revision,
+    group_tail: group_tail::Tail,
     // @ref LLP 3000.009.001.000.002#6 — restored images can precede their index/cap population rebuild.
     lifecycle: bool,
     read_sessions: &'a std::sync::Arc<ReadSessionStorage>,
@@ -199,8 +205,8 @@ impl Store {
         let real = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
         let assets_dir = real.parent().unwrap_or(Path::new(".")).join("assets");
         let page_size = conn.query_row("PRAGMA page_size", [], |row| row.get::<_, i64>(0))? as u64;
-        Ok(Self { #[cfg(test)] full_adoption: false, adoption_report: Default::default(), read_sessions, conn,
-            server: false, ownership: None, #[cfg(unix)] file_identity, page_size, catalog, identity, assets_dir, ephemeral_assets: false })
+        Ok(Self { #[cfg(test)] full_adoption: false, adoption_report: Default::default(), cache_revision: cache_revision::Revision::new(&conn)?, read_sessions, conn,
+            server: false, ownership: None, cache_owned: false, #[cfg(unix)] file_identity, page_size, catalog, identity, assets_dir, ephemeral_assets: false })
     }
 
     /// Classify against one read snapshot of the active generation and rows.
@@ -307,6 +313,7 @@ impl Store {
     }
 
     fn prepare(mut conn: Connection, assets_dir: PathBuf, ephemeral_assets: bool, server: bool) -> Result<Self, RuntimeError> {
+        let cache_revision = cache_revision::Revision::new(&conn)?;
         #[cfg(any(test, feature = "test-support"))]
         trace_round_trips(&conn);
         #[cfg(unix)]
@@ -348,9 +355,10 @@ impl Store {
         let read_sessions = std::sync::Arc::new(ReadSessionStorage::new(identity::present(&opened)?));
         opened.commit()?;
         let page_size = conn.query_row("PRAGMA page_size", [], |row| row.get::<_, i64>(0))? as u64;
-        Ok(Self { #[cfg(test)] full_adoption: false, adoption_report: Default::default(), read_sessions, conn,
+        cache_revision.finish_if_active();
+        Ok(Self { #[cfg(test)] full_adoption: false, adoption_report: Default::default(), cache_revision, read_sessions, conn,
             server,
-            ownership: None, #[cfg(unix)] file_identity, page_size, catalog, assets_dir, ephemeral_assets, identity })
+            ownership: None, cache_owned: false, #[cfg(unix)] file_identity, page_size, catalog, assets_dir, ephemeral_assets, identity })
     }
 
     pub(super) fn initialize_schema(conn: &Connection) -> Result<(), RuntimeError> {
@@ -447,7 +455,7 @@ impl Store {
         if activation::identity(&tx)? != self.identity {
             return Err(RuntimeError::Generation("the store adopted another backend; reopen this engine".into()));
         }
-        Ok(Tx { lifecycle: false, read_sessions: &self.read_sessions, read_sessions_installed: Default::default(), read_sessions_at_start: *read_storage, read_sessions_installation: Default::default(), activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx, page_size: self.page_size,
+        Ok(Tx { cache_revision: &self.cache_revision, group_tail: Default::default(), lifecycle: false, read_sessions: &self.read_sessions, read_sessions_installed: Default::default(), read_sessions_at_start: *read_storage, read_sessions_installation: Default::default(), activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx, page_size: self.page_size,
             server: self.server,
             catalog: &self.catalog })
     }
@@ -460,7 +468,7 @@ impl Store {
         if activation::identity(&tx)? != self.identity {
             return Err(RuntimeError::Generation("the store adopted another backend; reopen this engine".into()));
         }
-        Ok(Tx { lifecycle: false, read_sessions: &self.read_sessions, read_sessions_installed: Default::default(), read_sessions_at_start: *read_storage, read_sessions_installation: Default::default(), activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx, page_size: self.page_size,
+        Ok(Tx { cache_revision: &self.cache_revision, group_tail: Default::default(), lifecycle: false, read_sessions: &self.read_sessions, read_sessions_installed: Default::default(), read_sessions_at_start: *read_storage, read_sessions_installation: Default::default(), activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx, page_size: self.page_size,
             server: self.server,
             catalog: &self.catalog })
     }
@@ -474,7 +482,7 @@ impl Store {
         if activation::identity(&tx)? != self.identity {
             return Err(RuntimeError::Generation("the store adopted another backend; reopen this engine".into()));
         }
-        Ok(Tx { lifecycle: false, read_sessions: &self.read_sessions, read_sessions_installed: Default::default(), read_sessions_at_start: *read_storage, read_sessions_installation: Default::default(), activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx, page_size: self.page_size,
+        Ok(Tx { cache_revision: &self.cache_revision, group_tail: Default::default(), lifecycle: false, read_sessions: &self.read_sessions, read_sessions_installed: Default::default(), read_sessions_at_start: *read_storage, read_sessions_installation: Default::default(), activation_scan: None, changes: Default::default(), sequence_table: Default::default(), tx, page_size: self.page_size,
             server: self.server,
             catalog: &self.catalog })
     }
@@ -504,9 +512,9 @@ impl Store {
         // A reader never owns the directory; only the store that made it removes it.
         let page_size = conn.query_row("PRAGMA page_size", [], |row| row.get::<_, i64>(0))? as u64;
         if identity::present(&conn)? { self.read_sessions.publish(true); }
-        Ok(Self { #[cfg(test)] full_adoption: false, adoption_report: Default::default(), read_sessions: self.read_sessions.clone(), conn,
+        Ok(Self { #[cfg(test)] full_adoption: false, adoption_report: Default::default(), cache_revision: self.cache_revision.reader(), read_sessions: self.read_sessions.clone(), conn,
             server: self.server,
-            ownership: self.ownership.clone(), #[cfg(unix)] file_identity: self.file_identity, page_size, catalog: self.catalog.clone(), assets_dir: self.assets_dir.clone(), ephemeral_assets: false, identity: self.identity.clone() })
+            ownership: self.ownership.clone(), cache_owned: self.cache_owned, #[cfg(unix)] file_identity: self.file_identity, page_size, catalog: self.catalog.clone(), assets_dir: self.assets_dir.clone(), ephemeral_assets: false, identity: self.identity.clone() })
     }
 
     pub(crate) fn exclude_ephemeral(&mut self, schema: &Schema) {
@@ -670,7 +678,10 @@ impl<'a> Tx<'a> {
     }
 
     pub fn commit(self) -> Result<(), RuntimeError> {
+        self.flush_group_tail()?;
+        let cache_revision = self.cache_revision;
         self.tx.commit()?;
+        cache_revision.finish_if_active();
         // A savepoint rollback clears the pending install. The write guard
         // excludes new snapshots until physical COMMIT has published the DDL.
         if self.read_sessions_installed.get() {
@@ -682,6 +693,7 @@ impl<'a> Tx<'a> {
 
     pub(crate) fn commit_program(self) -> Result<(), crate::engine::committer::outcome::Failure> {
         use crate::engine::committer::outcome::Failure;
+        if let Err(error) = self.flush_group_tail() { return Err(Failure::rollback(crate::store_port::AnyTx::from_sqlite(self), error, None)); }
         // SQLite's local COMMIT error leaves the transaction open (notably a
         // deferred constraint). Prove it ended before authorizing a fallback.
         if let Err(error) = self.conn().execute_batch("COMMIT") {
@@ -691,6 +703,7 @@ impl<'a> Tx<'a> {
                 Err(rollback) => Failure { error: RuntimeError::CommitOutcomeUnknown(format!("rollback was not acknowledged: {rollback}; original: {error}")), aborted: false, member: None },
             });
         }
+        self.cache_revision.finish_if_active();
         if self.read_sessions_installed.get() {
             if let Some(guard) = self.read_sessions_installation.borrow_mut().as_mut() { **guard = true; }
             else { self.read_sessions.publish(true); }
@@ -699,7 +712,9 @@ impl<'a> Tx<'a> {
     }
 
     pub fn rollback(self) -> Result<(), RuntimeError> {
+        let cache_revision = self.cache_revision;
         self.tx.rollback()?;
+        cache_revision.finish_if_active();
         Ok(())
     }
 
@@ -708,12 +723,14 @@ impl<'a> Tx<'a> {
     pub fn savepoint(&self, name: &str) -> Result<(), RuntimeError> {
         validate_savepoint_name(name)?;
         self.conn().execute_batch(&format!("SAVEPOINT {name}"))?;
+        self.save_tail(name);
         Ok(())
     }
 
     pub fn release(&self, name: &str) -> Result<(), RuntimeError> {
         validate_savepoint_name(name)?;
         self.conn().execute_batch(&format!("RELEASE {name}"))?;
+        self.release_tail(name, false);
         Ok(())
     }
 
@@ -723,6 +740,7 @@ impl<'a> Tx<'a> {
         self.clear_activation_scan();
         self.changes.borrow_mut().widen();
         self.conn().execute_batch(&format!("ROLLBACK TO {name}; RELEASE {name}"))?;
+        self.release_tail(name, true);
         // Lazy sequence-table creation may have belonged to this savepoint.
         self.sequence_table.set(None);
         if self.read_sessions_installed.get() { self.read_sessions_installed.set(identity::present(self.conn())?); }
@@ -801,7 +819,7 @@ impl<'a> Tx<'a> {
         if table.ephemeral.is_some() { return Err(RuntimeError::Store("durable transaction cannot write an ephemeral table".into())); }
         let t = self.num(table_name)?;
         let id = row.field("id")?.as_str()?;
-        narrowed::check_write(self,table_name,table,row,old)?;
+        if old.is_none() { narrowed::check_write(self,table_name,table,row,old)?; }
         backfills::observe_write(self,t,id,table,row,old)?;
         // @ref LLP 3000.000.000#204-reference-renames-and-asset-extraction — an admitted extraction child must contain a mapped asset. Asset-free tables cannot own an active extraction receipt, so ordinary writes need no metadata probe.
         if table.columns.values().any(|kind|kind.contains_asset()) {
@@ -860,6 +878,7 @@ impl<'a> Tx<'a> {
     }
 
     pub fn next_seq(&self) -> Result<u64, RuntimeError> {
+        if let Some(b) = self.group_tail.borrow().as_ref() { return Ok(b.head + 1); }
         Ok(self.tx.prepare_cached("SELECT COALESCE(MAX(seq), 0) + 1 FROM _commits")?.query_row([], |row| row.get::<_, i64>(0))? as u64)
     }
 
@@ -876,6 +895,12 @@ impl<'a> Tx<'a> {
 
     pub fn record_commit(&self, seq: u64, at: i64, program: &str, principal: &str, kind: &str, touched: &[String], writes: u64) -> Result<(), RuntimeError> {
         if !self.changes.borrow().covers(touched) { self.changes.borrow_mut().widen(); }
+        if let Some(b) = self.group_tail.borrow_mut().as_mut() {
+            if seq != b.head + 1 { return Err(RuntimeError::Store("noncontiguous SQLite batch sequence".into())); }
+            b.commits.push(serde_json::json!([seq, at, program, principal, kind, canonical_json(&touched), writes, canonical_json(&self.changes.borrow().footprint())]));
+            b.head = seq;
+            return Ok(());
+        }
         self.conn().execute("INSERT INTO _change_evidence(seq, footprint) VALUES (?1, ?2)", params![seq as i64, canonical_json(&self.changes.borrow().footprint())])?;
         // @ref LLP 3000.023#12 — retain twice the 500-commit certification
         // window. Pruning rolls back with the commit; older intervals widen.
@@ -904,6 +929,10 @@ impl<'a> Tx<'a> {
     }
 
     pub fn append_log(&self, partition: &str, seq: u64, ord: u32, table: &str, kind: &str, id: &str, data: Option<&str>) -> Result<(), RuntimeError> {
+        if let Some(b) = self.group_tail.borrow_mut().as_mut() {
+            b.logs.push(serde_json::json!([partition, seq, ord, table, kind, id, data]));
+            return Ok(());
+        }
         self.conn().prepare_cached("INSERT INTO _log(partition, seq, ord, t, kind, id, data) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)")?.execute(params![partition, seq as i64, ord as i64, table, kind, id, data],
         )?;
         Ok(())
@@ -1120,13 +1149,13 @@ mod tests {
             let writer = Store::open(&path.join("store.sqlite")).unwrap();
             let reader = writer.reader().unwrap();
             let inspection = Store::open_read_only(&path.join("store.sqlite")).unwrap();
-            for (store, foreign_keys) in [(&writer, 0), (&reader, 1), (&inspection, 1)] {
+            for (store, foreign_keys, autocheckpoint) in [(&writer, 0, 0), (&reader, 1, 1000), (&inspection, 1, 0)] {
                 let conn = store.conn();
                 let mode: String = conn.query_row("PRAGMA journal_mode", [], |row| row.get(0)).unwrap();
                 assert_eq!(mode, "wal");
                 for (pragma, expected) in [
                     ("synchronous", 2), ("foreign_keys", foreign_keys), ("cache_size", -2000),
-                    ("mmap_size", 0), ("wal_autocheckpoint", 1000), ("journal_size_limit", -1),
+                    ("mmap_size", 0), ("wal_autocheckpoint", autocheckpoint), ("journal_size_limit", -1),
                 ] {
                     let actual: i64 = conn.query_row(&format!("PRAGMA {pragma}"), [], |row| row.get(0)).unwrap();
                     assert_eq!(actual, expected, "{pragma}");
