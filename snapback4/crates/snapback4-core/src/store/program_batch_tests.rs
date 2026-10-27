@@ -1211,8 +1211,10 @@ fn n1_and_serial_group_commit_timeouts_are_disabled_postgres() {
 fn accepted_http_age_prevents_a_fresh_fallback_budget_and_keeps_queue_progress() {
     let mut engine = fixture(true);
     let before = engine.seq().unwrap();
-    pg_sql(&mut engine, "CREATE SEQUENCE intake_abort; CREATE FUNCTION intake_abort() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF nextval('intake_abort')=1 THEN RAISE EXCEPTION USING ERRCODE='23514'; END IF; RETURN NEW; END $$; CREATE CONSTRAINT TRIGGER intake_abort AFTER INSERT ON r DEFERRABLE INITIALLY DEFERRED FOR EACH ROW WHEN (NEW.t='entries') EXECUTE FUNCTION intake_abort()");
     let queue = Queue::start(engine, 8).unwrap();
+    // Inject after readiness: constructing a physical writer deliberately
+    // refuses a pre-existing foreign trigger on a managed relation.
+    queue.call(Command::new(|engine| pg_sql(engine, "CREATE SEQUENCE intake_abort; CREATE FUNCTION intake_abort() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF nextval('intake_abort')=1 THEN RAISE EXCEPTION USING ERRCODE='23514'; END IF; RETURN NEW; END $$; CREATE CONSTRAINT TRIGGER intake_abort AFTER INSERT ON r DEFERRABLE INITIALLY DEFERRED FOR EACH ROW WHEN (NEW.t='entries') EXECUTE FUNCTION intake_abort()"))).unwrap();
     let member = |n| {
         let mut member = intent(19, n);
         member.context.args.insert("reject".into(), Value::Bool(false));
