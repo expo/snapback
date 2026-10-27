@@ -77,7 +77,7 @@ impl AnyStore {
     pub(crate) fn invalidate_expired_authority_session(&self, digest: &str, now: i64) -> Result<(), RuntimeError> { self.delete_expired_session_member(digest, now) }
     pub fn retain_ownership(&mut self, owner: std::sync::Arc<std::fs::File>) -> Result<(), RuntimeError> { match self { Self::Sqlite(SqliteStore(inner)) => inner.retain_ownership(owner), #[cfg(feature = "postgres")] Self::Postgres(_) => Err(RuntimeError::StoreUnsupported { family: "ownership" }) } }
     #[cfg(unix)]
-    pub fn retain_exclusive_ownership(&mut self, owner: std::sync::Arc<std::fs::File>) -> Result<(), RuntimeError> { match self { Self::Sqlite(SqliteStore(inner)) => inner.retain_exclusive_ownership(owner), #[cfg(feature = "postgres")] Self::Postgres(_) => Err(RuntimeError::StoreUnsupported { family: "ownership" }) } }
+    pub fn retain_exclusive_ownership(&mut self, owner: std::sync::Arc<std::fs::File>, identity: (u64, u64)) -> Result<(), RuntimeError> { match self { Self::Sqlite(SqliteStore(inner)) => inner.retain_exclusive_ownership(owner, identity), #[cfg(feature = "postgres")] Self::Postgres(_) => Err(RuntimeError::StoreUnsupported { family: "ownership" }) } }
     pub fn check_ownership(&self) -> Result<(), RuntimeError> { match self { Self::Sqlite(SqliteStore(inner)) => inner.check_ownership(), #[cfg(feature = "postgres")] Self::Postgres(_) => Err(RuntimeError::StoreUnsupported { family: "ownership" }) } }
 }
 impl AnyStore {

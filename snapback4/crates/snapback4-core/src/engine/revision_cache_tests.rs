@@ -1409,7 +1409,8 @@ fn sqlite_owned_g5_fills_hits_invalidates_data_and_rechecks_revocation() {
     std::fs::create_dir(&dir).unwrap();
     let mut store = crate::store::Store::open(&dir.join("store.sqlite")).unwrap();
     let owner = crate::private_fs::owner_file(&dir.join("store.sqlite")).unwrap();
-    owner.try_lock().unwrap(); store.retain_exclusive_ownership(std::sync::Arc::new(owner)).unwrap();
+    let identity = { use std::os::unix::fs::MetadataExt; let m = std::fs::metadata(dir.join("store.sqlite")).unwrap(); (m.dev(), m.ino()) };
+    owner.try_lock().unwrap(); store.retain_exclusive_ownership(std::sync::Arc::new(owner), identity).unwrap();
     let mut writer = Engine::new_at(store, schema, programs, 1000).unwrap();
     writer.seed_at([("counters".into(), crate::value::object([("id", Value::Id("m0000-0".into())), ("n", Value::Int(0))]))], 1000).unwrap();
     let session = identity::open_session(writer.store(), "alice", "account", 1000).unwrap();

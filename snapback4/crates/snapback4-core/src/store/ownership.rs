@@ -63,8 +63,14 @@ impl Store {
     /// entire lifetime. Shared device ownership must use retain_ownership.
     // @ref LLP 3000.009.001.000.002#sqlite-snapshot-reuse — local cache observation requires one exclusive backend owner.
     #[cfg(unix)]
-    pub fn retain_exclusive_ownership(&mut self, owner: std::sync::Arc<std::fs::File>) -> Result<(), RuntimeError> {
+    /// `identity` is the database (dev, inode) the owner stat'ed under its
+    /// sidecar lock before SQLite opened the path; reuse binds to that file.
+    pub fn retain_exclusive_ownership(&mut self, owner: std::sync::Arc<std::fs::File>, identity: (u64, u64)) -> Result<(), RuntimeError> {
         self.retain_ownership(owner)?;
+        if self.file_identity != Some(identity) {
+            let path = self.conn.path().unwrap_or_default().to_owned();
+            return Err(RuntimeError::Store(format!("owned database at {path} moved or was replaced while opening; stop and reopen its current path")));
+        }
         self.cache_owned = true;
         Ok(())
     }

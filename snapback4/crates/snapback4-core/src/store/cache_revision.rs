@@ -69,18 +69,27 @@ impl Store {
         (self.server && self.cache_owned && self.cache_revision.wal && self.exclusion_intact()).then_some(0)
     }
     // @ref LLP 3000.009.001.000.002#sqlite-snapshot-reuse — deleting or replacing the sidecar or database ends exclusion; reuse fails closed.
-    /// Both paths still name the inodes this owner holds open. A held inode
-    /// cannot be reused, so a replacement never matches again.
+    /// Both paths still name the inodes this owner holds open. The first
+    /// mismatch revokes reuse for every store sharing that held sidecar for
+    /// the rest of the process: renaming the original back cannot re-arm it,
+    /// because this process never observed the interim writes.
     #[cfg(unix)]
     fn exclusion_intact(&self) -> bool {
         use std::os::unix::fs::MetadataExt;
+        static LOST: OnceLock<Mutex<std::collections::BTreeSet<(u64, u64)>>> = OnceLock::new();
         let (Some(owner), Some(path)) = (&self.ownership, self.conn.path().filter(|p| !p.is_empty())) else { return false };
         let Ok(held) = owner.metadata() else { return false };
+        // The held descriptor keeps this inode allocated, so the key is unique.
+        let key = (held.dev(), held.ino());
+        let lost = LOST.get_or_init(Default::default);
+        if lost.lock().unwrap_or_else(|p| p.into_inner()).contains(&key) { return false; }
         let path = Path::new(path);
-        std::fs::symlink_metadata(crate::private_fs::owner_path(path))
-            .is_ok_and(|m| (m.dev(), m.ino()) == (held.dev(), held.ino()))
+        let intact = std::fs::symlink_metadata(crate::private_fs::owner_path(path))
+            .is_ok_and(|m| (m.dev(), m.ino()) == key)
             && std::fs::symlink_metadata(path)
-                .is_ok_and(|m| m.is_file() && m.nlink() == 1 && Some((m.dev(), m.ino())) == self.file_identity)
+                .is_ok_and(|m| m.is_file() && m.nlink() == 1 && Some((m.dev(), m.ino())) == self.file_identity);
+        if !intact { lost.lock().unwrap_or_else(|p| p.into_inner()).insert(key); }
+        intact
     }
     #[cfg(not(unix))]
     fn exclusion_intact(&self) -> bool { false }
@@ -95,7 +104,8 @@ mod tests {
         let mut store = Store::open(&dir.join("store.sqlite")).unwrap();
         let owner = crate::private_fs::owner_file(&dir.join("store.sqlite")).unwrap();
         owner.try_lock().unwrap();
-        store.retain_exclusive_ownership(Arc::new(owner)).unwrap();
+        let identity = store.file_identity.unwrap();
+        store.retain_exclusive_ownership(Arc::new(owner), identity).unwrap();
         (dir, store)
     }
     fn token(store: &Store) -> i64 {
@@ -141,10 +151,21 @@ mod tests {
         // write around this process's commit observation.
         std::fs::remove_file(&sidecar).unwrap();
         assert!(reader.cache_scope().is_none() && store.cache_scope().is_none());
+        drop((reader, store)); std::fs::remove_dir_all(&dir).unwrap();
+        // Renaming the original sidecar back cannot re-arm reuse: a successor
+        // may have written while the name pointed elsewhere.
+        let (dir, store) = fixture();
+        let reader = store.reader().unwrap();
+        let sidecar = crate::private_fs::owner_path(&dir.join("store.sqlite"));
+        std::fs::rename(&sidecar, dir.join("aside")).unwrap();
         let other = crate::private_fs::owner_file(&dir.join("store.sqlite")).unwrap();
         other.try_lock().unwrap();
-        assert!(reader.cache_scope().is_none(), "a new sidecar inode never restores exclusion");
-        drop((other, reader, store)); std::fs::remove_dir_all(&dir).unwrap();
+        assert!(reader.cache_scope().is_none(), "a successor's sidecar never matches");
+        drop(other);
+        std::fs::rename(dir.join("aside"), &sidecar).unwrap();
+        assert!(reader.cache_scope().is_none() && store.cache_scope().is_none(), "loss is latched");
+        assert!(store.reader().unwrap().cache_scope().is_none(), "new readers inherit the loss");
+        drop((reader, store)); std::fs::remove_dir_all(&dir).unwrap();
         let (dir, store) = fixture();
         let database = dir.join("store.sqlite");
         std::fs::copy(&database, dir.join("copy")).unwrap();
