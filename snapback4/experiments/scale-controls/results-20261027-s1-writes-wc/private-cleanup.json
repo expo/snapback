@@ -1,0 +1,7 @@
+{
+  "roots_removed": 1,
+  "cluster_stopped": true,
+  "socket_absent": true,
+  "pidfile_absent": true,
+  "private_root_absent": true
+}

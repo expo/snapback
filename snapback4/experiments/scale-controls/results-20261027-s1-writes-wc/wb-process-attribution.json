@@ -1,0 +1,20 @@
+{
+  "snapshot_time": 1793086100.6615562,
+  "total_cores": 3.9279506688979002,
+  "user": null,
+  "user_reason": "WB raw snapshot has no UID/user. All six original PID/start identities were absent at WC preflight; no ownership guessed.",
+  "source_archive_sha256": "0f482a25733f50723bcd7c1b237ca0aaefc6646bf4a14cd55188d466f6a3b8f6",
+  "process_names": {
+    "snapback4": 6
+  },
+  "pids": [
+    450120,
+    450213,
+    449783,
+    441015,
+    449126,
+    441807
+  ],
+  "all_six_allowed_all_twelve_logical_cpus": true,
+  "individual_cpu_samples_and_pid_start_ticks": "retained only in the private WB archive"
+}
