@@ -9,5 +9,17 @@
     "passed": 1,
     "failed": 0,
     "seconds": 1.29
-  }
+  },
+  "logs": [
+    {
+      "path": "/home/ccheever/sb4-loop/reports/sec11b/item3-lang-full.log",
+      "sha256": "e4ce4761111cc9f776432b3a9b81ccfbba404bb4613e17921c424d5ff2ee124e",
+      "bytes": 285251
+    },
+    {
+      "path": "/home/ccheever/sb4-loop/reports/sec11b/item3-clock-retry.log",
+      "sha256": "0391612864ee07a66dc5df940358ffbd8daa568e43289d778b60b92e76d4e0cb",
+      "bytes": 8642
+    }
+  ]
 }
