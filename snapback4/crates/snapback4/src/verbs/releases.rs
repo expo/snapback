@@ -733,7 +733,7 @@ pub fn releases(options: &Options) -> i32 {
                 selectable(&dir,n)?;let root=dir.join("releases").join(n.to_string());bound_at(root.clone())?;
                 result["selected"]=serde_json::json!({"release":n,"current":result["release"].as_u64()==Some(n),"digest":crate::release_files::digest(&root)?});
             }
-            crate::command_output::summary(format!("releases: current {}; latest {}; generation {}; {} events; {} dormant rows retained",result["current"],result["latest"],result["generation"],result["events"].as_array().map_or(0,Vec::len),super::sql::dormant_rows(&retained)));
+            crate::command_output::summary(format!("releases: current {}; latest {}; generation {}; {} events on page; {} dormant rows retained",result["current"],result["latest"],result["generation"],result["events"].as_array().map_or(0,Vec::len),super::sql::dormant_rows(&retained)));
             crate::command_output::evidence(&result);
             crate::command_output::state(result.clone());
             if result["live"]["exact"] == false {crate::command_output::fact("source",format!("live: rollback view of release {}, registered by {}",result["live"]["target"],result["live"]["parent"]));}

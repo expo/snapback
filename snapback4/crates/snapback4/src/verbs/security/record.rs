@@ -80,8 +80,8 @@ mod tests{
   let other=vec![("schema.q".into(),source.replace("only .owner = viewer","only allow"))];let selected=snapback4_lang::compile(&other);
   assert!(!super::super::report(&project,&selected,&other,&options).refuted(),"evidence for current disk source must not refute an independently compiled selection");
   remember(&project,&options,&c,true,&consumed).unwrap();
-  assert!(super::super::release_notice(&project,&selected,&other,&options).contains("run `snapback4 test"));
-  let notice=super::super::release_notice(&project,&bound,&[("schema.q".into(),source.into())],&options);assert!(notice.contains("FAILED")&&notice.contains("run `snapback4 test"),"{notice}");
+  assert!(super::super::release_notice(&project,&selected,&other,&options).0.contains("run `snapback4 test"));
+  let (notice,_)=super::super::release_notice(&project,&bound,&[("schema.q".into(),source.into())],&options);assert!(notice.contains("FAILED")&&notice.contains("run `snapback4 test"),"{notice}");
  }
  #[test]
  fn review_labels_missing_stale_and_incomplete_evidence_and_strict_refuses_only_reachable_intent(){
@@ -92,14 +92,14 @@ mod tests{
   std::fs::write(path.join("snapback/schema.q"),source).unwrap();let project=Project{root:path};
   let sources=vec![("schema.q".into(),source.into())];let bound=snapback4_lang::compile(&sources);
   let options=Options{positionals:Vec::new(),flags:Default::default(),json:false};
-  assert!(super::super::release_notice(&project,&bound,&sources,&options).contains("NEVER RECORDED"));
+  assert!(super::super::release_notice(&project,&bound,&sources,&options).0.contains("NEVER RECORDED"));
   let key=fingerprint(&project,&options).unwrap();
   remember(&project,&options,&Default::default(),true,&key).unwrap();
   let completed=matching(&project,&options,&sources).unwrap().last_completed_at;
   remember(&project,&options,&Default::default(),false,&key).unwrap();
   let later=matching(&project,&options,&sources).unwrap();assert_eq!(later.last_completed_at,completed);assert!(!later.complete);
-  let notice=super::super::release_notice(&project,&bound,&sources,&options);assert!(notice.contains("incomplete")&&notice.contains("age "),"{notice}");
-  let stale=vec![("schema.q".into(),format!("{source}-- edit\n"))];assert!(super::super::release_notice(&project,&bound,&stale,&options).contains("STALE"));
+  let (notice,_)=super::super::release_notice(&project,&bound,&sources,&options);assert!(notice.contains("incomplete")&&notice.contains("age "),"{notice}");
+  let stale=vec![("schema.q".into(),format!("{source}-- edit\n"))];assert!(super::super::release_notice(&project,&bound,&stale,&options).0.contains("STALE"));
   let mut c=security::challenges::Campaign::default();
   let mut e=snapback4_core::Engine::memory(bound.schema.clone(),bound.programs.iter().map(|p|p.program.clone())).unwrap();
   e.seed_at([("docs".into(),snapback4_core::Value::Row([("id".into(),snapback4_core::Value::Id("doc".into())),("owner".into(),snapback4_core::Value::Id("dev:owner".into()))].into_iter().collect()))],security::challenges::NOW).unwrap();

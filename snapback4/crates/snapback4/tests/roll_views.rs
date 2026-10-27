@@ -351,9 +351,10 @@ fn deploy_verdict_leads_scoped_security_is_last_and_json_keeps_all_notes() {
     let out = app.ok(&["deploy", "deployment", "--schema", "snapback", "--check"]);
     let stdout = String::from_utf8_lossy(&out.stdout);
     let stderr = String::from_utf8_lossy(&out.stderr);
-    assert!(stdout.starts_with("deploy verdict: READY"), "{stdout}");
+    assert!(stdout.starts_with("deploy: READY preview"), "{stdout}");
+    assert!(stdout.lines().count()+stderr.lines().count()<=3,"{stdout}{stderr}");
     assert!(!stderr.contains("decision "), "advisory decisions require --review: {stderr}");
-    assert!(stderr.contains("advisories (don't block):"), "{stderr}");
+    assert!(fs::read_to_string(app.0.join(".snapback4/last/deploy.txt")).unwrap().contains("advisories (don't block):"));
     let full = app.json(&[
         "deploy",
         "deployment",
@@ -618,7 +619,7 @@ fn forward_deploy_selects_ordinary_source_after_rollback_view() {
     app.seed(&next,vec![json!({"id":"pending","amount":null})]);
     for _ in 0..2 {
         let out=app.run(&["rollback","deployment","--to","1"]);assert!(out.status.success(),"{}",text(&out));
-        assert!(text(&out).contains("live: release") && text(&out).contains("rollback view of release 1"),"{}",text(&out));
+        assert!(text(&out).contains("rollback: release") && text(&out).contains("rollback view of release 1"),"{}",text(&out));
         let live=app.json(&["releases","deployment","--json"])["live"].clone();
         assert_eq!(live["source"],1);assert_eq!(live["parent"],parent);assert_eq!(live["exact"],false);assert_eq!(live["target"],1);
         let selected=app.json(&["deploy","deployment","--json"]);

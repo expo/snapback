@@ -154,7 +154,7 @@ pub fn test(options: &Options) -> i32 {
     println!("security runtime evaluation: {} unknown judgments (target and source site listed above)",security_campaign.evaluation_unknowns.len());
     let security_http_ok=security::unauthenticated(&project,&bound,&sources);
     drop(progress);
-    if !options.flags.contains_key("residency") {if let Err(why)=security::remember(&project,&evidence_options,&security_campaign,security_http_ok,&consumed){eprintln!("security: campaign record unavailable: {why}; check cannot reuse these refutations");}}
+    if !options.flags.contains_key("residency") {if let Err(why)=security::remember(&project,&evidence_options,&security_campaign,security_http_ok,&consumed){crate::command_output::fact("campaign record",format!("security: campaign record unavailable: {why}; check cannot reuse these refutations"));eprintln!("security: campaign record unavailable: {why}; check cannot reuse these refutations");}}
     if security_http_ok{security_campaign.unsupported.retain(|s|!s.starts_with("unauthenticated HTTP attempts require"));}
     println!("security directed histories: {} mutation attempts; peak {} retained frontier worlds; finite exploration",security_campaign.directed_attempts,security_campaign.directed_peak_worlds);
     println!("security histories: {} ordered short operation sequences replayed",security_campaign.sequences);
@@ -162,14 +162,14 @@ pub fn test(options: &Options) -> i32 {
     println!("security operation matrix: {} operations exercised; unknown authorization intent is not inferred from success",security_campaign.operations.len());
     let reachable=security_campaign.violations.iter().filter(|c|c.reachability.is_reachable()).count();
     println!("security tests: {} attempted, {} refused, {reachable} reachable violations; {} seed/synthetic observations (non-failing); finite campaign, not proof",security_campaign.attempted,security_campaign.refused,security_campaign.violations.len()-reachable);
-    if security_campaign.violations.len()>reachable {println!("REVIEW: seed/synthetic observations need authored replay; test --all keeps the directed history context");}
+    if security_campaign.violations.len()>reachable {crate::command_output::fact("authored replay",format!("REVIEW: {} seed/synthetic observations need authored replay; test --all keeps directed history context",security_campaign.violations.len()-reachable));println!("REVIEW: seed/synthetic observations need authored replay; test --all keeps the directed history context");}
     for c in security_campaign.violations.iter().filter(|c|options.flags.contains_key("all")||c.reachability.is_reachable()) {println!("security violation: {}",serde_json::to_string(c).unwrap());}
     let coverage_all=options.flags.contains_key("all")||options.flags.contains_key("verbose");
     for reason in security_campaign.unsupported.iter().take(if coverage_all{usize::MAX}else{5}) {println!("security not covered: {reason}");}
     if !coverage_all&&security_campaign.unsupported.len()>5 {println!("security: {} more coverage limits; test --all keeps every reason",security_campaign.unsupported.len()-5);}
     let (mut passed, mut failed_cases) = (0, 0);
     if let Some(fixture) = options.flags.get("fixture").filter(|_| !options.flags.contains_key("saved-fixture-fallback")) {
-        match test_cases::run_verbose(&mut engine, &bound, fixture, &sources, fixture_now, options.flags.contains_key("verbose")) {
+        match test_cases::run_verbose(&mut engine, &bound, fixture, &sources, fixture_now, true) {
             Ok((p, f)) => { passed = p; failed_cases = f; }
             Err(error) => { eprintln!("{error}"); return 1; }
         }

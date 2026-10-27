@@ -15,7 +15,7 @@ impl Startup {
         snapback4_core::diagnostic!("{identity}");
         match path {
             Ok(path) if !verbose => {
-                let decisions = self.lines.iter().filter(|l|l.starts_with("WARNING") || l.starts_with("clock ")).map(|l|l.split_whitespace().collect::<Vec<_>>().join(" ")).collect::<Vec<_>>();
+                let decisions = self.lines.iter().filter(|l|l.starts_with("WARNING") || l.starts_with("clock ") || l.contains("E_HTTP_LIMIT") || l.contains("lowered")).map(|l|l.split_whitespace().collect::<Vec<_>>().join(" ")).collect::<Vec<_>>();
                 snapback4_core::diagnostic!("serve: tokens only; {}details: {}; --explain for startup facts",if decisions.is_empty() {String::new()}else{format!("{}; ",decisions.join("; "))},crate::command_output::display_path(&path));
             }
             result => {

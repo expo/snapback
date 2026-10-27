@@ -11,9 +11,9 @@ pub fn serve(
     let dev = matches!(mode, Mode::Dev { .. });
     let mut startup = crate::serve_output::Startup::new(!dev);
     macro_rules! startup_note { ($($arg:tt)*) => { startup.line(format!($($arg)*)) }; }
-    crate::host_limits::initialize();
+    crate::host_limits::initialize_with(|text|startup.line(text));
     let capacity = capacity.fit()?;
-    crate::host_limits::install(capacity);
+    crate::host_limits::install_with(capacity, |text|startup.line(text));
     let mut source_stamp = project.sources_stamp();
     let bound = project.compile().map_err(|e| e.to_string())?;
     if !bound.diagnostics.is_empty() {

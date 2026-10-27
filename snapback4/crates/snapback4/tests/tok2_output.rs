@@ -117,7 +117,7 @@ fn serve_startup_keeps_url_readiness_clock_and_full_details_in_three_lines() {
 #[test]
 fn staging_fixes_qualification_and_residency_explanations_remain_honest() {
     let a=App::new();
-    fs::write(a.0.join("snapback/schema.q"),"use identity guests\ntable docs:\n  title: text <=80\n  public 'fixture'\n  online only\ninvariant docs always .title != 'bad'\nmutation add():\n  return insert docs {title:'bad'}\n").unwrap();
+    fs::write(a.0.join("snapback/schema.q"),"use identity guests\ntable docs:\n  owner: principal\n  read <- allow\n  insert <- allow\n  online only\ninvariant docs.read only .owner = viewer\nmutation add():\n  return insert docs {owner:viewer}\nquery list():\n  return docs first 10 by .id\n").unwrap();
     let text=a.ok(&["deploy","staging","--staging"],3);
     assert!(text.contains("FIX")&&text.contains("NEVER RECORDED"),"{text}");
     let b=App::new();
@@ -129,4 +129,26 @@ fn staging_fixes_qualification_and_residency_explanations_remain_honest() {
         assert!(!value["report"].as_str().unwrap().contains("running full finite campaigns"));
         assert_eq!(value["evidence"][0]["cases"]["passed"],0);
     }
+}
+
+#[test]
+fn complete_case_clauses_and_successful_campaign_warnings_survive_capture() {
+    let a=App::new();
+    fs::create_dir_all(a.0.join("snapback/generated/security-test.json")).unwrap();
+    let record=a.ok(&["test","--fixture-only"],3);
+    assert!(record.contains("campaign record unavailable")&&record.contains("check cannot reuse these refutations"),"{record}");
+    let b=App::new();let marker="denied value with  two spaces λ ".repeat(16);
+    fs::write(b.0.join("snapback/schema.q"),format!("use personas alice\ntable notes:\n  title: text <=2000\n  public 'fixture'\n  online only\nmutation edit(row: notes):\n  require false else CLOSED '{marker}'\n  return true\n")).unwrap();
+    fs::create_dir(b.0.join("fixtures")).unwrap();
+    fs::write(b.0.join("fixtures/notes.jsonl"),"{\"id\":\"N\",\"title\":\"one\"}\n").unwrap();
+    fs::write(b.0.join("fixtures/test.cases.jsonl"),"{\"op\":\"edit\",\"as\":\"alice\",\"args\":{\"row\":\"N\"},\"data\":true}\n").unwrap();
+    for json in [false,true] {
+        let args=if json{vec!["test","--json"]}else{vec!["test"]};let out=b.run(&args);
+        assert!(!out.status.success());
+        if json {let v:serde_json::Value=serde_json::from_slice(&out.stdout).unwrap();assert!(v["report"].as_str().unwrap().contains(&marker),"{v}");}
+        else {assert!(b.detail("test").contains(&marker));let t=format!("{}{}",String::from_utf8_lossy(&out.stdout),String::from_utf8_lossy(&out.stderr));assert!(t.lines().count()<=9&&t.contains(&marker),"{t}");}
+    }
+    let c=App::new();fs::write(c.0.join("snapback/schema.q"),"use personas alice\ntable docs:\n  owner: principal\n  read <- allow\n  online only\ninvariant docs.read only .owner = viewer\nquery list():\n  return docs first 10 by .id\n").unwrap();
+    let t=c.ok(&["test","--fixture-only"],3);
+    assert!(t.contains("seed/synthetic observations need authored replay"),"{t}");
 }

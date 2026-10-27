@@ -10,7 +10,7 @@ mkdirSync(join(ROOT,'target/affected'),{recursive:true});
 writeFileSync(join(ROOT,'target/affected/tok2-full-plan.json'),JSON.stringify(full,null,2)+'\n');
 const step=(id,cwd,argv,timeoutSeconds=1800)=>({id,cwd,argv,timeoutSeconds,requires:[],reason:'TOK2 affected presentation and its actual consumers; full shared-input client pool forbidden by brief'});
 const targets=['tok2_output','dx11','dx11_refusals','dx12_output','dx14_output','dx15_inspection','day3','day4','day5_evidence','day5_previews','cli_friction','check','roll_views','security_reviews','tok1'];
-const clients=['tok2-output','proof-contract','proof','day3-proofs','day4-proofs','day5-proofs','dx10-process-accounts','dx14-client-proof','dx15-proof','tok1-reading','release-activation','wave11-narration','wave12-clauses','wave13-previews','wave13-surface','packaged-docs','test-platform-audit'];
+const clients=['tok2-output','proof-contract','proof','day3-proofs','day4-proofs','day5-proofs','dx9-packed','dx10-process-accounts','dx14-client-proof','dx15-proof','tok1-reading','release-activation','wave11-narration','wave12-clauses','wave13-previews','wave13-surface','packaged-docs','test-platform-audit'];
 const plan={...full,scopeOverride:{fullSelectorPlanExecuted:false,qualification:false,reason:'The command registry and guide conservatively expand to the complete client pool. The brief forbids that pool and the five-crate suite. Retain the complete selector plan; run affected CLI/guide tests, all named text/machine consumers and doc checks through runPlan.',fullStepCount:full.steps.length,fullClientFiles:full.clientFiles.length},steps:[
  step('cli-build','snapback4',['cargo','build','-p','snapback4']),
  step('client-build','snapback4',['bun','run','--cwd','packages/snapback4','build']),

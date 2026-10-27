@@ -193,7 +193,7 @@ impl Project {
         let mut command=Command::new(BIN);command.current_dir(&self.0).args(args);
         // These tests measure query/acquisition diagnostics; business-case
         // coverage is tested independently by day5_evidence.
-        if args.first()==Some(&"test") {command.arg("--fixture-only");}
+        if args.first()==Some(&"test") {command.args(["--fixture-only","--explain"]);}
         command.output().unwrap()
     }
     fn seed(&self, path: &Path, count: usize) -> Engine {

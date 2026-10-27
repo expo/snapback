@@ -157,6 +157,15 @@ pub(crate) fn finish(verb: &str, options: &crate::verbs::Options, code: i32) {
         println!("details: {}", display_path(&path));
         return;
     }
+    // Keep gate answer commands independently copyable. Refusals have room for
+    // six command lines plus verdict, grouped facts and detail path. Additional
+    // commands remain in the complete grouped refusal and retained transcript.
+    let mut actions=Vec::new();
+    if code!=0 {
+        for line in t.text.lines().map(str::trim).filter(|l|l.starts_with("Intended: snapback4 ")) {
+            if !actions.contains(&line.to_owned()) {actions.push(line.to_owned());}
+        }
+    }
     let mut parts = t.facts;
     parts.insert("verdict".into(), if code == 0 && !t.summary.is_empty() { t.summary } else {
         format!("{verb}: {}", if code == 0 {"completed"} else {"REFUSED / failed"})
@@ -207,6 +216,7 @@ pub(crate) fn finish(verb: &str, options: &crate::verbs::Options, code: i32) {
         if !changes.is_empty() {facts.push(format!("changed: {}",changes.join(", ")));}
     }
     if !facts.is_empty() { emit(facts.join(" | ")); }
+    for action in actions.into_iter().take(6) {emit(action);}
     if !old.is_empty() && changed("state") && facts.is_empty() { emit(format!("{verb}: result changed; inspect details")); }
     emit(format!("details: {}; --explain for full output",display_path(&path)));
 }
