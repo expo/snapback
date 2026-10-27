@@ -306,7 +306,7 @@ fn rt6_nul_poison_is_terminal_in_folded_commands_and_tail_arrays() {
 #[ignore="private PG16; scripts/test-postgres.sh"]
 fn rt6_serving_parity_with_sqlite_rows_receipts_and_change_evidence() {
     let (mut pg,_,_,pg_digest)=fixture();
-    let mut sqlite=Engine::new_at(AnyStore::memory().unwrap(),pg.schema.clone(),pg.programs.values().cloned(),1000).unwrap();
+    let mut sqlite=Engine::new_at(AnyStore::memory().unwrap(),pg.schema().clone(),pg.programs.values().cloned(),1000).unwrap();
     let session=identity::open_session(sqlite.store(),"alice","guest",1000).unwrap();let digest=identity::session_digest(&session.token);
     sqlite.mutate("setup",None,Context::new("alice",Default::default()).at(1000)).unwrap();
     for n in 0..25 {sqlite.mutate("seedMessage",None,Context::new("alice",[("key".into(),Value::Id(format!("m{n}"))),("at".into(),Value::Int(n))].into()).at(1000)).unwrap();}

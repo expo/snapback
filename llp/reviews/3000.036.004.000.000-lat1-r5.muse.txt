@@ -1,0 +1,28 @@
+muse: workspace root: /home/ccheever/projects/sb4-b34-lat1 (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY — correctness/design only. No material hidden semantic change found in the LAT1 delta at `1645f6cf27`.
+
+I reviewed read-only from source. I did not run suites, did not read `llp/reviews/`, saved no artifacts, and ignore the unfinished `WORKSTREAM-REPORT.md`.
+
+| Requirement | Finding |
+|---|---|
+| Parallel restoration, ordered reduction | Joins then appends in original order; budgets 3072/8192 unchanged |
+| No trust in unproved advice | Restoration uses `advice_cache=false`; poison-cache test holds |
+| Compilation reuse, no skipped validation | Exact `(filename, bytes)` key; deploy-scoped; guards still run |
+| Engine code sharing | `Arc` + `make_mut` detach; only pure lookup index is shared |
+| SQLite fork, no new limits | Backup-only; `serialize` feature and mem-limit flag removed |
+| ID minting retry/ephemeral | Lazy range matches eager; retry and discard identical |
+| Allocator target correctness | gnu Rust-only; musl Rust+C override; others untouched |
+| Identity oracle | Canonical bytes, scalar-sensitive; mismatches exit nonzero |
+
+Details:
+
+- Restoration ([witnesses.rs](/home/ccheever/projects/sb4-b34-lat1/snapback4/crates/snapback4/src/verbs/security/witnesses.rs:502)) clones the report, runs `restore_questions` on the clone in a scoped thread, runs ordinary `collect` on the parent thread, joins both, then extends notes/evidence in order. Budgets stay `work_bounded(3072)` for gates and `8192` for questions. No first-finisher selection. Source and decision guards in [security.rs](/home/ccheever/projects/sb4-b34-lat1/snapback4/crates/snapback4/src/verbs/security.rs:166) and check still run after the join.
+- Compilation reuse ([compilation_reuse.rs](/home/ccheever/projects/sb4-b34-lat1/snapback4/crates/snapback4-lang/src/compilation_reuse.rs:1)) keys on the complete ordered vector including filenames, bytes, order, and multiplicity. Oversized inputs (>512 KiB) recompute. The slot is thread-local, single-entry, installed only by `deploy()` ([releases.rs](/home/ccheever/projects/sb4-b34-lat1/snapback4/crates/snapback4/src/verbs/releases.rs:387)), dropped on scope exit. Nothing persists across invocations. `proof_source::compile` still runs per caller and still applies its diagnostics path rewrite on its own clone.
+- Shared code ([code.rs](/home/ccheever/projects/sb4-b34-lat1/snapback4/crates/snapback4-core/src/engine/code.rs:1)) shares `Schema`/program maps via `Arc` and detaches on any `DerefMut` edit. The only shared interior cache is the delivery-lookup `OnceLock` index, a pure function of immutable tables. Fork probes (`insert_fixture`) detach before mutating. Serialization is unchanged.
+- Fork ([fork.rs](/home/ccheever/projects/sb4-b34-lat1/snapback4/crates/snapback4-core/src/store/fork.rs:1)) is ordinary `Backup::run_to_completion` into a blank connection, with fresh QPSG config, read sessions, page size, catalog/identity copies, asset file copies, and fresh ephemeral state. No `deserialize` remains in product code. `rusqlite` lost `serialize`; all three SQLite flag sites (`.cargo/config.toml`, `build-linux-musl.sh`, `publication-artifacts.mjs`) dropped the raised mem limit together.
+- Lazy IDs preserve the 1024 reservation, encode only on consume, clone cursors independently, replay prefix-then-remainder on retry, discard both representations on ephemeral entry, and exclude non-empty ranges from revision reuse exactly like non-empty explicit supplies. Empty ranges stay cacheable like empty explicit supplies.
+- Allocator ([main.rs](/home/ccheever/projects/sb4-b34-lat1/snapback4/crates/snapback4/src/main.rs:6), [Cargo.toml](/home/ccheever/projects/sb4-b34-lat1/snapback4/crates/snapback4/Cargo.toml:36)): `#[global_allocator]` is Linux-only; gnu gets `secure` (Rust allocator only); musl gets `secure` + `override` (crate-owned C override, so bundled SQLite leaves musl's allocator too). Pinned `=0.1.52`. No other target changes.
+- Oracle ([measure.py](/home/ccheever/projects/sb4-b34-lat1/snapback4/reports/lat1/measure.py:1)): canonical JSON with sorted keys and no normalization; self-test covers `True` vs `1` vs `1.0` vs `False`, viewer/history/id changes, array order, and key-order insensitivity. `failed()` now includes `mismatches` and `inputMismatches`, and the exit is nonzero on any of them. Provenance pins both binaries, keys, workers, trace flag, and the tool hash; resume asserts equality.
+
+Explicit non-qualifications: performance/full-corpus identity runs are pending and not granted here. The musl static-override link was inspected for ownership and cfg correctness only, not built. The parallel-restoration unit oracle covers two small schemas plus a warm-cache repeat; broad FIX-union equivalence awaits the pending 800-schema run. The scoped affected plan declares its omissions (`canonicalComplete:false`); I do not bless that scope as complete.

@@ -1,0 +1,14 @@
+**NOT READY** — one material build regression in `1645f6cf27`.
+
+The copy-on-write conversion leaves five Postgres test call sites incompatible with `Code<T>`:
+
+- [serving_tests.rs:309](/home/ccheever/projects/sb4-b34-lat1/snapback4/crates/snapback4-core/src/engine/postgres/serving_tests.rs:309) passes `pg.schema.clone()` (`Code<Schema>`) to `Engine::new_at`, which requires `Schema`: **E0308**.
+- Program-map clones call consuming `into_values()` through `Code<BTreeMap<…>>`: **E0507** at [revision_cache_tests.rs:883](/home/ccheever/projects/sb4-b34-lat1/snapback4/crates/snapback4-core/src/engine/revision_cache_tests.rs:883), lines 1237 and 1329, and [revision_cache_grant_tests.rs:584](/home/ccheever/projects/sb4-b34-lat1/snapback4/crates/snapback4-core/src/engine/revision_cache_grant_tests.rs:584).
+
+These tests compile with `postgres` enabled even when ignored. Thus Postgres-enabled core test builds fail before execution. The scoped verifier’s core command omits that feature and misses the regression. Update callers to obtain owned schema/maps, then verify with `cargo test -p snapback4-core --features postgres --lib --no-run`. Minimal compiler reproductions confirmed both error classes; I did not build the dirty checkout.
+
+No additional material defect emerged in restoration ordering/isolation, exact compilation keys and current validation, lazy-ID retry/ephemeral handling, or retained page-backed SQLite forks. Allocator source/build inspection supports secure mimalloc, musl C override ownership, and Rust-only replacement on GNU Linux.
+
+The comparator preserves scalar distinctions. Its committed acceptance path returned **1** for Boolean-to-integer witness changes and **0** for identical controls.
+
+Reviewed read-only against the complete delta from `2921a639cc`, including changes since `f7b12190c8`. No full suites, performance certification, or full-corpus identity qualification were performed.

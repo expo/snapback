@@ -5,6 +5,10 @@ def failed(summary):
  return bool(summary["toolFailures"] or summary["inputMismatches"] or summary.get("mismatches"))
 def canonical(value):
  return json.dumps(value,sort_keys=True,separators=(',',':'),ensure_ascii=False,allow_nan=False).encode()
+def envelope(parsed,mode,exit):
+ if mode in ['check','review']:return dict(exit=exit,ok=parsed.get('ok'),reviews=parsed.get('securityReviews'),report=parsed.get('security'),notes=parsed.get('notes'),newNotes=parsed.get('newNotes'))
+ security=parsed.get('security') or {};security=json.loads(security)if isinstance(security,str)else security
+ return dict(exit=exit,fixes=security.get('fixes'),pending=security.get('pending'),reviews=security.get('securityReviews'),report=security.get('report'),denied=parsed.get('denied'))
 # Comparison controls retain scalar types, complete payloads and array order.
 if __import__('sys').argv[1:]==['--self-test']:
  original=dict(witness=dict(id='same',viewer='caller',args=dict(approved=True),history=[1,2]))
@@ -16,6 +20,9 @@ if __import__('sys').argv[1:]==['--self-test']:
   assert canonical(original)!=canonical(altered)
  assert canonical(dict(a=1,b=True))==canonical(dict(b=True,a=1))
  assert canonical(1)!=canonical(1.0)
+ payload=dict(ok=True,securityReviews=[dict(id='actual-question',witness={'history':[1,2]})],security=dict(verdicts=['proved']),notes=['actual'],newNotes=[])
+ assert canonical(envelope(payload,'review',0))==canonical(envelope(payload,'check',0))
+ assert envelope(payload,'review',0)['reviews']==payload['securityReviews']
  assert failed(dict(toolFailures=[],inputMismatches=[],mismatches=[dict(changed='payload')]))
  assert not failed(dict(toolFailures=[],inputMismatches=[],mismatches=[]))
  print('canonical comparator: 8 negative/ordering controls and acceptance failure control pass');raise SystemExit(0)
@@ -30,7 +37,7 @@ else:manifest.write_text(json.dumps(provenance,indent=2)+'\n')
 def project(source,root,wave,lane):
  (root/'snapback').mkdir()
  assert (source/"snapback").is_dir(),source
- texts=[]
+ texts=[];predecessor=[]
  for q in sorted((source/'snapback').glob('*.q')):shutil.copy2(q,root/'snapback'/q.name);texts.append((q.name,q.read_text()))
  assert texts,source
  fixture_files=[]
@@ -38,19 +45,15 @@ def project(source,root,wave,lane):
   target=root/'fixtures'/q.relative_to(source/'fixtures');target.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(q,target);fixture_files.append((q.relative_to(source/'fixtures').as_posix(),digest(target)))
  if a.identity and wave==31:
   prior=home/'wave31/v1-clients'/lane/'snapback';assert list(prior.glob('*.q'))
-  (root/'.snapback4').mkdir();(root/'.snapback4/security-write-baseline.json').write_text(json.dumps([(q.name,q.read_text())for q in sorted(prior.glob('*.q'))]))
- return hashlib.sha256(json.dumps(texts).encode()).hexdigest(),hashlib.sha256(canonical(fixture_files)).hexdigest()
-def envelope(parsed,mode,exit):
- if mode=='check':return dict(exit=exit,ok=parsed.get('ok'),reviews=parsed.get('securityReviews'),report=parsed.get('security'),notes=parsed.get('notes'),newNotes=parsed.get('newNotes'))
- security=parsed.get('security') or {};security=json.loads(security)if isinstance(security,str)else security
- return dict(exit=exit,fixes=security.get('fixes'),pending=security.get('pending'),reviews=security.get('securityReviews'),report=security.get('report'),denied=parsed.get('denied'))
+  predecessor=[(q.name,q.read_text())for q in sorted(prior.glob('*.q'))]
+  (root/'.snapback4').mkdir();(root/'.snapback4/security-write-baseline.json').write_text(json.dumps(predecessor))
+ return hashlib.sha256(canonical(dict(current=texts,predecessor=predecessor))).hexdigest(),hashlib.sha256(canonical(fixture_files)).hexdigest()
 def measure(item):
  index,(wave,lane)=item;path=out/f'w{wave}-{lane}.json'
  if a.resume and path.exists():return json.loads(path.read_text())
  source=home/f'wave{wave}/apps'/lane;rows=[]
  modes=[('check',['check']),('staging',['deploy','release','--staging'])]
- if not a.identity:modes += [('review',['check','--review']),('production',['deploy','release'])]
- else:modes += [('production',['deploy','release'])]
+ modes += [('review',['check','--review']),('production',['deploy','release'])]
  for mode,args in modes:
   for label in (['baseline','candidate']if index%2==0 else ['candidate','baseline']):
    with tempfile.TemporaryDirectory(prefix='sb4-lat1-')as tmp:
@@ -76,7 +79,7 @@ summary=dict(schemas=len(keys),inputMismatches=input_mismatches,toolFailures=[{k
 if a.identity:
  mismatches=[]
  for wave,lane in keys:
-  for mode,temp in [('check','cold'),('check','warm'),('staging','cold'),('staging','warm'),('production','cold')]:
+  for mode,temp in [('check','cold'),('check','warm'),('staging','cold'),('staging','warm'),('review','cold'),('production','cold')]:
    pair=[r for r in rows if(r['wave'],r['lane'],r['mode'],r['temperature'])==(wave,lane,mode,temp)]
    if len(pair)!=2 or canonical(pair[0].get('security'))!=canonical(pair[1].get('security')):
     mismatches.append(dict(wave=wave,lane=lane,mode=mode,temperature=temp,fields=[k for k in set(pair[0].get('security',{}))|set(pair[1].get('security',{}))if canonical(pair[0].get('security',{}).get(k))!=canonical(pair[1].get('security',{}).get(k))]))

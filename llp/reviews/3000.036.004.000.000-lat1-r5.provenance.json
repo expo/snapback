@@ -1,0 +1,20 @@
+{
+  "date": "2026-10-27T18:06:30.939481+00:00",
+  "sourceCommit": "1645f6cf27",
+  "reviewers": {
+    "muse": "muse-spark-1.3-contributor high via muse-exec.sh --yolo",
+    "codex": "fresh codex exec gpt-6.1-sol high"
+  },
+  "verdicts": {
+    "muse": "READY",
+    "codex": "NOT READY"
+  },
+  "findings": [
+    "Five Postgres-gated test callers required owned Schema/program map values after the private Code wrapper conversion. Fixed without changing assertions; actual postgres feature no-run compile passes."
+  ],
+  "sha256": {
+    "llp/reviews/3000.036.004.000.000-lat1-r5.brief.md": "6b3f70d9046ae6faee55cec09519f9c39254acd1f1a12c2c65d395668cd4b376",
+    "llp/reviews/3000.036.004.000.000-lat1-r5.muse.txt": "cc9d124d1b8240a3fd8fb96cf00500bab647c6e2506eb466cde40d83e0617731",
+    "llp/reviews/3000.036.004.000.000-lat1-r5.codex.txt": "30ee3eb2013dbbd4d6ec1359f47213fe45c715bbce2781a5c6f2eb1758cb0e3b"
+  }
+}
