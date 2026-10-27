@@ -3,10 +3,17 @@
 Worktree: `/home/ccheever/projects/sb4-b31-sec11`, branch `sb4-b31-sec11`. Base:
 `f032742ac8`, Snapback 4 0.4.43. No version bump or push.
 
-This delivery stops at the item 1 boundary allowed by the brief. It does not claim
-structurally zero medium holes. Items 2–9 and the full fix-forward matrix remain
-outstanding. New witnessed questions remain advisory: a concrete replay establishes
-admitted behavior, and cannot establish the builder's product intent.
+SEC11b continues item-1 commit `1f9b2610d3`. Items 2–4 are implemented and
+measured in order, with both independent reviews per mechanism. The complete
+800-schema survey has zero assessed false gates/refusals and default medians of
+3 check / 5 deploy lines. Wave-30 visibility is 11/14; structurally zero medium
+holes is not claimed. Current details and final verification follow the original
+item-1 record below. No push or version bump.
+
+The original item1 boundary did not claim structurally zero medium holes and
+left items2–9 outstanding. Its following sections retain that historical record.
+Witnessed questions remain advisory: a concrete replay establishes admitted
+behavior, and cannot establish the builder's product intent.
 
 ## Item 1: witnessed decisions
 
@@ -45,7 +52,7 @@ Design: LLP 3000.036.004.001. Independent Muse and fresh Codex reviews are retai
 verbatim under `llp/reviews/`; earlier findings and corrections remain visible. The
 0.4.44 Guide changes entry documents this surface without bumping 0.4.43.
 
-## Items 2–9
+## Original item1 deferrals (items2–4 continued under SEC11b)
 
 2. Approval-act inference: deferred; no new structural approval inference.
 3. Assignment scoping: deferred; role-specific questions deliberately do not
@@ -192,9 +199,9 @@ matrix remain outstanding. No new gate is half-wired.
 
 ## SEC11b
 
-Status: in progress. This continuation supersedes the stopping boundary above:
-it commissions and will finish items 2–4 in order, with measurements between
-items. Latency is owned by SEC11L; no deploy scheduling changes are made here.
+Items 2–4 are implemented and measured in sequence. Final affected verification
+is recorded below. Latency is owned by SEC11L; no deploy files or pipeline
+scheduling changes are made here.
 
 Item 2 source is committed as `c4935cc124`; independent Muse and fresh Codex
 round-3 reviews are READY and retained at `c44d763734`. Receipt/effect data
@@ -240,10 +247,14 @@ credit is claimed.
 Default check median/p90 is 3/7 lines; deploy is 5/9. All 800 default check
 and 800 default deploy outputs now complete after same-binary phase retries.
 The earlier two censored display attempts and their median bounds remain in
-the committed measurement history. Two test campaigns remain incompletely
-qualified: wave25 lane040's private HTTP preparation watchdog (also reproduced
-with two survey workers), and wave27 lane035's external test watchdog. They
-are retained in `precision.json`, never relabeled PASS. Deployment after the
+the committed measurement history. The original classifier listed two watchdog
+gaps: wave25 lane040's private HTTP preparation watchdog (also reproduced with
+two survey workers), and wave27 lane035's external test watchdog. SEC11b's
+final accounting also includes22 non-timeout private preparation exits:24 test
+qualification gaps in total. Pending security findings can block the private
+deployment before HTTP admission; a preparation exit is not automatically an
+infrastructure or latency fault. Original records and the accounting correction
+are retained, never relabeled PASS. Deployment after the
 recorded test command is measured; complete HTTP test qualification is not
 claimed. This is a disclosed infrastructure gap under LLP 0232; follow-up is
 `issues/20261027-snapback4-security-http-preparation-watchdog-under-survey-load.md`.
@@ -265,51 +276,172 @@ item 1; this is not a clean Lean PASS. Root reference validation passes with
 Item 2 is implemented and measured at this boundary. Items 3 and 4 follow in order.
 No push or version bump.
 
-### Item 3 source and fix-forward progress
+### Item 3 — assignment scoping, implemented and measured
 
-Assignment questions are implemented in `4a17c2109e`, with one-query assignment
-facts in `132d06a032`, complete hypothesis identity in `a7f7256397`, and the
-stronger private-ID projection regression in `9d36412758`. Final independent
-reviews are READY (Muse round 3, fresh Codex round 2), retained verbatim by
-`895628210f`. The first Codex review's selection/identity findings are fixed.
-The three language assignment tests pass; both final CLI assignment regressions
-pass, including changed audience qualifiers with the same factual question.
+Source commits: `4a17c2109e` (questions), `132d06a032` (one-query facts),
+`a7f7256397` (complete hypothesis identity), `9d36412758` (ID-only regression).
+Final mechanism reviews: Muse round3 and fresh Codex round2 READY. The initial
+Codex findings are fixed, with all responses retained verbatim. Presentation
+commits `c50f8dbc5b` and `3c3f9ffb14` keep each assignment card factual and
+compact, replacing only positive deployment feature counts when needed. Both
+final presentation reviewers are READY (`820f096c14`). No deploy files or
+pipeline scheduling changed.
 
-The immutable production executable is
+Coverage, against item2: wave26 **8/15** (6 gates,2 questions), wave28 **6/12**
+(2 gates,4 questions), wave30 **9/14** (1 gate,8 questions), wave31 **8/16**
+(1 gate,7 questions). The two additions are precisely004 F1 and014 F1; the
+matcher requires the actual coordinator/lead role, operation and payload.
+004 shows coordinator1 reading careNeeds assigned to coordinator0;014 shows
+lead0 receiving clientPhone without inventing an assignee or creator.
+
+All800 source hashes match. Fresh and post-recorded-test deploy measurements
+have **zero assessed false gates/refusals and zero unclassified verdicts**,
+with19/26 carried refusals. The sole wave30 gate remains033 advanceJob; its
+actual booked→grinding write has dampSigned=true,dampApproved=false and is
+hand-reviewed.40 test qualifications are incomplete:26 preparation watchdogs
+listed in precision.json and the open watchdog issue, plus14 non-timeout private
+preparation exits listed in http-gap-accounting-correction.json. These are never
+PASS; non-timeout exits are not assigned an infrastructure root cause from the
+retained summary alone. Deployment
+after the recorded test command is measured; complete HTTP coverage is not
+claimed. An unused shorter-timeout035 replay is outside the selected800; its
+timeout does not replace the selected original's completed full test.
+
+The policy survey uses frozen production binary
 `f90a285713ce229d3de35a230b474401167cdab518fff74797c16f5307ca82f3`.
-Native preflight shows 004's coordinator-1 reading a private payload assigned to
-another coordinator, and 014's lead-0 actually receiving clientPhone on board.
-No assignee or creator is invented when the schema has no lead assignment.
-All new questions remain advisory; the gate set and work bounds are unchanged.
+Its original two-line cards measured4/7 median lines, retained as the before
+formatting result. Only two production source inputs subsequently change:
+new-tier rendering and placement of positive feature counts; policy, campaign,
+witness content and identity are unchanged. The final production formatter
+replays exact native blocks over **all800 records**: **check median3 /p907 /
+max14; deploy median5 /p909 /max20**, zero censored displays. Fresh native
+preflights004,014 and wave28's037 confirm current output and byte-identical
+decisions/witnesses on executable
+`852edc845bc7480b8e3508dfebcd1b5c5d32b92c07e216f3be9f152dadddca5e`.
+Both qualification snapshots and the unchanged-source proof are explicit.
 
-Both copied schema repairs remove the targeted assignment witnesses. 014's
-unchanged app acceptance passes. 004's untouched acceptance fails at its explicit
-expectation that both coordinators may read job A's private data. The adapted
-copy checks the same positive payload assertions on each coordinator's own job
-and adds both foreign-job refusals; all 182 assertions pass. This changes the
-broad-access expectation to match the calibrated assignment specification; it
-is not an unchanged-004-acceptance PASS. Patches, hashes and safe results are in
-`snapback4/reports/sec11b/item3/`; raw logs remain private outside git.
+Fix-forward: both targeted assignment questions clear.014's unchanged app
+acceptance passes.004's original acceptance explicitly expects both staff to
+read jobA; the repaired copy checks the same positive payload on each staff
+member's own job and adds both foreign-job refusals. **182 assertions pass**;
+this is a corrected broad-access expectation, not unchanged004 acceptance.
 
-The 800-schema and wave31 measurements are running. Item 4 has not started.
-The full language command encountered an unchanged 15-second wall-deadline
-unit fixture under parallel load; its exact isolated retry passes in 1.29 s.
-The original failed unit receipt and the dedicated resolution remain separate.
-The full language command and selected CLI checks are still running.
+Tests: original CLI units **55 PASS**, five selected integration targets
+**32 PASS**. Full language:195 targets,2857 passes,1 failed clock deadline,
+16 ignored; exact unchanged isolated retry **PASS1.29s**, original failure
+retained. The presentation unit rerun has55 passes and1 file-not-found failure
+while a concurrent rebuild replaced the executable read for evidence
+fingerprinting; exact isolated retry **PASS304.24s**, no source change. Final
+format tests **2 PASS**, including the complete800-record production replay.
+Packaged docs, Snapback4 diagnostics and reference checks passed. The legacy
+root inventory attempt timed out at300s; it is not PASS and does not expand
+the Snapback4 fence. The final affected receipt follows item4.
 
-Item 3's wave31 coverage is now measured at 8/16 (one gate, seven exact witnessed
-questions), up from 6/16 after item 2. The new matches are 004 F1 and 014 F1;
-actual coordinator/lead membership is required by the retained coverage matcher.
+Measurement composition:600 local cases,50 wave24 and50 wave27 fleet cases,
+and100 wave25/29 cases selected before replay from fixed snapshots plus45
+missing local cases. Every case is selected once with binary/source/record
+digests; no partial parent is called complete. All extra fleet attempts and
+interruption receipts are retained outside git; zero recorded owned processes
+remain, and only owned temporary folders were removed. The original123-case
+interrupted run remains retained. No other worktree was accessed.
 
-The in-progress 800-schema survey is partitioned into 600 local schemas and two
-disjoint 100-schema Linux fleet shards (waves24/25 and waves27/29), all using
-the identical frozen executable. Fleet use is confined to owned temporary
-folders; no other worktree is read or changed. The fleet file was unavailable,
-so online Linux hosts were discovered through Tailscale and verified with
-read-only SSH CPU/load/disk probes. The two helpers run six workers each, with
-a 25 GiB free-space guard; input-file and binary digests are checked before use.
-The original local 800-attempt run was interrupted only to partition work:
-123 complete results are preserved and resumed, with all 56 tracked owned
-processes gone after termination. In-flight interrupted attempts are not PASS.
-The final measurement will compose actual completed 600+100+100 results with
-explicit provenance, never label the interrupted parent run complete.
+Evidence: `snapback4/reports/sec11b/item3/`, LLP3000.036.004.003 and its verbatim
+reviews. Item3 is implemented and measured at this boundary. Item4 follows.
+
+### Item 4 — declared transitions and sibling prerequisites, implemented and measured
+
+Added exact advisory questions for 030 `publishReport` measured→reported and
+035 `advanceStage` inspection→finished. Full applicability and typed
+write/guard/argument descriptors bind the hypothesis; names and enum order
+confer no authority. Anchors retain original authored fields/targets before
+helper reduction. The admitted edge must survive commit. No-op, reverted,
+deleted and expired effects cannot commission a card. No new gate family or
+larger campaign budget, and no deploy files or scheduling edits.
+
+Review regressions exposed legacy workflow precision gaps: unreduced spreads
+can overwrite a state or hide a reopening edge. These shapes remain uncovered;
+unmapped/source-unrestricted parent state writes cannot establish terminality.
+Ordinary inference still passes its baseline. Implementation starts at
+`ca8aebea2a`, with final source and scope corrections through `883aeea5d0`.
+Both fresh round-8 reviews are READY, retained verbatim under `llp/reviews/`.
+Key source refinements and every earlier finding are recorded in
+`reports/sec11b/item4/review-resolution.md`. Main merged at `f8fa80dc50`
+(origin `98177aa48b`, benchmark records only); the final fetch found no newer
+main. All 1,961 frozen production inputs remain byte-identical.
+
+Frozen native SHA-256:
+`3a4ac751164bb96b7a07c8076e65b89350b2916c1d50704e73dc99815212d6b7`.
+All 800 source hashes match. All fresh and post-recorded-test deployment
+commands completed: 19/26 carried refusals, zero assessed false gates or false
+production refusals, and no unclassified findings. All 800 default check and
+800 default deploy outputs are uncensored: check median/p90/max 3/7/14 lines;
+deploy 5/9/20. Seventeen private HTTP preparation exits remain incomplete
+qualification, never PASS. The selected run has no preparation or external
+watchdogs. Diagnostic 033 and wave-26/008 replays show private deployment
+blocked by existing pending security findings; other root causes are not
+inferred from summaries. Deployment after a test command does not establish
+complete HTTP admission. Of 800 test commands, 769 exit 0 and 31 exit 1.
+
+| Corpus | After item 3 | After item 4 | Gates / witnessed questions |
+| --- | ---: | ---: | ---: |
+| wave 26 | 8/15 | 8/15 | 6 / 2 |
+| wave 28 | 6/12 | 6/12 | 2 / 4 |
+| wave 30 | 9/14 | 11/14 | 1 / 10 |
+| wave 31 | 8/16 | 10/16 | 1 / 9 |
+
+The seven-schema preflight verifies eight exact effects, retaining
+004/014/018/025/033 and adding 030/035. The sole wave-30 gate is still the
+hand-reviewed 033 `advanceJob` approval bypass. The three remaining wave-30
+misses are 006 F1, 010 F1 and 038 F1, belonging to later work. Items 5–8 are
+not implemented by this lane; item 9 is SEC11L.
+
+The native survey selects 600 local cases plus 200 on GMK. Shared-host A/B
+attempts were slow; their two complete 100-schema populations were assigned
+to local replicas before those replica verdicts. The unused 14/8 completed
+records and all interruption receipts remain archived outside git; they are
+never PASS or selected results. Only owned temporary roots were removed,
+with zero recorded owned fleet processes remaining. All selected cases are
+source/binary matched and selected exactly once. Concurrent timings are not
+isolated latency qualification. Both previous long cases finish their test
+commands here: wave-25/040 exit 0 in 274.698s; wave-27/035 exit 0 in 954.182s.
+Their earlier failed attempts remain unchanged.
+
+All copied 030/035/018 repairs clear their targeted witnesses. The unchanged
+035 acceptance passes 133 checks; 018's unchanged acceptance passes. The
+untouched 030 script fails at its unreviewed late-publication expectation with
+BAD_STATUS. Its adjusted script retains late-report checks, denies unreviewed
+B, then reviews B before advancing the clock; PASS. Patches, source hashes
+and original failures are preserved; no unchanged-030 acceptance PASS claim.
+
+Focused tests: 10 transition tests, 3 CLI tests, 128 guide tests and the
+six-case parent-reopening regression PASS. Final-source 2k standard differential
+run has zero disagreements. Lean 2k retains 18 inherited disagreements in the
+same three signatures, plus 324 unsupported cases; not a clean Lean PASS.
+Packaged-doc lint and correctly prefixed docs-budget/self-containment checks
+PASS. One earlier docs wrapper omitted the Cargo environment prefix and had
+already completed before the stop inspection; its original output is retained,
+and only the correctly prefixed rerun qualifies. Final affected verification
+is recorded below after the measured-source commit.
+
+Evidence: `snapback4/reports/sec11b/item4/`, LLP 3000.036.004.004, source/review
+commits `b118adea22`, `332329e47c`, `aac46d4e56`, and final native-packet
+commit `26669e2eb4`. Native records, per-part receipts, coverage, precision, fix-forward
+patches, source hashes and qualified output counts are retained.
+
+HTTP accounting correction (SEC11b,2026-10-27): the original parser counted
+watchdogs but omitted private preparation exits with status1. Immutable item2
+records contain24 incomplete test qualifications (22 exits,1 preparation
+watchdog,1 external watchdog); item3 contains40 (14 exits,26 preparation
+watchdogs). Original receipts remain unchanged, with correction artifacts beside
+them. Source-matched gate/FIX/refusal classifications and line counts are
+unchanged. The two diagnostic item4 replays demonstrate that existing pending
+production security findings can block private deployment before HTTP admission.
+No such incomplete campaign is a PASS or an inferred latency failure.
+
+### Final affected verification
+
+The initial selector preflight rejected the uncommitted report before running
+any tests. Its log and original/scoped plans are retained under
+`~/sb4-loop/reports/sec11b/dirty-preflight-sec11b-final-affected*`. The report
+is checkpointed so the final run binds a clean committed tree. Results follow
+after that run; the rejected preflight is not a test PASS or product failure.
