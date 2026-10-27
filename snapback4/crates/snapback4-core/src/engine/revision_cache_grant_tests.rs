@@ -404,6 +404,8 @@ fn g6_renewal_wins_between_poll_and_conditional_claim() {
 #[ignore = "private PG16"]
 fn g6_unknown_commit_keeps_gate_closed_and_pauses_writer_admission() {
     let (mut w, d, v, mut lease, mut c) = fixture_owned();
+    let admission_lost = lease.admission_watch();
+    assert!(!admission_lost());
     let mut r = w.reader().unwrap();
     actual_hit(&mut r, &d, &v, "W1", SessionScope::Full);
     c.batch_execute("CREATE FUNCTION g6_unknown() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN RAISE WARNING 'test unknown commit' USING ERRCODE='57014'; RETURN NEW; END $$; CREATE CONSTRAINT TRIGGER g6_unknown AFTER UPDATE ON _head DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION g6_unknown()").unwrap();
@@ -422,6 +424,10 @@ fn g6_unknown_commit_keeps_gate_closed_and_pauses_writer_admission() {
     ));
     let stats = r.revision_cache_stats();
     assert!(stats.gate.uncertain);
+    assert!(admission_lost(), "host watchdog sees terminal admission loss without borrowing the lease connection");
+    c.batch_execute("DROP TRIGGER g6_unknown ON _head").unwrap();
+    assert!(lease.renew().unwrap(), "this failure is independent of the still-valid owner claim");
+    assert!(admission_lost(), "a successful renewal must never revive the uncertain cache epoch");
     assert!(
         c.query_opt(
             "SELECT token_digest FROM _sessions WHERE token_digest=$1",

@@ -329,7 +329,7 @@ impl Queue {
     /// Terminal loss arbitrates queued command start and drains acknowledgements
     /// independently of an active writer or a blocked renewal COMMIT.
     pub fn refuse_ownership(&self) {
-        lose_ownership(&self.admission);
+        lose_ownership(&self.admission, "store ownership explicitly revoked");
     }
 
     /// Attach the acquired lease before exposing the listener. Keep startup
@@ -368,7 +368,7 @@ impl Queue {
             .spawn(move || {
                 while !watching.load(std::sync::atomic::Ordering::Acquire) {
                     if deadline.expired() {
-                        lose_ownership(&admission);
+                        lose_ownership(&admission, "lease renewal deadline expired");
                         break;
                     }
                     thread::park_timeout(deadline.remaining().min(std::time::Duration::from_millis(10)));
@@ -390,10 +390,14 @@ impl Queue {
                         match stopping.recv_timeout(cadence) {
                             Err(mpsc::RecvTimeoutError::Timeout) => {
                                 let started = std::time::Instant::now();
-                                if !matches!(guard.0.as_mut().unwrap().renew(), Ok(true))
-                                    || !renewed.renewed(started)
-                                {
-                                    lose_ownership(&admission);
+                                let reason = match guard.0.as_mut().unwrap().renew() {
+                                    Ok(true) if renewed.renewed(started) => None,
+                                    Ok(true) => Some("lease renewal completed after local authority deadline"),
+                                    Ok(false) => Some("lease renewal no longer matches the acquired claim"),
+                                    Err(_) => Some("lease renewal failed or its COMMIT is uncertain"),
+                                };
+                                if let Some(reason) = reason {
+                                    lose_ownership(&admission, reason);
                                     // Live serving work keeps its SQL fence; leave
                                     // expiry/recovery to the store after loss.
                                     guard.0.take();
@@ -419,21 +423,23 @@ fn latch_expired(admission: &Mutex<Admission>) {
     {
         let deadline = admission.lock().unwrap().deadline.clone();
         if deadline.is_some_and(|deadline| deadline.expired()) {
-            lose_ownership(admission);
+            lose_ownership(admission, "lease renewal deadline expired");
         }
     }
     #[cfg(not(feature = "postgres"))]
     let _ = admission;
 }
-fn lose_ownership(admission: &Mutex<Admission>) {
+fn lose_ownership(admission: &Mutex<Admission>, reason: &str) {
     let waiting = {
         let mut state = admission.lock().unwrap();
+        if state.lost { return; }
         state.lost = true;
         std::mem::take(&mut state.waiting)
     };
     for refuse in waiting.into_values() {
         refuse();
     }
+    crate::diagnostic!("E_STORE_OWNERSHIP: {reason}; committer refuses further admission");
 }
 #[cfg(feature = "postgres")]
 struct StartupLease(Option<crate::store_port::StoreLease>);

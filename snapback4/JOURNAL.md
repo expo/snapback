@@ -109710,3 +109710,27 @@ prefix, in both single and batched execution. Invocation binding hashes that
 same logical sequence. Empty-prefix attempts keep their lazy representation.
 Regression checks cover prefix/range boundaries, exhaustion and ephemeral
 insertion. The original NOT READY reviews remain verbatim in `llp/reviews/`.
+
+## 2026-10-27 — OWN: silent ownership refusal after restart
+
+A deterministic private-PG16/17 public-service witness reproduces six warm-up
+ACKs followed by a durable but unconfirmed seventh write, a sticky G6 admission
+pause, repeated `E_STORE_OWNERSHIP` and a still-renewing lease. The synchronous
+public owner now observes terminal admission uncertainty in its independent
+watchdog and exits; it leaves the lease/read epoch to expire before ordinary
+takeover. The gate reports the first pause reason before publishing its flag.
+Arm E retains its fenced recovery. No uncertain invocation is automatically
+replayed or old cache epoch reopened. See
+`reports/20261027-ownership-loss/REPORT.md` for baseline/fix evidence, tests and
+the limits of attribution to the two original incidents.
+
+## 2026-10-27 — OWN review fixes: bounded diagnostics and serving-only G6 exit
+
+The first OWN implementation could wedge before publishing loss when stderr
+stalled, and armed its G6 process exit for short-lived deploy before activation
+reconciliation. Loss now precedes bounded diagnostic queueing; queued replies
+drain without logging I/O, and exit allows at most 100 ms for diagnostic output.
+Only `serving()` arms the G6 exit. Deploy retains persisted-selection recovery,
+pointer/log completion and lease release. The report's new regressions fill a
+real stderr pipe and delay an unknown-but-durable activation's reconciliation
+probe. LLP 3000.009.001.000 §5.1 records the corrected lifecycle contract.

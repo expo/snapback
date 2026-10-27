@@ -327,6 +327,15 @@ impl StoreLease {
         })
     }
     pub fn lease_duration(&self) -> Duration { self.policy.lease }
+    /// Writer/cache uncertainty is distinct from lease expiry. The
+    /// returned check owns only shared memory and never locks the SQL client,
+    /// so a watchdog can observe it during an uncancellable lease COMMIT.
+    // @ref LLP 3000.009.001.000#5.1 — serving synchronous owners fail-stop after a bounded reason-line attempt; E retains fenced recovery.
+    pub fn admission_watch(&self) -> impl Fn() -> bool + Send + Sync + use<> {
+        let grant = self.read_grant.clone();
+        move || grant.uncertain.load(Ordering::Acquire)
+            && grant.uncertainty_diagnostic_attempted.load(Ordering::Acquire)
+    }
     pub fn token(&self) -> Option<i64> {
         self.held.then_some(self.fence.token)
     }
