@@ -73,6 +73,15 @@ test('wave31 023: observe stable button before trigger, retain transient visible
   await page.locator('#host').evaluate(host=>{host.attachShadow({mode:'open'}).innerHTML='<button data-testid="shadow">Save</button>';});
   const shadow=page.getByTestId('shadow');
   assert.equal(await waitForFresh(shadow,'Save',{trigger:()=>shadow.evaluate(e=>{e.textContent='Saved';}),timeoutMs:1000}),'Saved');
+  // Observe a stable host whose existing shadow tree gains a nested component.
+  await page.setContent('<div data-testid="outer"></div>');
+  const outer=page.getByTestId('outer');
+  await outer.evaluate(e=>{e.attachShadow({mode:'open'}).innerHTML='<span>Save</span>';});
+  assert.equal(await waitForFresh(outer,'Save',{timeoutMs:1000,trigger:async()=>{
+   await outer.evaluate(e=>{const nested=document.createElement('div');nested.attachShadow({mode:'open'}).innerHTML='<span>Save</span>';e.shadowRoot.replaceChildren(nested);});
+   await new Promise(resolve=>setTimeout(resolve,50));
+   await outer.evaluate(e=>{e.shadowRoot.firstChild.shadowRoot.firstChild.textContent='Saved';});
+  }}),'Saved');
   await page.setContent('<b>same</b><b>same</b>');await assert.rejects(waitForFresh(page.locator('b'),'same',{trigger:()=>{}}),/strict mode violation/);
  });
 });

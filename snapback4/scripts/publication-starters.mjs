@@ -184,7 +184,11 @@ export function installCustomWriteScenario(cwd,kind,template) {
     : `<View nativeID="proof-rows"><ProofTextInput accessibilityLabel="Task" value={draft} onChangeText={setDraft}/><Button title="Add" onPress={()=>void writer.run({title:draft})}/><Text>{"data" in rows?JSON.stringify(rows.data):""}</Text></View>`;
   const component=`\nfunction ProofWrite(){const [draft,setDraft]=proofState("");const writer=proofMutation(api.add),rows=proofQuery(api.mine,{});return ${body};}\n`;
   const source=imports+original.replace("<FirstRead />","<FirstRead /><ProofWrite />")+component;
-  const assertion=proof.replace(needle,'const within = page.locator("#proof-rows");');
+  // Replacing Home also replaces its starter-only filter/status controls.
+  // Retain the custom Task write, SDK receipt and rendered-row assertions.
+  const assertion=proof.replace(needle,'const within = page.locator("#proof-rows");')
+    .replace('const filter = page.getByRole("combobox", { name: "Task status", exact: true });\n    await filter.selectOption("open");\n    await filter.selectOption("all");', '')
+    .replace('await page.getByLabel("Write status", { exact: true }).waitFor();', '');
   writeFileSync(screen,source);writeFileSync(proofPath,assertion);
 }
 

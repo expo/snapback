@@ -109413,3 +109413,12 @@ an explicit unknown-outcome/login recovery in why; complete-empty lists are
 spelled out in guide reads. LLP 3000.037.000 §7 records the implemented bounds.
 No publication, version bump or Mac execution; affected packed consumers and
 read-only source-copy replays are recorded in reports/20261027-dx15.
+
+DX15 verification follow-up: the packed custom-Home qualifier still expected
+DX14's default-only filter/status controls after replacing that Home. Adapt the
+transported proof to the custom screen while retaining its named Task input,
+SDK receipt and rendered-row assertions; init-typecheck guards that distinction.
+Independent reviews caught users-only roster-field validation, bounded observer
+cleanup and nested shadow-root discovery; each is corrected and the final
+observer delta is READY from both families. Private npm caches isolate the
+consumer rerun from concurrent publication cache maintenance.

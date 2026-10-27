@@ -184,6 +184,7 @@ export async function armFreshText(locator: Locator, previous: string | null, ti
     };
     const inspect = () => {
       if (!element.isConnected || state.text) return;
+      if (element.shadowRoot) { observe(element.shadowRoot); descendants(element.shadowRoot); }
       descendants(element);
       const text = engine.text(element);
       if (text && text !== previous) state.text = text;
