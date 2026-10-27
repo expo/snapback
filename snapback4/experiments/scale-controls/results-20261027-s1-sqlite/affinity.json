@@ -1,0 +1,172 @@
+[
+  {
+    "segment": "diagnostic",
+    "cell": "w1-n1000000-d0-c128-disjoint",
+    "tasks": 11,
+    "cpus": [
+      3,
+      4,
+      9,
+      10
+    ]
+  },
+  {
+    "segment": "diagnostic",
+    "cell": "w4-n1000000-d0-c32-disjoint",
+    "tasks": 11,
+    "cpus": [
+      3,
+      4,
+      9,
+      10
+    ]
+  },
+  {
+    "segment": "diagnostic",
+    "cell": "w5-n1000000-d0-c32-hot1",
+    "tasks": 11,
+    "cpus": [
+      3,
+      4,
+      9,
+      10
+    ]
+  },
+  {
+    "segment": "diagnostic",
+    "cell": "w2-n1000000-d0-c128-disjoint",
+    "tasks": 10,
+    "cpus": [
+      3,
+      4,
+      9,
+      10
+    ]
+  },
+  {
+    "segment": "diagnostic",
+    "cell": "w5-n1000000-d0-c32-same",
+    "tasks": 11,
+    "cpus": [
+      3,
+      4,
+      9,
+      10
+    ]
+  },
+  {
+    "segment": "diagnostic",
+    "cell": "w3-n1000000-d0-c128-disjoint",
+    "tasks": 10,
+    "cpus": [
+      3,
+      4,
+      9,
+      10
+    ]
+  },
+  {
+    "segment": "diagnostic",
+    "role": "generator",
+    "process_observations": 12,
+    "all_threads": [
+      5,
+      11
+    ]
+  },
+  {
+    "segment": "matrix",
+    "cell": "w1-n1000000-d0-c128-disjoint",
+    "tasks": 11,
+    "cpus": [
+      3,
+      4,
+      9,
+      10
+    ]
+  },
+  {
+    "segment": "matrix",
+    "cell": "w4-n1000000-d0-c32-disjoint",
+    "tasks": 11,
+    "cpus": [
+      3,
+      4,
+      9,
+      10
+    ]
+  },
+  {
+    "segment": "matrix",
+    "cell": "w5-n1000000-d0-c32-hot1",
+    "tasks": 11,
+    "cpus": [
+      3,
+      4,
+      9,
+      10
+    ]
+  },
+  {
+    "segment": "matrix",
+    "cell": "w2-n1000000-d0-c128-disjoint",
+    "tasks": 10,
+    "cpus": [
+      3,
+      4,
+      9,
+      10
+    ]
+  },
+  {
+    "segment": "matrix",
+    "cell": "w5-n1000000-d0-c32-same",
+    "tasks": 11,
+    "cpus": [
+      3,
+      4,
+      9,
+      10
+    ]
+  },
+  {
+    "segment": "matrix",
+    "cell": "w3-n1000000-d0-c128-disjoint",
+    "tasks": 10,
+    "cpus": [
+      3,
+      4,
+      9,
+      10
+    ]
+  },
+  {
+    "segment": "matrix",
+    "role": "generator",
+    "process_observations": 123,
+    "all_threads": [
+      5,
+      11
+    ]
+  },
+  {
+    "segment": "smoke",
+    "cell": "w2-n1000000-d0-c128-disjoint",
+    "tasks": 11,
+    "cpus": [
+      3,
+      4,
+      9,
+      10
+    ]
+  },
+  {
+    "segment": "smoke",
+    "role": "generator",
+    "process_observations": 3,
+    "all_threads": [
+      5,
+      11
+    ]
+  }
+]

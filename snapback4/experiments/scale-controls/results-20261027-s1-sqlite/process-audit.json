@@ -1,0 +1,9 @@
+{
+  "ledger_events": 1218,
+  "distinct_recorded_identities": 819,
+  "live_owned": [],
+  "zombies_owned": [],
+  "unexpected_lane_processes": [],
+  "check": "PID/birth identity recheck plus independent exact lane-path process census; current finisher/tool ancestors excluded",
+  "build_census": "Initial Cargo PID recorded; compiler-child census began late. Cargo completed successfully; final process census finds no lane build/helper process. Benchmark child PIDs recorded immediately."
+}

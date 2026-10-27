@@ -1,0 +1,35 @@
+# S1-SQ method
+
+The unchanged `Run.cell` search, release S1-C generator and `snapback.Snapback.trial` serve lifecycle run through `s1-onehost.py --system snapback --store sqlite`. The SQLite adapter selects the existing native SQLite fixture/deploy/serve/snapshot path, removes the database cluster/proxy and uses the common one-second host start gate. Native HTTP identity writes provide the same FIFO drain barriers as the PG adapter. The common whole-cohort durable counter equality includes warm-up. `audit.py` independently checks every repetition and histogram.
+
+One natural column: SQLite has no database network link. Compare against the requested S1-C A/natural column, whose proxy adds 250 µs per direction. No artificial delay is added to SQLite and unused PG cores are not reassigned. App threads remain on 3–4,9–10, generator threads on 5,11. PG control cores 0–2,6–8 are unused by this product deployment. Affinity is witnessed live; no unrelated process may exceed one sampled core at a released cell start. This does not reserve the host during a trial.
+
+The deterministic fixture has 1M messages, 256 users, 1,025 rooms, 8,448 memberships and 257 counters. Existing `/seed` operations and stopped-store backup/deploy create it. The matrix restores the stopped, verified smoke deployment with a read-only SQLite backup and a copy of its release metadata; every message image, last-read offset, counter and maintained total is verified. Each capacity cell starts a fresh serve process and reuses it for the search. Reads use 128 clients with cap 32; writes 32 clients/cap 32. Each rate has 10 s warm-up, 20 s measurement, three repetitions. Passing requires every repetition to have intended-arrival p99 ≤50 ms reads /100 ms writes, errors ≤0.1%, and exact write counters. Timeouts/expired arrivals and unknown outcomes remain counted. The inherited double/halve search plus geometric midpoint is supplemented by 19,027, 22,627, 32,000 and 45,254 read rungs; the ordinary upward search can continue to 128,000.
+
+The product is release-built from local `9ee365bbd6` with its own worktree target, then copied to a stable executable. It retains the old SQLite run's and prior native one-host builds' `LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT`; no new SQLite compilation tuning is introduced. The generator is the identical release binary from this tree's prior S1-WP build of the archived S1-C source; its SHA and source-verification receipt match. No newer telemetry is added to only the current capacity generator. Product, Quarry, SQLite build options and durability remain unchanged. `SNAPBACK4_READ_GRANT_CLOCK_BOUNDS=1000,250` is set, as requested. SQLite is explicitly excluded from revision-cache eligibility, so the setting has no cache effect: G5/G6 hits are zero, effective query hit share 0%, and lookup hit rate is undefined (zero lookups).
+
+SQLite remains WAL with `synchronous=FULL`. Its database is under `/tmp/s1c-*/deployment`, on the same `/dev/nvme0n1p3` ext4 filesystem used by the PG controls' `/tmp/s1c-*/pg`. The 25 GiB outer stop monitor runs alongside the campaign; the common runner retains its stricter 30 GiB boundary guard. No database flush, barrier, mount or product knob is tuned.
+
+Capacity runs have no `LD_PRELOAD`, request trace or statement observation. Separate diagnostic runs restore the stopped smoke fixture, verify it, and use the same immutable executable with opt-in `sqlite-observe.c`. The observer checks the exact x86-64 ELF entry instructions and redirects `sqlite3_open_v2` in process memory to install the existing `sqlite3_trace_v2` callback. It logs only statement classes and clocks; real `fsync`/`fdatasync` calls retain arguments, results and errno. The executable file is unchanged. This is separate instrumentation, not a product implementation change or capacity qualification. Symbol offsets come from `nm` on the exact executable. Trace events are filtered to the server PID and the load-child lifetime; setup, SQL observers and post-load drain/mint operations are excluded. Statement executions include transaction controls and all ordinary server/background work. Mean N is acknowledged increments divided by successful physical write-transaction commits; flushes/write also count checkpoint flushes. Diagnostic overhead can change fill/latency, so its N/statement/flush measurements must not be silently assigned to the uninstrumented capacity trials.
+
+CPU/op uses the original outer sampler's Linux process-wide user+system tick deltas, divided by whole-cohort acknowledgements, including warm-up. First/last sample boundary intervals are omitted. These are approximate app costs, with no total-system or measured-window-only claim. The historical RCPU issue is now closed; the PG-family sampler was separate from this single-process outer sampler.
+
+The 2026-10-22 SQLite comparison used three physical app cores and three generator cores; this run retains the controls' two app cores and one generator core. Revision, topology, host activity and search changes are confounded; old/new ratios do not isolate a causal patch speedup. The requested original S1-C Convex W2 row was search-dependent (707/s); the later final one-host report re-searched it to 8,000/s on A. The primary table uses the requested snapshot and separately discloses that stronger W2 comparison.
+
+The original smoke has three passing trials and successful cleanup but controller exit 1: a replay-metadata rewrite incorrectly used exclusive create after the common summary already existed. The adapter was corrected before the matrix. The original trials and error are retained; no repetition was replaced or silently rescued. Two further matrix setup attempts ended before any timed trial: one was stopped to correct the repeated authorization-metadata write and reuse the verified fixture, and one restoration incorrectly tried to deploy from a fresh development project with no development store. Restoration now copies the existing deployed metadata and verifies every fixture image. Their cleanup and original logs remain in the raw archive.
+
+## Replay on this host
+
+The archive retains the exact generator and native executable. With a new output directory (record the launched supervisor PID, as in the lane brief):
+
+```sh
+SNAPBACK4_READ_GRANT_CLOCK_BOUNDS=1000,250 \
+python3 snapback4/experiments/scale-controls/scripts/s1-onehost.py \
+  --system snapback --store sqlite --mode matrix \
+  --out "$HOME/sb4scale/s1-sqlite-replay-NEW" \
+  --snapback-bin "$HOME/sb4scale/s1-sqlite-20261027/bin/snapback4" \
+  --harness "$HOME/sb4scale/s1-sqlite-20261027/bin/sb4-scale-controls" \
+  --extra-read-rates 19027 22627 32000 45254
+```
+
+Without `--sqlite-seed-release`, the adapter seeds and verifies a fresh native fixture. The optional flag accepts an owned stopped deployment and restores its release metadata/database with full fixture verification; no counter SQL is used to reset a fixture. SQLite link B and use of this restoration flag with a Postgres store are rejected before setup. The command runs no Postgres cluster, database proxy or artificial database delay.

@@ -1,0 +1,32 @@
+{
+  "python_compile": true,
+  "c_observer_wall_wextra_werror": true,
+  "cli_guards": [
+    {
+      "arguments": [
+        "--store",
+        "sqlite",
+        "--link",
+        "B"
+      ],
+      "status": 2,
+      "refused_before_setup": true
+    },
+    {
+      "arguments": [
+        "--sqlite-seed-release",
+        "/tmp/unused"
+      ],
+      "status": 2,
+      "refused_before_setup": true
+    }
+  ],
+  "default_pg_selection_unchanged": true,
+  "independent_arrival_histogram_and_slo_audit": true,
+  "before_after_counter_arithmetic": true,
+  "full_fixture_image_equality": true,
+  "live_affinity": true,
+  "archive_baselines_verified": true,
+  "product_source_delta": [],
+  "affected_plan": "Selector falls broad on experimental benchmark/report paths; report-scoped checks run. No product battery or publication qualification claim."
+}

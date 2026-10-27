@@ -1,0 +1,760 @@
+[
+  {
+    "workload": "W1",
+    "keys": "disjoint",
+    "summary": {
+      "highest_passing_offered_per_s": 16000,
+      "lowest_failing_offered_per_s": 19027,
+      "bracketed": true,
+      "rates": [
+        1000,
+        2000,
+        4000,
+        8000,
+        16000,
+        19027,
+        22627,
+        32000,
+        45254
+      ],
+      "repeats": 3
+    },
+    "control": {
+      "system": "supabase",
+      "rate": 2000,
+      "p50_ms": 3.098623,
+      "p99_ms": 3.725311
+    },
+    "previous_sqlite": {
+      "rate": 2828,
+      "p50_ms": 0.484095,
+      "p99_ms": 0.688639
+    },
+    "rate": 16000,
+    "verdict": "WIN",
+    "latency_ms": {
+      "p50_ms": {
+        "min": 0.714751,
+        "median": 0.788991,
+        "max": 0.799743
+      },
+      "p99_ms": {
+        "min": 22.855679,
+        "median": 24.625151,
+        "max": 25.985023
+      },
+      "p999_ms": {
+        "min": 56.426495,
+        "median": 56.885247,
+        "max": 57.212927
+      }
+    },
+    "cpu": {
+      "app_cpu_us_per_ack": {
+        "min": 219.39583333333334,
+        "median": 221.54166666666666,
+        "max": 221.91666666666666
+      },
+      "app_cores": {
+        "min": 3.497671274492854,
+        "median": 3.533592736994937,
+        "max": 3.5386267025022864
+      },
+      "app_cpu_s": {
+        "min": 105.31,
+        "median": 106.34,
+        "max": 106.52
+      },
+      "app_sample_span_s": {
+        "min": 30.094017028808594,
+        "median": 30.102073192596436,
+        "max": 30.108604192733765
+      },
+      "generator_cpu_us_per_ack": {
+        "min": 110.20833333333333,
+        "median": 110.47916666666667,
+        "max": 110.625
+      },
+      "generator_cores": {
+        "min": 1.7578244854902403,
+        "median": 1.761672681502969,
+        "max": 1.763615465535757
+      },
+      "generator_cpu_s": {
+        "min": 52.9,
+        "median": 53.03,
+        "max": 53.1
+      },
+      "generator_sample_span_s": {
+        "min": 30.094017028808594,
+        "median": 30.102073192596436,
+        "max": 30.108604192733765
+      },
+      "sample_count": {
+        "min": 117,
+        "median": 117,
+        "max": 117
+      },
+      "app_boundary_missing_samples": {
+        "min": 0,
+        "median": 0,
+        "max": 0
+      }
+    },
+    "io_bytes_per_ack": {
+      "rchar": {
+        "min": 26267.963733333334,
+        "median": 26273.024416666667,
+        "max": 26280.4224
+      },
+      "wchar": {
+        "min": 0.06866666666666667,
+        "median": 0.11158333333333334,
+        "max": 0.12016666666666667
+      },
+      "read_bytes": {
+        "min": 0.0,
+        "median": 0.0,
+        "max": 0.0
+      },
+      "write_bytes": {
+        "min": 0.11946666666666667,
+        "median": 0.17066666666666666,
+        "max": 0.17066666666666666
+      }
+    },
+    "cache": {
+      "g5_hits": 0,
+      "g6_hits": 0,
+      "query_hit_share_percent": 0,
+      "cache_lookup_hit_rate": null,
+      "reason": "Explicit Postgres-only cache_key eligibility rejects SQLite before lookup, so no lookup denominator; every query uses fresh ordinary SQLite snapshot/interpreter."
+    }
+  },
+  {
+    "workload": "W2",
+    "keys": "disjoint",
+    "summary": {
+      "highest_passing_offered_per_s": 8000,
+      "lowest_failing_offered_per_s": 11313,
+      "bracketed": true,
+      "rates": [
+        1000,
+        2000,
+        4000,
+        8000,
+        11313,
+        16000,
+        19027,
+        22627,
+        32000,
+        45254
+      ],
+      "repeats": 3
+    },
+    "control": {
+      "system": "supabase",
+      "rate": 2000,
+      "p50_ms": 3.506175,
+      "p99_ms": 4.292607
+    },
+    "previous_sqlite": {
+      "rate": 5656,
+      "p50_ms": 0.500479,
+      "p99_ms": 1.116159
+    },
+    "rate": 8000,
+    "verdict": "WIN",
+    "latency_ms": {
+      "p50_ms": {
+        "min": 0.626687,
+        "median": 0.648703,
+        "max": 0.650239
+      },
+      "p99_ms": {
+        "min": 2.877439,
+        "median": 3.219455,
+        "max": 28.082175
+      },
+      "p999_ms": {
+        "min": 34.471935,
+        "median": 41.975807,
+        "max": 77.070335
+      }
+    },
+    "cpu": {
+      "app_cpu_us_per_ack": {
+        "min": 386.125,
+        "median": 386.9583333333333,
+        "max": 388.2661777574066
+      },
+      "app_cores": {
+        "min": 3.0818559708652216,
+        "median": 3.087195144840559,
+        "max": 3.1058903810248206
+      },
+      "app_cpu_s": {
+        "min": 92.67,
+        "median": 92.87,
+        "max": 93.18
+      },
+      "app_sample_span_s": {
+        "min": 30.00105881690979,
+        "median": 30.01753878593445,
+        "max": 30.13443875312805
+      },
+      "generator_cpu_us_per_ack": {
+        "min": 185.2993874744781,
+        "median": 185.45833333333334,
+        "max": 185.5
+      },
+      "generator_cores": {
+        "min": 1.4770475854765908,
+        "median": 1.4822810178597743,
+        "max": 1.483132921639168
+      },
+      "generator_cpu_s": {
+        "min": 44.47,
+        "median": 44.51,
+        "max": 44.52
+      },
+      "generator_sample_span_s": {
+        "min": 30.00105881690979,
+        "median": 30.01753878593445,
+        "max": 30.13443875312805
+      },
+      "sample_count": {
+        "min": 118,
+        "median": 118,
+        "max": 119
+      },
+      "app_boundary_missing_samples": {
+        "min": 0,
+        "median": 0,
+        "max": 0
+      }
+    },
+    "io_bytes_per_ack": {
+      "rchar": {
+        "min": 107543.28476666666,
+        "median": 107587.51042960123,
+        "max": 107761.70146666667
+      },
+      "wchar": {
+        "min": 0.13733333333333334,
+        "median": 0.24033333333333334,
+        "max": 0.24034334763948498
+      },
+      "read_bytes": {
+        "min": 0.0,
+        "median": 0.0,
+        "max": 0.0
+      },
+      "write_bytes": {
+        "min": 0.23893333333333333,
+        "median": 0.34134755614817286,
+        "max": 0.3584
+      }
+    },
+    "cache": {
+      "g5_hits": 0,
+      "g6_hits": 0,
+      "query_hit_share_percent": 0,
+      "cache_lookup_hit_rate": null,
+      "reason": "Explicit Postgres-only cache_key eligibility rejects SQLite before lookup, so no lookup denominator; every query uses fresh ordinary SQLite snapshot/interpreter."
+    }
+  },
+  {
+    "workload": "W3",
+    "keys": "disjoint",
+    "summary": {
+      "highest_passing_offered_per_s": 2828,
+      "lowest_failing_offered_per_s": 4000,
+      "bracketed": true,
+      "rates": [
+        1000,
+        2000,
+        2828,
+        4000,
+        19027,
+        22627,
+        32000,
+        45254
+      ],
+      "repeats": 3
+    },
+    "control": {
+      "system": "convex",
+      "rate": 8000,
+      "p50_ms": 0.428031,
+      "p99_ms": 2.932735
+    },
+    "previous_sqlite": {
+      "rate": 2828,
+      "p50_ms": 1.180671,
+      "p99_ms": 2.373631
+    },
+    "rate": 2828,
+    "verdict": "LOSS",
+    "latency_ms": {
+      "p50_ms": {
+        "min": 2.455551,
+        "median": 2.465791,
+        "max": 2.496511
+      },
+      "p99_ms": {
+        "min": 9.183231,
+        "median": 9.314303,
+        "max": 9.699327
+      },
+      "p999_ms": {
+        "min": 13.787135,
+        "median": 14.237695,
+        "max": 15.785983
+      }
+    },
+    "cpu": {
+      "app_cpu_us_per_ack": {
+        "min": 1257.3078736445073,
+        "median": 1261.3154172560114,
+        "max": 1261.6690240452617
+      },
+      "app_cores": {
+        "min": 3.5599735773219723,
+        "median": 3.5687833547574717,
+        "max": 3.570098465383834
+      },
+      "app_cpu_s": {
+        "min": 106.67,
+        "median": 107.01,
+        "max": 107.04
+      },
+      "app_sample_span_s": {
+        "min": 29.96370553970337,
+        "median": 29.98236632347107,
+        "max": 29.985008716583252
+      },
+      "generator_cpu_us_per_ack": {
+        "min": 254.5968882602546,
+        "median": 256.71852899575674,
+        "max": 258.13295615275814
+      },
+      "generator_cores": {
+        "min": 0.7204234571402356,
+        "median": 0.7263629704384424,
+        "max": 0.7308842349615748
+      },
+      "generator_cpu_s": {
+        "min": 21.6,
+        "median": 21.78,
+        "max": 21.9
+      },
+      "generator_sample_span_s": {
+        "min": 29.96370553970337,
+        "median": 29.98236632347107,
+        "max": 29.985008716583252
+      },
+      "sample_count": {
+        "min": 119,
+        "median": 119,
+        "max": 119
+      },
+      "app_boundary_missing_samples": {
+        "min": 0,
+        "median": 0,
+        "max": 0
+      }
+    },
+    "io_bytes_per_ack": {
+      "rchar": {
+        "min": 1578.7270155586987,
+        "median": 1633.5238095238096,
+        "max": 1655.6356435643565
+      },
+      "wchar": {
+        "min": 0.3884959924563885,
+        "median": 0.3884959924563885,
+        "max": 0.5341819896275342
+      },
+      "read_bytes": {
+        "min": 0.0,
+        "median": 0.0,
+        "max": 0.0
+      },
+      "write_bytes": {
+        "min": 0.6276284771334276,
+        "median": 0.6759075907590759,
+        "max": 0.8207449316360207
+      }
+    },
+    "cache": {
+      "g5_hits": 0,
+      "g6_hits": 0,
+      "query_hit_share_percent": 0,
+      "cache_lookup_hit_rate": null,
+      "reason": "Explicit Postgres-only cache_key eligibility rejects SQLite before lookup, so no lookup denominator; every query uses fresh ordinary SQLite snapshot/interpreter."
+    }
+  },
+  {
+    "workload": "W4",
+    "keys": "disjoint",
+    "summary": {
+      "highest_passing_offered_per_s": 1131,
+      "lowest_failing_offered_per_s": 1600,
+      "bracketed": true,
+      "rates": [
+        800,
+        1131,
+        1600,
+        3200
+      ],
+      "repeats": 3
+    },
+    "control": {
+      "system": "supabase",
+      "rate": 3200,
+      "p50_ms": 8.019967,
+      "p99_ms": 29.442047
+    },
+    "previous_sqlite": {
+      "rate": 100,
+      "p50_ms": 8.601599,
+      "p99_ms": 23.117823
+    },
+    "rate": 1131,
+    "verdict": "LOSS",
+    "latency_ms": {
+      "p50_ms": {
+        "min": 20.545535,
+        "median": 21.250047,
+        "max": 21.561343
+      },
+      "p99_ms": {
+        "min": 43.286527,
+        "median": 43.745279,
+        "max": 46.497791
+      },
+      "p999_ms": {
+        "min": 51.478527,
+        "median": 52.068351,
+        "max": 55.476223
+      }
+    },
+    "cpu": {
+      "app_cpu_us_per_ack": {
+        "min": 468.92039258451473,
+        "median": 472.14854111405833,
+        "max": 473.34138937192364
+      },
+      "app_cores": {
+        "min": 0.529447231996214,
+        "median": 0.5328336438534386,
+        "max": 0.533976760617363
+      },
+      "app_cpu_s": {
+        "min": 15.91,
+        "median": 16.02,
+        "max": 16.06
+      },
+      "app_sample_span_s": {
+        "min": 30.050209045410156,
+        "median": 30.065669059753418,
+        "max": 30.076215267181396
+      },
+      "generator_cpu_us_per_ack": {
+        "min": 218.10250817884406,
+        "median": 219.57617377464706,
+        "max": 220.45387562628943
+      },
+      "generator_cores": {
+        "min": 0.24604159580127563,
+        "median": 0.24791840844574448,
+        "max": 0.24878874257326597
+      },
+      "generator_cpu_s": {
+        "min": 7.4,
+        "median": 7.45,
+        "max": 7.48
+      },
+      "generator_sample_span_s": {
+        "min": 30.050209045410156,
+        "median": 30.065669059753418,
+        "max": 30.076215267181396
+      },
+      "sample_count": {
+        "min": 119,
+        "median": 119,
+        "max": 119
+      },
+      "app_boundary_missing_samples": {
+        "min": 0,
+        "median": 0,
+        "max": 0
+      }
+    },
+    "io_bytes_per_ack": {
+      "rchar": {
+        "min": 147.28167644198177,
+        "median": 148.12236958443856,
+        "max": 148.36818061245543
+      },
+      "wchar": {
+        "min": 2674.311111111111,
+        "median": 2677.0679065106547,
+        "max": 2708.8875298417283
+      },
+      "read_bytes": {
+        "min": 0.0,
+        "median": 0.0,
+        "max": 0.0
+      },
+      "write_bytes": {
+        "min": 2979.5895078101976,
+        "median": 2982.5746706357395,
+        "max": 3019.1536443750183
+      }
+    }
+  },
+  {
+    "workload": "W5",
+    "keys": "hot1",
+    "summary": {
+      "highest_passing_offered_per_s": 1131,
+      "lowest_failing_offered_per_s": 1600,
+      "bracketed": true,
+      "rates": [
+        800,
+        1131,
+        1600,
+        3200
+      ],
+      "repeats": 3
+    },
+    "control": {
+      "system": "supabase",
+      "rate": 800,
+      "p50_ms": 7.200767,
+      "p99_ms": 13.885439
+    },
+    "previous_sqlite": {
+      "rate": 100,
+      "p50_ms": 8.683519,
+      "p99_ms": 21.643263
+    },
+    "rate": 1131,
+    "verdict": "WIN",
+    "latency_ms": {
+      "p50_ms": {
+        "min": 20.627455,
+        "median": 21.233663,
+        "max": 21.381119
+      },
+      "p99_ms": {
+        "min": 42.369023,
+        "median": 42.631167,
+        "max": 73.138175
+      },
+      "p999_ms": {
+        "min": 49.872895,
+        "median": 52.264959,
+        "max": 103.874559
+      }
+    },
+    "cpu": {
+      "app_cpu_us_per_ack": {
+        "min": 474.80106100795757,
+        "median": 475.41853336477243,
+        "max": 475.685234305924
+      },
+      "app_cores": {
+        "min": 0.535618199245259,
+        "median": 0.5363929940229006,
+        "max": 0.5367660182090335
+      },
+      "app_cpu_s": {
+        "min": 16.11,
+        "median": 16.13,
+        "max": 16.14
+      },
+      "app_sample_span_s": {
+        "min": 30.068967580795288,
+        "median": 30.071235418319702,
+        "max": 30.077394723892212
+      },
+      "generator_cpu_us_per_ack": {
+        "min": 219.27497789566755,
+        "median": 219.56970232832302,
+        "max": 220.17212921480782
+      },
+      "generator_cores": {
+        "min": 0.2473618499307714,
+        "median": 0.24776374446451668,
+        "max": 0.24841014664296765
+      },
+      "generator_cpu_s": {
+        "min": 7.44,
+        "median": 7.45,
+        "max": 7.47
+      },
+      "generator_sample_span_s": {
+        "min": 30.068967580795288,
+        "median": 30.071235418319702,
+        "max": 30.077394723892212
+      },
+      "sample_count": {
+        "min": 119,
+        "median": 119,
+        "max": 119
+      },
+      "app_boundary_missing_samples": {
+        "min": 0,
+        "median": 0,
+        "max": 0
+      }
+    },
+    "io_bytes_per_ack": {
+      "rchar": {
+        "min": 150.1745947539051,
+        "median": 150.7781903919835,
+        "max": 157.66847441641121
+      },
+      "wchar": {
+        "min": 2715.7055113468905,
+        "median": 2738.530857648099,
+        "max": 2738.661547983966
+      },
+      "read_bytes": {
+        "min": 0.0,
+        "median": 0.0,
+        "max": 0.0
+      },
+      "write_bytes": {
+        "min": 3020.2718538166814,
+        "median": 3044.7778367226642,
+        "max": 3044.9573213864655
+      }
+    }
+  },
+  {
+    "workload": "W5",
+    "keys": "same",
+    "summary": {
+      "highest_passing_offered_per_s": 1131,
+      "lowest_failing_offered_per_s": 1600,
+      "bracketed": true,
+      "rates": [
+        100,
+        200,
+        400,
+        800,
+        1131,
+        1600
+      ],
+      "repeats": 3
+    },
+    "control": {
+      "system": "convex",
+      "rate": 25,
+      "p50_ms": 22.560767,
+      "p99_ms": 28.803071
+    },
+    "previous_sqlite": {
+      "rate": 100,
+      "p50_ms": 8.691711,
+      "p99_ms": 63.340543
+    },
+    "rate": 1131,
+    "verdict": "WIN",
+    "latency_ms": {
+      "p50_ms": {
+        "min": 24.100863,
+        "median": 26.525695,
+        "max": 27.262975
+      },
+      "p99_ms": {
+        "min": 54.263807,
+        "median": 56.655871,
+        "max": 86.179839
+      },
+      "p999_ms": {
+        "min": 65.110015,
+        "median": 66.453503,
+        "max": 116.326399
+      }
+    },
+    "cpu": {
+      "app_cpu_us_per_ack": {
+        "min": 515.3757702627001,
+        "median": 517.2871164559201,
+        "max": 517.8308281756557
+      },
+      "app_cores": {
+        "min": 0.5810986499158393,
+        "median": 0.5835446388604014,
+        "max": 0.5836389489374694
+      },
+      "app_cpu_s": {
+        "min": 17.48,
+        "median": 17.55,
+        "max": 17.57
+      },
+      "app_sample_span_s": {
+        "min": 30.074820041656494,
+        "median": 30.08095097541809,
+        "max": 30.104228019714355
+      },
+      "generator_cpu_us_per_ack": {
+        "min": 215.82097473243508,
+        "median": 216.34686238099448,
+        "max": 218.39080459770116
+      },
+      "generator_cores": {
+        "min": 0.24334337055972216,
+        "median": 0.2440579857114157,
+        "max": 0.24614482707038404
+      },
+      "generator_cpu_s": {
+        "min": 7.32,
+        "median": 7.34,
+        "max": 7.41
+      },
+      "generator_sample_span_s": {
+        "min": 30.074820041656494,
+        "median": 30.08095097541809,
+        "max": 30.104228019714355
+      },
+      "sample_count": {
+        "min": 119,
+        "median": 119,
+        "max": 119
+      },
+      "app_boundary_missing_samples": {
+        "min": 0,
+        "median": 0,
+        "max": 0
+      }
+    },
+    "io_bytes_per_ack": {
+      "rchar": {
+        "min": 124.58213969938107,
+        "median": 133.88935066466237,
+        "max": 134.04959165020492
+      },
+      "wchar": {
+        "min": 2233.1055501517967,
+        "median": 2243.3675148155794,
+        "max": 2270.8236958443854
+      },
+      "read_bytes": {
+        "min": 0.0,
+        "median": 0.0,
+        "max": 0.0
+      },
+      "write_bytes": {
+        "min": 2516.6127273263182,
+        "median": 2529.6727894566147,
+        "max": 2559.486943707633
+      }
+    }
+  }
+]
