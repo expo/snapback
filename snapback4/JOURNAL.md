@@ -109354,3 +109354,25 @@ full core/binary and private Stage P receipts remain explicitly attributed to
 that lane. Add its admitted-helper/settings upgrade behavior to the same
 0.4.43 guide-changes entry; this is documentation of the accepted §3.11 rule,
 not a new storage design.
+
+
+## 2026-10-27 — SEC11 item 1 measured boundary
+
+LLP 3000.036.004.001 records current-witness decision refusals and bounded
+advisory replays for evidence absence/typing, direct guard reuse and actual
+structured read payloads. Commit-end parent survival and predicate evaluation
+exclude intermediate-only absence claims. Raw query observations stay live-only;
+redacted delivered fields and effective clocks participate in decision identity.
+No new production gate codes were added. Muse and fresh Codex source reviews
+are retained verbatim, including the cascade/expiry findings and corrections.
+
+On 800 source/fixture copies, no assessed false gates or production refusals;
+all fresh and post-test verdicts match their retained baselines. Default output
+medians are 3/5 check/deploy lines. Wave30 exact gate/default-question coverage
+is 4/14 (1 gate, 3 questions), up from 1/14; items 2–9 remain. Cold p90 review
+25.14 s and deploy 32.83 s miss the targets. The one-line wave30 lane033
+advanceJob fix clears its gate and preserves the unchanged app acceptance.
+Qualified affected security/language/client checks and the explicit test-only
+history assertion retry are recorded in `reports/sec11-item1/`; root legacy
+Snapback1 guide/codegen/inventory gates are outside this fence. The root
+WORKSTREAM-REPORT.md records the exact committed boundary and deferrals.

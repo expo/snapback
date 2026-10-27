@@ -48,13 +48,14 @@ rules={
 (30,'038','F1'):dict(codes=['N_DUPLICABLE_GUARD']),
 }
 def category(row,rule):
- if 'prevented'in rule:return dict(category='inherited type prevention',reason=rule['prevented'],targetVisible=False,evidence=[])
+ if 'prevented'in rule:return dict(category='nothing',reason='No current finding/witness; the calibrated input is already rejected by inherited language semantics.',inheritedLanguagePrevention=rule['prevented'],targetVisible=False,evidence=[])
  ev=[]
  for d in row['reviews']:
   w=d.get('witness')
   if d['code']not in rule.get('codes',[])or not w:continue
   if rule.get('ops')and w.get('operation')not in rule['ops']:continue
-  if rule.get('term')and rule['term'].lower()not in (w.get('candidate','')+' '+json.dumps(w.get('row',{}))).lower():continue
+  material=w.get('candidate','') if d['code']in['N_TEXT_EVIDENCE','N_OPTIONAL_EVIDENCE']else w.get('candidate','')+' '+json.dumps(w.get('row',{}))
+  if rule.get('term')and rule['term'].lower()not in material.lower():continue
   if any(w.get('row',{}).get(k)!=v for k,v in rule.get('truth',{}).items()):continue
   if rule.get('decrease'):
    c=rule['decrease'];old=(w.get('old')or{}).get(c);new=(w.get('row')or{}).get(c)
@@ -75,5 +76,5 @@ for wave in [26,28,30]:
   if finding['backend']!='snapback'or finding['cal']!='M':continue
   key=(wave,finding['lane'],finding['id']);rule=rules[key];records=[idx[(wave,finding['lane'])]for idx in indexes]
   assess.append(dict(wave=wave,lane=finding['lane'],finding=finding['id'],pattern=finding.get('pattern'),calibration=finding.get('rule')or finding.get('note'),match=rule,sourceHashMatches=records[0]['sha256']==records[1]['sha256'],before=category(records[0],rule),after=category(records[1],rule)))
-result=dict(method='Exact calibrated effects matched by operation, material predicate/column, and where relevant actual row values. Unrelated questions are excluded. Inherited type prevention is reported separately.',assessments=assess,summary={str(w):{when:dict(collections.Counter(x[when]['category']for x in assess if x['wave']==w))for when in['before','after']}for w in[26,28,30]})
+result=dict(method='Exact calibrated effects matched by operation, material predicate/column, and where relevant actual row values. Unrelated questions are excluded. The four requested finding categories are used; rows already prevented by inherited types have category nothing (no current finding/witness) and an explicit inheritedLanguagePrevention flag, never SEC11 credit.',assessments=assess,summary={str(w):{when:dict(collections.Counter(x[when]['category']for x in assess if x['wave']==w))for when in['before','after']}for w in[26,28,30]})
 pathlib.Path(a.out).write_text(json.dumps(result,indent=2)+'\n');print(json.dumps(result['summary'],indent=2))

@@ -14,5 +14,10 @@
   "rawEvidence": "/home/ccheever/sb4-loop/reports/sec11",
   "scope": "SEC11 item1 only; items2\u20139 deferred; no new production gate codes",
   "survey": "800 copied schemas, fresh deploy plus test and post-test deploy; source hashes compared to Integration27",
-  "timing": "50 wave30 apps, one worker, fresh independent copy per cold check --review and production deploy, after full survey"
+  "timing": "50 wave30 apps, one worker, fresh independent copy per cold check --review and production deploy, after full survey",
+  "qualificationHead": "58f30f47f0",
+  "testOnlyRetryHead": "0dd5622566",
+  "qualification": "Explicit composition of retained original FAIL receipt and targeted PASS retry; all applicable product steps pass. Root Snapback1 checks are outside fence; canonical full pool not claimed.",
+  "latencyTargetsMet": false,
+  "coverageTargetMet": false
 }

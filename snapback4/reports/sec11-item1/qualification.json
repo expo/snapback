@@ -1,0 +1,63 @@
+{
+  "productSource": "267c579701",
+  "qualificationHead": "58f30f47f03ccf8a50dc138c03d2df848ed17afe",
+  "retryHead": "0dd5622566d1f82ba359a851c1a937fb8b1975e0",
+  "canonicalComplete": false,
+  "productScopePassedWithTargetedRetry": true,
+  "runtimeSourceChangedAfterQualification": false,
+  "cliUnitPassed": 53,
+  "cliIntegrationPassed": 32,
+  "language": {
+    "initialPassed": 2847,
+    "initialFailed": 3,
+    "ignored": 16,
+    "targets": 195,
+    "staleHistoryAssertions": [
+      "an_empty_trusted_store_can_reach_authored_disclosure",
+      "real_media_creation_is_replayed_before_role_revocation",
+      "time_arguments_expose_a_deadline_checked_on_the_wrong_reference"
+    ],
+    "targetedRetries": [
+      {
+        "name": "an_empty_trusted_store_can_reach_authored_disclosure",
+        "exit": 0,
+        "oneTestPassed": true,
+        "seconds": 3.5153621551580727
+      },
+      {
+        "name": "real_media_creation_is_replayed_before_role_revocation",
+        "exit": 0,
+        "oneTestPassed": true,
+        "seconds": 6.6800661811139435
+      },
+      {
+        "name": "time_arguments_expose_a_deadline_checked_on_the_wrong_reference",
+        "exit": 0,
+        "oneTestPassed": true,
+        "seconds": 3.556974634062499
+      }
+    ],
+    "resolvedPassed": 2850
+  },
+  "clientFiles": 6,
+  "clientTestsPassed": 17,
+  "notApplicable": {
+    "generated": "Root Snapback1 codegen: absent root acorn dependency; outside Snapback4 fence",
+    "guide": "Root Snapback1 guide: absent root JS dependencies; cancelled after precondition failure; outside fence",
+    "inventories": "Root Snapback1 inventory/guide corpus: cancelled as outside fence; no new test file/demo/publication leaf"
+  },
+  "reusedPassedSteps": [
+    "install-client",
+    "build-cli",
+    "build-wasm",
+    "build-client",
+    "rust:snapback4",
+    "rust:snapback4-security-integration",
+    "diagnostics",
+    "docs-budget",
+    "packaged-docs",
+    "ref-check",
+    "client-tests"
+  ],
+  "method": "Full changed language target completed; only three mutation-only history assertions failed. Test-only commit records terminal queries; each exact test passed from an immutable rebuilt executable. All other runtime inputs and prior passed steps are unchanged. Separate scoped retry and original FAIL receipts retained; no canonical full-pool PASS claim."
+}

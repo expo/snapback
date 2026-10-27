@@ -30,3 +30,14 @@ security_reviews and security_wave19. The changed language crate still runs
 its full target. The interrupted broad run is retained, never labeled PASS.
 This follows the brief's affected-scope requirement and pre-approved reasonable
 scope adjustments; integration owns unrelated CLI metrology.
+
+The common docs selection also queues root Snapback1 codegen, guide and
+inventory checks. The Snapback4 fence explicitly excludes those older gates.
+On this prescribed Snapback4-only setup, root codegen reports missing acorn;
+the root guide reports missing root JS dependencies. Those attempts and the
+legacy guide/inventory cancellations remain in the raw receipt, not PASS.
+Final scope uses Snapback4 docs-budget, packaged-doc lint, its full language
+suite (including guide cards), and the two selected guide client files. The
+local runner now excludes the three legacy checks. Ref-check still validates
+the shared LLP corpus. Do not install or bootstrap Snapback1 just to satisfy
+this selector routing mistake.
