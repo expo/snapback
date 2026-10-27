@@ -158,3 +158,31 @@ pub(in crate::verbs) fn render_mode(dispositions:&[Disposition],notes:&[Diagnost
   let output=render_mode(&[d],&[n],false);assert!(output.contains("no replay witness available")&&output.contains("specification rationale, not validation"),"{output}");
  }
 }
+
+#[cfg(test)]mod sec13_corpus_format {
+ use super::*;
+ /// Re-render retained real dispositions without repeating an unchanged search.
+ #[test]#[ignore="requires SEC13_CORPUS_INPUT and SEC13_CORPUS_OUTPUT retained survey paths"]
+ fn all_captured_default_cards_keep_their_witnesses_in_one_line(){
+  let input=std::env::var("SEC13_CORPUS_INPUT").unwrap();let output=std::env::var("SEC13_CORPUS_OUTPUT").unwrap();
+  let rows:serde_json::Value=serde_json::from_slice(&std::fs::read(input).unwrap()).unwrap();let mut results=Vec::new();
+  for row in rows.as_array().unwrap(){
+   let mut ds=Vec::new();let mut ns=Vec::new();let notes=row["notes"].as_array().unwrap();let mut used=std::collections::BTreeSet::new();
+   for value in row["reviews"].as_array().unwrap(){
+    let code=value["code"].as_str().unwrap();let site=value["site"].as_str().unwrap();
+    let index=notes.iter().enumerate().find(|(i,n)|!used.contains(i)&&n["code"]==code&&serde_json::from_value::<snapback4_lang::Site>(n["site"].clone()).is_ok_and(|s|s.to_string()==site)).map(|(i,_)|i).unwrap();used.insert(index);
+    let text=|key:&str|value[key].as_str().map(str::to_owned);
+    ds.push(Disposition{family:text("family"),id:text("id").unwrap(),code:code.into(),site:site.into(),gated:value["gated"]==true,acknowledged:value["acknowledged"]==true,recorded:value["recorded"]==true,reason:text("reason"),scope:text("scope").unwrap_or_default(),witness:value.get("witness").filter(|v|!v.is_null()).cloned()});
+    ns.push(Diagnostic::new(&serde_json::from_value(notes[index]["site"].clone()).unwrap(),code,notes[index]["message"].as_str().unwrap(),"retained original repair; see raw transcript"));
+   }
+   for (d,n) in ds.iter().zip(&ns).filter(|(d,_)|!d.gated&&!d.acknowledged&&!d.recorded&&d.witness.is_some()){
+    let card=render_mode(&[d.clone()],&[n.clone()],false);assert_eq!(card.lines().count(),1,"{} {}",row["lane"],d.code);
+    assert!(card.contains(&d.id)&&card.contains(d.witness.as_ref().unwrap()["compactSummary"].as_str().or_else(||d.witness.as_ref().unwrap()["summary"].as_str()).unwrap()));
+   }
+   let old=row["defaultCheck"]["stdout"].as_str().unwrap().to_owned()+row["defaultCheck"]["stderr"].as_str().unwrap();
+   let lines=old.lines().collect::<Vec<_>>();let joins=lines.windows(2).filter(|pair|pair[0].starts_with("fix question ")&&pair[1].starts_with("  Witness:")).count();
+   results.push(serde_json::json!({"wave":row["wave"],"lane":row["lane"],"sourceSha256":row["sha256"],"rawLines":lines.len(),"lines":lines.len()-joins,"joinedWitnessLines":joins}));
+  }
+  assert_eq!(results.len(),800);std::fs::write(output,serde_json::to_vec_pretty(&results).unwrap()).unwrap();
+ }
+}
