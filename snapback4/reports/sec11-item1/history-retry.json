@@ -1,0 +1,46 @@
+{
+  "head": "0dd5622566d1f82ba359a851c1a937fb8b1975e0",
+  "baseQualification": "58f30f47f0",
+  "runtimeSourceChanged": false,
+  "testOnlyChanged": [
+    "snapback4/crates/snapback4-lang/tests/security_histories.rs"
+  ],
+  "binarySha256": "9f33f2667cdd270de3fa35f67147d24b89b3f2eace133881888bf30ef446ba85",
+  "testSourceSha256": "157ab27a95b6fa355d0306cd54f033be4fc6738dcb039b52afbbe39e1fc56a77",
+  "buildCommand": [
+    "cargo",
+    "test",
+    "-p",
+    "snapback4-lang",
+    "--test",
+    "security_histories",
+    "--no-run",
+    "--message-format=json"
+  ],
+  "cargoEnvironment": {
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0"
+  },
+  "results": [
+    {
+      "name": "an_empty_trusted_store_can_reach_authored_disclosure",
+      "exit": 0,
+      "oneTestPassed": true,
+      "seconds": 3.5153621551580727
+    },
+    {
+      "name": "real_media_creation_is_replayed_before_role_revocation",
+      "exit": 0,
+      "oneTestPassed": true,
+      "seconds": 6.6800661811139435
+    },
+    {
+      "name": "time_arguments_expose_a_deadline_checked_on_the_wrong_reference",
+      "exit": 0,
+      "oneTestPassed": true,
+      "seconds": 3.556974634062499
+    }
+  ],
+  "ok": true
+}

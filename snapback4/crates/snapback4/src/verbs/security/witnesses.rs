@@ -14,6 +14,9 @@ fn hash(bytes: &[u8]) -> String {
 fn safe(value: &snapback4_core::Value, kind: Option<&ColumnType>) -> serde_json::Value {
     use snapback4_core::Value;
     match (value, kind.map(ColumnType::required)) {
+        // Absence is the material fact in presence questions, not an opaque
+        // payload. Preserve it for optional text/assets while redacting bytes.
+        (Value::Null, _) => serde_json::Value::Null,
         (
             _,
             Some(
@@ -53,6 +56,25 @@ fn image(bound: &Bound, table: &str, row: &snapback4_core::Value) -> serde_json:
             .collect::<BTreeMap<_, _>>()
     )
 }
+// Preserve delivered field sets and typed row values separately from the
+// physical policy image. Opaque JSON/text/assets never expose their payload.
+// @ref LLP 3000.036.004.001#read-payloads — a changed disclosure renews the witness decision.
+fn observed_data(bound:&Bound,ty:&snapback4_lang::types::Ty,value:&snapback4_core::Value)->serde_json::Value {
+    use snapback4_lang::types::Ty;
+    use snapback4_core::Value;
+    if *value==Value::Null{return serde_json::Value::Null;}
+    match ty {
+        Ty::Row(table)|Ty::WriteRow(table)=>image(bound,table,value),
+        Ty::Page(table,_)=>if let Value::Array(rows)=value{json!(rows.iter().map(|r|image(bound,table,r)).collect::<Vec<_>>())}else{json!("<redacted>")},
+        Ty::Optional(inner)|Ty::Omittable(inner)=>observed_data(bound,inner,value),
+        Ty::List(inner,_)|Ty::Collection(inner,_)=>if let Value::Array(values)=value{json!(values.iter().map(|v|observed_data(bound,inner,v)).collect::<Vec<_>>())}else{json!("<redacted>")},
+        Ty::Object(fields)|Ty::RowShape(fields)|Ty::RowObject(fields)=>json!(fields.iter().filter_map(|(name,ty)|value.field(name).ok().map(|v|(name,observed_data(bound,ty,v)))).collect::<BTreeMap<_,_>>()),
+        Ty::Id|Ty::Principal|Ty::Ref(_) if matches!(value,Value::Id(_))=>snapback4_core::wire::to_json(value),
+        Ty::Enum(variants) if matches!(value,Value::String(s) if variants.contains(s))=>snapback4_core::wire::to_json(value),
+        Ty::Json|Ty::Text(_)|Ty::Bytes|Ty::Image|Ty::Video|Ty::File|Ty::Cursor|Ty::Unknown=>json!("<redacted>"),
+        _=>safe(value,None),
+    }
+}
 fn actual_args(c: &Counterexample) -> &BTreeMap<String, snapback4_core::Value> {
     if !c.args.is_empty() {
         return &c.args;
@@ -90,6 +112,12 @@ fn dependencies(sources:&[(String,String)],bound:&Bound,inv:&security::Invariant
     }tables
 }
 pub(in crate::verbs) fn evidence(sources:&[(String,String)],bound: &Bound, inv: &security::Invariant, c: &Counterexample) -> serde_json::Value {
+    let observation=c.history.last().filter(|step|step.result["state"]=="observed").and_then(|step|{
+        let data=step.observed_data.as_ref()?.clone();
+        let result=&bound.programs.iter().find(|p|p.program.name==c.operation)?.result;
+        let visible=observed_data(bound,result,&data);
+        Some((data,visible,step.result["complete"].clone()))
+    });
     let args = actual_args(c)
         .iter()
         .map(|(name, value)| (name, safe(value, None)))
@@ -121,7 +149,7 @@ pub(in crate::verbs) fn evidence(sources:&[(String,String)],bound: &Bound, inv: 
     });}
     let focused=|row:&serde_json::Value| row.as_object().map(|row|row.iter().filter(|(key,_)|selected.borrow().contains(*key)).map(|(k,v)|(k.clone(),v.clone())).collect::<serde_json::Map<_,_>>()).map(serde_json::Value::Object).unwrap_or(serde_json::Value::Null);
     let compact_summary=format!("{} as {} → ok; {} {} -> {} (bounded replay; not proof)",c.operation,c.viewer,inv.target_label(),old.as_ref().map(|row|focused(row).to_string()).unwrap_or_else(||"absent".into()),focused(&next));
-    let history=c.history.iter().map(|step|json!({"operation":step.operation,"viewer":step.viewer,"args":step.args.iter().map(|(k,v)|(k,safe(v,None))).collect::<BTreeMap<_,_>>(),"state":step.result["state"]})).collect::<Vec<_>>();
+    let history=c.history.iter().map(|step|json!({"operation":step.operation,"viewer":step.viewer,"args":step.args.iter().map(|(k,v)|(k,safe(v,None))).collect::<BTreeMap<_,_>>(),"state":step.result["state"],"clock":step.clock.unwrap_or(challenges::NOW)})).collect::<Vec<_>>();
     let dependencies=dependencies(sources,bound,inv,c);
     let committed=c.history.last().and_then(|step|step.result.get("committedRows")).and_then(|value|serde_json::from_value::<BTreeMap<String,Vec<snapback4_core::Value>>>(value.clone()).ok());
     let supporting = c
@@ -144,11 +172,31 @@ pub(in crate::verbs) fn evidence(sources:&[(String,String)],bound: &Bound, inv: 
     for (table,rows) in &c.supporting_rows{if dependencies.contains(table){for row in rows{row_ids(table,row,&mut add_id);}}}
     if let Some(rows)=&committed{for (table,rows) in rows{if dependencies.contains(table){for row in rows{row_ids(table,row,&mut add_id);}}}}
     for value in actual_args(c).values(){add_id(value);}for step in &c.history{for value in step.args.values(){add_id(value);}}
+    fn observation_ids(value:&snapback4_core::Value,add:&mut dyn FnMut(&snapback4_core::Value)) {
+        use snapback4_core::Value;
+        match value{Value::Id(_)=>add(value),Value::Row(fields)=>for v in fields.values(){observation_ids(v,add)},Value::Map(fields)=>for v in fields.values(){observation_ids(v,add)},Value::Array(values)=>for v in values{observation_ids(v,add)},_=>{}}
+    }
+    if let Some((data,visible,_))=&observation{
+        fn strings(value:&serde_json::Value,out:&mut std::collections::BTreeSet<String>){match value{
+            serde_json::Value::String(s)=>{out.insert(s.clone());},serde_json::Value::Object(fields)=>for v in fields.values(){strings(v,out)},serde_json::Value::Array(values)=>for v in values{strings(v,out)},_=>{}
+        }}
+        let mut shown=std::collections::BTreeSet::new();strings(visible,&mut shown);
+        observation_ids(data,&mut |v|if let snapback4_core::Value::Id(id)=v&&shown.contains(id){add_id(v)});
+    }
     let mut value=json!({"compactSummary":compact_summary,"generatedIds":generated_ids,"history":history,"supportingRows":supporting,"summary":summary,"candidate":format!("invariant {} only {}",inv.target_label(),inv.predicate),"operation":c.operation,"viewer":c.viewer,"args":args,"effect":c.effect,"old":old,"row":next,"reachability":c.reachability,"scope":c.scope});
+    if let Some((_,data,complete))=observation {
+        value["kind"]="read-payload".into();
+        value["observation"]=json!({"data":data,"complete":complete});
+        value["summary"]=format!("{}({}) as {} → disclosed {}; policy image {}; observed result {}; candidate invariant {} only {} (repeatable typed payload on a finite generated-fixture replay, not proof)",c.operation,serde_json::to_string(&args).unwrap(),c.viewer,inv.target_label(),next,data,inv.target_label(),inv.predicate).into();
+        value["compactSummary"]=format!("{} as {} → disclosed {}; policy fields {} (bounded replay; not proof)",c.operation,c.viewer,inv.target_label(),focused(&next)).into();
+    }
     if let Some(rows)=committed{value["committedRows"]=json!(rows.iter().filter(|(table,_)|dependencies.contains(*table)).map(|(table,rows)|(table,rows.iter().map(|row|image(bound,table,row)).collect::<Vec<_>>())).collect::<BTreeMap<_,_>>());}
     super::super::security_reviews::witness::stamp(value)
 }
 mod approval_applicability;
+mod questions;
+mod candidate_batch;
+use candidate_batch::Candidate;
 use approval_applicability::{approval_trigger,precise_approval};
 fn candidate(sources: &[(String, String)], line: &str) -> Option<security::Invariant> {
     let mut sources = sources.to_vec();
@@ -173,6 +221,7 @@ fn candidates(
     let stages = security::derived::workflow_columns_from_sources(sources, bound);
     let mut out = Vec::new();
     for (index, n) in notes.iter().enumerate() {
+        out.extend(questions::proposals(bound,index,n));
         if n.code == "N_INSERT_WRITE_INTENT" {
             if let Some(subject) = n
                 .message
@@ -186,7 +235,7 @@ fn candidates(
                 let subject=subject.split(',').next().unwrap_or(subject);
                 for inv in &derived {
                     if subject == format!("{}.{}", inv.table, inv.column.as_deref().unwrap_or("")) {
-                        out.push((index, inv.clone()));
+                        out.push((index, Candidate::Bound(inv.clone())));
                     }
                 }
                 if let Some(policy) = n
@@ -196,12 +245,7 @@ fn candidates(
                     .and_then(|s| s.split_once(": ").map(|(_, p)| p))
                     .and_then(|s| s.split("; creation admission:").next())
                 {
-                    if let Some(inv) = candidate(
-                        sources,
-                        &format!("invariant {subject} write only {policy}"),
-                    ) {
-                        out.push((index, inv));
-                    }
+                    out.push((index, Candidate::Source(format!("invariant {subject} write only {policy}"), false)));
                 }
             }
         }
@@ -220,14 +264,9 @@ fn candidates(
                             if let Some(principal) = t.columns.iter().find_map(|(c, k)| {
                                 matches!(k.required(), ColumnType::Principal).then_some(c)
                             }) {
-                                if let Some(inv) = candidate(
-                                    sources,
-                                    &format!(
-                                        "invariant {table} always exists {roles}[{principal} = .{column}, {role} = '{column}']"
-                                    ),
-                                ) {
-                                    out.push((index, inv));
-                                }
+                                out.push((index, Candidate::Source(format!(
+                                    "invariant {table} always exists {roles}[{principal} = .{column}, {role} = '{column}']"
+                                ), false)));
                             }
                         }
                     }
@@ -308,11 +347,11 @@ fn candidates(
                 let mut changed=std::collections::BTreeSet::new();
                 columns(&serde_json::to_value(&program.program).unwrap(),table,&mut changed);
                 if changed.contains(column)||!changed.iter().any(|column|stages.contains(&(table.into(),column.clone()))){continue;}
-                if let Some(inv)=candidate(sources,&format!("invariant {table}.{} only {predicate}",program.program.name)){out.push((index,inv));}
+                out.push((index,Candidate::Source(format!("invariant {table}.{} only {predicate}",program.program.name),false)));
             }
         }
     }
-    out
+    candidate_batch::resolve(sources, out)
 }
 /// Once an edit is admitted, try a concrete decreasing edit through that same
 /// operation. Both writes run on the engine; no fabricated old/new values.
@@ -450,34 +489,72 @@ pub(in crate::verbs) fn apply_report(sources:&[(String,String)],bound:&Bound,rep
 /// Fixed work per mode; a generated presentation cache never supplies a gate.
 // @ref LLP 3000.036.004.000#13-witness-backed-enforcement-and-shipping-precision — every gate replays current source even when advice is cached.
 pub(in crate::verbs) fn collect(project:&Project,bound:&Bound,sources:&[(String,String)],notes:&[Diagnostic],expanded:bool,options:&Options)->Vec<Option<serde_json::Value>> {
-    let key=hash(&serde_json::to_vec(&("sec10-witness-8",sources,notes,record::capture(sources,None).ok())).unwrap());
+    collect_with_report(project,bound,sources,notes,expanded,options,None)
+}
+pub(in crate::verbs) fn collect_with_report(project:&Project,bound:&Bound,sources:&[(String,String)],notes:&[Diagnostic],expanded:bool,options:&Options,current:Option<&security::Report>)->Vec<Option<serde_json::Value>> {
+    collect_inner(project,bound,sources,notes,expanded,options,current,false)
+}
+/// Questions cannot supply derived enforcement until the current report joins.
+pub(in crate::verbs) struct PendingEvidence<'a>{bound:&'a Bound,sources:&'a[(String,String)],notes:&'a[Diagnostic],values:Vec<Option<serde_json::Value>>}
+impl PendingEvidence<'_>{
+    pub(in crate::verbs) fn finish(mut self,report:&security::Report)->Option<Vec<Option<serde_json::Value>>>{
+        if self.notes!=report.notes.as_slice(){return None;}
+        apply_report(self.sources,self.bound,report,&report.notes,&mut self.values);Some(self.values)
+    }
+}
+pub(in crate::verbs) fn collect_for_report<'a>(project:&Project,bound:&'a Bound,sources:&'a[(String,String)],notes:&'a[Diagnostic],options:&Options)->PendingEvidence<'a>{
+    PendingEvidence{bound,sources,notes,values:collect_inner(project,bound,sources,notes,true,options,None,true)}
+}
+fn collect_inner(project:&Project,bound:&Bound,sources:&[(String,String)],notes:&[Diagnostic],expanded:bool,options:&Options,current:Option<&security::Report>,defer_derived:bool)->Vec<Option<serde_json::Value>> {
+    let key=hash(&serde_json::to_vec(&("sec11-witness-2",sources,notes,record::capture(sources,None).ok())).unwrap());
     let path=project.schema_dir().join("generated/security-witnesses.json");
     let gate=|index:usize|super::super::security_reviews::gated(&notes[index].code)&&precise_approval(bound,&notes[index]);
     let cached=std::fs::read(&path).ok().and_then(|b|serde_json::from_slice::<serde_json::Value>(&b).ok()).filter(|v|v["key"]==key).and_then(|v|serde_json::from_value::<Vec<Option<serde_json::Value>>>(v["values"].clone()).ok()).filter(|v|v.len()==notes.len());
     let mut result=vec![None;notes.len()];
     if let Some(cached)=&cached{for (index,value) in cached.iter().enumerate(){if !gate(index)&&notes[index].code!="N_DERIVED_WRITE_AUTHORITY"{result[index]=value.clone();}}}
-    let selected=candidates(bound,sources,notes);
-    for enforcement in [true,false] {
-        if !enforcement&&(!expanded||cached.is_some()){continue;}
-        let selected=selected.iter().filter(|(index,_)|gate(*index)==enforcement).collect::<Vec<_>>();
-        if selected.is_empty(){continue;}
-        let mut questions=bound.clone();questions.invariants=selected.iter().map(|(_,inv)|inv.clone()).collect();
-        let mut campaign=challenges::Campaign::work_bounded(if enforcement{3072}else{8192});
-        challenges::generated_campaign(&questions,&mut campaign,false);
+    let selected=phase::measure("witness.candidates", || candidates(bound,sources,notes));
+    let stages=phase::measure("witness.stages", || security::derived::workflow_columns_from_sources(sources,bound));
+    // @ref LLP 3000.036.004.000.000#independent-campaigns — independent searches join before ordered witness selection.
+    // Each campaign already has its own replay-ID scope and fixed work budget.
+    // Run independent searches concurrently, then reduce in the original order.
+    let need_derived=expanded&&notes.iter().any(|n|n.code=="N_DERIVED_WRITE_AUTHORITY"&&!n.site.file.contains("/label-consistency/"));
+    let (campaigns,derived_report)=std::thread::scope(|scope|{
+        let derived=if need_derived&&current.is_none()&&!defer_derived{Some(scope.spawn(||{
+            let mut deploy=options.clone();deploy.flags.insert("security-deploy".into(),String::new());
+            phase::measure("witness.derived_report", || super::report(project,bound,sources,&deploy))
+        }))}else{None};
+        let mut handles=Vec::new();
+        for enforcement in [true,false] {
+            if !enforcement&&(!expanded||cached.is_some()){continue;}
+            let selection=selected.iter().filter(|(index,_)|gate(*index)==enforcement).collect::<Vec<_>>();
+            if selection.is_empty(){continue;}
+            handles.push(scope.spawn(move||{
+                let mut questions=bound.clone();questions.invariants=selection.iter().map(|(_,inv)|inv.clone()).collect();
+                let mut campaign=challenges::Campaign::work_bounded(if enforcement{3072}else{8192});
+                phase::measure(if enforcement {"witness.gate_campaign"} else {"witness.question_campaign"}, || challenges::generated_campaign(&questions,&mut campaign,false));
+                (selection,campaign)
+            }));
+        }
+        (handles.into_iter().map(|h|h.join().expect("question campaign panicked")).collect::<Vec<_>>(),derived.map(|h|h.join().expect("derived campaign panicked")))
+    });
+    for (selected,campaign) in campaigns {
         for (index,inv) in selected {
             if result[*index].is_some()&&notes[*index].code!="N_INSERT_WRITE_INTENT"{continue;}
-            if let Some(c)=campaign.violations.iter().filter(|c|c.invariant_site==inv.site.to_string()&&c.reachability.is_reachable()).max_by_key(|c| {
+            if let Some(c)=campaign.violations.iter().filter(|c|c.invariant_site==inv.site.to_string()&&c.reachability.is_reachable()&&(notes[*index].code!="N_GUARD_NOT_CONSUMED"||c.history.len()==1&&c.effect=="insert")&&(notes[*index].code!="N_CHILD_EVIDENCE_PRESENCE"||questions::transition(inv,c,&stages))).max_by_key(|c| {
                 let decrease=inv.column.as_ref().and_then(|column|Some((c.old.as_ref()?.field(column).ok()?,c.row.field(column).ok()?))).is_some_and(|(old,next)|matches!((old,next),(snapback4_core::Value::Int(a),snapback4_core::Value::Int(b)) if a>b));
                 (decrease,c.history.len())
-            }) {let replay=decreasing_edit(bound,inv,c);let value=evidence(sources,bound,inv,replay.as_ref().unwrap_or(c));if super::super::security_reviews::witness::concrete(&value){
+            }) {let replay=decreasing_edit(bound,inv,c);let mut value=evidence(sources,bound,inv,replay.as_ref().unwrap_or(c));
+                if notes[*index].code=="N_GUARD_NOT_CONSUMED" {let Some(repeated)=questions::repeat(bound,inv,c,&notes[*index],sources)else{continue;};value=repeated;}
+                if notes[*index].code=="N_TEXT_EVIDENCE" {value=questions::text_evidence(value,&notes[*index]);}
+                if questions::advisory(&notes[*index].code){value["advisory"]=true.into();}
+                if super::super::security_reviews::witness::concrete(&value){
                 let decrease=|v:&serde_json::Value|v["old"].as_object().is_some_and(|fields|fields.iter().any(|(field,old)|old.as_i64().zip(v["row"][field].as_i64()).is_some_and(|(a,b)|a>b)));
                 if result[*index].is_none()||decrease(&value)&&!result[*index].as_ref().is_some_and(decrease){result[*index]=Some(value);}
             }}
         }
     }
-    if expanded&&notes.iter().any(|n|n.code=="N_DERIVED_WRITE_AUTHORITY"&&!n.site.file.contains("/label-consistency/")) {
-        let mut deploy=options.clone();deploy.flags.insert("security-deploy".into(),String::new());
-        let report=super::report(project,bound,sources,&deploy);apply_report(sources,bound,&report,notes,&mut result);
+    if need_derived {
+        if let Some(report)=current.or(derived_report.as_ref()){apply_report(sources,bound,report,notes,&mut result);}
     }
     // Reapply current eligibility even to cached advice: editable presentation
     // evidence cannot promote an unresolved approval question into a gate.
@@ -560,5 +637,15 @@ mod tests {
             safe(&snapback4_core::Value::Int(42), None),
             json!(42)
         );
+        for kind in [ColumnType::Text{max:100},ColumnType::Image{max:1000,once:false}] {
+            assert!(safe(&snapback4_core::Value::Null,Some(&kind)).is_null());
+            assert_eq!(safe(&secret,Some(&kind)),json!("<redacted>"));
+        }
+        let bound=snapback4_lang::compile(&[("schema.q".into(),"query q():\n  return true\n".into())]);
+        let opaque=snapback4_lang::types::Ty::Json;
+        assert_eq!(observed_data(&bound,&opaque,&snapback4_core::Value::Int(987654321)),json!("<redacted>"));
+        let object=snapback4_lang::types::Ty::Object(BTreeMap::from([("opaque".into(),opaque)]));
+        let value=snapback4_core::Value::Row(BTreeMap::from([("opaque".into(),snapback4_core::Value::Int(987654321))]).into());
+        assert_eq!(observed_data(&bound,&object,&value),json!({"opaque":"<redacted>"}));
     }
 }

@@ -605,3 +605,12 @@ removal takes one individual security decision. Unsupported or mutable ledger
 shapes remain coverage gaps; finite exploration never proves conservation.
 Derived effects run before general observers on each generated fixture; bounded
 production replay retains explicit coverage for paths it did not explore.
+
+Concrete security questions can replay omitted/empty media, text-typed evidence,
+missing child attachments, broader read audiences and supported reuse of an
+unchanged guard. These are advisory specification questions; a replay does not
+establish whether the broader behavior is intended. Default check shows the
+witness. To acknowledge it, name its digest and exactly `permit OPERATION as
+CALLER`, followed by the printed audience/effect rationale. An invalid answer
+prints the current redacted replay and records no decisions. Complex guard
+histories and unsupported evidence shapes remain coverage gaps.

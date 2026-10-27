@@ -32,3 +32,23 @@ fn check(p:&Scratch,args:&[&str])->(i32,Value){let r=Command::new(env!("CARGO_BI
  let p=scratch();let source="table first:\n  photo:image <=10000 ?\n  read <- allow\n  insert <- deny\n  online only\ntable second:\n  photo:image <=10000 ?\n  read <- allow\n  insert <- deny\n  online only\ninvariant first always .photo != null\ninvariant second always .photo != null\nmutation add(photo:image <=10000 ?):\n  insert first {photo}\n  insert second {photo}\n  return null\n";fs::write(p.0.join("snapback/schema.q"),source).unwrap();
  let (code,j)=check(&p,&[]);assert_eq!(code,0,"{j}");let ds=j["securityReviews"].as_array().unwrap();assert!(!ds.iter().any(|d|d["gated"]==true));let ids=ds.iter().filter(|d|d["code"]=="N_OPTIONAL_UPLOAD_CREATE").map(|d|d["id"].as_str().unwrap()).collect::<Vec<_>>();assert_eq!(ids.len(),2);assert_ne!(ids[0],ids[1]);
 }
+
+#[cfg(unix)]
+#[test]fn phase_trace_refuses_nonregular_sinks_and_keeps_the_verdict(){
+    use std::{process::Stdio,time::{Duration,Instant}};
+    let p=scratch();fs::write(p.0.join("snapback/schema.q"),"table docs:\n  owner: principal\n  read <- .owner = viewer\n  online only\n").unwrap();
+    let (_,baseline)=check(&p,&[]);
+    let fifo=p.0.join("trace.fifo");assert!(Command::new("mkfifo").arg(&fifo).status().unwrap().success());
+    let target=p.0.join("unchanged");fs::write(&target,b"unchanged").unwrap();let link=p.0.join("trace.link");std::os::unix::fs::symlink(&target,&link).unwrap();
+    let regular=p.0.join("trace.jsonl");
+    for sink in [&fifo,&link,&regular]{
+        let mut child=Command::new(env!("CARGO_BIN_EXE_snapback4")).args(["check","--json"]).env("SNAPBACK4_LATENCY_TRACE",sink).current_dir(&p.0).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().unwrap();
+        // The spawned child is the only process this guard may stop.
+        let deadline=Instant::now()+Duration::from_secs(120);
+        loop{if child.try_wait().unwrap().is_some(){break;}if Instant::now()>=deadline{let _=child.kill();let _=child.wait();panic!("trace sink blocked command completion");}std::thread::sleep(Duration::from_millis(10));}
+        let output=child.wait_with_output().unwrap();assert!(output.status.success());let value:Value=serde_json::from_slice(&output.stdout).unwrap();
+        for key in ["ok","security","securityReviews"]{assert_eq!(value[key],baseline[key],"trace changed {key}");}
+    }
+    assert_eq!(fs::read(&target).unwrap(),b"unchanged");
+    let events=fs::read_to_string(regular).unwrap().lines().map(|line|serde_json::from_str::<Value>(line).unwrap()).collect::<Vec<_>>();assert!(events.iter().any(|v|v["phase"]=="check.bind"));
+}

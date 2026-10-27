@@ -3,15 +3,28 @@ use super::*;
 impl Store {
     // @ref LLP 3000.036.004#122-reproducible-campaigns-and-reachability — fork committed state, never reinterpret stored rows as new seed input.
     pub fn fork_memory(&self) -> Result<Self, RuntimeError> {
-        let mut fork = Self::memory()?;
+        let started = crate::replay_profile::start();
+        let mut conn = Connection::open_in_memory()?;
+        let page_size=conn.query_row("PRAGMA page_size",[],|row|row.get::<_,i64>(0))? as u64;
         {
-            let backup = rusqlite::backup::Backup::new(&self.conn, &mut fork.conn)?;
+            let backup = rusqlite::backup::Backup::new(&self.conn, &mut conn)?;
             backup.run_to_completion(256, std::time::Duration::ZERO, None)?;
         }
-        fork.read_sessions = std::sync::Arc::new(super::ReadSessionStorage::new(super::identity::present(&fork.conn)?));
-        fork.catalog = self.catalog.clone();
-        fork.identity = self.identity.clone();
-        fork.server = self.server;
+        let copied = started.map(|t|t.elapsed().as_secs_f64());
+        // @ref LLP 3000.036.004.000.000#fixture-construction — copy already-captured metadata without repeated discovery.
+        #[cfg(any(test,feature="test-support"))]
+        trace_round_trips(&conn);
+        conn.set_db_config(rusqlite::config::DbConfig::SQLITE_DBCONFIG_ENABLE_QPSG,true)?;
+        let read_sessions=std::sync::Arc::new(super::ReadSessionStorage::new(super::identity::present(&conn)?));
+        let fork=Self {
+            read_sessions,conn,server:self.server,ownership:None,
+            #[cfg(unix)] file_identity:None,
+            page_size,catalog:self.catalog.clone(),identity:self.identity.clone(),
+            assets_dir:Self::memory_assets_dir()?,campaign_assets:self.campaign_assets.clone(),ephemeral_assets:true,
+            #[cfg(test)] full_adoption:false,
+            adoption_report:Default::default(),
+        };
+        let prepared = started.map(|t|t.elapsed().as_secs_f64());
         if self.assets_dir.exists() {
             std::fs::create_dir_all(&fork.assets_dir).map_err(io)?;
             for entry in std::fs::read_dir(&self.assets_dir).map_err(io)? {
@@ -21,6 +34,10 @@ impl Store {
                 }
                 std::fs::copy(entry.path(), fork.assets_dir.join(entry.file_name())).map_err(io)?;
             }
+        }
+        if let (Some(started),Some(copied),Some(prepared))=(started,copied,prepared) {
+            let elapsed=started.elapsed().as_secs_f64();
+            crate::replay_profile::record(serde_json::json!({"phase":"replay.fork","seconds":elapsed,"copy":copied,"prepare":prepared-copied,"assets":elapsed-prepared}));
         }
         Ok(fork)
     }
@@ -32,6 +49,7 @@ impl Store {
     /// Independent valid worlds share verified bytes, never source row state.
     pub fn empty_with_asset_ledger(&self)->Result<Self,RuntimeError>{
         let fresh=Self::memory()?;
+        fresh.campaign_assets.replace(self.campaign_assets.borrow().clone());
         let ids=self.conn.prepare("SELECT id FROM _assets")?.query_map([],|r|r.get::<_,String>(0))?.collect::<Result<Vec<_>,_>>()?;
         for id in ids{
             let mut asset=self.asset(&id)?.ok_or_else(||RuntimeError::Store("fixture asset disappeared".into()))?;

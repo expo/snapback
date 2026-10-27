@@ -68,3 +68,21 @@ struct Scratch(std::path::PathBuf);impl Drop for Scratch{fn drop(&mut self){let 
     assert!(value["fixes"].as_u64().unwrap()>0,"a reachable violation must count as a FIX");
     assert!(enforce_release(Some(&summary),&options).unwrap_err().contains("production deploy refuses reachable FIX"));
 }
+
+#[test]fn current_deploy_report_reuse_keeps_the_exact_derived_witness(){
+    let dir=std::env::temp_dir().join(format!("sb4-sec11l-report-{}",std::process::id()));let _scratch=Scratch(dir.clone());
+    std::fs::create_dir_all(dir.join("snapback/generated")).unwrap();let project=Project{root:dir};
+    let source="table docs:\n  value: int\n  approved: bool default false\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\nmutation create(value: int):\n  return insert docs {value}\nmutation approve(doc: docs):\n  require viewer = 'service:reviewer' else NOT_REVIEWER\n  d = docs[doc] ! else MISSING\n  require d.value >= 0 else NEGATIVE\n  update docs[doc] {approved:true}\nmutation edit(doc: docs,value: int):\n  update docs[doc] {value}\n";
+    std::fs::write(project.schema_dir().join("schema.q"),source).unwrap();let sources=project.sources().unwrap();let bound=snapback4_lang::compile(&sources);
+    let options=Options{positionals:Vec::new(),flags:BTreeMap::new(),json:false};let mut deploy=options.clone();deploy.flags.insert("security-deploy".into(),String::new());
+    let current=report(&project,&bound,&sources,&deploy);
+    let original=witnesses::collect(&project,&bound,&sources,&current.notes,true,&options);
+    let reused=witnesses::collect_with_report(&project,&bound,&sources,&current.notes,true,&options,Some(&current));
+    assert!(current.notes.iter().zip(&original).any(|(note,evidence)|note.code=="N_DERIVED_WRITE_AUTHORITY"&&evidence.is_some()),"the test must exercise a current derived replay");
+    assert_eq!(original,reused);
+    let pending=witnesses::collect_for_report(&project,&bound,&sources,&current.notes,&options);
+    assert_eq!(pending.finish(&current).unwrap(),reused);
+    let pending=witnesses::collect_for_report(&project,&bound,&sources,&current.notes,&options);
+    let mut changed=current.clone();changed.notes.push(snapback4_lang::Diagnostic::new(&Default::default(),"N_PRESENCE_LOOSENING","changed predecessor","rerun"));
+    assert!(pending.finish(&changed).is_none(),"a different actual note vector must discard pending evidence");
+}

@@ -1,0 +1,25 @@
+muse: workspace root: /home/ccheever/projects/sb4-b31-sec11l (cwd default)
+muse: workspace trust: trusted source=run-flag
+Not READY — one blocker, in the qualification comparator, not the campaign. The campaign code itself has no material correctness issue.
+
+## Blocker
+
+[compare.py](snapback4/reports/sec11-latency/tools/compare.py) (`verdict()`, lines 7–12; claim repeated line 21) does not implement the exclusion the RFC promises. The RFC says timing and display strings containing temporary deployment paths are excluded. The code compares `gates`, `notes`, `reviews`, `checkFailure`, and per-mode `failure` bytes whole, with no scrubbing of embedded temp paths or timings. If the survey rows carry any run-specific path or duration inside a note `message`/`rewrite` or failure string, before/after will differ spuriously and the 800-schema gate fails closed; if rows are instead pre-normalized upstream, that normalization is unverified and the `comparison` string overclaims. Either way the RFC-promised exclusion is not evidenced in the tool. Fix by scrubbing only timing/temp-path display substrings in the comparator, or by proving the row producer already strips them — without normalizing any substantive decision field.
+
+## Campaign code: clean
+
+**Report reuse** ([security.rs:133](snapback4/crates/snapback4/src/verbs/security.rs:133), [witnesses.rs:494-530](snapback4/crates/snapback4/src/verbs/security/witnesses.rs:494)). Eligibility matches the RFC: `Some(&report)` is passed only when the preflight carries `security-deploy` (production or strict staging); non-strict staging passes `None` and builds its own production report. The reused report is built in the same invocation from identical sources, bound, fixture selection, and empty reviewed set — the old interior build used `options + security-deploy`, identical to the preflight here. Gate and question campaigns still replay; only the derived-report step is supplied, and cache writes still exclude gate/derived values, so nothing cached can promote advice into a gate. Source-change checks before/after witness collection are retained. The single-schema equality test covers the path; the 800-schema proof is still pending and I do not assume it.
+
+**Batch-vs-independent compilation** ([candidate_batch.rs:12-27](snapback4/crates/snapback4/src/verbs/security/witnesses/candidate_batch.rs:12)). Equivalent by construction: distinct lines are compiled as separate line-one `$dx11-question.q` documents, order and duplicates restored through the per-line map, site rewrite uses the same `hash(line)` as the old per-line path, and the absence rewrite is applied per proposal. Any diagnostic or count mismatch falls back to the original independent compiler per line. The unit test compares complete serialized invariants for valid-with-duplicate and mixed valid/invalid batches. Binder order is document order with no invariant dedup, so the positional zip is sound.
+
+**Fixture fork** ([fork.rs:5-39](snapback4/crates/snapback4-core/src/store/fork.rs:5)). The backup now lands in a blank connection before a single `prepare`, instead of building-then-discarding a schema. Catalog, identity, server mode, read-session storage, ephemeral asset dir, and byte-copied assets are preserved; no hard links or shared ledgers. The server-mode preservation and source page-size retention differ from the old always-`true`/fresh-default behavior, but both move toward faithfulness and security campaign forks originate from server stores, so exercised paths are unchanged. The post-`prepare` field copies are redundant but harmless.
+
+**Telemetry** ([challenges.rs:40-48](snapback4/crates/snapback4-lang/src/bind/security/challenges.rs:40), [fork.rs:31-37](snapback4/crates/snapback4-core/src/store/fork.rs:31), [phase.rs:2-11](snapback4/crates/snapback4/src/verbs/phase.rs:2)). All three write opt-in JSONL only when the env var is set, ignore write failures, and leave work accounting, deadlines, verdicts, and cache keys untouched. No campaign input reads the trace.
+
+**Races and staging.** No shared mutable state is added; campaigns remain work-bounded with no wall-clock verdict input. `check --review` ([verbs.rs:413](snapback4/crates/snapback4/src/verbs.rs:413)) still passes `None`, so only the deploy path changes, and strict staging reuses a same-shaped 3072-work report.
+
+## Scope
+
+Justified. The diff touches only witness candidate compilation, derived-replay supply, fixture construction, timing wrappers, and tests/tooling. No gate, classifier, decision, or proof logic is altered. The new test and batch test are the right shape; the untracked comparator is the one piece that overreaches its implementation.
+
+I ran no tests and no measurements: the 800-schema before/after and production latency runs are in progress, and a heavy build here could perturb them.

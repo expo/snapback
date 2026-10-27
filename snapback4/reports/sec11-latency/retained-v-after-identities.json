@@ -1,0 +1,13 @@
+{
+  "identitiesOnly": true,
+  "fullPayloadEqualityEstablished": false,
+  "schemas": 800,
+  "afterSchemas": 800,
+  "missing": [],
+  "extra": [],
+  "changes": [],
+  "identical": true,
+  "comparison": "SECONDARY IDENTITY DIAGNOSTIC ONLY: witness payload bodies replaced by their literal product witness IDs; this does not establish full payload equality. Canonical JSON bytes of all classifier gates, questions, notes, question/gate witness payloads, decision IDs, FIX identities, command exits and failures. No scalar is scrubbed or normalized. Omitted whole fields: command durations, defaultCheck/defaultDeploy transcripts, deployment summary display lines and output-line counts. Authored counterexamples require the separate witness comparison.",
+  "beforeSha256": "47536331a07c36e5ed0c4c95cdc3d029dd5830e04e8f64657a5ccf6a3c120691",
+  "afterSha256": "47536331a07c36e5ed0c4c95cdc3d029dd5830e04e8f64657a5ccf6a3c120691"
+}

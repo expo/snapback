@@ -402,7 +402,7 @@ pub fn deploy(options: &Options) -> i32 {
             if let Some(owner) = &_deployment { owner.report_reclaim(options.flags.contains_key("verbose")); }
             let project = super::proof_source::project(options, "schema")?;
             let sources = super::proof_source::sources(&project, options, "schema")?;
-            let bound = super::proof_source::compile(&sources, options, "schema");
+            let bound = phase::measure("deploy.bind", || super::proof_source::compile(&sources, options, "schema"));
             if !bound.diagnostics.is_empty(){
                 failure_problems=Some(serde_json::json!({"problems":bound.diagnostics,"notes":bound.notes}));
                 if !options.json{eprintln!("deploy verdict: REFUSED; compilation");super::report_diagnostics(&bound,false,false,true);}
@@ -425,7 +425,7 @@ pub fn deploy(options: &Options) -> i32 {
             };
             security_summary={
                 let prior=previous.map(|n|bound_at(dir.join("releases").join(n.to_string()))).transpose()?;
-                super::security::release_loop(&project,&bound,&sources,prior.as_ref(),options)?
+                phase::measure("deploy.security", || super::security::release_loop(&project,&bound,&sources,prior.as_ref(),options))?
             };
             super::security::enforce_release(security_summary.as_ref(),options)?;
             let baseline=crate::client_compatibility::report(&project,&bound).map_err(|e|e.to_string())?.1;

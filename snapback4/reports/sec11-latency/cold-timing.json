@@ -1,0 +1,23 @@
+{
+  "binarySha256": "355b80caa4463851fcb88a8a35c3b9f4516315eb89c0f5d5ea455622052520b5",
+  "method": "One worker, independent fresh source/fixture copies for each cold check --review and production deploy; no advisory cache, no prior test; 600-second external watchdog.",
+  "label": "after immutable asset cache",
+  "affinityCpus": 96,
+  "freeGiBBefore": 390.7614212036133,
+  "review": {
+    "p50": 5.189416859066114,
+    "median": 5.189416859066114,
+    "p90": 8.33199414703995,
+    "max": 11.60582894505933,
+    "count": 50
+  },
+  "deploy": {
+    "p50": 5.293796983431093,
+    "median": 5.293796983431093,
+    "p90": 7.528485334012657,
+    "max": 12.944748347857967,
+    "count": 50
+  },
+  "toolFailures": [],
+  "peakLoadPerCpu": 0.8660990397135416
+}

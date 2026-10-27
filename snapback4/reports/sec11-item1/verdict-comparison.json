@@ -1,0 +1,11 @@
+{
+  "schemas": 800,
+  "freshVerdictChanges": [],
+  "postTestVerdictChanges": [],
+  "testExits": {
+    "0": 769,
+    "1": 31
+  },
+  "baselineFreshRefused": 19,
+  "baselinePostTestRefused": 26
+}

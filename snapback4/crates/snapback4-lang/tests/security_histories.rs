@@ -2,6 +2,10 @@ use snapback4_lang::{compile,security};
 use snapback4_core::{Engine,Value};
 const SOURCE:&str="use personas alice, bob\ntable roles:\n  principal: principal\n  role: enum('inspector', 'member')\n  unique principal\n  read <- allow\n  insert <- viewer = 'service:ops'\n  update <- viewer = 'service:ops'\n  online only\ntable grants:\n  principal: principal\n  unique principal\n  read <- allow\n  insert <- viewer = 'service:ops'\n  online only\ntable reports:\n  body: text <=80\n  read <- exists grants[viewer]\n  online only\nmutation grant(who: principal):\n  return insert grants { principal: who }\nmutation demote(who: principal):\n  update roles[who] { role: 'member' }\n  return null\ninvariant reports.read only exists roles[viewer, role = 'inspector']\nquery inspect(report: reports):\n  return reports[report]\n";
 fn row(fields:&[(&str,Value)])->Value{Value::Row(fields.iter().map(|(n,v)|(n.to_string(),v.clone())).collect())}
+// @ref LLP 3000.036.004.001#read-payloads — typed read histories include the admitted terminal query.
+fn observed_tail(v:&security::challenges::Counterexample)->bool {
+ v.history.last().is_some_and(|step|step.operation==v.operation&&step.viewer==v.viewer&&step.args==v.args&&step.clock.is_some()&&step.result["state"]=="observed"&&step.result["complete"].is_boolean()&&step.observed_data.is_some())
+}
 #[test]
 fn actual_grant_demotion_and_read_has_a_replayable_trace(){
  for fixed in [false,true]{
@@ -247,14 +251,14 @@ fn column_pairs_do_not_change_materialized_asset_inputs() {
 fn time_arguments_expose_a_deadline_checked_on_the_wrong_reference() {
  let source="table gates:\n  deadline: time\n  read <- allow\n  insert <- viewer = 'service:ops'\n  online only\ntable briefs:\n  home: gates\n  owner: principal\n  body: text <=40\n  read <- allow\n  online only\nmutation create(deadline: time):\n  return insert gates { deadline }\nquery inspect(brief: briefs, gate: gates):\n  b = briefs[brief] ! else MISSING\n  g = gates[gate] ! else MISSING\n  require g.deadline <= now else EARLY\n  return b\ninvariant briefs.read only .owner = viewer\n";
  let c=fixture_campaign(source,vec![("gates".into(),row(&[("id",Value::Id("future".into())),("deadline",Value::Int(1_800_604_800_000))])),("briefs".into(),row(&[("id",Value::Id("b".into())),("home",Value::Id("future".into())),("owner",Value::Id("dev:owner".into())),("body",Value::String("secret".into()))]))]);
- assert!(c.violations.iter().any(|v|v.operation=="inspect"&&v.history.len()==1&&v.history[0].operation=="create"&&v.history[0].viewer=="service:ops"&&v.observations.is_none()&&matches!(v.history[0].args.get("deadline"),Some(Value::Int(n)) if *n<1_800_000_000_000)&&v.args.get("gate")!=Some(&Value::Id("future".into()))),"{c:?}");
+ assert!(c.violations.iter().any(|v|v.operation=="inspect"&&v.history.len()==2&&observed_tail(v)&&v.history[0].operation=="create"&&v.history[0].viewer=="service:ops"&&v.observations.is_none()&&matches!(v.history[0].args.get("deadline"),Some(Value::Int(n)) if *n<1_800_000_000_000)&&v.args.get("gate")!=Some(&Value::Id("future".into()))),"{c:?}");
 }
 
 #[test]
 fn real_media_creation_is_replayed_before_role_revocation() {
  let source="table roles:\n  principal: principal\n  role: enum('engineer','contractor','manager')\n  unique principal\n  read <- allow\n  update <- viewer = 'service:ops'\n  online only\ntable grants:\n  principal: principal\n  unique principal\n  read <- allow\n  online only\ntable photos:\n  photo: image <=5000\n  read <- exists roles[viewer, role = 'engineer'] or exists grants[viewer]\n  insert <- exists roles[viewer, role = 'engineer']\n  online only\nmutation add(photo: image <=5000):\n  return insert photos { photo }\nmutation changeRole(who: principal, role: enum('engineer','contractor','manager')):\n  update roles[who] { role }\n  return null\nquery list():\n  return photos first 50 by .id\ninvariant photos.read only exists roles[viewer, role = 'engineer'] or (exists roles[viewer, role = 'contractor'] and exists grants[viewer])\n";
  let c=fixture_campaign(source,vec![("roles".into(),row(&[("id",Value::Id("eng".into())),("principal",Value::Id("dev:eng".into())),("role",Value::String("engineer".into()))])),("roles".into(),row(&[("id",Value::Id("con".into())),("principal",Value::Id("dev:con".into())),("role",Value::String("contractor".into()))])),("grants".into(),row(&[("id",Value::Id("g".into())),("principal",Value::Id("dev:con".into()))]))]);
- assert!(c.violations.iter().any(|v|v.viewer=="dev:con"&&v.operation=="list"&&v.history.len()==2&&v.history[0].operation=="add"&&v.history[1].operation=="changeRole"&&v.reachability==security::challenges::Reachability::AuthoredFixtureTrace),"{c:?}");
+ assert!(c.violations.iter().any(|v|v.viewer=="dev:con"&&v.operation=="list"&&v.history.len()==3&&observed_tail(v)&&v.history[0].operation=="add"&&v.history[1].operation=="changeRole"&&v.reachability==security::challenges::Reachability::AuthoredFixtureTrace),"{c:?}");
 }
 
 #[test]
@@ -277,7 +281,7 @@ fn omitted_nullable_values_have_presence_observers() {
 fn an_empty_trusted_store_can_reach_authored_disclosure() {
  let source="table notes:\n  owner: principal\n  body: text <=40\n  read <- allow\n  insert <- .owner = viewer\n  online only\nmutation add():\n  return insert notes { owner: viewer, body: 'secret' }\nquery inspect(note: notes):\n  return notes[note]\ninvariant notes.read only .owner = viewer\ninvariant notes.body read only .owner = viewer\n";
  let c=fixture_campaign(source,vec![]);
- for effect in ["read","column read observation"] {assert!(c.violations.iter().any(|v|v.effect==effect&&v.operation=="inspect"&&v.history.len()==1&&v.history[0].operation=="add"&&v.reachability==security::challenges::Reachability::AuthoredFixtureTrace),"{effect}: {c:?}");}
+ for effect in ["read","column read observation"] {assert!(c.violations.iter().any(|v|v.effect==effect&&v.operation=="inspect"&&v.history.len()==2&&observed_tail(v)&&v.history[0].operation=="add"&&v.reachability==security::challenges::Reachability::AuthoredFixtureTrace),"{effect}: {c:?}");}
  let source=source.replace("mutation add():\n  return insert notes { owner: viewer, body: 'secret' }\n", "");
  let c=fixture_campaign(&source,vec![]);assert!(c.violations.is_empty(),"{c:?}");
  let b=compile(&[("schema.q".into(),source)]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);let mut r=security::analyze_rules(&b);let c=security::challenges::run(&b);security::challenges::apply(&mut r,&c);assert!(!c.violations.is_empty());assert!(!r.refuted());

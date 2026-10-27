@@ -1,0 +1,8 @@
+import {readFileSync,writeFileSync} from 'node:fs';
+const base='/home/ccheever/sb4-loop/reports/sec11/';
+const prior=JSON.parse(readFileSync(base+'item1-committed-scoped-affected.receipt.json','utf8'));
+if(!prior.complete||!prior.unchanged||prior.results.filter(r=>r.status!==0).some(r=>!['rust:snapback4-lang','generated','guide','inventories'].includes(r.id)))throw Error('unexpected prior qualification result');
+const {planAffected,runPlan}=await import('/home/ccheever/projects/sb4-b31-sec11/snapback4/scripts/affected.mjs');
+const original=planAffected({base:'origin/main'});writeFileSync(base+'history-retry.original.json',JSON.stringify(original,null,2));
+const plan={...original,steps:original.steps.filter(s=>['rust:snapback4-lang','ref-check'].includes(s.id)).map(s=>s.id==='rust:snapback4-lang'?{...s,argv:['python3',base+'run-history-retry.py'],reason:'Three corrected history protocol assertions; all other prior semantic inputs unchanged'}:s),sec11Reuse:{canonicalComplete:false,priorHead:prior.head,priorReceipt:'item1-committed-scoped-affected.receipt.json',notApplicable:['generated','guide','inventories'],reason:'Only the three assertion expectations and their test helper changed; runtime source unchanged. Prior failed test names are retained verbatim. Every applicable product step passed; root Snapback1 generated/guide/inventory checks are inapplicable under the Snapback4 fence and their failures/cancellations remain explicit.'}};
+writeFileSync(base+'history-retry.scoped.json',JSON.stringify(plan,null,2));const {receipt}=await runPlan(plan);writeFileSync(base+'history-retry.receipt.json',JSON.stringify(receipt,null,2));process.exitCode=receipt.ok?0:1;

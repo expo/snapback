@@ -1,0 +1,25 @@
+{
+  "beforeProductionBinarySha256": "9d432a5fed665c418cbed5aa26995811411ee46c10f09f9e5181139ce7924a95",
+  "after": {
+    "productCommit": "07366f068d",
+    "binarySha256": "355b80caa4463851fcb88a8a35c3b9f4516315eb89c0f5d5ea455622052520b5",
+    "profile": "production",
+    "sqliteFlags": "-USQLITE_ENABLE_MEMORY_MANAGEMENT"
+  },
+  "productionBuildCommand": "CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 CARGO_BUILD_JOBS=4 LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT cargo build -p snapback4 --profile production",
+  "profileBefore": {
+    "binarySha256": "594b5a15ead1b6d2ce758286c204e095b5fd705e498db61d541409f6a66028ef",
+    "count": 20,
+    "affinityCpus": 96,
+    "method": "One worker, fresh source/fixture copy per command; slowest prior wave30 review lanes; opt-in phase timings include nested spans."
+  },
+  "profileAfter": {
+    "binarySha256": "355b80caa4463851fcb88a8a35c3b9f4516315eb89c0f5d5ea455622052520b5",
+    "count": 20,
+    "affinityCpus": 96,
+    "method": "One worker, fresh source/fixture copy per command; slowest prior wave30 review lanes; opt-in phase timings include nested spans."
+  },
+  "sourceCurrent": "9b0d37eda2899c198c1fc4eb1d25b8dca13d2afa",
+  "qualifiedScope": "Frozen wave15/16/18\u201330 schemas and private SQLite security campaign paths. Later origin/main integration changes async committer code; neutral ingress-helper rename changes no behavior. Final integrated affected receipt is recorded in WORKSTREAM-REPORT.md.",
+  "rawEvidenceRoot": "/home/ccheever/sb4-loop/reports/sec11l"
+}

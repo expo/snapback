@@ -1,0 +1,332 @@
+{
+  "schemas": 23,
+  "missing": [],
+  "extra": [],
+  "changes": [],
+  "rows": [
+    {
+      "wave": 18,
+      "lane": "010-snapback-cobbler-repair-tickets",
+      "identical": true,
+      "rawIdentical": false,
+      "uploadedAssets": [
+        6,
+        6
+      ],
+      "beforeSha256": "67cdb4d03136640bf7cf1392ace1c3ef2ef3535d4fcfa59b917d33396c4e38b0",
+      "afterSha256": "67cdb4d03136640bf7cf1392ace1c3ef2ef3535d4fcfa59b917d33396c4e38b0",
+      "beforeRawSha256": "2e48043fbb299b6d2c58fd6cd19060698e0d32919b941b8ea5bf029254dda36e",
+      "afterRawSha256": "f0b2b5e72773a6aacbdbb16f4290b3b3d6778f0815ff1d658dca05562062f17b"
+    },
+    {
+      "wave": 18,
+      "lane": "011-snapback-gem-lab-certificates",
+      "identical": true,
+      "rawIdentical": false,
+      "uploadedAssets": [
+        1,
+        1
+      ],
+      "beforeSha256": "3de64f9deae808b794432aa04b52da59fbaefe389a9b9ec4c8ab45f70d146e54",
+      "afterSha256": "3de64f9deae808b794432aa04b52da59fbaefe389a9b9ec4c8ab45f70d146e54",
+      "beforeRawSha256": "2ceb61f9981ef425d4a6032805b25ebc66e90ba910c66d9254062300680d89df",
+      "afterRawSha256": "f2f95093c1d6428f4a9a7dc050569e03866e2effe6accac1bfeecc4a9a02a96f"
+    },
+    {
+      "wave": 18,
+      "lane": "025-snapback-wheelchair-repair-loaners",
+      "identical": true,
+      "rawIdentical": false,
+      "uploadedAssets": [
+        4,
+        4
+      ],
+      "beforeSha256": "bb91f282a1e4d0b1485c2969eab16777b0d00832fe554dbdc41fd482e56cdfe4",
+      "afterSha256": "bb91f282a1e4d0b1485c2969eab16777b0d00832fe554dbdc41fd482e56cdfe4",
+      "beforeRawSha256": "fb9611337cec03d0941ebf38c898ced4cab33597df365e248a6811ea41d7b167",
+      "afterRawSha256": "d6b730bdaa76675a6a09be9b6dbce797f1e197ef2a780ad885e56064f1169c38"
+    },
+    {
+      "wave": 18,
+      "lane": "026-snapback-extinguisher-service-tags",
+      "identical": true,
+      "rawIdentical": true,
+      "uploadedAssets": [
+        0,
+        0
+      ],
+      "beforeSha256": "416c6c827d195fbe375e39e5e05af306e8e445f9d8fd80aa6d79683cb657ffa8",
+      "afterSha256": "416c6c827d195fbe375e39e5e05af306e8e445f9d8fd80aa6d79683cb657ffa8",
+      "beforeRawSha256": "416c6c827d195fbe375e39e5e05af306e8e445f9d8fd80aa6d79683cb657ffa8",
+      "afterRawSha256": "416c6c827d195fbe375e39e5e05af306e8e445f9d8fd80aa6d79683cb657ffa8"
+    },
+    {
+      "wave": 18,
+      "lane": "045-snapback-honor-guard-details",
+      "identical": true,
+      "rawIdentical": false,
+      "uploadedAssets": [
+        8,
+        8
+      ],
+      "beforeSha256": "15987c108523ec4770e11cc273f45ea52f05ec657f85a3b50356dd4841ec7ff1",
+      "afterSha256": "15987c108523ec4770e11cc273f45ea52f05ec657f85a3b50356dd4841ec7ff1",
+      "beforeRawSha256": "9ac75cccc05017dea1ed3cbc189d2e3424cfb00bf59ac0085ffdd02d178a1e3a",
+      "afterRawSha256": "8c39c0092837b0e22b8c9220f6a945d86299301085e06561bb05bf176816014c"
+    },
+    {
+      "wave": 19,
+      "lane": "010-snapback-cobbler-repair-tickets",
+      "identical": true,
+      "rawIdentical": false,
+      "uploadedAssets": [
+        6,
+        6
+      ],
+      "beforeSha256": "d22b6e8a68cdcb15c2406e9f7ebf8cbb3536a02a12f5d24f93f4255aaedb6d20",
+      "afterSha256": "d22b6e8a68cdcb15c2406e9f7ebf8cbb3536a02a12f5d24f93f4255aaedb6d20",
+      "beforeRawSha256": "4db87d6e15330e848022141d327558ad61bc3ad3d79a105da6a688e62e599825",
+      "afterRawSha256": "f68a563dad581b6f0f7a9e677170b943cc5032eaa7e4878b37bf14580851d6c3"
+    },
+    {
+      "wave": 19,
+      "lane": "011-snapback-gem-lab-certificates",
+      "identical": true,
+      "rawIdentical": false,
+      "uploadedAssets": [
+        1,
+        1
+      ],
+      "beforeSha256": "8a1e44f97811f50f7b822fe3b9faa7c44398d2b28c887390deaa02fa5bc523d9",
+      "afterSha256": "8a1e44f97811f50f7b822fe3b9faa7c44398d2b28c887390deaa02fa5bc523d9",
+      "beforeRawSha256": "2160eb4eff509b89ed5afe7b2f9233c4f02a6907a3f09064803a662d8f78bf4d",
+      "afterRawSha256": "96c47a7998a64d4f6fb6818c2ba1f871b966174d024b018a10cd32af88114d21"
+    },
+    {
+      "wave": 19,
+      "lane": "025-snapback-wheelchair-repair-loaners",
+      "identical": true,
+      "rawIdentical": false,
+      "uploadedAssets": [
+        4,
+        4
+      ],
+      "beforeSha256": "2a0cb7b64d71d22e27b3f8d0503742f8c8279bf352b4d116b4ada039ab19692b",
+      "afterSha256": "2a0cb7b64d71d22e27b3f8d0503742f8c8279bf352b4d116b4ada039ab19692b",
+      "beforeRawSha256": "351e4dda13fc00c683d3587bab4e00abcd1f0e808be96d86da533beca19026be",
+      "afterRawSha256": "03ca1e39013c3db5942f18a1b440fe9f599f5955f1e5e40d8793fede09c1c4fe"
+    },
+    {
+      "wave": 19,
+      "lane": "026-snapback-extinguisher-service-tags",
+      "identical": true,
+      "rawIdentical": true,
+      "uploadedAssets": [
+        0,
+        0
+      ],
+      "beforeSha256": "d6c2a69310e866f76bbb69f16aba451bef76491e22e900c09d18b77f7ad63c2d",
+      "afterSha256": "d6c2a69310e866f76bbb69f16aba451bef76491e22e900c09d18b77f7ad63c2d",
+      "beforeRawSha256": "d6c2a69310e866f76bbb69f16aba451bef76491e22e900c09d18b77f7ad63c2d",
+      "afterRawSha256": "d6c2a69310e866f76bbb69f16aba451bef76491e22e900c09d18b77f7ad63c2d"
+    },
+    {
+      "wave": 19,
+      "lane": "045-snapback-honor-guard-details",
+      "identical": true,
+      "rawIdentical": false,
+      "uploadedAssets": [
+        8,
+        8
+      ],
+      "beforeSha256": "44c13021c741b22b74db57627b3f9cb65a7a2f1413d15cf8cac83385f9a55c80",
+      "afterSha256": "44c13021c741b22b74db57627b3f9cb65a7a2f1413d15cf8cac83385f9a55c80",
+      "beforeRawSha256": "28e44aad5cf473193bb3d9134bed2cc15e9a4c2d71919bab0a5ac9d123cfa0df",
+      "afterRawSha256": "f95b4f05dcdf61abb0d04e3cb805847ce8a41612f171581c9d023f50342aa393"
+    },
+    {
+      "wave": 20,
+      "lane": "045-snapback-hop-kiln-lots",
+      "identical": true,
+      "rawIdentical": false,
+      "uploadedAssets": [
+        2,
+        2
+      ],
+      "beforeSha256": "7b3d544da50a4844717ce1210cdc95ff166651668f299c7d233a934ac483d9a7",
+      "afterSha256": "7b3d544da50a4844717ce1210cdc95ff166651668f299c7d233a934ac483d9a7",
+      "beforeRawSha256": "9039d51e0a8d48e6fa7d2f57cfd3b1afc331c481ff6ac45a5d10b6cc7a7426b8",
+      "afterRawSha256": "249e8ebb86a50d65d02b0dc879320067a32dfdb504150d6ab18bf5e3514604fc"
+    },
+    {
+      "wave": 21,
+      "lane": "045-snapback-hop-kiln-lots",
+      "identical": true,
+      "rawIdentical": false,
+      "uploadedAssets": [
+        2,
+        2
+      ],
+      "beforeSha256": "98c45ac30d9e09708d4f87be238d114578f849874916d526e9cc29d5ecac1517",
+      "afterSha256": "98c45ac30d9e09708d4f87be238d114578f849874916d526e9cc29d5ecac1517",
+      "beforeRawSha256": "dd57634f5ef2a27578a484b22cb4ee8385eb22b0d792ec4b36cc8f0de3fc8ecd",
+      "afterRawSha256": "d63d6e714f55ff3b29e16d8cf53748f63464b3d9bf483dec6f8003ffd8b4bcff"
+    },
+    {
+      "wave": 26,
+      "lane": "008-snapback-stucco-repair-jobs",
+      "identical": true,
+      "rawIdentical": false,
+      "uploadedAssets": [
+        4,
+        4
+      ],
+      "beforeSha256": "a23bfc97249b9e8dc8fd1303c9b9af6447702d1b32c49a018d157b72310039f0",
+      "afterSha256": "a23bfc97249b9e8dc8fd1303c9b9af6447702d1b32c49a018d157b72310039f0",
+      "beforeRawSha256": "d31f20c6e01782bcc83a447581fd26036727fe0b1968f5de949710eda9ed8dce",
+      "afterRawSha256": "2b8483dbf95a5e4dfd0b46c4b69afde350cee084b8bd92a88e76e4aa5c961371"
+    },
+    {
+      "wave": 26,
+      "lane": "018-snapback-livestock-ultrasound-scans",
+      "identical": true,
+      "rawIdentical": false,
+      "uploadedAssets": [
+        4,
+        4
+      ],
+      "beforeSha256": "7f4d2dd6c4edb0fbfc6fb9c5b86628621bbe41201769c48b570263b6a3944115",
+      "afterSha256": "7f4d2dd6c4edb0fbfc6fb9c5b86628621bbe41201769c48b570263b6a3944115",
+      "beforeRawSha256": "9c9d0fd87877199b93c4d64c72acb77a29ae6f28c98fadec09aa6676a368448f",
+      "afterRawSha256": "1b9939cd768a5d57f6316f2cde8d777aef77afbece7de9b067d34a3519d14e9b"
+    },
+    {
+      "wave": 26,
+      "lane": "025-snapback-lifeguard-certification-exams",
+      "identical": true,
+      "rawIdentical": false,
+      "uploadedAssets": [
+        12,
+        12
+      ],
+      "beforeSha256": "741c974f73eb4b1762c16684999c33d9ccfbdb285c4310aaca072d1bc2fba1e9",
+      "afterSha256": "741c974f73eb4b1762c16684999c33d9ccfbdb285c4310aaca072d1bc2fba1e9",
+      "beforeRawSha256": "a2089032acea1998f1e4321d4544d9b0b5e492bdcc58f1bc1ca70b730e36aebe",
+      "afterRawSha256": "e932bcd9e82417f1dd2b39d5b43658e3922a01230ff5940c7a24eb636d2035a2"
+    },
+    {
+      "wave": 26,
+      "lane": "033-snapback-asphalt-sealcoating-jobs",
+      "identical": true,
+      "rawIdentical": false,
+      "uploadedAssets": [
+        4,
+        4
+      ],
+      "beforeSha256": "d10468c3ca0662cc227e352244ae297fa503a62e4a7f1bbfa40dc82af62931d4",
+      "afterSha256": "d10468c3ca0662cc227e352244ae297fa503a62e4a7f1bbfa40dc82af62931d4",
+      "beforeRawSha256": "c84baa8066c926b5043383dfffd2b03685f332c235f3e63f17e5093abaac7c7e",
+      "afterRawSha256": "4afe5b40d35b1a498cccad0d0e75560a858b8c47cf472b12d17e5427b6112066"
+    },
+    {
+      "wave": 27,
+      "lane": "008-snapback-stucco-repair-jobs",
+      "identical": true,
+      "rawIdentical": false,
+      "uploadedAssets": [
+        4,
+        4
+      ],
+      "beforeSha256": "6e0ace4c358b207c3a18799a68226fc7729cf595d9dc0ee4a0557bb38bdde3bb",
+      "afterSha256": "6e0ace4c358b207c3a18799a68226fc7729cf595d9dc0ee4a0557bb38bdde3bb",
+      "beforeRawSha256": "b41e1b6cfaab83715b196750a5c9636786c8021c0c72534e9424026373b863ef",
+      "afterRawSha256": "41b0b0088b76af6df4ddd7f7eafa9d131807e96505cdfa09a5663ac79044e919"
+    },
+    {
+      "wave": 27,
+      "lane": "018-snapback-livestock-ultrasound-scans",
+      "identical": true,
+      "rawIdentical": false,
+      "uploadedAssets": [
+        4,
+        4
+      ],
+      "beforeSha256": "cfd7b38c2bba64103c38f397a55a5b8927eb01bb309495a5dd7e21fad6aa0a9e",
+      "afterSha256": "cfd7b38c2bba64103c38f397a55a5b8927eb01bb309495a5dd7e21fad6aa0a9e",
+      "beforeRawSha256": "240d97b4982886b8215122b93fd1e8337bc0786d8a7db509450a472eed6d8bee",
+      "afterRawSha256": "e10b726ae1166cec02cb1546cd3d34a3548eebdb01561d189319c455ccbe821a"
+    },
+    {
+      "wave": 27,
+      "lane": "020-snapback-llama-trekking-trips",
+      "identical": true,
+      "rawIdentical": false,
+      "uploadedAssets": [
+        4,
+        4
+      ],
+      "beforeSha256": "9315e155ecd75ec26b69a84601b11c712d74d509cc2208c7d6bc12aa30e9f95d",
+      "afterSha256": "9315e155ecd75ec26b69a84601b11c712d74d509cc2208c7d6bc12aa30e9f95d",
+      "beforeRawSha256": "02b54b834482d854ed4b8873940afb52bafcc9096ea675f37b96cd1e4d8fc0fe",
+      "afterRawSha256": "c08657a18e3310f9d93ce6f2d89f6238ec42ab1f984b9cc38fece4ebb7471863"
+    },
+    {
+      "wave": 27,
+      "lane": "025-snapback-lifeguard-certification-exams",
+      "identical": true,
+      "rawIdentical": false,
+      "uploadedAssets": [
+        12,
+        12
+      ],
+      "beforeSha256": "be0f2bfd0c253f38371e1335199a0a2395c76b938185296fbe98e1f8f8d49db9",
+      "afterSha256": "be0f2bfd0c253f38371e1335199a0a2395c76b938185296fbe98e1f8f8d49db9",
+      "beforeRawSha256": "998e7995b36dbf31eaf0badbe32e51aaef130d52c60b4fbb2fffe0e927b9c00b",
+      "afterRawSha256": "4325cabec9c3e80fa57aa01561e927e974c7e404271715649ca1e33f50085473"
+    },
+    {
+      "wave": 27,
+      "lane": "033-snapback-asphalt-sealcoating-jobs",
+      "identical": true,
+      "rawIdentical": false,
+      "uploadedAssets": [
+        4,
+        4
+      ],
+      "beforeSha256": "b92dd5d12d55962751323fa6e479800bb8c0d83e6826a93c0180e4a483179801",
+      "afterSha256": "b92dd5d12d55962751323fa6e479800bb8c0d83e6826a93c0180e4a483179801",
+      "beforeRawSha256": "b2d107ae7ac1113c1e066d5ec9c8929a126f3f68ae0afd8a1ed99fb9755bbc50",
+      "afterRawSha256": "449e95c3fc7507af0fc776ee8f401ba1bc41974adc6a52a33bdc628f697a2f9a"
+    },
+    {
+      "wave": 28,
+      "lane": "036-snapback-wax-figure-commissions",
+      "identical": true,
+      "rawIdentical": false,
+      "uploadedAssets": [
+        6,
+        6
+      ],
+      "beforeSha256": "51e841db9c242683160b62e2bbe15ddc79007110c50bacd90cb83dee533205a9",
+      "afterSha256": "51e841db9c242683160b62e2bbe15ddc79007110c50bacd90cb83dee533205a9",
+      "beforeRawSha256": "a29091e01494743217f439cd266fac3674cd5c5648e0de7deaad4b349de385d7",
+      "afterRawSha256": "46340ff02a5241b1c44d28f03d282c371799b5d65615fc8234e367d1cd5a1de2"
+    },
+    {
+      "wave": 30,
+      "lane": "046-snapback-walk-in-cooler-repairs",
+      "identical": true,
+      "rawIdentical": false,
+      "uploadedAssets": [
+        4,
+        4
+      ],
+      "beforeSha256": "8033b3f20c7126dd231e35478f77be3327d3fa134beff3d5d84084815ae9fdf8",
+      "afterSha256": "8033b3f20c7126dd231e35478f77be3327d3fa134beff3d5d84084815ae9fdf8",
+      "beforeRawSha256": "eefb70851469f2b70d6f61507f5ff86f93f57e3bf50fb868de128a1106282c6f",
+      "afterRawSha256": "725db4371282035fef87561c311b579159d53961e8bcee419bfc1df26e9948d4"
+    }
+  ],
+  "identical": true,
+  "method": "Complete counterexample JSON, including callers, arguments, rows, supporting worlds and histories. With --types, only nominal uploaded-asset IDs found in compiler-typed asset slots receive injective aliases; all facts, equality edges, other IDs and opaque values remain. Raw hashes and literal equality are retained; raw payloads stay private."
+}

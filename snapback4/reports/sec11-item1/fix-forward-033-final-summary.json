@@ -1,0 +1,20 @@
+{
+  "lane": "033",
+  "hole": "F1",
+  "operation": "advanceJob",
+  "change": "Require the exact job\u2019s damp approval when dampSigned is true before advancing",
+  "source": "/home/ccheever/sb4-loop/wave30/apps/033-snapback-garage-floor-coatings/snapback/schema.q",
+  "originalUnchanged": true,
+  "sourceSha256": "3cefc074528db8e63dd1d1a2b2e84b1c7f3f873b18e8fc656564e28e57283825",
+  "fixedSha256": "2d6f7f644113d72456e0483c14b3326231821d31422112d6a8a2dcc6d18d6a52",
+  "acceptance": {
+    "exit": 0,
+    "privateLogRetained": true
+  },
+  "pendingGatesAfterFix": 0,
+  "binarySha256": "9d432a5fed665c418cbed5aa26995811411ee46c10f09f9e5181139ce7924a95",
+  "checkExit": 0,
+  "productSource": "267c579701; merge d9734feab5 changes only experiment records",
+  "acceptanceScriptUnchanged": true,
+  "acceptanceScriptSha256": "380abe584b1cfadbdcc720340ca47f899297649f98e0cb359944b6a34049f554"
+}

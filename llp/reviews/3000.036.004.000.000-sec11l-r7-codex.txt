@@ -1,0 +1,10 @@
+**READY for this delta and its documented limited qualification boundary.** No new MATERIAL equivalence, claim, or provenance defect found in `b333f1ccf141934889b8c9f37f6a5f618935d37b` since `d6bef17efe`.
+
+- `Lane::prepare_for_ingress` is a mechanical rename. Public `ProgramCommand::prepare` and the census/ratchet rules remain unchanged. Git bytes corroborate the inherited lexical collision.
+- Default `compare.py` still compares complete selected payloads literally and returns failure on differences. `--identities-only` requires explicit selection and reports `fullPayloadEqualityEstablished:false`. An in-memory stale-ID/caller control confirms its documented limitation.
+- JSON checks reproduce cold50 p90 **8.332s review / 7.528s deploy**, matching source hashes across all800, **one strict mismatch**, zero identity-only mismatches, **19/26** refusals, and the **23-schema FIX union**.
+- Independent old-binary captures reproduce the same five differing witness fields with unchanged decision/witness IDs. The supplemental FIX evidence retains **21 raw differences / 2 raw-equal** results.
+
+The [qualification boundary](/home/ccheever/projects/sb4-b31-sec11l/llp/3000.036.004.000.000-production-security-replay-latency.rfc.md) and [report](/home/ccheever/projects/sb4-b31-sec11l/snapback4/reports/sec11-latency/README.md) honestly preserve the failed strict comparison. **The user’s byte-identical-payload condition remains unmet; this review does not relax it.**
+
+Final affected qualification and broader before-rerun results remain pending. This verdict supplies neither an all-clean delivery claim nor qualification of those unfinished checks. Read-only review; no builds or suites run.

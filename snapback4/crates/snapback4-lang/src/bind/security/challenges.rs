@@ -37,10 +37,12 @@ impl Campaign {
     /// Explicit caller-selected safety deadline; default commands use work_bounded.
     pub fn bounded(milliseconds:u64)->Self {Self{work_remaining:Some(512),deadline:Some(std::time::Instant::now()+std::time::Duration::from_millis(milliseconds)),..Self::default()}}
     fn slice(&mut self,work:usize,label:&str,run:impl FnOnce(&mut Self)){
+        let started=snapback4_core::replay_profile::start();
         let original=self.work_remaining;
         let workflow_base=self.workflow_base;self.workflow_base=self.workflow_attempts;
         let allowance=original.map_or(work,|left|left.min(work));
         self.work_remaining=Some(allowance);run(self);
+        if let Some(started)=started{snapback4_core::replay_profile::record(serde_json::json!({"phase":format!("campaign.{label}"),"seconds":started.elapsed().as_secs_f64()}));}
         let used=allowance.saturating_sub(self.work_remaining.unwrap_or(0));
         self.work_remaining=original.map(|left|left.saturating_sub(used));self.workflow_base=workflow_base;
         if used==allowance&&allowance>0&&self.work_remaining!=Some(0){
@@ -165,7 +167,7 @@ fn engine(bound:&Bound,rows:&BTreeMap<String,Vec<Value>>,probe:Program)->Result<
     engine_with(bound,rows,vec![probe])
 }
 fn engine_with(bound:&Bound,rows:&BTreeMap<String,Vec<Value>>,probes:Vec<Program>)->Result<Engine,String>{
-    engine_on_store(bound,rows,probes,Store::memory().map_err(|e|e.to_string())?)
+    engine_on_store(bound,rows,probes,Store::memory_for_campaign().map_err(|e|e.to_string())?)
 }
 fn hydrate(engine:&mut Engine,kind:&C,value:&Value)->Result<Value,String>{
         match (kind,value) {
@@ -334,7 +336,7 @@ pub fn run_selected_after(bound:&Bound,sites:Option<&BTreeSet<String>>,mut out:C
                     match attempt.mutate(operation,None,replay_ids::context(viewer,args.clone()).at(NOW).with_fixture_trace(trace.clone())) {
                         Ok(result) if matches!(result.state,snapback4_core::WriteState::Sent{..})=>{
                             if let Ok(after)=readback(&attempt){
-                                let steps=vec![histories::Step{clock:Some(NOW),operation:operation.clone(),viewer:viewer.into(),args,result:serde_json::to_value(&result.state).unwrap()}];
+                                let steps=vec![histories::Step{observed_data:None,clock:Some(NOW),operation:operation.clone(),viewer:viewer.into(),args,result:serde_json::to_value(&result.state).unwrap()}];
                                 let first=out.violations.len();
                                 executed::record(bound,&p.program,&trace,&result.state,&after,&rows,viewer,&steps,&mut attempt,&mut out);
                                 for witness in &mut out.violations[first..]{witness.reachability=Reachability::SyntheticOperation;witness.scope="actual executed boundaries from a schema-valid synthetic initial snapshot; application reachability is not claimed".into();}
@@ -444,6 +446,7 @@ pub fn generated_campaign(bound:&Bound,campaign:&mut Campaign,matrix:bool){
 /// This is conformance exploration, not a guessed spec oracle: only declared
 /// policies and replayed violations can fail security acceptance.
 pub fn fixture_observers(bound:&Bound,fixture:&Engine,campaign:&mut Campaign){
+    let snapshot=fixture.campaign_snapshot().ok().flatten();let fixture=snapshot.as_ref().unwrap_or(fixture);
     let _replay_ids = replay_ids::Scope::new();
     let first=campaign.violations.len();campaign.workflow_base=campaign.workflow_attempts;
     if bound.invariants.iter().any(super::derived::is_derived){
@@ -538,7 +541,7 @@ pub fn operations(bound:&Bound,fixture:&Engine,campaign:&mut Campaign){
                     match engine.mutate(&p.program.name,None,replay_ids::context(viewer,args.clone()).at(NOW).with_fixture_trace(trace.clone())){
                         Ok(result) if matches!(result.state,snapback4_core::WriteState::Sent{..})=>{
                             if let Ok(after)=readback(&engine){
-                                let steps=vec![histories::Step{clock:None,operation:p.program.name.clone(),viewer:viewer.clone(),args:args.clone(),result:serde_json::to_value(&result.state).unwrap()}];
+                                let steps=vec![histories::Step{observed_data:None,clock:None,operation:p.program.name.clone(),viewer:viewer.clone(),args:args.clone(),result:serde_json::to_value(&result.state).unwrap()}];
                                 let first_observation=campaign.violations.len();
                                 executed::record(bound,&p.program,&trace,&result.state,&after,&rows,viewer,&steps,&mut engine,campaign);
                                 if !has_fixture{for v in &mut campaign.violations[first_observation..]{v.reachability=Reachability::SyntheticOperation;v.scope="authored matrix operation on an invented schema snapshot; no trusted fixture or initialization trace".into();}}

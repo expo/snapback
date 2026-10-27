@@ -109356,6 +109356,27 @@ that lane. Add its admitted-helper/settings upgrade behavior to the same
 not a new storage design.
 
 
+## 2026-10-27 — SEC11 item 1 measured boundary
+
+LLP 3000.036.004.001 records current-witness decision refusals and bounded
+advisory replays for evidence absence/typing, direct guard reuse and actual
+structured read payloads. Commit-end parent survival and predicate evaluation
+exclude intermediate-only absence claims. Raw query observations stay live-only;
+redacted delivered fields and effective clocks participate in decision identity.
+No new production gate codes were added. Muse and fresh Codex source reviews
+are retained verbatim, including the cascade/expiry findings and corrections.
+
+On 800 source/fixture copies, no assessed false gates or production refusals;
+all fresh and post-test verdicts match their retained baselines. Default output
+medians are 3/5 check/deploy lines. Wave30 exact gate/default-question coverage
+is 4/14 (1 gate, 3 questions), up from 1/14; items 2–9 remain. Cold p90 review
+25.14 s and deploy 32.83 s miss the targets. The one-line wave30 lane033
+advanceJob fix clears its gate and preserves the unchanged app acceptance.
+Qualified affected security/language/client checks and the explicit test-only
+history assertion retry are recorded in `reports/sec11-item1/`; root legacy
+Snapback1 guide/codegen/inventory gates are outside this fence. The root
+WORKSTREAM-REPORT.md records the exact committed boundary and deferrals.
+
 ## 2026-10-27 — BCTL: retain batch capacity through queue pressure
 
 Lane BCTL reproduces the adaptive controller's low-rate trap on local,
@@ -109533,3 +109554,35 @@ Both independent final reviews are READY. Packed consumer and affected receipts
 are recorded in reports/20261027-tok1 and WORKSTREAM-REPORT.md. Origin/main's
 SQLite work was merged with only append-only journal resolution. No publication,
 version bump, push, Mac run, security-binder or client-contract edit is made.
+
+## 2026-10-27 — SEC11L production-loop latency
+
+SEC11L profiles the slowest20 wave30 schemas on production binaries, then
+removes repeated candidate binding/report work, overlaps independent campaigns
+with unchanged work budgets and replay scopes, and constructs complete fixture
+backups without overwriting a freshly initialized catalog. Production pending
+question evidence requires the actual identical note vector, otherwise it falls
+back. Bounded immutable verified bytes eliminate repeated campaign file copies;
+ledgers, admission, COW maps and authorized materialized files remain independent.
+Both Muse and fresh Codex approve the source, with actual reviews retained under
+LLP3000.036.004.000.000. No gate inference or version changes are included.
+
+Cold50 production review p50/p90/max is5.189/8.332/11.606 s and deploy is
+5.294/7.528/12.945 s: both p90 targets pass, versus SEC11's25.144/32.834 s.
+All800 after source hashes and decision/product witness identities match the
+retained survey; SEC11 classifies no new result or assessed false gate/refusal.
+The strict full-payload comparison remains a failure on one expanded advisory
+witness, also reproduced by two unchanged-baseline runs. Uploaded IDs copied
+into plain id columns are not normalized. A filesystem follow-up records that
+missing deterministic presentation boundary; identity equality is explicitly
+not full-payload proof. Complete23 FIX-bearing counterexamples match under the
+reviewed typed uploaded-ID correspondence, retaining raw hashes/equality.
+
+Origin/main is merged through64e94e52cf. Its generic neutral Lane::prepare calls
+trip the unchanged lexical store-port guard; rename that internal helper to
+prepare_for_ingress without changing SQL/port behavior or weakening the guard.
+Focused census/ratchet tests pass. The final scoped receipt and remaining
+baseline retries are recorded by the root WORKSTREAM-REPORT.md. The report
+under reports/sec11-latency retains cold samples, phase profiles, classifier
+results, primary literal failure and secondary diagnostic limits. No push,
+publication, full suite or complete-battery capability claim is made.
