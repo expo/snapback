@@ -77,9 +77,10 @@ fn steps(sources:&[(String,String)],bound:&Bound)->Vec<Step>{
 fn add(out:&mut Vec<(Diagnostic,Invariant)>,write:&Step,anchor:&Step,from:&str,to:&str,focus:&str,message:String,bound:&Bound){
     let applicable=anchor.guards.iter().filter(|g|choices(g,focus).is_none()&&!actor_check(g,bound)).cloned().reduce(|a,b|workflow::binary("and",a,b)).unwrap_or(Expr::Literal{value:ast::Literal::Bool(true),site:Site::default()});
     let basis=format!("{} effect {}; guards {}; bypass {} effect {}; types {:?}; anchor types {:?}; inputs {}; anchor inputs {}",anchor.operation,anchor.effect,anchor.guards.iter().map(|g|format!("({})",crate::print::expression(g))).collect::<Vec<_>>().join(" and "),write.operation,write.effect,write.types,anchor.types,write.context,anchor.context);
+    let applicability=crate::print::expression(&applicable);
     let policy=Expr::Call{name:"$sec11-transition".into(),args:vec![string(&write.site.to_string()),string(&write.column),string(from),string(to),applicable,string(&basis)],site:Site::default()};let mut invs=Vec::new();
     workflow::add_syntax(&mut invs,&write.table,Some(&write.column),"update",policy,&write.site,"sec11-transition",Some(write.operation.clone()));let mut inv=invs.remove(0);
-    inv.predicate=format!("question hypothesis {}.{} {from} -> {to}; {basis}",write.table,write.column);
+    inv.predicate=format!("question hypothesis {}.{} {from} -> {to}; applicability ({applicability}); {basis}",write.table,write.column);
     let note=Diagnostic::new(&inv.site,"N_TRANSITION_BYPASS",message,"declare and enforce the intended old/next transitions, or answer this exact witnessed question with its intended effect and specification rationale").guide("security");
     if !out.iter().any(|(n,_)|n.site==note.site){out.push((note,inv));}
 }
@@ -177,6 +178,10 @@ pub(crate) fn judge(inv:&Invariant,old:Option<&Value>,row:&Value,rows:&BTreeMap<
   assert!(compile(&source).1.is_empty());assert!(compile(&source.replace("open = true","open = false")).1.is_empty());
   let source=format!("table reviewWindows:\n  open: bool\n  unique open\n  read <- allow\n  insert <- allow\n  online only\nfn selectTarget(study: studies):\n  w = reviewWindows[open = true] ! else CLOSED\n  return study\n{}",STUDY.replace("update studies[study] { status: 'reviewed' }","update studies[selectTarget(study)] { status: 'reviewed' }"));assert!(compile(&source).1.is_empty(),"a reduced target helper cannot erase its prerequisite either");
   let source=STUDY.replace("update studies[study] { status: 'reviewed' }","update s { status: 'reviewed' }");assert_eq!(compile(&source).1.len(),1,"the paved direct-row update retains its typed target");
+ }
+
+ #[test]fn actor_classification_changes_bind_the_actual_applicability(){
+  let source=format!("table actors:\n  principal: principal\n  role: enum('reviewer','publisher')\n  unique principal\n  read <- allow\n  insert <- allow\n  online only\n{}",SMALL.replace("require d.phase = 'a' else WRONG","require exists actors[principal = viewer, role = 'reviewer'] else ROLE\n  require d.phase = 'a' else WRONG"));let(_,a)=compile(&source);let(_,b)=compile(&source.replace("unique principal\n","unique principal, role\n"));assert_eq!(a.len(),1);assert_eq!(b.len(),1);assert_ne!(a[0].1.predicate,b[0].1.predicate,"classification cannot change the bound applicability while retaining an identical public hypothesis");
  }
 
 }
