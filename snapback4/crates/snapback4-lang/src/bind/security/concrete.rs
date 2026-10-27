@@ -13,6 +13,14 @@ pub(super) fn value(e:&Expr,row:&Value,rows:&Rows,schema:&Schema,viewer:&str,tab
     Expr::Focal{..}=>row.clone(),
     Expr::If{condition,then,otherwise,..}=>{if boolean(value(condition,row,rows,schema,viewer,table,now))?{value(then,row,rows,schema,viewer,table,now)?}else{value(otherwise,row,rows,schema,viewer,table,now)?}},
     Expr::Member{base,name,..} if matches!(base.as_ref(),Expr::Focal{..})=>row.field(name).ok()?.clone(),
+    Expr::Member{base,name,..} if matches!(base.as_ref(),Expr::Read(read) if point_shape(read,schema))=>{
+        let Expr::Read(read)=base.as_ref()else{unreachable!()};
+        // Population reads remain arrays. Member access is a point only when
+        // named, non-null pins cover a plain unique key on this exact table.
+        for key in &read.keys{if value(&key.value,row,rows,schema,viewer,table,now)?==Value::Null{return None;}}
+        let Value::Array(selected)=value(base,row,rows,schema,viewer,table,now)?else{return None;};
+        if selected.len()!=1{return None;}selected[0].field(name).ok()?.clone()
+    },
     Expr::Member{base,name,..}=>{
         let Value::Id(id)=value(base,row,rows,schema,viewer,table,now)? else{return None;};
         let target=reference_table(base,schema,table)?;
@@ -116,11 +124,15 @@ pub(super) fn limitations(expr:&Expr,schema:&Schema,table:&str)->BTreeSet<String
 pub(super) fn reference_table<'a>(expr:&Expr,schema:&'a Schema,table:&'a str)->Option<&'a str>{
     match expr {
         Expr::Focal{..}=>Some(table),
+        Expr::Read(read) if point_shape(read,schema)=>Some(&schema.tables.get_key_value(&read.table)?.0),
         Expr::Member{base,name,..}=>{
             let owner=reference_table(base,schema,table)?;
             match schema.tables.get(owner)?.columns.get(name)?.required(){snapback4_core::schema::ColumnType::Ref{table}=>Some(table),_=>None}
         },_=>None
     }
+}
+fn point_shape(read:&ast::ReadExpr,schema:&Schema)->bool {
+    read.filter.is_none()&&read.range.is_none()&&read.matching.is_none()&&read.seeks.is_empty()&&read.computed.is_empty()&&!read.keys.is_empty()&&read.keys.iter().all(|k|k.column.is_some())&&schema.table(&read.table).is_some_and(|t|t.indexes.values().any(|i|i.unique&&i.is_plain()&&i.columns().iter().all(|c|read.keys.iter().any(|k|k.column.as_ref()==Some(c)))))
 }
 fn logical_live(schema:&Schema,rows:&Rows,table:&str,row:&Value,now:i64,depth:usize)->Option<bool>{
     if depth>32{return None;}
@@ -157,4 +169,36 @@ fn logical_live(schema:&Schema,rows:&Rows,table:&str,row:&Value,now:i64,depth:us
         ]);
         assert_eq!(evaluate(b.invariants[0].syntax.as_ref().unwrap(),&project,&rows,&b.schema,"viewer","projects",super::super::challenges::NOW),Some(true));
     }
+}
+
+#[cfg(test)]mod sec13_point_tests {
+ use super::*;
+ fn record(fields:&[(&str,Value)])->Value{Value::Row(fields.iter().map(|(k,v)|(k.to_string(),v.clone())).collect())}
+ #[test]fn selected_point_window_requires_the_exact_live_nonnull_anchor(){
+  let base="table exams:\n  completedAt: time ?\n  read <- allow\n  online only\ntable progress:\n  candidate: principal\n  latest: exams\n  unique candidate\n  read <- allow\n  online only\ntable bookings:\n  candidate: principal\n  scheduledAt: time\n  read <- allow\n  online only\n";
+  let source=format!("{base}invariant bookings always not (now <= exams[id = progress[candidate = .candidate].latest].completedAt + 30d) or .scheduledAt <= exams[id = progress[candidate = .candidate].latest].completedAt + 30d\n");
+  let b=crate::compile(&[("schema.q".into(),source)]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);let predicate=b.invariants[0].syntax.as_ref().unwrap();
+  let now=challenges::NOW;let edge=now+30*86_400_000;
+  let booking=record(&[("id",Value::Id("new".into())),("candidate",Value::Id("person".into())),("scheduledAt",Value::Int(edge+1))]);
+  let prior=record(&[("id",Value::Id("prior".into())),("completedAt",Value::Int(now))]);
+  let progress=record(&[("id",Value::Id("progress".into())),("candidate",Value::Id("person".into())),("latest",Value::Id("prior".into()))]);
+  let rows=BTreeMap::from([("exams".into(),vec![prior]),("progress".into(),vec![progress])]);
+  assert_eq!(evaluate(predicate,&booking,&rows,&b.schema,"actor","bookings",now),Some(false));
+  let mut on_edge=booking.clone();if let Value::Row(fields)=&mut on_edge{fields.insert("scheduledAt".into(),Value::Int(edge));}
+  assert_eq!(evaluate(predicate,&on_edge,&rows,&b.schema,"actor","bookings",now),Some(true));
+  let mut missing=rows.clone();missing.get_mut("progress").unwrap().clear();assert_eq!(evaluate(predicate,&booking,&missing,&b.schema,"actor","bookings",now),None);
+  let mut null=rows.clone();if let Value::Row(fields)=&mut null.get_mut("exams").unwrap()[0]{fields.insert("completedAt".into(),Value::Null);}
+  assert_eq!(evaluate(predicate,&booking,&null,&b.schema,"actor","bookings",now),None);
+  let mut duplicate=rows.clone();duplicate.get_mut("progress").unwrap().push(rows["progress"][0].clone());
+  assert_eq!(evaluate(predicate,&booking,&duplicate,&b.schema,"actor","bookings",now),None);
+  let mut other=rows.clone();if let Value::Row(fields)=&mut other.get_mut("progress").unwrap()[0]{fields.insert("candidate".into(),Value::Id("another".into()));}
+  assert_eq!(evaluate(predicate,&booking,&other,&b.schema,"actor","bookings",now),None);
+ }
+ #[test]fn a_nonunique_population_cannot_be_used_as_a_point(){
+  let b=crate::compile(&[("schema.q".into(),"table exams:\n  candidate: principal\n  completedAt: time\n  read <- allow\n  online only\ntable bookings:\n  candidate: principal\n  read <- allow\n  online only\ninvariant bookings always exams[candidate = .candidate].completedAt > 0\n".into())]);
+  let predicate=b.invariants[0].syntax.as_ref().unwrap();
+  let booking=record(&[("candidate",Value::Id("person".into()))]);
+  let rows=BTreeMap::from([("exams".into(),vec![record(&[("candidate",Value::Id("person".into())),("completedAt",Value::Int(1))])])]);
+  assert_eq!(evaluate(predicate,&booking,&rows,&b.schema,"actor","bookings",challenges::NOW),None);
+ }
 }

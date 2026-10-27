@@ -84,15 +84,16 @@ pub(in crate::verbs) fn render_mode(dispositions:&[Disposition],notes:&[Diagnost
             if d.gated&&!d.acknowledged || d.recorded {
                 output.push_str(&render(&[d.clone()],&[n.clone()]));
             } else if !d.acknowledged && let Some(w)=&d.witness {
+                let rationale=if witness::concrete(w) {witness::reason_template(w)} else {"<spec rationale>".into()};
                 // @ref LLP 3000.036.004.003#assignment-questions — the new tier keeps actual read facts in one default line; full evidence remains in review/JSON.
                 if d.code=="N_ASSIGNMENT_SCOPE" {
                     let subject=n.message.split(" read:").next().unwrap_or("private payload");
                     let assignment=w["assignment"]["principal"].as_str().map(|p|format!("; assigned to {p}")).unwrap_or_else(||"; assignment not modeled".into());
-                    output.push_str(&format!("fix question {} at {}: {} as {} disclosed {subject}{assignment}; assigned or any? (bounded replay; doesn't block; check --review)\n",d.code,d.site,w["operation"].as_str().unwrap_or("query"),w["viewer"].as_str().unwrap_or("caller")));
+                    output.push_str(&format!("fix question {} at {}: {} as {} disclosed {subject}{assignment}; assigned or any? (bounded replay; doesn't block; check --review); repair or check --ack-security {} --reason '{}'\n",d.code,d.site,w["operation"].as_str().unwrap_or("query"),w["viewer"].as_str().unwrap_or("caller"),d.id,rationale));
                     continue;
                 }
                 if d.code=="N_TRANSITION_BYPASS"&&w["questionKind"]=="declared-transition"{
-                    output.push_str(&format!("fix question {} at {}: {} (bounded replay; doesn't block; check --review)\n",d.code,d.site,w["compactSummary"].as_str().unwrap_or("see check --json for replay")));continue;
+                    output.push_str(&format!("fix question {} at {}: {} (bounded replay; doesn't block; check --review); repair or check --ack-security {} --reason '{}'\n",d.code,d.site,w["compactSummary"].as_str().unwrap_or("see check --json for replay"),d.id,rationale));continue;
                 }
                 let question=match d.code.as_str(){
                     "N_INSERT_WRITE_INTENT" if w["effect"]=="update"=>"Is this edit audience intended?",
@@ -104,7 +105,7 @@ pub(in crate::verbs) fn render_mode(dispositions:&[Disposition],notes:&[Diagnost
                     _=>"Is this behavior intended?",
                 };
                 let summary=w["compactSummary"].as_str().or_else(||w["summary"].as_str()).unwrap_or("see check --json for replay").replace(['\n','\r']," ");
-                output.push_str(&format!("fix question {} at {}: {question} Witness: {summary} — replay/repair/decision: check --review (doesn't block)\n",d.code,d.site));
+                output.push_str(&format!("fix question {} at {}: {question} Witness: {summary} — repair or check --ack-security {} --reason '{}' (doesn't block; check --review)\n",d.code,d.site,d.id,rationale));
             }
         }
         return output;
@@ -211,5 +212,33 @@ pub(in crate::verbs) fn render_mode(dispositions:&[Disposition],notes:&[Diagnost
   let mut text=String::new();crate::verbs::security::append_deploy_language_summary(&mut text,"positive feature counts\n",&[d.clone()],false);assert!(text.is_empty());
   crate::verbs::security::append_deploy_language_summary(&mut text,"positive feature counts\n",&[d.clone()],true);assert!(text.contains("positive feature counts"));
   d.gated=true;text.clear();crate::verbs::security::append_deploy_language_summary(&mut text,"positive feature counts\n",&[d],false);assert!(text.contains("positive feature counts"));
+ }
+}
+
+#[cfg(test)]mod sec13_corpus_format {
+ use super::*;
+ /// Re-render retained real dispositions without repeating an unchanged search.
+ #[test]#[ignore="requires SEC13_CORPUS_INPUT and SEC13_CORPUS_OUTPUT retained survey paths"]
+ fn all_captured_default_cards_keep_their_witnesses_in_one_line(){
+  let input=std::env::var("SEC13_CORPUS_INPUT").unwrap();let output=std::env::var("SEC13_CORPUS_OUTPUT").unwrap();
+  let rows:serde_json::Value=serde_json::from_slice(&std::fs::read(input).unwrap()).unwrap();let mut results=Vec::new();
+  for row in rows.as_array().unwrap(){
+   let mut ds=Vec::new();let mut ns=Vec::new();let notes=row["notes"].as_array().unwrap();let mut used=std::collections::BTreeSet::new();
+   for value in row["reviews"].as_array().unwrap(){
+    let code=value["code"].as_str().unwrap();let site=value["site"].as_str().unwrap();
+    let index=notes.iter().enumerate().find(|(i,n)|!used.contains(i)&&n["code"]==code&&serde_json::from_value::<snapback4_lang::Site>(n["site"].clone()).is_ok_and(|s|s.to_string()==site)).map(|(i,_)|i).unwrap();used.insert(index);
+    let text=|key:&str|value[key].as_str().map(str::to_owned);
+    ds.push(Disposition{family:text("family"),id:text("id").unwrap(),code:code.into(),site:site.into(),gated:value["gated"]==true,acknowledged:value["acknowledged"]==true,recorded:value["recorded"]==true,reason:text("reason"),scope:text("scope").unwrap_or_default(),witness:value.get("witness").filter(|v|!v.is_null()).cloned()});
+    ns.push(Diagnostic::new(&serde_json::from_value(notes[index]["site"].clone()).unwrap(),code,notes[index]["message"].as_str().unwrap(),"retained original repair; see raw transcript"));
+   }
+   for (d,n) in ds.iter().zip(&ns).filter(|(d,_)|!d.gated&&!d.acknowledged&&!d.recorded&&d.witness.is_some()){
+    let card=render_mode(&[d.clone()],&[n.clone()],false);assert_eq!(card.lines().count(),1,"{} {}",row["lane"],d.code);
+    assert!(card.contains(&d.id)&&card.contains(d.witness.as_ref().unwrap()["compactSummary"].as_str().or_else(||d.witness.as_ref().unwrap()["summary"].as_str()).unwrap()));
+   }
+   let old=row["defaultCheck"]["stdout"].as_str().unwrap().to_owned()+row["defaultCheck"]["stderr"].as_str().unwrap();
+   let lines=old.lines().collect::<Vec<_>>();let joins=lines.windows(2).filter(|pair|pair[0].starts_with("fix question ")&&pair[1].starts_with("  Witness:")).count();
+   results.push(serde_json::json!({"wave":row["wave"],"lane":row["lane"],"sourceSha256":row["sha256"],"rawLines":lines.len(),"projectedLines":lines.len()-joins,"joinedWitnessLines":joins}));
+  }
+  assert_eq!(results.len(),800);std::fs::write(output,serde_json::to_vec_pretty(&results).unwrap()).unwrap();
  }
 }

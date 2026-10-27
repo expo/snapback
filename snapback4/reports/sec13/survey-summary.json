@@ -1,0 +1,33 @@
+{
+  "schemas": 800,
+  "sourceHashMismatches": [],
+  "beforeOutput": {
+    "count": 800,
+    "median": 3.0,
+    "p90": 7,
+    "max": 14
+  },
+  "afterOutput": {
+    "count": 800,
+    "median": 3.0,
+    "p90": 8,
+    "max": 14
+  },
+  "gateChanges": [],
+  "exitChanges": [],
+  "toolFailures": [],
+  "selectedWitnessCounts": {
+    "N_CHILD_EVIDENCE_PRESENCE": 289,
+    "N_OPTIONAL_EVIDENCE": 84,
+    "N_MOVABLE_TIME_ANCHOR": 14,
+    "N_EVENT_TIME_ANCHOR": 6
+  },
+  "noNewGateCodes": true,
+  "finalRendererReplay": {
+    "schemas": 800,
+    "median": 3,
+    "p90": 6,
+    "max": 12,
+    "method": "Native captured cards re-rendered through final Rust formatter; projected newline counts, not a native final-binary 800 run."
+  }
+}

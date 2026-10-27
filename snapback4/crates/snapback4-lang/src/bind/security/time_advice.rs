@@ -97,7 +97,7 @@ pub(super) fn notes(documents:&[ast::Document],catalog:&Catalog,bound:&Bound)->V
             ast::FunctionBody::Expression(value)=>deadlines(&[Stmt::Return{value:value.clone(),site:f.site.clone()}],&mut env,&mut fields),
         }
     }}
-    let mut out=Vec::new();
+    let mut out=super::time_anchors::notes(documents,catalog,bound);
     for doc in documents{for p in &doc.programs{if p.kind!=ProgramKind::Mutation{continue;}
         let times=p.args.iter().filter(|a|matches!(a.type_.kind,ast::TypeKind::Time)).map(|a|a.name.as_str()).collect::<Vec<_>>();if times.is_empty(){continue;}
         let mut seen=BTreeSet::new();

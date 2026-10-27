@@ -1,0 +1,27 @@
+[
+  {
+    "lane": "004",
+    "source": "/home/ccheever/sb4-loop/wave32/apps/004-snapback-senior-downsizing-moves/snapback/schema.q",
+    "sha256": "f4c1771269de3e6c76a9359716c469b9754b162f46deb99f7a2475f34dbf91c0"
+  },
+  {
+    "lane": "017",
+    "source": "/home/ccheever/sb4-loop/wave32/apps/017-snapback-science-show-parties/snapback/schema.q",
+    "sha256": "466f2d61bf2342a10010ba45be85cd50be14deac4b9b87871238fa4fd8b27ff9"
+  },
+  {
+    "lane": "025",
+    "source": "/home/ccheever/sb4-loop/wave32/apps/025-snapback-drone-pilot-certifications/snapback/schema.q",
+    "sha256": "d91b6b6f4339673f1292e9e41fd8a92ddd300efa079e46c9c3e493d9195d3f14"
+  },
+  {
+    "lane": "029",
+    "source": "/home/ccheever/sb4-loop/wave32/apps/029-snapback-grand-piano-moves/snapback/schema.q",
+    "sha256": "3746c24e580354d07158f94a36784b1fd7b56227c997a8888241f55dfce5e3ea"
+  },
+  {
+    "lane": "033",
+    "source": "/home/ccheever/sb4-loop/wave32/apps/033-snapback-bathtub-reglazing-jobs/snapback/schema.q",
+    "sha256": "cf93788ff916fb00d5956a2fbf7b4c6ed2d8338f0d57212edebc87195cbcd512"
+  }
+]

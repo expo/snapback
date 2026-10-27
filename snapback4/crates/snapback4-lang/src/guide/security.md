@@ -702,3 +702,34 @@ this omits a review question and does not prove the safety of imported rows.
 Precision omits advisory hypotheses only. An independent current bounded replay
 retains a witnessed question even when source facts answer its advisory form.
 It never promotes that question to a gate or trusts a cached witness.
+
+## Evidence and time anchors (SEC13)
+
+Optional media and a separately attached child can leave a parent without
+photos or an agreement. Default witnessed questions show an admitted creation
+or transition and its missing evidence. A required child field does not require
+a child row. If the specification requires the upload, require the argument and
+create the linked evidence atomically, or check its presence at the relevant
+boundary. Deliberate draft states and optional attachments may remain optional.
+
+### N_MOVABLE_TIME_ANCHOR
+
+N_MOVABLE_TIME_ANCHOR means a stored time used to measure a window has an edit
+path. Preserve an immutable original date, prevent edits after dependent records
+exist, or re-check affected windows. This is a specification question, not proof
+that every moved date violates a window; only a current admitted net change
+appears by default. Acknowledgment requires the current witness and intended effect.
+
+### N_EVENT_TIME_ANCHOR
+
+N_EVENT_TIME_ANCHOR means a guard checks booking-time now while the operation
+stores a separate caller event time. Check the event time against the selected
+stored anchor when the specification governs the sitting time; retain now for
+an intentional booking-time policy. This is a specification question; missing
+or null anchors and invalid old events cannot supply a new-event witness.
+
+These are specification questions, not inferred obligations or security proofs.
+Only current replayed behavior appears by default. Unsupported cases remain in
+`check --review --json`; they cannot be acknowledged without an evaluable replay.
+An optional acknowledgment must name the current witness, explicitly permit its
+operation and caller, and give the intended audience or effect rationale.

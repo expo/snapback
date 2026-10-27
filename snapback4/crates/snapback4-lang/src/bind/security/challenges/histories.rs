@@ -107,6 +107,11 @@ pub(super) fn fixture_cases(bound:&Bound,p:&Program,rows:&BTreeMap<String,Vec<Va
             let prefix="https://example.invalid/";let value=prefix.to_owned()+&"x".repeat((*min as usize).saturating_sub(prefix.len()));
             if value.chars().count()<=*max as usize {vals.insert(0,Value::String(value));}
         }
+        // Family-local proposals are search inputs only. The unmodified
+        // program still validates every argument and executes every guard.
+        if let Some(proposals)=out.question_arguments.get(&(p.name.clone(),name.clone())) {
+            for value in proposals.iter().rev(){vals.retain(|v|v!=value);vals.insert(0,value.clone());}
+        }
         if vals.is_empty()||cases.is_empty(){out.unsupported.insert(format!("{}: no typed history tuples available for {name}; remaining combinations uncovered",p.name));return Vec::new();}
         if let Some(preferred)=preferences.get(name){vals.sort_by_key(|v|!preferred.contains(v));}
         for literal in literals.get(name).into_iter().flatten() {
@@ -146,7 +151,8 @@ pub(super) fn fixture_cases(bound:&Bound,p:&Program,rows:&BTreeMap<String,Vec<Va
 }
 // Preserve status/decision alternatives on each resource tuple before the
 // small directed cap; text/noise arguments must not correlate bools with ids.
-fn directed_cases(bound:&Bound,p:&Program,cases:Vec<BTreeMap<String,Value>>,campaign:&mut Campaign)->Vec<BTreeMap<String,Value>>{
+fn directed_cases(bound:&Bound,p:&Program,mut cases:Vec<BTreeMap<String,Value>>,campaign:&mut Campaign)->Vec<BTreeMap<String,Value>>{
+    if super::super::time_anchors::prioritize_cases(p,&mut cases,campaign){return cases;}
     let identities=p.args.iter().filter(|(_,k)|matches!(k,ir::ArgType::Ref{..}|ir::ArgType::Principal)).map(|(n,_)|n).collect::<Vec<_>>();
     let original=cases.clone();let focused=super::executed::write_arguments(bound,p);
     let mut seen=BTreeSet::new();let mut groups=Vec::new();

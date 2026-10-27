@@ -95,6 +95,8 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("N_INVARIANT_RESTATES_RULE", &["Read the original requirement and answer those questions before editing", "a simple confirmed policy may be correct"]),
     ("N_ROLE_WIDE_READ", &["Use a board/projection table", "confirmed relationship and state conditions", "Declare private-column intent separately"]),
     ("N_SELF_CLAIMED_RELATIONSHIP", &["Require an invitation or approval by the resource owner", "Confirm intentional open enrollment against the spec"]),
+    ("N_MOVABLE_TIME_ANCHOR", &["Preserve an immutable original date", "re-check affected windows", "Acknowledgment requires the current witness"]),
+    ("N_EVENT_TIME_ANCHOR", &["Check the event time against the selected stored anchor", "intentional booking-time policy", "invalid old events cannot supply a new-event witness"]),
     ("N_CALLER_TIME", &["Use server `now` for the event time", "when the spec allows historical input"]),
     ("N_ARGUMENT_GRANT", &["Validate the recipient role and relationship", "inspect `audit`"]),
     ("N_PRIVILEGE_ESCALATION", &["compare each note with the specification", "operator first-admin setup"]),

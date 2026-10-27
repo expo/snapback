@@ -79,6 +79,8 @@ pub const CODES: &[(&str, &str)] = &[
     ("E_SECURITY_TARGET", "an invariant names an unknown table, column or effect; correct the declared target; guide security."),
     ("N_SECURITY_INTENT", "tables have access rules but no independent policy intent; declare invariants from the product spec; guide security."),
     ("N_SELF_CLAIMED_RELATIONSHIP", "a caller can assign themselves a relationship trusted by another rule. Require an invitation or approval from the resource owner before assigning it. guide security."),
+    ("N_MOVABLE_TIME_ANCHOR", "a stored deadline anchor can be edited; confirm rolling-window intent, preserve the original date, or re-check dependent windows. guide security."),
+    ("N_EVENT_TIME_ANCHOR", "a window checks now while a separate caller event time is stored; confirm whether the event or booking time should meet the deadline. guide security."),
     ("N_CALLER_TIME", "caller-supplied time controls a deadline without a dominating server-clock bound. Derive it from now or validate the permitted window before writing. guide security."),
     ("N_BROAD_READ", "universal or roster-wide readership; the note states the condition; confirm that the spec permits it; guide security."),
     ("N_GRANT_OUTLIVES_ROLE", "a derived grant can survive a role change; recheck the current reader role or revoke derived grants transactionally; guide security."),

@@ -5,13 +5,14 @@ use super::*;
 pub(super) enum Candidate {
     Bound(security::Invariant),
     Source(String, bool),
+    Time(String, String, bool),
 }
 
 // Every declaration is still parsed at line one of the same virtual filename.
 // This preserves nested expression sites as well as the hashed invariant site.
 // A failed batch falls back to the original independent compiler for each line.
 pub(super) fn resolve(sources:&[(String,String)],proposals:Vec<(usize,Candidate)>)->Vec<(usize,security::Invariant)> {
-    let lines=proposals.iter().filter_map(|(_,p)|match p{Candidate::Source(line,_)=>Some(line),_=>None}).collect::<std::collections::BTreeSet<_>>();
+    let lines=proposals.iter().filter_map(|(_,p)|match p{Candidate::Source(line,_)|Candidate::Time(line,_,_)=>Some(line),_=>None}).collect::<std::collections::BTreeSet<_>>();
     let mut selected=sources.to_vec();
     selected.extend(lines.iter().map(|line|("$dx11-question.q".into(),format!("{line}\n"))));
     let compiled=if lines.is_empty(){None}else{Some(snapback4_lang::compile(&selected))};
@@ -21,6 +22,10 @@ pub(super) fn resolve(sources:&[(String,String)],proposals:Vec<(usize,Candidate)
     }else{lines.iter().map(|line|((*line).clone(),candidate(sources,line))).collect()};
     proposals.into_iter().filter_map(|(index,p)|match p{
         Candidate::Bound(inv)=>Some((index,inv)),
+        Candidate::Time(line,column,movable)=>bound.get(&line).cloned().flatten().map(|mut inv|{
+            inv.site.file=inv.site.file.replace("/dx11/",if movable{"/sec13-anchor/"}else{"/sec13-event/"});
+            inv.column=Some(column);(index,inv)
+        }),
         Candidate::Source(line,absence)=>bound.get(&line).cloned().flatten().map(|mut inv|{
             if absence{inv.site.file=inv.site.file.replace("/dx11/","/sec11-absence/");}(index,inv)
         }),

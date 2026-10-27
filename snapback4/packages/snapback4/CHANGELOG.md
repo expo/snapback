@@ -1,14 +1,17 @@
 # Changelog
 
-## 0.4.44
+## 0.4.45
 
 ### Guide changes
 
-- Transition questions replay actual committed old/next edges against sibling source prerequisites. Declare intended transitions explicitly; enum list order supplies no automatic authority.
+- Default check and deploy add witnessed questions for approval acts and history, staff assignment scope, bypassed transitions, missing optional media/child evidence, movable stored deadline anchors and event-time windows. These are nonblocking specification questions; existing gates still require current evaluated evidence. Existing apps may see new pending questions on upgrade; unsupported evidence questions cannot be acknowledged without a current replay. Review and answer the exact operation/caller witness, or enforce the intended guard in source.
+- Rollback to the already-live release is an idempotent no-op. A redundant historical rollback no longer prevents forward selection; preview repair with `rollback DIR --to latest --exact --check`. Real authored old-release conflicts still refuse with row, field and bridge advice. Pointer-only legacy stores require one explicit deploy before serve or rollback.
+- `alias result list.oldName = currentName` preserves old result property names. Receipt-owned rollback views retain extracted asset fields through their original child identities and current authorization. Rename plus safe domain widening can activate together; scalar-only extraction explicitly refuses with a backfill/down repair. Preview output names changed properties and retained preimages.
+- Existing app rows, accounts and users remain. Restart serving hosts and use this CLI for cold release commands: successful release moves upgrade the internal server-store fence to 11 and require activation protocol 11. Older executors refuse unsupported receipt-owned result views. Rebuild clients for generated result aliases; no source rewrite is required unless choosing them.
 
-- Assignment questions show an actual private-payload read by another role member and ask whether access should be assigned or global; absent assignment models are stated explicitly.
-- Approval questions use actual receipt reads and typed effects, including parent inserts and related completion paths. Witnessed questions distinguish caller-supplied history from approvals selected by an older subject; they remain advisory until the builder states the intended contract.
+## 0.4.44
 
+### Guide changes
 
 - Start replaces the introductory card tour with one compiling customer/staff workflow and feature pointers. Default cards have a hard reading budget; project repeats show deltas (guide --repeat/--full restore content). Build-time API digests and a generated operation index replace declaration greps. Init shows the recipe and file map before a background frontend install with status/wait. Probe scripts announce their lifetime, refuse repeated empty long runs and bound idle foreground waiting unless the npm script receives --hold; probe:check verifies. Upload placement explains separate uploads for several image columns.
 
@@ -29,12 +32,6 @@
 
 - Security decision refusals retain current redacted evidence. Default witnessed questions now include formatted URL/email/handle creation paths, missing media or attachments, text evidence, broad audiences and supported guard reuse. They remain nonblocking unless an independently qualified gate applies. Advisory answers name the witness, operation and caller; gates require a schema fix or evaluated Quarry invariant/allowance.
 - Upgrade: existing application rows and store formats are unchanged. Rebuild clients and restart servers for the diagnostics and replay implementation. Old decisions may become pending once because witness digests now include clocks, observed absence and delivered fields. Adapt only unmodified generated starter files; authored files are preserved. A probe terminated after over 60 seconds without requests refuses before the next deploy; pass the npm script option --hold or set SNAPBACK4_PROBE_HOLD=1 for an intentional held server. Each asset still has one placement: upload the same bytes separately for each image column, even on the same row.
-- Restart running serve hosts with this CLI before release moves (activation protocol 11); older hosts refuse before adopting receipt-owned result views. Successful release moves upgrade the internal server-store fence, so use the updated CLI for cold commands too. Existing apps/stores retain their data and users; no source rewrite is required unless choosing result aliases.
-- Pointer-only legacy deployments still need one explicit deploy to initialize their persisted backend before serving; rollback refuses until then; a filesystem hint is not an already-live release.
-- Rollback to the already-live release is an idempotent no-op. Existing self-transition wedges can roll forward after previewing `rollback DIR --to latest --exact --check`; validated native down receipts preserve newer authored values. Real old-release edits still refuse with row/field/forward context and bridge advice; changed migration meaning needs a fresh declaration name.
-- `alias result list.oldName = currentName` preserves frozen result property names on rows, nullable rows and pages; generated client types include both names. RESULT REVIEW lists frozen property reads and named alias coverage separately from domain/behavior changes. Guarded rollback views project extracted v1 payloads through receipt-owned child identities and current read rules, retaining child ids and asset homes.
-- Scalar field rename plus domain widening can deploy in one release and roll back directly through a fitting registered view. Tightened column-write rules retain current guarded workflows on default rollback. `extract` explicitly refuses scalar-only splits as asset-only and points to backfill/down.
-- Shape advice lists changed properties without repeating expanded JSON. Migration evidence says `preimages retained`; predecessor representations are described directly. Hiding refusals include bounded, table-qualified sample row ids. A view's `live:` line states the workflow and guards it still runs.
 
 ## 0.4.43
 

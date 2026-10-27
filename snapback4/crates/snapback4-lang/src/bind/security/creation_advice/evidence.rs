@@ -40,6 +40,18 @@ pub(super) fn notes(bound:&Bound,writes:&[Write<'_>],out:&mut Vec<Diagnostic>){
             }
         }
     }
+    // A mandatory field on a separately attached child does not require a
+    // child when the parent is created. The CLI must replay committed absence.
+    for (child,t) in bound.schema.visible_tables(){
+        let media=t.columns.iter().filter(|(_,k)|k.contains_asset()).map(|(n,_)|n.clone()).collect::<Vec<_>>();
+        if media.is_empty()||!writes.iter().any(|w|w.table==*child&&matches!(w.op,WriteOp::Insert|WriteOp::Upsert)){continue;}
+        for (reference,kind) in &t.columns {
+            let ColumnType::Ref{table:parent}=kind.required()else{continue;};
+            let creators=writes.iter().filter(|w|w.table==*parent&&w.op==WriteOp::Insert).collect::<Vec<_>>();
+            if creators.is_empty(){continue;}
+            note(out,&creators[0].site,"N_CHILD_EVIDENCE_PRESENCE",format!("{parent}: creations {} do not require attached {child}[{reference} = parent].{}; must media exist when the parent is created?",creators.iter().map(|w|w.name.clone()).collect::<BTreeSet<_>>().into_iter().collect::<Vec<_>>().join(", "),media.join(",")),"require the verified upload and create the linked evidence atomically when the spec requires it; keep deliberate draft/optional attachments optional and answer the concrete replay");
+        }
+    }
     let mut seen=BTreeSet::new();
     for w in writes {
         let guards=conditions(&w.context);let mut tests=Vec::new();for guard in &guards{nonempty_tests(guard,false,&mut tests);}

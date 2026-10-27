@@ -109466,6 +109466,7 @@ unknown signup outcome (malformed/lost reply). The existing Unicode/byte-boundar
 checks and duplicate/lost-signup regressions pass. The old serve recipe extractor
 is bounded before the new observer section, and its redaction mock now echoes
 the actual generated credential rather than an unrelated password literal.
+
 ## 2026-10-27 — SEC11 item 1 measured boundary
 
 LLP 3000.036.004.001 records current-witness decision refusals and bounded
