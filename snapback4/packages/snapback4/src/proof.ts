@@ -15,7 +15,7 @@ import type { Cursor, ReadCut, Refusal } from "./contract.ts";
 import { renderedSelector, registerRenderedSelector, registeredLocator, visibleText, armFreshText, scopedLocators } from "./proof-text.ts";
 import { webWitnessObserverScript } from "./witness-web.ts";
 import { resolveBinary } from "./bin-path.ts";
-import { bounded, cleanup, deadline, logged, logText, portRange, ready, stopChild, type ProofHost, type ProofOptions, logsDir } from "./proof-process.ts";
+import { bounded, cleanup, deadline, logged, logText, portRange, ready, stopChild, type ProofHost, type ProofOptions, logsDir, executableSpawnFailed } from "./proof-process.ts";
 export { bounded, cleanup, stopChild, portRange } from "./proof-process.ts";
 export type { ProofHost, ProofOptions } from "./proof-process.ts";
 
@@ -240,7 +240,7 @@ export function cli(args: readonly string[], options: ProofOptions = {}): Promis
       // A delivered inner spawn error proves the executable never started.
       // Preserve the shim's returned code/diagnostic; never retry an executing
       // native command, timeout, signal or ambiguous release operation.
-      if (!(error as { proofExecutableSpawnFailed?: boolean })?.proofExecutableSpawnFailed) throw error;
+      if (!executableSpawnFailed(error)) throw error;
       return command(process.execPath, [fileURLToPath(new URL("../bin/snapback4.js", import.meta.url)), ...args], { ...options, secret: options.secret || args[0] === "token" });
     });
   }

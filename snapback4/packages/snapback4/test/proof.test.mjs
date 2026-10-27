@@ -71,6 +71,9 @@ test("native proof commands retain helper environment, argument boundaries and s
   assert.equal(native.signal,shim.signal);
   const message=text=>text.match(/Error: spawn [^\n]+/)?.[0];
   assert.ok(message(native.stderr));assert.equal(message(native.stderr),message(shim.stderr));
+  await assert.rejects(command(failed,[],{cwd}),error=>{
+    assert.match(error.message,/EACCES/);assert.deepEqual(Object.keys(error),[]);return true;
+  });
 });
 test("runtime port range is inclusive, validated, and never cached", () => {
   assert.equal(portRange({}), "0"); assert.equal(portRange({ PORT_LO: "29040", PORT_HI: "29049" }), "29040-29049");

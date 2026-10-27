@@ -10,6 +10,9 @@ import { stripVTControlCharacters } from "node:util";
 const children = new Set<ChildProcess>();
 const privateGroups = new WeakMap<ChildProcess, number>();
 const groupClosures = new WeakMap<ChildProcess, Promise<void>>();
+const executableSpawnFailures = new WeakSet<Error>();
+/** Internal provenance; never changes an error's public or serialized fields. */
+export function executableSpawnFailed(error: unknown): boolean { return error instanceof Error && executableSpawnFailures.has(error); }
 process.once("exit", () => { for (const child of children) child.kill("SIGKILL"); });
 export function register(child: ChildProcess): void {
   children.add(child);
@@ -164,7 +167,10 @@ export function logged(command: string, args: readonly string[], options: ProofO
   child.on("message", message => {
     const event = message as {type?:string;pid?:number;code?:number|null;signal?:NodeJS.Signals|null;error?:string;executableSpawnFailed?:boolean};
     if (event.type === "started" && typeof event.pid === "number") { actualPid = event.pid; didStart(); }
-    if (event.type === "result") { actualCode = event.code ?? null; actualSignal = event.signal ?? null; if (event.error) error = Object.assign(Error(event.error), {proofExecutableSpawnFailed:event.executableSpawnFailed === true}); }
+    if (event.type === "result") {
+      actualCode = event.code ?? null; actualSignal = event.signal ?? null;
+      if (event.error) { error = Error(event.error); if (event.executableSpawnFailed === true) executableSpawnFailures.add(error); }
+    }
   });
   child.on("error", value => { error = value; failedStart(value); });
   const closed = new Promise<void>((resolve, reject) => child.once("close", () => {
