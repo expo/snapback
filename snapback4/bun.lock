@@ -53,7 +53,7 @@
     },
     "packages/snapback4": {
       "name": "snapback4",
-      "version": "0.4.44",
+      "version": "0.4.45",
       "bin": {
         "snapback4": "bin/snapback4.js",
       },
@@ -72,8 +72,8 @@
         "typescript": "5.9.3",
       },
       "optionalDependencies": {
-        "snapback4-darwin-arm64": "0.4.44",
-        "snapback4-linux-x64": "0.4.44",
+        "snapback4-darwin-arm64": "0.4.45",
+        "snapback4-linux-x64": "0.4.45",
       },
       "peerDependencies": {
         "playwright-core": ">=1.55.1 <2",
@@ -86,11 +86,11 @@
     },
     "packages/snapback4-darwin-arm64": {
       "name": "snapback4-darwin-arm64",
-      "version": "0.4.44",
+      "version": "0.4.45",
     },
     "packages/snapback4-expo": {
       "name": "snapback4-expo",
-      "version": "0.4.44",
+      "version": "0.4.45",
       "bin": {
         "snapback4-export-ios": "export-ios.mjs",
       },
@@ -108,7 +108,7 @@
     },
     "packages/snapback4-linux-x64": {
       "name": "snapback4-linux-x64",
-      "version": "0.4.44",
+      "version": "0.4.45",
     },
   },
   "packages": {
