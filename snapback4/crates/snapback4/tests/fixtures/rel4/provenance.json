@@ -1,0 +1,26 @@
+{
+  "033-v1.q": {
+    "source": "wave33/apps/033-snapback-bathtub-reglazing-jobs/v1/schema.q",
+    "sha256": "cf93788ff916fb00d5956a2fbf7b4c6ed2d8338f0d57212edebc87195cbcd512"
+  },
+  "033-v2.q": {
+    "source": "wave33/apps/033-snapback-bathtub-reglazing-jobs/snapback/schema.q",
+    "sha256": "d8019d1c302b78c36dbd29eef8b8f8da684f74fca8407fc51f406e7f631eeb98"
+  },
+  "024-v1.q": {
+    "source": "wave33/apps/024-snapback-home-sauna-installs/v1/snapback/schema.q",
+    "sha256": "80eaa09886e82e56cae6ca149642fba2ccb54c9f4bb349f3678906ccc4d6dfe3"
+  },
+  "024-v2.q": {
+    "source": "wave33/apps/024-snapback-home-sauna-installs/snapback/schema.q",
+    "sha256": "a75dc3093252dbd96c008c5bb93b8a82202468d04e1141008b177b1a8138b5a1"
+  },
+  "037-v1.q": {
+    "source": "wave33/apps/037-snapback-custom-cowboy-boots/v1/snapback/schema.q",
+    "sha256": "d834fe7e5f589b1b8e1334cf9e0805ca28764aff5b77f1c6d7e3ffbb9969a80f"
+  },
+  "037-v2.q": {
+    "source": "wave33/apps/037-snapback-custom-cowboy-boots/snapback/schema.q",
+    "sha256": "1718006ecd983e4a7034fe954060ebc6e8e8f773fe7251f394fca8883c61a304"
+  }
+}

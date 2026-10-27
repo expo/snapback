@@ -2,6 +2,7 @@
 // @ref LLP 3000.000.000.002#8-wave-21-release-evolution — generated source is reviewable; no automatic business-policy synthesis.
 use crate::{ast::{self,TypeKind}, lexer::{self,Kind}, parser, print};
 use std::collections::BTreeMap;
+pub use super::release_bridge_hiding::hide_nulls;
 pub struct Bridge {pub sources:Vec<(String,String)>,pub changes:Vec<String>,pub diagnostics:Vec<crate::diag::Diagnostic>}
 
 /// Injective current-to-view column identities from authored rename declarations.
@@ -120,6 +121,30 @@ pub fn loosen(target:&[(String,String)],current:&[(String,String)])->Bridge {
                 .or_else(||docs.iter().flat_map(|d|&d.tables).find_map(|t|t.columns.iter().find(|c|diagnostic.message.contains(&format!("{}.{}",t.name,c.name))).map(|c|c.site.clone())))
                 .or_else(||docs.iter().flat_map(|d|&d.tables).next().map(|t|t.site.clone()))
                 .unwrap_or_else(||crate::Site::new(current.first().map(|s|s.0.as_str()).unwrap_or("schema.q"),1,1));
+        }
+    }
+    if !bridge.diagnostics.is_empty() {
+        // @ref LLP 3000.000.000.003#5-loosen-required-and-release-refusals-rel4 — name the missing historical mapping before generic workflow diagnostics.
+        let old=crate::compile(target);let next=crate::compile(current);
+        let mut missing=Vec::new();let mut missing_site=None;
+        for (name,table) in &old.schema.tables {
+            let candidate=next.schema.table(name).map(|t|(name.as_str(),t)).or_else(||next.schema.table_renames.iter().find(|(_,prior)|*prior==name).and_then(|(new,_)|next.schema.table(new).map(|t|(new.as_str(),t))));
+            let Some((new,now))=candidate else{continue};
+            for (column,kind) in &table.columns {
+                if now.columns.contains_key(column)||table.engine_field(column)||table.maintained.contains_key(column)
+                    ||kind.is_optional()&&!table.defaults.contains_key(column) {continue;}
+                let projected=next.schema.downfills.iter().any(|f|f.table==new&&f.outputs.contains(column))
+                    ||next.schema.asset_renames.get(new).is_some_and(|m|m.values().any(|prior|prior==column))
+                    ||next.schema.extractions.iter().any(|e|e.parent==new&&e.fields.values().any(|prior|prior==column));
+                if !projected {
+                    if missing_site.is_none(){missing_site=current.iter().flat_map(|(f,t)|parser::parse_document(f,t).0.tables).find(|t|t.name==new).map(|t|t.site);}
+                    missing.push(format!("{name}.{column}"));
+                }
+            }
+        }
+        if !missing.is_empty() {
+            let site=missing_site.unwrap_or_else(||bridge.diagnostics[0].site.clone());
+            bridge.diagnostics=vec![crate::diag::type_error(&site,format!("rollback view needs a missing `down` projection for retired required/defaulted columns: {}",missing.join(", ")),"declare `down TABLE freshName(typedCurrentInputs): {retiredColumn: truthfulValue}` from retained replacement fields, or retain the named columns in an authored bridge; do not invent a value").guide("deploy")];
         }
     }
     bridge

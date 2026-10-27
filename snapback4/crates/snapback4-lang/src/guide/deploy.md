@@ -80,6 +80,34 @@ bunx snapback4 rollback ./deployment --to 1
 ## Visible rollback by default (SQLite)
 Deploy prepares compiled rollback views when a predecessor cannot hold newly allowed values. An implementation repair behind unchanged data/intent declarations also prepares a view. A new column write audience alone does not; exact historical writes must preserve its rule or selection refuses with the operation and column. These views retain the complete authored current schema, helpers, programs and policy while admitting old names and inputs; unsupported mappings require authored compatible guarded source. Old inputs may fit wider same-format text/list bounds or omit new optional arguments. Incompatible old write exports pause with E_OP; required queries need a compatible endpoint. Removed data-bearing inputs need a consuming compatibility endpoint, never deprecated-and-discarded inputs. `rollback --to 1` selects release 1's registered view in the active deployment's context, retaining current guards and widened domains; each move prints a stdout `live:` line naming the selected source or registered view. A view retains current guards; its operation surface can be the guarded old workflow or the complete current workflow. Inspect its immutable source and preview checklist before depending on an old write. The original source remains immutable. After upgrading the CLI/runtime, restart an older running serve before switching releases; an older host refuses the new custody control feature before admission. `--exact` deliberately selects that source and reports its dormant population. Newer views never become ordinary latest. If a guard cannot be transported safely or a view cannot compile, deploy refuses until source supplies a compatible workflow. Nullable old results remain a client compatibility change: render an amount still to follow as pending, never zero. Optional media must remain optional in old UI consumers. Intentional null hiding uses `rollback 1 hides orders where fee = null because 'An unquoted fee must not look free.'` in candidate source. The writer permits only those null rows and their actual hidden-reference dependents. Widened nonnull values still stay visible. Removed defaulted fields require truthful `down` expressions; previews suggest cross-table candidates for moved values, never silently show a misleading old default. Snapshot previews do not freeze later writes: activation revalidates under its writer transaction.
 
+### Required to optional, with intentional hiding
+
+Keep the column nullable in ordinary source and declare the independent intent
+there. Invariants compose with the registered rollback workflow. An explicit
+`rollback 1 hides orders where fee = null because 'Unquoted is not free.'`
+narrows only the generated view's null domain; its ordinary metered write
+assertions refuse null with `ROLLBACK_NULL`. Select the forward release to
+create an unquoted row. Nonnull widened values remain visible in the view.
+
+`deploy DIR --check` qualifies adoption before enforcing the security gate and
+labels the first failing phase. Its JSON lists `rollbackViewEffects[].ready`.
+If intentional hiding would remove a safety lookup population, the hiding view
+is unavailable; this does not block a valid forward activation. Remove the
+`rollback hides` declaration and preview/deploy a visible optional view, or
+inspect the original historical workflow with
+`rollback DIR --to 1 --exact --check` before explicitly selecting it. Exact
+source retains its own rules and can hide rows; a preview never authorizes
+weakening a current safety rule. Actual hiding selection revalidates its guard
+population in the writer transaction. Unsupported write spreads or migration
+compositions refuse view compilation with the repair before activation.
+
+Bare global `cap N` retains its meaning through generated rollback source.
+An extraction's unmapped `default now`/`default viewer` column refuses at
+`check`: use a literal default, an optional column without a default, or an
+explicit mapping from retained parent data. Retiring a required old column
+needs a truthful `down` output or an authored bridge retaining that column;
+the refusal names each missing column.
+
 ## Bridge a safety gate before exact rollback (SQLite)
 Use this beside the enum-widening rollback recipe above. Suppose v2 added `grounding.state = 'inspection'`; v1 holds only `'clear'`/`'hold'`. Selecting exact v1 hides that row and its children, so v1's `book` guard may allow a booking that v2 blocks. Counts and sample ids are snapshot dependencies, not predicate matches; later writes can change the plan.
 

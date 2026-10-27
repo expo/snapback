@@ -164,55 +164,25 @@ pub(super) fn prepare(
             .iter()
             .filter(|h| h.release == target)
             .collect::<Vec<_>>();
-        let mut source = current.clone();
-        // A typed null acknowledgment retains this one old nonnullable domain;
-        // all other widened columns still receive the visible bridge union.
+        // @ref LLP 3000.000.000.003#5-loosen-required-and-release-refusals-rel4 — adapt valid current source before narrowing an explicitly hidden null domain.
         for hide in &hides {
-            let old_kind = old
-                .schema
-                .table(&hide.table)
-                .and_then(|t| t.columns.get(&hide.column))
+            let old_kind=old.schema.table(&hide.table).and_then(|t|t.columns.get(&hide.column))
                 .ok_or("rollback hides names no predecessor column")?;
+            if old_kind.is_optional() {return Err("rollback hides requires a nonnullable predecessor column".into());}
             if bound.schema.table_renames.contains_key(&hide.table)
-                || bound
-                    .schema
-                    .asset_renames
-                    .get(&hide.table)
-                    .is_some_and(|m| m.contains_key(&hide.column))
-            {
+                || bound.schema.asset_renames.get(&hide.table).is_some_and(|m|m.contains_key(&hide.column)) {
                 return Err("rollback hides requires the same table/column spelling in the original release".into());
             }
-            if old_kind.is_optional() {
-                return Err("rollback hides requires a nonnullable predecessor column".into());
-            }
-            for (file, text) in &mut source {
-                let doc = snapback4_lang::parse_document(file, text).0;
-                if let Some(column) = doc
-                    .tables
-                    .iter()
-                    .find(|t| t.name == hide.table)
-                    .and_then(|t| t.columns.iter().find(|c| c.name == hide.column))
-                {
-                    if let Some((start, end)) =
-                        snapback4_lang::release_bridge::type_span(file, text, column)
-                    {
-                        let scalar = column.type_.required();
-                        text.replace_range(
-                            start..end,
-                            &snapback4_lang::print::scalar_type(&scalar),
-                        );
-                    }
-                }
-            }
         }
-        let bridge = snapback4_lang::release_bridge::loosen(
-            &original,
-            &source,
-        );
+        let mut bridge=snapback4_lang::release_bridge::loosen(&original,&current);
+        if bridge.diagnostics.is_empty() {
+            snapback4_lang::release_bridge::hide_nulls(&mut bridge,&hides.iter().map(|h|(*h).clone()).collect::<Vec<_>>());
+        }
+        let source=current.clone();
         if !bridge.diagnostics.is_empty() {
             return Err(format!(
-                "E_ADOPT: rollback view for release {target} does not compile; retain a truthful guarded old workflow or declare its intentional hiding: {}",
-                bridge
+                "E_ADOPT: rollback view for release {target} does not compile; retain a truthful guarded old workflow; for a nullable column remove its `rollback hides` declaration to retain a visible optional view, or preview original source with `snapback4 rollback {} --to {target} --exact --check`: {}",
+                dir.display(),bridge
                     .diagnostics
                     .iter()
                     .map(ToString::to_string)

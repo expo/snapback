@@ -148,10 +148,20 @@ pub(super) fn plan(
         let mut selection=snapback4_core::engine::release::ReleaseActivation::new(view.release,Some(release));
         selection.visibility=super::releases::visibility_policy(&root)?;selection.operation="preview".into();selection.restore_dormant=true;
         let target_schema=target.schema.clone();
-        let selected=snapback4_core::Engine::new_release_prepared_at(store,target.schema,target.programs.into_iter().map(|p|p.program),&selection,options.flags.contains_key("allow-feed-adoption"),activation_now).map_err(|e|format!("rollback view for release {} refuses: {e}",view.target))?;
+        let selected=match snapback4_core::Engine::new_release_prepared_at(store,target.schema,target.programs.into_iter().map(|p|p.program),&selection,options.flags.contains_key("allow-feed-adoption"),activation_now) {
+            Ok(selected)=>selected,
+            // @ref LLP 3000.000.000.003#5-loosen-required-and-release-refusals-rel4 — an unavailable intentional hiding view cannot veto the safe forward activation.
+            Err(error) if !view.hides.is_empty() && matches!(&error,snapback4_core::RuntimeError::Structural{code:"E_ADOPT",message} if message=="intentional rollback hiding can weaken an authority/guard through a changed lookup population; retain the safety witness in a visible bridge") && options.flags.contains_key("deploy-direction") => {
+                let advice=format!("rollback to release {} via intentional hiding view {} refuses: {error}; remove `rollback {} hides` and redeploy to retain a visible optional view; preview the original workflow with `snapback4 rollback {} --to {} --exact --check` before choosing it",view.target,view.release,view.target,store_path.parent().unwrap().display(),view.target);
+                hazards.push(advice.clone());
+                view_effects.push(serde_json::json!({"target":view.target,"view":view.release,"ready":false,"refusal":advice}));
+                continue;
+            },
+            Err(error)=>return Err(format!("rollback view for release {} refuses: {error}",view.target)),
+        };
         let visible=super::release_visibility::assess(selected.store(),Some(&candidate_schema),&target_schema)?;
         if visible.hidden_rows>0&&view.hides.is_empty(){return Err(format!("E_ADOPT: rollback view for release {} still hides {} old-table rows; declare a truthful down or intentional hiding",view.target,visible.hidden_rows))}
-        view_effects.push(serde_json::json!({"target":view.target,"view":view.release,"visibility":visible}));
+        view_effects.push(serde_json::json!({"target":view.target,"view":view.release,"ready":true,"visibility":visible}));
         notes.push(format!("rollback to release {} via bridge {}: {} hidden old-table rows; {} newer-only rows; {}",view.target,view.release,visible.hidden_rows,visible.newer_only_rows,view.hides.join("; ")));
     }
     let mut planned = engine
@@ -240,7 +250,11 @@ pub(super) fn plan(
         let dir=store_path.parent().ok_or("no deployment directory")?;
         Some(super::release_shape::at(dir,release)?)
     }else{None};
-    let payload=serde_json::json!({"sourceRelease":options.flags.get("source-release").and_then(|s|s.parse::<u64>().ok()),"preview":true,"rowShape":row_shape,"security":options.flags.get("security-summary").and_then(|s|serde_json::from_str::<serde_json::Value>(s).ok()),"visibility":visibility,"rollbackVisibility":rollback_visibility,"rollbackViews":rollback_views,"rollbackViewEffects":view_effects,"rollbackView":options.flags.get("rollback-view").and_then(|s|serde_json::from_str::<serde_json::Value>(s).ok()),"clientCompatibility":client_compatibility,"checklist":checklist,"hazards":hazards,"notes":notes,"current":held,"plan":planned,"steps":steps,"estimate":estimate,"phases":engine.store().adoption_report().summary(),"backfills":engine.store().adoption_report().backfills});
+    let payload=serde_json::json!({"sourceRelease":options.flags.get("source-release").and_then(|s|s.parse::<u64>().ok()),"preview":true,"preflight":{"order":["adoption","security"],"adoption":"ready"},"rowShape":row_shape,"security":options.flags.get("security-summary").and_then(|s|serde_json::from_str::<serde_json::Value>(s).ok()),"visibility":visibility,"rollbackVisibility":rollback_visibility,"rollbackViews":rollback_views,"rollbackViewEffects":view_effects,"rollbackView":options.flags.get("rollback-view").and_then(|s|serde_json::from_str::<serde_json::Value>(s).ok()),"clientCompatibility":client_compatibility,"checklist":checklist,"hazards":hazards,"notes":notes,"current":held,"plan":planned,"steps":steps,"estimate":estimate,"phases":engine.store().adoption_report().summary(),"backfills":engine.store().adoption_report().backfills});
+    if options.flags.contains_key("enforce-security-after-adoption") {
+        super::security::enforce_release(options.flags.get("security-summary"),options)
+            .map_err(|e|format!("{e}; adoption preflight: READY (first); first failure: security gate (second)"))?;
+    }
     if !options.json&&options.flags.contains_key("deploy-direction") && !options.flags.contains_key("validation-only") {
         let hidden=view_effects.iter().filter_map(|v|v["visibility"]["hiddenRows"].as_u64()).sum::<u64>();
         println!("deploy verdict: READY; {} rollback views, {hidden} hidden old-table rows across those views; {}",rollback_views.len(),super::security::release_verdict(options.flags.get("security-summary")));

@@ -391,6 +391,7 @@ pub fn deploy(options: &Options) -> i32 {
         Ok(None) => {},
     }
     let mut security_summary=None;
+    let mut activation_qualified=false;
     let mut failure_inventory=None;
     let mut failure_problems=None;
     let result=(|| {
@@ -430,7 +431,6 @@ pub fn deploy(options: &Options) -> i32 {
                 let prior=previous.map(|n|bound_at(dir.join("releases").join(n.to_string()))).transpose()?;
                 super::security::release_loop(&project,&bound,&sources,prior.as_ref(),options)?
             };
-            super::security::enforce_release(security_summary.as_ref(),options)?;
             let baseline=crate::client_compatibility::report(&project,&bound).map_err(|e|e.to_string())?.1;
             let mut options=options.clone();
             options.flags.insert("client-baseline-advice".into(),serde_json::to_string(&baseline).unwrap());
@@ -504,7 +504,8 @@ pub fn deploy(options: &Options) -> i32 {
             let register_views=super::rollback_views::needs_registration(&dir,matched,&views)?;
             if let Some(origin)=matched {check_change(&dir,previous,&bound,options,Some(origin))?;}
             if let Some(previous)=previous {
-                if !register_views && matched==Some(previous) && held["release"].as_u64()==Some(previous) {
+                if !checking && !register_views && matched==Some(previous) && held["release"].as_u64()==Some(previous) {
+                    super::security::enforce_release(security_summary.as_ref(),options).map_err(|e|format!("{e}; adoption preflight: UNCHANGED; first failure: security gate"))?;
                     std::fs::remove_dir_all(&stage).map_err(|e|e.to_string())?;
                     if let Some(saved) = &mut saved_version { saved.finish(previous,&source_hash)?; }
                     if options.json {println!("{}",serde_json::json!({"unchanged":true,"release":previous,"generation":held["generation"],"live":live_identity(&dir,previous)?}));}
@@ -515,11 +516,13 @@ pub fn deploy(options: &Options) -> i32 {
             if let Some(n) = matched.filter(|_|!register_views) {
                 let mut preview_options=options.clone();
                 if let Some(summary)=&security_summary {preview_options.flags.insert("security-summary".into(),summary.clone());}
+                preview_options.flags.insert("enforce-security-after-adoption".into(),String::new());
                 preview_options.flags.insert("deploy-direction".into(),String::new());
                 preview_options.flags.insert("restore-dormant".into(),String::new());
                 if !checking { preview_options.flags.insert("validation-only".into(),String::new()); }
                 let details=super::release_preview::plan(&dir.join("store.sqlite"),releases.join(n.to_string()),n,&preview_options,_deployment.as_ref())?;
                 if checking { return Ok(()); }
+                activation_qualified=true;
                 let mut with_details=options.clone();with_details.flags.insert("release-preview".into(),details.to_string());let options=&with_details;
                 let selected = bound_at(releases.join(n.to_string()))?;
                 activate(&dir,_deployment.as_ref(),n,activation_previous,revision,selected,false,true,options.flags.contains_key("allow-feed-adoption"),options,None)?;
@@ -531,15 +534,17 @@ pub fn deploy(options: &Options) -> i32 {
             let options=&qualified_options;
             if options.flags.contains_key("check") {
                 let mut preview_options=options.clone();
-                if let Some(summary)=&security_summary {preview_options.flags.insert("security-summary".into(),summary.clone());}preview_options.flags.insert("deploy-direction".into(),String::new());
+                if let Some(summary)=&security_summary {preview_options.flags.insert("security-summary".into(),summary.clone());}preview_options.flags.insert("enforce-security-after-adoption".into(),String::new());preview_options.flags.insert("deploy-direction".into(),String::new());
                 let result=super::release_preview::preview(&dir.join("store.sqlite"),stage.clone(),n.checked_add(1).ok_or("release identity exhausted")?,&preview_options,None);
                 let _=std::fs::remove_dir_all(&stage);
                 return result;
             }
             let mut validation=options.clone();
+            validation.flags.insert("enforce-security-after-adoption".into(),String::new());
             validation.flags.insert("deploy-direction".into(),String::new());
             validation.flags.insert("validation-only".into(),String::new());
             let details=super::release_preview::plan(&dir.join("store.sqlite"),stage.clone(),n.checked_add(1).ok_or("release identity exhausted")?,&validation,_deployment.as_ref())?;
+            activation_qualified=true;
             let mut with_details=options.clone();with_details.flags.insert("release-preview".into(),details.to_string());let options=&with_details;
             if staged_bound.schema != bound.schema { return Err("staged source does not match the compiled schema".into()); }
             n=n.checked_add(1).ok_or("release identity exhausted")?;
@@ -599,6 +604,10 @@ pub fn deploy(options: &Options) -> i32 {
             if let Some(notice)=clock_notice {eprintln!("{notice}");}
             Ok(())
         })();
+    let result=result.map_err(|error:String|if error.contains("E_SECURITY_"){error}
+        else if activation_qualified {format!("{error}; first failure: activation; adoption preflight and security gate passed")}
+        else if failure_problems.is_some(){format!("{error}; first failure: compilation; adoption and security gate not run")}
+        else{format!("{error}; first failure: adoption preflight; security gate not enforced")});
     if !options.json {
         if result.is_err() && failure_problems.is_none() {eprintln!("deploy verdict: REFUSED; {}",super::security::release_verdict(security_summary.as_ref()));}
         super::security::print_release(security_summary.as_ref());
@@ -676,6 +685,8 @@ pub fn rollback(options: &Options) -> i32 {
             let legacy_refusal=|error:String| {
                 if view.is_none() && !options.flags.contains_key("exact") && parent_predates_views(&dir.join("releases").join(active.to_string())) {
                     format!("{error}; this parent predates rollback views; deploy the current source with this CLI to register needed views, or explicitly select the historical workflow with `snapback4 rollback {} --to {logical} --exact` (preview its hiding with --check first)",dir.display())
+                }else if view.as_ref().is_some_and(|v|!v.hides.is_empty()) {
+                    format!("{error}; intentional hiding view unavailable; remove its `rollback hides` declaration and deploy the visible optional workflow; to request the original historical workflow, preview `snapback4 rollback {} --to {logical} --exact --check` before selecting it",dir.display())
                 }else{error}
             };
             let mut bridge_options=options.clone();
