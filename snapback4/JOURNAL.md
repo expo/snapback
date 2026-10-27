@@ -109800,3 +109800,7 @@ The provisional approval amendment .002 collides with landed SEC12; its final
 fresh sibling identity is .006. Live refs follow it; received reviews and
 immutable measurements retain their original identities and provenance.
 Post-merge evidence is distinct from the original per-item native800 snapshots.
+
+## 2026-10-27 — Integration 29: 0.4.45
+
+Merge REL3, SEC11b and SEC13 in that order. Current evaluated gates, independent witnessed questions and SECP-only advice remain separate tiers; batched time candidates retain their family observers, unchanged campaign work and final-store checks. Default cards retain evidence/time hypotheses, actual witness and individual answer command in one line. Frozen result views and release idempotence/recovery use activation/store fence 11. Linux device build: 2,416,590 B raw / 738,765 B gzip; budget 739,265 B = measurement + 500 B. Version/layout effect, no independent attribution or runtime ceiling change. Affected/consumer/survey/paired-latency evidence and remaining qualifications are recorded under reports/integration29; publication owns the complete platform battery.
