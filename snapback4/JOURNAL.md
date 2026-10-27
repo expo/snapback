@@ -109701,3 +109701,14 @@ Arm E retains its fenced recovery. No uncertain invocation is automatically
 replayed or old cache epoch reopened. See
 `reports/20261027-ownership-loss/REPORT.md` for baseline/fix evidence, tests and
 the limits of attribution to the two original incidents.
+
+## 2026-10-27 — OWN review fixes: bounded diagnostics and serving-only G6 exit
+
+The first OWN implementation could wedge before publishing loss when stderr
+stalled, and armed its G6 process exit for short-lived deploy before activation
+reconciliation. Loss now precedes bounded diagnostic queueing; queued replies
+drain without logging I/O, and exit allows at most 100 ms for diagnostic output.
+Only `serving()` arms the G6 exit. Deploy retains persisted-selection recovery,
+pointer/log completion and lease release. The report's new regressions fill a
+real stderr pipe and delay an unknown-but-durable activation's reconciliation
+probe. LLP 3000.009.001.000 §5.1 records the corrected lifecycle contract.

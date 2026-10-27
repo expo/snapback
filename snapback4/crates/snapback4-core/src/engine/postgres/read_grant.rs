@@ -90,6 +90,7 @@ pub(crate) struct Grant {
     pub opened: AtomicBool,
     pub revoked: AtomicBool,
     pub uncertain: AtomicBool,
+    pub uncertainty_diagnostic_attempted: AtomicBool,
     pub until: AtomicU64,
     #[cfg(test)]
     pub closing: AtomicU64,
@@ -110,14 +111,15 @@ pub struct GateStats {
     pub revoked: bool,
 }
 impl Grant {
-    // Every caller holds state for writing. Publish the reason before the
-    // terminal flag: the owner's independent watchdog may exit immediately.
+    // Every caller holds state for writing. Publish loss before attempting
+    // bounded output. The separate acknowledgement lets the watchdog order its
+    // exit after that attempt without putting I/O behind either publication lock.
     // @ref LLP 3000.009.001.000#5.1 — terminal admission loss is observable even while the lease still renews.
     fn mark_uncertain(&self, reason: &str) {
-        if !self.uncertain.load(Ordering::Acquire) {
-            eprintln!("E_STORE_OWNERSHIP: writer admission paused: {reason}");
+        if !self.uncertain.swap(true, Ordering::AcqRel) {
+            crate::diagnostic!("E_STORE_OWNERSHIP: writer admission paused: {reason}");
+            self.uncertainty_diagnostic_attempted.store(true, Ordering::Release);
         }
-        self.uncertain.store(true, Ordering::Release);
     }
     pub fn stats(&self) -> GateStats {
         let closed = self.closed_at.load(Ordering::Acquire);

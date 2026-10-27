@@ -287,5 +287,482 @@
     "recorded_pids_checked": 77,
     "remaining": [],
     "postmaster_pid_files": []
+  },
+  "fix-round-1": {
+    "reviewed_commit": "4199a38cd3",
+    "reviewed_binary_sha256": "7d6ff15c729c0d1da678a7f4d8a06a08f2d8e4dd095831fef837b3eea913c3c4",
+    "fixed_binary_sha256": "e57604823ab86704a9b3f8e89a1a4213bc7dd2ccb0db5ea99e728a1d8877f902",
+    "baseline_stalled": {
+      "namespace": "own_loss_1627220",
+      "mode": "S",
+      "pids": [
+        1628684
+      ],
+      "pass": false,
+      "stalled_stderr_bytes": 65536,
+      "first_error": "transport_unconfirmed",
+      "owner_exited": false,
+      "exit_seconds": 12.02,
+      "ownership_lines": 0,
+      "audit": "7|7|7|2|t",
+      "pids_left": []
+    },
+    "baseline_deploy": {
+      "namespace": "own_loss_1637302",
+      "mode": "S",
+      "pids": [
+        1639263,
+        1644818
+      ],
+      "pass": false,
+      "deploy_exit": 1,
+      "pointer": "1",
+      "release_log": {
+        "at": 1793120889480,
+        "previous": 1,
+        "release": 2,
+        "rollback": false,
+        "state": "prepared"
+      },
+      "selection": "2",
+      "lease_released": false,
+      "pids_left": []
+    },
+    "after": {
+      "normal16": {
+        "namespace": "own_loss_1648832",
+        "mode": "S",
+        "pids": [
+          1650434,
+          1651293
+        ],
+        "pass": true,
+        "first_error": "E_COMMIT_OUTCOME_UNKNOWN",
+        "owner_exited": true,
+        "exit_seconds": 0.026,
+        "ownership_lines": 1,
+        "audit": "7|7|7|2|t",
+        "pids_left": []
+      },
+      "aborted16": {
+        "namespace": "own_loss_1651430",
+        "mode": "S",
+        "pids": [
+          1655608,
+          1656988
+        ],
+        "pass": true,
+        "first_error": "E_COMMIT_OUTCOME_UNKNOWN",
+        "owner_exited": true,
+        "exit_seconds": 0.031,
+        "ownership_lines": 1,
+        "audit": "6|6|6|2|t",
+        "terminated_data_backend": 1655643,
+        "pids_left": []
+      },
+      "early16": {
+        "namespace": "own_loss_1657402",
+        "mode": "E",
+        "pids": [
+          1664660
+        ],
+        "pass": true,
+        "first_error": "E_COMMIT_OUTCOME_UNKNOWN",
+        "owner_exited": false,
+        "exit_seconds": 2.016,
+        "ownership_lines": 1,
+        "audit": "7|7|7|2|t",
+        "recovered_in_process": true,
+        "pids_left": []
+      },
+      "stalled16": {
+        "namespace": "own_loss_1727331",
+        "mode": "S",
+        "pids": [
+          1728921,
+          1729552
+        ],
+        "pass": true,
+        "stalled_stderr_bytes": 65536,
+        "first_error": "E_COMMIT_OUTCOME_UNKNOWN",
+        "owner_exited": true,
+        "exit_seconds": 0.127,
+        "ownership_lines": 0,
+        "audit": "7|7|7|2|t",
+        "pids_left": []
+      },
+      "deploy16": {
+        "namespace": "own_loss_1688652",
+        "mode": "S",
+        "pids": [
+          1691331,
+          1697553
+        ],
+        "pass": true,
+        "deploy_exit": 0,
+        "pointer": "2",
+        "release_log": {
+          "at": 1793121197303,
+          "generation": 2,
+          "previous": 1,
+          "release": 2,
+          "rollback": false,
+          "state": "activated"
+        },
+        "selection": "2",
+        "lease_released": true,
+        "pids_left": []
+      },
+      "normal17": {
+        "namespace": "own_loss_1648938",
+        "mode": "S",
+        "pids": [
+          1650680,
+          1651403
+        ],
+        "pass": true,
+        "first_error": "E_COMMIT_OUTCOME_UNKNOWN",
+        "owner_exited": true,
+        "exit_seconds": 0.026,
+        "ownership_lines": 1,
+        "audit": "7|7|7|2|t",
+        "pids_left": []
+      },
+      "aborted17": {
+        "namespace": "own_loss_1651502",
+        "mode": "S",
+        "pids": [
+          1656056,
+          1657452
+        ],
+        "pass": true,
+        "first_error": "E_COMMIT_OUTCOME_UNKNOWN",
+        "owner_exited": true,
+        "exit_seconds": 0.033,
+        "ownership_lines": 1,
+        "audit": "6|6|6|2|t",
+        "terminated_data_backend": 1656129,
+        "pids_left": []
+      },
+      "early17": {
+        "namespace": "own_loss_1657892",
+        "mode": "E",
+        "pids": [
+          1665082
+        ],
+        "pass": true,
+        "first_error": "E_COMMIT_OUTCOME_UNKNOWN",
+        "owner_exited": false,
+        "exit_seconds": 2.015,
+        "ownership_lines": 1,
+        "audit": "7|7|7|2|t",
+        "recovered_in_process": true,
+        "pids_left": []
+      },
+      "stalled17": {
+        "namespace": "own_loss_1727332",
+        "mode": "S",
+        "pids": [
+          1728913,
+          1729677
+        ],
+        "pass": true,
+        "stalled_stderr_bytes": 65536,
+        "first_error": "E_COMMIT_OUTCOME_UNKNOWN",
+        "owner_exited": true,
+        "exit_seconds": 0.13,
+        "ownership_lines": 0,
+        "audit": "7|7|7|2|t",
+        "pids_left": []
+      },
+      "deploy17": {
+        "namespace": "own_loss_1688653",
+        "mode": "S",
+        "pids": [
+          1691276,
+          1697400
+        ],
+        "pass": true,
+        "deploy_exit": 0,
+        "pointer": "2",
+        "release_log": {
+          "at": 1793121197073,
+          "generation": 2,
+          "previous": 1,
+          "release": 2,
+          "rollback": false,
+          "state": "activated"
+        },
+        "selection": "2",
+        "lease_released": true,
+        "pids_left": []
+      }
+    },
+    "guide": {
+      "passed": 130,
+      "failed": 0
+    },
+    "local_logs": "/tmp/sb4-own-round1",
+    "core_suites": {
+      "16": [
+        {
+          "label": "core-diagnostics",
+          "status": 0,
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "seconds": 0.064
+        },
+        {
+          "label": "core-ownership",
+          "status": 0,
+          "passed": 24,
+          "failed": 0,
+          "ignored": 0,
+          "seconds": 17.848
+        },
+        {
+          "label": "core-command",
+          "status": 0,
+          "passed": 16,
+          "failed": 0,
+          "ignored": 0,
+          "seconds": 31.076
+        },
+        {
+          "label": "core-g6",
+          "status": 0,
+          "passed": 19,
+          "failed": 0,
+          "ignored": 0,
+          "seconds": 32.523
+        },
+        {
+          "label": "core-grant-gate",
+          "status": 0,
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "seconds": 0.008
+        },
+        {
+          "label": "core-final-fencing",
+          "status": 0,
+          "passed": 9,
+          "failed": 0,
+          "ignored": 0,
+          "seconds": 2.87
+        }
+      ],
+      "17": [
+        {
+          "label": "core-diagnostics",
+          "status": 0,
+          "passed": 4,
+          "failed": 0,
+          "ignored": 0,
+          "seconds": 0.064
+        },
+        {
+          "label": "core-ownership",
+          "status": 0,
+          "passed": 24,
+          "failed": 0,
+          "ignored": 0,
+          "seconds": 17.8
+        },
+        {
+          "label": "core-command",
+          "status": 0,
+          "passed": 16,
+          "failed": 0,
+          "ignored": 0,
+          "seconds": 31.082
+        },
+        {
+          "label": "core-g6",
+          "status": 0,
+          "passed": 19,
+          "failed": 0,
+          "ignored": 0,
+          "seconds": 31.525
+        },
+        {
+          "label": "core-grant-gate",
+          "status": 0,
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "seconds": 0.008
+        },
+        {
+          "label": "core-final-fencing",
+          "status": 0,
+          "passed": 9,
+          "failed": 0,
+          "ignored": 0,
+          "seconds": 2.519
+        }
+      ]
+    },
+    "cli_suites": {
+      "16": [
+        {
+          "label": "cli-committer-fix",
+          "status": 0,
+          "passed": 15,
+          "failed": 0,
+          "ignored": 0,
+          "seconds": 3.772
+        },
+        {
+          "label": "cli-ownership",
+          "status": 0,
+          "passed": 13,
+          "failed": 0,
+          "ignored": 0,
+          "seconds": 0.265
+        },
+        {
+          "label": "cli-store-config",
+          "status": 0,
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "seconds": 0.215
+        },
+        {
+          "label": "cli-serve-authority",
+          "status": 0,
+          "passed": 92,
+          "failed": 0,
+          "ignored": 0,
+          "seconds": 52.617
+        },
+        {
+          "label": "cli-release-control",
+          "status": 0,
+          "passed": 12,
+          "failed": 0,
+          "ignored": 0,
+          "seconds": 0.415
+        },
+        {
+          "label": "cli-release-files",
+          "status": 0,
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "seconds": 0.016
+        },
+        {
+          "label": "cli-release-verbs",
+          "status": 0,
+          "passed": 5,
+          "failed": 0,
+          "ignored": 0,
+          "seconds": 0.415
+        },
+        {
+          "label": "cli-release-lifecycle",
+          "status": 0,
+          "passed": 14,
+          "failed": 0,
+          "ignored": 0,
+          "seconds": 0.415
+        }
+      ],
+      "17": [
+        {
+          "label": "cli-committer-fix",
+          "status": 0,
+          "passed": 15,
+          "failed": 0,
+          "ignored": 0,
+          "seconds": 3.771
+        },
+        {
+          "label": "cli-ownership",
+          "status": 0,
+          "passed": 13,
+          "failed": 0,
+          "ignored": 0,
+          "seconds": 0.265
+        },
+        {
+          "label": "cli-store-config",
+          "status": 0,
+          "passed": 2,
+          "failed": 0,
+          "ignored": 0,
+          "seconds": 0.264
+        },
+        {
+          "label": "cli-serve-authority",
+          "status": 0,
+          "passed": 92,
+          "failed": 0,
+          "ignored": 0,
+          "seconds": 51.072
+        }
+      ]
+    },
+    "final_counts": {
+      "affected_suites": 425,
+      "public_regressions": 10,
+      "guide": 130,
+      "passed": 565,
+      "failed": 0,
+      "expected_baseline_failures": 2
+    },
+    "cleanup": {
+      "pg_master_pids": [
+        1612653,
+        1612690
+      ],
+      "recorded_pids_checked": [
+        1612653,
+        1612690,
+        1617035,
+        1621437,
+        1628684,
+        1632260,
+        1639263,
+        1639575,
+        1640997,
+        1644818,
+        1650434,
+        1650680,
+        1651293,
+        1651403,
+        1655608,
+        1655643,
+        1656056,
+        1656129,
+        1656988,
+        1657452,
+        1664660,
+        1665082,
+        1671165,
+        1671398,
+        1671972,
+        1676068,
+        1676486,
+        1679993,
+        1691276,
+        1691331,
+        1697400,
+        1697553,
+        1728913,
+        1728921,
+        1729552,
+        1729677
+      ],
+      "pids_left": [],
+      "remaining_worktree_executable_pids": [],
+      "postmaster_files_absent": true
+    },
+    "guide_preconditions": "Initial guide run: 129 passed, one missing-generated-client-files failure. Frozen Bun installation and TypeScript emission supplied the referenced leaves; final guide: 130 passed. A complete client package build was not qualified: ignored wasm artifacts are absent.",
+    "scope": "Serving core and owner code qualified by both database suites and final stalled-pipe regressions; configured release qualified by final deploy regressions and rebuilt CLI suites. Original three public controls retain unchanged serving semantic inputs."
   }
 }

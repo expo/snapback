@@ -8,8 +8,9 @@ closed the local writer/cache epoch. Requests then returned
 `E_STORE_OWNERSHIP`, but lease renewal succeeded indefinitely and stderr said
 nothing. This is distinct from losing the database owner token.
 
-The fix makes the synchronous public owner print one reason line and exit,
-leaving lease/read-epoch expiry and fenced acquisition to a fresh process.
+The fix makes the serving synchronous public owner attempt one bounded reason
+line and exit, leaving lease/read-epoch expiry and fenced acquisition to a fresh
+process. Short-lived deploy retains in-process activation reconciliation.
 It does **not** establish which initiating fault happened in the two original
 campaigns. That remaining attribution is tracked in
 [`issues/20261027-snapback4-s1-ownership-initial-uncertainty.md`](../../../issues/20261027-snapback4-s1-ownership-initial-uncertainty.md).
@@ -86,11 +87,16 @@ Other hypotheses were investigated, without claiming their universal absence:
 - `StoreLease::admission_watch` returns an owned shared-memory check. The
   synchronous public watchdog can observe uncertainty without acquiring the
   lease-client mutex, including while lease COMMIT is blocked.
-- G6 publishes one static, credential-free reason line **before** the flag
-  that can cause process exit. Reasons distinguish unconfirmed COMMIT,
-  rollback/durability history, pipeline final and panic. Repeated refused
-  requests do not repeat the line.
-- A synchronous public owner exits nonzero on that terminal flag. It does
+- G6 publishes its uncertainty flag before attempting one static, credential-free
+  reason line through the bounded diagnostics queue. A separate shared-memory
+  acknowledgement orders the watchdog after that queue attempt; it drains
+  output for at most 100 ms before exit. A stalled or full destination can
+  lose the line, never prevent loss publication or exit. Reasons distinguish
+  unconfirmed COMMIT, rollback/durability history, pipeline final and panic.
+  Repeated refused requests do not repeat the line.
+- After `serving()` arms G6 fail-stop, a synchronous public owner exits
+  nonzero on that terminal flag. Short-lived deploy instead probes persisted
+  activation, completes its pointer/log and releases its lease on drop. It does
   not release or shorten either the lease or persisted read grant while
   admitted work may still finish. Normal takeover still claims the expired
   lease, takes the owner fence and advances its token.
@@ -110,7 +116,7 @@ non-obvious code paths carry `@ref`s. The owner-record schema, takeover,
 holder/token predicates, SQL fences, lease durations and retry policy are
 unchanged. No harness workaround was made.
 
-## Reproduction and verification
+## First-pass reproduction and verification (4199a38cd3)
 
 [`reproduce.py`](./reproduce.py) requires an explicitly private,
 trust-authenticated Unix-socket cluster; it creates one unique namespace and
@@ -125,7 +131,8 @@ python3 snapback4/reports/20261027-ownership-loss/reproduce.py \
 ```
 
 Add `--abort-before-commit` for the counter-delta-six case. Add `--early`
-without that flag for the recoverable E control. Some extracted PostgreSQL
+without that flag for the recoverable E control. Review regressions use
+`--stalled-stderr` and `--deploy-unknown` separately. Some extracted PostgreSQL
 installations also require their own `LD_LIBRARY_PATH`.
 
 Builds used worktree-local `snapback4/target` (separate nested targets for the
@@ -149,7 +156,7 @@ port 60865. Neither the port-55440 cluster nor `~/q24` was touched.
 | Public regression: aborted unknown, durable unknown, recoverable E | 3 / 0 | 3 / 0 |
 | **Total** | **195 / 0** | **195 / 0** |
 
-**390 passed, zero final verification failures.** Separately: the four
+**390 passed, zero first-pass verification failures.** Separately: the four
 unmodified-main reproducer runs failed as intended. Both fixed S fault cases
 emit exactly one reason line and exit; all fresh-successor checks pass.
 [`evidence.json`](./evidence.json) retains the per-run outcomes, counts and
@@ -159,6 +166,89 @@ recorded/reaped PIDs. Product fix executable SHA-256:
 `ref-check --verbose` and `git diff --check` pass. An affected-selection plan
 was generated. The complete scheduled battery, publication qualification and
 an authoritative S1 rerun were not run or claimed for this commit-only lane.
+
+## Fix round 1 — both review findings
+
+The reviewed commit is `4199a38cd3`; these fixes are a separate commit on top.
+The two review regressions fail on its saved executable, independently of the
+original main-before-fix controls above:
+
+| Finding | Before (`4199a38cd3`, PG16) | After (PG16 and PG17) |
+| --- | --- | --- |
+| sol P2: blocking stderr | After readiness and six ACKs, fill the real stderr pipe with 65,536 bytes and stop reading. The deferred seventh-COMMIT warning leaves `head=max=count=7`, owner alive, zero reason lines and a renewing lease (`7\|7\|7\|2\|t`). It still has not exited after the HTTP timeout plus two-second observation window. | Nonzero exit within the two-second bound despite the unread full pipe; successor accepts exactly the next write. No early lease release. |
+| grok Major: deploy killed before reconciliation | A deferred warning makes activation COMMIT durable but unknown. A queued metadata blocker delays its probe for 300 ms. Exit 1; DB selection 2, `current` 1, release log `prepared`, lease unreleased. | Deploy exits 0 with `resolvedUnknownCommit: true`; DB selection and `current` 2, log `activated` with generation 2, lease explicitly released, no staged pointer. |
+
+`read_grant.rs` now publishes the uncertainty flag before queuing its first
+reason through bounded diagnostics. A separate atomic acknowledges that queue
+attempt so the watchdog cannot exit before it. No logging I/O holds the
+publication lock. `command.rs` sets loss and drains queued refusals before
+queuing its diagnostic, outside the admission mutex. All public ownership exit
+paths use the existing bounded sink and a 100 ms lifecycle drain, so a stalled
+reader cannot block fail-stop. A full/broken sink can lose the reason line;
+ordinary file-backed runs still assert exactly one.
+
+`store_config.rs` shares its existing release-on-drop state with the watchdog:
+only `serving()` arms the G6 uncertainty exit. Renewal/deadline-loss behavior
+and Arm E's exemption remain. The deploy witness also exposed that merely
+removing the premature exit was insufficient: reattaching an engine through
+the sticky grant refused metadata work. `configured_release.rs` now finishes
+from the validated probe's persisted selection and generation, without
+reattachment, activation replay, or clearing the uncertain grant.
+
+`reproduce.py` adds `--stalled-stderr` and `--deploy-unknown`. The latter uses
+a namespace-filtered event hook to queue a deferred warning on an **unmanaged**
+fault table, leaving managed-relation interception intact. A sequence and the
+queued lock witness order the delayed probe deterministically. Cleanup removes
+the event hook and namespace and reaps every child, escalating only a recorded
+wedged child to SIGKILL when graceful shutdown cannot finish. Every serving
+case now asserts both the original token and the audit's final `|t`: loss
+neither replaces the claim nor releases/shortens the live lease.
+
+LLP §5.1 and the release guide now state the bounded best-effort diagnostic
+contract, serving-only G6 exit, and short-lived probe reconciliation. Journal
+history is append-only; this review correction has its own entry.
+
+Final executable SHA-256: `e57604823ab86704a9b3f8e89a1a4213bc7dd2ccb0db5ea99e728a1d8877f902`.
+The final stalled-pipe witnesses exit in **127 ms (PG16)** and **130 ms (PG17)**.
+Both final deploy witnesses finish with selection/pointer/log at release 2,
+generation 2 and an explicitly released lease.
+
+| Final affected verification | PG16 pass/fail | PG17 pass/fail |
+| --- | ---: | ---: |
+| Core ownership/takeover/fencing (no-op child excluded) | 24 / 0 | 24 / 0 |
+| Core command queue, lease renewal, deadlines and blocked COMMIT | 16 / 0 | 16 / 0 |
+| Core G6 grants | 19 / 0 | 19 / 0 |
+| Core grant gate | 2 / 0 | 2 / 0 |
+| Core final-flight fencing/deadlines/unknown outcomes | 9 / 0 | 9 / 0 |
+| Core bounded diagnostics | 4 / 0 | 4 / 0 |
+| Rebuilt CLI ownership / store configuration | 15 / 0 | 15 / 0 |
+| Rebuilt CLI serve authority | 92 / 0 | 92 / 0 |
+| Rebuilt CLI committer fixes / HTTP doors | 15 / 0 | 15 / 0 |
+| Public regressions: aborted, durable unknown, E recovery, stalled stderr, unknown deploy | 5 / 0 | 5 / 0 |
+| **Per-database subtotal** | **201 / 0** | **201 / 0** |
+
+Additional shared release suites: **33 / 0** (control 12, files 2, release verbs
+5, lifecycle 14; no-op crash helper excluded). Guide suite: **130 / 0**.
+**565 passed, zero final test failures.** Separately, both new reviewed-commit
+regressions failed as intended. Counts exclude repeated witnesses and earlier
+CLI binaries. Serving's semantic inputs are unchanged by the final deploy-only
+repair; both new regressions also ran on the final product executable.
+
+The first guide run had 129 passes and one missing-generated-client-files
+failure. Frozen dependency installation and TypeScript emission supplied the
+referenced leaves, after which all 130 guide tests passed. A complete client
+package build is not qualified: this tree lacks ignored web wasm artifacts.
+No frontend or publication capability is claimed by the ownership fix.
+`ref-check --verbose`, Python parsing and `git diff --check` pass. A fresh
+affected-selection plan was retained; the complete battery was not run.
+
+`evidence.json`'s `fix-round-1` record retains the before/after outcomes, suite
+counts, final binary digest and cleanup audit. Both private clusters (masters
+1612653 and 1612690) stopped successfully and their `postmaster.pid` files are
+absent. All **36 recorded PIDs** and every remaining process using this
+worktree's executables were inspected: **none left**. Raw local records remain
+under `/tmp/sb4-own-round1`. No push, stash, git configuration change or external
+message was performed.
 
 ## R0 applicability and cleanup
 

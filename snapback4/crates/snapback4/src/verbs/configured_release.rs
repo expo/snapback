@@ -170,23 +170,18 @@ pub(super) fn deploy(options: &Options, config: StoreConfig) -> Result<(), Strin
             if matches!(error, snapback4_core::RuntimeError::CommitOutcomeUnknown(_)) {
                 if let Ok(Some(observed)) = config.probe() {
                     if observed.store_id == state.store_id && observed.release == Some(n) {
-                        let reopened = owner.open().map_err(crate::store_config::redact)?;
-                        let engine = snapback4_core::Engine::attach_release_at(
-                            reopened,
-                            n,
-                            snapback4_core::now_ms(),
-                        )
-                        .map_err(crate::store_config::redact)?;
-                        pointer.finish(engine.generation())?;
+                        // @ref LLP 3000.009.001.000#5.1 — reconcile from the persisted selection snapshot without reopening the sticky G6 writer epoch.
+                        let generation = observed.generation;
+                        pointer.finish(generation)?;
                         if options.json {
                             println!(
                                 "{}",
-                                serde_json::json!({"release":n,"generation":engine.generation(),"store_id":state.store_id,"resolvedUnknownCommit":true})
+                                serde_json::json!({"release":n,"generation":generation,"store_id":state.store_id,"resolvedUnknownCommit":true})
                             );
                         } else {
                             println!(
                                 "release {n} is current as generation {}; resolved unknown COMMIT from persisted activation",
-                                engine.generation()
+                                generation
                             );
                         }
                         super::security::remember_write_release(&project,&sources);

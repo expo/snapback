@@ -117,8 +117,11 @@ Serve acquires a positive store lease before its listener. A second serve refuse
 crashed process. Renewal uses its own connection every 500 ms. Any failed or
 uncertain renewal exits the process, closing listener and producers. In-flight
 transactions remain token-fenced. In synchronous mode, a terminal G6
-admission pause after an unconfirmed COMMIT or rollback also prints one reason
-line and exits, even when lease renewal remains healthy. The independent
+admission pause after an unconfirmed COMMIT or rollback also attempts one reason
+line and exits, even when lease renewal remains healthy. This fail-stop is
+armed once serving starts. Loss is published before bounded diagnostic output;
+a stalled stderr reader cannot prevent exit (output drains for at most 100 ms,
+then the line may be lost). The independent
 watchdog observes that pause without locking the lease connection. The lease
 and persisted read epoch expire before a fresh process takes over; the old
 cache epoch never reopens and uncertain writes are never automatically replayed.
@@ -131,8 +134,10 @@ startup; otherwise retry after expiry. Once serving, serve leaves the lease to
 expire about three seconds after its last renewal, including on clean shutdown; deploy releases it after its fenced activation finishes. Doctor reports backend,
 logical identity, owner token/holder and database-clock lease state without raw SQL.
 SQL inspection currently refuses `E_STORE_UNSUPPORTED`. An unknown activation
-COMMIT is resolved from persisted selection, without replaying activation; an
-unresolved result keeps its exact source for recovery.
+COMMIT in short-lived deploy is resolved in process from persisted selection,
+without replaying activation or arming serving's G6 fail-stop. A landed
+activation completes `current` and `releases.jsonl` and releases the lease;
+an unresolved result keeps its exact source for recovery.
 
 ## Postgres durability modes and read grants
 

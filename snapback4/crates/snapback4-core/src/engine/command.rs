@@ -433,13 +433,13 @@ fn lose_ownership(admission: &Mutex<Admission>, reason: &str) {
     let waiting = {
         let mut state = admission.lock().unwrap();
         if state.lost { return; }
-        eprintln!("E_STORE_OWNERSHIP: {reason}; committer refuses further admission");
         state.lost = true;
         std::mem::take(&mut state.waiting)
     };
     for refuse in waiting.into_values() {
         refuse();
     }
+    crate::diagnostic!("E_STORE_OWNERSHIP: {reason}; committer refuses further admission");
 }
 #[cfg(feature = "postgres")]
 struct StartupLease(Option<crate::store_port::StoreLease>);
