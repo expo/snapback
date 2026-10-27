@@ -1,0 +1,9 @@
+{
+  "cells": 26,
+  "trials": 48,
+  "scheduled_arrivals": 2410960,
+  "cells_with_passing_rate": 22,
+  "unknown_write_outcome_trials": 0,
+  "checks": "arrival accounting, every repetition, histogram counts and lossless archive, SLO/counter qualification, brackets",
+  "scope": "48 original attempts in 26 cohorts, including the two retained contaminated originals; separate full audit checks all 50 attempts including both reruns and selected contamination handling"
+}

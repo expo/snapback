@@ -1,0 +1,52 @@
+[
+  {
+    "system": "supabase",
+    "cell": "W4-disjoint-A",
+    "highest_passing_5of5": null,
+    "highest_passing_first3of3": null,
+    "rates_tested": [
+      3200,
+      3805,
+      4525
+    ]
+  },
+  {
+    "system": "supabase",
+    "cell": "W5-hot1-B",
+    "highest_passing_5of5": 2262,
+    "highest_passing_first3of3": 2262,
+    "rates_tested": [
+      1903,
+      2262
+    ]
+  },
+  {
+    "system": "supabase",
+    "cell": "W4-disjoint-B",
+    "highest_passing_5of5": 2262,
+    "highest_passing_first3of3": 2262,
+    "rates_tested": [
+      1903,
+      2262
+    ]
+  },
+  {
+    "system": "snapback",
+    "cell": "W4-disjoint-B",
+    "highest_passing_5of5": 1903,
+    "highest_passing_first3of3": 1903,
+    "rates_tested": [
+      1903,
+      2262
+    ]
+  },
+  {
+    "system": "convex",
+    "cell": "W4-disjoint-B",
+    "highest_passing_5of5": null,
+    "highest_passing_first3of3": 141,
+    "rates_tested": [
+      141
+    ]
+  }
+]
