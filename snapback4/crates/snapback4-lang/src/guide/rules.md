@@ -370,7 +370,5 @@ role rows. A required enum on a total unique roster row can make a guarded else
 branch exhaustive. Hidden negative probes, nullable roles, stale snapshots and
 effectful helpers retain their questions. This changes advice, never authority.
 
-Read advice also recognizes successful require-only helpers and immutable
-parent/child copies established by every source constructor. These are source
-review facts, not database invariants or promises about imported rows. Unknown
-ingress and mutable or stale relationships retain the question.
+Read advice also recognizes successful require-only helpers and immutable parent/child copies established by every source constructor.
+These are source review facts, not database invariants or promises about imported rows; unknown ingress and mutable or stale relationships retain the question.
