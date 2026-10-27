@@ -97,6 +97,7 @@ pub fn candidates(sources:&[(String,String)],bound:&Bound,previous:&[(String,Str
    let Some(current_program)=bound.programs.iter().find(|p|p.program.name==creator.operation)else{continue;};
    let Some(old_program)=old.programs.iter().find(|p|p.program.name==creator.operation)else{continue;};
    let mut reads=snapback4_core::ir::read_sites(&current_program.program).into_iter().chain(snapback4_core::ir::read_sites(&old_program.program)).filter(|r|r.kind!="write target").map(|r|r.table).collect::<BTreeSet<_>>();
+   for schema in [&bound.schema,&old.schema]{let t=&schema.tables[&creator.table];for rule in super::columns::rules(t){reads.extend(kernel::dependencies(rule));}for constraint in &t.constraints{if let Constraint::FinalExistsOnInsert{table,key,..}=constraint{reads.insert(table.clone());for term in key{reads.extend(term.references().map(|(table,_)|table.to_owned()));}}}}
    loop{let before=reads.len();for table in reads.clone(){for schema in [&bound.schema,&old.schema]{if let Some(t)=schema.table(&table){for rule in super::columns::rules(t){reads.extend(kernel::dependencies(rule));}if let Some(edge)=&t.through{reads.insert(edge.parent.clone());}}}}if before==reads.len(){break;}}
    if reads.iter().any(|table|old.schema.table(table).zip(bound.schema.table(table)).is_none_or(|(a,b)|a!=b)){continue;}
    if [&current_program.program,&old_program.program].iter().any(|p|super::release_authority::opaque_program(p)||snapback4_core::ir::write_tables(p).len()!=1||snapback4_core::ir::write_tables(p).iter().any(|(table,kind)|table!=&creator.table||!matches!(*kind,"insert"|"upsert")||reads.contains(table))){continue;}
@@ -287,5 +288,27 @@ pub fn candidates(sources:&[(String,String)],bound:&Bound,previous:&[(String,Str
   let creator="require value = 'z' or viewer = 'service:owner' else DENIED";
   let mut old=super::tests::source("",creator);old[0].1=old[0].1.replacen("  value: text\n","  value: text 2..80\n",1).replace("value: text)","value: text <=80)");
   let mut new=super::tests::source(&super::tests::edit("viewer = 'service:owner'"),creator);new[0].1=new[0].1.replacen("  value: text\n","  value: text 1..80\n",1).replace("value: text)","value: text <=80)");assert_eq!(super::tests::count(&old,&new),0);
+ }
+}
+
+#[cfg(test)]mod schema_authority_dependency_tests{
+ #[test]fn creator_schema_probes_retain_their_predecessor_authority(){
+  for companion in [false,true]{
+   let mut old=super::tests::source("","require true else DENIED");old[0].1=old[0].1.replace("table docs:","table permits:\n  principal: principal\n  level: int 0..0\n  unique principal\n  read <- allow\n  insert <- allow\n  online only\ntable docs:");
+   if companion{old[0].1=old[0].1.replace("  value: text\n","  value: text\n  locked: bool default false write <- exists permits[viewer, level = 1]\n").replace("insert docs { value }","insert docs { value, locked: true }");}
+   else{old[0].1=old[0].1.replace("table docs:\n  value: text\n  read <- allow\n  insert <- allow","table docs:\n  value: text\n  read <- allow\n  insert <- exists permits[viewer, level = 1]");}
+   let mut new=old.clone();new[0].1=new[0].1.replace("level: int 0..0","level: int 0..1");new[0].1.push_str(&super::tests::edit("viewer = 'service:owner'"));assert_eq!(super::tests::count(&old,&new),0,"companion={companion}");
+  }
+ }
+}
+
+#[cfg(test)]mod final_exists_reference_tests{
+ #[test]fn final_existence_keys_keep_direct_and_multihop_read_authority(){
+  for chain in [false,true]{
+   let intermediate=if chain{"table links:\n  permit: permits\n  read <- allow\n  insert <- allow\n  online only\n"}else{""};
+   let (kind,key)=if chain{("links",".permit.permit.principal")}else{("permits",".permit.principal")};
+   let source=format!("table permits:\n  principal: principal\n  read <- viewer = 'service:owner'\n  insert <- allow\n  online only\ntable grants:\n  principal: principal\n  unique principal\n  read <- allow\n  insert <- allow\n  online only\n{intermediate}table docs:\n  value: text\n  permit: {kind}\n  read <- allow\n  insert <- allow\n  update <- allow\n  after insert <- exists grants[{key}]\n  online only\nmutation create(value: text, permit: {kind}):\n  return insert docs {{ value, permit }}\n");
+   let old=vec![("schema.q".into(),source.clone())];let new=vec![("schema.q".into(),format!("{}{}",source.replace("read <- viewer = 'service:owner'","read <- allow"),super::tests::edit("viewer = 'service:owner'")))];assert_eq!(super::tests::count(&old,&new),0,"multihop={chain}");
+  }
  }
 }

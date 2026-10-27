@@ -2,7 +2,7 @@
 // @ref LLP 3000.036.004.002#s2-release-narrowing — immutable release predecessors supersede generated local baselines.
 use super::*;
 type Sources=Vec<(String,String)>;
-fn path(project:&Project)->std::path::PathBuf{project.schema_dir().join("generated/security-write-baseline.json")}
+fn path(project:&Project)->std::path::PathBuf{project.data_dir().join("security-write-baseline.json")}
 fn previous(project:&Project)->Result<Option<Sources>,String>{match std::fs::read(path(project)){
  Ok(bytes)=>serde_json::from_slice(&bytes).map(Some).map_err(|e|format!("invalid security write baseline: {e}")),
  Err(e) if e.kind()==std::io::ErrorKind::NotFound=>Ok(None),Err(e)=>Err(format!("cannot read security write baseline: {e}")),
@@ -34,11 +34,11 @@ pub(super) fn candidate(sources:&[(String,String)],note:&snapback4_lang::Diagnos
 // A refused deployment leaves its exact predecessor available to the printed
 // ordinary check/ack command, including in a fresh checkout with no check baseline.
 fn selected(project:&Project)->Result<Option<Sources>,String>{
- let path=project.schema_dir().join("generated/security-write-release.json");
+ let path=project.data_dir().join("security-write-release.json");
  match std::fs::read(path){Ok(bytes)=>serde_json::from_slice(&bytes).map(Some).map_err(|e|format!("invalid selected security predecessor: {e}")),Err(e) if e.kind()==std::io::ErrorKind::NotFound=>Ok(None),Err(e)=>Err(e.to_string())}
 }
 pub(super) fn select(project:&Project,sources:&[(String,String)])->Result<(),String>{
- let path=project.schema_dir().join("generated/security-write-release.json");std::fs::create_dir_all(path.parent().unwrap()).map_err(|e|e.to_string())?;
+ let path=project.data_dir().join("security-write-release.json");std::fs::create_dir_all(path.parent().unwrap()).map_err(|e|e.to_string())?;
  let temporary=path.with_extension(format!("{}.tmp",std::process::id()));
  let result=std::fs::write(&temporary,serde_json::to_vec(sources).unwrap()).and_then(|_|std::fs::rename(&temporary,&path));
  if result.is_err(){let _=std::fs::remove_file(temporary);}result.map_err(|e|e.to_string())
