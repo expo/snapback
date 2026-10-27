@@ -145,7 +145,9 @@ pub(super) fn source_notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnos
             let mut grant_guards=BTreeMap::new();
             let mut checked_recipients=BTreeSet::new();
             let mut prior_tables=BTreeSet::new();
-            for (write,context) in super::authority_walk::writes(&catalog,p){
+            let writes=super::authority_walk::writes(&catalog,p);
+            let resolved=writes.iter().map(|(write,_)|write.site().to_string()).collect::<BTreeSet<_>>();
+            for (write,context) in writes{
                 let Expr::Write{op,table,keys,fields,site,..}=&write else{continue;};
                 let Some(t)=bound.schema.table(table)else{continue;};
                 grant_guards.insert(site.to_string(),context.body.iter().filter_map(|s|if let Stmt::Require{condition,..}=s{Some(crate::print::expression(condition))}else{None}).collect::<Vec<_>>().join("; "));
@@ -154,7 +156,9 @@ pub(super) fn source_notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnos
                     let value=fields.iter().find(|f|f.name==*column).and_then(|f|f.value.as_ref()).or_else(||keys.iter().find(|key|key.column.as_deref()==Some(column)).map(|key|&key.value))?;
                     Some((table.clone(),crate::print::expression(value)))
                 }).collect::<Vec<_>>();
-                for arg in &p.args{if context.body.iter().any(|s|if let Stmt::Require{condition,..}=s{
+                let mut unknown_prior=false;
+                super::super::intent_walk::statements(&mut body.clone(),&mut |node|if let Expr::Write{site:earlier,..}=node&&earlier.file==site.file&&earlier.line<site.line&&!resolved.contains(&earlier.to_string()){unknown_prior=true;});
+                for arg in &p.args{if !unknown_prior&&context.body.iter().any(|s|if let Stmt::Require{condition,..}=s{
                     let mut dependencies=BTreeSet::new();super::super::intent_walk::expression(&mut condition.clone(),&mut |node|if let Expr::Read(read)|Expr::Exists{read,..}=node{dependencies.insert(read.table.clone());});
                     dependencies.is_disjoint(&prior_tables)&&recipient_checked(condition,&arg.name,bound,true,&links,p)
                 }else{false}){checked_recipients.insert((site.to_string(),arg.name.clone()));}}

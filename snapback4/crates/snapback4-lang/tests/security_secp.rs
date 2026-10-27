@@ -193,3 +193,7 @@ const SWEEP:&str="table docs:\n  status:enum('open','expired','done') default 'o
     let source=format!("{}\njob reset():\n  for row in jobs:\n    update jobs[row.id] {{dampSigned:false}}\n",include_str!("security/wave30/033.schema.q"));
     assert!(notes(&source).iter().any(|n|n.code=="N_EDIT_AFTER_APPROVAL"&&n.message.starts_with("markDamp:")));
 }
+#[test]fn unresolved_recipient_role_write_keeps_the_argument_question(){
+    let source=format!("{READER}table shares:\n  recipient:principal\n  read <- .recipient = viewer\n  insert <- allow\n  online only\nmutation grant(recipient:principal,flag:bool):\n  r=roles[principal=recipient] ! else NO\n  other=roles[viewer] ! else NO\n  require r.role = 'member' else NO\n  chosen=r if flag else other\n  update chosen {{role:'admin'}}\n  return insert shares {{recipient}}\n");
+    assert!(notes(&source).iter().any(|n|n.code=="N_ARGUMENT_GRANT"&&n.message.starts_with("grant:")));
+}
