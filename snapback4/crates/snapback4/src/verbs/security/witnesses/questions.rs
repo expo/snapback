@@ -16,7 +16,7 @@ pub(super) fn candidates(bound:&Bound,sources:&[(String,String)],index:usize,n:&
             } else {format!(".{column} != null")};
             for p in &bound.programs {
                 let writes=ir::write_tables(&p.program);
-                if single_mint(&p.program)
+                if absence_path(&p.program)
                     && writes.len()==1
                     && writes.iter().any(|(t,k)|t==table&&*k=="insert")
                     && bound.schema.maintains.is_empty() {
@@ -32,7 +32,7 @@ pub(super) fn candidates(bound:&Bound,sources:&[(String,String)],index:usize,n:&
         }
     }
     if n.code=="N_CHILD_EVIDENCE_PRESENCE" {
-        if let Some((table,detail))=n.message.split_once(": transitions ")
+        if let Some((table,detail))=n.message.split_once(": transitions ").or_else(||n.message.split_once(": creations "))
             && let Some((operations,child))=detail.split_once(" do not require attached ")
             && let Some((child,keys))=child.split_once('[')
             && let Some((reference,_))=keys.split_once(" = parent]") {
@@ -43,9 +43,9 @@ pub(super) fn candidates(bound:&Bound,sources:&[(String,String)],index:usize,n:&
                 // work in the same atomic call must not repair the observation.
                 let Some(p)=bound.programs.iter().find(|p|p.program.name==operation) else {continue;};
                 let writes=ir::write_tables(&p.program);
-                if !single_mint(&p.program)
+                if !absence_path(&p.program)
                     || writes.len()!=1
-                    || !writes.iter().any(|(t,k)|t==table&&*k=="update")
+                    || !writes.iter().any(|(t,k)|t==table&&*k==if n.message.contains(": creations "){"insert"}else{"update"})
                     || writes.iter().any(|(t,_)|t==child)
                     || !bound.schema.maintains.is_empty() {continue;}
                 lines.push(format!("invariant {table}.{operation} only count({child}[{reference} = .id]) > 0"));
@@ -83,6 +83,15 @@ pub(super) fn candidates(bound:&Bound,sources:&[(String,String)],index:usize,n:&
     })).collect()
 }
 
+pub(super) fn absence_evidence(mut value:serde_json::Value,n:&Diagnostic)->serde_json::Value {
+    if n.code=="N_OPTIONAL_EVIDENCE"&&let Some((_,column))=n.message.split_whitespace().next().and_then(|s|s.split_once('.')) {
+        value["compactSummary"]=format!("{} as {} → admitted insert; .{column}={}",value["operation"].as_str().unwrap_or("operation"),value["viewer"].as_str().unwrap_or("caller"),value["row"][column]).into();
+    }else if n.code=="N_CHILD_EVIDENCE_PRESENCE" {
+        value["compactSummary"]=format!("{} as {} → admitted {}; matching evidence children=0 (committed parent)",value["operation"].as_str().unwrap_or("operation"),value["viewer"].as_str().unwrap_or("caller"),value["effect"].as_str().unwrap_or("write")).into();
+    }
+    super::super::super::security_reviews::witness::stamp(value)
+}
+
 pub(super) fn text_evidence(mut value:serde_json::Value,n:&Diagnostic)->serde_json::Value {
     let subject=n.message.split(':').next().unwrap_or("evidence");
     value["kind"]="text-evidence".into();
@@ -104,19 +113,29 @@ fn replay_ids(first:&str,offset:usize)->Option<Vec<String>> {
         String::from_utf8(bytes.to_vec()).ok()
     }).collect()
 }
-fn single_mint(program:&ir::Program)->bool {
-    fn inspect(value:&serde_json::Value,mints:&mut usize)->bool {
+fn single_mint(program:&ir::Program)->bool {simple_path(program,false)}
+fn absence_path(program:&ir::Program)->bool {simple_path(program,true)}
+fn simple_path(program:&ir::Program,pure_branches:bool)->bool {
+    fn pure(value:&serde_json::Value)->bool {match value {
+        serde_json::Value::Object(fields)=>!fields.keys().any(|k|matches!(k.as_str(),"Insert"|"InsertIfAbsent"|"Update"|"Upsert"|"Delete"|"WriteTarget"|"DeleteTarget"|"Return"|"For"|"Emit"|"JobAs"|"JobQuery"))&&fields.values().all(pure),
+        serde_json::Value::Array(values)=>values.iter().all(pure),_=>true,
+    }}
+    fn inspect(value:&serde_json::Value,mints:&mut usize,pure_branches:bool)->bool {
         match value {
             serde_json::Value::Object(fields)=>{
-                if ["If","For","Emit","JobAs","JobQuery"].iter().any(|key|fields.contains_key(*key)){return false;}
+                if ["For","Emit","JobAs","JobQuery"].iter().any(|key|fields.contains_key(*key)){return false;}
+                // Boolean short-circuit lowering introduces IR If even when
+                // source has no conditional write. Only effect-free branches
+                // can enter an absence replay; final-store judgment still runs.
+                if fields.get("If").is_some_and(|branch|!pure_branches||!pure(branch)){return false;}
                 if fields.get("Input").is_some_and(|v|v=="NewId"){*mints+=1;}
-                fields.values().all(|v|inspect(v,mints))
+                fields.values().all(|v|inspect(v,mints,pure_branches))
             },
-            serde_json::Value::Array(values)=>values.iter().all(|v|inspect(v,mints)),_=>true,
+            serde_json::Value::Array(values)=>values.iter().all(|v|inspect(v,mints,pure_branches)),_=>true,
         }
     }
     let mut mints=0;
-    !program.native&&inspect(&serde_json::to_value(program).unwrap(),&mut mints)&&mints<=1
+    !program.native&&inspect(&serde_json::to_value(program).unwrap(),&mut mints,pure_branches)&&mints<=1
 }
 fn direct_guard(program:&ir::Program,table:&str,column:&str,arg:&str)->bool {
     use ir::{Expr as E,Stmt as S};
@@ -358,4 +377,55 @@ pub(super) fn repeat(bound:&Bound,inv:&security::Invariant,c:&Counterexample,n:&
         let again=examples(source,"N_GUARD_NOT_CONSUMED",message);assert_eq!(values.iter().map(|v|&v["id"]).collect::<Vec<_>>(),again.iter().map(|v|&v["id"]).collect::<Vec<_>>());
         let fixed=source.replace("  return insert receipts", "  update credits[credit] {spent:true}\n  return insert receipts");assert!(examples(&fixed,"N_GUARD_NOT_CONSUMED",message).is_empty());
     }
+}
+
+#[cfg(test)]mod sec13_tests {
+    use super::*;
+    #[test]fn wave32_absence_candidates_and_replays(){
+        for (lane,source,code,operation) in [
+            ("004",include_str!("../../../../../snapback4-lang/tests/security/sec13/004.q"),"N_OPTIONAL_EVIDENCE","addRoom"),
+            ("017",include_str!("../../../../../snapback4-lang/tests/security/sec13/017.q"),"N_OPTIONAL_EVIDENCE","openParty"),
+            ("033",include_str!("../../../../../snapback4-lang/tests/security/sec13/033.q"),"N_CHILD_EVIDENCE_PRESENCE","openJob"),
+        ] {
+            let sources=vec![("schema.q".into(),source.into())];let mut bound=snapback4_lang::compile(&sources);assert!(bound.diagnostics.is_empty());
+            let mut report=security::analyze_rules(&bound);security::add_source_notes(&mut report,&sources,&bound);let notes=report.notes;
+            let selected=notes.iter().enumerate().filter(|(_,n)|n.code==code).flat_map(|(i,n)|candidates(&bound,&sources,i,n)).filter(|(_,inv)|inv.operation.as_deref()==Some(operation)).collect::<Vec<_>>();
+            assert!(!selected.is_empty(),"{lane}: no absence candidate; mint={} program={:?}; notes={:?}",single_mint(&bound.programs.iter().find(|p|p.program.name==operation).unwrap().program),bound.programs.iter().find(|p|p.program.name==operation).unwrap().program,notes.iter().filter(|n|n.code==code).collect::<Vec<_>>());
+            bound.invariants=selected.iter().map(|(_,inv)|inv.clone()).collect();
+            let mut campaign=challenges::Campaign::work_bounded(8192);challenges::generated_campaign(&bound,&mut campaign,false);
+            assert!(campaign.violations.iter().any(|c|c.operation==operation&&c.reachability.is_reachable()),"{lane}: no replay; calls={:?}, unsupported={:?}",campaign.operations,campaign.unsupported);
+        }
+    }
+    #[test]fn wave32_time_candidates_and_replays(){
+        for (lane,source,code,operation) in [
+            ("004",include_str!("../../../../../snapback4-lang/tests/security/sec13/004.q"),"N_MOVABLE_TIME_ANCHOR","updateMove"),
+            ("025",include_str!("../../../../../snapback4-lang/tests/security/sec13/025.q"),"N_EVENT_TIME_ANCHOR","bookExam"),
+            ("029",include_str!("../../../../../snapback4-lang/tests/security/sec13/029.q"),"N_MOVABLE_TIME_ANCHOR","reschedule"),
+        ] {
+            let sources=vec![("schema.q".into(),source.into())];let mut bound=snapback4_lang::compile(&sources);
+            let qs=security::time_anchors::candidates(&sources,&bound).into_iter().filter(|q|q.note.code==code).collect::<Vec<_>>();assert!(!qs.is_empty());
+            let invs=qs.iter().map(|q|{let mut inv=candidate(&sources,&q.invariant).unwrap_or_else(||panic!("{lane}: invalid {}",q.invariant));if code=="N_MOVABLE_TIME_ANCHOR"{inv.site.file=inv.site.file.replace("/dx11/","/sec13-anchor/");inv.column=Some(q.column.clone());}if code=="N_EVENT_TIME_ANCHOR"{inv.site.file=inv.site.file.replace("/dx11/","/sec13-event/");}inv}).collect::<Vec<_>>();
+            bound.invariants=invs;
+            let mut campaign=challenges::Campaign::work_bounded(8192);security::time_anchors::configure_campaign(&bound,&qs,&mut campaign);challenges::generated_campaign(&bound,&mut campaign,false);
+            assert!(campaign.violations.iter().any(|c|c.operation==operation&&c.reachability.is_reachable()),"{lane}: no replay; calls={:?}, unsupported={:?}",campaign.operations,campaign.unsupported);
+        }
+    }
+
+    #[test]fn wave32_safe_evidence_variants_are_quiet(){
+        for (source,column) in [
+            (include_str!("../../../../../snapback4-lang/tests/security/sec13/004.q").replace("name: text 1..80, photo: image <=20000000 ?","name: text 1..80, photo: image <=20000000"),"rooms.photo"),
+            (include_str!("../../../../../snapback4-lang/tests/security/sec13/017.q").replace("deposit: int 0.., safetyAgreement: image <=5000000 ?","deposit: int 0.., safetyAgreement: image <=5000000"),"parties.safetyAgreement"),
+        ] {
+            let sources=vec![("schema.q".into(),source)];let mut bound=snapback4_lang::compile(&sources);assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);
+            let note=Diagnostic::new(&Default::default(),"N_OPTIONAL_EVIDENCE",format!("{column} permits omitted or empty media evidence"),"");
+            bound.invariants=candidates(&bound,&sources,0,&note).into_iter().map(|(_,inv)|inv).collect();
+            let mut campaign=challenges::Campaign::work_bounded(8192);challenges::generated_campaign(&bound,&mut campaign,false);
+            assert!(campaign.violations.is_empty(),"required upload: {column}");
+        }
+        let source=include_str!("../../../../../snapback4-lang/tests/security/sec13/033.q").replace("priceCents: int 1..100000000, detail: text 1..500 ?):","priceCents: int 1..100000000, photo: image <=10000000, detail: text 1..500 ?):").replace("  return insert jobs { customer: p.principal, address, detail, priceCents, status: 'quoted', quotedAt: now }","  j = insert jobs { customer: p.principal, address, detail, priceCents, status: 'quoted', quotedAt: now }\n  insert jobPhotos { job: j.id, photo }\n  return j");
+        let sources=vec![("schema.q".into(),source)];let bound=snapback4_lang::compile(&sources);assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);
+        let note=Diagnostic::new(&Default::default(),"N_CHILD_EVIDENCE_PRESENCE","jobs: creations openJob do not require attached jobPhotos[job = parent].photo; must media exist?","");
+        assert!(candidates(&bound,&sources,0,&note).is_empty(),"atomic child creation cannot witness absent evidence");
+    }
+
 }

@@ -109,6 +109,20 @@ test('packed security card and starter run as written; broad reads refute', {tim
  assert.equal(result.starters.length,7);
  if(process.env.SNAPBACK4_SECURITY_PACK_EVIDENCE)
   writeFileSync(join(process.env.SNAPBACK4_SECURITY_PACK_EVIDENCE,'security-evidence.json'),JSON.stringify(result,null,2)+'\n');
+ // SEC13: the installed CLI shows actual missing evidence and requires an
+ // evaluable witness answer. Requiring the upload makes the default quiet.
+ const sec13Dir=join(dir,'sec13-evidence');mkdirSync(join(sec13Dir,'snapback'),{recursive:true});
+ const sec13Source="table docs:\n  photo: image <=1000 ?\n  read <- allow\n  insert <- allow\n  online only\nmutation create(photo: image <=1000 ?):\n  return insert docs {photo}\n";
+ writeFileSync(join(sec13Dir,'snapback/schema.q'),sec13Source);
+ assert.match(run(process.execPath,[cli,'check'],sec13Dir),/fix question N_OPTIONAL_EVIDENCE.*photo=null/);
+ const sec13=JSON.parse(run(process.execPath,[cli,'check','--json'],sec13Dir));
+ const question=sec13.securityReviews.find(d=>d.code==='N_OPTIONAL_EVIDENCE'&&d.witness);assert.ok(question);assert.equal(question.gated,false);
+ run(process.execPath,[cli,'check','--ack-security',question.id,'--reason','deliberately optional'],sec13Dir,1);
+ const w=question.witness;
+ run(process.execPath,[cli,'check','--ack-security',question.id,'--reason',`witness ${w.id}; permit ${w.operation} as ${w.viewer}; audience: intentional draft creators`],sec13Dir);
+ writeFileSync(join(sec13Dir,'snapback/schema.q'),sec13Source.replace('mutation create(photo: image <=1000 ?)', 'mutation create(photo: image <=1000)'));
+ assert.doesNotMatch(run(process.execPath,[cli,'check'],sec13Dir),/fix question N_OPTIONAL_EVIDENCE/);
+
 });
 
 // @ref LLP 3000.036.004#19-wave-28-output-and-witness-decisions-dx11 — compact output keeps structured evidence; advisory details are opt-in.

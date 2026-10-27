@@ -192,6 +192,15 @@ pub(super) fn trace(bound:&Bound,p:&Program,entry:&Engine)->Trace {
 fn lifecycle_judgment(bound:&Bound,inv:&super::super::Invariant,observation:&snapback4_core::engine::fixture_trace::Observation,all:&[snapback4_core::engine::fixture_trace::Observation],after:&BTreeMap<String,Vec<Value>>,viewer:&str,now:i64)->Option<bool>{
     if let Some(contract)=bound.security_conservation.get(&inv.site.to_string()){return contract.judge(observation.old.as_ref()?,after);}
     let Some(predicate)=&inv.syntax else{return observation.allowed;};
+    // @ref LLP 3000.036.004.001#sec13-required-evidence-and-time-anchors — initialization and same-value edits do not witness a moved anchor.
+    if inv.site.file.starts_with("$derived/sec13-anchor/") {
+        let column=inv.column.as_ref()?;
+        let (Value::Int(old),Value::Int(next))=(observation.old.as_ref()?.field(column).ok()?,observation.next.as_ref()?.field(column).ok()?)else{return None;};
+        let observed=observation.next.as_ref()?;
+        let committed=after.get(&inv.table)?.iter().find(|r|r.field("id").ok()==observed.field("id").ok())?;
+        if committed.field(column).ok()!=Some(&Value::Int(*next))||bound.schema.tables[&inv.table].expired(committed,now){return None;}
+        return (old!=next).then_some(false);
+    }
     // @ref LLP 3000.036.004.001#question-candidates — absence questions require the observed image and predicate to survive commit.
     if inv.site.file.starts_with("$derived/sec11-absence/") {
         let observed=observation.next.as_ref()?;

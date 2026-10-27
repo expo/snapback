@@ -89,6 +89,9 @@ fn review_inner(project:&Project,sources:&[(String,String)],notes:&[snapback4_la
         recorded=selected.clone();
         for index in selected {
             let (id,fingerprint,_)=&identities[index];
+            if matches!(notes[index].code.as_str(),"N_OPTIONAL_EVIDENCE"|"N_CHILD_EVIDENCE_PRESENCE"|"N_MOVABLE_TIME_ANCHOR"|"N_EVENT_TIME_ANCHOR")&& !evidence.get(index).and_then(Option::as_ref).is_some_and(witness::concrete) {
+                return Err("this evidence question has no evaluable current replay; no decision recorded. Repair required evidence in source, or run check --review --json for bounded replay coverage".into());
+            }
             if let Some(value)=evidence.get(index).and_then(Option::as_ref){witness::validate_reason(reason,value)?;}
             if reason.trim().is_empty(){return Err("--reason needs the specification rationale for this individual note".into());}
             file.entries.insert(id.clone(),Entry{sources:fingerprint.clone(),analyzer:ANALYZER.into(),reason:reason.trim().into(),witness:evidence.get(index).cloned().flatten()});
@@ -118,7 +121,7 @@ fn remember_family_identities(project:&Project,notes:&[snapback4_lang::Diagnosti
 }
 fn dispositions(file:&File,notes:&[snapback4_lang::Diagnostic],identities:Vec<(String,String,String)>,recorded:&std::collections::BTreeSet<usize>,evidence:&[Option<serde_json::Value>])->Vec<Disposition>{
     let family=decisions::family(notes,&identities);
-    notes.iter().zip(identities).enumerate().map(|(i,(n,(key,fingerprint,scope)))|{let entry=file.entries.get(&key).filter(|e|witness::retained(e,&fingerprint,evidence.get(i).and_then(Option::as_ref)));
+    notes.iter().zip(identities).enumerate().map(|(i,(n,(key,fingerprint,scope)))|{let entry=file.entries.get(&key).filter(|e|witness::retained(e,&fingerprint,evidence.get(i).and_then(Option::as_ref))&&(!matches!(n.code.as_str(),"N_OPTIONAL_EVIDENCE"|"N_CHILD_EVIDENCE_PRESENCE"|"N_MOVABLE_TIME_ANCHOR"|"N_EVENT_TIME_ANCHOR")||evidence.get(i).and_then(Option::as_ref).is_some_and(witness::concrete)));
         Disposition{family:decisions::audience(&n.code).then(||family.clone()).flatten(),id:key,code:n.code.clone(),site:n.site.to_string(),gated:witness::gate(&n.code,evidence.get(i).and_then(Option::as_ref)),acknowledged:entry.is_some(),recorded:recorded.contains(&i),scope,reason:entry.map(|e|e.reason.clone()),witness:evidence.get(i).cloned().flatten().or_else(||entry.and_then(|e|e.witness.clone()))}
     }).collect()
 }
@@ -213,5 +216,24 @@ pub(super) struct Scratch(pub(super) std::path::PathBuf);impl Drop for Scratch{f
   assert!(review_evidence(&p,&sources,&notes,Some((&ds[0].id,&reason)),&evidence).unwrap()[0].acknowledged);
   let saved=std::fs::read(&path).unwrap();
   assert!(review_evidence(&p,&sources,&notes,Some((&ds[0].id,"a different reason")),&evidence).is_err());assert_eq!(std::fs::read(path).unwrap(),saved);
+ }
+}
+
+#[cfg(test)]mod sec13_ack_tests {
+ use super::*;
+ struct Scratch(std::path::PathBuf);impl Drop for Scratch{fn drop(&mut self){let _=std::fs::remove_dir_all(&self.0);}}
+ #[test]fn missing_replay_cannot_close_an_evidence_question_or_publish_a_partial_batch(){
+  let root=std::env::temp_dir().join(format!("sb4-sec13-ack-{}",std::process::id()));std::fs::create_dir_all(root.join("snapback")).unwrap();let _scratch=Scratch(root.clone());let p=Project{root};
+  std::fs::write(p.schema_dir().join("schema.q"),"query q():\n  return true\n").unwrap();let sources=p.sources().unwrap();
+  for code in ["N_OPTIONAL_EVIDENCE","N_CHILD_EVIDENCE_PRESENCE","N_MOVABLE_TIME_ANCHOR","N_EVENT_TIME_ANCHOR"] {
+   let notes=[snapback4_lang::Diagnostic::new(&Default::default(),"N_TEXT_EVIDENCE","advice",""),snapback4_lang::Diagnostic::new(&Default::default(),code,"evidence","")];
+   let ids=binding::identities(&notes,&sources);let batch=format!("{},{}",ids[0].0,ids[1].0);
+   assert!(review(&p,&sources,&notes,Some((&batch,"intentionally optional"))).err().unwrap().contains("no evaluable current replay"));
+   assert!(!p.schema_dir().join("security-reviews.json").exists());
+   let old=File{version:1,entries:BTreeMap::from([(ids[1].0.clone(),Entry{sources:ids[1].1.clone(),analyzer:ANALYZER.into(),reason:"old unwitnessed prose".into(),witness:None})])};
+   std::fs::write(p.schema_dir().join("security-reviews.json"),serde_json::to_vec(&old).unwrap()).unwrap();
+   assert!(!review(&p,&sources,&notes,None).unwrap()[1].acknowledged);
+   std::fs::remove_file(p.schema_dir().join("security-reviews.json")).unwrap();
+  }
  }
 }

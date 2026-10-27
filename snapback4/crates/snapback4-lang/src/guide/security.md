@@ -614,3 +614,25 @@ witness. To acknowledge it, name its digest and exactly `permit OPERATION as
 CALLER`, followed by the printed audience/effect rationale. An invalid answer
 prints the current redacted replay and records no decisions. Complex guard
 histories and unsupported evidence shapes remain coverage gaps.
+
+## Evidence and time anchors (SEC13)
+
+Optional media and a separately attached child can leave a parent without
+photos or an agreement. Default witnessed questions show an admitted creation
+or transition and its missing evidence. A required child field does not require
+a child row. If the specification requires the upload, require the argument and
+create the linked evidence atomically, or check its presence at the relevant
+boundary. Deliberate draft states and optional attachments may remain optional.
+
+`N_MOVABLE_TIME_ANCHOR` asks whether an edit should re-check a window measured
+from a stored time that the edit can move. Preserve an immutable original date
+when the window must never reopen, or check affected dependent records.
+`N_EVENT_TIME_ANCHOR` asks whether a guard should check the stored event time
+instead of booking-time `now`. A server-relative bound alone does not check the
+event against an earlier completion date.
+
+These are specification questions, not inferred obligations or security proofs.
+Only current replayed behavior appears by default. Unsupported cases remain in
+`check --review --json`; they cannot be acknowledged without an evaluable replay.
+An optional acknowledgment must name the current witness, explicitly permit its
+operation and caller, and give the intended audience or effect rationale.

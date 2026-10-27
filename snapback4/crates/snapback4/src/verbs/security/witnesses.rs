@@ -218,7 +218,12 @@ fn candidates(
     let derived = security::derived::invariants(sources, bound);
     let stages = security::derived::workflow_columns_from_sources(sources, bound);
     let mut out = Vec::new();
+    let times=security::time_anchors::candidates(sources,bound);
     for (index, n) in notes.iter().enumerate() {
+        for q in times.iter().filter(|q|q.note==*n) {if let Some(mut inv)=candidate(sources,&q.invariant){
+            if n.code=="N_MOVABLE_TIME_ANCHOR" {inv.site.file=inv.site.file.replace("/dx11/","/sec13-anchor/");inv.column=Some(q.column.clone());}
+            if n.code=="N_EVENT_TIME_ANCHOR" {inv.site.file=inv.site.file.replace("/dx11/","/sec13-event/");}
+            out.push((index,inv));}}
         out.extend(questions::candidates(bound,sources,index,n));
         if n.code == "N_INSERT_WRITE_INTENT" {
             if let Some(subject) = n
@@ -505,22 +510,25 @@ pub(in crate::verbs) fn collect(project:&Project,bound:&Bound,sources:&[(String,
     if let Some(cached)=&cached{for (index,value) in cached.iter().enumerate(){if !gate(index)&&notes[index].code!="N_DERIVED_WRITE_AUTHORITY"{result[index]=value.clone();}}}
     let selected=candidates(bound,sources,notes);
     let stages=security::derived::workflow_columns_from_sources(sources,bound);
+    let times=security::time_anchors::candidates(sources,bound);
     for enforcement in [true,false] {
         if !enforcement&&(!expanded||cached.is_some()){continue;}
         let selected=selected.iter().filter(|(index,_)|gate(*index)==enforcement).collect::<Vec<_>>();
         if selected.is_empty(){continue;}
         let mut questions=bound.clone();questions.invariants=selected.iter().map(|(_,inv)|inv.clone()).collect();
         let mut campaign=challenges::Campaign::work_bounded(if enforcement{3072}else{8192});
+        if !enforcement{security::time_anchors::configure_campaign(&questions,&times,&mut campaign);}
         challenges::generated_campaign(&questions,&mut campaign,false);
         for (index,inv) in selected {
             if result[*index].is_some()&&notes[*index].code!="N_INSERT_WRITE_INTENT"{continue;}
-            if let Some(c)=campaign.violations.iter().filter(|c|c.invariant_site==inv.site.to_string()&&c.reachability.is_reachable()&&(notes[*index].code!="N_GUARD_NOT_CONSUMED"||c.history.len()==1&&c.effect=="insert")&&(notes[*index].code!="N_CHILD_EVIDENCE_PRESENCE"||questions::transition(inv,c,&stages))).max_by_key(|c| {
+            if let Some(c)=campaign.violations.iter().filter(|c|c.invariant_site==inv.site.to_string()&&c.reachability.is_reachable()&&times.iter().find(|q|q.note==notes[*index]).is_none_or(|q|notes[*index].code!="N_MOVABLE_TIME_ANCHOR"||c.effect=="update"&&c.old.as_ref().and_then(|r|r.field(&q.column).ok()).zip(c.row.field(&q.column).ok()).is_some_and(|(old,next)|matches!((old,next),(snapback4_core::Value::Int(a),snapback4_core::Value::Int(b)) if a!=b)))&&(notes[*index].code!="N_GUARD_NOT_CONSUMED"||c.history.len()==1&&c.effect=="insert")&&(notes[*index].code!="N_CHILD_EVIDENCE_PRESENCE"||notes[*index].message.contains(": creations ")||questions::transition(inv,c,&stages))).max_by_key(|c| {
                 let decrease=inv.column.as_ref().and_then(|column|Some((c.old.as_ref()?.field(column).ok()?,c.row.field(column).ok()?))).is_some_and(|(old,next)|matches!((old,next),(snapback4_core::Value::Int(a),snapback4_core::Value::Int(b)) if a>b));
                 (decrease,c.history.len())
             }) {let replay=decreasing_edit(bound,inv,c);let mut value=evidence(sources,bound,inv,replay.as_ref().unwrap_or(c));
                 if notes[*index].code=="N_GUARD_NOT_CONSUMED" {let Some(repeated)=questions::repeat(bound,inv,c,&notes[*index],sources)else{continue;};value=repeated;}
                 if notes[*index].code=="N_TEXT_EVIDENCE" {value=questions::text_evidence(value,&notes[*index]);}
-                if questions::advisory(&notes[*index].code){value["advisory"]=true.into();}
+                if questions::advisory(&notes[*index].code)||matches!(notes[*index].code.as_str(),"N_MOVABLE_TIME_ANCHOR"|"N_EVENT_TIME_ANCHOR"){value["advisory"]=true.into();}
+                if matches!(notes[*index].code.as_str(),"N_OPTIONAL_EVIDENCE"|"N_CHILD_EVIDENCE_PRESENCE") {value=questions::absence_evidence(value,&notes[*index]);}
                 if super::super::security_reviews::witness::concrete(&value){
                 let decrease=|v:&serde_json::Value|v["old"].as_object().is_some_and(|fields|fields.iter().any(|(field,old)|old.as_i64().zip(v["row"][field].as_i64()).is_some_and(|(a,b)|a>b)));
                 if result[*index].is_none()||decrease(&value)&&!result[*index].as_ref().is_some_and(decrease){result[*index]=Some(value);}

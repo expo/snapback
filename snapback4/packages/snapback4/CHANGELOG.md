@@ -4,6 +4,8 @@
 
 ### Guide changes
 
+- SEC13: default replay questions cover optional media, missing evidence children at parent creation, movable deadline anchors and booking-clock versus event-time windows. These questions require current evaluable evidence for acknowledgment and remain nonblocking.
+
 - Security decision refusals include the current redacted replay. Evidence presence, text evidence, child attachments, broad audiences and supported guard reuse can carry concrete advisory witnesses; acknowledging one must name that witness and explicitly permit its observed operation and caller. Witness identity now retains logical clocks, observable absence and delivered field sets; older answers can become pending once when these previously omitted inputs change the digest.
 
 ## 0.4.43
