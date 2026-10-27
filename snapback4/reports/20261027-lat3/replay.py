@@ -99,9 +99,14 @@ def client_digest(dst):
 
 def messages(path):
  text=path.read_text(errors='replace')
- # Keep failure messages verbatim; drop process stacks, CLI timing summaries and
- # randomized paths/identifiers only for a separate diagnostic comparator.
- lines=[l for l in text.splitlines() if re.search(r'Error|Assertion|expected|actual|E_[A-Z_]+|"ok":false|"expected":',l) and 'ExperimentalWarning' not in l]
+ text=re.sub(r'\x1b\[[0-?]*[ -/]*[@-~]','',text)
+ # Remove only Node diagnostics, including a warning embedded after an
+ # assertion prefix. Never discard the surrounding assertion itself.
+ text=re.sub(r'\(node:\d+\)(?:\s+\[[^\]]+\])?\s+(?:ExperimentalWarning|DeprecationWarning|Warning):[^\n]*','',text)
+ lines=[]
+ for line in text.splitlines():
+  line=re.sub(r'\s*node:internal/modules/run_main:\d+(?::\d+)?\s*$','',line).rstrip()
+  if re.search(r'Error|Assertion|expected|actual|E_[A-Z_]+|"ok":false|"expected":|(?:locator|page|browser|browserType|frame|elementHandle)\.[^:]+:\s',line) or re.search(r'^\s+at .*?/scripts/[^\s]+:\d+:\d+',line):lines.append(line)
  return lines
 
 def main():

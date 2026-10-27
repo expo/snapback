@@ -1,5 +1,7 @@
 """Summarize completed paired commands; failures never become speed wins."""
-import argparse,collections,json,math,pathlib,statistics,re
+import argparse,collections,json,math,pathlib,statistics,re,sys
+sys.dont_write_bytecode=True
+from replay import messages
 ap=argparse.ArgumentParser();ap.add_argument('--out',required=True);a=ap.parse_args()
 rows=[]
 for p in sorted(pathlib.Path('/tmp/lat3').glob('corpus-[0-9].jsonl')):
@@ -10,6 +12,12 @@ for x in rows:
  key=(x['wave'],x['lane'],x['script'])
  if key not in selected or x.get('measurementRevision',1)>selected[key].get('measurementRevision',1):selected[key]=x
 rows=[*selected.values(),*setups]
+for pair in rows:
+ if 'script'not in pair:continue
+ name=pair['script'].replace(':','-').replace('/','-')
+ for variant in ['before','after']:
+  log=pathlib.Path('/tmp/lat3/corpus-logs')/f"w{pair['wave']}-{pair['lane']}"/f'{name}-{variant}.log'
+  if log.exists():pair[variant]['messages']=messages(log)
 def stats(values):
  if not values:return None
  values=sorted(values)
