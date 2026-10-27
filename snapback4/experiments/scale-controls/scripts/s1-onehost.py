@@ -57,10 +57,13 @@ def append(path,value):
 def disk(out):
     free=shutil.disk_usage('/home').free
     append(out/'disk.jsonl',dict(time=time.time(),free_bytes=free))
-    if free<30*1024**3:raise RuntimeError('/home below 30 GiB; stop')
+    if free<25*1024**3:raise RuntimeError('/home below 25 GiB; stop')
 
 
 def configure(args):
+    global PG_CORES, APP_CORES, LOAD_CORES, PGBIN, PGPORT
+    PG_CORES=args.pg_cores;APP_CORES=args.app_cores;LOAD_CORES=args.load_cores
+    PGBIN=Path(args.pg_bin).resolve();PGPORT=args.pg_port
     run.BIN=Path(args.harness).resolve();run.PSQL=PGBIN/'psql'
     run.APP_CORES=APP_CORES;run.LOAD_CORES=LOAD_CORES
     supabase.BIN=run.BIN;supabase.PSQL=run.PSQL;supabase.APP_CORES=APP_CORES
@@ -74,8 +77,13 @@ def configure(args):
         convex.BIN=run.BIN;convex.APP_CORES=APP_CORES
         return convex.ConvexRun
     import snapback
+    if getattr(args,'store','postgres')=='sqlite':
+        snapback.SB=Path(args.snapback_bin).resolve()
+        snapback.APP_CORES=APP_CORES;snapback.LOAD_CORES=LOAD_CORES;snapback.BIN=run.BIN
+        return snapback.Snapback
     spec=importlib.util.spec_from_file_location('native_pg',HERE/'scripts/postgres-2.py')
     native=importlib.util.module_from_spec(spec);spec.loader.exec_module(native)
+    snapback.BIN=run.BIN
     snapback.SB=Path(args.snapback_bin).resolve()
     snapback.APP_CORES=native.APP_CORES=APP_CORES
     snapback.LOAD_CORES=native.LOAD_CORES=LOAD_CORES
@@ -188,7 +196,7 @@ def make_runner(base):
                     s.setsockopt(socket.SOL_SOCKET,socket.SO_REUSEADDR,1)
                     s.bind(('127.0.0.1',port))
             data=self.runtime/'pg'
-            result=sp.run([str(PGBIN/'initdb'),'-D',str(data),'-U','sb4scale','--auth-local=trust','--auth-host=reject','--no-locale','--encoding=UTF8'],capture_output=True,text=True)
+            result=sp.run([str(PGBIN/'initdb'),'-D',str(data),'-U','sb4scale','--auth-local=trust','--auth-host=reject','--no-locale','--encoding=UTF8',*(['-L',self.args.pg_share] if self.args.pg_share else [])],capture_output=True,text=True)
             (self.out/'initdb.txt').write_text(result.stdout+result.stderr)
             if result.returncode:raise RuntimeError('initdb failed')
             delta=(HERE/'postgresql.conf.delta').read_text()
@@ -224,6 +232,7 @@ def make_runner(base):
             (self.out/'host.txt').write_text(sp.check_output(['bash','-c','hostname; uname -a; lscpu; free -m; df -h /home; uptime'],text=True))
 
         def fixture(self,rows):
+            disk(self.out)
             self.db=f'{self.db_prefix}_{rows}';self.env['SCALE_DATABASE']=self.db
             d=self.out/'fixture-link';d.mkdir();self.link(0,d)
             if self.args.system in ('rawpg','supabase'):
@@ -240,15 +249,15 @@ def make_runner(base):
                 self.sqlpg('CREATE DATABASE '+self.db+' OWNER s1pg2_app','postgres')
                 self.sqlpg('CREATE EXTENSION pg_stat_statements')
                 self.env['SCALE_DB_USER']='s1pg2_app'
-                self.env['SNAPBACK4_STORE_URL']='postgres://s1pg2_app@/'+self.db+'?host='+quote(str(self.socket),safe='')+'&port=55440&schema=bench&ha=none'
+                self.env['SNAPBACK4_STORE_URL']='postgres://s1pg2_app@/'+self.db+'?host='+quote(str(self.socket),safe='')+f'&port={PGPORT}&schema=bench&ha=none'
                 self.command([self.args.snapback_bin,'deploy',self.release,'--json'],'deploy',self.project)
                 binding=json.loads((self.release/'store-binding.json').read_text())
                 config=self.runtime/'seed.json'
-                supabase.private_file(config,json.dumps(dict(connection=f'host={self.upstream} port=55440 user=s1pg2_app dbname={self.db}',store_id=binding['store_id'],rows=rows,tokens_path=str(self.private))))
+                supabase.private_file(config,json.dumps(dict(connection=f'host={self.upstream} port={PGPORT} user=s1pg2_app dbname={self.db}',store_id=binding['store_id'],rows=rows,tokens_path=str(self.private))))
                 self.command(['taskset','-c',APP_CORES,self.args.seed_bin,config],'seed')
                 self.private.chmod(0o600);self.tokens=json.loads(self.private.read_text())
                 barrier=self.runtime/'barrier-token'
-                config.write_text(json.dumps(dict(connection=f'host={self.upstream} port=55440 user=s1pg2_app dbname={self.db}',store_id=binding['store_id'],drain_only=True,session_path=str(barrier))))
+                config.write_text(json.dumps(dict(connection=f'host={self.upstream} port={PGPORT} user=s1pg2_app dbname={self.db}',store_id=binding['store_id'],drain_only=True,session_path=str(barrier))))
                 self.command([self.args.seed_bin,config],'barrier')
                 self.barrier_token=barrier.read_text().strip()
                 write(self.out/'seed-equality.json',self.verify_seed(rows));self.sqlpg('VACUUM ANALYZE')
@@ -259,7 +268,7 @@ def make_runner(base):
                 if p.poll() is None:p.terminate()
                 p.wait(timeout=15);out.close();err.close();self.proxy=None
             linkdir=self.runtime/('d'+str(time.time_ns()))
-            self.proxy=self.spawn(['taskset','-c',APP_CORES,run.BIN,'unix-proxy','--socket-dir',linkdir,'--upstream-dir',self.upstream,'--delay-us',str(delay)],directory,'link')
+            self.proxy=self.spawn(['taskset','-c',APP_CORES,run.BIN,'unix-proxy','--socket-dir',linkdir,'--upstream-dir',self.upstream,'--delay-us',str(delay),'--port',str(PGPORT)],directory,'link')
             self.record(self.proxy[0],'app',component='shared-delay-proxy')
             deadline=time.monotonic()+10
             while not (linkdir/f'.s.PGSQL.{PGPORT}').exists():
@@ -270,7 +279,7 @@ def make_runner(base):
 
         def ping(self,delay,path):
             if path.name=='rtt-before.json':self.link(delay,path.parent)
-            value=sp.check_output(['taskset','-c',APP_CORES,str(run.BIN),'ping-unix','--socket-dir',str(self.socket),'--count','1000'],env=self.env,text=True)
+            value=sp.check_output(['taskset','-c',APP_CORES,str(run.BIN),'ping-unix','--socket-dir',str(self.socket),'--count','1000','--port',str(PGPORT)],env=self.env,text=True)
             value=json.loads(value);value['delay_us']=delay
             write(path,value)
 
@@ -374,7 +383,7 @@ def make_runner(base):
             self.observe_stop.set();self.observer.join(timeout=5)
             if (self.out/'generator-affinity.jsonl').exists():
                 for line in (self.out/'generator-affinity.jsonl').read_text().splitlines():
-                    if any(t['cpus']!=[5,11] for t in json.loads(line)['tasks']):errors.append('generator-affinity')
+                    if any(set(t['cpus'])!={c for item in LOAD_CORES.split(',') for c in range(int(item.split('-')[0]),int(item.split('-')[-1])+1)} for t in json.loads(line)['tasks']):errors.append('generator-affinity')
             records=[json.loads(s) for s in (self.out/'all-pids.jsonl').read_text().splitlines()]
             alive=[r for r in records if r['pid']!=os.getpid() and live(r)]
             socket_absent=not (self.upstream/f'.s.PGSQL.{PGPORT}').exists()
@@ -386,7 +395,10 @@ def make_runner(base):
             data=self.runtime/'pg'
             if data.exists():
                 shutil.copyfile(data/'postgresql.conf',self.out/'postgresql.conf')
-                shutil.rmtree(data)
+                # A failed trial may still need an independent durable-counter
+                # receipt. Stop the owned cluster, but retain its data on error.
+                if sys.exc_info()[0] is None:
+                    shutil.rmtree(data)
             # A disk guard must never prevent owned shutdown/data cleanup.
             disk(self.out)
             # Keep private material only until the separate known-secret audit.
@@ -403,6 +415,8 @@ def checks_module():
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--system',required=True,choices=['snapback','rawpg','supabase','convex'])
+    p.add_argument('--store',choices=['postgres','sqlite'],default='postgres',help='SQLite is native Snapback only, with one natural/no-database-link column')
+    p.add_argument('--sqlite-seed-release',help='restore a stopped, owned SQLite fixture with a read-only backup; verify all fixture images before load')
     p.add_argument('--out',required=True)
     p.add_argument('--mode',choices=['matrix','smoke','cell'],default='matrix')
     p.add_argument('--workload',choices=['W1','W2','W3','W4','W5'],default='W2')
@@ -417,10 +431,27 @@ def main():
     p.add_argument('--warmup-ms',type=int,default=10000)
     p.add_argument('--duration-ms',type=int,default=20000)
     p.add_argument('--repeats',type=int,default=3)
-    args=p.parse_args();args.rows=1000000;args.load_cores=LOAD_CORES
+    p.add_argument('--rows',type=int,default=1000000)
+    p.add_argument('--pg-port',type=int,default=PGPORT)
+    p.add_argument('--pg-bin',default=str(PGBIN))
+    p.add_argument('--pg-share')
+    p.add_argument('--pg-cores',default=PG_CORES)
+    p.add_argument('--app-cores',default=APP_CORES)
+    p.add_argument('--load-cores',default=LOAD_CORES)
+    args=p.parse_args()
+    if args.store=='sqlite' and args.link!='A':p.error('SQLite has only the natural column (--link A); there is no database link B')
+    if args.sqlite_seed_release and args.store!='sqlite':p.error('--sqlite-seed-release requires --store sqlite')
     args.target='raw-pg' if args.system=='rawpg' else args.system
+    # Only the Snapback arm takes its socket name from --pg-port; raw-PG and
+    # Supabase consumers still connect to the default port.
+    if args.pg_port!=PGPORT and args.system!='snapback':p.error('--pg-port is supported only with --system snapback')
     if args.mode=='smoke':args.rates=[100];args.extra_read_rates=[]
-    base=configure(args);r=make_runner(base)(args)
+    if args.store=='sqlite' and args.system!='snapback':p.error('SQLite requires --system snapback')
+    base=configure(args);runner=make_runner(base)
+    if args.store=='sqlite':
+        import sqlite_onehost
+        runner=sqlite_onehost.adapt(runner)
+    r=runner(args)
     def interrupt(signum,frame):raise KeyboardInterrupt
     signal.signal(signal.SIGTERM,interrupt)
     try:
@@ -428,6 +459,7 @@ def main():
         # Convex reads first; the same order is fixed for every control.
         matrix=[(w,500 if link=='A' else 1000,keys) for w,keys in [('W1','disjoint'),('W2','disjoint'),('W3','disjoint'),('W4','disjoint'),('W5','same'),('W5','hot1')] for link in ('A','B')]
         if args.mode in ('smoke','cell'):matrix=[(args.workload,500 if args.link=='A' else 1000,args.keys)]
+        if args.store=='sqlite':matrix=[(w,0,k) for w,d,k in matrix if d==500]
         for w,d,k in matrix:r.cell(w,args.rows,d,128 if w in ('W1','W2','W3') else 32,k)
     finally:r.close()
 

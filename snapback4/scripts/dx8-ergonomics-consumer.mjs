@@ -55,7 +55,11 @@ await withBrowser({ logsDir: "browser-logs", executablePath: process.env.CHROME 
   const root = page.locator("main");
   assert.equal(await renderedText(page, "Pump logged.", null).count(), 1, "null uses default options");
   assert.equal(await waitForFresh(renderedText(page, "Pump logged.", { within: root, exact: false }), null), "Pump logged.");
-  assert.equal(await root.evaluate(element => element.scrollTop), 0, "text proof does not scroll the app");
+  assert.ok(await root.evaluate(element => element.scrollTop) > 0, "text proof scrolls the match into view");
+  assert.equal(await root.evaluate(element => {
+    const match = element.lastElementChild.getBoundingClientRect(), viewport = element.getBoundingClientRect();
+    return match.top >= viewport.top && match.bottom <= viewport.bottom;
+  }), true, "the composed status line is inside the scrollport");
 });
 
 async function initialized(name, args) {

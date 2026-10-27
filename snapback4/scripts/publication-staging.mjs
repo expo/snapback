@@ -37,12 +37,15 @@ export async function proveStaging(client, platform, directory) {
 
 const verify = String.raw`
 import assert from "node:assert/strict";
-import {readFileSync, statSync} from "node:fs";
+import {readFileSync, readdirSync, statSync} from "node:fs";
 import {startServe, seedAccounts, cli} from "snapback4/proof";
 import {login} from "snapback4/auth";
 const plan = {roles:{admin:2,member:2},provision:{name:"provision"}};
-const sessions=JSON.parse(readFileSync("staging-users.json","utf8"));
-assert.equal(statSync("staging-users.json").mode & 0o777,0o600);
+const credentialsFiles=readdirSync(".").filter(name=>/^staging-users-[a-f0-9-]{36}\.json$/.test(name));
+assert.equal(credentialsFiles.length,1,"the installed guide writes one uniquely named credentials file");
+const credentialsFile=credentialsFiles[0];
+const sessions=JSON.parse(readFileSync(credentialsFile,"utf8"));
+assert.equal(statSync(credentialsFile).mode & 0o777,0o600);
 let host=await startServe("staging", {clockOffset:"+25h"});
 const post=async(path,token,args={})=>(await fetch(host.url+path,{method:"POST",headers:{"content-type":"application/json",authorization:"Bearer "+token},body:JSON.stringify({args}),signal:AbortSignal.timeout(10000)})).json();
 try {

@@ -80,8 +80,36 @@ test('DX6 composed RN text and wrapping labels preserve scope, exactness and amb
   const visible=kit.renderedText(page,'Visible composed',{within});
   assert.equal(await kit.waitForFresh(visible,null,500),'Visible composed');
   await visible.evaluate(el=>el.querySelector('[hidden]').textContent='changed invisible text');
-  await assert.rejects(kit.waitForFresh(visible,'Visible composed',50),/present but unchanged/);
-  await assert.rejects(kit.waitForFresh(visible.filter({visible:true}),'Visible composed',50),/present but unchanged/);
+  const changing = kit.renderedText(page, /^Visible /, {within});
+  const visibleElement = within.locator('div').filter({has:page.locator('span[hidden]', {hasText:'changed invisible text'})});
+  for (const locator of [changing, changing.filter({visible:true})]) {
+    // Wait for actual unchanged samples, not a 50 ms browser scheduling window.
+    // Hidden text must never settle freshness; only the later visible edit may.
+    const observed = Promise.withResolvers();
+    let samples = 0;
+    const sampled = new Proxy(locator, {
+      get(target, key) {
+        const value = Reflect.get(target, key);
+        if (key === 'evaluate') return async (...args) => {
+          const text = await value.apply(target, args);
+          if (typeof text === 'string' && ++samples === 2) observed.resolve();
+          return text;
+        };
+        return typeof value === 'function' ? value.bind(target) : value;
+      },
+    });
+    const fresh = kit.waitForFresh(sampled, 'Visible composed', 5000);
+    try {
+      await kit.bounded(Promise.race([
+        observed.promise,
+        fresh.then(text => { throw Error(`hidden edit settled freshness: ${text}`); }),
+      ]), 5000, 'two unchanged rendered-text samples');
+    } finally {
+      await visibleElement.evaluate(el => el.querySelector('strong').textContent = 'changed visibly');
+    }
+    assert.equal(await fresh, 'Visible changed visibly');
+    await visibleElement.evaluate(el => el.querySelector('strong').textContent = 'composed');
+  }
 
 
   assert.equal(await kit.renderedText(page, 'order 42 saved', {within,exact:true}).count(), 0, 'exact remains case sensitive');

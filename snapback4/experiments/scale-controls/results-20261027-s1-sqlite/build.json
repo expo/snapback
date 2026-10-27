@@ -1,0 +1,9 @@
+{
+  "commit": "9ee365bbd683c053158152ae352f420798dcbaa4",
+  "command": "LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT CARGO_TARGET_DIR=$PWD/snapback4/target cargo build --release --locked --manifest-path snapback4/Cargo.toml -p snapback4 --features postgres -j 5",
+  "binaries": {
+    "snapback4": "b649d4c6dcb846a19f5e9236d3cb6aed07d90593a143451dc4b9fe7f32747405",
+    "sb4-scale-controls": "ea2ca655f19cd90824fc610b9fc2a1c6aa32ae61436c602595de0b037691d595"
+  },
+  "harness": "Exact S1-C source/binary inherited from own S1-WP build; SHA matches source verification"
+}

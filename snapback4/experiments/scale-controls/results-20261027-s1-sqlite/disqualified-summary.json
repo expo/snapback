@@ -1,0 +1,9 @@
+{
+  "trials": 60,
+  "by_reason": {
+    "p99": 60,
+    "errors": 60,
+    "counter": 0
+  },
+  "per_trial_list": "raw archive: disqualified-trials.json"
+}
