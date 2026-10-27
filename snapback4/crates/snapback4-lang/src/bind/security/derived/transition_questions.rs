@@ -53,12 +53,16 @@ fn steps(sources:&[(String,String)],bound:&Bound)->Vec<Step>{
             let anchor=p.args.len()==1&&p.body[..at].iter().all(|s|match s{Stmt::Require{condition,..}=>plain_guard(condition),Stmt::Bind{value,..}=>super::plain_row(value)&&super::same_resource(value,table,keys,p),_=>false})&&p.body[at+1..].iter().all(|s|matches!(s,Stmt::Return{value:Expr::Literal{value:ast::Literal::Null,..},..}))&&fields.iter().all(|f|f.value.as_ref().is_some_and(|v|matches!(v,Expr::Literal{..})||matches!(v,Expr::Name{name,..}if name=="now"||name=="viewer")));
             let mut guards=Vec::new();let mut complete=true;
             for s in &context.body{if let Stmt::Require{condition,..}=s{if let Some(value)=workflow::normalize(condition,&bound.schema,table,&mapping){conjuncts(&value,&mut guards);}else{complete=false;}}}
+            // A source spread has no field name; the binder expands it with
+            // overwrite semantics. Until this lane shares that reduction, no
+            // partial field list may commission a hypothesis or an index panic.
+            let Some(types)=fields.iter().map(|f|bound.schema.tables[table].columns.get(&f.name).map(|kind|(f.name.clone(),kind.clone()))).collect::<Option<BTreeMap<_,_>>>()else{continue;};
             for field in fields{
                 let Some(C::Enum{variants})=bound.schema.tables[table].columns.get(&field.name)else{continue;};if variants.len()<3{continue;}
                 if writes.iter().filter(|(w,_)|matches!(w,Expr::Write{table:t,fields,..}if t==table&&fields.iter().any(|f|f.name==field.name))).count()!=1{continue;}
                 let Some(value)=&field.value else{continue;};let literal=literal(value).is_some();
                 let caller=if let Expr::Name{name,..}=value{p.args.iter().any(|a|a.name==*name&&matches!(&a.type_.kind,TypeKind::Enum{variants:v}if v.iter().collect::<BTreeSet<_>>()==variants.iter().collect::<BTreeSet<_>>()))}else{false};
-                if literal||caller{out.push(Step{table:table.clone(),column:field.name.clone(),value:value.clone(),site:site.clone(),operation:operation.clone(),effect:crate::print::expression(write),types:fields.iter().map(|f|(f.name.clone(),bound.schema.tables[table].columns[&f.name].clone())).collect(),context:type_context(bound,p,&operation,table),guards:guards.clone(),anchor:anchor&&complete&&writes.len()==1});}
+                if literal||caller{out.push(Step{table:table.clone(),column:field.name.clone(),value:value.clone(),site:site.clone(),operation:operation.clone(),effect:crate::print::expression(write),types:types.clone(),context:type_context(bound,p,&operation,table),guards:guards.clone(),anchor:anchor&&complete&&writes.len()==1});}
             }
         }
     }out
@@ -155,6 +159,10 @@ pub(crate) fn judge(inv:&Invariant,old:Option<&Value>,row:&Value,rows:&BTreeMap<
  #[test]fn guarded_and_argument_currencies_are_material_even_without_a_money_write(){
   let usd=STUDY.replace("table studies:\n","table studies:\n  reviewBudget: money USD default 0\n").replace("require s.status = 'measured' else BAD_STATUS","require s.status = 'measured' else BAD_STATUS\n  require s.reviewBudget <= 100 else OVER_BUDGET");let eur=usd.replace("reviewBudget: money USD","reviewBudget: money EUR");let(_,a)=compile(&usd);let(_,b)=compile(&eur);assert_eq!(a.len(),1);assert_eq!(b.len(),1);assert_ne!(a[0].1.predicate,b[0].1.predicate);
   let usd=SMALL.replace("mutation finish(doc: docs):","mutation finish(doc: docs, amount: money USD):");let eur=usd.replace("amount: money USD","amount: money EUR");let(_,a)=compile(&usd);let(_,b)=compile(&eur);assert_eq!(a.len(),1);assert_eq!(b.len(),1);assert_ne!(a[0].1.predicate,b[0].1.predicate);
+ }
+
+ #[test]fn valid_object_spreads_are_uncovered_without_panics_or_partial_hypotheses(){
+  for write in ["update docs[doc] { ...{}, phase: 'c' }","update docs[doc] { phase: 'c', ...{ phase: 'a' } }"]{let source=SMALL.replace("update docs[doc] {phase:'c'}",write);let(_,q)=compile(&source);assert!(q.is_empty(),"unreduced spread cannot supply a partial typed effect");}
  }
 
 }
