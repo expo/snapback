@@ -40,8 +40,9 @@ if [[ ${1:-} == *run-client-tests.mjs && ( $# -gt 12 || ${3:-} == models ) ]]; t
   echo 'SECP_SCOPE_BLOCK: full client pool/model battery is prohibited by the lane brief; no client implementation changed.' >&2
   exit 95
 fi
-exec "$SECP_REAL_NODE" "$@"
 GUARD
+# Workers intentionally scrub custom environment variables before Node probes.
+printf 'exec %q "$@"\n' "$SECP_REAL_NODE" >> "$secp_guard_dir/node"
 cat > "$secp_guard_dir/lake" <<'GUARD'
 #!/usr/bin/env bash
 echo 'SECP_SCOPE_BLOCK: no Lean/language/planner/store semantics changed; broad oracle build belongs to integration.' >&2
