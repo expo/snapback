@@ -10,6 +10,8 @@ use std::process::Command;
 pub(crate) const ENV: &str = "SNAPBACK4_SUPERVISOR_PID";
 static SUPERVISOR: AtomicU32 = AtomicU32::new(0);
 static PARENT: AtomicU32 = AtomicU32::new(0);
+static PARENTS: std::sync::OnceLock<Vec<(u32, String)>> = std::sync::OnceLock::new();
+pub(crate) fn parents() -> &'static [(u32, String)] { PARENTS.get().map(Vec::as_slice).unwrap_or(&[]) }
 pub(crate) fn pid() -> Option<u32> { Some(SUPERVISOR.load(Ordering::Acquire)).filter(|pid| *pid != 0) }
 
 /// Stable process birth identity and human-readable start time; zombies are dead.
@@ -103,6 +105,7 @@ pub(crate) fn adopt() {
         if ppid <= 1 { break; }
         next = ppid;
     }
+    let _ = PARENTS.set(watched.clone());
     #[cfg(target_os = "linux")]
     unsafe {
         libc::signal(libc::SIGWINCH, parent_notification as *const () as libc::sighandler_t);

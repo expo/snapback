@@ -62,13 +62,13 @@ fn regular(path: &Path, create: bool, database: &Path) -> Result<File, String> {
 pub(crate) fn command(store: &Path) -> Result<Owner, String> { acquire(store, false, Duration::ZERO, true) }
 pub(crate) fn device(store: &Path) -> Result<Owner, String> { acquire(store, true, Duration::ZERO, true) }
 // @ref LLP 3000.009#5.3 — a restarting host waits for watchdogs to finish group cleanup.
-pub(crate) fn host(store: &Path) -> Result<Owner, String> { acquire(store, false, Duration::from_secs(5), true) }
+pub(crate) fn host(store: &Path) -> Result<Owner, String> { acquire(store, false, Duration::from_secs(5), false) }
 
 // @ref LLP 3000.000.000.001#9-wave-19-identity-retry-and-local-production-lifecycle — only pre-admission ownership can wait; a live host keeps its control path.
 pub(crate) fn release_command(store: &Path) -> Result<Owner, String> {
     let live = address(store).is_some_and(|published| dialable(&published).is_none_or(|address|
         std::net::TcpStream::connect_timeout(&address, Duration::from_millis(50)).is_ok()));
-    wait_command(store, if live { Duration::ZERO } else { Duration::from_secs(5) })
+    wait_command(store, if live && !stopped_host(store) { Duration::ZERO } else { Duration::from_secs(5) })
 }
 pub(crate) fn wait_command(store: &Path, wait: Duration) -> Result<Owner, String> {
     acquire(store, false, wait, false)
@@ -160,10 +160,20 @@ fn acquire(store: &Path, shared: bool, wait: Duration, cleanup_only: bool) -> Re
 fn acquire(store: &Path, _: bool, _: Duration, _: bool) -> Result<Owner, String> { Err(failure(store, "database ownership requires Unix")) }
 
 pub(crate) fn stopped_host(path: &Path) -> bool {
-    // A CLI owner or a host not yet announced still refuses immediately. A
-    // reachable listener does too; only a prior host's cleanup gets a wait.
+    // A recorded owner whose launch custody died is stopping even while its
+    // listener still answers. Missing metadata may be the worker-drain window.
     // This is a refusal/wait hint, never permission to open the store: the
     // sidecar must still be acquired. Never dial a non-loopback address hint.
+    if let Some(metadata) = record_metadata(path) {
+        let dead = |pid: u64, birth: &str| crate::supervisor::identity(pid as u32).is_none_or(|(_, actual)|actual != birth);
+        if metadata["pid"].as_u64().zip(metadata["birth"].as_str()).is_some_and(|(pid,birth)|dead(pid,birth)) { return true; }
+        if metadata["parents"].as_array().is_some_and(|parents| parents.iter().any(|parent|
+            parent[0].as_u64().zip(parent[1].as_str()).is_some_and(|(pid,birth)|dead(pid,birth)))) { return true; }
+    } else if owner_pid(path).is_none() {
+        // An exiting host can clear its address before worker keepers finish.
+        // Only a subsequent successful flock admits work; this is a wait hint.
+        return true;
+    }
     address(path).is_some_and(|published| dialable(&published).is_none_or(|address|
         std::net::TcpStream::connect_timeout(&address, Duration::from_millis(50)).is_err()))
 }
@@ -220,7 +230,7 @@ fn write_record(file: &mut File, address: Option<std::net::SocketAddr>, control:
     let started = start.clone();
     // Never persist arbitrary argv (tokens/passwords can occur there).
     let verb = std::env::args().nth(1).filter(|s| crate::cli_flags::VERBS.contains(&s.as_str())).unwrap_or_else(|| "command".into());
-    let metadata = serde_json::json!({"pid":pid,"birth":start,"startTime":started,"command":format!("snapback4 {verb}"),"controlDirectory":control.to_string_lossy()});
+    let metadata = serde_json::json!({"pid":pid,"birth":start,"startTime":started,"command":format!("snapback4 {verb}"),"controlDirectory":control.to_string_lossy(),"parents":crate::supervisor::parents()});
     write!(file, "{}\n{}\npid {pid}\n{metadata}\n", address.map(|a|a.port()).unwrap_or(0), address.map(|a|format!("http://{a}")).unwrap_or_default()).map_err(|e|e.to_string())
 }
 fn record_metadata(path: &Path) -> Option<serde_json::Value> {

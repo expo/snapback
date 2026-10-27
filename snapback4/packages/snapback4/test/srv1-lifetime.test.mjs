@@ -26,7 +26,9 @@ for(const signal of ['SIGTERM','SIGKILL'])for(const direct of [false,true])test(
  const run=launch(t,cwd,'npm',['run','--silent','prod:serve']);
  if(direct)await until(()=>/SNAPBACK4_READY/.test(run.err()));else await ready(run);
  const stoppedAt=performance.now();run.c.kill(signal);
- await until(run.closed);console.log(JSON.stringify({shape:'036/017/008',kind:direct?'native CLI':'serveUntilSignal',signal,pipeEOFms:Math.round(performance.now()-stoppedAt)}));await restarted(cwd);
+ const eof=until(run.closed).then(()=>Math.round(performance.now()-stoppedAt));
+ const replacement=await startServe('production',{cwd,env});await replacement.stop();
+ const pipeEOFms=await eof;console.log(JSON.stringify({shape:'036/017/008',kind:direct?'native CLI':'serveUntilSignal',signal,pipeEOFms,firstCommand:"serve"}));await restarted(cwd);
 });
 
 test('024: request-making driver exits; serveUntilSignal child cannot keep | tail open',{skip:process.platform==='win32',timeout:30000},async t=>{
@@ -110,4 +112,11 @@ test('024: request driver awaits npm close through tail after terminating only t
  const cwd=await project(t);npmScript(cwd,driver);
  writeFileSync(join(cwd,'await-driver.mjs'),`import{spawn}from'node:child_process';const c=spawn('npm',['run','--silent','prod:serve'],{stdio:['ignore','pipe','inherit']});let text='',begun=false;const closed=new Promise(r=>c.once('close',r));c.stdout.on('data',async d=>{text+=d;if(!begun&&text.includes('\\n')){begun=true;const {backendUrl}=JSON.parse(text.trim());await fetch(backendUrl+'/auth/config');console.log('024 request completed; SIGTERM npm wrapper');c.kill('SIGTERM');}});await closed;console.log('024 npm close observed; driver finished');`);
  const run=launch(t,cwd,'bash',['-o','pipefail','-c','node await-driver.mjs | tail -n 2']);await until(run.closed);assert.equal(run.c.exitCode,0,run.err());assert.match(run.out(),/024 request completed.*\n024 npm close observed/s);console.log(run.out().trim());await restarted(cwd);
+});
+
+
+for(const direct of [false,true])test(`036/017/008: deploy immediately after npm TERM (${direct?'native':'proof driver'}) waits for ownership`,{skip:process.platform==='win32',timeout:30000},async t=>{
+ const cwd=await project(t);npmScript(cwd,direct?'':driver,direct?`node ${JSON.stringify(wrapper)} serve production --port 0`:'node serve.mjs');
+ const run=launch(t,cwd,'npm',['run','--silent','prod:serve']);if(direct)await until(()=>/SNAPBACK4_READY/.test(run.err()));else await ready(run);
+ run.c.kill('SIGTERM');const deployed=await cli(['deploy','production'],{cwd,env});assert.equal(deployed.code,0,deployed.stderr);assert.doesNotMatch(deployed.stderr,/E_STORE_BUSY/);await until(run.closed);await restarted(cwd);
 });
