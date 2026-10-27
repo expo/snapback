@@ -14,7 +14,15 @@ pub(super) fn candidates(bound:&Bound,sources:&[(String,String)],index:usize,n:&
             let presence=if matches!(kind.required(),ColumnType::List{..}|ColumnType::ListRange{..}) {
                 format!(".{column} != null and count(.{column}) > 0")
             } else {format!(".{column} != null")};
-            lines.push(format!("invariant {table}.insert only {presence}"));
+            for p in &bound.programs {
+                let writes=ir::write_tables(&p.program);
+                if single_mint(&p.program)
+                    && writes.len()==1
+                    && writes.iter().any(|(t,k)|t==table&&*k=="insert")
+                    && bound.schema.maintains.is_empty() {
+                    lines.push(format!("invariant {table}.{} only {presence}",p.program.name));
+                }
+            }
         }
     }
     if n.code=="N_TEXT_EVIDENCE" {
@@ -29,6 +37,17 @@ pub(super) fn candidates(bound:&Bound,sources:&[(String,String)],index:usize,n:&
             && let Some((child,keys))=child.split_once('[')
             && let Some((reference,_))=keys.split_once(" = parent]") {
             for operation in operations.split(", ") {
+                // The observer captures a write boundary, not the final store.
+                // Limit this question to a sole parent update, with no maintains,
+                // branch, loop or opaque execution: later
+                // work in the same atomic call must not repair the observation.
+                let Some(p)=bound.programs.iter().find(|p|p.program.name==operation) else {continue;};
+                let writes=ir::write_tables(&p.program);
+                if !single_mint(&p.program)
+                    || writes.len()!=1
+                    || !writes.iter().any(|(t,k)|t==table&&*k=="update")
+                    || writes.iter().any(|(t,_)|t==child)
+                    || !bound.schema.maintains.is_empty() {continue;}
                 lines.push(format!("invariant {table}.{operation} only count({child}[{reference} = .id]) > 0"));
             }
         }
@@ -56,7 +75,12 @@ pub(super) fn candidates(bound:&Bound,sources:&[(String,String)],index:usize,n:&
             }
         }
     }
-    lines.into_iter().filter_map(|line|candidate(sources,&line).map(|inv|(index,inv))).collect()
+    lines.into_iter().filter_map(|line|candidate(sources,&line).map(|mut inv|{
+        if matches!(n.code.as_str(),"N_OPTIONAL_EVIDENCE"|"N_CHILD_EVIDENCE_PRESENCE") {
+            inv.site.file=inv.site.file.replace("/dx11/","/sec11-absence/");
+        }
+        (index,inv)
+    })).collect()
 }
 
 pub(super) fn text_evidence(mut value:serde_json::Value,n:&Diagnostic)->serde_json::Value {
@@ -193,6 +217,7 @@ pub(super) fn repeat(bound:&Bound,inv:&security::Invariant,c:&Counterexample,n:&
 
 #[cfg(test)]mod tests {
     use super::*;
+    use snapback4_core::Value;
     fn examples(source:&str,code:&str,message:&str)->Vec<serde_json::Value>{
         let sources=vec![("schema.q".into(),source.into())];let mut bound=snapback4_lang::compile(&sources);
         assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);
@@ -242,6 +267,63 @@ pub(super) fn repeat(bound:&Bound,inv:&security::Invariant,c:&Counterexample,n:&
         assert!(!examples(&source,"N_CHILD_EVIDENCE_PRESENCE","docs: transitions finish do not require attached photos[doc = parent].image; evidence?").is_empty());
         let fixed=source.replace("  update docs[doc]","  require exists photos[doc = doc] else MISSING\n  update docs[doc]");
         assert!(examples(&fixed,"N_CHILD_EVIDENCE_PRESENCE","docs: transitions finish do not require attached photos[doc = parent].image; evidence?").is_empty());
+    }
+    #[test]fn an_omission_repaired_in_the_same_call_is_not_a_missing_evidence_question(){
+        let source="table docs:\n  photos: [text <=20] <=3 ?\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\nmutation create():\n  d = insert docs {photos:null}\n  update docs[d.id] {photos:['attached']}\n  return d\n";
+        let sources=vec![("schema.q".into(),source.into())];let bound=snapback4_lang::compile(&sources);
+        assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);
+        let mut engine=Engine::memory(bound.schema.clone(),bound.programs.iter().map(|p|p.program.clone())).unwrap();
+        let result=engine.mutate("create",None,Context::new("dev:alice",BTreeMap::new()).at(challenges::NOW)).unwrap();
+        assert_eq!(serde_json::to_value(result.state).unwrap()["state"],"sent");
+        assert!(matches!(engine.store().rows("docs").unwrap()[0].field("photos").unwrap(),Value::Array(values) if values.len()==1));
+        let note=Diagnostic::new(&Default::default(),"N_OPTIONAL_EVIDENCE","docs.photos permits omitted or empty media evidence","");
+        assert!(candidates(&bound,&sources,0,&note).is_empty(),"a multiwrite call requires final-store replay even when the intermediate insert omitted evidence");
+    }
+    #[test]fn an_atomic_call_can_attach_evidence_after_advancing_the_parent(){
+        let source="table docs:\n  state: enum('draft','done') default 'draft'\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\ntable photos:\n  doc: docs\n  proof: text <=20\n  read <- allow\n  insert <- allow\n  online only\nmutation finish(doc: docs):\n  update docs[doc] {state:'done'}\n  return insert photos {doc, proof:'attached'}\n";
+        let sources=vec![("schema.q".into(),source.into())];
+        let bound=snapback4_lang::compile(&sources);assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);
+        let mut engine=Engine::memory(bound.schema.clone(),bound.programs.iter().map(|p|p.program.clone())).unwrap();
+        let doc="01ARZ3NDEKTSV4RRFFQ69G5FAV";
+        let row=snapback4_core::value::object([("id",Value::Id(doc.into())),("state",Value::String("draft".into()))]);
+        engine.seed_at(vec![("docs".into(),row)],challenges::NOW).unwrap();
+        let result=engine.mutate("finish",None,Context::new("dev:alice",BTreeMap::from([("doc".into(),Value::Id(doc.into()))])).at(challenges::NOW)).unwrap();
+        assert_eq!(serde_json::to_value(result.state).unwrap()["state"],"sent");
+        assert_eq!(engine.store().rows("photos").unwrap().len(),1);
+        assert_eq!(engine.store().rows("docs").unwrap()[0].field("state").unwrap().as_str().unwrap(),"done");
+        let note=Diagnostic::new(&Default::default(),"N_CHILD_EVIDENCE_PRESENCE","docs: transitions finish do not require attached photos[doc = parent].proof; evidence?","");
+        assert!(candidates(&bound,&sources,0,&note).is_empty(),"an intermediate childless write is not a committed missing-evidence witness");
+        let reverted=source.replace("  return insert photos {doc, proof:'attached'}","  update docs[doc] {state:'draft'}");
+        let changed=vec![("schema.q".into(),reverted)];let bound=snapback4_lang::compile(&changed);
+        assert!(bound.diagnostics.is_empty());assert!(candidates(&bound,&changed,0,&note).is_empty(),"intermediate state can also be reverted");
+    }
+    #[test]fn a_later_cascade_cannot_supply_a_committed_childless_transition(){
+        let source="table projects:\n  read <- allow\n  delete <- allow\n  online only\ntable docs:\n  project: projects on delete cascade\n  cap 3 by project\n  state: enum('draft','done') default 'draft'\n  read <- allow\n  insert <- allow\n  update <- allow\n  delete <- allow\n  online only\ntable photos:\n  doc: docs\n  proof: text <=20\n  read <- allow\n  online only\nmutation finish(doc: docs, project: projects):\n  update docs[doc] {state:'done'}\n  delete projects[project]\n";
+        let sources=vec![("schema.q".into(),source.into())];let bound=snapback4_lang::compile(&sources);
+        assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);
+        let mut engine=Engine::memory(bound.schema.clone(),bound.programs.iter().map(|p|p.program.clone())).unwrap();
+        let project="01ARZ3NDEKTSV4RRFFQ69G5FAA";let doc="01ARZ3NDEKTSV4RRFFQ69G5FAV";
+        let row=|fields:Vec<(&str,Value)>|snapback4_core::value::object(fields);
+        engine.seed_at(vec![("projects".into(),row(vec![("id",Value::Id(project.into()))])),("docs".into(),row(vec![("id",Value::Id(doc.into())),("project",Value::Id(project.into())),("state",Value::String("draft".into()))]))],challenges::NOW).unwrap();
+        let args=BTreeMap::from([("doc".into(),Value::Id(doc.into())),("project".into(),Value::Id(project.into()))]);
+        let result=engine.mutate("finish",None,Context::new("dev:alice",args).at(challenges::NOW)).unwrap();
+        assert_eq!(serde_json::to_value(result.state).unwrap()["state"],"sent");assert!(engine.store().rows("docs").unwrap().is_empty());
+        let note=Diagnostic::new(&Default::default(),"N_CHILD_EVIDENCE_PRESENCE","docs: transitions finish do not require attached photos[doc = parent].proof; evidence?","");
+        assert!(candidates(&bound,&sources,0,&note).is_empty());
+    }
+    #[test]fn commit_end_expiry_cannot_supply_an_absence_question(){
+        let source="table docs:\n  state: enum('draft','done') default 'draft'\n  photos: [image <=1000] <=3 ?\n  until: time\n  expire at .until\n  read <- allow\n  insert <- allow\n  update <- allow\n  online only\ntable photos:\n  doc: docs\n  proof: text <=20\n  read <- allow\n  online only\nmutation create():\n  return insert docs {photos:null,until:now}\nmutation finish(doc: docs):\n  d = docs[doc] ! else MISSING\n  require d.state = 'draft' else STATE\n  update docs[doc] {state:'done',until:now}\n";
+        let sources=vec![("schema.q".into(),source.into())];let bound=snapback4_lang::compile(&sources);
+        assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);
+        let mut engine=Engine::memory(bound.schema.clone(),bound.programs.iter().map(|p|p.program.clone())).unwrap();
+        let result=engine.mutate("create",None,Context::new("dev:alice",BTreeMap::new()).at(challenges::NOW)).unwrap();
+        assert_eq!(serde_json::to_value(result.state).unwrap()["state"],"sent");assert!(engine.store().rows("docs").unwrap().is_empty());
+        let doc="01ARZ3NDEKTSV4RRFFQ69G5FAV";
+        engine.seed_at(vec![("docs".into(),snapback4_core::value::object([("id",Value::Id(doc.into())),("state",Value::String("draft".into())),("photos",Value::Null),("until",Value::Int(challenges::NOW+86400000))]))],challenges::NOW).unwrap();
+        let result=engine.mutate("finish",None,Context::new("dev:alice",BTreeMap::from([("doc".into(),Value::Id(doc.into()))])).at(challenges::NOW)).unwrap();
+        assert_eq!(serde_json::to_value(result.state).unwrap()["state"],"sent");assert!(engine.store().rows("docs").unwrap().is_empty());
+        assert!(examples(source,"N_OPTIONAL_EVIDENCE","docs.photos permits omitted or empty media evidence").is_empty());
+        assert!(examples(source,"N_CHILD_EVIDENCE_PRESENCE","docs: transitions finish do not require attached photos[doc = parent].proof; evidence?").is_empty());
     }
     #[test]fn indirect_same_table_guards_do_not_borrow_the_argument_rows_identity(){
         let source="table credits:\n  parent: credits ?\n  spent: bool default false\n  read <- allow\n  insert <- allow\n  online only\ntable receipts:\n  credit: credits\n  insert <- allow\n  online only\nmutation redeem(credit: credits):\n  c = credits[credit] ! else MISSING\n  require c.parent != null else PARENT\n  p = credits[c.parent] ! else MISSING\n  require not p.spent else USED\n  return insert receipts {credit}\n";

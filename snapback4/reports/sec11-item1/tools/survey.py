@@ -71,7 +71,7 @@ def measure(item):
 with tempfile.TemporaryDirectory(prefix='sb4-sec10-shipping-binary-') as private:
  original=pathlib.Path(a.binary).resolve();snapshot=pathlib.Path(private)/'snapback4';shutil.copy2(original,snapshot);binary=str(snapshot)
  if a.resume and (out/'measurement.json').exists():assert json.loads((out/'measurement.json').read_text())['binarySha256']==hashlib.sha256(snapshot.read_bytes()).hexdigest(), 'resume requires identical binary'
- (out/'measurement.json').write_text(json.dumps(dict(binarySha256=hashlib.sha256(snapshot.read_bytes()).hexdigest(),projects=len(items),waves=a.waves,checkOnly=a.check_only,stripIntent=a.strip_intent,defaultOutput=a.default_output,binarySnapshot=str(snapshot),watchdogSeconds=dict(check=a.check_timeout,test=a.test_timeout,deploy=180)),indent=2)+'\n')
+ (out/'measurement.json').write_text(json.dumps(dict(binarySha256=hashlib.sha256(snapshot.read_bytes()).hexdigest(),projects=len(items),workers=a.workers,waves=a.waves,checkOnly=a.check_only,stripIntent=a.strip_intent,defaultOutput=a.default_output,binarySnapshot=str(snapshot),watchdogSeconds=dict(check=a.check_timeout,test=a.test_timeout,deploy=180)),indent=2)+'\n')
  results=[]
  with concurrent.futures.ThreadPoolExecutor(max_workers=a.workers) as pool:
   for f in concurrent.futures.as_completed([pool.submit(measure,item) for item in items]):

@@ -192,6 +192,13 @@ pub(super) fn trace(bound:&Bound,p:&Program,entry:&Engine)->Trace {
 fn lifecycle_judgment(bound:&Bound,inv:&super::super::Invariant,observation:&snapback4_core::engine::fixture_trace::Observation,all:&[snapback4_core::engine::fixture_trace::Observation],after:&BTreeMap<String,Vec<Value>>,viewer:&str,now:i64)->Option<bool>{
     if let Some(contract)=bound.security_conservation.get(&inv.site.to_string()){return contract.judge(observation.old.as_ref()?,after);}
     let Some(predicate)=&inv.syntax else{return observation.allowed;};
+    // @ref LLP 3000.036.004.001#question-candidates — absence questions require the observed image and predicate to survive commit.
+    if inv.site.file.starts_with("$derived/sec11-absence/") {
+        let observed=observation.next.as_ref()?;
+        let row=after.get(&inv.table)?.iter().find(|row|row.field("id").ok()==observed.field("id").ok())?;
+        if row!=observed||bound.schema.tables[&inv.table].expired(row,now){return None;}
+        return super::super::concrete::evaluate(predicate,row,after,&bound.schema,viewer,&inv.table,now);
+    }
     if inv.site.file.contains("/child-stage/"){
         let row=observation.next.as_ref()?;
         if !after.get(&inv.table).into_iter().flatten().any(|r|r.field("id").ok()==row.field("id").ok()){return None;}
