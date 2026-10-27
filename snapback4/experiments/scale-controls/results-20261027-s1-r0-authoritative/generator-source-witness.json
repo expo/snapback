@@ -1,0 +1,40 @@
+{
+  "s1c_frozen_source_unchanged": true,
+  "files": {
+    "auth.rs": {
+      "wb_frozen": "a7e540f37ba0c294227359363bd2ae84bbca9c5851760b2e43d0c6aa5cd236c8",
+      "s1c": "a7e540f37ba0c294227359363bd2ae84bbca9c5851760b2e43d0c6aa5cd236c8"
+    },
+    "unix.rs": {
+      "wb_frozen": "36cb3af8eaef8c5c89b3cf3737d4baf15dc35e433f148e0983abdb28dbc24c04",
+      "s1c": "36cb3af8eaef8c5c89b3cf3737d4baf15dc35e433f148e0983abdb28dbc24c04"
+    },
+    "load.rs": {
+      "wb_frozen": "c6b3619dc3492e47f2c7d4685056faa9a1894393e2b516156e6dfda8e01b0fcf",
+      "s1c": "c6b3619dc3492e47f2c7d4685056faa9a1894393e2b516156e6dfda8e01b0fcf"
+    },
+    "db.rs": {
+      "wb_frozen": "eca578555897ee3f14c5dae20326746956ada1f15e68c901be0bf1932477ab70",
+      "s1c": "eca578555897ee3f14c5dae20326746956ada1f15e68c901be0bf1932477ab70"
+    },
+    "snapback.rs": {
+      "wb_frozen": "cad18abbd44f8eb4e24d1ef7cf55a47cccde0eab5b49ffd04a928fd8d7c3e064",
+      "s1c": "cad18abbd44f8eb4e24d1ef7cf55a47cccde0eab5b49ffd04a928fd8d7c3e064"
+    },
+    "main.rs": {
+      "wb_frozen": "f6e003264fda4450c04f9189cc4670a3cafdc13a3009b7701fa1722ed60a7d01",
+      "s1c": "f6e003264fda4450c04f9189cc4670a3cafdc13a3009b7701fa1722ed60a7d01"
+    },
+    "convex.rs": {
+      "wb_frozen": "a2e818c03d1ac70eb7903dc4b081caf6de9d5f1cdd7d05118c11893e1aac3f8d",
+      "s1c": "a2e818c03d1ac70eb7903dc4b081caf6de9d5f1cdd7d05118c11893e1aac3f8d"
+    },
+    "supabase.rs": {
+      "wb_frozen": "363836f645d2257615a4fcdf95368b3e5b83daba00a5b3f294719286350fb66a",
+      "s1c": "363836f645d2257615a4fcdf95368b3e5b83daba00a5b3f294719286350fb66a"
+    }
+  },
+  "build_receipt": "/home/ccheever/sb4scale/s1-writes-wb-20261027/build.json",
+  "binary_sha256": "d45a45607123e38114e25b7a7f379c384a342d1f9af42595c3047449171814e9",
+  "working_tree_generator_source_not_used": true
+}

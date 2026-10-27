@@ -1,0 +1,9 @@
+{
+  "time": 1793130549.7802083,
+  "pid_start_identities_checked": 9397,
+  "ledger_files": 213,
+  "live_or_zombie_owned": [],
+  "private_path_processes": [],
+  "pids_left": [],
+  "cleanup": "recorded PID/start identities and /proc private-path census; no unowned signals"
+}
