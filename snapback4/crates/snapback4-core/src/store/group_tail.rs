@@ -45,12 +45,13 @@ impl Tx<'_> {
         let mut occupied = vec!["EXISTS(SELECT 1 FROM main._meta WHERE key LIKE 'activation_%' AND key <> 'activation_hash')".to_owned()];
         for row in tables.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))? {
             let (db, name) = row?;
-            if ["_asset_column_renames", "_table_renames", "_release_preview_cells", "_release_preview_active"].contains(&name.as_str()) {
+            let folded = name.to_ascii_lowercase();
+            if ["_asset_column_renames", "_table_renames", "_release_preview_cells", "_release_preview_active"].contains(&folded.as_str()) {
                 occupied.push(format!("EXISTS(SELECT 1 FROM {db}.\"{}\")", name.replace('"', "\"\"")));
-            } else if name.starts_with("_dormant_") {
-                if !["_dormant_columns", "_dormant_indexes", "_dormant_narrow_rows", "_dormant_refs", "_dormant_rows", "_dormant_tables", "_dormant_values"].contains(&name.as_str()) { return Ok(false); }
+            } else if folded.starts_with("_dormant_") {
+                if !["_dormant_columns", "_dormant_indexes", "_dormant_narrow_rows", "_dormant_refs", "_dormant_rows", "_dormant_tables", "_dormant_values"].contains(&folded.as_str()) { return Ok(false); }
                 occupied.push(format!("EXISTS(SELECT 1 FROM {db}.\"{}\")", name.replace('"', "\"\"")));
-            } else if ["_backfill_", "_downfill_", "_live_", "_extraction_", "_rollback_"].iter().any(|p| name.starts_with(p)) {
+            } else if ["_backfill_", "_downfill_", "_live_", "_extraction_", "_rollback_"].iter().any(|p| folded.starts_with(p)) {
                 return Ok(false);
             }
         }
@@ -211,6 +212,7 @@ mod tests {
             tx.savepoint("inner").unwrap();
             tx.record_commit(seq + 1, 1001, "discard", "alice", "user", &[], 0).unwrap();
             tx.rollback_to("inner").unwrap();
+            assert_eq!(tx.session_authority_facts("absent").unwrap().head, seq, "serial authority cut includes buffered predecessors and excludes rolled-back history");
             tx.release("member").unwrap();
         }
         tx.flush_group_tail().unwrap();

@@ -109431,3 +109431,21 @@ single repetition is not the S1 matrix qualification. The unchanged six-cell,
 three-repetition matrix and its separate cost observations belong in
 [the SQW report](experiments/scale-controls/results-20261027-s1-sqlite-w/README.md).
 No push or publication is authorized.
+
+
+## 2026-10-27 — SQW review: case-folded layout fences and buffered authority cuts
+
+Before accepting the matrix, manual review finds two proof gaps: optional family
+classification must follow SQLite's ASCII case folding, and scalar authority
+facts in a serial group must expose the buffered predecessor head rather than
+only MAX(_commits.seq). Both receive focused regressions. The first matrix is
+interrupted through its recorded owned controller and native cleanup; its W1
+samples remain evidence, but do not qualify the corrected executable. The final
+matrix restarts after the corrected code's tests. The adaptive size controller,
+S1 ladder and FULL durability are unchanged.
+
+The corrected source is requalified with **873 core / 627 CLI passes, zero
+failures**; **498 / 75** tests remain ignored. Ref-check verifies **570 docs /
+12074 references**, with zero errors or unchecked refs. The authoritative
+matrix uses the corrected executable; the interrupted predecessor is retained
+separately.

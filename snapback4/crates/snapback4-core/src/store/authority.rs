@@ -92,7 +92,10 @@ impl Tx<'_> {
         Ok(requests.iter().map(|r| crate::store_port::batch::Facts { authority: r.digest.as_ref().and_then(|d| facts.get(d).and_then(|f| f.clone()).map(|f| (d.clone(), f))), ..Default::default() }).collect())
     }
     pub(crate) fn session_authority_facts(&self, digest: &str) -> Result<crate::identity::facts::SessionFacts, RuntimeError> {
-        fetch(self.conn(), digest, self.read_sessions_installed.get() || self.read_sessions_at_start, &self.read_sessions_installed)
+        let mut facts = fetch(self.conn(), digest, self.read_sessions_installed.get() || self.read_sessions_at_start, &self.read_sessions_installed)?;
+        // @ref LLP 3000.009.001.000.002#sqlite-durable-write-cycle — serial members see the buffered predecessor's logical head before the physical tail is flushed.
+        if let Some(batch) = self.group_tail.borrow().as_ref() { facts.head = batch.head; }
+        Ok(facts)
     }
 }
 impl Store {

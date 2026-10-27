@@ -1279,7 +1279,15 @@ fn sqlite_code_activation_generation_uses_a_fenced_clean_layout_overlay() {
     assert!(!tx.buffered_layout_compatible().unwrap());
     tx.test_support_conn().execute("DELETE FROM _meta WHERE key='activation_narrowed_restored_ids:counter'", []).unwrap();
     assert!(tx.buffered_layout_compatible().unwrap());
-    tx.test_support_conn().execute_batch("CREATE TEMP TABLE _backfill_unqualified(x)").unwrap();
-    assert!(!tx.buffered_layout_compatible().unwrap());
+    for name in ["_backfill_unqualified", "_BACKFILL_UNQUALIFIED", "_DORMANT_UNQUALIFIED", "_LIVE_UNQUALIFIED"] {
+        tx.test_support_conn().execute_batch(&format!("CREATE TEMP TABLE {name}(x)")).unwrap();
+        assert!(!tx.buffered_layout_compatible().unwrap(), "{name}");
+        tx.test_support_conn().execute_batch(&format!("DROP TABLE {name}")).unwrap();
+    }
+    for name in ["_ASSET_COLUMN_RENAMES", "_DORMANT_VALUES"] {
+        tx.test_support_conn().execute_batch(&format!("CREATE TEMP TABLE {name}(x); INSERT INTO {name} VALUES(1)")).unwrap();
+        assert!(!tx.buffered_layout_compatible().unwrap(), "occupied {name}");
+        tx.test_support_conn().execute_batch(&format!("DROP TABLE {name}")).unwrap();
+    }
     tx.rollback().unwrap();
 }
