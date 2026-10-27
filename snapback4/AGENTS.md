@@ -162,7 +162,7 @@ Gotchas you cannot derive from the code:
   never dependencies of the published `snapback4/proof` browser helper.
 - Before a publication dry run, warm the test artifacts **in that publication
   worktree**, while the host is free of calibration work:
-  `LIBSQLITE3_FLAGS="-DHAVE_FDATASYNC=1 -USQLITE_ENABLE_MEMORY_MANAGEMENT" cargo test --workspace --no-run`.
+  `LIBSQLITE3_FLAGS="-DHAVE_FDATASYNC=1 -USQLITE_ENABLE_MEMORY_MANAGEMENT -DSQLITE_DEFAULT_MEMSTATUS=0" cargo test --workspace --no-run`.
   Use the dry run's toolchain, target directory, profile/features, `RUSTFLAGS`
   and Cargo profile environment. Do not add `--release` or `--profile production`:
   the suite uses the default test profile. The suite still asks Cargo for the
@@ -184,7 +184,7 @@ Gotchas you cannot derive from the code:
   arguments need non-null proof. Other existence checks use bounded populations
   in code. Named equalities covering a total unique key check extra columns on
   that one row without an additional index.
-- The packaged CLI uses `LIBSQLITE3_FLAGS="-DHAVE_FDATASYNC=1 -USQLITE_ENABLE_MEMORY_MANAGEMENT"` during both publication tests and its production build (LLP 3000 §7; fdatasync per LLP 3000.009.001.000.002 "SQLite durable write cycle"). `snapback4/.cargo/config.toml` supplies the same default to Cargo runs started inside `snapback4/`; it does not override an inherited variable, and a Cargo run started from the repository root does not read it; use the same build input when comparing with the package. The variable is unnecessary at runtime.
+- The packaged CLI uses `LIBSQLITE3_FLAGS="-DHAVE_FDATASYNC=1 -USQLITE_ENABLE_MEMORY_MANAGEMENT -DSQLITE_DEFAULT_MEMSTATUS=0"` during both publication tests and its production build (LLP 3000 §7; fdatasync per LLP 3000.009.001.000.002 "SQLite durable write cycle"). `snapback4/.cargo/config.toml` supplies the same default to Cargo runs started inside `snapback4/`; it does not override an inherited variable, and a Cargo run started from the repository root does not read it; use the same build input when comparing with the package. The variable is unnecessary at runtime.
 - When creating a stage, `scripts/publish.mjs` runs the suite and refuses on red, builds the production binary, packs `snapback4-darwin-arm64` and verifies the installed digest, then publishes both packages. Bump `version` in `packages/snapback4/package.json` (and its `optionalDependencies`), `packages/snapback4-darwin-arm64/package.json`,
   `packages/snapback4-linux-x64/package.json` and `Cargo.toml` together; a test refuses a mismatch.
 - Publication retains exact qualified tarballs under `target/publication/`. If a

@@ -1,0 +1,10 @@
+**READY — no material findings** in the scoped amendment and three build-flag changes at `e116109c55`.
+
+- **Counters and heap limits:** No engine/tool consumer of SQLite’s global allocation counters or setter of soft/hard heap limits was found. The pinned SQLite source defaults `SQLITE_MAX_MEMORY` to zero. Disabling MEMSTATUS also disables global heap-limit enforcement, so “diagnostic bookkeeping only” is valid for this configuration, not universally. [SQLite documents this dependency](https://sqlite.org/c3ref/c_config_covering_index_scan.html#sqliteconfigmemstatus).
+- **Observable budgets remain intact:** Quarry’s logical heap/work meter, the 256 MiB SQLite scan guard, row/output limits, page-based database/residency accounting and connection admission use independent accounting. Tooling’s cache-hit/miss and statement-memory counters remain operational. Activation’s per-connection `release_memory()` path is also unaffected.
+- **Thread safety and durability remain intact:** The pinned build retains `SQLITE_THREADSAFE=1`; this flag bypasses the allocation-statistics mutex without removing connection/VFS locking. Writable stores still explicitly select `synchronous=FULL`; fdatasync/fullfsync handling is unchanged.
+- **Fork semantics remain intact:** [Fixture forks](/home/ccheever/projects/sb4-b34-lat1/snapback4/crates/snapback4-core/src/store/fork.rs:5) still copy current state through ordinary page-backed SQLite backup. No serialization-image limit or retained-result substitution is introduced.
+- **Allocator interaction is sound:** Pinned mimalloc `0.1.52` still enables secure mode (`MI_SECURE=4`). Static musl additionally overrides C allocation functions, including usable-size inspection. Its concurrency support does not depend on SQLite’s statistics mutex.
+- **Build propagation is consistent:** All three flag strings match; publication/qualification consume the shared constant, and libsqlite3-sys tracks flag changes for rebuilding.
+
+Source/dependency review only. No edits, builds, suites, services, publication or performance qualification performed.

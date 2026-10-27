@@ -1083,13 +1083,16 @@ mod tests {
         let path = std::env::temp_dir().join(format!("snapback4-plans-{}-{:x}", std::process::id(), crate::ids::seed()));
         std::fs::create_dir(&path).unwrap();
         for mut store in [Store::memory().unwrap(), Store::open(&path.join("store.sqlite")).unwrap()] {
-            // Check the linked dependency under the publication's exact C input.
+            // Check linked publication flags even when other qualified flags accompany them.
             // Ordinary source builds retain their own bundled build policy.
-            if option_env!("LIBSQLITE3_FLAGS") == Some("-USQLITE_ENABLE_MEMORY_MANAGEMENT") {
+            if option_env!("LIBSQLITE3_FLAGS").is_some_and(|flags| flags.split_whitespace().any(|flag| flag == "-USQLITE_ENABLE_MEMORY_MANAGEMENT")) {
                 let options: Vec<String> = store.conn().prepare("PRAGMA compile_options").unwrap()
                     .query_map([], |row| row.get(0)).unwrap().collect::<Result<_, _>>().unwrap();
                 assert!(!options.iter().any(|s| s == "ENABLE_MEMORY_MANAGEMENT"));
                 assert!(options.iter().any(|s| s == "THREADSAFE=1"));
+                if option_env!("LIBSQLITE3_FLAGS").is_some_and(|flags| flags.split_whitespace().any(|flag| flag == "-DSQLITE_DEFAULT_MEMSTATUS=0")) {
+                    assert!(options.iter().any(|s| s == "DEFAULT_MEMSTATUS=0"));
+                }
                 assert_eq!(store.conn().query_row("PRAGMA cache_size", [], |row| row.get::<_, i64>(0)).unwrap(), -2000);
             }
             let schema = schema();
