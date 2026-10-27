@@ -1,4 +1,5 @@
 //! Source-constructor relationships for review advice, never runtime assumptions.
+// @ref LLP 3000.036.004.001#2-read-guards — complete immutable constructor copies answer source advice, never database authority.
 use super::catalog::Catalog;
 use crate::ast::*;
 use snapback4_core::schema::{Schema,ColumnType,Constraint};
@@ -28,6 +29,13 @@ fn guarded(value:&Expr,reference:&Expr,parent:&str,column:&str,chosen:&Expr,p:&P
     Expr::Binary{op,left,right,..} if op=="="=>[(left.as_ref(),right.as_ref()),(right.as_ref(),left.as_ref())].iter().any(|(field,value)|key(value)==key(chosen)&&copied(field,reference,parent,column,p,schema)),_=>false,
 }}
 pub(super) fn derive(catalog:&Catalog,schema:&Schema)->Model{
+    // Refuse expensive or effectful helper expansion before the source walk.
+    // This model is optional; its budget cannot make compilation scale with
+    // repeated helper expansion or recursively duplicated arguments.
+    let mut nodes=0;let mut calls=Vec::new();let mut helper_effect=false;let mut sizes=std::collections::BTreeMap::new();
+    for doc in &catalog.documents{super::intent_walk::document(&mut doc.clone(),&mut |e|{nodes+=1;if matches!(e,Expr::Call{name,..} if catalog.functions.contains_key(name)){calls.push(e.clone());}});}
+    for function in catalog.functions.values(){let mut body=match &function.body{FunctionBody::Block(body)=>body.clone(),FunctionBody::Expression(value)=>vec![Stmt::Return{value:value.clone(),site:value.site().clone()}]};let mut size=0;super::intent_walk::statements(&mut body,&mut |e|{size+=1;if matches!(e,Expr::Write{..}){helper_effect=true;}});sizes.insert(function.name.clone(),size);}
+    if nodes>4096||calls.iter().map(|call|if let Expr::Call{name,..}=call{sizes.get(name).copied().unwrap_or(1)}else{1}).sum::<usize>()>4096||helper_effect||calls.iter().any(|call|super::advisory_guards::expand(catalog,call).is_none()){return Model::default();}
     let mut programs=catalog.documents.iter().flat_map(|doc|doc.programs.clone()).collect::<Vec<_>>();
     if programs.iter().any(|p|p.native){return Model::default();}
     for function in catalog.functions.values(){programs.push(ProgramDecl{delivery:None,held:false,predicts:false,server:false,kind:ProgramKind::Mutation,name:format!("$helper:{}",function.name),args:function.args.clone(),prelude:Vec::new(),body:match &function.body{FunctionBody::Block(body)=>body.clone(),FunctionBody::Expression(value)=>vec![Stmt::Return{value:value.clone(),site:value.site().clone()}]},native:false,site:function.site.clone()});}
@@ -35,7 +43,7 @@ pub(super) fn derive(catalog:&Catalog,schema:&Schema)->Model{
     // Every raw construction site must be represented, including uncalled
     // helper bodies. A cut/unknown target cannot silently supply consistency.
     let resolved=writes.iter().filter_map(|(e,_)|if let Expr::Write{site,..}=e{Some(site.to_string())}else{None}).collect::<BTreeSet<_>>();
-    let mut complete=true;for doc in &catalog.documents{super::intent_walk::document(&mut doc.clone(),&mut |e|if let Expr::Write{op:WriteOp::Insert|WriteOp::Upsert,table,site,..}=e{if !catalog.tables.contains_key(table)||!resolved.contains(&site.to_string()){complete=false;}});}
+    let mut complete=true;for doc in &catalog.documents{super::intent_walk::document(&mut doc.clone(),&mut |e|if let Expr::Write{table,site,..}=e{if !catalog.tables.contains_key(table)||!resolved.contains(&site.to_string()){complete=false;}});}
     let mut model=Model{links:Vec::new(),writes,complete};if !complete{return model;}
     for (child,t) in schema.visible_tables(){
         if t.through.is_some()||!t.maintained.is_empty(){continue;}
@@ -120,9 +128,9 @@ pub(super) fn nonnull_excludes(catalog:&Catalog,table:&str,stamp:&str,status:&st
     let Some(info)=catalog.tables.get(table)else{return false;};
     let mut births=0;
     for (write,_) in &catalog.advisory.writes{
-        let Expr::Write{table:target,op,fields,..}=write else{continue;};if target!=table{continue;}
+        let Expr::Write{table:target,op,fields,keys,..}=write else{continue;};if target!=table{continue;}
         if fields.iter().any(|f|f.spread){return false;}
-        let assigned=|column:&str|fields.iter().find(|f|f.name==column).map(|f|f.value.clone().unwrap_or_else(||Expr::Name{name:f.name.clone(),site:f.site.clone()}));
+        let assigned=|column:&str|fields.iter().find(|f|f.name==column).map(|f|f.value.clone().unwrap_or_else(||Expr::Name{name:f.name.clone(),site:f.site.clone()})).or_else(||if matches!(op,WriteOp::Insert|WriteOp::Upsert){keys.iter().find(|key|key.column.as_deref()==Some(column)).map(|key|key.value.clone())}else{None});
         let state=assigned(status);let time=assigned(stamp);
         let null=matches!(&time,Some(Expr::Literal{value:Literal::Null,..}));
         let nonnull=time.is_some()&&!null;

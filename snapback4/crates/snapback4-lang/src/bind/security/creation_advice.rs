@@ -126,7 +126,7 @@ fn bound_role(bound:&Bound,catalog:&Catalog,info:&super::super::catalog::TableIn
 }
 pub(super) fn notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnostic>{
     let docs=sources.iter().map(|(file,text)|crate::parse_document(file,text).0).collect::<Vec<_>>();
-    let catalog=Catalog::build(docs.clone(),&mut Vec::new());let stages=super::derived::workflow_columns(&catalog,bound);let mut writes=Vec::new();
+    let mut catalog=Catalog::build(docs.clone(),&mut Vec::new());catalog.advisory=super::super::advisory_model::derive(&catalog,&bound.schema);let stages=super::derived::workflow_columns(&catalog,bound);let mut writes=Vec::new();
     for p in docs.iter().flat_map(|d|&d.programs).filter(|p|p.kind==ProgramKind::Mutation){
         for (write,context) in super::authority_walk::writes(&catalog,p){
             let Expr::Write{op,table,fields,keys,site,if_absent,condition}=write else{continue;};

@@ -617,3 +617,9 @@ Edit advice distinguishes insertion and null-only initialization from later
 replacement. Non-default preapproval stages, null approval stamps and supported
 coalesces answer it; positive approval and broad cancellation exclusions do not.
 Remaining advisory messages name the observed guard and the case not proved.
+
+Advisory precision also follows exact linked recipients and atomic approval of
+an immutable amendment payload. Unrelated writes can preserve independent role
+facts; writes that may alias a checked row invalidate its captured state. A
+source-state relationship may explain why a sweep is irrelevant to an action;
+this omits a review question and does not prove the safety of imported rows.

@@ -197,7 +197,11 @@ pub(super) fn notes(catalog: &Catalog) -> Vec<Diagnostic> {
                             if let Some(Expr::Literal{value:after,..})=destination{
                                 let accepts_after=path.body.iter().filter_map(|s|if let Stmt::Require{condition,..}=s{Some(condition)}else{None}).filter(|condition|{let mut found=false;super::intent_walk::expression(&mut (*condition).clone(),&mut |e|if member(e,&mutation_aliases).is_some_and(|(t,c,a)|t==table&&c==*status&&a==*alias){found=true;});found}).all(|condition|allows(condition,&table,status,after,alias,&mutation_aliases)==Some(true));
                                 if accepts_after&&matches!(catalog.tables[&table].columns.get(status).map(|kind|&kind.kind),Some(TypeKind::Enum{..})){continue;}
-                                if matches!(&mutation_write,Expr::Write{table:target,fields,..} if target==&table&&fields.iter().any(|f|f.name==*status&&matches!(f.value.as_ref(),Some(Expr::Literal{value,..}) if value==after))){continue;}
+                                if let Expr::Write{table:target,fields,keys,..}=&mutation_write&&target==&table&&fields.iter().any(|f|f.name==*status&&matches!(f.value.as_ref(),Some(Expr::Literal{value,..}) if value==after)){
+                                    let mut read=ReadExpr{cursor_prefix:None,computed:Default::default(),order_keys:Vec::new(),table:table.clone(),index:None,keys:keys.clone(),range:None,filter:None,matching:None,seeks:Vec::new(),site:mutation_write.site().clone()};
+                                    for key in &mut read.keys{super::intent_walk::expression(&mut key.value,&mut |e|{if let Expr::Assert{value,..}=e{*e=*value.clone();}if let Expr::Member{base,name,..}=e&&name=="id"&&let Expr::Read(read)=base.as_ref()&&read.keys.len()==1&&read.keys[0].column.as_deref().is_none_or(|c|c=="id"){*e=read.keys[0].value.clone();}});}
+                                    if crate::print::read_expr(&read).replace("[id = ","[")==alias.replace("[id = ","["){continue;}
+                                }
                             }
                             let columns=&catalog.tables[&table].columns;
                             let finite=|column:&str|match columns.get(column){

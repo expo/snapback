@@ -144,6 +144,7 @@ pub(super) fn source_notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnos
             let mut operator_sites=BTreeSet::new();
             let mut grant_guards=BTreeMap::new();
             let mut checked_recipients=BTreeSet::new();
+            let mut prior_tables=BTreeSet::new();
             for (write,context) in super::authority_walk::writes(&catalog,p){
                 let Expr::Write{op,table,keys,fields,site,..}=&write else{continue;};
                 let Some(t)=bound.schema.table(table)else{continue;};
@@ -153,7 +154,11 @@ pub(super) fn source_notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnos
                     let value=fields.iter().find(|f|f.name==*column).and_then(|f|f.value.as_ref()).or_else(||keys.iter().find(|key|key.column.as_deref()==Some(column)).map(|key|&key.value))?;
                     Some((table.clone(),crate::print::expression(value)))
                 }).collect::<Vec<_>>();
-                for arg in &p.args{if context.body.iter().any(|s|matches!(s,Stmt::Require{condition,..} if recipient_checked(condition,&arg.name,bound,true,&links,p))){checked_recipients.insert((site.to_string(),arg.name.clone()));}}
+                for arg in &p.args{if context.body.iter().any(|s|if let Stmt::Require{condition,..}=s{
+                    let mut dependencies=BTreeSet::new();super::super::intent_walk::expression(&mut condition.clone(),&mut |node|if let Expr::Read(read)|Expr::Exists{read,..}=node{dependencies.insert(read.table.clone());});
+                    dependencies.is_disjoint(&prior_tables)&&recipient_checked(condition,&arg.name,bound,true,&links,p)
+                }else{false}){checked_recipients.insert((site.to_string(),arg.name.clone()));}}
+                prior_tables.insert(table.clone());
 
 
                 // @ref LLP 3000.036.004.001#4-operator-provisioning — the

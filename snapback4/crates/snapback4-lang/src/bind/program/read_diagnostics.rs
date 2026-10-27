@@ -68,7 +68,7 @@ impl Binder<'_> {
     // this direct write. Unsupported implicit/lifetime dependencies stay cut.
     pub(super) fn stable_advice_after(&self,value:&A)->BTreeMap<String,Vec<(Vec<String>,Ty)>>{
         let A::Write{table,op,..}=value else{return BTreeMap::new();};
-        if *op==WriteOp::Delete||!self.schema.maintains.is_empty()||self.schema.tables.values().any(|t|!t.maintained.is_empty()||!t.sequences.is_empty()){return BTreeMap::new();}
+        if !self.schema.tables.contains_key(table)||*op==WriteOp::Delete||!self.schema.maintains.is_empty()||self.schema.tables.values().any(|t|!t.maintained.is_empty()||!t.sequences.is_empty()){return BTreeMap::new();}
         let plain=|name:&str|name!=table&&self.schema.table(name).is_some_and(|t|t.through.is_none()&&t.ephemeral.is_none());
         let mut saved=BTreeMap::new();
         for binding in self.scopes.iter().flat_map(|scope|scope.values()){
@@ -244,7 +244,7 @@ impl Binder<'_> {
             maintain_types::normalize_rule_constants(&mut condition);
             condition=super::super::advisory_model::child_policy(self.catalog,&read.table,&condition,&keys);
             super::super::intent_walk::expression(&mut condition,&mut |node|{
-                if let A::Member{base,name,..}=node&&matches!(base.as_ref(),A::Focal{..})&&let Some(id)=keys.get("id")&&let A::Member{base:child,name:reference,..}=id&&let A::Name{name:alias,..}=child.as_ref()&&let Some(child_read)=self.advice_snapshot(alias)&&self.catalog.advisory.links.iter().any(|link|link.parent==read.table&&link.parent_field==*name&&link.child==child_read.table&&link.reference==*reference){*node=A::Member{base:child.clone(),name:name.clone(),site:node.site().clone()};}
+                if let A::Member{base,name,..}=node&&matches!(base.as_ref(),A::Focal{..})&&let Some(id)=keys.get("id")&&let A::Member{base:child,name:reference,..}=id&&let A::Name{name:alias,..}=child.as_ref()&&let Some(child_read)=self.advice_snapshot(alias)&&let Some(link)=self.catalog.advisory.links.iter().find(|link|link.parent==read.table&&link.parent_field==*name&&link.child==child_read.table&&link.reference==*reference){*node=A::Member{base:child.clone(),name:link.field.clone(),site:node.site().clone()};}
             });
             super::super::intent_walk::expression(&mut condition, &mut |value| {
                 if let A::Member { base, .. } = value && let A::Focal { site } = base.as_ref() {

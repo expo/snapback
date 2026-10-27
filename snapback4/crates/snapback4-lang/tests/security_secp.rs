@@ -152,7 +152,44 @@ const SWEEP:&str="table docs:\n  status:enum('open','expired','done') default 'o
 }
 #[test]fn wave30_043_amendment_edit_needs_its_atomic_approval(){
     let source=include_str!("security/wave30/043.schema.q");
-    for changed in [source.replace("  update amendments[a.id] {approvedBy: viewer, approvedAt: now}\n",""),source.replace("report: a.proposedReport","report: 'unreviewed replacement'")]{
+    for changed in [source.replace("  update amendments[a.id] {approvedBy: viewer, approvedAt: now}\n",""),source.replace("report: a.proposedReport","report: 'unreviewed replacement'"),source.replace("immutable inspection, client, branch", "immutable client, branch")]{
         assert!(notes(&changed).iter().any(|n|n.code=="N_EDIT_AFTER_APPROVAL"&&n.message.starts_with("approveAmendment:")));
     }
+}
+#[test]fn wave30_011_016_exclusive_stage_arms_are_not_intervening_writes(){
+    for source in [include_str!("security/wave30/011.schema.q"),include_str!("security/wave30/016.schema.q")]{
+        assert!(!notes(source).iter().any(|n|n.code=="N_EDIT_AFTER_APPROVAL"&&["advanceInstall:","advanceStage:"].iter().any(|op|n.message.starts_with(op))));
+    }
+}
+#[test]fn wave30_038_standing_window_states_its_parent_applicability(){
+    assert!(!notes(include_str!("security/wave30/038.schema.q")).iter().any(|n|n.code=="N_DEPENDENT_WINDOW"&&n.message.starts_with("scheduleDelivery:")));
+}
+#[test]fn helper_requirements_use_actual_principal_and_alias_writes_revoke_facts(){
+    let prefix=format!("{READER}fn check(principal:principal):\n  require exists roles[principal,role='admin'] else NO\n");
+    for (argument,warn) in [("viewer",false),("principal",true)]{
+        let source=format!("{prefix}mutation inspect(doc:docs,principal:principal):\n  check({argument})\n  return docs[doc]\n");
+        assert_eq!(notes(&source).iter().any(|n|n.code=="N_LOOKUP_FILTERED"&&n.message.starts_with("mutation inspect:")),warn);
+    }
+    let source=format!("{READER}mutation inspect(doc:docs):\n  r=roles[viewer] ! else NO\n  require r.role = 'admin' else NO\n  update r {{role:'member'}}\n  return docs[doc]\n");
+    assert!(notes(&source).iter().any(|n|n.code=="N_LOOKUP_FILTERED"));
+}
+#[test]fn reverse_link_uses_child_copy_field_not_a_same_named_owner(){
+    let source="table parents:\n  owner:principal\n  immutable owner\n  read <- .owner = viewer\n  insert <- allow\n  online only\ntable children:\n  parent:parents\n  copiedOwner:principal\n  owner:principal\n  immutable parent,copiedOwner,owner\n  read <- .owner = viewer\n  insert <- allow\n  online only\nmutation create(parent:parents,owner:principal):\n  p=parents[parent] ! else NO\n  return insert children {parent,copiedOwner:p.owner,owner}\nmutation inspect(child:children):\n  c=children[child] ! else NO\n  require c.owner = viewer else NO\n  return parents[c.parent]\n";
+    assert!(notes(source).iter().any(|n|n.code=="N_LOOKUP_FILTERED"&&n.message.starts_with("mutation inspect:")));
+}
+#[test]fn wave30_036_conditional_row_reset_defeats_source_monotonicity(){
+    let source=format!("{}\nmutation reset(first:mascots,second:mascots,flag:bool):\n  a=mascots[first] ! else NO\n  b=mascots[second] ! else NO\n  chosen=a if flag else b\n  update chosen {{stage:'approval'}}\n",include_str!("security/wave30/036.schema.q"));
+    assert!(notes(&source).iter().any(|n|n.code=="N_SWEEP_DEADLINE"&&n.message.starts_with("mutation requestChange:")));
+}
+#[test]fn terminal_sweep_write_must_affect_the_checked_resource(){
+    let source=SWEEP.replace("GUARD","").replace("DUE","row.due <= periodEnd").replace("update docs[doc] {status:'done'}","update docs[other] {status:'expired'}");
+    assert!(notes(&source).iter().any(|n|n.code=="N_SWEEP_DEADLINE"));
+}
+#[test]fn recipient_role_check_expires_on_potentially_aliasing_writes(){
+    let source=format!("{READER}table shares:\n  recipient:principal\n  read <- .recipient = viewer\n  insert <- allow\n  online only\nmutation grant(recipient:principal):\n  r=roles[principal=recipient] ! else NO\n  require r.role = 'member' else NO\n  update roles[principal=recipient] {{role:'admin'}}\n  return insert shares {{recipient}}\n");
+    assert!(notes(&source).iter().any(|n|n.code=="N_ARGUMENT_GRANT"&&n.message.starts_with("grant:")));
+}
+#[test]fn wave30_033_job_resets_defeat_one_way_fact_exemption(){
+    let source=format!("{}\njob reset():\n  for row in jobs:\n    update jobs[row.id] {{dampSigned:false}}\n",include_str!("security/wave30/033.schema.q"));
+    assert!(notes(&source).iter().any(|n|n.code=="N_EDIT_AFTER_APPROVAL"&&n.message.starts_with("markDamp:")));
 }
