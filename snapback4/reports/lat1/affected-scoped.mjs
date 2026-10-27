@@ -1,5 +1,6 @@
 import {planAffected,runPlan} from '../../scripts/affected.mjs';
-import {writeFileSync,readdirSync} from 'node:fs';
+import {writeFileSync,readdirSync,readFileSync} from 'node:fs';
+import {createHash} from 'node:crypto';
 import {resolve} from 'node:path';
 const root=resolve(import.meta.dirname,'../../..');
 const output=process.argv[2];if(!output)throw Error('output prefix required');
@@ -14,6 +15,12 @@ const lang=cargo('rust:language-security',['test','--no-fail-fast','-p','snapbac
 const pg=cargo('rust:core-postgres-compile',['test','-p','snapback4-core','--features','postgres','--lib','--no-run'],'Compile all Postgres-gated core tests after private code ownership conversion; no external PG cluster required');
 const cli=cargo('rust:cli',['test','--no-fail-fast','-p','snapback4','--bin','snapback4','--','--test-threads=8'],'All CLI unit tests: releases, compiler scopes, current/pending reports, restoration, gates and evaluated answers');
 const packed={id:'client:packed-security',cwd:'snapback4',argv:['node','--test','packages/snapback4/test/security-packed.test.mjs'],timeoutSeconds:1800,requires:['build-cli','build-client'],reason:'Actual packed CLI/security behavior and decision custody'};
+if(process.env.LAT1_PUBLICATION_BINARY){
+ const binary=resolve(process.env.LAT1_PUBLICATION_BINARY);const sha256=createHash('sha256').update(readFileSync(binary)).digest('hex');
+ plan.publicationBinary={path:binary,sha256};
+ packed.argv=['env',`SNAPBACK4_BIN=${binary}`,`SNAPBACK4_SECURITY_PACK_EVIDENCE=${output}.packed`,...packed.argv];
+ packed.reason+=`; frozen actual production binary SHA256 ${sha256}`;
+}
 const position=plan.steps.findIndex(s=>s.id==='rust:snapback4-core');plan.steps.splice(position+1,0,pg,lang,cli,packed);
 plan.scopeNote='LAT1 explicit brief overrides conservative full closure: do not run seven-crate suite, full client pool, full difftest or qualify-linux. Complete core crate plus changed language campaign/security integrations, all CLI unit tests and packed consumer; supporting builds and applicable docs/ref/selector checks. No language/planner/store semantic change, so no differential/Lean semantic claim. Snapback 1 generated/guide/inventory checks are outside this fence and have unchanged inputs. The compiled Snapback 4 guide integration and packaged-doc budget cover its amended docs. Full original plan is preserved; canonicalComplete:false.';
 plan.canonicalComplete=false;plan.omittedSteps=original.filter(s=>!retained.has(s.id)).map(s=>({id:s.id,reason:s.reason}));
