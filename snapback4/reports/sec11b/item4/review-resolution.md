@@ -21,3 +21,13 @@ responses and provenance remain verbatim under llp/reviews/.
   disputed carve-out from the final source.
 
 Final independent review and native corpus measurement remain required.
+
+Round6, commit04c99f526e: Muse found no material defect in the new transition
+mechanism; Codex found a real production-precision gap in the legacy workflow
+spread handling. A spread-only parent reopening could disappear from its
+outgoing graph and falsely establish terminality. Commitcd7733c89a makes any
+unreduced parent update spread leave that parent terminality unresolved. The
+reviewer's wave26/008 regression passes: ordinary child-stage inference remains,
+and explicit reopen, spread-only reopen, and later-overwriting-spread reopen
+all omit terminal child-stage inference. This is conservative undercoverage,
+never a new gate. Fresh round7 reviews cover the final delta.
