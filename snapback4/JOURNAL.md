@@ -109649,3 +109649,13 @@ presence gates and rejection of prose, while retaining reachable-refutation and
 persisted-decision immutability controls. Guide fixtures force intentional rereads
 and check the hard byte bound; offline starter custody fixtures defer installers.
 The starter toolchain pins node-forge 1.4.1 and removes its obsolete no-patch waiver.
+
+## 2026-10-27 — Integration 28 witnessed-tier preservation
+
+A corpus comparison found 48 pre-existing witnessed findings omitted alongside
+SECP advice (40 recipient grants and eight repeat guards). Advisory source facts
+now prune advice only: a separate current fixed-budget replay restores an omitted
+hypothesis only with concrete evidence, preserving the ordinary collector and
+its gates. This replay reads no advice cache. Production rechecks source identity
+after joining it. Restored questions stay nonblocking and keep evaluated answers.
+The guide and SECP LLP record this integration boundary.

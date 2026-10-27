@@ -258,3 +258,25 @@ pub(super) fn argument_guard(expr:&Expr,argument:&str,target:&str)->Option<bool>
         },Expr::Unary{op,value,..} if op=="not"=>argument_guard(value,argument,target).map(|v|!v),_=>None,
     }
 }
+
+// @ref LLP 3000.036.004.003#integration-tier-boundary — source facts may omit advice, never an executable witnessed question.
+pub(super) fn question_basis(sources:&[(String,String)],bound:&Bound)->Vec<Diagnostic>{
+    let mut out=Vec::new();
+    for (file,source) in sources {let doc=crate::parse_document(file,source).0;
+        for p in &doc.programs {
+            let mut guarded=BTreeSet::new();let mut seen=BTreeSet::new();
+            for statement in p.prelude.iter().chain(&p.body){if let Stmt::Require{condition,..}=statement{
+                super::super::intent_walk::expression(&mut condition.clone(),&mut |e|if let Expr::Exists{read,..}=e{for key in &read.keys{if let Expr::Name{name,..}=&key.value{guarded.insert(name.clone());}}});
+            }}
+            let mut body=p.prelude.clone();body.extend(p.body.clone());
+            super::super::intent_walk::statements(&mut body,&mut |e|{
+                let Expr::Write{table,fields,site,..}=e else{return;};let Some(t)=bound.schema.table(table)else{return;};let readers=reader_columns(&t.rules.read);
+                for field in fields.iter(){let arg=field.value.as_ref().and_then(|e|if let Expr::Name{name,..}=e{Some(name.as_str())}else{None}).unwrap_or(field.name.as_str());
+                    if !guarded.contains(arg)&&readers.contains(&field.name)&&p.args.iter().any(|a|a.name==arg)&&seen.insert((table.clone(),field.name.clone())){
+                        note(&mut out,site,"N_ARGUMENT_GRANT",format!("{} writes argument {arg} straight into reader-grant column {table}.{}",p.name,field.name),"require the chosen principal's current role and relationship before granting access; caller authority alone does not validate the recipient");
+                    }
+                }
+            });
+        }
+    }out
+}

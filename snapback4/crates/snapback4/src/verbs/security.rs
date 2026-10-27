@@ -82,8 +82,9 @@ pub fn audit(options:&Options)->i32{
     let sources=match project.sources(){Ok(s)=>s,Err(e)=>{eprintln!("audit: {e}");return 2;}};
     let bound=compiled_or_exit(snapback4_lang::compile(&sources),options.json);
     // Audit is a permission map plus bounded evidence; `test` owns full campaigns.
-    let report=report(&project,&bound,&sources,options);
-    let evidence=witnesses::collect(&project,&bound,&sources,&report.notes,true,options);
+    let mut report=report(&project,&bound,&sources,options);
+    let mut evidence=witnesses::collect(&project,&bound,&sources,&report.notes,true,options);
+    witnesses::restore_questions(&project,&bound,&sources,&mut report,&mut evidence,options);
     let dispositions=match super::security_reviews::review_evidence(&project,&sources,&report.notes,None,&evidence){Ok(d)=>d,Err(error)=>{eprintln!("audit: E_SECURITY_NOTES: {error}");return 2;}};
     if options.json {let mut value=serde_json::to_value(&report).unwrap();value["securityReviews"]=serde_json::to_value(&dispositions).unwrap();println!("{}",serde_json::to_string_pretty(&value).unwrap());}
     else {let mut human=report.clone();human.notes.retain(|n|crate::note_rank::tier(&n.code)!=crate::note_rank::Tier::Review);print!("{}",human.text_with_all(options.flags.contains_key("all")));super::security_reviews::print(&dispositions,&report.notes);}
@@ -165,6 +166,8 @@ pub(super) fn release_loop(project:&Project,bound:&Bound,sources:&[(String,Strin
     if super::proof_source::sources(project,options,"schema")?!=sources{return Err("selected Quarry sources changed during deployment security preflight".into());}
     witnesses::apply_report(project,options,sources,bound,&report,&report.notes,&mut evidence);
     if super::proof_source::sources(project,options,"schema")?!=sources{return Err("selected Quarry sources changed during deployment witness replay; rerun deploy".into());}
+    phase::measure("deploy.restored_questions",||witnesses::restore_questions(project,bound,sources,&mut report,&mut evidence,options));
+    if super::proof_source::sources(project,options,"schema")?!=sources{return Err("selected Quarry sources changed during deployment question replay; rerun deploy".into());}
     let mut dispositions=decisions.dispositions_with_evidence(sources,&report.notes,&evidence);
     // Current enforced derived refutations are blockers, never advisory questions.
     // Standalone question-campaign witnesses retain their nonblocking tier.

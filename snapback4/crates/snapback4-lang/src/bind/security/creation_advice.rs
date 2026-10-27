@@ -124,12 +124,14 @@ fn bound_role(bound:&Bound,catalog:&Catalog,info:&super::super::catalog::TableIn
     Some(RuleExpr::Exists{table:table.clone(),index,key:vec![RuleTerm::Viewer],equalities,provenance:snapback4_core::ir::KeyProvenance::Computed})
 
 }
-pub(super) fn notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnostic>{
+pub(super) fn notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnostic>{notes_mode(sources,bound,false)}
+pub(super) fn question_basis(sources:&[(String,String)],bound:&Bound)->Vec<Diagnostic>{notes_mode(sources,bound,true)}
+fn notes_mode(sources:&[(String,String)],bound:&Bound,basis:bool)->Vec<Diagnostic>{
     let docs=sources.iter().map(|(file,text)|crate::parse_document(file,text).0).collect::<Vec<_>>();
-    let mut catalog=Catalog::build(docs.clone(),&mut Vec::new());catalog.advisory=super::super::advisory_model::derive(&catalog,&bound.schema);let stages=super::derived::workflow_columns(&catalog,bound);let mut writes=Vec::new();
+    let mut catalog=Catalog::build(docs.clone(),&mut Vec::new());if !basis{catalog.advisory=super::super::advisory_model::derive(&catalog,&bound.schema);}let stages=super::derived::workflow_columns(&catalog,bound);let mut writes=Vec::new();
     for p in docs.iter().flat_map(|d|&d.programs).filter(|p|p.kind==ProgramKind::Mutation){
         let mut unknown_prior=false;
-        for (write,context) in super::authority_walk::advice_writes(&catalog,p){
+        for (write,context) in if basis{super::authority_walk::writes(&catalog,p)}else{super::authority_walk::advice_writes(&catalog,p)}{
             let Expr::Write{op,table,fields,keys,site,if_absent,condition}=write else{continue;};
             let Some(info)=catalog.tables.get(&table)else{unknown_prior=true;continue;};
             let mut requirements=super::operation::requirements(&catalog,info,&context);
@@ -141,6 +143,7 @@ pub(super) fn notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnostic>{
             writes.push(Write{stages:&stages,p,catalog:&catalog,name:super::super::operation_name(std::path::Path::new(&p.site.file).file_stem().and_then(|s|s.to_str()).unwrap_or(""),&p.name),op,table,fields,keys,site,context,conditional:if_absent||condition.is_some(),unknown_prior,gate:RuleExpr::And(requirements.into_iter().chain([rule]).collect())});
         }
     }
+    if basis{let mut out=Vec::new();lifecycle::question_basis(bound,&writes,&mut out);return out;}
     // @ref LLP 3000.036.004#168-typed-upsert-key-binding — reuse checked type-directed selection.
     let mut write_indexes=BTreeMap::<(String,String),BTreeSet<String>>::new();
     for site in bound.programs.iter().flat_map(|p|snapback4_core::ir::read_sites(&p.program)).filter(|s|s.kind=="write target"){

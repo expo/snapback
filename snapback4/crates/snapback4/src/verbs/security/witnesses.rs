@@ -495,7 +495,7 @@ pub(in crate::verbs) fn collect(project:&Project,bound:&Bound,sources:&[(String,
     collect_with_report(project,bound,sources,notes,expanded,options,None)
 }
 pub(in crate::verbs) fn collect_with_report(project:&Project,bound:&Bound,sources:&[(String,String)],notes:&[Diagnostic],expanded:bool,options:&Options,current:Option<&security::Report>)->Vec<Option<serde_json::Value>> {
-    collect_inner(project,bound,sources,notes,expanded,options,current,false)
+    collect_inner(project,bound,sources,notes,expanded,options,current,false,true)
 }
 /// Questions cannot supply derived enforcement until the current report joins.
 pub(in crate::verbs) struct PendingEvidence<'a>{bound:&'a Bound,sources:&'a[(String,String)],notes:&'a[Diagnostic],values:Vec<Option<serde_json::Value>>}
@@ -506,13 +506,13 @@ impl PendingEvidence<'_>{
     }
 }
 pub(in crate::verbs) fn collect_for_report<'a>(project:&Project,bound:&'a Bound,sources:&'a[(String,String)],notes:&'a[Diagnostic],options:&Options)->PendingEvidence<'a>{
-    PendingEvidence{bound,sources,notes,values:collect_inner(project,bound,sources,notes,true,options,None,true)}
+    PendingEvidence{bound,sources,notes,values:collect_inner(project,bound,sources,notes,true,options,None,true,true)}
 }
-fn collect_inner(project:&Project,bound:&Bound,sources:&[(String,String)],notes:&[Diagnostic],expanded:bool,options:&Options,current:Option<&security::Report>,defer_derived:bool)->Vec<Option<serde_json::Value>> {
+fn collect_inner(project:&Project,bound:&Bound,sources:&[(String,String)],notes:&[Diagnostic],expanded:bool,options:&Options,current:Option<&security::Report>,defer_derived:bool,advice_cache:bool)->Vec<Option<serde_json::Value>> {
     let key=hash(&serde_json::to_vec(&("sec11-witness-2",sources,notes,record::capture(sources,None).ok())).unwrap());
     let path=project.schema_dir().join("generated/security-witnesses.json");
     let gate=|index:usize|super::super::security_reviews::gated(&notes[index].code)&&precise_approval(bound,&notes[index]);
-    let cached=std::fs::read(&path).ok().and_then(|b|serde_json::from_slice::<serde_json::Value>(&b).ok()).filter(|v|v["key"]==key).and_then(|v|serde_json::from_value::<Vec<Option<serde_json::Value>>>(v["values"].clone()).ok()).filter(|v|v.len()==notes.len());
+    let cached=advice_cache.then(||std::fs::read(&path).ok()).flatten().and_then(|b|serde_json::from_slice::<serde_json::Value>(&b).ok()).filter(|v|v["key"]==key).and_then(|v|serde_json::from_value::<Vec<Option<serde_json::Value>>>(v["values"].clone()).ok()).filter(|v|v.len()==notes.len());
     let mut result=vec![None;notes.len()];
     if let Some(cached)=&cached{for (index,value) in cached.iter().enumerate(){if !gate(index)&&notes[index].code!="N_DERIVED_WRITE_AUTHORITY"{result[index]=value.clone();}}}
     let selected=phase::measure("witness.candidates", || candidates(bound,sources,notes));
@@ -572,7 +572,7 @@ fn collect_inner(project:&Project,bound:&Bound,sources:&[(String,String)],notes:
     // Reapply current eligibility even to cached advice: editable presentation
     // evidence cannot promote an unresolved approval question into a gate.
     for (index,value) in result.iter_mut().enumerate(){if !precise_approval(bound,&notes[index]){if let Some(value)=value{value["advisory"]=true.into();}}}
-    if expanded {let advice=result.iter().enumerate().map(|(index,value)|if gate(index)||notes[index].code=="N_DERIVED_WRITE_AUTHORITY"{None}else{value.clone()}).collect::<Vec<_>>();
+    if expanded&&advice_cache {let advice=result.iter().enumerate().map(|(index,value)|if gate(index)||notes[index].code=="N_DERIVED_WRITE_AUTHORITY"{None}else{value.clone()}).collect::<Vec<_>>();
         let temporary=path.with_extension(format!("{}.tmp",std::process::id()));
         if std::fs::write(&temporary,serde_json::to_vec(&json!({"key":key,"values":advice})).unwrap()).is_ok(){let _=std::fs::rename(&temporary,&path);}let _=std::fs::remove_file(temporary);
     }
@@ -581,6 +581,31 @@ fn collect_inner(project:&Project,bound:&Bound,sources:&[(String,String)],notes:
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn advisory_omission_preserves_only_current_witnessed_questions(){
+        struct Scratch(std::path::PathBuf);impl Drop for Scratch{fn drop(&mut self){let _=std::fs::remove_dir_all(&self.0);}}
+        let root=Scratch(std::env::temp_dir().join(format!("sb4-integration28-tier-{}",std::process::id())));
+        std::fs::create_dir_all(root.0.join("snapback/generated")).unwrap();let project=Project{root:root.0.clone()};
+        let options=Options{positionals:vec![],flags:BTreeMap::new(),json:true};
+        let source="table parents:\n  enabled:bool default false\n  read <- allow\n  insert <- allow\n  online only\ntable children:\n  parent:parents\n  read <- allow\n  insert <- allow\n  online only\nmutation add(parent:parents):\n  p=parents[parent] ! else NO\n  require not p.enabled else CLOSED\n  return insert children {parent}\n";
+        let replay=|text:&str|{
+            let sources=vec![("schema.q".into(),text.into())];let bound=snapback4_lang::compile(&sources);assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);
+            let mut report=security::analyze_rules(&bound);security::add_source_notes(&mut report,&sources,&bound);
+            assert!(!report.notes.iter().any(|n|n.code=="N_GUARD_NOT_CONSUMED"),"standing guards retain SECP advisory precision");
+            assert!(security::question_basis(&sources,&bound).iter().any(|n|n.code=="N_GUARD_NOT_CONSUMED"),"{text}");
+            let original=serde_json::to_value(&report.notes).unwrap();let count=report.notes.len();let mut evidence=vec![None;count];
+            restore_questions(&project,&bound,&sources,&mut report,&mut evidence,&options);
+            assert_eq!(serde_json::to_value(&report.notes[..count]).unwrap(),original,"ordinary gates and questions are untouched");
+            assert_eq!(report.notes.len(),evidence.len());
+            for (note,value) in report.notes[count..].iter().zip(&evidence[count..]){assert!(!super::super::super::security_reviews::gated(&note.code));assert!(value.as_ref().is_some_and(super::super::super::security_reviews::witness::concrete));}
+            let once=serde_json::to_value(&report.notes).unwrap();restore_questions(&project,&bound,&sources,&mut report,&mut evidence,&options);assert_eq!(serde_json::to_value(&report.notes).unwrap(),once,"one finding has one tier");
+            report.notes[count..].to_vec()
+        };
+        assert!(replay(source).iter().any(|n|n.code=="N_GUARD_NOT_CONSUMED"));
+        let cache=project.schema_dir().join("generated/security-witnesses.json");let poison=b"{\"key\":\"not-current\",\"values\":[{\"kind\":\"fake\"}]}";std::fs::write(&cache,poison).unwrap();
+        assert!(replay(&source.replace("  parent:parents\n", "  parent:parents\n  unique parent\n")).is_empty(),"no current replay means no restoration");
+        assert_eq!(std::fs::read(cache).unwrap(),poison,"independent question replay never trusts or replaces advice caches");
+    }
     #[test]
     fn conservation_witness_identity_keeps_the_material_charge_ledger(){
         let sources=vec![("schema.q".into(),include_str!("../../../../snapback4-lang/tests/security/wave27/020.q").into())];
@@ -661,4 +686,17 @@ mod tests {
         let value=snapback4_core::Value::Row(BTreeMap::from([("opaque".into(),snapback4_core::Value::Int(987654321))]).into());
         assert_eq!(observed_data(&bound,&object,&value),json!({"opaque":"<redacted>"}));
     }
+}
+
+/// Source-consistency facts govern advice only. Omitted hypotheses get a
+/// separate current finite replay, so their work cannot displace any gate or
+/// question in the ordinary collector. Generated advice caches supply no part
+/// of this restoration and are not overwritten by it.
+// @ref LLP 3000.036.004.003#integration-tier-boundary — retain every current witnessed question before advisory omission.
+pub(in crate::verbs) fn restore_questions(project:&Project,bound:&Bound,sources:&[(String,String)],report:&mut security::Report,evidence:&mut Vec<Option<serde_json::Value>>,options:&Options){
+    let basis=security::question_basis(sources,bound).into_iter().filter(|note|!report.notes.iter().any(|n|n.code==note.code&&n.site==note.site)).collect::<Vec<_>>();
+    if basis.is_empty(){return;}
+    debug_assert!(basis.iter().all(|n|!super::super::security_reviews::gated(&n.code)));
+    let current=collect_inner(project,bound,sources,&basis,true,options,None,false,false);
+    for (note,value) in basis.into_iter().zip(current){if value.as_ref().is_some_and(super::super::security_reviews::witness::concrete){report.notes.push(note);evidence.push(value);}}
 }

@@ -551,3 +551,21 @@ pub(super) fn audience(rule:&RuleExpr)->RuleExpr{match rule{
     RuleExpr::Or(parts)=>RuleExpr::Or(parts.iter().map(audience).collect()),
     r if super::super::operation::safe(r)=>r.clone(),_=>RuleExpr::Allow,
 }}
+// Pre-precision hypotheses: returned only to a separate live witness search.
+pub(super) fn question_basis(bound:&Bound,writes:&[Write<'_>],out:&mut Vec<Diagnostic>){
+    for w in writes.iter().filter(|w|matches!(w.op,WriteOp::Insert|WriteOp::Update|WriteOp::Upsert)){
+        let t=&bound.schema.tables[&w.table];
+        if state(w,bound)||matches!(w.op,WriteOp::Insert|WriteOp::Upsert){
+            let mut guarded=BTreeSet::new();
+            for condition in conditions(&w.context){walk(condition,|e|if let Expr::Member{base,name,..}=e{
+                for dep in reads(base){if bound.schema.tables.get(&dep).and_then(|t|t.columns.get(name)).is_some_and(|k|matches!(k.required(),ColumnType::Bool|ColumnType::Enum{..}))&&(!same_target(base,w)||dep!=w.table){guarded.insert((dep,name.clone()));}}
+            });}
+            for (dep,column) in guarded{if !writes.iter().any(|other|std::ptr::eq(other.p,w.p)&&other.table==dep&&other.fields.iter().any(|f|f.name==column)){
+                note(out,&w.site,"N_GUARD_NOT_CONSUMED",format!("{}: checks {dep}.{column} but leaves it unchanged while changing {} state; could repeating this transition reuse that guard?",w.name,w.table),"if this state represents one-use consent/payment, consume it atomically or enforce the target source state; declare intent and test repeated transitions");
+            }}
+        }
+        if state(w,bound){for(column,kind)in &t.columns{if matches!(kind.required(),ColumnType::Bool)&&inspected(w,&w.table,column)&&!w.fields.iter().any(|f|f.name==*column){
+            note(out,&w.site,"N_GUARD_NOT_CONSUMED",format!("{}: checks {}.{column} but leaves it unchanged while changing state; could repeating this transition reuse the same authorization?",w.name,w.table),"if the guard represents one-use consent/payment, consume it atomically or require the source lifecycle state; declare intent and test repeated transitions");
+        }}}
+    }
+}

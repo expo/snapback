@@ -640,8 +640,8 @@ histories and unsupported evidence shapes remain coverage gaps.
 Guard precision: advisory read checks expand bounded read-only role helpers and
 retain raw versus caller-filtered witness polarity. A prior live role snapshot
 can answer a read question; a later guard cannot authorize an earlier lookup.
-Operator-only provisioning from `guide staging` does not ask the recipient
-question; ordinary staff grants still do. Standing role/material/hold guards
+Operator-only provisioning from `guide staging` omits unwitnessed recipient
+advice; ordinary staff grants still ask it. Standing role/material/hold guards
 are reusable. Source-stage advances answer repeat-transition questions, while
 repeat creates and unconsumed one-use approvals remain reviewable.
 Edit advice distinguishes insertion and null-only initialization from later
@@ -654,3 +654,7 @@ an immutable amendment payload. Unrelated writes can preserve independent role
 facts; writes that may alias a checked row invalidate its captured state. A
 source-state relationship may explain why a sweep is irrelevant to an action;
 this omits a review question and does not prove the safety of imported rows.
+
+Precision omits advisory hypotheses only. An independent current bounded replay
+retains a witnessed question even when source facts answer its advisory form.
+It never promotes that question to a gate or trusts a cached witness.
