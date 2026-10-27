@@ -1,5 +1,5 @@
 //! Correlated literal premises for receipt-question replay, never admission.
-// @ref LLP 3000.036.004.002#approval-questions — source premises only order actual engine calls within the existing work budget.
+// @ref LLP 3000.036.004.006#approval-questions — source premises only order actual engine calls within the existing work budget.
 use super::*;
 pub(super) fn prioritize(bound:&Bound,p:&Program,cases:Vec<BTreeMap<String,Value>>)->Vec<BTreeMap<String,Value>>{
     if !bound.invariants.iter().any(|i|i.site.file.contains("/sec11-approval-")&&i.operation.as_deref()==Some(p.name.as_str())){return cases;}
