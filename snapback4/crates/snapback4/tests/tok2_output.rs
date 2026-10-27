@@ -112,6 +112,9 @@ fn serve_startup_keeps_url_readiness_clock_and_full_details_in_three_lines() {
     assert!(text.contains("staging store offset"),"{text}");
     assert!(a.detail("serve").contains("active schema")&&a.detail("serve").contains("clock     staging")&&a.detail("serve").contains("file descriptors")&&a.detail("serve").contains("HTTP connections="));
     let full=startup(&a,true);assert!(full.contains("snapback4 serve:")&&full.contains("active schema")&&full.contains("clock     staging"),"{full}");
+    fs::rename(a.0.join("snapback"),a.0.join("saved-working-source")).unwrap();
+    let standalone=startup(&a,false);assert!(!standalone.contains("differs from working schema unavailable"),"an absent working source is not a changed source: {standalone}");
+    assert!(a.detail("serve").contains("working schema unavailable"));
 }
 
 #[test]

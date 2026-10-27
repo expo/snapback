@@ -380,7 +380,7 @@ pub fn serve(
         )),
     }
     if !dev {
-        if active_hash != working_hash {startup.line(format!("WARNING: active schema {active_hash} differs from working schema {working_hash}; deploy edits to serve them"));}
+        if working_hash != "unavailable" && active_hash != working_hash {startup.line(format!("WARNING: active schema {active_hash} differs from working schema {working_hash}; deploy edits to serve them"));}
         startup.ready(&ready);
     }
     if dev {
