@@ -81,7 +81,7 @@ pub(crate) fn judge(inv:&Invariant,old:Option<&Value>,row:&Value,rows:&BTreeMap<
  use super::*;
  const STUDY:&str=include_str!(concat!(env!("CARGO_MANIFEST_DIR"),"/tests/security/sec10-shipping/w30-030.q"));
  const BATCH:&str=include_str!(concat!(env!("CARGO_MANIFEST_DIR"),"/tests/security/sec10-shipping/w30-035.q"));
- fn compile(s:&str)->(Bound,Vec<(Diagnostic,Invariant)>){let sources=vec![("schema.q".into(),s.into())];let b=crate::compile(&sources);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);let qs=questions(&sources,&b);assert!(!super::super::super::augmented(&sources,&b).invariants.iter().any(|i|i.site.file.contains("/sec11-transition/")));(b,qs)}
+ fn compile(s:&str)->(Bound,Vec<(Diagnostic,Invariant)>){let sources=vec![("schema.q".into(),s.into())];let b=crate::compile(&sources);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);let qs=questions(&sources,&b);assert!(!super::super::augmented(&sources,&b).invariants.iter().any(|i|i.site.file.contains("/sec11-transition/")));(b,qs)}
  #[test]fn source_edges_do_not_depend_on_names_or_enum_order(){
   for(source,op,from,to)in[(STUDY,"publishReport","measured","reported"),(BATCH,"advanceStage","inspection","finished")]{
    let(_,qs)=compile(source);assert_eq!(qs.len(),1,"{:?}",qs.iter().map(|(n,_)|&n.message).collect::<Vec<_>>());let inv=&qs[0].1;assert_eq!(inv.operation.as_deref(),Some(op));assert!(inv.predicate.contains(from)&&inv.predicate.contains(to));assert!(super::super::advisory(inv));
