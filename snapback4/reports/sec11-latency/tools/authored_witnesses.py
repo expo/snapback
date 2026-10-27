@@ -1,11 +1,17 @@
 #!/usr/bin/env python3
 """Private complete authored counterexamples; classifier selects the supplemental set."""
 import argparse,gzip,json,pathlib,tempfile,subprocess,shutil,hashlib,concurrent.futures,os
-p=argparse.ArgumentParser();p.add_argument('--binary',required=True);p.add_argument('--survey',required=True);p.add_argument('--out',required=True);p.add_argument('--workers',type=int,default=4);a=p.parse_args()
+p=argparse.ArgumentParser();p.add_argument('--binary',required=True);p.add_argument('--survey',required=True,action='append');p.add_argument('--out',required=True);p.add_argument('--workers',type=int,default=4);a=p.parse_args()
 def load(path):return json.load(gzip.open(path,'rt'))if str(path).endswith('.gz')else json.load(open(path))
-rows=load(a.survey)
+by_key={}
+for survey in a.survey:
+ for row in load(survey):
+  key=(row['wave'],row['lane'])
+  if key in by_key:assert by_key[key]['sha256']==row['sha256'],'source mismatch in survey union'
+  if row['checkFixes']or any(row[m]['fixes']for m in ['fresh','afterTest']):by_key[key]=row
+rows=[by_key[k]for k in sorted(by_key)]
 def authored(f):return not f['site']['file'].startswith(('$derived/','$enforced/'))
-selected=[r for r in rows if r['checkFixes']or any(authored(f)for mode in ['fresh','afterTest']for f in r[mode]['fixes'])]
+selected=rows
 out=pathlib.Path(a.out);out.mkdir(parents=True,exist_ok=True)
 def run_one(row):
  src=pathlib.Path.home()/f"sb4-loop/wave{row['wave']}/apps"/row['lane'];result={k:row[k]for k in ['wave','lane','sha256']}
@@ -22,7 +28,7 @@ def run_one(row):
    if check:report=report.get('security',{})
    else:
     report=report.get('security')or {};report=json.loads(report)if isinstance(report,str)else report;report=report.get('report',{})
-   cases=[v for v in report.get('invariants',[])if v.get('counterexample')is not None and not v['invariant']['site']['file'].startswith(('$derived/','$enforced/'))]
+   cases=[v for v in report.get('invariants',[])if v.get('counterexample')is not None]
    return dict(exit=r.returncode,counterexamples=cases)
   result['check']=extract(run(['check','--json']),True)
   result['fresh']=extract(run(['deploy','fresh','--json']))
@@ -36,4 +42,4 @@ with tempfile.TemporaryDirectory(prefix='sec11l-authored-binary-')as tmp:
   results=[]
   for r in pool.map(run_one,selected):results.append(r);print(r['wave'],r['lane'],'captured',flush=True)
  (out/'results.json').write_text(json.dumps(results,sort_keys=True,indent=2)+'\n')
- (out/'provenance.json').write_text(json.dumps(dict(binarySha256=hashlib.sha256(snap.read_bytes()).hexdigest(),count=len(results),selection='Every schema with an authored check/fresh/post-test FIX in the 800-schema classifier; raw counterexamples remain private.'),indent=2)+'\n')
+ (out/'provenance.json').write_text(json.dumps(dict(binarySha256=hashlib.sha256(snap.read_bytes()).hexdigest(),count=len(results),selection='Union of every schema with any check/fresh/post-test FIX in the supplied surveys; complete authored, derived and enforced counterexamples remain private.'),indent=2)+'\n')
