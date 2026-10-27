@@ -1,0 +1,17 @@
+{
+  "dx8-2": {
+    "ok": false,
+    "seconds": 10.897,
+    "error": "Error: /home/ccheever/.local/node-v24.13.1-linux-x64/bin/node: toolchain command exited 1\n    at runToolchainCommand (file:///home/ccheever/sb4-pub-0441/snapback4/scripts/publication-starters.mjs:45:27)\n    at async proveDX8Ergonomics (file:///home/ccheever/sb4-pub-0441/snapback4/scripts/publication-dx8-ergonomics.mjs:15:5)\n    at async proveDX8 (file:///home/ccheever/sb4-pub-0441/snapback4/scripts/publication-dx8.mjs:12:19)\n    at async file:///home/ccheever/sb4-pub-0443-kit/iso-rest/run2.mjs:39:19"
+  },
+  "staging-2": {
+    "ok": false,
+    "seconds": 6.344,
+    "error": "Error: /home/ccheever/.local/node-v24.13.1-linux-x64/bin/node: toolchain command exited 1\n    at runToolchainCommand (file:///home/ccheever/sb4-pub-0441/snapback4/scripts/publication-starters.mjs:45:27)\n    at async proveStaging (file:///home/ccheever/sb4-pub-0441/snapback4/scripts/publication-staging.mjs:33:3)\n    at async file:///home/ccheever/sb4-pub-0443-kit/iso-rest/run2.mjs:39:19"
+  },
+  "starters-2": {
+    "ok": false,
+    "seconds": 39.296,
+    "error": "AssertionError [ERR_ASSERTION]: The input was expected to not match the regular expression /registerWebWitness|witnessPersona|snapback\\/generated\\/api/. Input:\n\n'import { registerWebWitness } from \"snapback4/witness-web\";\\n' +\n  'import { api } from \"../snapback/generated/api.ts\";\\n' +\n  'import { createApp } from \"snapback4/app\";\\n' +\n  'import { localStorageSessionStore } from \"snapback4/auth\";\\n' +\n  'import { webDevice } from \"snapback4/web\";\\n' +\n  '\\n' +\n  '// The backend `snapback4 dev` serves. Set VITE_SNAPBACK_URL for a deployment.\\n' +\n  'export const url = (new URLSearchParams(window.location.search).get(\"api\") ?? import.meta.env.VITE_SNAPBACK_URL ?? \"http://127.0.0.1:4400\").replace(/\\\\/$/, \"\");\\n' +\n  '\\n' +\n  '// A device supplies offline reads for synced tables and queues writes.\\n' +\n  '// With no synced table, init omits the device and uses the browser write journal.\\n' +\n  '// localStorageSessionStore() keeps the session across reloads; any script on\\n' +\n  '// this origin can read it. Device-less browser writes require this store.\\n' +\n  'export const app = createApp({ url, device: webDevice(), sessionStore: localStorageSessionStore() });\\n' +\n  '\\n' +\n  'registerWebWitness(app, api);\\n'\n\n    at proveStarters (file:///home/ccheever/sb4-pub-0441/snapback4/scripts/publication-starters.mjs:331:16)\n    at async steps (file:///home/ccheever/sb4-pub-0443-kit/iso-rest/run2.mjs:26:162)\n    at async file:///home/ccheever/sb4-pub-0443-kit/iso-rest/run2.mjs:39:19"
+  }
+}

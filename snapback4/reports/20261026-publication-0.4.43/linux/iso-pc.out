@@ -1,0 +1,7 @@
+run 1 rc=0 24 s load=37.24 41.39 48.06 -- client file ok: packages/snapback4/test/proof-contract.test.mjs (23692 ms) -- client files: 1/1; failed 0; tests {"tests":21,"pass":21,"fail":0,"cancelled":0,"skipped":0,"todo":0} 
+run 2 rc=0 24 s load=36.16 40.87 47.75 -- client file ok: packages/snapback4/test/proof-contract.test.mjs (23448 ms) -- client files: 1/1; failed 0; tests {"tests":21,"pass":21,"fail":0,"cancelled":0,"skipped":0,"todo":0} 
+run 3 rc=0 23 s load=39.01 41.11 47.64 -- client file ok: packages/snapback4/test/proof-contract.test.mjs (23492 ms) -- client files: 1/1; failed 0; tests {"tests":21,"pass":21,"fail":0,"cancelled":0,"skipped":0,"todo":0} 
+run 4 rc=0 24 s load=38.59 40.84 47.38 -- client file ok: packages/snapback4/test/proof-contract.test.mjs (23823 ms) -- client files: 1/1; failed 0; tests {"tests":21,"pass":21,"fail":0,"cancelled":0,"skipped":0,"todo":0} 
+run 5 rc=0 24 s load=41.72 41.37 47.38 -- client file ok: packages/snapback4/test/proof-contract.test.mjs (23811 ms) -- client files: 1/1; failed 0; tests {"tests":21,"pass":21,"fail":0,"cancelled":0,"skipped":0,"todo":0} 
+run 6 rc=0 23 s load=41.00 41.22 47.20 -- client file ok: packages/snapback4/test/proof-contract.test.mjs (23424 ms) -- client files: 1/1; failed 0; tests {"tests":21,"pass":21,"fail":0,"cancelled":0,"skipped":0,"todo":0} 
+iso-done

@@ -1,0 +1,6 @@
+{
+  "status": "passed",
+  "log": "/home/ccheever/sb4-pub-0443-records/linux-qualification-0.4.43/rule-recipes.log",
+  "client": "/home/ccheever/sb4-pub-0441/snapback4/target/publication/client-0.4.43/snapback4-0.4.43.tgz",
+  "platform": "/tmp/snapback4-linux-XvN6KK/snapback4-linux-x64-0.4.43.tgz"
+}

@@ -1,0 +1,6 @@
+linux-1: 1
+linux-2: killed: suite red (snapback4::snapback4 latency headers wait 148.398 < 150 ms) during the client pool; kill-linux.sh
+linux-3: killed: suite red (client pool: online-journal-browser subtest 3, proof.test.mjs E_ADDRINUSE x2); kill-linux.sh
+linux-4: 1
+linux-5: killed: suite red (client pool: online-journal-browser subtest 6 TEST_HANG); kill-linux.sh
+linux-6: 0

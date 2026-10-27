@@ -1,0 +1,1751 @@
+consumer ok: query complete+fresh, online write sent, offline write pending
+DAY5 installed guide recipe, immutable snapshot, bridge and schema-first starter custody passed
+
+added 6 packages in 677ms
+init: wrote 18 files in . — Vite + React todos, offline-capable — next: `node scripts/install.mjs`, then `snapback4 check`, then `snapback4 dev`; see README.md
+init: files: package.json, index.html, vite.config.mts, tsconfig.json, README.md, public/favicon.svg, src/{main.tsx, styles.css, App.tsx, client.ts, vite-env.d.ts}, snapback/{schema.q, generated/package.json}, fixtures/{todos.jsonl, test.cases.jsonl}, scripts/{install.mjs, frontend-proof.mjs, launch.mjs}
+init: the backend is http://127.0.0.1:4400; `npm run dev` serves the page on http://localhost:5173; `init --web --port N` sets the backend to N and the page to N+1 together
+node scripts/install.mjs
+
+added 26 packages in 1s
+http://127.0.0.1:61635
+(node:34825) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-6T7Dt5/starter-web/guide-development-hosts.ts is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to /private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-6T7Dt5/starter-web/package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+check: ok — 1 table (1 synced), 4 operations, compiled; 0 gates pending, 0 witnessed questions, 0 advisories (don't block): `check --review`; 0 recorded; 1 notes; 924.9 ms
+check: enforced by the language — 0 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)
+
+> snapback4-web-starter@0.1.0 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> snapback4-web-starter@0.1.0 build
+> vite build && snapback4 web-shell dist
+
+[36mvite v8.3.5 [32mbuilding client environment for production...[36m[39m
+transforming...
+✓ 139 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                    0.45 kB │ gzip:   0.28 kB
+dist/assets/web-worker-entry-C-tava9d.js          25.02 kB
+dist/assets/snapback4_device_bg-C3QlWrAL.wasm  2,416.83 kB │ gzip: 751.39 kB
+dist/assets/index-D1mLdyLc.css                     0.36 kB │ gzip:   0.24 kB
+dist/assets/index-DJcUStJ8.js                    605.29 kB │ gzip: 192.93 kB
+
+[32m✓ built in 231ms[39m
+web-shell: 6 files at /; wrote snapback4-sw.js
+{
+  "current": 1,
+  "event": null,
+  "events": [
+    {
+      "at": 1793109828428,
+      "generation": 1,
+      "id": 1,
+      "operation": "deploy",
+      "previous": null,
+      "release": 1,
+      "revision": 1,
+      "summary": {
+        "dormant_items": 0,
+        "narrowed_restored": 0,
+        "narrowed_retained": 0,
+        "native_digest": null,
+        "restored_items": 0
+      }
+    }
+  ],
+  "events_after": 1,
+  "generation": 1,
+  "items": [],
+  "items_after": null,
+  "latest": 1,
+  "live": {
+    "exact": true,
+    "release": 1,
+    "rowShape": {
+      "children": [],
+      "differences": [],
+      "matchesTarget": true,
+      "tables": {
+        "todos": [
+          "done",
+          "id",
+          "ownerId",
+          "title"
+        ]
+      },
+      "target": 1
+    },
+    "source": 1,
+    "target": 1,
+    "view": null
+  },
+  "native_digest": "",
+  "previous_active": null,
+  "release": 1,
+  "revision": 1,
+  "rollbackViews": [],
+  "rowShape": {
+    "children": [],
+    "differences": [],
+    "matchesTarget": true,
+    "tables": {
+      "todos": [
+        "done",
+        "id",
+        "ownerId",
+        "title"
+      ]
+    },
+    "target": 1
+  },
+  "selected": {
+    "current": true,
+    "digest": "c11968e5fa0571cbd14e2194b7336d1d855f98051a845e97362f04f372ba4296",
+    "release": 1
+  },
+  "workers": []
+}
+
+frontend:proof passed
+frontend:proof passed
+init: wrote 27 files in . — Vite + React todos, offline-capable — next: `node scripts/install.mjs`, then `snapback4 check`, then `snapback4 dev`; see README.md
+init: files: package.json, index.html, vite.config.mts, tsconfig.json, README.md, public/favicon.svg, src/{main.tsx, styles.css, App.tsx, client.ts, vite-env.d.ts}, snapback/{schema.q, generated/package.json}, fixtures/{todos.jsonl, test.cases.jsonl}, scripts/{install.mjs, frontend-proof.mjs, day2-proof.mjs, launch.mjs}, versions/{v1/schema.q, v1/fixtures/.gitkeep, v1/fixtures/todos.jsonl, v1/fixtures/test.cases.jsonl, v2/schema.q, v2/fixtures/.gitkeep, v2/fixtures/todos.jsonl, v2/fixtures/test.cases.jsonl}
+init: the backend is http://127.0.0.1:4400; `npm run dev` serves the page on http://localhost:5173; `init --web --port N` sets the backend to N and the page to N+1 together
+node scripts/install.mjs
+init --adapt: planned changes (only unmodified starter files):
+  rewrite src/App.tsx — the unmodified starter screen shows the guest sign-in, but your snapback/*.q declares `use identity password`; adapt writes the password sign-in
+  rewrite src/client.ts — the unmodified starter client for the guest sign-in; adapt writes the password sign-in
+  rewrite README.md — the unmodified starter README describes the todo starter (its todos table and guest sign-in); adapt rewrites it to describe the todo starter's operations, which your snapback/*.q declares again
+  add scripts/staging.mjs — missing proof infrastructure
+init --adapt: rewrote src/App.tsx and src/client.ts and README.md — the unmodified starter screen shows the guest sign-in, but your snapback/*.q declares `use identity password`; adapt writes the password sign-in
+check: ok — 1 table (1 synced), 4 operations, compiled; 0 gates pending, 0 witnessed questions, 0 advisories (don't block): `check --review`; 0 recorded; 1 notes; 897.3 ms
+check: enforced by the language — 0 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)
+[36mvite v8.3.5 [32mbuilding client environment for production...[36m[39m
+transforming...
+✓ 139 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                    0.46 kB │ gzip:   0.29 kB
+dist/assets/web-worker-entry-C-tava9d.js          25.02 kB
+dist/assets/snapback4_device_bg-C3QlWrAL.wasm  2,416.83 kB │ gzip: 751.39 kB
+dist/assets/index-D1mLdyLc.css                     0.36 kB │ gzip:   0.24 kB
+dist/assets/index-BwQl9gh6.js                    605.75 kB │ gzip: 193.03 kB
+
+[32m✓ built in 116ms[39m
+{"witness":"web","proof":"visible-form","state":"sent","id":"01M5YTSFBGMGQ9KTT9K7461TCK","mutation":"add","field":"Task","button":"Add"}
+init --adapt: planned changes (only unmodified starter files):
+  remove fixtures/todos.jsonl — the unmodified rows for the todo starter's `todos` table; your snapback/*.q has no todos table with those operations, so `snapback4 test` would refuse it
+  remove fixtures/test.cases.jsonl — the unmodified cases for the todo starter's list/add/toggle/remove; your snapback/*.q has no todos table with those operations, so `snapback4 test` would refuse it
+  rewrite src/App.tsx — the unmodified web client needs the device or principal journal selected by your schema's synced tables; its Todos screen calls the starter's list/add/toggle/remove, which your snapback/*.q does not declare, so it would not typecheck; adapt writes a Home screen that compiles against any schema (the signed-in viewer, your operations from snapback/generated/api.ts, and your first query without required arguments rendered with matchRead) for you to replace
+  rewrite src/client.ts — the unmodified web client needs the device or principal journal selected by your schema's synced tables
+  rewrite scripts/frontend-proof.mjs — the unmodified todo proof needs your screen's write assertions; keep a runnable frontend scaffold that explicitly reports the missing scenario
+  rewrite README.md — the unmodified starter README describes the todo starter (its todos table and guest sign-in); adapt rewrites it to describe your snapback/*.q and the Home screen, named after this directory
+init --adapt: removed fixtures/todos.jsonl and fixtures/test.cases.jsonl (unmodified starter files; fixtures/ stays for your own rows; write your own as fixtures/<table>.jsonl and fixtures/test.cases.jsonl, `snapback4 guide testing`)
+init --adapt: rewrote src/App.tsx and src/client.ts and scripts/frontend-proof.mjs and README.md — the unmodified web client needs the device or principal journal selected by your schema's synced tables; its Todos screen calls the starter's list/add/toggle/remove, which your snapback/*.q does not declare, so it would not typecheck; adapt writes a Home screen that compiles against any schema (the signed-in viewer, your operations from snapback/generated/api.ts, and your first query without required arguments rendered with matchRead) for you to replace
+init --adapt: next: `snapback4 check` writes snapback/generated/api.ts for the Home screen; replace Home with your own screens (`snapback4 guide client`)
+check: ok — 1 table (0 synced), 2 operations, compiled; 0 gates pending, 0 witnessed questions, 1 advisories (don't block): `check --review`; 0 recorded; 2 notes; 129.4 ms
+check: enforced by the language — 0 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)
+
+> snapback4-web-starter@0.1.0 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> snapback4-web-starter@0.1.0 build
+> vite build && snapback4 web-shell dist
+
+[36mvite v8.3.5 [32mbuilding client environment for production...[36m[39m
+transforming...
+✓ 121 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.45 kB │ gzip:   0.29 kB
+dist/assets/index-D1mLdyLc.css    0.36 kB │ gzip:   0.24 kB
+dist/assets/index-FfY07PVe.js   539.07 kB │ gzip: 172.07 kB
+
+[32m✓ built in 89ms[39m
+web-shell: 4 files at /; wrote snapback4-sw.js
+file:///private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-6T7Dt5/starter-web/scripts/frontend-proof.mjs:43
+    throw Error('E_FRONTEND_SCENARIO: frontend rendered; no app-specific write scenario yet. Edit scripts/frontend-proof.mjs and replace this refusal with your write assertions.');
+          ^
+
+Error: E_FRONTEND_SCENARIO: frontend rendered; no app-specific write scenario yet. Edit scripts/frontend-proof.mjs and replace this refusal with your write assertions.
+    at file:///private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-6T7Dt5/starter-web/scripts/frontend-proof.mjs:43:11
+    at async withBrowser (file:///private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-6T7Dt5/starter-web/node_modules/snapback4/dist/proof.js:372:20)
+    at async file:///private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-6T7Dt5/starter-web/scripts/frontend-proof.mjs:27:3
+
+Node.js v24.18.0
+check: ok — 1 table (0 synced), 2 operations, compiled; 0 gates pending, 0 witnessed questions, 1 advisories (don't block): `check --review`; 0 recorded; 1 notes; 128.2 ms
+check: enforced by the language — 0 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)
+
+> snapback4-web-starter@0.1.0 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> snapback4-web-starter@0.1.0 build
+> vite build && snapback4 web-shell dist
+
+[36mvite v8.3.5 [32mbuilding client environment for production...[36m[39m
+transforming...
+✓ 121 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.45 kB │ gzip:   0.29 kB
+dist/assets/index-D1mLdyLc.css    0.36 kB │ gzip:   0.24 kB
+dist/assets/index-DVSh0YPn.js   541.86 kB │ gzip: 173.07 kB
+
+[32m✓ built in 109ms[39m
+web-shell: 4 files at /; wrote snapback4-sw.js
+frontend:proof passed
+frontend:proof passed
+
+added 6 packages in 772ms
+init: wrote 18 files in . — Vite + React app, online reads and journaled writes (no device) — next: `node scripts/install.mjs`, then `snapback4 check`, then `snapback4 dev`; see README.md
+init: files: package.json, index.html, vite.config.mts, tsconfig.json, README.md, public/favicon.svg, src/{main.tsx, styles.css, App.tsx, client.ts, vite-env.d.ts}, snapback/{schema.q, generated/package.json}, fixtures/{todos.jsonl, test.cases.jsonl}, scripts/{install.mjs, frontend-proof.mjs, launch.mjs}
+init: the backend is http://127.0.0.1:4400; `npm run dev` serves the page on http://localhost:5173; `init --web --port N` sets the backend to N and the page to N+1 together
+node scripts/install.mjs
+
+added 26 packages in 2s
+check: ok — 1 table (0 synced), 4 operations, compiled; 0 gates pending, 0 witnessed questions, 0 advisories (don't block): `check --review`; 0 recorded; 1 notes; 912.8 ms
+check: enforced by the language — 0 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)
+
+> snapback4-web-starter@0.1.0 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> snapback4-web-starter@0.1.0 build
+> vite build && snapback4 web-shell dist
+
+[36mvite v8.3.5 [32mbuilding client environment for production...[36m[39m
+transforming...
+✓ 121 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.46 kB │ gzip:   0.29 kB
+dist/assets/index-D1mLdyLc.css    0.36 kB │ gzip:   0.24 kB
+dist/assets/index-DBhNOMM4.js   544.70 kB │ gzip: 174.08 kB
+
+[32m✓ built in 168ms[39m
+web-shell: 4 files at /; wrote snapback4-sw.js
+{
+  "current": 1,
+  "event": null,
+  "events": [
+    {
+      "at": 1793109851477,
+      "generation": 1,
+      "id": 1,
+      "operation": "deploy",
+      "previous": null,
+      "release": 1,
+      "revision": 1,
+      "summary": {
+        "dormant_items": 0,
+        "narrowed_restored": 0,
+        "narrowed_retained": 0,
+        "native_digest": null,
+        "restored_items": 0
+      }
+    }
+  ],
+  "events_after": 1,
+  "generation": 1,
+  "items": [],
+  "items_after": null,
+  "latest": 1,
+  "live": {
+    "exact": true,
+    "release": 1,
+    "rowShape": {
+      "children": [],
+      "differences": [],
+      "matchesTarget": true,
+      "tables": {
+        "todos": [
+          "done",
+          "id",
+          "ownerId",
+          "title"
+        ]
+      },
+      "target": 1
+    },
+    "source": 1,
+    "target": 1,
+    "view": null
+  },
+  "native_digest": "",
+  "previous_active": null,
+  "release": 1,
+  "revision": 1,
+  "rollbackViews": [],
+  "rowShape": {
+    "children": [],
+    "differences": [],
+    "matchesTarget": true,
+    "tables": {
+      "todos": [
+        "done",
+        "id",
+        "ownerId",
+        "title"
+      ]
+    },
+    "target": 1
+  },
+  "selected": {
+    "current": true,
+    "digest": "d1f6a2b2bf431f1ebe0bf1a25da0178bdf8f9cb94530bb754d5785f56c54679b",
+    "release": 1
+  },
+  "workers": []
+}
+
+frontend:proof passed
+frontend:proof passed
+
+added 6 packages in 704ms
+init: wrote 18 files in . — Expo todos: native when available, online in Expo Go — next: `node scripts/install.mjs`, then `snapback4 check`, then `snapback4 dev`; see README.md
+init: files: package.json, app.json, babel.config.js, metro.config.js, index.js, tsconfig.json, expo-env.d.ts, App.tsx, README.md, src/{client.ts, UploadPicker.tsx}, snapback/{schema.q, generated/package.json}, fixtures/{todos.jsonl, test.cases.jsonl}, scripts/{install.mjs, frontend-proof.mjs, launch.mjs}
+init: Expo dependencies are pinned; next: `node scripts/install.mjs`, then `npx snapback4 check`. Adapter-first installs constrain React Native 0.86.3 and compatible React 19; this starter pins React/React DOM 19.2.3 and supplies the app/scripts.
+init: `npm install` takes a few minutes and reports an unpatched high advisory from Expo's node-forge code-signing dependency; qualification warns under a dated exception until a patch or recheck date — do not run `npm audit fix --force`, which downgrades Expo to SDK 44 (README)
+init: the backend is http://127.0.0.1:4400; `npm run web` serves http://localhost:8081; `--port N` sets the client's backend URL and the README and launchers together
+node scripts/install.mjs
+
+added 508 packages in 5s
+check: ok — 1 table (1 synced), 4 operations, compiled; 0 gates pending, 0 witnessed questions, 0 advisories (don't block): `check --review`; 0 recorded; 1 notes; 909.3 ms
+check: enforced by the language — 0 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)
+
+> snapback4-expo-starter@0.0.1 typecheck
+> tsc -p tsconfig.json --noEmit
+
+Starting Metro Bundler
+
+Web Bundled 414ms index.js (332 modules)
+
+› Assets (1):
+node_modules/snapback4/dist/wasm/snapback4_device_bg.f9480c3fa88da3543f4e2a3247711621.wasm (2.4MB)
+
+› web bundles (2):
+_expo/static/js/web/index-2f94a686c1629d26bb752217aa671967.js (856KB)
+_expo/static/js/web/web-worker-entry-e30b559a302df05857bc99e7d735a283.js (37KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+
+> snapback4-expo-starter@0.0.1 build:web
+> expo export --platform web --max-workers 2 --clear && snapback4 web-shell dist
+
+Starting Metro Bundler
+
+warning: Bundler cache is empty, rebuilding (this may take a minute)
+Web Bundled 3074ms index.js (328 modules)
+
+› Assets (1):
+node_modules/snapback4/dist/wasm/snapback4_device_bg.f9480c3fa88da3543f4e2a3247711621.wasm (2.4MB)
+
+› web bundles (2):
+_expo/static/js/web/index-2f94a686c1629d26bb752217aa671967.js (856KB)
+_expo/static/js/web/web-worker-entry-e30b559a302df05857bc99e7d735a283.js (37KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+web-shell: 5 files at /; wrote snapback4-sw.js
+{
+  "current": 1,
+  "event": null,
+  "events": [
+    {
+      "at": 1793109871971,
+      "generation": 1,
+      "id": 1,
+      "operation": "deploy",
+      "previous": null,
+      "release": 1,
+      "revision": 1,
+      "summary": {
+        "dormant_items": 0,
+        "narrowed_restored": 0,
+        "narrowed_retained": 0,
+        "native_digest": null,
+        "restored_items": 0
+      }
+    }
+  ],
+  "events_after": 1,
+  "generation": 1,
+  "items": [],
+  "items_after": null,
+  "latest": 1,
+  "live": {
+    "exact": true,
+    "release": 1,
+    "rowShape": {
+      "children": [],
+      "differences": [],
+      "matchesTarget": true,
+      "tables": {
+        "todos": [
+          "done",
+          "id",
+          "ownerId",
+          "title"
+        ]
+      },
+      "target": 1
+    },
+    "source": 1,
+    "target": 1,
+    "view": null
+  },
+  "native_digest": "",
+  "previous_active": null,
+  "release": 1,
+  "revision": 1,
+  "rollbackViews": [],
+  "rowShape": {
+    "children": [],
+    "differences": [],
+    "matchesTarget": true,
+    "tables": {
+      "todos": [
+        "done",
+        "id",
+        "ownerId",
+        "title"
+      ]
+    },
+    "target": 1
+  },
+  "selected": {
+    "current": true,
+    "digest": "fe8c4189572935395b0422208d72806afe385d663fd6e5814fb9ef482cc7a2dd",
+    "release": 1
+  },
+  "workers": []
+}
+
+frontend:proof passed
+frontend:proof passed
+init --adapt: planned changes (only unmodified starter files):
+  remove fixtures/todos.jsonl — the unmodified rows for the todo starter's `todos` table; your snapback/*.q has no todos table with those operations, so `snapback4 test` would refuse it
+  remove fixtures/test.cases.jsonl — the unmodified cases for the todo starter's list/add/toggle/remove; your snapback/*.q has no todos table with those operations, so `snapback4 test` would refuse it
+  rewrite App.tsx — the unmodified web client needs the device or principal journal selected by your schema's synced tables; its Todos screen calls the starter's list/add/toggle/remove, which your snapback/*.q does not declare, so it would not typecheck; adapt writes a Home screen that compiles against any schema (the signed-in viewer, your operations from snapback/generated/api.ts, and your first query without required arguments rendered with matchRead) for you to replace
+  rewrite src/client.ts — the unmodified web client needs the device or principal journal selected by your schema's synced tables
+  rewrite scripts/frontend-proof.mjs — the unmodified todo proof needs your screen's write assertions; keep a runnable frontend scaffold that explicitly reports the missing scenario
+  rewrite README.md — the unmodified starter README describes the todo starter (its todos table and guest sign-in); adapt rewrites it to describe your snapback/*.q and the Home screen, named after this directory
+init --adapt: removed fixtures/todos.jsonl and fixtures/test.cases.jsonl (unmodified starter files; fixtures/ stays for your own rows; write your own as fixtures/<table>.jsonl and fixtures/test.cases.jsonl, `snapback4 guide testing`)
+init --adapt: rewrote App.tsx and src/client.ts and scripts/frontend-proof.mjs and README.md — the unmodified web client needs the device or principal journal selected by your schema's synced tables; its Todos screen calls the starter's list/add/toggle/remove, which your snapback/*.q does not declare, so it would not typecheck; adapt writes a Home screen that compiles against any schema (the signed-in viewer, your operations from snapback/generated/api.ts, and your first query without required arguments rendered with matchRead) for you to replace
+init --adapt: next: `snapback4 check` writes snapback/generated/api.ts for the Home screen; replace Home with your own screens (`snapback4 guide client`)
+check: ok — 1 table (0 synced), 2 operations, compiled; 0 gates pending, 0 witnessed questions, 1 advisories (don't block): `check --review`; 0 recorded; 2 notes; 129.3 ms
+check: enforced by the language — 0 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)
+
+> snapback4-expo-starter@0.0.1 typecheck
+> tsc -p tsconfig.json --noEmit
+
+Starting Metro Bundler
+
+Web Bundled 490ms index.js (304 modules)
+
+› web bundles (1):
+_expo/static/js/web/index-4f4d6566ca6ab00887d1ddb15856dc28.js (771KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+
+> snapback4-expo-starter@0.0.1 build:web
+> expo export --platform web --max-workers 2 --clear && snapback4 web-shell dist
+
+Starting Metro Bundler
+
+warning: Bundler cache is empty, rebuilding (this may take a minute)
+Web Bundled 3116ms index.js (300 modules)
+
+› web bundles (1):
+_expo/static/js/web/index-4f4d6566ca6ab00887d1ddb15856dc28.js (771KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+web-shell: 3 files at /; wrote snapback4-sw.js
+file:///private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-6T7Dt5/starter-expo/scripts/frontend-proof.mjs:43
+    throw Error('E_FRONTEND_SCENARIO: frontend rendered; no app-specific write scenario yet. Edit scripts/frontend-proof.mjs and replace this refusal with your write assertions.');
+          ^
+
+Error: E_FRONTEND_SCENARIO: frontend rendered; no app-specific write scenario yet. Edit scripts/frontend-proof.mjs and replace this refusal with your write assertions.
+    at file:///private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-6T7Dt5/starter-expo/scripts/frontend-proof.mjs:43:11
+    at async withBrowser (file:///private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-6T7Dt5/starter-expo/node_modules/snapback4/dist/proof.js:372:20)
+    at async file:///private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-6T7Dt5/starter-expo/scripts/frontend-proof.mjs:27:3
+
+Node.js v24.18.0
+check: ok — 1 table (0 synced), 2 operations, compiled; 0 gates pending, 0 witnessed questions, 1 advisories (don't block): `check --review`; 0 recorded; 1 notes; 127.0 ms
+check: enforced by the language — 0 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)
+
+> snapback4-expo-starter@0.0.1 typecheck
+> tsc -p tsconfig.json --noEmit
+
+Starting Metro Bundler
+
+Web Bundled 347ms index.js (144 modules)
+
+› web bundles (1):
+_expo/static/js/web/index-b81c92c94a3a428b09f5fdf2f3a263b4.js (778KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+
+> snapback4-expo-starter@0.0.1 build:web
+> expo export --platform web --max-workers 2 --clear && snapback4 web-shell dist
+
+Starting Metro Bundler
+
+warning: Bundler cache is empty, rebuilding (this may take a minute)
+Web Bundled 3945ms index.js (302 modules)
+
+› web bundles (1):
+_expo/static/js/web/index-b81c92c94a3a428b09f5fdf2f3a263b4.js (778KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+web-shell: 3 files at /; wrote snapback4-sw.js
+frontend:proof passed
+frontend:proof passed
+
+added 6 packages in 760ms
+init: wrote 21 files in . — Vite chat app — next: `node scripts/install.mjs`, then `snapback4 check`, then `snapback4 dev`; see README.md
+init: files: package.json, index.html, vite.config.mts, tsconfig.json, README.md, src/{App.tsx, client.ts, Composer.tsx, Thread.tsx, Inbox.tsx, main.tsx, intents.ts, state.ts, vite-env.d.ts}, snapback/{schema.q, worker.ts, generated/package.json}, public/favicon.svg, scripts/{install.mjs, frontend-proof.mjs, launch.mjs}
+init: the backend is http://127.0.0.1:4400; `npm run dev` serves the page on http://localhost:5173; `init --web --port N` sets the backend to N and the page to N+1 together
+node scripts/install.mjs
+
+added 26 packages in 1s
+check: ok — 5 tables, 1 view (5 synced), 12 operations, compiled; 0 gates pending, 0 witnessed questions, 8 advisories (don't block): `check --review`; 0 recorded; 9 notes; 597.2 ms
+check: enforced by the language — 1 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)
+
+> snapback4-web-chat@0.0.1 typecheck
+> tsc -p tsconfig.json --noEmit
+
+
+> snapback4-web-chat@0.0.1 build
+> vite build && snapback4 web-shell dist
+
+[36mvite v8.3.5 [32mbuilding client environment for production...[36m[39m
+transforming...
+✓ 144 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                    1.21 kB │ gzip:   0.66 kB
+dist/assets/web-worker-entry-C-tava9d.js          25.02 kB
+dist/assets/snapback4_device_bg-C3QlWrAL.wasm  2,416.83 kB │ gzip: 751.39 kB
+dist/assets/index-cTL0UMmp.js                    613.56 kB │ gzip: 195.30 kB
+
+[32m✓ built in 205ms[39m
+[33m[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.[39m
+web-shell: 5 files at /; wrote snapback4-sw.js
+{
+  "current": 1,
+  "event": null,
+  "events": [
+    {
+      "at": 1793109920796,
+      "generation": 1,
+      "id": 1,
+      "operation": "deploy",
+      "previous": null,
+      "release": 1,
+      "revision": 1,
+      "summary": {
+        "dormant_items": 0,
+        "narrowed_restored": 0,
+        "narrowed_retained": 0,
+        "native_digest": null,
+        "restored_items": 0
+      }
+    }
+  ],
+  "events_after": 1,
+  "generation": 1,
+  "items": [],
+  "items_after": null,
+  "latest": 1,
+  "live": {
+    "exact": true,
+    "release": 1,
+    "rowShape": {
+      "children": [],
+      "differences": [],
+      "matchesTarget": true,
+      "tables": {
+        "conversations": [
+          "creatorId",
+          "id",
+          "title"
+        ],
+        "memberships": [
+          "conversationId",
+          "id",
+          "joinedAt",
+          "principal",
+          "role"
+        ],
+        "messageCounts": [
+          "conversationId",
+          "id",
+          "value"
+        ],
+        "messages": [
+          "at",
+          "authorId",
+          "body",
+          "conversationId",
+          "editedAt",
+          "id",
+          "photo"
+        ],
+        "profiles": [
+          "avatarUrl",
+          "displayName",
+          "handle",
+          "id",
+          "principal"
+        ],
+        "readMarkers": [
+          "at",
+          "conversationId",
+          "id",
+          "principal"
+        ]
+      },
+      "target": 1
+    },
+    "source": 1,
+    "target": 1,
+    "view": null
+  },
+  "native_digest": "",
+  "previous_active": null,
+  "release": 1,
+  "revision": 1,
+  "rollbackViews": [],
+  "rowShape": {
+    "children": [],
+    "differences": [],
+    "matchesTarget": true,
+    "tables": {
+      "conversations": [
+        "creatorId",
+        "id",
+        "title"
+      ],
+      "memberships": [
+        "conversationId",
+        "id",
+        "joinedAt",
+        "principal",
+        "role"
+      ],
+      "messageCounts": [
+        "conversationId",
+        "id",
+        "value"
+      ],
+      "messages": [
+        "at",
+        "authorId",
+        "body",
+        "conversationId",
+        "editedAt",
+        "id",
+        "photo"
+      ],
+      "profiles": [
+        "avatarUrl",
+        "displayName",
+        "handle",
+        "id",
+        "principal"
+      ],
+      "readMarkers": [
+        "at",
+        "conversationId",
+        "id",
+        "principal"
+      ]
+    },
+    "target": 1
+  },
+  "selected": {
+    "current": true,
+    "digest": "9fc6bb10fc98ec39c20ef1cc5ef525078cd176cbcd4e65c46a0d224986f8aa6e",
+    "release": 1
+  },
+  "workers": [
+    [
+      "worker:status",
+      "{\"crashes\":0,\"mode\":\"dev\",\"name\":\"worker\",\"pid\":47645,\"restarts\":0,\"source\":\"/private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-6T7Dt5/starter-web-chat/deployment/releases/1/snapback/worker.ts\",\"starts\":1,\"state\":\"running\"}"
+    ]
+  ]
+}
+
+frontend:proof passed
+frontend:proof passed
+
+added 6 packages in 691ms
+init: wrote 21 files in . — Expo chat app — next: `node scripts/install.mjs`, then `snapback4 check`, then `snapback4 dev`; see README.md
+init: files: package.json, app.json, babel.config.js, metro.config.js, index.js, tsconfig.json, expo-env.d.ts, App.tsx, README.md, src/{client.ts, Inbox.tsx, Thread.tsx, intents.ts, intent-store.ts, intent-store.web.ts, intent-store.native.ts}, snapback/{schema.q, generated/package.json}, scripts/{install.mjs, frontend-proof.mjs, launch.mjs}
+init: Expo dependencies are pinned; next: `node scripts/install.mjs`, then `npx snapback4 check`. Adapter-first installs constrain React Native 0.86.3 and compatible React 19; this starter pins React/React DOM 19.2.3 and supplies the app/scripts.
+init: `npm install` takes a few minutes and reports an unpatched high advisory from Expo's node-forge code-signing dependency; qualification warns under a dated exception until a patch or recheck date — do not run `npm audit fix --force`, which downgrades Expo to SDK 44 (README)
+init: the backend is http://127.0.0.1:4400; `npm run web` serves http://localhost:8081; `--port N` sets the client's backend URL and the README and launchers together
+node scripts/install.mjs
+
+added 506 packages in 5s
+check: ok — 5 tables, 1 view (5 synced), 11 operations, compiled; 0 gates pending, 0 witnessed questions, 8 advisories (don't block): `check --review`; 0 recorded; 9 notes; 610.1 ms
+check: enforced by the language — 1 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)
+
+> snapback4-expo-chat@0.0.1 typecheck
+> tsc -p tsconfig.json --noEmit
+
+Starting Metro Bundler
+
+Web Bundled 892ms index.js (361 modules)
+
+› Assets (1):
+node_modules/snapback4/dist/wasm/snapback4_device_bg.f9480c3fa88da3543f4e2a3247711621.wasm (2.4MB)
+
+› web bundles (2):
+_expo/static/js/web/index-9d841b32169a038d52ebc82818221294.js (934KB)
+_expo/static/js/web/web-worker-entry-656cc8d4b9ae83abfb26e2f5dc9c2eb5.js (37KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+
+> snapback4-expo-chat@0.0.1 build:web
+> expo export -p web --max-workers 2 && snapback4 web-shell dist
+
+Starting Metro Bundler
+
+Web Bundled 99ms index.js (1 module)
+
+› Assets (1):
+node_modules/snapback4/dist/wasm/snapback4_device_bg.f9480c3fa88da3543f4e2a3247711621.wasm (2.4MB)
+
+› web bundles (2):
+_expo/static/js/web/index-9d841b32169a038d52ebc82818221294.js (934KB)
+_expo/static/js/web/web-worker-entry-656cc8d4b9ae83abfb26e2f5dc9c2eb5.js (37KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+web-shell: 5 files at /; wrote snapback4-sw.js
+{
+  "current": 1,
+  "event": null,
+  "events": [
+    {
+      "at": 1793109938973,
+      "generation": 1,
+      "id": 1,
+      "operation": "deploy",
+      "previous": null,
+      "release": 1,
+      "revision": 1,
+      "summary": {
+        "dormant_items": 0,
+        "narrowed_restored": 0,
+        "narrowed_retained": 0,
+        "native_digest": null,
+        "restored_items": 0
+      }
+    }
+  ],
+  "events_after": 1,
+  "generation": 1,
+  "items": [],
+  "items_after": null,
+  "latest": 1,
+  "live": {
+    "exact": true,
+    "release": 1,
+    "rowShape": {
+      "children": [],
+      "differences": [],
+      "matchesTarget": true,
+      "tables": {
+        "conversations": [
+          "creatorId",
+          "id",
+          "title"
+        ],
+        "memberships": [
+          "conversationId",
+          "id",
+          "joinedAt",
+          "principal",
+          "role"
+        ],
+        "messageCounts": [
+          "conversationId",
+          "id",
+          "value"
+        ],
+        "messages": [
+          "at",
+          "authorId",
+          "body",
+          "conversationId",
+          "editedAt",
+          "id",
+          "photo"
+        ],
+        "profiles": [
+          "avatarUrl",
+          "displayName",
+          "handle",
+          "id",
+          "principal"
+        ],
+        "readMarkers": [
+          "at",
+          "conversationId",
+          "id",
+          "principal"
+        ]
+      },
+      "target": 1
+    },
+    "source": 1,
+    "target": 1,
+    "view": null
+  },
+  "native_digest": "",
+  "previous_active": null,
+  "release": 1,
+  "revision": 1,
+  "rollbackViews": [],
+  "rowShape": {
+    "children": [],
+    "differences": [],
+    "matchesTarget": true,
+    "tables": {
+      "conversations": [
+        "creatorId",
+        "id",
+        "title"
+      ],
+      "memberships": [
+        "conversationId",
+        "id",
+        "joinedAt",
+        "principal",
+        "role"
+      ],
+      "messageCounts": [
+        "conversationId",
+        "id",
+        "value"
+      ],
+      "messages": [
+        "at",
+        "authorId",
+        "body",
+        "conversationId",
+        "editedAt",
+        "id",
+        "photo"
+      ],
+      "profiles": [
+        "avatarUrl",
+        "displayName",
+        "handle",
+        "id",
+        "principal"
+      ],
+      "readMarkers": [
+        "at",
+        "conversationId",
+        "id",
+        "principal"
+      ]
+    },
+    "target": 1
+  },
+  "selected": {
+    "current": true,
+    "digest": "08b35e05579cf34530c9bd16eca123d16f48e3912e45ba481a1d5a882e3f94eb",
+    "release": 1
+  },
+  "workers": []
+}
+
+frontend:proof passed
+frontend:proof passed
+
+added 6 packages in 669ms
+init: wrote 42 files in . — Expo Router social app — next: `node scripts/install.mjs`, then `snapback4 check`, then `snapback4 dev`; see README.md
+init: files: package.json, babel.config.js, metro.config.js, expo-env.d.ts, README.md, tsconfig.json, app.json, src/ (19 files), scripts/{seed.mjs, install.mjs, frontend-proof.mjs, launch.mjs}, snapback/{workers/notifications.mjs, schema.q, generated/package.json}, app/{_layout.tsx, conversation/[id].tsx, dm/[other].tsx, (tabs)/_layout.tsx, (tabs)/index.tsx, (tabs)/chats.tsx, (tabs)/search.tsx, (tabs)/profile.tsx, search-chat/[id].tsx}
+init: Expo dependencies are pinned; next: `node scripts/install.mjs`, then `npx snapback4 check`. Adapter-first installs constrain React Native 0.86.3 and compatible React 19; this starter pins React/React DOM 19.2.3 and supplies the app/scripts.
+init: `npm install` takes a few minutes and reports an unpatched high advisory from Expo's node-forge code-signing dependency; qualification warns under a dated exception until a patch or recheck date — do not run `npm audit fix --force`, which downgrades Expo to SDK 44 (README)
+init: the backend is http://127.0.0.1:4400; `npm run web` serves http://localhost:8081; `--port N` sets the client's backend URL and the README and launchers together
+node scripts/install.mjs
+
+added 613 packages in 6s
+check: ok — 16 tables, 1 view (15 synced), 31 operations, compiled; 0 gates pending, 0 witnessed questions, 20 advisories (don't block): `check --review`; 0 recorded; 21 notes; 2479.4 ms
+check: enforced by the language — 2 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)
+fix: schema.q:232:1 N_NEVER_COMPLETE: query search: analyzer limitation: when the search text folds to no words, the page over messages[..] by read or declaration on messages (at, id) at schema.q:233:10 is never `complete` — the read rule `exists members[.conversation, viewer]` reads .conversation, which the scan does not pin, so the server cannot tell "no more" from "more you may not read"; it answers `complete: false` even when every row the caller may read is there — test.cases.jsonl: the default passes it (or write `"expect": "capped"`); a client shows the rows it has and treats `complete: false` as "there may be more", not an error; the complete form is the pin (check --verbose) — check --review for repair
+
+> snapback4-social-starter@0.0.1 typecheck
+> tsc -p tsconfig.json --noEmit
+
+Starting Metro Bundler
+
+Web Bundled 5111ms node_modules/expo-router/entry.js (934 modules)
+
+› Assets (19):
+node_modules/expo-router/assets/arrow_down.017bc6ba3fc25503e5eb5e53826d48a8.png (9.5KB)
+node_modules/expo-router/assets/error.d1ea1496f9057eb392d5bbf3732a61b7.png (469B)
+node_modules/expo-router/assets/file.19eeb73b9593a38f8e9f418337fc7d10.png (138B)
+node_modules/expo-router/assets/forward.d8b800c443b8972542883e0b9de2bdc6.png (188B)
+node_modules/expo-router/assets/pkg.ab19f4cbc543357183a20571f68380a3.png (364B)
+node_modules/expo-router/assets/react-navigation/elements/back-icon-mask.0a328cd9c1afd0afe8e3b1ec5165b1b4.png (653B)
+node_modules/expo-router/assets/react-navigation/elements/back-icon.35ba0eaec5a4f5ed12ca16fabeae451d.png (207B)
+node_modules/expo-router/assets/react-navigation/elements/clear-icon.c94f6478e7ae0cdd9f15de1fcb9e5e55.png (4 variations | 425B)
+node_modules/expo-router/assets/react-navigation/elements/close-icon.808e1b1b9b53114ec2838071a7e6daa7.png (4 variations | 235B)
+node_modules/expo-router/assets/react-navigation/elements/search-icon.286d67d3f74808a60a78d3ebf1a5fb57.png (928B)
+node_modules/expo-router/assets/sitemap.412dd9275b6b48ad28f5e3d81bb1f626.png (465B)
+node_modules/expo-router/assets/unmatched.20e71bdf79e3a97bf55fd9e164041578.png (4.8KB)
+node_modules/snapback4/dist/wasm/snapback4_device_bg.f9480c3fa88da3543f4e2a3247711621.wasm (2.4MB)
+
+› web bundles (2):
+_expo/static/js/web/entry-417b3eb22e4adc201924bebf5a982368.js (1.7MB)
+_expo/static/js/web/web-worker-entry-121fd5790b5882523e3486430656332b.js (37KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+
+> snapback4-social-starter@0.0.1 build:web
+> expo export -p web --max-workers 2 && snapback4 web-shell dist
+
+Starting Metro Bundler
+
+Web Bundled 204ms node_modules/expo-router/entry.js (934 modules)
+
+› Assets (19):
+node_modules/expo-router/assets/arrow_down.017bc6ba3fc25503e5eb5e53826d48a8.png (9.5KB)
+node_modules/expo-router/assets/error.d1ea1496f9057eb392d5bbf3732a61b7.png (469B)
+node_modules/expo-router/assets/file.19eeb73b9593a38f8e9f418337fc7d10.png (138B)
+node_modules/expo-router/assets/forward.d8b800c443b8972542883e0b9de2bdc6.png (188B)
+node_modules/expo-router/assets/pkg.ab19f4cbc543357183a20571f68380a3.png (364B)
+node_modules/expo-router/assets/react-navigation/elements/back-icon-mask.0a328cd9c1afd0afe8e3b1ec5165b1b4.png (653B)
+node_modules/expo-router/assets/react-navigation/elements/back-icon.35ba0eaec5a4f5ed12ca16fabeae451d.png (207B)
+node_modules/expo-router/assets/react-navigation/elements/clear-icon.c94f6478e7ae0cdd9f15de1fcb9e5e55.png (4 variations | 425B)
+node_modules/expo-router/assets/react-navigation/elements/close-icon.808e1b1b9b53114ec2838071a7e6daa7.png (4 variations | 235B)
+node_modules/expo-router/assets/react-navigation/elements/search-icon.286d67d3f74808a60a78d3ebf1a5fb57.png (928B)
+node_modules/expo-router/assets/sitemap.412dd9275b6b48ad28f5e3d81bb1f626.png (465B)
+node_modules/expo-router/assets/unmatched.20e71bdf79e3a97bf55fd9e164041578.png (4.8KB)
+node_modules/snapback4/dist/wasm/snapback4_device_bg.f9480c3fa88da3543f4e2a3247711621.wasm (2.4MB)
+
+› web bundles (2):
+_expo/static/js/web/entry-417b3eb22e4adc201924bebf5a982368.js (1.7MB)
+_expo/static/js/web/web-worker-entry-121fd5790b5882523e3486430656332b.js (37KB)
+
+› Files (2):
+index.html (1.2KB)
+metadata.json (49B)
+
+Exported: dist
+web-shell: 23 files at /; wrote snapback4-sw.js
+{
+  "current": 1,
+  "event": null,
+  "events": [
+    {
+      "at": 1793109982830,
+      "generation": 1,
+      "id": 1,
+      "operation": "deploy",
+      "previous": null,
+      "release": 1,
+      "revision": 1,
+      "summary": {
+        "dormant_items": 0,
+        "narrowed_restored": 0,
+        "narrowed_retained": 0,
+        "native_digest": null,
+        "restored_items": 0
+      }
+    }
+  ],
+  "events_after": 1,
+  "generation": 1,
+  "items": [],
+  "items_after": null,
+  "latest": 1,
+  "live": {
+    "exact": true,
+    "release": 1,
+    "rowShape": {
+      "children": [],
+      "differences": [],
+      "matchesTarget": true,
+      "tables": {
+        "$ownKeys:likes": [
+          "id",
+          "post",
+          "principal",
+          "value"
+        ],
+        "conversations": [
+          "creatorId",
+          "id",
+          "lastOrdinal",
+          "title"
+        ],
+        "directChats": [
+          "conversation",
+          "id",
+          "owner",
+          "peer"
+        ],
+        "followingEdges": [
+          "actorId",
+          "epoch",
+          "id",
+          "readerId"
+        ],
+        "followingFeed": [
+          "actorId",
+          "at",
+          "authorId",
+          "epoch",
+          "eventId",
+          "id",
+          "postId",
+          "readerId",
+          "repost"
+        ],
+        "followingPosts": [
+          "actorId",
+          "at",
+          "authorId",
+          "id",
+          "postId",
+          "repost"
+        ],
+        "followingRemovedEvents": [
+          "actorId",
+          "eventId",
+          "id"
+        ],
+        "followingWork": [
+          "actorId",
+          "admitted",
+          "at",
+          "cursor",
+          "epoch",
+          "error",
+          "eventId",
+          "id",
+          "kind",
+          "readerId",
+          "remaining",
+          "status",
+          "viewerId"
+        ],
+        "follows": [
+          "followedId",
+          "followerId",
+          "id"
+        ],
+        "likes": [
+          "at",
+          "id",
+          "post",
+          "principal"
+        ],
+        "members": [
+          "conversation",
+          "deliveredOrdinal",
+          "id",
+          "joinedOrdinal",
+          "principal",
+          "seenOrdinal"
+        ],
+        "messages": [
+          "at",
+          "conversation",
+          "id",
+          "ordinal",
+          "photo",
+          "recipients",
+          "replyTo",
+          "sender",
+          "text"
+        ],
+        "posts": [
+          "at",
+          "authorId",
+          "body",
+          "id",
+          "removed"
+        ],
+        "profiles": [
+          "avatar",
+          "id",
+          "name",
+          "principal"
+        ],
+        "reposts": [
+          "actorId",
+          "at",
+          "id",
+          "postId"
+        ],
+        "runs": [
+          "conversation",
+          "fromOrdinal",
+          "id",
+          "principal",
+          "throughOrdinal"
+        ],
+        "typing": [
+          "conversation",
+          "id",
+          "principal"
+        ]
+      },
+      "target": 1
+    },
+    "source": 1,
+    "target": 1,
+    "view": null
+  },
+  "native_digest": "",
+  "previous_active": null,
+  "release": 1,
+  "revision": 1,
+  "rollbackViews": [],
+  "rowShape": {
+    "children": [],
+    "differences": [],
+    "matchesTarget": true,
+    "tables": {
+      "$ownKeys:likes": [
+        "id",
+        "post",
+        "principal",
+        "value"
+      ],
+      "conversations": [
+        "creatorId",
+        "id",
+        "lastOrdinal",
+        "title"
+      ],
+      "directChats": [
+        "conversation",
+        "id",
+        "owner",
+        "peer"
+      ],
+      "followingEdges": [
+        "actorId",
+        "epoch",
+        "id",
+        "readerId"
+      ],
+      "followingFeed": [
+        "actorId",
+        "at",
+        "authorId",
+        "epoch",
+        "eventId",
+        "id",
+        "postId",
+        "readerId",
+        "repost"
+      ],
+      "followingPosts": [
+        "actorId",
+        "at",
+        "authorId",
+        "id",
+        "postId",
+        "repost"
+      ],
+      "followingRemovedEvents": [
+        "actorId",
+        "eventId",
+        "id"
+      ],
+      "followingWork": [
+        "actorId",
+        "admitted",
+        "at",
+        "cursor",
+        "epoch",
+        "error",
+        "eventId",
+        "id",
+        "kind",
+        "readerId",
+        "remaining",
+        "status",
+        "viewerId"
+      ],
+      "follows": [
+        "followedId",
+        "followerId",
+        "id"
+      ],
+      "likes": [
+        "at",
+        "id",
+        "post",
+        "principal"
+      ],
+      "members": [
+        "conversation",
+        "deliveredOrdinal",
+        "id",
+        "joinedOrdinal",
+        "principal",
+        "seenOrdinal"
+      ],
+      "messages": [
+        "at",
+        "conversation",
+        "id",
+        "ordinal",
+        "photo",
+        "recipients",
+        "replyTo",
+        "sender",
+        "text"
+      ],
+      "posts": [
+        "at",
+        "authorId",
+        "body",
+        "id",
+        "removed"
+      ],
+      "profiles": [
+        "avatar",
+        "id",
+        "name",
+        "principal"
+      ],
+      "reposts": [
+        "actorId",
+        "at",
+        "id",
+        "postId"
+      ],
+      "runs": [
+        "conversation",
+        "fromOrdinal",
+        "id",
+        "principal",
+        "throughOrdinal"
+      ],
+      "typing": [
+        "conversation",
+        "id",
+        "principal"
+      ]
+    },
+    "target": 1
+  },
+  "selected": {
+    "current": true,
+    "digest": "89a4ae171b684c3173ba0535f69a15b5044e221df021a0b083086cc676cee6d7",
+    "release": 1
+  },
+  "workers": [
+    [
+      "worker:status:notifications",
+      "{\"crashes\":0,\"mode\":\"serve\",\"name\":\"notifications\",\"pid\":55319,\"restarts\":0,\"source\":\"/private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-6T7Dt5/starter-expo-social/deployment/releases/1/snapback/workers/notifications.mjs\",\"starts\":1,\"state\":\"running\"}"
+    ]
+  ]
+}
+
+frontend:proof passed
+frontend:proof passed
+
+added 6 packages in 768ms
+init: wrote 18 files in . — Vite + React todos, offline-capable — next: `node scripts/install.mjs`, then `snapback4 check`, then `snapback4 dev`; see README.md
+init: files: package.json, index.html, vite.config.mts, tsconfig.json, README.md, public/favicon.svg, src/{main.tsx, styles.css, App.tsx, client.ts, vite-env.d.ts}, snapback/{schema.q, generated/package.json}, fixtures/{todos.jsonl, test.cases.jsonl}, scripts/{install.mjs, frontend-proof.mjs, launch.mjs}
+init: the backend is http://127.0.0.1:4400; `npm run dev` serves the page on http://localhost:5173; `init --web --port N` sets the backend to N and the page to N+1 together
+node scripts/install.mjs
+
+added 26 packages in 1s
+day-two accounts passed: v1, hot v2, rollback, forward; business assertions at every step
+packed clock and alias controls passed
+✔ KIT4 literal first wire page runs unchanged and its trace is generated from real requests (486.00025ms)
+ℹ tests 1
+ℹ suites 0
+ℹ pass 1
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 526.476125
+
+added 6 packages in 831ms
+check: ok — 2 tables (0 synced), 4 operations, compiled; 0 gates pending, 0 witnessed questions, 2 advisories (don't block): `check --review`; 0 recorded; 0 notes; 133.5 ms
+check: enforced by the language — 0 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)
+snapback4: Authenticated development and staging sessions keep their remaining lifetime across this jump; sessions:expire explicitly tests credential expiry. Unplaced uploads still age. Never replay an ambiguous advance.
+{"backendUrl":"http://127.0.0.1:62477","credentialsFile":"staging-users-20a999fd-1dad-411f-ac6a-089b097c765f.json"}
+deploy verdict: READY / completed; security FIX 0; 0 gates; 0 witnessed questions; 1 advisories (don't block): deploy --review
+live: release 1 = exact source 1
+release 1 is current as generation 1; 0 rows, 0 cells, 0 index entries dormant; 1.2 ms
+security: enforced by the language — 0 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis); 0 witnessed questions; 1 advisories (don't block): deploy --review (or check --review)
+  last test: NEVER RECORDED; run `snapback4 test` before deployment; no matching completed campaign for this source, fixtures and CLI; 0 independent invariants
+First admin provisioned; sign in with the chosen email and password
+First admin provisioned; sign in with the chosen email and password
+snapback4: Authenticated development and staging sessions keep their remaining lifetime across this jump; sessions:expire explicitly tests credential expiry. Unplaced uploads still age. Never replay an ambiguous advance.
+packed staging: serve, real users/data, first admin, production refusal passed
+
+added 6 packages in 683ms
+== npm publish snapback4-darwin-arm64-0.4.43.tgz
+npm notice
+npm notice 📦  snapback4-darwin-arm64@0.4.43
+npm notice Tarball Contents
+npm notice 3.3kB THIRD-PARTY-NOTICES
+npm notice 458B package.json
+npm notice 32.9MB snapback4
+npm notice Tarball Details
+npm notice name: snapback4-darwin-arm64
+npm notice version: 0.4.43
+npm notice filename: snapback4-darwin-arm64-0.4.43.tgz
+npm notice package size: 15.7 MB
+npm notice unpacked size: 32.9 MB
+npm notice shasum: daa7d992d1078397e5416bc73b793f3e6be9102b
+npm notice integrity: sha512-t2ZtcKo6g1sE2[...]nYAOs07iA/aOA==
+npm notice total files: 3
+npm notice
+npm notice Publishing to https://registry.npmjs.org/ with tag latest and public access
+npm notice Your package is being processed and may take a few minutes to become available.
+publish: waiting for snapback4-darwin-arm64@0.4.43 to become readable
+publish: waiting for snapback4-darwin-arm64@0.4.43 to become readable
+publish: waiting for snapback4-darwin-arm64@0.4.43 to become readable
+publish: waiting for snapback4-darwin-arm64@0.4.43 to become readable
+publish: waiting for snapback4-darwin-arm64@0.4.43 to become readable
+publish: waiting for snapback4-darwin-arm64@0.4.43 to become readable
+publish: waiting for snapback4-darwin-arm64@0.4.43 to become readable
+== npm publish snapback4-linux-x64-0.4.43.tgz
+npm notice
+npm notice 📦  snapback4-linux-x64@0.4.43
+npm notice Tarball Contents
+npm notice 9.5kB THIRD-PARTY-NOTICES
+npm notice 448B package.json
+npm notice 43.5MB snapback4
+npm notice Tarball Details
+npm notice name: snapback4-linux-x64
+npm notice version: 0.4.43
+npm notice filename: snapback4-linux-x64-0.4.43.tgz
+npm notice package size: 17.9 MB
+npm notice unpacked size: 43.5 MB
+npm notice shasum: 732af4f4e3fcf999c10d83f1d928a503867624b2
+npm notice integrity: sha512-nCvE/9+Xi2p3Q[...]JOatMU0DdF6kg==
+npm notice total files: 3
+npm notice
+npm notice Publishing to https://registry.npmjs.org/ with tag latest and public access
+npm notice Your package is being processed and may take a few minutes to become available.
+publish: waiting for snapback4-linux-x64@0.4.43 to become readable
+publish: waiting for snapback4-linux-x64@0.4.43 to become readable
+publish: waiting for snapback4-linux-x64@0.4.43 to become readable
+publish: waiting for snapback4-linux-x64@0.4.43 to become readable
+publish: waiting for snapback4-linux-x64@0.4.43 to become readable
+publish: waiting for snapback4-linux-x64@0.4.43 to become readable
+== npm publish snapback4-0.4.43.tgz
+npm notice
+npm notice 📦  snapback4@0.4.43
+npm notice Tarball Contents
+npm notice 72.6kB CHANGELOG.md
+npm notice 292.7kB CLIENT-AND-OPERATIONS.md
+npm notice 16.2kB FOLLOWING-ADOPTION.md
+npm notice 5.9kB OFFLINE-UPLOADS.md
+npm notice 31.8kB README.md
+npm notice 73.0kB SERVER.md
+npm notice 2.0kB THIRD-PARTY-NOTICES
+npm notice 9.5kB bin/cli-commands.json
+npm notice 647B bin/cli-usage.js
+npm notice 5.2kB bin/release-changes.js
+npm notice 4.8kB bin/snapback4.js
+npm notice 8.8kB bin/upgrade-warnings.js
+npm notice 16.2kB bin/upgrade.js
+npm notice 6.5kB bin/web-shell.js
+npm notice 25.7kB bin/witness-acquire.js
+npm notice 14.5kB bin/witness-web.js
+npm notice 819B dist/acquisition.d.ts
+npm notice 1.7kB dist/acquisition.js
+npm notice 475B dist/actions.d.ts
+npm notice 1.7kB dist/actions.js
+npm notice 1.4kB dist/admission-authority.d.ts
+npm notice 3.1kB dist/admission-authority.js
+npm notice 2.2kB dist/admission.d.ts
+npm notice 2.8kB dist/admission.js
+npm notice 557B dist/app-client.d.ts
+npm notice 20.6kB dist/app-client.js
+npm notice 352B dist/app-global.d.ts
+npm notice 1.3kB dist/app-global.js
+npm notice 1.6kB dist/app-journal.d.ts
+npm notice 9.2kB dist/app-journal.js
+npm notice 859B dist/app-online-arm.d.ts
+npm notice 3.2kB dist/app-online-arm.js
+npm notice 575B dist/app-online.d.ts
+npm notice 35.8kB dist/app-online.js
+npm notice 285B dist/app-persona.d.ts
+npm notice 13.3kB dist/app-persona.js
+npm notice 874B dist/app-revocations.d.ts
+npm notice 13.0kB dist/app-revocations.js
+npm notice 573B dist/app-storage.d.ts
+npm notice 2.6kB dist/app-storage.js
+npm notice 359B dist/app-uploads.d.ts
+npm notice 2.4kB dist/app-uploads.js
+npm notice 4.1kB dist/app.d.ts
+npm notice 69.0kB dist/app.js
+npm notice 855B dist/asset-download.d.ts
+npm notice 14.1kB dist/asset-download.js
+npm notice 1.7kB dist/asset-progress.d.ts
+npm notice 2.7kB dist/asset-progress.js
+npm notice 1.2kB dist/assets.d.ts
+npm notice 9.3kB dist/assets.js
+npm notice 3.5kB dist/auth.d.ts
+npm notice 8.5kB dist/auth.js
+npm notice 3.2kB dist/backend.d.ts
+npm notice 4.8kB dist/backend.js
+npm notice 53B dist/bin-path.d.ts
+npm notice 212B dist/bin-path.js
+npm notice 645B dist/change-evidence.d.ts
+npm notice 1.2kB dist/change-evidence.js
+npm notice 807B dist/changes.d.ts
+npm notice 7.1kB dist/changes.js
+npm notice 719B dist/client-start.d.ts
+npm notice 1.3kB dist/client-start.js
+npm notice 2.6kB dist/client.d.ts
+npm notice 88.1kB dist/client.js
+npm notice 2.9kB dist/clock.d.ts
+npm notice 12.4kB dist/clock.js
+npm notice 1.1kB dist/closing-responses.d.ts
+npm notice 2.9kB dist/closing-responses.js
+npm notice 31.3kB dist/contract.d.ts
+npm notice 5.6kB dist/contract.js
+npm notice 49B dist/default-fetch.d.ts
+npm notice 455B dist/default-fetch.js
+npm notice 333B dist/delivery-acceptance.d.ts
+npm notice 1.2kB dist/delivery-acceptance.js
+npm notice 2.4kB dist/delivery-state.d.ts
+npm notice 6.2kB dist/delivery-state.js
+npm notice 2.2kB dist/delivery.d.ts
+npm notice 19.2kB dist/delivery.js
+npm notice 1.6kB dist/device-control.d.ts
+npm notice 3.5kB dist/device-control.js
+npm notice 1.7kB dist/device-restore.d.ts
+npm notice 3.0kB dist/device-restore.js
+npm notice 1.8kB dist/device-version.d.ts
+npm notice 3.2kB dist/device-version.js
+npm notice 1.3kB dist/ephemeral-reads.d.ts
+npm notice 5.7kB dist/ephemeral-reads.js
+npm notice 1.1kB dist/ephemeral.d.ts
+npm notice 6.6kB dist/ephemeral.js
+npm notice 1.4kB dist/files.d.ts
+npm notice 3.7kB dist/files.js
+npm notice 980B dist/following-transport.d.ts
+npm notice 1.9kB dist/following-transport.js
+npm notice 1.7kB dist/following.d.ts
+npm notice 18.5kB dist/following.js
+npm notice 1.5kB dist/http-response.d.ts
+npm notice 5.1kB dist/http-response.js
+npm notice 1.8kB dist/identity-admission.d.ts
+npm notice 8.7kB dist/identity-admission.js
+npm notice 80B dist/identity-principal.d.ts
+npm notice 312B dist/identity-principal.js
+npm notice 549B dist/identity-request.d.ts
+npm notice 2.6kB dist/identity-request.js
+npm notice 544B dist/identity-runtime.d.ts
+npm notice 4.7kB dist/identity-runtime.js
+npm notice 3.8kB dist/identity.d.ts
+npm notice 29.0kB dist/identity.js
+npm notice 126B dist/inspection.d.ts
+npm notice 49B dist/inspection.js
+npm notice 117B dist/journal-changes.d.ts
+npm notice 2.8kB dist/journal-changes.js
+npm notice 1.6kB dist/local-assets.d.ts
+npm notice 10.4kB dist/local-assets.js
+npm notice 1.1kB dist/local-backend.d.ts
+npm notice 2.7kB dist/local-backend.js
+npm notice 1.5kB dist/local-delivery.d.ts
+npm notice 8.0kB dist/local-delivery.js
+npm notice 4.7kB dist/local-device.d.ts
+npm notice 376B dist/local-device.js
+npm notice 451B dist/local-exit-settlement.d.ts
+npm notice 939B dist/local-exit-settlement.js
+npm notice 614B dist/local-exit.d.ts
+npm notice 3.0kB dist/local-exit.js
+npm notice 1.7kB dist/local-following.d.ts
+npm notice 6.5kB dist/local-following.js
+npm notice 658B dist/local-native.d.ts
+npm notice 3.1kB dist/local-native.js
+npm notice 563B dist/local-network.d.ts
+npm notice 2.3kB dist/local-network.js
+npm notice 473B dist/local-publication.d.ts
+npm notice 845B dist/local-publication.js
+npm notice 3.8kB dist/local-query.d.ts
+npm notice 33.9kB dist/local-query.js
+npm notice 945B dist/local-read-deadlines.d.ts
+npm notice 2.3kB dist/local-read-deadlines.js
+npm notice 9.8kB dist/local-reads.d.ts
+npm notice 25.8kB dist/local-reads.js
+npm notice 2.3kB dist/local-receipts.d.ts
+npm notice 6.9kB dist/local-receipts.js
+npm notice 2.3kB dist/local-search.d.ts
+npm notice 26.2kB dist/local-search.js
+npm notice 1.4kB dist/local-sync.d.ts
+npm notice 4.5kB dist/local-sync.js
+npm notice 189B dist/local-through.d.ts
+npm notice 5.3kB dist/local-through.js
+npm notice 1.2kB dist/local-types.d.ts
+npm notice 11B dist/local-types.js
+npm notice 896B dist/local-upload.d.ts
+npm notice 2.6kB dist/local-upload.js
+npm notice 700B dist/local.d.ts
+npm notice 124.7kB dist/local.js
+npm notice 437B dist/mock-ephemeral.d.ts
+npm notice 5.0kB dist/mock-ephemeral.js
+npm notice 2.1kB dist/mock.d.ts
+npm notice 13.7kB dist/mock.js
+npm notice 866B dist/native.d.ts
+npm notice 5.9kB dist/native.js
+npm notice 159B dist/node-fetch.d.ts
+npm notice 5.2kB dist/node-fetch.js
+npm notice 1.6kB dist/observation-work.d.ts
+npm notice 4.4kB dist/observation-work.js
+npm notice 1.7kB dist/observe-watch.d.ts
+npm notice 5.8kB dist/observe-watch.js
+npm notice 941B dist/online-arm-fence.d.ts
+npm notice 1.2kB dist/online-arm-fence.js
+npm notice 2.9kB dist/online-capture.d.ts
+npm notice 10.8kB dist/online-capture.js
+npm notice 710B dist/online-delivery.d.ts
+npm notice 1.8kB dist/online-delivery.js
+npm notice 701B dist/online-dispatch.d.ts
+npm notice 635B dist/online-dispatch.js
+npm notice 4.7kB dist/pending-items.d.ts
+npm notice 11.5kB dist/pending-items.js
+npm notice 1.2kB dist/pending-writes.d.ts
+npm notice 6.4kB dist/pending-writes.js
+npm notice 423B dist/presence-refresh.d.ts
+npm notice 858B dist/presence-refresh.js
+npm notice 2.5kB dist/proof-accounts.d.ts
+npm notice 15.6kB dist/proof-accounts.js
+npm notice 11B dist/proof-command.d.ts
+npm notice 1.7kB dist/proof-command.js
+npm notice 930B dist/proof-fixtures.d.ts
+npm notice 5.2kB dist/proof-fixtures.js
+npm notice 0B dist/proof-guard.d.ts
+npm notice 457B dist/proof-guard.js
+npm notice 11B dist/proof-host.d.ts
+npm notice 7.6kB dist/proof-host.js
+npm notice 2.6kB dist/proof-process.d.ts
+npm notice 10.6kB dist/proof-process.js
+npm notice 339B dist/proof-roster-lock.d.ts
+npm notice 3.4kB dist/proof-roster-lock.js
+npm notice 1.9kB dist/proof-serve-check.d.ts
+npm notice 13.5kB dist/proof-serve-check.js
+npm notice 11B dist/proof-serve-driver.d.ts
+npm notice 2.6kB dist/proof-serve-driver.js
+npm notice 442B dist/proof-text.d.ts
+npm notice 13.5kB dist/proof-text.js
+npm notice 10.5kB dist/proof.d.ts
+npm notice 36.0kB dist/proof.js
+npm notice 1.1kB dist/query-custody.d.ts
+npm notice 2.1kB dist/query-custody.js
+npm notice 1.9kB dist/query-dependencies.d.ts
+npm notice 4.3kB dist/query-dependencies.js
+npm notice 1.3kB dist/query-settlement.d.ts
+npm notice 5.5kB dist/query-settlement.js
+npm notice 898B dist/react-pages.d.ts
+npm notice 7.5kB dist/react-pages.js
+npm notice 724B dist/react-pending-items.d.ts
+npm notice 3.2kB dist/react-pending-items.js
+npm notice 798B dist/react-pending-writes.d.ts
+npm notice 2.3kB dist/react-pending-writes.js
+npm notice 18.8kB dist/react.d.ts
+npm notice 39.2kB dist/react.js
+npm notice 698B dist/read-approval.d.ts
+npm notice 6.3kB dist/read-approval.js
+npm notice 976B dist/read-decoration.d.ts
+npm notice 3.5kB dist/read-decoration.js
+npm notice 1.0kB dist/read-episode.d.ts
+npm notice 2.9kB dist/read-episode.js
+npm notice 468B dist/read-existence.d.ts
+npm notice 1.1kB dist/read-existence.js
+npm notice 1.8kB dist/read-expiry.d.ts
+npm notice 9.4kB dist/read-expiry.js
+npm notice 320B dist/read-key.d.ts
+npm notice 593B dist/read-key.js
+npm notice 166B dist/read-notifications.d.ts
+npm notice 558B dist/read-notifications.js
+npm notice 3.1kB dist/read-observation.d.ts
+npm notice 11.8kB dist/read-observation.js
+npm notice 1.3kB dist/read-only.d.ts
+npm notice 4.7kB dist/read-only.js
+npm notice 63B dist/read-token.d.ts
+npm notice 327B dist/read-token.js
+npm notice 1.4kB dist/read-work.d.ts
+npm notice 8.9kB dist/read-work.js
+npm notice 1.3kB dist/receipt-family.d.ts
+npm notice 11B dist/receipt-family.js
+npm notice 8.6kB dist/recipes/production/expo/App.tsx
+npm notice 1.8kB dist/recipes/production/expo/client.ts
+npm notice 2.3kB dist/recipes/production/expo/schema.q
+npm notice 746B dist/recipes/production/expo/test.cases.jsonl
+npm notice 8.4kB dist/recipes/production/web/App.tsx
+npm notice 1.2kB dist/recipes/production/web/client.ts
+npm notice 2.3kB dist/recipes/production/web/schema.q
+npm notice 746B dist/recipes/production/web/test.cases.jsonl
+npm notice 3.0kB dist/release.d.ts
+npm notice 7.6kB dist/release.js
+npm notice 774B dist/request-wait.d.ts
+npm notice 1.8kB dist/request-wait.js
+npm notice 310B dist/residency.d.ts
+npm notice 949B dist/residency.js
+npm notice 89B dist/resolve-binary.d.ts
+npm notice 1.3kB dist/resolve-binary.js
+npm notice 1.6kB dist/seen-progress.d.ts
+npm notice 9.0kB dist/seen-progress.js
+npm notice 570B dist/server-context.d.ts
+npm notice 7.1kB dist/server-context.js
+npm notice 694B dist/server-effect-context.d.ts
+npm notice 5.8kB dist/server-effect-context.js
+npm notice 735B dist/server-json.d.ts
+npm notice 4.2kB dist/server-json.js
+npm notice 1.3kB dist/server-lifetime.d.ts
+npm notice 3.9kB dist/server-lifetime.js
+npm notice 1.4kB dist/server-private.d.ts
+npm notice 339B dist/server-private.js
+npm notice 1.8kB dist/server-routes.d.ts
+npm notice 7.4kB dist/server-routes.js
+npm notice 630B dist/server-steps.d.ts
+npm notice 3.6kB dist/server-steps.js
+npm notice 790B dist/server-verify.d.ts
+npm notice 7.5kB dist/server-verify.js
+npm notice 3.4kB dist/server.d.ts
+npm notice 11.9kB dist/server.js
+npm notice 541B dist/session-authority.d.ts
+npm notice 7.4kB dist/session-authority.js
+npm notice 349B dist/session-input.d.ts
+npm notice 2.7kB dist/session-input.js
+npm notice 232B dist/session-refusal.d.ts
+npm notice 372B dist/session-refusal.js
+npm notice 822B dist/session-timing.d.ts
+npm notice 2.8kB dist/session-timing.js
+npm notice 195B dist/sha256.d.ts
+npm notice 3.6kB dist/sha256.js
+npm notice 4.5kB dist/uploads.d.ts
+npm notice 14.7kB dist/uploads.js
+npm notice 57B dist/utf8-size.d.ts
+npm notice 304B dist/utf8-size.js
+npm notice 2.4MB dist/wasm/snapback4_device_bg.wasm
+npm notice 984B dist/wasm/snapback4_device_bg.wasm.d.ts
+npm notice 3.0kB dist/wasm/snapback4_device.d.ts
+npm notice 16.1kB dist/wasm/snapback4_device.js
+npm notice 150B dist/web-drain.d.ts
+npm notice 422B dist/web-drain.js
+npm notice 1.6kB dist/web-idb-buckets.d.ts
+npm notice 8.1kB dist/web-idb-buckets.js
+npm notice 1.1kB dist/web-idb-pages.d.ts
+npm notice 14.1kB dist/web-idb-pages.js
+npm notice 150B dist/web-idb.d.ts
+npm notice 13.8kB dist/web-idb.js
+npm notice 526B dist/web-journal-execution.d.ts
+npm notice 555B dist/web-journal-execution.js
+npm notice 3.0kB dist/web-journal.d.ts
+npm notice 19.8kB dist/web-journal.js
+npm notice 552B dist/web-ownership.d.ts
+npm notice 3.7kB dist/web-ownership.js
+npm notice 715B dist/web-receipts.d.ts
+npm notice 3.4kB dist/web-receipts.js
+npm notice 341B dist/web-residency.d.ts
+npm notice 2.5kB dist/web-residency.js
+npm notice 1.3kB dist/web-upload-admission.d.ts
+npm notice 1.6kB dist/web-upload-admission.js
+npm notice 858B dist/web-wasm.d.ts
+npm notice 5.0kB dist/web-wasm.js
+npm notice 334B dist/web-worker-device.d.ts
+npm notice 15.3kB dist/web-worker-device.js
+npm notice 11B dist/web-worker-entry.d.ts
+npm notice 80B dist/web-worker-entry.js
+npm notice 2.4kB dist/web-worker-host.d.ts
+npm notice 13.5kB dist/web-worker-host.js
+npm notice 446B dist/web-worker-orphans.d.ts
+npm notice 7.4kB dist/web-worker-orphans.js
+npm notice 1.1kB dist/web-worker-runtime.d.ts
+npm notice 7.3kB dist/web-worker-runtime.js
+npm notice 855B dist/web-worker-suspend.d.ts
+npm notice 4.7kB dist/web-worker-suspend.js
+npm notice 2.7kB dist/web.d.ts
+npm notice 41.4kB dist/web.js
+npm notice 892B dist/witness-web.d.ts
+npm notice 15.6kB dist/witness-web.js
+npm notice 649B dist/worker-ledger.d.ts
+npm notice 5.3kB dist/worker-ledger.js
+npm notice 6.6kB dist/worker.d.ts
+npm notice 21.0kB dist/worker.js
+npm notice 511B dist/write-settlement.d.ts
+npm notice 2.6kB dist/write-settlement.js
+npm notice 3.1kB dist/writes.d.ts
+npm notice 14.5kB dist/writes.js
+npm notice 4.0kB package.json
+npm notice Tarball Details
+npm notice name: snapback4
+npm notice version: 0.4.43
+npm notice filename: snapback4-0.4.43.tgz
+npm notice package size: 1.4 MB
+npm notice unpacked size: 4.7 MB
+npm notice shasum: c4a4e26f67244fe174a8a5eab943147278f3f6e0
+npm notice integrity: sha512-iJhZMcUAfkBik[...]h0I8B1FzqYqUA==
+npm notice total files: 337
+npm notice
+npm notice Publishing to https://registry.npmjs.org/ with tag latest and public access
+npm notice Your package is being processed and may take a few minutes to become available.
+publish: waiting for snapback4@0.4.43 to become readable
+publish: waiting for snapback4@0.4.43 to become readable
+publish: waiting for snapback4@0.4.43 to become readable
+publish: waiting for snapback4@0.4.43 to become readable
+publish: waiting for snapback4@0.4.43 to become readable
+publish: waiting for snapback4@0.4.43 to become readable
+{"tarballBytes":1363292,"platformTarballBytes":15702085,"tarballIntegrity":"sha512-iJhZMcUAfkBik9hiBHB4+uZyGwgra/zwkFDLvvg8EDg4ilu9l9/dN1yDeF7MI0EXXe085peSBh0I8B1FzqYqUA==","platformTarballIntegrity":"sha512-t2ZtcKo6g1sE2uTHyhc+oTASSosN/dUw0A8WZ4E0n+z0QJDKK5dXrG3ooyrUqu1MxhHEruYRFnYAOs07iA/aOA==","files":337,"binaryVersion":"snapback4 0.4.43","binaryProfile":"production","sqliteBuildFlags":"-USQLITE_ENABLE_MEMORY_MANAGEMENT","cargoProfile":{"opt_level":"3","debuginfo":0,"debug_assertions":false,"overflow_checks":false,"test":false},"platform":"darwin-arm64","at":"2026-10-27T14:14:01.925Z","version":"0.4.43","source":"6f3ef3b0d0bfc145b71e1ce5ef9d20efc5326c26","artifacts":[{"name":"snapback4-darwin-arm64","version":"0.4.43","filename":"snapback4-darwin-arm64-0.4.43.tgz","integrity":"sha512-t2ZtcKo6g1sE2uTHyhc+oTASSosN/dUw0A8WZ4E0n+z0QJDKK5dXrG3ooyrUqu1MxhHEruYRFnYAOs07iA/aOA==","bytes":15702085,"binaryProfile":"production","binarySha256":"dc317bc8dd145274c1fbec682ec43d481ecdc00e0f5ba267672370aa2e76e762","binaryVersion":"snapback4 0.4.43","binaryBytes":32909184,"cargoProfile":{"opt_level":"3","debuginfo":0,"debug_assertions":false,"overflow_checks":false,"test":false},"sqliteBuildFlags":"-USQLITE_ENABLE_MEMORY_MANAGEMENT","signing":{"signingAuthority":"Developer ID Application: Charles Cheever (UD2ZVW5WU5)","signingTeamId":"UD2ZVW5WU5","notarized":false,"notarySubmissionId":null},"proof":{"status":"passed","proofKit":{"status":"passed","dayTwo":"production accounts, UI sign-in, v1/hot v2/rollback/forward business assertions","wire":"literal first section, actual packed CLI trace","clock":"30-day coalesced jump, each-boundary cap, memory replay command, page sampling","aliases":"array index path through packed test"},"staging":{"status":"passed","guide":"staging","recipes":"verbatim installed card","roles":{"admin":2,"member":2},"mode":"serve","realPasswordLogin":"passed","data":"passed","selfGrant":"refused","productionBulkSeed":"refused before mint","productionRelabel":"refused","firstAdmin":"passed","privateCredentials":"0600"},"security":{"status":"passed","guide":"verbatim installed security card","artifacts":{"clientSha256":"edd873c8c78118962a8ca1e1d46a86e69313a0dfafdd76399dbe32efd7c47fda","platformSha256":"195139ff5cbbfb69b9158c099c48aed6324d65c8db0b08f065a3a9dc188c25fa","binarySha256":"dc317bc8dd145274c1fbec682ec43d481ecdc00e0f5ba267672370aa2e76e762"},"guideCases":[{"block":0,"invariants":3,"audit":"passed","finite":{"attempted":1128,"refused":0,"violations":0,"seedSyntheticObservations":0,"unauthenticatedHttpRefused":7,"revocationHttpRefused":0},"broadRead":"refuted","expectedFailureExits":[1,1,1]},{"block":1,"compile":"passed","invariants":0}],"sessions":[{"method":"guests","status":"passed","attempted":1040,"refused":0,"violations":0,"seedSyntheticObservations":0,"unauthenticatedHttpRefused":7,"revocationHttpRefused":14,"disconnectedDevice":"not covered"},{"method":"password","status":"passed","attempted":1040,"refused":0,"violations":0,"seedSyntheticObservations":0,"unauthenticatedHttpRefused":7,"revocationHttpRefused":14,"disconnectedDevice":"not covered"}],"starters":[{"id":"todo-backend","status":"passed","invariants":1,"attempted":1185,"refused":653,"violations":0,"seedSyntheticObservations":0,"unauthenticatedHttpRefused":11,"revocationHttpRefused":0},{"id":"todo-online","status":"passed","invariants":1,"attempted":1185,"refused":653,"violations":0,"seedSyntheticObservations":0,"unauthenticatedHttpRefused":11,"revocationHttpRefused":0},{"id":"social","status":"passed","invariants":2,"attempted":6226,"refused":3822,"violations":0,"seedSyntheticObservations":0,"unauthenticatedHttpRefused":0,"unauthenticatedHttpNotCovered":"complete deployed native/action/effect artifacts required","revocationHttpRefused":0},{"id":"todo-web","status":"passed","invariants":1,"attempted":1267,"refused":693,"violations":0,"seedSyntheticObservations":0,"unauthenticatedHttpRefused":11,"revocationHttpRefused":18},{"id":"chat-web","status":"passed","invariants":1,"attempted":212,"refused":208,"violations":0,"seedSyntheticObservations":0,"unauthenticatedHttpRefused":0,"unauthenticatedHttpNotCovered":"complete deployed native/action/effect artifacts required","revocationHttpRefused":0},{"id":"chat-expo","status":"passed","invariants":1,"attempted":212,"refused":208,"violations":0,"seedSyntheticObservations":0,"unauthenticatedHttpRefused":25,"revocationHttpRefused":32},{"id":"production-recipe","status":"passed","source":"installed dist/recipes/production/web/schema.q","invariants":2,"attempted":147,"refused":14,"violations":0,"seedSyntheticObservations":0,"unauthenticatedHttpRefused":13,"revocationHttpRefused":20}],"sec6":{"suppliedSession":"passed before side effects","multiWrite":"refuted by authored add","mutationResult":"refuted by authored edit"},"scope":"finite campaigns and declared policy checks; no zero-hole or disconnected-device revocation claim","commands":[{"args":["guide","security","--full"],"project":".","exitCode":0,"expectedExitCode":0},{"args":["check","--json"],"project":"/card-0","exitCode":0,"expectedExitCode":0},{"args":["audit","--json"],"project":"/card-0","exitCode":0,"expectedExitCode":0},{"args":["check","--audit","--json"],"project":"/card-0","exitCode":0,"expectedExitCode":0},{"args":["test","--fixture-only"],"project":"/card-0","exitCode":0,"expectedExitCode":0},{"args":["check","--json"],"project":"/card-0","exitCode":1,"expectedExitCode":1},{"args":["audit","--json"],"project":"/card-0","exitCode":1,"expectedExitCode":1},{"args":["test","--fixture-only"],"project":"/card-0","exitCode":1,"expectedExitCode":1},{"args":["check","--json"],"project":"/card-1","exitCode":0,"expectedExitCode":0},{"args":["guide","start","--full"],"project":".","exitCode":0,"expectedExitCode":0},{"args":["check","--json"],"project":"/intent-questions","exitCode":0,"expectedExitCode":0},{"args":["test","--fixture-only"],"project":"/intent-questions","exitCode":0,"expectedExitCode":0},{"args":["audit","--json"],"project":"/intent-questions","exitCode":0,"expectedExitCode":0},{"args":["check","--json"],"project":"/column-update-intent","exitCode":0,"expectedExitCode":0},{"args":["test","--fixture-only"],"project":"/column-update-intent","exitCode":0,"expectedExitCode":0},{"args":["test"],"project":"/column-update-intent","exitCode":0,"expectedExitCode":0},{"args":["check","--json"],"project":"/sec6-multi-write","exitCode":1,"expectedExitCode":1},{"args":["test","--fixture-only"],"project":"/sec6-multi-write","exitCode":1,"expectedExitCode":1},{"args":["test","--fixture-only"],"project":"/sec6-write-result","exitCode":1,"expectedExitCode":1},{"args":["check","--json"],"project":"/sec6-write-result","exitCode":1,"expectedExitCode":1},{"args":["check","--json"],"project":"/revocation-guests","exitCode":0,"expectedExitCode":0},{"args":["test","--fixture-only"],"project":"/revocation-guests","exitCode":0,"expectedExitCode":0},{"args":["check","--json"],"project":"/revocation-password","exitCode":0,"expectedExitCode":0},{"args":["test","--fixture-only"],"project":"/revocation-password","exitCode":0,"expectedExitCode":0},{"args":["init","/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-6T7Dt5/security-policy-ZfBlHz/todo-backend"],"project":".","exitCode":0,"expectedExitCode":0},{"args":["check","--json"],"project":"/todo-backend","exitCode":0,"expectedExitCode":0},{"args":["test","--fixture-only"],"project":"/todo-backend","exitCode":0,"expectedExitCode":0},{"args":["init","/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-6T7Dt5/security-policy-ZfBlHz/todo-online","--online"],"project":".","exitCode":0,"expectedExitCode":0},{"args":["check","--json"],"project":"/todo-online","exitCode":0,"expectedExitCode":0},{"args":["test","--fixture-only"],"project":"/todo-online","exitCode":0,"expectedExitCode":0},{"args":["init","/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-6T7Dt5/security-policy-ZfBlHz/social","--template","social"],"project":".","exitCode":0,"expectedExitCode":0},{"args":["check","--json"],"project":"/social","exitCode":0,"expectedExitCode":0},{"args":["test","--fixture-only"],"project":"/social","exitCode":0,"expectedExitCode":0},{"args":["init","/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-6T7Dt5/security-policy-ZfBlHz/todo-web","--web"],"project":".","exitCode":0,"expectedExitCode":0},{"args":["check","--json"],"project":"/todo-web","exitCode":0,"expectedExitCode":0},{"args":["test","--fixture-only"],"project":"/todo-web","exitCode":0,"expectedExitCode":0},{"args":["init","/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-6T7Dt5/security-policy-ZfBlHz/chat-web","--template","chat","--web"],"project":".","exitCode":0,"expectedExitCode":0},{"args":["check","--json"],"project":"/chat-web","exitCode":0,"expectedExitCode":0},{"args":["test","--fixture-only"],"project":"/chat-web","exitCode":0,"expectedExitCode":0},{"args":["init","/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-6T7Dt5/security-policy-ZfBlHz/chat-expo","--template","chat","--expo"],"project":".","exitCode":0,"expectedExitCode":0},{"args":["check","--json"],"project":"/chat-expo","exitCode":0,"expectedExitCode":0},{"args":["test","--fixture-only"],"project":"/chat-expo","exitCode":0,"expectedExitCode":0},{"args":["check","--json"],"project":"/production-recipe","exitCode":0,"expectedExitCode":0},{"args":["test","--fixture-only"],"project":"/production-recipe","exitCode":0,"expectedExitCode":0}]},"day5Proof":{"status":"passed","directory":"/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-6T7Dt5/consumer","guideRecipe":"capture-release-and-bridge","starterCustody":["web","expo"]},"starters":[{"starter":"web","kind":"web","audit":{"status":"passed","warnings":[]},"fixtureGuide":"passed","status":"passed","adapted":"passed","typecheck":"passed","build":"passed","frontendProofs":[{"starter":"web","kind":"web","attempt":1,"status":"passed","elapsedMs":1542,"range":[61698,61718],"occupied":61698,"cpuLoadWorkers":2,"loadavg":[6.9580078125,7.4892578125,7.71728515625],"listenerAudit":{"status":"not-run","reason":"listener audit belongs to Linux qualification"},"logs":"/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-6T7Dt5/starter-web/proof-logs-1"},{"starter":"web","kind":"web","attempt":2,"status":"passed","elapsedMs":1601,"range":[61714,61734],"occupied":61714,"cpuLoadWorkers":2,"loadavg":[6.9580078125,7.4892578125,7.71728515625],"listenerAudit":{"status":"not-run","reason":"listener audit belongs to Linux qualification"},"logs":"/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-6T7Dt5/starter-web/proof-logs-2"}],"adaptedProofs":[{"starter":"web","kind":"web","attempt":1,"status":"passed","elapsedMs":1521,"range":[61773,61793],"occupied":61773,"cpuLoadWorkers":2,"loadavg":[7.34521484375,7.5546875,7.73779296875],"listenerAudit":{"status":"not-run","reason":"listener audit belongs to Linux qualification"},"logs":"/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-6T7Dt5/starter-web/proof-logs-1"},{"starter":"web","kind":"web","attempt":2,"status":"passed","elapsedMs":1347,"range":[61787,61807],"occupied":61787,"cpuLoadWorkers":2,"loadavg":[7.34521484375,7.5546875,7.73779296875],"listenerAudit":{"status":"not-run","reason":"listener audit belongs to Linux qualification"},"logs":"/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-6T7Dt5/starter-web/proof-logs-2"}],"negativeProof":{"status":"passed","expected":"E_FRONTEND_SCENARIO: frontend rendered","listenerAudit":{"status":"not-run","reason":"listener audit belongs to Linux qualification"}},"formSubmit":"passed"},{"starter":"web-online","kind":"web","audit":{"status":"passed","warnings":[]},"fixtureGuide":"passed","status":"passed","typecheck":"passed","build":"passed","frontendProofs":[{"starter":"web-online","kind":"web","attempt":1,"status":"passed","elapsedMs":1289,"range":[61836,61856],"occupied":61836,"cpuLoadWorkers":2,"loadavg":[6.73291015625,7.412109375,7.68359375],"listenerAudit":{"status":"not-run","reason":"listener audit belongs to Linux qualification"},"logs":"/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-6T7Dt5/starter-web-online/proof-logs-1"},{"starter":"web-online","kind":"web","attempt":2,"status":"passed","elapsedMs":1231,"range":[61850,61870],"occupied":61850,"cpuLoadWorkers":2,"loadavg":[6.73291015625,7.412109375,7.68359375],"listenerAudit":{"status":"not-run","reason":"listener audit belongs to Linux qualification"},"logs":"/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-6T7Dt5/starter-web-online/proof-logs-2"}]},{"starter":"expo","kind":"expo","audit":{"status":"passed","warnings":[]},"fixtureGuide":"passed","status":"passed","adapted":"passed","typecheck":"passed","build":"passed","frontendProofs":[{"starter":"expo","kind":"expo","attempt":1,"status":"passed","elapsedMs":4884,"range":[61925,61945],"occupied":61925,"cpuLoadWorkers":2,"loadavg":[6.763671875,7.369140625,7.6611328125],"listenerAudit":{"status":"not-run","reason":"listener audit belongs to Linux qualification"},"logs":"/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-6T7Dt5/starter-expo/proof-logs-1"},{"starter":"expo","kind":"expo","attempt":2,"status":"passed","elapsedMs":8376,"range":[61946,61966],"occupied":61946,"cpuLoadWorkers":2,"loadavg":[7.1025390625,7.42919921875,7.6806640625],"listenerAudit":{"status":"not-run","reason":"listener audit belongs to Linux qualification"},"logs":"/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-6T7Dt5/starter-expo/proof-logs-2"}],"adaptedProofs":[{"starter":"expo","kind":"expo","attempt":1,"status":"passed","elapsedMs":4997,"range":[62026,62046],"occupied":62026,"cpuLoadWorkers":2,"loadavg":[15.2021484375,9.546875,8.451171875],"listenerAudit":{"status":"not-run","reason":"listener audit belongs to Linux qualification"},"logs":"/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-6T7Dt5/starter-expo/proof-logs-1"},{"starter":"expo","kind":"expo","attempt":2,"status":"passed","elapsedMs":4615,"range":[62045,62065],"occupied":62045,"cpuLoadWorkers":2,"loadavg":[14.9453125,9.58740234375,8.4716796875],"listenerAudit":{"status":"not-run","reason":"listener audit belongs to Linux qualification"},"logs":"/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-6T7Dt5/starter-expo/proof-logs-2"}],"negativeProof":{"status":"passed","expected":"E_FRONTEND_SCENARIO: frontend rendered","listenerAudit":{"status":"not-run","reason":"listener audit belongs to Linux qualification"}},"formSubmit":"not-applicable"},{"starter":"web-chat","kind":"web","template":"chat","audit":{"status":"passed","warnings":[]},"fixtureGuide":"passed","status":"passed","typecheck":"passed","build":"passed","frontendProofs":[{"starter":"web-chat","kind":"web","attempt":1,"status":"passed","elapsedMs":1844,"range":[62112,62132],"occupied":62112,"cpuLoadWorkers":2,"loadavg":[13.8564453125,9.5947265625,8.4921875],"listenerAudit":{"status":"not-run","reason":"listener audit belongs to Linux qualification"},"logs":"/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-6T7Dt5/starter-web-chat/proof-logs-1"},{"starter":"web-chat","kind":"web","attempt":2,"status":"passed","elapsedMs":2109,"range":[62129,62149],"occupied":62129,"cpuLoadWorkers":2,"loadavg":[13.8564453125,9.5947265625,8.4921875],"listenerAudit":{"status":"not-run","reason":"listener audit belongs to Linux qualification"},"logs":"/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-6T7Dt5/starter-web-chat/proof-logs-2"}]},{"starter":"expo-chat","kind":"expo","template":"chat","audit":{"status":"passed","warnings":[]},"fixtureGuide":"passed","status":"passed","typecheck":"passed","build":"passed","frontendProofs":[{"starter":"expo-chat","kind":"expo","attempt":1,"status":"passed","elapsedMs":2188,"range":[62192,62212],"occupied":62192,"cpuLoadWorkers":2,"loadavg":[13.224609375,9.66259765625,8.53515625],"listenerAudit":{"status":"not-run","reason":"listener audit belongs to Linux qualification"},"logs":"/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-6T7Dt5/starter-expo-chat/proof-logs-1"},{"starter":"expo-chat","kind":"expo","attempt":2,"status":"passed","elapsedMs":2067,"range":[62204,62224],"occupied":62204,"cpuLoadWorkers":2,"loadavg":[13.44677734375,9.767578125,8.57861328125],"listenerAudit":{"status":"not-run","reason":"listener audit belongs to Linux qualification"},"logs":"/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-6T7Dt5/starter-expo-chat/proof-logs-2"}]},{"starter":"expo-social","kind":"expo","template":"social","audit":{"status":"passed","warnings":[]},"fixtureGuide":"passed","status":"passed","typecheck":"passed","build":"passed","frontendProofs":[{"starter":"expo-social","kind":"expo","attempt":1,"status":"passed","elapsedMs":2768,"range":[62332,62352],"occupied":62332,"cpuLoadWorkers":2,"loadavg":[9.9443359375,9.3251953125,8.47021484375],"listenerAudit":{"status":"not-run","reason":"listener audit belongs to Linux qualification"},"logs":"/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-6T7Dt5/starter-expo-social/proof-logs-1"},{"starter":"expo-social","kind":"expo","attempt":2,"status":"passed","elapsedMs":2639,"range":[62355,62375],"occupied":62355,"cpuLoadWorkers":2,"loadavg":[9.94873046875,9.3359375,8.47900390625],"listenerAudit":{"status":"not-run","reason":"listener audit belongs to Linux qualification"},"logs":"/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/snapback4-publish-consumer-6T7Dt5/starter-expo-social/proof-logs-2"}]}],"expoIntegrity":"sha512-5g3yhsfQd1+t5aYUIdSkKOYsXTDZoaBnoj6azW+CbsA3P8R8LgVT586GCeUezg48kr+np5/J0h5Xa8DqmFTwtA==","clientIntegrity":"sha512-iJhZMcUAfkBik9hiBHB4+uZyGwgra/zwkFDLvvg8EDg4ilu9l9/dN1yDeF7MI0EXXe085peSBh0I8B1FzqYqUA==","platformIntegrity":"sha512-t2ZtcKo6g1sE2uTHyhc+oTASSosN/dUw0A8WZ4E0n+z0QJDKK5dXrG3ooyrUqu1MxhHEruYRFnYAOs07iA/aOA=="}},{"name":"snapback4-linux-x64","version":"0.4.43","filename":"snapback4-linux-x64-0.4.43.tgz","integrity":"sha512-nCvE/9+Xi2p3Q5069H6R8bz1LcZzSDFUSrXV8u3KlmwxHZHGDxSTd2Ktn/MCtcII++xtsM8QyJOatMU0DdF6kg==","bytes":17892082,"binarySha256":"b5ba708c9ad8042864eff317695a53a6993b5cfb0ed605accf1f759fde63b78b","receiptFile":"linux-receipt.json","receiptIntegrity":"sha512-cdxtOkWaRNrFISkP2+uIhZV236oOhF9Iw99uc4bCr6NK4MP1aob+XtWqsmbSkjNAj19r/VgQxVk9cax1maruRA=="},{"name":"snapback4","version":"0.4.43","filename":"snapback4-0.4.43.tgz","integrity":"sha512-iJhZMcUAfkBik9hiBHB4+uZyGwgra/zwkFDLvvg8EDg4ilu9l9/dN1yDeF7MI0EXXe085peSBh0I8B1FzqYqUA==","bytes":1363292,"files":337}],"resume":"/Users/ccheever/projects/snapback-pub-0428/snapback4/target/publication/snapback4-darwin-arm64-0.4.43/resume.json","signingAuthority":"Developer ID Application: Charles Cheever (UD2ZVW5WU5)","signingTeamId":"UD2ZVW5WU5","notarized":false,"notarySubmissionId":null,"binaryBytes":32909184,"binarySha256":"dc317bc8dd145274c1fbec682ec43d481ecdc00e0f5ba267672370aa2e76e762","publish_s":637.6,"dry":false}
