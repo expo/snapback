@@ -384,9 +384,11 @@ fn lifecycle(writes:&[(&ast::ProgramDecl,Expr,ast::ProgramDecl)],bound:&Bound,ou
                 // Unreduced parent spreads may reopen any categorical state.
                 // An incomplete graph cannot establish a terminal destination.
                 if writes.iter().any(|(_,w,_)|matches!(w,Expr::Write{op:WriteOp::Update,table:t,fields,..} if t==parent&&fields.iter().any(|field|field.spread))){continue;}
-                // Unmapped or source-unrestricted parent state writes may
-                // reopen the destination too; absence of a guard is no edge proof.
-                if writes.iter().any(|(p,w,c)|matches!(w,Expr::Write{op:WriteOp::Update,table:t,fields,..} if t==parent&&fields.iter().any(|field|field.name==parent_state.name))&&state_requirements(p,w,c,bound,parent,&parent_state.name).is_none_or(|guards|guards.is_empty())){continue;}
+                // Unmapped targets leave both coupling analyses unknown.
+                // Keep source-unrestricted writes separate: they invalidate
+                // terminality, not the independent known parent-window contract.
+                let parent_sources=writes.iter().filter(|(_,w,_)|matches!(w,Expr::Write{op:WriteOp::Update,table:t,fields,..} if t==parent&&fields.iter().any(|field|field.name==parent_state.name))).map(|(p,w,c)|state_requirements(p,w,c,bound,parent,&parent_state.name)).collect::<Vec<_>>();
+                if parent_sources.iter().any(Option::is_none){continue;}
                 let Some(destination)=parent_state.value.as_ref()else{continue;};
                 let Expr::Literal{value:ast::Literal::Str(destination),..}=destination else{continue;};
                 let sources=source_states(&requirements,bound,parent,&parent_state.name);
@@ -416,6 +418,9 @@ fn lifecycle(writes:&[(&ast::ProgramDecl,Expr,ast::ProgramDecl)],bound:&Bound,ou
                         add_syntax(out,child,Some(&child_state.name),"update",policy,child_site,"parent-state",Some(operation));
                     }
                 }
+                // A source-unrestricted writer can reopen the destination;
+                // only completion inference depends on proving terminality.
+                if parent_sources.iter().any(|guards|guards.as_ref().is_some_and(|guards|guards.is_empty())){continue;}
                 // A terminal parent destination has no same-role outgoing
                 // transition. Infer the child's terminal only from its graph.
                 let any_outgoing=writes.iter().any(|(p,w,c)|state_requirements(p,w,c,bound,parent,&parent_state.name).is_some_and(|guards|source_states(&guards,bound,parent,&parent_state.name).contains(destination)&&changes_from(p,w,bound,parent,&parent_state.name,destination)));
@@ -490,6 +495,27 @@ fn lifecycle(writes:&[(&ast::ProgramDecl,Expr,ast::ProgramDecl)],bound:&Bound,ou
         let source=format!("{base}\nmutation reopen(job: jobs):\n  require exists roles[viewer, role = 'crew'] else NOT_CREW\n{requirement}  update jobs[job] {{{fields}}}\n");
         assert!(!contracts(source).iter().any(|i|i.table=="jobs"&&i.site.file.contains("child-stage")),"reopening must not infer terminal completion: {fields}");
     }}
+}
+
+// Explicit metrology utility: ordinary test runs do not load the external corpus.
+// It preserves invariant order because bounded witness searches consume that order.
+#[test]
+#[ignore = "SEC11b corpus equivalence receipt; configure the input/output paths"]
+fn sec11b_invariant_corpus_receipt(){
+    let Ok(input)=std::env::var("SNAPBACK4_SEC11B_INVARIANT_INPUT")else{return;};
+    let output=std::env::var("SNAPBACK4_SEC11B_INVARIANT_OUTPUT").expect("corpus output path");
+    let cases:Vec<(String,String,Vec<(String,String)>)>=serde_json::from_slice(&std::fs::read(input).unwrap()).unwrap();
+    let mut rows=Vec::new();let mut positive=false;
+    for(id,sha,sources)in cases{
+        let bound=crate::compile(&sources);
+        let invariants=super::super::invariants(&sources,&bound);
+        let encoded=invariants.iter().map(|inv|serde_json::to_string(inv).unwrap()).collect::<Vec<_>>();
+        if id.starts_with("w26-008-"){positive=encoded.iter().any(|inv|inv.contains("parent-state"))&&encoded.iter().any(|inv|inv.contains("child-stage"));}
+        rows.push(serde_json::json!({"id":id,"sourceSha256":sha,"diagnostics":bound.diagnostics,"invariants":encoded}));
+    }
+    assert!(positive,"known wave26/008 window/completion obligations must be measured");
+    assert_eq!(rows.len(),857,"freeze800survey+50wave31+7repair inputs");
+    std::fs::write(output,serde_json::to_vec_pretty(&rows).unwrap()).unwrap();
 }
 
 }
