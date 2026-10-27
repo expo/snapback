@@ -4,6 +4,9 @@ use super::*;
 mod workflow;
 mod approval_questions;
 mod assignment_questions;
+mod transition_questions;
+pub use transition_questions::questions as transition_questions;
+pub(crate) use transition_questions::judge as transition_question_judgment;
 pub use assignment_questions::questions as assignment_questions;
 pub use approval_questions::questions as approval_questions;
 pub(crate) use approval_questions::judge as approval_question_judgment;
@@ -132,7 +135,7 @@ pub(super) fn approval_receipts(e:&ast::Expr)->Vec<ast::Expr>{workflow::approval
 pub fn is_derived(inv:&Invariant)->bool { inv.site.file.starts_with("$derived/") }
 // @ref LLP 3000.036.004.000#13-witness-backed-enforcement-and-shipping-precision — migration formulas do not declare enduring meaning.
 pub fn advisory(inv:&Invariant)->bool {
-    if inv.site.file.contains("/label-consistency/"){return true;}
+    if inv.site.file.contains("/label-consistency/")||inv.site.file.contains("/sec11-transition/"){return true;}
     if !is_derived(inv)||["/sibling-approval/","/approval-history/","/repeat-create/","/parent-state/","/child-stage/","/participant-conservation/"].iter().any(|family|inv.site.file.contains(family)){return false;}
     // A narrower edit guard is not an implicit declaration about every create
     // or other edit path. Keep actual paired approval invalidation contracts.

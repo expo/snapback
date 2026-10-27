@@ -90,6 +90,9 @@ pub(in crate::verbs) fn render_mode(dispositions:&[Disposition],notes:&[Diagnost
                     output.push_str(&format!("fix question {} at {}: {} as {} disclosed {subject}{assignment}; assigned or any? (bounded replay; doesn't block; check --review)\n",d.code,d.site,w["operation"].as_str().unwrap_or("query"),w["viewer"].as_str().unwrap_or("caller")));
                     continue;
                 }
+                if d.code=="N_TRANSITION_BYPASS"&&w["questionKind"]=="declared-transition"{
+                    output.push_str(&format!("fix question {} at {}: {} (bounded replay; doesn't block; check --review)\n",d.code,d.site,w["compactSummary"].as_str().unwrap_or("see check --json for replay")));continue;
+                }
                 let rationale=if witness::concrete(w) {witness::reason_template(w)} else {"<spec rationale>".into()};
                 output.push_str(&format!("fix question {} at {}: {}; is this intended?\n  Witness: {} — repair or check --ack-security {} --reason '{}' (doesn't block)\n",d.code,d.site,n.message.trim_end_matches(['.','?']),w["compactSummary"].as_str().or_else(||w["summary"].as_str()).unwrap_or("see check --json for replay"),d.id,rationale));
             }

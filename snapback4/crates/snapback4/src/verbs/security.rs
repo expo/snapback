@@ -215,9 +215,10 @@ pub(super) fn release_loop(project:&Project,bound:&Bound,sources:&[(String,Strin
     Ok(Some(serde_json::json!({"notice":notice,"verdict":verdict,"fixes":fixes,"pending":pending,"changedNotes":count,"report":report,"securityReviews":dispositions}).to_string()))
 }
 // @ref LLP 3000.036.004.003#assignment-questions — the new factual card replaces positive feature counts only; verdicts, failures and test status stay visible.
+// @ref LLP 3000.036.004.004#transition-questions — committed transition cards share the new-tier presentation budget.
 pub(super) fn append_deploy_language_summary(notice:&mut String,summary:&str,dispositions:&[super::security_reviews::Disposition],review:bool){
-    let assignment=dispositions.iter().any(|d|d.code=="N_ASSIGNMENT_SCOPE"&&!d.gated&&!d.acknowledged&&!d.recorded&&d.witness.is_some());
-    if review||!assignment||dispositions.iter().any(|d|d.gated&&!d.acknowledged){notice.push_str(summary);}
+    let compact_question=dispositions.iter().any(|d|(d.code=="N_ASSIGNMENT_SCOPE"||d.code=="N_TRANSITION_BYPASS"&&d.witness.as_ref().is_some_and(|w|w["questionKind"]=="declared-transition"))&&!d.gated&&!d.acknowledged&&!d.recorded&&d.witness.is_some());
+    if review||!compact_question||dispositions.iter().any(|d|d.gated&&!d.acknowledged){notice.push_str(summary);}
 }
 fn age(timestamp:Option<i64>,now:i64)->String{
     timestamp.map(|t|format!("at {t} ms since Unix epoch, age {}s",now.saturating_sub(t).max(0)/1000)).unwrap_or_else(||"time/age unknown (legacy record)".into())

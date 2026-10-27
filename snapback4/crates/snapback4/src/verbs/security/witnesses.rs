@@ -218,7 +218,7 @@ fn candidates(
     let derived = security::derived::invariants(sources, bound);
     let stages = security::derived::workflow_columns_from_sources(sources, bound);
     let mut out = Vec::new();
-    let approval_questions=security::derived::approval_questions(sources,bound).into_iter().chain(security::derived::assignment_questions(sources,bound)).collect::<Vec<_>>();
+    let approval_questions=security::derived::approval_questions(sources,bound).into_iter().chain(security::derived::assignment_questions(sources,bound)).chain(security::derived::transition_questions(sources,bound)).collect::<Vec<_>>();
     for (index, n) in notes.iter().enumerate() {
         out.extend(questions::candidates(bound,sources,index,n));
         out.extend(approval_questions.iter().filter(|(note,_)|note.site==n.site&&note.code==n.code).map(|(_,inv)|(index,inv.clone())));
@@ -499,7 +499,7 @@ pub(in crate::verbs) fn apply_report(sources:&[(String,String)],bound:&Bound,rep
 /// Fixed work per mode; a generated presentation cache never supplies a gate.
 // @ref LLP 3000.036.004.000#13-witness-backed-enforcement-and-shipping-precision — every gate replays current source even when advice is cached.
 pub(in crate::verbs) fn collect(project:&Project,bound:&Bound,sources:&[(String,String)],notes:&[Diagnostic],expanded:bool,options:&Options)->Vec<Option<serde_json::Value>> {
-    let key=hash(&serde_json::to_vec(&("sec11b-witness-2",sources,notes,record::capture(sources,None).ok())).unwrap());
+    let key=hash(&serde_json::to_vec(&("sec11b-witness-3",sources,notes,record::capture(sources,None).ok())).unwrap());
     let path=project.schema_dir().join("generated/security-witnesses.json");
     let gate=|index:usize|super::super::security_reviews::gated(&notes[index].code)&&precise_approval(bound,&notes[index]);
     let cached=std::fs::read(&path).ok().and_then(|b|serde_json::from_slice::<serde_json::Value>(&b).ok()).filter(|v|v["key"]==key).and_then(|v|serde_json::from_value::<Vec<Option<serde_json::Value>>>(v["values"].clone()).ok()).filter(|v|v.len()==notes.len());
@@ -522,6 +522,7 @@ pub(in crate::verbs) fn collect(project:&Project,bound:&Bound,sources:&[(String,
             }) {let replay=decreasing_edit(bound,inv,c);let mut value=evidence(sources,bound,inv,replay.as_ref().unwrap_or(c));
                 if notes[*index].code=="N_GUARD_NOT_CONSUMED" {let Some(repeated)=questions::repeat(bound,inv,c,&notes[*index],sources)else{continue;};value=repeated;}
                 if notes[*index].code=="N_ASSIGNMENT_SCOPE" {if value["kind"]!="read-payload"{continue;}let Some(assigned)=questions::assignment_evidence(value,&notes[*index],inv)else{continue;};value=assigned;}
+                if notes[*index].code=="N_TRANSITION_BYPASS"&&inv.site.file.contains("/sec11-transition/"){let Some(transition)=questions::transition_evidence(value,&notes[*index],inv)else{continue;};value=transition;}
                 if notes[*index].code=="N_TEXT_EVIDENCE" {value=questions::text_evidence(value,&notes[*index]);}
                 if questions::advisory(&notes[*index].code){value["advisory"]=true.into();}
                 if super::super::security_reviews::witness::concrete(&value){

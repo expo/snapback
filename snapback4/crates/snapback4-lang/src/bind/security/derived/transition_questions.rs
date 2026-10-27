@@ -1,0 +1,117 @@
+//! Typed source edges commission exact questions, never enum-order authority.
+// @ref LLP 3000.036.004.004#transition-questions — sibling guards supply hypotheses; only committed actual edges supply witnesses.
+use super::*;
+use ast::{Expr,Stmt,TypeKind,WriteOp};
+use snapback4_core::{Value,schema::{ColumnType as C,ColumnDefault}};
+fn string(s:&str)->Expr{Expr::Literal{value:ast::Literal::Str(s.into()),site:Site::default()}}
+fn literal(e:&Expr)->Option<&str>{if let Expr::Literal{value:ast::Literal::Str(s),..}=e{Some(s)}else{None}}
+fn choices(e:&Expr,column:&str)->Option<BTreeSet<String>>{match e{
+    Expr::Binary{op,left,right,..} if op=="="=>[(left.as_ref(),right.as_ref()),(right.as_ref(),left.as_ref())].into_iter().find_map(|(field,value)|if matches!(field,Expr::Member{base,name,..}if name==column&&matches!(base.as_ref(),Expr::Focal{..})){literal(value).map(|s|BTreeSet::from([s.into()]))}else{None}),
+    Expr::Binary{op,left,right,..}if op=="or"=>Some(choices(left,column)?.union(&choices(right,column)?).cloned().collect()),
+    Expr::Binary{op,left,right,..}if op=="and"=>Some(choices(left,column)?.intersection(&choices(right,column)?).cloned().collect()),_=>None,
+}}
+fn row_condition(e:&Expr)->bool{let mut e=e.clone();let mut found=false;super::super::super::intent_walk::expression(&mut e,&mut |e|if matches!(e,Expr::Focal{..}){found=true;});found}
+fn conjuncts(e:&Expr,out:&mut Vec<Expr>){if let Expr::Binary{op,left,right,..}=e&&op=="and"{conjuncts(left,out);conjuncts(right,out);}else{out.push(e.clone());}}
+#[derive(Clone)]struct Step{table:String,column:String,value:Expr,site:Site,operation:String,effect:String,guards:Vec<Expr>,anchor:bool,old_restricted:bool}
+fn direct(p:&ast::ProgramDecl,site:&Site)->Option<usize>{
+    if !p.prelude.is_empty()||p.body.iter().any(|s|matches!(s,Stmt::If{..}|Stmt::For{..}|Stmt::As{..}|Stmt::Break{..}|Stmt::Continue{..})){return None;}
+    let at=p.body.iter().position(|s|matches!(s,Stmt::Expr{value:Expr::Write{site:s,..},..}|Stmt::Return{value:Expr::Write{site:s,..},..}if s==site))?;
+    if p.body[..at].iter().any(|s|matches!(s,Stmt::Return{..})){return None;}Some(at)
+}
+fn steps(sources:&[(String,String)],bound:&Bound)->Vec<Step>{
+    let docs=sources.iter().map(|(f,s)|crate::parse_document(f,s).0).collect::<Vec<_>>();let catalog=Catalog::build(docs.clone(),&mut Vec::new());let mut out=Vec::new();
+    for p in docs.iter().flat_map(|d|&d.programs).filter(|p|p.kind==ast::ProgramKind::Mutation){
+        let operation=super::super::super::operation_name(std::path::Path::new(&p.site.file).file_stem().and_then(|s|s.to_str()).unwrap_or(""),&p.name);
+        if !bound.programs.iter().any(|b|b.program.name==operation){continue;}
+        let writes=authority_walk::writes(&catalog,p);
+        for(write,context)in &writes{let Expr::Write{op:WriteOp::Update,table,keys,fields,site,condition:None,if_absent:false,..}=write else{continue;};
+            let Some(at)=direct(p,site)else{continue;};let Some(arg)=workflow::target_arg(p,write,table)else{continue;};
+            let mapping=BTreeMap::from([(arg.name.clone(),workflow::member(workflow::focal(),"id"))]);
+            let anchor=p.args.len()==1&&p.body[..at].iter().all(|s|match s{Stmt::Require{..}=>true,Stmt::Bind{value,..}=>matches!(value,Expr::Assert{value,..}if matches!(value.as_ref(),Expr::Read(_)))||matches!(value,Expr::Read(_)),_=>false})&&p.body[at+1..].iter().all(|s|matches!(s,Stmt::Return{value:Expr::Literal{value:ast::Literal::Null,..},..}));
+            let mut guards=Vec::new();let mut complete=true;
+            for s in &context.body{if let Stmt::Require{condition,..}=s{if let Some(value)=workflow::normalize(condition,&bound.schema,table,&mapping){conjuncts(&value,&mut guards);}else{complete=false;}}}
+            for field in fields{
+                let Some(C::Enum{variants})=bound.schema.tables[table].columns.get(&field.name)else{continue;};if variants.len()<3{continue;}
+                if writes.iter().filter(|(w,_)|matches!(w,Expr::Write{table:t,fields,..}if t==table&&fields.iter().any(|f|f.name==field.name))).count()!=1{continue;}
+                let Some(value)=&field.value else{continue;};let literal=literal(value).is_some();
+                let caller=if let Expr::Name{name,..}=value{p.args.iter().any(|a|a.name==*name&&matches!(&a.type_.kind,TypeKind::Enum{variants:v}if v.iter().collect::<BTreeSet<_>>()==variants.iter().collect::<BTreeSet<_>>()))}else{false};
+                let focused=|e:&Expr|{let mut e=e.clone();let mut found=false;super::super::super::intent_walk::expression(&mut e,&mut |e|if matches!(e,Expr::Member{base,name,..}if name==&field.name&&super::same_resource(base,table,keys,p)){found=true;});found};
+                let old_restricted=context.body.iter().any(|s|if let Stmt::Require{condition,..}=s{focused(condition)&&!matches!(condition,Expr::Binary{op,left,right,..}if op=="!="&&((focused(left)&&crate::print::expression(right)==crate::print::expression(value))||(focused(right)&&crate::print::expression(left)==crate::print::expression(value))))}else{false});
+                if literal||caller{out.push(Step{table:table.clone(),column:field.name.clone(),value:value.clone(),site:site.clone(),operation:operation.clone(),effect:crate::print::expression(write),guards:guards.clone(),anchor:anchor&&complete&&writes.len()==1,old_restricted});}
+            }
+        }
+    }out
+}
+fn add(out:&mut Vec<(Diagnostic,Invariant)>,write:&Step,anchor:&Step,from:&str,to:&str,focus:&str,message:String,bound:&Bound){
+    let applicable=anchor.guards.iter().filter(|g|choices(g,focus).is_none()&&row_condition(g)).cloned().reduce(|a,b|workflow::binary("and",a,b)).unwrap_or(Expr::Literal{value:ast::Literal::Bool(true),site:Site::default()});
+    let basis=format!("{} effect {}; guards {}; bypass {} effect {}; domain {:?}; anchor domain {:?}",anchor.operation,anchor.effect,anchor.guards.iter().map(|g|format!("({})",crate::print::expression(g))).collect::<Vec<_>>().join(" and "),write.operation,write.effect,bound.schema.tables[&write.table].columns[&write.column],bound.schema.tables[&anchor.table].columns[&anchor.column]);
+    let policy=Expr::Call{name:"$sec11-transition".into(),args:vec![string(&write.site.to_string()),string(&write.column),string(from),string(to),applicable,string(&basis)],site:Site::default()};let mut invs=Vec::new();
+    workflow::add_syntax(&mut invs,&write.table,Some(&write.column),"update",policy,&write.site,"sec11-transition",Some(write.operation.clone()));let mut inv=invs.remove(0);
+    inv.predicate=format!("question hypothesis {}.{} {from} -> {to}; {basis}",write.table,write.column);
+    let note=Diagnostic::new(&inv.site,"N_TRANSITION_BYPASS",message,"declare and enforce the intended old/next transitions, or answer this exact witnessed question with its intended effect and specification rationale").guide("security");
+    if !out.iter().any(|(n,_)|n.site==note.site){out.push((note,inv));}
+}
+pub fn questions(sources:&[(String,String)],bound:&Bound)->Vec<(Diagnostic,Invariant)>{
+    let steps=steps(sources,bound);let mut out=Vec::new();
+    for write in &steps{for anchor in steps.iter().filter(|a|a.anchor&&a.table==write.table&&a.operation!=write.operation){
+        let Some(target)=literal(&anchor.value)else{continue;};
+        if anchor.column==write.column{
+            let Some(to)=literal(&write.value)else{continue;};let old=write.guards.iter().filter_map(|g|choices(g,&write.column)).reduce(|a,b|a.intersection(&b).cloned().collect());
+            let prior=anchor.guards.iter().filter_map(|g|choices(g,&write.column)).reduce(|a,b|a.intersection(&b).cloned().collect());
+            if let(Some(old),Some(prior))=(old,prior)&&old.len()==2&&prior.len()==1&&old.contains(target)&&!old.contains(to){let from=prior.first().unwrap();if from!=target&&old.contains(from){add(&mut out,write,anchor,from,to,&write.column,format!("{}.{}: {} can bypass sibling {}'s {from} -> {target} step; must {to} require {target}?",write.table,write.column,write.operation,anchor.operation),bound);}}
+        }else if matches!(write.value,Expr::Name{..})&&!write.old_restricted{
+            let Some(ColumnDefault::Literal(Value::String(from)))=bound.schema.tables[&write.table].defaults.get(&write.column)else{continue;};
+            let prior=anchor.guards.iter().filter_map(|g|choices(g,&anchor.column)).reduce(|a,b|a.intersection(&b).cloned().collect());
+            if prior.as_ref().is_none_or(|s|s.len()!=1||s.contains(target)){continue;}
+            for to in anchor.guards.iter().filter_map(|g|choices(g,&write.column)).filter(|s|s.len()==1).filter_map(|s|s.first().cloned()){
+                if &to==from{continue;}
+                add(&mut out,write,anchor,from,&to,&write.column,format!("{}.{}: {} accepts a caller-selected stage; sibling {} requires {to}; must intermediate declared values have explicit transitions?",write.table,write.column,write.operation,anchor.operation),bound);
+            }
+        }
+    }}out
+}
+pub(crate) fn judge(inv:&Invariant,old:Option<&Value>,row:&Value,rows:&BTreeMap<String,Vec<Value>>,schema:&Schema,viewer:&str,now:i64,site:Option<&str>)->Option<bool>{
+    let Expr::Call{name,args,..}=inv.syntax.as_ref()?else{return None;};if name!="$sec11-transition"||args.len()!=6{return None;}
+    let expected=literal(&args[0])?;let column=literal(&args[1])?;let from=literal(&args[2])?;let to=literal(&args[3])?;
+    let old=old?;if site!=Some(expected)||old.field(column).ok()!=Some(&Value::String(from.into()))||row.field(column).ok()!=Some(&Value::String(to.into())){return Some(true);}
+    super::super::concrete::evaluate(&args[4],old,rows,schema,viewer,&inv.table,now).map(|applicable|!applicable)
+}
+
+#[cfg(test)]mod tests{
+ use super::*;
+ const STUDY:&str=include_str!(concat!(env!("CARGO_MANIFEST_DIR"),"/tests/security/sec10-shipping/w30-030.q"));
+ const BATCH:&str=include_str!(concat!(env!("CARGO_MANIFEST_DIR"),"/tests/security/sec10-shipping/w30-035.q"));
+ fn compile(s:&str)->(Bound,Vec<(Diagnostic,Invariant)>){let sources=vec![("schema.q".into(),s.into())];let b=crate::compile(&sources);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);let qs=questions(&sources,&b);assert!(!super::super::super::augmented(&sources,&b).invariants.iter().any(|i|i.site.file.contains("/sec11-transition/")));(b,qs)}
+ #[test]fn source_edges_do_not_depend_on_names_or_enum_order(){
+  for(source,op,from,to)in[(STUDY,"publishReport","measured","reported"),(BATCH,"advanceStage","inspection","finished")]{
+   let(_,qs)=compile(source);assert_eq!(qs.len(),1,"{:?}",qs.iter().map(|(n,_)|&n.message).collect::<Vec<_>>());let inv=&qs[0].1;assert_eq!(inv.operation.as_deref(),Some(op));assert!(inv.predicate.contains(from)&&inv.predicate.contains(to));assert!(super::super::advisory(inv));
+   let source=source.replace(op,"arbitraryVerb").replace(from,"stateA").replace(to,"stateZ");assert_eq!(compile(&source).1.len(),1);
+  }
+  let reversed=BATCH.replace("enum('inspection', 'cleaning', 'flameproofing', 'pleating', 'finished')","enum('finished', 'pleating', 'inspection', 'flameproofing', 'cleaning')");let(_,qs)=compile(&reversed);assert_eq!(qs.len(),1);assert!(qs[0].1.predicate.contains("inspection -> finished"));
+ }
+ #[test]fn actual_committed_edges_and_minimal_repairs(){
+  for(source,op,from,to,broken,fixed)in[
+   (STUDY,"publishReport","measured","reported","require s.status = 'measured' or s.status = 'reviewed' else BAD_STATUS","require s.status = 'reviewed' else BAD_STATUS"),
+   (BATCH,"advanceStage","inspection","finished","require stage != b.stage else NO_CHANGE","require stage != b.stage else NO_CHANGE\n  require (b.stage = 'inspection' and stage = 'cleaning') or (b.stage = 'cleaning' and stage = 'flameproofing') or (b.stage = 'flameproofing' and stage = 'pleating') or (b.stage = 'pleating' and stage = 'finished') else BAD_TRANSITION")]{
+   let(mut b,qs)=compile(source);b.invariants=qs.iter().map(|(_,i)|i.clone()).collect();let mut c=challenges::Campaign::work_bounded(8192);challenges::generated_campaign(&b,&mut c,false);
+   assert!(c.violations.iter().any(|v|v.operation==op&&v.old.as_ref().and_then(|r|r.field(qs[0].1.column.as_ref().unwrap()).ok())==Some(&Value::String(from.into()))&&v.row.field(qs[0].1.column.as_ref().unwrap()).ok()==Some(&Value::String(to.into()))&&v.reachability.is_reachable()),"{op} missing actual edge: {} calls; {:?}",c.attempted,c.unsupported);
+   assert!(compile(&source.replace(broken,fixed)).1.is_empty());
+  }
+ }
+ #[test]fn anchor_scope_and_domain_are_material_and_unrelated_targets_are_uncovered(){
+  let(b,qs)=compile(STUDY);let scoped=STUDY.replace("require s.status = 'measured' else BAD_STATUS","require s.status = 'measured' else BAD_STATUS\n  require s.siteKind = 'office' else WRONG_KIND");
+  let(_,changed)=compile(&scoped);assert_eq!(changed.len(),1);assert_ne!(qs[0].1.predicate,changed[0].1.predicate);
+  let(_,renamed)=compile(&STUDY.replace("mutation markReviewed(study: studies):","mutation markReviewed(study: studies, other: studies):").replace("update studies[study] { status: 'reviewed' }","update studies[other] { status: 'reviewed' }"));assert!(renamed.is_empty());
+  let(_,original)=compile(BATCH);let(_,domain)=compile(&BATCH.replace("'flameproofing', 'pleating'","'flameproofing', 'drying', 'pleating'"));assert_ne!(original[0].1.predicate,domain[0].1.predicate);
+  let old=snapback4_core::value::object([("status",Value::String("measured".into())),("siteKind",Value::String("venue".into()))]);let next=snapback4_core::value::object([("status",Value::String("reported".into())),("siteKind",Value::String("venue".into()))]);let inv=&changed[0].1;let Expr::Call{args,..}=inv.syntax.as_ref().unwrap()else{panic!()};let site=literal(&args[0]).unwrap();assert_eq!(judge(inv,Some(&old),&next,&BTreeMap::new(),&b.schema,"actor",0,Some(site)),Some(true));
+ }
+ const SMALL:&str="table docs:\n  phase: enum('a','b','c') default 'a'\n  read <- allow\n  insert <- allow\n  update <- allow\n  delete <- allow\n  online only\nmutation create():\n  return insert docs {}\nmutation middle(doc: docs):\n  d = docs[doc] ! else MISSING\n  require d.phase = 'a' else WRONG\n  update docs[doc] {phase:'b'}\n  return null\nmutation finish(doc: docs):\n  d = docs[doc] ! else MISSING\n  require d.phase = 'a' or d.phase = 'b' else WRONG\n  update docs[doc] {phase:'c'}\n  return null\n";
+ #[test]fn noops_reverted_deleted_and_expired_updates_do_not_supply_cards(){
+  let(b,qs)=compile(SMALL);assert_eq!(qs.len(),1);let inv=&qs[0].1;let Expr::Call{args,..}=inv.syntax.as_ref().unwrap()else{panic!()};let site=literal(&args[0]).unwrap();let row=snapback4_core::value::object([("phase",Value::String("a".into()))]);assert_eq!(judge(inv,Some(&row),&row,&BTreeMap::new(),&b.schema,"actor",0,Some(site)),Some(true));
+  let reverted=SMALL.replace("update docs[doc] {phase:'c'}","update docs[doc] {phase:'c'}\n  update docs[doc] {phase:'a'}");assert!(compile(&reverted).1.is_empty());
+  let deleted=SMALL.replace("update docs[doc] {phase:'c'}","update docs[doc] {phase:'c'}\n  delete docs[doc]");
+  let expired=SMALL.replace("  phase: enum", "  deadline: time\n  expire at .deadline\n  phase: enum").replace("return insert docs {}","return insert docs {deadline:now + 1d}").replace("update docs[doc] {phase:'c'}","update docs[doc] {phase:'c',deadline:now}");
+  for source in [deleted,expired]{let(mut b,qs)=compile(&source);assert_eq!(qs.len(),1);b.invariants=qs.into_iter().map(|(_,i)|i).collect();let mut campaign=challenges::Campaign::work_bounded(8192);challenges::generated_campaign(&b,&mut campaign,false);assert!(campaign.violations.is_empty(),"transient or expired edge became a question: {:?}",campaign.violations);}
+ }
+
+}

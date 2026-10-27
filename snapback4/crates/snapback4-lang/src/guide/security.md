@@ -409,6 +409,25 @@ N_CONSTANT_APPROVAL: Creation stores a constant true approval/payment flag. A tr
 
 N_TRANSITION_BYPASS: A generic enum setter reaches a state also reached by a stricter decision mutation. Apply the decision authority to every path reaching that state; write independent transition intent and run test.
 
+
+A sibling's source guards can also supply an advisory question about an actual
+committed old/next edge: a literal writer can bypass a sibling step, or a caller
+can jump from a declared default directly to a value another operation requires.
+The card names the actual operation, caller, edge and source sibling. Enum list
+order does not declare a workflow. A question remains advisory until the author
+states intent; full source premises and replay remain in review/JSON.
+For an intended order, enforce the allowed edges with named update images or
+program guards, and state independent intent:
+
+```quarry
+table transitionBatches:
+  stage: enum('finished', 'inspection', 'cleaning') default 'inspection'
+  read <- allow
+  insert <- .stage = 'inspection'
+  update (old, next) <- old.stage = next.stage or (old.stage = 'inspection' and next.stage = 'cleaning') or (old.stage = 'cleaning' and next.stage = 'finished')
+  online only
+```
+
 ### N_STALE_CREATION_CHECK
 
 N_STALE_CREATION_CHECK: A creator checks a mutable eligibility column that a later literal-state transition does not recheck. One question groups the created table, dependency and decision sites; immutable ownership reads and non-state payload edits are excluded. Decide whether eligibility must remain current and write independent intent; test create, eligibility change, approval. Any literal enum destination distinct from its default creation state can raise this question, including filled; no approval-word list determines eligibility. True approval flags also qualify.

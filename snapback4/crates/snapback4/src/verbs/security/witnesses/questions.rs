@@ -4,7 +4,7 @@ use super::*;
 use snapback4_core::{Context, Engine, ir, schema::{RuleExpr, RuleTerm}};
 
 pub(super) fn advisory(code:&str)->bool {
-    matches!(code,"N_OPTIONAL_EVIDENCE"|"N_TEXT_EVIDENCE"|"N_CHILD_EVIDENCE_PRESENCE"|"N_GUARD_NOT_CONSUMED"|"N_BROAD_READ"|"N_APPROVAL_PATH"|"N_CALLER_HISTORY"|"N_LATEST_SUBJECT"|"N_ASSIGNMENT_SCOPE")
+    matches!(code,"N_OPTIONAL_EVIDENCE"|"N_TEXT_EVIDENCE"|"N_CHILD_EVIDENCE_PRESENCE"|"N_GUARD_NOT_CONSUMED"|"N_BROAD_READ"|"N_APPROVAL_PATH"|"N_CALLER_HISTORY"|"N_LATEST_SUBJECT"|"N_ASSIGNMENT_SCOPE"|"N_TRANSITION_BYPASS")
 }
 pub(super) fn candidates(bound:&Bound,sources:&[(String,String)],index:usize,n:&Diagnostic)->Vec<(usize,security::Invariant)> {
     let mut lines=Vec::new();
@@ -81,6 +81,22 @@ pub(super) fn candidates(bound:&Bound,sources:&[(String,String)],index:usize,n:&
         }
         (index,inv)
     })).collect()
+}
+
+// @ref LLP 3000.036.004.004#transition-questions — public questions retain complete normalized source hypotheses and a persistent actual edge.
+pub(super) fn transition_evidence(mut value:serde_json::Value,n:&Diagnostic,inv:&security::Invariant)->Option<serde_json::Value>{
+    if value["effect"]!="update"{return None;}let column=inv.column.as_ref()?;
+    let old=value["old"].get(column)?.clone();let next=value["row"].get(column)?.clone();if old==next{return None;}
+    let committed=value["committedRows"][&inv.table].as_array()?.iter().find(|row|row["id"]==value["row"]["id"])?;
+    if committed.get(column)!=Some(&next){return None;}
+    let op=value["operation"].as_str()?.to_owned();let viewer=value["viewer"].as_str()?.to_owned();
+    value["hypothesis"]=json!({"basis":inv.predicate});value["questionKind"]="declared-transition".into();
+    value["transition"]=json!({"table":inv.table,"column":column,"from":old,"to":next});
+    value["candidate"]=format!("question: {}",n.message).into();
+    value["summary"]=format!("{op} as {viewer} committed {}.{column} {old} -> {next}; {} (bounded typed write replay; not proof or inferred enum-order authority)",inv.table,n.message).into();
+    let question=n.message.split_once(": ").map(|(_,s)|s).unwrap_or(&n.message);let prefix=format!("{op} ");let question=question.strip_prefix(&prefix).unwrap_or(question);
+    value["compactSummary"]=format!("{op} as {viewer} changed {}.{column} {old} -> {next}; {question}",inv.table).into();
+    Some(super::super::super::security_reviews::witness::stamp(value))
 }
 
 pub(super) fn assignment_evidence(mut value:serde_json::Value,n:&Diagnostic,inv:&security::Invariant)->Option<serde_json::Value> {
@@ -409,4 +425,17 @@ pub(super) fn repeat(bound:&Bound,inv:&security::Invariant,c:&Counterexample,n:&
         let again=examples(source,"N_GUARD_NOT_CONSUMED",message);assert_eq!(values.iter().map(|v|&v["id"]).collect::<Vec<_>>(),again.iter().map(|v|&v["id"]).collect::<Vec<_>>());
         let fixed=source.replace("  return insert receipts", "  update credits[credit] {spent:true}\n  return insert receipts");assert!(examples(&fixed,"N_GUARD_NOT_CONSUMED",message).is_empty());
     }
+}
+
+#[cfg(test)]mod transition_cards{
+ use super::*;
+ #[test]fn committed_transition_cards_keep_full_hypotheses_and_reject_transient_images(){
+  let source=include_str!(concat!(env!("CARGO_MANIFEST_DIR"),"/../snapback4-lang/tests/security/sec10-shipping/w30-030.q"));let sources=vec![("schema.q".into(),source.into())];let mut bound=snapback4_lang::compile(&sources);assert!(bound.diagnostics.is_empty());let qs=security::derived::transition_questions(&sources,&bound);assert_eq!(qs.len(),1);let(n,inv)=&qs[0];bound.invariants=vec![inv.clone()];let mut campaign=challenges::Campaign::work_bounded(8192);challenges::generated_campaign(&bound,&mut campaign,false);
+  let c=campaign.violations.iter().find(|c|c.operation=="publishReport"&&c.reachability.is_reachable()).unwrap();let raw=evidence(&sources,&bound,inv,c);let card=transition_evidence(raw.clone(),n,inv).unwrap();assert_eq!(card["transition"]["from"],"measured");assert_eq!(card["transition"]["to"],"reported");assert!(card["summary"].as_str().unwrap().contains("markReviewed"));assert!(super::super::super::super::security_reviews::witness::concrete(&card));
+  let changed=source.replace("require s.status = 'measured' else BAD_STATUS","require s.status = 'measured' else BAD_STATUS\n  require s.siteKind = 'office' else WRONG_KIND");let sources2=vec![("schema.q".into(),changed)];let b2=snapback4_lang::compile(&sources2);assert!(b2.diagnostics.is_empty());let qs2=security::derived::transition_questions(&sources2,&b2);let next=transition_evidence(raw.clone(),&qs2[0].0,&qs2[0].1).unwrap();assert_eq!(card["candidate"],next["candidate"]);assert_eq!(card["transition"],next["transition"]);assert_ne!(card["id"],next["id"],"source prerequisite qualifiers remain material after factual candidate rewriting");
+  let sources3=vec![("schema.q".into(),format!("-- harmless source line\n{source}"))];let b3=snapback4_lang::compile(&sources3);let qs3=security::derived::transition_questions(&sources3,&b3);let same=transition_evidence(raw.clone(),&qs3[0].0,&qs3[0].1).unwrap();assert_eq!(card["id"],same["id"],"source coordinates do not define meaning");
+  let mut missing=raw.clone();missing["committedRows"][&inv.table]=json!([]);assert!(transition_evidence(missing,n,inv).is_none());
+  let mut reverted=raw.clone();let id=reverted["row"]["id"].clone();let committed=reverted["committedRows"][&inv.table].as_array_mut().unwrap().iter_mut().find(|row|row["id"]==id).unwrap();committed[inv.column.as_ref().unwrap()]="measured".into();assert!(transition_evidence(reverted,n,inv).is_none());
+  let mut noop=raw;noop["old"]=noop["row"].clone();assert!(transition_evidence(noop,n,inv).is_none());
+ }
 }

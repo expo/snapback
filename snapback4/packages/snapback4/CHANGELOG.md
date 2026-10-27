@@ -4,6 +4,8 @@
 
 ### Guide changes
 
+- Transition questions replay actual committed old/next edges against sibling source prerequisites. Declare intended transitions explicitly; enum list order supplies no automatic authority.
+
 - Assignment questions show an actual private-payload read by another role member and ask whether access should be assigned or global; absent assignment models are stated explicitly.
 - Approval questions use actual receipt reads and typed effects, including parent inserts and related completion paths. Witnessed questions distinguish caller-supplied history from approvals selected by an older subject; they remain advisory until the builder states the intended contract.
 
