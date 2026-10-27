@@ -1,0 +1,35 @@
+{
+  "product_commit": "9ee365bbd683c053158152ae352f420798dcbaa4",
+  "changes": {
+    "crates/snapback4-core/src/lib.rs": {
+      "product_sha256": "9cbf55ca92da16c5b765c42c2042d09f2aeda6308348a9199cdc44a9cf6164a2",
+      "probe_sha256": "3a2ef280699270a9141cd56d66b2fbabdaf2dffc3a6c59fe39ca810f418a7704"
+    },
+    "crates/snapback4-core/src/diagnosis.rs": {
+      "product_sha256": null,
+      "probe_sha256": "28c2e562d705c9f5d073523614cf6a7b3cb7dc4b891ef50479688b49f2dc5f43"
+    },
+    "crates/snapback4-core/src/engine/command_batch.rs": {
+      "product_sha256": "cb2a81497e7c048e2fa34df835142a981750100c00b12631c3db40594205545b",
+      "probe_sha256": "bab3d0e69c4a194fe25d05734f730030d5afe0292ca474172620b1ff58c6ba60"
+    },
+    "crates/snapback4-core/src/engine/program_pipeline.rs": {
+      "product_sha256": "682d4cb0992237255b8d79aab5ebe60cd617461b5462e0862077b16e94bebe95",
+      "probe_sha256": "ecfa3a69d9ccbe9850326952cd81c76c144fedd0e33ea6921275dba1f428d53f"
+    },
+    "crates/snapback4-core/src/engine/postgres/flight.rs": {
+      "product_sha256": "bdd077c6cd7cd6d0076bdc38af8e598427ce2d75e3150c5bd144ec2c0718b8b5",
+      "probe_sha256": "6cd422db614c56bfcbe4fb320a7ac85189c45ebeb7c193c4fef383d738771f5c"
+    },
+    "crates/snapback4/src/serve_trace.rs": {
+      "product_sha256": "8c602d450bbdc5aeb1f1c60bf4ce5e91a3472668ca3e1c8ae534bdf772c65202",
+      "probe_sha256": "b70c210cbbad036820872404254c7e3e91b76af5d3b411b3e3231d8fc2f2a0da"
+    },
+    "crates/snapback4/src/serve.rs": {
+      "product_sha256": "d4231b93c2b3e5a447b88dec249d911233a85608257c81c00bc6be8735e8efc2",
+      "probe_sha256": "5380e554756bfd744eff477416853351e39e5010c37c6112adecb625784c1b65"
+    }
+  },
+  "policy": "numeric clocks and request/batch correlation only; no product policy, SQL or scheduling change",
+  "clock": "existing safe rustix CLOCK_MONOTONIC in Postgres serving core; unused CPU clocks and non-Postgres build-time metrics omitted"
+}

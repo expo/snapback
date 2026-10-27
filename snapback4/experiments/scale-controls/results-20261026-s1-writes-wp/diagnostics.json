@@ -1,0 +1,277 @@
+[
+  {
+    "workload": "W4",
+    "keys": "disjoint",
+    "link": "A",
+    "rate": 2262,
+    "repetitions": 3,
+    "passes": 0,
+    "pipeline_parts_exposed": true,
+    "nonpipeline_requests": 0,
+    "matched_requests": 135030,
+    "successful_measured": 135030,
+    "missing": {},
+    "residence_ms": {
+      "H_in": 0.07033555052951196,
+      "intake_to_queue": 0.049657609731170844,
+      "Q": 1.8840852728875066,
+      "fill": 0.0046256435088498854,
+      "X": 2.2800889646671108,
+      "C": 4.649187576057172,
+      "release": 0.0729836332074354,
+      "reply": 0.1517119298230023,
+      "H_out": 0.09254141359697844,
+      "residence": 9.25521759400874
+    },
+    "flights_hist": {
+      "2": 17037
+    },
+    "dispatch_hist": {
+      "2": 17037
+    },
+    "mean_N": 7.918015482054891,
+    "time_weighted_unreleased_batches": 1.32340498475,
+    "flights_per_batch": 2
+  },
+  {
+    "workload": "W4",
+    "keys": "disjoint",
+    "link": "A",
+    "rate": 3200,
+    "repetitions": 3,
+    "passes": 0,
+    "pipeline_parts_exposed": true,
+    "nonpipeline_requests": 0,
+    "matched_requests": 160009,
+    "successful_measured": 160009,
+    "missing": {},
+    "residence_ms": {
+      "H_in": 0.08939329610834391,
+      "intake_to_queue": 0.08535753779474906,
+      "Q": 2.5499521345361824,
+      "fill": 0.005174633564362005,
+      "X": 2.397862376516321,
+      "C": 4.672085073833347,
+      "release": 0.07948221925641683,
+      "reply": 0.1549583799661269,
+      "H_out": 0.07819411190620529,
+      "residence": 10.112459763482056
+    },
+    "flights_hist": {
+      "2": 16615
+    },
+    "dispatch_hist": {
+      "2": 16615
+    },
+    "mean_N": 9.631229831480818,
+    "time_weighted_unreleased_batches": 1.29988845215,
+    "flights_per_batch": 2
+  },
+  {
+    "workload": "W4",
+    "keys": "disjoint",
+    "link": "B",
+    "rate": 1600,
+    "repetitions": 3,
+    "passes": 1,
+    "pipeline_parts_exposed": true,
+    "nonpipeline_requests": 0,
+    "matched_requests": 95868,
+    "successful_measured": 95868,
+    "missing": {},
+    "residence_ms": {
+      "H_in": 0.08454110956732173,
+      "intake_to_queue": 0.07860963291192057,
+      "Q": 2.3844033221304293,
+      "fill": 0.007137467038010598,
+      "X": 3.157476847853298,
+      "C": 5.328810619508073,
+      "release": 0.19954627921725707,
+      "reply": 0.2300901833249885,
+      "H_out": 0.07361903939792214,
+      "residence": 11.544234500949223
+    },
+    "flights_hist": {
+      "2": 13685
+    },
+    "dispatch_hist": {
+      "2": 13685
+    },
+    "mean_N": 7.0006567425569175,
+    "time_weighted_unreleased_batches": 1.2514406954,
+    "flights_per_batch": 2
+  },
+  {
+    "workload": "W4",
+    "keys": "disjoint",
+    "link": "B",
+    "rate": 2262,
+    "repetitions": 3,
+    "passes": 0,
+    "pipeline_parts_exposed": true,
+    "nonpipeline_requests": 0,
+    "matched_requests": 133798,
+    "successful_measured": 133798,
+    "missing": {},
+    "residence_ms": {
+      "H_in": 0.07250106207865588,
+      "intake_to_queue": 0.04788144037280079,
+      "Q": 2.3363075328704466,
+      "fill": 0.0053128604687663495,
+      "X": 2.9148066950701805,
+      "C": 5.245728820542908,
+      "release": 0.10967809897008923,
+      "reply": 0.16512732518423295,
+      "H_out": 0.10251453578528828,
+      "residence": 10.999858371343368
+    },
+    "flights_hist": {
+      "2": 14372
+    },
+    "dispatch_hist": {
+      "2": 14372
+    },
+    "mean_N": 9.291458333333333,
+    "time_weighted_unreleased_batches": 1.27196864085,
+    "flights_per_batch": 2
+  },
+  {
+    "workload": "W5",
+    "keys": "hot1",
+    "link": "A",
+    "rate": 2262,
+    "repetitions": 3,
+    "passes": 0,
+    "pipeline_parts_exposed": true,
+    "nonpipeline_requests": 0,
+    "matched_requests": 134841,
+    "successful_measured": 134841,
+    "missing": {},
+    "residence_ms": {
+      "H_in": 0.07021628875490392,
+      "intake_to_queue": 0.049149075896796963,
+      "Q": 1.9438506049717816,
+      "fill": 0.004793631528985992,
+      "X": 2.3699820547237116,
+      "C": 4.718845263673512,
+      "release": 0.08076632708152565,
+      "reply": 0.15337959629489548,
+      "H_out": 0.09388067777604735,
+      "residence": 9.484863520702161
+    },
+    "flights_hist": {
+      "2": 15286,
+      "3": 1346
+    },
+    "dispatch_hist": {
+      "2": 16632
+    },
+    "mean_N": 8.060297011987833,
+    "time_weighted_unreleased_batches": 1.30947278235,
+    "flights_per_batch": 2.0803363750223656
+  },
+  {
+    "workload": "W5",
+    "keys": "hot1",
+    "link": "B",
+    "rate": 1600,
+    "repetitions": 3,
+    "passes": 1,
+    "pipeline_parts_exposed": true,
+    "nonpipeline_requests": 0,
+    "matched_requests": 95871,
+    "successful_measured": 95871,
+    "missing": {},
+    "residence_ms": {
+      "H_in": 0.0845939006581761,
+      "intake_to_queue": 0.07869359720874926,
+      "Q": 2.3988511533727612,
+      "fill": 0.007895163532246455,
+      "X": 3.2657324820748714,
+      "C": 5.262902455998164,
+      "release": 0.23928129236161091,
+      "reply": 0.22826735398608547,
+      "H_out": 0.0728454319658708,
+      "residence": 11.639062831158537
+    },
+    "flights_hist": {
+      "3": 958,
+      "2": 12596
+    },
+    "dispatch_hist": {
+      "2": 13554
+    },
+    "mean_N": 7.093937375083278,
+    "time_weighted_unreleased_batches": 1.2314109461,
+    "flights_per_batch": 2.071063735287586
+  },
+  {
+    "workload": "W5",
+    "keys": "same",
+    "link": "A",
+    "rate": 2262,
+    "repetitions": 3,
+    "passes": 0,
+    "pipeline_parts_exposed": true,
+    "nonpipeline_requests": 0,
+    "matched_requests": 134606,
+    "successful_measured": 134606,
+    "missing": {},
+    "residence_ms": {
+      "H_in": 0.06878728876870273,
+      "intake_to_queue": 0.04382344931132342,
+      "Q": 2.2444648521314057,
+      "fill": 0.005106289214448093,
+      "X": 3.487642035414469,
+      "C": 4.496779926080561,
+      "release": 0.2519570109133322,
+      "reply": 0.15724298546870125,
+      "H_out": 0.09989800920464169,
+      "residence": 10.855701846507584
+    },
+    "flights_hist": {
+      "3": 14451
+    },
+    "dispatch_hist": {
+      "2": 14451
+    },
+    "mean_N": 9.313083143271822,
+    "time_weighted_unreleased_batches": 1.13218941345,
+    "flights_per_batch": 3
+  },
+  {
+    "workload": "W5",
+    "keys": "same",
+    "link": "B",
+    "rate": 70,
+    "repetitions": 3,
+    "passes": 3,
+    "pipeline_parts_exposed": true,
+    "nonpipeline_requests": 3297,
+    "matched_requests": 903,
+    "successful_measured": 4200,
+    "missing": {},
+    "residence_ms": {
+      "H_in": 0.08547572093023255,
+      "intake_to_queue": 0.07994130232558139,
+      "Q": 8.066156678848284,
+      "fill": 0.004224946843853821,
+      "X": 3.96745280841639,
+      "C": 4.918747395348837,
+      "release": 0.09045160797342193,
+      "reply": 0.10114975636766334,
+      "H_out": 0.08899410077519379,
+      "residence": 17.402594317829458
+    },
+    "flights_hist": {
+      "3": 460
+    },
+    "dispatch_hist": {
+      "1": 444,
+      "2": 16
+    },
+    "mean_N": 1.1191047162270185,
+    "time_weighted_unreleased_batches": 0.03686740295,
+    "flights_per_batch": 3
+  }
+]

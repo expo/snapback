@@ -1,0 +1,3155 @@
+[
+  {
+    "campaign": "matrix-g6",
+    "part": "smoke-w4-n1000000-d1000-c32-disjoint",
+    "arm": "smoke",
+    "cell": {
+      "workload": "W4",
+      "rows": 1000000,
+      "delay_us": 1000,
+      "writers": 32,
+      "keys": "disjoint",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/replay-w4-n1000000-d1000-c32-disjoint-NEW",
+        "--workload",
+        "W4",
+        "--keys",
+        "disjoint",
+        "--link",
+        "B",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/bin/sb4-postgres-scale-seed",
+        "--rates",
+        "100"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "summary": {
+      "highest_passing_offered_per_s": null,
+      "lowest_failing_offered_per_s": 100,
+      "bracketed": false,
+      "rates": [
+        100
+      ],
+      "repeats": 3
+    },
+    "selected": null,
+    "headline_eligible": true,
+    "rates": [
+      {
+        "rate": 100,
+        "all_pass": false,
+        "p50_ms": {
+          "min": 1156.579327,
+          "median": 1188.036607,
+          "max": 1190.133759
+        },
+        "p99_ms": {
+          "min": 1370.488831,
+          "median": 1370.488831,
+          "max": 1370.488831
+        },
+        "p999_ms": {
+          "min": 1374.683135,
+          "median": 1377.828863,
+          "max": 1378.877439
+        },
+        "achieved_per_s": {
+          "min": 85.3,
+          "median": 85.95,
+          "max": 88.8
+        },
+        "errors": 799,
+        "dispatch_lag_p99_ms": {
+          "min": 1049.100287,
+          "median": 1050.148863,
+          "max": 1050.673151
+        },
+        "http_service_p99_ms": {
+          "min": 385.613823,
+          "median": 385.875967,
+          "max": 392.691711
+        },
+        "resources": {
+          "generator_cpu_us_per_ack_including_warmup": {
+            "min": 283.68794326241135,
+            "median": 287.9581151832461,
+            "max": 380.45827929096413
+          },
+          "serve_sample_count": {
+            "min": 123,
+            "median": 123,
+            "max": 123
+          },
+          "generator_cpu_s": {
+            "min": 0.76,
+            "median": 0.77,
+            "max": 0.88
+          },
+          "serve_mean_logical_cores": {
+            "min": 0.08587313845457516,
+            "median": 0.08606360589309439,
+            "max": 0.08795953198503652
+          },
+          "serve_cpu_us_per_ack_including_warmup": {
+            "min": 1004.1060097051138,
+            "median": 1009.7232610321615,
+            "max": 1188.932122784263
+          },
+          "serve_cpu_s": {
+            "min": 2.69,
+            "median": 2.7,
+            "max": 2.75
+          },
+          "generator_mean_logical_cores": {
+            "min": 0.024261555845902276,
+            "median": 0.024544065384326918,
+            "max": 0.028147050235211687
+          },
+          "generator_sample_count": {
+            "min": 123,
+            "median": 123,
+            "max": 123
+          }
+        }
+      }
+    ]
+  },
+  {
+    "campaign": "matrix-g6",
+    "part": "w4-n1000000-d1000-c32-disjoint",
+    "arm": "g6",
+    "cell": {
+      "workload": "W4",
+      "rows": 1000000,
+      "delay_us": 1000,
+      "writers": 32,
+      "keys": "disjoint",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/replay-w4-n1000000-d1000-c32-disjoint-NEW",
+        "--workload",
+        "W4",
+        "--keys",
+        "disjoint",
+        "--link",
+        "B",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/bin/sb4-postgres-scale-seed",
+        "--rates",
+        "3200",
+        "1600",
+        "2262",
+        "4525"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "summary": {
+      "highest_passing_offered_per_s": 1600,
+      "lowest_failing_offered_per_s": 2262,
+      "bracketed": true,
+      "rates": [
+        1600,
+        2262,
+        3200,
+        4525
+      ],
+      "repeats": 3
+    },
+    "selected": {
+      "rate": 1600,
+      "all_pass": true,
+      "p50_ms": {
+        "min": 10.747903,
+        "median": 10.797055,
+        "max": 10.870783
+      },
+      "p99_ms": {
+        "min": 17.481727,
+        "median": 17.727487,
+        "max": 41.058303
+      },
+      "p999_ms": {
+        "min": 22.953983,
+        "median": 24.264703,
+        "max": 83.361791
+      },
+      "achieved_per_s": {
+        "min": 1600.0,
+        "median": 1600.0,
+        "max": 1600.0
+      },
+      "errors": 0,
+      "dispatch_lag_p99_ms": {
+        "min": 0.088639,
+        "median": 0.187007,
+        "max": 21.184511
+      },
+      "http_service_p99_ms": {
+        "min": 17.137663,
+        "median": 17.694719,
+        "max": 20.742143
+      },
+      "resources": {
+        "generator_cpu_us_per_ack_including_warmup": {
+          "min": 220.20833333333334,
+          "median": 220.625,
+          "max": 220.83333333333334
+        },
+        "serve_sample_count": {
+          "min": 118,
+          "median": 118,
+          "max": 118
+        },
+        "generator_cpu_s": {
+          "min": 10.57,
+          "median": 10.59,
+          "max": 10.6
+        },
+        "serve_mean_logical_cores": {
+          "min": 0.7109997181893178,
+          "median": 0.7123444008854706,
+          "max": 0.7131826274626536
+        },
+        "serve_cpu_us_per_ack_including_warmup": {
+          "min": 446.0416666666667,
+          "median": 446.6666666666667,
+          "max": 447.0833333333333
+        },
+        "serve_cpu_s": {
+          "min": 21.41,
+          "median": 21.44,
+          "max": 21.46
+        },
+        "generator_mean_logical_cores": {
+          "min": 0.3510166754442358,
+          "median": 0.3518529480119931,
+          "max": 0.35227100890513174
+        },
+        "generator_sample_count": {
+          "min": 118,
+          "median": 118,
+          "max": 118
+        }
+      }
+    },
+    "headline_eligible": true,
+    "rates": [
+      {
+        "rate": 1600,
+        "all_pass": true,
+        "p50_ms": {
+          "min": 10.747903,
+          "median": 10.797055,
+          "max": 10.870783
+        },
+        "p99_ms": {
+          "min": 17.481727,
+          "median": 17.727487,
+          "max": 41.058303
+        },
+        "p999_ms": {
+          "min": 22.953983,
+          "median": 24.264703,
+          "max": 83.361791
+        },
+        "achieved_per_s": {
+          "min": 1600.0,
+          "median": 1600.0,
+          "max": 1600.0
+        },
+        "errors": 0,
+        "dispatch_lag_p99_ms": {
+          "min": 0.088639,
+          "median": 0.187007,
+          "max": 21.184511
+        },
+        "http_service_p99_ms": {
+          "min": 17.137663,
+          "median": 17.694719,
+          "max": 20.742143
+        },
+        "resources": {
+          "generator_cpu_us_per_ack_including_warmup": {
+            "min": 220.20833333333334,
+            "median": 220.625,
+            "max": 220.83333333333334
+          },
+          "serve_sample_count": {
+            "min": 118,
+            "median": 118,
+            "max": 118
+          },
+          "generator_cpu_s": {
+            "min": 10.57,
+            "median": 10.59,
+            "max": 10.6
+          },
+          "serve_mean_logical_cores": {
+            "min": 0.7109997181893178,
+            "median": 0.7123444008854706,
+            "max": 0.7131826274626536
+          },
+          "serve_cpu_us_per_ack_including_warmup": {
+            "min": 446.0416666666667,
+            "median": 446.6666666666667,
+            "max": 447.0833333333333
+          },
+          "serve_cpu_s": {
+            "min": 21.41,
+            "median": 21.44,
+            "max": 21.46
+          },
+          "generator_mean_logical_cores": {
+            "min": 0.3510166754442358,
+            "median": 0.3518529480119931,
+            "max": 0.35227100890513174
+          },
+          "generator_sample_count": {
+            "min": 118,
+            "median": 118,
+            "max": 118
+          }
+        }
+      },
+      {
+        "rate": 2262,
+        "all_pass": false,
+        "p50_ms": {
+          "min": 12.484607,
+          "median": 12.492799,
+          "max": 12.804095
+        },
+        "p99_ms": {
+          "min": 55.246847,
+          "median": 96.731135,
+          "max": 104.660991
+        },
+        "p999_ms": {
+          "min": 62.816255,
+          "median": 110.952447,
+          "max": 115.212287
+        },
+        "achieved_per_s": {
+          "min": 2261.7,
+          "median": 2261.9,
+          "max": 2261.9
+        },
+        "errors": 10,
+        "dispatch_lag_p99_ms": {
+          "min": 41.123839,
+          "median": 82.575359,
+          "max": 90.570751
+        },
+        "http_service_p99_ms": {
+          "min": 17.530879,
+          "median": 17.580031,
+          "max": 18.792447
+        },
+        "resources": {
+          "generator_cpu_us_per_ack_including_warmup": {
+            "min": 210.29517956879909,
+            "median": 211.18250412638528,
+            "max": 211.20117907148122
+          },
+          "serve_sample_count": {
+            "min": 118,
+            "median": 118,
+            "max": 118
+          },
+          "generator_cpu_s": {
+            "min": 14.27,
+            "median": 14.33,
+            "max": 14.33
+          },
+          "serve_mean_logical_cores": {
+            "min": 0.9073498589787097,
+            "median": 0.9098494948701783,
+            "max": 0.9110647090595796
+          },
+          "serve_cpu_us_per_ack_including_warmup": {
+            "min": 402.6529108327192,
+            "median": 403.93769250040526,
+            "max": 403.9436453666588
+          },
+          "serve_cpu_s": {
+            "min": 27.32,
+            "median": 27.41,
+            "max": 27.41
+          },
+          "generator_mean_logical_cores": {
+            "min": 0.47431205393214887,
+            "median": 0.4756710420098378,
+            "max": 0.4759269209064755
+          },
+          "generator_sample_count": {
+            "min": 118,
+            "median": 118,
+            "max": 118
+          }
+        }
+      },
+      {
+        "rate": 3200,
+        "all_pass": false,
+        "p50_ms": {
+          "min": 1007.157247,
+          "median": 1007.157247,
+          "max": 1007.157247
+        },
+        "p99_ms": {
+          "min": 1015.545855,
+          "median": 1015.545855,
+          "max": 1016.594431
+        },
+        "p999_ms": {
+          "min": 1020.788735,
+          "median": 1021.837311,
+          "max": 1028.128767
+        },
+        "achieved_per_s": {
+          "min": 2340.55,
+          "median": 2352.95,
+          "max": 2372.35
+        },
+        "errors": 50683,
+        "dispatch_lag_p99_ms": {
+          "min": 1005.584383,
+          "median": 1005.584383,
+          "max": 1006.632959
+        },
+        "http_service_p99_ms": {
+          "min": 18.825215,
+          "median": 18.972671,
+          "max": 19.070975
+        },
+        "resources": {
+          "generator_cpu_us_per_ack_including_warmup": {
+            "min": 223.799201999144,
+            "median": 223.84045678348298,
+            "max": 224.53115012715728
+          },
+          "serve_sample_count": {
+            "min": 121,
+            "median": 122,
+            "max": 122
+          },
+          "generator_cpu_s": {
+            "min": 16.21,
+            "median": 16.23,
+            "max": 16.51
+          },
+          "serve_mean_logical_cores": {
+            "min": 0.932746060526253,
+            "median": 0.9331906011851752,
+            "max": 0.9549183418529477
+          },
+          "serve_cpu_us_per_ack_including_warmup": {
+            "min": 398.72430312987535,
+            "median": 400.0993007571683,
+            "max": 404.04727257891227
+          },
+          "serve_cpu_s": {
+            "min": 28.88,
+            "median": 29.01,
+            "max": 29.71
+          },
+          "generator_mean_logical_cores": {
+            "min": 0.5218362138001064,
+            "median": 0.5237887688785211,
+            "max": 0.530653040188225
+          },
+          "generator_sample_count": {
+            "min": 121,
+            "median": 122,
+            "max": 122
+          }
+        }
+      },
+      {
+        "rate": 4525,
+        "all_pass": false,
+        "p50_ms": {
+          "min": 1007.157247,
+          "median": 1007.157247,
+          "max": 1007.157247
+        },
+        "p99_ms": {
+          "min": 1015.545855,
+          "median": 1016.070143,
+          "max": 1016.594431
+        },
+        "p999_ms": {
+          "min": 1022.361599,
+          "median": 1022.361599,
+          "max": 1026.031615
+        },
+        "achieved_per_s": {
+          "min": 2338.65,
+          "median": 2362.7,
+          "max": 2368.15
+        },
+        "errors": 130110,
+        "dispatch_lag_p99_ms": {
+          "min": 1008.205823,
+          "median": 1008.730111,
+          "max": 1009.778687
+        },
+        "http_service_p99_ms": {
+          "min": 16.793599,
+          "median": 17.334271,
+          "max": 19.333119
+        },
+        "resources": {
+          "generator_cpu_us_per_ack_including_warmup": {
+            "min": 248.8961347734529,
+            "median": 251.01894690460455,
+            "max": 253.85498687664042
+          },
+          "serve_sample_count": {
+            "min": 121,
+            "median": 122,
+            "max": 122
+          },
+          "generator_cpu_s": {
+            "min": 18.23,
+            "median": 18.32,
+            "max": 18.57
+          },
+          "serve_mean_logical_cores": {
+            "min": 0.9147380445776614,
+            "median": 0.9165463717002658,
+            "max": 0.9412561595284511
+          },
+          "serve_cpu_us_per_ack_including_warmup": {
+            "min": 386.9302357176822,
+            "median": 390.36682088565766,
+            "max": 400.3991688538933
+          },
+          "serve_cpu_s": {
+            "min": 28.35,
+            "median": 28.48,
+            "max": 29.29
+          },
+          "generator_mean_logical_cores": {
+            "min": 0.5884129556412485,
+            "median": 0.5893700301973843,
+            "max": 0.596760904146239
+          },
+          "generator_sample_count": {
+            "min": 121,
+            "median": 122,
+            "max": 122
+          }
+        }
+      }
+    ]
+  },
+  {
+    "campaign": "matrix-g6",
+    "part": "w4-n1000000-d500-c32-disjoint",
+    "arm": "g6",
+    "cell": {
+      "workload": "W4",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 32,
+      "keys": "disjoint",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/replay-w4-n1000000-d500-c32-disjoint-NEW",
+        "--workload",
+        "W4",
+        "--keys",
+        "disjoint",
+        "--link",
+        "A",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/bin/sb4-postgres-scale-seed",
+        "--rates",
+        "3200",
+        "1600",
+        "2262",
+        "4525"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "summary": {
+      "highest_passing_offered_per_s": 2262,
+      "lowest_failing_offered_per_s": 3200,
+      "bracketed": true,
+      "rates": [
+        1600,
+        2262,
+        3200,
+        4525
+      ],
+      "repeats": 3
+    },
+    "selected": {
+      "rate": 2262,
+      "all_pass": true,
+      "p50_ms": {
+        "min": 9.928703,
+        "median": 9.928703,
+        "max": 10.084351
+      },
+      "p99_ms": {
+        "min": 18.759679,
+        "median": 39.321599,
+        "max": 73.531391
+      },
+      "p999_ms": {
+        "min": 25.706495,
+        "median": 73.334783,
+        "max": 111.280127
+      },
+      "achieved_per_s": {
+        "min": 2261.95,
+        "median": 2262.0,
+        "max": 2262.0
+      },
+      "errors": 1,
+      "dispatch_lag_p99_ms": {
+        "min": 4.648959,
+        "median": 25.165823,
+        "max": 59.408383
+      },
+      "http_service_p99_ms": {
+        "min": 14.770175,
+        "median": 15.384575,
+        "max": 15.761407
+      },
+      "resources": {
+        "generator_cpu_us_per_ack_including_warmup": {
+          "min": 213.67521367521368,
+          "median": 215.29937075406357,
+          "max": 215.8856469201297
+        },
+        "serve_sample_count": {
+          "min": 117,
+          "median": 118,
+          "max": 118
+        },
+        "generator_cpu_s": {
+          "min": 14.5,
+          "median": 14.61,
+          "max": 14.65
+        },
+        "serve_mean_logical_cores": {
+          "min": 0.9276716863262381,
+          "median": 0.9319064959573827,
+          "max": 0.9390818246685467
+        },
+        "serve_cpu_us_per_ack_including_warmup": {
+          "min": 408.7827880931329,
+          "median": 413.4983790156204,
+          "max": 416.5991246555357
+        },
+        "serve_cpu_s": {
+          "min": 27.74,
+          "median": 28.06,
+          "max": 28.27
+        },
+        "generator_mean_logical_cores": {
+          "min": 0.48490408982445754,
+          "median": 0.4853196129609999,
+          "max": 0.4865441969271439
+        },
+        "generator_sample_count": {
+          "min": 117,
+          "median": 118,
+          "max": 118
+        }
+      }
+    },
+    "headline_eligible": true,
+    "rates": [
+      {
+        "rate": 1600,
+        "all_pass": true,
+        "p50_ms": {
+          "min": 8.880127,
+          "median": 8.904703,
+          "max": 8.994815
+        },
+        "p99_ms": {
+          "min": 15.138815,
+          "median": 15.777791,
+          "max": 32.129023
+        },
+        "p999_ms": {
+          "min": 26.263551,
+          "median": 26.279935,
+          "max": 75.497471
+        },
+        "achieved_per_s": {
+          "min": 1600.0,
+          "median": 1600.0,
+          "max": 1600.0
+        },
+        "errors": 0,
+        "dispatch_lag_p99_ms": {
+          "min": 0.079871,
+          "median": 0.086655,
+          "max": 12.132351
+        },
+        "http_service_p99_ms": {
+          "min": 14.450687,
+          "median": 15.048703,
+          "max": 16.416767
+        },
+        "resources": {
+          "generator_cpu_us_per_ack_including_warmup": {
+            "min": 222.08333333333334,
+            "median": 222.29166666666666,
+            "max": 223.75
+          },
+          "serve_sample_count": {
+            "min": 117,
+            "median": 118,
+            "max": 118
+          },
+          "generator_cpu_s": {
+            "min": 10.66,
+            "median": 10.67,
+            "max": 10.74
+          },
+          "serve_mean_logical_cores": {
+            "min": 0.7388573093971726,
+            "median": 0.7418037722137276,
+            "max": 0.7483682448731788
+          },
+          "serve_cpu_us_per_ack_including_warmup": {
+            "min": 460.2083333333333,
+            "median": 465.4166666666667,
+            "max": 468.75
+          },
+          "serve_cpu_s": {
+            "min": 22.09,
+            "median": 22.34,
+            "max": 22.5
+          },
+          "generator_mean_logical_cores": {
+            "min": 0.354892852124303,
+            "median": 0.3565513317416868,
+            "max": 0.3566236577249523
+          },
+          "generator_sample_count": {
+            "min": 117,
+            "median": 118,
+            "max": 118
+          }
+        }
+      },
+      {
+        "rate": 2262,
+        "all_pass": true,
+        "p50_ms": {
+          "min": 9.928703,
+          "median": 9.928703,
+          "max": 10.084351
+        },
+        "p99_ms": {
+          "min": 18.759679,
+          "median": 39.321599,
+          "max": 73.531391
+        },
+        "p999_ms": {
+          "min": 25.706495,
+          "median": 73.334783,
+          "max": 111.280127
+        },
+        "achieved_per_s": {
+          "min": 2261.95,
+          "median": 2262.0,
+          "max": 2262.0
+        },
+        "errors": 1,
+        "dispatch_lag_p99_ms": {
+          "min": 4.648959,
+          "median": 25.165823,
+          "max": 59.408383
+        },
+        "http_service_p99_ms": {
+          "min": 14.770175,
+          "median": 15.384575,
+          "max": 15.761407
+        },
+        "resources": {
+          "generator_cpu_us_per_ack_including_warmup": {
+            "min": 213.67521367521368,
+            "median": 215.29937075406357,
+            "max": 215.8856469201297
+          },
+          "serve_sample_count": {
+            "min": 117,
+            "median": 118,
+            "max": 118
+          },
+          "generator_cpu_s": {
+            "min": 14.5,
+            "median": 14.61,
+            "max": 14.65
+          },
+          "serve_mean_logical_cores": {
+            "min": 0.9276716863262381,
+            "median": 0.9319064959573827,
+            "max": 0.9390818246685467
+          },
+          "serve_cpu_us_per_ack_including_warmup": {
+            "min": 408.7827880931329,
+            "median": 413.4983790156204,
+            "max": 416.5991246555357
+          },
+          "serve_cpu_s": {
+            "min": 27.74,
+            "median": 28.06,
+            "max": 28.27
+          },
+          "generator_mean_logical_cores": {
+            "min": 0.48490408982445754,
+            "median": 0.4853196129609999,
+            "max": 0.4865441969271439
+          },
+          "generator_sample_count": {
+            "min": 117,
+            "median": 118,
+            "max": 118
+          }
+        }
+      },
+      {
+        "rate": 3200,
+        "all_pass": false,
+        "p50_ms": {
+          "min": 1006.108671,
+          "median": 1006.108671,
+          "max": 1006.108671
+        },
+        "p99_ms": {
+          "min": 1013.972991,
+          "median": 1015.021567,
+          "max": 1015.545855
+        },
+        "p999_ms": {
+          "min": 1025.507327,
+          "median": 1028.128767,
+          "max": 1033.895935
+        },
+        "achieved_per_s": {
+          "min": 2677.8,
+          "median": 2678.6,
+          "max": 2693.2
+        },
+        "errors": 31008,
+        "dispatch_lag_p99_ms": {
+          "min": 1004.011519,
+          "median": 1005.060095,
+          "max": 1005.584383
+        },
+        "http_service_p99_ms": {
+          "min": 15.966207,
+          "median": 16.236543,
+          "max": 17.465343
+        },
+        "resources": {
+          "generator_cpu_us_per_ack_including_warmup": {
+            "min": 205.32047848598464,
+            "median": 207.07444648785497,
+            "max": 208.55647150851436
+          },
+          "serve_sample_count": {
+            "min": 121,
+            "median": 122,
+            "max": 122
+          },
+          "generator_cpu_s": {
+            "min": 17.25,
+            "median": 17.33,
+            "max": 17.34
+          },
+          "serve_mean_logical_cores": {
+            "min": 1.0089189097380489,
+            "median": 1.0231464834295465,
+            "max": 1.0291493047581106
+          },
+          "serve_cpu_us_per_ack_including_warmup": {
+            "min": 373.3857049336428,
+            "median": 377.72576369151403,
+            "max": 385.4624225284313
+          },
+          "serve_cpu_s": {
+            "min": 31.37,
+            "median": 31.63,
+            "max": 32.03
+          },
+          "generator_mean_logical_cores": {
+            "min": 0.554792833694018,
+            "median": 0.5568266453780224,
+            "max": 0.5609029409632734
+          },
+          "generator_sample_count": {
+            "min": 121,
+            "median": 122,
+            "max": 122
+          }
+        }
+      },
+      {
+        "rate": 4525,
+        "all_pass": false,
+        "p50_ms": {
+          "min": 1006.108671,
+          "median": 1006.108671,
+          "max": 1006.108671
+        },
+        "p99_ms": {
+          "min": 1013.448703,
+          "median": 1013.972991,
+          "max": 1013.972991
+        },
+        "p999_ms": {
+          "min": 1027.604479,
+          "median": 1028.128767,
+          "max": 1031.274495
+        },
+        "achieved_per_s": {
+          "min": 2747.85,
+          "median": 2778.65,
+          "max": 2808.4
+        },
+        "errors": 104802,
+        "dispatch_lag_p99_ms": {
+          "min": 1006.108671,
+          "median": 1006.632959,
+          "max": 1007.157247
+        },
+        "http_service_p99_ms": {
+          "min": 14.704639,
+          "median": 15.294463,
+          "max": 15.335423
+        },
+        "resources": {
+          "generator_cpu_us_per_ack_including_warmup": {
+            "min": 208.62019091698005,
+            "median": 208.72310570626755,
+            "max": 211.8057997515062
+          },
+          "serve_sample_count": {
+            "min": 121,
+            "median": 121,
+            "max": 122
+          },
+          "generator_cpu_s": {
+            "min": 17.85,
+            "median": 18.03,
+            "max": 18.07
+          },
+          "serve_mean_logical_cores": {
+            "min": 0.9091788047869114,
+            "median": 0.9094759837163535,
+            "max": 0.9182448181927007
+          },
+          "serve_cpu_us_per_ack_including_warmup": {
+            "min": 327.68296210587215,
+            "median": 328.578110383536,
+            "max": 332.65349180673746
+          },
+          "serve_cpu_s": {
+            "min": 28.1,
+            "median": 28.32,
+            "max": 28.38
+          },
+          "generator_mean_logical_cores": {
+            "min": 0.5775388493041412,
+            "median": 0.5790201972600938,
+            "max": 0.5846611650719556
+          },
+          "generator_sample_count": {
+            "min": 121,
+            "median": 121,
+            "max": 122
+          }
+        }
+      }
+    ]
+  },
+  {
+    "campaign": "matrix-g6",
+    "part": "w5-n1000000-d1000-c32-hot1",
+    "arm": "g6",
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 1000,
+      "writers": 32,
+      "keys": "hot1",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/replay-w5-n1000000-d1000-c32-hot1-NEW",
+        "--workload",
+        "W5",
+        "--keys",
+        "hot1",
+        "--link",
+        "B",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/bin/sb4-postgres-scale-seed",
+        "--rates",
+        "3200",
+        "1600",
+        "2262",
+        "4525"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "summary": {
+      "highest_passing_offered_per_s": 1600,
+      "lowest_failing_offered_per_s": 2262,
+      "bracketed": true,
+      "rates": [
+        1600,
+        2262,
+        3200,
+        4525
+      ],
+      "repeats": 3
+    },
+    "selected": {
+      "rate": 1600,
+      "all_pass": true,
+      "p50_ms": {
+        "min": 11.018239,
+        "median": 11.059199,
+        "max": 11.075583
+      },
+      "p99_ms": {
+        "min": 18.006015,
+        "median": 19.988479,
+        "max": 45.449215
+      },
+      "p999_ms": {
+        "min": 25.378815,
+        "median": 28.000255,
+        "max": 83.296255
+      },
+      "achieved_per_s": {
+        "min": 1600.0,
+        "median": 1600.0,
+        "max": 1600.0
+      },
+      "errors": 0,
+      "dispatch_lag_p99_ms": {
+        "min": 0.116031,
+        "median": 0.462591,
+        "max": 25.444351
+      },
+      "http_service_p99_ms": {
+        "min": 17.383423,
+        "median": 18.120703,
+        "max": 19.513343
+      },
+      "resources": {
+        "generator_cpu_us_per_ack_including_warmup": {
+          "min": 218.33333333333334,
+          "median": 220.0,
+          "max": 220.625
+        },
+        "serve_sample_count": {
+          "min": 117,
+          "median": 118,
+          "max": 118
+        },
+        "generator_cpu_s": {
+          "min": 10.48,
+          "median": 10.56,
+          "max": 10.59
+        },
+        "serve_mean_logical_cores": {
+          "min": 0.7087484741568849,
+          "median": 0.7098074604895828,
+          "max": 0.7148552345126986
+        },
+        "serve_cpu_us_per_ack_including_warmup": {
+          "min": 441.4583333333333,
+          "median": 445.2083333333333,
+          "max": 448.3333333333333
+        },
+        "serve_cpu_s": {
+          "min": 21.19,
+          "median": 21.37,
+          "max": 21.52
+        },
+        "generator_mean_logical_cores": {
+          "min": 0.35052779656272554,
+          "median": 0.3507518382204021,
+          "max": 0.35178052664913934
+        },
+        "generator_sample_count": {
+          "min": 117,
+          "median": 118,
+          "max": 118
+        }
+      }
+    },
+    "headline_eligible": true,
+    "rates": [
+      {
+        "rate": 1600,
+        "all_pass": true,
+        "p50_ms": {
+          "min": 11.018239,
+          "median": 11.059199,
+          "max": 11.075583
+        },
+        "p99_ms": {
+          "min": 18.006015,
+          "median": 19.988479,
+          "max": 45.449215
+        },
+        "p999_ms": {
+          "min": 25.378815,
+          "median": 28.000255,
+          "max": 83.296255
+        },
+        "achieved_per_s": {
+          "min": 1600.0,
+          "median": 1600.0,
+          "max": 1600.0
+        },
+        "errors": 0,
+        "dispatch_lag_p99_ms": {
+          "min": 0.116031,
+          "median": 0.462591,
+          "max": 25.444351
+        },
+        "http_service_p99_ms": {
+          "min": 17.383423,
+          "median": 18.120703,
+          "max": 19.513343
+        },
+        "resources": {
+          "generator_cpu_us_per_ack_including_warmup": {
+            "min": 218.33333333333334,
+            "median": 220.0,
+            "max": 220.625
+          },
+          "serve_sample_count": {
+            "min": 117,
+            "median": 118,
+            "max": 118
+          },
+          "generator_cpu_s": {
+            "min": 10.48,
+            "median": 10.56,
+            "max": 10.59
+          },
+          "serve_mean_logical_cores": {
+            "min": 0.7087484741568849,
+            "median": 0.7098074604895828,
+            "max": 0.7148552345126986
+          },
+          "serve_cpu_us_per_ack_including_warmup": {
+            "min": 441.4583333333333,
+            "median": 445.2083333333333,
+            "max": 448.3333333333333
+          },
+          "serve_cpu_s": {
+            "min": 21.19,
+            "median": 21.37,
+            "max": 21.52
+          },
+          "generator_mean_logical_cores": {
+            "min": 0.35052779656272554,
+            "median": 0.3507518382204021,
+            "max": 0.35178052664913934
+          },
+          "generator_sample_count": {
+            "min": 117,
+            "median": 118,
+            "max": 118
+          }
+        }
+      },
+      {
+        "rate": 2262,
+        "all_pass": false,
+        "p50_ms": {
+          "min": 13.795327,
+          "median": 17.055743,
+          "max": 55.443455
+        },
+        "p99_ms": {
+          "min": 38.076415,
+          "median": 73.793535,
+          "max": 132.972543
+        },
+        "p999_ms": {
+          "min": 45.547519,
+          "median": 88.014847,
+          "max": 159.907839
+        },
+        "achieved_per_s": {
+          "min": 2261.15,
+          "median": 2261.55,
+          "max": 2261.85
+        },
+        "errors": 29,
+        "dispatch_lag_p99_ms": {
+          "min": 23.920639,
+          "median": 59.604991,
+          "max": 119.013375
+        },
+        "http_service_p99_ms": {
+          "min": 18.661375,
+          "median": 19.513343,
+          "max": 20.578303
+        },
+        "resources": {
+          "generator_cpu_us_per_ack_including_warmup": {
+            "min": 201.2235571607577,
+            "median": 207.0744288872513,
+            "max": 209.26359844968096
+          },
+          "serve_sample_count": {
+            "min": 118,
+            "median": 118,
+            "max": 118
+          },
+          "generator_cpu_s": {
+            "min": 13.65,
+            "median": 14.05,
+            "max": 14.2
+          },
+          "serve_mean_logical_cores": {
+            "min": 0.9161834025846163,
+            "median": 0.9174625399839526,
+            "max": 0.9177977852510868
+          },
+          "serve_cpu_us_per_ack_including_warmup": {
+            "min": 406.33750921149596,
+            "median": 407.01702660868284,
+            "max": 407.47454205166747
+          },
+          "serve_cpu_s": {
+            "min": 27.57,
+            "median": 27.61,
+            "max": 27.65
+          },
+          "generator_mean_logical_cores": {
+            "min": 0.45374646029255106,
+            "median": 0.46689796178142395,
+            "max": 0.47117425199899193
+          },
+          "generator_sample_count": {
+            "min": 118,
+            "median": 118,
+            "max": 118
+          }
+        }
+      },
+      {
+        "rate": 3200,
+        "all_pass": false,
+        "p50_ms": {
+          "min": 1007.157247,
+          "median": 1007.157247,
+          "max": 1007.157247
+        },
+        "p99_ms": {
+          "min": 1016.070143,
+          "median": 1016.594431,
+          "max": 1017.118719
+        },
+        "p999_ms": {
+          "min": 1024.983039,
+          "median": 1028.128767,
+          "max": 1031.798783
+        },
+        "achieved_per_s": {
+          "min": 2268.9,
+          "median": 2291.45,
+          "max": 2294.8
+        },
+        "errors": 54897,
+        "dispatch_lag_p99_ms": {
+          "min": 1005.584383,
+          "median": 1006.632959,
+          "max": 1007.157247
+        },
+        "http_service_p99_ms": {
+          "min": 18.153471,
+          "median": 18.972671,
+          "max": 19.529727
+        },
+        "resources": {
+          "generator_cpu_us_per_ack_including_warmup": {
+            "min": 226.29813611854115,
+            "median": 226.52207810617335,
+            "max": 227.45275545999772
+          },
+          "serve_sample_count": {
+            "min": 121,
+            "median": 121,
+            "max": 121
+          },
+          "generator_cpu_s": {
+            "min": 15.98,
+            "median": 15.99,
+            "max": 16.08
+          },
+          "serve_mean_logical_cores": {
+            "min": 0.914572141202512,
+            "median": 0.919494761525608,
+            "max": 0.9226234782198497
+          },
+          "serve_cpu_us_per_ack_including_warmup": {
+            "min": 400.87887164221416,
+            "median": 402.49649726149534,
+            "max": 403.2759986420731
+          },
+          "serve_cpu_s": {
+            "min": 28.28,
+            "median": 28.44,
+            "max": 28.51
+          },
+          "generator_mean_logical_cores": {
+            "min": 0.5167914715847292,
+            "median": 0.5169733205623935,
+            "max": 0.5203712918195433
+          },
+          "generator_sample_count": {
+            "min": 121,
+            "median": 121,
+            "max": 121
+          }
+        }
+      },
+      {
+        "rate": 4525,
+        "all_pass": false,
+        "p50_ms": {
+          "min": 1007.157247,
+          "median": 1007.157247,
+          "max": 1007.157247
+        },
+        "p99_ms": {
+          "min": 1016.070143,
+          "median": 1016.594431,
+          "max": 1017.118719
+        },
+        "p999_ms": {
+          "min": 1021.837311,
+          "median": 1022.885887,
+          "max": 1026.555903
+        },
+        "achieved_per_s": {
+          "min": 2246.5,
+          "median": 2264.45,
+          "max": 2302.25
+        },
+        "errors": 135236,
+        "dispatch_lag_p99_ms": {
+          "min": 1009.254399,
+          "median": 1009.254399,
+          "max": 1009.778687
+        },
+        "http_service_p99_ms": {
+          "min": 17.727487,
+          "median": 18.153471,
+          "max": 18.448383
+        },
+        "resources": {
+          "generator_cpu_us_per_ack_including_warmup": {
+            "min": 258.79698187715957,
+            "median": 262.06639206624857,
+            "max": 264.26925114168324
+          },
+          "serve_sample_count": {
+            "min": 122,
+            "median": 122,
+            "max": 122
+          },
+          "generator_cpu_s": {
+            "min": 18.26,
+            "median": 18.35,
+            "max": 18.46
+          },
+          "serve_mean_logical_cores": {
+            "min": 0.9000526193092782,
+            "median": 0.9117030802667124,
+            "max": 0.9207021281444348
+          },
+          "serve_cpu_us_per_ack_including_warmup": {
+            "min": 402.2848285660979,
+            "median": 403.0745363514562,
+            "max": 406.1386053569639
+          },
+          "serve_cpu_s": {
+            "min": 28.03,
+            "median": 28.37,
+            "max": 28.58
+          },
+          "generator_mean_logical_cores": {
+            "min": 0.586334671016319,
+            "median": 0.591143598721147,
+            "max": 0.5932336574453123
+          },
+          "generator_sample_count": {
+            "min": 122,
+            "median": 122,
+            "max": 122
+          }
+        }
+      }
+    ]
+  },
+  {
+    "campaign": "matrix-g6",
+    "part": "w5-n1000000-d1000-c32-same",
+    "arm": "g6",
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 1000,
+      "writers": 32,
+      "keys": "same",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/replay-w5-n1000000-d1000-c32-same-NEW",
+        "--workload",
+        "W5",
+        "--keys",
+        "same",
+        "--link",
+        "B",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/bin/sb4-postgres-scale-seed",
+        "--rates",
+        "100",
+        "50",
+        "70",
+        "2262",
+        "3200",
+        "4525"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "summary": {
+      "highest_passing_offered_per_s": 70,
+      "lowest_failing_offered_per_s": 100,
+      "bracketed": true,
+      "rates": [
+        50,
+        70,
+        100,
+        2262,
+        3200,
+        4525
+      ],
+      "repeats": 3
+    },
+    "selected": {
+      "rate": 70,
+      "all_pass": true,
+      "p50_ms": {
+        "min": 23.068671,
+        "median": 23.134207,
+        "max": 23.199743
+      },
+      "p99_ms": {
+        "min": 30.654463,
+        "median": 30.883839,
+        "max": 30.932991
+      },
+      "p999_ms": {
+        "min": 33.406975,
+        "median": 35.323903,
+        "max": 35.815423
+      },
+      "achieved_per_s": {
+        "min": 70.0,
+        "median": 70.0,
+        "max": 70.0
+      },
+      "errors": 0,
+      "dispatch_lag_p99_ms": {
+        "min": 0.033599,
+        "median": 0.042175,
+        "max": 0.046271
+      },
+      "http_service_p99_ms": {
+        "min": 30.638079,
+        "median": 30.867455,
+        "max": 30.900223
+      },
+      "resources": {
+        "generator_cpu_us_per_ack_including_warmup": {
+          "min": 300.0,
+          "median": 300.0,
+          "max": 309.5238095238095
+        },
+        "serve_sample_count": {
+          "min": 119,
+          "median": 119,
+          "max": 119
+        },
+        "generator_cpu_s": {
+          "min": 0.63,
+          "median": 0.63,
+          "max": 0.65
+        },
+        "serve_mean_logical_cores": {
+          "min": 0.08082232324749569,
+          "median": 0.08122180635723439,
+          "max": 0.08251846684446827
+        },
+        "serve_cpu_us_per_ack_including_warmup": {
+          "min": 1157.142857142857,
+          "median": 1161.904761904762,
+          "max": 1180.952380952381
+        },
+        "serve_cpu_s": {
+          "min": 2.43,
+          "median": 2.44,
+          "max": 2.48
+        },
+        "generator_mean_logical_cores": {
+          "min": 0.02095393565675814,
+          "median": 0.02097120410043347,
+          "max": 0.02162782397133241
+        },
+        "generator_sample_count": {
+          "min": 119,
+          "median": 119,
+          "max": 119
+        }
+      }
+    },
+    "headline_eligible": true,
+    "rates": [
+      {
+        "rate": 50,
+        "all_pass": true,
+        "p50_ms": {
+          "min": 16.318463,
+          "median": 16.326655,
+          "max": 16.375807
+        },
+        "p99_ms": {
+          "min": 18.382847,
+          "median": 19.218431,
+          "max": 19.431423
+        },
+        "p999_ms": {
+          "min": 21.610495,
+          "median": 21.626879,
+          "max": 21.725183
+        },
+        "achieved_per_s": {
+          "min": 50.0,
+          "median": 50.0,
+          "max": 50.0
+        },
+        "errors": 0,
+        "dispatch_lag_p99_ms": {
+          "min": 0.034207,
+          "median": 0.034527,
+          "max": 0.047519
+        },
+        "http_service_p99_ms": {
+          "min": 18.350079,
+          "median": 19.202047,
+          "max": 19.415039
+        },
+        "resources": {
+          "generator_cpu_us_per_ack_including_warmup": {
+            "min": 333.3333333333333,
+            "median": 333.3333333333333,
+            "max": 353.3333333333333
+          },
+          "serve_sample_count": {
+            "min": 119,
+            "median": 119,
+            "max": 119
+          },
+          "generator_cpu_s": {
+            "min": 0.5,
+            "median": 0.5,
+            "max": 0.53
+          },
+          "serve_mean_logical_cores": {
+            "min": 0.06388348784743858,
+            "median": 0.06421059140094854,
+            "max": 0.06421670593639918
+          },
+          "serve_cpu_us_per_ack_including_warmup": {
+            "min": 1280.0,
+            "median": 1286.6666666666667,
+            "max": 1286.6666666666667
+          },
+          "serve_cpu_s": {
+            "min": 1.92,
+            "median": 1.93,
+            "max": 1.93
+          },
+          "generator_mean_logical_cores": {
+            "min": 0.016634868238587702,
+            "median": 0.016636324960270465,
+            "max": 0.01763463945403708
+          },
+          "generator_sample_count": {
+            "min": 119,
+            "median": 119,
+            "max": 119
+          }
+        }
+      },
+      {
+        "rate": 70,
+        "all_pass": true,
+        "p50_ms": {
+          "min": 23.068671,
+          "median": 23.134207,
+          "max": 23.199743
+        },
+        "p99_ms": {
+          "min": 30.654463,
+          "median": 30.883839,
+          "max": 30.932991
+        },
+        "p999_ms": {
+          "min": 33.406975,
+          "median": 35.323903,
+          "max": 35.815423
+        },
+        "achieved_per_s": {
+          "min": 70.0,
+          "median": 70.0,
+          "max": 70.0
+        },
+        "errors": 0,
+        "dispatch_lag_p99_ms": {
+          "min": 0.033599,
+          "median": 0.042175,
+          "max": 0.046271
+        },
+        "http_service_p99_ms": {
+          "min": 30.638079,
+          "median": 30.867455,
+          "max": 30.900223
+        },
+        "resources": {
+          "generator_cpu_us_per_ack_including_warmup": {
+            "min": 300.0,
+            "median": 300.0,
+            "max": 309.5238095238095
+          },
+          "serve_sample_count": {
+            "min": 119,
+            "median": 119,
+            "max": 119
+          },
+          "generator_cpu_s": {
+            "min": 0.63,
+            "median": 0.63,
+            "max": 0.65
+          },
+          "serve_mean_logical_cores": {
+            "min": 0.08082232324749569,
+            "median": 0.08122180635723439,
+            "max": 0.08251846684446827
+          },
+          "serve_cpu_us_per_ack_including_warmup": {
+            "min": 1157.142857142857,
+            "median": 1161.904761904762,
+            "max": 1180.952380952381
+          },
+          "serve_cpu_s": {
+            "min": 2.43,
+            "median": 2.44,
+            "max": 2.48
+          },
+          "generator_mean_logical_cores": {
+            "min": 0.02095393565675814,
+            "median": 0.02097120410043347,
+            "max": 0.02162782397133241
+          },
+          "generator_sample_count": {
+            "min": 119,
+            "median": 119,
+            "max": 119
+          }
+        }
+      },
+      {
+        "rate": 100,
+        "all_pass": false,
+        "p50_ms": {
+          "min": 1259.339775,
+          "median": 1260.388351,
+          "max": 1260.388351
+        },
+        "p99_ms": {
+          "min": 1516.240895,
+          "median": 1516.240895,
+          "max": 1518.338047
+        },
+        "p999_ms": {
+          "min": 1525.678079,
+          "median": 1526.726655,
+          "max": 1526.726655
+        },
+        "achieved_per_s": {
+          "min": 61.0,
+          "median": 61.3,
+          "max": 61.6
+        },
+        "errors": 2322,
+        "dispatch_lag_p99_ms": {
+          "min": 1196.425215,
+          "median": 1196.425215,
+          "max": 1198.522367
+        },
+        "http_service_p99_ms": {
+          "min": 529.530879,
+          "median": 535.822335,
+          "max": 536.608767
+        },
+        "resources": {
+          "generator_cpu_us_per_ack_including_warmup": {
+            "min": 331.6062176165803,
+            "median": 339.9581589958159,
+            "max": 568.561872909699
+          },
+          "serve_sample_count": {
+            "min": 122,
+            "median": 123,
+            "max": 123
+          },
+          "generator_cpu_s": {
+            "min": 0.64,
+            "median": 0.65,
+            "max": 0.85
+          },
+          "serve_mean_logical_cores": {
+            "min": 0.0780766700193711,
+            "median": 0.07858127591817146,
+            "max": 0.08093602830844908
+          },
+          "serve_cpu_us_per_ack_including_warmup": {
+            "min": 1270.9205020920501,
+            "median": 1274.6113989637306,
+            "max": 1692.3076923076924
+          },
+          "serve_cpu_s": {
+            "min": 2.43,
+            "median": 2.46,
+            "max": 2.53
+          },
+          "generator_mean_logical_cores": {
+            "min": 0.02044390918196331,
+            "median": 0.02088470597225976,
+            "max": 0.02719194626963704
+          },
+          "generator_sample_count": {
+            "min": 122,
+            "median": 123,
+            "max": 123
+          }
+        }
+      },
+      {
+        "rate": 2262,
+        "all_pass": false,
+        "p50_ms": {
+          "min": 1008.730111,
+          "median": 1008.730111,
+          "max": 1008.730111
+        },
+        "p99_ms": {
+          "min": 1018.691583,
+          "median": 1018.691583,
+          "max": 1018.691583
+        },
+        "p999_ms": {
+          "min": 1022.361599,
+          "median": 1022.885887,
+          "max": 1022.885887
+        },
+        "achieved_per_s": {
+          "min": 1847.3,
+          "median": 1852.4,
+          "max": 1853.75
+        },
+        "errors": 24651,
+        "dispatch_lag_p99_ms": {
+          "min": 1004.535807,
+          "median": 1004.535807,
+          "max": 1004.535807
+        },
+        "http_service_p99_ms": {
+          "min": 22.134783,
+          "median": 22.265855,
+          "max": 22.675455
+        },
+        "resources": {
+          "generator_cpu_us_per_ack_including_warmup": {
+            "min": 218.2917664330531,
+            "median": 218.30044944210178,
+            "max": 219.5288076983531
+          },
+          "serve_sample_count": {
+            "min": 121,
+            "median": 122,
+            "max": 122
+          },
+          "generator_cpu_s": {
+            "min": 12.49,
+            "median": 12.57,
+            "max": 12.58
+          },
+          "serve_mean_logical_cores": {
+            "min": 0.7365831258212114,
+            "median": 0.7398645699317392,
+            "max": 0.7442453024202992
+          },
+          "serve_cpu_us_per_ack_including_warmup": {
+            "min": 397.3831710829993,
+            "median": 401.9784329832043,
+            "max": 402.38215826332976
+          },
+          "serve_cpu_s": {
+            "min": 22.9,
+            "median": 23.0,
+            "max": 23.04
+          },
+          "generator_mean_logical_cores": {
+            "min": 0.40365007135598796,
+            "median": 0.404157557705632,
+            "max": 0.4046382411716524
+          },
+          "generator_sample_count": {
+            "min": 121,
+            "median": 122,
+            "max": 122
+          }
+        }
+      },
+      {
+        "rate": 3200,
+        "all_pass": false,
+        "p50_ms": {
+          "min": 1008.730111,
+          "median": 1008.730111,
+          "max": 1008.730111
+        },
+        "p99_ms": {
+          "min": 1018.691583,
+          "median": 1018.691583,
+          "max": 1019.215871
+        },
+        "p999_ms": {
+          "min": 1022.885887,
+          "median": 1022.885887,
+          "max": 1030.750207
+        },
+        "achieved_per_s": {
+          "min": 1837.65,
+          "median": 1847.2,
+          "max": 1848.3
+        },
+        "errors": 81337,
+        "dispatch_lag_p99_ms": {
+          "min": 1008.730111,
+          "median": 1008.730111,
+          "max": 1009.254399
+        },
+        "http_service_p99_ms": {
+          "min": 21.217279,
+          "median": 21.610495,
+          "max": 22.642687
+        },
+        "resources": {
+          "generator_cpu_us_per_ack_including_warmup": {
+            "min": 261.7938570377894,
+            "median": 262.17556649900985,
+            "max": 262.3559494202949
+          },
+          "serve_sample_count": {
+            "min": 122,
+            "median": 122,
+            "max": 122
+          },
+          "generator_cpu_s": {
+            "min": 14.95,
+            "median": 14.96,
+            "max": 14.98
+          },
+          "serve_mean_logical_cores": {
+            "min": 0.7411251461318525,
+            "median": 0.7427744270744662,
+            "max": 0.746838551650177
+          },
+          "serve_cpu_us_per_ack_including_warmup": {
+            "min": 404.2173105888122,
+            "median": 405.1804209530152,
+            "max": 407.31271670227295
+          },
+          "serve_cpu_s": {
+            "min": 23.08,
+            "median": 23.12,
+            "max": 23.26
+          },
+          "generator_mean_logical_cores": {
+            "min": 0.48001875955159695,
+            "median": 0.4806187469305369,
+            "max": 0.48102489987240693
+          },
+          "generator_sample_count": {
+            "min": 122,
+            "median": 122,
+            "max": 122
+          }
+        }
+      },
+      {
+        "rate": 4525,
+        "all_pass": false,
+        "p50_ms": {
+          "min": 1008.730111,
+          "median": 1008.730111,
+          "max": 1009.254399
+        },
+        "p99_ms": {
+          "min": 1018.691583,
+          "median": 1019.215871,
+          "max": 1019.215871
+        },
+        "p999_ms": {
+          "min": 1023.410175,
+          "median": 1023.934463,
+          "max": 1030.225919
+        },
+        "achieved_per_s": {
+          "min": 1819.55,
+          "median": 1840.8,
+          "max": 1862.15
+        },
+        "errors": 161050,
+        "dispatch_lag_p99_ms": {
+          "min": 1011.875839,
+          "median": 1011.875839,
+          "max": 1012.400127
+        },
+        "http_service_p99_ms": {
+          "min": 20.348927,
+          "median": 20.758527,
+          "max": 21.233663
+        },
+        "resources": {
+          "generator_cpu_us_per_ack_including_warmup": {
+            "min": 315.84619663468226,
+            "median": 316.50879093991404,
+            "max": 321.4027412725573
+          },
+          "serve_sample_count": {
+            "min": 122,
+            "median": 122,
+            "max": 122
+          },
+          "generator_cpu_s": {
+            "min": 18.11,
+            "median": 18.17,
+            "max": 18.22
+          },
+          "serve_mean_logical_cores": {
+            "min": 0.7412667226582921,
+            "median": 0.74199394676285,
+            "max": 0.745371593557158
+          },
+          "serve_cpu_us_per_ack_including_warmup": {
+            "min": 400.84828257544154,
+            "median": 403.36956901674296,
+            "max": 408.89766974192526
+          },
+          "serve_cpu_s": {
+            "min": 23.06,
+            "median": 23.08,
+            "max": 23.18
+          },
+          "generator_mean_logical_cores": {
+            "min": 0.5822144876895674,
+            "median": 0.5840770316869545,
+            "max": 0.5858787935552812
+          },
+          "generator_sample_count": {
+            "min": 122,
+            "median": 122,
+            "max": 122
+          }
+        }
+      }
+    ]
+  },
+  {
+    "campaign": "matrix-g6",
+    "part": "w5-n1000000-d500-c32-hot1",
+    "arm": "g6",
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 32,
+      "keys": "hot1",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/replay-w5-n1000000-d500-c32-hot1-NEW",
+        "--workload",
+        "W5",
+        "--keys",
+        "hot1",
+        "--link",
+        "A",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/bin/sb4-postgres-scale-seed",
+        "--rates",
+        "3200",
+        "1600",
+        "2262",
+        "4525"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "summary": {
+      "highest_passing_offered_per_s": 2262,
+      "lowest_failing_offered_per_s": 3200,
+      "bracketed": true,
+      "rates": [
+        1600,
+        2262,
+        3200,
+        4525
+      ],
+      "repeats": 3
+    },
+    "selected": {
+      "rate": 2262,
+      "all_pass": true,
+      "p50_ms": {
+        "min": 10.174463,
+        "median": 10.321919,
+        "max": 10.354687
+      },
+      "p99_ms": {
+        "min": 21.626879,
+        "median": 46.956543,
+        "max": 53.673983
+      },
+      "p999_ms": {
+        "min": 26.886143,
+        "median": 69.730303,
+        "max": 71.303167
+      },
+      "achieved_per_s": {
+        "min": 2261.85,
+        "median": 2262.0,
+        "max": 2262.0
+      },
+      "errors": 3,
+      "dispatch_lag_p99_ms": {
+        "min": 7.536639,
+        "median": 32.817151,
+        "max": 39.518207
+      },
+      "http_service_p99_ms": {
+        "min": 15.622143,
+        "median": 17.235967,
+        "max": 17.661951
+      },
+      "resources": {
+        "generator_cpu_us_per_ack_including_warmup": {
+          "min": 213.96993810786915,
+          "median": 214.42150404527166,
+          "max": 214.55938697318007
+        },
+        "serve_sample_count": {
+          "min": 117,
+          "median": 118,
+          "max": 118
+        },
+        "generator_cpu_s": {
+          "min": 14.52,
+          "median": 14.55,
+          "max": 14.56
+        },
+        "serve_mean_logical_cores": {
+          "min": 0.9291335530942169,
+          "median": 0.9311315243173042,
+          "max": 0.9359742199593042
+        },
+        "serve_cpu_us_per_ack_including_warmup": {
+          "min": 410.10904804008254,
+          "median": 411.60086652814005,
+          "max": 414.82463896257
+        },
+        "serve_cpu_s": {
+          "min": 27.83,
+          "median": 27.93,
+          "max": 28.15
+        },
+        "generator_mean_logical_cores": {
+          "min": 0.48402768340568764,
+          "median": 0.48411313117610905,
+          "max": 0.48580775181772395
+        },
+        "generator_sample_count": {
+          "min": 117,
+          "median": 118,
+          "max": 118
+        }
+      }
+    },
+    "headline_eligible": true,
+    "rates": [
+      {
+        "rate": 1600,
+        "all_pass": true,
+        "p50_ms": {
+          "min": 9.084927,
+          "median": 9.093119,
+          "max": 9.109503
+        },
+        "p99_ms": {
+          "min": 14.041087,
+          "median": 14.196735,
+          "max": 24.641535
+        },
+        "p999_ms": {
+          "min": 23.003135,
+          "median": 23.314431,
+          "max": 57.868287
+        },
+        "achieved_per_s": {
+          "min": 1600.0,
+          "median": 1600.0,
+          "max": 1600.0
+        },
+        "errors": 0,
+        "dispatch_lag_p99_ms": {
+          "min": 0.073791,
+          "median": 0.088063,
+          "max": 4.694015
+        },
+        "http_service_p99_ms": {
+          "min": 13.647871,
+          "median": 13.729791,
+          "max": 15.761407
+        },
+        "resources": {
+          "generator_cpu_us_per_ack_including_warmup": {
+            "min": 220.0,
+            "median": 220.41666666666666,
+            "max": 221.66666666666666
+          },
+          "serve_sample_count": {
+            "min": 117,
+            "median": 118,
+            "max": 118
+          },
+          "generator_cpu_s": {
+            "min": 10.56,
+            "median": 10.58,
+            "max": 10.64
+          },
+          "serve_mean_logical_cores": {
+            "min": 0.7367289810264888,
+            "median": 0.7383321454927884,
+            "max": 0.7473760964221453
+          },
+          "serve_cpu_us_per_ack_including_warmup": {
+            "min": 462.2916666666667,
+            "median": 463.125,
+            "max": 465.8333333333333
+          },
+          "serve_cpu_s": {
+            "min": 22.19,
+            "median": 22.23,
+            "max": 22.36
+          },
+          "generator_mean_logical_cores": {
+            "min": 0.3513969455381782,
+            "median": 0.3529647396340722,
+            "max": 0.35325806030292206
+          },
+          "generator_sample_count": {
+            "min": 117,
+            "median": 118,
+            "max": 118
+          }
+        }
+      },
+      {
+        "rate": 2262,
+        "all_pass": true,
+        "p50_ms": {
+          "min": 10.174463,
+          "median": 10.321919,
+          "max": 10.354687
+        },
+        "p99_ms": {
+          "min": 21.626879,
+          "median": 46.956543,
+          "max": 53.673983
+        },
+        "p999_ms": {
+          "min": 26.886143,
+          "median": 69.730303,
+          "max": 71.303167
+        },
+        "achieved_per_s": {
+          "min": 2261.85,
+          "median": 2262.0,
+          "max": 2262.0
+        },
+        "errors": 3,
+        "dispatch_lag_p99_ms": {
+          "min": 7.536639,
+          "median": 32.817151,
+          "max": 39.518207
+        },
+        "http_service_p99_ms": {
+          "min": 15.622143,
+          "median": 17.235967,
+          "max": 17.661951
+        },
+        "resources": {
+          "generator_cpu_us_per_ack_including_warmup": {
+            "min": 213.96993810786915,
+            "median": 214.42150404527166,
+            "max": 214.55938697318007
+          },
+          "serve_sample_count": {
+            "min": 117,
+            "median": 118,
+            "max": 118
+          },
+          "generator_cpu_s": {
+            "min": 14.52,
+            "median": 14.55,
+            "max": 14.56
+          },
+          "serve_mean_logical_cores": {
+            "min": 0.9291335530942169,
+            "median": 0.9311315243173042,
+            "max": 0.9359742199593042
+          },
+          "serve_cpu_us_per_ack_including_warmup": {
+            "min": 410.10904804008254,
+            "median": 411.60086652814005,
+            "max": 414.82463896257
+          },
+          "serve_cpu_s": {
+            "min": 27.83,
+            "median": 27.93,
+            "max": 28.15
+          },
+          "generator_mean_logical_cores": {
+            "min": 0.48402768340568764,
+            "median": 0.48411313117610905,
+            "max": 0.48580775181772395
+          },
+          "generator_sample_count": {
+            "min": 117,
+            "median": 118,
+            "max": 118
+          }
+        }
+      },
+      {
+        "rate": 3200,
+        "all_pass": false,
+        "p50_ms": {
+          "min": 1006.108671,
+          "median": 1006.108671,
+          "max": 1006.108671
+        },
+        "p99_ms": {
+          "min": 1013.972991,
+          "median": 1013.972991,
+          "max": 1014.497279
+        },
+        "p999_ms": {
+          "min": 1021.313023,
+          "median": 1026.031615,
+          "max": 1027.604479
+        },
+        "achieved_per_s": {
+          "min": 2588.4,
+          "median": 2628.4,
+          "max": 2642.0
+        },
+        "errors": 34824,
+        "dispatch_lag_p99_ms": {
+          "min": 1004.011519,
+          "median": 1004.011519,
+          "max": 1004.535807
+        },
+        "http_service_p99_ms": {
+          "min": 15.433727,
+          "median": 16.220159,
+          "max": 16.547839
+        },
+        "resources": {
+          "generator_cpu_us_per_ack_including_warmup": {
+            "min": 209.9334985644524,
+            "median": 210.58295525417924,
+            "max": 211.68879513587294
+          },
+          "serve_sample_count": {
+            "min": 121,
+            "median": 121,
+            "max": 122
+          },
+          "generator_cpu_s": {
+            "min": 17.06,
+            "median": 17.11,
+            "max": 17.22
+          },
+          "serve_mean_logical_cores": {
+            "min": 1.0026529608664094,
+            "median": 1.002855381437886,
+            "max": 1.0112753106744683
+          },
+          "serve_cpu_us_per_ack_including_warmup": {
+            "min": 381.7886099323738,
+            "median": 383.67156634193026,
+            "max": 384.53902469288994
+          },
+          "serve_cpu_s": {
+            "min": 30.99,
+            "median": 31.22,
+            "max": 31.27
+          },
+          "generator_mean_logical_cores": {
+            "min": 0.5520720492846187,
+            "median": 0.5530327990429074,
+            "max": 0.5533393209350864
+          },
+          "generator_sample_count": {
+            "min": 121,
+            "median": 121,
+            "max": 122
+          }
+        }
+      },
+      {
+        "rate": 4525,
+        "all_pass": false,
+        "p50_ms": {
+          "min": 1006.108671,
+          "median": 1006.108671,
+          "max": 1006.108671
+        },
+        "p99_ms": {
+          "min": 1013.448703,
+          "median": 1013.972991,
+          "max": 1014.497279
+        },
+        "p999_ms": {
+          "min": 1023.934463,
+          "median": 1024.458751,
+          "max": 1025.507327
+        },
+        "achieved_per_s": {
+          "min": 2678.5,
+          "median": 2693.4,
+          "max": 2743.5
+        },
+        "errors": 109192,
+        "dispatch_lag_p99_ms": {
+          "min": 1006.632959,
+          "median": 1006.632959,
+          "max": 1007.681535
+        },
+        "http_service_p99_ms": {
+          "min": 14.909439,
+          "median": 15.302655,
+          "max": 15.990783
+        },
+        "resources": {
+          "generator_cpu_us_per_ack_including_warmup": {
+            "min": 212.70777352388652,
+            "median": 217.87541378272644,
+            "max": 218.24919389768516
+          },
+          "serve_sample_count": {
+            "min": 121,
+            "median": 121,
+            "max": 122
+          },
+          "generator_cpu_s": {
+            "min": 17.89,
+            "median": 18.1,
+            "max": 18.14
+          },
+          "serve_mean_logical_cores": {
+            "min": 0.8904857460026703,
+            "median": 0.9185707114271168,
+            "max": 0.9194210547272628
+          },
+          "serve_cpu_us_per_ack_including_warmup": {
+            "min": 329.1085059329893,
+            "median": 342.1723855815968,
+            "max": 342.4616310562744
+          },
+          "serve_cpu_s": {
+            "min": 27.68,
+            "median": 28.44,
+            "max": 28.45
+          },
+          "generator_mean_logical_cores": {
+            "min": 0.5755343206642981,
+            "median": 0.5843982382014347,
+            "max": 0.5864380426424946
+          },
+          "generator_sample_count": {
+            "min": 121,
+            "median": 121,
+            "max": 122
+          }
+        }
+      }
+    ]
+  },
+  {
+    "campaign": "matrix-g6",
+    "part": "w5-n1000000-d500-c32-same",
+    "arm": "g6",
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 32,
+      "keys": "same",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/replay-w5-n1000000-d500-c32-same-NEW",
+        "--workload",
+        "W5",
+        "--keys",
+        "same",
+        "--link",
+        "A",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-writes-wp-20261026/bin/sb4-postgres-scale-seed",
+        "--rates",
+        "100",
+        "50",
+        "70",
+        "2262",
+        "3200",
+        "4525"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "summary": {
+      "highest_passing_offered_per_s": 2262,
+      "lowest_failing_offered_per_s": 100,
+      "bracketed": true,
+      "rates": [
+        50,
+        70,
+        100,
+        2262,
+        3200,
+        4525
+      ],
+      "repeats": 3
+    },
+    "selected": {
+      "rate": 2262,
+      "all_pass": true,
+      "p50_ms": {
+        "min": 12.083199,
+        "median": 15.589375,
+        "max": 21.184511
+      },
+      "p99_ms": {
+        "min": 26.411007,
+        "median": 68.550655,
+        "max": 73.531391
+      },
+      "p999_ms": {
+        "min": 29.999103,
+        "median": 79.364095,
+        "max": 84.017151
+      },
+      "achieved_per_s": {
+        "min": 2261.6,
+        "median": 2261.75,
+        "max": 2261.9
+      },
+      "errors": 15,
+      "dispatch_lag_p99_ms": {
+        "min": 12.263423,
+        "median": 54.394879,
+        "max": 59.736063
+      },
+      "http_service_p99_ms": {
+        "min": 17.743871,
+        "median": 18.366463,
+        "max": 18.710527
+      },
+      "resources": {
+        "generator_cpu_us_per_ack_including_warmup": {
+          "min": 212.25163610636164,
+          "median": 213.56561726211532,
+          "max": 214.42150404527166
+        },
+        "serve_sample_count": {
+          "min": 118,
+          "median": 118,
+          "max": 118
+        },
+        "generator_cpu_s": {
+          "min": 14.4,
+          "median": 14.49,
+          "max": 14.55
+        },
+        "serve_mean_logical_cores": {
+          "min": 0.7666722148318498,
+          "median": 0.7877721563165677,
+          "max": 0.795642709047528
+        },
+        "serve_cpu_us_per_ack_including_warmup": {
+          "min": 339.68492565247504,
+          "median": 349.89977596981487,
+          "max": 353.45793290489945
+        },
+        "serve_cpu_s": {
+          "min": 23.05,
+          "median": 23.74,
+          "max": 23.98
+        },
+        "generator_mean_logical_cores": {
+          "min": 0.47778377857733123,
+          "median": 0.4808263919556473,
+          "max": 0.4839514414665256
+        },
+        "generator_sample_count": {
+          "min": 118,
+          "median": 118,
+          "max": 118
+        }
+      }
+    },
+    "headline_eligible": true,
+    "rates": [
+      {
+        "rate": 50,
+        "all_pass": true,
+        "p50_ms": {
+          "min": 11.845631,
+          "median": 11.902975,
+          "max": 11.984895
+        },
+        "p99_ms": {
+          "min": 14.753791,
+          "median": 14.802943,
+          "max": 15.007743
+        },
+        "p999_ms": {
+          "min": 15.474687,
+          "median": 16.777215,
+          "max": 17.825791
+        },
+        "achieved_per_s": {
+          "min": 50.0,
+          "median": 50.0,
+          "max": 50.0
+        },
+        "errors": 0,
+        "dispatch_lag_p99_ms": {
+          "min": 0.031983,
+          "median": 0.033151,
+          "max": 0.038559
+        },
+        "http_service_p99_ms": {
+          "min": 14.696447,
+          "median": 14.778367,
+          "max": 14.983167
+        },
+        "resources": {
+          "generator_cpu_us_per_ack_including_warmup": {
+            "min": 320.0,
+            "median": 326.6666666666667,
+            "max": 333.3333333333333
+          },
+          "serve_sample_count": {
+            "min": 119,
+            "median": 119,
+            "max": 119
+          },
+          "generator_cpu_s": {
+            "min": 0.48,
+            "median": 0.49,
+            "max": 0.5
+          },
+          "serve_mean_logical_cores": {
+            "min": 0.06331112422130006,
+            "median": 0.06448134261999305,
+            "max": 0.06493915453352897
+          },
+          "serve_cpu_us_per_ack_including_warmup": {
+            "min": 1266.6666666666667,
+            "median": 1293.3333333333333,
+            "max": 1300.0
+          },
+          "serve_cpu_s": {
+            "min": 1.9,
+            "median": 1.94,
+            "max": 1.95
+          },
+          "generator_mean_logical_cores": {
+            "min": 0.015994389276960015,
+            "median": 0.01628652468236938,
+            "max": 0.01665106526500743
+          },
+          "generator_sample_count": {
+            "min": 119,
+            "median": 119,
+            "max": 119
+          }
+        }
+      },
+      {
+        "rate": 70,
+        "all_pass": true,
+        "p50_ms": {
+          "min": 11.747327,
+          "median": 11.796479,
+          "max": 11.943935
+        },
+        "p99_ms": {
+          "min": 14.368767,
+          "median": 14.450687,
+          "max": 19.742719
+        },
+        "p999_ms": {
+          "min": 16.809983,
+          "median": 18.464767,
+          "max": 29.245439
+        },
+        "achieved_per_s": {
+          "min": 70.0,
+          "median": 70.0,
+          "max": 70.0
+        },
+        "errors": 0,
+        "dispatch_lag_p99_ms": {
+          "min": 0.031807,
+          "median": 0.032991,
+          "max": 0.047839
+        },
+        "http_service_p99_ms": {
+          "min": 14.344191,
+          "median": 14.426111,
+          "max": 19.726335
+        },
+        "resources": {
+          "generator_cpu_us_per_ack_including_warmup": {
+            "min": 304.76190476190476,
+            "median": 309.5238095238095,
+            "max": 319.04761904761904
+          },
+          "serve_sample_count": {
+            "min": 119,
+            "median": 119,
+            "max": 119
+          },
+          "generator_cpu_s": {
+            "min": 0.64,
+            "median": 0.65,
+            "max": 0.67
+          },
+          "serve_mean_logical_cores": {
+            "min": 0.08641147256809716,
+            "median": 0.08802308250123954,
+            "max": 0.08847122987113444
+          },
+          "serve_cpu_us_per_ack_including_warmup": {
+            "min": 1238.095238095238,
+            "median": 1261.904761904762,
+            "max": 1266.6666666666667
+          },
+          "serve_cpu_s": {
+            "min": 2.6,
+            "median": 2.65,
+            "max": 2.66
+          },
+          "generator_mean_logical_cores": {
+            "min": 0.021270516324454685,
+            "median": 0.021618909554976463,
+            "max": 0.022254892556917167
+          },
+          "generator_sample_count": {
+            "min": 119,
+            "median": 119,
+            "max": 119
+          }
+        }
+      },
+      {
+        "rate": 100,
+        "all_pass": false,
+        "p50_ms": {
+          "min": 1123.024895,
+          "median": 1185.939455,
+          "max": 1190.133759
+        },
+        "p99_ms": {
+          "min": 1368.391679,
+          "median": 1368.391679,
+          "max": 1374.683135
+        },
+        "p999_ms": {
+          "min": 1374.683135,
+          "median": 1378.877439,
+          "max": 1389.363199
+        },
+        "achieved_per_s": {
+          "min": 85.6,
+          "median": 87.2,
+          "max": 90.4
+        },
+        "errors": 736,
+        "dispatch_lag_p99_ms": {
+          "min": 1048.051711,
+          "median": 1048.575999,
+          "max": 1054.867455
+        },
+        "http_service_p99_ms": {
+          "min": 384.565247,
+          "median": 389.283839,
+          "max": 393.478143
+        },
+        "resources": {
+          "generator_cpu_us_per_ack_including_warmup": {
+            "min": 275.6797583081571,
+            "median": 280.23598820059,
+            "max": 386.43194504079
+          },
+          "serve_sample_count": {
+            "min": 123,
+            "median": 123,
+            "max": 123
+          },
+          "generator_cpu_s": {
+            "min": 0.73,
+            "median": 0.76,
+            "max": 0.9
+          },
+          "serve_mean_logical_cores": {
+            "min": 0.10501041568927548,
+            "median": 0.1060355439068061,
+            "max": 0.10820432629777588
+          },
+          "serve_cpu_us_per_ack_including_warmup": {
+            "min": 1242.4471299093655,
+            "median": 1250.0,
+            "max": 1425.504508372692
+          },
+          "serve_cpu_s": {
+            "min": 3.29,
+            "median": 3.32,
+            "max": 3.39
+          },
+          "generator_mean_logical_cores": {
+            "min": 0.02330018342041675,
+            "median": 0.024258197046109046,
+            "max": 0.028744575155459487
+          },
+          "generator_sample_count": {
+            "min": 123,
+            "median": 123,
+            "max": 123
+          }
+        }
+      },
+      {
+        "rate": 2262,
+        "all_pass": true,
+        "p50_ms": {
+          "min": 12.083199,
+          "median": 15.589375,
+          "max": 21.184511
+        },
+        "p99_ms": {
+          "min": 26.411007,
+          "median": 68.550655,
+          "max": 73.531391
+        },
+        "p999_ms": {
+          "min": 29.999103,
+          "median": 79.364095,
+          "max": 84.017151
+        },
+        "achieved_per_s": {
+          "min": 2261.6,
+          "median": 2261.75,
+          "max": 2261.9
+        },
+        "errors": 15,
+        "dispatch_lag_p99_ms": {
+          "min": 12.263423,
+          "median": 54.394879,
+          "max": 59.736063
+        },
+        "http_service_p99_ms": {
+          "min": 17.743871,
+          "median": 18.366463,
+          "max": 18.710527
+        },
+        "resources": {
+          "generator_cpu_us_per_ack_including_warmup": {
+            "min": 212.25163610636164,
+            "median": 213.56561726211532,
+            "max": 214.42150404527166
+          },
+          "serve_sample_count": {
+            "min": 118,
+            "median": 118,
+            "max": 118
+          },
+          "generator_cpu_s": {
+            "min": 14.4,
+            "median": 14.49,
+            "max": 14.55
+          },
+          "serve_mean_logical_cores": {
+            "min": 0.7666722148318498,
+            "median": 0.7877721563165677,
+            "max": 0.795642709047528
+          },
+          "serve_cpu_us_per_ack_including_warmup": {
+            "min": 339.68492565247504,
+            "median": 349.89977596981487,
+            "max": 353.45793290489945
+          },
+          "serve_cpu_s": {
+            "min": 23.05,
+            "median": 23.74,
+            "max": 23.98
+          },
+          "generator_mean_logical_cores": {
+            "min": 0.47778377857733123,
+            "median": 0.4808263919556473,
+            "max": 0.4839514414665256
+          },
+          "generator_sample_count": {
+            "min": 118,
+            "median": 118,
+            "max": 118
+          }
+        }
+      },
+      {
+        "rate": 3200,
+        "all_pass": false,
+        "p50_ms": {
+          "min": 1007.157247,
+          "median": 1007.157247,
+          "max": 1007.157247
+        },
+        "p99_ms": {
+          "min": 1015.545855,
+          "median": 1015.545855,
+          "max": 1016.594431
+        },
+        "p999_ms": {
+          "min": 1021.837311,
+          "median": 1021.837311,
+          "max": 1030.225919
+        },
+        "achieved_per_s": {
+          "min": 2309.05,
+          "median": 2318.55,
+          "max": 2326.35
+        },
+        "errors": 52921,
+        "dispatch_lag_p99_ms": {
+          "min": 1005.584383,
+          "median": 1005.584383,
+          "max": 1006.632959
+        },
+        "http_service_p99_ms": {
+          "min": 17.891327,
+          "median": 18.235391,
+          "max": 18.694143
+        },
+        "resources": {
+          "generator_cpu_us_per_ack_including_warmup": {
+            "min": 227.51403003185197,
+            "median": 231.2275195467107,
+            "max": 231.60554853580305
+          },
+          "serve_sample_count": {
+            "min": 122,
+            "median": 122,
+            "max": 122
+          },
+          "generator_cpu_s": {
+            "min": 16.5,
+            "median": 16.65,
+            "max": 16.68
+          },
+          "serve_mean_logical_cores": {
+            "min": 0.801860372054795,
+            "median": 0.8099234891774787,
+            "max": 0.8110893264954868
+          },
+          "serve_cpu_us_per_ack_including_warmup": {
+            "min": 344.02879086634584,
+            "median": 349.3522542662353,
+            "max": 350.3826016915022
+          },
+          "serve_cpu_s": {
+            "min": 24.95,
+            "median": 25.16,
+            "max": 25.23
+          },
+          "generator_mean_logical_cores": {
+            "min": 0.5302884224009666,
+            "median": 0.5352610894232998,
+            "max": 0.536944507133559
+          },
+          "generator_sample_count": {
+            "min": 122,
+            "median": 122,
+            "max": 122
+          }
+        }
+      },
+      {
+        "rate": 4525,
+        "all_pass": false,
+        "p50_ms": {
+          "min": 1007.157247,
+          "median": 1007.157247,
+          "max": 1007.157247
+        },
+        "p99_ms": {
+          "min": 1015.021567,
+          "median": 1015.545855,
+          "max": 1016.070143
+        },
+        "p999_ms": {
+          "min": 1019.740159,
+          "median": 1020.788735,
+          "max": 1028.128767
+        },
+        "achieved_per_s": {
+          "min": 2381.25,
+          "median": 2382.7,
+          "max": 2394.45
+        },
+        "errors": 128332,
+        "dispatch_lag_p99_ms": {
+          "min": 1008.205823,
+          "median": 1008.205823,
+          "max": 1008.730111
+        },
+        "http_service_p99_ms": {
+          "min": 16.908287,
+          "median": 16.957439,
+          "max": 17.727487
+        },
+        "resources": {
+          "generator_cpu_us_per_ack_including_warmup": {
+            "min": 240.2228622183942,
+            "median": 241.9106110790769,
+            "max": 246.48695346985056
+          },
+          "serve_sample_count": {
+            "min": 121,
+            "median": 122,
+            "max": 122
+          },
+          "generator_cpu_s": {
+            "min": 17.85,
+            "median": 18.04,
+            "max": 18.26
+          },
+          "serve_mean_logical_cores": {
+            "min": 0.7489537217888664,
+            "median": 0.7542930656140425,
+            "max": 0.7575451092057959
+          },
+          "serve_cpu_us_per_ack_including_warmup": {
+            "min": 311.4149597609883,
+            "median": 314.3228782535234,
+            "max": 317.4903146555797
+          },
+          "serve_cpu_s": {
+            "min": 23.14,
+            "median": 23.44,
+            "max": 23.52
+          },
+          "generator_mean_logical_cores": {
+            "min": 0.57773655721397,
+            "median": 0.5805224788258245,
+            "max": 0.5881281332524589
+          },
+          "generator_sample_count": {
+            "min": 121,
+            "median": 122,
+            "max": 122
+          }
+        }
+      }
+    ]
+  }
+]

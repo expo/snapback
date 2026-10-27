@@ -1,0 +1,22 @@
+{
+  "comparison_rows": 6,
+  "source_repetitions_read": 123,
+  "all_native_highest_rates_and_three_repetition_rules_verified": true,
+  "all_control_and_prior_source_repetitions_verified": true,
+  "counter_arithmetic_of_selected_cohorts_verified": true,
+  "p50_p99_medians_verified": true,
+  "strict_verdicts_verified": true,
+  "table_matches_verified_comparison": true,
+  "readme_local_links_checked": 36,
+  "all_json_parses": true,
+  "no_raw_trial_files": true,
+  "archive_sha256_recomputed": "10066f91f7baa71c121b82fea2b4db055d6e75f470020dbc93e35b08b8c3b3fe",
+  "control_wins": 2,
+  "prior_wins": 5,
+  "g72_wins": 3,
+  "levers_source_repetitions_verified": true,
+  "levers_wins": 2,
+  "g72_source_repetitions_verified": true,
+  "wf_source_repetitions_and_verdicts_verified": true,
+  "all_passed": true
+}
