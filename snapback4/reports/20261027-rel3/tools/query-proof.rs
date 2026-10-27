@@ -24,7 +24,7 @@ fn main()->Result<(),Box<dyn std::error::Error>>{
     for probe in probes.as_array().ok_or("probe list expected")?{
         let op=probe["operation"].as_str().ok_or("operation missing")?;
         let Some(program)=e.program(op)else{result.push(json!({"label":probe["label"],"operation":op,"code":"E_OP"}));continue};
-        let decoded=match snapback4_core::wire::arguments_from_json(program,&probe["args"]){Ok(args)=>args,Err(error)=>{result.push(json!({"label":probe["label"],"operation":op,"code":error.code}));continue}};
+        let decoded=match snapback4_core::wire::arguments_from_json(program,&probe["args"]){Ok(args)=>args,Err(error)=>{result.push(json!({"label":probe["label"],"operation":op,"code":error.code()}));continue}};
         match e.query(op,Context::new(probe["viewer"].as_str().ok_or("viewer missing")?,decoded)){
             Ok(outcome)=>{let mut projected=Vec::new();rows(&snapback4_core::wire::to_json(&outcome.data),probe["fields"].as_array().ok_or("fields missing")?,&mut projected);result.push(json!({"label":probe["label"],"operation":op,"viewerSha256":digest(&probe["viewer"]),"code":null,"complete":outcome.complete,"hasNext":outcome.next.is_some(),"rows":projected}));},
             Err(error)=>result.push(json!({"label":probe["label"],"operation":op,"code":error.code})),

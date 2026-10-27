@@ -53,14 +53,16 @@ mod photos;
 
 #[test]
 fn wave31_019_tightened_writes_register_current_rules_and_keep_old_reads_callable(){
+    for rename in [false,true] {
     let a=App::new();let old="table items:\n  owner: principal\n  label: text <=80\n  public\n  insert <- allow\n  update <- allow\n  online only\nquery list():\n  return items first 20 by .id\nmutation edit(id: items, label: text <=80):\n  return update items[id] {label}\n";
     a.source(old);a.ok(&["deploy","deploy"]);a.seed(old,"items",json!({"id":"kept","owner":"alice","label":"before"}));
-    let new=old.replace("label: text <=80\n","label: text <=80 write <- .owner = viewer\n");a.source(&new);
+    let new=if rename {old.replace("label: text <=80\n","title: text <=80 renamed from label write <- .owner = viewer\n").replace("edit(id: items, label: text <=80)","edit(id: items, title: text <=80 alias label)").replace("update items[id] {label}","update items[id] {title}")+"alias result list.label = title\n"}else{old.replace("label: text <=80\n","label: text <=80 write <- .owner = viewer\n")};a.source(&new);
     let preview=a.json(&["deploy","deploy","--check"]);assert!(!preview["rollbackViews"].as_array().unwrap().is_empty(),"{preview}");a.ok(&["deploy","deploy"]);a.ok(&["rollback","deploy","--to","1"]);
     assert_eq!(a.json(&["releases","deploy"])["live"]["exact"],false);
     let mut e=a.engine();assert_eq!(snapback4_core::wire::to_json(&e.query("list",Context::new("bob",BTreeMap::new())).unwrap().data)[0]["label"],"before");
     let c=Context::new("bob",BTreeMap::from([("id".into(),snapback4_core::Value::Id("kept".into())),("label".into(),snapback4_core::Value::String("forbidden".into()))]));
     let result=e.mutate("edit",None,c);assert!(result.is_err()||result.is_ok_and(|r|!matches!(r.state,snapback4_core::WriteState::Sent{..})));
+    }
 }
 #[test]
 fn wave31_040_explicit_revocation_survives_backfill_reentry(){

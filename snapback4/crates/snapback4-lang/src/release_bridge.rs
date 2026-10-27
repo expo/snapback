@@ -34,9 +34,10 @@ pub fn requires_view(target:&[(String,String)],current:&[(String,String)])->bool
             table_names.insert(prior.clone(),new.clone());
         }
     }
+    let authority=align_current_schema(&before_schema,target,&after_schema,current,&table_names).ok();
     let after_schema=after_schema.with_table_names(&table_names).ok();
     // @ref LLP 3000.000.000.003#3-one-release-evolution — a release tightening field writes registers current guarded source for old clients.
-    if before_schema.tables.iter().any(|(name,old)|after_schema.as_ref().and_then(|s|s.table(name)).is_some_and(|new|
+    if before_schema.tables.iter().any(|(name,old)|authority.as_ref().and_then(|s|s.table(name)).is_some_and(|new|
         new.column_writes.iter().any(|(field,rule)|{
             let implies=|prior:&snapback4_core::schema::RuleExpr|prior==rule||*prior==snapback4_core::schema::RuleExpr::Deny||*rule==snapback4_core::schema::RuleExpr::Allow;
             old.columns.contains_key(field)&&!old.column_writes.get(field).is_some_and(implies)

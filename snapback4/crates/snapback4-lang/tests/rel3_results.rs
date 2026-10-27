@@ -70,3 +70,21 @@ fn wave31_005_frozen_alias_preserves_explicit_null_branch() {
     let result=e.query("one",Context::new("alice",std::collections::BTreeMap::from([("id".into(),Value::Id("missing".into()))]))).unwrap();assert_eq!(result.data,Value::Null);
     let b=snapback4_lang::compile(&[("schema.q".into(),format!("{TABLE}query one():\n  return null\nalias result one.label = title\n"))]);assert!(!b.diagnostics.is_empty());
 }
+
+#[test]
+fn frozen_alias_coverage_never_claims_a_different_nested_property() {
+    let old=bound("query list():\n  return {details:{label:'old'}}\n");
+    let new=bound("query list():\n  return {title:'new'}\nalias result list.label = title\n");
+    let review=snapback4_lang::client_contracts::compare(&old,&new,"frozen nested UI").join("\n");
+    assert!(review.contains("missing fields [details.label]"),"{review}");assert!(!review.contains("covered by alias"),"{review}");
+}
+#[test]
+fn rollback_photos_never_infer_parent_identity_from_an_object_or_replaced_id() {
+    let old="table items:\n  owner: principal\n  photo: image <=1000\n  public\n  online only\nquery list():\n  return items first 20 by .id\n";
+    let table="table items:\n  owner: principal\n  public\n  online only\ntable photos:\n  item: items on delete cascade\n  photo: image <=1000\n  immutable item\n  read through .item\n  online only\nextract photos from items via item: {photo:photo}\n";
+    for expression in ["{id:'made-up',owner:'alice'}","(items first 20 by .id) {id:'made-up',owner}"] {
+        let current=format!("{table}query list():\n  return {expression}\n");
+        bound(&current);let bridge=snapback4_lang::release_bridge::loosen(&[("schema.q".into(),old.into())],&[("schema.q".into(),current)]);
+        assert!(bridge.diagnostics.is_empty(),"{:?}",bridge.diagnostics);assert!(!bridge.sources[0].1.contains("rollbackResult_"),"{}",bridge.sources[0].1);
+    }
+}

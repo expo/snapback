@@ -1014,10 +1014,11 @@ fn equal_schema_activation_closes_new_nominal_references_and_replaces_generation
     seed(&mut e,"children",serde_json::json!({"id":"c","parent":"p"}));
     assert_eq!(e.store().count("children").unwrap(),1);
     let generation=e.generation();
-    activate(&mut e,&old,2).unwrap();
+    // Requalification is a new immutable capture, not a same-release activation.
+    activate(&mut e,&old,3).unwrap();
     assert_eq!(e.generation(),generation+1);
     assert_eq!(e.store().count("children").unwrap(),0);
-    activate(&mut e,wide,3).unwrap();
+    activate(&mut e,wide,4).unwrap();
     assert_eq!(e.store().count("children").unwrap(),1);
 }
 
@@ -1054,7 +1055,7 @@ fn tentative_restoration_with_no_visibility_delta_keeps_generation_and_cursors()
     seed(&mut e,"children",serde_json::json!({"id":"c","parent":"p"}));
     activate(&mut e,&old,2).unwrap();
     let generation=e.generation();
-    activate(&mut e,&old,2).unwrap();
+    activate(&mut e,&old,3).unwrap();
     assert_eq!(e.generation(),generation);
     assert_eq!(e.store().count("parents").unwrap(),0);
     assert_eq!(e.store().count("children").unwrap(),0);
@@ -1182,7 +1183,7 @@ fn true_format_two_store_allows_deletion_before_its_first_upgrade() {
     mutate(&mut e,"remove","legacy-delete");
     assert_eq!(e.store().count("rows").unwrap(),0);
     assert_eq!((&e.store()).test_support_meta("version").unwrap().as_deref(),Some("snapback4-release-store-2"));
-    activate(&mut e,V1,1).unwrap();
+    activate(&mut e,V1,2).unwrap();
     assert_eq!((&e.store()).test_support_meta("version").unwrap().as_deref(),Some(super::table_renames::VERSION));
 }
 

@@ -21,16 +21,18 @@ pub(super) fn preserve(target:&[(String,String)], bridge:&mut Bridge) {
         for program in &doc.programs {
             let name=crate::release_bridge::operation_name(file,&program.name);
             let Some(before)=old.programs.iter().find(|p|p.program.name==name)else{continue};
-            let Some(parent)=table(&before.result)else{continue};
+            let Some(parent)=table(&before.result).map(str::to_owned).or_else(||crate::release_result_lineage::table(&before.program))else{continue};
             let Some(after)=current.programs.iter().find(|p|p.program.name==name)else{continue};
             // A changed operation returning unrelated data is a compatibility review,
             // not permission to invent parent identity from an arbitrary object.
-            if table(&after.result)!=Some(parent){continue;}
+            if table(&after.result).map(str::to_owned).or_else(||crate::release_result_lineage::table(&after.program)).as_deref()!=Some(parent.as_str()){continue;}
+            let served=crate::client_contracts::result_fields(&after.result,&current);
             let mut projections=Vec::new();
             for extraction in current.schema.extractions.iter().filter(|e|!e.each&&e.parent==parent){
-                let Some(old_parent)=old.schema.table(parent)else{continue};
+                let Some(old_parent)=old.schema.table(&parent)else{continue};
                 for(child_column,parent_column)in &extraction.fields {
-                    if !old_parent.columns.contains_key(parent_column)||current.schema.tables[parent].columns.contains_key(parent_column){continue;}
+                    if !old_parent.columns.contains_key(parent_column)||current.schema.tables[&parent].columns.contains_key(parent_column)
+                        ||served.contains_key(parent_column)||served.contains_key(&format!("[].{parent_column}")){continue;}
                     let helper=format!("rollbackResult_{}_{}",extraction.child,child_column);
                     let column=extraction.result_column();let index=format!("rollbackOriginal_{}",extraction.child);
                     let definition=format!("fn {helper}(parent: id):\n  original = {}[{column} = parent] by {index}\n  if original != null and original.{} = parent:\n    return original.{child_column}\n  return null\n",extraction.child,extraction.reference);
