@@ -460,3 +460,35 @@ for units. A plan-only audit checks all three actual commands and the 14-step
 scoped plan. Production sources and the native800 packet are unchanged. The
 complete corrected scoped plan runs on the new clean committed tree; results
 follow after that run. No failed attempt is relabeled PASS.
+
+
+### Parent-window correction after final-test failure
+
+The correctly scoped attempt on 5e64614e03 found a real product regression:
+`parent_window_coupling_requires_the_exact_changed_parent` failed because
+completion terminality uncertainty erased an independent parent-window contract.
+The partial run is retained as `parent-window-regression-sec11b-final-affected*`;
+its completed builds and CLI checks pass, but language integration was interrupted
+after 121 targets / 1,791 passing tests and is not complete coverage. Only the
+recorded owned process tree was stopped, with identity/cleanup receipts retained.
+
+Commit b25313ff7d keeps unmapped targets uncovered, emits the independent window
+for known-target unrestricted writers, then skips terminal completion inference.
+The existing ten-case coupling test and six-case reopening test pass unchanged.
+Fresh Muse and Codex round-9 reviews are READY. The corrected native executable
+is `2b59f9ee40869f34041eed1803ad087d97577d80e09c0616c1aaf546242112ac`.
+
+All 857 frozen inputs (800 survey + 50 wave31 + seven repairs) have byte-identical
+ordered derived obligations and diagnostics. Serialization omits executable
+syntax, so this is explicitly not a general AST-equivalence proof. Unchanged
+normalizers and window/completion constructors, the narrow uncertainty-guard
+relocation, and byte-identical other 1,960 source inputs support this specific
+reviewed bridge. Fresh native checks reproduce all eight effects on seven schemas,
+including byte-identical decisions and witness IDs. Fresh 030/035/018 repair
+acceptances pass; the same original 030 bypass expectation remains a failure.
+
+The original 3a4ac751 native800 packet stays immutable. Its coverage, precision,
+line counts and 17 HTTP qualification gaps carry through this reviewed narrow
+correction; there is no claim of a second native800 execution. Evidence lives in
+`snapback4/reports/sec11b/item4/window-correction/`. A new clean committed-source
+full scoped verification follows; the failed partial attempt is never PASS.

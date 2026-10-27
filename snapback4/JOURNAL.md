@@ -109557,3 +109557,22 @@ coverage, precision, repaired-app evidence and fixed-part survey composition.
 The final affected receipt and exclusions are recorded in WORKSTREAM-REPORT.md.
 No deploy files or pipeline scheduling edits, version bump, push or publication.
 Items 5–8 remain later work; latency remains the separate SEC11L lane.
+
+
+### 2026-10-27 — SEC11b parent-window correction
+
+The final affected unit run caught a real regression: completion terminality
+uncertainty erased independent parent-window coupling. Keep the existing test
+unchanged; distinguish unmapped targets from known-target source-unrestricted
+writers, preserving the latter's window before abandoning terminal completion.
+The ten-case coupling and six-case reopening regressions pass. Fresh Muse and
+Codex round-9 reviews are READY on b25313ff7d.
+
+All 857 frozen inputs retain ordered obligations and diagnostics. Because that
+serializer omits executable syntax, the qualification also binds unchanged
+constructors/normalizers and all other production inputs. Fresh native checks
+reproduce all eight target effects and byte-identical decision/witness identities;
+all three repaired app acceptances pass with the recorded 030 adjustment. The
+original native800 execution remains immutable, carried by this narrow reviewed
+equivalence bridge; no new-binary800 claim. See item4/window-correction evidence
+and WORKSTREAM-REPORT.md for the failed partial attempt and final verification.

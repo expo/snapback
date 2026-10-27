@@ -1,0 +1,29 @@
+{
+  "launchSession": 43227,
+  "root": [
+    3489964
+  ],
+  "reason": "Ctrl-C did not stop the nested timeout/Cargo groups. Ownership verified by exact recorded launch arguments, workspace cwd, unique original stdout handle and process start ticks; only that tree stopped. The separate corpus metrology run is not a descendant.",
+  "identities": {
+    "131491": {
+      "parent": 4071086,
+      "start": "183418272",
+      "state": "S"
+    },
+    "3489964": {
+      "parent": 3489963,
+      "start": "183098885",
+      "state": "S"
+    },
+    "4071085": {
+      "parent": 3489964,
+      "start": "183321129",
+      "state": "S"
+    },
+    "4071086": {
+      "parent": 4071085,
+      "start": "183321130",
+      "state": "S"
+    }
+  }
+}
