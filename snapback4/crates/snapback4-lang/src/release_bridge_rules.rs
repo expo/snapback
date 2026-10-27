@@ -177,7 +177,7 @@ pub(super) fn carry(
             for (_,site) in &old.final_exists {if let Some((a,b))=line_span(file,text,site){edits.push((a,b,String::new()));}}
             let at=declaration(text,old.site.line).1;
             for(fields,_)in &next.immutable {edits.push((at,at,format!("  immutable {}\n",fields.join(", "))));}
-            for cap in &next.caps {edits.push((at,at,format!("  cap {} by {}\n",cap.max,cap.by.join(", "))));}
+            for cap in &next.caps {edits.push((at,at,format!("  cap {}{}\n",cap.max,if cap.by.is_empty(){String::new()}else{format!(" by {}",cap.by.join(", "))})));}
             for(expr,_)in &next.final_exists {edits.push((at,at,format!("  after insert <- {}\n",print::expression(&remap(expr)))));}
             for prior in [&old.expire,&old.not_before].into_iter().flatten(){if let Some((a,b))=line_span(file,text,&prior.1){edits.push((a,b,String::new()));}}
             if let Some((field,_))=&next.expire {edits.push((at,at,format!("  expire at .{field}\n")));}

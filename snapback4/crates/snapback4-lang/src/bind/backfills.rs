@@ -31,6 +31,15 @@ fn bind_one(
 pub(super) fn bind(catalog: &Catalog, schema: &mut Schema, diagnostics: &mut Vec<Diagnostic>) {
     for d in catalog.documents.iter().flat_map(|d|&d.extractions) {
         let extraction=snapback4_core::schema::Extraction{each:d.each,child:d.child.clone(),parent:d.parent.clone(),reference:d.reference.clone(),fields:d.fields.iter().cloned().collect()};
+        // @ref LLP 3000.000.000.003#5-loosen-required-and-release-refusals-rel4 — check refuses invented historical birth timestamps before adoption.
+        if let Some(child)=schema.table(&extraction.child) {
+            for (column,default) in &child.defaults {
+                if column!=&extraction.reference && !extraction.fields.contains_key(column)
+                    && !matches!(default,snapback4_core::schema::ColumnDefault::Literal(_)) {
+                    diagnostics.push(type_error(&d.site,format!("extract {} from {} cannot supply {}.{} default {} for historical rows",extraction.child,extraction.parent,extraction.child,column,match default{snapback4_core::schema::ColumnDefault::Now=>"now",_=>"viewer"}),"use a literal default, make the column optional without a default, or map a retained parent timestamp explicitly").guide("deploy"));
+                }
+            }
+        }
         schema.extractions.push(extraction);
     }
     let mut forward_names=BTreeSet::new();let mut forward_outputs=BTreeSet::new();
