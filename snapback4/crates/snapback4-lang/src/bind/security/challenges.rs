@@ -20,6 +20,8 @@ mod column_reads;
 mod stability;
 mod generated;
 mod text_samples;
+pub mod intent_answers;
+pub mod release_witness;
 mod workflow;
 pub use generated::fixture as generated_fixture;
 #[derive(Clone,Debug,Serialize,serde::Deserialize,PartialEq,Eq)]
@@ -29,7 +31,7 @@ impl Reachability {
     pub fn is_reachable(&self)->bool {matches!(self,Self::AuthoredFixtureTrace|Self::GeneratedFixtureTrace)}
 }
 #[derive(Clone,Debug,Serialize,serde::Deserialize)]
-pub struct Counterexample {pub reachability:Reachability,pub invariant_site:String,pub args:BTreeMap<String,Value>,pub viewer:String,pub operation:String,pub effect:String,pub row:Value,pub old:Option<Value>,pub supporting_rows:BTreeMap<String,Vec<Value>>,pub rule_path:String,pub scope:String, pub observations:Option<paired::Observations>,pub history:Vec<histories::Step>}
+pub struct Counterexample {#[serde(skip)] pub current_execution:bool,pub reachability:Reachability,pub invariant_site:String,pub args:BTreeMap<String,Value>,pub viewer:String,pub operation:String,pub effect:String,pub row:Value,pub old:Option<Value>,pub supporting_rows:BTreeMap<String,Vec<Value>>,pub rule_path:String,pub scope:String, pub observations:Option<paired::Observations>,pub history:Vec<histories::Step>}
 #[derive(Clone,Debug,Default,Serialize)]
 pub struct Campaign {#[doc(hidden)] #[serde(skip)] pub directed_base:usize,#[doc(hidden)] #[serde(skip)] pub workflow_base:usize,#[doc(hidden)] #[serde(skip)] pub time_samples:Option<Vec<Value>>,pub evaluation_unknowns:BTreeSet<String>,pub directed_attempts:usize,pub workflow_attempts:usize,pub directed_peak_worlds:usize,#[serde(skip)] pub history_limit:usize,#[serde(skip)] pub generated_fixture:bool,#[serde(skip)] pub work_remaining:Option<usize>,#[serde(skip)] pub deadline:Option<std::time::Instant>,pub paired_observer_calls:usize,pub history_observer_calls:usize,pub column_observer_calls:usize,pub operations:BTreeMap<String,usize>,pub sequences:usize,pub attempted:usize,pub admitted:usize,pub refused:usize,pub violations:Vec<Counterexample>,pub boundary_failures:Vec<String>,pub unsupported:BTreeSet<String>}
 impl Campaign {
@@ -318,7 +320,7 @@ pub fn run_selected_after(bound:&Bound,sites:Option<&BTreeSet<String>>,mut out:C
                 if !out.reserve(1){break;}
                 if inv.target=="always" {
                     match judged(inv,policy(bound,inv,&rows,viewer,None,row),&mut out){
-                        Ok(false)=>{out.attempted+=1;out.admitted+=1;out.violations.push(Counterexample{reachability:Reachability::TrustedSeedOnly,history:Vec::new(),observations:None,invariant_site:inv.site.to_string(),args:BTreeMap::new(),viewer:viewer.into(),operation:"$security.seed_at".into(),effect:"always".into(),row:row.clone(),old:None,supporting_rows:rows.clone(),rule_path:"trusted seed ingress; all typed and final-exists constraints rechecked".into(),scope:"actual seed_at commit/read-back; ordinary application reachability is not claimed".into()});found=true;},
+                        Ok(false)=>{out.attempted+=1;out.admitted+=1;out.violations.push(Counterexample{current_execution:false,reachability:Reachability::TrustedSeedOnly,history:Vec::new(),observations:None,invariant_site:inv.site.to_string(),args:BTreeMap::new(),viewer:viewer.into(),operation:"$security.seed_at".into(),effect:"always".into(),row:row.clone(),old:None,supporting_rows:rows.clone(),rule_path:"trusted seed ingress; all typed and final-exists constraints rechecked".into(),scope:"actual seed_at commit/read-back; ordinary application reachability is not claimed".into()});found=true;},
                         Ok(true)=>{out.attempted+=1;},Err(e)=>{out.unsupported.insert(e);}
                     }if found{break;}continue;
                 }
@@ -356,7 +358,7 @@ pub fn run_selected_after(bound:&Bound,sites:Option<&BTreeSet<String>>,mut out:C
                         Ok((true,next))=>{
                             let mut args=BTreeMap::new();
                             if word=="update"{let changes=bound.schema.tables[&inv.table].columns.keys().filter(|c|row.field(c).ok()!=next.field(c).ok()).filter_map(|c|next.field(c).ok().map(|v|(c.clone(),v.clone()))).collect();args.insert("$syntheticPatch".into(),Value::Map(changes));}
-                            out.admitted+=1;out.violations.push(Counterexample{reachability:Reachability::SyntheticOperation,history:Vec::new(),observations:None,invariant_site:inv.site.to_string(),args,viewer:viewer.into(),operation:format!("$security.{}.{}",inv.table,word),effect:word.into(),row:next,old:(word=="update"||word=="delete").then(||row.clone()),supporting_rows:admission_rows.clone(),rule_path:bound.schema.tables[&inv.table].rules.for_effect(super::effect(word)).quarry(),scope:if word=="update"{"schema-valid seeded snapshot; old-image policy false at an actual changed update; committed next image and patch shown; application reachability is not claimed".into()}else{"schema-valid seeded snapshot; synthetic engine table operation; application reachability is not claimed".into()}});found=true;break;},
+                            out.admitted+=1;out.violations.push(Counterexample{current_execution:false,reachability:Reachability::SyntheticOperation,history:Vec::new(),observations:None,invariant_site:inv.site.to_string(),args,viewer:viewer.into(),operation:format!("$security.{}.{}",inv.table,word),effect:word.into(),row:next,old:(word=="update"||word=="delete").then(||row.clone()),supporting_rows:admission_rows.clone(),rule_path:bound.schema.tables[&inv.table].rules.for_effect(super::effect(word)).quarry(),scope:if word=="update"{"schema-valid seeded snapshot; old-image policy false at an actual changed update; committed next image and patch shown; application reachability is not claimed".into()}else{"schema-valid seeded snapshot; synthetic engine table operation; application reachability is not claimed".into()}});found=true;break;},
                         Err(e)=>{out.unsupported.insert(format!("{}.{}: {e}",inv.table,word));},
                     }
                 }
@@ -386,7 +388,7 @@ fn arguments(args:&BTreeMap<String,ir::ArgType>,variant:usize)->Option<BTreeMap<
     use ir::ArgType as A;
     fn one(k:&A,v:usize)->Option<Value>{Some(match k{
         A::Ref{table}=>id(table),A::Principal=>Value::Id(if v&1==0{OTHER}else{VIEWER}.into()),A::Id=>Value::Id("security-argument".into()),A::Cursor=>Value::Null,A::Optional(inner)=>if v&4==0{Value::Null}else{one(inner,v)?},
-        A::Text{min,max,format}=>text_samples::argument(*min,*max,*format,v)?,A::Enum{variants}=>Value::String(variants.get(v%variants.len())?.clone()),A::Int|A::Decimal{..}|A::Money{..}=>Value::Int(1),A::IntRange{min,max}=>Value::Int(1i64.clamp(*min,*max)),A::Time=>Value::Int(NOW+86_400_000),A::Bool=>Value::Bool(v&2==0),A::List{of:Some(inner),..}=>Value::Array(vec![one(inner,v)?]),A::ListRange{of:Some(inner),min,..}=>Value::Array((0..*min).map(|_|one(inner,v)).collect::<Option<_>>()?),A::List{..}=>Value::Array(Vec::new()),A::Json{..}=>Value::Null,A::Bytes{..}=>Value::Bytes(Vec::new()),A::Image{..}=>Value::String(if v&4==0{"$security:image"}else{"$security:image:alternate"}.into()),A::File{..}=>Value::String("$security:file".into()),_=>return None,
+        A::Text{min,max,format}=>text_samples::argument(*min,*max,*format,0)?,A::Enum{variants}=>Value::String(variants.get(v%variants.len())?.clone()),A::Int|A::Decimal{..}|A::Money{..}=>Value::Int(1),A::IntRange{min,max}=>Value::Int(1i64.clamp(*min,*max)),A::Time=>Value::Int(NOW+86_400_000),A::Bool=>Value::Bool(v&2==0),A::List{of:Some(inner),..}=>Value::Array(vec![one(inner,v)?]),A::ListRange{of:Some(inner),min,..}=>Value::Array((0..*min).map(|_|one(inner,v)).collect::<Option<_>>()?),A::List{..}=>Value::Array(Vec::new()),A::Json{..}=>Value::Null,A::Bytes{..}=>Value::Bytes(Vec::new()),A::Image{..}=>Value::String(if v&4==0{"$security:image"}else{"$security:image:alternate"}.into()),A::File{..}=>Value::String("$security:file".into()),_=>return None,
     })}
     args.iter().map(|(n,k)|one(k,variant).map(|v|(n.clone(),v))).collect()
 }
@@ -577,7 +579,7 @@ fn trusted_reads(bound:&Bound,fixture:&Engine,out:&mut Campaign){
         'rows:for row in rows.get(&inv.table).into_iter().flatten().take(1000){for viewer in &actors{
             if !out.reserve(1){return;}
             if !live(&bound.schema.tables[&inv.table],row)||!matches!(judge.fixture_policy(&bound.schema.tables[&inv.table].rules.read,viewer,None,row,NOW),Ok(rules::Verdict::Readable))||judged(inv,policy_in(bound,inv,&rows,viewer,None,row,&mut judge),out)!=Ok(false){continue;}
-            out.violations.push(Counterexample{reachability:Reachability::AuthoredFixtureTrace,invariant_site:inv.site.to_string(),args:BTreeMap::new(),viewer:viewer.clone(),operation:"$fixture.read-admission".into(),effect:"read".into(),row:row.clone(),old:None,supporting_rows:rows.clone(),rule_path:"ordinary row-read gate admits authored fixture data contrary to declared intent".into(),scope:"authored fixture initialization is trusted; raw row admission, no initialization history claimed".into(),observations:None,history:Vec::new()});
+            out.violations.push(Counterexample{current_execution:false,reachability:Reachability::AuthoredFixtureTrace,invariant_site:inv.site.to_string(),args:BTreeMap::new(),viewer:viewer.clone(),operation:"$fixture.read-admission".into(),effect:"read".into(),row:row.clone(),old:None,supporting_rows:rows.clone(),rule_path:"ordinary row-read gate admits authored fixture data contrary to declared intent".into(),scope:"authored fixture initialization is trusted; raw row admission, no initialization history claimed".into(),observations:None,history:Vec::new()});
             break 'rows;
         }}
     }

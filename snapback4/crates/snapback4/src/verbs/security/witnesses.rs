@@ -195,8 +195,9 @@ pub(in crate::verbs) fn evidence(sources:&[(String,String)],bound: &Bound, inv: 
 }
 mod approval_applicability;
 mod questions;
+mod answers;
 use approval_applicability::{approval_trigger,precise_approval};
-fn candidate(sources: &[(String, String)], line: &str) -> Option<security::Invariant> {
+pub(super) fn candidate(sources: &[(String, String)], line: &str) -> Option<security::Invariant> {
     let mut sources = sources.to_vec();
     sources.push(("$dx11-question.q".into(), format!("{line}\n")));
     let bound = snapback4_lang::compile(&sources);
@@ -220,6 +221,7 @@ fn candidates(
     let mut out = Vec::new();
     for (index, n) in notes.iter().enumerate() {
         out.extend(questions::candidates(bound,sources,index,n));
+        if n.code=="N_RELEASE_CREATE_AUTHORITY"{if let Some(inv)=super::release_create::candidate(sources,n){out.push((index,inv));}}
         if n.code == "N_INSERT_WRITE_INTENT" {
             if let Some(subject) = n
                 .message
@@ -486,10 +488,11 @@ fn decreasing_edit(
 }
 /// Deployment and its prescribed acknowledgment consume the same actual
 /// campaign verdict, without a different display-only counterexample chooser.
-pub(in crate::verbs) fn apply_report(sources:&[(String,String)],bound:&Bound,report:&security::Report,notes:&[Diagnostic],evidence:&mut [Option<serde_json::Value>]) {
+pub(in crate::verbs) fn apply_report(project:&Project,options:&Options,sources:&[(String,String)],bound:&Bound,report:&security::Report,notes:&[Diagnostic],evidence:&mut [Option<serde_json::Value>]) {
     for (index,note) in notes.iter().enumerate().filter(|(_,n)|n.code=="N_DERIVED_WRITE_AUTHORITY") {
         if let Some(verdict)=report.invariants.iter().find(|v|v.invariant.site==note.site&&v.status==security::Status::Refuted&&v.counterexample.as_ref().is_some_and(|c|c.reachability.is_reachable())) {
-            let value=self::evidence(sources,bound,&verdict.invariant,verdict.counterexample.as_ref().unwrap());
+            let mut value=self::evidence(sources,bound,&verdict.invariant,verdict.counterexample.as_ref().unwrap());
+            answers::attach(sources,bound,&verdict.invariant,verdict.counterexample.as_ref().unwrap(),&answers::lines(project,options),&mut value);
             if super::super::security_reviews::witness::concrete(&value){evidence[index]=Some(value);}
         }
     }
@@ -504,6 +507,8 @@ pub(in crate::verbs) fn collect(project:&Project,bound:&Bound,sources:&[(String,
     let mut result=vec![None;notes.len()];
     if let Some(cached)=&cached{for (index,value) in cached.iter().enumerate(){if !gate(index)&&notes[index].code!="N_DERIVED_WRITE_AUTHORITY"{result[index]=value.clone();}}}
     let selected=candidates(bound,sources,notes);
+    let answer_lines=answers::lines(project,options);
+    let prior_policies=notes.iter().enumerate().filter(|(_,n)|n.code=="N_RELEASE_CREATE_AUTHORITY").filter_map(|(index,n)|super::release_create::prior_policy(sources,n).and_then(|inv|inv.policy).map(|p|(index,p))).collect::<BTreeMap<_,_>>();
     let stages=security::derived::workflow_columns_from_sources(sources,bound);
     for enforcement in [true,false] {
         if !enforcement&&(!expanded||cached.is_some()){continue;}
@@ -514,13 +519,16 @@ pub(in crate::verbs) fn collect(project:&Project,bound:&Bound,sources:&[(String,
         challenges::generated_campaign(&questions,&mut campaign,false);
         for (index,inv) in selected {
             if result[*index].is_some()&&notes[*index].code!="N_INSERT_WRITE_INTENT"{continue;}
-            if let Some(c)=campaign.violations.iter().filter(|c|c.invariant_site==inv.site.to_string()&&c.reachability.is_reachable()&&(notes[*index].code!="N_GUARD_NOT_CONSUMED"||c.history.len()==1&&c.effect=="insert")&&(notes[*index].code!="N_CHILD_EVIDENCE_PRESENCE"||questions::transition(inv,c,&stages))).max_by_key(|c| {
+            if let Some(c)=campaign.violations.iter().filter(|c|c.invariant_site==inv.site.to_string()&&c.reachability.is_reachable()&&(notes[*index].code!="N_RELEASE_CREATE_AUTHORITY"||c.effect=="insert"&&c.old.is_none()&&challenges::release_witness::retained_value(inv,c)&&inv.operation.as_ref()==Some(&c.operation)&&prior_policies.get(index).is_some_and(|policy|challenges::release_witness::prior_allowed(bound,policy,c)==Some(true)))&&(notes[*index].code!="N_GUARD_NOT_CONSUMED"||c.history.len()==1&&c.effect=="insert")&&(notes[*index].code!="N_CHILD_EVIDENCE_PRESENCE"||questions::transition(inv,c,&stages))).max_by_key(|c| {
                 let decrease=inv.column.as_ref().and_then(|column|Some((c.old.as_ref()?.field(column).ok()?,c.row.field(column).ok()?))).is_some_and(|(old,next)|matches!((old,next),(snapback4_core::Value::Int(a),snapback4_core::Value::Int(b)) if a>b));
                 (decrease,c.history.len())
             }) {let replay=decreasing_edit(bound,inv,c);let mut value=evidence(sources,bound,inv,replay.as_ref().unwrap_or(c));
                 if notes[*index].code=="N_GUARD_NOT_CONSUMED" {let Some(repeated)=questions::repeat(bound,inv,c,&notes[*index],sources)else{continue;};value=repeated;}
                 if notes[*index].code=="N_TEXT_EVIDENCE" {value=questions::text_evidence(value,&notes[*index]);}
                 if questions::advisory(&notes[*index].code){value["advisory"]=true.into();}
+                if notes[*index].code=="N_RELEASE_CREATE_AUTHORITY"{value["predecessorAudience"]=prior_policies[index].quarry().into();}
+                if enforcement{answers::attach(sources,bound,inv,replay.as_ref().unwrap_or(c),&answer_lines,&mut value);}
+                value=super::super::security_reviews::witness::stamp(value);
                 if super::super::security_reviews::witness::concrete(&value){
                 let decrease=|v:&serde_json::Value|v["old"].as_object().is_some_and(|fields|fields.iter().any(|(field,old)|old.as_i64().zip(v["row"][field].as_i64()).is_some_and(|(a,b)|a>b)));
                 if result[*index].is_none()||decrease(&value)&&!result[*index].as_ref().is_some_and(decrease){result[*index]=Some(value);}
@@ -529,7 +537,7 @@ pub(in crate::verbs) fn collect(project:&Project,bound:&Bound,sources:&[(String,
     }
     if expanded&&notes.iter().any(|n|n.code=="N_DERIVED_WRITE_AUTHORITY"&&!n.site.file.contains("/label-consistency/")) {
         let mut deploy=options.clone();deploy.flags.insert("security-deploy".into(),String::new());
-        let report=super::report(project,bound,sources,&deploy);apply_report(sources,bound,&report,notes,&mut result);
+        let report=super::report(project,bound,sources,&deploy);apply_report(project,options,sources,bound,&report,notes,&mut result);
     }
     // Reapply current eligibility even to cached advice: editable presentation
     // evidence cannot promote an unresolved approval question into a gate.

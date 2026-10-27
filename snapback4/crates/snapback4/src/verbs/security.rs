@@ -5,9 +5,15 @@ use snapback4_lang::security::{self,Report};
 mod http;
 mod record;
 mod presence;
+mod release_create;
+pub(super) fn remember_write_release(project:&Project,sources:&[(String,String)]){
+    if let Err(why)=release_create::select(project,sources){eprintln!("security predecessor baseline not advanced: {why}; the next deploy still compares its immutable predecessor");}
+}
 pub(super) mod witnesses;
 #[cfg(test)] mod derived_tests;
-pub(super) use presence::remember as remember_presence;
+pub(super) fn remember_presence(project:&Project,bound:&Bound)->Result<(),String>{
+    presence::remember(project,bound)?;release_create::remember(project,&project.sources().map_err(|e|e.to_string())?)
+}
 pub(super) use record::{remember,capture};
 pub(super) fn unauthenticated(project:&Project,bound:&Bound,sources:&[(String,String)])->bool {
     match http::run(project,bound,sources){Ok(_)=>true,Err(why)=>{eprintln!("security HTTP failure: {why}");false}}
@@ -67,6 +73,7 @@ fn report_with_reviewed(project:&Project,bound:&Bound,sources:&[(String,String)]
     let mut canonical=security::analyze_rules(bound);
     security::add_source_notes(&mut canonical,sources,bound);
     canonical.notes.extend(report.notes.iter().filter(|n|n.code=="N_PRESENCE_LOOSENING").cloned());
+    canonical.notes.extend(release_create::notes(project,bound,sources,None).unwrap_or_else(|why|vec![snapback4_lang::Diagnostic::new(&Default::default(),"N_RELEASE_CREATE_COVERAGE",why,"restore the last successful write baseline").guide("security")]));
     report.notes=canonical.notes;
     report
 }
@@ -76,10 +83,11 @@ pub fn audit(options:&Options)->i32{
     let bound=compiled_or_exit(snapback4_lang::compile(&sources),options.json);
     // Audit is a permission map plus bounded evidence; `test` owns full campaigns.
     let report=report(&project,&bound,&sources,options);
-    let dispositions=match super::security_reviews::review(&project,&sources,&report.notes,None){Ok(d)=>d,Err(error)=>{eprintln!("audit: E_SECURITY_NOTES: {error}");return 2;}};
+    let evidence=witnesses::collect(&project,&bound,&sources,&report.notes,true,options);
+    let dispositions=match super::security_reviews::review_evidence(&project,&sources,&report.notes,None,&evidence){Ok(d)=>d,Err(error)=>{eprintln!("audit: E_SECURITY_NOTES: {error}");return 2;}};
     if options.json {let mut value=serde_json::to_value(&report).unwrap();value["securityReviews"]=serde_json::to_value(&dispositions).unwrap();println!("{value}");}
     else {let mut human=report.clone();human.notes.retain(|n|crate::note_rank::tier(&n.code)!=crate::note_rank::Tier::Review);print!("{}",human.text_with_all(options.flags.contains_key("all")));super::security_reviews::print(&dispositions,&report.notes);}
-    if report.refuted(){1}else{0}
+    if report.refuted()||super::security_reviews::pending(&dispositions){1}else{0}
 }
 pub(super) fn exposure(report:&Report){
     let broad=report.exposures.iter().filter(|e|e.effects.get("read").is_some_and(|r|r=="allow"||r.starts_with("public"))).count();
@@ -112,7 +120,7 @@ pub(super) fn summary(report:&Report,verbose:bool){
 
 /// A rule-changing preflight demands a current campaign, without pretending
 /// finite tests or undeclared intent certify a deployment.
-pub(super) fn release_loop(project:&Project,bound:&Bound,sources:&[(String,String)],prior:Option<&Bound>,options:&Options)->Result<Option<String>,String>{
+pub(super) fn release_loop(project:&Project,bound:&Bound,sources:&[(String,String)],prior:Option<&Bound>,prior_sources:Option<&[(String,String)]>,options:&Options)->Result<Option<String>,String>{
     let changed=match prior {
         None=>true,
         Some(old)=>serde_json::to_vec(&old.schema).map_err(|e|e.to_string())?!=serde_json::to_vec(&bound.schema).map_err(|e|e.to_string())?
@@ -122,6 +130,7 @@ pub(super) fn release_loop(project:&Project,bound:&Bound,sources:&[(String,Strin
     if !changed{return Ok(None);}
     // @ref LLP 3000.036.004#153-rule-changing-deployment-review — review is prominent, strictness is explicit and failure-origin aware.
     let started=std::time::Instant::now();
+    if let Some(previous)=prior_sources{release_create::select(project,previous)?;}
     let mut preflight=options.clone();if !options.flags.contains_key("staging")||options.flags.contains_key("strict"){preflight.flags.insert("security-deploy".into(),String::new());}
     let decisions=super::security_reviews::ReviewSnapshot::capture(project)?;
     let derived=security::derived::notes(sources,bound);
@@ -129,9 +138,11 @@ pub(super) fn release_loop(project:&Project,bound:&Bound,sources:&[(String,Strin
     // witness. Individual alternatives are applied only after actual evidence.
     let mut report=report_with_reviewed(project,bound,sources,&preflight,&Default::default());
     report.notes.extend(presence::notes(project,bound,prior,sources)?);
+    report.notes.retain(|n|!matches!(n.code.as_str(),"N_RELEASE_CREATE_AUTHORITY"|"N_RELEASE_CREATE_COVERAGE"));
+    if let Some(previous)=prior_sources{report.notes.extend(release_create::notes(project,bound,sources,Some(previous))?);}
     if super::proof_source::sources(project,options,"schema")?!=sources{return Err("selected Quarry sources changed during deployment security preflight".into());}
     let mut evidence=witnesses::collect(project,bound,sources,&report.notes,true,options);
-    witnesses::apply_report(sources,bound,&report,&report.notes,&mut evidence);
+    witnesses::apply_report(project,options,sources,bound,&report,&report.notes,&mut evidence);
     if super::proof_source::sources(project,options,"schema")?!=sources{return Err("selected Quarry sources changed during deployment witness replay; rerun deploy".into());}
     let mut dispositions=decisions.dispositions_with_evidence(sources,&report.notes,&evidence);
     // Current enforced derived refutations are blockers, never advisory questions.
@@ -259,7 +270,7 @@ pub(super) fn release_verdict(summary:Option<&String>)->String {summary.and_then
 pub(super) fn enforce_release(summary:Option<&String>,options:&Options)->Result<(),String>{
     let Some(value)=summary.and_then(|s|serde_json::from_str::<serde_json::Value>(s).ok())else{return Ok(())};
     if !options.flags.contains_key("staging")||options.flags.contains_key("strict"){
-        if value["fixes"].as_u64().unwrap_or(0)>0{return Err("E_SECURITY_REVIEW: production deploy refuses reachable FIX; repair the named rule and rerun snapback4 test; for a derived candidate only, run check --ack-security ID --reason '<specification rationale>' using the reported rule ID".into())}
-        if value["pending"].as_bool()==Some(true){return Err("E_SECURITY_REVIEW: production deploy requires individual security review; run each reported check --ack-security ID --reason '<specification decision>', or enforce the named intent in source".into())}
+        if value["fixes"].as_u64().unwrap_or(0)>0{return Err("E_SECURITY_REVIEW: production deploy refuses reachable FIX; repair the named rule and rerun snapback4 test; for a derived candidate only, answer the reported evaluated intent template with check --ack-security ID --reason '<witness and intent>' using the reported rule ID".into())}
+        if value["pending"].as_bool()==Some(true){return Err("E_SECURITY_REVIEW: production deploy requires individual security review; answer each reported evaluated intent template, or enforce the named intent in source".into())}
     }Ok(())
 }

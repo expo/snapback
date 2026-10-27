@@ -390,6 +390,7 @@ pub fn deploy(options: &Options) -> i32 {
         Ok(None) => {},
     }
     let mut security_summary=None;
+    let mut security_sources=None;
     let mut failure_inventory=None;
     let mut failure_problems=None;
     let result=(|| {
@@ -402,6 +403,7 @@ pub fn deploy(options: &Options) -> i32 {
             if let Some(owner) = &_deployment { owner.report_reclaim(options.flags.contains_key("verbose")); }
             let project = super::proof_source::project(options, "schema")?;
             let sources = super::proof_source::sources(&project, options, "schema")?;
+            security_sources=Some((project.root.clone(),sources.clone()));
             let bound = super::proof_source::compile(&sources, options, "schema");
             if !bound.diagnostics.is_empty(){
                 failure_problems=Some(serde_json::json!({"problems":bound.diagnostics,"notes":bound.notes}));
@@ -425,7 +427,7 @@ pub fn deploy(options: &Options) -> i32 {
             };
             security_summary={
                 let prior=previous.map(|n|bound_at(dir.join("releases").join(n.to_string()))).transpose()?;
-                super::security::release_loop(&project,&bound,&sources,prior.as_ref(),options)?
+                super::security::release_loop(&project,&bound,&sources,prior.as_ref(),previous.map(|n|Project{root:dir.join("releases").join(n.to_string())}.sources()).transpose().map_err(|e|e.to_string())?.as_deref(),options)?
             };
             super::security::enforce_release(security_summary.as_ref(),options)?;
             let baseline=crate::client_compatibility::report(&project,&bound).map_err(|e|e.to_string())?.1;
@@ -596,6 +598,7 @@ pub fn deploy(options: &Options) -> i32 {
             if let Some(notice)=clock_notice {eprintln!("{notice}");}
             Ok(())
         })();
+    if result.is_ok()&&!options.flags.contains_key("check"){if let Some((root,sources))=&security_sources{super::security::remember_write_release(&Project{root:root.clone()},sources);}}
     if !options.json {
         if result.is_err() && failure_problems.is_none() {eprintln!("deploy verdict: REFUSED; {}",super::security::release_verdict(security_summary.as_ref()));}
         super::security::print_release(security_summary.as_ref());

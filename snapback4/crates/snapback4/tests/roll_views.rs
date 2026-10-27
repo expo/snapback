@@ -139,7 +139,8 @@ impl App {
         let decisions=value["securityReviews"].as_array().unwrap();
         let selected=decisions.iter().filter(|d|d["code"]=="N_PRESENCE_LOOSENING"&&sites.iter().any(|s|d["site"]==s.as_str())).collect::<Vec<_>>();
         assert_eq!(selected.len(),1,"expected this deliberate presence review: {value}");
-        for d in selected {self.ok(&["check","--ack-security",d["id"].as_str().unwrap(),"--reason","This rollback fixture deliberately permits pending values in this column; current workflow guards remain enforced."]);}
+        self.source(&format!("{s}\ninvariant items always .{column} = null or .{column} != null\n"));
+        self.ok(&["check"]);
     }
     fn run(&self, args: &[&str]) -> Output {
         Command::new(BIN)

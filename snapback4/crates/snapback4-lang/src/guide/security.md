@@ -339,9 +339,11 @@ Approval gates also require a coupled activation flag positively checked on the
 exact row before recording approval. Unresolved applicability is advice; a trace
 refuting an unconditional guess does not establish that the approval applies.
 SEC10 gates require current concrete campaign evidence; unsupported or exhausted
-questions stay advisory. Initial versus edit audience differences remain advice
-because the broader initial path can be intentional; a projected edit guard
-cannot reintroduce that same guess as a derived production FIX. Backfill equations are
+questions stay advisory. Initial versus edit audience differences remain advice without a predecessor.
+After a successful check or against the immutable deployment predecessor, a newly
+narrowed setter can gate an older broader creator: the witness must actually
+create the named non-default value as an excluded caller. Narrow the creator
+or state its intended creation audience with an evaluated allowance. Backfill equations are
 advice unless independently authored as enduring intent.
 Read the note, compare it with the specification, then use
 `check --ack-security ID --reason 'specification rationale'` with its current ID
@@ -355,12 +357,20 @@ Commit snapback/security-reviews.json when the decision should travel with sourc
 Comments, line shifts and independent declarations preserve decisions. Changed
 rule/column dependencies require advisory review again. A witnessed decision is
 re-asked only when its canonical witness changes; a pending question shows the
-new witness, never an old rationale. A witnessed reason must reference its witness
-digest and explicitly permit its actual operation/caller with the printed
-`permit OPERATION as CALLER` phrase; creation answers state `audience:` and intended
-roles, while other answers state `intended effect:` and specification rationale.
-The printed command gives the exact required form. Filler such as “one decision”
-is refused atomically. The record never grants authority or proves safety. Audit retains the full
+new witness, never an old rationale. A witnessed gate accepts a schema fix or one evaluated intent line, for example
+`--reason 'witness HASH; invariant jobs.advanceJob only not .dampSigned or .dampApproved'`.
+An explicit allowance uses `--reason 'witness HASH; allow jobs.advanceJob when P'`,
+with P written as a Quarry predicate for the intended audience/effect. The
+allowance is a decision answer, not runtime permission. The printed first gate
+includes its current template. Check, audit and deploy evaluate answers on the
+current witness; JSON shows `intentAnswers` with holds/refuted/unknown/invalid.
+A false premise or unsupported evaluation leaves the gate pending. Population
+predicates need unchanged dependencies throughout the history; otherwise repair
+source or use supported boundary-local intent. Saved redacted witnesses cannot
+supply a true answer. Prose, including the older witness/permit/rationale format,
+never closes a gate. Advisory witnessed decisions retain that prose format and
+remain non-failing. Required-to-optional gates without a replay need a source
+presence declaration. The record never grants authority or proves safety. Audit retains the full
 notes and dispositions. JSON names each decision's exact-column/rule or conservative
 declaration/writer binding scope. Advisories accept individual decisions and stay
 non-failing; the grouped table questionnaire has no separate review ID.
@@ -450,6 +460,8 @@ N_APPROVAL_NOT_ENFORCED: An approval flag, timestamp, or separately authorized p
 N_APPROVAL_INFORMATIONAL: No operation models the approved act. This advisory calls it an informational record and offers the individual acknowledgment as the default next step. It does not block deployment. Adding the governed effect can create a new approval question.
 
 N_INSERT_TABLE_AUTHORITY: A table-only edit restriction remains advisory. Confirm the declared table insert and edit audiences against the specification; this note does not establish a distinct mutation require.
+
+N_RELEASE_CREATE_AUTHORITY: A predecessor-backed setter narrowing left an older creating path admitting a non-default value as an excluded caller. A current create replay makes this a gate. Narrow creation or answer its actual audience with an evaluated allowance; unknown comparisons and unchanged asymmetry stay advisory.
 
 N_INSERT_WRITE_INTENT: A mutation requires stricter authority to edit caller-controlled columns than an insert requires to create them. This advisory question asks whether that asymmetry is deliberate; an example of broader creation does not establish unwanted authority. One matching `invariant T.c update only P` declares the intended edit boundary; a column `write <- P` enforces its authority at creation too. A table-only edit restriction remains advisory as N_INSERT_TABLE_AUTHORITY.
 

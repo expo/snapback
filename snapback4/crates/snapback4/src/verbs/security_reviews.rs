@@ -36,6 +36,7 @@ impl ReviewSnapshot{
         if read_file(project)?!=self.file{return Err("security review decisions changed during deployment preflight; rerun this deploy command to replay current individual decisions".into());}Ok(())
     }
 }
+pub(in crate::verbs) fn answer_reasons(project:&Project)->Vec<String>{read_file(project).map(|f|f.entries.into_values().map(|e|e.reason).collect()).unwrap_or_default()}
 fn read_file(project:&Project)->Result<File,String>{
     let file:File=match std::fs::read(project.schema_dir().join("security-reviews.json")){
         Ok(bytes)=>serde_json::from_slice(&bytes).map_err(|_|"invalid snapback/security-reviews.json; expected version 1 with per-note source/analyzer/reason records".to_string())?,
@@ -89,7 +90,9 @@ fn review_inner(project:&Project,sources:&[(String,String)],notes:&[snapback4_la
         recorded=selected.clone();
         for index in selected {
             let (id,fingerprint,_)=&identities[index];
-            if let Some(value)=evidence.get(index).and_then(Option::as_ref){witness::validate_reason(reason,value)?;}
+            let value=evidence.get(index).and_then(Option::as_ref);
+            if witness::gate(&notes[index].code,value)&&!value.is_some_and(witness::concrete){return Err("this gate requires a source intent: declare the specification invariant and rerun check; free text cannot close a gate".into());}
+            if let Some(value)=value{witness::validate_answer(reason,value,witness::gate(&notes[index].code,Some(value)))?;}
             if reason.trim().is_empty(){return Err("--reason needs the specification rationale for this individual note".into());}
             file.entries.insert(id.clone(),Entry{sources:fingerprint.clone(),analyzer:ANALYZER.into(),reason:reason.trim().into(),witness:evidence.get(index).cloned().flatten()});
         }
@@ -118,7 +121,7 @@ fn remember_family_identities(project:&Project,notes:&[snapback4_lang::Diagnosti
 }
 fn dispositions(file:&File,notes:&[snapback4_lang::Diagnostic],identities:Vec<(String,String,String)>,recorded:&std::collections::BTreeSet<usize>,evidence:&[Option<serde_json::Value>])->Vec<Disposition>{
     let family=decisions::family(notes,&identities);
-    notes.iter().zip(identities).enumerate().map(|(i,(n,(key,fingerprint,scope)))|{let entry=file.entries.get(&key).filter(|e|witness::retained(e,&fingerprint,evidence.get(i).and_then(Option::as_ref)));
+    notes.iter().zip(identities).enumerate().map(|(i,(n,(key,fingerprint,scope)))|{let entry=file.entries.get(&key).filter(|_|!witness::gate(&n.code,evidence.get(i).and_then(Option::as_ref))||evidence.get(i).and_then(Option::as_ref).is_some_and(witness::concrete)).filter(|e|witness::retained(e,&fingerprint,evidence.get(i).and_then(Option::as_ref))&&evidence.get(i).and_then(Option::as_ref).is_none_or(|value|witness::validate_answer(&e.reason,value,witness::gate(&n.code,Some(value))).is_ok()));
         Disposition{family:decisions::audience(&n.code).then(||family.clone()).flatten(),id:key,code:n.code.clone(),site:n.site.to_string(),gated:witness::gate(&n.code,evidence.get(i).and_then(Option::as_ref)),acknowledged:entry.is_some(),recorded:recorded.contains(&i),scope,reason:entry.map(|e|e.reason.clone()),witness:evidence.get(i).cloned().flatten().or_else(||entry.and_then(|e|e.witness.clone()))}
     }).collect()
 }
@@ -213,5 +216,19 @@ pub(super) struct Scratch(pub(super) std::path::PathBuf);impl Drop for Scratch{f
   assert!(review_evidence(&p,&sources,&notes,Some((&ds[0].id,&reason)),&evidence).unwrap()[0].acknowledged);
   let saved=std::fs::read(&path).unwrap();
   assert!(review_evidence(&p,&sources,&notes,Some((&ds[0].id,"a different reason")),&evidence).is_err());assert_eq!(std::fs::read(path).unwrap(),saved);
+ }
+}
+
+#[cfg(test)]mod sec12_tests{
+ use super::*;
+ #[test]fn an_existing_prose_record_cannot_close_an_unwitnessed_presence_gate(){
+  let root=std::env::temp_dir().join(format!("sb4-sec12-presence-record-{}",std::process::id()));std::fs::create_dir_all(root.join("snapback")).unwrap();let _scratch=super::tests::Scratch(root.clone());let project=Project{root};
+  std::fs::write(project.schema_dir().join("schema.q"),"query q():\n  return true\n").unwrap();let sources=project.sources().unwrap();
+  let notes=[snapback4_lang::Diagnostic::new(&Default::default(),"N_PRESENCE_LOOSENING","docs.value became optional","declare presence intent")];
+  let identity=&binding::identities(&notes,&sources)[0];
+  let file=File{version:1,entries:BTreeMap::from([(identity.0.clone(),Entry{sources:identity.1.clone(),analyzer:ANALYZER.into(),reason:"old prose permits nullable values".into(),witness:None})])};
+  std::fs::write(project.schema_dir().join("security-reviews.json"),serde_json::to_vec(&file).unwrap()).unwrap();
+  let current=review(&project,&sources,&notes,None).unwrap();assert!(current[0].gated&&!current[0].acknowledged);assert!(pending(&current));
+  assert!(review(&project,&sources,&notes,Some((&identity.0,"new prose permits nullable values"))).is_err());
  }
 }

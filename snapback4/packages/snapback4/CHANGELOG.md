@@ -4,7 +4,8 @@
 
 ### Guide changes
 
-- Security decision refusals include the current redacted replay. Evidence presence, text evidence, child attachments, broad audiences and supported guard reuse can carry concrete advisory witnesses; acknowledging one must name that witness and explicitly permit its observed operation and caller. Witness identity now retains logical clocks, observable absence and delivered field sets; older answers can become pending once when these previously omitted inputs change the digest.
+- Security campaigns generate valid URL, email and handle text, including constrained list leaves. A predecessor-backed narrowed setter gates an older broader creator only with a current excluded-role create witness. Gates print their answer template immediately and require a schema fix or evaluated Quarry invariant/allowance; false premises, unknown evaluations and prose answers keep the gate pending.
+- Security decision refusals include the current redacted replay. Evidence presence, text evidence, child attachments, broad audiences and supported guard reuse can carry concrete advisory witnesses; acknowledging an advisory must name that witness and explicitly permit its observed operation and caller. Witness identity now retains logical clocks, observable absence and delivered field sets; older answers can become pending once when these previously omitted inputs change the digest.
 
 ## 0.4.43
 

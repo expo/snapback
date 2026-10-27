@@ -61,7 +61,7 @@ fn canonical(value:&serde_json::Value)->serde_json::Value {
         }best.unwrap()
     }
     let generated=value["generatedIds"].as_array().into_iter().flatten().filter_map(Value::as_str).map(|s|(s.to_owned(),"$color-0000".to_owned())).collect();
-    let mut value=value.clone();if let Some(fields)=value.as_object_mut(){for key in ["id","summary","compactSummary","scope","generatedIds","advisory"]{fields.remove(key);}}
+    let mut value=value.clone();if let Some(fields)=value.as_object_mut(){for key in ["id","summary","compactSummary","scope","generatedIds","advisory","intentAnswers","answerRequired"]{fields.remove(key);}}
     search(&value,generated)
 }
 
@@ -83,12 +83,29 @@ pub(super) fn gate(code:&str,evidence:Option<&serde_json::Value>)->bool {
 }
 pub(in crate::verbs) fn reason_template(value:&serde_json::Value)->String {
     let operation=value["operation"].as_str().unwrap_or("operation");
+    if value["answerRequired"]==true {
+        let target=value["candidate"].as_str().and_then(|s|s.strip_prefix("invariant ")).and_then(|s|s.split(" only ").next()).unwrap_or("TABLE.OPERATION");
+        let (subject,effect)=target.split_once(' ').unwrap_or((target,""));
+        let target=if effect.is_empty(){format!("{}.{operation}",subject.split('.').next().unwrap_or("TABLE"))}else{format!("{subject} {}",value["effect"].as_str().unwrap_or("write"))};
+        return format!("witness {}; allow {target} when <Quarry predicate for intended audience/effect>",id(value));
+    }
     let answer=if matches!(value["effect"].as_str(),Some("insert"|"upsert")){format!("audience: <intended roles for {operation}>; <spec rationale>")}else{format!("intended effect: <why {operation} is permitted by the spec>")};
     format!("witness {}; permit {} as {}; {answer}",id(value),operation,value["viewer"].as_str().unwrap_or("caller"))
+}
+pub(super) fn validate_answer(reason:&str,value:&serde_json::Value,required:bool)->Result<(),String>{
+    if !required{return validate_reason(reason,value);}
+    let mut value=value.clone();value["answerRequired"]=true.into();validate_reason(reason,&value)
 }
 pub(super) fn validate_reason(reason:&str,value:&serde_json::Value)->Result<(),String>{
     if !concrete(value){return Ok(());}
     let witness=id(value);let operation=value["operation"].as_str().unwrap();
+    if value["answerRequired"]==true {
+        let clauses=reason.split(';').map(str::trim).collect::<Vec<_>>();
+        let intent=clauses.iter().find(|line|line.starts_with("allow ")||line.starts_with("invariant "));
+        let evaluation=intent.and_then(|intent|value["intentAnswers"].as_array()?.iter().find(|answer|answer["intent"].as_str()==Some(*intent)));
+        if clauses.len()==2&&clauses.contains(&format!("witness {witness}").as_str())&&evaluation.is_some_and(|answer|answer["status"]=="holds"){return Ok(());}
+        return Err(format!("gate answer must be one evaluated intent; {}. Use --reason '{}' or repair the schema.\nWitness {witness}: {}",evaluation.map(|e|format!("{}: {}",e["status"].as_str().unwrap_or("unknown"),e["detail"].as_str().unwrap_or("intent cannot be evaluated"))).unwrap_or_else(||"free text does not answer this gate".into()),reason_template(value),value["summary"].as_str().unwrap_or("see check --review --json")));
+    }
     let clauses=reason.split(';').map(str::trim).collect::<Vec<_>>();
     let permits=format!("permit {operation} as {}",value["viewer"].as_str().unwrap());
     let marker=if matches!(value["effect"].as_str(),Some("insert"|"upsert")){"audience:"}else{"intended effect:"};
@@ -106,7 +123,7 @@ pub(super) fn retained(entry:&Entry,fingerprint:&str,evidence:Option<&serde_json
 
 #[cfg(test)]mod tests {
  use super::*;
- fn example(operation:&str)->serde_json::Value {stamp(json!({"operation":operation,"viewer":"account:security-clerk","effect":"insert","candidate":"invariant docs.insert only viewer = 'service:manager'","history":[{"operation":operation,"viewer":"account:security-clerk","state":"sent","args":{"n":1}}],"row":{"n":1},"reachability":"generated-fixture-trace","summary":"current witness","scope":"generated initialization"}))}
+ pub(super) fn example(operation:&str)->serde_json::Value {stamp(json!({"operation":operation,"viewer":"account:security-clerk","effect":"insert","candidate":"invariant docs.insert only viewer = 'service:manager'","history":[{"operation":operation,"viewer":"account:security-clerk","state":"sent","args":{"n":1}}],"row":{"n":1},"reachability":"generated-fixture-trace","summary":"current witness","scope":"generated initialization"}))}
  #[test]fn blank_or_synthetic_evidence_never_gates(){
   assert!(!gate("N_APPROVAL_NOT_ENFORCED",None));let mut value=example("create");assert!(gate("N_APPROVAL_NOT_ENFORCED",Some(&value)));
   value["history"]=json!([]);assert!(!gate("N_APPROVAL_NOT_ENFORCED",Some(&value)));
@@ -153,4 +170,19 @@ pub(super) fn retained(entry:&Entry,fingerprint:&str,evidence:Option<&serde_json
   b["supportingRows"]=json!({"links":[{"id":"a","next":"b"},{"id":"b","next":"a"},{"id":"c","next":"d"},{"id":"d","next":"c"}]});assert_ne!(id(&a),id(&b));
  }
  #[test]fn presentation_text_is_not_witness_identity(){let a=example("create");let mut b=a.clone();b["summary"]="new formatting".into();b["compactSummary"]="fresh-id display only".into();b["scope"]="another display".into();assert_eq!(id(&a),id(&b));}
+}
+
+#[cfg(test)]mod sec12_tests{
+ use super::*;
+ #[test]fn gates_need_a_current_evaluation_and_ignore_old_permit_prose(){
+  let mut value=super::tests::example("create");value["answerRequired"]=true.into();
+  let prose=format!("witness {}; permit create as account:security-clerk; audience: clerks deliberately create documents",id(&value));
+  assert!(validate_reason(&prose,&value).is_err());
+  let line="allow docs.create when viewer = 'account:security-clerk'";
+  let reason=format!("witness {}; {line}",id(&value));
+  for status in ["refuted","unknown","invalid"]{value["intentAnswers"]=json!([{"intent":line,"status":status,"detail":"current predicate"}]);assert!(validate_reason(&reason,&value).is_err());}
+  value["intentAnswers"]=json!([{"intent":line,"status":"holds","detail":"current predicate"}]);assert!(validate_reason(&reason,&value).is_ok());
+  assert!(validate_reason(&format!("{reason}; unrelated prose"),&value).is_err());
+  let baseline=id(&value);value["intentAnswers"]=json!([]);assert_eq!(baseline,id(&value),"answer evaluation is not behavior identity");
+ }
 }

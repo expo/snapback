@@ -69,6 +69,7 @@ pub(in crate::verbs) fn render(dispositions: &[Disposition], notes: &[Diagnostic
             _=>n.rewrite.as_str(),
         };
         writeln!(&mut output,"  Repair: {repair}").unwrap();
+        if d.gated&&d.witness.is_none(){writeln!(&mut output,"  Intended: declare the source invariant named above and rerun check; prose cannot close this gate").unwrap();continue;}
         let rationale=d.witness.as_ref().filter(|v|witness::concrete(v)).map(witness::reason_template).unwrap_or_else(||"<spec rationale>".into());
         writeln!(&mut output,"  Intended: snapback4 check --ack-security {} --reason '{}'{}",d.id,rationale,if d.gated {" (required before check can pass)"}else{""}).unwrap();
     }

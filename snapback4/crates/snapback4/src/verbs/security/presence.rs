@@ -27,7 +27,7 @@ pub(super) fn notes(project:&Project,bound:&Bound,prior:Option<&Bound>,sources:&
         });
         if intentional{continue;}
         let site=sources.iter().find_map(|(f,s)|{let (doc,_)=snapback4_lang::parse_document(f,s);doc.tables.into_iter().find(|t|t.name==table).and_then(|t|t.columns.into_iter().find(|c|c.name==column)).map(|c|c.site)}).unwrap_or_default();
-        out.push(snapback4_lang::Diagnostic::new(&site,"N_PRESENCE_LOOSENING",format!("{table}.{column}: required column became nullable; confirm the specification's presence intent before accepting the loosening"),format!("declare the spec's presence line; for deliberately optional values use `invariant {table} always .{column} = null or .{column} != null`, or acknowledge this column with check --ack-security ID --reason '<spec rationale>'")).guide("security"));
+        out.push(snapback4_lang::Diagnostic::new(&site,"N_PRESENCE_LOOSENING",format!("{table}.{column}: required column became nullable; confirm the specification's presence intent before accepting the loosening"),format!("declare the spec's presence line; for deliberately optional values use `invariant {table} always .{column} = null or .{column} != null` and rerun check; prose cannot close this gate")).guide("security"));
     }}Ok(out)
 }
 pub(in crate::verbs) fn remember(project:&Project,bound:&Bound)->Result<(),String>{
