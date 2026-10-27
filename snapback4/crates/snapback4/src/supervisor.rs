@@ -4,7 +4,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::Duration;
 #[cfg(target_os = "linux")]
 use std::fs;
-#[cfg(not(target_os = "linux"))]
+#[cfg(not(any(target_os = "linux", target_os = "macos")))]
 use std::process::Command;
 
 pub(crate) const ENV: &str = "SNAPBACK4_SUPERVISOR_PID";
@@ -43,7 +43,19 @@ pub(crate) fn identity(pid: u32) -> Option<(u32, String)> {
 fn npm(pid: u32) -> bool {
     #[cfg(target_os = "linux")]
     { fs::read_to_string(format!("/proc/{pid}/comm")).is_ok_and(|name| name.trim().starts_with("npm")) }
-    #[cfg(not(target_os = "linux"))]
+    #[cfg(target_os = "macos")]
+    {
+        let mut mib = [libc::CTL_KERN, libc::KERN_PROCARGS2, pid as i32];
+        let mut bytes = vec![0u8; 256 * 1024];
+        let mut size = bytes.len();
+        if unsafe { libc::sysctl(mib.as_mut_ptr(), 3, bytes.as_mut_ptr().cast(), &mut size, std::ptr::null_mut(), 0) } != 0 { return false; }
+        // Kernel argv may include secrets: inspect only for npm identity and
+        // never retain or report the bytes. Bound by ARG_MAX, not a subprocess.
+        bytes[..size.min(bytes.len())].split(|byte| *byte == 0).any(|arg| {
+            arg.starts_with(b"npm ") || arg == b"npm" || arg.ends_with(b"/npm-cli.js") || arg.windows(12).any(|part| part == b"/npm-cli.js ")
+        })
+    }
+    #[cfg(not(any(target_os = "linux", target_os = "macos")))]
     { Command::new("ps").env("LC_ALL", "C").args(["-p", &pid.to_string(), "-o", "args="]).output().is_ok_and(|out| { let text = String::from_utf8_lossy(&out.stdout); text.trim().starts_with("npm") || text.contains("/npm-cli.js ") }) }
 }
 

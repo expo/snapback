@@ -104,3 +104,9 @@ test('aliased database recovery names its actual deployment control directory',{
   const stopped=await cli(['stop','aliased'],{cwd,env});assert.equal(stopped.code,0,stopped.stderr);
  }finally{await host.stop();}
 });
+
+test('024: request driver awaits npm close through tail after terminating only the wrapper',{skip:process.platform==='win32',timeout:30000},async t=>{
+ const cwd=await project(t);npmScript(cwd,driver);
+ writeFileSync(join(cwd,'await-driver.mjs'),`import{spawn}from'node:child_process';const c=spawn('npm',['run','--silent','prod:serve'],{stdio:['ignore','pipe','inherit']});let text='',begun=false;const closed=new Promise(r=>c.once('close',r));c.stdout.on('data',async d=>{text+=d;if(!begun&&text.includes('\\n')){begun=true;const {backendUrl}=JSON.parse(text.trim());await fetch(backendUrl+'/auth/config');console.log('024 request completed; SIGTERM npm wrapper');c.kill('SIGTERM');}});await closed;console.log('024 npm close observed; driver finished');`);
+ const run=launch(t,cwd,'bash',['-o','pipefail','-c','node await-driver.mjs | tail -n 2']);await until(run.closed);assert.equal(run.c.exitCode,0,run.err());assert.match(run.out(),/024 request completed.*\n024 npm close observed/s);console.log(run.out().trim());await restarted(cwd);
+});
