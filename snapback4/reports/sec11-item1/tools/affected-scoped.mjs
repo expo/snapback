@@ -14,12 +14,22 @@ const allowed = new Set(['install-client','build-cli','build-wasm','build-client
   'diagnostics','docs-budget','generated','guide','inventories','packaged-docs','ref-check']);
 const files = ['dx9-packed','sec10-packed','security-packed','write-authority','wave11-guide-types','lang4-guide']
   .map(name => `packages/snapback4/test/${name}.test.mjs`);
-const steps = plan.steps.filter(step => allowed.has(step.id));
+const steps = plan.steps.filter(step => allowed.has(step.id)).flatMap(step => {
+  if (step.id !== 'rust:snapback4') return [step];
+  const prefix = ['cargo','test','--no-fail-fast','-p','snapback4','--features','snapback4-core/test-support'];
+  return [
+    { ...step, argv: [...prefix,'--bin','snapback4','verbs::security','--','--test-threads=4'],
+      reason: 'SEC11 witness and decision unit modules, including security_reviews' },
+    { ...step, id: 'rust:snapback4-security-integration', argv: [...prefix,
+      '--test','dx11','--test','dx11_refusals','--test','dx13','--test','security_reviews',
+      '--test','security_wave19','--','--test-threads=1'], reason: 'Affected security and default-verdict integration targets' },
+  ];
+});
 const client = plan.steps.find(step => step.id === 'client-tests');
 if (client) steps.push({ ...client, argv: ['node','scripts/run-client-tests.mjs','3','files',...files] });
 const scoped = { ...plan, steps, rustPackages: ['snapback4','snapback4-lang'], clientFiles: files.map(f => 'snapback4/' + f),
   sec11Override: { reason: 'Explicit workstream prohibition on the full five-crate suite and full client pool',
-    canonicalComplete: false, omitted: plan.steps.filter(step => !allowed.has(step.id)).map(step => step.id),
+    canonicalComplete: false, cliTargets: ['unit verbs::security*','dx11','dx11_refusals','dx13','security_reviews','security_wave19'], cliExcluded: 'Other CLI modules/integration targets, including unrelated 6,929-row residency calibration; interrupted earlier broad run retained separately', omitted: plan.steps.filter(step => !allowed.has(step.id)).map(step => step.id),
     differentialRuns: 'Direct 2k run-lean and run receipts are recorded separately' } };
 writeFileSync(originalPath + '.scoped.json', JSON.stringify(scoped, null, 2));
 const { receipt } = await runPlan(scoped);
