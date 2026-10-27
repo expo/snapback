@@ -60,6 +60,10 @@ test("native proof commands retain helper environment, argument boundaries and s
   writeFileSync(second, "#!/usr/bin/env node\nconsole.log('second');\n"); chmodSync(second, 0o700);
   assert.equal((await cli(["data"], {cwd,env:{SNAPBACK4_BIN:second}})).stdout.trim(), "second");
   assert.equal((await cli(["token"], {cwd,env:{SNAPBACK4_BIN:"second.mjs"}})).stdout.trim(), "second", "relative override resolves inside command cwd");
+  mkdirSync(join(cwd,"real/child"),{recursive:true});
+  const canonical=join(cwd,"real/second.mjs");writeFileSync(canonical,"#!/usr/bin/env node\nconsole.log('canonical');\n");chmodSync(canonical,0o700);
+  const alias=join(cwd,"alias");symlinkSync(join(cwd,"real/child"),alias,"dir");
+  assert.equal((await cli(["token"], {cwd:alias,env:{SNAPBACK4_BIN:"../second.mjs"}})).stdout.trim(), "canonical", "resolve ../ from the child's canonical cwd");
   const failed = join(cwd, "not-executable");writeFileSync(failed,"not executable",{mode:0o600});
   const shim = await command(process.execPath,[fileURLToPath(new URL('../bin/snapback4.js',import.meta.url)),"token"],{cwd,env:{SNAPBACK4_BIN:failed},secret:true});
   const native = await cli(["token"],{cwd,env:{SNAPBACK4_BIN:failed}});

@@ -4,10 +4,10 @@ export { loadFixtures, type FixtureRow, type LoadFixturesOptions } from "./proof
 import { devAccounts, provisionAccounts, seedAccounts, type ProvisionAccountsOptions, type ProvisionedSessions, type SeedAccountsOptions, type StagingSessions } from "./proof-accounts.ts";
 export { devAccounts, provisionAccounts, seedAccounts, type SeedAccountsOptions, type StagingAccount, type StagingSessions, type ProvisionAccountsOptions, type ProvisionedAccount, type ProvisionedSessions } from "./proof-accounts.ts";
 // @ref LLP 3000.011.003.000.000#1 — the packaged proof kit owns hosts; builders own assertions.
-import { appendFileSync, mkdirSync, openSync, closeSync, writeSync } from "node:fs";
+import { appendFileSync, mkdirSync, openSync, closeSync, writeSync, realpathSync } from "node:fs";
 import { join } from "node:path";
 import { randomUUID } from "node:crypto";
-import { resolve } from "node:path";
+import { resolve, isAbsolute } from "node:path";
 import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import type { BrowserContext, BrowserType, LaunchOptions, Locator, Page } from "playwright-core";
@@ -223,10 +223,12 @@ export function cli(args: readonly string[], options: ProofOptions = {}): Promis
   // @ref LLP 3000.011.003.000.000#18-proof-command-startup-lat3 — native proof verbs retain the shim's helpers and group custody without another Node process.
   if (["deploy", "rollback", "test", "token", "serve", "data", "sql", "releases", "clock", "stop"].includes(args[0] ?? "")) {
     const env = { ...process.env, ...options.env };
-    // The shim formerly resolved a relative override after entering command cwd.
-    if (env.SNAPBACK4_BIN) env.SNAPBACK4_BIN = resolve(options.cwd ?? ".", env.SNAPBACK4_BIN);
     let binary: string | undefined;
-    try { binary = resolveBinary(env); } catch { /* The shim retains its established resolution refusal and exit code. */ }
+    try {
+      // Child process.cwd() follows cwd symlinks before resolving ../ segments.
+      if (env.SNAPBACK4_BIN && !isAbsolute(env.SNAPBACK4_BIN)) env.SNAPBACK4_BIN = resolve(realpathSync(resolve(options.cwd ?? ".")), env.SNAPBACK4_BIN);
+      binary = resolveBinary(env);
+    } catch { /* The shim retains its established resolution/cwd refusal and exit code. */ }
     if (binary) return command(binary, args, { ...options, secret: options.secret || args[0] === "token", env: {
       ...env,
       SNAPBACK4_ACQUIRE_HELPER: fileURLToPath(new URL("../bin/witness-acquire.js", import.meta.url)),
