@@ -83,6 +83,13 @@ pub(in crate::verbs) fn render_mode(dispositions:&[Disposition],notes:&[Diagnost
             if d.gated&&!d.acknowledged || d.recorded {
                 output.push_str(&render(&[d.clone()],&[n.clone()]));
             } else if !d.acknowledged && let Some(w)=&d.witness {
+                // @ref LLP 3000.036.004.003#assignment-questions — the new tier keeps actual read facts in one default line; full evidence remains in review/JSON.
+                if d.code=="N_ASSIGNMENT_SCOPE" {
+                    let subject=n.message.split(" read:").next().unwrap_or("private payload");
+                    let assignment=w["assignment"]["principal"].as_str().map(|p|format!("; assigned to {p}")).unwrap_or_else(||"; assignment not modeled".into());
+                    output.push_str(&format!("fix question {} at {}: {} as {} disclosed {subject}{assignment}; assigned or any? (bounded replay; doesn't block; check --review)\n",d.code,d.site,w["operation"].as_str().unwrap_or("query"),w["viewer"].as_str().unwrap_or("caller")));
+                    continue;
+                }
                 let rationale=if witness::concrete(w) {witness::reason_template(w)} else {"<spec rationale>".into()};
                 output.push_str(&format!("fix question {} at {}: {}; is this intended?\n  Witness: {} — repair or check --ack-security {} --reason '{}' (doesn't block)\n",d.code,d.site,n.message.trim_end_matches(['.','?']),w["compactSummary"].as_str().or_else(||w["summary"].as_str()).unwrap_or("see check --json for replay"),d.id,rationale));
             }
@@ -155,5 +162,31 @@ pub(in crate::verbs) fn render_mode(dispositions:&[Disposition],notes:&[Diagnost
   assert!(render_mode(&[d.clone()],&[n.clone()],false).is_empty());
   d.acknowledged=true;d.recorded=true;d.reason=Some("spec rationale".into());
   let output=render_mode(&[d],&[n],false);assert!(output.contains("no replay witness available")&&output.contains("specification rationale, not validation"),"{output}");
+ }
+}
+
+#[cfg(test)] mod assignment_format_replay {
+ use super::*;
+ /// Run the production renderer over complete, frozen native survey records.
+ /// Gate/refusal qualification remains bound to that original native binary.
+ #[test] fn captured_assignment_default_output() {
+  let Ok(path)=std::env::var("SNAPBACK4_SEC11_ASSIGNMENT_REPORTS")else{return;};
+  let rows:serde_json::Value=serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();let mut measured=Vec::new();
+  for row in rows.as_array().unwrap(){
+   let mut removed=0;let mut added=0;
+   for d in row["reviews"].as_array().unwrap().iter().filter(|d|d["code"]=="N_ASSIGNMENT_SCOPE"&&d["acknowledged"]==false&&d["recorded"]==false&&d["gated"]==false&&d["witness"].is_object()){
+    let n=row["notes"].as_array().unwrap().iter().find(|n|n["code"]==d["code"]&&format!("{}:{}:{}",n["site"]["file"].as_str().unwrap(),n["site"]["line"],n["site"]["col"])==d["site"].as_str().unwrap()).unwrap();
+    let n=Diagnostic::new(&Default::default(),"N_ASSIGNMENT_SCOPE",n["message"].as_str().unwrap(),"scope assignment");
+    let w=d["witness"].clone();let disposition=Disposition{family:None,id:d["id"].as_str().unwrap().into(),code:"N_ASSIGNMENT_SCOPE".into(),site:d["site"].as_str().unwrap().into(),gated:false,acknowledged:false,recorded:false,reason:None,scope:"captured native survey".into(),witness:Some(w.clone())};
+    let text=render_mode(&[disposition.clone()],&[n.clone()],false);
+    assert_eq!(text.lines().count(),1,"{text}");assert!(text.contains(w["operation"].as_str().unwrap())&&text.contains(w["viewer"].as_str().unwrap())&&text.contains("assigned or any?")&&text.contains("bounded replay")&&text.contains("check --review"),"{text}");
+    if let Some(p)=w["assignment"]["principal"].as_str(){assert!(text.contains(p),"{text}");}else{assert!(text.contains("assignment not modeled"));}
+    let review=render_mode(&[disposition],&[n],true);assert!(review.contains(d["id"].as_str().unwrap())&&review.contains(w["summary"].as_str().unwrap()));
+    removed+=2;added+=text.lines().count();
+   }
+   let counts=|field:&str|{let phase=&row[field];assert!(phase["exit"]==0||phase["exit"]==1,"censored display must be retried before claiming output counts");let before=phase["lines"].as_u64().unwrap()as usize;assert!(before>=removed);serde_json::json!({"before":before,"after":before-removed+added})};
+   measured.push(serde_json::json!({"wave":row["wave"],"lane":row["lane"],"defaultCheck":counts("defaultCheck"),"defaultDeploy":counts("defaultDeploy"),"cards":added}));
+  }
+  if let Ok(path)=std::env::var("SNAPBACK4_SEC11_ASSIGNMENT_RENDER_OUTPUT"){std::fs::write(path,serde_json::to_vec_pretty(&measured).unwrap()).unwrap();}
  }
 }
