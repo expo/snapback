@@ -1,10 +1,4 @@
 import argparse,gzip,json,pathlib,collections
-p=argparse.ArgumentParser();p.add_argument('--survey',required=True);p.add_argument('--out',required=True);p.add_argument('--baseline',default='snapback4/reports/sec11-item1/survey-all800.json.gz');p.add_argument('--baseline-extra');p.add_argument('--survey-extra');a=p.parse_args()
-root=pathlib.Path.home()/'sb4-loop'
-before=json.load(gzip.open(a.baseline,'rt')) if a.baseline.endswith('.gz') else json.loads(pathlib.Path(a.baseline).read_text())
-after=json.loads(pathlib.Path(a.survey).read_text())
-if a.baseline_extra:before+=json.loads(pathlib.Path(a.baseline_extra).read_text())
-if a.survey_extra:after+=json.loads(pathlib.Path(a.survey_extra).read_text())
 # Each rule is tied to the calibrated effect, not just any finding in its lane.
 rules={
 (26,'002','F1'):dict(codes=['N_CALENDAR_DURATION']),
@@ -83,13 +77,23 @@ def category(row,rule):
  if ev:return dict(category='witnessed question on default verdict',targetVisible=True,evidence=ev)
  notes=[n for n in row['notes']if n['code']in rule.get('codes',[])and (not rule.get('term')or rule['term'].lower()in n['message'].lower())]
  return dict(category='advisory only'if notes else'nothing',targetVisible=False,evidence=[],notes=notes)
-indexes=[{(r['wave'],r['lane'][:3]):r for r in rows}for rows in [before,after]]
-assess=[]
-waves=[26,28,30]+([31]if a.baseline_extra and a.survey_extra else[])
-for wave in waves:
- for finding in json.loads((root/f'wave{wave}/analysis/calibration.json').read_text())['findings']:
-  if finding['backend']!='snapback'or finding['cal']!='M':continue
-  key=(wave,finding['lane'],finding['id']);rule=rules[key];records=[idx[(wave,finding['lane'])]for idx in indexes]
-  assess.append(dict(wave=wave,lane=finding['lane'],finding=finding['id'],pattern=finding.get('pattern'),calibration=finding.get('rule')or finding.get('note'),match=rule,sourceHashMatches=records[0]['sha256']==records[1]['sha256'],before=category(records[0],rule),after=category(records[1],rule)))
-result=dict(method='Exact calibrated effects matched by operation, material predicate/column, and where relevant actual row values. Unrelated questions are excluded. The four requested finding categories are used; rows already prevented by inherited types have category nothing (no current finding/witness) and an explicit inheritedLanguagePrevention flag, never SEC11 credit.',assessments=assess,summary={str(w):{when:dict(collections.Counter(x[when]['category']for x in assess if x['wave']==w))for when in['before','after']}for w in waves})
-pathlib.Path(a.out).write_text(json.dumps(result,indent=2)+'\n');print(json.dumps(result['summary'],indent=2))
+
+def main():
+ p=argparse.ArgumentParser();p.add_argument('--survey',required=True);p.add_argument('--out',required=True);p.add_argument('--baseline',default='snapback4/reports/sec11-item1/survey-all800.json.gz');p.add_argument('--baseline-extra');p.add_argument('--survey-extra');a=p.parse_args()
+ root=pathlib.Path.home()/'sb4-loop'
+ before=json.load(gzip.open(a.baseline,'rt')) if a.baseline.endswith('.gz') else json.loads(pathlib.Path(a.baseline).read_text())
+ after=json.loads(pathlib.Path(a.survey).read_text())
+ if a.baseline_extra:before+=json.loads(pathlib.Path(a.baseline_extra).read_text())
+ if a.survey_extra:after+=json.loads(pathlib.Path(a.survey_extra).read_text())
+ indexes=[{(r['wave'],r['lane'][:3]):r for r in rows}for rows in [before,after]]
+ assess=[]
+ waves=[26,28,30]+([31]if a.baseline_extra and a.survey_extra else[])
+ for wave in waves:
+  for finding in json.loads((root/f'wave{wave}/analysis/calibration.json').read_text())['findings']:
+   if finding['backend']!='snapback'or finding['cal']!='M':continue
+   key=(wave,finding['lane'],finding['id']);rule=rules[key];records=[idx[(wave,finding['lane'])]for idx in indexes]
+   assess.append(dict(wave=wave,lane=finding['lane'],finding=finding['id'],pattern=finding.get('pattern'),calibration=finding.get('rule')or finding.get('note'),match=rule,sourceHashMatches=records[0]['sha256']==records[1]['sha256'],before=category(records[0],rule),after=category(records[1],rule)))
+ result=dict(method='Exact calibrated effects matched by operation, material predicate/column, and where relevant actual row values. Unrelated questions are excluded. The four requested finding categories are used; rows already prevented by inherited types have category nothing (no current finding/witness) and an explicit inheritedLanguagePrevention flag, never SEC11 credit.',assessments=assess,summary={str(w):{when:dict(collections.Counter(x[when]['category']for x in assess if x['wave']==w))for when in['before','after']}for w in waves})
+ pathlib.Path(a.out).write_text(json.dumps(result,indent=2)+'\n');print(json.dumps(result['summary'],indent=2))
+
+if __name__ == "__main__":main()
