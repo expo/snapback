@@ -166,7 +166,7 @@ pub(super) fn source_notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnos
                 prior_tables.insert(table.clone());
 
 
-                // @ref LLP 3000.036.004.001#4-operator-provisioning — the
+                // @ref LLP 3000.036.004.003#4-operator-provisioning — the
                 // documented local operator chooses recipients deliberately.
                 let requirements=catalog.tables.get(table).map(|info|super::operation::requirements(&catalog,info,&context)).unwrap_or_default();
                 let operator=RuleExpr::Eq(RuleTerm::Viewer,RuleTerm::Literal(snapback4_core::Value::Id("service:operator".into())));

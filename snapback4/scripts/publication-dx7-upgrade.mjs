@@ -58,15 +58,22 @@ export async function proveDX7Upgrades(client,platform){
    writeFileSync(join(cwd,"snapback/schema.q"),schema);
    r=await run(process.execPath,[cli,"upgrade",candidate]);assert.equal(r.status,1,"new check must refuse the security gate during old-CLI upgrade");
    assert.equal(JSON.parse(readFileSync(join(cwd,"node_modules/snapback4/package.json"))).version,candidate);
-   const transcript=r.stdout+r.stderr;assert.match(transcript,/pending security review gates: N_PRESENCE_LOOSENING/);assert.match(transcript,/check --ack-security [a-f0-9]{64} --reason/);assert.doesNotMatch(transcript,/new refusals: none/);
+   const transcript=r.stdout+r.stderr;assert.match(transcript,/pending security review gates: N_PRESENCE_LOOSENING/);assert.match(transcript,/invariant docs always \.photo = null or \.photo != null/);assert.match(transcript,/prose cannot close this gate/);assert.doesNotMatch(transcript,/new refusals: none/);
    r=await run(process.execPath,[cli,"check","--json"]);assert.equal(r.status,1);let facts=JSON.parse(r.stdout);const gates=facts.securityReviews.filter(d=>d.gated);assert.equal(gates.length,1);assert.equal(gates[0].code,"N_PRESENCE_LOOSENING");const id=gates[0].id;
-   r=await run(process.execPath,[cli,"check","--ack-security",id,"--reason","nullable photos are intentional under the revised presence contract"]);assert.equal(r.status,0,r.stderr);
+   r=await run(process.execPath,[cli,"check","--ack-security",id,"--reason","nullable photos are intentional under the revised presence contract"]);assert.equal(r.status,1,"prose cannot clear a gate without a live witness");
+   assert.match(r.stdout+r.stderr,/source intent|free text cannot close/);
+   const intentional=schema+"\ninvariant docs always .photo = null or .photo != null\n";
+   writeFileSync(join(cwd,"snapback/schema.q"),intentional);
+   r=await run(process.execPath,[cli,"check","--review","--json"]);assert.equal(r.status,0,r.stderr);facts=JSON.parse(r.stdout);
+   assert.equal(facts.securityReviews.filter(d=>d.gated&&!d.acknowledged).length,0,"authored presence intent clears the gate");
+   const advice=facts.securityReviews.find(d=>d.code==="N_OPTIONAL_EVIDENCE"&&!d.gated&&!d.witness);assert.ok(advice,"retain a real unwitnessed advisory for the persisted-decision control");
+   r=await run(process.execPath,[cli,"check","--ack-security",advice.id,"--reason","nullable photos are intentional under the authored presence contract"]);assert.equal(r.status,0,r.stderr);
    const review=readFileSync(join(cwd,"snapback/security-reviews.json"));
-   writeFileSync(join(cwd,"snapback/schema.q"),schema+"table exposed:\n  owner: principal\n  read <- allow\n  online only\ninvariant exposed.read only .owner = viewer\n");
+   writeFileSync(join(cwd,"snapback/schema.q"),intentional+"table exposed:\n  owner: principal\n  read <- allow\n  online only\ninvariant exposed.read only .owner = viewer\n");
    mkdirSync(join(cwd,"fixtures"));writeFileSync(join(cwd,"fixtures/exposed.jsonl"),JSON.stringify({id:"one",owner:"dev:other"})+"\n");
    r=await run(process.execPath,[cli,"test","--fixture-only"]);assert.equal(r.status,1,"fixture gives a reachable refutation");
-   r=await run(process.execPath,[cli,"check","--json","--ack-security",id,"--reason","cannot override a counterexample"]);assert.equal(r.status,1);facts=JSON.parse(r.stdout);assert.match(facts.acknowledgmentNotApplied,/cannot override a concrete counterexample/);assert.deepEqual(readFileSync(join(cwd,"snapback/security-reviews.json")),review);
-   results.push({from:version,publishedIntegrity:published.dist.integrity,oldWrapperSha256,candidateAlias:candidate,status:"passed",gate:"new installed check refuses; explicit individual review clears gate",refutation:"acknowledgment suppressed, persisted review unchanged"});
+   r=await run(process.execPath,[cli,"check","--json","--ack-security",advice.id,"--reason","cannot override a counterexample"]);assert.equal(r.status,1);facts=JSON.parse(r.stdout);assert.match(facts.acknowledgmentNotApplied,/cannot override a concrete counterexample/);assert.deepEqual(readFileSync(join(cwd,"snapback/security-reviews.json")),review);
+   results.push({from:version,publishedIntegrity:published.dist.integrity,oldWrapperSha256,candidateAlias:candidate,status:"passed",gate:"new installed check refuses; prose is rejected; authored presence intent clears gate",refutation:"acknowledgment suppressed, persisted review unchanged"});
   }
   return results;
  }finally{if(registry?.listening){registry.closeAllConnections();await new Promise(resolve=>registry.close(resolve));}rmSync(scratch,{recursive:true,force:true});}

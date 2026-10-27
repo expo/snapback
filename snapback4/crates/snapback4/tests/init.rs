@@ -15,8 +15,8 @@ impl Dir {
         #[cfg(unix)] std::os::unix::fs::symlink(source, self.0.join("node_modules/snapback4")).unwrap();
         #[cfg(windows)] std::os::windows::fs::symlink_dir(source, self.0.join("node_modules/snapback4")).unwrap();
     }
-    fn run(&self, flag: &str) -> std::process::Output { Command::new(BIN).args(["init", flag]).current_dir(&self.0).output().unwrap() }
-    fn init(&self, flags: &[&str]) -> std::process::Output { Command::new(BIN).arg("init").args(flags).current_dir(&self.0).output().unwrap() }
+    fn run(&self, flag: &str) -> std::process::Output { Command::new(BIN).env("SNAPBACK4_INIT_INSTALL","0").args(["init", flag]).current_dir(&self.0).output().unwrap() }
+    fn init(&self, flags: &[&str]) -> std::process::Output { Command::new(BIN).env("SNAPBACK4_INIT_INSTALL","0").arg("init").args(flags).current_dir(&self.0).output().unwrap() }
 }
 impl Drop for Dir { fn drop(&mut self) { let _ = fs::remove_dir_all(&self.0); } }
 
@@ -474,7 +474,7 @@ const RECIPE_OPTIONS: [[&str; 2]; 7] = [
 
 fn assert_retired(dir: &Dir, flags: &[&str]) {
     let before = snapshot(&dir.0);
-    let output = Command::new(BIN).arg("init").args(flags).current_dir(&dir.0).output().unwrap();
+    let output = Command::new(BIN).env("SNAPBACK4_INIT_INSTALL","0").arg("init").args(flags).current_dir(&dir.0).output().unwrap();
     assert_eq!(output.status.code(), Some(2), "{flags:?}: {output:?}");
     assert_eq!(String::from_utf8_lossy(&output.stderr), RETIRED, "{flags:?}");
     assert!(output.stdout.is_empty(), "{flags:?}: {output:?}");
@@ -830,7 +830,7 @@ fn frontend_starters_ignore_builds_and_take_the_directorys_name() {
         let parent = Dir::new();
         let dir = parent.0.join("bake-sale");
         fs::create_dir_all(&dir).unwrap();
-        let output = Command::new(BIN).args(["init", flag]).current_dir(&dir).output().unwrap();
+        let output = Command::new(BIN).env("SNAPBACK4_INIT_INSTALL","0").args(["init", flag]).current_dir(&dir).output().unwrap();
         assert!(output.status.success(), "{output:?}");
         assert!(fs::read_to_string(dir.join(".gitignore")).unwrap().lines().any(|line| line == "dist/"), "{flag}");
         if flag == "--web" { assert!(fs::read_to_string(dir.join("index.html")).unwrap().contains("<title>Bake Sale</title>")); }
@@ -1031,19 +1031,19 @@ fn expo_starters_override_the_config_plugins_uuid() {
         let dir = Dir::new();
         assert!(dir.init(flags).status.success(), "{flags:?}");
         let package: Value = serde_json::from_str(&fs::read_to_string(dir.0.join("package.json")).unwrap()).unwrap();
-        assert_eq!(package["overrides"], json!({ "xcode": { "uuid": "11.1.1" }, "zod": "4.6.7", "decode-uri-component": "0.5.1" }), "{flags:?}");
+        assert_eq!(package["overrides"], json!({ "xcode": { "uuid": "11.1.1" }, "zod": "4.6.7", "decode-uri-component": "0.5.1", "node-forge": "1.4.1" }), "{flags:?}");
         let readme = fs::read_to_string(dir.0.join("README.md")).unwrap();
-        assert!(readme.contains("overrides") && readme.contains("node-forge") && readme.contains("SDK 44"), "{flags:?}");
-        assert!(readme.contains("dated no-fix warning") && !readme.contains("failed audit") && !readme.contains("audit as failed"), "{flags:?}: {readme}");
+        assert!(readme.contains("overrides") && readme.contains("node-forge") && readme.contains("1.4.1"), "{flags:?}");
+        assert!(!readme.contains("dated no-fix warning") && !readme.contains("failed audit") && !readme.contains("audit as failed"), "{flags:?}: {readme}");
     }
     // Wave 4 (15 lanes): the advisories are named before the install reports them,
     // in init's output and above the starter README's first command.
     let dir = Dir::new();
     let output = dir.init(&["--expo"]);
     let stdout = String::from_utf8_lossy(&output.stdout);
-    assert!(stdout.contains("unpatched high advisory") && stdout.contains("do not run `npm audit fix --force`"), "{stdout}");
+    assert!(stdout.contains("patched node-forge 1.4.1") && !stdout.contains("unpatched high advisory"), "{stdout}");
     let readme = fs::read_to_string(dir.0.join("README.md")).unwrap();
-    let notice = readme.find("do not run `npm audit fix --force`").expect("the README names the advisories");
+    let notice = readme.find("node-forge").expect("the README names the patched dependency");
     assert!(notice < readme.find("node scripts/install.mjs\n").unwrap(), "{readme}");
     let web = Dir::new();
     let output = web.init(&["--web"]);
@@ -1423,7 +1423,7 @@ fn adapt_repairs_only_the_owned_0_4_26_expo_favicon() {
 fn generated_proofs_read_ports_at_execution_and_declare_the_driver() {
     for flag in ["--web", "--expo"] {
         let dir = Dir::new();
-        let output = Command::new(BIN).args(["init", flag]).env("PORT_LO", "29040").env("PORT_HI", "29049").current_dir(&dir.0).output().unwrap();
+        let output = Command::new(BIN).env("SNAPBACK4_INIT_INSTALL","0").args(["init", flag]).env("PORT_LO", "29040").env("PORT_HI", "29049").current_dir(&dir.0).output().unwrap();
         assert!(output.status.success(), "{output:?}");
         let package: Value = serde_json::from_slice(&fs::read(dir.0.join("package.json")).unwrap()).unwrap();
         assert_eq!(package["scripts"]["frontend:proof"], "node scripts/frontend-proof.mjs");

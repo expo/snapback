@@ -109637,3 +109637,15 @@ mutable constructor links and skipped consumption. Runtime, gates and witness
 acknowledgment semantics are unchanged. The 0.4.44 Guide changes entry describes
 the surface; package versions stay 0.4.43. Measurements and review provenance
 are in reports/secp; Mac qualification is skipped for this lane.
+
+
+## 2026-10-27 — Integration 28 fixture and LLP identity reconciliation
+
+SEC11 and SECP independently assigned LLP 3000.036.004.001. Integration retains SEC11
+at that identity and assigns SECP the next free sibling, LLP 3000.036.004.003,
+with original review records retained verbatim. Only advisory @ref targets change.
+Old CLI and packed-upgrade fixtures now assert source intent for unwitnessed
+presence gates and rejection of prose, while retaining reachable-refutation and
+persisted-decision immutability controls. Guide fixtures force intentional rereads
+and check the hard byte bound; offline starter custody fixtures defer installers.
+The starter toolchain pins node-forge 1.4.1 and removes its obsolete no-patch waiver.

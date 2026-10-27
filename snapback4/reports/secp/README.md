@@ -62,7 +62,7 @@ The JSON inventory lists all54 findings, including uncovered baselines, exact me
 
 ## Boundaries and verification
 
-LLP3000.036.004.001 is implemented. Final semantic reviews by Muse and fresh Codex both return READY; verbatim responses and rejected revisions are under llp/reviews. Source consistency is advisory relevance over authored constructors, never a database invariant or proof over seed/import/restore images. Gate/runtime/witness consumers do not consume these facts.
+LLP3000.036.004.003 is implemented (Integration 28 resolved the original parallel 3000.036.004.001 assignment). Final semantic reviews by Muse and fresh Codex both return READY; verbatim responses and rejected revisions are under llp/reviews. Source consistency is advisory relevance over authored constructors, never a database invariant or proof over seed/import/restore images. Gate/runtime/witness consumers do not consume these facts.
 
 The lane explicitly prohibits the full crate/client pools. tools/run-affected-scoped.sh invokes the required affected selector on the final commit, runs modified crates and applicable checks, and returns explicit exit95 for prohibited integration/legacy steps. Its receipt must not be reported as a fully green battery. WORKSTREAM-REPORT.md records the final actual results and any inherited legacy prerequisites. Mac is skipped.
 

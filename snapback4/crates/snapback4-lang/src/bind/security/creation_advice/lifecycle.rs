@@ -13,7 +13,7 @@ fn inspected(w:&Write<'_>,table:&str,column:&str)->bool{
         let mut found=false;walk(condition,|e|if let Expr::Member{base,name,..}=e&&name==column&&reads(base).contains(table){found=true;});found
     })
 }
-// @ref LLP 3000.036.004.001#3-lifecycle-questions — recognize an actual
+// @ref LLP 3000.036.004.003#3-lifecycle-questions — recognize an actual
 // restriction on the selected resource, independently of its insert default.
 fn lifecycle_column(name:&str,kind:&ColumnType)->bool{
     let name=name.to_lowercase();

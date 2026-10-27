@@ -15,7 +15,7 @@ fn upgrade_delta_reports_gates_and_refuted_acknowledgments_are_explicit(){
  let first=run(&p,&["check","--json"]);assert_eq!(first.status.code(),Some(1));
  let path=p.0.join(".snapback4/check-surface.json");let mut old:Value=serde_json::from_slice(&fs::read(&path).unwrap()).unwrap();old["version"]="0.4.35".into();old["notes"]=serde_json::json!({});old.as_object_mut().unwrap().remove("pending_gates");fs::write(&path,serde_json::to_vec(&old).unwrap()).unwrap();
  let delta=run(&p,&["check"]);let output=String::from_utf8_lossy(&delta.stdout);
- assert_eq!(delta.status.code(),Some(1));assert!(output.contains("pending security review gates: N_PRESENCE_LOOSENING: 1"),"{output}");assert!(output.contains("N_PRESENCE_LOOSENING +1"),"{output}");assert!(!output.contains("new refusals: none"));assert!(output.contains("--ack-security"));
+ assert_eq!(delta.status.code(),Some(1));assert!(output.contains("pending security review gates: N_PRESENCE_LOOSENING: 1"),"{output}");assert!(output.contains("N_PRESENCE_LOOSENING +1"),"{output}");assert!(!output.contains("new refusals: none"));assert!(output.contains("invariant docs always .photo = null or .photo != null"));assert!(output.contains("prose cannot close this gate"));
  fs::write(p.0.join("snapback/schema.q"),format!("{SOURCE}\ntable exposed:\n  owner: principal\n  read <- allow\n  online only\ninvariant exposed.read only .owner = viewer\n")).unwrap();
  fs::create_dir_all(p.0.join("fixtures")).unwrap();fs::write(p.0.join("fixtures/exposed.jsonl"),"{\"id\":\"one\",\"owner\":\"dev:other\"}\n").unwrap();
  let campaign=run(&p,&["test","--fixture-only"]);assert_eq!(campaign.status.code(),Some(1),"{}",String::from_utf8_lossy(&campaign.stdout));

@@ -1,5 +1,5 @@
 //! Bounded, read-only expansion for diagnostic implication, never authority.
-// @ref LLP 3000.036.004.001#2-read-guards — preserve all evaluated arguments.
+// @ref LLP 3000.036.004.003#2-read-guards — preserve all evaluated arguments.
 use super::catalog::Catalog;
 use crate::ast::{Expr, FunctionBody, Stmt};
 
