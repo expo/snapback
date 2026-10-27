@@ -3,6 +3,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
+# @ref LLP 3000.036.004.000.000#sqlite-diagnostic-allocation-statistics — same diagnostic-only setting as qualified native tests.
 export LIBSQLITE3_FLAGS="-DHAVE_FDATASYNC=1 -USQLITE_ENABLE_MEMORY_MANAGEMENT -DSQLITE_DEFAULT_MEMSTATUS=0"
 export CC_x86_64_unknown_linux_musl="${SNAPBACK4_MUSL_CC:-$HOME/.local/share/snapback4-musl-1.2.5/bin/musl-gcc}"
 export CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER="$CC_x86_64_unknown_linux_musl"
