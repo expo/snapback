@@ -67,6 +67,9 @@ impl Store {
     /// sidecar lock before SQLite opened the path; reuse binds to that file.
     pub fn retain_exclusive_ownership(&mut self, owner: std::sync::Arc<std::fs::File>, identity: (u64, u64)) -> Result<(), RuntimeError> {
         self.retain_ownership(owner)?;
+        // The pre-open and post-open stats must name one file. These are path
+        // samples (core forbids unsafe, so SQLite's descriptor is not asked);
+        // a swap-and-restore inside open is outside the ownership contract.
         if self.file_identity != Some(identity) {
             let path = self.conn.path().unwrap_or_default().to_owned();
             return Err(RuntimeError::Store(format!("owned database at {path} moved or was replaced while opening; stop and reopen its current path")));

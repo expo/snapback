@@ -70,25 +70,27 @@ impl Store {
     }
     // @ref LLP 3000.009.001.000.002#sqlite-snapshot-reuse — deleting or replacing the sidecar or database ends exclusion; reuse fails closed.
     /// Both paths still name the inodes this owner holds open. The first
-    /// mismatch revokes reuse for every store sharing that held sidecar for
-    /// the rest of the process: renaming the original back cannot re-arm it,
-    /// because this process never observed the interim writes.
+    /// mismatch revokes reuse for every store sharing that held sidecar
+    /// for the rest of its life: renaming the original back cannot re-arm it,
+    /// because this process never observed the interim writes. The latch lock
+    /// spans the check, so no peer can pass between an observed loss and its
+    /// publication.
     #[cfg(unix)]
     fn exclusion_intact(&self) -> bool {
         use std::os::unix::fs::MetadataExt;
-        static LOST: OnceLock<Mutex<std::collections::BTreeSet<(u64, u64)>>> = OnceLock::new();
+        static LOST: OnceLock<Mutex<Vec<Weak<std::fs::File>>>> = OnceLock::new();
         let (Some(owner), Some(path)) = (&self.ownership, self.conn.path().filter(|p| !p.is_empty())) else { return false };
-        let Ok(held) = owner.metadata() else { return false };
-        // The held descriptor keeps this inode allocated, so the key is unique.
-        let key = (held.dev(), held.ino());
-        let lost = LOST.get_or_init(Default::default);
-        if lost.lock().unwrap_or_else(|p| p.into_inner()).contains(&key) { return false; }
+        let mut lost = LOST.get_or_init(Default::default).lock().unwrap_or_else(|p| p.into_inner());
+        // A live Weak pins its allocation, so pointer identity cannot be reused;
+        // entries die with the last store holding that sidecar.
+        lost.retain(|w| w.strong_count() != 0);
+        if lost.iter().any(|w| std::ptr::eq(w.as_ptr(), Arc::as_ptr(owner))) { return false; }
         let path = Path::new(path);
-        let intact = std::fs::symlink_metadata(crate::private_fs::owner_path(path))
-            .is_ok_and(|m| (m.dev(), m.ino()) == key)
+        let intact = owner.metadata().is_ok_and(|held| std::fs::symlink_metadata(crate::private_fs::owner_path(path))
+                .is_ok_and(|m| (m.dev(), m.ino()) == (held.dev(), held.ino())))
             && std::fs::symlink_metadata(path)
                 .is_ok_and(|m| m.is_file() && m.nlink() == 1 && Some((m.dev(), m.ino())) == self.file_identity);
-        if !intact { lost.lock().unwrap_or_else(|p| p.into_inner()).insert(key); }
+        if !intact { lost.push(Arc::downgrade(owner)); }
         intact
     }
     #[cfg(not(unix))]
