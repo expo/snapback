@@ -11,8 +11,9 @@ def stats(values):
 tables={}
 def failure_messages(lines):
  # Node process warnings are diagnostics, not failed assertions. Preserve raw
- # message lists separately; canonicalize only the two private copy roots/PIDs.
- return [re.sub(r'sb4rendered[0-9a-f]{32}', 'sb4rendered<launch-id>',re.sub(r'/tmp/lat3/corpus-\d/[^/]+/(?:before|after)', '<COPY>',line))
+ # message lists separately; canonicalize copy roots and explicit launch/run
+ # identities, never refusal codes, deadlines, rule text or assertion values.
+ return [re.sub(r'run tag [0-9a-f]{8}', 'run tag <run-id>',re.sub(r'sb4rendered[0-9a-f]{32}', 'sb4rendered<launch-id>',re.sub(r'/tmp/lat3/corpus-\d/[^/]+/(?:before|after)', '<COPY>',line)))
          for line in lines if not re.match(r'^\s*(?:\|\s*)?\(node:\d+\).*Warning:',line)]
 call_differences=[];call_pairs=0
 for pair in rows:

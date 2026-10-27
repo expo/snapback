@@ -66,6 +66,14 @@ def run(dst,script,log,timeout=360):
   for suffix in ['stdout','stderr']:shutil.copyfile(dst/f'lat3-calls.{suffix}',log.with_suffix('.calls.'+suffix))
  return result
 
+def client_digest(dst):
+ base=dst/'node_modules/snapback4';h=hashlib.sha256()
+ for p in sorted([base/'package.json',*list((base/'dist').rglob('*')),*list((base/'bin').rglob('*'))]):
+  if not p.is_file():continue
+  name=str(p.relative_to(base)).encode();data=p.read_bytes()
+  h.update(len(name).to_bytes(8,'little'));h.update(name);h.update(len(data).to_bytes(8,'little'));h.update(data)
+ return h.hexdigest()
+
 def messages(path):
  text=path.read_text(errors='replace')
  # Keep failure messages verbatim; drop process stacks, CLI timing summaries and
@@ -116,7 +124,9 @@ def main():
     pair={'wave':wave,'lane':src.name,'script':script,'index':index,'artifactDirectoriesPreserved':True}
     # Alternate order across lanes to reduce systematic shared-load/order bias.
     for variant,dst in ([('before',before),('after',after)] if index%2==0 else [('after',after),('before',before)]):
+     inputs=client_digest(dst)
      path=logdir/f'{name}-{variant}.log';pair[variant]=run(dst,script,path)
+     pair[variant]['clientInputDigest']=inputs;pair[variant]['clientOutputDigest']=client_digest(dst)
      pair[variant]['messages']=messages(path)
     pair['sameExit']=pair['before']['code']==pair['after']['code']
     pair['sameMessages']=pair['before']['messages']==pair['after']['messages']
