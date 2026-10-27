@@ -29,10 +29,10 @@ rules={
 (28,'047','F1'):dict(codes=['N_TEXT_EVIDENCE'],term='trialPhotos'),
 (28,'050','F1'):dict(codes=['N_DEPENDENT_WINDOW'],ops=['openVisit']),
 (30,'002','F1'):dict(codes=['N_TEXT_EVIDENCE'],term='referralScan'),
-(30,'004','F1'):dict(codes=['N_ASSIGNMENT_SCOPE']),
+(30,'004','F1'):dict(codes=['N_ASSIGNMENT_SCOPE'],ops=['privateDetail'],term='careNeeds',viewerRole='coordinator',assignment=True),
 (30,'006','F1'):dict(codes=['N_ENTITLEMENT_CHARGE']),
 (30,'010','F1'):dict(codes=['N_GUARD_NOT_CONSUMED'],ops=['rebookTrip'],term='status'),
-(30,'014','F1'):dict(codes=['N_ROLE_WIDE_READ'],term='clientPhone'),
+(30,'014','F1'):dict(codes=['N_ROLE_WIDE_READ','N_ASSIGNMENT_SCOPE'],ops=['project','board'],term='clientPhone',viewerRole='lead'),
 (30,'018','F1'):dict(codes=['N_APPROVAL_PATH'],ops=['pruneTouchup']),
 (30,'025','F1'):dict(codes=['N_CALLER_HISTORY'],ops=['logExam'],less={'attempt':3}),
 (30,'025','F2'):dict(codes=['N_LATEST_SUBJECT'],ops=['logExam']),
@@ -59,6 +59,12 @@ def category(row,rule):
   w=d.get('witness')
   if d['code']not in rule.get('codes',[])or not w:continue
   if rule.get('ops')and w.get('operation')not in rule['ops']:continue
+  if rule.get('viewerRole'):
+   roster=(w.get('supportingRows')or{}).get('roles',[])
+   if not any(r.get('principal')==w.get('viewer')and r.get('role')==rule['viewerRole']for r in roster):continue
+  if rule.get('assignment'):
+   assigned=(w.get('assignment')or{}).get('principal')
+   if not assigned or assigned==w.get('viewer'):continue
   material=w.get('candidate','') if d['code']in['N_TEXT_EVIDENCE','N_OPTIONAL_EVIDENCE']else w.get('candidate','')+' '+json.dumps(w.get('row',{}))
   if rule.get('term')and rule['term'].lower()not in material.lower():continue
   if any(w.get('row',{}).get(k)!=v for k,v in rule.get('truth',{}).items()):continue
