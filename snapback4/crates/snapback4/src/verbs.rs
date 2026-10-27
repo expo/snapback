@@ -924,11 +924,11 @@ pub fn data(options: &Options) -> i32 {
         Ok((rows, more, ephemeral)) => {
             let payload = serde_json::json!({"rows":rows.iter().map(wire::to_json).collect::<Vec<_>>(), "more":more, "limit":if options.flags.contains_key("all") { serde_json::Value::Null } else { serde_json::json!(limit) }});
             crate::command_output::summary(format!("data {table}: {} rows{}; {} dormant rows retained", rows.len(), if ephemeral { "; skipped: live serving memory only" } else if more { "; more available: use --all" } else { "; complete" }, sql::dormant_rows(&retained)));
-            crate::command_output::evidence(&payload);
-            crate::command_output::state(payload);
             if options.json {
-                println!("{}", serde_json::json!({"rows":rows.iter().map(wire::to_json).collect::<Vec<_>>(), "more":more, "limit":if options.flags.contains_key("all") { serde_json::Value::Null } else { serde_json::json!(limit) }}));
+                println!("{payload}");
             } else {
+                crate::command_output::evidence(&payload);
+                crate::command_output::state(payload);
                 for row in &rows { println!("{}", wire::to_json(row)); }
             }
             if more {

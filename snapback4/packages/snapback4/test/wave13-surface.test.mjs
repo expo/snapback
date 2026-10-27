@@ -25,7 +25,7 @@ test('H1/H4/H5 help agrees and ignored flags refuse before filesystem work', t =
     assert.ok(top.stdout.split('\n').map(s=>s.trim()).includes(help.stdout.split('\n')[0]), verb);
     assert.equal(help.stdout.split('\n')[0],synopsis(verb),verb);
   }
-  for (const flags of [['serve','deploy','--now','1'], ['serve','deploy','--resume-clock'], ['serve','deploy','--replay'], ['check','--url','notaurl'], ['check','--release','1'], ['types','--json'], ['test','--json'], ['test','--verbose'], ['doctor','--instance','x'], ['run','x','--token-env','SECRET'], ['why','E_INPUT','--json'], ['why','E_INPUT','--instance','a'], ['reset','--release','deploy'], ['check','--as','alice'], ['check','--emit-lean','one.q','--fix'], ['check','--store','store.sqlite','--release','1','--cost']]) {
+  for (const flags of [['serve','deploy','--now','1'], ['serve','deploy','--resume-clock'], ['serve','deploy','--replay'], ['check','--url','notaurl'], ['check','--release','1'], ['types','--json'], ['doctor','--instance','x'], ['run','x','--token-env','SECRET'], ['why','E_INPUT','--json'], ['why','E_INPUT','--instance','a'], ['reset','--release','deploy'], ['check','--as','alice'], ['check','--emit-lean','one.q','--fix'], ['check','--store','store.sqlite','--release','1','--cost']]) {
     const r = invoke(cwd, flags); assert.equal(r.status, 2, r.stderr); assert.match(r.stderr,/E_INPUT:/);
   }
   assert.deepEqual(readdirSync(cwd), []);

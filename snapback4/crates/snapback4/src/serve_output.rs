@@ -1,8 +1,16 @@
 //! Startup presentation only: URL and readiness protocol retain their identity.
 // @ref LLP 3000.037.000#9-repeat-command-output-budgets-tok2 — startup details do not alter server lifetime.
+thread_local! {static EARLY: std::cell::RefCell<Vec<String>> = const {std::cell::RefCell::new(Vec::new())};}
+pub(crate) fn early(text:String) {EARLY.with_borrow_mut(|lines|lines.push(text));}
+pub(crate) struct Early;
+impl Drop for Early {
+    fn drop(&mut self) {
+        if EARLY.with_borrow(|lines|!lines.is_empty()) {drop(Startup::new(true));}
+    }
+}
 pub(crate) struct Startup { release: bool, lines: Vec<String>, ready: bool }
 impl Startup {
-    pub(crate) fn new(release: bool) -> Self { Self { release, lines: Vec::new(), ready: false } }
+    pub(crate) fn new(release: bool) -> Self { Self { release, lines: if release {EARLY.with_borrow_mut(std::mem::take)} else {Vec::new()}, ready: false } }
     pub(crate) fn line(&mut self, text: String) {
         if self.release { self.lines.push(text); } else { snapback4_core::diagnostic!("{text}"); }
     }

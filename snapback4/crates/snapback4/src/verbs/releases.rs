@@ -367,6 +367,7 @@ fn activate(
             for fill in result["backfills"].as_array().into_iter().flatten().filter_map(|f|f.as_str()) {println!("  backfill: {fill}");}
             if options.flags.contains_key("verbose") {println!("{}",result["details"].as_str().unwrap_or(""));}
         }
+        crate::command_output::backfills(&result["backfills"]);
     }
     Ok(())
 }
@@ -818,7 +819,8 @@ pub fn serve_release(options: &Options) -> Result<(), String> {
         std::env::var(name).ok()
     })?;
     let dir = existing_deployment(&directory(options)?)?;
-    crate::host_limits::initialize();
+    let _early_output=crate::serve_output::Early;
+    crate::host_limits::initialize_with(crate::serve_output::early);
     let owner = crate::store_owner::host(&dir.join("store.sqlite"))?;
     owner.report_reclaim(options.flags.contains_key("verbose"));
     let clock_offset = options.flags.get("clock-offset").map(|text| crate::dev_clock::offset(text).map_err(|e| e.to_string())).transpose()?.unwrap_or(0);
@@ -1010,6 +1012,7 @@ fn receipt(release:u64,generation:u64,report:&snapback4_core::store_port::report
     crate::command_output::evidence(&serde_json::json!({"release":release,"generation":generation,"live":live,"adoption":report.summary(),"backfills":report.backfills,"preview":options.flags.get("release-preview").and_then(|s|serde_json::from_str::<serde_json::Value>(s).ok())}));
     if options.json {println!("{}",serde_json::json!({"live":live,"sourceRelease":options.flags.get("source-release").and_then(|s|s.parse::<u64>().ok()),"release":release,"generation":generation,"adoption":report.compact(),"details":report.summary(),"backfills":report.backfills,"security":options.flags.get("security-summary").and_then(|s|serde_json::from_str::<serde_json::Value>(s).ok()),"rollbackView":options.flags.get("rollback-view").and_then(|s|serde_json::from_str::<serde_json::Value>(s).ok()),"preview":options.flags.get("release-preview").and_then(|s|serde_json::from_str::<serde_json::Value>(s).ok())}));}
     else {completed_verdict(options);print_live(live);println!("release {release} is current as generation {generation}; {}",report.compact());if let Some(origin)=options.flags.get("source-release"){println!("  retained source {origin} requalified as release {release} to register its current rollback views");}for fill in &report.backfills {println!("  backfill: {fill}");}if options.flags.contains_key("verbose"){println!("{}",report.summary());}}
+    crate::command_output::backfills(&serde_json::json!(report.backfills));
 }
 pub(super) fn latest(dir:&Path)->Result<u64,String>{
     std::fs::read_dir(dir.join("releases")).map_err(|e|e.to_string())?.filter_map(Result::ok)

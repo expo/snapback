@@ -4,7 +4,8 @@ import { join } from "node:path";
 import { randomUUID } from "node:crypto";
 import type { ServeCheckReport } from "./proof-serve-check.js";
 
-/** Print a bounded proof verdict; --json preserves the complete receipt. */
+/** Print a bounded proof verdict; --json preserves the complete receipt.
+ * @throws invalid command name, or terminal output failure. Detail-file failures print the complete receipt. */
 export function printProofReport(command: string, report: ServeCheckReport, args: readonly string[] = process.argv.slice(2)): void {
   if (args.includes("--json")) { console.log(JSON.stringify(report)); return; }
   if (!/^[a-z][a-z0-9:-]*$/.test(command)) throw Error("invalid proof report command");

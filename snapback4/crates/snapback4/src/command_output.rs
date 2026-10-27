@@ -121,8 +121,10 @@ pub(crate) fn released(verb: &str, release: u64, generation: &impl fmt::Display,
 }
 
 pub(crate) fn preview_decisions(preview: &Value) {
-    let hazards=preview["hazards"].as_array().into_iter().flatten().filter_map(Value::as_str).collect::<Vec<_>>();
-    if !hazards.is_empty() {fact("hazards",format!("WARNING {}; next: prove affected cases before activation",hazards.join("; ")));}
+    let hazards=preview["hazards"].as_array().into_iter().flatten().filter_map(Value::as_str).map(str::to_owned).collect::<Vec<_>>();
+    let hazards=snapback4_lang::client_contracts::compact(&hazards);
+    if !hazards.is_empty() {fact("hazards",format!("WARNING {}; next: prove affected cases before activation",hazards.join("; WARNING ")));}
+    backfills(&preview["backfills"]);
     if preview["rowShape"]["matchesTarget"]==false {
         fact("row shape",format!("target row shape CHANGED: {}; retained children: {}",preview["rowShape"]["differences"],preview["rowShape"]["children"]));
     }
@@ -133,6 +135,11 @@ pub(crate) fn preview_decisions(preview: &Value) {
             fact(key,format!("{key}: {value}; dormant images are retained, not deleted; prove affected real-account reads"));
         }
     }
+}
+pub(crate) fn backfills(value:&Value) {
+    let lines=value.as_array().into_iter().flatten().filter_map(Value::as_str).map(|s|format!("backfill: {s}")).collect::<Vec<_>>();
+    if lines.is_empty() {ACTIVE.with_borrow_mut(|t|if let Some(t)=t {t.facts.remove("backfills");});}
+    else {fact("backfills",lines.join("; "));}
 }
 
 pub(crate) fn finish(verb: &str, options: &crate::verbs::Options, code: i32) {
@@ -163,7 +170,8 @@ pub(crate) fn finish(verb: &str, options: &crate::verbs::Options, code: i32) {
     let mut actions=Vec::new();
     if code!=0 {
         for line in t.text.lines().map(str::trim).filter(|l|l.starts_with("Intended: snapback4 ")) {
-            if !actions.contains(&line.to_owned()) {actions.push(line.to_owned());}
+            let command=line.strip_suffix(" (required before check can pass)").unwrap_or(line);
+            if !actions.contains(&command.to_owned()) {actions.push(command.to_owned());}
         }
     }
     let mut parts = t.facts;

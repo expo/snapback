@@ -13,6 +13,7 @@ const targets=['tok2_output','dx11','dx11_refusals','dx12_output','dx14_output',
 const clients=['tok2-output','proof-contract','proof','day3-proofs','day4-proofs','day5-proofs','dx9-packed','dx10-process-accounts','dx14-client-proof','dx15-proof','tok1-reading','release-activation','wave11-narration','wave12-clauses','wave13-previews','wave13-surface','packaged-docs','test-platform-audit'];
 const plan={...full,scopeOverride:{fullSelectorPlanExecuted:false,qualification:false,reason:'The command registry and guide conservatively expand to the complete client pool. The brief forbids that pool and the five-crate suite. Retain the complete selector plan; run affected CLI/guide tests, all named text/machine consumers and doc checks through runPlan.',fullStepCount:full.steps.length,fullClientFiles:full.clientFiles.length},steps:[
  step('cli-build','snapback4',['cargo','build','-p','snapback4']),
+ step('platform-test-binary','snapback4',['node','--input-type=module','-e',"import{copyFileSync,chmodSync}from'node:fs';copyFileSync('target/debug/snapback4','packages/snapback4-linux-x64/snapback4');chmodSync('packages/snapback4-linux-x64/snapback4',0o755)"]),
  step('client-build','snapback4',['bun','run','--cwd','packages/snapback4','build']),
  step('client-types','snapback4',['bun','run','--cwd','packages/snapback4','typecheck']),
  step('cli-unit','snapback4',['cargo','test','-p','snapback4','--bin','snapback4']),

@@ -45,9 +45,7 @@ function fixture(t) {
   mkdirSync(join(app, "snapback"), { recursive: true });
   const schema = join(app, "snapback/schema.q");
   writeFileSync(schema, source);
-  // Behavioral evidence assertions deliberately select the complete report;
-  // tok2-output tests the independent compact presentation contract.
-  const invoke = (...args) => spawnSync(binary, [...args, ...(["deploy","rollback","releases","data","test"].includes(args[0]) && !args.includes("--json") && !args.includes("--help") ? ["--explain"] : [])], { cwd: app, encoding: "utf8", timeout: hangBudget() });
+  const invoke = (...args) => spawnSync(binary, args, { cwd: app, encoding: "utf8", timeout: hangBudget() });
   const run = (...args) => {
     const result = invoke(...args);
     assert.equal(result.error, undefined, result.error?.message);
@@ -875,24 +873,24 @@ test('owned serve death before hot commit and after commit recovers database aut
 test('REL identical source is a no-op; latest and exact previews never activate', {timeout:hangBudget(3)}, async(t)=>{
   const {deployment,schema,run}=fixture(t);
   assert.match(run('rollback','--help'),/dormant per row/);
-  const first=run('deploy',deployment);assert.match(first,/release 1 is current as generation 1/);
-  assert.match(first.trim().split('\n')[0],/^deploy verdict: READY/);
+  const first=run('deploy',deployment);assert.match(first,/release 1 current, generation 1/);
+  assert.match(first.trim().split('\n')[0],/^deploy: release/);
   const before=JSON.parse(run('releases', deployment, '--json'));
-  assert.match(run('deploy',deployment),/unchanged; release 1 stays current/);
+  assert.match(run('deploy',deployment),/release 1 current.*unchanged/);
   assert.deepEqual(JSON.parse(run('releases', deployment, '--json')),before);
   writeFileSync(schema,source.replace('return 1','return 2'));
   run('deploy',deployment);
   await serve(deployment,async(url,headers)=>{
     const saved=state(join(deployment,'store.sqlite'));
-    assert.match(run('rollback',deployment,'--to','1','--check'),/preview: release 1 would be current/);
+    assert.match(run('rollback',deployment,'--to','1','--check'),/READY preview; release 1/);
     assert.match(run('check','--store',join(deployment,'store.sqlite'),'--release','1'),/live release unchanged/);
     assert.deepEqual(state(join(deployment,'store.sqlite')),saved);
     assert.equal((await releasePost(url,headers,'/q/q')).data,2);
-    assert.match(run('rollback',deployment,'--to','1'),/release 1 is current as generation 3/);
+    assert.match(run('rollback',deployment,'--to','1'),/release 1 current, generation 3/);
     const status=JSON.parse(run('releases', deployment, '--json'));assert.equal(status.release,1);assert.equal(status.latest,2);
     const selected=JSON.parse(run('releases', deployment, 'latest', '--json'));assert.equal(selected.release,1);assert.equal(selected.selected.release,2);assert.equal(selected.selected.current,false);assert.equal(typeof selected.selected.digest,'string');
     assert.equal(JSON.parse(run('releases', deployment, '1', '--json')).selected.current,true);
-    assert.match(run('rollback',deployment,'--to','latest'),/release 2 is current as generation 4/);
+    assert.match(run('rollback',deployment,'--to','latest'),/release 2 current, generation 4/);
     assert.equal((await releasePost(url,headers,'/q/q')).data,2);
   });
 });
@@ -925,7 +923,7 @@ test('REL 16 concurrent callers remain request-safe over six hot switch pairs', 
       for(let pair=0;pair<6;pair++) {
         for(const release of ['2','1']) {
           const switched=await invokeAsync(app,'rollback',deployment,'--to',release);
-          assert.equal(switched.status,0,switched.stderr);assert.match(switched.stdout,/is current as generation/);
+          assert.equal(switched.status,0,switched.stderr);assert.match(switched.stdout,/current, generation/);
           const reply=await releasePost(url,headers,'/q/q');assert.equal(reply.data,Number(release));
         }
       }
@@ -1199,7 +1197,7 @@ test('NARR populated widening describes future risk without miscounting compatib
     await releasePost(url,headers,'/m/add',{},'rel2-warning-row');
     writeFileSync(schema,source);
     const planned=JSON.parse(run('deploy',deployment,'--check','--json'));assert.ok(planned.rollbackViews.some(v=>v.target===1));
-    const r=invoke('deploy',deployment);assert.equal(r.status,0,r.stderr);assert.match(r.stdout.split('\n')[0],/^deploy verdict: READY/);
+    const r=invoke('deploy',deployment);assert.equal(r.status,0,r.stderr);assert.match(r.stdout.split('\n')[0],/^deploy: release/);
     const rollback=JSON.parse(run('rollback',deployment,'--to','1','--check','--json'));assert.equal(rollback.visibility.hiddenRows,0);assert.equal(rollback.rollbackView.target,1);
   });
 });

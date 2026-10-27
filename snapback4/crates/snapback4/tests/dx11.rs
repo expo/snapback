@@ -278,6 +278,8 @@ fn a_deploys_derived_decision_is_accepted_by_its_real_cli_command() {
  let ordinary=run(&p,&["deploy","deployment"]);assert_eq!(ordinary.status.code(),Some(1));
  let printed=format!("{}\n{}",String::from_utf8_lossy(&ordinary.stdout),String::from_utf8_lossy(&ordinary.stderr));
  let command=printed.lines().filter_map(|line|line.trim().strip_prefix("Intended: snapback4 check --ack-security ")).find(|command|command.starts_with(&format!("{} --reason",decision["id"].as_str().unwrap()))).expect("ordinary deploy must print the blocking derived decision command");
+ assert!(command.ends_with("'")&&!command.ends_with("(required before check can pass)"),"gate answer is independently copyable: {command}");
+ assert!(printed.lines().filter(|l|!l.is_empty()).count()<=9,"{printed}");
  let (printed_id,template)=command.split_once(" --reason '").unwrap();assert_eq!(printed_id,decision["id"].as_str().unwrap());
  assert!(template.contains(&format!("witness {}; allow ",decision["witness"]["id"].as_str().unwrap())),"{printed}");
  let checked=json(&p,&[]);assert!(checked["securityReviews"].as_array().unwrap().iter().any(|d|d["id"]==decision["id"]),"deploy decision must exist in the prescribed check command");

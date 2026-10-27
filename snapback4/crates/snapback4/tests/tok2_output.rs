@@ -110,7 +110,7 @@ fn serve_startup_keeps_url_readiness_clock_and_full_details_in_three_lines() {
     let text=startup(&a,false);assert_eq!(text.lines().count(),3,"{text}");
     assert!(text.contains("pid=")&&!text.contains("clock     staging"),"{text}");
     assert!(text.contains("staging store offset"),"{text}");
-    assert!(a.detail("serve").contains("active schema")&&a.detail("serve").contains("clock     staging"));
+    assert!(a.detail("serve").contains("active schema")&&a.detail("serve").contains("clock     staging")&&a.detail("serve").contains("file descriptors")&&a.detail("serve").contains("HTTP connections="));
     let full=startup(&a,true);assert!(full.contains("snapback4 serve:")&&full.contains("active schema")&&full.contains("clock     staging"),"{full}");
 }
 
