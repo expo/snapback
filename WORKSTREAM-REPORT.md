@@ -505,7 +505,7 @@ scoped receipt are reported after completion. This report checkpoint is committe
 before final verification; results may be appended uncommitted as the brief allows.
 
 
-### Final result — all requested SEC11b items complete
+### Pre-merge result — all requested SEC11b items complete
 
 Tested final commit: `8e06b286ce1b26e8dad87bc3d7764d46773f9106`.
 All 14 steps of the scoped SEC11 affected plan PASS. The receipt reports
@@ -599,3 +599,14 @@ All requested guide additions remain in the 0.4.44 entry. Fresh merge reviews,
 focused current-native replays and post-merge affected results follow separately.
 No unchanged-native800 claim is carried across these incoming product changes.
 Per-item coverage/precision/output measurements remain their named snapshots.
+
+
+The semantic merge has independent READY Muse and fresh Codex reviews. An earlier
+Codex response disclosed accidental prior-review exposure; it is retained verbatim
+but does not count. Integrated language unit preflight passes197 tests with one
+ignored metrology utility. Post-collision ref-check passes578 documents/12,173refs,
+zero errors/unchecked. Current product sources remain unchanged since13d50f273d.
+The final affected baseline pins2921a639cc, preventing later shared-ref movement
+from silently changing this run. The new integrated native corpus/fix-forward
+results are retained outside git under `~/sb4-loop/reports/sec11b/`; historical
+per-item packets stay committed unchanged. Final results follow after completion.
