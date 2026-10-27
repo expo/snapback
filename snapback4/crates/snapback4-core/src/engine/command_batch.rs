@@ -538,6 +538,7 @@ mod tests {
         assert_eq!(old_targets, [16, 8, 4, 2, 1, 1]);
         assert!(current.p99_micros > 100_000, "queue pressure remains observable");
     }
+    #[test]
     fn sqlite_recent_cohort_uses_one_window_and_never_delays_an_idle_arrival() {
         let now = Instant::now();
         let mut arrivals = Arrivals::default();

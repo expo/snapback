@@ -704,12 +704,13 @@ impl Engine {
                     outcome.seq = entry.stamp.head;
                     Ok::<_, Refusal>(outcome)
                 })();
-                if self.store.sqlite_cache_revision() == Some(entry.stamp.revision) {
-                    if checked.is_ok() {
-                        cache.hits.fetch_add(1, Ordering::Relaxed);
-                        cache.sqlite_hits.fetch_add(1, Ordering::Relaxed);
-                    }
-                    return match checked { Ok(outcome) => (Ok(outcome), Some(entry.stamp.head), None), Err(error) => (Err(error), None, None) };
+                // A failed check is not a verdict: it takes ordinary validation.
+                if let Ok(outcome) = checked
+                    && self.store.sqlite_cache_revision() == Some(entry.stamp.revision)
+                {
+                    cache.hits.fetch_add(1, Ordering::Relaxed);
+                    cache.sqlite_hits.fetch_add(1, Ordering::Relaxed);
+                    return (Ok(outcome), Some(entry.stamp.head), None);
                 }
             }
             let mut locally_changed = false;

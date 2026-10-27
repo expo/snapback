@@ -66,8 +66,24 @@ impl Revision {
 impl Store {
     pub(crate) fn cached_revision(&self) -> Option<i64> { self.cache_revision.sample() }
     pub(crate) fn cache_scope(&self) -> Option<i64> {
-        (self.server && self.cache_owned && self.ownership.is_some() && self.cache_revision.wal).then_some(0)
+        (self.server && self.cache_owned && self.cache_revision.wal && self.exclusion_intact()).then_some(0)
     }
+    // @ref LLP 3000.009.001.000.002#sqlite-snapshot-reuse — deleting or replacing the sidecar or database ends exclusion; reuse fails closed.
+    /// Both paths still name the inodes this owner holds open. A held inode
+    /// cannot be reused, so a replacement never matches again.
+    #[cfg(unix)]
+    fn exclusion_intact(&self) -> bool {
+        use std::os::unix::fs::MetadataExt;
+        let (Some(owner), Some(path)) = (&self.ownership, self.conn.path().filter(|p| !p.is_empty())) else { return false };
+        let Ok(held) = owner.metadata() else { return false };
+        let path = Path::new(path);
+        std::fs::symlink_metadata(crate::private_fs::owner_path(path))
+            .is_ok_and(|m| (m.dev(), m.ino()) == (held.dev(), held.ino()))
+            && std::fs::symlink_metadata(path)
+                .is_ok_and(|m| m.is_file() && m.nlink() == 1 && Some((m.dev(), m.ino())) == self.file_identity)
+    }
+    #[cfg(not(unix))]
+    fn exclusion_intact(&self) -> bool { false }
 }
 
 #[cfg(test)]
@@ -114,6 +130,27 @@ mod tests {
         assert_eq!(a, store.reader().unwrap().cache_scope().unwrap());
         assert!(aux.cache_scope().is_none());
         drop((aux, reader, store)); std::fs::remove_dir_all(dir).unwrap();
+    }
+    #[test]
+    fn sqlite_reuse_fails_closed_when_the_sidecar_or_database_is_replaced() {
+        let (dir, store) = fixture();
+        let reader = store.reader().unwrap();
+        assert!(reader.cache_scope().is_some());
+        let sidecar = crate::private_fs::owner_path(&dir.join("store.sqlite"));
+        // A second owner may delete the sidecar and lock a fresh inode, then
+        // write around this process's commit observation.
+        std::fs::remove_file(&sidecar).unwrap();
+        assert!(reader.cache_scope().is_none() && store.cache_scope().is_none());
+        let other = crate::private_fs::owner_file(&dir.join("store.sqlite")).unwrap();
+        other.try_lock().unwrap();
+        assert!(reader.cache_scope().is_none(), "a new sidecar inode never restores exclusion");
+        drop((other, reader, store)); std::fs::remove_dir_all(&dir).unwrap();
+        let (dir, store) = fixture();
+        let database = dir.join("store.sqlite");
+        std::fs::copy(&database, dir.join("copy")).unwrap();
+        std::fs::rename(dir.join("copy"), &database).unwrap();
+        assert!(store.cache_scope().is_none(), "a restored database inode is not the observed file");
+        drop(store); std::fs::remove_dir_all(dir).unwrap();
     }
     #[test]
     fn sqlite_revision_held_snapshot_and_precommit_gap_cannot_reuse_after_commit() {
