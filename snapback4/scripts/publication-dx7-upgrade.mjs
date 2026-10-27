@@ -66,8 +66,12 @@ export async function proveDX7Upgrades(client,platform){
    writeFileSync(join(cwd,"snapback/schema.q"),intentional);
    r=await run(process.execPath,[cli,"check","--review","--json"]);assert.equal(r.status,0,r.stderr);facts=JSON.parse(r.stdout);
    assert.equal(facts.securityReviews.filter(d=>d.gated&&!d.acknowledged).length,0,"authored presence intent clears the gate");
-   const advice=facts.securityReviews.find(d=>d.code==="N_OPTIONAL_EVIDENCE"&&!d.gated&&!d.witness);assert.ok(advice,"retain a real unwitnessed advisory for the persisted-decision control");
-   r=await run(process.execPath,[cli,"check","--ack-security",advice.id,"--reason","nullable photos are intentional under the authored presence contract"]);assert.equal(r.status,0,r.stderr);
+   // @ref LLP 3000.036.004.001#sec13-required-evidence-and-time-anchors — old prose cannot acknowledge missing current evidence.
+   const optional=facts.securityReviews.find(d=>d.code==="N_OPTIONAL_EVIDENCE"&&!d.gated&&!d.witness);assert.ok(optional,"retain the legacy unwitnessed evidence fixture");
+   r=await run(process.execPath,[cli,"check","--ack-security",optional.id,"--reason","nullable photos are intentional under the authored presence contract"]);assert.equal(r.status,2,"unsupported evidence cannot be acknowledged by prose");
+   assert.match(r.stdout+r.stderr,/E_SECURITY_NOTES/);assert.match(r.stdout+r.stderr,/no evaluable current replay/);assert.equal(existsSync(join(cwd,"snapback/security-reviews.json")),false,"the rejected legacy answer publishes no decision");
+   const advice=facts.securityReviews.find(d=>d.code==="N_BROAD_READ"&&!d.gated&&!d.witness);assert.ok(advice,"retain a real non-evidence advisory for the persisted-decision control");
+   r=await run(process.execPath,[cli,"check","--ack-security",advice.id,"--reason","every signed-in reader may read these deliberately shared rows"]);assert.equal(r.status,0,r.stderr);
    const review=readFileSync(join(cwd,"snapback/security-reviews.json"));
    writeFileSync(join(cwd,"snapback/schema.q"),intentional+"table exposed:\n  owner: principal\n  read <- allow\n  online only\ninvariant exposed.read only .owner = viewer\n");
    mkdirSync(join(cwd,"fixtures"));writeFileSync(join(cwd,"fixtures/exposed.jsonl"),JSON.stringify({id:"one",owner:"dev:other"})+"\n");
