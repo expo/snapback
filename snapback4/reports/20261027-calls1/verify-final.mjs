@@ -11,7 +11,7 @@ const selected={...plan,fullSelectorPlanExecuted:false,qualification:false,
  steps:[
  step('client-build','snapback4',['bun','run','--cwd','packages/snapback4','build']),
  step('client-types','snapback4',['bun','run','--cwd','packages/snapback4','typecheck']),
- step('lang-diagnostics','snapback4',['cargo','test','-p','snapback4-lang','--lib','--test','repairs','--test','familiar_verified_repairs','--test','familiar_source_repairs','--test','guide','--','--test-threads=4']),
+ step('lang-diagnostics','snapback4',['cargo','test','-p','snapback4-lang','--lib','--test','repairs','--test','familiar_verified_repairs','--test','familiar_source_repairs','--test','guide','--test','ergonomics','--','--test-threads=4']),
  step('cli-fixer-init','snapback4',['cargo','test','-p','snapback4','--test','fix','--test','init','--','--test-threads=2','--skip','w7a_residency_measures_the_wired_500_follow_reader','--skip','w8b_residency_measures_the_wired_calibration_shape']),
  step('client-affected','snapback4',['node','scripts/run-client-tests.mjs','2','files',...clients.map(name=>`packages/snapback4/test/${name}.test.mjs`)]),
  step('proof-api','snapback4',['node','scripts/generate-proof-api.mjs','--check']),
