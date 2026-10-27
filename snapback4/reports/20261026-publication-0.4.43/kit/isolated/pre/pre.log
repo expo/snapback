@@ -1,0 +1,4355 @@
+-- client file start: packages/snapback4/test/export-failure.test.mjs; stall bound 13650000 ms
+TAP version 13
+# Subtest: installed CLI shim preserves each forwarded child termination signal
+ok 1 - installed CLI shim preserves each forwarded child termination signal
+  ---
+  duration_ms: 925.180875
+  type: 'test'
+  ...
+# Subtest: real wrapper finally preserves the previous export across interrupted and rejected publication through installed shim
+ok 2 - real wrapper finally preserves the previous export across interrupted and rejected publication through installed shim
+  ---
+  duration_ms: 15891.631708
+  type: 'test'
+  ...
+1..2
+# tests 2
+# suites 0
+# pass 2
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 17088.224584
+-- process inspection: {"snapshots":3,"unrelatedRows":12439}
+-- client file ok: packages/snapback4/test/export-failure.test.mjs (17494 ms)
+-- client file start: packages/snapback4/test/export-native.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: native fingerprint binds native, config, lock, plugin, SDK and package inputs, but not application JS
+ok 1 - native fingerprint binds native, config, lock, plugin, SDK and package inputs, but not application JS
+  ---
+  duration_ms: 1117.387375
+  type: 'test'
+  ...
+# Subtest: only opt-out and unavailable environments skip; product failures remain failures
+ok 2 - only opt-out and unavailable environments skip; product failures remain failures
+  ---
+  duration_ms: 0.152708
+  type: 'test'
+  ...
+# Subtest: npm bin symlink really exports, preserves export failure and honors opt-out
+ok 3 - npm bin symlink really exports, preserves export failure and honors opt-out
+  ---
+  duration_ms: 597.237875
+  type: 'test'
+  ...
+# Subtest: export overlay binds exact HBC/assets, preserves native bytes, and rejects missing or incompatible exports
+ok 4 - export overlay binds exact HBC/assets, preserves native bytes, and rejects missing or incompatible exports
+  ---
+  duration_ms: 22.657583
+  type: 'test'
+  ...
+# Subtest: cache rechecks consumed producer/toolchain bytes and generated native additions
+ok 5 - cache rechecks consumed producer/toolchain bytes and generated native additions
+  ---
+  duration_ms: 121.174458
+  type: 'test'
+  ...
+# Subtest: negative header topology follows SDK root aliases
+ok 6 - negative header topology follows SDK root aliases
+  ---
+  duration_ms: 1.159292
+  type: 'test'
+  ...
+# Subtest: config file references bind excluded source bytes and refuse external paths
+ok 7 - config file references bind excluded source bytes and refuse external paths
+  ---
+  duration_ms: 60.163875
+  type: 'test'
+  ...
+# Subtest: retention keeps five completed runs, compresses older receipts and leaves active runs alone
+ok 8 - retention keeps five completed runs, compresses older receipts and leaves active runs alone
+  ---
+  duration_ms: 2050.40875
+  type: 'test'
+  ...
+# Subtest: wrapper forwards both signals and waits for child cleanup before returning signal status
+ok 9 - wrapper forwards both signals and waits for child cleanup before returning signal status
+  ---
+  duration_ms: 469.641209
+  type: 'test'
+  ...
+# Subtest: react-native.config.mjs refuses through the real static preparation adapter
+ok 10 - react-native.config.mjs refuses through the real static preparation adapter
+  ---
+  duration_ms: 49.681292
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 4737.143792
+-- process inspection: {"snapshots":3,"unrelatedRows":12465}
+-- client file ok: packages/snapback4/test/export-native.test.mjs (5111 ms)
+-- client file start: packages/snapback4/test/expo-media-storage.test.mjs; stall bound 900000 ms
+TAP version 13
+# PASS new MP4 URI decodes H.264 64x48; image bytes/name and escaped paths preserved
+# PASS legacy MP4 migration through URI/read and fresh helper reopen
+# PASS both-variant interrupted writes resolve to latest bytes; format changes leave no shadow
+# PASS cleanup removes canonical and interrupted variants without resurrection
+# PASS supported MP4 recognition leaves images, unknown brands and truncated headers unchanged
+# PASS invalid IDs/hex refuse without replacing bytes; store scopes remain separate
+# PASS closed helper refuses every operation and preserves ordinary cache for reopen
+# Subtest: Expo native media storage migrates MP4 filenames, decodes their URIs, and preserves cache lifecycle
+ok 1 - Expo native media storage migrates MP4 filenames, decodes their URIs, and preserves cache lifecycle
+  ---
+  duration_ms: 1772.613958
+  type: 'test'
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 1
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1803.628583
+-- process inspection: {"snapshots":3,"unrelatedRows":12469}
+-- client file ok: packages/snapback4/test/expo-media-storage.test.mjs (2165 ms)
+-- client file start: packages/snapback4/test/export-publication.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: publisher before barrier publishes a complete identity and rejects unsafe fault requests
+ok 1 - publisher before barrier publishes a complete identity and rejects unsafe fault requests
+  ---
+  duration_ms: 425.376833
+  type: 'test'
+  ...
+# Subtest: publisher after barrier publishes a complete identity and rejects unsafe fault requests
+ok 2 - publisher after barrier publishes a complete identity and rejects unsafe fault requests
+  ---
+  duration_ms: 457.630958
+  type: 'test'
+  ...
+# Subtest: actual kernel lease survives helper and CLI shim exit; live wrapper journal and export survive pruning
+ok 3 - actual kernel lease survives helper and CLI shim exit; live wrapper journal and export survive pruning
+  ---
+  duration_ms: 648.277209
+  type: 'test'
+  ...
+# Subtest: publication refuses changed inventory and a changed proof; no success receipt
+ok 4 - publication refuses changed inventory and a changed proof; no success receipt
+  ---
+  duration_ms: 148.61525
+  type: 'test'
+  ...
+# Subtest: SIGKILL releases the actual Node wrapper lease and cleanup recovers its run
+ok 5 - SIGKILL releases the actual Node wrapper lease and cleanup recovers its run
+  ---
+  duration_ms: 603.113292
+  type: 'test'
+  ...
+# Subtest: publisher inherits custody if its Node wrapper is killed while publication is blocked
+ok 6 - publisher inherits custody if its Node wrapper is killed while publication is blocked
+  ---
+  duration_ms: 673.618833
+  type: 'test'
+  ...
+1..6
+# tests 6
+# suites 0
+# pass 6
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 3214.94025
+-- process inspection: {"snapshots":3,"unrelatedRows":12458}
+-- client file ok: packages/snapback4/test/export-publication.test.mjs (3626 ms)
+-- client file start: packages/snapback4/test/publish-linux.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: a new Darwin-only publication packs only its staged dependency and resumes
+ok 1 - a new Darwin-only publication packs only its staged dependency and resumes
+  ---
+  duration_ms: 84.35225
+  type: 'test'
+  ...
+# Subtest: a prepared two-platform client cannot enter a Darwin-only publication
+ok 2 - a prepared two-platform client cannot enter a Darwin-only publication
+  ---
+  duration_ms: 64.299167
+  type: 'test'
+  ...
+# Subtest: resume refuses a client advertising a platform outside its staged set
+ok 3 - resume refuses a client advertising a platform outside its staged set
+  ---
+  duration_ms: 73.702709
+  type: 'test'
+  ...
+# Subtest: prepare rebuilds wasm then clean client and packs it once, without signing/publishing
+ok 4 - prepare rebuilds wasm then clean client and packs it once, without signing/publishing
+  ---
+  duration_ms: 39.536959
+  type: 'test'
+  ...
+# Subtest: publish imports exact Linux bytes and publishes both platforms before the common client
+ok 5 - publish imports exact Linux bytes and publishes both platforms before the common client
+  ---
+  duration_ms: 76.625167
+  type: 'test'
+  ...
+# Subtest: resume rereads Linux receipt, verifies all bytes, reruns only Darwin, and converges missing client
+ok 6 - resume rereads Linux receipt, verifies all bytes, reruns only Darwin, and converges missing client
+  ---
+  duration_ms: 109.502583
+  type: 'test'
+  ...
+# Subtest: a fresh stage swapped after proof refuses before any upload: platform.tgz
+ok 7 - a fresh stage swapped after proof refuses before any upload: platform.tgz
+  ---
+  duration_ms: 73.858
+  type: 'test'
+  ...
+# Subtest: a resumed stage swapped after proof refuses before any upload: platform.tgz
+ok 8 - a resumed stage swapped after proof refuses before any upload: platform.tgz
+  ---
+  duration_ms: 102.301708
+  type: 'test'
+  ...
+# Subtest: a fresh stage swapped after proof refuses before any upload: snapback4-linux-x64-0.0.0.tgz
+ok 9 - a fresh stage swapped after proof refuses before any upload: snapback4-linux-x64-0.0.0.tgz
+  ---
+  duration_ms: 71.693125
+  type: 'test'
+  ...
+# Subtest: a resumed stage swapped after proof refuses before any upload: snapback4-linux-x64-0.0.0.tgz
+ok 10 - a resumed stage swapped after proof refuses before any upload: snapback4-linux-x64-0.0.0.tgz
+  ---
+  duration_ms: 115.480375
+  type: 'test'
+  ...
+# Subtest: a fresh stage swapped after proof refuses before any upload: client.tgz
+ok 11 - a fresh stage swapped after proof refuses before any upload: client.tgz
+  ---
+  duration_ms: 71.008459
+  type: 'test'
+  ...
+# Subtest: a resumed stage swapped after proof refuses before any upload: client.tgz
+ok 12 - a resumed stage swapped after proof refuses before any upload: client.tgz
+  ---
+  duration_ms: 112.471708
+  type: 'test'
+  ...
+# Subtest: registry-time stage replacement cannot change the private uploaded snapshot
+ok 13 - registry-time stage replacement cannot change the private uploaded snapshot
+  ---
+  duration_ms: 82.412375
+  type: 'test'
+  ...
+# Subtest: snapshot bytes are checked again after registry checks and before upload
+ok 14 - snapshot bytes are checked again after registry checks and before upload
+  ---
+  duration_ms: 81.924833
+  type: 'test'
+  ...
+# Subtest: import re-derives not ELF from packed bytes despite a matching receipt claiming static ELF
+ok 15 - import re-derives not ELF from packed bytes despite a matching receipt claiming static ELF
+  ---
+  duration_ms: 76.174291
+  type: 'test'
+  ...
+# Subtest: import re-derives interpreter from packed bytes despite a matching receipt claiming static ELF
+ok 16 - import re-derives interpreter from packed bytes despite a matching receipt claiming static ELF
+  ---
+  duration_ms: 69.670917
+  type: 'test'
+  ...
+# Subtest: import re-derives NEEDED from packed bytes despite a matching receipt claiming static ELF
+ok 17 - import re-derives NEEDED from packed bytes despite a matching receipt claiming static ELF
+  ---
+  duration_ms: 73.274625
+  type: 'test'
+  ...
+# Subtest: staging refuses mismatched Linux source before signing or registry writes
+ok 18 - staging refuses mismatched Linux source before signing or registry writes
+  ---
+  duration_ms: 78.021041
+  type: 'test'
+  ...
+# Subtest: staging refuses mismatched Linux version before signing or registry writes
+ok 19 - staging refuses mismatched Linux version before signing or registry writes
+  ---
+  duration_ms: 71.17225
+  type: 'test'
+  ...
+# Subtest: staging refuses mismatched Linux target before signing or registry writes
+ok 20 - staging refuses mismatched Linux target before signing or registry writes
+  ---
+  duration_ms: 66.8905
+  type: 'test'
+  ...
+# Subtest: staging refuses mismatched Linux compiler before signing or registry writes
+ok 21 - staging refuses mismatched Linux compiler before signing or registry writes
+  ---
+  duration_ms: 64.513416
+  type: 'test'
+  ...
+# Subtest: staging refuses mismatched Linux static CRT flags before signing or registry writes
+ok 22 - staging refuses mismatched Linux static CRT flags before signing or registry writes
+  ---
+  duration_ms: 68.2005
+  type: 'test'
+  ...
+# Subtest: staging refuses mismatched Linux SQLite flags before signing or registry writes
+ok 23 - staging refuses mismatched Linux SQLite flags before signing or registry writes
+  ---
+  duration_ms: 69.5535
+  type: 'test'
+  ...
+# Subtest: staging refuses mismatched Linux suite before signing or registry writes
+ok 24 - staging refuses mismatched Linux suite before signing or registry writes
+  ---
+  duration_ms: 65.032083
+  type: 'test'
+  ...
+# Subtest: staging refuses mismatched Linux suite exit before signing or registry writes
+ok 25 - staging refuses mismatched Linux suite exit before signing or registry writes
+  ---
+  duration_ms: 67.032709
+  type: 'test'
+  ...
+# Subtest: staging refuses mismatched Linux suite summary before signing or registry writes
+ok 26 - staging refuses mismatched Linux suite summary before signing or registry writes
+  ---
+  duration_ms: 68.227959
+  type: 'test'
+  ...
+# Subtest: staging refuses mismatched Linux client SRI before signing or registry writes
+ok 27 - staging refuses mismatched Linux client SRI before signing or registry writes
+  ---
+  duration_ms: 77.356083
+  type: 'test'
+  ...
+# Subtest: staging refuses mismatched Linux platform SRI before signing or registry writes
+ok 28 - staging refuses mismatched Linux platform SRI before signing or registry writes
+  ---
+  duration_ms: 70.598458
+  type: 'test'
+  ...
+# Subtest: staging refuses mismatched Linux Ubuntu proof before signing or registry writes
+ok 29 - staging refuses mismatched Linux Ubuntu proof before signing or registry writes
+  ---
+  duration_ms: 72.030334
+  type: 'test'
+  ...
+# Subtest: staging refuses mismatched Linux Alpine proof before signing or registry writes
+ok 30 - staging refuses mismatched Linux Alpine proof before signing or registry writes
+  ---
+  duration_ms: 70.750583
+  type: 'test'
+  ...
+# Subtest: staging refuses mismatched Linux Node pin before signing or registry writes
+ok 31 - staging refuses mismatched Linux Node pin before signing or registry writes
+  ---
+  duration_ms: 75.044458
+  type: 'test'
+  ...
+# Subtest: staging refuses mismatched Linux missing Expo artifact before signing or registry writes
+ok 32 - staging refuses mismatched Linux missing Expo artifact before signing or registry writes
+  ---
+  duration_ms: 71.584167
+  type: 'test'
+  ...
+# Subtest: staging refuses mismatched Linux Expo SRI before signing or registry writes
+ok 33 - staging refuses mismatched Linux Expo SRI before signing or registry writes
+  ---
+  duration_ms: 69.579042
+  type: 'test'
+  ...
+# Subtest: staging refuses mismatched Linux missing starter proof before signing or registry writes
+ok 34 - staging refuses mismatched Linux missing starter proof before signing or registry writes
+  ---
+  duration_ms: 70.877667
+  type: 'test'
+  ...
+# Subtest: staging refuses mismatched Linux Expo export before signing or registry writes
+ok 35 - staging refuses mismatched Linux Expo export before signing or registry writes
+  ---
+  duration_ms: 72.165167
+  type: 'test'
+  ...
+# Subtest: staging refuses mismatched Linux web build before signing or registry writes
+ok 36 - staging refuses mismatched Linux web build before signing or registry writes
+  ---
+  duration_ms: 69.926625
+  type: 'test'
+  ...
+# Subtest: staging refuses mismatched Linux adapted build before signing or registry writes
+ok 37 - staging refuses mismatched Linux adapted build before signing or registry writes
+  ---
+  duration_ms: 70.502125
+  type: 'test'
+  ...
+# Subtest: staging refuses mismatched Linux template builds before signing or registry writes
+ok 38 - staging refuses mismatched Linux template builds before signing or registry writes
+  ---
+  duration_ms: 68.876
+  type: 'test'
+  ...
+# Subtest: staging refuses mismatched Linux proof Expo before signing or registry writes
+ok 39 - staging refuses mismatched Linux proof Expo before signing or registry writes
+  ---
+  duration_ms: 62.98725
+  type: 'test'
+  ...
+# Subtest: staging refuses mismatched Linux proof client before signing or registry writes
+ok 40 - staging refuses mismatched Linux proof client before signing or registry writes
+  ---
+  duration_ms: 67.293
+  type: 'test'
+  ...
+# Subtest: staging refuses mismatched Linux proof platform before signing or registry writes
+ok 41 - staging refuses mismatched Linux proof platform before signing or registry writes
+  ---
+  duration_ms: 65.143666
+  type: 'test'
+  ...
+# Subtest: staging refuses mismatched Linux ELF interpreter before signing or registry writes
+ok 42 - staging refuses mismatched Linux ELF interpreter before signing or registry writes
+  ---
+  duration_ms: 61.520625
+  type: 'test'
+  ...
+# Subtest: staging refuses mismatched Linux ELF NEEDED before signing or registry writes
+ok 43 - staging refuses mismatched Linux ELF NEEDED before signing or registry writes
+  ---
+  duration_ms: 62.669958
+  type: 'test'
+  ...
+# Subtest: staging refuses mismatched Linux binary sha256 before signing or registry writes
+ok 44 - staging refuses mismatched Linux binary sha256 before signing or registry writes
+  ---
+  duration_ms: 64.3355
+  type: 'test'
+  ...
+# Subtest: resume refuses tampered platform.tgz
+ok 45 - resume refuses tampered platform.tgz
+  ---
+  duration_ms: 106.411833
+  type: 'test'
+  ...
+# Subtest: resume refuses tampered snapback4-linux-x64-0.0.0.tgz
+ok 46 - resume refuses tampered snapback4-linux-x64-0.0.0.tgz
+  ---
+  duration_ms: 102.398166
+  type: 'test'
+  ...
+# Subtest: resume refuses tampered client.tgz
+ok 47 - resume refuses tampered client.tgz
+  ---
+  duration_ms: 104.086667
+  type: 'test'
+  ...
+# Subtest: resume refuses tampered linux-receipt.json
+ok 48 - resume refuses tampered linux-receipt.json
+  ---
+  duration_ms: 108.800083
+  type: 'test'
+  ...
+# Subtest: resume validates Linux qualification even when receipt integrity is updated
+ok 49 - resume validates Linux qualification even when receipt integrity is updated
+  ---
+  duration_ms: 102.680667
+  type: 'test'
+  ...
+# Subtest: registry conflict on snapback4-linux-x64 refuses before publishing either platform
+ok 50 - registry conflict on snapback4-linux-x64 refuses before publishing either platform
+  ---
+  duration_ms: 78.011833
+  type: 'test'
+  ...
+# Subtest: registry conflict on snapback4 refuses before publishing either platform
+ok 51 - registry conflict on snapback4 refuses before publishing either platform
+  ---
+  duration_ms: 72.572875
+  type: 'test'
+  ...
+# Subtest: packed optionalDependencies refuse {"snapback4-darwin-arm64":"0.0.0"}
+ok 52 - packed optionalDependencies refuse {"snapback4-darwin-arm64":"0.0.0"}
+  ---
+  duration_ms: 38.4015
+  type: 'test'
+  ...
+# Subtest: packed optionalDependencies refuse {"snapback4-darwin-arm64":"0.0.0","snapback4-linux-x64":"0.0.1"}
+ok 53 - packed optionalDependencies refuse {"snapback4-darwin-arm64":"0.0.0","snapback4-linux-x64":"0.0.1"}
+  ---
+  duration_ms: 37.013625
+  type: 'test'
+  ...
+# Subtest: packed optionalDependencies refuse {"snapback4-darwin-arm64":"0.0.0","snapback4-linux-x64":"0.0.0","snapback4-linux-arm64":"0.0.0"}
+ok 54 - packed optionalDependencies refuse {"snapback4-darwin-arm64":"0.0.0","snapback4-linux-x64":"0.0.0","snapback4-linux-arm64":"0.0.0"}
+  ---
+  duration_ms: 35.283667
+  type: 'test'
+  ...
+# Subtest: new stage refuses dirty source and a prepared client from another commit
+ok 55 - new stage refuses dirty source and a prepared client from another commit
+  ---
+  duration_ms: 97.855375
+  type: 'test'
+  ...
+# Subtest: format-2 layout with retained Expo proof bytes resumes without a Linux receipt
+ok 56 - format-2 layout with retained Expo proof bytes resumes without a Linux receipt
+  ---
+  duration_ms: 84.293792
+  type: 'test'
+  ...
+# Subtest: historical stages without Expo proof bytes refuse without deleting artifacts or uploading
+ok 57 - historical stages without Expo proof bytes refuse without deleting artifacts or uploading
+  ---
+  duration_ms: 71.59875
+  type: 'test'
+  ...
+# Subtest: publication refuses an announced flag missing from verb help before any upload
+ok 58 - publication refuses an announced flag missing from verb help before any upload
+  ---
+  duration_ms: 37.070334
+  type: 'test'
+  ...
+# Subtest: resume checks installed help against the installed changelog before uploads
+ok 59 - resume checks installed help against the installed changelog before uploads
+  ---
+  duration_ms: 69.836833
+  type: 'test'
+  ...
+1..59
+# tests 59
+# suites 0
+# pass 59
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 4431.627541
+-- process inspection: {"snapshots":3,"unrelatedRows":12441}
+-- client file ok: packages/snapback4/test/publish-linux.test.mjs (4808 ms)
+-- client file start: packages/snapback4/test/sync-generation.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: the legacy refusal constant matches the published 0.2.32 capture
+ok 1 - the legacy refusal constant matches the published 0.2.32 capture
+  ---
+  duration_ms: 0.770166
+  type: 'test'
+  ...
+# Subtest: wasm: early generation adoption preserves unsent writes, known and lost acknowledgements
+ok 2 - wasm: early generation adoption preserves unsent writes, known and lost acknowledgements
+  ---
+  duration_ms: 734.234167
+  type: 'test'
+  ...
+# Subtest: process: early generation adoption preserves unsent writes, known and lost acknowledgements
+ok 3 - process: early generation adoption preserves unsent writes, known and lost acknowledgements
+  ---
+  duration_ms: 631.870292
+  type: 'test'
+  ...
+# Subtest: legacy fallback returns the distinct successful retry and latches only its origin and transport
+ok 4 - legacy fallback returns the distinct successful retry and latches only its origin and transport
+  ---
+  duration_ms: 2.71375
+  type: 'test'
+  ...
+# Subtest: legacy fallback does not latch on same E_INPUT
+ok 5 - legacy fallback does not latch on same E_INPUT
+  ---
+  duration_ms: 0.439375
+  type: 'test'
+  ...
+# Subtest: legacy fallback does not latch on throw
+ok 6 - legacy fallback does not latch on throw
+  ---
+  duration_ms: 0.836292
+  type: 'test'
+  ...
+# Subtest: legacy fallback does not latch on 503
+ok 7 - legacy fallback does not latch on 503
+  ---
+  duration_ms: 0.323875
+  type: 'test'
+  ...
+# Subtest: legacy fallback does not latch on 429
+ok 8 - legacy fallback does not latch on 429
+  ---
+  duration_ms: 0.246334
+  type: 'test'
+  ...
+# Subtest: legacy fallback does not latch on 401
+ok 9 - legacy fallback does not latch on 401
+  ---
+  duration_ms: 0.204792
+  type: 'test'
+  ...
+# Subtest: legacy fallback does not latch on 408
+ok 10 - legacy fallback does not latch on 408
+  ---
+  duration_ms: 0.255334
+  type: 'test'
+  ...
+# Subtest: legacy fallback captures each overlapping attempt and waits for successful retry before latching
+ok 11 - legacy fallback captures each overlapping attempt and waits for successful retry before latching
+  ---
+  duration_ms: 3.136333
+  type: 'test'
+  ...
+# Subtest: legacy fallback ignores other refusals and never retries an attempt without generation
+ok 12 - legacy fallback ignores other refusals and never retries an attempt without generation
+  ---
+  duration_ms: 1.108958
+  type: 'test'
+  ...
+# Subtest: legacy fallback ignores the current server's bad-cursor, bad-limit and bad-pending-id refusals
+ok 13 - legacy fallback ignores the current server's bad-cursor, bad-limit and bad-pending-id refusals
+  ---
+  duration_ms: 276.677625
+  type: 'test'
+  ...
+# Subtest: legacy fallback accepts relative URL /api/sync with document base without rewriting fetch
+ok 14 - legacy fallback accepts relative URL /api/sync with document base without rewriting fetch
+  ---
+  duration_ms: 1.106208
+  type: 'test'
+  ...
+# Subtest: legacy fallback accepts relative URL //host/api/sync with document base without rewriting fetch
+ok 15 - legacy fallback accepts relative URL //host/api/sync with document base without rewriting fetch
+  ---
+  duration_ms: 0.76575
+  type: 'test'
+  ...
+# Subtest: legacy fallback accepts relative URL https://host/api/sync with document base without rewriting fetch
+ok 16 - legacy fallback accepts relative URL https://host/api/sync with document base without rewriting fetch
+  ---
+  duration_ms: 0.510042
+  type: 'test'
+  ...
+# Subtest: legacy fallback accepts relative URL /api/sync with location base without rewriting fetch
+ok 17 - legacy fallback accepts relative URL /api/sync with location base without rewriting fetch
+  ---
+  duration_ms: 0.398916
+  type: 'test'
+  ...
+# Subtest: legacy fallback accepts relative URL //host/api/sync with location base without rewriting fetch
+ok 18 - legacy fallback accepts relative URL //host/api/sync with location base without rewriting fetch
+  ---
+  duration_ms: 0.319417
+  type: 'test'
+  ...
+# Subtest: legacy fallback accepts relative URL https://host/api/sync with location base without rewriting fetch
+ok 19 - legacy fallback accepts relative URL https://host/api/sync with location base without rewriting fetch
+  ---
+  duration_ms: 0.387
+  type: 'test'
+  ...
+# Subtest: legacy fallback accepts relative URL /api/sync with none base without rewriting fetch
+ok 20 - legacy fallback accepts relative URL /api/sync with none base without rewriting fetch
+  ---
+  duration_ms: 0.547792
+  type: 'test'
+  ...
+# Subtest: legacy fallback accepts relative URL //host/api/sync with none base without rewriting fetch
+ok 21 - legacy fallback accepts relative URL //host/api/sync with none base without rewriting fetch
+  ---
+  duration_ms: 0.330875
+  type: 'test'
+  ...
+# Subtest: legacy fallback accepts relative URL https://host/api/sync with none base without rewriting fetch
+ok 22 - legacy fallback accepts relative URL https://host/api/sync with none base without rewriting fetch
+  ---
+  duration_ms: 0.455459
+  type: 'test'
+  ...
+# Subtest: new client syncs against the actual 0.2.32 server's deny_unknown_fields request contract
+ok 23 - new client syncs against the actual 0.2.32 server's deny_unknown_fields request contract # SKIP set SNAPBACK4_LEGACY_BIN to the published 0.2.32 binary
+  ---
+  duration_ms: 0.080458
+  type: 'test'
+  ...
+# Subtest: wasm: early generation head preserves restore evidence from deferred stream
+ok 24 - wasm: early generation head preserves restore evidence from deferred stream
+  ---
+  duration_ms: 680.785208
+  type: 'test'
+  ...
+# Subtest: wasm: early generation head preserves restore evidence from staged snapshot
+ok 25 - wasm: early generation head preserves restore evidence from staged snapshot
+  ---
+  duration_ms: 1038.777459
+  type: 'test'
+  ...
+# Subtest: process: early generation head preserves restore evidence from deferred stream
+ok 26 - process: early generation head preserves restore evidence from deferred stream
+  ---
+  duration_ms: 536.841792
+  type: 'test'
+  ...
+# Subtest: process: early generation head preserves restore evidence from staged snapshot
+ok 27 - process: early generation head preserves restore evidence from staged snapshot
+  ---
+  duration_ms: 674.59075
+  type: 'test'
+  ...
+# Subtest: wasm: early head 20 and ordinary page decide deferred stream evidence identically
+ok 28 - wasm: early head 20 and ordinary page decide deferred stream evidence identically
+  ---
+  duration_ms: 1496.026167
+  type: 'test'
+  ...
+# Subtest: wasm: early head 25 and ordinary page decide deferred stream evidence identically
+ok 29 - wasm: early head 25 and ordinary page decide deferred stream evidence identically
+  ---
+  duration_ms: 1139.157833
+  type: 'test'
+  ...
+# Subtest: wasm: missing early watermark preserves deferred stream evidence until a headed retry
+ok 30 - wasm: missing early watermark preserves deferred stream evidence until a headed retry
+  ---
+  duration_ms: 775.940125
+  type: 'test'
+  ...
+# Subtest: wasm: early head 20 and ordinary page decide staged snapshot evidence identically
+ok 31 - wasm: early head 20 and ordinary page decide staged snapshot evidence identically
+  ---
+  duration_ms: 1159.118792
+  type: 'test'
+  ...
+# Subtest: wasm: early head 25 and ordinary page decide staged snapshot evidence identically
+ok 32 - wasm: early head 25 and ordinary page decide staged snapshot evidence identically
+  ---
+  duration_ms: 999.124208
+  type: 'test'
+  ...
+# Subtest: wasm: missing early watermark preserves staged snapshot evidence until a headed retry
+ok 33 - wasm: missing early watermark preserves staged snapshot evidence until a headed retry
+  ---
+  duration_ms: 596.1025
+  type: 'test'
+  ...
+# Subtest: process: early head 20 and ordinary page decide deferred stream evidence identically
+ok 34 - process: early head 20 and ordinary page decide deferred stream evidence identically
+  ---
+  duration_ms: 874.272959
+  type: 'test'
+  ...
+# Subtest: process: early head 25 and ordinary page decide deferred stream evidence identically
+ok 35 - process: early head 25 and ordinary page decide deferred stream evidence identically
+  ---
+  duration_ms: 841.877792
+  type: 'test'
+  ...
+# Subtest: process: missing early watermark preserves deferred stream evidence until a headed retry
+ok 36 - process: missing early watermark preserves deferred stream evidence until a headed retry
+  ---
+  duration_ms: 544.726125
+  type: 'test'
+  ...
+# Subtest: process: early head 20 and ordinary page decide staged snapshot evidence identically
+ok 37 - process: early head 20 and ordinary page decide staged snapshot evidence identically
+  ---
+  duration_ms: 843.544375
+  type: 'test'
+  ...
+# Subtest: process: early head 25 and ordinary page decide staged snapshot evidence identically
+ok 38 - process: early head 25 and ordinary page decide staged snapshot evidence identically
+  ---
+  duration_ms: 791.480958
+  type: 'test'
+  ...
+# Subtest: process: missing early watermark preserves staged snapshot evidence until a headed retry
+ok 39 - process: missing early watermark preserves staged snapshot evidence until a headed retry
+  ---
+  duration_ms: 548.284791
+  type: 'test'
+  ...
+# Subtest: wasm: invalid early heads are retryable and never reach observation or adoption
+ok 40 - wasm: invalid early heads are retryable and never reach observation or adoption
+  ---
+  duration_ms: 414.615542
+  type: 'test'
+  ...
+# Subtest: process: invalid early heads are retryable and never reach observation or adoption
+ok 41 - process: invalid early heads are retryable and never reach observation or adoption
+  ---
+  duration_ms: 219.881083
+  type: 'test'
+  ...
+# Subtest: wasm: actual engine headers and typed incompatibility retain queued writes
+ok 42 - wasm: actual engine headers and typed incompatibility retain queued writes
+  ---
+  duration_ms: 481.289833
+  type: 'test'
+  ...
+# Subtest: process: actual engine headers and typed incompatibility retain queued writes
+ok 43 - process: actual engine headers and typed incompatibility retain queued writes
+  ---
+  duration_ms: 242.499125
+  type: 'test'
+  ...
+# Subtest: runtime schema compatibility refusal publishes status and preserves pending arguments
+ok 44 - runtime schema compatibility refusal publishes status and preserves pending arguments
+  ---
+  duration_ms: 222.256708
+  type: 'test'
+  ...
+# Subtest: a settled observer is notified when sync becomes incompatible
+ok 45 - a settled observer is notified when sync becomes incompatible
+  ---
+  duration_ms: 238.174125
+  type: 'test'
+  ...
+# Subtest: process: held sync stops installing pages after poll incompatibility
+ok 46 - process: held sync stops installing pages after poll incompatibility
+  ---
+  duration_ms: 286.555333
+  type: 'test'
+  ...
+# Subtest: wasm: held sync stops installing pages after poll incompatibility
+ok 47 - wasm: held sync stops installing pages after poll incompatibility
+  ---
+  duration_ms: 431.504333
+  type: 'test'
+  ...
+# Subtest: process: query admission retry stops on poll incompatibility
+ok 48 - process: query admission retry stops on poll incompatibility
+  ---
+  duration_ms: 220.0905
+  type: 'test'
+  ...
+# Subtest: wasm: query admission retry stops on poll incompatibility
+ok 49 - wasm: query admission retry stops on poll incompatibility
+  ---
+  duration_ms: 591.889375
+  type: 'test'
+  ...
+# Subtest: online host events do not probe behind the permanent incompatibility barrier
+ok 50 - online host events do not probe behind the permanent incompatibility barrier
+  ---
+  duration_ms: 321.1675
+  type: 'test'
+  ...
+# Subtest: process: sync incompatibility cancels an already held changes poll
+ok 51 - process: sync incompatibility cancels an already held changes poll
+  ---
+  duration_ms: 257.917833
+  type: 'test'
+  ...
+# Subtest: wasm: sync incompatibility cancels an already held changes poll
+ok 52 - wasm: sync incompatibility cancels an already held changes poll
+  ---
+  duration_ms: 441.560208
+  type: 'test'
+  ...
+1..52
+# tests 52
+# suites 0
+# pass 51
+# fail 0
+# cancelled 0
+# skipped 1
+# todo 0
+# duration_ms 19722.678417
+-- process inspection: {"snapshots":4,"unrelatedRows":16575}
+-- client file ok: packages/snapback4/test/sync-generation.test.mjs (20174 ms)
+-- client file start: packages/snapback4/test/qualify-linux.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: qualification refuses darwin-arm64 before invoking tools
+ok 1 - qualification refuses darwin-arm64 before invoking tools
+  ---
+  duration_ms: 35.699334
+  type: 'test'
+  ...
+# Subtest: qualification refuses linux-arm64 before invoking tools
+ok 2 - qualification refuses linux-arm64 before invoking tools
+  ---
+  duration_ms: 35.518333
+  type: 'test'
+  ...
+# Subtest: Linux qualification receipt binds source, toolchain, suite, both container proofs, ELF and both digests
+ok 3 - Linux qualification receipt binds source, toolchain, suite, both container proofs, ELF and both digests
+  ---
+  duration_ms: 2003.353625
+  type: 'test'
+  ...
+# Subtest: full qualification refuses productionFail without success evidence
+ok 4 - full qualification refuses productionFail without success evidence
+  ---
+  duration_ms: 50.472375
+  type: 'test'
+  ...
+# Subtest: full qualification refuses clientRecipesFail without success evidence
+ok 5 - full qualification refuses clientRecipesFail without success evidence
+  ---
+  duration_ms: 56.011167
+  type: 'test'
+  ...
+# Subtest: consumer-only qualification refuses productionFail without success evidence
+ok 6 - consumer-only qualification refuses productionFail without success evidence
+  ---
+  duration_ms: 49.612459
+  type: 'test'
+  ...
+# Subtest: consumer-only qualification refuses clientRecipesFail without success evidence
+ok 7 - consumer-only qualification refuses clientRecipesFail without success evidence
+  ---
+  duration_ms: 476.87325
+  type: 'test'
+  ...
+# Subtest: full qualification refuses dx7Fail before recording success
+ok 8 - full qualification refuses dx7Fail before recording success
+  ---
+  duration_ms: 60.017834
+  type: 'test'
+  ...
+# Subtest: full qualification refuses dx8Fail before recording success
+ok 9 - full qualification refuses dx8Fail before recording success
+  ---
+  duration_ms: 49.485459
+  type: 'test'
+  ...
+# Subtest: full qualification refuses releaseTransitionsFail before recording success
+ok 10 - full qualification refuses releaseTransitionsFail before recording success
+  ---
+  duration_ms: 51.907833
+  type: 'test'
+  ...
+# Subtest: full qualification refuses migrationsFail before recording success
+ok 11 - full qualification refuses migrationsFail before recording success
+  ---
+  duration_ms: 50.112458
+  type: 'test'
+  ...
+# Subtest: consumer-only qualification refuses dx7Fail before recording success
+ok 12 - consumer-only qualification refuses dx7Fail before recording success
+  ---
+  duration_ms: 48.448625
+  type: 'test'
+  ...
+# Subtest: consumer-only qualification refuses dx8Fail before recording success
+ok 13 - consumer-only qualification refuses dx8Fail before recording success
+  ---
+  duration_ms: 49.823375
+  type: 'test'
+  ...
+# Subtest: consumer-only qualification refuses releaseTransitionsFail before recording success
+ok 14 - consumer-only qualification refuses releaseTransitionsFail before recording success
+  ---
+  duration_ms: 50.009458
+  type: 'test'
+  ...
+# Subtest: consumer-only qualification refuses migrationsFail before recording success
+ok 15 - consumer-only qualification refuses migrationsFail before recording success
+  ---
+  duration_ms: 50.01325
+  type: 'test'
+  ...
+# Subtest: Cargo receives the SQLite flags and redirected CARGO_TARGET_DIR packs the binary just built
+ok 16 - Cargo receives the SQLite flags and redirected CARGO_TARGET_DIR packs the binary just built
+  ---
+  duration_ms: 2073.342125
+  type: 'test'
+  ...
+# Subtest: qualification never writes a success receipt on {"suiteFail":true}
+ok 17 - qualification never writes a success receipt on {"suiteFail":true}
+  ---
+  duration_ms: 1366.465334
+  type: 'test'
+  ...
+# Subtest: qualification never writes a success receipt on {"proofFail":true}
+ok 18 - qualification never writes a success receipt on {"proofFail":true}
+  ---
+  duration_ms: 649.058667
+  type: 'test'
+  ...
+# Subtest: qualification never writes a success receipt on {"interpreter":true}
+ok 19 - qualification never writes a success receipt on {"interpreter":true}
+  ---
+  duration_ms: 38.789166
+  type: 'test'
+  ...
+# Subtest: qualification never writes a success receipt on {"noRuntime":true}
+ok 20 - qualification never writes a success receipt on {"noRuntime":true}
+  ---
+  duration_ms: 57.446458
+  type: 'test'
+  ...
+# Subtest: qualification never writes a success receipt on {"proot":true,"proofFail":true}
+ok 21 - qualification never writes a success receipt on {"proot":true,"proofFail":true}
+  ---
+  duration_ms: 735.144833
+  type: 'test'
+  ...
+# Subtest: qualification never writes a success receipt on {"proot":true,"suiteFail":true}
+ok 22 - qualification never writes a success receipt on {"proot":true,"suiteFail":true}
+  ---
+  duration_ms: 1429.007292
+  type: 'test'
+  ...
+# Subtest: container executes the proof guard and propagates proofFail without a receipt
+ok 23 - container executes the proof guard and propagates proofFail without a receipt
+  ---
+  duration_ms: 703.912375
+  type: 'test'
+  ...
+# Subtest: container executes the proof guard and propagates startersFail without a receipt
+ok 24 - container executes the proof guard and propagates startersFail without a receipt
+  ---
+  duration_ms: 53.060375
+  type: 'test'
+  ...
+# Subtest: container executes the proof guard and propagates overridePresent without a receipt
+ok 25 - container executes the proof guard and propagates overridePresent without a receipt
+  ---
+  duration_ms: 61.814292
+  type: 'test'
+  ...
+# Subtest: container executes the proof guard and propagates wrongNode without a receipt
+ok 26 - container executes the proof guard and propagates wrongNode without a receipt
+  ---
+  duration_ms: 243.46475
+  type: 'test'
+  ...
+# Subtest: proot executes the proof guard and propagates proofFail without a receipt
+ok 27 - proot executes the proof guard and propagates proofFail without a receipt
+  ---
+  duration_ms: 723.069958
+  type: 'test'
+  ...
+# Subtest: proot executes the proof guard and propagates startersFail without a receipt
+ok 28 - proot executes the proof guard and propagates startersFail without a receipt
+  ---
+  duration_ms: 54.230709
+  type: 'test'
+  ...
+# Subtest: proot executes the proof guard and propagates overridePresent without a receipt
+ok 29 - proot executes the proof guard and propagates overridePresent without a receipt
+  ---
+  duration_ms: 61.538083
+  type: 'test'
+  ...
+# Subtest: proot executes the proof guard and propagates wrongNode without a receipt
+ok 30 - proot executes the proof guard and propagates wrongNode without a receipt
+  ---
+  duration_ms: 249.971417
+  type: 'test'
+  ...
+# Subtest: runtime selection prefers working Docker then Podman and falls back to proot
+ok 31 - runtime selection prefers working Docker then Podman and falls back to proot
+  ---
+  duration_ms: 0.13975
+  type: 'test'
+  ...
+# Subtest: pinned download and cached bytes refuse mismatch, with no network
+ok 32 - pinned download and cached bytes refuse mismatch, with no network
+  ---
+  duration_ms: 1.783417
+  type: 'test'
+  ...
+# Subtest: proot binds only disposable inputs, scratch and three devices, with an allowlisted environment
+ok 33 - proot binds only disposable inputs, scratch and three devices, with an allowlisted environment
+  ---
+  duration_ms: 0.156625
+  type: 'test'
+  ...
+# Subtest: proot invocations use exactly the allowlist despite host sentinels, and bind receipt provenance
+ok 34 - proot invocations use exactly the allowlist despite host sentinels, and bind receipt provenance
+  ---
+  duration_ms: 1606.323583
+  type: 'test'
+  ...
+# Subtest: toolchain command custody accepts only zero exits and survives spawn failure
+ok 35 - toolchain command custody accepts only zero exits and survives spawn failure
+  ---
+  duration_ms: 371.419
+  type: 'test'
+  ...
+# Subtest: toolchain timeout kills a TERM-ignoring driver and grandchild without a numeric signal from the runner
+ok 36 - toolchain timeout kills a TERM-ignoring driver and grandchild without a numeric signal from the runner
+  ---
+  duration_ms: 677.652833
+  type: 'test'
+  ...
+# Subtest: failed generated frontend proof prevents a Linux qualification receipt
+ok 37 - failed generated frontend proof prevents a Linux qualification receipt
+  ---
+  duration_ms: 85.703208
+  type: 'test'
+  ...
+# Subtest: imported loaded-host proof evidence cannot omit a failed or repeated attempt
+ok 38 - imported loaded-host proof evidence cannot omit a failed or repeated attempt
+  ---
+  duration_ms: 0.433833
+  type: 'test'
+  ...
+# Subtest: consumer-only container proves packed starters without a suite receipt
+ok 39 - consumer-only container proves packed starters without a suite receipt
+  ---
+  duration_ms: 1411.431709
+  type: 'test'
+  ...
+# Subtest: consumer-only proot proves packed starters without a suite receipt
+ok 40 - consumer-only proot proves packed starters without a suite receipt
+  ---
+  duration_ms: 1468.584459
+  type: 'test'
+  ...
+# Subtest: consumer-only refuses a failed packed starter without evidence or receipt
+ok 41 - consumer-only refuses a failed packed starter without evidence or receipt
+  ---
+  duration_ms: 53.073917
+  type: 'test'
+  ...
+# Subtest: starter toolchain evidence requires the full frontend matrix and adapted Home twice
+ok 42 - starter toolchain evidence requires the full frontend matrix and adapted Home twice
+  ---
+  duration_ms: 0.29275
+  type: 'test'
+  ...
+# Subtest: listener trace covers short-lived TCP listeners and refuses unresolved, unfinished and out-of-range calls
+ok 43 - listener trace covers short-lived TCP listeners and refuses unresolved, unfinished and out-of-range calls
+  ---
+  duration_ms: 0.769958
+  type: 'test'
+  ...
+# Actual syscall tracing is Linux-only
+# Subtest: missing supported listener tracer refuses qualification before any build
+ok 44 - missing supported listener tracer refuses qualification before any build
+  ---
+  duration_ms: 37.61175
+  type: 'test'
+  ...
+# Subtest: listener tracer preflight rejects obsolete or malformed decoder versions
+ok 45 - listener tracer preflight rejects obsolete or malformed decoder versions
+  ---
+  duration_ms: 269.303917
+  type: 'test'
+  ...
+# Subtest: listener evidence refuses malformed named records and empty or incomplete audits
+ok 46 - listener evidence refuses malformed named records and empty or incomplete audits
+  ---
+  duration_ms: 1.158792
+  type: 'test'
+  ...
+# Subtest: every clean distribution can execute the Node 24 worker contract
+ok 47 - every clean distribution can execute the Node 24 worker contract
+  ---
+  duration_ms: 0.040542
+  type: 'test'
+  ...
+# Subtest: packed rules refusal prevents qualification receipt
+ok 48 - packed rules refusal prevents qualification receipt
+  ---
+  duration_ms: 55.363625
+  type: 'test'
+  ...
+# Subtest: packed rules refusal prevents consumer evidence
+ok 49 - packed rules refusal prevents consumer evidence
+  ---
+  duration_ms: 52.890292
+  type: 'test'
+  ...
+# Subtest: DAY5 packed guide failure blocks full qualification
+ok 50 - DAY5 packed guide failure blocks full qualification
+  ---
+  duration_ms: 51.092208
+  type: 'test'
+  ...
+# Subtest: DAY5 packed guide failure blocks consumer qualification
+ok 51 - DAY5 packed guide failure blocks consumer qualification
+  ---
+  duration_ms: 54.485334
+  type: 'test'
+  ...
+# Subtest: packed proof-kit failure blocks full qualification
+ok 52 - packed proof-kit failure blocks full qualification
+  ---
+  duration_ms: 54.024167
+  type: 'test'
+  ...
+# Subtest: packed proof-kit failure blocks consumer qualification
+ok 53 - packed proof-kit failure blocks consumer qualification
+  ---
+  duration_ms: 56.400208
+  type: 'test'
+  ...
+# Subtest: packed DX4 failure blocks full qualification
+ok 54 - packed DX4 failure blocks full qualification
+  ---
+  duration_ms: 53.245875
+  type: 'test'
+  ...
+# Subtest: packed DX4 failure blocks consumer qualification
+ok 55 - packed DX4 failure blocks consumer qualification
+  ---
+  duration_ms: 49.026791
+  type: 'test'
+  ...
+# Subtest: packed DX5 failure blocks full qualification
+ok 56 - packed DX5 failure blocks full qualification
+  ---
+  duration_ms: 50.237541
+  type: 'test'
+  ...
+# Subtest: packed DX5 failure blocks consumer qualification
+ok 57 - packed DX5 failure blocks consumer qualification
+  ---
+  duration_ms: 48.641041
+  type: 'test'
+  ...
+# Subtest: packed dormant failure blocks full qualification
+ok 58 - packed dormant failure blocks full qualification
+  ---
+  duration_ms: 51.569042
+  type: 'test'
+  ...
+# Subtest: packed dormant failure blocks consumer qualification
+ok 59 - packed dormant failure blocks consumer qualification
+  ---
+  duration_ms: 49.388833
+  type: 'test'
+  ...
+# Subtest: packed DX6 failure blocks full qualification
+ok 60 - packed DX6 failure blocks full qualification
+  ---
+  duration_ms: 49.7365
+  type: 'test'
+  ...
+# Subtest: packed DX6 failure blocks consumer qualification
+ok 61 - packed DX6 failure blocks consumer qualification
+  ---
+  duration_ms: 48.806083
+  type: 'test'
+  ...
+# Subtest: starter audit exceptions expire and never waive fixable or unknown advisories
+ok 62 - starter audit exceptions expire and never waive fixable or unknown advisories
+  ---
+  duration_ms: 0.958666
+  type: 'test'
+  ...
+# Subtest: unactionable npm meta fix flag requires the recorded all-versions chain
+ok 63 - unactionable npm meta fix flag requires the recorded all-versions chain
+  ---
+  duration_ms: 0.301209
+  type: 'test'
+  ...
+1..63
+# tests 63
+# suites 0
+# pass 63
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 18384.537334
+-- process inspection: {"snapshots":4,"unrelatedRows":16577}
+-- client file ok: packages/snapback4/test/qualify-linux.test.mjs (18842 ms)
+-- client file start: packages/snapback4/test/linux-package.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: the musl shell and publication receipts pin the same SQLite flags
+ok 1 - the musl shell and publication receipts pin the same SQLite flags
+  ---
+  duration_ms: 0.328792
+  type: 'test'
+  ...
+# Subtest: ELF requires executable x64 and rejects interpreter, NEEDED and malformed headers
+ok 2 - ELF requires executable x64 and rejects interpreter, NEEDED and malformed headers
+  ---
+  duration_ms: 0.542792
+  type: 'test'
+  ...
+# Subtest: Linux package versions and target metadata match the client and Darwin
+ok 3 - Linux package versions and target metadata match the client and Darwin
+  ---
+  duration_ms: 0.593875
+  type: 'test'
+  ...
+# Subtest: resolveBinary selects installed linux-x64, then checkout; override still wins
+ok 4 - resolveBinary selects installed linux-x64, then checkout; override still wins
+  ---
+  duration_ms: 161.466416
+  type: 'test'
+  ...
+# Subtest: qualification refuses even empty credentials before doing any work
+ok 5 - qualification refuses even empty credentials before doing any work
+  ---
+  duration_ms: 148.0645
+  type: 'test'
+  ...
+1..5
+# tests 5
+# suites 0
+# pass 5
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 349.492667
+-- process inspection: {"snapshots":3,"unrelatedRows":12437}
+-- client file ok: packages/snapback4/test/linux-package.test.mjs (706 ms)
+-- client file start: packages/snapback4/test/recorded-compatibility.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: published 0.2.33 rejects F2 stores, serving, backend opening and device adoption
+ok 1 - published 0.2.33 rejects F2 stores, serving, backend opening and device adoption # SKIP set SNAPBACK4_F2_LEGACY_BIN to the published 0.2.33 platform binary
+  ---
+  duration_ms: 0.232625
+  type: 'test'
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 0
+# fail 0
+# cancelled 0
+# skipped 1
+# todo 0
+# duration_ms 34.275833
+-- process inspection: {"snapshots":3,"unrelatedRows":12430}
+-- client file ok: packages/snapback4/test/recorded-compatibility.test.mjs (387 ms)
+-- client file start: packages/snapback4/test/schema-capabilities.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: published 0.2.33 capability fence: timeline-v2
+ok 1 - published 0.2.33 capability fence: timeline-v2
+  ---
+  duration_ms: 1756.914958
+  type: 'test'
+  ...
+# snapback4@0.2.33 verified sha512-z6nd0glf9qkms1GzIfJ4jvJAUr1Y0JqgV8rfXsxWcqhDK7MlEHxAeZlsRBuW5PoJpoHRKOzqxdvgkitVBHQ1vQ==
+# snapback4-darwin-arm64@0.2.33 verified sha512-gRXvTa7jSDMXVhepsLaI+D/ydt8r93ROmpbC6rTUYh9cI+EBGMIqbwcVjDyb5suXwRECaJOPW90ZAXMF43cp6A==
+# timeline-v2 initial native refusal: device: /var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-capability-tYNY1m/backend.json: E_INPUT: unknown variant `Capabilities`, expected one of `Unique`, `Cap`, `AppendOnly`, `Immutable`, `Text`, `FinalExistsOnInsert` at line 1 column 9347
+# timeline-v2 adoption refusal: {"denied":{"code":"E_INPUT","family":"input","message":"E_INPUT: unknown variant `Capabilities`, expected one of `Unique`, `Cap`, `AppendOnly`, `Immutable`, `Text`, `FinalExistsOnInsert`"}}
+# timeline-v2 stored-engine refusal: snapback4 0.2.33\\n  project   /private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-capability-tYNY1m/prior\\n  worker    dev entry: none (add snapback/worker.ts, .mts or .mjs); serve entry: --worker <path>\\n  schema    2 problems (`snapback4 check`)\\n  store     /private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-capability-tYNY1m/prior/.snapback4/store.sqlite at seq 1, generation 2\\n  replay    off — new effects enabled; schedules enabled (persisted dev policy)\\n  storage   rows 69 B (1 rows) · indexes 56 B · log 83 B (1 events, 1.2× rows) · ops 0 B · file 220.0 KB\\n  backend   FAIL E_STORE: invalid stored schema: unknown variant `Capabilities`, expected one of `Unique`, `Cap`, `AppendOnly`, `Immutable`, `Text`, `FinalExistsOnInsert` at line 1 column 503\\n  types     generated\\n  not ok in 2.1 ms 
+# timeline-v2: native+WASM initial/refusal, prediction, adoption/store preservation and reopen passed; old engine doctor/serve/write refusal passed
+# Subtest: published 0.2.33 capability fence: recorded-attribution
+ok 2 - published 0.2.33 capability fence: recorded-attribution
+  ---
+  duration_ms: 1196.131208
+  type: 'test'
+  ...
+# snapback4@0.2.33 verified sha512-z6nd0glf9qkms1GzIfJ4jvJAUr1Y0JqgV8rfXsxWcqhDK7MlEHxAeZlsRBuW5PoJpoHRKOzqxdvgkitVBHQ1vQ==
+# snapback4-darwin-arm64@0.2.33 verified sha512-gRXvTa7jSDMXVhepsLaI+D/ydt8r93ROmpbC6rTUYh9cI+EBGMIqbwcVjDyb5suXwRECaJOPW90ZAXMF43cp6A==
+# recorded-attribution initial native refusal: device: /var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-capability-hBXhcZ/backend.json: E_INPUT: unknown variant `Capabilities`, expected one of `Unique`, `Cap`, `AppendOnly`, `Immutable`, `Text`, `FinalExistsOnInsert` at line 1 column 4143
+# recorded-attribution adoption refusal: {"denied":{"code":"E_INPUT","family":"input","message":"E_INPUT: unknown variant `Capabilities`, expected one of `Unique`, `Cap`, `AppendOnly`, `Immutable`, `Text`, `FinalExistsOnInsert`"}}
+# recorded-attribution stored-engine refusal: snapback4 0.2.33\\n  project   /private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-capability-hBXhcZ/prior\\n  worker    dev entry: none (add snapback/worker.ts, .mts or .mjs); serve entry: --worker <path>\\n  schema    1 problem (`snapback4 check`)\\n  store     /private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-capability-hBXhcZ/prior/.snapback4/store.sqlite at seq 1, generation 2\\n  replay    off — new effects enabled; schedules enabled (persisted dev policy)\\n  storage   rows 56 B (1 rows) · indexes 9 B · log 67 B (1 events, 1.2× rows) · ops 0 B · file 208.0 KB\\n  backend   FAIL E_STORE: invalid stored schema: unknown variant `Capabilities`, expected one of `Unique`, `Cap`, `AppendOnly`, `Immutable`, `Text`, `FinalExistsOnInsert` at line 1 column 1081\\n  types     generated\\n  not ok in 1.6 ms 
+# recorded-attribution: native+WASM initial/refusal, prediction, adoption/store preservation and reopen passed; old engine doctor/serve/write refusal passed
+# Subtest: published 0.2.33 capability fence: maintained-column
+ok 3 - published 0.2.33 capability fence: maintained-column
+  ---
+  duration_ms: 1454.132959
+  type: 'test'
+  ...
+# snapback4@0.2.33 verified sha512-z6nd0glf9qkms1GzIfJ4jvJAUr1Y0JqgV8rfXsxWcqhDK7MlEHxAeZlsRBuW5PoJpoHRKOzqxdvgkitVBHQ1vQ==
+# snapback4-darwin-arm64@0.2.33 verified sha512-gRXvTa7jSDMXVhepsLaI+D/ydt8r93ROmpbC6rTUYh9cI+EBGMIqbwcVjDyb5suXwRECaJOPW90ZAXMF43cp6A==
+# maintained-column initial native refusal: device: /var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-capability-EJkliH/backend.json: E_INPUT: unknown variant `Capabilities`, expected one of `Unique`, `Cap`, `AppendOnly`, `Immutable`, `Text`, `FinalExistsOnInsert` at line 1 column 3152
+# maintained-column adoption refusal: {"denied":{"code":"E_INPUT","family":"input","message":"E_INPUT: unknown variant `Capabilities`, expected one of `Unique`, `Cap`, `AppendOnly`, `Immutable`, `Text`, `FinalExistsOnInsert`"}}
+# maintained-column stored-engine refusal: snapback4 0.2.33\\n  project   /private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-capability-EJkliH/candidate\\n  worker    dev entry: none (add snapback/worker.ts, .mts or .mjs); serve entry: --worker <path>\\n  schema    2 problems (`snapback4 check`)\\n  store     /private/var/folders/ld/7bxg3rcx2l3_l0fpvn_b3_8w0000gn/T/sb4-capability-EJkliH/candidate/.snapback4/store.sqlite at seq 2, generation 2\\n  replay    off — new effects enabled; schedules enabled (persisted dev policy)\\n  storage   rows 78 B (1 rows) · indexes 9 B · log 89 B (1 events, 1.1× rows) · ops 0 B · file 212.0 KB\\n  backend   FAIL E_STORE: invalid stored schema: unknown variant `Capabilities`, expected one of `Unique`, `Cap`, `AppendOnly`, `Immutable`, `Text`, `FinalExistsOnInsert` at line 1 column 1101\\n  types     generated\\n  not ok in 1.9 ms 
+# maintained-column: native+WASM initial/refusal, prediction, adoption/store preservation and reopen passed; old engine doctor/serve/write refusal passed
+# Subtest: published 0.2.33 list minimum fence: argument
+ok 4 - published 0.2.33 list minimum fence: argument
+  ---
+  duration_ms: 546.143875
+  type: 'test'
+  ...
+# snapback4@0.2.33 verified sha512-z6nd0glf9qkms1GzIfJ4jvJAUr1Y0JqgV8rfXsxWcqhDK7MlEHxAeZlsRBuW5PoJpoHRKOzqxdvgkitVBHQ1vQ==
+# snapback4-darwin-arm64@0.2.33 verified sha512-gRXvTa7jSDMXVhepsLaI+D/ydt8r93ROmpbC6rTUYh9cI+EBGMIqbwcVjDyb5suXwRECaJOPW90ZAXMF43cp6A==
+# Subtest: published 0.2.33 list minimum fence: column
+ok 5 - published 0.2.33 list minimum fence: column
+  ---
+  duration_ms: 574.574042
+  type: 'test'
+  ...
+# snapback4@0.2.33 verified sha512-z6nd0glf9qkms1GzIfJ4jvJAUr1Y0JqgV8rfXsxWcqhDK7MlEHxAeZlsRBuW5PoJpoHRKOzqxdvgkitVBHQ1vQ==
+# snapback4-darwin-arm64@0.2.33 verified sha512-gRXvTa7jSDMXVhepsLaI+D/ydt8r93ROmpbC6rTUYh9cI+EBGMIqbwcVjDyb5suXwRECaJOPW90ZAXMF43cp6A==
+# Subtest: published 0.2.33 list minimum fence: nested
+ok 6 - published 0.2.33 list minimum fence: nested
+  ---
+  duration_ms: 546.71175
+  type: 'test'
+  ...
+# snapback4@0.2.33 verified sha512-z6nd0glf9qkms1GzIfJ4jvJAUr1Y0JqgV8rfXsxWcqhDK7MlEHxAeZlsRBuW5PoJpoHRKOzqxdvgkitVBHQ1vQ==
+# snapback4-darwin-arm64@0.2.33 verified sha512-gRXvTa7jSDMXVhepsLaI+D/ydt8r93ROmpbC6rTUYh9cI+EBGMIqbwcVjDyb5suXwRECaJOPW90ZAXMF43cp6A==
+# Subtest: Linux schema-byte fixture is the published capability-free control source
+ok 7 - Linux schema-byte fixture is the published capability-free control source
+  ---
+  duration_ms: 0.417416
+  type: 'test'
+  ...
+# Subtest: published 0.2.33 control: capability-free bytes stay compatible; release stores refuse by version
+ok 8 - published 0.2.33 control: capability-free bytes stay compatible; release stores refuse by version
+  ---
+  duration_ms: 1494.709166
+  type: 'test'
+  ...
+# snapback4@0.2.33 verified sha512-z6nd0glf9qkms1GzIfJ4jvJAUr1Y0JqgV8rfXsxWcqhDK7MlEHxAeZlsRBuW5PoJpoHRKOzqxdvgkitVBHQ1vQ==
+# snapback4-darwin-arm64@0.2.33 verified sha512-gRXvTa7jSDMXVhepsLaI+D/ydt8r93ROmpbC6rTUYh9cI+EBGMIqbwcVjDyb5suXwRECaJOPW90ZAXMF43cp6A==
+# capability-free 0.4 backend: published 0.2.33 native and WASM install, adopt, query and reopen passed
+# published 0.2.33 left an empty serve.lock (mode 644) and no other release change
+# published 0.2.33 development store doctor passed; release doctor and serve refused store version and preserved release/store bytes
+# Subtest: RV publication allowance is confined to commit evidence
+ok 9 - RV publication allowance is confined to commit evidence
+  ---
+  duration_ms: 8.920166
+  type: 'test'
+  ...
+# Subtest: published answer comparison admits only neutral additive metadata
+ok 10 - published answer comparison admits only neutral additive metadata
+  ---
+  duration_ms: 1.13275
+  type: 'test'
+  ...
+1..10
+# tests 10
+# suites 0
+# pass 10
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 7621.538958
+-- process inspection: {"snapshots":3,"unrelatedRows":12404}
+-- client file ok: packages/snapback4/test/schema-capabilities.test.mjs (7992 ms)
+-- client file start: packages/snapback4/test/worker-regressions.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: dev immediate host restart waits for the previous worker group and excludes ownership from Node
+ok 1 - dev immediate host restart waits for the previous worker group and excludes ownership from Node
+  ---
+  duration_ms: 4449.849167
+  type: 'test'
+  ...
+# Subtest: serve immediate host restart waits for the previous worker group and excludes ownership from Node
+ok 2 - serve immediate host restart waits for the previous worker group and excludes ownership from Node
+  ---
+  duration_ms: 4960.751875
+  type: 'test'
+  ...
+# Subtest: dev workers/push.mjs snapshot does not add the temporary directory to package lookup
+ok 3 - dev workers/push.mjs snapshot does not add the temporary directory to package lookup
+  ---
+  duration_ms: 316.692375
+  type: 'test'
+  ...
+# Subtest: serve workers/push.mjs snapshot does not add the temporary directory to package lookup
+ok 4 - serve workers/push.mjs snapshot does not add the temporary directory to package lookup
+  ---
+  duration_ms: 849.491875
+  type: 'test'
+  ...
+# Subtest: dev worker.mjs snapshot does not add the temporary directory to package lookup
+ok 5 - dev worker.mjs snapshot does not add the temporary directory to package lookup
+  ---
+  duration_ms: 268.866167
+  type: 'test'
+  ...
+# Subtest: named snapshot refuses a symlinked snapback package manifest
+ok 6 - named snapshot refuses a symlinked snapback package manifest
+  ---
+  duration_ms: 202.160208
+  type: 'test'
+  ...
+# Subtest: named snapshot refuses a symlinked project package manifest
+ok 7 - named snapshot refuses a symlinked project package manifest
+  ---
+  duration_ms: 213.047542
+  type: 'test'
+  ...
+# Subtest: named snapshot refuses a symlinked ancestor package manifest
+ok 8 - named snapshot refuses a symlinked ancestor package manifest
+  ---
+  duration_ms: 249.053917
+  type: 'test'
+  ...
+# Subtest: dev startup clears a removed worker's stale running status after host death
+ok 9 - dev startup clears a removed worker's stale running status after host death
+  ---
+  duration_ms: 304.328166
+  type: 'test'
+  ...
+# Subtest: serve startup clears a removed worker's stale running status after host death
+ok 10 - serve startup clears a removed worker's stale running status after host death
+  ---
+  duration_ms: 1030.883
+  type: 'test'
+  ...
+# Subtest: supervised workers/push.mjs refuses refresh without logging a bearer across split writes
+ok 11 - supervised workers/push.mjs refuses refresh without logging a bearer across split writes
+  ---
+  duration_ms: 430.529791
+  type: 'test'
+  ...
+# Subtest: supervised worker.mjs refuses refresh without logging a bearer across split writes
+ok 12 - supervised worker.mjs refuses refresh without logging a bearer across split writes
+  ---
+  duration_ms: 387.433667
+  type: 'test'
+  ...
+# Subtest: dev private worker snapshot resolves schema-local packages
+ok 13 - dev private worker snapshot resolves schema-local packages
+  ---
+  duration_ms: 316.508625
+  type: 'test'
+  ...
+# Subtest: dev private worker snapshot resolves schema-local packages before project packages
+ok 14 - dev private worker snapshot resolves schema-local packages before project packages
+  ---
+  duration_ms: 376.94375
+  type: 'test'
+  ...
+# Subtest: serve private worker snapshot resolves schema-local packages
+ok 15 - serve private worker snapshot resolves schema-local packages
+  ---
+  duration_ms: 898.028792
+  type: 'test'
+  ...
+# Subtest: serve private worker snapshot resolves schema-local packages before project packages
+ok 16 - serve private worker snapshot resolves schema-local packages before project packages
+  ---
+  duration_ms: 901.288292
+  type: 'test'
+  ...
+# Subtest: dev named snapshot uses symlinked dependencies at project root
+ok 17 - dev named snapshot uses symlinked dependencies at project root
+  ---
+  duration_ms: 225.017125
+  type: 'test'
+  ...
+# Subtest: dev named snapshot uses symlinked dependencies at snapback
+ok 18 - dev named snapshot uses symlinked dependencies at snapback
+  ---
+  duration_ms: 203.718125
+  type: 'test'
+  ...
+# Subtest: dev named snapshot uses symlinked dependencies at snapback/workers
+ok 19 - dev named snapshot uses symlinked dependencies at snapback/workers
+  ---
+  duration_ms: 198.782708
+  type: 'test'
+  ...
+# Subtest: dev named snapshot uses symlinked dependencies at snapback/workers/helpers
+ok 20 - dev named snapshot uses symlinked dependencies at snapback/workers/helpers
+  ---
+  duration_ms: 299.159041
+  type: 'test'
+  ...
+# Subtest: serve named snapshot uses symlinked dependencies at project root
+ok 21 - serve named snapshot uses symlinked dependencies at project root
+  ---
+  duration_ms: 857.72575
+  type: 'test'
+  ...
+# Subtest: serve named snapshot uses symlinked dependencies at snapback
+ok 22 - serve named snapshot uses symlinked dependencies at snapback
+  ---
+  duration_ms: 864.65525
+  type: 'test'
+  ...
+# Subtest: serve named snapshot uses symlinked dependencies at snapback/workers
+ok 23 - serve named snapshot uses symlinked dependencies at snapback/workers
+  ---
+  duration_ms: 834.331083
+  type: 'test'
+  ...
+# Subtest: serve named snapshot uses symlinked dependencies at snapback/workers/helpers
+ok 24 - serve named snapshot uses symlinked dependencies at snapback/workers/helpers
+  ---
+  duration_ms: 757.010833
+  type: 'test'
+  ...
+# Subtest: dev conventional snapshot uses symlinked dependencies at project root
+ok 25 - dev conventional snapshot uses symlinked dependencies at project root
+  ---
+  duration_ms: 280.784167
+  type: 'test'
+  ...
+# Subtest: dev conventional snapshot uses symlinked dependencies at snapback
+ok 26 - dev conventional snapshot uses symlinked dependencies at snapback
+  ---
+  duration_ms: 309.293666
+  type: 'test'
+  ...
+# Subtest: dev conventional snapshot uses symlinked dependencies at snapback/workers
+ok 27 - dev conventional snapshot uses symlinked dependencies at snapback/workers
+  ---
+  duration_ms: 327.7345
+  type: 'test'
+  ...
+# Subtest: dev conventional snapshot uses symlinked dependencies at snapback/workers/helpers
+ok 28 - dev conventional snapshot uses symlinked dependencies at snapback/workers/helpers
+  ---
+  duration_ms: 353.100084
+  type: 'test'
+  ...
+# Subtest: standalone worker reports errors containing its bearer with automatic redaction
+ok 29 - standalone worker reports errors containing its bearer with automatic redaction
+  ---
+  duration_ms: 1.669625
+  type: 'test'
+  ...
+# Subtest: automatic worker.mjs refuses a symlink before issuing a service token
+ok 30 - automatic worker.mjs refuses a symlink before issuing a service token
+  ---
+  duration_ms: 165.043958
+  type: 'test'
+  ...
+# Subtest: automatic worker restart rejects an entry replaced with a symlink
+ok 31 - automatic worker restart rejects an entry replaced with a symlink
+  ---
+  duration_ms: 588.144291
+  type: 'test'
+  ...
+# Subtest: automatic worker executes validated entry and relative helper after source replacement
+ok 32 - automatic worker executes validated entry and relative helper after source replacement
+  ---
+  duration_ms: 834.145833
+  type: 'test'
+  ...
+# Subtest: removed worker retains query fence while deletion is locked
+ok 33 - removed worker retains query fence while deletion is locked
+  ---
+  duration_ms: 16712.057959
+  type: 'test'
+  ...
+# Subtest: removed worker retains retirement custody while deletion is locked
+ok 34 - removed worker retains retirement custody while deletion is locked
+  ---
+  duration_ms: 11782.14075
+  type: 'test'
+  ...
+# Subtest: restart refuses an entry symlink already rejected by discovery
+ok 35 - restart refuses an entry symlink already rejected by discovery
+  ---
+  duration_ms: 2691.123333
+  type: 'test'
+  ...
+# Subtest: launch executes validated entry and helper bytes after source paths are replaced
+ok 36 - launch executes validated entry and helper bytes after source paths are replaced
+  ---
+  duration_ms: 655.769458
+  type: 'test'
+  ...
+# Subtest: watchdog SIGKILL terminates its Node group before replacement
+ok 37 - watchdog SIGKILL terminates its Node group before replacement
+  ---
+  duration_ms: 787.178166
+  type: 'test'
+  ...
+# Subtest: ledger commits with FULL synchronization and durable journaling
+ok 38 - ledger commits with FULL synchronization and durable journaling
+  ---
+  duration_ms: 6.072916
+  type: 'test'
+  ...
+# Subtest: worker fixture waits for initial admission after the listening URL
+ok 39 - worker fixture waits for initial admission after the listening URL
+  ---
+  duration_ms: 594.490917
+  type: 'test'
+  ...
+# Subtest: new declarations retry failed admission after Node is repaired without another source edit
+ok 40 - new declarations retry failed admission after Node is repaired without another source edit
+  ---
+  duration_ms: 1354.794417
+  type: 'test'
+  ...
+# Subtest: watchdog SIGTERM completes group cleanup without a live supervisor
+ok 41 - watchdog SIGTERM completes group cleanup without a live supervisor
+  ---
+  duration_ms: 2730.857958
+  type: 'test'
+  ...
+# Subtest: watchdog SIGINT completes group cleanup without a live supervisor
+ok 42 - watchdog SIGINT completes group cleanup without a live supervisor
+  ---
+  duration_ms: 2673.307
+  type: 'test'
+  ...
+# Subtest: watchdog SIGHUP completes group cleanup without a live supervisor
+ok 43 - watchdog SIGHUP completes group cleanup without a live supervisor
+  ---
+  duration_ms: 2712.339959
+  type: 'test'
+  ...
+# Subtest: ledger open waits for a busy writer before becoming ready
+ok 44 - ledger open waits for a busy writer before becoming ready
+  ---
+  duration_ms: 107.977417
+  type: 'test'
+  ...
+# Subtest: failed revocation blocks restart until the retired bearer is refused
+ok 45 - failed revocation blocks restart until the retired bearer is refused
+  ---
+  duration_ms: 11310.033209
+  type: 'test'
+  ...
+# Subtest: rotation retires the old bearer even while its stored expiry still stands
+ok 46 - rotation retires the old bearer even while its stored expiry still stands
+  ---
+  duration_ms: 564.563958
+  type: 'test'
+  ...
+# Subtest: worker snapshot refuses schema escapes or non-regular files
+ok 47 - worker snapshot refuses schema escapes or non-regular files
+  ---
+  duration_ms: 484.934541
+  type: 'test'
+  ...
+# Subtest: worker snapshot refuses root escapes or non-regular files
+ok 48 - worker snapshot refuses root escapes or non-regular files
+  ---
+  duration_ms: 453.477083
+  type: 'test'
+  ...
+# Subtest: worker snapshot refuses entry escapes or non-regular files
+ok 49 - worker snapshot refuses entry escapes or non-regular files
+  ---
+  duration_ms: 465.621833
+  type: 'test'
+  ...
+# Subtest: worker snapshot refuses helper escapes or non-regular files
+ok 50 - worker snapshot refuses helper escapes or non-regular files
+  ---
+  duration_ms: 449.737
+  type: 'test'
+  ...
+# Subtest: worker snapshot refuses fifo escapes or non-regular files
+ok 51 - worker snapshot refuses fifo escapes or non-regular files
+  ---
+  duration_ms: 479.740875
+  type: 'test'
+  ...
+# Subtest: worker snapshot retains regular nested helper bytes and permissions
+ok 52 - worker snapshot retains regular nested helper bytes and permissions
+  ---
+  duration_ms: 531.503917
+  type: 'test'
+  ...
+# Subtest: fresh stores and replacement stores cannot replay another store completion
+ok 53 - fresh stores and replacement stores cannot replay another store completion
+  ---
+  duration_ms: 1116.723833
+  type: 'test'
+  ...
+# Subtest: worker stops worker descendants
+ok 54 - worker stops worker descendants
+  ---
+  duration_ms: 870.104875
+  type: 'test'
+  ...
+# Subtest: SIGTERM stops worker descendants
+ok 55 - SIGTERM stops worker descendants
+  ---
+  duration_ms: 459.501125
+  type: 'test'
+  ...
+# Subtest: SIGKILL stops worker descendants
+ok 56 - SIGKILL stops worker descendants
+  ---
+  duration_ms: 280.2005
+  type: 'test'
+  ...
+# Subtest: ledger corrupt initialization reports once without claiming or settling
+ok 57 - ledger corrupt initialization reports once without claiming or settling
+  ---
+  duration_ms: 118.2035
+  type: 'test'
+  ...
+# Subtest: ledger schema initialization reports once without claiming or settling
+ok 58 - ledger schema initialization reports once without claiming or settling
+  ---
+  duration_ms: 117.681625
+  type: 'test'
+  ...
+# Subtest: ledger receipt initialization reports once without claiming or settling
+ok 59 - ledger receipt initialization reports once without claiming or settling
+  ---
+  duration_ms: 116.861542
+  type: 'test'
+  ...
+# Subtest: ledger parent-file initialization reports once without claiming or settling
+ok 60 - ledger parent-file initialization reports once without claiming or settling
+  ---
+  duration_ms: 112.682458
+  type: 'test'
+  ...
+# Subtest: named workers receive only entry-named declared secrets, defaulting to none
+ok 61 - named workers receive only entry-named declared secrets, defaulting to none
+  ---
+  duration_ms: 365.899333
+  type: 'test'
+  ...
+# Subtest: shutdown starts every worker grace period together
+ok 62 - shutdown starts every worker grace period together
+  ---
+  duration_ms: 2334.632291
+  type: 'test'
+  ...
+# Subtest: repeated secret admission failures increase restart backoff
+ok 63 - repeated secret admission failures increase restart backoff
+  ---
+  duration_ms: 2120.05975
+  type: 'test'
+  ...
+# Subtest: SQLite busy retries return the winning receipt to both waiters
+ok 64 - SQLite busy retries return the winning receipt to both waiters
+  ---
+  duration_ms: 106.526542
+  type: 'test'
+  ...
+# Subtest: ledger disk-full closes storage and stops without failed settlement
+ok 65 - ledger disk-full closes storage and stops without failed settlement
+  ---
+  duration_ms: 11.586834
+  type: 'test'
+  ...
+# Subtest: ledger commit-and-rollback closes storage and stops without failed settlement
+ok 66 - ledger commit-and-rollback closes storage and stops without failed settlement
+  ---
+  duration_ms: 12.371833
+  type: 'test'
+  ...
+# Subtest: dev credentialed worker receives only the explicit runtime environment
+ok 67 - dev credentialed worker receives only the explicit runtime environment
+  ---
+  duration_ms: 323.574125
+  type: 'test'
+  ...
+# Subtest: serve credentialed worker receives only the explicit runtime environment
+ok 68 - serve credentialed worker receives only the explicit runtime environment
+  ---
+  duration_ms: 974.344209
+  type: 'test'
+  ...
+# Subtest: dev ledger initialization stops the child and doctor reports ledger-unavailable
+ok 69 - dev ledger initialization stops the child and doctor reports ledger-unavailable
+  ---
+  duration_ms: 330.502292
+  type: 'test'
+  ...
+# Subtest: serve ledger initialization stops the child and doctor reports ledger-unavailable
+ok 70 - serve ledger initialization stops the child and doctor reports ledger-unavailable
+  ---
+  duration_ms: 867.266583
+  type: 'test'
+  ...
+# Subtest: serve renews peers once after a failed credential retirement fences their revision
+ok 71 - serve renews peers once after a failed credential retirement fences their revision
+  ---
+  duration_ms: 2309.059458
+  type: 'test'
+  ...
+# Subtest: automatic snapshot validates checked project imports: entry-copy
+ok 72 - automatic snapshot validates checked project imports: entry-copy
+  ---
+  duration_ms: 915.5395
+  type: 'test'
+  ...
+# Subtest: automatic snapshot validates checked project imports: linked-helper
+ok 73 - automatic snapshot validates checked project imports: linked-helper
+  ---
+  duration_ms: 181.000833
+  type: 'test'
+  ...
+# Subtest: dev workers/push.mjs runs the published file-output recipe in the project data directory
+ok 74 - dev workers/push.mjs runs the published file-output recipe in the project data directory
+  ---
+  duration_ms: 501.933166
+  type: 'test'
+  ...
+# Subtest: serve workers/push.mjs runs the published file-output recipe in the project data directory
+ok 75 - serve workers/push.mjs runs the published file-output recipe in the project data directory
+  ---
+  duration_ms: 1086.612458
+  type: 'test'
+  ...
+# Subtest: dev worker.mjs runs the published file-output recipe in the project data directory
+ok 76 - dev worker.mjs runs the published file-output recipe in the project data directory
+  ---
+  duration_ms: 350.848
+  type: 'test'
+  ...
+# Subtest: serve external.mjs runs the published file-output recipe in the project data directory
+ok 77 - serve external.mjs runs the published file-output recipe in the project data directory
+  ---
+  duration_ms: 733.404375
+  type: 'test'
+  ...
+# Subtest: serve workers/push.mjs runs the published file-output recipe in the project data directory through a deployment symlink
+ok 78 - serve workers/push.mjs runs the published file-output recipe in the project data directory through a deployment symlink
+  ---
+  duration_ms: 809.583041
+  type: 'test'
+  ...
+# Subtest: serve external.mjs runs the published file-output recipe in the project data directory through a deployment symlink
+ok 79 - serve external.mjs runs the published file-output recipe in the project data directory through a deployment symlink
+  ---
+  duration_ms: 840.050875
+  type: 'test'
+  ...
+# Subtest: named: a +49h dev jump and reset re-mint the supervised token without transient auth refusal
+ok 80 - named: a +49h dev jump and reset re-mint the supervised token without transient auth refusal
+  ---
+  duration_ms: 895.565083
+  type: 'test'
+  ...
+# Subtest: conventional: a +49h dev jump and reset re-mint the supervised token without transient auth refusal
+ok 81 - conventional: a +49h dev jump and reset re-mint the supervised token without transient auth refusal
+  ---
+  duration_ms: 762.820375
+  type: 'test'
+  ...
+# Subtest: named worker packages resolve from the app when the deploy directory is outside its tree
+ok 82 - named worker packages resolve from the app when the deploy directory is outside its tree
+  ---
+  duration_ms: 747.584291
+  type: 'test'
+  ...
+1..82
+# tests 82
+# suites 0
+# pass 82
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 101868.776209
+-- process inspection: {"snapshots":4,"unrelatedRows":16498}
+-- client file ok: packages/snapback4/test/worker-regressions.test.mjs (102339 ms)
+-- client file start: packages/snapback4/test/test-processes.test.mjs; stall bound 6900000 ms
+TAP version 13
+# Subtest: ps timeout discards partial output and retries once with a larger bounded budget
+ok 1 - ps timeout discards partial output and retries once with a larger bounded budget
+  ---
+  duration_ms: 1.700084
+  type: 'test'
+  ...
+# Subtest: ps failure stays closed with bounded calls: ETIMEDOUT
+ok 2 - ps failure stays closed with bounded calls: ETIMEDOUT
+  ---
+  duration_ms: 0.189
+  type: 'test'
+  ...
+# Subtest: ps failure stays closed with bounded calls: status 2
+ok 3 - ps failure stays closed with bounded calls: status 2
+  ---
+  duration_ms: 0.058792
+  type: 'test'
+  ...
+# Subtest: ps failure stays closed with bounded calls: status 0
+ok 4 - ps failure stays closed with bounded calls: status 0
+  ---
+  duration_ms: 0.054375
+  type: 'test'
+  ...
+# Subtest: ps failure stays closed with bounded calls: ENOENT
+ok 5 - ps failure stays closed with bounded calls: ENOENT
+  ---
+  duration_ms: 0.061709
+  type: 'test'
+  ...
+# Subtest: a nonzero exit after timeout still refuses instead of trusting its stdout
+ok 6 - a nonzero exit after timeout still refuses instead of trusting its stdout
+  ---
+  duration_ms: 0.093166
+  type: 'test'
+  ...
+# Subtest: timeout recovery cannot renew the three-fresh-snapshot transient-routing budget
+ok 7 - timeout recovery cannot renew the three-fresh-snapshot transient-routing budget
+  ---
+  duration_ms: 105.29575
+  type: 'test'
+  ...
+# Subtest: a ps taking over two seconds recovers and passes the file (before release)
+ok 8 - a ps taking over two seconds recovers and passes the file (before release)
+  ---
+  duration_ms: 5682.02025
+  type: 'test'
+  ...
+# Subtest: a ps taking over two seconds recovers and passes the file (cleanup verification)
+ok 9 - a ps taking over two seconds recovers and passes the file (cleanup verification)
+  ---
+  duration_ms: 5619.772875
+  type: 'test'
+  ...
+# Subtest: a late second empty snapshot passes only after both inspections complete
+ok 10 - a late second empty snapshot passes only after both inspections complete
+  ---
+  duration_ms: 5151.782042
+  type: 'test'
+  ...
+# late empty confirmation: 5151 ms
+# Subtest: asynchronous commands that never finish time out twice and are reaped
+ok 11 - asynchronous commands that never finish time out twice and are reaped
+  ---
+  duration_ms: 414.730166
+  type: 'test'
+  ...
+# Subtest: asynchronous command spawn errors, nonzero exits and overflow stay fail-closed
+ok 12 - asynchronous command spawn errors, nonzero exits and overflow stay fail-closed
+  ---
+  duration_ms: 76.069083
+  type: 'test'
+  ...
+# Subtest: a passing test file fails closed when ps persistently returns timeout
+ok 13 - a passing test file fails closed when ps persistently returns timeout
+  ---
+  duration_ms: 84.74525
+  type: 'test'
+  ...
+# Subtest: a passing test file fails closed when ps persistently returns nonzero exit
+ok 14 - a passing test file fails closed when ps persistently returns nonzero exit
+  ---
+  duration_ms: 83.872333
+  type: 'test'
+  ...
+# Subtest: recorded Linux exiting PGID cannot fail a healthy file (before release, exists false)
+ok 15 - recorded Linux exiting PGID cannot fail a healthy file (before release, exists false)
+  ---
+  duration_ms: 799.153625
+  type: 'test'
+  ...
+# Subtest: recorded Linux exiting PGID cannot fail a healthy file (before release, exists true)
+ok 16 - recorded Linux exiting PGID cannot fail a healthy file (before release, exists true)
+  ---
+  duration_ms: 835.857959
+  type: 'test'
+  ...
+# Subtest: recorded Linux exiting PGID cannot fail a healthy file (cleanup verification, exists false)
+ok 17 - recorded Linux exiting PGID cannot fail a healthy file (cleanup verification, exists false)
+  ---
+  duration_ms: 700.714625
+  type: 'test'
+  ...
+# Subtest: recorded Linux exiting PGID cannot fail a healthy file (cleanup verification, exists true)
+ok 18 - recorded Linux exiting PGID cannot fail a healthy file (cleanup verification, exists true)
+  ---
+  duration_ms: 716.146
+  type: 'test'
+  ...
+# Subtest: persistent captured routing anomaly fails a healthy file and still releases its keeper
+ok 19 - persistent captured routing anomaly fails a healthy file and still releases its keeper
+  ---
+  duration_ms: 851.127791
+  type: 'test'
+  ...
+# Subtest: recognized Linux/Darwin exit shapes retry whole tables and classify only the fresh scope
+ok 20 - recognized Linux/Darwin exit shapes retry whole tables and classify only the fresh scope
+  ---
+  duration_ms: 730.078958
+  type: 'test'
+  ...
+# Subtest: persistent exit-shaped malformed routing fails closed after three snapshots even for an absent PID
+ok 21 - persistent exit-shaped malformed routing fails closed after three snapshots even for an absent PID
+  ---
+  duration_ms: 2913.958541
+  type: 'test'
+  ...
+# Subtest: damaged prefixes outside the precise exit shapes refuse without retry or an existence shortcut
+ok 22 - damaged prefixes outside the precise exit shapes refuse without retry or an existence shortcut
+  ---
+  duration_ms: 0.895083
+  type: 'test'
+  ...
+# Subtest: retry never masks a failed listing or persistent related malformed metadata
+ok 23 - retry never masks a failed listing or persistent related malformed metadata
+  ---
+  duration_ms: 209.785084
+  type: 'test'
+  ...
+# Subtest: changing transient PIDs cannot renew the retry budget or replace the first rejected bytes
+ok 24 - changing transient PIDs cannot renew the retry budget or replace the first rejected bytes
+  ---
+  duration_ms: 105.90725
+  type: 'test'
+  ...
+# Subtest: Darwin question-mark, E (exiting) and X (traced) flags with valid routing stay conservatively live
+ok 25 - Darwin question-mark, E (exiting) and X (traced) flags with valid routing stay conservatively live
+  ---
+  duration_ms: 0.958292
+  type: 'test'
+  ...
+# Subtest: darwin recorded synthetic ps table parses every field and state
+ok 26 - darwin recorded synthetic ps table parses every field and state
+  ---
+  duration_ms: 1.664917
+  type: 'test'
+  ...
+# Subtest: linux recorded synthetic ps table parses every field and state
+ok 27 - linux recorded synthetic ps table parses every field and state
+  ---
+  duration_ms: 0.892417
+  type: 'test'
+  ...
+# Subtest: unrelated metadata is never validated or probed, and is counted diagnostically
+ok 28 - unrelated metadata is never validated or probed, and is counted diagnostically
+  ---
+  duration_ms: 0.67575
+  type: 'test'
+  ...
+# Subtest: malformed metadata for a group member stays fail-closed
+ok 29 - malformed metadata for a group member stays fail-closed
+  ---
+  duration_ms: 0.507875
+  type: 'test'
+  ...
+# Subtest: malformed metadata for a direct descendant outside group stays fail-closed
+ok 30 - malformed metadata for a direct descendant outside group stays fail-closed
+  ---
+  duration_ms: 0.262916
+  type: 'test'
+  ...
+# Subtest: malformed metadata for a transitive descendant outside group stays fail-closed
+ok 31 - malformed metadata for a transitive descendant outside group stays fail-closed
+  ---
+  duration_ms: 0.207958
+  type: 'test'
+  ...
+# Subtest: malformed metadata for a zombie group member stays fail-closed
+ok 32 - malformed metadata for a zombie group member stays fail-closed
+  ---
+  duration_ms: 0.179292
+  type: 'test'
+  ...
+# Subtest: unclassifiable routing prefix fails closed: bad 1 2
+ok 33 - unclassifiable routing prefix fails closed: bad 1 2
+  ---
+  duration_ms: 0.242792
+  type: 'test'
+  ...
+# Subtest: unclassifiable routing prefix fails closed: 100 bad 2
+ok 34 - unclassifiable routing prefix fails closed: 100 bad 2
+  ---
+  duration_ms: 0.347959
+  type: 'test'
+  ...
+# Subtest: unclassifiable routing prefix fails closed: 100 1 bad
+ok 35 - unclassifiable routing prefix fails closed: 100 1 bad
+  ---
+  duration_ms: 0.2655
+  type: 'test'
+  ...
+# Subtest: unclassifiable routing prefix fails closed: -1 1 2
+ok 36 - unclassifiable routing prefix fails closed: -1 1 2
+  ---
+  duration_ms: 0.2565
+  type: 'test'
+  ...
+# Subtest: unclassifiable routing prefix fails closed: 100 -1 2
+ok 37 - unclassifiable routing prefix fails closed: 100 -1 2
+  ---
+  duration_ms: 0.161833
+  type: 'test'
+  ...
+# Subtest: unclassifiable routing prefix fails closed: 100 1 -2
+ok 38 - unclassifiable routing prefix fails closed: 100 1 -2
+  ---
+  duration_ms: 0.1525
+  type: 'test'
+  ...
+# Subtest: unclassifiable routing prefix fails closed: 9007199254740992 1 2
+ok 39 - unclassifiable routing prefix fails closed: 9007199254740992 1 2
+  ---
+  duration_ms: 0.130417
+  type: 'test'
+  ...
+# Subtest: unclassifiable routing prefix fails closed: 100 1 2147483648
+ok 40 - unclassifiable routing prefix fails closed: 100 1 2147483648
+  ---
+  duration_ms: 0.125042
+  type: 'test'
+  ...
+# Subtest: unclassifiable routing prefix fails closed: 100 truncated
+ok 41 - unclassifiable routing prefix fails closed: 100 truncated
+  ---
+  duration_ms: 0.123583
+  type: 'test'
+  ...
+# Subtest: vanished related metadata remains exited after its routing prefix was classified
+ok 42 - vanished related metadata remains exited after its routing prefix was classified
+  ---
+  duration_ms: 0.226959
+  type: 'test'
+  ...
+# Subtest: Darwin identity lookup validates its own row without unrelated metadata poisoning
+ok 43 - Darwin identity lookup validates its own row without unrelated metadata poisoning
+  ---
+  duration_ms: 0.48325
+  type: 'test'
+  ...
+# Subtest: scoped Darwin identity rereads classify fresh routing before ancillary metadata
+ok 44 - scoped Darwin identity rereads classify fresh routing before ancillary metadata
+  ---
+  duration_ms: 0.832416
+  type: 'test'
+  ...
+# Subtest: Darwin before release ignores a reused unrelated PID with malformed metadata
+ok 45 - Darwin before release ignores a reused unrelated PID with malformed metadata
+  ---
+  duration_ms: 523.3645
+  type: 'test'
+  ...
+# Subtest: Darwin before release ignores a reused unrelated PID with well-formed metadata
+ok 46 - Darwin before release ignores a reused unrelated PID with well-formed metadata
+  ---
+  duration_ms: 489.805916
+  type: 'test'
+  ...
+# Subtest: Darwin cleanup verification ignores a reused unrelated PID with malformed metadata
+ok 47 - Darwin cleanup verification ignores a reused unrelated PID with malformed metadata
+  ---
+  duration_ms: 478.934375
+  type: 'test'
+  ...
+# Subtest: Darwin cleanup verification ignores a reused unrelated PID with well-formed metadata
+ok 48 - Darwin cleanup verification ignores a reused unrelated PID with well-formed metadata
+  ---
+  duration_ms: 499.448334
+  type: 'test'
+  ...
+# Subtest: 5,000-row tables classify reversed ancestry, reparented members and cycles without omissions
+ok 49 - 5,000-row tables classify reversed ancestry, reparented members and cycles without omissions
+  ---
+  duration_ms: 9.750083
+  type: 'test'
+  ...
+# Subtest: 5,000-row macOS-shaped table accepts signed UIDs, flags and spaced paths
+ok 50 - 5,000-row macOS-shaped table accepts signed UIDs, flags and spaced paths
+  ---
+  duration_ms: 5.897041
+  type: 'test'
+  ...
+# Subtest: owned UID, start and state metadata are checked and exact rejected bytes survive
+ok 51 - owned UID, start and state metadata are checked and exact rejected bytes survive
+  ---
+  duration_ms: 0.40625
+  type: 'test'
+  ...
+# Subtest: real runner CLI preserves pass, failure and subsequent execution with PATH ps shims
+ok 52 - real runner CLI preserves pass, failure and subsequent execution with PATH ps shims
+  ---
+  duration_ms: 7920.071292
+  type: 'test'
+  ...
+# Subtest: every external test signal rechecks exact command and birth at dispatch
+ok 53 - every external test signal rechecks exact command and birth at dispatch
+  ---
+  duration_ms: 40.214041
+  type: 'test'
+  ...
+1..53
+# tests 53
+# suites 0
+# pass 53
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 35333.243959
+-- process inspection: {"snapshots":4,"unrelatedRows":16593}
+-- client file ok: packages/snapback4/test/test-processes.test.mjs (35805 ms)
+-- client file start: packages/snapback4/test/worker.test.mjs; stall bound 900000 ms
+TAP version 13
+# snapback4 worker: Error: provider 503
+#     at notify (file:///Users/ccheever/projects/snapback-pub-0428/snapback4/packages/snapback4/test/worker.test.mjs:123:37)
+#     at perform (file:///Users/ccheever/projects/snapback-pub-0428/snapback4/packages/snapback4/dist/worker.js:82:41)
+#     at perform (file:///Users/ccheever/projects/snapback-pub-0428/snapback4/packages/snapback4/dist/worker.js:83:105)
+#     at Array.map (<anonymous>)
+#     at loop (file:///Users/ccheever/projects/snapback-pub-0428/snapback4/packages/snapback4/dist/worker.js:186:69)
+#     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+#     at async Promise.all (index 0)
+#     at async file:///Users/ccheever/projects/snapback-pub-0428/snapback4/packages/snapback4/dist/worker.js:237:9
+# Subtest: a service mints sessions, the mutation reads presence, the worker settles what was emitted
+ok 1 - a service mints sessions, the mutation reads presence, the worker settles what was emitted
+  ---
+  duration_ms: 4419.191458
+  type: 'test'
+  ...
+# Subtest: provider test double: killed accepted worker reconciles one delivery
+ok 2 - provider test double: killed accepted worker reconciles one delivery
+  ---
+  duration_ms: 1297.514084
+  type: 'test'
+  ...
+# loopback provider double only: requests=2, accepted=1, worker=SIGKILL before settlement, outcome=reconciled/sent, stale claim refused; real provider and device receipt untested
+# Subtest: provider test double: killed accepted worker parks an unknown outcome
+ok 3 - provider test double: killed accepted worker parks an unknown outcome
+  ---
+  duration_ms: 1270.427583
+  type: 'test'
+  ...
+# loopback provider double only: requests=1, accepted=1, worker=SIGKILL before settlement, outcome=unknown/parked, stale claim refused; real provider and device receipt untested
+# Subtest: dev injects a usable service token and redacts both child log streams
+ok 4 - dev injects a usable service token and redacts both child log streams
+  ---
+  duration_ms: 381.982208
+  type: 'test'
+  ...
+# Subtest: actions run as the requesting viewer; client done/failed and replay reach both client tiers
+ok 5 - actions run as the requesting viewer; client done/failed and replay reach both client tiers
+  ---
+  duration_ms: 275.415042
+  type: 'test'
+  ...
+# action round trip tier=online: 9.23 ms
+# action round trip tier=device: 5.55 ms
+# Subtest: actions pending then settled on retry, lease expiry, fencing, admission and worker authentication
+ok 6 - actions pending then settled on retry, lease expiry, fencing, admission and worker authentication
+  ---
+  duration_ms: 2242.312625
+  type: 'test'
+  ...
+# pending wait: 1008.52 ms
+# snapback4 worker: Error: E_AUTH: this is a worker's door: send a live service token (`snapback4 token --service <name>`)
+#     at loop (file:///Users/ccheever/projects/snapback-pub-0428/snapback4/packages/snapback4/dist/worker.js:174:24)
+#     at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+#     at async Promise.all (index 0)
+#     at async file:///Users/ccheever/projects/snapback-pub-0428/snapback4/packages/snapback4/dist/worker.js:237:9
+# Subtest: actions retry a throwing handler and reauthenticate a waiting caller and worker
+ok 7 - actions retry a throwing handler and reauthenticate a waiting caller and worker
+  ---
+  duration_ms: 3547.54775
+  type: 'test'
+  ...
+# Subtest: actions are denied offline on both tiers without entering the device queue
+ok 8 - actions are denied offline on both tiers without entering the device queue
+  ---
+  duration_ms: 1288.586291
+  type: 'test'
+  ...
+# Subtest: chat's real TypeScript invite worker is supervised by dev, restarts and stops with it
+ok 9 - chat's real TypeScript invite worker is supervised by dev, restarts and stops with it
+  ---
+  duration_ms: 798.429708
+  type: 'test'
+  ...
+# Subtest: dev also starts a worker.mjs
+ok 10 - dev also starts a worker.mjs
+  ---
+  duration_ms: 259.185125
+  type: 'test'
+  ...
+# Subtest: dev also starts a worker.mts
+ok 11 - dev also starts a worker.mts
+  ---
+  duration_ms: 147.020958
+  type: 'test'
+  ...
+# Subtest: a lost action settlement retries its lease; a non-JSON result fails once
+ok 12 - a lost action settlement retries its lease; a non-JSON result fails once
+  ---
+  duration_ms: 1300.336708
+  type: 'test'
+  ...
+# Subtest: lost effect lease on the wire reports queued
+ok 13 - lost effect lease on the wire reports queued
+  ---
+  duration_ms: 1188.9115
+  type: 'test'
+  ...
+# Subtest: lost effect lease on the wire reports failed
+ok 14 - lost effect lease on the wire reports failed
+  ---
+  duration_ms: 8361.842666
+  type: 'test'
+  ...
+# Subtest: lost effect lease on the wire reports sent
+ok 15 - lost effect lease on the wire reports sent
+  ---
+  duration_ms: 1246.89975
+  type: 'test'
+  ...
+# Subtest: lost effect lease on the wire reports running
+ok 16 - lost effect lease on the wire reports running
+  ---
+  duration_ms: 1277.974916
+  type: 'test'
+  ...
+# Subtest: lost effect lease reports queued after handler success
+ok 17 - lost effect lease reports queued after handler success
+  ---
+  duration_ms: 0.918
+  type: 'test'
+  ...
+# Subtest: lost effect lease reports queued after handler failure
+ok 18 - lost effect lease reports queued after handler failure
+  ---
+  duration_ms: 0.307125
+  type: 'test'
+  ...
+# Subtest: lost effect lease reports failed after handler success
+ok 19 - lost effect lease reports failed after handler success
+  ---
+  duration_ms: 0.250791
+  type: 'test'
+  ...
+# Subtest: lost effect lease reports failed after handler failure
+ok 20 - lost effect lease reports failed after handler failure
+  ---
+  duration_ms: 0.240208
+  type: 'test'
+  ...
+# Subtest: lost effect lease reports sent after handler success
+ok 21 - lost effect lease reports sent after handler success
+  ---
+  duration_ms: 0.217917
+  type: 'test'
+  ...
+# Subtest: lost effect lease reports sent after handler failure
+ok 22 - lost effect lease reports sent after handler failure
+  ---
+  duration_ms: 0.237125
+  type: 'test'
+  ...
+# Subtest: lost effect lease reports running after handler success
+ok 23 - lost effect lease reports running after handler success
+  ---
+  duration_ms: 0.195417
+  type: 'test'
+  ...
+# Subtest: lost effect lease reports running after handler failure
+ok 24 - lost effect lease reports running after handler failure
+  ---
+  duration_ms: 0.189875
+  type: 'test'
+  ...
+# Subtest: lost effect lease reports unknown after handler success
+ok 25 - lost effect lease reports unknown after handler success
+  ---
+  duration_ms: 0.185709
+  type: 'test'
+  ...
+# Subtest: lost effect lease reports unknown after handler failure
+ok 26 - lost effect lease reports unknown after handler failure
+  ---
+  duration_ms: 0.736458
+  type: 'test'
+  ...
+# Subtest: effect settlement still reports a refusal other than lease loss
+ok 27 - effect settlement still reports a refusal other than lease loss
+  ---
+  duration_ms: 0.417833
+  type: 'test'
+  ...
+# Subtest: W7r1 runWorker and doctor observe suppressed presence effects
+ok 28 - W7r1 runWorker and doctor observe suppressed presence effects
+  ---
+  duration_ms: 2214.429167
+  type: 'test'
+  ...
+# replay=true notes=1 handler_attempts=0 dependency_rows=0 claim_responses=2
+# Subtest: W7r1 runWorker and doctor observe deferred presence effects
+ok 29 - W7r1 runWorker and doctor observe deferred presence effects
+  ---
+  duration_ms: 2276.684542
+  type: 'test'
+  ...
+# replay=false notes=1 handler_attempts=1 dependency_rows=0 claim_responses=3
+# Subtest: admission binds logout-all, single logout and refresh families over HTTP
+ok 30 - admission binds logout-all, single logout and refresh families over HTTP
+  ---
+  duration_ms: 259.943375
+  type: 'test'
+  ...
+# Subtest: serve supervises a worker with an explicit environment, restart backoff and shutdown
+ok 31 - serve supervises a worker with an explicit environment, restart backoff and shutdown
+  ---
+  duration_ms: 1286.081542
+  type: 'test'
+  ...
+# Subtest: an action admitted by a delegated action session fails terminally after its parent settles
+ok 32 - an action admitted by a delegated action session fails terminally after its parent settles
+  ---
+  duration_ms: 207.410083
+  type: 'test'
+  ...
+# Subtest: HTTP service-seat admission binds the service family and refuses work after its logout
+ok 33 - HTTP service-seat admission binds the service family and refuses work after its logout
+  ---
+  duration_ms: 252.7965
+  type: 'test'
+  ...
+# Subtest: dev replaces its supervised worker after a development clock revision
+ok 34 - dev replaces its supervised worker after a development clock revision
+  ---
+  duration_ms: 620.124459
+  type: 'test'
+  ...
+# Subtest: real HTTP redelivery after a lost settlement acknowledgement replays the durable ledger
+ok 35 - real HTTP redelivery after a lost settlement acknowledgement replays the durable ledger
+  ---
+  duration_ms: 1360.843833
+  type: 'test'
+  ...
+# Subtest: successfully settled retry effect failure calls onError once and redacts credentials
+ok 36 - successfully settled retry effect failure calls onError once and redacts credentials
+  ---
+  duration_ms: 1.23525
+  type: 'test'
+  ...
+# Subtest: successfully settled terminal effect failure calls onError once and redacts credentials
+ok 37 - successfully settled terminal effect failure calls onError once and redacts credentials
+  ---
+  duration_ms: 0.387167
+  type: 'test'
+  ...
+# Subtest: generated effects also report successfully recorded handler failures with the lease redacted
+ok 38 - generated effects also report successfully recorded handler failures with the lease redacted
+  ---
+  duration_ms: 1.571084
+  type: 'test'
+  ...
+# Subtest: dev and doctor expose successfully settled effect and action handler failures
+ok 39 - dev and doctor expose successfully settled effect and action handler failures
+  ---
+  duration_ms: 235.087209
+  type: 'test'
+  ...
+# Subtest: a claimed effect with no local handler reports its accepted terminal failure
+ok 40 - a claimed effect with no local handler reports its accepted terminal failure
+  ---
+  duration_ms: 0.733208
+  type: 'test'
+  ...
+# Subtest: generated nonterminal authority loss redacts the effect lease before reporting
+ok 41 - generated nonterminal authority loss redacts the effect lease before reporting
+  ---
+  duration_ms: 0.411667
+  type: 'test'
+  ...
+# Subtest: generated terminal authority loss redacts the effect lease before reporting
+ok 42 - generated terminal authority loss redacts the effect lease before reporting
+  ---
+  duration_ms: 0.277917
+  type: 'test'
+  ...
+1..42
+# tests 42
+# suites 0
+# pass 42
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 41965.13475
+-- process inspection: {"snapshots":3,"unrelatedRows":12273}
+-- client file ok: packages/snapback4/test/worker.test.mjs (42366 ms)
+-- client file start: packages/snapback4/test/publish-signing.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: dry-run signs before platform packing and proves the installed signed bytes
+ok 1 - dry-run signs before platform packing and proves the installed signed bytes
+  ---
+  duration_ms: 46.578542
+  type: 'test'
+  ...
+# Subtest: explicit signing identity resolves an ambiguous keychain without discovery
+ok 2 - explicit signing identity resolves an ambiguous keychain without discovery
+  ---
+  duration_ms: 43.291792
+  type: 'test'
+  ...
+# Subtest: publish refuses missing identity before platform packing
+ok 3 - publish refuses missing identity before platform packing
+  ---
+  duration_ms: 40.384
+  type: 'test'
+  ...
+# Subtest: publish refuses ambiguous identities before platform packing
+ok 4 - publish refuses ambiguous identities before platform packing
+  ---
+  duration_ms: 39.809459
+  type: 'test'
+  ...
+# Subtest: publish refuses keychain failure before platform packing
+ok 5 - publish refuses keychain failure before platform packing
+  ---
+  duration_ms: 40.102083
+  type: 'test'
+  ...
+# Subtest: publish refuses signing failure before platform packing
+ok 6 - publish refuses signing failure before platform packing
+  ---
+  duration_ms: 40.460833
+  type: 'test'
+  ...
+# Subtest: publish refuses verification failure before platform packing
+ok 7 - publish refuses verification failure before platform packing
+  ---
+  duration_ms: 40.6355
+  type: 'test'
+  ...
+# Subtest: publish refuses signature inspection failure before platform packing
+ok 8 - publish refuses signature inspection failure before platform packing
+  ---
+  duration_ms: 39.776917
+  type: 'test'
+  ...
+# Subtest: publish refuses non Developer ID signature before platform packing
+ok 9 - publish refuses non Developer ID signature before platform packing
+  ---
+  duration_ms: 40.28325
+  type: 'test'
+  ...
+# Subtest: Accepted notarization records the submission and precedes platform packing
+ok 10 - Accepted notarization records the submission and precedes platform packing
+  ---
+  duration_ms: 45.483917
+  type: 'test'
+  ...
+# Subtest: notarization refuses {"notaryStatus":"Invalid"} with the log id
+ok 11 - notarization refuses {"notaryStatus":"Invalid"} with the log id
+  ---
+  duration_ms: 40.075375
+  type: 'test'
+  ...
+# Subtest: notarization refuses {"notaryStatus":"In Progress"} with the log id
+ok 12 - notarization refuses {"notaryStatus":"In Progress"} with the log id
+  ---
+  duration_ms: 42.916375
+  type: 'test'
+  ...
+# Subtest: notarization refuses {"notaryError":true,"notaryStatus":"Invalid"} with the log id
+ok 13 - notarization refuses {"notaryError":true,"notaryStatus":"Invalid"} with the log id
+  ---
+  duration_ms: 40.153833
+  type: 'test'
+  ...
+# Subtest: notarization refuses malformed responses and acceptance without a submission id
+ok 14 - notarization refuses malformed responses and acceptance without a submission id
+  ---
+  duration_ms: 94.712625
+  type: 'test'
+  ...
+# Subtest: a red suite still refuses before signing
+ok 15 - a red suite still refuses before signing
+  ---
+  duration_ms: 35.857167
+  type: 'test'
+  ...
+# Subtest: the installed digest still refuses tampering after signing
+ok 16 - the installed digest still refuses tampering after signing
+  ---
+  duration_ms: 42.649333
+  type: 'test'
+  ...
+# Subtest: replacing Cargo output after verification cannot replace packed signed bytes
+ok 17 - replacing Cargo output after verification cannot replace packed signed bytes
+  ---
+  duration_ms: 47.000167
+  type: 'test'
+  ...
+# Subtest: the installed consumer signature must verify even with a matching digest
+ok 18 - the installed consumer signature must verify even with a matching digest
+  ---
+  duration_ms: 44.595458
+  type: 'test'
+  ...
+# Subtest: publication resumes the exact staged pair despite a red current source
+ok 19 - publication resumes the exact staged pair despite a red current source
+  ---
+  duration_ms: 78.077875
+  type: 'test'
+  ...
+# Subtest: matching registry artifacts converge without republishing
+ok 20 - matching registry artifacts converge without republishing
+  ---
+  duration_ms: 79.412667
+  type: 'test'
+  ...
+# Subtest: publication refuses a registry artifact whose integrity differs
+ok 21 - publication refuses a registry artifact whose integrity differs
+  ---
+  duration_ms: 77.36
+  type: 'test'
+  ...
+# Subtest: publication fails closed on non-404 registry errors
+ok 22 - publication fails closed on non-404 registry errors
+  ---
+  duration_ms: 77.579292
+  type: 'test'
+  ...
+# Subtest: resume requires the stage's recorded source-suite qualification
+ok 23 - resume requires the stage's recorded source-suite qualification
+  ---
+  duration_ms: 77.256417
+  type: 'test'
+  ...
+# Subtest: an existing stage requires explicit resume instead of silently publishing stale bytes
+ok 24 - an existing stage requires explicit resume instead of silently publishing stale bytes
+  ---
+  duration_ms: 84.116875
+  type: 'test'
+  ...
+# Subtest: packed DAY5 guide failure blocks Darwin installed-consumer publication
+ok 25 - packed DAY5 guide failure blocks Darwin installed-consumer publication
+  ---
+  duration_ms: 54.115292
+  type: 'test'
+  ...
+# Subtest: packed proof-kit failure blocks Darwin installed-consumer publication
+ok 26 - packed proof-kit failure blocks Darwin installed-consumer publication
+  ---
+  duration_ms: 48.538791
+  type: 'test'
+  ...
+1..26
+# tests 26
+# suites 0
+# pass 26
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 1421.583917
+-- process inspection: {"snapshots":3,"unrelatedRows":12279}
+-- client file ok: packages/snapback4/test/publish-signing.test.mjs (1799 ms)
+-- client file start: packages/snapback4/test/server-e2e.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: check validates generated handler returns, arguments and declared secrets without executing the entry
+ok 1 - check validates generated handler returns, arguments and declared secrets without executing the entry
+  ---
+  duration_ms: 2898.835625
+  type: 'test'
+  ...
+# Subtest: dev watches checked imports and configs outside snapback and keeps the last good worker through failed checks
+ok 2 - dev watches checked imports and configs outside snapback and keeps the last good worker through failed checks
+  ---
+  duration_ms: 14806.397209
+  type: 'test'
+  ...
+# Subtest: dev discovers generated server handlers, preserves read/write receipts and scopes and redacts secrets
+ok 3 - dev discovers generated server handlers, preserves read/write receipts and scopes and redacts secrets
+  ---
+  duration_ms: 833.864958
+  type: 'test'
+  ...
+# Subtest: scheduled generated action runs under its declared service seat
+ok 4 - scheduled generated action runs under its declared service seat
+  ---
+  duration_ms: 693.876917
+  type: 'test'
+  ...
+# Subtest: raw HTTP settlement validates declared results terminally and never reclaims them
+ok 5 - raw HTTP settlement validates declared results terminally and never reclaims them
+  ---
+  duration_ms: 260.147
+  type: 'test'
+  ...
+# Subtest: cancellation and admitting-session revocation abort an in-flight context before later writes
+ok 6 - cancellation and admitting-session revocation abort an in-flight context before later writes
+  ---
+  duration_ms: 1005.200667
+  type: 'test'
+  ...
+# Subtest: actual worker crashes distinguish the pre-provider cut, reconcile only authoritative missing, replay completed steps and preserve old modes
+ok 7 - actual worker crashes distinguish the pre-provider cut, reconcile only authoritative missing, replay completed steps and preserve old modes
+  ---
+  duration_ms: 26101.194041
+  type: 'test'
+  ...
+# Subtest: parked action operator disposition records known provider acceptance without resuming original work
+ok 8 - parked action operator disposition records known provider acceptance without resuming original work
+  ---
+  duration_ms: 1464.541417
+  type: 'test'
+  ...
+# Subtest: serve uses the same generated contract and declared environment across a supervised restart
+ok 9 - serve uses the same generated contract and declared environment across a supervised restart
+  ---
+  duration_ms: 3024.243833
+  type: 'test'
+  ...
+1..9
+# tests 9
+# suites 0
+# pass 9
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 51140.854875
+-- process inspection: {"snapshots":3,"unrelatedRows":12195}
+-- client file ok: packages/snapback4/test/server-e2e.test.mjs (51511 ms)
+-- client file start: packages/snapback4/test/wave10-upgrade.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: first check after version change reports new notes, API nullability and refusals without erasing the baseline
+ok 1 - first check after version change reports new notes, API nullability and refusals without erasing the baseline
+  ---
+  duration_ms: 1258.871208
+  type: 'test'
+  ...
+# Subtest: upgrade captures the old installed compiler, checks the new one and points Exact at its rebuild
+ok 2 - upgrade captures the old installed compiler, checks the new one and points Exact at its rebuild
+  ---
+  duration_ms: 1046.955959
+  type: 'test'
+  ...
+# Subtest: module-only backends compile and participate in upgrade qualification
+ok 3 - module-only backends compile and participate in upgrade qualification
+  ---
+  duration_ms: 507.781334
+  type: 'test'
+  ...
+# Subtest: upgrade resolves the new compiler after a pnpm-style package symlink replacement
+ok 4 - upgrade resolves the new compiler after a pnpm-style package symlink replacement
+  ---
+  duration_ms: 955.091
+  type: 'test'
+  ...
+# Subtest: upgrade with a refused old check still narrates runtime changes from its previous version
+ok 5 - upgrade with a refused old check still narrates runtime changes from its previous version
+  ---
+  duration_ms: 639.353084
+  type: 'test'
+  ...
+# Subtest: schema-less upgrade reads the new changelog after package symlink replacement
+ok 6 - schema-less upgrade reads the new changelog after package symlink replacement
+  ---
+  duration_ms: 253.872
+  type: 'test'
+  ...
+# Subtest: runtime history is acknowledged once: upgrade-first, human
+ok 7 - runtime history is acknowledged once: upgrade-first, human
+  ---
+  duration_ms: 2366.856625
+  type: 'test'
+  ...
+# Subtest: runtime history is acknowledged once: upgrade-first, JSON
+ok 8 - runtime history is acknowledged once: upgrade-first, JSON
+  ---
+  duration_ms: 2323.142666
+  type: 'test'
+  ...
+# Subtest: runtime history is acknowledged once: install-then-upgrade, human
+ok 9 - runtime history is acknowledged once: install-then-upgrade, human
+  ---
+  duration_ms: 2164.548208
+  type: 'test'
+  ...
+# Subtest: runtime history is acknowledged once: install-then-upgrade, JSON
+ok 10 - runtime history is acknowledged once: install-then-upgrade, JSON
+  ---
+  duration_ms: 2020.428291
+  type: 'test'
+  ...
+# Subtest: runtime history is acknowledged once: install-then-check, human
+ok 11 - runtime history is acknowledged once: install-then-check, human
+  ---
+  duration_ms: 1759.45425
+  type: 'test'
+  ...
+# Subtest: runtime history is acknowledged once: install-then-check, JSON
+ok 12 - runtime history is acknowledged once: install-then-check, JSON
+  ---
+  duration_ms: 1803.61425
+  type: 'test'
+  ...
+# Subtest: registry latest cannot silently downgrade; only --to authorizes it
+ok 13 - registry latest cannot silently downgrade; only --to authorizes it
+  ---
+  duration_ms: 943.771459
+  type: 'test'
+  ...
+# Subtest: schema-less JSON upgrade emits runtime history on stderr exactly once
+ok 14 - schema-less JSON upgrade emits runtime history on stderr exactly once
+  ---
+  duration_ms: 624.896291
+  type: 'test'
+  ...
+1..14
+# tests 14
+# suites 0
+# pass 14
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 18721.868833
+-- process inspection: {"snapshots":3,"unrelatedRows":12152}
+-- client file ok: packages/snapback4/test/wave10-upgrade.test.mjs (19188 ms)
+-- client file start: packages/snapback4/test/dx12-serve.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: serve callback receives private readiness, returns its value and releases the lock
+ok 1 - serve callback receives private readiness, returns its value and releases the lock
+  ---
+  duration_ms: 1056.121208
+  type: 'test'
+  ...
+# Subtest: callback failure and hung callback still release serve group and lock
+ok 2 - callback failure and hung callback still release serve group and lock
+  ---
+  duration_ms: 1335.0515
+  type: 'test'
+  ...
+# Subtest: then command gets readiness and nonzero status; descendants and hung commands are reaped
+ok 3 - then command gets readiness and nonzero status; descendants and hung commands are reaped
+  ---
+  duration_ms: 1469.123958
+  type: 'test'
+  ...
+# Subtest: startup hang names script and startup deadline without exposing output
+ok 4 - startup hang names script and startup deadline without exposing output
+  ---
+  duration_ms: 865.701375
+  type: 'test'
+  ...
+# snapback4: password-only development doors CLOSED (/seed, /dev/*, personas). For shared previews and probe:serve run snapback4 deploy staging --staging, then startServe("staging"); see snapback4 guide staging. Local fixtures require dev --unsafe-dev-doors.
+# Subtest: dev accounts use real password signup and ordinary operator provisioning, and refuse serve
+ok 5 - dev accounts use real password signup and ordinary operator provisioning, and refuse serve
+  ---
+  duration_ms: 1447.913416
+  type: 'test'
+  ...
+# Subtest: packed CLI propagates command status and literal withServeScript guide recipe runs
+ok 6 - packed CLI propagates command status and literal withServeScript guide recipe runs
+  ---
+  duration_ms: 2503.975083
+  type: 'test'
+  ...
+# Subtest: serve shutdown failure cannot earn success from a successful command
+ok 7 - serve shutdown failure cannot earn success from a successful command
+  ---
+  duration_ms: 947.036
+  type: 'test'
+  ...
+1..7
+# tests 7
+# suites 0
+# pass 7
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 9799.323208
+-- process inspection: {"snapshots":4,"unrelatedRows":16201}
+-- client file ok: packages/snapback4/test/dx12-serve.test.mjs (10257 ms)
+-- client file start: packages/snapback4/test/dx10-process-accounts.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: serve-check clean
+ok 1 - serve-check clean
+  ---
+  duration_ms: 936.06325
+  type: 'test'
+  ...
+# Subtest: serve-check npm-banner
+ok 2 - serve-check npm-banner
+  ---
+  duration_ms: 1841.177334
+  type: 'test'
+  ...
+# Subtest: serve-check no-json
+ok 3 - serve-check no-json
+  ---
+  duration_ms: 1815.917084
+  type: 'test'
+  ...
+# Subtest: serve-check early-exit
+ok 4 - serve-check early-exit
+  ---
+  duration_ms: 984.701292
+  type: 'test'
+  ...
+# Subtest: serve-check ignored-term
+ok 5 - serve-check ignored-term
+  ---
+  duration_ms: 1240.166833
+  type: 'test'
+  ...
+# Subtest: serve-check driver-death
+ok 6 - serve-check driver-death
+  ---
+  duration_ms: 909.032792
+  type: 'test'
+  ...
+# Subtest: serve-check trailing-output
+ok 7 - serve-check trailing-output
+  ---
+  duration_ms: 1025.483291
+  type: 'test'
+  ...
+# Subtest: serve-check reports a held real store lock before forced cleanup
+ok 8 - serve-check reports a held real store lock before forced cleanup
+  ---
+  duration_ms: 6387.323958
+  type: 'test'
+  ...
+# Subtest: production roster survives restarts with stable principals and 0600 credentials
+ok 9 - production roster survives restarts with stable principals and 0600 credentials
+  ---
+  duration_ms: 2473.1695
+  type: 'test'
+  ...
+# Subtest: roster resumes an ambiguous signup reply without another account
+ok 10 - roster resumes an ambiguous signup reply without another account
+  ---
+  duration_ms: 98.5385
+  type: 'test'
+  ...
+# Subtest: roster resumes an ambiguous provision reply without another account
+ok 11 - roster resumes an ambiguous provision reply without another account
+  ---
+  duration_ms: 111.400417
+  type: 'test'
+  ...
+# Subtest: packed package executes both stage recipes and the serve-check recipe literally
+ok 12 - packed package executes both stage recipes and the serve-check recipe literally
+  ---
+  duration_ms: 35471.801
+  type: 'test'
+  ...
+# Subtest: resuming a provision canonicalizes reordered nested arguments
+ok 13 - resuming a provision canonicalizes reordered nested arguments
+  ---
+  duration_ms: 83.089041
+  type: 'test'
+  ...
+# Subtest: production roster refuses concurrent setup and never replaces a known failed login
+ok 14 - production roster refuses concurrent setup and never replaces a known failed login
+  ---
+  duration_ms: 66.022042
+  type: 'test'
+  ...
+1..14
+# tests 14
+# suites 0
+# pass 14
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 53559.803916
+-- process inspection: {"snapshots":3,"unrelatedRows":12105}
+-- client file ok: packages/snapback4/test/dx10-process-accounts.test.mjs (54164 ms)
+-- client file start: packages/snapback4/test/rel2-roster-lock.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: roster records a private holder and renewable lease; a legacy marker is reclaimable
+ok 1 - roster records a private holder and renewable lease; a legacy marker is reclaimable
+  ---
+  duration_ms: 20.252416
+  type: 'test'
+  ...
+# Subtest: roster reclaims SIGTERM owner and serializes simultaneous reclaimers
+ok 2 - roster reclaims SIGTERM owner and serializes simultaneous reclaimers
+  ---
+  duration_ms: 40.795166
+  type: 'test'
+  ...
+# Subtest: roster reclaims SIGKILL owner and serializes simultaneous reclaimers
+ok 3 - roster reclaims SIGKILL owner and serializes simultaneous reclaimers
+  ---
+  duration_ms: 39.616792
+  type: 'test'
+  ...
+# Subtest: a failed lease renewal fences each delayed identity retry
+ok 4 - a failed lease renewal fences each delayed identity retry
+  ---
+  duration_ms: 151.501583
+  type: 'test'
+  ...
+# Subtest: concurrent processes reclaim one kernel owner without replacing its inode
+ok 5 - concurrent processes reclaim one kernel owner without replacing its inode
+  ---
+  duration_ms: 50.694458
+  type: 'test'
+  ...
+# Subtest: same-process BUSY attempts cannot cancel another process exclusion
+ok 6 - same-process BUSY attempts cannot cancel another process exclusion
+  ---
+  duration_ms: 32.923375
+  type: 'test'
+  ...
+# Subtest: a worker owning the first published inode survives a delayed creator close
+ok 7 - a worker owning the first published inode survives a delayed creator close
+  ---
+  duration_ms: 65.914083
+  type: 'test'
+  ...
+1..7
+# tests 7
+# suites 0
+# pass 7
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 440.675125
+-- process inspection: {"snapshots":3,"unrelatedRows":12105}
+-- client file ok: packages/snapback4/test/rel2-roster-lock.test.mjs (827 ms)
+-- client file start: packages/snapback4/test/proof.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: runtime port range is inclusive, validated, and never cached
+ok 1 - runtime port range is inclusive, validated, and never cached
+  ---
+  duration_ms: 0.624417
+  type: 'test'
+  ...
+# Subtest: proof hosts select the binary from their explicit environment
+ok 2 - proof hosts select the binary from their explicit environment
+  ---
+  duration_ms: 354.615417
+  type: 'test'
+  ...
+# Subtest: proof host startup rejects an unspawnable binary before the readiness deadline
+ok 3 - proof host startup rejects an unspawnable binary before the readiness deadline
+  ---
+  duration_ms: 48.51225
+  type: 'test'
+  ...
+# Subtest: native and static bind beyond an occupied port; identity and independent logs
+ok 4 - native and static bind beyond an occupied port; identity and independent logs
+  ---
+  duration_ms: 575.670209
+  type: 'test'
+  ...
+# Subtest: exhausted range and missing export fail with bounded cleanup
+ok 5 - exhausted range and missing export fail with bounded cleanup
+  ---
+  duration_ms: 309.005917
+  type: 'test'
+  ...
+# Subtest: static host serves wasm correctly and refuses escaped symlink assets
+ok 6 - static host serves wasm correctly and refuses escaped symlink assets
+  ---
+  duration_ms: 92.044333
+  type: 'test'
+  ...
+# Subtest: saved-source deploy, preview, hot forward, rollback and fixture test never change working bytes
+ok 7 - saved-source deploy, preview, hot forward, rollback and fixture test never change working bytes
+  ---
+  duration_ms: 4290.874917
+  type: 'test'
+  ...
+# Subtest: cli awaits close, separates output and returns refusal status
+ok 8 - cli awaits close, separates output and returns refusal status
+  ---
+  duration_ms: 178.724125
+  type: 'test'
+  ...
+# Subtest: ANSI and blank ready lines, early exit, stalled readiness and TERM escalation
+ok 9 - ANSI and blank ready lines, early exit, stalled readiness and TERM escalation
+  ---
+  duration_ms: 174.546541
+  type: 'test'
+  ...
+# Subtest: cleanup bounds stalled actions and continues after errors
+ok 10 - cleanup bounds stalled actions and continues after errors
+  ---
+  duration_ms: 42.95175
+  type: 'test'
+  ...
+# Subtest: exit sweep kills registered child, not a neighboring child
+ok 11 - exit sweep kills registered child, not a neighboring child
+  ---
+  duration_ms: 63.022666
+  type: 'test'
+  ...
+# Subtest: Vite uses the project's config and bound identity
+ok 12 - Vite uses the project's config and bound identity
+  ---
+  duration_ms: 202.663333
+  type: 'test'
+  ...
+# Subtest: browser helpers use fresh text, stable values and RN keystrokes
+ok 13 - browser helpers use fresh text, stable values and RN keystrokes
+  ---
+  duration_ms: 422.537541
+  type: 'test'
+  ...
+# Subtest: SIGKILLed driver closes frontend liveness and sweeps its whole private group
+ok 14 - SIGKILLed driver closes frontend liveness and sweeps its whole private group
+  ---
+  duration_ms: 248.353375
+  type: 'test'
+  ...
+# Subtest: frontend stop waits for keeper-backed descendant cleanup
+ok 15 - frontend stop waits for keeper-backed descendant cleanup
+  ---
+  duration_ms: 396.497708
+  type: 'test'
+  ...
+# Subtest: frontend startup cleanup refuses when its keeper is lost with a live descendant
+ok 16 - frontend startup cleanup refuses when its keeper is lost with a live descendant
+  ---
+  duration_ms: 5055.367833
+  type: 'test'
+  ...
+# Subtest: saved schemas typecheck server companions against private candidate API without replacing working types
+ok 17 - saved schemas typecheck server companions against private candidate API without replacing working types
+  ---
+  duration_ms: 3796.976666
+  type: 'test'
+  ...
+# Subtest: ready PID and served marker mismatches refuse instead of adopting another identity
+ok 18 - ready PID and served marker mismatches refuse instead of adopting another identity
+  ---
+  duration_ms: 477.778083
+  type: 'test'
+  ...
+# Subtest: secret stdout stays in memory; token CLI automatically selects secret capture
+ok 19 - secret stdout stays in memory; token CLI automatically selects secret capture
+  ---
+  duration_ms: 284.398833
+  type: 'test'
+  ...
+# Subtest: startDev explicit --memory preserves isolation with custom arguments
+ok 20 - startDev explicit --memory preserves isolation with custom arguments
+  ---
+  duration_ms: 491.698125
+  type: 'test'
+  ...
+# Subtest: waitForServer waits for authoritative projection and diagnoses unchanged truth
+ok 21 - waitForServer waits for authoritative projection and diagnoses unchanged truth
+  ---
+  duration_ms: 154.679083
+  type: 'test'
+  ...
+# Subtest: proof browser navigation arms witness before application registration
+ok 22 - proof browser navigation arms witness before application registration
+  ---
+  duration_ms: 250.558334
+  type: 'test'
+  ...
+# Subtest: --no-memory is consumed by the kit and retains dev rows across restarts
+ok 23 - --no-memory is consumed by the kit and retains dev rows across restarts
+  ---
+  duration_ms: 802.683584
+  type: 'test'
+  ...
+# Subtest: proof witness injection survives HTTP redirect destinations
+ok 24 - proof witness injection survives HTTP redirect destinations
+  ---
+  duration_ms: 136.764417
+  type: 'test'
+  ...
+# Subtest: proof command cleanup owns npm descendants and caller death
+ok 25 - proof command cleanup owns npm descendants and caller death
+  ---
+  duration_ms: 1070.046375
+  type: 'test'
+  ...
+# Subtest: process-group cleanup deadline stops polling after refusal
+ok 26 - process-group cleanup deadline stops polling after refusal
+  ---
+  duration_ms: 123.470167
+  type: 'test'
+  ...
+# Subtest: KIT4 missing static output names the app build script
+ok 27 - KIT4 missing static output names the app build script
+  ---
+  duration_ms: 110.110291
+  type: 'test'
+  ...
+# Subtest: KIT4 missing browser peer refuses before logs or the proof callback
+ok 28 - KIT4 missing browser peer refuses before logs or the proof callback
+  ---
+  duration_ms: 170.917459
+  type: 'test'
+  ...
+# Subtest: serve stop waits for delayed worker cleanup before resolving and is replayable
+ok 29 - serve stop waits for delayed worker cleanup before resolving and is replayable
+  ---
+  duration_ms: 2045.3085
+  type: 'test'
+  ...
+# Subtest: process-group cleanup waits through a transient EPERM
+ok 30 - process-group cleanup waits through a transient EPERM
+  ---
+  duration_ms: 77.087542
+  type: 'test'
+  ...
+# Subtest: DX9 serveUntilSignal keeps probe alive and reaps owned hosts on TERM
+ok 31 - DX9 serveUntilSignal keeps probe alive and reaps owned hosts on TERM
+  ---
+  duration_ms: 384.850792
+  type: 'test'
+  ...
+1..31
+# tests 31
+# suites 0
+# pass 31
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 22968.965625
+-- process inspection: {"snapshots":3,"unrelatedRows":12078}
+-- client file ok: packages/snapback4/test/proof.test.mjs (23382 ms)
+-- isolated timer files: 3; concurrency: 1
+-- client file start: packages/snapback4/test/export-background.test.mjs; stall bound 1275000 ms
+TAP version 13
+# Subtest: Darwin export launch policy: production background
+ok 1 - Darwin export launch policy: production background
+  ---
+  duration_ms: 5277.141084
+  type: 'test'
+  ...
+# Subtest: Darwin export launch policy: normal fixture
+ok 2 - Darwin export launch policy: normal fixture
+  ---
+  duration_ms: 1642.315584
+  type: 'test'
+  ...
+# Subtest: export publishes before smoke completes, reports pending, then surfaces skip in status/doctor/next export
+ok 3 - export publishes before smoke completes, reports pending, then surfaces skip in status/doctor/next export
+  ---
+  duration_ms: 2917.687208
+  type: 'test'
+  ...
+# Subtest: new publication supersedes blocked smoke; only one driver enters the tool at a time
+ok 4 - new publication supersedes blocked smoke; only one driver enters the tool at a time
+  ---
+  duration_ms: 2732.377792
+  type: 'test'
+  ...
+# Subtest: SIGKILL of background driver cleans its peer/tools without another export
+ok 5 - SIGKILL of background driver cleans its peer/tools without another export
+  ---
+  duration_ms: 2725.376875
+  type: 'test'
+  ...
+# Subtest: SIGKILL of background worker cleans its peer/tools without another export
+ok 6 - SIGKILL of background worker cleans its peer/tools without another export
+  ---
+  duration_ms: 2621.103334
+  type: 'test'
+  ...
+# Subtest: SIGTERM of background worker cleans its peer/tools without another export
+ok 7 - SIGTERM of background worker cleans its peer/tools without another export
+  ---
+  duration_ms: 3005.788875
+  type: 'test'
+  ...
+# Subtest: SIGHUP of background worker cleans its peer/tools without another export
+ok 8 - SIGHUP of background worker cleans its peer/tools without another export
+  ---
+  duration_ms: 3168.675
+  type: 'test'
+  ...
+# Subtest: interrupting a status observer leaves the detached proof running
+ok 9 - interrupting a status observer leaves the detached proof running
+  ---
+  duration_ms: 2102.731333
+  type: 'test'
+  ...
+# Subtest: background product failure stays loud without changing export success
+ok 10 - background product failure stays loud without changing export success
+  ---
+  duration_ms: 1659.410958
+  type: 'test'
+  ...
+# Subtest: failed evidence pruning does not rewrite a completed native outcome
+ok 11 - failed evidence pruning does not rewrite a completed native outcome
+  ---
+  duration_ms: 2109.967125
+  type: 'test'
+  ...
+# Subtest: driver death during auto-create-buffered-timeout deletes only its recorded simulator
+ok 12 - driver death during auto-create-buffered-timeout deletes only its recorded simulator
+  ---
+  duration_ms: 2749.298584
+  type: 'test'
+  ...
+# Subtest: driver death during auto-create-race deletes only its recorded simulator
+ok 13 - driver death during auto-create-race deletes only its recorded simulator
+  ---
+  duration_ms: 2718.308833
+  type: 'test'
+  ...
+# Subtest: worker death during auto-create-race deletes only its recorded simulator
+ok 14 - worker death during auto-create-race deletes only its recorded simulator
+  ---
+  duration_ms: 2327.389875
+  type: 'test'
+  ...
+# Subtest: an explicit opt-out supersedes an in-flight proof and reports the new export as skipped
+ok 15 - an explicit opt-out supersedes an in-flight proof and reports the new export as skipped
+  ---
+  duration_ms: 1938.740042
+  type: 'test'
+  ...
+# Subtest: failed latest handoff cannot report an older pass (export one)
+ok 16 - failed latest handoff cannot report an older pass (export one)
+  ---
+  duration_ms: 936.94625
+  type: 'test'
+  ...
+# Subtest: failed latest handoff cannot report an older pass (changed export)
+ok 17 - failed latest handoff cannot report an older pass (changed export)
+  ---
+  duration_ms: 946.759916
+  type: 'test'
+  ...
+# Subtest: failed export-skipped handoff cannot report an older pass (off, equal bytes)
+ok 18 - failed export-skipped handoff cannot report an older pass (off, equal bytes)
+  ---
+  duration_ms: 946.598167
+  type: 'test'
+  ...
+# Subtest: failed export-skipped handoff cannot report an older pass (non-macOS, equal bytes)
+ok 19 - failed export-skipped handoff cannot report an older pass (non-macOS, equal bytes)
+  ---
+  duration_ms: 906.685167
+  type: 'test'
+  ...
+# retention before SIGTERM: complete custody drained in 151 ms; newer proof started
+# Subtest: blocked retention has bounded custody: before SIGTERM
+ok 20 - blocked retention has bounded custody: before SIGTERM
+  ---
+  duration_ms: 2970.908625
+  type: 'test'
+  ...
+# retention before SIGKILL: complete custody drained in 102 ms; newer proof started
+# Subtest: blocked retention has bounded custody: before SIGKILL
+ok 21 - blocked retention has bounded custody: before SIGKILL
+  ---
+  duration_ms: 3077.505375
+  type: 'test'
+  ...
+# retention before supersede: complete custody drained in 387 ms; newer proof started
+# Subtest: blocked retention has bounded custody: before supersede
+ok 22 - blocked retention has bounded custody: before supersede
+  ---
+  duration_ms: 3156.323875
+  type: 'test'
+  ...
+# retention before deadline: complete custody drained in 29584 ms; newer proof started
+# Subtest: blocked retention has bounded custody: before deadline
+ok 23 - blocked retention has bounded custody: before deadline
+  ---
+  duration_ms: 33050.983458
+  type: 'test'
+  ...
+# retention after SIGTERM: complete custody drained in 88 ms; newer proof started
+# Subtest: blocked retention has bounded custody: after SIGTERM
+ok 24 - blocked retention has bounded custody: after SIGTERM
+  ---
+  duration_ms: 3527.833708
+  type: 'test'
+  ...
+# retention after SIGKILL: complete custody drained in 101 ms; newer proof started
+# Subtest: blocked retention has bounded custody: after SIGKILL
+ok 25 - blocked retention has bounded custody: after SIGKILL
+  ---
+  duration_ms: 3477.299125
+  type: 'test'
+  ...
+# retention after supersede: complete custody drained in 388 ms; newer proof started
+# Subtest: blocked retention has bounded custody: after supersede
+ok 26 - blocked retention has bounded custody: after supersede
+  ---
+  duration_ms: 3686.043375
+  type: 'test'
+  ...
+# Subtest: overlapping skipped export cannot inherit a concurrent publication's proof (marker failure)
+ok 27 - overlapping skipped export cannot inherit a concurrent publication's proof (marker failure)
+  ---
+  duration_ms: 2341.03
+  type: 'test'
+  ...
+# Subtest: overlapping skipped export cannot inherit a concurrent publication's proof (handoff failure)
+ok 28 - overlapping skipped export cannot inherit a concurrent publication's proof (handoff failure)
+  ---
+  duration_ms: 2320.6155
+  type: 'test'
+  ...
+# {"writer":"observer","removalProbeFiles":[],"code":1,"output":"export:ios failed: injected skipped marker write failure\\n"}
+# Subtest: failed export removal cannot race a maintenance writer (observer)
+ok 29 - failed export removal cannot race a maintenance writer (observer)
+  ---
+  duration_ms: 912.404291
+  type: 'test'
+  ...
+# {"writer":"repair","removalProbeFiles":[],"code":1,"output":"export:ios failed: injected skipped marker write failure\\n"}
+# Subtest: failed export removal cannot race a maintenance writer (repair)
+ok 30 - failed export removal cannot race a maintenance writer (repair)
+  ---
+  duration_ms: 1272.062667
+  type: 'test'
+  ...
+# Subtest: shell repair cannot recreate a run removed after its directory discovery
+ok 31 - shell repair cannot recreate a run removed after its directory discovery
+  ---
+  duration_ms: 342.538541
+  type: 'test'
+  ...
+# Subtest: first opt-out publishes a complete skipped handoff
+ok 32 - first opt-out publishes a complete skipped handoff
+  ---
+  duration_ms: 1015.495833
+  type: 'test'
+  ...
+# Subtest: request timestamp begins at publication commit, not private marker creation
+ok 33 - request timestamp begins at publication commit, not private marker creation
+  ---
+  duration_ms: 1680.833
+  type: 'test'
+  ...
+# Subtest: direct export-retain has bounded custody and the inner worker rejects manual use
+ok 34 - direct export-retain has bounded custody and the inner worker rejects manual use
+  ---
+  duration_ms: 455.041708
+  type: 'test'
+  ...
+# Subtest: SIGKILL overlap defers a still-held retention lock and starts the next proof
+ok 35 - SIGKILL overlap defers a still-held retention lock and starts the next proof
+  ---
+  duration_ms: 4370.663042
+  type: 'test'
+  ...
+# {"mode":"off","exports":28,"full":5,"compressed":20,"returnMs":[657,297,282,280,286,299,302,312,296,309,289,286,285,295,807,792,283,296,278,356,282,307,293,308,362,304,300,309]}
+# Subtest: repeated skipped exports retain five full plus twenty compressed runs (off)
+ok 36 - repeated skipped exports retain five full plus twenty compressed runs (off)
+  ---
+  duration_ms: 10563.869959
+  type: 'test'
+  ...
+# {"mode":"non-macOS","exports":28,"full":5,"compressed":20,"returnMs":[316,299,280,298,281,282,287,295,292,310,275,311,328,314,292,293,288,280,305,285,332,285,301,303,283,309,278,280]}
+# Subtest: repeated skipped exports retain five full plus twenty compressed runs (non-macOS)
+ok 37 - repeated skipped exports retain five full plus twenty compressed runs (non-macOS)
+  ---
+  duration_ms: 9038.843209
+  type: 'test'
+  ...
+# Subtest: skipped maintenance never blocks publication and drains under SIGTERM (off)
+ok 38 - skipped maintenance never blocks publication and drains under SIGTERM (off)
+  ---
+  duration_ms: 2531.173333
+  type: 'test'
+  ...
+# Subtest: skipped maintenance never blocks publication and drains under SIGKILL (non-macOS)
+ok 39 - skipped maintenance never blocks publication and drains under SIGKILL (non-macOS)
+  ---
+  duration_ms: 2547.917791
+  type: 'test'
+  ...
+# Subtest: skipped maintenance never blocks publication and drains under deadline (off)
+ok 40 - skipped maintenance never blocks publication and drains under deadline (off)
+  ---
+  duration_ms: 32228.776875
+  type: 'test'
+  ...
+# Subtest: retention process listing reads a large complete table and refuses partial output
+ok 41 - retention process listing reads a large complete table and refuses partial output
+  ---
+  duration_ms: 307.420667
+  type: 'test'
+  ...
+# {"mode":"off","exports":28,"maximumMaintenanceProcesses":1,"pendingObservers":1,"full":5,"compressed":20,"returnMs":[350,304,299,301,279,274,306,290,330,274,294,287,277,277,289,280,286,295,281,293,678,749,287,284,282,284,271,275]}
+# Subtest: held retention lock coalesces 28 skipped exports into one pending observer (off)
+ok 42 - held retention lock coalesces 28 skipped exports into one pending observer (off)
+  ---
+  duration_ms: 12477.21425
+  type: 'test'
+  ...
+# {"mode":"non-macOS","exports":28,"maximumMaintenanceProcesses":1,"pendingObservers":1,"full":5,"compressed":20,"returnMs":[326,278,274,276,284,280,276,283,289,278,278,294,313,288,284,281,283,282,281,291,302,280,277,285,296,346,284,291]}
+# Subtest: held retention lock coalesces 28 skipped exports into one pending observer (non-macOS)
+ok 43 - held retention lock coalesces 28 skipped exports into one pending observer (non-macOS)
+  ---
+  duration_ms: 11550.194125
+  type: 'test'
+  ...
+# Subtest: first-started last-published generation remains full evidence (off)
+ok 44 - first-started last-published generation remains full evidence (off)
+  ---
+  duration_ms: 3627.924
+  type: 'test'
+  ...
+# Subtest: first-started last-published generation remains full evidence (non-macOS)
+ok 45 - first-started last-published generation remains full evidence (non-macOS)
+  ---
+  duration_ms: 3500.737292
+  type: 'test'
+  ...
+# Subtest: first-started last-published generation remains full evidence (background)
+ok 46 - first-started last-published generation remains full evidence (background)
+  ---
+  duration_ms: 4944.726375
+  type: 'test'
+  ...
+# {"mode":"off","failedHandoffs":10,"pausedFull":15,"full":5,"compressed":10,"pendingAfterRelease":false}
+# Subtest: failed handoffs with held wrapper leases retain deferred maintenance (off)
+ok 47 - failed handoffs with held wrapper leases retain deferred maintenance (off)
+  ---
+  duration_ms: 6780.43425
+  type: 'test'
+  ...
+# {"mode":"non-macOS","failedHandoffs":10,"pausedFull":15,"full":5,"compressed":10,"pendingAfterRelease":false}
+# Subtest: failed handoffs with held wrapper leases retain deferred maintenance (non-macOS)
+ok 48 - failed handoffs with held wrapper leases retain deferred maintenance (non-macOS)
+  ---
+  duration_ms: 6837.679167
+  type: 'test'
+  ...
+# {"mode":"background","failedHandoffs":10,"pausedFull":15,"full":5,"compressed":10,"pendingAfterRelease":false}
+# Subtest: failed handoffs with held wrapper leases retain deferred maintenance (background)
+ok 49 - failed handoffs with held wrapper leases retain deferred maintenance (background)
+  ---
+  duration_ms: 6780.807916
+  type: 'test'
+  ...
+# {"heldPublicationMs":2200,"retentionStartsWhileHeld":0,"retentionStartsAfterRelease":1,"full":5,"compressed":10}
+# Subtest: a held exclusive publication lock pauses one observer without starting retention workers
+ok 50 - a held exclusive publication lock pauses one observer without starting retention workers
+  ---
+  duration_ms: 7887.9715
+  type: 'test'
+  ...
+# {"heldPublicationMs":2200,"retentionStartsWhileHeld":0,"retentionStartsAfterRelease":1,"full":5,"compressed":10}
+# Subtest: a held shared publication lock pauses one observer without starting retention workers
+ok 51 - a held shared publication lock pauses one observer without starting retention workers
+  ---
+  duration_ms: 8360.875791
+  type: 'test'
+  ...
+# Subtest: failed maintenance retains a parked request and a later export retries it
+ok 52 - failed maintenance retains a parked request and a later export retries it
+  ---
+  duration_ms: 4068.202875
+  type: 'test'
+  ...
+# {"interruptedPublication":"before","workerStarts":1,"repairMs":1404,"full":5,"compressed":20}
+# Subtest: retention repairs an ownerless publication before exchange without worker respawn
+ok 53 - retention repairs an ownerless publication before exchange without worker respawn
+  ---
+  duration_ms: 12926.261291
+  type: 'test'
+  ...
+# {"interruptedPublication":"after","workerStarts":1,"repairMs":1362,"full":5,"compressed":20}
+# Subtest: retention repairs an ownerless publication after exchange without worker respawn
+ok 54 - retention repairs an ownerless publication after exchange without worker respawn
+  ---
+  duration_ms: 12995.393041
+  type: 'test'
+  ...
+# {"ownerlessRepair":"off","removedShells":10,"workerStarts":1,"full":5,"compressed":20}
+# Subtest: failed export lease removes its shell and retention repairs legacy ownerless runs (off)
+ok 55 - failed export lease removes its shell and retention repairs legacy ownerless runs (off)
+  ---
+  duration_ms: 9309.561375
+  type: 'test'
+  ...
+# {"ownerlessRepair":"non-macOS","removedShells":10,"workerStarts":1,"full":5,"compressed":20}
+# Subtest: failed export lease removes its shell and retention repairs legacy ownerless runs (non-macOS)
+ok 56 - failed export lease removes its shell and retention repairs legacy ownerless runs (non-macOS)
+  ---
+  duration_ms: 9727.498875
+  type: 'test'
+  ...
+# {"ownerlessRepair":"background","removedShells":10,"workerStarts":1,"full":5,"compressed":20}
+# Subtest: failed export lease removes its shell and retention repairs legacy ownerless runs (background)
+ok 57 - failed export lease removes its shell and retention repairs legacy ownerless runs (background)
+  ---
+  duration_ms: 10593.089292
+  type: 'test'
+  ...
+# Subtest: a live retention owner has a bounded passive observer and leaves a durable retry (launch gate true)
+ok 58 - a live retention owner has a bounded passive observer and leaves a durable retry (launch gate true)
+  ---
+  duration_ms: 11213.588625
+  type: 'test'
+  ...
+# Subtest: a live retention owner has a bounded passive observer and leaves a durable retry (launch gate false)
+ok 59 - a live retention owner has a bounded passive observer and leaves a durable retry (launch gate false)
+  ---
+  duration_ms: 11876.040333
+  type: 'test'
+  ...
+# Subtest: retention cannot remove a run between directory creation and export lease acquisition
+ok 60 - retention cannot remove a run between directory creation and export lease acquisition
+  ---
+  duration_ms: 11632.126167
+  type: 'test'
+  ...
+# Subtest: export initialization refuses a live stuck initializer within five seconds
+ok 61 - export initialization refuses a live stuck initializer within five seconds
+  ---
+  duration_ms: 6128.77475
+  type: 'test'
+  ...
+# Subtest: SIGKILL of the sole maintenance custodian restores retention without another export
+ok 62 - SIGKILL of the sole maintenance custodian restores retention without another export
+  ---
+  duration_ms: 2182.632792
+  type: 'test'
+  ...
+# Subtest: SIGKILL of the sole maintenance observer restores retention without another export
+ok 63 - SIGKILL of the sole maintenance observer restores retention without another export
+  ---
+  duration_ms: 2098.814667
+  type: 'test'
+  ...
+# Subtest: failed Expo exports and dead wrapper journals never occupy keep slots (off)
+ok 64 - failed Expo exports and dead wrapper journals never occupy keep slots (off)
+  ---
+  duration_ms: 13817.055833
+  type: 'test'
+  ...
+# Subtest: failed Expo exports and dead wrapper journals never occupy keep slots (non-macOS)
+ok 65 - failed Expo exports and dead wrapper journals never occupy keep slots (non-macOS)
+  ---
+  duration_ms: 11881.829042
+  type: 'test'
+  ...
+# Subtest: failed Expo exports and dead wrapper journals never occupy keep slots (background)
+ok 66 - failed Expo exports and dead wrapper journals never occupy keep slots (background)
+  ---
+  duration_ms: 13297.24925
+  type: 'test'
+  ...
+# Subtest: repeated raced retention-lock deferrals stay pending and restore the bound after release
+ok 67 - repeated raced retention-lock deferrals stay pending and restore the bound after release
+  ---
+  duration_ms: 10705.503458
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"off","nextExpo":"passed","recovery":"next export inventory","restoredMs":1139,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (off, next Expo succeeds)
+ok 68 - maintenance crash matrix: publication-committed (off, next Expo succeeds)
+  ---
+  duration_ms: 10473.589
+  type: 'test'
+  ...
+# Subtest: expired checkpoint refuses signal after 22-second dispatch delay
+ok 69 - expired checkpoint refuses signal after 22-second dispatch delay
+  ---
+  duration_ms: 31941.998875
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"off","nextExpo":"failed","recovery":"next export inventory","restoredMs":568,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (off, next Expo fails)
+ok 70 - maintenance crash matrix: publication-committed (off, next Expo fails)
+  ---
+  duration_ms: 10210.85
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"non-macOS","nextExpo":"passed","recovery":"next export inventory","restoredMs":1057,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (non-macOS, next Expo succeeds)
+ok 71 - maintenance crash matrix: publication-committed (non-macOS, next Expo succeeds)
+  ---
+  duration_ms: 10354.47675
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"non-macOS","nextExpo":"failed","recovery":"next export inventory","restoredMs":645,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (non-macOS, next Expo fails)
+ok 72 - maintenance crash matrix: publication-committed (non-macOS, next Expo fails)
+  ---
+  duration_ms: 10231.645167
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"background","nextExpo":"passed","recovery":"next export inventory","restoredMs":2477,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (background, next Expo succeeds)
+ok 73 - maintenance crash matrix: publication-committed (background, next Expo succeeds)
+  ---
+  duration_ms: 12971.109583
+  type: 'test'
+  ...
+# {"point":"publication-committed","mode":"background","nextExpo":"failed","recovery":"next export inventory","restoredMs":1062,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-committed (background, next Expo fails)
+ok 74 - maintenance crash matrix: publication-committed (background, next Expo fails)
+  ---
+  duration_ms: 10993.725916
+  type: 'test'
+  ...
+# {"point":"publication-handoff","mode":"off","nextExpo":"passed","recovery":"next export inventory","restoredMs":1152,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-handoff (off, next Expo succeeds)
+ok 75 - maintenance crash matrix: publication-handoff (off, next Expo succeeds)
+  ---
+  duration_ms: 11006.997833
+  type: 'test'
+  ...
+# {"point":"publication-handoff","mode":"off","nextExpo":"failed","recovery":"next export inventory","restoredMs":587,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-handoff (off, next Expo fails)
+ok 76 - maintenance crash matrix: publication-handoff (off, next Expo fails)
+  ---
+  duration_ms: 9896.539958
+  type: 'test'
+  ...
+# {"point":"publication-handoff","mode":"non-macOS","nextExpo":"passed","recovery":"next export inventory","restoredMs":1116,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-handoff (non-macOS, next Expo succeeds)
+ok 77 - maintenance crash matrix: publication-handoff (non-macOS, next Expo succeeds)
+  ---
+  duration_ms: 10501.359209
+  type: 'test'
+  ...
+# {"point":"publication-handoff","mode":"non-macOS","nextExpo":"failed","recovery":"next export inventory","restoredMs":997,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-handoff (non-macOS, next Expo fails)
+ok 78 - maintenance crash matrix: publication-handoff (non-macOS, next Expo fails)
+  ---
+  duration_ms: 11161.9615
+  type: 'test'
+  ...
+# {"point":"publication-handoff","mode":"background","nextExpo":"passed","recovery":"next export inventory","restoredMs":1813,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-handoff (background, next Expo succeeds)
+ok 79 - maintenance crash matrix: publication-handoff (background, next Expo succeeds)
+  ---
+  duration_ms: 12089.082833
+  type: 'test'
+  ...
+# {"point":"publication-handoff","mode":"background","nextExpo":"failed","recovery":"next export inventory","restoredMs":585,"full":5,"compressed":20}
+# Subtest: maintenance crash matrix: publication-handoff (background, next Expo fails)
+ok 80 - maintenance crash matrix: publication-handoff (background, next Expo fails)
+  ---
+  duration_ms: 10200.603958
+  type: 'test'
+  ...
+# {"holder":"ready-pending-export","stalled":false,"wrapperExited":60331,"holderIdentity":{"pid":60357,"start":[1793072309,991684]},"publisherIdentity":{"pid":60451,"start":[1793072310,213721]}}
+# Subtest: interrupted publication recovers through ready-pending-export custody
+ok 81 - interrupted publication recovers through ready-pending-export custody
+  ---
+  duration_ms: 1547.61875
+  type: 'test'
+  ...
+# {"holder":"ready-pending-export","stalled":true,"wrapperExited":60605,"holderIdentity":{"pid":60712,"start":[1793072311,595971]},"publisherIdentity":{"pid":60725,"start":[1793072311,828222]}}
+# Subtest: interrupted publication preserves a persistently held export lease
+ok 82 - interrupted publication preserves a persistently held export lease
+  ---
+  duration_ms: 7003.345875
+  type: 'test'
+  ...
+# {"holder":"reconcile-pending-export","stalled":false,"wrapperExited":61552,"holderIdentity":{"pid":61687,"start":[1793072318,724821]},"publisherIdentity":{"pid":61701,"start":[1793072318,991599]}}
+# Subtest: interrupted publication recovers through reconcile-pending-export custody
+ok 83 - interrupted publication recovers through reconcile-pending-export custody
+  ---
+  duration_ms: 1495.28475
+  type: 'test'
+  ...
+# {"point":"request-created","recovery":"next export","restoredMs":701,"full":5,"compressed":20,"attempt":1}
+# Subtest: maintenance crash matrix: request-created (next export)
+ok 84 - maintenance crash matrix: request-created (next export)
+  ---
+  duration_ms: 1188.983375
+  type: 'test'
+  ...
+# {"point":"request-prepared","recovery":"next export","restoredMs":700,"full":5,"compressed":20,"attempt":1}
+# Subtest: maintenance crash matrix: request-prepared (next export)
+ok 85 - maintenance crash matrix: request-prepared (next export)
+  ---
+  duration_ms: 1218.916333
+  type: 'test'
+  ...
+# {"point":"request-committed","recovery":"next export","restoredMs":1220,"full":5,"compressed":20,"attempt":2}
+# Subtest: maintenance crash matrix: request-committed (next export)
+ok 86 - maintenance crash matrix: request-committed (next export)
+  ---
+  duration_ms: 1734.285208
+  type: 'test'
+  ...
+# {"point":"claim-renamed","recovery":"peer","restoredMs":847,"full":5,"compressed":20,"attempt":1}
+# Subtest: maintenance crash matrix: claim-renamed (peer)
+ok 87 - maintenance crash matrix: claim-renamed (peer)
+  ---
+  duration_ms: 1490.204709
+  type: 'test'
+  ...
+# {"point":"claim-recorded","recovery":"peer","restoredMs":884,"full":5,"compressed":20,"attempt":1}
+# Subtest: maintenance crash matrix: claim-recorded (peer)
+ok 88 - maintenance crash matrix: claim-recorded (peer)
+  ---
+  duration_ms: 1527.94975
+  type: 'test'
+  ...
+# {"point":"scan-starting","recovery":"peer","restoredMs":881,"full":5,"compressed":20,"attempt":1}
+# Subtest: maintenance crash matrix: scan-starting (peer)
+ok 89 - maintenance crash matrix: scan-starting (peer)
+  ---
+  duration_ms: 1519.700166
+  type: 'test'
+  ...
+# {"point":"compress-before","recovery":"next export","restoredMs":1547,"full":5,"compressed":20,"attempt":3}
+# Subtest: maintenance crash matrix: compress-before (next export)
+ok 90 - maintenance crash matrix: compress-before (next export)
+  ---
+  duration_ms: 2266.610667
+  type: 'test'
+  ...
+# {"point":"compress-committed","recovery":"next export","restoredMs":1558,"full":5,"compressed":20,"attempt":3}
+# Subtest: maintenance crash matrix: compress-committed (next export)
+ok 91 - maintenance crash matrix: compress-committed (next export)
+  ---
+  duration_ms: 2281.667958
+  type: 'test'
+  ...
+# {"point":"delete-before","recovery":"next export","restoredMs":1385,"full":5,"compressed":20,"attempt":3}
+# Subtest: maintenance crash matrix: delete-before (next export)
+ok 92 - maintenance crash matrix: delete-before (next export)
+  ---
+  duration_ms: 2304.908583
+  type: 'test'
+  ...
+# {"point":"delete-after","recovery":"next export","restoredMs":1377,"full":5,"compressed":20,"attempt":3}
+# Subtest: maintenance crash matrix: delete-after (next export)
+ok 93 - maintenance crash matrix: delete-after (next export)
+  ---
+  duration_ms: 2323.878583
+  type: 'test'
+  ...
+# {"point":"scan-complete","recovery":"peer","restoredMs":600,"full":5,"compressed":20,"attempt":2}
+# Subtest: maintenance crash matrix: scan-complete (peer)
+ok 94 - maintenance crash matrix: scan-complete (peer)
+  ---
+  duration_ms: 1684.629
+  type: 'test'
+  ...
+# {"point":"done-before","recovery":"peer","restoredMs":570,"full":5,"compressed":20,"attempt":2}
+# Subtest: maintenance crash matrix: done-before (peer)
+ok 95 - maintenance crash matrix: done-before (peer)
+  ---
+  duration_ms: 1791.385833
+  type: 'test'
+  ...
+# {"point":"done-after","recovery":"already complete","restoredMs":205,"full":5,"compressed":20,"attempt":1}
+# Subtest: maintenance crash matrix: done-after (already complete)
+ok 96 - maintenance crash matrix: done-after (already complete)
+  ---
+  duration_ms: 1241.52475
+  type: 'test'
+  ...
+# Subtest: a custodian killed after claiming an empty legacy request resumes without a later export
+ok 97 - a custodian killed after claiming an empty legacy request resumes without a later export
+  ---
+  duration_ms: 1933.103125
+  type: 'test'
+  ...
+# {"point":"handoff-pending","victim":"observer","recovery":"peer","full":5,"compressed":20}
+# Subtest: maintenance handoff crash matrix: handoff-pending kills observer
+ok 98 - maintenance handoff crash matrix: handoff-pending kills observer
+  ---
+  duration_ms: 1476.797334
+  type: 'test'
+  ...
+# {"point":"handoff-pending","victim":"custodian","recovery":"peer","full":5,"compressed":20}
+# Subtest: maintenance handoff crash matrix: handoff-pending kills custodian
+ok 99 - maintenance handoff crash matrix: handoff-pending kills custodian
+  ---
+  duration_ms: 1511.133125
+  type: 'test'
+  ...
+# {"point":"handoff-busy","victim":"observer","recovery":"peer","full":5,"compressed":20}
+# Subtest: maintenance handoff crash matrix: handoff-busy kills observer
+ok 100 - maintenance handoff crash matrix: handoff-busy kills observer
+  ---
+  duration_ms: 1592.491583
+  type: 'test'
+  ...
+# {"point":"handoff-busy","victim":"custodian","recovery":"peer","full":5,"compressed":20}
+# Subtest: maintenance handoff crash matrix: handoff-busy kills custodian
+ok 101 - maintenance handoff crash matrix: handoff-busy kills custodian
+  ---
+  duration_ms: 1505.786583
+  type: 'test'
+  ...
+# Subtest: next export repairs parked maintenance even when Expo fails (off)
+ok 102 - next export repairs parked maintenance even when Expo fails (off)
+  ---
+  duration_ms: 1151.224375
+  type: 'test'
+  ...
+# Subtest: next export repairs parked maintenance even when Expo fails (non-macOS)
+ok 103 - next export repairs parked maintenance even when Expo fails (non-macOS)
+  ---
+  duration_ms: 2491.696625
+  type: 'test'
+  ...
+# Subtest: next export repairs parked maintenance even when Expo fails (background)
+ok 104 - next export repairs parked maintenance even when Expo fails (background)
+  ---
+  duration_ms: 1148.266458
+  type: 'test'
+  ...
+1..104
+# tests 104
+# suites 0
+# pass 104
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 603297.071167
+-- process inspection: {"snapshots":3,"unrelatedRows":12171}
+-- client file ok: packages/snapback4/test/export-background.test.mjs (603676 ms)
+-- client file start: packages/snapback4/test/test-signals.test.mjs; stall bound 1275000 ms
+TAP version 13
+# Subtest: fixture signals bind every native command to the selected binary and exact root
+ok 1 - fixture signals bind every native command to the selected binary and exact root
+  ---
+  duration_ms: 435.786167
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts shebang with its exact interpreter argv
+ok 2 - tracked identity accepts shebang with its exact interpreter argv
+  ---
+  duration_ms: 142.900084
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts env shebang with its exact interpreter argv
+ok 3 - tracked identity accepts env shebang with its exact interpreter argv
+  ---
+  duration_ms: 159.101542
+  type: 'test'
+  ...
+# Subtest: tracked identity accepts node file with its exact interpreter argv
+ok 4 - tracked identity accepts node file with its exact interpreter argv
+  ---
+  duration_ms: 29.638458
+  type: 'test'
+  ...
+# Subtest: owned shebang timeout reaps before resolving (identity refusal=false)
+ok 5 - owned shebang timeout reaps before resolving (identity refusal=false)
+  ---
+  duration_ms: 3010.101292
+  type: 'test'
+  ...
+# Subtest: owned shebang timeout reaps before resolving (identity refusal=true)
+ok 6 - owned shebang timeout reaps before resolving (identity refusal=true)
+  ---
+  duration_ms: 3005.778667
+  type: 'test'
+  ...
+# Subtest: owned cleanup refuses a borrowed numeric PID or imitation child object
+ok 7 - owned cleanup refuses a borrowed numeric PID or imitation child object
+  ---
+  duration_ms: 0.347417
+  type: 'test'
+  ...
+# Subtest: self-directed cleanup loads synchronously without the Darwin inspector
+ok 8 - self-directed cleanup loads synchronously without the Darwin inspector
+  ---
+  duration_ms: 226.901917
+  type: 'test'
+  ...
+# Subtest: Darwin inspector compiler escalates when its child handles SIGTERM
+ok 9 - Darwin inspector compiler escalates when its child handles SIGTERM
+  ---
+  duration_ms: 31384.751292
+  type: 'test'
+  ...
+# Subtest: newborn command capture after empty exec state: none
+ok 10 - newborn command capture after empty exec state: none # SKIP
+  ---
+  duration_ms: 0.093083
+  type: 'test'
+  ...
+# Subtest: newborn command capture after empty exec state: different birth
+ok 11 - newborn command capture after empty exec state: different birth # SKIP
+  ---
+  duration_ms: 0.026667
+  type: 'test'
+  ...
+# Subtest: newborn command capture after empty exec state: different parent
+ok 12 - newborn command capture after empty exec state: different parent # SKIP
+  ---
+  duration_ms: 0.018084
+  type: 'test'
+  ...
+# Subtest: newborn command capture after empty exec state: malformed command
+ok 13 - newborn command capture after empty exec state: malformed command # SKIP
+  ---
+  duration_ms: 0.013334
+  type: 'test'
+  ...
+# Subtest: persistent empty cmdline yields to sibling timers and owned command timeout
+ok 14 - persistent empty cmdline yields to sibling timers and owned command timeout # SKIP
+  ---
+  duration_ms: 0.014375
+  type: 'test'
+  ...
+# Subtest: native identity leaf inspection yields and reaps on timeout
+ok 15 - native identity leaf inspection yields and reaps on timeout
+  ---
+  duration_ms: 203.526541
+  type: 'test'
+  ...
+# Subtest: native identity leaf inspection yields and reaps on abort
+ok 16 - native identity leaf inspection yields and reaps on abort
+  ---
+  duration_ms: 203.359125
+  type: 'test'
+  ...
+1..16
+# tests 16
+# suites 0
+# pass 11
+# fail 0
+# cancelled 0
+# skipped 5
+# todo 0
+# duration_ms 39079.750208
+-- process inspection: {"snapshots":4,"unrelatedRows":16226}
+-- client file ok: packages/snapback4/test/test-signals.test.mjs (39576 ms)
+-- client file start: packages/snapback4/test/test-file-runner.test.mjs; stall bound 4650000 ms
+TAP version 13
+# Subtest: file watchdog diagnoses event loop and reaps group descendants
+ok 1 - file watchdog diagnoses event loop and reaps group descendants
+  ---
+  duration_ms: 3993.108292
+  type: 'test'
+  ...
+# Subtest: file watchdog diagnoses leaked handle and reaps group descendants
+ok 2 - file watchdog diagnoses leaked handle and reaps group descendants
+  ---
+  duration_ms: 3546.124
+  type: 'test'
+  ...
+# Subtest: file runner preserves test failures and continues to a following healthy file
+ok 3 - file runner preserves test failures and continues to a following healthy file
+  ---
+  duration_ms: 788.256542
+  type: 'test'
+  ...
+# Subtest: Node failure semantics survive a beforeExit exit-code override
+ok 4 - Node failure semantics survive a beforeExit exit-code override
+  ---
+  duration_ms: 882.791542
+  type: 'test'
+  ...
+# Subtest: Node failure semantics survive an expected TODO failure
+ok 5 - Node failure semantics survive an expected TODO failure
+  ---
+  duration_ms: 610.37025
+  type: 'test'
+  ...
+# Subtest: a stale parent link cannot claim or signal a process outside the file group
+ok 6 - a stale parent link cannot claim or signal a process outside the file group
+  ---
+  duration_ms: 776.441625
+  type: 'test'
+  ...
+# Subtest: a cancelled test cannot pass by overriding its exit status
+ok 7 - a cancelled test cannot pass by overriding its exit status
+  ---
+  duration_ms: 602.807167
+  type: 'test'
+  ...
+# Subtest: file exit cannot orphan an unreferenced group child and report success
+ok 8 - file exit cannot orphan an unreferenced group child and report success
+  ---
+  duration_ms: 761.349292
+  type: 'test'
+  ...
+# Subtest: double-forked shell helper is killed after a passing file
+ok 9 - double-forked shell helper is killed after a passing file
+  ---
+  duration_ms: 645.415042
+  type: 'test'
+  ...
+# Subtest: double-forked shell helper is killed after a stalled file
+ok 10 - double-forked shell helper is killed after a stalled file
+  ---
+  duration_ms: 3667.484625
+  type: 'test'
+  ...
+# Subtest: process inspection exit cannot establish a passing cleanup
+ok 11 - process inspection exit cannot establish a passing cleanup
+  ---
+  duration_ms: 569.709875
+  type: 'test'
+  ...
+# Subtest: process inspection timeout cannot establish a passing cleanup
+ok 12 - process inspection timeout cannot establish a passing cleanup
+  ---
+  duration_ms: 1447.657209
+  type: 'test'
+  ...
+# Subtest: process inspection malformed cannot establish a passing cleanup
+ok 13 - process inspection malformed cannot establish a passing cleanup
+  ---
+  duration_ms: 501.5675
+  type: 'test'
+  ...
+# Subtest: process inspection forces C locale and refuses empty output
+ok 14 - process inspection forces C locale and refuses empty output
+  ---
+  duration_ms: 81.507208
+  type: 'test'
+  ...
+# Subtest: concurrent persistent groups cannot freeze cleanup deadlines or a hung file watchdog
+ok 15 - concurrent persistent groups cannot freeze cleanup deadlines or a hung file watchdog
+  ---
+  duration_ms: 5633.120583
+  type: 'test'
+  ...
+# {"hungMs":1681,"cleanupResults":[{"error":"TEST_FILE_LEAK: live group after cleanup deadline: [{\\"pid\\":80641,\\"parent\\":77771,\\"group\\":80641,\\"uid\\":501,\\"start\\":\\"Mon Oct 26 20:40:14 2026\\",\\"executable\\":\\"/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node\\",\\"alive\\":true}]","elapsed":5309.495708999999},{"error":"TEST_FILE_LEAK: live group after cleanup deadline: [{\\"pid\\":80642,\\"parent\\":77771,\\"group\\":80642,\\"uid\\":501,\\"start\\":\\"Mon Oct 26 20:40:14 2026\\",\\"executable\\":\\"/Users/ccheever/.volta/tools/image/node/24.18.0/bin/node\\",\\"alive\\":true}]","elapsed":5307.789833999999}],"inspections":47,"releasedByGuard":false}
+# Subtest: a foreign listing over five seconds leaves sibling cleanup and watchdog timers running
+ok 16 - a foreign listing over five seconds leaves sibling cleanup and watchdog timers running
+  ---
+  duration_ms: 8128.006917
+  type: 'test'
+  ...
+# {"siblingMs":413,"hungMs":1403,"listingMs":7960,"ticks":370}
+# Subtest: stall bounds cover single guards with margin, including serial mode and seed overrides
+ok 17 - stall bounds cover single guards with margin, including serial mode and seed overrides
+  ---
+  duration_ms: 1.059917
+  type: 'test'
+  ...
+# Subtest: persistent inspection failure stays a failure and kills the owned group
+ok 18 - persistent inspection failure stays a failure and kills the owned group
+  ---
+  duration_ms: 174.575208
+  type: 'test'
+  ...
+# Subtest: group cleanup reaps an unsampled orphan after its sampled parent exits
+ok 19 - group cleanup reaps an unsampled orphan after its sampled parent exits
+  ---
+  duration_ms: 1335.552459
+  type: 'test'
+  ...
+# Subtest: sequential and nested subtests keep progressing beyond the file stall interval
+ok 20 - sequential and nested subtests keep progressing beyond the file stall interval
+  ---
+  duration_ms: 6048.791792
+  type: 'test'
+  ...
+# Subtest: console chatter cannot keep a stalled file alive; diagnostics include progress and cleanup
+ok 21 - console chatter cannot keep a stalled file alive; diagnostics include progress and cleanup
+  ---
+  duration_ms: 2027.565625
+  type: 'test'
+  ...
+# Subtest: stale exited members do not reset empty snapshots; observed live leaks remain failures (darwin)
+ok 22 - stale exited members do not reset empty snapshots; observed live leaks remain failures (darwin)
+  ---
+  duration_ms: 984.235041
+  type: 'test'
+  ...
+# {"platform":"darwin","inspections":4,"emptyInspections":2,"staleInspections":2,"readsAfterFirstEmpty":6,"staleMembers":2}
+# Subtest: native buffered synchronous tests are bounded until Node delivers progress
+ok 23 - native buffered synchronous tests are bounded until Node delivers progress
+  ---
+  duration_ms: 4580.784542
+  type: 'test'
+  ...
+# Subtest: name and skip filters preserve the selected assertion-bearing cases
+ok 24 - name and skip filters preserve the selected assertion-bearing cases
+  ---
+  duration_ms: 412.875542
+  type: 'test'
+  ...
+# Subtest: a process exiting after enumeration is absent at identity inspection
+ok 25 - a process exiting after enumeration is absent at identity inspection
+  ---
+  duration_ms: 221.062416
+  type: 'test'
+  ...
+# Subtest: stat comm may contain closing and opening parentheses and spaces
+ok 26 - stat comm may contain closing and opening parentheses and spaces
+  ---
+  duration_ms: 0.192375
+  type: 'test'
+  ...
+# Subtest: ps preserves command spaces and parentheses and validates start and parent metadata
+ok 27 - ps preserves command spaces and parentheses and validates start and parent metadata
+  ---
+  duration_ms: 0.257875
+  type: 'test'
+  ...
+# Subtest: present PID with malformed stat refuses the file and retains the first error and exact bytes
+ok 28 - present PID with malformed stat refuses the file and retains the first error and exact bytes
+  ---
+  duration_ms: 81.998833
+  type: 'test'
+  ...
+# Subtest: present PID with malformed ps refuses the file and retains the first error and exact bytes
+ok 29 - present PID with malformed ps refuses the file and retains the first error and exact bytes
+  ---
+  duration_ms: 81.985625
+  type: 'test'
+  ...
+# Subtest: present PID with empty, truncated or missing stat still refuses
+ok 30 - present PID with empty, truncated or missing stat still refuses
+  ---
+  duration_ms: 0.214042
+  type: 'test'
+  ...
+# Subtest: a completed file passes when its enumerated group member has exited
+ok 31 - a completed file passes when its enumerated group member has exited
+  ---
+  duration_ms: 1008.515042
+  type: 'test'
+  ...
+# Subtest: native node --test parity: only does not filter without --test-only with exit-code override
+ok 32 - native node --test parity: only does not filter without --test-only with exit-code override
+  ---
+  duration_ms: 607.371209
+  type: 'test'
+  ...
+# Subtest: native node --test parity: after-hook failure with exit-code override
+ok 33 - native node --test parity: after-hook failure with exit-code override
+  ---
+  duration_ms: 642.261042
+  type: 'test'
+  ...
+# Subtest: native node --test parity: late uncaught exception with exit-code override
+ok 34 - native node --test parity: late uncaught exception with exit-code override
+  ---
+  duration_ms: 614.914167
+  type: 'test'
+  ...
+# Subtest: native node --test parity: late unhandled rejection with exit-code override
+ok 35 - native node --test parity: late unhandled rejection with exit-code override
+  ---
+  duration_ms: 608.772917
+  type: 'test'
+  ...
+# Subtest: native node --test parity: skipped failure with exit-code override
+ok 36 - native node --test parity: skipped failure with exit-code override
+  ---
+  duration_ms: 599.205959
+  type: 'test'
+  ...
+# Subtest: native node --test parity: explicit successful exit with exit-code override
+ok 37 - native node --test parity: explicit successful exit with exit-code override
+  ---
+  duration_ms: 631.805083
+  type: 'test'
+  ...
+# Subtest: a test killing its own group fails without any runner signal
+ok 38 - a test killing its own group fails without any runner signal
+  ---
+  duration_ms: 441.180667
+  type: 'test'
+  ...
+# Subtest: reaped keeper before its exit callback cannot make the runner send a signal
+ok 39 - reaped keeper before its exit callback cannot make the runner send a signal
+  ---
+  duration_ms: 916.498375
+  type: 'test'
+  ...
+# Subtest: runner death closes the keeper pipe and kills its living group
+ok 40 - runner death closes the keeper pipe and kills its living group
+  ---
+  duration_ms: 522.781167
+  type: 'test'
+  ...
+# Subtest: keeper exit before its queued cleanup acknowledgement is still an expected release
+ok 41 - keeper exit before its queued cleanup acknowledgement is still an expected release
+  ---
+  duration_ms: 467.732167
+  type: 'test'
+  ...
+# Subtest: real-timer files drain the pool and run serially even after a pooled failure
+ok 42 - real-timer files drain the pool and run serially even after a pooled failure
+  ---
+  duration_ms: 1960.7265
+  type: 'test'
+  ...
+1..42
+# tests 42
+# suites 0
+# pass 42
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 57914.609708
+-- process inspection: {"snapshots":3,"unrelatedRows":12226}
+-- client file ok: packages/snapback4/test/test-file-runner.test.mjs (58278 ms)
+-- client files: 23/23; failed 0; tests {"tests":656,"pass":649,"fail":0,"cancelled":0,"skipped":7,"todo":0}

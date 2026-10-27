@@ -1,0 +1,202 @@
+-- client file start: packages/snapback4/test/proof.test.mjs; stall bound 900000 ms
+TAP version 13
+# (node:1642360) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: runtime port range is inclusive, validated, and never cached
+ok 1 - runtime port range is inclusive, validated, and never cached
+  ---
+  duration_ms: 1.574663
+  type: 'test'
+  ...
+# Subtest: proof hosts select the binary from their explicit environment
+ok 2 - proof hosts select the binary from their explicit environment
+  ---
+  duration_ms: 218.40916
+  type: 'test'
+  ...
+# Subtest: proof host startup rejects an unspawnable binary before the readiness deadline
+ok 3 - proof host startup rejects an unspawnable binary before the readiness deadline
+  ---
+  duration_ms: 60.223456
+  type: 'test'
+  ...
+# Subtest: native and static bind beyond an occupied port; identity and independent logs
+ok 4 - native and static bind beyond an occupied port; identity and independent logs
+  ---
+  duration_ms: 761.508091
+  type: 'test'
+  ...
+# Subtest: exhausted range and missing export fail with bounded cleanup
+ok 5 - exhausted range and missing export fail with bounded cleanup
+  ---
+  duration_ms: 377.324579
+  type: 'test'
+  ...
+# Subtest: static host serves wasm correctly and refuses escaped symlink assets
+ok 6 - static host serves wasm correctly and refuses escaped symlink assets
+  ---
+  duration_ms: 163.622343
+  type: 'test'
+  ...
+# Subtest: saved-source deploy, preview, hot forward, rollback and fixture test never change working bytes
+ok 7 - saved-source deploy, preview, hot forward, rollback and fixture test never change working bytes
+  ---
+  duration_ms: 3231.31303
+  type: 'test'
+  ...
+# Subtest: cli awaits close, separates output and returns refusal status
+ok 8 - cli awaits close, separates output and returns refusal status
+  ---
+  duration_ms: 203.150218
+  type: 'test'
+  ...
+# Subtest: ANSI and blank ready lines, early exit, stalled readiness and TERM escalation
+ok 9 - ANSI and blank ready lines, early exit, stalled readiness and TERM escalation
+  ---
+  duration_ms: 172.516211
+  type: 'test'
+  ...
+# Subtest: cleanup bounds stalled actions and continues after errors
+ok 10 - cleanup bounds stalled actions and continues after errors
+  ---
+  duration_ms: 42.203352
+  type: 'test'
+  ...
+# Subtest: exit sweep kills registered child, not a neighboring child
+ok 11 - exit sweep kills registered child, not a neighboring child
+  ---
+  duration_ms: 75.82344
+  type: 'test'
+  ...
+# Subtest: Vite uses the project's config and bound identity
+ok 12 - Vite uses the project's config and bound identity
+  ---
+  duration_ms: 296.340022
+  type: 'test'
+  ...
+# Subtest: browser helpers use fresh text, stable values and RN keystrokes
+ok 13 - browser helpers use fresh text, stable values and RN keystrokes
+  ---
+  duration_ms: 485.148985
+  type: 'test'
+  ...
+# Subtest: SIGKILLed driver closes frontend liveness and sweeps its whole private group
+ok 14 - SIGKILLed driver closes frontend liveness and sweeps its whole private group
+  ---
+  duration_ms: 471.464077
+  type: 'test'
+  ...
+# Subtest: frontend stop waits for keeper-backed descendant cleanup
+ok 15 - frontend stop waits for keeper-backed descendant cleanup
+  ---
+  duration_ms: 370.867997
+  type: 'test'
+  ...
+# Subtest: frontend startup cleanup refuses when its keeper is lost with a live descendant
+ok 16 - frontend startup cleanup refuses when its keeper is lost with a live descendant
+  ---
+  duration_ms: 5057.133477
+  type: 'test'
+  ...
+# Subtest: saved schemas typecheck server companions against private candidate API without replacing working types
+ok 17 - saved schemas typecheck server companions against private candidate API without replacing working types
+  ---
+  duration_ms: 7627.98442
+  type: 'test'
+  ...
+# Subtest: ready PID and served marker mismatches refuse instead of adopting another identity
+ok 18 - ready PID and served marker mismatches refuse instead of adopting another identity
+  ---
+  duration_ms: 323.856488
+  type: 'test'
+  ...
+# Subtest: secret stdout stays in memory; token CLI automatically selects secret capture
+ok 19 - secret stdout stays in memory; token CLI automatically selects secret capture
+  ---
+  duration_ms: 208.048658
+  type: 'test'
+  ...
+# Subtest: startDev explicit --memory preserves isolation with custom arguments
+ok 20 - startDev explicit --memory preserves isolation with custom arguments
+  ---
+  duration_ms: 516.184151
+  type: 'test'
+  ...
+# Subtest: waitForServer waits for authoritative projection and diagnoses unchanged truth
+ok 21 - waitForServer waits for authoritative projection and diagnoses unchanged truth
+  ---
+  duration_ms: 152.194991
+  type: 'test'
+  ...
+# Subtest: proof browser navigation arms witness before application registration
+ok 22 - proof browser navigation arms witness before application registration
+  ---
+  duration_ms: 485.891616
+  type: 'test'
+  ...
+# Subtest: --no-memory is consumed by the kit and retains dev rows across restarts
+ok 23 - --no-memory is consumed by the kit and retains dev rows across restarts
+  ---
+  duration_ms: 437.420038
+  type: 'test'
+  ...
+# Subtest: proof witness injection survives HTTP redirect destinations
+ok 24 - proof witness injection survives HTTP redirect destinations
+  ---
+  duration_ms: 334.297778
+  type: 'test'
+  ...
+# Subtest: proof command cleanup owns npm descendants and caller death
+ok 25 - proof command cleanup owns npm descendants and caller death
+  ---
+  duration_ms: 1183.627717
+  type: 'test'
+  ...
+# Subtest: process-group cleanup deadline stops polling after refusal
+ok 26 - process-group cleanup deadline stops polling after refusal
+  ---
+  duration_ms: 136.234186
+  type: 'test'
+  ...
+# Subtest: KIT4 missing static output names the app build script
+ok 27 - KIT4 missing static output names the app build script
+  ---
+  duration_ms: 164.353148
+  type: 'test'
+  ...
+# Subtest: KIT4 missing browser peer refuses before logs or the proof callback
+ok 28 - KIT4 missing browser peer refuses before logs or the proof callback
+  ---
+  duration_ms: 160.399394
+  type: 'test'
+  ...
+# Subtest: serve stop waits for delayed worker cleanup before resolving and is replayable
+ok 29 - serve stop waits for delayed worker cleanup before resolving and is replayable
+  ---
+  duration_ms: 1964.308873
+  type: 'test'
+  ...
+# Subtest: process-group cleanup waits through a transient EPERM
+ok 30 - process-group cleanup waits through a transient EPERM
+  ---
+  duration_ms: 105.536503
+  type: 'test'
+  ...
+# Subtest: DX9 serveUntilSignal keeps probe alive and reaps owned hosts on TERM
+ok 31 - DX9 serveUntilSignal keeps probe alive and reaps owned hosts on TERM
+  ---
+  duration_ms: 585.257398
+  type: 'test'
+  ...
+1..31
+# tests 31
+# suites 0
+# pass 31
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 26636.600675
+-- process inspection: {"snapshots":3,"unrelatedRows":4596}
+-- client file ok: packages/snapback4/test/proof.test.mjs (27015 ms)
+-- client files: 1/1; failed 0; tests {"tests":31,"pass":31,"fail":0,"cancelled":0,"skipped":0,"todo":0}

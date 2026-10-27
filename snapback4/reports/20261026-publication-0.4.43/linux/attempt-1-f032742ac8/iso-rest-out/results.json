@@ -1,0 +1,84 @@
+{
+  "dx7-upgrade-1": {
+    "ok": false,
+    "seconds": 12.752,
+    "error": "AssertionError [ERR_ASSERTION]: new check must refuse the security gate during old-CLI upgrade\n\n0 !== 1\n\n    at proveDX7Upgrades (file:///home/ccheever/sb4-pub-0443-kit/iso-rest/dx7-upgrade-diag.mjs:52:193)\n    at async file:///home/ccheever/sb4-pub-0443-kit/iso-rest/run.mjs:38:19"
+  },
+  "dx7-upgrade-2": {
+    "ok": false,
+    "seconds": 12.011,
+    "error": "AssertionError [ERR_ASSERTION]: new check must refuse the security gate during old-CLI upgrade\n\n0 !== 1\n\n    at proveDX7Upgrades (file:///home/ccheever/sb4-pub-0443-kit/iso-rest/dx7-upgrade-diag.mjs:52:193)\n    at async file:///home/ccheever/sb4-pub-0443-kit/iso-rest/run.mjs:38:19"
+  },
+  "dx7": {
+    "ok": false,
+    "seconds": 25.631,
+    "error": "AssertionError [ERR_ASSERTION]: new check must refuse the security gate during old-CLI upgrade\n\n0 !== 1\n\n    at proveDX7Upgrades (file:///home/ccheever/sb4-pub-0441/snapback4/scripts/publication-dx7-upgrade.mjs:52:67)\n    at async proveDX7 (file:///home/ccheever/sb4-pub-0441/snapback4/scripts/publication-dx7.mjs:13:18)\n    at async file:///home/ccheever/sb4-pub-0443-kit/iso-rest/run.mjs:38:19"
+  },
+  "dx8": {
+    "ok": false,
+    "seconds": 9.716,
+    "error": "Error: /home/ccheever/.local/node-v24.13.1-linux-x64/bin/node: toolchain command exited 1\n    at runToolchainCommand (file:///home/ccheever/sb4-pub-0441/snapback4/scripts/publication-starters.mjs:45:27)\n    at async proveDX8Ergonomics (file:///home/ccheever/sb4-pub-0441/snapback4/scripts/publication-dx8-ergonomics.mjs:15:5)\n    at async proveDX8 (file:///home/ccheever/sb4-pub-0441/snapback4/scripts/publication-dx8.mjs:12:19)\n    at async file:///home/ccheever/sb4-pub-0443-kit/iso-rest/run.mjs:38:19"
+  },
+  "dx5": {
+    "ok": true,
+    "seconds": 113.071
+  },
+  "regressions": {
+    "ok": true,
+    "seconds": 76.406
+  },
+  "day4": {
+    "ok": true,
+    "seconds": 21.741
+  },
+  "release-transitions": {
+    "ok": true,
+    "seconds": 18.79
+  },
+  "dormant": {
+    "ok": true,
+    "seconds": 15.344
+  },
+  "day5": {
+    "ok": true,
+    "seconds": 9.858
+  },
+  "production": {
+    "ok": true,
+    "seconds": 48.567
+  },
+  "proof-kit": {
+    "ok": true,
+    "seconds": 17.864
+  },
+  "client-recipes": {
+    "ok": true,
+    "seconds": 12.744
+  },
+  "security": {
+    "ok": true,
+    "seconds": 281.401
+  },
+  "migrations": {
+    "ok": true,
+    "seconds": 147.314
+  },
+  "staging": {
+    "ok": false,
+    "seconds": 5.462,
+    "error": "Error: /home/ccheever/.local/node-v24.13.1-linux-x64/bin/node: toolchain command exited 1\n    at runToolchainCommand (file:///home/ccheever/sb4-pub-0441/snapback4/scripts/publication-starters.mjs:45:27)\n    at async proveStaging (file:///home/ccheever/sb4-pub-0441/snapback4/scripts/publication-staging.mjs:33:3)\n    at async file:///home/ccheever/sb4-pub-0443-kit/iso-rest/run.mjs:38:19"
+  },
+  "rules": {
+    "ok": true,
+    "seconds": 32.132
+  },
+  "frontend": {
+    "ok": true,
+    "seconds": 194.311
+  },
+  "starters": {
+    "ok": false,
+    "seconds": 35.369,
+    "error": "AssertionError [ERR_ASSERTION]: The input was expected to not match the regular expression /registerWebWitness|witnessPersona|snapback\\/generated\\/api/. Input:\n\n'import { registerWebWitness } from \"snapback4/witness-web\";\\n' +\n  'import { api } from \"../snapback/generated/api.ts\";\\n' +\n  'import { createApp } from \"snapback4/app\";\\n' +\n  'import { localStorageSessionStore } from \"snapback4/auth\";\\n' +\n  'import { webDevice } from \"snapback4/web\";\\n' +\n  '\\n' +\n  '// The backend `snapback4 dev` serves. Set VITE_SNAPBACK_URL for a deployment.\\n' +\n  'export const url = (new URLSearchParams(window.location.search).get(\"api\") ?? import.meta.env.VITE_SNAPBACK_URL ?? \"http://127.0.0.1:4400\").replace(/\\\\/$/, \"\");\\n' +\n  '\\n' +\n  '// A device supplies offline reads for synced tables and queues writes.\\n' +\n  '// With no synced table, init omits the device and uses the browser write journal.\\n' +\n  '// localStorageSessionStore() keeps the session across reloads; any script on\\n' +\n  '// this origin can read it. Device-less browser writes require this store.\\n' +\n  'export const app = createApp({ url, device: webDevice(), sessionStore: localStorageSessionStore() });\\n' +\n  '\\n' +\n  'registerWebWitness(app, api);\\n'\n\n    at proveStarters (file:///home/ccheever/sb4-pub-0441/snapback4/scripts/publication-starters.mjs:331:16)\n    at async steps (file:///home/ccheever/sb4-pub-0443-kit/iso-rest/run.mjs:35:40)\n    at async file:///home/ccheever/sb4-pub-0443-kit/iso-rest/run.mjs:38:19"
+  }
+}

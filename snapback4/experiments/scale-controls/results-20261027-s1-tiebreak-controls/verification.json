@@ -1,0 +1,16 @@
+{
+  "arrival_accounting": true,
+  "every_repetition_rule_recomputed": true,
+  "histograms_match_original": true,
+  "counters_recomputed_from_durable_snapshots": true,
+  "census_arithmetic_recomputed": true,
+  "quiet_tails_verified": true,
+  "binary_hashes_unchanged": true,
+  "runner_sources_unchanged": true,
+  "expected_repetition_counts": true,
+  "affinity_verified": true,
+  "all_rungs_measured": true,
+  "lossless_compressed_records_reaudited": true,
+  "original_harness_audit_original_attempts": 48,
+  "independent_audit_all_attempts": 50
+}
