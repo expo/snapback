@@ -267,7 +267,9 @@ pub(super) fn apply(dir: &std::path::Path, additions: &[(&str, String)]) -> std:
         std::fs::create_dir(&stage)?;
         let result=(|| -> std::io::Result<()> {
             for (name,body) in &frozen {
-                let path=stage.join(name.strip_prefix("v1/").unwrap());
+                let relative=std::path::Path::new(name.strip_prefix("v1/").unwrap());
+                if relative.components().any(|c|!matches!(c,std::path::Component::Normal(_))) {return Err(std::io::Error::other("frozen destination escapes v1"));}
+                let path=stage.join(relative);
                 std::fs::create_dir_all(path.parent().unwrap())?;
                 std::fs::write(path,body)?;
             }

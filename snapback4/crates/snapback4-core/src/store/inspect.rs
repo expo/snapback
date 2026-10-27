@@ -666,7 +666,11 @@ impl Inspection {
     pub fn retained_schema(&self, mut schema: Schema) -> Result<Schema> {
         let conn = &self.conn;
         let mut historical = BTreeMap::<String, Table>::new();
-        let mut statement=conn.prepare("SELECT table_name,definition FROM _dormant_tables UNION SELECT c.name,n.definition FROM _dormant_narrow_rows n JOIN _catalog c ON c.num=n.t ORDER BY 1").map_err(store_error)?;
+        let mut definitions=Vec::new();
+        if self.inspection_has_table("_dormant_tables")? { definitions.push("SELECT table_name,definition FROM _dormant_tables"); }
+        if self.inspection_has_table("_dormant_narrow_rows")? {definitions.push("SELECT c.name,n.definition FROM _dormant_narrow_rows n JOIN _catalog c ON c.num=n.t");}
+        if definitions.is_empty() {definitions.push("SELECT NULL,NULL WHERE 0");}
+        let mut statement=conn.prepare(&format!("{} ORDER BY 1",definitions.join(" UNION "))).map_err(store_error)?;
         let rows = statement
             .query_map([], |row| {
                 Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
@@ -695,7 +699,8 @@ impl Inspection {
                 schema.tables.insert(name, old);
             }
         }
-        let mut statement=conn.prepare("SELECT table_name,column_name,definition FROM _dormant_columns ORDER BY table_name,column_name").map_err(store_error)?;
+        let columns_sql=if self.inspection_has_table("_dormant_columns")? {"SELECT table_name,column_name,definition FROM _dormant_columns ORDER BY table_name,column_name"} else {"SELECT NULL,NULL,NULL WHERE 0"};
+        let mut statement=conn.prepare(columns_sql).map_err(store_error)?;
         let rows = statement
             .query_map([], |row| {
                 Ok((

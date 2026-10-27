@@ -11,6 +11,11 @@ export function guideReference(cli, card, options = {}) {
   const numbers = [...index.matchAll(/^\s*(\d+)\. /gm)].map(match=>match[1]);
   if (!numbers.length) return invoke(["--full","--repeat"]);
   const pieces = index.includes("1. Opening (") ? [] : [invoke(["--section","opening","--repeat"])];
-  for (const number of numbers) pieces.push(invoke(["--section",number,"--repeat"]));
+  for (const number of numbers) {
+    const text=invoke(["--section",number,"--repeat"]);
+    const body=text.slice(text.indexOf("\n")+1).trim();
+    // Small cards retain nested headings: a parent section already includes its children.
+    if (!pieces.some(piece=>piece.includes(body))) pieces.push(text);
+  }
   return pieces.join("\n\n");
 }

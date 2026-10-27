@@ -16,19 +16,31 @@ pub(super) fn files(dir: &Path, sources: &[(String, String)]) -> io::Result<Vec<
         let path = root.join(relative);
         if !path.exists() { return Ok(()); }
         if path.symlink_metadata()?.file_type().is_symlink() { return Err(io::Error::other(format!("frozen client refuses symlink {}", path.display()))); }
+        let root_path=root.canonicalize()?;
+        let canonical=path.canonicalize()?;
+        let relative=canonical.strip_prefix(&root_path).map_err(|_|io::Error::other("frozen script entry escapes the app; keep client modules inside the project"))?;
         if path.is_dir() {
             if matches!(path.file_name().and_then(|n|n.to_str()),Some("node_modules"|"dist"|"target"|".git")) { return Ok(()); }
             for entry in std::fs::read_dir(path)? { walk(root, &relative.join(entry?.file_name()),files)?; }
-        } else if matches!(path.extension().and_then(|s|s.to_str()), Some("mjs"|"cjs"|"js"|"ts"|"tsx"|"jsx")) || path.file_name().is_some_and(|n|n=="package.json") {
+        } else if matches!(path.extension().and_then(|s|s.to_str()), Some("mjs"|"cjs"|"js"|"ts"|"mts"|"cts"|"tsx"|"jsx")) || path.file_name().is_some_and(|n|n=="package.json") {
             push(files,format!("v1/{}",relative.display()),std::fs::read_to_string(path)?);
         }
         Ok(())
     }
-    // Save application modules, not node_modules, stores, credentials or build output.
-    for path in ["scripts", "src", "app"] { walk(dir,Path::new(path),&mut files)?; }
-    for entry in std::fs::read_dir(dir).into_iter().flatten() {
-        let entry=entry?;
-        if entry.path().is_file() && entry.path().extension().is_some_and(|e|matches!(e.to_str(),Some("mjs"|"js"|"ts"|"tsx"))) { walk(dir,Path::new(&entry.file_name()),&mut files)?; }
+    // Freeze executable application script entries and their imports. UI build
+    // assets, node_modules, stores and credentials are outside this capture.
+    let package: serde_json::Value = std::fs::read(dir.join("package.json")).ok().and_then(|b|serde_json::from_slice(&b).ok()).unwrap_or_else(||json!({}));
+    // Script entries can live outside scripts/src/app (for example tools/calls.mjs).
+    if let Some(scripts)=package["scripts"].as_object() {
+        for command in scripts.values().filter_map(|v|v.as_str()) {
+            for word in command_words(command)? {
+                let path=Path::new(&word);
+                if path.is_absolute() {continue;}
+                if matches!(path.extension().and_then(|s|s.to_str()),Some("mjs"|"cjs"|"js"|"ts"|"mts"|"cts"|"tsx"|"jsx")) && dir.join(path).is_file() {
+                    walk(dir,path,&mut files)?;
+                }
+            }
+        }
     }
     // Follow literal relative module imports beyond conventional source directories.
     // Runtime-computed paths remain application responsibilities, as in Node itself.
@@ -37,20 +49,11 @@ pub(super) fn files(dir: &Path, sources: &[(String, String)]) -> io::Result<Vec<
     while index<files.len() {
         let (saved,text)=&files[index];
         let source=dir.join(saved.strip_prefix("v1/").unwrap());
-        let mut imports=Vec::new();
-        let bytes=text.as_bytes();let mut cursor=0;
-        while cursor<bytes.len() {
-            let quote=bytes[cursor];
-            if !matches!(quote,b'\''|b'"') {cursor+=1;continue;}
-            let start=cursor+1;let mut end=start;
-            while end<bytes.len() && bytes[end]!=quote {if bytes[end]==b'\\' {end+=1;}end+=1;}
-            if end>=bytes.len() {break;}
-            let before=text[..cursor].trim_end();
-            let module=before.ends_with("from")||before.ends_with("import")||before.ends_with("import(")||before.ends_with("require(");
-            if module {if let Some(value)=text.get(start..end) {if value.starts_with("./")||value.starts_with("../") {imports.push(value.to_owned());}}}
-            cursor=end+1;
-        }
+        let imports=if source.extension().and_then(|e|e.to_str()).is_some_and(|e|matches!(e,"mjs"|"cjs"|"js"|"ts"|"mts"|"cts"|"tsx"|"jsx")) {
+            crate::worker_graph::imports(text,&source).map_err(std::io::Error::other)?.into_iter().map(|(path,_)|path).collect()
+        } else {Vec::new()};
         for import in imports {
+            if !import.starts_with("./") && !import.starts_with("../") {continue;}
             let path=source.parent().unwrap().join(import);
             if !path.exists() {continue;}
             let canonical=path.canonicalize()?;
@@ -65,9 +68,10 @@ pub(super) fn files(dir: &Path, sources: &[(String, String)]) -> io::Result<Vec<
     for (name,text) in sources { push(&mut files,format!("v1/snapback/{name}"),text.clone()); }
     push(&mut files,"v1/snapback/generated/api.ts".into(),snapback4_lang::emit::typescript(&bound));
     push(&mut files,"v1/snapback/generated/package.json".into(),"{\"type\":\"module\"}\n".into());
-    let package: serde_json::Value = std::fs::read(dir.join("package.json")).ok().and_then(|b|serde_json::from_slice(&b).ok()).unwrap_or_default();
     let command=package["scripts"]["client:calls"].as_str();
-    let mut frozen=json!({"private":true,"type":"module","scripts":{"client:calls":"node .snapback4-frozen-run.mjs"}});
+    let mut frozen=package.clone();
+    frozen["private"]=json!(true);frozen["type"]=json!("module");
+    if !frozen["scripts"].is_object() {frozen["scripts"]=json!({});}
     if package["scripts"].is_object() { frozen["scripts"]=package["scripts"].clone(); }
     frozen["scripts"]["client:calls"]=json!("node .snapback4-frozen-run.mjs");
     if let Some(command)=command { frozen["scripts"]["client:calls:frozen"]=json!(command); }
@@ -75,4 +79,21 @@ pub(super) fn files(dir: &Path, sources: &[(String, String)]) -> io::Result<Vec<
     push(&mut files,"v1/package.json".into(),super::pretty(&frozen));
     push(&mut files,"v1/.snapback4-frozen-run.mjs".into(),include_str!("frozen-run.mjs").into());
     Ok(files)
+}
+
+/// Shell words are inspected, never executed; quoted paths keep their spaces.
+fn command_words(command: &str) -> io::Result<Vec<String>> {
+    let mut words=Vec::new();let mut word=String::new();let mut quote=None;let mut chars=command.chars();
+    while let Some(ch)=chars.next() {
+        match (quote,ch) {
+            (Some('\''),'\'')|(Some('"'),'"')=>quote=None,
+            (None,'\''| '"')=>quote=Some(ch),
+            (Some('\''),_)=>word.push(ch),
+            (_, '\\')=>{if let Some(next)=chars.next(){word.push(next);}},
+            (None,c) if c.is_whitespace() || matches!(c,';'|'&'|'|')=>{if !word.is_empty(){words.push(std::mem::take(&mut word));}},
+            _=>word.push(ch),
+        }
+    }
+    if quote.is_some() {return Err(io::Error::other("cannot freeze malformed quoted package script"));}
+    if !word.is_empty(){words.push(word);}Ok(words)
 }

@@ -4,10 +4,11 @@ const BIN:&str=env!("CARGO_BIN_EXE_snapback4");
 #[test]
 fn wave33_029_024_011_023_033_frozen_client_has_own_esm_api_and_inline_users() {
     let dir=std::env::temp_dir().join(format!("dx16-freeze-{}",std::process::id()));
-    fs::create_dir_all(dir.join("snapback")).unwrap();fs::create_dir_all(dir.join("scripts")).unwrap();
+    fs::create_dir_all(dir.join("snapback")).unwrap();fs::create_dir_all(dir.join("tools")).unwrap();fs::create_dir_all(dir.join("helpers")).unwrap();
     fs::write(dir.join("snapback/schema.q"),"use identity password\ntable notes:\n  title: text <=80\n  public 'notes'\n  online only\nquery list():\n  return notes first 20 by .id\n").unwrap();
-    fs::write(dir.join("package.json"),r#"{"scripts":{"client:calls":"node scripts/client-calls.mjs"}}"#).unwrap();
-    fs::write(dir.join("scripts/client-calls.mjs"),"import {readFileSync,statSync} from 'node:fs';\nimport {api} from '../snapback/generated/api.ts';\nconst users=JSON.parse(readFileSync(process.env.CALLS_USERS));\nif(users.member[0].email!=='inline@example.test'||!api.list)throw Error('missing users or frozen handle');\nconsole.log(process.env.CALLS_USERS);\nconsole.log(statSync(process.env.CALLS_USERS).mode&511);\n").unwrap();
+    fs::write(dir.join("package.json"),r#"{"scripts":{"client:calls":"node tools/client-calls.mjs"}}"#).unwrap();
+    fs::write(dir.join("tools/client-calls.mjs"),"// Don't edit.\nimport {check} from '../helpers/check.mjs';\ncheck();\nimport {readFileSync,statSync} from 'node:fs';\nimport {api} from '../snapback/generated/api.ts';\nconst users=JSON.parse(readFileSync(process.env.CALLS_USERS));\nif(users.member[0].email!=='inline@example.test'||!api.list)throw Error('missing users or frozen handle');\nconsole.log(process.env.CALLS_USERS);\nconsole.log(statSync(process.env.CALLS_USERS).mode&511);\n").unwrap();
+    fs::write(dir.join("helpers/check.mjs"),"export const check=()=>true;\n").unwrap();
     let run=|args:&[&str]|Command::new(BIN).current_dir(&dir).args(args).env("SNAPBACK4_INIT_INSTALL","0").output().unwrap();
     assert!(run(&["check"]).status.success()); // ordinary checked day-one app already has an imported API
     let preview=run(&["init","--adapt","--day2"]);assert!(preview.status.success(),"{}",String::from_utf8_lossy(&preview.stderr));assert!(!dir.join("v1").exists());assert!(!dir.join(".snapback4/guide-seen.json").exists());

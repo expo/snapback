@@ -881,12 +881,8 @@ pub fn data(options: &Options) -> i32 {
         }
     };
     let retained = store.dormant_inventory(None, usize::MAX).unwrap_or_default();
-    if options.flags.contains_key("all") && options.flags.contains_key("limit") {
-        eprintln!("data: choose --all or --limit N");
-        return 2;
-    }
     let limit: usize = match options.flags.get("limit") {
-        None => if options.flags.contains_key("all") { usize::MAX } else { 50 },
+        None => 50,
         Some(text) => match text.parse() {
             Ok(limit) => limit,
             Err(_) => {
@@ -903,7 +899,6 @@ pub fn data(options: &Options) -> i32 {
         schema.refuse_private(table)?;
         let definition = schema.table(table).ok_or_else(|| snapback4_core::RuntimeError::Schema(format!("no table {table}")))?;
         if definition.ephemeral.is_some() {
-            if options.flags.contains_key("all") { return Err(snapback4_core::RuntimeError::Schema(format!("data {table}: ephemeral rows live only in serving memory; no disk snapshot"))); }
             eprintln!("data: skipping {table}: ephemeral rows live only in the serving process's memory");
             tx.rollback()?;
             return Ok((Vec::new(), false));
@@ -919,7 +914,7 @@ pub fn data(options: &Options) -> i32 {
     match inspected {
         Ok((rows, more)) => {
             if options.json {
-                println!("{}", serde_json::json!({"rows":rows.iter().map(wire::to_json).collect::<Vec<_>>(), "more":more, "limit":if options.flags.contains_key("all") { serde_json::Value::Null } else { serde_json::json!(limit) }}));
+                println!("{}", serde_json::json!({"rows":rows.iter().map(wire::to_json).collect::<Vec<_>>(), "more":more, "limit":limit}));
             } else {
                 for row in &rows { println!("{}", wire::to_json(row)); }
             }

@@ -4,6 +4,10 @@ use super::{Inspection, Result, store_error};
 use crate::{Value, schema::{Schema, materialize_optional_fields},inspection::{InspectionCatalog,internal}};
 use std::collections::BTreeMap;
 impl Inspection {
+    pub(super) fn inspection_has_table(&self, name: &str) -> Result<bool> {
+        self.conn.query_row("SELECT EXISTS(SELECT 1 FROM sqlite_master WHERE type='table' AND name=?1)",[name],|row|row.get(0)).map_err(store_error)
+    }
+
     pub fn merged_records(&self, name: &str) -> Result<Vec<Value>> {
         if internal(name) {return Err(("E_SQL_INTERNAL","data reads application tables only".into()));}
         let (_,encoded)=self.active_schema_record()?;
@@ -16,7 +20,11 @@ impl Inspection {
         let number:i64=self.conn.query_row("SELECT num FROM _catalog WHERE name=?1",[name],|row|row.get(0)).map_err(store_error)?;
         let mut merged=BTreeMap::<String,BTreeMap<String,Value>>::new();
         // Active images win, including explicit null; retained cells fill only absent names.
-        let mut query=self.conn.prepare("SELECT id,data,0 AS rank FROM r WHERE t=?1 UNION ALL SELECT id,data,1 FROM _dormant_rows WHERE t=?1 UNION ALL SELECT id,data,2 FROM _dormant_narrow_rows WHERE t=?1 ORDER BY rank,id").map_err(store_error)?;
+        let mut parts=vec!["SELECT id,data,0 AS rank FROM r WHERE t=?1".to_owned()];
+        for (rank,table) in [(1,"_dormant_rows"),(2,"_dormant_narrow_rows")] {
+            if self.inspection_has_table(table)? {parts.push(format!("SELECT id,data,{rank} FROM {table} WHERE t=?1"));}
+        }
+        let mut query=self.conn.prepare(&format!("{} ORDER BY rank,id",parts.join(" UNION ALL "))).map_err(store_error)?;
         let rows=query.query_map([number],|row|Ok((row.get::<_,String>(0)?,row.get::<_,String>(1)?,row.get::<_,i64>(2)?))).map_err(store_error)?;
         for row in rows {
             let (id,data,rank)=row.map_err(store_error)?;
@@ -29,7 +37,8 @@ impl Inspection {
                 if definition.columns.contains_key(column) {target.entry(column.clone()).or_insert_with(||value.clone());}
             }
         }
-        let mut query=self.conn.prepare("SELECT id,column_name,data FROM _dormant_values WHERE t=?1 ORDER BY id,column_name").map_err(store_error)?;
+        let cells_sql=if self.inspection_has_table("_dormant_values")? {"SELECT id,column_name,data FROM _dormant_values WHERE t=?1 ORDER BY id,column_name"} else {"SELECT NULL,NULL,NULL WHERE ?1 IS NULL AND 0"};
+        let mut query=self.conn.prepare(cells_sql).map_err(store_error)?;
         let cells=query.query_map([number],|row|Ok((row.get::<_,String>(0)?,row.get::<_,String>(1)?,row.get::<_,String>(2)?))).map_err(store_error)?;
         for cell in cells {
             let (id,column,data)=cell.map_err(store_error)?;
