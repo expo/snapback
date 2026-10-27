@@ -184,7 +184,7 @@ pub(in crate::verbs) fn render_mode(dispositions:&[Disposition],notes:&[Diagnost
     let review=render_mode(&[disposition],&[n],true);assert!(review.contains(d["id"].as_str().unwrap())&&review.contains(w["summary"].as_str().unwrap()));
     removed+=2;added+=text.lines().count();
    }
-   let counts=|field:&str|{let phase=&row[field];assert!(phase["exit"]==0||phase["exit"]==1,"censored display must be retried before claiming output counts");let before=phase["lines"].as_u64().unwrap()as usize;assert!(before>=removed);serde_json::json!({"before":before,"after":before-removed+added})};
+   let counts=|field:&str|{let phase=&row[field];assert!(phase["exit"]==0||phase["exit"]==1,"censored display must be retried before claiming output counts");let actual=format!("{}{}",phase["stdout"].as_str().unwrap(),phase["stderr"].as_str().unwrap());assert_eq!(actual.matches("fix question N_ASSIGNMENT_SCOPE at ").count(),added,"native phase and captured decisions differ");let before=phase["lines"].as_u64().unwrap()as usize;assert!(before>=removed);serde_json::json!({"before":before,"after":before-removed+added})};
    measured.push(serde_json::json!({"wave":row["wave"],"lane":row["lane"],"defaultCheck":counts("defaultCheck"),"defaultDeploy":counts("defaultDeploy"),"cards":added}));
   }
   if let Ok(path)=std::env::var("SNAPBACK4_SEC11_ASSIGNMENT_RENDER_OUTPUT"){std::fs::write(path,serde_json::to_vec_pretty(&measured).unwrap()).unwrap();}
