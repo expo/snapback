@@ -1,0 +1,12 @@
+"""Compose explicitly selected native cases, preserving incomplete parent status."""
+import argparse,gzip,hashlib,json,pathlib
+p=argparse.ArgumentParser();p.add_argument('--part',action='append',required=True);p.add_argument('--selection',required=True);p.add_argument('--waves',required=True);p.add_argument('--provenance',required=True);p.add_argument('--out',required=True);a=p.parse_args()
+parts=dict(v.split('=',1)for v in a.part);selection_raw=pathlib.Path(a.selection).read_bytes();selection=json.loads(selection_raw);sha=json.loads(pathlib.Path(a.provenance).read_text())['binarySha256'];waves=set(map(int,a.waves.split(',')));baseline=json.load(gzip.open('snapback4/reports/sec11-item1/survey-all800.json.gz','rt'));expected={(r['wave'],r['lane']):r['sha256']for r in baseline if r['wave']in waves}
+assert len(selection)==len(expected)and{(r['wave'],r['lane'])for r in selection}==set(expected),'selection must cover every case in each declared wave exactly once'
+parents={};rows=[];selected=[]
+for s in selection:
+ label=s['source'];root=pathlib.Path(parts[label]);m=json.loads((root/'measurement.json').read_text());assert m['binarySha256']==sha,'binary mismatch';parents[label]=dict(directory=str(root),measurement=m,parentPassInferred=False)
+ path=root/f'w{s["wave"]}-{s["lane"]}.json';raw=path.read_bytes();row=json.loads(raw);key=(s['wave'],s['lane']);assert(row['wave'],row['lane'])==key and row['sha256']==expected[key],'case/source mismatch'
+ assert all(field in row for field in ['defaultCheck','defaultDeploy','fresh','test','afterTest','reviews','notes','gates','checkExit']),('incomplete actual phase record',key)
+ rows.append(row);selected.append(dict(**s,recordSha256=hashlib.sha256(raw).hexdigest()))
+rows.sort(key=lambda r:(r['wave'],r['lane']));out=pathlib.Path(a.out);out.mkdir(parents=True,exist_ok=True);(out/'results.json').write_text(json.dumps(rows,indent=2)+'\n');m=dict(kind='explicitly-composed-native-cases',binarySha256=sha,projects=len(rows),selectionSha256=hashlib.sha256(selection_raw).hexdigest(),parents=parents,selected=selected,scope='Every selected case retains its actual command attempts, verdicts and failures unchanged. Incomplete test campaigns remain incomplete; no parent run is relabeled PASS. Entire declared waves, no omitted cases.');(out/'measurement.json').write_text(json.dumps(m,indent=2)+'\n');print(json.dumps(dict(schemas=len(rows),waves=sorted(waves),parents=list(parents))))
