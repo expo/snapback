@@ -1,0 +1,10 @@
+--- original/schema.q
++++ fixed/schema.q
+@@ -87,6 +87,7 @@
+ mutation advanceJob(job: jobs):
+   require exists roles[principal = viewer, role = 'crew'] or exists roles[principal = viewer, role = 'owner'] else NOT_CREW
+   j = jobs[job] ! else NOT_FOUND
++  require not j.dampSigned or j.dampApproved else DAMP_APPROVAL_REQUIRED
+   require j.status = 'booked' or j.status = 'grinding' or j.status = 'crack_filling' else BAD_STATUS
+   if j.status = 'booked':
+     update jobs[job] { status: 'grinding' }
