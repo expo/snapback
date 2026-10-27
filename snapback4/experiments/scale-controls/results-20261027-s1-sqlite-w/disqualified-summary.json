@@ -1,0 +1,9 @@
+{
+  "trials": 50,
+  "by_reason": {
+    "p99": 49,
+    "errors": 46,
+    "counter": 0
+  },
+  "raw_trial_list": "outside Git in archive"
+}

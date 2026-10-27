@@ -6,7 +6,7 @@ use std::collections::{BTreeMap, BTreeSet};
 pub(crate) const VERSION: &str = "snapback4-release-store-7";
 fn migration_context(tx:&Tx<'_>,now:i64)->Result<Context,RuntimeError>{let mut context=Context::system().at(now);context.migration_assets=tx.meta("activation_asset_root")?.map(std::path::PathBuf::from);Ok(context)}
 fn refusal(message: impl Into<String>) -> RuntimeError { RuntimeError::Structural { code:"E_ADOPT", message:message.into() } }
-fn present(tx: &Tx<'_>) -> Result<bool, RuntimeError> {
+pub(super) fn present(tx: &Tx<'_>) -> Result<bool, RuntimeError> {
     Ok(tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE name='_backfill_evidence')",[],|r|r.get(0))?)
 }
 fn enable(tx: &Tx<'_>) -> Result<(), RuntimeError> {

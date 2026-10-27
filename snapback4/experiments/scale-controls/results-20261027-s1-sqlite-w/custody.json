@@ -1,0 +1,91 @@
+{
+  "archive": {
+    "path": "/home/ccheever/sb4scale/archive/s1-sqlite-w-20261027.tar.gz",
+    "sha256": "aa488761965115a71a8ba5f3f3eb4b90a599a78296f7dbf421b08047f8f21f88",
+    "bytes": 355149710,
+    "files": 2086,
+    "excluded_files": 1,
+    "active_metadata": "root PID/disk/log files snapshotted before packing; native run files already closed"
+  },
+  "process_audit": {
+    "identities_checked": 2826,
+    "remaining": 0,
+    "zombies": 0,
+    "unexpected_owned_path_processes": 0,
+    "scope": "all native/root ledgers plus independent proc argv/executable scan; only current auditor ancestry excluded"
+  },
+  "disk": {
+    "final_free_gib": 36.568206787109375,
+    "outer_min_free_gib": 26.623985290527344,
+    "run_min_free_gib": {
+      "matrix2": 36.353458404541016,
+      "diagnostic2": 34.55706787109375
+    },
+    "outer_floor_gib": 25,
+    "native_start_floor_gib": 30
+  },
+  "private_cleanup": {
+    "recorded_roots": 21,
+    "removed_now": 3,
+    "all_absent": true
+  },
+  "secret_audit": {
+    "known_credential_values": 513,
+    "raw_text_files_scanned": 2079,
+    "raw_credential_match_files_excluded": 0,
+    "immutable_elfs_not_runtime_credential_containers": 6,
+    "private_token_and_database_files_excluded": true,
+    "staged_scan": "pass; exact known-credential substring scan of every staged blob",
+    "staged_files": 13,
+    "staged_credential_matches": 0
+  },
+  "affinity": {
+    "app": [
+      3,
+      4,
+      9,
+      10
+    ],
+    "generator": [
+      5,
+      11
+    ],
+    "app_thread_witnesses": {
+      "matrix2": 64,
+      "diagnostic2": 67
+    },
+    "unused_database_cores_reassigned": false
+  },
+  "seed_equality": {
+    "matrix2": {
+      "messages": 1000000,
+      "rooms": 1025,
+      "users": 256,
+      "memberships": 8448,
+      "counters": 257,
+      "every_message_image_matches": true,
+      "room_totals_exact": true,
+      "sender_totals_exact": true,
+      "every_membership_and_last_read_matches": true,
+      "every_counter_image_matches": true
+    },
+    "diagnostic2": {
+      "messages": 1000000,
+      "rooms": 1025,
+      "users": 256,
+      "memberships": 8448,
+      "counters": 257,
+      "every_message_image_matches": true,
+      "room_totals_exact": true,
+      "sender_totals_exact": true,
+      "every_membership_and_last_read_matches": true,
+      "every_counter_image_matches": true
+    }
+  },
+  "git_config_receipts": {
+    "repository": {
+      "mtime_utc": "2026-10-23 21:43:07 UTC",
+      "sha256": "55bbfa869a1c730d5dc9014e213c5aace2f9f827e7c3d42479b6435b3c92b7f9"
+    }
+  }
+}

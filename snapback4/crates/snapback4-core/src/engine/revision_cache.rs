@@ -1,4 +1,4 @@
-//! Exact revision reuse: one fresh statement (G5), or a live read grant (G6).
+//! Exact revision reuse: fresh validation (G5), a read grant (G6), or an owned SQLite stream.
 // @ref LLP 3000.009.001.000.002#4.1 — immutable snapshot results reuse only at exactly their fill revision.
 use super::{Context, DeliveryManifest, Engine, QueryOutcome};
 use crate::{Refusal, identity::facts::SessionFacts};
@@ -40,6 +40,7 @@ impl Default for Limits {
 pub struct Stats {
     pub hits: u64,
     pub g6_hits: u64,
+    pub sqlite_hits: u64,
     pub g6_hit_stall_ns: u64,
     pub g6_stalled_hits: u64,
     pub g6_max_hit_stall_ns: u64,
@@ -189,6 +190,7 @@ pub(crate) struct Cache {
     grant: OnceLock<Arc<super::postgres::read_grant::Grant>>,
     retired_grant: std::sync::atomic::AtomicBool,
     g6_hits: AtomicU64,
+    sqlite_hits: AtomicU64,
     g6_hit_stall_ns: AtomicU64,
     g6_stalled_hits: AtomicU64,
     g6_max_hit_stall_ns: AtomicU64,
@@ -228,6 +230,7 @@ impl Cache {
             grant: OnceLock::new(),
             retired_grant: std::sync::atomic::AtomicBool::new(false),
             g6_hits: AtomicU64::new(0),
+            sqlite_hits: AtomicU64::new(0),
             g6_hit_stall_ns: AtomicU64::new(0),
             g6_stalled_hits: AtomicU64::new(0),
             g6_max_hit_stall_ns: AtomicU64::new(0),
@@ -358,6 +361,7 @@ impl Cache {
         Stats {
             hits: self.hits.load(Ordering::Relaxed),
             g6_hits: self.g6_hits.load(Ordering::Relaxed),
+            sqlite_hits: self.sqlite_hits.load(Ordering::Relaxed),
             g6_hit_stall_ns: self.g6_hit_stall_ns.load(Ordering::Relaxed),
             g6_stalled_hits: self.g6_stalled_hits.load(Ordering::Relaxed),
             g6_max_hit_stall_ns: self.g6_max_hit_stall_ns.load(Ordering::Relaxed),
@@ -584,10 +588,9 @@ impl Engine {
         let retained_order = c.search_retained_order.is_some();
         #[cfg(not(feature = "server-search"))]
         let retained_order = false;
-        // SQLite has no complete durable revision stream; its ordinary snapshot
-        // path stays enabled and is the outcome/meter oracle for this increment.
+        // Owned SQLite validates a stable complete local commit interval.
         if !c.revision_cache
-            || !matches!(self.store, crate::store_port::AnyStore::Postgres(_))
+            || !(matches!(self.store, crate::store_port::AnyStore::Postgres(_)) || self.store.sqlite_cache_scope().is_some())
             || digest.contains('\0')
             || !c.args.values().all(scalar_arguments)
             || retained.is_some()
@@ -690,6 +693,26 @@ impl Engine {
             .map(|(key, _)| cache.lookup(key))
             .unwrap_or((None, false));
         if let Some(entry) = candidate {
+            // @ref LLP 3000.009.001.000.002#sqlite-local-hits — an exclusive flock survives pauses; a stable complete revision certifies the frozen authority facts.
+            if self.store.sqlite_cache_revision() == Some(entry.stamp.revision) {
+                let checked = (|| {
+                    let tx = self.store.cached_authority_snapshot(digest, entry.facts.clone())?;
+                    snapshot(&tx, entry.stamp.head)?;
+                    tx.rollback()?;
+                    let mut outcome = entry.outcome.clone();
+                    outcome.cache_lifetime = entry.lifetime.clone();
+                    outcome.seq = entry.stamp.head;
+                    Ok::<_, Refusal>(outcome)
+                })();
+                // A failed check is not a verdict: it takes ordinary validation.
+                if let Ok(outcome) = checked
+                    && self.store.sqlite_cache_revision() == Some(entry.stamp.revision)
+                {
+                    cache.hits.fetch_add(1, Ordering::Relaxed);
+                    cache.sqlite_hits.fetch_add(1, Ordering::Relaxed);
+                    return (Ok(outcome), Some(entry.stamp.head), None);
+                }
+            }
             let mut locally_changed = false;
             // @ref LLP 3000.009.001.000.002#4.3 — one gate read captures grant/epoch, fresh authority, revision and response identity.
             if let Some(grant) = &grant

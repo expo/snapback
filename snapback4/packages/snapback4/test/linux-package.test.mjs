@@ -10,7 +10,9 @@ import { elf } from "./helpers/elf-fixture.mjs";
 
 test("the musl shell and publication receipts pin the same SQLite flags", () => {
   const script = readFileSync(new URL("../../../scripts/build-linux-musl.sh", import.meta.url), "utf8");
-  assert.equal(script.match(/^export LIBSQLITE3_FLAGS=(.+)$/m)?.[1], sqliteBuildFlags);
+  assert.equal(script.match(/^export LIBSQLITE3_FLAGS="(.+)"$/m)?.[1], sqliteBuildFlags);
+  const config = readFileSync(new URL("../../../.cargo/config.toml", import.meta.url), "utf8");
+  assert.equal(config.match(/^LIBSQLITE3_FLAGS = "(.+)"$/m)?.[1], sqliteBuildFlags, "Cargo's default must match the packaged build");
 });
 test("ELF requires executable x64 and rejects interpreter, NEEDED and malformed headers", () => {
   assert.deepEqual(checkElf(elf()), { status: "passed", machine: "x86_64", interpreter: null, needed: [] });

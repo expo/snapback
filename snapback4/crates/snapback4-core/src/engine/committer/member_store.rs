@@ -216,6 +216,11 @@ impl MemberTx<'_, '_> {
     // @ref LLP 3000.009.001.000.001#31-authority-boundaries — Program members resolve after the physical owner fence and head lock.
     pub(crate) fn request_authority(&self, digest: &str, sample: crate::identity::ServiceSample) -> Result<crate::identity::RequestAuthority, RuntimeError> {
         self.reads.borrow_mut().authority.insert(digest.into());
+        if matches!(self.tx, AnyTx::Sqlite(_)) && let Some((key, facts)) = self.batch_facts.and_then(|f| f.authority.as_ref()) && key == digest {
+            let mut facts = facts.clone();
+            facts.head = self.tx.next_seq()?.saturating_sub(1);
+            return crate::identity::request::authority_from_facts(self.tx, facts, sample);
+        }
         crate::identity::request::request_authority(self.tx, digest, sample)
     }
     // @ref LLP 3000.009.001.000.001#32-one-statement-fetches-a-guest-sessions-authority-facts — typed Program/Direct member access; no raw transaction or SQL.

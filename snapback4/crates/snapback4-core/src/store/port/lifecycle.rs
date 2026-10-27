@@ -60,6 +60,10 @@ impl AnyStore {
             let tx=h.store.get_mut().cached_read()?;
             return Ok(ReadSnapshot {tx:AnyTx::Postgres(PostgresTx(tx)),authority:Some((digest.into(),facts))});
         }
+        if let Self::Sqlite(SqliteStore(s)) = self {
+            let tx = s.cached_authority_transaction()?;
+            return Ok(ReadSnapshot { tx: AnyTx::Sqlite(SqliteTx(tx)), authority: Some((digest.into(),facts)) });
+        }
         Err(RuntimeError::StoreUnsupported {family:"read-grant"})
     }
     #[cfg(feature="postgres")]
@@ -69,7 +73,13 @@ impl AnyStore {
             let (tx,facts)=handle.store.get_mut().planned_authority_transaction(digest,Some(crate::engine::postgres::read_plan::Plan::Validation))?;
             return Ok(Some(ReadSnapshot {tx:AnyTx::Postgres(PostgresTx(tx)),authority:Some((digest.into(),facts))}));
         }
-        Ok(None)
+        self.request_read_transaction(digest)
+    }
+    pub(crate) fn sqlite_cache_scope(&self) -> Option<i64> {
+        match self { Self::Sqlite(SqliteStore(s)) => s.cache_scope(), _ => None }
+    }
+    pub(crate) fn sqlite_cache_revision(&self) -> Option<i64> {
+        match self { Self::Sqlite(SqliteStore(s)) if s.cache_scope().is_some() => s.cached_revision(), _ => None }
     }
     pub fn memory() -> Result<Self, RuntimeError> { sqlite::Store::memory().map(|inner| Self::Sqlite(SqliteStore(inner))) }
     pub fn open(path: &Path) -> Result<Self, RuntimeError> { sqlite::Store::open(path).map(|inner| Self::Sqlite(SqliteStore(inner))) }
@@ -298,11 +308,11 @@ impl<'store> AnyTx<'store> {
         }
     }
     pub(crate) fn enable_group_tail(&self) -> Result<(), RuntimeError> {
-        match self { Self::Sqlite(_) => Ok(()), #[cfg(feature="postgres")] Self::Postgres(PostgresTx(tx)) => tx.enable_group_tail() }
+        match self { Self::Sqlite(SqliteTx(tx)) => tx.enable_group_tail(), #[cfg(feature="postgres")] Self::Postgres(PostgresTx(tx)) => tx.enable_group_tail() }
     }
     pub(crate) fn prepare_program_commit(&self) -> Result<(), RuntimeError> {
         match self {
-            Self::Sqlite(_) => Ok::<(), RuntimeError>(()),
+            Self::Sqlite(SqliteTx(tx)) => tx.flush_group_tail(),
             #[cfg(feature = "postgres")]
             Self::Postgres(PostgresTx(tx)) => tx.prepare_program_tail(),
         }?;
