@@ -1,0 +1,1046 @@
+{
+  "qualification": false,
+  "binaryProfile": "dev debug=0, not production publication",
+  "packs": {
+    "snapback4-0.4.43.tgz": "12f52fad7f6e1ffc099335196a04a91e31ad2096cbfe45303fe297db36fa5191",
+    "snapback4-linux-x64-0.4.43.tgz": "eb9a9b50ac2ea523880115d85a817d9e4ed93e6125ae073adc6f466bf5a93626",
+    "snapback4-expo-0.4.43.tgz": "31702fb579a0cd6ed8422df824d7489f91a0dfa73f83070f126bff43dbaf7c38"
+  },
+  "steps": [
+    {
+      "name": "starters",
+      "ok": true,
+      "seconds": 688.643,
+      "value": [
+        {
+          "starter": "web",
+          "kind": "web",
+          "audit": {
+            "status": "passed",
+            "warnings": []
+          },
+          "fixtureGuide": "passed",
+          "status": "passed",
+          "adapted": "passed",
+          "typecheck": "passed",
+          "build": "passed",
+          "frontendProofs": [
+            {
+              "starter": "web",
+              "kind": "web",
+              "attempt": 1,
+              "status": "passed",
+              "elapsedMs": 7549,
+              "range": [
+                46517,
+                46537
+              ],
+              "occupied": 46517,
+              "cpuLoadWorkers": 2,
+              "loadavg": [
+                13.53,
+                26.9,
+                54.94
+              ],
+              "listenerAudit": {
+                "status": "passed",
+                "method": "strace-listen",
+                "samples": 4,
+                "listeners": [
+                  {
+                    "pid": 145245,
+                    "port": 46518
+                  },
+                  {
+                    "pid": 145245,
+                    "port": 46518
+                  },
+                  {
+                    "pid": 145260,
+                    "port": 46519
+                  }
+                ],
+                "nonReturned": [
+                  {
+                    "pid": 145438,
+                    "state": "absent",
+                    "record": "???( <unfinished ...>"
+                  },
+                  {
+                    "pid": 145263,
+                    "state": "absent",
+                    "record": "???(145253 +++ exited with 0 +++"
+                  }
+                ],
+                "range": [
+                  46517,
+                  46537
+                ],
+                "tracerVersion": "strace -- version 6.8"
+              },
+              "logs": "/tmp/tok1-replay/consumers-final/starter-web/proof-logs-1"
+            },
+            {
+              "starter": "web",
+              "kind": "web",
+              "attempt": 2,
+              "status": "passed",
+              "elapsedMs": 7773,
+              "range": [
+                36665,
+                36685
+              ],
+              "occupied": 36665,
+              "cpuLoadWorkers": 2,
+              "loadavg": [
+                13.49,
+                26.45,
+                54.49
+              ],
+              "listenerAudit": {
+                "status": "passed",
+                "method": "strace-listen",
+                "samples": 4,
+                "listeners": [
+                  {
+                    "pid": 146007,
+                    "port": 36666
+                  },
+                  {
+                    "pid": 146007,
+                    "port": 36666
+                  },
+                  {
+                    "pid": 146020,
+                    "port": 36667
+                  }
+                ],
+                "nonReturned": [],
+                "range": [
+                  36665,
+                  36685
+                ],
+                "tracerVersion": "strace -- version 6.8"
+              },
+              "logs": "/tmp/tok1-replay/consumers-final/starter-web/proof-logs-2"
+            }
+          ],
+          "adaptedProofs": [
+            {
+              "starter": "web",
+              "kind": "web",
+              "attempt": 1,
+              "status": "passed",
+              "elapsedMs": 6595,
+              "range": [
+                43305,
+                43325
+              ],
+              "occupied": 43305,
+              "cpuLoadWorkers": 2,
+              "loadavg": [
+                23.88,
+                26.33,
+                52.65
+              ],
+              "listenerAudit": {
+                "status": "passed",
+                "method": "strace-listen",
+                "samples": 4,
+                "listeners": [
+                  {
+                    "pid": 156631,
+                    "port": 43306
+                  },
+                  {
+                    "pid": 156631,
+                    "port": 43306
+                  },
+                  {
+                    "pid": 156654,
+                    "port": 43307
+                  }
+                ],
+                "nonReturned": [
+                  {
+                    "pid": 156835,
+                    "state": "absent",
+                    "record": "???( <unfinished ...>"
+                  }
+                ],
+                "range": [
+                  43305,
+                  43325
+                ],
+                "tracerVersion": "strace -- version 6.8"
+              },
+              "logs": "/tmp/tok1-replay/consumers-final/starter-web/proof-logs-1"
+            },
+            {
+              "starter": "web",
+              "kind": "web",
+              "attempt": 2,
+              "status": "passed",
+              "elapsedMs": 6340,
+              "range": [
+                33893,
+                33913
+              ],
+              "occupied": 33893,
+              "cpuLoadWorkers": 2,
+              "loadavg": [
+                26.37,
+                26.8,
+                52.66
+              ],
+              "listenerAudit": {
+                "status": "passed",
+                "method": "strace-listen",
+                "samples": 4,
+                "listeners": [
+                  {
+                    "pid": 157865,
+                    "port": 33894
+                  },
+                  {
+                    "pid": 157865,
+                    "port": 33894
+                  },
+                  {
+                    "pid": 157905,
+                    "port": 33895
+                  }
+                ],
+                "nonReturned": [],
+                "range": [
+                  33893,
+                  33913
+                ],
+                "tracerVersion": "strace -- version 6.8"
+              },
+              "logs": "/tmp/tok1-replay/consumers-final/starter-web/proof-logs-2"
+            }
+          ],
+          "negativeProof": {
+            "status": "passed",
+            "expected": "E_FRONTEND_SCENARIO: frontend rendered",
+            "listenerAudit": {
+              "status": "passed",
+              "method": "strace-listen",
+              "samples": 4,
+              "listeners": [
+                {
+                  "pid": 154928,
+                  "port": 30000
+                },
+                {
+                  "pid": 154928,
+                  "port": 30000
+                },
+                {
+                  "pid": 154982,
+                  "port": 30001
+                }
+              ],
+              "nonReturned": [
+                {
+                  "pid": 154994,
+                  "state": "absent",
+                  "record": "???(154937 +++ exited with 0 +++"
+                }
+              ],
+              "range": [
+                30000,
+                30020
+              ],
+              "tracerVersion": "strace -- version 6.8"
+            }
+          },
+          "formSubmit": "passed"
+        },
+        {
+          "starter": "web-online",
+          "kind": "web",
+          "audit": {
+            "status": "passed",
+            "warnings": []
+          },
+          "fixtureGuide": "passed",
+          "status": "passed",
+          "typecheck": "passed",
+          "build": "passed",
+          "frontendProofs": [
+            {
+              "starter": "web-online",
+              "kind": "web",
+              "attempt": 1,
+              "status": "passed",
+              "elapsedMs": 6258,
+              "range": [
+                35399,
+                35419
+              ],
+              "occupied": 35399,
+              "cpuLoadWorkers": 2,
+              "loadavg": [
+                44.35,
+                32.14,
+                52.76
+              ],
+              "listenerAudit": {
+                "status": "passed",
+                "method": "strace-listen",
+                "samples": 4,
+                "listeners": [
+                  {
+                    "pid": 177424,
+                    "port": 35400
+                  },
+                  {
+                    "pid": 177424,
+                    "port": 35400
+                  },
+                  {
+                    "pid": 177649,
+                    "port": 35401
+                  }
+                ],
+                "nonReturned": [],
+                "range": [
+                  35399,
+                  35419
+                ],
+                "tracerVersion": "strace -- version 6.8"
+              },
+              "logs": "/tmp/tok1-replay/consumers-final/starter-web-online/proof-logs-1"
+            },
+            {
+              "starter": "web-online",
+              "kind": "web",
+              "attempt": 2,
+              "status": "passed",
+              "elapsedMs": 5914,
+              "range": [
+                45545,
+                45565
+              ],
+              "occupied": 45545,
+              "cpuLoadWorkers": 2,
+              "loadavg": [
+                43.76,
+                32.22,
+                52.68
+              ],
+              "listenerAudit": {
+                "status": "passed",
+                "method": "strace-listen",
+                "samples": 4,
+                "listeners": [
+                  {
+                    "pid": 179119,
+                    "port": 45546
+                  },
+                  {
+                    "pid": 179119,
+                    "port": 45546
+                  },
+                  {
+                    "pid": 179180,
+                    "port": 45547
+                  }
+                ],
+                "nonReturned": [],
+                "range": [
+                  45545,
+                  45565
+                ],
+                "tracerVersion": "strace -- version 6.8"
+              },
+              "logs": "/tmp/tok1-replay/consumers-final/starter-web-online/proof-logs-2"
+            }
+          ]
+        },
+        {
+          "starter": "expo",
+          "kind": "expo",
+          "audit": {
+            "status": "passed",
+            "warnings": []
+          },
+          "fixtureGuide": "passed",
+          "status": "passed",
+          "adapted": "passed",
+          "typecheck": "passed",
+          "build": "passed",
+          "frontendProofs": [
+            {
+              "starter": "expo",
+              "kind": "expo",
+              "attempt": 1,
+              "status": "passed",
+              "elapsedMs": 11068,
+              "range": [
+                41253,
+                41273
+              ],
+              "occupied": 41253,
+              "cpuLoadWorkers": 2,
+              "loadavg": [
+                38.8,
+                33.35,
+                51.28
+              ],
+              "listenerAudit": {
+                "status": "passed",
+                "method": "strace-listen",
+                "samples": 4,
+                "listeners": [
+                  {
+                    "pid": 267804,
+                    "port": 41255
+                  },
+                  {
+                    "pid": 267804,
+                    "port": 41255
+                  },
+                  {
+                    "pid": 267875,
+                    "port": 41257
+                  }
+                ],
+                "nonReturned": [
+                  {
+                    "pid": 268203,
+                    "state": "absent",
+                    "record": "???( <unfinished ...>"
+                  },
+                  {
+                    "pid": 267886,
+                    "state": "absent",
+                    "record": "???(267817 +++ exited with 0 +++"
+                  }
+                ],
+                "range": [
+                  41253,
+                  41273
+                ],
+                "tracerVersion": "strace -- version 6.8"
+              },
+              "logs": "/tmp/tok1-replay/consumers-final/starter-expo/proof-logs-1"
+            },
+            {
+              "starter": "expo",
+              "kind": "expo",
+              "attempt": 2,
+              "status": "passed",
+              "elapsedMs": 12006,
+              "range": [
+                45951,
+                45971
+              ],
+              "occupied": 45951,
+              "cpuLoadWorkers": 2,
+              "loadavg": [
+                39.94,
+                33.78,
+                51.23
+              ],
+              "listenerAudit": {
+                "status": "passed",
+                "method": "strace-listen",
+                "samples": 4,
+                "listeners": [
+                  {
+                    "pid": 271547,
+                    "port": 45953
+                  },
+                  {
+                    "pid": 271547,
+                    "port": 45953
+                  },
+                  {
+                    "pid": 271600,
+                    "port": 45955
+                  }
+                ],
+                "nonReturned": [
+                  {
+                    "pid": 271600,
+                    "state": "absent",
+                    "record": "???(271576 +++ exited with 0 +++"
+                  }
+                ],
+                "range": [
+                  45951,
+                  45971
+                ],
+                "tracerVersion": "strace -- version 6.8"
+              },
+              "logs": "/tmp/tok1-replay/consumers-final/starter-expo/proof-logs-2"
+            }
+          ],
+          "adaptedProofs": [
+            {
+              "starter": "expo",
+              "kind": "expo",
+              "attempt": 1,
+              "status": "passed",
+              "elapsedMs": 11612,
+              "range": [
+                35141,
+                35161
+              ],
+              "occupied": 35141,
+              "cpuLoadWorkers": 2,
+              "loadavg": [
+                38.54,
+                34.66,
+                50.35
+              ],
+              "listenerAudit": {
+                "status": "passed",
+                "method": "strace-listen",
+                "samples": 4,
+                "listeners": [
+                  {
+                    "pid": 289364,
+                    "port": 35142
+                  },
+                  {
+                    "pid": 289364,
+                    "port": 35142
+                  },
+                  {
+                    "pid": 289401,
+                    "port": 35143
+                  }
+                ],
+                "nonReturned": [
+                  {
+                    "pid": 289728,
+                    "state": "absent",
+                    "record": "???( <unfinished ...>"
+                  }
+                ],
+                "range": [
+                  35141,
+                  35161
+                ],
+                "tracerVersion": "strace -- version 6.8"
+              },
+              "logs": "/tmp/tok1-replay/consumers-final/starter-expo/proof-logs-1"
+            },
+            {
+              "starter": "expo",
+              "kind": "expo",
+              "attempt": 2,
+              "status": "passed",
+              "elapsedMs": 11308,
+              "range": [
+                39467,
+                39487
+              ],
+              "occupied": 39467,
+              "cpuLoadWorkers": 2,
+              "loadavg": [
+                38.68,
+                34.88,
+                50.17
+              ],
+              "listenerAudit": {
+                "status": "passed",
+                "method": "strace-listen",
+                "samples": 4,
+                "listeners": [
+                  {
+                    "pid": 292457,
+                    "port": 39468
+                  },
+                  {
+                    "pid": 292457,
+                    "port": 39468
+                  },
+                  {
+                    "pid": 292496,
+                    "port": 39469
+                  }
+                ],
+                "nonReturned": [],
+                "range": [
+                  39467,
+                  39487
+                ],
+                "tracerVersion": "strace -- version 6.8"
+              },
+              "logs": "/tmp/tok1-replay/consumers-final/starter-expo/proof-logs-2"
+            }
+          ],
+          "negativeProof": {
+            "status": "passed",
+            "expected": "E_FRONTEND_SCENARIO: frontend rendered",
+            "listenerAudit": {
+              "status": "passed",
+              "method": "strace-listen",
+              "samples": 4,
+              "listeners": [
+                {
+                  "pid": 279920,
+                  "port": 30000
+                },
+                {
+                  "pid": 279920,
+                  "port": 30000
+                },
+                {
+                  "pid": 279955,
+                  "port": 30001
+                }
+              ],
+              "nonReturned": [
+                {
+                  "pid": 279958,
+                  "state": "absent",
+                  "record": "???(279924 +++ exited with 0 +++"
+                }
+              ],
+              "range": [
+                30000,
+                30020
+              ],
+              "tracerVersion": "strace -- version 6.8"
+            }
+          },
+          "formSubmit": "not-applicable"
+        },
+        {
+          "starter": "web-chat",
+          "kind": "web",
+          "template": "chat",
+          "audit": {
+            "status": "passed",
+            "warnings": []
+          },
+          "fixtureGuide": "passed",
+          "status": "passed",
+          "typecheck": "passed",
+          "build": "passed",
+          "frontendProofs": [
+            {
+              "starter": "web-chat",
+              "kind": "web",
+              "attempt": 1,
+              "status": "passed",
+              "elapsedMs": 7435,
+              "range": [
+                37497,
+                37517
+              ],
+              "occupied": 37497,
+              "cpuLoadWorkers": 2,
+              "loadavg": [
+                41.36,
+                36.4,
+                49.82
+              ],
+              "listenerAudit": {
+                "status": "passed",
+                "method": "strace-listen",
+                "samples": 4,
+                "listeners": [
+                  {
+                    "pid": 305717,
+                    "port": 37498
+                  },
+                  {
+                    "pid": 305717,
+                    "port": 37498
+                  },
+                  {
+                    "pid": 305777,
+                    "port": 37499
+                  }
+                ],
+                "nonReturned": [
+                  {
+                    "pid": 306026,
+                    "state": "absent",
+                    "record": "???(305983 +++ exited with 0 +++"
+                  },
+                  {
+                    "pid": 305777,
+                    "state": "absent",
+                    "record": "???(305723 +++ exited with 0 +++"
+                  }
+                ],
+                "range": [
+                  37497,
+                  37517
+                ],
+                "tracerVersion": "strace -- version 6.8"
+              },
+              "logs": "/tmp/tok1-replay/consumers-final/starter-web-chat/proof-logs-1"
+            },
+            {
+              "starter": "web-chat",
+              "kind": "web",
+              "attempt": 2,
+              "status": "passed",
+              "elapsedMs": 8207,
+              "range": [
+                32935,
+                32955
+              ],
+              "occupied": 32935,
+              "cpuLoadWorkers": 2,
+              "loadavg": [
+                41.17,
+                36.44,
+                49.76
+              ],
+              "listenerAudit": {
+                "status": "passed",
+                "method": "strace-listen",
+                "samples": 4,
+                "listeners": [
+                  {
+                    "pid": 307718,
+                    "port": 32936
+                  },
+                  {
+                    "pid": 307718,
+                    "port": 32936
+                  },
+                  {
+                    "pid": 307769,
+                    "port": 32937
+                  }
+                ],
+                "nonReturned": [
+                  {
+                    "pid": 308067,
+                    "state": "absent",
+                    "record": "???( <unfinished ...>"
+                  }
+                ],
+                "range": [
+                  32935,
+                  32955
+                ],
+                "tracerVersion": "strace -- version 6.8"
+              },
+              "logs": "/tmp/tok1-replay/consumers-final/starter-web-chat/proof-logs-2"
+            }
+          ]
+        },
+        {
+          "starter": "expo-chat",
+          "kind": "expo",
+          "template": "chat",
+          "audit": {
+            "status": "passed",
+            "warnings": []
+          },
+          "fixtureGuide": "passed",
+          "status": "passed",
+          "typecheck": "passed",
+          "build": "passed",
+          "frontendProofs": [
+            {
+              "starter": "expo-chat",
+              "kind": "expo",
+              "attempt": 1,
+              "status": "passed",
+              "elapsedMs": 7225,
+              "range": [
+                33195,
+                33215
+              ],
+              "occupied": 33195,
+              "cpuLoadWorkers": 2,
+              "loadavg": [
+                36.25,
+                36.02,
+                48.72
+              ],
+              "listenerAudit": {
+                "status": "passed",
+                "method": "strace-listen",
+                "samples": 4,
+                "listeners": [
+                  {
+                    "pid": 315553,
+                    "port": 33196
+                  },
+                  {
+                    "pid": 315553,
+                    "port": 33196
+                  },
+                  {
+                    "pid": 315573,
+                    "port": 33197
+                  }
+                ],
+                "nonReturned": [
+                  {
+                    "pid": 315701,
+                    "state": "absent",
+                    "record": "???(315667 +++ exited with 0 +++"
+                  }
+                ],
+                "range": [
+                  33195,
+                  33215
+                ],
+                "tracerVersion": "strace -- version 6.8"
+              },
+              "logs": "/tmp/tok1-replay/consumers-final/starter-expo-chat/proof-logs-1"
+            },
+            {
+              "starter": "expo-chat",
+              "kind": "expo",
+              "attempt": 2,
+              "status": "passed",
+              "elapsedMs": 6919,
+              "range": [
+                34603,
+                34623
+              ],
+              "occupied": 34603,
+              "cpuLoadWorkers": 2,
+              "loadavg": [
+                36.31,
+                36.04,
+                48.66
+              ],
+              "listenerAudit": {
+                "status": "passed",
+                "method": "strace-listen",
+                "samples": 3,
+                "listeners": [
+                  {
+                    "pid": 316757,
+                    "port": 34604
+                  },
+                  {
+                    "pid": 316807,
+                    "port": 34605
+                  }
+                ],
+                "nonReturned": [],
+                "range": [
+                  34603,
+                  34623
+                ],
+                "tracerVersion": "strace -- version 6.8"
+              },
+              "logs": "/tmp/tok1-replay/consumers-final/starter-expo-chat/proof-logs-2"
+            }
+          ]
+        },
+        {
+          "starter": "expo-social",
+          "kind": "expo",
+          "template": "social",
+          "audit": {
+            "status": "passed",
+            "warnings": []
+          },
+          "fixtureGuide": "passed",
+          "status": "passed",
+          "typecheck": "passed",
+          "build": "passed",
+          "frontendProofs": [
+            {
+              "starter": "expo-social",
+              "kind": "expo",
+              "attempt": 1,
+              "status": "passed",
+              "elapsedMs": 9197,
+              "range": [
+                35175,
+                35195
+              ],
+              "occupied": 35175,
+              "cpuLoadWorkers": 2,
+              "loadavg": [
+                42.95,
+                37.58,
+                47.15
+              ],
+              "listenerAudit": {
+                "status": "passed",
+                "method": "strace-listen",
+                "samples": 4,
+                "listeners": [
+                  {
+                    "pid": 331264,
+                    "port": 35176
+                  },
+                  {
+                    "pid": 331264,
+                    "port": 35176
+                  },
+                  {
+                    "pid": 331459,
+                    "port": 35177
+                  }
+                ],
+                "nonReturned": [],
+                "range": [
+                  35175,
+                  35195
+                ],
+                "tracerVersion": "strace -- version 6.8"
+              },
+              "logs": "/tmp/tok1-replay/consumers-final/starter-expo-social/proof-logs-1"
+            },
+            {
+              "starter": "expo-social",
+              "kind": "expo",
+              "attempt": 2,
+              "status": "passed",
+              "elapsedMs": 8857,
+              "range": [
+                42743,
+                42763
+              ],
+              "occupied": 42743,
+              "cpuLoadWorkers": 2,
+              "loadavg": [
+                44.81,
+                38.16,
+                47.24
+              ],
+              "listenerAudit": {
+                "status": "passed",
+                "method": "strace-listen",
+                "samples": 4,
+                "listeners": [
+                  {
+                    "pid": 332819,
+                    "port": 42744
+                  },
+                  {
+                    "pid": 332819,
+                    "port": 42744
+                  },
+                  {
+                    "pid": 333094,
+                    "port": 42745
+                  }
+                ],
+                "nonReturned": [],
+                "range": [
+                  42743,
+                  42763
+                ],
+                "tracerVersion": "strace -- version 6.8"
+              },
+              "logs": "/tmp/tok1-replay/consumers-final/starter-expo-social/proof-logs-2"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "proofKit",
+      "ok": true,
+      "seconds": 99.312,
+      "value": {
+        "status": "passed",
+        "dayTwo": "production accounts, UI sign-in, v1/hot v2/rollback/forward business assertions",
+        "wire": "literal first section, actual packed CLI trace",
+        "clock": "30-day coalesced jump, each-boundary cap, memory replay command, page sampling",
+        "aliases": "array index path through packed test"
+      }
+    },
+    {
+      "name": "staging",
+      "ok": true,
+      "seconds": 59.893,
+      "value": {
+        "status": "passed",
+        "guide": "staging",
+        "recipes": "verbatim installed card",
+        "roles": {
+          "admin": 2,
+          "member": 2
+        },
+        "mode": "serve",
+        "realPasswordLogin": "passed",
+        "data": "passed",
+        "selfGrant": "refused",
+        "productionBulkSeed": "refused before mint",
+        "productionRelabel": "refused",
+        "firstAdmin": "passed",
+        "privateCredentials": "0600"
+      }
+    },
+    {
+      "name": "production",
+      "ok": true,
+      "seconds": 147.417,
+      "value": {
+        "status": "passed",
+        "starters": [
+          {
+            "kind": "web",
+            "cwd": "/tmp/tok1-replay/consumers-final/production-web",
+            "status": "passed",
+            "commands": [
+              "cp node_modules/snapback4/dist/recipes/production/web/schema.q snapback/schema.q",
+              "cp node_modules/snapback4/dist/recipes/production/web/App.tsx src/App.tsx",
+              "cp node_modules/snapback4/dist/recipes/production/web/client.ts src/client.ts",
+              "npx snapback4 check",
+              "npx snapback4 test --fixture node_modules/snapback4/dist/recipes/production/web",
+              "npm run typecheck",
+              "npm run build"
+            ],
+            "schema": "compiled",
+            "savedTests": "passed",
+            "typecheck": "passed",
+            "build": "passed"
+          },
+          {
+            "kind": "expo",
+            "cwd": "/tmp/tok1-replay/consumers-final/production-expo",
+            "status": "passed",
+            "commands": [
+              "cp node_modules/snapback4/dist/recipes/production/expo/schema.q snapback/schema.q",
+              "cp node_modules/snapback4/dist/recipes/production/expo/App.tsx App.tsx",
+              "cp node_modules/snapback4/dist/recipes/production/expo/client.ts src/client.ts",
+              "npx snapback4 check",
+              "npx snapback4 test --fixture node_modules/snapback4/dist/recipes/production/expo",
+              "npm run typecheck",
+              "npm run build:web"
+            ],
+            "schema": "compiled",
+            "savedTests": "passed",
+            "typecheck": "passed",
+            "build": "passed"
+          }
+        ],
+        "realAccounts": "passed",
+        "browserRecipes": "passed",
+        "adaptation": [
+          {
+            "kind": "persona-only starter",
+            "status": "passed",
+            "preview": "unchanged",
+            "apply": "compiled",
+            "frontend": "unchanged",
+            "identity": [
+              "use identity"
+            ],
+            "writers": [
+              "bootstrapstaffRole1",
+              "bootstrapstaffRole2"
+            ],
+            "idempotent": true,
+            "alreadyProvisioned": false
+          }
+        ]
+      }
+    }
+  ]
+}

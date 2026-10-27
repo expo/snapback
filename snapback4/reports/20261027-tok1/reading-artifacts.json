@@ -1,0 +1,16 @@
+{
+  "baseline": "README byte-identical to f032742ac8",
+  "readingDocsMatchFinal": true,
+  "notes": "Final reading artifacts precede the origin/main SQLite merge and the late-init metadata restoration fix; guide and SDK reading content match final. Integrated packed consumers qualify the final runtime separately.",
+  "artifacts": {
+    "before": {
+      "snapback4-expo-0.4.43.tgz": "e2520c23d26479ee3b0b86c3c52b1b1ab232b049562170cd6cbdb150511702b4",
+      "snapback4-linux-x64-0.4.43.tgz": "8708551d7b79d76964dd7df76d66270770c356efdaa6e0ea3bd7ee2b5227fb31",
+      "snapback4-0.4.43.tgz": "fe96cf4a9ee46421f9312f782a4c3d8e306ac50ac45fecedd9bf1a3e247c1792"
+    },
+    "final-reading": {
+      "snapback4-linux-x64-0.4.43.tgz": "eb675efbf66b97bda0ee0cfe11620b0cfa2cf00b0c55bb3775093ae6c1533d2c",
+      "snapback4-0.4.43.tgz": "12f52fad7f6e1ffc099335196a04a91e31ad2096cbfe45303fe297db36fa5191"
+    }
+  }
+}

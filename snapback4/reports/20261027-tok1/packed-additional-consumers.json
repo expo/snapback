@@ -1,0 +1,26 @@
+{
+  "qualification": false,
+  "installedFrom": "/tmp/tok1-replay/consumers-integrated/packs",
+  "steps": [
+    {
+      "name": "DX4",
+      "ok": false,
+      "seconds": 44.834,
+      "error": "AssertionError [ERR_ASSERTION]: default guide personas must surface staging"
+    },
+    {
+      "name": "Day5",
+      "ok": true,
+      "seconds": 173.758,
+      "value": {
+        "status": "passed",
+        "directory": "/tmp/tok1-replay/additional-Day5",
+        "guideRecipe": "capture-release-and-bridge",
+        "starterCustody": [
+          "web",
+          "expo"
+        ]
+      }
+    }
+  ]
+}
