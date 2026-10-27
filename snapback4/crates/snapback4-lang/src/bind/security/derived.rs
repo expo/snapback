@@ -175,6 +175,10 @@ pub fn workflow_columns_from_sources(sources:&[(String,String)],bound:&Bound)->B
     workflow_columns(&Catalog::build(docs,&mut Vec::new()),bound)
 }
 pub fn invariants(sources:&[(String,String)],bound:&Bound)->Vec<Invariant>{collect(sources,bound,&mut BTreeMap::new(),&mut BTreeMap::new(),&mut BTreeMap::new())}
+// @ref LLP 3000.036.004.000#5-derived-campaigns-and-production-deployment — authored column edit intent disposes of an inferred approval-input freeze, not observed source guards or authored enforcement.
+fn declared_column_update(bound:&Bound,table:&str,column:&str)->bool{
+    bound.invariants.iter().any(|i|!is_derived(i)&&!i.site.file.starts_with("$enforced/")&&i.table==table&&i.column.as_deref()==Some(column)&&i.target=="update"&&i.operation.is_none()&&i.policy.is_some()&&i.syntax.is_some()&&i.unsupported.is_none())
+}
 fn collect(sources:&[(String,String)],bound:&Bound,inputs:&mut BTreeMap<(String,String),BTreeSet<String>>,reissues:&mut BTreeMap<(String,String,String),BTreeSet<String>>,uncertain:&mut BTreeMap<(String,String,String),BTreeSet<String>>)->Vec<Invariant>{
     let docs=sources.iter().map(|(f,s)|crate::parse_document(f,s).0).collect::<Vec<_>>();
     let catalog=Catalog::build(docs.clone(),&mut Vec::new());
@@ -271,7 +275,7 @@ fn collect(sources:&[(String,String)],bound:&Bound,inputs:&mut BTreeMap<(String,
         for column in columns{
             if definition.immutable_fields().any(|c|c==column)||definition.frozen_columns.contains_key(column){continue;}
             if !bound.programs.iter().any(|p|snapback4_core::ir::write_tables(&p.program).iter().any(|(t,e)|t==table&&matches!(*e,"update"|"upsert"))){continue;}
-            if !write_advice::update_only(bound,table,column,&condition){add(&mut out,table,column,"update",paired.clone(),site);}
+            if !declared_column_update(bound,table,column)&&!write_advice::update_only(bound,table,column,&condition){add(&mut out,table,column,"update",paired.clone(),site);}
         }
     }
     workflow::invariants(&docs,&catalog,bound,&mut out);
@@ -333,4 +337,58 @@ pub fn augmented(sources:&[(String,String)],bound:&Bound)->Bound{
 #[test]fn principal_receipt_populations_keep_their_own_table_type(){
  let source="table docs:\n  approvedBy: principal ?\n  read <- allow\n  online only\ntable approvals:\n  doc: docs\n  approvedBy: principal ?\n  read <- allow\n  online only\ninvariant docs always exists approvals[doc = .id] where .approvedBy = viewer\n";for source in [source.to_owned(),source.replace("approvals[doc = .id] where .approvedBy = viewer","approvals[doc = .id, approvedBy = viewer]")]{let b=crate::compile(&[("schema.q".into(),source)]);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);assert_eq!(principal_receipt_columns(&b),BTreeSet::from([("approvals".into(),"approvedBy".into())]));}
 }
+}
+
+#[test]fn declared_column_edit_intent_disposes_only_its_inferred_approval_freeze(){
+ let source=include_str!(concat!(env!("CARGO_MANIFEST_DIR"),"/tests/security/sec13/w33-036.q"));
+ let intent="invariant orders.designScan update only exists roles[principal = viewer, role = 'coordinator'] or exists roles[principal = viewer, role = 'owner']";
+ let freeze=|source:&str|{let sources=vec![("schema.q".into(),source.to_owned())];let b=crate::compile(&sources);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);invariants(&sources,&b).into_iter().any(|i|i.table=="orders"&&i.column.as_deref()==Some("designScan")&&i.predicate.contains("designApprovedAt"))};
+ assert!(!freeze(source),"the explicit design-scan edit policy answers the inferred freeze");
+ let missing=source.replace(intent,"");assert!(freeze(&missing),"an always tautology does not answer the inferred edit policy");
+ let unrelated=source.replace(intent,&intent.replace("orders.designScan","orders.quotedPrice"));assert!(freeze(&unrelated),"another column's edit intent cannot answer this freeze");
+ let read=source.replace(intent,&intent.replace(" update only "," read only "));assert!(freeze(&read),"read intent cannot answer an edit question");
+}
+
+#[test]fn inferred_freeze_disposal_requires_supported_global_column_intent(){
+ let source=include_str!(concat!(env!("CARGO_MANIFEST_DIR"),"/tests/security/sec13/w33-036.q"));let b=crate::compile(&[("schema.q".into(),source.into())]);
+ let index=b.invariants.iter().position(|i|i.table=="orders"&&i.column.as_deref()==Some("designScan")&&i.target=="update").unwrap();assert!(declared_column_update(&b,"orders","designScan"));
+ for case in 0..8 {let mut changed=b.clone();let i=&mut changed.invariants[index];match case{0=>i.unsupported=Some("not covered".into()),1=>i.policy=None,2=>i.operation=Some("clearDesignScan".into()),3=>i.column=None,4=>i.target="write".into(),5=>i.site.file="$derived/test".into(),6=>i.site.file="$enforced/test".into(),_=>i.syntax=None};assert!(!declared_column_update(&changed,"orders","designScan"),"exclusion {case}");}
+ // A supported explicit allow/deny is a specification choice, not a grant.
+ // Its authored assertion is retained and still receives adversarial replay.
+ for policy in [RuleExpr::Allow,RuleExpr::Deny]{let mut changed=b.clone();changed.invariants[index].policy=Some(policy);assert!(declared_column_update(&changed,"orders","designScan"));let augmented=augmented(&[("schema.q".into(),source.into())],&changed);assert!(augmented.invariants.iter().any(|i|!is_derived(i)&&i.column.as_deref()==Some("designScan")&&i.target=="update"));}
+}
+#[test]fn explicit_edit_policy_keeps_other_payload_freezes_and_observed_guard_contracts(){
+ let source=include_str!(concat!(env!("CARGO_MANIFEST_DIR"),"/tests/security/sec13/w33-036.q"));
+ let source=source.replace("  designScan: image <=10000000 ?","  designScan: image <=10000000 ?\n  designModel: image <=10000000 ?")
+  .replace("designScan: image <=10000000 ?, quotedPrice:","designScan: image <=10000000 ?, designModel: image <=10000000 ?, quotedPrice:")
+  .replace("{ team, designScan, quotedPrice","{ team, designScan, designModel, quotedPrice");
+ let source=format!("{source}\nmutation setDesignModel(order: orders, designModel: image <=10000000):\n  update orders[order] {{designModel}}\n");let sources=vec![("schema.q".into(),source)];let b=crate::compile(&sources);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);let invs=invariants(&sources,&b);
+ assert!(!invs.iter().any(|i|i.column.as_deref()==Some("designScan")&&i.predicate.contains("designApprovedAt")));
+ assert!(invs.iter().any(|i|i.column.as_deref()==Some("designModel")&&i.predicate.contains("designApprovedAt")),"another approved payload retains its inferred freeze");
+ let source="table docs:\n  photo: image <=10000 ?\n  approved: bool default false\n  read <- allow\n  insert <- allow\n  update (old, next) <- old.photo = next.photo or not old.approved\n  online only\nmutation add(photo: image <=10000 ?):\n  return insert docs {photo}\nmutation edit(doc: docs, photo: image <=10000 ?):\n  d = docs[doc] ! else MISSING\n  require not d.approved else APPROVED\n  update docs[doc] {photo}\n  return null\ninvariant docs.photo update only viewer = 'owner'\n";
+ let sources=vec![("schema.q".into(),source.into())];let b=crate::compile(&sources);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);assert!(declared_column_update(&b,"docs","photo"));assert!(invariants(&sources,&b).iter().any(|i|i.table=="docs"&&i.column.as_deref()==Some("photo")&&i.predicate.contains("approved")),"an actually observed edit guard still needs matching intent");
+}
+#[test]fn declared_scan_policy_keeps_runtime_roles_deadlines_and_owner_design_change_authority(){
+ use snapback4_core::{Context,Engine,Value,WriteState};
+ let source=include_str!(concat!(env!("CARGO_MANIFEST_DIR"),"/tests/security/sec13/w33-036.q"));let b=crate::compile(&[("schema.q".into(),source.into())]);let mut engine=Engine::memory(b.schema.clone(),b.programs.iter().map(|p|p.program.clone())).unwrap();
+ let now=1800000000000i64;let row=|table:&str,value:serde_json::Value|snapback4_core::wire::row_from_json(&b.schema.tables[table],&value).unwrap();
+ let mut rows=[("coordinator","c"),("team","t"),("jeweler","j"),("owner","o")].into_iter().map(|(role,id)|("roles".into(),row("roles",serde_json::json!({"id":format!("role-{id}"),"principal":id,"role":role})))).collect::<Vec<_>>();
+ rows.push(("orders".into(),row("orders",serde_json::json!({"id":"order","team":"t","designScan":null,"quotedPrice":100,"ringCount":1,"ceremonyAt":now+90*86400000,"designApprovedAt":now,"status":"delivered","extraCost":0,"depositKept":false,"deliveredAt":now,"flawReported":false,"flawNote":null}))));
+ rows.push(("designChanges".into(),row("designChanges",serde_json::json!({"id":"change","order":"order","team":"t","description":"new design","extraCost":0,"approved":false,"approvedBy":null,"approvedAt":null}))));engine.seed_at(rows,now).unwrap();
+ fn mutate(e:&mut Engine,viewer:&str,name:&str,args:BTreeMap<String,Value>,now:i64)->WriteState{e.mutate(name,None,Context::new(viewer,args).at(now)).unwrap().state}
+ let args=BTreeMap::from([("order".into(),Value::Id("order".into()))]);
+ for viewer in ["t","j"]{let state=mutate(&mut engine,viewer,"clearDesignScan",args.clone(),now);assert!(matches!(&state,WriteState::Failed{why,..}if why.code=="NOT_COORDINATOR"),"{state:?}");}
+ assert!(matches!(mutate(&mut engine,"c","clearDesignScan",args.clone(),now),WriteState::Sent{..}));
+ let before=engine.query("orderDetail",Context::new("c",args.clone()).at(now)).unwrap().data;assert_eq!(before.field("extraCost").unwrap(),&Value::Int(0));assert_eq!(before.field("designApprovedAt").unwrap(),&Value::Int(now));assert_eq!(before.field("status").unwrap(),&Value::String("delivered".into()));
+ let change=BTreeMap::from([("change".into(),Value::Id("change".into())),("extraCost".into(),Value::Int(25))]);
+ for viewer in ["c","t","j"]{let state=mutate(&mut engine,viewer,"approveDesignChange",change.clone(),now);assert!(matches!(&state,WriteState::Failed{why,..}if why.code=="NOT_OWNER"),"{state:?}");}
+ let mut free=change.clone();free.insert("extraCost".into(),Value::Int(0));assert!(matches!(mutate(&mut engine,"o","approveDesignChange",free,now),WriteState::Failed{why,..}if why.code=="EXTRA_COST_REQUIRED"));
+ assert!(matches!(mutate(&mut engine,"o","approveDesignChange",change,now),WriteState::Sent{..}));let after=engine.query("orderDetail",Context::new("c",args).at(now)).unwrap().data;assert_eq!(after.field("extraCost").unwrap(),&Value::Int(25));for field in ["designApprovedAt","ceremonyAt","status"]{assert_eq!(after.field(field).unwrap(),before.field(field).unwrap());}
+}
+
+#[test]fn runtime_column_authority_is_not_independent_edit_intent_after_augmentation(){
+ let source=include_str!(concat!(env!("CARGO_MANIFEST_DIR"),"/tests/security/sec13/w33-036.q"));let intent="invariant orders.designScan update only exists roles[principal = viewer, role = 'coordinator'] or exists roles[principal = viewer, role = 'owner']";
+ let source=source.replace(intent,"").replace("  designScan: image <=10000000 ?","  designScan: image <=10000000 ? write <- exists roles[principal = viewer, role = 'coordinator'] or exists roles[principal = viewer, role = 'owner']");let sources=vec![("schema.q".into(),source)];let b=crate::compile(&sources);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);let b=augmented(&sources,&b);
+ assert!(b.invariants.iter().any(|i|i.site.file.starts_with("$enforced/")&&i.column.as_deref()==Some("designScan")&&i.target=="update"));assert!(!declared_column_update(&b,"orders","designScan"));
+ assert!(invariants(&sources,&b).iter().any(|i|i.table=="orders"&&i.column.as_deref()==Some("designScan")&&i.predicate.contains("designApprovedAt")),"enforcement alone cannot erase the independently witnessed approval-freeze question");
 }

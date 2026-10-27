@@ -109808,3 +109808,26 @@ Merge REL3, SEC11b and SEC13 in that order. Current evaluated gates, independent
 ### 2026-10-27 — Integration 29: bounded neutral-handle census parsing
 
 The complete CLI census hung on the ownership watcher's Rust precise capture `impl Fn() + use<>`: its lexical import parser consumed the function body as a use tree, then repeatedly appended paths at an unconsumed semicolon. Ignore the exact capture-clause spelling and fail closed if a use-tree recursion makes no progress. A capture-plus-real-concrete-import regression preserves rejection; malformed groups refuse. The full eight-test census completes in 3.13 s with both concrete handles and owning dereference bridges still zero. The18:56Z session OOM interrupted unfinished verification; no incomplete receipt is qualified. Recovery uses40 GiB systemd scopes, at most two heavy jobs, four survey workers and cargo-j16.
+
+
+### 2026-10-27 — Integration 29: independent column edit intent
+
+The merged survey found two false inferred approval-input freezes: wave 31's
+mascot commission quote editor (also inherited from main) and wave 33's approved
+design scan attachment editor. Both sources already declare independent column
+update-only intent; immutable recorded approval/deadline values made the inferred
+freeze reject the requested edit. Supported authored global column update intent
+now disposes only of that inferred freeze proposal. It does not dispose of an
+observed edit guard, another column's proposal, authored assertions, runtime
+write/freeze rules or independent sibling/transition contracts. Generated
+`$enforced/` contracts and expressions without authored syntax cannot stand in
+for independent intent.
+
+Fresh Muse and Codex reviews reached READY on the same final repair (round 3).
+Their earlier findings drove runtime/production negative controls, supported and
+scope exclusions, and a real already-augmented enforcement-contract regression.
+The compiler-derived contract/note comparison identifies exactly two changed
+schemas among 980; the final product replay targets those inputs, preserving
+source and binary provenance instead of relabeling the original false-refusal
+survey as green. The complete paired latency profile and remaining qualification
+are recorded in the Integration 29 report; no latency work limit was increased.
