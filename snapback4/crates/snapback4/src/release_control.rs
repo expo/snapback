@@ -17,8 +17,8 @@ use std::{
 
 const INPUT: usize = 4096;
 const OUTPUT: usize = 64 * 1024;
-// @ref LLP 3000.000.000.002#10 — every activation proves that both endpoints implement DX8 rollback semantics.
-pub(crate) const ACTIVATION_PROTOCOL: &str = "snapback4-activation-10";
+// @ref LLP 3000.000.000.003#2-frozen-result-fields — older hosts must refuse before compiling a view without receipt-owned result anchors.
+pub(crate) const ACTIVATION_PROTOCOL: &str = "snapback4-activation-11";
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(tag = "command", rename_all = "kebab-case", deny_unknown_fields)]

@@ -11,6 +11,12 @@ use crate::print;
 impl Parser {
     pub(super) fn parse_alias(&mut self) -> Fallible<()> {
         let token=self.take("alias")?;
+        if self.at("result") && self.tokens.get(self.position+1).is_some_and(|t| t.value != "=" && t.value != ".") {
+            self.take("result")?;
+            let operation=self.local_name()?;self.take(".")?;let old=self.word()?.value;
+            self.take("=")?;let current=self.word()?.value;self.end_line(&token.site)?;
+            self.document.result_aliases.push((operation,old,current,token.site));return Ok(());
+        }
         let name=self.local_name()?;
         if self.maybe(".") {
             let column=self.word()?.value;

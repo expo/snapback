@@ -256,6 +256,8 @@ pub(super) fn prepare(
                 .iter()
                 .all(|(view, current)| policies.rule(view,current))
                     || table.columns.keys().any(|c| {
+                        // @ref LLP 3000.000.000.003#2-frozen-result-fields — a new protected receipt anchor adds no business read/write authority.
+                        if !next.columns.contains_key(c) && compiled.schema.extractions.iter().any(|e|e.child==*name&&e.result_column()==*c&&e.has_result_anchor(table)){return false;}
                         !policies.optional_rule(table.column_reads.get(c),next.column_reads.get(c))
                             || table.written_by.get(c) != next.written_by.get(c)
                             || !policies.optional_rule(table.column_writes.get(c),next.column_writes.get(c))

@@ -264,3 +264,21 @@ fn release_contract_sqlite_reopening_cap_counts() {
     let (schema, programs) = test_cases::repair_backend();
     test_cases::cap_reopening(&mut Harness::with_backend(schema, programs));
 }
+
+#[test]
+fn wave31_041_direct_activation_refuses_a_self_transition_without_audit_or_receipt_changes(){
+    let mut h=Harness::new();let before=h.status();
+    assert_eq!(h.activate(1,1,1,1).unwrap_err().code(),"E_GENERATION");
+    assert_eq!(h.status(),before);
+    assert_eq!(h.activate(2,1,1,1).unwrap_err().code(),"E_GENERATION");
+    assert_eq!(h.status(),before);
+}
+
+#[test]
+fn rel3_store_fence_keeps_store_10_readable_and_advances_only_on_real_activation(){
+    assert!(Store::validate_version("snapback4-release-store-10").is_ok());
+    assert!(Store::validate_version("snapback4-release-store-11").is_ok());
+    assert!(Store::validate_version("snapback4-release-store-12").is_err());
+    let mut h=Harness::new();assert_eq!(h.engine.store().test_support_meta("version").unwrap().as_deref(),Some("snapback4-release-store-11"));
+    let before=h.status();assert!(h.activate(1,1,1,1).is_err());assert_eq!(h.status(),before);
+}

@@ -1,0 +1,34 @@
+{
+  "base": "64e94e52cfef8eb21d0567aec95e4f2c55ee303f",
+  "files": {
+    "snapback4/crates/snapback4/tests/store_port_ratchet.rs": {
+      "mainSha256": "1f920a02cf617b875ceee09918bc30e527dc2d9cea02408ee6f18ef3d22d6da0",
+      "currentSha256": "1f920a02cf617b875ceee09918bc30e527dc2d9cea02408ee6f18ef3d22d6da0",
+      "same": true
+    },
+    "snapback4/crates/snapback4-core/src/engine/program_pipeline.rs": {
+      "mainSha256": "76b7c65b68e0d683b614f1589a97769fb69557cf77782db2c3cfe0826ad570ec",
+      "currentSha256": "76b7c65b68e0d683b614f1589a97769fb69557cf77782db2c3cfe0826ad570ec",
+      "same": true
+    },
+    "snapback4/crates/snapback4-core/src/engine/command_batch.rs": {
+      "mainSha256": "5c1f87999765c38f127a5c5b72550d85bac30fd327db2742b9ec7179fb21f691",
+      "currentSha256": "5c1f87999765c38f127a5c5b72550d85bac30fd327db2742b9ec7179fb21f691",
+      "same": true
+    },
+    "snapback4/crates/snapback4-lang/src/guide/deploy.md": {
+      "mainSha256": "53bca81f3dc18bc98431bf7fb33f80b95b1a38f8336f55ffe34183fb8e84bd02",
+      "currentSha256": "53bca81f3dc18bc98431bf7fb33f80b95b1a38f8336f55ffe34183fb8e84bd02",
+      "same": true,
+      "mainOperational": 131,
+      "currentOperational": 131,
+      "mainTotal": 263,
+      "currentTotal": 263
+    },
+    "snapback4/crates/snapback4-lang/src/guide/codes.rs": {
+      "mainSha256": "ea9dfc87dc90c970b14fd2c326625dd3cca66dfc3b5d4f9d567b45808b8e71b7",
+      "currentSha256": "ea9dfc87dc90c970b14fd2c326625dd3cca66dfc3b5d4f9d567b45808b8e71b7",
+      "same": true
+    }
+  }
+}

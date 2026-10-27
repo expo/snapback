@@ -117,3 +117,28 @@ fn expr(e: &Expr, s: &Schema) -> bool {
         ) && args.len()==builtin.arity() && args.iter().all(|e|expr(e,s)),
     }
 }
+
+// @ref LLP 3000.000.000.003#3-one-release-evolution — identity renames may widen scalar domains, never coerce or narrow them.
+pub fn rename_accepts(old: &ColumnType, new: &ColumnType) -> bool {
+    use ColumnType::*;
+    if old == new { return true; }
+    match (old,new) {
+        (Optional(a),Optional(b)) => rename_accepts(a,b),
+        (Optional(_),_) => false,
+        (a,Optional(b)) => rename_accepts(a,b),
+        (Text{max:a},Text{max:b}) => b>=a,
+        (IntRange{min:a,max:b},IntRange{min:c,max:d}) => c<=a && d>=b,
+        (IntRange{..},Int) => true,
+        (Enum{variants:a},Enum{variants:b}) => a.iter().all(|v|b.contains(v)),
+        _ => false,
+    }
+}
+
+/// Text minima/formats belong to table constraints, outside ColumnType.
+pub fn rename_column_accepts(old:&crate::schema::Table,old_name:&str,new:&crate::schema::Table,new_name:&str)->bool {
+    let (Some(a),Some(b))=(old.columns.get(old_name),new.columns.get(new_name))else{return false};
+    if !rename_accepts(a,b){return false;}
+    let text=|table:&crate::schema::Table,name:&str|table.constraints.iter().find_map(|c|match c{crate::schema::Constraint::Text{field,min,format}if field==name=>Some((*min,format.clone())),_=>None}).unwrap_or((0,None));
+    let (amin,af)=text(old,old_name);let(bmin,bf)=text(new,new_name);
+    bmin<=amin&&(bf.is_none()||bf==af)
+}
