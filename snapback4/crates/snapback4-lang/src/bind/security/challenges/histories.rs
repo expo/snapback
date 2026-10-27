@@ -102,6 +102,11 @@ pub(super) fn fixture_cases(bound:&Bound,p:&Program,rows:&BTreeMap<String,Vec<Va
     let mut cases=vec![BTreeMap::new()];
     for (name,k) in args{
         let Some(mut vals)=values(name,k,rows,actors,&times)else{out.unsupported.insert(format!("{name}: history needs a typed asset argument"));return Vec::new();};
+        if bound.invariants.iter().any(|i|i.site.file.contains("/sec11-assignment/"))
+            &&let ir::ArgType::Text{min,max,format:Some(snapback4_core::schema::TextFormat::Url)}=k {
+            let prefix="https://example.invalid/";let value=prefix.to_owned()+&"x".repeat((*min as usize).saturating_sub(prefix.len()));
+            if value.chars().count()<=*max as usize {vals.insert(0,Value::String(value));}
+        }
         if vals.is_empty()||cases.is_empty(){out.unsupported.insert(format!("{}: no typed history tuples available for {name}; remaining combinations uncovered",p.name));return Vec::new();}
         if let Some(preferred)=preferences.get(name){vals.sort_by_key(|v|!preferred.contains(v));}
         for literal in literals.get(name).into_iter().flatten() {

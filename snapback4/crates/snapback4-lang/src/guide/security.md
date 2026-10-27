@@ -626,3 +626,14 @@ shows a question when a current admitted-call replay supplies its witness;
 JSON retains the actual caller, arguments, initialization and old/new images.
 An acknowledgment must address that exact witness and intended effect.
 Enforce a narrower specification in the operation and declare independent intent.
+
+### Assignment scope questions
+
+N_ASSIGNMENT_SCOPE asks whether a whole-role caller should read only assigned
+resources or any resource. A current authored query must actually disclose the
+protected payload; a reference or policy image alone is insufficient. When a
+required principal column models the staff assignment, JSON retains the actual
+other assignee and caller membership. When no such assignment is modeled, the
+question says so without inventing an assignee. These are advisory questions.
+Scope the role branch to the specification's assignment, state independent read
+intent, or acknowledge the exact witness and intended global audience.

@@ -4,7 +4,7 @@ use super::*;
 use snapback4_core::{Context, Engine, ir, schema::{RuleExpr, RuleTerm}};
 
 pub(super) fn advisory(code:&str)->bool {
-    matches!(code,"N_OPTIONAL_EVIDENCE"|"N_TEXT_EVIDENCE"|"N_CHILD_EVIDENCE_PRESENCE"|"N_GUARD_NOT_CONSUMED"|"N_BROAD_READ"|"N_APPROVAL_PATH"|"N_CALLER_HISTORY"|"N_LATEST_SUBJECT")
+    matches!(code,"N_OPTIONAL_EVIDENCE"|"N_TEXT_EVIDENCE"|"N_CHILD_EVIDENCE_PRESENCE"|"N_GUARD_NOT_CONSUMED"|"N_BROAD_READ"|"N_APPROVAL_PATH"|"N_CALLER_HISTORY"|"N_LATEST_SUBJECT"|"N_ASSIGNMENT_SCOPE")
 }
 pub(super) fn candidates(bound:&Bound,sources:&[(String,String)],index:usize,n:&Diagnostic)->Vec<(usize,security::Invariant)> {
     let mut lines=Vec::new();
@@ -81,6 +81,14 @@ pub(super) fn candidates(bound:&Bound,sources:&[(String,String)],index:usize,n:&
         }
         (index,inv)
     })).collect()
+}
+
+pub(super) fn assignment_evidence(mut value:serde_json::Value,n:&Diagnostic)->serde_json::Value {
+    value["questionKind"]="assignment-scope".into();
+    value["candidate"]=format!("question: {}",n.message).into();
+    value["summary"]=format!("{} as {} → actually disclosed {}; {} (bounded typed payload replay; not proof or inferred assignment intent)",value["operation"].as_str().unwrap_or("query"),value["viewer"].as_str().unwrap_or("caller"),n.message.split(" read:").next().unwrap_or("payload"),n.message).into();
+    value["compactSummary"]=value["summary"].clone();
+    super::super::super::security_reviews::witness::stamp(value)
 }
 
 pub(super) fn text_evidence(mut value:serde_json::Value,n:&Diagnostic)->serde_json::Value {

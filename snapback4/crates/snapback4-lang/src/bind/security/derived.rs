@@ -3,6 +3,8 @@
 use super::*;
 mod workflow;
 mod approval_questions;
+mod assignment_questions;
+pub use assignment_questions::questions as assignment_questions;
 pub use approval_questions::questions as approval_questions;
 pub(crate) use approval_questions::judge as approval_question_judgment;
 mod labels;

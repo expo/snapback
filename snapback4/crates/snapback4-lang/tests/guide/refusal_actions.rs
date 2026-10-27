@@ -9,6 +9,7 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("E_WITNESS_ARGUMENTS", &["Named values are compared exactly; handler-owned additional keys are allowed. guide testing."]),
     ("E_DATA_TRANSACTION_ABORTED", &["No success receipt is issued. Inspect the server outcome and retry through the identified-write path with the original intent id. See snapback4 guide deploy."]),
 
+    ("N_ASSIGNMENT_SCOPE", &["These are advisory questions.", "Scope the role branch to the specification's assignment, state independent read", "intent, or acknowledge the exact witness and intended global audience."]),
     ("N_APPROVAL_PATH", &["These are advisory questions.", "An acknowledgment must address that exact witness and intended effect.", "Enforce a narrower specification in the operation and declare independent intent."]),
     ("N_CALLER_HISTORY", &["These are advisory questions.", "An acknowledgment must address that exact witness and intended effect.", "Enforce a narrower specification in the operation and declare independent intent."]),
     ("N_LATEST_SUBJECT", &["These are advisory questions.", "An acknowledgment must address that exact witness and intended effect.", "Enforce a narrower specification in the operation and declare independent intent."]),

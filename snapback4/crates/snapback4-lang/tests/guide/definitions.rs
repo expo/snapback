@@ -164,6 +164,7 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("N_DERIVED_WRITE_AUTHORITY", "an inferred candidate from authored change guards or approval data"),
     ("N_PRESENCE_LOOSENING", "a required-to-optional column change"),
     ("N_TABLE_QUESTIONNAIRE", "Role-wide access and restating invariants share one table questionnaire."),
+    ("N_ASSIGNMENT_SCOPE", "N_ASSIGNMENT_SCOPE asks whether a whole-role caller should read only assigned"),
     ("N_APPROVAL_PATH", "N_APPROVAL_PATH identifies a related completion operation"),
     ("N_CALLER_HISTORY", "N_CALLER_HISTORY asks whether a caller ordinal selecting approval must instead come from stored same-person history."),
     ("N_LATEST_SUBJECT", "N_LATEST_SUBJECT asks whether an approval selected by an older parent may still authorize another sitting."),

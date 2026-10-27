@@ -6,6 +6,7 @@ pub const CODES: &[(&str, &str)] = &[
     ("E_SERVE_STOP_FAILED", "The npm serve script exited unsuccessfully during shutdown. Inspect shutdown handlers; a successful proof command cannot clear this failure. guide testing."),
     ("E_DEV_ACCOUNTS", "Development account setup requires startDev with password identity. Use devAccounts only on development; seedAccounts for staging and provisionAccounts for production. guide staging."),
     ("N_TABLE_QUESTIONNAIRE", "Role-wide access and restating invariants share one table questionnaire. Answer from the specification; JSON retains every underlying note and individual decision ID. The grouped line is advisory and has no separate ID. Advisory only. guide security."),
+    ("N_ASSIGNMENT_SCOPE", "a current typed read discloses a private payload to a whole-role caller; state whether access is assigned or global. guide security."),
     ("N_APPROVAL_PATH", "a related completion effect may bypass a receipt checked on its parent; a concrete replay asks whether the same scoped approval is required. guide security."),
     ("N_CALLER_HISTORY", "a caller ordinal selects an approval requirement; compare it with stored same-identity history and derive it when required. guide security."),
     ("N_LATEST_SUBJECT", "a receipt selected by an older parent may authorize a later sitting; bind it to the latest subject when required. guide security."),
