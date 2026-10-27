@@ -1,0 +1,14 @@
+{
+  "client": {
+    "path": "/home/ccheever/sb4-loop/reports/sec12/packs-delivery17/snapback4-0.4.43.tgz",
+    "sha256": "fab667e10f3329045e517e71d443d591b364543163b27ba25286c813698b5723"
+  },
+  "platform": {
+    "path": "/home/ccheever/sb4-loop/reports/sec12/packs-delivery17/snapback4-linux-x64-0.4.43.tgz",
+    "sha256": "07a863eb6e24f179b9c6e0e0cd236742936e0f2fd4b33bb87e829d74996196f0"
+  },
+  "expo": {
+    "path": "/home/ccheever/sb4-loop/reports/sec12/packs-delivery17/snapback4-expo-0.4.43.tgz",
+    "sha256": "31702fb579a0cd6ed8422df824d7489f91a0dfa73f83070f126bff43dbaf7c38"
+  }
+}

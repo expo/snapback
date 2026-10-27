@@ -1,0 +1,12 @@
+{
+  "targets": 195,
+  "totals": {
+    "passed": 2869,
+    "failed": 3,
+    "ignored": 16
+  },
+  "retries": [
+    "clock-final-retry2.log: isolated unchanged timer passed",
+    "guide-final-retry2.log:128passed after code registration correction"
+  ]
+}

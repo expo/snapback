@@ -1,0 +1,57 @@
+{
+  "qualified800": {
+    "binarySha256": "931ae2fcb216dfcf2520db59c1217d4ca09352f71e01c30c4e304df5cb6228b4",
+    "projects": 800,
+    "workers": 32,
+    "waves": "15,16,18,19,20,21,22,23,24,25,26,27,28,29,30",
+    "checkOnly": false,
+    "stripIntent": false,
+    "defaultOutput": true,
+    "predecessorV1": false,
+    "binarySnapshot": "/tmp/sb4-sec10-shipping-binary-c0aqt_u9/snapback4",
+    "watchdogSeconds": {
+      "check": 600,
+      "test": 1800,
+      "deploy": 900
+    }
+  },
+  "release-final-wave31": {
+    "binarySha256": "990907476e5d72ba79bcbb8ca53b36c94aecfc57e32750ad488bf3990bf25146",
+    "projects": 50,
+    "workers": 8,
+    "waves": "31",
+    "checkOnly": false,
+    "stripIntent": false,
+    "defaultOutput": true,
+    "predecessorV1": true,
+    "binarySnapshot": "/tmp/sb4-sec10-shipping-binary-86pr275c/snapback4",
+    "watchdogSeconds": {
+      "check": 900,
+      "test": 1800,
+      "deploy": 900
+    }
+  },
+  "final-wave31": {
+    "binarySha256": "a017f761b91d8ad6c6a185196ca37679568383246271a4d428f210e172a4a83c",
+    "projects": 50,
+    "workers": 16,
+    "waves": "31",
+    "checkOnly": true,
+    "stripIntent": false,
+    "defaultOutput": false,
+    "predecessorV1": true,
+    "binarySnapshot": "/tmp/sb4-sec10-shipping-binary-3b0iax7h/snapback4",
+    "watchdogSeconds": {
+      "check": 1200,
+      "test": 900,
+      "deploy": 900
+    }
+  },
+  "display850-final": {
+    "binarySha256": "a017f761b91d8ad6c6a185196ca37679568383246271a4d428f210e172a4a83c",
+    "workers": 24,
+    "projects": 850,
+    "waves": "15,16,18,19,20,21,22,23,24,25,26,27,28,29,30,31",
+    "watchdog": 1200
+  }
+}

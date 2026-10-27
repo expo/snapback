@@ -1,0 +1,16 @@
+--- original/acceptance.mjs
++++ corrected/acceptance-sec12.mjs
+@@ -77,8 +77,11 @@
+   const p2 = await C.lead2.mutate(api.openProject, projectArgs(principalOf(byName.client2), "two"));
+   assert.equal(p2.state, "sent", `openProject lead2: ${JSON.stringify(p2)}`);
+   const p2id = p2.result.id;
+-  // Owner may open a project too.
+-  const pOwner = await C.owner1.mutate(api.openProject, projectArgs(principalOf(byName.client1), "owner"));
++  // SEC12: owner may open without a photo, but cannot supply a photo at creation.
++  const rejectedOwnerPhoto = await C.owner1.mutate(api.openProject, projectArgs(principalOf(byName.client1), "owner-photo"));
++  assert.equal(rejectedOwnerPhoto.state, "failed", "owner cannot set a photo at creation");
++  assert.equal(rejectedOwnerPhoto.why.code, "E_RULE");
++  const pOwner = await C.owner1.mutate(api.openProject, { ...projectArgs(principalOf(byName.client1), "owner"), entrancePhoto: null });
+   assert.equal(pOwner.state, "sent", "owner openProject");
+   const pOwnerId = pOwner.result.id;
+ 

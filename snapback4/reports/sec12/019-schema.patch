@@ -1,0 +1,12 @@
+--- original/schema.q
++++ fixed/schema.q
+@@ -34,7 +34,8 @@
+   status: enum('booked', 'crated', 'in_flight', 'delivered') default 'booked'
+   certScan: image <=10000000
+   certIssuedAt: time
+-  price: money USD ? read <- exists roles[viewer, role = 'owner'] or exists roles[viewer, role = 'coordinator']
++  price: money USD ? write <- exists roles[viewer, role = 'coordinator']
++  read(price) <- exists roles[viewer, role = 'owner'] or exists roles[viewer, role = 'coordinator']
+   cardRef: text 1..100 read <- exists roles[viewer, role = 'owner'] or exists roles[viewer, role = 'coordinator']
+   balance: money USD read <- exists roles[viewer, role = 'owner'] or exists roles[viewer, role = 'coordinator']
+   writeOffReason: text <=280 ? read <- exists roles[viewer, role = 'owner'] or exists roles[viewer, role = 'coordinator']

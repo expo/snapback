@@ -1,0 +1,30 @@
+[
+  {
+    "lane": "002-snapback-infant-helmet-fittings",
+    "source": "/home/ccheever/sb4-loop/wave31/apps/002-snapback-infant-helmet-fittings/snapback/schema.q",
+    "sourceSha256": "22a09934fc34badbdefbb7a7b011100c2a6c88d3ea51ad060c31dbf901ab4b55",
+    "copy": "/home/ccheever/sb4-loop/reports/sec12/fix-forward/002-snapback-infant-helmet-fittings",
+    "fixedSha256": "20921fd787df91c2e9abbea498f8eff4b5009fffcb8b2028ae99a1bd891b3849"
+  },
+  {
+    "lane": "014-snapback-balloon-decor-installs",
+    "source": "/home/ccheever/sb4-loop/wave31/apps/014-snapback-balloon-decor-installs/snapback/schema.q",
+    "sourceSha256": "bdac20994f7029a1b65d5161d099c6a617bdca18814e9ca7f9c434d68fcd4b6e",
+    "copy": "/home/ccheever/sb4-loop/reports/sec12/fix-forward/014-snapback-balloon-decor-installs",
+    "fixedSha256": "3b61bb5f736186031bbf850b3bdc1c7bee3e281c3034514dc9b8361322da7b10"
+  },
+  {
+    "lane": "019-snapback-pet-relocation-flights",
+    "source": "/home/ccheever/sb4-loop/wave31/apps/019-snapback-pet-relocation-flights/snapback/schema.q",
+    "sourceSha256": "9aef7162de374aebff121349776b9c3371bddcadbc8a230715cfb5fab6f97298",
+    "copy": "/home/ccheever/sb4-loop/reports/sec12/fix-forward/019-snapback-pet-relocation-flights",
+    "fixedSha256": "f0a61c885a9e048e5c7e136569bbd109878cc38e3853bd039fd2202d525ed01d"
+  },
+  {
+    "lane": "033-snapback-garage-floor-coatings",
+    "source": "/home/ccheever/sb4-loop/wave31/apps/033-snapback-garage-floor-coatings/snapback/schema.q",
+    "sourceSha256": "425e16e1b229306149582acc39f78d6eae9807bf0dc9f892de695a2870fa336c",
+    "copy": "/home/ccheever/sb4-loop/reports/sec12/fix-forward/033-snapback-garage-floor-coatings",
+    "fixedSha256": "d788dee45803c7352b053c0e4e85c7aeb5469fa33801de2be1a4e49b5898dbbb"
+  }
+]

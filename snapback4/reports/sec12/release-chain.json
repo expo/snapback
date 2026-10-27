@@ -1,0 +1,122 @@
+[
+  {
+    "lane": "002-snapback-infant-helmet-fittings",
+    "gate": "2de9864a1e863adb45b9b8afb6ca2ab0149d67fc1eda37884e4fd3db5a9db415",
+    "witness": "38df2df2ab30bd4483975a16ad5ed73286383a6a443fd4e4d7e22d9f66fbc514",
+    "operation": "openFitting",
+    "viewer": "account:security-roles-manager-1",
+    "intent": "allow fittings.referralScan insert when exists roles[viewer, role = 'frontdesk'] or exists roles[viewer, role = 'manager']",
+    "steps": [
+      {
+        "step": "deploy-v1",
+        "exit": 0,
+        "seconds": 27.59
+      },
+      {
+        "step": "deploy-v2",
+        "exit": 1,
+        "seconds": 91.26
+      },
+      {
+        "step": "first-gate-message",
+        "exit": 1,
+        "seconds": 34.03
+      },
+      {
+        "step": "evaluated-ack",
+        "exit": 0,
+        "seconds": 43.64
+      },
+      {
+        "step": "deploy-allowed-v2",
+        "exit": 0,
+        "seconds": 49.8
+      },
+      {
+        "step": "deploy-fixed",
+        "exit": 0,
+        "seconds": 49.57
+      }
+    ]
+  },
+  {
+    "lane": "014-snapback-balloon-decor-installs",
+    "gate": "b1dea944b3bb9d1402239055b858f98a3620914e7f8fb99f30053e40fdbb4c76",
+    "witness": "1c3ca7b4937f4ccf62c5bb11c2e3a2b3a90c642a48735da7ad17581bc5549580",
+    "operation": "openProject",
+    "viewer": "account:security-roles-owner-1",
+    "intent": "allow projects.entrancePhoto insert when exists roles[viewer, role = 'owner'] or exists roles[viewer, role = 'lead']",
+    "steps": [
+      {
+        "step": "deploy-v1",
+        "exit": 0,
+        "seconds": 58.01
+      },
+      {
+        "step": "deploy-v2",
+        "exit": 1,
+        "seconds": 146.87
+      },
+      {
+        "step": "first-gate-message",
+        "exit": 1,
+        "seconds": 62.78
+      },
+      {
+        "step": "evaluated-ack",
+        "exit": 0,
+        "seconds": 47.97
+      },
+      {
+        "step": "deploy-allowed-v2",
+        "exit": 0,
+        "seconds": 64.23
+      },
+      {
+        "step": "deploy-fixed",
+        "exit": 0,
+        "seconds": 54.26
+      }
+    ]
+  },
+  {
+    "lane": "019-snapback-pet-relocation-flights",
+    "gate": "50ffc9b5aacc45e4e56cc734cfa7ddc9b9340289e0e132b532986b6e1199b9ed",
+    "witness": "c452aad317fab1214799b58b391085816225953034aae29671fb65a60d5cf6bf",
+    "operation": "openMove",
+    "viewer": "account:security-roles-owner-1",
+    "intent": "allow moves.price insert when exists roles[viewer, role = 'owner'] or exists roles[viewer, role = 'coordinator']",
+    "steps": [
+      {
+        "step": "deploy-v1",
+        "exit": 0,
+        "seconds": 218.74
+      },
+      {
+        "step": "deploy-v2",
+        "exit": 1,
+        "seconds": 253.75
+      },
+      {
+        "step": "first-gate-message",
+        "exit": 1,
+        "seconds": 68.2
+      },
+      {
+        "step": "evaluated-ack",
+        "exit": 0,
+        "seconds": 45.87
+      },
+      {
+        "step": "deploy-allowed-v2",
+        "exit": 0,
+        "seconds": 62.39
+      },
+      {
+        "step": "deploy-fixed",
+        "exit": 0,
+        "seconds": 63.03
+      }
+    ]
+  }
+]

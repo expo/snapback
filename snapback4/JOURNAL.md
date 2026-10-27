@@ -109500,3 +109500,22 @@ setup/refinement attempts, per-lever limits and the scoped ownership proof.
 Raw logs/HDR/events stay outside Git; private stores are removed, known-secret
 scans pass, and the owned process audit finds no remaining helper or zombie.
 No push or publication. [Full SQW report](experiments/scale-controls/results-20261027-s1-sqlite-w/README.md).
+
+## 2026-10-27 — SEC12: evaluated creation and gate decisions
+
+LLP 3000.036.004.002 implements format-valid witness sampling, predecessor-backed
+creation gates, and live evaluated invariant/allowance answers. The exact setter
+fragment rejects unproved helper admission, fallible returns and changing authority
+dependencies. Current excluded creation is replayed; current setter audience is
+qualified by straight-line input/read/write judgments on that committed state.
+Free prose and wave31 lane033's false premise cannot acknowledge a gate.
+The first gate prints its usable answer template. Presence tautologies preserve
+ordinary rollback views; control records stay outside worker snapshots.
+
+Independent Muse/fresh Codex source reviews are READY for all three mechanisms,
+including the final S2 round18. Copied-source surveys, all 57 calibrated M
+classifications, default output measurement, four fix-forward replays and affected
+consumer/test evidence are retained in reports/sec12/ and WORKSTREAM-REPORT.md.
+The report identifies qualification composition, inherited differential failures,
+HTTP watchdog retries and finite unsupported fragments. Version remains 0.4.43;
+changes are described under the 0.4.44 guide entry. No publication or push.
