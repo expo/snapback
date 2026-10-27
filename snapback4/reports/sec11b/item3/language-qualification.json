@@ -1,0 +1,13 @@
+{
+  "targets": 195,
+  "passed": 2857,
+  "failed": 1,
+  "ignored": 16,
+  "originalCommandExit": 101,
+  "resolution": "Only failure: unchanged 15-second future_payment_can_be_replayed_against_clock_intent fixture. Exact isolated retry passed in1.29 seconds with no source/assertion changes. Original command stays FAILED.",
+  "isolatedRetry": {
+    "passed": 1,
+    "failed": 0,
+    "seconds": 1.29
+  }
+}
