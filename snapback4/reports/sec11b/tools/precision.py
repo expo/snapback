@@ -31,8 +31,8 @@ for r in rows:
   elif r[phase]['exit']!=expected:extra.append(dict(wave=r['wave'],lane=r['lane'],phase=phase,kind='default/JSON verdict mismatch'))
  if any('(time)'in str(r.get(k,{}).get('failure',{})) or 'runtime panic'in str(r.get(k,{}).get('failure',{})) for k in ['fresh','afterTest']):extra.append(dict(wave=r['wave'],lane=r['lane'],kind='internal watchdog or runtime panic',failure={k:r[k].get('failure')for k in ['test','fresh','afterTest']}))
  failure=r['test'].get('failure')or{}
- if failure.get('kind')=='private HTTP preparation/admission'and'(time)'in failure.get('summary',''):
-  infrastructure.append(dict(wave=r['wave'],lane=r['lane'],kind='private HTTP test preparation watchdog',failure=failure,qualification='HTTP subcampaign incomplete; fresh/post-test deploy verdicts assessed separately'))
+ if failure.get('kind')=='private HTTP preparation/admission':
+  infrastructure.append(dict(wave=r['wave'],lane=r['lane'],kind='private HTTP test preparation/admission incomplete',failure=failure,qualification='HTTP subcampaign incomplete; fresh/post-test deploy verdicts assessed separately'))
  elif r['test']['exit']==124:
   infrastructure.append(dict(wave=r['wave'],lane=r['lane'],kind='external test watchdog',qualification='test command incomplete; fresh/post-test deploy verdicts assessed separately'))
  elif r['test']['exit']not in[0,1]or'runtime panic'in str(failure):extra.append(dict(wave=r['wave'],lane=r['lane'],kind='test tool failure or runtime panic',exit=r['test']['exit'],failure=failure))

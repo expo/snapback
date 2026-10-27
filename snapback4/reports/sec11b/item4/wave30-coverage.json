@@ -1,0 +1,624 @@
+{
+  "schemas": 50,
+  "calibrationSha256": "12009da8c8ba4ada449cfc4b64c9d62a9fc410f790cb98cad5bdae49ec7942db",
+  "assessments": [
+    {
+      "wave": 30,
+      "lane": "002",
+      "finding": "F1",
+      "sourceHashMatches": true,
+      "match": {
+        "codes": [
+          "N_TEXT_EVIDENCE"
+        ],
+        "term": "referralScan"
+      },
+      "before": {
+        "category": "witnessed question on default verdict",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_TEXT_EVIDENCE",
+            "operation": "openFitting",
+            "viewer": "account:security-roles-manager-1",
+            "decision": "ee6821b03be74cb8dd27e95d20e80d69c05ab310f5ddd777f9732836edc53842",
+            "witness": "04c09c06b8177236b643aaac15e2b0a994b3b82136c9af01c315b51ad0d88775",
+            "candidate": "question: is fittings.referralScan deliberately text rather than a verified upload?",
+            "gated": false
+          }
+        ]
+      },
+      "after": {
+        "category": "witnessed question on default verdict",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_TEXT_EVIDENCE",
+            "operation": "openFitting",
+            "viewer": "account:security-roles-manager-1",
+            "decision": "ee6821b03be74cb8dd27e95d20e80d69c05ab310f5ddd777f9732836edc53842",
+            "witness": "04c09c06b8177236b643aaac15e2b0a994b3b82136c9af01c315b51ad0d88775",
+            "candidate": "question: is fittings.referralScan deliberately text rather than a verified upload?",
+            "gated": false
+          }
+        ]
+      }
+    },
+    {
+      "wave": 30,
+      "lane": "004",
+      "finding": "F1",
+      "sourceHashMatches": true,
+      "match": {
+        "codes": [
+          "N_ASSIGNMENT_SCOPE"
+        ],
+        "ops": [
+          "privateDetail"
+        ],
+        "term": "careNeeds",
+        "viewerRole": "coordinator",
+        "assignment": true
+      },
+      "before": {
+        "category": "witnessed question on default verdict",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_ASSIGNMENT_SCOPE",
+            "operation": "privateDetail",
+            "viewer": "account:security-roles-coordinator-1",
+            "decision": "76625d0d11d8c8724784f8caa9a24ddcba37fee5d85169ff86a59387c094f372",
+            "witness": "8a98f7b1c89c06a4b2274c0b597747a262b60dc8061d5d8d12983faf1bfb86ad",
+            "candidate": "question: jobPrivate.careNeeds read: coordinator has role-wide payload access despite modeled assignment `exists jobs[.job, coordinator = viewer]`; assigned or any?",
+            "gated": false
+          }
+        ]
+      },
+      "after": {
+        "category": "witnessed question on default verdict",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_ASSIGNMENT_SCOPE",
+            "operation": "privateDetail",
+            "viewer": "account:security-roles-coordinator-1",
+            "decision": "76625d0d11d8c8724784f8caa9a24ddcba37fee5d85169ff86a59387c094f372",
+            "witness": "8a98f7b1c89c06a4b2274c0b597747a262b60dc8061d5d8d12983faf1bfb86ad",
+            "candidate": "question: jobPrivate.careNeeds read: coordinator has role-wide payload access despite modeled assignment `exists jobs[.job, coordinator = viewer]`; assigned or any?",
+            "gated": false
+          }
+        ]
+      }
+    },
+    {
+      "wave": 30,
+      "lane": "006",
+      "finding": "F1",
+      "sourceHashMatches": true,
+      "match": {
+        "codes": [
+          "N_ENTITLEMENT_CHARGE"
+        ]
+      },
+      "before": {
+        "category": "nothing",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": []
+      },
+      "after": {
+        "category": "nothing",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": []
+      }
+    },
+    {
+      "wave": 30,
+      "lane": "010",
+      "finding": "F1",
+      "sourceHashMatches": true,
+      "match": {
+        "codes": [
+          "N_GUARD_NOT_CONSUMED"
+        ],
+        "ops": [
+          "rebookTrip"
+        ],
+        "term": "status"
+      },
+      "before": {
+        "category": "advisory only",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": [
+          {
+            "code": "N_GUARD_NOT_CONSUMED",
+            "site": {
+              "col": 10,
+              "file": "schema.q",
+              "line": 117
+            },
+            "message": "addGuest: checks trips.status but leaves it unchanged while changing bookings state; could repeating this transition reuse that guard?"
+          },
+          {
+            "code": "N_GUARD_NOT_CONSUMED",
+            "site": {
+              "col": 10,
+              "file": "schema.q",
+              "line": 165
+            },
+            "message": "rebookTrip: checks trips.status but leaves it unchanged while changing trips state; could repeating this transition reuse that guard?"
+          }
+        ]
+      },
+      "after": {
+        "category": "advisory only",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": [
+          {
+            "code": "N_GUARD_NOT_CONSUMED",
+            "site": {
+              "col": 10,
+              "file": "schema.q",
+              "line": 117
+            },
+            "message": "addGuest: checks trips.status but leaves it unchanged while changing bookings state; could repeating this transition reuse that guard?"
+          },
+          {
+            "code": "N_GUARD_NOT_CONSUMED",
+            "site": {
+              "col": 10,
+              "file": "schema.q",
+              "line": 165
+            },
+            "message": "rebookTrip: checks trips.status but leaves it unchanged while changing trips state; could repeating this transition reuse that guard?"
+          }
+        ]
+      }
+    },
+    {
+      "wave": 30,
+      "lane": "014",
+      "finding": "F1",
+      "sourceHashMatches": true,
+      "match": {
+        "codes": [
+          "N_ROLE_WIDE_READ",
+          "N_ASSIGNMENT_SCOPE"
+        ],
+        "ops": [
+          "project",
+          "board"
+        ],
+        "term": "clientPhone",
+        "viewerRole": "lead"
+      },
+      "before": {
+        "category": "witnessed question on default verdict",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_ASSIGNMENT_SCOPE",
+            "operation": "board",
+            "viewer": "account:security-roles-lead-0",
+            "decision": "4c2cccc04be1e565f76063d91216713a0e1fe1e2837fef63ff267eff0a470eb8",
+            "witness": "4691509106c4a140b1eb282721f5a6a3de6d4c492eb6af1cc04ec52e7ffb26c3",
+            "candidate": "question: projects.clientPhone read: `exists roles[viewer, role = 'owner'] or exists roles[viewer, role = 'lead']` admits the whole role with no modeled assignment constraint; assigned or any?",
+            "gated": false
+          }
+        ]
+      },
+      "after": {
+        "category": "witnessed question on default verdict",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_ASSIGNMENT_SCOPE",
+            "operation": "board",
+            "viewer": "account:security-roles-lead-0",
+            "decision": "4c2cccc04be1e565f76063d91216713a0e1fe1e2837fef63ff267eff0a470eb8",
+            "witness": "4691509106c4a140b1eb282721f5a6a3de6d4c492eb6af1cc04ec52e7ffb26c3",
+            "candidate": "question: projects.clientPhone read: `exists roles[viewer, role = 'owner'] or exists roles[viewer, role = 'lead']` admits the whole role with no modeled assignment constraint; assigned or any?",
+            "gated": false
+          }
+        ]
+      }
+    },
+    {
+      "wave": 30,
+      "lane": "018",
+      "finding": "F1",
+      "sourceHashMatches": true,
+      "match": {
+        "codes": [
+          "N_APPROVAL_PATH"
+        ],
+        "ops": [
+          "pruneTouchup"
+        ]
+      },
+      "before": {
+        "category": "witnessed question on default verdict",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_APPROVAL_PATH",
+            "operation": "pruneTouchup",
+            "viewer": "account:security-roles-lead-0",
+            "decision": "7fbe02ddcb3a705ef6def317d37eeeac2657f40e961b8e9fbd767e8fdc839a8d",
+            "witness": "ba05c57ae54b546f6085dc9e958edd5eadf803fb9add44e6860d99a3f0961efb",
+            "candidate": "invariant touchups.done update only false -> true completion requires (not .visit.orchard.quarantine or (exists approvals[visit = .visit.id]))",
+            "gated": false
+          }
+        ]
+      },
+      "after": {
+        "category": "witnessed question on default verdict",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_APPROVAL_PATH",
+            "operation": "pruneTouchup",
+            "viewer": "account:security-roles-lead-0",
+            "decision": "7fbe02ddcb3a705ef6def317d37eeeac2657f40e961b8e9fbd767e8fdc839a8d",
+            "witness": "ba05c57ae54b546f6085dc9e958edd5eadf803fb9add44e6860d99a3f0961efb",
+            "candidate": "invariant touchups.done update only false -> true completion requires (not .visit.orchard.quarantine or (exists approvals[visit = .visit.id]))",
+            "gated": false
+          }
+        ]
+      }
+    },
+    {
+      "wave": 30,
+      "lane": "025",
+      "finding": "F1",
+      "sourceHashMatches": true,
+      "match": {
+        "codes": [
+          "N_CALLER_HISTORY"
+        ],
+        "ops": [
+          "logExam"
+        ],
+        "less": {
+          "attempt": 3
+        }
+      },
+      "before": {
+        "category": "witnessed question on default verdict",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_CALLER_HISTORY",
+            "operation": "logExam",
+            "viewer": "account:security-roles-registrar-0",
+            "decision": "ec4e8594ceefe12be86dc00f739321040b00fa639f55bfaddef4651f49617c31",
+            "witness": "f6f1e62699f1e4bfcc24747f8fc7d1e7b475a91f0bc108f0b84493c80a7f894a",
+            "candidate": "invariant exams.insert only (.attempt >= 3 or .attempt >= count(exams[candidate = .candidate]))",
+            "gated": false
+          }
+        ]
+      },
+      "after": {
+        "category": "witnessed question on default verdict",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_CALLER_HISTORY",
+            "operation": "logExam",
+            "viewer": "account:security-roles-registrar-0",
+            "decision": "ec4e8594ceefe12be86dc00f739321040b00fa639f55bfaddef4651f49617c31",
+            "witness": "f6f1e62699f1e4bfcc24747f8fc7d1e7b475a91f0bc108f0b84493c80a7f894a",
+            "candidate": "invariant exams.insert only (.attempt >= 3 or .attempt >= count(exams[candidate = .candidate]))",
+            "gated": false
+          }
+        ]
+      }
+    },
+    {
+      "wave": 30,
+      "lane": "025",
+      "finding": "F2",
+      "sourceHashMatches": true,
+      "match": {
+        "codes": [
+          "N_LATEST_SUBJECT"
+        ],
+        "ops": [
+          "logExam"
+        ]
+      },
+      "before": {
+        "category": "witnessed question on default verdict",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_LATEST_SUBJECT",
+            "operation": "logExam",
+            "viewer": "account:security-roles-registrar-0",
+            "decision": "b9d8e7734358038aa8075635806681b357e0880711df3d032d5a5da017165501",
+            "witness": "c9e32839e1ca86f341d39e13a05713d6716947ccc0d2d3bf2f079e03e5b49c4e",
+            "candidate": "invariant exams.insert only selected 'priorExam' is latest for 'candidate' by 'attempt'; receipt exists retestApprovals[candidate = candidate, priorExam = priorExam]; applicability (not (attempt = 1) and attempt >= 3)",
+            "gated": false
+          }
+        ]
+      },
+      "after": {
+        "category": "witnessed question on default verdict",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_LATEST_SUBJECT",
+            "operation": "logExam",
+            "viewer": "account:security-roles-registrar-0",
+            "decision": "b9d8e7734358038aa8075635806681b357e0880711df3d032d5a5da017165501",
+            "witness": "c9e32839e1ca86f341d39e13a05713d6716947ccc0d2d3bf2f079e03e5b49c4e",
+            "candidate": "invariant exams.insert only selected 'priorExam' is latest for 'candidate' by 'attempt'; receipt exists retestApprovals[candidate = candidate, priorExam = priorExam]; applicability (not (attempt = 1) and attempt >= 3)",
+            "gated": false
+          }
+        ]
+      }
+    },
+    {
+      "wave": 30,
+      "lane": "030",
+      "finding": "F1",
+      "sourceHashMatches": true,
+      "match": {
+        "codes": [
+          "N_OPTIONAL_EVIDENCE"
+        ],
+        "term": "recordings"
+      },
+      "before": {
+        "category": "witnessed question on default verdict",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_OPTIONAL_EVIDENCE",
+            "operation": "openStudy",
+            "viewer": "account:security-roles-dispatcher-0",
+            "decision": "3f035f2c20749a752932ae5fe58ee4342083c259587247b3b7d1e5e533614524",
+            "witness": "4256146adfda8af9a1ca1805ff4f1ee47803370841afa8baa5a6aea34078195f",
+            "candidate": "invariant studies.openStudy only (.recordings != null and count(.recordings) > 0)",
+            "gated": false
+          }
+        ]
+      },
+      "after": {
+        "category": "witnessed question on default verdict",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_OPTIONAL_EVIDENCE",
+            "operation": "openStudy",
+            "viewer": "account:security-roles-dispatcher-0",
+            "decision": "3f035f2c20749a752932ae5fe58ee4342083c259587247b3b7d1e5e533614524",
+            "witness": "4256146adfda8af9a1ca1805ff4f1ee47803370841afa8baa5a6aea34078195f",
+            "candidate": "invariant studies.openStudy only (.recordings != null and count(.recordings) > 0)",
+            "gated": false
+          }
+        ]
+      }
+    },
+    {
+      "wave": 30,
+      "lane": "030",
+      "finding": "F2",
+      "sourceHashMatches": true,
+      "match": {
+        "codes": [
+          "N_TRANSITION_BYPASS"
+        ],
+        "ops": [
+          "publishReport"
+        ],
+        "viewerRole": "engineer",
+        "oldTruth": {
+          "status": "measured"
+        },
+        "truth": {
+          "status": "reported"
+        }
+      },
+      "before": {
+        "category": "nothing",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": []
+      },
+      "after": {
+        "category": "witnessed question on default verdict",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_TRANSITION_BYPASS",
+            "operation": "publishReport",
+            "viewer": "account:security-roles-engineer-0",
+            "decision": "659781d2dccefcef431e82202580e29adde0499151fbbe3d94346b55d3628b38",
+            "witness": "78411a77d30fc62a64904706492a1e19570aacbd3ec7ed4a75fac5b40909ae05",
+            "candidate": "question: studies.status: publishReport can bypass sibling markReviewed's measured -> reviewed step; must reported require reviewed?",
+            "gated": false
+          }
+        ]
+      }
+    },
+    {
+      "wave": 30,
+      "lane": "033",
+      "finding": "F1",
+      "sourceHashMatches": true,
+      "match": {
+        "codes": [
+          "N_APPROVAL_NOT_ENFORCED"
+        ],
+        "ops": [
+          "advanceJob"
+        ],
+        "truth": {
+          "dampSigned": true,
+          "dampApproved": false
+        }
+      },
+      "before": {
+        "category": "gated with witness",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_APPROVAL_NOT_ENFORCED",
+            "operation": "advanceJob",
+            "viewer": "account:security-roles-owner-0",
+            "decision": "6a1780afc7a25a96a827deaf3a5b97f08cef9ac29bf10223c5665078f11cc371",
+            "witness": "73544f77d04f6a3d8621f3e095990704216edd028d5d264dcbb48c4aff219318",
+            "candidate": "invariant jobs.advanceJob only (not .dampSigned or .dampApproved)",
+            "gated": true
+          }
+        ],
+        "productionFixes": []
+      },
+      "after": {
+        "category": "gated with witness",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_APPROVAL_NOT_ENFORCED",
+            "operation": "advanceJob",
+            "viewer": "account:security-roles-owner-0",
+            "decision": "6a1780afc7a25a96a827deaf3a5b97f08cef9ac29bf10223c5665078f11cc371",
+            "witness": "73544f77d04f6a3d8621f3e095990704216edd028d5d264dcbb48c4aff219318",
+            "candidate": "invariant jobs.advanceJob only (not .dampSigned or .dampApproved)",
+            "gated": true
+          }
+        ],
+        "productionFixes": []
+      }
+    },
+    {
+      "wave": 30,
+      "lane": "033",
+      "finding": "F2",
+      "sourceHashMatches": true,
+      "match": {
+        "codes": [
+          "N_CHILD_EVIDENCE_PRESENCE"
+        ],
+        "ops": [
+          "acceptQuote",
+          "advanceJob"
+        ]
+      },
+      "before": {
+        "category": "witnessed question on default verdict",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_CHILD_EVIDENCE_PRESENCE",
+            "operation": "acceptQuote",
+            "viewer": "account:security-roles-customer-0",
+            "decision": "6c4bb61bebfbec0a42553157b3eba50002932a5a82b02210d00e96a7e12be4d7",
+            "witness": "37d03596bb8d44392a67f5821ad4996024683aee98ddb95b04a6908123d2e996",
+            "candidate": "invariant jobs.acceptQuote only (count(photos[job = .id]) > 0)",
+            "gated": false
+          }
+        ]
+      },
+      "after": {
+        "category": "witnessed question on default verdict",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_CHILD_EVIDENCE_PRESENCE",
+            "operation": "acceptQuote",
+            "viewer": "account:security-roles-customer-0",
+            "decision": "6c4bb61bebfbec0a42553157b3eba50002932a5a82b02210d00e96a7e12be4d7",
+            "witness": "37d03596bb8d44392a67f5821ad4996024683aee98ddb95b04a6908123d2e996",
+            "candidate": "invariant jobs.acceptQuote only (count(photos[job = .id]) > 0)",
+            "gated": false
+          }
+        ]
+      }
+    },
+    {
+      "wave": 30,
+      "lane": "035",
+      "finding": "F1",
+      "sourceHashMatches": true,
+      "match": {
+        "codes": [
+          "N_TRANSITION_BYPASS"
+        ],
+        "ops": [
+          "advanceStage"
+        ],
+        "viewerRole": "cleaner",
+        "oldTruth": {
+          "stage": "inspection"
+        },
+        "truth": {
+          "stage": "finished"
+        }
+      },
+      "before": {
+        "category": "nothing",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": []
+      },
+      "after": {
+        "category": "witnessed question on default verdict",
+        "targetVisible": true,
+        "evidence": [
+          {
+            "code": "N_TRANSITION_BYPASS",
+            "operation": "advanceStage",
+            "viewer": "account:security-roles-cleaner-0",
+            "decision": "2056b3ebc232075e8535ea9bbd7024e9f4f63f05c38dfdca60a5981725085244",
+            "witness": "06079f4a022ad75a6f056e15610f64d0a978e5696d6d0ab9bfe1885eb86ae5a2",
+            "candidate": "question: batches.stage: advanceStage accepts a caller-selected stage; sibling markReady requires finished; must intermediate declared values have explicit transitions?",
+            "gated": false
+          }
+        ]
+      }
+    },
+    {
+      "wave": 30,
+      "lane": "038",
+      "finding": "F1",
+      "sourceHashMatches": true,
+      "match": {
+        "codes": [
+          "N_DUPLICABLE_GUARD"
+        ]
+      },
+      "before": {
+        "category": "nothing",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": []
+      },
+      "after": {
+        "category": "nothing",
+        "targetVisible": false,
+        "evidence": [],
+        "notes": []
+      }
+    }
+  ],
+  "summary": {
+    "before": {
+      "witnessed question on default verdict": 8,
+      "nothing": 4,
+      "advisory only": 1,
+      "gated with witness": 1
+    },
+    "after": {
+      "witnessed question on default verdict": 10,
+      "nothing": 2,
+      "advisory only": 1,
+      "gated with witness": 1
+    }
+  }
+}
