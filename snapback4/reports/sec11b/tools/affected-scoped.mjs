@@ -6,7 +6,7 @@ import { writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 const { planAffected, runPlan } = await import(pathToFileURL(resolve('snapback4/scripts/affected.mjs')));
-const plan = planAffected({ base: 'origin/main', worktree: process.argv.includes('--worktree') });
+const plan = planAffected({ base: process.env.SEC11B_AFFECTED_BASE || 'origin/main', worktree: process.argv.includes('--worktree') });
 const originalPath = process.argv[2];
 if (!originalPath || originalPath.startsWith('--')) throw new Error('output prefix required');
 writeFileSync(originalPath + '.original.json', JSON.stringify(plan, null, 2));
