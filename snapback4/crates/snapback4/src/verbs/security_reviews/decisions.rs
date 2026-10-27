@@ -104,6 +104,11 @@ pub(in crate::verbs) fn render_mode(dispositions:&[Disposition],notes:&[Diagnost
                     "N_GUARD_NOT_CONSUMED"=>"May this prerequisite be reused?",
                     _=>"Is this behavior intended?",
                 };
+                // The actual witness is not the whole hypothesis: retain the
+                // named child/reference and the measured time/guard context.
+                let question=if matches!(d.code.as_str(),"N_OPTIONAL_EVIDENCE"|"N_CHILD_EVIDENCE_PRESENCE"|"N_MOVABLE_TIME_ANCHOR"|"N_EVENT_TIME_ANCHOR") {
+                    format!("{}; {question}",n.message.trim_end_matches(['.','?']).replace(['\n','\r']," "))
+                }else{question.to_owned()};
                 let summary=w["compactSummary"].as_str().or_else(||w["summary"].as_str()).unwrap_or("see check --json for replay").replace(['\n','\r']," ");
                 output.push_str(&format!("fix question {} at {}: {question} Witness: {summary} — repair or check --ack-security {} --reason '{}' (doesn't block; check --review)\n",d.code,d.site,d.id,rationale));
             }
@@ -240,5 +245,21 @@ pub(in crate::verbs) fn render_mode(dispositions:&[Disposition],notes:&[Diagnost
    results.push(serde_json::json!({"wave":row["wave"],"lane":row["lane"],"sourceSha256":row["sha256"],"rawLines":lines.len(),"projectedLines":lines.len()-joins,"joinedWitnessLines":joins}));
   }
   assert_eq!(results.len(),800);std::fs::write(output,serde_json::to_vec_pretty(&results).unwrap()).unwrap();
+ }
+}
+
+#[cfg(test)]mod integration29_context {
+ use super::*;
+ #[test]fn evidence_and_time_cards_retain_the_hypothesis_witness_and_answer_in_one_line(){
+  for (code,message) in [
+   ("N_CHILD_EVIDENCE_PRESENCE","jobs: creations openJob do not require attached jobPhotos[job = parent].photo; must media exist?"),
+   ("N_MOVABLE_TIME_ANCHOR","reschedule: moves.scheduledAt measures a window guarded by book; should the original anchor be immutable?"),
+   ("N_EVENT_TIME_ANCHOR","book: now <= prior.completedAt + 30d while storing scheduledAt; should this constrain the event time?"),
+  ] {
+   let n=Diagnostic::new(&Default::default(),code,message,"repair source");
+   let d=Disposition{family:None,id:"current-id".into(),code:code.into(),site:"schema.q:1:1".into(),gated:false,acknowledged:false,recorded:false,reason:None,scope:"test".into(),witness:Some(serde_json::json!({"compactSummary":"actual replay","summary":"actual replay"}))};
+   let card=render_mode(&[d],&[n],false);
+   assert_eq!(card.lines().count(),1);assert!(card.contains(message.trim_end_matches('?'))&&card.contains("Witness: actual replay")&&card.contains("check --ack-security current-id --reason")&&card.contains("doesn't block"),"{card}");
+  }
  }
 }

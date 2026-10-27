@@ -43,3 +43,16 @@ pub(super) fn resolve(sources:&[(String,String)],proposals:Vec<(usize,Candidate)
         }
     }
 }
+
+#[cfg(test)]mod time_tests {
+ use super::*;
+ #[test]fn time_candidates_keep_independent_compiler_sites_and_family_columns(){
+  let sources=vec![("schema.q".into(),"table events:\n  at: time\n  read <- allow\n  update <- allow\n  online only\nmutation move(event: events, at: time):\n  update events[event] {at}\n".into())];
+  let line="invariant events.move only .at = now";
+  for movable in [true,false] {
+   let mut expected=candidate(&sources,line).unwrap();expected.site.file=expected.site.file.replace("/dx11/",if movable{"/sec13-anchor/"}else{"/sec13-event/"});expected.column=Some("at".into());
+   let actual=resolve(&sources,vec![(0,Candidate::Time(line.into(),"at".into(),movable))]);
+   assert_eq!(serde_json::to_value(actual).unwrap(),serde_json::to_value(vec![(0,expected)]).unwrap());
+  }
+ }
+}
