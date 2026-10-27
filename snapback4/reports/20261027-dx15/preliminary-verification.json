@@ -84,5 +84,5 @@
       "elapsedMs": 6737
     }
   ],
-  "disposition": "Two stale tests corrected: serve-recipe extraction included the newly added observer fence; redaction mock echoed a made-up password rather than the actual generated request password. Targeted reruns pass; final affected run follows on the corrective commit."
+  "disposition": "Three affected findings: serve extraction included the new observer fence; redaction mock echoed a made-up password; generic login advice appended to definitive password-validation refusals. The first two fixtures were corrected. Auth now adds advice only to unknown outcomes and preserves delivered refusals unchanged. Targeted reruns pass; final affected run follows."
 }

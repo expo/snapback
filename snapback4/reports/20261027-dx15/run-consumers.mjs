@@ -22,7 +22,7 @@ for(const [name,fn,args] of [['starters',proveStarters,[...paths,base]],['proofK
  const start=Date.now();
  try{const value=await fn(...args);result.steps.push({name,ok:true,seconds:(Date.now()-start)/1000,value});}
  catch(error){result.steps.push({name,ok:false,seconds:(Date.now()-start)/1000,error:String(error).slice(0,1000)});}
- writeFileSync(join(import.meta.dirname,'packed-consumers.json'),JSON.stringify(result,null,2)+'\n');
+ writeFileSync(process.env.DX15_CONSUMER_REPORT??join(import.meta.dirname,'packed-consumers.json'),JSON.stringify(result,null,2)+'\n');
  console.log(JSON.stringify({name,ok:result.steps.at(-1).ok,seconds:result.steps.at(-1).seconds}));
 }
 if(result.steps.some(s=>!s.ok))process.exitCode=1;

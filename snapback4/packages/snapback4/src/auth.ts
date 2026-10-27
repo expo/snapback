@@ -25,9 +25,9 @@ async function post(url: string, path: string, body: unknown, doFetch: typeof fe
     const { response, json } = await identityRequest(`${url.replace(/\/$/, "")}${path}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }, doFetch, options) as { response: Response; json: {session?:Session; denied?:Refusal} };
     if (response.ok && isSession(json.session, Number(response.headers.get("x-snapback-time") ?? Date.now()))) return { ok: true, session: json.session };
     const why = refusal(json.denied ?? (json as {why?:Refusal}).why) ?? invalidResponse(response.status, path === "/auth/signup" ? "signup" : "sign-in");
-    // Preserve the public refusal and enumeration protection. This advice is
-    // identical for every ambiguous signup, including an already-created user.
-    return { ok: false, why: path === "/auth/signup" && ["E_AUTH", "E_HTTP_RESPONSE"].includes(why.code)
+    // Delivered auth refusals (including password validation) stay unchanged.
+    // Only an unknown signup outcome needs additional recovery advice.
+    return { ok: false, why: path === "/auth/signup" && why.code === "E_HTTP_RESPONSE"
       ? {...why, message: `${why.message}; the account may already exist. Try login with the same credentials; signup grants no role.`} : why };
   } catch (error) {
     const why = transportRefusal(error);

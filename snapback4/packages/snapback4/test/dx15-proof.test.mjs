@@ -85,12 +85,12 @@ test('wave31 023: observe stable button before trigger, retain transient visible
   await page.setContent('<b>same</b><b>same</b>');await assert.rejects(waitForFresh(page.locator('b'),'same',{trigger:()=>{}}),/strict mode violation/);
  });
 });
-test('wave31 006 RATE: duplicate signup gives login recovery without disclosing existence',async t=>{
+test('wave31 006 RATE: duplicate signup preserves delivered refusal and login recovers',async t=>{
  const cwd=await project(t),host=await startServe('production',{cwd,env});
  try{
   const email='same@example.test',password='long-enough-password';
   const first=await signup(host.url,email,password);assert.equal(first.ok,true,JSON.stringify(first));
-  const second=await signup(host.url,email,password);assert.equal(second.ok,false);assert.equal(second.why.code,'E_AUTH');assert.match(second.why.message,/may already exist.*login/);
+  const second=await signup(host.url,email,password);assert.equal(second.ok,false);assert.equal(second.why.code,'E_AUTH');assert.equal(second.why.message,'that email already has an account; sign in instead');
   const again=await login(host.url,email,password);assert.equal(again.ok,true);assert.equal(again.session.principal,first.session.principal);
  }finally{await host.stop();}
 });

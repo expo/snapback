@@ -84,9 +84,13 @@ original why-less report was not reproduced on the inherited SDK; malformed
 and real lost-response outcomes are tested instead of inventing that cause.
 
 The preliminary affected receipt is retained in `preliminary-verification.json`:
-all non-client steps passed. The two stale client fixtures were corrected:
+all non-client steps passed. The stale client fixtures were corrected:
 serve-recipe extraction excludes the new observer section, and the redaction
 mock echoes the actual generated request password rather than an unrelated
 literal. The targeted literal recipe and all 16 identity tests pass; the final
 affected run repeats the selected set on the corrective commit. No production
-redaction behavior was relaxed.
+redaction behavior was relaxed. A third failure showed generic login advice on
+definitive password-validation refusals; auth now adds it only to unknown
+outcomes and preserves delivered refusals unchanged. The password-boundary and
+RATE regressions pass. Final consumer receipts can be written outside the
+source snapshot with DX15_CONSUMER_REPORT.

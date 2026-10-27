@@ -109422,3 +109422,10 @@ Independent reviews caught users-only roster-field validation, bounded observer
 cleanup and nested shadow-root discovery; each is corrected and the final
 observer delta is READY from both families. Private npm caches isolate the
 consumer rerun from concurrent publication cache maintenance.
+
+DX15's affected client run also checked exact password validation messages.
+Preserve delivered auth refusals unchanged; append login recovery only for an
+unknown signup outcome (malformed/lost reply). The existing Unicode/byte-boundary
+checks and duplicate/lost-signup regressions pass. The old serve recipe extractor
+is bounded before the new observer section, and its redaction mock now echoes
+the actual generated credential rather than an unrelated password literal.
