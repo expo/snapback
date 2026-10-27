@@ -395,7 +395,10 @@ def make_runner(base):
             data=self.runtime/'pg'
             if data.exists():
                 shutil.copyfile(data/'postgresql.conf',self.out/'postgresql.conf')
-                shutil.rmtree(data)
+                # A failed trial may still need an independent durable-counter
+                # receipt. Stop the owned cluster, but retain its data on error.
+                if sys.exc_info()[0] is None:
+                    shutil.rmtree(data)
             # A disk guard must never prevent owned shutdown/data cleanup.
             disk(self.out)
             # Keep private material only until the separate known-secret audit.

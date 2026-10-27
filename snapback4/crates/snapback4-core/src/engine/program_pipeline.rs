@@ -138,6 +138,25 @@ mod lane {
                 flights: VecDeque::new(),
             }
         }
+        // @ref LLP 3000.009.001.000.000.002#8.1 — physical writer sessions and constant protocol code are ready before ingress.
+        pub fn prepare(&mut self, engine: &mut Engine) -> Result<(), RuntimeError> {
+            if !matches!(engine.store, AnyStore::Postgres(_)) || self.spare.is_some() { return Ok(()); }
+            let mut spare = engine.store.pipeline_slot()?;
+            engine.store.prepare_pipeline_writer()?;
+            spare.prepare_pipeline_writer()?;
+            self.spare = Some((spare, 1));
+            self.drivers = (0..2).map(Driver::new).collect();
+            self.placeholder = Some(AnyStore::memory()?);
+            Ok(())
+        }
+        #[cfg(test)]
+        fn prepared_calls(store: &mut AnyStore) -> u64 {
+            let store = store.test_postgres_handle_mut().store.get_mut();
+            let calls = store.calls.get();
+            store.prepare_batch_protocol().unwrap();
+            assert_eq!(store.calls.get(), calls, "constant protocol code must already be prepared");
+            calls
+        }
         pub fn set_recovery_guard(&mut self, allowed: std::sync::Arc<dyn Fn() -> bool + Send + Sync>) {
             self.recovery_allowed = Some(allowed);
         }
@@ -216,17 +235,10 @@ mod lane {
             }
             assert!(self.active && self.len() < 2);
             if self.spare.is_none() && self.empty() {
-                match engine.store.pipeline_slot() {
-                    Ok(spare) => {
-                        self.spare = Some((spare, 1));
-                        self.drivers = (0..2).map(Driver::new).collect();
-                        self.placeholder = Some(AnyStore::memory().expect("pipeline placeholder"));
-                    }
-                    Err(_) => {
-                        let out = engine.invoke_program_batch_planned(&mut batch, &mut plans);
-                        finish(engine, out);
-                        return;
-                    }
+                if self.prepare(engine).is_err() {
+                    let out = engine.invoke_program_batch_planned(&mut batch, &mut plans);
+                    finish(engine, out);
+                    return;
                 }
             }
             if self.empty() {
@@ -694,6 +706,24 @@ mod lane {
                 self.poll(engine, true);
             }
             self.recover_idle_durability(engine);
+        }
+    }
+    #[cfg(test)]
+    mod tests {
+        use super::*;
+        #[test]
+        #[ignore = "private Postgres"]
+        fn g72_queue_preparation_warms_both_writers_without_a_data_commit() {
+            let mut engine = crate::engine::program_batch::tests::fixture(true);
+            let seq = engine.seq().unwrap();
+            let mut lane = Lane::new();
+            lane.prepare(&mut engine).unwrap();
+            assert!(lane.empty());
+            Lane::prepared_calls(&mut engine.store);
+            Lane::prepared_calls(&mut lane.spare.as_mut().unwrap().0);
+            assert_eq!(engine.seq().unwrap(), seq);
+            lane.prepare(&mut engine).unwrap();
+            assert_eq!(lane.drivers.len(), 2);
         }
     }
 }
