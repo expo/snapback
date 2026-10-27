@@ -1,0 +1,8 @@
+{
+  "trials": 77,
+  "by_reason": {
+    "errors": 77,
+    "p99": 73
+  },
+  "raw_records": "private archive/disqualified-trials.json"
+}

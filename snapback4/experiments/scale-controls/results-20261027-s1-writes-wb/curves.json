@@ -1,0 +1,3303 @@
+[
+  {
+    "segment": "matrix-g6",
+    "cell": {
+      "workload": "W4",
+      "rows": 1000000,
+      "delay_us": 1000,
+      "writers": 32,
+      "keys": "disjoint",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-writes-wb-20261027/replay-w4-n1000000-d1000-c32-disjoint-NEW",
+        "--workload",
+        "W4",
+        "--keys",
+        "disjoint",
+        "--link",
+        "B",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-writes-wb-20261027/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-writes-wb-20261027/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-writes-wb-20261027/bin/sb4-postgres-scale-seed",
+        "--rates",
+        "100"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "smoke": true,
+    "summary": {
+      "highest_passing_offered_per_s": 100,
+      "lowest_failing_offered_per_s": null,
+      "bracketed": false,
+      "rates": [
+        100
+      ],
+      "repeats": 3
+    },
+    "rates": [
+      {
+        "rate": 100,
+        "passes": 3,
+        "all_pass": true,
+        "p50_ms": {
+          "median": 14.999551,
+          "min": 14.311423,
+          "max": 15.155199
+        },
+        "p99_ms": {
+          "median": 29.507583,
+          "min": 28.901375,
+          "max": 30.621695
+        },
+        "p999_ms": {
+          "median": 47.775743,
+          "min": 33.112063,
+          "max": 51.576831
+        },
+        "errors": 0,
+        "achieved_per_s": {
+          "median": 100.0,
+          "min": 100.0,
+          "max": 100.0
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 1.358847,
+          "min": 1.101823,
+          "max": 1.747967
+        },
+        "http_service_p99_ms": {
+          "median": 29.376511,
+          "min": 28.786687,
+          "max": 30.588927
+        },
+        "error_types": {}
+      }
+    ]
+  },
+  {
+    "segment": "matrix-g6",
+    "cell": {
+      "workload": "W4",
+      "rows": 1000000,
+      "delay_us": 1000,
+      "writers": 32,
+      "keys": "disjoint",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-writes-wb-20261027/replay-w4-n1000000-d1000-c32-disjoint-NEW",
+        "--workload",
+        "W4",
+        "--keys",
+        "disjoint",
+        "--link",
+        "B",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-writes-wb-20261027/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-writes-wb-20261027/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-writes-wb-20261027/bin/sb4-postgres-scale-seed",
+        "--rates",
+        "3200",
+        "1600",
+        "800",
+        "1131",
+        "100",
+        "200",
+        "400",
+        "2262",
+        "4525"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "smoke": false,
+    "summary": {
+      "highest_passing_offered_per_s": 1131,
+      "lowest_failing_offered_per_s": 400,
+      "bracketed": true,
+      "rates": [
+        100,
+        200,
+        400,
+        800,
+        1131,
+        1600,
+        2262,
+        3200,
+        4525
+      ],
+      "repeats": 3
+    },
+    "rates": [
+      {
+        "rate": 100,
+        "passes": 3,
+        "all_pass": true,
+        "p50_ms": {
+          "median": 14.893055,
+          "min": 14.745599,
+          "max": 15.122431
+        },
+        "p99_ms": {
+          "median": 29.786111,
+          "min": 29.392895,
+          "max": 30.949375
+        },
+        "p999_ms": {
+          "median": 48.824319,
+          "min": 38.371327,
+          "max": 49.053695
+        },
+        "errors": 0,
+        "achieved_per_s": {
+          "median": 100.0,
+          "min": 100.0,
+          "max": 100.0
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 0.119487,
+          "min": 0.102783,
+          "max": 1.569791
+        },
+        "http_service_p99_ms": {
+          "median": 29.753343,
+          "min": 29.360127,
+          "max": 30.916607
+        },
+        "error_types": {}
+      },
+      {
+        "rate": 200,
+        "passes": 3,
+        "all_pass": true,
+        "p50_ms": {
+          "median": 15.835135,
+          "min": 15.777791,
+          "max": 16.080895
+        },
+        "p99_ms": {
+          "median": 29.523967,
+          "min": 27.983871,
+          "max": 29.540351
+        },
+        "p999_ms": {
+          "median": 51.183615,
+          "min": 35.422207,
+          "max": 67.502079
+        },
+        "errors": 0,
+        "achieved_per_s": {
+          "median": 200.0,
+          "min": 200.0,
+          "max": 200.0
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 0.106751,
+          "min": 0.087871,
+          "max": 0.189183
+        },
+        "http_service_p99_ms": {
+          "median": 29.474815,
+          "min": 27.951103,
+          "max": 29.474815
+        },
+        "error_types": {}
+      },
+      {
+        "rate": 400,
+        "passes": 2,
+        "all_pass": false,
+        "p50_ms": {
+          "median": 16.908287,
+          "min": 16.539647,
+          "max": 17.465343
+        },
+        "p99_ms": {
+          "median": 29.868031,
+          "min": 28.901375,
+          "max": 56.098815
+        },
+        "p999_ms": {
+          "median": 81.854463,
+          "min": 60.751871,
+          "max": 138.280959
+        },
+        "errors": 28,
+        "achieved_per_s": {
+          "median": 400.0,
+          "min": 398.6,
+          "max": 400.0
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 0.147967,
+          "min": 0.096191,
+          "max": 0.968703
+        },
+        "http_service_p99_ms": {
+          "median": 29.851647,
+          "min": 28.884991,
+          "max": 36.667391
+        },
+        "error_types": {
+          "http_503": 28
+        }
+      },
+      {
+        "rate": 800,
+        "passes": 3,
+        "all_pass": true,
+        "p50_ms": {
+          "median": 17.252351,
+          "min": 17.088511,
+          "max": 17.612799
+        },
+        "p99_ms": {
+          "median": 33.488895,
+          "min": 28.999679,
+          "max": 35.749887
+        },
+        "p999_ms": {
+          "median": 60.522495,
+          "min": 33.849343,
+          "max": 68.354047
+        },
+        "errors": 0,
+        "achieved_per_s": {
+          "median": 800.0,
+          "min": 800.0,
+          "max": 800.0
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 0.796671,
+          "min": 0.327167,
+          "max": 1.243135
+        },
+        "http_service_p99_ms": {
+          "median": 31.588351,
+          "min": 28.803071,
+          "max": 33.849343
+        },
+        "error_types": {}
+      },
+      {
+        "rate": 1131,
+        "passes": 3,
+        "all_pass": true,
+        "p50_ms": {
+          "median": 18.006015,
+          "min": 17.825791,
+          "max": 18.235391
+        },
+        "p99_ms": {
+          "median": 35.880959,
+          "min": 33.308671,
+          "max": 43.679743
+        },
+        "p999_ms": {
+          "median": 83.165183,
+          "min": 60.424191,
+          "max": 89.587711
+        },
+        "errors": 2,
+        "achieved_per_s": {
+          "median": 1130.95,
+          "min": 1130.95,
+          "max": 1131.0
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 7.602175,
+          "min": 5.033983,
+          "max": 15.368191
+        },
+        "http_service_p99_ms": {
+          "median": 30.982143,
+          "min": 30.982143,
+          "max": 32.112639
+        },
+        "error_types": {
+          "http_503": 2
+        }
+      },
+      {
+        "rate": 1600,
+        "passes": 0,
+        "all_pass": false,
+        "p50_ms": {
+          "median": 1001.390079,
+          "min": 886.046719,
+          "max": 1002.438655
+        },
+        "p99_ms": {
+          "median": 1024.983039,
+          "min": 1023.934463,
+          "max": 1026.031615
+        },
+        "p999_ms": {
+          "median": 1040.187391,
+          "min": 1029.177343,
+          "max": 1042.808831
+        },
+        "errors": 3739,
+        "achieved_per_s": {
+          "median": 1543.45,
+          "min": 1520.7,
+          "max": 1548.9
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 1005.060095,
+          "min": 1004.011519,
+          "max": 1006.108671
+        },
+        "http_service_p99_ms": {
+          "median": 33.079295,
+          "min": 31.719423,
+          "max": 35.094527
+        },
+        "error_types": {
+          "expired_before_send": 3551,
+          "http_503": 188
+        }
+      },
+      {
+        "rate": 2262,
+        "passes": 0,
+        "all_pass": false,
+        "p50_ms": {
+          "median": 1011.351551,
+          "min": 1010.827263,
+          "max": 1011.351551
+        },
+        "p99_ms": {
+          "median": 1032.323071,
+          "min": 1027.080191,
+          "max": 1032.847359
+        },
+        "p999_ms": {
+          "median": 1087.373311,
+          "min": 1035.468799,
+          "max": 1109.393407
+        },
+        "errors": 47150,
+        "achieved_per_s": {
+          "median": 1469.2,
+          "min": 1460.7,
+          "max": 1498.6
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 1018.167295,
+          "min": 1012.924415,
+          "max": 1018.691583
+        },
+        "http_service_p99_ms": {
+          "median": 32.899071,
+          "min": 30.523391,
+          "max": 33.718271
+        },
+        "error_types": {
+          "expired_before_send": 46971,
+          "http_503": 179
+        }
+      },
+      {
+        "rate": 3200,
+        "passes": 0,
+        "all_pass": false,
+        "p50_ms": {
+          "median": 1010.827263,
+          "min": 1010.827263,
+          "max": 1010.827263
+        },
+        "p99_ms": {
+          "median": 1028.653055,
+          "min": 1027.080191,
+          "max": 1032.847359
+        },
+        "p999_ms": {
+          "median": 1056.440319,
+          "min": 1034.420223,
+          "max": 1111.490559
+        },
+        "errors": 100748,
+        "achieved_per_s": {
+          "median": 1522.9,
+          "min": 1497.45,
+          "max": 1542.25
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 1018.691583,
+          "min": 1017.118719,
+          "max": 1022.885887
+        },
+        "http_service_p99_ms": {
+          "median": 30.982143,
+          "min": 30.244863,
+          "max": 30.982143
+        },
+        "error_types": {
+          "expired_before_send": 100462,
+          "http_503": 286
+        }
+      },
+      {
+        "rate": 4525,
+        "passes": 0,
+        "all_pass": false,
+        "p50_ms": {
+          "median": 1010.827263,
+          "min": 1010.827263,
+          "max": 1010.827263
+        },
+        "p99_ms": {
+          "median": 1029.177343,
+          "min": 1027.604479,
+          "max": 1029.177343
+        },
+        "p999_ms": {
+          "median": 1051.197439,
+          "min": 1042.284543,
+          "max": 1053.294591
+        },
+        "errors": 181179,
+        "achieved_per_s": {
+          "median": 1516.2,
+          "min": 1482.9,
+          "max": 1516.95
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 1021.837311,
+          "min": 1020.788735,
+          "max": 1021.837311
+        },
+        "http_service_p99_ms": {
+          "median": 30.408703,
+          "min": 29.114367,
+          "max": 30.801919
+        },
+        "error_types": {
+          "expired_before_send": 180828,
+          "http_503": 351
+        }
+      }
+    ]
+  },
+  {
+    "segment": "matrix-g6",
+    "cell": {
+      "workload": "W4",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 32,
+      "keys": "disjoint",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-writes-wb-20261027/replay-w4-n1000000-d500-c32-disjoint-NEW",
+        "--workload",
+        "W4",
+        "--keys",
+        "disjoint",
+        "--link",
+        "A",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-writes-wb-20261027/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-writes-wb-20261027/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-writes-wb-20261027/bin/sb4-postgres-scale-seed",
+        "--rates",
+        "3200",
+        "1600",
+        "800",
+        "1131",
+        "100",
+        "200",
+        "400",
+        "2262",
+        "4525"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "smoke": false,
+    "summary": {
+      "highest_passing_offered_per_s": 1131,
+      "lowest_failing_offered_per_s": 1600,
+      "bracketed": true,
+      "rates": [
+        100,
+        200,
+        400,
+        800,
+        1131,
+        1600,
+        2262,
+        3200,
+        4525
+      ],
+      "repeats": 3
+    },
+    "rates": [
+      {
+        "rate": 100,
+        "passes": 3,
+        "all_pass": true,
+        "p50_ms": {
+          "median": 15.286271,
+          "min": 15.163391,
+          "max": 15.319039
+        },
+        "p99_ms": {
+          "median": 27.295743,
+          "min": 25.264127,
+          "max": 27.983871
+        },
+        "p999_ms": {
+          "median": 44.695551,
+          "min": 42.500095,
+          "max": 53.903359
+        },
+        "errors": 0,
+        "achieved_per_s": {
+          "median": 100.0,
+          "min": 100.0,
+          "max": 100.0
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 0.229119,
+          "min": 0.227839,
+          "max": 2.146303
+        },
+        "http_service_p99_ms": {
+          "median": 27.279359,
+          "min": 24.838143,
+          "max": 27.967487
+        },
+        "error_types": {}
+      },
+      {
+        "rate": 200,
+        "passes": 3,
+        "all_pass": true,
+        "p50_ms": {
+          "median": 15.925247,
+          "min": 15.351807,
+          "max": 15.974399
+        },
+        "p99_ms": {
+          "median": 27.820031,
+          "min": 26.935295,
+          "max": 28.229631
+        },
+        "p999_ms": {
+          "median": 50.921471,
+          "min": 48.988159,
+          "max": 70.844415
+        },
+        "errors": 0,
+        "achieved_per_s": {
+          "median": 200.0,
+          "min": 200.0,
+          "max": 200.0
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 0.475391,
+          "min": 0.342527,
+          "max": 1.854463
+        },
+        "http_service_p99_ms": {
+          "median": 27.607039,
+          "min": 26.918911,
+          "max": 28.213247
+        },
+        "error_types": {}
+      },
+      {
+        "rate": 400,
+        "passes": 3,
+        "all_pass": true,
+        "p50_ms": {
+          "median": 16.080895,
+          "min": 15.802367,
+          "max": 16.211967
+        },
+        "p99_ms": {
+          "median": 28.557311,
+          "min": 27.426815,
+          "max": 29.736959
+        },
+        "p999_ms": {
+          "median": 50.659327,
+          "min": 33.259519,
+          "max": 75.956223
+        },
+        "errors": 0,
+        "achieved_per_s": {
+          "median": 400.0,
+          "min": 400.0,
+          "max": 400.0
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 0.176511,
+          "min": 0.103615,
+          "max": 0.507903
+        },
+        "http_service_p99_ms": {
+          "median": 28.459007,
+          "min": 27.377663,
+          "max": 29.720575
+        },
+        "error_types": {}
+      },
+      {
+        "rate": 800,
+        "passes": 3,
+        "all_pass": true,
+        "p50_ms": {
+          "median": 16.351231,
+          "min": 15.163391,
+          "max": 16.662527
+        },
+        "p99_ms": {
+          "median": 29.884415,
+          "min": 28.360703,
+          "max": 30.638079
+        },
+        "p999_ms": {
+          "median": 46.465023,
+          "min": 35.553279,
+          "max": 69.468159
+        },
+        "errors": 0,
+        "achieved_per_s": {
+          "median": 800.0,
+          "min": 800.0,
+          "max": 800.0
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 0.579071,
+          "min": 0.540159,
+          "max": 1.017343
+        },
+        "http_service_p99_ms": {
+          "median": 28.868607,
+          "min": 28.229631,
+          "max": 30.425087
+        },
+        "error_types": {}
+      },
+      {
+        "rate": 1131,
+        "passes": 3,
+        "all_pass": true,
+        "p50_ms": {
+          "median": 17.006591,
+          "min": 16.908287,
+          "max": 17.268735
+        },
+        "p99_ms": {
+          "median": 34.897919,
+          "min": 29.884415,
+          "max": 56.295423
+        },
+        "p999_ms": {
+          "median": 72.286207,
+          "min": 34.635775,
+          "max": 79.036415
+        },
+        "errors": 0,
+        "achieved_per_s": {
+          "median": 1131.0,
+          "min": 1131.0,
+          "max": 1131.0
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 6.598655,
+          "min": 2.185215,
+          "max": 28.000255
+        },
+        "http_service_p99_ms": {
+          "median": 31.358975,
+          "min": 29.507583,
+          "max": 31.817727
+        },
+        "error_types": {}
+      },
+      {
+        "rate": 1600,
+        "passes": 0,
+        "all_pass": false,
+        "p50_ms": {
+          "median": 991.952895,
+          "min": 709.885951,
+          "max": 1002.438655
+        },
+        "p99_ms": {
+          "median": 1026.031615,
+          "min": 1014.497279,
+          "max": 1026.031615
+        },
+        "p999_ms": {
+          "median": 1042.284543,
+          "min": 1024.458751,
+          "max": 1047.003135
+        },
+        "errors": 3102,
+        "achieved_per_s": {
+          "median": 1527.95,
+          "min": 1524.65,
+          "max": 1592.3
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 1006.108671,
+          "min": 994.574335,
+          "max": 1006.108671
+        },
+        "http_service_p99_ms": {
+          "median": 33.423359,
+          "min": 32.718847,
+          "max": 34.078719
+        },
+        "error_types": {
+          "expired_before_send": 2962,
+          "http_503": 140
+        }
+      },
+      {
+        "rate": 2262,
+        "passes": 0,
+        "all_pass": false,
+        "p50_ms": {
+          "median": 1010.827263,
+          "min": 1010.827263,
+          "max": 1010.827263
+        },
+        "p99_ms": {
+          "median": 1028.128767,
+          "min": 1028.128767,
+          "max": 1029.701631
+        },
+        "p999_ms": {
+          "median": 1059.586047,
+          "min": 1035.468799,
+          "max": 1080.033279
+        },
+        "errors": 45343,
+        "achieved_per_s": {
+          "median": 1510.45,
+          "min": 1490.85,
+          "max": 1517.55
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 1014.497279,
+          "min": 1013.972991,
+          "max": 1015.545855
+        },
+        "http_service_p99_ms": {
+          "median": 32.063487,
+          "min": 31.784959,
+          "max": 32.145407
+        },
+        "error_types": {
+          "expired_before_send": 45140,
+          "http_503": 203
+        }
+      },
+      {
+        "rate": 3200,
+        "passes": 0,
+        "all_pass": false,
+        "p50_ms": {
+          "median": 1010.827263,
+          "min": 1010.827263,
+          "max": 1010.827263
+        },
+        "p99_ms": {
+          "median": 1029.177343,
+          "min": 1027.604479,
+          "max": 1029.177343
+        },
+        "p999_ms": {
+          "median": 1055.391743,
+          "min": 1033.371647,
+          "max": 1074.790399
+        },
+        "errors": 101035,
+        "achieved_per_s": {
+          "median": 1506.1,
+          "min": 1502.95,
+          "max": 1539.2
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 1019.215871,
+          "min": 1017.643007,
+          "max": 1019.215871
+        },
+        "http_service_p99_ms": {
+          "median": 30.883839,
+          "min": 30.425087,
+          "max": 31.604735
+        },
+        "error_types": {
+          "expired_before_send": 100826,
+          "http_503": 209
+        }
+      },
+      {
+        "rate": 4525,
+        "passes": 0,
+        "all_pass": false,
+        "p50_ms": {
+          "median": 1010.827263,
+          "min": 1010.827263,
+          "max": 1010.827263
+        },
+        "p99_ms": {
+          "median": 1028.653055,
+          "min": 1028.128767,
+          "max": 1028.653055
+        },
+        "p999_ms": {
+          "median": 1054.867455,
+          "min": 1041.760255,
+          "max": 1057.488895
+        },
+        "errors": 180141,
+        "achieved_per_s": {
+          "median": 1521.8,
+          "min": 1515.4,
+          "max": 1530.75
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 1021.313023,
+          "min": 1021.313023,
+          "max": 1021.837311
+        },
+        "http_service_p99_ms": {
+          "median": 29.999103,
+          "min": 29.999103,
+          "max": 30.294015
+        },
+        "error_types": {
+          "expired_before_send": 179718,
+          "http_503": 423
+        }
+      }
+    ]
+  },
+  {
+    "segment": "matrix-g6",
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 1000,
+      "writers": 32,
+      "keys": "hot1",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-writes-wb-20261027/replay-w5-n1000000-d1000-c32-hot1-NEW",
+        "--workload",
+        "W5",
+        "--keys",
+        "hot1",
+        "--link",
+        "B",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-writes-wb-20261027/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-writes-wb-20261027/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-writes-wb-20261027/bin/sb4-postgres-scale-seed",
+        "--rates",
+        "3200",
+        "1600",
+        "800",
+        "1131",
+        "100",
+        "200",
+        "400",
+        "2262",
+        "4525"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "smoke": false,
+    "summary": {
+      "highest_passing_offered_per_s": 1131,
+      "lowest_failing_offered_per_s": 400,
+      "bracketed": true,
+      "rates": [
+        100,
+        200,
+        400,
+        800,
+        1131,
+        1600,
+        2262,
+        3200,
+        4525
+      ],
+      "repeats": 3
+    },
+    "rates": [
+      {
+        "rate": 100,
+        "passes": 3,
+        "all_pass": true,
+        "p50_ms": {
+          "median": 14.565375,
+          "min": 14.417919,
+          "max": 14.573567
+        },
+        "p99_ms": {
+          "median": 31.244287,
+          "min": 28.934143,
+          "max": 32.587775
+        },
+        "p999_ms": {
+          "median": 52.887551,
+          "min": 45.875199,
+          "max": 80.150527
+        },
+        "errors": 0,
+        "achieved_per_s": {
+          "median": 100.0,
+          "min": 100.0,
+          "max": 100.0
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 0.804351,
+          "min": 0.107455,
+          "max": 1.069055
+        },
+        "http_service_p99_ms": {
+          "median": 31.113215,
+          "min": 28.852223,
+          "max": 32.489471
+        },
+        "error_types": {}
+      },
+      {
+        "rate": 200,
+        "passes": 3,
+        "all_pass": true,
+        "p50_ms": {
+          "median": 15.589375,
+          "min": 15.589375,
+          "max": 16.261119
+        },
+        "p99_ms": {
+          "median": 27.344895,
+          "min": 27.115519,
+          "max": 28.246015
+        },
+        "p999_ms": {
+          "median": 57.966591,
+          "min": 49.217535,
+          "max": 70.975487
+        },
+        "errors": 0,
+        "achieved_per_s": {
+          "median": 200.0,
+          "min": 200.0,
+          "max": 200.0
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 0.081023,
+          "min": 0.062783,
+          "max": 0.315903
+        },
+        "http_service_p99_ms": {
+          "median": 27.312127,
+          "min": 27.099135,
+          "max": 28.229631
+        },
+        "error_types": {}
+      },
+      {
+        "rate": 400,
+        "passes": 2,
+        "all_pass": false,
+        "p50_ms": {
+          "median": 16.793599,
+          "min": 16.383999,
+          "max": 17.104895
+        },
+        "p99_ms": {
+          "median": 32.423935,
+          "min": 30.670847,
+          "max": 60.653567
+        },
+        "p999_ms": {
+          "median": 56.983551,
+          "min": 40.730623,
+          "max": 147.849215
+        },
+        "errors": 28,
+        "achieved_per_s": {
+          "median": 400.0,
+          "min": 398.6,
+          "max": 400.0
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 0.177535,
+          "min": 0.092031,
+          "max": 0.884223
+        },
+        "http_service_p99_ms": {
+          "median": 32.407551,
+          "min": 30.556159,
+          "max": 40.304639
+        },
+        "error_types": {
+          "http_503": 28
+        }
+      },
+      {
+        "rate": 800,
+        "passes": 3,
+        "all_pass": true,
+        "p50_ms": {
+          "median": 17.448959,
+          "min": 17.186815,
+          "max": 18.169855
+        },
+        "p99_ms": {
+          "median": 31.457279,
+          "min": 31.391743,
+          "max": 45.940735
+        },
+        "p999_ms": {
+          "median": 64.815103,
+          "min": 56.688639,
+          "max": 95.682559
+        },
+        "errors": 0,
+        "achieved_per_s": {
+          "median": 800.0,
+          "min": 800.0,
+          "max": 800.0
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 0.403967,
+          "min": 0.357631,
+          "max": 5.939199
+        },
+        "http_service_p99_ms": {
+          "median": 30.621695,
+          "min": 30.539775,
+          "max": 35.127295
+        },
+        "error_types": {}
+      },
+      {
+        "rate": 1131,
+        "passes": 3,
+        "all_pass": true,
+        "p50_ms": {
+          "median": 18.071551,
+          "min": 17.563647,
+          "max": 18.481151
+        },
+        "p99_ms": {
+          "median": 45.252607,
+          "min": 30.048255,
+          "max": 52.297727
+        },
+        "p999_ms": {
+          "median": 75.300863,
+          "min": 36.470783,
+          "max": 93.323263
+        },
+        "errors": 1,
+        "achieved_per_s": {
+          "median": 1131.0,
+          "min": 1130.95,
+          "max": 1131.0
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 16.990207,
+          "min": 2.236415,
+          "max": 26.722303
+        },
+        "http_service_p99_ms": {
+          "median": 31.162367,
+          "min": 29.671423,
+          "max": 32.342015
+        },
+        "error_types": {
+          "http_503": 1
+        }
+      },
+      {
+        "rate": 1600,
+        "passes": 0,
+        "all_pass": false,
+        "p50_ms": {
+          "median": 1005.584383,
+          "min": 1002.438655,
+          "max": 1006.632959
+        },
+        "p99_ms": {
+          "median": 1026.031615,
+          "min": 1025.507327,
+          "max": 1027.080191
+        },
+        "p999_ms": {
+          "median": 1043.333119,
+          "min": 1038.614527,
+          "max": 1049.100287
+        },
+        "errors": 5110,
+        "achieved_per_s": {
+          "median": 1519.45,
+          "min": 1491.0,
+          "max": 1534.05
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 1006.108671,
+          "min": 1005.584383,
+          "max": 1007.157247
+        },
+        "http_service_p99_ms": {
+          "median": 33.423359,
+          "min": 33.374207,
+          "max": 34.963455
+        },
+        "error_types": {
+          "expired_before_send": 4905,
+          "http_503": 205
+        }
+      },
+      {
+        "rate": 2262,
+        "passes": 0,
+        "all_pass": false,
+        "p50_ms": {
+          "median": 1010.827263,
+          "min": 1010.827263,
+          "max": 1010.827263
+        },
+        "p99_ms": {
+          "median": 1027.604479,
+          "min": 1027.080191,
+          "max": 1028.128767
+        },
+        "p999_ms": {
+          "median": 1040.711679,
+          "min": 1039.663103,
+          "max": 1070.596095
+        },
+        "errors": 44870,
+        "achieved_per_s": {
+          "median": 1507.7,
+          "min": 1503.9,
+          "max": 1530.9
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 1013.448703,
+          "min": 1012.924415,
+          "max": 1013.972991
+        },
+        "http_service_p99_ms": {
+          "median": 31.129599,
+          "min": 30.703615,
+          "max": 31.588351
+        },
+        "error_types": {
+          "expired_before_send": 44701,
+          "http_503": 169
+        }
+      },
+      {
+        "rate": 3200,
+        "passes": 0,
+        "all_pass": false,
+        "p50_ms": {
+          "median": 1010.827263,
+          "min": 1010.827263,
+          "max": 1010.827263
+        },
+        "p99_ms": {
+          "median": 1029.177343,
+          "min": 1028.128767,
+          "max": 1029.701631
+        },
+        "p999_ms": {
+          "median": 1067.974655,
+          "min": 1056.964607,
+          "max": 1068.498943
+        },
+        "errors": 100715,
+        "achieved_per_s": {
+          "median": 1528.95,
+          "min": 1495.2,
+          "max": 1540.1
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 1019.215871,
+          "min": 1018.167295,
+          "max": 1019.740159
+        },
+        "http_service_p99_ms": {
+          "median": 30.801919,
+          "min": 30.212095,
+          "max": 31.277055
+        },
+        "error_types": {
+          "expired_before_send": 100461,
+          "http_503": 254
+        }
+      },
+      {
+        "rate": 4525,
+        "passes": 0,
+        "all_pass": false,
+        "p50_ms": {
+          "median": 1010.827263,
+          "min": 1010.827263,
+          "max": 1011.351551
+        },
+        "p99_ms": {
+          "median": 1029.701631,
+          "min": 1028.653055,
+          "max": 1031.274495
+        },
+        "p999_ms": {
+          "median": 1054.867455,
+          "min": 1039.663103,
+          "max": 1068.498943
+        },
+        "errors": 182559,
+        "achieved_per_s": {
+          "median": 1475.65,
+          "min": 1472.5,
+          "max": 1498.9
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 1022.885887,
+          "min": 1021.837311,
+          "max": 1023.934463
+        },
+        "http_service_p99_ms": {
+          "median": 31.096831,
+          "min": 30.965759,
+          "max": 31.358975
+        },
+        "error_types": {
+          "expired_before_send": 182220,
+          "http_503": 339
+        }
+      }
+    ]
+  },
+  {
+    "segment": "matrix-g6",
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 1000,
+      "writers": 32,
+      "keys": "same",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-writes-wb-20261027/replay-w5-n1000000-d1000-c32-same-NEW",
+        "--workload",
+        "W5",
+        "--keys",
+        "same",
+        "--link",
+        "B",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-writes-wb-20261027/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-writes-wb-20261027/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-writes-wb-20261027/bin/sb4-postgres-scale-seed",
+        "--rates",
+        "100",
+        "200",
+        "400",
+        "800",
+        "1600",
+        "1131",
+        "2262",
+        "3200",
+        "4525"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "smoke": false,
+    "summary": {
+      "highest_passing_offered_per_s": 1131,
+      "lowest_failing_offered_per_s": 1600,
+      "bracketed": true,
+      "rates": [
+        100,
+        200,
+        400,
+        800,
+        1131,
+        1600,
+        2262,
+        3200,
+        4525
+      ],
+      "repeats": 3
+    },
+    "rates": [
+      {
+        "rate": 100,
+        "passes": 3,
+        "all_pass": true,
+        "p50_ms": {
+          "median": 14.335999,
+          "min": 14.270463,
+          "max": 14.434303
+        },
+        "p99_ms": {
+          "median": 34.275327,
+          "min": 33.783807,
+          "max": 36.896767
+        },
+        "p999_ms": {
+          "median": 52.035583,
+          "min": 41.943039,
+          "max": 55.181311
+        },
+        "errors": 0,
+        "achieved_per_s": {
+          "median": 100.0,
+          "min": 100.0,
+          "max": 100.0
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 2.457599,
+          "min": 2.353151,
+          "max": 2.766847
+        },
+        "http_service_p99_ms": {
+          "median": 34.275327,
+          "min": 33.538047,
+          "max": 36.831231
+        },
+        "error_types": {}
+      },
+      {
+        "rate": 200,
+        "passes": 3,
+        "all_pass": true,
+        "p50_ms": {
+          "median": 16.719871,
+          "min": 16.498687,
+          "max": 16.941055
+        },
+        "p99_ms": {
+          "median": 29.196287,
+          "min": 28.114943,
+          "max": 30.408703
+        },
+        "p999_ms": {
+          "median": 51.085311,
+          "min": 48.201727,
+          "max": 70.385663
+        },
+        "errors": 0,
+        "achieved_per_s": {
+          "median": 200.0,
+          "min": 200.0,
+          "max": 200.0
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 0.096703,
+          "min": 0.077055,
+          "max": 0.125695
+        },
+        "http_service_p99_ms": {
+          "median": 29.179903,
+          "min": 28.082175,
+          "max": 30.392319
+        },
+        "error_types": {}
+      },
+      {
+        "rate": 400,
+        "passes": 3,
+        "all_pass": true,
+        "p50_ms": {
+          "median": 17.235967,
+          "min": 16.957439,
+          "max": 17.760255
+        },
+        "p99_ms": {
+          "median": 30.818303,
+          "min": 27.426815,
+          "max": 31.752191
+        },
+        "p999_ms": {
+          "median": 62.128127,
+          "min": 31.162367,
+          "max": 64.782335
+        },
+        "errors": 0,
+        "achieved_per_s": {
+          "median": 400.0,
+          "min": 400.0,
+          "max": 400.0
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 0.159231,
+          "min": 0.124159,
+          "max": 0.211839
+        },
+        "http_service_p99_ms": {
+          "median": 30.801919,
+          "min": 27.410431,
+          "max": 31.571967
+        },
+        "error_types": {}
+      },
+      {
+        "rate": 800,
+        "passes": 3,
+        "all_pass": true,
+        "p50_ms": {
+          "median": 18.366463,
+          "min": 17.940479,
+          "max": 18.464767
+        },
+        "p99_ms": {
+          "median": 31.834111,
+          "min": 31.342591,
+          "max": 44.040191
+        },
+        "p999_ms": {
+          "median": 69.337087,
+          "min": 60.030975,
+          "max": 87.752703
+        },
+        "errors": 0,
+        "achieved_per_s": {
+          "median": 800.0,
+          "min": 800.0,
+          "max": 800.0
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 0.958463,
+          "min": 0.563199,
+          "max": 4.040703
+        },
+        "http_service_p99_ms": {
+          "median": 30.900223,
+          "min": 30.081023,
+          "max": 31.358975
+        },
+        "error_types": {}
+      },
+      {
+        "rate": 1131,
+        "passes": 3,
+        "all_pass": true,
+        "p50_ms": {
+          "median": 19.644415,
+          "min": 19.283967,
+          "max": 19.824639
+        },
+        "p99_ms": {
+          "median": 38.174719,
+          "min": 37.617663,
+          "max": 54.755327
+        },
+        "p999_ms": {
+          "median": 69.468159,
+          "min": 67.633151,
+          "max": 88.342527
+        },
+        "errors": 6,
+        "achieved_per_s": {
+          "median": 1130.9,
+          "min": 1130.8,
+          "max": 1131.0
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 9.961471,
+          "min": 9.314303,
+          "max": 26.443775
+        },
+        "http_service_p99_ms": {
+          "median": 32.489471,
+          "min": 31.948799,
+          "max": 32.620543
+        },
+        "error_types": {
+          "http_503": 6
+        }
+      },
+      {
+        "rate": 1600,
+        "passes": 0,
+        "all_pass": false,
+        "p50_ms": {
+          "median": 1011.351551,
+          "min": 1010.827263,
+          "max": 1011.351551
+        },
+        "p99_ms": {
+          "median": 1029.177343,
+          "min": 1028.653055,
+          "max": 1029.701631
+        },
+        "p999_ms": {
+          "median": 1046.478847,
+          "min": 1043.857407,
+          "max": 1053.818879
+        },
+        "errors": 13584,
+        "achieved_per_s": {
+          "median": 1370.1,
+          "min": 1367.75,
+          "max": 1382.95
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 1009.254399,
+          "min": 1008.730111,
+          "max": 1009.778687
+        },
+        "http_service_p99_ms": {
+          "median": 34.439167,
+          "min": 33.308671,
+          "max": 34.635775
+        },
+        "error_types": {
+          "expired_before_send": 13378,
+          "http_503": 206
+        }
+      },
+      {
+        "rate": 2262,
+        "passes": 0,
+        "all_pass": false,
+        "p50_ms": {
+          "median": 1011.875839,
+          "min": 1011.875839,
+          "max": 1011.875839
+        },
+        "p99_ms": {
+          "median": 1029.177343,
+          "min": 1029.177343,
+          "max": 1029.701631
+        },
+        "p999_ms": {
+          "median": 1040.187391,
+          "min": 1039.138815,
+          "max": 1044.905983
+        },
+        "errors": 53472,
+        "achieved_per_s": {
+          "median": 1368.8,
+          "min": 1368.6,
+          "max": 1375.0
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 1015.021567,
+          "min": 1015.021567,
+          "max": 1016.070143
+        },
+        "http_service_p99_ms": {
+          "median": 33.112063,
+          "min": 32.997375,
+          "max": 33.849343
+        },
+        "error_types": {
+          "expired_before_send": 53209,
+          "http_503": 263
+        }
+      },
+      {
+        "rate": 3200,
+        "passes": 0,
+        "all_pass": false,
+        "p50_ms": {
+          "median": 1011.875839,
+          "min": 1011.875839,
+          "max": 1012.400127
+        },
+        "p99_ms": {
+          "median": 1031.274495,
+          "min": 1028.653055,
+          "max": 1031.274495
+        },
+        "p999_ms": {
+          "median": 1047.003135,
+          "min": 1043.857407,
+          "max": 1061.158911
+        },
+        "errors": 110582,
+        "achieved_per_s": {
+          "median": 1343.75,
+          "min": 1341.25,
+          "max": 1385.9
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 1021.313023,
+          "min": 1018.691583,
+          "max": 1021.313023
+        },
+        "http_service_p99_ms": {
+          "median": 33.619967,
+          "min": 31.653887,
+          "max": 34.471935
+        },
+        "error_types": {
+          "expired_before_send": 110342,
+          "http_503": 240
+        }
+      },
+      {
+        "rate": 4525,
+        "passes": 0,
+        "all_pass": false,
+        "p50_ms": {
+          "median": 1011.875839,
+          "min": 1011.875839,
+          "max": 1012.400127
+        },
+        "p99_ms": {
+          "median": 1030.225919,
+          "min": 1029.701631,
+          "max": 1031.274495
+        },
+        "p999_ms": {
+          "median": 1045.430271,
+          "min": 1044.381695,
+          "max": 1049.624575
+        },
+        "errors": 189583,
+        "achieved_per_s": {
+          "median": 1353.5,
+          "min": 1342.2,
+          "max": 1400.15
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 1023.410175,
+          "min": 1022.885887,
+          "max": 1023.934463
+        },
+        "http_service_p99_ms": {
+          "median": 32.210943,
+          "min": 31.162367,
+          "max": 33.062911
+        },
+        "error_types": {
+          "expired_before_send": 189197,
+          "http_503": 386
+        }
+      }
+    ]
+  },
+  {
+    "segment": "matrix-g6",
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 32,
+      "keys": "hot1",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-writes-wb-20261027/replay-w5-n1000000-d500-c32-hot1-NEW",
+        "--workload",
+        "W5",
+        "--keys",
+        "hot1",
+        "--link",
+        "A",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-writes-wb-20261027/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-writes-wb-20261027/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-writes-wb-20261027/bin/sb4-postgres-scale-seed",
+        "--rates",
+        "3200",
+        "1600",
+        "800",
+        "1131",
+        "100",
+        "200",
+        "400",
+        "2262",
+        "4525"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "smoke": false,
+    "summary": {
+      "highest_passing_offered_per_s": 1131,
+      "lowest_failing_offered_per_s": 200,
+      "bracketed": true,
+      "rates": [
+        100,
+        200,
+        400,
+        800,
+        1131,
+        1600,
+        2262,
+        3200,
+        4525
+      ],
+      "repeats": 3
+    },
+    "rates": [
+      {
+        "rate": 100,
+        "passes": 3,
+        "all_pass": true,
+        "p50_ms": {
+          "median": 15.024127,
+          "min": 14.991359,
+          "max": 15.237119
+        },
+        "p99_ms": {
+          "median": 26.296319,
+          "min": 26.263551,
+          "max": 26.705919
+        },
+        "p999_ms": {
+          "median": 54.624255,
+          "min": 44.433407,
+          "max": 57.835519
+        },
+        "errors": 0,
+        "achieved_per_s": {
+          "median": 100.0,
+          "min": 100.0,
+          "max": 100.0
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 1.774591,
+          "min": 1.472511,
+          "max": 2.283519
+        },
+        "http_service_p99_ms": {
+          "median": 26.279935,
+          "min": 26.247167,
+          "max": 26.673151
+        },
+        "error_types": {}
+      },
+      {
+        "rate": 200,
+        "passes": 1,
+        "all_pass": false,
+        "p50_ms": {
+          "median": 15.540223,
+          "min": 15.417343,
+          "max": 15.630335
+        },
+        "p99_ms": {
+          "median": 29.163519,
+          "min": 26.279935,
+          "max": 102.825983
+        },
+        "p999_ms": {
+          "median": 115.605503,
+          "min": 37.486591,
+          "max": 177.864703
+        },
+        "errors": 47,
+        "achieved_per_s": {
+          "median": 199.35,
+          "min": 198.3,
+          "max": 200.0
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 1.911807,
+          "min": 1.272831,
+          "max": 1.980415
+        },
+        "http_service_p99_ms": {
+          "median": 29.147135,
+          "min": 26.214399,
+          "max": 83.689471
+        },
+        "error_types": {
+          "http_503": 47
+        }
+      },
+      {
+        "rate": 400,
+        "passes": 3,
+        "all_pass": true,
+        "p50_ms": {
+          "median": 16.605183,
+          "min": 15.753215,
+          "max": 16.752639
+        },
+        "p99_ms": {
+          "median": 35.160063,
+          "min": 27.312127,
+          "max": 36.077567
+        },
+        "p999_ms": {
+          "median": 86.638591,
+          "min": 48.988159,
+          "max": 90.636287
+        },
+        "errors": 0,
+        "achieved_per_s": {
+          "median": 400.0,
+          "min": 400.0,
+          "max": 400.0
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 0.547839,
+          "min": 0.304127,
+          "max": 1.293311
+        },
+        "http_service_p99_ms": {
+          "median": 34.471935,
+          "min": 27.295743,
+          "max": 35.520511
+        },
+        "error_types": {}
+      },
+      {
+        "rate": 800,
+        "passes": 3,
+        "all_pass": true,
+        "p50_ms": {
+          "median": 16.646143,
+          "min": 16.334847,
+          "max": 16.990207
+        },
+        "p99_ms": {
+          "median": 31.096831,
+          "min": 28.622847,
+          "max": 49.020927
+        },
+        "p999_ms": {
+          "median": 47.054847,
+          "min": 37.748735,
+          "max": 92.733439
+        },
+        "errors": 0,
+        "achieved_per_s": {
+          "median": 800.0,
+          "min": 800.0,
+          "max": 800.0
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 0.459007,
+          "min": 0.248191,
+          "max": 9.019391
+        },
+        "http_service_p99_ms": {
+          "median": 30.277631,
+          "min": 28.573695,
+          "max": 30.572543
+        },
+        "error_types": {}
+      },
+      {
+        "rate": 1131,
+        "passes": 3,
+        "all_pass": true,
+        "p50_ms": {
+          "median": 16.924671,
+          "min": 16.695295,
+          "max": 18.006015
+        },
+        "p99_ms": {
+          "median": 38.469631,
+          "min": 33.144831,
+          "max": 43.319295
+        },
+        "p999_ms": {
+          "median": 70.647807,
+          "min": 62.750719,
+          "max": 74.907647
+        },
+        "errors": 1,
+        "achieved_per_s": {
+          "median": 1131.0,
+          "min": 1130.95,
+          "max": 1131.0
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 10.158079,
+          "min": 4.845567,
+          "max": 15.032319
+        },
+        "http_service_p99_ms": {
+          "median": 30.670847,
+          "min": 28.803071,
+          "max": 32.931839
+        },
+        "error_types": {
+          "http_503": 1
+        }
+      },
+      {
+        "rate": 1600,
+        "passes": 0,
+        "all_pass": false,
+        "p50_ms": {
+          "median": 993.001471,
+          "min": 716.701695,
+          "max": 1003.487231
+        },
+        "p99_ms": {
+          "median": 1024.983039,
+          "min": 1024.458751,
+          "max": 1026.031615
+        },
+        "p999_ms": {
+          "median": 1032.847359,
+          "min": 1030.750207,
+          "max": 1039.138815
+        },
+        "errors": 3677,
+        "achieved_per_s": {
+          "median": 1538.5,
+          "min": 1520.75,
+          "max": 1556.9
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 1005.060095,
+          "min": 1004.011519,
+          "max": 1006.108671
+        },
+        "http_service_p99_ms": {
+          "median": 33.947647,
+          "min": 33.472511,
+          "max": 34.242559
+        },
+        "error_types": {
+          "expired_before_send": 3507,
+          "http_503": 170
+        }
+      },
+      {
+        "rate": 2262,
+        "passes": 0,
+        "all_pass": false,
+        "p50_ms": {
+          "median": 1010.827263,
+          "min": 1010.827263,
+          "max": 1010.827263
+        },
+        "p99_ms": {
+          "median": 1029.701631,
+          "min": 1028.653055,
+          "max": 1030.225919
+        },
+        "p999_ms": {
+          "median": 1049.100287,
+          "min": 1048.051711,
+          "max": 1051.721727
+        },
+        "errors": 45320,
+        "achieved_per_s": {
+          "median": 1514.45,
+          "min": 1490.55,
+          "max": 1515.0
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 1015.545855,
+          "min": 1014.497279,
+          "max": 1016.070143
+        },
+        "http_service_p99_ms": {
+          "median": 33.587199,
+          "min": 32.047103,
+          "max": 33.587199
+        },
+        "error_types": {
+          "expired_before_send": 45150,
+          "http_503": 170
+        }
+      },
+      {
+        "rate": 3200,
+        "passes": 0,
+        "all_pass": false,
+        "p50_ms": {
+          "median": 1010.827263,
+          "min": 1010.827263,
+          "max": 1010.827263
+        },
+        "p99_ms": {
+          "median": 1028.653055,
+          "min": 1028.653055,
+          "max": 1029.177343
+        },
+        "p999_ms": {
+          "median": 1040.711679,
+          "min": 1037.565951,
+          "max": 1041.235967
+        },
+        "errors": 102601,
+        "achieved_per_s": {
+          "median": 1487.75,
+          "min": 1481.1,
+          "max": 1501.1
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 1018.691583,
+          "min": 1018.691583,
+          "max": 1018.691583
+        },
+        "http_service_p99_ms": {
+          "median": 31.457279,
+          "min": 31.342591,
+          "max": 32.014335
+        },
+        "error_types": {
+          "expired_before_send": 102452,
+          "http_503": 149
+        }
+      },
+      {
+        "rate": 4525,
+        "passes": 0,
+        "all_pass": false,
+        "p50_ms": {
+          "median": 1010.827263,
+          "min": 1010.302975,
+          "max": 1010.827263
+        },
+        "p99_ms": {
+          "median": 1030.225919,
+          "min": 1029.177343,
+          "max": 1031.798783
+        },
+        "p999_ms": {
+          "median": 1073.741823,
+          "min": 1051.197439,
+          "max": 1076.887551
+        },
+        "errors": 179566,
+        "achieved_per_s": {
+          "median": 1537.0,
+          "min": 1509.95,
+          "max": 1549.75
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 1022.885887,
+          "min": 1022.361599,
+          "max": 1024.458751
+        },
+        "http_service_p99_ms": {
+          "median": 30.343167,
+          "min": 30.130175,
+          "max": 30.605311
+        },
+        "error_types": {
+          "expired_before_send": 179185,
+          "http_503": 381
+        }
+      }
+    ]
+  },
+  {
+    "segment": "matrix-g6",
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 32,
+      "keys": "same",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-writes-wb-20261027/replay-w5-n1000000-d500-c32-same-NEW",
+        "--workload",
+        "W5",
+        "--keys",
+        "same",
+        "--link",
+        "A",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-writes-wb-20261027/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-writes-wb-20261027/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-writes-wb-20261027/bin/sb4-postgres-scale-seed",
+        "--rates",
+        "100",
+        "200",
+        "141",
+        "400",
+        "800",
+        "1131",
+        "1600",
+        "2262",
+        "3200",
+        "4525"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "smoke": false,
+    "summary": {
+      "highest_passing_offered_per_s": 1131,
+      "lowest_failing_offered_per_s": 200,
+      "bracketed": true,
+      "rates": [
+        100,
+        141,
+        200,
+        400,
+        800,
+        1131,
+        1600,
+        2262,
+        3200,
+        4525
+      ],
+      "repeats": 3
+    },
+    "rates": [
+      {
+        "rate": 100,
+        "passes": 3,
+        "all_pass": true,
+        "p50_ms": {
+          "median": 15.106047,
+          "min": 15.056895,
+          "max": 15.245311
+        },
+        "p99_ms": {
+          "median": 29.982719,
+          "min": 28.508159,
+          "max": 30.326783
+        },
+        "p999_ms": {
+          "median": 51.249151,
+          "min": 38.862847,
+          "max": 52.822015
+        },
+        "errors": 0,
+        "achieved_per_s": {
+          "median": 100.0,
+          "min": 100.0,
+          "max": 100.0
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 1.719295,
+          "min": 1.476607,
+          "max": 1.741823
+        },
+        "http_service_p99_ms": {
+          "median": 29.966335,
+          "min": 28.442623,
+          "max": 30.310399
+        },
+        "error_types": {}
+      },
+      {
+        "rate": 141,
+        "passes": 3,
+        "all_pass": true,
+        "p50_ms": {
+          "median": 11.624447,
+          "min": 11.362303,
+          "max": 11.886591
+        },
+        "p99_ms": {
+          "median": 26.312703,
+          "min": 26.099711,
+          "max": 26.656767
+        },
+        "p999_ms": {
+          "median": 53.706751,
+          "min": 50.266111,
+          "max": 59.965439
+        },
+        "errors": 0,
+        "achieved_per_s": {
+          "median": 141.0,
+          "min": 141.0,
+          "max": 141.0
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 1.480703,
+          "min": 0.369407,
+          "max": 2.109439
+        },
+        "http_service_p99_ms": {
+          "median": 26.279935,
+          "min": 26.066943,
+          "max": 26.640383
+        },
+        "error_types": {}
+      },
+      {
+        "rate": 200,
+        "passes": 2,
+        "all_pass": false,
+        "p50_ms": {
+          "median": 15.245311,
+          "min": 14.155775,
+          "max": 15.925247
+        },
+        "p99_ms": {
+          "median": 27.918335,
+          "min": 27.656191,
+          "max": 94.502911
+        },
+        "p999_ms": {
+          "median": 59.015167,
+          "min": 55.672831,
+          "max": 167.510015
+        },
+        "errors": 36,
+        "achieved_per_s": {
+          "median": 200.0,
+          "min": 198.2,
+          "max": 200.0
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 1.232895,
+          "min": 0.516095,
+          "max": 1.352703
+        },
+        "http_service_p99_ms": {
+          "median": 27.639807,
+          "min": 27.623423,
+          "max": 92.143615
+        },
+        "error_types": {
+          "http_503": 36
+        }
+      },
+      {
+        "rate": 400,
+        "passes": 3,
+        "all_pass": true,
+        "p50_ms": {
+          "median": 15.532031,
+          "min": 15.499263,
+          "max": 15.712255
+        },
+        "p99_ms": {
+          "median": 27.525119,
+          "min": 24.182783,
+          "max": 29.802495
+        },
+        "p999_ms": {
+          "median": 63.111167,
+          "min": 28.246015,
+          "max": 63.373311
+        },
+        "errors": 0,
+        "achieved_per_s": {
+          "median": 400.0,
+          "min": 400.0,
+          "max": 400.0
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 0.234623,
+          "min": 0.136703,
+          "max": 0.390143
+        },
+        "http_service_p99_ms": {
+          "median": 27.492351,
+          "min": 24.150015,
+          "max": 29.786111
+        },
+        "error_types": {}
+      },
+      {
+        "rate": 800,
+        "passes": 3,
+        "all_pass": true,
+        "p50_ms": {
+          "median": 16.924671,
+          "min": 16.564223,
+          "max": 17.006591
+        },
+        "p99_ms": {
+          "median": 30.490623,
+          "min": 28.475391,
+          "max": 34.242559
+        },
+        "p999_ms": {
+          "median": 73.465855,
+          "min": 32.784383,
+          "max": 76.218367
+        },
+        "errors": 0,
+        "achieved_per_s": {
+          "median": 800.0,
+          "min": 800.0,
+          "max": 800.0
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 1.124351,
+          "min": 0.509695,
+          "max": 1.603583
+        },
+        "http_service_p99_ms": {
+          "median": 28.835839,
+          "min": 28.442623,
+          "max": 30.326783
+        },
+        "error_types": {}
+      },
+      {
+        "rate": 1131,
+        "passes": 3,
+        "all_pass": true,
+        "p50_ms": {
+          "median": 16.613375,
+          "min": 16.539647,
+          "max": 17.334271
+        },
+        "p99_ms": {
+          "median": 34.242559,
+          "min": 33.259519,
+          "max": 44.728319
+        },
+        "p999_ms": {
+          "median": 65.208319,
+          "min": 57.737215,
+          "max": 66.224127
+        },
+        "errors": 4,
+        "achieved_per_s": {
+          "median": 1130.95,
+          "min": 1130.85,
+          "max": 1131.0
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 5.963775,
+          "min": 4.980735,
+          "max": 16.449535
+        },
+        "http_service_p99_ms": {
+          "median": 29.999103,
+          "min": 29.786111,
+          "max": 30.916607
+        },
+        "error_types": {
+          "http_503": 4
+        }
+      },
+      {
+        "rate": 1600,
+        "passes": 0,
+        "all_pass": false,
+        "p50_ms": {
+          "median": 1006.108671,
+          "min": 1001.390079,
+          "max": 1006.632959
+        },
+        "p99_ms": {
+          "median": 1027.080191,
+          "min": 1026.555903,
+          "max": 1027.080191
+        },
+        "p999_ms": {
+          "median": 1035.993087,
+          "min": 1035.993087,
+          "max": 1050.673151
+        },
+        "errors": 6088,
+        "achieved_per_s": {
+          "median": 1497.45,
+          "min": 1493.1,
+          "max": 1505.05
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 1007.157247,
+          "min": 1006.632959,
+          "max": 1007.157247
+        },
+        "http_service_p99_ms": {
+          "median": 34.537471,
+          "min": 32.899071,
+          "max": 34.635775
+        },
+        "error_types": {
+          "expired_before_send": 5762,
+          "http_503": 326
+        }
+      },
+      {
+        "rate": 2262,
+        "passes": 0,
+        "all_pass": false,
+        "p50_ms": {
+          "median": 1010.827263,
+          "min": 1010.827263,
+          "max": 1010.827263
+        },
+        "p99_ms": {
+          "median": 1028.128767,
+          "min": 1027.080191,
+          "max": 1030.225919
+        },
+        "p999_ms": {
+          "median": 1047.527423,
+          "min": 1047.527423,
+          "max": 1065.353215
+        },
+        "errors": 46437,
+        "achieved_per_s": {
+          "median": 1493.75,
+          "min": 1467.95,
+          "max": 1502.45
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 1013.972991,
+          "min": 1012.924415,
+          "max": 1016.070143
+        },
+        "http_service_p99_ms": {
+          "median": 31.309823,
+          "min": 30.179327,
+          "max": 33.685503
+        },
+        "error_types": {
+          "expired_before_send": 46166,
+          "http_503": 271
+        }
+      },
+      {
+        "rate": 3200,
+        "passes": 0,
+        "all_pass": false,
+        "p50_ms": {
+          "median": 1010.827263,
+          "min": 1010.827263,
+          "max": 1010.827263
+        },
+        "p99_ms": {
+          "median": 1027.604479,
+          "min": 1027.604479,
+          "max": 1027.604479
+        },
+        "p999_ms": {
+          "median": 1034.944511,
+          "min": 1033.371647,
+          "max": 1041.760255
+        },
+        "errors": 103472,
+        "achieved_per_s": {
+          "median": 1474.95,
+          "min": 1474.5,
+          "max": 1476.95
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 1017.643007,
+          "min": 1017.643007,
+          "max": 1017.643007
+        },
+        "http_service_p99_ms": {
+          "median": 30.408703,
+          "min": 30.392319,
+          "max": 30.736383
+        },
+        "error_types": {
+          "expired_before_send": 103242,
+          "http_503": 230
+        }
+      },
+      {
+        "rate": 4525,
+        "passes": 0,
+        "all_pass": false,
+        "p50_ms": {
+          "median": 1010.827263,
+          "min": 1010.827263,
+          "max": 1010.827263
+        },
+        "p99_ms": {
+          "median": 1027.604479,
+          "min": 1027.604479,
+          "max": 1028.128767
+        },
+        "p999_ms": {
+          "median": 1047.003135,
+          "min": 1042.808831,
+          "max": 1047.527423
+        },
+        "errors": 181385,
+        "achieved_per_s": {
+          "median": 1496.35,
+          "min": 1486.5,
+          "max": 1522.9
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 1020.788735,
+          "min": 1020.264447,
+          "max": 1020.788735
+        },
+        "http_service_p99_ms": {
+          "median": 29.310975,
+          "min": 29.048831,
+          "max": 29.753343
+        },
+        "error_types": {
+          "expired_before_send": 180862,
+          "http_503": 523
+        }
+      }
+    ]
+  },
+  {
+    "segment": "diagnostic-http",
+    "cell": {
+      "workload": "W4",
+      "rows": 1000000,
+      "delay_us": 1000,
+      "writers": 32,
+      "keys": "disjoint",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-writes-wb-20261027/replay-w4-n1000000-d1000-c32-disjoint-NEW",
+        "--workload",
+        "W4",
+        "--keys",
+        "disjoint",
+        "--link",
+        "B",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-writes-wb-20261027/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-writes-wb-20261027/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-writes-wb-20261027/bin/sb4-postgres-scale-seed",
+        "--rates",
+        "1131",
+        "100"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "smoke": false,
+    "summary": {
+      "highest_passing_offered_per_s": 1131,
+      "lowest_failing_offered_per_s": null,
+      "bracketed": false,
+      "rates": [
+        100,
+        1131
+      ],
+      "repeats": 3
+    },
+    "rates": [
+      {
+        "rate": 100,
+        "passes": 3,
+        "all_pass": true,
+        "p50_ms": {
+          "median": 16.760831,
+          "min": 16.596991,
+          "max": 16.777215
+        },
+        "p99_ms": {
+          "median": 22.036479,
+          "min": 22.020095,
+          "max": 22.429695
+        },
+        "p999_ms": {
+          "median": 23.805951,
+          "min": 23.429119,
+          "max": 24.887295
+        },
+        "errors": 0,
+        "achieved_per_s": {
+          "median": 100.0,
+          "min": 100.0,
+          "max": 100.0
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 0.033375,
+          "min": 0.033023,
+          "max": 0.038527
+        },
+        "http_service_p99_ms": {
+          "median": 22.020095,
+          "min": 21.987327,
+          "max": 22.413311
+        },
+        "error_types": {}
+      },
+      {
+        "rate": 1131,
+        "passes": 3,
+        "all_pass": true,
+        "p50_ms": {
+          "median": 10.264575,
+          "min": 10.231807,
+          "max": 10.362879
+        },
+        "p99_ms": {
+          "median": 20.283391,
+          "min": 16.121855,
+          "max": 21.839871
+        },
+        "p999_ms": {
+          "median": 43.614207,
+          "min": 24.657919,
+          "max": 49.512447
+        },
+        "errors": 0,
+        "achieved_per_s": {
+          "median": 1131.0,
+          "min": 1131.0,
+          "max": 1131.0
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 0.112255,
+          "min": 0.050399,
+          "max": 0.269055
+        },
+        "http_service_p99_ms": {
+          "median": 18.350079,
+          "min": 16.023551,
+          "max": 20.185087
+        },
+        "error_types": {}
+      }
+    ]
+  },
+  {
+    "segment": "diagnostic-http",
+    "cell": {
+      "workload": "W4",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 32,
+      "keys": "disjoint",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-writes-wb-20261027/replay-w4-n1000000-d500-c32-disjoint-NEW",
+        "--workload",
+        "W4",
+        "--keys",
+        "disjoint",
+        "--link",
+        "A",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-writes-wb-20261027/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-writes-wb-20261027/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-writes-wb-20261027/bin/sb4-postgres-scale-seed",
+        "--rates",
+        "1131"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "smoke": false,
+    "summary": {
+      "highest_passing_offered_per_s": 1131,
+      "lowest_failing_offered_per_s": null,
+      "bracketed": false,
+      "rates": [
+        1131
+      ],
+      "repeats": 3
+    },
+    "rates": [
+      {
+        "rate": 1131,
+        "passes": 3,
+        "all_pass": true,
+        "p50_ms": {
+          "median": 8.855551,
+          "min": 8.683519,
+          "max": 10.690559
+        },
+        "p99_ms": {
+          "median": 29.130751,
+          "min": 14.557183,
+          "max": 30.228479
+        },
+        "p999_ms": {
+          "median": 36.274175,
+          "min": 21.200895,
+          "max": 62.029823
+        },
+        "errors": 0,
+        "achieved_per_s": {
+          "median": 1131.0,
+          "min": 1131.0,
+          "max": 1131.0
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 1.419263,
+          "min": 0.076863,
+          "max": 2.670591
+        },
+        "http_service_p99_ms": {
+          "median": 19.054591,
+          "min": 14.532607,
+          "max": 28.786687
+        },
+        "error_types": {}
+      }
+    ]
+  },
+  {
+    "segment": "diagnostic-http",
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 1000,
+      "writers": 32,
+      "keys": "hot1",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-writes-wb-20261027/replay-w5-n1000000-d1000-c32-hot1-NEW",
+        "--workload",
+        "W5",
+        "--keys",
+        "hot1",
+        "--link",
+        "B",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-writes-wb-20261027/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-writes-wb-20261027/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-writes-wb-20261027/bin/sb4-postgres-scale-seed",
+        "--rates",
+        "1131"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "smoke": false,
+    "summary": {
+      "highest_passing_offered_per_s": 1131,
+      "lowest_failing_offered_per_s": null,
+      "bracketed": false,
+      "rates": [
+        1131
+      ],
+      "repeats": 3
+    },
+    "rates": [
+      {
+        "rate": 1131,
+        "passes": 3,
+        "all_pass": true,
+        "p50_ms": {
+          "median": 10.420223,
+          "min": 10.321919,
+          "max": 10.485759
+        },
+        "p99_ms": {
+          "median": 21.184511,
+          "min": 14.901247,
+          "max": 21.954559
+        },
+        "p999_ms": {
+          "median": 42.827775,
+          "min": 20.578303,
+          "max": 43.384831
+        },
+        "errors": 0,
+        "achieved_per_s": {
+          "median": 1131.0,
+          "min": 1131.0,
+          "max": 1131.0
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 0.225407,
+          "min": 0.050879,
+          "max": 0.231295
+        },
+        "http_service_p99_ms": {
+          "median": 19.578879,
+          "min": 14.876671,
+          "max": 20.447231
+        },
+        "error_types": {}
+      }
+    ]
+  },
+  {
+    "segment": "diagnostic-http",
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 1000,
+      "writers": 32,
+      "keys": "same",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-writes-wb-20261027/replay-w5-n1000000-d1000-c32-same-NEW",
+        "--workload",
+        "W5",
+        "--keys",
+        "same",
+        "--link",
+        "B",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-writes-wb-20261027/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-writes-wb-20261027/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-writes-wb-20261027/bin/sb4-postgres-scale-seed",
+        "--rates",
+        "1131",
+        "100"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "smoke": false,
+    "summary": {
+      "highest_passing_offered_per_s": 1131,
+      "lowest_failing_offered_per_s": null,
+      "bracketed": false,
+      "rates": [
+        100,
+        1131
+      ],
+      "repeats": 3
+    },
+    "rates": [
+      {
+        "rate": 100,
+        "passes": 3,
+        "all_pass": true,
+        "p50_ms": {
+          "median": 16.474111,
+          "min": 16.441343,
+          "max": 16.662527
+        },
+        "p99_ms": {
+          "median": 25.591807,
+          "min": 25.100287,
+          "max": 25.608191
+        },
+        "p999_ms": {
+          "median": 26.738687,
+          "min": 26.689535,
+          "max": 29.523967
+        },
+        "errors": 0,
+        "achieved_per_s": {
+          "median": 100.0,
+          "min": 100.0,
+          "max": 100.0
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 0.034559,
+          "min": 0.030095,
+          "max": 0.038271
+        },
+        "http_service_p99_ms": {
+          "median": 25.526271,
+          "min": 25.067519,
+          "max": 25.591807
+        },
+        "error_types": {}
+      },
+      {
+        "rate": 1131,
+        "passes": 3,
+        "all_pass": true,
+        "p50_ms": {
+          "median": 12.632063,
+          "min": 12.517375,
+          "max": 12.632063
+        },
+        "p99_ms": {
+          "median": 18.595839,
+          "min": 18.464767,
+          "max": 24.084479
+        },
+        "p999_ms": {
+          "median": 23.281663,
+          "min": 21.823487,
+          "max": 49.479679
+        },
+        "errors": 0,
+        "achieved_per_s": {
+          "median": 1131.0,
+          "min": 1131.0,
+          "max": 1131.0
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 0.070783,
+          "min": 0.058207,
+          "max": 1.087487
+        },
+        "http_service_p99_ms": {
+          "median": 18.579455,
+          "min": 18.431999,
+          "max": 21.528575
+        },
+        "error_types": {}
+      }
+    ]
+  },
+  {
+    "segment": "diagnostic-http",
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 32,
+      "keys": "hot1",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-writes-wb-20261027/replay-w5-n1000000-d500-c32-hot1-NEW",
+        "--workload",
+        "W5",
+        "--keys",
+        "hot1",
+        "--link",
+        "A",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-writes-wb-20261027/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-writes-wb-20261027/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-writes-wb-20261027/bin/sb4-postgres-scale-seed",
+        "--rates",
+        "1131"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "smoke": false,
+    "summary": {
+      "highest_passing_offered_per_s": 1131,
+      "lowest_failing_offered_per_s": null,
+      "bracketed": false,
+      "rates": [
+        1131
+      ],
+      "repeats": 3
+    },
+    "rates": [
+      {
+        "rate": 1131,
+        "passes": 3,
+        "all_pass": true,
+        "p50_ms": {
+          "median": 8.839167,
+          "min": 8.757247,
+          "max": 8.994815
+        },
+        "p99_ms": {
+          "median": 14.573567,
+          "min": 14.008319,
+          "max": 19.431423
+        },
+        "p999_ms": {
+          "median": 21.102591,
+          "min": 19.709951,
+          "max": 43.581439
+        },
+        "errors": 0,
+        "achieved_per_s": {
+          "median": 1131.0,
+          "min": 1131.0,
+          "max": 1131.0
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 0.057727,
+          "min": 0.056607,
+          "max": 0.170495
+        },
+        "http_service_p99_ms": {
+          "median": 14.557183,
+          "min": 13.991935,
+          "max": 17.170431
+        },
+        "error_types": {}
+      }
+    ]
+  },
+  {
+    "segment": "diagnostic-http",
+    "cell": {
+      "workload": "W5",
+      "rows": 1000000,
+      "delay_us": 500,
+      "writers": 32,
+      "keys": "same",
+      "target": "snapback",
+      "rerun": [
+        "python3",
+        "/home/ccheever/projects/sb4-s1sk/snapback4/experiments/scale-controls/scripts/s1-onehost.py",
+        "--system",
+        "snapback",
+        "--mode",
+        "cell",
+        "--out",
+        "/home/ccheever/sb4scale/s1-writes-wb-20261027/replay-w5-n1000000-d500-c32-same-NEW",
+        "--workload",
+        "W5",
+        "--keys",
+        "same",
+        "--link",
+        "A",
+        "--warmup-ms",
+        "10000",
+        "--duration-ms",
+        "20000",
+        "--repeats",
+        "3",
+        "--max-rate",
+        "128000",
+        "--harness",
+        "/home/ccheever/sb4scale/s1-writes-wb-20261027/bin/sb4-scale-controls",
+        "--extra-read-rates",
+        "--snapback-bin",
+        "/home/ccheever/sb4scale/s1-writes-wb-20261027/bin/snapback4",
+        "--seed-bin",
+        "/home/ccheever/sb4scale/s1-writes-wb-20261027/bin/sb4-postgres-scale-seed",
+        "--rates",
+        "1131"
+      ],
+      "rate_policy": "double/halve, one geometric midpoint, plus registered extra read rungs; all repetitions must pass"
+    },
+    "smoke": false,
+    "summary": {
+      "highest_passing_offered_per_s": 1131,
+      "lowest_failing_offered_per_s": null,
+      "bracketed": false,
+      "rates": [
+        1131
+      ],
+      "repeats": 3
+    },
+    "rates": [
+      {
+        "rate": 1131,
+        "passes": 3,
+        "all_pass": true,
+        "p50_ms": {
+          "median": 10.362879,
+          "min": 10.158079,
+          "max": 10.379263
+        },
+        "p99_ms": {
+          "median": 20.742143,
+          "min": 14.475263,
+          "max": 21.725183
+        },
+        "p999_ms": {
+          "median": 41.451519,
+          "min": 19.251199,
+          "max": 44.662783
+        },
+        "errors": 0,
+        "achieved_per_s": {
+          "median": 1131.0,
+          "min": 1131.0,
+          "max": 1131.0
+        },
+        "dispatch_lag_p99_ms": {
+          "median": 0.112895,
+          "min": 0.055391,
+          "max": 0.164479
+        },
+        "http_service_p99_ms": {
+          "median": 17.612799,
+          "min": 14.458879,
+          "max": 20.152319
+        },
+        "error_types": {}
+      }
+    ]
+  }
+]

@@ -1,0 +1,9 @@
+{
+  "time": 1793086100.6615562,
+  "interval_s": 1.0336178690195084,
+  "scope": "one diagnostic observation during native W4/A; no qualification rule changed",
+  "unrelated_processes": 6,
+  "unrelated_logical_cores": 3.9279506688979002,
+  "total_sampled_logical_cores": 5.311440682820067,
+  "raw_evidence": "private archive/shared-host-observation.json"
+}

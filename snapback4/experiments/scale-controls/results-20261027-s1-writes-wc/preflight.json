@@ -1,0 +1,10 @@
+{
+  "time": 1793093411.6989658,
+  "branch": "sb4-pg/s1-wb",
+  "head": "e10c3a22a690997cd8049c4b4037c8a6ed58cd80",
+  "home_free_bytes": 34927804416,
+  "private_pg_version": "16.15",
+  "private_pg_port": 55441,
+  "pg17_55440_never_connected": true,
+  "product_changes": false
+}

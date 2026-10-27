@@ -1,0 +1,146 @@
+[
+  {
+    "workload": "W4",
+    "keys": "disjoint",
+    "link": "B",
+    "rate": 100,
+    "mean_n": {
+      "median": 1.1367942402425162,
+      "min": 1.13464447806354,
+      "max": 1.147227533460803
+    },
+    "target_values": [
+      32
+    ],
+    "target_transitions": 0,
+    "max_n": 2,
+    "passes": 3,
+    "scope": "whole trial including warm-up and drain; completion events, not measured requests"
+  },
+  {
+    "workload": "W4",
+    "keys": "disjoint",
+    "link": "B",
+    "rate": 1131,
+    "mean_n": {
+      "median": 4.540952890792291,
+      "min": 4.5246032804373915,
+      "max": 4.549477071600966
+    },
+    "target_values": [
+      32
+    ],
+    "target_transitions": 0,
+    "max_n": 31,
+    "passes": 3,
+    "scope": "whole trial including warm-up and drain; completion events, not measured requests"
+  },
+  {
+    "workload": "W4",
+    "keys": "disjoint",
+    "link": "A",
+    "rate": 1131,
+    "mean_n": {
+      "median": 3.907185628742515,
+      "min": 3.864024598565084,
+      "max": 5.694864048338369
+    },
+    "target_values": [
+      32
+    ],
+    "target_transitions": 0,
+    "max_n": 25,
+    "passes": 3,
+    "scope": "whole trial including warm-up and drain; completion events, not measured requests"
+  },
+  {
+    "workload": "W5",
+    "keys": "hot1",
+    "link": "B",
+    "rate": 1131,
+    "mean_n": {
+      "median": 4.6000542299349245,
+      "min": 4.566621803499327,
+      "max": 4.62324567379752
+    },
+    "target_values": [
+      32
+    ],
+    "target_transitions": 0,
+    "max_n": 31,
+    "passes": 3,
+    "scope": "whole trial including warm-up and drain; completion events, not measured requests"
+  },
+  {
+    "workload": "W5",
+    "keys": "same",
+    "link": "B",
+    "rate": 100,
+    "mean_n": {
+      "median": 1.2515644555694618,
+      "min": 1.2510425354462051,
+      "max": 1.2547051442910917
+    },
+    "target_values": [
+      32
+    ],
+    "target_transitions": 0,
+    "max_n": 3,
+    "passes": 3,
+    "scope": "whole trial including warm-up and drain; completion events, not measured requests"
+  },
+  {
+    "workload": "W5",
+    "keys": "same",
+    "link": "B",
+    "rate": 1131,
+    "mean_n": {
+      "median": 5.5741744701823555,
+      "min": 5.548650858544563,
+      "max": 5.591628213579433
+    },
+    "target_values": [
+      32
+    ],
+    "target_transitions": 0,
+    "max_n": 21,
+    "passes": 3,
+    "scope": "whole trial including warm-up and drain; completion events, not measured requests"
+  },
+  {
+    "workload": "W5",
+    "keys": "hot1",
+    "link": "A",
+    "rate": 1131,
+    "mean_n": {
+      "median": 3.8697536496350367,
+      "min": 3.847811295078249,
+      "max": 3.9508616674429438
+    },
+    "target_values": [
+      32
+    ],
+    "target_transitions": 0,
+    "max_n": 24,
+    "passes": 3,
+    "scope": "whole trial including warm-up and drain; completion events, not measured requests"
+  },
+  {
+    "workload": "W5",
+    "keys": "same",
+    "link": "A",
+    "rate": 1131,
+    "mean_n": {
+      "median": 4.55987098508265,
+      "min": 4.498210261169296,
+      "max": 4.577711818672423
+    },
+    "target_values": [
+      32
+    ],
+    "target_transitions": 0,
+    "max_n": 24,
+    "passes": 3,
+    "scope": "whole trial including warm-up and drain; completion events, not measured requests"
+  }
+]

@@ -1,0 +1,38 @@
+[
+  {
+    "workload": "W4",
+    "keys": "disjoint",
+    "link": "B",
+    "highest_passing_rate": 1131,
+    "lower_failing_rates": [
+      400
+    ]
+  },
+  {
+    "workload": "W5",
+    "keys": "hot1",
+    "link": "B",
+    "highest_passing_rate": 1131,
+    "lower_failing_rates": [
+      400
+    ]
+  },
+  {
+    "workload": "W5",
+    "keys": "hot1",
+    "link": "A",
+    "highest_passing_rate": 1131,
+    "lower_failing_rates": [
+      200
+    ]
+  },
+  {
+    "workload": "W5",
+    "keys": "same",
+    "link": "A",
+    "highest_passing_rate": 1131,
+    "lower_failing_rates": [
+      200
+    ]
+  }
+]
