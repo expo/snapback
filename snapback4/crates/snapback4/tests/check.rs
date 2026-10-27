@@ -765,7 +765,7 @@ fn check_preserves_database_and_wal_bytes_with_live_and_stopped_dev() {
 
 #[test]
 fn guide_prediction_is_a_stdout_card() {
-    let output = Command::new(BIN).args(["guide", "prediction"]).output().unwrap();
+    let output = Command::new(BIN).args(["guide", "prediction", "--repeat"]).output().unwrap();
     assert!(output.status.success(), "{output:?}");
     assert!(String::from_utf8_lossy(&output.stdout).starts_with("# Prediction"));
     assert!(output.stderr.is_empty());
@@ -795,7 +795,7 @@ fn guide_lists_aliases_and_resolves_them_on_stdout() {
     assert!(output.status.success() && output.stderr.is_empty(), "{output:?}");
     let aliases = String::from_utf8_lossy(&output.stdout);
     assert!(aliases.lines().any(|line| line == "offline -> prediction") && aliases.contains("pagination -> reads --section"), "{aliases}");
-    let output = Command::new(BIN).args(["guide", "pagination"]).output().unwrap();
+    let output = Command::new(BIN).args(["guide", "pagination", "--repeat"]).output().unwrap();
     assert!(output.status.success());
     // Wave 6 (074): an alias that names a section prints that section, under the card's title.
     let pagination = String::from_utf8_lossy(&output.stdout);
