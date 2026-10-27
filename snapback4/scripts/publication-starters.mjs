@@ -292,7 +292,9 @@ export async function proveStarters(client, platform, expo, directory, browserPr
     if (template === "social") await run(process.execPath, ["--input-type=commonjs", "-e", `
       const fs=require('node:fs'),assert=require('node:assert/strict'),cp=require('node:child_process');
       const cli=${JSON.stringify(cli)},schema='snapback/schema.q',original=fs.readFileSync(schema,'utf8');
-      const check=()=>cp.spawnSync(cli,['check','--json'],{encoding:'utf8',timeout:30000});
+      // The enclosing owned command already enforces the toolchain deadline
+      // and drains descendants; a second 30s fuse is not a latency assertion.
+      const check=()=>cp.spawnSync(cli,['check','--json'],{encoding:'utf8'});
       const stock=check();assert.equal(stock.status,0,stock.stdout+stock.stderr);
       assert.ok(!JSON.parse(stock.stdout).securityReviews.some(r=>r.code==='N_OPTIONAL_UPLOAD_CREATE'));
       assert.ok(!fs.existsSync('snapback/security-reviews.json'));

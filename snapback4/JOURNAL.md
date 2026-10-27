@@ -109677,3 +109677,13 @@ SEC11b found provisional .003/.004 reservations after the first integration
 assignment. Historical .001 reviews and the intermediate .003 commit remain in
 history. SEC11b's .002 conflict with landed SEC12 is a filesystem follow-up; none
 of that excluded branch's new code or documents is merged.
+
+### 2026-10-27 — Integration 28 isolated social fixture custody
+
+The complete installed consumer chain exposed the social optional-upload fixture’s
+nested 30-second spawn timeout under proot: it killed a check that had already
+produced its valid result after 26 seconds. Use the existing owned toolchain
+deadline and process-group drain instead of a second inner wall-clock fuse.
+Exact zero exit, current JSON, stock/edited-source optional-upload assertions and
+no decision-file assertion remain; the existing five-minute command and twenty-minute
+starter guards, fixed security work budgets and measured latency ticket are unchanged.
