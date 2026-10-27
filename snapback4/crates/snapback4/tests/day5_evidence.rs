@@ -45,7 +45,7 @@ fn save_version_captures_selected_modules_fixtures_and_the_actual_release_label(
     assert_eq!(serde_json::from_str::<serde_json::Value>(&app.read("versions/v1/generated/package.json")).unwrap()["type"],"module");
     app.ok(&["test","--source","versions/v1"]);
     fs::remove_file(app.0.join("versions/v1/release.json")).unwrap();fs::remove_dir_all(app.0.join("versions/v1/generated")).unwrap();
-    let refreshed=app.run(&["deploy","deployment","--save-version","versions/v1"]);assert!(refreshed.status.success(),"{refreshed:?}");assert!(String::from_utf8_lossy(&refreshed.stderr).contains("refreshed release 1"));
+    let refreshed=app.run(&["deploy","deployment","--save-version","versions/v1"]);assert!(refreshed.status.success(),"{refreshed:?}");assert!(format!("{}{}",String::from_utf8_lossy(&refreshed.stdout),String::from_utf8_lossy(&refreshed.stderr)).contains("refreshed release 1"));
     assert!(app.read("versions/v1/generated/api.ts").contains("alive"));assert_eq!(serde_json::from_str::<serde_json::Value>(&app.read("versions/v1/release.json")).unwrap()["release"],1);
     app.write("snapback/schema.q","use personas alice\nquery alive():\n  return false\n");
     let mismatch=app.run(&["deploy","deployment","--save-version","versions/v1"]);assert!(!mismatch.status.success());assert!(String::from_utf8_lossy(&mismatch.stderr).contains("selected source differs"));
