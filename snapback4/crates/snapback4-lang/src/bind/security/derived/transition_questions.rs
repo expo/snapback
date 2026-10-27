@@ -18,7 +18,7 @@ fn actor_check(e:&Expr,bound:&Bound)->bool{match e{
         let Some(principal)=super::super::privilege::global_principal(bound,&read.table)else{return false;};
         if read.keys.len()!=2||read.filter.is_some()||read.range.is_some()||read.matching.is_some()||!read.seeks.is_empty()||!read.computed.is_empty(){return false;}
         let roles=super::super::privilege::role_columns(bound,&read.table);let mut actor=false;let mut role=false;
-        for(at,key)in read.keys.iter().enumerate(){let Some(column)=key.column.as_deref().or_else(||(at==0).then_some(principal))else{return false;};
+        for(at,key)in read.keys.iter().enumerate(){let Some(column)=key.column.as_deref().or_else(||(at==0).then_some(principal.as_str()))else{return false;};
             if column==principal&&matches!(&key.value,Expr::Name{name,..}if name=="viewer"){actor=true;}
             else if roles.contains(column)&&literal(&key.value).is_some(){role=true;}else{return false;}
         }actor&&role
