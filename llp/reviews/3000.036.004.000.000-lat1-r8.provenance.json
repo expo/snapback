@@ -1,0 +1,19 @@
+{
+  "date": "2026-10-27T18:27:38.779012+00:00",
+  "sourceCommit": "485a321e58",
+  "reviewers": {
+    "muse": "muse-spark-1.3-contributor high via muse-exec.sh --yolo",
+    "codex": "fresh codex exec gpt-6.1-sol high"
+  },
+  "verdicts": {
+    "muse": "READY",
+    "codex": "READY"
+  },
+  "scope": "New diagnostic-statistics and lazy-directory amendment and source delta only; earlier runtime covered by r6. No performance or full-corpus qualification granted.",
+  "notes": "Codex disclosed that the governing RFC contains historical review summaries; it did not open prior review artifacts. No claim of complete blindness to those summaries.",
+  "sha256": {
+    "llp/reviews/3000.036.004.000.000-lat1-r8.brief.md": "6d4c33464485996a26da81f4dc132d8e0a68c65bd3669eec20e550f97156966e",
+    "llp/reviews/3000.036.004.000.000-lat1-r8.muse.txt": "fff12a3497c99ecc231993541c28691acdc624dafc421d9849eb7503789a86c1",
+    "llp/reviews/3000.036.004.000.000-lat1-r8.codex.txt": "299cf3b35e480088bad0f255ad1e3e32389527bf0491614209b840ffc176ec6c"
+  }
+}
