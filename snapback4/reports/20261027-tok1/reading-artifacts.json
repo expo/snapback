@@ -12,5 +12,9 @@
       "snapback4-linux-x64-0.4.43.tgz": "eb675efbf66b97bda0ee0cfe11620b0cfa2cf00b0c55bb3775093ae6c1533d2c",
       "snapback4-0.4.43.tgz": "12f52fad7f6e1ffc099335196a04a91e31ad2096cbfe45303fe297db36fa5191"
     }
+  },
+  "nativeProfiles": {
+    "before": "wave32 packed baseline",
+    "afterReading": "lean development/test binary, incremental=0 debug=0; not production qualification"
   }
 }

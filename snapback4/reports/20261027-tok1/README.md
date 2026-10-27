@@ -19,3 +19,7 @@ consumers. prove-install-first.mjs proves npm i snapback4 alone before frontend
 installation using a local artifact registry. run-scoped.mjs uses the selector's
 runPlan engine and explicitly retains/narrows its conservative complete plan;
 it never claims publication qualification or the complete selector battery.
+
+Paired reading runs start with the package preinstalled; install timing is measured
+separately. After reading uses the lean dev/test native binary; wall comparisons
+are milestone observations, not production-profile performance qualification.

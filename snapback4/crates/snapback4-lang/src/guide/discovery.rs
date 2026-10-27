@@ -588,7 +588,7 @@ pub fn find(name: &str, card: &str, words: &str) -> Result<String, String> {
 
 
 /// Paragraphs and complete fences are the units of reading and project deltas.
-// @ref LLP 3000.037.000#8-wave-32-builder-reading-and-waiting-tok1 — never cut a runnable fence in half.
+// @ref LLP 3000.037.000#8 — never cut a runnable fence in half.
 pub fn reading_blocks(text: &str) -> Vec<String> {
     let mut blocks = Vec::new(); let mut block = String::new(); let mut fenced = false;
     for line in text.lines() {
