@@ -37,7 +37,7 @@ fn proposals(bound:&Bound,out:&mut Campaign)->Result<Engine,String>{
             let mut principal=0;
             for (column,kind) in &t.columns {
                 if column=="id"||t.engine_field(column)||t.recorded.contains_key(column)||t.maintained.contains_key(column){continue;}
-                let mut value=if kind.is_optional()&&n%2==0&&!(person.0==*table&&person.1==*column){Value::Null}else{match sample(kind.required(),4+n){Some(value)=>value,None=>{out.unsupported.insert(format!("generated fixture {table}.{column}: unsupported typed sample"));continue;}}};
+                let mut value=if kind.is_optional()&&n%2==0&&!(person.0==*table&&person.1==*column){Value::Null}else{match text_samples::column(t,column,(4+n)|4){Some(value)=>value,None=>{out.unsupported.insert(format!("generated fixture {table}.{column}: unsupported typed sample"));continue;}}};
                 if value==Value::Null&&kind.is_optional(){fields.insert(column.clone(),value);continue;}
                 match kind.required(){
                     C::Principal=>{
@@ -46,7 +46,6 @@ fn proposals(bound:&Bound,out:&mut Campaign)->Result<Engine,String>{
                     },
                     C::Ref{table:target}=>{value=Value::Id(format!("security-{target}-{}",n%counts.get(target).copied().unwrap_or(1)));},
                     C::Enum{..}|C::Text{..} if person.0==*table&&person.1==*column=>value=Value::String(person.2.clone()),
-                    C::Text{max}=>{let minimum=t.constraints.iter().filter_map(|c|if let Constraint::Text{field,min,..}=c{(field==column).then_some(*min as usize)}else{None}).max().unwrap_or(1);let suffix=format!("sample{n}");value=Value::String(format!("{suffix}{}","x".repeat(minimum.saturating_sub(suffix.len()))).chars().take(*max as usize).collect());},
                     C::Time=>value=Value::Int(NOW+if t.expire.as_deref()==Some(column){86_400_000}else{-1000}),
                     _=>{},
                 }

@@ -84,7 +84,7 @@ pub(super) fn fixture_cases(bound:&Bound,p:&Program,rows:&BTreeMap<String,Vec<Va
     fn values(name:&str,k:&ir::ArgType,rows:&BTreeMap<String,Vec<Value>>,actors:&[String],times:&[Value])->Option<Vec<Value>>{
         Some(match k{
             ir::ArgType::Enum{variants}=>variants.iter().map(|s|Value::String(s.clone())).collect(),
-            ir::ArgType::Text{min,max,..}=>['z','y'].into_iter().map(|c|Value::String(c.to_string().repeat((*min).max(1).min(*max) as usize))).collect(),
+            ir::ArgType::Text{min,max,format}=>(0..2).filter_map(|v|text_samples::text(*min,*max,*format,v)).collect(),
             ir::ArgType::Int=>vec![Value::Int(0),Value::Int(1),Value::Int(2)],
             ir::ArgType::IntRange{min,max}=>{let mut xs=vec![*min,1i64.clamp(*min,*max),*max];xs.sort();xs.dedup();xs.into_iter().map(Value::Int).collect()},
             ir::ArgType::Bool=>vec![Value::Bool(false),Value::Bool(true)],
@@ -103,7 +103,7 @@ pub(super) fn fixture_cases(bound:&Bound,p:&Program,rows:&BTreeMap<String,Vec<Va
         if let Some(preferred)=preferences.get(name){vals.sort_by_key(|v|!preferred.contains(v));}
         for literal in literals.get(name).into_iter().flatten() {
             let valid=match (k,literal){
-                (ir::ArgType::Text{min,max,..},Value::String(s))=>snapback4_core::visible_text::visible_length(s)>=*min as usize&&s.chars().count()<=*max as usize,
+                (ir::ArgType::Text{min,max,format},Value::String(s))=>snapback4_core::visible_text::visible_length(s)>=*min as usize&&s.chars().count()<=*max as usize&&format.is_none_or(|f|f.matches(s)),
                 (ir::ArgType::Int|ir::ArgType::Money{..}|ir::ArgType::Decimal{..},Value::Int(_))=>true,
                 (ir::ArgType::IntRange{min,max},Value::Int(n))=>(*min..=*max).contains(n),_=>false,
             };

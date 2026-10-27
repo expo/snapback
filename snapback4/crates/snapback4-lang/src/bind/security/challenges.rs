@@ -19,6 +19,7 @@ mod assets;
 mod column_reads;
 mod stability;
 mod generated;
+mod text_samples;
 mod workflow;
 pub use generated::fixture as generated_fixture;
 #[derive(Clone,Debug,Serialize,serde::Deserialize,PartialEq,Eq)]
@@ -102,15 +103,13 @@ fn snapshot_mode(bound:&Bound,inv:&Invariant,variant:usize,timed:bool)->Result<B
         for (n,k) in &t.columns{
             if n=="id"||t.engine_field(n)||t.maintained.contains_key(n){continue;}
             let sample_variant=if let C::Enum{variants}=k.required(){let n=enum_case % variants.len();enum_case/=variants.len();n}else if matches!(k.required(),C::Principal){let n=((variant>>((if name==inv.table{0}else{3})+principal_index.min(5)))&1)|(variant&4);principal_index+=1;n}else{variant};
-            let value=sample(k,sample_variant)
+            let value=text_samples::column(t,n,sample_variant)
                 .ok_or_else(||format!("{name}.{n}: asset ledger/required sample is not available"))?;
             fields.insert(n.clone(),value);
         }
         if timed || t.read_lifetime_sensitive() {for (n,k) in &t.columns {if matches!(k.required(),C::Time)&&(!k.is_optional()||variant&4!=0) {
             fields.insert(n.clone(),Value::Int(NOW+if t.expire.as_ref()==Some(n){2000}else if timed{1000}else{-1000}));
         }}}
-        for constraint in &t.constraints{if let Constraint::Text{field,min,..}=constraint
-            && matches!(fields.get(field),Some(Value::String(_))) {fields.insert(field.clone(),Value::String("x".repeat((*min).max(1) as usize)));}}
         // Named primary keys used by role probes must select the challenged
         // viewer; changing the enum represents a current-role change while
         // derived assignment/membership rows remain present.
@@ -387,7 +386,7 @@ fn arguments(args:&BTreeMap<String,ir::ArgType>,variant:usize)->Option<BTreeMap<
     use ir::ArgType as A;
     fn one(k:&A,v:usize)->Option<Value>{Some(match k{
         A::Ref{table}=>id(table),A::Principal=>Value::Id(if v&1==0{OTHER}else{VIEWER}.into()),A::Id=>Value::Id("security-argument".into()),A::Cursor=>Value::Null,A::Optional(inner)=>if v&4==0{Value::Null}else{one(inner,v)?},
-        A::Text{min,max,..}=>Value::String("z".repeat((*min).max(1).min(*max) as usize)),A::Enum{variants}=>Value::String(variants.get(v%variants.len())?.clone()),A::Int|A::Decimal{..}|A::Money{..}=>Value::Int(1),A::IntRange{min,max}=>Value::Int(1i64.clamp(*min,*max)),A::Time=>Value::Int(NOW+86_400_000),A::Bool=>Value::Bool(v&2==0),A::List{of:Some(inner),..}=>Value::Array(vec![one(inner,v)?]),A::ListRange{of:Some(inner),min,..}=>Value::Array((0..*min).map(|_|one(inner,v)).collect::<Option<_>>()?),A::List{..}=>Value::Array(Vec::new()),A::Json{..}=>Value::Null,A::Bytes{..}=>Value::Bytes(Vec::new()),A::Image{..}=>Value::String(if v&4==0{"$security:image"}else{"$security:image:alternate"}.into()),A::File{..}=>Value::String("$security:file".into()),_=>return None,
+        A::Text{min,max,format}=>text_samples::text(*min,*max,*format,v)?,A::Enum{variants}=>Value::String(variants.get(v%variants.len())?.clone()),A::Int|A::Decimal{..}|A::Money{..}=>Value::Int(1),A::IntRange{min,max}=>Value::Int(1i64.clamp(*min,*max)),A::Time=>Value::Int(NOW+86_400_000),A::Bool=>Value::Bool(v&2==0),A::List{of:Some(inner),..}=>Value::Array(vec![one(inner,v)?]),A::ListRange{of:Some(inner),min,..}=>Value::Array((0..*min).map(|_|one(inner,v)).collect::<Option<_>>()?),A::List{..}=>Value::Array(Vec::new()),A::Json{..}=>Value::Null,A::Bytes{..}=>Value::Bytes(Vec::new()),A::Image{..}=>Value::String(if v&4==0{"$security:image"}else{"$security:image:alternate"}.into()),A::File{..}=>Value::String("$security:file".into()),_=>return None,
     })}
     args.iter().map(|(n,k)|one(k,variant).map(|v|(n.clone(),v))).collect()
 }
