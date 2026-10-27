@@ -1,0 +1,134 @@
+{
+  "base_commit": "b056e7c4dfedd6f83dab58785440798707007845",
+  "checks": {
+    "core": {
+      "verdict": "ok",
+      "passed": 881,
+      "failed": 0,
+      "ignored": 503,
+      "seconds": 223.76
+    },
+    "cache_ri_on": {
+      "verdict": "ok",
+      "passed": 40,
+      "failed": 0,
+      "ignored": 0,
+      "seconds": 132.12
+    },
+    "ri_final": {
+      "verdict": "ok",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "seconds": 5.23
+    },
+    "pipeline_socket": {
+      "verdict": "ok",
+      "passed": 7,
+      "failed": 0,
+      "ignored": 0,
+      "seconds": 0.94
+    },
+    "cli_parallel": {
+      "verdict": "FAILED",
+      "passed": 670,
+      "failed": 4,
+      "ignored": 75,
+      "seconds": 92.81
+    },
+    "round_trips": {
+      "verdict": "ok",
+      "passed": 10,
+      "failed": 0,
+      "ignored": 0,
+      "seconds": 9.68
+    },
+    "cli_latency_serial": {
+      "verdict": "ok",
+      "passed": 13,
+      "failed": 0,
+      "ignored": 0,
+      "seconds": 3.39
+    },
+    "cli_routes_serial": {
+      "verdict": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "seconds": 0.09
+    },
+    "cli_time_serial": {
+      "verdict": "ok",
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0,
+      "seconds": 0.68
+    },
+    "cli_private_config": {
+      "verdict": "ok",
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "seconds": 0.45
+    }
+  },
+  "flag_refusals": [
+    {
+      "setting": "2",
+      "exit": 1,
+      "expected_refusal": true
+    },
+    {
+      "setting": "true",
+      "exit": 1,
+      "expected_refusal": true
+    },
+    {
+      "setting": "",
+      "exit": 1,
+      "expected_refusal": true
+    }
+  ],
+  "ref_check": "ref-check: ok \u2014 575 LLP docs, 12174 refs in 46269 files, 0 errors, 0 unchecked",
+  "diagnostics_registry": "generator executed successfully; no projection changed; production roots exclude fenced Snapback 4",
+  "pilots": [
+    "First RI-on cache suite blocked after an extra authority callback on an already revoked G6 grant; owned test PID terminated, code fixed, 40/40 pass.",
+    "Nullable-owner corruption setup first violated the production NOT NULL constraint; private fixture now explicitly drops/restores the constraint; final 5/5 RI witnesses pass.",
+    "Two TCP-only transport witnesses correctly refuse socket-only PG; seven applicable transport tests pass.",
+    "First round-trip invocation used a nonexistent integration target; corrected to the CLI unit module. Three intake tests then lacked psql on PATH; corrected run passes all ten.",
+    "Broad CLI parallel run has four timing/admission failures. All four pass in serial scoped reruns; broad failure remains recorded.",
+    "Native seed completed; preparation assertion initially omitted two engine-owned maintained-column families. Exact expected declared/generated counts were validated, then VACUUM ANALYZE completed.",
+    "The measurement disk guard tripped before any window; its cleanup originally re-invoked the guard and masked report writing. Cleanup now records free space without re-gating shutdown.",
+    "Conservative disk guard stopped before timing; owned PG stopped and full fixture retained. Resumed only after shared free space recovered above 72 GiB, retaining the same guard.",
+    "Untimed proxy setup repaired directory creation, both private deployment binding copies and readiness URL matching; no measured window was replaced.",
+    "Thirty warm-W1 sweep windows retained and excluded after cross-rate key reuse was observed. Thirty primary fresh-service W1 windows then completed; all W2/W3/W4 windows retained."
+  ],
+  "pruned-own-artifacts.json": {
+    "count": 68,
+    "bytes": 8509301760
+  },
+  "pruned-own-intermediates.json": {
+    "count": 2772,
+    "bytes": 4965352010
+  },
+  "pruned-own-final-debug.json": {
+    "count": 2568,
+    "apparent_bytes": 1854406707
+  },
+  "pruned-own-final-tools.json": {
+    "count": 2193,
+    "apparent_bytes": 784645519
+  },
+  "completed_measurement_summary": {
+    "primary_windows": 126,
+    "warm_W1_pilot_windows": 30,
+    "measured_scheduled": 4590600,
+    "measured_errors": 83106,
+    "valid_cpu_windows": 93,
+    "invalid_cpu_windows": 33,
+    "min_free_bytes": 66197381120,
+    "max_store_connections": 32,
+    "write_cohort_acks": 43200,
+    "write_errors": 0
+  }
+}

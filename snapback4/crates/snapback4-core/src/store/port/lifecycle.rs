@@ -75,6 +75,13 @@ impl AnyStore {
         }
         self.request_read_transaction(digest)
     }
+    #[cfg(feature="postgres")]
+    pub(crate) fn read_index_validation(&mut self)->Option<crate::engine::postgres::read_grant::Published> {
+        if let Self::Postgres(PostgresStore(h))=self {
+            return h.store.get_mut().read_index_validation().ok().flatten();
+        }
+        None
+    }
     pub(crate) fn sqlite_cache_scope(&self) -> Option<i64> {
         match self { Self::Sqlite(SqliteStore(s)) => s.cache_scope(), _ => None }
     }

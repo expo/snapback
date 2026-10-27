@@ -80,6 +80,7 @@ use crate::rows::Rows;
 use crate::receipts::ReceiptReader;
 
 mod statistics;
+mod read_index;
 pub use statistics::Stats;
 
 pub struct PostgresEngine {

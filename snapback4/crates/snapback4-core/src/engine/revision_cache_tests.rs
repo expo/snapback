@@ -6,6 +6,8 @@ use crate::{
     round_trips::Scope,
 };
 use std::collections::BTreeMap;
+#[path = "revision_cache_read_index_tests.rs"]
+mod read_index_witnesses;
 
 fn fixture(pg: bool) -> (Engine, String, String) {
     engine_with_message_count(pg, false, false, 25)

@@ -109852,3 +109852,35 @@ fallback. The marker design combines an exact backend format with an extra
 owner column, so old public owners refuse before claiming. Clock samples
 can trip on observed skew/suspend but cannot prove future behavior; automatic
 G6 still requires an enforced deployment clock contract. Defaults are unchanged.
+
+### 2026-10-28 — G5R clock-free read-index prototype and diagnostic
+
+Author-commissioned `SNAPBACK4_G5_READ_INDEX=1` remains default off. One fresh
+independent owner/metadata statement certifies a bounded round enrolled before
+submission; exact revision equality certifies frozen authority and results,
+and Rust resolves each caller. Later arrivals need a later round. No grant,
+new connection or freshness-clock assumption is added. Stage E stays on gated
+G5; Stage R needs its own W/two-image composition. The Review design extends
+LLP 3000.009.001.000.002 §4.2.
+
+Core 881 pass; RI-on cache/G6/D 40 pass; final RI witnesses 5 pass; socket
+transport 7 pass; CLI round trips 10 pass. Four broad parallel CLI timing/
+admission failures pass scoped serial reruns and remain disclosed. Witnesses
+include a foreign commit ACK after an old snapshot but before read invocation,
+RYW, takeover, uncertainty, malformed owner facts, deadlines, unwind and caps.
+
+The full native million-message fixture completes. A conservative 60 GiB guard
+stops the first controller before timing; owned artifacts are pruned and PG
+stopped. The shared filesystem later recovers, so the preserved fixture is
+resumed under the same guard. Final evidence has 126 primary windows and 30
+retained/excluded warm-W1 pilot windows. W2/A at 8,000/s changes 1.0020 →
+0.1693 SQL/ACK and valid sampled PG CPU 718.4 → 93.6 µs/ACK. But RI fails the
+strict-above-8,000 delayed W2/W3 rungs: holding the 30 execution workers through
+proof waiting exposes a new residence bound. Short-window dispatch tails are
+non-monotonic, and 33 CPU windows are invalid rather than imputed. No default
+competitive win is claimed. W4's twelve windows have zero errors and 43,200
+cohort ACKs with exact counter deltas; no RI write statement/flight is added.
+
+All rates, pilots, limits, source/executable provenance and cleanup receipts are
+in `reports/20261027-g5-readindex/REPORT.md`. Private port-55731 PG is stopped
+and its fixture retained. No push, stash or Git-config change.

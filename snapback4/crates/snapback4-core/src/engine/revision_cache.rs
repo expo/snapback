@@ -14,6 +14,8 @@ use std::{
 const PROCESS_BYTES: usize = 512 << 20;
 static PROCESS_USED: AtomicUsize = AtomicUsize::new(0);
 type Key = [u8; 32];
+#[path = "revision_cache_read_index.rs"]
+mod read_index;
 
 /// Hard limits include bookkeeping, candidate references and reserved fills.
 // @ref LLP 3000.009.001.000.002#4.5 — entry/byte/fill/per-principal bounds and process-wide retention accounting.
@@ -39,6 +41,9 @@ impl Default for Limits {
 #[derive(Clone, Copy, Debug, Default, serde::Serialize)]
 pub struct Stats {
     pub hits: u64,
+    pub read_index_rounds: u64,
+    pub read_index_reads: u64,
+    pub read_index_hits: u64,
     pub g6_hits: u64,
     pub sqlite_hits: u64,
     pub g6_hit_stall_ns: u64,
@@ -182,6 +187,8 @@ impl State {
     }
 }
 pub(crate) struct Cache {
+    read_index: read_index::ReadIndex,
+    read_index_hits: AtomicU64,
     limits: Limits,
     budget: Arc<Budget>,
     bookkeeping: OnceLock<Option<Reservation>>,
@@ -222,6 +229,12 @@ impl Cache {
         // Conservative reservation covers both bounded maps/trees, owner counts,
         // keys, Arc/control blocks and allocator overhead, even at sparse occupancy.
         Self {
+            read_index: {
+                let ri = read_index::ReadIndex::default();
+                ri.enabled.store(std::env::var("SNAPBACK4_G5_READ_INDEX").as_deref() == Ok("1"), Ordering::Relaxed);
+                ri
+            },
+            read_index_hits: AtomicU64::new(0),
             limits,
             budget,
             bookkeeping: OnceLock::new(),
@@ -360,6 +373,9 @@ impl Cache {
     pub(crate) fn stats(&self) -> Stats {
         Stats {
             hits: self.hits.load(Ordering::Relaxed),
+            read_index_rounds: self.read_index.rounds.load(Ordering::Relaxed),
+            read_index_reads: self.read_index.reads.load(Ordering::Relaxed),
+            read_index_hits: self.read_index_hits.load(Ordering::Relaxed),
             g6_hits: self.g6_hits.load(Ordering::Relaxed),
             sqlite_hits: self.sqlite_hits.load(Ordering::Relaxed),
             g6_hit_stall_ns: self.g6_hit_stall_ns.load(Ordering::Relaxed),
@@ -775,6 +791,30 @@ impl Engine {
                 Ok(None)
             } else {
                 (|| {
+                    // Each caller enrolls after invocation; the round closes
+                    // before its leader sends a fresh implicit transaction.
+                    // Revision equality covers session and rule changes too.
+                    if cache.read_index.enabled.load(Ordering::Relaxed)
+                        && self.store.durability().is_none()
+                        && grant.as_ref().is_none_or(|g| !g.revoked.load(Ordering::Acquire) && !g.uncertain.load(Ordering::Acquire))
+                        && let Some(stamp) = cache.read_index.validate(
+                            std::time::Instant::now() + std::time::Duration::from_secs(1),
+                            || self.store.read_index_validation(),
+                        )
+                    {
+                        if stamp != entry.stamp { return Ok(None); }
+                        let tx = self.store.cached_authority_snapshot(digest, entry.facts.clone())?;
+                        snapshot(&tx, stamp.head)?;
+                        tx.rollback()?;
+                        if grant.as_ref().is_some_and(|g| g.uncertain.load(Ordering::Acquire) || g.revoked.load(Ordering::Acquire)) {
+                            return Ok(None);
+                        }
+                        let mut outcome = entry.outcome.clone();
+                        outcome.cache_lifetime = entry.lifetime.clone();
+                        outcome.seq = stamp.head;
+                        cache.read_index_hits.fetch_add(1, Ordering::Relaxed);
+                        return Ok(Some(outcome));
+                    }
                     let Some(tx) = self.store.result_validation_snapshot(digest)? else {
                         return Ok(None);
                     };

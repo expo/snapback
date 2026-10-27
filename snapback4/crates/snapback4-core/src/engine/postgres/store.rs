@@ -112,7 +112,7 @@ impl Store {
     // @ref LLP 3000.009.001.000#8 — only future requests reconnect, with fresh binding checks.
     // A future request may replace a driver already known closed. Cached
     // statements belong to the old socket; no result or authority is reused.
-    fn refresh_reader_connection(&mut self) -> Result<(),RuntimeError> {
+    pub(super) fn refresh_reader_connection(&mut self) -> Result<(),RuntimeError> {
         // Observe loss before attempting replacement: a failed reconnect must
         // not leave the old durability epoch live.
         if self.client.is_closed() && let Some(gate)=&self.early_release {gate.break_history();}

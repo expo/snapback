@@ -38,6 +38,11 @@ impl StoreConfig {
         let Some(url) = url else {
             return Ok(None);
         };
+        match std::env::var("SNAPBACK4_G5_READ_INDEX") {
+            Ok(v) if v == "0" || v == "1" => (),
+            Err(std::env::VarError::NotPresent) => (),
+            _ => return Err(input("SNAPBACK4_G5_READ_INDEX must be 0 or 1")),
+        }
         if options.flags.contains_key("store") {
             return Err(input(
                 "--store and --store-url/SNAPBACK4_STORE_URL conflict",
@@ -209,6 +214,9 @@ impl StoreConfig {
         }
         // Opt in only when the operator can guarantee these bounds across the
         // configured database and every lossless failover. Unset stays on G5.
+        if std::env::var("SNAPBACK4_G5_READ_INDEX").as_deref() == Ok("1") && !self.early_lock_release {
+            owner.read_cache_tier = "G5 read-index (experimental; coalesced fresh statements)".into();
+        }
         match std::env::var("SNAPBACK4_READ_GRANT_CLOCK_BOUNDS") {
             Ok(value) => {
                 let parsed = (|| {
