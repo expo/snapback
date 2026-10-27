@@ -73,6 +73,7 @@ pub(super) enum Frame {
 /// Restricted store operations, with no owning AnyTx or connection access.
 // @ref LLP 3000.009.001.000.000#3.7 — rollback/drop undo only this member, never a preceding member.
 pub(crate) struct MemberTx<'member, 'store> {
+    batch_facts: Option<&'member crate::store_port::batch::Facts>,
     tx: &'member AnyTx<'store>,
     frame: &'member Cell<Frame>,
     reads: std::cell::RefCell<reads::ReadSet>,
@@ -345,14 +346,14 @@ impl Committer {
         tx: &AnyTx<'_>,
         member: Member<impl FnOnce(MemberTx<'_, '_>) -> MemberResult<T>>,
     ) -> MemberResult<T> {
-        Self::execute_handled(tx, member, None::<fn(RuntimeError) -> T>, None)
+        Self::execute_handled(tx, member, None::<fn(RuntimeError) -> T>, None, None)
     }
     pub(super) fn execute_program<T>(
         tx: &AnyTx<'_>,
         member: Member<impl FnOnce(MemberTx<'_, '_>) -> MemberResult<T>>,
         refused: impl FnOnce(RuntimeError) -> T,
     ) -> MemberResult<T> {
-        Self::execute_handled(tx, member, Some(refused), None)
+        Self::execute_handled(tx, member, Some(refused), None, None)
     }
     pub(super) fn execute_buffered<'m, T>(
         tx: &'m AnyTx<'_>, overlay: &'m overlay::Overlay<'m>, facts: &crate::store_port::batch::Facts,
@@ -361,13 +362,14 @@ impl Committer {
     ) -> MemberResult<T> {
         tx.begin_member_evidence();
         tx.install_batch_facts(facts);
-        Self::execute_handled(tx, member, Some(refused), Some(overlay))
+        Self::execute_handled(tx, member, Some(refused), Some(overlay), Some(facts))
     }
     fn execute_handled<T>(
         tx: &AnyTx<'_>,
         member: Member<impl FnOnce(MemberTx<'_, '_>) -> MemberResult<T>>,
         refused: Option<impl FnOnce(RuntimeError) -> T>,
         overlay: Option<&overlay::Overlay<'_>>,
+        batch_facts: Option<&crate::store_port::batch::Facts>,
     ) -> MemberResult<T> {
         let Member { kind, run } = member;
         // Legacy producers enter alone; the program-only driver reuses this
@@ -379,6 +381,7 @@ impl Committer {
         if overlay.is_none() { tx.savepoint("member")?; }
         let frame = Cell::new(Frame::Active);
         let ran = run(MemberTx {
+            batch_facts,
             tx,
             frame: &frame,
             reads: Default::default(),

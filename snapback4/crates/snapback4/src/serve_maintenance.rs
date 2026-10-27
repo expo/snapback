@@ -225,11 +225,14 @@ impl State {
 // cursor's read -> chunk commit -> advance; the gate only protects small state
 // accesses. Ordinary work never waits for a bulk thread to enter the engine.
 fn bulk_slice(shared: &Shared, aged_only: bool) -> Result<bool, RuntimeError> {
-    if !lock(&shared.maintenance).eligible(Instant::now(), aged_only) { return Ok(false); }
+    Ok(bulk_slice_observed(shared, aged_only)?.is_some_and(|(_, worked)| worked))
+}
+fn bulk_slice_observed(shared: &Shared, aged_only: bool) -> Result<Option<(BulkKind, bool)>, RuntimeError> {
+    if !lock(&shared.maintenance).eligible(Instant::now(), aged_only) { return Ok(None); }
     engine_work(shared, move |engine, budget, shared| {
         let kind = {
             let state = lock(&shared.maintenance);
-            if !state.eligible(Instant::now(), aged_only) { return Ok(false); }
+            if !state.eligible(Instant::now(), aged_only) { return Ok(None); }
             state.next
         };
         let started = SliceClock::start();
@@ -255,7 +258,7 @@ fn bulk_slice(shared: &Shared, aged_only: bool) -> Result<bool, RuntimeError> {
             }
         };
         lock(&shared.maintenance).completed(Instant::now(), started.consumed(), budget == CONTENDED_TIME || shared.engine.has_waiters(), result.as_ref().map_or(true, |worked| *worked));
-        result
+        result.map(|worked| Some((kind, worked)))
     })
 }
 
@@ -343,10 +346,15 @@ pub(super) fn bulk(shared: Arc<Shared>) {
         if crate::lifecycle::stopping() { return; }
         let observed = *lock(&shared.seq);
         let mut did_work = false;
+        let mut empty_kinds = 0u8;
         for _ in 0..3 {
             if crate::lifecycle::stopping() { return; }
-            match bulk_slice(&shared, false) {
-                Ok(worked) => did_work |= worked,
+            match bulk_slice_observed(&shared, false) {
+                Ok(Some((kind, worked))) => {
+                    did_work |= worked;
+                    if !worked { empty_kinds |= match kind { BulkKind::Delivery => 1, BulkKind::Recount => 2, BulkKind::Job => 4 }; }
+                }
+                Ok(None) => {},
                 Err(error) => {
                     super::adoption::background_failure(&shared, "bulk maintenance admission", &error);
                     // Refusal is not an idle slice: preserve the due scheduler
@@ -369,11 +377,25 @@ pub(super) fn bulk(shared: Arc<Shared>) {
                 if pause.is_zero() { break; }
                 std::thread::sleep(pause.min(Duration::from_millis(100)));
             }
-            let seq = lock(&shared.seq);
-            if *seq == observed {
-                drop(shared.committed.wait_timeout(seq, Duration::from_millis(100)).unwrap_or_else(|e| e.into_inner()));
+            if empty_kinds == 7 {
+                wait_after_empty_cycle(&shared, Instant::now() + Duration::from_millis(100));
+            } else {
+                // Pacing/clock exclusion is not proof that a kind is empty.
+                let seq = lock(&shared.seq);
+                if *seq == observed { drop(shared.committed.wait_timeout(seq, Duration::from_millis(100)).unwrap_or_else(|e| e.into_inner())); }
             }
         }
+    }
+}
+
+// @ref LLP 3000#contended-read-serving — a completely empty cycle coalesces wakeups for at most 100 ms; no engine or maintenance custody spans the wait.
+fn wait_after_empty_cycle(shared: &Shared, until: Instant) {
+    let mut seq = lock(&shared.seq);
+    while !crate::lifecycle::stopping() {
+        let Some(remaining) = until.checked_duration_since(Instant::now()) else { break; };
+        let (next, timeout) = shared.committed.wait_timeout(seq, remaining).unwrap_or_else(|e| e.into_inner());
+        seq = next;
+        if timeout.timed_out() { break; }
     }
 }
 
@@ -702,6 +724,27 @@ pub(super) fn clock_status(request: Request, shared: &Shared) {
 mod tests {
     use super::*;
     use super::super::tests::Host;
+
+    #[test]
+    fn empty_bulk_cycle_coalesces_commit_wakes_without_holding_the_writer() {
+        let host = Host::with_store(true, snapback4_core::Store::memory().unwrap(), "use personas alice\ntable counters:\n  n: int\n  public 'fixture'\njob tick():\n  for counter in counters:\n    update counters[counter.id] {n:counter.n+1}\n");
+        let shared = host.shared.clone();
+        let until = Instant::now() + Duration::from_millis(100);
+        let waiter = std::thread::spawn(move || { wait_after_empty_cycle(&shared, until); Instant::now() });
+        // Commits and a newly queued real job remain admitted during the idle
+        // wait. Notifications do not turn absence probes into a busy loop.
+        let id = host.shared.engine.call(|engine, shared| {
+            let id = engine.enqueue_job("tick", Default::default(), shared.now()).unwrap();
+            shared.durable_committed(engine);
+            Ok::<_, snapback4_core::Refusal>(id)
+        }).unwrap().unwrap();
+        for _ in 0..10 { host.shared.committed.notify_all(); std::thread::sleep(Duration::from_millis(2)); }
+        assert!(waiter.join().unwrap() >= until);
+        host.shared.engine.call(move |engine, shared| {
+            assert!(engine.run_job_chunk_for(shared.now(), WORK_TIME).unwrap().is_some());
+            assert_eq!(engine.job(&id).unwrap().unwrap().state, snapback4_core::JobState::Done);
+        }).unwrap();
+    }
 
     #[test]
     fn clock_lost_ack_after_publication_returns_incomplete_report() {

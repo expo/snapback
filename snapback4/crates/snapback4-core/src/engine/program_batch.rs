@@ -12,7 +12,7 @@ use std::{sync::Arc, time::Instant};
 pub(super) type Plans = Vec<Option<Option<super::committer::closure::Closure>>>;
 pub(super) fn bounded_plan<'a>(plans: &'a mut [Option<Option<super::committer::closure::Closure>>], i: usize, engine: &Engine, batch: &[Invocation]) -> &'a Option<super::committer::closure::Closure> {
     plans[i].get_or_insert_with(|| engine.programs.get(&batch[i].name).and_then(|p|
-        super::committer::closure::Closure::new(&engine.schema,p,&batch[i].context,engine.generation)))
+        super::committer::closure::Closure::new(&engine.schema,p,&batch[i].context,engine.store.program_plan_generation(engine.generation))))
 }
 pub(super) type Outcome = Result<MutationAcknowledgement, Refusal>;
 pub(super) type ProgramResolution = Resolution<Outcome, Option<(u64, Option<super::DurablePublication>)>>;

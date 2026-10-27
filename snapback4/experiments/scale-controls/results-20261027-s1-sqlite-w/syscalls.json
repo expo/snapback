@@ -1,0 +1,30 @@
+{
+  "command": "strace -f -yy -T -e trace=fsync,fdatasync <release CLI> token (owned stopped fixture copy)",
+  "exit": 0,
+  "calls": [
+    {
+      "call": "fdatasync",
+      "file": "store.sqlite-wal",
+      "rc": 0,
+      "ms": 7.851
+    },
+    {
+      "call": "fdatasync",
+      "file": "trace-reviewed-release",
+      "rc": 0,
+      "ms": 7.697
+    },
+    {
+      "call": "fdatasync",
+      "file": "store.sqlite-wal",
+      "rc": 0,
+      "ms": 7.792999999999999
+    },
+    {
+      "call": "fdatasync",
+      "file": "store.sqlite-wal",
+      "rc": 0,
+      "ms": 7.709
+    }
+  ]
+}

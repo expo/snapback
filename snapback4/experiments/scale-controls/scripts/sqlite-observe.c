@@ -27,6 +27,8 @@ static int (*original_open)(const char*,void**,int,const char*);
 static int (*trace_v2)(void*,unsigned,int(*)(unsigned,void*,void*,void*),void*);
 static const char* (*stmt_sql)(void*);
 static int (*exec_sql)(void*,const char*,int(*)(void*,int,char**,char**),void*,char**);
+static void* (*stmt_db)(void*);
+static long long (*changed_rows)(void*);
 static long long stamp(void){struct timespec t;clock_gettime(CLOCK_MONOTONIC,&t);return (long long)t.tv_sec*1000000000+t.tv_nsec;}
 static void event(const char*kind,long long begin,long long end,int rc,int data){
  if(output<0)return;
@@ -36,6 +38,15 @@ static void event(const char*kind,long long begin,long long end,int rc,int data)
 static int callback(unsigned type,void*ctx,void*stmt,void*x){
  (void)type;(void)ctx;(void)x;const char*s=stmt_sql(stmt);if(!s)s="";
  while(isspace((unsigned char)*s))s++;
+ if(type==2){
+  if(changed_rows && !strncasecmp(s,"INSERT INTO _commits",20)){
+   long long at=stamp();event("batch_members",at,at,0,(int)changed_rows(stmt_db(stmt)));
+  }
+  if(!strncasecmp(s,"COMMIT",6)){
+   long long at=stamp();event("commit_complete",at,at,0,0);
+  }
+  return 0;
+ }
  const char*kind=!strncasecmp(s,"BEGIN",5)?"begin":!strncasecmp(s,"COMMIT",6)?"commit":!strncasecmp(s,"ROLLBACK",8)?"rollback":!strncasecmp(s,"SAVEPOINT",9)?"savepoint":!strncasecmp(s,"RELEASE",7)?"release":!strncasecmp(s,"SELECT",6)?"select":!strncasecmp(s,"INSERT",6)?"insert":!strncasecmp(s,"UPDATE",6)?"update":!strncasecmp(s,"DELETE",6)?"delete":!strncasecmp(s,"PRAGMA",6)?"pragma":"other";
  long long at=stamp();event(kind,at,at,0,0);return 0;
 }
@@ -51,7 +62,7 @@ static int observed_open(const char*file,void**db,int flags,const char*vfs){
   /* This is the new connection's default. Store::open then sets FULL;
    * the SQLite default is FULL too; no pragma assignment is performed here. */
   exec_sql(*db,"PRAGMA synchronous",pragma,"synchronous_at_open",NULL);
-  trace_v2(*db,1,callback,NULL);
+  trace_v2(*db,changed_rows?3:1,callback,NULL);
  }
  return rc;
 }
@@ -70,6 +81,10 @@ __attribute__((constructor)) static void setup(void){
  int32_t displacement;memcpy(&displacement,entry+5,4);
  original_open=(void*)(entry+9+displacement);
  trace_v2=(void*)(base+offset("SB4_SQLITE_TRACE_OFFSET"));stmt_sql=(void*)(base+offset("SB4_SQLITE_SQL_OFFSET"));exec_sql=(void*)(base+offset("SB4_SQLITE_EXEC_OFFSET"));
+ if(getenv("SB4_SQLITE_PROFILE")){
+  stmt_db=(void*)(base+offset("SB4_SQLITE_DB_HANDLE_OFFSET"));
+  changed_rows=(void*)(base+offset("SB4_SQLITE_CHANGES_OFFSET"));
+ }
  void*relay=MAP_FAILED;
  for(uintptr_t delta=0x10000000;delta<0x70000000;delta+=0x100000){
   relay=mmap((void*)((base+delta)&~(uintptr_t)4095),4096,PROT_READ|PROT_WRITE,MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED_NOREPLACE,-1,0);if(relay!=MAP_FAILED)break;

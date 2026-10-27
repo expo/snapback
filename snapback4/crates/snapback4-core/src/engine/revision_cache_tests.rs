@@ -1397,3 +1397,37 @@ fn g5_failed_revision_update_cannot_commit_unversioned_solo_data() {
 
 #[path="revision_cache_grant_tests.rs"]
 mod grant;
+
+#[test]
+fn sqlite_owned_g5_fills_hits_invalidates_data_and_rechecks_revocation() {
+    let source = "use identity\ntable counters:\n  n: int\n  public\n  insert <- allow\n  update <- allow\nquery W1(message: counters):\n  return counters[message] ! else NOT_FOUND\nmutation bump(message: counters):\n  old = counters[message] ! else NOT_FOUND\n  update counters[message] { n: old.n + 1 }\n";
+    let b = snapback4_lang::compile(&[("schema.q".into(), source.into())]);
+    assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);
+    let schema: crate::Schema = serde_json::from_value(serde_json::to_value(b.schema).unwrap()).unwrap();
+    let programs: Vec<crate::Program> = b.programs.into_iter().map(|p| serde_json::from_value(serde_json::to_value(p.program).unwrap()).unwrap()).collect();
+    let dir = std::env::temp_dir().join(format!("sqw-g5-{}-{:x}", std::process::id(), crate::ids::seed()));
+    std::fs::create_dir(&dir).unwrap();
+    let mut store = crate::store::Store::open(&dir.join("store.sqlite")).unwrap();
+    let owner = crate::private_fs::owner_file(&dir.join("store.sqlite")).unwrap();
+    let identity = { use std::os::unix::fs::MetadataExt; let m = std::fs::metadata(dir.join("store.sqlite")).unwrap(); (m.dev(), m.ino()) };
+    owner.try_lock().unwrap(); store.retain_exclusive_ownership(std::sync::Arc::new(owner), identity).unwrap();
+    let mut writer = Engine::new_at(store, schema, programs, 1000).unwrap();
+    writer.seed_at([("counters".into(), crate::value::object([("id", Value::Id("m0000-0".into())), ("n", Value::Int(0))]))], 1000).unwrap();
+    let session = identity::open_session(writer.store(), "alice", "account", 1000).unwrap();
+    let digest = identity::session_digest(&session.token);
+    let mut reader = writer.reader().unwrap();
+    let before = warm(&mut reader, &digest, "alice", "W1", SessionScope::Full);
+    assert!(reader.revision_cache_stats().hits > 0);
+    assert!(reader.revision_cache_stats().sqlite_hits > 0);
+    assert!(read(&mut reader, &digest, "alice", "W1", true, SessionScope::Full, session.expires_at).is_err());
+    writer.mutate("bump", None, Context::new("alice", args("W1")).at(1000)).unwrap();
+    let after = read(&mut reader, &digest, "alice", "W1", true, SessionScope::Full, 1000).unwrap();
+    assert_ne!(before.data, after.data);
+    assert_eq!(after, read(&mut reader, &digest, "alice", "W1", false, SessionScope::Full, 1000).unwrap());
+    warm(&mut reader, &digest, "alice", "W1", SessionScope::Full);
+    let hits = reader.revision_cache_stats().hits;
+    identity::close_session(writer.store(), &session.token).unwrap();
+    assert!(read(&mut reader, &digest, "alice", "W1", true, SessionScope::Full, 1000).is_err());
+    assert_eq!(hits, reader.revision_cache_stats().hits);
+    drop((reader, writer)); std::fs::remove_dir_all(dir).unwrap();
+}

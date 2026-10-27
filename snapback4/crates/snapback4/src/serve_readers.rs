@@ -15,7 +15,8 @@ pub(super) fn query_context(engine: &Engine, shared: &Shared, op: &str, args: &J
 
 // @ref LLP 3000#7-decisions-during-execution — reader reuse retains fresh transactions and retires old native modules.
 /// Reuse only detached read owners. Each query still opens and rolls back
-/// its own identity-checked SQLite transaction; no result or viewer is cached.
+/// its own identity-checked transaction. Eligible owned SQLite results can reuse
+/// the shared revision cache after fresh snapshot and authority validation.
 #[derive(Default)]
 pub(super) struct QueryReaders {
     pub(super) epoch: Arc<()>,
