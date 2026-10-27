@@ -165,7 +165,7 @@ pub(crate) fn stopped_host(path: &Path) -> bool {
     // This is a refusal/wait hint, never permission to open the store: the
     // sidecar must still be acquired. Never dial a non-loopback address hint.
     if let Some(metadata) = record_metadata(path) {
-        let dead = |pid: u64, birth: &str| crate::supervisor::identity(pid as u32).is_none_or(|(_, actual)|actual != birth);
+        let dead = |pid: u64, birth: &str| crate::supervisor::identity(pid as u32).is_none_or(|(_, actual)|actual != "unverified" && birth != "unverified" && actual != birth);
         if metadata["pid"].as_u64().zip(metadata["birth"].as_str()).is_some_and(|(pid,birth)|dead(pid,birth)) { return true; }
         if metadata["parents"].as_array().is_some_and(|parents| parents.iter().any(|parent|
             parent[0].as_u64().zip(parent[1].as_str()).is_some_and(|(pid,birth)|dead(pid,birth)))) { return true; }
@@ -224,8 +224,9 @@ fn write_record(file: &mut File, address: Option<std::net::SocketAddr>, control:
     let started = (|| {
         let boot = fs::read_to_string("/proc/stat").ok()?.lines().find_map(|line|line.strip_prefix("btime ").and_then(|s|s.parse::<u64>().ok()))?;
         let ticks = unsafe {libc::sysconf(libc::_SC_CLK_TCK)};
-        (ticks > 0).then(|| format!("{} Unix seconds", boot + start.parse::<u64>().unwrap_or(0) / ticks as u64))
-    })().unwrap_or_else(|| "unknown".into());
+        if ticks <= 0 { return None; }
+        Some(format!("{} Unix seconds", boot + start.parse::<u64>().ok()? / ticks as u64))
+    })().unwrap_or_else(|| format!("{} Unix seconds (process entry)", crate::supervisor::started()));
     #[cfg(not(target_os = "linux"))]
     let started = start.clone();
     // Never persist arbitrary argv (tokens/passwords can occur there).
@@ -243,7 +244,7 @@ fn holder(path: &Path) -> Option<String> {
     regular(&path.with_file_name("serve.lock"), false, path).ok()?.take(16384).read_to_string(&mut text).ok()?;
     let pid = owner_pid(path)?;
     let metadata: serde_json::Value = text.lines().nth(3).and_then(|s|serde_json::from_str(s).ok()).unwrap_or_default();
-    let alive = crate::supervisor::identity(pid).is_some_and(|(_, birth)| metadata["birth"].as_str().is_none_or(|saved| saved == birth));
+    let alive = crate::supervisor::identity(pid).is_some_and(|(_, birth)| metadata["birth"].as_str().is_none_or(|saved| saved == "unverified" || birth == "unverified" || saved == birth));
     Some(format!("pid {pid}, command {}, start time {}, still alive: {alive}", metadata["command"].as_str().unwrap_or("unknown"), metadata["startTime"].as_str().unwrap_or("unknown")))
 }
 

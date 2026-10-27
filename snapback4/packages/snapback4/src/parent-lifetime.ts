@@ -15,7 +15,13 @@ function identity(pid: number): Identity | undefined {
     const fields = execFileSync('ps', ['-p', String(pid), '-o', 'ppid=,stat=,lstart=,args='], { env: { ...process.env, LC_ALL: 'C' }, encoding: 'utf8', timeout: 2000, stdio: ['ignore', 'pipe', 'ignore'] }).trim().split(/\s+/);
     if (fields.length < 8 || fields[1]?.startsWith('Z')) return;
     return { parent: Number(fields[0]), birth: fields.slice(2, 7).join(' '), command: fields.slice(7).join(' ') };
-  } catch { return; }
+  } catch {
+    // Linux minimal userspaces may have no /proc; ps may also be unavailable.
+    // Preserve direct-parent custody rather than mistaking absent metrology for death.
+    try { process.kill(pid, 0); }
+    catch (error) { if ((error as NodeJS.ErrnoException).code !== 'EPERM') return; }
+    return { parent: 1, birth: 'unverified', command: '' };
+  }
 }
 function capture(): Array<[number, string]> {
   const watched: Array<[number, string]> = [];
@@ -36,7 +42,7 @@ const parents = capture();
 export function watchParent(onLost: () => void): () => void {
   let stopped = false;
   const check = () => {
-    if (!stopped && ((parent <= 1 && !!process.env.npm_lifecycle_event) || (parent > 1 && process.ppid !== parent) || parents.some(([pid, birth]) => identity(pid)?.birth !== birth))) {
+    if (!stopped && ((parent <= 1 && !!process.env.npm_lifecycle_event) || (parent > 1 && process.ppid !== parent) || parents.some(([pid, birth]) => { const current = identity(pid); return !current || (birth !== 'unverified' && current.birth !== 'unverified' && current.birth !== birth); }))) {
       stopped = true; clearInterval(timer); onLost();
     }
   };

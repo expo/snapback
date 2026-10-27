@@ -7,6 +7,17 @@ use std::fs;
 #[cfg(not(any(target_os = "linux", target_os = "macos")))]
 use std::process::Command;
 
+static STARTED: std::sync::OnceLock<u64> = std::sync::OnceLock::new();
+pub(crate) fn started() -> u64 { *STARTED.get_or_init(|| std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs()) }
+fn alive(pid: u32) -> bool {
+    if pid == 0 || pid > i32::MAX as u32 { return false; }
+    (unsafe { libc::kill(pid as libc::pid_t, 0) }) == 0 || std::io::Error::last_os_error().raw_os_error() == Some(libc::EPERM)
+}
+fn opaque_identity(pid: u32) -> Option<(u32, String)> {
+    alive(pid).then(|| (1, "unverified".into()))
+}
+fn changed(before: &str, after: &str) -> bool { before != "unverified" && after != "unverified" && before != after }
+
 pub(crate) const ENV: &str = "SNAPBACK4_SUPERVISOR_PID";
 static SUPERVISOR: AtomicU32 = AtomicU32::new(0);
 static PARENT: AtomicU32 = AtomicU32::new(0);
@@ -17,7 +28,12 @@ pub(crate) fn pid() -> Option<u32> { Some(SUPERVISOR.load(Ordering::Acquire)).fi
 /// Stable process birth identity and human-readable start time; zombies are dead.
 #[cfg(target_os = "linux")]
 pub(crate) fn identity(pid: u32) -> Option<(u32, String)> {
-    let text = fs::read_to_string(format!("/proc/{pid}/stat")).ok()?;
+    let text = match fs::read_to_string(format!("/proc/{pid}/stat")) {
+        Ok(text) => text,
+        // Minimal distribution proofs deliberately omit /proc. Kernel parent
+        // notifications and getppid remain authoritative for direct custody.
+        Err(_) => return opaque_identity(pid),
+    };
     let fields: Vec<_> = text.rsplit_once(") ")?.1.split_whitespace().collect();
     if matches!(*fields.first()?, "Z" | "X") { return None; }
     Some((fields.get(1)?.parse().ok()?, fields.get(19)?.to_string()))
@@ -71,6 +87,7 @@ extern "C" fn parent_notification(_: libc::c_int) {
 
 /// Called on main before threads, even for the direct native serve path.
 pub(crate) fn adopt() {
+    let _ = started();
     let supplied = std::env::var(ENV).ok().and_then(|s| s.parse::<u32>().ok());
     unsafe { std::env::remove_var(ENV) };
     let host = std::env::args().nth(1).is_some_and(|verb| matches!(verb.as_str(), "serve" | "dev"));
@@ -116,7 +133,7 @@ pub(crate) fn adopt() {
     // Darwin the same birth-checked watchdog is the parent-death mechanism.
     std::thread::Builder::new().name("supervisor".into()).spawn(move || loop {
         std::thread::sleep(Duration::from_millis(250));
-        if unsafe { libc::getppid() } as u32 != parent || watched.iter().any(|(pid, birth)| identity(*pid).is_none_or(|(_, current)| current != *birth)) {
+        if unsafe { libc::getppid() } as u32 != parent || watched.iter().any(|(pid, birth)| identity(*pid).is_none_or(|(_, current)| changed(birth, &current))) {
             unsafe { libc::kill(libc::getpid(), libc::SIGTERM); }
             return;
         }
@@ -157,6 +174,15 @@ mod tests {
         bytes.extend_from_slice(b"/usr/local/bin/node\0\0\0");
         for arg in argv.iter().chain(env) { bytes.extend_from_slice(arg.as_bytes()); bytes.push(0); }
         bytes
+    }
+    #[test]
+    fn missing_process_table_does_not_turn_a_living_process_into_a_dead_parent() {
+        let current = super::opaque_identity(std::process::id()).unwrap();
+        assert_eq!(current.1, "unverified");
+        assert!(super::opaque_identity(u32::MAX).is_none());
+        assert!(!super::changed("unverified", "12345"));
+        assert!(!super::changed("12345", "unverified"));
+        assert!(super::changed("12345", "12346"));
     }
     #[test]
     fn darwin_npm_argv_never_inspects_inherited_environment() {
