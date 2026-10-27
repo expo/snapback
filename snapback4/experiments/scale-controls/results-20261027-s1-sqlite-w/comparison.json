@@ -1,0 +1,662 @@
+[
+  {
+    "workload": "W1",
+    "keys": "disjoint",
+    "rate": 16000,
+    "summary": {
+      "highest_passing_offered_per_s": 16000,
+      "lowest_failing_offered_per_s": 19027,
+      "bracketed": true,
+      "rates": [
+        1000,
+        2000,
+        4000,
+        8000,
+        16000,
+        19027,
+        22627,
+        32000,
+        45254
+      ],
+      "repeats": 3
+    },
+    "control": {
+      "system": "supabase",
+      "rate": 2000,
+      "p50_ms": 3.098623,
+      "p99_ms": 3.725311,
+      "source": "S1-C A/natural"
+    },
+    "s1sq": {
+      "rate": 16000,
+      "p50_ms": 0.788991,
+      "p99_ms": 24.625151,
+      "app_cpu_us_per_ack": 221.54166666666666
+    },
+    "verdict": "WIN",
+    "latency_ms": {
+      "p50_ms": {
+        "min": 1.182719,
+        "median": 1.264639,
+        "max": 1.319935
+      },
+      "p99_ms": {
+        "min": 35.454975,
+        "median": 38.699007,
+        "max": 45.580287
+      },
+      "p999_ms": {
+        "min": 68.681727,
+        "median": 70.057983,
+        "max": 79.822847
+      }
+    },
+    "cpu": {
+      "app_cpu_us_per_ack": {
+        "min": 234.22916666666666,
+        "median": 235.41666666666666,
+        "max": 235.64583333333334
+      },
+      "app_cores": {
+        "min": 3.734356765753153,
+        "median": 3.7512116197250727,
+        "max": 3.753649588269085
+      },
+      "app_cpu_s": {
+        "min": 112.43,
+        "median": 113.0,
+        "max": 113.11
+      },
+      "app_sample_span_s": {
+        "min": 30.10403537750244,
+        "median": 30.10692524909973,
+        "max": 30.152924299240112
+      },
+      "generator_cpu_us_per_ack": {
+        "min": 111.02083333333333,
+        "median": 111.02083333333333,
+        "max": 111.125
+      },
+      "generator_cores": {
+        "min": 1.768982652251219,
+        "median": 1.77002465575901,
+        "max": 1.7701945713173408
+      },
+      "generator_cpu_s": {
+        "min": 53.29,
+        "median": 53.29,
+        "max": 53.34
+      },
+      "generator_sample_span_s": {
+        "min": 30.10403537750244,
+        "median": 30.10692524909973,
+        "max": 30.152924299240112
+      },
+      "sample_count": {
+        "min": 117,
+        "median": 117,
+        "max": 117
+      },
+      "app_boundary_missing_samples": {
+        "min": 0,
+        "median": 0,
+        "max": 0
+      }
+    },
+    "error_percent": {
+      "min": 0.0,
+      "median": 0.0,
+      "max": 0.0
+    },
+    "s1sq_rate_ratio": 1.0,
+    "selected_ack": 1440000
+  },
+  {
+    "workload": "W2",
+    "keys": "disjoint",
+    "rate": 11313,
+    "summary": {
+      "highest_passing_offered_per_s": 11313,
+      "lowest_failing_offered_per_s": 16000,
+      "bracketed": true,
+      "rates": [
+        1000,
+        2000,
+        4000,
+        8000,
+        11313,
+        16000,
+        19027,
+        22627,
+        32000,
+        45254
+      ],
+      "repeats": 3
+    },
+    "control": {
+      "system": "convex",
+      "rate": 8000,
+      "p50_ms": 0.469247,
+      "p99_ms": 3.862527,
+      "source": "later S1 identical-method re-search, A/natural"
+    },
+    "s1sq": {
+      "rate": 8000,
+      "p50_ms": 0.648703,
+      "p99_ms": 3.219455,
+      "app_cpu_us_per_ack": 386.9583333333333
+    },
+    "verdict": "WIN",
+    "latency_ms": {
+      "p50_ms": {
+        "min": 0.202111,
+        "median": 0.202751,
+        "max": 0.204031
+      },
+      "p99_ms": {
+        "min": 11.714559,
+        "median": 12.566527,
+        "max": 13.107199
+      },
+      "p999_ms": {
+        "min": 46.891007,
+        "median": 50.298879,
+        "max": 55.312383
+      }
+    },
+    "cpu": {
+      "app_cpu_us_per_ack": {
+        "min": 171.4561842380527,
+        "median": 172.48745532386332,
+        "max": 173.4865611285174
+      },
+      "app_cores": {
+        "min": 1.9354796609789786,
+        "median": 1.9405660696821243,
+        "max": 1.9567645180762399
+      },
+      "app_cpu_s": {
+        "min": 58.19,
+        "median": 58.54,
+        "max": 58.86
+      },
+      "app_sample_span_s": {
+        "min": 30.06489872932434,
+        "median": 30.080267429351807,
+        "max": 30.166455507278442
+      },
+      "generator_cpu_us_per_ack": {
+        "min": 162.49885823558355,
+        "median": 162.87576228273653,
+        "max": 162.99976133440586
+      },
+      "generator_cores": {
+        "min": 1.8338249910286148,
+        "median": 1.8343650679324741,
+        "max": 1.8370847310379377
+      },
+      "generator_cpu_s": {
+        "min": 55.15,
+        "median": 55.26,
+        "max": 55.32
+      },
+      "generator_sample_span_s": {
+        "min": 30.06489872932434,
+        "median": 30.080267429351807,
+        "max": 30.166455507278442
+      },
+      "sample_count": {
+        "min": 117,
+        "median": 117,
+        "max": 117
+      },
+      "app_boundary_missing_samples": {
+        "min": 0,
+        "median": 0,
+        "max": 0
+      }
+    },
+    "error_percent": {
+      "min": 0.0,
+      "median": 0.0,
+      "max": 0.0
+    },
+    "s1sq_rate_ratio": 1.414125,
+    "selected_ack": 1018051
+  },
+  {
+    "workload": "W3",
+    "keys": "disjoint",
+    "rate": 16000,
+    "summary": {
+      "highest_passing_offered_per_s": 16000,
+      "lowest_failing_offered_per_s": 19027,
+      "bracketed": true,
+      "rates": [
+        1000,
+        2000,
+        4000,
+        8000,
+        16000,
+        19027,
+        22627,
+        32000,
+        45254
+      ],
+      "repeats": 3
+    },
+    "control": {
+      "system": "convex",
+      "rate": 8000,
+      "p50_ms": 0.428031,
+      "p99_ms": 2.932735,
+      "source": "S1-C A/natural"
+    },
+    "s1sq": {
+      "rate": 2828,
+      "p50_ms": 2.465791,
+      "p99_ms": 9.314303,
+      "app_cpu_us_per_ack": 1261.3154172560114
+    },
+    "verdict": "WIN",
+    "latency_ms": {
+      "p50_ms": {
+        "min": 0.259711,
+        "median": 0.269311,
+        "max": 0.278527
+      },
+      "p99_ms": {
+        "min": 35.258367,
+        "median": 40.894463,
+        "max": 46.071807
+      },
+      "p999_ms": {
+        "min": 61.898751,
+        "median": 62.193663,
+        "max": 72.548351
+      }
+    },
+    "cpu": {
+      "app_cpu_us_per_ack": {
+        "min": 138.66666666666666,
+        "median": 138.9375,
+        "max": 139.39583333333334
+      },
+      "app_cores": {
+        "min": 2.2093231292256172,
+        "median": 2.2151003999450163,
+        "max": 2.218723490096756
+      },
+      "app_cpu_s": {
+        "min": 66.56,
+        "median": 66.69,
+        "max": 66.91
+      },
+      "app_sample_span_s": {
+        "min": 30.106987476348877,
+        "median": 30.126874208450317,
+        "max": 30.15698003768921
+      },
+      "generator_cpu_us_per_ack": {
+        "min": 122.75,
+        "median": 122.91666666666667,
+        "max": 123.20833333333333
+      },
+      "generator_cores": {
+        "min": 1.9570207761997358,
+        "median": 1.9583843843796789,
+        "max": 1.9610716963730705
+      },
+      "generator_cpu_s": {
+        "min": 58.92,
+        "median": 59.0,
+        "max": 59.14
+      },
+      "generator_sample_span_s": {
+        "min": 30.106987476348877,
+        "median": 30.126874208450317,
+        "max": 30.15698003768921
+      },
+      "sample_count": {
+        "min": 117,
+        "median": 117,
+        "max": 117
+      },
+      "app_boundary_missing_samples": {
+        "min": 0,
+        "median": 0,
+        "max": 0
+      }
+    },
+    "error_percent": {
+      "min": 0.0,
+      "median": 0.0,
+      "max": 0.0
+    },
+    "s1sq_rate_ratio": 5.657708628005658,
+    "selected_ack": 1440000
+  },
+  {
+    "workload": "W4",
+    "keys": "disjoint",
+    "rate": 4525,
+    "summary": {
+      "highest_passing_offered_per_s": 4525,
+      "lowest_failing_offered_per_s": 6400,
+      "bracketed": true,
+      "rates": [
+        3200,
+        4525,
+        6400
+      ],
+      "repeats": 3
+    },
+    "control": {
+      "system": "supabase",
+      "rate": 3200,
+      "p50_ms": 8.019967,
+      "p99_ms": 29.442047,
+      "source": "S1-C A/natural"
+    },
+    "s1sq": {
+      "rate": 1131,
+      "p50_ms": 21.250047,
+      "p99_ms": 43.745279,
+      "app_cpu_us_per_ack": 472.14854111405833
+    },
+    "verdict": "WIN",
+    "latency_ms": {
+      "p50_ms": {
+        "min": 9.535487,
+        "median": 9.625599,
+        "max": 9.887743
+      },
+      "p99_ms": {
+        "min": 24.559615,
+        "median": 25.853951,
+        "max": 35.454975
+      },
+      "p999_ms": {
+        "min": 29.589503,
+        "median": 31.506431,
+        "max": 67.633151
+      }
+    },
+    "cpu": {
+      "app_cpu_us_per_ack": {
+        "min": 220.83367105583105,
+        "median": 221.0070966933683,
+        "max": 221.06124133255716
+      },
+      "app_cores": {
+        "min": 0.9971276327317637,
+        "median": 0.9974606168271853,
+        "max": 0.9985939432294381
+      },
+      "app_cpu_s": {
+        "min": 29.97,
+        "median": 29.99,
+        "max": 30.0
+      },
+      "app_sample_span_s": {
+        "min": 30.042241096496582,
+        "median": 30.05633282661438,
+        "max": 30.066349983215332
+      },
+      "generator_cpu_us_per_ack": {
+        "min": 144.5003647510482,
+        "median": 144.71716047836242,
+        "max": 144.7342240432729
+      },
+      "generator_cores": {
+        "min": 0.6527475742243094,
+        "median": 0.6532219578021314,
+        "max": 0.6534396632249531
+      },
+      "generator_cpu_s": {
+        "min": 19.61,
+        "median": 19.64,
+        "max": 19.64
+      },
+      "generator_sample_span_s": {
+        "min": 30.042241096496582,
+        "median": 30.05633282661438,
+        "max": 30.066349983215332
+      },
+      "sample_count": {
+        "min": 119,
+        "median": 119,
+        "max": 119
+      },
+      "app_boundary_missing_samples": {
+        "min": 0,
+        "median": 0,
+        "max": 0
+      }
+    },
+    "error_percent": {
+      "min": 0.02983425414364641,
+      "median": 0.02983425414364641,
+      "max": 0.039779005524861875
+    },
+    "s1sq_rate_ratio": 4.000884173297966,
+    "selected_ack": 407119
+  },
+  {
+    "workload": "W5",
+    "keys": "hot1",
+    "rate": 4525,
+    "summary": {
+      "highest_passing_offered_per_s": 4525,
+      "lowest_failing_offered_per_s": 6400,
+      "bracketed": true,
+      "rates": [
+        3200,
+        4525,
+        6400
+      ],
+      "repeats": 3
+    },
+    "control": {
+      "system": "supabase",
+      "rate": 800,
+      "p50_ms": 7.200767,
+      "p99_ms": 13.885439,
+      "source": "S1-C A/natural"
+    },
+    "s1sq": {
+      "rate": 1131,
+      "p50_ms": 21.233663,
+      "p99_ms": 42.631167,
+      "app_cpu_us_per_ack": 475.41853336477243
+    },
+    "verdict": "WIN",
+    "latency_ms": {
+      "p50_ms": {
+        "min": 9.494527,
+        "median": 10.100735,
+        "max": 10.248191
+      },
+      "p99_ms": {
+        "min": 23.773183,
+        "median": 27.721727,
+        "max": 46.235647
+      },
+      "p999_ms": {
+        "min": 28.229631,
+        "median": 33.439743,
+        "max": 72.155135
+      }
+    },
+    "cpu": {
+      "app_cpu_us_per_ack": {
+        "min": 220.86296473709422,
+        "median": 221.60644405303225,
+        "max": 221.94539450406887
+      },
+      "app_cores": {
+        "min": 0.9972842596216648,
+        "median": 0.9994492788770858,
+        "max": 1.0008967571935636
+      },
+      "app_cpu_s": {
+        "min": 29.97,
+        "median": 30.07,
+        "max": 30.11
+      },
+      "app_sample_span_s": {
+        "min": 30.051612377166748,
+        "median": 30.083022832870483,
+        "max": 30.08656930923462
+      },
+      "generator_cpu_us_per_ack": {
+        "min": 144.25344969925698,
+        "median": 144.44157854010834,
+        "max": 144.51953335151188
+      },
+      "generator_cores": {
+        "min": 0.6505330301653285,
+        "median": 0.6517858449876838,
+        "max": 0.6522112608803681
+      },
+      "generator_cpu_s": {
+        "min": 19.57,
+        "median": 19.6,
+        "max": 19.61
+      },
+      "generator_sample_span_s": {
+        "min": 30.051612377166748,
+        "median": 30.083022832870483,
+        "max": 30.08656930923462
+      },
+      "sample_count": {
+        "min": 119,
+        "median": 119,
+        "max": 119
+      },
+      "app_boundary_missing_samples": {
+        "min": 0,
+        "median": 0,
+        "max": 0
+      }
+    },
+    "error_percent": {
+      "min": 0.036464088397790057,
+      "median": 0.05414364640883978,
+      "max": 0.06629834254143646
+    },
+    "s1sq_rate_ratio": 4.000884173297966,
+    "selected_ack": 407050
+  },
+  {
+    "workload": "W5",
+    "keys": "same",
+    "rate": 3200,
+    "summary": {
+      "highest_passing_offered_per_s": 3200,
+      "lowest_failing_offered_per_s": 4525,
+      "bracketed": true,
+      "rates": [
+        100,
+        200,
+        400,
+        800,
+        1600,
+        3200,
+        4525,
+        6400
+      ],
+      "repeats": 3
+    },
+    "control": {
+      "system": "convex",
+      "rate": 25,
+      "p50_ms": 22.560767,
+      "p99_ms": 28.803071,
+      "source": "S1-C A/natural"
+    },
+    "s1sq": {
+      "rate": 1131,
+      "p50_ms": 26.525695,
+      "p99_ms": 56.655871,
+      "app_cpu_us_per_ack": 517.2871164559201
+    },
+    "verdict": "WIN",
+    "latency_ms": {
+      "p50_ms": {
+        "min": 8.462335,
+        "median": 8.740863,
+        "max": 8.839167
+      },
+      "p99_ms": {
+        "min": 23.314431,
+        "median": 25.247743,
+        "max": 47.644671
+      },
+      "p999_ms": {
+        "min": 28.770303,
+        "median": 30.965759,
+        "max": 83.296255
+      }
+    },
+    "cpu": {
+      "app_cpu_us_per_ack": {
+        "min": 253.23708032542683,
+        "median": 253.44014000145836,
+        "max": 253.75528656847018
+      },
+      "app_cores": {
+        "min": 0.8081805892935314,
+        "median": 0.8098783592222009,
+        "max": 0.8099692372087272
+      },
+      "app_cpu_s": {
+        "min": 24.31,
+        "median": 24.33,
+        "max": 24.36
+      },
+      "app_sample_span_s": {
+        "min": 30.041548490524292,
+        "median": 30.07521629333496,
+        "max": 30.07991075515747
+      },
+      "generator_cpu_us_per_ack": {
+        "min": 194.68952801591684,
+        "median": 195.73528339427273,
+        "max": 196.5665951373987
+      },
+      "generator_cores": {
+        "min": 0.6221383696614441,
+        "median": 0.6246694065333384,
+        "max": 0.627426909118583
+      },
+      "generator_cpu_s": {
+        "min": 18.69,
+        "median": 18.79,
+        "max": 18.87
+      },
+      "generator_sample_span_s": {
+        "min": 30.041548490524292,
+        "median": 30.07521629333496,
+        "max": 30.07991075515747
+      },
+      "sample_count": {
+        "min": 119,
+        "median": 119,
+        "max": 119
+      },
+      "app_boundary_missing_samples": {
+        "min": 0,
+        "median": 0,
+        "max": 0
+      }
+    },
+    "error_percent": {
+      "min": 0.0,
+      "median": 0.003125,
+      "max": 0.003125
+    },
+    "s1sq_rate_ratio": 2.8293545534924847,
+    "selected_ack": 287994
+  }
+]

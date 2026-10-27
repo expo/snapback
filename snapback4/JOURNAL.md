@@ -109420,3 +109420,83 @@ Qualified affected security/language/client checks and the explicit test-only
 history assertion retry are recorded in `reports/sec11-item1/`; root legacy
 Snapback1 guide/codegen/inventory gates are outside this fence. The root
 WORKSTREAM-REPORT.md records the exact committed boundary and deferrals.
+
+## 2026-10-27 — SQW: SQLite durable cycles and owned revision reuse
+
+On `sb4-pg/sqlite-w`, from S1-SQ `99d9499be6`, the native SQLite build selects
+fdatasync while retaining FULL ordering and directory/WAL-creation syncs.
+Program groups use count-checked family tails, a guarded current-layout overlay
+at the actual deployment generation, one final-image UPDATE, and vector root
+and authority facts. Every member retains serial authority, clock, meter,
+receipt and history semantics. An exclusive backend owner can reuse immutable
+query results under a complete process revision stream; native shared devices,
+external writers and restarted caches cannot borrow that proof.
+
+A wholly empty bulk cycle now coalesces commit notifications to its 100 ms
+idle-probe boundary. Skipped pacing/clock turns do not establish emptiness;
+useful-work budgets, repayment and independent aged service remain. This removes
+empty solo writer turns without weakening durability. The adaptive size
+controller and queue policy are byte-identical to S1-SQ. A local fixed-32
+experiment also misses W4 and shows no adaptive target collapse; its override
+is removed. A two-millisecond collection experiment gives no useful gain and
+is reverted to one millisecond.
+
+Core: **873 passed / 0 failed / 498 ignored**. CLI: **627 passed / 0 failed /
+75 ignored**, including the lowered RT0 ratchet, ownership/serving and the new
+empty-cycle/job witness. The crash witness recovers acknowledged groups after
+SIGKILL and after loss of a later WAL suffix. Actual strace observes fdatasync
+and the directory sync. The final-code W4 development probe passes 4,525/s at
+26.36 ms p99 and 0.036% errors with exact counter equality; 6,400/s fails. This
+single repetition is not the S1 matrix qualification. The unchanged six-cell,
+three-repetition matrix and its separate cost observations belong in
+[the SQW report](experiments/scale-controls/results-20261027-s1-sqlite-w/README.md).
+No push or publication is authorized.
+
+
+## 2026-10-27 — SQW review: case-folded layout fences and buffered authority cuts
+
+Before accepting the matrix, manual review finds two proof gaps: optional family
+classification must follow SQLite's ASCII case folding, and scalar authority
+facts in a serial group must expose the buffered predecessor head rather than
+only MAX(_commits.seq). Both receive focused regressions. The first matrix is
+interrupted through its recorded owned controller and native cleanup; its W1
+samples remain evidence, but do not qualify the corrected executable. The final
+matrix restarts after the corrected code's tests. The adaptive size controller,
+S1 ladder and FULL durability are unchanged.
+
+The corrected source is requalified with **873 core / 627 CLI passes, zero
+failures**; **498 / 75** tests remain ignored. Ref-check verifies **570 docs /
+12074 references**, with zero errors or unchecked refs. The authoritative
+matrix uses the corrected executable; the interrupted predecessor is retained
+separately.
+
+
+## 2026-10-27 — SQW: six strict one-host S1 wins on SQLite
+
+The corrected `1b38085f58` executable qualifies **W1 16,000 / W2 11,313 /
+W3 16,000 / W4 4,525 / W5 exact 3,200 / W5 nominal 1% 4,525 offered/s**.
+Every selected rate passes all three 10 s warm + 20 s measured repetitions,
+under the unchanged ladder, SLO, affinity and durability criteria. These are
+**6/6 strict wins**, including the stronger later Convex W2 8,000/s control.
+W1 preserves capacity but its median p99 rises 24.63→38.70 ms, below 50 ms.
+W5 exact's 4,525/s rung fails latency/error repetitions and is not substituted.
+
+The independent auditor passes **126 trials / 30,390,720 measured arrivals**;
+independent counter arithmetic passes **42 write trials / zero mismatches**.
+Separate observation of the same binary has W4 mean **N=28.64**, **0.59 SQLite
+statements/member**, **156.11 µs writer wall/member** and **2.61 ms mean WAL
+fdatasync**, versus S1-SQ's N=15.23, 15.65 statements and 7.87 ms fsync. The
+written WAL high-water and PASSIVE checkpoint policy remain; no new flush
+pipeline is credited. Empty bulk absence probes no longer cut every returning
+cohort. The unchanged adaptive controller remains at target 32 in these probes.
+W3 has **98.81% local query hits** and **138.94 µs app CPU/ack**, versus
+1,261.32 µs in S1-SQ; the uncached inbox remains 132 statements.
+
+Final core **873/0**, CLI **627/0** pass/fail, with **498/75 ignored**; the
+owned crash child runs through its parent witness. FULL acknowledgement ordering,
+SIGKILL and durable-prefix recovery pass. Actual syscall tracing confirms WAL
+fdatasync and directory synchronization. The report preserves failed trials,
+setup/refinement attempts, per-lever limits and the scoped ownership proof.
+Raw logs/HDR/events stay outside Git; private stores are removed, known-secret
+scans pass, and the owned process audit finds no remaining helper or zombie.
+No push or publication. [Full SQW report](experiments/scale-controls/results-20261027-s1-sqlite-w/README.md).
