@@ -166,7 +166,7 @@ export function logged(command: string, args: readonly string[], options: ProofO
     if (event.type === "started" && typeof event.pid === "number") { actualPid = event.pid; didStart(); }
     if (event.type === "result") { actualCode = event.code ?? null; actualSignal = event.signal ?? null; if (event.error) error = Object.assign(Error(event.error), {proofExecutableSpawnFailed:event.executableSpawnFailed === true}); }
   });
-  child.on("error", value => { error = grouped ? value : Object.assign(value, {proofExecutableSpawnFailed:true}); failedStart(value); });
+  child.on("error", value => { error = value; failedStart(value); });
   const closed = new Promise<void>((resolve, reject) => child.once("close", () => {
     failedStart(error ?? Error("proof command exited before its process-group handshake"));
     groupGone(child).then(resolve,reject);

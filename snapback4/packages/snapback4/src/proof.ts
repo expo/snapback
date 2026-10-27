@@ -221,7 +221,7 @@ export interface CliResult { code: number | null; signal: NodeJS.Signals | null;
 /** @throws spawn error or command deadline; nonzero exit is returned in code, not thrown. */
 export function cli(args: readonly string[], options: ProofOptions = {}): Promise<CliResult> {
   // @ref LLP 3000.011.003.000.000#18-proof-command-startup-lat3 — native proof verbs retain the shim's helpers and group custody without another Node process.
-  if (["deploy", "rollback", "test", "token", "serve", "data", "sql", "releases", "clock", "stop"].includes(args[0] ?? "")) {
+  if (process.platform !== "win32" && ["deploy", "rollback", "test", "token", "serve", "data", "sql", "releases", "clock", "stop"].includes(args[0] ?? "")) {
     const env = { ...process.env, ...options.env };
     let binary: string | undefined;
     try {
@@ -235,7 +235,7 @@ export function cli(args: readonly string[], options: ProofOptions = {}): Promis
       SNAPBACK4_UPGRADE_HELPER: fileURLToPath(new URL("../bin/upgrade.js", import.meta.url)),
       SNAPBACK4_WEB_HELPER: fileURLToPath(new URL("../bin/witness-web.js", import.meta.url)),
       SNAPBACK4_SUPERVISOR_PID: String(process.pid),
-      ...(process.platform === "win32" ? {} : { SNAPBACK4_PROOF_NATIVE_CLI: "1" }),
+      SNAPBACK4_PROOF_NATIVE_CLI: "1",
     } }).catch(error => {
       // A delivered inner spawn error proves the executable never started.
       // Preserve the shim's returned code/diagnostic; never retry an executing
