@@ -31,3 +31,11 @@ reviewer's wave26/008 regression passes: ordinary child-stage inference remains,
 and explicit reopen, spread-only reopen, and later-overwriting-spread reopen
 all omit terminal child-stage inference. This is conservative undercoverage,
 never a new gate. Fresh round7 reviews cover the final delta.
+
+Round7: Muse READY; Codex correctly identified the inherited source-unrestricted
+parent reopening case. Commit883aeea5d0 leaves terminality unresolved for an
+explicit parent-state writer with an unmapped target or no source-state
+requirements. The same regression now passes all six guarded/unguarded ×
+explicit/spread-only/later-overwriting-spread reopen variants, while retaining
+ordinary inference. Both fresh round8 reviews are READY on883aeea5d0. Runtime
+and corpus evidence remains a separate requirement; these are source verdicts.
