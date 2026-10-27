@@ -154,8 +154,8 @@ fn current(dir: &Path, owner: &Owner) -> Result<Option<u64>, String> {
                 .map_err(|_| "invalid release identity in store".into());
         }
     }
-    // Compatibility with deployments made before the database owned this
-    // pointer. The next activation records it transactionally.
+    // Before persisted selection metadata, this file supplies source context
+    // only. Deploy takes its activation predecessor from held store status.
     match std::fs::read_to_string(dir.join("current")) {
         Ok(text) => text
             .trim()
@@ -424,6 +424,8 @@ pub fn deploy(options: &Options) -> i32 {
             } else {
                 held["release"].as_u64()
             };
+            // @ref LLP 3000.000.000.003#1-idempotent-selection-and-repair — a legacy filesystem pointer is source context, not a persisted live predecessor.
+            let activation_previous=held["release"].as_u64();
             security_summary={
                 let prior=previous.map(|n|bound_at(dir.join("releases").join(n.to_string()))).transpose()?;
                 super::security::release_loop(&project,&bound,&sources,prior.as_ref(),options)?
@@ -520,7 +522,7 @@ pub fn deploy(options: &Options) -> i32 {
                 if checking { return Ok(()); }
                 let mut with_details=options.clone();with_details.flags.insert("release-preview".into(),details.to_string());let options=&with_details;
                 let selected = bound_at(releases.join(n.to_string()))?;
-                activate(&dir,_deployment.as_ref(),n,previous,revision,selected,false,true,options.flags.contains_key("allow-feed-adoption"),options,None)?;
+                activate(&dir,_deployment.as_ref(),n,activation_previous,revision,selected,false,true,options.flags.contains_key("allow-feed-adoption"),options,None)?;
                 if let Some(saved)=&mut saved_version {saved.finish(n,&source_hash)?;}
                 return Ok(());
             }
@@ -562,7 +564,7 @@ pub fn deploy(options: &Options) -> i32 {
                 &dir,
                 _deployment.as_ref(),
                 n,
-                previous,
+                activation_previous,
                 revision,
                 staged_bound,
                 false,
@@ -621,12 +623,9 @@ pub fn rollback(options: &Options) -> i32 {
             let _command = command_lock(&dir)?;
             let (_deployment, held) = activation_target(&dir)?;
             if let Some(owner) = &_deployment { owner.report_reclaim(options.flags.contains_key("verbose")); }
-            let active = if let Some(owner) = _deployment.as_ref() {
-                current(&dir, owner)?
-            } else {
-                held["release"].as_u64()
-            }
-            .ok_or("no current release")?;
+            // A source pointer alone cannot establish a live rollback predecessor.
+            let active = held["release"].as_u64()
+                .ok_or("no persisted live release; deploy its source once before rollback")?;
             let revision = held["revision"].as_u64().unwrap_or(0);
             let selected = options
                 .flags

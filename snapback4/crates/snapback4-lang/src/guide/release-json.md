@@ -187,3 +187,6 @@ and leaves the asset's home on that child. Missing/cleared payloads are null;
 independent followups are never substituted. Inspect `rowShape` for changed
 nullability and other domains. Old migration self-events remain visible in audit;
 `guide rename` documents previewing and activating the bounded forward repair.
+
+A filesystem source pointer without persisted live metadata is not an already-live
+backend. Run one explicit `deploy DIR` to initialize it before serving or rollback.

@@ -401,7 +401,7 @@ fn text_minimum_widening_registers_a_view_that_keeps_the_current_quota() {
     let source=fs::read_to_string(app.0.join(format!("deployment/releases/{selected}/snapback/schema.q"))).unwrap();
     let b=snapback4_lang::compile(&[("schema.q".into(),source)]);assert!(b.diagnostics.is_empty());
     let store=snapback4_core::store_port::AnyStore::open(&app.0.join("deployment/store.sqlite")).unwrap();
-    let mut engine=snapback4_core::Engine::new_release(store,b.schema,b.programs.into_iter().map(|p|p.program),selected,Some(selected)).unwrap();
+    let mut engine=snapback4_core::Engine::attach_release_at(store,selected,snapback4_core::now_ms()).unwrap();
     let hidden=engine.query("all",snapback4_core::Context::new("bob",Default::default())).unwrap();assert_eq!(snapback4_core::wire::to_json(&hidden.data),json!([]));
     let write=engine.mutate("add",None,snapback4_core::Context::new("alice",Default::default())).unwrap();
     assert!(matches!(write.state,snapback4_core::WriteState::Failed{..}),"old quota would have admitted this second row: {write:?}");
@@ -514,7 +514,7 @@ fn incomplete_current_shape_uses_a_guarded_bridge_with_current_intent() {
     assert_eq!(compiled.invariants.len(),1);
     assert!(sources.iter().any(|(_,s)|s.contains("NO_AMOUNT")));
     let store=snapback4_core::store_port::AnyStore::open(&app.0.join("deployment/store.sqlite")).unwrap();
-    let mut engine=snapback4_core::Engine::new_release(store,compiled.schema,compiled.programs.into_iter().map(|p|p.program),selected,Some(selected)).unwrap();
+    let mut engine=snapback4_core::Engine::attach_release_at(store,selected,snapback4_core::now_ms()).unwrap();
     let out=engine.mutate("pay",None,snapback4_core::Context::new("alice",std::collections::BTreeMap::from([("id".into(),snapback4_core::Value::Id("pending".into()))]))).unwrap();
     assert!(matches!(out.state,snapback4_core::WriteState::Failed{..}),"{out:?}");
     assert_eq!(engine.store().count("payments").unwrap(),0);
@@ -693,7 +693,7 @@ fn native_singleton_projects_to_exact_shape_and_keeps_its_forward_identity() {
     app.source(&current);app.ok(&["deploy","deployment"]);
     let b=snapback4_lang::compile(&[("schema.q".into(),current.clone())]);
     let store=snapback4_core::store_port::AnyStore::open(&app.0.join("deployment/store.sqlite")).unwrap();let schema=b.schema.clone();
-    let mut engine=snapback4_core::Engine::new_release(store,b.schema,b.programs.into_iter().map(|p|p.program),2,Some(2)).unwrap();
+    let mut engine=snapback4_core::Engine::attach_release_at(store,2,snapback4_core::now_ms()).unwrap();
     let asset=engine.store_file("alice",b"native singleton",Some("text/plain"),"native.txt",1000).unwrap();let scan=snapback4_core::wire::to_json(&asset.column_value());
     let rows=[("customers",json!({"id":"customer"})),("orders",json!({"id":"native-parent","owner":"alice","customer":"customer"})),("scans",json!({"id":"native-child","order":"native-parent","scan":scan}))];
     engine.seed(rows.into_iter().map(|(t,row)|(t.into(),snapback4_core::wire::row_from_json(&schema.tables[t],&row).unwrap())).collect::<Vec<_>>()).unwrap();drop(engine);
@@ -710,7 +710,8 @@ fn native_singleton_projects_to_exact_shape_and_keeps_its_forward_identity() {
         assert_eq!(snapback4_core::wire::to_json(&restored),scan);
         app.ok(&["rollback","deployment","--to","latest"]);
         let b=snapback4_lang::compile(&[("schema.q".into(),current.clone())]);
-        let store=snapback4_core::store_port::AnyStore::open(&app.0.join("deployment/store.sqlite")).unwrap();let mut engine=snapback4_core::Engine::new_release(store,b.schema,b.programs.into_iter().map(|p|p.program),2,Some(2)).unwrap();
+        assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);
+        let store=snapback4_core::store_port::AnyStore::open(&app.0.join("deployment/store.sqlite")).unwrap();let mut engine=snapback4_core::Engine::attach_release_at(store,2,snapback4_core::now_ms()).unwrap();
         for viewer in ["alice","bob"] {
             let out=engine.query("scan",snapback4_core::Context::new(viewer,std::collections::BTreeMap::from([("id".into(),snapback4_core::Value::Id("native-child".into()))]))).unwrap();let data=snapback4_core::wire::to_json(&out.data);
             if viewer=="alice"{assert_eq!(data["id"],"native-child");assert_eq!(data["order"],"native-parent");assert_eq!(data["scan"],scan);}else{assert_eq!(data,json!(null));}
@@ -753,7 +754,7 @@ fn fitting_extraction_with_rename_restores_predecessor_shape_twice() {
     let b=snapback4_lang::compile(&[("schema.q".into(),current)]);
     let store=snapback4_core::store_port::AnyStore::open(&app.0.join("deployment/store.sqlite")).unwrap();
     let schema=b.schema.clone();
-    let mut engine=snapback4_core::Engine::new_release(store,b.schema,b.programs.into_iter().map(|p|p.program),2,Some(2)).unwrap();
+    let mut engine=snapback4_core::Engine::attach_release_at(store,2,snapback4_core::now_ms()).unwrap();
     let asset=engine.store_file("alice",b"independent scan",Some("text/plain"),"extra.txt",1000).unwrap();
     engine.seed(vec![("scans".into(),snapback4_core::wire::row_from_json(&schema.tables["scans"],&json!({"id":"native","order":"kept","scan":snapback4_core::wire::to_json(&asset.column_value())})).unwrap())]).unwrap();
     drop(engine);
@@ -774,7 +775,7 @@ fn extraction_view_keeps_multiple_native_children_and_bridge_is_written_on_refus
     // A v2-born parent with two real independently homed children.
     let b=snapback4_lang::compile(&[("schema.q".into(),current.into())]);
     let store=snapback4_core::store_port::AnyStore::open(&app.0.join("deployment/store.sqlite")).unwrap();
-    let mut e=snapback4_core::Engine::new_release(store,b.schema.clone(),b.programs.into_iter().map(|p|p.program),parent,Some(parent)).unwrap();
+    let mut e=snapback4_core::Engine::attach_release_at(store,parent,snapback4_core::now_ms()).unwrap();
     let mut rows=vec![("items".into(),snapback4_core::wire::row_from_json(&b.schema.tables["items"],&json!({"id":"native","owner":"alice","label":"native"})).unwrap())];
     for id in ["a","b"] {
         let asset=e.store_asset("alice",b"\x89PNG\r\n\x1a\n\x00\x00\x00\x0dIHDR\x00\x00\x00\x01\x00\x00\x00\x01",1000).unwrap();
@@ -992,7 +993,7 @@ fn live_writer_rechecks_projection_for_a_parent_born_after_a_fitting_preview() {
     assert_eq!(preview["rowShape"]["matchesTarget"],true);
     let b=snapback4_lang::compile(&[("schema.q".into(),current)]);let schema=b.schema.clone();
     let store=snapback4_core::store_port::AnyStore::open(&app.0.join("deployment/store.sqlite")).unwrap();
-    let mut engine=snapback4_core::Engine::new_release(store,b.schema,b.programs.into_iter().map(|p|p.program),2,Some(2)).unwrap();
+    let mut engine=snapback4_core::Engine::attach_release_at(store,2,snapback4_core::now_ms()).unwrap();
     engine.seed(vec![("customers".into(),snapback4_core::wire::row_from_json(&schema.tables["customers"],&json!({"id":"customer"})).unwrap()),("orders".into(),snapback4_core::wire::row_from_json(&schema.tables["orders"],&json!({"id":"late","owner":"alice","customer":"customer"})).unwrap())]).unwrap();drop(engine);
     let b=snapback4_lang::compile(&[("schema.q".into(),old)]);
     let store=snapback4_core::store_port::AnyStore::open(&app.0.join("deployment/store.sqlite")).unwrap();

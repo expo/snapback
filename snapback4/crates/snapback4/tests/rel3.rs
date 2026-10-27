@@ -90,3 +90,21 @@ fn wave31_010_preview_names_every_hidden_sample_and_keeps_shape_json_out_of_huma
     let refused=a.run(&["deploy","deploy","--check"]);let text=format!("{}{}",String::from_utf8_lossy(&refused.stdout),String::from_utf8_lossy(&refused.stderr));assert!(!refused.status.success());assert!(text.contains("would hide 1 old-table rows")&&text.contains("items [row-010]")&&text.contains("sample row ids"),"{text}");
     assert!(!text.contains("\"matchesTarget\"")&&!text.contains("\"differences\""),"{text}");
 }
+
+#[test]
+fn wave31_041_legacy_pointer_initialization_is_not_an_already_live_transition() {
+    let a=App::new();a.source(OLD);a.ok(&["deploy","deploy"]);a.seed(OLD,"trunks",json!({"id":"kept","label":"a","stage":"wood_repair"}));
+    let before_generation=a.json(&["releases","deploy"])["generation"].as_u64().unwrap();
+    let db=rusqlite::Connection::open(a.0.join("deploy/store.sqlite")).unwrap();
+    db.execute_batch("DELETE FROM _meta WHERE key IN ('release','activation_hash'); DELETE FROM _generations;").unwrap();drop(db);
+    let snapshot=||{let db=rusqlite::Connection::open(a.0.join("deploy/store.sqlite")).unwrap();["_meta","_generations","_release_events","r"].into_iter().map(|table|{let mut q=db.prepare(&format!("SELECT * FROM {table}")).unwrap();let n=q.column_count();q.query_map([],|row|Ok((0..n).map(|i|format!("{:?}",row.get_ref(i).unwrap())).collect::<Vec<_>>())).unwrap().collect::<Result<Vec<_>,_>>().unwrap()}).collect::<Vec<_>>()};
+    let before=snapshot();
+    for args in [vec!["rollback","deploy","--to","1"],vec!["rollback","deploy","--to","1","--exact"],vec!["rollback","deploy","--to","1","--check"]] {
+        let out=a.run(&args);assert!(!out.status.success());assert!(String::from_utf8_lossy(&out.stderr).contains("deploy its source once before rollback"));assert_eq!(snapshot(),before);
+    }
+    a.ok(&["deploy","deploy"]);let state=a.json(&["releases","deploy"]);
+    assert_eq!(state["current"],1);assert_eq!(state["generation"],before_generation+1);assert_eq!(a.stage(),"wood_repair");
+    for event in state["events"].as_array().unwrap(){assert_ne!(event["release"],event["previous"]);}
+    assert!(a.ok(&["rollback","deploy","--to","1"]).contains("already live"));
+    assert_eq!(a.json(&["releases","deploy"]),state);
+}

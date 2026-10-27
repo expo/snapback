@@ -96,3 +96,18 @@ fn frozen_alias_coverage_includes_descendants_of_the_aliased_root_object() {
     let review=snapback4_lang::client_contracts::compare(&old,&new,"frozen nested UI").join("\n");
     assert!(review.contains("legacy.label")&&review.contains("missing fields []")&&review.contains("covered by alias list.legacy = details"),"{review}");
 }
+
+#[test]
+fn wave31_005_result_alias_never_reveals_private_fields_in_another_owners_write_result() {
+    let source="table items:\n  owner: principal\n  title: text <=80 read <- .owner = viewer\n  n: int default 0\n  public\n  update <- allow\n  online only\nmutation bump(id: items):\n  return update items[id] {n:1}\nalias result bump.label = title\n";
+    let b=bound(source);let schema=b.schema.clone();let mut e=Engine::memory(b.schema,b.programs.into_iter().map(|p|p.program)).unwrap();
+    let row=snapback4_core::wire::row_from_json(&schema.tables["items"],&serde_json::json!({"id":"kept","owner":"alice","title":"private-existing-value","n":0})).unwrap();
+    e.seed([("items".into(),row)]).unwrap();
+    for viewer in ["bob","alice"] {
+        let out=e.mutate("bump",None,Context::new(viewer,std::collections::BTreeMap::from([("id".into(),Value::Id("kept".into()))]))).unwrap();
+        let snapback4_core::WriteState::Sent{result,..}=out.state else{panic!("public counter update was refused")};
+        let result=snapback4_core::wire::to_json(&result);assert_eq!(result["n"],1);
+        if viewer=="alice" {assert_eq!(result["label"],"private-existing-value");}
+        else {assert_eq!(result.get("label"),result.get("title"));assert!(!result.to_string().contains("private-existing-value"),"write-result aliases must keep the canonical privacy mask");}
+    }
+}
