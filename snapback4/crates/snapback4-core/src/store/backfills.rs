@@ -6,6 +6,10 @@ use std::collections::{BTreeMap, BTreeSet};
 pub(crate) const VERSION: &str = "snapback4-release-store-7";
 fn migration_context(tx:&Tx<'_>,now:i64)->Result<Context,RuntimeError>{let mut context=Context::system().at(now);context.migration_assets=tx.meta("activation_asset_root")?.map(std::path::PathBuf::from);Ok(context)}
 fn refusal(message: impl Into<String>) -> RuntimeError { RuntimeError::Structural { code:"E_ADOPT", message:message.into() } }
+// @ref LLP 3000.000.000.003#4-preview-wording — bounded row values must not truncate the action advice.
+fn forward_refusal(message:impl Into<String>)->RuntimeError {
+    refusal(format!("{}; forward selection: preserve current values in a bridge and repair through an authorized mutation; use a fresh declaration name for new transform meaning (guide rename)",message.into()))
+}
 fn present(tx: &Tx<'_>) -> Result<bool, RuntimeError> {
     Ok(tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM sqlite_schema WHERE name='_backfill_evidence')",[],|r|r.get(0))?)
 }
@@ -278,7 +282,7 @@ fn restore_downfills(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,sources:&B
             patch_retained(tx,t,id,e.reversed.iter().map(|(c,v)|(c.as_str(),v.as_ref())))?;
             e.active=true;if in_r {tx.conn().execute("UPDATE r SET data=?1 WHERE t=?2 AND id=?3",params![canonical_json(&row),t,id])?;super::movement::rewrite(tx,t,&id,&row)?;}save(tx,t,id,&key,&e,true)?;count+=1;Ok(())
         })?;
-        if bad.count>0{return Err(refusal(format!("down {} {} forward: {}",fill.table,fill.name,bad.describe())))}
+        if bad.count>0{return Err(forward_refusal(format!("down {} {} forward: {}",fill.table,fill.name,bad.describe())))}
         if count>0 {report.backfills.push(format!("{} {} restored {count} native {}",fill.table,fill.name,if count==1{"row"}else{"rows"}));tx.set_meta("activation_population","true")?;}
     }} Ok(())
 }
@@ -713,7 +717,7 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
                             // not the forward transform's other dependencies.
                             let unchanged=prior.inputs==inputs && if prior.computed.is_empty(){input_only}else{prior.computed==patch};
                             if !unchanged && &native!=value {
-                                bad.add(id,&format!("{}.{} authored output {} conflicts with changed historical inputs/dependencies and recomputation {}; for forward selection retain a bridge, repair through an authorized mutation and use a fresh declaration name",fill.table,c,display_cell(Some(&native)),display_cell(Some(value))));return Ok(())
+                                bad.add(id,&format!("{}.{} authored output {} conflicts with changed historical inputs/dependencies and recomputation {}",fill.table,c,display_cell(Some(&native)),display_cell(Some(value))));return Ok(())
                             }
                             desired.insert(c.clone(),native);
                             native_preserved.insert(c.clone());
@@ -730,10 +734,10 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
                     let expected=prior.reversed.get(c).cloned().unwrap_or_else(||original.cloned());
                     let actual=if transformed {None}else{source_value_impl(tx,t,id,&current,c,row_source.as_deref(),&mut preimage_meter,false)?};
                     if !transformed && actual.as_ref()!=expected.as_ref() && actual.as_ref()!=prior.after.get(c) && actual.as_ref()!=Some(value) {
-                        bad.add(id,&format!("{}.{} changed while backfill {} was absent: older-release value {}, expected old view {}, retained newer value {}, recomputed value {}; for forward selection use a fresh declaration name for the repaired transform, preserve current values in a bridge and resolve through an authorized mutation; see guide rename",fill.table,c,fill.name,display_cell(actual.as_ref()),display_cell(expected.as_ref()),display_cell(prior.after.get(c)),display_cell(Some(value))));return Ok(())
+                        bad.add(id,&format!("{}.{} changed while backfill {} was absent: older-release value {}, expected old view {}, retained newer value {}, recomputed value {}",fill.table,c,fill.name,display_cell(actual.as_ref()),display_cell(expected.as_ref()),display_cell(prior.after.get(c)),display_cell(Some(value))));return Ok(())
                     }
                     if prior.authored.contains(c)&&(prior.inputs!=inputs||!computation_same)&&current_field!=Some(value){
-                        bad.add(id,&format!("{}.{} authored output {} conflicts with changed historical inputs/dependencies and recomputation {}; for forward selection use a fresh declaration name for new meaning, preserve current values in a bridge and repair through an authorized mutation; see guide rename",fill.table,c,display_cell(current_field),display_cell(Some(value))));return Ok(())
+                        bad.add(id,&format!("{}.{} authored output {} conflicts with changed historical inputs/dependencies and recomputation {}",fill.table,c,display_cell(current_field),display_cell(Some(value))));return Ok(())
                     }
                     if prior.authored.contains(c) && computation_same && prior.inputs==inputs && current_field==prior.after.get(c) && current_field.is_some() {
                         desired.insert(c.clone(),current_field.unwrap().clone());
@@ -741,7 +745,7 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
                         // Added columns retain edits under v1's dormant storage.
                         desired.insert(c.clone(),current_field.unwrap().clone());
                     } else if transformed && !deps_same && current_field!=prior.after.get(c) && current_field!=original && current_field!=Some(value) {
-                        bad.add(id,&format!("{}.{} was edited and its historical inputs changed: current {}, retained output {}, recomputed {}; for forward selection use a fresh declaration name for the repaired transform, preserve current values in a bridge and resolve through an authorized mutation; see guide rename",fill.table,c,display_cell(current_field),display_cell(prior.after.get(c)),display_cell(Some(value))));return Ok(())
+                        bad.add(id,&format!("{}.{} was edited and its historical inputs changed: current {}, retained output {}, recomputed {}",fill.table,c,display_cell(current_field),display_cell(prior.after.get(c)),display_cell(Some(value))));return Ok(())
                     }
                 }
             }
@@ -753,7 +757,7 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
             tx.conn().execute("INSERT INTO temp._backfill_pending VALUES(?1,?2,?3,?4,?5)",params![t,id,key,canonical_json(&desired),canonical_json(&e)])?;count+=1;
             Ok(())
         })?;
-        if bad.count>0{return Err(refusal(format!("backfill {} {}: {}",fill.table,fill.name,bad.describe())))}
+        if bad.count>0{return Err(forward_refusal(format!("backfill {} {}: {}",fill.table,fill.name,bad.describe())))}
         if count>0{report.backfills.push(format!("{} {} transformed {count} {}",fill.table,fill.name,if count==1 {"row"}else{"rows"}));}
     }
     }

@@ -1382,3 +1382,23 @@ fn wave25_005_legacy_unmodified_retained_projection_is_not_a_false_dependency_co
     adopt(&mut e,&next,2).unwrap();assert_eq!(e.store().count("items").unwrap(),1);
     adopt(&mut e,old,1).unwrap();adopt(&mut e,&next,2).unwrap();assert_eq!(e.store().count("items").unwrap(),1);
 }
+
+#[test]
+fn wave31_020_extraction_names_the_reference_copy_and_indirect_parent_repair() {
+    let old="table customers:\n  public 'fixture'\n  online only\ntable orders:\n  owner: customers\n  photo: file <=1000\n  immutable owner\n  public 'fixture'\n  online only\n";
+    let current=old.replace("  photo: file <=1000\n","")+"table scans:\n  order: orders on delete cascade\n  customer: customers\n  photo: file <=1000\n  immutable order, customer\n  read through .order\n  online only\nextract scans from orders via order: {photo:photo,customer:owner}\n";
+    let mut e=engine(old);seed(&mut e,"customers",json!({"id":"customer"}));let asset=e.store_file("alice",b"receipt\n",Some("text/plain"),"photo.txt",100).unwrap();seed(&mut e,"orders",json!({"id":"order","owner":"customer","photo":wire::to_json(&asset.column_value())}));let generation=e.generation();let error=adopt(&mut e,&current,2).unwrap_err().to_string();assert!(error.contains("orders.owner")&&error.contains("scans.customer")&&error.contains("retain scans.order")&&error.contains("original owner reference"),"{error}");assert_eq!(e.generation(),generation);
+}
+
+#[test]
+fn wave31_010_forward_action_advice_survives_long_sample_values() {
+    let old="table items:\n  input: text <=1000\n  label: text <=1000\n  public 'fixture'\n  update <- allow\n  online only\nmutation editInput(value: text <=1000):\n  update items['a'] {input:value}\n";
+    let next=old.to_owned()+"backfill items computed(input: text <=1000): {label:input}\nmutation editOutput(value: text <=1000):\n  update items['a'] {label:value}\n";
+    let mut e=engine(old);seed(&mut e,"items",json!({"id":"a","input":"a","label":"a"}));
+    adopt(&mut e,&next,2).unwrap();
+    for(op,value)in[("editOutput","x".repeat(600)),("editInput","y".repeat(600))] {
+        if op=="editInput"{adopt(&mut e,old,1).unwrap();}
+        let result=e.mutate(op,None,Context::new("alice",std::collections::BTreeMap::from([("value".into(),Value::String(value))]))).unwrap();assert!(matches!(result.state,WriteState::Sent{..}));
+    }
+    let error=adopt(&mut e,&next,2).unwrap_err().to_string();assert!(error.contains("fresh declaration name")&&error.contains("forward selection")&&error.contains("items.label"),"{error}");
+}
