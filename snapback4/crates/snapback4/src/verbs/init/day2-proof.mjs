@@ -6,7 +6,7 @@ import assert from "node:assert/strict";
 import { mkdtemp, rm, readFile, readdir, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { deploy, rollback, startServe, testSource, cli, cleanup } from "snapback4/proof";
+import { deploy, rollback, startServe, testSource, cli, cleanup, uniqueName } from "snapback4/proof";
 const args = process.argv.slice(2);
 // npm appends caller arguments after the script's default pair.
 const supplied = args.length > 3 && args[0] === "versions/v1" && args[1] === "versions/v2" ? args.slice(2) : args;
@@ -18,7 +18,10 @@ async function snapshot(path) {
   return (await Promise.all(files.sort().map(name => snapshot(join(path, name))))).flat();
 }
 const before = await Promise.all([snapshot(v1), snapshot(v2)]);
-async function assertBusiness({ url, release }) {
+const runName = uniqueName("day2");
+async function assertBusiness({ url, release, host, runName }) {
+  // For password fixtures create freshUser(host,{role,provision:api.provision})
+  // once per run and reuse that session across these transitions.
   // BUSINESS_ASSERTION_BEGIN: add authenticated business and refusal assertions.
   // Return [{ id:"table/id", fields:["changedField"] }, ...] for writes by the frozen v1
   // client at a rollback stage. Include derived fields expected to change on forward; other values stay checked.
@@ -115,11 +118,11 @@ try {
   await testSource(v2, { fixtureOnly: true });
   await deploy(directory, v1);
   serve = await startServe(directory);
-  await assertBusiness({ url: serve.url, release: "v1" });
+  await assertBusiness({ url: serve.url, host: serve, runName, release: "v1" });
   const oldRows = await snapshotAll();
   await deploy(directory, v2);
   compareMoves(oldRows, await snapshotAll()); // measure adoption before a callback can repair it
-  await assertBusiness({ url: serve.url, release: "v2" });
+  await assertBusiness({ url: serve.url, host: serve, runName, release: "v2" });
   let current = await snapshotAll();
   compareMoves(oldRows, current); // compare ids, never array order
   const deletedByV1 = new Set(), bornInV1 = new Set();
@@ -128,7 +131,7 @@ try {
     const beforeV1Writes = await snapshotAll();
     for (const id of deletedByV1) assert.ok(!beforeV1Writes.has(id), `${id}: a deliberate v1 delete resurrected on rollback`);
     compareMoves(current, beforeV1Writes, { required: [...oldRows.keys(), ...bornInV1].filter(id => !deletedByV1.has(id)) });
-    const writes = await assertBusiness({ url: serve.url, release: "rollback-v1" });
+    const writes = await assertBusiness({ url: serve.url, host: serve, runName, release: "rollback-v1" });
     assert.ok(Array.isArray(writes) && writes.every(write => typeof write.id === "string" && Array.isArray(write.fields) && write.fields.every(field => typeof field === "string") && (write.deleted === undefined || typeof write.deleted === "boolean") && (!write.deleted || write.fields.length === 0)), "return explicit field changes or deletions from the v1 callback");
     assert.equal(new Set(writes.map(write => write.id)).size, writes.length, "one change declaration per id");
     const changedByV1 = new Map(writes.filter(write => !write.deleted).map(write => [write.id, write.fields]));
@@ -146,7 +149,7 @@ try {
     compareMoves(older, beforeForwardCallback); // includes newly inserted v1-client rows
     compareMoves(current, beforeForwardCallback, { required: [...current.keys()].filter(id => !deletedByV1.has(id)), ignore: changedByV1, values: true });
     for (const id of deletedByV1) assert.ok(!beforeForwardCallback.has(id), `${id}: a deliberate v1 delete resurrected on forward`);
-    await assertBusiness({ url: serve.url, release: "forward-v2" });
+    await assertBusiness({ url: serve.url, host: serve, runName, release: "forward-v2" });
     const forward = await snapshotAll();
     compareMoves(current, forward, { required: [...current.keys()].filter(id => !deletedByV1.has(id)), ignore: changedByV1, values: true });
     for (const id of deletedByV1) assert.ok(!forward.has(id), `${id}: a deliberate v1 delete resurrected`);
@@ -157,4 +160,7 @@ try {
   assert.equal(history.code, 0, history.stderr);
   assert.deepEqual(await Promise.all([snapshot(v1), snapshot(v2)]), before);
   console.log("day2:proof passed: persisted ids and values across two rollback/forward cycles; sources unchanged (add business assertions for policy coverage)");
+} catch (error) {
+  if (/holds at most \d+ rows/.test(String(error))) console.error("Proof capacity reached: repeat runs need freshUser() owners/groups and uniqueName() row names, or deliberate authorized cleanup; never reset the production store or raise caps for the proof.");
+  throw error;
 } finally { await cleanup(() => serve?.stop(), () => temporary && rm(directory, { recursive: true, force: true })); }

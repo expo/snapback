@@ -14,7 +14,7 @@ pub(super) fn readme(mut text: String) -> String {
     text
 }
 
-pub(super) fn files(files: &mut Vec<(&'static str, String)>, options: &Options, backend: u16, frontend: u16, web: bool, shape: &super::starter::Shape) {
+pub(super) fn files(files: &mut Vec<(&'static str, String)>, options: &Options, backend: u16, frontend: u16, web: bool, shape: &super::starter::Shape) -> std::io::Result<()> {
     let has_frontend = true;
     let has_write_scenario = shape.body == super::starter::Body::Todos || options.flags.contains_key("template");
     for (_, text) in files.iter_mut().filter(|(name, _)| *name == "README.md") {
@@ -29,6 +29,10 @@ pub(super) fn files(files: &mut Vec<(&'static str, String)>, options: &Options, 
         own.files.iter().filter_map(|name| std::fs::read_to_string(dir.join("snapback").join(name)).ok().map(|text| (name.clone(), text))).collect::<Vec<_>>()
     } else { files.iter().find(|(name, _)| *name == "snapback/schema.q").map(|(_, text)| vec![("schema.q".to_owned(), text.clone())]).unwrap_or_default() };
     let day2 = options.flags.contains_key("day2") || !dir.join("package.json").is_file();
+    if day2 {
+        // Adapt's fallible preflight reports invalid captures before applying files.
+        files.extend(super::frozen::files(dir, &sources)?);
+    }
     for version in ["v1", "v2"].into_iter().filter(|_| day2) {
         if dir.join("versions").join(version).exists() { continue; }
         // Init is a one-shot CLI operation. Destinations live for this invocation's
@@ -87,6 +91,7 @@ pub(super) fn files(files: &mut Vec<(&'static str, String)>, options: &Options, 
         *text = pretty(&package);
         let _ = name;
     }
+    Ok(())
 }
 
 pub(super) fn frontend_proof(source: &str, template: Option<&str>, web: bool) -> String {
@@ -181,7 +186,7 @@ pub(super) fn plan(dir: &std::path::Path, own: &super::OwnSchema, enable_day2: b
     else if let Some(Some(template)) = previous_frontend(dir, web) { flags.insert("template".into(), template.into()); }
     if day2 { flags.insert("day2".into(), String::new()); }
     let default_todos = shape.body == super::starter::Body::Todos && !flags.contains_key("template");
-    files(&mut generated, &Options { positionals: vec![dir.to_string_lossy().into_owned()], flags, json: false }, backend, frontend, web, &shape);
+    files(&mut generated, &Options { positionals: vec![dir.to_string_lossy().into_owned()], flags, json: false }, backend, frontend, web, &shape)?;
     // A saved version is immutable application evidence. Never fill its missing
     // fixture files from today's working release during an adaptation.
     generated.retain(|(name, _)| !name.starts_with("versions/") || {
@@ -235,7 +240,7 @@ pub(super) fn plan(dir: &std::path::Path, own: &super::OwnSchema, enable_day2: b
             if *name == "scripts/day2-proof.mjs" { return day2 && (managed_day2 || !dir.join(name).exists() && (enable_day2 || referenced_day2))
                 && std::fs::read_to_string(dir.join(name)).ok().as_deref()!=Some(text.as_str()); }
             if !dir.join(name).exists() {
-                return name.starts_with("versions/") || referenced_after(name)
+                return name.starts_with("versions/") || name.starts_with("v1/") || referenced_after(name)
                     || shape.password && *name=="scripts/staging.mjs";
             }
             false
@@ -254,7 +259,26 @@ fn launcher_port(dir: &std::path::Path, name: &str) -> Option<u16> {
 
 
 pub(super) fn apply(dir: &std::path::Path, additions: &[(&str, String)]) -> std::io::Result<()> {
+    let frozen:Vec<_>=additions.iter().filter(|(name,_)|name.starts_with("v1/")).collect();
+    if !frozen.is_empty() {
+        if dir.join("v1").symlink_metadata().is_ok() {return Err(std::io::Error::other("v1 already exists; no historical source replaced"));}
+        let nonce=std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_nanos();
+        let stage=dir.join(format!(".snapback4-frozen-{}-{nonce}",std::process::id()));
+        std::fs::create_dir(&stage)?;
+        let result=(|| -> std::io::Result<()> {
+            for (name,body) in &frozen {
+                let path=stage.join(name.strip_prefix("v1/").unwrap());
+                std::fs::create_dir_all(path.parent().unwrap())?;
+                std::fs::write(path,body)?;
+            }
+            if dir.join("v1").symlink_metadata().is_ok() {return Err(std::io::Error::other("v1 appeared during capture; no historical source replaced"));}
+            std::fs::rename(&stage,dir.join("v1"))
+        })();
+        if result.is_err() {let _=std::fs::remove_dir_all(&stage);}
+        result?;
+    }
     for (name, body) in additions {
+        if name.starts_with("v1/") {continue;}
         let path = dir.join(name);
         std::fs::create_dir_all(path.parent().unwrap())?;
         if *name == "package.json" || *name == "vite.config.mts" || *name == "scripts/frontend-proof.mjs" || *name == "scripts/day2-proof.mjs" { super::replace_file(&path, body)?; }

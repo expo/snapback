@@ -1,6 +1,7 @@
 # API proof: exact signature digest
 
 Import from "snapback4/proof". Generated from dist declarations; types named below retain their declaration meaning.
+Production: startServe(dir,{provisionUsers:{roles:{member:2,admin:2},provision:api.provision}}) returns host.sessions, shaped {member:[account,account],admin:[account,account]}. Account = {kind,role,email,password,principal,token,expiresAt}. Signup grants no role. The private persistent roster is production/proof-accounts/default.json (0600): {version:1,plan,entries:[{role,index,email,password,id,done,principal?,args?}]}; keep it with its store. provisionAccounts reuses this roster; freshUser creates an isolated proof identity instead. Read guide production --section "Serve script and reusable accounts" for partial-setup recovery; never read dist/proof.js.
 Use probe:check for verification; probe:serve stays up until SIGTERM (deliberate harness run: --hold).
 
 ```ts
@@ -31,8 +32,12 @@ export interface DevHost extends ProofHost { devAccounts(options: SeedAccountsOp
 export interface ServeHost extends ProofHost { readonly deploymentDir: string; now(): Promise<number>; advance(duration: string, options?: AdvanceOptions): Promise<ClockAdvance>; drain(options?: Pick<AdvanceOptions, "eachBoundary" | "allowHeld">): Promise<ClockAdvance>; operatorToken(service?: string, days?: number): Promise<string>; seedAccounts(options: SeedAccountsOptions): Promise<StagingSessions>; provisionAccounts(options: ProvisionAccountsOptions): Promise<ProvisionedSessions>; sessions?: StagingSessions; }
 export interface CliResult { code: number | null; signal: NodeJS.Signals | null; stdout: string; stderr: string; logs: ProofHost["logs"]; }
 export type ProvisionedSessions = StagingSessions;
+export interface StagingAccount { kind: "user"; role: string; email: string; password: string; principal: string; token: string; expiresAt: number; }
+export function uniqueName(prefix?: string): string;
+export function freshUser(host: Pick<ServeHost, "url" | "operatorToken">, options?: FreshUserOptions): Promise<StagingAccount>;
+export interface FreshUserOptions { role?: string; provision?: { readonly name: string; }; service?: string; args?: (account: StagingAccount) => Record<string, unknown>; timeoutMs?: number; }
 ```
 
 Other exports/options: dist/proof.d.ts; follow its named imports only on demand.
 
-Declaration fingerprint: 9dfc8c19e72cd56797e852802911d611ff5961c1e30cac74b884dfa24a8cf4da
+Declaration fingerprint: bc142aa7775217e0b28aa54150e2e34fb88ce913e653765666e66b46e93d319c

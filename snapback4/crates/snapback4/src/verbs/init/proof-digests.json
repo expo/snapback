@@ -248,6 +248,55 @@
     "file": "frontend",
     "sha256": "80da3f822d5d180182870f269f267cb8efb651a56076b8900c53fab3cec5fa17",
     "template": null,
+    "version": "0.4.44",
+    "web": false
+  },
+  {
+    "file": "frontend",
+    "sha256": "8f332ad19b2c37b9b481927ed01907246dd1b253ce7c1353eaeaf7498785eca0",
+    "template": "chat",
+    "version": "0.4.44",
+    "web": false
+  },
+  {
+    "file": "frontend",
+    "sha256": "10ccb8ca3792803d916e5e2e98393b8812be9c43a2921361822c9236822019b1",
+    "template": "social",
+    "version": "0.4.44",
+    "web": false
+  },
+  {
+    "file": "frontend",
+    "sha256": "7cbd22d565fd14dd8264daee4c2b45419429640c02fb6e736d5366b38a304190",
+    "template": null,
+    "version": "0.4.44",
+    "web": true
+  },
+  {
+    "file": "frontend",
+    "sha256": "a8376f275e5ebce8b98ed3992c2ff83868379047e2fc1a252bcbecbfaf3a9769",
+    "template": "chat",
+    "version": "0.4.44",
+    "web": true
+  },
+  {
+    "file": "frontend",
+    "sha256": "bc31356bb16ceed9f4004e3fb73cf130d0d5b077ee5469952e014fe22ae84d30",
+    "template": "social",
+    "version": "0.4.44",
+    "web": true
+  },
+  {
+    "file": "day2",
+    "sha256": "e2f65c1a8efc7e504e74cbdfacce6acc1f93edb7edbf003947e0bf35626dd24a",
+    "template": null,
+    "version": "0.4.44",
+    "web": false
+  },
+  {
+    "file": "frontend",
+    "sha256": "80da3f822d5d180182870f269f267cb8efb651a56076b8900c53fab3cec5fa17",
+    "template": null,
     "version": "0.4.33",
     "web": false
   },
