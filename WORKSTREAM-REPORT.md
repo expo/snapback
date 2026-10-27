@@ -201,7 +201,11 @@ round-3 reviews are READY and retained at `c44d763734`. Receipt/effect data
 identifies the governed act; exact advisory replays cover quarantine completion,
 caller-ordinal applicability bypass and an approval selected by an older subject.
 The gate and advisory work bounds remain 3,072 and 8,192. All 53 focused CLI
-unit tests pass. Broader language and CLI integration checks remain running.
+unit tests and 32 selected security integration tests pass. The full language
+run resolved 2,854 cases and had one failure from missing new-code guide test
+pins (16 ignored); `85034827d8` adds those test-only pins and the exact guide
+regression passes. The original full-run receipt remains FAIL, with the
+resolution recorded separately. No production source changed for that repair.
 
 Production binary `c56d97f508b15d6dbb1a7e6d5631f2678103ef563d6501e6dba0fde045469c73`
 is source-hash bound. On wave30 source copies, the 018 quarantine guard, 025
@@ -213,10 +217,17 @@ those scenarios with fresh candidates retains every original assertion and
 passes all 16 checks. Original failures, the fixture-only isolation patch and
 source hashes are retained; no unchanged-025-acceptance PASS is claimed.
 
-The complete 800-schema fresh/post-test precision and default-output survey is
-running. Wave31 calibration is now available (16 Snapback M findings), so a
+The complete 800-schema fresh/post-test precision and default-output survey
+has finished; 29 cases affected by external or internal watchdogs are being
+replayed at lower concurrency against the same immutable executable and source.
+The originals are retained and qualified retries have explicit provenance. Wave31 calibration is now available (16 Snapback M findings), so a
 separate 50-schema before/after coverage pass is included. No final measured
 coverage or zero-false-gate claim is made until those runs finish.
+
+The 2,000-case standard differential run has zero disagreements. The 2,000-case
+Lean run reproduces the same 18 inherited disagreements and signature counts as
+item 1; this is not a clean Lean PASS. Root reference validation passes with
+573 documents / 12,122 references, zero errors.
 
 Items 3 and 4 have not started; item 2's completed measurement is their boundary.
 No push or version bump.
