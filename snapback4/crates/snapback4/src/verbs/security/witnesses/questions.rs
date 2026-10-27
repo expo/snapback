@@ -37,10 +37,9 @@ pub(super) fn candidates(bound:&Bound,sources:&[(String,String)],index:usize,n:&
             && let Some((child,keys))=child.split_once('[')
             && let Some((reference,_))=keys.split_once(" = parent]") {
             for operation in operations.split(", ") {
-                // The observer captures a write boundary, not the final store.
-                // Limit this question to a sole parent update, with no maintains,
-                // branch, loop or opaque execution: later
-                // work in the same atomic call must not repair the observation.
+                // A sole parent insert/update with no maintains, loops, opaque
+                // effects or effectful branches admits committed absence replay.
+                // The final-store observer independently excludes atomic repair.
                 let Some(p)=bound.programs.iter().find(|p|p.program.name==operation) else {continue;};
                 let writes=ir::write_tables(&p.program);
                 if !absence_path(&p.program)
