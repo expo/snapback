@@ -270,7 +270,7 @@ pub(super) fn repeat(bound:&Bound,inv:&security::Invariant,c:&Counterexample,n:&
         let source=include_str!("../../../../../snapback4-lang/tests/security/sec10-shipping/w30-004.q");
         let values=assignment_values(source,"jobPrivate");assert!(!values.is_empty());
         for v in values{assert_eq!(v["kind"],"read-payload");assert_ne!(v["assignment"]["principal"],v["viewer"]);assert!(v["candidate"].as_str().unwrap().starts_with("question:"));assert!(v["summary"].as_str().unwrap().contains(v["assignment"]["principal"].as_str().unwrap()));}
-        let id_only=source.replace("return { details: jobPrivate[job = job], cancellation: cancellations[job = job] }","return { id: job }");
+        let id_only=source.replace("return { details: jobPrivate[job = job], cancellation: cancellations[job = job] }","secret = jobPrivate[job = job] ! else NOT_FOUND\n  return { id: secret.id }");
         assert!(assignment_values(&id_only,"jobPrivate").is_empty(),"returning the resource id does not disclose private payload");
         let source=include_str!("../../../../../snapback4-lang/tests/security/sec10-shipping/w30-014.q");
         let values=assignment_values(source,"projects");assert!(!values.is_empty());assert!(values.iter().all(|v|v.get("assignment").is_none()&&v["candidate"].as_str().unwrap().contains("no modeled assignment constraint")));
