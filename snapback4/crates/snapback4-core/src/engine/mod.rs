@@ -314,6 +314,17 @@ impl Context {
         self
     }
 
+    #[cfg(feature = "sqlite")]
+    pub(crate) fn supplied_ids(&self) -> impl Iterator<Item = String> + '_ {
+        self.new_ids.iter().cloned().chain(self.replay_id_range.clone().into_iter().flatten().map(crate::ids::encode))
+    }
+
+    #[cfg(feature = "sqlite")]
+    pub(crate) fn replay_ids_from(self, original: &Self, minted: &[String]) -> Self {
+        if minted.is_empty() { return self; }
+        self.with_ids(minted.iter().cloned().chain(original.supplied_ids().skip(minted.len())))
+    }
+
     pub fn with_entropy(mut self, entropy: u64) -> Self {
         self.entropy = entropy;
         self

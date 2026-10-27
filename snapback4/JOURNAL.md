@@ -109699,3 +109699,14 @@ same host-mint fallback. This representation adds no result cache and changes no
 campaign work, rule family, tier or restoration authority. LLP
 3000.036.004.000.000 records the mechanism; the lane retains paired production
 latency and full-corpus identity evidence separately.
+
+### LAT1 independent review corrections
+
+The first Muse and fresh Codex reviews found direct supplied-ID queue handling
+at ephemeral entry and in retry reconstruction. Clear the private range at
+an ephemeral mutation's existing host-mint boundary. Retry reconstruction uses
+the complete logical supply and clears the range when replaying a consumed
+prefix, in both single and batched execution. Invocation binding hashes that
+same logical sequence. Empty-prefix attempts keep their lazy representation.
+Regression checks cover prefix/range boundaries, exhaustion and ephemeral
+insertion. The original NOT READY reviews remain verbatim in `llp/reviews/`.

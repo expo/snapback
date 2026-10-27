@@ -398,19 +398,7 @@ impl Engine {
             let mut context = invocation.context.clone();
             context.generation = host.generation;
             context.now = Some(context.now.unwrap_or_else(crate::now_ms));
-            context.new_ids = invocation
-                .minted
-                .iter()
-                .cloned()
-                .chain(
-                    invocation
-                        .context
-                        .new_ids
-                        .iter()
-                        .skip(invocation.minted.len())
-                        .cloned(),
-                )
-                .collect();
+            context = context.replay_ids_from(&invocation.context, &invocation.minted);
             let raw = context.wire_args.take().unwrap_or_else(|| {
                 serde_json::Value::Object(crate::wire::map_to_json(&context.args))
             });

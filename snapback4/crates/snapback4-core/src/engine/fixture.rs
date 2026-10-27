@@ -94,3 +94,32 @@ mod replay_id_tests {
         assert!(second > first);
     }
 }
+
+
+#[cfg(test)]
+mod replay_retry_tests {
+    use super::*;
+    #[test]
+    fn retry_replays_the_prefix_then_the_unconsumed_supply_without_duplicates() {
+        for consumed in [0, 1, 3, 1024, 1025] {
+            let mut eager = Context::new("viewer", BTreeMap::new()).at(1000).with_ids((0..1024).map(crate::ids::encode));
+            let original = Context::new("viewer", BTreeMap::new()).at(1000).with_replay_id_range(0..1024);
+            let mut first = original.clone();
+            let mut minted = Vec::new();
+            for _ in 0..consumed { minted.push(first.mint().unwrap()); }
+            let eager_prefix = minted.clone();
+            // The same captured host-minted tail is replayed after exhaustion.
+            eager = eager.clone().replay_ids_from(&eager, &eager_prefix);
+            let mut retry = original.clone().replay_ids_from(&original, &minted);
+            if consumed == 0 { assert!(retry.new_ids.is_empty(), "first attempt stays lazy"); }
+            let count = 1024.max(consumed);
+            let mut ids = std::collections::BTreeSet::new();
+            for n in 0..count {
+                let actual = retry.mint().unwrap();
+                assert_eq!(actual, eager.mint().unwrap());
+                if n < minted.len() { assert_eq!(actual, minted[n]); }
+                assert!(ids.insert(actual), "no prefix/range overlap on retry");
+            }
+        }
+    }
+}

@@ -1,0 +1,11 @@
+**NOT READY**
+
+- **[P2] Lazy IDs bypass ephemeral supply clearing.** [engine/mod.rs:335](/home/ccheever/projects/sb4-b34-lat1/snapback4/crates/snapback4-core/src/engine/mod.rs:335) consumes `replay_id_range`, but [ephemeral.rs:429](/home/ccheever/projects/sb4-b34-lat1/snapback4/crates/snapback4-core/src/engine/ephemeral.rs:429) clears only `new_ids`. Previously ephemeral mutations discarded supplied IDs and used the host minter; this commit makes them consume reserved replay IDs.
+
+  Reproduced with an ephemeral insert: the eager supply produced a host-minted ID, while the equivalent range produced the supplied ID. This reaches actual campaigns through [workflow.rs:35](/home/ccheever/projects/sb4-b34-lat1/snapback4/crates/snapback4-lang/src/bind/security/challenges/workflow.rs:35); `fixture_observers` recorded counterexamples containing those changed IDs.
+
+  Consequently, the byte-equivalence assertion in the [governing amendment](/home/ccheever/projects/sb4-b34-lat1/llp/3000.036.004.000.000-production-security-replay-latency.rfc.md:216) does not hold across relevant callers.
+
+Reservation arithmetic, logical-clock capture, encoding, independent cloning, explicit replacement, fallback, and PostgreSQL cache exclusion otherwise look consistent. No direct rule, authority, fixed-work, or security-tier policy change was found. Non-SQLite compilation and the two focused replay-ID tests passed.
+
+No repository files were edited; uncommitted telemetry was excluded. The pending 940-schema identity and 54-schema production measurements confer no performance or proof claim.

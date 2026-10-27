@@ -123,7 +123,7 @@ impl Engine {
             let mut context = original.clone();
             if attempted && dynamic_time {context.now=Some(crate::now_ms().max(context.now.unwrap_or(0)));}
             attempted=true;
-            context.new_ids = minted.iter().cloned().chain(original.new_ids.iter().skip(minted.len()).cloned()).collect();
+            context = context.replay_ids_from(&original, &minted);
             let mut attempt=super::program_transcript::Attempt::default();
             let result=program_attempt(&host, tx, name, op, context, publication_requested, &wire_args, &mut authority, false, None, &mut minted,&mut attempt)
                 .map(|d| d.map(|(outcome, data)| Pending::new(outcome, data)));
