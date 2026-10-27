@@ -1,0 +1,119 @@
+-- client file start: packages/snapback4/test/online-journal-browser.test.mjs; stall bound 900000 ms
+TAP version 13
+# Subtest: a device-less browser app journals clicks synchronously and sends each once
+    # Subtest: persona writes capture synchronously; reload replays one execution and keeps principals separate
+    ok 1 - persona writes capture synchronously; reload replays one execution and keeps principals separate
+      ---
+      duration_ms: 300.948613
+      type: 'test'
+      ...
+    # Subtest: persona custody survives forward and rollback generations without replaying as a peer
+    ok 2 - persona custody survives forward and rollback generations without replaying as a peer
+      ---
+      duration_ms: 1074.468874
+      type: 'test'
+      ...
+    # Subtest: persona same-turn navigation before IndexedDB commit preserves the click
+    ok 3 - persona same-turn navigation before IndexedDB commit preserves the click
+      ---
+      duration_ms: 189.104754
+      type: 'test'
+      ...
+    # Subtest: persona syncing schema and invalid combinations publish opening refusals; explicit online works
+    ok 4 - persona syncing schema and invalid combinations publish opening refusals; explicit online works
+      ---
+      duration_ms: 126.809139
+      type: 'test'
+      ...
+    # Subtest: a syncing schema refuses new writes at opening while recovering older persona intent
+    ok 5 - a syncing schema refuses new writes at opening while recovering older persona intent
+      ---
+      duration_ms: 174.116409
+      type: 'test'
+      ...
+    # Subtest: unknown schema selection still recovers captured and committed persona intent
+    ok 6 - unknown schema selection still recovers captured and committed persona intent
+      ---
+      duration_ms: 728.562037
+      type: 'test'
+      ...
+    # Subtest: persona reset observed by a read retires custody and releases the runtime lock
+    ok 7 - persona reset observed by a read retires custody and releases the runtime lock
+      ---
+      duration_ms: 123.036307
+      type: 'test'
+      ...
+    # Subtest: failed persona retirement releases custody so reopening resolves the old-store capture
+    ok 8 - failed persona retirement releases custody so reopening resolves the old-store capture
+      ---
+      duration_ms: 137.828437
+      type: 'test'
+      ...
+    # Subtest: failed IndexedDB opening leaves no persona runtime lock after ready or close
+    ok 9 - failed IndexedDB opening leaves no persona runtime lock after ready or close
+      ---
+      duration_ms: 97.615375
+      type: 'test'
+      ...
+    # Subtest: signed in with no synced table, a click is captured before mutate returns and sent once
+    ok 10 - signed in with no synced table, a click is captured before mutate returns and sent once
+      ---
+      duration_ms: 143.957145
+      type: 'test'
+      ...
+    # Subtest: a same-turn navigation after a click whose journal commit never landed recovers it once
+    ok 11 - a same-turn navigation after a click whose journal commit never landed recovers it once
+      ---
+      duration_ms: 482.38035
+      type: 'test'
+      ...
+    # Subtest: a reload while the POST response is held replays the same id; the server executes it once
+    ok 12 - a reload while the POST response is held replays the same id; the server executes it once
+      ---
+      duration_ms: 220.980634
+      type: 'test'
+      ...
+    # Subtest: a full localStorage refuses E_ADMISSION in the calling stack and sends nothing
+    ok 13 - a full localStorage refuses E_ADMISSION in the calling stack and sends nothing
+      ---
+      duration_ms: 370.686287
+      type: 'test'
+      ...
+    # Subtest: a schema that syncs refuses with both rewrites; writes: "online" admits; a malformed reply is unknown
+    ok 14 - a schema that syncs refuses with both rewrites; writes: "online" admits; a malformed reply is unknown
+      ---
+      duration_ms: 172.296537
+      type: 'test'
+      ...
+    # Subtest: a live tab keeps its own click; once it closes, the next open adopts it once
+    ok 15 - a live tab keeps its own click; once it closes, the next open adopts it once
+      ---
+      duration_ms: 613.691706
+      type: 'test'
+      ...
+    # Subtest: no wasm was fetched by any page
+    ok 16 - no wasm was fetched by any page
+      ---
+      duration_ms: 0.232479
+      type: 'test'
+      ...
+    1..16
+ok 1 - a device-less browser app journals clicks synchronously and sends each once
+  ---
+  duration_ms: 6069.8527
+  type: 'test'
+  ...
+# {"ownerRuntime":"01M5Y6M5C76B9YDQ9KFYXN1S5F","locksAfterClose":{"held":[{"clientId":"4DDBE563FBC3317875C4731CB96B2D34","mode":"exclusive","name":"snapback4-online-runtime:01M5Y6M5C76B9YDQ9KFYXN1S5F"},{"clientId":"B6AA811AE93FA0283AB49BFC6A9D3674","mode":"exclusive","name":"snapback4-online-runtime:01M5Y6M5FMXVQ5PTGAXT4EMKFJ"}],"pending":[]}}
+# {"wasmRequests":0,"navigation":{"executions":1}}
+1..1
+# tests 17
+# suites 0
+# pass 17
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 6192.668095
+-- process inspection: {"snapshots":3,"unrelatedRows":4101}
+-- client file ok: packages/snapback4/test/online-journal-browser.test.mjs (6534 ms)
+-- client files: 1/1; failed 0; tests {"tests":17,"pass":17,"fail":0,"cancelled":0,"skipped":0,"todo":0}

@@ -1,0 +1,142 @@
+-- client file start: packages/snapback4/test/proof-contract.test.mjs; stall bound 900000 ms
+TAP version 13
+# (node:1963950) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+# (Use `node --trace-warnings ...` to show where the warning was created)
+# Subtest: DX9 renderedText defaults to substring matching for a row with more than the needle
+ok 1 - DX9 renderedText defaults to substring matching for a row with more than the needle
+  ---
+  duration_ms: 2746.338249
+  type: 'test'
+  ...
+# Subtest: DX8 renderedText finds a full status line anywhere in a scrollable RN-style root
+ok 2 - DX8 renderedText finds a full status line anywhere in a scrollable RN-style root
+  ---
+  duration_ms: 539.427509
+  type: 'test'
+  ...
+# Subtest: DX8 exhaustPages follows opaque cursors and refuses incomplete traversal
+ok 3 - DX8 exhaustPages follows opaque cursors and refuses incomplete traversal
+  ---
+  duration_ms: 1.870156
+  type: 'test'
+  ...
+# Subtest: DX6 composed RN text and wrapping labels preserve scope, exactness and ambiguity
+ok 4 - DX6 composed RN text and wrapping labels preserve scope, exactness and ambiguity
+  ---
+  duration_ms: 1151.569473
+  type: 'test'
+  ...
+# Subtest: DX6 rendered locators work on caller-owned Chromium outside withBrowser
+ok 5 - DX6 rendered locators work on caller-owned Chromium outside withBrowser
+  ---
+  duration_ms: 360.55207
+  type: 'test'
+  ...
+# Subtest: DX6 proof driver installs the SDK bridge without application witness imports
+ok 6 - DX6 proof driver installs the SDK bridge without application witness imports
+  ---
+  duration_ms: 601.979281
+  type: 'test'
+  ...
+# Subtest: KIT4 substring advice stays inside explicit scope and timeout names the visible screen
+ok 7 - KIT4 substring advice stays inside explicit scope and timeout names the visible screen
+  ---
+  duration_ms: 677.371293
+  type: 'test'
+  ...
+# Subtest: H9 P12 a trusted click that writes nothing settles E_WITNESS_NO_WRITE and rearming settles the old promise
+ok 8 - H9 P12 a trusted click that writes nothing settles E_WITNESS_NO_WRITE and rearming settles the old promise
+  ---
+  duration_ms: 1655.017784
+  type: 'test'
+  ...
+# Subtest: KIT3 explicit form claim survives slow uploads and never grants an unrelated callback
+ok 9 - KIT3 explicit form claim survives slow uploads and never grants an unrelated callback
+  ---
+  duration_ms: 7533.258005
+  type: 'test'
+  ...
+# Subtest: KIT3 starter SVG box click and scoped text recipe run literally
+ok 10 - KIT3 starter SVG box click and scoped text recipe run literally
+  ---
+  duration_ms: 521.298084
+  type: 'test'
+  ...
+# Subtest: KIT3 dev.now reads the current served clock across advance and reset
+ok 11 - KIT3 dev.now reads the current served clock across advance and reset
+  ---
+  duration_ms: 567.562638
+  type: 'test'
+  ...
+# Subtest: KIT4 stale online client names dev reset and a newly opened client works
+ok 12 - KIT4 stale online client names dev reset and a newly opened client works
+  ---
+  duration_ms: 288.098173
+  type: 'test'
+  ...
+# Subtest: KIT4 waitForClock observes the page client instead of the proof driver clock
+ok 13 - KIT4 waitForClock observes the page client instead of the proof driver clock
+  ---
+  duration_ms: 621.780509
+  type: 'test'
+  ...
+# Subtest: KIT4 generated proof API table agrees with every source export
+ok 14 - KIT4 generated proof API table agrees with every source export
+  ---
+  duration_ms: 1605.352246
+  type: 'test'
+  ...
+# Subtest: late CommonJS proof import waits for rendered selector registration: count
+ok 15 - late CommonJS proof import waits for rendered selector registration: count
+  ---
+  duration_ms: 632.777524
+  type: 'test'
+  ...
+# Subtest: late CommonJS proof import waits for rendered selector registration: fresh
+ok 16 - late CommonJS proof import waits for rendered selector registration: fresh
+  ---
+  duration_ms: 673.731772
+  type: 'test'
+  ...
+# Subtest: DX9 proof scopes, substring ambiguity and typed HTML inputs
+ok 17 - DX9 proof scopes, substring ambiguity and typed HTML inputs
+  ---
+  duration_ms: 603.804597
+  type: 'test'
+  ...
+# Subtest: DX12 Expo web body overflow uses document scrolling and never hidden text
+ok 18 - DX12 Expo web body overflow uses document scrolling and never hidden text
+  ---
+  duration_ms: 576.474423
+  type: 'test'
+  ...
+# Subtest: DX12 beginForm constrains a subset while preserving trusted click and value matching
+ok 19 - DX12 beginForm constrains a subset while preserving trusted click and value matching
+  ---
+  duration_ms: 564.217529
+  type: 'test'
+  ...
+# Subtest: DX12 non-propagated body overflow still clips evidence
+ok 20 - DX12 non-propagated body overflow still clips evidence
+  ---
+  duration_ms: 428.841096
+  type: 'test'
+  ...
+# Subtest: DX12 propagated body clip cannot invent viewport scrolling
+ok 21 - DX12 propagated body clip cannot invent viewport scrolling
+  ---
+  duration_ms: 453.194013
+  type: 'test'
+  ...
+1..21
+# tests 21
+# suites 0
+# pass 21
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 23056.78264
+-- process inspection: {"snapshots":3,"unrelatedRows":4879}
+-- client file ok: packages/snapback4/test/proof-contract.test.mjs (23424 ms)
+-- client files: 1/1; failed 0; tests {"tests":21,"pass":21,"fail":0,"cancelled":0,"skipped":0,"todo":0}

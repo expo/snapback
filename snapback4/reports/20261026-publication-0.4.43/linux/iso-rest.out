@@ -1,0 +1,21 @@
+rc=0
+ISO-REST dx7-upgrade-1 FAILED 12.752s AssertionError [ERR_ASSERTION]: new check must refuse the security gate during old-CLI upgrade |  | 0 !== 1 | 
+ISO-REST dx7-upgrade-2 FAILED 12.011s AssertionError [ERR_ASSERTION]: new check must refuse the security gate during old-CLI upgrade |  | 0 !== 1 | 
+ISO-REST dx7 FAILED 25.631s AssertionError [ERR_ASSERTION]: new check must refuse the security gate during old-CLI upgrade |  | 0 !== 1 | 
+ISO-REST dx8 FAILED 9.717s Error: /home/ccheever/.local/node-v24.13.1-linux-x64/bin/node: toolchain command exited 1 |     at runToolchainCommand (file:///home/ccheever/sb4-pub-0441/snapback4/scripts/publication-starters.mjs:45:27) |     at async proveDX8Ergonomics (file:///home/ccheever/sb4-pub-0441/snapback4/scripts/publication-dx8-ergonomics.mjs:15:5) |     at async proveDX8 (file:///home/ccheever/sb4-pub-0441/snapback4/scripts/publication-dx8.mjs:12:19)
+ISO-REST dx5 PASSED 113.071s
+ISO-REST regressions PASSED 76.406s
+ISO-REST day4 PASSED 21.741s
+ISO-REST release-transitions PASSED 18.79s
+ISO-REST dormant PASSED 15.345s
+ISO-REST day5 PASSED 9.858s
+ISO-REST production PASSED 48.567s
+ISO-REST proof-kit PASSED 17.864s
+ISO-REST client-recipes PASSED 12.744s
+ISO-REST security PASSED 281.402s
+ISO-REST migrations PASSED 147.314s
+ISO-REST staging FAILED 5.462s Error: /home/ccheever/.local/node-v24.13.1-linux-x64/bin/node: toolchain command exited 1 |     at runToolchainCommand (file:///home/ccheever/sb4-pub-0441/snapback4/scripts/publication-starters.mjs:45:27) |     at async proveStaging (file:///home/ccheever/sb4-pub-0441/snapback4/scripts/publication-staging.mjs:33:3) |     at async file:///home/ccheever/sb4-pub-0443-kit/iso-rest/run.mjs:38:19
+ISO-REST rules PASSED 32.132s
+ISO-REST frontend PASSED 194.312s
+ISO-REST starters FAILED 35.369s AssertionError [ERR_ASSERTION]: The input was expected to not match the regular expression /registerWebWitness|witnessPersona|snapback\/generated\/api/. Input: |  | 'import { registerWebWitness } from "snapback4/witness-web";\n' + |   'import { api } from "../snapback/generated/api.ts";\n' +
+rest-done

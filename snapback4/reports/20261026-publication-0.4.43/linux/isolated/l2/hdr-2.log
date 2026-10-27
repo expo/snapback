@@ -1,0 +1,19 @@
+
+running 13 tests
+snapback4 host: uploads=2; file descriptors (this process): soft=1048576 hard=1048576; descriptor_exhaustions=0; startup soft=1048576 target=1048576
+test serve::tests::latency_tests::headers::wildcard_listener_omits_timing_for_loopback_and_external_peers ... ok
+test serve::tests::latency_tests::headers::dev_headers_cover_operations_and_refusals_without_data_and_respect_the_fence ... ok
+test serve::tests::latency_tests::headers::maintenance_writer_admission_under_a_request_sample_is_wait ... ok
+test serve::tests::latency_tests::headers::maintenance_coordination_gate_does_not_claim_engine_ownership ... ok
+test serve::tests::latency_tests::headers::timing_survives_cors_suppression_on_route_and_token_refusals_and_pending ... ok
+test serve::tests::latency_tests::headers::thread_cpu_excludes_another_busy_thread_and_records_own_work ... ok
+test serve::tests::latency_tests::headers::delayed_changes_open_is_wait ... ok
+test serve::tests::latency_tests::headers::clock_maintenance_retry_open_is_wait_not_engine ... ok
+test serve::tests::latency_tests::headers::reader_header_attributes_engine_sleep_without_waiting_for_a_held_writer ... ok
+test serve::tests::latency_tests::headers::delayed_query_open_and_pool_checkout_are_wait ... ok
+test serve::tests::latency_tests::headers::delayed_ephemeral_pool_take_is_wait ... ok
+test serve::tests::latency_tests::headers::changes_reopens_after_a_commit_and_times_each_open_as_wait ... ok
+test serve::tests::latency_tests::headers::changes_refresh_is_engine_work_but_poll_sleep_is_not ... ok
+
+test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 709 filtered out; finished in 1.28s
+

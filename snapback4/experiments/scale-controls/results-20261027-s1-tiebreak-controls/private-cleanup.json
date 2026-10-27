@@ -1,0 +1,41 @@
+{
+  "roots_removed": 5,
+  "all_private_roots_absent": true,
+  "clusters": [
+    {
+      "system": "convex",
+      "source": "convex",
+      "cluster_stopped": true,
+      "socket_absent": true,
+      "pidfile_absent": true
+    },
+    {
+      "system": "snapback",
+      "source": "snapback",
+      "cluster_stopped": true,
+      "socket_absent": true,
+      "pidfile_absent": true
+    },
+    {
+      "system": "supabase",
+      "source": "supabase",
+      "cluster_stopped": true,
+      "socket_absent": true,
+      "pidfile_absent": true
+    },
+    {
+      "system": "supabase",
+      "source": "setup-attempt-01/supabase",
+      "cluster_stopped": true,
+      "socket_absent": true,
+      "pidfile_absent": true
+    },
+    {
+      "system": "supabase",
+      "source": "setup-wait-02/supabase",
+      "cluster_stopped": true,
+      "socket_absent": true,
+      "pidfile_absent": true
+    }
+  ]
+}

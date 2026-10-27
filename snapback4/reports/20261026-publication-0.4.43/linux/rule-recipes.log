@@ -1,0 +1,37 @@
+(node:447553) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+▶ packed rule recipes run as written and preserve authority at boundaries
+  ✔ wall owner authority belongs to this wall (2357.600937ms)
+  ✔ query return paths and optional lookups preserve packed read semantics (758.947105ms)
+  ✔ column privacy keeps one public row and omits private fields in exact guide sources (421.433345ms)
+  ✔ packed wasm preserves omitted column cells through nested spreads (2525.731894ms)
+  ✔ the compact opening recipe grants only its owner (427.96427ms)
+  ✔ current department transfer maintains every existing child atomically (9300.18937ms)
+  ✔ live parent transfers the packed guide authority, invalidates held reads and moves devices (2661.179838ms)
+  ✔ live asset placement follows the current parent without moving its home (618.45715ms)
+  ✔ private waitlist publishes occupancy without exposing membership (469.182358ms)
+  ✔ membership pages stop at grant expiry without relying on cleanup (529.055834ms)
+  ✔ bare union has an explicit cold-start tradeoff and both audiences read (572.159003ms)
+  ✔ public mirror requires its own image placement and never publishes private notes (494.368728ms)
+  ✔ staff guard and table read rule agree, with custom refusal before lookup (463.460488ms)
+  ✔ upsert refusal ladder executes before a later custom require and rolls back (524.559974ms)
+  ✔ asserted hidden read precedes the business refusal (423.155937ms)
+  ✔ hidden unique conflicts redact even the authored code (424.282438ms)
+  ✔ rule and program exists deliberately see different populations (447.861356ms)
+  ✔ caller totals include every own row and exclude every hidden row (431.889244ms)
+  ✔ presence gates durable writes across poll grace and reconnect (614.36677ms)
+  ✔ scheduled publication withdraws, invalidates approval on edit and reapproves (588.927201ms)
+  ✔ availability is public without granting booking identities or overselling (612.331679ms)
+  ✔ leaderboard consent publishes only opted-in totals and withdrawal removes them (524.075139ms)
+  ✔ three levels share live root authority without chained captures (621.68727ms)
+  ✔ 077 distinct middle policy follows mutable root probes without widening owners (479.436949ms)
+  ✔ versioned transitions reject stale and hidden targets and retain private atomic history (728.750413ms)
+✔ packed rule recipes run as written and preserve authority at boundaries (30396.067164ms)
+ℹ tests 26
+ℹ suites 0
+ℹ pass 26
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 30674.66741

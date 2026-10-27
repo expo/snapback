@@ -1,0 +1,36 @@
+
+added 6 packages in 7s
+security proof: . guide
+security proof: /card-0 check
+security proof: /card-0 audit
+security proof: /card-0 check
+security proof: /card-0 test
+security proof: /card-0 check
+security proof: /card-0 audit
+security proof: /card-0 test
+security proof: /card-1 check
+security proof: . guide
+security proof: /intent-questions check
+security proof: /intent-questions test
+security proof: /intent-questions audit
+security proof: /column-update-intent check
+security proof: /column-update-intent test
+security proof: /column-update-intent test
+security proof: /sec6-multi-write check
+security proof: /sec6-multi-write test
+security proof: /sec6-write-result test
+security proof: /sec6-write-result check
+security proof: /revocation-guests check
+security proof: /revocation-guests test
+security proof: /revocation-password check
+security proof: /revocation-password test
+security proof: . init
+security proof: /todo-backend check
+security proof: /todo-backend test
+security proof: . init
+security proof: /todo-online check
+security proof: /todo-online test
+security proof: . init
+security proof: /social check
+security proof: /social test
+ISO-SEC FAILED 407.199s AssertionError [ERR_ASSERTION]: test --fixture-only: ETIMEDOUT | + actual - expected | 

@@ -1,0 +1,2 @@
+check: ok — 5 tables, 1 view (5 synced), 12 operations, compiled; 0 gates pending, 0 witnessed questions, 8 advisories (don't block): `check --review`; 0 recorded; 9 notes; React setup: `snapback4 guide start` has the pinned starter and verification recipe (`init /tmp/my-starter --web`); 16440.5 ms
+check: enforced by the language — 1 typed upload columns with owner-bound placement; 0 column audiences; 0 possible self-assignable role paths detected (bounded analysis)
