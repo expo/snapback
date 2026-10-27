@@ -236,6 +236,8 @@ impl StoreConfig {
             }
         }
         let renew = lease.clone();
+        let admission_lost = lease.lock().unwrap_or_else(|p| p.into_inner()).admission_watch();
+        let recovers_durability = self.early_lock_release;
         let renewed = deadline.clone();
         let watchdog_finished = owner.finished.clone();
         let (stop, receive) = mpsc::channel();
@@ -253,6 +255,13 @@ impl StoreConfig {
         }).map_err(|_| input("cannot start lease renewal"))?);
         owner.watchdog = Some(std::thread::Builder::new().name("store-lease-deadline".into()).spawn(move || {
             while !watchdog_finished.load(std::sync::atomic::Ordering::Acquire) {
+                // @ref LLP 3000.009.001.000#5.1 — G6's terminal latch cannot keep a live lease and a permanently refusing listener.
+                if !recovers_durability && admission_lost() {
+                    // The gate publishes its single reason line before this
+                    // flag. Do not release: admitted SQL remains token-fenced
+                    // until COMMIT/rollback or successor takeover orders it.
+                    std::process::exit(1);
+                }
                 if deadline.expired() {
                     eprintln!("E_STORE_OWNERSHIP: lease renewal deadline lost; stopping all admission and exiting");
                     std::process::exit(1);

@@ -109687,3 +109687,17 @@ deadline and process-group drain instead of a second inner wall-clock fuse.
 Exact zero exit, current JSON, stock/edited-source optional-upload assertions and
 no decision-file assertion remain; the existing five-minute command and twenty-minute
 starter guards, fixed security work budgets and measured latency ticket are unchanged.
+
+
+## 2026-10-27 — OWN: silent ownership refusal after restart
+
+A deterministic private-PG16/17 public-service witness reproduces six warm-up
+ACKs followed by a durable but unconfirmed seventh write, a sticky G6 admission
+pause, repeated `E_STORE_OWNERSHIP` and a still-renewing lease. The synchronous
+public owner now observes terminal admission uncertainty in its independent
+watchdog and exits; it leaves the lease/read epoch to expire before ordinary
+takeover. The gate reports the first pause reason before publishing its flag.
+Arm E retains its fenced recovery. No uncertain invocation is automatically
+replayed or old cache epoch reopened. See
+`reports/20261027-ownership-loss/REPORT.md` for baseline/fix evidence, tests and
+the limits of attribution to the two original incidents.

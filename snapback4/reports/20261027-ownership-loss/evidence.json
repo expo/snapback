@@ -1,0 +1,291 @@
+{
+  "exact-before16": {
+    "namespace": "own_loss_1089289",
+    "pids": [
+      1091464
+    ],
+    "pass": false,
+    "first_error": "E_COMMIT_OUTCOME_UNKNOWN",
+    "owner_exited": false,
+    "ownership_lines": 0,
+    "audit": "7|7|7|2|t",
+    "later_error": "E_STORE_OWNERSHIP",
+    "pids_left": []
+  },
+  "exact-before17": {
+    "namespace": "own_loss_1089290",
+    "pids": [
+      1091484
+    ],
+    "pass": false,
+    "first_error": "E_COMMIT_OUTCOME_UNKNOWN",
+    "owner_exited": false,
+    "ownership_lines": 0,
+    "audit": "7|7|7|2|t",
+    "later_error": "E_STORE_OWNERSHIP",
+    "pids_left": []
+  },
+  "abort-before16": {
+    "namespace": "own_loss_1248972",
+    "mode": "S",
+    "pids": [
+      1249588
+    ],
+    "pass": false,
+    "first_error": "E_COMMIT_OUTCOME_UNKNOWN",
+    "owner_exited": false,
+    "ownership_lines": 0,
+    "audit": "6|6|6|2|t",
+    "terminated_data_backend": 1249600,
+    "later_error": "E_STORE_OWNERSHIP",
+    "pids_left": []
+  },
+  "abort-before17": {
+    "namespace": "own_loss_1248971",
+    "mode": "S",
+    "pids": [
+      1249636
+    ],
+    "pass": false,
+    "first_error": "E_COMMIT_OUTCOME_UNKNOWN",
+    "owner_exited": false,
+    "ownership_lines": 0,
+    "audit": "6|6|6|2|t",
+    "terminated_data_backend": 1249664,
+    "later_error": "E_STORE_OWNERSHIP",
+    "pids_left": []
+  },
+  "after16": {
+    "namespace": "own_loss_1225326",
+    "pids": [
+      1226008,
+      1226490
+    ],
+    "pass": true,
+    "first_error": "E_COMMIT_OUTCOME_UNKNOWN",
+    "owner_exited": true,
+    "ownership_lines": 1,
+    "audit": "7|7|7|2|t",
+    "pids_left": []
+  },
+  "after17": {
+    "namespace": "own_loss_1225322",
+    "pids": [
+      1225998,
+      1226475
+    ],
+    "pass": true,
+    "first_error": "E_COMMIT_OUTCOME_UNKNOWN",
+    "owner_exited": true,
+    "ownership_lines": 1,
+    "audit": "7|7|7|2|t",
+    "pids_left": []
+  },
+  "abort-after16": {
+    "namespace": "own_loss_1251312",
+    "mode": "S",
+    "pids": [
+      1253189,
+      1253940
+    ],
+    "pass": true,
+    "first_error": "E_COMMIT_OUTCOME_UNKNOWN",
+    "owner_exited": true,
+    "ownership_lines": 1,
+    "audit": "6|6|6|2|t",
+    "terminated_data_backend": 1253258,
+    "pids_left": []
+  },
+  "abort-after17": {
+    "namespace": "own_loss_1251313",
+    "mode": "S",
+    "pids": [
+      1253184,
+      1253941
+    ],
+    "pass": true,
+    "first_error": "E_COMMIT_OUTCOME_UNKNOWN",
+    "owner_exited": true,
+    "ownership_lines": 1,
+    "audit": "6|6|6|2|t",
+    "terminated_data_backend": 1253231,
+    "pids_left": []
+  },
+  "early16": {
+    "namespace": "own_loss_1233528",
+    "mode": "E",
+    "pids": [
+      1238695
+    ],
+    "pass": true,
+    "first_error": "E_COMMIT_OUTCOME_UNKNOWN",
+    "owner_exited": false,
+    "ownership_lines": 1,
+    "audit": "7|7|7|2|t",
+    "recovered_in_process": true,
+    "pids_left": []
+  },
+  "early17": {
+    "namespace": "own_loss_1233530",
+    "mode": "E",
+    "pids": [
+      1238713
+    ],
+    "pass": true,
+    "first_error": "E_COMMIT_OUTCOME_UNKNOWN",
+    "owner_exited": false,
+    "ownership_lines": 1,
+    "audit": "7|7|7|2|t",
+    "recovered_in_process": true,
+    "pids_left": []
+  },
+  "tests-pg16": [
+    {
+      "label": "core-ownership",
+      "status": 0,
+      "passed": 24,
+      "failed": 0,
+      "ignored": 0,
+      "seconds": 17.907
+    },
+    {
+      "label": "core-command",
+      "status": 0,
+      "passed": 16,
+      "failed": 0,
+      "ignored": 0,
+      "seconds": 31.036
+    },
+    {
+      "label": "core-g6",
+      "status": 0,
+      "passed": 19,
+      "failed": 0,
+      "ignored": 0,
+      "seconds": 32.288
+    },
+    {
+      "label": "core-grant-gate",
+      "status": 0,
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "seconds": 0.008
+    },
+    {
+      "label": "core-final-fencing",
+      "status": 0,
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "seconds": 2.72
+    },
+    {
+      "label": "cli-ownership",
+      "status": 0,
+      "passed": 13,
+      "failed": 0,
+      "ignored": 0,
+      "seconds": 0.315
+    },
+    {
+      "label": "cli-store-config",
+      "status": 0,
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "seconds": 0.215
+    },
+    {
+      "label": "cli-serve-authority",
+      "status": 0,
+      "passed": 92,
+      "failed": 0,
+      "ignored": 0,
+      "seconds": 51.276
+    },
+    {
+      "label": "cli-committer-fix",
+      "status": 0,
+      "passed": 15,
+      "failed": 0
+    }
+  ],
+  "tests-pg17": [
+    {
+      "label": "core-ownership",
+      "status": 0,
+      "passed": 24,
+      "failed": 0,
+      "ignored": 0,
+      "seconds": 17.805
+    },
+    {
+      "label": "core-command",
+      "status": 0,
+      "passed": 16,
+      "failed": 0,
+      "ignored": 0,
+      "seconds": 31.033
+    },
+    {
+      "label": "core-g6",
+      "status": 0,
+      "passed": 19,
+      "failed": 0,
+      "ignored": 0,
+      "seconds": 31.485
+    },
+    {
+      "label": "core-grant-gate",
+      "status": 0,
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "seconds": 0.008
+    },
+    {
+      "label": "core-final-fencing",
+      "status": 0,
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "seconds": 2.469
+    },
+    {
+      "label": "cli-ownership",
+      "status": 0,
+      "passed": 13,
+      "failed": 0,
+      "ignored": 0,
+      "seconds": 0.265
+    },
+    {
+      "label": "cli-store-config",
+      "status": 0,
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0,
+      "seconds": 0.215
+    },
+    {
+      "label": "cli-serve-authority",
+      "status": 0,
+      "passed": 92,
+      "failed": 0,
+      "ignored": 0,
+      "seconds": 48.515
+    },
+    {
+      "label": "cli-committer-fix",
+      "status": 0,
+      "passed": 15,
+      "failed": 0
+    }
+  ],
+  "cleanup": {
+    "recorded_pids_checked": 77,
+    "remaining": [],
+    "postmaster_pid_files": []
+  }
+}

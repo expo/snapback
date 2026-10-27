@@ -110,6 +110,15 @@ pub struct GateStats {
     pub revoked: bool,
 }
 impl Grant {
+    // Every caller holds state for writing. Publish the reason before the
+    // terminal flag: the owner's independent watchdog may exit immediately.
+    // @ref LLP 3000.009.001.000#5.1 — terminal admission loss is observable even while the lease still renews.
+    fn mark_uncertain(&self, reason: &str) {
+        if !self.uncertain.load(Ordering::Acquire) {
+            eprintln!("E_STORE_OWNERSHIP: writer admission paused: {reason}");
+        }
+        self.uncertain.store(true, Ordering::Release);
+    }
     pub fn stats(&self) -> GateStats {
         let closed = self.closed_at.load(Ordering::Acquire);
         let ongoing = if closed == 0 {
@@ -205,7 +214,7 @@ impl Grant {
         self.close_uncertain_locked(&mut state);
     }
     pub(super) fn close_uncertain_locked(&self, state: &mut State) {
-        self.uncertain.store(true, Ordering::Release);
+        self.mark_uncertain("transaction rollback or durability recovery was not confirmed");
         self.until.store(0, Ordering::Release);
         state.epoch = None;
         state.published = None;
@@ -218,7 +227,7 @@ impl Grant {
         assert!(state.inflight>0);
         state.inflight-=1;
         if unknown {
-            self.uncertain.store(true,Ordering::Release);
+            self.mark_uncertain("pipeline final transaction was not confirmed");
             self.until.store(0,Ordering::Release);
             state.epoch=None;state.published=None;
         } else if !self.uncertain.load(Ordering::Acquire) {
@@ -254,7 +263,7 @@ impl Grant {
         impl Drop for PanicCloses<'_> {
             fn drop(&mut self) {
                 if std::thread::panicking() {
-                    self.0.uncertain.store(true, Ordering::Release);
+                    self.0.mark_uncertain("writer panicked during COMMIT");
                 }
             }
         }
@@ -266,7 +275,7 @@ impl Grant {
                 self.uncertain.store(false, Ordering::Release);
             }
             Err(RuntimeError::CommitOutcomeUnknown(_)) => {
-                self.uncertain.store(true, Ordering::Release);
+                self.mark_uncertain("COMMIT acknowledgement was not confirmed");
                 self.until.store(0, Ordering::Release);
                 s.epoch = None;
                 s.published = None;

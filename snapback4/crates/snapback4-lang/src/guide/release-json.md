@@ -116,7 +116,14 @@ Serve acquires a positive store lease before its listener. A second serve refuse
 `E_STORE_OWNERSHIP` while that lease is live; retry after expiry to take over a
 crashed process. Renewal uses its own connection every 500 ms. Any failed or
 uncertain renewal exits the process, closing listener and producers. In-flight
-transactions remain token-fenced. Startup cleanup matches store id, token and
+transactions remain token-fenced. In synchronous mode, a terminal G6
+admission pause after an unconfirmed COMMIT or rollback also prints one reason
+line and exits, even when lease renewal remains healthy. The independent
+watchdog observes that pause without locking the lease connection. The lease
+and persisted read epoch expire before a fresh process takes over; the old
+cache epoch never reopens and uncertain writes are never automatically replayed.
+Early-lock-release mode retains its separate fenced durability recovery.
+Startup cleanup matches store id, token and
 holder, even after renewal loss. A known rolled-back claim attempts no release;
 an unknown claim COMMIT retains cleanup identity without write authority.
 Successful cleanup permits immediate corrected
