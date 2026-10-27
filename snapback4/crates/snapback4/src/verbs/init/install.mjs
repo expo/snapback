@@ -8,7 +8,7 @@ const args = process.argv.slice(2);
 if (args[0] === "--worker") {
   if (!process.send || !process.connected) throw Error("install worker requires its owning IPC channel");
   const log = openSync(".snapback4/install.log", "a", 0o600);
-  const npm = spawn("npm", ["install", "--no-fund", ...args.slice(1)], { stdio: ["ignore", log, log] });
+  const npm = spawn("npm", ["install", "--no-fund", "--no-audit", ...args.slice(1)], { stdio: ["ignore", log, log] });
   closeSync(log);
   const stop = () => {
     if (process.platform === "win32") { npm.kill("SIGKILL"); process.exit(1); }

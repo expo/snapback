@@ -31,9 +31,9 @@ export type SettledRead<T> = Exclude<Read<T>, { readonly loading: true; }>;
 export interface Refusal { readonly code: string; readonly family: string; readonly message: string; readonly detail?: string; readonly site?: string; readonly rewrite?: string; readonly guide?: string; readonly rule?: string; readonly retryable?: boolean; readonly retryAfterMs?: number; }
 export type MutationPromise<R = unknown> = Promise<Write<R>> & { readonly state?: "failed"; readonly id?: string; readonly why?: Refusal; };
 // UploadOptions: import type from snapback4/contract
-export interface UploadOptions { readonly file?: { readonly type?: string; readonly name?: string; }; }
+export interface UploadOptions { readonly file?: { readonly type?: string; readonly name?: string; readonly size?: number; }; }
 ```
 
 Other exports/options: dist/client.d.ts; follow its named imports only on demand.
 
-Declaration fingerprint: 03bbe35ba9e1071912d347eb250018d1a632fbb4b44f3320c8707d7f01e8367c
+Declaration fingerprint: 3a021c30b076c2e16e8b2b5b62a7f3977f4d360e5005948ae894043ebaa7a2f3

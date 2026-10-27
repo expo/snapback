@@ -207,7 +207,7 @@ fn calibration_commonjs_expo_imports_generated_api_from_node_esm() {
     dir.install_client();
     fs::write(dir.0.join("package.json"), r#"{"name":"astra-snapback4","version":"1.0.0","type":"commonjs"}"#).unwrap();
     assert!(dir.run("--expo").status.success());
-    let check = Command::new(BIN).arg("check").current_dir(&dir.0).output().unwrap();
+    let check = Command::new(BIN).env("SNAPBACK4_INIT_INSTALL","0").arg("check").current_dir(&dir.0).output().unwrap();
     assert!(check.status.success(), "{check:?}");
     fs::create_dir_all(dir.0.join("scripts")).unwrap();
     fs::write(dir.0.join("scripts/seed.mjs"), "import {api} from '../snapback/generated/api.ts';\nif (!api.add) throw new Error('missing add');\nconsole.log('api import: ok');\n").unwrap();
@@ -230,7 +230,7 @@ fn init_preserves_existing_commonjs_scripts_and_imports_generated_api() {
         let run_seed = || Command::new("node").arg("snapback/seed.js").current_dir(&dir.0).output().unwrap();
         assert!(run_seed().status.success(), "the existing seed must run before init");
         let mut command = Command::new(BIN);
-        command.arg("init").current_dir(&dir.0);
+        command.env("SNAPBACK4_INIT_INSTALL","0").arg("init").current_dir(&dir.0);
         if !flag.is_empty() { command.arg(flag); }
         let init = command.output().unwrap();
         assert!(init.status.success(), "{init:?}");
@@ -239,7 +239,7 @@ fn init_preserves_existing_commonjs_scripts_and_imports_generated_api() {
         println!("{}{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
         assert!(output.status.success(), "init must preserve CommonJS interpretation: {output:?}");
         assert!(!dir.0.join("snapback/package.json").exists());
-        let check = Command::new(BIN).arg("check").current_dir(&dir.0).output().unwrap();
+        let check = Command::new(BIN).env("SNAPBACK4_INIT_INSTALL","0").arg("check").current_dir(&dir.0).output().unwrap();
         assert!(check.status.success(), "{check:?}");
         if flag == "--expo" {
             assert!(!dir.0.join("snapback/worker.mts").exists(), "the core starter has no invitation action or worker");
@@ -250,7 +250,7 @@ fn init_preserves_existing_commonjs_scripts_and_imports_generated_api() {
         println!("{}{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
         assert!(output.status.success(), "{output:?}");
         fs::remove_dir_all(dir.0.join("snapback/generated")).unwrap();
-        let check = Command::new(BIN).arg("check").current_dir(&dir.0).output().unwrap();
+        let check = Command::new(BIN).env("SNAPBACK4_INIT_INSTALL","0").arg("check").current_dir(&dir.0).output().unwrap();
         assert!(check.status.success(), "{check:?}");
         let rebuilt = Command::new("node").arg("import.mjs").current_dir(&dir.0).output().unwrap();
         assert!(rebuilt.status.success(), "check must rebuild the generated ESM boundary too: {rebuilt:?}");
@@ -268,7 +268,7 @@ fn init_preserves_inherited_module_type_when_creating_root_package() {
         let run = || Command::new("node").arg("snapback/seed.js").current_dir(&dir).output().unwrap();
         let before = run();
         assert!(before.status.success());
-        let init = Command::new(BIN).args(["init", "--online"]).current_dir(&dir).output().unwrap();
+        let init = Command::new(BIN).env("SNAPBACK4_INIT_INSTALL","0").args(["init", "--online"]).current_dir(&dir).output().unwrap();
         assert!(init.status.success(), "{init:?}");
         let after = run();
         assert!(after.status.success());
@@ -305,7 +305,7 @@ fn w7a_residency_measures_the_wired_500_follow_reader() {
             writeln!(file, "{}", snapback4_core::wire::to_json(&row)).unwrap();
         }
     }
-    let measured = Command::new(BIN).args(["test", "--residency", "--fixture-only", "--verbose", "--fixture", "fixture", "--as", "dev:reader500"]).current_dir(&dir.0).output().unwrap();
+    let measured = Command::new(BIN).env("SNAPBACK4_INIT_INSTALL","0").args(["test", "--residency", "--fixture-only", "--verbose", "--fixture", "fixture", "--as", "dev:reader500"]).current_dir(&dir.0).output().unwrap();
     let output = String::from_utf8_lossy(&measured.stdout);
     println!("{output}");
     assert!(measured.status.success(), "{measured:?}");
@@ -329,7 +329,7 @@ fn w8b_residency_measures_the_wired_calibration_shape() {
         writeln!(file, "{}", snapback4_core::wire::to_json(&row)).unwrap();
     }
     for file in files.values_mut() { file.flush().unwrap(); }
-    let measured = Command::new(BIN).args(["test", "--residency", "--fixture-only", "--verbose", "--fixture", "fixture", "--as", calibration::VIEWER]).current_dir(&dir.0).output().unwrap();
+    let measured = Command::new(BIN).env("SNAPBACK4_INIT_INSTALL","0").args(["test", "--residency", "--fixture-only", "--verbose", "--fixture", "fixture", "--as", calibration::VIEWER]).current_dir(&dir.0).output().unwrap();
     let output = String::from_utf8_lossy(&measured.stdout);
     println!("{output}");
     assert!(measured.status.success(), "{}\n{output}", String::from_utf8_lossy(&measured.stderr));
@@ -400,8 +400,8 @@ fn w10r1b_backfill_leaves_room_for_delete_and_replace_before_purge() {
 #[test]
 fn w13e_removed_search_recipe_is_an_ordinary_unknown_recipe() {
     let dir = Dir::new();
-    let unknown = Command::new(BIN).args(["init", "--recipe", "unknown"]).current_dir(&dir.0).output().unwrap();
-    let removed = Command::new(BIN).args(["init", "--recipe", "search"]).current_dir(&dir.0).output().unwrap();
+    let unknown = Command::new(BIN).env("SNAPBACK4_INIT_INSTALL","0").args(["init", "--recipe", "unknown"]).current_dir(&dir.0).output().unwrap();
+    let removed = Command::new(BIN).env("SNAPBACK4_INIT_INSTALL","0").args(["init", "--recipe", "search"]).current_dir(&dir.0).output().unwrap();
     assert_eq!(unknown.status.code(), Some(2));
     assert_eq!(removed.status.code(), unknown.status.code());
     assert_eq!(removed.stderr, unknown.stderr);
@@ -416,7 +416,7 @@ fn web_chat_template_embeds_reference_and_keeps_default_schema_only() {
     for file in ["src/App.tsx", "src/state.ts", "src/Composer.tsx", "src/client.ts", "vite.config.mts", "index.html", "README.md"] {
         assert!(dir.0.join(file).is_file(), "{file}");
     }
-    let checked = Command::new(BIN).args(["check", "--json"]).current_dir(&dir.0).output().unwrap();
+    let checked = Command::new(BIN).env("SNAPBACK4_INIT_INSTALL","0").args(["check", "--json"]).current_dir(&dir.0).output().unwrap();
     assert!(checked.status.success(), "{checked:?}");
     let source = fs::read_to_string(dir.0.join("snapback/schema.q")).unwrap();
     let bound = snapback4_lang::compile(&[("schema.q".into(), source)]);
@@ -438,7 +438,7 @@ fn web_chat_template_embeds_reference_and_keeps_default_schema_only() {
 fn web_starter_refuses_conflicts_before_writing() {
     for flag in ["--expo"] {
         let dir = Dir::new();
-        let output = Command::new(BIN).args(["init", "--web", flag]).current_dir(&dir.0).output().unwrap();
+        let output = Command::new(BIN).env("SNAPBACK4_INIT_INSTALL","0").args(["init", "--web", flag]).current_dir(&dir.0).output().unwrap();
         assert_eq!(output.status.code(), Some(2));
         assert_eq!(fs::read_dir(&dir.0).unwrap().count(), 0);
     }
@@ -534,7 +534,7 @@ fn usage_stderr_never_recommends_the_retired_installer() {
     let dir = Dir::new();
     for flags in [vec!["--help"], vec!["init", "--help"], vec!["init", "--recipe"], vec!["init", "--recipe", "unknown"], vec!["init", "--recipe", "search"], vec!["init", "--expo", "--online"]] {
         let before = snapshot(&dir.0);
-        let output = Command::new(BIN).args(&flags).current_dir(&dir.0).output().unwrap();
+        let output = Command::new(BIN).env("SNAPBACK4_INIT_INSTALL","0").args(&flags).current_dir(&dir.0).output().unwrap();
         let expected = if flags.contains(&"--help") { 0 } else { 2 };
         assert_eq!(output.status.code(), Some(expected), "{flags:?}: {output:?}");
         let text = format!("{}{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
@@ -564,11 +564,11 @@ fn ordinary_starters_still_check_and_preserve_their_server_opt_in() {
                 if let Some(bytes) = bytes { assert!(!String::from_utf8_lossy(&bytes).contains("invite"), "{}", path.display()); }
             }
         }
-        let checked = Command::new(BIN).arg("check").current_dir(&dir.0).output().unwrap();
+        let checked = Command::new(BIN).env("SNAPBACK4_INIT_INSTALL","0").arg("check").current_dir(&dir.0).output().unwrap();
         assert!(checked.status.success(), "{checked:?}");
         assert!(!dir.0.join("snapback/feed.q").exists());
     }
-    let help = Command::new(BIN).arg("--help").output().unwrap();
+    let help = Command::new(BIN).env("SNAPBACK4_INIT_INSTALL","0").arg("--help").output().unwrap();
     assert!(!String::from_utf8_lossy(&help.stdout).contains("--recipe"));
 }
 
@@ -576,7 +576,7 @@ fn ordinary_starters_still_check_and_preserve_their_server_opt_in() {
 fn expo_starters_pave_native_smoke_and_export_at_every_milestone() {
     for social in [false, true] {
         let dir = Dir::new();
-        let output = if social { Command::new(BIN).args(["new", "social", "--template", "social"]).current_dir(&dir.0).output().unwrap() }
+        let output = if social { Command::new(BIN).env("SNAPBACK4_INIT_INSTALL","0").args(["new", "social", "--template", "social"]).current_dir(&dir.0).output().unwrap() }
             else { dir.run("--expo") };
         assert!(output.status.success(), "{output:?}");
         let root = if social { dir.0.join("social") } else { dir.0.clone() };
@@ -624,9 +624,9 @@ fn web_and_expo_starters_are_one_small_screen_with_product_comments() {
         assert_eq!(bound.schema.tables.len(), 1);
         assert!(bound.schema.auth.guests, "the starter screen signs in as a guest");
         for op in ["list", "add", "toggle", "remove"] { assert!(bound.schema.operations.contains_key(op), "{op}"); }
-        let checked = Command::new(BIN).arg("check").current_dir(&dir.0).output().unwrap();
+        let checked = Command::new(BIN).env("SNAPBACK4_INIT_INSTALL","0").arg("check").current_dir(&dir.0).output().unwrap();
         assert!(checked.status.success(), "{checked:?}");
-        let tested = Command::new(BIN).args(["test", "--fixture", "fixtures", "--as", "alice"]).current_dir(&dir.0).output().unwrap();
+        let tested = Command::new(BIN).env("SNAPBACK4_INIT_INSTALL","0").args(["test", "--fixture", "fixtures", "--as", "alice"]).current_dir(&dir.0).output().unwrap();
         let summary = String::from_utf8_lossy(&tested.stdout);
         assert!(tested.status.success() && summary.contains("cases: 7 passed, 0 failed"), "{flag}: {tested:?}");
         let app = fs::read_to_string(dir.0.join(if flag == "--web" { "src/App.tsx" } else { "App.tsx" })).unwrap();
@@ -659,7 +659,7 @@ fn every_starter_is_free_of_repository_history() {
     let starters: [&[&str]; 7] = [&["init"], &["init", "--online"], &["init", "--web"], &["init", "--expo"], &["init", "--web", "--template", "chat"], &["init", "--expo", "--template", "chat"], &["new", "app", "--template", "social"]];
     for args in starters {
         let dir = Dir::new();
-        let output = Command::new(BIN).args(args).current_dir(&dir.0).output().unwrap();
+        let output = Command::new(BIN).env("SNAPBACK4_INIT_INSTALL","0").args(args).current_dir(&dir.0).output().unwrap();
         assert!(output.status.success(), "{args:?}: {output:?}");
         for (path, text) in starter_texts(&dir.0) {
             for stale in ["@ref", "LLP ", "week 2", "Snapback 2", "nothing compiles", "beauty test"] {
@@ -673,13 +673,13 @@ fn every_starter_is_free_of_repository_history() {
 fn chat_template_is_explicit_and_needs_one_client() {
     for (args, code) in [(&["init", "--template", "chat"][..], 2), (&["init", "--online", "--template", "chat"], 2), (&["init", "--web", "--expo", "--template", "chat"], 2), (&["new", "app", "--template", "nope"], 2), (&["new", "app"], 2)] {
         let dir = Dir::new();
-        let output = Command::new(BIN).args(args).current_dir(&dir.0).output().unwrap();
+        let output = Command::new(BIN).env("SNAPBACK4_INIT_INSTALL","0").args(args).current_dir(&dir.0).output().unwrap();
         assert_eq!(output.status.code(), Some(code), "{args:?}: {output:?}");
         assert!(String::from_utf8_lossy(&output.stderr).contains("--template chat"), "{args:?}: {output:?}");
         assert_eq!(fs::read_dir(&dir.0).unwrap().count(), 0, "{args:?} wrote files");
     }
     let dir = Dir::new();
-    let output = Command::new(BIN).args(["new", "chat", "--template", "chat", "--expo"]).current_dir(&dir.0).output().unwrap();
+    let output = Command::new(BIN).env("SNAPBACK4_INIT_INSTALL","0").args(["new", "chat", "--template", "chat", "--expo"]).current_dir(&dir.0).output().unwrap();
     assert!(output.status.success(), "{output:?}");
     assert!(dir.0.join("chat/src/Inbox.tsx").is_file() && dir.0.join("chat/src/Thread.tsx").is_file());
     assert!(String::from_utf8_lossy(&output.stdout).contains("Expo chat app"));
@@ -754,7 +754,7 @@ fn init_beside_a_projects_own_schema_leaves_its_tests_green() {
         // With `use identity` the guest screen stays.
         let app = fs::read_to_string(dir.0.join(if flag == "--web" { "src/App.tsx" } else { "App.tsx" })).unwrap();
         assert!(app.contains("auth.guest()"), "{flag}");
-        let tested = Command::new(BIN).args(["test", "--fixture", "fixtures", "--as", "alice"]).current_dir(&dir.0).output().unwrap();
+        let tested = Command::new(BIN).env("SNAPBACK4_INIT_INSTALL","0").args(["test", "--fixture", "fixtures", "--as", "alice"]).current_dir(&dir.0).output().unwrap();
         assert!(tested.status.success() && String::from_utf8_lossy(&tested.stdout).contains("cases: 1 passed, 0 failed"), "{flag}: {tested:?}");
     }
     // Wave 4 (1d): the starter's unmodified todos.jsonl beside a schema without
@@ -769,19 +769,19 @@ fn init_beside_a_projects_own_schema_leaves_its_tests_green() {
     fs::copy(starter.0.join("fixtures/todos.jsonl"), dir.0.join("fixtures/todos.jsonl")).unwrap();
     fs::write(dir.0.join("fixtures/notes.jsonl"), "{\"id\":\"n1\",\"body\":\"hi\"}\n").unwrap();
     fs::write(dir.0.join("fixtures/test.cases.jsonl"), "{\"as\":\"alice\",\"op\":\"all\",\"args\":{},\"count\":1}\n").unwrap();
-    let tested = Command::new(BIN).args(["test", "--fixture", "fixtures", "--as", "alice"]).current_dir(&dir.0).output().unwrap();
+    let tested = Command::new(BIN).env("SNAPBACK4_INIT_INSTALL","0").args(["test", "--fixture", "fixtures", "--as", "alice"]).current_dir(&dir.0).output().unwrap();
     let stderr = String::from_utf8_lossy(&tested.stderr);
     assert!(tested.status.success() && String::from_utf8_lossy(&tested.stdout).contains("cases: 1 passed, 0 failed"), "{tested:?}");
     assert!(stderr.contains("WARNING: skipped fixtures/todos.jsonl") && stderr.contains("snapback4 init --adapt"), "{stderr}");
     // A todos.jsonl the project changed is its own file for a missing table: still a refusal, naming the starter.
     fs::write(dir.0.join("fixtures/todos.jsonl"), format!("{}{{\"id\":\"todo-eggs\",\"title\":\"Eggs\",\"done\":false,\"ownerId\":\"dev:alice\"}}\n", fs::read_to_string(starter.0.join("fixtures/todos.jsonl")).unwrap())).unwrap();
-    let tested = Command::new(BIN).args(["test", "--fixture", "fixtures", "--as", "alice"]).current_dir(&dir.0).output().unwrap();
+    let tested = Command::new(BIN).env("SNAPBACK4_INIT_INSTALL","0").args(["test", "--fixture", "fixtures", "--as", "alice"]).current_dir(&dir.0).output().unwrap();
     assert!(!tested.status.success());
     assert!(String::from_utf8_lossy(&tested.stderr).contains("todo starter's sample"), "{tested:?}");
     // Any other file for a missing table refuses the run.
     fs::remove_file(dir.0.join("fixtures/todos.jsonl")).unwrap();
     fs::write(dir.0.join("fixtures/note.jsonl"), "{\"id\":\"n2\",\"body\":\"typo\"}\n").unwrap();
-    let tested = Command::new(BIN).args(["test", "--fixture", "fixtures", "--as", "alice"]).current_dir(&dir.0).output().unwrap();
+    let tested = Command::new(BIN).env("SNAPBACK4_INIT_INSTALL","0").args(["test", "--fixture", "fixtures", "--as", "alice"]).current_dir(&dir.0).output().unwrap();
     assert!(!tested.status.success() && String::from_utf8_lossy(&tested.stderr).contains("note.jsonl names no table"), "{tested:?}");
 }
 
@@ -878,8 +878,8 @@ fn package_scripts_compare_as_commands() {
 /// judging each by the starter's original bytes.
 #[test]
 fn init_first_then_schema_leftovers_are_named_and_adapted() {
-    let check = |dir: &Dir| Command::new(BIN).args(["check", "--review"]).current_dir(&dir.0).output().unwrap();
-    let check_json = |dir: &Dir| -> Value { serde_json::from_slice(&Command::new(BIN).args(["check", "--json"]).current_dir(&dir.0).output().unwrap().stdout).unwrap() };
+    let check = |dir: &Dir| Command::new(BIN).env("SNAPBACK4_INIT_INSTALL","0").args(["check", "--review"]).current_dir(&dir.0).output().unwrap();
+    let check_json = |dir: &Dir| -> Value { serde_json::from_slice(&Command::new(BIN).env("SNAPBACK4_INIT_INSTALL","0").args(["check", "--json"]).current_dir(&dir.0).output().unwrap().stdout).unwrap() };
     let dir = Dir::new();
     assert!(dir.init(&["--web", "--port", "4517"]).status.success());
     // The untouched starter fits its own schema: nothing to report.
@@ -898,7 +898,7 @@ fn init_first_then_schema_leftovers_are_named_and_adapted() {
     assert_eq!(json["starterLeftovers"]["fix"], "snapback4 init --adapt");
     assert_eq!(json["starterLeftovers"]["files"].as_array().unwrap().iter().map(|file| file["path"].as_str().unwrap()).collect::<Vec<_>>(), ["fixtures/todos.jsonl", "fixtures/test.cases.jsonl", "src/App.tsx", "src/client.ts", "scripts/frontend-proof.mjs", "README.md"]);
     // `test` points at the same command.
-    let tested = Command::new(BIN).args(["test", "--fixture", "fixtures", "--as", "carol"]).current_dir(&dir.0).output().unwrap();
+    let tested = Command::new(BIN).env("SNAPBACK4_INIT_INSTALL","0").args(["test", "--fixture", "fixtures", "--as", "carol"]).current_dir(&dir.0).output().unwrap();
     assert!(!tested.status.success() && String::from_utf8_lossy(&tested.stderr).contains("snapback4 init --adapt"), "{tested:?}");
     // A second init over the first one's starter names --adapt first.
     let again = dir.init(&["--web"]);
@@ -962,7 +962,7 @@ fn adapt_names_an_old_expo_starters_ids_after_the_directory() {
     let parent = Dir::new();
     let dir = parent.0.join("4h-club");
     fs::create_dir_all(&dir).unwrap();
-    let run = |args: &[&str]| Command::new(BIN).args(args).current_dir(&dir).output().unwrap();
+    let run = |args: &[&str]| Command::new(BIN).env("SNAPBACK4_INIT_INSTALL","0").args(args).current_dir(&dir).output().unwrap();
     assert!(run(&["init", "--expo"]).status.success());
     let fresh = fs::read_to_string(dir.join("app.json")).unwrap();
     assert!(fresh.contains("\"4h-club\"") && fresh.contains("\"app4hclub\"") && fresh.contains("\"dev.snapback4.app4hclub\"") && !fresh.contains("todos"), "{fresh}");
@@ -992,7 +992,7 @@ fn adapt_never_touches_a_file_the_project_changed() {
     let cases = format!("{}{{\"as\":\"carol\",\"op\":\"list\",\"args\":{{}}}}\n", fs::read_to_string(dir.0.join("fixtures/test.cases.jsonl")).unwrap());
     fs::write(dir.0.join("fixtures/test.cases.jsonl"), &cases).unwrap();
     let client = fs::read_to_string(dir.0.join("src/client.ts")).unwrap();
-    let checked = Command::new(BIN).args(["check", "--review"]).current_dir(&dir.0).output().unwrap();
+    let checked = Command::new(BIN).env("SNAPBACK4_INIT_INSTALL","0").args(["check", "--review"]).current_dir(&dir.0).output().unwrap();
     let stdout = String::from_utf8_lossy(&checked.stdout);
     // Wave 6: the README is the starter's own, unmodified, so it follows the schema even beside a changed screen.
     assert!(stdout.contains("starter: 3 files from") && stdout.contains("fixtures/todos.jsonl") && stdout.contains("README.md") && !stdout.contains("App.tsx"), "{stdout}");
@@ -1158,7 +1158,7 @@ fn a_schema_without_the_todo_operations_gets_a_neutral_home_screen() {
             unique.sort(); unique.dedup();
             assert_eq!(unique.len(), modules.len(), "{flag} {sign_in}: {app}");
             // Nothing left over, and a second adapt has nothing to do.
-            assert!(!String::from_utf8_lossy(&Command::new(BIN).arg("check").current_dir(&first.0).output().unwrap().stdout).contains("starter:"));
+            assert!(!String::from_utf8_lossy(&Command::new(BIN).env("SNAPBACK4_INIT_INSTALL","0").arg("check").current_dir(&first.0).output().unwrap().stdout).contains("starter:"));
             assert!(String::from_utf8_lossy(&first.init(&["--adapt", "--apply"]).stdout).contains("nothing to adapt"));
             // Schema first writes exactly the same screen and client.
             let schema_first = Dir::new();
@@ -1188,7 +1188,7 @@ fn schema_first_init_after_check_replaces_generated_files() {
         let dir = Dir::new();
         fs::create_dir_all(dir.0.join("snapback")).unwrap();
         fs::write(dir.0.join("snapback/schema.q"), "use identity\ntable notes:\n  body: text <=100\n  public 'shared'\n").unwrap();
-        let checked = Command::new(BIN).arg("check").current_dir(&dir.0).output().unwrap();
+        let checked = Command::new(BIN).env("SNAPBACK4_INIT_INSTALL","0").arg("check").current_dir(&dir.0).output().unwrap();
         assert!(checked.status.success() && dir.0.join("snapback/generated/package.json").is_file() && dir.0.join("snapback/generated/api.ts").is_file(), "{checked:?}");
         let api = fs::read(dir.0.join("snapback/generated/api.ts")).unwrap();
         fs::write(dir.0.join("package.json"), r#"{"name":"mine","type":"module","scripts":{"typecheck":"tsc --noEmit"}}"#).unwrap();
@@ -1229,7 +1229,7 @@ fn the_readme_says_what_works_offline_from_the_schemas_synced_tables() {
         assert!(readme.lines().all(|line| line.matches('`').count() % 2 == 0 || line.starts_with("```") || line.contains("``")), "{flag}: no code span is wrapped: {readme}");
         // The schema grows a synced table: adapt rewrites only that paragraph.
         fs::write(dir.0.join("snapback/schema.q"), &synced).unwrap();
-        let checked = Command::new(BIN).args(["check", "--review"]).current_dir(&dir.0).output().unwrap();
+        let checked = Command::new(BIN).env("SNAPBACK4_INIT_INSTALL","0").args(["check", "--review"]).current_dir(&dir.0).output().unwrap();
         assert!(String::from_utf8_lossy(&checked.stdout).contains("README.md: the unmodified starter README says what works offline for another schema"), "{flag}: {checked:?}");
         let adapted = dir.init(&["--adapt", "--apply"]);
         assert!(adapted.status.success() && String::from_utf8_lossy(&adapted.stdout).contains("rewrote") && String::from_utf8_lossy(&adapted.stdout).contains("README.md"), "{flag}: {adapted:?}");
@@ -1278,7 +1278,7 @@ fn init_names_the_one_flag_that_moves_both_ports() {
     let dir = Dir::new();
     let stdout = String::from_utf8_lossy(&dir.init(&["--expo"]).stdout).into_owned();
     assert!(stdout.contains("`--port N` sets the client's backend URL") && !stdout.contains("init --expo --port N"), "{stdout}");
-    let help = Command::new(BIN).args(["init", "--help"]).output().unwrap();
+    let help = Command::new(BIN).env("SNAPBACK4_INIT_INSTALL","0").args(["init", "--help"]).output().unwrap();
     let help = String::from_utf8_lossy(&help.stdout);
     assert!(help.contains("--port N") && help.contains("the page on N+1") && help.contains("one flag moves all of them"), "{help}");
 }
@@ -1387,7 +1387,7 @@ fn untouched_starters_have_no_adaptation_advice() {
     for flags in [vec![], vec!["--online"], vec!["--web"], vec!["--expo"], vec!["--web", "--template", "chat"], vec!["--expo", "--template", "chat"], vec!["--template", "social"]] {
         let dir = Dir::new();
         assert!(dir.init(&flags).status.success());
-        let output = Command::new(BIN).arg("check").current_dir(&dir.0).output().unwrap();
+        let output = Command::new(BIN).env("SNAPBACK4_INIT_INSTALL","0").arg("check").current_dir(&dir.0).output().unwrap();
         let text = format!("{}{}", String::from_utf8_lossy(&output.stdout), String::from_utf8_lossy(&output.stderr));
         assert!(output.status.success(), "{flags:?}: {text}");
         assert!(!text.contains("init --adapt") && !text.contains("starter:"), "{flags:?}: {text}");

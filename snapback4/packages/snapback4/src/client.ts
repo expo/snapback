@@ -1,3 +1,4 @@
+import { proofResponse } from "./proof-observation.ts";
 import { refuseWatchGuess, validateObserveOptions } from "./observe-watch.ts";
 import { reconciledTiming, requestMatchesSession } from "./session-timing.ts";
 import { suppliedOnlineSession } from "./session-input.ts";
@@ -200,7 +201,7 @@ export function createClient(options: ClientOptions): Client {
       const sent = new Headers(args[1]?.headers).get("authorization");
       if (sent !== headers.authorization) return Response.json({ denied: auth() }, { status: 401 });
     }
-    const response = await transport(...args);
+    const response = await transport(...args); await proofResponse(args[0], args[1], response);
     release?.hint(response);
     const resetStore = response.headers.get("x-snapback-dev-reset");
     if (resetStore && storeIdentity !== undefined && resetStore !== storeIdentity) stopForStore("E_DEV_RESET");
@@ -1182,7 +1183,7 @@ export function createClient(options: ClientOptions): Client {
       // The bare online transport has no browser admission journal. An app's
       // private online custody may replay an intent it already persisted.
       if (browserAdmission() && !dispatch.owner) return failedAdmission<R>(id, admissionRefusal(
-        "this online client has no synchronous browser admission journal; createApp journals browser writes: without a device when no table syncs, with webDevice() otherwise", "client.mutate",
+        "this online client has no synchronous browser admission journal; createApp journals browser writes: without a device when no table syncs, with webDevice() otherwise", op.name,
         `${ONLINE_WRITE_FIX} when no table syncs; otherwise ${BROWSER_WRITE_FIX}`));
       return mutationIds!.run<R>(id, op.name, args, () => client.write(id), async (args, write) => {
         let settle!: (write: Write) => void;

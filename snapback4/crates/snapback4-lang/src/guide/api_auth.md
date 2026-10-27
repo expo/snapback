@@ -22,4 +22,4 @@ export function narrowSession(url: string, session: Session, doFetch?: typeof fe
 
 Other exports/options: dist/auth.d.ts; follow its named imports only on demand.
 
-Declaration fingerprint: fae1cf931a0f5cdfe9feb8f3f3d29783eb8ac136f3764fdc54b98b63354d3639
+Declaration fingerprint: c22422fa4dd0a5b69a53727c9af3aaf652a0660f9e43a60191780d19eca26480

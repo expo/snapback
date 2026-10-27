@@ -35,4 +35,4 @@ export type ProvisionedSessions = StagingSessions;
 
 Other exports/options: dist/proof.d.ts; follow its named imports only on demand.
 
-Declaration fingerprint: 9dfc8c19e72cd56797e852802911d611ff5961c1e30cac74b884dfa24a8cf4da
+Declaration fingerprint: ee0f61720bf8486b8abfe3990e88a002ad3c10a7ae37eee93a4d029ac5e07133

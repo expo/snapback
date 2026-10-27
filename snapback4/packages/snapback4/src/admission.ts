@@ -1,3 +1,4 @@
+import { observeRefusal, refusalObservation } from "./proof-observation.ts";
 import { operationTables, type BackendJson } from "./backend.ts";
 import { mintId } from "./client.ts";
 import type { Queued } from "./local-types.ts";
@@ -31,6 +32,7 @@ export function admissionRefusal(message: string, site = "client.mutate", rewrit
 /** A fulfilled failed promise also exposes its refusal in the calling stack.
  * Awaiting it remains the existing Write API. It has admitted no new intent. */
 export function failedAdmission<R>(id: string, why: Refusal): Promise<Write<R>> & Extract<Write<R>, { state: "failed" }> {
+  if (!refusalObservation(why)) observeRefusal(why.site ?? "client.mutate", "role unavailable", why);
   const write = { state: "failed" as const, id: typeof id === "string" ? id : "", why };
   return Object.assign(Promise.resolve(write), write);
 }

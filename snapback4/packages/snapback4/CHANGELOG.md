@@ -1,10 +1,17 @@
 # Changelog
 
+## 0.4.45
+
+### Guide changes
+
+- Image-only backends accept client.upload file metadata through the verified image path after a file-kind refusal; invalid bytes and image bounds still refuse. File scenarios are labelled inapplicable when the schema has no file column. Frontend install logs stay in .snapback4/install.log; init owns one blocking install with bounded start/completion output, preserving its exit status. Explicit install joins print a single completion line.
+
+- Safe Quarry fix-its show the exact edited line and check --fix applies context-compiled edits with a source diff. Null defaults, arbitrary bounds and security rules remain manual. Proof failures lead with operation, role, refusal code, field and a likely fix, preserving the original assertion; uncorrelated request/server context is labelled explicitly.
+
 ## 0.4.44
 
 ### Guide changes
 
-- Image-only backends accept client.upload file metadata through the verified image path after a file-kind refusal; invalid bytes and image bounds still refuse. File scenarios are labelled inapplicable when the schema has no file column. Frontend install logs stay in .snapback4/install.log; init names one blocking --wait command whose output is a single completion line.
 
 - Start replaces the introductory card tour with one compiling customer/staff workflow and feature pointers. Default cards have a hard reading budget; project repeats show deltas (guide --repeat/--full restore content). Build-time API digests and a generated operation index replace declaration greps. Init shows the recipe and file map before a background frontend install with status/wait. Probe scripts announce their lifetime, refuse repeated empty long runs and bound idle foreground waiting unless the npm script receives --hold; probe:check verifies. Upload placement explains separate uploads for several image columns.
 
