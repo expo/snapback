@@ -1,0 +1,12 @@
+{
+  "head": "eb80c8c7b3942fd966e9251317e641a93ba1f300",
+  "files": {
+    "snapback4/packages/snapback4/src/proof.ts": "9dba0fb3cef1b5f783c3b2df13afe153146900b80a1b91fbcf1b655422a457f2",
+    "snapback4/packages/snapback4/src/proof-process.ts": "990b83c440d6b7578bf867a5f8a850fd66e7b342c449c83a90241c47da71c28a",
+    "snapback4/packages/snapback4/src/proof-command.ts": "fe75b207ae026cd77acd6ba25509cbbebf31d5d895811e7b278df3b28da229fc",
+    "snapback4/packages/snapback4/bin/snapback4.js": "28b532e3d71054846e631726a4eaf615be60292b2dc75d2e9f157ec398155ab1",
+    "snapback4/packages/snapback4/src/resolve-binary.ts": "3dc31ecd68e53eb1bd7b970c0655dd4b7839b766d01762a025b9e1a91a0cc43f",
+    "snapback4/packages/snapback4/test/proof.test.mjs": "fdba01d8066dfbff3a51d81da61de422f2111ce2d70bd6c188b5a7d24c2be923",
+    "llp/3000.011.003.000.000-packaged-proof-kit.rfc.md": "1c8da303d98da7e8464f5dff3218298de1e2af93cbea1de97d6eb0b4a9dd665b"
+  }
+}
