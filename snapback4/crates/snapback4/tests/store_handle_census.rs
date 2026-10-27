@@ -199,8 +199,14 @@ fn use_tree(
             "{" => {
                 *i += 1;
                 while *i < tokens.len() && tokens[*i].text != "}" {
+                    let before = *i;
                     use_tree(tokens, i, &path, out);
                     if tokens.get(*i).is_some_and(|t| t.text == ",") {
+                        *i += 1;
+                    }
+                    // A `;` inside braces is not a use tree. Consume it rather
+                    // than re-reading the same token forever (unbounded `out`).
+                    if *i == before {
                         *i += 1;
                     }
                 }
@@ -242,7 +248,9 @@ fn bindings(source: &str) -> Vec<Binding> {
             .rposition(|t| matches!(t.text, ";" | "{" | "}"))
             .map_or(0, |j| j + 1);
         let exported = tokens[boundary..i].iter().any(|t| t.text == "pub");
-        if token.text == "use" || starts(&tokens[i..], &["extern", "crate"]) {
+        // `impl Trait + use<..>` is a precise-capturing bound, never a use declaration.
+        let declaration = token.text == "use" && tokens.get(i + 1).is_none_or(|t| t.text != "<");
+        if declaration || starts(&tokens[i..], &["extern", "crate"]) {
             let mut paths = Vec::new();
             use_tree(
                 &tokens,
@@ -469,6 +477,17 @@ fn matcher_keeps_types_and_excludes_tests_errors_and_wasm() {
         );
     }
     assert!(in_scope(Path::new("crates/snapback4/src/contests.rs")));
+}
+
+#[test]
+fn precise_capturing_bounds_are_not_use_declarations() {
+    // engine/postgres/ownership.rs returns `impl Fn() -> bool + Send + Sync + use<>`;
+    // reading that bound as a use tree looped forever on the body's `;`.
+    let source = "pub fn watch(&self) -> impl Fn() -> bool + Send + Sync + use<> {\n    let grant = self.grant.clone();\n    move || grant.load()\n}\npub use crate::store::Store as Kept;\n";
+    let found: Vec<_> = bindings(source).into_iter().map(|b| (b.path.join("::"), b.name, b.exported)).collect();
+    assert_eq!(found, vec![("crate::store::Store".to_string(), "Kept".to_string(), true)]);
+    // A malformed brace tree still terminates instead of growing without bound.
+    assert!(bindings("use crate::{store; Store};").len() < 8);
 }
 
 #[test]

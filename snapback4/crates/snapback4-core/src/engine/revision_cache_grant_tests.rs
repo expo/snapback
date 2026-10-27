@@ -495,7 +495,10 @@ fn g6_real_commit_bounds_hit_wait_then_g5_validates_prior_prefix() {
         "no CPU hit may cross the unresolved COMMIT");
     assert_eq!(r.revision_cache_stats().hits, before.hits + 1,
         "the prior entry must be validated through G5 while COMMIT is held");
-    std::thread::sleep(Duration::from_millis(70));
+    // @ref LLP 3000.009.001.000.002#4.2 — distinguish a flush-length publication closure from the bounded candidate wait.
+    // Keep the actual COMMIT parked past the old one-second hit budget. The
+    // fresh G5 read above must already have completed against the prior prefix.
+    std::thread::sleep(Duration::from_millis(1100));
     c.query_one("SELECT pg_advisory_unlock($1)", &[&key])
         .unwrap();
     hit.join().unwrap();
@@ -505,7 +508,11 @@ fn g6_real_commit_bounds_hit_wait_then_g5_validates_prior_prefix() {
     assert!(stats.gate.closed_ns > 50_000_000);
     assert!(stats.gate.hit_stall_ns > 0);
     assert!(stats.gate.hit_stall_ns < stats.gate.closed_ns);
+    assert!(stats.gate.max_hit_stall_ns < 100_000_000,
+        "candidate must fall back promptly, rather than wait the old one-second budget");
     assert!(stats.gate.hit_waits > 0);
+    eprintln!("G6_DEFAULT_GATE {{\"closed_ns\":{},\"candidate_wait_ns\":{},\"max_candidate_wait_ns\":{}}}",
+        stats.gate.closed_ns, stats.gate.hit_stall_ns, stats.gate.max_hit_stall_ns);
     assert_eq!(
         read(&mut r, &d, &v, "W1", false, SessionScope::Full, 1000)
             .unwrap()
