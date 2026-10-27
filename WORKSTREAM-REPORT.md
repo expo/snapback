@@ -445,3 +445,18 @@ any tests. Its log and original/scoped plans are retained under
 `~/sb4-loop/reports/sec11b/dirty-preflight-sec11b-final-affected*`. The report
 is checkpointed so the final run binds a clean committed tree. Results follow
 after that run; the rejected preflight is not a test PASS or product failure.
+
+The clean a9c7e8487b scoped attempt has a FAILED receipt, retained as
+`invalid-language-sec11b-final-affected*`. Builds, 60 CLI security unit tests,
+32 selected CLI integrations, diagnostics/docs/ref checks, and all six client
+files (17 tests) passed. The three language invocations were malformed: the
+canonical plan already supplied `--` and libtest arguments, and the scoped
+wrapper appended Cargo target selectors after that separator. These attempts
+are not qualifying language coverage, regardless of an empty filtered result.
+
+The wrapper now inserts `--lib`, `--test '*'`, and `--doc` before the separator,
+retaining canonical harness settings for integrations/doctests and four threads
+for units. A plan-only audit checks all three actual commands and the 14-step
+scoped plan. Production sources and the native800 packet are unchanged. The
+complete corrected scoped plan runs on the new clean committed tree; results
+follow after that run. No failed attempt is relabeled PASS.
