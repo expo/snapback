@@ -1,7 +1,7 @@
 # API react: exact signature digest
 
 Import from "snapback4/react". Generated from dist declarations; types named below retain their declaration meaning.
-ReadState uses loading/empty/denied/children. useAuth returns state and signup/login/logout. usePage requires c: cursor ?; run waits for a terminal write. Read/Write/Signal/Session/Cursor: guide api client.
+There is no useApp hook: useClient/useAuth/useOnline select its arms. ReadState uses loading/empty/denied/children. useAuth returns state and signup/login/logout. usePage requires c: cursor ?; run waits for a terminal write. Read/Write/Signal/Session/Cursor: guide api client.
 
 ```ts
 export function AppProvider({ app, children }: { app: App; children: ReactNode; }): import("react").JSX.Element;

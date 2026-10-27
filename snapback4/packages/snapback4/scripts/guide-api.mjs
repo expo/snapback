@@ -10,15 +10,17 @@ const encoding = getEncoding('o200k_base');
 // Names are the wave-34 React/observation/account grep targets. Never silently
 // drop a requested declaration to fit: a new surface must earn its reading cost.
 const modules = {
-  react: ['AssetState','AuthSnapshot','AppProvider','useAuth','useClient','useQuery','usePage','useMutation','useAsset','useUpload','ReadState','ReadHookOptions','PageHook','PagedQuery','WriteHook','MutationHook','UsePage','UseQuery','UseMutation','isFailed','sentResult'],
-  proof: ['startDev','startServe','ServeOptions','ProofOptions','ProofHost','DevHost','ServeHost','AdvanceOptions','serveUntilSignal','deploy','cli','CliResult','command','startStatic','withBrowser','renderedText','waitForFresh','fillRN','labelledControl','exhaustPages','snapshotAll','cleanup','bounded','serveCheck','ServeCheckOptions','provisionAccounts','ProvisionAccountsOptions','SeedAccountsOptions','StagingAccount','StagingSessions'],
+  app: ['createApp','AppOptions','AppAuth','AppAuthMethods','AuthSnapshot','AuthState','App','Online'],
+  witness: ['registerWebWitness','witnessForm','WitnessReason'],
+  react: ['AssetState','AuthSnapshot','AppProvider','useAuth','useAppReady','useSignedInViewer','useOnline','useQueryData','useQueryResult','useNow','useLink','useSaveAsset','useClient','useQuery','usePage','useMutation','useAsset','useUpload','ReadState','ReadHookOptions','PageHook','PagedQuery','WriteHook','MutationHook','UsePage','UseQuery','UseMutation','isFailed','sentResult'],
+  proof: ['startDev','startServe','ServeOptions','ProofOptions','ProofHost','DevHost','ServeHost','AdvanceOptions','serveUntilSignal','deploy','cli','CliResult','command','startStatic','withBrowser','renderedText','waitForFresh','waitForServer','fillRN','labelledControl','exhaustPages','snapshotAll','cleanup','bounded','serveCheck','ServeCheckOptions','provisionAccounts','ProvisionAccountsOptions','SeedAccountsOptions','StagingAccount','StagingSessions','ProvisionedAccount'],
   client: ['createClient','ClientOptions','Client','Observed','ObserveOptions','Read','Ready','Write','Signal','Cursor','AssetRead','Uploaded','UploadOptions','settleMutation','Session','SignIn','MutateOptions','Refusal'],
   auth: ['signup','login','SignIn','Session','SignInOptions','guest','SessionStore','memorySessionStore','restoreSession','keepSession','forgetSession','logout','logoutAll','refreshSession','narrowSession'],
 };
 // First line in every shipped declaration. Apply before fingerprinting for stable
 // rebuilds and --check; full declarations remain available below the pointer.
 for (const name of readdirSync(dist, {recursive:true}).filter(n => n.endsWith('.d.ts'))) {
-  const module = name.startsWith('react') ? 'react' : name.startsWith('auth') ? 'auth' : name.startsWith('proof') ? 'proof' : 'client';
+  const module = name.startsWith('app') ? 'app' : name.startsWith('witness-web') ? 'witness' : name.startsWith('react') ? 'react' : name.startsWith('auth') ? 'auth' : name.startsWith('proof') ? 'proof' : 'client';
   const file = new URL(name, dist), raw = readFileSync(file,'utf8');
   const body = raw.replace(/^\/\/ Day-one API signatures:.*\n/, '');
   const text = `// Day-one API signatures: snapback4 guide api ${module}; full module reference below.\n${body}`;
@@ -26,7 +28,7 @@ for (const name of readdirSync(dist, {recursive:true}).filter(n => n.endsWith('.
   else writeFileSync(file,text);
 }
 function digest(module, names) {
-  const file = fileURLToPath(new URL(`${module}.d.ts`, dist));
+  const file = fileURLToPath(new URL(`${module === 'witness' ? 'witness-web' : module}.d.ts`, dist));
   const program = ts.createProgram([file], { noResolve: false, skipLibCheck: true, target: ts.ScriptTarget.ESNext, module: ts.ModuleKind.NodeNext, moduleResolution: ts.ModuleResolutionKind.NodeNext });
   const checker = program.getTypeChecker(), source = program.getSourceFile(file);
   const exports = checker.getExportsOfModule(checker.getSymbolAtLocation(source));
@@ -57,8 +59,10 @@ function digest(module, names) {
     }).join('\n');
   }
   const pieces = names.map(name => ({ name, text: declarations(name) }));
-  let title = `# API ${module}: exact signature digest\n\nImport from "snapback4/${module}". Generated from dist declarations; types named below retain their declaration meaning.\n`;
+  let title = `# API ${module}: exact signature digest\n\nImport from "snapback4/${module === 'witness' ? 'witness-web' : module}". Generated from dist declarations; types named below retain their declaration meaning.\n`;
   if (module === 'client') title += 'observe returns getSnapshot/subscribe/close; query returns Read, mutate returns Write; asset returns a URL handle or denied. Upload each image column separately. sentResult is from snapback4/react or contract.\n';
+  if (module === 'witness') title += 'Browser probe after registration: window.__snapback4Witness.beginForm(name, expectedArgumentSubset, button); click that element; await window.__snapback4Witness.formResult(). For awaited uploads, call witnessForm synchronously in the clicked handler, then use its supplied mutate.\n';
+  if (module === 'react') title += 'There is no useApp hook: useClient/useAuth/useOnline select its arms. ';
   if (module === 'react') title += 'ReadState uses loading/empty/denied/children. useAuth returns state and signup/login/logout. usePage requires c: cursor ?; run waits for a terminal write. Read/Write/Signal/Session/Cursor: guide api client.\n';
   if (module === 'proof') title += 'Use probe:check for verification; probe:serve stays up until SIGTERM (deliberate harness run: --hold).\n';
   const render = entries => `${title}\n\`\`\`ts\n${entries.map(p => p.text).join('\n')}\n\`\`\`\n`;

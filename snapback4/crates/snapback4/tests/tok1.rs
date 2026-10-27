@@ -14,7 +14,7 @@ fn wave32_codex_001_025_and_muse_019_028_first_schema_deltas_and_signatures() {
     fs::write(p.0.join("snapback/schema.q"),source).unwrap();
     let checked=p.cli(&["check"]);assert!(checked.status.success(),"{}",String::from_utf8_lossy(&checked.stderr));
     let generated=p.cli(&["guide","api","generated"]);assert!(generated.status.success());let index=String::from_utf8_lossy(&generated.stdout);
-    assert!(index.contains("openRequest(")&&index.contains("photo:"));assert!(index.len()<3000);
+    assert!(index.contains("openRequest(")&&index.contains("evidence:"));assert!(index.len()<3000);
     for module in ["client","proof","auth"] { let out=p.cli(&["guide","api",module]);assert!(out.status.success());assert!(String::from_utf8_lossy(&out.stdout).contains("Declaration fingerprint")); }
 }
 #[test]

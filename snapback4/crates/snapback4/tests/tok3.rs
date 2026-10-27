@@ -23,7 +23,7 @@ fn wave34_codex_001_039_muse_019_018_recipe_index_and_starter_edit_regions() {
 }
 #[test]
 fn operation_index_does_not_suggest_paging_for_scalar_or_non_cursor_c() {
-    let source="query scalar(c: cursor ?): return 1\nquery values(c: int): return [c]\n";
+    let source="query scalar(c: cursor ?):\n  return 1\nquery values(c: int):\n  return [c]\n";
     let bound=snapback4_lang::compile(&[("schema.q".into(),source.into())]);
     assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);
     let emitted=snapback4_lang::emit::typescript(&bound);

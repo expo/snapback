@@ -1,11 +1,10 @@
-# Workflow: one app through acceptance
+# Workflow: one app
 
-After start, copy/rename this recipe. This shape needs no other feature card.
+Copy and rename this recipe; no other feature card is needed.
 
-## Roles and private fields: schema.q
+## Roles/private fields: schema.q
 
 Replace snapback/schema.q; remove unused .q files. Signup grants no role.
-Customers see own rows; staff see the board; intake/director also see price.
 
 ```quarry
 use identity password
@@ -81,16 +80,14 @@ invariant requests.read only .owner = viewer or exists roles[viewer, staff = tru
 invariant requests.price read only exists roles[viewer, role = 'intake'] or exists roles[viewer, role = 'director']
 ```
 
-Rules authorize each effect; require cannot grant writes. Program reads are
-caller-filtered. Private fields are omitted. Price is cents (1234 = USD 12.34).
-If approval gates another action, require `r.approvedBy != null` in that action.
+Rules grant writes; require cannot. Hidden fields are omitted; price is cents.
+If approval gates an action, require `r.approvedBy != null` there.
 
-## Deadlines/jobs and nullable idioms
+## Deadlines/jobs and nullable values
 
-Anchor deadlines to stored server events; guard before status even if a sweep is
-late. Jobs catch up all unprocessed rows before periodEnd. 30d is a duration.
-UTC month buckets: `month(now) < month(r.openedAt) + 12`; exact anniversaries
-need a calculated, validated stored deadline.
+Deadlines use stored server events; guard before status despite sweep lateness.
+30d is a duration; UTC month buckets: `month(now) < month(r.openedAt) + 12`.
+Exact anniversaries need a calculated, validated stored deadline.
 
 Nullable arithmetic: `at = r.deliveredAt ! else NOT_DELIVERED`, then `at + 30d`.
 Nullable conditions: `(flag ?? false)` or `(optionalTime < now) ?? false`.
@@ -98,29 +95,28 @@ Inserts supply every required column without a default, including evidence/price
 
 ## Uploads, live board and approval
 
-Keep starter auth/AppProvider. Import api from ../snapback/generated/api.ts
-(Expo root: ./snapback/generated/api.ts), hooks from snapback4/react.
+Keep starter auth/AppProvider; import hooks from snapback4/react and generated api.
 `usePage(api.board,{})` returns live items/read/loading/why/hasMore/loadMore.
-`useMutation(api.approve).run({request,reason})` returns sent (committed) or
-failed (why.code/message). `useAuth()` gives state/signup/login/logout.
-`useAsset(id)` has url when ready. Call hooks at component top level.
+`useMutation(api.approve).run({request,reason})`: sent = committed; failed has why.
+useAuth gives state/signup/login/logout; useAsset has url when ready. Hooks go at component top level.
 
 Upload as the placing account: `client.upload(bytes,{file:{type:'application/pdf'}})`;
 require result.ok, then pass `{evidence:{id:result.asset.id}}`. For image columns:
-`client.upload(imageBytes)`. Each column needs a separate upload of the bytes.
+`client.upload(imageBytes)`. Upload separately for each column.
 `client.observe(api.board,{})` returns getSnapshot/subscribe/close; subscribe a
 no-argument listener, read getSnapshot, close on cleanup.
 
 ## Acceptance: scripts/acceptance.mjs
 
 After check and `init --adapt --apply`, set scripts/staging.mjs's seedUsers to
-`{roles:{customer:2,intake:2,staff:2,director:2},provision:api.provision}`.
-Custom enrollment uses args(account). Set acceptance to `node scripts/acceptance.mjs`:
+`{roles:{customer:2,intake:2,staff:2,director:2},provision:{name:'provision'}}`.
+Custom enrollment: args(account). Set acceptance to `node scripts/acceptance.mjs`:
 
 ```js
 import assert from 'node:assert/strict';
 import { createClient } from 'snapback4/client';
 import { api } from '../snapback/generated/api.ts';
+import { waitForServer } from 'snapback4/proof';
 import { startStaging } from './staging.mjs';
 const host = await startStaging();
 const clients = [];
@@ -135,7 +131,7 @@ try {
   const sent = w => { assert.equal(w.state,'sent',JSON.stringify(w)); return w.result; };
   const denied = w => assert.equal(w.state,'failed');
   const upload = await intake.upload(new TextEncoder().encode('proof report'),
-    {file:{type:'application/pdf'}});
+    {file:{type:'text/plain'}});
   assert.ok(upload.ok);
   const row = sent(await intake.mutate(api.openRequest, {
     owner:host.sessions.customer[0].principal, title:'Proof request',
@@ -150,8 +146,17 @@ try {
   assert.equal((await other.query(api.board,{})).data?.length ?? 0,0);
   denied(await staff.mutate(api.approve,{request,reason:'not authorized'}));
   denied(await guest.mutate(api.fit,{request}));
-  sent(await director.mutate(api.approve,{request,reason:'Physician order received'}));
-  sent(await staff.mutate(api.fit,{request}));
+  sent(await director.mutate(api.approve,{request,reason:'Order received'}));
+  const approved = (await director.query(api.board,{})).data[0];
+  assert.equal(approved.approvedBy,host.sessions.director[0].principal);
+  assert.equal(approved.approvalReason,'Order received');
+  denied(await staff.mutate(api.checkUsage,{request}));
+  const observed = staff.observe(api.board,{});
+  try {
+    sent(await staff.mutate(api.fit,{request}));
+    await waitForServer(() => observed.getSnapshot(), r =>
+      r.data?.some(x => x.id === request && x.status === 'fitted'));
+  } finally { observed.close(); }
   sent(await staff.mutate(api.deliver,{request}));
   sent(await staff.mutate(api.checkUsage,{request}));
   await host.advance('31d');
@@ -161,8 +166,7 @@ try {
 } finally { for (const c of clients) await c.close(); await host.stop(); }
 ```
 
-Extend for every spec role/operation, exact/just-before deadlines, pre-event null,
-job catch-up and live writes. Supply valid args in authorization tests. Run twice.
-Edit scripts/frontend-proof.mjs business assertions; keep build/cleanup. Verify with
-`npm run probe:check`. For the harness include sessions in probe readiness,
-never in diaries. Operation args/hooks: `guide api generated`.
+Add spec boundaries/job catch-up; use valid args in refusal tests. Run twice.
+Edit scripts/frontend-proof.mjs assertions; keep build/cleanup. Verify with
+`npm run probe:check`. Keep credentials out of diaries.
+Args/hooks: `guide api generated`.

@@ -1,13 +1,21 @@
 # API react: exact signature digest
 
 Import from "snapback4/react". Generated from dist declarations; types named below retain their declaration meaning.
-ReadState uses loading/empty/denied/children. useAuth returns state and signup/login/logout. usePage requires c: cursor ?; run waits for a terminal write. Read/Write/Signal/Session/Cursor: guide api client.
+There is no useApp hook: useClient/useAuth/useOnline select its arms. ReadState uses loading/empty/denied/children. useAuth returns state and signup/login/logout. usePage requires c: cursor ?; run waits for a terminal write. Read/Write/Signal/Session/Cursor: guide api client.
 
 ```ts
 export type AssetState = { readonly status: "empty"; } | { readonly status: "loading"; readonly waiting?: AssetWaiting; } | { readonly status: "ready"; readonly url: string; readonly type: string; readonly name?: string; } | { readonly status: "denied"; readonly why: Refusal; } | { readonly status: "error"; readonly why: Refusal; };
 export type AuthSnapshot = { readonly state: "signed-in"; readonly viewer: Principal; readonly why?: Refusal | undefined; } | { readonly state: "restoring" | "signed-out"; readonly viewer: null; readonly why?: Refusal | undefined; };
 export function AppProvider({ app, children }: { app: App; children: ReactNode; }): import("react").JSX.Element;
 export function useAuth(): AuthSnapshot & Pick<AppAuth, "signup" | "login" | "guest" | "logout" | "logoutEverywhere">;
+export function useAppReady(): boolean;
+export function useSignedInViewer(): Principal;
+export function useOnline(): Online;
+export function useQueryData<A, R>(op: Query<A, R>, args: A, options?: ReadHookOptions): R | undefined;
+export function useQueryResult<A, R>(op: Query<A, R>, args: A, options?: ReadHookOptions): { readonly data: R | undefined; readonly why: Refusal | null; readonly read: Read<R>; };
+export function useNow(deadline?: number | null): number;
+export function useLink(): Link;
+export function useSaveAsset(): { readonly save: (id: string, name?: string) => Promise<Saved>; readonly saving: boolean; readonly why: Refusal | null; };
 export function useClient(): Client;
 export function useQuery<A, R>(op: Query<A, R>, args: A, options?: ReadHookOptions): Read<R>;
 export function usePage<A, R extends readonly unknown[]>(op: PagedQuery<A, R>, args: Omit<A, "c">, options?: ReadHookOptions): PageHook<R>;
@@ -28,4 +36,4 @@ export function isFailed<W>(outcome: W & OutcomeInput<W>): outcome is FailedOutc
 export function sentResult<R>(write: Write<R> | null | undefined): R | undefined;
 ```
 
-Declaration fingerprint: ee0495186dc8fae4b4781305b055e420d4d9b3c65cffd7a9700d08d7d659560f
+Declaration fingerprint: d060727e99381d86e5ed1456ba04590d74998d985269edcf5a2da1e7ea4f72eb

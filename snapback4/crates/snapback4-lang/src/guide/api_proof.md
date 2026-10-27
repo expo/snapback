@@ -21,6 +21,7 @@ export function startStatic(dir: string, options?: ProofOptions): Promise<ProofH
 export function withBrowser<T>(options: LaunchOptions & Pick<ProofOptions, "cwd" | "logsDir"> & { chromium?: BrowserType; }, proof: (context: BrowserContext) => Promise<T>): Promise<T>;
 export function renderedText(page: Page, text: string | RegExp, options?: { within?: Locator; exact?: boolean; } | null): Locator;
 export function waitForFresh(locator: Locator, previous: string | null, options?: number | { within?: Locator; timeoutMs?: number; trigger?: () => unknown | Promise<unknown>; }): Promise<string>;
+export function waitForServer<T>(read: () => Promise<T>, accepts: (value: T) => boolean, options?: { timeoutMs?: number; label?: string; }): Promise<T>;
 export function fillRN(locator: Locator, value: string | Parameters<Locator["setInputFiles"]>[0]): Promise<void>;
 export function labelledControl(page: Page, role: "textbox" | "combobox" | "checkbox" | "radio" | "spinbutton" | "slider" | "switch", name: string | RegExp, options?: { within?: Locator; exact?: boolean; }): Locator;
 export function exhaustPages<Row>(readPage: (cursor: Cursor | null) => Promise<ProofPage<Row>>, options?: ExhaustPagesOptions): Promise<Row[]>;
@@ -34,6 +35,7 @@ export interface ProvisionAccountsOptions extends SeedAccountsOptions { roster?:
 export interface SeedAccountsOptions { roles?: Record<string, number>; provision?: { readonly name: string; }; users?: number; service?: string; args?: (account: StagingAccount) => Record<string, unknown>; timeoutMs?: number; }
 export interface StagingAccount { kind: "user"; role: string; email: string; password: string; principal: string; token: string; expiresAt: number; }
 export type StagingSessions = Record<string, StagingAccount[]>;
+export type ProvisionedAccount = StagingAccount;
 ```
 
 Declaration fingerprint: 614a91415aeeba47fce4fe025e5ade02231b42e95043766fca33f2d504f167e4

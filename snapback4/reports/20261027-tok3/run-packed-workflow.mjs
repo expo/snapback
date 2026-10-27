@@ -1,15 +1,14 @@
 // Run the literal shipped workflow through installed client/platform tarballs.
 import assert from 'node:assert/strict';
 import {execFileSync} from 'node:child_process';
-import {mkdirSync,readFileSync,writeFileSync,rmSync} from 'node:fs';
+import {mkdirSync,readFileSync,writeFileSync} from 'node:fs';
 import {join,resolve} from 'node:path';
-import {pathToFileURL} from 'node:url';
 const [packArg,dirArg]=process.argv.slice(2),packs=resolve(packArg),dir=resolve(dirArg);
 mkdirSync(dir,{recursive:true});
 const run=(cmd,args)=>execFileSync(cmd,args,{cwd:dir,encoding:'utf8',timeout:300000,maxBuffer:16<<20,env:{...process.env,SNAPBACK4_INIT_INSTALL:'0',npm_config_registry:'http://127.0.0.1:4873/'}});
 const started=Date.now();
 writeFileSync(join(dir,'package.json'),'\n{"private":true,"type":"module"}\n');
-run('npm',['install','--no-audit','--no-fund','--ignore-scripts',join(packs,'snapback4-0.4.44.tgz'),join(packs,'snapback4-linux-x64-0.4.44.tgz')]);
+run('npm',['install','--no-save','--no-audit','--no-fund','--ignore-scripts',join(packs,'snapback4-0.4.44.tgz'),join(packs,'snapback4-linux-x64-0.4.44.tgz')]);
 const cli=join(dir,'node_modules/.bin/snapback4');
 const start=run(cli,['guide','start']),workflow=run(cli,['guide','workflow','--repeat']);
 assert.ok(Buffer.byteLength(start)<=8001&&Buffer.byteLength(workflow)<=8001);
