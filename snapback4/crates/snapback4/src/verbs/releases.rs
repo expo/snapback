@@ -302,6 +302,7 @@ fn activate(
     options: &Options,
     mut candidate: Option<&mut crate::release_files::Candidate>,
 ) -> Result<(), String> {
+    let selection_error=|error:String|if error.contains("E_ADOPT") {format!("{error}; operation: {} to release {release} from release {}",if rollback{"rollback"}else{"deploy"},previous.map(|n|n.to_string()).unwrap_or_else(||"none".into()))}else{error};
     let root = dir.join("releases").join(release.to_string());
     validate_registered_view(dir,&root)?;
     let digest = crate::release_files::digest(&root)?;
@@ -331,7 +332,7 @@ fn activate(
             &activation,
             allow_feed_adoption,
         )
-        .map_err(|e| e.to_string())?;
+        .map_err(|e| selection_error(e.to_string()))?;
         pointer.finish(engine.generation())?;
         receipt(release,engine.generation(),engine.store().adoption_report(),options, &live_identity(dir, release)?);
 
@@ -351,7 +352,7 @@ fn activate(
                 allow_feed_adoption,
             },
             |pending| { if let Some(candidate)=candidate.as_deref_mut() {candidate.pending=pending;} },
-        ).map_err(|e|if e.contains("unknown field")&&(e.contains("activation_protocol")||e.contains("registry_custody")||e.contains("visible_rollback")){format!("E_RELEASE_RUNTIME: serving runtime predates release custody; restart serve with this CLI before switching; {e}")}else{e})?;
+        ).map_err(|e|if e.contains("unknown field")&&(e.contains("activation_protocol")||e.contains("registry_custody")||e.contains("visible_rollback")){format!("E_RELEASE_RUNTIME: serving runtime predates release custody; restart serve with this CLI before switching; {e}")}else{selection_error(e)})?;
         if let Some(summary)=options.flags.get("security-summary"){result["security"]=serde_json::from_str(summary).unwrap_or_default();}
         if let Some(view)=options.flags.get("rollback-view"){result["rollbackView"]=serde_json::from_str(view).unwrap_or_default();}
         if let Some(preview)=options.flags.get("release-preview"){result["preview"]=serde_json::from_str(preview).unwrap_or_default();}
@@ -605,6 +606,13 @@ pub fn deploy(options: &Options) -> i32 {
     report("deploy",result)
 }
 
+fn already_live(dir:&Path,active:u64,options:&Options)->Result<(),String>{
+    let live=live_identity(dir,active)?;
+    if options.json {println!("{}",serde_json::json!({"ok":true,"unchanged":true,"message":format!("release {active} is already live"),"release":active,"live":live,"rowShape":live["rowShape"]}));}
+    else {println!("release {active} is already live");print_live(&live);}
+    Ok(())
+}
+
 pub fn rollback(options: &Options) -> i32 {
     report(
         "rollback",
@@ -634,12 +642,22 @@ pub fn rollback(options: &Options) -> i32 {
             let previous = selected
                 .or_else(|| held["previous_active"].as_u64())
                 .ok_or("nothing to roll back to")?;
+            // @ref LLP 3000.000.000.003#1-idempotent-selection-and-repair — do not re-enter migration preparation for a live id.
+            if previous == active && !options.flags.contains_key("check") {
+                already_live(&dir,active,options)?;return Ok(());
+            }
             let logical=super::rollback_views::metadata(&dir.join("releases").join(previous.to_string()))?.map(|v|v.target).unwrap_or(previous);
             let mut view=if options.flags.contains_key("exact"){None}else{super::rollback_views::resolve(&dir,logical)?};
+            if view.as_ref().is_some_and(|view|view.release==active) && !options.flags.contains_key("check") {
+                already_live(&dir,active,options)?;return Ok(());
+            }
             if let Some(registered)=&view {
                 if super::rollback_views::prefer_original(&dir,registered,options,_deployment.as_ref())? {view=None;}
             }
             let previous=view.as_ref().map(|v|v.release).unwrap_or(logical);
+            if previous == active && !options.flags.contains_key("check") {
+                already_live(&dir,active,options)?;return Ok(());
+            }
             if let Some(view)=&view {
                 if view.target!=logical {eprintln!("rollback source: release {logical} has the same executable digest as retained target {}",view.target);}
                 if options.flags.contains_key("verbose") {eprintln!("rollback target: release {} via bridge {} (registered by release {})",view.target,view.release,view.parent);
@@ -1059,7 +1077,7 @@ fn live_identity(dir:&Path,release:u64)->Result<serde_json::Value,String>{
 }
 fn print_live(live:&serde_json::Value){
     if live["exact"]==true {println!("live: release {} = exact source {}",live["release"],live["source"]);}
-    else {println!("live: release {} = rollback view of release {} (registered by release {})",live["release"],live["target"],live["parent"]);
+    else {println!("live: release {} = rollback view of release {} (registered by release {}); still runs the registered workflow and current guards",live["release"],live["target"],live["parent"]);
         println!("  view retains the registered workflow and guards; --exact selects original release {}",live["target"]);
         // Short output discloses changes and retained extraction children;
         // a preserved shape is already available in the complete JSON record.

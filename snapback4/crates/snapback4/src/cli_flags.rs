@@ -286,7 +286,7 @@ pub(crate) fn top_help() -> String {
         "check"=>"Compile the schema, check store adoption, write client types and report readiness.",
         "device"=>"Run the native device JSON protocol over stdin/stdout.", "types"=>"Compile and write generated client types.",
         "dev"=>"Serve a development backend; print its URL on stdout, readiness and refusals on stderr.",
-        "deploy"=>"Capture and activate an immutable release; running serve adopts it.", "rollback"=>"Preview or activate an existing release; preserve dormant storage.",
+        "deploy"=>"Capture and activate an immutable release; running serve adopts it.", "rollback"=>"Preview or activate an existing release; selecting the already-live release is an idempotent no-op (no history or migration changes).",
         "prune"=>"Preview or explicitly remove dormant release storage.", "releases"=>"Inspect database-authoritative release history and storage.",
         "serve"=>"Serve the active production release; bearer sessions only, behind a TLS proxy.",
         "serve-check"=>"Check an npm serve script through the packaged Node CLI; keep credential stdout private.",

@@ -35,6 +35,10 @@ impl ReleaseActivation {
     }
     // @ref LLP 3000.009.001.000#9.1 — validate new text keys before opening an activation writer.
     pub(crate) fn validate(&self) -> Result<(), RuntimeError> {
+        // @ref LLP 3000.000.000.003#1-idempotent-selection-and-repair — the CLI handles live selections without activation; direct callers refuse before preparation.
+        if self.expected_previous == Some(self.release) && self.operation != "preview" {
+            return Err(RuntimeError::Generation(format!("release {} is already live; no activation is needed", self.release)));
+        }
         if self.operation.contains('\0') || self.native_digest.as_deref().is_some_and(|s| s.contains('\0')) {
             return Err(RuntimeError::Input("release operation and native digest cannot contain U+0000".into()));
         }

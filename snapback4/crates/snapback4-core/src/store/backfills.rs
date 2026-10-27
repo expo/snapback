@@ -104,7 +104,7 @@ fn protected(kind:&crate::schema::ColumnType)->bool {
     match kind {Optional(k)=>protected(k),Ref{..}|Image{..}|Video{..}|File{..}|List{..}|ListRange{..}=>true,_=>false}
 }
 struct SourceMask<'a,'b>(&'a Tx<'b>);
-impl Drop for SourceMask<'_,'_>{fn drop(&mut self){let _=self.0.conn().execute_batch("DROP TABLE IF EXISTS temp._backfill_unprovided");}}
+impl Drop for SourceMask<'_,'_>{fn drop(&mut self){let _=self.0.conn().execute_batch("DROP TABLE IF EXISTS temp._backfill_unprovided; DROP TABLE IF EXISTS temp._backfill_native_restored");}}
 
 // A declared forward receipt may temporarily expose its exact predecessor while
 // the down receipt still remembers the newer input. Ordinary changed inputs
@@ -240,7 +240,7 @@ fn restore_downfills(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,sources:&B
             let fields=row.as_object()?;
             if validate {
             for (column,expected) in &e.after {
-                if fields.get(column)!=Some(expected) {bad.add(id,&format!("{}.{} changed while the older release was active; expected projected {}, current {}; repair it under a bridge before selecting this release",fill.table,column,canonical_json(expected),fields.get(column).map(canonical_json).unwrap_or_else(||"<absent>".into())));return Ok(())}
+                if fields.get(column)!=Some(expected) {bad.add(id,&format!("{}.{} changed while the older release was active; expected projected {}, current {}; forward selection refused for this row; repair it through the old operation or an authorized bridge mutation before selecting this release",fill.table,column,canonical_json(expected),fields.get(column).map(canonical_json).unwrap_or_else(||"<absent>".into())));return Ok(())}
             }
             let mut inputs_meter=Meter::new(Ceilings::job(),Cut::Abort);
             let source=row_source(tx,t,id,sources.get(&fill.table))?;
@@ -259,6 +259,8 @@ fn restore_downfills(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,sources:&B
                 match e.reversed.get(column).cloned().flatten() {
                     Some(value)=>{
                         fields.insert(column.clone(),value.clone());
+                        // @ref LLP 3000.000.000.003#1-idempotent-selection-and-repair — only a validated down receipt can supersede damaged forward bookkeeping.
+                        tx.conn().execute("INSERT OR REPLACE INTO temp._backfill_native_restored VALUES(?1,?2,?3,?4)",params![t,id,column,canonical_json(&value)])?;
                     },
                     None=>{
                         fields.remove(column);
@@ -297,7 +299,8 @@ fn stage_downfills(tx:&Tx<'_>,next:&Schema,previous:&Schema,sources:&BTreeMap<St
                 if fill.inputs.len()!=1 || fill.outputs.len()!=1 {return Err(refusal("generated column rename must have exactly one input and output"))}
 
             let source_kind=fill.inputs.values().next();let target_kind=target_outputs.iter().next().and_then(|c|target.columns.get(c));
-            if source_kind!=target_kind {return Err(refusal(format!("column rename on {} must use identical old and new cell types",fill.table)))}
+            if !target_kind.zip(source_kind).is_some_and(|(old_domain,new_domain)|crate::schema::backfill::rename_accepts(old_domain,new_domain))
+                || !crate::schema::backfill::rename_column_accepts(target,target_outputs.iter().next().unwrap(),&previous.tables[&fill.table],fill.inputs.keys().next().unwrap()) {return Err(refusal(format!("column rename on {} requires the new scalar domain to include the old domain; use a typed backfill/down for changed meaning",fill.table)))}
         }
         for c in &target_outputs {
             let kind=&target.columns[c];
@@ -409,7 +412,7 @@ fn stage_downfills(tx:&Tx<'_>,next:&Schema,previous:&Schema,sources:&BTreeMap<St
             tx.conn().execute("INSERT INTO temp._downfill_pending VALUES(?1,?2,?3,?4,?5)",params![t,id,key,canonical_json(&patch),canonical_json(&e)])?;count+=1;Ok(())
         })?;
         if bad.count>0{return Err(refusal(format!("down {} {}: {}",fill.table,fill.name,bad.describe())))}
-        if preimages>0 {report.backfills.push(format!("{} {} retained predecessor preimages on {preimages} rows; sample ids [{}]; these rows read stale under the older release until forward; newer source cells remain retained for forward",fill.table,fill.name,preimage_ids.join(", ")));}
+        if preimages>0 {report.backfills.push(format!("{} {} retained predecessor preimages on {preimages} rows; sample ids [{}]; the older release serves the retained predecessor representation; newer source cells remain retained for forward",fill.table,fill.name,preimage_ids.join(", ")));}
         if count>0{report.backfills.push(format!("{} {} projected {count} {} down",fill.table,fill.name,if count==1{"row"}else{"rows"}));}
     }
     Ok(true)
@@ -431,7 +434,8 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
     if next.backfills.is_empty() && next.downfills.is_empty()
         && previous.is_none_or(|s|s.backfills.is_empty() && s.downfills.is_empty()) && !present(tx)? { return Ok(()); }
     enable(tx)?;
-    tx.conn().execute_batch("CREATE TEMP TABLE _backfill_unprovided(t INTEGER NOT NULL,id TEXT NOT NULL,column_name TEXT NOT NULL,PRIMARY KEY(t,id,column_name)) WITHOUT ROWID;")?;
+    tx.conn().execute_batch("CREATE TEMP TABLE _backfill_unprovided(t INTEGER NOT NULL,id TEXT NOT NULL,column_name TEXT NOT NULL,PRIMARY KEY(t,id,column_name)) WITHOUT ROWID;
+    CREATE TEMP TABLE _backfill_native_restored(t INTEGER NOT NULL,id TEXT NOT NULL,column_name TEXT NOT NULL,data TEXT NOT NULL,PRIMARY KEY(t,id,column_name)) WITHOUT ROWID;")?;
     let _source_mask=SourceMask(tx);
     for fill in &next.backfills {
         fill.admit(next).map_err(refusal)?;
@@ -440,7 +444,8 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
 
             let source_kind=fill.inputs.keys().next().and_then(|c|sources.get(&fill.table).and_then(|t|t.columns.get(c)));
             let target_kind=fill.outputs.iter().next().and_then(|c|next.tables[&fill.table].columns.get(c));
-            if source_kind.is_some() && source_kind!=target_kind {return Err(refusal(format!("column rename on {} must use identical old and new cell types",fill.table)))}
+            if source_kind.is_some() && (!source_kind.zip(target_kind).is_some_and(|(old_domain,new_domain)|crate::schema::backfill::rename_accepts(old_domain,new_domain))
+                || !crate::schema::backfill::rename_column_accepts(&sources[&fill.table],fill.inputs.keys().next().unwrap(),&next.tables[&fill.table],fill.outputs.iter().next().unwrap())) {return Err(refusal(format!("column rename on {} requires the new scalar domain to include the old domain; use a typed backfill/down for changed meaning",fill.table)))}
         }
         if let Some(old)=sources.get(&fill.table) {for c in &fill.outputs {
             if source_owned(old,c) {
@@ -679,7 +684,7 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
             let patch=match runner.run(&fill.program) {Ok(Value::Row(f)|Value::Map(f))=>f.into_iter().collect::<BTreeMap<_,_>>(),Ok(_)=>{bad.add(id,"backfill did not return an object");return Ok(())},Err(e)=>{bad.add(id,&e.to_string());return Ok(())}};
             if runner.read_cut().is_some() {bad.add(id,"historical lookup did not complete; reduce per-row lookup work before adoption");return Ok(())}
             if patch.keys().cloned().collect::<BTreeSet<_>>()!=fill.outputs {return Err(refusal("backfill returned undeclared output fields"))}
-            let fields=current.as_object()?;let mut before=BTreeMap::new();let mut desired=patch.clone();
+            let fields=current.as_object()?;let mut before=BTreeMap::new();let mut desired=patch.clone();let mut native_preserved=BTreeSet::new();
             let mut preimage_meter=Meter::new(Ceilings::job(),Cut::Abort);
             for (c,value) in &patch {
                 // A new transform may consume an older receipt's accepted view,
@@ -705,13 +710,22 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
                     if let Some(value)=source_value(tx,t,id,&current,c,row_source.as_deref(),&mut preimage_meter)? {before.insert(c.clone(),value);}
                 }
                 if let Some(prior)=&prior {
+                    let native:Option<String>=tx.conn().query_row("SELECT data FROM temp._backfill_native_restored WHERE t=?1 AND id=?2 AND column_name=?3",params![t,id,c],|r|r.get(0)).optional()?;
+                    if let Some(native)=native {
+                        let native:Value=decode(&native)?;
+                        if fields.get(c)==Some(&native) && crate::engine::validate::validate_column(&fill.table,c,&table.columns[c],Some(&native)).is_ok() {
+                            desired.insert(c.clone(),native);
+                            native_preserved.insert(c.clone());
+                            continue;
+                        }
+                    }
                     let deps_same=prior.inputs==inputs && prior.after==patch;
                     let current_field=fields.get(c);
                     let original=prior.before.get(c);
                     let expected=prior.reversed.get(c).cloned().unwrap_or_else(||original.cloned());
                     let actual=if transformed {None}else{source_value_impl(tx,t,id,&current,c,row_source.as_deref(),&mut preimage_meter,false)?};
                     if !transformed && actual.as_ref()!=expected.as_ref() && actual.as_ref()!=prior.after.get(c) && actual.as_ref()!=Some(value) {
-                        bad.add(id,&format!("{}.{} changed while backfill {} was absent: older-release value {}, expected old view {}, retained newer value {}, recomputed value {}; keep a bridge and resolve through an authorized mutation; see guide deploy",fill.table,c,fill.name,display_cell(actual.as_ref()),display_cell(expected.as_ref()),display_cell(prior.after.get(c)),display_cell(Some(value))));return Ok(())
+                        bad.add(id,&format!("{}.{} changed while backfill {} was absent: older-release value {}, expected old view {}, retained newer value {}, recomputed value {}; for forward selection use a fresh declaration name for the repaired transform, preserve current values in a bridge and resolve through an authorized mutation; see guide rename",fill.table,c,fill.name,display_cell(actual.as_ref()),display_cell(expected.as_ref()),display_cell(prior.after.get(c)),display_cell(Some(value))));return Ok(())
                     }
                     let computed=if prior.computed.is_empty(){&prior.after}else{&prior.computed};
                     if prior.authored.contains(c)&&(prior.inputs!=inputs||computed!=&patch)&&current_field!=Some(value){
@@ -723,14 +737,15 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
                         // Added columns retain edits under v1's dormant storage.
                         desired.insert(c.clone(),current_field.unwrap().clone());
                     } else if transformed && !deps_same && current_field!=prior.after.get(c) && current_field!=original && current_field!=Some(value) {
-                        bad.add(id,&format!("{}.{} was edited and its historical inputs changed: current {}, retained output {}, recomputed {}; keep a bridge and resolve through an authorized mutation; see guide deploy",fill.table,c,display_cell(current_field),display_cell(prior.after.get(c)),display_cell(Some(value))));return Ok(())
+                        bad.add(id,&format!("{}.{} was edited and its historical inputs changed: current {}, retained output {}, recomputed {}; for forward selection use a fresh declaration name for the repaired transform, preserve current values in a bridge and resolve through an authorized mutation; see guide rename",fill.table,c,display_cell(current_field),display_cell(prior.after.get(c)),display_cell(Some(value))));return Ok(())
                     }
                 }
             }
             for(c,value)in &desired {if let Err(e)=validate_output(&fill.table,table,c,value){bad.add(id,&e.to_string());return Ok(())}}
             let mut after=patch.clone();
-            for c in prior.as_ref().into_iter().flat_map(|e|&e.authored){if let Some(value)=desired.get(c){after.insert(c.clone(),value.clone());}}
-            let e=Evidence{computed:if prior.as_ref().is_some_and(|e|!e.authored.is_empty()){patch.clone()}else{BTreeMap::new()},authored:prior.as_ref().map(|e|e.authored.clone()).unwrap_or_default(),reversed:BTreeMap::new(),retained:BTreeSet::new(),absent:original_absence,epoch:epoch.unwrap_or(fresh_epoch),active:true,inputs,before,after};
+            let mut authored=prior.as_ref().map(|e|e.authored.clone()).unwrap_or_default();authored.extend(native_preserved);
+            for c in &authored{if let Some(value)=desired.get(c){after.insert(c.clone(),value.clone());}}
+            let e=Evidence{computed:if !authored.is_empty(){patch.clone()}else{BTreeMap::new()},authored,reversed:BTreeMap::new(),retained:BTreeSet::new(),absent:original_absence,epoch:epoch.unwrap_or(fresh_epoch),active:true,inputs,before,after};
             tx.conn().execute("INSERT INTO temp._backfill_pending VALUES(?1,?2,?3,?4,?5)",params![t,id,key,canonical_json(&desired),canonical_json(&e)])?;count+=1;
             Ok(())
         })?;

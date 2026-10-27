@@ -123,15 +123,17 @@ pub(super) fn plan(
         }
     }
     super::release_safeguards::capture(&store)?;
-    let mut engine = snapback4_core::Engine::new_release_prepared_at(
+    let mut engine = if held["release"].as_u64()==Some(release) {
+        snapback4_core::Engine::attach_release_at(store,release,activation_now)
+    } else { snapback4_core::Engine::new_release_prepared_at(
         store,
         bound.schema,
         bound.programs.into_iter().map(|p| p.program),
         &activation,
         options.flags.contains_key("allow-feed-adoption"),
         activation_now,
-    )
-    .map_err(|e| e.to_string())?;
+    ) }
+    .map_err(|e|if e.code()=="E_ADOPT"{format!("{e}; operation: {} preview to release {release} from release {}",if options.flags.contains_key("deploy-direction"){"deploy"}else{"rollback"},held["release"])}else{e.to_string()})?;
     let mut view_effects=Vec::new();
     let rollback_views=super::rollback_views::manifest(&project.root)?;
     for view in &rollback_views {
@@ -220,7 +222,10 @@ pub(super) fn plan(
                     if effects.hidden_rows>0 || effects.empty_cells>0 || effects.newer_only_rows>0 {
                         for line in effects.lines(release,current) { hazards.push(format!("rollback foresight: {}",line.trim())); }
                     }
-                    if effects.hidden_rows>0&&covered.is_none(){return Err(format!("E_ADOPT: deploy would hide {} old-table rows on rollback to release {current}; retain a compiled guarded bridge or declare intentional hiding",effects.hidden_rows))}
+                    if effects.hidden_rows>0&&covered.is_none(){
+                        let ids=effects.tables.iter().filter(|t|t.target_has_table&&t.rows>0).map(|t|format!("{} [{}]",t.table,t.sample_ids.join(", "))).collect::<Vec<_>>().join("; ");
+                        return Err(format!("E_ADOPT: deploy would hide {} old-table rows on rollback to release {current}; sample row ids (up to 5 per table): {ids}; retain a compiled guarded bridge or declare intentional hiding",effects.hidden_rows))
+                    }
                     rollback_visibility=Some(effects);
                 },
                 Err(error) if covered.is_some()=>notes.push(format!("exact rollback to release {current} refuses: {error}; default rollback covered by registered view {}",covered.unwrap().release)),
@@ -268,7 +273,7 @@ pub(super) fn plan(
             for hazard in hazards { println!("  detail: WARNING {hazard}"); }
             for note in notes { println!("  detail: note: {note}"); }
             for step in steps {println!("  {}: {}",step.path,step.message);}
-            for item in &items { println!("  {}: {} {} dormant (restored on compatible forward); sample ids [{}]", item.key, item.rows, item.unit(), item.sample_ids.join(", ")); }
+            for item in &items { println!("  {}: {} {} retained (restored on compatible forward); sample ids [{}]", item.key, item.rows, item.unit(), item.sample_ids.join(", ")); }
             println!("{}", engine.store().adoption_report().summary());
             if let Some(estimate) = estimate {
                 println!("{estimate}");
