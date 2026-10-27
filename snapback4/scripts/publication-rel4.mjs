@@ -58,8 +58,9 @@ table photos:
   online only
 extract photos from jobs via job: {photo:photo}
 `;
-    const invalid=await invoke('check','--schema',source('rel4-clock',bad));assert.notEqual(invalid.code,0);assert.match(invalid.stderr+invalid.stdout,/photos\.createdAt/);assert.match(invalid.stderr+invalid.stdout,/literal default/);
-    await call('check','--schema',source('rel4-clock-safe',bad.replace('createdAt: time default now','createdAt: time ?')));
+    const checkSource=async(name,text)=>{const root=join(cwd,name);mkdirSync(join(root,'snapback'),{recursive:true});writeFileSync(join(root,'snapback/schema.q'),text);return cli(['check'],{cwd:root,env});};
+    const invalid=await checkSource('rel4-clock',bad);assert.notEqual(invalid.code,0);assert.match(invalid.stderr+invalid.stdout,/photos\.createdAt/);assert.match(invalid.stderr+invalid.stdout,/literal default/);
+    const safe=await checkSource('rel4-clock-safe',bad.replace('createdAt: time default now','createdAt: time ?'));assert.equal(safe.code,0,safe.stderr+safe.stdout);
     return {status:'passed',nullWrites:true,invariants:true,globalCap:true,adoptionBeforeSecurity:true,extractDefaultCheck:true,cycles:2};
   } finally {await host.stop();}
 }
