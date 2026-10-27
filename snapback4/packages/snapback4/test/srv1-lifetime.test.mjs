@@ -125,3 +125,9 @@ test('missing process table retains a living direct parent and detects reparenti
  const source=`import fs from 'node:fs';import assert from 'node:assert/strict';import{syncBuiltinESMExports}from'node:module';Object.defineProperty(process,'platform',{value:'linux'});let parent=12345;Object.defineProperty(process,'ppid',{get:()=>parent});fs.readFileSync=()=>{throw Object.assign(Error('no proc'),{code:'ENOENT'});};process.kill=()=>true;syncBuiltinESMExports();const {watchParent}=await import(${JSON.stringify(pathToFileURL(join(root,'packages/snapback4/dist/parent-lifetime.js')).href)});let lost=false;const stop=watchParent(()=>lost=true);await new Promise(r=>setTimeout(r,300));assert.equal(lost,false);parent=1;await new Promise(r=>setTimeout(r,300));stop();assert.equal(lost,true);`;
  const child=spawn(process.execPath,['--input-type=module','-e',source],{stdio:'pipe'});let err='';child.stderr.on('data',d=>err+=d);assert.equal(await new Promise(r=>child.once('close',r)),0,err);
 });
+
+
+test('an initially PID-1 npm/service parent is not presumed dead',async()=>{
+ const source=`import assert from 'node:assert/strict';Object.defineProperty(process,'ppid',{value:1});process.env.npm_lifecycle_event='prod:serve';const {watchParent}=await import(${JSON.stringify(pathToFileURL(join(root,'packages/snapback4/dist/parent-lifetime.js')).href)});let lost=false;const stop=watchParent(()=>lost=true);await new Promise(r=>setTimeout(r,300));stop();assert.equal(lost,false);`;
+ const child=spawn(process.execPath,['--input-type=module','-e',source],{stdio:'pipe'});let err='';child.stderr.on('data',d=>err+=d);assert.equal(await new Promise(r=>child.once('close',r)),0,err);
+});

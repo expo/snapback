@@ -96,12 +96,9 @@ pub(crate) fn adopt() {
     if let Some(pid) = supplied {
         if identity(pid).is_none() { std::process::exit(128 + libc::SIGTERM); }
     }
-    if parent <= 1 {
-        // A service manager may legitimately be PID 1. npm's environment,
-        // however, means a wrapper disappeared before native entry.
-        if host && std::env::var_os("npm_lifecycle_event").is_some() { std::process::exit(128 + libc::SIGTERM); }
-        return;
-    }
+    // PID 1 may itself be npm or a service manager. A supplied dead launcher
+    // was rejected above; an initially PID-1 parent is not proof of orphaning.
+    if parent <= 1 { return; }
     PARENT.store(parent, Ordering::Release);
     let mut watched = Vec::new();
     if let Some((_, birth)) = identity(parent) { watched.push((parent, birth)); }

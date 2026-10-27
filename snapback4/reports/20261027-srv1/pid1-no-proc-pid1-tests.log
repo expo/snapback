@@ -1,0 +1,16 @@
+$ tsc -p tsconfig.build.json && mkdir -p dist/wasm && cp src/wasm/snapback4_device.js src/wasm/snapback4_device.d.ts src/wasm/snapback4_device_bg.wasm src/wasm/snapback4_device_bg.wasm.d.ts dist/wasm/ && node scripts/pack-recipes.mjs && node scripts/guide-api.mjs
+guide api proof: 1089/3000 tokens
+guide api client: 1127/3000 tokens
+guide api auth: 497/3000 tokens
+(node:2497336) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ missing process table retains a living direct parent and detects reparenting (642.990473ms)
+✔ an initially PID-1 npm/service parent is not presumed dead (346.676306ms)
+ℹ tests 2
+ℹ suites 0
+ℹ pass 2
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1285.274929

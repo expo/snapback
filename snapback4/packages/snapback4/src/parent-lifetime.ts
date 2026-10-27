@@ -42,7 +42,7 @@ const parents = capture();
 export function watchParent(onLost: () => void): () => void {
   let stopped = false;
   const check = () => {
-    if (!stopped && ((parent <= 1 && !!process.env.npm_lifecycle_event) || (parent > 1 && process.ppid !== parent) || parents.some(([pid, birth]) => { const current = identity(pid); return !current || (birth !== 'unverified' && current.birth !== 'unverified' && current.birth !== birth); }))) {
+    if (!stopped && ((parent > 1 && process.ppid !== parent) || parents.some(([pid, birth]) => { const current = identity(pid); return !current || (birth !== 'unverified' && current.birth !== 'unverified' && current.birth !== birth); }))) {
       stopped = true; clearInterval(timer); onLost();
     }
   };
