@@ -1,0 +1,13 @@
+--- scripts/acceptance.mjs
++++ scripts/acceptance.mjs
+@@ -32,7 +32,9 @@
+     const detail=await data(c,api.jobDetail,{job:own.job.id});check(detail.rooms.length===2,'authorized room details');
+     for(const field of ['phone','careNeeds','quotedCents','depositCents'])check(!JSON.stringify(detail).includes(`"${field}"`),'logistics contain no private columns');
+     if(role==='owner'||role==='coordinator'){
+-      const secret=await data(c,api.privateDetail,{job:a.job.id});check(secret.details.phone===a.input.phone&&secret.details.quotedCents===a.input.quotedCents,'privileged private details');
++      const privateJob=role==='coordinator'&&i===1?b:a;
++      const secret=await data(c,api.privateDetail,{job:privateJob.job.id});check(secret.details.phone===privateJob.input.phone&&secret.details.quotedCents===privateJob.input.quotedCents,'privileged private details');
++      if(role==='coordinator')await deny(c,api.privateDetail,{job:i===0?b.job.id:a.job.id},'PRIVATE');
+       check((await data(c,api.families)).length===2,'authorized family picker');
+     } else {await deny(c,api.privateDetail,{job:a.job.id},'PRIVATE');await deny(c,api.families,{},'STAFF_ONLY');}
+     await deny(c,api.provision,{principal:users.family[0].principal,role:'owner'},'NOT_OPERATOR');

@@ -263,3 +263,35 @@ item 1; this is not a clean Lean PASS. Root reference validation passes with
 
 Item 2 is implemented and measured at this boundary. Items 3 and 4 follow in order.
 No push or version bump.
+
+### Item 3 source and fix-forward progress
+
+Assignment questions are implemented in `4a17c2109e`, with one-query assignment
+facts in `132d06a032`, complete hypothesis identity in `a7f7256397`, and the
+stronger private-ID projection regression in `9d36412758`. Final independent
+reviews are READY (Muse round 3, fresh Codex round 2), retained verbatim by
+`895628210f`. The first Codex review's selection/identity findings are fixed.
+The three language assignment tests pass; both final CLI assignment regressions
+pass, including changed audience qualifiers with the same factual question.
+
+The immutable production executable is
+`f90a285713ce229d3de35a230b474401167cdab518fff74797c16f5307ca82f3`.
+Native preflight shows 004's coordinator-1 reading a private payload assigned to
+another coordinator, and 014's lead-0 actually receiving clientPhone on board.
+No assignee or creator is invented when the schema has no lead assignment.
+All new questions remain advisory; the gate set and work bounds are unchanged.
+
+Both copied schema repairs remove the targeted assignment witnesses. 014's
+unchanged app acceptance passes. 004's untouched acceptance fails at its explicit
+expectation that both coordinators may read job A's private data. The adapted
+copy checks the same positive payload assertions on each coordinator's own job
+and adds both foreign-job refusals; all 182 assertions pass. This changes the
+broad-access expectation to match the calibrated assignment specification; it
+is not an unchanged-004-acceptance PASS. Patches, hashes and safe results are in
+`snapback4/reports/sec11b/item3/`; raw logs remain private outside git.
+
+The 800-schema and wave31 measurements are running. Item 4 has not started.
+The full language command encountered an unchanged 15-second wall-deadline
+unit fixture under parallel load; its exact isolated retry passes in 1.29 s.
+The original failed unit receipt and the dedicated resolution remain separate.
+The full language command and selected CLI checks are still running.

@@ -1,0 +1,34 @@
+[
+  {
+    "lane": "004-snapback-accessible-home-remodels",
+    "category": "witnessed question on default verdict",
+    "targetVisible": true,
+    "evidence": [
+      {
+        "code": "N_ASSIGNMENT_SCOPE",
+        "operation": "privateDetail",
+        "viewer": "account:security-roles-coordinator-1",
+        "decision": "76625d0d11d8c8724784f8caa9a24ddcba37fee5d85169ff86a59387c094f372",
+        "witness": "8a98f7b1c89c06a4b2274c0b597747a262b60dc8061d5d8d12983faf1bfb86ad",
+        "candidate": "question: jobPrivate.careNeeds read: coordinator has role-wide payload access despite modeled assignment `exists jobs[.job, coordinator = viewer]`; assigned or any?",
+        "gated": false
+      }
+    ]
+  },
+  {
+    "lane": "014-snapback-balloon-decor-installs",
+    "category": "witnessed question on default verdict",
+    "targetVisible": true,
+    "evidence": [
+      {
+        "code": "N_ASSIGNMENT_SCOPE",
+        "operation": "board",
+        "viewer": "account:security-roles-lead-0",
+        "decision": "4c2cccc04be1e565f76063d91216713a0e1fe1e2837fef63ff267eff0a470eb8",
+        "witness": "4691509106c4a140b1eb282721f5a6a3de6d4c492eb6af1cc04ec52e7ffb26c3",
+        "candidate": "question: projects.clientPhone read: `exists roles[viewer, role = 'owner'] or exists roles[viewer, role = 'lead']` admits the whole role with no modeled assignment constraint; assigned or any?",
+        "gated": false
+      }
+    ]
+  }
+]
