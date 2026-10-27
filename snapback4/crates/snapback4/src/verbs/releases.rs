@@ -853,7 +853,10 @@ pub fn stop_release(options: &Options) -> i32 {
         if crate::store_config::StoreConfig::resolve(options)?.is_some() {
             return Err("E_STORE_UNSUPPORTED: stop is outside the admitted store profile".into());
         }
-        let dir = existing_deployment(&directory(options)?)?;
+        let dir = directory(options)?.canonicalize().map_err(|e|e.to_string())?;
+        let store = dir.join("store.sqlite").canonicalize().map_err(|e|e.to_string())?;
+        snapback4_core::private_fs::database_metadata(&store).map_err(|e|e.to_string())?
+            .ok_or("no existing store.sqlite in the requested directory")?;
         match crate::release_control::request(&dir, crate::release_control::Command::Stop) {
             Ok(_) => {
                 crate::store_owner::wait_released(&dir.join("store.sqlite"), std::time::Duration::from_secs(10))?;

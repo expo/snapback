@@ -53,10 +53,11 @@ test('harness: detached npm --hold child survives idle and group TERM releases h
 });
 
 test('E_STORE_BUSY names holder; stop ignores forged PID hints and proves actual store release',{skip:process.platform==='win32',timeout:30000},async t=>{
- const cwd=await project(t),h=await startServe('production',{cwd,env});t.after(()=>h.stop());
+ const cwd=await project(t),h=await startServe('production',{cwd,env});try{
  const result=await cli(['serve','production','--port','0'],{cwd,env});assert.notEqual(result.code,0);assert.match(result.stderr,new RegExp(`pid ${h.pid}.*command snapback4 serve.*start time.*still alive: true`));assert.match(result.stderr,/snapback4 stop '.*production'/);
  const record=join(cwd,'production/serve.lock');let lines=readFileSync(record,'utf8').split('\n');lines[2]=`pid ${process.pid}`;writeFileSync(record,lines.join('\n'));
  const stop=await cli(['stop','production'],{cwd,env});assert.equal(stop.code,0,stop.stderr);assert.ok(process.pid);await released(cwd);
+ }finally{await h.stop();}
 });
 
 test('SIGKILL holder stale record is reclaimed once, with a notice',{skip:process.platform==='win32',timeout:30000},async t=>{
@@ -81,4 +82,11 @@ test('password starter ships exec serve scripts and bounded prod:check against i
  mkdirSync(join(cwd,'node_modules'));symlinkSync(join(root,'packages/snapback4'),join(cwd,'node_modules/snapback4'),'dir');mkdirSync(join(cwd,'dist'));writeFileSync(join(cwd,'dist/index.html'),'<h1>production</h1>');
  await deploy('production','snapback',{cwd,env});
  const run=launch(t,cwd,'npm',['run','--silent','prod:check']);await until(run.closed,90000);assert.equal(run.c.exitCode,0,run.err());const report=JSON.parse(run.out().trim());assert.equal(report.ok,true,JSON.stringify(report));assert.equal(report.lockReleased,true);await released(cwd);
+});
+
+
+test('busy persistent dev has exact stop recovery without signalling a PID hint',{skip:process.platform==='win32',timeout:30000},async t=>{
+ const cwd=await project(t),run=launch(t,cwd,binary,['dev','--no-watch','--port','0']);await until(()=>/SNAPBACK4_READY/.test(run.err()));
+ const stopped=await cli(['stop',join(cwd,'.snapback4')],{cwd,env});assert.equal(stopped.code,0,stopped.stderr);await until(run.closed);
+ const again=launch(t,cwd,binary,['dev','--no-watch','--port','0']);await until(()=>/SNAPBACK4_READY/.test(again.err()));again.c.kill('SIGTERM');await until(again.closed);
 });

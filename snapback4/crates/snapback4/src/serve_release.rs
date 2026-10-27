@@ -23,6 +23,17 @@ pub(super) fn start(
     })
 }
 
+// @ref LLP 3000.037.000#9-serve-lifetime-and-store-recovery-srv1 — dev stop uses the same store-bound custody, with no release operations.
+#[cfg(unix)]
+pub(super) fn start_stop(shared: Arc<Shared>, dir: std::path::PathBuf) -> Result<std::thread::JoinHandle<()>, String> {
+    let store = shared.owner.as_ref().ok_or("stop control requires a persisted owner")?.path().map_err(|e|e.to_string())?;
+    let listener = Listener::bind(&dir, store)?;
+    crate::lifecycle::background("release-control", move || listener.run(|command| match command {
+        Command::Stop => { crate::lifecycle::request_stop(); Ok(json!({"stopping":true})) },
+        _ => Err("development store control admits stop only".into()),
+    }))
+}
+
 // @ref LLP 3000.000.000#5-hot-activation-and-ownership — only assignments and committed rebind follow the database commit.
 pub(super) fn apply(
     shared: &Shared,

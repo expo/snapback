@@ -350,6 +350,11 @@ pub fn serve(
             .ok_or("deployment parent")?.to_owned();
         background.push(("release-control", release::start(shared.clone(), dir)?));
     }
+    #[cfg(unix)]
+    if dev && let Some(owner) = &shared.owner {
+        let dir = owner.path().map_err(|e|e.to_string())?.parent().ok_or("store parent")?.to_owned();
+        background.push(("release-control", release::start_stop(shared.clone(), dir)?));
+    }
     crate::lifecycle::generation(generation);
     // The URL is stdout's first line; lifecycle and redacted worker logs use stderr.
     snapback4_core::diagnostic_stdout!("http://{address}");
