@@ -127,10 +127,27 @@ pub(super) fn release_loop(project:&Project,bound:&Bound,sources:&[(String,Strin
     let derived=security::derived::notes(sources,bound);
     // A legacy rationale cannot skip the replay that establishes its current
     // witness. Individual alternatives are applied only after actual evidence.
-    let mut report=phase::measure("deploy.report", || report_with_reviewed(project,bound,sources,&preflight,&Default::default()));
-    report.notes.extend(presence::notes(project,bound,prior,sources)?);
+    let (mut report,mut evidence)=if preflight.flags.contains_key("security-deploy"){
+        // Predict only the note vector, never an enforcement verdict. A changed
+        // vector discards the pending result and falls back to current replay.
+        let predicted=phase::measure("deploy.note_prediction",||{
+            let augmented=security::derived::augmented(sources,bound);
+            let mut predicted=security::analyze_rules(&augmented);security::add_source_notes(&mut predicted,sources,&augmented);
+            predicted.notes.extend(presence::notes(project,&augmented,None,sources).unwrap_or_else(|why|vec![snapback4_lang::Diagnostic::new(&Default::default(),"N_PRESENCE_LOOSENING",why,"repair the unreadable generated presence baseline").guide("security")]));
+            predicted.notes.extend(presence::notes(project,bound,prior,sources)?);Ok::<_,String>(predicted.notes)
+        })?;
+        std::thread::scope(|scope|{
+            let worker=scope.spawn(||phase::measure("deploy.report",||report_with_reviewed(project,bound,sources,&preflight,&Default::default())));
+            let pending=phase::measure("deploy.witnesses",||witnesses::collect_for_report(project,bound,sources,&predicted,options));
+            let mut report=worker.join().expect("production campaign panicked");report.notes.extend(presence::notes(project,bound,prior,sources)?);
+            let evidence=pending.finish(&report).unwrap_or_else(||witnesses::collect_with_report(project,bound,sources,&report.notes,true,options,Some(&report)));
+            Ok::<_,String>((report,evidence))
+        })?
+    }else{
+        let mut report=phase::measure("deploy.report",||report_with_reviewed(project,bound,sources,&preflight,&Default::default()));report.notes.extend(presence::notes(project,bound,prior,sources)?);
+        let evidence=phase::measure("deploy.witnesses",||witnesses::collect(project,bound,sources,&report.notes,true,options));(report,evidence)
+    };
     if super::proof_source::sources(project,options,"schema")?!=sources{return Err("selected Quarry sources changed during deployment security preflight".into());}
-    let mut evidence=phase::measure("deploy.witnesses", || witnesses::collect_with_report(project,bound,sources,&report.notes,true,options,preflight.flags.contains_key("security-deploy").then_some(&report)));
     witnesses::apply_report(sources,bound,&report,&report.notes,&mut evidence);
     if super::proof_source::sources(project,options,"schema")?!=sources{return Err("selected Quarry sources changed during deployment witness replay; rerun deploy".into());}
     let mut dispositions=decisions.dispositions_with_evidence(sources,&report.notes,&evidence);

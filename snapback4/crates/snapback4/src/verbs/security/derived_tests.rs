@@ -80,4 +80,9 @@ struct Scratch(std::path::PathBuf);impl Drop for Scratch{fn drop(&mut self){let 
     let reused=witnesses::collect_with_report(&project,&bound,&sources,&current.notes,true,&options,Some(&current));
     assert!(current.notes.iter().zip(&original).any(|(note,evidence)|note.code=="N_DERIVED_WRITE_AUTHORITY"&&evidence.is_some()),"the test must exercise a current derived replay");
     assert_eq!(original,reused);
+    let pending=witnesses::collect_for_report(&project,&bound,&sources,&current.notes,&options);
+    assert_eq!(pending.finish(&current).unwrap(),reused);
+    let pending=witnesses::collect_for_report(&project,&bound,&sources,&current.notes,&options);
+    let mut changed=current.clone();changed.notes.push(snapback4_lang::Diagnostic::new(&Default::default(),"N_PRESENCE_LOOSENING","changed predecessor","rerun"));
+    assert!(pending.finish(&changed).is_none(),"a different actual note vector must discard pending evidence");
 }

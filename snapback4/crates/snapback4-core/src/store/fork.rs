@@ -11,15 +11,19 @@ impl Store {
             backup.run_to_completion(256, std::time::Duration::ZERO, None)?;
         }
         let copied = started.map(|t|t.elapsed().as_secs_f64());
-        // @ref LLP 3000.036.004.000.000#fixture-construction — prepare the copied world without discarded initialization.
-        // Prepare the copied database once. Initializing a blank schema before
-        // backup only builds tables that the backup immediately discards.
-        let mut fork = Self::prepare(conn, Self::memory_assets_dir()?, true, self.server)?;
-        // Retain the previous memory fork's accounting page size as well.
-        fork.page_size=page_size;
-        fork.catalog = self.catalog.clone();
-        fork.identity = self.identity.clone();
-        fork.server = self.server;
+        // @ref LLP 3000.036.004.000.000#fixture-construction — copy already-captured metadata without repeated discovery.
+        #[cfg(any(test,feature="test-support"))]
+        trace_round_trips(&conn);
+        conn.set_db_config(rusqlite::config::DbConfig::SQLITE_DBCONFIG_ENABLE_QPSG,true)?;
+        let read_sessions=std::sync::Arc::new(super::ReadSessionStorage::new(super::identity::present(&conn)?));
+        let fork=Self {
+            read_sessions,conn,server:self.server,ownership:None,
+            #[cfg(unix)] file_identity:None,
+            page_size,catalog:self.catalog.clone(),identity:self.identity.clone(),
+            assets_dir:Self::memory_assets_dir()?,ephemeral_assets:true,
+            #[cfg(test)] full_adoption:false,
+            adoption_report:Default::default(),
+        };
         let prepared = started.map(|t|t.elapsed().as_secs_f64());
         if self.assets_dir.exists() {
             std::fs::create_dir_all(&fork.assets_dir).map_err(io)?;

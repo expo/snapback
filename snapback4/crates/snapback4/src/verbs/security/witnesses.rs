@@ -492,6 +492,20 @@ pub(in crate::verbs) fn collect(project:&Project,bound:&Bound,sources:&[(String,
     collect_with_report(project,bound,sources,notes,expanded,options,None)
 }
 pub(in crate::verbs) fn collect_with_report(project:&Project,bound:&Bound,sources:&[(String,String)],notes:&[Diagnostic],expanded:bool,options:&Options,current:Option<&security::Report>)->Vec<Option<serde_json::Value>> {
+    collect_inner(project,bound,sources,notes,expanded,options,current,false)
+}
+/// Questions cannot supply derived enforcement until the current report joins.
+pub(in crate::verbs) struct PendingEvidence<'a>{bound:&'a Bound,sources:&'a[(String,String)],notes:&'a[Diagnostic],values:Vec<Option<serde_json::Value>>}
+impl PendingEvidence<'_>{
+    pub(in crate::verbs) fn finish(mut self,report:&security::Report)->Option<Vec<Option<serde_json::Value>>>{
+        if self.notes!=report.notes.as_slice(){return None;}
+        apply_report(self.sources,self.bound,report,&report.notes,&mut self.values);Some(self.values)
+    }
+}
+pub(in crate::verbs) fn collect_for_report<'a>(project:&Project,bound:&'a Bound,sources:&'a[(String,String)],notes:&'a[Diagnostic],options:&Options)->PendingEvidence<'a>{
+    PendingEvidence{bound,sources,notes,values:collect_inner(project,bound,sources,notes,true,options,None,true)}
+}
+fn collect_inner(project:&Project,bound:&Bound,sources:&[(String,String)],notes:&[Diagnostic],expanded:bool,options:&Options,current:Option<&security::Report>,defer_derived:bool)->Vec<Option<serde_json::Value>> {
     let key=hash(&serde_json::to_vec(&("sec11-witness-2",sources,notes,record::capture(sources,None).ok())).unwrap());
     let path=project.schema_dir().join("generated/security-witnesses.json");
     let gate=|index:usize|super::super::security_reviews::gated(&notes[index].code)&&precise_approval(bound,&notes[index]);
@@ -505,7 +519,7 @@ pub(in crate::verbs) fn collect_with_report(project:&Project,bound:&Bound,source
     // Run independent searches concurrently, then reduce in the original order.
     let need_derived=expanded&&notes.iter().any(|n|n.code=="N_DERIVED_WRITE_AUTHORITY"&&!n.site.file.contains("/label-consistency/"));
     let (campaigns,derived_report)=std::thread::scope(|scope|{
-        let derived=if need_derived&&current.is_none(){Some(scope.spawn(||{
+        let derived=if need_derived&&current.is_none()&&!defer_derived{Some(scope.spawn(||{
             let mut deploy=options.clone();deploy.flags.insert("security-deploy".into(),String::new());
             phase::measure("witness.derived_report", || super::report(project,bound,sources,&deploy))
         }))}else{None};
