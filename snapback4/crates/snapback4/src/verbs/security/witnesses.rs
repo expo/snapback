@@ -222,7 +222,7 @@ fn candidates(
     for (index, n) in notes.iter().enumerate() {
         for q in times.iter().filter(|q|q.note==*n) {if let Some(mut inv)=candidate(sources,&q.invariant){
             if n.code=="N_MOVABLE_TIME_ANCHOR" {inv.site.file=inv.site.file.replace("/dx11/","/sec13-anchor/");inv.column=Some(q.column.clone());}
-            if n.code=="N_EVENT_TIME_ANCHOR" {inv.site.file=inv.site.file.replace("/dx11/","/sec13-event/");}
+            if n.code=="N_EVENT_TIME_ANCHOR" {inv.site.file=inv.site.file.replace("/dx11/","/sec13-event/");inv.column=Some(q.column.clone());}
             out.push((index,inv));}}
         out.extend(questions::candidates(bound,sources,index,n));
         if n.code == "N_INSERT_WRITE_INTENT" {

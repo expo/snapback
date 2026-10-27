@@ -404,7 +404,7 @@ pub(super) fn repeat(bound:&Bound,inv:&security::Invariant,c:&Counterexample,n:&
         ] {
             let sources=vec![("schema.q".into(),source.into())];let mut bound=snapback4_lang::compile(&sources);
             let qs=security::time_anchors::candidates(&sources,&bound).into_iter().filter(|q|q.note.code==code).collect::<Vec<_>>();assert!(!qs.is_empty());
-            let invs=qs.iter().map(|q|{let mut inv=candidate(&sources,&q.invariant).unwrap_or_else(||panic!("{lane}: invalid {}",q.invariant));if code=="N_MOVABLE_TIME_ANCHOR"{inv.site.file=inv.site.file.replace("/dx11/","/sec13-anchor/");inv.column=Some(q.column.clone());}if code=="N_EVENT_TIME_ANCHOR"{inv.site.file=inv.site.file.replace("/dx11/","/sec13-event/");}inv}).collect::<Vec<_>>();
+            let invs=qs.iter().map(|q|{let mut inv=candidate(&sources,&q.invariant).unwrap_or_else(||panic!("{lane}: invalid {}",q.invariant));if code=="N_MOVABLE_TIME_ANCHOR"{inv.site.file=inv.site.file.replace("/dx11/","/sec13-anchor/");inv.column=Some(q.column.clone());}if code=="N_EVENT_TIME_ANCHOR"{inv.site.file=inv.site.file.replace("/dx11/","/sec13-event/");inv.column=Some(q.column.clone());}inv}).collect::<Vec<_>>();
             bound.invariants=invs;
             let mut campaign=challenges::Campaign::work_bounded(8192);security::time_anchors::configure_campaign(&bound,&qs,&mut campaign);challenges::generated_campaign(&bound,&mut campaign,false);
             assert!(campaign.violations.iter().any(|c|c.operation==operation&&c.reachability.is_reachable()),"{lane}: no replay; calls={:?}, unsupported={:?}",campaign.operations,campaign.unsupported);
