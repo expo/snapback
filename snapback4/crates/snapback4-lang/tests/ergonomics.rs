@@ -397,7 +397,9 @@ fn w16h_a_bool_optional_condition_is_not_told_to_compare_against_null() {
 
     let optional_bool = bind("schema.q", &query("muted"));
     assert_eq!(optional_bool.diagnostics[0].message, "if needs a bool condition, got bool ?");
-    assert_eq!(optional_bool.diagnostics[0].rewrite, "compare the value: `if x = true:` — `x != null` is also true when x is false");
+    assert_eq!(optional_bool.diagnostics[0].rewrite, "(p.muted) = true");
+    assert!(optional_bool.diagnostics[0].mechanical);
+    assert!(optional_bool.diagnostics[0].verified_edit().is_some());
 
     // Every other optional keeps the advice that is correct for it.
     let optional_text = bind("schema.q", &query("nickname"));
