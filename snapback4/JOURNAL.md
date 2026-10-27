@@ -109728,3 +109728,16 @@ A fresh Codex install replay found that its tool reclaimed init's unjoined backg
 ## 2026-10-27 — CALLS1: refusal-first proof content
 
 Proof-enabled transports observe the caller's single JSON decode, retain only operation/role/code/field labels, and correlate exact refusal objects through a weak map. Conflicting reuse permanently disables exact attribution; historical matches are labelled nearest context. Native npm acceptance/frontend:proof/client:calls entry paths, browser responses and local device admission feed the same formatter. Original assertions and their fields/stacks remain intact. Muse's two reviews were READY; fresh Codex identified nullable unique truncation, missing local admission observation, code-only attribution and shared-refusal reuse, each corrected with a regression. Review records preserve the original verdicts verbatim. Runner layout and guide recipes remain with their workstream owners.
+
+## 2026-10-27 — G6D: investigate a safe Postgres read-grant default
+
+LLP 3000.009.001.000.002 §4.2 gains a dated Review proposal, with local
+paired write aggregates and marker/clock-witness prototypes in
+`reports/20261027-g6-default/`. The retained one-second evidence separates
+cold-reader convoys, generator overload and the original gate wait budget;
+the historical smoke's initiating instruction remains untraced. A real-PG
+regression now holds COMMIT beyond one second while requiring prompt G5
+fallback. The marker design combines an exact backend format with an extra
+owner column, so old public owners refuse before claiming. Clock samples
+can trip on observed skew/suspend but cannot prove future behavior; automatic
+G6 still requires an enforced deployment clock contract. Defaults are unchanged.
