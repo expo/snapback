@@ -45,7 +45,8 @@ def run_one(row):
 with tempfile.TemporaryDirectory(prefix='sec11l-authored-binary-')as tmp:
  snap=pathlib.Path(tmp)/'snapback4';shutil.copy2(a.binary,snap);binary=str(snap)
  provenance=dict(binarySha256=hashlib.sha256(snap.read_bytes()).hexdigest(),captureFormat='complete-counterexamples-v1',selectedKeys=[[r['wave'],r['lane']]for r in selected],complete=False)
- if a.resume:assert json.loads((out/'provenance.json').read_text())['binarySha256']==provenance['binarySha256'],'resume requires the same binary'
+ if a.resume:
+  prior=json.loads((out/'provenance.json').read_text());assert all(prior[k]==provenance[k]for k in ['binarySha256','captureFormat']),'resume requires the same binary and capture format'
  (out/'provenance.json').write_text(json.dumps(provenance,indent=2)+'\n')
  with concurrent.futures.ThreadPoolExecutor(max_workers=a.workers)as pool:
   results=[]

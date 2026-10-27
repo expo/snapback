@@ -3,9 +3,11 @@ import os
 os.environ.update(CARGO_INCREMENTAL="0",CARGO_PROFILE_DEV_DEBUG="0",CARGO_PROFILE_TEST_DEBUG="0",CARGO_BUILD_JOBS="4")
 """Frozen source copies, fresh and post-test production attempts; no live servers."""
 import argparse, concurrent.futures, hashlib, json, pathlib, shutil, subprocess, tempfile, time, re
-p=argparse.ArgumentParser();p.add_argument('--binary',required=True);p.add_argument('--out',required=True);p.add_argument('--waves',default='15,16,18,19,20,21,22,23,24,25,26');p.add_argument('--filter',default='');p.add_argument('--workers',type=int,default=8);p.add_argument('--check-only',action='store_true');p.add_argument('--resume',action='store_true');p.add_argument('--default-output',action='store_true');p.add_argument('--strip-intent',action='store_true');p.add_argument('--check-timeout',type=int,default=120);p.add_argument('--test-timeout',type=int,default=900);p.add_argument('--deploy-timeout',type=int,default=180);a=p.parse_args();assert a.check_timeout>0 and a.test_timeout>0
+p=argparse.ArgumentParser();p.add_argument('--keys');p.add_argument('--binary',required=True);p.add_argument('--out',required=True);p.add_argument('--waves',default='15,16,18,19,20,21,22,23,24,25,26');p.add_argument('--filter',default='');p.add_argument('--workers',type=int,default=8);p.add_argument('--check-only',action='store_true');p.add_argument('--resume',action='store_true');p.add_argument('--default-output',action='store_true');p.add_argument('--strip-intent',action='store_true');p.add_argument('--check-timeout',type=int,default=120);p.add_argument('--test-timeout',type=int,default=900);p.add_argument('--deploy-timeout',type=int,default=180);a=p.parse_args();assert a.check_timeout>0 and a.test_timeout>0
 out=pathlib.Path(a.out);out.mkdir(parents=True,exist_ok=True);home=pathlib.Path.home()/'sb4-loop'
 items=[(wave,folder) for wave in map(int,a.waves.split(',')) for folder in sorted((home/f'wave{wave}/apps').glob('*/snapback')) if list(folder.glob('*.q')) and (not a.filter or any(folder.parent.name.startswith(n+'-') for n in a.filter.split(',')))]
+if a.keys:
+ selected={tuple(k) for k in json.loads(pathlib.Path(a.keys).read_text())};items=[(w,f)for w,f in items if(w,f.parent.name)in selected]
 def measure(item):
  wave,folder=item
  cached=out/(f'w{wave}-'+folder.parent.name+'.json')

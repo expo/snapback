@@ -9,6 +9,7 @@ def verdict(row):
  for mode in ['fresh','afterTest']:
   out[mode]={k:row[mode][k]for k in ['exit','failure','securityRefused','enforcedFixes','reviews','gates','fixes']}
  out['test']={k:row['test'][k]for k in ['exit','failure']}
+ out['defaultExits']={mode:row[mode]['exit']for mode in ['defaultCheck','defaultDeploy']}
  return json.dumps(out,sort_keys=True,separators=(',',':')).encode()
 before={(r['wave'],r['lane']):r for r in read(a.before)};after={(r['wave'],r['lane']):r for r in read(a.after)}
 # The declared SEC10/11 survey is waves 15,16,18–30 (wave15 has 100 schemas).

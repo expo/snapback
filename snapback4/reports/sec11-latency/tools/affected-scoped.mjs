@@ -15,15 +15,15 @@ const steps=original.steps.filter(s=>allowed.has(s.id)).flatMap(s=>{
  if(s.id==='rust:snapback4'){
   const cargo=['cargo','test','--no-fail-fast','-p','snapback4','--features','snapback4-core/test-support'];
   return [{...s,argv:[...cargo,'--bin','snapback4','verbs::security','--','--test-threads=4']},
-   {...s,id:'rust:snapback4-security-cli',argv:[...cargo,...['dx11','dx11_refusals','dx13','security_reviews','security_wave19'].flatMap(n=>['--test',n]),'--','--test-threads=1']}];
+   {...s,id:'rust:snapback4-security-cli',argv:[...cargo,...['dx11','dx11_refusals','dx13','security_reviews','security_wave19','store_handle_census','store_port_ratchet'].flatMap(n=>['--test',n]),'--','--test-threads=1']}];
  }
- if(s.id==='rust:snapback4-core')return[{...s,argv:['cargo','test','--no-fail-fast','-p','snapback4-core','--features','test-support','--lib','--test','ephemeral','--test','asset_lists','--test','file_assets','--','--test-threads=4']}];
+ if(s.id==='rust:snapback4-core')return[{...s,argv:['cargo','test','--no-fail-fast','-p','snapback4-core','--features','test-support','--lib','--test','ephemeral','--test','asset_lists','--test','file_assets','--test','store_handle_traits','--','--test-threads=4']}];
  if(s.id==='rust:snapback4-lang')return[{...s,argv:['cargo','test','--no-fail-fast','-p','snapback4-lang','--lib',...['guide',...languageTargets].flatMap(n=>['--test',n]),'--','--test-threads=4']}];
  return[s];
 });
 const client=original.steps.find(s=>s.id==='client-tests');if(client)steps.push({...client,argv:['node','scripts/run-client-tests.mjs','3','files',...files]});
 const plan={...original,steps,rustPackages:['snapback4','snapback4-core','snapback4-lang'],clientFiles:files,
  sec11lOverride:{canonicalComplete:false,reason:'Explicit SEC11L prohibition on the full five-crate suite/full client pool; fixture construction and campaign scheduling only, no interpreter/planner/store-format semantics.',
- omitted:original.steps.filter(s=>!allowed.has(s.id)).map(s=>s.id),languageTargets,cliTargets:['unit verbs::security*','dx11','dx11_refusals','dx13','security_reviews','security_wave19'],coreTargets:['lib','ephemeral','asset_lists','file_assets'],legacyRoot:'Snapback1 generated/guide/inventories outside Snapback4 fence; Snapback4 guide and docs checks retained.'}};
+ omitted:original.steps.filter(s=>!allowed.has(s.id)).map(s=>s.id),languageTargets,cliTargets:['unit verbs::security*','dx11','dx11_refusals','dx13','security_reviews','security_wave19','store_handle_census','store_port_ratchet'],coreTargets:['lib','ephemeral','asset_lists','file_assets','store_handle_traits'],legacyRoot:'Snapback1 generated/guide/inventories outside Snapback4 fence; Snapback4 guide and docs checks retained.'}};
 writeFileSync(prefix+'.scoped.json',JSON.stringify(plan,null,2));
 const {receipt}=await runPlan(plan);writeFileSync(prefix+'.receipt.json',JSON.stringify(receipt,null,2));process.exitCode=receipt.ok?0:1;
