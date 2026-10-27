@@ -2,7 +2,7 @@
 // @ref LLP 3000.036.004.004#transition-questions — sibling guards supply hypotheses; only committed actual edges supply witnesses.
 use super::*;
 use ast::{Expr,Stmt,TypeKind,WriteOp};
-use snapback4_core::{Value,schema::{ColumnType as C,ColumnDefault}};
+use snapback4_core::{Value,schema::{ColumnType as C,ColumnDefault},ir};
 fn string(s:&str)->Expr{Expr::Literal{value:ast::Literal::Str(s.into()),site:Site::default()}}
 fn literal(e:&Expr)->Option<&str>{if let Expr::Literal{value:ast::Literal::Str(s),..}=e{Some(s)}else{None}}
 fn choices(e:&Expr,column:&str)->Option<BTreeSet<String>>{match e{
@@ -26,11 +26,20 @@ fn actor_check(e:&Expr,bound:&Bound)->bool{match e{
 }}
 fn plain_guard(e:&Expr)->bool{let mut e=e.clone();let mut safe=true;super::super::super::intent_walk::expression(&mut e,&mut |e|if matches!(e,Expr::Assert{..}|Expr::Call{..}|Expr::Write{..}){safe=false;});safe}
 fn conjuncts(e:&Expr,out:&mut Vec<Expr>){if let Expr::Binary{op,left,right,..}=e&&op=="and"{conjuncts(left,out);conjuncts(right,out);}else{out.push(e.clone());}}
-#[derive(Clone)]struct Step{table:String,column:String,value:Expr,site:Site,operation:String,effect:String,types:BTreeMap<String,C>,guards:Vec<Expr>,anchor:bool}
+#[derive(Clone)]struct Step{table:String,column:String,value:Expr,site:Site,operation:String,effect:String,types:BTreeMap<String,C>,context:String,guards:Vec<Expr>,anchor:bool}
 fn direct(p:&ast::ProgramDecl,site:&Site)->Option<usize>{
     if !p.prelude.is_empty()||p.body.iter().any(|s|matches!(s,Stmt::If{..}|Stmt::For{..}|Stmt::As{..}|Stmt::Break{..}|Stmt::Continue{..})){return None;}
     let at=p.body.iter().position(|s|matches!(s,Stmt::Expr{value:Expr::Write{site:s,..},..}|Stmt::Return{value:Expr::Write{site:s,..},..}if s==site))?;
     if p.body[..at].iter().any(|s|matches!(s,Stmt::Return{..})){return None;}Some(at)
+}
+// Type units also matter in guard reads and call arguments when their wire
+// values happen to match (for example zero in two currencies). Keep the typed
+// dependency closure, without source sites or unrelated program bodies.
+fn type_context(bound:&Bound,p:&ast::ProgramDecl,operation:&str,root:&str)->String{
+    fn references(kind:&C,out:&mut BTreeSet<String>){match kind.required(){C::Ref{table}=>{out.insert(table.clone());},C::List{of,..}|C::ListRange{of,..}=>references(of,out),_=>{}}}
+    let mut tables=BTreeSet::from([root.to_owned()]);if let Some(program)=bound.programs.iter().find(|p|p.program.name==operation){tables.extend(ir::read_sites(&program.program).into_iter().map(|s|s.table));tables.extend(ir::write_tables(&program.program).into_iter().map(|(t,_)|t));}
+    loop{let before=tables.clone();for name in &before{if let Some(table)=bound.schema.tables.get(name){for kind in table.columns.values(){references(kind,&mut tables);}}}if before==tables{break;}}
+    let types=tables.iter().filter_map(|name|bound.schema.tables.get(name).map(|t|(name,&t.columns))).collect::<BTreeMap<_,_>>();let args=p.args.iter().map(|a|(&a.name,&a.type_)).collect::<BTreeMap<_,_>>();format!("arguments {args:?}; dependency types {types:?}")
 }
 fn steps(sources:&[(String,String)],bound:&Bound)->Vec<Step>{
     let docs=sources.iter().map(|(f,s)|crate::parse_document(f,s).0).collect::<Vec<_>>();let catalog=Catalog::build(docs.clone(),&mut Vec::new());let mut out=Vec::new();
@@ -49,14 +58,14 @@ fn steps(sources:&[(String,String)],bound:&Bound)->Vec<Step>{
                 if writes.iter().filter(|(w,_)|matches!(w,Expr::Write{table:t,fields,..}if t==table&&fields.iter().any(|f|f.name==field.name))).count()!=1{continue;}
                 let Some(value)=&field.value else{continue;};let literal=literal(value).is_some();
                 let caller=if let Expr::Name{name,..}=value{p.args.iter().any(|a|a.name==*name&&matches!(&a.type_.kind,TypeKind::Enum{variants:v}if v.iter().collect::<BTreeSet<_>>()==variants.iter().collect::<BTreeSet<_>>()))}else{false};
-                if literal||caller{out.push(Step{table:table.clone(),column:field.name.clone(),value:value.clone(),site:site.clone(),operation:operation.clone(),effect:crate::print::expression(write),types:fields.iter().map(|f|(f.name.clone(),bound.schema.tables[table].columns[&f.name].clone())).collect(),guards:guards.clone(),anchor:anchor&&complete&&writes.len()==1});}
+                if literal||caller{out.push(Step{table:table.clone(),column:field.name.clone(),value:value.clone(),site:site.clone(),operation:operation.clone(),effect:crate::print::expression(write),types:fields.iter().map(|f|(f.name.clone(),bound.schema.tables[table].columns[&f.name].clone())).collect(),context:type_context(bound,p,&operation,table),guards:guards.clone(),anchor:anchor&&complete&&writes.len()==1});}
             }
         }
     }out
 }
 fn add(out:&mut Vec<(Diagnostic,Invariant)>,write:&Step,anchor:&Step,from:&str,to:&str,focus:&str,message:String,bound:&Bound){
     let applicable=anchor.guards.iter().filter(|g|choices(g,focus).is_none()&&!actor_check(g,bound)).cloned().reduce(|a,b|workflow::binary("and",a,b)).unwrap_or(Expr::Literal{value:ast::Literal::Bool(true),site:Site::default()});
-    let basis=format!("{} effect {}; guards {}; bypass {} effect {}; types {:?}; anchor types {:?}",anchor.operation,anchor.effect,anchor.guards.iter().map(|g|format!("({})",crate::print::expression(g))).collect::<Vec<_>>().join(" and "),write.operation,write.effect,write.types,anchor.types);
+    let basis=format!("{} effect {}; guards {}; bypass {} effect {}; types {:?}; anchor types {:?}; inputs {}; anchor inputs {}",anchor.operation,anchor.effect,anchor.guards.iter().map(|g|format!("({})",crate::print::expression(g))).collect::<Vec<_>>().join(" and "),write.operation,write.effect,write.types,anchor.types,write.context,anchor.context);
     let policy=Expr::Call{name:"$sec11-transition".into(),args:vec![string(&write.site.to_string()),string(&write.column),string(from),string(to),applicable,string(&basis)],site:Site::default()};let mut invs=Vec::new();
     workflow::add_syntax(&mut invs,&write.table,Some(&write.column),"update",policy,&write.site,"sec11-transition",Some(write.operation.clone()));let mut inv=invs.remove(0);
     inv.predicate=format!("question hypothesis {}.{} {from} -> {to}; {basis}",write.table,write.column);
@@ -141,6 +150,11 @@ pub(crate) fn judge(inv:&Invariant,old:Option<&Value>,row:&Value,rows:&BTreeMap<
  #[test]fn guard_presence_cannot_hide_an_admitted_jump_and_secondary_types_bind_the_basis(){
   let source=BATCH.replace("require stage != b.stage else NO_CHANGE","require stage != b.stage and stage != b.stage else NO_CHANGE");let(mut b,qs)=compile(&source);assert_eq!(qs.len(),1);b.invariants=qs.into_iter().map(|(_,i)|i).collect();let mut c=challenges::Campaign::work_bounded(8192);challenges::generated_campaign(&b,&mut c,false);assert!(c.violations.iter().any(|c|c.operation=="advanceStage"));
   let usd=STUDY.replace("table studies:\n","table studies:\n  reviewFee: money USD default 0\n").replace("update studies[study] { status: 'reviewed' }","update studies[study] { status: 'reviewed', reviewFee: 100 }");let eur=usd.replace("reviewFee: money USD","reviewFee: money EUR");let(_,a)=compile(&usd);let(_,b)=compile(&eur);assert_eq!(a.len(),1);assert_eq!(b.len(),1);assert_ne!(a[0].1.predicate,b[0].1.predicate);assert!(a[0].1.predicate.contains("USD")&&b[0].1.predicate.contains("EUR"));
+ }
+
+ #[test]fn guarded_and_argument_currencies_are_material_even_without_a_money_write(){
+  let usd=STUDY.replace("table studies:\n","table studies:\n  reviewBudget: money USD default 0\n").replace("require s.status = 'measured' else BAD_STATUS","require s.status = 'measured' else BAD_STATUS\n  require s.reviewBudget <= 100 else OVER_BUDGET");let eur=usd.replace("reviewBudget: money USD","reviewBudget: money EUR");let(_,a)=compile(&usd);let(_,b)=compile(&eur);assert_eq!(a.len(),1);assert_eq!(b.len(),1);assert_ne!(a[0].1.predicate,b[0].1.predicate);
+  let usd=SMALL.replace("mutation finish(doc: docs):","mutation finish(doc: docs, amount: money USD):");let eur=usd.replace("amount: money USD","amount: money EUR");let(_,a)=compile(&usd);let(_,b)=compile(&eur);assert_eq!(a.len(),1);assert_eq!(b.len(),1);assert_ne!(a[0].1.predicate,b[0].1.predicate);
  }
 
 }
