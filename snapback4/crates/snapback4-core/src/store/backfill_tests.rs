@@ -1341,7 +1341,7 @@ fn wave31_041_040_native_receipt_repair_still_refuses_changed_forward_inputs_and
         if bridge{adopt(&mut e,&old.replace("  score: int\n","  score: int\n  tag: bool ?\n"),3).unwrap();}
         write(&mut e,op);
         let status=e.store_mut().release_status(0,None,None).unwrap();let receipt=migration_receipts(&e);let row=row(&mut e,"items","a");let generation=e.generation();
-        let error=adopt(&mut e,&next,2).unwrap_err().to_string();assert!(error.contains(if multi{"items.bonus"}else{"items.score"})&&error.contains("a")&&error.contains(if multi{"99"}else{"42"})&&(error.contains("dependencies")||!down&&error.contains("changed while backfill")),"{error}");
+        let error=adopt(&mut e,&next,2).unwrap_err().to_string();assert!(error.contains(if multi{"items.bonus"}else{"items.score"})&&error.contains("a")&&error.contains("fresh declaration name")&&error.contains(if multi{"99"}else{"42"})&&(error.contains("dependencies")||!down&&error.contains("changed while backfill")),"{error}");
         assert_eq!(e.generation(),generation);assert_eq!(e.store_mut().release_status(0,None,None).unwrap(),status);assert_eq!(migration_receipts(&e),receipt);assert_eq!(self::row(&mut e,"items","a"),row);
     }
 }
@@ -1368,4 +1368,17 @@ fn wave31_040_unedited_down_backfills_remain_recomputable_after_repeated_cycles(
     let mut e=engine(old);seed(&mut e,"factors",json!({"id":"factor","n":2}));seed(&mut e,"items",json!({"id":"a","n":5,"score":0}));
     adopt(&mut e,&next,2).unwrap();adopt(&mut e,old,1).unwrap();adopt(&mut e,&next,2).unwrap();assert_eq!(field(&mut e,"items","a","score"),Value::Int(10));
     adopt(&mut e,old,1).unwrap();write(&mut e,"changeFactor");adopt(&mut e,&next,2).unwrap();assert_eq!(field(&mut e,"items","a","score"),Value::Int(15));
+}
+
+#[test]
+fn wave25_005_legacy_unmodified_retained_projection_is_not_a_false_dependency_conflict() {
+    let old="table items:\n  n: int\n  label: text <=40\n  public 'fixture'\n  online only\ntable receipts:\n  public 'fixture'\n  online only\n";
+    let next=old.to_owned()+"backfill items fromReceipts(n: int): {label:'new' if exists receipts['proof'] else 'old'}\n";
+    let mut e=engine(old);seed(&mut e,"items",json!({"id":"a","n":1,"label":"old"}));seed(&mut e,"receipts",json!({"id":"proof"}));
+    adopt(&mut e,&next,2).unwrap();adopt(&mut e,old,1).unwrap();
+    // Captured wave25/005 legacy state: an older overlapping projection is
+    // visible; the un-authored newer output has no original column preimage.
+    e.store().test_support_conn().execute_batch("UPDATE _backfill_evidence SET before_image='{}',computed_image='{}',retained_outputs='[\"label\"]' WHERE definition IN (SELECT digest FROM _backfill_definitions);").unwrap();
+    adopt(&mut e,&next,2).unwrap();assert_eq!(e.store().count("items").unwrap(),1);
+    adopt(&mut e,old,1).unwrap();adopt(&mut e,&next,2).unwrap();assert_eq!(e.store().count("items").unwrap(),1);
 }

@@ -721,7 +721,10 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
                         }
                     }
                     let computation_same=if prior.computed.is_empty(){input_only && prior.after==patch}else{prior.computed==patch};
-                    let deps_same=prior.inputs==inputs && computation_same;
+                    // Value-equal legacy reprojections are still derived views.
+                    // They are not computation certificates for authored output:
+                    // the authored gate below separately requires computation_same.
+                    let deps_same=prior.inputs==inputs && prior.after==patch;
                     let current_field=fields.get(c);
                     let original=prior.before.get(c);
                     let expected=prior.reversed.get(c).cloned().unwrap_or_else(||original.cloned());
@@ -730,7 +733,7 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
                         bad.add(id,&format!("{}.{} changed while backfill {} was absent: older-release value {}, expected old view {}, retained newer value {}, recomputed value {}; for forward selection use a fresh declaration name for the repaired transform, preserve current values in a bridge and resolve through an authorized mutation; see guide rename",fill.table,c,fill.name,display_cell(actual.as_ref()),display_cell(expected.as_ref()),display_cell(prior.after.get(c)),display_cell(Some(value))));return Ok(())
                     }
                     if prior.authored.contains(c)&&(prior.inputs!=inputs||!computation_same)&&current_field!=Some(value){
-                        bad.add(id,&format!("{}.{} authored output {} conflicts with changed historical inputs/dependencies and recomputation {}; retain a bridge and resolve explicitly",fill.table,c,display_cell(current_field),display_cell(Some(value))));return Ok(())
+                        bad.add(id,&format!("{}.{} authored output {} conflicts with changed historical inputs/dependencies and recomputation {}; for forward selection use a fresh declaration name for new meaning, preserve current values in a bridge and repair through an authorized mutation; see guide rename",fill.table,c,display_cell(current_field),display_cell(Some(value))));return Ok(())
                     }
                     if prior.authored.contains(c) && computation_same && prior.inputs==inputs && current_field==prior.after.get(c) && current_field.is_some() {
                         desired.insert(c.clone(),current_field.unwrap().clone());

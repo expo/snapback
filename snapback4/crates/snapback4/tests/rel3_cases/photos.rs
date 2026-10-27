@@ -13,6 +13,7 @@ fn wave31_003_023_guarded_photos_follow_receipt_owned_ids_after_exact_cycles(){
     app.ok(&["rollback","deploy","--to","1","--exact"]);app.ok(&["rollback","deploy","--to","latest"]);
     {let mut e=app.engine();let b=snapback4_lang::compile(&[("schema.q".into(),new.into())]);let asset=e.store_asset("alice",png,1000).unwrap();e.seed([("photos".into(),snapback4_core::wire::row_from_json(&b.schema.tables["photos"],&json!({"id":"followup","item":"native-parent","photo":snapback4_core::wire::to_json(&asset.column_value())})).unwrap())]).unwrap();}
     for _ in 0..2 {
+        let human=app.ok(&["rollback","deploy","--to","1","--check"]);assert!(!human.contains("\"matchesTarget\"")&&!human.contains("\"differences\""),"{human}");
         let preview=app.json(&["rollback","deploy","--to","1","--check"]);assert_eq!(preview["visibility"]["hiddenRows"],0,"{preview}");
         let out=app.ok(&["rollback","deploy","--to","1"]);assert!(out.contains("still runs the registered workflow and current guards"),"{out}");
         let status=app.json(&["releases","deploy"]);assert_eq!(status["live"]["exact"],false);

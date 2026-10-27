@@ -81,3 +81,12 @@ fn wave31_040_explicit_revocation_survives_backfill_reentry(){
     a.source(&new);a.ok(&["deploy","deploy"]);{let mut e=a.engine();e.mutate("revoke",None,Context::new("alice",BTreeMap::from([("id".into(),snapback4_core::Value::Id("revoked".into()))]))).unwrap();}
     for _ in 0..2 {a.ok(&["rollback","deploy","--to","1"]);a.ok(&["rollback","deploy","--to","latest"]);assert_eq!(a.json(&["data","items","--release","deploy"])["rows"][0]["decision"],"notApproved");}
 }
+
+#[test]
+fn wave31_010_preview_names_every_hidden_sample_and_keeps_shape_json_out_of_human_prose() {
+    let a=App::new();let old="table items:\n  n: int\n  score: int 0..100\n  public 'fixture'\n  online only\nquery list():\n  return items first 20 by .id\n";
+    a.source(old);a.ok(&["deploy","deploy"]);a.seed(old,"items",json!({"id":"row-010","n":1,"score":5}));
+    a.source(&(old.to_owned()+"down items wrong(n: int): {score:999}\n"));
+    let refused=a.run(&["deploy","deploy","--check"]);let text=format!("{}{}",String::from_utf8_lossy(&refused.stdout),String::from_utf8_lossy(&refused.stderr));assert!(!refused.status.success());assert!(text.contains("would hide 1 old-table rows")&&text.contains("items [row-010]")&&text.contains("sample row ids"),"{text}");
+    assert!(!text.contains("\"matchesTarget\"")&&!text.contains("\"differences\""),"{text}");
+}
