@@ -89,7 +89,8 @@ pub(super) fn files(dir: &Path, sources: &[(String, String)]) -> io::Result<Vec<
     let mut frozen=package.clone();
     frozen["private"]=json!(true);frozen["type"]=json!("module");
     if !frozen["scripts"].is_object() {frozen["scripts"]=json!({});}
-    if package["scripts"].is_object() { frozen["scripts"]=package["scripts"].clone(); }
+    if original_scope { frozen["scripts"]=json!({}); }
+    else if package["scripts"].is_object() { frozen["scripts"]=package["scripts"].clone(); }
     frozen["scripts"]["client:calls"]=json!("node .snapback4-frozen-run.mjs");
     if let Some(command)=command { frozen["scripts"]["client:calls:frozen"]=json!(if original_scope { "npm --prefix .source run --silent client:calls" } else { command }); }
     for group in ["dependencies","devDependencies"] { if package[group].is_object() { frozen[group]=package[group].clone(); } }

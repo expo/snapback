@@ -21,13 +21,16 @@ fn wave33_029_024_011_023_033_frozen_client_has_own_esm_api_and_inline_users() {
     assert!(child.status.success(),"{}{}",String::from_utf8_lossy(&child.stdout),String::from_utf8_lossy(&child.stderr));let output=String::from_utf8(child.stdout).unwrap();let path=output.lines().next().unwrap();assert!(!std::path::Path::new(path).exists(),"private normalized users cleaned");assert!(output.lines().any(|l|l=="384"),"mode 0600");
     let common=dir.join("commonjs");fs::create_dir_all(common.join("snapback")).unwrap();fs::create_dir_all(common.join("scripts/helpers")).unwrap();
     fs::copy(dir.join("snapback/schema.q"),common.join("snapback/schema.q")).unwrap();
-    fs::write(common.join("package.json"),r#"{"scripts":{"client:calls":"node scripts/client.cjs"}}"#).unwrap();
-    fs::write(common.join("scripts/client.cjs"),"if(!require('./helpers').check()||!require('./plain.js').check())throw Error('missing CommonJS helper');console.log('CommonJS captured');\n").unwrap();
+    fs::write(common.join("package.json"),r#"{"scripts":{"client:calls":"node scripts/client.cjs","preclient:calls":"node scripts/pre.cjs","postclient:calls":"node scripts/post.cjs"}}"#).unwrap();
+    fs::write(common.join("scripts/pre.cjs"),"require('node:fs').appendFileSync('hooks','pre\\n');\n").unwrap();
+    fs::write(common.join("scripts/post.cjs"),"require('node:fs').appendFileSync('hooks','post\\n');\n").unwrap();
+    fs::write(common.join("scripts/client.cjs"),"require('node:fs').appendFileSync('hooks','body\\n');if(!require('./helpers').check()||!require('./plain.js').check())throw Error('missing CommonJS helper');console.log('CommonJS captured');\n").unwrap();
     fs::write(common.join("scripts/helpers/package.json"),r#"{"main":"check.cjs"}"#).unwrap();
     fs::write(common.join("scripts/helpers/check.cjs"),"exports.check=()=>true;\n").unwrap();
     fs::write(common.join("scripts/plain.js"),"exports.check=()=>true;\n").unwrap();
     let capture=Command::new(BIN).current_dir(&common).args(["init","--adapt","--day2","--apply"]).output().unwrap();assert!(capture.status.success(),"{}",String::from_utf8_lossy(&capture.stderr));
     let calls=Command::new("npm").current_dir(&common).args(["--prefix","v1","run","--silent","client:calls"]).output().unwrap();assert!(calls.status.success(),"{}",String::from_utf8_lossy(&calls.stderr));assert!(String::from_utf8_lossy(&calls.stdout).contains("CommonJS captured"));
+    assert_eq!(fs::read_to_string(common.join("v1/.source/hooks")).unwrap(),"pre\nbody\npost\n");
     fs::remove_dir_all(dir).unwrap();
 }
 #[test]
