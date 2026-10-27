@@ -381,6 +381,9 @@ fn lifecycle(writes:&[(&ast::ProgramDecl,Expr,ast::ProgramDecl)],bound:&Bound,ou
                 let parent_gate=parent_guard(child_p,child_write,child_context,bound,child,reference,parent,&parent_state.name,&child_state.name);
                 if roles(parent_context,bound)!=child_roles{continue;}
                 let Some(requirements)=state_requirements(parent_p,parent_write,parent_context,bound,parent,&parent_state.name)else{continue;};
+                // Unreduced parent spreads may reopen any categorical state.
+                // An incomplete graph cannot establish a terminal destination.
+                if writes.iter().any(|(_,w,_)|matches!(w,Expr::Write{op:WriteOp::Update,table:t,fields,..} if t==parent&&fields.iter().any(|field|field.spread))){continue;}
                 // Unresolved state-write targets cannot establish terminality.
                 if writes.iter().any(|(p,w,c)|matches!(w,Expr::Write{op:WriteOp::Update,table:t,fields,..} if t==parent&&state_field(p,w,bound,stages).is_some())&&state_requirements(p,w,c,bound,parent,&parent_state.name).is_none()){continue;}
                 let Some(destination)=parent_state.value.as_ref()else{continue;};
@@ -477,4 +480,14 @@ fn lifecycle(writes:&[(&ast::ProgramDecl,Expr,ast::ProgramDecl)],bound:&Bound,ou
     let row=object([("id",Value::Id("e".into())),("job",Value::Id("j".into()))]);
     assert_eq!(super::super::super::concrete::evaluate(i.syntax.as_ref().unwrap(),&row,&rows,&b.schema,"actor","effects",challenges::NOW),Some(true),"{}",i.predicate);
 }
+#[test]fn spread_parent_reopening_cannot_establish_terminal_completion(){
+    let base=include_str!(concat!(env!("CARGO_MANIFEST_DIR"),"/tests/security/wave26/008.q"));
+    let contracts=|source:String|{let sources=vec![("schema.q".into(),source)];let b=crate::compile(&sources);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);super::super::invariants(&sources,&b)};
+    assert!(contracts(base.into()).iter().any(|i|i.table=="jobs"&&i.site.file.contains("child-stage")),"ordinary terminal inference is retained");
+    for fields in ["status: 'in_progress'","...{status: 'in_progress'}","status: 'finished', ...{status:'in_progress'}"]{
+        let source=format!("{base}\nmutation reopen(job: jobs):\n  require exists roles[viewer, role = 'crew'] else NOT_CREW\n  j = jobs[job] ! else MISSING\n  require j.status = 'finished' else BAD_STATUS\n  update jobs[job] {{{fields}}}\n");
+        assert!(!contracts(source).iter().any(|i|i.table=="jobs"&&i.site.file.contains("child-stage")),"reopening must not infer terminal completion: {fields}");
+    }
+}
+
 }
