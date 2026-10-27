@@ -45,6 +45,9 @@ def run(dst,script,log,timeout=360):
   'PORT_LO':str(36000+int(dst.parents[1].name.split('-')[-1])*3000),'PORT_HI':str(37999+int(dst.parents[1].name.split('-')[-1])*3000),
   'npm_config_cache':str(SCRATCH/'npm-cache')}
  env.pop('NODE_OPTIONS',None);env.pop('LAT3_TRACE',None);env.pop('SNAPBACK4_LATENCY_TRACE',None)
+ trace=log.with_suffix('.native.jsonl') if int(dst.parent.name.split('-')[0][1:])>=32 else None
+ if trace:
+  trace.write_text('');trace.chmod(0o600);env['SNAPBACK4_LATENCY_TRACE']=str(trace)
  args=['node',str(HERE/'probe.mjs')] if script=='probe:serve/client:calls' else ['npm','run',script]
  start=time.monotonic();load=os.getloadavg()
  with log.open('w') as f:
@@ -64,6 +67,20 @@ def run(dst,script,log,timeout=360):
  if script=='probe:serve/client:calls' and (dst/'lat3-probe.json').exists():
   result.update(json.loads((dst/'lat3-probe.json').read_text()))
   for suffix in ['stdout','stderr']:shutil.copyfile(dst/f'lat3-calls.{suffix}',log.with_suffix('.calls.'+suffix))
+ if trace:
+  phases=collections.defaultdict(float)
+  try:
+   for line in trace.read_text().splitlines():
+    event=json.loads(line)
+    if isinstance(event.get('phase'),str) and isinstance(event.get('seconds'),(float,int)):phases[event['phase']]+=event['seconds']
+   preflight=sum(phases.get(k,0) for k in ['deploy.security','check.report','check.witnesses','check.restored_questions'])
+   result.update(nativeTraceEnabled=True,nativePhaseSeconds=dict(phases),preflightSeconds=preflight)
+   if result['seconds']>=preflight:result['withoutPreflightSeconds']=result['seconds']-preflight
+   if 'readyPreflightSeconds'in result:
+    if result['readySeconds']>=result['readyPreflightSeconds']:result['readyWithoutPreflightSeconds']=result['readySeconds']-result['readyPreflightSeconds']
+    callsPreflight=preflight-result['readyPreflightSeconds']
+    if 0<=callsPreflight<=result['callsSeconds']:result['callsWithoutPreflightSeconds']=result['callsSeconds']-callsPreflight
+  except (ValueError,OSError,TypeError) as e:result['nativeTraceError']=str(e)
  return result
 
 def client_digest(dst):

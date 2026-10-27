@@ -37,7 +37,7 @@ for scope,waves in [('all',[30,31,32,33,34]),('day-one',[32,34]),('day-two',[33]
  table={}
  for script in ['acceptance','frontend:proof','day2:proof','probe:serve/client:calls']:
   pairs=[x for x in selected if x.get('script')==script and x['before']['code']==0 and x['after']['code']==0]
-  metrics=['seconds'] if script!='probe:serve/client:calls' else ['seconds','readySeconds','callsSeconds']
+  metrics=['seconds','withoutPreflightSeconds'] if script!='probe:serve/client:calls' else ['seconds','readySeconds','callsSeconds','withoutPreflightSeconds','readyWithoutPreflightSeconds','callsWithoutPreflightSeconds']
   for metric in metrics:
    complete=[p for p in pairs if metric in p['before'] and metric in p['after']]
    table[script+'/'+metric]={v:stats([x[v][metric] for x in complete]) for v in ['before','after']}
