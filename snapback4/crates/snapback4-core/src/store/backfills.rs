@@ -523,7 +523,7 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
                         value
                     } else {None};
                     if let Some(view)=projected {
-                        if e.computed.is_empty(){e.computed=e.after.clone();}
+                        if e.computed.is_empty() && e.active && e.authored.is_empty(){e.computed=e.after.clone();}
                         if let Some(value)=current {e.after.insert(c.clone(),value.clone());e.authored.insert(c.clone());}
                         e.reversed.insert(c.clone(),Some(view));
                         e.retained.insert(c.clone());
@@ -531,7 +531,7 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
                     }
                     if crate::engine::validate::validate_column(&fill.table,c,&table.columns[c],current).is_ok() {
                         // The selected bridge can represent this exact authored value.
-                        if e.computed.is_empty(){e.computed=e.after.clone();}
+                        if e.computed.is_empty() && e.active && e.authored.is_empty(){e.computed=e.after.clone();}
                         if let Some(value)=current {e.after.insert(c.clone(),value.clone());e.authored.insert(c.clone());}
                         e.reversed.insert(c.clone(),current.cloned());
                         e.retained.insert(c.clone());
@@ -708,7 +708,7 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
                     let native:Option<String>=tx.conn().query_row("SELECT data FROM temp._backfill_native_restored WHERE t=?1 AND id=?2 AND column_name=?3",params![t,id,c],|r|r.get(0)).optional()?;
                     if let Some(native)=native {
                         let native:Value=decode(&native)?;
-                        if fields.get(c)==Some(&native) && crate::engine::validate::validate_column(&fill.table,c,&table.columns[c],Some(&native)).is_ok() {
+                        if (prior.authored.contains(c)||prior.after.get(c)!=Some(&native)) && fields.get(c)==Some(&native) && crate::engine::validate::validate_column(&fill.table,c,&table.columns[c],Some(&native)).is_ok() {
                             // A validated down receipt proves the native image,
                             // not the forward transform's other dependencies.
                             let unchanged=prior.inputs==inputs && if prior.computed.is_empty(){input_only}else{prior.computed==patch};

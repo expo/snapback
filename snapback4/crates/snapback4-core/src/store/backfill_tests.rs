@@ -1330,7 +1330,7 @@ fn migration_receipts(e:&Engine)->Vec<String>{
 fn wave31_041_040_native_receipt_repair_still_refuses_changed_forward_inputs_and_point_dependencies() {
     let base="table factors:\n  n: int\n  public 'fixture'\n  update <- allow\n  online only\ntable items:\n  n: int\n  score: int\n  public 'fixture'\n  update <- allow\n  online only\nmutation changeFactor():\n  update factors['factor'] {n:3}\nmutation zeroFactor():\n  update factors['factor'] {n:0}\nmutation changeInput():\n  update items['a'] {n:6}\n";
 
-    for (op,poison,multi,down) in [("changeFactor",false,false,true),("changeInput",false,false,true),("zeroFactor",true,false,true),("zeroFactor",true,true,true),("zeroFactor",true,false,false),("zeroFactor",true,true,false)] {
+    for (op,poison,multi,down,bridge) in [("changeFactor",false,false,true,false),("changeInput",false,false,true,false),("zeroFactor",true,false,true,false),("zeroFactor",true,true,true,false),("zeroFactor",true,false,false,false),("zeroFactor",true,true,false,false),("zeroFactor",true,false,true,true),("zeroFactor",true,true,true,true),("zeroFactor",true,false,false,true),("zeroFactor",true,true,false,true)] {
         let old=if multi{base.replace("  score: int\n","  score: int\n  bonus: int\n")}else{base.to_owned()};
         let mut next=old.clone()+"backfill items computed(n: int): {score:n * (factors['factor'] ! else NO_FACTOR).n}\ndown items legacy(score: int): {score:0}\nmutation editOutput():\n  update items['a'] {score:42}\n";
         if multi{next=next.replace("NO_FACTOR).n}","NO_FACTOR).n,bonus:n + 1}").replace("legacy(score: int): {score:0}","legacy(score: int, bonus: int): {score:0,bonus:0}").replace("{score:42}","{score:42,bonus:99}");}
@@ -1338,6 +1338,7 @@ fn wave31_041_040_native_receipt_repair_still_refuses_changed_forward_inputs_and
         let mut e=engine(&old);seed(&mut e,"factors",json!({"id":"factor","n":2}));let mut initial=json!({"id":"a","n":5,"score":0});if multi{initial["bonus"]=json!(0);}seed(&mut e,"items",initial);
         adopt(&mut e,&next,2).unwrap();write(&mut e,"editOutput");adopt(&mut e,&old,1).unwrap();
         if poison{let image=if multi{json!({"score":{"Int":0},"bonus":{"Int":6}})}else{json!({"score":{"Int":0}})};e.store().test_support_conn().execute("UPDATE _backfill_evidence SET after_image=?1,reversed_image=?1,computed_image='{}' WHERE definition IN (SELECT digest FROM _backfill_definitions)",[image.to_string()]).unwrap();}
+        if bridge{adopt(&mut e,&old.replace("  score: int\n","  score: int\n  tag: bool ?\n"),3).unwrap();}
         write(&mut e,op);
         let status=e.store_mut().release_status(0,None,None).unwrap();let receipt=migration_receipts(&e);let row=row(&mut e,"items","a");let generation=e.generation();
         let error=adopt(&mut e,&next,2).unwrap_err().to_string();assert!(error.contains(if multi{"items.bonus"}else{"items.score"})&&error.contains("a")&&error.contains(if multi{"99"}else{"42"})&&(error.contains("dependencies")||!down&&error.contains("changed while backfill")),"{error}");
@@ -1358,4 +1359,13 @@ fn wave31_041_native_repair_needs_a_computation_certificate_for_file_text_reads_
         if agreement {result.unwrap();assert_eq!(field(&mut e,"orders","a","quantity"),Value::Int(3));}
         else{let error=result.unwrap_err().to_string();assert!(error.contains("orders.quantity")&&error.contains("42")&&error.contains("dependencies"),"{error}");assert_eq!(e.generation(),generation);assert_eq!(e.store_mut().release_status(0,None,None).unwrap(),status);assert_eq!(migration_receipts(&e),receipts);assert_eq!(self::row(&mut e,"orders","a"),row);}
     }
+}
+
+#[test]
+fn wave31_040_unedited_down_backfills_remain_recomputable_after_repeated_cycles() {
+    let old="table factors:\n  n: int\n  public 'fixture'\n  update <- allow\n  online only\ntable items:\n  n: int\n  score: int\n  public 'fixture'\n  online only\nmutation changeFactor():\n  update factors['factor'] {n:3}\n";
+    let next=old.to_owned()+"backfill items computed(n: int): {score:n * (factors['factor'] ! else NO_FACTOR).n}\ndown items legacy(score: int): {score:0}\n";
+    let mut e=engine(old);seed(&mut e,"factors",json!({"id":"factor","n":2}));seed(&mut e,"items",json!({"id":"a","n":5,"score":0}));
+    adopt(&mut e,&next,2).unwrap();adopt(&mut e,old,1).unwrap();adopt(&mut e,&next,2).unwrap();assert_eq!(field(&mut e,"items","a","score"),Value::Int(10));
+    adopt(&mut e,old,1).unwrap();write(&mut e,"changeFactor");adopt(&mut e,&next,2).unwrap();assert_eq!(field(&mut e,"items","a","score"),Value::Int(15));
 }
