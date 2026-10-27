@@ -1,3 +1,4 @@
+// API signatures: snapback4 guide api proof | client | auth | generated
 // Builds its own dist before starting proof servers.
 // Replace the application assertions when replacing the starter screen.
 import assert from "node:assert/strict";

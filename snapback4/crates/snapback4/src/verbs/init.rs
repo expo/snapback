@@ -189,6 +189,13 @@ pub fn init(options: &Options) -> i32 {
         ports::scripts(&mut files, port.unwrap_or(4400), web_port.unwrap_or(if web { 5173 } else { 8081 }), range, web);
         proof::files(&mut files, options, port.unwrap_or(4400), web_port.unwrap_or(if web { 5173 } else { 8081 }), web, &shape);
     }
+    for (name, text) in &mut files {
+        if name.starts_with("scripts/") && (name.ends_with(".mjs") || name.ends_with(".ts")) && !text.contains("API signatures:") {
+            let header = "// API signatures: snapback4 guide api proof | client | auth | generated\n";
+            if text.starts_with("#!") { if let Some(at) = text.find('\n') { text.insert_str(at + 1, header); } }
+            else { text.insert_str(0, header); }
+        }
+    }
     let mut conflicts = Vec::new();
     // A project's existing introduction is unrelated to the starter. Keep it
     // and place our setup instructions beside it, still without overwriting.
@@ -279,6 +286,8 @@ pub fn init(options: &Options) -> i32 {
         println!("No files written; rerun without --dry-run to create this starter.");
         return 0;
     }
+    println!("{}", crate::guide_seen::render_in(dir, "start", snapback4_lang::guide::card("start").unwrap(), false));
+    let _ = std::io::stdout().flush();
     let readme = files.iter().find(|(name, _)| name.starts_with("README.")).map(|(name, _)| *name);
     let mut created = Vec::new();
     let mut write = || -> std::io::Result<()> {
@@ -313,7 +322,7 @@ pub fn init(options: &Options) -> i32 {
     }
     // A starter that wrote package.json dependencies needs them installed before
     // its typecheck, build or `npm start` can run.
-    let install = if web || expo { "`node scripts/install.mjs`, then " } else if files.iter().any(|(name, _)| *name == "package.json") { "`npm install`, then " } else { "" };
+    let install = if web || expo { "`node scripts/install.mjs --wait`, then " } else if files.iter().any(|(name, _)| *name == "package.json") { "`npm install`, then " } else { "" };
     let dev = port.map(|port| format!("snapback4 dev --port {port}")).unwrap_or_else(|| "snapback4 dev".into());
     let kind = if password_starter {"password app, online reads and journaled writes"} else if social { "Expo Router social app" } else if chat && expo { "Expo chat app" } else if chat { "Vite chat app" }
         else if expo && home { &format!("Expo app: sign-in and a Home screen for your snapback/*.q, native when available, online in Expo Go{}", shape.offline.summary()) }
@@ -368,7 +377,12 @@ pub fn init(options: &Options) -> i32 {
             Some(_) => {},
         }
     }
-    if web || expo { println!("node scripts/install.mjs"); }
+    if web || expo {
+        println!("init: verify with `npm run probe:check` (password previews); `npm run frontend:proof` checks the screen. `probe:serve` stays up until SIGTERM.");
+        if !options.flags.contains_key("no-install") && std::env::var("SNAPBACK4_INIT_INSTALL").as_deref() != Ok("0") {
+            if let Err(error) = background_install(dir) { eprintln!("init: frontend install could not start: {error}; run node scripts/install.mjs"); }
+        } else { println!("init: frontend install deferred; run node scripts/install.mjs"); }
+    }
     0
 }
 
@@ -735,4 +749,23 @@ pub(super) fn client_setup_hint(root: &Path) -> Option<&'static str> {
 // @ref LLP 3000.037.000#3-password-online-starters — preserve the generated runtime API across git copies.
 fn starter_gitignore(text: &str) -> String {
     text.split_inclusive('\n').filter(|line| line.trim_end_matches(['\r', '\n']) != "snapback/generated/").collect()
+}
+
+
+// @ref LLP 3000.037.000#8-wave-32-builder-reading-and-waiting-tok1 — frontend installation must not block schema reading.
+fn background_install(dir: &Path) -> std::io::Result<()> {
+    use std::process::{Command, Stdio};
+    let logs = dir.join(".snapback4"); std::fs::create_dir_all(&logs)?;
+    let log = std::fs::OpenOptions::new().create(true).append(true).open(logs.join("install.log"))?;
+    let child = Command::new("node").arg("scripts/install.mjs").arg("--background").current_dir(dir)
+        .stdin(Stdio::null()).stdout(Stdio::from(log.try_clone()?)).stderr(Stdio::from(log)).spawn()?;
+    // Join only the owner's short startup handshake, never npm's dependency work.
+    let began = std::time::Instant::now();
+    while began.elapsed() < std::time::Duration::from_secs(3) {
+        let state = std::fs::read(logs.join("install.json")).ok().and_then(|bytes| serde_json::from_slice::<Value>(&bytes).ok());
+        if state.as_ref().and_then(|s| s["pid"].as_u64()) == Some(u64::from(child.id())) { break; }
+        std::thread::sleep(std::time::Duration::from_millis(10));
+    }
+    println!("init: frontend install running in background; read/edit now. Progress: node scripts/install.mjs --status; join once: node scripts/install.mjs --wait; log .snapback4/install.log");
+    Ok(())
 }

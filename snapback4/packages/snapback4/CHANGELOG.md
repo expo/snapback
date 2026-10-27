@@ -4,6 +4,8 @@
 
 ### Guide changes
 
+- Start replaces the introductory card tour with one compiling customer/staff workflow and feature pointers. Default cards have a hard reading budget; project repeats show deltas (--repeat/--full restore content). Build-time API digests and a generated operation index replace declaration greps. Init shows the recipe and file map before a background frontend install with status/wait. Probe scripts announce their lifetime, refuse repeated empty long runs and bound idle foreground waiting unless --hold; probe:check verifies. Upload placement explains separate uploads for several image columns.
+
 - Production proofs have one serve/accounts/static-host/SIGTERM recipe. Roster mismatches name supplied and pinned plans. Inherited serve drivers get a serve-check --then next step on upgrade; --then preserves the requested uptime. waitForFresh can observe a stable control before its trigger. Admin data --all and snapshotAll inspect all active rows; generated query help exposes next. Reads show the complete-empty absent arm; ambiguous signup advises login without revealing account existence.
 
 - Caller-filtered required probes explain incompatible roster role arms and explicit service exceptions; mixed owner/customer and staff rosters need an explicit role predicate. A mutation require cannot replace denied table write authority.

@@ -1,7 +1,6 @@
 # API: what each package subpath exports
 
-The `snapback4` package has one subpath per job, and the generated `api` object names your operations.
-This index lists each subpath's functions, hooks and main types; their editors show the full signatures.
+Look up exact module signatures on demand before opening declaration files.
 
 ```ts
 import { createApp } from "snapback4/app";
@@ -50,3 +49,8 @@ Each subpath's code and types ship under `node_modules/snapback4/dist/`: `snapba
 beside `dist/react.d.ts`, and `snapback4/bin-path` is `dist/bin-path.js`. The CLI is `node_modules/.bin/snapback4`.
 
 Release compatibility: `snapback4/react` exports `useRelease`; `snapback4/contract` exports `operationAvailable`. Generated handles inline the same check once per file; generated modules import only package types. Generated `server(startServer, handlers, options?)` takes the runtime imported by your application from `snapback4/server`. `guide deploy` covers the saved-baseline opt-in.
+
+
+## Signature digests
+
+`guide api proof`, `guide api client`, `guide api auth` are generated from dist declarations at build time (at most 3,000 tokens each). `guide api generated` reads the checked project operation index. Starter script headers point here.

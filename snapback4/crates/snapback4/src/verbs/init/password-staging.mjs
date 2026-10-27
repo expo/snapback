@@ -1,3 +1,4 @@
+// API signatures: snapback4 guide api proof | client | auth | generated
 // The same password sign-in, rules and operator provision used by production.
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";

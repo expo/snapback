@@ -1,3 +1,5 @@
+import { currentProbeGuard, probeAdvice } from "./proof-probe.ts";
+export { probeServeGuard } from "./proof-probe.ts";
 export { loadFixtures, type FixtureRow, type LoadFixturesOptions } from "./proof-fixtures.ts";
 import { devAccounts, provisionAccounts, seedAccounts, type ProvisionAccountsOptions, type ProvisionedSessions, type SeedAccountsOptions, type StagingSessions } from "./proof-accounts.ts";
 export { devAccounts, provisionAccounts, seedAccounts, type SeedAccountsOptions, type StagingAccount, type StagingSessions, type ProvisionAccountsOptions, type ProvisionedAccount, type ProvisionedSessions } from "./proof-accounts.ts";
@@ -346,15 +348,19 @@ export async function withBrowser<T>(options: LaunchOptions & Pick<ProofOptions,
 // @ref LLP 3000.011.003.000.000#15-wave-26-proof-ergonomics-dx9 — a pending promise alone cannot keep probe:serve alive.
 export async function serveUntilSignal(hosts: readonly Pick<ProofHost, "stop">[]): Promise<void> {
   if (!Array.isArray(hosts) || hosts.length === 0 || hosts.some(host => typeof host?.stop !== "function")) throw Error("E_PROOF_USAGE: serveUntilSignal requires at least one owned host");
+  console.error(probeAdvice);
+  const guard = currentProbeGuard(); guard?.ready();
   let finish!: () => void;
   const signalled = new Promise<void>(resolve => { finish = resolve; });
-  const hold = setInterval(() => {}, 60_000);
+  const hold = setInterval(() => {
+    if (guard?.idle()) { console.error(`E_PROBE_IDLE: no requests in 60 seconds; ${probeAdvice}. Deliberate service: npm run probe:serve -- --hold`); process.exitCode = 1; finish(); }
+  }, 1000);
   process.on("SIGTERM", finish); process.on("SIGINT", finish);
   try { await signalled; }
   finally {
     clearInterval(hold);
     try { await cleanup(...[...hosts].reverse().map(host => () => host.stop())); }
-    finally { process.removeListener("SIGTERM", finish); process.removeListener("SIGINT", finish); }
+    finally { guard?.close(); process.removeListener("SIGTERM", finish); process.removeListener("SIGINT", finish); }
   }
 }
 const substringLocators = new WeakMap<Locator, { locator: Locator; scoped: boolean }>();

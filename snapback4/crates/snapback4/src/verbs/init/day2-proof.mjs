@@ -1,3 +1,4 @@
+// API signatures: snapback4 guide api proof | client | auth | generated
 // npm run day2:proof
 // Saved sources belong outside snapback/, where every .q file compiles together.
 // Add your business assertions at each release transition.
