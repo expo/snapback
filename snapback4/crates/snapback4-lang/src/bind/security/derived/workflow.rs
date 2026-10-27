@@ -87,7 +87,7 @@ pub(crate) fn approval_populations(e:&Expr)->Vec<ast::ReadExpr>{
 fn contains_approval(e:&Expr)->bool{!approval_receipts(e).is_empty()}
 // Normalize first, then classify typed fields. Population filters own their
 // focal row; ordinary edit metadata may remain in a real approval prerequisite.
-fn typed_approval(e:&Expr,schema:&Schema,root:&str)->bool{
+pub(super) fn typed_approval(e:&Expr,schema:&Schema,root:&str)->bool{
     fn owner<'a>(e:&'a Expr,schema:&'a Schema,root:&'a str)->Option<&'a str>{match e{
         Expr::Read(read)=>Some(&read.table),Expr::Assert{value,..}=>owner(value,schema,root),Expr::Name{name,..} if name==LOCAL=>Some(root),Expr::Focal{..}=>Some(root),
         Expr::Member{base,name,..}=>{let table=owner(base,schema,root)?;if name=="id"{Some(table)}else{match schema.tables.get(table)?.columns.get(name)?.required(){C::Ref{table}=>Some(table),_=>None}}},_=>None,
@@ -125,7 +125,7 @@ fn premises<'a>(p:&'a ast::ProgramDecl,schema:&Schema,root:&str,args:&BTreeMap<S
     fn parts<'a>(value:&'a Expr,out:&mut Vec<&'a Expr>,schema:&Schema,root:&str,args:&BTreeMap<String,Expr>){if let Expr::Binary{op,left,right,..}=value&&op=="and"{parts(left,out,schema,root,args);parts(right,out,schema,root,args);}else if normalize(value,schema,root,args).map(|value|!typed_approval(&value,schema,root)).unwrap_or(!contains_approval(value)){out.push(value);}}
     let mut out=Vec::new();for stmt in &p.body{if let Stmt::Require{condition,code,..}=stmt&&code=="$advice"{parts(condition,&mut out,schema,root,args);}}out
 }
-fn scoped_contract(condition:&Expr,context:&ast::ProgramDecl,schema:&Schema,root:&str,args:&BTreeMap<String,Expr>)->Option<Expr>{
+pub(super) fn scoped_contract(condition:&Expr,context:&ast::ProgramDecl,schema:&Schema,root:&str,args:&BTreeMap<String,Expr>)->Option<Expr>{
     let mut contract=normalize(condition,schema,root,args)?;
     for premise in premises(context,schema,root,args){let premise=normalize(premise,schema,root,args)?;contract=binary("or",Expr::Unary{op:"not".into(),value:Box::new(premise),site:condition.site().clone()},contract);}
     Some(super::super::creation_advice::simplify_boolean(&contract))
@@ -167,7 +167,7 @@ pub(super) fn normalize(e:&Expr,schema:&Schema,root:&str,args:&BTreeMap<String,E
     let mut unknown=false;walk(&mut e,&mut |e|if matches!(e,Expr::Name{name,..} if name!="now"&&name!="viewer"&&name!=LOCAL) {unknown=true;});
     (!unknown).then_some(e)
 }
-fn paths(schema:&Schema,from:&str,to:&str)->Vec<Expr>{
+pub(super) fn paths(schema:&Schema,from:&str,to:&str)->Vec<Expr>{
     fn visit(schema:&Schema,from:&str,to:&str,value:Expr,seen:&BTreeSet<String>,out:&mut Vec<Expr>){
         if from==to{out.push(value);return;}
         if seen.len()>=4||seen.contains(from){return;}
@@ -176,7 +176,7 @@ fn paths(schema:&Schema,from:&str,to:&str)->Vec<Expr>{
     }
     let mut out=Vec::new();visit(schema,from,to,focal(),&BTreeSet::new(),&mut out);out
 }
-fn lift(e:&Expr,root:&Expr)->Expr{let mut e=e.clone();walk(&mut e,&mut |e|if matches!(e,Expr::Focal{..}){*e=root.clone();});e}
+pub(super) fn lift(e:&Expr,root:&Expr)->Expr{let mut e=e.clone();walk(&mut e,&mut |e|if matches!(e,Expr::Focal{..}){*e=root.clone();});e}
 pub(super) fn add_syntax(out:&mut Vec<Invariant>,table:&str,column:Option<&str>,target:&str,mut policy:Expr,site:&Site,label:&str,operation:Option<String>){
     use sha2::{Digest,Sha256};
     walk(&mut policy,&mut |e|if let Expr::Name{name,site}=e&&name==LOCAL{*e=Expr::Focal{site:site.clone()};});
@@ -310,7 +310,7 @@ fn roles(context:&ast::ProgramDecl,bound:&Bound)->BTreeSet<String>{
 fn literals(e:&Expr)->BTreeSet<String>{let mut e=e.clone();let mut out=BTreeSet::new();walk(&mut e,&mut |e|if let Expr::Literal{value:ast::Literal::Str(s),..}=e{out.insert(s.clone());});out}
 // A typed id argument binds only the actual selected row, never an arbitrary
 // argument of the same table or a named secondary reference key.
-fn target_arg<'a>(p:&'a ast::ProgramDecl,w:&Expr,table:&str)->Option<&'a ast::ArgDecl>{
+pub(super) fn target_arg<'a>(p:&'a ast::ProgramDecl,w:&Expr,table:&str)->Option<&'a ast::ArgDecl>{
     let Expr::Write{op:WriteOp::Update,table:target,keys,..}=w else{return None;};
     if target!=table||keys.len()!=1||keys[0].column.as_deref().is_some_and(|c|c!="id"){return None;}
     super::resource_argument(&keys[0].value,table,p)

@@ -218,8 +218,10 @@ fn candidates(
     let derived = security::derived::invariants(sources, bound);
     let stages = security::derived::workflow_columns_from_sources(sources, bound);
     let mut out = Vec::new();
+    let approval_questions=security::derived::approval_questions(sources,bound);
     for (index, n) in notes.iter().enumerate() {
         out.extend(questions::candidates(bound,sources,index,n));
+        out.extend(approval_questions.iter().filter(|(note,_)|note.site==n.site&&note.code==n.code).map(|(_,inv)|(index,inv.clone())));
         if n.code == "N_INSERT_WRITE_INTENT" {
             if let Some(subject) = n
                 .message
@@ -497,7 +499,7 @@ pub(in crate::verbs) fn apply_report(sources:&[(String,String)],bound:&Bound,rep
 /// Fixed work per mode; a generated presentation cache never supplies a gate.
 // @ref LLP 3000.036.004.000#13-witness-backed-enforcement-and-shipping-precision — every gate replays current source even when advice is cached.
 pub(in crate::verbs) fn collect(project:&Project,bound:&Bound,sources:&[(String,String)],notes:&[Diagnostic],expanded:bool,options:&Options)->Vec<Option<serde_json::Value>> {
-    let key=hash(&serde_json::to_vec(&("sec11-witness-2",sources,notes,record::capture(sources,None).ok())).unwrap());
+    let key=hash(&serde_json::to_vec(&("sec11b-witness-1",sources,notes,record::capture(sources,None).ok())).unwrap());
     let path=project.schema_dir().join("generated/security-witnesses.json");
     let gate=|index:usize|super::super::security_reviews::gated(&notes[index].code)&&precise_approval(bound,&notes[index]);
     let cached=std::fs::read(&path).ok().and_then(|b|serde_json::from_slice::<serde_json::Value>(&b).ok()).filter(|v|v["key"]==key).and_then(|v|serde_json::from_value::<Vec<Option<serde_json::Value>>>(v["values"].clone()).ok()).filter(|v|v.len()==notes.len());

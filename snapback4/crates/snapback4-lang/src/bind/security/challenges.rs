@@ -20,6 +20,7 @@ mod column_reads;
 mod stability;
 mod generated;
 mod workflow;
+mod approval_proposals;
 pub use generated::fixture as generated_fixture;
 #[derive(Clone,Debug,Serialize,serde::Deserialize,PartialEq,Eq)]
 #[serde(rename_all="kebab-case")]

@@ -614,3 +614,15 @@ witness. To acknowledge it, name its digest and exactly `permit OPERATION as
 CALLER`, followed by the printed audience/effect rationale. An invalid answer
 prints the current redacted replay and records no decisions. Complex guard
 histories and unsupported evidence shapes remain coverage gaps.
+
+### Approval acts and history questions
+
+N_APPROVAL_PATH identifies a related completion operation that proceeds without
+a receipt checked by a parent operation. N_CALLER_HISTORY asks whether a caller
+ordinal selecting approval must instead come from stored same-person history.
+N_LATEST_SUBJECT asks whether an approval selected by an older parent may still
+authorize another sitting. These are advisory questions. Default check/deploy
+shows a question when a current admitted-call replay supplies its witness;
+JSON retains the actual caller, arguments, initialization and old/new images.
+An acknowledgment must address that exact witness and intended effect.
+Enforce a narrower specification in the operation and declare independent intent.

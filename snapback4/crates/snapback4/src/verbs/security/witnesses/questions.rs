@@ -4,7 +4,7 @@ use super::*;
 use snapback4_core::{Context, Engine, ir, schema::{RuleExpr, RuleTerm}};
 
 pub(super) fn advisory(code:&str)->bool {
-    matches!(code,"N_OPTIONAL_EVIDENCE"|"N_TEXT_EVIDENCE"|"N_CHILD_EVIDENCE_PRESENCE"|"N_GUARD_NOT_CONSUMED"|"N_BROAD_READ")
+    matches!(code,"N_OPTIONAL_EVIDENCE"|"N_TEXT_EVIDENCE"|"N_CHILD_EVIDENCE_PRESENCE"|"N_GUARD_NOT_CONSUMED"|"N_BROAD_READ"|"N_APPROVAL_PATH"|"N_CALLER_HISTORY"|"N_LATEST_SUBJECT")
 }
 pub(super) fn candidates(bound:&Bound,sources:&[(String,String)],index:usize,n:&Diagnostic)->Vec<(usize,security::Invariant)> {
     let mut lines=Vec::new();

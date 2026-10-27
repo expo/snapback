@@ -2,6 +2,9 @@
 // @ref LLP 3000.036.004.000#5-derived-campaigns-and-production-deployment — inferred candidates require ordinary replay, never a proof claim.
 use super::*;
 mod workflow;
+mod approval_questions;
+pub use approval_questions::questions as approval_questions;
+pub(crate) use approval_questions::judge as approval_question_judgment;
 mod labels;
 mod conservation;
 pub(crate) use conservation::Conservation;

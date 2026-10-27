@@ -278,6 +278,7 @@ pub fn add_source_notes(report:&mut Report,sources:&[(String,String)],bound:&Bou
     report.notes.extend(creation_advice::notes(sources,bound));
     report.notes.extend(result_advice::notes(bound));
     report.notes.extend(derived::notes(sources,bound));
+    report.notes.extend(derived::approval_questions(sources,bound).into_iter().map(|(note,_)|note));
     let mut sites=BTreeMap::new();
     for (file,source) in sources{let (doc,_)=crate::parse_document(file,source);for t in doc.tables{
         sites.insert(t.name.clone(),t.site.clone());for c in t.columns{sites.insert(format!("{}.{}",t.name,c.name),c.site);}

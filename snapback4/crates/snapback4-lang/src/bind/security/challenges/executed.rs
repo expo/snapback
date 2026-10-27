@@ -136,6 +136,11 @@ pub(super) fn trace(bound:&Bound,p:&Program,entry:&Engine)->Trace {
                     let old=old?;let row=if let Some(next)=next&&references.iter().any(|reference|next.field(reference).ok().is_some_and(|id|*id!=Value::Null&&old.field(reference).ok()!=Some(id))){next}else{old};
                     super::super::concrete::evaluate(&predicate,row,rows,&schema,viewer,&table,now)
                 })))
+            }else if inv.site.file.contains("/sec11-approval-latest/")||inv.site.file.contains("/sec11-approval-path/"){
+                let inv=inv.clone();let schema=bound.schema.clone();
+                Some(snapback4_core::engine::fixture_trace::BoundaryPredicate(std::sync::Arc::new(move |rows,old,next,viewer,now,args,site|{
+                    super::super::derived::approval_question_judgment(&inv,old,next?,rows,&schema,args,viewer,now,site)
+                })))
             }else{None});
             let mut concrete=if boundary.is_none()&&inv.policy.is_none(){inv.syntax.clone().map(|syntax|{
                 let bound=bound.clone();let inv=inv.clone();let insert=word=="insert";
