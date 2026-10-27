@@ -20,6 +20,9 @@ use std::{
     },
 };
 
+#[path = "inspect_merged.rs"]
+mod merged;
+
 pub struct Inspection {
     conn: Connection,
     denied: Arc<AtomicU8>,

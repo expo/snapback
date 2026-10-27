@@ -860,6 +860,7 @@ pub fn run(options: &Options) -> i32 {
     }
 }
 
+mod data_all;
 pub fn data(options: &Options) -> i32 {
     let Some(table) = options.positionals.first() else {
         eprintln!("usage: {}", crate::cli_flags::synopsis("data"));
@@ -867,6 +868,10 @@ pub fn data(options: &Options) -> i32 {
     };
     let path = options.flags.get("release").map(|dir| Path::new(dir).join("store.sqlite"))
         .unwrap_or_else(|| project_or_exit().store_path());
+    if options.flags.contains_key("all") {
+        if options.flags.contains_key("limit") { eprintln!("data: choose --all or --limit N"); return 2; }
+        return data_all::run(&path, table, options);
+    }
     // @ref LLP 3000.019#3.4 — inspection must not acquire a writer through store initialization.
     let mut store = match snapback4_core::store_port::AnyStore::open_read_only(&path) {
         Ok(store) => store,
