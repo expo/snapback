@@ -50,14 +50,20 @@ pub(super) fn files(dir: &Path, sources: &[(String, String)]) -> io::Result<Vec<
         let (saved,text)=&files[index];
         let source=dir.join(saved.strip_prefix("v1/").unwrap());
         let imports=if source.extension().and_then(|e|e.to_str()).is_some_and(|e|matches!(e,"mjs"|"cjs"|"js"|"ts"|"mts"|"cts"|"tsx"|"jsx")) {
-            crate::worker_graph::imports(text,&source).map_err(std::io::Error::other)?.into_iter().map(|(path,_)|path).collect()
+            crate::worker_graph::imports(text,&source).map_err(std::io::Error::other)?
         } else {Vec::new()};
-        for import in imports {
-            if !import.starts_with("./") && !import.starts_with("../") {continue;}
-            let path=source.parent().unwrap().join(import);
-            if !path.exists() {continue;}
-            let canonical=path.canonicalize()?;
-            let relative=canonical.strip_prefix(&canonical_root).map_err(|_|io::Error::other("frozen relative import escapes the app; keep client modules inside the project"))?;
+        // Node owns import/require resolution, including CJS package main/index
+        // and package scope metadata. Resolution reads files; it executes no imports.
+        let output=std::process::Command::new(crate::project::node())
+            .args(["--experimental-import-meta-resolve","--input-type=module","-e",include_str!("../../worker_graph.mjs")])
+            .arg(&canonical_root).arg(source.canonicalize()?)
+            .args(imports.iter().map(|item|serde_json::to_string(item).unwrap()))
+            .env_remove("NODE_OPTIONS").env_remove("NODE_PATH").output()?;
+        if !output.status.success() {return Err(io::Error::other(format!("frozen client dependency resolution: {}",String::from_utf8_lossy(&output.stderr))));}
+        let graph:serde_json::Value=serde_json::from_slice(&output.stdout).map_err(io::Error::other)?;
+        for path in graph["files"].as_array().ok_or_else(||io::Error::other("frozen module resolver returned no files"))?.iter().filter_map(|p|p.as_str()) {
+            let path=Path::new(path);let canonical=path.canonicalize()?;
+            let relative=canonical.strip_prefix(&canonical_root).map_err(|_|io::Error::other("frozen relative import escapes the app"))?;
             let saved=format!("v1/{}",relative.display());
             if files.iter().any(|(name,_)|*name==saved) {continue;}
             if path.symlink_metadata()?.file_type().is_symlink() {return Err(io::Error::other("frozen module imports must not use symlinks"));}

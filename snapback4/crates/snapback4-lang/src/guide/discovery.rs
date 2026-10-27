@@ -8,7 +8,7 @@ pub fn listing() -> String {
 
 /// `guide aliases`: every alias, one per line, with the card (and section) it opens.
 pub fn aliases() -> String {
-    let mut out = format!("{} aliases; `snapback4 guide <alias>` prints what it names (`--full` prints the whole card):\n", ALIASES.len());
+    let mut out = format!("{} aliases; `snapback4 guide <alias>` prints what it names (`--full` lists bounded sections for large cards):\n", ALIASES.len());
     for (word, target) in ALIASES {
         match super::alias_section(word) {
             Some((_, heading)) => out.push_str(&format!("{word} -> {target} --section {heading:?}\n")),
@@ -249,7 +249,7 @@ pub fn sections(card: &str) -> Vec<(usize, String, usize, usize)> {
     found
 }
 
-// @ref LLP 3000.007#20.1 — a card longer than a tool window prints its opening and a numbered index; --full prints it whole.
+// @ref LLP 3000.007#20.1 — a card longer than a tool window prints its opening and a numbered index; --full lists bounded reading sections.
 /// Cards up to this many lines print whole. Above it, `guide <card>` prints
 /// the card's opening and a numbered section index: agents batch several
 /// cards per command and their tools truncate long output (the start card,
@@ -605,11 +605,11 @@ pub fn reading_blocks(text: &str) -> Vec<String> {
 
 /// Conservative byte-token ceiling: any UTF-8 byte needs at most one byte token.
 pub fn bounded_default(name: &str, text: &str) -> String {
-    if text.len() <= FULL_BYTES { return text.to_owned(); }
+    if text.len() < FULL_BYTES { return text.to_owned(); }
     let hint = format!("\nTruncated: default budget is {FULL_BYTES} bytes. New question: snapback4 guide {name} --section <words>; section list: --full.\n");
     let mut out = String::new();
     for block in reading_blocks(text) {
-        if out.len() + block.len() + hint.len() + 1 > FULL_BYTES { break; }
+        if out.len() + block.len() + hint.len() + 1 >= FULL_BYTES { break; }
         out.push_str(&block); out.push('\n');
     }
     out.push_str(&hint); out

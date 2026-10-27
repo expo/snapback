@@ -20,7 +20,7 @@ mutation provision(principal: principal, role: enum('member')):
 table rows:
   owner: principal
   title: text <=80
-  cap 1 per owner
+  cap 1 by owner
   read <- .owner = viewer
   insert <- .owner = viewer and exists roles[principal = viewer]
   online only
@@ -45,4 +45,15 @@ test('wave33 Muse production lookups: bounded digest has helpers and roster/acco
  const digest=readFileSync(join(root,'crates/snapback4-lang/src/guide/api_proof.md'),'utf8');
  for(const word of ['startServe','provisionAccounts','StagingAccount','freshUser','uniqueName','proof-accounts/default.json','roles'])assert.ok(digest.includes(word),word);
  assert.ok(Buffer.byteLength(digest)<=8000);
+});
+test('wave33 011 cap refusal keeps its code and gives rerun setup advice',async t=>{
+ const cwd=project(t,schema.replace('  unique principal','  unique principal\n  cap 1'));
+ await deploy('production','snapback',{cwd,env});const host=await startServe('production',{cwd,env});
+ try {
+  await freshUser(host,{role:'member',provision:{name:'provision'}});
+  await assert.rejects(freshUser(host,{role:'member',provision:{name:'provision'}}),error=>{
+   assert.match(error.message,/E_STAGING_PROVISION.*E_CONSTRAINT/);assert.match(error.message,/freshUser\(\).*uniqueName\(\)/);return true;
+  });
+ }finally{await host.stop();}
+ assert.equal((await snapshotAll('roles',{cwd,env,release:'production'})).length,1);
 });

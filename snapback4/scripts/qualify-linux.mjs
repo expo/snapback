@@ -12,6 +12,7 @@ import { proveStarters } from "./publication-starters.mjs";
 import { proveExpoUpgrades } from "./publication-regressions.mjs";
 import { proveDX7 } from "./publication-dx7.mjs";
 import { proveDX8 } from "./publication-dx8.mjs";
+import { proveDX16 } from "./publication-dx16.mjs";
 import { proveDay2 } from "./publication-day2.mjs";
 import { proveDay4 } from "./publication-day4.mjs";
 import { proveReleaseTransitions } from "./publication-release-transitions.mjs";
@@ -112,6 +113,7 @@ export async function qualify(args = process.argv.slice(2)) {
     // browser proof; both execute the same retained client/platform bytes.
     const day2Proof = await proveDay2(client, tarball, out);
     save(join(out, "day2-proof.json"), day2Proof);
+    save(join(out, "dx16-proof.json"), await proveDX16(day2Proof.directory));
     save(join(out, "dx4-proof.json"), await proveDX4(day2Proof.directory));
     save(join(out, "dx6-proof.json"), await proveDX6(day2Proof.directory));
     save(join(out, "dx7-proof.json"), await proveDX7(day2Proof.directory, client, tarball));

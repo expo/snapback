@@ -87,8 +87,9 @@ test('H9 additive preview-noise budget: unchanged guards stay quiet beside rollb
   assert.match(rollback,/old-client compatibility.*RESULT REVIEW/);
   assert.doesNotMatch(rollback,/\.require|roles changed|guards unproved/);
   const guide=run('guide','deploy','--full').stdout;
-  assert.ok(guide.indexOf('## Rollback after widening') < guide.indexOf('## Bridge a safety gate'));
-  assert.ok(guide.indexOf('## Bridge a safety gate') < guide.indexOf('## What the old release sees'));
+  const order=['Rollback after widening','Bridge a safety gate','What the old release sees'].map(heading=>guide.indexOf(heading));
+  assert.ok(order.every(index=>index>=0),guide);assert.ok(order[0]<order[1]&&order[1]<order[2],guide);
+  assert.ok(Buffer.byteLength(guide)<=8000,'--full lists bounded sections');
 });
 
 test('changed probe dependencies group guards once; unused probe columns and unrelated writes stay silent', t => {

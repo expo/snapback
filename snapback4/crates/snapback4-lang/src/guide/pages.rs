@@ -36,9 +36,14 @@ pub fn reader_card(name: &str, card: &str) -> String {
             continue;
         }
         let block = if block.len() > room && block.starts_with("```") {
-            // This exact executable reference is packed by pack-recipes.mjs.
-            assert!(name == "testing" && block.contains("day2-accounts"), "oversized guide fence needs its own packed reference: {name}");
-            format!("Complete runnable reference: node_modules/snapback4/dist/recipes/day2-accounts.mjs. Run it with Node; read it only when adapting that account-cycle example.\n")
+            // These complete sources are packed by pack-recipes.mjs.
+            let reference=match name {
+                "testing" if block.contains("day2-accounts")=>"day2-accounts.mjs",
+                "social" if block.contains("// src/Conversation.tsx")=>"social/Conversation.tsx",
+                "social" if block.contains("// src/useJumpToMessage.ts")=>"social/useJumpToMessage.ts",
+                _=>panic!("oversized guide fence needs its own packed reference: {name}"),
+            };
+            format!("Complete reference: node_modules/snapback4/dist/recipes/{reference}. Read only this file when adapting that example.\n")
         } else { block };
         // Dense prose can exceed a section; split only prose at word boundaries.
         let chunks = if block.len() > room {

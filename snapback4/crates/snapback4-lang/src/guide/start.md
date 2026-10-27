@@ -6,7 +6,7 @@ tasks, --sections, language, or declaration files. The schema and syntax below
 are sufficient for a first compiling workflow. Write it now; do not read language --full, security --full,
 dist/contract.d.ts or all the other cards first. Open at most the two or three
 sections named below when your feature needs them. `--repeat` shows a card again;
-`--full` explicitly requests its entire reference.
+`--full` lists sections in large references.
 
 ## Install and choose a frontend
 

@@ -157,7 +157,7 @@ fn main() -> ExitCode {
                                 else { Ok(card) };
                             match chosen {
                                 Ok(text) => println!("{}", guide::bounded_default(&name, &guide_seen::render(&name, &guide::bounded_default(&name, &text), options.flags.contains_key("repeat")))),
-                                Err(problem) => { eprintln!("{problem}"); return ExitCode::from(1); }
+                                Err(problem) => { eprintln!("{}", guide::bounded_default(&name, &problem)); return ExitCode::from(1); }
                             }
                         }
                         Err(problem) => { eprintln!("{problem}"); return ExitCode::from(1); }

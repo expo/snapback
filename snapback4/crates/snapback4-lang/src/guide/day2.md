@@ -7,16 +7,18 @@ npx snapback4 init --adapt --day2 --apply
 npx snapback4 deploy ./deploy --save-version versions/v1
 ```
 
-Adapt saves the current sources/fixtures in versions/v1 and versions/v2 if absent,
-and a frozen v1/ client with its own ESM package and generated API. Existing
-snapshots and application-owned proofs stay untouched. Run this before the v2
-edit; a snapshot taken afterwards is not historical evidence. If v1 is already
-saved/deployed, inspect `releases ./deploy --json`; reuse that saved source.
+Adapt saves absent versions/v1 and versions/v2 source/fixture snapshots plus a
+frozen v1/ ESM client and generated API. Existing snapshots and authored proofs
+stay untouched. Capture BEFORE the edit. If v1 is already deployed/saved, inspect
+`releases ./deploy --json` and reuse its saved source; never recapture it from v2.
 
 Read only this card, ONE change route below, and `guide api proof` when writing
 proofs. Do not read deploy/production/evolution --full next: those commands list
 reference sections. Do not read dist/proof.js or the full declarations. Use the
 signature digest and a specific section only when a refusal needs it.
+After the selected route, edit the schema (or write the discovery plan). Do not
+tour CLI help, guide --list, security, language or testing to pre-validate future
+steps. A concrete check/preview refusal is the reason for another lookup.
 
 ## Choose one change route
 
@@ -27,15 +29,43 @@ signature digest and a specific section only when a refusal needs it.
 | Add a required field computed from old values | `guide deploy --section 'Migrations and adoption'`; `guide deploy --section 'Which migration shape'` |
 | Change record kind, move media into children, split a list | `guide evolution --section 'Move media'`; `guide deploy --section 'Keep v1 clients working'` |
 
-For a spelling change use `renamed from`; retain old endpoint/argument aliases
-and result wrappers for v1 callers. Backfill computes historical values; it
-isn't maintenance on later edits. Guard every creating/updating path that can
-change a derived field. New required columns need a literal default or named
-backfill; `default now`/`viewer` cannot invent history. Media/reference moves
-need the supported extract shape, not a scalar transform. A loosened type does
-not authorize an absent value at every workflow transition: keep independent
-presence intent and current guards. Answer the actual check question; a
-presence tautology is no safety proof.
+For a rename use `renamed from`; keep old operation/argument aliases and result
+wrappers. For private added fields use `read (field) <- policy`, intersected with
+row access; whole rows omit hidden fields, scalar selections return null and
+SDK properties are optional. Keep the existing row audience. For example:
+
+```quarry
+use identity password
+table records:
+  owner: principal
+  consent: file <=10000000 ?
+  summary: enum('held', 'none') read <- .owner = viewer
+  read <- .owner = viewer
+  online only
+backfill records summary(consent: file <=10000000 ?):
+  {summary: 'held' if consent != null else 'none'}
+query item(id: records alias oldId):
+  return records[id]
+alias oldItem = item
+```
+
+Backfill computes historical values, not later maintenance: update the summary
+on EVERY consent-changing path. New required fields need a literal default or
+named backfill; contextual defaults cannot invent history. Media/reference moves
+use extract, not a scalar transform. Loosening a field still needs independent
+presence intent at the transitions that require it. Only an intentional policy
+choice can use a presence tautology; it does not prove workflow safety.
+Rename + stricter edits belongs in ONE release: `charge: TYPE renamed from price`;
+retain `charge: TYPE alias price` on the old create call. Preserve old result
+fields with an explicit projection such as `return row {id:.id, price:.charge}`.
+For an allowed creator but narrower editor, combine the existing update rule
+with `old.charge = next.charge or OWNER_POLICY` in `update (old, next) <- ...`.
+A column `write <- POLICY` also restricts non-default creation: use it only when
+that matches the requested creator too. A require never grants a denied write.
+Preserve existing guards. These forms are enough to plan the change;
+leave security/language/rule-recipes closed until check names a concrete refusal.
+Reuse the inherited client:calls as the frozen business probe; do not study the
+client implementation to rebuild it.
 
 ## Preview, deploy v2, rollback and forward
 
@@ -75,28 +105,23 @@ proof must also preserve data and stop every host it starts.
 BACKEND_URL=http://127.0.0.1:4400 CALLS_USERS='{"member":[{"email":"...","password":"..."}]}' npm --prefix v1 run client:calls
 ```
 
-The frozen runner accepts inline JSON or a JSON file path, normalizes inline
-users to a private temporary file for inherited clients, and removes it after
-exit. It keeps the frozen generated handles. Run it on v1, live v2, rollback
-and forward; use BACKEND_URL from your own bounded serve proof. Missing day-one
-client:calls is explicit: author that business client before claiming coverage.
-The frozen script may intentionally fail a newly forbidden call; record the
-code separately from transport failures. Do not replace its API with v2's.
+The frozen runner accepts inline JSON or a JSON file path. Inline users become
+a private temporary file, removed after exit. Keep its handles; run it on v1,
+v2, rollback and forward using your bounded host's BACKEND_URL. A missing
+day-one client:calls is a coverage gap: author a business client before claiming it.
+Record intended new guard denials separately from transport failures. Keep v1's API.
 
 ```js
 import { uniqueName, freshUser } from "snapback4/proof";
 const title = uniqueName("proof");
 const member = await freshUser(host, {role:"member", provision:api.provision});
-// member has email/password/principal/token; freshUser uses real signup and
-// the ordinary operator provision mutation. Customize args for your schema.
+// Real signup + ordinary operator provision; customize args for your schema.
 ```
 
-Use freshUser once per role per proof run and reuse its session across that
-run's release cycles. uniqueName supplies fresh row names/intent IDs; it cannot
-clear a per-owner cap. A cap refusal on a second run needs a fresh owner/group
-or deliberate authorized cleanup. Never raise caps or delete the shared
-production store just to get green. Capacity refusals remain failures with a
-setup hint, never silently retried writes.
+Use one freshUser per role per run; reuse sessions through release cycles.
+uniqueName changes names, not cap owners. A capacity refusal needs a fresh
+owner/group or authorized cleanup. Never raise caps/reset shared production
+or retry a refused write to make a proof green.
 
 ## Production roster and complete inspection
 
@@ -115,14 +140,13 @@ const users = host.sessions; // {member:[account,account], admin:[account,accoun
 // Stop host in finally, or use your existing serve-check bounded driver.
 ```
 
-Production provisioning reuses the named roster and logs in on rerun. Keep
-production/proof-accounts/default.json (0600) with its store; it holds credentials,
-stable provision IDs and partial completion. Use freshUser for isolated test
-batches, the persistent roster for production accounts. Neither bypasses rules.
+Production provisioning logs in to its persistent roster on rerun. Keep
+production/proof-accounts/default.json (0600) with its store: credentials,
+provision IDs and partial completion. Use freshUser for isolated proof batches.
+Neither helper bypasses rules.
 
 `data TABLE --release ./deploy --all --json` and
-`snapshotAll("TABLE", {release:"./deploy"})` include dormant cells and retained
-rows, merged once per ID. Active values win; deleted rows stay absent. This is
-administrative inspection, bypassing application read rules, not a client
-compatibility proof. Ephemeral rows exist only in serving memory. Inspect
-`releases ./deploy --json` separately for retained source history.
+`snapshotAll("TABLE", {release:"./deploy"})` merge active and retained rows/cells
+once per ID. Active values win; deleted rows stay absent. This bypasses app read
+rules: it is admin inspection, not frozen-client compatibility evidence.
+Ephemeral rows need a serving-memory read. `releases ./deploy --json` shows history.
