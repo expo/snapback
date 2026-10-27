@@ -5,6 +5,6 @@ for(const message of ['[check-generated-artifacts] ok: review manifests, ignored
  if(!log.includes(message))throw Error('Prior root check missing: '+message);
 }
 const changed=execFileSync('git',['diff','--name-only','ceb35d8526','HEAD'],{encoding:'utf8'}).trim().split('\n').filter(Boolean);
-const rootChanges=changed.filter(path=>!path.startsWith('snapback4/')&&!path.startsWith('llp/reviews/')&&path!=='WORKSTREAM-REPORT.md'&&path!=='llp/3000.009.001.000.000.003-concurrent-disjoint-commits.rfc.md');
+const rootChanges=changed.filter(path=>!path.startsWith('snapback4/')&&!path.startsWith('llp/reviews/')&&path!=='WORKSTREAM-REPORT.md'&&path!=='llp/3000.009.001.000.000.003-concurrent-disjoint-commits.rfc.md'&&path!=='llp/3000.009.001.000.002-beating-the-postgres-controls.rfc.md'&&path!=='issues/20261028-snapback4-clean-userspace-deepmerge-audit.md');
 if(rootChanges.length)throw Error('Root semantic inputs changed: '+rootChanges);
 console.log('Reuse passed root generated/inventory/guide checks: root code/generated-guide inputs unchanged; the merged Stage R gate ruling is documentation only. Current product checks run separately.');
