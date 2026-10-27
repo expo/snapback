@@ -140,7 +140,7 @@ pub(super) fn release_loop(project:&Project,bound:&Bound,sources:&[(String,Strin
             let worker=scope.spawn(||phase::measure("deploy.report",||report_with_reviewed(project,bound,sources,&preflight,&Default::default())));
             let pending=phase::measure("deploy.witnesses",||witnesses::collect_for_report(project,bound,sources,&predicted,options));
             let mut report=worker.join().expect("production campaign panicked");report.notes.extend(presence::notes(project,bound,prior,sources)?);
-            let evidence=pending.finish(&report).unwrap_or_else(||witnesses::collect_with_report(project,bound,sources,&report.notes,true,options,Some(&report)));
+            let evidence=pending.finish(&report).unwrap_or_else(||phase::measure("deploy.note_fallback",||witnesses::collect_with_report(project,bound,sources,&report.notes,true,options,Some(&report))));
             Ok::<_,String>((report,evidence))
         })?
     }else{
