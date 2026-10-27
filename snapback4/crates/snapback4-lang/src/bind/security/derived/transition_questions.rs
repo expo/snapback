@@ -50,7 +50,11 @@ fn steps(sources:&[(String,String)],bound:&Bound)->Vec<Step>{
         for(write,context)in &writes{let Expr::Write{op:WriteOp::Update,table,keys,fields,site,condition:None,if_absent:false,..}=write else{continue;};
             let Some(at)=direct(p,site)else{continue;};let Some(arg)=workflow::target_arg(p,write,table)else{continue;};
             let mapping=BTreeMap::from([(arg.name.clone(),workflow::member(workflow::focal(),"id"))]);
-            let anchor=p.args.len()==1&&p.body[..at].iter().all(|s|match s{Stmt::Require{condition,..}=>plain_guard(condition),Stmt::Bind{value,..}=>super::plain_row(value)&&super::same_resource(value,table,keys,p),_=>false})&&p.body[at+1..].iter().all(|s|matches!(s,Stmt::Return{value:Expr::Literal{value:ast::Literal::Null,..},..}))&&fields.iter().all(|f|f.value.as_ref().is_some_and(|v|matches!(v,Expr::Literal{..})||matches!(v,Expr::Name{name,..}if name=="now"||name=="viewer")));
+            // Eligibility inspects authored fields before returned()/helper
+            // reduction can erase an asserted-read prerequisite.
+            let raw_fields=match &p.body[at]{Stmt::Expr{value:Expr::Write{fields,..},..}|Stmt::Return{value:Expr::Write{fields,..},..}=>fields,_=>unreachable!()};
+            let authored_fields_simple=raw_fields.iter().all(|f|!f.spread&&f.value.as_ref().is_some_and(|v|matches!(v,Expr::Literal{..})||matches!(v,Expr::Name{name,..}if name=="now"||name=="viewer")));
+            let anchor=authored_fields_simple&&p.args.len()==1&&p.body[..at].iter().all(|s|match s{Stmt::Require{condition,..}=>plain_guard(condition),Stmt::Bind{value,..}=>super::plain_row(value)&&super::same_resource(value,table,keys,p),_=>false})&&p.body[at+1..].iter().all(|s|matches!(s,Stmt::Return{value:Expr::Literal{value:ast::Literal::Null,..},..}))&&fields.iter().all(|f|f.value.as_ref().is_some_and(|v|matches!(v,Expr::Literal{..})||matches!(v,Expr::Name{name,..}if name=="now"||name=="viewer")));
             let mut guards=Vec::new();let mut complete=true;
             for s in &context.body{if let Stmt::Require{condition,..}=s{if let Some(value)=workflow::normalize(condition,&bound.schema,table,&mapping){conjuncts(&value,&mut guards);}else{complete=false;}}}
             if fields.iter().any(|f|f.spread){continue;}
@@ -164,6 +168,11 @@ pub(crate) fn judge(inv:&Invariant,old:Option<&Value>,row:&Value,rows:&BTreeMap<
 
  #[test]fn valid_object_spreads_are_uncovered_without_panics_or_partial_hypotheses(){
   for write in ["update docs[doc] { ...{}, phase: 'c' }","update docs[doc] { phase: 'c', ...{ phase: 'a' } }"]{let source=SMALL.replace("update docs[doc] {phase:'c'}",write);let(_,q)=compile(&source);assert!(q.is_empty(),"unreduced spread cannot supply a partial typed effect");}
+ }
+
+ #[test]fn helper_reduction_cannot_erase_an_anchor_field_prerequisite(){
+  let source=format!("table reviewWindows:\n  open: bool\n  unique open\n  read <- allow\n  insert <- allow\n  online only\nfn stamp():\n  w = reviewWindows[open = true] ! else CLOSED\n  return 0\n{}",STUDY.replace("table studies:\n","table studies:\n  reviewStamp: int default 0\n").replace("update studies[study] { status: 'reviewed' }","update studies[study] { status: 'reviewed', reviewStamp: stamp() }"));
+  assert!(compile(&source).1.is_empty());assert!(compile(&source.replace("open = true","open = false")).1.is_empty());
  }
 
 }
