@@ -1,7 +1,7 @@
 // Published old CLIs acquire a candidate alias; executable bytes stay unchanged.
 import assert from "node:assert/strict";
 import {createServer} from "node:http";
-import {mkdtempSync,mkdirSync,readFileSync,writeFileSync,rmSync} from "node:fs";
+import {mkdtempSync,mkdirSync,readFileSync,writeFileSync,rmSync,existsSync} from "node:fs";
 import {join,resolve} from "node:path";
 import {tmpdir} from "node:os";
 import {spawnSync} from "node:child_process";
@@ -60,8 +60,8 @@ export async function proveDX7Upgrades(client,platform){
    assert.equal(JSON.parse(readFileSync(join(cwd,"node_modules/snapback4/package.json"))).version,candidate);
    const transcript=r.stdout+r.stderr;assert.match(transcript,/pending security review gates: N_PRESENCE_LOOSENING/);assert.match(transcript,/invariant docs always \.photo = null or \.photo != null/);assert.match(transcript,/prose cannot close this gate/);assert.doesNotMatch(transcript,/new refusals: none/);
    r=await run(process.execPath,[cli,"check","--json"]);assert.equal(r.status,1);let facts=JSON.parse(r.stdout);const gates=facts.securityReviews.filter(d=>d.gated);assert.equal(gates.length,1);assert.equal(gates[0].code,"N_PRESENCE_LOOSENING");const id=gates[0].id;
-   r=await run(process.execPath,[cli,"check","--ack-security",id,"--reason","nullable photos are intentional under the revised presence contract"]);assert.equal(r.status,1,"prose cannot clear a gate without a live witness");
-   assert.match(r.stdout+r.stderr,/source intent|free text cannot close/);
+   r=await run(process.execPath,[cli,"check","--ack-security",id,"--reason","nullable photos are intentional under the revised presence contract"]);assert.equal(r.status,2,"invalid gate answer is E_SECURITY_NOTES, not an accepted decision");
+   assert.match(r.stdout+r.stderr,/E_SECURITY_NOTES/);assert.match(r.stdout+r.stderr,/source intent|free text cannot close/);assert.equal(existsSync(join(cwd,"snapback/security-reviews.json")),false,"a rejected answer publishes no decision");
    const intentional=schema+"\ninvariant docs always .photo = null or .photo != null\n";
    writeFileSync(join(cwd,"snapback/schema.q"),intentional);
    r=await run(process.execPath,[cli,"check","--review","--json"]);assert.equal(r.status,0,r.stderr);facts=JSON.parse(r.stdout);
