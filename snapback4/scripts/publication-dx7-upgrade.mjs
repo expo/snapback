@@ -12,7 +12,6 @@ const schema=`table docs:
   read <- allow
   insert <- deny
   online only
-invariant docs always .photo != null
 mutation add(photo: image <=10000 ?):
   return insert docs {photo}
 `;
@@ -47,13 +46,15 @@ export async function proveDX7Upgrades(client,platform){
    const run=async(cmd,args,extra={})=>{await runToolchainCommand(process.execPath,[recorder,cmd,...args],{cwd,env:{...env,...extra},timeout:270000});return JSON.parse(readFileSync(join(cwd,"result.json")));};
    let r=await run("npm",["install","--save-exact",`snapback4@${version}`],{npm_config_registry:"https://registry.npmjs.org"});assert.equal(r.status,0,"published old CLI install failed: "+(r.stderr.match(/npm (?:error|ERR!) code ([A-Z0-9_]+)/)?.[1]??"see private npm log"));
    const cli=join(cwd,"node_modules/snapback4/bin/snapback4.js"),oldWrapperSha256=createHash("sha256").update(readFileSync(cli)).digest("hex");
+   // Mirror dx7_gates.rs: declare a required presence contract before loosening it.
+   writeFileSync(join(cwd,"snapback/schema.q"),schema.replaceAll("image <=10000 ?","image <=10000"));
+   r=await run(process.execPath,[cli,"check","--json"]);assert.equal(r.status,0,`old ${version} accepts the prior presence contract`);
    writeFileSync(join(cwd,"snapback/schema.q"),schema);
-   r=await run(process.execPath,[cli,"check","--json"]);assert.equal(r.status,0,`old ${version} accepts the gate fixture`);
    r=await run(process.execPath,[cli,"upgrade",candidate]);assert.equal(r.status,1,"new check must refuse the security gate during old-CLI upgrade");
    assert.equal(JSON.parse(readFileSync(join(cwd,"node_modules/snapback4/package.json"))).version,candidate);
-   const transcript=r.stdout+r.stderr;assert.match(transcript,/pending security review gates: N_OPTIONAL_UPLOAD_CREATE/);assert.match(transcript,/check --ack-security [a-f0-9]{64} --reason/);assert.doesNotMatch(transcript,/new refusals: none/);
-   r=await run(process.execPath,[cli,"check","--json"]);assert.equal(r.status,1);let facts=JSON.parse(r.stdout);const id=facts.securityReviews.find(d=>d.gated).id;
-   r=await run(process.execPath,[cli,"check","--ack-security",id,"--reason","draft creator is unreachable under deny insert"]);assert.equal(r.status,0,r.stderr);
+   const transcript=r.stdout+r.stderr;assert.match(transcript,/pending security review gates: N_PRESENCE_LOOSENING/);assert.match(transcript,/check --ack-security [a-f0-9]{64} --reason/);assert.doesNotMatch(transcript,/new refusals: none/);
+   r=await run(process.execPath,[cli,"check","--json"]);assert.equal(r.status,1);let facts=JSON.parse(r.stdout);const gates=facts.securityReviews.filter(d=>d.gated);assert.equal(gates.length,1);assert.equal(gates[0].code,"N_PRESENCE_LOOSENING");const id=gates[0].id;
+   r=await run(process.execPath,[cli,"check","--ack-security",id,"--reason","nullable photos are intentional under the revised presence contract"]);assert.equal(r.status,0,r.stderr);
    const review=readFileSync(join(cwd,"snapback/security-reviews.json"));
    writeFileSync(join(cwd,"snapback/schema.q"),schema+"table exposed:\n  owner: principal\n  read <- allow\n  online only\ninvariant exposed.read only .owner = viewer\n");
    mkdirSync(join(cwd,"fixtures"));writeFileSync(join(cwd,"fixtures/exposed.jsonl"),JSON.stringify({id:"one",owner:"dev:other"})+"\n");
