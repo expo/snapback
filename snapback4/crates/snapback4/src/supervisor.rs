@@ -136,7 +136,9 @@ fn npm_arguments(bytes: &[u8]) -> bool {
     for _ in 0..argc {
         let Some(end) = rest.iter().position(|byte| *byte == 0) else { return false; };
         let arg = &rest[..end];
-        if !arg.contains(&b'=') {
+        let assignment = arg.iter().position(|byte| *byte == b'=').is_some_and(|at|
+            at > 0 && arg[..at].iter().enumerate().all(|(i, byte)| byte.is_ascii_alphabetic() || *byte == b'_' || (i > 0 && byte.is_ascii_digit())));
+        if !assignment {
             found |= arg.starts_with(b"npm ") || arg == b"npm" || arg.ends_with(b"/npm-cli.js") || arg.windows(12).any(|part| part == b"/npm-cli.js ");
         }
         rest = &rest[end + 1..];
@@ -160,6 +162,9 @@ mod tests {
         assert!(!npm_arguments(&arguments(&["sh", "-c", "node scripts/prod-serve.mjs"], &env)));
         assert!(npm_arguments(&arguments(&["node", "/usr/local/lib/npm/bin/npm-cli.js", "run", "prod:serve"], &env)));
         assert!(npm_arguments(&arguments(&["npm run prod:serve"], &env)));
+        assert!(npm_arguments(&arguments(&["npm run prod:serve -- --port=3000"], &env)));
+        assert!(npm_arguments(&arguments(&["node", "/prefix=a/npm-cli.js"], &env)));
+        assert!(!npm_arguments(&arguments(&["node", "driver.mjs"], &["/prefix/npm-cli.js"])));
         assert!(!npm_arguments(&[1, 2, 3]));
         let mut truncated = arguments(&["node"], &[]); truncated.pop();
         assert!(!npm_arguments(&truncated));
