@@ -1,0 +1,22 @@
+{
+  "supervisor_pid": 1465676,
+  "supervisor_start_ticks": 1567605720,
+  "start": 1793117174.705031,
+  "measurement_finished": "047-writes-r0-W4-B-2690-rep4",
+  "compression_start": 1793117210.2370427,
+  "before_free_bytes": 28944625664,
+  "outputs": [
+    {
+      "segment": "r0",
+      "summary": "/home/ccheever/sb4scale/s1-r0-authoritative-20261027/r0 194 records losslessly compressed"
+    },
+    {
+      "segment": "supabase",
+      "summary": "/home/ccheever/sb4scale/s1-r0-authoritative-20261027/supabase 203 records losslessly compressed"
+    }
+  ],
+  "end": 1793117220.7165022,
+  "after_free_bytes": 29666054144,
+  "lossless_assertions_passed": true,
+  "no_app_or_generator_pause": true
+}

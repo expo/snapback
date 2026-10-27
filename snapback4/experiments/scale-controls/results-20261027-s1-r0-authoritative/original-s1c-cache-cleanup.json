@@ -1,0 +1,32 @@
+{
+  "time": 1793117456.344383,
+  "ownership": "original S1-C brief explicitly assigns CARGO_TARGET_DIR=/home/ccheever/projects/sb4-s1sk/snapback4/target; only inactive regenerable Cargo intermediates removed",
+  "target": "/home/ccheever/projects/sb4-s1sk/snapback4/target",
+  "paths_removed": [
+    "/home/ccheever/projects/sb4-s1sk/snapback4/target/release/deps",
+    "/home/ccheever/projects/sb4-s1sk/snapback4/target/release/build",
+    "/home/ccheever/projects/sb4-s1sk/snapback4/target/release/.fingerprint",
+    "/home/ccheever/projects/sb4-s1sk/snapback4/target/release/incremental",
+    "/home/ccheever/projects/sb4-s1sk/snapback4/target/release/examples",
+    "/home/ccheever/projects/sb4-s1sk/snapback4/target/debug/deps",
+    "/home/ccheever/projects/sb4-s1sk/snapback4/target/debug/build",
+    "/home/ccheever/projects/sb4-s1sk/snapback4/target/debug/.fingerprint",
+    "/home/ccheever/projects/sb4-s1sk/snapback4/target/debug/incremental",
+    "/home/ccheever/projects/sb4-s1sk/snapback4/target/debug/examples"
+  ],
+  "retained_top_level_artifact_sha256": {
+    "/home/ccheever/projects/sb4-s1sk/snapback4/target/release/snapback4": "b649d4c6dcb846a19f5e9236d3cb6aed07d90593a143451dc4b9fe7f32747405",
+    "/home/ccheever/projects/sb4-s1sk/snapback4/target/release/.cargo-artifact-lock": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "/home/ccheever/projects/sb4-s1sk/snapback4/target/release/snapback4.d": "fe213c9f7b9ec651508dcfc0f8e2f1cf9c066cf6130b8801ce0122df8187e4c2",
+    "/home/ccheever/projects/sb4-s1sk/snapback4/target/release/.cargo-build-lock": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "/home/ccheever/projects/sb4-s1sk/snapback4/target/debug/.cargo-artifact-lock": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "/home/ccheever/projects/sb4-s1sk/snapback4/target/debug/.cargo-build-lock": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "live_cache_references": [],
+  "live_compilers": [],
+  "cargo_profile_locks_held": true,
+  "last_completed_measurement": "049-writes-r0-W4-B-2690-rep5",
+  "no_app_or_generator_paused": true,
+  "before_free_bytes": 29591318528,
+  "after_free_bytes": 33145155584
+}

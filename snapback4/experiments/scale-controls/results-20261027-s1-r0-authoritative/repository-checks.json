@@ -1,0 +1,20 @@
+{
+  "ref_check": {
+    "passed": true,
+    "summary": "ref-check: ok \u2014 571 LLP docs, 12116 refs in 45738 files, 0 errors, 0 unchecked"
+  },
+  "packaged_docs": {
+    "passed": true,
+    "command": "lintPackagedDocs"
+  },
+  "affected_selector": {
+    "passed": true,
+    "plan_only": true,
+    "broad": true,
+    "steps": 31,
+    "base": "0a8426de94",
+    "reason": "unknown experimental result paths conservatively select broad product suite; product/runner/fixture diff is empty and exact binary hashes verified; same report-only scope and disposition as WC; no fetch of the stale origin reference"
+  },
+  "complete_product_battery_executed": false,
+  "report_audit_passed": true
+}
