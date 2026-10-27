@@ -84,6 +84,27 @@ impl Binder<'_> {
         }
     }
 
+    // Advice has a separate namespace: these facts can never supply runtime,
+    // maintained-result, presence or gate authority.
+    pub(super) fn record_advice_authorization(&mut self, condition:&A, truth:bool){
+        let Some((mut key,roots))=self.authorization_key(condition,truth,AuthorizationDomain::Program)else{return;};
+        key[0]="$advisoryRead".into();
+        let identity=format!("{truth}:{}",crate::print::expression(condition));
+        self.advisory_predicates.insert(identity.clone(),(condition.clone(),truth));
+        key.push(identity);
+        for root in roots{if let Some(mut binding)=self.binding(&root).cloned(){binding.fields.insert(key.clone(),Ty::Bool);self.scopes.last_mut().unwrap().insert(root,binding);}}
+    }
+    pub(super) fn advice_authorizations(&self)->Vec<(A,bool)>{
+        let mut out=Vec::new();
+        for binding in self.scopes.iter().flat_map(|scope|scope.values()){
+            for key in binding.fields.keys().filter(|key|key.first().is_some_and(|s|s=="$advisoryRead")){
+                let Some((condition,truth))=key.last().and_then(|s|self.advisory_predicates.get(s)).cloned()else{continue;};
+                let Some((mut expected,roots))=self.authorization_key(&condition,truth,AuthorizationDomain::Program)else{continue;};
+                expected[0]="$advisoryRead".into();expected.push(key.last().unwrap().clone());
+                if &expected==key&&roots.iter().all(|root|self.binding(root).is_some_and(|binding|binding.fields.contains_key(key))){out.push((condition,truth));}
+            }
+        }out
+    }
     fn authorization_holds(&self, condition: &A, truth: bool) -> bool {
         self.authorization_key(condition, truth, AuthorizationDomain::Rule)
             .is_some_and(|(key, roots)| {

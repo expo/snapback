@@ -268,3 +268,9 @@ from an `effect` keyed by the invoice id, the provider's idempotency key;
 the unique invoice stops duplicate rows, not duplicate charges. Test with
 `snapback4 clock advance 62d` on a running `dev`. Months here are UTC; a
 local-time month needs a time zone, which Quarry does not have.
+
+Sweep advice transposes reversed operands and matches exact constant-duration
+shifts while retaining strict/equal boundaries. Unknown offsets and negated
+conditions with unknown terms stay conservative. A deadline on another row
+cannot answer this row's question. Dependent-window advice follows the actual
+reference and written caller Time; timestamp presence alone is not a bound.

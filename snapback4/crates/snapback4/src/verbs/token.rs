@@ -102,7 +102,10 @@ pub fn token(options: &Options) -> i32 {
                 }
             }
             let principal = format!("service:{name}");
+            // The engine grants this reserved seat the development clock door.
+            // It needs no application-rule mention (wave-30 lane 026E).
             match &seat_facts {
+                _ if name == "clock" => {},
                 Ok(seats) if !seats.contains(&principal) => {
                     let known = if seats.is_empty() { "none".into() } else { seats.iter().cloned().collect::<Vec<_>>().join(", ") };
                     eprintln!("token: WARNING minted {principal}, but the compiled schema reports no explicit positive authorization mention for that service identity; rules still decide every operation (explicit service identities: {known})");

@@ -109624,3 +109624,16 @@ consumer/test evidence are retained in reports/sec12/ and WORKSTREAM-REPORT.md.
 The report identifies qualification composition, inherited differential failures,
 HTTP watchdog retries and finite unsupported fragments. Version remains 0.4.43;
 changes are described under the 0.4.44 guide entry. No publication or push.
+
+## 2026-10-27 — SECP wave-30 advisory precision
+
+LLP 3000.036.004.001 records the advisory-only guard recognizers, separate
+lexical facts, bounded pure helper substitution and exact reference/time
+relationships. Regression fixtures copy the actual wave-30 lanes, including
+require-only role helpers, immutable parent/child copies, conditional standing
+windows and atomic amendment approval. Negative controls retain questions for
+stale or aliased state, caller OR bypasses, wrong resource/secondary keys,
+mutable constructor links and skipped consumption. Runtime, gates and witness
+acknowledgment semantics are unchanged. The 0.4.44 Guide changes entry describes
+the surface; package versions stay 0.4.43. Measurements and review provenance
+are in reports/secp; Mac qualification is skipped for this lane.

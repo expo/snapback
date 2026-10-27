@@ -5,7 +5,7 @@ use crate::{ast::*, Diagnostic};
 use snapback4_core::schema::{RuleExpr, RuleTerm, Schema};
 use std::collections::BTreeMap;
 
-fn implies(have: &RuleExpr, need: &RuleExpr) -> bool {
+pub(super) fn implies(have: &RuleExpr, need: &RuleExpr) -> bool {
     if matches!(need, RuleExpr::Eq(a,b) if a == b && matches!(a, RuleTerm::Field(_) | RuleTerm::Viewer | RuleTerm::Literal(_))) || have == need || need.is_uniformly_readable() || matches!(have, RuleExpr::Deny) { return true; }
     match (have, need) {
         (_, RuleExpr::And(items)) => items.iter().all(|n| implies(have, n)),
@@ -17,6 +17,35 @@ fn implies(have: &RuleExpr, need: &RuleExpr) -> bool {
             a == b && ai == bi && ak == bk && be.iter().all(|pair| ae.contains(pair)),
         _ => false,
     }
+}
+// A live row selected by a total unique key has exactly one value of each
+// required finite enum. Only raw-safe negative witnesses exclude alternatives.
+pub(super) fn finite_rosters(schema:&Schema,conditions:&[RuleExpr])->Vec<RuleExpr>{
+    fn leaves<'a>(rule:&'a RuleExpr,positive:bool,out:&mut Vec<(&'a RuleExpr,bool)>){match rule{
+        RuleExpr::And(parts) if positive=>for part in parts{leaves(part,true,out)},
+        RuleExpr::Or(parts) if !positive=>for part in parts{leaves(part,false,out)},
+        RuleExpr::Not(value)=>leaves(value,!positive,out),_=>out.push((rule,positive)),
+    }}
+    let mut facts=Vec::new();for rule in conditions{leaves(rule,true,&mut facts);}
+    let mut derived=Vec::new();
+    for (fact,true_) in &facts{
+        if !true_{continue;}
+        let RuleExpr::Exists{table,index,key,equalities,..}=fact else{continue;};
+        if !equalities.is_empty(){continue;}
+        let Some(t)=schema.table(table)else{continue;};let Some(idx)=t.index(index)else{continue;};
+        if !idx.unique||key.len()!=idx.components.len()||idx.components.iter().any(|part|part.column().is_none_or(|c|c!="id"&&t.columns.get(c).is_none_or(|kind|kind.is_optional()))){continue;}
+        for (column,kind) in &t.columns{
+            let snapback4_core::schema::ColumnType::Enum{variants}=kind else{continue;};
+            if variants.len()>32{continue;}
+            let mut alternatives=Vec::new();
+            for variant in variants{
+                let term=RuleTerm::Literal(snapback4_core::Value::String(variant.clone()));
+                let excluded=facts.iter().any(|(other,positive)|!*positive&&matches!(other,RuleExpr::Exists{table:t,index:i,key:k,equalities:e,..} if t==table&&i==index&&k==key&&e.as_slice()==[(column.clone(),term.clone())]));
+                if !excluded{let mut probe=(*fact).clone();if let RuleExpr::Exists{equalities,..}=&mut probe{equalities.push((column.clone(),term));}alternatives.push(probe);}
+            }
+            derived.push(RuleExpr::Or(alternatives));
+        }
+    }derived
 }
 fn positive_probe(rule: &RuleExpr) -> bool {
     match rule {
@@ -84,6 +113,18 @@ fn mentions(value: &Expr, name: &str) -> bool {
     super::intent_walk::expression(&mut value, &mut |e| { if matches!(e, Expr::Name { name: n, .. } if n == name) { found = true; } });
     found
 }
+fn captured_condition(value:&Expr,locals:&Locals,args:&[ArgDecl])->Expr{
+    match value{
+        Expr::Binary{op,left,right,site} if op=="and"||op=="or"=>Expr::Binary{op:op.clone(),left:Box::new(captured_condition(left,locals,args)),right:Box::new(captured_condition(right,locals,args)),site:site.clone()},
+        Expr::Binary{op,left,right,site} if op=="="=>{
+            for (field,chosen) in [(left.as_ref(),right.as_ref()),(right.as_ref(),left.as_ref())]{
+                if let Expr::Member{base,name,..}=field&&let Expr::Name{name:alias,..}=base.as_ref()&&let Some(origins)=locals.get(alias)&&origins.len()==1&&matches!(chosen,Expr::Name{name,..} if name=="viewer"){
+                    let mut read=origins[0].read.clone();super::advisory_model::normalize_point(&mut read,args);read.keys.push(KeyPart{column:Some(name.clone()),value:chosen.clone(),site:site.clone()});return Expr::Exists{read,site:site.clone()};
+                }
+            }value.clone()
+        },_=>value.clone(),
+    }
+}
 pub(super) fn notes(catalog: &Catalog, schema: &Schema) -> Vec<Diagnostic> {
     let mut notes = Vec::new();
     for program in catalog.documents.iter().flat_map(|d| &d.programs).filter(|p| p.kind == ProgramKind::Query && !p.native) {
@@ -99,7 +140,7 @@ pub(super) fn notes(catalog: &Catalog, schema: &Schema) -> Vec<Diagnostic> {
                 }
             });
             if !restricted.is_empty() {
-                notes.push(Diagnostic::new(&program.site, "N_QUERY_FILTERED", format!("query {}: caller-branch analysis reached its source-analysis limit; read authority remains unproved for {}", program.name, restricted.iter().map(|(t,r)| format!("{t} (`read <- {r}`)")).collect::<Vec<_>>().join(", ")), "review caller filtering against the named table read rules; this is an advisory analysis limit, not a runtime limit or an authority grant").guide("rules"));
+                notes.push(Diagnostic::new(&program.site, "N_QUERY_FILTERED", format!("query {}: saw caller branches at {}; not proved: source-analysis limit while establishing read authority for {}", program.name, program.site, restricted.iter().map(|(t,r)| format!("{t} (`read <- {r}`)")).collect::<Vec<_>>().join(", ")), "review caller filtering against the named table read rules; this is an advisory analysis limit, not a runtime limit or an authority grant").guide("rules"));
             }
         }
     }
@@ -115,7 +156,7 @@ fn inspect(catalog: &Catalog, schema: &Schema, program: &ProgramDecl, body: &[St
             match statement {
                 Stmt::Return { value, .. } => inspect_result(catalog, schema, program, value, &state, notes),
                 Stmt::Expr { value, .. } if completes => inspect_result(catalog, schema, program, value, &state, notes),
-                Stmt::Require { condition, .. } => { state.gates.push(condition.clone()); flow.normal.push(state); }
+                Stmt::Require { condition, .. } => { state.gates.push(captured_condition(condition,&state.locals,&program.args)); flow.normal.push(state); }
                 Stmt::If { condition, then_body, else_body, .. } => {
                     let mut no = state.clone();
                     state.gates.push(condition.clone());
@@ -158,7 +199,8 @@ fn inspect(catalog: &Catalog, schema: &Schema, program: &ProgramDecl, body: &[St
                 }
                 Stmt::Break { .. } => flow.broken.push(state),
                 Stmt::Continue { .. } => flow.continued.push(state),
-                Stmt::Expr { .. } | Stmt::Emit { .. } => flow.normal.push(state),
+                Stmt::Expr { value,.. } => {state.gates.extend(super::advisory_guards::requirements(catalog,value));flow.normal.push(state);}
+                Stmt::Emit { .. } => flow.normal.push(state),
                 Stmt::As { .. } => { state.gates.clear(); flow.normal.push(state); }
             }
         }
@@ -176,12 +218,12 @@ fn inspect_result(catalog: &Catalog, schema: &Schema, program: &ProgramDecl, val
 
 // A positive caller witness implies physical existence. Caller absence does
 // not imply raw absence unless the existing visibility proof establishes it.
-fn caller_facts(schema: &Schema, value: &Expr, bind: &impl Fn(&Expr) -> Option<RuleExpr>) -> RuleExpr {
-    if super::maintain_authorization::raw_witness_monotone(schema, value, true)
+fn caller_facts(catalog:&Catalog, schema: &Schema, value: &Expr, bind: &impl Fn(&Expr) -> Option<RuleExpr>) -> RuleExpr {
+    if super::advisory_guards::raw_monotone(catalog,schema,value,true)
         && let Some(rule) = bind(value) { return rule; }
     match value {
-        Expr::Binary { op, left, right, .. } if op == "and" => RuleExpr::And(vec![caller_facts(schema, left, bind), caller_facts(schema, right, bind)]),
-        Expr::Binary { op, left, right, .. } if op == "or" => RuleExpr::Or(vec![caller_facts(schema, left, bind), caller_facts(schema, right, bind)]),
+        Expr::Binary { op, left, right, .. } if op == "and" => RuleExpr::And(vec![caller_facts(catalog,schema, left, bind), caller_facts(catalog,schema, right, bind)]),
+        Expr::Binary { op, left, right, .. } if op == "or" => RuleExpr::Or(vec![caller_facts(catalog,schema, left, bind), caller_facts(catalog,schema, right, bind)]),
         _ => RuleExpr::Allow,
     }
 }
@@ -208,9 +250,11 @@ fn inspect_read(catalog: &Catalog, schema: &Schema, program: &ProgramDecl, read:
     super::intent_walk::expression(&mut expected, &mut |expr| {
         if let Expr::Member { base, name, .. } = expr && matches!(base.as_ref(), Expr::Focal { .. }) && let Some(value) = pins.get(name) { *expr = value.clone(); }
     });
+    let expected=super::advisory_model::child_policy(catalog,&read.table,&expected,&pins);
     let Some(expected) = bind(&expected) else { return };
-    let mut conditions: Vec<_> = gates.iter().map(|g| caller_facts(schema, g, &bind)).collect();
-    if let Some(filter) = &read.filter { conditions.push(caller_facts(schema, filter, &bind)); }
+    let expand = |value: &Expr| super::advisory_model::visible_guard(catalog,&super::advisory_guards::expand(catalog,value).unwrap_or_else(||value.clone()),&program.args,true);
+    let mut conditions: Vec<_> = gates.iter().map(|g| caller_facts(catalog,schema, &expand(g), &bind)).collect();
+    if let Some(filter) = &read.filter { conditions.push(caller_facts(catalog,schema, &expand(filter), &bind)); }
     if !conditions.iter().any(positive_probe) { return; }
     for key in &read.keys {
         if let Some(column) = &key.column {
@@ -218,8 +262,10 @@ fn inspect_read(catalog: &Catalog, schema: &Schema, program: &ProgramDecl, read:
             if let Some(rule) = bind(&equality) { conditions.push(rule); }
         }
     }
+    conditions.extend(finite_rosters(schema,&conditions));
     if implies(&RuleExpr::And(conditions), &expected) { return; }
     if notes.iter().any(|n| n.code == "N_QUERY_FILTERED" && n.site == read.site) { return; }
     let site = info.decl.rules.iter().find(|r| r.effect == Effect::Read).map(|r| r.site.to_string()).unwrap_or_default();
-    notes.push(Diagnostic::new(&read.site, "N_QUERY_FILTERED", format!("query {}: an explicit caller branch does not establish {}'s read rule `{}` at {site}; that branch may return fewer rows or an empty page after table authorization. Roles may overlap; this is a missing read-authority proof", program.name, read.table, table.rules.read.quarry()), "require or filter by the matching table read condition in each branch, or deliberately handle caller-filtered rows; the query never widens table authority. Authorization recipes: guide rule-recipes").guide("rules"));
+    let saw = gates.iter().map(crate::print::expression).collect::<Vec<_>>().join("; ");
+    notes.push(Diagnostic::new(&read.site, "N_QUERY_FILTERED", format!("query {}: saw `{saw}`; not proved: branch at {} establishes {} read rule `{}` ({site}); rows may be filtered", program.name, read.site, read.table, table.rules.read.quarry()), "require or filter by the matching table read condition in each branch, or deliberately handle caller-filtered rows; the query never widens table authority. Authorization recipes: guide rule-recipes").guide("rules"));
 }

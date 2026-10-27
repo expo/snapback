@@ -99,7 +99,7 @@ fn conditional(guards:Vec<Stmt>,premise:Expr,site:&Site)->Vec<Stmt>{guards.into_
 
 // Guaranteed evaluated operands export helper requirements. Conditional
 // operands retain applicability implications, never an unconditional assumption.
-pub(super) fn helper_guards(catalog:&Catalog,expr:&Expr,env:&Env,depth:usize)->Vec<Stmt>{
+pub(in crate::bind) fn helper_guards(catalog:&Catalog,expr:&Expr,env:&Env,depth:usize)->Vec<Stmt>{
     if evaluated(expr){return Vec::new();}
     if depth>=32{return vec![Stmt::Require{condition:Expr::Name{name:"$advice_helper_cut".into(),site:expr.site().clone()},code:"$advice:cut".into(),message:None,site:expr.site().clone()}];}
     let expression=resolve(expr,env);if evaluated(&expression){return Vec::new();}
@@ -250,12 +250,19 @@ fn statements(catalog:&Catalog,p:&ProgramDecl,body:&[Stmt],env:&mut Env,guards:&
     if consuming{changes.clear();}
     }
 }
+// Advisory freshness must retain unresolved effects across instantiated helpers.
+// Existing gate/structural callers keep the filtered writer contract below.
+pub(in crate::bind) fn advice_writes(catalog:&Catalog,p:&ProgramDecl)->Vec<(Expr,ProgramDecl)>{
+    let mut writes=walk_writes(catalog,p,None);
+    for (write,_) in &mut writes{if let Expr::Write{op,table,keys,..}=write&&matches!(op,ast::WriteOp::Update|ast::WriteOp::Upsert)&&keys.is_empty(){*table=format!("$advice_unresolved:{table}");}}
+    writes
+}
 pub(in crate::bind) fn writes(catalog:&Catalog,p:&ProgramDecl)->Vec<(Expr,ProgramDecl)>{walk_writes(catalog,p,None).into_iter().filter(|(write,_)|matches!(write,Expr::Write{table,..} if catalog.tables.contains_key(table))).collect()}
 pub(super) fn column_writes(catalog:&Catalog,p:&ProgramDecl,column:&str)->Vec<(Expr,ProgramDecl)>{walk_writes(catalog,p,Some(column)).into_iter().filter(|(write,_)|matches!(write,Expr::Write{table,..} if catalog.tables.contains_key(table))).collect()}
 // Expand a helper's single guaranteed value for source analysis. Requirements
 // are already exported separately; branches, effects and unknown control flow
 // cannot supply a guessed return. This never executes or rewrites a program.
-pub(super) fn returned(catalog:&Catalog,value:&Expr,depth:usize)->Expr{
+pub(in crate::bind) fn returned(catalog:&Catalog,value:&Expr,depth:usize)->Expr{
     if depth>=32{return value.clone();}
     fn effectful(catalog:&Catalog,value:&Expr)->bool{let mut value=value.clone();let mut effect=false;super::super::intent_walk::expression(&mut value,&mut |e|match e{Expr::Write{..} if !evaluated(e)=>effect=true,Expr::Call{name,..} if catalog.functions.contains_key(name)&&!evaluated(e)=>effect=true,_=>{}});effect}
     let mut value=value.clone();
