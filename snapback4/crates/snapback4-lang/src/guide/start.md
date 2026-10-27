@@ -2,24 +2,26 @@
 
 ```sh
 npm i snapback4
-npx snapback4 init . --web --online --password   # Expo: replace --web with --expo
 npx snapback4 guide workflow
 ```
 
-Read workflow next: one copyable schema, roles/private fields, upload at creation,
-price, live board/stages, stored-event deadlines, privileged approval and real-user
-acceptance. After start + workflow, this shape needs no other card. Rename it to
-your spec; then write/check and wire the screen. Do not tour language, staging,
-production, --full, README, SERVER.md or CLIENT-AND-OPERATIONS.md to build it.
+Read workflow next, then stop reading and write snapback/schema.q. It includes
+roles/private fields, upload/price, live stages, stored deadlines, approval and
+acceptance. Rename the schema to your spec and run `npx snapback4 check` before
+opening another card, API digest or starter file. No introductory card tour.
 
-Init keeps existing snapback/*.q; writing the schema before init gives a generic
-Home rather than a demo. After replacing a starter schema:
-`npx snapback4 check && npx snapback4 init --adapt --apply`.
-The first command emits types; the second adapts untouched starter files, keeping
-your edits. `init --adapt` previews. All .q files share one namespace.
+Only after that first backend check, initialize the frontend:
 
-Frontend install runs in the background. Edit while it installs; join once with
-`node scripts/install.mjs --wait` before building. Node 24.x is required.
+```sh
+npx snapback4 init . --web --online --password   # Expo: replace --web with --expo
+node scripts/install.mjs --wait                # join once before building
+```
+
+Init keeps your schema and emits a generic Home plus a matching account plan.
+Build your screen and replace the marked proof assertions. Starting from a demo
+instead means adapting it after the schema changes: `init --adapt --apply`
+(preview: `init --adapt`). Do not repeatedly initialize or inspect infrastructure.
+All .q files share one namespace. Node 24.x is required.
 
 ## Starter map: edit regions, keep infrastructure
 

@@ -1,6 +1,6 @@
-# Workflow: one app
+# Workflow
 
-Copy and rename this recipe; no other feature card is needed.
+Copy and rename this recipe.
 
 ## Roles/private fields: schema.q
 
@@ -42,6 +42,10 @@ table requests:
 mutation provision(principal: principal, role: enum('customer', 'intake', 'staff', 'director')):
   require viewer = 'service:operator' else NOT_OPERATOR
   return upsert roles[principal] { principal, role, staff: role != 'customer' }
+fn nextYear(t: time):
+  m = month(t)
+  elapsed = t - monthStart(m)
+  return min(monthStart(m + 12) + (elapsed / 1d) * 1d, monthStart(m + 13) - 1d) + elapsed % 1d
 query myRole():
   return roles[viewer]
 query board(c: cursor ?):
@@ -86,8 +90,9 @@ If approval gates an action, require `r.approvedBy != null` there.
 ## Deadlines/jobs and nullable values
 
 Deadlines use stored server events; guard before status despite sweep lateness.
-30d is a duration; UTC month buckets: `month(now) < month(r.openedAt) + 12`.
-Exact anniversaries need a calculated, validated stored deadline.
+30d is a duration. For exact UTC anniversary validity set dueAt: nextYear(now),
+then guard against that immutable deadline. nextYear clamps leap day to February
+28 at the same UTC time. Test such a deadline after 366d rather than 31d.
 
 Nullable arithmetic: `at = r.deliveredAt ! else NOT_DELIVERED`, then `at + 30d`.
 Nullable conditions: `(flag ?? false)` or `(optionalTime < now) ?? false`.
@@ -95,22 +100,20 @@ Inserts supply every required column without a default, including evidence/price
 
 ## Uploads, live board and approval
 
-Keep starter auth/AppProvider; import hooks from snapback4/react and generated api.
-`usePage(api.board,{})` returns live items/read/loading/why/hasMore/loadMore.
-`useMutation(api.approve).run({request,reason})`: sent = committed; failed has why.
-useAuth gives state/signup/login/logout; useAsset has url when ready. Hooks go at component top level.
+Hooks from snapback4/react: usePage(api.board,{}) gives live items/read/loading/
+why/hasMore/loadMore. useMutation(api.approve).run({request,reason}) returns sent
+(committed) or failed (why). Keep auth/AppProvider; hooks go at component top level.
 
-Upload as the placing account: `client.upload(bytes,{file:{type:'application/pdf'}})`;
-require result.ok, then pass `{evidence:{id:result.asset.id}}`. For image columns:
-`client.upload(imageBytes)`. Upload separately for each column.
-`client.observe(api.board,{})` returns getSnapshot/subscribe/close; subscribe a
-no-argument listener, read getSnapshot, close on cleanup.
+As the placing account, upload bytes with `{file:{type:'application/pdf'}}` for
+valid PDF bytes; require result.ok, then pass `{evidence:{id:result.asset.id}}`.
+Images: client.upload(imageBytes). Upload separately per column. Observe returns
+getSnapshot/subscribe/close; close on cleanup. Signatures: guide api client.
 
 ## Acceptance: scripts/acceptance.mjs
 
-After check and `init --adapt --apply`, set scripts/staging.mjs's seedUsers to
+After check, initialize as start shows. scripts/staging.mjs's seedUsers plan is
 `{roles:{customer:2,intake:2,staff:2,director:2},provision:{name:'provision'}}`.
-Custom enrollment: args(account). Set acceptance to `node scripts/acceptance.mjs`:
+Set acceptance to `node scripts/acceptance.mjs`:
 
 ```js
 import assert from 'node:assert/strict';
@@ -166,7 +169,7 @@ try {
 } finally { for (const c of clients) await c.close(); await host.stop(); }
 ```
 
-Add spec boundaries/job catch-up; use valid args in refusal tests. Run twice.
+Add boundaries/job catch-up; use valid args in refusal tests. Run twice.
 Edit scripts/frontend-proof.mjs assertions; keep build/cleanup. Verify with
 `npm run probe:check`. Keep credentials out of diaries.
 Args/hooks: `guide api generated`.

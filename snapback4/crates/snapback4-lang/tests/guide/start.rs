@@ -67,3 +67,18 @@ fn staging_is_visible_in_the_default_builder_cards() {
         }
     }
 }
+
+#[test]
+fn workflow_calendar_anniversary_clamps_leap_day_and_preserves_utc_time() {
+    use snapback4_core::{Context, Engine, Value};
+    let recipe = snapback4_lang::guide::quarry(card("workflow").unwrap()).remove(0);
+    let source = format!("{recipe}\nquery calendarDeadline(t: time):\n  return nextYear(t)\n");
+    let bound = snapback4_lang::compile(&[("schema.q".into(), source)]);
+    assert!(bound.diagnostics.is_empty(), "{:?}", bound.diagnostics);
+    let mut engine = Engine::memory(bound.schema, bound.programs.into_iter().map(|p|p.program)).unwrap();
+    for (at, expected) in [(1709210096789, 1740746096789), (1675144800000, 1706680800000)] {
+        let args = std::collections::BTreeMap::from([("t".into(), Value::Int(at))]);
+        let read = engine.query("calendarDeadline", Context::new("tester", args)).unwrap();
+        assert_eq!(read.data, Value::Int(expected));
+    }
+}
