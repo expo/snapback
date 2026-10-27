@@ -353,7 +353,7 @@ pub fn init(options: &Options) -> i32 {
     // @ref LLP 3000.011.003.000#7.4 — the advisories are read before the install that reports them, not after.
     if expo && files.iter().any(|(name, _)| *name == "package.json") {
         println!("init: Expo dependencies are pinned; next: `node scripts/install.mjs`, then `npx snapback4 check`. Adapter-first installs constrain React Native 0.86.3 and compatible React 19; this starter pins React/React DOM 19.2.3 and supplies the app/scripts.");
-        println!("init: `npm install` takes a few minutes and reports an unpatched high advisory from Expo's node-forge code-signing dependency; qualification warns under a dated exception until a patch or recheck date — do not run `npm audit fix --force`, which downgrades Expo to SDK 44 (README)");
+        println!("init: `npm install` takes a few minutes; Expo code signing uses patched node-forge 1.4.1. Qualification audits development dependencies too (README)");
     }
     if web {
         let page = web_port.unwrap_or(5173);
