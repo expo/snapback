@@ -17,7 +17,7 @@ const checked=run(cli,['check']);assert.match(checked,/API index: `guide api gen
 run(cli,['init','--web','--online','--password','--no-install']);
 writeFileSync(join(dir,'scripts/acceptance.mjs'),workflow.split('```js\n')[1].split('```')[0]);
 for(let n=0;n<2;n++)assert.match(run(process.execPath,['scripts/acceptance.mjs']),/acceptance passed/);
-const signatures={};for(const module of ['react','client','auth','proof','generated'])signatures[module]=run(cli,['guide','api',module]);
+const signatures={};for(const module of ['app','witness','react','client','auth','proof','generated'])signatures[module]=run(cli,['guide','api',module]);
 for(const file of ['README.md','SERVER.md','CLIENT-AND-OPERATIONS.md']){const doc=readFileSync(join(dir,'node_modules/snapback4',file),'utf8');assert.ok(doc.includes('guide start'));}
 const report={ok:true,wallMs:Date.now()-started,startBytes:Buffer.byteLength(start),workflowBytes:Buffer.byteLength(workflow),acceptanceRuns:2,signatures:Object.fromEntries(Object.entries(signatures).map(([k,v])=>[k,Buffer.byteLength(v)])),qualification:false};
 console.log(JSON.stringify(report,null,2));
