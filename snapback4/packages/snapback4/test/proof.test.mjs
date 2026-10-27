@@ -81,6 +81,13 @@ test("native proof commands retain helper environment, argument boundaries and s
     if (process.argv[1]?.endsWith('/bin/snapback4.js')) await sleep(900);
   `);
   await assert.rejects(cli(["token"],{cwd,timeoutMs:1200,env:{SNAPBACK4_BIN:failed,NODE_OPTIONS:`--import=${delayed}`}}),/proof cli close timed out after 1200 ms/);
+  const running=join(cwd,"running.mjs"),marker=join(cwd,"executions.txt"),killFailure=join(cwd,"kill-failure.mjs");
+  writeFileSync(running,`#!/usr/bin/env node\nimport {appendFileSync} from 'node:fs';appendFileSync(${JSON.stringify(marker)},'executed\\n');process.kill(process.ppid,'SIGTERM');setTimeout(()=>process.exit(0),500);\n`);chmodSync(running,0o700);
+  writeFileSync(killFailure,`import {ChildProcess} from 'node:child_process';const kill=ChildProcess.prototype.kill;
+    ChildProcess.prototype.kill=function(signal){if(this.pid && this.spawnargs?.[0]===${JSON.stringify(running)}){this.emit('error',Error('post-spawn EPERM'));return false;}return kill.call(this,signal);};
+  `);
+  await assert.rejects(cli(["deploy"],{cwd,env:{SNAPBACK4_BIN:running,NODE_OPTIONS:`--import=${killFailure}`}}),/post-spawn EPERM/);
+  assert.equal(readFileSync(marker,"utf8"),"executed\n","a post-start kill error never retries the executable");
 });
 test("runtime port range is inclusive, validated, and never cached", () => {
   assert.equal(portRange({}), "0"); assert.equal(portRange({ PORT_LO: "29040", PORT_HI: "29049" }), "29040-29049");

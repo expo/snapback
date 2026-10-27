@@ -30,7 +30,9 @@ const child = spawn(command, args, { cwd: process.cwd(), env, stdio: ["ignore", 
 process.send?.({ type: "started", pid: child.pid });
 for (const signal of ["SIGTERM", "SIGINT"] as const) process.once(signal, () => child.kill(signal));
 child.once("error", error => {
-  process.send?.({ type: "result", code: null, signal: null, error: error.message, executableSpawnFailed: true }, () => process.exit(1));
+  // kill() can also emit error after a successful spawn. Only absence of the
+  // OS-assigned child PID proves this executable never started.
+  process.send?.({ type: "result", code: null, signal: null, error: error.message, executableSpawnFailed: child.pid === undefined }, () => process.exit(1));
 });
 child.once("close", (code, signal) => {
   process.send?.({ type: "result", code, signal }, () => process.exit(code ?? (signal ? 1 : 0)));
