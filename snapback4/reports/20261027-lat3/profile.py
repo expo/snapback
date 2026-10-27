@@ -20,7 +20,7 @@ for wave,lane,scripts in [(32,'002',['acceptance','frontend:proof','probe:serve/
     'CHROME':str(pathlib.Path.home()/'.cache/ms-playwright/chromium-1193/chrome-linux/chrome'),
     'PORT_LO':'21280' if wave==34 and lane=='028' else '49000','PORT_HI':'21289' if wave==34 and lane=='028' else '49999','SNAPBACK4_PROBE_HOLD':'1','npm_config_cache':str(SCRATCH/'npm-cache')}
    args=['node',str(HERE/'probe.mjs')] if script=='probe:serve/client:calls' else ['npm','run',script]
-   start=time.monotonic()
+   start=time.monotonic();startedAt=time.time()*1000
    with (case/f'{key}-{variant}.log').open('w') as f:
     child=subprocess.Popen(args,cwd=cwd,env=env,stdout=f,stderr=subprocess.STDOUT,start_new_session=True)
     try:code=child.wait(timeout=600)
@@ -29,7 +29,7 @@ for wave,lane,scripts in [(32,'002',['acceptance','frontend:proof','probe:serve/
      try:child.wait(timeout=10)
      except subprocess.TimeoutExpired:os.killpg(child.pid,signal.SIGKILL);child.wait()
      raise
-   record={'wave':wave,'lane':lane,'script':script,'variant':variant,'code':code,'seconds':time.monotonic()-start}
+   record={'wave':wave,'lane':lane,'script':script,'variant':variant,'code':code,'seconds':time.monotonic()-start,'startedAt':startedAt}
    if script=='probe:serve/client:calls' and (cwd/'lat3-probe.json').exists():record.update(json.loads((cwd/'lat3-probe.json').read_text()))
    with (out/'results.jsonl').open('a') as f:f.write(json.dumps(record)+'\n')
    print(json.dumps(record),flush=True)
