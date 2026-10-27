@@ -199,7 +199,9 @@ fn use_tree(
             "{" => {
                 *i += 1;
                 while *i < tokens.len() && tokens[*i].text != "}" {
+                    let before = *i;
                     use_tree(tokens, i, &path, out);
+                    assert!(*i > before, "invalid use tree: parser made no progress at {}", tokens[*i].text);
                     if tokens.get(*i).is_some_and(|t| t.text == ",") {
                         *i += 1;
                     }
@@ -242,7 +244,12 @@ fn bindings(source: &str) -> Vec<Binding> {
             .rposition(|t| matches!(t.text, ";" | "{" | "}"))
             .map_or(0, |j| j + 1);
         let exported = tokens[boundary..i].iter().any(|t| t.text == "pub");
-        if token.text == "use" || starts(&tokens[i..], &["extern", "crate"]) {
+        // Rust precise captures (`impl Trait + use<...>`) are not imports.
+        // Feeding their function body into use_tree can stop at an inner
+        // semicolon without consuming a token and grow paths without bound.
+        if token.text == "use" && !starts(&tokens[i + 1..], &["<"])
+            || starts(&tokens[i..], &["extern", "crate"])
+        {
             let mut paths = Vec::new();
             use_tree(
                 &tokens,
@@ -672,4 +679,21 @@ fn associated_handles_and_member_alias_or_callback_escapes_are_counted() {
         (PathBuf::from("hidden.rs"), "pub type Alias<'a> = &'a AnyTx<'a>;".into()),
     ]);
     assert!(!closed_member_facade("impl MemberTx<'_, '_> { fn escape(&self) -> Alias<'_> {} }", &names));
+}
+
+#[test]
+fn precise_capture_clauses_are_not_imports_and_do_not_hide_later_handles() {
+    let source = "pub fn watch(&self) -> impl Fn() -> bool + Send + Sync + use<> { let live = true; move || live }";
+    assert!(bindings(source).is_empty());
+    let borrowed = source.replace("use<>", "use<'a, T>");
+    assert!(bindings(&borrowed).is_empty());
+    let attack = format!("{source} use crate::store::Store as Concrete;");
+    let files = vec![(PathBuf::from("crates/snapback4/src/host.rs"), attack)];
+    assert!(!census(&files).is_empty(), "capture syntax cannot suppress an actual concrete import");
+}
+
+#[test]
+#[should_panic(expected = "parser made no progress")]
+fn malformed_use_tree_refuses_instead_of_growing_without_bound() {
+    bindings("use crate::{good; bad};");
 }
