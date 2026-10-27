@@ -119,7 +119,7 @@ test('packed security card and starter run as written; broad reads refute', {tim
  assert.match(run(process.execPath,[cli,'check'],sec13Dir),/fix question N_OPTIONAL_EVIDENCE.*photo=null/);
  const sec13=JSON.parse(run(process.execPath,[cli,'check','--json'],sec13Dir));
  const question=sec13.securityReviews.find(d=>d.code==='N_OPTIONAL_EVIDENCE'&&d.witness);assert.ok(question);assert.equal(question.gated,false);
- run(process.execPath,[cli,'check','--ack-security',question.id,'--reason','deliberately optional'],sec13Dir,1);
+ run(process.execPath,[cli,'check','--ack-security',question.id,'--reason','deliberately optional'],sec13Dir,2);
  const w=question.witness;
  run(process.execPath,[cli,'check','--ack-security',question.id,'--reason',`witness ${w.id}; permit ${w.operation} as ${w.viewer}; audience: intentional draft creators`],sec13Dir);
  writeFileSync(join(sec13Dir,'snapback/schema.q'),sec13Source.replace('mutation create(photo: image <=1000 ?)', 'mutation create(photo: image <=1000)'));
