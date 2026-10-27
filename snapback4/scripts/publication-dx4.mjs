@@ -1,3 +1,4 @@
+import { guideReference } from "./publication-guide.mjs";
 // Packed DX4 witnesses; every changed guide recipe is read from the installed CLI.
 import assert from "node:assert/strict";
 import {proveWave19} from "./publication-wave19.mjs";
@@ -11,7 +12,7 @@ export async function proveDX4(directory) {
   const env={...process.env};delete env.SNAPBACK4_BIN;delete env.PORT_LO;delete env.PORT_HI;
   const run=(args)=>runToolchainCommand(process.execPath,args,{cwd,env,timeout:180000});
   const card=async(name,section)=>{
-    const result=spawnSync(process.execPath,[cli,"guide",name,"--repeat",...(section?["--section",section]:["--full"])],{cwd,env,encoding:"utf8",timeout:30000,maxBuffer:4*1024*1024});
+    const result=!section ? {status:0,stderr:"",stdout:guideReference(cli,name,{cwd,env})} : spawnSync(process.execPath,[cli,"guide",name,"--repeat",...(section?["--section",section]:["--full"])],{cwd,env,encoding:"utf8",timeout:30000,maxBuffer:4*1024*1024});
     assert.equal(result.status,0,result.stderr);return result.stdout;
   };
   const fences=(text,kind)=>[...text.matchAll(new RegExp("```"+kind+"\\n([\\s\\S]*?)\\n```","g"))].map(m=>m[1]);

@@ -1,3 +1,4 @@
+import { guideReference } from "./publication-guide.mjs";
 // Run the production guide's complete starter slice using the installed packs.
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -115,7 +116,7 @@ export async function proveProduction(client, platform, expo, directory) {
     if (kind === "expo") pkg.dependencies["snapback4-expo"] = `file:${artifacts[2]}`;
     writeFileSync(join(cwd, "package.json"), JSON.stringify(pkg, null, 2));
     await run("npm", ["install", "--prefer-offline", "--no-audit", "--no-fund"], cwd);
-    const guide = capture(cli, ["guide", "production", "--full"], cwd, env, join(cwd, "production-guide.log"));
+    const guide = guideReference(cli, "production", {cwd,env});
     const blocks = [...guide.matchAll(/```sh\n([\s\S]*?)\n```/g)].map(match => match[1]).filter(text => text.startsWith("cp node_modules/snapback4/dist/recipes/production/"));
     assert.equal(blocks.length, 2, "packed guide carries React and Expo command recipes");
     if (kind === "web") {

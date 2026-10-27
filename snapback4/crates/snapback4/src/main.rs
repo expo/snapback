@@ -143,11 +143,23 @@ fn main() -> ExitCode {
             let words_of = |flag: &str| options.flags.get(flag).map(|words| if rest.is_empty() { words.clone() } else { format!("{words} {rest}") });
             match keyword {
                 None => if let Some(words) = options.flags.get("find") {
-                    match guide_find::find(words) { Ok(text) => println!("{text}"), Err(problem) => { println!("{problem}"); return ExitCode::from(1); } }
+                    match guide_find::find(words) { Ok(text) => println!("{text}"), Err(problem) => { println!("{}", guide::bounded_default("search", &problem)); return ExitCode::from(1); } }
                 } else { println!("{}", guide::listing()); },
                 Some("api") if !rest.is_empty() => {
-                    match guide_api::render(&rest, options.flags.contains_key("full")) {
-                        Ok(text) => println!("{}", guide_seen::render(&format!("api {rest}"), &text, options.flags.contains_key("repeat") || options.flags.contains_key("full"))),
+                    let module = rest.split_whitespace().next().unwrap();
+                    let reference = options.flags.contains_key("full") || options.flags.contains_key("section") || options.flags.contains_key("sections");
+                    match guide_api::render(module, reference) {
+                        Ok(raw) => {
+                            let name = format!("api {module}");
+                            let card = guide::reader_card(&name, &raw);
+                            let chosen = if options.flags.contains_key("sections") || options.flags.contains_key("full") && raw.len() > guide::FULL_BYTES { Ok(guide::section_index(&name, &card)) }
+                                else if let Some(words) = options.flags.get("section") { guide::section(&name, &card, words) }
+                                else { Ok(card) };
+                            match chosen {
+                                Ok(text) => println!("{}", guide::bounded_default(&name, &guide_seen::render(&name, &guide::bounded_default(&name, &text), options.flags.contains_key("repeat")))),
+                                Err(problem) => { eprintln!("{problem}"); return ExitCode::from(1); }
+                            }
+                        }
                         Err(problem) => { eprintln!("{problem}"); return ExitCode::from(1); }
                     }
                 },
@@ -155,9 +167,11 @@ fn main() -> ExitCode {
                 Some(keyword) => match guide::card(keyword) {
                     // Cards embed starter sources; print them as init installs them.
                     Some(card) => {
-                        let card = verbs::without_design_references(card);
                         let name = guide::resolve(keyword).unwrap_or(keyword);
-                        let chosen = if options.flags.contains_key("full") { Ok(card.clone()) }
+                        let raw = verbs::without_design_references(card);
+                        let card = guide::reader_card(name, &raw);
+                        let chosen = if options.flags.contains_key("full") && (raw.len() > guide::FULL_BYTES || name == "evolution") { Ok(guide::section_index(name, &card)) }
+                            else if options.flags.contains_key("full") { Ok(card.clone()) }
                             else if options.flags.contains_key("sections") { Ok(guide::section_index(name, &card)) }
                             else if let Some(words) = words_of("section") { guide::section(name, &card, &words) }
                             else if let Some(words) = words_of("find") { guide::find(name, &card, &words) }
@@ -169,15 +183,14 @@ fn main() -> ExitCode {
                         // A section of another card (`wire --section acceptance`) arrives unstripped.
                         match chosen.map(|text| verbs::without_design_references(&text)) {
                             Ok(text) => {
-                                let explicit = ["full", "section", "find", "sections"].iter().any(|f| options.flags.contains_key(*f));
-                                let text = if explicit { text } else { guide::bounded_default(name, &text) };
+                                                                let text = guide::bounded_default(name, &text);
                                 if options.flags.contains_key("sections") || options.flags.contains_key("find") { println!("{text}"); }
                                 else {
-                                    let shown = guide_seen::render(name, &text, options.flags.contains_key("repeat") || options.flags.contains_key("full"));
-                                    println!("{}", if explicit { shown } else { guide::bounded_default(name, &shown) });
+                                    let shown = guide_seen::render(name, &text, options.flags.contains_key("repeat"));
+                                    println!("{}", guide::bounded_default(name, &shown));
                                 }
                             },
-                            Err(problem) => { println!("{problem}"); return ExitCode::from(1); }
+                            Err(problem) => { println!("{}", guide::bounded_default(name, &format!("Guide selection failed; narrow the words or use --sections.\n\n{problem}"))); return ExitCode::from(1); }
                         }
                     }
                     None => match guide::explain_code(keyword) {

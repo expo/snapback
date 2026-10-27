@@ -1,3 +1,4 @@
+import { guideReference } from "./publication-guide.mjs";
 // @ref LLP 3000.000.000.002#5-evidence — execute the installed guide's persistent production lifecycle verbatim.
 import assert from "node:assert/strict";
 import { proveRollInstalled } from "./publication-roll.mjs";
@@ -15,12 +16,12 @@ export async function proveMigrations(client, platform, directory) {
     writeFileSync(join(cwd,"package.json"), '{"private":true,"type":"module"}');
     await run("npm",["install","--ignore-scripts","--no-audit","--no-fund",resolve(client),resolve(platform)]);
     const binary=join(cwd,"node_modules/snapback4/bin/snapback4.js");
-    const guide=spawnSync(process.execPath,[binary,"guide","deploy","--full"],{cwd,env,encoding:"utf8",timeout:30000});
+    const guide=({status:0,stderr:"",stdout:guideReference(binary,"deploy",{cwd,env})});
     assert.equal(guide.status,0,guide.stderr);
     // Compile the new self-contained language example using the installed CLI.
-    const language=spawnSync(process.execPath,[binary,"guide","language","--full"],{cwd,env,encoding:"utf8",timeout:30000});
+    const language=({status:0,stderr:"",stdout:guideReference(binary,"language",{cwd,env})});
     assert.equal(language.status,0,language.stderr);
-    const evolution=spawnSync(process.execPath,[binary,"guide","evolution","--full"],{cwd,env,encoding:"utf8",timeout:30000});
+    const evolution=({status:0,stderr:"",stdout:guideReference(binary,"evolution",{cwd,env})});
     assert.equal(evolution.status,0,evolution.stderr);
     const examples=[...(language.stdout+evolution.stdout).matchAll(/```quarry\n([\s\S]*?)\n```/g)].map(m=>m[1]).filter(s=>s.includes("backfill parcels sizes")||s.includes("extract scans from orders"));
     assert.equal(examples.length,2);

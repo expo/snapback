@@ -1,3 +1,4 @@
+import { guideReference } from "./publication-guide.mjs";
 // Packed client contracts: execute the guide's narrowing recipe verbatim and
 // typecheck the handler argument shapes against the installed declarations.
 import assert from "node:assert/strict";
@@ -17,7 +18,7 @@ export async function proveClientRecipes(client, platform, directory) {
   await run("npm", ["install", "--ignore-scripts", "--no-audit", "--no-fund", resolve(client), resolve(platform),
     "typescript@5.9.3", "react@19.3.0", "react-dom@19.3.0", "@types/react@19.3.0", "@types/react-dom@19.3.0"]);
   const cli = join(cwd, "node_modules/snapback4/bin/snapback4.js");
-  const guide = spawnSync(process.execPath, [cli, "guide", "client", "--full"], { cwd, env, encoding: "utf8", timeout: 60_000 });
+  const guide = ({status:0,stderr:"",stdout:guideReference(cli,"client",{cwd,env})});
   assert.equal(guide.status, 0, guide.stdout + guide.stderr);
   const recipe = [...guide.stdout.matchAll(/```ts\n([\s\S]*?)\n```/g)].map(match => match[1]).find(text => text.includes("function listLabel"));
   assert.ok(recipe, "packed guide has the data-narrowing recipe");
@@ -39,7 +40,7 @@ export async function proveClientRecipes(client, platform, directory) {
   const short = [...reference.matchAll(/```tsx\n([\s\S]*?)\n```/g)].map(match => match[1]).find(text => text.includes("function ShortScreen"));
   assert.ok(short, "packed guide has the short-screen recipe");
   writeFileSync(join(cwd, "src/short-screen.tsx"), short);
-  const time = spawnSync(process.execPath, [cli, "guide", "time", "--full"], { cwd, env, encoding: "utf8", timeout: 60_000 });
+  const time = ({status:0,stderr:"",stdout:guideReference(cli,"time",{cwd,env})});
   assert.equal(time.status, 0, time.stdout + time.stderr);
   const clock = [...time.stdout.matchAll(/```quarry\n([\s\S]*?)\n```/g)].map(match => match[1]).find(source => source.includes("query clock(t:"));
   assert.ok(clock, "packed time guide carries the UTC-hour recipe");

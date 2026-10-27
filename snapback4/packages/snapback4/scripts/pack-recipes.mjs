@@ -10,3 +10,7 @@ for (const kind of ["web", "expo"]) {
     writeFileSync(fileURLToPath(new URL(to, dir)), text);
   }
 }
+
+const dayTwo = readFileSync(new URL("../../../crates/snapback4-lang/src/guide/testing_day_two.md", import.meta.url), "utf8").match(/<!-- DAY TWO ACCOUNTS BEGIN -->\n```js\n([\s\S]*?)\n```\n<!-- DAY TWO ACCOUNTS END -->/)?.[1];
+if (!dayTwo) throw Error("missing day-two account reference");
+writeFileSync(new URL("../dist/recipes/day2-accounts.mjs", import.meta.url), dayTwo + "\n");
