@@ -3,6 +3,8 @@ pub(super) const CARD: &str = r##"# Personas
 
 Every call carries a principal; public visitors use guest sessions; `serve` accepts bearers only. Personas are named development users; password accounts work headlessly in Node and browsers.
 
+Shared real-user previews: `guide staging`; persistent production accounts: `guide production`.
+
 ```quarry
 use personas alice, bob
 use identity password

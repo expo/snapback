@@ -46,6 +46,7 @@ fn wave33_001_022_011_021_full_lists_sections_and_repeats_delta() {
     let opening=run(&["guide","deploy","--section","opening","--repeat"]);assert!(opening.contains("one durable store"));
     let cheat=run(&["guide","cheatsheet","--repeat"]);assert!(cheat.len()<=8000);
     for route in ["guide staging","deploy staging --staging","serve staging"] {assert!(cheat.contains(route),"bounded cheatsheet lost {route}");}
+    for card in ["start","personas"] {let text=run(&["guide",card,"--repeat"]);assert!(text.len()<=8000);assert!(text.contains("guide staging"),"bounded {card} lost staging");}
     fs::remove_dir_all(dir).unwrap();
 }
 #[test]
