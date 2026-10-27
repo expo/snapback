@@ -51,9 +51,7 @@ fn npm(pid: u32) -> bool {
         if unsafe { libc::sysctl(mib.as_mut_ptr(), 3, bytes.as_mut_ptr().cast(), &mut size, std::ptr::null_mut(), 0) } != 0 { return false; }
         // Kernel argv may include secrets: inspect only for npm identity and
         // never retain or report the bytes. Bound by ARG_MAX, not a subprocess.
-        bytes[..size.min(bytes.len())].split(|byte| *byte == 0).any(|arg| {
-            arg.starts_with(b"npm ") || arg == b"npm" || arg.ends_with(b"/npm-cli.js") || arg.windows(12).any(|part| part == b"/npm-cli.js ")
-        })
+        npm_arguments(&bytes[..size.min(bytes.len())])
     }
     #[cfg(not(any(target_os = "linux", target_os = "macos")))]
     { Command::new("ps").env("LC_ALL", "C").args(["-p", &pid.to_string(), "-o", "args="]).output().is_ok_and(|out| { let text = String::from_utf8_lossy(&out.stdout); text.trim().starts_with("npm") || text.contains("/npm-cli.js ") }) }
@@ -120,4 +118,50 @@ pub(crate) fn adopt() {
             return;
         }
     }).expect("start parent-death watchdog");
+}
+
+
+// KERN_PROCARGS2 appends environment strings after argv. argc is the boundary;
+// an inherited npm_execpath must never make a shell look like npm.
+#[cfg(any(target_os = "macos", test))]
+fn npm_arguments(bytes: &[u8]) -> bool {
+    let Some(header) = bytes.get(..4) else { return false; };
+    let argc = i32::from_ne_bytes(header.try_into().unwrap());
+    if argc <= 0 || argc as usize > bytes.len() { return false; }
+    let rest = &bytes[4..];
+    let Some(executable_end) = rest.iter().position(|byte| *byte == 0) else { return false; };
+    let mut rest = &rest[executable_end + 1..];
+    while rest.first() == Some(&0) { rest = &rest[1..]; }
+    let mut found = false;
+    for _ in 0..argc {
+        let Some(end) = rest.iter().position(|byte| *byte == 0) else { return false; };
+        let arg = &rest[..end];
+        if !arg.contains(&b'=') {
+            found |= arg.starts_with(b"npm ") || arg == b"npm" || arg.ends_with(b"/npm-cli.js") || arg.windows(12).any(|part| part == b"/npm-cli.js ");
+        }
+        rest = &rest[end + 1..];
+    }
+    found
+}
+
+#[cfg(test)]
+mod tests {
+    use super::npm_arguments;
+    fn arguments(argv: &[&str], env: &[&str]) -> Vec<u8> {
+        let mut bytes = (argv.len() as i32).to_ne_bytes().to_vec();
+        bytes.extend_from_slice(b"/usr/local/bin/node\0\0\0");
+        for arg in argv.iter().chain(env) { bytes.extend_from_slice(arg.as_bytes()); bytes.push(0); }
+        bytes
+    }
+    #[test]
+    fn darwin_npm_argv_never_inspects_inherited_environment() {
+        let env = ["npm_execpath=/usr/local/lib/npm/bin/npm-cli.js", "npm_lifecycle_event=prod:serve"];
+        assert!(!npm_arguments(&arguments(&["node", "scripts/prod-serve.mjs"], &env)));
+        assert!(!npm_arguments(&arguments(&["sh", "-c", "node scripts/prod-serve.mjs"], &env)));
+        assert!(npm_arguments(&arguments(&["node", "/usr/local/lib/npm/bin/npm-cli.js", "run", "prod:serve"], &env)));
+        assert!(npm_arguments(&arguments(&["npm run prod:serve"], &env)));
+        assert!(!npm_arguments(&[1, 2, 3]));
+        let mut truncated = arguments(&["node"], &[]); truncated.pop();
+        assert!(!npm_arguments(&truncated));
+    }
 }
