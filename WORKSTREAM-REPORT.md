@@ -38,6 +38,8 @@ Commits:
 - `0dffd02350`: narrow the verification targets and retain exclusions.
 - `58f30f47f0`: measurement tooling and qualified fix-forward evidence.
 - `0dd5622566`: migrate existing assertions to terminal query histories.
+- `648e50d083`: final measured report/evidence and item 1 archive.
+- `9f52263599`: merge latest origin/main tests and experiment records.
 
 Design: LLP 3000.036.004.001. Independent Muse and fresh Codex reviews are retained
 verbatim under `llp/reviews/`; earlier findings and corrections remain visible. The
@@ -173,7 +175,13 @@ lane033 fix-forward patch. The production binary and private acceptance logs rem
 under `~/sb4-loop/reports/sec11/`. `provenance.json` binds the binary, build flags and
 product source. The final report/evidence-only commit does not change executable inputs.
 
-`origin/main` was merged before completion; no semantic conflict was authored. No
+`origin/main` was merged again at `9f52263599` (main `c9b940ff2e`).
+Incoming changes are experiment records and packed-proof tests/helpers; the
+CLI/language/core runtime source has no diff from qualified `267c579701`.
+The changed proof-contract client file passes 21 tests, all four incoming
+publication helper scripts pass syntax checks, and final ref-check reports
+572 documents / 12,120 references, zero errors or unchecked references.
+No semantic conflict was authored; existing runtime qualification was reused. No
 version bump or push. Mac, complete five-crate/client pools, device/20k campaigns and
 publication qualification were outside this brief's scope.
 

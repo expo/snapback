@@ -67,3 +67,9 @@ history test changed. Use those frozen refs for that historical reproduction.
 The current general scoped runner excludes the root Snapback1 generated,
 guide and inventory checks under the Snapback4 fence. Product guides are
 covered by language tests, two client guide files and packaged-doc lint.
+
+Final main integration: `9f52263599` merges `c9b940ff2e`; native runtime source
+remains identical to `267c579701`. The incoming proof-contract test file passes
+21 tests; four publication helper scripts pass syntax checks. See
+`post-merge.json` and the compressed test log. Publication qualification itself
+was not run. Final shared reference validation has zero errors/unchecked refs.

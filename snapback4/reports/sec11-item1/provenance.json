@@ -19,5 +19,8 @@
   "testOnlyRetryHead": "0dd5622566",
   "qualification": "Explicit composition of retained original FAIL receipt and targeted PASS retry; all applicable product steps pass. Root Snapback1 checks are outside fence; canonical full pool not claimed.",
   "latencyTargetsMet": false,
-  "coverageTargetMet": false
+  "coverageTargetMet": false,
+  "finalMainMerge": "9f522635993c3a51ab7f373bad4fa9900548ceb3",
+  "mergedMain": "c9b940ff2ebf3547f95c24dec491f49853804850",
+  "postMergeProductRuntimeSourceChanged": false
 }

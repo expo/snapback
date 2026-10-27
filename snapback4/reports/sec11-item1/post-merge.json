@@ -1,0 +1,23 @@
+{
+  "mergeCommit": "9f522635993c3a51ab7f373bad4fa9900548ceb3",
+  "mergedMain": "c9b940ff2ebf3547f95c24dec491f49853804850",
+  "productRuntimeSourceChanged": false,
+  "comparedTo": "267c579701",
+  "runtimePaths": [
+    "snapback4/crates/snapback4/src",
+    "snapback4/crates/snapback4-lang/src",
+    "snapback4/crates/snapback4-core/src"
+  ],
+  "proofContractTests": {
+    "passed": 21,
+    "failed": 0
+  },
+  "publicationHelperSyntaxChecks": 4,
+  "refCheck": {
+    "documents": 572,
+    "references": 12120,
+    "errors": 0,
+    "unchecked": 0
+  },
+  "method": "Incoming main delta is experiment records plus packed-proof tests/helpers; no product runtime source diff. Existing scoped qualification and binary measurements reused; changed proof-contract file and helper syntax checked."
+}
