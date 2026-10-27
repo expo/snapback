@@ -492,3 +492,13 @@ line counts and 17 HTTP qualification gaps carry through this reviewed narrow
 correction; there is no claim of a second native800 execution. Evidence lives in
 `snapback4/reports/sec11b/item4/window-correction/`. A new clean committed-source
 full scoped verification follows; the failed partial attempt is never PASS.
+
+
+Correction qualification is committed at 1c52585da0. Latest origin/main
+750a8c34fa is merged at 7c993cad1c; incoming benchmark/publication records add
+no production input changes. Corrected-source standard 2k differential run has
+zero disagreements; Lean 2k retains exactly the inherited 5/8/5 signatures
+(18 disagreements, 324 unsupported). The correction's evidence manifest binds
+its retained records; independent preflight unit results and the final 14-step
+scoped receipt are reported after completion. This report checkpoint is committed
+before final verification; results may be appended uncommitted as the brief allows.

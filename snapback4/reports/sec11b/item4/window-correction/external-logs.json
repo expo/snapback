@@ -7,12 +7,12 @@
     "path": "/home/ccheever/sb4-loop/reports/sec11b/item4-window-correction-reopening.log",
     "sha256": "b2548aa56ce312b6fa91ec1025a65140f9c45d405990d8e56aaf66a72ee39882"
   },
-  "item4-window-unit-preflight.log": {
-    "path": "/home/ccheever/sb4-loop/reports/sec11b/item4-window-unit-preflight.log",
-    "sha256": "14d0c0c559bb5befcf51df1aee77eb5e8d53a7d9237f7e75e1a4d88f79e14a0a"
-  },
   "item4-window-difftest.log": {
     "path": "/home/ccheever/sb4-loop/reports/sec11b/item4-window-difftest.log",
-    "sha256": "2ff76366b9c7ce9d5028a74bc784882cc1244b2f579ae21c787a1d37da28fbf5"
+    "sha256": "17eef0b08f8d6c1026736616475065d88620a443d595675a3677fee277cc452f"
+  },
+  "item4-window-lean.log": {
+    "path": "/home/ccheever/sb4-loop/reports/sec11b/item4-window-lean.log",
+    "sha256": "1cfdee41ce94941c7341b89ef86ff9dbcb7ca1ff72ac146a378b1fb148a5cecc"
   }
 }
