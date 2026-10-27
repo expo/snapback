@@ -1,0 +1,22 @@
+[
+  "packages/snapback4/test/device-version.test.mjs",
+  "packages/snapback4/test/schema-capabilities.test.mjs",
+  "packages/snapback4/test/security-packed.test.mjs",
+  "packages/snapback4/test/sync-generation.test.mjs",
+  "packages/snapback4/test/dx9-packed.test.mjs",
+  "packages/snapback4/test/sec10-packed.test.mjs",
+  "packages/snapback4/test/write-authority.test.mjs",
+  "packages/snapback4/test/wave11-guide-types.test.mjs",
+  "packages/snapback4/test/lang4-guide.test.mjs",
+  "packages/snapback4/test/tok1-reading.test.mjs",
+  "packages/snapback4/test/day3-proofs.test.mjs",
+  "packages/snapback4/test/day4-proofs.test.mjs",
+  "packages/snapback4/test/day5-proofs.test.mjs",
+  "packages/snapback4/test/delivery-activation.test.mjs",
+  "packages/snapback4/test/release-transitions.test.mjs",
+  "packages/snapback4/test/release-react.test.mjs",
+  "packages/snapback4/test/wave14-release-preview.test.mjs",
+  "packages/snapback4/test/release-activation.test.mjs",
+  "packages/snapback4/test/release-capabilities.test.mjs",
+  "packages/snapback4/test/legacy-receipts.test.mjs"
+]

@@ -1,0 +1,14 @@
+{
+  "stores": 150,
+  "successfulMoves": 728,
+  "expectedRefusals": 22,
+  "hiddenV1Rows": 0,
+  "consistentRollbackPopulations": 294,
+  "timeouts": 0,
+  "newRefusals": [],
+  "changedRefusalCodes": [],
+  "inspectionChanges": [],
+  "binarySha256": "de5781296ff65db2ad32345a88d06c5d4d9a87bd041ce94ed95932c13ac637c8",
+  "baselineSha256": "f993822dab11f05233ed6a69105586ba65490197ef06d11bafc7b577da793f6b",
+  "method": "Complete150-store replay on private DB/WAL/release copies, no owner/token sidecars; every5-move outcome and refusal code compared with REL3 final native. Source stores never opened. Original 180s watchdog and4 workers retained."
+}
