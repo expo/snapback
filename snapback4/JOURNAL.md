@@ -109399,3 +109399,17 @@ live/zombie owned PID or private-path process; every private cluster is
 stopped. The 25 GiB guard never fires; bookend free space is **82.07 GiB**.
 The exact staged audit compares 1028 generated fixture credentials with zero
 matches; raw logs/data remain outside Git.
+
+### 2026-10-27 — DX15 production proofs and inspection
+
+Wave-31 lanes 007/014/021/030/042 had to assemble a production proof recipe
+from staging and source. The production card now leads with reusable real-user
+rosters and the existing serve/static/SIGTERM helpers; upgrade points inherited
+drivers at serve-check --then. Fast business work preserves serveCheck upMs.
+Lane 023's transient text can be observed before its trigger through a stable
+element. Lane 042's capped admin inspection has data --all/snapshotAll; query
+comments name the existing next cursor. Lane 006's ambiguous signup returns
+an explicit unknown-outcome/login recovery in why; complete-empty lists are
+spelled out in guide reads. LLP 3000.037.000 §7 records the implemented bounds.
+No publication, version bump or Mac execution; affected packed consumers and
+read-only source-copy replays are recorded in reports/20261027-dx15.

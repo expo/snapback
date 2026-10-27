@@ -4,6 +4,8 @@
 
 ### Guide changes
 
+- Production proofs have one serve/accounts/static-host/SIGTERM recipe. Roster mismatches name supplied and pinned plans. Inherited serve drivers get a serve-check --then next step on upgrade; --then preserves the requested uptime. waitForFresh can observe a stable control before its trigger. Admin data --all and snapshotAll inspect all active rows; generated query help exposes next. Reads show the complete-empty absent arm; ambiguous signup advises login without revealing account existence.
+
 - Caller-filtered required probes explain incompatible roster role arms and explicit service exceptions; mixed owner/customer and staff rosters need an explicit role predicate. A mutation require cannot replace denied table write authority.
 - Default web forms ship explicitly labelled textareas and select controls with a combobox proof. Expo web labels editable and status controls using current React Native props. Shared TypeScript modules import directly from Node 24; starters retain strict optional/index checks and witness registration through adaptation. Generated runtime imports remain available in versioned app copies.
 - Job sweeps catch up rows before the latest coalesced period and put deadline refusals before status checks. Live staging clocks keep ticking; exact boundaries use pinned local runs or one captured fixture clock. Staging password budgets and fixture operator reads are explained.

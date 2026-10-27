@@ -164,6 +164,48 @@ export function visibleText(locator: Locator, timeout: number): Promise<string> 
   return locator.evaluate(reader, undefined, { timeout });
 }
 
+// Reuse the rendered-text engine in the page, including visibility and clipping.
+// No selector internals, application globals or injected DOM markers are needed.
+export async function armFreshText(locator: Locator, previous: string | null, timeoutMs: number) {
+  const reader = new Function("element", "previous", `
+    const engine = ${renderedTextSource()};
+    let timer;
+    const state = { text: null, stop: () => { observer.disconnect(); clearTimeout(timer); } };
+    const roots = new Set();
+    const observe = root => {
+      if (roots.has(root)) return;
+      roots.add(root);
+      observer.observe(root, { subtree:true, childList:true, characterData:true, attributes:true });
+    };
+    const descendants = root => {
+      for (const child of root.querySelectorAll('*')) if (child.shadowRoot) {
+        observe(child.shadowRoot); descendants(child.shadowRoot);
+      }
+    };
+    const inspect = () => {
+      if (!element.isConnected || state.text) return;
+      descendants(element);
+      const text = engine.text(element);
+      if (text && text !== previous) state.text = text;
+    };
+    const observer = new MutationObserver(inspect);
+    observe(element.ownerDocument);
+    let root = element.getRootNode();
+    while (root && root !== element.ownerDocument) {
+      observe(root); root = root.host?.getRootNode();
+    }
+    if (element.shadowRoot) { observe(element.shadowRoot); descendants(element.shadowRoot); }
+    descendants(element);
+    timer = setTimeout(state.stop, ${timeoutMs});
+    inspect();
+    return state;
+  `) as (element: Element, previous: string | null) => {text: string | null; stop: () => void};
+  const element = await locator.elementHandle({timeout: timeoutMs});
+  if (!element) throw Error("E_PROOF_USAGE: trigger observation requires a stable element");
+  try { return await element.evaluateHandle(reader, previous); }
+  finally { await element.dispose(); }
+}
+
 // Optional peer: CLI/process helpers still import and run when it is absent.
 // Keep this graph synchronously require-able. Registration starts during import;
 // withBrowser awaits that same promise before creating its context. Caller-owned

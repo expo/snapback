@@ -10,7 +10,7 @@ import { isReadToken } from "./read-token.ts";
 
 import { storeKey, logoutEpoch } from "./app-storage.ts";
 import type { Refusal, Session, SignIn, SessionRevocation } from "./contract.ts";
-import { readResponse, transportRefusal, invalidResponse } from "./http-response.ts";
+import { readResponse, transportRefusal, invalidResponse, refusal } from "./http-response.ts";
 
 export type { Session, SignIn, SessionRevocation } from "./contract.ts";
 
@@ -24,9 +24,17 @@ async function post(url: string, path: string, body: unknown, doFetch: typeof fe
   try {
     const { response, json } = await identityRequest(`${url.replace(/\/$/, "")}${path}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) }, doFetch, options) as { response: Response; json: {session?:Session; denied?:Refusal} };
     if (response.ok && isSession(json.session, Number(response.headers.get("x-snapback-time") ?? Date.now()))) return { ok: true, session: json.session };
-    return { ok: false, why: json.denied ?? refused("sign-in was refused") };
+    const why = refusal(json.denied ?? (json as {why?:Refusal}).why) ?? invalidResponse(response.status, path === "/auth/signup" ? "signup" : "sign-in");
+    // Preserve the public refusal and enumeration protection. This advice is
+    // identical for every ambiguous signup, including an already-created user.
+    return { ok: false, why: path === "/auth/signup" && ["E_AUTH", "E_HTTP_RESPONSE"].includes(why.code)
+      ? {...why, message: `${why.message}; the account may already exist. Try login with the same credentials; signup grants no role.`} : why };
   } catch (error) {
-    return { ok: false, why: transportRefusal(error) };
+    const why = transportRefusal(error);
+    return { ok: false, why: path === "/auth/signup" ? {
+      ...why, message: `${why.message}; signup outcome is unknown and the account may already exist. Try login with the same credentials before another signup.`,
+      rewrite: "await login(url, email, password)", guide: "production",
+    } : why };
   }
 }
 

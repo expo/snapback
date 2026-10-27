@@ -216,6 +216,7 @@ pub(super) const ACTIONS: &[(&str, &[&str])] = &[
     ("E_QUARRY_RULE_SPELLING", &["declare separate insert, update and delete rules for the operations intended"]),
     ("E_QUARRY_RULE_OPERATOR", &["The rewrite moves your comparison into the", "filter the query"]),
     ("E_PROOF_BROWSER", &["Install playwright-core@1.55.1 in the proof project and rerun.", "precedes browser startup, application callbacks and log creation"]),
+    ("E_PROOF_SNAPSHOT", &["Inspect the CLI refusal, deployment path and table name", "Ephemeral rows have no disk snapshot"]),
     ("E_PROOF_PAGE", &["Repair its query, authority or bound", "pass each opaque next cursor back unchanged", "No partial snapshot is returned"]),
     ("E_DEV_RESET", &["Reopen the client after reset.", "Outstanding writes retain unknown outcomes and are never retried automatically"]),
     ("E_PROOF_AMBIGUOUS", &["Narrow within or pass exact: true", "never choose the first match silently"]),

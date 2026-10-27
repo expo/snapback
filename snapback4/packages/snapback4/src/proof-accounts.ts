@@ -34,7 +34,7 @@ function validatePlan(options: SeedAccountsOptions) {
   const service = options.service ?? "operator";
   const roles = Object.entries(options.roles ?? {}), users=options.users ?? 0, timeout = options.timeoutMs ?? 300_000;
   if (!/^[A-Za-z0-9_-]{1,64}$/.test(service) || !Number.isSafeInteger(timeout) || timeout < 1 || !Number.isSafeInteger(users) || users<0 || (!roles.length&&!users) || (users>0&&roles.some(([role])=>role==="users")) || roles.some(([role, n]) => !/^[A-Za-z][A-Za-z0-9_-]{0,63}$/.test(role) || !Number.isSafeInteger(n) || n < 1)
-      || roles.reduce((sum, [, n]) => sum + n, users) > 100 || roles.length>0 && !/^[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)*$/.test(options.provision?.name ?? "")) {
+      || roles.reduce((sum, [, n]) => sum + n, users) > 100 || (roles.length>0 || options.provision!==undefined) && (typeof options.provision?.name!=="string" || !/^[A-Za-z][A-Za-z0-9_]*(?:\.[A-Za-z][A-Za-z0-9_]*)*$/.test(options.provision.name))) {
     throw Error("E_STAGING_INPUT: provide 1..100 accounts across named roles, a mutation handle and a positive timeoutMs");
   }
   return {service, roles:[...roles,...(users ? [["users",users] as [string,number]] : [])], timeout};
@@ -202,7 +202,15 @@ export async function provisionAccounts(host: Pick<ServeHost, "url" | "operatorT
     try {
       if (!lstatSync(path).isFile() || (lstatSync(path).mode & 0o077)) throw Error("unsafe roster file");
       roster = JSON.parse(readFileSync(path, "utf8"));
-      if (roster.version !== 1 || roster.plan !== plan || !Array.isArray(roster.entries)) throw Error("roster plan changed");
+      if (roster.version !== 1 || typeof roster.plan !== "string" || !Array.isArray(roster.entries)) throw Error("invalid roster");
+      if (roster.plan !== plan) {
+        // Render only validated plan fields, never arbitrary saved strings or entries.
+        const pinned = JSON.parse(roster.plan);
+        if (pinned.provision !== undefined && typeof pinned.provision !== "string") throw Error("invalid roster plan");
+        const normalized = validatePlan({...pinned, roles: Object.fromEntries(pinned.roles), provision: pinned.provision !== undefined ? {name:pinned.provision} : undefined});
+        const safe = JSON.stringify({...(pinned.users?{users:pinned.users}:{}),roles:Object.entries(Object.fromEntries(pinned.roles)).sort(),provision:pinned.provision,service:normalized.service});
+        throw Object.assign(Error(`E_PRODUCTION_ROSTER: supplied plan ${plan}; pinned plan ${safe}; reuse the pinned plan or intentionally choose a new roster name; no new accounts created`), {planMismatch:true});
+      }
       const slots = new Set<string>();
       for (const entry of roster.entries) {
         if (!entry) throw Error("invalid roster entry");
@@ -216,6 +224,7 @@ export async function provisionAccounts(host: Pick<ServeHost, "url" | "operatorT
         slots.add(slot);
       }
     } catch (error) {
+      if ((error as {planMismatch?:boolean}).planMismatch) throw error;
       if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw Error("E_PRODUCTION_ROSTER: unreadable, unsafe or changed roster; inspect it; no new accounts created");
       roster = {version:1, plan, entries:[]};
     }

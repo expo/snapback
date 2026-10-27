@@ -10,8 +10,11 @@ try { console.log(dev.url); } finally { await cleanup(() => dev.stop()); }
 ```
 
 To verify a brief's `probe:serve` process, use `snapback4 serve-check
---deployment staging --script probe:serve --then 'node scripts/acceptance.mjs'`. Never write a serve driver. Without --then it checks one JSON readiness line,
-30 seconds alive, group SIGTERM cleanup and store release. Password starters
+--deployment staging --script probe:serve --then 'node scripts/acceptance.mjs'`. Never write a serve driver. With or without --then it checks one JSON readiness line,
+at least 30 seconds alive (including business work), group SIGTERM cleanup and store release.
+For inherited day-two drivers, replace the outer checker with this command; keep
+only business assertions in --then. See `guide production --section Serve script and reusable accounts`
+for the complete startServe/startStatic/roster/SIGTERM recipe. Password starters
 include `npm run --silent probe:check`, which runs that same helper against a
 fresh deployment. Use this as the process verification driver; it withholds
 credentials and reports readiness/lifetime/shutdown failures. For shared test releases and probe:serve, use `guide staging`: real password users and operator grants on serve. Password-only dev fixture/clock tools require explicit --unsafe-dev-doors; startDev persists unless --memory is explicit.
@@ -580,3 +583,20 @@ to that owner. Await each move; an ambiguous activation needs inspection of
 `releases production --json` before another attempt. To stop an intended local
 owner explicitly, run `snapback4 stop production`; `serve production
 --wait-stopped` is only the barrier after shutdown was requested.
+
+## Observe before the trigger
+
+For transient button/status text, keep a stable locator and arm the observer
+before clicking. The browser records visible changes while the action settles:
+
+```js
+const status = page.getByTestId("save-status");
+const changed = await waitForFresh(status, "Save", {
+  trigger: () => status.click(), timeoutMs: 5000,
+});
+```
+
+Use a stable button locator (for example getByTestId or a status container)
+when its accessible name changes. A locator for the future transient text
+cannot be resolved before the trigger. The ordinary polling form still works
+for durable text; it cannot recover text that disappeared before observation.

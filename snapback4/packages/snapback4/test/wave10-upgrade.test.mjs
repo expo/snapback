@@ -73,7 +73,7 @@ test('upgrade captures the old installed compiler, checks the new one and points
   const packageRoot = join(dir, 'node_modules/snapback4'); mkdirSync(join(packageRoot, 'bin'), { recursive: true }); mkdirSync(join(packageRoot, 'dist'));
   writeFileSync(join(packageRoot, 'package.json'), JSON.stringify({ name: 'snapback4', version: '0.4.24', exports: { './bin-path': './dist/bin-path.js' } })); writeFileSync(join(packageRoot, 'dist/bin-path.js'), '');
   writeFileSync(join(packageRoot, 'bin/snapback4.js'), `const fs=require('fs'); const p=require('../package.json'); if(p.version==='0.4.24'){fs.writeFileSync('snapback/generated/api.ts',${JSON.stringify(oldApi)});console.log(JSON.stringify({ok:true,notes:[]}));}else{const r=require('child_process').spawnSync(${JSON.stringify(bin)},process.argv.slice(2),{encoding:'utf8'});process.stdout.write(r.stdout);process.stderr.write(r.stderr);process.exitCode=r.status??1;}`);
-  writeFileSync(join(dir, 'package.json'), JSON.stringify({ packageManager: 'npm@10', dependencies: { snapback4: '0.4.24' } }));
+  writeFileSync(join(dir, 'package.json'), JSON.stringify({ packageManager: 'npm@10', scripts: {'prod:serve':'node scripts/prod-serve.mjs'}, dependencies: { snapback4: '0.4.24' } }));
   writeFileSync(join(dir, 'exact.mjs'), '// Exact application marker; HS owns the rebuild implementation.');
   mkdirSync(join(dir, 'tools'));
   writeFileSync(join(dir, 'tools/npm'), `#!${process.execPath}\nconst fs=require('fs');if(process.argv[2]==='view'){console.log('${JSON.stringify(releaseVersion)}');}else{for(const file of ['package.json','node_modules/snapback4/package.json']){const p=JSON.parse(fs.readFileSync(file));if(p.dependencies)p.dependencies.snapback4='${releaseVersion}';else p.version='${releaseVersion}';fs.writeFileSync(file,JSON.stringify(p));}}`, { mode: 0o755 });
@@ -81,6 +81,7 @@ test('upgrade captures the old installed compiler, checks the new one and points
   assert.match(result.stdout + result.stderr, /Ops\.roomCount\.result: number → number \| null/);
   assert.match(result.stdout, /Exact device rebuild: bun exact\.mjs snapback --rebuild/);
   assert.match(result.stdout, /project .*snapback4@/);
+  assert.match(result.stdout, /serve-check --deployment <your-store> --script prod:serve --then/);
   assert.match(result.stdout, /project .*init --adapt --production/, 'persona-only upgrade exposes the concrete production action');
   assert.ok(result.stdout.indexOf('project ') < result.stdout.indexOf('upgrade delta:'), result.stdout);
   assert.equal(JSON.parse(readFileSync(join(dir, '.snapback4/check-surface.json'))).version, releaseVersion);

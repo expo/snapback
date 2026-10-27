@@ -100,8 +100,8 @@ export async function serveCheck(options: ServeCheckOptions): Promise<ServeCheck
     if (!keeper) add("E_SERVE_START", "process-group keeper handshake was not received");
     if (spawnError) add("E_SERVE_START", "npm script could not start");
     if (!ready) add("E_SERVE_NO_JSON", `npm run --silent ${script} ${exited ? "exited without" : `did not emit within ${startup} ms`} a first JSON object line; inspect the serve script startup`);
+    const began = performance.now();
     if (ready && !exited && options.then !== undefined && failures.length === 0) {
-      const began = performance.now();
       const controller = new AbortController();
       try {
         if (typeof options.then === "string") {
@@ -112,8 +112,8 @@ export async function serveCheck(options: ServeCheckOptions): Promise<ServeCheck
           await bounded(Promise.resolve().then(() => (options.then as Function)(readyValue, controller.signal)), thenTimeout, "E_SERVE_THEN_TIMEOUT: callback");
         }
       } catch (error) { callbackError = error; add(error instanceof Error && error.message.startsWith("E_SERVE_THEN_TIMEOUT") ? "E_SERVE_THEN_TIMEOUT" : "E_SERVE_THEN_FAILED", "proof callback failed; cleanup still checks group shutdown and lock release"); } finally { controller.abort(); observedUp = Math.round(performance.now() - began); }
-    } else if (ready && !exited && options.then === undefined) {
-      const began = performance.now();
+    }
+    if (ready && !exited && failures.length === 0 && (commandCode === undefined || commandCode === 0)) {
       while (!exited && child.exitCode === null && child.signalCode === null && performance.now() - began < up) await sleep(Math.min(25, Math.max(1, up - (performance.now() - began))));
       observedUp = Math.round(performance.now() - began);
     }
@@ -164,7 +164,7 @@ export async function serveCheck(options: ServeCheckOptions): Promise<ServeCheck
  * @throws callback failure, deadline, or E_SERVE_CHECK with a credential-free report. */
 export async function withServeScript<T>(script: string, fn: (ready: ServeScriptReady, signal: AbortSignal) => T | Promise<T>, options: Omit<ServeCheckOptions, "script" | "then" | "upMs">): Promise<T> {
   let value!: T;
-  const report = await serveCheck({...options, script, then: async (ready, signal) => { value = await fn(ready, signal); }});
+  const report = await serveCheck({...options, upMs: 1, script, then: async (ready, signal) => { value = await fn(ready, signal); }});
   if (!report.ok) throw Object.assign(Error(`E_SERVE_CHECK: ${report.failures.map(f => `${f.code}: ${f.message}`).join("; ")}`), {report});
   return value;
 }

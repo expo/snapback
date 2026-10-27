@@ -75,6 +75,12 @@ fn cards_meet_word_targets_and_preserve_every_original_compiled_block() {
             // `historical_programs` below owns the reconstructed original card.
             historical_programs = format!("{before}## Limits{after}");
             &historical_programs
+        } else if name == "reads" {
+            let (before, added) = text.split_once("## Empty lists").unwrap();
+            let (addition, after) = added.split_once("## Limits").unwrap();
+            assert!(addition.split_whitespace().count() <= 60, "DX15 executable empty-list recipe budget");
+            historical_programs = format!("{before}## Limits{after}");
+            &historical_programs
         } else { text };
         let words = historical.split_whitespace().count();
         let opening = historical.split_once("## Limits").unwrap().0.split_whitespace().count();

@@ -352,6 +352,7 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("E_QUARRY_RULE_SPELLING", "E_QUARRY_RULE_SPELLING locates a guessed table rule"),
     ("E_QUARRY_RULE_OPERATOR", "E_QUARRY_RULE_OPERATOR names a term a table rule does not evaluate"),
     ("E_PROOF_BROWSER", "E_PROOF_BROWSER means the proof project cannot resolve playwright-core."),
+    ("E_PROOF_SNAPSHOT", "E_PROOF_SNAPSHOT means administrative snapshot failed or returned incomplete/malformed inspection output."),
     ("E_PROOF_PAGE", "E_PROOF_PAGE means a bounded traversal saw a refused, loading, malformed, repeated, capped, incomplete, partial-existence or over-limit page."),
     ("E_DEV_RESET", "E_DEV_RESET means an already-bound client observed the replacement store after /dev/reset."),
     ("E_PROOF_AMBIGUOUS", "multiple rendered matches prevent a unique observation"),
