@@ -1,0 +1,22 @@
+[
+  {
+    "lane": "002-snapback-infant-helmet-fittings",
+    "exit": 0,
+    "seconds": 3.79
+  },
+  {
+    "lane": "014-snapback-balloon-decor-installs",
+    "exit": 1,
+    "seconds": 1.99
+  },
+  {
+    "lane": "019-snapback-pet-relocation-flights",
+    "exit": 1,
+    "seconds": 2.85
+  },
+  {
+    "lane": "033-snapback-garage-floor-coatings",
+    "exit": 0,
+    "seconds": 101.45
+  }
+]

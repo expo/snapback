@@ -1,0 +1,86 @@
+{
+  "schemas": 850,
+  "sourceHashesMatch": true,
+  "gates": [
+    {
+      "wave": 28,
+      "lane": "011-snapback-home-battery-installs",
+      "code": "N_APPROVAL_NOT_ENFORCED",
+      "operation": "recordInstallation",
+      "classification": "carried source-reviewed applicable approval bypass",
+      "id": "425aff363b07b4922ee00bf1c73aba2cb220d74ce3bd3552f0cad08aa61d7679"
+    },
+    {
+      "wave": 29,
+      "lane": "011-snapback-home-battery-installs",
+      "code": "N_APPROVAL_NOT_ENFORCED",
+      "operation": "recordInstallation",
+      "classification": "carried source-reviewed applicable approval bypass",
+      "id": "bb395901acf9a907b17ac911144f7fddb69808ec2266560544a0564db22d38df"
+    },
+    {
+      "wave": 30,
+      "lane": "033-snapback-garage-floor-coatings",
+      "code": "N_APPROVAL_NOT_ENFORCED",
+      "operation": "advanceJob",
+      "classification": "carried source-reviewed applicable approval bypass",
+      "id": "6a1780afc7a25a96a827deaf3a5b97f08cef9ac29bf10223c5665078f11cc371"
+    },
+    {
+      "wave": 31,
+      "lane": "002-snapback-infant-helmet-fittings",
+      "code": "N_RELEASE_CREATE_AUTHORITY",
+      "operation": "openFitting",
+      "classification": "calibrated wave31 create-path narrowing",
+      "id": "2de9864a1e863adb45b9b8afb6ca2ab0149d67fc1eda37884e4fd3db5a9db415"
+    },
+    {
+      "wave": 31,
+      "lane": "014-snapback-balloon-decor-installs",
+      "code": "N_RELEASE_CREATE_AUTHORITY",
+      "operation": "openProject",
+      "classification": "calibrated wave31 create-path narrowing",
+      "id": "b1dea944b3bb9d1402239055b858f98a3620914e7f8fb99f30053e40fdbb4c76"
+    },
+    {
+      "wave": 31,
+      "lane": "019-snapback-pet-relocation-flights",
+      "code": "N_RELEASE_CREATE_AUTHORITY",
+      "operation": "openMove",
+      "classification": "calibrated wave31 create-path narrowing",
+      "id": "50ffc9b5aacc45e4e56cc734cfa7ddc9b9340289e0e132b532986b6e1199b9ed"
+    },
+    {
+      "wave": 31,
+      "lane": "033-snapback-garage-floor-coatings",
+      "code": "N_APPROVAL_NOT_ENFORCED",
+      "operation": "advanceJob",
+      "classification": "carried source-reviewed applicable approval bypass",
+      "id": "ff147556ef077653c04afedb8e6258b85f2e76b199007cfbdaf7c8ceb60f9f2b"
+    }
+  ],
+  "falseGates": 0,
+  "falseProductionRefusals": 0,
+  "method": "SEC11 source-reviewed 800-schema classifications are carried only for byte-identical schemas and identical gate/FIX/refusal records; wave31 adds exact calibrated approval and three release-backed creation cases. All production exits and normalized FIX records match SEC11. The 800-source survey uses no invented predecessor; wave31 checks use exact v1 sources. Release-chain copies separately prove same-target activation gates.",
+  "production": {
+    "fresh": {
+      "refusals": 21,
+      "changedExits": 0,
+      "newFixes": 0,
+      "watchdogExits": 0
+    },
+    "afterTest": {
+      "refusals": 29,
+      "changedExits": 0,
+      "newFixes": 0,
+      "watchdogExits": 0
+    }
+  },
+  "testQualification": {
+    "changedExits": 21,
+    "httpPreparationTimeouts": 20,
+    "outerWatchdogs": 1,
+    "retries": "survey-retries-final; original records retained, no timeout credited as a pass"
+  },
+  "baselineClassification": "snapback4/reports/sec11-item1/precision.json"
+}

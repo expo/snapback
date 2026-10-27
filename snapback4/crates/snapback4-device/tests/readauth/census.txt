@@ -738,11 +738,9 @@ card/sharing/9:placeOrder | orderParties/insert | {"Exists":{"table":"orderParti
 card/sharing/9:placeOrder | orders/insert | {"Exists":{"table":"orderParties","index":"$intent:byOrderIdParty:491509f9264f8d78","key":[{"Field":"id"},"Viewer"],"provenance":"Shape"}} | read rule
 card/staging/1:add | never
 card/staging/1:provision | never
-card/start/5:add | eligible
-card/start/5:add | todos/insert | {"Eq":[{"Field":"ownerId"},"Viewer"]} | read rule
-card/start/5:remove | eligible
-card/start/5:toggle | eligible
-card/start/5:toggle | todos/update | {"Eq":[{"Field":"ownerId"},"Viewer"]} | read rule
+card/start/1:approve | never
+card/start/1:openRequest | never
+card/start/1:provision | never
 card/time/1:addShift | eligible
 card/time/1:addShift | shifts/insert | {"Eq":[{"Field":"owner"},"Viewer"]} | read rule
 card/time/1:addShift | shiftsByDay/maintain | {"Eq":[{"Field":"owner"},"Viewer"]} | read rule
@@ -816,9 +814,9 @@ card/writes/5:send | never
 card/writes/6:createNote | never
 package/CLIENT-AND-OPERATIONS/1:createProfile | never
 package/CLIENT-AND-OPERATIONS/2:recordPrice | never
-package/README/1:placeAvatar | eligible
-package/README/1:placeAvatar | profiles/update | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
-package/README/1:saveProfile | never
+package/CLIENT-AND-OPERATIONS/3:placeAvatar | eligible
+package/CLIENT-AND-OPERATIONS/3:placeAvatar | profiles/update | {"Eq":[{"Field":"principal"},"Viewer"]} | read rule
+package/CLIENT-AND-OPERATIONS/3:saveProfile | never
 package/SERVER/1:checkin | never
 package/SERVER/1:createRoom | eligible
 package/SERVER/1:createRoom | members/insert | {"Exists":{"table":"members","index":"$intent:byRoomIdPrincipal:4022ed4611e853d0","key":[{"Field":"roomId"},"Viewer"],"provenance":"Shape"}} | read rule

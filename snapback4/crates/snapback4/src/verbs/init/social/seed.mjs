@@ -1,3 +1,4 @@
+// API signatures: snapback4 guide api proof | client | auth | generated
 // Run with Node 24 after `snapback4 check`, while the backend is running.
 import { signup, login } from "snapback4/auth";
 import { createClient } from "snapback4/client";

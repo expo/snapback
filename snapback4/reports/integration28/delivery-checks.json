@@ -1,0 +1,22 @@
+{
+  "mergedMain": "4083c2e8660193c655c60b4d45b50548491f17c4",
+  "qualifiedSource": "c9fda9432a302b3340b10bcb88de9667635caac4",
+  "productSourceIdentical": true,
+  "refCheck": {
+    "exit": 0,
+    "documents": 575,
+    "references": 12778,
+    "errors": 0
+  },
+  "inventories": {
+    "exit": 0,
+    "packageTests": 365,
+    "scriptTests": 35,
+    "demos": 31,
+    "publicationLeaves": 487,
+    "guidePages": 162,
+    "snippets": 1937
+  },
+  "diffCheckExit": 0,
+  "note": "Final report/record-only integration; source qualified by complete consumer-only chain; full publication qualification remains separate."
+}

@@ -75,6 +75,12 @@ fn cards_meet_word_targets_and_preserve_every_original_compiled_block() {
             // `historical_programs` below owns the reconstructed original card.
             historical_programs = format!("{before}## Limits{after}");
             &historical_programs
+        } else if name == "reads" {
+            let (before, added) = text.split_once("## Empty lists").unwrap();
+            let (addition, after) = added.split_once("## Limits").unwrap();
+            assert!(addition.split_whitespace().count() <= 60, "DX15 executable empty-list recipe budget");
+            historical_programs = format!("{before}## Limits{after}");
+            &historical_programs
         } else { text };
         let words = historical.split_whitespace().count();
         let opening = historical.split_once("## Limits").unwrap().0.split_whitespace().count();
@@ -91,7 +97,8 @@ fn the_rosetta_card_is_reachable_and_covers_the_requested_idioms() {
     let rosetta = card("from-sql").unwrap();
     for alias in ["sql", "convex", "rosetta"] { assert_eq!(card(alias), Some(rosetta)); }
     assert!(card("language").unwrap().split_once("```quarry").unwrap().0.contains("guide from-sql"));
-    assert!(include_str!("../../../../packages/snapback4/README.md").lines().take(15).any(|line| line.contains("guide from-sql")));
+    assert!(include_str!("../../../../packages/snapback4/README.md").contains("guide start"));
+    assert!(snapback4_lang::guide::listing().contains("from-sql"));
     for idiom in ["NOT NULL", "DEFAULT", "PRIMARY KEY", "REFERENCES", "UNIQUE", "CHECK", "ORDER BY", "Keyset", "OFFSET", "LEFT JOIN", "Correlated", "EXISTS", "IN (...)", "GROUP BY", "SUM", "Full-text", "RLS", "Trigger", "after insert", "Cron", "TTL", "ON DELETE CASCADE", "Soft delete", "Convex `query`", "Convex `mutation`", "Convex `action`", "ctx.db.query().withIndex().order().paginate()", "ctx.auth", "Scheduled action"] {
         assert!(rosetta.contains(idiom), "missing {idiom}");
     }

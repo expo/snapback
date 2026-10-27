@@ -1,3 +1,5 @@
+// Generation/adaptation fixtures defer dependency installation; packed starters exercise the installer.
+process.env.SNAPBACK4_INIT_INSTALL = "0";
 import { after } from "./helpers/teardown.mjs";
 import { captureStdout } from './helpers/server-output.mjs';
 import { hangBudget } from './helpers/wait.mjs';
@@ -502,23 +504,24 @@ for (const tier of ["native", "web"]) test(`social DM ${tier}: concurrent opens 
 test("guide aliases send schedules, DMs and Expo readers to their owning cards", () => {
   for (const [target, aliases] of [["jobs", ["schedule", "schedules", "cron"]],
     ["social", ["dm", "direct message", "chat"]], ["client", ["expo", "ios", "react native"]]]) {
-    const expected = spawnSync(binary, ["guide", target], { encoding: "utf8" });
+    const expected = spawnSync(binary, ["guide", target, "--repeat"], { encoding: "utf8" });
     assert.equal(expected.status, 0);
     for (const alias of aliases) {
-      const result = spawnSync(binary, ["guide", alias], { encoding: "utf8" });
+      const result = spawnSync(binary, ["guide", alias, "--repeat"], { encoding: "utf8" });
       assert.equal(result.status, 0, alias); assert.equal(result.stdout, expected.stdout, alias);
       if (alias.includes(" ")) {
-        const unquoted = spawnSync(binary, ["guide", ...alias.split(" ")], { encoding: "utf8" });
+        const unquoted = spawnSync(binary, ["guide", ...alias.split(" "), "--repeat"], { encoding: "utf8" });
         assert.equal(unquoted.status, 0, alias); assert.equal(unquoted.stdout, expected.stdout, alias);
       }
     }
   }
-  const native = spawnSync(binary, ["guide", "native"], { encoding: "utf8" }).stdout;
+  const native = spawnSync(binary, ["guide", "native", "--repeat"], { encoding: "utf8" }).stdout;
   assert.match(native, /Expo client[^\n]*guide client[^\n]*guide witness/);
   const fullNative = spawnSync(binary, ["guide", "native", "--full"], { encoding: "utf8" }).stdout;
   assert.equal(native, fullNative, "a short card is now complete without truncation");
-  const long = spawnSync(binary, ["guide", "language"], { encoding: "utf8" }).stdout;
-  assert.match(long, /Truncated:.*\d+-line card: snapback4 guide language --section/);
+  const long = spawnSync(binary, ["guide", "language", "--repeat"], { encoding: "utf8" }).stdout;
+  assert.ok(Buffer.byteLength(long)<=8001,"default card retains its hard byte budget");
+  assert.match(long, /snapback4 guide language --section/);
   assert.match(long, /Sections of guide language:/);
   assert.match(long, /--full prints all \d+ lines/);
 });

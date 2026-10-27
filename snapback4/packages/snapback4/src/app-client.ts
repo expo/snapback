@@ -1,3 +1,4 @@
+import { refuseWatchGuess, validateObserveOptions } from "./observe-watch.ts";
 import { releaseLoading } from "./release.ts";
 import { guardUploads } from "./app-uploads.ts";
 import { bindSessionRefusal, sessionRefusal } from "./session-refusal.ts";
@@ -105,6 +106,7 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
     }, () => terminalQueryRefusal({ scope: valid() ? null : why(), store: null, closed: null,
       session: null, changes: null, partition: null, inherited: queryRefusal(raw) }), queries.signal),
     observe<A, R>(op: Query<A, R>, args: A, options?: ObserveOptions): Observed<R> {
+      validateObserveOptions(options);
       let source: Observed<R> | undefined, stop: (() => void) | undefined, closed = false;
       const loading: Read<R> = { loading: true };
       let snapshot: Read<R> = peekObservation(client, op, args, options) ?? loading;
@@ -334,6 +336,7 @@ export function guardClient(raw: Client, check: () => Promise<boolean>, validSco
   const local = raw as Client & { sync?: () => Promise<void> };
   if (local.sync) Object.assign(client, { async sync() { if (!await refusal()) await local.sync!(); } });
   bindSessionRefusal(client, () => sessionRefusal(raw) ?? (!valid() ? why() : undefined));
+  refuseWatchGuess(client);
   return { client, fence() {
     if (!active) return () => {};
     active = false;

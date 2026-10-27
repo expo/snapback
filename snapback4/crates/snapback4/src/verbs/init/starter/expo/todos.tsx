@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Button, Pressable, Text, TextInput, View } from "react-native";
 import { existence, isFailed } from "snapback4/contract";
 import { ReadState, useAuth, useLink, useMutation, usePage, useSignedInViewer, type UseMutation, type UsePage } from "snapback4/react";
+import { prepareTitle } from "./src/shared.ts";
 import { api } from "./snapback/generated/api";
 import { tier } from "./src/client";
 
@@ -19,8 +20,9 @@ function Todos() {
   const todos = usePage(api.list, {});
   const add = useMutation(api.add), toggle = useMutation(api.toggle), remove = useMutation(api.remove);
   const submit = () => {
-    if (!title.trim()) return;
-    void add.run({ title: title.trim() });
+    const value = prepareTitle(title);
+    if (!value) return;
+    void add.run({ title: value });
     setTitle("");
   };
   const failed = [add.last, toggle.last, remove.last].find(isFailed);
@@ -32,7 +34,7 @@ function Todos() {
         placeholder="What needs doing?" maxLength={200} onSubmitEditing={submit} />
       <Button title="Add" onPress={submit} />
     </View>
-    <Text accessibilityLiveRegion="polite">{add.last?.state ?? "Ready"}</Text>
+    <Text accessibilityLabel="Write status" accessibilityLiveRegion="polite">{add.last?.state ?? "Ready"}</Text>
     {failed && <Text style={{ color: "crimson" }}>{failed.why.message}</Text>}
     <TodoList todos={todos} toggle={toggle} remove={remove} />
     <Button title="Sign out" onPress={() => void auth.logout()} />

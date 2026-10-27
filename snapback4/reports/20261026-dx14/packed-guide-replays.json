@@ -1,0 +1,48 @@
+{
+  "date": "2026-10-26",
+  "runtime": "v24.13.1",
+  "tarballs": {
+    "snapback4-0.4.43.tgz": "363772990e1cf371debd625b0d7fae2a2fcc2515d84605b684cfe46b24594dd3",
+    "snapback4-expo-0.4.43.tgz": "31702fb579a0cd6ed8422df824d7489f91a0dfa73f83070f126bff43dbaf7c38",
+    "snapback4-linux-x64-0.4.43.tgz": "cb96131ec762eaaff3bce3bb5a2025af2a89171bbdabb5d1dc9899d28b129421"
+  },
+  "method": "npm-installed local client/Expo/Linux tarballs with native Node24 .ts stripping; packed Linux binary only, no checkout-binary override",
+  "rows": [
+    {
+      "step": "saveTitle snippet saved byte-for-byte as scripts/save-title.ts; native Node24 import of generated api.add .ts; real template backend",
+      "status": "pass",
+      "outcome": "sent receipt and authoritative list contain the supplied title",
+      "snippetSha256": "50a00e0fd33f35cc6b9017527a1d20e64fde7bb5a586f05a20cc83915b93fbd6"
+    },
+    {
+      "step": "chooseOwner snippet saved byte-for-byte as scripts/choose-owner.ts; native Node24 import; real Chromium",
+      "status": "pass",
+      "outcome": "wrapped Owner combobox selected bob; option text did not change the required label",
+      "snippetSha256": "2f2c11a8b84224bbc49ca9196d5bea846087a81b64a3299c2aa5b73e48a56b5b"
+    },
+    {
+      "step": "first Quarry fence from installed CLI guide jobs --full, unchanged; seeded old/current/exact-boundary/future/already-reminded rows; advanced >4 daily boundaries with kit",
+      "status": "pass",
+      "outcome": "one coalesced latest window processed old and current rows, excluded sentAt == periodEnd and future rows; same-window replay wrote zero rows",
+      "quarrySha256": "6423a86eed13b8cbbae06bff67e61e844f7e1bf8f18ccab060e493c083c52361",
+      "skippedPeriods": 4,
+      "firedWindows": 1,
+      "reminded": {
+        "already": true,
+        "boundary": false,
+        "current": true,
+        "future": false,
+        "old": true
+      }
+    }
+  ],
+  "ok": true,
+  "cleanup": {
+    "ownedHostsStopped": true,
+    "temporaryTreeRemoved": true
+  },
+  "limitations": [
+    "Focused runtime documentation replay only; no publication qualification claim.",
+    "First-account appendix source tests remain separately recorded by the lead."
+  ]
+}

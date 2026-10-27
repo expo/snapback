@@ -40,13 +40,12 @@ fn full_positional_key_plus_extra_tests_remains_valid() {
 }
 
 #[test]
-fn inequality_probe_explains_both_contexts_and_a_program_repair_compiles() {
+fn partial_key_inequality_probe_refuses_and_a_bounded_program_repair_compiles() {
     let schema = "table roles:\n  principal: principal\n  role: enum('admin', 'staff')\n  unique principal, role\n  by byPrincipal: principal, id\n  public 'roles'\n";
     for tail in ["query other():\n  return exists roles[viewer, role != 'admin']\n", "table docs:\n  read <- exists roles[viewer, role != 'admin']\n  online only\n"] {
         let b = compile(&[("schema.q".into(), format!("{schema}{tail}"))]);
-        let d = b.diagnostics.iter().find(|d| d.message.contains("not != tests")).unwrap_or_else(|| panic!("{:?}", b.diagnostics));
-        assert!(d.rewrite.contains("caller-readable") && d.rewrite.contains("constraints"));
-        assert!(d.source_rewrite.is_none());
+        assert!(!b.diagnostics.is_empty(), "partial unique key must refuse: {tail}");
+        assert!(b.diagnostics.iter().any(|d| d.code == "E_QUARRY_POINT_KEY" || d.message.contains("unique") || d.code == "E_QUARRY_POSITIONAL_SCAN"), "{:?}", b.diagnostics);
     }
     let b = compile(&[("schema.q".into(), format!("{schema}query other():\n  return exists roles[principal = viewer] by byPrincipal where .role != 'admin'\n"))]);
     assert!(b.diagnostics.is_empty(), "{:?}", b.diagnostics);

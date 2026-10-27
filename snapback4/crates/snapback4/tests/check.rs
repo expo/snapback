@@ -765,7 +765,7 @@ fn check_preserves_database_and_wal_bytes_with_live_and_stopped_dev() {
 
 #[test]
 fn guide_prediction_is_a_stdout_card() {
-    let output = Command::new(BIN).args(["guide", "prediction"]).output().unwrap();
+    let output = Command::new(BIN).args(["guide", "prediction", "--repeat"]).output().unwrap();
     assert!(output.status.success(), "{output:?}");
     assert!(String::from_utf8_lossy(&output.stdout).starts_with("# Prediction"));
     assert!(output.stderr.is_empty());
@@ -778,7 +778,8 @@ fn guide_unknown_word_suggests_cards_on_stdout() {
     let stdout = String::from_utf8_lossy(&output.stdout);
     let nearest = stdout.lines().next().unwrap_or("").strip_prefix("no card named banana; nearest: ").expect("nearest list on stdout");
     assert_eq!(nearest.split(", ").count(), 3);
-    assert!(stdout.contains("cards: language, from-sql, app, types"), "{stdout}");
+    assert!(nearest.split(", ").all(|name| snapback4_lang::guide::card(name).is_some()), "{stdout}");
+    assert!(stdout.contains("guide --list lists all cards"), "{stdout}");
     assert!(output.stderr.is_empty());
 }
 
@@ -794,13 +795,13 @@ fn guide_lists_aliases_and_resolves_them_on_stdout() {
     assert!(output.status.success() && output.stderr.is_empty(), "{output:?}");
     let aliases = String::from_utf8_lossy(&output.stdout);
     assert!(aliases.lines().any(|line| line == "offline -> prediction") && aliases.contains("pagination -> reads --section"), "{aliases}");
-    let output = Command::new(BIN).args(["guide", "pagination"]).output().unwrap();
+    let output = Command::new(BIN).args(["guide", "pagination", "--repeat"]).output().unwrap();
     assert!(output.status.success());
     // Wave 6 (074): an alias that names a section prints that section, under the card's title.
     let pagination = String::from_utf8_lossy(&output.stdout);
     assert!(pagination.starts_with("# Reads\n(pagination -> guide reads, section ") && pagination.contains("### Pages and cursors") && pagination.lines().count() < 30, "{pagination}");
     for (args, needle) in [(&["recipes", "--find", "capacity"][..], "## Booking"), (&["reads", "--section", "pagination"], "### Pages and cursors"), (&["capacity"], "## Booking"), (&["roles"], "## Roles"), (&["two", "party"], "## Two parties")] {
-        let output = Command::new(BIN).arg("guide").args(args).output().unwrap();
+        let output = Command::new(BIN).arg("guide").args(args).arg("--repeat").output().unwrap();
         let text = String::from_utf8_lossy(&output.stdout);
         assert!(output.status.success() && text.contains(needle), "guide {args:?}: {text}");
     }
@@ -1568,7 +1569,7 @@ fn guide_prints_a_cards_heading_index_and_one_section() {
         let card = Command::new(BIN).args(["guide", keyword, "--full"]).output().unwrap();
         let card = String::from_utf8_lossy(&card.stdout).into_owned();
         for (_, heading, _, _) in snapback4_lang::guide::sections(&card) {
-            let output = Command::new(BIN).args(["guide", keyword, "--section", &heading]).output().unwrap();
+            let output = Command::new(BIN).args(["guide", keyword, "--section", &heading, "--repeat"]).output().unwrap();
             let text = String::from_utf8_lossy(&output.stdout);
             // Repeated headings (a card may have two "Example" sections) refuse as ambiguous.
             if !output.status.success() { assert!(text.contains("matches") && text.contains("sections of guide"), "{keyword} {heading}: {text}"); continue; }
@@ -1588,7 +1589,7 @@ fn guide_prints_a_cards_heading_index_and_one_section() {
 // longer than a tool window prints its opening and a numbered index by default.
 #[test]
 fn a_long_card_prints_its_opening_and_index_and_full_prints_it_all() {
-    let guide = |args: &[&str]| { let o = Command::new(BIN).arg("guide").args(args).output().unwrap(); (o.status.code(), String::from_utf8_lossy(&o.stdout).into_owned()) };
+    let guide = |args: &[&str]| { let o = Command::new(BIN).arg("guide").args(args).arg("--repeat").output().unwrap(); (o.status.code(), String::from_utf8_lossy(&o.stdout).into_owned()) };
     for keyword in snapback4_lang::guide::KEYWORDS {
         let (code, full) = guide(&[keyword, "--full"]);
         assert_eq!(code, Some(0), "{keyword}");
@@ -1597,14 +1598,16 @@ fn a_long_card_prints_its_opening_and_index_and_full_prints_it_all() {
         let (_, default) = guide(&[keyword]);
         if snapback4_lang::guide::alias_section(keyword).is_some() {
             assert!(default.contains("--full"), "{keyword}: section aliases retain their direct landing");
-        } else if card.lines().count() > snapback4_lang::guide::FULL_LINES {
+        } else if card.lines().count() > snapback4_lang::guide::FULL_LINES || card.len() > snapback4_lang::guide::FULL_BYTES {
             let (title, _)=full.split_once('\n').unwrap();
             assert!(default.starts_with(&format!("{title}\n(Truncated:")), "{keyword}: piped output explains its bounded view before content");
             let canonical = snapback4_lang::guide::resolve(keyword).unwrap_or(keyword);
-            assert!(default.contains(&format!("Sections of guide {canonical}:")), "{keyword}: piped output adds its canonical index");
+            assert!(default.len() <= snapback4_lang::guide::FULL_BYTES + 1, "{keyword}: default output retains its hard byte budget");
+            assert_eq!(default.lines().filter(|line| line.trim_start().starts_with("```" )).count() % 2, 0, "{keyword}: complete recipe fences survive the bound");
             let section_flag = if snapback4_lang::guide::sections(card).is_empty() { "--full" } else { "--section" };
             assert!(default.contains(&format!("snapback4 guide {canonical} {section_flag}")), "{keyword}: index names the supported selector");
-            for (_,heading,_,_) in snapback4_lang::guide::sections(card) {assert!(default.contains(&heading),"{keyword}: {heading}");}
+            let (_, index) = guide(&[keyword, "--sections"]);
+            for (_,heading,_,_) in snapback4_lang::guide::sections(card) {assert!(index.contains(&heading),"{keyword}: explicit index retains {heading}");}
         } else { assert_eq!(default, full, "{keyword}: short card prints in full"); }
     }
     // Sections resolve by number, any case, prefix and words; a miss names what mentions the words.

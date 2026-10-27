@@ -152,7 +152,8 @@ fn native_smoke_is_the_milestone_path_with_honest_limits() {
     for name in ["client", "witness"] {
         let text = card(name).unwrap();
         for term in ["every milestone", "npm run export:ios", "npm run native:smoke", "in the background", "witness status --wait", "write replay"] {
-            assert!(text.to_lowercase().contains(term), "{name}: missing {term}");
+            let found = text.to_lowercase().contains(term) || (name == "client" && text.contains("CLIENT-AND-OPERATIONS.md#client-tier-and-proof-details") && include_str!("../../../../packages/snapback4/CLIENT-AND-OPERATIONS.md").split_once("## Client tier and proof details").unwrap().1.to_lowercase().contains(term));
+            assert!(found, "{name}: missing {term}");
         }
         assert!(text.lines().count() <= if name == "client" { 114 } else { 399 });
         assert!(!text.contains("in this source revision"));

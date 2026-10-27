@@ -1,0 +1,23 @@
+{
+  "start": {
+    "candidate": {
+      "defaultSha256": "69267330ab4bf9d2cb9d38d42709a53a3d7b8a69083908189abc070a8f6f31df",
+      "referenceSha256": "69267330ab4bf9d2cb9d38d42709a53a3d7b8a69083908189abc070a8f6f31df"
+    },
+    "after-production-0.4.44": {
+      "defaultSha256": "69267330ab4bf9d2cb9d38d42709a53a3d7b8a69083908189abc070a8f6f31df",
+      "referenceSha256": "69267330ab4bf9d2cb9d38d42709a53a3d7b8a69083908189abc070a8f6f31df"
+    }
+  },
+  "preSchemaSourceBlobs": {
+    "snapback4/packages/snapback4/README.md": {
+      "e84bd1f2eb": "cbd370b5100c11a13e0c912e56a6f48e73de1200",
+      "HEAD": "cbd370b5100c11a13e0c912e56a6f48e73de1200"
+    },
+    "snapback4/crates/snapback4-lang/src/guide/start.md": {
+      "e84bd1f2eb": "da926a74da88e306a8c82ba730932e20be1ccd2b",
+      "HEAD": "da926a74da88e306a8c82ba730932e20be1ccd2b"
+    }
+  },
+  "conclusion": "All recorded SDK surfaces read before first schema remain byte-identical in the final production binary. The security reference appendix is read only after first schema in these replays."
+}

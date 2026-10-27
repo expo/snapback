@@ -18,13 +18,20 @@ fn comparative_bare_history_and_separate_decorations_compile_without_held_notes(
     let bound = bound(COMPARATIVE);
     assert!(notes(&bound).is_empty(), "{:?}", bound.notes);
     // DX5: asserted lookups and a later write do not prove read authority.
-    // Pin the five new source-only notes rather than suppressing arbitrary advice.
+    // SECP: the preceding admin membership witnesses answer add/removeMember's
+    // reader policy. Message lookups still lack their conversation witness.
     let lookups = bound.notes.iter().filter(|n| n.code == "N_LOOKUP_FILTERED").collect::<Vec<_>>();
-    assert_eq!(lookups.len(), 5, "{:?}", bound.notes);
-    for name in ["addMember", "removeMember", "setReaction", "editMessage", "deleteMessage"] {
+    assert_eq!(lookups.len(), 3, "{:?}", bound.notes);
+    for name in ["setReaction", "editMessage", "deleteMessage"] {
         let note = lookups.iter().find(|n| n.message.starts_with(&format!("mutation {name}:"))).unwrap();
         assert!(COMPARATIVE.lines().nth(note.site.line as usize - 1).unwrap().contains("! else NOT_FOUND"));
         assert!(note.message.contains("read <-") && note.rewrite.contains("do not widen private rows"));
+    }
+    let missing = COMPARATIVE.replace("  require exists members[conversation = conversation, principal = viewer, role = 'admin'] else NOT_ADMIN\n", "");
+    let without_admin = compile(&[("schema.q".into(), missing)]);
+    assert!(without_admin.diagnostics.is_empty(), "{:?}", without_admin.diagnostics);
+    for name in ["addMember", "removeMember"] {
+        assert!(without_admin.notes.iter().any(|n|n.code=="N_LOOKUP_FILTERED"&&n.message.starts_with(&format!("mutation {name}:"))));
     }
     let other = bound.notes.iter().filter(|n| n.code != "N_LOOKUP_FILTERED").collect::<Vec<_>>();
     assert_eq!(other.len(), 1, "{:?}", bound.notes);

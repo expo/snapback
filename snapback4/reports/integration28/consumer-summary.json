@@ -1,0 +1,215 @@
+{
+  "mode": "consumer-only",
+  "source": "c9fda9432a302b3340b10bcb88de9667635caac4",
+  "version": "0.4.44",
+  "route": "proot",
+  "binarySha256": "d1bd7db63769424373915c61bcf1338f5893adea9be908eac8f6227f492b3d6c",
+  "publicationQualified": false,
+  "suite": {
+    "status": "not-run"
+  },
+  "artifacts": [
+    {
+      "filename": "snapback4-0.4.44.tgz",
+      "bytes": 1370086,
+      "sha256": "1607ab400f747650f9174fb84cced477804e261fbf87e91c4f7ccbb4936ff4c8",
+      "integrity": "sha512-32eXEKvTNnKRrj2QspkHz3DKcUquJZ2s8+fol3gPMqltPJzpW3DDw/s0Ice2LHulYfTciExX222rtIq/APqsQg=="
+    },
+    {
+      "filename": "snapback4-expo-0.4.44.tgz",
+      "bytes": 24276,
+      "sha256": "077ae35841424fa42452d7789be547f032f90ca9ecec158623b7d601eb5ef5f5",
+      "integrity": "sha512-gebK5MGeNYIg72r1gQNTpWUe0xgtOVZOWdbDQxQM9I5aXIMLe4IPoHYyskfTSoIxhzHPXJveXssGmJRzPfcH7g=="
+    },
+    {
+      "filename": "snapback4-linux-x64-0.4.44.tgz",
+      "bytes": 18318410,
+      "sha256": "a63c87c8e994d895e3f742f91523b93225c21334f712438bd2bcbb01b3f4f920",
+      "integrity": "sha512-pL2qsAow3HhCrKjMjJ/TG4Dq20yLkNrAP+Mr4IBNFD9No7jmCWqIp7uqlovfLerH7vFMob2UZNAhPFWRZtDCzA=="
+    }
+  ],
+  "starters": [
+    {
+      "starter": "web",
+      "kind": "web",
+      "audit": {
+        "status": "passed",
+        "warnings": []
+      },
+      "status": "passed",
+      "adapted": "passed",
+      "typecheck": "passed",
+      "build": "passed"
+    },
+    {
+      "starter": "web-online",
+      "kind": "web",
+      "audit": {
+        "status": "passed",
+        "warnings": []
+      },
+      "status": "passed",
+      "typecheck": "passed",
+      "build": "passed"
+    },
+    {
+      "starter": "expo",
+      "kind": "expo",
+      "audit": {
+        "status": "passed",
+        "warnings": []
+      },
+      "status": "passed",
+      "adapted": "passed",
+      "typecheck": "passed",
+      "build": "passed"
+    },
+    {
+      "starter": "web-chat",
+      "kind": "web",
+      "audit": {
+        "status": "passed",
+        "warnings": []
+      },
+      "status": "passed",
+      "typecheck": "passed",
+      "build": "passed"
+    },
+    {
+      "starter": "expo-chat",
+      "kind": "expo",
+      "audit": {
+        "status": "passed",
+        "warnings": []
+      },
+      "status": "passed",
+      "typecheck": "passed",
+      "build": "passed"
+    },
+    {
+      "starter": "expo-social",
+      "kind": "expo",
+      "audit": {
+        "status": "passed",
+        "warnings": []
+      },
+      "status": "passed",
+      "typecheck": "passed",
+      "build": "passed"
+    }
+  ],
+  "userspaces": [
+    {
+      "base": "ubuntu:24.04",
+      "node": "24.13.1",
+      "route": "proot",
+      "status": "passed",
+      "elapsedMs": 560206,
+      "starters": {
+        "web": "passed",
+        "expo": "passed",
+        "adapted": "passed",
+        "templates": "passed"
+      }
+    },
+    {
+      "base": "alpine",
+      "node": "24.18.1",
+      "route": "proot",
+      "status": "passed",
+      "elapsedMs": 661418,
+      "starters": {
+        "web": "passed",
+        "expo": "passed",
+        "adapted": "passed",
+        "templates": "passed"
+      }
+    }
+  ],
+  "frontend": [
+    {
+      "starter": "web",
+      "kind": "web",
+      "status": "passed"
+    },
+    {
+      "starter": "web",
+      "kind": "web",
+      "status": "passed"
+    },
+    {
+      "starter": "web-online",
+      "kind": "web",
+      "status": "passed"
+    },
+    {
+      "starter": "web-online",
+      "kind": "web",
+      "status": "passed"
+    },
+    {
+      "starter": "expo",
+      "kind": "expo",
+      "status": "passed"
+    },
+    {
+      "starter": "expo",
+      "kind": "expo",
+      "status": "passed"
+    },
+    {
+      "starter": "web-chat",
+      "kind": "web",
+      "status": "passed"
+    },
+    {
+      "starter": "web-chat",
+      "kind": "web",
+      "status": "passed"
+    },
+    {
+      "starter": "expo-chat",
+      "kind": "expo",
+      "status": "passed"
+    },
+    {
+      "starter": "expo-chat",
+      "kind": "expo",
+      "status": "passed"
+    },
+    {
+      "starter": "expo-social",
+      "kind": "expo",
+      "status": "passed"
+    },
+    {
+      "starter": "expo-social",
+      "kind": "expo",
+      "status": "passed"
+    }
+  ],
+  "proofRecords": [
+    "client-recipes.json",
+    "consumer.json",
+    "day2-proof.json",
+    "day4-proof.json",
+    "day5-proof.json",
+    "dormant.json",
+    "dx4-proof.json",
+    "dx5-proof.json",
+    "dx6-proof.json",
+    "dx7-proof.json",
+    "dx8-proof.json",
+    "frontend-proofs.json",
+    "migrations.json",
+    "production-proofs.json",
+    "proofs.json",
+    "regressions.json",
+    "release-transitions.json",
+    "rule-recipes.json",
+    "security.json",
+    "staging.json",
+    "starter-proofs.json"
+  ],
+  "fullConsumerExit": 0
+}

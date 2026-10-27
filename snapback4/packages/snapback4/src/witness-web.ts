@@ -51,7 +51,7 @@ export function registerWebWitness(app: App, api?: Operations): void {
       let resolve!: (write: unknown) => void;
       const terminal = new Promise(answer => { resolve = answer; });
       let settled = false, noWriteTimer: ReturnType<typeof setTimeout> | undefined;
-      const noWrite = () => finish({ state: "failed", mutation: name, why: { code: "E_WITNESS_NO_WRITE", reason: clickedReady ? "returned-early" : "not-ready", message: "armed click produced no durable mutation (form handler returned early, or the app was not ready)" } });
+      const noWrite = () => finish({ state: "failed", mutation: name, why: { code: "E_WITNESS_NO_WRITE", reason: clickedReady ? "returned-early" : "not-ready", message: "armed click produced no durable mutation (form handler returned early, or the app was not ready); if the handler awaits uploads, call witnessForm(app, event, async mutate => { /* upload, then supplied mutate */ }) synchronously from the clicked handler" } });
       const finish = (write: unknown) => {
         if (settled) return;
         settled = true; clearTimeout(expiry); clearTimeout(noWriteTimer); restore(); cancelObserver(); resolve(write);

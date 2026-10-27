@@ -1,0 +1,32 @@
+--- original/acceptance.mjs
++++ corrected/acceptance-sec12.mjs
+@@ -106,8 +106,8 @@
+     pet: pet1.result.id, crateSize: "M", flight: `SB-${tag}-Y`, feedingNotes: "y",
+     certScan: { id: await upload(powner1) }, certIssuedAt: now, price: 1, cardRef: "y", balance: 1,
+   }, "NOT_COORDINATOR", "pet owner cannot open a move");
+-  const cert2 = await upload(owner1);
+-  const move2 = await mutateOk(owner1, api.openMove, {
++  const cert2 = await upload(coord1);
++  const move2 = await mutateOk(coord1, api.openMove, {
+     pet: pet2.result.id, crateSize: "L", flight: `SB-${tag}-200`, feedingNotes: "once daily",
+     certScan: { id: cert2 }, certIssuedAt: now, price: 200000, cardRef: `card-${tag}-1111`, balance: 200000,
+   }, "owner1 (company owner) opens move for powner2's pet");
+@@ -210,11 +210,15 @@
+   const q3 = await coord1b.query(api.moveDetail, { move: move4.result.id });
+   check("data" in q3 && q3.data?.price == null, "removed quote reads back null");
+   // v1 insert path preserved: company owner may still quote at creation time.
+-  const cert5 = await upload(owner1b);
+-  const move5 = await mutateOk(owner1b, api.openMove, {
++  const cert5 = await upload(coord1b);
++  await mutateCode(owner1b, api.openMove, {
++    pet: pet1.result.id, crateSize: "M", flight: `SEC12-${tag}`, feedingNotes: "regular",
++    certScan: { id: await upload(owner1b) }, certIssuedAt: await dev.now(), price: 99000, cardRef: "sec12", balance: 99000,
++  }, "E_RULE", "company owner cannot set price at creation");
++  const move5 = await mutateOk(coord1b, api.openMove, {
+     pet: pet2.result.id, crateSize: "XL", flight: `SB-${tag}-500`, feedingNotes: "owner quoted",
+     certScan: { id: cert5 }, certIssuedAt: await dev.now(), price: 99000, cardRef: `card-${tag}-5555`, balance: 99000,
+-  }, "owner1 opens move5 with a quoted price (creation)");
++  }, "coordinator opens move5 with a quoted price (creation)");
+   const q5 = await owner1b.query(api.moveDetail, { move: move5.result.id });
+   check("data" in q5 && q5.data?.price === 99000, "creation-time quote preserved");
+   // Existing moves keep their exact prices (migration check over every move).

@@ -1,0 +1,237 @@
+{
+  "task": "DX14 remaining original-app output and jobs replays",
+  "date": "2026-10-26",
+  "runtime": "Node v24.13.1",
+  "candidateCli": "snapback4/target/debug/snapback4; binary contained new security campaign/authored cases/query probes statuses before starting",
+  "packedClient": {
+    "artifact": "/tmp/dx14-packs/snapback4-0.4.43.tgz",
+    "sha256AtReport": "325a56691a40203b4286ac4ab153ce46b05e4505fa0e8ecc20f88e2126bc0199",
+    "executedRuntimeLeavesVerifiedAgainstTarball": [
+      "client.js",
+      "proof.js",
+      "proof-text.js",
+      "proof-accounts.js"
+    ],
+    "qualification": "Focused consumer replay only, not publication qualification"
+  },
+  "isolation": "Original apps copied read-only into /tmp/dx14-replay/client-round2. Quarry source digests match originals. No repository application source changed. At most two generated campaigns ran concurrently; job replay followed as a slot freed.",
+  "lanes": [
+    {
+      "lane": "024E",
+      "app": "024-snapback-home-gym-installs",
+      "quarrySha256": "c25521bef46a4c09a8d48c5db6b4b21bf998cbd76765eb3a8c0907300175c070",
+      "originalSchemaUnchanged": true,
+      "step": "snapback4 test",
+      "status": "pass",
+      "exitCode": 0,
+      "elapsedSeconds": 115.851,
+      "fixturePosture": "Original app has no authored test.cases.jsonl; no new fixture or business cases supplied. Generated campaign remains supporting finite evidence.",
+      "statuses": {
+        "securityCampaign": "completed",
+        "authoredCases": "not provided",
+        "queryProbes": "incomplete",
+        "overall": "no failing observations"
+      },
+      "summary": [
+        {
+          "elapsedSeconds": 115.846,
+          "text": "test not covered: no authored business cases; generated-fixture only (finite, not proof)"
+        },
+        {
+          "elapsedSeconds": 115.846,
+          "text": "security campaign: completed \u2014 finite execution; coverage limits are reported separately"
+        },
+        {
+          "elapsedSeconds": 115.846,
+          "text": "authored cases: not provided \u2014 0 passed, 0 failed, 0 skipped"
+        },
+        {
+          "elapsedSeconds": 115.846,
+          "text": "query probes: 2 complete, 0 capped, 0 refused as your cases expect, 1 probe refusals on derived arguments (expected), 3 not run, 0 denied; no test.cases.jsonl (see snapback4 guide testing) \u2014 incomplete"
+        },
+        {
+          "elapsedSeconds": 115.846,
+          "text": "test: no failing observations (coverage and authored-case status above)"
+        }
+      ],
+      "heartbeat": {
+        "observed": true,
+        "first": {
+          "elapsedSeconds": 10.378,
+          "text": "security: campaign running (10 s elapsed; finite exploration, not proof)"
+        },
+        "last": {
+          "elapsedSeconds": 110.379,
+          "text": "security: campaign running (110 s elapsed; finite exploration, not proof)"
+        },
+        "count": 11
+      }
+    },
+    {
+      "lane": "049R",
+      "app": "049-snapback-wedding-officiant-bookings",
+      "quarrySha256": "df3c521f9692f9f2320cbc7fd199941794d7f0089083a8fd153a3adf5080d65c",
+      "originalSchemaUnchanged": true,
+      "step": "snapback4 test",
+      "status": "pass",
+      "exitCode": 0,
+      "elapsedSeconds": 113.206,
+      "fixturePosture": "Original app has no authored test.cases.jsonl; no new fixture or business cases supplied. Generated campaign remains supporting finite evidence.",
+      "statuses": {
+        "securityCampaign": "completed",
+        "authoredCases": "not provided",
+        "queryProbes": "incomplete",
+        "overall": "no failing observations"
+      },
+      "summary": [
+        {
+          "elapsedSeconds": 113.203,
+          "text": "test not covered: no authored business cases; generated-fixture only (finite, not proof)"
+        },
+        {
+          "elapsedSeconds": 113.203,
+          "text": "security campaign: completed \u2014 finite execution; coverage limits are reported separately"
+        },
+        {
+          "elapsedSeconds": 113.203,
+          "text": "authored cases: not provided \u2014 0 passed, 0 failed, 0 skipped"
+        },
+        {
+          "elapsedSeconds": 113.203,
+          "text": "query probes: 1 complete, 0 capped, 0 refused as your cases expect, 2 probe refusals on derived arguments (expected), 1 not run, 0 denied \u2014 incomplete"
+        },
+        {
+          "elapsedSeconds": 113.203,
+          "text": "test: no failing observations (coverage and authored-case status above)"
+        }
+      ],
+      "heartbeat": {
+        "observed": true,
+        "first": {
+          "elapsedSeconds": 10.28,
+          "text": "security: campaign running (10 s elapsed; finite exploration, not proof)"
+        },
+        "last": {
+          "elapsedSeconds": 110.28,
+          "text": "security: campaign running (110 s elapsed; finite exploration, not proof)"
+        },
+        "count": 11
+      }
+    },
+    {
+      "lane": "050R",
+      "app": "050-snapback-grain-dryer-servicing",
+      "quarrySha256": "1b48876f3090cff0946023d9ed4a54d4bd5c2d20d7105ba47e9cc7f59480d5ed",
+      "originalSchemaUnchanged": true,
+      "step": "snapback4 test --source snapback",
+      "status": "pass",
+      "exitCode": 0,
+      "elapsedSeconds": 197.065,
+      "fixturePosture": "Original app has no authored test.cases.jsonl; no new fixture or business cases supplied. Generated campaign remains supporting finite evidence.",
+      "statuses": {
+        "securityCampaign": "completed",
+        "authoredCases": "not provided",
+        "queryProbes": "incomplete",
+        "overall": "no failing observations"
+      },
+      "summary": [
+        {
+          "elapsedSeconds": 197.031,
+          "text": "test not covered: no authored business cases; generated-fixture only (finite, not proof)"
+        },
+        {
+          "elapsedSeconds": 197.031,
+          "text": "security campaign: completed \u2014 finite execution; coverage limits are reported separately"
+        },
+        {
+          "elapsedSeconds": 197.031,
+          "text": "authored cases: not provided \u2014 0 passed, 0 failed, 0 skipped"
+        },
+        {
+          "elapsedSeconds": 197.031,
+          "text": "query probes: 3 complete, 0 capped, 0 refused as your cases expect, 2 probe refusals on derived arguments (expected), 1 not run, 0 denied \u2014 incomplete"
+        },
+        {
+          "elapsedSeconds": 197.031,
+          "text": "test: no failing observations (coverage and authored-case status above)"
+        }
+      ],
+      "heartbeat": {
+        "observed": true,
+        "first": {
+          "elapsedSeconds": 10.383,
+          "text": "security: campaign running (10 s elapsed; finite exploration, not proof)"
+        },
+        "last": {
+          "elapsedSeconds": 190.386,
+          "text": "security: campaign running (190 s elapsed; finite exploration, not proof)"
+        },
+        "count": 19
+      }
+    },
+    {
+      "lane": "018R",
+      "app": "018-snapback-orchard-pruning-visits",
+      "quarrySha256": "0848b7bfe5c12ed2973c96ed0ed161cd6d66013c8a304c7991f87feb157ff199",
+      "originalSchemaUnchanged": true,
+      "step": "Real original-schema accounts/uploads; stop persistent dev, then CLI run --now at exact deadline and +1ms, releaseStale, and confirm again",
+      "status": "pass",
+      "exitCode": 0,
+      "boundaryRows": [
+        {
+          "step": "confirm at bookedAt + 7d",
+          "status": "pass",
+          "outcome": "sent (inclusive <= boundary)"
+        },
+        {
+          "step": "confirm at bookedAt + 7d + 1ms",
+          "status": "pass",
+          "outcome": "CONFIRM_WINDOW_PASSED"
+        },
+        {
+          "step": "releaseStale at deadline + 1ms",
+          "status": "pass",
+          "outcome": "job completed; visit status released"
+        },
+        {
+          "step": "confirm after releaseStale changed status",
+          "status": "pass",
+          "outcome": "CONFIRM_WINDOW_PASSED precedes BAD_STATUS"
+        }
+      ],
+      "limitation": "Focused original-schema operation replay, not a rerun of all original 018R acceptance groups."
+    },
+    {
+      "lane": "035E",
+      "app": "035-snapback-drapery-cleaning-batches",
+      "quarrySha256": "915ae519e43a77e607feb5b21ceae16b5bd8f4a8d8d567b798870d686231fc59",
+      "originalSchemaUnchanged": true,
+      "step": "node scripts/acceptance.mjs (unchanged original acceptance source, extracted packed client, candidate backend)",
+      "status": "pass",
+      "exitCode": 0,
+      "checks": 133,
+      "summary": [
+        "ok 78 - batch2 returned by sweep",
+        "ok 113 - no storage invoice before 60 days",
+        "ok 122 - still no storage invoice",
+        "ok 124 - batch1 storage charged automatically",
+        "ok 126 - batch4 storage charged automatically",
+        "ok 128 - exactly one storage invoice per batch",
+        "acceptance passed: 133 checks"
+      ],
+      "coveredClockJumps": [
+        "15d: overdue quoted batch returned after missed daily windows",
+        "30d then31d: no storage invoice before60d; late ready batches charged automatically",
+        "1d further: exactly one storage invoice per ready batch"
+      ],
+      "limitation": "Runs final app catch-up sweep; does not change its policy or claim exact schedule-per-period replay."
+    }
+  ],
+  "limitations": [
+    "Generated security campaigns are finite executions, not safety proofs.",
+    "No authored JSONL business cases were added; authored-case status is not provided and query-probe coverage remains incomplete.",
+    "No full client pool or complete battery was run.",
+    "First-account packed tutorial replay belongs to lead and is not claimed here."
+  ],
+  "cleanup": "Copied app trees, their private account/store artifacts, and extracted packed client removed after successful report generation. Temporary external tsx tooling retained for lead packed-regression use. No account identifiers, passwords, bearer tokens, or private credential files are included."
+}

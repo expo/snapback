@@ -1,3 +1,5 @@
+// Generation/adaptation fixtures defer dependency installation; packed starters exercise the installer.
+process.env.SNAPBACK4_INIT_INSTALL = "0";
 import { stopChild, startDev, startServe } from "../dist/proof.js";
 import test from 'node:test';
 import assert from 'node:assert/strict';

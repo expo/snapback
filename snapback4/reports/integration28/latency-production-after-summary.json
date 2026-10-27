@@ -1,0 +1,48 @@
+{
+  "method": "54 deterministically stratified schemas, three per wave, from 940-schema survey; four latency workers plus four survey workers; independent source/fixture copies per command; warm repeats on same copy; host shared; final static production snapshot",
+  "binaries": {
+    "after-production-0.4.44": "aa6a5388fcf1f26066abb49af8b40da076145bef34493c91f674fd858b1005bf"
+  },
+  "rows": [
+    {
+      "label": "after-production-0.4.44",
+      "mode": "check",
+      "temperature": "cold",
+      "count": 54,
+      "median": 8.4595,
+      "p90": 21.395,
+      "max": 36.841,
+      "toolFailures": []
+    },
+    {
+      "label": "after-production-0.4.44",
+      "mode": "check",
+      "temperature": "warm",
+      "count": 54,
+      "median": 6.0685,
+      "p90": 16.317,
+      "max": 21.287,
+      "toolFailures": []
+    },
+    {
+      "label": "after-production-0.4.44",
+      "mode": "staging",
+      "temperature": "cold",
+      "count": 54,
+      "median": 9.085,
+      "p90": 27.189,
+      "max": 35.735,
+      "toolFailures": []
+    },
+    {
+      "label": "after-production-0.4.44",
+      "mode": "staging",
+      "temperature": "warm",
+      "count": 54,
+      "median": 1.49,
+      "p90": 2.706,
+      "max": 11.979,
+      "toolFailures": []
+    }
+  ]
+}

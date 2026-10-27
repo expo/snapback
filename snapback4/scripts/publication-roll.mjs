@@ -11,8 +11,8 @@ export async function proveRollInstalled(cwd,binary,run){
   const cli=(...args)=>cliAt(cwd,...args);
   const json=async(...args)=>{const r=await cli(...args,'--json');return JSON.parse(r.stdout);};
   // The rollback fixtures deliberately loosen one column to represent pending
-  // values. Record only that column's review; adding a presence invariant would
-  // also change the independent workflow intent being tested by these cycles.
+  // values. Declare only that column's deliberately optional presence, using the
+  // tautological source intent from guide security; workflow guards remain unchanged.
   async function optionalSource(name, before, after, table, column) {
     const project=join(cwd,name);
     const path=join(project,'snapback');mkdirSync(path,{recursive:true});
@@ -27,9 +27,13 @@ export async function proveRollInstalled(cwd,binary,run){
       .map(n=>`${n.site.file}:${n.site.line}:${n.site.col}`);
     const decisions=report.securityReviews.filter(n=>n.code==='N_PRESENCE_LOOSENING'&&sites.includes(n.site));
     assert.equal(decisions.length,1,JSON.stringify(report));
-    const acknowledged=await check('--ack-security',decisions[0].id,'--reason',
-      `This rollback fixture deliberately permits pending/null ${table}.${column} values; current workflow guards remain enforced.`);
-    assert.equal(acknowledged.code,0,acknowledged.stderr+acknowledged.stdout);
+    const rejected=await check('--ack-security',decisions[0].id,'--reason',
+      `This rollback fixture deliberately permits pending/null ${table}.${column} values.`);
+    assert.equal(rejected.code,2,rejected.stderr+rejected.stdout);
+    assert.match(rejected.stderr+rejected.stdout,/source intent|free text cannot close/);
+    writeFileSync(join(path,'schema.q'),after+`\ninvariant ${table} always .${column} = null or .${column} != null\n`);
+    const accepted=await check('--json');assert.equal(accepted.code,0,accepted.stderr+accepted.stdout);
+    assert.equal(JSON.parse(accepted.stdout).securityReviews.some(d=>d.code==='N_PRESENCE_LOOSENING'&&d.gated&&!d.acknowledged),false);
     return {path,project};
   }
   const hostOptions={cwd,env:{SNAPBACK4_BIN:undefined,PORT_LO:'31000',PORT_HI:'31999'},timeoutMs:30000};

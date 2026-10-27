@@ -37,6 +37,10 @@ impl AnyTx<'_> {
     pub(crate) fn reset_identity(&self) -> Result<(), RuntimeError> { match self { Self::Sqlite(SqliteTx(inner)) => inner.reset_identity(), #[cfg(feature = "postgres")] Self::Postgres(_) => Err(RuntimeError::StoreUnsupported { family: "dev-reset" }) } }
 }
 impl AnyStore {
+    pub(crate) fn campaign_assets_enabled(&self)->bool{match self{Self::Sqlite(SqliteStore(s))=>s.campaign_assets_enabled(),#[cfg(feature="postgres")]Self::Postgres(_)=>false}}
+    pub(crate) fn capture_campaign_assets(&self)->Result<(),RuntimeError>{match self{Self::Sqlite(SqliteStore(s))=>s.capture_campaign_assets(),#[cfg(feature="postgres")]Self::Postgres(_)=>Err(RuntimeError::StoreUnsupported{family:"assets"})}}
+    pub(crate) fn retain_campaign_asset(&self,id:&str){match self{Self::Sqlite(SqliteStore(s))=>s.retain_campaign_asset(id),#[cfg(feature="postgres")]Self::Postgres(_)=>{}}}
+    pub(crate) fn materialize_campaign_asset(&self,id:&str)->Result<(),RuntimeError>{match self{Self::Sqlite(SqliteStore(s))=>s.materialize_campaign_asset(id),#[cfg(feature="postgres")]Self::Postgres(_)=>Err(RuntimeError::StoreUnsupported{family:"assets"})}}
     pub fn asset_location(&self) -> Result<crate::store_port::AssetLocation<'_>, RuntimeError> {
         match self {
             Self::Sqlite(SqliteStore(inner)) => Ok(crate::store_port::AssetLocation {

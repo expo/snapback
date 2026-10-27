@@ -139,7 +139,7 @@ mod lane {
             }
         }
         // @ref LLP 3000.009.001.000.000.002#8.1 — physical writer sessions and constant protocol code are ready before ingress.
-        pub fn prepare(&mut self, engine: &mut Engine) -> Result<(), RuntimeError> {
+        pub fn prepare_for_ingress(&mut self, engine: &mut Engine) -> Result<(), RuntimeError> {
             if !matches!(engine.store, AnyStore::Postgres(_)) || self.spare.is_some() { return Ok(()); }
             let mut spare = engine.store.pipeline_slot()?;
             engine.store.prepare_pipeline_writer()?;
@@ -235,7 +235,7 @@ mod lane {
             }
             assert!(self.active && self.len() < 2);
             if self.spare.is_none() && self.empty() {
-                if self.prepare(engine).is_err() {
+                if self.prepare_for_ingress(engine).is_err() {
                     let out = engine.invoke_program_batch_planned(&mut batch, &mut plans);
                     finish(engine, out);
                     return;
@@ -717,12 +717,12 @@ mod lane {
             let mut engine = crate::engine::program_batch::tests::fixture(true);
             let seq = engine.seq().unwrap();
             let mut lane = Lane::new();
-            lane.prepare(&mut engine).unwrap();
+            lane.prepare_for_ingress(&mut engine).unwrap();
             assert!(lane.empty());
             Lane::prepared_calls(&mut engine.store);
             Lane::prepared_calls(&mut lane.spare.as_mut().unwrap().0);
             assert_eq!(engine.seq().unwrap(), seq);
-            lane.prepare(&mut engine).unwrap();
+            lane.prepare_for_ingress(&mut engine).unwrap();
             assert_eq!(lane.drivers.len(), 2);
         }
     }

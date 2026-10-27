@@ -7,8 +7,9 @@ SEC11b continues item-1 commit `1f9b2610d3`. Items 2–4 are implemented and
 measured in order, with both independent reviews per mechanism. The complete
 800-schema survey has zero assessed false gates/refusals and default medians of
 3 check / 5 deploy lines. Wave-30 visibility is 11/14; structurally zero medium
-holes is not claimed. Current details and final verification follow the original
-item-1 record below. No push or version bump.
+holes is not claimed. The final 14-step SEC11 affected plan passes on `8e06b286ce`, including 193
+language integration targets and all six selected client files. Details follow
+the original item-1 record below. No push or version bump.
 
 The original item1 boundary did not claim structurally zero medium holes and
 left items2–9 outstanding. Its following sections retain that historical record.
@@ -502,3 +503,99 @@ zero disagreements; Lean 2k retains exactly the inherited 5/8/5 signatures
 its retained records; independent preflight unit results and the final 14-step
 scoped receipt are reported after completion. This report checkpoint is committed
 before final verification; results may be appended uncommitted as the brief allows.
+
+
+### Final result — all requested SEC11b items complete
+
+Tested final commit: `8e06b286ce1b26e8dad87bc3d7764d46773f9106`.
+All 14 steps of the scoped SEC11 affected plan PASS. The receipt reports
+`complete: true`, `unchanged: true`, `ok: true`; no source or report changes
+occurred during that run. The code and measurement packet are committed. This
+final results-only report append is left uncommitted as the brief permits.
+
+| Final affected check | Result |
+| --- | --- |
+| CLI security units | 60 passed, 0 failed |
+| Selected CLI integrations | 32 passed, 0 failed, five targets |
+| Language units | 155 passed, 0 failed, one ignored metrology utility |
+| All language integrations | 2,714 passed, 0 failed, 16 declared ignores, 193 targets |
+| Language doctests | Successful command, no doctests declared |
+| Selected client tests | Six files, 17 passed, 0 failed/skipped/cancelled |
+| Frozen dependency install, CLI/WASM/client builds | PASS |
+| WASM gzip budget | 738,613 bytes / 739,113; unchanged limit |
+| Diagnostics registry | PASS; 3,593 codes and 9,654 emitting sites |
+| Docs budget/self-containment and packaged-doc lint | PASS |
+| Reference check | PASS; 575 LLPs, 12,143 refs, zero errors/unchecked |
+
+Canonical selector planning is retained, together with the explicit SEC11
+scope override. This is the completed 14-step affected plan, not a claim that
+the complete broad canonical battery passed. The user-prohibited full Rust and
+client pools, unrelated CLI targets, device/20k differential batteries, Mac and
+publication qualification are excluded as recorded in the scoped plan. Direct
+2k standard differential testing has zero disagreements; 2k Lean retains the
+same 18 inherited disagreements (5 continuation-next, 8 next, 5 prelude-code)
+and 324 unsupported cases. Lean is not a clean PASS. Earlier malformed and
+product-failed/interrupted runs remain unchanged and never qualify this result.
+
+All 1,961 frozen production inputs still match the corrected native packet.
+The correction manifest verifies. All four calibration files still match the
+measurement hashes. Wave 30 is 11/14 visible with exact witnesses (one gate,
+ten questions); its remaining misses are 006 F1, 010 F1, 038 F1. Wave 31 is
+10/16 (one gate, nine questions); remaining misses are 002 F2, 006 F1, 010 F1,
+010 F2, 014 F3, 014 F4. These are beyond the requested item-2–4 cases. No claim
+of structurally zero medium holes is made. Items 5–8 remain future work; item 9
+belongs to SEC11L.
+
+The 800-schema packet has zero assessed false gates/refusals, no unclassified
+findings, and check/deploy median lines 3/5. Its 17 incomplete HTTP qualifications
+remain explicit gaps; historical item-2/item-3 incomplete totals are 24/40 after
+the retained accounting corrections. The parent-window correction carries the
+immutable original native800 packet by the narrow reviewed equivalence bridge
+and fresh native witnesses; it is not a second native800 execution. Nothing here
+claims isolated latency qualification or complete HTTP admission.
+
+Latest fetched origin/main `750a8c34fa` is merged at `7c993cad1c`; no push,
+publication or version bump. The 0.4.44 Guide changes entry covers all three
+mechanisms. LLP children 3000.036.004.006/.003/.004 and verbatim Muse/fresh Codex
+reviews preserve each mechanism's decisions and corrections.
+
+Final evidence outside git:
+
+- `~/sb4-loop/reports/sec11b/sec11b-final-affected.log`
+- `~/sb4-loop/reports/sec11b/sec11b-final-affected.original.json`
+- `~/sb4-loop/reports/sec11b/sec11b-final-affected.scoped.json`
+- `~/sb4-loop/reports/sec11b/sec11b-final-affected.receipt.json`
+- `~/sb4-loop/reports/sec11b/sec11b-final-summary.json`
+- `~/sb4-loop/reports/sec11b/sec11b-final-tested-source.json`
+- Local canonical receipt: `target/affected/8e06b286ce1b-1793112272423.json`.
+
+Final scoped receipt SHA-256: `ff61bf583465b5528b6fe749ed4b2c1f98d641ee541717cefc401194ee2fdb8b`.
+Final log SHA-256: `4e8555c50da964931bf54dcb3682d297117c9ccb039813c970e060ec5f94f85d`.
+
+
+### Late main integration (pinned 2921a639cc)
+
+After the complete PASS on 8e06b286ce, the shared remote-tracking reference had
+advanced by 100 commits while verification ran. The lane pins Integration 28
+snapshot 2921a639cc for one final merge; it will not chase a moving exact HEAD.
+The pre-merge receipt and all original per-item measurements remain immutable.
+The previous final totals apply to the pre-merge measured boundary only.
+
+Merge resolution combines SEC11b Bound candidates with SEC11L's batched compiler,
+keeps current-report joining/independent fixed-budget campaigns, preserves SEC12
+release gate checks and compact evaluated-answer presentation, and retains the
+assignment/transition witness predicates. Cached advisory key is renewed. A
+suppressed positive feature summary still prints meaningful test status. No
+new scheduling or deploy-verb optimization is introduced by this resolution.
+
+Integration 28 assigned provisional .002 to SEC12. The unpublished approval
+amendment now has fresh sibling identity 3000.036.004.006; original review
+filenames and immutable packets retain their provisional-number provenance.
+Assignment .003 and transition .004 retain their identities. The collision ticket
+is resolved with this mapping; live code and Related links use .006.
+
+The imported main version is 0.4.44; this lane adds no independent version bump.
+All requested guide additions remain in the 0.4.44 entry. Fresh merge reviews,
+focused current-native replays and post-merge affected results follow separately.
+No unchanged-native800 claim is carried across these incoming product changes.
+Per-item coverage/precision/output measurements remain their named snapshots.

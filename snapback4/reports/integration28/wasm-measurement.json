@@ -1,0 +1,20 @@
+{
+  "at": "2026-10-27T11:32:42Z",
+  "sha": "ebe7eaa12f",
+  "dirty": false,
+  "wasm": {
+    "raw": 2416590,
+    "gzip": 738561,
+    "brotli": 556001
+  },
+  "glue": {
+    "raw": 16053,
+    "gzip": 3695,
+    "brotli": 3260
+  },
+  "wasmOpt": true,
+  "budget": 739113,
+  "over": 0,
+  "finalBudget": 739061,
+  "finalHeadReuse": "No wasm semantic inputs changed after measurement; subsequent runtime changes are CLI-only and advisory reporting. Rebuilt final client wasm unchanged in dimensions; strict checks retained."
+}

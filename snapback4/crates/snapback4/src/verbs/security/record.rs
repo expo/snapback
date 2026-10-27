@@ -106,10 +106,10 @@ mod tests{
   security::challenges::fixture_observers(&bound,&e,&mut c);assert!(!c.violations.is_empty());
   remember(&project,&options,&c,true,&key).unwrap();
   let mut strict=options.clone();strict.flags.insert("strict".into(),String::new());
-  let summary=super::super::release_loop(&project,&bound,&sources,None,&strict).unwrap();let denied=super::super::enforce_release(summary.as_ref(),&strict).unwrap_err();assert!(denied.contains("E_SECURITY_REVIEW"));
+  let summary=super::super::release_loop(&project,&bound,&sources,None,None,&strict).unwrap();let denied=super::super::enforce_release(summary.as_ref(),&strict).unwrap_err();assert!(denied.contains("E_SECURITY_REVIEW"));
   let mut staging=options.clone();staging.flags.insert("staging".into(),String::new());
-  let advisory=super::super::release_loop(&project,&bound,&sources,None,&staging).unwrap().unwrap();assert!(advisory.contains("FIX")&&advisory.contains("FAILED"));
-  assert!(super::super::release_loop(&project,&bound,&sources,Some(&bound),&strict).unwrap().is_none());
+  let advisory=super::super::release_loop(&project,&bound,&sources,None,None,&staging).unwrap().unwrap();assert!(advisory.contains("FIX")&&advisory.contains("FAILED"));
+  assert!(super::super::release_loop(&project,&bound,&sources,Some(&bound),None,&strict).unwrap().is_none());
  }
 
 }

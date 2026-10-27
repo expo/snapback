@@ -1,0 +1,58 @@
+{
+  "sameFindingFiles": true,
+  "sameOracleTotals": true,
+  "findingFiles": 16,
+  "changedFiles": [],
+  "newFiles": [],
+  "missingFiles": [],
+  "before": {
+    "lean": {
+      "attempted": 2000,
+      "passed": 1658,
+      "unsupported": {
+        "call-max": 36,
+        "call-min": 21,
+        "call-sum": 26,
+        "index-computed-or-words": 46,
+        "loop": 54,
+        "now": 7,
+        "page-compound-where-branches": 1,
+        "page-static-key-expression": 4,
+        "prelude-now": 18,
+        "shape": 111
+      },
+      "disagreeing": 18,
+      "signatures": {
+        "lean--continuation-next--next~no-next": 5,
+        "lean--next--next~no-next": 8,
+        "lean--prelude-code--E_RULE~NOT_FOUND": 5
+      },
+      "meter_fields_omitted": 0
+    }
+  },
+  "after": {
+    "lean": {
+      "attempted": 2000,
+      "passed": 1658,
+      "unsupported": {
+        "call-max": 36,
+        "call-min": 21,
+        "call-sum": 26,
+        "index-computed-or-words": 46,
+        "loop": 54,
+        "now": 7,
+        "page-compound-where-branches": 1,
+        "page-static-key-expression": 4,
+        "prelude-now": 18,
+        "shape": 111
+      },
+      "disagreeing": 18,
+      "signatures": {
+        "lean--continuation-next--next~no-next": 5,
+        "lean--next--next~no-next": 8,
+        "lean--prelude-code--E_RULE~NOT_FOUND": 5
+      },
+      "meter_fields_omitted": 0
+    }
+  }
+}

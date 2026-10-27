@@ -1,0 +1,26 @@
+{
+  "commit": "3fda135dfc62f723804171bd8f6e2b4faf18bfa8",
+  "checks": [
+    {
+      "name": "generated",
+      "ok": true,
+      "code": 0,
+      "log": "/tmp/tok1-integrated-generated.log",
+      "sha256": "a7ad65e9fc086cbc74d45c4f986ec64bca6c96ae05b0c130f7070a88cef374ed"
+    },
+    {
+      "name": "inventories",
+      "ok": true,
+      "code": 0,
+      "log": "/tmp/tok1-integrated-inventories.log",
+      "sha256": "2e5bdbb81fb0a90d0048b15c79190ef3773fdfa33b8646930fe455f717a57813"
+    },
+    {
+      "name": "guide",
+      "ok": true,
+      "code": 0,
+      "log": "/tmp/tok1-integrated-guide.log",
+      "sha256": "ffd2e7f73864b5566cdaa84b86c9a827097996f0ae2b771d81e98f10474ec8b6"
+    }
+  ]
+}

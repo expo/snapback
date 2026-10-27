@@ -2,6 +2,36 @@
 use super::*;
 
 impl<'a> Binder<'a> {
+    // Bracket != is a residual test on one ruled row, never a population seek.
+    pub(super) fn literal_point_predicates(&mut self, read: &ReadExpr, out: &mut setup::Body) -> Fallible<Expr> {
+        if read.seeks.iter().any(|b| b.op != "!=") || read.filter.is_some() || read.range.is_some() || read.matching.is_some() {
+            return Err(type_error(&read.site, "probe != tests require a full unique key without range or where clauses", "pin one complete unique key, then add field != literal; use where for a bounded population"));
+        }
+        let mut point = read.clone(); point.seeks.clear();
+        // FilteredPoint selects and checks a total unique key. No expression is
+        // evaluated twice: evaluate the one ruled lookup, then its payload tests.
+        let row_value = self.read_value(&point, ReadMode::FilteredPoint, out)?;
+        let row = self.temp("probe");
+        out.push(Stmt::Let { name: row.clone(), value: row_value });
+        let mut condition = Expr::Binary { op: BinaryOp::Ne, left: Box::new(ir::var(&row)), right: Box::new(Expr::Literal(Value::Null)) };
+        let info = self.table(&read.table, &read.site)?;
+        for bound in &read.seeks {
+            let expected = info.columns.get(&bound.column).map(Ty::from_scalar)
+                .ok_or_else(|| unknown(&bound.site, format!("{} has no column {}", read.table, bound.column), "use a declared scalar column"))?;
+            if expected.is_optional() { return Err(type_error(&bound.site, "probe != needs a required field; nullable comparisons need an explicit program guard", "read the row by its unique key, check presence, then compare the field")); }
+            let (value, ty) = self.field_value(&ObjectField { spread: false, name: bound.column.clone(), value: Some(bound.value.clone()), site: bound.site.clone() }, &expected, out)?;
+            if !ty.comparable(&expected) { return Err(type_error(&bound.site, format!("{} is {}; the literal is {}", bound.column, expected.name(), ty.name()), "compare with a literal of the field's declared type")); }
+            let (field, _) = self.member(ir::var(&row), Ty::Row(read.table.clone()), &bound.column, &bound.site)?;
+            // A protected payload is null when unreadable. Negating an equality
+            // probe would incorrectly turn that hidden payload into true.
+            let visible = Expr::Binary { op: BinaryOp::Ne, left: Box::new(field.clone()), right: Box::new(Expr::Literal(Value::Null)) };
+            let differs = Expr::Binary { op: BinaryOp::Ne, left: Box::new(field), right: Box::new(value) };
+            let test = Expr::Binary { op: BinaryOp::And, left: Box::new(visible), right: Box::new(differs) };
+            condition = Expr::Binary { op: BinaryOp::And, left: Box::new(condition), right: Box::new(test) };
+        }
+        Ok(condition)
+    }
+
     // @ref LLP 3000.011.000.001#4 — retain the binder's actual choice for why, never infer a new lookup or rewrite.
     pub(super) fn record_selection(&mut self, site: &str, read: &ReadExpr, index: &ast::IndexDecl, result: &str, reason: &str) {
         let named = read.keys.iter().all(|key| key.column.is_some());
@@ -85,6 +115,10 @@ impl<'a> Binder<'a> {
     // @ref LLP 3000.007#5.3 — a seek constrains the first index column after the pinned prefix.
     pub(super) fn seek(&mut self, info: &'a TableInfo, read: &ReadExpr, index: &ast::IndexDecl, out: &mut setup::Body) -> Fallible<Option<ir::Range>> {
         if read.seeks.is_empty() { return Ok(None); }
+        if let Some(bound) = read.seeks.iter().find(|bound| bound.op == "!=") {
+            return Err(type_error(&bound.site, "bracket != is supported only in an exists probe after a complete unique key; it is not an ordered page seek",
+                format!("use `where .{} != {}` on a bounded page, or `exists {}[id = doc, {} != {}]` for a complete unique point probe", bound.column, print::expression(&bound.value), read.table, bound.column, print::expression(&bound.value))).guide("reads"));
+        }
         let mut range = ir::Range { gt: None, gte: None, lt: None, lte: None };
         for bound in &read.seeks {
             if index.columns.get(read.keys.len()) != Some(&bound.column) || read.matching.is_some() {

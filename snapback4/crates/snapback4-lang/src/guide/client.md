@@ -41,13 +41,10 @@ Own createApp({url,writes:"online",sessionStore:localStorageSessionStore()}) out
 ```tsx
 import { useEffect, useState } from "react"; import { isPresent, matchReadList, sentResult, useAppReady, useMutation, useQuery, useRelease } from "snapback4/react"; import { api } from "../snapback/generated/api";
 export function StaffWorkspace({team}: {team: string}) {
-  const [draft, setDraft] = useState(""), [selected, setSelected] = useState("");
-  const ready = useAppReady(), release = useRelease(), role = useQuery(api.myRole, {team});
-  const [lastStaff, setLastStaff] = useState(false);
-  const staff = api.myRole.available(release) && isPresent(role) && role.complete && role.fresh && !role.revalidating && role.data.role === "staff", uncertain = "loading" in role || ("data" in role && (role.existence === "partial" || !role.complete || !role.fresh || role.revalidating === true));
+  const [draft, setDraft] = useState(""), [selected, setSelected] = useState(""); const ready = useAppReady(), release = useRelease(), role = useQuery(api.myRole, {team});
+  const [lastStaff, setLastStaff] = useState(false); const staff = api.myRole.available(release) && isPresent(role) && role.complete && role.fresh && !role.revalidating && role.data.role === "staff", uncertain = "loading" in role || ("data" in role && (role.existence === "partial" || !role.complete || !role.fresh || role.revalidating === true));
   useEffect(() => { if (!uncertain) setLastStaff(staff); }, [uncertain, staff]);
-  const shell = uncertain ? lastStaff : staff;
-  const available = api.addStaffNote.available(release) && api.staffNotes.available(release), add = useMutation(api.addStaffNote);
+  const shell = uncertain ? lastStaff : staff; const available = api.addStaffNote.available(release) && api.staffNotes.available(release), add = useMutation(api.addStaffNote);
   async function submit() {const title = draft.trim(); if (!ready || !staff || !available || !title || !selected) return;
     const write = await add.run({team, title, category:selected}); if (sentResult(write) !== undefined) setDraft(current => current === draft ? "" : current);}
   return <section aria-label="Staff workspace"><p>{shell ? "Staff workspace" : "Staff access required"}</p>
@@ -91,7 +88,7 @@ function PublicNotes() {
 
 ## React hooks and auth decisions
 
-Never gate sign-in with `useAppReady()`: it needs a signed-in client; sign-out/replacement resets it. Keep drafts above gates; readiness is not authority. Invalid online/device/readOnly combinations set `useAuth().why` and fail app.ready; recreate corrected. Storage failures throw `E_ADMISSION`.
+Never gate sign-in with useAppReady: it needs a signed-in client. Keep drafts above gates; readiness is not authority. Password/custody, auth methods and storage refusals: [reference](CLIENT-AND-OPERATIONS.md#password-react-and-expo).
 `useAuth()`: `state`/`viewer`/`why`, `signup`/`login`/`guest`/`logout`/`logoutEverywhere`; client `signOut()`; Expo secureStoreSessionStore(SecureStore). Password/custody: [reference](CLIENT-AND-OPERATIONS.md#password-react-and-expo). E_SESSION names invalid fields. Online tokens return no session and refresh explicitly; automatic refresh/devices need complete Sessions.
 
 | Helper | Input/result | Handlers/arguments |
@@ -109,6 +106,9 @@ export function listLabel(read: Read<readonly {id:string}[]>): string {
 export async function uploadPdf(client: Client, picked: File) { return client.upload(picked, {file: {type: "application/pdf", name: picked.name}}); }
 ```
 `loading`: keep shells; `denied`: show refusal; `present`: render; `absent`: proven empty; `partial`: uncertain. Offline absent is absence at the acquired watermark. Hidden/missing rows are indistinguishable. `readPresentation` notices never grant permission. Unknown counts never hide conversations. `predicts`: eligible/device/held facts may render `pending:true` before `useMutation().run()` settles; others queue without rows. Never/online follows settlement/delivery. run() waits for sent/failed; `{waitSeconds:0}` returns custody. Proofs await fresh sent; predictions aren't settlement.
+`client.observe(op,args)` returns `{getSnapshot,subscribe,close}`; call subscribe(listener), not observe(op,args,callback) or watch. `client.asset(id)` returns `{url,type,bytes,revoke}` or `{denied}`; call revoke when done, while React uses useAsset. `sentResult` is exported by snapback4/contract and snapback4/react. Headless recovery: settleMutation from snapback4/client waits through reconnect for a pending write's same-id terminal receipt; waitSeconds:0 retains explicit custody.
 `query(op,args)` settles ready/denied within 30 seconds. Unavailable offline reads give immediate `E_OFFLINE`. After four rounds, exhaustion refuses retryable `E_QUERY_RETRY`; permanently unavailable held reads refuse non-retryable `E_QUERY_HELD`. Retention, RowOf/ArgsOf/ResultOf and {skip}: [reference](CLIENT-AND-OPERATIONS.md). Share/paginate: eight active, eight queued observation attempts; direct queries and timed presence refreshes use separate paths.
-Browser: no sync → journal; sync → webDevice(); online writes: writes:"online". Native: nativeDevice. Every milestone: npm run export:ios; check proof in the background with witness status --wait. Rebuild: npm run native:smoke. Reopen/reconnect/write replay: guide witness. useOnline: server reads/ephemeral/actions; app.mutate: durable writes. SDK owns delivery reporting; screen owns visible `seen` reporting; useSeen retries (guide receipts). Proofs: await fresh sent/rendering; avoid networkidle (guide testing).
+Browser/native tiers and proofs: [reference](CLIENT-AND-OPERATIONS.md#client-tier-and-proof-details). Starters select tiers.
 Keyed counts: hidden key → null; authorized missing count group → 0; public → number. Choose count ?? 0.
+
+Node 24 imports use .ts under src ESM. Expo configs stay CommonJS; [strictness patterns](CLIENT-AND-OPERATIONS.md#client-tier-and-proof-details) cover optional properties/indices.

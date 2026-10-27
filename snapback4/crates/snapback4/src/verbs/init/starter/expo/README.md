@@ -5,9 +5,8 @@ one live query and three mutations. Development and production builds open the
 native device and work offline; Expo Go uses the online client; web uses the
 wasm device.
 
-> **`npm install` takes a few minutes. `npm audit` still reports an unpatched high
-> advisory in Expo's `node-forge` code-signing dependency; qualification records
-> a dated no-fix warning. do not run `npm audit fix --force`, which downgrades Expo to SDK 44.**
+> **`npm install` takes a few minutes. The Expo code-signing dependency
+> `node-forge` is pinned to patched 1.4.1; qualification audits development dependencies too.**
 
 ```sh
 npm install
@@ -47,12 +46,10 @@ fail Hermes compilation.
 
 ## Audit findings
 
-`package.json`'s `overrides` moves the config plugins' `xcode` from the
-deprecated `uuid@7` to `uuid@11` (GHSA-w5hq-g745-h8pq). `npm audit` still
-reports an unpatched high advisory in `node-forge`
-(GHSA-86w9-cpqp-85rv, the Expo CLI's code-signing dependency).
-Qualification includes development dependencies and retains a dated no-fix warning; fixed or unrecorded advisories fail.
-Patched zod and decode-uri-component versions are pinned through overrides.
+`package.json`'s `overrides` selects `uuid@11` for the config plugins' `xcode`,
+patched `node-forge@1.4.1` for Expo code signing, and patched zod and
+decode-uri-component versions. Qualification includes development dependencies;
+fixable or unrecorded advisories fail. There are no current no-fix exceptions.
 
 ## Native proof
 

@@ -1,0 +1,14 @@
+{
+  "check": {
+    "comparedSchemas": 850,
+    "witnessedFindings": 521,
+    "gatedFindings": 7,
+    "lost": []
+  },
+  "fresh": {
+    "comparedSchemas": 850,
+    "witnessedFindings": 518,
+    "gatedFindings": 20,
+    "lost": []
+  }
+}

@@ -137,6 +137,10 @@ fn w11_every_registered_code_quotes_its_definition() {
 // independent of the paragraph selector: do not regenerate them to bless a new
 // first mention. Whitespace may change; the reason for the code must survive.
 const DEFINITIONS: &[(&str, &str)] = &[
+    ("E_OBSERVE_USAGE", "E_OBSERVE_USAGE means observe received a callback"),
+    ("N_ROLE_UNFILTERED", "N_ROLE_UNFILTERED means an own-or-roster rule probes a mixed owner/customer"),
+    ("N_RELEASE_CREATE_AUTHORITY", "A predecessor-backed setter narrowing"),
+    ("N_RELEASE_CREATE_COVERAGE", "The local successful-check source baseline cannot be read or compiled"),
     ("E_DEV_ACCOUNTS", "E_DEV_ACCOUNTS means development account setup requires startDev with password identity."),
     ("E_SERVE_STOP_FAILED", "E_SERVE_STOP_FAILED means the npm serve script exited unsuccessfully during shutdown."),
     ("E_SERVE_THEN_FAILED", "E_SERVE_THEN_FAILED means the serve proof callback failed."),
@@ -150,6 +154,7 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("E_SERVE_CHECK_PLATFORM", "E_SERVE_CHECK_PLATFORM means serve-check cannot provide Unix process-group custody on this platform."),
     ("E_SERVE_NO_JSON", "E_SERVE_NO_JSON means the npm serve script supplied no complete JSON object line before exit or startup deadline."),
     ("E_SERVE_EXTRA_OUTPUT", "E_SERVE_EXTRA_OUTPUT means the serve script emitted extra, invalid, oversized or unterminated stdout."),
+    ("E_PROBE_IDLE", "E_PROBE_IDLE means a probe held over 60 seconds without requests."),
     ("E_SERVE_EARLY_EXIT", "E_SERVE_EARLY_EXIT means the npm serve script exited before the requested up interval completed."),
     ("E_SERVE_CHILD_RUNNING", "E_SERVE_CHILD_RUNNING means an owned child remained alive after group SIGTERM and the stop grace."),
     ("E_SERVE_DRIVER_EXIT", "E_SERVE_DRIVER_EXIT means the checker driver or keeper exited or lost IPC before inspection completed."),
@@ -354,6 +359,7 @@ const DEFINITIONS: &[(&str, &str)] = &[
     ("E_QUARRY_RULE_SPELLING", "E_QUARRY_RULE_SPELLING locates a guessed table rule"),
     ("E_QUARRY_RULE_OPERATOR", "E_QUARRY_RULE_OPERATOR names a term a table rule does not evaluate"),
     ("E_PROOF_BROWSER", "E_PROOF_BROWSER means the proof project cannot resolve playwright-core."),
+    ("E_PROOF_SNAPSHOT", "E_PROOF_SNAPSHOT means administrative snapshot failed or returned incomplete/malformed inspection output."),
     ("E_PROOF_PAGE", "E_PROOF_PAGE means a bounded traversal saw a refused, loading, malformed, repeated, capped, incomplete, partial-existence or over-limit page."),
     ("E_DEV_RESET", "E_DEV_RESET means an already-bound client observed the replacement store after /dev/reset."),
     ("E_PROOF_AMBIGUOUS", "multiple rendered matches prevent a unique observation"),

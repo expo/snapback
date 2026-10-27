@@ -1,3 +1,5 @@
+// Generation/adaptation fixtures defer dependency installation; packed starters exercise the installer.
+process.env.SNAPBACK4_INIT_INSTALL = "0";
 // @ref LLP 3000.001.000#hs-cross-repository-correction-2026-10-13 — every starter includes its configuration in the typecheck.
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -72,6 +74,8 @@ mutation add(title: text <=80):
     }));
     const proofFile = join(dir, 'scripts/frontend-proof.mjs');
     const proof = readFileSync(proofFile, 'utf8');
+    assert.doesNotMatch(proof, /Task status|Write status/);
+    assert.match(proof, /beginForm/);
     assert.match(proof, /const within = page.locator\("#proof-rows"\);/);
     assert.match(proof, /renderedText\(page, new RegExp\(title\), \{ within \}\)/);
     assert.throws(() => installCustomWriteScenario(dir, kind), /fresh Home/);

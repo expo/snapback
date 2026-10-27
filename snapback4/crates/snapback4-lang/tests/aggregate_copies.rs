@@ -167,7 +167,8 @@ fn aggregate_copy_claim_is_reached_from_the_orientation() {
     // Wave 14 (W14b) moved every reference section out of the README into the cards;
     // the orientation's reference map must still lead a reader to the feeds card, and
     // the claim lives there in full (its wording is pinned by the card test above).
-    assert!(README.split_once("## Reference map").unwrap().1.contains("`guide feeds`"));
+    assert!(README.contains("./CLIENT-AND-OPERATIONS.md"));
+    assert!(include_str!("../../../packages/snapback4/CLIENT-AND-OPERATIONS.md").contains("guide feeds"), "the linked reference reaches the aggregate card");
     assert!(!README.contains("## N_PUBLIC_AGGREGATE_COPY:"), "the claim is no longer duplicated in the README");
     let claim = guide::card("maintains").unwrap().split_once("## N_PUBLIC_AGGREGATE_COPY:").expect("published aggregate-copy section").1;
     assert!(claim.contains("Every write to a public or") && claim.contains("likeCount: count likes"));

@@ -135,13 +135,24 @@ test("early timer delivery preserves staging timeout classification with budget 
  assert.equal(early,1);assert.equal(calls,1);
 });
 
-test('DX9 provisioning refusal names only argument keys and never credential values', async t => {
+test('DX9 provisioning refusal redacts actual credentials and opaque arguments', async t => {
  const original=globalThis.fetch;t.after(()=>{globalThis.fetch=original;});
  for(const envelope of [{state:'failed',why:{code:'E_INPUT',message:'private-password private-token private-value'}},{denied:{code:'E_RULE',message:'private-password private-token'}}]) {
-  globalThis.fetch=async url=>new Response(JSON.stringify(String(url).endsWith('/auth/config')?{environment:'staging',development:false,password:true}:String(url).endsWith('/auth/signup')?{session:{kind:'user',principal:'user:private-principal',token:'private-token',expiresAt:Date.now()+100000}}:envelope));
+  let submittedPassword;
+  globalThis.fetch=async (url,init)=>{
+   if(String(url).endsWith('/auth/config'))return Response.json({environment:'staging',development:false,password:true});
+   if(String(url).endsWith('/auth/signup')){
+    submittedPassword=JSON.parse(init.body).password;
+    return Response.json({session:{kind:'user',principal:'user:private-principal',token:'private-token',expiresAt:Date.now()+100000}});
+   }
+   // Echo the actual request credential. A made-up unrelated password literal
+   // cannot test redaction by a helper that preserves backend explanations.
+   return Response.json(JSON.parse(JSON.stringify(envelope).replaceAll('private-password',submittedPassword)));
+  };
   await assert.rejects(seedAccounts({url:'http://example',operatorToken:async()=>'operator'},{roles:{member:1},provision:{name:'provision'},args:()=>({label:'private-value'})}),error=>{
    assert.match(error.message,/E_STAGING_PROVISION.*supplied arguments: label, principal, role/);
-   for(const secret of ['private-password','private-token','private-value','private-principal'])assert.equal(error.message.includes(secret),false);
+   assert.equal(typeof submittedPassword,'string');assert.ok(submittedPassword.length>=20);
+   for(const secret of [submittedPassword,'private-token','private-value','private-principal'])assert.equal(error.message.includes(secret),false);
    return true;
   });
  }

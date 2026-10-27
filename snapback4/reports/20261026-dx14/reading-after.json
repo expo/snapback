@@ -1,0 +1,29 @@
+{
+  "commit": "429e7fc4a439f35a4ccc243ecfd18435d7d7593e",
+  "binarySha256": "7a2fa91a14773205268d6292afc5b83d9db0c7333a30b7b0df85eb20ec07a396",
+  "path": [
+    "README.md",
+    "guide start",
+    "guide cheatsheet",
+    "guide client",
+    "guide testing",
+    "guide personas",
+    "guide staging",
+    "check"
+  ],
+  "bytes": {
+    "README.md": 18291,
+    "guide start": 8500,
+    "guide cheatsheet": 5197,
+    "guide client": 11675,
+    "guide testing": 6217,
+    "guide personas": 9513,
+    "guide staging": 2624,
+    "check": 349
+  },
+  "total": 62366,
+  "beforeTotal": 83101,
+  "reductionPercent": 24.95,
+  "tutorialPreservedIn": "CLIENT-AND-OPERATIONS.md#your-first-working-account-screen",
+  "measurement": "Same README and default guide commands, same clean todo source; optional tutorial not read on starter common path. Commands measured in fresh owned directory."
+}

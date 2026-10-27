@@ -1,0 +1,10 @@
+{
+  "raw": 2416590,
+  "gzip": 738561,
+  "sha256": "f7781e0b72c4d6a194256da314c477e688f351893bc467a2132d391e417466cf",
+  "packedClientWasm": {
+    "package/dist/wasm/snapback4_device_bg.wasm": "f7781e0b72c4d6a194256da314c477e688f351893bc467a2132d391e417466cf"
+  },
+  "budget": 739061,
+  "gzipMethod": "GNU gzip -9 -c named file, matching measure-wasm.sh; stdin removes 25-byte filename header"
+}

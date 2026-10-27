@@ -58,7 +58,8 @@ export async function runFile(file, { timeout, nodeArgs = [], env: overrides = {
   const temp = mkdtempSync(join(tmpdir(), 'sb4-test-file-'));
   const output = join(temp, 'output.log');
   const fd = openSync(output, 'w');
-  const env = { ...process.env, ...overrides };
+  // File fixtures own their tools; dependency installation has dedicated TOK1 and packed-starter proofs.
+  const env = { ...process.env, SNAPBACK4_INIT_INSTALL: process.env.SNAPBACK4_INIT_INSTALL ?? "0", ...overrides };
   delete env.NODE_TEST_CONTEXT;
   const started = performance.now();
   onOutput(`-- client file start: ${file}; stall bound ${timeout} ms\n`);

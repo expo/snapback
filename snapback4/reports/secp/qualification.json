@@ -1,0 +1,18 @@
+{
+  "codeCommit": "473e7433a9c7e8a1f0dd71007a347db807ef2251",
+  "codeInputs": {
+    "snapback4/crates": "9e7d34691bd5afce197b46c387fef6b58cdd8286",
+    "snapback4/Cargo.toml": "0605e6e8867009518c0d68cad55e0ab42a5abcf1",
+    "snapback4/Cargo.lock": "1c99ab081d1d17a6958d74cf36d6e2805f02ccab",
+    "snapback4/packages/snapback4/CHANGELOG.md": "0ac0391b2b77e744430372f984284047be5eaafb"
+  },
+  "codeInputDigest": "1b095c09c864a000a1fcf781b8a4d822b38667f47448c2abc46fef278bcf53c1",
+  "binary": "/tmp/secp-evidence/after-473e7433a9",
+  "binarySha256": "566371fccda0622d4bb920856e2a040ccab1540f943198aa0c1f170d5dd52bc8",
+  "version": "0.4.43",
+  "profile": "test, optimized; CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0",
+  "baselineBinarySha256": "3e5b86eb9fdf84842c2fbf40ccb7019a64ec3ad02aef7e180801a1d4203fbffb",
+  "measurementDirectory": "/tmp/secp-evidence/accepted-final",
+  "sourceOnlyQualification": true,
+  "mac": "skipped by brief"
+}

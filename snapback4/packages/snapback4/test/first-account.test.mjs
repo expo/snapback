@@ -1,3 +1,5 @@
+// Generation/adaptation fixtures defer dependency installation; packed starters exercise the installer.
+process.env.SNAPBACK4_INIT_INSTALL = "0";
 import { captureStdout } from './helpers/server-output.mjs';
 import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
@@ -15,7 +17,7 @@ import { processDevice } from "../dist/native.js";
 
 const pkg = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const binary = process.env.SNAPBACK4_BIN ?? resolve(pkg, "../../target/debug/snapback4");
-const readme = readFileSync(join(pkg, "README.md"), "utf8");
+const readme = readFileSync(join(pkg, "CLIENT-AND-OPERATIONS.md"), "utf8").split("## Your first working account screen")[1];
 const blocks = [...readme.matchAll(/^```(quarry|tsx?)\n([\s\S]*?)^```/gm)];
 const until = async (read, label) => { return awaitState(read, label); };
 

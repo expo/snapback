@@ -53,7 +53,7 @@
     },
     "packages/snapback4": {
       "name": "snapback4",
-      "version": "0.4.43",
+      "version": "0.4.44",
       "bin": {
         "snapback4": "bin/snapback4.js",
       },
@@ -65,14 +65,15 @@
         "@types/node": "24",
         "@types/react": "19.3.0",
         "@types/react-dom": "19.3.0",
+        "js-tiktoken": "1.0.21",
         "playwright-core": "1.55.1",
         "react": "19.3.0",
         "react-dom": "19.3.0",
         "typescript": "5.9.3",
       },
       "optionalDependencies": {
-        "snapback4-darwin-arm64": "0.4.43",
-        "snapback4-linux-x64": "0.4.43",
+        "snapback4-darwin-arm64": "0.4.44",
+        "snapback4-linux-x64": "0.4.44",
       },
       "peerDependencies": {
         "playwright-core": ">=1.55.1 <2",
@@ -85,11 +86,11 @@
     },
     "packages/snapback4-darwin-arm64": {
       "name": "snapback4-darwin-arm64",
-      "version": "0.4.43",
+      "version": "0.4.44",
     },
     "packages/snapback4-expo": {
       "name": "snapback4-expo",
-      "version": "0.4.43",
+      "version": "0.4.44",
       "bin": {
         "snapback4-export-ios": "export-ios.mjs",
       },
@@ -107,7 +108,7 @@
     },
     "packages/snapback4-linux-x64": {
       "name": "snapback4-linux-x64",
-      "version": "0.4.43",
+      "version": "0.4.44",
     },
   },
   "packages": {
@@ -790,6 +791,8 @@
     "jimp-compact": ["jimp-compact@0.16.1", "", {}, "sha512-dZ6Ra7u1G8c4Letq/B5EzAxj4tLFHL+cGtdpR+PVm4yzPDj+lCk+AbivWt1eOM+ikzkowtyV7qSqX6qr3t71Ww=="],
 
     "jose": ["jose@6.2.12", "", {}, "sha512-9NiFmJEex0sy2Dk58j2UGBSHgUs2ypF9eZSu4L6vjOX3Dp96Sw1F3uL+H+D1sx02jZZdzUT0HgvCy59CuvXcWw=="],
+
+    "js-tiktoken": ["js-tiktoken@1.0.21", "", { "dependencies": { "base64-js": "^1.5.1" } }, "sha512-biOj/6M5qdgx5TKjDnFT1ymSpM5tbd3ylwDtrQvFQSu0Z7bBYko2dF+W/aUkXUPuk6IVpRxk/3Q2sHOzGlS36g=="],
 
     "js-tokens": ["js-tokens@4.0.0", "", {}, "sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ=="],
 

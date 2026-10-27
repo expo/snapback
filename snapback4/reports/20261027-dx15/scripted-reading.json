@@ -1,0 +1,21 @@
+{
+  "after": {
+    "bytes": 4473,
+    "commands": [
+      "guide production"
+    ],
+    "toolTurns": 1
+  },
+  "baseline": "a699f02b2c",
+  "before": {
+    "bytes": 102563,
+    "commands": [
+      "guide production --full",
+      "guide staging --full",
+      "guide testing --full"
+    ],
+    "toolTurns": 3
+  },
+  "claim": "scripted discovery outputs, not model input tokens",
+  "intent": "discover complete production serve/roster/static/SIGTERM proof recipe"
+}

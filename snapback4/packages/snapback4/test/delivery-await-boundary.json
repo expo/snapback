@@ -339,6 +339,10 @@
     "count": 7,
     "sha256": "02eb293783956fc30045f3fa71c0ab786337ca2acdc355bb7edf6ef239efd24b"
   },
+  "proof-probe.ts": {
+    "count": 0,
+    "sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
   "proof-process.ts": {
     "count": 9,
     "sha256": "2f439e3bfe64e4babef29361749bbc2a3cf91d4a15738e78e862112fd13359eb"
@@ -349,19 +353,19 @@
   },
   "proof-serve-check.ts": {
     "count": 12,
-    "sha256": "28a1244992f41103343bf0152e4be2e89ad84fa1bd2fd7f28101ef2a32adb7e1"
+    "sha256": "8fad325a8ffed315196a27c9ecc0ab3f1725642cfd3e7e6ecbce6c6955a9e90f"
   },
   "proof-serve-driver.ts": {
     "count": 1,
     "sha256": "280d7adcbc2c964281173133dc80285e3cd7734df2346ec277b11ac6c5cae73a"
   },
   "proof-text.ts": {
-    "count": 3,
-    "sha256": "8237b77f0b78215f8ea5e980aa9420cfb383f95cf531b4b191ab7e9081040167"
+    "count": 6,
+    "sha256": "400a92195e1f2725a0c0c9cae23614c4ba382cd45ec1382e32d51bfa33cd6fe9"
   },
   "proof.ts": {
-    "count": 63,
-    "sha256": "8a113f7e082cc79aea5508a864153f273261b9515eab421f6bfc090f535ca368"
+    "count": 70,
+    "sha256": "5646c9099914352bcef1fc8c4c5817839d8d84aea20f8f6a01d90339ef08950f"
   },
   "query-custody.ts": {
     "count": 1,

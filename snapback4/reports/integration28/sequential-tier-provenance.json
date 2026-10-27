@@ -1,0 +1,6 @@
+{
+  "reproductionBase": "9b9f1a74af4fcabcdf9705620d9546a813f9aa87",
+  "controlPatchSha256": "8a3e3903ae4e0a1ff4b6a8e90dce73309711af7dd8ae15857c4b476dec418e27",
+  "binarySha256": "c2ef22ebb5412af0bfd01847e473906bc54f04c4eea219a7c8b61565bcbcc2dd",
+  "notes": "Reproduction base identifies the merged runtime including witnessed-question retention. The retained patch disables optimizations without changing rule/search budgets. Actual temporary build snapshot has been removed after testing; original pre-tier control provenance is separately named and must not be confused with this tier-aware control. Focused SQLite constructor tests cover the constructor retained in both binaries. All actual result identity/raw-payload checks are retained."
+}

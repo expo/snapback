@@ -1,0 +1,5 @@
+READY — no MATERIAL blockers found in `07366f068d` against `dbc0cba8fd`.
+
+The cache delta preserves per-world ledger authority, upload admission, placement, release, view-once and GC checks. Forks share immutable bytes through separate COW maps and independently copy existing files. Capture failures and capacity limits retain ordinary copying; delivery materializes bytes only after authorization. Stale cache entries cannot authorize access without a live ledger entry. Empty-ledger worlds retain bytes while resetting placement. Ordinary stores and Postgres asset boundaries remain unchanged.
+
+Read-only source review only; no edits, builds, suites or other worktrees. Performance targets and the 800-schema equivalence proof remain pending.

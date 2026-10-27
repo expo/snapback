@@ -1,6 +1,13 @@
 //! A campaign fork retains activated semantics without running adoption again.
 use super::*;
 impl Engine {
+    /// Private replay snapshot; failure falls back to ordinary fixture copies.
+    #[doc(hidden)]
+    pub fn campaign_snapshot(&self)->Result<Option<Self>,RuntimeError>{
+        if self.store.campaign_assets_enabled(){return Ok(None);}
+        let snapshot=self.fork_fixture()?;snapshot.store.capture_campaign_assets()?;Ok(Some(snapshot))
+    }
+
     // @ref LLP 3000.036.004#122-reproducible-campaigns-and-reachability — isolation includes entropy, assets and ephemeral ownership.
     pub fn fork_fixture(&self) -> Result<Self, RuntimeError> {
         if self.presence.is_some(){return Err(RuntimeError::Schema("fixture fork needs an isolated external presence snapshot".into()));}

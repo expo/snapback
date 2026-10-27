@@ -1,0 +1,11 @@
+--- original/schema.q
++++ fixed/schema.q
+@@ -24,7 +24,7 @@
+   client: principal
+   title: text 1..80
+   venue: text 1..120
+-  entrancePhoto: text <=500 format url ? write <- exists roles[viewer, role = 'owner'] or exists roles[viewer, role = 'lead']
++  entrancePhoto: text <=500 format url ? write <- exists roles[viewer, role = 'lead']
+   hallPhoto: text <=500 format url
+   balloonPlan: text 1..2000
+   riggingNotes: text 1..500

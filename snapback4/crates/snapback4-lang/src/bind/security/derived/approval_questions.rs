@@ -1,5 +1,5 @@
 //! Receipt reads identify acts; projected policy is a question, never authority.
-// @ref LLP 3000.036.004.002#approval-questions — exact receipts and descendant effects remain advisory.
+// @ref LLP 3000.036.004.006#approval-questions — exact receipts and descendant effects remain advisory.
 use super::*;
 use ast::{Expr, Stmt, TypeKind, WriteOp};
 use snapback4_core::{Value, schema::ColumnType as C};

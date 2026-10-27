@@ -1,0 +1,34 @@
+{
+  "binary": "0.4.43 local debug",
+  "path": [
+    "README.md",
+    "guide start",
+    "guide cheatsheet",
+    "guide client",
+    "guide testing",
+    "guide personas",
+    "guide staging",
+    "check"
+  ],
+  "bytes": {
+    "README.md": 31840,
+    "guide start": 8500,
+    "guide cheatsheet": 13357,
+    "guide client": 11454,
+    "guide testing": 5506,
+    "guide personas": 9513,
+    "guide staging": 2582,
+    "check": 349
+  },
+  "total": 83101,
+  "sha256": {
+    "before-guide-personas.txt": "7eb24cc1af9d10d25a45ad3da3080ea1fba265ff60d6e989bb11ab167187840c",
+    "before-check.txt": "d80de630c8e7d073e8d65a70de4fc1cd3aefa7ce9871b6380aa0a969fa600d3a",
+    "before-guide-cheatsheet.txt": "7a4a18e5deb4d613cbc79e622abae92fd88f84d9d5a423de39d9a58c8e1ab52a",
+    "before-guide-staging.txt": "c6f8068a3f126de8a680abe189687552036ee7d5356fa385c9f6d855060e88bd",
+    "before-guide-client.txt": "3adfd99722b9da8d9ee57dbefb517af4991a1d6eacead3cc3bb17791b296bceb",
+    "before-README.md.txt": "2c72b437274c0f95686e939bb223ca51de1925896a0a3a266d07074248379eb7",
+    "before-guide-testing.txt": "b49f87efdc7bfc75425c386c17344c7a9319530fa7c5ccd9fd7619fc50f1cb32",
+    "before-guide-start.txt": "5661b38a692e564372c235fab84e085ca67e998fd9803fb987aea3213ace2179"
+  }
+}

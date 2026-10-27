@@ -1,0 +1,11 @@
+--- original/schema.q
++++ fixed/schema.q
+@@ -22,7 +22,7 @@
+   diagnosis: text 1..500
+   insurance: text 1..200
+   fee: money USD
+-  referralScan: text 1..500 format url ?
++  referralScan: text 1..500 format url ? write <- exists roles[viewer, role = 'frontdesk']
+   referralAt: time
+   headScan: text 1..1000 ?
+   trialNotes: text 1..2000 ?

@@ -1,0 +1,21 @@
+{
+  "schemas": 800,
+  "afterSchemas": 800,
+  "missing": [],
+  "extra": [],
+  "identical": false,
+  "comparison": "Canonical JSON bytes of all classifier gates, questions, notes, question/gate witness payloads, decision IDs, FIX identities, command exits and failures. No scalar is scrubbed or normalized. Omitted whole fields: command durations, defaultCheck/defaultDeploy transcripts, deployment summary display lines and output-line counts. Authored counterexamples require the separate witness comparison.",
+  "beforeSha256": "4e716552547cce09d5d1189e99f04f039ecbb04737408fc6dffd16e95fa25cae",
+  "afterSha256": "b4ed7546d9515303c82aa063b9c6edbb1d3cdb0b9c2691f7beb48fd5182cb5cb",
+  "changes": [
+    {
+      "wave": 23,
+      "lane": "008-snapback-arborist-removal-quotes",
+      "fields": [
+        "afterTest",
+        "fresh",
+        "reviews"
+      ]
+    }
+  ]
+}

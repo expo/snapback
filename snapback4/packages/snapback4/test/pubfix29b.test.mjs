@@ -1,3 +1,5 @@
+// Generation/adaptation fixtures defer dependency installation; packed starters exercise the installer.
+process.env.SNAPBACK4_INIT_INSTALL = "0";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, readFileSync, readdirSync, writeFileSync, symlinkSync, rmSync } from 'node:fs';
@@ -20,7 +22,8 @@ test('D1 every UI starter frontend proof and launcher refuses one port before st
   for (const flags of [['--web'], ['--web','--online'], ['--expo'], ['--web','--template','chat'], ['--expo','--template','chat'], ['--template','social']]) {
     const cwd = fixture(t);
     okay(invoke(cwd, [flags.includes('social') ? 'new' : 'init', '.', ...flags]));
-    symlinkSync(join(root, 'node_modules'), join(cwd, 'node_modules'));
+    mkdirSync(join(cwd,'node_modules'));
+    symlinkSync(join(root,'packages/snapback4'),join(cwd,'node_modules/snapback4'));
     const logs = join(cwd, 'logs');
     for (const args of [['scripts/frontend-proof.mjs'], ['scripts/launch.mjs', flags.includes('--web') ? 'vite' : 'expo-web']]) {
       const result = spawnSync(process.execPath, args, { cwd, encoding:'utf8', timeout: 10_000,

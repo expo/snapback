@@ -1,0 +1,8 @@
+**READY.** The claimed blocker is an escaping misread.
+
+- The committed and live [affected-scoped.mjs](/home/ccheever/projects/sb4-b31-sec11l/snapback4/reports/sec11-latency/tools/affected-scoped.mjs:13) are byte-identical. The regex `/^security.*\.rs$/` contains **one** backslash byte (`5c`), followed by dot (`2e`).
+- Evaluating the actual regex extracted from each file against `readdirSync('snapback4/crates/snapback4-lang/tests')` selects **21 security integrations**.
+- Both saved scoped plans contain exactly those 21 `languageTargets`, all included in the language Cargo command.
+- Reading the committed witness union, capture, and comparator code revealed no remaining material blocker in this clarification’s scope.
+
+No files edited, other worktrees accessed, or builds/suites run. No survey or performance claims made.

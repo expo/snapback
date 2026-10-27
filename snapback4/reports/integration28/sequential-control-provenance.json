@@ -1,0 +1,5 @@
+{
+  "source": "3808e3e1e63d7a91fef445fcf4758e319f258688",
+  "patchSha256": "39f995e2b0e8e579b61ef04ea8e517cefb8c60debddfb142b44962156579cf24",
+  "scope": "External read-only source snapshot. Disable declaration batching, concurrent campaign/report scheduling, advisory cache, report reuse, and immutable campaign asset-byte cache. Retain merged SEC12/SECP rules, predecessor policy checks, answers and fixed budgets. The optimized SQLite backup constructor remains; its identity has focused product tests."
+}

@@ -96,7 +96,7 @@ test("README TypeScript examples compile and call every public function", (t) =>
   writeFileSync(join(scratch, "snapback/generated/server.ts"), serverStub);
   writeFileSync(join(scratch, "src/generated/server.ts"), serverStub);
   // The orientation modules compile together against their generated API in first-account.test.mjs.
-  const readme = ["CLIENT-AND-OPERATIONS.md", "SERVER.md", "../../crates/snapback4-lang/src/guide/client.md", "../../crates/snapback4-lang/src/guide/offline_interactions.md"].map(name => read(join(root, name))).join("\n");
+  const readme = ["CLIENT-AND-OPERATIONS.md", "SERVER.md", "../../crates/snapback4-lang/src/guide/client.md", "../../crates/snapback4-lang/src/guide/offline_interactions.md"].map(name => read(join(root, name)).split("## Your first working account screen")[0]).join("\n");
   const blocks = [...readme.matchAll(/^```(tsx?)\s*\n([\s\S]*?)^```\s*$/gm)].map((match, index) => {
     const line = readme.slice(0, match.index).split("\n").length + 1;
     const file = join(scratch, "src", `block-${index + 1}.${match[1]}`);
@@ -172,7 +172,8 @@ test("Queries teach predicate reads and engine-chosen scope lanes", () => {
   assert.ok(queries.includes("last 20 by .at after c"));
   const why = execFileSync(process.env.SNAPBACK4_BIN ?? join(root, "../../target/debug/snapback4"), ["why", "N_SPARSE_FILTER"], {encoding: "utf8"}).replace(/\s+/g, " ");
   assert.ok(why.includes("the author writes no lane list"));
-  assert.ok(read(join(root, "README.md")).includes("`guide reads`"));
+  assert.ok(read(join(root, "README.md")).includes("CLIENT-AND-OPERATIONS.md"));
+  assert.ok(read(join(root,"CLIENT-AND-OPERATIONS.md")).includes("`guide reads`"));
 });
 
 test("Expo Go README session store preserves encoded SecureStore keys and round-trips a session", async () => {

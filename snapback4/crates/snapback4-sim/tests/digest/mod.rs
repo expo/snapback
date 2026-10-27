@@ -440,9 +440,10 @@ fn remind_seeks_immutable_time_instead_of_breaking_in_id_order() {
     seed(&mut e, [("a-future", 30_000), ("b-period", 15_000), ("c-old", 5_000), ("d-end", 20_000), ("e-start", 10_000)]
         .into_iter().map(|(id, at)| ("invites", json!({"id":id,"inviteeId":"alice","sentAt":at,"reminded":false}))).collect());
     let run = e.run_job("remind", period(10_000, 20_000), 20_000).unwrap();
-    assert_eq!((run.state, run.rows_written), (JobState::Done, 2));
+    // Late/coalesced sweeps catch up older eligible invites, retaining the exclusive end.
+    assert_eq!((run.state, run.rows_written), (JobState::Done, 3));
     for row in e.store().rows("invites").unwrap() {
         let at = row.field("sentAt").unwrap().as_int().unwrap();
-        assert_eq!(row.field("reminded").unwrap(), &Value::Bool((10_000..20_000).contains(&at)));
+        assert_eq!(row.field("reminded").unwrap(), &Value::Bool(at < 20_000));
     }
 }

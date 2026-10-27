@@ -29,7 +29,7 @@ const PASSWORD:&str="use identity password\ntable notes:\n  owner: principal\n  
  app.write("snapback/schema.q",&source.replacen("body: text <=80","body: text <=80 ?",1));
  let out=app.run(&["check"]);assert_eq!(out.status.code(),Some(1));let text=String::from_utf8(out.stdout).unwrap();
  let line=text.lines().find(|line|line.contains("N_PRESENCE_LOOSENING")).expect(&text);
- assert!(!line.contains("slow")&&!line.contains("performance"),"{text}");assert!(text.contains("--ack-security"),"{text}");
+ assert!(!line.contains("slow")&&!line.contains("performance"),"{text}");assert!(text.contains("invariant notes always .body = null or .body != null")&&text.contains("prose cannot close this gate"),"{text}");
  assert_eq!(text.matches("N_PRESENCE_LOOSENING").count(),1,"a gate is one decision: {text}");
  assert!(text.lines().find(|l|l.starts_with("check: failed")).unwrap().contains("gates pending"));
 }

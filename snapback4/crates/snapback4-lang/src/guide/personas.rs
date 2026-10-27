@@ -15,10 +15,10 @@ query whoAmI():
 `use identity guests` admits only guests; without `use identity`, both methods are disabled.
 
 ## Seed accounts headlessly
-For shared previews, acceptance with real users and `probe:serve`, use `snapback4 guide staging`:
-its complete schema and `startServe({seedUsers})` recipe create password accounts and operator-provisioned
-roles on a `deploy --staging` store, including replayable first-admin provisioning.
-The staging clock is covered by `guide time` (MIG); no public time hook is needed.
+Real-user setup has one complete recipe: `guide production`. For staging-only
+clock controls see `guide staging`; exact auth/client shapes: `guide api auth`
+and `guide api client`. Start's workflow owns roles and private fields;
+this card owns persona/session lifecycle, not a second application tutorial.
 
 For a local-only identity experiment, run `snapback4 dev` with the schema above, then save this as
 `seed.mjs` beside `snapback/`. Set `SEED_PASSWORD` privately. Reruns log in to the same account; failed

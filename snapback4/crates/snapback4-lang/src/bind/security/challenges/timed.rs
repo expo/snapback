@@ -33,7 +33,7 @@ pub(super) fn run(bound:&Bound,out:&mut Campaign,sites:Option<&BTreeSet<String>>
                     if let Value::Row(fields)=&mut image {fields.insert("$security:server-clock".into(),Value::Int(now));}
                     if matches!(rules::evaluate(policy,viewer,None,&image,false,&mut Snapshot{schema:&bound.schema,rows:&actual,now}),Ok(false)) {
                         out.admitted+=1;
-                        out.violations.push(Counterexample {reachability:Reachability::SyntheticOperation,history:Vec::new(),observations:None,invariant_site:inv.site.to_string(),args:BTreeMap::new(),viewer:viewer.into(),operation:name.into(),
+                        out.violations.push(Counterexample {current_execution:false,reachability:Reachability::SyntheticOperation,history:Vec::new(),observations:None,invariant_site:inv.site.to_string(),args:BTreeMap::new(),viewer:viewer.into(),operation:name.into(),
                             effect:"read".into(),row:row.clone(),old:None,supporting_rows:actual.clone(),rule_path:format!("server read at {now}, before any physical sweep; clock policy false"),
                             scope:"actual engine read over schema-valid committed seed ingress at the recorded server clock; schedules are not assumed to have run".into()});
                         break;

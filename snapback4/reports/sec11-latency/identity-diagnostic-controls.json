@@ -1,0 +1,22 @@
+{
+  "unchanged_baseline_nonce_payloads": {
+    "primaryDetects": true,
+    "secondaryIdsMatch": true
+  },
+  "decision_id": {
+    "primaryDetects": true,
+    "secondaryDetects": true
+  },
+  "witness_id": {
+    "primaryDetects": true,
+    "secondaryDetects": true
+  },
+  "gate_flag": {
+    "primaryDetects": true,
+    "secondaryDetects": true
+  },
+  "caller_with_stale_witness_id": {
+    "primaryDetects": true,
+    "secondaryDetects": false
+  }
+}
