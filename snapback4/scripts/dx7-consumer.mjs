@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import {mkdirSync,writeFileSync,readFileSync} from "node:fs";
 import {cli,startServe,withBrowser,renderedText} from "snapback4/proof";
 
-const guide=await cli(["guide","rule-recipes","--section","Private immutable payloads and audience helpers"]);
+const guide=await cli(["guide","rule-recipes","--section","Private immutable payloads and audience helpers","--repeat"]);
 assert.equal(guide.code,0,guide.stderr);
 const schema=guide.stdout.match(/```quarry\n([\s\S]*?)```/)?.[1];
 assert.ok(schema,"installed guide supplies its runnable Quarry");

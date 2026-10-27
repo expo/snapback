@@ -8,7 +8,7 @@ import {resolve} from "node:path";
 import {cli,deploy,rollback,startServe} from "snapback4/proof";
 const checked=async(args,options={})=>{const r=await cli(args,options);assert.equal(r.code,0,r.stderr+r.stdout);return r;};
 const save=(path,text)=>{mkdirSync(path.slice(0,path.lastIndexOf("/")),{recursive:true});writeFileSync(path,text);};
-const evolution=await checked(["guide","evolution","--section","One record per photo in a list"]);
+const evolution=await checked(["guide","evolution","--section","One record per photo in a list","--repeat"]);
 const each=evolution.stdout.match(/```quarry\n([\s\S]*?)```/)?.[1];assert.ok(each,"installed complete each recipe");
 const before=`use identity password
 table albums:
