@@ -18,7 +18,7 @@ for wave,lane,scripts in [(32,'002',['acceptance','frontend:proof','probe:serve/
     'LAT3_TRACE':str(case/f'{key}-{variant}.node.jsonl'),'SNAPBACK4_LATENCY_TRACE':str(case/f'{key}-{variant}.native.jsonl'),
     'SNAPBACK4_BIN':str(cwd/'node_modules/snapback4-linux-x64/snapback4'),
     'CHROME':str(pathlib.Path.home()/'.cache/ms-playwright/chromium-1193/chrome-linux/chrome'),
-    'PORT_LO':'49000','PORT_HI':'49999','SNAPBACK4_PROBE_HOLD':'1','npm_config_cache':str(SCRATCH/'npm-cache')}
+    'PORT_LO':'21280' if wave==34 and lane=='028' else '49000','PORT_HI':'21289' if wave==34 and lane=='028' else '49999','SNAPBACK4_PROBE_HOLD':'1','npm_config_cache':str(SCRATCH/'npm-cache')}
    args=['node',str(HERE/'probe.mjs')] if script=='probe:serve/client:calls' else ['npm','run',script]
    start=time.monotonic()
    with (case/f'{key}-{variant}.log').open('w') as f:

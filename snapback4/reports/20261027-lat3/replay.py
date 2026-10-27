@@ -39,12 +39,13 @@ def install(dst):
  with (dst/'lat3-install.log').open('w') as f:
   subprocess.run(['npm','install','--ignore-scripts','--prefer-offline','--no-audit','--no-fund'],cwd=dst,env=env,stdout=f,stderr=subprocess.STDOUT,check=True,timeout=300)
 
-def run(dst,script,log,timeout=360):
+def run(dst,script,log,timeout=360,port_range=None):
  env={**os.environ,'CHROME':str(pathlib.Path.home()/'.cache/ms-playwright/chromium-1193/chrome-linux/chrome'),
   'SNAPBACK4_BIN':str(dst/'node_modules/snapback4-linux-x64/snapback4'),'SNAPBACK4_PROBE_HOLD':'1',
   'PORT_LO':str(36000+int(dst.parents[1].name.split('-')[-1])*3000),'PORT_HI':str(37999+int(dst.parents[1].name.split('-')[-1])*3000),
   'npm_config_cache':str(SCRATCH/'npm-cache')}
  env.pop('NODE_OPTIONS',None);env.pop('LAT3_TRACE',None);env.pop('SNAPBACK4_LATENCY_TRACE',None)
+ if port_range:env.update(PORT_LO=str(port_range[0]),PORT_HI=str(port_range[1]))
  # A historical script supports TMPDIR but defaults to a removed bakeoff
  # scratch root. Supply its documented override, without rewriting assertions.
  runtime=None
@@ -110,7 +111,8 @@ def messages(path):
  return lines
 
 def main():
- ap=argparse.ArgumentParser();ap.add_argument('--worker',type=int,default=0);ap.add_argument('--workers',type=int,default=1);ap.add_argument('--waves',default='30,31,32,33,34');ap.add_argument('--lanes');ap.add_argument('--scripts',default='acceptance,frontend:proof,day2:proof,probe:serve/client:calls');ap.add_argument('--resume',action='store_true');ap.add_argument('--slot',type=int);ap.add_argument('--revision',type=int,default=1);a=ap.parse_args()
+ ap=argparse.ArgumentParser();ap.add_argument('--worker',type=int,default=0);ap.add_argument('--workers',type=int,default=1);ap.add_argument('--waves',default='30,31,32,33,34');ap.add_argument('--lanes');ap.add_argument('--scripts',default='acceptance,frontend:proof,day2:proof,probe:serve/client:calls');ap.add_argument('--resume',action='store_true');ap.add_argument('--slot',type=int);ap.add_argument('--revision',type=int,default=1);ap.add_argument('--port-lo',type=int);ap.add_argument('--port-hi',type=int);a=ap.parse_args()
+ if (a.port_lo is None)!=(a.port_hi is None):ap.error('supply both port bounds')
  cases=[(w,p.parent) for w in map(int,a.waves.split(',')) for p in sorted(pathlib.Path(f'/home/ccheever/sb4-loop/wave{w}/apps').glob('*-snapback-*/package.json'))]
  if a.lanes:cases=[(w,p) for w,p in cases if p.name[:3] in a.lanes.split(',')]
  slot=a.worker if a.slot is None else a.slot
@@ -154,7 +156,8 @@ def main():
     # Alternate order across lanes to reduce systematic shared-load/order bias.
     for variant,dst in ([('before',before),('after',after)] if index%2==0 else [('after',after),('before',before)]):
      inputs=client_digest(dst)
-     path=logdir/f'{name}-{variant}.log';pair[variant]=run(dst,script,path)
+     path=logdir/f'{name}-{variant}.log';pair[variant]=run(dst,script,path,port_range=(a.port_lo,a.port_hi) if a.port_lo is not None else None)
+     if a.port_lo is not None:pair[variant]['suppliedPortRange']=[a.port_lo,a.port_hi]
      pair[variant]['clientInputDigest']=inputs;pair[variant]['clientOutputDigest']=client_digest(dst)
      pair[variant]['messages']=messages(path)
     pair['sameExit']=pair['before']['code']==pair['after']['code']

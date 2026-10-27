@@ -34,7 +34,7 @@ if set(expected) != set(rows):
 keys = ['code', 'seconds', 'load', 'readySeconds', 'callsSeconds', 'callsCode',
         'clientInputDigest', 'clientOutputDigest', 'nativeTraceEnabled', 'nativePhaseSeconds',
         'preflightSeconds', 'withoutPreflightSeconds', 'readyPreflightSeconds',
-        'readyWithoutPreflightSeconds', 'callsWithoutPreflightSeconds', 'suppliedTmpdir']
+        'readyWithoutPreflightSeconds', 'callsWithoutPreflightSeconds', 'suppliedTmpdir', 'suppliedPortRange']
 safe = []
 mutated = []; trace_errors = []
 for key, r in sorted(rows.items()):
