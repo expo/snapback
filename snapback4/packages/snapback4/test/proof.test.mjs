@@ -38,7 +38,7 @@ test("native proof commands retain helper environment, argument boundaries and s
   assert.equal(result.code, 7, result.stderr);
   const reply = JSON.parse(result.stdout);
   assert.deepEqual(reply.args, ["token", "--service", "literal space; $text"]);
-  assert.equal(reply.supervisor, String(process.pid));
+  assert.equal(reply.supervisor, String(reply.parent));
   for (const [key, file] of [["ACQUIRE", "witness-acquire"], ["UPGRADE", "upgrade"], ["WEB", "witness-web"]]) {
     assert.equal(reply.helpers[key], fileURLToPath(new URL(`../bin/${file}.js`, import.meta.url)));
   }
@@ -47,6 +47,14 @@ test("native proof commands retain helper environment, argument boundaries and s
   const second = join(cwd, "second.mjs");
   writeFileSync(second, "#!/usr/bin/env node\nconsole.log('second');\n"); chmodSync(second, 0o700);
   assert.equal((await cli(["data"], {cwd,env:{SNAPBACK4_BIN:second}})).stdout.trim(), "second");
+  assert.equal((await cli(["token"], {cwd,env:{SNAPBACK4_BIN:"second.mjs"}})).stdout.trim(), "second", "relative override resolves inside command cwd");
+  const failed = join(cwd, "not-executable");writeFileSync(failed,"not executable",{mode:0o600});
+  const shim = await command(process.execPath,[fileURLToPath(new URL('../bin/snapback4.js',import.meta.url)),"token"],{cwd,env:{SNAPBACK4_BIN:failed},secret:true});
+  const native = await cli(["token"],{cwd,env:{SNAPBACK4_BIN:failed}});
+  assert.equal(native.code,shim.code);
+  assert.equal(native.signal,shim.signal);
+  const message=text=>text.match(/Error: spawn [^\n]+/)?.[0];
+  assert.ok(message(native.stderr));assert.equal(message(native.stderr),message(shim.stderr));
 });
 test("runtime port range is inclusive, validated, and never cached", () => {
   assert.equal(portRange({}), "0"); assert.equal(portRange({ PORT_LO: "29040", PORT_HI: "29049" }), "29040-29049");
