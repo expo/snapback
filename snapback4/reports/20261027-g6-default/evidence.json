@@ -1,0 +1,911 @@
+{
+  "binary_sha256": "5158b78990c34df5fb6a4ca27199503be8788f9dd91c907ad01d0f2ab60435e1",
+  "pg_version": "16.15 (Ubuntu 16.15-0ubuntu0.24.04.1)",
+  "method": "32 disjoint counters; unkeyed HTTP; 2s warm; ABBAAB; synchronous durable PG; no affinity",
+  "rates": [
+    {
+      "acks": 800,
+      "errors": {},
+      "duration_s": 7.99485360016115,
+      "latency_ms": {
+        "0.5": 2.9265470802783966,
+        "0.99": 4.464780213311315
+      },
+      "service_ms": {
+        "0.5": 2.8542999643832445,
+        "0.99": 4.399689147248864
+      },
+      "arm": "g5",
+      "rate": 100,
+      "pg_cpu_us_per_ack": 1737.5000000000007,
+      "wal_bytes_per_ack": 981.1,
+      "statement_wal_bytes_per_ack": 900.04375,
+      "statements_per_ack": 27.17,
+      "load_before": [
+        23.34716796875,
+        26.77197265625,
+        32.29296875
+      ],
+      "load_after": [
+        23.6083984375,
+        26.71337890625,
+        32.21435546875
+      ],
+      "accounting_equal": true
+    },
+    {
+      "acks": 800,
+      "errors": {},
+      "duration_s": 7.994147229008377,
+      "latency_ms": {
+        "0.5": 3.016222035512328,
+        "0.99": 4.3586790561676025
+      },
+      "service_ms": {
+        "0.5": 2.939078025519848,
+        "0.99": 4.289593081921339
+      },
+      "arm": "g6",
+      "rate": 100,
+      "pg_cpu_us_per_ack": 1725.000000000001,
+      "wal_bytes_per_ack": 982.58,
+      "statement_wal_bytes_per_ack": 901.34125,
+      "statements_per_ack": 27.18,
+      "load_before": [
+        23.80029296875,
+        26.701171875,
+        32.1806640625
+      ],
+      "load_after": [
+        24.056640625,
+        26.70654296875,
+        32.15283203125
+      ],
+      "accounting_equal": true
+    },
+    {
+      "acks": 800,
+      "errors": {},
+      "duration_s": 7.9949007872492075,
+      "latency_ms": {
+        "0.5": 2.802876988425851,
+        "0.99": 3.884752281010151
+      },
+      "service_ms": {
+        "0.5": 2.7278310153633356,
+        "0.99": 3.7839750293642282
+      },
+      "arm": "g6",
+      "rate": 100,
+      "pg_cpu_us_per_ack": 1550.0000000000002,
+      "wal_bytes_per_ack": 983.42,
+      "statement_wal_bytes_per_ack": 902.10875,
+      "statements_per_ack": 27.19125,
+      "load_before": [
+        25.09326171875,
+        26.87744140625,
+        32.17919921875
+      ],
+      "load_after": [
+        25.126953125,
+        26.8310546875,
+        32.107421875
+      ],
+      "accounting_equal": true
+    },
+    {
+      "acks": 800,
+      "errors": {},
+      "duration_s": 7.995591772021726,
+      "latency_ms": {
+        "0.5": 3.3105930779129267,
+        "0.99": 4.1573322378098965
+      },
+      "service_ms": {
+        "0.5": 3.2378758769482374,
+        "0.99": 4.074680851772428
+      },
+      "arm": "g5",
+      "rate": 100,
+      "pg_cpu_us_per_ack": 1737.4999999999986,
+      "wal_bytes_per_ack": 980.48,
+      "statement_wal_bytes_per_ack": 899.49,
+      "statements_per_ack": 27.16,
+      "load_before": [
+        24.79638671875,
+        26.73388671875,
+        32.04736328125
+      ],
+      "load_after": [
+        24.732421875,
+        26.6884765625,
+        32.00390625
+      ],
+      "accounting_equal": true
+    },
+    {
+      "acks": 800,
+      "errors": {},
+      "duration_s": 7.994983568089083,
+      "latency_ms": {
+        "0.5": 3.2605831511318684,
+        "0.99": 4.4524348340928555
+      },
+      "service_ms": {
+        "0.5": 3.1863588374108076,
+        "0.99": 4.381761886179447
+      },
+      "arm": "g5",
+      "rate": 100,
+      "pg_cpu_us_per_ack": 1912.5000000000014,
+      "wal_bytes_per_ack": 1311.82,
+      "statement_wal_bytes_per_ack": 899.22,
+      "statements_per_ack": 27.16,
+      "load_before": [
+        24.43310546875,
+        26.59375,
+        31.9443359375
+      ],
+      "load_after": [
+        24.45263671875,
+        26.5244140625,
+        31.8642578125
+      ],
+      "accounting_equal": true
+    },
+    {
+      "acks": 800,
+      "errors": {},
+      "duration_s": 7.994749806122854,
+      "latency_ms": {
+        "0.5": 3.2348951790481806,
+        "0.99": 4.586211405694485
+      },
+      "service_ms": {
+        "0.5": 3.164466004818678,
+        "0.99": 4.5194779522717
+      },
+      "arm": "g6",
+      "rate": 100,
+      "pg_cpu_us_per_ack": 1800.0000000000014,
+      "wal_bytes_per_ack": 982.35,
+      "statement_wal_bytes_per_ack": 901.13375,
+      "statements_per_ack": 27.18,
+      "load_before": [
+        24.45263671875,
+        26.5244140625,
+        31.8642578125
+      ],
+      "load_after": [
+        26.63134765625,
+        26.90673828125,
+        31.9306640625
+      ],
+      "accounting_equal": true
+    },
+    {
+      "acks": 3200,
+      "errors": {},
+      "duration_s": 8.001861871220171,
+      "latency_ms": {
+        "0.5": 2.368736080825329,
+        "0.99": 4.523768089711666
+      },
+      "service_ms": {
+        "0.5": 2.2939899936318398,
+        "0.99": 4.450133070349693
+      },
+      "arm": "g5",
+      "rate": 400,
+      "pg_cpu_us_per_ack": 1262.4999999999998,
+      "wal_bytes_per_ack": 1015.5425,
+      "statement_wal_bytes_per_ack": 934.6521875,
+      "statements_per_ack": 26.994375,
+      "load_before": [
+        26.34033203125,
+        26.841796875,
+        31.88232421875
+      ],
+      "load_after": [
+        26.15283203125,
+        26.79443359375,
+        31.83984375
+      ],
+      "accounting_equal": true
+    },
+    {
+      "acks": 3200,
+      "errors": {},
+      "duration_s": 8.004764351062477,
+      "latency_ms": {
+        "0.5": 2.2897471208125353,
+        "0.99": 3.8247122429311275
+      },
+      "service_ms": {
+        "0.5": 2.2194290068000555,
+        "0.99": 3.7573250010609627
+      },
+      "arm": "g6",
+      "rate": 400,
+      "pg_cpu_us_per_ack": 1234.3749999999998,
+      "wal_bytes_per_ack": 1019.885,
+      "statement_wal_bytes_per_ack": 939.015,
+      "statements_per_ack": 26.9796875,
+      "load_before": [
+        25.41943359375,
+        26.63134765625,
+        31.759765625
+      ],
+      "load_after": [
+        24.51220703125,
+        26.39599609375,
+        31.6279296875
+      ],
+      "accounting_equal": true
+    },
+    {
+      "acks": 3200,
+      "errors": {},
+      "duration_s": 8.004394666291773,
+      "latency_ms": {
+        "0.5": 2.621471183374524,
+        "0.99": 6.103520281612873
+      },
+      "service_ms": {
+        "0.5": 2.5182561948895454,
+        "0.99": 6.056041922420263
+      },
+      "arm": "g6",
+      "rate": 400,
+      "pg_cpu_us_per_ack": 1337.5000000000002,
+      "wal_bytes_per_ack": 1016.09,
+      "statement_wal_bytes_per_ack": 935.8,
+      "statements_per_ack": 26.7953125,
+      "load_before": [
+        24.51220703125,
+        26.39599609375,
+        31.6279296875
+      ],
+      "load_after": [
+        23.87841796875,
+        26.20068359375,
+        31.50830078125
+      ],
+      "accounting_equal": true
+    },
+    {
+      "acks": 3200,
+      "errors": {},
+      "duration_s": 8.00352150388062,
+      "latency_ms": {
+        "0.5": 2.7436281088739634,
+        "0.99": 5.480583989992738
+      },
+      "service_ms": {
+        "0.5": 2.6311560068279505,
+        "0.99": 5.3606589790433645
+      },
+      "arm": "g5",
+      "rate": 400,
+      "pg_cpu_us_per_ack": 1412.4999999999989,
+      "wal_bytes_per_ack": 1453.0025,
+      "statement_wal_bytes_per_ack": 1000.3578125,
+      "statements_per_ack": 26.903125,
+      "load_before": [
+        23.4873046875,
+        26.0810546875,
+        31.44091796875
+      ],
+      "load_after": [
+        23.2080078125,
+        25.97998046875,
+        31.37939453125
+      ],
+      "accounting_equal": true
+    },
+    {
+      "acks": 3200,
+      "errors": {},
+      "duration_s": 8.002154251094908,
+      "latency_ms": {
+        "0.5": 2.6916072238236666,
+        "0.99": 4.668456967920065
+      },
+      "service_ms": {
+        "0.5": 2.591355936601758,
+        "0.99": 4.589052172377706
+      },
+      "arm": "g5",
+      "rate": 400,
+      "pg_cpu_us_per_ack": 1334.375000000001,
+      "wal_bytes_per_ack": 1028.2175,
+      "statement_wal_bytes_per_ack": 946.9371875,
+      "statements_per_ack": 27.02375,
+      "load_before": [
+        22.95068359375,
+        25.88037109375,
+        31.31787109375
+      ],
+      "load_after": [
+        21.6416015625,
+        25.5048828125,
+        31.13720703125
+      ],
+      "accounting_equal": true
+    },
+    {
+      "acks": 3200,
+      "errors": {},
+      "duration_s": 8.003679126966745,
+      "latency_ms": {
+        "0.5": 2.452912973240018,
+        "0.99": 5.039537092670798
+      },
+      "service_ms": {
+        "0.5": 2.370024099946022,
+        "0.99": 4.898946965113282
+      },
+      "arm": "g6",
+      "rate": 400,
+      "pg_cpu_us_per_ack": 1281.2500000000005,
+      "wal_bytes_per_ack": 1025.8375,
+      "statement_wal_bytes_per_ack": 944.91125,
+      "statements_per_ack": 26.8875,
+      "load_before": [
+        21.6416015625,
+        25.5048828125,
+        31.13720703125
+      ],
+      "load_after": [
+        21.34130859375,
+        25.3076171875,
+        31.01220703125
+      ],
+      "accounting_equal": true
+    },
+    {
+      "acks": 6400,
+      "errors": {},
+      "duration_s": 8.004343683132902,
+      "latency_ms": {
+        "0.5": 2.854319056496024,
+        "0.99": 4.6079212334007025
+      },
+      "service_ms": {
+        "0.5": 2.783824922516942,
+        "0.99": 4.554360173642635
+      },
+      "arm": "g5",
+      "rate": 800,
+      "pg_cpu_us_per_ack": 1306.2499999999998,
+      "wal_bytes_per_ack": 856.48125,
+      "statement_wal_bytes_per_ack": 795.2546875,
+      "statements_per_ack": 23.740625,
+      "load_before": [
+        22.595703125,
+        25.501953125,
+        31.04443359375
+      ],
+      "load_after": [
+        24.14990234375,
+        25.77587890625,
+        31.103515625
+      ],
+      "accounting_equal": true
+    },
+    {
+      "acks": 6400,
+      "errors": {},
+      "duration_s": 8.006934597156942,
+      "latency_ms": {
+        "0.5": 2.880849177017808,
+        "0.99": 7.201686268672347
+      },
+      "service_ms": {
+        "0.5": 2.8007300570607185,
+        "0.99": 7.030363893136382
+      },
+      "arm": "g6",
+      "rate": 800,
+      "pg_cpu_us_per_ack": 1198.4375000000002,
+      "wal_bytes_per_ack": 846.42125,
+      "statement_wal_bytes_per_ack": 786.5115625,
+      "statements_per_ack": 22.93625,
+      "load_before": [
+        23.8173828125,
+        25.6796875,
+        31.04345703125
+      ],
+      "load_after": [
+        23.2490234375,
+        25.49267578125,
+        30.9248046875
+      ],
+      "accounting_equal": true
+    },
+    {
+      "acks": 6400,
+      "errors": {},
+      "duration_s": 8.006382277002558,
+      "latency_ms": {
+        "0.5": 2.849206095561385,
+        "0.99": 4.941053222864866
+      },
+      "service_ms": {
+        "0.5": 2.762462943792343,
+        "0.99": 4.845357034355402
+      },
+      "arm": "g6",
+      "rate": 800,
+      "pg_cpu_us_per_ack": 1204.687499999999,
+      "wal_bytes_per_ack": 998.12125,
+      "statement_wal_bytes_per_ack": 778.36203125,
+      "statements_per_ack": 23.45,
+      "load_before": [
+        23.3896484375,
+        25.484375,
+        30.892578125
+      ],
+      "load_after": [
+        23.91943359375,
+        25.5595703125,
+        30.8876953125
+      ],
+      "accounting_equal": true
+    },
+    {
+      "acks": 6400,
+      "errors": {},
+      "duration_s": 8.006816477049142,
+      "latency_ms": {
+        "0.5": 2.8881251346319914,
+        "0.99": 4.936492070555687
+      },
+      "service_ms": {
+        "0.5": 2.813519909977913,
+        "0.99": 4.874279955402017
+      },
+      "arm": "g5",
+      "rate": 800,
+      "pg_cpu_us_per_ack": 1257.8124999999995,
+      "wal_bytes_per_ack": 838.86375,
+      "statement_wal_bytes_per_ack": 779.046875,
+      "statements_per_ack": 23.3325,
+      "load_before": [
+        23.92626953125,
+        25.533203125,
+        30.8505859375
+      ],
+      "load_after": [
+        25.087890625,
+        25.72998046875,
+        30.85791015625
+      ],
+      "accounting_equal": true
+    },
+    {
+      "acks": 6400,
+      "errors": {},
+      "duration_s": 8.007655324181542,
+      "latency_ms": {
+        "0.5": 2.8576431795954704,
+        "0.99": 8.001439273357391
+      },
+      "service_ms": {
+        "0.5": 2.7782469987869263,
+        "0.99": 7.934269029647112
+      },
+      "arm": "g5",
+      "rate": 800,
+      "pg_cpu_us_per_ack": 1187.499999999999,
+      "wal_bytes_per_ack": 842.13125,
+      "statement_wal_bytes_per_ack": 782.0625,
+      "statements_per_ack": 23.10796875,
+      "load_before": [
+        25.087890625,
+        25.72998046875,
+        30.85791015625
+      ],
+      "load_after": [
+        25.54248046875,
+        25.8056640625,
+        30.82666015625
+      ],
+      "accounting_equal": true
+    },
+    {
+      "acks": 6400,
+      "errors": {},
+      "duration_s": 8.007167691132054,
+      "latency_ms": {
+        "0.5": 2.9019780922681093,
+        "0.99": 4.950813949108124
+      },
+      "service_ms": {
+        "0.5": 2.8229730669409037,
+        "0.99": 4.882431821897626
+      },
+      "arm": "g6",
+      "rate": 800,
+      "pg_cpu_us_per_ack": 1282.8125000000014,
+      "wal_bytes_per_ack": 828.075,
+      "statement_wal_bytes_per_ack": 769.54546875,
+      "statements_per_ack": 23.0796875,
+      "load_before": [
+        25.4990234375,
+        25.7919921875,
+        30.794921875
+      ],
+      "load_after": [
+        25.53955078125,
+        25.7958984375,
+        30.76904296875
+      ],
+      "accounting_equal": true
+    }
+  ],
+  "pids": [
+    1972376,
+    1975672,
+    1979891,
+    1983649,
+    1987302,
+    1990405,
+    1994038,
+    2048050,
+    2079341,
+    2082498,
+    2084536,
+    2086539,
+    2090179,
+    2093117,
+    2096854,
+    2099676,
+    2101922,
+    2103640
+  ],
+  "pids_left": [],
+  "source": "a0927e774cf2806a5e09d8b75ea96cc92b1d8235",
+  "total_acks": 62400,
+  "errors": 0,
+  "clock_live": {
+    "samples": 17,
+    "qualified": true,
+    "failure": null,
+    "rtt_ms_min_max": [
+      8.317984,
+      13.098564
+    ],
+    "max_excess_lower_ms": 0.0
+  },
+  "marker_current_binary": [
+    {
+      "marker": "version",
+      "refused": true,
+      "reason": "opening",
+      "application_head_unchanged": true,
+      "token_unchanged": false,
+      "pid": 2107028,
+      "reaped": true
+    },
+    {
+      "marker": "owner-shape",
+      "refused": true,
+      "reason": "unexpected column set",
+      "application_head_unchanged": true,
+      "token_unchanged": true,
+      "pid": 2107107,
+      "reaped": true
+    }
+  ],
+  "summary": [
+    {
+      "rate": 100,
+      "arm": "g5",
+      "repetitions": 3,
+      "acks": 2400,
+      "pg_cpu_us_per_ack": {
+        "median": 1737.5000000000007,
+        "min": 1737.4999999999986,
+        "max": 1912.5000000000014
+      },
+      "wal_bytes_per_ack": {
+        "median": 981.1,
+        "min": 980.48,
+        "max": 1311.82
+      },
+      "statement_wal_bytes_per_ack": {
+        "median": 899.49,
+        "min": 899.22,
+        "max": 900.04375
+      },
+      "statements_per_ack": {
+        "median": 27.16,
+        "min": 27.16,
+        "max": 27.17
+      },
+      "p50_ms": 3.2605831511318684,
+      "p99_ms": 4.4524348340928555
+    },
+    {
+      "rate": 100,
+      "arm": "g6",
+      "repetitions": 3,
+      "acks": 2400,
+      "pg_cpu_us_per_ack": {
+        "median": 1725.000000000001,
+        "min": 1550.0000000000002,
+        "max": 1800.0000000000014
+      },
+      "wal_bytes_per_ack": {
+        "median": 982.58,
+        "min": 982.35,
+        "max": 983.42
+      },
+      "statement_wal_bytes_per_ack": {
+        "median": 901.34125,
+        "min": 901.13375,
+        "max": 902.10875
+      },
+      "statements_per_ack": {
+        "median": 27.18,
+        "min": 27.18,
+        "max": 27.19125
+      },
+      "p50_ms": 3.016222035512328,
+      "p99_ms": 4.3586790561676025
+    },
+    {
+      "rate": 400,
+      "arm": "g5",
+      "repetitions": 3,
+      "acks": 9600,
+      "pg_cpu_us_per_ack": {
+        "median": 1334.375000000001,
+        "min": 1262.4999999999998,
+        "max": 1412.4999999999989
+      },
+      "wal_bytes_per_ack": {
+        "median": 1028.2175,
+        "min": 1015.5425,
+        "max": 1453.0025
+      },
+      "statement_wal_bytes_per_ack": {
+        "median": 946.9371875,
+        "min": 934.6521875,
+        "max": 1000.3578125
+      },
+      "statements_per_ack": {
+        "median": 26.994375,
+        "min": 26.903125,
+        "max": 27.02375
+      },
+      "p50_ms": 2.6916072238236666,
+      "p99_ms": 4.668456967920065
+    },
+    {
+      "rate": 400,
+      "arm": "g6",
+      "repetitions": 3,
+      "acks": 9600,
+      "pg_cpu_us_per_ack": {
+        "median": 1281.2500000000005,
+        "min": 1234.3749999999998,
+        "max": 1337.5000000000002
+      },
+      "wal_bytes_per_ack": {
+        "median": 1019.885,
+        "min": 1016.09,
+        "max": 1025.8375
+      },
+      "statement_wal_bytes_per_ack": {
+        "median": 939.015,
+        "min": 935.8,
+        "max": 944.91125
+      },
+      "statements_per_ack": {
+        "median": 26.8875,
+        "min": 26.7953125,
+        "max": 26.9796875
+      },
+      "p50_ms": 2.452912973240018,
+      "p99_ms": 5.039537092670798
+    },
+    {
+      "rate": 800,
+      "arm": "g5",
+      "repetitions": 3,
+      "acks": 19200,
+      "pg_cpu_us_per_ack": {
+        "median": 1257.8124999999995,
+        "min": 1187.499999999999,
+        "max": 1306.2499999999998
+      },
+      "wal_bytes_per_ack": {
+        "median": 842.13125,
+        "min": 838.86375,
+        "max": 856.48125
+      },
+      "statement_wal_bytes_per_ack": {
+        "median": 782.0625,
+        "min": 779.046875,
+        "max": 795.2546875
+      },
+      "statements_per_ack": {
+        "median": 23.3325,
+        "min": 23.10796875,
+        "max": 23.740625
+      },
+      "p50_ms": 2.8576431795954704,
+      "p99_ms": 4.936492070555687
+    },
+    {
+      "rate": 800,
+      "arm": "g6",
+      "repetitions": 3,
+      "acks": 19200,
+      "pg_cpu_us_per_ack": {
+        "median": 1204.687499999999,
+        "min": 1198.4375000000002,
+        "max": 1282.8125000000014
+      },
+      "wal_bytes_per_ack": {
+        "median": 846.42125,
+        "min": 828.075,
+        "max": 998.12125
+      },
+      "statement_wal_bytes_per_ack": {
+        "median": 778.36203125,
+        "min": 769.54546875,
+        "max": 786.5115625
+      },
+      "statements_per_ack": {
+        "median": 23.0796875,
+        "min": 22.93625,
+        "max": 23.45
+      },
+      "p50_ms": 2.880849177017808,
+      "p99_ms": 4.950813949108124
+    }
+  ],
+  "statement_probe": {
+    "rates": [
+      {
+        "acks": 400,
+        "errors": {},
+        "duration_s": 3.9959793500602245,
+        "arm": "g5",
+        "rate": 100,
+        "statements_per_ack": 27.16,
+        "grant_updates": 0,
+        "publication_queries": 0,
+        "accounting_equal": true
+      },
+      {
+        "acks": 400,
+        "errors": {},
+        "duration_s": 3.9945829859934747,
+        "arm": "g6",
+        "rate": 100,
+        "statements_per_ack": 27.2025,
+        "grant_updates": 9,
+        "publication_queries": 0,
+        "accounting_equal": true
+      }
+    ],
+    "pids": [
+      2116417,
+      2119070
+    ],
+    "pids_left": [],
+    "scope": "SQL counts only; no latency/CPU/WAL qualification (owned compilation overlapped this auxiliary probe)."
+  },
+  "marker_historical": {
+    "source": "af342f8ef16215a44d8de2f5c4bc7755da341fa5",
+    "binary_sha256": "b0107a5d6921d98fe8448649334210b70e2936579596a0a4ea59a64de2fdd0c2",
+    "probes": [
+      {
+        "marker": "version",
+        "refused": true,
+        "reason": "opening",
+        "application_head_unchanged": true,
+        "token_unchanged": false,
+        "pid": 2244294,
+        "reaped": true
+      },
+      {
+        "marker": "owner-shape",
+        "refused": true,
+        "reason": "unexpected column set",
+        "application_head_unchanged": true,
+        "token_unchanged": true,
+        "pid": 2244338,
+        "reaped": true
+      }
+    ]
+  },
+  "gate": {
+    "closed_ns": 1108305042,
+    "candidate_wait_ns": 1060460,
+    "max_candidate_wait_ns": 1060460
+  },
+  "checks": {
+    "postgres_grant_suite": {
+      "passed": 18,
+      "failed": 0
+    },
+    "grant_unit": {
+      "passed": 2,
+      "failed": 0
+    },
+    "clock_model": {
+      "passed": 10,
+      "failed": 0
+    },
+    "clock_live": {
+      "samples": 17,
+      "passed": true
+    },
+    "ref_check": {
+      "passed": true,
+      "errors": 0,
+      "llp_documents": 575,
+      "references": 12172,
+      "unchecked": 0
+    },
+    "inventories": {
+      "passed": false,
+      "reason": "Unchanged Snapback 1 guide sources require missing root typescript/ajv dependencies and ignored demo generated artifacts; diagnostic sites unchanged."
+    },
+    "affected_selection": "Plan generated; selector expands test implementation path across core reverse dependencies. Executed focused G6 and gate tests for this test-only change, plus model and public marker witnesses; complete battery not claimed.",
+    "syntax_and_aggregate_accounting": {
+      "passed": true
+    }
+  },
+  "qualification_limits": [
+    "PG16 only for this lane; PG17 is not a new qualification",
+    "No production marker migration or clock witness integration",
+    "No future clock or VM elapsed-time guarantee established",
+    "No full S1, mixed-read, one-CPU, Stage R or publication qualification",
+    "Initial release-profile test-support refusal and zero-test filter invocation are not passing test counts"
+  ],
+  "cleanup": {
+    "private_postmaster_pid": 1918926,
+    "port": 55660,
+    "postmaster_stopped": true,
+    "pidfile_absent": true,
+    "recorded_pids_audited": [
+      1918926,
+      1954987,
+      1967673,
+      1972376,
+      1975672,
+      1979891,
+      1983649,
+      1987302,
+      1990405,
+      1994038,
+      2048050,
+      2079341,
+      2082498,
+      2084536,
+      2086539,
+      2090179,
+      2093117,
+      2096854,
+      2099676,
+      2101922,
+      2103640,
+      2107028,
+      2107107,
+      2116417,
+      2119070,
+      2244294,
+      2244338
+    ],
+    "pids_left": [],
+    "home_free_bytes": 125496008704,
+    "home_free_gib": 116.87726593017578,
+    "pg_data_deleted": false
+  }
+}
