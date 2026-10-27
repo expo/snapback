@@ -37,6 +37,13 @@ mutation addNote(body: text):
 `receipts chat by .conversation, .ordinal from .sender to members:` with field mappings generates reporting (`guide receipts`; expert recipe: `guide manual-receipts`).
 `write <-` and `immutable c when P`: `guide rule-recipes`.
 
+## Nullable values and inserts
+
+Arithmetic: `at = row.deliveredAt ! else NOT_DELIVERED`, then `at + 30d`.
+Conditions: `flag ?? false` or `(optionalTime < now) ?? false`.
+Inserts supply every required non-defaulted column, including evidence/price.
+See `guide workflow`.
+
 ## Limits
 
 - `count(x)`, `len(x)`, `length(x)`: text characters or list items; identical typing and meters. Unsupported spellings: E_QUARRY_UNSUPPORTED.
@@ -573,7 +580,7 @@ route providerEvent: post "/hooks/room-events" as service:reporter secrets [ROOM
 Cards: `snapback4 guide <keyword>`: cheatsheet, app, social, from-sql, types, time, api, indexes, maintains, totals, offline-interactions, rules, sync, sharing, residency, prediction, evolution, rename, deploy, release-json, expire, ephemeral, sequences,
 assets, client, wire, reads, shapes, writes, cleanup, programs, jobs, native, feeds, search,
 effects, actions, routes, services, presence, receipts, read-only, manual-receipts, bounds, refusals, personas, testing, witness. `why
-<CODE>` explains refusals. Tasks: `guide tasks`. Also: production, staging, security, recipes, rule-recipes, deploy, changes.
+<CODE>` explains refusals. Tasks: `guide tasks`. Also: production, staging, security, recipes, rule-recipes, deploy, changes. workflow, package-reference.
 
 ## An ID belongs to one intent
 

@@ -1,4 +1,5 @@
 // API signatures: snapback4 guide api proof | client | auth | generated
+// EDIT REGION: seedUsers plan below; leave host startup, roster and stop handling.
 // The same password sign-in, rules and operator provision used by production.
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -9,7 +10,9 @@ import { deploy, startServe } from "snapback4/proof";
 
 // Generated from the declared provision(principal, role) signature, when present.
 // For a custom provision signature, set args(account) as in guide staging.
+// EDIT REGION: roles/counts/provision/args(account); accounts require private operator enrollment.
 const seedUsers = SEED_PLAN;
+// KEEP REGION: staging lifecycle and cleanup.
 export async function startStaging(options = {}) {
   const directory = options.directory ?? mkdtempSync(join(tmpdir(), "snapback4-password-proof-"));
   const release = join(directory, "release");

@@ -1,4 +1,5 @@
 // API signatures: snapback4 guide api proof | client | auth | generated
+// KEEP REGION: ports and process launcher; use package.json scripts.
 // Runtime launcher: copied apps read their current owner's range on every run.
 import { spawn } from "node:child_process";
 import { dirname, join } from "node:path";

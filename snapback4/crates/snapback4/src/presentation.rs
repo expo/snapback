@@ -98,5 +98,6 @@ mod compact_tests {
 /// The ordinary check verdict is shared by the CLI and analyzer-output replays.
 // @ref LLP 3000.036.004#19-wave-28-output-and-witness-decisions-dx11 — details are opt-in; the next command is on the verdict.
 pub(crate) fn check_verdict(failed:bool,tables:&str,synced:usize,operations:usize,status:&str,gates:usize,witnessed:usize,advisory:usize,recorded:usize,notes:usize,ms:f64,hint:Option<&str>,native:&str)->String {
-    format!("check: {} — {tables} ({synced} synced), {operations} operations, {status}; {gates} gates pending, {witnessed} witnessed questions, {advisory} advisories (don't block): `check --review`; {recorded} recorded; {notes} notes{}; {ms:.1} ms{native}",if failed{"failed"}else{"ok"},hint.map(|h|format!("; {h}")).unwrap_or_default())
+    let index = if failed { "" } else { "; API index: `guide api generated`" };
+    format!("check: {} — {tables} ({synced} synced), {operations} operations, {status}; {gates} gates pending, {witnessed} witnessed questions, {advisory} advisories (don't block): `check --review`; {recorded} recorded; {notes} notes{}; {ms:.1} ms{native}{index}",if failed{"failed"}else{"ok"},hint.map(|h|format!("; {h}")).unwrap_or_default())
 }

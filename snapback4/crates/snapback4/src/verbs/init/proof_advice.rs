@@ -21,10 +21,13 @@ pub(super) fn native_template(text: &str) -> Option<(&'static str, bool)> {
     templates().iter().find(|t| t.file == "native" && t.sha256 == hash)
         .map(|t| (t.version.as_str(), t.template.as_deref() == Some("password")))
 }
+fn without_edit_regions(text: &str) -> String {
+    text.split_inclusive('\n').filter(|line| !line.trim_start().starts_with("// EDIT REGION:") && !line.trim_start().starts_with("// KEEP REGION:")).collect()
+}
 pub(super) fn frontend_template(dir: &Path, web: bool) -> Option<(&'static str, Option<&'static str>)> {
     let text = std::fs::read_to_string(dir.join("scripts/frontend-proof.mjs")).ok()?;
     for template in [None, Some("chat"), Some("social")] {
-        if text == super::proof::frontend_proof(include_str!("frontend-proof.mjs"), template, web) {
+        if without_edit_regions(&text) == without_edit_regions(&super::proof::frontend_proof(include_str!("frontend-proof.mjs"), template, web)) {
             return Some((env!("CARGO_PKG_VERSION"), template));
         }
     }

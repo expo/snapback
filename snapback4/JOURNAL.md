@@ -109712,3 +109712,15 @@ Only `serving()` arms the G6 exit. Deploy retains persisted-selection recovery,
 pointer/log completion and lease release. The report's new regressions fill a
 real stderr pipe and delay an unknown-but-durable activation's reconciliation
 probe. LLP 3000.009.001.000 §5.1 records the corrected lifecycle contract.
+
+## 2026-10-27 — TOK3: day-one reading after start
+
+Wave-34 found section hopping after the first schema, additive digest/declaration
+reads and starter rereads. Start now routes to one composed workflow recipe;
+README is a pointer and the long package documents are explicit references.
+Generated digests cover React, observation/session and account-plan lookups;
+declarations point to them and operation indexes name hooks. Starter scripts
+mark editable business regions; successful check points to the API index on its
+verdict line. Nullable arithmetic/conditions and required inserts are explained
+where the recipe needs them. LLP 3000.037.000 §10 records scope and measurement
+requirements. No version bump, publication or push.

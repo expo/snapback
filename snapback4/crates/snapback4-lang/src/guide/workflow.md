@@ -1,0 +1,168 @@
+# Workflow: one app through acceptance
+
+After start, copy/rename this recipe. This shape needs no other feature card.
+
+## Roles and private fields: schema.q
+
+Replace snapback/schema.q; remove unused .q files. Signup grants no role.
+Customers see own rows; staff see the board; intake/director also see price.
+
+```quarry
+use identity password
+
+table roles:
+  principal: principal
+  role: enum('customer', 'intake', 'staff', 'director')
+  staff: bool
+  unique principal
+  immutable principal
+  read <- .principal = viewer or viewer = 'service:operator'
+  insert <- viewer = 'service:operator'
+  update <- viewer = 'service:operator'
+  online only
+
+table requests:
+  owner: principal
+  title: text 1..120
+  evidence: file <=5000000
+  price: money USD read <- exists roles[viewer, role = 'intake'] or exists roles[viewer, role = 'director']
+  openedAt: time
+  dueAt: time
+  deliveredAt: time ?
+  status: enum('ordered', 'fitted', 'delivered', 'followup') default 'ordered'
+  approvedBy: principal ? write <- exists roles[viewer, role = 'director']
+  approvalReason: text <=500 default '' write <- exists roles[viewer, role = 'director']
+  checked: bool default false
+  overdue: bool default false
+  immutable owner, title, evidence, price, openedAt, dueAt
+  read <- .owner = viewer or exists roles[viewer, staff = true]
+  insert <- exists roles[viewer, role = 'intake']
+  update <- exists roles[viewer, staff = true]
+  online only
+
+mutation provision(principal: principal, role: enum('customer', 'intake', 'staff', 'director')):
+  require viewer = 'service:operator' else NOT_OPERATOR
+  return upsert roles[principal] { principal, role, staff: role != 'customer' }
+query myRole():
+  return roles[viewer]
+query board(c: cursor ?):
+  if exists roles[viewer, staff = true]:
+    return requests last 50 by .id after c
+  return requests where .owner = viewer last 50 by .id after c
+mutation openRequest(owner: principal, title: text 1..120, evidence: file <=5000000, price: money USD):
+  return insert requests { owner, title, evidence, price, openedAt: now, dueAt: now + 30d }
+mutation fit(request: requests):
+  r = requests[request] ! else NOT_FOUND
+  require r.status = 'ordered' else CLOSED
+  update requests[request] { status: 'fitted' }
+mutation deliver(request: requests):
+  r = requests[request] ! else NOT_FOUND
+  require now < r.dueAt else DEADLINE
+  require r.status = 'fitted' else CLOSED
+  update requests[request] { status: 'delivered', deliveredAt: now }
+mutation checkUsage(request: requests):
+  r = requests[request] ! else NOT_FOUND
+  delivered = r.deliveredAt ! else NOT_DELIVERED
+  require now < delivered + 30d else DEADLINE
+  require r.status = 'delivered' else CLOSED
+  update requests[request] { status: 'followup', checked: true }
+mutation approve(request: requests, reason: text 1..500):
+  require exists roles[viewer, role = 'director', staff = true] else NOT_DIRECTOR
+  r = requests[request] ! else NOT_FOUND
+  require now < r.dueAt else DEADLINE
+  update requests[request] { approvedBy: viewer, approvalReason: reason }
+job flagOverdue(periodStart: time, periodEnd: time):
+  for r in requests where .dueAt < periodEnd by .dueAt:
+    if not r.overdue and r.status = 'ordered':
+      update requests[r.id] { overdue: true }
+schedule overdueHourly every 1h: flagOverdue
+
+invariant requests.read only .owner = viewer or exists roles[viewer, staff = true]
+invariant requests.price read only exists roles[viewer, role = 'intake'] or exists roles[viewer, role = 'director']
+```
+
+Rules authorize each effect; require cannot grant writes. Program reads are
+caller-filtered. Private fields are omitted. Price is cents (1234 = USD 12.34).
+If approval gates another action, require `r.approvedBy != null` in that action.
+
+## Deadlines/jobs and nullable idioms
+
+Anchor deadlines to stored server events; guard before status even if a sweep is
+late. Jobs catch up all unprocessed rows before periodEnd. 30d is a duration.
+UTC month buckets: `month(now) < month(r.openedAt) + 12`; exact anniversaries
+need a calculated, validated stored deadline.
+
+Nullable arithmetic: `at = r.deliveredAt ! else NOT_DELIVERED`, then `at + 30d`.
+Nullable conditions: `(flag ?? false)` or `(optionalTime < now) ?? false`.
+Inserts supply every required column without a default, including evidence/price.
+
+## Uploads, live board and approval
+
+Keep starter auth/AppProvider. Import api from ../snapback/generated/api.ts
+(Expo root: ./snapback/generated/api.ts), hooks from snapback4/react.
+`usePage(api.board,{})` returns live items/read/loading/why/hasMore/loadMore.
+`useMutation(api.approve).run({request,reason})` returns sent (committed) or
+failed (why.code/message). `useAuth()` gives state/signup/login/logout.
+`useAsset(id)` has url when ready. Call hooks at component top level.
+
+Upload as the placing account: `client.upload(bytes,{file:{type:'application/pdf'}})`;
+require result.ok, then pass `{evidence:{id:result.asset.id}}`. For image columns:
+`client.upload(imageBytes)`. Each column needs a separate upload of the bytes.
+`client.observe(api.board,{})` returns getSnapshot/subscribe/close; subscribe a
+no-argument listener, read getSnapshot, close on cleanup.
+
+## Acceptance: scripts/acceptance.mjs
+
+After check and `init --adapt --apply`, set scripts/staging.mjs's seedUsers to
+`{roles:{customer:2,intake:2,staff:2,director:2},provision:api.provision}`.
+Custom enrollment uses args(account). Set acceptance to `node scripts/acceptance.mjs`:
+
+```js
+import assert from 'node:assert/strict';
+import { createClient } from 'snapback4/client';
+import { api } from '../snapback/generated/api.ts';
+import { startStaging } from './staging.mjs';
+const host = await startStaging();
+const clients = [];
+try {
+  const as = (role, n = 0) => {
+    const c = createClient({url:host.url, session:host.sessions[role][n]});
+    clients.push(c); return c;
+  };
+  const intake = as('intake'), staff = as('staff'), director = as('director');
+  const customer = as('customer'), other = as('customer', 1);
+  const guest = createClient({url:host.url}); clients.push(guest);
+  const sent = w => { assert.equal(w.state,'sent',JSON.stringify(w)); return w.result; };
+  const denied = w => assert.equal(w.state,'failed');
+  const upload = await intake.upload(new TextEncoder().encode('proof report'),
+    {file:{type:'application/pdf'}});
+  assert.ok(upload.ok);
+  const row = sent(await intake.mutate(api.openRequest, {
+    owner:host.sessions.customer[0].principal, title:'Proof request',
+    evidence:{id:upload.asset.id}, price:1234
+  }));
+  const request = row.id;
+  assert.ok((await intake.query(api.myRole,{})).data);
+  const board = await staff.query(api.board,{});
+  assert.ok(!('denied' in board)); assert.equal(board.complete,true);
+  assert.ok(board.data.some(r => r.id === request && !('price' in r)));
+  assert.equal((await customer.query(api.board,{})).data.length,1);
+  assert.equal((await other.query(api.board,{})).data?.length ?? 0,0);
+  denied(await staff.mutate(api.approve,{request,reason:'not authorized'}));
+  denied(await guest.mutate(api.fit,{request}));
+  sent(await director.mutate(api.approve,{request,reason:'Physician order received'}));
+  sent(await staff.mutate(api.fit,{request}));
+  sent(await staff.mutate(api.deliver,{request}));
+  sent(await staff.mutate(api.checkUsage,{request}));
+  await host.advance('31d');
+  const late = await director.mutate(api.approve,{request,reason:'Too late'});
+  denied(late); assert.equal(late.why.code,'DEADLINE');
+  console.log('acceptance passed');
+} finally { for (const c of clients) await c.close(); await host.stop(); }
+```
+
+Extend for every spec role/operation, exact/just-before deadlines, pre-event null,
+job catch-up and live writes. Supply valid args in authorization tests. Run twice.
+Edit scripts/frontend-proof.mjs business assertions; keep build/cleanup. Verify with
+`npm run probe:check`. For the harness include sessions in probe readiness,
+never in diaries. Operation args/hooks: `guide api generated`.

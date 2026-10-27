@@ -1,5 +1,8 @@
 # TypeScript server handlers
 
+Reference for custom server handlers or release lifecycle. Building an app: run `snapback4 guide start`
+then `snapback4 guide workflow`; this file is outside that reading path.
+
 One `use server` in any module (`schema.q` is usual) enables the whole
 project; repeating it is harmless. Actions, routes and schedules naming an
 action require it. Effects (including secrets, retry, backoff, deadline and

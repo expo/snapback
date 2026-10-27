@@ -1,4 +1,5 @@
 // API signatures: snapback4 guide api proof | client | auth | generated
+// EDIT REGION: business assertions between the markers below; keep build, hosts and cleanup.
 // Builds its own dist before starting proof servers.
 // Replace the application assertions when replacing the starter screen.
 import assert from "node:assert/strict";
@@ -40,6 +41,7 @@ try {
       assert.ok(personas.length, "declare identity or personas before proving the starter");
       await page.getByRole("button", { name: personas[0], exact: true }).click();
     }
+    // EDIT REGION: sign-in role and screen/write assertions begin.
     // TEMPLATE_READY
     await page.getByRole("button", { name: /^(Sign out|Switch persona)$/, exact: true }).waitFor();
     // LABELLED_CONTROLS
@@ -59,5 +61,6 @@ try {
       await waitForFresh(renderedText(page, new RegExp(title), { within }), null);
     }
   });
+  // KEEP REGION: proof result and cleanup.
   console.log("frontend:proof passed");
 } finally { await cleanup(() => web?.stop(), () => dev.stop()); }

@@ -20,6 +20,4 @@ export function refreshSession(url: string, token: string, doFetch?: typeof fetc
 export function narrowSession(url: string, session: Session, doFetch?: typeof fetch): Promise<SignIn>;
 ```
 
-Other exports/options: dist/auth.d.ts; follow its named imports only on demand.
-
-Declaration fingerprint: fae1cf931a0f5cdfe9feb8f3f3d29783eb8ac136f3764fdc54b98b63354d3639
+Declaration fingerprint: 893ef66faed41fb2f218c685ef2ce4616fcfb2478dce55748bab662c56b4c753

@@ -53,4 +53,4 @@ Release compatibility: `snapback4/react` exports `useRelease`; `snapback4/contra
 
 ## Signature digests
 
-`guide api proof`, `guide api client`, `guide api auth` are generated from dist declarations at build time (at most 3,000 tokens each). `guide api generated` reads the checked project operation index. Starter script headers point here.
+`guide api react`, `guide api proof`, `guide api client`, `guide api auth` are generated from dist declarations at build time (at most 2,400 tokens each). `guide api generated` reads the checked project operation index. Starter script headers point here.

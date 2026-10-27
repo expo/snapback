@@ -1,4 +1,5 @@
 // API signatures: snapback4 guide api proof | client | auth | generated
+// KEEP REGION: preview lifetime/shutdown verifier; use --then for business work.
 // Qualify the actual npm probe script, including its process group and store lock.
 import { mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";

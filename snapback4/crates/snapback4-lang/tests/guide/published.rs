@@ -23,6 +23,7 @@ fn shipped_files() -> BTreeSet<String> {
 // on repository files. Keep exact paths: accepting an entire src/ tree would
 // admit the unshipped adoption instructions that prompted this regression.
 const APP_FILES: &[&str] = &[
+    "../snapback/generated/api.ts",
     // The executable auth-card example and the installed social starter seed.
     "seed.mjs", "scripts/seed.mjs", "placements.mjs",
     "src/App.tsx", "scripts/staging.mjs", "scripts/probe-serve.mjs", "scripts/probe-check.mjs",

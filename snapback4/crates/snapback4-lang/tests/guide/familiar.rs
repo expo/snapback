@@ -64,8 +64,12 @@ fn cards_meet_word_targets_and_preserve_every_original_compiled_block() {
         let historical_programs;
         let historical = if name == "language" {
             let (historical, added) = text.split_once("```quarry\nuse identity password\ntable parcels").unwrap();
+            let (before, nullable) = historical.split_once("## Nullable values and inserts").unwrap();
+            let (addition, after) = nullable.split_once("## Limits").unwrap();
+            assert!(addition.split_whitespace().count() <= 50, "TOK3 nullable idioms budget");
+            historical_programs = format!("{before}## Limits{after}");
             assert!(added.split_whitespace().count() <= 100, "backfill example budget");
-            historical
+            &historical_programs
         } else if name == "programs" {
             let (before, added) = text.split_once("## Branches and typed empty accumulators").unwrap();
             let (addition, after) = added.split_once("## Limits").unwrap();
