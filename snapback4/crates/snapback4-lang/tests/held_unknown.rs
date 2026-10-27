@@ -27,6 +27,12 @@ fn comparative_bare_history_and_separate_decorations_compile_without_held_notes(
         assert!(COMPARATIVE.lines().nth(note.site.line as usize - 1).unwrap().contains("! else NOT_FOUND"));
         assert!(note.message.contains("read <-") && note.rewrite.contains("do not widen private rows"));
     }
+    let missing = COMPARATIVE.replace("  require exists members[conversation = conversation, principal = viewer, role = 'admin'] else NOT_ADMIN\n", "");
+    let without_admin = compile(&[("schema.q".into(), missing)]);
+    assert!(without_admin.diagnostics.is_empty(), "{:?}", without_admin.diagnostics);
+    for name in ["addMember", "removeMember"] {
+        assert!(without_admin.notes.iter().any(|n|n.code=="N_LOOKUP_FILTERED"&&n.message.starts_with(&format!("mutation {name}:"))));
+    }
     let other = bound.notes.iter().filter(|n| n.code != "N_LOOKUP_FILTERED").collect::<Vec<_>>();
     assert_eq!(other.len(), 1, "{:?}", bound.notes);
     assert_eq!(other[0].code, "N_REFERENCE_UNCHECKED");

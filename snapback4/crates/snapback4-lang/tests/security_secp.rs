@@ -207,3 +207,12 @@ const SWEEP:&str="table docs:\n  status:enum('open','expired','done') default 'o
     let source="table parents:\n  due:time\n  read <- allow\n  update <- allow\n  online only\ntable children:\n  parent:parents\n  due:time\n  read <- allow\n  insert <- allow\n  online only\nfn shorten(first:parents,second:parents,flag:bool):\n  a=parents[first] ! else NO\n  b=parents[second] ! else NO\n  chosen=a if flag else b\n  update chosen {due:now}\n  return true\nmutation create(parent:parents,other:parents,proposed:time,flag:bool):\n  p=parents[parent] ! else NO\n  require proposed > now else NO\n  shorten(parent,other,flag)\n  require proposed <= p.due else NO\n  return insert children {parent,due:proposed}\n";
     assert!(notes(source).iter().any(|n|n.code=="N_DEPENDENT_WINDOW"));
 }
+#[test]fn unresolved_targets_cannot_hide_behind_an_existing_table_name(){
+    let prefix=format!("{READER}table shares:\n  recipient:principal\n  read <- .recipient = viewer\n  insert <- allow\n  online only\n");
+    for (helper,invoke) in [("", "  docs=r if flag else other\n  update docs {role:'admin'}"),("fn change(recipient:principal,flag:bool):\n  r=roles[principal=recipient] ! else NO\n  other=roles[viewer] ! else NO\n  docs=r if flag else other\n  update docs {role:'admin'}\n  return true\n", "  change(recipient,flag)")]{
+        let source=format!("{prefix}{helper}mutation grant(recipient:principal,flag:bool):\n  r=roles[principal=recipient] ! else NO\n  other=roles[viewer] ! else NO\n  require r.role = 'member' else NO\n{invoke}\n  return insert shares {{recipient}}\n");
+        assert!(notes(&source).iter().any(|n|n.code=="N_ARGUMENT_GRANT"&&n.message.starts_with("grant:")));
+    }
+    let source="table docs:\n  stage:enum('quoted','approved') default 'quoted'\n  photo:image <=10000\n  read <- allow\n  update <- allow\n  online only\ntable alias:\n  stage:enum('quoted','approved')\n  read <- allow\n  update <- allow\n  online only\nfn change(first:docs,second:docs,flag:bool):\n  a=docs[first] ! else NO\n  b=docs[second] ! else NO\n  alias=a if flag else b\n  update alias {stage:'approved'}\n  return true\nmutation edit(doc:docs,other:docs,flag:bool,photo:image <=10000):\n  d=docs[doc] ! else NO\n  require d.stage = 'quoted' else NO\n  change(doc,other,flag)\n  update docs[doc] {photo}\n";
+    assert!(notes(source).iter().any(|n|n.code=="N_EDIT_AFTER_APPROVAL"&&n.message.starts_with("edit:")));
+}

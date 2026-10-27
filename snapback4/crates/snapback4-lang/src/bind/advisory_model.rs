@@ -39,10 +39,10 @@ pub(super) fn derive(catalog:&Catalog,schema:&Schema)->Model{
     let mut programs=catalog.documents.iter().flat_map(|doc|doc.programs.clone()).collect::<Vec<_>>();
     if programs.iter().any(|p|p.native){return Model::default();}
     for function in catalog.functions.values(){programs.push(ProgramDecl{delivery:None,held:false,predicts:false,server:false,kind:ProgramKind::Mutation,name:format!("$helper:{}",function.name),args:function.args.clone(),prelude:Vec::new(),body:match &function.body{FunctionBody::Block(body)=>body.clone(),FunctionBody::Expression(value)=>vec![Stmt::Return{value:value.clone(),site:value.site().clone()}]},native:false,site:function.site.clone()});}
-    let writes=programs.iter().flat_map(|p|super::security::authority_walk::writes(catalog,p)).collect::<Vec<_>>();
+    let writes=programs.iter().flat_map(|p|super::security::authority_walk::advice_writes(catalog,p)).collect::<Vec<_>>();
     // Every raw construction site must be represented, including uncalled
     // helper bodies. A cut/unknown target cannot silently supply consistency.
-    let resolved=writes.iter().filter_map(|(e,_)|if let Expr::Write{site,..}=e{Some(site.to_string())}else{None}).collect::<BTreeSet<_>>();
+    let resolved=writes.iter().filter_map(|(e,_)|if let Expr::Write{table,site,..}=e&&catalog.tables.contains_key(table){Some(site.to_string())}else{None}).collect::<BTreeSet<_>>();
     let mut complete=true;for doc in &catalog.documents{super::intent_walk::document(&mut doc.clone(),&mut |e|if let Expr::Write{table,site,..}=e{if !catalog.tables.contains_key(table)||!resolved.contains(&site.to_string()){complete=false;}});}
     let mut model=Model{links:Vec::new(),writes,complete};if !complete{return model;}
     for (child,t) in schema.visible_tables(){
