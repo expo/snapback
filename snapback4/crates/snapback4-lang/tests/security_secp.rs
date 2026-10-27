@@ -235,3 +235,18 @@ const SWEEP:&str="table docs:\n  status:enum('open','expired','done') default 'o
     let ns=notes(&source);let note=ns.iter().find(|n|n.code=="N_LOOKUP_FILTERED"&&n.message.starts_with("mutation inspect:")).unwrap();
     assert_eq!(note.message.matches("r.role = 'admin'").count(),1,"{note:?}");
 }
+#[test]fn positive_nonnull_time_values_are_not_null_approval_guards(){
+    let base="table docs:\n  approvedAt:time ?\n  photo:image <=10000\n  read <- allow\n  update <- allow\n  online only\nmutation edit(doc:docs,photo:image <=10000):\n  row=docs[doc] ! else NO\n  require GUARD else NO\n  update docs[doc] {photo}\n";
+    for guard in ["row.approvedAt = 0","row.approvedAt != null and row.approvedAt < 0","row.approvedAt = null or row.approvedAt = 0","(row.approvedAt ?? 0) = 0"]{
+        assert!(notes(&base.replace("GUARD",guard)).iter().any(|n|n.code=="N_EDIT_AFTER_APPROVAL"),"{guard}");
+    }
+    for guard in ["row.approvedAt = null","not (row.approvedAt != null)","(row.approvedAt ?? null) = null"]{
+        assert!(!notes(&base.replace("GUARD",guard)).iter().any(|n|n.code=="N_EDIT_AFTER_APPROVAL"),"{guard}");
+    }
+}
+#[test]fn atomic_request_credit_uses_the_actual_boolean_approval_domain(){
+    let base="table docs:\n  stage:enum('quoted','approved') default 'quoted'\n  photo:image <=10000\n  read <- allow\n  update <- allow\n  online only\ntable requests:\n  parent:docs\n  payload:image <=10000\n  approved:bool ?\n  immutable parent,payload\n  read <- allow\n  update <- allow\n  online only\nmutation apply(request:requests):\n  r=requests[request] ! else NO\n  require r.approved = VALUE else NO\n  d=docs[r.parent] ! else NO\n  require d.stage = 'approved' else NO\n  update requests[r.id] {approved:true}\n  update docs[d.id] {photo:r.payload}\n";
+    for (value,warn) in [("true",true),("false",false),("null",false)]{
+        assert_eq!(notes(&base.replace("VALUE",value)).iter().any(|n|n.code=="N_EDIT_AFTER_APPROVAL"&&n.message.starts_with("apply:")),warn,"{value}");
+    }
+}

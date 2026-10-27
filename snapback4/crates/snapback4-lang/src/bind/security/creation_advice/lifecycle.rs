@@ -29,10 +29,16 @@ fn advice_target(base:&Expr,w:&Write<'_>,bound:&Bound)->bool{
     })
 }
 fn excludes_on(w:&Write<'_>,column:&str,value:&ast::Literal,bound:&Bound,context:&ast::ProgramDecl)->bool{
+    let nonnull_time=matches!(bound.schema.tables[&w.table].columns.get(column).map(ColumnType::required),Some(ColumnType::Time))&&!matches!(value,ast::Literal::Null);
+    let opaque="$advice_nonnull_time";
     conditions(context).iter().any(|condition|{
         let mut condition=(*condition).clone();
         super::super::super::intent_walk::expression(&mut condition,&mut |e|{
-            if let Expr::Member{base,name,site}=e&&name==column&&advice_target(base,w,bound){*e=Expr::Literal{value:value.clone(),site:site.clone()};}
+            if let Expr::Member{base,name,site}=e&&name==column&&advice_target(base,w,bound){*e=if nonnull_time{Expr::Name{name:opaque.into(),site:site.clone()}}else{Expr::Literal{value:value.clone(),site:site.clone()}};}
+            if nonnull_time{
+                if let Expr::Binary{op,left,..}=e&&op=="??"&&matches!(left.as_ref(),Expr::Name{name,..} if name==opaque){*e=*left.clone();}
+                if let Expr::Binary{op,left,right,site}=e&&matches!(op.as_str(),"="|"!=")&&[(left.as_ref(),right.as_ref()),(right.as_ref(),left.as_ref())].iter().any(|(a,b)|matches!(a,Expr::Name{name,..} if name==opaque)&&matches!(b,Expr::Literal{value:ast::Literal::Null,..})){*e=Expr::Literal{value:ast::Literal::Bool(op=="!="),site:site.clone()};}
+            }
         });
         matches!(simplify_boolean(&condition),Expr::Literal{value:ast::Literal::Bool(false),..})
     })
@@ -62,7 +68,7 @@ fn lifecycle_guard(w:&Write<'_>,writes:&[Write<'_>],bound:&Bound)->bool{
         let mut domain=match kind.required(){
             ColumnType::Enum{variants}=>variants.iter().filter(|v|["approved","authorized","authorised","accepted","issued"].contains(&v.as_str())).cloned().map(ast::Literal::Str).collect::<Vec<_>>(),
             ColumnType::Bool=>vec![ast::Literal::Bool(true)],
-            ColumnType::Time=>vec![ast::Literal::Number("1".into())],_=>return false,
+            ColumnType::Time=>vec![ast::Literal::Number("$nonnull".into())],_=>return false,
         };
         // Unknown domain labels require an affirmative equality, not a broad
         // exclusion such as stage != cancelled. Known approval states must all
@@ -111,7 +117,10 @@ fn approved_request_payload(w:&Write<'_>,field:&ast::ObjectField,writes:&[Write<
     let Some(t)=bound.schema.table(&request.table)else{return false;};
     if !t.constraints.iter().any(|c|matches!(c,snapback4_core::schema::Constraint::Immutable{fields} if fields.contains(payload))){return false;}
     let linked=t.columns.iter().any(|(reference,kind)|matches!(kind,ColumnType::Ref{table} if table==&w.table)&&t.immutable_fields().any(|field|field==reference)&&w.keys.iter().any(|key|super::approval_records::origin(&key.value,w.p,bound).is_some_and(|origin|super::approval_records::origin(&Expr::Member{base:Box::new(base.clone()),name:reference.clone(),site:base.site().clone()},w.p,bound)==Some(origin))));
-    linked&&writes.iter().any(|stamp|stamp.table==request.table&&super::approval_records::coexec(stamp,w)&&advice_target(base,stamp,bound)&&stamp.fields.iter().any(|f|t.columns.get(&f.name).is_some_and(|kind|super::super::derived::named_approval(&f.name,kind)&&super::super::derived::fresh_recording(kind,field_value(f)))&&!earlier_change(stamp,writes,&f.name,bound)&&excludes(stamp,&f.name,&ast::Literal::Number("1".into()),bound))&&!earlier_change(stamp,writes,payload,bound))
+    linked&&writes.iter().any(|stamp|stamp.table==request.table&&super::approval_records::coexec(stamp,w)&&advice_target(base,stamp,bound)&&stamp.fields.iter().any(|f|{
+        let approved=if matches!(t.columns.get(&f.name).map(ColumnType::required),Some(ColumnType::Bool)){ast::Literal::Bool(true)}else{ast::Literal::Number("$nonnull".into())};
+        t.columns.get(&f.name).is_some_and(|kind|super::super::derived::named_approval(&f.name,kind)&&super::super::derived::fresh_recording(kind,field_value(f)))&&!earlier_change(stamp,writes,&f.name,bound)&&excludes(stamp,&f.name,&approved,bound)
+    })&&!earlier_change(stamp,writes,payload,bound))
 }
 fn requires_child(w:&Write<'_>,child:&str,reference:&str)->bool{
     conditions(&w.context).into_iter().flat_map(conjunction).any(|e|if let Expr::Exists{read,..}=e&&read.table==child{
