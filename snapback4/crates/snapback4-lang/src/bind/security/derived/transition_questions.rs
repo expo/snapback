@@ -10,7 +10,21 @@ fn choices(e:&Expr,column:&str)->Option<BTreeSet<String>>{match e{
     Expr::Binary{op,left,right,..}if op=="or"=>Some(choices(left,column)?.union(&choices(right,column)?).cloned().collect()),
     Expr::Binary{op,left,right,..}if op=="and"=>Some(choices(left,column)?.intersection(&choices(right,column)?).cloned().collect()),_=>None,
 }}
-fn row_condition(e:&Expr)->bool{let mut e=e.clone();let mut found=false;super::super::super::intent_walk::expression(&mut e,&mut |e|if matches!(e,Expr::Focal{..}){found=true;});found}
+// Only a positive, unique roster membership is an actor check. Other stored
+// conditions remain prerequisites even when they do not mention this resource.
+fn actor_check(e:&Expr,bound:&Bound)->bool{match e{
+    Expr::Binary{op,left,right,..}if op=="and"||op=="or"=>actor_check(left,bound)&&actor_check(right,bound),
+    Expr::Exists{read,..}=>{
+        let Some(principal)=super::super::privilege::global_principal(bound,&read.table)else{return false;};
+        if read.keys.len()!=2||read.filter.is_some()||read.range.is_some()||read.matching.is_some()||!read.seeks.is_empty()||!read.computed.is_empty(){return false;}
+        let roles=super::super::privilege::role_columns(bound,&read.table);let mut actor=false;let mut role=false;
+        for(at,key)in read.keys.iter().enumerate(){let Some(column)=key.column.as_deref().or_else(||(at==0).then_some(principal))else{return false;};
+            if column==principal&&matches!(&key.value,Expr::Name{name,..}if name=="viewer"){actor=true;}
+            else if roles.contains(column)&&literal(&key.value).is_some(){role=true;}else{return false;}
+        }actor&&role
+    },_=>false,
+}}
+fn plain_guard(e:&Expr)->bool{let mut e=e.clone();let mut safe=true;super::super::super::intent_walk::expression(&mut e,&mut |e|if matches!(e,Expr::Assert{..}|Expr::Call{..}|Expr::Write{..}){safe=false;});safe}
 fn conjuncts(e:&Expr,out:&mut Vec<Expr>){if let Expr::Binary{op,left,right,..}=e&&op=="and"{conjuncts(left,out);conjuncts(right,out);}else{out.push(e.clone());}}
 #[derive(Clone)]struct Step{table:String,column:String,value:Expr,site:Site,operation:String,effect:String,guards:Vec<Expr>,anchor:bool,old_restricted:bool}
 fn direct(p:&ast::ProgramDecl,site:&Site)->Option<usize>{
@@ -27,7 +41,7 @@ fn steps(sources:&[(String,String)],bound:&Bound)->Vec<Step>{
         for(write,context)in &writes{let Expr::Write{op:WriteOp::Update,table,keys,fields,site,condition:None,if_absent:false,..}=write else{continue;};
             let Some(at)=direct(p,site)else{continue;};let Some(arg)=workflow::target_arg(p,write,table)else{continue;};
             let mapping=BTreeMap::from([(arg.name.clone(),workflow::member(workflow::focal(),"id"))]);
-            let anchor=p.args.len()==1&&p.body[..at].iter().all(|s|match s{Stmt::Require{..}=>true,Stmt::Bind{value,..}=>matches!(value,Expr::Assert{value,..}if matches!(value.as_ref(),Expr::Read(_)))||matches!(value,Expr::Read(_)),_=>false})&&p.body[at+1..].iter().all(|s|matches!(s,Stmt::Return{value:Expr::Literal{value:ast::Literal::Null,..},..}));
+            let anchor=p.args.len()==1&&p.body[..at].iter().all(|s|match s{Stmt::Require{condition,..}=>plain_guard(condition),Stmt::Bind{value,..}=>super::plain_row(value)&&super::same_resource(value,table,keys,p),_=>false})&&p.body[at+1..].iter().all(|s|matches!(s,Stmt::Return{value:Expr::Literal{value:ast::Literal::Null,..},..}))&&fields.iter().all(|f|f.value.as_ref().is_some_and(|v|matches!(v,Expr::Literal{..})||matches!(v,Expr::Name{name,..}if name=="now"||name=="viewer")));
             let mut guards=Vec::new();let mut complete=true;
             for s in &context.body{if let Stmt::Require{condition,..}=s{if let Some(value)=workflow::normalize(condition,&bound.schema,table,&mapping){conjuncts(&value,&mut guards);}else{complete=false;}}}
             for field in fields{
@@ -43,7 +57,7 @@ fn steps(sources:&[(String,String)],bound:&Bound)->Vec<Step>{
     }out
 }
 fn add(out:&mut Vec<(Diagnostic,Invariant)>,write:&Step,anchor:&Step,from:&str,to:&str,focus:&str,message:String,bound:&Bound){
-    let applicable=anchor.guards.iter().filter(|g|choices(g,focus).is_none()&&row_condition(g)).cloned().reduce(|a,b|workflow::binary("and",a,b)).unwrap_or(Expr::Literal{value:ast::Literal::Bool(true),site:Site::default()});
+    let applicable=anchor.guards.iter().filter(|g|choices(g,focus).is_none()&&!actor_check(g,bound)).cloned().reduce(|a,b|workflow::binary("and",a,b)).unwrap_or(Expr::Literal{value:ast::Literal::Bool(true),site:Site::default()});
     let basis=format!("{} effect {}; guards {}; bypass {} effect {}; domain {:?}; anchor domain {:?}",anchor.operation,anchor.effect,anchor.guards.iter().map(|g|format!("({})",crate::print::expression(g))).collect::<Vec<_>>().join(" and "),write.operation,write.effect,bound.schema.tables[&write.table].columns[&write.column],bound.schema.tables[&anchor.table].columns[&anchor.column]);
     let policy=Expr::Call{name:"$sec11-transition".into(),args:vec![string(&write.site.to_string()),string(&write.column),string(from),string(to),applicable,string(&basis)],site:Site::default()};let mut invs=Vec::new();
     workflow::add_syntax(&mut invs,&write.table,Some(&write.column),"update",policy,&write.site,"sec11-transition",Some(write.operation.clone()));let mut inv=invs.remove(0);
@@ -112,6 +126,15 @@ pub(crate) fn judge(inv:&Invariant,old:Option<&Value>,row:&Value,rows:&BTreeMap<
   let deleted=SMALL.replace("update docs[doc] {phase:'c'}","update docs[doc] {phase:'c'}\n  delete docs[doc]");
   let expired=SMALL.replace("  phase: enum", "  deadline: time\n  expire at .deadline\n  phase: enum").replace("return insert docs {}","return insert docs {deadline:now + 1d}").replace("update docs[doc] {phase:'c'}","update docs[doc] {phase:'c',deadline:now}");
   for source in [deleted,expired]{let(mut b,qs)=compile(&source);assert_eq!(qs.len(),1);b.invariants=qs.into_iter().map(|(_,i)|i).collect();let mut campaign=challenges::Campaign::work_bounded(8192);challenges::generated_campaign(&b,&mut campaign,false);assert!(campaign.violations.is_empty(),"transient or expired edge became a question: {:?}",campaign.violations);}
+ }
+
+ #[test]fn external_stored_prerequisites_are_preserved_and_auxiliary_assertions_are_uncovered(){
+  let source=format!("table reviewWindows:\n  open: bool\n  unique open\n  read <- allow\n  insert <- allow\n  online only\n{}",STUDY.replace("require s.status = 'measured' else BAD_STATUS","require s.status = 'measured' else BAD_STATUS\n  require exists reviewWindows[open = true] else REVIEW_CLOSED"));
+  let(b,qs)=compile(&source);assert_eq!(qs.len(),1);let inv=&qs[0].1;assert!(inv.predicate.contains("reviewWindows"));let Expr::Call{args,..}=inv.syntax.as_ref().unwrap()else{panic!()};let site=literal(&args[0]).unwrap();let old=snapback4_core::value::object([("status",Value::String("measured".into()))]);let next=snapback4_core::value::object([("status",Value::String("reported".into()))]);
+  let closed=BTreeMap::from([("reviewWindows".into(),Vec::new())]);assert_eq!(judge(inv,Some(&old),&next,&closed,&b.schema,"actor",0,Some(site)),Some(true),"closed stored prerequisite must not become an unconditional hypothesis");
+  let open=BTreeMap::from([("reviewWindows".into(),vec![snapback4_core::value::object([("id",Value::Id("window".into())),("open",Value::Bool(true))])])]);assert_eq!(judge(inv,Some(&old),&next,&open,&b.schema,"actor",0,Some(site)),Some(false));
+  let asserted=STUDY.replace("require s.status = 'measured' else BAD_STATUS","customerRole = roles[principal = s.customer] ! else NO_CUSTOMER_ROLE\n  require s.status = 'measured' else BAD_STATUS");assert!(compile(&asserted).1.is_empty(),"an auxiliary asserted read is an unmodeled prerequisite");
+  let guard=STUDY.replace("require s.status = 'measured' else BAD_STATUS","require (roles[principal = s.customer] ! else NO_CUSTOMER_ROLE).role = 'customer' else WRONG_ROLE\n  require s.status = 'measured' else BAD_STATUS");assert!(compile(&guard).1.is_empty(),"an assertion inside a guard must not escape the anchor boundary");
  }
 
 }
