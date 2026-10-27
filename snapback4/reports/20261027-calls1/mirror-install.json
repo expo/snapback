@@ -1,0 +1,9 @@
+{
+  "package": "snapback4@0.4.44",
+  "registry": "http://127.0.0.1:4873/",
+  "otherDependenciesRegistry": "https://registry.npmjs.org/",
+  "wallSeconds": 1.18,
+  "freshDirectory": true,
+  "cache": "shared host npm cache",
+  "result": "added 6 packages; exit 0"
+}

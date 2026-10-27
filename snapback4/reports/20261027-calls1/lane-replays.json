@@ -1,0 +1,73 @@
+[
+  {
+    "lane": "001-snapback-cpap-equipment-setups",
+    "sourceDigests": [
+      [
+        "schema.q",
+        "e669fe54d79ee4c6c452f99e95c86b0ef8a0ef689b54797a23b2f2f47ba0940b"
+      ]
+    ],
+    "compilerFixCycles": 1,
+    "idempotent": true,
+    "checkExit": 0,
+    "scope": "compiler refusal resolved; original security gate verdict retained"
+  },
+  {
+    "lane": "004-snapback-dumpster-street-permits",
+    "sourceDigests": [
+      [
+        "schema.q",
+        "969e464da94c8f017acebce7cfc1779aa45dd0c3fcef422e9e71585d4855a57f"
+      ]
+    ],
+    "compilerFixCycles": 1,
+    "idempotent": true,
+    "checkExit": 0,
+    "scope": "compiler refusal resolved; original security gate verdict retained"
+  },
+  {
+    "lane": "026-snapback-wildlife-exclusion-jobs",
+    "sourceDigests": [
+      [
+        "schema.q",
+        "e21f5d99d096ac7427ddb0fd3e392c635aa40ab862930110e8a39fa5c160a396"
+      ]
+    ],
+    "compilerFixCycles": 1,
+    "idempotent": true,
+    "checkExit": 0,
+    "scope": "compiler refusal resolved; original security gate verdict retained",
+    "imageMetadataAccepted": true,
+    "spoofedImageRefused": true,
+    "uploadFixCycles": 0
+  },
+  {
+    "lane": "036-snapback-foreign-credential-evaluations",
+    "sourceDigests": [
+      [
+        "schema.q",
+        "b95a3bacbf9ea621a4a294422820e154b51c0bf73a6168e9b1821b977ea6c399"
+      ]
+    ],
+    "compilerFixCycles": 1,
+    "idempotent": true,
+    "checkExit": 0,
+    "scope": "compiler refusal resolved; original security gate verdict retained"
+  },
+  {
+    "lane": "038-snapback-hardwood-floor-refinishing",
+    "sourceDigests": [
+      [
+        "schema.q",
+        "6cec743febef2aa6f02cdb8898f7a70d91f2a30f2f6fe39f0b6ebe475068bb24"
+      ]
+    ],
+    "compilerFixCycles": 1,
+    "idempotent": true,
+    "checkExit": 0,
+    "scope": "compiler refusal resolved; original security gate verdict retained",
+    "imageMetadataAccepted": true,
+    "spoofedImageRefused": true,
+    "uploadFixCycles": 0
+  }
+]

@@ -1,0 +1,136 @@
+[
+  {
+    "phase": "final",
+    "thread": "01a17f8f-69c2-73e1-b502-24a50aba7d88",
+    "model": "gpt-6.1-sol",
+    "reasoning": "high",
+    "nativeModelCalls": 11,
+    "usage": {
+      "input_tokens": 197728,
+      "cached_input_tokens": 183936,
+      "cache_write_input_tokens": 0,
+      "output_tokens": 719,
+      "reasoning_output_tokens": 32
+    },
+    "polls": {
+      "backend-install": 1,
+      "frontend-init": 1,
+      "check": 1,
+      "other": 0
+    },
+    "installPolls": 2,
+    "toolCalls": [
+      {
+        "kind": "command",
+        "family": "other",
+        "command": "pwd && rg --files -g AGENTS.md -g package.json -g package-lock.json -g '*lock*' -g '.*' -g '!node_modules' -g '!\\.git' ."
+      },
+      {
+        "kind": "command",
+        "family": "other",
+        "command": "cat package.json"
+      },
+      {
+        "kind": "command",
+        "family": "backend-install",
+        "command": "npm i /tmp/calls1/packed/snapback4-0.4.44.tgz --registry=https://registry.npmjs.org/ --no-audit --no-fund"
+      },
+      {
+        "kind": "join/poll",
+        "family": "backend-install"
+      },
+      {
+        "kind": "command",
+        "family": "other",
+        "command": "npm pkg set dependencies.snapback4=0.4.44"
+      },
+      {
+        "kind": "command",
+        "family": "frontend-init",
+        "command": "npx snapback4 init . --web --online --password"
+      },
+      {
+        "kind": "join/poll",
+        "family": "frontend-init"
+      },
+      {
+        "kind": "command",
+        "family": "other",
+        "command": "cat snapback/schema.q package.json .snapback4/install.log"
+      },
+      {
+        "kind": "command",
+        "family": "check",
+        "command": "npx snapback4 check"
+      },
+      {
+        "kind": "join/poll",
+        "family": "check"
+      }
+    ],
+    "initialToolWait": "model chose 1000ms",
+    "cache": "fresh directory; shared warm npm cache",
+    "scope": "installation through first backend check, not full application replay"
+  },
+  {
+    "phase": "blocking",
+    "thread": "01a17f92-743a-7880-8c41-b021266d194b",
+    "model": "gpt-6.1-sol",
+    "reasoning": "high",
+    "nativeModelCalls": 8,
+    "usage": {
+      "input_tokens": 136784,
+      "cached_input_tokens": 121088,
+      "cache_write_input_tokens": 0,
+      "output_tokens": 803,
+      "reasoning_output_tokens": 96
+    },
+    "polls": {
+      "backend-install": 0,
+      "frontend-init": 0,
+      "check": 0,
+      "other": 0
+    },
+    "installPolls": 0,
+    "toolCalls": [
+      {
+        "kind": "command",
+        "family": "other",
+        "command": "pwd"
+      },
+      {
+        "kind": "command",
+        "family": "other",
+        "command": "cat package.json"
+      },
+      {
+        "kind": "command",
+        "family": "backend-install",
+        "command": "npm i /tmp/calls1/packed/snapback4-0.4.44.tgz --registry=https://registry.npmjs.org/ --no-audit --no-fund"
+      },
+      {
+        "kind": "command",
+        "family": "other",
+        "command": "npm pkg set dependencies.snapback4=0.4.44"
+      },
+      {
+        "kind": "command",
+        "family": "frontend-init",
+        "command": "npx snapback4 init . --web --online --password"
+      },
+      {
+        "kind": "command",
+        "family": "other",
+        "command": "cat snapback/schema.q"
+      },
+      {
+        "kind": "command",
+        "family": "check",
+        "command": "npx snapback4 check"
+      }
+    ],
+    "initialToolWait": "explicit 30000ms for installs/init",
+    "cache": "fresh directory; shared warm npm cache",
+    "scope": "installation through first backend check, not full application replay"
+  }
+]
