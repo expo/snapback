@@ -2,9 +2,6 @@
 
 The forms most apps need, in one schema that compiles, then the commands and client calls; each line names the card with the rest.
 
-Shared previews: `npx snapback4 deploy staging --staging`, then `npx snapback4 serve staging`.
-Read `guide staging` for real password users, operator-provisioned roles and replayable first-admin setup.
-
 ```quarry
 use identity                              -- guests and password accounts (guide personas)
 use personas alice, bob                   -- a dev cast: `--as alice` acts as dev:alice
@@ -77,7 +74,7 @@ mutation removeItem(item: items):
 Probe brackets use commas: `exists members[room, viewer, role = 'admin']`.
 Use `and` between Boolean expressions. Branches accept `elif condition:` or
 `else if condition:`; initialize nested accumulators with `seen = [] of text <=80`.
-`guide tasks` routes by task.
+`guide tasks` routes by task. Shared previews: `npx snapback4 deploy staging --staging`, then `npx snapback4 serve staging`. Read `guide staging` for real password users, operator-provisioned roles and replayable first-admin setup.
 
 ## Quarry
 
