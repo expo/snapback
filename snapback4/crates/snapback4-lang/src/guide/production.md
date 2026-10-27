@@ -16,7 +16,11 @@ is needed. Keep release moves awaited inside that command.
 
 Deploy once with `snapback4 deploy production`; build the frontend with its
 `build` (web) or `build:web` (Expo) script. Save as scripts/prod-serve.mjs and
-point package.json `prod:serve` at `node scripts/prod-serve.mjs`. This example
+point package.json `prod:serve` at `exec node scripts/prod-serve.mjs`.
+Password starters ship this script and `npm run prod:check`: deploy production,
+build the frontend against its backend URL, then use prod:check for bounded
+verification (optionally `npm run prod:check -- --then 'npm run day2:business'`).
+For existing scripts, add `"prod:check": "snapback4 serve-check --deployment production --script prod:serve"`. This example
 uses the operator-only `provision` mutation from `guide staging`; replace its
 handle, roles and `args(account)` with your application's actual enrollment plan.
 
@@ -39,8 +43,12 @@ try {
 ```
 <!-- DX15 PRODUCTION SERVE END -->
 
-`serveUntilSignal` holds a referenced lifetime until SIGTERM/SIGINT and awaits
-host cleanup. Emitting readiness and returning is insufficient. `startStatic`
+`serveUntilSignal` holds a referenced lifetime until SIGTERM/SIGINT/SIGHUP or its npm parent exits, and awaits
+host cleanup. A driver that exits also ends its owned native serve; inherited
+pipes close after host cleanup. `snapback4 stop production` asks the store owner
+to stop through its private control socket and verifies lock release; it never
+signals a PID from an address hint. Busy diagnostics name PID, command, start
+time and liveness, and print that exact recovery command. Emitting readiness and returning is insufficient. `startStatic`
 serves the built SPA with its fallback; build with the deployed backend URL
 configuration your client uses.
 

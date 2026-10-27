@@ -396,7 +396,7 @@ pub fn init(options: &Options) -> i32 {
         }
     }
     if web || expo {
-        println!("init: verify with `npm run probe:check` (password previews); `npm run frontend:proof` checks the screen. `probe:serve` stays up until SIGTERM.");
+        println!("init: verify with `npm run probe:check` (password previews); `npm run frontend:proof` checks the screen. `probe:serve` stays up until SIGTERM. For production: deploy production, build, then `npm run prod:check`; `prod:serve` deliberately stays up.");
         if !options.flags.contains_key("no-install") && std::env::var("SNAPBACK4_INIT_INSTALL").as_deref() != Ok("0") {
             if let Err(error) = background_install(dir) { eprintln!("init: frontend install could not start: {error}; run node scripts/install.mjs"); }
         } else { println!("init: frontend install deferred; run node scripts/install.mjs"); }

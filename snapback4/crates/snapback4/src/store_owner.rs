@@ -9,7 +9,6 @@ pub(crate) struct Owner {
     identity: (u64, u64),
     path: PathBuf,
     record: Option<File>,
-    reclaimed: Option<String>,
     pub(crate) token_authority: Option<crate::serve::token::Authority>,
 }
 
@@ -139,7 +138,7 @@ fn acquire(store: &Path, shared: bool, wait: Duration, cleanup_only: bool) -> Re
         let record = if shared { None } else {
             let record_path = path.with_file_name("serve.lock");
             if let Some(pid)=owner_pid(&path) {
-                if unsafe {libc::kill(pid as libc::pid_t,0)} == -1 && std::io::Error::last_os_error().raw_os_error()==Some(libc::ESRCH) {
+                if crate::supervisor::identity(pid).is_none() {
                     reclaimed = Some(format!("reclaimed stale serve.lock: dead PID {pid}; directory {}", path.parent().unwrap().display()));
                 }
             }
@@ -149,7 +148,8 @@ fn acquire(store: &Path, shared: bool, wait: Duration, cleanup_only: bool) -> Re
             write_record(&mut file, None)?;
             Some(file)
         };
-        return Ok(Owner { _sidecar: std::sync::Arc::new(sidecar), identity: (database.dev(), database.ino()), path, record, reclaimed, token_authority: None });
+        if let Some(note) = reclaimed { eprintln!("note: {note}"); }
+        return Ok(Owner { _sidecar: std::sync::Arc::new(sidecar), identity: (database.dev(), database.ino()), path, record, token_authority: None });
     }
     Err(failure(store, "database path kept changing during ownership acquisition"))
 }
@@ -230,10 +230,6 @@ fn holder(path: &Path) -> Option<String> {
 }
 
 impl Owner {
-    pub(crate) fn report_reclaim(&self, _verbose: bool) {
-        if let Some(note) = &self.reclaimed { eprintln!("note: {note}"); }
-    }
-
     // @ref LLP 3000.000.000#11-wave-11-factual-release-narration — unlink only our address inode; the ownership sidecar remains named.
     pub(crate) fn clear_address(&self) {
         #[cfg(unix)]

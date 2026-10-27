@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.46
+
+- Serve follows parent and npm lifetime, including wrapper-only SIGTERM/SIGKILL; proof drivers reap owned hosts on SIGTERM/SIGINT/SIGHUP or parent death so pipes finish. Busy stores name holder PID, command, start time and liveness with `snapback4 stop <dir>` recovery; dead-holder records are reclaimed with a notice. Password starters add `prod:serve` and bounded `prod:check`; deliberate harness hold remains opt-in.
+
 ## 0.4.44
 
 ### Guide changes

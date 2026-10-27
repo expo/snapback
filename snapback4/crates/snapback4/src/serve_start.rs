@@ -120,7 +120,6 @@ pub fn serve(
         Mode::Release { owner, .. } => Some(owner.clone()),
         _ => host_lock.take().map(Arc::new),
     };
-    if let Some(owner) = &host_owner { owner.report_reclaim(matches!(mode, Mode::Dev { verbose: true, .. })); }
     let mut engine = match &mode {
         Mode::Dev { fresh: true, .. } => Engine::new_at(
             fresh.as_ref().unwrap().store().map_err(|e| e.to_string())?,

@@ -400,7 +400,6 @@ pub fn deploy(options: &Options) -> i32 {
             let existed = dir.join("store.sqlite").exists();
             let checking=options.flags.contains_key("check");
             let (_deployment, held) = if checking { (None, None) } else { let (owner, held) = activation_target(&dir)?; (owner, Some(held)) };
-            if let Some(owner) = &_deployment { owner.report_reclaim(options.flags.contains_key("verbose")); }
             let project = super::proof_source::project(options, "schema")?;
             let sources = super::proof_source::sources(&project, options, "schema")?;
             security_sources=Some((project.root.clone(),sources.clone()));
@@ -615,7 +614,6 @@ pub fn rollback(options: &Options) -> i32 {
             let dir = existing_deployment(&directory(options)?)?;
             let _command = command_lock(&dir)?;
             let (_deployment, held) = activation_target(&dir)?;
-            if let Some(owner) = &_deployment { owner.report_reclaim(options.flags.contains_key("verbose")); }
             let active = if let Some(owner) = _deployment.as_ref() {
                 current(&dir, owner)?
             } else {
@@ -812,7 +810,6 @@ pub fn serve_release(options: &Options) -> Result<(), String> {
     let dir = existing_deployment(&directory(options)?)?;
     crate::host_limits::initialize();
     let owner = crate::store_owner::host(&dir.join("store.sqlite"))?;
-    owner.report_reclaim(options.flags.contains_key("verbose"));
     let clock_offset = options.flags.get("clock-offset").map(|text| crate::dev_clock::offset(text).map_err(|e| e.to_string())).transpose()?.unwrap_or(0);
     if options.flags.contains_key("clock-offset") {
         let store = owner.open_store(std::time::Duration::from_secs(5)).map_err(|e| e.to_string())?;
