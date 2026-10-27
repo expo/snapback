@@ -1,0 +1,73 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,rmSync} from 'node:fs';
+import {join,resolve} from 'node:path';
+import {tmpdir} from 'node:os';
+import {spawn,execFileSync} from 'node:child_process';
+import {pathToFileURL} from 'node:url';
+import {setTimeout as sleep} from 'node:timers/promises';
+import {deploy,cli,startServe} from '../dist/proof.js';
+const root=resolve(import.meta.dirname,'../../..'), binary=join(root,'target/debug/snapback4');
+const env={...process.env,SNAPBACK4_BIN:binary,SNAPBACK4_PROBE_HOLD:'1'};
+const proof=pathToFileURL(join(root,'packages/snapback4/dist/proof.js')).href;
+const wrapper=join(root,'packages/snapback4/bin/snapback4.js');
+async function until(fn,ms=12000){const end=performance.now()+ms;while(performance.now()<end){const value=await fn();if(value)return value;await sleep(25);}throw Error('SRV1 deadline expired');}
+async function project(t){const cwd=mkdtempSync(join(tmpdir(),'srv1-'));t.after(()=>rmSync(cwd,{recursive:true,force:true}));mkdirSync(join(cwd,'snapback'));writeFileSync(join(cwd,'snapback/schema.q'),'use identity guests\nquery alive():\n  return true\n');await deploy('production','snapback',{cwd,env});return cwd;}
+function launch(t,cwd,command,args,extra={}){const c=spawn(command,args,{cwd,env,detached:true,stdio:['ignore','pipe','pipe'],...extra});let out='',err='';c.stdout?.on('data',d=>out+=d);c.stderr?.on('data',d=>err+=d);c.on('error',()=>{});let closed=false;c.once('close',()=>closed=true);t.after(()=>{try{process.kill(-c.pid,'SIGKILL');}catch{}});return {c,out:()=>out,err:()=>err,closed:()=>closed};}
+function npmScript(cwd,body,script='node serve.mjs'){writeFileSync(join(cwd,'package.json'),JSON.stringify({type:'module',scripts:{'prod:serve':script,'probe:serve':script}}));writeFileSync(join(cwd,'serve.mjs'),body);}
+const driver=`import{startServe,serveUntilSignal}from ${JSON.stringify(proof)};const h=await startServe('production');console.log(JSON.stringify({backendUrl:h.url,pid:h.pid,driver:process.pid}));await serveUntilSignal([h]);`;
+async function ready(run){return until(()=>{const line=run.out().split('\n').find(l=>l.startsWith('{"backendUrl"'));if(line)return JSON.parse(line);assert.equal(run.closed(),false,run.err());});}
+async function released(cwd){const result=await cli(['serve','production','--wait-stopped'],{cwd,env});assert.equal(result.code,0,result.stderr);return result;}
+async function restarted(cwd){await released(cwd);const h=await startServe('production',{cwd,env});await h.stop();const d=await cli(['deploy','production'],{cwd,env});assert.equal(d.code,0,d.stderr);assert.doesNotMatch(d.stderr,/E_STORE_BUSY/);}
+
+for(const signal of ['SIGTERM','SIGKILL'])for(const direct of [false,true])test(`036/017/008: ${signal} to npm only releases ${direct?'native CLI':'serveUntilSignal driver'} store and pipes`,{skip:process.platform==='win32',timeout:30000},async t=>{
+ const cwd=await project(t);
+ npmScript(cwd,direct?'':driver,direct?`node ${JSON.stringify(wrapper)} serve production --port 0`:'node serve.mjs');
+ const run=launch(t,cwd,'npm',['run','--silent','prod:serve']);
+ if(direct)await until(()=>/SNAPBACK4_READY/.test(run.err()));else await ready(run);
+ run.c.kill(signal);
+ await until(run.closed);await restarted(cwd);
+});
+
+test('024: request-making driver exits; serveUntilSignal child cannot keep | tail open',{skip:process.platform==='win32',timeout:30000},async t=>{
+ const cwd=await project(t);writeFileSync(join(cwd,'serve.mjs'),driver);
+ writeFileSync(join(cwd,'driver.mjs'),`import{spawn}from'node:child_process';const c=spawn(process.execPath,['serve.mjs'],{stdio:['ignore','pipe','inherit']});let text='';c.stdout.on('data',async d=>{process.stdout.write(d);text+=d;if(text.includes('\\n')){const {backendUrl}=JSON.parse(text.trim());await fetch(backendUrl+'/auth/config');console.log('024 requests complete; driver exits');process.exit(0);}});`);
+ const run=launch(t,cwd,'bash',['-o','pipefail','-c','node driver.mjs | tail -n 2']);
+ await until(run.closed);assert.match(run.out(),/024 requests complete/);assert.equal(run.c.exitCode,0,run.err());await restarted(cwd);
+});
+
+for(const signal of ['SIGTERM','SIGINT','SIGHUP'])test(`serveUntilSignal handles ${signal} and closes inherited pipes`,{skip:process.platform==='win32',timeout:30000},async t=>{
+ const cwd=await project(t);npmScript(cwd,driver);
+ const run=launch(t,cwd,process.execPath,['serve.mjs']);await ready(run);run.c.kill(signal);await until(run.closed);assert.equal(run.c.exitCode,0,run.err());await restarted(cwd);
+});
+
+test('direct native serve observes launching parent death without wrapper environment',{skip:process.platform==='win32',timeout:30000},async t=>{
+ const cwd=await project(t);writeFileSync(join(cwd,'parent.mjs'),`import{spawn}from'node:child_process';spawn(${JSON.stringify(binary)},['serve','production','--port','0'],{stdio:'inherit'});setInterval(()=>{},1000);`);
+ const clean={...env};delete clean.SNAPBACK4_SUPERVISOR_PID;
+ const run=launch(t,cwd,process.execPath,['parent.mjs'],{env:clean});await until(()=>/SNAPBACK4_READY/.test(run.err()));run.c.kill('SIGKILL');await until(run.closed);await restarted(cwd);
+});
+
+test('harness: detached npm --hold child survives idle and group TERM releases hosts',{skip:process.platform==='win32',timeout:30000},async t=>{
+ const cwd=await project(t);npmScript(cwd,driver.replace("const h=",'const guard=(await import('+JSON.stringify(proof)+')).probeServeGuard();const h=').replace('await serveUntilSignal([h]);','const now=Date.now;Date.now=()=>now()+61000;await serveUntilSignal([h]);guard.close();'));
+ const run=launch(t,cwd,'bash',['-c','exec npm run --silent probe:serve']);const value=await ready(run);await sleep(1300);assert.equal(run.closed(),false,run.err());assert.equal((await fetch(value.backendUrl+'/auth/config')).status,200);process.kill(-run.c.pid,'SIGTERM');await until(run.closed);await restarted(cwd);
+});
+
+test('E_STORE_BUSY names holder; stop ignores forged PID hints and proves actual store release',{skip:process.platform==='win32',timeout:30000},async t=>{
+ const cwd=await project(t),h=await startServe('production',{cwd,env});t.after(()=>h.stop());
+ const result=await cli(['serve','production','--port','0'],{cwd,env});assert.notEqual(result.code,0);assert.match(result.stderr,new RegExp(`pid ${h.pid}.*command snapback4 serve.*start time.*still alive: true`));assert.match(result.stderr,/snapback4 stop '.*production'/);
+ const record=join(cwd,'production/serve.lock');let lines=readFileSync(record,'utf8').split('\n');lines[2]=`pid ${process.pid}`;writeFileSync(record,lines.join('\n'));
+ const stop=await cli(['stop','production'],{cwd,env});assert.equal(stop.code,0,stop.stderr);assert.ok(process.pid);await released(cwd);
+});
+
+test('SIGKILL holder stale record is reclaimed once, with a notice',{skip:process.platform==='win32',timeout:30000},async t=>{
+ const cwd=await project(t),run=launch(t,cwd,binary,['serve','production','--port','0']);await until(()=>/SNAPBACK4_READY/.test(run.err()));run.c.kill('SIGKILL');await until(run.closed);
+ const again=await cli(['deploy','production'],{cwd,env});assert.equal(again.code,0,again.stderr);assert.match(again.stderr,/reclaimed stale serve.lock: dead PID/);
+ const once=await cli(['deploy','production'],{cwd,env});assert.equal(once.code,0,once.stderr);assert.doesNotMatch(once.stderr,/reclaimed stale/);
+});
+
+// Linux-only kernel witness; the remaining process-shape tests run on Darwin.
+test('Linux PDEATHSIG spawning-thread exit does not kill a live-parent host',{skip:process.platform!=='linux',timeout:30000},async t=>{
+ const cwd=await project(t);
+ writeFileSync(join(cwd,'thread.py'),`import threading,subprocess,time\ndef spawn():\n subprocess.Popen([${JSON.stringify(binary)},'serve','production','--port','0'])\nt=threading.Thread(target=spawn);t.start();t.join()\nprint('spawning thread exited',flush=True)\nwhile True: time.sleep(1)\n`);
+ const run=launch(t,cwd,'python3',['thread.py']);await until(()=>/SNAPBACK4_READY/.test(run.err()));await sleep(500);assert.equal(run.closed(),false,run.err());assert.match(run.out(),/spawning thread exited/);run.c.kill('SIGKILL');await until(run.closed);await restarted(cwd);
+});

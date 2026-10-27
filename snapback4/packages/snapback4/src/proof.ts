@@ -1,3 +1,4 @@
+import { watchParent } from "./parent-lifetime.ts";
 import { currentProbeGuard, probeAdvice } from "./proof-probe.ts";
 export { probeServeGuard } from "./proof-probe.ts";
 export { loadFixtures, type FixtureRow, type LoadFixturesOptions } from "./proof-fixtures.ts";
@@ -343,7 +344,7 @@ export async function withBrowser<T>(options: LaunchOptions & Pick<ProofOptions,
     }
   } finally { closeSync(err); closeSync(diagnostic); }
 }
-/** Keep owned proof hosts alive until SIGTERM/SIGINT, then stop all of them.
+/** Keep owned proof hosts alive until SIGTERM/SIGINT/SIGHUP or npm parent death, then stop all of them.
  * @throws AggregateError if any bounded host cleanup fails. */
 // @ref LLP 3000.011.003.000.000#15-wave-26-proof-ergonomics-dx9 — a pending promise alone cannot keep probe:serve alive.
 export async function serveUntilSignal(hosts: readonly Pick<ProofHost, "stop">[]): Promise<void> {
@@ -355,12 +356,14 @@ export async function serveUntilSignal(hosts: readonly Pick<ProofHost, "stop">[]
   const hold = setInterval(() => {
     if (guard?.idle()) { console.error(`E_PROBE_IDLE: no requests in 60 seconds; ${probeAdvice}. Deliberate service: npm run probe:serve -- --hold (or SNAPBACK4_PROBE_HOLD=1)`); process.exitCode = 1; finish(); }
   }, 1000);
-  process.on("SIGTERM", finish); process.on("SIGINT", finish);
+  const signals = ["SIGTERM", "SIGINT", "SIGHUP"] as const;
+  for (const signal of signals) process.on(signal, finish);
+  const unwatch = watchParent(finish);
   try { await signalled; }
   finally {
     clearInterval(hold);
     try { await cleanup(...[...hosts].reverse().map(host => () => host.stop())); }
-    finally { guard?.close(); process.removeListener("SIGTERM", finish); process.removeListener("SIGINT", finish); }
+    finally { unwatch(); guard?.close(); for (const signal of signals) process.removeListener(signal, finish); }
   }
 }
 const substringLocators = new WeakMap<Locator, { locator: Locator; scoped: boolean }>();
