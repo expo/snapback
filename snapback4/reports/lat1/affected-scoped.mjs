@@ -13,7 +13,7 @@ const cargo=(id,args,reason)=>({id,cwd:'snapback4',argv:['cargo',...args],timeou
 const languageTargets=readdirSync(`${root}/snapback4/crates/snapback4-lang/tests`).filter(f=>/^security.*\.rs$/.test(f)).map(f=>f.slice(0,-3));
 const lang=cargo('rust:language-security',['test','--no-fail-fast','-p','snapback4-lang','--lib','--test','guide',...languageTargets.flatMap(t=>['--test',t]),'--','--test-threads=8'],'Changed campaign engine: library plus all security integration targets, including generated fixtures and authority boundaries');
 const pg=cargo('rust:core-postgres-compile',['test','-p','snapback4-core','--features','postgres','--lib','--no-run'],'Compile all Postgres-gated core tests after private code ownership conversion; no external PG cluster required');
-const cli=cargo('rust:cli',['test','--no-fail-fast','-p','snapback4','--bin','snapback4','--','--test-threads=8'],'All CLI unit tests: releases, compiler scopes, current/pending reports, restoration, gates and evaluated answers');
+const cli=cargo('rust:cli',['test','--no-fail-fast','-p','snapback4','--bin','snapback4','--test','store_handle_census','--','--test-threads=8'],'All CLI unit tests: releases, compiler scopes, current/pending reports, restoration, gates and evaluated answers; incoming main store-handle census regression');
 const packed={id:'client:packed-security',cwd:'snapback4',argv:['node','--test','packages/snapback4/test/security-packed.test.mjs'],timeoutSeconds:1800,requires:['build-cli','build-client'],reason:'Actual packed CLI/security behavior and decision custody'};
 if(process.env.LAT1_PUBLICATION_BINARY){
  const binary=resolve(process.env.LAT1_PUBLICATION_BINARY);const sha256=createHash('sha256').update(readFileSync(binary)).digest('hex');
