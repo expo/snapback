@@ -109420,3 +109420,36 @@ live/zombie owned PID or private-path process; every private cluster is
 stopped. The 25 GiB guard never fires; bookend free space is **82.07 GiB**.
 The exact staged audit compares 1028 generated fixture credentials with zero
 matches; raw logs/data remain outside Git.
+
+
+## 2026-10-27 — SEC11L production-loop latency
+
+SEC11L profiles the slowest20 wave30 schemas on production binaries, then
+removes repeated candidate binding/report work, overlaps independent campaigns
+with unchanged work budgets and replay scopes, and constructs complete fixture
+backups without overwriting a freshly initialized catalog. Production pending
+question evidence requires the actual identical note vector, otherwise it falls
+back. Bounded immutable verified bytes eliminate repeated campaign file copies;
+ledgers, admission, COW maps and authorized materialized files remain independent.
+Both Muse and fresh Codex approve the source, with actual reviews retained under
+LLP3000.036.004.000.000. No gate inference or version changes are included.
+
+Cold50 production review p50/p90/max is5.189/8.332/11.606 s and deploy is
+5.294/7.528/12.945 s: both p90 targets pass, versus SEC11's25.144/32.834 s.
+All800 after source hashes and decision/product witness identities match the
+retained survey; SEC11 classifies no new result or assessed false gate/refusal.
+The strict full-payload comparison remains a failure on one expanded advisory
+witness, also reproduced by two unchanged-baseline runs. Uploaded IDs copied
+into plain id columns are not normalized. A filesystem follow-up records that
+missing deterministic presentation boundary; identity equality is explicitly
+not full-payload proof. Complete23 FIX-bearing counterexamples match under the
+reviewed typed uploaded-ID correspondence, retaining raw hashes/equality.
+
+Origin/main is merged through64e94e52cf. Its generic neutral Lane::prepare calls
+trip the unchanged lexical store-port guard; rename that internal helper to
+prepare_for_ingress without changing SQL/port behavior or weakening the guard.
+Focused census/ratchet tests pass. The final scoped receipt and remaining
+baseline retries are recorded by the root WORKSTREAM-REPORT.md. The report
+under reports/sec11-latency retains cold samples, phase profiles, classifier
+results, primary literal failure and secondary diagnostic limits. No push,
+publication, full suite or complete-battery capability claim is made.

@@ -1,0 +1,83 @@
+{
+  "beforeBefore": [
+    {
+      "wave": 18,
+      "lane": "010-snapback-cobbler-repair-tickets",
+      "rawIdentical": false,
+      "canonicalIdentical": true,
+      "assets": [
+        6,
+        6
+      ]
+    },
+    {
+      "wave": 18,
+      "lane": "011-snapback-gem-lab-certificates",
+      "rawIdentical": false,
+      "canonicalIdentical": true,
+      "assets": [
+        1,
+        1
+      ]
+    },
+    {
+      "wave": 18,
+      "lane": "025-snapback-wheelchair-repair-loaners",
+      "rawIdentical": false,
+      "canonicalIdentical": true,
+      "assets": [
+        4,
+        4
+      ]
+    },
+    {
+      "wave": 18,
+      "lane": "026-snapback-extinguisher-service-tags",
+      "rawIdentical": true,
+      "canonicalIdentical": true,
+      "assets": [
+        0,
+        0
+      ]
+    },
+    {
+      "wave": 18,
+      "lane": "045-snapback-honor-guard-details",
+      "rawIdentical": false,
+      "canonicalIdentical": true,
+      "assets": [
+        8,
+        8
+      ]
+    },
+    {
+      "wave": 19,
+      "lane": "010-snapback-cobbler-repair-tickets",
+      "rawIdentical": false,
+      "canonicalIdentical": true,
+      "assets": [
+        6,
+        6
+      ]
+    },
+    {
+      "wave": 19,
+      "lane": "011-snapback-gem-lab-certificates",
+      "rawIdentical": false,
+      "canonicalIdentical": true,
+      "assets": [
+        1,
+        1
+      ]
+    }
+  ],
+  "changed": [],
+  "negativeControls": {
+    "caller": true,
+    "argument": true,
+    "row": true,
+    "history": true,
+    "opaque_asset_shaped_json_not_normalized": true
+  },
+  "method": "Unchanged production binary, separate cold copies. Only compiler-typed nominal uploaded-asset IDs receive injective aliases; complete callers/arguments/rows/histories remain compared."
+}

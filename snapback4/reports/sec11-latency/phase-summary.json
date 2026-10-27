@@ -1,0 +1,427 @@
+{
+  "before": {
+    "review": {
+      "command": {
+        "count": 20,
+        "p50": 66.34738509706222,
+        "p90": 162.22781916917302,
+        "max": 236.01109640183859
+      },
+      "phases": {
+        "check.bind": {
+          "count": 20,
+          "p50": 0.054989641,
+          "p90": 0.08409303,
+          "max": 0.092258044,
+          "observedCommands": 20
+        },
+        "check.report": {
+          "count": 20,
+          "p50": 3.6497385435,
+          "p90": 12.136444654,
+          "max": 29.110452563,
+          "observedCommands": 20
+        },
+        "check.witnesses": {
+          "count": 20,
+          "p50": 60.033909104,
+          "p90": 158.802290418,
+          "max": 206.613672876,
+          "observedCommands": 20
+        },
+        "witness.candidates": {
+          "count": 20,
+          "p50": 0.2598709735,
+          "p90": 0.550740434,
+          "max": 0.782542832,
+          "observedCommands": 20
+        },
+        "witness.derived_report": {
+          "count": 20,
+          "p50": 15.1928576235,
+          "p90": 46.260296765,
+          "max": 107.721680609,
+          "observedCommands": 12
+        },
+        "witness.gate_campaign": {
+          "count": 20,
+          "p50": 0.0,
+          "p90": 0,
+          "max": 11.381406169,
+          "observedCommands": 1
+        },
+        "witness.question_campaign": {
+          "count": 20,
+          "p50": 44.231847211499996,
+          "p90": 109.187313031,
+          "max": 206.251783014,
+          "observedCommands": 19
+        },
+        "witness.stages": {
+          "count": 20,
+          "p50": 0.017505633,
+          "p90": 0.025956736,
+          "max": 0.038520407,
+          "observedCommands": 20
+        }
+      },
+      "maxTraceEvents": 8
+    },
+    "deploy": {
+      "command": {
+        "count": 20,
+        "p50": 81.47399742261041,
+        "p90": 201.70328244497068,
+        "max": 232.30547022004612
+      },
+      "phases": {
+        "deploy.bind": {
+          "count": 20,
+          "p50": 0.0526604195,
+          "p90": 0.070723503,
+          "max": 0.083656789,
+          "observedCommands": 20
+        },
+        "deploy.report": {
+          "count": 20,
+          "p50": 19.3064567295,
+          "p90": 44.075820233,
+          "max": 52.863845222,
+          "observedCommands": 20
+        },
+        "deploy.security": {
+          "count": 20,
+          "p50": 80.928915099,
+          "p90": 201.106293878,
+          "max": 231.563703087,
+          "observedCommands": 20
+        },
+        "deploy.witnesses": {
+          "count": 20,
+          "p50": 53.2609521335,
+          "p90": 176.658265795,
+          "max": 197.504922619,
+          "observedCommands": 20
+        },
+        "witness.candidates": {
+          "count": 20,
+          "p50": 0.261669577,
+          "p90": 0.613944938,
+          "max": 0.790033499,
+          "observedCommands": 20
+        },
+        "witness.derived_report": {
+          "count": 20,
+          "p50": 15.8169460535,
+          "p90": 39.670044779,
+          "max": 61.697114886,
+          "observedCommands": 12
+        },
+        "witness.gate_campaign": {
+          "count": 20,
+          "p50": 0.0,
+          "p90": 0,
+          "max": 15.162987681,
+          "observedCommands": 1
+        },
+        "witness.question_campaign": {
+          "count": 20,
+          "p50": 38.8240209945,
+          "p90": 120.960967194,
+          "max": 197.164012899,
+          "observedCommands": 19
+        },
+        "witness.stages": {
+          "count": 20,
+          "p50": 0.017108937499999997,
+          "p90": 0.026401951,
+          "max": 0.04224347,
+          "observedCommands": 20
+        }
+      },
+      "maxTraceEvents": 9,
+      "outsideSecurityUpperBound": {
+        "count": 20,
+        "p50": 0.47335145242626453,
+        "p90": 0.724877496130091,
+        "max": 1.2756034549441324
+      }
+    }
+  },
+  "after": {
+    "review": {
+      "command": {
+        "count": 20,
+        "p50": 9.090510189067572,
+        "p90": 20.20871670707129,
+        "max": 25.26580634713173
+      },
+      "phases": {
+        "campaign.authored creator input probes": {
+          "count": 20,
+          "p50": 0.13367480199999998,
+          "p90": 0.32179639800000004,
+          "max": 0.565072095,
+          "observedCommands": 13
+        },
+        "campaign.derived creator continuations": {
+          "count": 20,
+          "p50": 0.00021982000000000002,
+          "p90": 0.000398357,
+          "max": 0.769168509,
+          "observedCommands": 20
+        },
+        "campaign.derived direct probes": {
+          "count": 20,
+          "p50": 0.259177372,
+          "p90": 0.761986143,
+          "max": 1.711085024,
+          "observedCommands": 20
+        },
+        "campaign.derived replay": {
+          "count": 20,
+          "p50": 1.8738321515,
+          "p90": 8.521780504,
+          "max": 9.676398125,
+          "observedCommands": 20
+        },
+        "campaign.empty-start phase": {
+          "count": 20,
+          "p50": 0.916489652,
+          "p90": 1.8565242030000002,
+          "max": 4.985391346,
+          "observedCommands": 20
+        },
+        "campaign.generated initialization": {
+          "count": 20,
+          "p50": 2.10696175,
+          "p90": 13.375152614000001,
+          "max": 17.043006732000002,
+          "observedCommands": 20
+        },
+        "campaign.pre-loosening checkpoint": {
+          "count": 20,
+          "p50": 0.0,
+          "p90": 0,
+          "max": 2.791425214,
+          "observedCommands": 1
+        },
+        "campaign.pre-transition checkpoint": {
+          "count": 20,
+          "p50": 1.5474671524999999,
+          "p90": 2.917473792,
+          "max": 8.908525783,
+          "observedCommands": 20
+        },
+        "check.bind": {
+          "count": 20,
+          "p50": 0.0559458135,
+          "p90": 0.074983244,
+          "max": 0.123678479,
+          "observedCommands": 20
+        },
+        "check.report": {
+          "count": 20,
+          "p50": 1.2325742320000002,
+          "p90": 1.9811886840000001,
+          "max": 5.096811022,
+          "observedCommands": 20
+        },
+        "check.witnesses": {
+          "count": 20,
+          "p50": 7.528323914,
+          "p90": 18.548964376,
+          "max": 22.816114798,
+          "observedCommands": 20
+        },
+        "replay.fork": {
+          "count": 20,
+          "p50": 1.8832660595,
+          "p90": 9.234386863,
+          "max": 12.567107368,
+          "observedCommands": 20
+        },
+        "witness.candidates": {
+          "count": 20,
+          "p50": 0.165159591,
+          "p90": 0.259455056,
+          "max": 0.388304029,
+          "observedCommands": 20
+        },
+        "witness.derived_report": {
+          "count": 20,
+          "p50": 4.4002373855000005,
+          "p90": 10.369665458,
+          "max": 22.363444313,
+          "observedCommands": 12
+        },
+        "witness.gate_campaign": {
+          "count": 20,
+          "p50": 0.0,
+          "p90": 0,
+          "max": 5.660396283,
+          "observedCommands": 1
+        },
+        "witness.question_campaign": {
+          "count": 20,
+          "p50": 6.015140626,
+          "p90": 18.213180079,
+          "max": 22.536824201,
+          "observedCommands": 19
+        },
+        "witness.stages": {
+          "count": 20,
+          "p50": 0.0174416565,
+          "p90": 0.028479875,
+          "max": 0.043999712,
+          "observedCommands": 20
+        }
+      },
+      "maxTraceEvents": 8320
+    },
+    "deploy": {
+      "command": {
+        "count": 20,
+        "p50": 9.36484441452194,
+        "p90": 18.54864866612479,
+        "max": 33.485167395090684
+      },
+      "phases": {
+        "campaign.authored creator input probes": {
+          "count": 20,
+          "p50": 0.0,
+          "p90": 0.524371123,
+          "max": 1.23807864,
+          "observedCommands": 7
+        },
+        "campaign.derived creator continuations": {
+          "count": 20,
+          "p50": 0.000209359,
+          "p90": 0.000428742,
+          "max": 0.5562053259999999,
+          "observedCommands": 20
+        },
+        "campaign.derived direct probes": {
+          "count": 20,
+          "p50": 0.32896570599999997,
+          "p90": 1.085202448,
+          "max": 1.7735783290000002,
+          "observedCommands": 20
+        },
+        "campaign.derived replay": {
+          "count": 20,
+          "p50": 2.0100803975,
+          "p90": 6.373688501,
+          "max": 16.939698039,
+          "observedCommands": 20
+        },
+        "campaign.empty-start phase": {
+          "count": 20,
+          "p50": 1.043349765,
+          "p90": 2.3537843499999997,
+          "max": 3.657145218,
+          "observedCommands": 20
+        },
+        "campaign.generated initialization": {
+          "count": 20,
+          "p50": 2.613434034,
+          "p90": 9.881609222,
+          "max": 16.670462733,
+          "observedCommands": 20
+        },
+        "campaign.pre-loosening checkpoint": {
+          "count": 20,
+          "p50": 0.0,
+          "p90": 0,
+          "max": 4.150839714,
+          "observedCommands": 1
+        },
+        "campaign.pre-transition checkpoint": {
+          "count": 20,
+          "p50": 1.415394932,
+          "p90": 5.907287802,
+          "max": 9.070153097,
+          "observedCommands": 20
+        },
+        "deploy.bind": {
+          "count": 20,
+          "p50": 0.052073342,
+          "p90": 0.070350782,
+          "max": 0.079113259,
+          "observedCommands": 20
+        },
+        "deploy.note_prediction": {
+          "count": 20,
+          "p50": 0.351087083,
+          "p90": 0.550566069,
+          "max": 0.743439509,
+          "observedCommands": 20
+        },
+        "deploy.report": {
+          "count": 20,
+          "p50": 4.9180629575,
+          "p90": 13.156059379,
+          "max": 16.838503732,
+          "observedCommands": 20
+        },
+        "deploy.security": {
+          "count": 20,
+          "p50": 8.9968719325,
+          "p90": 18.057253495,
+          "max": 32.8099873,
+          "observedCommands": 20
+        },
+        "deploy.witnesses": {
+          "count": 20,
+          "p50": 8.3048213695,
+          "p90": 17.291486186,
+          "max": 31.944345155,
+          "observedCommands": 20
+        },
+        "replay.fork": {
+          "count": 20,
+          "p50": 2.1869135925,
+          "p90": 10.860663056,
+          "max": 13.321593015,
+          "observedCommands": 20
+        },
+        "witness.candidates": {
+          "count": 20,
+          "p50": 0.172038172,
+          "p90": 0.298997233,
+          "max": 0.32466602,
+          "observedCommands": 20
+        },
+        "witness.gate_campaign": {
+          "count": 20,
+          "p50": 0.0,
+          "p90": 0,
+          "max": 6.929028036,
+          "observedCommands": 1
+        },
+        "witness.question_campaign": {
+          "count": 20,
+          "p50": 7.975150605,
+          "p90": 16.942322974,
+          "max": 31.603386263,
+          "observedCommands": 19
+        },
+        "witness.stages": {
+          "count": 20,
+          "p50": 0.0186168995,
+          "p90": 0.027856749,
+          "max": 0.045901606,
+          "observedCommands": 20
+        }
+      },
+      "maxTraceEvents": 8321,
+      "outsideSecurityUpperBound": {
+        "count": 20,
+        "p50": 0.4148582560272711,
+        "p90": 0.50173474594878,
+        "max": 0.6781052660194611
+      }
+    }
+  },
+  "method": "Slowest20 wave30 schemas selected by retained cold review measurement, fresh independent source/fixture copies. Phase timings are diagnostic shared-load observations; nested/overlapping spans and cumulative fork costs must not be summed. Outside-security time is an upper bound for release planning plus I/O, rendering and process overhead."
+}

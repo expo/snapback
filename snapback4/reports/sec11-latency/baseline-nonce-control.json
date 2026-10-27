@@ -1,0 +1,20 @@
+{
+  "binarySha256": "9d432a5fed665c418cbed5aa26995811411ee46c10f09f9e5181139ce7924a95",
+  "sourceSha256": "4803ff4d3226e4900a68b33484b21ae5acae215f2cc23085f0feaee13f796903",
+  "changedReviews": [
+    {
+      "code": "N_ARGUMENT_GRANT",
+      "decisionIdsSame": true,
+      "witnessIdsSame": true,
+      "fields": [
+        "generatedIds",
+        "old",
+        "row",
+        "summary",
+        "supportingRows"
+      ]
+    }
+  ],
+  "rawPayloadsEqual": false,
+  "method": "Two separately executed checks using the identical old production binary and fresh source/fixture copies; no nominal normalization."
+}
