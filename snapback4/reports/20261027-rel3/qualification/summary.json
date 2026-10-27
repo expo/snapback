@@ -1,0 +1,111 @@
+{
+  "productCommit": "da57c979f45e920cf9e0e00a285b19922b4df63a",
+  "mainMerged": "98177aa48b",
+  "nativeSha256": "f993822dab11f05233ed6a69105586ba65490197ef06d11bafc7b577da793f6b",
+  "artifacts": {
+    "replay150-merged-native.json.gz": {
+      "uncompressedSha256": "4f8f2507d54863caab3ab7490a80113c1893bbddf2cceff58471e4bba33775ff",
+      "gzipSha256": "1fff54c30842eba6dd87a4b791a129139952cb7113e4aa8596a57779ccd9b7eb"
+    },
+    "replay150-merged-native-summary.json.gz": {
+      "uncompressedSha256": "1e01960f73b47569df871c82fb1da6518cb9a6aaa8ebd724048aa90200ff54fb",
+      "gzipSha256": "d410ebbc795b518f3eb92ab6ea3afc7a8c19a44adce8e9953ef82654785aefa7"
+    },
+    "replay31-merged-native.json.gz": {
+      "uncompressedSha256": "0958717838466b82e9827f1e1c0bd5f0230925a32e24309e7b6719c2fc654e1d",
+      "gzipSha256": "c6967677bba9f9e1cf3b451e660b1962a3c6ee49967556ad9ad11486547e6b97"
+    },
+    "041-repair-merged-native.json.gz": {
+      "uncompressedSha256": "942e74516463fdb6ef9856c64e5d0def38b570725faf3a377206532e288136a6",
+      "gzipSha256": "8bb62a4116824174abe73f36f839d6a2e551c0074ef4a21a42bfd90934f2ee05"
+    },
+    "frozen-queries-merged-native.json.gz": {
+      "uncompressedSha256": "219b06fc0972f6aa30892dd53501ae2ba30f16d6296fac8a90d345bf01eb3ead",
+      "gzipSha256": "45c06f4ca6fd9d3bacf0e39713d7f66c9e7e2fb992a53fbf3713f6342a8f382d"
+    },
+    "merged-consumer-summary.json.gz": {
+      "uncompressedSha256": "32c1a9d5a0cc20599e5667e9cd83168f6c357fa5d36b9597fb244b809f9f2032",
+      "gzipSha256": "f64baf5c2bbab3eeea4a156b54fa53c10161283007e8043647c89cb4804d4488"
+    },
+    "main-sqw-baseline-facts.json.gz": {
+      "uncompressedSha256": "43a187b6a9e019356bab35a212975a5d2f7f2137422d305797c2108daad632ae",
+      "gzipSha256": "d6255e009f9c6ac86bcad5b6636af546698f3a559dbc8314e51fc09df49d4770"
+    },
+    "merge-resolution-proof.json.gz": {
+      "uncompressedSha256": "67f02675dd2c2c9b5e65beebfde14a8b34f5181185da519feda35e5eec9940e3",
+      "gzipSha256": "8661d7564bc03fafa77ffac461f75e02ad68005483a1cb590d1e2cfe6535479f"
+    },
+    "lean-merged-comparison.json.gz": {
+      "uncompressedSha256": "a0d67a0f407f8d9f67d28dffa7036902e9e6737407bdb54b4923d75544d2afd6",
+      "gzipSha256": "db3a13875b37753ce216aa9eb5b435c4530bf0ee6b292b177a0c5c57be7a2486"
+    },
+    "horizon-retry-summary.json.gz": {
+      "uncompressedSha256": "165a5dc5996856a03bfd9a699a6bbf67a2a0081b1192f96e627ff0da0df97a00",
+      "gzipSha256": "477eeb98abb4e1206934f58e95f6e397dd5229229453d34f0f28b27024af0379"
+    },
+    "horizon-initial-lock-evidence.json.gz": {
+      "uncompressedSha256": "79297853f1ad7fdd9ea6c3d4cba79b5a81fff4659e239faa5ca323db4f48987b",
+      "gzipSha256": "04380fd93efcc63ceb45c10b4ad284908c7392acdf585a3c1e8fff7ad27a2a06"
+    },
+    "merged-focused-targets.json.gz": {
+      "uncompressedSha256": "02a7b1c38d9e4bb1da9b56f45a0768a2c69228305954905666ac2fce73278bfc",
+      "gzipSha256": "7ed56813621310b35d391c9ec0dd67be3e83a925165f0fc344519b85634a0450"
+    },
+    "merged-client-coverage.json.gz": {
+      "uncompressedSha256": "117c03fba83cb8edea632041edf5b85b50ef2a2839df3d48f3a5131941527f6f",
+      "gzipSha256": "93b549708ab7107b28ef9c56f87df77963f0095eb380ef5e5c0b3b59c7d8e53c"
+    },
+    "affected-raw.json.gz": {
+      "uncompressedSha256": "1e66ddb6ab5cf89a4075272d7dc094e25927719e0580adf0d6ddb6d15bc013f8",
+      "gzipSha256": "143f562354878eab17ee077889eee3fba8390cf7c9d8ad9e98848525aa5dc379"
+    },
+    "main-ratchet.log.gz": {
+      "uncompressedSha256": "f024551afb8f38c6599b56a49c4ee760dab95ec92cb33f76d48895be01375111",
+      "gzipSha256": "13d99fd0f1f0e2785a05220fbbdf2593b47acb57e3cb54e53afb6decbb752bd1"
+    },
+    "parallel-executor.mjs.gz": {
+      "uncompressedSha256": "bd99d0f95e9cc81af159a97c6fe0b47306a0c966223effa7809e40d4bfed76fd",
+      "gzipSha256": "ec569acf2b418268769afd237629a0b7175aba6f36f44ccc66e61319b76feff6"
+    }
+  },
+  "rawAffectedStatuses": {
+    "install-client": 0,
+    "build-cli": 0,
+    "build-wasm": 0,
+    "build-client": 0,
+    "typecheck:snapback4": 0,
+    "fixture-tests": 0,
+    "chat-check": 0,
+    "chat-typecheck": 0,
+    "rust:snapback4-native": 0,
+    "diagnostics": 0,
+    "rust:snapback4-difftest": 0,
+    "rust:snapback4-sim": 0,
+    "docs-budget": 0,
+    "expo-typecheck": 0,
+    "rust:snapback4-core": 0,
+    "generated": 0,
+    "guide": 0,
+    "client-tests": 1,
+    "inventories": 0,
+    "packaged-docs": 0,
+    "ref-check": 0,
+    "release-guard": 0,
+    "selector-tests": 0,
+    "wasm-measurement": 0,
+    "lean-build": 0,
+    "difftest:run-lean": 1,
+    "difftest:run": 0,
+    "client-models": 0,
+    "rust:snapback4-device": 0,
+    "rust:snapback4": 101,
+    "rust:snapback4-lang": 0
+  },
+  "dispositions": {
+    "rust:snapback4": "Only inherited two-site store_port_ratchet failure; independently reproduced on unmodified merged main",
+    "client-tests": "Only horizon-boundary Cargo fixture-build timeout under parallel scheduling; complete82-test sequential retry passes on unchanged sources",
+    "difftest:run-lean": "18 inherited disagreements; all16 reproducer file hashes and oracle totals exactly match Integration27"
+  },
+  "allOtherSelectedStages": "passed",
+  "sourceUnchangedThroughFinalQualification": true
+}
