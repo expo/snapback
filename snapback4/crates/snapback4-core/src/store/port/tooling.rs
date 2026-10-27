@@ -7,6 +7,9 @@ use crate::inspection::{InspectionColumnKind, InspectionResult, InspectionRows, 
 use std::path::Path;
 use serde_json::Value as Json;
 impl AnyStore {
+    /// Separates a private staging snapshot's replica and authentication incarnation.
+    pub fn promote_snapshot(&mut self, provenance:Json)->Result<Json,RuntimeError>{match self {Self::Sqlite(SqliteStore(inner))=>inner.promote_snapshot(provenance),#[cfg(feature="postgres")]Self::Postgres(_)=>Err(RuntimeError::StoreUnsupported{family:"promotion"})}}
+
     // @ref LLP 3000.000.000.002#8-wave-21-release-evolution — previews retain declared identities and original immutable asset custody.
     pub fn preview_asset_root(&mut self, path: &Path) -> Result<(), RuntimeError> { match self { Self::Sqlite(SqliteStore(inner)) => inner.preview_asset_root(path), #[cfg(feature = "postgres")] Self::Postgres(_) => Err(RuntimeError::StoreUnsupported { family: "inspection" }) } }
     pub fn release_table_mapping(&self, current: &Schema, target: &Schema) -> Result<std::collections::BTreeMap<String, String>, String> { match self { Self::Sqlite(SqliteStore(inner)) => inner.release_table_mapping(current, target), #[cfg(feature = "postgres")] Self::Postgres(_) => Err(RuntimeError::StoreUnsupported { family: "inspection" }.to_string()) } }

@@ -52,7 +52,7 @@ pub fn validate(args: &[String]) -> Result<(), String> {
             }
         }
     }
-    let limit=match verb {"deploy"|"rollback"|"prune"|"stop"=>Some(1),"releases"=>Some(2),_=>None};
+    let limit=match verb {"deploy"|"rollback"|"prune"|"stop"=>Some(1),"releases"|"promote"=>Some(2),_=>None};
     if limit.is_some_and(|limit|crate::verbs::parse(args).positionals.len()>limit) {
         return Err(format!("E_INPUT: {verb} has extra positional arguments; see `{verb} --help`"));
     }
@@ -245,7 +245,7 @@ pub(crate) fn help(verb: &str) -> String {
 mod projection_tests {
     #[test]
     fn every_validated_flag_is_in_its_generated_help() {
-        for verb in ["init","new","audit","check","device","types","dev","deploy","rollback","prune","releases","serve","run","clock","seed","reset","test","why","guide","data","sql","token","doctor","upgrade","witness"] {
+        for verb in ["init","new","audit","check","device","types","dev","deploy","promote","rollback","prune","releases","serve","run","clock","seed","reset","test","why","guide","data","sql","token","doctor","upgrade","witness"] {
             let page = super::help(verb);
             for name in super::allowed(verb).split_whitespace() {
                 assert!(page.lines().any(|line|line.trim_start().starts_with(&format!("--{name}"))),"{verb}: {name}");
@@ -268,7 +268,7 @@ mod projection_tests {
 
 /// One synopsis for top-level help, per-verb help and usage errors. Flags come
 /// directly from the admission table, including value arity and retired forms.
-pub(crate) const VERBS: &[&str] = &["init","new","audit","check","device","types","dev","deploy","rollback","prune","releases","serve","serve-check","stop","run","clock","seed","reset","test","why","guide","data","sql","token","doctor","upgrade","witness","web-shell"];
+pub(crate) const VERBS: &[&str] = &["init","new","audit","check","device","types","dev","deploy","promote","rollback","prune","releases","serve","serve-check","stop","run","clock","seed","reset","test","why","guide","data","sql","token","doctor","upgrade","witness","web-shell"];
 pub(crate) fn synopsis(verb: &str) -> String {
     let positional = command(verb).map(|command|command.positional.as_str()).filter(|position|!position.is_empty()).map(|position|format!(" {position}")).unwrap_or_default();
     let mut out = format!("snapback4 {verb}{positional}");
@@ -287,6 +287,7 @@ pub(crate) fn top_help() -> String {
         "check"=>"Compile the schema, check store adoption, write client types and report readiness.",
         "device"=>"Run the native device JSON protocol over stdin/stdout.", "types"=>"Compile and write generated client types.",
         "dev"=>"Serve a development backend; print its URL on stdout, readiness and refusals on stderr.",
+        "promote"=>"Create a new production deployment from a stopped staging snapshot; preserves accounts/data/assets/releases and requires sign-in again.",
         "deploy"=>"Capture and activate an immutable release; running serve adopts it.", "rollback"=>"Preview or activate an existing release; selecting the already-live release is an idempotent no-op (no history or migration changes).",
         "prune"=>"Preview or explicitly remove dormant release storage.", "releases"=>"Inspect database-authoritative release history and storage.",
         "serve"=>"Serve the active production release; bearer sessions only, behind a TLS proxy.",

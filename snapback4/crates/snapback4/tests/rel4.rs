@@ -33,6 +33,9 @@ fn wave33_033_invariants_and_hidden_null_writes_compose_in_current_workflow(){
  a.seed(&source,"jobs",json!({"id":"pending","customer":"customer","address":"pending","detail":null,"priceCents":null,"status":"quoted","quotedAt":1,"acceptedAt":null,"curedAt":null,"signedOffAt":null}));
  a.source(&format!("{source}query rel4Version():\n  return 4\n"));
  let forward=a.json(&["deploy","deploy","--check","--staging"]);assert!(forward.get("unchanged").is_some()||forward["preview"]==true,"{forward}");
+ a.ok(&["deploy","deploy","--staging"]);a.ok(&["rollback","deploy","--to","latest","--exact"]);
+ let exact=a.json(&["rollback","deploy","--to","1","--exact","--check"]);assert_eq!(exact["visibility"]["hiddenRows"],1,"{exact}");
+ a.ok(&["rollback","deploy","--to","1","--exact"]);a.ok(&["rollback","deploy","--to","latest","--exact"]);assert_eq!(a.count("jobs"),2);
  // A guard-population refusal is exposed by deploy preview without bricking
  // forward. Removing intentional hiding registers the visible safe variant.
  let visible=source.lines().filter(|line|!line.starts_with("rollback 1 hides")).collect::<Vec<_>>().join("\n")+"\n";

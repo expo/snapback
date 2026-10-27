@@ -112,6 +112,7 @@ fn main() -> ExitCode {
         "init" | "new" => verbs::init(&options),
         "upgrade" => verbs::upgrade::run(&args[1..]),
         "deploy" => verbs::deploy(&options),
+        "promote" => verbs::promote::run(&options),
         "rollback" => verbs::rollback(&options),
         "prune" => verbs::prune(&options),
         "releases" => verbs::releases(&options),
@@ -241,7 +242,7 @@ fn main() -> ExitCode {
 /// writer already discards a failed write; `deploy`/`rollback`/`token` change
 /// state and are left to finish.
 fn quiet_broken_pipe(verb: &str) {
-    if matches!(verb, "dev" | "serve" | "stop" | "device" | "witness" | "deploy" | "rollback" | "prune" | "token") { return; }
+    if matches!(verb, "dev" | "serve" | "stop" | "device" | "witness" | "deploy" | "promote" | "rollback" | "prune" | "token") { return; }
     // SAFETY: process entry, before any thread or child is started.
     unsafe { libc::signal(libc::SIGPIPE, libc::SIG_DFL); }
 }

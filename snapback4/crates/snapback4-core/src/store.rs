@@ -26,6 +26,7 @@ mod extractions;
 mod rollback_visibility;
 mod rollback_guard_population;
 mod fork;
+mod promotion;
 mod campaign_assets;
 mod device;
 mod device_residency;

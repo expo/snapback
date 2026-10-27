@@ -108,6 +108,26 @@ explicit mapping from retained parent data. Retiring a required old column
 needs a truthful `down` output or an authored bridge retaining that column;
 the refusal names each missing column.
 
+### Promote a real-time staging deployment
+
+Stop staging, then preview and create a **new**, absent production directory:
+```sh
+snapback4 stop ./staging
+snapback4 promote ./staging ./production --check
+snapback4 promote ./staging ./production
+snapback4 serve ./production
+```
+Password accounts, ids, data, retained assets and release/rollback history survive.
+Users sign in again: inherited full/read/service tokens and refresh families are
+revoked, and devices reacquire under a fresh store identity. `promotion.json`
+records the source and new incarnations with release and clock provenance.
+Mint destination operator credentials with the ordinary local `token` command.
+Existing/nested targets and live sources refuse. Finish queued work and started
+external steps before stopping; promotion refuses them, live guest sessions that
+cannot sign in again, paused/advanced staging clocks and production security
+findings. Use real-time staging for promotion; test-clock timestamps are never
+rebased. `--check` runs the same private-copy qualification without publishing.
+
 ## Bridge a safety gate before exact rollback (SQLite)
 Use this beside the enum-widening rollback recipe above. Suppose v2 added `grounding.state = 'inspection'`; v1 holds only `'clear'`/`'hold'`. Selecting exact v1 hides that row and its children, so v1's `book` guard may allow a booking that v2 blocks. Counts and sample ids are snapshot dependencies, not predicate matches; later writes can change the plan.
 

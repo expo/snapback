@@ -346,7 +346,8 @@ fn canonical_table(mut table:snapback4_core::schema::Table)->snapback4_core::sch
 
 fn loosen_inner(target:&[(String,String)],current:&[(String,String)])->Bridge {
     let current_bound=crate::compile(current);
-    if current_bound.schema.extractions.iter().any(|e|!e.each)||super::release_presence_allowance::independent(&current_bound)||current_bound.schema.tables.values().any(|t|!t.column_writes.is_empty()||!t.frozen_columns.is_empty()) {
+    // @ref LLP 3000.000.000.003#5-loosen-required-and-release-refusals-rel4 — explicit hiding retains the current write closure even when presence allowance alone is not independent policy.
+    if !current_bound.rollback_hides.is_empty()||current_bound.schema.extractions.iter().any(|e|!e.each)||super::release_presence_allowance::independent(&current_bound)||current_bound.schema.tables.values().any(|t|!t.column_writes.is_empty()||!t.frozen_columns.is_empty()) {
         let mut allow_guarded=false;
         let complete=super::release_bridge_current::prepare(target,current,&mut allow_guarded);
         if complete.diagnostics.is_empty() || !allow_guarded{return complete;}
