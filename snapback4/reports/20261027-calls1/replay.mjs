@@ -18,9 +18,9 @@ for(const copy of copies){
  const file=join(cwd,'snapback','calls1.q');
  writeFileSync(file,'query nullableDeadline(at: time ?):\n  require at + 1 > now else LATE\n  return 1\n');
  const before=await cli(['check','--json'],{cwd,env});
- assert.match(before.stdout+before.stderr,/E_QUARRY_TYPE/);
+ assert.ok(JSON.parse(before.stdout).problems.some(problem=>problem.code==='E_QUARRY_TYPE'));
  const fixed=await cli(['check','--fix','--json'],{cwd,env});
- assert.doesNotMatch(fixed.stdout+fixed.stderr,/E_QUARRY_TYPE/);
+ assert.ok(!(JSON.parse(fixed.stdout).problems??[]).some(problem=>problem.code==='E_QUARRY_TYPE'));
  assert.match(fixed.stderr,/--- calls1.q\n\+\+\+ calls1.q/);
  const text=readFileSync(file,'utf8');assert.match(text,/at != null and \(at \+ 1 > now\)/);
  const again=await cli(['check','--fix','--json'],{cwd,env});
