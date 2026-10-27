@@ -1,0 +1,44 @@
+{
+  "base": "9b9f1a74af4fcabcdf9705620d9546a813f9aa87",
+  "head": "93cee47c6effec246c19d50666e51ac9440f3be1",
+  "runtimeRust": [
+    {
+      "path": "snapback4/crates/snapback4-lang/src/bind/advisory_guards.rs",
+      "beforeSha256": "569cb0727b2de7e3b78a147a6693e1ad184580e0e78001491bc5f549555febed",
+      "afterSha256": "14473fd4f9d91ba15558a554365b95ad730d7e7dc55692ae7714d510ccc16af0",
+      "identicalExceptReferenceNumber": true
+    },
+    {
+      "path": "snapback4/crates/snapback4-lang/src/bind/advisory_model.rs",
+      "beforeSha256": "0a6c2ec7bdf3e79d9ff265fa4bd20f46f532873251f65e11b65b3b0cfb9f874a",
+      "afterSha256": "2312b1f002a8a372124a4bcb8954aca7eeca09b69870f4afee93ce1b7cd9b9c6",
+      "identicalExceptReferenceNumber": true
+    },
+    {
+      "path": "snapback4/crates/snapback4-lang/src/bind/program/read_diagnostics.rs",
+      "beforeSha256": "dd8e1162e7e38bdda1ab2f259560590cd70303608f7d2997d096ea641564c289",
+      "afterSha256": "2d3cce272d852ff4a93198285e90570b1f7f4e76101f33f098e63b3972cf8c54",
+      "identicalExceptReferenceNumber": true
+    },
+    {
+      "path": "snapback4/crates/snapback4-lang/src/bind/security/creation_advice/lifecycle.rs",
+      "beforeSha256": "5d6ff6cab30fc0b6a972403fb390832fe055dcb3e458417db925319e34b3b966",
+      "afterSha256": "3ec77b26546dfa5727197334a0699828e0e5a277e3513d8c028d669c28693443",
+      "identicalExceptReferenceNumber": true
+    },
+    {
+      "path": "snapback4/crates/snapback4-lang/src/bind/security/lints.rs",
+      "beforeSha256": "41d33609d144d9b4ec930d9839fe4304c5a7ae35f72ad3d7cd452460dd90aaa6",
+      "afterSha256": "b2f7145566eaf55e2fc1f9ac8cf40be34a7f59e45208fd40e63a5f1eef4a7e4d",
+      "identicalExceptReferenceNumber": true
+    },
+    {
+      "path": "snapback4/crates/snapback4/src/verbs/security/witnesses.rs",
+      "beforeSha256": "c91b7fd40bcf079d7a71e250a54e4b268b22453516686ca90d415fe5a0a553ea",
+      "afterSha256": "a5cbf38322e0483871eeec2b691aec52bf5ce30654b7310da39d1232c23c92a9",
+      "identicalExceptReferenceNumber": true
+    }
+  ],
+  "clientSourceChanged": [],
+  "qualification": "All runtime source changes after final security snapshot are comment reference identifiers. API reference text and fixtures are validated separately. This justifies reuse of corpus/identity results, not byte identity of the rebuilt native binary."
+}

@@ -1,0 +1,11 @@
+{
+  "schemas": 22,
+  "binaries": {
+    "optimized": "aa6a5388fcf1f26066abb49af8b40da076145bef34493c91f674fd858b1005bf",
+    "sequential": "c2ef22ebb5412af0bfd01847e473906bc54f04c4eea219a7c8b61565bcbcc2dd"
+  },
+  "identityMismatches": [],
+  "verdictMismatches": [],
+  "rawSecurityMismatches": [],
+  "method": "Fresh production deploy on independent source/fixture copies, no predecessor invented. Final static production executable versus external sequential uncached control with identical merged rules. Exact full decision payloads and all verdict/obligation fields; raw complete security-envelope hashes separately retained. No normalization."
+}

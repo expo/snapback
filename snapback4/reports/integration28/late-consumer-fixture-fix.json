@@ -1,0 +1,18 @@
+{
+  "failedSource": "93cee47c6effec246c19d50666e51ac9440f3be1",
+  "fixCommit": "c9fda9432a",
+  "stage": "first isolated userspace, social edited-source optional-upload control",
+  "failure": "nested 30s spawnSync returned null status after a check JSON reporting ms=26144; chain remained failed and no consumer.json issued",
+  "fix": "Use existing owned toolchain deadline/group cleanup; preserve exact zero exit, valid JSON, no N_OPTIONAL_UPLOAD_CREATE on stock/edited source and absence of security-reviews.json",
+  "unchangedGuards": [
+    "300s owned command",
+    "1200s starter total",
+    "all security work budgets"
+  ],
+  "guardTests": {
+    "tests": 63,
+    "pass": 63,
+    "fail": 0
+  },
+  "removedCompletedOutputBytes": 5964451209
+}

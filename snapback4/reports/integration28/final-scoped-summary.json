@@ -1,0 +1,138 @@
+{
+  "schemaVersion": "snapback4.affected.v1",
+  "base": "98177aa48b35b99779a95b4db3e26710ac76bf0c",
+  "mergeBase": "98177aa48b35b99779a95b4db3e26710ac76bf0c",
+  "head": "93cee47c6effec246c19d50666e51ac9440f3be1",
+  "worktree": false,
+  "inputDigest": "981e042acab5ef5e9eac242c3d26cd7d153795468eb479178576e6c46b4beaae",
+  "started": "2026-10-27T14:30:33.093Z",
+  "finished": "2026-10-27T14:44:26.610Z",
+  "complete": true,
+  "unchanged": true,
+  "ok": true,
+  "scopeNote": "Final changed-target closure under LLP0189 D2, not a replacement or relabeling of the original broad receipt. All observed base-to-head files remain bound. Reuses unchanged passing Cargo/core/device/native/client/model inputs from original broad run and later focused full CLI/unit reruns; explicitly reruns repaired fixture targets, transitively changed API/TOK1/runner/delivery contracts, plus root reference checks. Runtime edits since 9b9f are LLP reference renumbering only; excluded reports/docs are covered by explicit guide and packed/root checks. Original failures and known Lean disagreements retained separately.",
+  "rustTargets": {
+    "snapback4-lang": [
+      "aggregate_copies",
+      "ephemeral_compat",
+      "guide",
+      "maintains",
+      "residency_notes"
+    ],
+    "snapback4-sim": [
+      "clique"
+    ],
+    "snapback4": [
+      "cli_friction"
+    ]
+  },
+  "clientFiles": [
+    "snapback4/packages/snapback4/test/api-index.test.mjs",
+    "snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs",
+    "snapback4/packages/snapback4/test/dx11-picker.test.mjs",
+    "snapback4/packages/snapback4/test/expo-session-store.test.mjs",
+    "snapback4/packages/snapback4/test/first-account.test.mjs",
+    "snapback4/packages/snapback4/test/init-recipe.test.mjs",
+    "snapback4/packages/snapback4/test/init-typecheck.test.mjs",
+    "snapback4/packages/snapback4/test/lang4-guide.test.mjs",
+    "snapback4/packages/snapback4/test/periphery.test.mjs",
+    "snapback4/packages/snapback4/test/pubfix29b.test.mjs",
+    "snapback4/packages/snapback4/test/qualify-linux.test.mjs",
+    "snapback4/packages/snapback4/test/react.test.mjs",
+    "snapback4/packages/snapback4/test/readme-examples.test.mjs",
+    "snapback4/packages/snapback4/test/social-starter.test.mjs",
+    "snapback4/packages/snapback4/test/test-file-runner.test.mjs",
+    "snapback4/packages/snapback4/test/tok1-reading.test.mjs",
+    "snapback4/packages/snapback4/test/wave10-starters.test.mjs",
+    "snapback4/packages/snapback4/test/wave11-init.test.mjs",
+    "snapback4/packages/snapback4/test/wave12-kit.test.mjs",
+    "snapback4/packages/snapback4/test/wave9-dx.test.mjs"
+  ],
+  "results": [
+    {
+      "id": "final-cli-unit",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 118125
+    },
+    {
+      "id": "install-client",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 29
+    },
+    {
+      "id": "build-cli",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 43061
+    },
+    {
+      "id": "build-wasm",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 49066
+    },
+    {
+      "id": "build-client",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 5938
+    },
+    {
+      "id": "rust:snapback4:cli_friction",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 74989
+    },
+    {
+      "id": "rust:snapback4-lang:aggregate_copies",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 19298
+    },
+    {
+      "id": "rust:snapback4-lang:ephemeral_compat",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 1274
+    },
+    {
+      "id": "rust:snapback4-lang:guide",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 9661
+    },
+    {
+      "id": "rust:snapback4-lang:maintains",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 964
+    },
+    {
+      "id": "rust:snapback4-lang:residency_notes",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 4256
+    },
+    {
+      "id": "rust:snapback4-sim:clique",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 110237
+    },
+    {
+      "id": "client-tests",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 391469
+    },
+    {
+      "id": "ref-check",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 5134
+    }
+  ],
+  "rawReceipt": "/home/ccheever/projects/snapback-sb4loop/target/affected/93cee47c6eff-1793111433093.json"
+}

@@ -1,0 +1,20 @@
+[
+  {
+    "from": "0.4.35",
+    "publishedIntegrity": "sha512-BazFeTCT34CmRIhvXg37g3TpeaZt7zQRDb65evpysUEJiwE0X/Qausx1yml35RntDv5V7Skp2Wp+BRoH77ScMw==",
+    "oldWrapperSha256": "a602978d6f2bb93ad5580114789d67e8f91d3a4696468476b83b4e9d8149a1be",
+    "candidateAlias": "0.4.40",
+    "status": "passed",
+    "gate": "new installed check refuses; prose is rejected; authored presence intent clears gate",
+    "refutation": "acknowledgment suppressed, persisted review unchanged"
+  },
+  {
+    "from": "0.4.37",
+    "publishedIntegrity": "sha512-zeuJEfMFB45PvthdQPA/VKzjdqOazJaa2ey8R4K49fFFd6/8gPE8mTjlyFd86HboBeBKBK326KwjCuez5G43+Q==",
+    "oldWrapperSha256": "920efdcea2a39aebc414df9df5dd01f89ee5c9c8a1b76b9cdb34b09d5c768072",
+    "candidateAlias": "0.4.40",
+    "status": "passed",
+    "gate": "new installed check refuses; prose is rejected; authored presence intent clears gate",
+    "refutation": "acknowledgment suppressed, persisted review unchanged"
+  }
+]

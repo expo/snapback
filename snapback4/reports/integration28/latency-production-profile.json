@@ -1,0 +1,890 @@
+[
+  {
+    "wave": 31,
+    "lane": "033-snapback-garage-floor-coatings",
+    "mode": "check",
+    "seconds": 36.841,
+    "sourceSha256": "c364d55bfde3b42bb0cc6bc4d0a15cc1f520e215c1d6f242b817a7eae30dccf7",
+    "load": [
+      40.18701171875,
+      41.93408203125,
+      49.90234375
+    ],
+    "phases": [
+      {
+        "name": "campaign.generated initialization",
+        "totalSeconds": 38.189,
+        "calls": 4
+      },
+      {
+        "name": "witness.question_campaign",
+        "totalSeconds": 31.21,
+        "calls": 2
+      },
+      {
+        "name": "check.witnesses",
+        "totalSeconds": 24.463,
+        "calls": 1
+      },
+      {
+        "name": "witness.derived_report",
+        "totalSeconds": 24.027,
+        "calls": 1
+      },
+      {
+        "name": "witness.gate_campaign",
+        "totalSeconds": 20.277,
+        "calls": 1
+      },
+      {
+        "name": "campaign.pre-transition checkpoint",
+        "totalSeconds": 11.893,
+        "calls": 4
+      },
+      {
+        "name": "check.restored_questions",
+        "totalSeconds": 11.032,
+        "calls": 1
+      },
+      {
+        "name": "campaign.derived replay",
+        "totalSeconds": 4.805,
+        "calls": 8
+      },
+      {
+        "name": "campaign.empty-start phase",
+        "totalSeconds": 4.305,
+        "calls": 4
+      },
+      {
+        "name": "check.report",
+        "totalSeconds": 0.969,
+        "calls": 1
+      },
+      {
+        "name": "witness.candidates",
+        "totalSeconds": 0.884,
+        "calls": 2
+      },
+      {
+        "name": "campaign.derived direct probes",
+        "totalSeconds": 0.695,
+        "calls": 8
+      }
+    ]
+  },
+  {
+    "wave": 31,
+    "lane": "033-snapback-garage-floor-coatings",
+    "mode": "staging",
+    "seconds": 35.735,
+    "sourceSha256": "c364d55bfde3b42bb0cc6bc4d0a15cc1f520e215c1d6f242b817a7eae30dccf7",
+    "load": [
+      41.02490234375,
+      41.53076171875,
+      49.24755859375
+    ],
+    "phases": [
+      {
+        "name": "deploy.security",
+        "totalSeconds": 34.833,
+        "calls": 1
+      },
+      {
+        "name": "campaign.generated initialization",
+        "totalSeconds": 31.984,
+        "calls": 4
+      },
+      {
+        "name": "witness.question_campaign",
+        "totalSeconds": 29.673,
+        "calls": 2
+      },
+      {
+        "name": "deploy.witnesses",
+        "totalSeconds": 23.428,
+        "calls": 1
+      },
+      {
+        "name": "witness.derived_report",
+        "totalSeconds": 22.994,
+        "calls": 1
+      },
+      {
+        "name": "witness.gate_campaign",
+        "totalSeconds": 18.649,
+        "calls": 1
+      },
+      {
+        "name": "campaign.pre-transition checkpoint",
+        "totalSeconds": 11.134,
+        "calls": 4
+      },
+      {
+        "name": "deploy.restored_questions",
+        "totalSeconds": 9.947,
+        "calls": 1
+      },
+      {
+        "name": "campaign.derived replay",
+        "totalSeconds": 4.814,
+        "calls": 8
+      },
+      {
+        "name": "campaign.empty-start phase",
+        "totalSeconds": 4.312,
+        "calls": 4
+      },
+      {
+        "name": "campaign.derived direct probes",
+        "totalSeconds": 0.945,
+        "calls": 8
+      },
+      {
+        "name": "deploy.report",
+        "totalSeconds": 0.943,
+        "calls": 1
+      }
+    ]
+  },
+  {
+    "wave": 27,
+    "lane": "033-snapback-asphalt-sealcoating-jobs",
+    "mode": "check",
+    "seconds": 31.513,
+    "sourceSha256": "bab69f5e7c3755f250cbac6daf4df461ed18919d7427889836f36ddc36081d43",
+    "load": [
+      34.47900390625,
+      42.451171875,
+      51.11328125
+    ],
+    "phases": [
+      {
+        "name": "witness.question_campaign",
+        "totalSeconds": 27.725,
+        "calls": 2
+      },
+      {
+        "name": "check.witnesses",
+        "totalSeconds": 21.478,
+        "calls": 1
+      },
+      {
+        "name": "campaign.generated initialization",
+        "totalSeconds": 18.236,
+        "calls": 3
+      },
+      {
+        "name": "witness.derived_report",
+        "totalSeconds": 15.411,
+        "calls": 1
+      },
+      {
+        "name": "campaign.derived replay",
+        "totalSeconds": 12.344,
+        "calls": 6
+      },
+      {
+        "name": "campaign.pre-transition checkpoint",
+        "totalSeconds": 7.665,
+        "calls": 3
+      },
+      {
+        "name": "campaign.pre-loosening checkpoint",
+        "totalSeconds": 7.531,
+        "calls": 1
+      },
+      {
+        "name": "check.restored_questions",
+        "totalSeconds": 7.473,
+        "calls": 1
+      },
+      {
+        "name": "campaign.empty-start phase",
+        "totalSeconds": 2.342,
+        "calls": 3
+      },
+      {
+        "name": "check.report",
+        "totalSeconds": 1.907,
+        "calls": 1
+      },
+      {
+        "name": "campaign.derived direct probes",
+        "totalSeconds": 1.287,
+        "calls": 6
+      },
+      {
+        "name": "witness.candidates",
+        "totalSeconds": 0.953,
+        "calls": 2
+      }
+    ]
+  },
+  {
+    "wave": 27,
+    "lane": "033-snapback-asphalt-sealcoating-jobs",
+    "mode": "staging",
+    "seconds": 31.008,
+    "sourceSha256": "bab69f5e7c3755f250cbac6daf4df461ed18919d7427889836f36ddc36081d43",
+    "load": [
+      38.712890625,
+      42.27099609375,
+      50.587890625
+    ],
+    "phases": [
+      {
+        "name": "deploy.security",
+        "totalSeconds": 29.938,
+        "calls": 1
+      },
+      {
+        "name": "witness.question_campaign",
+        "totalSeconds": 25.986,
+        "calls": 2
+      },
+      {
+        "name": "deploy.witnesses",
+        "totalSeconds": 19.492,
+        "calls": 1
+      },
+      {
+        "name": "campaign.generated initialization",
+        "totalSeconds": 16.574,
+        "calls": 3
+      },
+      {
+        "name": "witness.derived_report",
+        "totalSeconds": 13.264,
+        "calls": 1
+      },
+      {
+        "name": "campaign.derived replay",
+        "totalSeconds": 12.421,
+        "calls": 6
+      },
+      {
+        "name": "campaign.pre-loosening checkpoint",
+        "totalSeconds": 7.997,
+        "calls": 1
+      },
+      {
+        "name": "deploy.restored_questions",
+        "totalSeconds": 7.798,
+        "calls": 1
+      },
+      {
+        "name": "campaign.pre-transition checkpoint",
+        "totalSeconds": 5.618,
+        "calls": 3
+      },
+      {
+        "name": "deploy.report",
+        "totalSeconds": 1.921,
+        "calls": 1
+      },
+      {
+        "name": "campaign.empty-start phase",
+        "totalSeconds": 1.609,
+        "calls": 3
+      },
+      {
+        "name": "campaign.derived direct probes",
+        "totalSeconds": 1.197,
+        "calls": 6
+      }
+    ]
+  },
+  {
+    "wave": 17,
+    "lane": "017-snapback-trial-symptom-diary",
+    "mode": "staging",
+    "seconds": 29.584,
+    "sourceSha256": "d9ea1ab70edfafa76e665043209886a4db888957e406ae7f5c74259be1e4ce76",
+    "load": [
+      42.8564453125,
+      48.90771484375,
+      54.86572265625
+    ],
+    "phases": [
+      {
+        "name": "deploy.security",
+        "totalSeconds": 24.887,
+        "calls": 1
+      },
+      {
+        "name": "deploy.report",
+        "totalSeconds": 10.415,
+        "calls": 1
+      },
+      {
+        "name": "deploy.witnesses",
+        "totalSeconds": 9.752,
+        "calls": 1
+      },
+      {
+        "name": "witness.question_campaign",
+        "totalSeconds": 5.796,
+        "calls": 1
+      },
+      {
+        "name": "witness.candidates",
+        "totalSeconds": 3.607,
+        "calls": 1
+      },
+      {
+        "name": "campaign.generated initialization",
+        "totalSeconds": 2.588,
+        "calls": 1
+      },
+      {
+        "name": "deploy.bind",
+        "totalSeconds": 0.924,
+        "calls": 1
+      },
+      {
+        "name": "deploy.restored_questions",
+        "totalSeconds": 0.459,
+        "calls": 1
+      },
+      {
+        "name": "campaign.derived replay",
+        "totalSeconds": 0.415,
+        "calls": 2
+      },
+      {
+        "name": "campaign.empty-start phase",
+        "totalSeconds": 0.412,
+        "calls": 1
+      },
+      {
+        "name": "campaign.derived direct probes",
+        "totalSeconds": 0.334,
+        "calls": 2
+      },
+      {
+        "name": "witness.stages",
+        "totalSeconds": 0.292,
+        "calls": 1
+      }
+    ]
+  },
+  {
+    "wave": 21,
+    "lane": "017-snapback-search-rescue-callouts",
+    "mode": "staging",
+    "seconds": 28.894,
+    "sourceSha256": "33ce3dbe181d680a0873c42deb218d31e0d7fb65119a545dbce84d2065bf956c",
+    "load": [
+      41.93359375,
+      46.623046875,
+      53.34228515625
+    ],
+    "phases": [
+      {
+        "name": "deploy.security",
+        "totalSeconds": 28.348,
+        "calls": 1
+      },
+      {
+        "name": "witness.question_campaign",
+        "totalSeconds": 26.605,
+        "calls": 2
+      },
+      {
+        "name": "deploy.witnesses",
+        "totalSeconds": 14.324,
+        "calls": 1
+      },
+      {
+        "name": "deploy.restored_questions",
+        "totalSeconds": 12.861,
+        "calls": 1
+      },
+      {
+        "name": "campaign.derived replay",
+        "totalSeconds": 8.404,
+        "calls": 4
+      },
+      {
+        "name": "campaign.generated initialization",
+        "totalSeconds": 7.125,
+        "calls": 2
+      },
+      {
+        "name": "campaign.pre-transition checkpoint",
+        "totalSeconds": 4.057,
+        "calls": 2
+      },
+      {
+        "name": "campaign.pre-loosening checkpoint",
+        "totalSeconds": 2.207,
+        "calls": 1
+      },
+      {
+        "name": "deploy.report",
+        "totalSeconds": 0.804,
+        "calls": 1
+      },
+      {
+        "name": "campaign.empty-start phase",
+        "totalSeconds": 0.726,
+        "calls": 2
+      },
+      {
+        "name": "campaign.derived direct probes",
+        "totalSeconds": 0.449,
+        "calls": 4
+      },
+      {
+        "name": "witness.candidates",
+        "totalSeconds": 0.365,
+        "calls": 2
+      }
+    ]
+  },
+  {
+    "wave": 21,
+    "lane": "017-snapback-search-rescue-callouts",
+    "mode": "check",
+    "seconds": 27.642,
+    "sourceSha256": "33ce3dbe181d680a0873c42deb218d31e0d7fb65119a545dbce84d2065bf956c",
+    "load": [
+      41.0419921875,
+      47.26220703125,
+      53.8408203125
+    ],
+    "phases": [
+      {
+        "name": "witness.question_campaign",
+        "totalSeconds": 25.921,
+        "calls": 2
+      },
+      {
+        "name": "check.witnesses",
+        "totalSeconds": 14.355,
+        "calls": 1
+      },
+      {
+        "name": "check.restored_questions",
+        "totalSeconds": 12.308,
+        "calls": 1
+      },
+      {
+        "name": "campaign.derived replay",
+        "totalSeconds": 8.17,
+        "calls": 4
+      },
+      {
+        "name": "campaign.generated initialization",
+        "totalSeconds": 7.437,
+        "calls": 2
+      },
+      {
+        "name": "campaign.pre-transition checkpoint",
+        "totalSeconds": 4.255,
+        "calls": 2
+      },
+      {
+        "name": "campaign.pre-loosening checkpoint",
+        "totalSeconds": 2.195,
+        "calls": 1
+      },
+      {
+        "name": "campaign.empty-start phase",
+        "totalSeconds": 0.909,
+        "calls": 2
+      },
+      {
+        "name": "check.report",
+        "totalSeconds": 0.63,
+        "calls": 1
+      },
+      {
+        "name": "campaign.derived direct probes",
+        "totalSeconds": 0.512,
+        "calls": 4
+      },
+      {
+        "name": "witness.candidates",
+        "totalSeconds": 0.493,
+        "calls": 2
+      },
+      {
+        "name": "check.bind",
+        "totalSeconds": 0.094,
+        "calls": 1
+      }
+    ]
+  },
+  {
+    "wave": 26,
+    "lane": "033-snapback-asphalt-sealcoating-jobs",
+    "mode": "staging",
+    "seconds": 27.223,
+    "sourceSha256": "7831c89e12a191e46587e6be1d20b332c692171aaa163f00b5539d23581963d6",
+    "load": [
+      34.21484375,
+      42.0029296875,
+      50.8271484375
+    ],
+    "phases": [
+      {
+        "name": "deploy.security",
+        "totalSeconds": 26.227,
+        "calls": 1
+      },
+      {
+        "name": "witness.question_campaign",
+        "totalSeconds": 22.633,
+        "calls": 2
+      },
+      {
+        "name": "deploy.witnesses",
+        "totalSeconds": 16.526,
+        "calls": 1
+      },
+      {
+        "name": "campaign.generated initialization",
+        "totalSeconds": 12.99,
+        "calls": 3
+      },
+      {
+        "name": "campaign.derived replay",
+        "totalSeconds": 11.626,
+        "calls": 6
+      },
+      {
+        "name": "witness.derived_report",
+        "totalSeconds": 10.649,
+        "calls": 1
+      },
+      {
+        "name": "deploy.restored_questions",
+        "totalSeconds": 7.283,
+        "calls": 1
+      },
+      {
+        "name": "campaign.pre-loosening checkpoint",
+        "totalSeconds": 5.683,
+        "calls": 1
+      },
+      {
+        "name": "campaign.pre-transition checkpoint",
+        "totalSeconds": 5.133,
+        "calls": 3
+      },
+      {
+        "name": "deploy.report",
+        "totalSeconds": 1.771,
+        "calls": 1
+      },
+      {
+        "name": "campaign.empty-start phase",
+        "totalSeconds": 1.684,
+        "calls": 3
+      },
+      {
+        "name": "campaign.derived direct probes",
+        "totalSeconds": 1.041,
+        "calls": 6
+      }
+    ]
+  },
+  {
+    "wave": 20,
+    "lane": "017-snapback-search-rescue-callouts",
+    "mode": "staging",
+    "seconds": 27.189,
+    "sourceSha256": "cf56f378892662a396734b319e3609b747c246f07cd226fb0322c14288d6d8f2",
+    "load": [
+      41.119140625,
+      47.1748046875,
+      53.77685546875
+    ],
+    "phases": [
+      {
+        "name": "deploy.security",
+        "totalSeconds": 26.674,
+        "calls": 1
+      },
+      {
+        "name": "witness.question_campaign",
+        "totalSeconds": 25.214,
+        "calls": 2
+      },
+      {
+        "name": "deploy.witnesses",
+        "totalSeconds": 14.35,
+        "calls": 1
+      },
+      {
+        "name": "deploy.restored_questions",
+        "totalSeconds": 11.454,
+        "calls": 1
+      },
+      {
+        "name": "campaign.derived replay",
+        "totalSeconds": 8.467,
+        "calls": 4
+      },
+      {
+        "name": "campaign.generated initialization",
+        "totalSeconds": 6.753,
+        "calls": 2
+      },
+      {
+        "name": "campaign.pre-transition checkpoint",
+        "totalSeconds": 3.821,
+        "calls": 2
+      },
+      {
+        "name": "campaign.pre-loosening checkpoint",
+        "totalSeconds": 2.127,
+        "calls": 1
+      },
+      {
+        "name": "campaign.empty-start phase",
+        "totalSeconds": 0.701,
+        "calls": 2
+      },
+      {
+        "name": "deploy.report",
+        "totalSeconds": 0.555,
+        "calls": 1
+      },
+      {
+        "name": "campaign.derived direct probes",
+        "totalSeconds": 0.547,
+        "calls": 4
+      },
+      {
+        "name": "witness.candidates",
+        "totalSeconds": 0.363,
+        "calls": 2
+      }
+    ]
+  },
+  {
+    "wave": 20,
+    "lane": "017-snapback-search-rescue-callouts",
+    "mode": "check",
+    "seconds": 26.348,
+    "sourceSha256": "cf56f378892662a396734b319e3609b747c246f07cd226fb0322c14288d6d8f2",
+    "load": [
+      44.48779296875,
+      48.5615234375,
+      54.49560546875
+    ],
+    "phases": [
+      {
+        "name": "witness.question_campaign",
+        "totalSeconds": 24.709,
+        "calls": 2
+      },
+      {
+        "name": "check.witnesses",
+        "totalSeconds": 13.923,
+        "calls": 1
+      },
+      {
+        "name": "check.restored_questions",
+        "totalSeconds": 11.445,
+        "calls": 1
+      },
+      {
+        "name": "campaign.derived replay",
+        "totalSeconds": 7.965,
+        "calls": 4
+      },
+      {
+        "name": "campaign.generated initialization",
+        "totalSeconds": 6.842,
+        "calls": 2
+      },
+      {
+        "name": "campaign.pre-transition checkpoint",
+        "totalSeconds": 4.005,
+        "calls": 2
+      },
+      {
+        "name": "campaign.pre-loosening checkpoint",
+        "totalSeconds": 1.99,
+        "calls": 1
+      },
+      {
+        "name": "campaign.empty-start phase",
+        "totalSeconds": 0.72,
+        "calls": 2
+      },
+      {
+        "name": "check.report",
+        "totalSeconds": 0.653,
+        "calls": 1
+      },
+      {
+        "name": "campaign.derived direct probes",
+        "totalSeconds": 0.536,
+        "calls": 4
+      },
+      {
+        "name": "witness.candidates",
+        "totalSeconds": 0.406,
+        "calls": 2
+      },
+      {
+        "name": "check.bind",
+        "totalSeconds": 0.107,
+        "calls": 1
+      }
+    ]
+  },
+  {
+    "wave": 26,
+    "lane": "033-snapback-asphalt-sealcoating-jobs",
+    "mode": "check",
+    "seconds": 24.839,
+    "sourceSha256": "7831c89e12a191e46587e6be1d20b332c692171aaa163f00b5539d23581963d6",
+    "load": [
+      35.01904296875,
+      43.4375,
+      51.70849609375
+    ],
+    "phases": [
+      {
+        "name": "witness.question_campaign",
+        "totalSeconds": 21.225,
+        "calls": 2
+      },
+      {
+        "name": "check.witnesses",
+        "totalSeconds": 15.483,
+        "calls": 1
+      },
+      {
+        "name": "campaign.generated initialization",
+        "totalSeconds": 12.129,
+        "calls": 3
+      },
+      {
+        "name": "witness.derived_report",
+        "totalSeconds": 9.526,
+        "calls": 1
+      },
+      {
+        "name": "campaign.derived replay",
+        "totalSeconds": 8.793,
+        "calls": 6
+      },
+      {
+        "name": "check.restored_questions",
+        "totalSeconds": 6.901,
+        "calls": 1
+      },
+      {
+        "name": "campaign.pre-transition checkpoint",
+        "totalSeconds": 6.315,
+        "calls": 3
+      },
+      {
+        "name": "campaign.pre-loosening checkpoint",
+        "totalSeconds": 3.543,
+        "calls": 1
+      },
+      {
+        "name": "check.report",
+        "totalSeconds": 1.806,
+        "calls": 1
+      },
+      {
+        "name": "campaign.empty-start phase",
+        "totalSeconds": 1.337,
+        "calls": 3
+      },
+      {
+        "name": "campaign.derived direct probes",
+        "totalSeconds": 0.908,
+        "calls": 6
+      },
+      {
+        "name": "witness.candidates",
+        "totalSeconds": 0.876,
+        "calls": 2
+      }
+    ]
+  },
+  {
+    "wave": 17,
+    "lane": "017-snapback-trial-symptom-diary",
+    "mode": "check",
+    "seconds": 21.395,
+    "sourceSha256": "d9ea1ab70edfafa76e665043209886a4db888957e406ae7f5c74259be1e4ce76",
+    "load": [
+      38.91162109375,
+      49.42529296875,
+      55.3271484375
+    ],
+    "phases": [
+      {
+        "name": "check.report",
+        "totalSeconds": 9.364,
+        "calls": 1
+      },
+      {
+        "name": "check.witnesses",
+        "totalSeconds": 8.881,
+        "calls": 1
+      },
+      {
+        "name": "witness.question_campaign",
+        "totalSeconds": 5.252,
+        "calls": 1
+      },
+      {
+        "name": "witness.candidates",
+        "totalSeconds": 3.28,
+        "calls": 1
+      },
+      {
+        "name": "campaign.generated initialization",
+        "totalSeconds": 2.318,
+        "calls": 1
+      },
+      {
+        "name": "check.bind",
+        "totalSeconds": 0.874,
+        "calls": 1
+      },
+      {
+        "name": "check.restored_questions",
+        "totalSeconds": 0.517,
+        "calls": 1
+      },
+      {
+        "name": "campaign.derived replay",
+        "totalSeconds": 0.401,
+        "calls": 2
+      },
+      {
+        "name": "campaign.empty-start phase",
+        "totalSeconds": 0.391,
+        "calls": 1
+      },
+      {
+        "name": "campaign.derived direct probes",
+        "totalSeconds": 0.321,
+        "calls": 2
+      },
+      {
+        "name": "witness.stages",
+        "totalSeconds": 0.293,
+        "calls": 1
+      },
+      {
+        "name": "campaign.pre-transition checkpoint",
+        "totalSeconds": 0.072,
+        "calls": 1
+      }
+    ]
+  }
+]

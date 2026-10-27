@@ -1,0 +1,165 @@
+{
+  "schemaVersion": "snapback4.affected.v1",
+  "base": "98177aa48b35b99779a95b4db3e26710ac76bf0c",
+  "mergeBase": "98177aa48b35b99779a95b4db3e26710ac76bf0c",
+  "head": "ebe7eaa12fd753adfe7e1fb27b128a2629b52eb0",
+  "worktree": false,
+  "inputDigest": "1334a974b472a16a227cfc647c8968f1b0d9a46a25651b5157d4de06d385916f",
+  "started": "2026-10-27T11:30:15.460Z",
+  "finished": null,
+  "complete": false,
+  "ok": null,
+  "results": [
+    {
+      "id": "install-client",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 82
+    },
+    {
+      "id": "build-cli",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 146532
+    },
+    {
+      "id": "build-wasm",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 57396
+    },
+    {
+      "id": "build-client",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 10156
+    },
+    {
+      "id": "typecheck:snapback4",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 5044
+    },
+    {
+      "id": "rust:snapback4",
+      "status": 101,
+      "signal": null,
+      "elapsedMs": 2155463
+    },
+    {
+      "id": "rust:snapback4-core",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 998949
+    },
+    {
+      "id": "rust:snapback4-device",
+      "status": 101,
+      "signal": null,
+      "elapsedMs": 2577824
+    },
+    {
+      "id": "rust:snapback4-difftest",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 127555
+    },
+    {
+      "id": "rust:snapback4-lang",
+      "status": 101,
+      "signal": null,
+      "elapsedMs": 1441921
+    },
+    {
+      "id": "rust:snapback4-native",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 426
+    },
+    {
+      "id": "rust:snapback4-sim",
+      "status": 101,
+      "signal": null,
+      "elapsedMs": 655726
+    },
+    {
+      "id": "fixture-tests",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 11092
+    },
+    {
+      "id": "client-tests",
+      "status": 1,
+      "signal": null,
+      "elapsedMs": 1835229
+    },
+    {
+      "id": "client-models",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 333550
+    },
+    {
+      "id": "chat-check",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 777
+    },
+    {
+      "id": "chat-typecheck",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 1203
+    },
+    {
+      "id": "diagnostics",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 195659
+    },
+    {
+      "id": "docs-budget",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 227
+    },
+    {
+      "id": "expo-typecheck",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 1165
+    }
+  ],
+  "rustPackages": [
+    "snapback4",
+    "snapback4-core",
+    "snapback4-device",
+    "snapback4-difftest",
+    "snapback4-lang",
+    "snapback4-native",
+    "snapback4-sim"
+  ],
+  "rustTargets": {},
+  "checks": [
+    "chat-check",
+    "chat-typecheck",
+    "diagnostics",
+    "docs-budget",
+    "expo-typecheck",
+    "fixture-tests",
+    "generated",
+    "guide",
+    "inventories",
+    "packaged-docs",
+    "ref-check",
+    "release-guard",
+    "selector-tests",
+    "wasm-measurement"
+  ],
+  "clientFileCount": 449,
+  "commands": 31,
+  "outerTimeoutExit": 124,
+  "rawReceipt": "target/affected/ebe7eaa12fd7-1793100615461.json",
+  "note": "Actual incomplete initial selector state; not relabeled green. Product failures are closed by explicitly separate focused/final-target results."
+}

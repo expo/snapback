@@ -1,0 +1,5 @@
+{
+  "directories": 31,
+  "bytes": 5923030227,
+  "preserved": "All consumer metadata, traces, source/fixture captures, installed proof outputs, source/native/client integrity bindings and qualified tarballs; only completed dependency trees removed after process inspection."
+}

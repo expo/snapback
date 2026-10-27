@@ -1,0 +1,7 @@
+{
+  "source": "c9fda9432a",
+  "sha256": "d1bd7db63769424373915c61bcf1338f5893adea9be908eac8f6227f492b3d6c",
+  "identityComparisonExecutable": "d1bd7db63769424373915c61bcf1338f5893adea9be908eac8f6227f492b3d6c",
+  "identical": true,
+  "reason": "Late fix changes only publication-starter fixture and journal. Fresh production rebuild remains byte-identical."
+}

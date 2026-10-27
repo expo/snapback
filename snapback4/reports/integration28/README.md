@@ -1,0 +1,15 @@
+# Integration 28 evidence
+
+See the repository-root WORKSTREAM-REPORT.md for findings and scope. Raw command logs, copied-schema captures, native pins and private consumer projects remain outside the repository at /home/ccheever/sb4-loop/reports/integration28. Source copies contain only authored .q files and fixture JSONL; original stores/owner/token files are never opened or copied.
+
+- original-affected-summary.json is the actual initial broad selector state with its three-hour timeout and failures retained.
+- final-scoped-summary.json is a separate actual green affected-target run on final product source; product-closure.json accounts for every initially failing client file and Rust target. It does not relabel the original receipt.
+- survey-final-summary.json records all 940 copied schemas and the source-qualified precision classification. The calibrated-hole assessments count the actual target field/operation.
+- witness-retention-final.json compares default-visible findings with the SEC11/SEC12 source-qualified baseline. sequential-tier-comparison-summary.json and production-final-identity-summary.json compare complete current decision payloads and verdicts against an uncached/sequential control. identity-tier-summary.json compares cold/warm reuse. Original pre-tier control provenance is explicitly separate; sequential-tier-provenance.json documents the tier-aware reproduction inputs.
+- reading-replays.json records four actual reading-phase model runs; reading-final-surfaces.json binds unchanged pre-schema surfaces. It is not a complete application bakeoff score.
+- latency-production-*-summary.json and paired rows cover a 54-schema stratified sample, three per wave. Public paired rows omit command output; full raw output/phase traces remain external. latency-production-profile.json retains the twelve worst profiles. Shared-host load is recorded; no isolated latency/SLA claim is made.
+- wasm-measurement.json and wasm-final-parity.json bind named-file GNU-gzip measurement, strict audits, budget and equality with the actual packed client wasm.
+- consumer-summary.json records the commissioned complete consumer-only chain and retained local pack hashes. It creates no publication receipt or full-suite qualification claim.
+- lean-baseline-comparison.json retains the 18 unchanged open language-oracle disagreements; ordinary 2k differential has zero disagreements.
+
+Reproduction harnesses and exact key lists are retained here. They intentionally point to this workstream's external evidence directory and corpus; select new output names to preserve earlier captures. Run every shell command with timeout. Any Cargo build/test/run also needs CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 in the same command. Never use publication directories/worktrees for reproduction or open original wave stores in place. Build the uncached control outside the checkout and apply only the retained optimization-disable patch to the documented merged runtime base; preserve all rule budgets and isolation.

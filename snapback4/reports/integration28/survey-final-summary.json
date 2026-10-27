@@ -1,0 +1,361 @@
+{
+  "schemas": 940,
+  "availableSchemas": 940,
+  "sourceHashesCompared": 850,
+  "sourceHashesMatch": true,
+  "defaultCheckLines": {
+    "count": 940,
+    "median": 3.0,
+    "p90": 5,
+    "max": 14
+  },
+  "defaultDeployLines": {
+    "count": 940,
+    "median": 4.0,
+    "p90": 6,
+    "max": 16
+  },
+  "concurrentColdCheckSeconds": {
+    "count": 940,
+    "median": 5.3475,
+    "p90": 11.854,
+    "max": 60.058
+  },
+  "concurrentDeploySeconds": {
+    "count": 940,
+    "median": 5.1455,
+    "p90": 11.192,
+    "max": 54.526
+  },
+  "gates": [
+    {
+      "wave": 28,
+      "lane": "011-snapback-home-battery-installs",
+      "code": "N_APPROVAL_NOT_ENFORCED",
+      "site": "schema.q:102:3",
+      "operation": "recordInstallation",
+      "classification": "carried applicable gate"
+    },
+    {
+      "wave": 29,
+      "lane": "011-snapback-home-battery-installs",
+      "code": "N_APPROVAL_NOT_ENFORCED",
+      "site": "schema.q:116:3",
+      "operation": "recordInstallation",
+      "classification": "carried applicable gate"
+    },
+    {
+      "wave": 30,
+      "lane": "033-snapback-garage-floor-coatings",
+      "code": "N_APPROVAL_NOT_ENFORCED",
+      "site": "schema.q:84:3",
+      "operation": "advanceJob",
+      "classification": "carried applicable gate"
+    },
+    {
+      "wave": 31,
+      "lane": "002-snapback-infant-helmet-fittings",
+      "code": "N_RELEASE_CREATE_AUTHORITY",
+      "site": "schema.q:60:10",
+      "operation": "openFitting",
+      "classification": "carried applicable gate"
+    },
+    {
+      "wave": 31,
+      "lane": "014-snapback-balloon-decor-installs",
+      "code": "N_RELEASE_CREATE_AUTHORITY",
+      "site": "schema.q:91:10",
+      "operation": "openProject",
+      "classification": "carried applicable gate"
+    },
+    {
+      "wave": 31,
+      "lane": "019-snapback-pet-relocation-flights",
+      "code": "N_RELEASE_CREATE_AUTHORITY",
+      "site": "schema.q:88:10",
+      "operation": "openMove",
+      "classification": "carried applicable gate"
+    },
+    {
+      "wave": 31,
+      "lane": "033-snapback-garage-floor-coatings",
+      "code": "N_APPROVAL_NOT_ENFORCED",
+      "site": "schema.q:141:3",
+      "operation": "advanceJob",
+      "classification": "carried applicable gate"
+    }
+  ],
+  "fixes": [
+    {
+      "wave": 18,
+      "lane": "010-snapback-cobbler-repair-tickets",
+      "site": {
+        "col": 1,
+        "file": "schema.q",
+        "line": 186
+      },
+      "predicate": "((exists roles[viewer, role = 'owner']) or .customer = viewer)",
+      "operation": "createTicket",
+      "classification": "SEC11L carried source-reviewed replay"
+    },
+    {
+      "wave": 18,
+      "lane": "025-snapback-wheelchair-repair-loaners",
+      "site": {
+        "col": 1,
+        "file": "schema.q",
+        "line": 287
+      },
+      "predicate": "(.client = viewer or (exists roles[viewer, role = 'technician']) or (exists roles[viewer, role = 'coordinator']) or (exists roles[viewer, role = 'manager']))",
+      "operation": "repairDetail",
+      "classification": "SEC11L carried source-reviewed replay"
+    },
+    {
+      "wave": 18,
+      "lane": "045-snapback-honor-guard-details",
+      "site": {
+        "col": 1,
+        "file": "schema.q",
+        "line": 215
+      },
+      "predicate": "(.member = viewer or .home = viewer or (exists roles[viewer, role = 'commander']) or (exists roles[viewer, role = 'scheduler']))",
+      "operation": "openDetails",
+      "classification": "SEC11L carried source-reviewed replay"
+    },
+    {
+      "wave": 19,
+      "lane": "010-snapback-cobbler-repair-tickets",
+      "site": {
+        "col": 1,
+        "file": "schema.q",
+        "line": 201
+      },
+      "predicate": "((exists roles[viewer, role = 'owner']) or .customer = viewer)",
+      "operation": "createTicket",
+      "classification": "SEC11L carried source-reviewed replay"
+    },
+    {
+      "wave": 19,
+      "lane": "025-snapback-wheelchair-repair-loaners",
+      "site": {
+        "col": 1,
+        "file": "schema.q",
+        "line": 312
+      },
+      "predicate": "(.client = viewer or (exists roles[viewer, role = 'technician']) or (exists roles[viewer, role = 'coordinator']) or (exists roles[viewer, role = 'manager']))",
+      "operation": "repairDetail",
+      "classification": "SEC11L carried source-reviewed replay"
+    },
+    {
+      "wave": 19,
+      "lane": "045-snapback-honor-guard-details",
+      "site": {
+        "col": 1,
+        "file": "schema.q",
+        "line": 253
+      },
+      "predicate": "(.member = viewer or .home = viewer or (exists roles[viewer, role = 'commander']) or (exists roles[viewer, role = 'scheduler']))",
+      "operation": "openDetails",
+      "classification": "SEC11L carried source-reviewed replay"
+    },
+    {
+      "wave": 26,
+      "lane": "008-snapback-stucco-repair-jobs",
+      "site": {
+        "col": 3,
+        "file": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q",
+        "line": 151
+      },
+      "predicate": "(.job.status = 'accepted' or .job.status = 'in_progress')",
+      "operation": "advanceWall",
+      "classification": "SEC11L carried source-reviewed replay"
+    },
+    {
+      "wave": 26,
+      "lane": "008-snapback-stucco-repair-jobs",
+      "site": {
+        "col": 3,
+        "file": "$derived/child-stage/16c68cbdeab94206ae0a04b64feb30dbbbda706306a645e1dfd325e1d3ab28fd/schema.q",
+        "line": 157
+      },
+      "predicate": "(.status != 'finished' or count(walls[job = .id] where .stage != 'finish') = 0)",
+      "operation": "finishJob",
+      "classification": "SEC11L carried source-reviewed replay"
+    },
+    {
+      "wave": 26,
+      "lane": "018-snapback-livestock-ultrasound-scans",
+      "site": {
+        "col": 10,
+        "file": "$derived/sibling-approval/8659fc62e316e43a5802e0df26bd7606683cd128ac2f54a99b259f8a84afb039/schema.q",
+        "line": 182
+      },
+      "predicate": "(not (.scan.visit.herd != null and .scan.visit.herd.restricted) or (exists approvals[visit = .scan.visit.id]))",
+      "operation": "addRescan",
+      "classification": "SEC11L carried source-reviewed replay"
+    },
+    {
+      "wave": 26,
+      "lane": "025-snapback-lifeguard-certification-exams",
+      "site": {
+        "col": 10,
+        "file": "$derived/repeat-create/b7309e662794afc3369c6d457f05bfb258569f304777e30b79b861b211a29325/schema.q",
+        "line": 174
+      },
+      "predicate": "(.priorExam = null or count(exams[priorExam = .priorExam]) <= 1)",
+      "operation": "retest",
+      "classification": "SEC11L carried source-reviewed replay"
+    },
+    {
+      "wave": 26,
+      "lane": "025-snapback-lifeguard-certification-exams",
+      "site": {
+        "col": 10,
+        "file": "$derived/approval-history/45c341e20643b838f9d857be4564d87583029455f58518c4f61fd8cd95c51cdf/schema.q",
+        "line": 174
+      },
+      "predicate": "(count(exams[candidate = .candidate] where .status = 'failed' and (.failedAt != null and now <= .failedAt + 2592000000) and not (not (.attemptNo >= 2) or (exists approvals[priorExam = .id]))) = 0)",
+      "operation": "logExam",
+      "classification": "SEC11L carried source-reviewed replay"
+    },
+    {
+      "wave": 26,
+      "lane": "033-snapback-asphalt-sealcoating-jobs",
+      "site": {
+        "col": 3,
+        "file": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489",
+        "line": 163
+      },
+      "predicate": "old.ownerApproved != true or next.ownerApproved != true",
+      "operation": "signFailing",
+      "classification": "SEC11L carried source-reviewed replay"
+    },
+    {
+      "wave": 27,
+      "lane": "008-snapback-stucco-repair-jobs",
+      "site": {
+        "col": 3,
+        "file": "$derived/parent-state/754d5fbc4057b66fb816dde3600c92927483cfcbe41740db8ffe0a0139e7c437/schema.q",
+        "line": 169
+      },
+      "predicate": "(.job.status = 'accepted' or .job.status = 'in_progress')",
+      "operation": "advanceWall",
+      "classification": "SEC11L carried source-reviewed replay"
+    },
+    {
+      "wave": 27,
+      "lane": "008-snapback-stucco-repair-jobs",
+      "site": {
+        "col": 3,
+        "file": "$derived/child-stage/fcfe4d3ad4e863c722a4b3da1beb5a7936aa1f7eecfc567a0042ca8cf5a71dae/schema.q",
+        "line": 175
+      },
+      "predicate": "(.status != 'finished' or count(walls[job = .id] where .stage != 'finish') = 0)",
+      "operation": "finishJob",
+      "classification": "SEC11L carried source-reviewed replay"
+    },
+    {
+      "wave": 27,
+      "lane": "018-snapback-livestock-ultrasound-scans",
+      "site": {
+        "col": 10,
+        "file": "$derived/sibling-approval/8659fc62e316e43a5802e0df26bd7606683cd128ac2f54a99b259f8a84afb039/schema.q",
+        "line": 182
+      },
+      "predicate": "(not (.scan.visit.herd != null and .scan.visit.herd.restricted) or (exists approvals[visit = .scan.visit.id]))",
+      "operation": "addRescan",
+      "classification": "SEC11L carried source-reviewed replay"
+    },
+    {
+      "wave": 27,
+      "lane": "020-snapback-llama-trekking-trips",
+      "site": {
+        "col": 3,
+        "file": "$derived/participant-conservation/de3c926e1c3d413be6acadd56ca47d2cf820d9416923d63e7ec8bc25cbdf3886/schema.q",
+        "line": 112
+      },
+      "predicate": "participant removal conserves receipts: refund covers charge for [(\"outing\", \"outing\"), (\"hiker\", \"hiker\")]",
+      "operation": "removeOutingHiker",
+      "classification": "SEC11L carried source-reviewed replay"
+    },
+    {
+      "wave": 27,
+      "lane": "025-snapback-lifeguard-certification-exams",
+      "site": {
+        "col": 10,
+        "file": "$derived/repeat-create/b7309e662794afc3369c6d457f05bfb258569f304777e30b79b861b211a29325/schema.q",
+        "line": 176
+      },
+      "predicate": "(.priorExam = null or count(exams[priorExam = .priorExam]) <= 1)",
+      "operation": "retest",
+      "classification": "SEC11L carried source-reviewed replay"
+    },
+    {
+      "wave": 27,
+      "lane": "025-snapback-lifeguard-certification-exams",
+      "site": {
+        "col": 10,
+        "file": "$derived/approval-history/45c341e20643b838f9d857be4564d87583029455f58518c4f61fd8cd95c51cdf/schema.q",
+        "line": 176
+      },
+      "predicate": "(count(exams[candidate = .candidate] where .status = 'failed' and (.failedAt != null and now <= .failedAt + 2592000000) and not (not (.attemptNo >= 2) or (exists approvals[priorExam = .id]))) = 0)",
+      "operation": "logExam",
+      "classification": "SEC11L carried source-reviewed replay"
+    },
+    {
+      "wave": 27,
+      "lane": "033-snapback-asphalt-sealcoating-jobs",
+      "site": {
+        "col": 3,
+        "file": "$derived/schema.q/jobs/customerConsent/update/04b2ecb27d3684a813d41b3f372641835e68a8052b867ce412764f8d78088489",
+        "line": 180
+      },
+      "predicate": "old.ownerApproved != true or next.ownerApproved != true",
+      "operation": "signFailing",
+      "classification": "SEC11L carried source-reviewed replay"
+    },
+    {
+      "wave": 28,
+      "lane": "036-snapback-wax-figure-commissions",
+      "site": {
+        "col": 3,
+        "file": "$derived/schema.q/figures/likenessScan/update/23ee7f4fe5fc49157e8f4416e4639c0357e184e23536b92e04dd59e3756fa621",
+        "line": 90
+      },
+      "predicate": "old.likenessApproved != true or next.likenessApproved != true",
+      "operation": "changeLikeness",
+      "classification": "SEC11L carried source-reviewed replay"
+    },
+    {
+      "wave": 28,
+      "lane": "036-snapback-wax-figure-commissions",
+      "site": {
+        "col": 3,
+        "file": "$derived/schema.q/figures/likenessScan/update/c8047023845790f4080646427934aa6a20329524a8078215d457a397c1038c64",
+        "line": 90
+      },
+      "predicate": "old.likenessApprovedAt = null or next.likenessApprovedAt = null",
+      "operation": "changeLikeness",
+      "classification": "SEC11L carried source-reviewed replay"
+    },
+    {
+      "wave": 31,
+      "lane": "036-snapback-mascot-costume-commissions",
+      "site": {
+        "col": 7,
+        "file": "$derived/schema.q/mascotCommissions/quoteCents/update/40a608b01b14e1c0d35aa83326121f9874bfb48f10770a3f5d86fbbab19d30ca",
+        "line": 110
+      },
+      "predicate": "old.approvalDeadline = null or next.approvalDeadline = null",
+      "operation": "updateQuote",
+      "classification": "SEC11L carried source-reviewed replay"
+    }
+  ],
+  "unclassified": [],
+  "refusals": 21,
+  "method": "Optimized test-profile immutable candidate; at most 8 survey workers, reduced to 4 during paired production latency measurement; source and authored fixture copies only. No original store opened. Current local successful-check predecessor supplied on wave31, no synthetic deployment predecessor. SEC11L/SEC10 source-bound precision baseline; all new gates/FIX remain unclassified until manually assessed.",
+  "falseGates": 0,
+  "falseProductionRefusals": 0,
+  "classification": "850 exact source hashes match the SEC11L/SEC12 source-reviewed precision baseline; all 7 default gates and all 21 production refusals match carried applicable findings. The 90 additional wave17/32 sources introduce no gates/refusals.",
+  "binarySha256": "e4f952338b3f68d144b1bbd55fe896232791f78baf4b15b87e81aa10579746a7"
+}

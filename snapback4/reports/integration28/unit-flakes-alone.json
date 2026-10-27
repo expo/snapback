@@ -1,0 +1,22 @@
+[
+  {
+    "test": "serve::tests::adoption_tests::query_outcome_generation_after_two_handoffs_returns_503",
+    "exit": 0
+  },
+  {
+    "test": "serve::tests::authority_boundary_tests::generation::rt3b_generation_cap_bearer_sqlite",
+    "exit": 0
+  },
+  {
+    "test": "serve::tests::authority_boundary_tests::generation::rt3b_generation_cap_persona_sqlite",
+    "exit": 0
+  },
+  {
+    "test": "serve::tests::route_tests::saturated_legacy_waits_cannot_starve_route_verification_or_registry_execution",
+    "exit": 0
+  },
+  {
+    "test": "serve::tests::sync_generation_tests::time_audience::a_timed_join_over_the_wire_limit_recovers_with_paged_snapshots",
+    "exit": 0
+  }
+]
