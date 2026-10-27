@@ -1,0 +1,7 @@
+{
+  "source": "7fa538ca0d5066f3d4e7bb2953ac224bdeab060e",
+  "scope": "authored conflict resolutions only, seams 1 and 2",
+  "patchSha256": "7d32aa817add9d2adf142893227cf9069dd5b913ab04ea241387cc7af8adca66",
+  "muse": "muse-spark-1.3-contributor high",
+  "codex": "fresh gpt-6.1-sol high"
+}
