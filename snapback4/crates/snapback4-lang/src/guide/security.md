@@ -370,7 +370,9 @@ source or use supported boundary-local intent. Saved redacted witnesses cannot
 supply a true answer. Prose, including the older witness/permit/rationale format,
 never closes a gate. Advisory witnessed decisions retain that prose format and
 remain non-failing. Required-to-optional gates without a replay need a source
-presence declaration. The record never grants authority or proves safety. Audit retains the full
+presence declaration. The exact `always .c = null or .c != null` declaration
+permits either presence state without imposing an unrelated rollback restriction.
+The record never grants authority or proves safety. Audit retains the full
 notes and dispositions. JSON names each decision's exact-column/rule or conservative
 declaration/writer binding scope. Advisories accept individual decisions and stay
 non-failing; the grouped table questionnaire has no separate review ID.
@@ -507,7 +509,7 @@ A derived approval/edit violation requires approval to survive the edit. Clearin
 ### N_PRESENCE_LOOSENING
 
 N_PRESENCE_LOOSENING identifies a required-to-optional column change. Declare
-presence intent or an individual specification decision. Successful check advances
+presence intent in source; prose cannot close this gate. Successful check advances
 a local generated baseline; production compares the selected release independently.
 A fresh checkout has no invented predecessor. Deliberately optional evidence can
 state `invariant evidence always .photo = null or .photo != null`.

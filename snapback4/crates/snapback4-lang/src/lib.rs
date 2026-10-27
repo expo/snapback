@@ -69,6 +69,7 @@ pub fn compile(sources: &[(String, String)]) -> Bound {
 }
 
 pub mod release_bridge;
+mod release_presence_allowance;
 
 mod release_bridge_constraints;
 mod release_bridge_current;

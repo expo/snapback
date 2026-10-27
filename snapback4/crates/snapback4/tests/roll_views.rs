@@ -519,7 +519,7 @@ fn incomplete_current_shape_uses_a_guarded_bridge_with_current_intent() {
     let root=app.0.join(format!("deployment/releases/{selected}/snapback"));
     let sources=fs::read_dir(root).unwrap().map(|entry|{let p=entry.unwrap().path();(p.file_name().unwrap().to_str().unwrap().to_owned(),fs::read_to_string(p).unwrap())}).collect::<Vec<_>>();
     let compiled=snapback4_lang::compile(&sources);assert!(compiled.diagnostics.is_empty(),"{:?}",compiled.diagnostics);
-    assert_eq!(compiled.invariants.len(),1);
+    assert_eq!(compiled.invariants.len(),2); // retained read policy and explicit optional-presence allowance
     assert!(sources.iter().any(|(_,s)|s.contains("NO_AMOUNT")));
     let store=snapback4_core::store_port::AnyStore::open(&app.0.join("deployment/store.sqlite")).unwrap();
     let mut engine=snapback4_core::Engine::new_release(store,compiled.schema,compiled.programs.into_iter().map(|p|p.program),selected,Some(selected)).unwrap();
