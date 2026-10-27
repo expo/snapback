@@ -2,6 +2,9 @@
 
 The forms most apps need, in one schema that compiles, then the commands and client calls; each line names the card with the rest.
 
+Shared previews: `npx snapback4 deploy staging --staging`, then `npx snapback4 serve staging`.
+Read `guide staging` for real password users, operator-provisioned roles and replayable first-admin setup.
+
 ```quarry
 use identity                              -- guests and password accounts (guide personas)
 use personas alice, bob                   -- a dev cast: `--as alice` acts as dev:alice
