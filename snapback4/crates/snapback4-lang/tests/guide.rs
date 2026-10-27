@@ -1503,6 +1503,12 @@ fn wave33_001_022_codex_011_021_muse_every_reference_section_fits_day_two_budget
             assert_eq!(text.lines().filter(|l|l.starts_with("```")).count()%2,0,"{name} section {n}: complete fences");
         }
     }
+    for name in ["start","cheatsheet","personas"] {
+        let card=guide::reader_card(name,guide::card(name).unwrap());
+        let shown=guide::piped(name,&card);
+        assert!(shown.len()<=guide::FULL_BYTES);
+        assert!(shown.contains("guide staging"),"{name}: preserve staging in the actual bounded opening");
+    }
     for (name,words) in [("rename","opening"),("deploy","Keep v1 clients working"),("deploy","Bridge a safety gate"),("security","N_PRESENCE_LOOSENING"),("deploy","Migrations and adoption"),("deploy","Which migration shape"),("evolution","Move media"),("production","Serve script and reusable accounts")] {
         let card=guide::reader_card(name,guide::card(name).unwrap());
         assert!(guide::section(name,&card,words).is_ok(),"{name} {words}");
