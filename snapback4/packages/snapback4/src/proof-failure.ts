@@ -1,3 +1,4 @@
+// @ref LLP 3000.037.000#9 — retain assertions and distinguish exact refusal identity from nearest context.
 import { openSync, closeSync, readSync, fstatSync } from 'node:fs';
 import { enableProofObservation, proofEvents, refusalObservation, type RefusalObservation } from './proof-observation.ts';
 const servers = new Set<string>();
@@ -49,8 +50,8 @@ export function proofFailure(error: unknown, observations: readonly RefusalObser
   const code = refusalIn(error);
   const exact = eventIn(error);
   const event = exact ?? (code ? [...observations].reverse().find(event => event.code === code) : observations.at(-1));
-  if (event) return `proof refusal${exact ? '' : ' (nearest observed request)'}: operation ${event.operation}; role ${event.role}; ${event.code}; field ${event.field}\nlikely fix: ${fixes[event.code] ?? 'inspect the named field and authored guard; snapback4 guide why ' + event.code}`;
-  if (code) return `proof refusal: ${code}; operation/role/field unavailable\nlikely fix: ${fixes[code] ?? 'inspect the refusal and its authored guard; snapback4 guide why ' + code}`;
+  if (event) return `proof refusal${exact ? '' : ' (nearest observed request)'}: operation ${event.operation}; role ${event.role}; ${event.code}; field ${event.field}\nlikely fix: ${fixes[event.code] ?? 'inspect the named field and authored guard; snapback4 why ' + event.code}`;
+  if (code) return `proof refusal: ${code}; operation/role/field unavailable\nlikely fix: ${fixes[code] ?? 'inspect the refusal and its authored guard; snapback4 why ' + code}`;
   return lastServerEvent() ?? closedServerEvent ?? 'proof failed: no backend refusal or server error observed; inspect the assertion below';
 }
 /** Print refusal content once, preserving the error. @throws Output stream write failures. */

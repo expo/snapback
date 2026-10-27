@@ -92,6 +92,7 @@ query list():
  const error=new assert.AssertionError({actual:write,expected:{state:'sent'},operator:'deepStrictEqual'});
  const summary=proofFailure(error);
  assert.match(summary,/operation put; role customer; POSITIVE/);
+ assert.match(summary,/snapback4 why POSITIVE/);
  assert.doesNotMatch(summary,/nearest observed request/,'the actual refusal object carries request correlation');
 });
 
