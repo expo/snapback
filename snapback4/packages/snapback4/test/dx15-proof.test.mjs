@@ -14,7 +14,7 @@ const schema=readFileSync(join(root,'crates/snapback4-lang/src/guide/staging.md'
 function scratch(t){const dir=mkdtempSync(join(tmpdir(),'dx15-'));t.after(()=>rmSync(dir,{recursive:true,force:true}));return dir;}
 async function project(t,source=schema){const cwd=scratch(t);mkdirSync(join(cwd,'snapback'));writeFileSync(join(cwd,'snapback/schema.q'),source);await deploy('production','snapback',{cwd,env});return cwd;}
 const module=pathToFileURL(join(root,'packages/snapback4/dist/proof.js')).href;
-for(const then of ['command','callback'])test(`wave31 006 + seven Codex serve lanes: quick ${then} still observes upMs`,{skip:process.platform==='win32'},async t=>{
+for(const then of ['command','callback'])test(`wave31 048 Codex + 006 Muse: quick ${then} still observes upMs`,{skip:process.platform==='win32'},async t=>{
  const cwd=await project(t);
  writeFileSync(join(cwd,'package.json'),JSON.stringify({type:'module',scripts:{'prod:serve':'node serve.mjs'}}));
  writeFileSync(join(cwd,'serve.mjs'),`import {startServe,serveUntilSignal} from ${JSON.stringify(module)};const host=await startServe('production');console.log(JSON.stringify({backendUrl:host.url}));await serveUntilSignal([host]);`);

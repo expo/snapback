@@ -1,0 +1,263 @@
+{
+  "method": "One fresh Muse pair, identical production discovery prompt and wrapper; frozen before/after guide content, native run.usage. No servers or implementation by the model. Not a fresh full-app bakeoff.",
+  "results": {
+    "before": {
+      "usage": [
+        {
+          "allowance": {
+            "as_of_ms": 1793078720016,
+            "source": "stream",
+            "tier": null,
+            "weekly": {
+              "resets_at_ms": 1793577600000,
+              "used_percent": 16
+            },
+            "window": {
+              "resets_at_ms": 1793089597000,
+              "used_percent": 12
+            }
+          },
+          "calls": 9,
+          "cancelled_calls": 0,
+          "children_included": false,
+          "command_id": "01a17bd1-3e17-78d2-b72a-95ffceff4d96",
+          "completed_calls": 9,
+          "failed_calls": 0,
+          "kind": "run_usage",
+          "models": [
+            {
+              "cached_tokens": 359929,
+              "calls": 9,
+              "input_tokens": 410157,
+              "model": "muse-spark-1.3-contributor",
+              "output_tokens": 3634,
+              "reasoning_tokens": 1761
+            }
+          ],
+          "run_stream": {
+            "id": "01a17bd1-3e17-78d2-b72a-95ffceff4d96",
+            "kind": "run"
+          }
+        }
+      ],
+      "reads": [
+        {
+          "command": [
+            "guide",
+            "production"
+          ],
+          "bytes": 4759
+        },
+        {
+          "command": [
+            "guide",
+            "production",
+            "--full"
+          ],
+          "bytes": 22688
+        },
+        {
+          "command": [
+            "guide",
+            "testing",
+            "--full"
+          ],
+          "bytes": 63371
+        },
+        {
+          "command": [
+            "guide",
+            "testing"
+          ],
+          "bytes": 6217
+        },
+        {
+          "command": [
+            "guide",
+            "testing",
+            "--section",
+            "11"
+          ],
+          "bytes": 47
+        },
+        {
+          "command": [
+            "guide",
+            "testing",
+            "--section",
+            "Day-two proof with production accounts"
+          ],
+          "bytes": 10430
+        },
+        {
+          "command": [
+            "guide",
+            "testing",
+            "--section",
+            "Proof API"
+          ],
+          "bytes": 13601
+        },
+        {
+          "command": [
+            "guide",
+            "testing",
+            "--section",
+            "Check an npm serve script"
+          ],
+          "bytes": 2535
+        },
+        {
+          "command": [
+            "guide",
+            "staging"
+          ],
+          "bytes": 2624
+        },
+        {
+          "command": [
+            "guide",
+            "staging",
+            "--section",
+            "Stand up staging"
+          ],
+          "bytes": 4503
+        },
+        {
+          "command": [
+            "guide",
+            "staging",
+            "--section",
+            "Production refuses bulk setup"
+          ],
+          "bytes": 3679
+        },
+        {
+          "command": [
+            "guide",
+            "staging",
+            "--section",
+            "First admin on production"
+          ],
+          "bytes": 2154
+        }
+      ],
+      "toolReadTurns": 12,
+      "toolReadBytes": 136608,
+      "transcriptSha256": "0e1a81d463d39a1cd4519f0c23a98201b93a37e7c23f6c8ee5a8e4c57ff1b3a7"
+    },
+    "after": {
+      "usage": [
+        {
+          "allowance": {
+            "as_of_ms": 1793079498541,
+            "source": "stream",
+            "tier": null,
+            "weekly": {
+              "resets_at_ms": 1793577600000,
+              "used_percent": 16
+            },
+            "window": {
+              "resets_at_ms": 1793089597000,
+              "used_percent": 12
+            }
+          },
+          "calls": 3,
+          "cancelled_calls": 0,
+          "children_included": false,
+          "command_id": "01a17bdd-a330-70a1-88e9-bc9a0964ff1b",
+          "completed_calls": 3,
+          "failed_calls": 0,
+          "kind": "run_usage",
+          "models": [
+            {
+              "cached_tokens": 59618,
+              "calls": 3,
+              "input_tokens": 97541,
+              "model": "muse-spark-1.3-contributor",
+              "output_tokens": 1966,
+              "reasoning_tokens": 1064
+            }
+          ],
+          "run_stream": {
+            "id": "01a17bdd-a330-70a1-88e9-bc9a0964ff1b",
+            "kind": "run"
+          }
+        }
+      ],
+      "reads": [
+        {
+          "command": [
+            "guide",
+            "production"
+          ],
+          "bytes": 4474
+        },
+        {
+          "command": [
+            "guide",
+            "production",
+            "--full"
+          ],
+          "bytes": 26717
+        }
+      ],
+      "toolReadTurns": 2,
+      "toolReadBytes": 31191,
+      "transcriptSha256": "91d1a0cd6ae8c68bdfc5634575b6c3ddb6b5d59a08ab39861c4f0b54444cbdeb",
+      "variant": "after-final; production opening sentence corrected before replay"
+    }
+  },
+  "preliminaryAfter": {
+    "usage": [
+      {
+        "allowance": {
+          "as_of_ms": 1793078692125,
+          "source": "stream",
+          "tier": null,
+          "weekly": {
+            "resets_at_ms": 1793577600000,
+            "used_percent": 16
+          },
+          "window": {
+            "resets_at_ms": 1793089597000,
+            "used_percent": 11
+          }
+        },
+        "calls": 2,
+        "cancelled_calls": 0,
+        "children_included": false,
+        "command_id": "01a17bd1-42af-7461-af36-d5a2caaad0b0",
+        "completed_calls": 2,
+        "failed_calls": 0,
+        "kind": "run_usage",
+        "models": [
+          {
+            "cached_tokens": 45410,
+            "calls": 2,
+            "input_tokens": 59751,
+            "model": "muse-spark-1.3-contributor",
+            "output_tokens": 1751,
+            "reasoning_tokens": 967
+          }
+        ],
+        "run_stream": {
+          "id": "01a17bd1-42af-7461-af36-d5a2caaad0b0",
+          "kind": "run"
+        }
+      }
+    ],
+    "reads": [
+      {
+        "command": [
+          "guide",
+          "production"
+        ],
+        "bytes": 4423
+      }
+    ],
+    "toolReadTurns": 1,
+    "toolReadBytes": 4423,
+    "transcriptSha256": "217fce66d39e19979a11ff41a704e8b4f93709280c2ad7fd7eb1fdf1cfaf5235"
+  }
+}

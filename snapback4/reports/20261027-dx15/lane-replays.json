@@ -1,0 +1,58 @@
+{
+  "scope": "original source copies; task-specific production/inspection acceptance, not full original day-two release/UI scripts",
+  "results": [
+    {
+      "lane": "006-snapback-fishing-reel-servicing",
+      "sourceHashes": {
+        "schema.q": "8204ea2afe58657063b66a7eab081ae07bac4b19a846ecba030b00c076ecdee6"
+      },
+      "ok": false,
+      "error": "Error: E_PROOF_SNAPSHOT: no table roles; tables: dragReports, gearApprovals, invoices, reels, staff"
+    },
+    {
+      "lane": "007-snapback-tile-mosaic-commissions",
+      "sourceHashes": {
+        "schema.q": "cf1cc413806ca4ec3e805c66d874229bcd265e00c0364b893f72780a1eed95df"
+      },
+      "ok": true,
+      "replay": "check; fresh production deploy; two roster starts with one real user per original declared role; stable principals; plan diff before auth; complete roles snapshot",
+      "roleCount": 4
+    },
+    {
+      "lane": "014-snapback-balloon-decor-installs",
+      "sourceHashes": {
+        "schema.q": "bdac20994f7029a1b65d5161d099c6a617bdca18814e9ca7f9c434d68fcd4b6e"
+      },
+      "ok": true,
+      "replay": "check; fresh production deploy; two roster starts with one real user per original declared role; stable principals; plan diff before auth; complete roles snapshot",
+      "roleCount": 4
+    },
+    {
+      "lane": "021-snapback-rice-mill-lots",
+      "sourceHashes": {
+        "schema.q": "8eed47a38fd211a2210baec3655bfd35264127fe915e89bdaaea29ee07de0fbb"
+      },
+      "ok": true,
+      "replay": "check; fresh production deploy; two roster starts with one real user per original declared role; stable principals; plan diff before auth; complete roles snapshot",
+      "roleCount": 4
+    },
+    {
+      "lane": "030-snapback-acoustic-noise-studies",
+      "sourceHashes": {
+        "schema.q": "58ffb9317f79fa2759611a634dbb2334e18f36fae41dc401785ead2af0defbed"
+      },
+      "ok": true,
+      "replay": "check; fresh production deploy; two roster starts with one real user per original declared role; stable principals; plan diff before auth; complete roles snapshot",
+      "roleCount": 4
+    },
+    {
+      "lane": "042-snapback-sports-memorabilia-consignments",
+      "sourceHashes": {
+        "schema.q": "496c4726b8ef01b714b7ef4dbbd00df859b3681b337e45d0eae189a0b01ead68"
+      },
+      "ok": true,
+      "replay": "check; fresh production deploy; two roster starts with one real user per original declared role; stable principals; plan diff before auth; complete roles snapshot",
+      "roleCount": 4
+    }
+  ]
+}
