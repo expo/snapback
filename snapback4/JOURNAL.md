@@ -109449,3 +109449,34 @@ failures**; **498 / 75** tests remain ignored. Ref-check verifies **570 docs /
 12074 references**, with zero errors or unchecked refs. The authoritative
 matrix uses the corrected executable; the interrupted predecessor is retained
 separately.
+
+
+## 2026-10-27 — SQW: six strict one-host S1 wins on SQLite
+
+The corrected `1b38085f58` executable qualifies **W1 16,000 / W2 11,313 /
+W3 16,000 / W4 4,525 / W5 exact 3,200 / W5 nominal 1% 4,525 offered/s**.
+Every selected rate passes all three 10 s warm + 20 s measured repetitions,
+under the unchanged ladder, SLO, affinity and durability criteria. These are
+**6/6 strict wins**, including the stronger later Convex W2 8,000/s control.
+W1 preserves capacity but its median p99 rises 24.63→38.70 ms, below 50 ms.
+W5 exact's 4,525/s rung fails latency/error repetitions and is not substituted.
+
+The independent auditor passes **126 trials / 30,390,720 measured arrivals**;
+independent counter arithmetic passes **42 write trials / zero mismatches**.
+Separate observation of the same binary has W4 mean **N=28.64**, **0.59 SQLite
+statements/member**, **156.11 µs writer wall/member** and **2.61 ms mean WAL
+fdatasync**, versus S1-SQ's N=15.23, 15.65 statements and 7.87 ms fsync. The
+written WAL high-water and PASSIVE checkpoint policy remain; no new flush
+pipeline is credited. Empty bulk absence probes no longer cut every returning
+cohort. The unchanged adaptive controller remains at target 32 in these probes.
+W3 has **98.81% local query hits** and **138.94 µs app CPU/ack**, versus
+1,261.32 µs in S1-SQ; the uncached inbox remains 132 statements.
+
+Final core **873/0**, CLI **627/0** pass/fail, with **498/75 ignored**; the
+owned crash child runs through its parent witness. FULL acknowledgement ordering,
+SIGKILL and durable-prefix recovery pass. Actual syscall tracing confirms WAL
+fdatasync and directory synchronization. The report preserves failed trials,
+setup/refinement attempts, per-lever limits and the scoped ownership proof.
+Raw logs/HDR/events stay outside Git; private stores are removed, known-secret
+scans pass, and the owned process audit finds no remaining helper or zombie.
+No push or publication. [Full SQW report](experiments/scale-controls/results-20261027-s1-sqlite-w/README.md).
