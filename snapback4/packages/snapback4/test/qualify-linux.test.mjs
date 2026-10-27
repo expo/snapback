@@ -168,7 +168,7 @@ cp.execFileSync = (cmd,args,opts={}) => {
       context = args.at(-1);
       const dockerfile = readFileSync(join(args.at(-1), "Dockerfile"), "utf8");
       assert.ok(dockerfile.split(String.fromCharCode(10)).some(line => line.startsWith("COPY ") && line.includes("starter-audit-allowlist.json") && line.endsWith(" /proof/")), "the image must carry the starter audit policy");
-      assert.ok(readFileSync(join(args.at(-1), "starter-audit-allowlist.json"), "utf8").includes("GHSA-86w9-cpqp-85rv"), "the policy must be a real build input");
+      assert.deepEqual(JSON.parse(readFileSync(join(args.at(-1), "starter-audit-allowlist.json"), "utf8")), JSON.parse(readFileSync(new URL("../../../scripts/starter-audit-allowlist.json", import.meta.url), "utf8")), "the image must retain the exact current audit policy");
       const configs = [...dockerfile.matchAll(/NPM_CONFIG_(?:USER|GLOBAL)CONFIG=(\\S+)/g)].map(m => m[1]);
       if(configs.length !== 2 || configs[0] === configs[1]) throw Error("npm cannot double-load one config path");
     }
@@ -564,7 +564,32 @@ test("starter audit exceptions expire and never waive fixable or unknown advisor
 
 
 test("unactionable npm meta fix flag requires the recorded all-versions chain", () => {
-  const allowlist = JSON.parse(readFileSync(new URL("../../../scripts/starter-audit-allowlist.json", import.meta.url), "utf8"));
+  // Historical unpatched-registry fixture: independent of current policy.
+  const allowlist = [
+  {
+    "advisory": "GHSA-86w9-cpqp-85rv",
+    "package": "node-forge",
+    "reviewedVersion": "1.4.0",
+    "reason": "No patched node-forge release exists. Expo SDK 57 requires its CLI and code-signing tooling; npm audit fix --force downgrades to an unsupported Expo SDK.",
+    "pulledBy": "expo -> @expo/cli -> node-forge and @expo/code-signing-certificates -> node-forge (development/code-signing tools)",
+    "starters": [
+      "expo",
+      "expo-chat",
+      "expo-social"
+    ],
+    "recheck": "2026-11-08",
+    "metadataExceptions": [
+      {
+        "package": "@expo/code-signing-certificates",
+        "reviewedVersion": "0.0.7",
+        "via": [
+          "node-forge"
+        ],
+        "reason": "npm reports fixAvailable:true with affected range * even after installing latest 0.0.7, which still depends on node-forge ^1.4.0. npm audit fix --dry-run offers no remediation; the underlying advisory has no patched release."
+      }
+    ]
+  }
+];
   const report = { auditReportVersion: 2, metadata: { vulnerabilities: { total: 2 } }, vulnerabilities: {
     "node-forge": { name: "node-forge", fixAvailable: false, via: [{ name: "node-forge", url: "https://github.com/advisories/GHSA-86w9-cpqp-85rv" }] },
     "@expo/code-signing-certificates": { name: "@expo/code-signing-certificates", fixAvailable: true, range: "*", via: ["node-forge"] },

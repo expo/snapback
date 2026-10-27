@@ -17,6 +17,7 @@ impl Store {
         conn.set_db_config(rusqlite::config::DbConfig::SQLITE_DBCONFIG_ENABLE_QPSG,true)?;
         let read_sessions=std::sync::Arc::new(super::ReadSessionStorage::new(super::identity::present(&conn)?));
         let fork=Self {
+            cache_revision:cache_revision::Revision::new(&conn)?,cache_owned:false,
             read_sessions,conn,server:self.server,ownership:None,
             #[cfg(unix)] file_identity:None,
             page_size,catalog:self.catalog.clone(),identity:self.identity.clone(),

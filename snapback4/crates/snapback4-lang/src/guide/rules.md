@@ -371,10 +371,4 @@ E_COLUMN_WRITE means a column write/freeze rule names an invalid or duplicate pa
 
 A bare `exists roles[viewer]` checks roster membership, not staff membership. If that unique-principal roster stores customer/owner and staff variants, select the intended role in the probe; otherwise another customer can satisfy the staff arm of an own-or-roster rule (003R, 041R). `N_ROLE_UNFILTERED` flags this shape when the owner/customer column name exactly matches a roster enum variant; other spellings still need explicit review. For multiple simultaneous roles use a total `unique principal, role` key and provide both values. A mutation require never replaces the table write rule; `N_REQUIRE_REFUSED` names caller branches or explicit/omitted deny rules that may still refuse the effect after the require passes (007R, 034R).
 
-Read-advice checks recognize bounded read-only role helpers and current captured
-role rows. A required enum on a total unique roster row can make a guarded else
-branch exhaustive. Hidden negative probes, nullable roles, stale snapshots and
-effectful helpers retain their questions. This changes advice, never authority.
-
-Read advice also recognizes successful require-only helpers and immutable parent/child copies established by every source constructor.
-These are source review facts, not database invariants or promises about imported rows; unknown ingress and mutable or stale relationships retain the question.
+Read-advice checks recognize bounded read-only role helpers and current captured role rows. A required enum on a total unique roster row can make a guarded else branch exhaustive. Hidden negative probes, nullable roles, stale snapshots and effectful helpers retain their questions. This changes advice, never authority.  Read advice also recognizes successful require-only helpers and immutable parent/child copies established by every source constructor. These are source review facts, not database invariants or promises about imported rows; unknown ingress and mutable or stale relationships retain the question.
