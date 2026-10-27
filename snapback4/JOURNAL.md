@@ -109716,3 +109716,9 @@ probe. LLP 3000.009.001.000 §5.1 records the corrected lifecycle contract.
 ## 2026-10-27 — CALLS1: image metadata and a quiet install join
 
 Wave 34 file options selected the document path on image-only schemas. The client now retries only the explicit pre-body no-file-column refusal through the existing media sniffer, using the same bytes and credentials; mixed/file schemas keep document semantics. Image bounds, placement and authorization remain enforced. The installer retains its private worker custody, puts npm chatter in its private log and gives --wait one final completion line; init promotes that blocking join instead of status polling. No version bump.
+
+CALLS1's explicitly requested MIME/name/size upload shape adds only optional advisory `UploadOptions.file.size`; the server still measures the bytes and the existing result/authority contract is unchanged. This is the scoped upload option acceptance authorized by the brief, not a client-contract redesign.
+
+## 2026-10-27 — CALLS1: context-verified diagnostic edits
+
+Quarry fix-its preserve source spans, compile the affected operation before offering an edit, and print a diff when applied. Optional bool conditions compare with true; nullable arithmetic propagates null or guards a positive condition, retaining the authored refusal code. Required insert columns are copied only from same-named parameters, never inferred owners/defaults. Whole-population bounds require structural non-null uniqueness before first 1; nullable unique ties remain advisory. The guard regression also covers nested arithmetic whose source map records only the containing comparison. Existing race/editor checks remain in the fixer. Runtime IR and security binder rules are untouched.

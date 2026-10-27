@@ -365,3 +365,37 @@ fn calibration_guide_cli_resolves_the_builders_words() {
         assert_eq!(String::from_utf8(output.stdout).unwrap().trim_end(), snapback4_lang::guide::card(target).unwrap().trim_end());
     }
 }
+
+#[test]
+fn wave34_nullable_bool_time_missing_insert_and_parameter_case_resolve_in_one_fix_run() {
+    // Wave 34 E_QUARRY_TYPE/UNKNOWN: nullable times and bools, and required
+    // insert columns already present as arguments. No default values invented.
+    for (bad, good) in [
+        ("query q(flag: bool ?):\n  if flag:\n    return 1\n  return 0\n", "query q(flag: bool ?):\n  if (flag) = true:\n    return 1\n  return 0\n"),
+        ("query q(flag: bool ?):\n  require flag else FLAG\n  return 1\n", "query q(flag: bool ?):\n  require (flag) = true else FLAG\n  return 1\n"),
+        ("query q(at: time ?):\n  return at + 1 -- café\n", "query q(at: time ?):\n  return (at + 1 if at != null else null) -- café\n"),
+        ("query q(at: time ?):\n  require at + 1 > now else LATE\n  return 1\n", "query q(at: time ?):\n  require at != null and (at + 1 > now) else LATE\n  return 1\n"),
+        ("query q(Title: text <=20):\n  return title\n", "query q(Title: text <=20):\n  return Title\n"),
+        ("table notes:\n  title: text <=20\n  public\nmutation add(title: text <=20):\n  return insert notes {}\n", "table notes:\n  title: text <=20\n  public\nmutation add(title: text <=20):\n  return insert notes { title }\n"),
+    ] {
+        let output = check_fix(&[("schema.q", bad, good)], true);
+        assert!(String::from_utf8_lossy(&output.stderr).contains("--- schema.q\n+++ schema.q"));
+        let again = check_fix(&[("schema.q", good, good)], true);
+        assert!(!String::from_utf8_lossy(&again.stderr).contains("fix:"));
+    }
+}
+
+#[test]
+fn wave34_fix_never_invents_security_defaults_or_population_limits() {
+    for source in [
+        "table notes:\n  owner: principal\n  insert <- .owner = viewer\n  read <- .owner = viewer\nmutation add():\n  insert notes {}\n",
+        "table notes:\n  public\nquery q():\n  return notes\n",
+        "table notes:\n  at: time\n  public\nmutation add(at: time ?):\n  insert notes {at: at + 1}\n",
+        "table notes:\n  flag: bool ?\n  read <- .flag\n",
+    ] {
+        let sources = vec![("schema.q".into(), source.into())];
+        let bound = snapback4_lang::compile(&sources);
+        assert!(!bound.diagnostics.is_empty());
+        assert!(bound.diagnostics.iter().all(|d| !d.mechanical), "{:?}", bound.diagnostics);
+    }
+}
