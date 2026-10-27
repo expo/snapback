@@ -6,7 +6,8 @@ import { synopsis } from "./cli-usage.js";
 // die together: SIGINT, SIGTERM and SIGHUP to this wrapper are forwarded, and
 // SIGKILL, which cannot be forwarded, still stops the binary: it is told this
 // wrapper's PID (SNAPBACK4_SUPERVISOR_PID) and exits when its parent is gone
-// (Linux: the kernel's parent-death signal; elsewhere within 250 ms). So a
+// (Linux: a checked kernel notification plus watchdog; Darwin: within 250 ms).
+// Both this wrapper and the binary also observe npm above surviving shells. So a
 // recorded PID of either stops the server; `GET /dev/status` reports both
 // (`pid` is the binary, `wrapperPid` this wrapper), and so does the stderr line
 // `SNAPBACK4_READY … url=… pid=… wrapperPid=…`.

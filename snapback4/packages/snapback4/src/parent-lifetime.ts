@@ -22,7 +22,7 @@ function capture(): Array<[number, string]> {
   let pid = process.ppid;
   for (let depth = 0; pid > 1 && depth < 32; depth++) {
     const entry = identity(pid);
-    if (!entry) break;
+    if (!entry) { watched.push([pid, '<unavailable>']); break; }
     const npm = /^(?:.*\/)?npm(?:\s|$)/.test(entry.command) || /(?:^|\/)npm-cli\.js(?:\s|$)/.test(entry.command);
     if (depth === 0 || npm) watched.push([pid, entry.birth]);
     if (npm) break;
@@ -36,7 +36,7 @@ const parents = capture();
 export function watchParent(onLost: () => void): () => void {
   let stopped = false;
   const check = () => {
-    if (!stopped && ((parent > 1 && process.ppid !== parent) || parents.some(([pid, birth]) => identity(pid)?.birth !== birth))) {
+    if (!stopped && ((parent <= 1 && !!process.env.npm_lifecycle_event) || (parent > 1 && process.ppid !== parent) || parents.some(([pid, birth]) => identity(pid)?.birth !== birth))) {
       stopped = true; clearInterval(timer); onLost();
     }
   };

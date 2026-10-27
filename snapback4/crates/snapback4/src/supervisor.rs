@@ -66,19 +66,29 @@ pub(crate) fn adopt() {
     let parent = unsafe { libc::getppid() } as u32;
     if let Some(pid) = supplied {
         if identity(pid).is_none() { std::process::exit(128 + libc::SIGTERM); }
-        SUPERVISOR.store(pid, Ordering::Release);
     }
-    if parent <= 1 { return; }
+    if parent <= 1 {
+        // A service manager may legitimately be PID 1. npm's environment,
+        // however, means a wrapper disappeared before native entry.
+        if host && std::env::var_os("npm_lifecycle_event").is_some() { std::process::exit(128 + libc::SIGTERM); }
+        return;
+    }
     PARENT.store(parent, Ordering::Release);
     let mut watched = Vec::new();
     if let Some((_, birth)) = identity(parent) { watched.push((parent, birth)); }
-    if let Some(pid) = supplied.filter(|pid| *pid != parent)
-        && let Some((_, birth)) = identity(pid) { watched.push((pid, birth)); }
     // npm can leave sh -c alive when only the npm PID is killed. Observe the
     // nearest npm ancestor too, without tying hosts to arbitrary ancestors.
     let mut next = parent;
     for _ in 0..32 {
-        let Some((ppid, birth)) = identity(next) else { break; };
+        let Some((ppid, birth)) = identity(next) else {
+            // An ancestor vanished while we captured launch custody.
+            unsafe { libc::kill(libc::getpid(), libc::SIGTERM); }
+            return;
+        };
+        if Some(next) == supplied {
+            SUPERVISOR.store(next, Ordering::Release);
+            if next != parent { watched.push((next, birth.clone())); }
+        }
         if npm(next) { if next != parent { watched.push((next, birth)); } break; }
         if ppid <= 1 { break; }
         next = ppid;
