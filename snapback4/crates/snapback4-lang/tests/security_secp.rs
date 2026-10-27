@@ -216,3 +216,17 @@ const SWEEP:&str="table docs:\n  status:enum('open','expired','done') default 'o
     let source="table docs:\n  stage:enum('quoted','approved') default 'quoted'\n  photo:image <=10000\n  read <- allow\n  update <- allow\n  online only\ntable alias:\n  stage:enum('quoted','approved')\n  read <- allow\n  update <- allow\n  online only\nfn change(first:docs,second:docs,flag:bool):\n  a=docs[first] ! else NO\n  b=docs[second] ! else NO\n  alias=a if flag else b\n  update alias {stage:'approved'}\n  return true\nmutation edit(doc:docs,other:docs,flag:bool,photo:image <=10000):\n  d=docs[doc] ! else NO\n  require d.stage = 'quoted' else NO\n  change(doc,other,flag)\n  update docs[doc] {photo}\n";
     assert!(notes(source).iter().any(|n|n.code=="N_EDIT_AFTER_APPROVAL"&&n.message.starts_with("edit:")));
 }
+#[test]fn exclusive_helper_arms_at_different_calls_can_both_execute(){
+    let source="table docs:\n  stage:enum('quoted','approved') default 'quoted'\n  flip:bool default true\n  photo:image <=10000\n  read <- allow\n  update <- allow\n  online only\nfn change(doc:docs,photo:image <=10000):\n  current=docs[doc] ! else NO\n  if current.flip:\n    update docs[doc] {stage:'approved',flip:false}\n  else:\n    update docs[doc] {photo}\n  return true\nmutation edit(doc:docs,photo:image <=10000):\n  d=docs[doc] ! else NO\n  require d.stage = 'quoted' else NO\n  change(doc,photo)\n  change(doc,photo)\n";
+    assert!(notes(source).iter().any(|n|n.code=="N_EDIT_AFTER_APPROVAL"&&n.message.starts_with("edit:")));
+}
+#[test]fn loop_backedges_can_change_a_captured_lifecycle_guard(){
+    let base="table docs:\n  stage:enum('quoted','approved') default 'quoted'\n  flip:bool default true\n  photo:image <=10000\n  read <- allow\n  update <- allow\n  online only\nmutation edit(doc:docs,photo:image <=10000):\n  d=docs[doc] ! else NO\n  require d.stage = 'quoted' else NO\n  for step in [1,2]:\n    current=docs[doc] ! else NO\nBODY";
+    for body in ["    if current.flip:\n      update docs[doc] {stage:'approved',flip:false}\n    else:\n      update docs[doc] {photo}\n", "    if not current.flip:\n      update docs[doc] {photo}\n    else:\n      update docs[doc] {stage:'approved',flip:false}\n"]{
+        assert!(notes(&base.replace("BODY",body)).iter().any(|n|n.code=="N_EDIT_AFTER_APPROVAL"));
+    }
+}
+#[test]fn a_loop_cannot_reuse_a_captured_paid_guard_after_consumption(){
+    let source="table receipts:\n  paid:bool default false\n  read <- allow\n  update <- allow\n  online only\ntable orders:\n  receipt:receipts\n  read <- allow\n  insert <- allow\n  online only\nmutation finish(receipt:receipts):\n  r=receipts[receipt] ! else NO\n  require r.paid else NOT_PAID\n  for step in [1,2]:\n    insert orders {receipt}\n    update receipts[receipt] {paid:false}\n";
+    assert!(notes(source).iter().any(|n|n.code=="N_GUARD_NOT_CONSUMED"));
+}

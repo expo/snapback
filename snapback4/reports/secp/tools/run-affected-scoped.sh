@@ -4,6 +4,7 @@
 set -euo pipefail
 export PATH="/home/ccheever/.bun-1.4.2/bin:$PATH"
 repo=$(git rev-parse --show-toplevel)
+export SECP_REPO="$repo"
 secp_guard_dir=$(mktemp -d /tmp/secp-affected-scope.XXXXXX)
 trap 'rm -rf "$secp_guard_dir"' EXIT
 export SECP_REAL_CARGO=$(command -v cargo)
@@ -11,6 +12,10 @@ export SECP_REAL_NODE=$(command -v node)
 cat > "$secp_guard_dir/cargo" <<'GUARD'
 #!/usr/bin/env bash
 set -euo pipefail
+if [[ $PWD != "$SECP_REPO/snapback4"* && ${1:-} != metadata && ${1:-} != --version ]]; then
+  echo 'SECP_SCOPE_BLOCK: legacy workspace builds are outside the Snapback 4 fence.' >&2
+  exit 95
+fi
 if [[ ${1:-} == test ]]; then
   secp_package=''
   secp_previous=''
