@@ -6,9 +6,9 @@ def failed(summary):
 def canonical(value):
  return json.dumps(value,sort_keys=True,separators=(',',':'),ensure_ascii=False,allow_nan=False).encode()
 def envelope(parsed,mode,exit):
- if mode in ['check','review']:return dict(exit=exit,ok=parsed.get('ok'),reviews=parsed.get('securityReviews'),report=parsed.get('security'),notes=parsed.get('notes'),newNotes=parsed.get('newNotes'))
+ if mode in ['check','review']:return dict(exit=exit,ok=parsed.get('ok'),reviews=parsed.get('securityReviews'),report=parsed.get('security'),notes=parsed.get('notes'),newNotes=parsed.get('newNotes'),acknowledgedNotes=parsed.get('acknowledgedNotes'),acknowledgmentNotApplied=parsed.get('acknowledgmentNotApplied'),problems=parsed.get('problems'),denied=parsed.get('denied'))
  security=parsed.get('security') or {};security=json.loads(security)if isinstance(security,str)else security
- return dict(exit=exit,fixes=security.get('fixes'),pending=security.get('pending'),reviews=security.get('securityReviews'),report=security.get('report'),denied=parsed.get('denied'))
+ return dict(exit=exit,security=security,denied=parsed.get('denied'))
 # Comparison controls retain scalar types, complete payloads and array order.
 if __import__('sys').argv[1:]==['--self-test']:
  original=dict(witness=dict(id='same',viewer='caller',args=dict(approved=True),history=[1,2]))
@@ -23,6 +23,10 @@ if __import__('sys').argv[1:]==['--self-test']:
  payload=dict(ok=True,securityReviews=[dict(id='actual-question',witness={'history':[1,2]})],security=dict(verdicts=['proved']),notes=['actual'],newNotes=[])
  assert canonical(envelope(payload,'review',0))==canonical(envelope(payload,'check',0))
  assert envelope(payload,'review',0)['reviews']==payload['securityReviews']
+ deploy=dict(security=dict(verdict='FIX',fixes=1,pending=True,changedNotes=3,report={'status':'refuted'},securityReviews=[original]))
+ assert envelope(deploy,'staging',1)['security']==deploy['security']
+ altered=json.loads(json.dumps(deploy));altered['security']['verdict']='OK'
+ assert canonical(envelope(deploy,'staging',1))!=canonical(envelope(altered,'staging',1))
  assert failed(dict(toolFailures=[],inputMismatches=[],mismatches=[dict(changed='payload')]))
  assert not failed(dict(toolFailures=[],inputMismatches=[],mismatches=[]))
  print('canonical comparator: 8 negative/ordering controls and acceptance failure control pass');raise SystemExit(0)
