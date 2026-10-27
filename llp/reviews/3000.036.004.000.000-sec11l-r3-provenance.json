@@ -1,0 +1,15 @@
+{
+  "commit": "559c526316",
+  "brief": "Fresh independent delta review of committed 559c526316 in /home/ccheever/projects/sb4-b31-sec11l. Read git show 559c526316:llp/3000.036.004.000.000-production-security-replay-latency.rfc.md and git show 559c526316:snapback4/reports/sec11-latency/tools/{authored_witnesses.py,compare_witnesses.py,compare.py,affected-scoped.mjs} (expand each path). Product Rust source is unchanged since 345f03b27e. Review only the measurement-tool/amendment delta 345f03b27e..559c526316: the supplemental capture now selects the union across repeatable --survey arguments, captures all authored/derived/enforced counterexamples for every schema with any FIX, and an explicit comparator checks complete payloads without field/scalar normalization and publishes only hashes/changed-field names. Are union selection, all-payload capture, key-set comparison and privacy/claim boundaries correct? Can a changed caller/argument/row/history be missed? Do not assume measurements passed; they are in progress. Do not edit, build, run suites or access other worktrees. Give MATERIAL blockers or READY. This is source qualification only, not a latency or survey PASS. The pipeline must use the same union on both binaries and report initial tool failures/retries honestly.\n",
+  "reviews": {
+    "muse": {
+      "model": "muse-spark-1.3-contributor high via muse-exec.sh",
+      "sha256": "214ed2948e570b6f1e04dd7c1b8e8983b8bb2e02e7641c6bcda0f1e1494690bd"
+    },
+    "codex": {
+      "model": "gpt-6.1-sol high, fresh codex exec",
+      "sha256": "fe20e9ba35d4558c7f08d2070a95ac4920b0ea5406a8a1e50f7e87463149213e"
+    }
+  },
+  "resolution": "Muse READY. Codex regex blocker is a disproved escaping misread; actual source selects21 integrations, independently confirmed by fresh round4 without a code change."
+}

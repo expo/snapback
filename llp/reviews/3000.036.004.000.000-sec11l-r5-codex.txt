@@ -1,0 +1,7 @@
+READY — no MATERIAL blockers found in `e91520124d` versus `559c526316`.
+
+- Fork construction preserves captured metadata, memory accounting, QPSG, read-session detection and independent asset bytes.
+- Pending evidence requires the actual equal note vector and joined report; mismatch recollects. Non-strict staging and post-join race checks remain intact.
+- Supplemental aliases preserve asset facts, equality edges, ordinary IDs and opaque strings. Tiny pure checks detected changed callers, arguments, rows and histories. All 23 metadata hashes matched source bytes; available captures matched corresponding survey FIX sites and exits.
+
+The protocol selects FIX-bearing keys from both surveys. Final union/capture validation, the 800-schema comparison and production/performance qualification remain pending. No edits, builds or suites were run.
