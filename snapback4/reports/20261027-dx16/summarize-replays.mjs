@@ -30,8 +30,11 @@ for(const phase of ['before','after'])for(const id of ['001','022','011','021'])
  if(meta.model==='codex'){
   const usage=events.filter(e=>e.type==='turn.completed').at(-1)?.usage;if(!usage)continue;input=usage.input_tokens;cached=usage.cached_input_tokens;
   const thread=events.find(e=>e.type==='thread.started').thread_id;
-  const folder=join(process.env.HOME,'.codex/sessions/2026/10/27'),session=readdirSync(folder).find(p=>p.endsWith(thread+'.jsonl'));
-  const counts=parsed(join(folder,session)).filter(e=>e.type==='event_msg'&&e.payload?.type==='token_count'&&e.payload.info);
+  const stored=join(dir,`${phase}-${id}-usage.json`);
+  const counts=existsSync(stored)?JSON.parse(readFileSync(stored)).tokenCounts.map(e=>({payload:{info:e.info}})):(()=>{
+   const folder=join(process.env.HOME,'.codex/sessions/2026/10/27'),session=readdirSync(folder).find(p=>p.endsWith(thread+'.jsonl'));
+   return parsed(join(folder,session)).filter(e=>e.type==='event_msg'&&e.payload?.type==='token_count'&&e.payload.info);
+  })();
   calls=new Map(counts.map(e=>[e.payload.info.total_token_usage.input_tokens,e.payload.info])).size;native={threadId:thread,usage};
   for(const e of events)if(e.type==='item.completed'&&e.item?.type==='command_execution'&&(docCommand(e.item.command??'')||helpOrCheck(e.item.command??''))){
    const output=e.item.aggregated_output??'';automatic+=encoding.encode(attributedOutput(e.item.command,output,true)).length;const tokens=encoding.encode(attributedOutput(e.item.command,output)).length;const conservative=encoding.encode(output).length;docs+=tokens;upper+=conservative;reads.push({command:e.item.command,tokens,batchedUpperBound:conservative});
