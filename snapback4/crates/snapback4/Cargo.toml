@@ -33,6 +33,9 @@ oxc_ast_visit = "=0.154.0"
 oxc_parser = { version = "=0.154.0", default-features = false }
 oxc_span = "=0.154.0"
 
+[target.'cfg(target_os = "linux")'.dependencies]
+mimalloc = { version = "=0.1.52", features = ["secure"] }
+
 [dev-dependencies]
 snapback4-core = { path = "../snapback4-core", default-features = false, features = ["test-support"] }
 rusqlite = { version = "0.40.2", features = ["bundled", "hooks", "trace"] }

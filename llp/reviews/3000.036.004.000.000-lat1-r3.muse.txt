@@ -1,0 +1,14 @@
+muse: workspace root: /home/ccheever/projects/sb4-b34-lat1 (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY.
+
+The `fc60760054..HEAD` committed delta is comparator-only: [measure.py](/home/ccheever/projects/sb4-b34-lat1/snapback4/reports/lat1/measure.py) plus the verbatim round-2 review records. No runtime/source file is touched, so the `fc60760054` product state (Muse READY, no remaining product defect) is preserved unchanged.
+
+Correction verified against the governing amendment ([LLP 3000.036.004.000.000](llp/3000.036.004.000.000-production-security-replay-latency.rfc.md) §Measurement: compare canonical JSON bytes, no scalar scrubbed or normalized):
+
+- `canonical()` (`sort_keys`, compact separators, `allow_nan=False`) distinguishes `true`/`1`/`1.0` as distinct bytes, and both comparison sites (pair equality and per-field changed-field reporting) now use it. This resolves the fresh-Codex round-2 NOT READY defect exactly; no other Codex finding existed.
+- `measure.py --self-test` passes in this session: `canonical comparator: 8 negative/ordering controls pass`. The eight controls are real: `True` vs `1`, `1.0`, `False`; viewer/history-order/id changes; key-order equality; `1` vs `1.0` inequality.
+- Identity extraction (`envelope()`) is unchanged by this delta, passes complete `securityReviews`/`report`/`fixes`/`pending`/`denied`/`notes`/`exit` payloads with no scrubbing, and file copies are byte copies. Nothing required (gates, question/decision/witness IDs, FIX identities, refusals, exits) is omitted or normalized at the top-level selection; whole transcript exclusion is per the amendment.
+
+No material correctness or claim defects. No performance claim is granted: the 940-schema comparison and paired production measurements remain pending. (Uncommitted `WORKSTREAM-REPORT.md` working-tree edits are outside this committed delta and not reviewed.)
+

@@ -3,6 +3,11 @@
 //! client's types; `dev` serves it and re-adopts it on every save; `run`,
 //! `test`, `why`, `guide`, `doctor`, `data` and `init` do what they say.
 
+// @ref LLP 3000.036.004.000.000#linux-allocator — avoid static-libc contention between independent campaigns.
+#[cfg(target_os = "linux")]
+#[global_allocator]
+static ALLOCATOR: mimalloc::MiMalloc = mimalloc::MiMalloc;
+
 mod client_compatibility;
 mod witness_socket;
 mod listen_refusal;
