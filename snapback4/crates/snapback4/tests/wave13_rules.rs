@@ -215,7 +215,7 @@ fn diagnostic_recipe_selectors_open_the_named_recipe() {
         ("role-workflow","## End-to-end role workflow"),
         ("update-images","## Update images and the two authorization layers"),
     ] {
-        let out=Command::new(BIN).args(["guide","rule-recipes",name]).output().unwrap();
+        let out=Command::new(BIN).args(["guide","rule-recipes",name,"--repeat"]).output().unwrap();
         assert!(out.status.success(),"{name}: {out:?}");
         let text=String::from_utf8(out.stdout).unwrap();
         assert!(text.contains(heading),"{name}: {text}");

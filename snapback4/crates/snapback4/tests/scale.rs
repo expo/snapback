@@ -142,7 +142,8 @@ fn the_guide_and_readme_describe_three_classes() {
     assert!(bounds.contains("with `backlog: true` on a site that background cleanup removes"), "{bounds}");
     assert!(bounds.contains("A scan of the owned feed table with a filter of your own grows"), "{bounds}");
     let readme = flat(include_str!("../../../packages/snapback4/README.md"));
-    assert!(readme.contains("**constant**") && readme.contains("**constant once background cleanup catches up**") && readme.contains("**grows with**"), "the README names three classes");
+    assert!(readme.contains("guide start") && readme.contains("CLIENT-AND-OPERATIONS.md"), "the short README routes to start and the optional reference");
+    assert!(bounds.contains("class: constant") && bounds.contains("class: backlog") && bounds.contains("class: grows"), "the authoritative bounds card names all three classes: {bounds}");
 }
 
 const READS: &str = r#"
