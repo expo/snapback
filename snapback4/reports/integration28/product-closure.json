@@ -1,0 +1,459 @@
+{
+  "rawInitialClientFailedFiles": [
+    "packages/snapback4/test/api-index.test.mjs",
+    "packages/snapback4/test/dx11-picker.test.mjs",
+    "packages/snapback4/test/expo-session-store.test.mjs",
+    "packages/snapback4/test/first-account.test.mjs",
+    "packages/snapback4/test/init-recipe.test.mjs",
+    "packages/snapback4/test/lang4-guide.test.mjs",
+    "packages/snapback4/test/init-typecheck.test.mjs",
+    "packages/snapback4/test/pubfix29b.test.mjs",
+    "packages/snapback4/test/periphery.test.mjs",
+    "packages/snapback4/test/qualify-linux.test.mjs",
+    "packages/snapback4/test/react.test.mjs",
+    "packages/snapback4/test/readme-examples.test.mjs",
+    "packages/snapback4/test/wave10-starters.test.mjs",
+    "packages/snapback4/test/wave11-init.test.mjs",
+    "packages/snapback4/test/delivery-fault-matrix.test.mjs",
+    "packages/snapback4/test/wave12-kit.test.mjs",
+    "packages/snapback4/test/wave9-dx.test.mjs",
+    "packages/snapback4/test/social-starter.test.mjs",
+    "packages/snapback4/test/export-background.test.mjs",
+    "packages/snapback4/test/export-maintenance-wakeup.test.mjs"
+  ],
+  "finalClientFailedFileClosureComplete": true,
+  "unresolvedClientFailedFiles": [],
+  "finalTargetedClientSummary": [
+    "-- client files: 20/20; failed 0; tests {\"tests\":758,\"pass\":758,\"fail\":0,\"cancelled\":0,\"skipped\":0,\"todo\":0}"
+  ],
+  "timerWholeFileSummary": [
+    "-- client files: 2/2; failed 0; tests {\"tests\":126,\"pass\":92,\"fail\":0,\"cancelled\":0,\"skipped\":34,\"todo\":0}"
+  ],
+  "completeCLIRunTargets": [
+    {
+      "target": "unittests src/main.rs",
+      "passCount": 669,
+      "failCount": 5,
+      "ignored": 75
+    },
+    {
+      "target": "tests/aggregate_identity_upgrade.rs",
+      "passCount": 0,
+      "failCount": 0,
+      "ignored": 4
+    },
+    {
+      "target": "tests/check.rs",
+      "passCount": 107,
+      "failCount": 0,
+      "ignored": 0
+    },
+    {
+      "target": "tests/check_cost_source.rs",
+      "passCount": 10,
+      "failCount": 0,
+      "ignored": 0
+    },
+    {
+      "target": "tests/check_notes.rs",
+      "passCount": 15,
+      "failCount": 0,
+      "ignored": 0
+    },
+    {
+      "target": "tests/cli_friction.rs",
+      "passCount": 39,
+      "failCount": 1,
+      "ignored": 0
+    },
+    {
+      "target": "tests/clock.rs",
+      "passCount": 45,
+      "failCount": 0,
+      "ignored": 0
+    },
+    {
+      "target": "tests/column_commit.rs",
+      "passCount": 1,
+      "failCount": 0,
+      "ignored": 0
+    },
+    {
+      "target": "tests/committer_ratchet.rs",
+      "passCount": 3,
+      "failCount": 0,
+      "ignored": 0
+    },
+    {
+      "target": "tests/day3.rs",
+      "passCount": 20,
+      "failCount": 0,
+      "ignored": 0
+    },
+    {
+      "target": "tests/day4.rs",
+      "passCount": 6,
+      "failCount": 0,
+      "ignored": 0
+    },
+    {
+      "target": "tests/day5_evidence.rs",
+      "passCount": 9,
+      "failCount": 0,
+      "ignored": 0
+    },
+    {
+      "target": "tests/day5_previews.rs",
+      "passCount": 7,
+      "failCount": 0,
+      "ignored": 0
+    },
+    {
+      "target": "tests/day5_starters.rs",
+      "passCount": 8,
+      "failCount": 0,
+      "ignored": 0
+    },
+    {
+      "target": "tests/delivery_page.rs",
+      "passCount": 1,
+      "failCount": 0,
+      "ignored": 0
+    },
+    {
+      "target": "tests/dev_refusals.rs",
+      "passCount": 27,
+      "failCount": 0,
+      "ignored": 0
+    },
+    {
+      "target": "tests/dev_reset.rs",
+      "passCount": 4,
+      "failCount": 0,
+      "ignored": 0
+    },
+    {
+      "target": "tests/dx11.rs",
+      "passCount": 10,
+      "failCount": 0,
+      "ignored": 0
+    },
+    {
+      "target": "tests/dx11_refusals.rs",
+      "passCount": 2,
+      "failCount": 0,
+      "ignored": 0
+    },
+    {
+      "target": "tests/dx12_output.rs",
+      "passCount": 2,
+      "failCount": 0,
+      "ignored": 0
+    },
+    {
+      "target": "tests/dx13.rs",
+      "passCount": 5,
+      "failCount": 0,
+      "ignored": 0
+    },
+    {
+      "target": "tests/dx14_output.rs",
+      "passCount": 3,
+      "failCount": 0,
+      "ignored": 0
+    },
+    {
+      "target": "tests/dx15_inspection.rs",
+      "passCount": 1,
+      "failCount": 0,
+      "ignored": 0
+    },
+    {
+      "target": "tests/dx7_gates.rs",
+      "passCount": 1,
+      "failCount": 0,
+      "ignored": 0
+    },
+    {
+      "target": "tests/expiry_writes.rs",
+      "passCount": 41,
+      "failCount": 0,
+      "ignored": 0
+    },
+    {
+      "target": "tests/familiar.rs",
+      "passCount": 3,
+      "failCount": 0,
+      "ignored": 0
+    },
+    {
+      "target": "tests/feed_bridge.rs",
+      "passCount": 13,
+      "failCount": 0,
+      "ignored": 0
+    },
+    {
+      "target": "tests/fix.rs",
+      "passCount": 27,
+      "failCount": 0,
+      "ignored": 0
+    },
+    {
+      "target": "tests/following_view.rs",
+      "passCount": 3,
+      "failCount": 0,
+      "ignored": 0
+    },
+    {
+      "target": "tests/http.rs",
+      "passCount": 11,
+      "failCount": 0,
+      "ignored": 0
+    },
+    {
+      "target": "tests/http_emfile.rs",
+      "passCount": 12,
+      "failCount": 0,
+      "ignored": 0
+    },
+    {
+      "target": "tests/init.rs",
+      "passCount": 56,
+      "failCount": 0,
+      "ignored": 0
+    },
+    {
+      "target": "tests/init_dx3.rs",
+      "passCount": 7,
+      "failCount": 0,
+      "ignored": 0
+    },
+    {
+      "target": "tests/init_production.rs",
+      "passCount": 14,
+      "failCount": 0,
+      "ignored": 0
+    },
+    {
+      "target": "tests/intent_issue_tracker.rs",
+      "passCount": 13,
+      "failCount": 0,
+      "ignored": 0
+    },
+    {
+      "target": "tests/latency.rs",
+      "passCount": 21,
+      "failCount": 0,
+      "ignored": 0
+    },
+    {
+      "target": "tests/lifecycle.rs",
+      "passCount": 29,
+      "failCount": 0,
+      "ignored": 0
+    },
+    {
+      "target": "tests/maintenance_chunks.rs",
+      "passCount": 5,
+      "failCount": 0,
+      "ignored": 0
+    },
+    {
+      "target": "tests/maintenance_latency.rs",
+      "passCount": 0,
+      "failCount": 0,
+      "ignored": 4
+    },
+    {
+      "target": "tests/overload.rs",
+      "passCount": 2,
+      "failCount": 0,
+      "ignored": 0
+    },
+    {
+      "target": "tests/read_latency.rs",
+      "passCount": 0,
+      "failCount": 0,
+      "ignored": 2
+    },
+    {
+      "target": "tests/replay.rs",
+      "passCount": 24,
+      "failCount": 0,
+      "ignored": 0
+    },
+    {
+      "target": "tests/roll_views.rs",
+      "passCount": 58,
+      "failCount": 0,
+      "ignored": 0
+    },
+    {
+      "target": "tests/run_admission.rs",
+      "passCount": 28,
+      "failCount": 0,
+      "ignored": 0
+    },
+    {
+      "target": "tests/scale.rs",
+      "passCount": 29,
+      "failCount": 0,
+      "ignored": 0
+    },
+    {
+      "target": "tests/scale_curves.rs",
+      "passCount": 2,
+      "failCount": 0,
+      "ignored": 0
+    },
+    {
+      "target": "tests/scale_extremum_expressions.rs",
+      "passCount": 22,
+      "failCount": 0,
+      "ignored": 0
+    },
+    {
+      "target": "tests/scale_intent.rs",
+      "passCount": 17,
+      "failCount": 0,
+      "ignored": 0
+    },
+    {
+      "target": "tests/scale_row_ranges.rs",
+      "passCount": 14,
+      "failCount": 0,
+      "ignored": 0
+    },
+    {
+      "target": "tests/scale_variants.rs",
+      "passCount": 36,
+      "failCount": 0,
+      "ignored": 0
+    },
+    {
+      "target": "tests/scale_windows_expiry.rs",
+      "passCount": 16,
+      "failCount": 0,
+      "ignored": 0
+    },
+    {
+      "target": "tests/security_reviews.rs",
+      "passCount": 5,
+      "failCount": 0,
+      "ignored": 0
+    },
+    {
+      "target": "tests/security_wave19.rs",
+      "passCount": 11,
+      "failCount": 0,
+      "ignored": 0
+    },
+    {
+      "target": "tests/store_handle_census.rs",
+      "passCount": 6,
+      "failCount": 0,
+      "ignored": 0
+    },
+    {
+      "target": "tests/store_port_ratchet.rs",
+      "passCount": 9,
+      "failCount": 0,
+      "ignored": 0
+    },
+    {
+      "target": "tests/surf4.rs",
+      "passCount": 20,
+      "failCount": 0,
+      "ignored": 0
+    },
+    {
+      "target": "tests/timeline.rs",
+      "passCount": 23,
+      "failCount": 0,
+      "ignored": 0
+    },
+    {
+      "target": "tests/timeline_adoption.rs",
+      "passCount": 15,
+      "failCount": 0,
+      "ignored": 0
+    },
+    {
+      "target": "tests/timeline_delivery.rs",
+      "passCount": 1,
+      "failCount": 0,
+      "ignored": 0
+    },
+    {
+      "target": "tests/timeline_delivery_counterexample.rs",
+      "passCount": 1,
+      "failCount": 0,
+      "ignored": 0
+    },
+    {
+      "target": "tests/timeline_design.rs",
+      "passCount": 2,
+      "failCount": 0,
+      "ignored": 0
+    },
+    {
+      "target": "tests/tok1.rs",
+      "passCount": 4,
+      "failCount": 0,
+      "ignored": 0
+    },
+    {
+      "target": "tests/token_live.rs",
+      "passCount": 23,
+      "failCount": 0,
+      "ignored": 0
+    },
+    {
+      "target": "tests/wave13_rules.rs",
+      "passCount": 9,
+      "failCount": 0,
+      "ignored": 0
+    },
+    {
+      "target": "tests/wave26_security.rs",
+      "passCount": 10,
+      "failCount": 0,
+      "ignored": 0
+    },
+    {
+      "target": "tests/witness.rs",
+      "passCount": 34,
+      "failCount": 0,
+      "ignored": 0
+    },
+    {
+      "target": "tests/witness_web.rs",
+      "passCount": 1,
+      "failCount": 0,
+      "ignored": 0
+    },
+    {
+      "target": "tests/work_records.rs",
+      "passCount": 1,
+      "failCount": 0,
+      "ignored": 0
+    },
+    {
+      "target": "tests/written_by.rs",
+      "passCount": 1,
+      "failCount": 0,
+      "ignored": 0
+    }
+  ],
+  "cliClosure": {
+    "unit": "final-scoped receipt: 674 pass / 75 ignored, same whole target after pass-alone flake controls",
+    "cli_friction": "final-scoped receipt: 40 pass",
+    "allOtherTargets": "passed in actual complete CLI run; exact per-target results above"
+  },
+  "otherRustClosures": {
+    "device readauth": "88 pass in readauth-final.log",
+    "lang": "all five initially failed targets pass final scoped receipt or list-final.log; guide additionally passes 130",
+    "sim clique": "254 pass / 1 ignored in final scoped receipt"
+  },
+  "note": "Composed affected product closure, not a rewritten initial/full-suite receipt. Green targets reused only when semantic inputs unchanged. Lean oracle disagreements separately retained."
+}

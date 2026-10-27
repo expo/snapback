@@ -275,7 +275,9 @@ fn cards_pin_retirement_and_newest_first_column_recipe() {
     assert!(source.contains("by byHourLikes: hour(at), likeCount, at, id\n"));
     assert!(feeds.split_whitespace().collect::<Vec<_>>().join(" ").contains("Equal scores put the newest post first"));
     let readme = include_str!("../../../packages/snapback4/README.md").split_whitespace().collect::<Vec<_>>().join(" ");
-    assert!(readme.contains("`guide maintains`") && readme.contains("`guide feeds`"), "the orientation reaches both complete references");
+    assert!(readme.contains("./CLIENT-AND-OPERATIONS.md"));
+    let links=include_str!("../../../packages/snapback4/CLIENT-AND-OPERATIONS.md");
+    assert!(links.contains("guide maintains") && links.contains("guide feeds"), "the linked reference reaches both complete cards");
     // The complete ordering law above and the recipe's key now live on these linked cards.
     let reference = format!("{maintains} {}", feeds.split_whitespace().collect::<Vec<_>>().join(" "));
     assert!(reference.contains("by byHourLikes: hour(at), likeCount, at, id") && reference.contains("Equal scores put the newest post first"));

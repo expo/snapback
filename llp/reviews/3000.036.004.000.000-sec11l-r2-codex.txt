@@ -1,0 +1,10 @@
+**READY** — no MATERIAL source blockers found in `345f03b27e6cdd2f9b218828a9219fe5d4981fa0` against `1f9b2610d3`.
+
+- Campaign threads preserve independent replay-ID scopes, budgets, internal ordering, live-only payloads and isolated state; reduction retains serial order.
+- Report reuse is limited to the same-invocation production/strict-staging report. Non-strict staging retains its separate production campaign.
+- Batching preserves proposal order, duplicates and sites, with independent-compilation fallback on diagnostics or count mismatch.
+- Backup-before-prepare preserves prior fork accounting, captured state, read-session detection and asset isolation.
+- Telemetry performs sink I/O after command completion and rejects FIFO, symlink and device sinks on supported Unix platforms.
+- The comparator retains classifier decision/witness fields without scalar normalization. The supplemental capture supplies complete serialized authored counterexamples for the separate comparison, addressing the prior projection gap.
+
+Read-only review; no edits, builds, suites or other worktrees. Latency targets and the 800-schema comparison remain unqualified pending their results.

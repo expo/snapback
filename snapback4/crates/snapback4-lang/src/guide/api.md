@@ -1,7 +1,6 @@
 # API: what each package subpath exports
 
-The `snapback4` package has one subpath per job, and the generated `api` object names your operations.
-This index lists each subpath's functions, hooks and main types; their editors show the full signatures.
+Look up exact module signatures on demand before opening declaration files.
 
 ```ts
 import { createApp } from "snapback4/app";
@@ -23,7 +22,7 @@ type and `Ops` the handles' types; `RowOf<typeof api.op>`, `ArgsOf<…>` and `Re
 | `snapback4/app` | the app object: identity, client lifetime, pending writes | `createApp` | `App`, `AppOptions`, `AppAuth`, `AuthState`, `Online` |
 | `snapback4/react` | React and React Native hooks | `AppProvider`, `SignedIn`, `QueryRefusal`, `ReadState`, `useAuth`, `useAppReady`, `useRelease`, `useClient`, `useViewer`, `useSignedInViewer`, `usePersonaApp`, `useSession`, `useQueryData`, `useQueryResult`, `useQuery`, `usePage`, `useFollowing`, `useMutation`, `useAction`, `useAsset`, `useSaveAsset`, `useUpload`, `useLink`, `useOnline`, `useNow`, `useAcquired`, `useAcquisition`, `usePendingWrite`, `usePendingWrites`, `usePendingItems`, `usePendingState`, `useSeen`, `useInspection`, `SnapbackProvider`; and the `snapback4/contract` guards | `UseQuery`, `UsePage`, `ReadHookOptions` (`{ keep, skip }`), `UseAction`, `UseMutation`, `WriteHook`, `MutationHook`, `Outcome`, `AssetState`, `PendingItem` |
 | `snapback4/contract` | reading answers: the types every tier shares | `matchRead`, `matchReadList`, `otherwiseAll` (one fallback for every state the call does not name; named handlers win in any order), `isReady`, `isPresent`, `isLoading`, `isDenied`, `isFailed` (an outcome, a hook by its latest one, or an unknown value), `sentResult` (a write's fresh result, if any), `existence`, `readPresentation` | `Read`, `Ready`, `SettledRead`, `Refusal`, `Write`, `Outcome`, `PendingWrite`, `Query`, `Mutation`, `Action`, `RowOf`, `ArgsOf`, `ResultOf`, `Cursor`, `Principal`, `Client` |
-| `snapback4/client` | the online client without a device (scripts, tests, servers) | `createClient`, `mintId`, `idFrom`, `saveAsset` | `Client`, `ClientOptions`, `Session`, `Saved` |
+| `snapback4/client` | the online client without a device (scripts, tests, servers) | `createClient`, `mintId`, `idFrom`, `saveAsset`, `settleMutation` | `Client`, `ClientOptions`, `Session`, `Saved` |
 | `snapback4/web` | the device in the browser (wasm) | `webDevice`, `indexedDbPersistence`, `memoryPersistence` | `WebDeviceOptions`, `Persistence` |
 | `snapback4/local` | a local-first client over a device you open | `createLocalClient`, `DeviceVersionError`, `uploadAndPlace`, `hasUploads`, `blobArrayBuffer` | `LocalOptions`, `LocalClient`, `DeviceOpener` |
 | `snapback4/native` | the device as a process, from Node | `processDevice` | `ProcessDeviceOptions` |
@@ -43,10 +42,15 @@ Expo starters load `snapback4-expo/metro` and `snapback4-expo/native-smoke` from
 | `snapback4/server` | `use server` handlers: actions and routes (`guide actions`) | `startServer`, `ServerError`, `ParkStep` | `ServerOptions`, `ServerHandlers`, `RouteHandler`, `ServerContext` |
 | `snapback4/identity` | an OIDC sign-in adapter for `use server` | `oidcHandlers` | `OidcConfiguration`, `OidcSession` |
 | `snapback4/witness-web` | Exported browser proof registration | `registerWebWitness`, `witnessForm`, `webWitnessObserverScript` | `WitnessReason` |
-| `snapback4/proof` | bounded backend, frontend and browser application proofs | `startDev`, `startServe`, `serveUntilSignal`, `serveCheck`, `withServeScript`, `devAccounts`, `provisionAccounts`, `seedAccounts`, `startStatic`, `startVite`, `loadFixtures`, `cli`, `command`, `deploy`, `rollback`, `testSource`, `bounded`, `cleanup`, `stopChild`, `portRange`, `withBrowser`, `sandboxUnavailable`, `renderedText`, `frontPage`, `logsDir`, `waitForClock`, `waitForFresh`, `waitForServer`, `exhaustPages`, `fillRN`, `statusText`, `selectByValue` | `ProofHost`, `DevHost`, `ServeHost`, `ServeOptions`, `SeedAccountsOptions`, `StagingAccount`, `StagingSessions`, `ProvisionAccountsOptions`, `ProvisionedAccount`, `ProvisionedSessions`, `ServeScriptReady`, `ServeCheckOptions`, `ServeCheckReport`, `ProofOptions`, `CliResult`, `TestSourceOptions`, `TestSourceResult`, `FixtureRow`, `LoadFixturesOptions` |
+| `snapback4/proof` | bounded backend, frontend and browser application proofs | `startDev`, `startServe`, `serveUntilSignal`, `serveCheck`, `withServeScript`, `devAccounts`, `provisionAccounts`, `seedAccounts`, `startStatic`, `startVite`, `loadFixtures`, `cli`, `command`, `deploy`, `rollback`, `testSource`, `bounded`, `cleanup`, `stopChild`, `portRange`, `withBrowser`, `sandboxUnavailable`, `renderedText`, `frontPage`, `logsDir`, `waitForClock`, `waitForFresh`, `waitForServer`, `exhaustPages`, `snapshotAll`, `probeServeGuard`, `fillRN`, `statusText`, `selectByValue`, `labelledControl` | `ProofHost`, `DevHost`, `ServeHost`, `ServeOptions`, `SeedAccountsOptions`, `StagingAccount`, `StagingSessions`, `ProvisionAccountsOptions`, `ProvisionedAccount`, `ProvisionedSessions`, `ServeScriptReady`, `ServeCheckOptions`, `ServeCheckReport`, `ProofOptions`, `CliResult`, `TestSourceOptions`, `TestSourceResult`, `FixtureRow`, `LoadFixturesOptions` |
 | `snapback4/bin-path` | the platform binary, to spawn `dev` or `serve` without the Node wrapper | `resolveBinary` | |
 
 Each subpath's code and types ship under `node_modules/snapback4/dist/`: `snapback4/react` is `dist/react.js`
 beside `dist/react.d.ts`, and `snapback4/bin-path` is `dist/bin-path.js`. The CLI is `node_modules/.bin/snapback4`.
 
 Release compatibility: `snapback4/react` exports `useRelease`; `snapback4/contract` exports `operationAvailable`. Generated handles inline the same check once per file; generated modules import only package types. Generated `server(startServer, handlers, options?)` takes the runtime imported by your application from `snapback4/server`. `guide deploy` covers the saved-baseline opt-in.
+
+
+## Signature digests
+
+`guide api proof`, `guide api client`, `guide api auth` are generated from dist declarations at build time (at most 3,000 tokens each). `guide api generated` reads the checked project operation index. Starter script headers point here.

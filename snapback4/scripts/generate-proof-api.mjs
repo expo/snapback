@@ -37,7 +37,7 @@ export function proofApi() {
   }
   return '## Proof API (generated from source)\n\nEvery runtime and type export of `snapback4/proof` is listed below. Signatures, result fields and failure reasons are generated from TypeScript declarations and their @throws comments; qualification checks this table against the source. Playwright types such as Page and Locator come from playwright-core.\n\n| Signature | Result / fields | Failure reasons |\n|---|---|---|\n'+functions.join('\n')+'\n\n| Exported type | Fields |\n|---|---|\n'+types.join('\n')+'\n';
 }
-const path=resolve(root,'crates/snapback4-lang/src/guide/proof_api.md');
+const path=resolve(root,'crates/snapback4-lang/src/guide/proof_api_reference.md');
 const output=proofApi();
 if(process.argv.includes('--check')) {if(readFileSync(path,'utf8')!==output) throw Error('proof API table is stale; run node scripts/generate-proof-api.mjs');}
 else writeFileSync(path,output);

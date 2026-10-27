@@ -169,6 +169,10 @@ try {
   const exact = existsSync(join(root, 'exact.mjs')) || existsSync(join(root, 'exact.json')) || dependencies.some(key => Object.keys(pkg[key] ?? {}).some(name => /^exact2?(?:$|[-/])/.test(name)));
   if (exact) log('Exact device rebuild: bun exact.mjs snapback --rebuild'); // HS owns this command and the pairing gate.
   log(`project ${pkg.name ?? root}: ${targets.map(name => `${name}@${version}`).join(', ')}; ${personaOnly ? "preview account adaptation with init --adapt --production; " : ""}regenerate with check, run acceptance tests${targets.includes('snapback4-expo') ? '; rebuild the native app' : ''}`);
+  if (Object.keys(pkg.scripts ?? {}).some(name => /^(?:prod|probe):serve$/.test(name))) {
+    const script = pkg.scripts?.['prod:serve'] ? 'prod:serve' : 'probe:serve';
+    log(`day-two process proof: snapback4 serve-check --deployment <your-store> --script ${script} --then 'npm run day2:business'; keep business assertions in --then; guide production --section Serve script and reusable accounts`);
+  }
   let history = '', checkedFacts = null;
   if (!schema) {
     try {

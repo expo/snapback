@@ -1,0 +1,6 @@
+{
+  "status": "passed",
+  "log": "/home/ccheever/sb4-pub-0443-records/iso-rest-out/rule-recipes.log",
+  "client": "/home/ccheever/sb4-pub-0441/snapback4/target/publication/client-0.4.43/snapback4-0.4.43.tgz",
+  "platform": "/home/ccheever/sb4-pub-0443-kit/iso-rest/pkg/snapback4-linux-x64-0.4.43.tgz"
+}

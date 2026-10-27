@@ -1,3 +1,4 @@
+// API signatures: snapback4 guide api proof | client | auth | generated
 // Named workers copy snapback/workers/; put relative helper imports in its subdirectories.
 // process.cwd() starts at SNAPBACK_PROJECT_DIR (project in dev, active release in serve).
 // Write files with resolve(process.env.SNAPBACK_PROJECT_DIR, "data/push-log.jsonl"),

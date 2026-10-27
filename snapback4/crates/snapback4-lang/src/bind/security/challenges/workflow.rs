@@ -34,7 +34,7 @@ fn attempt(bound:&Bound,base:&Engine,p:&Program,args:&BTreeMap<String,Value>,vie
     let trace=executed::trace(bound,p,&engine);out.attempted+=1;*out.operations.entry(p.name.clone()).or_default()+=1;
     let result=engine.mutate(&p.name,None,replay_ids::context(viewer,args.clone()).at(histories::history_clock(steps)).with_fixture_trace(trace.clone())).ok()?;
     if !matches!(result.state,snapback4_core::WriteState::Sent{..}){out.refused+=1;return None;}
-    let mut history=steps.to_vec();history.push(histories::Step{clock:Some(histories::history_clock(steps)),operation:p.name.clone(),viewer:viewer.into(),args,result:serde_json::to_value(&result.state).ok()?});
+    let mut history=steps.to_vec();history.push(histories::Step{observed_data:None,clock:Some(histories::history_clock(steps)),operation:p.name.clone(),viewer:viewer.into(),args,result:serde_json::to_value(&result.state).ok()?});
     let before=readback(base).ok()?;let after=readback(&engine).ok()?;histories::assertions(bound,&before,&after,initial,viewer,&history,&mut None,&mut engine,out);executed::record(bound,p,&trace,&result.state,&after,initial,viewer,&history,&mut engine,out);
     Some((engine,history))
 }

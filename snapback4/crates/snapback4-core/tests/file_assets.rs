@@ -225,3 +225,57 @@ fn placement_diagnostics_name_own_home_but_never_another_uploaders() {
     let missing_hint = e.store_asset("alice", PDF, 4).unwrap_err().refusal();
     assert_eq!(missing_hint.code,"E_ASSET_TYPE");assert!(missing_hint.message.contains("file:"));
 }
+
+#[test]
+fn campaign_asset_snapshots_own_bytes_and_materialized_files(){
+    let mut source=engine();let asset=source.store_asset("alice",PNG,0).unwrap();
+    let source_path=source.store().asset_location().unwrap().path(&asset.id);
+    let mut left=source.campaign_snapshot().unwrap().unwrap();let mut right=left.fork_fixture().unwrap();
+    assert!(!left.store().asset_location().unwrap().path(&asset.id).exists());
+    std::fs::write(source_path,b"source changed after snapshot").unwrap();drop(source);
+    let first=left.asset_access("alice",&asset.id,1).unwrap();assert_eq!(std::fs::read(&first.path).unwrap(),PNG);
+    std::fs::write(&first.path,b"only left materialization changed").unwrap();
+    let peer=right.asset_access("alice",&asset.id,1).unwrap();assert_eq!(std::fs::read(peer.path).unwrap(),PNG);
+    let mut descendant=left.fork_fixture().unwrap();let own=descendant.asset_access("alice",&asset.id,1).unwrap();
+    assert_eq!(std::fs::read(own.path).unwrap(),b"only left materialization changed");
+}
+
+#[test]
+fn campaign_asset_ownership_sweep_and_new_uploads_are_per_world(){
+    let mut source=engine();let asset=source.store_asset("alice",PNG,0).unwrap();
+    let mut left=source.campaign_snapshot().unwrap().unwrap();let mut right=left.fork_fixture().unwrap();
+    let path=left.store().asset_location().unwrap().path(&asset.id);
+    assert!(left.asset_access("mallory",&asset.id,1).is_err());assert!(!path.exists(),"denied access cannot materialize bytes");
+    assert_eq!(left.sweep_assets(snapback4_core::assets::UNCLAIMED_TTL_MS+1).unwrap(),1);
+    assert!(left.asset_access("alice",&asset.id,snapback4_core::assets::UNCLAIMED_TTL_MS+2).is_err());assert!(!path.exists());
+    let peer=right.asset_access("alice",&asset.id,1).unwrap();assert_eq!(std::fs::read(peer.path).unwrap(),PNG);
+    let fresh=left.store_asset("alice",PNG,2).unwrap();assert!(right.asset_access("alice",&fresh.id,3).is_err());
+    let mut descendant=left.fork_fixture().unwrap();let grant=descendant.asset_access("alice",&fresh.id,3).unwrap();assert_eq!(std::fs::read(grant.path).unwrap(),PNG);
+}
+
+#[test]
+fn campaign_asset_empty_world_keeps_verified_bytes_with_fresh_placement(){
+    let mut source=engine();let asset=source.store_asset("alice",PNG,0).unwrap();
+    assert!(matches!(mutate(&mut source,"photo",vec![("photo",asset.column_value())],1),WriteState::Sent{..}));
+    assert!(source.store().asset(&asset.id).unwrap().unwrap().home.is_some());
+    let snapshot=source.campaign_snapshot().unwrap().unwrap();
+    let store=snapshot.store().empty_with_asset_ledger().unwrap();
+    assert!(store.asset(&asset.id).unwrap().unwrap().home.is_none());let bound=snapback4_lang::compile(&[("schema.q".into(),SOURCE.into())]);
+    let mut empty=Engine::new_at(store,bound.schema,bound.programs.into_iter().map(|p|p.program),0).unwrap();
+    assert!(empty.store().rows("receipts").unwrap().is_empty());
+    let grant=empty.asset_access("alice",&asset.id,1).unwrap();assert_eq!(std::fs::read(grant.path).unwrap(),PNG);
+    assert!(empty.asset_access("mallory",&asset.id,1).is_err());
+}
+
+#[test]
+fn campaign_asset_cache_limit_falls_back_without_losing_large_bytes(){
+    let source="table media:\n  photo: image <=40000000 ?\n  read <- allow\n  online only\n";
+    let bound=snapback4_lang::compile(&[("schema.q".into(),source.into())]);assert!(bound.diagnostics.is_empty());
+    let mut bytes=vec![0;32*1024*1024+1];bytes[..PNG.len()].copy_from_slice(PNG);
+    let mut ordinary=Engine::memory(bound.schema.clone(),[]).unwrap();let asset=ordinary.store_asset("alice",&bytes,0).unwrap();
+    assert!(ordinary.campaign_snapshot().is_err(),"over-limit capture leaves ordinary copying available");
+    let mut copy=ordinary.fork_fixture().unwrap();let grant=copy.asset_access("alice",&asset.id,1).unwrap();assert_eq!(std::fs::read(grant.path).unwrap(),bytes);drop(copy);drop(ordinary);
+    let mut cached=Engine::new_at(snapback4_core::Store::memory_for_campaign().unwrap(),bound.schema,[],0).unwrap();let asset=cached.store_asset("alice",&bytes,0).unwrap();
+    assert!(cached.store().asset_location().unwrap().path(&asset.id).is_file(),"an uncached upload retains its private file");
+    let mut copy=cached.fork_fixture().unwrap();let grant=copy.asset_access("alice",&asset.id,1).unwrap();assert_eq!(std::fs::read(grant.path).unwrap(),bytes);
+}

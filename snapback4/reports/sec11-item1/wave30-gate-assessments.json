@@ -1,0 +1,18 @@
+{
+  "count": 1,
+  "gates": [
+    {
+      "lane": "033-snapback-garage-floor-coatings",
+      "code": "N_APPROVAL_NOT_ENFORCED",
+      "site": "schema.q:84:3",
+      "decision": "6a1780afc7a25a96a827deaf3a5b97f08cef9ac29bf10223c5665078f11cc371",
+      "witness": "73544f77d04f6a3d8621f3e095990704216edd028d5d264dcbb48c4aff219318",
+      "operation": "advanceJob",
+      "classification": "real calibrated approval bypass (033 F1), carried from Integration27",
+      "review": "The exact job is damp-signed and unapproved; an admitted owner/crew caller advances it. advanceJob reads only status, not this job\u2019s damp approval. approveDamp is a separate owner-only operation requiring recorded consent. This is not a dormant false-premise approval row.",
+      "fixForward": "One-line require after exact job lookup clears gate; unchanged app acceptance script passes on final production binary."
+    }
+  ],
+  "falseGates": 0,
+  "method": "Every final wave30 gate inspected by hand against the unmodified schema, material witness values and fix-forward replay."
+}

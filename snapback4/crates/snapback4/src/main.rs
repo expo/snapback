@@ -9,6 +9,8 @@ mod listen_refusal;
 mod verb_help;
 mod cli_flags;
 mod guide_find;
+mod guide_seen;
+mod guide_api;
 mod device_handshake;
 mod exact_device;
 mod note_rank;
@@ -48,6 +50,7 @@ use std::process::ExitCode;
 
 
 fn main() -> ExitCode {
+    let _phase_trace=verbs::phase::Trace;
     // Before any thread: the wrapper's PID leaves the environment here.
     supervisor::adopt();
     snapback4_core::diagnostics::set_thread_start(thread_priority::background);
@@ -142,6 +145,12 @@ fn main() -> ExitCode {
                 None => if let Some(words) = options.flags.get("find") {
                     match guide_find::find(words) { Ok(text) => println!("{text}"), Err(problem) => { println!("{problem}"); return ExitCode::from(1); } }
                 } else { println!("{}", guide::listing()); },
+                Some("api") if !rest.is_empty() => {
+                    match guide_api::render(&rest, options.flags.contains_key("full")) {
+                        Ok(text) => println!("{}", guide_seen::render(&format!("api {rest}"), &text, options.flags.contains_key("repeat") || options.flags.contains_key("full"))),
+                        Err(problem) => { eprintln!("{problem}"); return ExitCode::from(1); }
+                    }
+                },
                 Some("aliases") if guide::card("aliases").is_none() => println!("{}", guide::aliases()),
                 Some(keyword) => match guide::card(keyword) {
                     // Cards embed starter sources; print them as init installs them.
@@ -156,18 +165,25 @@ fn main() -> ExitCode {
                             else if name == "rule-recipes" && !rest.is_empty() { guide::section(name, &card, &rest) }
                             // @ref LLP 3000.000.000.000.000#8 — show first content with an explicit truncation hint in tools and terminals.
                             else if let Some(landing) = guide::alias_landing(keyword, name, &card) { Ok(landing) }
-                            else if std::io::IsTerminal::is_terminal(&std::io::stdout()) { Ok(guide::overview(name, &card).unwrap_or_else(|| card.clone())) }
                             else { Ok(guide::piped(name, &card)) };
                         // A section of another card (`wire --section acceptance`) arrives unstripped.
                         match chosen.map(|text| verbs::without_design_references(&text)) {
-                            Ok(text) => println!("{text}"),
+                            Ok(text) => {
+                                let explicit = ["full", "section", "find", "sections"].iter().any(|f| options.flags.contains_key(*f));
+                                let text = if explicit { text } else { guide::bounded_default(name, &text) };
+                                if options.flags.contains_key("sections") || options.flags.contains_key("find") { println!("{text}"); }
+                                else {
+                                    let shown = guide_seen::render(name, &text, options.flags.contains_key("repeat") || options.flags.contains_key("full"));
+                                    println!("{}", if explicit { shown } else { guide::bounded_default(name, &shown) });
+                                }
+                            },
                             Err(problem) => { println!("{problem}"); return ExitCode::from(1); }
                         }
                     }
                     None => match guide::explain_code(keyword) {
                         Some(text) => println!("{text}"),
                         None => {
-                            println!("no card named {keyword}; nearest: {}\n{}", guide::nearest(keyword).join(", "), guide::listing());
+                            println!("no card named {keyword}; nearest: {}\nOpen one with snapback4 guide <name>; guide --list lists all cards.", guide::nearest(keyword).join(", "));
                             return ExitCode::from(1);
                         }
                     },

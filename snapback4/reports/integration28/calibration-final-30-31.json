@@ -1,0 +1,321 @@
+{
+  "assessments": [
+    {
+      "wave": 30,
+      "lane": "002",
+      "finding": "F1",
+      "category": "witnessed question on default verdict",
+      "targetVisible": true,
+      "evidence": [
+        {
+          "code": "N_TEXT_EVIDENCE",
+          "operation": "openFitting",
+          "viewer": "account:security-roles-frontdesk-0",
+          "decision": "ba3ddf3cf663e9c4c9e64b94071c18be3d9d1afe9a751d43b089223c6a7aa4cf",
+          "witness": "0cdb2aa4c32c5c18c84e42592abf450da5199e60cac57fa37d2be01e464a1bff",
+          "candidate": "question: is fittings.referralScan deliberately text rather than a verified upload?",
+          "gated": false
+        }
+      ]
+    },
+    {
+      "wave": 30,
+      "lane": "004",
+      "finding": "F1",
+      "category": "nothing",
+      "targetVisible": false,
+      "evidence": [],
+      "notes": []
+    },
+    {
+      "wave": 30,
+      "lane": "006",
+      "finding": "F1",
+      "category": "nothing",
+      "targetVisible": false,
+      "evidence": [],
+      "notes": []
+    },
+    {
+      "wave": 30,
+      "lane": "010",
+      "finding": "F1",
+      "category": "advisory only",
+      "targetVisible": false,
+      "evidence": [],
+      "notes": [
+        {
+          "code": "N_GUARD_NOT_CONSUMED",
+          "site": {
+            "col": 10,
+            "file": "schema.q",
+            "line": 165
+          },
+          "message": "rebookTrip: saw `((trips[trip]) ! else NOT_FOUND.cancelledAt != null and now <= (trips[trip]) ! else NOT_FOUND.cancelledAt + 31536000000); ((trips[trip]) ! else NOT_FOUND.status = 'cancelled_high_water'); (tripDate > now); exists roles[viewer, role = 'office']`; not proved: unchanged trips.status cannot authorize a repeated trips transition at schema.q:165:10"
+        }
+      ]
+    },
+    {
+      "wave": 30,
+      "lane": "014",
+      "finding": "F1",
+      "category": "advisory only",
+      "targetVisible": false,
+      "evidence": [],
+      "notes": [
+        {
+          "code": "N_ROLE_WIDE_READ",
+          "site": {
+            "col": 3,
+            "file": "schema.q",
+            "line": 31
+          },
+          "message": "projects.clientPhone read: protected columns [clientPhone, fee, venueContract] admit roles.role='lead', roles.role='owner' for every value of [status]; should these roles read all rows or only the spec's resource relationships and states?"
+        }
+      ]
+    },
+    {
+      "wave": 30,
+      "lane": "018",
+      "finding": "F1",
+      "category": "nothing",
+      "targetVisible": false,
+      "evidence": [],
+      "notes": []
+    },
+    {
+      "wave": 30,
+      "lane": "025",
+      "finding": "F1",
+      "category": "advisory only",
+      "targetVisible": false,
+      "evidence": [],
+      "notes": [
+        {
+          "code": "N_APPROVAL_NOT_ENFORCED",
+          "site": {
+            "col": 10,
+            "file": "schema.q",
+            "line": 152
+          },
+          "message": "retestApprovals.priorExam: a separately authorized approval for exams is recorded but a modeled effect does not require it"
+        }
+      ]
+    },
+    {
+      "wave": 30,
+      "lane": "025",
+      "finding": "F2",
+      "category": "advisory only",
+      "targetVisible": false,
+      "evidence": [],
+      "notes": [
+        {
+          "code": "N_APPROVAL_NOT_ENFORCED",
+          "site": {
+            "col": 10,
+            "file": "schema.q",
+            "line": 152
+          },
+          "message": "retestApprovals.priorExam: a separately authorized approval for exams is recorded but a modeled effect does not require it"
+        }
+      ]
+    },
+    {
+      "wave": 30,
+      "lane": "030",
+      "finding": "F1",
+      "category": "witnessed question on default verdict",
+      "targetVisible": true,
+      "evidence": [
+        {
+          "code": "N_OPTIONAL_EVIDENCE",
+          "operation": "openStudy",
+          "viewer": "account:security-roles-dispatcher-0",
+          "decision": "3f035f2c20749a752932ae5fe58ee4342083c259587247b3b7d1e5e533614524",
+          "witness": "4256146adfda8af9a1ca1805ff4f1ee47803370841afa8baa5a6aea34078195f",
+          "candidate": "invariant studies.openStudy only (.recordings != null and count(.recordings) > 0)",
+          "gated": false
+        }
+      ]
+    },
+    {
+      "wave": 30,
+      "lane": "030",
+      "finding": "F2",
+      "category": "nothing",
+      "targetVisible": false,
+      "evidence": [],
+      "notes": []
+    },
+    {
+      "wave": 30,
+      "lane": "033",
+      "finding": "F1",
+      "category": "gated with witness",
+      "targetVisible": true,
+      "evidence": [
+        {
+          "code": "N_APPROVAL_NOT_ENFORCED",
+          "operation": "advanceJob",
+          "viewer": "account:security-roles-owner-0",
+          "decision": "6a1780afc7a25a96a827deaf3a5b97f08cef9ac29bf10223c5665078f11cc371",
+          "witness": "73544f77d04f6a3d8621f3e095990704216edd028d5d264dcbb48c4aff219318",
+          "candidate": "invariant jobs.advanceJob only (not .dampSigned or .dampApproved)",
+          "gated": true
+        }
+      ],
+      "productionFixes": []
+    },
+    {
+      "wave": 30,
+      "lane": "033",
+      "finding": "F2",
+      "category": "witnessed question on default verdict",
+      "targetVisible": true,
+      "evidence": [
+        {
+          "code": "N_CHILD_EVIDENCE_PRESENCE",
+          "operation": "acceptQuote",
+          "viewer": "account:security-roles-customer-0",
+          "decision": "f5eb435de0a8d47a53ff8d3e522fa7c3985c6812251e11bf09ed65bb03368456",
+          "witness": "a5d9224734e746c8dd78b0c97087e65d20d1fe8db233862aa2a71ece729d15df",
+          "candidate": "invariant jobs.acceptQuote only (count(photos[job = .id]) > 0)",
+          "gated": false
+        }
+      ]
+    },
+    {
+      "wave": 30,
+      "lane": "035",
+      "finding": "F1",
+      "category": "nothing",
+      "targetVisible": false,
+      "evidence": [],
+      "notes": []
+    },
+    {
+      "wave": 30,
+      "lane": "038",
+      "finding": "F1",
+      "category": "nothing",
+      "targetVisible": false,
+      "evidence": [],
+      "notes": []
+    },
+    {
+      "wave": 31,
+      "lane": "002",
+      "finding": "F2",
+      "category": "gated with witness",
+      "targetVisible": true,
+      "evidence": [
+        {
+          "code": "N_INSERT_WRITE_INTENT",
+          "operation": "openFitting",
+          "viewer": "account:security-roles-manager-1",
+          "decision": "d028604a654107f89f8d9638ae226d1b8d42ad33acac1b2022c63f34498649cc",
+          "witness": "4b56b0c189c337cd2208e23d5f25582cb809e5fa9113d3de88f690de5b23851d",
+          "candidate": "invariant fittings.referralScan write only ((exists roles[viewer, role = 'frontdesk']) and ((exists roles[viewer, role = 'frontdesk']) or (exists roles[viewer, role = 'orthotist']) or (exists roles[viewer, role = 'manager'])))",
+          "gated": false
+        },
+        {
+          "code": "N_RELEASE_CREATE_AUTHORITY",
+          "operation": "openFitting",
+          "viewer": "account:security-roles-manager-1",
+          "decision": "6605fe1ebe9cb497f340fefad949d8ef95544d28cac5e5ae3ee32451f4ab95ea",
+          "witness": "208cf3c6b5ed9724e4ffbf96785a9c646edff37615e5c8e97a284192e8f8a6f2",
+          "candidate": "invariant fittings.referralScan write only ((exists roles[viewer, role = 'frontdesk']) and ((exists roles[viewer, role = 'frontdesk']) or (exists roles[viewer, role = 'orthotist']) or (exists roles[viewer, role = 'manager'])))",
+          "gated": true
+        }
+      ],
+      "productionFixes": []
+    },
+    {
+      "wave": 31,
+      "lane": "010",
+      "finding": "F2",
+      "category": "nothing",
+      "targetVisible": false,
+      "evidence": [],
+      "notes": []
+    },
+    {
+      "wave": 31,
+      "lane": "014",
+      "finding": "F3",
+      "category": "nothing",
+      "targetVisible": false,
+      "evidence": [],
+      "notes": []
+    },
+    {
+      "wave": 31,
+      "lane": "014",
+      "finding": "F4",
+      "category": "gated with witness",
+      "targetVisible": true,
+      "evidence": [
+        {
+          "code": "N_INSERT_WRITE_INTENT",
+          "operation": "openProject",
+          "viewer": "account:security-roles-owner-1",
+          "decision": "8dcb98204956b6d16cc31d5c6d121924fab70109a9aee08012666f0bd464ccd9",
+          "witness": "b2679baf17ef1a382a425e3fd45ed6224e2446bd698dae79550048c561efc8e1",
+          "candidate": "invariant projects.entrancePhoto write only ((exists roles[viewer, role = 'lead']) and ((exists roles[viewer, role = 'owner']) or (exists roles[viewer, role = 'lead']) or (exists roles[viewer, role = 'installer'])))",
+          "gated": false
+        },
+        {
+          "code": "N_RELEASE_CREATE_AUTHORITY",
+          "operation": "openProject",
+          "viewer": "account:security-roles-owner-1",
+          "decision": "4e17f793cfe5fd12f3b737cd3e4588217457dc7ff9c37d54564477dcc69a2c23",
+          "witness": "53581a76c007247a5eb4018ee3c6d32556fe2d0ad31ffa959bd5fd99ac6ab841",
+          "candidate": "invariant projects.entrancePhoto write only ((exists roles[viewer, role = 'lead']) and ((exists roles[viewer, role = 'owner']) or (exists roles[viewer, role = 'lead']) or (exists roles[viewer, role = 'installer'])) and ((exists roles[viewer, role = 'owner']) or (exists roles[viewer, role = 'lead'])))",
+          "gated": true
+        }
+      ],
+      "productionFixes": []
+    },
+    {
+      "wave": 31,
+      "lane": "019",
+      "finding": "F1",
+      "category": "gated with witness",
+      "targetVisible": true,
+      "evidence": [
+        {
+          "code": "N_INSERT_WRITE_INTENT",
+          "operation": "openMove",
+          "viewer": "account:security-roles-owner-1",
+          "decision": "8dc3567fa15fa6a6bb8610e02db70c30df3b602090f134eb940ba484890cbfba",
+          "witness": "54d69cacee580c91e257b00be81e81c92f24fe7fd92f2f23f58fc8db55b0cd94",
+          "candidate": "invariant moves.price write only ((exists roles[viewer, role = 'coordinator']) and ((exists roles[viewer, role = 'owner']) or (exists roles[viewer, role = 'coordinator']) or (exists roles[viewer, role = 'handler'])))",
+          "gated": false
+        },
+        {
+          "code": "N_RELEASE_CREATE_AUTHORITY",
+          "operation": "openMove",
+          "viewer": "account:security-roles-owner-1",
+          "decision": "5bb0af7230ea49384b85663b7c9d9211a7e568b1138d1dc6e446874980e8fdd9",
+          "witness": "1e2040f8cbafed5fabdeb9dc98c94c9bcac2728b12efb3c0887433b53c28002b",
+          "candidate": "invariant moves.price write only ((exists roles[viewer, role = 'coordinator']) and ((exists roles[viewer, role = 'owner']) or (exists roles[viewer, role = 'coordinator']) or (exists roles[viewer, role = 'handler'])))",
+          "gated": true
+        }
+      ],
+      "productionFixes": []
+    }
+  ],
+  "summary": {
+    "30": {
+      "witnessed question on default verdict": 3,
+      "nothing": 6,
+      "advisory only": 4,
+      "gated with witness": 1
+    },
+    "31": {
+      "gated with witness": 3,
+      "nothing": 2
+    }
+  }
+}

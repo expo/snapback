@@ -8,7 +8,7 @@ refusal or null. Empty, stale and partial data remain data; use `read` for
 completeness/freshness. `client.observe(op, args)` returns an observation:
 read `getSnapshot()`, register with `subscribe(listener)`, and `close()` on
 cleanup. It takes no callback argument. Asset display uses `useAsset(id)`;
-its result has `status` and, when ready, `url`. Upload with `client.upload(bytes)`
+its result has `status` and, when ready, `url`. The imperative `await client.asset(id)` returns `{url,type,bytes,revoke}` or `{denied}`; call revoke when finished. `sentResult` is exported from snapback4/contract and snapback4/react. Headless scripts can import settleMutation from snapback4/client to wait through recovery for the same-id terminal receipt; waitSeconds:0 returns custody immediately. Upload with `client.upload(bytes)`
 or `useUpload`. Program lookups and `exists` are caller-filtered: hidden rows
 can look absent, and hidden columns are omitted rather than null. Developer
 diagnostics explain the refusing rule and known filtering without changing
@@ -4324,3 +4324,286 @@ service session minting: principal, kind, token and a finite integer expiresAt
 in milliseconds. Online and local constructors reject malformed input immediately
 with E_SESSION and a repair, before opening a device or making requests. The
 online token option accepts a bare bearer without inventing expiry metadata.
+
+## Headless settlement and labelled controls
+
+A headless script can await the same receipt through reconnect. Explicit
+`waitSeconds:0` still returns pending custody; keep its id rather than resubmit.
+
+```ts
+import type { Client } from "snapback4/contract";
+import { settleMutation } from "snapback4/client";
+import { api } from "../snapback/generated/api.ts";
+export async function saveTitle(client: Client, title: string) {
+  return settleMutation(client, api.add, {title});
+}
+```
+
+Resolve the Owner combobox without making its option text part of the label.
+Explicit accessible names take precedence; duplicate controls remain ambiguous.
+
+```ts
+import type { Page } from "playwright-core";
+import { labelledControl, selectByValue } from "snapback4/proof";
+export async function chooseOwner(page: Page, id: string) {
+  await selectByValue(labelledControl(page, "combobox", "Owner"), id);
+}
+```
+
+## Feature lookup and operator snapshots
+
+Open only the needed feature: `guide reads` for queries, `guide sync` for offline
+acquisition bounds, `guide maintains` for derived counts and `guide feeds` for feeds.
+These references follow the bounded README/start path; they are optional lookups.
+
+Administrative snapshots bypass application read rules. Use them only in a trusted
+local/operator proof process, never as an application reader:
+
+```ts
+import { snapshotAll } from "snapback4/proof";
+export async function inspectMessages(release: string) {
+  return snapshotAll("messages", { release });
+}
+```
+
+Generated probe scripts already own their lifetime. An existing custom driver
+acquires the guard before deployment, calls ready after its hosts are ready,
+checks idle to stop its owned hosts, and closes it in finally. Intentional held
+service uses --hold or SNAPBACK4_PROBE_HOLD=1:
+
+```ts
+import { probeServeGuard } from "snapback4/proof";
+export const acquireProbeLifetime = (directory: string) => probeServeGuard({ directory });
+```
+
+## Your first working account screen
+
+This optional walkthrough replaces the generated starter with a password profile, avatar and thread. Run the starter first; read on when you need those features.
+
+
+### 1. Create and run the backend
+
+Follow this `README.md` through password signup, profile, avatar and reopen. Run step 1 above with `npx snapback4 init --expo`, then `npm install`; the example uses the Expo starter's React Native and SecureStore. Replace `snapback/schema.q`, `src/client.ts` and `App.tsx` with the blocks below. Run `npx snapback4 init --adapt` to preview, then `npx snapback4 init --adapt --apply` to remove untouched todo fixtures, then `npx snapback4 check`; keep `npm run backend` running in one terminal and `npm start` in another (Expo Go), or `npm run ios:dev` for a native development build. Do not set a persona for this password example. The iOS simulator reaches `http://127.0.0.1:4400`; set `EXPO_PUBLIC_SNAPBACK_URL` to your TLS deployment for a physical phone. Keep the starter's `expo-env.d.ts`: it types `process.env`.
+
+### 2. Declare identity and a profile
+
+An email-and-password product declares `use identity password`; plain `use identity` also mints guest sessions. Password signup requires at least 8 characters (Unicode scalar values) and at most 1,024 UTF-8 bytes; login accepts at most 1,024 UTF-8 bytes. Sessions normally last seven days. Handles are discoverable; profiles and avatars are private to their owner. `profileFor` explicitly refuses another owner; table rules otherwise hide unreadable rows as missing. Handle claims are server-authoritative.
+
+```quarry
+use identity password
+table profiles:
+  principal: principal
+  handle: text 3..20 format handle
+  avatar: image <=10000000 ?
+  unique principal
+  unique handle
+  read <- .principal = viewer
+  insert <- .principal = viewer
+  update <- .principal = viewer
+  immutable principal
+  cap 1 by principal
+  sync to .principal
+table handles:
+  principal: principal
+  handle: text 3..20 format handle
+  unique principal
+  unique handle
+  public 'handles are discoverable after signup'
+  insert <- .principal = viewer
+  update <- .principal = viewer
+  immutable principal
+  online only
+query handleAvailable(handle: text 3..20 format handle):
+  return not exists handles[handle = handle]
+query myProfile():
+  return profiles[principal = viewer]
+query profileFor(owner: principal):
+  require owner = viewer else PROFILE_PRIVATE
+  return profiles[principal = owner]
+mutation saveProfile(handle: text 3..20 format handle):
+  upsert handles[principal = viewer] { principal: viewer, handle }
+  upsert profiles[principal = viewer] { principal: viewer, handle }
+mutation placeAvatar(avatar: image <=10000000):
+  update profiles[principal = viewer] { avatar }
+```
+
+A post-signup availability check uses the new session. Incomplete or stale availability is not permission to claim a handle. Availability and handle saves use the server; your private profile is held locally. The unique index decides races.
+
+Show sign-in while signed out. `useAppReady()` waits for an account client; gate application reads/writes inside the signed-in screen. Gating sign-in prevents signing in.
+### 3. Create the app
+
+Replace `src/client.ts`: the app restores the session, opens its client and owns pending writes across restarts. Native sessions use SecureStore; browser persistence is explicit because page scripts can read localStorage. Keep the starter's Metro config and wasm transformer. `assets` retains viewed media within its device byte budget; Expo Go uses the online client and ignores it.
+
+At every milestone, `npm run export:ios` publishes Hermes to `dist/` and returns; native proof runs in the background at background QoS while you keep building. Both Expo starters include it. The next export and `npx snapback4 doctor` print the result; `npx snapback4 witness status --wait` waits for your final report. Failures stay visible with their log paths without failing a successful export. Unavailable hosts report a skip. A newer export supersedes pending proof. Receipts in `artifacts/native-smoke/<timestamp>` bind the loaded export hash. Matching native inputs reuse a Release app; native changes rebuild. Background preparation allows 900 seconds without output activity and at most 60 minutes total. Activity alone does not establish build progress; repeated output can keep a stalled build occupied until that cap. `npm run native:smoke` explicitly waits for a full build and smoke. Empty starters prove lifecycle; write replay needs an app scenario (`guide witness`).
+
+```ts
+// src/client.ts
+import { Platform } from "react-native";
+import * as SecureStore from "expo-secure-store";
+import { createApp } from "snapback4/app";
+import { localStorageSessionStore } from "snapback4/auth";
+import { nativeAvailable, nativeDevice, secureStoreSessionStore } from "snapback4-expo";
+import { smokeOrigin } from "snapback4-expo/witness";
+import { webDevice } from "snapback4/web";
+const sessionStore = secureStoreSessionStore(SecureStore);
+export const app = createApp({
+  url: smokeOrigin(process.env.EXPO_PUBLIC_SNAPBACK_URL ?? "http://127.0.0.1:4400"),
+  sessionStore: Platform.OS === "web" ? localStorageSessionStore() : sessionStore,
+  device: Platform.OS === "web" ? webDevice() : nativeAvailable() ? nativeDevice : undefined,
+  assets: { keep: "viewed", maxBytes: 67108864 },
+});
+```
+
+### 4. Sign in, save and render
+
+Replace `App.tsx`. A refused sign-in returns `{ ok: false, why }`. A missing profile resumes onboarding; a denied read remains an error. Enter an image URI accessible to the host (on web its server must allow CORS), or pass a photo picker's Blob to `upload`. Uploads require a connection; placement is a mutation.
+
+```tsx
+// App.tsx
+import { useNativeSmoke } from "snapback4-expo/native-smoke";
+import { useState } from "react";
+import { Button, Image, Text, TextInput, View } from "react-native";
+import { AppProvider, useAuth, useClient, useQuery, useMutation, useAsset } from "snapback4/react";
+import { app } from "./src/client";
+import { api } from "./snapback/generated/api";
+export default function App() { return <AppProvider app={app}><Account /></AppProvider>; }
+function Account() {
+  useNativeSmoke(true);
+  const auth = useAuth();
+  const [email, setEmail] = useState(""), [password, setPassword] = useState("");
+  const [problem, setProblem] = useState("");
+  if (auth.state === "restoring") return <Text>Restoring account…</Text>;
+  if (auth.state === "signed-in") return <Profile />;
+  const signIn = async (mode: "signup" | "login") => {
+    const result = await (mode === "signup" ? auth.signup(email, password) : auth.login(email, password));
+    if (!result.ok) setProblem(result.why.message);
+  };
+  return <View style={{ padding: 32, gap: 12 }}>
+    <Text>{problem || auth.why?.message || "Sign up or log in"}</Text>
+    <TextInput placeholder="Email" value={email} onChangeText={setEmail} autoCapitalize="none" />
+    <TextInput placeholder="Password" value={password} onChangeText={setPassword} secureTextEntry />
+    <Button title="Sign up" onPress={() => void signIn("signup")} />
+    <Button title="Log in" onPress={() => void signIn("login")} />
+  </View>;
+}
+function Profile() {
+  const auth = useAuth(), client = useClient();
+  const profile = useQuery(api.myProfile, {}), save = useMutation(api.saveProfile), place = useMutation(api.placeAvatar);
+  const avatar = useAsset("data" in profile ? profile.data?.avatar?.id : null);
+  const [handle, setHandle] = useState(""), [uri, setUri] = useState(""), [problem, setProblem] = useState("");
+  const busy = save.inFlight || place.inFlight;
+  const upload = async () => {
+    try {
+      const result = await client.upload(await (await fetch(uri)).blob());
+      if (!result.ok) { setProblem(result.why.message); return; }
+      await place.run({ avatar: { id: result.asset.id } });
+    } catch (error) { setProblem(String(error)); }
+  };
+  return <View style={{ padding: 32, gap: 12 }}>
+    <Text>{"denied" in profile ? profile.denied.message : "loading" in profile ? "Loading…" : profile.data ? `@${profile.data.handle}; avatar ${profile.data.avatar?.id ?? "not placed"}` : "Choose your handle"}</Text>
+    {avatar.status === "ready" && <Image source={{ uri: avatar.url }} style={{ width: 96, height: 96 }} />}
+    <Text>{problem || (save.last?.state === "failed" ? save.last.why.message : save.last?.state === "pending" ? "queued" : save.last?.state)}</Text>
+    <Text>{place.last?.state === "failed" ? place.last.why.message : place.last?.state}</Text>
+    <TextInput placeholder="Handle" value={handle} onChangeText={setHandle} autoCapitalize="none" />
+    <Button title="Save profile" disabled={busy} onPress={() => void save.run({ handle })} />
+    <TextInput placeholder="Avatar image URI" value={uri} onChangeText={setUri} />
+    <Button title="Place avatar" disabled={busy || !("data" in profile && profile.data)} onPress={() => void upload()} />
+    <Button title="Sign out" onPress={() => void auth.logout()} />
+  </View>;
+}
+```
+
+A failed handle save keeps the session; choose another handle. Under `AppProvider`, online mutations persist IDs and arguments before dispatch; local devices own a durable outbox. Pending writes stay with their original account. Terminal `sent` confirms execution; `failed` carries the refusal.
+
+Explicit write IDs must use the accepted form (26 Crockford base32 characters, starting with `0`–`7`). Normally omit `id`; the client mints it. To keep one intent across retries, call `mintId()` once and keep that ID with its unchanged arguments. For a fixture or seed label, `idFrom(label)` gives the same valid ID every time (it sorts before minted IDs):
+
+```ts
+import { mintId, idFrom } from "snapback4/client";
+const intent = { id: mintId(), args: { handle: "alice" } };
+await client.mutate(api.saveProfile, intent.args, { id: intent.id }); // a fixture: { id: idFrom("seed:alice") }
+```
+
+A fresh ID on every retry does not identify that same intent. `usePendingItems` renders scoped text/media intents beside explicitly keyed rows, including “Sent; updating view”.
+`usePendingState` selects the last admitted toggle intent. Both preserve custody and scope fences; see the intent-card recipe in CLIENT-AND-OPERATIONS.md.
+
+### 5. Export an offline shell, then verify
+
+`npm run build:web` in the Expo starter runs `expo export -p web` followed by `snapback4 web-shell dist`. The Vite
+starter's `npm run build` ends with the same command. For an existing export, run `npx snapback4 web-shell dist --base
+/` and serve that directory over HTTPS (localhost also works). Every exported file is public shell content; keep
+exports nonpersonalized. The worker never caches API responses or assets from the backend. A replacement waits for old
+tabs to close.
+
+Sign up, save a profile and view its avatar, reload, then open the acquired profile with the network off for a cold-offline start. Reconnect to settle pending writes. Browser eviction can remove offline availability; `client.acquired`
+states whether the replica is ready. Defer feeds, search, schedules and server handlers until those features are
+needed.
+
+### 6. Add a thread without losing its history
+
+Keep the conversation and its messages with `retain delivered-history`. Pin the screen by conversation ID; the inbox
+depends on membership and drops that row when its member row is deleted. The bare history is an ordinary query with no
+membership `require`: table rules still protect every server read. The local client asks the server before acquisition
+or beyond coverage, and keeps a left group's retained rows local, offline and online, through remount and reopen. An
+online-only client cannot recover those retained rows.
+
+```quarry
+table conversations:
+  title: text <=120
+  creator: principal
+  read <- exists members[.id, viewer]
+  insert <- .creator = viewer
+  after insert <- exists members[conversation = .id, principal = .creator]
+  retain delivered-history
+  sync to members[.id]
+table members:
+  conversation: conversations
+  principal: principal
+  unique conversation, principal
+  cap 50 by conversation
+  immutable conversation, principal
+  read <- exists members[.conversation, viewer]
+  insert <- created conversations[.conversation] or exists members[.conversation, viewer]
+  delete <- .principal = viewer
+  sync to members[.conversation]
+table messages:
+  conversation: conversations
+  sender: principal
+  text: text <=2000
+  at: time
+  search text
+  immutable conversation, sender, at
+  read <- exists members[.conversation, viewer]
+  insert <- .sender = viewer and exists members[.conversation, viewer]
+  retain delivered-history
+  sync to members[.conversation] last 500 by .at
+query conversationScreen(conversation: conversations):
+  return conversations[conversation]
+query inbox(c: cursor ?):
+  return members where .principal = viewer first 50 by .conversation after c { conversation, chat: conversations[.conversation] }
+query history(conversation: conversations, c: cursor ?):
+  return messages where .conversation = conversation last 20 by .at after c
+query search(q: text <=100, c: cursor ?):
+  return messages matching q last 20 by .at after c
+```
+
+Render receipts, profiles, quotes and reactions separately so loading or refusal preserves history. Run `npx snapback4 guide receipts` for the complete model,
+SDK delivery and `useSeen(api.receiptFamilies.chat, { scope, through, active })` for actually visible confirmed positions on web/native (never pending or merely loaded rows). Ordinary search combines current server hits
+with retained device hits online; `usePage` accumulates by ID. Show “Partial results” only for `complete: false`.
+This windowed search emits `N_SYNC_ORDER` for device coverage and `N_NEVER_COMPLETE` for empty-needle browsing (`guide search`).
+
+`cap 50 by conversation` is this product's maximum group size, enforced on writes. Choose caps only for actual product
+limits: the engine chooses its own execution bounds, and `sync last 500` bounds acquisition, not how many messages may
+exist.
+
+When adding Following, `view following` owns that name. Name its reader `query home`, as `npx snapback4 guide feeds` shows; a query also named `following` collides with the view.
+
+
+## Client tier and proof details
+
+Browser: no sync → journal; sync → webDevice(); online writes: writes:"online". Native: nativeDevice. Every milestone: npm run export:ios; check proof in the background with witness status --wait. Rebuild: npm run native:smoke. Reopen/reconnect/write replay: guide witness. useOnline: server reads/ephemeral/actions; app.mutate: durable writes. SDK owns delivery reporting; screen owns visible `seen` reporting; useSeen retries (guide receipts). Proofs: await fresh sent/rendering; avoid networkidle (guide testing).
+
+Shared web/Expo and Node 24 modules use explicit `.ts` imports, including generated api.ts. The starter's src/package.json selects ESM inside src while Expo config files retain CommonJS. Keep its allowImportingTsExtensions/noEmit settings. Under exactOptionalPropertyTypes omit absent properties with `...(device ? {device} : {})`; under noUncheckedIndexedAccess check indexed values or keep Promise.all inputs as a tuple (`as const`).
+
+Never gate sign-in with `useAppReady()`: it needs a signed-in client; sign-out/replacement resets it. Keep drafts above gates; readiness is not authority. Invalid online/device/readOnly combinations set `useAuth().why` and fail app.ready; recreate corrected. Storage failures throw `E_ADMISSION`.
+
+Node-shared functions accept a Client or operation arguments; keep the platform URL/session bootstrap in the app. Node scripts create their own client/session while importing the same pure helpers and generated operations.

@@ -1,0 +1,1067 @@
+{
+  "method": "Same CLIs/models/flags as harness, one fresh before/after session per idea. Scope ends after first compiling initial backend and SDK lookup, not a full application. Native input/cache/call counts; o200k_base counts of actual docs tool outputs (surrounding command output included). First schema write located in tool stream and independently cross-checked by CLI logging. Wall includes model/tool/provider waits; concurrent host work was present.",
+  "baseline": "wave32 packed 0.4.43; README byte-identical to f032742ac8",
+  "results": [
+    {
+      "phase": "before",
+      "id": "001",
+      "model": "codex",
+      "code": 0,
+      "wallMinutes": 4.900683333333333,
+      "scope": "first checked application schema plus SDK discovery; no frontend/provisioning/end-to-end score",
+      "calls": 13,
+      "inputTokens": 685007,
+      "cachedInputTokens": 622464,
+      "uncachedInputTokens": 62543,
+      "docsTokensBeforeSchema": 28959,
+      "totalDocsOutputTokens": 50795,
+      "cliGuideTokensBeforeSchema": 21455,
+      "firstSchemaWriteLocated": true,
+      "reads": [
+        {
+          "command": "/bin/bash -lc 'cat node_modules/snapback4/README.md'",
+          "tokens": 7504,
+          "beforeSchema": true
+        },
+        {
+          "command": "/bin/bash -lc './node_modules/.bin/snapback4 guide cheatsheet'",
+          "tokens": 3528,
+          "beforeSchema": true
+        },
+        {
+          "command": "/bin/bash -lc './node_modules/.bin/snapback4 guide language'",
+          "tokens": 724,
+          "beforeSchema": true
+        },
+        {
+          "command": "/bin/bash -lc './node_modules/.bin/snapback4 guide rules && ./node_modules/.bin/snapback4 guide sync'",
+          "tokens": 3555,
+          "beforeSchema": true
+        },
+        {
+          "command": "/bin/bash -lc './node_modules/.bin/snapback4 guide types && ./node_modules/.bin/snapback4 guide writes'",
+          "tokens": 2648,
+          "beforeSchema": true
+        },
+        {
+          "command": "/bin/bash -lc './node_modules/.bin/snapback4 guide time && ./node_modules/.bin/snapback4 guide jobs'",
+          "tokens": 1707,
+          "beforeSchema": true
+        },
+        {
+          "command": "/bin/bash -lc './node_modules/.bin/snapback4 guide rules --section 13 && ./node_modules/.bin/snapback4 guide language --section 6 && ./node_modules/.bin/snapback4 guide uploads'",
+          "tokens": 3350,
+          "beforeSchema": true
+        },
+        {
+          "command": "/bin/bash -lc './node_modules/.bin/snapback4 guide security'",
+          "tokens": 1826,
+          "beforeSchema": true
+        },
+        {
+          "command": "/bin/bash -lc './node_modules/.bin/snapback4 guide programs'",
+          "tokens": 1008,
+          "beforeSchema": true
+        },
+        {
+          "command": "/bin/bash -lc \"./node_modules/.bin/snapback4 guide rule-recipes --find 'Column-level privacy' && ./node_modules/.bin/snapback4 guide prediction\"",
+          "tokens": 1024,
+          "beforeSchema": true
+        },
+        {
+          "command": "/bin/bash -lc './node_modules/.bin/snapback4 guide time --section 0 && ./node_modules/.bin/snapback4 guide assets --section 2'",
+          "tokens": 1318,
+          "beforeSchema": true
+        },
+        {
+          "command": "/bin/bash -lc './node_modules/.bin/snapback4 guide rule-recipes --section 12 && ./node_modules/.bin/snapback4 guide security --section 3'",
+          "tokens": 767,
+          "beforeSchema": true
+        },
+        {
+          "command": "/bin/bash -lc './node_modules/.bin/snapback4 guide api && cat node_modules/snapback4/package.json'",
+          "tokens": 2975,
+          "beforeSchema": false
+        },
+        {
+          "command": "/bin/bash -lc './node_modules/.bin/snapback4 guide client && ./node_modules/.bin/snapback4 guide staging'",
+          "tokens": 3491,
+          "beforeSchema": false
+        },
+        {
+          "command": "/bin/bash -lc 'cat node_modules/snapback4/dist/client.d.ts node_modules/snapback4/dist/auth.d.ts node_modules/snapback4/dist/proof.d.ts'",
+          "tokens": 3573,
+          "beforeSchema": false
+        },
+        {
+          "command": "/bin/bash -lc \"sed -n '1,180p' node_modules/snapback4/dist/contract.d.ts && sed -n '290,440p' node_modules/snapback4/dist/contract.d.ts && sed -n '1,110p' snapback/generated/api.ts\"",
+          "tokens": 4741,
+          "beforeSchema": false
+        },
+        {
+          "command": "/bin/bash -lc \"sed -n '260,410p' node_modules/snapback4/dist/contract.d.ts && cat node_modules/snapback4/dist/proof-process.d.ts\"",
+          "tokens": 2415,
+          "beforeSchema": false
+        },
+        {
+          "command": "/bin/bash -lc \"sed -n '1,130p' snapback/generated/api.ts && rg -n 'ObserveOptions|Observed|MutateOptions|MutationPromise' node_modules/snapback4/dist/contract.d.ts && ./node_modules/.bin/snapback4 guide staging --section 2\"",
+          "tokens": 2960,
+          "beforeSchema": false
+        },
+        {
+          "command": "/bin/bash -lc \"sed -n '180,240p' node_modules/snapback4/dist/contract.d.ts && sed -n '410,435p' node_modules/snapback4/dist/contract.d.ts && rg --files snapback\"",
+          "tokens": 1107,
+          "beforeSchema": false
+        },
+        {
+          "command": "/bin/bash -lc \"sed -n '120,180p' node_modules/snapback4/dist/contract.d.ts\"",
+          "tokens": 574,
+          "beforeSchema": false
+        }
+      ],
+      "native": {
+        "threadId": "01a17c7e-df45-7a21-a516-028f3e630f93",
+        "usage": {
+          "input_tokens": 685007,
+          "cached_input_tokens": 622464,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 9268,
+          "reasoning_output_tokens": 2188
+        }
+      }
+    },
+    {
+      "phase": "before",
+      "id": "025",
+      "model": "codex",
+      "code": 0,
+      "wallMinutes": 5.452733333333334,
+      "scope": "first checked application schema plus SDK discovery; no frontend/provisioning/end-to-end score",
+      "calls": 12,
+      "inputTokens": 565205,
+      "cachedInputTokens": 502656,
+      "uncachedInputTokens": 62549,
+      "docsTokensBeforeSchema": 23470,
+      "totalDocsOutputTokens": 38597,
+      "cliGuideTokensBeforeSchema": 15966,
+      "firstSchemaWriteLocated": true,
+      "reads": [
+        {
+          "command": "/bin/bash -lc 'cat node_modules/snapback4/README.md'",
+          "tokens": 7504,
+          "beforeSchema": true
+        },
+        {
+          "command": "/bin/bash -lc 'node_modules/.bin/snapback4 guide cheatsheet'",
+          "tokens": 3528,
+          "beforeSchema": true
+        },
+        {
+          "command": "/bin/bash -lc 'node_modules/.bin/snapback4 guide rules'",
+          "tokens": 2153,
+          "beforeSchema": true
+        },
+        {
+          "command": "/bin/bash -lc 'node_modules/.bin/snapback4 guide sync'",
+          "tokens": 1402,
+          "beforeSchema": true
+        },
+        {
+          "command": "/bin/bash -lc 'node_modules/.bin/snapback4 guide language'",
+          "tokens": 724,
+          "beforeSchema": true
+        },
+        {
+          "command": "/bin/bash -lc 'node_modules/.bin/snapback4 guide security --find invariant'",
+          "tokens": 1160,
+          "beforeSchema": true
+        },
+        {
+          "command": "/bin/bash -lc \"node_modules/.bin/snapback4 guide rules --section 'Column read rules'\"",
+          "tokens": 139,
+          "beforeSchema": true
+        },
+        {
+          "command": "/bin/bash -lc 'node_modules/.bin/snapback4 guide writes'",
+          "tokens": 716,
+          "beforeSchema": true
+        },
+        {
+          "command": "/bin/bash -lc 'node_modules/.bin/snapback4 guide types'",
+          "tokens": 1932,
+          "beforeSchema": true
+        },
+        {
+          "command": "/bin/bash -lc 'node_modules/.bin/snapback4 guide time'",
+          "tokens": 527,
+          "beforeSchema": true
+        },
+        {
+          "command": "/bin/bash -lc 'node_modules/.bin/snapback4 guide uploads'",
+          "tokens": 1710,
+          "beforeSchema": true
+        },
+        {
+          "command": "/bin/bash -lc 'node_modules/.bin/snapback4 guide time --section 3'",
+          "tokens": 352,
+          "beforeSchema": true
+        },
+        {
+          "command": "/bin/bash -lc \"node_modules/.bin/snapback4 guide rule-recipes --section 'Column-level privacy'\"",
+          "tokens": 519,
+          "beforeSchema": true
+        },
+        {
+          "command": "/bin/bash -lc 'node_modules/.bin/snapback4 guide language --section 8'",
+          "tokens": 515,
+          "beforeSchema": true
+        },
+        {
+          "command": "/bin/bash -lc 'node_modules/.bin/snapback4 guide time --section 0'",
+          "tokens": 589,
+          "beforeSchema": true
+        },
+        {
+          "command": "/bin/bash -lc 'node_modules/.bin/snapback4 guide client'",
+          "tokens": 2872,
+          "beforeSchema": false
+        },
+        {
+          "command": "/bin/bash -lc 'node_modules/.bin/snapback4 guide api'",
+          "tokens": 1772,
+          "beforeSchema": false
+        },
+        {
+          "command": "/bin/bash -lc 'node_modules/.bin/snapback4 guide staging'",
+          "tokens": 619,
+          "beforeSchema": false
+        },
+        {
+          "command": "/bin/bash -lc 'node_modules/.bin/snapback4 guide staging --section 2'",
+          "tokens": 1050,
+          "beforeSchema": false
+        },
+        {
+          "command": "/bin/bash -lc 'cat node_modules/snapback4/dist/auth.d.ts'",
+          "tokens": 736,
+          "beforeSchema": false
+        },
+        {
+          "command": "/bin/bash -lc 'cat node_modules/snapback4/dist/proof-host.d.ts'",
+          "tokens": 2,
+          "beforeSchema": false
+        },
+        {
+          "command": "/bin/bash -lc 'cat node_modules/snapback4/dist/client.d.ts'",
+          "tokens": 616,
+          "beforeSchema": false
+        },
+        {
+          "command": "/bin/bash -lc 'cat node_modules/snapback4/dist/proof-accounts.d.ts'",
+          "tokens": 532,
+          "beforeSchema": false
+        },
+        {
+          "command": "/bin/bash -lc 'cat node_modules/snapback4/dist/proof.d.ts'",
+          "tokens": 2221,
+          "beforeSchema": false
+        },
+        {
+          "command": "/bin/bash -lc \"rg -n 'observe|query<|mutate<|type Read|type Write|interface Observation|type Observation|close\\\\(' node_modules/snapback4/dist/contract.d.ts\"",
+          "tokens": 303,
+          "beforeSchema": false
+        },
+        {
+          "command": "/bin/bash -lc \"sed -n '1,205p' node_modules/snapback4/dist/contract.d.ts\"",
+          "tokens": 2026,
+          "beforeSchema": false
+        },
+        {
+          "command": "/bin/bash -lc \"sed -n '260,310p' node_modules/snapback4/dist/contract.d.ts; sed -n '365,435p' node_modules/snapback4/dist/contract.d.ts; cat node_modules/snapback4/dist/proof-process.d.ts; cat node_modules/snapback4/dist/identity-request.d.ts\"",
+          "tokens": 2313,
+          "beforeSchema": false
+        },
+        {
+          "command": "/bin/bash -lc \"rg -n 'MutationPromise|waitSeconds' node_modules/snapback4/dist/contract.d.ts\"",
+          "tokens": 65,
+          "beforeSchema": false
+        }
+      ],
+      "native": {
+        "threadId": "01a17c83-5c47-7d61-864f-b9f80d59a50a",
+        "usage": {
+          "input_tokens": 565205,
+          "cached_input_tokens": 502656,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 9997,
+          "reasoning_output_tokens": 2983
+        }
+      }
+    },
+    {
+      "phase": "before",
+      "id": "019",
+      "model": "muse",
+      "code": 0,
+      "wallMinutes": 4.740333333333333,
+      "scope": "first checked application schema plus SDK discovery; no frontend/provisioning/end-to-end score",
+      "calls": 33,
+      "inputTokens": 2484578,
+      "cachedInputTokens": 2380960,
+      "uncachedInputTokens": 103618,
+      "docsTokensBeforeSchema": 43156,
+      "totalDocsOutputTokens": 43156,
+      "cliGuideTokensBeforeSchema": 31379,
+      "firstSchemaWriteLocated": true,
+      "reads": [
+        {
+          "command": "ls -la /tmp/tok1-replay/before-019 && echo --- && cat /tmp/tok1-replay/before-019/node_modules/snapback4/README.md",
+          "tool": "bash",
+          "tokens": 7703,
+          "beforeSchema": true
+        },
+        {
+          "command": "",
+          "tool": "read_file",
+          "tokens": 392,
+          "beforeSchema": true
+        },
+        {
+          "command": "",
+          "tool": "read_file",
+          "tokens": 215,
+          "beforeSchema": true
+        },
+        {
+          "command": "node cli-log.mjs guide start 2>&1 | head -100; echo ===; node cli-log.mjs guide cheatsheet 2>&1 | head -250",
+          "tool": "bash",
+          "tokens": 5166,
+          "beforeSchema": true
+        },
+        {
+          "command": "node cli-log.mjs guide language 2>&1 | head -400\necho \"=====RULES=====\"\nnode cli-log.mjs guide rules 2>&1 | head -400",
+          "tool": "bash",
+          "tokens": 2881,
+          "beforeSchema": true
+        },
+        {
+          "command": "node cli-log.mjs guide recipes 2>&1 | head -500\necho \"=====SECURITY=====\"\nnode cli-log.mjs guide security 2>&1 | head -300",
+          "tool": "bash",
+          "tokens": 3272,
+          "beforeSchema": true
+        },
+        {
+          "command": "node cli-log.mjs guide security --section 2 2>&1 | head -120\necho \"=====SEC3=====\"\nnode cli-log.mjs guide security --section 3 2>&1 | head -120\necho \"=====SEC51=====\"\nnode cli-log.mjs guide security --section 51 2>&1 | head -200\necho \"=====SEC52=====\"\nnode cli",
+          "tool": "bash",
+          "tokens": 1390,
+          "beforeSchema": true
+        },
+        {
+          "command": "node cli-log.mjs guide rule-recipes 2>&1 | head -600\necho \"=====TYPES=====\"\nnode cli-log.mjs guide types 2>&1 | head -400",
+          "tool": "bash",
+          "tokens": 3393,
+          "beforeSchema": true
+        },
+        {
+          "command": "node cli-log.mjs guide rule-recipes --section 12 2>&1 | head -150\necho \"=====S13=====\"\nnode cli-log.mjs guide rule-recipes --section 13 2>&1 | head -150\necho \"=====S46=====\"\nnode cli-log.mjs guide rule-recipes --section 46 2>&1 | head -200",
+          "tool": "bash",
+          "tokens": 1412,
+          "beforeSchema": true
+        },
+        {
+          "command": "node cli-log.mjs guide time 2>&1 | head -300\necho \"=====WRITES=====\"\nnode cli-log.mjs guide writes 2>&1 | head -350",
+          "tool": "bash",
+          "tokens": 1247,
+          "beforeSchema": true
+        },
+        {
+          "command": "node cli-log.mjs guide assets 2>&1 | head -250\necho \"=====SYNC=====\"\nnode cli-log.mjs guide sync 2>&1 | head -250\necho \"=====PERSONAS=====\"\nnode cli-log.mjs guide personas 2>&1 | head -200",
+          "tool": "bash",
+          "tokens": 5278,
+          "beforeSchema": true
+        },
+        {
+          "command": "node cli-log.mjs guide security --section 26 2>&1 | head -60\necho \"=====27=====\"\nnode cli-log.mjs guide security --section 27 2>&1 | head -60\necho \"=====28=====\"\nnode cli-log.mjs guide security --section 28 2>&1 | head -60\necho \"=====30=====\"\nnode cli-log.mjs ",
+          "tool": "bash",
+          "tokens": 328,
+          "beforeSchema": true
+        },
+        {
+          "command": "node cli-log.mjs guide security --section 38 2>&1 | head -80\necho \"=====39=====\"\nnode cli-log.mjs guide security --section 39 2>&1 | head -80\necho \"=====41=====\"\nnode cli-log.mjs guide security --section 41 2>&1 | head -80\necho \"=====46=====\"\nnode cli-log.mjs ",
+          "tool": "bash",
+          "tokens": 631,
+          "beforeSchema": true
+        },
+        {
+          "command": "node cli-log.mjs guide client 2>&1 | head -200\necho \"=====API=====\"\nnode cli-log.mjs guide api 2>&1 | head -200",
+          "tool": "bash",
+          "tokens": 4647,
+          "beforeSchema": true
+        },
+        {
+          "command": "ls node_modules/snapback4/dist/*.d.ts | head -30; echo ====; grep -n \"export declare function createClient\\|export declare function observe\\|observe\" node_modules/snapback4/dist/client.d.ts | head -20; echo ====; grep -n \"export declare function \\(signup\\|logi",
+          "tool": "bash",
+          "tokens": 543,
+          "beforeSchema": true
+        },
+        {
+          "command": "grep -n \"query\\|mutate\\|observe\\|subscribe\" node_modules/snapback4/dist/client.d.ts | head -30; echo ====; grep -n \"ClientOptions\" -A 15 node_modules/snapback4/dist/client.d.ts | head -40; echo ====; grep -n \"export declare function \\(startDev\\|startServe\\|pro",
+          "tool": "bash",
+          "tokens": 282,
+          "beforeSchema": true
+        },
+        {
+          "command": "grep -n \"query\\|mutate\\|observe\" node_modules/snapback4/dist/contract.d.ts | head -30; echo ====; grep -rn \"observe\" node_modules/snapback4/dist/app.d.ts node_modules/snapback4/dist/app-client.d.ts 2>/dev/null | head -10; echo ====; grep -n \"seedAccounts\\|prov",
+          "tool": "bash",
+          "tokens": 447,
+          "beforeSchema": true
+        },
+        {
+          "command": "node cli-log.mjs guide language --find money 2>&1 | head -80; echo \"=====TIME-OPEN=====\"; node cli-log.mjs guide time --section 0 2>&1 | head -80",
+          "tool": "bash",
+          "tokens": 896,
+          "beforeSchema": true
+        },
+        {
+          "command": "node cli-log.mjs guide language --section 6 2>&1 | head -120",
+          "tool": "bash",
+          "tokens": 578,
+          "beforeSchema": true
+        },
+        {
+          "command": "sed -n 1,60p node_modules/snapback4/dist/auth.d.ts; echo \"=====CONTRACT 370-395=====\"; sed -n 370,395p node_modules/snapback4/dist/contract.d.ts; echo \"=====PROOF 1-90=====\"; sed -n 1,90p node_modules/snapback4/dist/proof.d.ts",
+          "tool": "bash",
+          "tokens": 2174,
+          "beforeSchema": true
+        },
+        {
+          "command": "grep -n \"Observed\" node_modules/snapback4/dist/contract.d.ts | head; echo ====; grep -n \"interface Observed\" -A 20 node_modules/snapback4/dist/contract.d.ts | head -30",
+          "tool": "bash",
+          "tokens": 281,
+          "beforeSchema": true
+        }
+      ],
+      "native": {
+        "allowance": {
+          "as_of_ms": 1793090955533,
+          "source": "stream",
+          "tier": null,
+          "weekly": {
+            "resets_at_ms": 1793577600000,
+            "used_percent": 17
+          },
+          "window": {
+            "resets_at_ms": 1793108277000,
+            "used_percent": 0
+          }
+        },
+        "calls": 33,
+        "cancelled_calls": 0,
+        "children_included": false,
+        "command_id": "01a17c88-5bde-7f12-8410-3ed2c262bcc8",
+        "completed_calls": 33,
+        "failed_calls": 0,
+        "kind": "run_usage",
+        "models": [
+          {
+            "cached_tokens": 2380960,
+            "calls": 33,
+            "input_tokens": 2484578,
+            "model": "muse-spark-1.3-contributor",
+            "output_tokens": 22050,
+            "reasoning_tokens": 13004
+          }
+        ],
+        "run_stream": {
+          "id": "01a17c88-5bde-7f12-8410-3ed2c262bcc8",
+          "kind": "run"
+        }
+      }
+    },
+    {
+      "phase": "before",
+      "id": "028",
+      "model": "muse",
+      "code": 0,
+      "wallMinutes": 4.43985,
+      "scope": "first checked application schema plus SDK discovery; no frontend/provisioning/end-to-end score",
+      "calls": 27,
+      "inputTokens": 1937050,
+      "cachedInputTokens": 1835258,
+      "uncachedInputTokens": 101792,
+      "docsTokensBeforeSchema": 36502,
+      "totalDocsOutputTokens": 41466,
+      "cliGuideTokensBeforeSchema": 29680,
+      "firstSchemaWriteLocated": true,
+      "reads": [
+        {
+          "command": "ls -la; echo ---; ls -la snapback/ 2>&1; echo ---; cat node_modules/snapback4/README.md 2>&1 | head -n 300",
+          "tool": "bash",
+          "tokens": 7095,
+          "beforeSchema": true
+        },
+        {
+          "command": "node cli-log.mjs guide start 2>&1 | head -n 100; echo ===CHEATSHEET===; node cli-log.mjs guide cheatsheet 2>&1 | head -n 250",
+          "tool": "bash",
+          "tokens": 5170,
+          "beforeSchema": true
+        },
+        {
+          "command": "node cli-log.mjs guide language 2>&1 | head -n 400\necho \"=====TYPES=====\"\nnode cli-log.mjs guide types 2>&1 | head -n 200",
+          "tool": "bash",
+          "tokens": 2660,
+          "beforeSchema": true
+        },
+        {
+          "command": "node cli-log.mjs guide rules 2>&1 | head -n 350\necho \"=====RECIPES=====\"\nnode cli-log.mjs guide recipes 2>&1 | head -n 350",
+          "tool": "bash",
+          "tokens": 3600,
+          "beforeSchema": true
+        },
+        {
+          "command": "node cli-log.mjs guide time 2>&1 | head -n 400\necho \"=====RULE-RECIPES=====\"\nnode cli-log.mjs guide rule-recipes 2>&1 | head -n 400",
+          "tool": "bash",
+          "tokens": 1991,
+          "beforeSchema": true
+        },
+        {
+          "command": "node cli-log.mjs guide rule-recipes --section 12 2>&1 | head -n 120\necho \"=====S24=====\"\nnode cli-log.mjs guide rule-recipes --section 24 2>&1 | head -n 120\necho \"=====S26or27=====\"\nnode cli-log.mjs guide rule-recipes --section 27 2>&1 | head -n 120",
+          "tool": "bash",
+          "tokens": 1202,
+          "beforeSchema": true
+        },
+        {
+          "command": "node cli-log.mjs guide rule-recipes --section 46 2>&1 | head -n 140\necho \"=====WRITES=====\"\nnode cli-log.mjs guide writes 2>&1 | head -n 250",
+          "tool": "bash",
+          "tokens": 1321,
+          "beforeSchema": true
+        },
+        {
+          "command": "node cli-log.mjs guide uploads 2>&1 | head -n 250\necho \"=====SECURITY=====\"\nnode cli-log.mjs guide security 2>&1 | head -n 250",
+          "tool": "bash",
+          "tokens": 3540,
+          "beforeSchema": true
+        },
+        {
+          "command": "node cli-log.mjs guide security --section 3 2>&1 | head -n 60\necho \"=====S51-52=====\"\nnode cli-log.mjs guide security --section 51 2>&1 | head -n 150",
+          "tool": "bash",
+          "tokens": 695,
+          "beforeSchema": true
+        },
+        {
+          "command": "node cli-log.mjs guide rule-recipes --section 2 2>&1 | head -n 100\necho \"=====CLIENT=====\"\nnode cli-log.mjs guide client 2>&1 | head -n 200",
+          "tool": "bash",
+          "tokens": 3331,
+          "beforeSchema": true
+        },
+        {
+          "command": "node cli-log.mjs guide api 2>&1 | head -n 300",
+          "tool": "bash",
+          "tokens": 1772,
+          "beforeSchema": true
+        },
+        {
+          "command": "node cli-log.mjs guide testing 2>&1 | head -n 300\necho \"=====PERSONAS=====\"\nnode cli-log.mjs guide personas 2>&1 | head -n 150",
+          "tool": "bash",
+          "tokens": 3387,
+          "beforeSchema": true
+        },
+        {
+          "command": "node cli-log.mjs guide security --section 18 2>&1 | head -n 40; echo \"=====TGT=====\"; node cli-log.mjs guide security --section 6 2>&1 | head -n 40; echo \"=====TIMEVAL=====\"; node cli-log.mjs guide time --section 0 2>&1 | head -n 80",
+          "tool": "bash",
+          "tokens": 738,
+          "beforeSchema": true
+        },
+        {
+          "command": "grep -n \"export\" node_modules/snapback4/dist/client.d.ts | head -n 40; echo \"=====AUTH=====\"; grep -n \"export\" node_modules/snapback4/dist/auth.d.ts | head -n 40",
+          "tool": "bash",
+          "tokens": 561,
+          "beforeSchema": false
+        },
+        {
+          "command": "grep -n \"export\" node_modules/snapback4/dist/proof.d.ts | head -n 60",
+          "tool": "bash",
+          "tokens": 756,
+          "beforeSchema": false
+        },
+        {
+          "command": "sed -n 1,120p node_modules/snapback4/dist/contract.d.ts | grep -n \"query\\|mutate\\|observe\\|watch\\|subscribe\" | head -n 30; echo \"=====CLIENT-OPTS=====\"; sed -n 1,60p node_modules/snapback4/dist/client.d.ts",
+          "tool": "bash",
+          "tokens": 700,
+          "beforeSchema": false
+        },
+        {
+          "command": "grep -n \"observe\\|query<\\|mutate<\\|query:\\|mutate:\\|observe:\" node_modules/snapback4/dist/contract.d.ts | head -n 30; echo ====; grep -n \"Observed\\|ObserveOptions\" node_modules/snapback4/dist/contract.d.ts | head",
+          "tool": "bash",
+          "tokens": 197,
+          "beforeSchema": false
+        },
+        {
+          "command": "sed -n 270,400p node_modules/snapback4/dist/contract.d.ts",
+          "tool": "bash",
+          "tokens": 1648,
+          "beforeSchema": false
+        },
+        {
+          "command": "grep -n \"seedAccounts\\|provisionAccounts\\|devAccounts\" node_modules/snapback4/dist/proof-accounts.d.ts; sed -n 1,80p node_modules/snapback4/dist/proof-accounts.d.ts",
+          "tool": "bash",
+          "tokens": 626,
+          "beforeSchema": false
+        },
+        {
+          "command": "grep -n \"MutateOptions\\|interface Write\\|type Write\\|interface SignIn\\|type SignIn\\|SettledRead\" node_modules/snapback4/dist/contract.d.ts | head; echo ====; sed -n \"$(grep -n 'interface MutateOptions' node_modules/snapback4/dist/contract.d.ts | cut -d: -f1),+",
+          "tool": "bash",
+          "tokens": 476,
+          "beforeSchema": false
+        }
+      ],
+      "native": {
+        "allowance": {
+          "as_of_ms": 1793091223682,
+          "source": "stream",
+          "tier": null,
+          "weekly": {
+            "resets_at_ms": 1793577600000,
+            "used_percent": 17
+          },
+          "window": {
+            "resets_at_ms": 1793108277000,
+            "used_percent": 0
+          }
+        },
+        "calls": 27,
+        "cancelled_calls": 0,
+        "children_included": false,
+        "command_id": "01a17c8c-b2d1-7c80-a132-e4aec5a2f3c3",
+        "completed_calls": 27,
+        "failed_calls": 0,
+        "kind": "run_usage",
+        "models": [
+          {
+            "cached_tokens": 1835258,
+            "calls": 27,
+            "input_tokens": 1937050,
+            "model": "muse-spark-1.3-contributor",
+            "output_tokens": 20701,
+            "reasoning_tokens": 13582
+          }
+        ],
+        "run_stream": {
+          "id": "01a17c8c-b2d1-7c80-a132-e4aec5a2f3c3",
+          "kind": "run"
+        }
+      }
+    },
+    {
+      "phase": "after",
+      "id": "001",
+      "model": "codex",
+      "code": 0,
+      "wallMinutes": 4.367366666666666,
+      "scope": "first checked application schema plus SDK discovery; no frontend/provisioning/end-to-end score",
+      "calls": 12,
+      "inputTokens": 331758,
+      "cachedInputTokens": 289280,
+      "uncachedInputTokens": 42478,
+      "docsTokensBeforeSchema": 2315,
+      "totalDocsOutputTokens": 11721,
+      "cliGuideTokensBeforeSchema": 1866,
+      "firstSchemaWriteLocated": true,
+      "reads": [
+        {
+          "command": "/bin/bash -lc 'cat node_modules/snapback4/README.md'",
+          "tokens": 449,
+          "beforeSchema": true
+        },
+        {
+          "command": "/bin/bash -lc 'node_modules/.bin/snapback4 guide start'",
+          "tokens": 1866,
+          "beforeSchema": true
+        },
+        {
+          "command": "/bin/bash -lc 'node_modules/.bin/snapback4 guide jobs --section Operations'",
+          "tokens": 1865,
+          "beforeSchema": false
+        },
+        {
+          "command": "/bin/bash -lc 'node_modules/.bin/snapback4 guide api auth'",
+          "tokens": 497,
+          "beforeSchema": false
+        },
+        {
+          "command": "/bin/bash -lc 'node_modules/.bin/snapback4 guide api client'",
+          "tokens": 1127,
+          "beforeSchema": false
+        },
+        {
+          "command": "/bin/bash -lc 'node_modules/.bin/snapback4 guide api proof'",
+          "tokens": 1087,
+          "beforeSchema": false
+        },
+        {
+          "command": "/bin/bash -lc 'node_modules/.bin/snapback4 guide api generated'",
+          "tokens": 393,
+          "beforeSchema": false
+        },
+        {
+          "command": "/bin/bash -lc 'node_modules/.bin/snapback4 guide time --section Values'",
+          "tokens": 262,
+          "beforeSchema": false
+        },
+        {
+          "command": "/bin/bash -lc \"node_modules/.bin/snapback4 guide jobs --find 'schedule'\"",
+          "tokens": 1866,
+          "beforeSchema": false
+        },
+        {
+          "command": "/bin/bash -lc \"node_modules/.bin/snapback4 guide api client --find 'Present'\"",
+          "tokens": 33,
+          "beforeSchema": false
+        },
+        {
+          "command": "/bin/bash -lc 'node_modules/.bin/snapback4 guide jobs --section 0'",
+          "tokens": 1874,
+          "beforeSchema": false
+        },
+        {
+          "command": "/bin/bash -lc 'node_modules/.bin/snapback4 guide api generated'",
+          "tokens": 402,
+          "beforeSchema": false
+        }
+      ],
+      "native": {
+        "threadId": "01a17c98-3c86-7e93-8c32-c701f83b4940",
+        "usage": {
+          "input_tokens": 331758,
+          "cached_input_tokens": 289280,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 8977,
+          "reasoning_output_tokens": 2239
+        }
+      }
+    },
+    {
+      "phase": "after",
+      "id": "025",
+      "model": "codex",
+      "code": 0,
+      "wallMinutes": 5.426716666666667,
+      "scope": "first checked application schema plus SDK discovery; no frontend/provisioning/end-to-end score",
+      "calls": 17,
+      "inputTokens": 503402,
+      "cachedInputTokens": 476800,
+      "uncachedInputTokens": 26602,
+      "docsTokensBeforeSchema": 2546,
+      "totalDocsOutputTokens": 13705,
+      "cliGuideTokensBeforeSchema": 1866,
+      "firstSchemaWriteLocated": true,
+      "reads": [
+        {
+          "command": "/bin/bash -lc 'cat node_modules/snapback4/README.md'",
+          "tokens": 449,
+          "beforeSchema": true
+        },
+        {
+          "command": "/bin/bash -lc 'node node_modules/snapback4/bin/snapback4.mjs guide start'",
+          "tokens": 231,
+          "beforeSchema": true
+        },
+        {
+          "command": "/bin/bash -lc './node_modules/.bin/snapback4 guide start'",
+          "tokens": 1866,
+          "beforeSchema": true
+        },
+        {
+          "command": "/bin/bash -lc \"./node_modules/.bin/snapback4 guide rules --find 'mutation'\"",
+          "tokens": 1998,
+          "beforeSchema": false
+        },
+        {
+          "command": "/bin/bash -lc \"./node_modules/.bin/snapback4 guide time --section 'Months and years'\"",
+          "tokens": 352,
+          "beforeSchema": false
+        },
+        {
+          "command": "/bin/bash -lc \"./node_modules/.bin/snapback4 guide time --find 'calendar'\"",
+          "tokens": 420,
+          "beforeSchema": false
+        },
+        {
+          "command": "/bin/bash -lc './node_modules/.bin/snapback4 guide api client'",
+          "tokens": 1127,
+          "beforeSchema": false
+        },
+        {
+          "command": "/bin/bash -lc './node_modules/.bin/snapback4 guide api generated'",
+          "tokens": 320,
+          "beforeSchema": false
+        },
+        {
+          "command": "/bin/bash -lc './node_modules/.bin/snapback4 guide api auth'",
+          "tokens": 497,
+          "beforeSchema": false
+        },
+        {
+          "command": "/bin/bash -lc './node_modules/.bin/snapback4 guide api proof'",
+          "tokens": 1087,
+          "beforeSchema": false
+        },
+        {
+          "command": "/bin/bash -lc \"rg -n 'anniversary|addYears|addMonths|daysIn|calendar|monthStart|yearStart' node_modules/snapback4/*.md node_modules/snapback4/dist/*.d.ts\"",
+          "tokens": 0,
+          "beforeSchema": false
+        },
+        {
+          "command": "/bin/bash -lc './node_modules/.bin/snapback4 guide time --section Values'",
+          "tokens": 279,
+          "beforeSchema": false
+        },
+        {
+          "command": "/bin/bash -lc \"./node_modules/.bin/snapback4 guide time --section 'Calendar numbers: day, hour, bucket'\"",
+          "tokens": 405,
+          "beforeSchema": false
+        },
+        {
+          "command": "/bin/bash -lc \"rg -n 'export (type|interface) (Present|Partial|Absent|Page|AdvanceOptions|ClockAdvance|StagingAccount|Asset)\\\\b|interface DevHost|export.*login|interface ObserveOptions' node_modules/snapback4/dist/contract.d.ts node_modules/snapback4/dist/proo",
+          "tokens": 3167,
+          "beforeSchema": false
+        },
+        {
+          "command": "/bin/bash -lc \"sed -n '1,82p' node_modules/snapback4/dist/proof.d.ts; rg -n -A 18 -B 3 'type Present|interface Present|type Partial|interface Partial|type Absent|interface Absent' node_modules/snapback4/dist/contract.d.ts\"",
+          "tokens": 1106,
+          "beforeSchema": false
+        },
+        {
+          "command": "/bin/bash -lc './node_modules/.bin/snapback4 guide types --find money'",
+          "tokens": 148,
+          "beforeSchema": false
+        },
+        {
+          "command": "/bin/bash -lc './node_modules/.bin/snapback4 guide types --find divide'",
+          "tokens": 253,
+          "beforeSchema": false
+        }
+      ],
+      "native": {
+        "threadId": "01a17c9c-3cd8-7462-b335-df139c8e23f7",
+        "usage": {
+          "input_tokens": 503402,
+          "cached_input_tokens": 476800,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 9995,
+          "reasoning_output_tokens": 2688
+        }
+      }
+    },
+    {
+      "phase": "after",
+      "id": "019",
+      "model": "muse",
+      "code": 0,
+      "wallMinutes": 2.4421,
+      "scope": "first checked application schema plus SDK discovery; no frontend/provisioning/end-to-end score",
+      "calls": 20,
+      "inputTokens": 831180,
+      "cachedInputTokens": 785763,
+      "uncachedInputTokens": 45417,
+      "docsTokensBeforeSchema": 3243,
+      "totalDocsOutputTokens": 6176,
+      "cliGuideTokensBeforeSchema": 1866,
+      "firstSchemaWriteLocated": true,
+      "reads": [
+        {
+          "command": "",
+          "tool": "read_file",
+          "tokens": 545,
+          "beforeSchema": true
+        },
+        {
+          "command": "ls -la; echo ---; ls -la snapback/ 2>&1; echo ---; cat package.json 2>&1; echo ---; npx snapback4 guide start 2>&1",
+          "tool": "bash",
+          "tokens": 2091,
+          "beforeSchema": true
+        },
+        {
+          "command": "",
+          "tool": "read_file",
+          "tokens": 392,
+          "beforeSchema": true
+        },
+        {
+          "command": "",
+          "tool": "read_file",
+          "tokens": 215,
+          "beforeSchema": true
+        },
+        {
+          "command": "node cli-log.mjs guide api client 2>&1",
+          "tool": "bash",
+          "tokens": 1127,
+          "beforeSchema": false
+        },
+        {
+          "command": "node cli-log.mjs guide api auth 2>&1",
+          "tool": "bash",
+          "tokens": 497,
+          "beforeSchema": false
+        },
+        {
+          "command": "node cli-log.mjs guide api proof 2>&1",
+          "tool": "bash",
+          "tokens": 1087,
+          "beforeSchema": false
+        },
+        {
+          "command": "node cli-log.mjs guide api generated 2>&1",
+          "tool": "bash",
+          "tokens": 222,
+          "beforeSchema": false
+        }
+      ],
+      "native": {
+        "allowance": {
+          "as_of_ms": 1793092448323,
+          "source": "stream",
+          "tier": null,
+          "weekly": {
+            "resets_at_ms": 1793577600000,
+            "used_percent": 17
+          },
+          "window": {
+            "resets_at_ms": 1793108277000,
+            "used_percent": 0
+          }
+        },
+        "calls": 20,
+        "cancelled_calls": 0,
+        "children_included": false,
+        "command_id": "01a17ca1-3625-7280-805a-6e1fb3404324",
+        "completed_calls": 20,
+        "failed_calls": 0,
+        "kind": "run_usage",
+        "models": [
+          {
+            "cached_tokens": 785763,
+            "calls": 20,
+            "input_tokens": 831180,
+            "model": "muse-spark-1.3-contributor",
+            "output_tokens": 9855,
+            "reasoning_tokens": 4825
+          }
+        ],
+        "run_stream": {
+          "id": "01a17ca1-3625-7280-805a-6e1fb3404324",
+          "kind": "run"
+        }
+      }
+    },
+    {
+      "phase": "after",
+      "id": "028",
+      "model": "muse",
+      "code": 0,
+      "wallMinutes": 3.0344166666666665,
+      "scope": "first checked application schema plus SDK discovery; no frontend/provisioning/end-to-end score",
+      "calls": 20,
+      "inputTokens": 862086,
+      "cachedInputTokens": 765938,
+      "uncachedInputTokens": 96148,
+      "docsTokensBeforeSchema": 2797,
+      "totalDocsOutputTokens": 8738,
+      "cliGuideTokensBeforeSchema": 1866,
+      "firstSchemaWriteLocated": true,
+      "reads": [
+        {
+          "command": "",
+          "tool": "read_file",
+          "tokens": 545,
+          "beforeSchema": true
+        },
+        {
+          "command": "",
+          "tool": "read_file",
+          "tokens": 386,
+          "beforeSchema": true
+        },
+        {
+          "command": "cd /tmp/tok1-replay/after-028 && npx snapback4 guide start 2>&1 | head -c 20000",
+          "tool": "bash",
+          "tokens": 1866,
+          "beforeSchema": true
+        },
+        {
+          "command": "cd /tmp/tok1-replay/after-028 && npx snapback4 guide time --section \"Months and years\" 2>&1 | head -c 6000",
+          "tool": "bash",
+          "tokens": 352,
+          "beforeSchema": false
+        },
+        {
+          "command": "cd /tmp/tok1-replay/after-028 && npx snapback4 guide rules --find \"not exists\" 2>&1 | head -c 4000; echo ===; npx snapback4 guide time --find \"overdue\" 2>&1 | head -c 4000",
+          "tool": "bash",
+          "tokens": 1103,
+          "beforeSchema": false
+        },
+        {
+          "command": "cd /tmp/tok1-replay/after-028 && npx snapback4 guide rules --find \"query where not\" 2>&1 | head -c 3000; echo ===; npx snapback4 guide jobs --section \"Operations\" 2>&1 | head -c 3000",
+          "tool": "bash",
+          "tokens": 1424,
+          "beforeSchema": false
+        },
+        {
+          "command": "cd /tmp/tok1-replay/after-028 && npx snapback4 guide api client 2>&1 | head -c 8000",
+          "tool": "bash",
+          "tokens": 1127,
+          "beforeSchema": false
+        },
+        {
+          "command": "cd /tmp/tok1-replay/after-028 && npx snapback4 guide api auth 2>&1 | head -c 6000; echo =====; npx snapback4 guide api proof 2>&1 | head -c 6000",
+          "tool": "bash",
+          "tokens": 1585,
+          "beforeSchema": false
+        },
+        {
+          "command": "cd /tmp/tok1-replay/after-028 && npx snapback4 guide api generated 2>&1 | head -c 7000",
+          "tool": "bash",
+          "tokens": 350,
+          "beforeSchema": false
+        }
+      ],
+      "native": {
+        "allowance": {
+          "as_of_ms": 1793092630642,
+          "source": "stream",
+          "tier": null,
+          "weekly": {
+            "resets_at_ms": 1793577600000,
+            "used_percent": 17
+          },
+          "window": {
+            "resets_at_ms": 1793108277000,
+            "used_percent": 0
+          }
+        },
+        "calls": 20,
+        "cancelled_calls": 0,
+        "children_included": false,
+        "command_id": "01a17ca3-7339-7f61-b065-105c8d568a2c",
+        "completed_calls": 20,
+        "failed_calls": 0,
+        "kind": "run_usage",
+        "models": [
+          {
+            "cached_tokens": 765938,
+            "calls": 20,
+            "input_tokens": 862086,
+            "model": "muse-spark-1.3-contributor",
+            "output_tokens": 12776,
+            "reasoning_tokens": 6524
+          }
+        ],
+        "run_stream": {
+          "id": "01a17ca3-7339-7f61-b065-105c8d568a2c",
+          "kind": "run"
+        }
+      }
+    }
+  ]
+}

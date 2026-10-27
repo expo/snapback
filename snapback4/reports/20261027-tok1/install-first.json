@@ -1,0 +1,46 @@
+{
+  "qualification": false,
+  "sourceCommit": "3fda135dfc",
+  "steps": [
+    {
+      "name": "npm i snapback4 only",
+      "code": 0,
+      "seconds": 2.628
+    },
+    {
+      "name": "guide before frontend installation",
+      "code": 0,
+      "bytes": 7970,
+      "vitePresent": false,
+      "expoPresent": false
+    },
+    {
+      "name": "init default background install",
+      "code": 0,
+      "seconds": 0.067,
+      "announcedBackground": true
+    },
+    {
+      "name": "status while frontend installs",
+      "code": 0,
+      "stdout": "frontend install: running; 0s elapsed; log .snapback4/install.log"
+    },
+    {
+      "name": "compile schema independently of frontend",
+      "code": 0,
+      "seconds": 15.101
+    },
+    {
+      "name": "join actual frontend installer",
+      "code": 0,
+      "seconds": 0.036,
+      "stdout": "frontend install: finished; 15s elapsed; exit 0; log .snapback4/install.log"
+    },
+    {
+      "name": "installed frontend typecheck",
+      "code": 0,
+      "seconds": 1.155
+    }
+  ],
+  "ok": true
+}

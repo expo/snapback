@@ -1,0 +1,32 @@
+{
+  "binarySha256": "9d432a5fed665c418cbed5aa26995811411ee46c10f09f9e5181139ce7924a95",
+  "method": "One worker, independent fresh source/fixture copies for each cold check --review and production deploy; no advisory cache, no prior test.",
+  "affinityCpus": 96,
+  "review": {
+    "median": 13.629112996044569,
+    "p90": 25.144055890850723,
+    "max": 52.85162580315955,
+    "count": 50
+  },
+  "deploy": {
+    "median": 18.2655091175111,
+    "p90": 32.83354383590631,
+    "max": 70.48454838595353,
+    "count": 50
+  },
+  "toolFailures": [],
+  "peakLoadPerCpu": 0.2023773193359375,
+  "sourceHashesMatchSurvey": true,
+  "verdictChangesFromSurvey": [],
+  "targets": {
+    "reviewP90Seconds": 10,
+    "deployP90Seconds": 15,
+    "reviewPassed": false,
+    "deployPassed": false
+  },
+  "freshColdDeployLines": {
+    "median": 5.0,
+    "p90": 9,
+    "max": 11
+  }
+}

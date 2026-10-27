@@ -1,0 +1,26 @@
+{
+  "productSource": "267c579701",
+  "merged": "d9734feab5",
+  "mergeScope": "Only scale-controls experiment records, no executable inputs",
+  "binarySha256": "9d432a5fed665c418cbed5aa26995811411ee46c10f09f9e5181139ce7924a95",
+  "profile": "production",
+  "buildEnvironment": {
+    "LIBSQLITE3_FLAGS": "-USQLITE_ENABLE_MEMORY_MANAGEMENT",
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0"
+  },
+  "postCompileChange": "Test-only fixture correction: removed an unsupported explicit index declaration; no product code changed",
+  "rawEvidence": "/home/ccheever/sb4-loop/reports/sec11",
+  "scope": "SEC11 item1 only; items2\u20139 deferred; no new production gate codes",
+  "survey": "800 copied schemas, fresh deploy plus test and post-test deploy; source hashes compared to Integration27",
+  "timing": "50 wave30 apps, one worker, fresh independent copy per cold check --review and production deploy, after full survey",
+  "qualificationHead": "58f30f47f0",
+  "testOnlyRetryHead": "0dd5622566",
+  "qualification": "Explicit composition of retained original FAIL receipt and targeted PASS retry; all applicable product steps pass. Root Snapback1 checks are outside fence; canonical full pool not claimed.",
+  "latencyTargetsMet": false,
+  "coverageTargetMet": false,
+  "finalMainMerge": "9f522635993c3a51ab7f373bad4fa9900548ceb3",
+  "mergedMain": "c9b940ff2ebf3547f95c24dec491f49853804850",
+  "postMergeProductRuntimeSourceChanged": false
+}

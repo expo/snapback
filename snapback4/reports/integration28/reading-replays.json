@@ -1,0 +1,61 @@
+{
+  "method": "Same CLIs/models/flags as harness, one fresh before/after session per idea. Scope ends after first compiling initial backend and SDK lookup, not a full application. Native input/cache/call counts; o200k_base counts of actual docs tool outputs (surrounding command output included). First schema write located in tool stream and independently cross-checked by CLI logging. Wall includes model/tool/provider waits; concurrent host work was present.",
+  "results": [
+    {
+      "phase": "after",
+      "id": "001",
+      "model": "codex",
+      "code": 0,
+      "wallMinutes": 2.8194666666666666,
+      "scope": "first checked application schema plus SDK discovery; no frontend/provisioning/end-to-end score",
+      "inputTokens": 325889,
+      "cachedInputTokens": 281600,
+      "uncachedInputTokens": 44289,
+      "docsTokensBeforeSchema": 2315,
+      "totalDocsOutputTokens": 11325,
+      "firstSchemaWriteLocated": true
+    },
+    {
+      "phase": "after",
+      "id": "025",
+      "model": "codex",
+      "code": 0,
+      "wallMinutes": 4.954066666666667,
+      "scope": "first checked application schema plus SDK discovery; no frontend/provisioning/end-to-end score",
+      "inputTokens": 650668,
+      "cachedInputTokens": 594432,
+      "uncachedInputTokens": 56236,
+      "docsTokensBeforeSchema": 2315,
+      "totalDocsOutputTokens": 10817,
+      "firstSchemaWriteLocated": true
+    },
+    {
+      "phase": "after",
+      "id": "019",
+      "model": "muse",
+      "code": 0,
+      "wallMinutes": 3.225433333333333,
+      "scope": "first checked application schema plus SDK discovery; no frontend/provisioning/end-to-end score",
+      "inputTokens": 1055999,
+      "cachedInputTokens": 998838,
+      "uncachedInputTokens": 57161,
+      "docsTokensBeforeSchema": 3014,
+      "totalDocsOutputTokens": 5957,
+      "firstSchemaWriteLocated": true
+    },
+    {
+      "phase": "after",
+      "id": "028",
+      "model": "muse",
+      "code": 0,
+      "wallMinutes": 3.948733333333333,
+      "scope": "first checked application schema plus SDK discovery; no frontend/provisioning/end-to-end score",
+      "inputTokens": 1081987,
+      "cachedInputTokens": 977093,
+      "uncachedInputTokens": 104894,
+      "docsTokensBeforeSchema": 3008,
+      "totalDocsOutputTokens": 6418,
+      "firstSchemaWriteLocated": true
+    }
+  ]
+}

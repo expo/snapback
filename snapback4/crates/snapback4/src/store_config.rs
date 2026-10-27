@@ -193,7 +193,7 @@ impl StoreConfig {
             thread: None,
             watchdog: None,
             finished: Arc::new(std::sync::atomic::AtomicBool::new(false)),
-            release_on_drop: std::sync::atomic::AtomicBool::new(true),
+            release_on_drop: Arc::new(std::sync::atomic::AtomicBool::new(true)),
         };
         let acquired = lease.lock().unwrap_or_else(|p| p.into_inner()).acquire().map_err(redact)?;
         if acquired.is_none() {
@@ -236,6 +236,9 @@ impl StoreConfig {
             }
         }
         let renew = lease.clone();
+        let admission_lost = lease.lock().unwrap_or_else(|p| p.into_inner()).admission_watch();
+        let recovers_durability = self.early_lock_release;
+        let release_on_drop = owner.release_on_drop.clone();
         let renewed = deadline.clone();
         let watchdog_finished = owner.finished.clone();
         let (stop, receive) = mpsc::channel();
@@ -246,16 +249,23 @@ impl StoreConfig {
                 if !renew.lock().unwrap_or_else(|p| p.into_inner()).renew().unwrap_or(false) || !renewed.renewed(started) {
                     // Exit the process on the first uncertain/lost renewal. The fence orders
                     // in-flight COMMIT before takeover; no listener or producer survives.
-                    eprintln!("E_STORE_OWNERSHIP: lease renewal lost; stopping all admission and exiting");
-                    std::process::exit(1);
+                    snapback4_core::diagnostic!("E_STORE_OWNERSHIP: lease renewal lost; stopping all admission and exiting");
+                    ownership_exit();
                 }
             }
         }).map_err(|_| input("cannot start lease renewal"))?);
         owner.watchdog = Some(std::thread::Builder::new().name("store-lease-deadline".into()).spawn(move || {
             while !watchdog_finished.load(std::sync::atomic::Ordering::Acquire) {
+                // @ref LLP 3000.009.001.000#5.1 — serving G6 owners fail-stop; short-lived deploy reconciles its activation in process.
+                if !release_on_drop.load(std::sync::atomic::Ordering::Acquire) && !recovers_durability && admission_lost() {
+                    // The gate has attempted its single reason line through
+                    // bounded diagnostics. Do not release: SQL stays token-fenced
+                    // until COMMIT/rollback or successor takeover orders it.
+                    ownership_exit();
+                }
                 if deadline.expired() {
-                    eprintln!("E_STORE_OWNERSHIP: lease renewal deadline lost; stopping all admission and exiting");
-                    std::process::exit(1);
+                    snapback4_core::diagnostic!("E_STORE_OWNERSHIP: lease renewal deadline lost; stopping all admission and exiting");
+                    ownership_exit();
                 }
                 std::thread::sleep(deadline.remaining().min(Duration::from_millis(10)));
             }
@@ -308,6 +318,13 @@ impl StoreConfig {
         result.map_err(|e| e.to_string())
     }
 }
+
+fn ownership_exit() -> ! {
+    // A live destination gets the reason before exit. A full pipe gets a bounded
+    // attempt; neither a diagnostics lock nor its reader controls the lifecycle.
+    snapback4_core::diagnostics::drain(Duration::from_millis(100));
+    std::process::exit(1);
+}
 #[derive(serde::Serialize, serde::Deserialize)]
 struct Binding {
     store_id: String,
@@ -320,7 +337,7 @@ pub(crate) struct OwnedStore {
     lease: Arc<Mutex<StoreLease>>,
     stop: Option<mpsc::Sender<()>>,
     thread: Option<std::thread::JoinHandle<()>>,
-    release_on_drop: std::sync::atomic::AtomicBool,
+    release_on_drop: Arc<std::sync::atomic::AtomicBool>,
     finished: Arc<std::sync::atomic::AtomicBool>,
     watchdog: Option<std::thread::JoinHandle<()>>,
 }

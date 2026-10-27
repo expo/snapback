@@ -1,0 +1,12 @@
+**MATERIAL blocker:** [affected-scoped.mjs:13](/home/ccheever/projects/sb4-b31-sec11l/snapback4/reports/sec11-latency/tools/affected-scoped.mjs:13) uses `/^security.*\\.rs$/`. This matches a literal backslash, so ordinary `security*.rs` filenames are excluded. `languageTargets` becomes empty, silently omitting all 21 security integration targets. Use `/^security.*\.rs$/` before claiming that coverage.
+
+The requested capture/comparison changes otherwise look correct:
+
+- Repeated `--survey` inputs select the union of schemas with any classifier FIX.
+- Capture retains complete authored, derived and enforced counterexample verdicts.
+- Comparison checks schema key sets and complete canonical JSON bytes. Changed captured callers, arguments, rows, supporting rows or histories are detected.
+- Supplemental comparison output contains hashes and field names without raw payload values.
+
+Both binaries must receive the same before/after survey union. Initial tool failures and retries must remain explicitly reported.
+
+Source review only; no edits, builds or suites run. No latency or survey PASS established.

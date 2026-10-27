@@ -1,0 +1,81 @@
+{
+  "total": 8,
+  "defaultVisible": 1,
+  "assessments": [
+    {
+      "lane": "004",
+      "finding": "F1",
+      "pattern": "required-upload-optional",
+      "defaultVisible": false,
+      "evidence": [],
+      "rule": "The case coordinator opens each move with photos of every room and the quoted price."
+    },
+    {
+      "lane": "004",
+      "finding": "F3",
+      "pattern": "time-rule-edit-bypass",
+      "defaultVisible": false,
+      "evidence": [],
+      "rule": "A final settling-in visit is due within ten days of the move."
+    },
+    {
+      "lane": "017",
+      "finding": "F1",
+      "pattern": "required-upload-optional",
+      "defaultVisible": false,
+      "evidence": [],
+      "rule": "The booking desk opens each party with a photo of the client's signed safety agreement and the quoted price per child."
+    },
+    {
+      "lane": "018",
+      "finding": "F1",
+      "pattern": "approval-not-enforced",
+      "defaultVisible": false,
+      "evidence": [],
+      "rule": "Only the lead arborist can approve treating trees inside a wood quarantine zone, recording the forestry permit and the extra fee."
+    },
+    {
+      "lane": "025",
+      "finding": "F1",
+      "pattern": "time-rule-wrong-anchor",
+      "defaultVisible": false,
+      "evidence": [],
+      "rule": "A candidate who fails may retest within 30 days at half price."
+    },
+    {
+      "lane": "029",
+      "finding": "F2",
+      "pattern": "time-rule-edit-bypass",
+      "defaultVisible": false,
+      "evidence": [],
+      "rule": "A move delayed by weather may be rescheduled within 60 days of its booked date."
+    },
+    {
+      "lane": "033",
+      "finding": "F1",
+      "pattern": "required-upload-optional",
+      "defaultVisible": true,
+      "evidence": [
+        {
+          "code": "N_CHILD_EVIDENCE_PRESENCE",
+          "site": "schema.q:188:3",
+          "gated": false,
+          "operation": "acceptQuote",
+          "candidate": "invariant jobs.acceptQuote only (count(jobPhotos[job = .id]) > 0)",
+          "witness": "1946a363e672f50204e9028119eabc08ef4d78f8be7d0bf3877e0e66c730b122",
+          "decision": "12960f8add773998bdedbe91e77c7ead310c31dfe630d725f2e913f69350fdd3"
+        }
+      ],
+      "rule": "The estimator opens each job with before photos of every chip and rust stain and the quoted price."
+    },
+    {
+      "lane": "036",
+      "finding": "F1",
+      "pattern": "time-rule-not-in-transition",
+      "defaultVisible": false,
+      "evidence": [],
+      "rule": "The design must be approved at least 60 days before the team's ring ceremony or the order is cancelled with the deposit kept."
+    }
+  ],
+  "method": "Match actual calibrated field and operation, not unrelated witness presence. Unsupported upload/window/approval shapes do not count."
+}

@@ -1,0 +1,15 @@
+{
+  "scope": "original source copies; task-specific production/inspection acceptance, not full original day-two release/UI scripts",
+  "results": [
+    {
+      "lane": "006-snapback-fishing-reel-servicing",
+      "sourceHashes": {
+        "schema.q": "8204ea2afe58657063b66a7eab081ae07bac4b19a846ecba030b00c076ecdee6"
+      },
+      "ok": true,
+      "replay": "check; fresh production deploy; two roster starts with one real user per original declared role; stable principals; plan diff before auth; complete roles snapshot",
+      "roleCount": 3,
+      "lostSignup": "real applied signup reply discarded; stable unknown-outcome why; login succeeds, no signup resubmission"
+    }
+  ]
+}

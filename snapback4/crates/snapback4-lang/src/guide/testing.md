@@ -10,8 +10,11 @@ try { console.log(dev.url); } finally { await cleanup(() => dev.stop()); }
 ```
 
 To verify a brief's `probe:serve` process, use `snapback4 serve-check
---deployment staging --script probe:serve --then 'node scripts/acceptance.mjs'`. Never write a serve driver. Without --then it checks one JSON readiness line,
-30 seconds alive, group SIGTERM cleanup and store release. Password starters
+--deployment staging --script probe:serve --then 'node scripts/acceptance.mjs'`. Never write a serve driver. With or without --then it checks one JSON readiness line,
+at least 30 seconds alive (including business work), group SIGTERM cleanup and store release.
+For inherited day-two drivers, replace the outer checker with this command; keep
+only business assertions in --then. See `guide production --section Serve script and reusable accounts`
+for the complete startServe/startStatic/roster/SIGTERM recipe. Password starters
 include `npm run --silent probe:check`, which runs that same helper against a
 fresh deployment. Use this as the process verification driver; it withholds
 credentials and reports readiness/lifetime/shutdown failures. For shared test releases and probe:serve, use `guide staging`: real password users and operator grants on serve. Password-only dev fixture/clock tools require explicit --unsafe-dev-doors; startDev persists unless --memory is explicit.
@@ -56,11 +59,21 @@ Use `guide client` for client recipes and the proof helper contracts below.
 
 `test` names invariants it cannot fully evaluate, including unsupported clock,
 typed arithmetic, cross-row and read-through assertions. Runtime unknown judgments
-name the target and source site too. These gaps make the summary incomplete and
-stay non-failing; actual replayed violations fail. With no authored cases, a clean campaign exits successfully and names its finite coverage; skipped existing cases still refuse. Zero violations does not mean
+name the target and source site too. These gaps limit security coverage and
+stay non-failing; actual replayed violations fail. Campaign execution, authored
+cases and query probes have separate statuses. A completed finite campaign
+is not labelled incomplete because an unrelated probe could not derive arguments.
+During long campaigns an elapsed-time heartbeat goes to stderr. With no authored cases, a clean campaign exits successfully and names its finite coverage; skipped existing cases still refuse. Zero violations does not mean
 an unsupported assertion was tested. Generated fixtures use fresh actor-owned
 uploads and try opposite creator booleans before a second actor fills the row
 slots. Finite history, argument and population cuts remain explicit coverage gaps.
+
+Fixture campaign reads can include `service:operator` (042E): the seed loader
+and generated exploration use this seat. If the role actually reads a protected
+column, an invariant excluding that seat must fail. Inspect the printed
+operation/principal/site: either deny that read in the rule or explicitly include
+the operator in independent intent when the specification permits it. Fixture
+loading is trusted setup; it does not confer application read authority.
 
 ## Fixtures and cases
 
@@ -234,6 +247,14 @@ unavailable sandbox selects --no-sandbox. Ordinary hosts first use the sandbox.
 `statusText(page, text)` uses getByText with exact matching: a role=status element
 has no content-derived accessible name, so never getByRole('status', {name}).
 `selectByValue(locator, value)` uses a stable option value, not a label regex.
+`labelledControl(page, "combobox", "Owner")` resolves the control by role and
+label without appending option text; strict duplicate names still refuse.
+Prefer `<label htmlFor="owner">Owner</label><select id="owner">…</select>`
+and `page.getByRole("combobox", {name:"Owner", exact:true})`. Textareas need
+the same explicit label or aria-label. RN-web uses `accessibilityLabel="Owner"`
+on TextInput, matched by `page.getByLabel("Owner", {exact:true})`; the Expo
+starter also labels its status Text `Write status`, matched by getByLabel. For visible
+status Text, use accessibilityLiveRegion="polite", not accessibilityRole="status".
 Never wait for networkidle: live queries hold long polls. Wait for the control.
 
 `renderedText(page, text, { exact: true, within: container })` excludes inputs and
@@ -305,7 +326,7 @@ Re-arm settles the old promise and releases observation; it never cancels a writ
 Gate the form with useAppReady() before typing/clicking; auth alone can precede
 the initial app.ready barrier. pending is custody, not a terminal result.
 
-For an awaited upload, call `witnessForm(app,event,async mutate => ...)` from
+For an awaited upload (041R), call `witnessForm(app,event,async mutate => ...)` from
 `snapback4/witness-web` synchronously in the handler and use its supplied mutate
 for placement after client.upload succeeds. It captures a per-arm write claim
 from that exact trusted event; unrelated promise callbacks cannot claim it.
@@ -562,3 +583,20 @@ to that owner. Await each move; an ambiguous activation needs inspection of
 `releases production --json` before another attempt. To stop an intended local
 owner explicitly, run `snapback4 stop production`; `serve production
 --wait-stopped` is only the barrier after shutdown was requested.
+
+## Observe before the trigger
+
+For transient button/status text, keep a stable locator and arm the observer
+before clicking. The browser records visible changes while the action settles:
+
+```js
+const status = page.getByTestId("save-status");
+const changed = await waitForFresh(status, "Save", {
+  trigger: () => status.click(), timeoutMs: 5000,
+});
+```
+
+Use a stable button locator (for example getByTestId or a status container)
+when its accessible name changes. A locator for the future transient text
+cannot be resolved before the trigger. The ordinary polling form still works
+for durable text; it cannot recover text that disappeared before observation.

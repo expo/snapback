@@ -163,6 +163,7 @@ fn wave28_false_premise_decisions_retain_the_concrete_witness() {
             assert_eq!(refused["problems"][0]["code"],"E_SECURITY_NOTES");
             let answer=if matches!(witness["effect"].as_str(),Some("insert"|"upsert")){"audience: the listed caller is intentionally admitted"}else{"intended effect: the listed effect is deliberate"};
             let reason=format!("witness {}; permit {} as {}; {}; operation {} is intended by this test specification",witness["id"].as_str().unwrap(),witness["operation"].as_str().unwrap(),witness["viewer"].as_str().unwrap(),answer,witness["operation"].as_str().unwrap());
+            let reason=if decision["gated"]==true{format!("witness {}; allow {} when true",witness["id"].as_str().unwrap(),witness["candidate"].as_str().unwrap().strip_prefix("invariant ").unwrap().split(" only ").next().unwrap())}else{reason};
             let result=json(&p,&["--ack-security",id,"--reason",&reason]);
             assert_eq!(
                 result["securityReviews"]
@@ -278,9 +279,9 @@ fn a_deploys_derived_decision_is_accepted_by_its_real_cli_command() {
  let printed=format!("{}\n{}",String::from_utf8_lossy(&ordinary.stdout),String::from_utf8_lossy(&ordinary.stderr));
  let command=printed.lines().filter_map(|line|line.trim().strip_prefix("Intended: snapback4 check --ack-security ")).find(|command|command.starts_with(&format!("{} --reason",decision["id"].as_str().unwrap()))).expect("ordinary deploy must print the blocking derived decision command");
  let (printed_id,template)=command.split_once(" --reason '").unwrap();assert_eq!(printed_id,decision["id"].as_str().unwrap());
- assert!(template.contains(&format!("witness {}; permit {} as {}",decision["witness"]["id"].as_str().unwrap(),decision["witness"]["operation"].as_str().unwrap(),decision["witness"]["viewer"].as_str().unwrap())),"{printed}");
+ assert!(template.contains(&format!("witness {}; allow ",decision["witness"]["id"].as_str().unwrap())),"{printed}");
  let checked=json(&p,&[]);assert!(checked["securityReviews"].as_array().unwrap().iter().any(|d|d["id"]==decision["id"]),"deploy decision must exist in the prescribed check command");
- let witness=&decision["witness"];let reason=format!("witness {}; permit {} as {}; intended effect: this test specification deliberately allows edits without invalidating the validation flag",witness["id"].as_str().unwrap(),witness["operation"].as_str().unwrap(),witness["viewer"].as_str().unwrap());
+ let witness=&decision["witness"];let reason=format!("witness {}; allow {} when true",witness["id"].as_str().unwrap(),witness["candidate"].as_str().unwrap().strip_prefix("invariant ").unwrap().split(" only ").next().unwrap());
  let ack=run(&p,&["check","--ack-security",printed_id,"--reason",&reason]);assert!(ack.status.success(),"{}",String::from_utf8_lossy(&ack.stderr));
  let deployed=run(&p,&["deploy","deployment","--json"]);assert!(deployed.status.success(),"{} {}",String::from_utf8_lossy(&deployed.stdout),String::from_utf8_lossy(&deployed.stderr));
 }
@@ -289,7 +290,7 @@ fn fresh_gate_replays_preserve_ids_and_changed_witnesses_show_no_old_rationale()
  let p=scratch();let source=include_str!("../../snapback4-lang/tests/security/sec10-shipping/w30-033.q");fs::write(p.0.join("snapback/schema.q"),source).unwrap();
  let first=json(&p,&[]);let decision=first["securityReviews"].as_array().unwrap().iter().find(|d|d["code"]=="N_APPROVAL_NOT_ENFORCED"&&d["witness"].is_object()).unwrap();
  let again=json(&p,&[]);assert!(again["securityReviews"].as_array().unwrap().iter().any(|d|d["id"]==decision["id"]),"fresh random fixture ids must not change the witness identity");
- let reason=format!("witness {}; permit advanceJob as {}; intended effect: advanceJob is deliberately independent under this explicit test specification",decision["witness"]["id"].as_str().unwrap(),decision["witness"]["viewer"].as_str().unwrap());
+ let reason=format!("witness {}; allow jobs.advanceJob when true",decision["witness"]["id"].as_str().unwrap());
  let recorded=json(&p,&["--ack-security",decision["id"].as_str().unwrap(),"--reason",&reason]);assert!(recorded["securityReviews"].as_array().unwrap().iter().any(|d|d["id"]==decision["id"]&&d["acknowledged"]==true));
  fs::write(p.0.join("snapback/schema.q"),format!("-- independent comment\n{source}")).unwrap();let unchanged=json(&p,&[]);assert!(unchanged["securityReviews"].as_array().unwrap().iter().any(|d|d["id"]==decision["id"]&&d["acknowledged"]==true));
  let independent=format!("{source}\ntable independentNotes:\n  label: text <= 20\n  read <- allow\n  insert <- allow\n  online only\n");

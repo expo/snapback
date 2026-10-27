@@ -46,6 +46,8 @@ impl Binder<'_> {
                     part != "$sourceSnapshot"
                         && part != "$pureCall"
                         && part != "$point"
+                        && part != "$advisorySnapshot"
+                        && part != "$advisoryRead"
                         && part != maintain_types::AUTHORIZATION
                         && part != aggregate_facts::NONEMPTY
                         && part != aggregate_facts::COUNT_CAPTURE

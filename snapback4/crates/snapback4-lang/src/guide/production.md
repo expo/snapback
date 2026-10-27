@@ -1,4 +1,81 @@
-# Production: a persona demo becomes an account app
+# Production proofs
+
+Prove production using your existing `prod:serve` or `probe:serve` script. The kit checks its lifetime and cleanup:
+
+```sh
+npx snapback4 serve-check --deployment production --script prod:serve --up-ms 30000 --then 'npm run day2:business'
+```
+
+It checks one JSON readiness line, keeps the script up for at least 30 seconds
+including business work, sends group SIGTERM and checks shutdown/store release.
+The business command reads `SNAPBACK_URL`, `FRONTEND_URL` and private
+`SNAPBACK4_SERVE_JSON` in memory. Never print credentials. No custom serve checker
+is needed. Keep release moves awaited inside that command.
+
+## Serve script and reusable accounts
+
+Deploy once with `snapback4 deploy production`; build the frontend with its
+`build` (web) or `build:web` (Expo) script. Save as scripts/prod-serve.mjs and
+point package.json `prod:serve` at `node scripts/prod-serve.mjs`. This example
+uses the operator-only `provision` mutation from `guide staging`; replace its
+handle, roles and `args(account)` with your application's actual enrollment plan.
+
+<!-- DX15 PRODUCTION SERVE BEGIN -->
+```js
+import { startServe, startStatic, serveUntilSignal, cleanup } from "snapback4/proof";
+import { api } from "../snapback/generated/api.ts";
+const backend = await startServe("production", {
+  provisionUsers: {roles: {admin: 1, member: 1}, provision: api.provision},
+});
+let frontend;
+try {
+  frontend = await startStatic("dist");
+  console.log(JSON.stringify({backendUrl: backend.url, frontendUrl: frontend.url,
+    accounts: backend.sessions})); // private readiness, consumed only by serve-check
+  await serveUntilSignal([backend, frontend]);
+} finally {
+  await cleanup(() => frontend?.stop(), () => backend.stop());
+}
+```
+<!-- DX15 PRODUCTION SERVE END -->
+
+`serveUntilSignal` holds a referenced lifetime until SIGTERM/SIGINT and awaits
+host cleanup. Emitting readiness and returning is insufficient. `startStatic`
+serves the built SPA with its fallback; build with the deployed backend URL
+configuration your client uses.
+
+Reruns log in to the same accounts for fresh sessions and provision unfinished
+entries only. `backend.sessions.admin[0]` (and member[0]) is a real user account:
+`{kind:"user", role, email, password, principal, token, expiresAt}`. Signup grants
+no role; the ordinary operator mutation enrolls each account. Custom fixed
+credentials should login first, then signup only if necessary; inspect `.why`
+on `{ok:false}`. An ambiguous signup may already have created the account:
+try login with those credentials before requesting another account. Auth
+requests retain production rate budgets: reuse sessions within a run.
+
+The private file `production/proof-accounts/default.json` (0600) holds
+`{version:1, plan: string, entries:[{role,index,email,password,id,done,principal?,args?}]}`.
+`plan` is a serialized object `{roles:[[role,count]],provision,service,users?}`;
+`id` is the stable provision intent ID, `args` its canonical arguments, `done`
+marks completed setup. These are credentials, not source files. Keep the roster
+with its store across copies/backups; do not delete it to rerun. `roster:"name"`
+intentionally selects another batch. A plan mismatch names supplied and pinned
+plans and refuses before auth requests; keep the pinned plan or deliberately
+choose a new name. Changed args, revoked credentials or partial setup need
+operator inspection. A live `.lock` refuses concurrent setup.
+
+## Admin inspection
+
+`data roles --release production --all --json` reads every active row in one
+read snapshot, bypassing application rules. The default remains 50 rows; a
+truncated result points directly to `--all`. In a proof use
+`await snapshotAll("roles", {release:"production"})` from `snapback4/proof`.
+Ephemeral rows have no on-disk snapshot. For an application query, exhaust
+`read.next` with `exhaustPages(c => client.query(api.list, {c}))`; completeness
+and cursor exhaustion are separate. A complete empty list is `absent`, so
+`matchRead` must handle `absent: () => "No rows"` (`guide reads`).
+
+## A persona demo becomes an account app
 
 Bare `use identity` keeps guests; guests call `/auth/guest` before any read;
 `use identity password` removes them. `/auth/config` is GET; production needs

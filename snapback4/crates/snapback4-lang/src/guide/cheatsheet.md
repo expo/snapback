@@ -86,6 +86,8 @@ roles and replayable first-admin setup. Staging clock: `guide time` (MIG).
 - Comments start with `--` (never `//`); blocks indent two spaces; `snapback/*.q` share one namespace.
 - Types: `text <=N`, `text M..N` (a length), `int`, `int 1..5` / `int 0..` / `int ..100` (a value range, checked on every write), `bool`, `time` (Unix ms), `money USD`, `decimal 2`, `enum('a', 'b')`,
   `json <=N`, `bytes <=N`, `[text <=20] <=8`, `image <=N`, a table name (a reference); `T ?` is optional (`guide types`).
+- Money/decimal wire values are integer minor units: `money USD` defaults to scale 2, so JSON `1234` means USD 12.34; `decimal 2` also carries `1234`, never a float or a `{currency,amount}` object. See `guide types`.
+- Per-column privacy: append `read <- policy` to a column, or declare `read (amount, note) <- policy` under the table. The row must be readable too; denied properties are omitted and explicit projections become nullable. Probe-gated cells stay online; see `guide rules --section column`.
 - Operators: `= != < <= > >=`, `and or not`, `+ - * / %`, `x ?? fallback`, `a if cond else b`, `exists t[k]`.
   `/` and `%` take ints (and times) and floor: `7 / 2` is 3, `-7 / 2` is -4, `-7 % 2` is 1; zero refuses E_DIV_ZERO.
   `money` and `decimal` add, subtract and multiply by an int but do not divide; `share(total, people, viewer)` splits an amount.
@@ -135,6 +137,7 @@ query divisionTeams(division: text 1..40, c: cursor ?):
   otherwise the declared unique key whose column types accept them, in key order (`coaches[viewer, .division]`
   is principal, then division). Named tests may follow a full positional key (`docs[.docId, ownerId = viewer]`);
   when types fit two keys, name the columns (`profiles[principal = viewer]`).
+- After a full total-unique key, bracket `field != literal` accepts a required scalar field and a non-null literal; it is a residual test on that one row. Program probes still require a readable row and readable payload. Partial-key or nullable-field inequality refuses with its rewrite.
 - A rule's probe sees every roster row; a program's `exists` or `t[k]` sees only rows the caller may read.
   `require exists coaches[principal = other, division = division]` is false for another coach's row while the roster reads
   `.principal = viewer`: widen the roster's read rule (`or exists coaches[viewer, .division]`), or test it in a rule.
@@ -143,20 +146,10 @@ query divisionTeams(division: text 1..40, c: cursor ?):
 
 ## The loop
 
-```sh
-npx snapback4 init --web            # or --expo; init prints every file it wrote
-npx snapback4 check                 # compile; writes snapback/generated/api.ts; notes carry rewrites
-npx snapback4 dev                   # serves http://127.0.0.1:4400 and re-adopts on save
-npx snapback4 run addList '{"title":"Groceries"}' --as alice
-npx snapback4 why E_RULE            # any code, operation, table or id
-npx snapback4 data lists            # stored rows, as an administrator
-npx snapback4 clock advance 1h      # move a running dev's clock (guide time)
-```
-
-Uploads: the placing account must upload the bytes; one upload has one home.
-Upload again for a new home, or share a reference to the original row. Required
-photos/files need required creating arguments, including evidence stored on child
-rows (`guide uploads`).
+For install, schema-first editing, file custody and the verification commands,
+read `guide start` once. It owns the introductory recipe. This card is a syntax
+lookup after you have a compiling schema. Real-user setup has one owner:
+`guide production`; `guide staging` continues with clock and staging specifics.
 
 ## Client
 
@@ -192,14 +185,20 @@ Keyed counts: a hidden key reads null, an authorized missing count group reads 0
 
 ## Serve real users
 
-Local editing uses `npx snapback4 dev`. Shared previews, acceptance with real
-password users and `probe:serve` use `npx snapback4 deploy staging --staging`
-and `npx snapback4 serve staging`. Run `npx snapback4 guide staging` for the
-complete `startServe({seedUsers})` setup and replayable first-admin recipe.
-Staging time travel: `guide time` (MIG). Security campaigns: SEC4 owns `guide security`.
+Use `guide production` for the complete account and serve recipe, and
+`npm run probe:check` for bounded verification. Independent security intent and
+unproved coverage belong to `guide security`; do not repeat its full card here.
 
-Default verification loop: `npx snapback4 check` → `npx snapback4 test` →
-`npx snapback4 audit`. State invariants from the spec's roles, resource relationships
-and private columns; copying a rule cannot catch its mistake. Test needs no hand-written
-fixtures and works with password-only apps. Check keeps full reasons behind `--verbose`.
-See `guide staging` for real-user provisioning and staging proofs.
+## Partial existence in mutations and record inputs
+
+Rule probes and row lookups require a complete total-unique key. A program
+`exists table[field = value]` can also be a named population check. In a mutation
+that check is allowed only when the population is wholly readable: hidden rows
+make absence unsafe, so private partial-key checks can refuse E_STRUCTURAL_FANOUT
+(010E). Use a full unique key or a readable maintained count for the exact group;
+adding a role require does not itself make the rows readable.
+
+Typed record-list parameters are not part of the scalar wire model (004R).
+Use bounded parallel scalar/media lists and require equal lengths before
+indexing, or store records in a child table. The compiler names this rewrite
+at the record parameter instead of suggesting another unsupported spelling.

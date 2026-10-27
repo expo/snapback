@@ -80,7 +80,7 @@ test('packed package executes both stage recipes and the serve-check recipe lite
  const kit=await import(pathToFileURL(join(packdir,'package/dist/proof.js')));
  mkdirSync(join(cwd,'versions/v2'),{recursive:true});write(cwd,'versions/v2/schema.q',schema.replace('body: text 1..200','body: text 1..300'));
  const testing=readFileSync(resolve(root,'crates/snapback4-lang/src/guide/testing.md'),'utf8');
- const section=testing.slice(testing.indexOf('## Check an npm serve script'));
+ const section=testing.slice(testing.indexOf('## Check an npm serve script')).split('\n## Observe before the trigger')[0];
  const blocks=[...section.matchAll(/```js\n([\s\S]*?)```/g)].map(m=>m[1]).filter(source=>!source.includes('withServeScript("probe:serve"'));assert.equal(blocks.length,3);
  npmScript(cwd,`import {startServe,serveUntilSignal} from 'snapback4/proof';const host=await startServe('production');console.log(JSON.stringify({backendUrl:host.url}));await serveUntilSignal([host]);`);
  for(const [i,source] of blocks.slice(1).entries()){

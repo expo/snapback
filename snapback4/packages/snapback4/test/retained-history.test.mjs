@@ -167,6 +167,8 @@ query home():
   return { older: messages['left'] last 50 by byTime, events: feedPosts last 10 by .at where exists eventSwitch['gate'] }
 query homePage():
   return { older: messages['left'] last 50 by byTime, events: eventSwitch first 10 by byId }
+query followingWork():
+  return feedWork first 10 by byId
 `;
   const boundCase = scenario === "MQ authoritative bound";
   if (boundCase) fixtureSource += `
@@ -245,6 +247,13 @@ query wordBoth():
   assert.equal((await post("/seed", rows)).seeded, rows.length);
   if (eventCase) assert.equal((await post("/m/post", { args: { postId: "p3", parentId: null }, id: "event-p3" }, "bob")).state, "sent");
   for (const room of ["left", "held", "current"]) assert.equal((await post("/m/join", { args: { room }, id: `join-${room}` })).state, "sent");
+  // @ref LLP 3000#contended-read-serving — the post above queues Following delivery work, and the bulk
+  // thread may commit it up to its idle-probe deadline later. Settle that synced commit before the client
+  // starts, so client.sync() observes the final setup cut and the held answer below is not provisional.
+  if (eventCase) await until(async () => {
+    const work = await post("/q/followingWork", { args: {} }, "bob");
+    return Array.isArray(work.data) && work.data.length > 0 && work.data.every((item) => item.status === "done");
+  }, "Following delivery work queued by the setup post did not settle");
   let freezeSync = false;
   let holdLeave = false, heldLeave = false, releaseLeave, zeroReplySamples;
   const leaveGate = new Promise(resolve => { releaseLeave = resolve; });

@@ -338,7 +338,9 @@ fn stage_copy(value:&Expr,p:&ast::ProgramDecl,table:&str,keys:&[ast::KeyPart],co
         Expr::Member{base,name,..}=>name==column&&same_resource(base,table,keys,p),
         Expr::If{then,otherwise,..}=>copied(then,p,table,keys,column,required)&&copied(otherwise,p,table,keys,column,required),
         Expr::Binary{op,left,right,..} if op=="??"=>required&&copied(left,p,table,keys,column,required)||matches!(left.as_ref(),Expr::Literal{value:ast::Literal::Null,..})&&copied(right,p,table,keys,column,required),_=>false,
-    }}copied(&value,p,table,keys,column,!bound.schema.tables[table].columns[column].is_optional())
+    }}
+    let Some(kind)=bound.schema.tables.get(table).and_then(|table|table.columns.get(column))else{return false;};
+    copied(&value,p,table,keys,column,!kind.is_optional())
 }
 fn changes_from(p:&ast::ProgramDecl,write:&Expr,bound:&Bound,table:&str,state:&str,source:&str)->bool{
     fn changes(value:&Expr,state:&str,source:&str)->bool{match value{

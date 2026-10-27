@@ -1,0 +1,6 @@
+{
+  "description": "Existing S1-C-matching backend and CLI were present; no install or build. A fresh private 1M-message fixture passes the full exported fingerprint check. The single requested W4/B 141/s cohort passes 3/3 clean, with zero measured errors and exact counters including warm-up. Pool/query/mutation caps 32, default caches, retention 172,800 s and default 100 ms OCC backoff are unchanged; only the private connection endpoint changes to 55441. No higher Convex rung is tested. [Configuration witness](./convex-configuration.json).",
+  "measured": true,
+  "repetitions": 3,
+  "rate": 141
+}

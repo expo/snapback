@@ -1,0 +1,53 @@
+{
+  "failure": "native drain refused HTTP 409 E_STORE_OWNERSHIP; all measured requests HTTP409; read-only quiescent post-shutdown audit verifies counters/head; no failed trial replaced",
+  "counter_delta": 6,
+  "acknowledgements": 6,
+  "head_equals_max": true,
+  "commit_count": 2131536,
+  "commit_max": 2131536,
+  "read_only_inspection": true,
+  "no_managed_row_repair": true,
+  "no_replacement": true,
+  "missing_post_trial_rtt": true,
+  "unrelated_over_one_core_s": 0,
+  "phase": "writes",
+  "cell": "W4-disjoint-B",
+  "rate": 2690,
+  "repetition": 1,
+  "measured_requests": 53800,
+  "measured_http409": 53800,
+  "clean_failure_retained": true,
+  "remaining_repetitions_not_replaced": true,
+  "additional_owned_drain_failures": [
+    {
+      "measurement_id": "135-diagnostic-r0-W4-A-2690-rep5",
+      "phase": "diagnostic",
+      "cell": "W4-disjoint-A",
+      "rate": 2690,
+      "repetition": 5,
+      "eligible": true,
+      "measured_errors": 53800,
+      "refusal": {
+        "time": 1793128260.9473393,
+        "context": {
+          "cell": "w4-n1000000-d500-c32-disjoint",
+          "rate": 2690,
+          "repeat": 0
+        },
+        "http_status": 409,
+        "code": "E_STORE_OWNERSHIP"
+      },
+      "quiescent_state": {
+        "head": 5934863,
+        "time": 1793128261.316472,
+        "counters": {
+          "sum": 5934478
+        },
+        "commit_max": 5934863,
+        "commit_count": 5934863
+      },
+      "counter_ok": true,
+      "clean_failure_retained": true
+    }
+  ]
+}

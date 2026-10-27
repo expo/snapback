@@ -2,8 +2,15 @@
 // @ref LLP 3000.036.004#122-reproducible-campaigns-and-reachability — only actual fixture traces establish application reachability.
 use super::*;
 const LIMIT:usize=512;
-#[derive(Clone,Debug,Serialize,serde::Deserialize)]
-pub struct Step {#[serde(default,skip_serializing_if="Option::is_none")] pub clock:Option<i64>,pub operation:String,pub viewer:String,pub args:BTreeMap<String,Value>,pub result:serde_json::Value}
+#[derive(Clone,Serialize,serde::Deserialize)]
+pub struct Step {#[serde(default,skip_serializing_if="Option::is_none")] pub clock:Option<i64>,pub operation:String,pub viewer:String,pub args:BTreeMap<String,Value>,pub result:serde_json::Value,
+    /// Live-only input to the CLI's typed redactor; never a public report field.
+    #[serde(skip)] pub observed_data:Option<Value>}
+impl std::fmt::Debug for Step {
+    fn fmt(&self,f:&mut std::fmt::Formatter<'_>)->std::fmt::Result {
+        f.debug_struct("Step").field("clock",&self.clock).field("operation",&self.operation).field("viewer",&self.viewer).field("args",&self.args).field("result",&self.result).finish_non_exhaustive()
+    }
+}
 
 pub(super) fn viewers(bound:&Bound)->Vec<String>{
     let mut out=BTreeSet::from([VIEWER.into(),OTHER.into(),"account:security-no-role".into(),"service:security".into()]);
@@ -77,7 +84,7 @@ pub(super) fn fixture_cases(bound:&Bound,p:&Program,rows:&BTreeMap<String,Vec<Va
     fn values(name:&str,k:&ir::ArgType,rows:&BTreeMap<String,Vec<Value>>,actors:&[String],times:&[Value])->Option<Vec<Value>>{
         Some(match k{
             ir::ArgType::Enum{variants}=>variants.iter().map(|s|Value::String(s.clone())).collect(),
-            ir::ArgType::Text{min,max,..}=>['z','y'].into_iter().map(|c|Value::String(c.to_string().repeat((*min).max(1).min(*max) as usize))).collect(),
+            ir::ArgType::Text{min,max,format}=>(0..2).filter_map(|v|text_samples::argument(*min,*max,*format,v)).collect(),
             ir::ArgType::Int=>vec![Value::Int(0),Value::Int(1),Value::Int(2)],
             ir::ArgType::IntRange{min,max}=>{let mut xs=vec![*min,1i64.clamp(*min,*max),*max];xs.sort();xs.dedup();xs.into_iter().map(Value::Int).collect()},
             ir::ArgType::Bool=>vec![Value::Bool(false),Value::Bool(true)],
@@ -96,7 +103,7 @@ pub(super) fn fixture_cases(bound:&Bound,p:&Program,rows:&BTreeMap<String,Vec<Va
         if let Some(preferred)=preferences.get(name){vals.sort_by_key(|v|!preferred.contains(v));}
         for literal in literals.get(name).into_iter().flatten() {
             let valid=match (k,literal){
-                (ir::ArgType::Text{min,max,..},Value::String(s))=>snapback4_core::visible_text::visible_length(s)>=*min as usize&&s.chars().count()<=*max as usize,
+                (ir::ArgType::Text{min,max,format},Value::String(s))=>snapback4_core::visible_text::visible_length(s)>=*min as usize&&s.chars().count()<=*max as usize&&format.is_none_or(|f|f.matches(s)),
                 (ir::ArgType::Int|ir::ArgType::Money{..}|ir::ArgType::Decimal{..},Value::Int(_))=>true,
                 (ir::ArgType::IntRange{min,max},Value::Int(n))=>(*min..=*max).contains(n),_=>false,
             };
@@ -147,10 +154,11 @@ fn directed_cases(bound:&Bound,p:&Program,cases:Vec<BTreeMap<String,Value>>,camp
     if original.iter().any(|case|!out.contains(case)){campaign.unsupported.insert(format!("{}: directed argument grouping omits correlated/non-status alternatives; remaining combinations uncovered",p.name));}
     out
 }
-pub(super) fn trace_key(steps:&[Step])->Vec<(&str,&str)>{steps.iter().map(|s|(s.operation.as_str(),s.viewer.as_str())).collect()}
+// @ref LLP 3000.036.004.001#read-payloads — the observer belongs to the witness, not its mutation-prefix search key.
+pub(super) fn trace_key(steps:&[Step])->Vec<(&str,&str)>{steps.iter().filter(|s|s.result["state"]!="observed").map(|s|(s.operation.as_str(),s.viewer.as_str())).collect()}
 pub(super) fn violation(out:&mut Campaign,inv:&Invariant,steps:&[Step],viewer:&str,row:&Value,old:Option<&Value>,initial:&BTreeMap<String,Vec<Value>>,effect:&str)->bool{
     if out.violations.iter().any(|v|v.invariant_site==inv.site.to_string()&&v.viewer==viewer&&v.reachability==Reachability::AuthoredFixtureTrace&&trace_key(&v.history)==trace_key(steps)){return false;}
-    out.violations.push(Counterexample{reachability:Reachability::AuthoredFixtureTrace,observations:None,history:steps.to_vec(),invariant_site:inv.site.to_string(),args:BTreeMap::new(),viewer:viewer.into(),operation:steps.last().map(|s|s.operation.clone()).unwrap_or("$fixture.read".into()),effect:effect.into(),row:row.clone(),old:old.cloned(),supporting_rows:initial.clone(),rule_path:"actual authored operation/read from the trusted fixture".into(),scope:"reachable from recorded trusted fixture; finite trace, not an all-history proof".into()});true
+    out.violations.push(Counterexample{current_execution:true,reachability:Reachability::AuthoredFixtureTrace,observations:None,history:steps.to_vec(),invariant_site:inv.site.to_string(),args:BTreeMap::new(),viewer:viewer.into(),operation:steps.last().map(|s|s.operation.clone()).unwrap_or("$fixture.read".into()),effect:effect.into(),row:row.clone(),old:old.cloned(),supporting_rows:initial.clone(),rule_path:"actual authored operation/read from the trusted fixture".into(),scope:"reachable from recorded trusted fixture; finite trace, not an all-history proof".into()});true
 }
 pub(super) fn typed_disclosure(ty:&crate::types::Ty,data:&Value,table:&str,key:&Value,column:Option<&str>,physical:&Value)->bool{
     typed_disclosure_image(ty,data,table,key,column,physical,None)
@@ -241,7 +249,12 @@ fn observe(bound:&Bound,e:&mut Engine,rows:&BTreeMap<String,Vec<Value>>,initial:
                             out.unsupported.insert(format!("{}: typed read payload is not repeatable on the committed image",bp.program.name));continue;
                         }
                         let added=violation(out,inv,steps,viewer,row,None,initial,if inv.column.is_some(){"column read observation"}else{"read"});
-                        if added&&let Some(v)=out.violations.last_mut(){v.operation=bp.program.name.clone();v.args=args;v.rule_path="authored query repeatably returned a compiler-typed row/column payload of the protected table while current policy is false".into();}
+                        if added&&let Some(v)=out.violations.last_mut(){
+                            v.operation=bp.program.name.clone();v.args=args.clone();
+                            // @ref LLP 3000.036.004.001#read-payloads — record the actual observer, including a query on an unchanged generated fixture.
+                            v.history.push(Step{observed_data:Some(q.data),clock:Some(history_clock(steps)),operation:bp.program.name.clone(),viewer:viewer.clone(),args,result:serde_json::json!({"state":"observed","complete":q.complete})});
+                            v.rule_path="authored query repeatably returned a compiler-typed row/column payload of the protected table while current policy is false".into();
+                        }
                         continue 'actors;
                     }
                 }
@@ -525,7 +538,7 @@ pub(super) fn lifecycle_observers_to(bound:&Bound,fixture:&Engine,out:&mut Campa
                     if !matches!(result.state,snapback4_core::WriteState::Sent{..}){out.refused+=1;continue;}
                     let Ok(after)=readback(&engine)else{continue;};
 
-                    let mut history=steps.clone();history.push(Step{clock:Some(clock),operation:p.name.clone(),viewer:viewer.clone(),args:args.clone(),result:serde_json::to_value(&result.state).unwrap()});
+                    let mut history=steps.clone();history.push(Step{observed_data:None,clock:Some(clock),operation:p.name.clone(),viewer:viewer.clone(),args:args.clone(),result:serde_json::to_value(&result.state).unwrap()});
                     super::executed::record(bound,p,&trace,&result.state,&after,&initial,viewer,&history,&mut engine,out);
                     changed(bound,p,&before,&after,&initial,viewer,&history,&mut prior,&mut engine,out);
                     let changed_tables=after.iter().filter(|(t,rs)|before.get(*t)!=Some(*rs)).map(|(t,_)|t.clone()).collect();
@@ -691,7 +704,7 @@ pub(super) fn run(bound:&Bound,fixture:&Engine,out:&mut Campaign){
             match engine.mutate(&p.name,None,replay_ids::context(viewer,args.clone()).at(NOW).with_fixture_trace(trace.clone())){
                 Ok(result)=>{
                     let sent=matches!(result.state,snapback4_core::WriteState::Sent{..});
-                    steps.push(Step{clock:None,operation:p.name.clone(),viewer:viewer.clone(),args:args.clone(),result:serde_json::to_value(&result.state).unwrap()});
+                    steps.push(Step{observed_data:None,clock:None,operation:p.name.clone(),viewer:viewer.clone(),args:args.clone(),result:serde_json::to_value(&result.state).unwrap()});
                     let after=match readback(&engine){Ok(r)=>r,Err(e)=>{out.unsupported.insert(e);break;}};
                     if sent&&n<singles{
                         if before!=after{
@@ -842,4 +855,19 @@ pub(super) fn principal_preferences(bound:&Bound,p:&Program,rows:&BTreeMap<Strin
  let deferred=|name:&str|out.unsupported.iter().any(|why|why.starts_with(name)&&why.contains("unreferenced payload-only"));
  assert!(deferred("setUnused"),"{:?}",out.unsupported);assert!(!deferred("setBody"));assert!(!deferred("setOpening"));
 }
+}
+
+#[cfg(test)]mod sec11_observer_tests {
+    use super::*;
+    #[test]fn live_observations_never_enter_serialized_or_debug_reports(){
+        let step=Step{observed_data:Some(Value::String("live-observation-secret-sentinel".into())),clock:Some(NOW),operation:"read".into(),viewer:VIEWER.into(),args:BTreeMap::new(),result:serde_json::json!({"state":"observed","complete":true})};
+        let public=serde_json::to_value(&step).unwrap();assert!(!public.to_string().contains("secret-sentinel"));assert!(!format!("{step:?}").contains("secret-sentinel"));
+        let restored:Step=serde_json::from_value(public).unwrap();assert!(restored.observed_data.is_none());
+    }
+    #[test]fn the_observer_does_not_change_the_mutation_prefix_dedup_key(){
+        let write=Step{observed_data:None,clock:Some(NOW),operation:"create".into(),viewer:VIEWER.into(),args:BTreeMap::new(),result:serde_json::json!({"state":"sent"})};
+        let read=Step{observed_data:None,clock:Some(NOW),operation:"read".into(),viewer:VIEWER.into(),args:BTreeMap::new(),result:serde_json::json!({"state":"observed"})};
+        assert_eq!(trace_key(&[write.clone()]),trace_key(&[write.clone(),read]));
+        assert_ne!(trace_key(&[write.clone()]),trace_key(&[write.clone(),write]));
+    }
 }

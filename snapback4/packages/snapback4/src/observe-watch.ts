@@ -20,6 +20,20 @@ export function peekObservation<A, R>(client: Client, op: Query<A, R>, args: A, 
   return peeks.get(client.observe)?.(op as Query<unknown, unknown>, args, options) as Read<R> | undefined;
 }
 
+const observeUsage = () => Object.assign(new TypeError("E_OBSERVE_USAGE: use client.observe(op, args, options?) to get an Observed; read observed.getSnapshot(), observe changes with observed.subscribe(() => read(observed.getSnapshot())), then observed.close(). Pass { keep: true } as options; callbacks are not observe options and client.watch is unsupported."), { code: "E_OBSERVE_USAGE" });
+/** Give JavaScript callers an actionable error for a guessed watch method. */
+export function refuseWatchGuess<T extends object>(client: T): T {
+  Object.defineProperty(client, "watch", { value: () => { throw observeUsage(); }, configurable: true });
+  return client;
+}
+
+/** Reject callback-shaped guesses before creating a watch or starting work. */
+export function validateObserveOptions(options: unknown): void {
+  if (options != null && (typeof options !== "object" || Array.isArray(options))) {
+    throw observeUsage();
+  }
+}
+
 // @ref LLP 3000.023#3.2 — omitted, withdrawing and lingering subscribers never share policy.
 export function observationKey(op: Query<unknown, unknown>, args: unknown, options?: ObserveOptions): string {
   return `${armKey(op)}${options?.keep === true ? "keep:" : options?.keep === false ? "withdraw:" : "retain:"}${readKey(op, args)}`;

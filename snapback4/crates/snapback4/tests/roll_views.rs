@@ -139,7 +139,8 @@ impl App {
         let decisions=value["securityReviews"].as_array().unwrap();
         let selected=decisions.iter().filter(|d|d["code"]=="N_PRESENCE_LOOSENING"&&sites.iter().any(|s|d["site"]==s.as_str())).collect::<Vec<_>>();
         assert_eq!(selected.len(),1,"expected this deliberate presence review: {value}");
-        for d in selected {self.ok(&["check","--ack-security",d["id"].as_str().unwrap(),"--reason","This rollback fixture deliberately permits pending values in this column; current workflow guards remain enforced."]);}
+        self.source(&format!("{s}\ninvariant items always .{column} = null or .{column} != null\n"));
+        self.ok(&["check"]);
     }
     fn run(&self, args: &[&str]) -> Output {
         Command::new(BIN)
@@ -511,7 +512,7 @@ fn incomplete_current_shape_uses_a_guarded_bridge_with_current_intent() {
     let root=app.0.join(format!("deployment/releases/{selected}/snapback"));
     let sources=fs::read_dir(root).unwrap().map(|entry|{let p=entry.unwrap().path();(p.file_name().unwrap().to_str().unwrap().to_owned(),fs::read_to_string(p).unwrap())}).collect::<Vec<_>>();
     let compiled=snapback4_lang::compile(&sources);assert!(compiled.diagnostics.is_empty(),"{:?}",compiled.diagnostics);
-    assert_eq!(compiled.invariants.len(),1);
+    assert_eq!(compiled.invariants.len(),2); // retained read policy and explicit optional-presence allowance
     assert!(sources.iter().any(|(_,s)|s.contains("NO_AMOUNT")));
     let store=snapback4_core::store_port::AnyStore::open(&app.0.join("deployment/store.sqlite")).unwrap();
     let mut engine=snapback4_core::Engine::attach_release_at(store,selected,snapback4_core::now_ms()).unwrap();

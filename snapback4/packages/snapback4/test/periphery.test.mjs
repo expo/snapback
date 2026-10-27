@@ -1,3 +1,5 @@
+// Generation/adaptation fixtures defer dependency installation; packed starters exercise the installer.
+process.env.SNAPBACK4_INIT_INSTALL = "0";
 import { captureStdout } from './helpers/server-output.mjs';
 import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 import test from "node:test";
@@ -176,7 +178,9 @@ for (const template of [[], ["--template", "chat"]]) test(`Expo ${template.lengt
   if (chat) assert.deepEqual(json(join(dir, "app.json")), starterConfig);
   else assert.deepEqual(json(join(dir, "app.json")).expo.plugins, starterConfig.expo.plugins);
   assert.equal(read(join(dir, "expo-env.d.ts")), '/// <reference types="expo/types" />\n');
-  assert.deepEqual(json(join(dir, "tsconfig.json")), json(join(reference, "tsconfig.json")));
+  const expectedConfig=json(join(reference,"tsconfig.json"));
+  if(!chat){expectedConfig.compilerOptions.exactOptionalPropertyTypes=true; expectedConfig.compilerOptions.noUncheckedIndexedAccess=true;}
+  assert.deepEqual(json(join(dir, "tsconfig.json")), expectedConfig);
   assert.equal(read(join(dir, "babel.config.js")), read(join(reference, "babel.config.js")));
   const babel = { module: { exports: {} } };
   vm.runInNewContext(read(join(dir, "babel.config.js")), babel);
@@ -446,7 +450,7 @@ test("SQL reads chat views while dev writes in WAL, refuses raw access, and boun
     const data = run("data", "messages", "--limit", "1");
     assert.equal(data.stdout.trim().split("\n").length, 1);
     assert.equal(typeof JSON.parse(data.stdout).body, "string");
-    assert.match(data.stderr, /… more rows \(increase --limit\)/);
+    assert.match(data.stderr, /… more rows; use `data messages --all` \(or increase --limit\)/);
     const allData = run("data", "messages", "--limit", "205");
     assert.equal(allData.stdout.trim().split("\n").map(line => JSON.parse(line)).length, 205);
     assert.equal(allData.stderr, "");
@@ -731,7 +735,9 @@ test("Expo starter selects web, native and online app devices with explicit sess
 });
 
 for (const pkg of ["snapback4", "snapback4-expo"]) test(`${pkg} README teaches background proof and reading its result`, () => {
-  const readme = read(join(root, "packages", pkg, "README.md"));
+  const orientation=read(join(root,"packages",pkg,"README.md"));
+  if(pkg==="snapback4")assert.ok(orientation.includes("CLIENT-AND-OPERATIONS.md"));
+  const readme = pkg==="snapback4"?read(join(root,"packages",pkg,"CLIENT-AND-OPERATIONS.md")):orientation;
   for (const fact of ["npm run export:ios", "background QoS", "npx snapback4 witness status --wait", "npx snapback4 doctor", "npm run native:smoke", "supersedes pending proof", "without failing a successful export"])
     assert.ok(readme.includes(fact), `${pkg}: missing ${fact}`);
   assert.ok(!readme.includes("SNAPBACK4_NATIVE_SMOKE=off"));

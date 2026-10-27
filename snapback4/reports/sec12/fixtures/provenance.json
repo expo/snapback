@@ -1,0 +1,32 @@
+[
+  {
+    "fixture": "snapback4/reports/sec12/fixtures/002-before.q",
+    "source": "/home/ccheever/sb4-loop/wave31/v1-clients/002-snapback-infant-helmet-fittings/snapback/schema.q",
+    "sha256": "13a27232340e32586262037ae39f2c9630f8d8f308da6bbeb334749afac30175"
+  },
+  {
+    "fixture": "snapback4/reports/sec12/fixtures/002-after.q",
+    "source": "/home/ccheever/sb4-loop/wave31/apps/002-snapback-infant-helmet-fittings/snapback/schema.q",
+    "sha256": "22a09934fc34badbdefbb7a7b011100c2a6c88d3ea51ad060c31dbf901ab4b55"
+  },
+  {
+    "fixture": "snapback4/reports/sec12/fixtures/014-before.q",
+    "source": "/home/ccheever/sb4-loop/wave31/v1-clients/014-snapback-balloon-decor-installs/snapback/schema.q",
+    "sha256": "99c9823228cc50930a3229f0eecb2e4e6628c82d5d0d9f1cf403c2121981a4ab"
+  },
+  {
+    "fixture": "snapback4/reports/sec12/fixtures/014-after.q",
+    "source": "/home/ccheever/sb4-loop/wave31/apps/014-snapback-balloon-decor-installs/snapback/schema.q",
+    "sha256": "bdac20994f7029a1b65d5161d099c6a617bdca18814e9ca7f9c434d68fcd4b6e"
+  },
+  {
+    "fixture": "snapback4/reports/sec12/fixtures/019-before.q",
+    "source": "/home/ccheever/sb4-loop/wave31/v1-clients/019-snapback-pet-relocation-flights/snapback/schema.q",
+    "sha256": "310c6d5e6f0e526f792f6568d8979a3e71cdb234d06b125d2eec577861dbf263"
+  },
+  {
+    "fixture": "snapback4/reports/sec12/fixtures/019-after.q",
+    "source": "/home/ccheever/sb4-loop/wave31/apps/019-snapback-pet-relocation-flights/snapback/schema.q",
+    "sha256": "9aef7162de374aebff121349776b9c3371bddcadbc8a230715cfb5fab6f97298"
+  }
+]

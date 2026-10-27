@@ -1,0 +1,121 @@
+{
+  "head": "d3471b95c8ee3453df619aa35e64084ef9cb298d",
+  "complete": true,
+  "unchanged": false,
+  "ok": false,
+  "scopeOverride": {
+    "fullSelectorPlanExecuted": false,
+    "qualification": false,
+    "reason": "Same disclosed override as DX11/DX12: the selector treats embedded init assets as broad inputs and client sources select the entire client package. The brief explicitly forbids the complete crate battery and client pool. This receipt covers only the listed affected tests/checks.",
+    "fullRustPackages": [
+      "snapback4",
+      "snapback4-core",
+      "snapback4-device",
+      "snapback4-difftest",
+      "snapback4-lang",
+      "snapback4-native",
+      "snapback4-sim"
+    ],
+    "fullClientFiles": 447,
+    "fullStepCount": 31
+  },
+  "results": [
+    {
+      "id": "build-cli-test-profile",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 261
+    },
+    {
+      "id": "client-build",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 3939
+    },
+    {
+      "id": "client-types",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 3329
+    },
+    {
+      "id": "language-regressions",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 19808
+    },
+    {
+      "id": "guide",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 10440
+    },
+    {
+      "id": "cli-output",
+      "status": 101,
+      "signal": null,
+      "elapsedMs": 48752
+    },
+    {
+      "id": "starter-units",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 38696
+    },
+    {
+      "id": "starter-integration",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 29147
+    },
+    {
+      "id": "clients",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 174493
+    },
+    {
+      "id": "doc-budget",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 20553
+    },
+    {
+      "id": "packaged-docs",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 41
+    },
+    {
+      "id": "proof-api",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 1478
+    },
+    {
+      "id": "generated",
+      "status": 1,
+      "signal": null,
+      "elapsedMs": 73
+    },
+    {
+      "id": "diagnostics",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 203697
+    },
+    {
+      "id": "inventories",
+      "status": 1,
+      "signal": null,
+      "elapsedMs": 211325
+    },
+    {
+      "id": "refs",
+      "status": 0,
+      "signal": null,
+      "elapsedMs": 8773
+    }
+  ],
+  "explanation": "Preliminary run failed the pre-DX14 combined-summary assertion;12a0845129 updates it to require separate authored/probe outcomes and its focused rerun passes. Root generator/inventory checks had missing dependencies. Concurrent report commits also changed the bound snapshot. No final PASS is claimed for this receipt."
+}

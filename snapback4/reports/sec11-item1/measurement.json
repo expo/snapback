@@ -1,0 +1,15 @@
+{
+  "binarySha256": "9d432a5fed665c418cbed5aa26995811411ee46c10f09f9e5181139ce7924a95",
+  "projects": 800,
+  "workers": 48,
+  "waves": "30,26,28,15,16,18,19,20,21,22,23,24,25,27,29",
+  "checkOnly": false,
+  "stripIntent": false,
+  "defaultOutput": true,
+  "binarySnapshot": "/tmp/sb4-sec10-shipping-binary-_l_8lwa2/snapback4",
+  "watchdogSeconds": {
+    "check": 180,
+    "test": 900,
+    "deploy": 180
+  }
+}

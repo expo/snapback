@@ -1,0 +1,78 @@
+{
+  "baselineComposition": "Integration27 early800 overlaid by final117 then merged-main117, per its README",
+  "schemas": 800,
+  "wave30FreshDeploys": 50,
+  "sourceHashesMatch": true,
+  "checkExitChanges": [],
+  "blockingGateChanges": [],
+  "wave30ProductionExitChanges": [],
+  "wave30ProductionGateChanges": [],
+  "beforeAll800CheckLines": {
+    "median": 2.0,
+    "p90": 6,
+    "max": 12
+  },
+  "afterAll800CheckLines": {
+    "median": 2.0,
+    "p90": 6,
+    "max": 12
+  },
+  "beforeWave30CheckLines": {
+    "median": 2.0,
+    "p90": 6,
+    "max": 6
+  },
+  "afterWave30CheckLines": {
+    "median": 2.0,
+    "p90": 6,
+    "max": 6
+  },
+  "beforeWave30DeployLines": {
+    "median": 5.0,
+    "p90": 7,
+    "max": 9
+  },
+  "afterWave30DeployLines": {
+    "median": 5.0,
+    "p90": 7,
+    "max": 9
+  },
+  "wave30Refused": [
+    {
+      "lane": "033-snapback-garage-floor-coatings",
+      "check": 1,
+      "freshDeploy": 1
+    }
+  ],
+  "measurement": {
+    "checks": {
+      "binarySha256": "a8bfa4a9f16c1ccffd4f9c943a2e51c20b0b3e0a5787af3edefdfa6f024d8323",
+      "projects": 800,
+      "waves": "15,16,18,19,20,21,22,23,24,25,26,27,28,29,30",
+      "checkOnly": true,
+      "stripIntent": false,
+      "defaultOutput": true,
+      "binarySnapshot": "/tmp/dx14-replay/metrology/sb4-sec10-shipping-binary-s4mhkbyr/snapback4",
+      "watchdogSeconds": {
+        "check": 120,
+        "test": 900,
+        "deploy": 180
+      }
+    },
+    "wave30": {
+      "binarySha256": "a8bfa4a9f16c1ccffd4f9c943a2e51c20b0b3e0a5787af3edefdfa6f024d8323",
+      "projects": 50,
+      "waves": "30",
+      "checkOnly": false,
+      "stripIntent": false,
+      "defaultOutput": true,
+      "binarySnapshot": "/tmp/dx14-replay/metrology/sb4-sec10-shipping-binary-yay5pkx_/snapback4",
+      "watchdogSeconds": {
+        "check": 120,
+        "test": 900,
+        "deploy": 180
+      }
+    }
+  },
+  "scope": "Pinned final-source Cargo test-profile CLI. All800 checks and50 wave30 fresh production attempts; no800-deploy or publication/whole-battery claim. Shared host load and16 vs4 workers prevent controlled latency comparison. Capability-hole coverage and fresh-agent token/wall-time bakeoff were not remeasured."
+}

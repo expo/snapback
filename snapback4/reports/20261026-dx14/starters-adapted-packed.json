@@ -1,0 +1,106 @@
+{
+  "node": "v24.13.1",
+  "clientSha256": "363772990e1cf371debd625b0d7fae2a2fcc2515d84605b684cfe46b24594dd3",
+  "platformSha256": "669da5e86b62f9fcae90750a46d7bd934b55be90599d5d19315db779ee114eec",
+  "results": [
+    {
+      "custody": "authored-screen",
+      "steps": [
+        {
+          "name": "packed-init",
+          "ok": true
+        },
+        {
+          "name": "install",
+          "ok": true
+        },
+        {
+          "name": "adapt-apply",
+          "ok": true
+        },
+        {
+          "name": "paired-custody",
+          "ok": true
+        },
+        {
+          "name": "check",
+          "ok": true
+        },
+        {
+          "name": "strict-typecheck",
+          "ok": true
+        },
+        {
+          "name": "frontend-proof",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "custody": "shared-collision",
+      "steps": [
+        {
+          "name": "packed-init",
+          "ok": true
+        },
+        {
+          "name": "install",
+          "ok": true
+        },
+        {
+          "name": "adapt-apply",
+          "ok": true
+        },
+        {
+          "name": "paired-custody",
+          "ok": true
+        },
+        {
+          "name": "check",
+          "ok": true
+        },
+        {
+          "name": "strict-typecheck",
+          "ok": true
+        },
+        {
+          "name": "frontend-proof",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "custody": "paired-refresh",
+      "steps": [
+        {
+          "name": "packed-init",
+          "ok": true
+        },
+        {
+          "name": "install",
+          "ok": true
+        },
+        {
+          "name": "adapt-apply",
+          "ok": true
+        },
+        {
+          "name": "paired-custody",
+          "ok": true
+        },
+        {
+          "name": "check",
+          "ok": true
+        },
+        {
+          "name": "strict-typecheck",
+          "ok": true
+        },
+        {
+          "name": "frontend-proof",
+          "ok": true
+        }
+      ]
+    }
+  ]
+}

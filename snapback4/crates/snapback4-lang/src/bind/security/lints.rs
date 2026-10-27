@@ -113,6 +113,25 @@ pub(super) fn notes(bound:&Bound,exposures:&[Exposure])->Vec<Diagnostic>{
     notes.retain(|n|n.code!="N_GRANT_OUTLIVES_ROLE"||retained.insert(n.message.split(':').next().unwrap_or("").to_string()));
     notes
 }
+fn recipient_checked(value:&Expr,argument:&str,bound:&Bound,positive:bool,links:&[(String,String)],p:&ast::ProgramDecl)->bool{match value{
+    Expr::Unary{op,value,..} if op=="not"=>recipient_checked(value,argument,bound,!positive,links,p),
+    Expr::Binary{op,left,right,..} if op=="and"||op=="or"=>{
+        let a=recipient_checked(left,argument,bound,positive,links,p);let b=recipient_checked(right,argument,bound,positive,links,p);
+        if (op=="and")==positive{a||b}else{a&&b}
+    },
+    Expr::Exists{read,..} if positive=>read.keys.iter().any(|key|matches!(&key.value,Expr::Name{name,..} if name==argument)),
+    Expr::Binary{op,left,right,..} if (op=="=")==positive&&matches!(op.as_str(),"="|"!=")&&[(left.as_ref(),right.as_ref()),(right.as_ref(),left.as_ref())].iter().any(|(field,chosen)|{
+        if !matches!(chosen,Expr::Name{name,..} if name==argument){return false;}
+        let Expr::Member{base,name,..}=field else{return false;};let base=if let Expr::Assert{value,..}=base.as_ref(){value.as_ref()}else{base.as_ref()};let Expr::Read(read)=base else{return false;};
+        bound.schema.tables[&read.table].columns.get(name).is_some_and(|kind|matches!(kind,snapback4_core::schema::ColumnType::Principal))&&read.keys.len()==1&&(read.keys[0].column.as_deref()==Some("id")||read.keys[0].column.is_none()&&matches!(&read.keys[0].value,Expr::Name{name,..} if p.args.iter().any(|arg|arg.name==*name&&matches!(&arg.type_.kind,ast::TypeKind::Ref{table} if table==&read.table))))&&links.iter().any(|(table,key)|table==&read.table&&key==&crate::print::expression(&read.keys[0].value))
+    })=>true,
+    Expr::Binary{op,left,right,..} if (op=="=")==positive&&matches!(op.as_str(),"="|"!=")=>[(left.as_ref(),right.as_ref()),(right.as_ref(),left.as_ref())].iter().any(|(field,literal)|{
+        let (Expr::Member{base,name,..},Expr::Literal{value:ast::Literal::Str(_),..})=(field,literal)else{return false;};
+        let base=if let Expr::Assert{value,..}=base.as_ref(){value.as_ref()}else{base.as_ref()};
+        let Expr::Read(read)=base else{return false;};
+        super::privilege::role_columns(bound,&read.table).contains(name)&&read.keys.iter().any(|key|matches!(&key.value,Expr::Name{name,..} if name==argument))
+    }),_=>false,
+}}
 pub(super) fn source_notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnostic>{
     let mut out=Vec::new();
     let documents=sources.iter().map(|(file,source)|crate::parse_document(file,source).0).collect::<Vec<_>>();
@@ -122,18 +141,38 @@ pub(super) fn source_notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnos
         for p in &doc.programs {
             let mut body=p.prelude.clone();body.extend(p.body.clone());
             let mut seen=BTreeSet::new();
-            let mut guarded=BTreeSet::new();
-            for statement in p.prelude.iter().chain(&p.body) {
-                if let Stmt::Require{condition,..}=statement {
-                    let mut condition=condition.clone();
-                    super::super::intent_walk::expression(&mut condition,&mut |e|if let Expr::Exists{read,..}=e {
-                        for key in &read.keys {if let Expr::Name{name,..}=&key.value {guarded.insert(name.clone());}}
-                    });
-                }
-            }
-            for (write,context) in super::authority_walk::writes(&catalog,p){
-                let Expr::Write{op,table,fields,site,..}=&write else{continue;};
-                let Some(t)=bound.schema.table(table)else{continue;};
+            let mut operator_sites=BTreeSet::new();
+            let mut grant_guards=BTreeMap::new();
+            let mut checked_recipients=BTreeSet::new();
+            let mut prior_tables=BTreeSet::new();
+            let writes=super::authority_walk::advice_writes(&catalog,p);
+            let mut unknown_effect=false;
+            let resolved=writes.iter().map(|(write,_)|write.site().to_string()).collect::<BTreeSet<_>>();
+            for (write,context) in writes{
+                let Expr::Write{op,table,keys,fields,site,..}=&write else{continue;};
+                let Some(t)=bound.schema.table(table)else{unknown_effect=true;continue;};
+                grant_guards.insert(site.to_string(),context.body.iter().filter_map(|s|if let Stmt::Require{condition,..}=s{Some(crate::print::expression(condition))}else{None}).collect::<BTreeSet<_>>().into_iter().collect::<Vec<_>>().join("; "));
+                let links=t.columns.iter().filter_map(|(column,kind)|{
+                    let snapback4_core::schema::ColumnType::Ref{table}=kind.required()else{return None;};
+                    let value=fields.iter().find(|f|f.name==*column).and_then(|f|f.value.as_ref()).or_else(||keys.iter().find(|key|key.column.as_deref()==Some(column)).map(|key|&key.value))?;
+                    Some((table.clone(),crate::print::expression(value)))
+                }).collect::<Vec<_>>();
+                let mut unknown_prior=unknown_effect;
+                super::super::intent_walk::statements(&mut body.clone(),&mut |node|if let Expr::Write{site:earlier,..}=node&&earlier.file==site.file&&earlier.line<site.line&&!resolved.contains(&earlier.to_string()){unknown_prior=true;});
+                for arg in &p.args{if !unknown_prior&&context.body.iter().any(|s|if let Stmt::Require{condition,..}=s{
+                    let mut dependencies=BTreeSet::new();super::super::intent_walk::expression(&mut condition.clone(),&mut |node|if let Expr::Read(read)|Expr::Exists{read,..}=node{dependencies.insert(read.table.clone());});
+                    dependencies.is_disjoint(&prior_tables)&&recipient_checked(condition,&arg.name,bound,true,&links,p)
+                }else{false}){checked_recipients.insert((site.to_string(),arg.name.clone()));}}
+                prior_tables.insert(table.clone());
+
+
+                // @ref LLP 3000.036.004.005#4-operator-provisioning — the
+                // documented local operator chooses recipients deliberately.
+                let requirements=catalog.tables.get(table).map(|info|super::operation::requirements(&catalog,info,&context)).unwrap_or_default();
+                let operator=RuleExpr::Eq(RuleTerm::Viewer,RuleTerm::Literal(snapback4_core::Value::Id("service:operator".into())));
+                let gate=match op{ast::WriteOp::Insert=>t.rules.insert.clone(),ast::WriteOp::Update if t.written_by.is_empty()=>t.rules.update.clone(),ast::WriteOp::Upsert if t.written_by.is_empty()=>RuleExpr::Or(vec![t.rules.insert.clone(),t.rules.update.clone()]),_=>RuleExpr::Allow};
+                if kernel::implies(&RuleExpr::And(std::iter::once(gate).chain(requirements).collect()),&operator)==Ok(true){operator_sites.insert(site.to_string());}
+
                 let role_columns=super::privilege::role_columns(bound,table);
                 let principal=super::privilege::global_principal(bound,table);
                 let reassigns=principal.as_ref().is_some_and(|c|fields.iter().any(|f|&f.name==c)&&!t.constraints.iter().any(|k|matches!(k,snapback4_core::schema::Constraint::Immutable{fields} if fields.contains(c))));
@@ -171,9 +210,10 @@ pub(super) fn source_notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnos
                 let Some(t)=bound.schema.table(table)else{return};
                 let readers=reader_columns(&t.rules.read);
                 for f in fields.iter(){
+                    if matches!(f.value,Some(Expr::Member{..}|Expr::Literal{..})){continue;}
                     let arg=f.value.as_ref().and_then(|e|if let Expr::Name{name,..}=e{Some(name.as_str())}else{None}).unwrap_or(f.name.as_str());
-                    if !guarded.contains(arg)&&readers.contains(&f.name)&&p.args.iter().any(|a|a.name==arg)&&seen.insert((table.clone(),f.name.clone())){
-                        note(&mut out,site,"N_ARGUMENT_GRANT",format!("{} writes argument {arg} straight into reader-grant column {table}.{}",p.name,f.name),"require the chosen principal's current role and relationship before granting access; caller authority alone does not validate the recipient");
+                    if !operator_sites.contains(&site.to_string())&&!checked_recipients.contains(&(site.to_string(),arg.to_owned()))&&readers.contains(&f.name)&&p.args.iter().any(|a|a.name==arg)&&seen.insert((table.clone(),f.name.clone())){
+                        note(&mut out,site,"N_ARGUMENT_GRANT",format!("{}: saw `{}`; not proved: recipient role/relationship at {site}; writes argument {arg} straight into reader-grant column {table}.{}",p.name,grant_guards.get(&site.to_string()).filter(|s|!s.is_empty()).map(String::as_str).unwrap_or("no dominating require"),f.name),"require the chosen principal's current role and relationship before granting access; caller authority alone does not validate the recipient");
                     }
 
                 }
@@ -217,4 +257,26 @@ pub(super) fn argument_guard(expr:&Expr,argument:&str,target:&str)->Option<bool>
             else if a==Some(true)||b==Some(true){Some(true)}else if a==Some(false)&&b==Some(false){Some(false)}else{None}
         },Expr::Unary{op,value,..} if op=="not"=>argument_guard(value,argument,target).map(|v|!v),_=>None,
     }
+}
+
+// @ref LLP 3000.036.004.005#integration-tier-boundary — source facts may omit advice, never an executable witnessed question.
+pub(super) fn question_basis(sources:&[(String,String)],bound:&Bound)->Vec<Diagnostic>{
+    let mut out=Vec::new();
+    for (file,source) in sources {let doc=crate::parse_document(file,source).0;
+        for p in &doc.programs {
+            let mut guarded=BTreeSet::new();let mut seen=BTreeSet::new();
+            for statement in p.prelude.iter().chain(&p.body){if let Stmt::Require{condition,..}=statement{
+                super::super::intent_walk::expression(&mut condition.clone(),&mut |e|if let Expr::Exists{read,..}=e{for key in &read.keys{if let Expr::Name{name,..}=&key.value{guarded.insert(name.clone());}}});
+            }}
+            let mut body=p.prelude.clone();body.extend(p.body.clone());
+            super::super::intent_walk::statements(&mut body,&mut |e|{
+                let Expr::Write{table,fields,site,..}=e else{return;};let Some(t)=bound.schema.table(table)else{return;};let readers=reader_columns(&t.rules.read);
+                for field in fields.iter(){let arg=field.value.as_ref().and_then(|e|if let Expr::Name{name,..}=e{Some(name.as_str())}else{None}).unwrap_or(field.name.as_str());
+                    if !guarded.contains(arg)&&readers.contains(&field.name)&&p.args.iter().any(|a|a.name==arg)&&seen.insert((table.clone(),field.name.clone())){
+                        note(&mut out,site,"N_ARGUMENT_GRANT",format!("{} writes argument {arg} straight into reader-grant column {table}.{}",p.name,field.name),"require the chosen principal's current role and relationship before granting access; caller authority alone does not validate the recipient");
+                    }
+                }
+            });
+        }
+    }out
 }

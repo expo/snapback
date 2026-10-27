@@ -287,13 +287,14 @@ for (const platform of ["web", "expo"]) test(`DX6 ${platform} starter ReadState 
   const sdk = await import("../dist/react.js"), contract = await import("../dist/contract.js");
   const path = join(root, `crates/snapback4/src/verbs/init/starter/${platform}/todos.tsx`);
   const fragment = readFileSync(path, "utf8").split("function TodoList")[1];
-  const source = `export function TodoList${fragment}`;
+  const shared=readFileSync(join(root,"crates/snapback4/src/verbs/init/starter/shared.ts"),"utf8");
+  const source = `${shared}\nexport function TodoList${fragment}`;
   const output = ts.transpileModule(source, {compilerOptions:{target:ts.ScriptTarget.ES2022,module:ts.ModuleKind.CommonJS,jsx:ts.JsxEmit.ReactJSX}}).outputText;
   const exports = {}, require = createRequire(import.meta.url);
   const host = tag => ({children, testID, ...props}) => createElement(tag, {"data-testid":testID}, children);
   const module = {exports};
   new Function("exports", "require", "ReadState", "existence", "View", "Text", "Pressable", "Button", output)(exports, require, sdk.ReadState, contract.existence, host("div"), host("span"), host("button"), host("button"));
-  const render = read => renderToString(createElement(module.exports.TodoList, {todos:{read,items:"data" in read ? read.data:[],hasMore:false},toggle:{run(){}},remove:{run(){}}}));
+  const render = read => renderToString(createElement(module.exports.TodoList, {filter:"all",todos:{read,items:"data" in read ? read.data:[],hasMore:false},toggle:{run(){}},remove:{run(){}}}));
   const ready = (data, flags={}) => ({data,existence:data.length?"present":"absent",complete:true,fresh:true,cut:null,next:null,...flags});
   assert.match(render({loading:true}), /Loading/);
   assert.match(render({denied:{message:"No access",code:"DENIED",family:"rule"}}), /Not available: .*No access/);

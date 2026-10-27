@@ -189,6 +189,13 @@ pub fn init(options: &Options) -> i32 {
         ports::scripts(&mut files, port.unwrap_or(4400), web_port.unwrap_or(if web { 5173 } else { 8081 }), range, web);
         proof::files(&mut files, options, port.unwrap_or(4400), web_port.unwrap_or(if web { 5173 } else { 8081 }), web, &shape);
     }
+    for (name, text) in &mut files {
+        if name.starts_with("scripts/") && (name.ends_with(".mjs") || name.ends_with(".ts")) && !text.contains("API signatures:") {
+            let header = "// API signatures: snapback4 guide api proof | client | auth | generated\n";
+            if text.starts_with("#!") { if let Some(at) = text.find('\n') { text.insert_str(at + 1, header); } }
+            else { text.insert_str(0, header); }
+        }
+    }
     let mut conflicts = Vec::new();
     // A project's existing introduction is unrelated to the starter. Keep it
     // and place our setup instructions beside it, still without overwriting.
@@ -242,6 +249,9 @@ pub fn init(options: &Options) -> i32 {
         // `check` and `dev` write snapback/generated/ and rewrite it on every
         // run: an existing file there is init's to replace, never a conflict.
         // @ref LLP 3000.011.003.000#7.4 — schema-first init after `check` (wave 4: E_INIT_CONFLICT on check's own package.json).
+        if regenerable(name) && dir.join(name).symlink_metadata().is_ok_and(|metadata| !metadata.is_file()) {
+            conflicts.push(format!("{} is not a regular generated file", dir.join(name).display()));
+        }
         if *name != "package.json" && !regenerable(name) {
             match dir.join(*name).symlink_metadata() {
                 Ok(_) => present.push(format!("{} already exists", dir.join(*name).display())),
@@ -280,6 +290,16 @@ pub fn init(options: &Options) -> i32 {
         return 0;
     }
     let readme = files.iter().find(|(name, _)| name.starts_with("README.")).map(|(name, _)| *name);
+    let mut overwritten = Vec::new();
+    for name in files.iter().filter(|(name, _)| *name == "package.json" || regenerable(name)).map(|(name, _)| *name).chain([".gitignore"]) {
+        let path = dir.join(name);
+        if path.is_file() {
+            match std::fs::read_to_string(&path) {
+                Ok(original) => overwritten.push((path, original)),
+                Err(error) => { eprintln!("init: could not preserve {}: {error}; no files written", path.display()); return 2; }
+            }
+        }
+    }
     let mut created = Vec::new();
     let mut write = || -> std::io::Result<()> {
         for (name, text) in &files {
@@ -297,9 +317,11 @@ pub fn init(options: &Options) -> i32 {
         }
         let gitignore = dir.join(".gitignore");
         let existing = match std::fs::read_to_string(&gitignore) { Ok(text) => text, Err(e) if e.kind() == std::io::ErrorKind::NotFound => String::new(), Err(e) => return Err(e) };
+        let original = existing.clone();
+        let existing = starter_gitignore(&existing);
         let ignores = format!("{GITIGNORE}{}{}", if expo || web { "dist/\n" } else { "" }, if expo { ".snapback4-witness/\nartifacts/native-smoke/\n" } else { "" });
         let missing = ignores.lines().filter(|line| !existing.lines().any(|old| old == *line)).collect::<Vec<_>>().join("\n");
-        if !missing.is_empty() { replace_file(&gitignore, &format!("{existing}{}{missing}\n", if existing.is_empty() || existing.ends_with('\n') { "" } else { "\n" }))?; }
+        if !missing.is_empty() || existing != original { replace_file(&gitignore, &format!("{existing}{}{missing}\n", if existing.is_empty() || existing.ends_with('\n') { "" } else { "\n" }))?; }
         Ok(())
     };
     if let Err(error) = write() {
@@ -307,11 +329,18 @@ pub fn init(options: &Options) -> i32 {
         for path in created.iter().rev() {
             if let Err(error) = std::fs::remove_file(path) { eprintln!("init: could not remove {}: {error}", path.display()); }
         }
+        for (path, original) in overwritten.iter().rev() {
+            if std::fs::read_to_string(path).ok().as_ref() != Some(original) {
+                if let Err(error) = replace_file(path, original) { eprintln!("init: could not restore {}: {error}", path.display()); }
+            }
+        }
         return 2;
     }
+    println!("{}", crate::guide_seen::render_in(dir, "start", snapback4_lang::guide::card("start").unwrap(), false));
+    let _ = std::io::stdout().flush();
     // A starter that wrote package.json dependencies needs them installed before
     // its typecheck, build or `npm start` can run.
-    let install = if web || expo { "`node scripts/install.mjs`, then " } else if files.iter().any(|(name, _)| *name == "package.json") { "`npm install`, then " } else { "" };
+    let install = if web || expo { "`node scripts/install.mjs --wait`, then " } else if files.iter().any(|(name, _)| *name == "package.json") { "`npm install`, then " } else { "" };
     let dev = port.map(|port| format!("snapback4 dev --port {port}")).unwrap_or_else(|| "snapback4 dev".into());
     let kind = if password_starter {"password app, online reads and journaled writes"} else if social { "Expo Router social app" } else if chat && expo { "Expo chat app" } else if chat { "Vite chat app" }
         else if expo && home { &format!("Expo app: sign-in and a Home screen for your snapback/*.q, native when available, online in Expo Go{}", shape.offline.summary()) }
@@ -324,7 +353,7 @@ pub fn init(options: &Options) -> i32 {
     // @ref LLP 3000.011.003.000#7.4 — the advisories are read before the install that reports them, not after.
     if expo && files.iter().any(|(name, _)| *name == "package.json") {
         println!("init: Expo dependencies are pinned; next: `node scripts/install.mjs`, then `npx snapback4 check`. Adapter-first installs constrain React Native 0.86.3 and compatible React 19; this starter pins React/React DOM 19.2.3 and supplies the app/scripts.");
-        println!("init: `npm install` takes a few minutes and reports an unpatched high advisory from Expo's node-forge code-signing dependency; qualification warns under a dated exception until a patch or recheck date — do not run `npm audit fix --force`, which downgrades Expo to SDK 44 (README)");
+        println!("init: `npm install` takes a few minutes; Expo code signing uses patched node-forge 1.4.1. Qualification audits development dependencies too (README)");
     }
     if web {
         let page = web_port.unwrap_or(5173);
@@ -366,7 +395,12 @@ pub fn init(options: &Options) -> i32 {
             Some(_) => {},
         }
     }
-    if web || expo { println!("node scripts/install.mjs"); }
+    if web || expo {
+        println!("init: verify with `npm run probe:check` (password previews); `npm run frontend:proof` checks the screen. `probe:serve` stays up until SIGTERM.");
+        if !options.flags.contains_key("no-install") && std::env::var("SNAPBACK4_INIT_INSTALL").as_deref() != Ok("0") {
+            if let Err(error) = background_install(dir) { eprintln!("init: frontend install could not start: {error}; run node scripts/install.mjs"); }
+        } else { println!("init: frontend install deferred; run node scripts/install.mjs"); }
+    }
     0
 }
 
@@ -449,6 +483,14 @@ pub(super) fn title(dir: &Path) -> String {
 }
 
 /// Vite's config is `vite.config.mts`, so the reference tsconfig names that.
+// @ref LLP 3000.037.000#3-password-online-starters — Expo examples retain strict optional and indexed access checks.
+fn strict_expo_config(text: &str) -> String {
+    let mut config: Value = serde_json::from_str(text).unwrap();
+    config["compilerOptions"]["exactOptionalPropertyTypes"] = json!(true);
+    config["compilerOptions"]["noUncheckedIndexedAccess"] = json!(true);
+    pretty(&config)
+}
+
 fn esm_vite_config(tsconfig: &str) -> String { tsconfig.replace("\"vite.config.ts\"", "\"vite.config.mts\"").replace("\"types\": []", "\"types\": [\"node\"]") }
 
 /// npm scripts compare as commands: the same program and subcommand, then the
@@ -648,7 +690,7 @@ fn expo_package() -> String {
     package["dependencies"]["react-dom"] = json!("19.2.3");
     package["dependencies"]["react-native-web"] = json!("~0.21.0");
     // @ref LLP 3000.011.003.000#7.3 — Expo 57's config plugins pin xcode@3.0.1, whose uuid@7 is deprecated and advised against; uuid 11 keeps the CommonJS `v4` it calls.
-    package["overrides"] = json!({ "xcode": { "uuid": "11.1.1" }, "zod": "4.6.7", "decode-uri-component": "0.5.1" });
+    package["overrides"] = json!({ "xcode": { "uuid": "11.1.1" }, "zod": "4.6.7", "decode-uri-component": "0.5.1", "node-forge": "1.4.1" });
     pretty(&package)
 }
 
@@ -677,7 +719,7 @@ fn expo_files() -> Vec<(&'static str, String)> {
         ("src/intent-store.web.ts", include_str!("../../../../apps/chat-expo/src/intent-store.web.ts").to_owned()),
         ("src/intent-store.native.ts", include_str!("../../../../apps/chat-expo/src/intent-store.native.ts").to_owned()),
         ("snapback/schema.q", schema),
-        ("README.md", format!("# Expo chat starter\n\n{TWO_WAYS}\n\nThis starter opens the native Rust device in development and production\nbuilds that carry `snapback4-expo`; Expo Go selects the online client through `createApp`, with\nno native module and no wasm. `src/client.ts` exports `tier`.\nWeb selects `webDevice()`; `npm run build:web` exports and installs its offline shell.\nKeep the generated Metro config using snapback4-expo/metro: the package emits the wasm asset URL.\n\nThe reference toolchain is Expo 57.0.30, React Native 0.86.3, React 19.2.3,\nexpo-sqlite 57.0.3 and babel-preset-expo 57.0.16. Keep the Expo and Babel\npreset major versions together; mixing them can fail Hermes compilation.\n`package.json`'s `overrides` moves the config plugins' `xcode` off the\ndeprecated `uuid@7`. `npm audit` still reports a high finding for `node-forge` (the Expo CLI's code signing): no patched\nrelease exists. Qualification retains a dated no-fix warning; do not describe it as clean. Do not run\n`npm audit fix --force`: it downgrades Expo to SDK 44.\n\nRun `npm install`, `npx snapback4 check`, then `npm run backend` in one\nterminal. In another, run `npm start`\nfor Expo Go, or `npm run ios:dev` for\nthe native development build. The local server URL defaults to\nhttp://127.0.0.1:4400 (the iOS simulator on this machine). Set\nEXPO_PUBLIC_SNAPBACK_URL to your TLS deployment for a physical phone;\nchoose Continue as a guest to sign in. The app restores that session on reopen.\nThe inbox starts empty: seed a conversation and its memberships through\n`POST /seed` during development. Change app.json's bundle IDs before shipping.\nFor password accounts in Node seed scripts and replay adapters, see `snapback4 guide auth`.\nCall `signup`/`login` from `snapback4/auth`, then open one\n`createClient({{ url, session }})` per user; no browser or borrowed UI token is needed.\nThe schema already enables passwords.\n\nAt every milestone, `npm run export:ios` publishes Hermes to `dist/` and returns.\nNative proof runs in the background at background QoS, so you can keep building\nwithout waiting for Xcode or the simulator. A newer export supersedes pending proof.\nThe next export and `npx snapback4 doctor` print its result; for your final report\nrun `npx snapback4 witness status --wait`. Receipts and logs stay in\n`artifacts/native-smoke/<timestamp>`. Failures are reported there and in status,\nwithout failing a successful export. Unavailable native hosts report a skip.\nBackground preparation allows 900 seconds without output activity and at most 60 minutes total. Activity alone does not establish build progress; repeated output can keep a stalled build occupied until that cap.\n`npm run native:smoke` explicitly waits for a full Release build and smoke.\nThe starter uses normal guest sign-in when smoke needs an account.\nSmoke proves the local store opens, acquisition, cold offline reopen and reconnect.\nAn empty starter proves lifecycle only; seed history for nonempty evidence.\nPending write replay, media and application assertions need the deeper scenario\nin `npx snapback4 guide witness`.\n")),
+        ("README.md", format!("# Expo chat starter\n\n{TWO_WAYS}\n\nThis starter opens the native Rust device in development and production\nbuilds that carry `snapback4-expo`; Expo Go selects the online client through `createApp`, with\nno native module and no wasm. `src/client.ts` exports `tier`.\nWeb selects `webDevice()`; `npm run build:web` exports and installs its offline shell.\nKeep the generated Metro config using snapback4-expo/metro: the package emits the wasm asset URL.\n\nThe reference toolchain is Expo 57.0.30, React Native 0.86.3, React 19.2.3,\nexpo-sqlite 57.0.3 and babel-preset-expo 57.0.16. Keep the Expo and Babel\npreset major versions together; mixing them can fail Hermes compilation.\n`package.json`'s `overrides` moves the config plugins' `xcode` off the\ndeprecated `uuid@7`. The Expo CLI code-signing dependency `node-forge` is pinned to patched 1.4.1.\nQualification audits all development dependencies and refuses fixable or unrecorded findings.\n\nRun `npm install`, `npx snapback4 check`, then `npm run backend` in one\nterminal. In another, run `npm start`\nfor Expo Go, or `npm run ios:dev` for\nthe native development build. The local server URL defaults to\nhttp://127.0.0.1:4400 (the iOS simulator on this machine). Set\nEXPO_PUBLIC_SNAPBACK_URL to your TLS deployment for a physical phone;\nchoose Continue as a guest to sign in. The app restores that session on reopen.\nThe inbox starts empty: seed a conversation and its memberships through\n`POST /seed` during development. Change app.json's bundle IDs before shipping.\nFor password accounts in Node seed scripts and replay adapters, see `snapback4 guide auth`.\nCall `signup`/`login` from `snapback4/auth`, then open one\n`createClient({{ url, session }})` per user; no browser or borrowed UI token is needed.\nThe schema already enables passwords.\n\nAt every milestone, `npm run export:ios` publishes Hermes to `dist/` and returns.\nNative proof runs in the background at background QoS, so you can keep building\nwithout waiting for Xcode or the simulator. A newer export supersedes pending proof.\nThe next export and `npx snapback4 doctor` print its result; for your final report\nrun `npx snapback4 witness status --wait`. Receipts and logs stay in\n`artifacts/native-smoke/<timestamp>`. Failures are reported there and in status,\nwithout failing a successful export. Unavailable native hosts report a skip.\nBackground preparation allows 900 seconds without output activity and at most 60 minutes total. Activity alone does not establish build progress; repeated output can keep a stalled build occupied until that cap.\n`npm run native:smoke` explicitly waits for a full Release build and smoke.\nThe starter uses normal guest sign-in when smoke needs an account.\nSmoke proves the local store opens, acquisition, cold offline reopen and reconnect.\nAn empty starter proves lifecycle only; seed history for nonempty evidence.\nPending write replay, media and application assertions need the deeper scenario\nin `npx snapback4 guide witness`.\n")),
     ]
 }
 
@@ -720,4 +762,32 @@ pub(super) fn client_setup_hint(root: &Path) -> Option<&'static str> {
     let reference:serde_json::Value=serde_json::from_str(include_str!("../../../../apps/chat/package.json")).ok()?;
     (react && !expo && !wired && (!package["scripts"]["probe:serve"].is_string() || package["devDependencies"]["vite"] != reference["devDependencies"]["vite"]))
         .then_some("React setup: `snapback4 guide start` has the pinned starter and verification recipe (`init /tmp/my-starter --web`)")
+}
+
+// @ref LLP 3000.037.000#3-password-online-starters — preserve the generated runtime API across git copies.
+fn starter_gitignore(text: &str) -> String {
+    text.split_inclusive('\n').filter(|line| line.trim_end_matches(['\r', '\n']) != "snapback/generated/").collect()
+}
+
+
+// @ref LLP 3000.037.000#8-wave-32-builder-reading-and-waiting-tok1 — frontend installation must not block schema reading.
+fn background_install(dir: &Path) -> std::io::Result<()> {
+    use std::process::{Command, Stdio};
+    let logs = dir.join(".snapback4"); std::fs::create_dir_all(&logs)?;
+    #[cfg(unix)] { use std::os::unix::fs::PermissionsExt; std::fs::set_permissions(&logs, std::fs::Permissions::from_mode(0o700))?; }
+    let mut log_options = std::fs::OpenOptions::new(); log_options.create(true).append(true);
+    #[cfg(unix)] { use std::os::unix::fs::OpenOptionsExt; log_options.mode(0o600); }
+    let log = log_options.open(logs.join("install.log"))?;
+    #[cfg(unix)] { use std::os::unix::fs::PermissionsExt; log.set_permissions(std::fs::Permissions::from_mode(0o600))?; }
+    // Publish request identity BEFORE spawning: an immediate --wait cannot
+    // mistake an older successful receipt for this install, even on slow Node startup.
+    let request = format!("{}-{}", std::process::id(), std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_nanos());
+    let mut request_options = std::fs::OpenOptions::new(); request_options.create(true).write(true).truncate(true);
+    #[cfg(unix)] { use std::os::unix::fs::OpenOptionsExt; request_options.mode(0o600); }
+    let mut pending = request_options.open(logs.join("install-request.json"))?;
+    pending.write_all(serde_json::to_string(&json!({"id":request})).unwrap().as_bytes())?;
+    Command::new("node").arg("scripts/install.mjs").arg("--background").env("SNAPBACK4_INSTALL_REQUEST", &request).current_dir(dir)
+        .stdin(Stdio::null()).stdout(Stdio::from(log.try_clone()?)).stderr(Stdio::from(log)).spawn()?;
+    println!("init: frontend install running in background; read/edit now. Progress: node scripts/install.mjs --status; join once: node scripts/install.mjs --wait; log .snapback4/install.log");
+    Ok(())
 }

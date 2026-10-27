@@ -1,0 +1,17 @@
+{
+  "commit": "07366f068d",
+  "base": "dbc0cba8fd",
+  "brief": "Fresh independent source review of committed 07366f068d in /home/ccheever/projects/sb4-b31-sec11l. Read LLP 3000.036.004.000.000 especially Campaign byte snapshots and review this commit's product delta against dbc0cba8fd. This is SEC11L latency only, requiring identical gates/questions/witnesses/FIXes. New bounded immutable byte snapshots replace private replay-world filesystem copying: opt-in Store::memory_for_campaign; fixture campaign_snapshot first forks ordinary store then captures its own files; 32MiB/65536 entry caps fall back to ordinary copies; actual upload admission and per-world SQLite ledgers remain; delivery materializes independently owned bytes only after authority checks. Fork clones immutable Arc map but copies any actual materialized/uncached files; empty ledger retains bytes while clearing placement. Separate COW maps prevent cross-world new-upload contamination. Ordinary runtime stores unchanged. Inspect lifecycle, grant/placement/release/GC semantics, error fallback, fork isolation, empty ledger semantics, bytes/auth correspondence, store port boundaries, stale cache entries, missed consumers. Four focused file_assets tests passed; cargo check passed. Do not assume final performance or 800-schema proof passed: those are pending. Earlier source through e91520124d approved by both reviewers; focus on the new cache delta, but inspect surrounding code as needed. No edits/builds/suites; read-only, no other worktrees. Give concrete MATERIAL blockers or READY.\n",
+  "reviews": {
+    "codex": {
+      "model": "gpt-6.1-sol high, fresh codex exec",
+      "sha256": "5b8681d8503577ec5aa59b21ff19bbdcab2a0054be22559c395c56fb00e979dd"
+    },
+    "muse": {
+      "model": "muse-spark-1.3-contributor high via muse-exec.sh",
+      "sha256": "458fcace46fb112366448e84ac7d1621639fa3ba50815808ba4b39e4da3b3758"
+    }
+  },
+  "patchSha256": "703d618971a9e66cc1c836cee30c7b51b9d8df09f9736b78d97446f6e82f7f07",
+  "resolution": "Both READY on immutable verified byte cache source. Performance and survey qualification remain separate."
+}

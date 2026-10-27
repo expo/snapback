@@ -1,0 +1,29 @@
+note: vendor/ibex runtime submodule is not initialized; run scripts/bootstrap-ibex-runtime before cargo build/test/run (it initializes the submodule and prepares Hermes artifacts).
+HEAD=6f3ef3b0d0bfc145b71e1ce5ef9d20efc5326c26
+post-native.sh:3
+chain-a2.sh:1
+20:q['toolchainProvenance']={'xcframework':f"built by {xv} (/Applications/Xcode.app) in native attempt 2 at 6f3ef3b0d0",
+21: 'witnessApp':f"Release chat-expo (Expo {expo}, expo-modules-core {emc}, RN {rn}) built by {xv} (/Applications/Xcode.app) in native attem
+#!/bin/bash
+# 0.4.43 attempt 2 Mac chain (6f3ef3b0d0): native -> post-native (witness diff + toolchainProvenance) -> prepare -> expo-prep-check -> lean -> warm.
+K=$HOME/sb4-pub-0443; cd $K
+log() { echo "$(date -u +%FT%TZ) $*" >> $K/chain-a2.log; }
+log "native-2 start"; ATTEMPT=2 bash ./native.sh > native-a2.log 2>&1; log "native-2: $(cat native-2.exit)"
+[ "$(cat native-2.exit)" = done ] || exit 1
+bash ./post-native.sh > post-native-a2.log 2>&1 || { log "post-native FAILED"; exit 1; }; log "post-native ok"
+ATTEMPT=2 bash ./publish.sh prepare > prepare-a2.log 2>&1; log "prepare-2: $(cat prepare-2.exit)"
+[ "$(cat prepare-2.exit)" = done ] || exit 1
+python3 expo-prep-check.py > expo-prep-check-a2.log 2>&1; log "expo-prep-check: $(head -1 expo-prep-check-a2.log)"
+ATTEMPT=2 bash ./publish.sh lean > lean-a2.log 2>&1; log "lean-2: $(cat lean-2.exit)"
+ATTEMPT=2 bash ./publish.sh warm > warm-a2.log 2>&1; log "warm-2: $(cat warm-2.exit)"
+log "chain done"
+libsnapback4_native-06727e2c3c808ee9.rlib
+libsnapback4_native-06727e2c3c808ee9.rmeta
+libsnapback4_native-1b56fca861e8a7a2.rlib
+libsnapback4_native-1b56fca861e8a7a2.rmeta
+libsnapback4_native-f3c524f6b23cdb46.rlib
+libsnapback4_native-f3c524f6b23cdb46.rmeta
+/dev/disk3s5   3.6Ti   3.3Ti   291Gi    93%     44M  3.1G    1%   /System/Volumes/Data
+20:08  up 13 days, 21:33, 119 users, load averages: 18.88 13.36 9.87
+ -InternalBattery-0 (id=23134307)	100%; charged; 0:00 remaining present: true
+  |   "AppleClamshellState" = No

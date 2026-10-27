@@ -1,0 +1,15 @@
+import {planAffected,runPlan} from '/home/ccheever/projects/snapback-sb4loop/snapback4/scripts/affected.mjs';
+import {execFileSync} from 'node:child_process';
+import {writeFileSync} from 'node:fs';
+const root='/home/ccheever/projects/snapback-sb4loop';
+const changed=execFileSync('timeout',['20s','git','diff','--name-only','9b9f1a74af4fcabcdf9705620d9546a813f9aa87','HEAD'],{cwd:root,encoding:'utf8'}).trim().split('\n');
+const files=changed.filter(p=>/^snapback4\/packages\/[^/]+\/test\/.*\.test\.mjs$/.test(p)||/^snapback4\/crates\/[^/]+\/tests\/[^/]+\.rs$/.test(p));
+files.push('snapback4/crates/snapback4-lang/tests/guide.rs','snapback4/crates/snapback4-sim/tests/clique.rs','snapback4/packages/snapback4/test/delivery-fault-matrix.test.mjs','snapback4/packages/snapback4/test/api-index.test.mjs','snapback4/packages/snapback4/test/test-file-runner.test.mjs','snapback4/packages/snapback4/test/tok1-reading.test.mjs');
+const plan=planAffected({root,base:'98177aa48b35b99779a95b4db3e26710ac76bf0c',files:[...new Set(files)]});
+plan.scopeNote='Final changed-target closure under LLP0189 D2, not a replacement or relabeling of the original broad receipt. All observed base-to-head files remain bound. Reuses unchanged passing Cargo/core/device/native/client/model inputs from original broad run and later focused full CLI/unit reruns; explicitly reruns repaired fixture targets, transitively changed API/TOK1/runner/delivery contracts, plus root reference checks. Runtime edits since 9b9f are LLP reference renumbering only; excluded reports/docs are covered by explicit guide and packed/root checks. Original failures and known Lean disagreements retained separately.';
+plan.steps.unshift({id:'final-cli-unit',cwd:'snapback4',argv:['cargo','test','-p','snapback4','--bin','snapback4','--','--test-threads=8'],timeoutSeconds:1800,requires:[],reason:'Fresh final merged-rule unit regression and cached/pending-report comparison'});
+writeFileSync('/home/ccheever/sb4-loop/reports/integration28/final-scoped-plan.json',JSON.stringify(plan,null,2)+'\n');
+console.log(JSON.stringify({head:plan.head,files:plan.files,steps:plan.steps.map(s=>s.id)},null,2));
+const r=await runPlan(plan,{root});
+writeFileSync('/home/ccheever/sb4-loop/reports/integration28/final-scoped-result.json',JSON.stringify(r,null,2)+'\n');
+if(!r.receipt.ok)process.exitCode=1;

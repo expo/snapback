@@ -14,7 +14,7 @@ fn cold_default_check_and_deploy_show_concrete_witnesses_without_review() {
   let out=run(&p,&args);let text=format!("{}{}",String::from_utf8_lossy(&out.stdout),String::from_utf8_lossy(&out.stderr));
   assert!(out.status.success(),"{text}");
   let verdict=text.lines().next().unwrap();assert!(verdict.contains("witnessed questions")&&verdict.contains("don't block"),"{verdict}");
-  assert!(text.contains("Witness:")&&text.contains("N_ARGUMENT_GRANT")&&text.contains("is this intended?"),"{text}");
+  assert!(text.contains("Witness:")&&text.contains("N_ARGUMENT_GRANT")&&text.contains("intended?"),"{text}");
   assert!(text.contains("don't block"),"{text}");
  }
 }

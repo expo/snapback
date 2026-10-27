@@ -19,15 +19,24 @@ table invites:
   delete <- deny
 
 job remind(periodStart: time, periodEnd: time):
-  for i in invites where .sentAt >= periodStart and .sentAt < periodEnd by .sentAt:
+  for i in invites where .sentAt < periodEnd by .sentAt:
     if not i.reminded:
       update invites[i.id] { reminded: true }
 schedule remindDaily every 1d at 08:00: remind          -- or: every 2m; every 1 month at day 1 09:00 (UTC months, days 1-28)
 ```
 
+Missed periods coalesce into one run. Sweep every unprocessed row before
+`periodEnd`, including rows older than `periodStart`; the `reminded` marker
+makes a rerun harmless. A lower bound at `periodStart` would lose missed work.
+
+Time-gated work belongs in a sweep, not a mutation that expects callers to
+trigger it. If a sweep flips a row's status at a deadline, put the mutation's
+deadline `require` before its status `require`: the expired attempt then gives
+the same deadline refusal before and after maintenance (018R, 035E).
+
 **A job body is a sweep.** Put every write inside one top-level loop over a
 table: `for i in invites:` (every row, in id order) or `for i in invites where
-.sentAt >= periodStart by .sentAt:` (bounded by an id or immutable column).
+.sentAt < periodEnd by .sentAt:` (bounded by an id or immutable column).
 Test mutable columns (`reminded`, `status`, `done`) with `if` inside the loop,
 as above; a sweep whose `where` or `by` uses a mutable column is refused,
 because a write could move its cursor. A job with no top-level table sweep (bare writes, a

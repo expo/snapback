@@ -1,0 +1,3 @@
+- **[P2] Guide union exceeds the hard card budget** — [rules.md:374](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/src/guide/rules.md:374). The resolved card has 380 lines, exceeding the 374-line limit enforced by [start.rs:18](/home/ccheever/projects/snapback-sb4loop/snapback4/crates/snapback4-lang/tests/guide/start.rs:18). Both parents fit individually (372 and 374). Compact the merged prose while preserving its facts and the existing budget. Verified by inspection; tests were not run.
+
+NEEDS CHANGES

@@ -1,0 +1,6 @@
+init: wrote 18 files in . — Expo todos: native when available, online in Expo Go — next: `node scripts/install.mjs`, then `snapback4 check`, then `snapback4 dev`; see README.md
+init: files: package.json, app.json, babel.config.js, metro.config.js, index.js, tsconfig.json, expo-env.d.ts, App.tsx, README.md, src/{client.ts, UploadPicker.tsx}, snapback/{schema.q, generated/package.json}, fixtures/{todos.jsonl, test.cases.jsonl}, scripts/{install.mjs, frontend-proof.mjs, launch.mjs}
+init: Expo dependencies are pinned; next: `node scripts/install.mjs`, then `npx snapback4 check`. Adapter-first installs constrain React Native 0.86.3 and compatible React 19; this starter pins React/React DOM 19.2.3 and supplies the app/scripts.
+init: `npm install` takes a few minutes and reports an unpatched high advisory from Expo's node-forge code-signing dependency; qualification warns under a dated exception until a patch or recheck date — do not run `npm audit fix --force`, which downgrades Expo to SDK 44 (README)
+init: the backend is http://127.0.0.1:4400; `npm run web` serves http://localhost:8081; `--port N` sets the client's backend URL and the README and launchers together
+node scripts/install.mjs

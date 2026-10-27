@@ -123,7 +123,14 @@ export async function proveSecurity(clientTarball, platformTarball, directory) {
   // including excluded roles. No generated declaration may silently copy rules.
   const start = command(["guide", "start", "--full"]);
   const readme = readFileSync(join(cwd, "node_modules/snapback4/README.md"), "utf8");
-  for (const text of [guide, start, readme]) {
+  // TOK1 routes README -> bounded start -> feature references on demand.
+  // Preserve the policy checklist in the cards that own it, rather than
+  // requiring the introductory card tour in the short README.
+  assert.match(readme, /npx snapback4 guide start/);
+  assert.match(readme, /guide api client/);
+  assert.match(start, /guide security --section Reference/);
+  assert.ok(Buffer.byteLength(start) <= 8001, "the complete installed start remains within the 8000-byte card budget plus newline");
+  for (const text of [guide, start]) {
     assert.match(text, /spec/i); assert.match(text, /role/); assert.match(text, /column/);
     assert.match(text, /check/); assert.match(text, /test/); assert.match(text, /audit/);
   }

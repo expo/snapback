@@ -1,0 +1,7 @@
+
+running 1 test
+snapback4 host: uploads=2; file descriptors (this process): soft=1048576 hard=1048576; descriptor_exhaustions=0; startup soft=1048576 target=1048576
+test serve::tests::latency_tests::headers::maintenance_writer_admission_under_a_request_sample_is_wait ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 721 filtered out; finished in 0.18s
+

@@ -1,0 +1,2343 @@
+[
+  {
+    "wave": 31,
+    "lane": "002-snapback-infant-helmet-fittings",
+    "sha256": "ee2a0574a99808048476b8f0ce58b3612abde057ab0f2d2465aabebbc059627b",
+    "checkExit": 0,
+    "checkSeconds": 1.204,
+    "checkFailure": null,
+    "gates": [],
+    "notes": [
+      {
+        "code": "N_INVARIANT_RESTATES_RULE",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 109
+        },
+        "message": "fittings.read matches or weakens current enforcement. Rule fittings.read admits a caller satisfying viewer = .parent under `.parent = viewer` (row conditions on .parent). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state? Rule fittings.read admits roles.role = 'frontdesk' under `exists roles[viewer, role = 'frontdesk']` (no row relationship or lifecycle condition in this branch). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state? Rule fittings.read admits roles.role = 'orthotist' under `exists roles[viewer, role = 'orthotist']` (no row relationship or lifecycle condition in this branch). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state? Rule fittings.read admits roles.role = 'manager' under `exists roles[viewer, role = 'manager']` (no row relationship or lifecycle condition in this branch). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state?"
+      },
+      {
+        "code": "N_INVARIANT_RESTATES_RULE",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 110
+        },
+        "message": "fittings.diagnosis read matches or weakens current enforcement. Rule fittings.diagnosis.read admits a caller satisfying viewer = .parent and roles.role = 'frontdesk' under `.parent = viewer and exists roles[viewer, role = 'frontdesk']` (row conditions on .parent). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state? Rule fittings.diagnosis.read admits a caller satisfying viewer = .parent and roles.role = 'manager' under `.parent = viewer and exists roles[viewer, role = 'manager']` (row conditions on .parent). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state? Rule fittings.diagnosis.read admits roles.role = 'frontdesk' under `exists roles[viewer, role = 'frontdesk'] and exists roles[viewer, role = 'frontdesk']` (no row relationship or lifecycle condition in this branch). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state? Rule fittings.diagnosis.read admits roles.role = 'frontdesk' and roles.role = 'manager' under `exists roles[viewer, role = 'frontdesk'] and exists roles[viewer, role = 'manager']` (no row relationship or lifecycle condition in this branch). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state? Rule fittings.diagnosis.read admits roles.role = 'frontdesk' and roles.role = 'orthotist' under `exists roles[viewer, role = 'orthotist'] and exists roles[viewer, role = 'frontdesk']` (no row relationship or lifecycle condition in this branch). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state? Rule fittings.diagnosis.read admits roles.role = 'manager' and roles.role = 'orthotist' under `exists roles[viewer, role = 'orthotist'] and exists roles[viewer, role = 'manager']` (no row relationship or lifecycle condition in this branch). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state? Rule fittings.diagnosis.read admits roles.role = 'frontdesk' and roles.role = 'manager' under `exists roles[viewer, role = 'manager'] and exists roles[viewer, role = 'frontdesk']` (no row relationship or lifecycle condition in this branch). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state? Rule fittings.diagnosis.read admits roles.role = 'manager' under `exists roles[viewer, role = 'manager'] and exists roles[viewer, role = 'manager']` (no row relationship or lifecycle condition in this branch). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state?"
+      },
+      {
+        "code": "N_INVARIANT_RESTATES_RULE",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 111
+        },
+        "message": "fittings.insurance read matches or weakens current enforcement. Rule fittings.insurance.read admits a caller satisfying viewer = .parent and roles.role = 'frontdesk' under `.parent = viewer and exists roles[viewer, role = 'frontdesk']` (row conditions on .parent). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state? Rule fittings.insurance.read admits a caller satisfying viewer = .parent and roles.role = 'manager' under `.parent = viewer and exists roles[viewer, role = 'manager']` (row conditions on .parent). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state? Rule fittings.insurance.read admits roles.role = 'frontdesk' under `exists roles[viewer, role = 'frontdesk'] and exists roles[viewer, role = 'frontdesk']` (no row relationship or lifecycle condition in this branch). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state? Rule fittings.insurance.read admits roles.role = 'frontdesk' and roles.role = 'manager' under `exists roles[viewer, role = 'frontdesk'] and exists roles[viewer, role = 'manager']` (no row relationship or lifecycle condition in this branch). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state? Rule fittings.insurance.read admits roles.role = 'frontdesk' and roles.role = 'orthotist' under `exists roles[viewer, role = 'orthotist'] and exists roles[viewer, role = 'frontdesk']` (no row relationship or lifecycle condition in this branch). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state? Rule fittings.insurance.read admits roles.role = 'manager' and roles.role = 'orthotist' under `exists roles[viewer, role = 'orthotist'] and exists roles[viewer, role = 'manager']` (no row relationship or lifecycle condition in this branch). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state? Rule fittings.insurance.read admits roles.role = 'frontdesk' and roles.role = 'manager' under `exists roles[viewer, role = 'manager'] and exists roles[viewer, role = 'frontdesk']` (no row relationship or lifecycle condition in this branch). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state? Rule fittings.insurance.read admits roles.role = 'manager' under `exists roles[viewer, role = 'manager'] and exists roles[viewer, role = 'manager']` (no row relationship or lifecycle condition in this branch). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state?"
+      },
+      {
+        "code": "N_INVARIANT_RESTATES_RULE",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 112
+        },
+        "message": "fittings.fee read matches or weakens current enforcement. Rule fittings.fee.read admits a caller satisfying viewer = .parent and roles.role = 'frontdesk' under `.parent = viewer and exists roles[viewer, role = 'frontdesk']` (row conditions on .parent). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state? Rule fittings.fee.read admits a caller satisfying viewer = .parent and roles.role = 'manager' under `.parent = viewer and exists roles[viewer, role = 'manager']` (row conditions on .parent). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state? Rule fittings.fee.read admits roles.role = 'frontdesk' under `exists roles[viewer, role = 'frontdesk'] and exists roles[viewer, role = 'frontdesk']` (no row relationship or lifecycle condition in this branch). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state? Rule fittings.fee.read admits roles.role = 'frontdesk' and roles.role = 'manager' under `exists roles[viewer, role = 'frontdesk'] and exists roles[viewer, role = 'manager']` (no row relationship or lifecycle condition in this branch). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state? Rule fittings.fee.read admits roles.role = 'frontdesk' and roles.role = 'orthotist' under `exists roles[viewer, role = 'orthotist'] and exists roles[viewer, role = 'frontdesk']` (no row relationship or lifecycle condition in this branch). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state? Rule fittings.fee.read admits roles.role = 'manager' and roles.role = 'orthotist' under `exists roles[viewer, role = 'orthotist'] and exists roles[viewer, role = 'manager']` (no row relationship or lifecycle condition in this branch). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state? Rule fittings.fee.read admits roles.role = 'frontdesk' and roles.role = 'manager' under `exists roles[viewer, role = 'manager'] and exists roles[viewer, role = 'frontdesk']` (no row relationship or lifecycle condition in this branch). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state? Rule fittings.fee.read admits roles.role = 'manager' under `exists roles[viewer, role = 'manager'] and exists roles[viewer, role = 'manager']` (no row relationship or lifecycle condition in this branch). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state?"
+      },
+      {
+        "code": "N_INVARIANT_RESTATES_RULE",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 113
+        },
+        "message": "fittings.waiveReason read matches or weakens current enforcement. Rule fittings.waiveReason.read admits a caller satisfying viewer = .parent and roles.role = 'frontdesk' under `.parent = viewer and exists roles[viewer, role = 'frontdesk']` (row conditions on .parent). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state? Rule fittings.waiveReason.read admits a caller satisfying viewer = .parent and roles.role = 'manager' under `.parent = viewer and exists roles[viewer, role = 'manager']` (row conditions on .parent). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state? Rule fittings.waiveReason.read admits roles.role = 'frontdesk' under `exists roles[viewer, role = 'frontdesk'] and exists roles[viewer, role = 'frontdesk']` (no row relationship or lifecycle condition in this branch). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state? Rule fittings.waiveReason.read admits roles.role = 'frontdesk' and roles.role = 'manager' under `exists roles[viewer, role = 'frontdesk'] and exists roles[viewer, role = 'manager']` (no row relationship or lifecycle condition in this branch). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state? Rule fittings.waiveReason.read admits roles.role = 'frontdesk' and roles.role = 'orthotist' under `exists roles[viewer, role = 'orthotist'] and exists roles[viewer, role = 'frontdesk']` (no row relationship or lifecycle condition in this branch). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state? Rule fittings.waiveReason.read admits roles.role = 'manager' and roles.role = 'orthotist' under `exists roles[viewer, role = 'orthotist'] and exists roles[viewer, role = 'manager']` (no row relationship or lifecycle condition in this branch). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state? Rule fittings.waiveReason.read admits roles.role = 'frontdesk' and roles.role = 'manager' under `exists roles[viewer, role = 'manager'] and exists roles[viewer, role = 'frontdesk']` (no row relationship or lifecycle condition in this branch). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state? Rule fittings.waiveReason.read admits roles.role = 'manager' under `exists roles[viewer, role = 'manager'] and exists roles[viewer, role = 'manager']` (no row relationship or lifecycle condition in this branch). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state?"
+      },
+      {
+        "code": "N_INVARIANT_RESTATES_RULE",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 114
+        },
+        "message": "fittings.insert matches or weakens current enforcement. May any roles.role = 'frontdesk' write any fittings row, or only the owner of THIS resource? Rule fittings.insert admits roles.role = 'frontdesk' under `exists roles[viewer, role = 'frontdesk']` (no row relationship or lifecycle condition in this branch). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state? May any roles.role = 'manager' write any fittings row, or only the owner of THIS resource? Rule fittings.insert admits roles.role = 'manager' under `exists roles[viewer, role = 'manager']` (no row relationship or lifecycle condition in this branch). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state?"
+      },
+      {
+        "code": "N_INVARIANT_RESTATES_RULE",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 117
+        },
+        "message": "roles.read matches or weakens current enforcement. Rule roles.read admits a caller satisfying viewer = .principal under `.principal = viewer` (row conditions on .principal). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state? Rule roles.read admits a caller satisfying viewer = 'service:operator' under `viewer = 'service:operator'` (no row relationship or lifecycle condition in this branch). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state?"
+      },
+      {
+        "code": "N_INVARIANT_RESTATES_RULE",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 118
+        },
+        "message": "roles.insert matches or weakens current enforcement. May any a caller satisfying viewer = 'service:operator' write any roles row, or only the owner of THIS resource? Rule roles.insert admits a caller satisfying viewer = 'service:operator' under `viewer = 'service:operator'` (no row relationship or lifecycle condition in this branch). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state?"
+      },
+      {
+        "code": "N_INVARIANT_RESTATES_RULE",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 119
+        },
+        "message": "roles.update matches or weakens current enforcement. May any a caller satisfying viewer = 'service:operator' write any roles row, or only the owner of THIS resource? Rule roles.update admits a caller satisfying viewer = 'service:operator' under `viewer = 'service:operator'` (no row relationship or lifecycle condition in this branch). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state?"
+      },
+      {
+        "code": "N_ROLE_WIDE_READ",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 34
+        },
+        "message": "fittings.read: roles.role='orthotist' (`exists roles[viewer, role = 'orthotist']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+      },
+      {
+        "code": "N_ROLE_WIDE_READ",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 22
+        },
+        "message": "fittings.diagnosis read: protected columns [diagnosis, fee, insurance, waiveReason] admit roles.role='frontdesk', roles.role='manager' for every value of [status]; should these roles read all rows or only the spec's resource relationships and states?"
+      },
+      {
+        "code": "N_ARGUMENT_GRANT",
+        "site": {
+          "col": 10,
+          "file": "schema.q",
+          "line": 55
+        },
+        "message": "provision writes argument principal straight into reader-grant column roles.principal"
+      },
+      {
+        "code": "N_ARGUMENT_GRANT",
+        "site": {
+          "col": 10,
+          "file": "schema.q",
+          "line": 60
+        },
+        "message": "openFitting writes argument parent straight into reader-grant column fittings.parent"
+      },
+      {
+        "code": "N_INSERT_WRITE_INTENT",
+        "site": {
+          "col": 10,
+          "file": "schema.q",
+          "line": 60
+        },
+        "message": "openFitting: fittings.referralScan can be supplied at insert/upsert without the edit restriction of setReferralScan: exists roles[viewer, role = 'frontdesk'] and (exists roles[viewer, role = 'frontdesk'] or exists roles[viewer, role = 'orthotist'] or exists roles[viewer, role = 'manager']); creation admission: (exists roles[viewer, role = 'frontdesk'] or exists roles[viewer, role = 'manager']) and (exists roles[viewer, role = 'frontdesk'] or exists roles[viewer, role = 'manager'])"
+      },
+      {
+        "code": "N_EDIT_AFTER_APPROVAL",
+        "site": {
+          "col": 10,
+          "file": "schema.q",
+          "line": 60
+        },
+        "message": "openFitting: fittings.referralScan can change without a lifecycle/approval condition; should approved evidence or checked values remain editable?"
+      },
+      {
+        "code": "N_EDIT_AFTER_APPROVAL",
+        "site": {
+          "col": 10,
+          "file": "schema.q",
+          "line": 60
+        },
+        "message": "openFitting: fittings.referralAt can change without a lifecycle/approval condition; should approved evidence or checked values remain editable?"
+      },
+      {
+        "code": "N_EDIT_AFTER_APPROVAL",
+        "site": {
+          "col": 10,
+          "file": "schema.q",
+          "line": 60
+        },
+        "message": "openFitting: fittings.status can change without a lifecycle/approval condition; should approved evidence or checked values remain editable?"
+      },
+      {
+        "code": "N_EDIT_AFTER_APPROVAL",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 83
+        },
+        "message": "setReferralScan: fittings.referralScan can change without a lifecycle/approval condition; should approved evidence or checked values remain editable?"
+      },
+      {
+        "code": "N_EDIT_AFTER_APPROVAL",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 92
+        },
+        "message": "orderHelmet: fittings.status can change without a lifecycle/approval condition; should approved evidence or checked values remain editable?"
+      },
+      {
+        "code": "N_EDIT_AFTER_APPROVAL",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 99
+        },
+        "message": "deliverHelmet: fittings.status can change without a lifecycle/approval condition; should approved evidence or checked values remain editable?"
+      },
+      {
+        "code": "N_TEXT_EVIDENCE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 27
+        },
+        "message": "fittings.headScan: text names photo/scan/sketch evidence; is verified uploaded media required, or is this deliberately a text reference?"
+      },
+      {
+        "code": "N_TEXT_EVIDENCE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 25
+        },
+        "message": "fittings.referralScan: text names photo/scan/sketch evidence; is verified uploaded media required, or is this deliberately a text reference?"
+      },
+      {
+        "code": "N_COLUMN_RESULT_EXPOSURE",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 57
+        },
+        "message": "fittings: openFitting at schema.q:57:1: return/write result observes diagnosis (column-ruled), fee (column-ruled), insurance (column-ruled), waiveReason (column-ruled); row audience: .parent = viewer or exists roles[viewer, role = 'frontdesk'] or exists roles[viewer, role = 'orthotist'] or exists roles[viewer, role = 'manager']"
+      },
+      {
+        "code": "N_COLUMN_RESULT_EXPOSURE",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 40
+        },
+        "message": "roles: myRole at schema.q:40:1: return/write result observes principal (omitted by board); provision at schema.q:53:1: return/write result observes principal (omitted by board); row audience: .principal = viewer or viewer = 'service:operator'"
+      },
+      {
+        "code": "N_LOOKUP_FILTERED",
+        "site": {
+          "col": 7,
+          "file": "schema.q",
+          "line": 88
+        },
+        "message": "mutation orderHelmet: lookup of fittings uses `read <- .parent = viewer or exists roles[viewer, role = 'frontdesk'] or exists roles[viewer, role = 'orthotist'] or exists roles[viewer, role = 'manager']` (schema.q:34:3); its key and preceding guards do not prove read authority. A hidden, expired or missing row returns null; `! else CODE` refuses with that authored code for all three. A later field/default or require may report a different business condition"
+      },
+      {
+        "code": "N_LOOKUP_FILTERED",
+        "site": {
+          "col": 7,
+          "file": "schema.q",
+          "line": 97
+        },
+        "message": "mutation deliverHelmet: lookup of fittings uses `read <- .parent = viewer or exists roles[viewer, role = 'frontdesk'] or exists roles[viewer, role = 'orthotist'] or exists roles[viewer, role = 'manager']` (schema.q:34:3); its key and preceding guards do not prove read authority. A hidden, expired or missing row returns null; `! else CODE` refuses with that authored code for all three. A later field/default or require may report a different business condition"
+      }
+    ],
+    "checkFixes": [],
+    "reviews": [
+      {
+        "acknowledged": false,
+        "code": "N_INVARIANT_RESTATES_RULE",
+        "family": "audience:ccc925a3a08a26a1222bc33e0ce6e3d627b0d9b6caf3d06dbb58df89171940f4",
+        "gated": false,
+        "id": "dc3af03633d6150d9c51882c2d7898f619fe2448292f6f36270dcf9f226430f8",
+        "reason": null,
+        "recorded": false,
+        "scope": "effective rule/column and authority dependency closure",
+        "site": "schema.q:109:1",
+        "witness": null
+      },
+      {
+        "acknowledged": false,
+        "code": "N_INVARIANT_RESTATES_RULE",
+        "family": "audience:ccc925a3a08a26a1222bc33e0ce6e3d627b0d9b6caf3d06dbb58df89171940f4",
+        "gated": false,
+        "id": "842d656af8cb2fd0f86f1ada030df460f673da1685a53b8c3d50bd93a5525134",
+        "reason": null,
+        "recorded": false,
+        "scope": "effective rule/column and authority dependency closure",
+        "site": "schema.q:110:1",
+        "witness": null
+      },
+      {
+        "acknowledged": false,
+        "code": "N_INVARIANT_RESTATES_RULE",
+        "family": "audience:ccc925a3a08a26a1222bc33e0ce6e3d627b0d9b6caf3d06dbb58df89171940f4",
+        "gated": false,
+        "id": "0064970fa7ba09227bd6035718ed96bc8f61e9db5214cfbd5f542396ec3d6ea0",
+        "reason": null,
+        "recorded": false,
+        "scope": "effective rule/column and authority dependency closure",
+        "site": "schema.q:111:1",
+        "witness": null
+      },
+      {
+        "acknowledged": false,
+        "code": "N_INVARIANT_RESTATES_RULE",
+        "family": "audience:ccc925a3a08a26a1222bc33e0ce6e3d627b0d9b6caf3d06dbb58df89171940f4",
+        "gated": false,
+        "id": "b4d6b59509d871f3bb210003d4844cb48a2879d1434f850b4730e890a542eba1",
+        "reason": null,
+        "recorded": false,
+        "scope": "effective rule/column and authority dependency closure",
+        "site": "schema.q:112:1",
+        "witness": null
+      },
+      {
+        "acknowledged": false,
+        "code": "N_INVARIANT_RESTATES_RULE",
+        "family": "audience:ccc925a3a08a26a1222bc33e0ce6e3d627b0d9b6caf3d06dbb58df89171940f4",
+        "gated": false,
+        "id": "43c7bafd608bed303e7cc24661c2325ffc0b7288e6f9d87ae6a0195f59517776",
+        "reason": null,
+        "recorded": false,
+        "scope": "effective rule/column and authority dependency closure",
+        "site": "schema.q:113:1",
+        "witness": null
+      },
+      {
+        "acknowledged": false,
+        "code": "N_INVARIANT_RESTATES_RULE",
+        "family": "audience:ccc925a3a08a26a1222bc33e0ce6e3d627b0d9b6caf3d06dbb58df89171940f4",
+        "gated": false,
+        "id": "ece5d0ddfba627c6b866e43ab01869143388ce8a1ebf3918d0911403933d6713",
+        "reason": null,
+        "recorded": false,
+        "scope": "effective rule/column and authority dependency closure",
+        "site": "schema.q:114:1",
+        "witness": null
+      },
+      {
+        "acknowledged": false,
+        "code": "N_INVARIANT_RESTATES_RULE",
+        "family": "audience:ccc925a3a08a26a1222bc33e0ce6e3d627b0d9b6caf3d06dbb58df89171940f4",
+        "gated": false,
+        "id": "ec57148aceab8e525922493c629204e3ce47de5829fc9f8e0ccee3e426a25897",
+        "reason": null,
+        "recorded": false,
+        "scope": "effective rule/column and authority dependency closure",
+        "site": "schema.q:117:1",
+        "witness": null
+      },
+      {
+        "acknowledged": false,
+        "code": "N_INVARIANT_RESTATES_RULE",
+        "family": "audience:ccc925a3a08a26a1222bc33e0ce6e3d627b0d9b6caf3d06dbb58df89171940f4",
+        "gated": false,
+        "id": "026875bdc35cd1990ef4ed692bf7e27e54fe42d246ec254369506dcefc033ea0",
+        "reason": null,
+        "recorded": false,
+        "scope": "effective rule/column and authority dependency closure",
+        "site": "schema.q:118:1",
+        "witness": null
+      },
+      {
+        "acknowledged": false,
+        "code": "N_INVARIANT_RESTATES_RULE",
+        "family": "audience:ccc925a3a08a26a1222bc33e0ce6e3d627b0d9b6caf3d06dbb58df89171940f4",
+        "gated": false,
+        "id": "43331a4a2d8053ce06a26936d633902a6356053699029dbef755b7c8cc9625d7",
+        "reason": null,
+        "recorded": false,
+        "scope": "effective rule/column and authority dependency closure",
+        "site": "schema.q:119:1",
+        "witness": null
+      },
+      {
+        "acknowledged": false,
+        "code": "N_ROLE_WIDE_READ",
+        "family": "audience:ccc925a3a08a26a1222bc33e0ce6e3d627b0d9b6caf3d06dbb58df89171940f4",
+        "gated": false,
+        "id": "5bc2e6cdf5ef4e21a126ff39b9b2fe4625597bb5758402c2813b331e3d021283",
+        "reason": null,
+        "recorded": false,
+        "scope": "effective rule/column and authority dependency closure",
+        "site": "schema.q:34:3",
+        "witness": null
+      },
+      {
+        "acknowledged": false,
+        "code": "N_ROLE_WIDE_READ",
+        "family": "audience:ccc925a3a08a26a1222bc33e0ce6e3d627b0d9b6caf3d06dbb58df89171940f4",
+        "gated": false,
+        "id": "30c0c8ae6c628a05a3c3a29b72270aa079ee2673ce62f59ff078af7de7327d87",
+        "reason": null,
+        "recorded": false,
+        "scope": "effective rule/column and authority dependency closure",
+        "site": "schema.q:22:3",
+        "witness": null
+      },
+      {
+        "acknowledged": false,
+        "code": "N_ARGUMENT_GRANT",
+        "family": null,
+        "gated": false,
+        "id": "c1066267273b72d519da5c231f14332be332f568addd0467f89153c01d4f1e31",
+        "reason": null,
+        "recorded": false,
+        "scope": "source declaration and dependency/writer closure (conservative)",
+        "site": "schema.q:55:10",
+        "witness": null
+      },
+      {
+        "acknowledged": false,
+        "code": "N_ARGUMENT_GRANT",
+        "family": null,
+        "gated": false,
+        "id": "c0ddd33e78cb8a089cc585243b24d8a3ff33af7899ef77185bab20801c7b491f",
+        "reason": null,
+        "recorded": false,
+        "scope": "current replayed witness; source edits alone do not invalidate this decision",
+        "site": "schema.q:60:10",
+        "witness": {
+          "args": {
+            "fitting": "01MCC5RM000000000000006868",
+            "reason": "<redacted>"
+          },
+          "candidate": "invariant fittings.always only exists roles[principal = .parent, role = 'parent']",
+          "compactSummary": "waiveFee as account:security-roles-manager-1 \u2192 ok; fittings.always {\"parent\":\"account:security-roles-frontdesk-1\"} -> {\"parent\":\"account:security-roles-frontdesk-1\"} (bounded replay; not proof)",
+          "effect": "always",
+          "generatedIds": [
+            "01MCC5RM000000000000006868",
+            "01MCC5RM000000000000006969"
+          ],
+          "history": [
+            {
+              "args": {
+                "fitting": "01MCC5RM000000000000006969"
+              },
+              "clock": 1800000000000,
+              "operation": "deliverHelmet",
+              "state": "failed",
+              "viewer": "service:security"
+            },
+            {
+              "args": {
+                "fitting": "01MCC5RM000000000000006868",
+                "reason": "<redacted>"
+              },
+              "clock": 1800000000000,
+              "operation": "waiveFee",
+              "state": "sent",
+              "viewer": "account:security-roles-manager-1"
+            }
+          ],
+          "id": "ae01cccbecee3a3c1e42020653de81ca9430f1c5f45f22e45fbc56d2b4a3735b",
+          "old": {
+            "babyName": "<redacted>",
+            "diagnosis": "<redacted>",
+            "fee": 1,
+            "feeWaived": false,
+            "id": "01MCC5RM000000000000006868",
+            "insurance": "<redacted>",
+            "parent": "account:security-roles-frontdesk-1",
+            "referralAt": 1799913600000,
+            "referralScan": "<redacted>",
+            "status": "scanned"
+          },
+          "operation": "waiveFee",
+          "reachability": "generated-fixture-trace",
+          "row": {
+            "babyName": "<redacted>",
+            "diagnosis": "<redacted>",
+            "fee": 1,
+            "feeWaived": true,
+            "headScan": null,
+            "id": "01MCC5RM000000000000006868",
+            "insurance": "<redacted>",
+            "parent": "account:security-roles-frontdesk-1",
+            "referralAt": 1799913600000,
+            "referralScan": "<redacted>",
+            "skinCheck": null,
+            "status": "scanned",
+            "trialNotes": null,
+            "waiveReason": "<redacted>"
+          },
+          "scope": "actual authored observation from a validated generated initial fixture; fixture initialization is not claimed application-reachable",
+          "summary": "waiveFee({\"fitting\":\"01MCC5RM000000000000006868\",\"reason\":\"<redacted>\"}) as account:security-roles-manager-1 \u2192 ok; fittings.always {\"babyName\":\"<redacted>\",\"diagnosis\":\"<redacted>\",\"fee\":1,\"feeWaived\":false,\"id\":\"01MCC5RM000000000000006868\",\"insurance\":\"<redacted>\",\"parent\":\"account:security-roles-frontdesk-1\",\"referralAt\":1799913600000,\"referralScan\":\"<redacted>\",\"status\":\"scanned\"} -> {\"babyName\":\"<redacted>\",\"diagnosis\":\"<redacted>\",\"fee\":1,\"feeWaived\":true,\"headScan\":null,\"id\":\"01MCC5RM000000000000006868\",\"insurance\":\"<redacted>\",\"parent\":\"account:security-roles-frontdesk-1\",\"referralAt\":1799913600000,\"referralScan\":\"<redacted>\",\"skinCheck\":null,\"status\":\"scanned\",\"trialNotes\":null,\"waiveReason\":\"<redacted>\"}; candidate invariant always only exists roles[principal = .parent, role = 'parent'] (finite generated-fixture replay, not proof)",
+          "supportingRows": {
+            "fittings": [
+              {
+                "babyName": "<redacted>",
+                "diagnosis": "<redacted>",
+                "fee": 1,
+                "feeWaived": false,
+                "id": "01MCC5RM000000000000006868",
+                "insurance": "<redacted>",
+                "parent": "account:security-roles-frontdesk-1",
+                "referralAt": 1799913600000,
+                "referralScan": "<redacted>",
+                "status": "scanned"
+              },
+              {
+                "babyName": "<redacted>",
+                "diagnosis": "<redacted>",
+                "fee": 1,
+                "feeWaived": false,
+                "id": "01MCC5RM000000000000006969",
+                "insurance": "<redacted>",
+                "parent": "account:security-roles-frontdesk-1",
+                "referralAt": 1799913600000,
+                "referralScan": null,
+                "status": "scanned"
+              }
+            ],
+            "roles": [
+              {
+                "id": "security-roles-0",
+                "principal": "account:security-roles-frontdesk-0",
+                "role": "frontdesk"
+              },
+              {
+                "id": "security-roles-1",
+                "principal": "account:security-roles-frontdesk-1",
+                "role": "frontdesk"
+              },
+              {
+                "id": "security-roles-2",
+                "principal": "account:security-roles-orthotist-0",
+                "role": "orthotist"
+              },
+              {
+                "id": "security-roles-3",
+                "principal": "account:security-roles-orthotist-1",
+                "role": "orthotist"
+              },
+              {
+                "id": "security-roles-4",
+                "principal": "account:security-roles-manager-0",
+                "role": "manager"
+              },
+              {
+                "id": "security-roles-5",
+                "principal": "account:security-roles-manager-1",
+                "role": "manager"
+              },
+              {
+                "id": "security-roles-6",
+                "principal": "account:security-roles-parent-0",
+                "role": "parent"
+              },
+              {
+                "id": "security-roles-7",
+                "principal": "account:security-roles-parent-1",
+                "role": "parent"
+              }
+            ]
+          },
+          "viewer": "account:security-roles-manager-1"
+        }
+      },
+      {
+        "acknowledged": false,
+        "code": "N_INSERT_WRITE_INTENT",
+        "family": null,
+        "gated": false,
+        "id": "d028604a654107f89f8d9638ae226d1b8d42ad33acac1b2022c63f34498649cc",
+        "reason": null,
+        "recorded": false,
+        "scope": "current replayed witness; source edits alone do not invalidate this decision",
+        "site": "schema.q:60:10",
+        "witness": {
+          "args": {
+            "babyName": "<redacted>",
+            "diagnosis": "<redacted>",
+            "fee": 1,
+            "insurance": "<redacted>",
+            "parent": "dev:security-a",
+            "referralAt": 1799913600000,
+            "referralScan": "<redacted>"
+          },
+          "candidate": "invariant fittings.referralScan write only ((exists roles[viewer, role = 'frontdesk']) and ((exists roles[viewer, role = 'frontdesk']) or (exists roles[viewer, role = 'orthotist']) or (exists roles[viewer, role = 'manager'])))",
+          "committedRows": {
+            "fittings": [
+              {
+                "babyName": "<redacted>",
+                "diagnosis": "<redacted>",
+                "fee": 1,
+                "feeWaived": false,
+                "id": "01MCC5RM000000000000006868",
+                "insurance": "<redacted>",
+                "parent": "account:security-roles-frontdesk-1",
+                "referralAt": 1799913600000,
+                "referralScan": "<redacted>",
+                "status": "scanned"
+              },
+              {
+                "babyName": "<redacted>",
+                "diagnosis": "<redacted>",
+                "fee": 1,
+                "feeWaived": false,
+                "id": "01MCC5RM000000000000006969",
+                "insurance": "<redacted>",
+                "parent": "account:security-roles-frontdesk-1",
+                "referralAt": 1799913600000,
+                "referralScan": null,
+                "status": "scanned"
+              },
+              {
+                "babyName": "<redacted>",
+                "diagnosis": "<redacted>",
+                "fee": 1,
+                "feeWaived": false,
+                "id": "01MCC5RM00000000000001GYGX",
+                "insurance": "<redacted>",
+                "parent": "dev:security-a",
+                "referralAt": 1799913600000,
+                "referralScan": "<redacted>",
+                "status": "scanned"
+              }
+            ],
+            "roles": [
+              {
+                "id": "security-roles-0",
+                "principal": "account:security-roles-frontdesk-0",
+                "role": "frontdesk"
+              },
+              {
+                "id": "security-roles-1",
+                "principal": "account:security-roles-frontdesk-1",
+                "role": "frontdesk"
+              },
+              {
+                "id": "security-roles-2",
+                "principal": "account:security-roles-orthotist-0",
+                "role": "manager"
+              },
+              {
+                "id": "security-roles-3",
+                "principal": "account:security-roles-orthotist-1",
+                "role": "orthotist"
+              },
+              {
+                "id": "security-roles-4",
+                "principal": "account:security-roles-manager-0",
+                "role": "manager"
+              },
+              {
+                "id": "security-roles-5",
+                "principal": "account:security-roles-manager-1",
+                "role": "manager"
+              },
+              {
+                "id": "security-roles-6",
+                "principal": "account:security-roles-parent-0",
+                "role": "parent"
+              },
+              {
+                "id": "security-roles-7",
+                "principal": "account:security-roles-parent-1",
+                "role": "parent"
+              }
+            ]
+          },
+          "compactSummary": "openFitting as account:security-roles-manager-1 \u2192 ok; fittings.referralScan write absent -> {\"referralScan\":\"<redacted>\"} (bounded replay; not proof)",
+          "effect": "insert",
+          "generatedIds": [
+            "01MCC5RM000000000000006868",
+            "01MCC5RM000000000000006969",
+            "01MCC5RM00000000000001GYGX"
+          ],
+          "history": [
+            {
+              "args": {
+                "principal": "account:security-roles-orthotist-0",
+                "role": "<redacted>"
+              },
+              "clock": 1800000000000,
+              "operation": "provision",
+              "state": "sent",
+              "viewer": "service:operator"
+            },
+            {
+              "args": {
+                "babyName": "<redacted>",
+                "diagnosis": "<redacted>",
+                "fee": 1,
+                "insurance": "<redacted>",
+                "parent": "dev:security-a",
+                "referralAt": 1799913600000,
+                "referralScan": "<redacted>"
+              },
+              "clock": 1800000000000,
+              "operation": "openFitting",
+              "state": "sent",
+              "viewer": "account:security-roles-manager-1"
+            }
+          ],
+          "id": "4b56b0c189c337cd2208e23d5f25582cb809e5fa9113d3de88f690de5b23851d",
+          "old": null,
+          "operation": "openFitting",
+          "reachability": "generated-fixture-trace",
+          "row": {
+            "babyName": "<redacted>",
+            "diagnosis": "<redacted>",
+            "fee": 1,
+            "feeWaived": false,
+            "id": "01MCC5RM00000000000001GYGX",
+            "insurance": "<redacted>",
+            "parent": "dev:security-a",
+            "referralAt": 1799913600000,
+            "referralScan": "<redacted>",
+            "status": "scanned"
+          },
+          "scope": "actual authored observation from a validated generated initial fixture; fixture initialization is not claimed application-reachable",
+          "summary": "openFitting({\"babyName\":\"<redacted>\",\"diagnosis\":\"<redacted>\",\"fee\":1,\"insurance\":\"<redacted>\",\"parent\":\"dev:security-a\",\"referralAt\":1799913600000,\"referralScan\":\"<redacted>\"}) as account:security-roles-manager-1 \u2192 ok; fittings.referralScan write absent -> {\"babyName\":\"<redacted>\",\"diagnosis\":\"<redacted>\",\"fee\":1,\"feeWaived\":false,\"id\":\"01MCC5RM00000000000001GYGX\",\"insurance\":\"<redacted>\",\"parent\":\"dev:security-a\",\"referralAt\":1799913600000,\"referralScan\":\"<redacted>\",\"status\":\"scanned\"}; candidate invariant write only ((exists roles[viewer, role = 'frontdesk']) and ((exists roles[viewer, role = 'frontdesk']) or (exists roles[viewer, role = 'orthotist']) or (exists roles[viewer, role = 'manager']))) (finite generated-fixture replay, not proof)",
+          "supportingRows": {
+            "fittings": [
+              {
+                "babyName": "<redacted>",
+                "diagnosis": "<redacted>",
+                "fee": 1,
+                "feeWaived": false,
+                "id": "01MCC5RM000000000000006868",
+                "insurance": "<redacted>",
+                "parent": "account:security-roles-frontdesk-1",
+                "referralAt": 1799913600000,
+                "referralScan": "<redacted>",
+                "status": "scanned"
+              },
+              {
+                "babyName": "<redacted>",
+                "diagnosis": "<redacted>",
+                "fee": 1,
+                "feeWaived": false,
+                "id": "01MCC5RM000000000000006969",
+                "insurance": "<redacted>",
+                "parent": "account:security-roles-frontdesk-1",
+                "referralAt": 1799913600000,
+                "referralScan": null,
+                "status": "scanned"
+              }
+            ],
+            "roles": [
+              {
+                "id": "security-roles-0",
+                "principal": "account:security-roles-frontdesk-0",
+                "role": "frontdesk"
+              },
+              {
+                "id": "security-roles-1",
+                "principal": "account:security-roles-frontdesk-1",
+                "role": "frontdesk"
+              },
+              {
+                "id": "security-roles-2",
+                "principal": "account:security-roles-orthotist-0",
+                "role": "orthotist"
+              },
+              {
+                "id": "security-roles-3",
+                "principal": "account:security-roles-orthotist-1",
+                "role": "orthotist"
+              },
+              {
+                "id": "security-roles-4",
+                "principal": "account:security-roles-manager-0",
+                "role": "manager"
+              },
+              {
+                "id": "security-roles-5",
+                "principal": "account:security-roles-manager-1",
+                "role": "manager"
+              },
+              {
+                "id": "security-roles-6",
+                "principal": "account:security-roles-parent-0",
+                "role": "parent"
+              },
+              {
+                "id": "security-roles-7",
+                "principal": "account:security-roles-parent-1",
+                "role": "parent"
+              }
+            ]
+          },
+          "viewer": "account:security-roles-manager-1"
+        }
+      },
+      {
+        "acknowledged": false,
+        "code": "N_EDIT_AFTER_APPROVAL",
+        "family": null,
+        "gated": false,
+        "id": "e6b41fff560d3522b39aefdfef2d75d18e679f83376499452ed115ac07f31994",
+        "reason": null,
+        "recorded": false,
+        "scope": "source declaration and dependency/writer closure (conservative)",
+        "site": "schema.q:60:10",
+        "witness": null
+      },
+      {
+        "acknowledged": false,
+        "code": "N_EDIT_AFTER_APPROVAL",
+        "family": null,
+        "gated": false,
+        "id": "419b07c37516d377248ab77b2e9f72c8d47b2452e4c4692e5d02e3294d08efaf",
+        "reason": null,
+        "recorded": false,
+        "scope": "source declaration and dependency/writer closure (conservative)",
+        "site": "schema.q:60:10",
+        "witness": null
+      },
+      {
+        "acknowledged": false,
+        "code": "N_EDIT_AFTER_APPROVAL",
+        "family": null,
+        "gated": false,
+        "id": "4fbd0d5adf0a6f7550c283f60f7be708d123656131d8f5015b2bf7710ab3c2ca",
+        "reason": null,
+        "recorded": false,
+        "scope": "source declaration and dependency/writer closure (conservative)",
+        "site": "schema.q:60:10",
+        "witness": null
+      },
+      {
+        "acknowledged": false,
+        "code": "N_EDIT_AFTER_APPROVAL",
+        "family": null,
+        "gated": false,
+        "id": "716d5240afd81c1fc2e2ca1634baf97478ad82069480ee0337c0cff918ce3f1e",
+        "reason": null,
+        "recorded": false,
+        "scope": "source declaration and dependency/writer closure (conservative)",
+        "site": "schema.q:83:3",
+        "witness": null
+      },
+      {
+        "acknowledged": false,
+        "code": "N_EDIT_AFTER_APPROVAL",
+        "family": null,
+        "gated": false,
+        "id": "83f35c891c25a7b73baa14b7dac3ac1bae14e43a631502ae33bb8cedad607460",
+        "reason": null,
+        "recorded": false,
+        "scope": "source declaration and dependency/writer closure (conservative)",
+        "site": "schema.q:92:3",
+        "witness": null
+      },
+      {
+        "acknowledged": false,
+        "code": "N_EDIT_AFTER_APPROVAL",
+        "family": null,
+        "gated": false,
+        "id": "d958976c9fcc0b5d8c63be597ef557d023af903ed959874ba353b7e77627cbb0",
+        "reason": null,
+        "recorded": false,
+        "scope": "source declaration and dependency/writer closure (conservative)",
+        "site": "schema.q:99:3",
+        "witness": null
+      },
+      {
+        "acknowledged": false,
+        "code": "N_TEXT_EVIDENCE",
+        "family": null,
+        "gated": false,
+        "id": "3e5260f6f6b90d67dd87d021623e30618698b6172f08d2758cb0b9062aa5ed92",
+        "reason": null,
+        "recorded": false,
+        "scope": "current replayed witness; source edits alone do not invalidate this decision",
+        "site": "schema.q:27:3",
+        "witness": {
+          "advisory": true,
+          "args": {
+            "babyName": "<redacted>",
+            "diagnosis": "<redacted>",
+            "fee": 1,
+            "insurance": "<redacted>",
+            "parent": "dev:security-a",
+            "referralAt": 1799913600000,
+            "referralScan": "<redacted>"
+          },
+          "candidate": "question: is fittings.headScan deliberately text rather than a verified upload?",
+          "committedRows": {
+            "fittings": [
+              {
+                "babyName": "<redacted>",
+                "diagnosis": "<redacted>",
+                "fee": 1,
+                "feeWaived": false,
+                "id": "01MCC5RM000000000000006868",
+                "insurance": "<redacted>",
+                "parent": "account:security-roles-frontdesk-1",
+                "referralAt": 1799913600000,
+                "referralScan": "<redacted>",
+                "status": "scanned"
+              },
+              {
+                "babyName": "<redacted>",
+                "diagnosis": "<redacted>",
+                "fee": 1,
+                "feeWaived": false,
+                "id": "01MCC5RM000000000000006969",
+                "insurance": "<redacted>",
+                "parent": "account:security-roles-frontdesk-1",
+                "referralAt": 1799913600000,
+                "referralScan": null,
+                "status": "scanned"
+              },
+              {
+                "babyName": "<redacted>",
+                "diagnosis": "<redacted>",
+                "fee": 1,
+                "feeWaived": false,
+                "id": "01MCC5RM00000000000001EREQ",
+                "insurance": "<redacted>",
+                "parent": "dev:security-a",
+                "referralAt": 1799913600000,
+                "referralScan": "<redacted>",
+                "status": "scanned"
+              }
+            ]
+          },
+          "compactSummary": "openFitting as account:security-roles-frontdesk-0 \u2192 admitted insert with text-typed fittings.headScan; no verified-upload type is required at this boundary (finite generated-fixture replay, not proof)",
+          "effect": "insert",
+          "generatedIds": [
+            "01MCC5RM000000000000006868",
+            "01MCC5RM000000000000006969",
+            "01MCC5RM00000000000001EREQ"
+          ],
+          "history": [
+            {
+              "args": {
+                "fitting": "01MCC5RM000000000000006868",
+                "reason": "<redacted>"
+              },
+              "clock": 1800000000000,
+              "operation": "waiveFee",
+              "state": "failed",
+              "viewer": "account:security-roles-frontdesk-1"
+            },
+            {
+              "args": {
+                "babyName": "<redacted>",
+                "diagnosis": "<redacted>",
+                "fee": 1,
+                "insurance": "<redacted>",
+                "parent": "dev:security-a",
+                "referralAt": 1799913600000,
+                "referralScan": "<redacted>"
+              },
+              "clock": 1800000000000,
+              "operation": "openFitting",
+              "state": "sent",
+              "viewer": "account:security-roles-frontdesk-0"
+            }
+          ],
+          "id": "799222aa49d1dd920ee5d69e81f4ae54059c7ca713374732308c0b49de678fa7",
+          "kind": "text-evidence",
+          "old": null,
+          "operation": "openFitting",
+          "reachability": "generated-fixture-trace",
+          "row": {
+            "babyName": "<redacted>",
+            "diagnosis": "<redacted>",
+            "fee": 1,
+            "feeWaived": false,
+            "id": "01MCC5RM00000000000001EREQ",
+            "insurance": "<redacted>",
+            "parent": "dev:security-a",
+            "referralAt": 1799913600000,
+            "referralScan": "<redacted>",
+            "status": "scanned"
+          },
+          "scope": "actual authored observation from a validated generated initial fixture; fixture initialization is not claimed application-reachable",
+          "summary": "openFitting as account:security-roles-frontdesk-0 \u2192 admitted insert with text-typed fittings.headScan; no verified-upload type is required at this boundary (finite generated-fixture replay, not proof)",
+          "supportingRows": {
+            "fittings": [
+              {
+                "babyName": "<redacted>",
+                "diagnosis": "<redacted>",
+                "fee": 1,
+                "feeWaived": false,
+                "id": "01MCC5RM000000000000006868",
+                "insurance": "<redacted>",
+                "parent": "account:security-roles-frontdesk-1",
+                "referralAt": 1799913600000,
+                "referralScan": "<redacted>",
+                "status": "scanned"
+              },
+              {
+                "babyName": "<redacted>",
+                "diagnosis": "<redacted>",
+                "fee": 1,
+                "feeWaived": false,
+                "id": "01MCC5RM000000000000006969",
+                "insurance": "<redacted>",
+                "parent": "account:security-roles-frontdesk-1",
+                "referralAt": 1799913600000,
+                "referralScan": null,
+                "status": "scanned"
+              }
+            ],
+            "roles": [
+              {
+                "id": "security-roles-0",
+                "principal": "account:security-roles-frontdesk-0",
+                "role": "frontdesk"
+              },
+              {
+                "id": "security-roles-1",
+                "principal": "account:security-roles-frontdesk-1",
+                "role": "frontdesk"
+              },
+              {
+                "id": "security-roles-2",
+                "principal": "account:security-roles-orthotist-0",
+                "role": "orthotist"
+              },
+              {
+                "id": "security-roles-3",
+                "principal": "account:security-roles-orthotist-1",
+                "role": "orthotist"
+              },
+              {
+                "id": "security-roles-4",
+                "principal": "account:security-roles-manager-0",
+                "role": "manager"
+              },
+              {
+                "id": "security-roles-5",
+                "principal": "account:security-roles-manager-1",
+                "role": "manager"
+              },
+              {
+                "id": "security-roles-6",
+                "principal": "account:security-roles-parent-0",
+                "role": "parent"
+              },
+              {
+                "id": "security-roles-7",
+                "principal": "account:security-roles-parent-1",
+                "role": "parent"
+              }
+            ]
+          },
+          "viewer": "account:security-roles-frontdesk-0"
+        }
+      },
+      {
+        "acknowledged": false,
+        "code": "N_TEXT_EVIDENCE",
+        "family": null,
+        "gated": false,
+        "id": "c2727f6f6ee5f37dd33df2babd09ba13b7c5710ef7f53be32b28f5d36d247740",
+        "reason": null,
+        "recorded": false,
+        "scope": "current replayed witness; source edits alone do not invalidate this decision",
+        "site": "schema.q:25:3",
+        "witness": {
+          "advisory": true,
+          "args": {
+            "babyName": "<redacted>",
+            "diagnosis": "<redacted>",
+            "fee": 1,
+            "insurance": "<redacted>",
+            "parent": "dev:security-a",
+            "referralAt": 1799913600000,
+            "referralScan": "<redacted>"
+          },
+          "candidate": "question: is fittings.referralScan deliberately text rather than a verified upload?",
+          "committedRows": {
+            "fittings": [
+              {
+                "babyName": "<redacted>",
+                "diagnosis": "<redacted>",
+                "fee": 1,
+                "feeWaived": false,
+                "id": "01MCC5RM000000000000006868",
+                "insurance": "<redacted>",
+                "parent": "account:security-roles-frontdesk-1",
+                "referralAt": 1799913600000,
+                "referralScan": "<redacted>",
+                "status": "scanned"
+              },
+              {
+                "babyName": "<redacted>",
+                "diagnosis": "<redacted>",
+                "fee": 1,
+                "feeWaived": false,
+                "id": "01MCC5RM000000000000006969",
+                "insurance": "<redacted>",
+                "parent": "account:security-roles-frontdesk-1",
+                "referralAt": 1799913600000,
+                "referralScan": null,
+                "status": "scanned"
+              },
+              {
+                "babyName": "<redacted>",
+                "diagnosis": "<redacted>",
+                "fee": 1,
+                "feeWaived": false,
+                "id": "01MCC5RM00000000000001EREQ",
+                "insurance": "<redacted>",
+                "parent": "dev:security-a",
+                "referralAt": 1799913600000,
+                "referralScan": "<redacted>",
+                "status": "scanned"
+              }
+            ]
+          },
+          "compactSummary": "openFitting as account:security-roles-frontdesk-0 \u2192 admitted insert with text-typed fittings.referralScan; no verified-upload type is required at this boundary (finite generated-fixture replay, not proof)",
+          "effect": "insert",
+          "generatedIds": [
+            "01MCC5RM000000000000006868",
+            "01MCC5RM000000000000006969",
+            "01MCC5RM00000000000001EREQ"
+          ],
+          "history": [
+            {
+              "args": {
+                "fitting": "01MCC5RM000000000000006868",
+                "reason": "<redacted>"
+              },
+              "clock": 1800000000000,
+              "operation": "waiveFee",
+              "state": "failed",
+              "viewer": "account:security-roles-frontdesk-1"
+            },
+            {
+              "args": {
+                "babyName": "<redacted>",
+                "diagnosis": "<redacted>",
+                "fee": 1,
+                "insurance": "<redacted>",
+                "parent": "dev:security-a",
+                "referralAt": 1799913600000,
+                "referralScan": "<redacted>"
+              },
+              "clock": 1800000000000,
+              "operation": "openFitting",
+              "state": "sent",
+              "viewer": "account:security-roles-frontdesk-0"
+            }
+          ],
+          "id": "7eb28e59e2bc2d4e7c0d087070cedcc088c60d4bb3984bcd5a63f6578ba3f516",
+          "kind": "text-evidence",
+          "old": null,
+          "operation": "openFitting",
+          "reachability": "generated-fixture-trace",
+          "row": {
+            "babyName": "<redacted>",
+            "diagnosis": "<redacted>",
+            "fee": 1,
+            "feeWaived": false,
+            "id": "01MCC5RM00000000000001EREQ",
+            "insurance": "<redacted>",
+            "parent": "dev:security-a",
+            "referralAt": 1799913600000,
+            "referralScan": "<redacted>",
+            "status": "scanned"
+          },
+          "scope": "actual authored observation from a validated generated initial fixture; fixture initialization is not claimed application-reachable",
+          "summary": "openFitting as account:security-roles-frontdesk-0 \u2192 admitted insert with text-typed fittings.referralScan; no verified-upload type is required at this boundary (finite generated-fixture replay, not proof)",
+          "supportingRows": {
+            "fittings": [
+              {
+                "babyName": "<redacted>",
+                "diagnosis": "<redacted>",
+                "fee": 1,
+                "feeWaived": false,
+                "id": "01MCC5RM000000000000006868",
+                "insurance": "<redacted>",
+                "parent": "account:security-roles-frontdesk-1",
+                "referralAt": 1799913600000,
+                "referralScan": "<redacted>",
+                "status": "scanned"
+              },
+              {
+                "babyName": "<redacted>",
+                "diagnosis": "<redacted>",
+                "fee": 1,
+                "feeWaived": false,
+                "id": "01MCC5RM000000000000006969",
+                "insurance": "<redacted>",
+                "parent": "account:security-roles-frontdesk-1",
+                "referralAt": 1799913600000,
+                "referralScan": null,
+                "status": "scanned"
+              }
+            ],
+            "roles": [
+              {
+                "id": "security-roles-0",
+                "principal": "account:security-roles-frontdesk-0",
+                "role": "frontdesk"
+              },
+              {
+                "id": "security-roles-1",
+                "principal": "account:security-roles-frontdesk-1",
+                "role": "frontdesk"
+              },
+              {
+                "id": "security-roles-2",
+                "principal": "account:security-roles-orthotist-0",
+                "role": "orthotist"
+              },
+              {
+                "id": "security-roles-3",
+                "principal": "account:security-roles-orthotist-1",
+                "role": "orthotist"
+              },
+              {
+                "id": "security-roles-4",
+                "principal": "account:security-roles-manager-0",
+                "role": "manager"
+              },
+              {
+                "id": "security-roles-5",
+                "principal": "account:security-roles-manager-1",
+                "role": "manager"
+              },
+              {
+                "id": "security-roles-6",
+                "principal": "account:security-roles-parent-0",
+                "role": "parent"
+              },
+              {
+                "id": "security-roles-7",
+                "principal": "account:security-roles-parent-1",
+                "role": "parent"
+              }
+            ]
+          },
+          "viewer": "account:security-roles-frontdesk-0"
+        }
+      },
+      {
+        "acknowledged": false,
+        "code": "N_COLUMN_RESULT_EXPOSURE",
+        "family": null,
+        "gated": false,
+        "id": "b40f958622d4353a87b5d8e03e79199c3304bd2d634f318e8bd68c6122e6dddd",
+        "reason": null,
+        "recorded": false,
+        "scope": "source declaration and dependency/writer closure (conservative)",
+        "site": "schema.q:57:1",
+        "witness": null
+      },
+      {
+        "acknowledged": false,
+        "code": "N_COLUMN_RESULT_EXPOSURE",
+        "family": null,
+        "gated": false,
+        "id": "d9205bd02d72b05376ce18c7a1b95ac9d3ee7929e43be55637f6e8cefa9c435f",
+        "reason": null,
+        "recorded": false,
+        "scope": "source declaration and dependency/writer closure (conservative)",
+        "site": "schema.q:40:1",
+        "witness": null
+      }
+    ],
+    "defaultCheck": {
+      "exit": 0,
+      "seconds": 8.479,
+      "lines": 6,
+      "characters": 1675,
+      "stdout": "check: ok \u2014 2 tables (0 synced), 13 operations, compiled; 0 gates pending, 4 witnessed questions, 20 advisories (don't block): `check --review`; 0 recorded; 2 notes; 8460.0 ms\ncheck: enforced by the language \u2014 0 typed upload columns with owner-bound placement; 4 column audiences; 0 possible self-assignable role paths detected (bounded analysis)\nfix question N_ARGUMENT_GRANT at schema.q:60:10: Is this behavior intended? Witness: waiveFee as account:security-roles-manager-1 \u2192 ok; fittings.always {\"parent\":\"account:security-roles-frontdesk-1\"} -> {\"parent\":\"account:security-roles-frontdesk-1\"} (bounded replay; not proof) \u2014 replay/repair/decision: check --review (doesn't block)\nfix question N_INSERT_WRITE_INTENT at schema.q:60:10: Is this creation audience intended? Witness: openFitting as account:security-roles-manager-1 \u2192 ok; fittings.referralScan write absent -> {\"referralScan\":\"<redacted>\"} (bounded replay; not proof) \u2014 replay/repair/decision: check --review (doesn't block)\nfix question N_TEXT_EVIDENCE at schema.q:27:3: Is text evidence intended? Witness: openFitting as account:security-roles-frontdesk-0 \u2192 admitted insert with text-typed fittings.headScan; no verified-upload type is required at this boundary (finite generated-fixture replay, not proof) \u2014 replay/repair/decision: check --review (doesn't block)\nfix question N_TEXT_EVIDENCE at schema.q:25:3: Is text evidence intended? Witness: openFitting as account:security-roles-frontdesk-0 \u2192 admitted insert with text-typed fittings.referralScan; no verified-upload type is required at this boundary (finite generated-fixture replay, not proof) \u2014 replay/repair/decision: check --review (doesn't block)\n",
+      "stderr": ""
+    }
+  },
+  {
+    "wave": 31,
+    "lane": "014-snapback-balloon-decor-installs",
+    "sha256": "9202835df152d2caa46fae481940632e29a5c76aa0b22dab00d923673fdcbb60",
+    "checkExit": 0,
+    "checkSeconds": 1.814,
+    "checkFailure": null,
+    "gates": [],
+    "notes": [
+      {
+        "code": "N_INVARIANT_RESTATES_RULE",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 48
+        },
+        "message": "projects.read matches or weakens current enforcement. Rule projects.read admits a caller satisfying viewer = .client under `.client = viewer` (row conditions on .client). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state? Rule projects.read admits roles.role = 'owner' under `exists roles[viewer, role = 'owner']` (no row relationship or lifecycle condition in this branch). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state? Rule projects.read admits roles.role = 'lead' under `exists roles[viewer, role = 'lead']` (no row relationship or lifecycle condition in this branch). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state? Rule projects.read admits roles.role = 'installer' under `exists roles[viewer, role = 'installer']` (no row relationship or lifecycle condition in this branch). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state?"
+      },
+      {
+        "code": "N_INVARIANT_RESTATES_RULE",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 49
+        },
+        "message": "projects.clientPhone read matches or weakens current enforcement. Rule projects.clientPhone.read admits a caller satisfying viewer = .client and roles.role = 'owner' under `.client = viewer and exists roles[viewer, role = 'owner']` (row conditions on .client). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state? Rule projects.clientPhone.read admits a caller satisfying viewer = .client and roles.role = 'lead' under `.client = viewer and exists roles[viewer, role = 'lead']` (row conditions on .client). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state? Rule projects.clientPhone.read admits roles.role = 'owner' under `exists roles[viewer, role = 'owner'] and exists roles[viewer, role = 'owner']` (no row relationship or lifecycle condition in this branch). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state? Rule projects.clientPhone.read admits roles.role = 'lead' and roles.role = 'owner' under `exists roles[viewer, role = 'owner'] and exists roles[viewer, role = 'lead']` (no row relationship or lifecycle condition in this branch). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state? Rule projects.clientPhone.read admits roles.role = 'lead' and roles.role = 'owner' under `exists roles[viewer, role = 'lead'] and exists roles[viewer, role = 'owner']` (no row relationship or lifecycle condition in this branch). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state? Rule projects.clientPhone.read admits roles.role = 'lead' under `exists roles[viewer, role = 'lead'] and exists roles[viewer, role = 'lead']` (no row relationship or lifecycle condition in this branch). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state? Rule projects.clientPhone.read admits roles.role = 'installer' and roles.role = 'owner' under `exists roles[viewer, role = 'installer'] and exists roles[viewer, role = 'owner']` (no row relationship or lifecycle condition in this branch). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state? Rule projects.clientPhone.read admits roles.role = 'installer' and roles.role = 'lead' under `exists roles[viewer, role = 'installer'] and exists roles[viewer, role = 'lead']` (no row relationship or lifecycle condition in this branch). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state?"
+      },
+      {
+        "code": "N_INVARIANT_RESTATES_RULE",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 50
+        },
+        "message": "projects.venueContract read matches or weakens current enforcement. Rule projects.venueContract.read admits a caller satisfying viewer = .client and roles.role = 'owner' under `.client = viewer and exists roles[viewer, role = 'owner']` (row conditions on .client). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state? Rule projects.venueContract.read admits a caller satisfying viewer = .client and roles.role = 'lead' under `.client = viewer and exists roles[viewer, role = 'lead']` (row conditions on .client). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state? Rule projects.venueContract.read admits roles.role = 'owner' under `exists roles[viewer, role = 'owner'] and exists roles[viewer, role = 'owner']` (no row relationship or lifecycle condition in this branch). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state? Rule projects.venueContract.read admits roles.role = 'lead' and roles.role = 'owner' under `exists roles[viewer, role = 'owner'] and exists roles[viewer, role = 'lead']` (no row relationship or lifecycle condition in this branch). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state? Rule projects.venueContract.read admits roles.role = 'lead' and roles.role = 'owner' under `exists roles[viewer, role = 'lead'] and exists roles[viewer, role = 'owner']` (no row relationship or lifecycle condition in this branch). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state? Rule projects.venueContract.read admits roles.role = 'lead' under `exists roles[viewer, role = 'lead'] and exists roles[viewer, role = 'lead']` (no row relationship or lifecycle condition in this branch). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state? Rule projects.venueContract.read admits roles.role = 'installer' and roles.role = 'owner' under `exists roles[viewer, role = 'installer'] and exists roles[viewer, role = 'owner']` (no row relationship or lifecycle condition in this branch). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state? Rule projects.venueContract.read admits roles.role = 'installer' and roles.role = 'lead' under `exists roles[viewer, role = 'installer'] and exists roles[viewer, role = 'lead']` (no row relationship or lifecycle condition in this branch). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state?"
+      },
+      {
+        "code": "N_INVARIANT_RESTATES_RULE",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 51
+        },
+        "message": "projects.fee read matches or weakens current enforcement. Rule projects.fee.read admits a caller satisfying viewer = .client and roles.role = 'owner' under `.client = viewer and exists roles[viewer, role = 'owner']` (row conditions on .client). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state? Rule projects.fee.read admits a caller satisfying viewer = .client and roles.role = 'lead' under `.client = viewer and exists roles[viewer, role = 'lead']` (row conditions on .client). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state? Rule projects.fee.read admits roles.role = 'owner' under `exists roles[viewer, role = 'owner'] and exists roles[viewer, role = 'owner']` (no row relationship or lifecycle condition in this branch). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state? Rule projects.fee.read admits roles.role = 'lead' and roles.role = 'owner' under `exists roles[viewer, role = 'owner'] and exists roles[viewer, role = 'lead']` (no row relationship or lifecycle condition in this branch). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state? Rule projects.fee.read admits roles.role = 'lead' and roles.role = 'owner' under `exists roles[viewer, role = 'lead'] and exists roles[viewer, role = 'owner']` (no row relationship or lifecycle condition in this branch). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state? Rule projects.fee.read admits roles.role = 'lead' under `exists roles[viewer, role = 'lead'] and exists roles[viewer, role = 'lead']` (no row relationship or lifecycle condition in this branch). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state? Rule projects.fee.read admits roles.role = 'installer' and roles.role = 'owner' under `exists roles[viewer, role = 'installer'] and exists roles[viewer, role = 'owner']` (no row relationship or lifecycle condition in this branch). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state? Rule projects.fee.read admits roles.role = 'installer' and roles.role = 'lead' under `exists roles[viewer, role = 'installer'] and exists roles[viewer, role = 'lead']` (no row relationship or lifecycle condition in this branch). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state?"
+      },
+      {
+        "code": "N_INVARIANT_RESTATES_RULE",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 52
+        },
+        "message": "projects.insert matches or weakens current enforcement. May any roles.role = 'owner' write any projects row, or only the owner of THIS resource? Rule projects.insert admits roles.role = 'owner' under `exists roles[viewer, role = 'owner']` (no row relationship or lifecycle condition in this branch). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state? May any roles.role = 'lead' write any projects row, or only the owner of THIS resource? Rule projects.insert admits roles.role = 'lead' under `exists roles[viewer, role = 'lead']` (no row relationship or lifecycle condition in this branch). Should the spec allow this audience on these rows and columns, including other people's rows and every lifecycle state?"
+      },
+      {
+        "code": "N_ROLE_WIDE_READ",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 40
+        },
+        "message": "projects.read: roles.role='installer' (`exists roles[viewer, role = 'installer']`) branches read every value of [status] across a private/media boundary; should the spec restrict these roles to particular resource relationships or states?"
+      },
+      {
+        "code": "N_ROLE_WIDE_READ",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 31
+        },
+        "message": "projects.clientPhone read: protected columns [clientPhone, fee, venueContract] admit roles.role='lead', roles.role='owner' for every value of [status]; should these roles read all rows or only the spec's resource relationships and states?"
+      },
+      {
+        "code": "N_SECURITY_INTENT",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 1
+        },
+        "message": "1 tables have access rules and no security invariants: roles; declare the spec's privacy rules as invariants (`guide security`)"
+      },
+      {
+        "code": "N_CALLER_TIME",
+        "site": {
+          "col": 10,
+          "file": "schema.q",
+          "line": 91
+        },
+        "message": "openProject: caller time eventAt flows into projects.eventAt, which controls a server-clock deadline, without a dominating bound against now"
+      },
+      {
+        "code": "N_ARGUMENT_GRANT",
+        "site": {
+          "col": 10,
+          "file": "schema.q",
+          "line": 64
+        },
+        "message": "provision writes argument principal straight into reader-grant column roles.principal"
+      },
+      {
+        "code": "N_INSERT_WRITE_INTENT",
+        "site": {
+          "col": 10,
+          "file": "schema.q",
+          "line": 91
+        },
+        "message": "openProject: projects.entrancePhoto can be supplied at insert/upsert without the edit restriction of setEntrancePhoto: exists roles[viewer, role = 'lead'] and (exists roles[viewer, role = 'owner'] or exists roles[viewer, role = 'lead'] or exists roles[viewer, role = 'installer']); creation admission: (exists roles[viewer, role = 'owner'] or exists roles[viewer, role = 'lead']) and (exists roles[viewer, role = 'owner'] or exists roles[viewer, role = 'lead'])"
+      },
+      {
+        "code": "N_EDIT_AFTER_APPROVAL",
+        "site": {
+          "col": 10,
+          "file": "schema.q",
+          "line": 91
+        },
+        "message": "openProject: projects.eventAt can change without a lifecycle/approval condition; should approved evidence or checked values remain editable?"
+      },
+      {
+        "code": "N_EDIT_AFTER_APPROVAL",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 104
+        },
+        "message": "advanceStatus: projects.status can change without a lifecycle/approval condition; should approved evidence or checked values remain editable?"
+      },
+      {
+        "code": "N_TEXT_EVIDENCE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 27
+        },
+        "message": "projects.entrancePhoto: text names photo/scan/sketch evidence; is verified uploaded media required, or is this deliberately a text reference?"
+      },
+      {
+        "code": "N_TEXT_EVIDENCE",
+        "site": {
+          "col": 3,
+          "file": "schema.q",
+          "line": 28
+        },
+        "message": "projects.hallPhoto: text names photo/scan/sketch evidence; is verified uploaded media required, or is this deliberately a text reference?"
+      },
+      {
+        "code": "N_COLUMN_RESULT_EXPOSURE",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 88
+        },
+        "message": "projects: openProject at schema.q:88:1: return/write result observes clientPhone (column-ruled), fee (column-ruled), venueContract (column-ruled); row audience: .client = viewer or exists roles[viewer, role = 'owner'] or exists roles[viewer, role = 'lead'] or exists roles[viewer, role = 'installer']"
+      },
+      {
+        "code": "N_COLUMN_RESULT_EXPOSURE",
+        "site": {
+          "col": 1,
+          "file": "schema.q",
+          "line": 62
+        },
+        "message": "roles: provision at schema.q:62:1: return/write result observes principal (omitted by board); myRole at schema.q:69:1: return/write result observes principal (omitted by board); clients at schema.q:84:1: return/write result observes principal (omitted by board); row audience: .principal = viewer or exists roles[viewer, role = 'owner'] or exists roles[viewer, role = 'lead'] or exists roles[viewer, role = 'installer']"
+      },
+      {
+        "code": "N_LOOKUP_FILTERED",
+        "site": {
+          "col": 7,
+          "file": "schema.q",
+          "line": 94
+        },
+        "message": "mutation updatePlan: lookup of projects uses `read <- .client = viewer or exists roles[viewer, role = 'owner'] or exists roles[viewer, role = 'lead'] or exists roles[viewer, role = 'installer']` (schema.q:40:3); its key and preceding guards do not prove read authority. A hidden, expired or missing row returns null; `! else CODE` refuses with that authored code for all three. A later field/default or require may report a different business condition"
+      },
+      {
+        "code": "N_LOOKUP_FILTERED",
+        "site": {
+          "col": 7,
+          "file": "schema.q",
+          "line": 101
+        },
+        "message": "mutation advanceStatus: lookup of projects uses `read <- .client = viewer or exists roles[viewer, role = 'owner'] or exists roles[viewer, role = 'lead'] or exists roles[viewer, role = 'installer']` (schema.q:40:3); its key and preceding guards do not prove read authority. A hidden, expired or missing row returns null; `! else CODE` refuses with that authored code for all three. A later field/default or require may report a different business condition"
+      },
+      {
+        "code": "N_LOOKUP_FILTERED",
+        "site": {
+          "col": 7,
+          "file": "schema.q",
+          "line": 109
+        },
+        "message": "mutation markTakenDown: lookup of projects uses `read <- .client = viewer or exists roles[viewer, role = 'owner'] or exists roles[viewer, role = 'lead'] or exists roles[viewer, role = 'installer']` (schema.q:40:3); its key and preceding guards do not prove read authority. A hidden, expired or missing row returns null; `! else CODE` refuses with that authored code for all three. A later field/default or require may report a different business condition"
+      },
+      {
+        "code": "N_LOOKUP_FILTERED",
+        "site": {
+          "col": 7,
+          "file": "schema.q",
+          "line": 121
+        },
+        "message": "mutation setEntrancePhoto: lookup of projects uses `read <- .client = viewer or exists roles[viewer, role = 'owner'] or exists roles[viewer, role = 'lead'] or exists roles[viewer, role = 'installer']` (schema.q:40:3); its key and preceding guards do not prove read authority. A hidden, expired or missing row returns null; `! else CODE` refuses with that authored code for all three. A later field/default or require may report a different business condition"
+      },
+      {
+        "code": "N_LOOKUP_FILTERED",
+        "site": {
+          "col": 7,
+          "file": "schema.q",
+          "line": 128
+        },
+        "message": "mutation approveArch: lookup of projects uses `read <- .client = viewer or exists roles[viewer, role = 'owner'] or exists roles[viewer, role = 'lead'] or exists roles[viewer, role = 'installer']` (schema.q:40:3); its key and preceding guards do not prove read authority. A hidden, expired or missing row returns null; `! else CODE` refuses with that authored code for all three. A later field/default or require may report a different business condition"
+      }
+    ],
+    "checkFixes": [],
+    "reviews": [
+      {
+        "acknowledged": false,
+        "code": "N_INVARIANT_RESTATES_RULE",
+        "family": "audience:63434840d3e5c4b48dc36b4e2f39957eae65aa41620457a929645516644b904e",
+        "gated": false,
+        "id": "c9840027c87154ef6fb98a22392835636230c7a86a774b59a6ba3841d407fb88",
+        "reason": null,
+        "recorded": false,
+        "scope": "effective rule/column and authority dependency closure",
+        "site": "schema.q:48:1",
+        "witness": null
+      },
+      {
+        "acknowledged": false,
+        "code": "N_INVARIANT_RESTATES_RULE",
+        "family": "audience:63434840d3e5c4b48dc36b4e2f39957eae65aa41620457a929645516644b904e",
+        "gated": false,
+        "id": "fe91d16b47c894d5642042045c5c1616c1656104c3f7b8991a5ee3bcc40bcfd9",
+        "reason": null,
+        "recorded": false,
+        "scope": "effective rule/column and authority dependency closure",
+        "site": "schema.q:49:1",
+        "witness": null
+      },
+      {
+        "acknowledged": false,
+        "code": "N_INVARIANT_RESTATES_RULE",
+        "family": "audience:63434840d3e5c4b48dc36b4e2f39957eae65aa41620457a929645516644b904e",
+        "gated": false,
+        "id": "a1fcd83f6c8154995c3d3871f896e35430fba5b795e6ababbc2ec367ad63a76e",
+        "reason": null,
+        "recorded": false,
+        "scope": "effective rule/column and authority dependency closure",
+        "site": "schema.q:50:1",
+        "witness": null
+      },
+      {
+        "acknowledged": false,
+        "code": "N_INVARIANT_RESTATES_RULE",
+        "family": "audience:63434840d3e5c4b48dc36b4e2f39957eae65aa41620457a929645516644b904e",
+        "gated": false,
+        "id": "01b63394ad0a8263d18a9d8366523e37b2f86573dc8646140f65b6b3ff1deab2",
+        "reason": null,
+        "recorded": false,
+        "scope": "effective rule/column and authority dependency closure",
+        "site": "schema.q:51:1",
+        "witness": null
+      },
+      {
+        "acknowledged": false,
+        "code": "N_INVARIANT_RESTATES_RULE",
+        "family": "audience:63434840d3e5c4b48dc36b4e2f39957eae65aa41620457a929645516644b904e",
+        "gated": false,
+        "id": "cf0c957607d11634dbfa3a7bf526ba567452823fc30eb73b1e987528466e48e0",
+        "reason": null,
+        "recorded": false,
+        "scope": "effective rule/column and authority dependency closure",
+        "site": "schema.q:52:1",
+        "witness": null
+      },
+      {
+        "acknowledged": false,
+        "code": "N_ROLE_WIDE_READ",
+        "family": "audience:63434840d3e5c4b48dc36b4e2f39957eae65aa41620457a929645516644b904e",
+        "gated": false,
+        "id": "47bbafc8c9405c98db75a0a51d174ce93c9aa17a393734043c4d5ad83d918d3f",
+        "reason": null,
+        "recorded": false,
+        "scope": "effective rule/column and authority dependency closure",
+        "site": "schema.q:40:3",
+        "witness": null
+      },
+      {
+        "acknowledged": false,
+        "code": "N_ROLE_WIDE_READ",
+        "family": "audience:63434840d3e5c4b48dc36b4e2f39957eae65aa41620457a929645516644b904e",
+        "gated": false,
+        "id": "d9c12b54ed68279c7515935d73b116b48ee813c458f79f5f127cd6a261698ec2",
+        "reason": null,
+        "recorded": false,
+        "scope": "effective rule/column and authority dependency closure",
+        "site": "schema.q:31:3",
+        "witness": null
+      },
+      {
+        "acknowledged": false,
+        "code": "N_SECURITY_INTENT",
+        "family": null,
+        "gated": false,
+        "id": "b5ffd864bc3cb26cc7eb6aa3f378d45caab91d85171f178c5f528d760935b659",
+        "reason": null,
+        "recorded": false,
+        "scope": "source declaration and dependency/writer closure (conservative)",
+        "site": "schema.q:1:1",
+        "witness": null
+      },
+      {
+        "acknowledged": false,
+        "code": "N_CALLER_TIME",
+        "family": null,
+        "gated": false,
+        "id": "c8ede301363f73e264c68e93dfdbe2b4e18954ce0893a857ea99a9b4faa2e2d5",
+        "reason": null,
+        "recorded": false,
+        "scope": "source declaration and dependency/writer closure (conservative)",
+        "site": "schema.q:91:10",
+        "witness": null
+      },
+      {
+        "acknowledged": false,
+        "code": "N_ARGUMENT_GRANT",
+        "family": null,
+        "gated": false,
+        "id": "c1066267273b72d519da5c231f14332be332f568addd0467f89153c01d4f1e31",
+        "reason": null,
+        "recorded": false,
+        "scope": "source declaration and dependency/writer closure (conservative)",
+        "site": "schema.q:64:10",
+        "witness": null
+      },
+      {
+        "acknowledged": false,
+        "code": "N_INSERT_WRITE_INTENT",
+        "family": null,
+        "gated": false,
+        "id": "8dcb98204956b6d16cc31d5c6d121924fab70109a9aee08012666f0bd464ccd9",
+        "reason": null,
+        "recorded": false,
+        "scope": "current replayed witness; source edits alone do not invalidate this decision",
+        "site": "schema.q:91:10",
+        "witness": {
+          "args": {
+            "balloonPlan": "<redacted>",
+            "client": "account:security-roles-client-0",
+            "clientPhone": "<redacted>",
+            "entrancePhoto": "<redacted>",
+            "eventAt": 1799827200001,
+            "fee": 1,
+            "hallPhoto": "<redacted>",
+            "riggingNotes": "<redacted>",
+            "title": "<redacted>",
+            "venue": "<redacted>",
+            "venueContract": "<redacted>"
+          },
+          "candidate": "invariant projects.entrancePhoto write only ((exists roles[viewer, role = 'lead']) and ((exists roles[viewer, role = 'owner']) or (exists roles[viewer, role = 'lead']) or (exists roles[viewer, role = 'installer'])))",
+          "committedRows": {
+            "projects": [
+              {
+                "balloonPlan": "<redacted>",
+                "client": "account:security-roles-client-0",
+                "clientPhone": "<redacted>",
+                "entrancePhoto": "<redacted>",
+                "eventAt": 1800172800001,
+                "fee": 1,
+                "freeArch": false,
+                "hallPhoto": "<redacted>",
+                "id": "01MCC5RM000000000000006060",
+                "riggingNotes": "<redacted>",
+                "status": "planned",
+                "title": "<redacted>",
+                "venue": "<redacted>",
+                "venueContract": "<redacted>"
+              },
+              {
+                "balloonPlan": "<redacted>",
+                "client": "account:security-roles-client-0",
+                "clientPhone": "<redacted>",
+                "entrancePhoto": null,
+                "eventAt": 1800172800001,
+                "fee": 1,
+                "freeArch": false,
+                "hallPhoto": "<redacted>",
+                "id": "01MCC5RM000000000000006161",
+                "riggingNotes": "<redacted>",
+                "status": "planned",
+                "title": "<redacted>",
+                "venue": "<redacted>",
+                "venueContract": "<redacted>"
+              },
+              {
+                "balloonPlan": "<redacted>",
+                "client": "account:security-roles-client-0",
+                "clientPhone": "<redacted>",
+                "entrancePhoto": "<redacted>",
+                "eventAt": 1799827200001,
+                "fee": 1,
+                "freeArch": false,
+                "hallPhoto": "<redacted>",
+                "id": "01MCC5RM00000000000002C1BZ",
+                "riggingNotes": "<redacted>",
+                "status": "planned",
+                "title": "<redacted>",
+                "venue": "<redacted>",
+                "venueContract": "<redacted>"
+              }
+            ],
+            "roles": [
+              {
+                "id": "security-roles-0",
+                "principal": "account:security-roles-owner-0",
+                "role": "owner"
+              },
+              {
+                "id": "security-roles-1",
+                "principal": "account:security-roles-owner-1",
+                "role": "owner"
+              },
+              {
+                "id": "security-roles-2",
+                "principal": "account:security-roles-lead-0",
+                "role": "lead"
+              },
+              {
+                "id": "security-roles-3",
+                "principal": "account:security-roles-lead-1",
+                "role": "client"
+              },
+              {
+                "id": "security-roles-4",
+                "principal": "account:security-roles-installer-0",
+                "role": "installer"
+              },
+              {
+                "id": "security-roles-5",
+                "principal": "account:security-roles-installer-1",
+                "role": "installer"
+              },
+              {
+                "id": "security-roles-6",
+                "principal": "account:security-roles-client-0",
+                "role": "client"
+              },
+              {
+                "id": "security-roles-7",
+                "principal": "account:security-roles-client-1",
+                "role": "client"
+              }
+            ]
+          },
+          "compactSummary": "openProject as account:security-roles-owner-1 \u2192 ok; projects.entrancePhoto write absent -> {\"entrancePhoto\":\"<redacted>\"} (bounded replay; not proof)",
+          "effect": "insert",
+          "generatedIds": [
+            "01MCC5RM000000000000006060",
+            "01MCC5RM000000000000006161",
+            "01MCC5RM00000000000002C1BZ"
+          ],
+          "history": [
+            {
+              "args": {
+                "principal": "account:security-roles-lead-1",
+                "role": "<redacted>"
+              },
+              "clock": 1800000000000,
+              "operation": "provision",
+              "state": "sent",
+              "viewer": "service:operator"
+            },
+            {
+              "args": {
+                "balloonPlan": "<redacted>",
+                "client": "account:security-roles-client-0",
+                "clientPhone": "<redacted>",
+                "entrancePhoto": "<redacted>",
+                "eventAt": 1799827200001,
+                "fee": 1,
+                "hallPhoto": "<redacted>",
+                "riggingNotes": "<redacted>",
+                "title": "<redacted>",
+                "venue": "<redacted>",
+                "venueContract": "<redacted>"
+              },
+              "clock": 1800000000000,
+              "operation": "openProject",
+              "state": "sent",
+              "viewer": "account:security-roles-owner-1"
+            }
+          ],
+          "id": "b2679baf17ef1a382a425e3fd45ed6224e2446bd698dae79550048c561efc8e1",
+          "old": null,
+          "operation": "openProject",
+          "reachability": "generated-fixture-trace",
+          "row": {
+            "balloonPlan": "<redacted>",
+            "client": "account:security-roles-client-0",
+            "clientPhone": "<redacted>",
+            "entrancePhoto": "<redacted>",
+            "eventAt": 1799827200001,
+            "fee": 1,
+            "freeArch": false,
+            "hallPhoto": "<redacted>",
+            "id": "01MCC5RM00000000000002C1BZ",
+            "riggingNotes": "<redacted>",
+            "status": "planned",
+            "title": "<redacted>",
+            "venue": "<redacted>",
+            "venueContract": "<redacted>"
+          },
+          "scope": "actual authored observation from a validated generated initial fixture; fixture initialization is not claimed application-reachable",
+          "summary": "openProject({\"balloonPlan\":\"<redacted>\",\"client\":\"account:security-roles-client-0\",\"clientPhone\":\"<redacted>\",\"entrancePhoto\":\"<redacted>\",\"eventAt\":1799827200001,\"fee\":1,\"hallPhoto\":\"<redacted>\",\"riggingNotes\":\"<redacted>\",\"title\":\"<redacted>\",\"venue\":\"<redacted>\",\"venueContract\":\"<redacted>\"}) as account:security-roles-owner-1 \u2192 ok; projects.entrancePhoto write absent -> {\"balloonPlan\":\"<redacted>\",\"client\":\"account:security-roles-client-0\",\"clientPhone\":\"<redacted>\",\"entrancePhoto\":\"<redacted>\",\"eventAt\":1799827200001,\"fee\":1,\"freeArch\":false,\"hallPhoto\":\"<redacted>\",\"id\":\"01MCC5RM00000000000002C1BZ\",\"riggingNotes\":\"<redacted>\",\"status\":\"planned\",\"title\":\"<redacted>\",\"venue\":\"<redacted>\",\"venueContract\":\"<redacted>\"}; candidate invariant write only ((exists roles[viewer, role = 'lead']) and ((exists roles[viewer, role = 'owner']) or (exists roles[viewer, role = 'lead']) or (exists roles[viewer, role = 'installer']))) (finite generated-fixture replay, not proof)",
+          "supportingRows": {
+            "projects": [
+              {
+                "balloonPlan": "<redacted>",
+                "client": "account:security-roles-client-0",
+                "clientPhone": "<redacted>",
+                "entrancePhoto": "<redacted>",
+                "eventAt": 1800172800001,
+                "fee": 1,
+                "freeArch": false,
+                "hallPhoto": "<redacted>",
+                "id": "01MCC5RM000000000000006060",
+                "riggingNotes": "<redacted>",
+                "status": "planned",
+                "title": "<redacted>",
+                "venue": "<redacted>",
+                "venueContract": "<redacted>"
+              },
+              {
+                "balloonPlan": "<redacted>",
+                "client": "account:security-roles-client-0",
+                "clientPhone": "<redacted>",
+                "entrancePhoto": null,
+                "eventAt": 1800172800001,
+                "fee": 1,
+                "freeArch": false,
+                "hallPhoto": "<redacted>",
+                "id": "01MCC5RM000000000000006161",
+                "riggingNotes": "<redacted>",
+                "status": "planned",
+                "title": "<redacted>",
+                "venue": "<redacted>",
+                "venueContract": "<redacted>"
+              }
+            ],
+            "roles": [
+              {
+                "id": "security-roles-0",
+                "principal": "account:security-roles-owner-0",
+                "role": "owner"
+              },
+              {
+                "id": "security-roles-1",
+                "principal": "account:security-roles-owner-1",
+                "role": "owner"
+              },
+              {
+                "id": "security-roles-2",
+                "principal": "account:security-roles-lead-0",
+                "role": "lead"
+              },
+              {
+                "id": "security-roles-3",
+                "principal": "account:security-roles-lead-1",
+                "role": "lead"
+              },
+              {
+                "id": "security-roles-4",
+                "principal": "account:security-roles-installer-0",
+                "role": "installer"
+              },
+              {
+                "id": "security-roles-5",
+                "principal": "account:security-roles-installer-1",
+                "role": "installer"
+              },
+              {
+                "id": "security-roles-6",
+                "principal": "account:security-roles-client-0",
+                "role": "client"
+              },
+              {
+                "id": "security-roles-7",
+                "principal": "account:security-roles-client-1",
+                "role": "client"
+              }
+            ]
+          },
+          "viewer": "account:security-roles-owner-1"
+        }
+      },
+      {
+        "acknowledged": false,
+        "code": "N_EDIT_AFTER_APPROVAL",
+        "family": null,
+        "gated": false,
+        "id": "c831ec4fe34abe50c2feb02f25730d79ff0fc57b415017f52a1dd316a922c91a",
+        "reason": null,
+        "recorded": false,
+        "scope": "source declaration and dependency/writer closure (conservative)",
+        "site": "schema.q:91:10",
+        "witness": null
+      },
+      {
+        "acknowledged": false,
+        "code": "N_EDIT_AFTER_APPROVAL",
+        "family": null,
+        "gated": false,
+        "id": "123b669a5c9bfef383a90d24bfed00ce488ccc96a52679983a86c42a20ce9b31",
+        "reason": null,
+        "recorded": false,
+        "scope": "source declaration and dependency/writer closure (conservative)",
+        "site": "schema.q:104:3",
+        "witness": null
+      },
+      {
+        "acknowledged": false,
+        "code": "N_TEXT_EVIDENCE",
+        "family": null,
+        "gated": false,
+        "id": "76797b81a9c4ac1cc14634bfb8fda57ebd4b7cecfb0348e450975ff7890dee10",
+        "reason": null,
+        "recorded": false,
+        "scope": "current replayed witness; source edits alone do not invalidate this decision",
+        "site": "schema.q:27:3",
+        "witness": {
+          "advisory": true,
+          "args": {
+            "balloonPlan": "<redacted>",
+            "client": "account:security-roles-client-0",
+            "clientPhone": "<redacted>",
+            "entrancePhoto": "<redacted>",
+            "eventAt": 1799913600000,
+            "fee": 1,
+            "hallPhoto": "<redacted>",
+            "riggingNotes": "<redacted>",
+            "title": "<redacted>",
+            "venue": "<redacted>",
+            "venueContract": "<redacted>"
+          },
+          "candidate": "question: is projects.entrancePhoto deliberately text rather than a verified upload?",
+          "committedRows": {
+            "projects": [
+              {
+                "balloonPlan": "<redacted>",
+                "client": "account:security-roles-client-0",
+                "clientPhone": "<redacted>",
+                "entrancePhoto": "<redacted>",
+                "eventAt": 1800172800001,
+                "fee": 1,
+                "freeArch": true,
+                "freeArchReason": "<redacted>",
+                "hallPhoto": "<redacted>",
+                "id": "01MCC5RM000000000000006060",
+                "riggingNotes": "<redacted>",
+                "status": "planned",
+                "takedownAt": null,
+                "title": "<redacted>",
+                "venue": "<redacted>",
+                "venueContract": "<redacted>"
+              },
+              {
+                "balloonPlan": "<redacted>",
+                "client": "account:security-roles-client-0",
+                "clientPhone": "<redacted>",
+                "entrancePhoto": null,
+                "eventAt": 1800172800001,
+                "fee": 1,
+                "freeArch": false,
+                "hallPhoto": "<redacted>",
+                "id": "01MCC5RM000000000000006161",
+                "riggingNotes": "<redacted>",
+                "status": "planned",
+                "title": "<redacted>",
+                "venue": "<redacted>",
+                "venueContract": "<redacted>"
+              },
+              {
+                "balloonPlan": "<redacted>",
+                "client": "account:security-roles-client-0",
+                "clientPhone": "<redacted>",
+                "entrancePhoto": "<redacted>",
+                "eventAt": 1799913600000,
+                "fee": 1,
+                "freeArch": false,
+                "hallPhoto": "<redacted>",
+                "id": "01MCC5RM000000000000026S6Q",
+                "riggingNotes": "<redacted>",
+                "status": "planned",
+                "title": "<redacted>",
+                "venue": "<redacted>",
+                "venueContract": "<redacted>"
+              }
+            ]
+          },
+          "compactSummary": "openProject as account:security-roles-owner-1 \u2192 admitted insert with text-typed projects.entrancePhoto; no verified-upload type is required at this boundary (finite generated-fixture replay, not proof)",
+          "effect": "insert",
+          "generatedIds": [
+            "01MCC5RM000000000000006060",
+            "01MCC5RM000000000000006161",
+            "01MCC5RM000000000000026S6Q"
+          ],
+          "history": [
+            {
+              "args": {
+                "project": "01MCC5RM000000000000006060",
+                "reason": "<redacted>"
+              },
+              "clock": 1800000000000,
+              "operation": "approveArch",
+              "state": "sent",
+              "viewer": "account:security-roles-owner-0"
+            },
+            {
+              "args": {
+                "balloonPlan": "<redacted>",
+                "client": "account:security-roles-client-0",
+                "clientPhone": "<redacted>",
+                "entrancePhoto": "<redacted>",
+                "eventAt": 1799913600000,
+                "fee": 1,
+                "hallPhoto": "<redacted>",
+                "riggingNotes": "<redacted>",
+                "title": "<redacted>",
+                "venue": "<redacted>",
+                "venueContract": "<redacted>"
+              },
+              "clock": 1800000000000,
+              "operation": "openProject",
+              "state": "sent",
+              "viewer": "account:security-roles-owner-1"
+            }
+          ],
+          "id": "69ef2a6851d7a3db4d88eb35ded981267c1a7077f5308752862c5ac976d7ad76",
+          "kind": "text-evidence",
+          "old": null,
+          "operation": "openProject",
+          "reachability": "generated-fixture-trace",
+          "row": {
+            "balloonPlan": "<redacted>",
+            "client": "account:security-roles-client-0",
+            "clientPhone": "<redacted>",
+            "entrancePhoto": "<redacted>",
+            "eventAt": 1799913600000,
+            "fee": 1,
+            "freeArch": false,
+            "hallPhoto": "<redacted>",
+            "id": "01MCC5RM000000000000026S6Q",
+            "riggingNotes": "<redacted>",
+            "status": "planned",
+            "title": "<redacted>",
+            "venue": "<redacted>",
+            "venueContract": "<redacted>"
+          },
+          "scope": "actual authored observation from a validated generated initial fixture; fixture initialization is not claimed application-reachable",
+          "summary": "openProject as account:security-roles-owner-1 \u2192 admitted insert with text-typed projects.entrancePhoto; no verified-upload type is required at this boundary (finite generated-fixture replay, not proof)",
+          "supportingRows": {
+            "projects": [
+              {
+                "balloonPlan": "<redacted>",
+                "client": "account:security-roles-client-0",
+                "clientPhone": "<redacted>",
+                "entrancePhoto": "<redacted>",
+                "eventAt": 1800172800001,
+                "fee": 1,
+                "freeArch": false,
+                "hallPhoto": "<redacted>",
+                "id": "01MCC5RM000000000000006060",
+                "riggingNotes": "<redacted>",
+                "status": "planned",
+                "title": "<redacted>",
+                "venue": "<redacted>",
+                "venueContract": "<redacted>"
+              },
+              {
+                "balloonPlan": "<redacted>",
+                "client": "account:security-roles-client-0",
+                "clientPhone": "<redacted>",
+                "entrancePhoto": null,
+                "eventAt": 1800172800001,
+                "fee": 1,
+                "freeArch": false,
+                "hallPhoto": "<redacted>",
+                "id": "01MCC5RM000000000000006161",
+                "riggingNotes": "<redacted>",
+                "status": "planned",
+                "title": "<redacted>",
+                "venue": "<redacted>",
+                "venueContract": "<redacted>"
+              }
+            ],
+            "roles": [
+              {
+                "id": "security-roles-0",
+                "principal": "account:security-roles-owner-0",
+                "role": "owner"
+              },
+              {
+                "id": "security-roles-1",
+                "principal": "account:security-roles-owner-1",
+                "role": "owner"
+              },
+              {
+                "id": "security-roles-2",
+                "principal": "account:security-roles-lead-0",
+                "role": "lead"
+              },
+              {
+                "id": "security-roles-3",
+                "principal": "account:security-roles-lead-1",
+                "role": "lead"
+              },
+              {
+                "id": "security-roles-4",
+                "principal": "account:security-roles-installer-0",
+                "role": "installer"
+              },
+              {
+                "id": "security-roles-5",
+                "principal": "account:security-roles-installer-1",
+                "role": "installer"
+              },
+              {
+                "id": "security-roles-6",
+                "principal": "account:security-roles-client-0",
+                "role": "client"
+              },
+              {
+                "id": "security-roles-7",
+                "principal": "account:security-roles-client-1",
+                "role": "client"
+              }
+            ]
+          },
+          "viewer": "account:security-roles-owner-1"
+        }
+      },
+      {
+        "acknowledged": false,
+        "code": "N_TEXT_EVIDENCE",
+        "family": null,
+        "gated": false,
+        "id": "ca01f50c60c7ae78da813e6f2108cfd2bc2365b22cd8ac0f1f0e910253082eae",
+        "reason": null,
+        "recorded": false,
+        "scope": "current replayed witness; source edits alone do not invalidate this decision",
+        "site": "schema.q:28:3",
+        "witness": {
+          "advisory": true,
+          "args": {
+            "balloonPlan": "<redacted>",
+            "client": "account:security-roles-client-0",
+            "clientPhone": "<redacted>",
+            "entrancePhoto": "<redacted>",
+            "eventAt": 1799913600000,
+            "fee": 1,
+            "hallPhoto": "<redacted>",
+            "riggingNotes": "<redacted>",
+            "title": "<redacted>",
+            "venue": "<redacted>",
+            "venueContract": "<redacted>"
+          },
+          "candidate": "question: is projects.hallPhoto deliberately text rather than a verified upload?",
+          "committedRows": {
+            "projects": [
+              {
+                "balloonPlan": "<redacted>",
+                "client": "account:security-roles-client-0",
+                "clientPhone": "<redacted>",
+                "entrancePhoto": "<redacted>",
+                "eventAt": 1800172800001,
+                "fee": 1,
+                "freeArch": true,
+                "freeArchReason": "<redacted>",
+                "hallPhoto": "<redacted>",
+                "id": "01MCC5RM000000000000006060",
+                "riggingNotes": "<redacted>",
+                "status": "planned",
+                "takedownAt": null,
+                "title": "<redacted>",
+                "venue": "<redacted>",
+                "venueContract": "<redacted>"
+              },
+              {
+                "balloonPlan": "<redacted>",
+                "client": "account:security-roles-client-0",
+                "clientPhone": "<redacted>",
+                "entrancePhoto": null,
+                "eventAt": 1800172800001,
+                "fee": 1,
+                "freeArch": false,
+                "hallPhoto": "<redacted>",
+                "id": "01MCC5RM000000000000006161",
+                "riggingNotes": "<redacted>",
+                "status": "planned",
+                "title": "<redacted>",
+                "venue": "<redacted>",
+                "venueContract": "<redacted>"
+              },
+              {
+                "balloonPlan": "<redacted>",
+                "client": "account:security-roles-client-0",
+                "clientPhone": "<redacted>",
+                "entrancePhoto": "<redacted>",
+                "eventAt": 1799913600000,
+                "fee": 1,
+                "freeArch": false,
+                "hallPhoto": "<redacted>",
+                "id": "01MCC5RM000000000000026S6Q",
+                "riggingNotes": "<redacted>",
+                "status": "planned",
+                "title": "<redacted>",
+                "venue": "<redacted>",
+                "venueContract": "<redacted>"
+              }
+            ]
+          },
+          "compactSummary": "openProject as account:security-roles-owner-1 \u2192 admitted insert with text-typed projects.hallPhoto; no verified-upload type is required at this boundary (finite generated-fixture replay, not proof)",
+          "effect": "insert",
+          "generatedIds": [
+            "01MCC5RM000000000000006060",
+            "01MCC5RM000000000000006161",
+            "01MCC5RM000000000000026S6Q"
+          ],
+          "history": [
+            {
+              "args": {
+                "project": "01MCC5RM000000000000006060",
+                "reason": "<redacted>"
+              },
+              "clock": 1800000000000,
+              "operation": "approveArch",
+              "state": "sent",
+              "viewer": "account:security-roles-owner-0"
+            },
+            {
+              "args": {
+                "balloonPlan": "<redacted>",
+                "client": "account:security-roles-client-0",
+                "clientPhone": "<redacted>",
+                "entrancePhoto": "<redacted>",
+                "eventAt": 1799913600000,
+                "fee": 1,
+                "hallPhoto": "<redacted>",
+                "riggingNotes": "<redacted>",
+                "title": "<redacted>",
+                "venue": "<redacted>",
+                "venueContract": "<redacted>"
+              },
+              "clock": 1800000000000,
+              "operation": "openProject",
+              "state": "sent",
+              "viewer": "account:security-roles-owner-1"
+            }
+          ],
+          "id": "bc82416dceb74c302dcf6ce4a04da864fa91a52d8dcf069f1c8babee42bf7a0e",
+          "kind": "text-evidence",
+          "old": null,
+          "operation": "openProject",
+          "reachability": "generated-fixture-trace",
+          "row": {
+            "balloonPlan": "<redacted>",
+            "client": "account:security-roles-client-0",
+            "clientPhone": "<redacted>",
+            "entrancePhoto": "<redacted>",
+            "eventAt": 1799913600000,
+            "fee": 1,
+            "freeArch": false,
+            "hallPhoto": "<redacted>",
+            "id": "01MCC5RM000000000000026S6Q",
+            "riggingNotes": "<redacted>",
+            "status": "planned",
+            "title": "<redacted>",
+            "venue": "<redacted>",
+            "venueContract": "<redacted>"
+          },
+          "scope": "actual authored observation from a validated generated initial fixture; fixture initialization is not claimed application-reachable",
+          "summary": "openProject as account:security-roles-owner-1 \u2192 admitted insert with text-typed projects.hallPhoto; no verified-upload type is required at this boundary (finite generated-fixture replay, not proof)",
+          "supportingRows": {
+            "projects": [
+              {
+                "balloonPlan": "<redacted>",
+                "client": "account:security-roles-client-0",
+                "clientPhone": "<redacted>",
+                "entrancePhoto": "<redacted>",
+                "eventAt": 1800172800001,
+                "fee": 1,
+                "freeArch": false,
+                "hallPhoto": "<redacted>",
+                "id": "01MCC5RM000000000000006060",
+                "riggingNotes": "<redacted>",
+                "status": "planned",
+                "title": "<redacted>",
+                "venue": "<redacted>",
+                "venueContract": "<redacted>"
+              },
+              {
+                "balloonPlan": "<redacted>",
+                "client": "account:security-roles-client-0",
+                "clientPhone": "<redacted>",
+                "entrancePhoto": null,
+                "eventAt": 1800172800001,
+                "fee": 1,
+                "freeArch": false,
+                "hallPhoto": "<redacted>",
+                "id": "01MCC5RM000000000000006161",
+                "riggingNotes": "<redacted>",
+                "status": "planned",
+                "title": "<redacted>",
+                "venue": "<redacted>",
+                "venueContract": "<redacted>"
+              }
+            ],
+            "roles": [
+              {
+                "id": "security-roles-0",
+                "principal": "account:security-roles-owner-0",
+                "role": "owner"
+              },
+              {
+                "id": "security-roles-1",
+                "principal": "account:security-roles-owner-1",
+                "role": "owner"
+              },
+              {
+                "id": "security-roles-2",
+                "principal": "account:security-roles-lead-0",
+                "role": "lead"
+              },
+              {
+                "id": "security-roles-3",
+                "principal": "account:security-roles-lead-1",
+                "role": "lead"
+              },
+              {
+                "id": "security-roles-4",
+                "principal": "account:security-roles-installer-0",
+                "role": "installer"
+              },
+              {
+                "id": "security-roles-5",
+                "principal": "account:security-roles-installer-1",
+                "role": "installer"
+              },
+              {
+                "id": "security-roles-6",
+                "principal": "account:security-roles-client-0",
+                "role": "client"
+              },
+              {
+                "id": "security-roles-7",
+                "principal": "account:security-roles-client-1",
+                "role": "client"
+              }
+            ]
+          },
+          "viewer": "account:security-roles-owner-1"
+        }
+      },
+      {
+        "acknowledged": false,
+        "code": "N_COLUMN_RESULT_EXPOSURE",
+        "family": null,
+        "gated": false,
+        "id": "0fdf276c11ce7ab1c79344d760f3ffddcbd3731f120736d0ba931609c6fdddbf",
+        "reason": null,
+        "recorded": false,
+        "scope": "source declaration and dependency/writer closure (conservative)",
+        "site": "schema.q:88:1",
+        "witness": null
+      },
+      {
+        "acknowledged": false,
+        "code": "N_COLUMN_RESULT_EXPOSURE",
+        "family": null,
+        "gated": false,
+        "id": "6f0bd29d04a754e581547e7c6c69a802746aec520e9361d525cc18f1efb68b6d",
+        "reason": null,
+        "recorded": false,
+        "scope": "source declaration and dependency/writer closure (conservative)",
+        "site": "schema.q:62:1",
+        "witness": null
+      }
+    ],
+    "defaultCheck": {
+      "exit": 0,
+      "seconds": 13.915,
+      "lines": 5,
+      "characters": 1334,
+      "stdout": "check: ok \u2014 2 tables (0 synced), 12 operations, compiled; 0 gates pending, 3 witnessed questions, 14 advisories (don't block): `check --review`; 0 recorded; 5 notes; 13894.0 ms\ncheck: enforced by the language \u2014 0 typed upload columns with owner-bound placement; 3 column audiences; 0 possible self-assignable role paths detected (bounded analysis)\nfix question N_INSERT_WRITE_INTENT at schema.q:91:10: Is this creation audience intended? Witness: openProject as account:security-roles-owner-1 \u2192 ok; projects.entrancePhoto write absent -> {\"entrancePhoto\":\"<redacted>\"} (bounded replay; not proof) \u2014 replay/repair/decision: check --review (doesn't block)\nfix question N_TEXT_EVIDENCE at schema.q:27:3: Is text evidence intended? Witness: openProject as account:security-roles-owner-1 \u2192 admitted insert with text-typed projects.entrancePhoto; no verified-upload type is required at this boundary (finite generated-fixture replay, not proof) \u2014 replay/repair/decision: check --review (doesn't block)\nfix question N_TEXT_EVIDENCE at schema.q:28:3: Is text evidence intended? Witness: openProject as account:security-roles-owner-1 \u2192 admitted insert with text-typed projects.hallPhoto; no verified-upload type is required at this boundary (finite generated-fixture replay, not proof) \u2014 replay/repair/decision: check --review (doesn't block)\n",
+      "stderr": ""
+    }
+  }
+]

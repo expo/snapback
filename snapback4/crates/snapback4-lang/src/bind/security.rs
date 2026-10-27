@@ -14,6 +14,8 @@ pub(crate) fn capture_literal_defaults(catalog:&Catalog,bound:&mut Bound){write_
 pub mod challenges;
 mod lints;
 mod write_advice;
+pub mod release_create;
+mod release_authority;
 pub mod derived;
 mod creation_advice;
 mod result_advice;
@@ -287,4 +289,10 @@ pub fn add_source_notes(report:&mut Report,sources:&[(String,String)],bound:&Bou
         let key=note.message.split([' ',':']).next().unwrap_or("");
         note.site=sites.get(key).or_else(||sites.get(key.split('.').next().unwrap_or(""))).cloned().unwrap_or_else(||Site::new(sources.first().map(|s|s.0.as_str()).unwrap_or("schema.q"),1,1));
     }}
+}
+
+/// Hypotheses omitted by advisory precision; never authority or static advice.
+#[doc(hidden)]
+pub fn question_basis(sources:&[(String,String)],bound:&Bound)->Vec<Diagnostic>{
+    lints::question_basis(sources,bound).into_iter().chain(creation_advice::question_basis(sources,bound)).collect()
 }

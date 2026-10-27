@@ -1,0 +1,1317 @@
+{
+  "affinity": [
+    {
+      "cell": "convex/26-convex-W4-B-141/w4-n1000000-d1000-c32-disjoint",
+      "masks": {
+        "app/proxy": [
+          [3, 4, 9, 10]
+        ],
+        "postgres": [
+          [0, 1, 2, 6, 7, 8]
+        ],
+        "postgres-child": [
+          [0, 1, 2, 6, 7, 8]
+        ]
+      }
+    },
+    {
+      "cell": "snapback/07-snapback-W4-B-1903/w4-n1000000-d1000-c32-disjoint",
+      "masks": {
+        "app/proxy": [
+          [3, 4, 9, 10]
+        ],
+        "postgres": [
+          [0, 1, 2, 6, 7, 8]
+        ],
+        "postgres-child": [
+          [0, 1, 2, 6, 7, 8]
+        ]
+      }
+    },
+    {
+      "cell": "snapback/09-snapback-W4-B-1903/w4-n1000000-d1000-c32-disjoint",
+      "masks": {
+        "app/proxy": [
+          [3, 4, 9, 10]
+        ],
+        "postgres": [
+          [0, 1, 2, 6, 7, 8]
+        ],
+        "postgres-child": [
+          [0, 1, 2, 6, 7, 8]
+        ]
+      }
+    },
+    {
+      "cell": "snapback/11-snapback-W4-B-1903/w4-n1000000-d1000-c32-disjoint",
+      "masks": {
+        "app/proxy": [
+          [3, 4, 9, 10]
+        ],
+        "postgres": [
+          [0, 1, 2, 6, 7, 8]
+        ],
+        "postgres-child": [
+          [0, 1, 2, 6, 7, 8]
+        ]
+      }
+    },
+    {
+      "cell": "snapback/13-snapback-W4-B-1903/w4-n1000000-d1000-c32-disjoint",
+      "masks": {
+        "app/proxy": [
+          [3, 4, 9, 10]
+        ],
+        "postgres": [
+          [0, 1, 2, 6, 7, 8]
+        ],
+        "postgres-child": [
+          [0, 1, 2, 6, 7, 8]
+        ]
+      }
+    },
+    {
+      "cell": "snapback/15-snapback-W4-B-1903/w4-n1000000-d1000-c32-disjoint",
+      "masks": {
+        "app/proxy": [
+          [3, 4, 9, 10]
+        ],
+        "postgres": [
+          [0, 1, 2, 6, 7, 8]
+        ],
+        "postgres-child": [
+          [0, 1, 2, 6, 7, 8]
+        ]
+      }
+    },
+    {
+      "cell": "snapback/17-snapback-W4-B-2262/w4-n1000000-d1000-c32-disjoint",
+      "masks": {
+        "app/proxy": [
+          [3, 4, 9, 10]
+        ],
+        "postgres": [
+          [0, 1, 2, 6, 7, 8]
+        ],
+        "postgres-child": [
+          [0, 1, 2, 6, 7, 8]
+        ]
+      }
+    },
+    {
+      "cell": "snapback/19-snapback-W4-B-2262/w4-n1000000-d1000-c32-disjoint",
+      "masks": {
+        "app/proxy": [
+          [3, 4, 9, 10]
+        ],
+        "postgres": [
+          [0, 1, 2, 6, 7, 8]
+        ],
+        "postgres-child": [
+          [0, 1, 2, 6, 7, 8]
+        ]
+      }
+    },
+    {
+      "cell": "snapback/21-snapback-W4-B-2262/w4-n1000000-d1000-c32-disjoint",
+      "masks": {
+        "app/proxy": [
+          [3, 4, 9, 10]
+        ],
+        "postgres": [
+          [0, 1, 2, 6, 7, 8]
+        ],
+        "postgres-child": [
+          [0, 1, 2, 6, 7, 8]
+        ]
+      }
+    },
+    {
+      "cell": "snapback/23-snapback-W4-B-2262/w4-n1000000-d1000-c32-disjoint",
+      "masks": {
+        "app/proxy": [
+          [3, 4, 9, 10]
+        ],
+        "postgres": [
+          [0, 1, 2, 6, 7, 8]
+        ],
+        "postgres-child": [
+          [0, 1, 2, 6, 7, 8]
+        ]
+      }
+    },
+    {
+      "cell": "snapback/25-snapback-W4-B-2262/w4-n1000000-d1000-c32-disjoint",
+      "masks": {
+        "app/proxy": [
+          [3, 4, 9, 10]
+        ],
+        "postgres": [
+          [0, 1, 2, 6, 7, 8]
+        ],
+        "postgres-child": [
+          [0, 1, 2, 6, 7, 8]
+        ]
+      }
+    },
+    {
+      "cell": "supabase/01-supabase-W4-A-3200/w4-n1000000-d500-c32-disjoint",
+      "masks": {
+        "app/proxy": [
+          [3, 4, 9, 10]
+        ],
+        "postgres": [
+          [0, 1, 2, 6, 7, 8]
+        ],
+        "postgres-child": [
+          [0, 1, 2, 6, 7, 8]
+        ]
+      }
+    },
+    {
+      "cell": "supabase/02-supabase-W4-A-3805/w4-n1000000-d500-c32-disjoint",
+      "masks": {
+        "app/proxy": [
+          [3, 4, 9, 10]
+        ],
+        "postgres": [
+          [0, 1, 2, 6, 7, 8]
+        ],
+        "postgres-child": [
+          [0, 1, 2, 6, 7, 8]
+        ]
+      }
+    },
+    {
+      "cell": "supabase/02-supabase-W4-A-3805/w4-n1000000-d500-c32-disjoint/retry-rate-3805-r3",
+      "masks": {
+        "app/proxy": [
+          [3, 4, 9, 10]
+        ],
+        "postgres": [
+          [0, 1, 2, 6, 7, 8]
+        ],
+        "postgres-child": [
+          [0, 1, 2, 6, 7, 8]
+        ]
+      }
+    },
+    {
+      "cell": "supabase/03-supabase-W4-A-4525/w4-n1000000-d500-c32-disjoint",
+      "masks": {
+        "app/proxy": [
+          [3, 4, 9, 10]
+        ],
+        "postgres": [
+          [0, 1, 2, 6, 7, 8]
+        ],
+        "postgres-child": [
+          [0, 1, 2, 6, 7, 8]
+        ]
+      }
+    },
+    {
+      "cell": "supabase/03-supabase-W4-A-4525/w4-n1000000-d500-c32-disjoint/retry-rate-4525-r2",
+      "masks": {
+        "app/proxy": [
+          [3, 4, 9, 10]
+        ],
+        "postgres": [
+          [0, 1, 2, 6, 7, 8]
+        ],
+        "postgres-child": [
+          [0, 1, 2, 6, 7, 8]
+        ]
+      }
+    },
+    {
+      "cell": "supabase/04-supabase-W5-B-1903/w5-n1000000-d1000-c32-hot1",
+      "masks": {
+        "app/proxy": [
+          [3, 4, 9, 10]
+        ],
+        "postgres": [
+          [0, 1, 2, 6, 7, 8]
+        ],
+        "postgres-child": [
+          [0, 1, 2, 6, 7, 8]
+        ]
+      }
+    },
+    {
+      "cell": "supabase/05-supabase-W5-B-2262/w5-n1000000-d1000-c32-hot1",
+      "masks": {
+        "app/proxy": [
+          [3, 4, 9, 10]
+        ],
+        "postgres": [
+          [0, 1, 2, 6, 7, 8]
+        ],
+        "postgres-child": [
+          [0, 1, 2, 6, 7, 8]
+        ]
+      }
+    },
+    {
+      "cell": "supabase/06-supabase-W4-B-1903/w4-n1000000-d1000-c32-disjoint",
+      "masks": {
+        "app/proxy": [
+          [3, 4, 9, 10]
+        ],
+        "postgres": [
+          [0, 1, 2, 6, 7, 8]
+        ],
+        "postgres-child": [
+          [0, 1, 2, 6, 7, 8]
+        ]
+      }
+    },
+    {
+      "cell": "supabase/08-supabase-W4-B-1903/w4-n1000000-d1000-c32-disjoint",
+      "masks": {
+        "app/proxy": [
+          [3, 4, 9, 10]
+        ],
+        "postgres": [
+          [0, 1, 2, 6, 7, 8]
+        ],
+        "postgres-child": [
+          [0, 1, 2, 6, 7, 8]
+        ]
+      }
+    },
+    {
+      "cell": "supabase/10-supabase-W4-B-1903/w4-n1000000-d1000-c32-disjoint",
+      "masks": {
+        "app/proxy": [
+          [3, 4, 9, 10]
+        ],
+        "postgres": [
+          [0, 1, 2, 6, 7, 8]
+        ],
+        "postgres-child": [
+          [0, 1, 2, 6, 7, 8]
+        ]
+      }
+    },
+    {
+      "cell": "supabase/12-supabase-W4-B-1903/w4-n1000000-d1000-c32-disjoint",
+      "masks": {
+        "app/proxy": [
+          [3, 4, 9, 10]
+        ],
+        "postgres": [
+          [0, 1, 2, 6, 7, 8]
+        ],
+        "postgres-child": [
+          [0, 1, 2, 6, 7, 8]
+        ]
+      }
+    },
+    {
+      "cell": "supabase/14-supabase-W4-B-1903/w4-n1000000-d1000-c32-disjoint",
+      "masks": {
+        "app/proxy": [
+          [3, 4, 9, 10]
+        ],
+        "postgres": [
+          [0, 1, 2, 6, 7, 8]
+        ],
+        "postgres-child": [
+          [0, 1, 2, 6, 7, 8]
+        ]
+      }
+    },
+    {
+      "cell": "supabase/16-supabase-W4-B-2262/w4-n1000000-d1000-c32-disjoint",
+      "masks": {
+        "app/proxy": [
+          [3, 4, 9, 10]
+        ],
+        "postgres": [
+          [0, 1, 2, 6, 7, 8]
+        ],
+        "postgres-child": [
+          [0, 1, 2, 6, 7, 8]
+        ]
+      }
+    },
+    {
+      "cell": "supabase/18-supabase-W4-B-2262/w4-n1000000-d1000-c32-disjoint",
+      "masks": {
+        "app/proxy": [
+          [3, 4, 9, 10]
+        ],
+        "postgres": [
+          [0, 1, 2, 6, 7, 8]
+        ],
+        "postgres-child": [
+          [0, 1, 2, 6, 7, 8]
+        ]
+      }
+    },
+    {
+      "cell": "supabase/20-supabase-W4-B-2262/w4-n1000000-d1000-c32-disjoint",
+      "masks": {
+        "app/proxy": [
+          [3, 4, 9, 10]
+        ],
+        "postgres": [
+          [0, 1, 2, 6, 7, 8]
+        ],
+        "postgres-child": [
+          [0, 1, 2, 6, 7, 8]
+        ]
+      }
+    },
+    {
+      "cell": "supabase/22-supabase-W4-B-2262/w4-n1000000-d1000-c32-disjoint",
+      "masks": {
+        "app/proxy": [
+          [3, 4, 9, 10]
+        ],
+        "postgres": [
+          [0, 1, 2, 6, 7, 8]
+        ],
+        "postgres-child": [
+          [0, 1, 2, 6, 7, 8]
+        ]
+      }
+    },
+    {
+      "cell": "supabase/24-supabase-W4-B-2262/w4-n1000000-d1000-c32-disjoint",
+      "masks": {
+        "app/proxy": [
+          [3, 4, 9, 10]
+        ],
+        "postgres": [
+          [0, 1, 2, 6, 7, 8]
+        ],
+        "postgres-child": [
+          [0, 1, 2, 6, 7, 8]
+        ]
+      }
+    }
+  ],
+  "rtts": [
+    {
+      "cell": "convex/26-convex-W4-B-141/w4-n1000000-d1000-c32-disjoint",
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 1.104,
+      "p99_ms": 1.152,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-gliz4kmy/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "cell": "convex/26-convex-W4-B-141/w4-n1000000-d1000-c32-disjoint",
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 1.078,
+      "p99_ms": 1.144,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-gliz4kmy/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "cell": "snapback/07-snapback-W4-B-1903/w4-n1000000-d1000-c32-disjoint",
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 1.098,
+      "p99_ms": 1.124,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-6lphpdlp/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "cell": "snapback/07-snapback-W4-B-1903/w4-n1000000-d1000-c32-disjoint",
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 1.092,
+      "p99_ms": 1.13,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-6lphpdlp/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "cell": "snapback/09-snapback-W4-B-1903/w4-n1000000-d1000-c32-disjoint",
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 1.097,
+      "p99_ms": 1.169,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-6lphpdlp/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "cell": "snapback/09-snapback-W4-B-1903/w4-n1000000-d1000-c32-disjoint",
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 1.079,
+      "p99_ms": 1.114,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-6lphpdlp/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "cell": "snapback/11-snapback-W4-B-1903/w4-n1000000-d1000-c32-disjoint",
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 1.082,
+      "p99_ms": 1.133,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-6lphpdlp/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "cell": "snapback/11-snapback-W4-B-1903/w4-n1000000-d1000-c32-disjoint",
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 1.076,
+      "p99_ms": 1.127,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-6lphpdlp/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "cell": "snapback/13-snapback-W4-B-1903/w4-n1000000-d1000-c32-disjoint",
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 1.093,
+      "p99_ms": 1.128,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-6lphpdlp/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "cell": "snapback/13-snapback-W4-B-1903/w4-n1000000-d1000-c32-disjoint",
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 1.066,
+      "p99_ms": 1.087,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-6lphpdlp/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "cell": "snapback/15-snapback-W4-B-1903/w4-n1000000-d1000-c32-disjoint",
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 1.076,
+      "p99_ms": 1.115,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-6lphpdlp/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "cell": "snapback/15-snapback-W4-B-1903/w4-n1000000-d1000-c32-disjoint",
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 1.083,
+      "p99_ms": 1.122,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-6lphpdlp/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "cell": "snapback/17-snapback-W4-B-2262/w4-n1000000-d1000-c32-disjoint",
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 1.094,
+      "p99_ms": 1.12,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-6lphpdlp/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "cell": "snapback/17-snapback-W4-B-2262/w4-n1000000-d1000-c32-disjoint",
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 1.066,
+      "p99_ms": 1.102,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-6lphpdlp/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "cell": "snapback/19-snapback-W4-B-2262/w4-n1000000-d1000-c32-disjoint",
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 1.08,
+      "p99_ms": 1.154,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-6lphpdlp/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "cell": "snapback/19-snapback-W4-B-2262/w4-n1000000-d1000-c32-disjoint",
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 1.071,
+      "p99_ms": 1.109,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-6lphpdlp/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "cell": "snapback/21-snapback-W4-B-2262/w4-n1000000-d1000-c32-disjoint",
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 1.098,
+      "p99_ms": 1.171,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-6lphpdlp/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "cell": "snapback/21-snapback-W4-B-2262/w4-n1000000-d1000-c32-disjoint",
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 1.08,
+      "p99_ms": 1.111,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-6lphpdlp/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "cell": "snapback/23-snapback-W4-B-2262/w4-n1000000-d1000-c32-disjoint",
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 1.079,
+      "p99_ms": 1.161,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-6lphpdlp/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "cell": "snapback/23-snapback-W4-B-2262/w4-n1000000-d1000-c32-disjoint",
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 1.08,
+      "p99_ms": 1.104,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-6lphpdlp/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "cell": "snapback/25-snapback-W4-B-2262/w4-n1000000-d1000-c32-disjoint",
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 1.076,
+      "p99_ms": 1.143,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-6lphpdlp/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "cell": "snapback/25-snapback-W4-B-2262/w4-n1000000-d1000-c32-disjoint",
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 1.082,
+      "p99_ms": 1.144,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-6lphpdlp/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "cell": "supabase/01-supabase-W4-A-3200/w4-n1000000-d500-c32-disjoint",
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 0.562,
+      "p99_ms": 0.608,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-8y306xub/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "cell": "supabase/01-supabase-W4-A-3200/w4-n1000000-d500-c32-disjoint",
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 0.568,
+      "p99_ms": 0.586,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-8y306xub/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "cell": "supabase/02-supabase-W4-A-3805/w4-n1000000-d500-c32-disjoint",
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 0.562,
+      "p99_ms": 0.585,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-8y306xub/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "cell": "supabase/02-supabase-W4-A-3805/w4-n1000000-d500-c32-disjoint",
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 0.564,
+      "p99_ms": 0.582,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-8y306xub/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "cell": "supabase/03-supabase-W4-A-4525/w4-n1000000-d500-c32-disjoint",
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 0.561,
+      "p99_ms": 0.58,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-8y306xub/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "cell": "supabase/03-supabase-W4-A-4525/w4-n1000000-d500-c32-disjoint",
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 0.562,
+      "p99_ms": 0.629,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-8y306xub/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "cell": "supabase/04-supabase-W5-B-1903/w5-n1000000-d1000-c32-hot1",
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 1.073,
+      "p99_ms": 1.131,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-8y306xub/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "cell": "supabase/04-supabase-W5-B-1903/w5-n1000000-d1000-c32-hot1",
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 1.076,
+      "p99_ms": 1.106,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-8y306xub/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "cell": "supabase/05-supabase-W5-B-2262/w5-n1000000-d1000-c32-hot1",
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 1.082,
+      "p99_ms": 1.129,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-8y306xub/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "cell": "supabase/05-supabase-W5-B-2262/w5-n1000000-d1000-c32-hot1",
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 1.08,
+      "p99_ms": 1.117,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-8y306xub/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "cell": "supabase/06-supabase-W4-B-1903/w4-n1000000-d1000-c32-disjoint",
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 1.086,
+      "p99_ms": 1.13,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-8y306xub/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "cell": "supabase/06-supabase-W4-B-1903/w4-n1000000-d1000-c32-disjoint",
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 1.072,
+      "p99_ms": 1.113,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-8y306xub/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "cell": "supabase/08-supabase-W4-B-1903/w4-n1000000-d1000-c32-disjoint",
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 1.097,
+      "p99_ms": 1.151,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-8y306xub/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "cell": "supabase/08-supabase-W4-B-1903/w4-n1000000-d1000-c32-disjoint",
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 1.073,
+      "p99_ms": 1.118,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-8y306xub/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "cell": "supabase/10-supabase-W4-B-1903/w4-n1000000-d1000-c32-disjoint",
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 1.081,
+      "p99_ms": 1.138,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-8y306xub/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "cell": "supabase/10-supabase-W4-B-1903/w4-n1000000-d1000-c32-disjoint",
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 1.077,
+      "p99_ms": 1.105,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-8y306xub/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "cell": "supabase/12-supabase-W4-B-1903/w4-n1000000-d1000-c32-disjoint",
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 1.095,
+      "p99_ms": 1.151,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-8y306xub/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "cell": "supabase/12-supabase-W4-B-1903/w4-n1000000-d1000-c32-disjoint",
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 1.071,
+      "p99_ms": 1.094,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-8y306xub/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "cell": "supabase/14-supabase-W4-B-1903/w4-n1000000-d1000-c32-disjoint",
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 1.099,
+      "p99_ms": 1.131,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-8y306xub/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "cell": "supabase/14-supabase-W4-B-1903/w4-n1000000-d1000-c32-disjoint",
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 1.07,
+      "p99_ms": 1.097,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-8y306xub/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "cell": "supabase/16-supabase-W4-B-2262/w4-n1000000-d1000-c32-disjoint",
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 1.077,
+      "p99_ms": 1.111,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-8y306xub/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "cell": "supabase/16-supabase-W4-B-2262/w4-n1000000-d1000-c32-disjoint",
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 1.079,
+      "p99_ms": 1.13,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-8y306xub/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "cell": "supabase/18-supabase-W4-B-2262/w4-n1000000-d1000-c32-disjoint",
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 1.094,
+      "p99_ms": 1.143,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-8y306xub/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "cell": "supabase/18-supabase-W4-B-2262/w4-n1000000-d1000-c32-disjoint",
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 1.073,
+      "p99_ms": 1.172,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-8y306xub/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "cell": "supabase/20-supabase-W4-B-2262/w4-n1000000-d1000-c32-disjoint",
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 1.075,
+      "p99_ms": 1.125,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-8y306xub/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "cell": "supabase/20-supabase-W4-B-2262/w4-n1000000-d1000-c32-disjoint",
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 1.076,
+      "p99_ms": 1.106,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-8y306xub/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "cell": "supabase/22-supabase-W4-B-2262/w4-n1000000-d1000-c32-disjoint",
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 1.077,
+      "p99_ms": 1.145,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-8y306xub/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "cell": "supabase/22-supabase-W4-B-2262/w4-n1000000-d1000-c32-disjoint",
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 1.073,
+      "p99_ms": 1.096,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-8y306xub/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "cell": "supabase/24-supabase-W4-B-2262/w4-n1000000-d1000-c32-disjoint",
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 1.08,
+      "p99_ms": 1.133,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-8y306xub/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "cell": "supabase/24-supabase-W4-B-2262/w4-n1000000-d1000-c32-disjoint",
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 1.073,
+      "p99_ms": 1.145,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-8y306xub/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    }
+  ],
+  "seeds": {
+    "supabase": {
+      "rooms": 1025,
+      "users": 256,
+      "counters": 257,
+      "messages": 1000000,
+      "memberships": 8448,
+      "bad_messages": 0,
+      "bad_room_totals": 0,
+      "bad_sender_totals": 0
+    },
+    "snapback": {
+      "rooms": 1025,
+      "users": 256,
+      "counters": 257,
+      "messages": 1000000,
+      "memberships": 8448,
+      "room_mismatches": 0,
+      "sender_mismatches": 0,
+      "message_image_mismatches": 0
+    },
+    "convex": {
+      "users": {
+        "actual": {
+          "count": 256,
+          "sum_sha256": "0227d1dab165140544dd5a04020da8015acbc1832bf40b492b1cfdb9cfe01ee3",
+          "xor_sha256": "ef482300d485dbe100cc07ccbb565ed4405670cff0a4ec071b13fc91db0a488d"
+        },
+        "expected": {
+          "count": 256,
+          "sum_sha256": "0227d1dab165140544dd5a04020da8015acbc1832bf40b492b1cfdb9cfe01ee3",
+          "xor_sha256": "ef482300d485dbe100cc07ccbb565ed4405670cff0a4ec071b13fc91db0a488d"
+        },
+        "equal": true
+      },
+      "rooms": {
+        "actual": {
+          "count": 1025,
+          "sum_sha256": "335c6e1504ad599dcb4658b756353e4d776cfe30243209f40da678485b19300c",
+          "xor_sha256": "6ed60d6db613dda0ba57ad98f37696cc3d20e54164954071eb61496bbbba75a6"
+        },
+        "expected": {
+          "count": 1025,
+          "sum_sha256": "335c6e1504ad599dcb4658b756353e4d776cfe30243209f40da678485b19300c",
+          "xor_sha256": "6ed60d6db613dda0ba57ad98f37696cc3d20e54164954071eb61496bbbba75a6"
+        },
+        "equal": true
+      },
+      "memberships": {
+        "actual": {
+          "count": 8448,
+          "sum_sha256": "c67b827c165114d6c8e56d52c6c9862a9b6398775519a37010e0d360a06acd2a",
+          "xor_sha256": "cc8a51b6c3bc82162c18a6f02b05db225fe21c74a7738ddb1df27d9f33194434"
+        },
+        "expected": {
+          "count": 8448,
+          "sum_sha256": "c67b827c165114d6c8e56d52c6c9862a9b6398775519a37010e0d360a06acd2a",
+          "xor_sha256": "cc8a51b6c3bc82162c18a6f02b05db225fe21c74a7738ddb1df27d9f33194434"
+        },
+        "equal": true
+      },
+      "counters": {
+        "actual": {
+          "count": 257,
+          "sum_sha256": "bde9c9cf0c44de9a3b88f9cb54ec29b9fb8ce421bb64ae702e0e33015d709982",
+          "xor_sha256": "e35c542a24e2117d9dd9437b80ed2f582c3b8094b6db0d0047806f2389a5e6b4"
+        },
+        "expected": {
+          "count": 257,
+          "sum_sha256": "bde9c9cf0c44de9a3b88f9cb54ec29b9fb8ce421bb64ae702e0e33015d709982",
+          "xor_sha256": "e35c542a24e2117d9dd9437b80ed2f582c3b8094b6db0d0047806f2389a5e6b4"
+        },
+        "equal": true
+      },
+      "messages": {
+        "actual": {
+          "count": 1000000,
+          "sum_sha256": "d3eb1dccd25868645ca2f19f80d0967924fc78c89b1387c241a0bffaedc7fd4a",
+          "xor_sha256": "af0d632f107ac4340b2cbbc9506ca4f99f303efb70eafe0adf20da76d54f5170"
+        },
+        "expected": {
+          "count": 1000000,
+          "sum_sha256": "d3eb1dccd25868645ca2f19f80d0967924fc78c89b1387c241a0bffaedc7fd4a",
+          "xor_sha256": "af0d632f107ac4340b2cbbc9506ca4f99f303efb70eafe0adf20da76d54f5170"
+        },
+        "equal": true
+      }
+    }
+  },
+  "supabase_stack": [
+    {
+      "cell": "supabase/01-supabase-W4-A-3200/w4-n1000000-d500-c32-disjoint",
+      "effective_config_exact_s1c_match": true,
+      "effective_config_sha256": "8bdd41fca9635cfb071e052766615cdd47378455c142d2a20c4d3cf050604a11",
+      "pool": 32,
+      "postgrest_sha256": "e62299f98f67938f754291340b2fc07b69685546e6017b455ef3e776daef45ee",
+      "private_port": 55441,
+      "private_socket_verified": true,
+      "sql_and_durability_inputs_exact_s1c_match": true,
+      "checked_before_first_timed_trial": true
+    },
+    {
+      "cell": "supabase/02-supabase-W4-A-3805/w4-n1000000-d500-c32-disjoint",
+      "effective_config_exact_s1c_match": true,
+      "effective_config_sha256": "8bdd41fca9635cfb071e052766615cdd47378455c142d2a20c4d3cf050604a11",
+      "pool": 32,
+      "postgrest_sha256": "e62299f98f67938f754291340b2fc07b69685546e6017b455ef3e776daef45ee",
+      "private_port": 55441,
+      "private_socket_verified": true,
+      "sql_and_durability_inputs_exact_s1c_match": true,
+      "checked_before_first_timed_trial": true
+    },
+    {
+      "cell": "supabase/02-supabase-W4-A-3805/w4-n1000000-d500-c32-disjoint/retry-rate-3805-r3",
+      "effective_config_exact_s1c_match": true,
+      "effective_config_sha256": "8bdd41fca9635cfb071e052766615cdd47378455c142d2a20c4d3cf050604a11",
+      "pool": 32,
+      "postgrest_sha256": "e62299f98f67938f754291340b2fc07b69685546e6017b455ef3e776daef45ee",
+      "private_port": 55441,
+      "private_socket_verified": true,
+      "sql_and_durability_inputs_exact_s1c_match": true,
+      "checked_before_first_timed_trial": true
+    },
+    {
+      "cell": "supabase/03-supabase-W4-A-4525/w4-n1000000-d500-c32-disjoint",
+      "effective_config_exact_s1c_match": true,
+      "effective_config_sha256": "8bdd41fca9635cfb071e052766615cdd47378455c142d2a20c4d3cf050604a11",
+      "pool": 32,
+      "postgrest_sha256": "e62299f98f67938f754291340b2fc07b69685546e6017b455ef3e776daef45ee",
+      "private_port": 55441,
+      "private_socket_verified": true,
+      "sql_and_durability_inputs_exact_s1c_match": true,
+      "checked_before_first_timed_trial": true
+    },
+    {
+      "cell": "supabase/03-supabase-W4-A-4525/w4-n1000000-d500-c32-disjoint/retry-rate-4525-r2",
+      "effective_config_exact_s1c_match": true,
+      "effective_config_sha256": "8bdd41fca9635cfb071e052766615cdd47378455c142d2a20c4d3cf050604a11",
+      "pool": 32,
+      "postgrest_sha256": "e62299f98f67938f754291340b2fc07b69685546e6017b455ef3e776daef45ee",
+      "private_port": 55441,
+      "private_socket_verified": true,
+      "sql_and_durability_inputs_exact_s1c_match": true,
+      "checked_before_first_timed_trial": true
+    },
+    {
+      "cell": "supabase/04-supabase-W5-B-1903/w5-n1000000-d1000-c32-hot1",
+      "effective_config_exact_s1c_match": true,
+      "effective_config_sha256": "8bdd41fca9635cfb071e052766615cdd47378455c142d2a20c4d3cf050604a11",
+      "pool": 32,
+      "postgrest_sha256": "e62299f98f67938f754291340b2fc07b69685546e6017b455ef3e776daef45ee",
+      "private_port": 55441,
+      "private_socket_verified": true,
+      "sql_and_durability_inputs_exact_s1c_match": true,
+      "checked_before_first_timed_trial": true
+    },
+    {
+      "cell": "supabase/05-supabase-W5-B-2262/w5-n1000000-d1000-c32-hot1",
+      "effective_config_exact_s1c_match": true,
+      "effective_config_sha256": "8bdd41fca9635cfb071e052766615cdd47378455c142d2a20c4d3cf050604a11",
+      "pool": 32,
+      "postgrest_sha256": "e62299f98f67938f754291340b2fc07b69685546e6017b455ef3e776daef45ee",
+      "private_port": 55441,
+      "private_socket_verified": true,
+      "sql_and_durability_inputs_exact_s1c_match": true,
+      "checked_before_first_timed_trial": true
+    },
+    {
+      "cell": "supabase/06-supabase-W4-B-1903/w4-n1000000-d1000-c32-disjoint",
+      "effective_config_exact_s1c_match": true,
+      "effective_config_sha256": "8bdd41fca9635cfb071e052766615cdd47378455c142d2a20c4d3cf050604a11",
+      "pool": 32,
+      "postgrest_sha256": "e62299f98f67938f754291340b2fc07b69685546e6017b455ef3e776daef45ee",
+      "private_port": 55441,
+      "private_socket_verified": true,
+      "sql_and_durability_inputs_exact_s1c_match": true,
+      "checked_before_first_timed_trial": true
+    },
+    {
+      "cell": "supabase/08-supabase-W4-B-1903/w4-n1000000-d1000-c32-disjoint",
+      "effective_config_exact_s1c_match": true,
+      "effective_config_sha256": "8bdd41fca9635cfb071e052766615cdd47378455c142d2a20c4d3cf050604a11",
+      "pool": 32,
+      "postgrest_sha256": "e62299f98f67938f754291340b2fc07b69685546e6017b455ef3e776daef45ee",
+      "private_port": 55441,
+      "private_socket_verified": true,
+      "sql_and_durability_inputs_exact_s1c_match": true,
+      "checked_before_first_timed_trial": true
+    },
+    {
+      "cell": "supabase/10-supabase-W4-B-1903/w4-n1000000-d1000-c32-disjoint",
+      "effective_config_exact_s1c_match": true,
+      "effective_config_sha256": "8bdd41fca9635cfb071e052766615cdd47378455c142d2a20c4d3cf050604a11",
+      "pool": 32,
+      "postgrest_sha256": "e62299f98f67938f754291340b2fc07b69685546e6017b455ef3e776daef45ee",
+      "private_port": 55441,
+      "private_socket_verified": true,
+      "sql_and_durability_inputs_exact_s1c_match": true,
+      "checked_before_first_timed_trial": true
+    },
+    {
+      "cell": "supabase/12-supabase-W4-B-1903/w4-n1000000-d1000-c32-disjoint",
+      "effective_config_exact_s1c_match": true,
+      "effective_config_sha256": "8bdd41fca9635cfb071e052766615cdd47378455c142d2a20c4d3cf050604a11",
+      "pool": 32,
+      "postgrest_sha256": "e62299f98f67938f754291340b2fc07b69685546e6017b455ef3e776daef45ee",
+      "private_port": 55441,
+      "private_socket_verified": true,
+      "sql_and_durability_inputs_exact_s1c_match": true,
+      "checked_before_first_timed_trial": true
+    },
+    {
+      "cell": "supabase/14-supabase-W4-B-1903/w4-n1000000-d1000-c32-disjoint",
+      "effective_config_exact_s1c_match": true,
+      "effective_config_sha256": "8bdd41fca9635cfb071e052766615cdd47378455c142d2a20c4d3cf050604a11",
+      "pool": 32,
+      "postgrest_sha256": "e62299f98f67938f754291340b2fc07b69685546e6017b455ef3e776daef45ee",
+      "private_port": 55441,
+      "private_socket_verified": true,
+      "sql_and_durability_inputs_exact_s1c_match": true,
+      "checked_before_first_timed_trial": true
+    },
+    {
+      "cell": "supabase/16-supabase-W4-B-2262/w4-n1000000-d1000-c32-disjoint",
+      "effective_config_exact_s1c_match": true,
+      "effective_config_sha256": "8bdd41fca9635cfb071e052766615cdd47378455c142d2a20c4d3cf050604a11",
+      "pool": 32,
+      "postgrest_sha256": "e62299f98f67938f754291340b2fc07b69685546e6017b455ef3e776daef45ee",
+      "private_port": 55441,
+      "private_socket_verified": true,
+      "sql_and_durability_inputs_exact_s1c_match": true,
+      "checked_before_first_timed_trial": true
+    },
+    {
+      "cell": "supabase/18-supabase-W4-B-2262/w4-n1000000-d1000-c32-disjoint",
+      "effective_config_exact_s1c_match": true,
+      "effective_config_sha256": "8bdd41fca9635cfb071e052766615cdd47378455c142d2a20c4d3cf050604a11",
+      "pool": 32,
+      "postgrest_sha256": "e62299f98f67938f754291340b2fc07b69685546e6017b455ef3e776daef45ee",
+      "private_port": 55441,
+      "private_socket_verified": true,
+      "sql_and_durability_inputs_exact_s1c_match": true,
+      "checked_before_first_timed_trial": true
+    },
+    {
+      "cell": "supabase/20-supabase-W4-B-2262/w4-n1000000-d1000-c32-disjoint",
+      "effective_config_exact_s1c_match": true,
+      "effective_config_sha256": "8bdd41fca9635cfb071e052766615cdd47378455c142d2a20c4d3cf050604a11",
+      "pool": 32,
+      "postgrest_sha256": "e62299f98f67938f754291340b2fc07b69685546e6017b455ef3e776daef45ee",
+      "private_port": 55441,
+      "private_socket_verified": true,
+      "sql_and_durability_inputs_exact_s1c_match": true,
+      "checked_before_first_timed_trial": true
+    },
+    {
+      "cell": "supabase/22-supabase-W4-B-2262/w4-n1000000-d1000-c32-disjoint",
+      "effective_config_exact_s1c_match": true,
+      "effective_config_sha256": "8bdd41fca9635cfb071e052766615cdd47378455c142d2a20c4d3cf050604a11",
+      "pool": 32,
+      "postgrest_sha256": "e62299f98f67938f754291340b2fc07b69685546e6017b455ef3e776daef45ee",
+      "private_port": 55441,
+      "private_socket_verified": true,
+      "sql_and_durability_inputs_exact_s1c_match": true,
+      "checked_before_first_timed_trial": true
+    },
+    {
+      "cell": "supabase/24-supabase-W4-B-2262/w4-n1000000-d1000-c32-disjoint",
+      "effective_config_exact_s1c_match": true,
+      "effective_config_sha256": "8bdd41fca9635cfb071e052766615cdd47378455c142d2a20c4d3cf050604a11",
+      "pool": 32,
+      "postgrest_sha256": "e62299f98f67938f754291340b2fc07b69685546e6017b455ef3e776daef45ee",
+      "private_port": 55441,
+      "private_socket_verified": true,
+      "sql_and_durability_inputs_exact_s1c_match": true,
+      "checked_before_first_timed_trial": true
+    }
+  ],
+  "postgres": {
+    "supabase": {
+      "exact_s1c_match_except_private_port": true,
+      "port": 55441,
+      "sha256_without_port": "c637cecee980ed3cefcbc85d383f907f740c73f1ac40fb40aba011f7553a7b76"
+    },
+    "snapback": {
+      "exact_s1c_match_except_private_port": true,
+      "port": 55441,
+      "sha256_without_port": "c637cecee980ed3cefcbc85d383f907f740c73f1ac40fb40aba011f7553a7b76"
+    },
+    "convex": {
+      "exact_s1c_match_except_private_port": true,
+      "port": 55441,
+      "sha256_without_port": "c637cecee980ed3cefcbc85d383f907f740c73f1ac40fb40aba011f7553a7b76"
+    }
+  }
+}

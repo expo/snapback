@@ -139,6 +139,7 @@ impl Engine {
         tx.record_asset(&upload.asset)?;
         tx.commit()?;
         upload.committed = true;
+        self.store.retain_campaign_asset(&upload.asset.id);
         Ok(upload.asset.clone())
     }
 
@@ -269,6 +270,7 @@ impl Engine {
         let Some((table_name, row_id, column)) = &asset.home else {
             if asset.owner == principal {
                 tx.rollback()?;
+                self.store.materialize_campaign_asset(id)?;
                 return Ok(grant(false));
             }
             return Err(unknown());
@@ -309,6 +311,7 @@ impl Engine {
             }
         }
         tx.rollback()?;
+        self.store.materialize_campaign_asset(id)?;
         Ok(grant(once))
     }
 

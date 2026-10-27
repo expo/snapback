@@ -8,7 +8,7 @@ impl App {
         let root=std::env::temp_dir().join(format!("sb4-day5-{}-{}",std::process::id(),NEXT.fetch_add(1,Ordering::Relaxed)));
         fs::create_dir(&root).unwrap(); Self(root)
     }
-    fn run(&self,args:&[&str])->Output {Command::new(BIN).args(args).current_dir(&self.0).env_remove("PORT_LO").env_remove("PORT_HI").output().unwrap()}
+    fn run(&self,args:&[&str])->Output {Command::new(BIN).args(args).current_dir(&self.0).env("SNAPBACK4_INIT_INSTALL","0").env_remove("PORT_LO").env_remove("PORT_HI").output().unwrap()}
     fn ok(&self,args:&[&str])->String {let out=self.run(args);assert!(out.status.success(),"{args:?}: {out:?}");String::from_utf8(out.stdout).unwrap()}
     fn write(&self,name:&str,text:&str){let path=self.0.join(name);fs::create_dir_all(path.parent().unwrap()).unwrap();fs::write(path,text).unwrap();}
     fn read(&self,name:&str)->String {fs::read_to_string(self.0.join(name)).unwrap()}

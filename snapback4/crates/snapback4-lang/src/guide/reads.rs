@@ -22,6 +22,12 @@ query recentTotal(roomId: rooms, start: time, end: time):
 `newest` pages newest-first; `recentTotal` counts under the meter.
 Repeated `where` combines using ordered `and`.
 
+## Empty lists
+
+A complete empty list is `absent` (`data: []`); `present` never sees it.
+Use `matchRead(read, {loading, denied, absent: () => "No rows", partial, present})`.
+Absent points return null; partial empty pages must not claim "No rows".
+
 ## Limits
 
 - A positional key names one row; use `where` for populations: E_QUARRY_POSITIONAL_SCAN.

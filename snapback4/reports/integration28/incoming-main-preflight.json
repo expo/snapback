@@ -1,0 +1,37 @@
+{
+  "base": "98177aa48b35b99779a95b4db3e26710ac76bf0c",
+  "fetchedMain": "750a8c34fadd4ead75da0c7efb9e8290585115cc",
+  "paths": 485,
+  "groups": {
+    "snapback4/experiments/scale-controls": 22,
+    "snapback4/metrics/publish.jsonl": 1,
+    "snapback4/metrics/witness.jsonl": 1,
+    "snapback4/reports/20261026-expo-0.4.43": 21,
+    "snapback4/reports/20261026-publication-0.4.43": 440
+  },
+  "otherPaths": [
+    "snapback4/experiments/scale-controls/results-20261027-s1-tiebreak-controls/README.md",
+    "snapback4/experiments/scale-controls/results-20261027-s1-tiebreak-controls/archive.json",
+    "snapback4/experiments/scale-controls/results-20261027-s1-tiebreak-controls/binary-custody.json",
+    "snapback4/experiments/scale-controls/results-20261027-s1-tiebreak-controls/convex-configuration.json",
+    "snapback4/experiments/scale-controls/results-20261027-s1-tiebreak-controls/convex-disposition.json",
+    "snapback4/experiments/scale-controls/results-20261027-s1-tiebreak-controls/disk.json",
+    "snapback4/experiments/scale-controls/results-20261027-s1-tiebreak-controls/endpoint-adaptation.json",
+    "snapback4/experiments/scale-controls/results-20261027-s1-tiebreak-controls/generator-source-witness.json",
+    "snapback4/experiments/scale-controls/results-20261027-s1-tiebreak-controls/limits.json",
+    "snapback4/experiments/scale-controls/results-20261027-s1-tiebreak-controls/method-witnesses.json",
+    "snapback4/experiments/scale-controls/results-20261027-s1-tiebreak-controls/original-harness-audit.json",
+    "snapback4/experiments/scale-controls/results-20261027-s1-tiebreak-controls/owned-cache-cleanup.json",
+    "snapback4/experiments/scale-controls/results-20261027-s1-tiebreak-controls/private-cleanup.json",
+    "snapback4/experiments/scale-controls/results-20261027-s1-tiebreak-controls/process-audit.json",
+    "snapback4/experiments/scale-controls/results-20261027-s1-tiebreak-controls/qualification.json",
+    "snapback4/experiments/scale-controls/results-20261027-s1-tiebreak-controls/rates.json",
+    "snapback4/experiments/scale-controls/results-20261027-s1-tiebreak-controls/repository-checks.json",
+    "snapback4/experiments/scale-controls/results-20261027-s1-tiebreak-controls/s1c-input-witness.json",
+    "snapback4/experiments/scale-controls/results-20261027-s1-tiebreak-controls/secret-audit.json",
+    "snapback4/experiments/scale-controls/results-20261027-s1-tiebreak-controls/sequence.json",
+    "snapback4/experiments/scale-controls/results-20261027-s1-tiebreak-controls/staged-secret-audit.json",
+    "snapback4/experiments/scale-controls/results-20261027-s1-tiebreak-controls/verification.json"
+  ],
+  "decision": "Read-only preflight while consumer source remains fixed. Merge after qualification; incoming records/metrics require reference/inventory checks, no runtime retest if unchanged at final fetch."
+}

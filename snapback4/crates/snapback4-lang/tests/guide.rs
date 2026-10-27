@@ -24,8 +24,8 @@ const README: &str = concat!(include_str!("../../../packages/snapback4/README.md
 
 // A relocated assertion checks the actual orientation door as well as its destination.
 fn readme_reference(name: &str) -> &'static str {
-    let map = include_str!("../../../packages/snapback4/README.md").split_once("## Reference map").unwrap().1;
-    assert!(map.contains(&format!("`guide {name}`")), "orientation omits guide {name}");
+    assert!(include_str!("../../../packages/snapback4/README.md").contains("guide start"));
+    assert!(guide::listing().contains(name), "on-demand card registry omits {name}");
     card(name).unwrap()
 }
 
@@ -124,7 +124,9 @@ fn w11r2_native_boundary_sentence_matches_both_published_copies() {
 #[test]
 fn w14b_first_account_screen_is_self_contained() {
     let readme = include_str!("../../../packages/snapback4/README.md");
-    let path = readme.split_once("## Reference map").expect("one optional reference map").0;
+    assert!(readme.contains("./CLIENT-AND-OPERATIONS.md#your-first-working-account-screen"));
+    let reference = include_str!("../../../packages/snapback4/CLIENT-AND-OPERATIONS.md");
+    let path = reference.split_once("## Your first working account screen").expect("one linked optional walkthrough").1;
     for text in [
         "npx snapback4 init --expo", "npm install", "npx snapback4 check", "npm run backend",
         "use identity password", "table profiles:", "unique handle", "avatar: image",
@@ -135,8 +137,8 @@ fn w14b_first_account_screen_is_self_contained() {
         "\"pending\"", "\"denied\"", "`sent`", "\"failed\"", "\"loading\"",
         "post-signup", "terminal", "cold-offline", "1,024 UTF-8 bytes", "8 characters",
         "// src/client.ts", "// App.tsx",
-    ] { assert!(path.contains(text), "in-file first-screen path omits {text}"); }
-    assert!(!path.split("### 6.").next().unwrap().contains("]("), "required account setup is in-file; the optional thread extension links the receipt recipe");
+    ] { assert!(path.contains(text), "linked first-screen path omits {text}"); }
+    assert!(!path.split("### 6.").next().unwrap().contains("]("), "linked walkthrough keeps required account setup together");
     assert!(!path.contains("guest("), "the first account is password-only");
     assert!(path.find("client.upload(").unwrap() < path.find("avatar: { id: result.asset.id }").unwrap());
     let source = quarry(path).into_iter().find(|block| block.contains("table profiles:")).unwrap();
@@ -168,12 +170,10 @@ fn w14b_first_account_screen_is_self_contained() {
 fn w10a_readme_opening_is_one_way_into_the_published_surface() {
     let readme = include_str!("../../../packages/snapback4/README.md");
     let opening = readme;
-    for text in ["README.md", "CLIENT-AND-OPERATIONS.md", "./CLIENT-AND-OPERATIONS.md#4-the-client", "./CLIENT-AND-OPERATIONS.md#8-not-in-this-release", "Start here", "snapback4 guide <card>", "snapback4 why <code>", "terminal", "cold-offline"] {
-        assert!(opening.contains(text), "the first page omits {text}");
+    for text in ["CLIENT-AND-OPERATIONS.md", "guide start", "guide api", "npm i snapback4", "probe:check"] {
+        assert!(opening.contains(text), "first read omits {text}");
     }
-    for card in ["language", "rules", "sync", "residency", "prediction", "reads", "writes", "effects", "jobs", "personas", "assets", "actions", "time", "routes"] {
-        assert!(opening.contains(&format!("guide {card}")), "start path omits {card}");
-    }
+    assert!(readme.len() < 2500, "README is a pointer, not a second tutorial");
     assert!(!readme.to_lowercase().contains("there is no other documentation"));
     assert!(include_str!("../../../packages/snapback4/CLIENT-AND-OPERATIONS.md").contains("## 4. The client"));
 }
@@ -792,7 +792,7 @@ fn the_keywords_are_one_list() {
         text[start..].split("\n\n").next().unwrap().to_owned()
     };
     let on_card = listed(LANGUAGE, "Cards: `snapback4 guide <keyword>`");
-    let in_readme = listed(README, "**`guide [keyword]`**");
+    let in_readme = guide::listing();
     for keyword in KEYWORDS {
         assert!(card(keyword).is_some(), "{keyword} has no card");
         if *keyword != "language" {
@@ -1012,7 +1012,7 @@ fn terminal_and_compatibility_overviews_carry_the_first_nonempty_section() {
     for name in KEYWORDS {
         let text = card(name).unwrap();
         let (Some(short), Some(piped)) = (guide::overview(name, text), guide::overview_and_first_section(name, text)) else { continue };
-        if guide::sections(text).is_empty() { assert!(piped.contains("indivisible recipe") && !piped.contains("```")); continue; }
+        if guide::sections(text).is_empty() { assert!(piped.contains("indivisible recipe") && piped.contains("```")); continue; }
         assert_eq!(short, piped, "{name}: terminal overview also carries the first section");
         assert!(piped.lines().count() <= 150, "{name}: {} lines piped", piped.lines().count());
         let sections = guide::sections(text);
@@ -1364,7 +1364,7 @@ fn digest_recipe_is_atomic_bounded_and_reachable_from_the_orientation() {
     assert!(explain_code("DIGEST_CHAT_BOUND").unwrap().contains("without an effect or marker"));
     let remind = quarry(jobs).into_iter().find(|b| b.contains("job remind(")).unwrap();
     assert!(remind.contains("immutable sentAt"));
-    assert!(remind.contains("for i in invites where .sentAt >= periodStart and .sentAt < periodEnd by .sentAt:"));
+    assert!(remind.contains("for i in invites where .sentAt < periodEnd by .sentAt:"));
     // `why` names the job door too, and neither text promises a backfill:
     // missed boundaries coalesce into one run for the latest period.
     assert!(explain_code("E_STRUCTURAL_FANOUT").unwrap().contains("or use a job sweep, which may read a table with expiry"));
@@ -1440,10 +1440,11 @@ fn a_piped_card_shows_its_first_section_and_truncation_hint() {
     for name in KEYWORDS {
         let text = card(name).unwrap();
         let printed = guide::piped(name, text);
-        if text.lines().count() > guide::FULL_LINES {
+        if text.lines().count() > guide::FULL_LINES || text.len() > guide::FULL_BYTES {
             assert!(printed.contains("Truncated:"), "{name}: {printed}");
-            assert_eq!(printed, guide::overview_and_first_section(name, text).unwrap());
-            assert!(printed.contains("--full") && printed.contains("Sections of guide"), "{name}");
+            assert_eq!(printed, guide::bounded_default(name, &guide::overview_and_first_section(name, text).unwrap()));
+            assert!(printed.contains("--full"), "{name}");
+            assert!(printed.len() <= guide::FULL_BYTES, "{name}");
         } else { assert_eq!(printed, text); }
     }
 }
@@ -1487,3 +1488,5 @@ fn bounded_discovery_never_prints_a_partial_quarry_fence() {
     let bound=snapback4_lang::compile(&[("schema.q".into(),blocks[0].clone())]);
     assert!(bound.diagnostics.is_empty(),"{:?}",bound.diagnostics);
 }
+
+#[path = "guide/wave30_dx14.rs"] mod wave30_dx14;

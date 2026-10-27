@@ -1,0 +1,7 @@
+{
+  "target": "/home/ccheever/projects/sb4-r0b/snapback4/target/s1-r0b",
+  "scope": "only new R0 build intermediates after successful build and immutable binary copy",
+  "retained_release_binary": true,
+  "before_free_bytes": 31659606016,
+  "after_free_bytes": 33828220928
+}

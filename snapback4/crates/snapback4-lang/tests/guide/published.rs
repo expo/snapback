@@ -25,6 +25,7 @@ fn shipped_files() -> BTreeSet<String> {
 const APP_FILES: &[&str] = &[
     // The executable auth-card example and the installed social starter seed.
     "seed.mjs", "scripts/seed.mjs", "placements.mjs",
+    "src/App.tsx", "scripts/staging.mjs", "scripts/probe-serve.mjs", "scripts/probe-check.mjs",
     // Complete application scripts executed from the packed staging card.
     "staging.mjs", "rename.mjs", "first-admin.mjs", "staging-users.json",
     // Engine outputs and the Exact app consumer described by the wire card.
@@ -53,13 +54,14 @@ const APP_FILES: &[&str] = &[
     ".snapback4/dev-refusals/<storeId>/<instance>.json",
     "app/dm/[other].tsx", "app/conversation/[id].tsx", "src/Direct.tsx",
     "src/BoundedConversation.tsx", "src/PageLifetime.ts", "src/QuotedMessage.tsx",
-    "src/UploadPicker.tsx", "src/client.ts", "src/Inbox.tsx", "src/Thread.tsx", "src/witness.ts",
+    "src/package.json", "src/shared.ts", "src/UploadPicker.tsx", "src/client.ts", "src/Inbox.tsx", "src/Thread.tsx", "src/witness.ts",
     "about/index.html", "artifacts/native-smoke/smoke-ios-run.json", "artifacts/native-smoke/<timestamp>/smoke-ios-run.json",
     "snapback/organizations.q", "src/following.ts", "generated/residency.json",
     "api.ts", "server.ts", "schema.q", "m.q", "digest.q", "mail.q", "hooks.q",
     "App.tsx", "metro.config.js", "metro.config.cjs", "metro-wasm-transformer.cjs",
     "snapback4-sw.js", "contact.html", "about.html", "store.sqlite",
     "<dir>/store.sqlite", "<deployment>/store.sqlite", "deployment/store.sqlite", "<segment>-ios-run.json", "<segment>-ios-screen.mp4",
+    "scripts/prod-serve.mjs", "production/proof-accounts/default.json",
     "<segment>-ios-receipts.jsonl", "/api.ts", "/native.wasm",
     "index.html", "<table>.jsonl", "releases.jsonl", "backend.json",
     "provenance.json", "versions/v1/release.json", "bridge/ROLLBACK-CHECKLIST.md", "fixtures/test.sweep.json", "fixtures/<table>.jsonl", "fixtures/test.cases.jsonl", "expo-env.d.ts",
@@ -190,6 +192,8 @@ fn published_path_guard_rejects_astras_counterexample_and_unlisted_files() {
 #[test]
 fn client_teaches_sdk_delivery_and_screen_seen() {
     let client = card("client").unwrap();
+    assert!(client.contains("CLIENT-AND-OPERATIONS.md#client-tier-and-proof-details"));
+    let client = include_str!("../../../../packages/snapback4/CLIENT-AND-OPERATIONS.md").split_once("## Client tier and proof details").unwrap().1;
     assert!(client.contains("SDK owns delivery reporting"));
     assert!(client.contains("screen owns visible `seen` reporting"));
     for name in ["client", "receipts", "sync"] {

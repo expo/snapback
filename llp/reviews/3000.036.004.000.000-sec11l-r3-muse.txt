@@ -1,0 +1,36 @@
+muse: workspace root: /home/ccheever/projects/sb4-b31-sec11l (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY — source qualification only. No MATERIAL blocker in the delta. Measurements are still in progress; this is not a latency or survey PASS.
+
+Scope verified
+
+- Delta `345f03b27e..559c526316` touches only 4 files: the [RFC](llp/3000.036.004.000.000-production-security-replay-latency.rfc.md), `snapback4/reports/sec11-latency/tools/authored_witnesses.py`, `snapback4/reports/sec11-latency/tools/compare_witnesses.py` (new), `snapback4/reports/sec11-latency/tools/affected-scoped.mjs` (new). `compare.py` is unchanged.
+- Product Rust is unchanged in the delta (`git diff` over `snapback4/crates`, `snapback4/src` is empty), as stated.
+
+Union selection is correct
+
+- `authored_witnesses.py` now takes repeatable `--survey` and builds `by_key` keyed on `(wave, lane)`, keeping a key when `row['checkFixes']` or any `row[m]['fixes']` is non-empty. A key with a FIX in any supplied survey survives (a later no-FIX row does not evict it), so the capture set is the union across the supplied surveys.
+- The one residual gap is narrow: the `sha256` source-mismatch assert only fires when the key is already stored (i.e. an earlier survey had a FIX). A sha drift on a key whose earlier survey had no FIX is not asserted. Selection is still fail-closed in practice because the row `sha256` is carried into the captured payload, so a source skew surfaces as a payload difference.
+
+All-payload capture is correct, no FIX miss
+
+- The old site-prefix filter (`$derived/`, `$enforced/`) is removed from case capture; every invariant with a non-`None` counterexample is now captured for each selected schema, across `check`, `deploy fresh`, and `deploy after-test`.
+- The apparent concern — selection still reads survey `checkFixes`/`fixes`, which are reachability-filtered to `authored-fixture-trace`/`generated-fixture-trace` — is not a miss: that filter is exactly `is_reachable()` in `challenges.rs`, i.e. the definition of a failing FIX. The survey filter is site-agnostic, so a reachable FIX on a derived/enforced-site invariant does appear in the survey and does select the schema. Only non-failing synthetic/seed-only refutations are excluded from selection, which matches the RFC's "any FIX" wording. Within selected schemas the capture is a superset (it even keeps unreachable counterexamples).
+
+Key-set comparison cannot silently miss a changed payload
+
+- `compare_witnesses.py` hashes canonical JSON bytes of each complete captured row with no field/scalar normalization, and separately reports `missing`/`extra` keys. Any changed caller, argument, row image, supporting row, or history flips the row bytes, marks the schema non-identical, and exits non-zero.
+- Two reporting-only (non-blocking) narrowness notes: `fields` iterates only `before` keys, so an after-only added top-level key is detected but unnamed; `schemas` counts `len(before)` rather than the union. Neither misses the change itself.
+- Dead `authored()` helper and a stale "authored counterexamples" docstring remain in `authored_witnesses.py`. Cosmetic only.
+
+Privacy and claim boundaries hold in the tools
+
+- The comparator output retains only per-schema hashes, `identical` flags, changed top-level field names, and key-set deltas. Complete payloads live only in the private per-schema files and `results.json`, which the report must not publish. The RFC amendment states exactly this boundary.
+- Pre-existing note (not introduced here): `compare.py` still embeds full old/new verdicts in its `changes` entries. That is classifier-decision content, not the complete counterexample payloads, and it is unchanged by this delta.
+
+Pipeline obligations (not tool defects, but required for the in-progress runs)
+
+- The tools permit the correct procedure but do not enforce it: both the before- and after-binary capture runs must receive the identical `--survey` list (the before+after union), and `provenance.json` does not record which survey files or digests were supplied, so same-union compliance must be recorded by the pipeline outside the tool.
+- Partial mitigation verified in-source: if the two captures ever run on different unions, the key sets differ and the comparator fails closed via `missing`/`extra` rather than passing silently.
+- Initial tool failures and retries must be reported honestly at the pipeline level: capture aborts loud on subprocess/JSON failures (no silent skip), and the comparators exit non-zero on any difference, so the pipeline must preserve the distinction between "tool failed" and "payloads differ" in its own log rather than relying on exit codes alone.
+- `affected-scoped.mjs` is an explicitly non-canonical, receipted scoping (`sec11lOverride` with `canonicalComplete:false` plus omitted-step lists). It makes no completeness claim and is consistent with the brief's exclusion.

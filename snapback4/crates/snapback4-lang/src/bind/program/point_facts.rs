@@ -148,7 +148,7 @@ impl Binder<'_> {
                 // value. Clear shadowed roots too, and keep assignment revisions
                 // stable so a job sweep does not mistake a guard for an accumulator.
                 binding.fields.retain(|key, _| key.first().is_none_or(|k| {
-                    k != POINT && k != LOOKUP_POINT && k != "$sourceSnapshot" && k != maintain_types::AUTHORIZATION && k != aggregate_facts::NONEMPTY
+                    k != "$advisorySnapshot" && k != "$advisoryRead" && k != POINT && k != LOOKUP_POINT && k != "$sourceSnapshot" && k != maintain_types::AUTHORIZATION && k != aggregate_facts::NONEMPTY
                         && k != aggregate_facts::COUNT_CAPTURE
                 }));
             }
@@ -157,7 +157,14 @@ impl Binder<'_> {
 
     // @ref LLP 3000.013#2.2 — post-write presence follows only a stable
     // point key and a read grant whose deciding state the write cannot change.
-    pub(super) fn invalidate_after_write(&mut self, expr: &A) {
+    pub(super) fn invalidate_after_write(&mut self, expr:&A){
+        let saved=self.stable_advice_after(expr);
+        self.invalidate_after_write_inner(expr);
+        for binding in self.scopes.iter_mut().flat_map(|scope|scope.values_mut()){
+            if let Some(facts)=saved.get(&binding.runtime){binding.fields.extend(facts.iter().cloned());}
+        }
+    }
+    fn invalidate_after_write_inner(&mut self, expr: &A) {
         let A::Write { op: WriteOp::Update, table, fields, .. } = expr else {
             self.invalidate_points(); return;
         };
@@ -175,7 +182,7 @@ impl Binder<'_> {
         for scope in &mut self.scopes {
             for binding in scope.values_mut() {
                 binding.fields.retain(|key, _| match key.first().map(String::as_str) {
-                    Some(LOOKUP_POINT) => false,
+                    Some(LOOKUP_POINT) | Some("$advisoryRead") | Some("$advisorySnapshot") => false,
                     Some(POINT) => !key.iter().any(|part|part=="$field") && safe && key.get(1) == Some(table) && key.get(2)
                         .and_then(|index| definition.index(index)).is_some_and(|index|
                             !fields.iter().any(|field| index.columns().contains(&field.name)

@@ -59,8 +59,8 @@ pub(in crate::verbs) fn render(dispositions: &[Disposition], notes: &[Diagnostic
         let question=concise.trim_end_matches(['.', '?']);
         writeln!(&mut output,"decision {} at {}: {question}; is this intended?",d.code,d.site).unwrap();
         if let Some(witness)=&d.witness {writeln!(&mut output,"  Witness: {}",witness["summary"].as_str().unwrap_or("concrete campaign behavior; check --json for replay")).unwrap();}
-        else if matches!(n.code.as_str(),"N_APPROVAL_NOT_ENFORCED"|"N_ARGUMENT_GRANT"|"N_INSERT_WRITE_INTENT"|"N_DERIVED_WRITE_AUTHORITY") {writeln!(&mut output,"  Witness: none obtained in this bounded campaign; `check --review` searches for concrete behavior; this remains a specification question").unwrap();}
-        if d.witness.is_none() && !matches!(n.code.as_str(),"N_APPROVAL_NOT_ENFORCED"|"N_ARGUMENT_GRANT"|"N_INSERT_WRITE_INTENT"|"N_DERIVED_WRITE_AUTHORITY") {
+        else if matches!(n.code.as_str(),"N_APPROVAL_NOT_ENFORCED"|"N_ARGUMENT_GRANT"|"N_INSERT_WRITE_INTENT"|"N_DERIVED_WRITE_AUTHORITY"|"N_OPTIONAL_EVIDENCE"|"N_TEXT_EVIDENCE"|"N_CHILD_EVIDENCE_PRESENCE"|"N_GUARD_NOT_CONSUMED"|"N_BROAD_READ") {writeln!(&mut output,"  Witness: none obtained in this bounded campaign; `check --review` searches for concrete behavior; this remains a specification question").unwrap();}
+        if d.witness.is_none() && !matches!(n.code.as_str(),"N_APPROVAL_NOT_ENFORCED"|"N_ARGUMENT_GRANT"|"N_INSERT_WRITE_INTENT"|"N_DERIVED_WRITE_AUTHORITY"|"N_OPTIONAL_EVIDENCE"|"N_TEXT_EVIDENCE"|"N_CHILD_EVIDENCE_PRESENCE"|"N_GUARD_NOT_CONSUMED"|"N_BROAD_READ") {
             writeln!(&mut output,"  Witness: unavailable for this code; this is specification advice, not a validated behavior").unwrap();
         }
         let repair=match n.code.as_str() {
@@ -69,6 +69,7 @@ pub(in crate::verbs) fn render(dispositions: &[Disposition], notes: &[Diagnostic
             _=>n.rewrite.as_str(),
         };
         writeln!(&mut output,"  Repair: {repair}").unwrap();
+        if d.gated&&d.witness.is_none(){writeln!(&mut output,"  Intended: declare the source invariant named above and rerun check; prose cannot close this gate").unwrap();continue;}
         let rationale=d.witness.as_ref().filter(|v|witness::concrete(v)).map(witness::reason_template).unwrap_or_else(||"<spec rationale>".into());
         writeln!(&mut output,"  Intended: snapback4 check --ack-security {} --reason '{}'{}",d.id,rationale,if d.gated {" (required before check can pass)"}else{""}).unwrap();
     }
@@ -83,8 +84,17 @@ pub(in crate::verbs) fn render_mode(dispositions:&[Disposition],notes:&[Diagnost
             if d.gated&&!d.acknowledged || d.recorded {
                 output.push_str(&render(&[d.clone()],&[n.clone()]));
             } else if !d.acknowledged && let Some(w)=&d.witness {
-                let rationale=if witness::concrete(w) {witness::reason_template(w)} else {"<spec rationale>".into()};
-                output.push_str(&format!("fix question {} at {}: {}; is this intended?\n  Witness: {} — repair or check --ack-security {} --reason '{}' (doesn't block)\n",d.code,d.site,n.message.trim_end_matches(['.','?']),w["compactSummary"].as_str().or_else(||w["summary"].as_str()).unwrap_or("see check --json for replay"),d.id,rationale));
+                let question=match d.code.as_str(){
+                    "N_INSERT_WRITE_INTENT" if w["effect"]=="update"=>"Is this edit audience intended?",
+                    "N_INSERT_WRITE_INTENT"=>"Is this creation audience intended?",
+                    "N_TEXT_EVIDENCE"=>"Is text evidence intended?",
+                    "N_OPTIONAL_EVIDENCE"=>"May this value be absent?",
+                    "N_CHILD_EVIDENCE_PRESENCE"=>"May this effect proceed without attachments?",
+                    "N_GUARD_NOT_CONSUMED"=>"May this prerequisite be reused?",
+                    _=>"Is this behavior intended?",
+                };
+                let summary=w["compactSummary"].as_str().or_else(||w["summary"].as_str()).unwrap_or("see check --json for replay").replace(['\n','\r']," ");
+                output.push_str(&format!("fix question {} at {}: {question} Witness: {summary} — replay/repair/decision: check --review (doesn't block)\n",d.code,d.site));
             }
         }
         return output;
@@ -150,7 +160,7 @@ pub(in crate::verbs) fn render_mode(dispositions:&[Disposition],notes:&[Diagnost
  #[test] fn witnessed_questions_are_default_visible_and_unwitnessable_ack_is_explicit() {
   let n=Diagnostic::new(&Default::default(),"N_APPROVAL_NOT_ENFORCED","jobs.approved: transitions do not inspect approval","add guard");
   let mut d=Disposition{family:None,id:"question-id".into(),code:n.code.clone(),site:n.site.to_string(),gated:false,acknowledged:false,recorded:false,reason:None,witness:Some(serde_json::json!({"summary":"advance as staff -> ok; approved=false"})),scope:"test".into()};
-  let output=render_mode(&[d.clone()],&[n.clone()],false);assert!(output.contains("Witness: advance")&&output.contains("fix question")&&output.contains("doesn't block"));
+  let output=render_mode(&[d.clone()],&[n.clone()],false);assert!(output.contains("Witness: advance")&&output.contains("fix question")&&output.contains("doesn't block"));assert_eq!(output.lines().count(),1,"{output}");
   d.code="N_CHILD_EVIDENCE_PRESENCE".into();d.witness=None;
   assert!(render_mode(&[d.clone()],&[n.clone()],false).is_empty());
   d.acknowledged=true;d.recorded=true;d.reason=Some("spec rationale".into());

@@ -1,0 +1,17 @@
+{
+  "commit": "345f03b27e6cdd2f9b218828a9219fe5d4981fa0",
+  "patchSha256": "48d0db2dea02cc92dc2e2606d096f3841efcad9452cc86126bfd243dfdc794c4",
+  "brief": "Review SEC11L committed snapshot 345f03b27e6cdd2f9b218828a9219fe5d4981fa0 in /home/ccheever/projects/sb4-b31-sec11l independently. This is a fresh final source review. Read llp/3000.036.004.000.000-production-security-replay-latency.rfc.md and compare the workstream product changes to 1f9b2610d3. Focus files: snapback4/crates/snapback4/src/verbs/security.rs, verbs/security/witnesses.rs and witnesses/candidate_batch.rs, witnesses/questions.rs, verbs/security/derived_tests.rs, verbs/phase.rs, main.rs; snapback4/crates/snapback4-core/src/store/fork.rs, store.rs, replay_profile.rs, lib.rs; snapback4/crates/snapback4-lang/src/bind/security/challenges.rs; snapback4/crates/snapback4/tests/security_reviews.rs; snapback4/reports/sec11-latency/tools/*.py. Read git show 345f03b27e6cdd2f9b218828a9219fe5d4981fa0:PATH if the working copy changes. Ignore unrelated incoming main docs/proof changes.\nQuestions: Are the independent campaign threads equivalent to serial replay (thread-local ID scope, budgets, ordering, live-only payloads, fixtures and state)? Is same-invocation report reuse exact for production/strict staging while non-strict staging retains its own production campaign? Is batching identical to independent compilation including invalid fallback? Does backup-before-prepare retain all old fork state/accounting/isolation? Does buffered telemetry avoid affecting campaign deadlines through sink I/O and refuse FIFO/symlink/device sinks? Does qualification compare all decision/witness fields, with the separate complete authored-counterexample capture closing the classifier's projection gap? Any missed substantive case?\nRead-only: do not edit, run suites/builds, or use other worktrees. Report concrete MATERIAL blockers with source locations, or READY. Measurements and 800-schema comparison are still in progress; do not assume targets or survey passed. Prior round findings were synchronous telemetry inside deadline-sensitive work and omission of complete authored counterexamples, plus ambiguous comparison exclusion wording. Both prior reviews are preserved verbatim in llp/reviews/3000.036.004.000.000-sec11l-r1-*.txt; evaluate the current fixes independently.\n",
+  "models": {
+    "codex": "gpt-6.1-sol high, fresh codex exec",
+    "muse": "muse-spark-1.3-contributor high via muse-exec.sh"
+  },
+  "verdicts": {
+    "codex": "READY product/source",
+    "muse": "Product code passes; measurement-tool union/comparison blocker"
+  },
+  "outputs": {
+    "codex": "98589f7d1f0124e991c8a5bc1111318d0fae09687fd825c3a7c798a2dfa3a8b0",
+    "muse": "7da76c5e15434e7a2d4be5690107defec732e7853ed03ebebda2d945cb6263f7"
+  }
+}

@@ -109356,6 +109356,27 @@ that lane. Add its admitted-helper/settings upgrade behavior to the same
 not a new storage design.
 
 
+## 2026-10-27 — SEC11 item 1 measured boundary
+
+LLP 3000.036.004.001 records current-witness decision refusals and bounded
+advisory replays for evidence absence/typing, direct guard reuse and actual
+structured read payloads. Commit-end parent survival and predicate evaluation
+exclude intermediate-only absence claims. Raw query observations stay live-only;
+redacted delivered fields and effective clocks participate in decision identity.
+No new production gate codes were added. Muse and fresh Codex source reviews
+are retained verbatim, including the cascade/expiry findings and corrections.
+
+On 800 source/fixture copies, no assessed false gates or production refusals;
+all fresh and post-test verdicts match their retained baselines. Default output
+medians are 3/5 check/deploy lines. Wave30 exact gate/default-question coverage
+is 4/14 (1 gate, 3 questions), up from 1/14; items 2–9 remain. Cold p90 review
+25.14 s and deploy 32.83 s miss the targets. The one-line wave30 lane033
+advanceJob fix clears its gate and preserves the unchanged app acceptance.
+Qualified affected security/language/client checks and the explicit test-only
+history assertion retry are recorded in `reports/sec11-item1/`; root legacy
+Snapback1 guide/codegen/inventory gates are outside this fence. The root
+WORKSTREAM-REPORT.md records the exact committed boundary and deferrals.
+
 ## 2026-10-27 — BCTL: retain batch capacity through queue pressure
 
 Lane BCTL reproduces the adaptive controller's low-rate trap on local,
@@ -109400,6 +109421,55 @@ stopped. The 25 GiB guard never fires; bookend free space is **82.07 GiB**.
 The exact staged audit compares 1028 generated fixture credentials with zero
 matches; raw logs/data remain outside Git.
 
+### 2026-10-27 — DX15 production proofs and inspection
+
+Wave-31 lanes 007/014/021/030/042 had to assemble a production proof recipe
+from staging and source. The production card now leads with reusable real-user
+rosters and the existing serve/static/SIGTERM helpers; upgrade points inherited
+drivers at serve-check --then. Fast business work preserves serveCheck upMs.
+Lane 023's transient text can be observed before its trigger through a stable
+element. Lane 042's capped admin inspection has data --all/snapshotAll; query
+comments name the existing next cursor. Lane 006's ambiguous signup returns
+an explicit unknown-outcome/login recovery in why; complete-empty lists are
+spelled out in guide reads. LLP 3000.037.000 §7 records the implemented bounds.
+No publication, version bump or Mac execution; affected packed consumers and
+read-only source-copy replays are recorded in reports/20261027-dx15.
+
+DX15 verification follow-up: the packed custom-Home qualifier still expected
+DX14's default-only filter/status controls after replacing that Home. Adapt the
+transported proof to the custom screen while retaining its named Task input,
+SDK receipt and rendered-row assertions; init-typecheck guards that distinction.
+Independent reviews caught users-only roster-field validation, bounded observer
+cleanup and nested shadow-root discovery; each is corrected and the final
+observer delta is READY from both families. Private npm caches isolate the
+consumer rerun from concurrent publication cache maintenance.
+
+DX15's affected client run also checked exact password validation messages.
+Preserve delivered auth refusals unchanged; append login recovery only for an
+unknown signup outcome (malformed/lost reply). The existing Unicode/byte-boundary
+checks and duplicate/lost-signup regressions pass. The old serve recipe extractor
+is bounded before the new observer section, and its redaction mock now echoes
+the actual generated credential rather than an unrelated password literal.
+## 2026-10-27 — SEC11 item 1 measured boundary
+
+LLP 3000.036.004.001 records current-witness decision refusals and bounded
+advisory replays for evidence absence/typing, direct guard reuse and actual
+structured read payloads. Commit-end parent survival and predicate evaluation
+exclude intermediate-only absence claims. Raw query observations stay live-only;
+redacted delivered fields and effective clocks participate in decision identity.
+No new production gate codes were added. Muse and fresh Codex source reviews
+are retained verbatim, including the cascade/expiry findings and corrections.
+
+On 800 source/fixture copies, no assessed false gates or production refusals;
+all fresh and post-test verdicts match their retained baselines. Default output
+medians are 3/5 check/deploy lines. Wave30 exact gate/default-question coverage
+is 4/14 (1 gate, 3 questions), up from 1/14; items 2–9 remain. Cold p90 review
+25.14 s and deploy 32.83 s miss the targets. The one-line wave30 lane033
+advanceJob fix clears its gate and preserves the unchanged app acceptance.
+Qualified affected security/language/client checks and the explicit test-only
+history assertion retry are recorded in `reports/sec11-item1/`; root legacy
+Snapback1 guide/codegen/inventory gates are outside this fence. The root
+WORKSTREAM-REPORT.md records the exact committed boundary and deferrals.
 
 ## 2026-10-27 — SQW: SQLite durable cycles and owned revision reuse
 
@@ -109480,3 +109550,165 @@ setup/refinement attempts, per-lever limits and the scoped ownership proof.
 Raw logs/HDR/events stay outside Git; private stores are removed, known-secret
 scans pass, and the owned process audit finds no remaining helper or zombie.
 No push or publication. [Full SQW report](experiments/scale-controls/results-20261027-s1-sqlite-w/README.md).
+
+
+## 2026-10-27 — TOK1: one first schema and bounded builder waiting
+
+LLP 3000.037.000 §8 replaces the eight-card orientation with a complete 7,969-byte
+workflow, a hard default budget, per-project repeat deltas and declaration-derived
+proof/client/auth digests. Init prints the recipe/file map and starts a private,
+request-bound background frontend install. Its IPC worker retains npm custody;
+failed initialization preserves existing metadata. Asset placement keeps one
+uploader-bound home and gives a tested upload-per-image-column copy recipe.
+
+Four fresh paired reading-to-schema replays (Codex 001/025, Muse 019/028) reduce
+docs-before-schema from 23,470–43,156 to 2,315–3,243 tokens. Aggregate input falls
+55.4% and elapsed time 21.8% on that milestone, not a full-application bakeoff.
+An earlier after-card attempt still cost Muse 028 15,206 tokens; its transcripts
+are retained. A fresh Muse foreground command exits at 60 seconds without tool
+timeout, then probe:check passes. Deliberate external probe drivers must pass
+--hold or SNAPBACK4_PROBE_HOLD=1 on the child only; check-owned drivers do this
+internally. The external bakeoff harness was inspected read-only.
+
+Both independent final reviews are READY. Packed consumer and affected receipts
+are recorded in reports/20261027-tok1 and WORKSTREAM-REPORT.md. Origin/main's
+SQLite work was merged with only append-only journal resolution. No publication,
+version bump, push, Mac run, security-binder or client-contract edit is made.
+
+## 2026-10-27 — SEC11L production-loop latency
+
+SEC11L profiles the slowest20 wave30 schemas on production binaries, then
+removes repeated candidate binding/report work, overlaps independent campaigns
+with unchanged work budgets and replay scopes, and constructs complete fixture
+backups without overwriting a freshly initialized catalog. Production pending
+question evidence requires the actual identical note vector, otherwise it falls
+back. Bounded immutable verified bytes eliminate repeated campaign file copies;
+ledgers, admission, COW maps and authorized materialized files remain independent.
+Both Muse and fresh Codex approve the source, with actual reviews retained under
+LLP3000.036.004.000.000. No gate inference or version changes are included.
+
+Cold50 production review p50/p90/max is5.189/8.332/11.606 s and deploy is
+5.294/7.528/12.945 s: both p90 targets pass, versus SEC11's25.144/32.834 s.
+All800 after source hashes and decision/product witness identities match the
+retained survey; SEC11 classifies no new result or assessed false gate/refusal.
+The strict full-payload comparison remains a failure on one expanded advisory
+witness, also reproduced by two unchanged-baseline runs. Uploaded IDs copied
+into plain id columns are not normalized. A filesystem follow-up records that
+missing deterministic presentation boundary; identity equality is explicitly
+not full-payload proof. Complete23 FIX-bearing counterexamples match under the
+reviewed typed uploaded-ID correspondence, retaining raw hashes/equality.
+
+Origin/main is merged through64e94e52cf. Its generic neutral Lane::prepare calls
+trip the unchanged lexical store-port guard; rename that internal helper to
+prepare_for_ingress without changing SQL/port behavior or weakening the guard.
+Focused census/ratchet tests pass. The final scoped receipt and remaining
+baseline retries are recorded by the root WORKSTREAM-REPORT.md. The report
+under reports/sec11-latency retains cold samples, phase profiles, classifier
+results, primary literal failure and secondary diagnostic limits. No push,
+publication, full suite or complete-battery capability claim is made.
+## 2026-10-27 — SEC12: evaluated creation and gate decisions
+
+LLP 3000.036.004.002 implements format-valid witness sampling, predecessor-backed
+creation gates, and live evaluated invariant/allowance answers. The exact setter
+fragment rejects unproved helper admission, fallible returns and changing authority
+dependencies. Current excluded creation is replayed; current setter audience is
+qualified by straight-line input/read/write judgments on that committed state.
+Free prose and wave31 lane033's false premise cannot acknowledge a gate.
+The first gate prints its usable answer template. Presence tautologies preserve
+ordinary rollback views; control records stay outside worker snapshots.
+
+Independent Muse/fresh Codex source reviews are READY for all three mechanisms,
+including the final S2 round18. Copied-source surveys, all 57 calibrated M
+classifications, default output measurement, four fix-forward replays and affected
+consumer/test evidence are retained in reports/sec12/ and WORKSTREAM-REPORT.md.
+The report identifies qualification composition, inherited differential failures,
+HTTP watchdog retries and finite unsupported fragments. Version remains 0.4.43;
+changes are described under the 0.4.44 guide entry. No publication or push.
+
+## 2026-10-27 — SECP wave-30 advisory precision
+
+LLP 3000.036.004.001 records the advisory-only guard recognizers, separate
+lexical facts, bounded pure helper substitution and exact reference/time
+relationships. Regression fixtures copy the actual wave-30 lanes, including
+require-only role helpers, immutable parent/child copies, conditional standing
+windows and atomic amendment approval. Negative controls retain questions for
+stale or aliased state, caller OR bypasses, wrong resource/secondary keys,
+mutable constructor links and skipped consumption. Runtime, gates and witness
+acknowledgment semantics are unchanged. The 0.4.44 Guide changes entry describes
+the surface; package versions stay 0.4.43. Measurements and review provenance
+are in reports/secp; Mac qualification is skipped for this lane.
+
+
+## 2026-10-27 — Integration 28 fixture and LLP identity reconciliation
+
+SEC11 and SECP independently assigned LLP 3000.036.004.001. Integration retains SEC11
+at that identity and assigns SECP the next free sibling, LLP 3000.036.004.003,
+with original review records retained verbatim. Only advisory @ref targets change.
+Old CLI and packed-upgrade fixtures now assert source intent for unwitnessed
+presence gates and rejection of prose, while retaining reachable-refutation and
+persisted-decision immutability controls. Guide fixtures force intentional rereads
+and check the hard byte bound; offline starter custody fixtures defer installers.
+The starter toolchain pins node-forge 1.4.1 and removes its obsolete no-patch waiver.
+
+## 2026-10-27 — Integration 28 witnessed-tier preservation
+
+A corpus comparison found 48 pre-existing witnessed findings omitted alongside
+SECP advice (40 recipient grants and eight repeat guards). Advisory source facts
+now prune advice only: a separate current fixed-budget replay restores an omitted
+hypothesis only with concrete evidence, preserving the ordinary collector and
+its gates. This replay reads no advice cache. Production rechecks source identity
+after joining it. Restored questions stay nonblocking and keep evaluated answers.
+The guide and SECP LLP record this integration boundary.
+
+## 2026-10-27 — Integration 28 publication fixture reconciliation
+
+Keep bounded start/README reading and move reference assertions through their
+existing client-reference pointer. Refresh the generated operation-index metadata
+and await census, preserving all frozen durable bytes and all 215 delivery await
+identities. Fault instrumentation now captures the client before its watch-guard
+wrapper; fault assertions still require real injection and recovery. Generation
+fixtures defer installers; dedicated TOK1 and packed-starter paths own installer
+lifecycle. Ignore named ephemeral test trees/logs so concurrent verification does
+not make an unchanged publication checkout dirty. Job guide tests retain backlog
+catch-up before the exclusive coalesced period end.
+
+SECP's final conflict-correction identity is .005: a read-only check of excluded
+SEC11b found provisional .003/.004 reservations after the first integration
+assignment. Historical .001 reviews and the intermediate .003 commit remain in
+history. SEC11b's .002 conflict with landed SEC12 is a filesystem follow-up; none
+of that excluded branch's new code or documents is merged.
+
+### 2026-10-27 — Integration 28 isolated social fixture custody
+
+The complete installed consumer chain exposed the social optional-upload fixture’s
+nested 30-second spawn timeout under proot: it killed a check that had already
+produced its valid result after 26 seconds. Use the existing owned toolchain
+deadline and process-group drain instead of a second inner wall-clock fuse.
+Exact zero exit, current JSON, stock/edited-source optional-upload assertions and
+no decision-file assertion remain; the existing five-minute command and twenty-minute
+starter guards, fixed security work budgets and measured latency ticket are unchanged.
+
+
+## 2026-10-27 — OWN: silent ownership refusal after restart
+
+A deterministic private-PG16/17 public-service witness reproduces six warm-up
+ACKs followed by a durable but unconfirmed seventh write, a sticky G6 admission
+pause, repeated `E_STORE_OWNERSHIP` and a still-renewing lease. The synchronous
+public owner now observes terminal admission uncertainty in its independent
+watchdog and exits; it leaves the lease/read epoch to expire before ordinary
+takeover. The gate reports the first pause reason before publishing its flag.
+Arm E retains its fenced recovery. No uncertain invocation is automatically
+replayed or old cache epoch reopened. See
+`reports/20261027-ownership-loss/REPORT.md` for baseline/fix evidence, tests and
+the limits of attribution to the two original incidents.
+
+## 2026-10-27 — OWN review fixes: bounded diagnostics and serving-only G6 exit
+
+The first OWN implementation could wedge before publishing loss when stderr
+stalled, and armed its G6 process exit for short-lived deploy before activation
+reconciliation. Loss now precedes bounded diagnostic queueing; queued replies
+drain without logging I/O, and exit allows at most 100 ms for diagnostic output.
+Only `serving()` arms the G6 exit. Deploy retains persisted-selection recovery,
+pointer/log completion and lease release. The report's new regressions fill a
+real stderr pipe and delay an unknown-but-durable activation's reconciliation
+probe. LLP 3000.009.001.000 §5.1 records the corrected lifecycle contract.

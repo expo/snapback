@@ -18,7 +18,7 @@ pub fn requires_view(target:&[(String,String)],current:&[(String,String)])->bool
     // the old implementation. Ordinary schema/intent evolution is governed by
     // visibility facts below, rather than the mere presence of an invariant.
     if same_data_and_intent(target,current)
-        && !crate::compile(current).invariants.is_empty()
+        && super::release_presence_allowance::independent(&crate::compile(current))
         && modules(target)!=modules(current) {return true;}
     let before_schema=crate::compile(target).schema;
     // @ref LLP 3000.000.000#21-wave-27-release-semantics-rel — column authority alone is not a visibility risk.
@@ -265,6 +265,7 @@ pub fn extraction_preserves_predecessor(target:&[(String,String)],current:&[(Str
 // the predecessor's required payload cell; all other retained intents must match.
 fn extraction_invariants_preserved(target:&[(String,String)],old:&crate::Bound,next:&crate::Bound)->bool {
     next.invariants.iter().all(|inv| {
+        if super::release_presence_allowance::universal(inv){return true;}
         if old.schema.table(&inv.table).is_none(){
             let Some(extraction)=next.schema.extractions.iter().find(|e|e.child==inv.table&&old.schema.table(&e.parent).is_some())else{return true;};
             // A new-only endpoint has no historical caller. A child-wide
@@ -345,7 +346,7 @@ fn canonical_table(mut table:snapback4_core::schema::Table)->snapback4_core::sch
 
 fn loosen_inner(target:&[(String,String)],current:&[(String,String)])->Bridge {
     let current_bound=crate::compile(current);
-    if current_bound.schema.extractions.iter().any(|e|!e.each)||!current_bound.invariants.is_empty()||current_bound.schema.tables.values().any(|t|!t.column_writes.is_empty()||!t.frozen_columns.is_empty()) {
+    if current_bound.schema.extractions.iter().any(|e|!e.each)||super::release_presence_allowance::independent(&current_bound)||current_bound.schema.tables.values().any(|t|!t.column_writes.is_empty()||!t.frozen_columns.is_empty()) {
         let mut allow_guarded=false;
         let complete=super::release_bridge_current::prepare(target,current,&mut allow_guarded);
         if complete.diagnostics.is_empty() || !allow_guarded{return complete;}

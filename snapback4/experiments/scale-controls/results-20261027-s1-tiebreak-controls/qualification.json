@@ -1,0 +1,17 @@
+{
+  "raw_trials": 50,
+  "selected_trials": 48,
+  "contaminated_attempts": 2,
+  "contaminated_selected": 0,
+  "measured_arrivals": 2577560,
+  "durable_counter_mismatches": 0,
+  "quiet_gates": 57,
+  "total_quiet_gate_wait_s": 2714.8283302783966,
+  "maximum_wait_load_1m": 18.02880859375,
+  "maximum_wait_unrelated_cores": 2.5303861456406627,
+  "minimum_quiet_s": 10.187462514266372,
+  "max_cpu_sample_interval_s": 1.059648584574461,
+  "max_above_one_core_s": 5.979675831273198,
+  "rule": "exclude aggregate unrelated CPU >1 core for >2s cumulative; retain, rerun once; never replace a clean failure",
+  "first_three_rule": "first three selected repetitions in execution order, never best three of five"
+}

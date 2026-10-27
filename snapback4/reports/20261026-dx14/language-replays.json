@@ -1,0 +1,626 @@
+{
+  "date": "2026-10-26",
+  "build_metadata": {
+    "language_commits": [
+      "37d3dae704",
+      "57a1cae475",
+      "f2a852246a",
+      "8b6ec55a9c"
+    ],
+    "repository_head_at_copy": "a5a1b52c4dd1e6adc6d1b9f98d29d06c5f02cdcf",
+    "build_command": "CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0 cargo build --profile test -p snapback4",
+    "binary_sha256": "a8bfa4a9f16c1ccffd4f9c943a2e51c20b0b3e0a5787af3edefdfa6f024d8323",
+    "owned_language_files_sha256": {
+      "snapback4/crates/snapback4-lang/src/bind/auth_lints.rs": "3fef25bdb2e33b20374a8204653c0ce00acb2572db6a7c7e31828f7ad4ee6e93",
+      "snapback4/crates/snapback4-lang/src/bind/intent_aggregates.rs": "cd809a45489cc03112771d9fe2b061c44880cdea4163a418a5c77ed31999ff7d",
+      "snapback4/crates/snapback4-lang/src/bind/program/prefix.rs": "2f91bce0e6b75d59ad0695f40023b71f16283d49fd8a2428715af69f28f7d76a",
+      "snapback4/crates/snapback4-lang/src/bind/program/reads.rs": "dc26cf6ad83816f6df400ccf7c96844acebd3345e7ea1aa1050c504ea7e58494",
+      "snapback4/crates/snapback4-lang/src/bind/rule_composition.rs": "7ba24b7184593781bae23f0e9b1793111c90809199b603c799b54deb90db2859",
+      "snapback4/crates/snapback4-lang/src/bind/schema.rs": "7b14a784b5efc3a896e61457cf7e616cd77e4e5be0cb2d32b27dfda9711dc955",
+      "snapback4/crates/snapback4-lang/src/parser/expr.rs": "4d0075d3a31e496d5dac635b0b6201428f7bfc45271b9359472b01fec977d41a",
+      "snapback4/crates/snapback4-lang/src/parser/types.rs": "91e7fe226226859bd3df1a891a4dd6c4c747ad9406a091b19b0163b4fab73537",
+      "snapback4/crates/snapback4-lang/tests/wave10_guard_notes.rs": "9857c04a9b69b47dd4ce584319e51f842300ccfd79c4eaeb9761255a160206d7",
+      "snapback4/crates/snapback4-lang/tests/wave31_dx14_language.rs": "96b145262806cd3d88532de94f02239d5cae54e9a85d755a46c980182955d061"
+    },
+    "owned_file_worktree_delta": [],
+    "binding": "Immutable CLI bytes and owned language source fingerprints in a shared working tree; repository HEAD is recorded, not claimed as a clean whole-repository source checkout."
+  },
+  "binary_unchanged_during_replay": true,
+  "binary_sha256": "a8bfa4a9f16c1ccffd4f9c943a2e51c20b0b3e0a5787af3edefdfa6f024d8323",
+  "source": "read-only wave30/apps copies in a temporary replay directory; only copies modified",
+  "limitation": "Static final-source and reconstructed-original compiler replays; reconstruction follows recorded friction, not a historical source checkout; no measured assertion fixes",
+  "entries": [
+    {
+      "lane": "003R",
+      "kind": "final_schema",
+      "source_sha256": "cccd2fe046e8299acd1378677df9506d8b2da3aafd945483f5389a4e17c2fe25",
+      "command": "snapback4 check --json",
+      "exit": 0,
+      "json": true,
+      "diagnostic_codes": {
+        "N_LOOKUP_FILTERED": 2,
+        "N_SWEEP_DEADLINE": 1,
+        "N_ROLE_WIDE_READ": 2,
+        "N_SECURITY_INTENT": 2,
+        "N_ARGUMENT_GRANT": 2,
+        "N_APPROVAL_INFORMATIONAL": 2,
+        "N_EDIT_AFTER_APPROVAL": 18,
+        "N_COLUMN_RESULT_EXPOSURE": 2
+      },
+      "language_diagnostics": [],
+      "scope": "compiler/CLI static replay; no app acceptance assertions or browser replay"
+    },
+    {
+      "lane": "003R",
+      "kind": "reconstructed_original",
+      "source_sha256": "55a09de13132d4e117c291f5d979920983adb5723ebda6a930b9ad7f51abb7ea",
+      "command": "snapback4 check --json",
+      "exit": 0,
+      "json": true,
+      "diagnostic_codes": {
+        "N_LOOKUP_FILTERED": 5,
+        "N_SWEEP_DEADLINE": 1,
+        "N_ROLE_UNFILTERED": 1,
+        "N_SECURITY_INTENT": 2,
+        "N_ARGUMENT_GRANT": 2,
+        "N_APPROVAL_INFORMATIONAL": 2,
+        "N_EDIT_AFTER_APPROVAL": 18,
+        "N_COLUMN_RESULT_EXPOSURE": 2
+      },
+      "language_diagnostics": [
+        {
+          "code": "N_ROLE_UNFILTERED",
+          "site": {
+            "col": 3,
+            "file": "schema.q",
+            "line": 43
+          },
+          "message": "boxes.read: this appRoles roster probe accepts every role ('owner', 'clerk', 'technician', 'shopOwner'); bare enrollment does not establish a particular role",
+          "rewrite": "name each admitted role explicitly: `exists appRoles[principal = viewer, role = '<allowed role>']`; keep the bare probe only if every roster role is intended"
+        }
+      ],
+      "scope": "compiler/CLI static replay; no app acceptance assertions or browser replay",
+      "reconstruction": {
+        "before": "read <- .owner = viewer or exists appRoles[viewer, role = 'clerk'] or exists appRoles[viewer, role = 'technician'] or exists appRoles[viewer, role = 'shopOwner']",
+        "after": "read <- .owner = viewer or exists appRoles[viewer]",
+        "basis": "003R friction: bare mixed roster accidentally admitted every customer owner"
+      }
+    },
+    {
+      "lane": "004R",
+      "kind": "bounded_parallel_lists",
+      "source_sha256": "e15ed67158123290c6009a7903972628be062c020d14c50b78e6b37b09b04a85",
+      "command": "snapback4 check --json",
+      "exit": 0,
+      "json": true,
+      "diagnostic_codes": {},
+      "language_diagnostics": [],
+      "scope": "compiler/CLI static replay; no app acceptance assertions or browser replay",
+      "reconstruction": {
+        "basis": "reduced input-surface control; no historical record-list source existed, final004R already uses parallel lists"
+      }
+    },
+    {
+      "lane": "004R",
+      "kind": "final_schema",
+      "source_sha256": "9b9794afc2d8ee22f89bca08d6fef0f0efc5386120fb1da31f451b94681f4778",
+      "command": "snapback4 check --json",
+      "exit": 0,
+      "json": true,
+      "diagnostic_codes": {
+        "N_LOOKUP_FILTERED": 6,
+        "N_REFERENCE_UNCHECKED": 1,
+        "N_INVARIANT_RESTATES_RULE": 6,
+        "N_ROLE_WIDE_READ": 2,
+        "N_COLUMN_READ": 4,
+        "N_SECURITY_INTENT": 2,
+        "N_CALLER_TIME": 2,
+        "N_ARGUMENT_GRANT": 2,
+        "N_EDIT_AFTER_APPROVAL": 6,
+        "N_COLUMN_RESULT_EXPOSURE": 2
+      },
+      "language_diagnostics": [],
+      "scope": "compiler/CLI static replay; no app acceptance assertions or browser replay"
+    },
+    {
+      "lane": "004R",
+      "kind": "unsupported_record_list",
+      "source_sha256": "eb76cbaf0785340bb23940fd0801866a98bb50e85efc94db5de96b1ec713c6eb",
+      "command": "snapback4 check --json",
+      "exit": 1,
+      "json": true,
+      "diagnostic_codes": {
+        "E_QUARRY_SYNTAX": 1
+      },
+      "language_diagnostics": [
+        {
+          "code": "E_QUARRY_SYNTAX",
+          "site": {
+            "col": 24,
+            "file": "schema.q",
+            "line": 1
+          },
+          "message": "typed record arguments and record-list elements are not supported",
+          "rewrite": "use bounded parallel scalar/media lists, for example names: [text 1..80] 1..12, photos: [image <=5MB] 1..12; require len(names) = len(photos) before looping over their indexes; use a child table for stored records"
+        }
+      ],
+      "scope": "compiler/CLI static replay; no app acceptance assertions or browser replay",
+      "reconstruction": {
+        "basis": "reduced input-surface control; no historical record-list source existed, final004R already uses parallel lists"
+      }
+    },
+    {
+      "lane": "005E",
+      "kind": "final_schema",
+      "source_sha256": "0b246b1844525aecea13968c486a9808548da31bf0c5d83843b17a9e24e8ad16",
+      "command": "snapback4 check --json",
+      "exit": 0,
+      "json": true,
+      "diagnostic_codes": {
+        "N_LOOKUP_FILTERED": 2,
+        "N_INVARIANT_RESTATES_RULE": 16,
+        "N_ROLE_WIDE_READ": 2,
+        "N_ARGUMENT_GRANT": 2,
+        "N_EDIT_AFTER_APPROVAL": 2,
+        "N_GUARD_NOT_CONSUMED": 14,
+        "N_COLUMN_RESULT_EXPOSURE": 2
+      },
+      "language_diagnostics": [],
+      "scope": "compiler/CLI static replay; no app acceptance assertions or browser replay"
+    },
+    {
+      "lane": "005E",
+      "kind": "reconstructed_original",
+      "source_sha256": "2146c9c576c89d7023d15478edad56f147ebc812a7971a0fe9f6add52a271a54",
+      "command": "snapback4 check --json",
+      "exit": 0,
+      "json": true,
+      "diagnostic_codes": {
+        "N_LOOKUP_FILTERED": 2,
+        "N_REQUIRE_HIDDEN": 1,
+        "N_QUERY_FILTERED": 1,
+        "N_INVARIANT_RESTATES_RULE": 14,
+        "N_ROLE_WIDE_READ": 2,
+        "N_ARGUMENT_GRANT": 2,
+        "N_EDIT_AFTER_APPROVAL": 2,
+        "N_GUARD_NOT_CONSUMED": 14,
+        "N_COLUMN_RESULT_EXPOSURE": 2
+      },
+      "language_diagnostics": [
+        {
+          "code": "N_REQUIRE_HIDDEN",
+          "site": {
+            "col": 18,
+            "file": "schema.q",
+            "line": 100
+          },
+          "message": "mutation openCommission: `exists roles[client, role = 'client']` reads roles under its read rule `.principal = viewer or exists roles[viewer, role = 'manager'] or viewer = 'service:operator'` (schema.q:17:3), which for callers satisfying the preceding require/branch conditions (the declared unique roster key excludes the other read-role arms) outside the explicit service grant (service:operator) admits only the row whose principal is the caller, so this require passes only when `client` is the caller: for every other roles row, which exists but is hidden, it refuses NOT_CLIENT (a program `exists` sees only readable rows; a rule probe sees every row)",
+          "rewrite": "let the callers who run this check read those rows: `read <- .principal = viewer or exists roles[viewer, role = 'manager'] or viewer = 'service:operator' or exists roles[viewer]` (a roster its members read), or a role (`\u2026 or exists staff[viewer]`); if only the caller's own row is meant, write `principal = viewer`"
+        }
+      ],
+      "scope": "compiler/CLI static replay; no app acceptance assertions or browser replay",
+      "reconstruction": {
+        "before": "read <- .principal = viewer or exists roles[viewer, role = 'clerk'] or exists roles[viewer, role = 'manager'] or viewer = 'service:operator'",
+        "after": "read <- .principal = viewer or exists roles[viewer, role = 'manager'] or viewer = 'service:operator'",
+        "basis": "005E friction: initial roles read self/manager, clerk target client probe hidden"
+      }
+    },
+    {
+      "lane": "007R",
+      "kind": "final_schema",
+      "source_sha256": "1f8e8306492455d5655a72df9517b051eafc1d41393a5a56502371174ebca552",
+      "command": "snapback4 check --json",
+      "exit": 0,
+      "json": true,
+      "diagnostic_codes": {
+        "N_LOOKUP_FILTERED": 8,
+        "N_INVARIANT_RESTATES_RULE": 24,
+        "N_ROLE_WIDE_READ": 2,
+        "N_OPTIONAL_EVIDENCE": 2,
+        "N_GRANT_OUTLIVES_ROLE": 2,
+        "N_ARGUMENT_GRANT": 6,
+        "N_APPROVAL_INFORMATIONAL": 2,
+        "N_CHILD_EVIDENCE_PRESENCE": 2,
+        "N_EDIT_AFTER_APPROVAL": 2,
+        "N_GUARD_NOT_CONSUMED": 2,
+        "N_MEDIA_PRIVATE_FIELDS": 2,
+        "N_COLUMN_RESULT_EXPOSURE": 4
+      },
+      "language_diagnostics": [],
+      "scope": "compiler/CLI static replay; no app acceptance assertions or browser replay"
+    },
+    {
+      "lane": "007R",
+      "kind": "reconstructed_original",
+      "source_sha256": "2c50a8ba05b29c83cbeaa2a1c3c268c9ee49b663a8f034494b813db6049d088f",
+      "command": "snapback4 check --json",
+      "exit": 0,
+      "json": true,
+      "diagnostic_codes": {
+        "N_LOOKUP_FILTERED": 8,
+        "N_REQUIRE_REFUSED": 1,
+        "N_INVARIANT_RESTATES_RULE": 24,
+        "N_ROLE_WIDE_READ": 2,
+        "N_OPTIONAL_EVIDENCE": 2,
+        "N_GRANT_OUTLIVES_ROLE": 2,
+        "N_ARGUMENT_GRANT": 6,
+        "N_APPROVAL_INFORMATIONAL": 2,
+        "N_CHILD_EVIDENCE_PRESENCE": 2,
+        "N_EDIT_AFTER_APPROVAL": 2,
+        "N_GUARD_NOT_CONSUMED": 2,
+        "N_MEDIA_PRIVATE_FIELDS": 2,
+        "N_COLUMN_RESULT_EXPOSURE": 4
+      },
+      "language_diagnostics": [
+        {
+          "code": "N_REQUIRE_REFUSED",
+          "site": {
+            "col": 3,
+            "file": "schema.q",
+            "line": 88
+          },
+          "message": "advanceStatus: mutation require `((exists roles[viewer, role = 'designer']) or (exists roles[viewer, role = 'coordinator']) or (exists roles[viewer, role = 'owner']))` has a caller branch that does not establish commissions's table update rule `((exists roles[viewer, role = 'coordinator']) or (exists roles[viewer, role = 'owner']))` at schema.q:36:3; those callers may pass require and still be refused by table authority. Roles can overlap; this is a missing authority proof, not a claim that the audiences are disjoint",
+          "rewrite": "require the table's role in every admitted branch, or deliberately widen the table write rule; a mutation require never grants table authority. See: guide rule-recipes own-or-staff"
+        }
+      ],
+      "scope": "compiler/CLI static replay; no app acceptance assertions or browser replay",
+      "reconstruction": {
+        "before": "require exists roles[viewer, role = 'coordinator'] or exists roles[viewer, role = 'owner'] else NOT_STAFF",
+        "after": "require exists roles[viewer, role = 'designer'] or exists roles[viewer, role = 'coordinator'] or exists roles[viewer, role = 'owner'] else NOT_STAFF",
+        "basis": "007R friction: advanceStatus admitted designer but commissions.update did not"
+      }
+    },
+    {
+      "lane": "010E",
+      "kind": "final_schema",
+      "source_sha256": "c1efcb5a6c4d77820dc8b1956a5db9f0a313d7cec54f66269e2338f91d1a65b0",
+      "command": "snapback4 check --json",
+      "exit": 0,
+      "json": true,
+      "diagnostic_codes": {
+        "N_LOOKUP_FILTERED": 2,
+        "N_UNIQUE_HIDDEN": 1,
+        "N_INVARIANT_RESTATES_RULE": 8,
+        "N_GRANT_OUTLIVES_ROLE": 2,
+        "N_SECURITY_INTENT": 2,
+        "N_ARGUMENT_GRANT": 4,
+        "N_EXISTENCE_ORACLE": 12,
+        "N_STALE_CREATION_CHECK": 2,
+        "N_APPROVAL_INFORMATIONAL": 2,
+        "N_EDIT_AFTER_APPROVAL": 16,
+        "N_GUARD_NOT_CONSUMED": 4,
+        "N_COLUMN_RESULT_EXPOSURE": 4,
+        "N_DERIVED_WRITE_AUTHORITY": 2
+      },
+      "language_diagnostics": [],
+      "scope": "compiler/CLI static replay; no app acceptance assertions or browser replay"
+    },
+    {
+      "lane": "021R",
+      "kind": "final_schema",
+      "source_sha256": "825f006d5dcda774d603c817669063a6d52385acaeba0814234eac6b53e0cf7c",
+      "command": "snapback4 check --json",
+      "exit": 0,
+      "json": true,
+      "diagnostic_codes": {
+        "N_LOOKUP_FILTERED": 2,
+        "N_INVARIANT_RESTATES_RULE": 14,
+        "N_ROLE_WIDE_READ": 2,
+        "N_ARGUMENT_GRANT": 2,
+        "N_EDIT_AFTER_APPROVAL": 8,
+        "N_GUARD_NOT_CONSUMED": 2,
+        "N_COLUMN_RESULT_EXPOSURE": 4
+      },
+      "language_diagnostics": [],
+      "scope": "compiler/CLI static replay; no app acceptance assertions or browser replay"
+    },
+    {
+      "lane": "021R",
+      "kind": "reconstructed_original",
+      "source_sha256": "eb318dbcb565999c5a06c4066598da6d3664dd7be5cce87f2ec990ea6f75f67a",
+      "command": "snapback4 check --json",
+      "exit": 0,
+      "json": true,
+      "diagnostic_codes": {
+        "N_LOOKUP_FILTERED": 2,
+        "N_REQUIRE_HIDDEN": 1,
+        "N_INVARIANT_RESTATES_RULE": 14,
+        "N_ROLE_WIDE_READ": 2,
+        "N_ARGUMENT_GRANT": 2,
+        "N_EDIT_AFTER_APPROVAL": 8,
+        "N_GUARD_NOT_CONSUMED": 2,
+        "N_COLUMN_RESULT_EXPOSURE": 4
+      },
+      "language_diagnostics": [
+        {
+          "code": "N_REQUIRE_HIDDEN",
+          "site": {
+            "col": 18,
+            "file": "schema.q",
+            "line": 67
+          },
+          "message": "mutation logLot: `exists roles[principal = farmer, role = 'farmer']` reads roles under its read rule `.principal = viewer or viewer = 'service:operator'` (schema.q:11:3), which outside the explicit service grant (service:operator) admits only the row whose principal is the caller, so this require passes only when `farmer` is the caller: for every other roles row, which exists but is hidden, it refuses UNKNOWN_FARMER (a program `exists` sees only readable rows; a rule probe sees every row)",
+          "rewrite": "let the callers who run this check read those rows: `read <- .principal = viewer or viewer = 'service:operator' or exists roles[viewer]` (a roster its members read), or a role (`\u2026 or exists staff[viewer]`); if only the caller's own row is meant, write `principal = viewer`"
+        }
+      ],
+      "scope": "compiler/CLI static replay; no app acceptance assertions or browser replay",
+      "reconstruction": {
+        "before": "require exists farmerProfiles[farmer] else UNKNOWN_FARMER",
+        "after": "require exists roles[principal = farmer, role = 'farmer'] else UNKNOWN_FARMER",
+        "basis": "021R friction: original target-role check replaced by staff-readable directory"
+      }
+    },
+    {
+      "lane": "032E",
+      "kind": "final_schema",
+      "source_sha256": "36e4c35bf4fc4de4ee5a715ec293e8f08fbae9aac03279f94d65cf5ae835aa1d",
+      "command": "snapback4 check --json",
+      "exit": 0,
+      "json": true,
+      "diagnostic_codes": {
+        "N_LOOKUP_FILTERED": 6,
+        "N_QUERY_FILTERED": 1,
+        "N_INVARIANT_RESTATES_RULE": 16,
+        "N_ROLE_WIDE_READ": 2,
+        "N_COLUMN_READ": 4,
+        "N_SECURITY_INTENT": 2,
+        "N_ARGUMENT_GRANT": 2,
+        "N_CHILD_EVIDENCE_PRESENCE": 2,
+        "N_APPROVAL_INFORMATIONAL": 2,
+        "N_EDIT_AFTER_APPROVAL": 2,
+        "N_DEPENDENT_WINDOW": 4,
+        "N_COLUMN_RESULT_EXPOSURE": 2
+      },
+      "language_diagnostics": [],
+      "scope": "compiler/CLI static replay; no app acceptance assertions or browser replay"
+    },
+    {
+      "lane": "032E",
+      "kind": "reconstructed_original",
+      "source_sha256": "01b744812e010a6ebb4124e9f9e57da9602d2eefc48be858174434618dc48afb",
+      "command": "snapback4 check --json",
+      "exit": 0,
+      "json": true,
+      "diagnostic_codes": {
+        "N_LOOKUP_FILTERED": 7,
+        "N_QUERY_FILTERED": 1,
+        "N_INVARIANT_RESTATES_RULE": 14,
+        "N_COLUMN_READ": 4,
+        "N_SECURITY_INTENT": 2,
+        "N_ARGUMENT_GRANT": 2,
+        "N_EXISTENCE_ORACLE": 4,
+        "N_CHILD_EVIDENCE_PRESENCE": 2,
+        "N_APPROVAL_INFORMATIONAL": 2,
+        "N_EDIT_AFTER_APPROVAL": 2,
+        "N_DEPENDENT_WINDOW": 4,
+        "N_COLUMN_RESULT_EXPOSURE": 2
+      },
+      "language_diagnostics": [],
+      "scope": "compiler/CLI static replay; no app acceptance assertions or browser replay",
+      "reconstruction": {
+        "before": "exists roles[viewer, role = 'coordinator'] or exists roles[viewer, role = 'director'] or exists roles[viewer, role = 'advisor']",
+        "after": "exists roles[viewer, role != 'family']",
+        "basis": "032E friction: full-key staff role inequality; equivalent over the declared required exhaustive role enum"
+      }
+    },
+    {
+      "lane": "034R",
+      "kind": "final_schema",
+      "source_sha256": "aba0e248e38a7d2824cae5d05a1ac8ffb3158dd3582ac83124ecf793c2880aec",
+      "command": "snapback4 check --json",
+      "exit": 0,
+      "json": true,
+      "diagnostic_codes": {
+        "N_LOOKUP_FILTERED": 4,
+        "N_INVARIANT_RESTATES_RULE": 16,
+        "N_ROLE_WIDE_READ": 2,
+        "N_ARGUMENT_GRANT": 2,
+        "N_APPROVAL_INFORMATIONAL": 4,
+        "N_EDIT_AFTER_APPROVAL": 8,
+        "N_MEDIA_PRIVATE_FIELDS": 6,
+        "N_COLUMN_RESULT_EXPOSURE": 4,
+        "N_DERIVED_WRITE_AUTHORITY": 4
+      },
+      "language_diagnostics": [],
+      "scope": "compiler/CLI static replay; no app acceptance assertions or browser replay"
+    },
+    {
+      "lane": "034R",
+      "kind": "reconstructed_original",
+      "source_sha256": "8ec937ad4aab6c2d106b7c60e4c0da691054088bed462c95458a51cf5375d7df",
+      "command": "snapback4 check --json",
+      "exit": 0,
+      "json": true,
+      "diagnostic_codes": {
+        "N_LOOKUP_FILTERED": 4,
+        "N_REQUIRE_REFUSED": 1,
+        "N_INVARIANT_RESTATES_RULE": 16,
+        "N_ROLE_WIDE_READ": 2,
+        "N_ARGUMENT_GRANT": 2,
+        "N_APPROVAL_INFORMATIONAL": 4,
+        "N_EDIT_AFTER_APPROVAL": 8,
+        "N_MEDIA_PRIVATE_FIELDS": 6,
+        "N_COLUMN_RESULT_EXPOSURE": 4,
+        "N_DERIVED_WRITE_AUTHORITY": 4
+      },
+      "language_diagnostics": [
+        {
+          "code": "N_REQUIRE_REFUSED",
+          "site": {
+            "col": 3,
+            "file": "schema.q",
+            "line": 79
+          },
+          "message": "approveQuote: mutation require `(r.owner = viewer)` has a caller branch that does not establish restorations's table update rule `((exists roles[viewer, role = 'clerk']) or (exists roles[viewer, role = 'restorer']) or (exists roles[viewer, role = 'shopowner']))` at schema.q:50:3; those callers may pass require and still be refused by table authority. Roles can overlap; this is a missing authority proof, not a claim that the audiences are disjoint",
+          "rewrite": "require the table's role in every admitted branch, or deliberately widen the table write rule; a mutation require never grants table authority. See: guide rule-recipes own-or-staff"
+        }
+      ],
+      "scope": "compiler/CLI static replay; no app acceptance assertions or browser replay",
+      "reconstruction": {
+        "before": "update <- .owner = viewer or exists roles[viewer, role = 'clerk'] or exists roles[viewer, role = 'restorer'] or exists roles[viewer, role = 'shopowner']",
+        "after": "update <- exists roles[viewer, role = 'clerk'] or exists roles[viewer, role = 'restorer'] or exists roles[viewer, role = 'shopowner']",
+        "basis": "034R friction: approveQuote owner require passed but staff-only table rule refused"
+      }
+    },
+    {
+      "lane": "041R",
+      "kind": "final_schema",
+      "source_sha256": "3e06fb4e697e782aa6060b68cd2ff2a2fecaf4b0f5c53965ee1bd988e1db0c04",
+      "command": "snapback4 check --json",
+      "exit": 0,
+      "json": true,
+      "diagnostic_codes": {
+        "N_LOOKUP_FILTERED": 4,
+        "N_INVARIANT_RESTATES_RULE": 10,
+        "N_ROLE_WIDE_READ": 2,
+        "N_ARGUMENT_GRANT": 2,
+        "N_EDIT_AFTER_APPROVAL": 14,
+        "N_GUARD_NOT_CONSUMED": 4,
+        "N_COLUMN_RESULT_EXPOSURE": 2,
+        "N_DERIVED_WRITE_AUTHORITY": 4
+      },
+      "language_diagnostics": [],
+      "scope": "compiler/CLI static replay; no app acceptance assertions or browser replay"
+    },
+    {
+      "lane": "041R",
+      "kind": "reconstructed_original",
+      "source_sha256": "c5ba4369957b3a414980b773872bd9e757c619a6496fc0afae9247cb87d4765c",
+      "command": "snapback4 check --json",
+      "exit": 1,
+      "json": true,
+      "diagnostic_codes": {
+        "N_LOOKUP_FILTERED": 5,
+        "N_ROLE_UNFILTERED": 1,
+        "N_INVARIANT_RESTATES_RULE": 8,
+        "N_ARGUMENT_GRANT": 2,
+        "N_EXISTENCE_ORACLE": 10,
+        "N_EDIT_AFTER_APPROVAL": 14,
+        "N_GUARD_NOT_CONSUMED": 4,
+        "N_COLUMN_RESULT_EXPOSURE": 2,
+        "N_DERIVED_WRITE_AUTHORITY": 4
+      },
+      "language_diagnostics": [
+        {
+          "code": "N_ROLE_UNFILTERED",
+          "site": {
+            "col": 3,
+            "file": "schema.q",
+            "line": 39
+          },
+          "message": "trunks.read: this roles roster probe accepts every role ('owner', 'intake', 'restorer', 'workshop_owner'); bare enrollment does not establish a particular role",
+          "rewrite": "name each admitted role explicitly: `exists roles[principal = viewer, role = '<allowed role>']`; keep the bare probe only if every roster role is intended"
+        }
+      ],
+      "scope": "compiler/CLI static replay; no app acceptance assertions or browser replay",
+      "reconstruction": {
+        "before": "read <- .owner = viewer or exists roles[viewer, role = 'intake'] or exists roles[viewer, role = 'restorer'] or exists roles[viewer, role = 'workshop_owner']",
+        "after": "read <- .owner = viewer or exists roles[viewer]",
+        "basis": "041R friction: bare mixed roster accidentally admitted every customer owner"
+      }
+    },
+    {
+      "lane": "050R",
+      "kind": "final_schema",
+      "source_sha256": "09127c02e2910cb70ee3268f5d7716480abf2951ef3e68ccfa8176c165c86593",
+      "command": "snapback4 check --json",
+      "exit": 0,
+      "json": true,
+      "diagnostic_codes": {
+        "N_SPARSE_FILTER": 1,
+        "N_LOOKUP_FILTERED": 5,
+        "N_NO_CURSOR": 1,
+        "N_INVARIANT_RESTATES_RULE": 6,
+        "N_ROLE_WIDE_READ": 2,
+        "N_GRANT_OUTLIVES_ROLE": 2,
+        "N_CALLER_TIME": 2,
+        "N_ARGUMENT_GRANT": 2,
+        "N_INSERT_WRITE_INTENT": 2,
+        "N_ROLE_WIDE_WRITE": 2,
+        "N_EDIT_AFTER_APPROVAL": 16,
+        "N_COLUMN_RESULT_EXPOSURE": 2,
+        "N_DERIVED_WRITE_AUTHORITY": 4
+      },
+      "language_diagnostics": [],
+      "scope": "compiler/CLI static replay; no app acceptance assertions or browser replay"
+    },
+    {
+      "lane": "050R",
+      "kind": "reconstructed_original",
+      "source_sha256": "0ea347c17844aa9e20aad60c8e79fc2796f2d5628768acde94f28d5b1fccea29",
+      "command": "snapback4 check --json",
+      "exit": 0,
+      "json": true,
+      "diagnostic_codes": {
+        "N_SPARSE_FILTER": 1,
+        "N_LOOKUP_FILTERED": 5,
+        "N_NO_CURSOR": 1,
+        "N_QUERY_FILTERED": 1,
+        "N_INVARIANT_RESTATES_RULE": 6,
+        "N_ROLE_WIDE_READ": 2,
+        "N_GRANT_OUTLIVES_ROLE": 2,
+        "N_CALLER_TIME": 2,
+        "N_ARGUMENT_GRANT": 2,
+        "N_INSERT_WRITE_INTENT": 2,
+        "N_ROLE_WIDE_WRITE": 2,
+        "N_EDIT_AFTER_APPROVAL": 16,
+        "N_COLUMN_RESULT_EXPOSURE": 2,
+        "N_DERIVED_WRITE_AUTHORITY": 4
+      },
+      "language_diagnostics": [],
+      "scope": "compiler/CLI static replay; no app acceptance assertions or browser replay",
+      "reconstruction": {
+        "before": "exists roles[viewer, role = 'scheduler'] or exists roles[viewer, role = 'technician'] or exists roles[viewer, role = 'assistant'] or exists roles[viewer, role = 'head_technician']",
+        "after": "exists roles[viewer, role != 'owner']",
+        "basis": "050R friction: full-key staff role inequality; equivalent over the declared required exhaustive role enum"
+      }
+    }
+  ],
+  "recorded_at_utc": "2026-10-26T23:05:36.762296+00:00",
+  "outcome_summary": {
+    "final_schemas": {
+      "count": 10,
+      "all_check_exit_zero": true
+    },
+    "reconstructed_originals": {
+      "count": 8,
+      "expected_note_sites": {
+        "003R": "N_ROLE_UNFILTERED",
+        "005E": "N_REQUIRE_HIDDEN",
+        "007R": "N_REQUIRE_REFUSED",
+        "021R": "N_REQUIRE_HIDDEN",
+        "034R": "N_REQUIRE_REFUSED",
+        "041R": "N_ROLE_UNFILTERED"
+      },
+      "032E_050R_full_key_role_inequalities": "accepted"
+    },
+    "input_controls": {
+      "record_list": "unsupported, explicit E_QUARRY_SYNTAX and bounded parallel-list repair",
+      "bounded_parallel_lists": "accepted"
+    }
+  },
+  "limitations": [
+    "These are compiler/CLI replays and source reconstructions, not app acceptance or browser assertions.",
+    "N_ROLE_UNFILTERED uses the documented exact ownership-column/role-enum spelling relationship; it does not infer arbitrary customer/staff vocabulary.",
+    "Typed record-list input remains unsupported; the new diagnostic and supported alternative were checked.",
+    "Bracket != requires a complete unique key, a required scalar field and non-null literal; ordinary pages use where, nullable fields require explicit program guards.",
+    "Program payload-hidden predicates return false; rule predicates over protected fields refuse E_COLUMN_READ.",
+    "New bracket predicates remain outside the Lean model fragment (read-form / rule-probe-form); finite core-interpreter tests cover them.",
+    "Reconstructed041R check exits1 while emitting the expected role note; this is not claimed as a successful full security check or as a refusal caused by N_ROLE_UNFILTERED. All final schemas exit0."
+  ],
+  "focused_tests": {
+    "new_language_regressions": 14,
+    "existing_targets": {
+      "wave10_guard_notes": 23,
+      "wave11_qdiag": 19,
+      "wave12_rule_recipes": 13,
+      "wave14_authorization": 10,
+      "wave7_rule_language": 12,
+      "wave9_rule_diagnostic_rewrites": 11
+    },
+    "guide_every_card_compiles_clean": 1,
+    "historical_farm_sweeps": "Four auto-discovered all-wave farm sweeps were interrupted and explicitly excluded; no pass claimed.",
+    "qualification_limit": "Counts summarize scoped runs during this lane. The14-test language target is final-source; existing target results are earlier scoped evidence for unchanged exercised behavior. This is not a full-suite/publication receipt."
+  },
+  "temporary_app_copies_deleted": true
+}

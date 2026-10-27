@@ -1,0 +1,17 @@
+{
+  "commit": "b333f1ccf1",
+  "base": "d6bef17efe",
+  "brief": "Fresh independent final claim/source review of b333f1ccf141934889b8c9f37f6a5f618935d37b in /home/ccheever/projects/sb4-b31-sec11l. Focus only the delta since d6bef17efe: neutral Lane::prepare_for_ingress helper rename from origin/main generic prepare (do not confuse unchanged public ProgramCommand::prepare); diagnostic compare.py optional --identities-only; docs/evidence/issue. Prior immutable-cache source07366f068d was READY from both families. Do not repeat a full product audit or run builds/suites. Read-only; tiny pure JSON/byte checks allowed; no other worktrees.\nRead LLP3000.036.004.000.000 Recorded qualification boundary and snapback4/reports/sec11-latency/README.md plus relevant evidence. Targets PASS on production cold50 (reviewp90 8.332, deploy7.528); all800 after source hashes match, SEC11 precision unclassified/false gates/false refusals zero, fresh/post19/26. Strict full classifier payload comparison FAILS1 advisory N_ARGUMENT_GRANT wave23arborist: raw uploaded IDs copied into ordinary id fields (expanded old/row/supportingRows/generatedIds/summary) differ. baseline-nonce-control.json independently reproduces it using identical old production binary, same schema, separatefresh checks; decision/witness IDs unchanged. No ordinary-ID normalization is implemented. Primary full-payload comparison stays literal and failed. Open ticket preserves unmet strict requirement. Optional identities-only comparison passes800 but is explicitly secondary, not full-proof; its negative caller-with-stale-ID control shows that limitation. Complete23 FIX counterexamples match under previously reviewed compiler-typed uploaded-ID correspondence, with21 raw-nonce differences and2raw equal. Raw captures outside Git, hashes/union/controls public.\nAssess material equivalence or claim/provenance defects and whether docs honestly preserve the user's unmet byte-identical-payload condition (never treat your review as permission to relax it). Verify the optional diagnostic cannot replace/mask the default strict comparison. Check helper rename is purely mechanical and no ratchet rule weakened; targeted census/ratchet passed. First integrated affected receipt has unchanged:true but FAIL from inherited main's neutral-helper lexical collision; actual files/guard identical to main documented privately. Final-commit affected run will happen after final metadata commit. Broaderbefore rerun68 (after initial800timeouts) still finishing; newbefore/after proof will remain separatelyretained, no unsupported all-clean claim. Root WORKSTREAM-REPORT.md is an uncommitted progress draft awaiting final receipt, not final claim. Give concrete MATERIAL blockers or READY for this delta and documented limited qualification boundary.\n",
+  "reviews": {
+    "codex": {
+      "model": "gpt-6.1-sol high, fresh codex exec",
+      "sha256": "dab3be537526a10987525e1a5db97c0814506b790e29bc563c8d402953320aa4"
+    },
+    "muse": {
+      "model": "muse-spark-1.3-contributor high via muse-exec.sh",
+      "sha256": "bdaf1e8149744d108ee3e9b79cce062bc98a8cd673cf11d96d306ccf9389178c"
+    }
+  },
+  "patchSha256": "6b5e67996254718a66daac2217dd323dfb8a1050d062341898b90184c26edd3a",
+  "resolution": "Both READY for source and accurately limited qualification claims. Both preserve unmet literal payload-byte condition; no permission to relax it or all-clean claim."
+}

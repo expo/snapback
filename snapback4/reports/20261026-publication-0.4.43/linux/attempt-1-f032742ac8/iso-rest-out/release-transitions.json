@@ -1,0 +1,10 @@
+{
+  "status": "passed",
+  "cases": [
+    "reactivation",
+    "refused-deploy-cleanliness",
+    "rollback-foresight",
+    "old-client-diff",
+    "installed-v1-v2-guide"
+  ]
+}

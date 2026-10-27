@@ -143,31 +143,33 @@ pub(super) enum Body { Todos, Home(Option<String>) }
 
 // Historical templates are exact snapshots: current improvements must not
 // erase the evidence that an older untouched application is still generated.
-fn known_todos(platform: Platform, previous: bool, latest: bool) -> &'static str {
+fn known_todos(platform: Platform, previous: bool, latest: u8) -> &'static str {
     match (platform, previous, latest) {
         (Platform::Web, true, _) => include_str!("starter/previous/wave9/web-todos.tsx"),
         (Platform::Expo, true, _) => include_str!("starter/previous/wave9/expo-todos.tsx"),
-        (Platform::Web, false, false) => include_str!("starter/previous/wave22/web-todos.tsx"),
-        (Platform::Expo, false, false) => include_str!("starter/previous/wave22/expo-todos.tsx"),
-        (Platform::Web, false, true) => include_str!("starter/web/todos.tsx"),
-        (Platform::Expo, false, true) => include_str!("starter/expo/todos.tsx"),
+        (Platform::Web, false, 0) => include_str!("starter/previous/wave22/web-todos.tsx"),
+        (Platform::Expo, false, 0) => include_str!("starter/previous/wave22/expo-todos.tsx"),
+        (Platform::Web, false, 1) => include_str!("starter/previous/dx13/web-todos.tsx"),
+        (Platform::Web, false, _) => include_str!("starter/web/todos.tsx"),
+        (Platform::Expo, false, 1) => include_str!("starter/previous/dx13/expo-todos.tsx"),
+        (Platform::Expo, false, _) => include_str!("starter/expo/todos.tsx"),
     }
 }
-fn known_client(platform: Platform, previous: bool, latest: bool) -> &'static str {
+fn known_client(platform: Platform, previous: bool, latest: u8) -> &'static str {
     match (platform, previous, latest) {
         (Platform::Web, true, _) => include_str!("starter/previous/wave9/web-client.ts"),
         (Platform::Expo, true, _) => include_str!("starter/previous/wave9/expo-client.ts"),
-        (Platform::Web, false, false) => include_str!("starter/previous/wave22/web-client.ts"),
-        (Platform::Expo, false, false) => include_str!("starter/previous/wave22/expo-client.ts"),
-        (Platform::Web, false, true) => include_str!("starter/web/client.ts"),
-        (Platform::Expo, false, true) => include_str!("starter/expo/client.ts"),
+        (Platform::Web, false, 0) => include_str!("starter/previous/wave22/web-client.ts"),
+        (Platform::Expo, false, 0) => include_str!("starter/previous/wave22/expo-client.ts"),
+        (Platform::Web, false, _) => include_str!("starter/web/client.ts"),
+        (Platform::Expo, false, _) => include_str!("starter/expo/client.ts"),
     }
 }
 
 /// The starter's screen and client for a schema: the guest sign-in, or, with
 /// `personas`, the persona picker, around `body`. The texts are as the
 /// starter ships them, before init's port rewrite.
-fn screens_version(platform: Platform, personas: Option<&[String]>, body: &Body, previous: bool, latest: bool) -> (String, String) {
+fn screens_version(platform: Platform, personas: Option<&[String]>, body: &Body, previous: bool, latest: u8) -> (String, String) {
     let version = |current, old| if previous { old } else { current };
     let (guest, guest_client, persona, persona_client, todos, home) = match platform {
         Platform::Web => (include_str!("starter/web/guest.tsx"), known_client(Platform::Web, previous, latest), include_str!("starter/personas/web-app.tsx"), include_str!("starter/personas/web-client.ts"), known_todos(Platform::Web, previous, latest), include_str!("starter/web/home.tsx")),
@@ -214,6 +216,7 @@ pub(super) fn expo_client(client: String, offline: &Offline) -> String {
             .replace("import { webDevice } from \"snapback4/web\";\n", "")
             .replace("export const tier = Platform.OS === \"web\" ? \"web\" : nativeAvailable() ? \"native\" : \"online\";", "export const tier = \"online\";")
             .replace("  device: tier === \"web\" ? webDevice() : tier === \"native\" ? nativeDevice : undefined,\n", "")
+            .replace("  ...(tier === \"web\" ? { device: webDevice() } : tier === \"native\" ? { device: nativeDevice } : {}),\n", "")
             .replace("each with its own device and store", "each with its own principal write journal")
             .replace("// Development and production builds carry the native device (offline data and\n// a durable outbox); Expo Go has no native module and uses the online client;\n// web uses the wasm device.", "// No table syncs: every platform reads online; browser writes use its principal write journal.");
         client.replace("createApp({", "createApp({ writes: \"online\",")
@@ -357,6 +360,8 @@ pub(super) fn web_files(shape: &Shape) -> Vec<(&'static str, String)> {
         ("src/styles.css", include_str!("starter/web/styles.css").to_owned()),
         ("src/App.tsx", app),
         ("src/client.ts", client),
+        ("src/package.json", "{\"type\":\"module\"}\n".into()),
+        ("src/shared.ts", include_str!("starter/shared.ts").into()),
         ("src/vite-env.d.ts", include_str!("../../../../../apps/chat/src/vite-env.d.ts").to_owned()),
         ("snapback/schema.q", SCHEMA.to_owned()),
         ("README.md", identity_readme(Platform::Web, &shape.title, &shape.body, shape.personas.is_some(), &shape.offline, shape.password)),
@@ -388,10 +393,12 @@ pub(super) fn expo_files(shape: &Shape) -> Vec<(&'static str, String)> {
         ("babel.config.js", include_str!("../../../../../apps/chat-expo/babel.config.js").to_owned()),
         ("metro.config.js", include_str!("metro.config.js").to_owned()),
         ("index.js", include_str!("../../../../../apps/chat-expo/index.js").to_owned()),
-        ("tsconfig.json", include_str!("../../../../../apps/chat-expo/tsconfig.json").to_owned()),
+        ("tsconfig.json", super::strict_expo_config(include_str!("../../../../../apps/chat-expo/tsconfig.json"))),
         ("expo-env.d.ts", include_str!("starter/expo-env.d.ts").to_owned()),
         ("App.tsx", app),
         ("src/client.ts", client),
+        ("src/package.json", "{\"type\":\"module\"}\n".into()),
+        ("src/shared.ts", include_str!("starter/shared.ts").into()),
         ("src/UploadPicker.tsx", include_str!("starter/expo/UploadPicker.tsx").to_owned()),
         ("snapback/schema.q", SCHEMA.to_owned()),
         ("README.md", identity_readme(Platform::Expo, &shape.title, &shape.body, shape.personas.is_some(), &shape.offline, shape.password)),
@@ -402,8 +409,12 @@ pub(super) const EXPO_ENV: &str = include_str!("starter/expo-env.d.ts");
 
 // @ref LLP 3000.011.003.000#8 — password identity gets an executable sign-in screen.
 pub(super) fn identity_screens(platform: Platform, personas: Option<&[String]>, body: &Body, password: bool) -> (String, String) {
-    let (app, client) = identity_screens_version(platform, personas, body, password, false, true);
-    let client = if !password && personas.is_none() { known_client(platform, false, false).to_owned() } else { client };
+    let (app, client) = identity_screens_at(platform, personas, body, password, 2);
+    (app, if platform == Platform::Expo { strict_expo_client(client) } else { client })
+}
+fn identity_screens_at(platform: Platform, personas: Option<&[String]>, body: &Body, password: bool, version: u8) -> (String, String) {
+    let (app, client) = identity_screens_version(platform, personas, body, password, false, version);
+    let client = if !password && personas.is_none() { known_client(platform, false, 0).to_owned() } else { client };
     let client = if password {
         let registration = if platform == Platform::Web { "registerWebWitness(app, api);" } else { r#"if (Platform.OS === "web") registerWebWitness(app, api);"# };
         format!("import {{ registerWebWitness }} from \"snapback4/witness-web\";\nimport {{ api }} from \"../snapback/generated/api.ts\";\n{client}\n{registration}\n")
@@ -411,6 +422,10 @@ pub(super) fn identity_screens(platform: Platform, personas: Option<&[String]>, 
     let app = if platform == Platform::Expo { app.replace("import { useNativeSmokeGuest } from \"./src/native-smoke\";", "import { useNativeSmoke } from \"snapback4-expo/native-smoke\";")
         .replace("useNativeSmokeGuest();", if password { "useNativeSmoke(true);" } else { "useNativeSmoke();" }) } else { app };
     (app, client)
+}
+/// Exact DX13 screen/client bytes remain recognizable after the control and strictness fixes.
+pub(super) fn dx13_screens(platform: Platform, personas: Option<&[String]>, body: &Body, password: bool) -> (String, String) {
+    identity_screens_at(platform, personas, body, password, 1)
 }
 /// Exact pre-DX13 password clients; app-owned edits still fail byte matching.
 pub(super) fn pre_dx13_password_client(platform: Platform) -> &'static str {
@@ -425,10 +440,10 @@ pub(super) fn wave22_screens(platform: Platform, personas: Option<&[String]>, bo
         .replace("useNativeSmokeGuest();", if password { "useNativeSmoke(true);" } else { "useNativeSmoke();" }) } else { app };
     (app, client)
 }
-pub(super) fn wave20_screens(platform: Platform, personas: Option<&[String]>, body: &Body, password: bool) -> (String, String) { identity_screens_version(platform, personas, body, password, false, false) }
+pub(super) fn wave20_screens(platform: Platform, personas: Option<&[String]>, body: &Body, password: bool) -> (String, String) { identity_screens_version(platform, personas, body, password, false, 0) }
 // Recognize only complete known templates; edited application source never matches.
-pub(super) fn previous_screens(platform: Platform, personas: Option<&[String]>, body: &Body, password: bool) -> (String, String) { identity_screens_version(platform, personas, body, password, true, false) }
-fn identity_screens_version(platform: Platform, personas: Option<&[String]>, body: &Body, password: bool, previous: bool, latest: bool) -> (String, String) {
+pub(super) fn previous_screens(platform: Platform, personas: Option<&[String]>, body: &Body, password: bool) -> (String, String) { identity_screens_version(platform, personas, body, password, true, 0) }
+fn identity_screens_version(platform: Platform, personas: Option<&[String]>, body: &Body, password: bool, previous: bool, latest: u8) -> (String, String) {
     let version = |current, old| if previous { old } else { current };
     if !password { return screens_version(platform, personas, body, previous, latest); }
     let head = match platform { Platform::Web => include_str!("starter/web/password.tsx"), Platform::Expo => version(include_str!("starter/expo/password.tsx"), include_str!("starter/previous/wave9/expo-password.tsx")) };
@@ -502,4 +517,9 @@ pub(super) fn wave14_screens(platform: Platform, personas: Option<&[String]>, bo
     // Imports are coalesced by compose; the new isAbsent import is the sole
     // import delta between these two complete historical templates.
     (app.replace(current_body.trim(), previous_body.trim()).replace("isAbsent, isDenied", "isDenied"), client)
+}
+
+fn strict_expo_client(client: String) -> String {
+    client.replace("  device: tier === \"web\" ? webDevice() : tier === \"native\" ? nativeDevice : undefined,", "  ...(tier === \"web\" ? { device: webDevice() } : tier === \"native\" ? { device: nativeDevice } : {}),")
+        .replace("../snapback/generated/api\"", "../snapback/generated/api.ts\"")
 }

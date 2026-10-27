@@ -7,7 +7,7 @@
 - Required-to-optional rollback views retain independent invariants. Intentional null hiding narrows the generated view and refuses null writes with `ROLLBACK_NULL`; forward keeps the nullable workflow. Deploy previews report unavailable hiding views separately, so their population-safety refusal cannot brick forward activation. The release card explains visible optional views and exact-source preview commands.
 - `deploy --check` runs adoption preflight before enforcing security and labels the first failure. Global bare `cap N` survives rollback generation. `check` refuses an extraction's unmapped nonliteral defaults with the column and remedies; retired required-column refusals name the missing `down` outputs.
 
-## 0.4.44
+## 0.4.45
 
 ### Guide changes
 
@@ -17,6 +17,30 @@
 - `alias result list.oldName = currentName` preserves frozen result property names on rows, nullable rows and pages; generated client types include both names. RESULT REVIEW lists frozen property reads and named alias coverage separately from domain/behavior changes. Guarded rollback views project extracted v1 payloads through receipt-owned child identities and current read rules, retaining child ids and asset homes.
 - Scalar field rename plus domain widening can deploy in one release and roll back directly through a fitting registered view. Tightened column-write rules retain current guarded workflows on default rollback. `extract` explicitly refuses scalar-only splits as asset-only and points to backfill/down.
 - Shape advice lists changed properties without repeating expanded JSON. Migration evidence says `preimages retained`; predecessor representations are described directly. Hiding refusals include bounded, table-qualified sample row ids. A view's `live:` line states the workflow and guards it still runs.
+
+## 0.4.44
+
+### Guide changes
+
+- Start replaces the introductory card tour with one compiling customer/staff workflow and feature pointers. Default cards have a hard reading budget; project repeats show deltas (guide --repeat/--full restore content). Build-time API digests and a generated operation index replace declaration greps. Init shows the recipe and file map before a background frontend install with status/wait. Probe scripts announce their lifetime, refuse repeated empty long runs and bound idle foreground waiting unless the npm script receives --hold; probe:check verifies. Upload placement explains separate uploads for several image columns.
+
+- Production proofs have one serve/accounts/static-host/SIGTERM recipe. Roster mismatches name supplied and pinned plans. Inherited serve drivers get a serve-check --then next step on upgrade; the proof preserves the requested uptime. waitForFresh can observe a stable control before its trigger. Admin data --all and snapshotAll inspect all active rows; generated query help exposes next. Reads show the complete-empty absent arm; ambiguous signup advises login without revealing account existence.
+
+- Caller-filtered required probes explain incompatible roster role arms and explicit service exceptions; mixed owner/customer and staff rosters need an explicit role predicate. A mutation require cannot replace denied table write authority.
+- Default web forms ship explicitly labelled textareas and select controls with a combobox proof. Expo web labels editable and status controls using current React Native props. Shared TypeScript modules import directly from Node 24; starters retain strict optional/index checks and witness registration through adaptation. Generated runtime imports remain available in versioned app copies.
+- Job sweeps catch up rows before the latest coalesced period and put deadline refusals before status checks. Live staging clocks keep ticking; exact boundaries use pinned local runs or one captured fixture clock. Staging password budgets and fixture operator reads are explained.
+- Callback/watch guesses refuse with the actual observation call. Headless settleMutation waits for the same pending receipt through recovery; imperative asset and sentResult export shapes are explicit. The proof selector works under tsx; labelledControl excludes option text from wrapped control labels. Awaited-upload witness claims use witnessForm.
+- Test output separates completed finite campaigns, authored cases and query-probe coverage, with elapsed-time progress during long campaigns. Audit JSON is pretty-printed.
+- Dense guide cards show content with byte-based previews; functions opens programs. The optional account/avatar/thread walkthrough is shipped as the linked client walkthrough, keeping every example behind one link from the shorter quickstart. Money minor units and column privacy are in the cheatsheet.
+- Full-key probe brackets accept non-null literal inequality residuals on required readable scalar columns. Typed record-list parameters refuse with a bounded parallel-list rewrite; partial existence checks retain structural fanout rules.
+- Check and production deploy avoid repeated security compilation and replay, run independent witness campaigns concurrently, and construct isolated fixture copies without rebuilding discarded empty stores. Private replay worlds share immutable verified asset bytes while retaining independent ledgers and delivery files. The same gates, questions, replay budgets and decision identities apply.
+
+- Security campaigns generate valid URL, email and handle text, including constrained list leaves. A predecessor-backed narrowed setter gates an older broader creator only with a current excluded-role create witness. Gates print their answer template immediately and require a schema fix or evaluated Quarry invariant/allowance; false premises, unknown evaluations and prose answers keep the gate pending.
+
+- Security advisories inspect pure role helpers, non-default lifecycle guards and exact resource windows; operator provisioning and the built-in clock seat avoid redundant warnings. Remaining questions name the guard observed and the case not proved. Advisory omissions retain independently replayed current witnessed questions.
+
+- Security decision refusals retain current redacted evidence. Default witnessed questions now include formatted URL/email/handle creation paths, missing media or attachments, text evidence, broad audiences and supported guard reuse. They remain nonblocking unless an independently qualified gate applies. Advisory answers name the witness, operation and caller; gates require a schema fix or evaluated Quarry invariant/allowance.
+- Upgrade: existing application rows and store formats are unchanged. Rebuild clients and restart servers for the diagnostics and replay implementation. Old decisions may become pending once because witness digests now include clocks, observed absence and delivered fields. Adapt only unmodified generated starter files; authored files are preserved. A probe terminated after over 60 seconds without requests refuses before the next deploy; pass the npm script option --hold or set SNAPBACK4_PROBE_HOLD=1 for an intentional held server. Each asset still has one placement: upload the same bytes separately for each image column, even on the same row.
 
 ## 0.4.43
 

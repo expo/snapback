@@ -1,3 +1,5 @@
+import { currentProbeGuard, probeAdvice } from "./proof-probe.ts";
+export { probeServeGuard } from "./proof-probe.ts";
 export { loadFixtures, type FixtureRow, type LoadFixturesOptions } from "./proof-fixtures.ts";
 import { devAccounts, provisionAccounts, seedAccounts, type ProvisionAccountsOptions, type ProvisionedSessions, type SeedAccountsOptions, type StagingSessions } from "./proof-accounts.ts";
 export { devAccounts, provisionAccounts, seedAccounts, type SeedAccountsOptions, type StagingAccount, type StagingSessions, type ProvisionAccountsOptions, type ProvisionedAccount, type ProvisionedSessions } from "./proof-accounts.ts";
@@ -10,7 +12,7 @@ import { fileURLToPath } from "node:url";
 import { createRequire } from "node:module";
 import type { BrowserContext, BrowserType, LaunchOptions, Locator, Page } from "playwright-core";
 import type { Cursor, ReadCut, Refusal } from "./contract.ts";
-import { renderedSelector, registerRenderedSelector, registeredLocator, visibleText, scopedLocators } from "./proof-text.ts";
+import { renderedSelector, registerRenderedSelector, registeredLocator, visibleText, armFreshText, scopedLocators } from "./proof-text.ts";
 import { webWitnessObserverScript } from "./witness-web.ts";
 import { resolveBinary } from "./bin-path.ts";
 import { bounded, cleanup, deadline, logged, logText, portRange, ready, stopChild, type ProofHost, type ProofOptions, logsDir } from "./proof-process.ts";
@@ -346,15 +348,19 @@ export async function withBrowser<T>(options: LaunchOptions & Pick<ProofOptions,
 // @ref LLP 3000.011.003.000.000#15-wave-26-proof-ergonomics-dx9 — a pending promise alone cannot keep probe:serve alive.
 export async function serveUntilSignal(hosts: readonly Pick<ProofHost, "stop">[]): Promise<void> {
   if (!Array.isArray(hosts) || hosts.length === 0 || hosts.some(host => typeof host?.stop !== "function")) throw Error("E_PROOF_USAGE: serveUntilSignal requires at least one owned host");
+  console.error(probeAdvice);
+  const guard = currentProbeGuard(); guard?.ready();
   let finish!: () => void;
   const signalled = new Promise<void>(resolve => { finish = resolve; });
-  const hold = setInterval(() => {}, 60_000);
+  const hold = setInterval(() => {
+    if (guard?.idle()) { console.error(`E_PROBE_IDLE: no requests in 60 seconds; ${probeAdvice}. Deliberate service: npm run probe:serve -- --hold (or SNAPBACK4_PROBE_HOLD=1)`); process.exitCode = 1; finish(); }
+  }, 1000);
   process.on("SIGTERM", finish); process.on("SIGINT", finish);
   try { await signalled; }
   finally {
     clearInterval(hold);
     try { await cleanup(...[...hosts].reverse().map(host => () => host.stop())); }
-    finally { process.removeListener("SIGTERM", finish); process.removeListener("SIGINT", finish); }
+    finally { guard?.close(); process.removeListener("SIGTERM", finish); process.removeListener("SIGINT", finish); }
   }
 }
 const substringLocators = new WeakMap<Locator, { locator: Locator; scoped: boolean }>();
@@ -375,6 +381,22 @@ export function renderedText(page: Page, text: string | RegExp, options: { withi
   const locator = match(normalized.exact ?? false);
   if (normalized.within) scopedLocators.add(locator);
   if (typeof text === "string" && normalized.exact === true) substringLocators.set(locator, { locator: match(false), scoped: normalized.within !== undefined });
+  return locator;
+}
+
+/** Locate a labelled form control by role and name, excluding option/value text
+ * from wrapping labels. Exact names are the default; duplicate controls remain
+ * ambiguous. Prefer explicit aria-label or label/htmlFor in the application. */
+/** @throws Locator observations preserve Playwright's strict ambiguity and visibility rules. */
+export function labelledControl(page: Page, role: "textbox" | "combobox" | "checkbox" | "radio" | "spinbutton" | "slider" | "switch", name: string | RegExp, options: { within?: Locator; exact?: boolean } = {}): Locator {
+  const root = options.within ?? page, exact = options.exact ?? true;
+  const named = root.getByRole(role, { name, exact });
+  const labelled = root.locator(`${renderedSelector}=${JSON.stringify({
+    control: true, source: typeof name === "string" ? name : name.source,
+    flags: typeof name === "string" ? "" : name.flags, regex: typeof name !== "string", exact,
+  })}`).and(root.getByRole(role));
+  const locator = registeredLocator(named.or(labelled));
+  if (options.within) scopedLocators.add(locator);
   return locator;
 }
 
@@ -417,13 +439,25 @@ export async function exhaustPages<Row>(readPage: (cursor: Cursor | null) => Pro
   }
   throw new Error(`E_PROOF_PAGE: ${label}: exceeded maxPages ${maxPages}`);
 }
+/** Administrative snapshot of every active row; bypasses application read rules.
+ * The CLI reads adopted schema and rows in one transaction; ephemeral tables refuse.
+ * @throws E_PROOF_SNAPSHOT for CLI refusal or malformed/incomplete inspection output. */
+export async function snapshotAll<Row = Record<string, unknown>>(table: string, options: ProofOptions & { release?: string } = {}): Promise<Row[]> {
+  if (!/^[A-Za-z][A-Za-z0-9_]*$/.test(table)) throw Error("E_PROOF_SNAPSHOT: supply one table name");
+  const result = await cli(["data", table, "--all", "--json", ...(options.release ? ["--release", options.release] : [])], options);
+  if (result.code !== 0) throw Error(`E_PROOF_SNAPSHOT: ${result.stderr.trim()}`);
+  let value;
+  try { value = JSON.parse(result.stdout); } catch { throw Error("E_PROOF_SNAPSHOT: inspection returned invalid JSON"); }
+  if (!Array.isArray(value.rows) || value.more !== false || value.limit !== null) throw Error("E_PROOF_SNAPSHOT: inspection did not certify all rows");
+  return value.rows as Row[];
+}
 /** Activate before taking a screenshot, particularly on loaded shared hosts. */
 /** @throws page closed or browser activation failed. */
 export async function frontPage(page: Page): Promise<Page> { await page.bringToFront(); return page; }
 export { logsDir } from "./proof-process.ts";
 /** Returns normalized visible nonempty text after it differs from previous. Hidden and editable descendants do not confer freshness. */
 /** @throws observation deadline with scoped locator, last text and visible headings; selector ambiguity is propagated. */
-export async function waitForFresh(locator: Locator, previous: string | null, options: number | { within?: Locator; timeoutMs?: number } = 30_000): Promise<string> {
+export async function waitForFresh(locator: Locator, previous: string | null, options: number | { within?: Locator; timeoutMs?: number; trigger?: () => unknown | Promise<unknown> } = 30_000): Promise<string> {
   const timeoutMs = deadline(typeof options === "number" ? options : options.timeoutMs, 30_000);
   let substring = substringLocators.get(locator);
   locator = registeredLocator(locator);
@@ -431,6 +465,29 @@ export async function waitForFresh(locator: Locator, previous: string | null, op
     if (scopedLocators.has(locator)) throw Error("E_PROOF_USAGE: within was supplied twice; scope renderedText or waitForFresh once");
     locator = registeredLocator(options.within.locator(locator));
     if (substring) substring = { locator: options.within.locator(substring.locator), scoped: true };
+  }
+  if (typeof options !== "number" && options.trigger) {
+    // A stable locator is resolved and a browser observer is armed before action.
+    // Transient text can disappear before the action promise settles.
+    const observer = await armFreshText(locator, previous, timeoutMs);
+    try {
+      const end = performance.now() + timeoutMs;
+      await bounded(Promise.resolve().then(options.trigger), Math.max(1, end - performance.now()), "fresh-text trigger");
+      while (performance.now() < end) {
+        try {
+          const text = await bounded(observer.evaluate(state => state.text), Math.max(1, end - performance.now()), "fresh-text observation");
+          if (text) return text;
+        } catch (error) {
+          if (error instanceof Error && error.message.startsWith("fresh-text observation timed out")) break;
+          throw error;
+        }
+        await new Promise(resolve => setTimeout(resolve, 10));
+      }
+      throw Error(`no fresh signal after ${timeoutMs} ms: ${String(locator)}; observe a stable button/status container before the trigger`);
+    } finally {
+      await bounded(observer.evaluate(state => state.stop()), 1000, "fresh-text observer cleanup").catch(() => {});
+      await bounded(observer.dispose(), 1000, "fresh-text handle cleanup").catch(() => {});
+    }
   }
   const end = performance.now() + timeoutMs;
   let count = 0, text: string | null = null, detail = "";

@@ -1,0 +1,46 @@
+{
+  "setup_presence": {
+    "installed_backend": true,
+    "installed_cli": true,
+    "backend_sha256": "5584895149cd6af74624ccbc038b2ada14ec771b6374e4ce252080a115ba5255",
+    "backend_exact_s1c_match": true,
+    "app_source_exact_s1c_match": true,
+    "app_sha256": {
+      "snapback4/experiments/scale-controls/convex-app/convex/auth.config.ts": "d2e88787c9f9d87d80b85a4e163bf7f8f4492e1df0c4a42133ba1b743a215c98",
+      "snapback4/experiments/scale-controls/convex-app/convex/chat.ts": "856779a8f7e591a24dce494518ca22eb3556b9c869a9bdaa1e4141a91e650bad",
+      "snapback4/experiments/scale-controls/convex-app/convex/schema.ts": "852ce30a7924fc32710d16c99dbb695863b9d23fa81df03fb85ec83ebc518f92",
+      "snapback4/experiments/scale-controls/convex-app/package.json": "ed643a627e0acefa7db258b91721a7d7bd98c36d0cbdb058253a72282631dc7e",
+      "snapback4/experiments/scale-controls/convex-app/bun.lock": "513906264c56d64de3592422ada86ddfe1e440bfa95ec7a66d11028f298db1a4"
+    },
+    "no_install_or_build_needed": true
+  },
+  "effective": {
+    "instance": "s1c-convex-1000000",
+    "persistence": "postgres-v5",
+    "database": "s1c_convex_1000000",
+    "postgres_url": "postgresql://sb4scale:[REDACTED]@localhost?host=[private Unix link]&port=55441",
+    "pool": 32,
+    "APPLICATION_MAX_CONCURRENT_QUERIES": 32,
+    "APPLICATION_MAX_CONCURRENT_MUTATIONS": 32,
+    "DOCUMENT_RETENTION_DELAY": 172800,
+    "DISABLE_BEACON": true,
+    "DISABLE_METRICS_ENDPOINT": false,
+    "RUST_LOG": "info",
+    "interface": "127.0.0.1",
+    "port": 58080,
+    "site_proxy_port": 58083,
+    "require_ssl": false,
+    "drain": "HTTP outstanding and committer unpublished gauges; two zeros 100ms apart; 30s bound; background SQL may continue",
+    "local_storage": "/tmp/s1c-gliz4kmy/convex/s1c-convex-1000000-storage",
+    "auth": "offline RS256 fixture JWT; customJwt data URI JWKS",
+    "delay_us": 0
+  },
+  "endpoint": {
+    "from_port": 55440,
+    "to_port": 55441,
+    "changed_literals": 2,
+    "only_connection_endpoint_and_redacted_witness_changed": true
+  },
+  "same_s1c_advocate_settings": true,
+  "no_install_or_build": true
+}
