@@ -1,3 +1,6 @@
+import {guideReference} from "./publication-guide.mjs";
+import {resolveBinary} from "snapback4/bin-path";
+import {fileURLToPath} from "node:url";
 // Runs with the installed tarball's CLI and SDK; the wrapper owns/removes scratch.
 import assert from "node:assert/strict";
 import {mkdirSync,writeFileSync} from "node:fs";
@@ -44,7 +47,7 @@ for(let cycle=0;cycle<3;cycle++){
  await rollback("deployment","latest");
 }
 // Run the corrected language snippet unchanged against real pre-patch input names.
-const language=await checked(["guide","language","--full"]);
+const language={stdout:guideReference(resolveBinary(),"language",{packageRoot:fileURLToPath(new URL("../",import.meta.resolve("snapback4/proof")))})};
 const example=[...language.stdout.matchAll(/```quarry\n([\s\S]*?)```/g)].map(m=>m[1]).find(s=>s.includes("backfill parcels quantities"));
 assert.ok(example?.includes("quantities(legacyManifest:"));
 const oldLanguage=`use identity password

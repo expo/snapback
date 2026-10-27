@@ -1,3 +1,5 @@
+import {guideReference} from "./publication-guide.mjs";
+import {resolveBinary} from "snapback4/bin-path";
 // Runs unchanged with a packed client/platform installation in the cwd.
 import assert from "node:assert/strict";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -5,11 +7,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { cleanup, cli, deploy, exhaustPages, renderedText, startDev, startServe, waitForFresh, withBrowser } from "snapback4/proof";
 
-const guide = async name => {
-  const result = await cli(["guide", name, "--full"]);
-  assert.equal(result.code, 0, result.stderr);
-  return result.stdout;
-};
+const guide = async name => guideReference(resolveBinary(),name,{packageRoot:dirname(dirname(fileURLToPath(import.meta.resolve("snapback4/proof"))))});
 
 const [clientGuide, wireGuide, rulesGuide, recipesGuide, testingGuide, cheatsheetGuide, productionGuide] = await Promise.all([
   guide("client"), guide("wire"), guide("rules"), guide("rule-recipes"),

@@ -4,7 +4,7 @@
 
 ### Guide changes
 
-- `guide day2` walks the release loop with change-specific routes, frozen v1 calls and production accounts. Large `--full` reads list bounded sections; rereads show new content only (`--repeat` forces a selection).
+- `guide day2` walks the release loop with change-specific routes, frozen v1 calls and production accounts. Large `--full` reads list bounded sections; rereads show new content only (`guide --repeat` forces a selection).
 - `init --adapt --day2 --apply` freezes `v1/` with its own ESM package and checked API. Its runner accepts inline `CALLS_USERS` or a file path. `uniqueName` and `freshUser` isolate repeat proofs; capacity refusals give setup advice without retrying writes. The proof digest includes production helpers and roster/account shapes.
 - Administrative `data --all` and `snapshotAll` include active and retained rows/cells, merged once per ID. Ephemeral tables still require a serving-memory read.
 

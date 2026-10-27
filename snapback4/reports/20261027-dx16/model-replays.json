@@ -1,5 +1,5 @@
 {
-  "method": "Paired real native-model discovery sessions on copies of original wave-32 apps, using the exact wave-33 day-two briefs/backend instructions, ending at an implementation/proof plan. No app implementation, deploy, production accounts, frontend build or full day-two score. Same model CLIs/flags as run-bakeoff.mjs. Docs are o200k_base tokens from actual tool-visible package/guide/init outputs; batched surrounding output is conservatively included. Raw CLI stdout is an independent cross-check, not substituted for tool-visible bytes. Native total/cached/uncached input, calls and wall include provider waits and concurrent host load.",
+  "method": "Paired real native-model discovery sessions on copies of original wave-32 apps, using the exact wave-33 day-two briefs/backend instructions, ending at an implementation/proof plan. No app implementation, deploy, production accounts, frontend build or full day-two score. Same model CLIs/flags as run-bakeoff.mjs. Docs are o200k_base tokens from actual tool-visible package/guide/init outputs; Echo-delimited compound command output is attributed to its producing command; app source/check outputs are excluded when unambiguously separated. Guide/init/help/package reads are counted as documentation (wave33 docs category, with day2 handover included). Automatic runtime-change notes from check are separately measured as check ceremony, matching wave33 tx/agg.py; docsPlusAutomaticChangeNotes also exposes the stricter all-instructional-text total. Unmatched batches remain conservative; docsAndBatchedSourceUpperBound retains the original whole-batch count. Raw CLI stdout is an independent cross-check, not substituted for tool-visible bytes. Native total/cached/uncached input, calls and wall include provider waits and concurrent host load.",
   "baseline": "Retained original 0.4.44 client/platform tarballs from ~/sb4-loop/dist/0.4.44; after uses installed candidate tarballs. README/card/digest bytes and artifact hashes are recorded. Whole-wave input means are contextual and not paired full-app comparisons.",
   "wave33Means": {
     "codexInput": 5090000,
@@ -23,68 +23,96 @@
       "inputTokens": 916783,
       "cachedInputTokens": 835712,
       "uncachedInputTokens": 81071,
-      "docsTokens": 40659,
+      "docsTokens": 43718,
+      "automaticChangeNoteTokens": 0,
+      "docsPlusAutomaticChangeNotes": 43718,
+      "docsAndBatchedSourceUpperBound": 43718,
       "cliGuideAndInitTokens": 33088,
       "reads": [
         {
           "command": "/bin/bash -lc 'npx snapback4 init --adapt --day2'",
-          "tokens": 251
+          "tokens": 251,
+          "batchedUpperBound": 251
+        },
+        {
+          "command": "/bin/bash -lc \"pwd; rg --files -g 'AGENTS.md' -g 'package.json' -g 'PREVIOUS-*' -g '*day2*' -g '*README*' -g 'snapback.config*' -g 'backend-choice.json' -g '*.md' -g '\"'!node_modules/**'\"' -g '\"'!dist/**'\"' -g '\"'!deploy/**'\"' -g '\"'!frontend/node_modules/**'\"'; npx snapback4 --help\"",
+          "tokens": 1941,
+          "batchedUpperBound": 1941
         },
         {
           "command": "/bin/bash -lc 'npx snapback4 guide day2'",
-          "tokens": 31
+          "tokens": 31,
+          "batchedUpperBound": 31
         },
         {
           "command": "/bin/bash -lc 'cat node_modules/snapback4/README.md; cat README.md; cat snapback/schema.q'",
-          "tokens": 2856
+          "tokens": 2856,
+          "batchedUpperBound": 2856
         },
         {
           "command": "/bin/bash -lc 'npx snapback4 init --help; npx snapback4 guide --list; npx snapback4 guide start --sections; npx snapback4 guide deploy --sections'",
-          "tokens": 1807
+          "tokens": 1807,
+          "batchedUpperBound": 1807
         },
         {
           "command": "/bin/bash -lc 'npx snapback4 guide start; npx snapback4 guide deploy --full'",
-          "tokens": 9839
+          "tokens": 9839,
+          "batchedUpperBound": 9839
         },
         {
           "command": "/bin/bash -lc \"npx snapback4 guide production --sections; npx snapback4 guide evolution --sections; npx snapback4 guide tasks --find 'release|day2|frozen|rollback'; npx snapback4 guide api proof\"",
-          "tokens": 1451
+          "tokens": 1451,
+          "batchedUpperBound": 1451
         },
         {
           "command": "/bin/bash -lc \"npx snapback4 guide deploy --section 'Capture a saved version' --repeat; npx snapback4 guide deploy --section 'Keep v1 clients working' --repeat; npx snapback4 guide deploy --section 'Persistent production' --repeat\"",
-          "tokens": 3499
+          "tokens": 3499,
+          "batchedUpperBound": 3499
         },
         {
           "command": "/bin/bash -lc \"npx snapback4 guide production --sections; npx snapback4 guide evolution --sections; npx snapback4 guide api proof; npx snapback4 guide rules --section 'Column read rules'; npx snapback4 guide deploy --section 'Visible rollback by default' --repeat; npx snapback4 guide deploy --section 'What the old release sees' --repeat\"",
-          "tokens": 1754
+          "tokens": 1754,
+          "batchedUpperBound": 1754
         },
         {
           "command": "/bin/bash -lc \"npx snapback4 guide production --section 'Serve script and reusable accounts'; npx snapback4 guide api proof --repeat; npx snapback4 guide evolution --section Opening; npx snapback4 guide release-json --sections\"",
-          "tokens": 2031
+          "tokens": 2031,
+          "batchedUpperBound": 2031
+        },
+        {
+          "command": "/bin/bash -lc \"rg -n 'frozen|baseline|day2|backfill .*\\\\(' node_modules/snapback4/{SERVER.md,CLIENT-AND-OPERATIONS.md,README.md} ; npx snapback4 deploy --help; npx snapback4 rollback --help\"",
+          "tokens": 1118,
+          "batchedUpperBound": 1118
         },
         {
           "command": "/bin/bash -lc \"npx snapback4 guide release-json --section 'Fields and automatic workers'; npx snapback4 guide release-json --section 'Clients across rollback'; npx snapback4 guide rule-recipes --section 'Column-level privacy'; npx snapback4 guide production --section 'Real-account and rollback acceptance'; node -e \\\"const fs=require('fs');const l=JSON.parse(fs.readFileSync('package-lock.json','utf8'));for(const n of ['snapback4','snapback4-expo'])console.log('lock',n,l.packages?.['node_modules/'+n]?.version??'absent')\\\"; cat scripts/acceptance.mjs scripts/frontend-proof.mjs\"",
-          "tokens": 5683
+          "tokens": 5683,
+          "batchedUpperBound": 5683
         },
         {
           "command": "/bin/bash -lc \"npx snapback4 guide evolution --section 'Release rollback and hot activation'; npx snapback4 guide language --find backfill; npx snapback4 guide testing --sections; npx snapback4 guide api auth; npx snapback4 data --help; npx snapback4 sql --help\"",
-          "tokens": 2701
+          "tokens": 2701,
+          "batchedUpperBound": 2701
         },
         {
           "command": "/bin/bash -lc \"npx snapback4 guide testing --section 'Day-two proofs with immutable sources'; npx snapback4 guide testing --section 'Production moves in a stage script'; npx snapback4 guide testing --section 'Day-two proof with production accounts'\"",
-          "tokens": 4110
+          "tokens": 4110,
+          "batchedUpperBound": 4110
         },
         {
           "command": "/bin/bash -lc \"node -e \\\"const fs=require('fs');for(const p of ['data/release/store.sqlite','data/release/assets','data/release/proof-accounts/workshop.json','deploy/store.sqlite','fixtures','versions/v1','snapback/client-compatibility.json','.harness-env.json'])console.log(p,fs.existsSync(p)?'present':'absent')\\\"; rg -n --glob '*.md' '(\"'^|[''^[:alpha:]])(--store|SNAPBACK4_STORE|alias.*store|store.*alias|backfill|digest)'\"' node_modules/snapback4/SERVER.md | head -n 55; npx snapback4 guide testing --section 'Check an npm serve script'; npx snapback4 guide testing --section 'Proof signatures on demand'\"",
-          "tokens": 1246
+          "tokens": 1246,
+          "batchedUpperBound": 1246
         },
         {
           "command": "/bin/bash -lc \"date -u +%FT%TZ; npx snapback4 guide production --section 'Admin inspection'; npx snapback4 guide security --find 'column|invariant' \"",
-          "tokens": 2048
+          "tokens": 2048,
+          "batchedUpperBound": 2048
         },
         {
           "command": "/bin/bash -lc \"npx snapback4 guide testing --section 'Fixtures and cases' --repeat\"",
-          "tokens": 1352
+          "tokens": 1352,
+          "batchedUpperBound": 1352
         }
       ],
       "native": {
@@ -109,72 +137,96 @@
       "inputTokens": 764766,
       "cachedInputTokens": 700672,
       "uncachedInputTokens": 64094,
-      "docsTokens": 34960,
+      "docsTokens": 36798,
+      "automaticChangeNoteTokens": 0,
+      "docsPlusAutomaticChangeNotes": 36798,
+      "docsAndBatchedSourceUpperBound": 36798,
       "cliGuideAndInitTokens": 33563,
       "reads": [
         {
           "command": "/bin/bash -lc 'npx snapback4 init --adapt --day2'",
-          "tokens": 234
+          "tokens": 234,
+          "batchedUpperBound": 234
+        },
+        {
+          "command": "/bin/bash -lc 'npx snapback4 --help'",
+          "tokens": 1838,
+          "batchedUpperBound": 1838
         },
         {
           "command": "/bin/bash -lc 'npx snapback4 guide --list && npx snapback4 init --help'",
-          "tokens": 1492
+          "tokens": 1492,
+          "batchedUpperBound": 1492
         },
         {
           "command": "/bin/bash -lc 'npx snapback4 guide start && npx snapback4 guide tasks --sections'",
-          "tokens": 1885
+          "tokens": 1885,
+          "batchedUpperBound": 1885
         },
         {
           "command": "/bin/bash -lc 'npx snapback4 guide production --sections && npx snapback4 guide deploy --sections && npx snapback4 guide evolution --sections && npx snapback4 guide rename --sections'",
-          "tokens": 502
+          "tokens": 502,
+          "batchedUpperBound": 502
         },
         {
           "command": "/bin/bash -lc 'npx snapback4 guide api proof && npx snapback4 guide release-json --sections'",
-          "tokens": 1208
+          "tokens": 1208,
+          "batchedUpperBound": 1208
         },
         {
           "command": "/bin/bash -lc 'npx snapback4 guide rename --full && npx snapback4 guide production --section 1 && npx snapback4 guide production --section 4 && npx snapback4 guide production --section 10'",
-          "tokens": 2676
+          "tokens": 2676,
+          "batchedUpperBound": 2676
         },
         {
           "command": "/bin/bash -lc 'npx snapback4 guide deploy --section 0 && npx snapback4 guide deploy --section 5 && npx snapback4 guide deploy --section 10 && npx snapback4 guide deploy --section 11 && npx snapback4 guide deploy --section 12'",
-          "tokens": 4537
+          "tokens": 4537,
+          "batchedUpperBound": 4537
         },
         {
           "command": "/bin/bash -lc \"npx snapback4 guide rules --section 'Column write' && npx snapback4 guide shapes --sections && npx snapback4 guide language --find 'alias|spread|write <-|renamed|return {' && npx snapback4 guide deploy --section 7 && npx snapback4 guide deploy --section 9 && npx snapback4 guide release-json --section 1 && npx snapback4 guide release-json --section 4\"",
-          "tokens": 4478
+          "tokens": 4478,
+          "batchedUpperBound": 4478
         },
         {
           "command": "/bin/bash -lc \"npx snapback4 guide shapes --section 2 && npx snapback4 guide rule-recipes --section 'Column write audience and approval' && npx snapback4 guide language --section 'Helpers, shapes and spreads'\"",
-          "tokens": 1425
+          "tokens": 1425,
+          "batchedUpperBound": 1425
         },
         {
           "command": "/bin/bash -lc 'npx snapback4 deploy --help && npx snapback4 rollback --help && npx snapback4 guide testing --sections && npx snapback4 guide staging --sections && npx snapback4 --version'",
-          "tokens": 1281
+          "tokens": 1281,
+          "batchedUpperBound": 1281
         },
         {
           "command": "/bin/bash -lc \"npx snapback4 guide rules --find 'old|next|update (' && npx snapback4 guide shapes --section 1 && npx snapback4 guide deploy --section 4 && date -u +%FT%TZ\"",
-          "tokens": 3788
+          "tokens": 3788,
+          "batchedUpperBound": 3788
         },
         {
           "command": "/bin/bash -lc 'npx snapback4 guide testing --section 6 && npx snapback4 guide testing --section 10 && npx snapback4 guide testing --section 12'",
-          "tokens": 4110
+          "tokens": 4110,
+          "batchedUpperBound": 4110
         },
         {
           "command": "/bin/bash -lc \"npx snapback4 guide staging --section 3 && npx snapback4 guide staging --section 9 && npx snapback4 guide staging --section 10 && npx snapback4 guide evolution --section 0 && npx snapback4 guide language --find 'renamed from'\"",
-          "tokens": 1638
+          "tokens": 1638,
+          "batchedUpperBound": 1638
         },
         {
           "command": "/bin/bash -lc \"npx snapback4 guide security --find 'update only|.update|changed' && npx snapback4 guide tasks --full && npx snapback4 guide api auth\"",
-          "tokens": 2543
+          "tokens": 2543,
+          "batchedUpperBound": 2543
         },
         {
           "command": "/bin/bash -lc \"npx snapback4 guide changes --find '0.4.44|0.4.43' && npx snapback4 sql --help && npx snapback4 data --help\"",
-          "tokens": 991
+          "tokens": 991,
+          "batchedUpperBound": 991
         },
         {
           "command": "/bin/bash -lc 'npx snapback4 guide changes --section 1 && npx snapback4 guide changes --section 2'",
-          "tokens": 2172
+          "tokens": 2172,
+          "batchedUpperBound": 2172
         }
       ],
       "native": {
@@ -199,48 +251,77 @@
       "inputTokens": 1228611,
       "cachedInputTokens": 1138674,
       "uncachedInputTokens": 89937,
-      "docsTokens": 23592,
+      "docsTokens": 28076,
+      "automaticChangeNoteTokens": 959,
+      "docsPlusAutomaticChangeNotes": 29035,
+      "docsAndBatchedSourceUpperBound": 30947,
       "cliGuideAndInitTokens": 32865,
       "reads": [
         {
+          "command": "npx snapback4 --help 2>&1 | head -n 80; echo ===ADAPT-HELP===; npx snapback4 init --help 2>&1 | head -n 80",
+          "tool": "bash",
+          "tokens": 2978,
+          "batchedUpperBound": 2978
+        },
+        {
           "command": "npx snapback4 init --adapt --day2 2>&1 | head -n 120",
           "tool": "bash",
-          "tokens": 263
+          "tokens": 263,
+          "batchedUpperBound": 263
         },
         {
           "command": "npx snapback4 guide --list 2>&1 | head -n 60",
           "tool": "bash",
-          "tokens": 364
+          "tokens": 364,
+          "batchedUpperBound": 364
         },
         {
           "command": "npx snapback4 guide tasks 2>&1 | head -n 150; echo ===PROD===; npx snapback4 guide production --sections 2>&1 | head -n 60",
           "tool": "bash",
-          "tokens": 569
+          "tokens": 569,
+          "batchedUpperBound": 569
         },
         {
           "command": "npx snapback4 guide deploy --full 2>&1 | head -n 400",
           "tool": "bash",
-          "tokens": 7984
+          "tokens": 7984,
+          "batchedUpperBound": 7984
         },
         {
           "command": "npx snapback4 guide evolution --full 2>&1 | head -n 250; echo ===RENAME===; npx snapback4 guide rename --full 2>&1 | head -n 150",
           "tool": "bash",
-          "tokens": 2745
+          "tokens": 2745,
+          "batchedUpperBound": 2745
         },
         {
           "command": "npx snapback4 guide staging --full 2>&1 | head -n 300",
           "tool": "bash",
-          "tokens": 3625
+          "tokens": 3625,
+          "batchedUpperBound": 3625
+        },
+        {
+          "command": "npx snapback4 deploy --help 2>&1 | head -n 50; echo ===ROLLBACK===; npx snapback4 rollback --help 2>&1 | head -n 50; echo ===CHECK===; npx snapback4 check --help 2>&1 | head -n 40",
+          "tool": "bash",
+          "tokens": 1508,
+          "batchedUpperBound": 1508
         },
         {
           "command": "npx snapback4 guide assets --sections 2>&1 | head -n 40; echo ===; npx snapback4 guide release-json --sections 2>&1 | head -n 40; echo ===; npx snapback4 guide changes --full 2>&1 | head -n 120",
           "tool": "bash",
-          "tokens": 6488
+          "tokens": 6486,
+          "batchedUpperBound": 6488
         },
         {
           "command": "npx snapback4 guide assets --section \"Files\" 2>&1 | head -n 80; echo ===PLACEMENT===; npx snapback4 guide assets --section \"Placement replay\" 2>&1 | head -n 100",
           "tool": "bash",
-          "tokens": 1554
+          "tokens": 1554,
+          "batchedUpperBound": 1554
+        },
+        {
+          "command": "npx snapback4 check 2>&1 | tail -n 25; echo ===; ls node_modules/.bin/ 2>&1 | head -n 20; echo ===; sed -n '80,200p' App.tsx",
+          "tool": "bash",
+          "tokens": 0,
+          "batchedUpperBound": 2869
         }
       ],
       "native": {
@@ -291,48 +372,65 @@
       "inputTokens": 756853,
       "cachedInputTokens": 671692,
       "uncachedInputTokens": 85161,
-      "docsTokens": 14110,
+      "docsTokens": 15705,
+      "automaticChangeNoteTokens": 0,
+      "docsPlusAutomaticChangeNotes": 15705,
+      "docsAndBatchedSourceUpperBound": 15705,
       "cliGuideAndInitTokens": 11215,
       "reads": [
         {
           "command": "npx snapback4 init --adapt --day2 2>&1 | head -n 150; echo \"===EXIT:$?\"",
           "tool": "bash",
-          "tokens": 257
+          "tokens": 257,
+          "batchedUpperBound": 257
         },
         {
           "command": "npx snapback4 --help 2>&1 | head -n 80; echo \"===GUIDE===\"; npx snapback4 guide --help 2>&1 | head -n 60; echo \"===GUIDES===\"; npx snapback4 guide 2>&1 | head -n 100",
           "tool": "bash",
-          "tokens": 2367
+          "tokens": 2367,
+          "batchedUpperBound": 2367
         },
         {
           "command": "npx snapback4 guide tasks 2>&1 | head -n 120; echo \"===CHANGES-SECTIONS===\"; npx snapback4 guide changes --sections 2>&1 | head -n 60; echo \"===EVOLUTION-SECTIONS===\"; npx snapback4 guide evolution --sections 2>&1 | head -n 60; echo \"===PRODUCTION-SECTIONS===\"; npx snapback4 guide production --sections 2>&1 | head -n 60; echo \"===DEPLOY-SECTIONS===\"; npx snapback4 guide deploy --sections 2>&1 | head -n 60",
           "tool": "bash",
-          "tokens": 1189
+          "tokens": 1189,
+          "batchedUpperBound": 1189
         },
         {
           "command": "npx snapback4 guide deploy --section \"Persistent production\" 2>&1 | head -n 200; echo \"===KEEP-V1===\"; npx snapback4 guide deploy --section \"Keep v1 clients\" 2>&1 | head -n 80",
           "tool": "bash",
-          "tokens": 3084
+          "tokens": 3084,
+          "batchedUpperBound": 3084
         },
         {
           "command": "npx snapback4 guide deploy --section \"Upgrade\" 2>&1 | head -n 40; echo \"===DEPLOY-PW===\"; npx snapback4 guide deploy --section \"Deploy and password\" 2>&1 | head -n 60; echo \"===MIGRATIONS===\"; npx snapback4 guide deploy --section \"Migrations and adoption\" 2>&1 | head -n 60; echo \"===WHICH-SHAPE===\"; npx snapback4 guide deploy --section \"Which migration shape\" 2>&1 | head -n 60; echo \"===OLD-RELEASE===\"; npx snapback4 guide deploy --section \"What the old release sees\" 2>&1 | head -n 60; echo \"===SAVED-VERSION===\"; npx snapback4 guide deploy --section \"Capture a saved version\" 2>&1 | head -n 60; echo \"===ROLLBACK-WIDENING===\"; npx snapback4 guide deploy --section \"Rollback after widening\" 2>&1 | head -n 60",
           "tool": "bash",
-          "tokens": 3398
+          "tokens": 3398,
+          "batchedUpperBound": 3398
         },
         {
           "command": "npx snapback4 guide evolution --section \"Release rollback\" 2>&1 | head -n 140; echo \"===PROD-TRANSITION===\"; npx snapback4 guide production --section \"Real-account and rollback acceptance\" 2>&1 | head -n 60; echo \"===PROD-SERVE===\"; npx snapback4 guide production --section \"Serve script\" 2>&1 | head -n 90",
           "tool": "bash",
-          "tokens": 2280
+          "tokens": 2280,
+          "batchedUpperBound": 2280
         },
         {
           "command": "npx snapback4 guide release-json --sections 2>&1 | head -n 40; echo \"===\"; npx snapback4 --version 2>&1 | head -n 5; echo \"===\"; npx snapback4 check 2>&1 | tail -n 15",
           "tool": "bash",
-          "tokens": 999
+          "tokens": 999,
+          "batchedUpperBound": 999
         },
         {
           "command": "npx snapback4 guide release-json --section \"Clients across rollback\" 2>&1 | head -n 60; echo \"===RENAME-CHECK===\"; npx snapback4 guide rename --sections 2>&1 | head -n 30; echo \"===HARNESS-ENV===\"; ls -la .harness-env.json 2>&1; echo \"===\"; ls .checkpoint/ 2>&1; echo \"===PORTS===\"; echo \"PORT_LO=$PORT_LO PORT_HI=$PORT_HI CHROME=$CHROME TMPDIR=$TMPDIR\"; echo \"===PKG-SNAPBACK===\"; node -e \"console.log(require('./node_modules/snapback4/package.json').version)\" 2>&1; node -e \"console.log(require('./package-lock.json').packages['node_modules/snapback4'].version)\" 2>&1",
           "tool": "bash",
-          "tokens": 536
+          "tokens": 536,
+          "batchedUpperBound": 536
+        },
+        {
+          "command": "npx snapback4 deploy --help 2>&1 | head -n 40; echo \"===ROLLBACK-HELP===\"; npx snapback4 rollback --help 2>&1 | head -n 40; echo \"===SERVE-HELP===\"; npx snapback4 serve --help 2>&1 | head -n 30",
+          "tool": "bash",
+          "tokens": 1595,
+          "batchedUpperBound": 1595
         }
       ],
       "native": {
@@ -377,52 +475,82 @@
       "id": "001",
       "model": "codex",
       "code": 0,
-      "wallMinutes": 4.452966666666667,
+      "wallMinutes": 5.0747,
       "scope": "day-two reading/discovery plan for exact harness brief, not full application",
-      "calls": 10,
-      "inputTokens": 378273,
-      "cachedInputTokens": 340224,
-      "uncachedInputTokens": 38049,
-      "docsTokens": 5648,
-      "cliGuideAndInitTokens": 5648,
+      "calls": 12,
+      "inputTokens": 535351,
+      "cachedInputTokens": 498944,
+      "uncachedInputTokens": 36407,
+      "docsTokens": 7565,
+      "automaticChangeNoteTokens": 959,
+      "docsPlusAutomaticChangeNotes": 8524,
+      "docsAndBatchedSourceUpperBound": 8682,
+      "cliGuideAndInitTokens": 5907,
       "reads": [
         {
           "command": "/bin/bash -lc 'npx snapback4 init --adapt --day2'",
-          "tokens": 2092
-        },
-        {
-          "command": "/bin/bash -lc \"npx snapback4 guide deploy --section 'Migrations and adoption'\"",
-          "tokens": 180
+          "tokens": 2074,
+          "batchedUpperBound": 2074
         },
         {
           "command": "/bin/bash -lc \"npx snapback4 guide deploy --section 'Which migration shape'\"",
-          "tokens": 397
+          "tokens": 377,
+          "batchedUpperBound": 377
         },
         {
-          "command": "/bin/bash -lc \"npx snapback4 guide production --section 'Serve script and reusable accounts'\"",
-          "tokens": 643
+          "command": "/bin/bash -lc \"npx snapback4 guide deploy --section 'Migrations and adoption'\"",
+          "tokens": 200,
+          "batchedUpperBound": 200
         },
         {
           "command": "/bin/bash -lc 'npx snapback4 guide api proof'",
-          "tokens": 1363
+          "tokens": 1366,
+          "batchedUpperBound": 1366
         },
         {
-          "command": "/bin/bash -lc 'npx snapback4 guide deploy --section rollback'",
-          "tokens": 896
+          "command": "/bin/bash -lc \"npx snapback4 guide production --section 'Serve script and reusable accounts'\"",
+          "tokens": 643,
+          "batchedUpperBound": 643
         },
         {
-          "command": "/bin/bash -lc 'npx snapback4 guide deploy --section backfill'",
-          "tokens": 77
+          "command": "/bin/bash -lc 'npx snapback4 rollback --help'",
+          "tokens": 375,
+          "batchedUpperBound": 375
+        },
+        {
+          "command": "/bin/bash -lc \"npx snapback4 guide deploy --section 'Keep v1 clients working'\"",
+          "tokens": 351,
+          "batchedUpperBound": 351
+        },
+        {
+          "command": "/bin/bash -lc 'npx snapback4 deploy --help'",
+          "tokens": 527,
+          "batchedUpperBound": 527
+        },
+        {
+          "command": "/bin/bash -lc 'npx snapback4 check'",
+          "tokens": 0,
+          "batchedUpperBound": 1117
+        },
+        {
+          "command": "/bin/bash -lc \"npx snapback4 guide deploy --section 'Rollback'\"",
+          "tokens": 896,
+          "batchedUpperBound": 896
+        },
+        {
+          "command": "/bin/bash -lc \"rg -n -A 25 -B 3 'interface ProofPage|interface ExhaustPagesOptions|function exhaustPages|snapshotAll|interface ProvisionAccountsOptions' node_modules/snapback4/dist/proof.d.ts\"",
+          "tokens": 756,
+          "batchedUpperBound": 756
         }
       ],
       "native": {
-        "threadId": "01a17f30-ac24-7e20-975b-e73c0614003f",
+        "threadId": "01a17f4e-dcb5-75b1-bbc4-64ddd811742b",
         "usage": {
-          "input_tokens": 378273,
-          "cached_input_tokens": 340224,
+          "input_tokens": 535351,
+          "cached_input_tokens": 498944,
           "cache_write_input_tokens": 0,
-          "output_tokens": 10379,
-          "reasoning_output_tokens": 2443
+          "output_tokens": 15799,
+          "reasoning_output_tokens": 6770
         }
       }
     },
@@ -431,44 +559,62 @@
       "id": "022",
       "model": "codex",
       "code": 0,
-      "wallMinutes": 5.067383333333333,
+      "wallMinutes": 4.020583333333334,
       "scope": "day-two reading/discovery plan for exact harness brief, not full application",
-      "calls": 9,
-      "inputTokens": 337311,
-      "cachedInputTokens": 305408,
-      "uncachedInputTokens": 31903,
-      "docsTokens": 5390,
-      "cliGuideAndInitTokens": 5353,
+      "calls": 7,
+      "inputTokens": 266665,
+      "cachedInputTokens": 235520,
+      "uncachedInputTokens": 31145,
+      "docsTokens": 5426,
+      "automaticChangeNoteTokens": 959,
+      "docsPlusAutomaticChangeNotes": 6385,
+      "docsAndBatchedSourceUpperBound": 6476,
+      "cliGuideAndInitTokens": 5338,
       "reads": [
         {
           "command": "/bin/bash -lc 'npx snapback4 init --adapt --day2'",
-          "tokens": 1851
+          "tokens": 1833,
+          "batchedUpperBound": 1833
         },
         {
           "command": "/bin/bash -lc 'npx snapback4 guide rename --section opening'",
-          "tokens": 1202
+          "tokens": 1202,
+          "batchedUpperBound": 1202
         },
         {
           "command": "/bin/bash -lc \"npx snapback4 guide deploy --section 'Keep v1 clients working'\"",
-          "tokens": 331
+          "tokens": 331,
+          "batchedUpperBound": 331
         },
         {
           "command": "/bin/bash -lc \"npx snapback4 guide production --section 'Serve script and reusable accounts'\"",
-          "tokens": 643
+          "tokens": 643,
+          "batchedUpperBound": 643
         },
         {
           "command": "/bin/bash -lc 'npx snapback4 guide api proof'",
-          "tokens": 1363
+          "tokens": 1366,
+          "batchedUpperBound": 1366
+        },
+        {
+          "command": "/bin/bash -lc 'npx snapback4 check'",
+          "tokens": 0,
+          "batchedUpperBound": 1050
+        },
+        {
+          "command": "/bin/bash -lc \"node <<'NODE'\nconst fs = require('node:fs');\nconst {execFileSync} = require('node:child_process');\nconst stamp = execFileSync('date',['-u','+%FT%TZ'],{encoding:'utf8'}).trim();\nfs.appendFileSync('DIARY.md', '\\\\n## '+stamp+' — day-two reading replay\\\\n\\\\nScope is discovery only. Began with \"'`npx snapback4 init --adapt --day2` without `--apply`; it printed the handover and then refused frozen-client dependency resolution because playwright-core is absent. Followed the rename, old-client compatibility, proof API digest, and persistent production roster documentation. Read the three PREVIOUS handover files. The manifest pins 0.4.43 but the installed package reports 0.4.44; a schema-only check passed under 0.4.44. No production release exists at ./deploy. No packages were installed, app built, users provisioned, servers started, or full proofs run. DAY2-PLAN.md records exact future commands, a single stored charge rename with an owner-only update constraint, explicit frozen-v1 result wrappers, complete persistent-data comparisons, rollback/forward previews, and unresolved zero-value/target-version/adoption limits.'\"\\\\n\\\\n### React web discovery\\\\n\\\\nThe inherited React hooks and public VITE_SNAPBACK_URL setting can be retained. Planned UI work is charge wording and creation input plus an owner charge-edit form. Existing Playwright already reads CHROME and uses --no-sandbox; frontend dependencies and CHROME are unavailable in this discovery environment, so no browser result is claimed.\\\\n');\nconst t = Math.floor(Date.now()/1000);\nconst entries = [\n {t,area:'install',kind:'environment',severity:2,minutes_lost:0,summary:'Day-two preview stops on absent inherited frontend dependency',detail:'npx snapback4 init --adapt --day2 printed its handover then exited 2: frozen client dependency resolution: Cannot find package playwright-core imported from scripts/frontend-proof.mjs. TypeScript and Vite package manifests are also absent.',workaround:'Read the printed handover and recommended documentation; recorded dependency restoration as a future implementation step. No installation in reading scope.',suggested_fix:'Allow handover/preview discovery to finish with a clearly separated nonfatal dependency readiness warning.'},\n {t,area:'upgrade',kind:'environment',severity:2,minutes_lost:0,summary:'Installed CLI differs from exact package manifest pin',detail:'package.json specifies snapback4 0.4.43, while installed node_modules/snapback4/package.json reports 0.4.44. The allowed schema check passed using 0.4.44, so it does not validate the required target runtime.',workaround:'Recorded exact-version restoration and target-version documentation recheck in DAY2-PLAN.md; did not change packages.',suggested_fix:'Report installed and requested versions together in the handover before presenting version-dependent commands.'}\n];\nfor (const entry of entries) fs.appendFileSync('friction.jsonl',JSON.stringify(entry)+'\\\\n');\nconst plan = fs.readFileSync('DAY2-PLAN.md','utf8');\nconsole.log(JSON.stringify({plan:'DAY2-PLAN.md',lines:plan.split('\\\\n').length,hasReleaseCommands:plan.includes('rollback ./deploy'),hasFrozenClient:plan.includes('npm --prefix v1 run client:calls'),hasProductionRoster:plan.includes('deploy/proof-accounts/default.json'),hasUnresolvedLimits:plan.includes('## Unresolved limits'),diaryUpdated:true,frictionEntriesAdded:entries.length}));\nNODE\"",
+          "tokens": 51,
+          "batchedUpperBound": 51
         }
       ],
       "native": {
-        "threadId": "01a17f34-c0be-7bb3-806a-8d4901be81fc",
+        "threadId": "01a17f53-82d3-7110-8e7f-ae45d7d31d3f",
         "usage": {
-          "input_tokens": 337311,
-          "cached_input_tokens": 305408,
+          "input_tokens": 266665,
+          "cached_input_tokens": 235520,
           "cache_write_input_tokens": 0,
-          "output_tokens": 10667,
-          "reasoning_output_tokens": 2738
+          "output_tokens": 10880,
+          "reasoning_output_tokens": 2608
         }
       }
     },
@@ -477,146 +623,70 @@
       "id": "011",
       "model": "muse",
       "code": 0,
-      "wallMinutes": 2.7596,
-      "scope": "day-two reading/discovery plan for exact harness brief, not full application",
-      "calls": 14,
-      "inputTokens": 836348,
-      "cachedInputTokens": 755133,
-      "uncachedInputTokens": 81215,
-      "docsTokens": 13120,
-      "cliGuideAndInitTokens": 13413,
-      "reads": [
-        {
-          "command": "npx snapback4 init --adapt --day2 2>&1 | head -150",
-          "tool": "bash",
-          "tokens": 1781
-        },
-        {
-          "command": "npx snapback4 guide deploy --section 'Bridge a safety gate' 2>&1 | head -120; echo \"=====SECTIONS=====\"; npx snapback4 guide deploy --sections 2>&1 | head -40",
-          "tool": "bash",
-          "tokens": 596
-        },
-        {
-          "command": "npx snapback4 guide production --section 'Serve script and reusable accounts' 2>&1 | head -150",
-          "tool": "bash",
-          "tokens": 643
-        },
-        {
-          "command": "npx snapback4 guide deploy --section 'Keep v1 clients working' 2>&1 | head -80; echo \"=====WHAT OLD SEES=====\"; npx snapback4 guide deploy --section 'What the old release sees' 2>&1 | head -80",
-          "tool": "bash",
-          "tokens": 1257
-        },
-        {
-          "command": "npx snapback4 guide deploy --section 'Migrations and adoption' 2>&1 | head -60; echo \"=====WHICH SHAPE=====\"; npx snapback4 guide deploy --section 'Which migration shape' 2>&1 | head -80; echo \"=====CAPTURE=====\"; npx snapback4 guide deploy --section 'Capture a saved version' 2>&1 | head -80",
-          "tool": "bash",
-          "tokens": 1067
-        },
-        {
-          "command": "npx snapback4 guide deploy --section 'Persistent production: SQLite v1' 2>&1 | head -200",
-          "tool": "bash",
-          "tokens": 103
-        },
-        {
-          "command": "npx snapback4 guide security --section 'N_PRESENCE_LOOSENING' 2>&1 | head -80; echo \"=====API PROOF SECTIONS=====\"; npx snapback4 guide api proof --sections 2>&1 | head -30",
-          "tool": "bash",
-          "tokens": 174
-        },
-        {
-          "command": "npx snapback4 guide deploy --section 13 2>&1 | head -60; echo \"=====14=====\"; npx snapback4 guide deploy --section 14 2>&1 | head -220",
-          "tool": "bash",
-          "tokens": 2438
-        },
-        {
-          "command": "npx snapback4 guide api proof --section 3 2>&1 | head -120; echo \"=====4=====\"; npx snapback4 guide api proof --section 4 2>&1 | head -120",
-          "tool": "bash",
-          "tokens": 3523
-        },
-        {
-          "command": "npx snapback4 guide deploy --section 15 2>&1 | head -60; echo \"=====CHECK=====\"; npx snapback4 check 2>&1 | tail -20",
-          "tool": "bash",
-          "tokens": 1538
-        }
-      ],
-      "native": {
-        "allowance": {
-          "as_of_ms": 1793135986924,
-          "source": "stream",
-          "tier": null,
-          "weekly": {
-            "resets_at_ms": 1793577600000,
-            "used_percent": 30
-          },
-          "window": {
-            "resets_at_ms": 1793146920000,
-            "used_percent": 16
-          }
-        },
-        "calls": 14,
-        "cancelled_calls": 0,
-        "children_included": false,
-        "command_id": "01a17f39-6615-7611-a0ad-acac762a84bf",
-        "completed_calls": 14,
-        "failed_calls": 0,
-        "kind": "run_usage",
-        "models": [
-          {
-            "cached_tokens": 755133,
-            "calls": 14,
-            "input_tokens": 836348,
-            "model": "muse-spark-1.3-contributor",
-            "output_tokens": 11495,
-            "reasoning_tokens": 5432
-          }
-        ],
-        "run_stream": {
-          "id": "01a17f39-6615-7611-a0ad-acac762a84bf",
-          "kind": "run"
-        }
-      }
-    },
-    {
-      "phase": "after",
-      "id": "021",
-      "model": "muse",
-      "code": 0,
-      "wallMinutes": 1.7862166666666666,
+      "wallMinutes": 1.1277666666666666,
       "scope": "day-two reading/discovery plan for exact harness brief, not full application",
       "calls": 15,
-      "inputTokens": 854906,
-      "cachedInputTokens": 729789,
-      "uncachedInputTokens": 125117,
-      "docsTokens": 4727,
-      "cliGuideAndInitTokens": 6493,
+      "inputTokens": 831550,
+      "cachedInputTokens": 759342,
+      "uncachedInputTokens": 72208,
+      "docsTokens": 8975,
+      "automaticChangeNoteTokens": 959,
+      "docsPlusAutomaticChangeNotes": 9934,
+      "docsAndBatchedSourceUpperBound": 12222,
+      "cliGuideAndInitTokens": 6899,
       "reads": [
         {
-          "command": "npx snapback4 init --adapt --day2 --dry-run 2>&1 | head -n 120",
+          "command": "npx snapback4 --help 2>&1 | head -n 80; echo ===; npx snapback4 init --help 2>&1 | head -n 60",
           "tool": "bash",
-          "tokens": 1453
+          "tokens": 2729,
+          "batchedUpperBound": 2730
         },
         {
-          "command": "npx snapback4 guide deploy --section 'Migrations and adoption' 2>&1 | head -n 120; echo =====; npx snapback4 guide deploy --section 'Which migration shape' 2>&1 | head -n 120",
+          "command": "npx snapback4 init --adapt --day2 2>&1 | head -n 120",
           "tool": "bash",
-          "tokens": 578
+          "tokens": 1659,
+          "batchedUpperBound": 1659
         },
         {
-          "command": "npx snapback4 guide deploy --section 'Keep v1 clients working' 2>&1 | head -n 100; echo =====; npx snapback4 guide deploy --section 'Bridge a safety gate' 2>&1 | head -n 60",
+          "command": "npx snapback4 guide deploy --section 'Bridge a safety gate' 2>&1 | head -n 100; echo =====; npx snapback4 guide deploy --section 'Keep v1 clients working' 2>&1 | head -n 120",
           "tool": "bash",
-          "tokens": 690
+          "tokens": 669,
+          "batchedUpperBound": 670
         },
         {
-          "command": "npx snapback4 guide api proof 2>&1 | head -n 140",
+          "command": "npx snapback4 guide deploy --section 'Migrations and adoption' 2>&1 | head -n 140; echo =====; npx snapback4 guide deploy --section 'Which migration shape' 2>&1 | head -n 140",
           "tool": "bash",
-          "tokens": 1363
+          "tokens": 597,
+          "batchedUpperBound": 598
         },
         {
-          "command": "npx snapback4 guide production --section 'Serve script and reusable accounts' 2>&1 | head -n 100",
+          "command": "npx snapback4 guide evolution --section 'Move media' 2>&1 | head -n 120; echo =====; npx snapback4 guide security --section 'N_PRESENCE_LOOSENING' 2>&1 | head -n 100",
           "tool": "bash",
-          "tokens": 643
+          "tokens": 410,
+          "batchedUpperBound": 411
+        },
+        {
+          "command": "npx snapback4 guide api proof 2>&1 | head -n 200",
+          "tool": "bash",
+          "tokens": 1366,
+          "batchedUpperBound": 1366
+        },
+        {
+          "command": "npx snapback4 guide production --section 'Serve script and reusable accounts' 2>&1 | head -n 140; echo =====; npx snapback4 deploy --help 2>&1 | head -n 60; echo =====; npx snapback4 rollback --help 2>&1 | head -n 60",
+          "tool": "bash",
+          "tokens": 1545,
+          "batchedUpperBound": 1547
+        },
+        {
+          "command": "cat App.tsx | head -n 120; echo ===; cat src/client.ts; echo ===; cat scripts/harness-snapshot.mjs; echo ===; npx snapback4 check 2>&1 | head -n 30",
+          "tool": "bash",
+          "tokens": 0,
+          "batchedUpperBound": 3241
         }
       ],
       "native": {
         "allowance": {
-          "as_of_ms": 1793136102722,
+          "as_of_ms": 1793137305598,
           "source": "stream",
           "tier": null,
           "weekly": {
@@ -631,22 +701,119 @@
         "calls": 15,
         "cancelled_calls": 0,
         "children_included": false,
-        "command_id": "01a17f3b-ed9f-7c51-9662-bd6596a6a57a",
+        "command_id": "01a17f4e-e1b4-73b0-a293-d1c395f12cc5",
         "completed_calls": 15,
         "failed_calls": 0,
         "kind": "run_usage",
         "models": [
           {
-            "cached_tokens": 729789,
+            "cached_tokens": 759342,
             "calls": 15,
-            "input_tokens": 854906,
+            "input_tokens": 831550,
             "model": "muse-spark-1.3-contributor",
-            "output_tokens": 8731,
-            "reasoning_tokens": 2454
+            "output_tokens": 7146,
+            "reasoning_tokens": 1069
           }
         ],
         "run_stream": {
-          "id": "01a17f3b-ed9f-7c51-9662-bd6596a6a57a",
+          "id": "01a17f4e-e1b4-73b0-a293-d1c395f12cc5",
+          "kind": "run"
+        }
+      }
+    },
+    {
+      "phase": "after",
+      "id": "021",
+      "model": "muse",
+      "code": 0,
+      "wallMinutes": 2.1472333333333333,
+      "scope": "day-two reading/discovery plan for exact harness brief, not full application",
+      "calls": 13,
+      "inputTokens": 687257,
+      "cachedInputTokens": 615884,
+      "uncachedInputTokens": 71373,
+      "docsTokens": 11034,
+      "automaticChangeNoteTokens": 942,
+      "docsPlusAutomaticChangeNotes": 11976,
+      "docsAndBatchedSourceUpperBound": 13169,
+      "cliGuideAndInitTokens": 9363,
+      "reads": [
+        {
+          "command": "npx snapback4 init --adapt --day2 2>&1 | head -n 120; echo ===; npx snapback4 --help 2>&1 | head -n 60",
+          "tool": "bash",
+          "tokens": 3486,
+          "batchedUpperBound": 3487
+        },
+        {
+          "command": "npx snapback4 guide deploy --section 'Migrations and adoption' 2>&1 | head -n 100; echo =====; npx snapback4 guide deploy --section 'Which migration shape' 2>&1 | head -n 100",
+          "tool": "bash",
+          "tokens": 577,
+          "batchedUpperBound": 578
+        },
+        {
+          "command": "npx snapback4 guide api proof --section 'Serve script and reusable accounts' 2>&1 | head -n 60; echo =====; npx snapback4 guide deploy --section 'Keep v1 clients working' 2>&1 | head -n 80; echo =====; npx snapback4 check 2>&1 | tail -n 20",
+          "tool": "bash",
+          "tokens": 447,
+          "batchedUpperBound": 1567
+        },
+        {
+          "command": "npx snapback4 --version 2>&1; echo ---; cat backend-choice.json; echo ---; ls .harness/ 2>&1; echo ---; npx snapback4 guide api proof 2>&1 | head -n 90; echo =====; npx snapback4 guide production --sections 2>&1 | head -n 30; echo =====; npx snapback4 guide deploy --sections 2>&1 | head -n 40",
+          "tool": "bash",
+          "tokens": 1983,
+          "batchedUpperBound": 1983
+        },
+        {
+          "command": "node -e \"console.log(require('./node_modules/snapback4/package.json').version)\"; echo ---; npx snapback4 guide production --section 'Serve script and reusable accounts' 2>&1 | head -n 60; echo =====; npx snapback4 guide deploy --section 'Persistent production: SQLite v1' 2>&1 | head -n 40",
+          "tool": "bash",
+          "tokens": 746,
+          "batchedUpperBound": 754
+        },
+        {
+          "command": "npx snapback4 guide deploy --section 13 2>&1 | head -n 30; echo =====; npx snapback4 guide deploy --section 14 2>&1 | head -n 140",
+          "tool": "bash",
+          "tokens": 2435,
+          "batchedUpperBound": 2436
+        },
+        {
+          "command": "npx snapback4 guide deploy --section 10 2>&1 | head -n 25; echo =====; npx snapback4 guide deploy --section 11 2>&1 | head -n 25; echo =====; head -n 40 scripts/client-calls.mjs; echo =====; head -n 50 scripts/probe-serve.mjs",
+          "tool": "bash",
+          "tokens": 1360,
+          "batchedUpperBound": 2364
+        }
+      ],
+      "native": {
+        "allowance": {
+          "as_of_ms": 1793137434591,
+          "source": "stream",
+          "tier": null,
+          "weekly": {
+            "resets_at_ms": 1793577600000,
+            "used_percent": 30
+          },
+          "window": {
+            "resets_at_ms": 1793146920000,
+            "used_percent": 16
+          }
+        },
+        "calls": 13,
+        "cancelled_calls": 0,
+        "children_included": false,
+        "command_id": "01a17f4f-eaac-7a83-a620-d014c3c2287c",
+        "completed_calls": 13,
+        "failed_calls": 0,
+        "kind": "run_usage",
+        "models": [
+          {
+            "cached_tokens": 615884,
+            "calls": 13,
+            "input_tokens": 687257,
+            "model": "muse-spark-1.3-contributor",
+            "output_tokens": 9697,
+            "reasoning_tokens": 3652
+          }
+        ],
+        "run_stream": {
+          "id": "01a17f4f-eaac-7a83-a620-d014c3c2287c",
           "kind": "run"
         }
       }
