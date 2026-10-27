@@ -167,26 +167,36 @@ pub(in crate::verbs) fn render_mode(dispositions:&[Disposition],notes:&[Diagnost
 
 #[cfg(test)] mod assignment_format_replay {
  use super::*;
- /// Run the production renderer over complete, frozen native survey records.
- /// Gate/refusal qualification remains bound to that original native binary.
+ fn disposition(d:&serde_json::Value)->Disposition {Disposition{family:d["family"].as_str().map(Into::into),id:d["id"].as_str().unwrap().into(),code:d["code"].as_str().unwrap().into(),site:d["site"].as_str().unwrap().into(),gated:d["gated"]==true,acknowledged:d["acknowledged"]==true,recorded:d["recorded"]==true,reason:d["reason"].as_str().map(Into::into),scope:"captured native survey".into(),witness:d.get("witness").filter(|w|w.is_object()).cloned()}}
+ /// Replace exact old native blocks with production-rendered cards; preserve
+ /// every other byte except the explicitly replaced positive feature summary.
  #[test] fn captured_assignment_default_output() {
   let Ok(path)=std::env::var("SNAPBACK4_SEC11_ASSIGNMENT_REPORTS")else{return;};
   let rows:serde_json::Value=serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();let mut measured=Vec::new();
   for row in rows.as_array().unwrap(){
-   let mut removed=0;let mut added=0;
-   for d in row["reviews"].as_array().unwrap().iter().filter(|d|d["code"]=="N_ASSIGNMENT_SCOPE"&&d["acknowledged"]==false&&d["recorded"]==false&&d["gated"]==false&&d["witness"].is_object()){
-    let n=row["notes"].as_array().unwrap().iter().find(|n|n["code"]==d["code"]&&format!("{}:{}:{}",n["site"]["file"].as_str().unwrap(),n["site"]["line"],n["site"]["col"])==d["site"].as_str().unwrap()).unwrap();
-    let n=Diagnostic::new(&Default::default(),"N_ASSIGNMENT_SCOPE",n["message"].as_str().unwrap(),"scope assignment");
-    let w=d["witness"].clone();let disposition=Disposition{family:None,id:d["id"].as_str().unwrap().into(),code:"N_ASSIGNMENT_SCOPE".into(),site:d["site"].as_str().unwrap().into(),gated:false,acknowledged:false,recorded:false,reason:None,scope:"captured native survey".into(),witness:Some(w.clone())};
-    let text=render_mode(&[disposition.clone()],&[n.clone()],false);
+   let ds=row["reviews"].as_array().unwrap().iter().map(disposition).collect::<Vec<_>>();
+   let mut phases=["defaultCheck","defaultDeploy"].map(|field|{let p=&row[field];assert!(p["exit"]==0||p["exit"]==1,"censored display must be retried");let text=format!("{}{}",p["stdout"].as_str().unwrap(),p["stderr"].as_str().unwrap());assert_eq!(text.lines().count(),p["lines"].as_u64().unwrap()as usize);text});let mut cards=0;
+   for d in ds.iter().filter(|d|d.code=="N_ASSIGNMENT_SCOPE"&&!d.acknowledged&&!d.recorded&&!d.gated&&d.witness.is_some()){
+    let n=row["notes"].as_array().unwrap().iter().find(|n|n["code"]==d.code&&format!("{}:{}:{}",n["site"]["file"].as_str().unwrap(),n["site"]["line"],n["site"]["col"])==d.site).unwrap();
+    let n=Diagnostic::new(&Default::default(),"N_ASSIGNMENT_SCOPE",n["message"].as_str().unwrap(),"scope assignment");let w=d.witness.as_ref().unwrap();let text=render_mode(&[d.clone()],&[n.clone()],false);
     assert_eq!(text.lines().count(),1,"{text}");assert!(text.contains(w["operation"].as_str().unwrap())&&text.contains(w["viewer"].as_str().unwrap())&&text.contains("assigned or any?")&&text.contains("bounded replay")&&text.contains("check --review"),"{text}");
     if let Some(p)=w["assignment"]["principal"].as_str(){assert!(text.contains(p),"{text}");}else{assert!(text.contains("assignment not modeled"));}
-    let review=render_mode(&[disposition],&[n],true);assert!(review.contains(d["id"].as_str().unwrap())&&review.contains(w["summary"].as_str().unwrap()));
-    removed+=2;added+=text.lines().count();
+    let review=render_mode(&[d.clone()],&[n.clone()],true);assert!(review.contains(&d.id)&&review.contains(w["summary"].as_str().unwrap()));
+    let rationale=if witness::concrete(w){witness::reason_template(w)}else{"<spec rationale>".into()};
+    let original=format!("fix question {} at {}: {}; is this intended?\n  Witness: {} — repair or check --ack-security {} --reason '{}' (doesn't block)\n",d.code,d.site,n.message.trim_end_matches(['.','?']),w["compactSummary"].as_str().or_else(||w["summary"].as_str()).unwrap(),d.id,rationale);
+    for phase in &mut phases {assert_eq!(phase.matches(&original).count(),1,"native card differs for {} {}",row["wave"],row["lane"]);*phase=phase.replace(&original,&text);}
+    cards+=1;
    }
-   let counts=|field:&str|{let phase=&row[field];assert!(phase["exit"]==0||phase["exit"]==1,"censored display must be retried before claiming output counts");let actual=format!("{}{}",phase["stdout"].as_str().unwrap(),phase["stderr"].as_str().unwrap());assert_eq!(actual.matches("fix question N_ASSIGNMENT_SCOPE at ").count(),added,"native phase and captured decisions differ");let before=phase["lines"].as_u64().unwrap()as usize;assert!(before>=removed);serde_json::json!({"before":before,"after":before-removed+added})};
-   measured.push(serde_json::json!({"wave":row["wave"],"lane":row["lane"],"defaultCheck":counts("defaultCheck"),"defaultDeploy":counts("defaultDeploy"),"cards":added}));
+   let original=phases[1].lines().find(|line|line.starts_with("security: enforced by the language —")).map(|line|format!("{line}\n"));
+   if let Some(original)=original{let mut replacement=String::new();crate::verbs::security::append_deploy_language_summary(&mut replacement,&original,&ds,false);phases[1]=phases[1].replace(&original,&replacement);}
+   measured.push(serde_json::json!({"wave":row["wave"],"lane":row["lane"],"defaultCheck":{"before":row["defaultCheck"]["lines"],"after":phases[0].lines().count()},"defaultDeploy":{"before":row["defaultDeploy"]["lines"],"after":phases[1].lines().count()},"cards":cards}));
   }
   if let Ok(path)=std::env::var("SNAPBACK4_SEC11_ASSIGNMENT_RENDER_OUTPUT"){std::fs::write(path,serde_json::to_vec_pretty(&measured).unwrap()).unwrap();}
+ }
+ #[test] fn assignment_budget_does_not_hide_gates_test_status_or_expanded_summary(){
+  let n=Diagnostic::new(&Default::default(),"N_ASSIGNMENT_SCOPE","docs.private read: assigned or any?","scope");let mut d=Disposition{family:None,id:"id".into(),code:n.code.clone(),site:"site".into(),gated:false,acknowledged:false,recorded:false,reason:None,scope:"test".into(),witness:Some(serde_json::json!({"operation":"read","viewer":"staff"}))};
+  let mut text=String::new();crate::verbs::security::append_deploy_language_summary(&mut text,"positive feature counts\n",&[d.clone()],false);assert!(text.is_empty());
+  crate::verbs::security::append_deploy_language_summary(&mut text,"positive feature counts\n",&[d.clone()],true);assert!(text.contains("positive feature counts"));
+  d.gated=true;text.clear();crate::verbs::security::append_deploy_language_summary(&mut text,"positive feature counts\n",&[d],false);assert!(text.contains("positive feature counts"));
  }
 }
