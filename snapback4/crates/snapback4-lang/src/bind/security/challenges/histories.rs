@@ -84,7 +84,7 @@ pub(super) fn fixture_cases(bound:&Bound,p:&Program,rows:&BTreeMap<String,Vec<Va
     fn values(name:&str,k:&ir::ArgType,rows:&BTreeMap<String,Vec<Value>>,actors:&[String],times:&[Value])->Option<Vec<Value>>{
         Some(match k{
             ir::ArgType::Enum{variants}=>variants.iter().map(|s|Value::String(s.clone())).collect(),
-            ir::ArgType::Text{min,max,format}=>(0..2).filter_map(|v|text_samples::text(*min,*max,*format,v)).collect(),
+            ir::ArgType::Text{min,max,format}=>(0..2).filter_map(|v|text_samples::argument(*min,*max,*format,v)).collect(),
             ir::ArgType::Int=>vec![Value::Int(0),Value::Int(1),Value::Int(2)],
             ir::ArgType::IntRange{min,max}=>{let mut xs=vec![*min,1i64.clamp(*min,*max),*max];xs.sort();xs.dedup();xs.into_iter().map(Value::Int).collect()},
             ir::ArgType::Bool=>vec![Value::Bool(false),Value::Bool(true)],
