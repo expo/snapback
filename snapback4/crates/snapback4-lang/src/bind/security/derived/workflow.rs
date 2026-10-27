@@ -206,6 +206,9 @@ pub(super) fn invariants(docs:&[ast::Document],catalog:&Catalog,bound:&Bound,out
     for (p,write,context) in &origins{
         if !super::super::creation_advice::applicability_known(context,catalog){continue;}
         let Expr::Write{op,table,fields,keys,site,..}=write else{continue;};
+        // Unreduced spreads can overwrite a categorical destination. Keep
+        // these source effects uncovered instead of exporting a partial rule.
+        if fields.iter().any(|field|field.spread){continue;}
         if !matches!(op,WriteOp::Insert|WriteOp::Update|WriteOp::Upsert)||!bound.schema.tables.contains_key(table){continue;}
         // Fully resolved caller/global approval records do not need a typed
         // resource argument. They govern this exact effect, not every child
@@ -299,7 +302,7 @@ fn effect_fields<'a>(p:&ast::ProgramDecl,write:&'a Expr,context:&ast::ProgramDec
 }
 
 fn state_field<'a>(p:&ast::ProgramDecl,write:&'a Expr,bound:&Bound,stages:&BTreeSet<(String,String)>)->Option<&'a ast::ObjectField>{
-    let Expr::Write{table,keys,fields,..}=write else{return None;};bound.schema.tables.get(table)?;
+    let Expr::Write{table,keys,fields,..}=write else{return None;};bound.schema.tables.get(table)?;if fields.iter().any(|field|field.spread){return None;}
     let changed=|field:&&ast::ObjectField|field.value.as_ref().is_some_and(|value|!stage_copy(value,p,table,keys,&field.name,bound));
     // A categorical description is not a lifecycle merely because it is an enum.
     fields.iter().filter(changed).find(|field|stages.contains(&(table.clone(),field.name.clone())))
@@ -332,13 +335,14 @@ fn source_states(guards:&[Expr],bound:&Bound,table:&str,state:&str)->BTreeSet<St
     variants.iter().filter(|value|guards.iter().all(|guard|admits(guard,state,value)!=Some(false))).cloned().collect()
 }
 fn stage_copy(value:&Expr,p:&ast::ProgramDecl,table:&str,keys:&[ast::KeyPart],column:&str,bound:&Bound)->bool{
+    let Some(kind)=bound.schema.tables.get(table).and_then(|table|table.columns.get(column))else{return false;};
     let value=super::super::creation_advice::simplify_boolean(value);
     fn copied(value:&Expr,p:&ast::ProgramDecl,table:&str,keys:&[ast::KeyPart],column:&str,required:bool)->bool{match value{
         Expr::Assert{value,..}=>copied(value,p,table,keys,column,required),
         Expr::Member{base,name,..}=>name==column&&same_resource(base,table,keys,p),
         Expr::If{then,otherwise,..}=>copied(then,p,table,keys,column,required)&&copied(otherwise,p,table,keys,column,required),
         Expr::Binary{op,left,right,..} if op=="??"=>required&&copied(left,p,table,keys,column,required)||matches!(left.as_ref(),Expr::Literal{value:ast::Literal::Null,..})&&copied(right,p,table,keys,column,required),_=>false,
-    }}copied(&value,p,table,keys,column,!bound.schema.tables[table].columns[column].is_optional())
+    }}copied(&value,p,table,keys,column,!kind.is_optional())
 }
 fn changes_from(p:&ast::ProgramDecl,write:&Expr,bound:&Bound,table:&str,state:&str,source:&str)->bool{
     fn changes(value:&Expr,state:&str,source:&str)->bool{match value{
@@ -422,7 +426,7 @@ fn lifecycle(writes:&[(&ast::ProgramDecl,Expr,ast::ProgramDecl)],bound:&Bound,ou
                     // Parent operations are the coupling being checked; their
                     // incidental child writes cannot redefine or hide the
                     // independent child lifecycle's terminal stage.
-                    let Expr::Write{fields,keys,..}=w else{continue;};let Some(state)=fields.iter().find(|f|f.name==child_state.name)else{continue;};
+                    let Expr::Write{fields,keys,..}=w else{continue;};if fields.iter().any(|field|field.spread){ambiguous=true;break;}let Some(state)=fields.iter().find(|f|f.name==child_state.name)else{continue;};
                     if state.value.as_ref().is_some_and(|value|stage_copy(value,p,child,keys,&child_state.name,bound)){continue;}
                     if writes.iter().any(|(producer,effect,_)|std::ptr::eq(*producer,*p)&&matches!(effect,Expr::Write{op:WriteOp::Update,table:t,fields,..} if t==parent&&state_field(producer,effect,bound,stages).is_some_and(|field|field.name==parent_state.name))){
                         if let Some(value)=&state.value{coupled.extend(literals(value));}else{ambiguous=true;}continue;

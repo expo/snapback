@@ -53,6 +53,7 @@ fn steps(sources:&[(String,String)],bound:&Bound)->Vec<Step>{
             let anchor=p.args.len()==1&&p.body[..at].iter().all(|s|match s{Stmt::Require{condition,..}=>plain_guard(condition),Stmt::Bind{value,..}=>super::plain_row(value)&&super::same_resource(value,table,keys,p),_=>false})&&p.body[at+1..].iter().all(|s|matches!(s,Stmt::Return{value:Expr::Literal{value:ast::Literal::Null,..},..}))&&fields.iter().all(|f|f.value.as_ref().is_some_and(|v|matches!(v,Expr::Literal{..})||matches!(v,Expr::Name{name,..}if name=="now"||name=="viewer")));
             let mut guards=Vec::new();let mut complete=true;
             for s in &context.body{if let Stmt::Require{condition,..}=s{if let Some(value)=workflow::normalize(condition,&bound.schema,table,&mapping){conjuncts(&value,&mut guards);}else{complete=false;}}}
+            if fields.iter().any(|f|f.spread){continue;}
             // A source spread has no field name; the binder expands it with
             // overwrite semantics. Until this lane shares that reduction, no
             // partial field list may commission a hypothesis or an index panic.
