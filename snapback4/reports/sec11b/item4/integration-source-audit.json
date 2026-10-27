@@ -6,5 +6,8 @@
   "originMain": "98177aa48b",
   "frozenInputs": 1961,
   "mismatches": [],
-  "assessment": "Later main merge adds only benchmark records; all frozen production inputs remain byte-identical. Reviews bind the implemented security delta, independent of later report commits."
+  "assessment": "Later main merge adds only benchmark records; all frozen production inputs remain byte-identical. Reviews bind the implemented security delta, independent of later report commits.",
+  "finalOriginMain": "98177aa48b35b99779a95b4db3e26710ac76bf0c",
+  "finalFrozenInputMismatches": [],
+  "finalFetchLog": "/home/ccheever/sb4-loop/reports/sec11b/final-fetch.log"
 }

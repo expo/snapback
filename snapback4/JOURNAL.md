@@ -109516,3 +109516,44 @@ setup/refinement attempts, per-lever limits and the scoped ownership proof.
 Raw logs/HDR/events stay outside Git; private stores are removed, known-secret
 scans pass, and the owned process audit finds no remaining helper or zombie.
 No push or publication. [Full SQW report](experiments/scale-controls/results-20261027-s1-sqlite-w/README.md).
+
+## 2026-10-27 — SEC11b item4: actual transition edges and complete qualification accounting
+
+Completed the three requested SEC11b mechanisms in order, each measured before
+the next. Item 4 derives advisory `publishReport` measured→reported and
+`advanceStage` inspection→finished questions from typed sibling prerequisites,
+without treating enum order or operation names as authority. Full applicability
+and written/guard/argument types bind identity. Original authored targets and
+fields are checked before helper reduction; unreduced spreads stay uncovered.
+Actual edges must survive commit. Legacy terminal-workflow inference also stays
+unresolved when a parent spread or unmapped/source-unrestricted state writer
+can reopen the destination. Ordinary inference and all six guarded/unguarded
+reopening regressions pass.
+
+Both final independent source reviews are READY on `883aeea5d0`. Native
+qualification uses immutable executable SHA-256
+`3a4ac751164bb96b7a07c8076e65b89350b2916c1d50704e73dc99815212d6b7`:
+zero assessed false gates/refusals and no unclassified verdicts on 800 schemas,
+with 19 carried fresh and 26 post-test refusals. All 800 default outputs complete:
+check median/p90 3/7 lines, deploy 5/9. Calibrated visibility is 8/15 (wave 26),
+6/12 (wave 28), 11/14 (wave 30) and 10/16 (wave 31). The 030/035 transitions
+are the two additions after item 3, with 018 retained. The sole wave-30 gate
+remains the actual 033 `advanceJob` approval bypass.
+
+All three copied item-4 repairs clear their target witnesses. The unchanged 035
+acceptance passes 133 checks and 018's passes unchanged. The 030 script needs
+its original bypass expectation corrected while retaining late-report checks;
+both its original failure and adjusted passing acceptance are retained.
+Seventeen native test attempts have incomplete private HTTP preparation, never
+PASS. Two diagnostic replays confirm private deployment blocked by existing
+pending security findings; non-timeout exits are not presumed latency faults.
+Retrospective accounting corrects earlier gap totals to 24 (item 2) and 40
+(item 3); original receipts remain unchanged. Security verdicts and output
+counts are unchanged. All owned fleet attempts are archived, with zero recorded
+owned processes remaining; unused partial attempts are never PASS.
+
+LLP 3000.036.004.004 and `reports/sec11b/item4/` retain source hashes, reviews,
+coverage, precision, repaired-app evidence and fixed-part survey composition.
+The final affected receipt and exclusions are recorded in WORKSTREAM-REPORT.md.
+No deploy files or pipeline scheduling edits, version bump, push or publication.
+Items 5–8 remain later work; latency remains the separate SEC11L lane.

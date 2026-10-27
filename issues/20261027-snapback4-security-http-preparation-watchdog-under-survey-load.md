@@ -47,3 +47,21 @@ forward as current gaps. An unused shorter-180-second external replay of
 wave27 lane035 timed out; it is retained outside the selected800 and never
 substituted for the completed original. Host timing varies; no latency or
 complete-HTTP claim follows from these concurrent survey attempts.
+
+## SEC11b item 4 measurement (2026-10-27)
+
+The selected native 800-schema packet on executable
+`3a4ac751164bb96b7a07c8076e65b89350b2916c1d50704e73dc99815212d6b7`
+contains no preparation or external watchdogs. It retains 17 non-timeout private
+preparation exits as incomplete HTTP qualification, not PASS. Diagnostic 033
+and wave-26/008 replays show existing pending security findings blocking the
+private deployment before HTTP admission. Non-timeout exits are not presumed
+latency faults. Both previous long cases complete here (wave-25/040 test
+274.698s, wave-27/035 954.182s). This concurrent, different-source/host packet
+does not identify the cause or qualify an isolated latency improvement; the
+watchdog ticket remains open for SEC11L. Original failed records are retained.
+
+Accounting correction: item 2 has 24 incomplete qualifications (22 preparation
+exits and two watchdogs); item 3 has 40 (14 exits and 26 watchdogs). The original
+watchdog lists remain accurate for that subset. Full corrections are beside
+the original precision receipts under reports/sec11b/item2 and item3.

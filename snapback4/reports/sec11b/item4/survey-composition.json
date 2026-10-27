@@ -1,0 +1,97 @@
+{
+  "kind": "composed-disjoint-shards",
+  "binarySha256": "3a4ac751164bb96b7a07c8076e65b89350b2916c1d50704e73dc99815212d6b7",
+  "projects": 800,
+  "sourceHashesMatch": true,
+  "parts": [
+    {
+      "label": "local400",
+      "directory": "/home/ccheever/sb4-loop/reports/sec11b/item4-local400",
+      "schemas": 400,
+      "resultsSha256": "f3301601b5330c3e9f4746482404f573ecf52a73e2b6923965a76784f9f6fa41",
+      "measurement": {
+        "binarySha256": "3a4ac751164bb96b7a07c8076e65b89350b2916c1d50704e73dc99815212d6b7",
+        "projects": 400,
+        "workers": 20,
+        "waves": "30,26,28,19,20,21,22,23",
+        "checkOnly": false,
+        "stripIntent": false,
+        "defaultOutput": true,
+        "freshOnly": false,
+        "binarySnapshot": "/tmp/sb4-sec10-shipping-binary-9lr0cf65/snapback4",
+        "watchdogSeconds": {
+          "check": 1200,
+          "test": 3600,
+          "deploy": 1200
+        }
+      }
+    },
+    {
+      "label": "localA100",
+      "directory": "/home/ccheever/sb4-loop/reports/sec11b/item4-local-a100",
+      "schemas": 100,
+      "resultsSha256": "aa2f131ad573b8bc95dc76cc95ab5c90499b42afd29d804f6bfbee8b41ac549e",
+      "measurement": {
+        "binarySha256": "3a4ac751164bb96b7a07c8076e65b89350b2916c1d50704e73dc99815212d6b7",
+        "projects": 100,
+        "workers": 16,
+        "waves": "24,25",
+        "checkOnly": false,
+        "stripIntent": false,
+        "defaultOutput": true,
+        "freshOnly": false,
+        "binarySnapshot": "/tmp/sb4-sec10-shipping-binary-90ujor72/snapback4",
+        "watchdogSeconds": {
+          "check": 1200,
+          "test": 3600,
+          "deploy": 1200
+        }
+      }
+    },
+    {
+      "label": "localB100",
+      "directory": "/home/ccheever/sb4-loop/reports/sec11b/item4-local-b100",
+      "schemas": 100,
+      "resultsSha256": "9863d62edd21d341d4605d8d4061a461a618b4e3958831201238089c227aee93",
+      "measurement": {
+        "binarySha256": "3a4ac751164bb96b7a07c8076e65b89350b2916c1d50704e73dc99815212d6b7",
+        "projects": 100,
+        "workers": 16,
+        "waves": "27,29",
+        "checkOnly": false,
+        "stripIntent": false,
+        "defaultOutput": true,
+        "freshOnly": false,
+        "binarySnapshot": "/tmp/sb4-sec10-shipping-binary-uzrc22xn/snapback4",
+        "watchdogSeconds": {
+          "check": 1200,
+          "test": 3600,
+          "deploy": 1200
+        }
+      }
+    },
+    {
+      "label": "fleetC200",
+      "directory": "/home/ccheever/sb4-loop/reports/sec11b/item4-fleet-final/c/extracted/out",
+      "schemas": 200,
+      "resultsSha256": "de5ea3ad76b2f756ebb1ef6c44b8a071363ab895d51fe19a3a11c4fa39e6c399",
+      "measurement": {
+        "binarySha256": "3a4ac751164bb96b7a07c8076e65b89350b2916c1d50704e73dc99815212d6b7",
+        "projects": 200,
+        "workers": 8,
+        "waves": "15,16,18",
+        "checkOnly": false,
+        "stripIntent": false,
+        "defaultOutput": true,
+        "freshOnly": false,
+        "binarySnapshot": "/tmp/sb4-sec10-shipping-binary-bxregvag/snapback4",
+        "watchdogSeconds": {
+          "check": 1200,
+          "test": 3600,
+          "deploy": 1200
+        }
+      }
+    }
+  ],
+  "scope": "All phases are actual command attempts on copied schemas. Original interrupted runs and any incomplete test subcampaigns remain separately recorded; no parent run is relabeled PASS."
+}
