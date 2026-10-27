@@ -1,0 +1,51 @@
+{
+  "policyBinary": {
+    "sourceCommit": "9d36412758a4c6690a390d3ae24eb845d27ab787",
+    "binarySha256": "f90a285713ce229d3de35a230b474401167cdab518fff74797c16f5307ca82f3",
+    "profile": "production",
+    "flags": {
+      "CARGO_INCREMENTAL": 0,
+      "CARGO_PROFILE_DEV_DEBUG": 0,
+      "CARGO_PROFILE_TEST_DEBUG": 0,
+      "CARGO_BUILD_JOBS": 6,
+      "LIBSQLITE3_FLAGS": "-USQLITE_ENABLE_MEMORY_MANAGEMENT"
+    },
+    "sourceHashes": "item3-production-source-hashes.json"
+  },
+  "formatBinary": {
+    "sourceCommit": "d4d38b29cb7fa39d82289fdf63068d64744380a1",
+    "binarySha256": "852edc845bc7480b8e3508dfebcd1b5c5d32b92c07e216f3be9f152dadddca5e",
+    "policyQualificationBinary": "f90a285713ce229d3de35a230b474401167cdab518fff74797c16f5307ca82f3",
+    "delta": "Only new assignment default cards and positive deployment-feature-summary placement; policy, campaigns, witnesses and identities unchanged."
+  },
+  "policySourceUnchangedExcept": "security_reviews/decisions.rs renderer/test and security.rs positive deployment-summary placement (2 of1955 source inputs; gate/campaign/witness logic unchanged)",
+  "formatReplay": {
+    "inputSha256": "c2cc41924122d0a87f5be1a13e16fd9480340bbe680982eb2264f24038f29214",
+    "schemas": 800,
+    "productionRendererTest": "PASS",
+    "metrics": {
+      "defaultCheck": {
+        "median": 3.0,
+        "p90": 7,
+        "max": 14,
+        "completed": 800,
+        "censored": 0
+      },
+      "defaultDeploy": {
+        "median": 5.0,
+        "p90": 9,
+        "max": 20,
+        "completed": 800,
+        "censored": 0
+      }
+    }
+  },
+  "precision": {
+    "schemas": 800,
+    "falseGates": 0,
+    "falseProductionRefusals": 0,
+    "unclassified": 0,
+    "testQualificationComplete": false
+  },
+  "scope": "Native policy survey and presentation replay are separate qualifications. All default counts use the current production renderer on recorded native phases; native004/014 preflight proves witness/decision identity unchanged."
+}

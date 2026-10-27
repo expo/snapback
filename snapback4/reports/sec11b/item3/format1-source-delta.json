@@ -1,0 +1,12 @@
+{
+  "policyBinarySha256": "f90a285713ce229d3de35a230b474401167cdab518fff74797c16f5307ca82f3",
+  "onlyProductionSourceChanged": [
+    {
+      "path": "snapback4/crates/snapback4/src/verbs/security_reviews/decisions.rs",
+      "before": "af194282549e3670bc1503b91340a62ec5d71b65c43f161316fd310e1a2ab3d8",
+      "after": "63ca4437ba6c00c6c5728446dd1ac4ff56917e2611207ddf07a7d326f0b38cfd"
+    }
+  ],
+  "unchangedProductionFiles": 1954,
+  "scope": "Default assignment-card presentation and renderer-only test. Full security native measurements remain bound to frozen policy binary; final formatting is qualified by production-renderer replay and native target preflight."
+}

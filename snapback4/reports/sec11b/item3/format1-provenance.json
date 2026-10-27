@@ -1,0 +1,6 @@
+{
+  "sourceCommit": "3686859f2583e569c0f858cb98294f3e714fcb8f",
+  "binarySha256": "b154a32356a297b982141f535592f48321232cae011e7ce6df04f2dd0a296a84",
+  "policyQualificationBinary": "f90a285713ce229d3de35a230b474401167cdab518fff74797c16f5307ca82f3",
+  "delta": "Only assignment default renderer and renderer-only regression; production policies, campaigns, witness contents and identities unchanged."
+}

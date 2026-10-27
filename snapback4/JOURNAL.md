@@ -109420,3 +109420,18 @@ live/zombie owned PID or private-path process; every private cluster is
 stopped. The 25 GiB guard never fires; bookend free space is **82.07 GiB**.
 The exact staged audit compares 1028 generated fixture credentials with zero
 matches; raw logs/data remain outside Git.
+
+### 2026-10-27 — SEC11b assignment questions measured
+
+LLP3000.036.004.003 implements exact assigned-or-any typed payload questions
+without inventing assignees for missing models.004/014 copied repairs clear;
+014 unchanged acceptance and004's182 properly scoped assertions pass. Both
+mechanism reviewers and both final presentation reviewers are READY. Coverage
+is8/15,6/12,9/14,8/16 across waves26/28/30/31. Native800 precision has zero
+assessed false gates/refusals,19/26 carried refusals and26 retained HTTP
+preparation qualification gaps. The current production formatter replay has
+3/5 median lines, all800 displays uncensored, with three native identity
+preflights. Policy and presentation snapshots remain separately bound. See
+reports/sec11b/item3/ and root WORKSTREAM-REPORT.md for exact tests, inherited
+clock/executable-rebuild retries, corrected004 acceptance and incomplete HTTP
+qualification. No deploy pipeline/scheduling change and no push.
