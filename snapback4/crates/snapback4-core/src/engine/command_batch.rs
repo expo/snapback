@@ -301,7 +301,7 @@ pub(super) fn run(
         let prepared = result.clone();
         let state = lane.clone();
         execute(Box::new(move |engine| {
-            if depth == 2 { *prepared.lock().unwrap() = state.lock().unwrap().prepare(engine).map_err(|e| e.to_string()); }
+            if depth == 2 { *prepared.lock().unwrap() = state.lock().unwrap().prepare_for_ingress(engine).map_err(|e| e.to_string()); }
         }));
         let result = result.lock().unwrap().clone();
         result
