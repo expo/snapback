@@ -1,0 +1,8 @@
+{
+  "commit": "85034827d8fa812df051edae63b351bae5565e7c",
+  "changedFiles": [
+    "snapback4/crates/snapback4-lang/tests/guide/definitions.rs",
+    "snapback4/crates/snapback4-lang/tests/guide/refusal_actions.rs"
+  ],
+  "scope": "Test-only definition/recovery pins for the three new codes; production executable inputs unchanged. Original full-language guide failure is retained; exact named retry passes."
+}

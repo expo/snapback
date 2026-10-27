@@ -1,0 +1,15 @@
+{
+  "sourceCommit": "b25313ff7da9f947b753a82e97923a325edd3371",
+  "binarySha256": "2b59f9ee40869f34041eed1803ad087d97577d80e09c0616c1aaf546242112ac",
+  "profile": "production",
+  "flags": {
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_PROFILE_DEV_DEBUG": "0",
+    "CARGO_PROFILE_TEST_DEBUG": "0",
+    "CARGO_BUILD_JOBS": "6",
+    "LIBSQLITE3_FLAGS": "-DHAVE_FDATASYNC=1 -USQLITE_ENABLE_MEMORY_MANAGEMENT"
+  },
+  "sourceHashes": "item4-window-production-source-hashes.json",
+  "sourceInputs": 1961,
+  "mainMerge": "f8fa80dc50 / origin98177aa48b; runtimeinputsfromf4b05f89ea"
+}

@@ -1,0 +1,58 @@
+# Transition review resolutions
+
+These are author/implementer responses, not additional model reviews. Original
+responses and provenance remain verbatim under llp/reviews/.
+
+- Round1 Codex: preserve non-actor stored prerequisites; reject auxiliary asserted
+  reads. Fixed by870c3debfa/1f9d20e2be with closed/open-window and assertion
+  regressions. Both round2 reviewers found these changes conservative.
+- Round2 Codex: printed secondary writes omitted their typed descriptors (USD/EUR
+  can share numeric0). Fixed by33317ed2ae: every written field's ColumnType is in
+  both source-effect descriptors. The CLI regression uses identical zero-value
+  replay rows/args and a factual candidate, requiring a renewed decision.
+- Round2 Muse predicted035 was skipped, quoting same-side comparisons. The actual
+  reviewed1f9d20e2be source compared opposite sides, and the contemporaneous five
+  language and two complete-collector tests passed, including the actual cleaner.
+  This source-only prediction was not an observed failure. Independently, the
+  syntactic old-guard suppression is removed in33317ed2ae: actual engine admission
+  judges the jump even when redundant/partial guards mention the old stage. The
+  proper ordered repair is checked against the same bad-edge hypothesis, not
+  merely by disappearance of a syntactic detector. This also eliminates the
+  disputed carve-out from the final source.
+
+- Round3: both reviewers READY on4162765f5b. The additional guard/argument type
+  context regression ina4cc3fe3d9 preserves currency meaning even without a
+  money write; printed zero-valued rows do not erase units.
+- Round4 Codex: valid unreduced object spreads could index the nonexistent empty
+  field name. Fixed by92eecf3557 with explicit spread rejection and complete
+  Option-collected field types. Running the binder-valid regression also exposed
+  the legacy stage_copy panic;52551e6660 keeps all spread-derived effects
+  conservatively uncovered and safely looks up ordinary field types.
+- Round5 Codex: helper reduction could erase an asserted prerequisite inside a
+  computed anchor field. Fixesea60f9cd3f and3d8656abee check the original authored
+  fields and target before reduction; helpers returning a literal or target after
+  asserting a global window remain unsupported. Paved direct-row update syntax
+  retains its question through a trusted exact target read.
+- Actual reduced applicability is included by04c99f526e. Changing principal
+  uniqueness can change actor classification without changing printed guards or
+  column types; its regression requires different public hypothesis identities.
+
+Final native corpus measurement remains required.
+
+Round6, commit04c99f526e: Muse found no material defect in the new transition
+mechanism; Codex found a real production-precision gap in the legacy workflow
+spread handling. A spread-only parent reopening could disappear from its
+outgoing graph and falsely establish terminality. Commitcd7733c89a makes any
+unreduced parent update spread leave that parent terminality unresolved. The
+reviewer's wave26/008 regression passes: ordinary child-stage inference remains,
+and explicit reopen, spread-only reopen, and later-overwriting-spread reopen
+all omit terminal child-stage inference. This is conservative undercoverage,
+never a new gate. Fresh round7 reviews cover the final delta.
+
+Round7: Muse READY; Codex correctly identified the inherited source-unrestricted
+parent reopening case. Commit883aeea5d0 leaves terminality unresolved for an
+explicit parent-state writer with an unmapped target or no source-state
+requirements. The same regression now passes all six guarded/unguarded ×
+explicit/spread-only/later-overwriting-spread reopen variants, while retaining
+ordinary inference. Both fresh round8 reviews are READY on883aeea5d0. Runtime
+and corpus evidence remains a separate requirement; these are source verdicts.

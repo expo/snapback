@@ -1,0 +1,43 @@
+{
+  "replays": [
+    {
+      "lane": "004",
+      "binarySha256": "f90a285713ce229d3de35a230b474401167cdab518fff74797c16f5307ca82f3",
+      "fixedSchemaSha256": "cab349273a503cb80559103e56dbe8643b254c4c8da54d43e95c9f3fe8baaa7a",
+      "acceptanceSha256": "7fdc436c51f5e81207b7c474feff004b80f08ded8a7f42a2803af84bceef1c21",
+      "targetedWitnessesAfterFix": 0,
+      "acceptance": {
+        "exit": 0,
+        "completion": "acceptance passed: 182 assertions, eight real role accounts plus outsider; full operation and privacy matrix",
+        "assertions": 182,
+        "privateLogRetained": true
+      },
+      "originalAcceptanceUnchanged": false,
+      "untouchedAcceptance": {
+        "exit": 1,
+        "completion": null,
+        "assertions": null,
+        "privateLogRetained": true
+      },
+      "acceptanceAdjustment": "Each coordinator now checks private data on their own job; both retain the positive private-payload assertion and additionally deny a foreign job. The original broad-access expectation is retained in its failed run.",
+      "originalPositiveAssertionsRetainedOnAssignedResources": true,
+      "originalBroadAccessExpectationChanged": true
+    },
+    {
+      "lane": "014",
+      "binarySha256": "f90a285713ce229d3de35a230b474401167cdab518fff74797c16f5307ca82f3",
+      "fixedSchemaSha256": "f447e54190fce385266d38a8996d0f45ed8dc50aa65bde35a44c64b7351c95b9",
+      "acceptanceSha256": "f3bb1da081673901785f8bb76a08c57c10523befd0c1dd88e48660d456bca3d7",
+      "targetedWitnessesAfterFix": 0,
+      "acceptance": {
+        "exit": 0,
+        "completion": "acceptance passed",
+        "assertions": null,
+        "privateLogRetained": true
+      },
+      "originalAcceptanceUnchanged": true,
+      "originalAssertionsRetained": true
+    }
+  ],
+  "scope": "Copied schema repairs and actual app acceptances; private logs remain outside git."
+}

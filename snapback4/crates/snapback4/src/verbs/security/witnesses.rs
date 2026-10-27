@@ -221,8 +221,10 @@ fn candidates(
     let derived = security::derived::invariants(sources, bound);
     let stages = security::derived::workflow_columns_from_sources(sources, bound);
     let mut out = Vec::new();
+    let approval_questions=security::derived::approval_questions(sources,bound).into_iter().chain(security::derived::assignment_questions(sources,bound)).chain(security::derived::transition_questions(sources,bound)).collect::<Vec<_>>();
     for (index, n) in notes.iter().enumerate() {
         out.extend(questions::proposals(bound,index,n));
+        out.extend(approval_questions.iter().filter(|(note,_)|note.site==n.site&&note.code==n.code).map(|(_,inv)|(index,Candidate::Bound(inv.clone()))));
         if n.code=="N_RELEASE_CREATE_AUTHORITY"{if let Some(inv)=super::release_create::candidate(sources,n){out.push((index,Candidate::Bound(inv)));}}
         if n.code == "N_INSERT_WRITE_INTENT" {
             if let Some(subject) = n
@@ -509,7 +511,7 @@ pub(in crate::verbs) fn collect_for_report<'a>(project:&Project,bound:&'a Bound,
     PendingEvidence{bound,sources,notes,values:collect_inner(project,bound,sources,notes,true,options,None,true,true)}
 }
 fn collect_inner(project:&Project,bound:&Bound,sources:&[(String,String)],notes:&[Diagnostic],expanded:bool,options:&Options,current:Option<&security::Report>,defer_derived:bool,advice_cache:bool)->Vec<Option<serde_json::Value>> {
-    let key=hash(&serde_json::to_vec(&("sec11-witness-2",sources,notes,record::capture(sources,None).ok())).unwrap());
+    let key=hash(&serde_json::to_vec(&("sec11b-witness-4",sources,notes,record::capture(sources,None).ok())).unwrap());
     let path=project.schema_dir().join("generated/security-witnesses.json");
     let gate=|index:usize|super::super::security_reviews::gated(&notes[index].code)&&precise_approval(bound,&notes[index]);
     let cached=advice_cache.then(||std::fs::read(&path).ok()).flatten().and_then(|b|serde_json::from_slice::<serde_json::Value>(&b).ok()).filter(|v|v["key"]==key).and_then(|v|serde_json::from_value::<Vec<Option<serde_json::Value>>>(v["values"].clone()).ok()).filter(|v|v.len()==notes.len());
@@ -545,11 +547,13 @@ fn collect_inner(project:&Project,bound:&Bound,sources:&[(String,String)],notes:
     for (selected,campaign) in campaigns {
         for (index,inv) in selected {
             if result[*index].is_some()&&notes[*index].code!="N_INSERT_WRITE_INTENT"{continue;}
-            if let Some(c)=campaign.violations.iter().filter(|c|c.invariant_site==inv.site.to_string()&&c.reachability.is_reachable()&&(notes[*index].code!="N_RELEASE_CREATE_AUTHORITY"||c.effect=="insert"&&c.old.is_none()&&challenges::release_witness::retained_value(inv,c)&&inv.operation.as_ref()==Some(&c.operation)&&prior_policies.get(index).is_some_and(|policy|challenges::release_witness::prior_allowed(bound,policy,c)==Some(true)))&&(notes[*index].code!="N_GUARD_NOT_CONSUMED"||c.history.len()==1&&c.effect=="insert")&&(notes[*index].code!="N_CHILD_EVIDENCE_PRESENCE"||questions::transition(inv,c,&stages))).max_by_key(|c| {
+            if let Some(c)=campaign.violations.iter().filter(|c|c.invariant_site==inv.site.to_string()&&c.reachability.is_reachable()&&(notes[*index].code!="N_RELEASE_CREATE_AUTHORITY"||c.effect=="insert"&&c.old.is_none()&&challenges::release_witness::retained_value(inv,c)&&inv.operation.as_ref()==Some(&c.operation)&&prior_policies.get(index).is_some_and(|policy|challenges::release_witness::prior_allowed(bound,policy,c)==Some(true)))&&(notes[*index].code!="N_GUARD_NOT_CONSUMED"||c.history.len()==1&&c.effect=="insert")&&(notes[*index].code!="N_ASSIGNMENT_SCOPE"||c.history.len()==1&&c.history.last().is_some_and(|s|s.observed_data.is_some()))&&(notes[*index].code!="N_CHILD_EVIDENCE_PRESENCE"||questions::transition(inv,c,&stages))).max_by_key(|c| {
                 let decrease=inv.column.as_ref().and_then(|column|Some((c.old.as_ref()?.field(column).ok()?,c.row.field(column).ok()?))).is_some_and(|(old,next)|matches!((old,next),(snapback4_core::Value::Int(a),snapback4_core::Value::Int(b)) if a>b));
-                (decrease,c.history.len())
+                (decrease,if notes[*index].code=="N_ASSIGNMENT_SCOPE"||inv.site.file.contains("/sec11-transition/"){std::cmp::Reverse(c.viewer.clone())}else{std::cmp::Reverse(String::new())},if inv.site.file.contains("/sec11-transition/"){usize::MAX-c.history.len()}else{c.history.len()})
             }) {let replay=decreasing_edit(bound,inv,c);let mut value=evidence(sources,bound,inv,replay.as_ref().unwrap_or(c));
                 if notes[*index].code=="N_GUARD_NOT_CONSUMED" {let Some(repeated)=questions::repeat(bound,inv,c,&notes[*index],sources)else{continue;};value=repeated;}
+                if notes[*index].code=="N_ASSIGNMENT_SCOPE" {if value["kind"]!="read-payload"{continue;}let Some(assigned)=questions::assignment_evidence(value,&notes[*index],inv)else{continue;};value=assigned;}
+                if notes[*index].code=="N_TRANSITION_BYPASS"&&inv.site.file.contains("/sec11-transition/"){let Some(transition)=questions::transition_evidence(value,&notes[*index],inv)else{continue;};value=transition;}
                 if notes[*index].code=="N_TEXT_EVIDENCE" {value=questions::text_evidence(value,&notes[*index]);}
                 if questions::advisory(&notes[*index].code){value["advisory"]=true.into();}
                 if notes[*index].code=="N_RELEASE_CREATE_AUTHORITY"{

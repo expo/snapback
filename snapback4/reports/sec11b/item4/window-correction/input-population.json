@@ -1,0 +1,4280 @@
+{
+  "w15-001-weld-coupon-quals": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "001-weld-coupon-quals"
+  },
+  "w15-002-day2-scaffold-tag-board": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "002-day2-scaffold-tag-board"
+  },
+  "w15-003-tile-dye-lot-holds": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "003-tile-dye-lot-holds"
+  },
+  "w15-004-day2-arc-reviewer-copies": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "004-day2-arc-reviewer-copies"
+  },
+  "w15-005-arborist-hazard-tags": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "005-arborist-hazard-tags"
+  },
+  "w15-006-day2-duplicate-bridge-boards": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "006-day2-duplicate-bridge-boards"
+  },
+  "w15-007-med-pass-cosign": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "007-med-pass-cosign"
+  },
+  "w15-008-day2-docket-deadline-calendar": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "008-day2-docket-deadline-calendar"
+  },
+  "w15-009-lactation-room-queue": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "009-lactation-room-queue"
+  },
+  "w15-010-day2-propane-tank-readings": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "010-day2-propane-tank-readings"
+  },
+  "w15-011-school-vision-screens": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "011-school-vision-screens"
+  },
+  "w15-012-day2-pet-addendum-approvals": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "012-day2-pet-addendum-approvals"
+  },
+  "w15-013-stroke-rehab-contracts": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "013-stroke-rehab-contracts"
+  },
+  "w15-014-day2-venue-date-holds": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "014-day2-venue-date-holds"
+  },
+  "w15-015-lab-bench-breakage": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "015-lab-bench-breakage"
+  },
+  "w15-016-day2-waste-accumulation-clock": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "016-day2-waste-accumulation-clock"
+  },
+  "w15-017-peer-grading-calibration": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "017-peer-grading-calibration"
+  },
+  "w15-018-day2-bike-serial-registry": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "018-day2-bike-serial-registry"
+  },
+  "w15-019-sidewalk-cafe-permits": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "019-sidewalk-cafe-permits"
+  },
+  "w15-020-day2-four-h-project-records": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "020-day2-four-h-project-records"
+  },
+  "w15-021-block-party-closures": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "021-block-party-closures"
+  },
+  "w15-022-day2-barrel-shipment-consolidation": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "022-day2-barrel-shipment-consolidation"
+  },
+  "w15-023-hydrant-adoption": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "023-hydrant-adoption"
+  },
+  "w15-024-day2-reading-room-pulls": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "024-day2-reading-room-pulls"
+  },
+  "w15-025-homebrew-comp-flights": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "025-homebrew-comp-flights"
+  },
+  "w15-026-day2-dropzone-load-manifest": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "026-day2-dropzone-load-manifest"
+  },
+  "w15-027-agility-trial-run-order": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "027-agility-trial-run-order"
+  },
+  "w15-028-day2-understudy-readiness": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "028-day2-understudy-readiness"
+  },
+  "w15-029-rc-lap-timer": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "029-rc-lap-timer"
+  },
+  "w15-030-day2-color-formula-cards": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "030-day2-color-formula-cards"
+  },
+  "w15-031-pinball-league-scores": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "031-pinball-league-scores"
+  },
+  "w15-032-day2-dismissal-change-requests": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "032-day2-dismissal-change-requests"
+  },
+  "w15-033-go-ladder-handicaps": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "033-go-ladder-handicaps"
+  },
+  "w15-034-day2-cla-signature-ledger": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "034-day2-cla-signature-ledger"
+  },
+  "w15-035-dry-clean-rack-tickets": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "035-dry-clean-rack-tickets"
+  },
+  "w15-036-day2-jersey-number-requests": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "036-day2-jersey-number-requests"
+  },
+  "w15-037-flavor-rotation-board": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "037-flavor-rotation-board"
+  },
+  "w15-038-day2-magic-method-vault": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "038-day2-magic-method-vault"
+  },
+  "w15-039-photo-booth-galleries": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "039-photo-booth-galleries"
+  },
+  "w15-040-day2-doula-backup-rotation": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "040-day2-doula-backup-rotation"
+  },
+  "w15-041-clothing-closet-visits": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "041-clothing-closet-visits"
+  },
+  "w15-042-day2-bite-quarantine-checks": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "042-day2-bite-quarantine-checks"
+  },
+  "w15-043-warming-center-tonight": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "043-warming-center-tonight"
+  },
+  "w15-044-day2-screen-time-tokens": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "044-day2-screen-time-tokens"
+  },
+  "w15-045-memory-care-playlists": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "045-memory-care-playlists"
+  },
+  "w15-046-day2-heritage-plaque-applications": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "046-day2-heritage-plaque-applications"
+  },
+  "w15-047-walkathon-lap-pledges": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "047-walkathon-lap-pledges"
+  },
+  "w15-048-day2-hot-work-permits": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "048-day2-hot-work-permits"
+  },
+  "w15-049-radiation-badge-doses": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "049-radiation-badge-doses"
+  },
+  "w15-050-day2-impound-release-desk": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "050-day2-impound-release-desk"
+  },
+  "w15-051-wildlife-crossing-reports": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "051-wildlife-crossing-reports"
+  },
+  "w15-052-day2-furniture-bank-pickups": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "052-day2-furniture-bank-pickups"
+  },
+  "w15-053-effort-certification": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "053-effort-certification"
+  },
+  "w15-054-day2-ballot-drop-box-sweeps": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "054-day2-ballot-drop-box-sweeps"
+  },
+  "w15-055-tryout-blind-scoring": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "055-tryout-blind-scoring"
+  },
+  "w15-056-day2-shellfish-harvest-closures": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "056-day2-shellfish-harvest-closures"
+  },
+  "w15-057-helmet-recert-tracker": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "057-helmet-recert-tracker"
+  },
+  "w15-058-day2-guest-stay-limits": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "058-day2-guest-stay-limits"
+  },
+  "w15-059-curbside-pickup-lanes": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "059-curbside-pickup-lanes"
+  },
+  "w15-060-day2-poster-session-gallery": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "060-day2-poster-session-gallery"
+  },
+  "w15-061-sled-dog-checkpoints": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "061-sled-dog-checkpoints"
+  },
+  "w15-062-day2-burn-permit-days": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "062-day2-burn-permit-days"
+  },
+  "w15-063-audio-description-review": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "063-audio-description-review"
+  },
+  "w15-064-day2-exhibit-label-review": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "064-day2-exhibit-label-review"
+  },
+  "w15-065-medicine-cabinet-expiry": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "065-medicine-cabinet-expiry"
+  },
+  "w15-066-day2-quiz-pack-exchange": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "066-day2-quiz-pack-exchange"
+  },
+  "w15-067-curfew-extension-requests": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "067-curfew-extension-requests"
+  },
+  "w15-068-day2-two-bin-reorder-cards": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "068-day2-two-bin-reorder-cards"
+  },
+  "w15-069-newborn-shift-log": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "069-newborn-shift-log"
+  },
+  "w15-070-day2-sealed-preregistration": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "070-day2-sealed-preregistration"
+  },
+  "w15-071-instrument-lockout-leases": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "071-instrument-lockout-leases"
+  },
+  "w15-072-day2-daycare-milk-bottles": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "072-day2-daycare-milk-bottles"
+  },
+  "w15-073-crop-scouting-reports": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "073-crop-scouting-reports"
+  },
+  "w15-074-day2-ditch-rider-water-turns": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "074-day2-ditch-rider-water-turns"
+  },
+  "w15-075-tire-hotel-storage": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "075-tire-hotel-storage"
+  },
+  "w15-076-day2-rain-check-desk": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "076-day2-rain-check-desk"
+  },
+  "w15-077-rfp-response-desk": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "077-rfp-response-desk"
+  },
+  "w15-078-day2-practicum-placements": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "078-day2-practicum-placements"
+  },
+  "w15-079-supervised-teen-chat": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "079-supervised-teen-chat"
+  },
+  "w15-080-day2-stop-headcount-tally": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "080-day2-stop-headcount-tally"
+  },
+  "w15-081-press-release-signoff": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "081-press-release-signoff"
+  },
+  "w15-082-day2-roster-lock-window": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "082-day2-roster-lock-window"
+  },
+  "w15-083-syllabus-approval-chain": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "083-syllabus-approval-chain"
+  },
+  "w15-084-day2-cube-comp-scrambles": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "084-day2-cube-comp-scrambles"
+  },
+  "w15-085-hymn-index-search": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "085-hymn-index-search"
+  },
+  "w15-086-day2-patient-grievance-clock": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "086-day2-patient-grievance-clock"
+  },
+  "w15-087-typing-race-ladder": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "087-typing-race-ladder"
+  },
+  "w15-088-day2-ppe-issue-ledger": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "088-day2-ppe-issue-ledger"
+  },
+  "w15-089-block-captain-roster": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "089-block-captain-roster"
+  },
+  "w15-090-day2-custody-handoff-bag": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "090-day2-custody-handoff-bag"
+  },
+  "w15-091-ice-shanty-registry": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "091-ice-shanty-registry"
+  },
+  "w15-092-day2-summit-register-book": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "092-day2-summit-register-book"
+  },
+  "w15-093-housekeeping-room-status": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "093-housekeeping-room-status"
+  },
+  "w15-094-day2-backflow-test-reports": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "094-day2-backflow-test-reports"
+  },
+  "w15-095-book-club-kit-loans": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "095-book-club-kit-loans"
+  },
+  "w15-096-day2-litter-pick-order": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "096-day2-litter-pick-order"
+  },
+  "w15-097-friendly-call-circle": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "097-friendly-call-circle"
+  },
+  "w15-098-day2-giving-circle-pitches": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "098-day2-giving-circle-pitches"
+  },
+  "w15-099-rain-barrel-rebates": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "099-rain-barrel-rebates"
+  },
+  "w15-100-day2-busking-pitch-rota": {
+    "kind": "survey",
+    "wave": 15,
+    "lane": "100-day2-busking-pitch-rota"
+  },
+  "w16-001-snapback-ferry-deck-manifest": {
+    "kind": "survey",
+    "wave": 16,
+    "lane": "001-snapback-ferry-deck-manifest"
+  },
+  "w16-002-snapback-orchard-spray-reentry": {
+    "kind": "survey",
+    "wave": 16,
+    "lane": "002-snapback-orchard-spray-reentry"
+  },
+  "w16-003-snapback-specimen-courier-chain": {
+    "kind": "survey",
+    "wave": 16,
+    "lane": "003-snapback-specimen-courier-chain"
+  },
+  "w16-004-snapback-fly-rail-cue-locks": {
+    "kind": "survey",
+    "wave": 16,
+    "lane": "004-snapback-fly-rail-cue-locks"
+  },
+  "w16-005-snapback-kiln-firing-queue": {
+    "kind": "survey",
+    "wave": 16,
+    "lane": "005-snapback-kiln-firing-queue"
+  },
+  "w16-006-snapback-dive-boat-buddy-log": {
+    "kind": "survey",
+    "wave": 16,
+    "lane": "006-snapback-dive-boat-buddy-log"
+  },
+  "w16-007-snapback-farrier-hoof-rota": {
+    "kind": "survey",
+    "wave": 16,
+    "lane": "007-snapback-farrier-hoof-rota"
+  },
+  "w16-008-snapback-sublet-key-escrow": {
+    "kind": "survey",
+    "wave": 16,
+    "lane": "008-snapback-sublet-key-escrow"
+  },
+  "w16-009-snapback-choir-part-tracks": {
+    "kind": "survey",
+    "wave": 16,
+    "lane": "009-snapback-choir-part-tracks"
+  },
+  "w16-010-snapback-allotment-water-turns": {
+    "kind": "survey",
+    "wave": 16,
+    "lane": "010-snapback-allotment-water-turns"
+  },
+  "w16-011-snapback-freezer-rack-ledger": {
+    "kind": "survey",
+    "wave": 16,
+    "lane": "011-snapback-freezer-rack-ledger"
+  },
+  "w16-012-snapback-court-interpreter-slots": {
+    "kind": "survey",
+    "wave": 16,
+    "lane": "012-snapback-court-interpreter-slots"
+  },
+  "w16-013-snapback-hackathon-rubric-judging": {
+    "kind": "survey",
+    "wave": 16,
+    "lane": "013-snapback-hackathon-rubric-judging"
+  },
+  "w16-014-snapback-ice-rink-resurface-slots": {
+    "kind": "survey",
+    "wave": 16,
+    "lane": "014-snapback-ice-rink-resurface-slots"
+  },
+  "w16-015-snapback-foster-pet-handoffs": {
+    "kind": "survey",
+    "wave": 16,
+    "lane": "015-snapback-foster-pet-handoffs"
+  },
+  "w16-016-snapback-coworking-locker-leases": {
+    "kind": "survey",
+    "wave": 16,
+    "lane": "016-snapback-coworking-locker-leases"
+  },
+  "w16-017-snapback-trial-symptom-diary": {
+    "kind": "survey",
+    "wave": 16,
+    "lane": "017-snapback-trial-symptom-diary"
+  },
+  "w16-018-snapback-film-dailies-notes": {
+    "kind": "survey",
+    "wave": 16,
+    "lane": "018-snapback-film-dailies-notes"
+  },
+  "w16-019-snapback-apiary-hive-inspections": {
+    "kind": "survey",
+    "wave": 16,
+    "lane": "019-snapback-apiary-hive-inspections"
+  },
+  "w16-020-snapback-tow-yard-release": {
+    "kind": "survey",
+    "wave": 16,
+    "lane": "020-snapback-tow-yard-release"
+  },
+  "w16-021-snapback-moot-court-scoring": {
+    "kind": "survey",
+    "wave": 16,
+    "lane": "021-snapback-moot-court-scoring"
+  },
+  "w16-022-snapback-glacier-rope-teams": {
+    "kind": "survey",
+    "wave": 16,
+    "lane": "022-snapback-glacier-rope-teams"
+  },
+  "w16-023-snapback-brew-comp-blind-flights": {
+    "kind": "survey",
+    "wave": 16,
+    "lane": "023-snapback-brew-comp-blind-flights"
+  },
+  "w16-024-snapback-cycle-count-tasks": {
+    "kind": "survey",
+    "wave": 16,
+    "lane": "024-snapback-cycle-count-tasks"
+  },
+  "w16-025-snapback-cemetery-plot-deeds": {
+    "kind": "survey",
+    "wave": 16,
+    "lane": "025-snapback-cemetery-plot-deeds"
+  },
+  "w16-026-snapback-dorm-noise-reports": {
+    "kind": "survey",
+    "wave": 16,
+    "lane": "026-snapback-dorm-noise-reports"
+  },
+  "w16-027-snapback-podcast-guest-releases": {
+    "kind": "survey",
+    "wave": 16,
+    "lane": "027-snapback-podcast-guest-releases"
+  },
+  "w16-028-snapback-tool-library-deposits": {
+    "kind": "survey",
+    "wave": 16,
+    "lane": "028-snapback-tool-library-deposits"
+  },
+  "w16-029-snapback-fire-lookout-shifts": {
+    "kind": "survey",
+    "wave": 16,
+    "lane": "029-snapback-fire-lookout-shifts"
+  },
+  "w16-030-snapback-harvest-bin-tickets": {
+    "kind": "survey",
+    "wave": 16,
+    "lane": "030-snapback-harvest-bin-tickets"
+  },
+  "w16-031-snapback-piano-tuning-route": {
+    "kind": "survey",
+    "wave": 16,
+    "lane": "031-snapback-piano-tuning-route"
+  },
+  "w16-032-snapback-scrim-vod-reviews": {
+    "kind": "survey",
+    "wave": 16,
+    "lane": "032-snapback-scrim-vod-reviews"
+  },
+  "w16-033-snapback-compounding-dual-check": {
+    "kind": "survey",
+    "wave": 16,
+    "lane": "033-snapback-compounding-dual-check"
+  },
+  "w16-034-snapback-marina-liveaboard-slips": {
+    "kind": "survey",
+    "wave": 16,
+    "lane": "034-snapback-marina-liveaboard-slips"
+  },
+  "w16-035-snapback-archive-reading-requests": {
+    "kind": "survey",
+    "wave": 16,
+    "lane": "035-snapback-archive-reading-requests"
+  },
+  "w16-036-snapback-robotics-parts-ledger": {
+    "kind": "survey",
+    "wave": 16,
+    "lane": "036-snapback-robotics-parts-ledger"
+  },
+  "w16-037-snapback-bus-roster-changes": {
+    "kind": "survey",
+    "wave": 16,
+    "lane": "037-snapback-bus-roster-changes"
+  },
+  "w16-038-snapback-hotel-lost-property": {
+    "kind": "survey",
+    "wave": 16,
+    "lane": "038-snapback-hotel-lost-property"
+  },
+  "w16-039-snapback-glossary-term-reviews": {
+    "kind": "survey",
+    "wave": 16,
+    "lane": "039-snapback-glossary-term-reviews"
+  },
+  "w16-040-snapback-route-setting-rotation": {
+    "kind": "survey",
+    "wave": 16,
+    "lane": "040-snapback-route-setting-rotation"
+  },
+  "w16-041-snapback-community-fridge-restocks": {
+    "kind": "survey",
+    "wave": 16,
+    "lane": "041-snapback-community-fridge-restocks"
+  },
+  "w16-042-snapback-sterile-tray-tracking": {
+    "kind": "survey",
+    "wave": 16,
+    "lane": "042-snapback-sterile-tray-tracking"
+  },
+  "w16-043-snapback-wedding-vendor-timeline": {
+    "kind": "survey",
+    "wave": 16,
+    "lane": "043-snapback-wedding-vendor-timeline"
+  },
+  "w16-044-snapback-ham-net-checkins": {
+    "kind": "survey",
+    "wave": 16,
+    "lane": "044-snapback-ham-net-checkins"
+  },
+  "w16-045-snapback-instrument-loan-bank": {
+    "kind": "survey",
+    "wave": 16,
+    "lane": "045-snapback-instrument-loan-bank"
+  },
+  "w16-046-snapback-greenhouse-climate-alarms": {
+    "kind": "survey",
+    "wave": 16,
+    "lane": "046-snapback-greenhouse-climate-alarms"
+  },
+  "w16-047-snapback-mural-wall-permits": {
+    "kind": "survey",
+    "wave": 16,
+    "lane": "047-snapback-mural-wall-permits"
+  },
+  "w16-048-snapback-boiler-room-rounds": {
+    "kind": "survey",
+    "wave": 16,
+    "lane": "048-snapback-boiler-room-rounds"
+  },
+  "w16-049-snapback-cheese-cave-wheels": {
+    "kind": "survey",
+    "wave": 16,
+    "lane": "049-snapback-cheese-cave-wheels"
+  },
+  "w16-050-snapback-ambulance-crew-checkout": {
+    "kind": "survey",
+    "wave": 16,
+    "lane": "050-snapback-ambulance-crew-checkout"
+  },
+  "w18-001-snapback-falconry-mews-weights": {
+    "kind": "survey",
+    "wave": 18,
+    "lane": "001-snapback-falconry-mews-weights"
+  },
+  "w18-002-snapback-venison-processing-tags": {
+    "kind": "survey",
+    "wave": 18,
+    "lane": "002-snapback-venison-processing-tags"
+  },
+  "w18-003-snapback-sawmill-custom-cuts": {
+    "kind": "survey",
+    "wave": 18,
+    "lane": "003-snapback-sawmill-custom-cuts"
+  },
+  "w18-004-snapback-mass-spec-sample-queue": {
+    "kind": "survey",
+    "wave": 18,
+    "lane": "004-snapback-mass-spec-sample-queue"
+  },
+  "w18-005-snapback-recording-studio-lockouts": {
+    "kind": "survey",
+    "wave": 18,
+    "lane": "005-snapback-recording-studio-lockouts"
+  },
+  "w18-006-snapback-trampoline-park-incidents": {
+    "kind": "survey",
+    "wave": 18,
+    "lane": "006-snapback-trampoline-park-incidents"
+  },
+  "w18-007-snapback-circus-rigging-inspections": {
+    "kind": "survey",
+    "wave": 18,
+    "lane": "007-snapback-circus-rigging-inspections"
+  },
+  "w18-008-snapback-fish-hatchery-raceways": {
+    "kind": "survey",
+    "wave": 18,
+    "lane": "008-snapback-fish-hatchery-raceways"
+  },
+  "w18-009-snapback-distillery-cask-gauging": {
+    "kind": "survey",
+    "wave": 18,
+    "lane": "009-snapback-distillery-cask-gauging"
+  },
+  "w18-010-snapback-cobbler-repair-tickets": {
+    "kind": "survey",
+    "wave": 18,
+    "lane": "010-snapback-cobbler-repair-tickets"
+  },
+  "w18-011-snapback-gem-lab-certificates": {
+    "kind": "survey",
+    "wave": 18,
+    "lane": "011-snapback-gem-lab-certificates"
+  },
+  "w18-012-snapback-airfield-debris-walks": {
+    "kind": "survey",
+    "wave": 18,
+    "lane": "012-snapback-airfield-debris-walks"
+  },
+  "w18-013-snapback-drawbridge-opening-log": {
+    "kind": "survey",
+    "wave": 18,
+    "lane": "013-snapback-drawbridge-opening-log"
+  },
+  "w18-014-snapback-transfer-station-tickets": {
+    "kind": "survey",
+    "wave": 18,
+    "lane": "014-snapback-transfer-station-tickets"
+  },
+  "w18-015-snapback-substation-switching-orders": {
+    "kind": "survey",
+    "wave": 18,
+    "lane": "015-snapback-substation-switching-orders"
+  },
+  "w18-016-snapback-turbine-climb-permits": {
+    "kind": "survey",
+    "wave": 18,
+    "lane": "016-snapback-turbine-climb-permits"
+  },
+  "w18-017-snapback-quarry-blast-notices": {
+    "kind": "survey",
+    "wave": 18,
+    "lane": "017-snapback-quarry-blast-notices"
+  },
+  "w18-018-snapback-asbestos-air-clearances": {
+    "kind": "survey",
+    "wave": 18,
+    "lane": "018-snapback-asbestos-air-clearances"
+  },
+  "w18-019-snapback-chimney-sweep-reports": {
+    "kind": "survey",
+    "wave": 18,
+    "lane": "019-snapback-chimney-sweep-reports"
+  },
+  "w18-020-snapback-septic-pumpout-compliance": {
+    "kind": "survey",
+    "wave": 18,
+    "lane": "020-snapback-septic-pumpout-compliance"
+  },
+  "w18-021-snapback-storage-lien-auctions": {
+    "kind": "survey",
+    "wave": 18,
+    "lane": "021-snapback-storage-lien-auctions"
+  },
+  "w18-022-snapback-allergy-shot-observation": {
+    "kind": "survey",
+    "wave": 18,
+    "lane": "022-snapback-allergy-shot-observation"
+  },
+  "w18-023-snapback-donor-milk-batches": {
+    "kind": "survey",
+    "wave": 18,
+    "lane": "023-snapback-donor-milk-batches"
+  },
+  "w18-024-snapback-teleradiology-read-queue": {
+    "kind": "survey",
+    "wave": 18,
+    "lane": "024-snapback-teleradiology-read-queue"
+  },
+  "w18-025-snapback-wheelchair-repair-loaners": {
+    "kind": "survey",
+    "wave": 18,
+    "lane": "025-snapback-wheelchair-repair-loaners"
+  },
+  "w18-026-snapback-extinguisher-service-tags": {
+    "kind": "survey",
+    "wave": 18,
+    "lane": "026-snapback-extinguisher-service-tags"
+  },
+  "w18-027-snapback-costume-rental-fittings": {
+    "kind": "survey",
+    "wave": 18,
+    "lane": "027-snapback-costume-rental-fittings"
+  },
+  "w18-028-snapback-survey-monument-records": {
+    "kind": "survey",
+    "wave": 18,
+    "lane": "028-snapback-survey-monument-records"
+  },
+  "w18-029-snapback-coin-grading-submissions": {
+    "kind": "survey",
+    "wave": 18,
+    "lane": "029-snapback-coin-grading-submissions"
+  },
+  "w18-030-snapback-cat-show-ring-judging": {
+    "kind": "survey",
+    "wave": 18,
+    "lane": "030-snapback-cat-show-ring-judging"
+  },
+  "w18-031-snapback-rodeo-stock-draw": {
+    "kind": "survey",
+    "wave": 18,
+    "lane": "031-snapback-rodeo-stock-draw"
+  },
+  "w18-032-snapback-squash-ladder-challenges": {
+    "kind": "survey",
+    "wave": 18,
+    "lane": "032-snapback-squash-ladder-challenges"
+  },
+  "w18-033-snapback-fencing-bout-pools": {
+    "kind": "survey",
+    "wave": 18,
+    "lane": "033-snapback-fencing-bout-pools"
+  },
+  "w18-034-snapback-gymnastics-meet-scoring": {
+    "kind": "survey",
+    "wave": 18,
+    "lane": "034-snapback-gymnastics-meet-scoring"
+  },
+  "w18-035-snapback-research-vessel-berths": {
+    "kind": "survey",
+    "wave": 18,
+    "lane": "035-snapback-research-vessel-berths"
+  },
+  "w18-036-snapback-feed-mill-medicated-batches": {
+    "kind": "survey",
+    "wave": 18,
+    "lane": "036-snapback-feed-mill-medicated-batches"
+  },
+  "w18-037-snapback-dairy-tanker-pickups": {
+    "kind": "survey",
+    "wave": 18,
+    "lane": "037-snapback-dairy-tanker-pickups"
+  },
+  "w18-038-snapback-dye-house-lab-dips": {
+    "kind": "survey",
+    "wave": 18,
+    "lane": "038-snapback-dye-house-lab-dips"
+  },
+  "w18-039-snapback-countertop-slab-layouts": {
+    "kind": "survey",
+    "wave": 18,
+    "lane": "039-snapback-countertop-slab-layouts"
+  },
+  "w18-040-snapback-lifeboat-crew-pagers": {
+    "kind": "survey",
+    "wave": 18,
+    "lane": "040-snapback-lifeboat-crew-pagers"
+  },
+  "w18-041-snapback-fire-watch-patrols": {
+    "kind": "survey",
+    "wave": 18,
+    "lane": "041-snapback-fire-watch-patrols"
+  },
+  "w18-042-snapback-datacenter-cage-escorts": {
+    "kind": "survey",
+    "wave": 18,
+    "lane": "042-snapback-datacenter-cage-escorts"
+  },
+  "w18-043-snapback-safe-deposit-access": {
+    "kind": "survey",
+    "wave": 18,
+    "lane": "043-snapback-safe-deposit-access"
+  },
+  "w18-044-snapback-prison-book-mailings": {
+    "kind": "survey",
+    "wave": 18,
+    "lane": "044-snapback-prison-book-mailings"
+  },
+  "w18-045-snapback-honor-guard-details": {
+    "kind": "survey",
+    "wave": 18,
+    "lane": "045-snapback-honor-guard-details"
+  },
+  "w18-046-snapback-respirator-fit-tests": {
+    "kind": "survey",
+    "wave": 18,
+    "lane": "046-snapback-respirator-fit-tests"
+  },
+  "w18-047-snapback-hyperbaric-chamber-log": {
+    "kind": "survey",
+    "wave": 18,
+    "lane": "047-snapback-hyperbaric-chamber-log"
+  },
+  "w18-048-snapback-repair-cafe-intake": {
+    "kind": "survey",
+    "wave": 18,
+    "lane": "048-snapback-repair-cafe-intake"
+  },
+  "w18-049-snapback-park-pavilion-deposits": {
+    "kind": "survey",
+    "wave": 18,
+    "lane": "049-snapback-park-pavilion-deposits"
+  },
+  "w18-050-snapback-zipline-harness-checks": {
+    "kind": "survey",
+    "wave": 18,
+    "lane": "050-snapback-zipline-harness-checks"
+  },
+  "w19-001-snapback-falconry-mews-weights": {
+    "kind": "survey",
+    "wave": 19,
+    "lane": "001-snapback-falconry-mews-weights"
+  },
+  "w19-002-snapback-venison-processing-tags": {
+    "kind": "survey",
+    "wave": 19,
+    "lane": "002-snapback-venison-processing-tags"
+  },
+  "w19-003-snapback-sawmill-custom-cuts": {
+    "kind": "survey",
+    "wave": 19,
+    "lane": "003-snapback-sawmill-custom-cuts"
+  },
+  "w19-004-snapback-mass-spec-sample-queue": {
+    "kind": "survey",
+    "wave": 19,
+    "lane": "004-snapback-mass-spec-sample-queue"
+  },
+  "w19-005-snapback-recording-studio-lockouts": {
+    "kind": "survey",
+    "wave": 19,
+    "lane": "005-snapback-recording-studio-lockouts"
+  },
+  "w19-006-snapback-trampoline-park-incidents": {
+    "kind": "survey",
+    "wave": 19,
+    "lane": "006-snapback-trampoline-park-incidents"
+  },
+  "w19-007-snapback-circus-rigging-inspections": {
+    "kind": "survey",
+    "wave": 19,
+    "lane": "007-snapback-circus-rigging-inspections"
+  },
+  "w19-008-snapback-fish-hatchery-raceways": {
+    "kind": "survey",
+    "wave": 19,
+    "lane": "008-snapback-fish-hatchery-raceways"
+  },
+  "w19-009-snapback-distillery-cask-gauging": {
+    "kind": "survey",
+    "wave": 19,
+    "lane": "009-snapback-distillery-cask-gauging"
+  },
+  "w19-010-snapback-cobbler-repair-tickets": {
+    "kind": "survey",
+    "wave": 19,
+    "lane": "010-snapback-cobbler-repair-tickets"
+  },
+  "w19-011-snapback-gem-lab-certificates": {
+    "kind": "survey",
+    "wave": 19,
+    "lane": "011-snapback-gem-lab-certificates"
+  },
+  "w19-012-snapback-airfield-debris-walks": {
+    "kind": "survey",
+    "wave": 19,
+    "lane": "012-snapback-airfield-debris-walks"
+  },
+  "w19-013-snapback-drawbridge-opening-log": {
+    "kind": "survey",
+    "wave": 19,
+    "lane": "013-snapback-drawbridge-opening-log"
+  },
+  "w19-014-snapback-transfer-station-tickets": {
+    "kind": "survey",
+    "wave": 19,
+    "lane": "014-snapback-transfer-station-tickets"
+  },
+  "w19-015-snapback-substation-switching-orders": {
+    "kind": "survey",
+    "wave": 19,
+    "lane": "015-snapback-substation-switching-orders"
+  },
+  "w19-016-snapback-turbine-climb-permits": {
+    "kind": "survey",
+    "wave": 19,
+    "lane": "016-snapback-turbine-climb-permits"
+  },
+  "w19-017-snapback-quarry-blast-notices": {
+    "kind": "survey",
+    "wave": 19,
+    "lane": "017-snapback-quarry-blast-notices"
+  },
+  "w19-018-snapback-asbestos-air-clearances": {
+    "kind": "survey",
+    "wave": 19,
+    "lane": "018-snapback-asbestos-air-clearances"
+  },
+  "w19-019-snapback-chimney-sweep-reports": {
+    "kind": "survey",
+    "wave": 19,
+    "lane": "019-snapback-chimney-sweep-reports"
+  },
+  "w19-020-snapback-septic-pumpout-compliance": {
+    "kind": "survey",
+    "wave": 19,
+    "lane": "020-snapback-septic-pumpout-compliance"
+  },
+  "w19-021-snapback-storage-lien-auctions": {
+    "kind": "survey",
+    "wave": 19,
+    "lane": "021-snapback-storage-lien-auctions"
+  },
+  "w19-022-snapback-allergy-shot-observation": {
+    "kind": "survey",
+    "wave": 19,
+    "lane": "022-snapback-allergy-shot-observation"
+  },
+  "w19-023-snapback-donor-milk-batches": {
+    "kind": "survey",
+    "wave": 19,
+    "lane": "023-snapback-donor-milk-batches"
+  },
+  "w19-024-snapback-teleradiology-read-queue": {
+    "kind": "survey",
+    "wave": 19,
+    "lane": "024-snapback-teleradiology-read-queue"
+  },
+  "w19-025-snapback-wheelchair-repair-loaners": {
+    "kind": "survey",
+    "wave": 19,
+    "lane": "025-snapback-wheelchair-repair-loaners"
+  },
+  "w19-026-snapback-extinguisher-service-tags": {
+    "kind": "survey",
+    "wave": 19,
+    "lane": "026-snapback-extinguisher-service-tags"
+  },
+  "w19-027-snapback-costume-rental-fittings": {
+    "kind": "survey",
+    "wave": 19,
+    "lane": "027-snapback-costume-rental-fittings"
+  },
+  "w19-028-snapback-survey-monument-records": {
+    "kind": "survey",
+    "wave": 19,
+    "lane": "028-snapback-survey-monument-records"
+  },
+  "w19-029-snapback-coin-grading-submissions": {
+    "kind": "survey",
+    "wave": 19,
+    "lane": "029-snapback-coin-grading-submissions"
+  },
+  "w19-030-snapback-cat-show-ring-judging": {
+    "kind": "survey",
+    "wave": 19,
+    "lane": "030-snapback-cat-show-ring-judging"
+  },
+  "w19-031-snapback-rodeo-stock-draw": {
+    "kind": "survey",
+    "wave": 19,
+    "lane": "031-snapback-rodeo-stock-draw"
+  },
+  "w19-032-snapback-squash-ladder-challenges": {
+    "kind": "survey",
+    "wave": 19,
+    "lane": "032-snapback-squash-ladder-challenges"
+  },
+  "w19-033-snapback-fencing-bout-pools": {
+    "kind": "survey",
+    "wave": 19,
+    "lane": "033-snapback-fencing-bout-pools"
+  },
+  "w19-034-snapback-gymnastics-meet-scoring": {
+    "kind": "survey",
+    "wave": 19,
+    "lane": "034-snapback-gymnastics-meet-scoring"
+  },
+  "w19-035-snapback-research-vessel-berths": {
+    "kind": "survey",
+    "wave": 19,
+    "lane": "035-snapback-research-vessel-berths"
+  },
+  "w19-036-snapback-feed-mill-medicated-batches": {
+    "kind": "survey",
+    "wave": 19,
+    "lane": "036-snapback-feed-mill-medicated-batches"
+  },
+  "w19-037-snapback-dairy-tanker-pickups": {
+    "kind": "survey",
+    "wave": 19,
+    "lane": "037-snapback-dairy-tanker-pickups"
+  },
+  "w19-038-snapback-dye-house-lab-dips": {
+    "kind": "survey",
+    "wave": 19,
+    "lane": "038-snapback-dye-house-lab-dips"
+  },
+  "w19-039-snapback-countertop-slab-layouts": {
+    "kind": "survey",
+    "wave": 19,
+    "lane": "039-snapback-countertop-slab-layouts"
+  },
+  "w19-040-snapback-lifeboat-crew-pagers": {
+    "kind": "survey",
+    "wave": 19,
+    "lane": "040-snapback-lifeboat-crew-pagers"
+  },
+  "w19-041-snapback-fire-watch-patrols": {
+    "kind": "survey",
+    "wave": 19,
+    "lane": "041-snapback-fire-watch-patrols"
+  },
+  "w19-042-snapback-datacenter-cage-escorts": {
+    "kind": "survey",
+    "wave": 19,
+    "lane": "042-snapback-datacenter-cage-escorts"
+  },
+  "w19-043-snapback-safe-deposit-access": {
+    "kind": "survey",
+    "wave": 19,
+    "lane": "043-snapback-safe-deposit-access"
+  },
+  "w19-044-snapback-prison-book-mailings": {
+    "kind": "survey",
+    "wave": 19,
+    "lane": "044-snapback-prison-book-mailings"
+  },
+  "w19-045-snapback-honor-guard-details": {
+    "kind": "survey",
+    "wave": 19,
+    "lane": "045-snapback-honor-guard-details"
+  },
+  "w19-046-snapback-respirator-fit-tests": {
+    "kind": "survey",
+    "wave": 19,
+    "lane": "046-snapback-respirator-fit-tests"
+  },
+  "w19-047-snapback-hyperbaric-chamber-log": {
+    "kind": "survey",
+    "wave": 19,
+    "lane": "047-snapback-hyperbaric-chamber-log"
+  },
+  "w19-048-snapback-repair-cafe-intake": {
+    "kind": "survey",
+    "wave": 19,
+    "lane": "048-snapback-repair-cafe-intake"
+  },
+  "w19-049-snapback-park-pavilion-deposits": {
+    "kind": "survey",
+    "wave": 19,
+    "lane": "049-snapback-park-pavilion-deposits"
+  },
+  "w19-050-snapback-zipline-harness-checks": {
+    "kind": "survey",
+    "wave": 19,
+    "lane": "050-snapback-zipline-harness-checks"
+  },
+  "w20-001-snapback-luthier-crack-repairs": {
+    "kind": "survey",
+    "wave": 20,
+    "lane": "001-snapback-luthier-crack-repairs"
+  },
+  "w20-002-snapback-bridal-alteration-fittings": {
+    "kind": "survey",
+    "wave": 20,
+    "lane": "002-snapback-bridal-alteration-fittings"
+  },
+  "w20-003-snapback-taxidermy-mount-orders": {
+    "kind": "survey",
+    "wave": 20,
+    "lane": "003-snapback-taxidermy-mount-orders"
+  },
+  "w20-004-snapback-antique-mall-booths": {
+    "kind": "survey",
+    "wave": 20,
+    "lane": "004-snapback-antique-mall-booths"
+  },
+  "w20-005-snapback-skydive-jump-manifest": {
+    "kind": "survey",
+    "wave": 20,
+    "lane": "005-snapback-skydive-jump-manifest"
+  },
+  "w20-006-snapback-athletic-trainer-injuries": {
+    "kind": "survey",
+    "wave": 20,
+    "lane": "006-snapback-athletic-trainer-injuries"
+  },
+  "w20-007-snapback-upholstery-shop-jobs": {
+    "kind": "survey",
+    "wave": 20,
+    "lane": "007-snapback-upholstery-shop-jobs"
+  },
+  "w20-008-snapback-kitchen-incubator-bookings": {
+    "kind": "survey",
+    "wave": 20,
+    "lane": "008-snapback-kitchen-incubator-bookings"
+  },
+  "w20-009-snapback-optical-lab-jobs": {
+    "kind": "survey",
+    "wave": 20,
+    "lane": "009-snapback-optical-lab-jobs"
+  },
+  "w20-010-snapback-boatyard-haulout-stands": {
+    "kind": "survey",
+    "wave": 20,
+    "lane": "010-snapback-boatyard-haulout-stands"
+  },
+  "w20-011-snapback-senior-ride-volunteers": {
+    "kind": "survey",
+    "wave": 20,
+    "lane": "011-snapback-senior-ride-volunteers"
+  },
+  "w20-012-snapback-small-engine-repairs": {
+    "kind": "survey",
+    "wave": 20,
+    "lane": "012-snapback-small-engine-repairs"
+  },
+  "w20-013-snapback-piano-competition-juries": {
+    "kind": "survey",
+    "wave": 20,
+    "lane": "013-snapback-piano-competition-juries"
+  },
+  "w20-014-snapback-county-fair-livestock": {
+    "kind": "survey",
+    "wave": 20,
+    "lane": "014-snapback-county-fair-livestock"
+  },
+  "w20-015-snapback-sailmaker-repair-orders": {
+    "kind": "survey",
+    "wave": 20,
+    "lane": "015-snapback-sailmaker-repair-orders"
+  },
+  "w20-016-snapback-auto-body-repairs": {
+    "kind": "survey",
+    "wave": 20,
+    "lane": "016-snapback-auto-body-repairs"
+  },
+  "w20-017-snapback-search-rescue-callouts": {
+    "kind": "survey",
+    "wave": 20,
+    "lane": "017-snapback-search-rescue-callouts"
+  },
+  "w20-018-snapback-massage-spa-intakes": {
+    "kind": "survey",
+    "wave": 20,
+    "lane": "018-snapback-massage-spa-intakes"
+  },
+  "w20-019-snapback-cremation-custody-chain": {
+    "kind": "survey",
+    "wave": 20,
+    "lane": "019-snapback-cremation-custody-chain"
+  },
+  "w20-020-snapback-rental-unit-turnovers": {
+    "kind": "survey",
+    "wave": 20,
+    "lane": "020-snapback-rental-unit-turnovers"
+  },
+  "w20-021-snapback-oyster-harvest-tags": {
+    "kind": "survey",
+    "wave": 20,
+    "lane": "021-snapback-oyster-harvest-tags"
+  },
+  "w20-022-snapback-picture-framing-orders": {
+    "kind": "survey",
+    "wave": 20,
+    "lane": "022-snapback-picture-framing-orders"
+  },
+  "w20-023-snapback-coop-board-applications": {
+    "kind": "survey",
+    "wave": 20,
+    "lane": "023-snapback-coop-board-applications"
+  },
+  "w20-024-snapback-archery-range-lanes": {
+    "kind": "survey",
+    "wave": 20,
+    "lane": "024-snapback-archery-range-lanes"
+  },
+  "w20-025-snapback-boxing-bout-medicals": {
+    "kind": "survey",
+    "wave": 20,
+    "lane": "025-snapback-boxing-bout-medicals"
+  },
+  "w20-026-snapback-bookbinding-restoration-jobs": {
+    "kind": "survey",
+    "wave": 20,
+    "lane": "026-snapback-bookbinding-restoration-jobs"
+  },
+  "w20-027-snapback-cabinet-install-punchlists": {
+    "kind": "survey",
+    "wave": 20,
+    "lane": "027-snapback-cabinet-install-punchlists"
+  },
+  "w20-028-snapback-trade-in-appraisals": {
+    "kind": "survey",
+    "wave": 20,
+    "lane": "028-snapback-trade-in-appraisals"
+  },
+  "w20-029-snapback-grape-crush-contracts": {
+    "kind": "survey",
+    "wave": 20,
+    "lane": "029-snapback-grape-crush-contracts"
+  },
+  "w20-030-snapback-funeral-service-arrangements": {
+    "kind": "survey",
+    "wave": 20,
+    "lane": "030-snapback-funeral-service-arrangements"
+  },
+  "w20-031-snapback-e-waste-data-wipes": {
+    "kind": "survey",
+    "wave": 20,
+    "lane": "031-snapback-e-waste-data-wipes"
+  },
+  "w20-032-snapback-zoo-keeper-diets": {
+    "kind": "survey",
+    "wave": 20,
+    "lane": "032-snapback-zoo-keeper-diets"
+  },
+  "w20-033-snapback-lead-service-swaps": {
+    "kind": "survey",
+    "wave": 20,
+    "lane": "033-snapback-lead-service-swaps"
+  },
+  "w20-034-snapback-pool-route-service": {
+    "kind": "survey",
+    "wave": 20,
+    "lane": "034-snapback-pool-route-service"
+  },
+  "w20-035-snapback-trophy-engraving-orders": {
+    "kind": "survey",
+    "wave": 20,
+    "lane": "035-snapback-trophy-engraving-orders"
+  },
+  "w20-036-snapback-knife-sharpening-drops": {
+    "kind": "survey",
+    "wave": 20,
+    "lane": "036-snapback-knife-sharpening-drops"
+  },
+  "w20-037-snapback-fine-art-crating": {
+    "kind": "survey",
+    "wave": 20,
+    "lane": "037-snapback-fine-art-crating"
+  },
+  "w20-038-snapback-tent-rental-installs": {
+    "kind": "survey",
+    "wave": 20,
+    "lane": "038-snapback-tent-rental-installs"
+  },
+  "w20-039-snapback-herd-treatment-withdrawals": {
+    "kind": "survey",
+    "wave": 20,
+    "lane": "039-snapback-herd-treatment-withdrawals"
+  },
+  "w20-040-snapback-valet-parking-tickets": {
+    "kind": "survey",
+    "wave": 20,
+    "lane": "040-snapback-valet-parking-tickets"
+  },
+  "w20-041-snapback-dock-appointment-slots": {
+    "kind": "survey",
+    "wave": 20,
+    "lane": "041-snapback-dock-appointment-slots"
+  },
+  "w20-042-snapback-english-class-placement": {
+    "kind": "survey",
+    "wave": 20,
+    "lane": "042-snapback-english-class-placement"
+  },
+  "w20-043-snapback-bounce-house-rentals": {
+    "kind": "survey",
+    "wave": 20,
+    "lane": "043-snapback-bounce-house-rentals"
+  },
+  "w20-044-snapback-livestock-auction-lots": {
+    "kind": "survey",
+    "wave": 20,
+    "lane": "044-snapback-livestock-auction-lots"
+  },
+  "w20-045-snapback-hop-kiln-lots": {
+    "kind": "survey",
+    "wave": 20,
+    "lane": "045-snapback-hop-kiln-lots"
+  },
+  "w20-046-snapback-habitat-build-sites": {
+    "kind": "survey",
+    "wave": 20,
+    "lane": "046-snapback-habitat-build-sites"
+  },
+  "w20-047-snapback-mattress-recycling-pickups": {
+    "kind": "survey",
+    "wave": 20,
+    "lane": "047-snapback-mattress-recycling-pickups"
+  },
+  "w20-048-snapback-therapeutic-riding-sessions": {
+    "kind": "survey",
+    "wave": 20,
+    "lane": "048-snapback-therapeutic-riding-sessions"
+  },
+  "w20-049-snapback-sign-shop-installs": {
+    "kind": "survey",
+    "wave": 20,
+    "lane": "049-snapback-sign-shop-installs"
+  },
+  "w20-050-snapback-estate-jewelry-appraisals": {
+    "kind": "survey",
+    "wave": 20,
+    "lane": "050-snapback-estate-jewelry-appraisals"
+  },
+  "w21-001-snapback-luthier-crack-repairs": {
+    "kind": "survey",
+    "wave": 21,
+    "lane": "001-snapback-luthier-crack-repairs"
+  },
+  "w21-002-snapback-bridal-alteration-fittings": {
+    "kind": "survey",
+    "wave": 21,
+    "lane": "002-snapback-bridal-alteration-fittings"
+  },
+  "w21-003-snapback-taxidermy-mount-orders": {
+    "kind": "survey",
+    "wave": 21,
+    "lane": "003-snapback-taxidermy-mount-orders"
+  },
+  "w21-004-snapback-antique-mall-booths": {
+    "kind": "survey",
+    "wave": 21,
+    "lane": "004-snapback-antique-mall-booths"
+  },
+  "w21-005-snapback-skydive-jump-manifest": {
+    "kind": "survey",
+    "wave": 21,
+    "lane": "005-snapback-skydive-jump-manifest"
+  },
+  "w21-006-snapback-athletic-trainer-injuries": {
+    "kind": "survey",
+    "wave": 21,
+    "lane": "006-snapback-athletic-trainer-injuries"
+  },
+  "w21-007-snapback-upholstery-shop-jobs": {
+    "kind": "survey",
+    "wave": 21,
+    "lane": "007-snapback-upholstery-shop-jobs"
+  },
+  "w21-008-snapback-kitchen-incubator-bookings": {
+    "kind": "survey",
+    "wave": 21,
+    "lane": "008-snapback-kitchen-incubator-bookings"
+  },
+  "w21-009-snapback-optical-lab-jobs": {
+    "kind": "survey",
+    "wave": 21,
+    "lane": "009-snapback-optical-lab-jobs"
+  },
+  "w21-010-snapback-boatyard-haulout-stands": {
+    "kind": "survey",
+    "wave": 21,
+    "lane": "010-snapback-boatyard-haulout-stands"
+  },
+  "w21-011-snapback-senior-ride-volunteers": {
+    "kind": "survey",
+    "wave": 21,
+    "lane": "011-snapback-senior-ride-volunteers"
+  },
+  "w21-012-snapback-small-engine-repairs": {
+    "kind": "survey",
+    "wave": 21,
+    "lane": "012-snapback-small-engine-repairs"
+  },
+  "w21-013-snapback-piano-competition-juries": {
+    "kind": "survey",
+    "wave": 21,
+    "lane": "013-snapback-piano-competition-juries"
+  },
+  "w21-014-snapback-county-fair-livestock": {
+    "kind": "survey",
+    "wave": 21,
+    "lane": "014-snapback-county-fair-livestock"
+  },
+  "w21-015-snapback-sailmaker-repair-orders": {
+    "kind": "survey",
+    "wave": 21,
+    "lane": "015-snapback-sailmaker-repair-orders"
+  },
+  "w21-016-snapback-auto-body-repairs": {
+    "kind": "survey",
+    "wave": 21,
+    "lane": "016-snapback-auto-body-repairs"
+  },
+  "w21-017-snapback-search-rescue-callouts": {
+    "kind": "survey",
+    "wave": 21,
+    "lane": "017-snapback-search-rescue-callouts"
+  },
+  "w21-018-snapback-massage-spa-intakes": {
+    "kind": "survey",
+    "wave": 21,
+    "lane": "018-snapback-massage-spa-intakes"
+  },
+  "w21-019-snapback-cremation-custody-chain": {
+    "kind": "survey",
+    "wave": 21,
+    "lane": "019-snapback-cremation-custody-chain"
+  },
+  "w21-020-snapback-rental-unit-turnovers": {
+    "kind": "survey",
+    "wave": 21,
+    "lane": "020-snapback-rental-unit-turnovers"
+  },
+  "w21-021-snapback-oyster-harvest-tags": {
+    "kind": "survey",
+    "wave": 21,
+    "lane": "021-snapback-oyster-harvest-tags"
+  },
+  "w21-022-snapback-picture-framing-orders": {
+    "kind": "survey",
+    "wave": 21,
+    "lane": "022-snapback-picture-framing-orders"
+  },
+  "w21-023-snapback-coop-board-applications": {
+    "kind": "survey",
+    "wave": 21,
+    "lane": "023-snapback-coop-board-applications"
+  },
+  "w21-024-snapback-archery-range-lanes": {
+    "kind": "survey",
+    "wave": 21,
+    "lane": "024-snapback-archery-range-lanes"
+  },
+  "w21-025-snapback-boxing-bout-medicals": {
+    "kind": "survey",
+    "wave": 21,
+    "lane": "025-snapback-boxing-bout-medicals"
+  },
+  "w21-026-snapback-bookbinding-restoration-jobs": {
+    "kind": "survey",
+    "wave": 21,
+    "lane": "026-snapback-bookbinding-restoration-jobs"
+  },
+  "w21-027-snapback-cabinet-install-punchlists": {
+    "kind": "survey",
+    "wave": 21,
+    "lane": "027-snapback-cabinet-install-punchlists"
+  },
+  "w21-028-snapback-trade-in-appraisals": {
+    "kind": "survey",
+    "wave": 21,
+    "lane": "028-snapback-trade-in-appraisals"
+  },
+  "w21-029-snapback-grape-crush-contracts": {
+    "kind": "survey",
+    "wave": 21,
+    "lane": "029-snapback-grape-crush-contracts"
+  },
+  "w21-030-snapback-funeral-service-arrangements": {
+    "kind": "survey",
+    "wave": 21,
+    "lane": "030-snapback-funeral-service-arrangements"
+  },
+  "w21-031-snapback-e-waste-data-wipes": {
+    "kind": "survey",
+    "wave": 21,
+    "lane": "031-snapback-e-waste-data-wipes"
+  },
+  "w21-032-snapback-zoo-keeper-diets": {
+    "kind": "survey",
+    "wave": 21,
+    "lane": "032-snapback-zoo-keeper-diets"
+  },
+  "w21-033-snapback-lead-service-swaps": {
+    "kind": "survey",
+    "wave": 21,
+    "lane": "033-snapback-lead-service-swaps"
+  },
+  "w21-034-snapback-pool-route-service": {
+    "kind": "survey",
+    "wave": 21,
+    "lane": "034-snapback-pool-route-service"
+  },
+  "w21-035-snapback-trophy-engraving-orders": {
+    "kind": "survey",
+    "wave": 21,
+    "lane": "035-snapback-trophy-engraving-orders"
+  },
+  "w21-036-snapback-knife-sharpening-drops": {
+    "kind": "survey",
+    "wave": 21,
+    "lane": "036-snapback-knife-sharpening-drops"
+  },
+  "w21-037-snapback-fine-art-crating": {
+    "kind": "survey",
+    "wave": 21,
+    "lane": "037-snapback-fine-art-crating"
+  },
+  "w21-038-snapback-tent-rental-installs": {
+    "kind": "survey",
+    "wave": 21,
+    "lane": "038-snapback-tent-rental-installs"
+  },
+  "w21-039-snapback-herd-treatment-withdrawals": {
+    "kind": "survey",
+    "wave": 21,
+    "lane": "039-snapback-herd-treatment-withdrawals"
+  },
+  "w21-040-snapback-valet-parking-tickets": {
+    "kind": "survey",
+    "wave": 21,
+    "lane": "040-snapback-valet-parking-tickets"
+  },
+  "w21-041-snapback-dock-appointment-slots": {
+    "kind": "survey",
+    "wave": 21,
+    "lane": "041-snapback-dock-appointment-slots"
+  },
+  "w21-042-snapback-english-class-placement": {
+    "kind": "survey",
+    "wave": 21,
+    "lane": "042-snapback-english-class-placement"
+  },
+  "w21-043-snapback-bounce-house-rentals": {
+    "kind": "survey",
+    "wave": 21,
+    "lane": "043-snapback-bounce-house-rentals"
+  },
+  "w21-044-snapback-livestock-auction-lots": {
+    "kind": "survey",
+    "wave": 21,
+    "lane": "044-snapback-livestock-auction-lots"
+  },
+  "w21-045-snapback-hop-kiln-lots": {
+    "kind": "survey",
+    "wave": 21,
+    "lane": "045-snapback-hop-kiln-lots"
+  },
+  "w21-046-snapback-habitat-build-sites": {
+    "kind": "survey",
+    "wave": 21,
+    "lane": "046-snapback-habitat-build-sites"
+  },
+  "w21-047-snapback-mattress-recycling-pickups": {
+    "kind": "survey",
+    "wave": 21,
+    "lane": "047-snapback-mattress-recycling-pickups"
+  },
+  "w21-048-snapback-therapeutic-riding-sessions": {
+    "kind": "survey",
+    "wave": 21,
+    "lane": "048-snapback-therapeutic-riding-sessions"
+  },
+  "w21-049-snapback-sign-shop-installs": {
+    "kind": "survey",
+    "wave": 21,
+    "lane": "049-snapback-sign-shop-installs"
+  },
+  "w21-050-snapback-estate-jewelry-appraisals": {
+    "kind": "survey",
+    "wave": 21,
+    "lane": "050-snapback-estate-jewelry-appraisals"
+  },
+  "w22-001-snapback-stained-glass-restorations": {
+    "kind": "survey",
+    "wave": 22,
+    "lane": "001-snapback-stained-glass-restorations"
+  },
+  "w22-002-snapback-dog-grooming-appointments": {
+    "kind": "survey",
+    "wave": 22,
+    "lane": "002-snapback-dog-grooming-appointments"
+  },
+  "w22-003-snapback-locksmith-rekey-jobs": {
+    "kind": "survey",
+    "wave": 22,
+    "lane": "003-snapback-locksmith-rekey-jobs"
+  },
+  "w22-004-snapback-watch-service-bench": {
+    "kind": "survey",
+    "wave": 22,
+    "lane": "004-snapback-watch-service-bench"
+  },
+  "w22-005-snapback-tool-library-loans": {
+    "kind": "survey",
+    "wave": 22,
+    "lane": "005-snapback-tool-library-loans"
+  },
+  "w22-006-snapback-kiln-firing-shelves": {
+    "kind": "survey",
+    "wave": 22,
+    "lane": "006-snapback-kiln-firing-shelves"
+  },
+  "w22-007-snapback-hearing-aid-fittings": {
+    "kind": "survey",
+    "wave": 22,
+    "lane": "007-snapback-hearing-aid-fittings"
+  },
+  "w22-008-snapback-arborist-removal-quotes": {
+    "kind": "survey",
+    "wave": 22,
+    "lane": "008-snapback-arborist-removal-quotes"
+  },
+  "w22-009-snapback-moving-crew-inventories": {
+    "kind": "survey",
+    "wave": 22,
+    "lane": "009-snapback-moving-crew-inventories"
+  },
+  "w22-010-snapback-surfboard-ding-repairs": {
+    "kind": "survey",
+    "wave": 22,
+    "lane": "010-snapback-surfboard-ding-repairs"
+  },
+  "w22-011-snapback-mural-grant-commissions": {
+    "kind": "survey",
+    "wave": 22,
+    "lane": "011-snapback-mural-grant-commissions"
+  },
+  "w22-012-snapback-wildlife-rehab-intakes": {
+    "kind": "survey",
+    "wave": 22,
+    "lane": "012-snapback-wildlife-rehab-intakes"
+  },
+  "w22-013-snapback-screen-print-orders": {
+    "kind": "survey",
+    "wave": 22,
+    "lane": "013-snapback-screen-print-orders"
+  },
+  "w22-014-snapback-aquarium-service-visits": {
+    "kind": "survey",
+    "wave": 22,
+    "lane": "014-snapback-aquarium-service-visits"
+  },
+  "w22-015-snapback-farmers-market-stalls": {
+    "kind": "survey",
+    "wave": 22,
+    "lane": "015-snapback-farmers-market-stalls"
+  },
+  "w22-016-snapback-ski-tune-tickets": {
+    "kind": "survey",
+    "wave": 22,
+    "lane": "016-snapback-ski-tune-tickets"
+  },
+  "w22-017-snapback-pawn-loan-tickets": {
+    "kind": "survey",
+    "wave": 22,
+    "lane": "017-snapback-pawn-loan-tickets"
+  },
+  "w22-018-snapback-film-lab-rolls": {
+    "kind": "survey",
+    "wave": 22,
+    "lane": "018-snapback-film-lab-rolls"
+  },
+  "w22-019-snapback-foster-pet-adoptions": {
+    "kind": "survey",
+    "wave": 22,
+    "lane": "019-snapback-foster-pet-adoptions"
+  },
+  "w22-020-snapback-parklet-seating-permits": {
+    "kind": "survey",
+    "wave": 22,
+    "lane": "020-snapback-parklet-seating-permits"
+  },
+  "w22-021-snapback-wash-fold-laundry": {
+    "kind": "survey",
+    "wave": 22,
+    "lane": "021-snapback-wash-fold-laundry"
+  },
+  "w22-022-snapback-court-interpreter-bookings": {
+    "kind": "survey",
+    "wave": 22,
+    "lane": "022-snapback-court-interpreter-bookings"
+  },
+  "w22-023-snapback-makerspace-laser-jobs": {
+    "kind": "survey",
+    "wave": 22,
+    "lane": "023-snapback-makerspace-laser-jobs"
+  },
+  "w22-024-snapback-appliance-repair-visits": {
+    "kind": "survey",
+    "wave": 22,
+    "lane": "024-snapback-appliance-repair-visits"
+  },
+  "w22-025-snapback-backflow-test-filings": {
+    "kind": "survey",
+    "wave": 22,
+    "lane": "025-snapback-backflow-test-filings"
+  },
+  "w22-026-snapback-tennis-racket-stringing": {
+    "kind": "survey",
+    "wave": 22,
+    "lane": "026-snapback-tennis-racket-stringing"
+  },
+  "w22-027-snapback-consignment-closet-items": {
+    "kind": "survey",
+    "wave": 22,
+    "lane": "027-snapback-consignment-closet-items"
+  },
+  "w22-028-snapback-campground-site-holds": {
+    "kind": "survey",
+    "wave": 22,
+    "lane": "028-snapback-campground-site-holds"
+  },
+  "w22-029-snapback-roof-leak-claims": {
+    "kind": "survey",
+    "wave": 22,
+    "lane": "029-snapback-roof-leak-claims"
+  },
+  "w22-030-snapback-food-truck-permits": {
+    "kind": "survey",
+    "wave": 22,
+    "lane": "030-snapback-food-truck-permits"
+  },
+  "w22-031-snapback-wedding-cake-orders": {
+    "kind": "survey",
+    "wave": 22,
+    "lane": "031-snapback-wedding-cake-orders"
+  },
+  "w22-032-snapback-thesis-binding-orders": {
+    "kind": "survey",
+    "wave": 22,
+    "lane": "032-snapback-thesis-binding-orders"
+  },
+  "w22-033-snapback-kayak-livery-rentals": {
+    "kind": "survey",
+    "wave": 22,
+    "lane": "033-snapback-kayak-livery-rentals"
+  },
+  "w22-034-snapback-youth-referee-assignments": {
+    "kind": "survey",
+    "wave": 22,
+    "lane": "034-snapback-youth-referee-assignments"
+  },
+  "w22-035-snapback-thrift-donation-pricing": {
+    "kind": "survey",
+    "wave": 22,
+    "lane": "035-snapback-thrift-donation-pricing"
+  },
+  "w22-036-snapback-pothole-damage-claims": {
+    "kind": "survey",
+    "wave": 22,
+    "lane": "036-snapback-pothole-damage-claims"
+  },
+  "w22-037-snapback-orthotic-casting-orders": {
+    "kind": "survey",
+    "wave": 22,
+    "lane": "037-snapback-orthotic-casting-orders"
+  },
+  "w22-038-snapback-bee-swarm-removals": {
+    "kind": "survey",
+    "wave": 22,
+    "lane": "038-snapback-bee-swarm-removals"
+  },
+  "w22-039-snapback-certified-translation-jobs": {
+    "kind": "survey",
+    "wave": 22,
+    "lane": "039-snapback-certified-translation-jobs"
+  },
+  "w22-040-snapback-excavator-rental-returns": {
+    "kind": "survey",
+    "wave": 22,
+    "lane": "040-snapback-excavator-rental-returns"
+  },
+  "w22-041-snapback-swim-school-assessments": {
+    "kind": "survey",
+    "wave": 22,
+    "lane": "041-snapback-swim-school-assessments"
+  },
+  "w22-042-snapback-mobile-notary-signings": {
+    "kind": "survey",
+    "wave": 22,
+    "lane": "042-snapback-mobile-notary-signings"
+  },
+  "w22-043-snapback-piano-tuner-visits": {
+    "kind": "survey",
+    "wave": 22,
+    "lane": "043-snapback-piano-tuner-visits"
+  },
+  "w22-044-snapback-daycare-enrollment-waitlist": {
+    "kind": "survey",
+    "wave": 22,
+    "lane": "044-snapback-daycare-enrollment-waitlist"
+  },
+  "w22-045-snapback-window-tint-jobs": {
+    "kind": "survey",
+    "wave": 22,
+    "lane": "045-snapback-window-tint-jobs"
+  },
+  "w22-046-snapback-animal-license-renewals": {
+    "kind": "survey",
+    "wave": 22,
+    "lane": "046-snapback-animal-license-renewals"
+  },
+  "w22-047-snapback-wedding-flower-orders": {
+    "kind": "survey",
+    "wave": 22,
+    "lane": "047-snapback-wedding-flower-orders"
+  },
+  "w22-048-snapback-escape-room-bookings": {
+    "kind": "survey",
+    "wave": 22,
+    "lane": "048-snapback-escape-room-bookings"
+  },
+  "w22-049-snapback-rug-wash-pickups": {
+    "kind": "survey",
+    "wave": 22,
+    "lane": "049-snapback-rug-wash-pickups"
+  },
+  "w22-050-snapback-community-garden-plots": {
+    "kind": "survey",
+    "wave": 22,
+    "lane": "050-snapback-community-garden-plots"
+  },
+  "w23-001-snapback-stained-glass-restorations": {
+    "kind": "survey",
+    "wave": 23,
+    "lane": "001-snapback-stained-glass-restorations"
+  },
+  "w23-002-snapback-dog-grooming-appointments": {
+    "kind": "survey",
+    "wave": 23,
+    "lane": "002-snapback-dog-grooming-appointments"
+  },
+  "w23-003-snapback-locksmith-rekey-jobs": {
+    "kind": "survey",
+    "wave": 23,
+    "lane": "003-snapback-locksmith-rekey-jobs"
+  },
+  "w23-004-snapback-watch-service-bench": {
+    "kind": "survey",
+    "wave": 23,
+    "lane": "004-snapback-watch-service-bench"
+  },
+  "w23-005-snapback-tool-library-loans": {
+    "kind": "survey",
+    "wave": 23,
+    "lane": "005-snapback-tool-library-loans"
+  },
+  "w23-006-snapback-kiln-firing-shelves": {
+    "kind": "survey",
+    "wave": 23,
+    "lane": "006-snapback-kiln-firing-shelves"
+  },
+  "w23-007-snapback-hearing-aid-fittings": {
+    "kind": "survey",
+    "wave": 23,
+    "lane": "007-snapback-hearing-aid-fittings"
+  },
+  "w23-008-snapback-arborist-removal-quotes": {
+    "kind": "survey",
+    "wave": 23,
+    "lane": "008-snapback-arborist-removal-quotes"
+  },
+  "w23-009-snapback-moving-crew-inventories": {
+    "kind": "survey",
+    "wave": 23,
+    "lane": "009-snapback-moving-crew-inventories"
+  },
+  "w23-010-snapback-surfboard-ding-repairs": {
+    "kind": "survey",
+    "wave": 23,
+    "lane": "010-snapback-surfboard-ding-repairs"
+  },
+  "w23-011-snapback-mural-grant-commissions": {
+    "kind": "survey",
+    "wave": 23,
+    "lane": "011-snapback-mural-grant-commissions"
+  },
+  "w23-012-snapback-wildlife-rehab-intakes": {
+    "kind": "survey",
+    "wave": 23,
+    "lane": "012-snapback-wildlife-rehab-intakes"
+  },
+  "w23-013-snapback-screen-print-orders": {
+    "kind": "survey",
+    "wave": 23,
+    "lane": "013-snapback-screen-print-orders"
+  },
+  "w23-014-snapback-aquarium-service-visits": {
+    "kind": "survey",
+    "wave": 23,
+    "lane": "014-snapback-aquarium-service-visits"
+  },
+  "w23-015-snapback-farmers-market-stalls": {
+    "kind": "survey",
+    "wave": 23,
+    "lane": "015-snapback-farmers-market-stalls"
+  },
+  "w23-016-snapback-ski-tune-tickets": {
+    "kind": "survey",
+    "wave": 23,
+    "lane": "016-snapback-ski-tune-tickets"
+  },
+  "w23-017-snapback-pawn-loan-tickets": {
+    "kind": "survey",
+    "wave": 23,
+    "lane": "017-snapback-pawn-loan-tickets"
+  },
+  "w23-018-snapback-film-lab-rolls": {
+    "kind": "survey",
+    "wave": 23,
+    "lane": "018-snapback-film-lab-rolls"
+  },
+  "w23-019-snapback-foster-pet-adoptions": {
+    "kind": "survey",
+    "wave": 23,
+    "lane": "019-snapback-foster-pet-adoptions"
+  },
+  "w23-020-snapback-parklet-seating-permits": {
+    "kind": "survey",
+    "wave": 23,
+    "lane": "020-snapback-parklet-seating-permits"
+  },
+  "w23-021-snapback-wash-fold-laundry": {
+    "kind": "survey",
+    "wave": 23,
+    "lane": "021-snapback-wash-fold-laundry"
+  },
+  "w23-022-snapback-court-interpreter-bookings": {
+    "kind": "survey",
+    "wave": 23,
+    "lane": "022-snapback-court-interpreter-bookings"
+  },
+  "w23-023-snapback-makerspace-laser-jobs": {
+    "kind": "survey",
+    "wave": 23,
+    "lane": "023-snapback-makerspace-laser-jobs"
+  },
+  "w23-024-snapback-appliance-repair-visits": {
+    "kind": "survey",
+    "wave": 23,
+    "lane": "024-snapback-appliance-repair-visits"
+  },
+  "w23-025-snapback-backflow-test-filings": {
+    "kind": "survey",
+    "wave": 23,
+    "lane": "025-snapback-backflow-test-filings"
+  },
+  "w23-026-snapback-tennis-racket-stringing": {
+    "kind": "survey",
+    "wave": 23,
+    "lane": "026-snapback-tennis-racket-stringing"
+  },
+  "w23-027-snapback-consignment-closet-items": {
+    "kind": "survey",
+    "wave": 23,
+    "lane": "027-snapback-consignment-closet-items"
+  },
+  "w23-028-snapback-campground-site-holds": {
+    "kind": "survey",
+    "wave": 23,
+    "lane": "028-snapback-campground-site-holds"
+  },
+  "w23-029-snapback-roof-leak-claims": {
+    "kind": "survey",
+    "wave": 23,
+    "lane": "029-snapback-roof-leak-claims"
+  },
+  "w23-030-snapback-food-truck-permits": {
+    "kind": "survey",
+    "wave": 23,
+    "lane": "030-snapback-food-truck-permits"
+  },
+  "w23-031-snapback-wedding-cake-orders": {
+    "kind": "survey",
+    "wave": 23,
+    "lane": "031-snapback-wedding-cake-orders"
+  },
+  "w23-032-snapback-thesis-binding-orders": {
+    "kind": "survey",
+    "wave": 23,
+    "lane": "032-snapback-thesis-binding-orders"
+  },
+  "w23-033-snapback-kayak-livery-rentals": {
+    "kind": "survey",
+    "wave": 23,
+    "lane": "033-snapback-kayak-livery-rentals"
+  },
+  "w23-034-snapback-youth-referee-assignments": {
+    "kind": "survey",
+    "wave": 23,
+    "lane": "034-snapback-youth-referee-assignments"
+  },
+  "w23-035-snapback-thrift-donation-pricing": {
+    "kind": "survey",
+    "wave": 23,
+    "lane": "035-snapback-thrift-donation-pricing"
+  },
+  "w23-036-snapback-pothole-damage-claims": {
+    "kind": "survey",
+    "wave": 23,
+    "lane": "036-snapback-pothole-damage-claims"
+  },
+  "w23-037-snapback-orthotic-casting-orders": {
+    "kind": "survey",
+    "wave": 23,
+    "lane": "037-snapback-orthotic-casting-orders"
+  },
+  "w23-038-snapback-bee-swarm-removals": {
+    "kind": "survey",
+    "wave": 23,
+    "lane": "038-snapback-bee-swarm-removals"
+  },
+  "w23-039-snapback-certified-translation-jobs": {
+    "kind": "survey",
+    "wave": 23,
+    "lane": "039-snapback-certified-translation-jobs"
+  },
+  "w23-040-snapback-excavator-rental-returns": {
+    "kind": "survey",
+    "wave": 23,
+    "lane": "040-snapback-excavator-rental-returns"
+  },
+  "w23-041-snapback-swim-school-assessments": {
+    "kind": "survey",
+    "wave": 23,
+    "lane": "041-snapback-swim-school-assessments"
+  },
+  "w23-042-snapback-mobile-notary-signings": {
+    "kind": "survey",
+    "wave": 23,
+    "lane": "042-snapback-mobile-notary-signings"
+  },
+  "w23-043-snapback-piano-tuner-visits": {
+    "kind": "survey",
+    "wave": 23,
+    "lane": "043-snapback-piano-tuner-visits"
+  },
+  "w23-044-snapback-daycare-enrollment-waitlist": {
+    "kind": "survey",
+    "wave": 23,
+    "lane": "044-snapback-daycare-enrollment-waitlist"
+  },
+  "w23-045-snapback-window-tint-jobs": {
+    "kind": "survey",
+    "wave": 23,
+    "lane": "045-snapback-window-tint-jobs"
+  },
+  "w23-046-snapback-animal-license-renewals": {
+    "kind": "survey",
+    "wave": 23,
+    "lane": "046-snapback-animal-license-renewals"
+  },
+  "w23-047-snapback-wedding-flower-orders": {
+    "kind": "survey",
+    "wave": 23,
+    "lane": "047-snapback-wedding-flower-orders"
+  },
+  "w23-048-snapback-escape-room-bookings": {
+    "kind": "survey",
+    "wave": 23,
+    "lane": "048-snapback-escape-room-bookings"
+  },
+  "w23-049-snapback-rug-wash-pickups": {
+    "kind": "survey",
+    "wave": 23,
+    "lane": "049-snapback-rug-wash-pickups"
+  },
+  "w23-050-snapback-community-garden-plots": {
+    "kind": "survey",
+    "wave": 23,
+    "lane": "050-snapback-community-garden-plots"
+  },
+  "w24-001-snapback-organ-pipe-voicing": {
+    "kind": "survey",
+    "wave": 24,
+    "lane": "001-snapback-organ-pipe-voicing"
+  },
+  "w24-002-snapback-ocular-prosthesis-fittings": {
+    "kind": "survey",
+    "wave": 24,
+    "lane": "002-snapback-ocular-prosthesis-fittings"
+  },
+  "w24-003-snapback-typewriter-restoration-jobs": {
+    "kind": "survey",
+    "wave": 24,
+    "lane": "003-snapback-typewriter-restoration-jobs"
+  },
+  "w24-004-snapback-saddle-fitting-visits": {
+    "kind": "survey",
+    "wave": 24,
+    "lane": "004-snapback-saddle-fitting-visits"
+  },
+  "w24-005-snapback-headstone-engraving-orders": {
+    "kind": "survey",
+    "wave": 24,
+    "lane": "005-snapback-headstone-engraving-orders"
+  },
+  "w24-006-snapback-telescope-mirror-recoating": {
+    "kind": "survey",
+    "wave": 24,
+    "lane": "006-snapback-telescope-mirror-recoating"
+  },
+  "w24-007-snapback-wig-making-orders": {
+    "kind": "survey",
+    "wave": 24,
+    "lane": "007-snapback-wig-making-orders"
+  },
+  "w24-008-snapback-terrazzo-floor-restorations": {
+    "kind": "survey",
+    "wave": 24,
+    "lane": "008-snapback-terrazzo-floor-restorations"
+  },
+  "w24-009-snapback-process-server-deliveries": {
+    "kind": "survey",
+    "wave": 24,
+    "lane": "009-snapback-process-server-deliveries"
+  },
+  "w24-010-snapback-hot-air-balloon-flights": {
+    "kind": "survey",
+    "wave": 24,
+    "lane": "010-snapback-hot-air-balloon-flights"
+  },
+  "w24-011-snapback-radon-mitigation-jobs": {
+    "kind": "survey",
+    "wave": 24,
+    "lane": "011-snapback-radon-mitigation-jobs"
+  },
+  "w24-012-snapback-portrait-studio-sessions": {
+    "kind": "survey",
+    "wave": 24,
+    "lane": "012-snapback-portrait-studio-sessions"
+  },
+  "w24-013-snapback-dive-shop-tank-fills": {
+    "kind": "survey",
+    "wave": 24,
+    "lane": "013-snapback-dive-shop-tank-fills"
+  },
+  "w24-014-snapback-bed-bug-heat-treatments": {
+    "kind": "survey",
+    "wave": 24,
+    "lane": "014-snapback-bed-bug-heat-treatments"
+  },
+  "w24-015-snapback-band-instrument-rentals": {
+    "kind": "survey",
+    "wave": 24,
+    "lane": "015-snapback-band-instrument-rentals"
+  },
+  "w24-016-snapback-carousel-horse-restorations": {
+    "kind": "survey",
+    "wave": 24,
+    "lane": "016-snapback-carousel-horse-restorations"
+  },
+  "w24-017-snapback-butcher-custom-orders": {
+    "kind": "survey",
+    "wave": 24,
+    "lane": "017-snapback-butcher-custom-orders"
+  },
+  "w24-018-snapback-equine-dental-floats": {
+    "kind": "survey",
+    "wave": 24,
+    "lane": "018-snapback-equine-dental-floats"
+  },
+  "w24-019-snapback-mobile-vet-house-calls": {
+    "kind": "survey",
+    "wave": 24,
+    "lane": "019-snapback-mobile-vet-house-calls"
+  },
+  "w24-020-snapback-fly-fishing-guide-trips": {
+    "kind": "survey",
+    "wave": 24,
+    "lane": "020-snapback-fly-fishing-guide-trips"
+  },
+  "w24-021-snapback-coffee-roastery-green-lots": {
+    "kind": "survey",
+    "wave": 24,
+    "lane": "021-snapback-coffee-roastery-green-lots"
+  },
+  "w24-022-snapback-kilt-hire-fittings": {
+    "kind": "survey",
+    "wave": 24,
+    "lane": "022-snapback-kilt-hire-fittings"
+  },
+  "w24-023-snapback-windshield-chip-repairs": {
+    "kind": "survey",
+    "wave": 24,
+    "lane": "023-snapback-windshield-chip-repairs"
+  },
+  "w24-024-snapback-stair-lift-installs": {
+    "kind": "survey",
+    "wave": 24,
+    "lane": "024-snapback-stair-lift-installs"
+  },
+  "w24-025-snapback-forklift-certification-tests": {
+    "kind": "survey",
+    "wave": 24,
+    "lane": "025-snapback-forklift-certification-tests"
+  },
+  "w24-026-snapback-accordion-repair-tickets": {
+    "kind": "survey",
+    "wave": 24,
+    "lane": "026-snapback-accordion-repair-tickets"
+  },
+  "w24-027-snapback-mold-remediation-jobs": {
+    "kind": "survey",
+    "wave": 24,
+    "lane": "027-snapback-mold-remediation-jobs"
+  },
+  "w24-028-snapback-church-bell-rehangings": {
+    "kind": "survey",
+    "wave": 24,
+    "lane": "028-snapback-church-bell-rehangings"
+  },
+  "w24-029-snapback-dog-sled-tours": {
+    "kind": "survey",
+    "wave": 24,
+    "lane": "029-snapback-dog-sled-tours"
+  },
+  "w24-030-snapback-sewer-camera-inspections": {
+    "kind": "survey",
+    "wave": 24,
+    "lane": "030-snapback-sewer-camera-inspections"
+  },
+  "w24-031-snapback-grease-trap-servicing": {
+    "kind": "survey",
+    "wave": 24,
+    "lane": "031-snapback-grease-trap-servicing"
+  },
+  "w24-032-snapback-home-inspection-reports": {
+    "kind": "survey",
+    "wave": 24,
+    "lane": "032-snapback-home-inspection-reports"
+  },
+  "w24-033-snapback-pressure-washing-jobs": {
+    "kind": "survey",
+    "wave": 24,
+    "lane": "033-snapback-pressure-washing-jobs"
+  },
+  "w24-034-snapback-photo-restoration-orders": {
+    "kind": "survey",
+    "wave": 24,
+    "lane": "034-snapback-photo-restoration-orders"
+  },
+  "w24-035-snapback-alpaca-fleece-processing": {
+    "kind": "survey",
+    "wave": 24,
+    "lane": "035-snapback-alpaca-fleece-processing"
+  },
+  "w24-036-snapback-ice-sculpture-commissions": {
+    "kind": "survey",
+    "wave": 24,
+    "lane": "036-snapback-ice-sculpture-commissions"
+  },
+  "w24-037-snapback-uniform-embroidery-orders": {
+    "kind": "survey",
+    "wave": 24,
+    "lane": "037-snapback-uniform-embroidery-orders"
+  },
+  "w24-038-snapback-heating-oil-deliveries": {
+    "kind": "survey",
+    "wave": 24,
+    "lane": "038-snapback-heating-oil-deliveries"
+  },
+  "w24-039-snapback-horse-drawn-carriage-hires": {
+    "kind": "survey",
+    "wave": 24,
+    "lane": "039-snapback-horse-drawn-carriage-hires"
+  },
+  "w24-040-snapback-sewing-machine-repairs": {
+    "kind": "survey",
+    "wave": 24,
+    "lane": "040-snapback-sewing-machine-repairs"
+  },
+  "w24-041-snapback-pinball-machine-repairs": {
+    "kind": "survey",
+    "wave": 24,
+    "lane": "041-snapback-pinball-machine-repairs"
+  },
+  "w24-042-snapback-calligraphy-commission-orders": {
+    "kind": "survey",
+    "wave": 24,
+    "lane": "042-snapback-calligraphy-commission-orders"
+  },
+  "w24-043-snapback-termite-inspection-reports": {
+    "kind": "survey",
+    "wave": 24,
+    "lane": "043-snapback-termite-inspection-reports"
+  },
+  "w24-044-snapback-car-wrap-installs": {
+    "kind": "survey",
+    "wave": 24,
+    "lane": "044-snapback-car-wrap-installs"
+  },
+  "w24-045-snapback-basement-waterproofing-jobs": {
+    "kind": "survey",
+    "wave": 24,
+    "lane": "045-snapback-basement-waterproofing-jobs"
+  },
+  "w24-046-snapback-garage-door-repairs": {
+    "kind": "survey",
+    "wave": 24,
+    "lane": "046-snapback-garage-door-repairs"
+  },
+  "w24-047-snapback-golf-club-regrip-orders": {
+    "kind": "survey",
+    "wave": 24,
+    "lane": "047-snapback-golf-club-regrip-orders"
+  },
+  "w24-048-snapback-awning-fabrication-orders": {
+    "kind": "survey",
+    "wave": 24,
+    "lane": "048-snapback-awning-fabrication-orders"
+  },
+  "w24-049-snapback-e-bike-battery-swaps": {
+    "kind": "survey",
+    "wave": 24,
+    "lane": "049-snapback-e-bike-battery-swaps"
+  },
+  "w24-050-snapback-harp-regulation-visits": {
+    "kind": "survey",
+    "wave": 24,
+    "lane": "050-snapback-harp-regulation-visits"
+  },
+  "w25-001-snapback-organ-pipe-voicing": {
+    "kind": "survey",
+    "wave": 25,
+    "lane": "001-snapback-organ-pipe-voicing"
+  },
+  "w25-002-snapback-ocular-prosthesis-fittings": {
+    "kind": "survey",
+    "wave": 25,
+    "lane": "002-snapback-ocular-prosthesis-fittings"
+  },
+  "w25-003-snapback-typewriter-restoration-jobs": {
+    "kind": "survey",
+    "wave": 25,
+    "lane": "003-snapback-typewriter-restoration-jobs"
+  },
+  "w25-004-snapback-saddle-fitting-visits": {
+    "kind": "survey",
+    "wave": 25,
+    "lane": "004-snapback-saddle-fitting-visits"
+  },
+  "w25-005-snapback-headstone-engraving-orders": {
+    "kind": "survey",
+    "wave": 25,
+    "lane": "005-snapback-headstone-engraving-orders"
+  },
+  "w25-006-snapback-telescope-mirror-recoating": {
+    "kind": "survey",
+    "wave": 25,
+    "lane": "006-snapback-telescope-mirror-recoating"
+  },
+  "w25-007-snapback-wig-making-orders": {
+    "kind": "survey",
+    "wave": 25,
+    "lane": "007-snapback-wig-making-orders"
+  },
+  "w25-008-snapback-terrazzo-floor-restorations": {
+    "kind": "survey",
+    "wave": 25,
+    "lane": "008-snapback-terrazzo-floor-restorations"
+  },
+  "w25-009-snapback-process-server-deliveries": {
+    "kind": "survey",
+    "wave": 25,
+    "lane": "009-snapback-process-server-deliveries"
+  },
+  "w25-010-snapback-hot-air-balloon-flights": {
+    "kind": "survey",
+    "wave": 25,
+    "lane": "010-snapback-hot-air-balloon-flights"
+  },
+  "w25-011-snapback-radon-mitigation-jobs": {
+    "kind": "survey",
+    "wave": 25,
+    "lane": "011-snapback-radon-mitigation-jobs"
+  },
+  "w25-012-snapback-portrait-studio-sessions": {
+    "kind": "survey",
+    "wave": 25,
+    "lane": "012-snapback-portrait-studio-sessions"
+  },
+  "w25-013-snapback-dive-shop-tank-fills": {
+    "kind": "survey",
+    "wave": 25,
+    "lane": "013-snapback-dive-shop-tank-fills"
+  },
+  "w25-014-snapback-bed-bug-heat-treatments": {
+    "kind": "survey",
+    "wave": 25,
+    "lane": "014-snapback-bed-bug-heat-treatments"
+  },
+  "w25-015-snapback-band-instrument-rentals": {
+    "kind": "survey",
+    "wave": 25,
+    "lane": "015-snapback-band-instrument-rentals"
+  },
+  "w25-016-snapback-carousel-horse-restorations": {
+    "kind": "survey",
+    "wave": 25,
+    "lane": "016-snapback-carousel-horse-restorations"
+  },
+  "w25-017-snapback-butcher-custom-orders": {
+    "kind": "survey",
+    "wave": 25,
+    "lane": "017-snapback-butcher-custom-orders"
+  },
+  "w25-018-snapback-equine-dental-floats": {
+    "kind": "survey",
+    "wave": 25,
+    "lane": "018-snapback-equine-dental-floats"
+  },
+  "w25-019-snapback-mobile-vet-house-calls": {
+    "kind": "survey",
+    "wave": 25,
+    "lane": "019-snapback-mobile-vet-house-calls"
+  },
+  "w25-020-snapback-fly-fishing-guide-trips": {
+    "kind": "survey",
+    "wave": 25,
+    "lane": "020-snapback-fly-fishing-guide-trips"
+  },
+  "w25-021-snapback-coffee-roastery-green-lots": {
+    "kind": "survey",
+    "wave": 25,
+    "lane": "021-snapback-coffee-roastery-green-lots"
+  },
+  "w25-022-snapback-kilt-hire-fittings": {
+    "kind": "survey",
+    "wave": 25,
+    "lane": "022-snapback-kilt-hire-fittings"
+  },
+  "w25-023-snapback-windshield-chip-repairs": {
+    "kind": "survey",
+    "wave": 25,
+    "lane": "023-snapback-windshield-chip-repairs"
+  },
+  "w25-024-snapback-stair-lift-installs": {
+    "kind": "survey",
+    "wave": 25,
+    "lane": "024-snapback-stair-lift-installs"
+  },
+  "w25-025-snapback-forklift-certification-tests": {
+    "kind": "survey",
+    "wave": 25,
+    "lane": "025-snapback-forklift-certification-tests"
+  },
+  "w25-026-snapback-accordion-repair-tickets": {
+    "kind": "survey",
+    "wave": 25,
+    "lane": "026-snapback-accordion-repair-tickets"
+  },
+  "w25-027-snapback-mold-remediation-jobs": {
+    "kind": "survey",
+    "wave": 25,
+    "lane": "027-snapback-mold-remediation-jobs"
+  },
+  "w25-028-snapback-church-bell-rehangings": {
+    "kind": "survey",
+    "wave": 25,
+    "lane": "028-snapback-church-bell-rehangings"
+  },
+  "w25-029-snapback-dog-sled-tours": {
+    "kind": "survey",
+    "wave": 25,
+    "lane": "029-snapback-dog-sled-tours"
+  },
+  "w25-030-snapback-sewer-camera-inspections": {
+    "kind": "survey",
+    "wave": 25,
+    "lane": "030-snapback-sewer-camera-inspections"
+  },
+  "w25-031-snapback-grease-trap-servicing": {
+    "kind": "survey",
+    "wave": 25,
+    "lane": "031-snapback-grease-trap-servicing"
+  },
+  "w25-032-snapback-home-inspection-reports": {
+    "kind": "survey",
+    "wave": 25,
+    "lane": "032-snapback-home-inspection-reports"
+  },
+  "w25-033-snapback-pressure-washing-jobs": {
+    "kind": "survey",
+    "wave": 25,
+    "lane": "033-snapback-pressure-washing-jobs"
+  },
+  "w25-034-snapback-photo-restoration-orders": {
+    "kind": "survey",
+    "wave": 25,
+    "lane": "034-snapback-photo-restoration-orders"
+  },
+  "w25-035-snapback-alpaca-fleece-processing": {
+    "kind": "survey",
+    "wave": 25,
+    "lane": "035-snapback-alpaca-fleece-processing"
+  },
+  "w25-036-snapback-ice-sculpture-commissions": {
+    "kind": "survey",
+    "wave": 25,
+    "lane": "036-snapback-ice-sculpture-commissions"
+  },
+  "w25-037-snapback-uniform-embroidery-orders": {
+    "kind": "survey",
+    "wave": 25,
+    "lane": "037-snapback-uniform-embroidery-orders"
+  },
+  "w25-038-snapback-heating-oil-deliveries": {
+    "kind": "survey",
+    "wave": 25,
+    "lane": "038-snapback-heating-oil-deliveries"
+  },
+  "w25-039-snapback-horse-drawn-carriage-hires": {
+    "kind": "survey",
+    "wave": 25,
+    "lane": "039-snapback-horse-drawn-carriage-hires"
+  },
+  "w25-040-snapback-sewing-machine-repairs": {
+    "kind": "survey",
+    "wave": 25,
+    "lane": "040-snapback-sewing-machine-repairs"
+  },
+  "w25-041-snapback-pinball-machine-repairs": {
+    "kind": "survey",
+    "wave": 25,
+    "lane": "041-snapback-pinball-machine-repairs"
+  },
+  "w25-042-snapback-calligraphy-commission-orders": {
+    "kind": "survey",
+    "wave": 25,
+    "lane": "042-snapback-calligraphy-commission-orders"
+  },
+  "w25-043-snapback-termite-inspection-reports": {
+    "kind": "survey",
+    "wave": 25,
+    "lane": "043-snapback-termite-inspection-reports"
+  },
+  "w25-044-snapback-car-wrap-installs": {
+    "kind": "survey",
+    "wave": 25,
+    "lane": "044-snapback-car-wrap-installs"
+  },
+  "w25-045-snapback-basement-waterproofing-jobs": {
+    "kind": "survey",
+    "wave": 25,
+    "lane": "045-snapback-basement-waterproofing-jobs"
+  },
+  "w25-046-snapback-garage-door-repairs": {
+    "kind": "survey",
+    "wave": 25,
+    "lane": "046-snapback-garage-door-repairs"
+  },
+  "w25-047-snapback-golf-club-regrip-orders": {
+    "kind": "survey",
+    "wave": 25,
+    "lane": "047-snapback-golf-club-regrip-orders"
+  },
+  "w25-048-snapback-awning-fabrication-orders": {
+    "kind": "survey",
+    "wave": 25,
+    "lane": "048-snapback-awning-fabrication-orders"
+  },
+  "w25-049-snapback-e-bike-battery-swaps": {
+    "kind": "survey",
+    "wave": 25,
+    "lane": "049-snapback-e-bike-battery-swaps"
+  },
+  "w25-050-snapback-harp-regulation-visits": {
+    "kind": "survey",
+    "wave": 25,
+    "lane": "050-snapback-harp-regulation-visits"
+  },
+  "w26-001-snapback-longcase-clock-restorations": {
+    "kind": "survey",
+    "wave": 26,
+    "lane": "001-snapback-longcase-clock-restorations"
+  },
+  "w26-002-snapback-compression-garment-fittings": {
+    "kind": "survey",
+    "wave": 26,
+    "lane": "002-snapback-compression-garment-fittings"
+  },
+  "w26-003-snapback-vintage-amplifier-repairs": {
+    "kind": "survey",
+    "wave": 26,
+    "lane": "003-snapback-vintage-amplifier-repairs"
+  },
+  "w26-004-snapback-hoarding-cleanout-jobs": {
+    "kind": "survey",
+    "wave": 26,
+    "lane": "004-snapback-hoarding-cleanout-jobs"
+  },
+  "w26-005-snapback-neon-sign-commissions": {
+    "kind": "survey",
+    "wave": 26,
+    "lane": "005-snapback-neon-sign-commissions"
+  },
+  "w26-006-snapback-microscope-overhaul-jobs": {
+    "kind": "survey",
+    "wave": 26,
+    "lane": "006-snapback-microscope-overhaul-jobs"
+  },
+  "w26-007-snapback-custom-fragrance-commissions": {
+    "kind": "survey",
+    "wave": 26,
+    "lane": "007-snapback-custom-fragrance-commissions"
+  },
+  "w26-008-snapback-stucco-repair-jobs": {
+    "kind": "survey",
+    "wave": 26,
+    "lane": "008-snapback-stucco-repair-jobs"
+  },
+  "w26-009-snapback-painting-conservation-treatments": {
+    "kind": "survey",
+    "wave": 26,
+    "lane": "009-snapback-painting-conservation-treatments"
+  },
+  "w26-010-snapback-canyoneering-guided-trips": {
+    "kind": "survey",
+    "wave": 26,
+    "lane": "010-snapback-canyoneering-guided-trips"
+  },
+  "w26-011-snapback-water-softener-installs": {
+    "kind": "survey",
+    "wave": 26,
+    "lane": "011-snapback-water-softener-installs"
+  },
+  "w26-012-snapback-wedding-video-edits": {
+    "kind": "survey",
+    "wave": 26,
+    "lane": "012-snapback-wedding-video-edits"
+  },
+  "w26-013-snapback-parachute-repack-logs": {
+    "kind": "survey",
+    "wave": 26,
+    "lane": "013-snapback-parachute-repack-logs"
+  },
+  "w26-014-snapback-home-staging-projects": {
+    "kind": "survey",
+    "wave": 26,
+    "lane": "014-snapback-home-staging-projects"
+  },
+  "w26-015-snapback-camera-lens-rentals": {
+    "kind": "survey",
+    "wave": 26,
+    "lane": "015-snapback-camera-lens-rentals"
+  },
+  "w26-016-snapback-vintage-motorcycle-restorations": {
+    "kind": "survey",
+    "wave": 26,
+    "lane": "016-snapback-vintage-motorcycle-restorations"
+  },
+  "w26-017-snapback-personal-chef-bookings": {
+    "kind": "survey",
+    "wave": 26,
+    "lane": "017-snapback-personal-chef-bookings"
+  },
+  "w26-018-snapback-livestock-ultrasound-scans": {
+    "kind": "survey",
+    "wave": 26,
+    "lane": "018-snapback-livestock-ultrasound-scans"
+  },
+  "w26-019-snapback-horse-transport-bookings": {
+    "kind": "survey",
+    "wave": 26,
+    "lane": "019-snapback-horse-transport-bookings"
+  },
+  "w26-020-snapback-llama-trekking-trips": {
+    "kind": "survey",
+    "wave": 26,
+    "lane": "020-snapback-llama-trekking-trips"
+  },
+  "w26-021-snapback-olive-oil-press-runs": {
+    "kind": "survey",
+    "wave": 26,
+    "lane": "021-snapback-olive-oil-press-runs"
+  },
+  "w26-022-snapback-ski-boot-fittings": {
+    "kind": "survey",
+    "wave": 26,
+    "lane": "022-snapback-ski-boot-fittings"
+  },
+  "w26-023-snapback-paintless-dent-repairs": {
+    "kind": "survey",
+    "wave": 26,
+    "lane": "023-snapback-paintless-dent-repairs"
+  },
+  "w26-024-snapback-billiard-table-relocations": {
+    "kind": "survey",
+    "wave": 26,
+    "lane": "024-snapback-billiard-table-relocations"
+  },
+  "w26-025-snapback-lifeguard-certification-exams": {
+    "kind": "survey",
+    "wave": 26,
+    "lane": "025-snapback-lifeguard-certification-exams"
+  },
+  "w26-026-snapback-string-bow-rehairing": {
+    "kind": "survey",
+    "wave": 26,
+    "lane": "026-snapback-string-bow-rehairing"
+  },
+  "w26-027-snapback-exhibit-stand-builds": {
+    "kind": "survey",
+    "wave": 26,
+    "lane": "027-snapback-exhibit-stand-builds"
+  },
+  "w26-028-snapback-chandelier-restorations": {
+    "kind": "survey",
+    "wave": 26,
+    "lane": "028-snapback-chandelier-restorations"
+  },
+  "w26-029-snapback-boat-delivery-voyages": {
+    "kind": "survey",
+    "wave": 26,
+    "lane": "029-snapback-boat-delivery-voyages"
+  },
+  "w26-030-snapback-thermal-imaging-surveys": {
+    "kind": "survey",
+    "wave": 26,
+    "lane": "030-snapback-thermal-imaging-surveys"
+  },
+  "w26-031-snapback-ice-machine-cleanings": {
+    "kind": "survey",
+    "wave": 26,
+    "lane": "031-snapback-ice-machine-cleanings"
+  },
+  "w26-032-snapback-service-dog-placements": {
+    "kind": "survey",
+    "wave": 26,
+    "lane": "032-snapback-service-dog-placements"
+  },
+  "w26-033-snapback-asphalt-sealcoating-jobs": {
+    "kind": "survey",
+    "wave": 26,
+    "lane": "033-snapback-asphalt-sealcoating-jobs"
+  },
+  "w26-034-snapback-luxury-watch-servicing": {
+    "kind": "survey",
+    "wave": 26,
+    "lane": "034-snapback-luxury-watch-servicing"
+  },
+  "w26-035-snapback-sheepskin-tannery-orders": {
+    "kind": "survey",
+    "wave": 26,
+    "lane": "035-snapback-sheepskin-tannery-orders"
+  },
+  "w26-036-snapback-bronze-statue-casting": {
+    "kind": "survey",
+    "wave": 26,
+    "lane": "036-snapback-bronze-statue-casting"
+  },
+  "w26-037-snapback-bespoke-shoe-commissions": {
+    "kind": "survey",
+    "wave": 26,
+    "lane": "037-snapback-bespoke-shoe-commissions"
+  },
+  "w26-038-snapback-water-cooler-deliveries": {
+    "kind": "survey",
+    "wave": 26,
+    "lane": "038-snapback-water-cooler-deliveries"
+  },
+  "w26-039-snapback-dog-breeder-litter-reservations": {
+    "kind": "survey",
+    "wave": 26,
+    "lane": "039-snapback-dog-breeder-litter-reservations"
+  },
+  "w26-040-snapback-lawn-mower-repairs": {
+    "kind": "survey",
+    "wave": 26,
+    "lane": "040-snapback-lawn-mower-repairs"
+  },
+  "w26-041-snapback-espresso-machine-repairs": {
+    "kind": "survey",
+    "wave": 26,
+    "lane": "041-snapback-espresso-machine-repairs"
+  },
+  "w26-042-snapback-classic-car-consignments": {
+    "kind": "survey",
+    "wave": 26,
+    "lane": "042-snapback-classic-car-consignments"
+  },
+  "w26-043-snapback-roof-inspection-certificates": {
+    "kind": "survey",
+    "wave": 26,
+    "lane": "043-snapback-roof-inspection-certificates"
+  },
+  "w26-044-snapback-yacht-varnish-refinishing": {
+    "kind": "survey",
+    "wave": 26,
+    "lane": "044-snapback-yacht-varnish-refinishing"
+  },
+  "w26-045-snapback-storm-shelter-installs": {
+    "kind": "survey",
+    "wave": 26,
+    "lane": "045-snapback-storm-shelter-installs"
+  },
+  "w26-046-snapback-sump-pump-repairs": {
+    "kind": "survey",
+    "wave": 26,
+    "lane": "046-snapback-sump-pump-repairs"
+  },
+  "w26-047-snapback-makeup-artist-bridal-bookings": {
+    "kind": "survey",
+    "wave": 26,
+    "lane": "047-snapback-makeup-artist-bridal-bookings"
+  },
+  "w26-048-snapback-shade-sail-installs": {
+    "kind": "survey",
+    "wave": 26,
+    "lane": "048-snapback-shade-sail-installs"
+  },
+  "w26-049-snapback-wedding-dj-bookings": {
+    "kind": "survey",
+    "wave": 26,
+    "lane": "049-snapback-wedding-dj-bookings"
+  },
+  "w26-050-snapback-hot-tub-servicing-visits": {
+    "kind": "survey",
+    "wave": 26,
+    "lane": "050-snapback-hot-tub-servicing-visits"
+  },
+  "w27-001-snapback-longcase-clock-restorations": {
+    "kind": "survey",
+    "wave": 27,
+    "lane": "001-snapback-longcase-clock-restorations"
+  },
+  "w27-002-snapback-compression-garment-fittings": {
+    "kind": "survey",
+    "wave": 27,
+    "lane": "002-snapback-compression-garment-fittings"
+  },
+  "w27-003-snapback-vintage-amplifier-repairs": {
+    "kind": "survey",
+    "wave": 27,
+    "lane": "003-snapback-vintage-amplifier-repairs"
+  },
+  "w27-004-snapback-hoarding-cleanout-jobs": {
+    "kind": "survey",
+    "wave": 27,
+    "lane": "004-snapback-hoarding-cleanout-jobs"
+  },
+  "w27-005-snapback-neon-sign-commissions": {
+    "kind": "survey",
+    "wave": 27,
+    "lane": "005-snapback-neon-sign-commissions"
+  },
+  "w27-006-snapback-microscope-overhaul-jobs": {
+    "kind": "survey",
+    "wave": 27,
+    "lane": "006-snapback-microscope-overhaul-jobs"
+  },
+  "w27-007-snapback-custom-fragrance-commissions": {
+    "kind": "survey",
+    "wave": 27,
+    "lane": "007-snapback-custom-fragrance-commissions"
+  },
+  "w27-008-snapback-stucco-repair-jobs": {
+    "kind": "survey",
+    "wave": 27,
+    "lane": "008-snapback-stucco-repair-jobs"
+  },
+  "w27-009-snapback-painting-conservation-treatments": {
+    "kind": "survey",
+    "wave": 27,
+    "lane": "009-snapback-painting-conservation-treatments"
+  },
+  "w27-010-snapback-canyoneering-guided-trips": {
+    "kind": "survey",
+    "wave": 27,
+    "lane": "010-snapback-canyoneering-guided-trips"
+  },
+  "w27-011-snapback-water-softener-installs": {
+    "kind": "survey",
+    "wave": 27,
+    "lane": "011-snapback-water-softener-installs"
+  },
+  "w27-012-snapback-wedding-video-edits": {
+    "kind": "survey",
+    "wave": 27,
+    "lane": "012-snapback-wedding-video-edits"
+  },
+  "w27-013-snapback-parachute-repack-logs": {
+    "kind": "survey",
+    "wave": 27,
+    "lane": "013-snapback-parachute-repack-logs"
+  },
+  "w27-014-snapback-home-staging-projects": {
+    "kind": "survey",
+    "wave": 27,
+    "lane": "014-snapback-home-staging-projects"
+  },
+  "w27-015-snapback-camera-lens-rentals": {
+    "kind": "survey",
+    "wave": 27,
+    "lane": "015-snapback-camera-lens-rentals"
+  },
+  "w27-016-snapback-vintage-motorcycle-restorations": {
+    "kind": "survey",
+    "wave": 27,
+    "lane": "016-snapback-vintage-motorcycle-restorations"
+  },
+  "w27-017-snapback-personal-chef-bookings": {
+    "kind": "survey",
+    "wave": 27,
+    "lane": "017-snapback-personal-chef-bookings"
+  },
+  "w27-018-snapback-livestock-ultrasound-scans": {
+    "kind": "survey",
+    "wave": 27,
+    "lane": "018-snapback-livestock-ultrasound-scans"
+  },
+  "w27-019-snapback-horse-transport-bookings": {
+    "kind": "survey",
+    "wave": 27,
+    "lane": "019-snapback-horse-transport-bookings"
+  },
+  "w27-020-snapback-llama-trekking-trips": {
+    "kind": "survey",
+    "wave": 27,
+    "lane": "020-snapback-llama-trekking-trips"
+  },
+  "w27-021-snapback-olive-oil-press-runs": {
+    "kind": "survey",
+    "wave": 27,
+    "lane": "021-snapback-olive-oil-press-runs"
+  },
+  "w27-022-snapback-ski-boot-fittings": {
+    "kind": "survey",
+    "wave": 27,
+    "lane": "022-snapback-ski-boot-fittings"
+  },
+  "w27-023-snapback-paintless-dent-repairs": {
+    "kind": "survey",
+    "wave": 27,
+    "lane": "023-snapback-paintless-dent-repairs"
+  },
+  "w27-024-snapback-billiard-table-relocations": {
+    "kind": "survey",
+    "wave": 27,
+    "lane": "024-snapback-billiard-table-relocations"
+  },
+  "w27-025-snapback-lifeguard-certification-exams": {
+    "kind": "survey",
+    "wave": 27,
+    "lane": "025-snapback-lifeguard-certification-exams"
+  },
+  "w27-026-snapback-string-bow-rehairing": {
+    "kind": "survey",
+    "wave": 27,
+    "lane": "026-snapback-string-bow-rehairing"
+  },
+  "w27-027-snapback-exhibit-stand-builds": {
+    "kind": "survey",
+    "wave": 27,
+    "lane": "027-snapback-exhibit-stand-builds"
+  },
+  "w27-028-snapback-chandelier-restorations": {
+    "kind": "survey",
+    "wave": 27,
+    "lane": "028-snapback-chandelier-restorations"
+  },
+  "w27-029-snapback-boat-delivery-voyages": {
+    "kind": "survey",
+    "wave": 27,
+    "lane": "029-snapback-boat-delivery-voyages"
+  },
+  "w27-030-snapback-thermal-imaging-surveys": {
+    "kind": "survey",
+    "wave": 27,
+    "lane": "030-snapback-thermal-imaging-surveys"
+  },
+  "w27-031-snapback-ice-machine-cleanings": {
+    "kind": "survey",
+    "wave": 27,
+    "lane": "031-snapback-ice-machine-cleanings"
+  },
+  "w27-032-snapback-service-dog-placements": {
+    "kind": "survey",
+    "wave": 27,
+    "lane": "032-snapback-service-dog-placements"
+  },
+  "w27-033-snapback-asphalt-sealcoating-jobs": {
+    "kind": "survey",
+    "wave": 27,
+    "lane": "033-snapback-asphalt-sealcoating-jobs"
+  },
+  "w27-034-snapback-luxury-watch-servicing": {
+    "kind": "survey",
+    "wave": 27,
+    "lane": "034-snapback-luxury-watch-servicing"
+  },
+  "w27-035-snapback-sheepskin-tannery-orders": {
+    "kind": "survey",
+    "wave": 27,
+    "lane": "035-snapback-sheepskin-tannery-orders"
+  },
+  "w27-036-snapback-bronze-statue-casting": {
+    "kind": "survey",
+    "wave": 27,
+    "lane": "036-snapback-bronze-statue-casting"
+  },
+  "w27-037-snapback-bespoke-shoe-commissions": {
+    "kind": "survey",
+    "wave": 27,
+    "lane": "037-snapback-bespoke-shoe-commissions"
+  },
+  "w27-038-snapback-water-cooler-deliveries": {
+    "kind": "survey",
+    "wave": 27,
+    "lane": "038-snapback-water-cooler-deliveries"
+  },
+  "w27-039-snapback-dog-breeder-litter-reservations": {
+    "kind": "survey",
+    "wave": 27,
+    "lane": "039-snapback-dog-breeder-litter-reservations"
+  },
+  "w27-040-snapback-lawn-mower-repairs": {
+    "kind": "survey",
+    "wave": 27,
+    "lane": "040-snapback-lawn-mower-repairs"
+  },
+  "w27-041-snapback-espresso-machine-repairs": {
+    "kind": "survey",
+    "wave": 27,
+    "lane": "041-snapback-espresso-machine-repairs"
+  },
+  "w27-042-snapback-classic-car-consignments": {
+    "kind": "survey",
+    "wave": 27,
+    "lane": "042-snapback-classic-car-consignments"
+  },
+  "w27-043-snapback-roof-inspection-certificates": {
+    "kind": "survey",
+    "wave": 27,
+    "lane": "043-snapback-roof-inspection-certificates"
+  },
+  "w27-044-snapback-yacht-varnish-refinishing": {
+    "kind": "survey",
+    "wave": 27,
+    "lane": "044-snapback-yacht-varnish-refinishing"
+  },
+  "w27-045-snapback-storm-shelter-installs": {
+    "kind": "survey",
+    "wave": 27,
+    "lane": "045-snapback-storm-shelter-installs"
+  },
+  "w27-046-snapback-sump-pump-repairs": {
+    "kind": "survey",
+    "wave": 27,
+    "lane": "046-snapback-sump-pump-repairs"
+  },
+  "w27-047-snapback-makeup-artist-bridal-bookings": {
+    "kind": "survey",
+    "wave": 27,
+    "lane": "047-snapback-makeup-artist-bridal-bookings"
+  },
+  "w27-048-snapback-shade-sail-installs": {
+    "kind": "survey",
+    "wave": 27,
+    "lane": "048-snapback-shade-sail-installs"
+  },
+  "w27-049-snapback-wedding-dj-bookings": {
+    "kind": "survey",
+    "wave": 27,
+    "lane": "049-snapback-wedding-dj-bookings"
+  },
+  "w27-050-snapback-hot-tub-servicing-visits": {
+    "kind": "survey",
+    "wave": 27,
+    "lane": "050-snapback-hot-tub-servicing-visits"
+  },
+  "w28-001-snapback-barometer-restorations": {
+    "kind": "survey",
+    "wave": 28,
+    "lane": "001-snapback-barometer-restorations"
+  },
+  "w28-002-snapback-scleral-lens-fittings": {
+    "kind": "survey",
+    "wave": 28,
+    "lane": "002-snapback-scleral-lens-fittings"
+  },
+  "w28-003-snapback-antique-telephone-restorations": {
+    "kind": "survey",
+    "wave": 28,
+    "lane": "003-snapback-antique-telephone-restorations"
+  },
+  "w28-004-snapback-smoke-damage-cleanups": {
+    "kind": "survey",
+    "wave": 28,
+    "lane": "004-snapback-smoke-damage-cleanups"
+  },
+  "w28-005-snapback-wrought-iron-gate-commissions": {
+    "kind": "survey",
+    "wave": 28,
+    "lane": "005-snapback-wrought-iron-gate-commissions"
+  },
+  "w28-006-snapback-binocular-overhaul-jobs": {
+    "kind": "survey",
+    "wave": 28,
+    "lane": "006-snapback-binocular-overhaul-jobs"
+  },
+  "w28-007-snapback-custom-wallpaper-commissions": {
+    "kind": "survey",
+    "wave": 28,
+    "lane": "007-snapback-custom-wallpaper-commissions"
+  },
+  "w28-008-snapback-log-home-chinking-repairs": {
+    "kind": "survey",
+    "wave": 28,
+    "lane": "008-snapback-log-home-chinking-repairs"
+  },
+  "w28-009-snapback-antique-doll-restorations": {
+    "kind": "survey",
+    "wave": 28,
+    "lane": "009-snapback-antique-doll-restorations"
+  },
+  "w28-010-snapback-via-ferrata-guided-climbs": {
+    "kind": "survey",
+    "wave": 28,
+    "lane": "010-snapback-via-ferrata-guided-climbs"
+  },
+  "w28-011-snapback-home-battery-installs": {
+    "kind": "survey",
+    "wave": 28,
+    "lane": "011-snapback-home-battery-installs"
+  },
+  "w28-012-snapback-architectural-rendering-jobs": {
+    "kind": "survey",
+    "wave": 28,
+    "lane": "012-snapback-architectural-rendering-jobs"
+  },
+  "w28-013-snapback-lifting-sling-inspections": {
+    "kind": "survey",
+    "wave": 28,
+    "lane": "013-snapback-lifting-sling-inspections"
+  },
+  "w28-014-snapback-holiday-light-installations": {
+    "kind": "survey",
+    "wave": 28,
+    "lane": "014-snapback-holiday-light-installations"
+  },
+  "w28-015-snapback-mobility-scooter-rentals": {
+    "kind": "survey",
+    "wave": 28,
+    "lane": "015-snapback-mobility-scooter-rentals"
+  },
+  "w28-016-snapback-vintage-tractor-restorations": {
+    "kind": "survey",
+    "wave": 28,
+    "lane": "016-snapback-vintage-tractor-restorations"
+  },
+  "w28-017-snapback-mobile-bartending-bookings": {
+    "kind": "survey",
+    "wave": 28,
+    "lane": "017-snapback-mobile-bartending-bookings"
+  },
+  "w28-018-snapback-poultry-flock-vaccinations": {
+    "kind": "survey",
+    "wave": 28,
+    "lane": "018-snapback-poultry-flock-vaccinations"
+  },
+  "w28-019-snapback-mature-tree-transplants": {
+    "kind": "survey",
+    "wave": 28,
+    "lane": "019-snapback-mature-tree-transplants"
+  },
+  "w28-020-snapback-snowshoe-guided-hikes": {
+    "kind": "survey",
+    "wave": 28,
+    "lane": "020-snapback-snowshoe-guided-hikes"
+  },
+  "w28-021-snapback-cotton-gin-runs": {
+    "kind": "survey",
+    "wave": 28,
+    "lane": "021-snapback-cotton-gin-runs"
+  },
+  "w28-022-snapback-custom-wetsuit-fittings": {
+    "kind": "survey",
+    "wave": 28,
+    "lane": "022-snapback-custom-wetsuit-fittings"
+  },
+  "w28-023-snapback-rv-roof-repairs": {
+    "kind": "survey",
+    "wave": 28,
+    "lane": "023-snapback-rv-roof-repairs"
+  },
+  "w28-024-snapback-safe-moving-jobs": {
+    "kind": "survey",
+    "wave": 28,
+    "lane": "024-snapback-safe-moving-jobs"
+  },
+  "w28-025-snapback-boating-license-exams": {
+    "kind": "survey",
+    "wave": 28,
+    "lane": "025-snapback-boating-license-exams"
+  },
+  "w28-026-snapback-brass-instrument-repairs": {
+    "kind": "survey",
+    "wave": 28,
+    "lane": "026-snapback-brass-instrument-repairs"
+  },
+  "w28-027-snapback-haunted-house-set-builds": {
+    "kind": "survey",
+    "wave": 28,
+    "lane": "027-snapback-haunted-house-set-builds"
+  },
+  "w28-028-snapback-garden-fountain-restorations": {
+    "kind": "survey",
+    "wave": 28,
+    "lane": "028-snapback-garden-fountain-restorations"
+  },
+  "w28-029-snapback-aircraft-ferry-flights": {
+    "kind": "survey",
+    "wave": 28,
+    "lane": "029-snapback-aircraft-ferry-flights"
+  },
+  "w28-030-snapback-ground-radar-surveys": {
+    "kind": "survey",
+    "wave": 28,
+    "lane": "030-snapback-ground-radar-surveys"
+  },
+  "w28-031-snapback-dryer-vent-cleanings": {
+    "kind": "survey",
+    "wave": 28,
+    "lane": "031-snapback-dryer-vent-cleanings"
+  },
+  "w28-032-snapback-assisted-living-placements": {
+    "kind": "survey",
+    "wave": 28,
+    "lane": "032-snapback-assisted-living-placements"
+  },
+  "w28-033-snapback-tennis-court-resurfacing": {
+    "kind": "survey",
+    "wave": 28,
+    "lane": "033-snapback-tennis-court-resurfacing"
+  },
+  "w28-034-snapback-fountain-pen-restorations": {
+    "kind": "survey",
+    "wave": 28,
+    "lane": "034-snapback-fountain-pen-restorations"
+  },
+  "w28-035-snapback-fur-cleaning-batches": {
+    "kind": "survey",
+    "wave": 28,
+    "lane": "035-snapback-fur-cleaning-batches"
+  },
+  "w28-036-snapback-wax-figure-commissions": {
+    "kind": "survey",
+    "wave": 28,
+    "lane": "036-snapback-wax-figure-commissions"
+  },
+  "w28-037-snapback-bespoke-hat-commissions": {
+    "kind": "survey",
+    "wave": 28,
+    "lane": "037-snapback-bespoke-hat-commissions"
+  },
+  "w28-038-snapback-toner-cartridge-deliveries": {
+    "kind": "survey",
+    "wave": 28,
+    "lane": "038-snapback-toner-cartridge-deliveries"
+  },
+  "w28-039-snapback-koi-breeder-reservations": {
+    "kind": "survey",
+    "wave": 28,
+    "lane": "039-snapback-koi-breeder-reservations"
+  },
+  "w28-040-snapback-outboard-motor-repairs": {
+    "kind": "survey",
+    "wave": 28,
+    "lane": "040-snapback-outboard-motor-repairs"
+  },
+  "w28-041-snapback-gramophone-restorations": {
+    "kind": "survey",
+    "wave": 28,
+    "lane": "041-snapback-gramophone-restorations"
+  },
+  "w28-042-snapback-vintage-guitar-consignments": {
+    "kind": "survey",
+    "wave": 28,
+    "lane": "042-snapback-vintage-guitar-consignments"
+  },
+  "w28-043-snapback-playground-safety-inspections": {
+    "kind": "survey",
+    "wave": 28,
+    "lane": "043-snapback-playground-safety-inspections"
+  },
+  "w28-044-snapback-wooden-deck-refinishing": {
+    "kind": "survey",
+    "wave": 28,
+    "lane": "044-snapback-wooden-deck-refinishing"
+  },
+  "w28-045-snapback-geothermal-loop-installs": {
+    "kind": "survey",
+    "wave": 28,
+    "lane": "045-snapback-geothermal-loop-installs"
+  },
+  "w28-046-snapback-furnace-repair-calls": {
+    "kind": "survey",
+    "wave": 28,
+    "lane": "046-snapback-furnace-repair-calls"
+  },
+  "w28-047-snapback-henna-artist-bookings": {
+    "kind": "survey",
+    "wave": 28,
+    "lane": "047-snapback-henna-artist-bookings"
+  },
+  "w28-048-snapback-pergola-builds": {
+    "kind": "survey",
+    "wave": 28,
+    "lane": "048-snapback-pergola-builds"
+  },
+  "w28-049-snapback-string-quartet-bookings": {
+    "kind": "survey",
+    "wave": 28,
+    "lane": "049-snapback-string-quartet-bookings"
+  },
+  "w28-050-snapback-home-generator-servicing": {
+    "kind": "survey",
+    "wave": 28,
+    "lane": "050-snapback-home-generator-servicing"
+  },
+  "w29-001-snapback-barometer-restorations": {
+    "kind": "survey",
+    "wave": 29,
+    "lane": "001-snapback-barometer-restorations"
+  },
+  "w29-002-snapback-scleral-lens-fittings": {
+    "kind": "survey",
+    "wave": 29,
+    "lane": "002-snapback-scleral-lens-fittings"
+  },
+  "w29-003-snapback-antique-telephone-restorations": {
+    "kind": "survey",
+    "wave": 29,
+    "lane": "003-snapback-antique-telephone-restorations"
+  },
+  "w29-004-snapback-smoke-damage-cleanups": {
+    "kind": "survey",
+    "wave": 29,
+    "lane": "004-snapback-smoke-damage-cleanups"
+  },
+  "w29-005-snapback-wrought-iron-gate-commissions": {
+    "kind": "survey",
+    "wave": 29,
+    "lane": "005-snapback-wrought-iron-gate-commissions"
+  },
+  "w29-006-snapback-binocular-overhaul-jobs": {
+    "kind": "survey",
+    "wave": 29,
+    "lane": "006-snapback-binocular-overhaul-jobs"
+  },
+  "w29-007-snapback-custom-wallpaper-commissions": {
+    "kind": "survey",
+    "wave": 29,
+    "lane": "007-snapback-custom-wallpaper-commissions"
+  },
+  "w29-008-snapback-log-home-chinking-repairs": {
+    "kind": "survey",
+    "wave": 29,
+    "lane": "008-snapback-log-home-chinking-repairs"
+  },
+  "w29-009-snapback-antique-doll-restorations": {
+    "kind": "survey",
+    "wave": 29,
+    "lane": "009-snapback-antique-doll-restorations"
+  },
+  "w29-010-snapback-via-ferrata-guided-climbs": {
+    "kind": "survey",
+    "wave": 29,
+    "lane": "010-snapback-via-ferrata-guided-climbs"
+  },
+  "w29-011-snapback-home-battery-installs": {
+    "kind": "survey",
+    "wave": 29,
+    "lane": "011-snapback-home-battery-installs"
+  },
+  "w29-012-snapback-architectural-rendering-jobs": {
+    "kind": "survey",
+    "wave": 29,
+    "lane": "012-snapback-architectural-rendering-jobs"
+  },
+  "w29-013-snapback-lifting-sling-inspections": {
+    "kind": "survey",
+    "wave": 29,
+    "lane": "013-snapback-lifting-sling-inspections"
+  },
+  "w29-014-snapback-holiday-light-installations": {
+    "kind": "survey",
+    "wave": 29,
+    "lane": "014-snapback-holiday-light-installations"
+  },
+  "w29-015-snapback-mobility-scooter-rentals": {
+    "kind": "survey",
+    "wave": 29,
+    "lane": "015-snapback-mobility-scooter-rentals"
+  },
+  "w29-016-snapback-vintage-tractor-restorations": {
+    "kind": "survey",
+    "wave": 29,
+    "lane": "016-snapback-vintage-tractor-restorations"
+  },
+  "w29-017-snapback-mobile-bartending-bookings": {
+    "kind": "survey",
+    "wave": 29,
+    "lane": "017-snapback-mobile-bartending-bookings"
+  },
+  "w29-018-snapback-poultry-flock-vaccinations": {
+    "kind": "survey",
+    "wave": 29,
+    "lane": "018-snapback-poultry-flock-vaccinations"
+  },
+  "w29-019-snapback-mature-tree-transplants": {
+    "kind": "survey",
+    "wave": 29,
+    "lane": "019-snapback-mature-tree-transplants"
+  },
+  "w29-020-snapback-snowshoe-guided-hikes": {
+    "kind": "survey",
+    "wave": 29,
+    "lane": "020-snapback-snowshoe-guided-hikes"
+  },
+  "w29-021-snapback-cotton-gin-runs": {
+    "kind": "survey",
+    "wave": 29,
+    "lane": "021-snapback-cotton-gin-runs"
+  },
+  "w29-022-snapback-custom-wetsuit-fittings": {
+    "kind": "survey",
+    "wave": 29,
+    "lane": "022-snapback-custom-wetsuit-fittings"
+  },
+  "w29-023-snapback-rv-roof-repairs": {
+    "kind": "survey",
+    "wave": 29,
+    "lane": "023-snapback-rv-roof-repairs"
+  },
+  "w29-024-snapback-safe-moving-jobs": {
+    "kind": "survey",
+    "wave": 29,
+    "lane": "024-snapback-safe-moving-jobs"
+  },
+  "w29-025-snapback-boating-license-exams": {
+    "kind": "survey",
+    "wave": 29,
+    "lane": "025-snapback-boating-license-exams"
+  },
+  "w29-026-snapback-brass-instrument-repairs": {
+    "kind": "survey",
+    "wave": 29,
+    "lane": "026-snapback-brass-instrument-repairs"
+  },
+  "w29-027-snapback-haunted-house-set-builds": {
+    "kind": "survey",
+    "wave": 29,
+    "lane": "027-snapback-haunted-house-set-builds"
+  },
+  "w29-028-snapback-garden-fountain-restorations": {
+    "kind": "survey",
+    "wave": 29,
+    "lane": "028-snapback-garden-fountain-restorations"
+  },
+  "w29-029-snapback-aircraft-ferry-flights": {
+    "kind": "survey",
+    "wave": 29,
+    "lane": "029-snapback-aircraft-ferry-flights"
+  },
+  "w29-030-snapback-ground-radar-surveys": {
+    "kind": "survey",
+    "wave": 29,
+    "lane": "030-snapback-ground-radar-surveys"
+  },
+  "w29-031-snapback-dryer-vent-cleanings": {
+    "kind": "survey",
+    "wave": 29,
+    "lane": "031-snapback-dryer-vent-cleanings"
+  },
+  "w29-032-snapback-assisted-living-placements": {
+    "kind": "survey",
+    "wave": 29,
+    "lane": "032-snapback-assisted-living-placements"
+  },
+  "w29-033-snapback-tennis-court-resurfacing": {
+    "kind": "survey",
+    "wave": 29,
+    "lane": "033-snapback-tennis-court-resurfacing"
+  },
+  "w29-034-snapback-fountain-pen-restorations": {
+    "kind": "survey",
+    "wave": 29,
+    "lane": "034-snapback-fountain-pen-restorations"
+  },
+  "w29-035-snapback-fur-cleaning-batches": {
+    "kind": "survey",
+    "wave": 29,
+    "lane": "035-snapback-fur-cleaning-batches"
+  },
+  "w29-036-snapback-wax-figure-commissions": {
+    "kind": "survey",
+    "wave": 29,
+    "lane": "036-snapback-wax-figure-commissions"
+  },
+  "w29-037-snapback-bespoke-hat-commissions": {
+    "kind": "survey",
+    "wave": 29,
+    "lane": "037-snapback-bespoke-hat-commissions"
+  },
+  "w29-038-snapback-toner-cartridge-deliveries": {
+    "kind": "survey",
+    "wave": 29,
+    "lane": "038-snapback-toner-cartridge-deliveries"
+  },
+  "w29-039-snapback-koi-breeder-reservations": {
+    "kind": "survey",
+    "wave": 29,
+    "lane": "039-snapback-koi-breeder-reservations"
+  },
+  "w29-040-snapback-outboard-motor-repairs": {
+    "kind": "survey",
+    "wave": 29,
+    "lane": "040-snapback-outboard-motor-repairs"
+  },
+  "w29-041-snapback-gramophone-restorations": {
+    "kind": "survey",
+    "wave": 29,
+    "lane": "041-snapback-gramophone-restorations"
+  },
+  "w29-042-snapback-vintage-guitar-consignments": {
+    "kind": "survey",
+    "wave": 29,
+    "lane": "042-snapback-vintage-guitar-consignments"
+  },
+  "w29-043-snapback-playground-safety-inspections": {
+    "kind": "survey",
+    "wave": 29,
+    "lane": "043-snapback-playground-safety-inspections"
+  },
+  "w29-044-snapback-wooden-deck-refinishing": {
+    "kind": "survey",
+    "wave": 29,
+    "lane": "044-snapback-wooden-deck-refinishing"
+  },
+  "w29-045-snapback-geothermal-loop-installs": {
+    "kind": "survey",
+    "wave": 29,
+    "lane": "045-snapback-geothermal-loop-installs"
+  },
+  "w29-046-snapback-furnace-repair-calls": {
+    "kind": "survey",
+    "wave": 29,
+    "lane": "046-snapback-furnace-repair-calls"
+  },
+  "w29-047-snapback-henna-artist-bookings": {
+    "kind": "survey",
+    "wave": 29,
+    "lane": "047-snapback-henna-artist-bookings"
+  },
+  "w29-048-snapback-pergola-builds": {
+    "kind": "survey",
+    "wave": 29,
+    "lane": "048-snapback-pergola-builds"
+  },
+  "w29-049-snapback-string-quartet-bookings": {
+    "kind": "survey",
+    "wave": 29,
+    "lane": "049-snapback-string-quartet-bookings"
+  },
+  "w29-050-snapback-home-generator-servicing": {
+    "kind": "survey",
+    "wave": 29,
+    "lane": "050-snapback-home-generator-servicing"
+  },
+  "w30-001-snapback-weathervane-restorations": {
+    "kind": "survey",
+    "wave": 30,
+    "lane": "001-snapback-weathervane-restorations"
+  },
+  "w30-002-snapback-infant-helmet-fittings": {
+    "kind": "survey",
+    "wave": 30,
+    "lane": "002-snapback-infant-helmet-fittings"
+  },
+  "w30-003-snapback-music-box-restorations": {
+    "kind": "survey",
+    "wave": 30,
+    "lane": "003-snapback-music-box-restorations"
+  },
+  "w30-004-snapback-accessible-home-remodels": {
+    "kind": "survey",
+    "wave": 30,
+    "lane": "004-snapback-accessible-home-remodels"
+  },
+  "w30-005-snapback-spiral-staircase-commissions": {
+    "kind": "survey",
+    "wave": 30,
+    "lane": "005-snapback-spiral-staircase-commissions"
+  },
+  "w30-006-snapback-fishing-reel-servicing": {
+    "kind": "survey",
+    "wave": 30,
+    "lane": "006-snapback-fishing-reel-servicing"
+  },
+  "w30-007-snapback-tile-mosaic-commissions": {
+    "kind": "survey",
+    "wave": 30,
+    "lane": "007-snapback-tile-mosaic-commissions"
+  },
+  "w30-008-snapback-brick-repointing-jobs": {
+    "kind": "survey",
+    "wave": 30,
+    "lane": "008-snapback-brick-repointing-jobs"
+  },
+  "w30-009-snapback-antique-globe-restorations": {
+    "kind": "survey",
+    "wave": 30,
+    "lane": "009-snapback-antique-globe-restorations"
+  },
+  "w30-010-snapback-whitewater-rafting-trips": {
+    "kind": "survey",
+    "wave": 30,
+    "lane": "010-snapback-whitewater-rafting-trips"
+  },
+  "w30-011-snapback-wood-stove-installs": {
+    "kind": "survey",
+    "wave": 30,
+    "lane": "011-snapback-wood-stove-installs"
+  },
+  "w30-012-snapback-animated-explainer-videos": {
+    "kind": "survey",
+    "wave": 30,
+    "lane": "012-snapback-animated-explainer-videos"
+  },
+  "w30-013-snapback-ladder-safety-inspections": {
+    "kind": "survey",
+    "wave": 30,
+    "lane": "013-snapback-ladder-safety-inspections"
+  },
+  "w30-014-snapback-balloon-decor-installs": {
+    "kind": "survey",
+    "wave": 30,
+    "lane": "014-snapback-balloon-decor-installs"
+  },
+  "w30-015-snapback-baby-gear-rentals": {
+    "kind": "survey",
+    "wave": 30,
+    "lane": "015-snapback-baby-gear-rentals"
+  },
+  "w30-016-snapback-fire-engine-restorations": {
+    "kind": "survey",
+    "wave": 30,
+    "lane": "016-snapback-fire-engine-restorations"
+  },
+  "w30-017-snapback-petting-zoo-parties": {
+    "kind": "survey",
+    "wave": 30,
+    "lane": "017-snapback-petting-zoo-parties"
+  },
+  "w30-018-snapback-orchard-pruning-visits": {
+    "kind": "survey",
+    "wave": 30,
+    "lane": "018-snapback-orchard-pruning-visits"
+  },
+  "w30-019-snapback-pet-relocation-flights": {
+    "kind": "survey",
+    "wave": 30,
+    "lane": "019-snapback-pet-relocation-flights"
+  },
+  "w30-020-snapback-fat-bike-tours": {
+    "kind": "survey",
+    "wave": 30,
+    "lane": "020-snapback-fat-bike-tours"
+  },
+  "w30-021-snapback-rice-mill-lots": {
+    "kind": "survey",
+    "wave": 30,
+    "lane": "021-snapback-rice-mill-lots"
+  },
+  "w30-022-snapback-motorcycle-leathers-fittings": {
+    "kind": "survey",
+    "wave": 30,
+    "lane": "022-snapback-motorcycle-leathers-fittings"
+  },
+  "w30-023-snapback-gutter-repair-calls": {
+    "kind": "survey",
+    "wave": 30,
+    "lane": "023-snapback-gutter-repair-calls"
+  },
+  "w30-024-snapback-home-gym-installs": {
+    "kind": "survey",
+    "wave": 30,
+    "lane": "024-snapback-home-gym-installs"
+  },
+  "w30-025-snapback-chainsaw-safety-certifications": {
+    "kind": "survey",
+    "wave": 30,
+    "lane": "025-snapback-chainsaw-safety-certifications"
+  },
+  "w30-026-snapback-film-camera-repairs": {
+    "kind": "survey",
+    "wave": 30,
+    "lane": "026-snapback-film-camera-repairs"
+  },
+  "w30-027-snapback-museum-diorama-builds": {
+    "kind": "survey",
+    "wave": 30,
+    "lane": "027-snapback-museum-diorama-builds"
+  },
+  "w30-028-snapback-lamp-post-restorations": {
+    "kind": "survey",
+    "wave": 30,
+    "lane": "028-snapback-lamp-post-restorations"
+  },
+  "w30-029-snapback-enclosed-car-shipping": {
+    "kind": "survey",
+    "wave": 30,
+    "lane": "029-snapback-enclosed-car-shipping"
+  },
+  "w30-030-snapback-acoustic-noise-studies": {
+    "kind": "survey",
+    "wave": 30,
+    "lane": "030-snapback-acoustic-noise-studies"
+  },
+  "w30-031-snapback-cooling-tower-cleanings": {
+    "kind": "survey",
+    "wave": 30,
+    "lane": "031-snapback-cooling-tower-cleanings"
+  },
+  "w30-032-snapback-private-school-placements": {
+    "kind": "survey",
+    "wave": 30,
+    "lane": "032-snapback-private-school-placements"
+  },
+  "w30-033-snapback-garage-floor-coatings": {
+    "kind": "survey",
+    "wave": 30,
+    "lane": "033-snapback-garage-floor-coatings"
+  },
+  "w30-034-snapback-vintage-handbag-restorations": {
+    "kind": "survey",
+    "wave": 30,
+    "lane": "034-snapback-vintage-handbag-restorations"
+  },
+  "w30-035-snapback-drapery-cleaning-batches": {
+    "kind": "survey",
+    "wave": 30,
+    "lane": "035-snapback-drapery-cleaning-batches"
+  },
+  "w30-036-snapback-mascot-costume-commissions": {
+    "kind": "survey",
+    "wave": 30,
+    "lane": "036-snapback-mascot-costume-commissions"
+  },
+  "w30-037-snapback-bespoke-glove-commissions": {
+    "kind": "survey",
+    "wave": 30,
+    "lane": "037-snapback-bespoke-glove-commissions"
+  },
+  "w30-038-snapback-welding-gas-deliveries": {
+    "kind": "survey",
+    "wave": 30,
+    "lane": "038-snapback-welding-gas-deliveries"
+  },
+  "w30-039-snapback-parrot-chick-reservations": {
+    "kind": "survey",
+    "wave": 30,
+    "lane": "039-snapback-parrot-chick-reservations"
+  },
+  "w30-040-snapback-snowmobile-repairs": {
+    "kind": "survey",
+    "wave": 30,
+    "lane": "040-snapback-snowmobile-repairs"
+  },
+  "w30-041-snapback-steamer-trunk-restorations": {
+    "kind": "survey",
+    "wave": 30,
+    "lane": "041-snapback-steamer-trunk-restorations"
+  },
+  "w30-042-snapback-sports-memorabilia-consignments": {
+    "kind": "survey",
+    "wave": 30,
+    "lane": "042-snapback-sports-memorabilia-consignments"
+  },
+  "w30-043-snapback-pool-fence-inspections": {
+    "kind": "survey",
+    "wave": 30,
+    "lane": "043-snapback-pool-fence-inspections"
+  },
+  "w30-044-snapback-sash-window-restorations": {
+    "kind": "survey",
+    "wave": 30,
+    "lane": "044-snapback-sash-window-restorations"
+  },
+  "w30-045-snapback-rainwater-cistern-installs": {
+    "kind": "survey",
+    "wave": 30,
+    "lane": "045-snapback-rainwater-cistern-installs"
+  },
+  "w30-046-snapback-walk-in-cooler-repairs": {
+    "kind": "survey",
+    "wave": 30,
+    "lane": "046-snapback-walk-in-cooler-repairs"
+  },
+  "w30-047-snapback-live-wedding-painters": {
+    "kind": "survey",
+    "wave": 30,
+    "lane": "047-snapback-live-wedding-painters"
+  },
+  "w30-048-snapback-treehouse-builds": {
+    "kind": "survey",
+    "wave": 30,
+    "lane": "048-snapback-treehouse-builds"
+  },
+  "w30-049-snapback-wedding-officiant-bookings": {
+    "kind": "survey",
+    "wave": 30,
+    "lane": "049-snapback-wedding-officiant-bookings"
+  },
+  "w30-050-snapback-grain-dryer-servicing": {
+    "kind": "survey",
+    "wave": 30,
+    "lane": "050-snapback-grain-dryer-servicing"
+  },
+  "w31-001-snapback-weathervane-restorations": {
+    "kind": "wave31",
+    "wave": 31,
+    "lane": "001-snapback-weathervane-restorations"
+  },
+  "w31-002-snapback-infant-helmet-fittings": {
+    "kind": "wave31",
+    "wave": 31,
+    "lane": "002-snapback-infant-helmet-fittings"
+  },
+  "w31-003-snapback-music-box-restorations": {
+    "kind": "wave31",
+    "wave": 31,
+    "lane": "003-snapback-music-box-restorations"
+  },
+  "w31-004-snapback-accessible-home-remodels": {
+    "kind": "wave31",
+    "wave": 31,
+    "lane": "004-snapback-accessible-home-remodels"
+  },
+  "w31-005-snapback-spiral-staircase-commissions": {
+    "kind": "wave31",
+    "wave": 31,
+    "lane": "005-snapback-spiral-staircase-commissions"
+  },
+  "w31-006-snapback-fishing-reel-servicing": {
+    "kind": "wave31",
+    "wave": 31,
+    "lane": "006-snapback-fishing-reel-servicing"
+  },
+  "w31-007-snapback-tile-mosaic-commissions": {
+    "kind": "wave31",
+    "wave": 31,
+    "lane": "007-snapback-tile-mosaic-commissions"
+  },
+  "w31-008-snapback-brick-repointing-jobs": {
+    "kind": "wave31",
+    "wave": 31,
+    "lane": "008-snapback-brick-repointing-jobs"
+  },
+  "w31-009-snapback-antique-globe-restorations": {
+    "kind": "wave31",
+    "wave": 31,
+    "lane": "009-snapback-antique-globe-restorations"
+  },
+  "w31-010-snapback-whitewater-rafting-trips": {
+    "kind": "wave31",
+    "wave": 31,
+    "lane": "010-snapback-whitewater-rafting-trips"
+  },
+  "w31-011-snapback-wood-stove-installs": {
+    "kind": "wave31",
+    "wave": 31,
+    "lane": "011-snapback-wood-stove-installs"
+  },
+  "w31-012-snapback-animated-explainer-videos": {
+    "kind": "wave31",
+    "wave": 31,
+    "lane": "012-snapback-animated-explainer-videos"
+  },
+  "w31-013-snapback-ladder-safety-inspections": {
+    "kind": "wave31",
+    "wave": 31,
+    "lane": "013-snapback-ladder-safety-inspections"
+  },
+  "w31-014-snapback-balloon-decor-installs": {
+    "kind": "wave31",
+    "wave": 31,
+    "lane": "014-snapback-balloon-decor-installs"
+  },
+  "w31-015-snapback-baby-gear-rentals": {
+    "kind": "wave31",
+    "wave": 31,
+    "lane": "015-snapback-baby-gear-rentals"
+  },
+  "w31-016-snapback-fire-engine-restorations": {
+    "kind": "wave31",
+    "wave": 31,
+    "lane": "016-snapback-fire-engine-restorations"
+  },
+  "w31-017-snapback-petting-zoo-parties": {
+    "kind": "wave31",
+    "wave": 31,
+    "lane": "017-snapback-petting-zoo-parties"
+  },
+  "w31-018-snapback-orchard-pruning-visits": {
+    "kind": "wave31",
+    "wave": 31,
+    "lane": "018-snapback-orchard-pruning-visits"
+  },
+  "w31-019-snapback-pet-relocation-flights": {
+    "kind": "wave31",
+    "wave": 31,
+    "lane": "019-snapback-pet-relocation-flights"
+  },
+  "w31-020-snapback-fat-bike-tours": {
+    "kind": "wave31",
+    "wave": 31,
+    "lane": "020-snapback-fat-bike-tours"
+  },
+  "w31-021-snapback-rice-mill-lots": {
+    "kind": "wave31",
+    "wave": 31,
+    "lane": "021-snapback-rice-mill-lots"
+  },
+  "w31-022-snapback-motorcycle-leathers-fittings": {
+    "kind": "wave31",
+    "wave": 31,
+    "lane": "022-snapback-motorcycle-leathers-fittings"
+  },
+  "w31-023-snapback-gutter-repair-calls": {
+    "kind": "wave31",
+    "wave": 31,
+    "lane": "023-snapback-gutter-repair-calls"
+  },
+  "w31-024-snapback-home-gym-installs": {
+    "kind": "wave31",
+    "wave": 31,
+    "lane": "024-snapback-home-gym-installs"
+  },
+  "w31-025-snapback-chainsaw-safety-certifications": {
+    "kind": "wave31",
+    "wave": 31,
+    "lane": "025-snapback-chainsaw-safety-certifications"
+  },
+  "w31-026-snapback-film-camera-repairs": {
+    "kind": "wave31",
+    "wave": 31,
+    "lane": "026-snapback-film-camera-repairs"
+  },
+  "w31-027-snapback-museum-diorama-builds": {
+    "kind": "wave31",
+    "wave": 31,
+    "lane": "027-snapback-museum-diorama-builds"
+  },
+  "w31-028-snapback-lamp-post-restorations": {
+    "kind": "wave31",
+    "wave": 31,
+    "lane": "028-snapback-lamp-post-restorations"
+  },
+  "w31-029-snapback-enclosed-car-shipping": {
+    "kind": "wave31",
+    "wave": 31,
+    "lane": "029-snapback-enclosed-car-shipping"
+  },
+  "w31-030-snapback-acoustic-noise-studies": {
+    "kind": "wave31",
+    "wave": 31,
+    "lane": "030-snapback-acoustic-noise-studies"
+  },
+  "w31-031-snapback-cooling-tower-cleanings": {
+    "kind": "wave31",
+    "wave": 31,
+    "lane": "031-snapback-cooling-tower-cleanings"
+  },
+  "w31-032-snapback-private-school-placements": {
+    "kind": "wave31",
+    "wave": 31,
+    "lane": "032-snapback-private-school-placements"
+  },
+  "w31-033-snapback-garage-floor-coatings": {
+    "kind": "wave31",
+    "wave": 31,
+    "lane": "033-snapback-garage-floor-coatings"
+  },
+  "w31-034-snapback-vintage-handbag-restorations": {
+    "kind": "wave31",
+    "wave": 31,
+    "lane": "034-snapback-vintage-handbag-restorations"
+  },
+  "w31-035-snapback-drapery-cleaning-batches": {
+    "kind": "wave31",
+    "wave": 31,
+    "lane": "035-snapback-drapery-cleaning-batches"
+  },
+  "w31-036-snapback-mascot-costume-commissions": {
+    "kind": "wave31",
+    "wave": 31,
+    "lane": "036-snapback-mascot-costume-commissions"
+  },
+  "w31-037-snapback-bespoke-glove-commissions": {
+    "kind": "wave31",
+    "wave": 31,
+    "lane": "037-snapback-bespoke-glove-commissions"
+  },
+  "w31-038-snapback-welding-gas-deliveries": {
+    "kind": "wave31",
+    "wave": 31,
+    "lane": "038-snapback-welding-gas-deliveries"
+  },
+  "w31-039-snapback-parrot-chick-reservations": {
+    "kind": "wave31",
+    "wave": 31,
+    "lane": "039-snapback-parrot-chick-reservations"
+  },
+  "w31-040-snapback-snowmobile-repairs": {
+    "kind": "wave31",
+    "wave": 31,
+    "lane": "040-snapback-snowmobile-repairs"
+  },
+  "w31-041-snapback-steamer-trunk-restorations": {
+    "kind": "wave31",
+    "wave": 31,
+    "lane": "041-snapback-steamer-trunk-restorations"
+  },
+  "w31-042-snapback-sports-memorabilia-consignments": {
+    "kind": "wave31",
+    "wave": 31,
+    "lane": "042-snapback-sports-memorabilia-consignments"
+  },
+  "w31-043-snapback-pool-fence-inspections": {
+    "kind": "wave31",
+    "wave": 31,
+    "lane": "043-snapback-pool-fence-inspections"
+  },
+  "w31-044-snapback-sash-window-restorations": {
+    "kind": "wave31",
+    "wave": 31,
+    "lane": "044-snapback-sash-window-restorations"
+  },
+  "w31-045-snapback-rainwater-cistern-installs": {
+    "kind": "wave31",
+    "wave": 31,
+    "lane": "045-snapback-rainwater-cistern-installs"
+  },
+  "w31-046-snapback-walk-in-cooler-repairs": {
+    "kind": "wave31",
+    "wave": 31,
+    "lane": "046-snapback-walk-in-cooler-repairs"
+  },
+  "w31-047-snapback-live-wedding-painters": {
+    "kind": "wave31",
+    "wave": 31,
+    "lane": "047-snapback-live-wedding-painters"
+  },
+  "w31-048-snapback-treehouse-builds": {
+    "kind": "wave31",
+    "wave": 31,
+    "lane": "048-snapback-treehouse-builds"
+  },
+  "w31-049-snapback-wedding-officiant-bookings": {
+    "kind": "wave31",
+    "wave": 31,
+    "lane": "049-snapback-wedding-officiant-bookings"
+  },
+  "w31-050-snapback-grain-dryer-servicing": {
+    "kind": "wave31",
+    "wave": 31,
+    "lane": "050-snapback-grain-dryer-servicing"
+  },
+  "fix-forward-004": {
+    "kind": "fix-forward",
+    "lane": "004"
+  },
+  "fix-forward-014": {
+    "kind": "fix-forward",
+    "lane": "014"
+  },
+  "fix-forward-018": {
+    "kind": "fix-forward",
+    "lane": "018"
+  },
+  "fix-forward-025": {
+    "kind": "fix-forward",
+    "lane": "025"
+  },
+  "fix-forward-030": {
+    "kind": "fix-forward",
+    "lane": "030"
+  },
+  "fix-forward-033": {
+    "kind": "fix-forward",
+    "lane": "033"
+  },
+  "fix-forward-035": {
+    "kind": "fix-forward",
+    "lane": "035"
+  }
+}

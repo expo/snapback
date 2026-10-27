@@ -1,0 +1,8 @@
+{
+  "commit": "c44d7637342bfd482ae8253397d85503a531d0eb",
+  "sourceCommit": "c4935cc124",
+  "binarySha256": "c56d97f508b15d6dbb1a7e6d5631f2678103ef563d6501e6dba0fde045469c73",
+  "profile": "production",
+  "flags": "LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT CARGO_INCREMENTAL=0 CARGO_PROFILE_DEV_DEBUG=0 CARGO_PROFILE_TEST_DEBUG=0",
+  "frozenSourceHashesMatch": true
+}

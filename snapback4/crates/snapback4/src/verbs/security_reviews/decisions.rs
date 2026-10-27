@@ -84,6 +84,16 @@ pub(in crate::verbs) fn render_mode(dispositions:&[Disposition],notes:&[Diagnost
             if d.gated&&!d.acknowledged || d.recorded {
                 output.push_str(&render(&[d.clone()],&[n.clone()]));
             } else if !d.acknowledged && let Some(w)=&d.witness {
+                // @ref LLP 3000.036.004.003#assignment-questions — the new tier keeps actual read facts in one default line; full evidence remains in review/JSON.
+                if d.code=="N_ASSIGNMENT_SCOPE" {
+                    let subject=n.message.split(" read:").next().unwrap_or("private payload");
+                    let assignment=w["assignment"]["principal"].as_str().map(|p|format!("; assigned to {p}")).unwrap_or_else(||"; assignment not modeled".into());
+                    output.push_str(&format!("fix question {} at {}: {} as {} disclosed {subject}{assignment}; assigned or any? (bounded replay; doesn't block; check --review)\n",d.code,d.site,w["operation"].as_str().unwrap_or("query"),w["viewer"].as_str().unwrap_or("caller")));
+                    continue;
+                }
+                if d.code=="N_TRANSITION_BYPASS"&&w["questionKind"]=="declared-transition"{
+                    output.push_str(&format!("fix question {} at {}: {} (bounded replay; doesn't block; check --review)\n",d.code,d.site,w["compactSummary"].as_str().unwrap_or("see check --json for replay")));continue;
+                }
                 let question=match d.code.as_str(){
                     "N_INSERT_WRITE_INTENT" if w["effect"]=="update"=>"Is this edit audience intended?",
                     "N_INSERT_WRITE_INTENT"=>"Is this creation audience intended?",
@@ -165,5 +175,41 @@ pub(in crate::verbs) fn render_mode(dispositions:&[Disposition],notes:&[Diagnost
   assert!(render_mode(&[d.clone()],&[n.clone()],false).is_empty());
   d.acknowledged=true;d.recorded=true;d.reason=Some("spec rationale".into());
   let output=render_mode(&[d],&[n],false);assert!(output.contains("no replay witness available")&&output.contains("specification rationale, not validation"),"{output}");
+ }
+}
+
+#[cfg(test)] mod assignment_format_replay {
+ use super::*;
+ fn disposition(d:&serde_json::Value)->Disposition {Disposition{family:d["family"].as_str().map(Into::into),id:d["id"].as_str().unwrap().into(),code:d["code"].as_str().unwrap().into(),site:d["site"].as_str().unwrap().into(),gated:d["gated"]==true,acknowledged:d["acknowledged"]==true,recorded:d["recorded"]==true,reason:d["reason"].as_str().map(Into::into),scope:"captured native survey".into(),witness:d.get("witness").filter(|w|w.is_object()).cloned()}}
+ /// Replace exact old native blocks with production-rendered cards; preserve
+ /// every other byte except the explicitly replaced positive feature summary.
+ #[test] fn captured_assignment_default_output() {
+  let Ok(path)=std::env::var("SNAPBACK4_SEC11_ASSIGNMENT_REPORTS")else{return;};
+  let rows:serde_json::Value=serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();let mut measured=Vec::new();
+  for row in rows.as_array().unwrap(){
+   let ds=row["reviews"].as_array().unwrap().iter().map(disposition).collect::<Vec<_>>();
+   let mut phases=["defaultCheck","defaultDeploy"].map(|field|{let p=&row[field];assert!(p["exit"]==0||p["exit"]==1,"censored display must be retried");let text=format!("{}{}",p["stdout"].as_str().unwrap(),p["stderr"].as_str().unwrap());assert_eq!(text.lines().count(),p["lines"].as_u64().unwrap()as usize);text});let mut cards=0;
+   for d in ds.iter().filter(|d|d.code=="N_ASSIGNMENT_SCOPE"&&!d.acknowledged&&!d.recorded&&!d.gated&&d.witness.is_some()){
+    let n=row["notes"].as_array().unwrap().iter().find(|n|n["code"]==d.code&&format!("{}:{}:{}",n["site"]["file"].as_str().unwrap(),n["site"]["line"],n["site"]["col"])==d.site).unwrap();
+    let n=Diagnostic::new(&Default::default(),"N_ASSIGNMENT_SCOPE",n["message"].as_str().unwrap(),"scope assignment");let w=d.witness.as_ref().unwrap();let text=render_mode(&[d.clone()],&[n.clone()],false);
+    assert_eq!(text.lines().count(),1,"{text}");assert!(text.contains(w["operation"].as_str().unwrap())&&text.contains(w["viewer"].as_str().unwrap())&&text.contains("assigned or any?")&&text.contains("bounded replay")&&text.contains("check --review"),"{text}");
+    if let Some(p)=w["assignment"]["principal"].as_str(){assert!(text.contains(p),"{text}");}else{assert!(text.contains("assignment not modeled"));}
+    let review=render_mode(&[d.clone()],&[n.clone()],true);assert!(review.contains(&d.id)&&review.contains(w["summary"].as_str().unwrap()));
+    let rationale=if witness::concrete(w){witness::reason_template(w)}else{"<spec rationale>".into()};
+    let original=format!("fix question {} at {}: {}; is this intended?\n  Witness: {} — repair or check --ack-security {} --reason '{}' (doesn't block)\n",d.code,d.site,n.message.trim_end_matches(['.','?']),w["compactSummary"].as_str().or_else(||w["summary"].as_str()).unwrap(),d.id,rationale);
+    for phase in &mut phases {assert_eq!(phase.matches(&original).count(),1,"native card differs for {} {}",row["wave"],row["lane"]);*phase=phase.replace(&original,&text);}
+    cards+=1;
+   }
+   let original=phases[1].lines().find(|line|line.starts_with("security: enforced by the language —")).map(|line|format!("{line}\n"));
+   if let Some(original)=original{let mut replacement=String::new();crate::verbs::security::append_deploy_language_summary(&mut replacement,&original,&ds,false);phases[1]=phases[1].replace(&original,&replacement);}
+   measured.push(serde_json::json!({"wave":row["wave"],"lane":row["lane"],"defaultCheck":{"before":row["defaultCheck"]["lines"],"after":phases[0].lines().count()},"defaultDeploy":{"before":row["defaultDeploy"]["lines"],"after":phases[1].lines().count()},"cards":cards}));
+  }
+  if let Ok(path)=std::env::var("SNAPBACK4_SEC11_ASSIGNMENT_RENDER_OUTPUT"){std::fs::write(path,serde_json::to_vec_pretty(&measured).unwrap()).unwrap();}
+ }
+ #[test] fn assignment_budget_does_not_hide_gates_test_status_or_expanded_summary(){
+  let n=Diagnostic::new(&Default::default(),"N_ASSIGNMENT_SCOPE","docs.private read: assigned or any?","scope");let mut d=Disposition{family:None,id:"id".into(),code:n.code.clone(),site:"site".into(),gated:false,acknowledged:false,recorded:false,reason:None,scope:"test".into(),witness:Some(serde_json::json!({"operation":"read","viewer":"staff"}))};
+  let mut text=String::new();crate::verbs::security::append_deploy_language_summary(&mut text,"positive feature counts\n",&[d.clone()],false);assert!(text.is_empty());
+  crate::verbs::security::append_deploy_language_summary(&mut text,"positive feature counts\n",&[d.clone()],true);assert!(text.contains("positive feature counts"));
+  d.gated=true;text.clear();crate::verbs::security::append_deploy_language_summary(&mut text,"positive feature counts\n",&[d],false);assert!(text.contains("positive feature counts"));
  }
 }

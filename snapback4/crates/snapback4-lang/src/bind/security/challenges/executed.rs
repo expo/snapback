@@ -136,6 +136,16 @@ pub(super) fn trace(bound:&Bound,p:&Program,entry:&Engine)->Trace {
                     let old=old?;let row=if let Some(next)=next&&references.iter().any(|reference|next.field(reference).ok().is_some_and(|id|*id!=Value::Null&&old.field(reference).ok()!=Some(id))){next}else{old};
                     super::super::concrete::evaluate(&predicate,row,rows,&schema,viewer,&table,now)
                 })))
+            }else if inv.site.file.contains("/sec11-transition/"){
+                let inv=inv.clone();let schema=bound.schema.clone();
+                Some(snapback4_core::engine::fixture_trace::BoundaryPredicate(std::sync::Arc::new(move |rows,old,next,viewer,now,_,site|{
+                    super::super::derived::transition_question_judgment(&inv,old,next?,rows,&schema,viewer,now,site)
+                })))
+            }else if inv.site.file.contains("/sec11-approval-latest/")||inv.site.file.contains("/sec11-approval-path/"){
+                let inv=inv.clone();let schema=bound.schema.clone();
+                Some(snapback4_core::engine::fixture_trace::BoundaryPredicate(std::sync::Arc::new(move |rows,old,next,viewer,now,args,site|{
+                    super::super::derived::approval_question_judgment(&inv,old,next?,rows,&schema,args,viewer,now,site)
+                })))
             }else{None});
             let mut concrete=if boundary.is_none()&&inv.policy.is_none(){inv.syntax.clone().map(|syntax|{
                 let bound=bound.clone();let inv=inv.clone();let insert=word=="insert";
@@ -192,6 +202,13 @@ pub(super) fn trace(bound:&Bound,p:&Program,entry:&Engine)->Trace {
 fn lifecycle_judgment(bound:&Bound,inv:&super::super::Invariant,observation:&snapback4_core::engine::fixture_trace::Observation,all:&[snapback4_core::engine::fixture_trace::Observation],after:&BTreeMap<String,Vec<Value>>,viewer:&str,now:i64)->Option<bool>{
     if let Some(contract)=bound.security_conservation.get(&inv.site.to_string()){return contract.judge(observation.old.as_ref()?,after);}
     let Some(predicate)=&inv.syntax else{return observation.allowed;};
+    // @ref LLP 3000.036.004.004#transition-questions — a transient or expired edge cannot commission a transition question.
+    if inv.site.file.starts_with("$derived/sec11-transition/") {
+        let observed=observation.next.as_ref()?;let column=inv.column.as_ref()?;
+        let row=after.get(&inv.table)?.iter().find(|row|row.field("id").ok()==observed.field("id").ok())?;
+        if row.field(column).ok()!=observed.field(column).ok()||bound.schema.tables[&inv.table].expired(row,now){return None;}
+        return observation.allowed;
+    }
     // @ref LLP 3000.036.004.001#question-candidates — absence questions require the observed image and predicate to survive commit.
     if inv.site.file.starts_with("$derived/sec11-absence/") {
         let observed=observation.next.as_ref()?;

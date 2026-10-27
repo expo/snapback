@@ -1,0 +1,502 @@
+[
+  {
+    "wave": 25,
+    "lane": "001-snapback-organ-pipe-voicing",
+    "source": "a"
+  },
+  {
+    "wave": 25,
+    "lane": "002-snapback-ocular-prosthesis-fittings",
+    "source": "a"
+  },
+  {
+    "wave": 25,
+    "lane": "003-snapback-typewriter-restoration-jobs",
+    "source": "a"
+  },
+  {
+    "wave": 25,
+    "lane": "004-snapback-saddle-fitting-visits",
+    "source": "a"
+  },
+  {
+    "wave": 25,
+    "lane": "005-snapback-headstone-engraving-orders",
+    "source": "a"
+  },
+  {
+    "wave": 25,
+    "lane": "006-snapback-telescope-mirror-recoating",
+    "source": "a"
+  },
+  {
+    "wave": 25,
+    "lane": "007-snapback-wig-making-orders",
+    "source": "a"
+  },
+  {
+    "wave": 25,
+    "lane": "008-snapback-terrazzo-floor-restorations",
+    "source": "a"
+  },
+  {
+    "wave": 25,
+    "lane": "009-snapback-process-server-deliveries",
+    "source": "a"
+  },
+  {
+    "wave": 25,
+    "lane": "010-snapback-hot-air-balloon-flights",
+    "source": "a"
+  },
+  {
+    "wave": 25,
+    "lane": "011-snapback-radon-mitigation-jobs",
+    "source": "a"
+  },
+  {
+    "wave": 25,
+    "lane": "012-snapback-portrait-studio-sessions",
+    "source": "a"
+  },
+  {
+    "wave": 25,
+    "lane": "013-snapback-dive-shop-tank-fills",
+    "source": "a"
+  },
+  {
+    "wave": 25,
+    "lane": "014-snapback-bed-bug-heat-treatments",
+    "source": "a"
+  },
+  {
+    "wave": 25,
+    "lane": "015-snapback-band-instrument-rentals",
+    "source": "a"
+  },
+  {
+    "wave": 25,
+    "lane": "016-snapback-carousel-horse-restorations",
+    "source": "a"
+  },
+  {
+    "wave": 25,
+    "lane": "017-snapback-butcher-custom-orders",
+    "source": "a"
+  },
+  {
+    "wave": 25,
+    "lane": "018-snapback-equine-dental-floats",
+    "source": "a"
+  },
+  {
+    "wave": 25,
+    "lane": "019-snapback-mobile-vet-house-calls",
+    "source": "a"
+  },
+  {
+    "wave": 25,
+    "lane": "020-snapback-fly-fishing-guide-trips",
+    "source": "a"
+  },
+  {
+    "wave": 25,
+    "lane": "021-snapback-coffee-roastery-green-lots",
+    "source": "a"
+  },
+  {
+    "wave": 25,
+    "lane": "022-snapback-kilt-hire-fittings",
+    "source": "a"
+  },
+  {
+    "wave": 25,
+    "lane": "023-snapback-windshield-chip-repairs",
+    "source": "a"
+  },
+  {
+    "wave": 25,
+    "lane": "024-snapback-stair-lift-installs",
+    "source": "a"
+  },
+  {
+    "wave": 25,
+    "lane": "025-snapback-forklift-certification-tests",
+    "source": "a"
+  },
+  {
+    "wave": 25,
+    "lane": "026-snapback-accordion-repair-tickets",
+    "source": "a"
+  },
+  {
+    "wave": 25,
+    "lane": "027-snapback-mold-remediation-jobs",
+    "source": "a"
+  },
+  {
+    "wave": 25,
+    "lane": "028-snapback-church-bell-rehangings",
+    "source": "a"
+  },
+  {
+    "wave": 25,
+    "lane": "029-snapback-dog-sled-tours",
+    "source": "a"
+  },
+  {
+    "wave": 25,
+    "lane": "030-snapback-sewer-camera-inspections",
+    "source": "a"
+  },
+  {
+    "wave": 25,
+    "lane": "031-snapback-grease-trap-servicing",
+    "source": "a"
+  },
+  {
+    "wave": 25,
+    "lane": "032-snapback-home-inspection-reports",
+    "source": "a"
+  },
+  {
+    "wave": 25,
+    "lane": "033-snapback-pressure-washing-jobs",
+    "source": "a"
+  },
+  {
+    "wave": 25,
+    "lane": "034-snapback-photo-restoration-orders",
+    "source": "local-tail"
+  },
+  {
+    "wave": 25,
+    "lane": "035-snapback-alpaca-fleece-processing",
+    "source": "local-tail"
+  },
+  {
+    "wave": 25,
+    "lane": "036-snapback-ice-sculpture-commissions",
+    "source": "a"
+  },
+  {
+    "wave": 25,
+    "lane": "037-snapback-uniform-embroidery-orders",
+    "source": "local-tail"
+  },
+  {
+    "wave": 25,
+    "lane": "038-snapback-heating-oil-deliveries",
+    "source": "local-tail"
+  },
+  {
+    "wave": 25,
+    "lane": "039-snapback-horse-drawn-carriage-hires",
+    "source": "local-tail"
+  },
+  {
+    "wave": 25,
+    "lane": "040-snapback-sewing-machine-repairs",
+    "source": "local-tail"
+  },
+  {
+    "wave": 25,
+    "lane": "041-snapback-pinball-machine-repairs",
+    "source": "local-tail"
+  },
+  {
+    "wave": 25,
+    "lane": "042-snapback-calligraphy-commission-orders",
+    "source": "local-tail"
+  },
+  {
+    "wave": 25,
+    "lane": "043-snapback-termite-inspection-reports",
+    "source": "local-tail"
+  },
+  {
+    "wave": 25,
+    "lane": "044-snapback-car-wrap-installs",
+    "source": "local-tail"
+  },
+  {
+    "wave": 25,
+    "lane": "045-snapback-basement-waterproofing-jobs",
+    "source": "local-tail"
+  },
+  {
+    "wave": 25,
+    "lane": "046-snapback-garage-door-repairs",
+    "source": "local-tail"
+  },
+  {
+    "wave": 25,
+    "lane": "047-snapback-golf-club-regrip-orders",
+    "source": "local-tail"
+  },
+  {
+    "wave": 25,
+    "lane": "048-snapback-awning-fabrication-orders",
+    "source": "local-tail"
+  },
+  {
+    "wave": 25,
+    "lane": "049-snapback-e-bike-battery-swaps",
+    "source": "local-tail"
+  },
+  {
+    "wave": 25,
+    "lane": "050-snapback-harp-regulation-visits",
+    "source": "local-tail"
+  },
+  {
+    "wave": 29,
+    "lane": "001-snapback-barometer-restorations",
+    "source": "d"
+  },
+  {
+    "wave": 29,
+    "lane": "002-snapback-scleral-lens-fittings",
+    "source": "d"
+  },
+  {
+    "wave": 29,
+    "lane": "003-snapback-antique-telephone-restorations",
+    "source": "d"
+  },
+  {
+    "wave": 29,
+    "lane": "004-snapback-smoke-damage-cleanups",
+    "source": "d"
+  },
+  {
+    "wave": 29,
+    "lane": "005-snapback-wrought-iron-gate-commissions",
+    "source": "d"
+  },
+  {
+    "wave": 29,
+    "lane": "006-snapback-binocular-overhaul-jobs",
+    "source": "d"
+  },
+  {
+    "wave": 29,
+    "lane": "007-snapback-custom-wallpaper-commissions",
+    "source": "d"
+  },
+  {
+    "wave": 29,
+    "lane": "008-snapback-log-home-chinking-repairs",
+    "source": "d"
+  },
+  {
+    "wave": 29,
+    "lane": "009-snapback-antique-doll-restorations",
+    "source": "d"
+  },
+  {
+    "wave": 29,
+    "lane": "010-snapback-via-ferrata-guided-climbs",
+    "source": "d"
+  },
+  {
+    "wave": 29,
+    "lane": "011-snapback-home-battery-installs",
+    "source": "d"
+  },
+  {
+    "wave": 29,
+    "lane": "012-snapback-architectural-rendering-jobs",
+    "source": "d"
+  },
+  {
+    "wave": 29,
+    "lane": "013-snapback-lifting-sling-inspections",
+    "source": "d"
+  },
+  {
+    "wave": 29,
+    "lane": "014-snapback-holiday-light-installations",
+    "source": "d"
+  },
+  {
+    "wave": 29,
+    "lane": "015-snapback-mobility-scooter-rentals",
+    "source": "d"
+  },
+  {
+    "wave": 29,
+    "lane": "016-snapback-vintage-tractor-restorations",
+    "source": "d"
+  },
+  {
+    "wave": 29,
+    "lane": "017-snapback-mobile-bartending-bookings",
+    "source": "d"
+  },
+  {
+    "wave": 29,
+    "lane": "018-snapback-poultry-flock-vaccinations",
+    "source": "local-tail"
+  },
+  {
+    "wave": 29,
+    "lane": "019-snapback-mature-tree-transplants",
+    "source": "d"
+  },
+  {
+    "wave": 29,
+    "lane": "020-snapback-snowshoe-guided-hikes",
+    "source": "local-tail"
+  },
+  {
+    "wave": 29,
+    "lane": "021-snapback-cotton-gin-runs",
+    "source": "d"
+  },
+  {
+    "wave": 29,
+    "lane": "022-snapback-custom-wetsuit-fittings",
+    "source": "d"
+  },
+  {
+    "wave": 29,
+    "lane": "023-snapback-rv-roof-repairs",
+    "source": "d"
+  },
+  {
+    "wave": 29,
+    "lane": "024-snapback-safe-moving-jobs",
+    "source": "local-tail"
+  },
+  {
+    "wave": 29,
+    "lane": "025-snapback-boating-license-exams",
+    "source": "local-tail"
+  },
+  {
+    "wave": 29,
+    "lane": "026-snapback-brass-instrument-repairs",
+    "source": "local-tail"
+  },
+  {
+    "wave": 29,
+    "lane": "027-snapback-haunted-house-set-builds",
+    "source": "local-tail"
+  },
+  {
+    "wave": 29,
+    "lane": "028-snapback-garden-fountain-restorations",
+    "source": "local-tail"
+  },
+  {
+    "wave": 29,
+    "lane": "029-snapback-aircraft-ferry-flights",
+    "source": "local-tail"
+  },
+  {
+    "wave": 29,
+    "lane": "030-snapback-ground-radar-surveys",
+    "source": "local-tail"
+  },
+  {
+    "wave": 29,
+    "lane": "031-snapback-dryer-vent-cleanings",
+    "source": "local-tail"
+  },
+  {
+    "wave": 29,
+    "lane": "032-snapback-assisted-living-placements",
+    "source": "local-tail"
+  },
+  {
+    "wave": 29,
+    "lane": "033-snapback-tennis-court-resurfacing",
+    "source": "local-tail"
+  },
+  {
+    "wave": 29,
+    "lane": "034-snapback-fountain-pen-restorations",
+    "source": "local-tail"
+  },
+  {
+    "wave": 29,
+    "lane": "035-snapback-fur-cleaning-batches",
+    "source": "local-tail"
+  },
+  {
+    "wave": 29,
+    "lane": "036-snapback-wax-figure-commissions",
+    "source": "local-tail"
+  },
+  {
+    "wave": 29,
+    "lane": "037-snapback-bespoke-hat-commissions",
+    "source": "local-tail"
+  },
+  {
+    "wave": 29,
+    "lane": "038-snapback-toner-cartridge-deliveries",
+    "source": "local-tail"
+  },
+  {
+    "wave": 29,
+    "lane": "039-snapback-koi-breeder-reservations",
+    "source": "local-tail"
+  },
+  {
+    "wave": 29,
+    "lane": "040-snapback-outboard-motor-repairs",
+    "source": "local-tail"
+  },
+  {
+    "wave": 29,
+    "lane": "041-snapback-gramophone-restorations",
+    "source": "local-tail"
+  },
+  {
+    "wave": 29,
+    "lane": "042-snapback-vintage-guitar-consignments",
+    "source": "local-tail"
+  },
+  {
+    "wave": 29,
+    "lane": "043-snapback-playground-safety-inspections",
+    "source": "local-tail"
+  },
+  {
+    "wave": 29,
+    "lane": "044-snapback-wooden-deck-refinishing",
+    "source": "local-tail"
+  },
+  {
+    "wave": 29,
+    "lane": "045-snapback-geothermal-loop-installs",
+    "source": "local-tail"
+  },
+  {
+    "wave": 29,
+    "lane": "046-snapback-furnace-repair-calls",
+    "source": "local-tail"
+  },
+  {
+    "wave": 29,
+    "lane": "047-snapback-henna-artist-bookings",
+    "source": "local-tail"
+  },
+  {
+    "wave": 29,
+    "lane": "048-snapback-pergola-builds",
+    "source": "local-tail"
+  },
+  {
+    "wave": 29,
+    "lane": "049-snapback-string-quartet-bookings",
+    "source": "local-tail"
+  },
+  {
+    "wave": 29,
+    "lane": "050-snapback-home-generator-servicing",
+    "source": "local-tail"
+  }
+]

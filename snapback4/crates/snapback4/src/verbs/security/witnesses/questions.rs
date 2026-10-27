@@ -4,7 +4,7 @@ use super::*;
 use snapback4_core::{Context, Engine, ir, schema::{RuleExpr, RuleTerm}};
 
 pub(super) fn advisory(code:&str)->bool {
-    matches!(code,"N_OPTIONAL_EVIDENCE"|"N_TEXT_EVIDENCE"|"N_CHILD_EVIDENCE_PRESENCE"|"N_GUARD_NOT_CONSUMED"|"N_BROAD_READ")
+    matches!(code,"N_OPTIONAL_EVIDENCE"|"N_TEXT_EVIDENCE"|"N_CHILD_EVIDENCE_PRESENCE"|"N_GUARD_NOT_CONSUMED"|"N_BROAD_READ"|"N_APPROVAL_PATH"|"N_CALLER_HISTORY"|"N_LATEST_SUBJECT"|"N_ASSIGNMENT_SCOPE"|"N_TRANSITION_BYPASS")
 }
 pub(super) fn proposals(bound:&Bound,index:usize,n:&Diagnostic)->Vec<(usize,Candidate)> {
     let mut lines=Vec::new();
@@ -82,6 +82,50 @@ pub(super) fn proposals(bound:&Bound,index:usize,n:&Diagnostic)->Vec<(usize,Cand
 #[cfg(test)]
 fn candidates(bound:&Bound,sources:&[(String,String)],index:usize,n:&Diagnostic)->Vec<(usize,security::Invariant)> {
     candidate_batch::resolve(sources,proposals(bound,index,n))
+}
+
+// @ref LLP 3000.036.004.004#transition-questions — public questions retain complete normalized source hypotheses and a persistent actual edge.
+pub(super) fn transition_evidence(mut value:serde_json::Value,n:&Diagnostic,inv:&security::Invariant)->Option<serde_json::Value>{
+    if value["effect"]!="update"{return None;}let column=inv.column.as_ref()?;
+    let old=value["old"].get(column)?.clone();let next=value["row"].get(column)?.clone();if old==next{return None;}
+    let committed=value["committedRows"][&inv.table].as_array()?.iter().find(|row|row["id"]==value["row"]["id"])?;
+    if committed.get(column)!=Some(&next){return None;}
+    let op=value["operation"].as_str()?.to_owned();let viewer=value["viewer"].as_str()?.to_owned();
+    value["hypothesis"]=json!({"basis":inv.predicate});value["questionKind"]="declared-transition".into();
+    value["transition"]=json!({"table":inv.table,"column":column,"from":old,"to":next});
+    value["candidate"]=format!("question: {}",n.message).into();
+    value["summary"]=format!("{op} as {viewer} committed {}.{column} {old} -> {next}; {} (bounded typed write replay; not proof or inferred enum-order authority)",inv.table,n.message).into();
+    let question=n.message.split_once(": ").map(|(_,s)|s).unwrap_or(&n.message);let prefix=format!("{op} ");let question=question.strip_prefix(&prefix).unwrap_or(question);
+    value["compactSummary"]=format!("{op} as {viewer} changed {}.{column} {old} -> {next}; {question}",inv.table).into();
+    Some(super::super::super::security_reviews::witness::stamp(value))
+}
+
+pub(super) fn assignment_evidence(mut value:serde_json::Value,n:&Diagnostic,inv:&security::Invariant)->Option<serde_json::Value> {
+    // One actual query on the recorded initial world keeps assignment facts
+    // tied to that observation, rather than borrowing a stale pre-history row.
+    if value["kind"]!="read-payload"||value["history"].as_array()?.len()!=1{return None;}
+    let mut assigned=String::new();
+    if let Some(RuleExpr::Or(parts))=&inv.policy&&let [_,relation]=parts.as_slice(){
+        let principal=match relation{
+            RuleExpr::Eq(RuleTerm::Field(column),RuleTerm::Viewer)=>value["row"].get(column)?.clone(),
+            RuleExpr::Exists{table,key,equalities,..}=>{
+                let [RuleTerm::Field(reference)]=key.as_slice()else{return None;};
+                let [(column,RuleTerm::Viewer)]=equalities.as_slice()else{return None;};
+                let parent=value["supportingRows"][table].as_array()?.iter().find(|row|row["id"]==value["row"][reference])?;
+                parent.get(column)?.clone()
+            },_=>return None,
+        };
+        let principal=principal.as_str()?;
+        if value["viewer"]==principal{return None;}
+        value["assignment"]=json!({"relation":relation.quarry(),"principal":principal});
+        assigned=format!(" assigned to {principal};");
+    }
+    value["hypothesis"]=json!({"policy":inv.policy});
+    value["questionKind"]="assignment-scope".into();
+    value["candidate"]=format!("question: {}",n.message).into();
+    value["summary"]=format!("{} as {} → actually disclosed {};{} {} (bounded typed payload replay; not proof or inferred assignment intent)",value["operation"].as_str().unwrap_or("query"),value["viewer"].as_str().unwrap_or("caller"),n.message.split(" read:").next().unwrap_or("payload"),assigned,n.message).into();
+    value["compactSummary"]=value["summary"].clone();
+    Some(super::super::super::security_reviews::witness::stamp(value))
 }
 
 pub(super) fn text_evidence(mut value:serde_json::Value,n:&Diagnostic)->serde_json::Value {
@@ -233,6 +277,29 @@ pub(super) fn repeat(bound:&Bound,inv:&security::Invariant,c:&Counterexample,n:&
             super::super::super::super::security_reviews::witness::concrete(&value).then_some(value)
         })).collect()
     }
+    fn assignment_values(source:&str,table:&str)->Vec<serde_json::Value>{
+        let sources=vec![("schema.q".into(),source.into())];let mut bound=snapback4_lang::compile(&sources);assert!(bound.diagnostics.is_empty());
+        let selected=security::derived::assignment_questions(&sources,&bound).into_iter().filter(|(_,i)|i.table==table).collect::<Vec<_>>();
+        assert!(!selected.is_empty());bound.invariants=selected.iter().map(|(_,i)|i.clone()).collect();let mut c=challenges::Campaign::work_bounded(8192);challenges::generated_campaign(&bound,&mut c,false);
+        selected.iter().flat_map(|(n,i)|c.violations.iter().filter(|v|v.invariant_site==i.site.to_string()&&v.history.len()==1&&v.history.last().is_some_and(|s|s.observed_data.is_some())).filter_map(|v|assignment_evidence(evidence(&sources,&bound,i,v),n,i))).collect()
+    }
+    #[test]fn assignment_cards_keep_actual_assignees_and_require_private_payloads(){
+        let source=include_str!("../../../../../snapback4-lang/tests/security/sec10-shipping/w30-004.q");
+        let values=assignment_values(source,"jobPrivate");assert!(!values.is_empty());
+        for v in values{assert_eq!(v["kind"],"read-payload");assert_ne!(v["assignment"]["principal"],v["viewer"]);assert!(v["candidate"].as_str().unwrap().starts_with("question:"));assert!(v["summary"].as_str().unwrap().contains(v["assignment"]["principal"].as_str().unwrap()));}
+        let id_only=source.replace("return { details: jobPrivate[job = job], cancellation: cancellations[job = job] }","secret = jobPrivate[job = job] ! else NOT_FOUND\n  return { id: secret.id }");
+        assert!(assignment_values(&id_only,"jobPrivate").is_empty(),"returning the resource id does not disclose private payload");
+        let source=include_str!("../../../../../snapback4-lang/tests/security/sec10-shipping/w30-014.q");
+        let values=assignment_values(source,"projects");assert!(!values.is_empty());assert!(values.iter().all(|v|v.get("assignment").is_none()&&v["candidate"].as_str().unwrap().contains("no modeled assignment constraint")));
+    }
+    #[test]fn changed_assignment_audience_renews_the_same_payload_question(){
+        let original=include_str!("../../../../../snapback4-lang/tests/security/sec10-shipping/w30-004.q");
+        let original=original.replace("  principal: principal\n","  principal: principal\n  active: bool default false\n");
+        let changed=original.replace("  read <- exists roles[viewer, role = 'owner'] or exists roles[viewer, role = 'coordinator']\n","  read <- exists roles[viewer, role = 'owner'] or exists roles[viewer, role = 'coordinator', active = false]\n");
+        let before=assignment_values(&original,"jobPrivate");let after=assignment_values(&changed,"jobPrivate");assert!(!before.is_empty()&&!after.is_empty());
+        let a=&before[0];let b=after.iter().find(|v|v["viewer"]==a["viewer"]&&v["operation"]==a["operation"]).unwrap();
+        assert_eq!(a["candidate"],b["candidate"],"the factual role/assignment question stays the same");assert_ne!(a["hypothesis"],b["hypothesis"]);assert_ne!(a["id"],b["id"],"changed audience qualifiers must renew the decision");
+    }
     #[test]fn omitted_and_empty_media_are_actual_inserts(){
         let prefix="table docs:\n  photos: [image <=1000] <=3 ?\n  read <- allow\n  insert <- allow\n  online only\n";
         for payload in ["null","[]"] {
@@ -359,4 +426,38 @@ pub(super) fn repeat(bound:&Bound,inv:&security::Invariant,c:&Counterexample,n:&
         let again=examples(source,"N_GUARD_NOT_CONSUMED",message);assert_eq!(values.iter().map(|v|&v["id"]).collect::<Vec<_>>(),again.iter().map(|v|&v["id"]).collect::<Vec<_>>());
         let fixed=source.replace("  return insert receipts", "  update credits[credit] {spent:true}\n  return insert receipts");assert!(examples(&fixed,"N_GUARD_NOT_CONSUMED",message).is_empty());
     }
+}
+
+#[cfg(test)]mod transition_cards{
+ use super::*;
+ #[test]fn committed_transition_cards_keep_full_hypotheses_and_reject_transient_images(){
+  let source=include_str!(concat!(env!("CARGO_MANIFEST_DIR"),"/../snapback4-lang/tests/security/sec10-shipping/w30-030.q"));let sources=vec![("schema.q".into(),source.into())];let mut bound=snapback4_lang::compile(&sources);assert!(bound.diagnostics.is_empty());let qs=security::derived::transition_questions(&sources,&bound);assert_eq!(qs.len(),1);let(n,inv)=&qs[0];bound.invariants=vec![inv.clone()];let mut campaign=challenges::Campaign::work_bounded(8192);challenges::generated_campaign(&bound,&mut campaign,false);
+  let c=campaign.violations.iter().find(|c|c.operation=="publishReport"&&c.reachability.is_reachable()).unwrap();let raw=evidence(&sources,&bound,inv,c);let card=transition_evidence(raw.clone(),n,inv).unwrap();assert_eq!(card["transition"]["from"],"measured");assert_eq!(card["transition"]["to"],"reported");assert!(card["summary"].as_str().unwrap().contains("markReviewed"));assert!(super::super::super::super::security_reviews::witness::concrete(&card));
+  let changed=source.replace("require s.status = 'measured' else BAD_STATUS","require s.status = 'measured' else BAD_STATUS\n  require s.siteKind = 'office' else WRONG_KIND");let sources2=vec![("schema.q".into(),changed)];let b2=snapback4_lang::compile(&sources2);assert!(b2.diagnostics.is_empty());let qs2=security::derived::transition_questions(&sources2,&b2);let next=transition_evidence(raw.clone(),&qs2[0].0,&qs2[0].1).unwrap();assert_eq!(card["candidate"],next["candidate"]);assert_eq!(card["transition"],next["transition"]);assert_ne!(card["id"],next["id"],"source prerequisite qualifiers remain material after factual candidate rewriting");
+  let sources3=vec![("schema.q".into(),format!("-- harmless source line\n{source}"))];let b3=snapback4_lang::compile(&sources3);let qs3=security::derived::transition_questions(&sources3,&b3);let same=transition_evidence(raw.clone(),&qs3[0].0,&qs3[0].1).unwrap();assert_eq!(card["id"],same["id"],"source coordinates do not define meaning");
+  let mut missing=raw.clone();missing["committedRows"][&inv.table]=json!([]);assert!(transition_evidence(missing,n,inv).is_none());
+  let mut reverted=raw.clone();let id=reverted["row"]["id"].clone();let committed=reverted["committedRows"][&inv.table].as_array_mut().unwrap().iter_mut().find(|row|row["id"]==id).unwrap();committed[inv.column.as_ref().unwrap()]="measured".into();assert!(transition_evidence(reverted,n,inv).is_none());
+  let mut noop=raw;noop["old"]=noop["row"].clone();assert!(transition_evidence(noop,n,inv).is_none());
+ }
+ #[test]fn calibrated_questions_survive_the_complete_default_collector(){
+  for(label,source,code,operation)in[
+   ("030",include_str!(concat!(env!("CARGO_MANIFEST_DIR"),"/../snapback4-lang/tests/security/sec10-shipping/w30-030.q")),"N_TRANSITION_BYPASS","publishReport"),
+   ("035",include_str!(concat!(env!("CARGO_MANIFEST_DIR"),"/../snapback4-lang/tests/security/sec10-shipping/w30-035.q")),"N_TRANSITION_BYPASS","advanceStage"),
+   ("018",include_str!(concat!(env!("CARGO_MANIFEST_DIR"),"/../snapback4-lang/tests/security/sec10-shipping/w30-018.q")),"N_APPROVAL_PATH","pruneTouchup")]{
+   struct Scratch(std::path::PathBuf);impl Drop for Scratch{fn drop(&mut self){let _=std::fs::remove_dir_all(&self.0);}}
+   let root=std::env::temp_dir().join(format!("sb4-sec11-transition-collector-{}-{label}",std::process::id()));let _scratch=Scratch(root.clone());std::fs::create_dir_all(root.join("snapback")).unwrap();std::fs::write(root.join("snapback/schema.q"),source).unwrap();let project=Project{root};let sources=project.sources().unwrap();let bound=snapback4_lang::compile(&sources);assert!(bound.diagnostics.is_empty());let mut report=security::analyze_rules(&bound);security::add_source_notes(&mut report,&sources,&bound);let options=Options{positionals:Vec::new(),flags:Default::default(),json:false};let values=super::super::collect(&project,&bound,&sources,&report.notes,true,&options);
+   let witness=report.notes.iter().zip(values).find_map(|(n,w)|w.filter(|w|n.code==code&&w["operation"]==operation)).unwrap_or_else(||panic!("{label}: exact target question lost in the shared default campaign"));
+   if let Some(role)=match label{"030"=>Some("engineer"),"035"=>Some("cleaner"),_=>None}{assert!(witness["supportingRows"]["roles"].as_array().unwrap().iter().any(|r|r["principal"]==witness["viewer"]&&r["role"]==role),"{label}: expected actual {role} caller, got {}",witness["viewer"]);}
+  }
+ }
+
+ #[test]fn a_secondary_written_currency_renews_an_identical_zero_value_replay(){
+  let source=include_str!(concat!(env!("CARGO_MANIFEST_DIR"),"/../snapback4-lang/tests/security/sec10-shipping/w30-030.q"));let usd=source.replace("table studies:\n","table studies:\n  reviewFee: money USD default 0\n").replace("update studies[study] { status: 'reviewed' }","update studies[study] { status: 'reviewed', reviewFee: 100 }");let eur=usd.replace("reviewFee: money USD","reviewFee: money EUR");
+  let sources=vec![("schema.q".into(),usd)];let mut bound=snapback4_lang::compile(&sources);assert!(bound.diagnostics.is_empty());let qs=security::derived::transition_questions(&sources,&bound);assert_eq!(qs.len(),1);let(n,inv)=&qs[0];bound.invariants=vec![inv.clone()];let mut campaign=challenges::Campaign::work_bounded(8192);challenges::generated_campaign(&bound,&mut campaign,false);let c=campaign.violations.iter().find(|c|c.operation=="publishReport"&&c.reachability.is_reachable()).unwrap();let raw=evidence(&sources,&bound,inv,c);assert_eq!(raw["row"]["reviewFee"],0);let first=transition_evidence(raw.clone(),n,inv).unwrap();
+  let changed_sources=vec![("schema.q".into(),eur)];let changed=snapback4_lang::compile(&changed_sources);assert!(changed.diagnostics.is_empty());let qs2=security::derived::transition_questions(&changed_sources,&changed);let raw2=evidence(&changed_sources,&changed,&qs2[0].1,c);assert_eq!(raw["row"],raw2["row"]);assert_eq!(raw["old"],raw2["old"]);assert_eq!(raw["args"],raw2["args"]);
+  let second=transition_evidence(raw2,&qs2[0].0,&qs2[0].1).unwrap();assert_eq!(first["candidate"],second["candidate"]);assert_eq!(first["transition"],second["transition"]);assert_ne!(first["id"],second["id"],"identical zero-value JSON cannot erase the source write currency");
+  let guarded=sources[0].1.replace(", reviewFee: 100","").replace("require s.status = 'measured' else BAD_STATUS","require s.status = 'measured' else BAD_STATUS\n  require s.reviewFee <= 100 else OVER_BUDGET");let guarded_eur=guarded.replace("reviewFee: money USD","reviewFee: money EUR");let mut ids=Vec::new();
+  for source in [guarded,guarded_eur]{let s=vec![("schema.q".into(),source)];let b=snapback4_lang::compile(&s);assert!(b.diagnostics.is_empty());let q=security::derived::transition_questions(&s,&b);assert_eq!(q.len(),1);let r=evidence(&s,&b,&q[0].1,c);assert_eq!(raw["row"],r["row"]);assert_eq!(raw["old"],r["old"]);let card=transition_evidence(r,&q[0].0,&q[0].1).unwrap();assert_eq!(first["candidate"],card["candidate"]);ids.push(card["id"].clone());}assert_ne!(ids[0],ids[1],"guard-only currency is part of the typed hypothesis too");
+ }
+
 }

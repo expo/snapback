@@ -92,13 +92,21 @@ pub(super) fn fixture_cases(bound:&Bound,p:&Program,rows:&BTreeMap<String,Vec<Va
             ir::ArgType::Image{..}=>vec![Value::String("$security:image".into()),Value::String("$security:image:alternate".into())],
             ir::ArgType::Principal=>actors.iter().map(|s|Value::Id(s.clone())).collect(),
             ir::ArgType::Ref{table} if rows.get(table).is_some_and(|rs|!rs.is_empty())=>rows[table].iter().filter_map(|r|r.field("id").ok().cloned()).collect(),
-            ir::ArgType::Optional(inner)=>{let mut v=vec![Value::Null];v.extend(values(name,inner,rows,actors,times)?);v},
+            ir::ArgType::Ref{..}=>Vec::new(),
+            // A missing referenced population still leaves the null arm
+            // available: first-time creates must not require an existing row.
+            ir::ArgType::Optional(inner)=>{let mut v=vec![Value::Null];if let Some(inner)=values(name,inner,rows,actors,times){v.extend(inner);}v},
             _=>vec![arguments(&BTreeMap::from([(name.into(),k.clone())]),0)?.remove(name)?],
         })
     }
     let mut cases=vec![BTreeMap::new()];
     for (name,k) in args{
         let Some(mut vals)=values(name,k,rows,actors,&times)else{out.unsupported.insert(format!("{name}: history needs a typed asset argument"));return Vec::new();};
+        if bound.invariants.iter().any(|i|i.site.file.contains("/sec11-assignment/"))
+            &&let ir::ArgType::Text{min,max,format:Some(snapback4_core::schema::TextFormat::Url)}=k {
+            let prefix="https://example.invalid/";let value=prefix.to_owned()+&"x".repeat((*min as usize).saturating_sub(prefix.len()));
+            if value.chars().count()<=*max as usize {vals.insert(0,Value::String(value));}
+        }
         if vals.is_empty()||cases.is_empty(){out.unsupported.insert(format!("{}: no typed history tuples available for {name}; remaining combinations uncovered",p.name));return Vec::new();}
         if let Some(preferred)=preferences.get(name){vals.sort_by_key(|v|!preferred.contains(v));}
         for literal in literals.get(name).into_iter().flatten() {
@@ -125,7 +133,7 @@ pub(super) fn fixture_cases(bound:&Bound,p:&Program,rows:&BTreeMap<String,Vec<Va
         cases=preferred;
     }
     let focused=super::executed::write_arguments(bound,p).into_iter().filter(|a|matches!(p.args.get(a),Some(ir::ArgType::Optional(inner)) if !matches!(inner.as_ref(),ir::ArgType::Ref{..}|ir::ArgType::Principal))).collect::<Vec<_>>();
-    if focused.is_empty(){return cases;}
+    if focused.is_empty(){return super::approval_proposals::prioritize(bound,p,cases);}
     let mut prioritized=Vec::new();
     for case in cases{
         for name in &focused{if let Some(value)=arguments(&BTreeMap::from([(name.clone(),p.args[name].clone())]),4).and_then(|mut a|a.remove(name))&&value!=Value::Null{
@@ -134,7 +142,7 @@ pub(super) fn fixture_cases(bound:&Bound,p:&Program,rows:&BTreeMap<String,Vec<Va
         }}
         if !prioritized.contains(&case){prioritized.push(case.clone());}
         if prioritized.len()>=LIMIT{prioritized.truncate(LIMIT);out.unsupported.insert("column-write argument frontier capped at 512; remaining combinations uncovered".into());break;}
-    }prioritized
+    }super::approval_proposals::prioritize(bound,p,prioritized)
 }
 // Preserve status/decision alternatives on each resource tuple before the
 // small directed cap; text/noise arguments must not correlate bools with ids.

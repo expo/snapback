@@ -421,6 +421,25 @@ N_CONSTANT_APPROVAL: Creation stores a constant true approval/payment flag. A tr
 
 N_TRANSITION_BYPASS: A generic enum setter reaches a state also reached by a stricter decision mutation. Apply the decision authority to every path reaching that state; write independent transition intent and run test.
 
+
+A sibling's source guards can also supply an advisory question about an actual
+committed old/next edge: a literal writer can bypass a sibling step, or a caller
+can jump from a declared default directly to a value another operation requires.
+The card names the actual operation, caller, edge and source sibling. Enum list
+order does not declare a workflow. A question remains advisory until the author
+states intent; full source premises and replay remain in review/JSON.
+For an intended order, enforce the allowed edges with named update images or
+program guards, and state independent intent:
+
+```quarry
+table transitionBatches:
+  stage: enum('finished', 'inspection', 'cleaning') default 'inspection'
+  read <- allow
+  insert <- .stage = 'inspection'
+  update (old, next) <- old.stage = next.stage or (old.stage = 'inspection' and next.stage = 'cleaning') or (old.stage = 'cleaning' and next.stage = 'finished')
+  online only
+```
+
 ### N_STALE_CREATION_CHECK
 
 N_STALE_CREATION_CHECK: A creator checks a mutable eligibility column that a later literal-state transition does not recheck. One question groups the created table, dependency and decision sites; immutable ownership reads and non-state payload edits are excluded. Decide whether eligibility must remain current and write independent intent; test create, eligibility change, approval. Any literal enum destination distinct from its default creation state can raise this question, including filled; no approval-word list determines eligibility. True approval flags also qualify.
@@ -636,6 +655,31 @@ witness. To acknowledge it, name its digest and exactly `permit OPERATION as
 CALLER`, followed by the printed audience/effect rationale. An invalid answer
 prints the current redacted replay and records no decisions. Complex guard
 histories and unsupported evidence shapes remain coverage gaps.
+
+### Approval acts and history questions
+
+N_APPROVAL_PATH identifies a related completion operation that proceeds without
+a receipt checked by a parent operation. N_CALLER_HISTORY asks whether a caller
+ordinal selecting approval must instead come from stored same-person history.
+N_LATEST_SUBJECT asks whether an approval selected by an older parent may still
+authorize another sitting. These are advisory questions. Default check/deploy
+shows a question when a current admitted-call replay supplies its witness;
+JSON retains the actual caller, arguments, initialization and old/new images.
+An acknowledgment must address that exact witness and intended effect.
+Enforce a narrower specification in the operation and declare independent intent.
+
+### Assignment scope questions
+
+N_ASSIGNMENT_SCOPE asks whether a whole-role caller should read only assigned
+resources or any resource. A current authored query must actually disclose the
+protected payload; a reference or policy image alone is insufficient. When a
+required principal column models the staff assignment, JSON retains the actual
+other assignee and caller membership. When no such assignment is modeled, the
+question says so without inventing an assignee. These are advisory questions.
+Scope the role branch to the specification's assignment, state independent read
+intent, or acknowledge the exact witness and intended global audience.
+
+### Advisory guard precision
 
 Guard precision: advisory read checks expand bounded read-only role helpers and
 retain raw versus caller-filtered witness polarity. A prior live role snapshot

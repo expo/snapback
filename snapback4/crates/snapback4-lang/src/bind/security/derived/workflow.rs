@@ -87,7 +87,7 @@ pub(crate) fn approval_populations(e:&Expr)->Vec<ast::ReadExpr>{
 fn contains_approval(e:&Expr)->bool{!approval_receipts(e).is_empty()}
 // Normalize first, then classify typed fields. Population filters own their
 // focal row; ordinary edit metadata may remain in a real approval prerequisite.
-fn typed_approval(e:&Expr,schema:&Schema,root:&str)->bool{
+pub(super) fn typed_approval(e:&Expr,schema:&Schema,root:&str)->bool{
     fn owner<'a>(e:&'a Expr,schema:&'a Schema,root:&'a str)->Option<&'a str>{match e{
         Expr::Read(read)=>Some(&read.table),Expr::Assert{value,..}=>owner(value,schema,root),Expr::Name{name,..} if name==LOCAL=>Some(root),Expr::Focal{..}=>Some(root),
         Expr::Member{base,name,..}=>{let table=owner(base,schema,root)?;if name=="id"{Some(table)}else{match schema.tables.get(table)?.columns.get(name)?.required(){C::Ref{table}=>Some(table),_=>None}}},_=>None,
@@ -125,7 +125,7 @@ fn premises<'a>(p:&'a ast::ProgramDecl,schema:&Schema,root:&str,args:&BTreeMap<S
     fn parts<'a>(value:&'a Expr,out:&mut Vec<&'a Expr>,schema:&Schema,root:&str,args:&BTreeMap<String,Expr>){if let Expr::Binary{op,left,right,..}=value&&op=="and"{parts(left,out,schema,root,args);parts(right,out,schema,root,args);}else if normalize(value,schema,root,args).map(|value|!typed_approval(&value,schema,root)).unwrap_or(!contains_approval(value)){out.push(value);}}
     let mut out=Vec::new();for stmt in &p.body{if let Stmt::Require{condition,code,..}=stmt&&code=="$advice"{parts(condition,&mut out,schema,root,args);}}out
 }
-fn scoped_contract(condition:&Expr,context:&ast::ProgramDecl,schema:&Schema,root:&str,args:&BTreeMap<String,Expr>)->Option<Expr>{
+pub(super) fn scoped_contract(condition:&Expr,context:&ast::ProgramDecl,schema:&Schema,root:&str,args:&BTreeMap<String,Expr>)->Option<Expr>{
     let mut contract=normalize(condition,schema,root,args)?;
     for premise in premises(context,schema,root,args){let premise=normalize(premise,schema,root,args)?;contract=binary("or",Expr::Unary{op:"not".into(),value:Box::new(premise),site:condition.site().clone()},contract);}
     Some(super::super::creation_advice::simplify_boolean(&contract))
@@ -167,7 +167,7 @@ pub(super) fn normalize(e:&Expr,schema:&Schema,root:&str,args:&BTreeMap<String,E
     let mut unknown=false;walk(&mut e,&mut |e|if matches!(e,Expr::Name{name,..} if name!="now"&&name!="viewer"&&name!=LOCAL) {unknown=true;});
     (!unknown).then_some(e)
 }
-fn paths(schema:&Schema,from:&str,to:&str)->Vec<Expr>{
+pub(super) fn paths(schema:&Schema,from:&str,to:&str)->Vec<Expr>{
     fn visit(schema:&Schema,from:&str,to:&str,value:Expr,seen:&BTreeSet<String>,out:&mut Vec<Expr>){
         if from==to{out.push(value);return;}
         if seen.len()>=4||seen.contains(from){return;}
@@ -176,7 +176,7 @@ fn paths(schema:&Schema,from:&str,to:&str)->Vec<Expr>{
     }
     let mut out=Vec::new();visit(schema,from,to,focal(),&BTreeSet::new(),&mut out);out
 }
-fn lift(e:&Expr,root:&Expr)->Expr{let mut e=e.clone();walk(&mut e,&mut |e|if matches!(e,Expr::Focal{..}){*e=root.clone();});e}
+pub(super) fn lift(e:&Expr,root:&Expr)->Expr{let mut e=e.clone();walk(&mut e,&mut |e|if matches!(e,Expr::Focal{..}){*e=root.clone();});e}
 pub(super) fn add_syntax(out:&mut Vec<Invariant>,table:&str,column:Option<&str>,target:&str,mut policy:Expr,site:&Site,label:&str,operation:Option<String>){
     use sha2::{Digest,Sha256};
     walk(&mut policy,&mut |e|if let Expr::Name{name,site}=e&&name==LOCAL{*e=Expr::Focal{site:site.clone()};});
@@ -206,6 +206,9 @@ pub(super) fn invariants(docs:&[ast::Document],catalog:&Catalog,bound:&Bound,out
     for (p,write,context) in &origins{
         if !super::super::creation_advice::applicability_known(context,catalog){continue;}
         let Expr::Write{op,table,fields,keys,site,..}=write else{continue;};
+        // Unreduced spreads can overwrite a categorical destination. Keep
+        // these source effects uncovered instead of exporting a partial rule.
+        if fields.iter().any(|field|field.spread){continue;}
         if !matches!(op,WriteOp::Insert|WriteOp::Update|WriteOp::Upsert)||!bound.schema.tables.contains_key(table){continue;}
         // Fully resolved caller/global approval records do not need a typed
         // resource argument. They govern this exact effect, not every child
@@ -299,7 +302,7 @@ fn effect_fields<'a>(p:&ast::ProgramDecl,write:&'a Expr,context:&ast::ProgramDec
 }
 
 fn state_field<'a>(p:&ast::ProgramDecl,write:&'a Expr,bound:&Bound,stages:&BTreeSet<(String,String)>)->Option<&'a ast::ObjectField>{
-    let Expr::Write{table,keys,fields,..}=write else{return None;};bound.schema.tables.get(table)?;
+    let Expr::Write{table,keys,fields,..}=write else{return None;};bound.schema.tables.get(table)?;if fields.iter().any(|field|field.spread){return None;}
     let changed=|field:&&ast::ObjectField|field.value.as_ref().is_some_and(|value|!stage_copy(value,p,table,keys,&field.name,bound));
     // A categorical description is not a lifecycle merely because it is an enum.
     fields.iter().filter(changed).find(|field|stages.contains(&(table.clone(),field.name.clone())))
@@ -310,7 +313,7 @@ fn roles(context:&ast::ProgramDecl,bound:&Bound)->BTreeSet<String>{
 fn literals(e:&Expr)->BTreeSet<String>{let mut e=e.clone();let mut out=BTreeSet::new();walk(&mut e,&mut |e|if let Expr::Literal{value:ast::Literal::Str(s),..}=e{out.insert(s.clone());});out}
 // A typed id argument binds only the actual selected row, never an arbitrary
 // argument of the same table or a named secondary reference key.
-fn target_arg<'a>(p:&'a ast::ProgramDecl,w:&Expr,table:&str)->Option<&'a ast::ArgDecl>{
+pub(super) fn target_arg<'a>(p:&'a ast::ProgramDecl,w:&Expr,table:&str)->Option<&'a ast::ArgDecl>{
     let Expr::Write{op:WriteOp::Update,table:target,keys,..}=w else{return None;};
     if target!=table||keys.len()!=1||keys[0].column.as_deref().is_some_and(|c|c!="id"){return None;}
     super::resource_argument(&keys[0].value,table,p)
@@ -332,15 +335,14 @@ fn source_states(guards:&[Expr],bound:&Bound,table:&str,state:&str)->BTreeSet<St
     variants.iter().filter(|value|guards.iter().all(|guard|admits(guard,state,value)!=Some(false))).cloned().collect()
 }
 fn stage_copy(value:&Expr,p:&ast::ProgramDecl,table:&str,keys:&[ast::KeyPart],column:&str,bound:&Bound)->bool{
+    let Some(kind)=bound.schema.tables.get(table).and_then(|table|table.columns.get(column))else{return false;};
     let value=super::super::creation_advice::simplify_boolean(value);
     fn copied(value:&Expr,p:&ast::ProgramDecl,table:&str,keys:&[ast::KeyPart],column:&str,required:bool)->bool{match value{
         Expr::Assert{value,..}=>copied(value,p,table,keys,column,required),
         Expr::Member{base,name,..}=>name==column&&same_resource(base,table,keys,p),
         Expr::If{then,otherwise,..}=>copied(then,p,table,keys,column,required)&&copied(otherwise,p,table,keys,column,required),
         Expr::Binary{op,left,right,..} if op=="??"=>required&&copied(left,p,table,keys,column,required)||matches!(left.as_ref(),Expr::Literal{value:ast::Literal::Null,..})&&copied(right,p,table,keys,column,required),_=>false,
-    }}
-    let Some(kind)=bound.schema.tables.get(table).and_then(|table|table.columns.get(column))else{return false;};
-    copied(&value,p,table,keys,column,!kind.is_optional())
+    }}copied(&value,p,table,keys,column,!kind.is_optional())
 }
 fn changes_from(p:&ast::ProgramDecl,write:&Expr,bound:&Bound,table:&str,state:&str,source:&str)->bool{
     fn changes(value:&Expr,state:&str,source:&str)->bool{match value{
@@ -379,8 +381,14 @@ fn lifecycle(writes:&[(&ast::ProgramDecl,Expr,ast::ProgramDecl)],bound:&Bound,ou
                 let parent_gate=parent_guard(child_p,child_write,child_context,bound,child,reference,parent,&parent_state.name,&child_state.name);
                 if roles(parent_context,bound)!=child_roles{continue;}
                 let Some(requirements)=state_requirements(parent_p,parent_write,parent_context,bound,parent,&parent_state.name)else{continue;};
-                // Unresolved state-write targets cannot establish terminality.
-                if writes.iter().any(|(p,w,c)|matches!(w,Expr::Write{op:WriteOp::Update,table:t,fields,..} if t==parent&&state_field(p,w,bound,stages).is_some())&&state_requirements(p,w,c,bound,parent,&parent_state.name).is_none()){continue;}
+                // Unreduced parent spreads may reopen any categorical state.
+                // An incomplete graph cannot establish a terminal destination.
+                if writes.iter().any(|(_,w,_)|matches!(w,Expr::Write{op:WriteOp::Update,table:t,fields,..} if t==parent&&fields.iter().any(|field|field.spread))){continue;}
+                // Unmapped targets leave both coupling analyses unknown.
+                // Keep source-unrestricted writes separate: they invalidate
+                // terminality, not the independent known parent-window contract.
+                let parent_sources=writes.iter().filter(|(_,w,_)|matches!(w,Expr::Write{op:WriteOp::Update,table:t,fields,..} if t==parent&&fields.iter().any(|field|field.name==parent_state.name))).map(|(p,w,c)|state_requirements(p,w,c,bound,parent,&parent_state.name)).collect::<Vec<_>>();
+                if parent_sources.iter().any(Option::is_none){continue;}
                 let Some(destination)=parent_state.value.as_ref()else{continue;};
                 let Expr::Literal{value:ast::Literal::Str(destination),..}=destination else{continue;};
                 let sources=source_states(&requirements,bound,parent,&parent_state.name);
@@ -410,6 +418,9 @@ fn lifecycle(writes:&[(&ast::ProgramDecl,Expr,ast::ProgramDecl)],bound:&Bound,ou
                         add_syntax(out,child,Some(&child_state.name),"update",policy,child_site,"parent-state",Some(operation));
                     }
                 }
+                // A source-unrestricted writer can reopen the destination;
+                // only completion inference depends on proving terminality.
+                if parent_sources.iter().any(|guards|guards.as_ref().is_some_and(|guards|guards.is_empty())){continue;}
                 // A terminal parent destination has no same-role outgoing
                 // transition. Infer the child's terminal only from its graph.
                 let any_outgoing=writes.iter().any(|(p,w,c)|state_requirements(p,w,c,bound,parent,&parent_state.name).is_some_and(|guards|source_states(&guards,bound,parent,&parent_state.name).contains(destination)&&changes_from(p,w,bound,parent,&parent_state.name,destination)));
@@ -424,7 +435,7 @@ fn lifecycle(writes:&[(&ast::ProgramDecl,Expr,ast::ProgramDecl)],bound:&Bound,ou
                     // Parent operations are the coupling being checked; their
                     // incidental child writes cannot redefine or hide the
                     // independent child lifecycle's terminal stage.
-                    let Expr::Write{fields,keys,..}=w else{continue;};let Some(state)=fields.iter().find(|f|f.name==child_state.name)else{continue;};
+                    let Expr::Write{fields,keys,..}=w else{continue;};if fields.iter().any(|field|field.spread){ambiguous=true;break;}let Some(state)=fields.iter().find(|f|f.name==child_state.name)else{continue;};
                     if state.value.as_ref().is_some_and(|value|stage_copy(value,p,child,keys,&child_state.name,bound)){continue;}
                     if writes.iter().any(|(producer,effect,_)|std::ptr::eq(*producer,*p)&&matches!(effect,Expr::Write{op:WriteOp::Update,table:t,fields,..} if t==parent&&state_field(producer,effect,bound,stages).is_some_and(|field|field.name==parent_state.name))){
                         if let Some(value)=&state.value{coupled.extend(literals(value));}else{ambiguous=true;}continue;
@@ -475,4 +486,36 @@ fn lifecycle(writes:&[(&ast::ProgramDecl,Expr,ast::ProgramDecl)],bound:&Bound,ou
     let row=object([("id",Value::Id("e".into())),("job",Value::Id("j".into()))]);
     assert_eq!(super::super::super::concrete::evaluate(i.syntax.as_ref().unwrap(),&row,&rows,&b.schema,"actor","effects",challenges::NOW),Some(true),"{}",i.predicate);
 }
+#[test]fn spread_parent_reopening_cannot_establish_terminal_completion(){
+    let base=include_str!(concat!(env!("CARGO_MANIFEST_DIR"),"/tests/security/wave26/008.q"));
+    let contracts=|source:String|{let sources=vec![("schema.q".into(),source)];let b=crate::compile(&sources);assert!(b.diagnostics.is_empty(),"{:?}",b.diagnostics);super::super::invariants(&sources,&b)};
+    assert!(contracts(base.into()).iter().any(|i|i.table=="jobs"&&i.site.file.contains("child-stage")),"ordinary terminal inference is retained");
+    for requirement in ["", "  j = jobs[job] ! else MISSING\n  require j.status = 'finished' else BAD_STATUS\n"]{
+    for fields in ["status: 'in_progress'","...{status: 'in_progress'}","status: 'finished', ...{status:'in_progress'}"]{
+        let source=format!("{base}\nmutation reopen(job: jobs):\n  require exists roles[viewer, role = 'crew'] else NOT_CREW\n{requirement}  update jobs[job] {{{fields}}}\n");
+        assert!(!contracts(source).iter().any(|i|i.table=="jobs"&&i.site.file.contains("child-stage")),"reopening must not infer terminal completion: {fields}");
+    }}
+}
+
+// Explicit metrology utility: ordinary test runs do not load the external corpus.
+// It preserves invariant order because bounded witness searches consume that order.
+#[test]
+#[ignore = "SEC11b corpus equivalence receipt; configure the input/output paths"]
+fn sec11b_invariant_corpus_receipt(){
+    let Ok(input)=std::env::var("SNAPBACK4_SEC11B_INVARIANT_INPUT")else{return;};
+    let output=std::env::var("SNAPBACK4_SEC11B_INVARIANT_OUTPUT").expect("corpus output path");
+    let cases:Vec<(String,String,Vec<(String,String)>)>=serde_json::from_slice(&std::fs::read(input).unwrap()).unwrap();
+    let mut rows=Vec::new();let mut positive=false;
+    for(id,sha,sources)in cases{
+        let bound=crate::compile(&sources);
+        let invariants=super::super::invariants(&sources,&bound);
+        let encoded=invariants.iter().map(|inv|serde_json::to_string(inv).unwrap()).collect::<Vec<_>>();
+        if id.starts_with("w26-008-"){positive=encoded.iter().any(|inv|inv.contains("parent-state"))&&encoded.iter().any(|inv|inv.contains("child-stage"));}
+        rows.push(serde_json::json!({"id":id,"sourceSha256":sha,"diagnostics":bound.diagnostics,"invariants":encoded}));
+    }
+    assert!(positive,"known wave26/008 window/completion obligations must be measured");
+    assert_eq!(rows.len(),857,"freeze800survey+50wave31+7repair inputs");
+    std::fs::write(output,serde_json::to_vec_pretty(&rows).unwrap()).unwrap();
+}
+
 }

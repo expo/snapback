@@ -1,0 +1,7 @@
+{
+  "launchSession": 43227,
+  "signal": "Ctrl-C to owned unified-exec session",
+  "reason": "Actual parent-window regression identified; interrupt already-failed plan before production correction. Partial receipt is never PASS.",
+  "sourceCommit": "5e64614e03c419b9b549f2cfdacb6d0ca9b21664",
+  "complete": false
+}

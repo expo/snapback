@@ -1,0 +1,29 @@
+[
+  {
+    "wave": 28,
+    "lane": "037-snapback-bespoke-hat-commissions",
+    "checkBefore": 4,
+    "checkAfter": 3,
+    "deployBefore": 7,
+    "deployAfter": 5,
+    "decisionAndWitnessContentsIdentical": true
+  },
+  {
+    "wave": 30,
+    "lane": "004-snapback-accessible-home-remodels",
+    "checkBefore": 8,
+    "checkAfter": 5,
+    "deployBefore": 11,
+    "deployAfter": 7,
+    "decisionAndWitnessContentsIdentical": true
+  },
+  {
+    "wave": 30,
+    "lane": "014-snapback-balloon-decor-installs",
+    "checkBefore": 8,
+    "checkAfter": 7,
+    "deployBefore": 11,
+    "deployAfter": 9,
+    "decisionAndWitnessContentsIdentical": true
+  }
+]

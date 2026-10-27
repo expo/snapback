@@ -23,6 +23,7 @@ mod text_samples;
 pub mod intent_answers;
 pub mod release_witness;
 mod workflow;
+mod approval_proposals;
 pub use generated::fixture as generated_fixture;
 #[derive(Clone,Debug,Serialize,serde::Deserialize,PartialEq,Eq)]
 #[serde(rename_all="kebab-case")]

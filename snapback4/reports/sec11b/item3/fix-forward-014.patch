@@ -1,0 +1,44 @@
+--- snapback/schema.q
++++ snapback/schema.q
+@@ -22,6 +22,7 @@
+ 
+ table projects:
+   client: principal
++  lead: principal
+   title: text 1..80
+   venue: text 1..120
+   entrancePhoto: text <=500 format url
+@@ -36,9 +37,9 @@
+   takedownAt: time ?
+   freeArch: bool default false
+   freeArchReason: text 1..200 ?
+-  immutable client, entrancePhoto, hallPhoto, clientPhone, venueContract, fee, eventAt
++  immutable client, lead, entrancePhoto, hallPhoto, clientPhone, venueContract, fee, eventAt
+   read <- .client = viewer or exists roles[viewer, role = 'owner'] or exists roles[viewer, role = 'lead'] or exists roles[viewer, role = 'installer']
+-  read (clientPhone, venueContract, fee) <- exists roles[viewer, role = 'owner'] or exists roles[viewer, role = 'lead']
++  read (clientPhone, venueContract, fee) <- exists roles[viewer, role = 'owner'] or (.lead = viewer and exists roles[viewer, role = 'lead'])
+   insert <- exists roles[viewer, role = 'owner'] or exists roles[viewer, role = 'lead']
+   update <- exists roles[viewer, role = 'owner'] or exists roles[viewer, role = 'lead'] or exists roles[viewer, role = 'installer']
+   delete <- deny
+@@ -46,9 +47,9 @@
+ 
+ -- Privacy intent, stated separately from the enforcing rules above.
+ invariant projects.read only .client = viewer or exists roles[viewer, role = 'owner'] or exists roles[viewer, role = 'lead'] or exists roles[viewer, role = 'installer']
+-invariant projects.clientPhone read only exists roles[viewer, role = 'owner'] or exists roles[viewer, role = 'lead']
+-invariant projects.venueContract read only exists roles[viewer, role = 'owner'] or exists roles[viewer, role = 'lead']
+-invariant projects.fee read only exists roles[viewer, role = 'owner'] or exists roles[viewer, role = 'lead']
++invariant projects.clientPhone read only exists roles[viewer, role = 'owner'] or (.lead = viewer and exists roles[viewer, role = 'lead'])
++invariant projects.venueContract read only exists roles[viewer, role = 'owner'] or (.lead = viewer and exists roles[viewer, role = 'lead'])
++invariant projects.fee read only exists roles[viewer, role = 'owner'] or (.lead = viewer and exists roles[viewer, role = 'lead'])
+ invariant projects.insert only exists roles[viewer, role = 'owner'] or exists roles[viewer, role = 'lead']
+ invariant projects.approveArch only exists roles[viewer, role = 'owner']
+ 
+@@ -83,7 +84,7 @@
+ mutation openProject(client: principal, title: text 1..80, venue: text 1..120, entrancePhoto: text <=500 format url, hallPhoto: text <=500 format url, balloonPlan: text 1..2000, riggingNotes: text 1..500, clientPhone: text 1..40, venueContract: text 1..2000, fee: money USD, eventAt: time):
+   require exists roles[viewer, role = 'owner'] or exists roles[viewer, role = 'lead'] else NOT_LEAD
+   require exists roles[client, role = 'client'] else NOT_CLIENT
+-  return insert projects { client, title, venue, entrancePhoto, hallPhoto, balloonPlan, riggingNotes, clientPhone, venueContract, fee, eventAt }
++  return insert projects { lead: viewer, client, title, venue, entrancePhoto, hallPhoto, balloonPlan, riggingNotes, clientPhone, venueContract, fee, eventAt }
+ 
+ mutation updatePlan(project: projects, balloonPlan: text 1..2000, riggingNotes: text 1..500):
+   p = projects[project] ! else NOT_FOUND

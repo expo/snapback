@@ -1,0 +1,34 @@
+--- snapback/schema.q
++++ snapback/schema.q
+@@ -48,7 +48,7 @@
+   depositStatus: enum('held', 'cancelled') default 'held'
+   unique job
+   immutable job, phone, careNeeds, quotedCents, depositCents
+-  read <- exists roles[viewer, role = 'owner'] or exists roles[viewer, role = 'coordinator']
++  read <- exists roles[viewer, role = 'owner'] or (exists roles[viewer, role = 'coordinator'] and exists jobs[id = .job, coordinator = viewer])
+   insert <- exists roles[viewer, role = 'coordinator']
+   update <- exists roles[viewer, role = 'owner']
+   online only
+@@ -75,11 +75,11 @@
+   at: time default now
+   unique job
+   immutable job, actor, reason, at
+-  read <- exists roles[viewer, role = 'owner'] or exists roles[viewer, role = 'coordinator']
++  read <- exists roles[viewer, role = 'owner'] or (exists roles[viewer, role = 'coordinator'] and exists jobs[id = .job, coordinator = viewer])
+   insert <- .actor = viewer and exists roles[viewer, role = 'owner']
+   online only
+ 
+-invariant jobPrivate.read only exists roles[viewer, role = 'coordinator'] or exists roles[viewer, role = 'owner']
++invariant jobPrivate.read only exists roles[viewer, role = 'owner'] or (exists roles[viewer, role = 'coordinator'] and exists jobs[id = .job, coordinator = viewer])
+ invariant cancellations.insert only exists roles[viewer, role = 'owner']
+ invariant rooms always .photo != null
+ invariant jobs.read only .family = viewer or exists roles[viewer, role = 'owner'] or exists roles[viewer, role = 'coordinator'] or exists roles[viewer, role = 'crew']
+@@ -95,6 +95,8 @@
+ 
+ query privateDetail(job: jobs):
+   require exists roles[viewer, role = 'coordinator'] or exists roles[viewer, role = 'owner'] else PRIVATE
++  j = jobs[job] ! else NOT_FOUND
++  require exists roles[viewer, role = 'owner'] or j.coordinator = viewer else PRIVATE
+   return { details: jobPrivate[job = job], cancellation: cancellations[job = job] }
+ 
+ mutation openJob(family: principal, title: text 1..100, phone: text 7..30, careNeeds: text 1..2000, quotedCents: int 1..100000000, depositCents: int 0..100000000, names: [text 1..80] 1..12, photos: [image <=5000000] 1..12, measurements: [text 1..500] 1..12, hazards: [text 1..1000] 1..12):

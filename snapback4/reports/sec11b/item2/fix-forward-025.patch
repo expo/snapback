@@ -1,0 +1,18 @@
+--- wave30/025/schema.q
++++ fixed/025/schema.q
+@@ -98,6 +98,7 @@
+     require priorExam != null else BAD_PRIOR 'Retest needs its prior exam.'
+     p = exams[priorExam] ! else NOT_FOUND
+     require p.candidate = candidate else BAD_PRIOR 'Prior exam belongs to another candidate.'
++    require count(exams[candidate = candidate] where .attempt > p.attempt) = 0 else STALE_PRIOR
+     require p.status = 'failed' else NOT_FAILED 'Retest needs a failed prior exam.'
+     require p.failedAt != null else NOT_FAILED 'Prior exam has no failure time.'
+     within = now <= p.failedAt + 30d
+@@ -107,6 +108,7 @@
+       require fee = 20000 else BAD_FEE 'Retest after 30 days costs 20000 cents.'
+     if attempt >= 3:
+       require exists retestApprovals[candidate = candidate, priorExam = priorExam] else NOT_APPROVED 'Beyond the second attempt needs manager approval.'
++  require attempt = count(exams[candidate = candidate]) + 1 else BAD_ATTEMPT
+   return insert exams { candidate, status: 'booked', fee, photoId, attempt, createdAt: now }
+ 
+ mutation scoreWritten(exam: exams, score: int 0..100):

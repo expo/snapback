@@ -1,0 +1,18 @@
+[
+  {
+    "lane": "004-snapback-accessible-home-remodels",
+    "beforeLines": 8,
+    "afterLines": 5,
+    "assignmentCards": 3,
+    "decisionAndWitnessContentsIdentical": true,
+    "exit": 0
+  },
+  {
+    "lane": "014-snapback-balloon-decor-installs",
+    "beforeLines": 8,
+    "afterLines": 7,
+    "assignmentCards": 1,
+    "decisionAndWitnessContentsIdentical": true,
+    "exit": 0
+  }
+]
