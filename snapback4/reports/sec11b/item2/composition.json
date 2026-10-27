@@ -52,7 +52,7 @@
           "deploy": 600
         }
       },
-      "completed": 4
+      "completed": 5
     },
     {
       "directory": "/home/ccheever/sb4-loop/reports/sec11b/item2-retry-parallel",
@@ -71,7 +71,7 @@
           "deploy": 600
         }
       },
-      "completed": 12
+      "completed": 15
     },
     {
       "directory": "/home/ccheever/sb4-loop/reports/sec11b/item2-retry-missing",
@@ -110,7 +110,7 @@
           "deploy": 600
         }
       },
-      "completed": 0
+      "completed": 4
     }
   ],
   "phaseSelected": [],
@@ -126,8 +126,23 @@
       "source": "retry-3"
     },
     {
+      "wave": 18,
+      "lane": "039-snapback-countertop-slab-layouts",
+      "source": "retry-3"
+    },
+    {
       "wave": 19,
       "lane": "030-snapback-cat-show-ring-judging",
+      "source": "retry-3"
+    },
+    {
+      "wave": 19,
+      "lane": "043-snapback-safe-deposit-access",
+      "source": "retry-3"
+    },
+    {
+      "wave": 20,
+      "lane": "003-snapback-taxidermy-mount-orders",
       "source": "retry-3"
     },
     {
@@ -168,6 +183,11 @@
     {
       "wave": 27,
       "lane": "010-snapback-canyoneering-guided-trips",
+      "source": "retry-2"
+    },
+    {
+      "wave": 27,
+      "lane": "016-snapback-vintage-motorcycle-restorations",
       "source": "retry-2"
     },
     {
@@ -233,24 +253,8 @@
   ],
   "unresolved": [
     {
-      "wave": 18,
-      "lane": "039-snapback-countertop-slab-layouts"
-    },
-    {
-      "wave": 19,
-      "lane": "043-snapback-safe-deposit-access"
-    },
-    {
-      "wave": 20,
-      "lane": "003-snapback-taxidermy-mount-orders"
-    },
-    {
       "wave": 25,
       "lane": "040-snapback-sewing-machine-repairs"
-    },
-    {
-      "wave": 27,
-      "lane": "016-snapback-vintage-motorcycle-restorations"
     },
     {
       "wave": 27,

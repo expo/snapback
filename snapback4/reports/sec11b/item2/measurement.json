@@ -15,8 +15,8 @@
     "median": 5.0,
     "p90": 9,
     "max": 20,
-    "completed": 798,
-    "censored": 2,
+    "completed": 800,
+    "censored": 0,
     "medianBounds": [
       5.0,
       5.0
@@ -31,8 +31,8 @@
     "1": 26
   },
   "testExits": {
-    "0": 759,
-    "1": 40,
+    "0": 762,
+    "1": 37,
     "124": 1
   },
   "toolFailures": [
@@ -42,5 +42,5 @@
     }
   ],
   "testQualificationComplete": false,
-  "scope": "Actual 800 fresh/post-test deployment verdicts. Known test/display watchdogs are retained in precision.json; this is not complete HTTP qualification."
+  "scope": "Actual 800 fresh/post-test deployment verdicts; all 800 default check/deploy outputs completed. Known test watchdogs remain separately recorded; not complete HTTP qualification."
 }

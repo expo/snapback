@@ -693,56 +693,11 @@
     }
   ],
   "unclassified": [],
-  "displayInfrastructureFailures": [
-    {
-      "wave": 18,
-      "lane": "039-snapback-countertop-slab-layouts",
-      "phase": "defaultDeploy",
-      "kind": "external display-attempt watchdog",
-      "qualification": "matching JSON verdict assessed separately; output count is censored"
-    },
-    {
-      "wave": 20,
-      "lane": "003-snapback-taxidermy-mount-orders",
-      "phase": "defaultDeploy",
-      "kind": "external display-attempt watchdog",
-      "qualification": "matching JSON verdict assessed separately; output count is censored"
-    }
-  ],
+  "displayInfrastructureFailures": [],
   "testInfrastructureFailures": [
-    {
-      "wave": 19,
-      "lane": "043-snapback-safe-deposit-access",
-      "kind": "private HTTP test preparation watchdog",
-      "failure": {
-        "kind": "private HTTP preparation/admission",
-        "summary": "security HTTP failure: private serve preparation stopped early (time) after 180 seconds; rerun snapback4 test; HTTP admission was not qualified"
-      },
-      "qualification": "HTTP subcampaign incomplete; fresh/post-test deploy verdicts assessed separately"
-    },
-    {
-      "wave": 20,
-      "lane": "003-snapback-taxidermy-mount-orders",
-      "kind": "private HTTP test preparation watchdog",
-      "failure": {
-        "kind": "private HTTP preparation/admission",
-        "summary": "security HTTP failure: private serve preparation stopped early (time) after 180 seconds; rerun snapback4 test; HTTP admission was not qualified"
-      },
-      "qualification": "HTTP subcampaign incomplete; fresh/post-test deploy verdicts assessed separately"
-    },
     {
       "wave": 25,
       "lane": "040-snapback-sewing-machine-repairs",
-      "kind": "private HTTP test preparation watchdog",
-      "failure": {
-        "kind": "private HTTP preparation/admission",
-        "summary": "security HTTP failure: private serve preparation stopped early (time) after 180 seconds; rerun snapback4 test; HTTP admission was not qualified"
-      },
-      "qualification": "HTTP subcampaign incomplete; fresh/post-test deploy verdicts assessed separately"
-    },
-    {
-      "wave": 27,
-      "lane": "016-snapback-vintage-motorcycle-restorations",
       "kind": "private HTTP test preparation watchdog",
       "failure": {
         "kind": "private HTTP preparation/admission",
@@ -777,8 +732,8 @@
     "median": 5.0,
     "p90": 9,
     "max": 20,
-    "completed": 798,
-    "censored": 2,
+    "completed": 800,
+    "censored": 0,
     "medianBounds": [
       5.0,
       5.0
@@ -816,7 +771,7 @@
     },
     "deploySeconds": {
       "median": 11.325,
-      "p90": 58.535,
+      "p90": 58.762,
       "max": 214.915
     }
   },

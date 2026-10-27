@@ -236,19 +236,21 @@ Its inherited static note still names acceptQuote, while its actual candidate,
 compact summary and last history step name advanceJob; no acceptQuote coverage
 credit is claimed.
 
-Default check median/p90 is 3/7 lines (800 completed); deploy is 5/9 (798
-completed, two external display attempts censored). The all-800 deploy median
-is bounded at exactly 5 for every nonnegative completion of those two counts.
-Five test campaigns remain incompletely qualified (four private HTTP
-preparation watchdogs and one external test watchdog), explicitly retained in
-`precision.json`. Deployment after the recorded test command is measured; a
-complete HTTP test PASS is not claimed. This is a disclosed infrastructure gap,
-not a security refusal, under LLP 0232; follow-up is
+Default check median/p90 is 3/7 lines; deploy is 5/9. All 800 default check
+and 800 default deploy outputs now complete after same-binary phase retries.
+The earlier two censored display attempts and their median bounds remain in
+the committed measurement history. Two test campaigns remain incompletely
+qualified: wave25 lane040's private HTTP preparation watchdog (also reproduced
+with two survey workers), and wave27 lane035's external test watchdog. They
+are retained in `precision.json`, never relabeled PASS. Deployment after the
+recorded test command is measured; complete HTTP test qualification is not
+claimed. This is a disclosed infrastructure gap under LLP 0232; follow-up is
 `issues/20261027-snapback4-security-http-preparation-watchdog-under-survey-load.md`.
-Latency work remains SEC11L's. The first 800 run and all same-source/binary
-retries are retained, including an interrupted redundant single-worker retry.
-No failed or interrupted campaign is relabeled PASS. Further immutable-binary
-retries may finish after this snapshot; they cannot change its recorded scope.
+Latency work remains SEC11L's. Original 800 results and every same-source/binary
+retry are retained, including an interrupted redundant single-worker retry.
+No failed or interrupted campaign is relabeled PASS. The measurement tooling
+separates classified infrastructure from security verdicts: unmatched gate/FIX,
+source mismatches, unknown deployment exits and runtime panics stay unclassified.
 
 The evidence bundle is `snapback4/reports/sec11b/item2/`, including source
 hashes, compressed original/composed/retry records, per-hole coverage,
