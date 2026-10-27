@@ -1,0 +1,12 @@
+{
+  "part": "c",
+  "selected": true,
+  "schemas": 200,
+  "binarySha256": "3a4ac751164bb96b7a07c8076e65b89350b2916c1d50704e73dc99815212d6b7",
+  "host": "ccheever-GMKTec-M8",
+  "exit": 0,
+  "remainingOwnedPids": 0,
+  "archiveSha256": "deb6526b6d374930e49ae8ba4fec5a0a6052db785dcfa5062f9921b06979aa3f",
+  "receiptSha256": "5a67ffe81c7e7b767b581c187da49fbc6aba0025b44cf5a8a170dcd597594bd6",
+  "cleanupSha256": "809fa68c0afdc4c4822fdefe3c472dcbad7f4f75f0ec862acfd8f391e44ae067"
+}
