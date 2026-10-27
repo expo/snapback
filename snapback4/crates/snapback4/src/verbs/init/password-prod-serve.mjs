@@ -1,7 +1,7 @@
 // API signatures: snapback4 guide api proof
 import { startServe, startStatic, serveUntilSignal, cleanup } from "snapback4/proof";
-const provisionUsers = SEED_PLAN;
-const backend = await startServe(process.env.SNAPBACK4_PROD_DIRECTORY ?? "production", provisionUsers ? { provisionUsers } : {});
+const provisionUsers = SEED_PLAN ?? { users: 2 };
+const backend = await startServe(process.env.SNAPBACK4_PROD_DIRECTORY ?? "production", { provisionUsers });
 let frontend;
 try {
   frontend = await startStatic("dist");

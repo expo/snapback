@@ -81,7 +81,8 @@ test('password starter ships exec serve scripts and bounded prod:check against i
  assert.equal(pkg.scripts['probe:serve'],'exec node scripts/probe-serve.mjs');assert.equal(pkg.scripts['prod:serve'],'exec node scripts/prod-serve.mjs');assert.ok(pkg.scripts['prod:check']);assert.match(init.stdout,/prod:check/);
  mkdirSync(join(cwd,'node_modules'));symlinkSync(join(root,'packages/snapback4'),join(cwd,'node_modules/snapback4'),'dir');mkdirSync(join(cwd,'dist'));writeFileSync(join(cwd,'dist/index.html'),'<h1>production</h1>');
  await deploy('production','snapback',{cwd,env});
- const run=launch(t,cwd,'npm',['run','--silent','prod:check']);await until(run.closed,90000);assert.equal(run.c.exitCode,0,run.err());const report=JSON.parse(run.out().trim());assert.equal(report.ok,true,JSON.stringify(report));assert.equal(report.lockReleased,true);await released(cwd);
+ const assertion="node -e \"if (!Object.values(JSON.parse(process.env.SNAPBACK4_SERVE_JSON).sessions).flat().length) throw Error('production readiness needs real users')\"";
+ const run=launch(t,cwd,'npm',['run','--silent','prod:check','--','--then',assertion]);await until(run.closed,90000);assert.equal(run.c.exitCode,0,run.err());const report=JSON.parse(run.out().trim());assert.equal(report.ok,true,JSON.stringify(report));assert.equal(report.lockReleased,true);await released(cwd);
 });
 
 
