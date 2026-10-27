@@ -101,7 +101,7 @@ test('Darwin design witness: C-locale ps captures npm argv and parent birth chan
 
 
 test('aliased database recovery names its actual deployment control directory',{skip:process.platform==='win32',timeout:30000},async t=>{
- const cwd=await project(t);const deployed=await cli(['deploy','aliased','--store','external/store.sqlite'],{cwd,env});assert.equal(deployed.code,0,deployed.stderr);
+ const cwd=await project(t);const deployed=await cli(['deploy','aliased','--store','production/store.sqlite'],{cwd,env});assert.equal(deployed.code,0,deployed.stderr);
  const host=await startServe('aliased',{cwd,env});try{
   const busy=await cli(['serve','aliased','--port','0'],{cwd,env});assert.notEqual(busy.code,0);assert.ok(busy.stderr.includes(`snapback4 stop '${cwd}/aliased'`),busy.stderr);
   const stopped=await cli(['stop','aliased'],{cwd,env});assert.equal(stopped.code,0,stopped.stderr);
