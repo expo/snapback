@@ -55,6 +55,7 @@ test("native proof commands retain helper environment, argument boundaries and s
     assert.equal(reply.helpers[key], fileURLToPath(new URL(`../bin/${file}.js`, import.meta.url)));
   }
   assert.match(readFileSync(result.logs.stdout, "utf8"), /^stdout withheld: secret command/);
+  await assert.rejects(cli(["token"],{cwd,timeoutMs:0,env:{SNAPBACK4_BIN:binary}}),/proof timeout must be positive and finite/);
   // A changed invocation resolves its binary afresh; no result or resolver cache.
   const second = join(cwd, "second.mjs");
   writeFileSync(second, "#!/usr/bin/env node\nconsole.log('second');\n"); chmodSync(second, 0o700);

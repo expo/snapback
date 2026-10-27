@@ -230,7 +230,7 @@ export function cli(args: readonly string[], options: ProofOptions = {}): Promis
       binary = resolveBinary(env);
     } catch { /* The shim retains its established resolution/cwd refusal and exit code. */ }
     if (binary) {
-      const ms = deadline(options.timeoutMs, 120_000), closeDeadline = {ms, end:performance.now()+ms};
+      const closeDeadline = {ms:0, end:0};
       return executeCommand(binary, args, { ...options, secret: options.secret || args[0] === "token", env: {
         ...env,
         SNAPBACK4_ACQUIRE_HELPER: fileURLToPath(new URL("../bin/witness-acquire.js", import.meta.url)),
@@ -255,6 +255,12 @@ export async function command(binary: string, args: readonly string[], options: 
   return executeCommand(binary, args, options);
 }
 async function executeCommand(binary: string, args: readonly string[], options: ProofOptions, closeDeadline?: {ms:number;end:number}): Promise<CliResult> {
+  // Initialize inside this async function to retain cli's rejected-Promise
+  // behavior for invalid deadlines. A confirmed-spawn fallback shares it.
+  if (closeDeadline && closeDeadline.end === 0) {
+    closeDeadline.ms = deadline(options.timeoutMs, 120_000);
+    closeDeadline.end = performance.now()+closeDeadline.ms;
+  }
   const timeout = () => Error(`proof cli close timed out after ${closeDeadline!.ms} ms`);
   if (closeDeadline && performance.now() >= closeDeadline.end) throw timeout();
   const run = logged(binary, args, { ...options, processGroup: true, env: { ...process.env, ...options.env } });
