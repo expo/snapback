@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.46
+
+### Guide changes
+
+- Release, inspection and test commands print bounded verdicts with private `.snapback4/last/<command>.txt` details. Repeated previews, release lists and data reads show changes; `--explain`/`--verbose` restores full output and `--json` keeps complete evidence. Serve startup retains URL/readiness identity. Proof checks report readiness, uptime, lock release and failures compactly, with complete JSON receipts on request. Check output budgets are unchanged.
+
 ## 0.4.44
 
 ### Guide changes

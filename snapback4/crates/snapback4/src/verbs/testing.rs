@@ -118,8 +118,10 @@ pub fn test(options: &Options) -> i32 {
     }
     if options.flags.contains_key("residency") {
         let verbose = options.flags.contains_key("verbose");
-        if let Err(error) = residency::measure(&mut engine, &bound, &personas, verbose) { eprintln!("residency measurement failed: {error}"); return 1; }
+        if let Err(error) = residency::measure(&mut engine, &bound, &personas, verbose || options.flags.contains_key("explain")) { eprintln!("residency measurement failed: {error}"); return 1; }
         if !verbose {
+            crate::command_output::summary("test: residency measured; no business cases run; --fixture-only accepts acquisition measurement only");
+            crate::command_output::evidence(&serde_json::json!({"residency":true,"cases":{"passed":0,"failed":0,"skipped":skipped_business_cases}}));
             if options.flags.contains_key("source") {
                 println!("{CASE_SUMMARY} {{\"run\":0,\"skipped\":{skipped_business_cases}}}");
             }
@@ -134,7 +136,7 @@ pub fn test(options: &Options) -> i32 {
     for gap in &evaluation_gaps {println!("security invariant NOT FULLY EVALUATED: {gap}");}
     println!("security invariant evaluation: {} declared, {} evaluation gaps; zero violations does not establish coverage or safety",bound.invariants.len(),evaluation_gaps.len());
     println!("security: running full finite campaigns; replayed violations fail; coverage limits follow");
-    let progress = CampaignProgress::start();
+    let progress = options.flags.contains_key("verbose").then(CampaignProgress::start);
     let mut security_campaign = snapback4_lang::security::challenges::Campaign::default();
     let populated_fixture=bound.schema.tables.keys().any(|table|engine.store().rows(table).is_ok_and(|rows|!rows.is_empty()));
     if options.flags.contains_key("fixture")&&populated_fixture{
@@ -310,6 +312,14 @@ pub fn test(options: &Options) -> i32 {
     let cases_status = if failed_cases > 0 || no_cases { "FAIL" } else if skipped_business_cases > 0 { "incomplete" } else if passed > 0 { "pass" } else { "not provided" };
     println!("authored cases: {cases_status} — {passed} passed, {failed_cases} failed, {skipped_business_cases} skipped");
     let probe_verdict = if failures > 0 { "FAIL" } else if !skipped.is_empty() || held_not_run > 0 { "incomplete" } else { "pass" };
+    crate::command_output::summary(format!("test: {}; authored cases {cases_status} ({passed} passed, {failed_cases} failed, {skipped_business_cases} skipped); queries {probe_verdict} ({complete} complete, {capped} capped, {expected} expected refusals, {refused_derived} derived refusals, {} not run, {failures} denied); security {} (finite, not proof)",if failures > 0 || failed_cases > 0 || no_cases || security_failed {"FAIL"} else {"no failing observations"},skipped.len()+held_not_run,if security_failed {"FAIL"}else{"completed"}));
+    if generated_only {crate::command_output::fact("business coverage","no authored business cases; generated/trusted fixture campaign only; add test.cases.jsonl for business coverage");}
+    if !evaluation_gaps.is_empty() || !security_campaign.evaluation_unknowns.is_empty() {
+        crate::command_output::fact("security coverage",format!("security coverage incomplete: {}; {}",evaluation_gaps.join("; "),security_campaign.evaluation_unknowns.iter().cloned().collect::<Vec<_>>().join("; ")));
+    }
+    if !security_campaign.unsupported.is_empty() {crate::command_output::fact("campaign limits",format!("not covered: {}",security_campaign.unsupported.iter().cloned().collect::<Vec<_>>().join("; ")));}
+    if !skipped.is_empty() || held_not_run > 0 {crate::command_output::fact("query coverage",format!("queries not run: {}; {held_not_run} held queries not run; add fixtures/cases",skipped.join("; ")));}
+    crate::command_output::evidence(&serde_json::json!({"security":security_campaign,"evaluationGaps":evaluation_gaps,"cases":{"passed":passed,"failed":failed_cases,"skipped":skipped_business_cases},"queries":{"complete":complete,"capped":capped,"expectedRefusals":expected,"derivedRefusals":refused_derived,"notRun":skipped,"heldNotRun":held_not_run,"denied":failures}}));
     // @ref LLP 3000.036.002#9 — derived probe refusals are expected exploration, not failed cases.
     println!("query probes: {complete} complete, {capped} capped, {expected} refused as your cases expect, {refused_derived} probe refusals on derived arguments (expected), {} not run, {failures} denied{} — {probe_verdict}",
         skipped.len() + held_not_run, if passed + failed_cases > 0 { format!("; cases: {passed} passed, {failed_cases} failed") } else if options.flags.contains_key("fixture") { format!("; no {} (see snapback4 guide testing)", test_cases::FILE) } else { String::new() });

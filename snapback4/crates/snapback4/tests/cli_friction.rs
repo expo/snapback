@@ -23,6 +23,7 @@ impl Project {
     }
     fn run(&self, args: &[&str]) -> Output {
         let mut command=Command::new(BIN);command.current_dir(&self.0).args(args);
+        if args.first()==Some(&"test") {command.arg("--explain");}
         // This file probes query/refusal diagnostics; DAY5 checks the default
         // zero-case refusal independently.
         if args.first()==Some(&"test") {command.arg("--fixture-only");}

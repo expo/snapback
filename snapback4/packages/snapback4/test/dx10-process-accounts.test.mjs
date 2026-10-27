@@ -89,7 +89,7 @@ test('packed package executes both stage recipes and the serve-check recipe lite
  npmScript(cwd,`import {startServe} from 'snapback4/proof';const host=await startServe('production');${jsonLine}const hold=setInterval(()=>{},1000);process.on('SIGTERM',async()=>{await host.stop();clearInterval(hold)});`);
  write(cwd,'serve-check.mjs',blocks[0]);
  const result=await command(process.execPath,['serve-check.mjs'],{cwd,env,timeoutMs:60000,secret:true});assert.equal(result.code,0,result.stderr);assert.equal(JSON.parse(result.stdout).ok,true);
- const wrapper=await command(process.execPath,[join(packdir,'package/bin/snapback4.js'),'serve-check','--deployment','production','--up-ms','50'],{cwd,env,timeoutMs:30000,secret:true});assert.equal(wrapper.code,0,wrapper.stderr);assert.equal(JSON.parse(wrapper.stdout).ok,true);
+ const wrapper=await command(process.execPath,[join(packdir,'package/bin/snapback4.js'),'serve-check','--json','--deployment','production','--up-ms','50'],{cwd,env,timeoutMs:30000,secret:true});assert.equal(wrapper.code,0,wrapper.stderr);assert.equal(JSON.parse(wrapper.stdout).ok,true);
  assert.equal(typeof kit.serveCheck,'function');
 });
 

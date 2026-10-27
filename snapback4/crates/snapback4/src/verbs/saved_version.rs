@@ -105,6 +105,7 @@ impl SavedVersion {
             }
         }
         self.complete=true;
+        crate::command_output::fact("saved version",format!("saved release {release} sources, generated client and contemporary fixtures: {}",self.path.display()));
         eprintln!("{} release {release} sources, generated client, contemporary fixtures and release.json at {}",if self.refresh {"refreshed"} else {"saved"},self.path.display());
         Ok(())
     }

@@ -29,6 +29,7 @@ impl App {
     fn run(&self, args: &[&str]) -> Output {
         Command::new(BIN)
             .args(args)
+            .args(if args.first() == Some(&"test") {vec!["--explain"]}else{vec![]})
             .current_dir(&self.0)
             .output()
             .unwrap()

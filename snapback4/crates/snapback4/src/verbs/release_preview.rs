@@ -22,6 +22,7 @@ pub(super) fn plan(
         let mut store=snapback4_core::store_port::AnyStore::open_read_only(store_path).map_err(|e|e.to_string())?;
         let current=store.release_status(0,None,None).map_err(|e|e.to_string())?["release"].as_u64().ok_or("a bridge needs a current release")?;
         super::release_bridge::write(Path::new(path),dir,current,release,&[])?;
+        crate::command_output::fact("bridge",format!("bridge starter written to {path}; follow ROLLBACK-CHECKLIST.md before selecting exact source"));
         eprintln!("bridge starter written to {path}; follow ROLLBACK-CHECKLIST.md before selecting exact source");
     }
     let bound = super::releases::bound_at(root.clone())?;
@@ -236,6 +237,29 @@ pub(super) fn plan(
         Some(super::release_shape::at(dir,release)?)
     }else{None};
     let payload=serde_json::json!({"sourceRelease":options.flags.get("source-release").and_then(|s|s.parse::<u64>().ok()),"preview":true,"rowShape":row_shape,"security":options.flags.get("security-summary").and_then(|s|serde_json::from_str::<serde_json::Value>(s).ok()),"visibility":visibility,"rollbackVisibility":rollback_visibility,"rollbackViews":rollback_views,"rollbackViewEffects":view_effects,"rollbackView":options.flags.get("rollback-view").and_then(|s|serde_json::from_str::<serde_json::Value>(s).ok()),"clientCompatibility":client_compatibility,"checklist":checklist,"hazards":hazards,"notes":notes,"current":held,"plan":planned,"steps":steps,"estimate":estimate,"phases":engine.store().adoption_report().summary(),"backfills":engine.store().adoption_report().backfills});
+    if !options.flags.contains_key("validation-only") {
+        let verb = if options.flags.contains_key("deploy-direction") { "deploy" } else { "rollback" };
+        crate::command_output::summary(format!("{verb}: READY preview; release {release}, generation {}; live release unchanged",engine.generation()));
+        crate::command_output::evidence(&payload);
+        crate::command_output::preview_decisions(&payload);
+        let mut state = payload.clone();
+        // Phase timings and wall-clock estimates are observations, never a
+        // changed release decision. All source/store/visibility facts remain.
+        if let Some(object) = state.as_object_mut() { object.remove("phases"); object.remove("estimate"); }
+        if let Some(events) = state["plan"]["events"].as_array_mut() {
+            for event in events.iter_mut().filter(|e|e["operation"]=="preview") {
+                if let Some(event)=event.as_object_mut() {event.remove("at");}
+            }
+        }
+        if let Some(security)=state["security"].as_object_mut() {security.remove("notice");}
+        crate::command_output::state(state);
+        if visibility.hidden_rows + visibility.empty_cells + visibility.newer_only_rows > 0 {
+            crate::command_output::fact("visibility",visibility.lines(held["release"].as_u64().unwrap_or(0),release).join("; "));
+        }
+        if !options.flags.contains_key("deploy-direction") {
+            crate::command_output::fact("next",format!("next: prove named refusals and affected lists/counts as real accounts before release {release}; --bridge <new-dir> saves the rollback checklist"));
+        }
+    }
     if !options.json&&options.flags.contains_key("deploy-direction") && !options.flags.contains_key("validation-only") {
         let hidden=view_effects.iter().filter_map(|v|v["visibility"]["hiddenRows"].as_u64()).sum::<u64>();
         println!("deploy verdict: READY; {} rollback views, {hidden} hidden old-table rows across those views; {}",rollback_views.len(),super::security::release_verdict(options.flags.get("security-summary")));

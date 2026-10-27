@@ -255,12 +255,19 @@ export function rollback(dir: string, to: number | "latest", options: ProofOptio
 // @ref LLP 3000.011.003.000.000#11-wave-14-truthful-starter-custody-day4 — saved-source proof results expose authored cases separately from query sweeps.
 export interface TestSourceOptions extends ProofOptions { fixtureOnly?: boolean }
 export interface TestSourceResult extends CliResult { casesRun: number; casesSkipped: number }
+export { printProofReport } from "./proof-report.js";
 /** @throws missing source, CLI failure, invalid business-case summary or zero cases without fixtureOnly. */
 export function testSource(source: string, options: TestSourceOptions = {}): Promise<TestSourceResult> {
   if (typeof source !== "string" || !source) throw Error(`proof testSource requires an explicit saved source file or directory; got ${JSON.stringify(source) ?? String(source)}: pass versions/v1`);
   const { fixtureOnly = false, ...proofOptions } = options;
-  return successful(["test", "--source", source, ...(fixtureOnly ? ["--fixture-only"] : []), ...(proofOptions.args ?? [])], proofOptions).then(result => {
-    const summaries = [...result.stdout.matchAll(/^SNAPBACK4_TEST_CASES (\{.*\})$/gm)];
+  return successful(["test", "--source", source, "--json", ...(fixtureOnly ? ["--fixture-only"] : []), ...(proofOptions.args ?? [])], proofOptions).then(result => {
+    let machine: {run:number;skipped:number} | undefined;
+    try {
+      const envelope = JSON.parse(result.stdout);
+      const counts = envelope.evidence?.find((v: {cases?:unknown}) => v.cases)?.cases;
+      if (counts) machine = {run:counts.passed + counts.failed, skipped:counts.skipped};
+    } catch { /* Legacy custom executables keep the tagged text protocol. */ }
+    const summaries = machine ? [["machine case counts", JSON.stringify(machine)]] : [...result.stdout.matchAll(/^SNAPBACK4_TEST_CASES (\{.*\})$/gm)];
     if (summaries.length !== 1) throw Error(`proof testSource received no unique business-case summary; stdout tail: ${result.stdout.trimEnd().slice(-4000) || "(empty)"}; logs: ${result.logs.stdout}`);
     let cases: { run: number; skipped: number };
     try { cases = JSON.parse(summaries[0]![1]!) as { run: number; skipped: number }; }

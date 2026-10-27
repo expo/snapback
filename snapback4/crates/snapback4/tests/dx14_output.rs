@@ -18,7 +18,7 @@ fn text(out:&Output)->String {format!("{}{}",String::from_utf8_lossy(&out.stdout
 #[test]
 fn wave30_024e_049r_050r_campaign_completion_does_not_inherit_probe_gaps() {
     let app=App::new("use personas alice\ntable notes:\n  title: text <=80\n  owner: principal\n  read <- .owner = viewer\n  online only\nquery note(row: notes):\n  return notes[row]\n");
-    let out=app.run(&["test"]);let text=text(&out);
+    let out=app.run(&["test","--explain"]);let text=text(&out);
     assert!(out.status.success(),"{text}");
     assert!(text.contains("security campaign: completed"),"{text}");
     assert!(text.contains("authored cases: not provided"),"{text}");

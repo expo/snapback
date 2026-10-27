@@ -39,6 +39,8 @@ mod timeline_cost;
 mod column_cost;
 mod scale;
 mod presentation;
+mod command_output;
+mod serve_output;
 mod service_identities;
 mod sync_wire;
 mod store_owner;
@@ -71,7 +73,9 @@ fn main() -> ExitCode {
     if verb == "--internal-witness-process" { return ExitCode::from(verbs::witness::process_group::command(&args[1..])); }
     if verb == "--internal-worker-watchdog" { return ExitCode::from(dev_worker::process::watchdog(&args[1..])); }
     quiet_broken_pipe(verb);
-    let options = verbs::parse(&args);
+    let mut options = verbs::parse(&args);
+    if options.flags.contains_key("explain") && !(verb=="test" && options.flags.contains_key("residency")) && matches!(verb,"deploy"|"rollback"|"releases"|"data"|"test"|"serve") { options.flags.insert("verbose".into(),String::new()); }
+    if verb == "test" && options.flags.contains_key("verbose") { options.flags.insert("all".into(),String::new()); }
     if options.flags.contains_key("help") || matches!(verb, "--help" | "-h") || verb.is_empty() {
         // `snapback4 test --help` is about test; `snapback4 --help` lists every verb.
         println!("{}", verb_help::page(verb).unwrap_or_else(cli_flags::top_help));
@@ -111,10 +115,10 @@ fn main() -> ExitCode {
         }
         "init" | "new" => verbs::init(&options),
         "upgrade" => verbs::upgrade::run(&args[1..]),
-        "deploy" => verbs::deploy(&options),
-        "rollback" => verbs::rollback(&options),
+        "deploy" => command_output::run(verb, &options, || verbs::deploy(&options)),
+        "rollback" => command_output::run(verb, &options, || verbs::rollback(&options)),
         "prune" => verbs::prune(&options),
-        "releases" => verbs::releases(&options),
+        "releases" => command_output::run(verb, &options, || verbs::releases(&options)),
         "serve" => lifecycle::run("serve", || verbs::serve_release(&options)),
         "stop" => verbs::stop_release(&options),
         "check" => verbs::check(&options),
@@ -124,9 +128,9 @@ fn main() -> ExitCode {
         "clock" => dev_clock::command(&options),
         "seed" => dev_reset::seed(&options),
         "reset" => dev_reset::command(&options),
-        "test" => verbs::test(&options),
+        "test" => command_output::run(verb, &options, || verbs::test(&options)),
         "why" => verbs::why(&options),
-        "data" => verbs::data(&options),
+        "data" => command_output::run(verb, &options, || verbs::data(&options)),
         "sql" => verbs::sql(&options),
         "token" => verbs::token(&options),
         "doctor" => verbs::doctor(&options),

@@ -240,7 +240,8 @@ pub(super) fn release_loop(project:&Project,bound:&Bound,sources:&[(String,Strin
     // A scoped deploy cannot silently acknowledge unseen family members. It
     // prints their individual commands; ordinary check offers the whole family.
     notice.push_str(&super::security_reviews::render_mode(&scoped_dispositions,&scoped_notes,review));
-    let test=release_notice(project,bound,sources,options);
+    let (test, qualification)=release_notice(project,bound,sources,options);
+    crate::command_output::fact("test qualification",qualification);
     let advice=scoped_dispositions.iter().filter(|d|!d.gated&&!d.acknowledged&&d.witness.is_none()).count();
     let witnessed=scoped_dispositions.iter().filter(|d|!d.gated&&!d.acknowledged&&d.witness.is_some()).count();
     notice.push_str(&format!("{}; {witnessed} witnessed questions; {advice} advisories (don't block): deploy --review (or check --review)",enforced_text(&report,bound).replacen("check:","security:",1)));
@@ -253,7 +254,7 @@ pub(super) fn release_loop(project:&Project,bound:&Bound,sources:&[(String,Strin
 fn age(timestamp:Option<i64>,now:i64)->String{
     timestamp.map(|t|format!("at {t} ms since Unix epoch, age {}s",now.saturating_sub(t).max(0)/1000)).unwrap_or_else(||"time/age unknown (legacy record)".into())
 }
-fn release_notice(project:&Project,bound:&Bound,sources:&[(String,String)],options:&Options)->String{
+fn release_notice(project:&Project,bound:&Bound,sources:&[(String,String)],options:&Options)->(String,String){
     let selection=options.flags.get("schema").map(|s|format!(" --source {s:?}")).unwrap_or_default();
     let fixture=options.flags.get("fixture").map(|s|format!(" --fixture {s:?}")).unwrap_or_default();
     let now=snapback4_core::now_ms();
@@ -264,9 +265,11 @@ fn release_notice(project:&Project,bound:&Bound,sources:&[(String,String)],optio
             let result=if !record.complete{"incomplete"}else if record.run_violations.unwrap_or(record.violations.len())>0{"FAILED"}else{"completed, no observed violation"};
             let current=if matches{"matches selected source/fixtures/CLI"}else{"STALE: source, fixtures or CLI differ; does not qualify selected release"};
             let next=if matches&&record.complete&&record.run_violations.unwrap_or(record.violations.len())==0{"matching test campaign recorded (finite, not proof)".into()}else{format!("run `snapback4 test{selection}{fixture}` before deployment")};
-            format!("last test: {result}, {}; {current}; {} retained reachable refutations, {} coverage gaps; last completed test {}; {next}",age(record.recorded_at,now),record.violations.len(),record.coverage_gaps,age(record.last_completed_at,now))
+            let full=format!("last test: {result}, {}; {current}; {} retained reachable refutations, {} coverage gaps; last completed test {}; {next}",age(record.recorded_at,now),record.violations.len(),record.coverage_gaps,age(record.last_completed_at,now));
+            let compact=format!("last test: {result}; {}; {} refutations, {} coverage gaps; {next}",if matches {"matching evidence"} else {"STALE evidence"},record.violations.len(),record.coverage_gaps);
+            (full,compact)
         },
-        None=>format!("last test: NEVER RECORDED; run `snapback4 test{selection}{fixture}` before deployment; no matching completed campaign for this source, fixtures and CLI; {} independent invariants",bound.invariants.len()),
+        None=>{let text=format!("last test: NEVER RECORDED; run `snapback4 test{selection}{fixture}` before deployment; no matching completed campaign for this source, fixtures and CLI; {} independent invariants",bound.invariants.len());(text,format!("last test: NEVER RECORDED; next: snapback4 test{selection}{fixture}"))},
     }
 }
 
@@ -289,7 +292,12 @@ fn release_scope(bound:&Bound,prior:Option<&Bound>,sources:&[(String,String)])->
         }
     }scope
 }
-pub(super) fn print_release(summary:Option<&String>){if let Some(s)=summary.and_then(|s|serde_json::from_str::<serde_json::Value>(s).ok()){eprint!("{}",s["notice"].as_str().unwrap_or(""));}}
+pub(super) fn print_release(summary:Option<&String>){if let Some(s)=summary.and_then(|s|serde_json::from_str::<serde_json::Value>(s).ok()){
+    crate::command_output::evidence(&s);
+    let actionable=s["securityReviews"].as_array().into_iter().flatten().any(|d| d["gated"]==true || !d["witness"].is_null() && d["acknowledged"]!=true) || s["fixes"].as_u64().unwrap_or(0)>0;
+    if actionable {let notice=s["notice"].as_str().unwrap_or(""); let decisions=notice.rsplit_once("; last test:").map_or(notice,|(before,_)|before);crate::command_output::fact("security",decisions);}
+    eprint!("{}",s["notice"].as_str().unwrap_or(""));
+}}
 pub(super) fn release_verdict(summary:Option<&String>)->String {summary.and_then(|s|serde_json::from_str::<serde_json::Value>(s).ok()).and_then(|s|s["verdict"].as_str().map(str::to_owned)).unwrap_or_else(||"security unchanged".into())}
 
 pub(super) fn enforce_release(summary:Option<&String>,options:&Options)->Result<(),String>{

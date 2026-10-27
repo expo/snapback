@@ -45,7 +45,9 @@ function fixture(t) {
   mkdirSync(join(app, "snapback"), { recursive: true });
   const schema = join(app, "snapback/schema.q");
   writeFileSync(schema, source);
-  const invoke = (...args) => spawnSync(binary, args, { cwd: app, encoding: "utf8", timeout: hangBudget() });
+  // Behavioral evidence assertions deliberately select the complete report;
+  // tok2-output tests the independent compact presentation contract.
+  const invoke = (...args) => spawnSync(binary, [...args, ...(["deploy","rollback","releases","data","test"].includes(args[0]) && !args.includes("--json") && !args.includes("--help") ? ["--explain"] : [])], { cwd: app, encoding: "utf8", timeout: hangBudget() });
   const run = (...args) => {
     const result = invoke(...args);
     assert.equal(result.error, undefined, result.error?.message);
