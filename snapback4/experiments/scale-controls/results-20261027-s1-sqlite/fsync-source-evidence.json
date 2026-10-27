@@ -1,0 +1,10 @@
+{
+  "sqlite_package": "libsqlite3-sys 0.38.2",
+  "amalgamation_sha256": "0a409f1633283fa31a9126b11fbfd64a1991c5d30defad07e5745d4667f5e23d",
+  "macro_guard": "#if !defined(fdatasync) && !HAVE_FDATASYNC",
+  "fallback": "# define fdatasync fsync",
+  "explicit_build_flags": "LIBSQLITE3_FLAGS=-USQLITE_ENABLE_MEMORY_MANAGEMENT",
+  "pg_control_wal_sync_method": "fdatasync",
+  "actual_serving_syscall": "see separate diagnostic.json",
+  "source_note": "C source from the pinned Cargo registry package; syscall observation is authoritative for the executable."
+}

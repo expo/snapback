@@ -1,0 +1,129 @@
+{
+  "pid": 46893,
+  "rows": [
+    {
+      "repetition": 0,
+      "layout": "preallocated",
+      "method": "fsync",
+      "operations": 400,
+      "mean_ms": 8.2858625675,
+      "p50_ms": 7.82233,
+      "p99_ms": 16.610618,
+      "device": 66308
+    },
+    {
+      "repetition": 0,
+      "layout": "preallocated",
+      "method": "fdatasync",
+      "operations": 400,
+      "mean_ms": 7.895737525,
+      "p50_ms": 7.847307000000001,
+      "p99_ms": 8.883681,
+      "device": 66308
+    },
+    {
+      "repetition": 0,
+      "layout": "growing",
+      "method": "fsync",
+      "operations": 400,
+      "mean_ms": 7.856721985,
+      "p50_ms": 7.841932,
+      "p99_ms": 8.05887,
+      "device": 66308
+    },
+    {
+      "repetition": 0,
+      "layout": "growing",
+      "method": "fdatasync",
+      "operations": 400,
+      "mean_ms": 7.9367491825,
+      "p50_ms": 7.7775005,
+      "p99_ms": 11.198976,
+      "device": 66308
+    },
+    {
+      "repetition": 1,
+      "layout": "preallocated",
+      "method": "fsync",
+      "operations": 400,
+      "mean_ms": 7.90342403,
+      "p50_ms": 7.6627849999999995,
+      "p99_ms": 11.225687,
+      "device": 66308
+    },
+    {
+      "repetition": 1,
+      "layout": "preallocated",
+      "method": "fdatasync",
+      "operations": 400,
+      "mean_ms": 7.6457143875,
+      "p50_ms": 7.5862715000000005,
+      "p99_ms": 9.545998,
+      "device": 66308
+    },
+    {
+      "repetition": 1,
+      "layout": "growing",
+      "method": "fsync",
+      "operations": 400,
+      "mean_ms": 7.9151324625,
+      "p50_ms": 7.7093425,
+      "p99_ms": 11.344952,
+      "device": 66308
+    },
+    {
+      "repetition": 1,
+      "layout": "growing",
+      "method": "fdatasync",
+      "operations": 400,
+      "mean_ms": 7.69237092,
+      "p50_ms": 7.6462485000000004,
+      "p99_ms": 9.518055,
+      "device": 66308
+    },
+    {
+      "repetition": 2,
+      "layout": "preallocated",
+      "method": "fsync",
+      "operations": 400,
+      "mean_ms": 7.6594396275,
+      "p50_ms": 7.6402975,
+      "p99_ms": 7.863843,
+      "device": 66308
+    },
+    {
+      "repetition": 2,
+      "layout": "preallocated",
+      "method": "fdatasync",
+      "operations": 400,
+      "mean_ms": 7.92243999,
+      "p50_ms": 7.730227,
+      "p99_ms": 10.779939,
+      "device": 66308
+    },
+    {
+      "repetition": 2,
+      "layout": "growing",
+      "method": "fsync",
+      "operations": 400,
+      "mean_ms": 8.0355192125,
+      "p50_ms": 7.9442095,
+      "p99_ms": 22.416549,
+      "device": 66308
+    },
+    {
+      "repetition": 2,
+      "layout": "growing",
+      "method": "fdatasync",
+      "operations": 400,
+      "mean_ms": 8.0249418375,
+      "p50_ms": 7.863046499999999,
+      "p99_ms": 10.871411,
+      "device": 66308
+    }
+  ],
+  "filesystem": "SOURCE         FSTYPE OPTIONS\n/dev/nvme0n1p3 ext4   rw,relatime\n",
+  "warmup_calls": 20,
+  "write_bytes": 8192,
+  "notes": "Serial calls; growing allocation vs preallocated 16 MiB; method/order repeated three times; real durability unchanged."
+}

@@ -1,0 +1,863 @@
+[
+  {
+    "workload": "W1",
+    "keys": "disjoint",
+    "rate": 1000,
+    "all_pass": true,
+    "p50_ms": {
+      "min": 0.395263,
+      "median": 0.398079,
+      "max": 0.409855
+    },
+    "p99_ms": {
+      "min": 0.510463,
+      "median": 0.516351,
+      "max": 0.521471
+    },
+    "errors": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    }
+  },
+  {
+    "workload": "W1",
+    "keys": "disjoint",
+    "rate": 2000,
+    "all_pass": true,
+    "p50_ms": {
+      "min": 0.336895,
+      "median": 0.393983,
+      "max": 0.394239
+    },
+    "p99_ms": {
+      "min": 0.370431,
+      "median": 0.447231,
+      "max": 0.452863
+    },
+    "errors": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    }
+  },
+  {
+    "workload": "W1",
+    "keys": "disjoint",
+    "rate": 4000,
+    "all_pass": true,
+    "p50_ms": {
+      "min": 0.213247,
+      "median": 0.261119,
+      "max": 0.293375
+    },
+    "p99_ms": {
+      "min": 0.375551,
+      "median": 0.386303,
+      "max": 0.391679
+    },
+    "errors": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    }
+  },
+  {
+    "workload": "W1",
+    "keys": "disjoint",
+    "rate": 8000,
+    "all_pass": true,
+    "p50_ms": {
+      "min": 0.215039,
+      "median": 0.216575,
+      "max": 0.217087
+    },
+    "p99_ms": {
+      "min": 0.365055,
+      "median": 0.420095,
+      "max": 0.548863
+    },
+    "errors": {
+      "min": 2,
+      "median": 5,
+      "max": 6
+    }
+  },
+  {
+    "workload": "W1",
+    "keys": "disjoint",
+    "rate": 16000,
+    "all_pass": true,
+    "p50_ms": {
+      "min": 0.714751,
+      "median": 0.788991,
+      "max": 0.799743
+    },
+    "p99_ms": {
+      "min": 22.855679,
+      "median": 24.625151,
+      "max": 25.985023
+    },
+    "errors": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    }
+  },
+  {
+    "workload": "W1",
+    "keys": "disjoint",
+    "rate": 19027,
+    "all_pass": false,
+    "p50_ms": {
+      "min": 1000.865791,
+      "median": 1000.865791,
+      "max": 1000.865791
+    },
+    "p99_ms": {
+      "min": 1016.070143,
+      "median": 1016.070143,
+      "max": 1016.594431
+    },
+    "errors": {
+      "min": 29148,
+      "median": 29193,
+      "max": 30186
+    }
+  },
+  {
+    "workload": "W1",
+    "keys": "disjoint",
+    "rate": 22627,
+    "all_pass": false,
+    "p50_ms": {
+      "min": 1004.011519,
+      "median": 1004.011519,
+      "max": 1004.011519
+    },
+    "p99_ms": {
+      "min": 1019.215871,
+      "median": 1019.215871,
+      "max": 1019.740159
+    },
+    "errors": {
+      "min": 104187,
+      "median": 104218,
+      "max": 104735
+    }
+  },
+  {
+    "workload": "W1",
+    "keys": "disjoint",
+    "rate": 32000,
+    "all_pass": false,
+    "p50_ms": {
+      "min": 1004.011519,
+      "median": 1004.011519,
+      "max": 1004.011519
+    },
+    "p99_ms": {
+      "min": 1019.740159,
+      "median": 1019.740159,
+      "max": 1019.740159
+    },
+    "errors": {
+      "min": 290466,
+      "median": 290955,
+      "max": 291142
+    }
+  },
+  {
+    "workload": "W1",
+    "keys": "disjoint",
+    "rate": 45254,
+    "all_pass": false,
+    "p50_ms": {
+      "min": 1004.011519,
+      "median": 1004.011519,
+      "max": 1004.011519
+    },
+    "p99_ms": {
+      "min": 1019.215871,
+      "median": 1019.215871,
+      "max": 1019.740159
+    },
+    "errors": {
+      "min": 557318,
+      "median": 557718,
+      "max": 557968
+    }
+  },
+  {
+    "workload": "W2",
+    "keys": "disjoint",
+    "rate": 1000,
+    "all_pass": true,
+    "p50_ms": {
+      "min": 0.629247,
+      "median": 0.642559,
+      "max": 0.646655
+    },
+    "p99_ms": {
+      "min": 0.739839,
+      "median": 0.742399,
+      "max": 0.771583
+    },
+    "errors": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    }
+  },
+  {
+    "workload": "W2",
+    "keys": "disjoint",
+    "rate": 2000,
+    "all_pass": true,
+    "p50_ms": {
+      "min": 0.578047,
+      "median": 0.642559,
+      "max": 0.644607
+    },
+    "p99_ms": {
+      "min": 0.721919,
+      "median": 0.739327,
+      "max": 0.766975
+    },
+    "errors": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    }
+  },
+  {
+    "workload": "W2",
+    "keys": "disjoint",
+    "rate": 4000,
+    "all_pass": true,
+    "p50_ms": {
+      "min": 0.344319,
+      "median": 0.344319,
+      "max": 0.345343
+    },
+    "p99_ms": {
+      "min": 0.535039,
+      "median": 0.599039,
+      "max": 0.601087
+    },
+    "errors": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    }
+  },
+  {
+    "workload": "W2",
+    "keys": "disjoint",
+    "rate": 8000,
+    "all_pass": true,
+    "p50_ms": {
+      "min": 0.626687,
+      "median": 0.648703,
+      "max": 0.650239
+    },
+    "p99_ms": {
+      "min": 2.877439,
+      "median": 3.219455,
+      "max": 28.082175
+    },
+    "errors": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    }
+  },
+  {
+    "workload": "W2",
+    "keys": "disjoint",
+    "rate": 11313,
+    "all_pass": false,
+    "p50_ms": {
+      "min": 1006.632959,
+      "median": 1006.632959,
+      "max": 1006.632959
+    },
+    "p99_ms": {
+      "min": 1029.177343,
+      "median": 1029.701631,
+      "max": 1029.701631
+    },
+    "errors": {
+      "min": 37854,
+      "median": 37916,
+      "max": 38250
+    }
+  },
+  {
+    "workload": "W2",
+    "keys": "disjoint",
+    "rate": 16000,
+    "all_pass": false,
+    "p50_ms": {
+      "min": 1007.157247,
+      "median": 1007.157247,
+      "max": 1007.157247
+    },
+    "p99_ms": {
+      "min": 1029.177343,
+      "median": 1029.701631,
+      "max": 1030.225919
+    },
+    "errors": {
+      "min": 130323,
+      "median": 130770,
+      "max": 131446
+    }
+  },
+  {
+    "workload": "W2",
+    "keys": "disjoint",
+    "rate": 19027,
+    "all_pass": false,
+    "p50_ms": {
+      "min": 1007.157247,
+      "median": 1007.157247,
+      "max": 1007.157247
+    },
+    "p99_ms": {
+      "min": 1029.701631,
+      "median": 1029.701631,
+      "max": 1029.701631
+    },
+    "errors": {
+      "min": 192438,
+      "median": 192538,
+      "max": 192593
+    }
+  },
+  {
+    "workload": "W2",
+    "keys": "disjoint",
+    "rate": 22627,
+    "all_pass": false,
+    "p50_ms": {
+      "min": 1007.157247,
+      "median": 1007.157247,
+      "max": 1007.157247
+    },
+    "p99_ms": {
+      "min": 1030.225919,
+      "median": 1030.225919,
+      "max": 1030.225919
+    },
+    "errors": {
+      "min": 264356,
+      "median": 264488,
+      "max": 264552
+    }
+  },
+  {
+    "workload": "W2",
+    "keys": "disjoint",
+    "rate": 32000,
+    "all_pass": false,
+    "p50_ms": {
+      "min": 1007.157247,
+      "median": 1007.157247,
+      "max": 1007.157247
+    },
+    "p99_ms": {
+      "min": 1029.701631,
+      "median": 1029.701631,
+      "max": 1029.701631
+    },
+    "errors": {
+      "min": 452143,
+      "median": 452145,
+      "max": 452429
+    }
+  },
+  {
+    "workload": "W2",
+    "keys": "disjoint",
+    "rate": 45254,
+    "all_pass": false,
+    "p50_ms": {
+      "min": 1007.157247,
+      "median": 1007.157247,
+      "max": 1007.157247
+    },
+    "p99_ms": {
+      "min": 1029.701631,
+      "median": 1030.225919,
+      "max": 1030.750207
+    },
+    "errors": {
+      "min": 716849,
+      "median": 717124,
+      "max": 717343
+    }
+  },
+  {
+    "workload": "W3",
+    "keys": "disjoint",
+    "rate": 1000,
+    "all_pass": true,
+    "p50_ms": {
+      "min": 1.562623,
+      "median": 1.569791,
+      "max": 1.575935
+    },
+    "p99_ms": {
+      "min": 1.965055,
+      "median": 1.966079,
+      "max": 2.129919
+    },
+    "errors": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    }
+  },
+  {
+    "workload": "W3",
+    "keys": "disjoint",
+    "rate": 2000,
+    "all_pass": true,
+    "p50_ms": {
+      "min": 0.919039,
+      "median": 0.927231,
+      "max": 0.939519
+    },
+    "p99_ms": {
+      "min": 1.316863,
+      "median": 1.352703,
+      "max": 1.429503
+    },
+    "errors": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    }
+  },
+  {
+    "workload": "W3",
+    "keys": "disjoint",
+    "rate": 2828,
+    "all_pass": true,
+    "p50_ms": {
+      "min": 2.455551,
+      "median": 2.465791,
+      "max": 2.496511
+    },
+    "p99_ms": {
+      "min": 9.183231,
+      "median": 9.314303,
+      "max": 9.699327
+    },
+    "errors": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    }
+  },
+  {
+    "workload": "W3",
+    "keys": "disjoint",
+    "rate": 4000,
+    "all_pass": false,
+    "p50_ms": {
+      "min": 1021.837311,
+      "median": 1021.837311,
+      "max": 1021.837311
+    },
+    "p99_ms": {
+      "min": 1064.304639,
+      "median": 1064.828927,
+      "max": 1066.926079
+    },
+    "errors": {
+      "min": 20217,
+      "median": 20455,
+      "max": 20460
+    }
+  },
+  {
+    "workload": "W3",
+    "keys": "disjoint",
+    "rate": 19027,
+    "all_pass": false,
+    "p50_ms": {
+      "min": 1021.837311,
+      "median": 1021.837311,
+      "max": 1021.837311
+    },
+    "p99_ms": {
+      "min": 1064.304639,
+      "median": 1064.828927,
+      "max": 1064.828927
+    },
+    "errors": {
+      "min": 321178,
+      "median": 321381,
+      "max": 321391
+    }
+  },
+  {
+    "workload": "W3",
+    "keys": "disjoint",
+    "rate": 22627,
+    "all_pass": false,
+    "p50_ms": {
+      "min": 1021.837311,
+      "median": 1021.837311,
+      "max": 1021.837311
+    },
+    "p99_ms": {
+      "min": 1064.304639,
+      "median": 1065.353215,
+      "max": 1065.353215
+    },
+    "errors": {
+      "min": 393274,
+      "median": 393341,
+      "max": 393483
+    }
+  },
+  {
+    "workload": "W3",
+    "keys": "disjoint",
+    "rate": 32000,
+    "all_pass": false,
+    "p50_ms": {
+      "min": 1021.837311,
+      "median": 1021.837311,
+      "max": 1022.361599
+    },
+    "p99_ms": {
+      "min": 1064.828927,
+      "median": 1065.877503,
+      "max": 1065.877503
+    },
+    "errors": {
+      "min": 580755,
+      "median": 580943,
+      "max": 581577
+    }
+  },
+  {
+    "workload": "W3",
+    "keys": "disjoint",
+    "rate": 45254,
+    "all_pass": false,
+    "p50_ms": {
+      "min": 1021.837311,
+      "median": 1021.837311,
+      "max": 1022.361599
+    },
+    "p99_ms": {
+      "min": 1064.828927,
+      "median": 1064.828927,
+      "max": 1065.877503
+    },
+    "errors": {
+      "min": 845845,
+      "median": 845971,
+      "max": 846606
+    }
+  },
+  {
+    "workload": "W4",
+    "keys": "disjoint",
+    "rate": 800,
+    "all_pass": true,
+    "p50_ms": {
+      "min": 15.900671,
+      "median": 16.048127,
+      "max": 16.203775
+    },
+    "p99_ms": {
+      "min": 31.227903,
+      "median": 36.208639,
+      "max": 43.876351
+    },
+    "errors": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    }
+  },
+  {
+    "workload": "W4",
+    "keys": "disjoint",
+    "rate": 1131,
+    "all_pass": true,
+    "p50_ms": {
+      "min": 20.545535,
+      "median": 21.250047,
+      "max": 21.561343
+    },
+    "p99_ms": {
+      "min": 43.286527,
+      "median": 43.745279,
+      "max": 46.497791
+    },
+    "errors": {
+      "min": 0,
+      "median": 0,
+      "max": 1
+    }
+  },
+  {
+    "workload": "W4",
+    "keys": "disjoint",
+    "rate": 1600,
+    "all_pass": false,
+    "p50_ms": {
+      "min": 1011.875839,
+      "median": 1012.400127,
+      "max": 1012.400127
+    },
+    "p99_ms": {
+      "min": 1033.371647,
+      "median": 1033.371647,
+      "max": 1034.420223
+    },
+    "errors": {
+      "min": 6537,
+      "median": 6656,
+      "max": 6734
+    }
+  },
+  {
+    "workload": "W4",
+    "keys": "disjoint",
+    "rate": 3200,
+    "all_pass": false,
+    "p50_ms": {
+      "min": 1012.924415,
+      "median": 1012.924415,
+      "max": 1012.924415
+    },
+    "p99_ms": {
+      "min": 1032.323071,
+      "median": 1033.895935,
+      "max": 1033.895935
+    },
+    "errors": {
+      "min": 38268,
+      "median": 38865,
+      "max": 38965
+    }
+  },
+  {
+    "workload": "W5",
+    "keys": "hot1",
+    "rate": 800,
+    "all_pass": true,
+    "p50_ms": {
+      "min": 15.892479,
+      "median": 16.244735,
+      "max": 16.678911
+    },
+    "p99_ms": {
+      "min": 31.653887,
+      "median": 38.043647,
+      "max": 62.849023
+    },
+    "errors": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    }
+  },
+  {
+    "workload": "W5",
+    "keys": "hot1",
+    "rate": 1131,
+    "all_pass": true,
+    "p50_ms": {
+      "min": 20.627455,
+      "median": 21.233663,
+      "max": 21.381119
+    },
+    "p99_ms": {
+      "min": 42.369023,
+      "median": 42.631167,
+      "max": 73.138175
+    },
+    "errors": {
+      "min": 0,
+      "median": 0,
+      "max": 2
+    }
+  },
+  {
+    "workload": "W5",
+    "keys": "hot1",
+    "rate": 1600,
+    "all_pass": false,
+    "p50_ms": {
+      "min": 1011.875839,
+      "median": 1011.875839,
+      "max": 1011.875839
+    },
+    "p99_ms": {
+      "min": 1032.847359,
+      "median": 1032.847359,
+      "max": 1033.895935
+    },
+    "errors": {
+      "min": 6059,
+      "median": 6138,
+      "max": 6781
+    }
+  },
+  {
+    "workload": "W5",
+    "keys": "hot1",
+    "rate": 3200,
+    "all_pass": false,
+    "p50_ms": {
+      "min": 1012.400127,
+      "median": 1012.924415,
+      "max": 1012.924415
+    },
+    "p99_ms": {
+      "min": 1033.895935,
+      "median": 1033.895935,
+      "max": 1034.420223
+    },
+    "errors": {
+      "min": 38088,
+      "median": 38208,
+      "max": 38497
+    }
+  },
+  {
+    "workload": "W5",
+    "keys": "same",
+    "rate": 100,
+    "all_pass": true,
+    "p50_ms": {
+      "min": 8.335359,
+      "median": 8.511487,
+      "max": 8.527871
+    },
+    "p99_ms": {
+      "min": 16.859135,
+      "median": 16.957439,
+      "max": 23.085055
+    },
+    "errors": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    }
+  },
+  {
+    "workload": "W5",
+    "keys": "same",
+    "rate": 200,
+    "all_pass": true,
+    "p50_ms": {
+      "min": 12.509183,
+      "median": 12.845055,
+      "max": 12.967935
+    },
+    "p99_ms": {
+      "min": 24.002559,
+      "median": 24.608767,
+      "max": 30.031871
+    },
+    "errors": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    }
+  },
+  {
+    "workload": "W5",
+    "keys": "same",
+    "rate": 400,
+    "all_pass": true,
+    "p50_ms": {
+      "min": 13.901823,
+      "median": 14.049279,
+      "max": 14.376959
+    },
+    "p99_ms": {
+      "min": 26.476543,
+      "median": 26.607615,
+      "max": 27.508735
+    },
+    "errors": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    }
+  },
+  {
+    "workload": "W5",
+    "keys": "same",
+    "rate": 800,
+    "all_pass": true,
+    "p50_ms": {
+      "min": 16.941055,
+      "median": 16.990207,
+      "max": 17.154047
+    },
+    "p99_ms": {
+      "min": 32.735231,
+      "median": 32.980991,
+      "max": 37.257215
+    },
+    "errors": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    }
+  },
+  {
+    "workload": "W5",
+    "keys": "same",
+    "rate": 1131,
+    "all_pass": true,
+    "p50_ms": {
+      "min": 24.100863,
+      "median": 26.525695,
+      "max": 27.262975
+    },
+    "p99_ms": {
+      "min": 54.263807,
+      "median": 56.655871,
+      "max": 86.179839
+    },
+    "errors": {
+      "min": 0,
+      "median": 1,
+      "max": 13
+    }
+  },
+  {
+    "workload": "W5",
+    "keys": "same",
+    "rate": 1600,
+    "all_pass": false,
+    "p50_ms": {
+      "min": 1012.400127,
+      "median": 1012.924415,
+      "max": 1012.924415
+    },
+    "p99_ms": {
+      "min": 1034.944511,
+      "median": 1035.468799,
+      "max": 1035.468799
+    },
+    "errors": {
+      "min": 7491,
+      "median": 7644,
+      "max": 7678
+    }
+  }
+]

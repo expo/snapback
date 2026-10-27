@@ -1,0 +1,9 @@
+{
+  "frozen_capacity_source_matches": {
+    "s1-onehost.py": true,
+    "sqlite_onehost.py": true,
+    "run.py": true,
+    "snapback.py": true
+  },
+  "post_launch_guard_change": "Only the final CLI validation guards differ from the already-running capacity runner."
+}

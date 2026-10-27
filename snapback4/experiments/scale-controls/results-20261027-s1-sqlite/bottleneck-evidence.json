@@ -1,0 +1,515 @@
+[
+  {
+    "workload": "W1",
+    "keys": "disjoint",
+    "selected_rate": 16000,
+    "first_failing_rate": 19027,
+    "verdict": "WIN",
+    "latency_ms": {
+      "latency": {
+        "min": 1016.070143,
+        "median": 1016.070143,
+        "max": 1016.594431
+      },
+      "dispatch_lag": {
+        "min": 1009.254399,
+        "median": 1009.778687,
+        "max": 1009.778687
+      },
+      "http_service": {
+        "min": 20.217855,
+        "median": 20.512767,
+        "max": 20.725759
+      }
+    },
+    "measured_errors_total": 88527,
+    "errors_by_kind": {
+      "expired_before_send": 88527
+    },
+    "cpu": {
+      "app_cpu_us_per_ack": {
+        "min": 225.33869132920648,
+        "median": 225.60787194398753,
+        "max": 226.2426725077292
+      },
+      "app_cores": {
+        "min": 3.925100546459008,
+        "median": 3.937549668447902,
+        "max": 3.9391820148498815
+      },
+      "app_cpu_s": {
+        "min": 121.93,
+        "median": 122.02,
+        "max": 122.5
+      },
+      "app_sample_span_s": {
+        "min": 30.96595859527588,
+        "median": 30.975974082946777,
+        "max": 31.209391593933105
+      },
+      "generator_cpu_us_per_ack": {
+        "min": 100.93421975350216,
+        "median": 101.04274786039072,
+        "max": 101.07184540606025
+      },
+      "generator_cores": {
+        "min": 1.7529979665042639,
+        "median": 1.7616118626575334,
+        "max": 1.7668532344921652
+      },
+      "generator_cpu_s": {
+        "min": 54.55,
+        "median": 54.71,
+        "max": 54.73
+      },
+      "generator_sample_span_s": {
+        "min": 30.96595859527588,
+        "median": 30.975974082946777,
+        "max": 31.209391593933105
+      },
+      "sample_count": {
+        "min": 120,
+        "median": 120,
+        "max": 120
+      },
+      "app_boundary_missing_samples": {
+        "min": 0,
+        "median": 0,
+        "max": 0
+      }
+    },
+    "physical_read_bytes": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    }
+  },
+  {
+    "workload": "W2",
+    "keys": "disjoint",
+    "selected_rate": 8000,
+    "first_failing_rate": 11313,
+    "verdict": "WIN",
+    "latency_ms": {
+      "latency": {
+        "min": 1029.177343,
+        "median": 1029.701631,
+        "max": 1029.701631
+      },
+      "dispatch_lag": {
+        "min": 1018.167295,
+        "median": 1018.691583,
+        "max": 1018.691583
+      },
+      "http_service": {
+        "min": 32.702463,
+        "median": 32.751615,
+        "max": 32.833535
+      }
+    },
+    "measured_errors_total": 114020,
+    "errors_by_kind": {
+      "expired_before_send": 114020
+    },
+    "cpu": {
+      "app_cpu_us_per_ack": {
+        "min": 418.89345929884666,
+        "median": 419.9659181899685,
+        "max": 420.73757495436814
+      },
+      "app_cores": {
+        "min": 3.935787778231452,
+        "median": 3.939049609692453,
+        "max": 3.949767664710501
+      },
+      "app_cpu_s": {
+        "min": 122.51,
+        "median": 122.73,
+        "max": 122.86
+      },
+      "app_sample_span_s": {
+        "min": 31.017014265060425,
+        "median": 31.1830837726593,
+        "max": 31.19026470184326
+      },
+      "generator_cpu_us_per_ack": {
+        "min": 178.03981686159912,
+        "median": 178.1092179812009,
+        "max": 178.6576533075809
+      },
+      "generator_cores": {
+        "min": 1.6685328615773034,
+        "median": 1.6726372956019477,
+        "max": 1.6794008460923189
+      },
+      "generator_cpu_s": {
+        "min": 52.03,
+        "median": 52.09,
+        "max": 52.17
+      },
+      "generator_sample_span_s": {
+        "min": 31.017014265060425,
+        "median": 31.1830837726593,
+        "max": 31.19026470184326
+      },
+      "sample_count": {
+        "min": 120,
+        "median": 121,
+        "max": 121
+      },
+      "app_boundary_missing_samples": {
+        "min": 0,
+        "median": 0,
+        "max": 0
+      }
+    },
+    "physical_read_bytes": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    }
+  },
+  {
+    "workload": "W3",
+    "keys": "disjoint",
+    "selected_rate": 2828,
+    "first_failing_rate": 4000,
+    "verdict": "LOSS",
+    "latency_ms": {
+      "latency": {
+        "min": 1064.304639,
+        "median": 1064.828927,
+        "max": 1066.926079
+      },
+      "dispatch_lag": {
+        "min": 1032.323071,
+        "median": 1032.847359,
+        "max": 1034.944511
+      },
+      "http_service": {
+        "min": 74.252287,
+        "median": 74.579967,
+        "max": 76.414975
+      }
+    },
+    "measured_errors_total": 61132,
+    "errors_by_kind": {
+      "expired_before_send": 61132
+    },
+    "cpu": {
+      "app_cpu_us_per_ack": {
+        "min": 1336.8505092352839,
+        "median": 1341.7644765905843,
+        "max": 1344.2964151372914
+      },
+      "app_cores": {
+        "min": 3.9711858458780473,
+        "median": 3.97785580312945,
+        "max": 3.9799987968234367
+      },
+      "app_cpu_s": {
+        "min": 123.91,
+        "median": 123.92,
+        "max": 124.01
+      },
+      "app_sample_span_s": {
+        "min": 31.14994764328003,
+        "median": 31.15830087661743,
+        "max": 31.204784870147705
+      },
+      "generator_cpu_us_per_ack": {
+        "min": 225.64857724457534,
+        "median": 229.4795442775764,
+        "max": 229.59598478032282
+      },
+      "generator_cores": {
+        "min": 0.6678462962241648,
+        "median": 0.6797546529854075,
+        "max": 0.6828261878182826
+      },
+      "generator_cpu_s": {
+        "min": 20.84,
+        "median": 21.18,
+        "max": 21.27
+      },
+      "generator_sample_span_s": {
+        "min": 31.14994764328003,
+        "median": 31.15830087661743,
+        "max": 31.204784870147705
+      },
+      "sample_count": {
+        "min": 121,
+        "median": 121,
+        "max": 121
+      },
+      "app_boundary_missing_samples": {
+        "min": 0,
+        "median": 0,
+        "max": 0
+      }
+    },
+    "physical_read_bytes": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    }
+  },
+  {
+    "workload": "W4",
+    "keys": "disjoint",
+    "selected_rate": 1131,
+    "first_failing_rate": 1600,
+    "verdict": "LOSS",
+    "latency_ms": {
+      "latency": {
+        "min": 1033.371647,
+        "median": 1033.371647,
+        "max": 1034.420223
+      },
+      "dispatch_lag": {
+        "min": 1013.448703,
+        "median": 1013.448703,
+        "max": 1014.497279
+      },
+      "http_service": {
+        "min": 38.207487,
+        "median": 39.682047,
+        "max": 41.320447
+      }
+    },
+    "measured_errors_total": 19927,
+    "errors_by_kind": {
+      "http_503": 61,
+      "expired_before_send": 19866
+    },
+    "cpu": {
+      "app_cpu_us_per_ack": {
+        "min": 471.87991277448145,
+        "median": 471.9959266802444,
+        "max": 473.443456162643
+      },
+      "app_cores": {
+        "min": 0.5965724315081958,
+        "median": 0.598471381856021,
+        "max": 0.59876154197158
+      },
+      "app_cpu_s": {
+        "min": 18.54,
+        "median": 18.61,
+        "max": 18.63
+      },
+      "app_sample_span_s": {
+        "min": 31.077533960342407,
+        "median": 31.095889568328857,
+        "max": 31.114222764968872
+      },
+      "generator_cpu_us_per_ack": {
+        "min": 225.050916496945,
+        "median": 225.15883100381194,
+        "max": 225.92423550890004
+      },
+      "generator_cores": {
+        "min": 0.28444985407402645,
+        "median": 0.284757233594643,
+        "max": 0.2865330474119907
+      },
+      "generator_cpu_s": {
+        "min": 8.84,
+        "median": 8.86,
+        "max": 8.91
+      },
+      "generator_sample_span_s": {
+        "min": 31.077533960342407,
+        "median": 31.095889568328857,
+        "max": 31.114222764968872
+      },
+      "sample_count": {
+        "min": 123,
+        "median": 123,
+        "max": 123
+      },
+      "app_boundary_missing_samples": {
+        "min": 0,
+        "median": 0,
+        "max": 0
+      }
+    },
+    "physical_read_bytes": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    }
+  },
+  {
+    "workload": "W5",
+    "keys": "hot1",
+    "selected_rate": 1131,
+    "first_failing_rate": 1600,
+    "verdict": "WIN",
+    "latency_ms": {
+      "latency": {
+        "min": 1032.847359,
+        "median": 1032.847359,
+        "max": 1033.895935
+      },
+      "dispatch_lag": {
+        "min": 1012.924415,
+        "median": 1012.924415,
+        "max": 1013.972991
+      },
+      "http_service": {
+        "min": 38.404095,
+        "median": 38.633471,
+        "max": 39.682047
+      }
+    },
+    "measured_errors_total": 18978,
+    "errors_by_kind": {
+      "http_503": 68,
+      "expired_before_send": 18910
+    },
+    "cpu": {
+      "app_cpu_us_per_ack": {
+        "min": 475.632556400349,
+        "median": 477.10460979293043,
+        "max": 478.12155802543305
+      },
+      "app_cores": {
+        "min": 0.5996926325669061,
+        "median": 0.6130549698368081,
+        "max": 0.6142501433663241
+      },
+      "app_cpu_s": {
+        "min": 18.64,
+        "median": 19.08,
+        "max": 19.1
+      },
+      "app_sample_span_s": {
+        "min": 31.082589626312256,
+        "median": 31.094823837280273,
+        "max": 31.12282085418701
+      },
+      "generator_cpu_us_per_ack": {
+        "min": 223.60712950267978,
+        "median": 224.04125362971863,
+        "max": 226.2663492794799
+      },
+      "generator_cores": {
+        "min": 0.2844035875478245,
+        "median": 0.2878292556611833,
+        "max": 0.2882129496559837
+      },
+      "generator_cpu_s": {
+        "min": 8.84,
+        "median": 8.95,
+        "max": 8.97
+      },
+      "generator_sample_span_s": {
+        "min": 31.082589626312256,
+        "median": 31.094823837280273,
+        "max": 31.12282085418701
+      },
+      "sample_count": {
+        "min": 123,
+        "median": 123,
+        "max": 123
+      },
+      "app_boundary_missing_samples": {
+        "min": 0,
+        "median": 0,
+        "max": 0
+      }
+    },
+    "physical_read_bytes": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    }
+  },
+  {
+    "workload": "W5",
+    "keys": "same",
+    "selected_rate": 1131,
+    "first_failing_rate": 1600,
+    "verdict": "WIN",
+    "latency_ms": {
+      "latency": {
+        "min": 1034.944511,
+        "median": 1035.468799,
+        "max": 1035.468799
+      },
+      "dispatch_lag": {
+        "min": 1015.021567,
+        "median": 1015.545855,
+        "max": 1015.545855
+      },
+      "http_service": {
+        "min": 39.550975,
+        "median": 40.534015,
+        "max": 41.746431
+      }
+    },
+    "measured_errors_total": 22813,
+    "errors_by_kind": {
+      "http_503": 55,
+      "expired_before_send": 22758
+    },
+    "cpu": {
+      "app_cpu_us_per_ack": {
+        "min": 513.8298430693329,
+        "median": 514.5017581894614,
+        "max": 514.9051490514905
+      },
+      "app_cores": {
+        "min": 0.6234004342395985,
+        "median": 0.625631018092139,
+        "max": 0.6294996903608142
+      },
+      "app_cpu_s": {
+        "min": 19.38,
+        "median": 19.46,
+        "max": 19.58
+      },
+      "app_sample_span_s": {
+        "min": 31.087562561035156,
+        "median": 31.104066133499146,
+        "max": 31.10459589958191
+      },
+      "generator_cpu_us_per_ack": {
+        "min": 228.83535401249148,
+        "median": 230.01877164688153,
+        "max": 230.61799245443436
+      },
+      "generator_cores": {
+        "min": 0.27921133999998526,
+        "median": 0.2797014315211515,
+        "max": 0.2803491981586466
+      },
+      "generator_cpu_s": {
+        "min": 8.68,
+        "median": 8.7,
+        "max": 8.72
+      },
+      "generator_sample_span_s": {
+        "min": 31.087562561035156,
+        "median": 31.104066133499146,
+        "max": 31.10459589958191
+      },
+      "sample_count": {
+        "min": 123,
+        "median": 123,
+        "max": 123
+      },
+      "app_boundary_missing_samples": {
+        "min": 0,
+        "median": 0,
+        "max": 0
+      }
+    },
+    "physical_read_bytes": {
+      "min": 0,
+      "median": 0,
+      "max": 0
+    }
+  }
+]

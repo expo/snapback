@@ -328,7 +328,10 @@ assert.ok(host.url);const inspected=JSON.parse((await cli(['releases','deploymen
         const schema = join(password, "snapback/schema.q");
         writeFileSync(schema, readFileSync(schema, "utf8").replace(/^use identity[^\n]*/m, "use identity password"));
         await run(cli, ["init", "--adapt", "--apply"], password);
-        assert.doesNotMatch(readFileSync(join(password, "src/client.ts"), "utf8"), /registerWebWitness|witnessPersona|snapback\/generated\/api/);
+        const passwordClient = readFileSync(join(password, "src/client.ts"), "utf8");
+        assert.match(passwordClient, /registerWebWitness\(app, api\)/, "password adaptation keeps explicit witness registration");
+        assert.match(passwordClient, /snapback\/generated\/api/);
+        assert.doesNotMatch(passwordClient, /witnessPersona/, "password identity has no development persona");
         await run(cli, ["check"], password);
         await run(join(cwd, "node_modules/.bin/vite"), ["build"], password);
         await run(cli, ["witness", "web", "dist", "--email", "native-proof@example.test", "--password-env", "SNAPBACK4_DX6_TEST_PASSWORD", "--mutation", "add", "--args", '{"title":"Packed native proof"}', "--field", "Task", "--value", "Packed native proof", "--button", "Add"], password, { SNAPBACK4_DX6_TEST_PASSWORD: "Proof-password-928!" });
