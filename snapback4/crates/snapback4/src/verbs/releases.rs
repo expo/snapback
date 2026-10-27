@@ -384,6 +384,7 @@ fn report(verb: &str, result: Result<(), String>) -> i32 {
 }
 
 pub fn deploy(options: &Options) -> i32 {
+    let _compilation_reuse = snapback4_lang::CompilationReuse::new();
     match crate::store_config::StoreConfig::resolve(options) {
         Ok(Some(config)) => return report("deploy", super::configured_release::deploy(options, config)),
         Err(error) => return report("deploy", Err(error)),

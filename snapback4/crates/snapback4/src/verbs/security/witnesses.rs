@@ -497,6 +497,21 @@ pub(in crate::verbs) fn collect(project:&Project,bound:&Bound,sources:&[(String,
 pub(in crate::verbs) fn collect_with_report(project:&Project,bound:&Bound,sources:&[(String,String)],notes:&[Diagnostic],expanded:bool,options:&Options,current:Option<&security::Report>)->Vec<Option<serde_json::Value>> {
     collect_inner(project,bound,sources,notes,expanded,options,current,false,true)
 }
+/// Independent restoration has its own work and reads no ordinary advice cache.
+// @ref LLP 3000.036.004.000.000#parallel-question-restoration — join before the original ordered reduction and current-source guards.
+pub(in crate::verbs) fn collect_and_restore(project:&Project,bound:&Bound,sources:&[(String,String)],report:&mut security::Report,options:&Options,prefix:&str)->Vec<Option<serde_json::Value>> {
+    let original=&*report;
+    let (mut evidence,(notes,values))=std::thread::scope(|scope|{
+        let restoration=scope.spawn(||phase::measure(&format!("{prefix}.restored_questions"),||{
+            let mut copy=original.clone();let count=copy.notes.len();let mut values=vec![None;count];
+            restore_questions(project,bound,sources,&mut copy,&mut values,options);
+            (copy.notes.split_off(count),values.split_off(count))
+        }));
+        let evidence=phase::measure(&format!("{prefix}.witnesses"),||collect(project,bound,sources,&original.notes,true,options));
+        (evidence,restoration.join().expect("restoration campaign panicked"))
+    });
+    report.notes.extend(notes);evidence.extend(values);evidence
+}
 /// Questions cannot supply derived enforcement until the current report joins.
 pub(in crate::verbs) struct PendingEvidence<'a>{bound:&'a Bound,sources:&'a[(String,String)],notes:&'a[Diagnostic],values:Vec<Option<serde_json::Value>>}
 impl PendingEvidence<'_>{
@@ -605,6 +620,28 @@ mod tests {
         let cache=project.schema_dir().join("generated/security-witnesses.json");let poison=b"{\"key\":\"not-current\",\"values\":[{\"kind\":\"fake\"}]}";std::fs::write(&cache,poison).unwrap();
         assert!(replay(&source.replace("  parent:parents\n", "  parent:parents\n  unique parent\n")).is_empty(),"no current replay means no restoration");
         assert_eq!(std::fs::read(cache).unwrap(),poison,"independent question replay never trusts or replaces advice caches");
+    }
+    #[test]
+    fn parallel_restoration_matches_sequential_payloads_and_note_order(){
+        struct Scratch(std::path::PathBuf);impl Drop for Scratch{fn drop(&mut self){let _=std::fs::remove_dir_all(&self.0);}}
+        let root=Scratch(std::env::temp_dir().join(format!("sb4-lat1-restoration-{}",std::process::id())));
+        std::fs::create_dir_all(root.0.join("snapback/generated")).unwrap();let project=Project{root:root.0.clone()};
+        let options=Options{positionals:vec![],flags:BTreeMap::new(),json:true};
+        let text="table parents:\n  enabled:bool default false\n  read <- allow\n  insert <- allow\n  online only\ntable children:\n  parent:parents\n  read <- allow\n  insert <- allow\n  online only\nmutation add(parent:parents):\n  p=parents[parent] ! else NO\n  require not p.enabled else CLOSED\n  return insert children {parent}\n";
+        for unique in [false,true]{
+            let text=if unique{text.replace("  parent:parents\n","  parent:parents\n  unique parent\n")}else{text.into()};
+            std::fs::write(project.schema_dir().join("schema.q"),&text).unwrap();
+            let sources=vec![("schema.q".into(),text)];let bound=snapback4_lang::compile(&sources);assert!(bound.diagnostics.is_empty());
+            let initial=super::super::report(&project,&bound,&sources,&options);let mut sequential=initial.clone();
+            let cache=project.schema_dir().join("generated/security-witnesses.json");let _=std::fs::remove_file(&cache);
+            let mut old=collect(&project,&bound,&sources,&sequential.notes,true,&options);
+            restore_questions(&project,&bound,&sources,&mut sequential,&mut old,&options);
+            let _=std::fs::remove_file(&cache);
+            let mut parallel=initial.clone();let new=collect_and_restore(&project,&bound,&sources,&mut parallel,&options,"test");
+            assert_eq!(serde_json::to_vec(&(&sequential,&old)).unwrap(),serde_json::to_vec(&(&parallel,&new)).unwrap());
+            let mut warm=initial;let cached=collect_and_restore(&project,&bound,&sources,&mut warm,&options,"test");
+            assert_eq!(serde_json::to_vec(&(&parallel,&new)).unwrap(),serde_json::to_vec(&(&warm,&cached)).unwrap());
+        }
     }
     #[test]
     fn conservation_witness_identity_keeps_the_material_charge_ledger(){

@@ -161,12 +161,12 @@ pub(super) fn release_loop(project:&Project,bound:&Bound,sources:&[(String,Strin
         })?
     }else{
         let mut report=phase::measure("deploy.report",||report_with_reviewed(project,bound,sources,&preflight,&Default::default()));report.notes.extend(presence::notes(project,bound,prior,sources)?);select_release_notes(&mut report.notes)?;
-        let evidence=phase::measure("deploy.witnesses",||witnesses::collect(project,bound,sources,&report.notes,true,options));(report,evidence)
+        let evidence=witnesses::collect_and_restore(project,bound,sources,&mut report,options,"deploy");(report,evidence)
     };
     if super::proof_source::sources(project,options,"schema")?!=sources{return Err("selected Quarry sources changed during deployment security preflight".into());}
     witnesses::apply_report(project,options,sources,bound,&report,&report.notes,&mut evidence);
     if super::proof_source::sources(project,options,"schema")?!=sources{return Err("selected Quarry sources changed during deployment witness replay; rerun deploy".into());}
-    phase::measure("deploy.restored_questions",||witnesses::restore_questions(project,bound,sources,&mut report,&mut evidence,options));
+    if preflight.flags.contains_key("security-deploy"){phase::measure("deploy.restored_questions",||witnesses::restore_questions(project,bound,sources,&mut report,&mut evidence,options));}
     if super::proof_source::sources(project,options,"schema")?!=sources{return Err("selected Quarry sources changed during deployment question replay; rerun deploy".into());}
     let mut dispositions=decisions.dispositions_with_evidence(sources,&report.notes,&evidence);
     // Current enforced derived refutations are blockers, never advisory questions.
