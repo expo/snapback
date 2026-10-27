@@ -296,3 +296,20 @@ The full language command encountered an unchanged 15-second wall-deadline
 unit fixture under parallel load; its exact isolated retry passes in 1.29 s.
 The original failed unit receipt and the dedicated resolution remain separate.
 The full language command and selected CLI checks are still running.
+
+Item 3's wave31 coverage is now measured at 8/16 (one gate, seven exact witnessed
+questions), up from 6/16 after item 2. The new matches are 004 F1 and 014 F1;
+actual coordinator/lead membership is required by the retained coverage matcher.
+
+The in-progress 800-schema survey is partitioned into 600 local schemas and two
+disjoint 100-schema Linux fleet shards (waves24/25 and waves27/29), all using
+the identical frozen executable. Fleet use is confined to owned temporary
+folders; no other worktree is read or changed. The fleet file was unavailable,
+so online Linux hosts were discovered through Tailscale and verified with
+read-only SSH CPU/load/disk probes. The two helpers run six workers each, with
+a 25 GiB free-space guard; input-file and binary digests are checked before use.
+The original local 800-attempt run was interrupted only to partition work:
+123 complete results are preserved and resumed, with all 56 tracked owned
+processes gone after termination. In-flight interrupted attempts are not PASS.
+The final measurement will compose actual completed 600+100+100 results with
+explicit provenance, never label the interrupted parent run complete.

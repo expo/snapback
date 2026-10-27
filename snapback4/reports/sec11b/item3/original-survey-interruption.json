@@ -1,0 +1,343 @@
+{
+  "reason": "Partition completed work into a resumed 600-schema local head plus two disjoint 100-schema Linux fleet tails. Interrupted in-flight attempts are not PASS.",
+  "ownedIdentities": {
+    "3066368": {
+      "ppid": 2811613,
+      "start": 180825412,
+      "state": "T",
+      "name": "timeout"
+    },
+    "3066369": {
+      "ppid": 3066368,
+      "start": 180825413,
+      "state": "T",
+      "name": "snapback4"
+    },
+    "3127564": {
+      "ppid": 2811613,
+      "start": 180861295,
+      "state": "T",
+      "name": "timeout"
+    },
+    "3127565": {
+      "ppid": 3127564,
+      "start": 180861295,
+      "state": "T",
+      "name": "snapback4"
+    },
+    "3101714": {
+      "ppid": 2811613,
+      "start": 180843212,
+      "state": "T",
+      "name": "timeout"
+    },
+    "3101715": {
+      "ppid": 3101714,
+      "start": 180843213,
+      "state": "T",
+      "name": "snapback4"
+    },
+    "3162144": {
+      "ppid": 2811613,
+      "start": 180877987,
+      "state": "T",
+      "name": "timeout"
+    },
+    "3162145": {
+      "ppid": 3162144,
+      "start": 180877988,
+      "state": "T",
+      "name": "snapback4"
+    },
+    "3167013": {
+      "ppid": 2811613,
+      "start": 180882341,
+      "state": "T",
+      "name": "timeout"
+    },
+    "3109414": {
+      "ppid": 2811613,
+      "start": 180848237,
+      "state": "T",
+      "name": "timeout"
+    },
+    "3167014": {
+      "ppid": 3167013,
+      "start": 180882341,
+      "state": "T",
+      "name": "snapback4"
+    },
+    "3109416": {
+      "ppid": 3109414,
+      "start": 180848237,
+      "state": "T",
+      "name": "snapback4"
+    },
+    "3073836": {
+      "ppid": 2811613,
+      "start": 180829782,
+      "state": "T",
+      "name": "timeout"
+    },
+    "3073838": {
+      "ppid": 3073836,
+      "start": 180829783,
+      "state": "T",
+      "name": "snapback4"
+    },
+    "3069487": {
+      "ppid": 2811613,
+      "start": 180827402,
+      "state": "T",
+      "name": "timeout"
+    },
+    "3069488": {
+      "ppid": 3069487,
+      "start": 180827402,
+      "state": "T",
+      "name": "snapback4"
+    },
+    "3158067": {
+      "ppid": 2811613,
+      "start": 180873239,
+      "state": "T",
+      "name": "timeout"
+    },
+    "3158068": {
+      "ppid": 3158067,
+      "start": 180873239,
+      "state": "T",
+      "name": "snapback4"
+    },
+    "3161651": {
+      "ppid": 3101715,
+      "start": 180877369,
+      "state": "T",
+      "name": "security-host"
+    },
+    "3161154": {
+      "ppid": 2811613,
+      "start": 180876469,
+      "state": "T",
+      "name": "timeout"
+    },
+    "3161155": {
+      "ppid": 3161154,
+      "start": 180876470,
+      "state": "T",
+      "name": "snapback4"
+    },
+    "3161415": {
+      "ppid": 2811613,
+      "start": 180876975,
+      "state": "T",
+      "name": "timeout"
+    },
+    "3161416": {
+      "ppid": 3161415,
+      "start": 180876976,
+      "state": "T",
+      "name": "snapback4"
+    },
+    "3160391": {
+      "ppid": 3069174,
+      "start": 180875670,
+      "state": "T",
+      "name": "security-host"
+    },
+    "3164496": {
+      "ppid": 3147911,
+      "start": 180880269,
+      "state": "T",
+      "name": "security-host"
+    },
+    "3167317": {
+      "ppid": 2811613,
+      "start": 180882605,
+      "state": "T",
+      "name": "timeout"
+    },
+    "3167318": {
+      "ppid": 3167317,
+      "start": 180882605,
+      "state": "T",
+      "name": "snapback4"
+    },
+    "3163224": {
+      "ppid": 2811613,
+      "start": 180879198,
+      "state": "T",
+      "name": "timeout"
+    },
+    "3163225": {
+      "ppid": 3163224,
+      "start": 180879198,
+      "state": "T",
+      "name": "snapback4"
+    },
+    "3163740": {
+      "ppid": 3073838,
+      "start": 180879734,
+      "state": "T",
+      "name": "security-host"
+    },
+    "3165806": {
+      "ppid": 2811613,
+      "start": 180881393,
+      "state": "T",
+      "name": "timeout"
+    },
+    "3165807": {
+      "ppid": 3165806,
+      "start": 180881393,
+      "state": "T",
+      "name": "snapback4"
+    },
+    "3160957": {
+      "ppid": 2811613,
+      "start": 180876226,
+      "state": "T",
+      "name": "timeout"
+    },
+    "3160958": {
+      "ppid": 3160957,
+      "start": 180876227,
+      "state": "T",
+      "name": "snapback4"
+    },
+    "3164030": {
+      "ppid": 3139497,
+      "start": 180879955,
+      "state": "T",
+      "name": "security-host"
+    },
+    "3167104": {
+      "ppid": 2811613,
+      "start": 180882405,
+      "state": "T",
+      "name": "timeout"
+    },
+    "3167105": {
+      "ppid": 3167104,
+      "start": 180882406,
+      "state": "T",
+      "name": "snapback4"
+    },
+    "3147908": {
+      "ppid": 2811613,
+      "start": 180871151,
+      "state": "T",
+      "name": "timeout"
+    },
+    "3147911": {
+      "ppid": 3147908,
+      "start": 180871151,
+      "state": "T",
+      "name": "snapback4"
+    },
+    "3139470": {
+      "ppid": 2811613,
+      "start": 180866736,
+      "state": "T",
+      "name": "timeout"
+    },
+    "3127441": {
+      "ppid": 2811613,
+      "start": 180861258,
+      "state": "T",
+      "name": "timeout"
+    },
+    "3127442": {
+      "ppid": 3127441,
+      "start": 180861259,
+      "state": "T",
+      "name": "snapback4"
+    },
+    "3139497": {
+      "ppid": 3139470,
+      "start": 180866736,
+      "state": "T",
+      "name": "snapback4"
+    },
+    "3163313": {
+      "ppid": 2811613,
+      "start": 180879392,
+      "state": "T",
+      "name": "timeout"
+    },
+    "3163314": {
+      "ppid": 3163313,
+      "start": 180879392,
+      "state": "T",
+      "name": "snapback4"
+    },
+    "3165114": {
+      "ppid": 2811613,
+      "start": 180880865,
+      "state": "T",
+      "name": "timeout"
+    },
+    "3165115": {
+      "ppid": 3165114,
+      "start": 180880865,
+      "state": "T",
+      "name": "snapback4"
+    },
+    "3161557": {
+      "ppid": 3069488,
+      "start": 180877056,
+      "state": "T",
+      "name": "security-host"
+    },
+    "3162839": {
+      "ppid": 3109416,
+      "start": 180878267,
+      "state": "T",
+      "name": "security-host"
+    },
+    "3151068": {
+      "ppid": 2811613,
+      "start": 180871696,
+      "state": "T",
+      "name": "timeout"
+    },
+    "2811613": {
+      "ppid": 2807728,
+      "start": 180610301,
+      "state": "T",
+      "name": "python3"
+    },
+    "3151072": {
+      "ppid": 3151068,
+      "start": 180871697,
+      "state": "T",
+      "name": "snapback4"
+    },
+    "3129841": {
+      "ppid": 2811613,
+      "start": 180864073,
+      "state": "T",
+      "name": "timeout"
+    },
+    "3129842": {
+      "ppid": 3129841,
+      "start": 180864073,
+      "state": "T",
+      "name": "snapback4"
+    },
+    "3069173": {
+      "ppid": 2811613,
+      "start": 180827159,
+      "state": "T",
+      "name": "timeout"
+    },
+    "3069174": {
+      "ppid": 3069173,
+      "start": 180827159,
+      "state": "T",
+      "name": "snapback4"
+    }
+  },
+  "remainingAfterTermination": {},
+  "completedRows": 123
+}

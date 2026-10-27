@@ -1,4 +1,4 @@
-import argparse,gzip,json,pathlib,collections
+import argparse,gzip,json,pathlib,collections,hashlib
 # Each rule is tied to the calibrated effect, not just any finding in its lane.
 rules={
 (26,'002','F1'):dict(codes=['N_CALENDAR_DURATION']),
@@ -92,14 +92,15 @@ def main():
  if a.baseline_extra:before+=json.loads(pathlib.Path(a.baseline_extra).read_text())
  if a.survey_extra:after+=json.loads(pathlib.Path(a.survey_extra).read_text())
  indexes=[{(r['wave'],r['lane'][:3]):r for r in rows}for rows in [before,after]]
- assess=[]
+ assess=[];calibration_sources={}
  waves=[26,28,30]+([31]if a.baseline_extra and a.survey_extra else[])
  for wave in waves:
-  for finding in json.loads((root/f'wave{wave}/analysis/calibration.json').read_text())['findings']:
+  calibration=(root/f'wave{wave}/analysis/calibration.json').read_bytes();calibration_sources[str(wave)]=hashlib.sha256(calibration).hexdigest()
+  for finding in json.loads(calibration)['findings']:
    if finding['backend']!='snapback'or finding['cal']!='M':continue
    key=(wave,finding['lane'],finding['id']);rule=rules[key];records=[idx[(wave,finding['lane'])]for idx in indexes]
    assess.append(dict(wave=wave,lane=finding['lane'],finding=finding['id'],pattern=finding.get('pattern'),calibration=finding.get('rule')or finding.get('note'),match=rule,sourceHashMatches=records[0]['sha256']==records[1]['sha256'],before=category(records[0],rule),after=category(records[1],rule)))
- result=dict(method='Exact calibrated effects matched by operation, material predicate/column, and where relevant actual row values. Unrelated questions are excluded. The four requested finding categories are used; rows already prevented by inherited types have category nothing (no current finding/witness) and an explicit inheritedLanguagePrevention flag, never SEC11 credit.',assessments=assess,summary={str(w):{when:dict(collections.Counter(x[when]['category']for x in assess if x['wave']==w))for when in['before','after']}for w in waves})
+ result=dict(calibrationSha256=calibration_sources,method='Exact calibrated effects matched by operation, material predicate/column, and where relevant actual row values. Unrelated questions are excluded. The four requested finding categories are used; rows already prevented by inherited types have category nothing (no current finding/witness) and an explicit inheritedLanguagePrevention flag, never SEC11 credit.',assessments=assess,summary={str(w):{when:dict(collections.Counter(x[when]['category']for x in assess if x['wave']==w))for when in['before','after']}for w in waves})
  pathlib.Path(a.out).write_text(json.dumps(result,indent=2)+'\n');print(json.dumps(result['summary'],indent=2))
 
 if __name__ == "__main__":main()
