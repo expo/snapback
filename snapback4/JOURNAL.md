@@ -109741,3 +109741,5 @@ fallback. The marker design combines an exact backend format with an extra
 owner column, so old public owners refuse before claiming. Clock samples
 can trip on observed skew/suspend but cannot prove future behavior; automatic
 G6 still requires an enforced deployment clock contract. Defaults are unchanged.
+
+The refusal observer also covers identity-request decoding and browser auth replies, so a real failed login can name `/auth/login` and the anonymous role while discarding credentials and successful session bodies. The Horse Trailer Rentals auth shape has a real-server regression. The generic custom-code recovery route is `snapback4 why CODE`.

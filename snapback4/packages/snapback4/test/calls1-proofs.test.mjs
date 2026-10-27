@@ -121,3 +121,13 @@ test('a reused local refusal object cannot correlate two different operations',a
  const error=new assert.AssertionError({actual:{why},expected:1,operator:'strictEqual'});
  assert.match(proofFailure(error),/nearest observed request/);
 });
+
+test('wave34 Muse 018 Horse Trailer Rentals: real auth refusal names the login request without credentials',async t=>{
+ const cwd=directory(t);writeFileSync(join(cwd,'snapback/schema.q'),'use identity password\nquery q():\n  return 1\n');
+ const host=await startDev({cwd,env:{...process.env,SNAPBACK4_BIN:binary},args:['--memory','--no-watch']});t.after(()=>host.stop());
+ const {login}=await import('../dist/auth.js');
+ const result=await login(host.url,'private-missing@example.test','PRIVATE-PASSWORD-2026');assert.equal(result.ok,false);assert.equal(result.why.code,'E_AUTH');
+ const error=new assert.AssertionError({actual:result,expected:{ok:true},operator:'deepStrictEqual'});
+ const summary=proofFailure(error);assert.match(summary,/operation \/auth\/login; role anonymous; E_AUTH/);
+ assert.doesNotMatch(summary,/PRIVATE-|private-missing|nearest observed request/);
+});

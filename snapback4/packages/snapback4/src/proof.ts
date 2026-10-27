@@ -337,7 +337,7 @@ export async function withBrowser<T>(options: LaunchOptions & Pick<ProofOptions,
       });
       context.on("response", response => {
         const request = response.request();
-        if (!/\/[qma]\//.test(new URL(response.url()).pathname) && !(new URL(response.url()).pathname === "/assets" && request.method() === "POST")) return;
+        if (!/\/[qma]\//.test(new URL(response.url()).pathname) && !new URL(response.url()).pathname.startsWith("/auth/") && !(new URL(response.url()).pathname === "/assets" && request.method() === "POST")) return;
         void response.json().then(value => observeProofReply(response.url(), request.headers(), value)).catch(() => {});
       });
       await context.exposeBinding("__snapback4ProofDiagnostic", (_source, value: unknown) => {

@@ -46,7 +46,7 @@ export async function proofResponse(input: Parameters<typeof fetch>[0], init: Re
   try {
     const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
     const path = new URL(url).pathname;
-    if (!/^\/[qma]\//.test(path) && !path.startsWith('/assets')) return;
+    if (!/^\/[qma]\//.test(path) && !path.startsWith('/assets') && !path.startsWith('/auth/')) return;
     const h = new Headers(init?.headers);
     const token = h.get('authorization')?.replace(/^Bearer /, '');
     const role = h.get('x-snapback-persona') ?? (token ? roles.get(token) ?? 'authenticated (role unavailable)' : 'anonymous');

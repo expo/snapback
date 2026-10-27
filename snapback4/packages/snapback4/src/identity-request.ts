@@ -1,3 +1,4 @@
+import { proofResponse } from "./proof-observation.ts";
 // @ref LLP 3000.000.000.001#9-wave-19-identity-retry-and-local-production-lifecycle — retry only a delivered pre-admission identity refusal.
 import { readResponse, refusal, retryAfter } from "./http-response.ts";
 export interface IdentityRetryOptions {
@@ -27,6 +28,7 @@ export async function identityRequest(url: string, init: RequestInit, fetcher: t
     for (let attempt = 0; ; attempt++) {
       if (controller.signal.aborted) throw controller.signal.reason;
       const response = await fetcher(url, {...init, signal:controller.signal});
+      await proofResponse(url, init, response);
       const json = await readResponse(response), why = refusal(json.denied);
       if (response.status !== 429 || why?.code !== "E_RATE_LIMIT" || why.family !== "auth" || why.retryable === false || attempt === 3) return {response, json};
       const header = response.headers.get("retry-after")?.trim();
