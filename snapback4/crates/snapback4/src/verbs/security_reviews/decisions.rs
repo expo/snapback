@@ -84,7 +84,7 @@ pub(in crate::verbs) fn render_mode(dispositions:&[Disposition],notes:&[Diagnost
                 output.push_str(&render(&[d.clone()],&[n.clone()]));
             } else if !d.acknowledged && let Some(w)=&d.witness {
                 let rationale=if witness::concrete(w) {witness::reason_template(w)} else {"<spec rationale>".into()};
-                let separator=if matches!(n.code.as_str(),"N_OPTIONAL_EVIDENCE"|"N_CHILD_EVIDENCE_PRESENCE"|"N_MOVABLE_TIME_ANCHOR"|"N_EVENT_TIME_ANCHOR"){" Witness: "}else{"\n  Witness: "};
+                let separator=" Witness: ";
                 output.push_str(&format!("fix question {} at {}: {}; is this intended?{separator}{} — repair or check --ack-security {} --reason '{}' (doesn't block)\n",d.code,d.site,n.message.trim_end_matches(['.','?']),w["compactSummary"].as_str().or_else(||w["summary"].as_str()).unwrap_or("see check --json for replay"),d.id,rationale));
             }
         }
@@ -151,7 +151,7 @@ pub(in crate::verbs) fn render_mode(dispositions:&[Disposition],notes:&[Diagnost
  #[test] fn witnessed_questions_are_default_visible_and_unwitnessable_ack_is_explicit() {
   let n=Diagnostic::new(&Default::default(),"N_APPROVAL_NOT_ENFORCED","jobs.approved: transitions do not inspect approval","add guard");
   let mut d=Disposition{family:None,id:"question-id".into(),code:n.code.clone(),site:n.site.to_string(),gated:false,acknowledged:false,recorded:false,reason:None,witness:Some(serde_json::json!({"summary":"advance as staff -> ok; approved=false"})),scope:"test".into()};
-  let output=render_mode(&[d.clone()],&[n.clone()],false);assert!(output.contains("Witness: advance")&&output.contains("fix question")&&output.contains("doesn't block"));
+  let output=render_mode(&[d.clone()],&[n.clone()],false);assert!(output.contains("Witness: advance")&&output.contains("fix question")&&output.contains("doesn't block"));assert_eq!(output.lines().count(),1,"a witnessed advisory is one complete default card");
   d.code="N_CHILD_EVIDENCE_PRESENCE".into();d.witness=None;
   assert!(render_mode(&[d.clone()],&[n.clone()],false).is_empty());
   d.acknowledged=true;d.recorded=true;d.reason=Some("spec rationale".into());
