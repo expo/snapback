@@ -89,7 +89,8 @@ test("a process device names a live server's published address in E_STORE_BUSY",
     fetch: async () => Response.json(backend) }), /E_STORE_BUSY/);
   assert.equal(attempts.length, 1);
   const reply = denial(attempts[0].stdout, "E_STORE_BUSY", "store");
-  assert.ok(reply.message.includes("owned by http://127.0.0.1:4400"), reply.message);
+  assert.ok(reply.message.includes("address http://127.0.0.1:4400"), reply.message);
+  assert.match(reply.message, /holder metadata unavailable/, "legacy two-line records carry no PID or process birth identity");
 });
 
 for (const kind of ["malformed JSON", "missing file", "unsupported capability"]) {

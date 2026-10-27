@@ -33,12 +33,24 @@ for(const [label,source,expected] of [
  assert.equal(report.ok,expected.length===0,JSON.stringify(report));
  assert.ok(!JSON.stringify(report).includes('SECRET-NEVER-REPORT'));
 });
-test('serve-check reports a held real store lock before forced cleanup',{skip:process.platform==='win32'},async t=>{
+test('native store releases on npm death even when its proof driver ignores TERM',{skip:process.platform==='win32'},async t=>{
  const cwd=await project(t);
  npmScript(cwd,`import {startServe} from ${JSON.stringify(pathToFileURL(resolve(root,'packages/snapback4/dist/proof.js')).href)};const host=await startServe('production');process.on('SIGTERM',()=>{});${jsonLine}${hold}`);
  const report=await serveCheck({cwd,env,deployment:'production',timeoutMs:10000,upMs:60,stopTimeoutMs:150});
  assert.ok(report.failures.some(f=>f.code==='E_SERVE_CHILD_RUNNING'));
+ assert.equal(report.lockReleased,true,JSON.stringify(report));
+ assert.ok(!report.failures.some(f=>f.code==='E_SERVE_LOCK_HELD'),JSON.stringify(report));
+ assert.equal((await cli(['serve','production','--wait-stopped'],{cwd,env})).code,0);
+});
+
+test('serve-check reports a stubborn real external store lock before forced cleanup',{skip:process.platform==='win32'},async t=>{
+ const cwd=await project(t);
+ const python="import fcntl,signal,time\nsignal.signal(signal.SIGTERM,signal.SIG_IGN)\nf=open('production/store.sqlite-owner','r+')\nfcntl.flock(f,fcntl.LOCK_EX)\nprint('locked',flush=True)\nwhile True: time.sleep(1)\n";
+ npmScript(cwd,`import {spawn} from 'node:child_process';const child=spawn('python3',['-u','-c',${JSON.stringify(python)}],{stdio:['ignore','pipe','inherit']});await new Promise((resolve,reject)=>{child.once('error',reject);child.stdout.once('data',resolve);});process.on('SIGTERM',()=>{});${jsonLine}${hold}`);
+ const report=await serveCheck({cwd,env,deployment:'production',timeoutMs:10000,upMs:60,stopTimeoutMs:150});
+ assert.ok(report.failures.some(f=>f.code==='E_SERVE_CHILD_RUNNING'),JSON.stringify(report));
  assert.ok(report.failures.some(f=>f.code==='E_SERVE_LOCK_HELD'),JSON.stringify(report));
+ assert.equal(report.lockReleased,false);
  assert.equal((await cli(['serve','production','--wait-stopped'],{cwd,env})).code,0);
 });
 test('production roster survives restarts with stable principals and 0600 credentials',async t=>{
