@@ -1,19 +1,4 @@
-//! One reading path, assembled from the cards' own openings.
-// @ref LLP 3000.011.000.000#8-start-here-card-structure — one source for both entry paths.
-pub const START_CARDS: &[&str] = &[
-    "language", "sync", "maintains", "rules", "prediction", "client", "search", "feeds",
-];
-
-pub(super) fn card() -> &'static str {
-    static CARD: std::sync::OnceLock<String> = std::sync::OnceLock::new();
-    CARD.get_or_init(|| {
-        let mut text = String::from("# Start here: the common application path\n\nDefault loop: check, edit with dev, then deploy staging --staging and serve staging for shared previews and probe:serve. Run `snapback4 guide staging` for real password users, operator-provisioned roles and replayable first-admin. Staging clock: `guide time` (MIG). Read these eight patterns in order; each named card continues with its complete reference. Writing rules includes writing independent privacy invariants from the spec. Start with `snapback4 guide security`: run `snapback4 check` → `snapback4 test` → `snapback4 audit`. Check asks which roles and row conditions each rule admits. Answer from the spec: may this role see other owners' rows, this column, and every lifecycle state? Answer the per-role/per-column questions in snapback/generated/security-invariants.q.draft, write independent read invariants, repair wider rules, then repeat the loop. Keep confirmed simple owner intent. Test synthesizes per-role fixtures even for password-only apps, and audit lists uncovered role/column exposures. Examples identify their schema context; copy the full recipe when starting without it. Calling the backend without the JS client (curl, scripts, other languages): `snapback4 guide wire`. A browser app that writes needs `createApp`: with no synced table it needs no device (writes are journaled in localStorage, no wasm), and synced tables need `webDevice()`, about 650 KB gzip of wasm fetched when a session opens (`guide client`). A page that staff read whole and members read their own rows of is one query that branches on the grant: `if exists staff[viewer]:` returns the whole page, then `return requests where .author = viewer …` answers the rest; both are complete (`guide roles`, compiled in `guide cheatsheet`).\n\n");
-        for name in START_CARDS {
-            let card = super::card(name).expect("start card exists");
-            let opening = card.split_once("\n## Reference").expect("start card has reference").0;
-            text.push_str(opening.trim_end());
-            text.push_str("\n\n");
-        }
-        text
-    })
-}
+//! One complete first schema, followed by feature-specific pointers.
+// @ref LLP 3000.037.000#8-wave-32-builder-reading-and-waiting-tok1 — start replaces the introductory card tour.
+pub const START_CARDS: &[&str] = &[];
+pub(super) fn card() -> &'static str { include_str!("start.md") }

@@ -24,8 +24,8 @@ const README: &str = concat!(include_str!("../../../packages/snapback4/README.md
 
 // A relocated assertion checks the actual orientation door as well as its destination.
 fn readme_reference(name: &str) -> &'static str {
-    let map = include_str!("../../../packages/snapback4/README.md").split_once("## Reference map").unwrap().1;
-    assert!(map.contains(&format!("`guide {name}`")), "orientation omits guide {name}");
+    assert!(include_str!("../../../packages/snapback4/README.md").contains("guide start"));
+    assert!(guide::listing().contains(name), "on-demand card registry omits {name}");
     card(name).unwrap()
 }
 
@@ -170,12 +170,10 @@ fn w14b_first_account_screen_is_self_contained() {
 fn w10a_readme_opening_is_one_way_into_the_published_surface() {
     let readme = include_str!("../../../packages/snapback4/README.md");
     let opening = readme;
-    for text in ["CLIENT-AND-OPERATIONS.md", "./CLIENT-AND-OPERATIONS.md#4-the-client", "./CLIENT-AND-OPERATIONS.md#8-not-in-this-release", "Start here", "snapback4 guide <card>", "snapback4 why <code>", "terminal", "CLIENT-AND-OPERATIONS.md#your-first-working-account-screen"] {
-        assert!(opening.contains(text), "the first page omits {text}");
+    for text in ["CLIENT-AND-OPERATIONS.md", "guide start", "guide api", "npm i snapback4", "probe:check"] {
+        assert!(opening.contains(text), "first read omits {text}");
     }
-    for card in ["language", "rules", "sync", "residency", "prediction", "reads", "writes", "effects", "jobs", "personas", "assets", "actions", "time", "routes"] {
-        assert!(opening.contains(&format!("guide {card}")), "start path omits {card}");
-    }
+    assert!(readme.len() < 2500, "README is a pointer, not a second tutorial");
     assert!(!readme.to_lowercase().contains("there is no other documentation"));
     assert!(include_str!("../../../packages/snapback4/CLIENT-AND-OPERATIONS.md").contains("## 4. The client"));
 }
@@ -794,7 +792,7 @@ fn the_keywords_are_one_list() {
         text[start..].split("\n\n").next().unwrap().to_owned()
     };
     let on_card = listed(LANGUAGE, "Cards: `snapback4 guide <keyword>`");
-    let in_readme = listed(README, "**`guide [keyword]`**");
+    let in_readme = guide::listing();
     for keyword in KEYWORDS {
         assert!(card(keyword).is_some(), "{keyword} has no card");
         if *keyword != "language" {
@@ -1444,8 +1442,9 @@ fn a_piped_card_shows_its_first_section_and_truncation_hint() {
         let printed = guide::piped(name, text);
         if text.lines().count() > guide::FULL_LINES || text.len() > guide::FULL_BYTES {
             assert!(printed.contains("Truncated:"), "{name}: {printed}");
-            assert_eq!(printed, guide::overview_and_first_section(name, text).unwrap());
-            assert!(printed.contains("--full") && printed.contains("Sections of guide"), "{name}");
+            assert_eq!(printed, guide::bounded_default(name, &guide::overview_and_first_section(name, text).unwrap()));
+            assert!(printed.contains("--full"), "{name}");
+            assert!(printed.len() <= guide::FULL_BYTES, "{name}");
         } else { assert_eq!(printed, text); }
     }
 }

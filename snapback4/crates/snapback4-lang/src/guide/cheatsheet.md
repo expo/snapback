@@ -146,20 +146,10 @@ query divisionTeams(division: text 1..40, c: cursor ?):
 
 ## The loop
 
-```sh
-npx snapback4 init --web            # or --expo; init prints every file it wrote
-npx snapback4 check                 # compile; writes snapback/generated/api.ts; notes carry rewrites
-npx snapback4 dev                   # serves http://127.0.0.1:4400 and re-adopts on save
-npx snapback4 run addList '{"title":"Groceries"}' --as alice
-npx snapback4 why E_RULE            # any code, operation, table or id
-npx snapback4 data lists            # stored rows, as an administrator
-npx snapback4 clock advance 1h      # move a running dev's clock (guide time)
-```
-
-Uploads: the placing account must upload the bytes; one upload has one home.
-Upload again for a new home, or share a reference to the original row. Required
-photos/files need required creating arguments, including evidence stored on child
-rows (`guide uploads`).
+For install, schema-first editing, file custody and the verification commands,
+read `guide start` once. It owns the introductory recipe. This card is a syntax
+lookup after you have a compiling schema. Real-user setup has one owner:
+`guide production`; `guide staging` continues with clock and staging specifics.
 
 ## Client
 
@@ -195,17 +185,9 @@ Keyed counts: a hidden key reads null, an authorized missing count group reads 0
 
 ## Serve real users
 
-Local editing uses `npx snapback4 dev`. Shared previews, acceptance with real
-password users and `probe:serve` use `npx snapback4 deploy staging --staging`
-and `npx snapback4 serve staging`. Run `npx snapback4 guide staging` for the
-complete `startServe({seedUsers})` setup and replayable first-admin recipe.
-Staging time travel: `guide time` (MIG). Security campaigns: SEC4 owns `guide security`.
-
-Default verification loop: `npx snapback4 check` → `npx snapback4 test` →
-`npx snapback4 audit`. State invariants from the spec's roles, resource relationships
-and private columns; copying a rule cannot catch its mistake. Test needs no hand-written
-fixtures and works with password-only apps. Check keeps full reasons behind `--verbose`.
-See `guide staging` for real-user provisioning and staging proofs.
+Use `guide production` for the complete account and serve recipe, and
+`npm run probe:check` for bounded verification. Independent security intent and
+unproved coverage belong to `guide security`; do not repeat its full card here.
 
 ## Partial existence in mutations and record inputs
 

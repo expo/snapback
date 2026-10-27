@@ -64,7 +64,7 @@ mod sharing;
 mod indexes;
 #[path = "guide/types.rs"]
 mod types;
-pub use discovery::{FULL_BYTES, FULL_LINES, piped, alias_landing, aliases, find, listing, nearest, overview, overview_and_first_section, section, section_index, sections};
+pub use discovery::{bounded_default, reading_blocks, FULL_BYTES, FULL_LINES, piped, alias_landing, aliases, find, listing, nearest, overview, overview_and_first_section, section, section_index, sections};
 pub const SERVER_KEYWORDS: &[&str] = &["actions", "routes"];
 pub const KEYWORDS: &[&str] = &["language", "from-sql", "app", "types", "recipes", "rule-recipes", "time", "indexes", "maintains", "totals", "offline-interactions", "rules", "sync", "sharing", "residency", "prediction", "evolution", "rename", "deploy", "release-json", "expire", "ephemeral", "assets", "client", "api", "wire", "social", "reads", "shapes", "writes", "cleanup", "sequences", "programs", "jobs", "native", "feeds", "search", "effects", "actions", "routes", "services", "presence", "receipts", "read-only", "manual-receipts", "bounds", "refusals", "personas", "testing", "witness", "start", "cheatsheet", "changes", "production", "staging", "security", "tasks"];
 
