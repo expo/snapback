@@ -150,6 +150,10 @@ Full lifecycle, concurrency, failure and recovery semantics:
 
 ### Move media into a child table
 
+`extract` is asset-only: map an image/file/video (or bounded asset list).
+For a scalar-only split, use a named backfill/down and an authored child-writing
+mutation; `extract` refuses this form explicitly.
+
 Save the previous source before removing `orders.scan`. The new child retains
 private reads through the same parent. `customer renamed from buyer` carries
 reference lifetime evidence; it does not convert the reference type.

@@ -30,7 +30,7 @@ fn wave31_041_redundant_rollback_records_nothing_and_forward_still_restores_nati
     assert!(a.ok(&["rollback","--help"]).contains("idempotent no-op"));
 }
 #[test]
-fn wave31_041_legacy_self_transition_repairs_only_validated_native_preimages(){
+fn wave31_041_010_legacy_self_transition_repairs_only_validated_native_preimages(){
     let a=rolled();
     // Exact damaged forward receipt from the 0.4.43 lineage reproduction: the
     // down receipt and its native outer_covering remain untouched.
@@ -40,4 +40,32 @@ fn wave31_041_legacy_self_transition_repairs_only_validated_native_preimages(){
     a.ok(&["rollback","deploy","--to","latest","--exact"]);assert_eq!(a.stage(),"outer_covering");
     a.ok(&["rollback","deploy","--to","1"]);a.edit_stage("teardown");let out=a.run(&["rollback","deploy","--to","latest","--exact"]);
     let text=format!("{}{}",String::from_utf8_lossy(&out.stdout),String::from_utf8_lossy(&out.stderr));assert!(!out.status.success());assert!(text.contains("kept")&&text.contains("forward")&&text.contains("trunks.stage"),"{text}");
+}
+#[test]
+fn wave31_codex_012_024_rename_and_widen_use_one_release_and_direct_cycles(){
+    let a=App::new();let old="table items:\n  amount: int 10..100\n  public\n  online only\nquery list():\n  return items first 20 by .id\n";a.source(old);a.ok(&["deploy","deploy"]);a.seed(old,"items",json!({"id":"v1","amount":50}));
+    let new=old.replace("amount: int 10..100","price: int 0..1000 renamed from amount")+"alias result list.amount = price\n";a.source(&new);a.ok(&["deploy","deploy","--check"]);a.ok(&["deploy","deploy"]);a.seed(&new,"items",json!({"id":"v2","price":500}));
+    for _ in 0..2{a.ok(&["rollback","deploy","--to","1"]);assert_eq!(a.json(&["data","items","--release","deploy"])["rows"].as_array().unwrap().len(),2);a.ok(&["rollback","deploy","--to","latest"]);}
+}
+
+#[path="rel3_cases/photos.rs"]
+mod photos;
+
+#[test]
+fn wave31_019_tightened_writes_register_current_rules_and_keep_old_reads_callable(){
+    let a=App::new();let old="table items:\n  owner: principal\n  label: text <=80\n  public\n  insert <- allow\n  update <- allow\n  online only\nquery list():\n  return items first 20 by .id\nmutation edit(id: items, label: text <=80):\n  return update items[id] {label}\n";
+    a.source(old);a.ok(&["deploy","deploy"]);a.seed(old,"items",json!({"id":"kept","owner":"alice","label":"before"}));
+    let new=old.replace("label: text <=80\n","label: text <=80 write <- .owner = viewer\n");a.source(&new);
+    let preview=a.json(&["deploy","deploy","--check"]);assert!(!preview["rollbackViews"].as_array().unwrap().is_empty(),"{preview}");a.ok(&["deploy","deploy"]);a.ok(&["rollback","deploy","--to","1"]);
+    assert_eq!(a.json(&["releases","deploy"])["live"]["exact"],false);
+    let mut e=a.engine();assert_eq!(snapback4_core::wire::to_json(&e.query("list",Context::new("bob",BTreeMap::new())).unwrap().data)[0]["label"],"before");
+    let c=Context::new("bob",BTreeMap::from([("id".into(),snapback4_core::Value::Id("kept".into())),("label".into(),snapback4_core::Value::String("forbidden".into()))]));
+    let result=e.mutate("edit",None,c);assert!(result.is_err()||result.is_ok_and(|r|!matches!(r.state,snapback4_core::WriteState::Sent{..})));
+}
+#[test]
+fn wave31_040_explicit_revocation_survives_backfill_reentry(){
+    let a=App::new();let old="table items:\n  approvedBy: principal ?\n  public\n  update <- allow\n  online only\nquery list():\n  return items first 20 by .id\n";a.source(old);a.ok(&["deploy","deploy"]);a.seed(old,"items",json!({"id":"revoked","approvedBy":"alice"}));
+    let new=old.replace("  approvedBy:","  decision: enum('approved', 'notApproved') default 'notApproved'\n  approvedBy:")+"backfill items choice(approvedBy: principal ?): {decision: 'approved' if approvedBy != null else 'notApproved'}\nmutation revoke(id: items):\n  return update items[id] {decision:'notApproved'}\n";
+    a.source(&new);a.ok(&["deploy","deploy"]);{let mut e=a.engine();e.mutate("revoke",None,Context::new("alice",BTreeMap::from([("id".into(),snapback4_core::Value::Id("revoked".into()))]))).unwrap();}
+    for _ in 0..2 {a.ok(&["rollback","deploy","--to","1"]);a.ok(&["rollback","deploy","--to","latest"]);assert_eq!(a.json(&["data","items","--release","deploy"])["rows"][0]["decision"],"notApproved");}
 }

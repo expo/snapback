@@ -168,14 +168,7 @@ impl App {
                 .unwrap();
         let n = store.release_value().unwrap().unwrap().parse().unwrap();
         let schema = b.schema.clone();
-        let mut e = snapback4_core::Engine::new_release(
-            store,
-            b.schema,
-            b.programs.into_iter().map(|p| p.program),
-            n,
-            Some(n),
-        )
-        .unwrap();
+        let mut e = snapback4_core::Engine::attach_release_at(store,n,snapback4_core::now_ms()).unwrap();
         let rows=rows.into_iter().map(|mut row| {
             if row.get("photos")==Some(&json!("fixture-image")) {
                 let png=b"\x89PNG\r\n\x1a\n\x00\x00\x00\x0dIHDR\x00\x00\x00\x01\x00\x00\x00\x01";
@@ -427,7 +420,7 @@ fn rollback_uses_active_source_context_after_a_later_branch_changed_privacy() {
     let selected=app.json(&["rollback","deployment","--to","1","--json"]);assert_eq!(selected["rollbackView"]["parent"],parent);
     let release=selected["release"].as_u64().unwrap();let source=fs::read_to_string(app.0.join(format!("deployment/releases/{release}/snapback/schema.q"))).unwrap();
     let b=snapback4_lang::compile(&[("schema.q".into(),source)]);assert!(b.diagnostics.is_empty());let store=snapback4_core::store_port::AnyStore::open(&app.0.join("deployment/store.sqlite")).unwrap();
-    let mut e=snapback4_core::Engine::new_release(store,b.schema,b.programs.into_iter().map(|p|p.program),release,Some(release)).unwrap();
+    let mut e=snapback4_core::Engine::attach_release_at(store,release,snapback4_core::now_ms()).unwrap();
     let outcome=e.query("read",snapback4_core::Context::new("bob",std::collections::BTreeMap::from([("id".into(),snapback4_core::Value::Id("pending".into()))]))).unwrap();
     assert_eq!(snapback4_core::wire::to_json(&outcome.data),json!(null));
 }
@@ -732,7 +725,7 @@ fn fitting_extraction_with_rename_restores_predecessor_shape_twice() {
     let b=snapback4_lang::compile(&[("schema.q".into(),old.into())]);
     let store=snapback4_core::store_port::AnyStore::open(&app.0.join("deployment/store.sqlite")).unwrap();
     let schema=b.schema.clone();
-    let mut engine=snapback4_core::Engine::new_release(store,b.schema,b.programs.into_iter().map(|p|p.program),1,Some(1)).unwrap();
+    let mut engine=snapback4_core::Engine::attach_release_at(store,1,snapback4_core::now_ms()).unwrap();
     let asset=engine.store_file("alice",b"retained scan",Some("text/plain"),"scan.txt",1000).unwrap();
     let scan=snapback4_core::wire::to_json(&asset.column_value());
     engine.seed(vec![("customers".into(),snapback4_core::wire::row_from_json(&schema.tables["customers"],&json!({"id":"customer"})).unwrap()),("orders".into(),snapback4_core::wire::row_from_json(&schema.tables["orders"],&json!({"id":"kept","owner":"alice","buyer":"customer","scan":scan})).unwrap())]).unwrap();
@@ -746,7 +739,7 @@ fn fitting_extraction_with_rename_restores_predecessor_shape_twice() {
         assert_eq!(selected["release"],1,"a fitting reverse extraction keeps the old query shape");
         let b=snapback4_lang::compile(&[("schema.q".into(),old.into())]);
         let store=snapback4_core::store_port::AnyStore::open(&app.0.join("deployment/store.sqlite")).unwrap();
-        let mut engine=snapback4_core::Engine::new_release(store,b.schema,b.programs.into_iter().map(|p|p.program),1,Some(1)).unwrap();
+        let mut engine=snapback4_core::Engine::attach_release_at(store,1,snapback4_core::now_ms()).unwrap();
         for viewer in ["alice","bob"] {
             let outcome=engine.query("order",snapback4_core::Context::new(viewer,std::collections::BTreeMap::from([("id".into(),snapback4_core::Value::Id("kept".into()))]))).unwrap();
             let data=snapback4_core::wire::to_json(&outcome.data);
@@ -941,7 +934,7 @@ fn populated_extraction_accepts_inclusive_list_bounds_and_reverse_checks_new_val
     let app=App::new();app.source(&old);app.ok(&["deploy","deployment"]);
     let b=snapback4_lang::compile(&[("schema.q".into(),old.clone())]);let schema=b.schema.clone();
     let store=snapback4_core::store_port::AnyStore::open(&app.0.join("deployment/store.sqlite")).unwrap();
-    let mut engine=snapback4_core::Engine::new_release(store,b.schema,b.programs.into_iter().map(|p|p.program),1,Some(1)).unwrap();
+    let mut engine=snapback4_core::Engine::attach_release_at(store,1,snapback4_core::now_ms()).unwrap();
     let asset=engine.store_file("alice",b"photo",Some("text/plain"),"photo.txt",1000).unwrap();
     engine.seed(vec![("customers".into(),snapback4_core::wire::row_from_json(&schema.tables["customers"],&json!({"id":"customer"})).unwrap()),("orders".into(),snapback4_core::wire::row_from_json(&schema.tables["orders"],&json!({"id":"kept","owner":"alice","buyer":"customer","scan":snapback4_core::wire::to_json(&asset.column_value()),"kinds":["a"]})).unwrap())]).unwrap();drop(engine);
     app.source(&current);
@@ -1078,7 +1071,7 @@ fn extracted_null_is_existing_empty_evidence_and_restores_exact_shape_twice() {
     let app=App::new();app.source(&old);app.ok(&["deploy","deployment"]);
     let b=snapback4_lang::compile(&[("schema.q".into(),old)]);let schema=b.schema.clone();
     let store=snapback4_core::store_port::AnyStore::open(&app.0.join("deployment/store.sqlite")).unwrap();
-    let mut engine=snapback4_core::Engine::new_release(store,b.schema,b.programs.into_iter().map(|p|p.program),1,Some(1)).unwrap();
+    let mut engine=snapback4_core::Engine::attach_release_at(store,1,snapback4_core::now_ms()).unwrap();
     engine.seed(vec![("customers".into(),snapback4_core::wire::row_from_json(&schema.tables["customers"],&json!({"id":"customer"})).unwrap()),("orders".into(),snapback4_core::wire::row_from_json(&schema.tables["orders"],&json!({"id":"kept","owner":"alice","buyer":"customer","scan":null})).unwrap())]).unwrap();drop(engine);
     app.source(&current);app.ok(&["deploy","deployment"]);
     for _ in 0..2 {
@@ -1337,7 +1330,7 @@ fn a_truthful_enum_down_keeps_the_original_wire_spelling_and_workflow() {
     assert_eq!(app.json(&["sql","SELECT stage FROM items","--release","deployment","--json"])["rows"][0][0],"done");
     let b=snapback4_lang::compile(&[("schema.q".into(),old.into())]);
     let store=snapback4_core::store_port::AnyStore::open(&app.0.join("deployment/store.sqlite")).unwrap();
-    let mut engine=snapback4_core::Engine::new_release(store,b.schema,b.programs.into_iter().map(|p|p.program),1,Some(1)).unwrap();
+    let mut engine=snapback4_core::Engine::attach_release_at(store,1,snapback4_core::now_ms()).unwrap();
     let outcome=engine.mutate("setStage",None,snapback4_core::Context::new("alice",std::collections::BTreeMap::from([("id".into(),snapback4_core::Value::Id("kept".into())),("next".into(),snapback4_core::Value::String("done".into()))]))).unwrap();
     assert!(matches!(outcome.state,snapback4_core::engine::WriteState::Sent{..}));drop(engine);
     app.ok(&["deploy","deployment"]);

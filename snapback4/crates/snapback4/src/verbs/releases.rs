@@ -643,7 +643,8 @@ pub fn rollback(options: &Options) -> i32 {
                 .or_else(|| held["previous_active"].as_u64())
                 .ok_or("nothing to roll back to")?;
             // @ref LLP 3000.000.000.003#1-idempotent-selection-and-repair — do not re-enter migration preparation for a live id.
-            if previous == active && !options.flags.contains_key("check") {
+            if previous == active && !options.flags.contains_key("check")
+                && (!options.flags.contains_key("exact") || !super::rollback_views::is_view(&dir,active)) {
                 already_live(&dir,active,options)?;return Ok(());
             }
             let logical=super::rollback_views::metadata(&dir.join("releases").join(previous.to_string()))?.map(|v|v.target).unwrap_or(previous);

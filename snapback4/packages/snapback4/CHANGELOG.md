@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.4.44
+
+### Guide changes
+
+- Restart running serve hosts with this CLI before release moves (activation protocol 11); older hosts refuse before adopting receipt-owned result views. Successful release moves upgrade the internal server-store fence, so use the updated CLI for cold commands too. Existing apps/stores retain their data and users; no source rewrite is required unless choosing result aliases.
+- Rollback to the already-live release is an idempotent no-op. Existing self-transition wedges can roll forward after previewing `rollback DIR --to latest --exact --check`; validated native down receipts preserve newer authored values. Real old-release edits still refuse with row/field/forward context and bridge advice; changed migration meaning needs a fresh declaration name.
+- `alias result list.oldName = currentName` preserves frozen result property names on rows, nullable rows and pages; generated client types include both names. RESULT REVIEW lists frozen property reads and named alias coverage separately from domain/behavior changes. Guarded rollback views project extracted v1 payloads through receipt-owned child identities and current read rules, retaining child ids and asset homes.
+- Scalar field rename plus domain widening can deploy in one release and roll back directly through a fitting registered view. Tightened column-write rules retain current guarded workflows on default rollback. `extract` explicitly refuses scalar-only splits as asset-only and points to backfill/down.
+- Shape advice lists changed properties without repeating expanded JSON. Migration evidence says `preimages retained`; predecessor representations are described directly. Hiding refusals include bounded, table-qualified sample row ids. A view's `live:` line states the workflow and guards it still runs.
+
 ## 0.4.43
 
 ### Guide changes

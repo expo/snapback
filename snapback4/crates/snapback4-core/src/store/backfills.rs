@@ -35,7 +35,7 @@ fn enable(tx: &Tx<'_>) -> Result<(), RuntimeError> {
         tx.conn().execute_batch("ALTER TABLE _backfill_active ADD COLUMN input_names TEXT NOT NULL DEFAULT '[]';")?;
     }
     if !tx.conn().query_row("SELECT EXISTS(SELECT 1 FROM pragma_table_info('_backfill_evidence') WHERE name='computed_image')",[],|r|r.get::<_,bool>(0))?{tx.conn().execute_batch("ALTER TABLE _backfill_evidence ADD COLUMN computed_image TEXT NOT NULL DEFAULT '{}';")?;}
-    if tx.meta("version")?.as_deref()==Some(super::table_renames::VERSION){Ok(())}else{tx.set_meta("version", VERSION)}
+    if matches!(tx.meta("version")?.as_deref(),Some("snapback4-release-store-10"|super::table_renames::VERSION)){Ok(())}else{tx.set_meta("version", VERSION)}
 }
 #[derive(serde::Serialize, serde::Deserialize)]
 struct Evidence { #[serde(default)] computed:BTreeMap<String,Value>, #[serde(default)] authored:BTreeSet<String>, #[serde(default)] reversed:BTreeMap<String,Option<Value>>, #[serde(default)] absent:BTreeSet<String>, #[serde(default)] epoch:i64, #[serde(default)] retained:BTreeSet<String>, active:bool, inputs: Value, before: BTreeMap<String,Value>, after: BTreeMap<String,Value> }

@@ -2,7 +2,8 @@
 // @ref LLP 3000.000.000.002#8-wave-21-release-evolution — renames are identity moves, never row copies or merges.
 use super::*;
 use std::collections::BTreeMap;
-pub(super) const VERSION:&str="snapback4-release-store-10";
+// @ref LLP 3000.000.000.003#2-frozen-result-fields — old cold CLIs cannot select registered result-anchor views without populating them.
+pub(super) const VERSION:&str="snapback4-release-store-11";
 fn refuse(s:impl Into<String>)->RuntimeError {RuntimeError::Structural{code:"E_ADOPT",message:s.into()}}
 
 // Only structural table identifiers change. Literal values, column names,

@@ -71,6 +71,8 @@ const CAPABILITIES: &[(&str, fn(&Schema) -> bool)] = &[
     #[cfg(feature="sqlite")]
     ("release-child-extraction-v1",|s|!s.extractions.is_empty()),
     #[cfg(feature="sqlite")]
+    ("release-result-anchors-v1",|s|s.extractions.iter().any(|e|s.tables.get(&e.child).is_some_and(|t|t.columns.contains_key(&e.result_column())))),
+    #[cfg(feature="sqlite")]
     ("release-child-extraction-each-v1",|s|s.extractions.iter().any(|e|e.each)),
     #[cfg(feature="sqlite")]
     ("release-reference-renames-v1",|s|s.asset_renames.iter().any(|(name,cols)|cols.keys().any(|c|s.table(name).and_then(|t|t.columns.get(c)).is_some_and(reference_rename)))),

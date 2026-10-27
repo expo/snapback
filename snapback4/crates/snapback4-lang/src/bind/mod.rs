@@ -7,6 +7,7 @@ mod columns;
 mod ephemeral;
 mod defaults;
 mod operation_evolution;
+mod result_aliases;
 mod backfills;
 mod first_paste;
 mod maintains;
@@ -80,6 +81,8 @@ use snapback4_core::schema::Schema;
 
 #[derive(Clone)]
 pub struct Bound {
+    /// Authored wire aliases, kept only for compiler compatibility evidence.
+    pub result_aliases: std::collections::BTreeMap<String,std::collections::BTreeMap<String,String>>,
     pub(crate) security_literal_defaults: std::collections::BTreeMap<(String,String,String),std::collections::BTreeSet<String>>,
     pub(crate) security_conservation: std::collections::BTreeMap<String,security::derived::Conservation>,
     pub rollback_hides:Vec<crate::ast::RollbackHide>,
@@ -117,6 +120,7 @@ pub fn bind(documents: Vec<Document>) -> Bound {
 // verifying the diagnostics from a rejected candidate.
 pub(crate) fn bind_unverified(mut documents: Vec<Document>) -> Bound {
     let mut diagnostics = Vec::new();
+    result_aliases::lower(&mut documents, &mut diagnostics);
     operation_evolution::expand(&mut documents, &mut diagnostics);
     let mut first_identity = None;
     for document in &documents {
@@ -434,7 +438,10 @@ pub(crate) fn bind_unverified(mut documents: Vec<Document>) -> Bound {
             diagnostics.push(crate::diag::type_error(&hide.site,"rollback hides requires a declared nullable column","name the nullable column whose null records must stay hidden").guide("deploy"));
         }
     }
-    let mut bound=Bound { security_literal_defaults:Default::default(),security_conservation:Default::default(),security_approval_checks:Default::default(),security_approval_reissues:Default::default(),security_approval_uncertain_writes:Default::default(),security_approval_inputs: Default::default(), rollback_hides, invariants, receipt_members, refusal_sites, view_types, server, schema, programs, personas, diagnostics, notes };
+    let mut result_aliases:std::collections::BTreeMap<String,std::collections::BTreeMap<String,String>>=Default::default();
+    for doc in &catalog.documents {for (op,old,new,_) in &doc.result_aliases {result_aliases.entry(crate::release_bridge::operation_name(&doc.file,op)).or_default().insert(old.clone(),new.clone());}}
+    for doc in &catalog.documents {for(alias,target,_)in &doc.aliases {if let Some(fields)=result_aliases.get(&crate::release_bridge::operation_name(&doc.file,target)).cloned(){result_aliases.insert(crate::release_bridge::operation_name(&doc.file,alias),fields);}}}
+    let mut bound=Bound { result_aliases, security_literal_defaults:Default::default(),security_conservation:Default::default(),security_approval_checks:Default::default(),security_approval_reissues:Default::default(),security_approval_uncertain_writes:Default::default(),security_approval_inputs: Default::default(), rollback_hides, invariants, receipt_members, refusal_sites, view_types, server, schema, programs, personas, diagnostics, notes };
     security::capture_literal_defaults(&catalog,&mut bound);bound
 }
 
