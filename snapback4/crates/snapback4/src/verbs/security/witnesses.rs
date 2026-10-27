@@ -511,7 +511,7 @@ pub(in crate::verbs) fn collect(project:&Project,bound:&Bound,sources:&[(String,
         if selected.is_empty(){continue;}
         let mut questions=bound.clone();questions.invariants=selected.iter().map(|(_,inv)|inv.clone()).collect();
         let mut campaign=challenges::Campaign::work_bounded(if enforcement{3072}else{8192});
-        challenges::generated_campaign(&questions,&mut campaign,false);
+        phase::measure(if enforcement {"witness.gate_campaign"} else {"witness.question_campaign"}, || challenges::generated_campaign(&questions,&mut campaign,false));
         for (index,inv) in selected {
             if result[*index].is_some()&&notes[*index].code!="N_INSERT_WRITE_INTENT"{continue;}
             if let Some(c)=campaign.violations.iter().filter(|c|c.invariant_site==inv.site.to_string()&&c.reachability.is_reachable()&&(notes[*index].code!="N_GUARD_NOT_CONSUMED"||c.history.len()==1&&c.effect=="insert")&&(notes[*index].code!="N_CHILD_EVIDENCE_PRESENCE"||questions::transition(inv,c,&stages))).max_by_key(|c| {
@@ -529,7 +529,7 @@ pub(in crate::verbs) fn collect(project:&Project,bound:&Bound,sources:&[(String,
     }
     if expanded&&notes.iter().any(|n|n.code=="N_DERIVED_WRITE_AUTHORITY"&&!n.site.file.contains("/label-consistency/")) {
         let mut deploy=options.clone();deploy.flags.insert("security-deploy".into(),String::new());
-        let report=super::report(project,bound,sources,&deploy);apply_report(sources,bound,&report,notes,&mut result);
+        let report=phase::measure("witness.derived_report", || super::report(project,bound,sources,&deploy));apply_report(sources,bound,&report,notes,&mut result);
     }
     // Reapply current eligibility even to cached advice: editable presentation
     // evidence cannot promote an unresolved approval question into a gate.

@@ -127,10 +127,10 @@ pub(super) fn release_loop(project:&Project,bound:&Bound,sources:&[(String,Strin
     let derived=security::derived::notes(sources,bound);
     // A legacy rationale cannot skip the replay that establishes its current
     // witness. Individual alternatives are applied only after actual evidence.
-    let mut report=report_with_reviewed(project,bound,sources,&preflight,&Default::default());
+    let mut report=phase::measure("deploy.report", || report_with_reviewed(project,bound,sources,&preflight,&Default::default()));
     report.notes.extend(presence::notes(project,bound,prior,sources)?);
     if super::proof_source::sources(project,options,"schema")?!=sources{return Err("selected Quarry sources changed during deployment security preflight".into());}
-    let mut evidence=witnesses::collect(project,bound,sources,&report.notes,true,options);
+    let mut evidence=phase::measure("deploy.witnesses", || witnesses::collect(project,bound,sources,&report.notes,true,options));
     witnesses::apply_report(sources,bound,&report,&report.notes,&mut evidence);
     if super::proof_source::sources(project,options,"schema")?!=sources{return Err("selected Quarry sources changed during deployment witness replay; rerun deploy".into());}
     let mut dispositions=decisions.dispositions_with_evidence(sources,&report.notes,&evidence);

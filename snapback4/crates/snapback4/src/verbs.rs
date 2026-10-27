@@ -38,6 +38,7 @@ mod security_reviews;
 mod saved_fixture_drift;
 mod saved_version;
 pub mod security;
+mod phase;
 mod upgrade_history;
 #[cfg(test)]
 mod hand_tests;
@@ -317,7 +318,7 @@ pub fn check(options: &Options) -> i32 {
         Ok(sources) => sources,
         Err(error) => { eprintln!("cannot read snapback/: {error}"); return 2; }
     };
-    let mut bound = snapback4_lang::compile(&compiled_sources);
+    let mut bound = phase::measure("check.bind", || snapback4_lang::compile(&compiled_sources));
     let reviewable_notes = bound.notes.iter().map(note_reviews::fingerprint).collect();
     for warning in saved_fixture_drift::warnings(&project) {
         if warning.drift { eprintln!("check: WARNING: saved fixture drift: {}", warning.message); }
@@ -344,7 +345,7 @@ pub fn check(options: &Options) -> i32 {
         Err(error)=>{failed_check(&bound,options.json,"E_ADOPT",error);return 1;}
     }
     if !bound.diagnostics.is_empty(){report_diagnostics(&bound,options.json,true,options.flags.contains_key("verbose"));return 1;}
-    let security = security::report(&project, &bound, &compiled_sources, options);
+    let security = phase::measure("check.report", || security::report(&project, &bound, &compiled_sources, options));
     // @ref LLP 3000.007#18.3 — check judges adoption against the dev store's active generation and rows, read-only
     match adoption::diagnostics(&project, &bound.schema, options.flags.get("store"), options.json || options.flags.contains_key("verbose")) {
         Ok((problems, notes)) => { bound.diagnostics.extend(problems); bound.notes.extend(notes); },
@@ -409,7 +410,7 @@ pub fn check(options: &Options) -> i32 {
     let acknowledgment_not_applied = (security.refuted() && options.flags.contains_key("ack-security")).then_some(
         "--ack-security was not applied: a security invariant is refuted; an acknowledgment records specification rationale for a review note and cannot override a concrete counterexample. Repair the policy or the invariant and rerun check.");
     if !options.json { if let Some(message) = acknowledgment_not_applied { eprintln!("check: {message}"); } }
-    let evidence=security::witnesses::collect(&project,&bound,&compiled_sources,&security.notes,true,options);
+    let evidence=phase::measure("check.witnesses", || security::witnesses::collect(&project,&bound,&compiled_sources,&security.notes,true,options));
     let dispositions = match security_reviews::review_evidence(&project,&compiled_sources,&security.notes,
         if security.refuted(){None}else{options.flags.get("ack-security").map(|id|(id.as_str(),options.flags.get("reason").map(String::as_str).unwrap_or("")))},&evidence) {
         Ok(d)=>d,Err(error)=>{if options.json {println!("{}",json!({"ok":false,"security":&security,"problems":[{"code":"E_SECURITY_NOTES","message":error}]}));}else{eprintln!("check: E_SECURITY_NOTES: {error}");}return 2;}
