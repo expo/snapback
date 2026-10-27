@@ -37,6 +37,7 @@ impl Engine {
     /// is never re-judged: its row is on the server, and the device that
     /// queued it must learn `sent`, not `failed`.
     pub fn mutate(&mut self, name: &str, op: Option<&str>, context: Context) -> Result<MutationOutcome, RuntimeError> {
+        let _profile = crate::replay_profile::span("replay.mutation");
         self.mutate_inner(name, op, context, false, None, None, std::time::Instant::now() + std::time::Duration::from_millis(100)).map(|ack| ack.outcome)
     }
 

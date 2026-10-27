@@ -117,6 +117,8 @@ pub mod write;
 mod column_writes;
 #[cfg(feature = "sqlite")]
 pub use recorded::RecordedNulls;
+mod code;
+use code::Code;
 use write::target as write_target;
 pub(crate) use write_target::row_copy_ceiling;
 #[cfg(test)]
@@ -472,8 +474,8 @@ pub struct Engine {
     timeline_schedule: timeline::Schedule,
     ephemeral: std::sync::Arc<ephemeral::Hub>,
     store: AnyStore,
-    schema: Schema,
-    programs: BTreeMap<String, Program>,
+    schema: Code<Schema>,
+    programs: Code<BTreeMap<String, Program>>,
     ceilings: Ceilings,
     entropy: u64,
     minter: crate::ids::Mint,
@@ -503,6 +505,7 @@ impl Engine {
 
     /// Activate using the owning host's clock for parent liveness and captures.
     pub fn new_at(store: impl Into<AnyStore>, mut schema: Schema, programs: impl IntoIterator<Item = Program>, now: i64) -> Result<Self, RuntimeError> {
+    let _profile = crate::replay_profile::span("replay.new_engine");
         let mut store = store.into();
         let programs = programs.into_iter().map(|p| (p.name.clone(), p)).collect();
         store.admit(&schema, &programs)?;
@@ -518,7 +521,7 @@ impl Engine {
         let (generation, metadata) = Self::activate(&mut store, &schema, &programs, None, now, true, None, None)?.into_inner();
         let dev_effects = metadata.dev_effects;
         store.exclude_ephemeral(&schema);
-        Ok(Self { #[cfg(feature="postgres")] revision_cache: Default::default(), #[cfg(feature="postgres")] code_native_digest: metadata.native_digest, #[cfg(feature = "evaluation-support")] evaluation_precharge: Metered::default(), timeline_schedule: timeline::Schedule::default(), ephemeral: std::sync::Arc::new(ephemeral::Hub::new(metadata.store_id.clone(), generation, &schema)), store_id: metadata.store_id, store, schema, programs, generation, expiry_after: BTreeMap::new(), dev_effects, ceilings: Ceilings::default(), entropy: crate::ids::seed(), minter: crate::ids::Mint::default(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: None })
+        Ok(Self { #[cfg(feature="postgres")] revision_cache: Default::default(), #[cfg(feature="postgres")] code_native_digest: metadata.native_digest, #[cfg(feature = "evaluation-support")] evaluation_precharge: Metered::default(), timeline_schedule: timeline::Schedule::default(), ephemeral: std::sync::Arc::new(ephemeral::Hub::new(metadata.store_id.clone(), generation, &schema)), store_id: metadata.store_id, store, schema: schema.into(), programs: programs.into(), generation, expiry_after: BTreeMap::new(), dev_effects, ceilings: Ceilings::default(), entropy: crate::ids::seed(), minter: crate::ids::Mint::default(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: None })
     }
 
     /// A detached read owner for HTTP query/sync computation. Creating it is
@@ -576,7 +579,7 @@ impl Engine {
             else { tx.rollback()?; Self::activate(&mut store, &schema, &programs, None, now, true, expected_release, Some(&kept))?.into_inner() };
         let dev_effects = metadata.dev_effects;
         store.accept_open(); store.exclude_ephemeral(&schema);
-        Ok(Self { #[cfg(feature="postgres")] revision_cache: Default::default(), #[cfg(feature="postgres")] code_native_digest: metadata.native_digest, #[cfg(feature = "evaluation-support")] evaluation_precharge: Metered::default(), timeline_schedule: timeline::Schedule::default(), ephemeral: std::sync::Arc::new(ephemeral::Hub::new(metadata.store_id.clone(), generation, &schema)), store_id: metadata.store_id, store, schema, programs, generation, expiry_after: BTreeMap::new(), dev_effects, ceilings: Ceilings::default(), entropy: crate::ids::seed(), minter: crate::ids::Mint::default(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: None })
+        Ok(Self { #[cfg(feature="postgres")] revision_cache: Default::default(), #[cfg(feature="postgres")] code_native_digest: metadata.native_digest, #[cfg(feature = "evaluation-support")] evaluation_precharge: Metered::default(), timeline_schedule: timeline::Schedule::default(), ephemeral: std::sync::Arc::new(ephemeral::Hub::new(metadata.store_id.clone(), generation, &schema)), store_id: metadata.store_id, store, schema: schema.into(), programs: programs.into(), generation, expiry_after: BTreeMap::new(), dev_effects, ceilings: Ceilings::default(), entropy: crate::ids::seed(), minter: crate::ids::Mint::default(), #[cfg(feature = "native")] native: None, #[cfg(feature = "native")] native_logs: native::Logs::default(), presence: None })
     }
 
     /// Serving a selected immutable release may attach only while that release
@@ -699,8 +702,8 @@ impl Engine {
             #[cfg(feature="postgres")]
             {engine.code_native_digest=metadata.native_digest;engine.reset_revision_cache();}
             engine.timeline_schedule = timeline::Schedule::default();
-            engine.schema = schema;
-            engine.programs = programs;
+            engine.schema = schema.into();
+            engine.programs = programs.into();
             engine.generation = generation;
             engine.expiry_after.clear();
             engine.store_id = metadata.store_id.clone();
@@ -810,6 +813,7 @@ impl Engine {
     /// Run a query. Refusals (a `require`, a rule, bad input) are the
     /// card's `denied`; store failures surface as retryable refusals too.
     pub fn query(&mut self, name: &str, context: Context) -> Result<QueryOutcome, Refusal> {
+        let _profile = crate::replay_profile::span("replay.query");
         self.query_at(name, context).0
     }
 

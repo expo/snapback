@@ -7,6 +7,7 @@ fn provisioning(p:&Program)->bool {p.name.rsplit('.').next()==Some("provision")}
 const PROVISION_RESULT:&str="$security.provision-result/";
 type ApprovedInputs=BTreeMap<(String,String),BTreeSet<String>>;
 fn approved_inputs(bound:&Bound)->ApprovedInputs{
+    let _profile = snapback4_core::replay_profile::span("replay.approved_inputs");
     let mut inputs=bound.security_approval_inputs.clone();
     for (table,t) in bound.schema.visible_tables(){for (column,kind) in &t.columns{if super::super::derived::named_approval(column,kind){inputs.entry((table.clone(),column.clone())).or_default();}}}
     for key in super::super::derived::principal_receipt_columns(bound){inputs.entry(key).or_default();}inputs
@@ -81,6 +82,7 @@ fn consumed(predicate:&ast::Expr,row:&Value,effective:&Value,rows:&BTreeMap<Stri
     verdict
 }
 pub(super) fn trace(bound:&Bound,p:&Program,entry:&Engine)->Trace {
+    let _profile = snapback4_core::replay_profile::span("replay.trace");
     let entry=if bound.invariants.iter().any(|i|i.site.file.contains("/sibling-approval/")){readback(entry).ok().map(std::sync::Arc::new)}else{None};
     let inputs=std::sync::Arc::new(approved_inputs(bound));
     let mut initial=Receipts::new();if let Some(entry)=&entry{for ((owner,stamp),columns) in inputs.iter(){for row in entry.get(owner).into_iter().flatten(){if let Some((key,value))=receipt(owner,row,stamp,columns){initial.insert(key,value);}}}}

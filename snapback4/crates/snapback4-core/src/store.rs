@@ -293,6 +293,7 @@ impl Store {
         )))
     }
     pub fn memory() -> Result<Self, RuntimeError> {
+    let _profile = crate::replay_profile::span("replay.new_store");
         Self::prepare(Connection::open_in_memory()?, Self::memory_assets_dir()?, true, true)
     }
 

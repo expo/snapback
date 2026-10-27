@@ -68,6 +68,7 @@ fn time_samples(bound:&Bound,out:&mut Campaign)->Vec<Value>{
 }
 
 pub(super) fn fixture_cases(bound:&Bound,p:&Program,rows:&BTreeMap<String,Vec<Value>>,actors:&[String],out:&mut Campaign)->Vec<BTreeMap<String,Value>>{
+    let _profile = snapback4_core::replay_profile::span("replay.fixture_cases");
     let args=&p.args;
     let times=time_samples(bound,out);
     let preferences=principal_preferences(bound,p,rows);
@@ -778,6 +779,7 @@ fn clock_candidates(bound:&Bound,p:&Program,rows:&BTreeMap<String,Vec<Value>>,st
 // Ordinary guards still decide admission; disjunctions/negation only influence
 // ordering and cannot establish a policy fact or exclude the remaining values.
 pub(super) fn principal_preferences(bound:&Bound,p:&Program,rows:&BTreeMap<String,Vec<Value>>)->BTreeMap<String,Vec<Value>>{
+    let _profile = snapback4_core::replay_profile::span("replay.principal_preferences");
     fn walk(json:&serde_json::Value,f:&mut impl FnMut(&serde_json::Value)){
         f(json);match json{serde_json::Value::Array(xs)=>for x in xs{walk(x,f)},serde_json::Value::Object(xs)=>for x in xs.values(){walk(x,f)},_=>{}}
     }

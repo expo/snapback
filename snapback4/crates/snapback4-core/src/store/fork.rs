@@ -1,12 +1,31 @@
 //! Isolated complete fixtures, including captured authority and asset ownership.
 use super::*;
 impl Store {
+    fn copy_campaign_image(&self, target: &mut Connection) -> bool {
+        if !self.campaign_assets_enabled() || !self.ephemeral_assets || !self.conn.is_autocommit()
+            || self.conn.path().is_some_and(|path| !path.is_empty()) { return false; }
+        let mut copy = || -> Result<bool, RuntimeError> {
+            let pages = self.conn.query_row("PRAGMA page_count", [], |row| row.get::<_, i64>(0))?;
+            let size = self.conn.query_row("PRAGMA page_size", [], |row| row.get::<_, i64>(0))?;
+            if pages < 0 || size < 0 || pages.saturating_mul(size) > 32 * 1024 * 1024 { return Ok(false); }
+            let image = self.conn.serialize(rusqlite::MAIN_DB)?;
+            // A WAL image needs its original VFS; retain ordinary backup there.
+            if image.get(18) != Some(&1) || image.get(19) != Some(&1) { return Ok(false); }
+            match image {
+                rusqlite::serialize::Data::Owned(image) => target.deserialize(rusqlite::MAIN_DB, image, false)?,
+                image => target.deserialize_read_exact(rusqlite::MAIN_DB, &*image, image.len(), false)?,
+            }
+            Ok(true)
+        };
+        copy().unwrap_or(false)
+    }
     // @ref LLP 3000.036.004#122-reproducible-campaigns-and-reachability — fork committed state, never reinterpret stored rows as new seed input.
     pub fn fork_memory(&self) -> Result<Self, RuntimeError> {
         let started = crate::replay_profile::start();
         let mut conn = Connection::open_in_memory()?;
         let page_size=conn.query_row("PRAGMA page_size",[],|row|row.get::<_,i64>(0))? as u64;
-        {
+        // @ref LLP 3000.036.004.000.000#private-sqlite-image-forks — a fresh actual image, never a saved result or mutable shared database.
+        if !self.copy_campaign_image(&mut conn) {
             let backup = rusqlite::backup::Backup::new(&self.conn, &mut conn)?;
             backup.run_to_completion(256, std::time::Duration::ZERO, None)?;
         }
@@ -66,5 +85,43 @@ impl Store {
             }
         }
         Ok(fresh)
+    }
+}
+
+#[cfg(test)]
+mod image_tests {
+    use super::*;
+    fn dump(conn: &Connection) -> BTreeMap<String, Vec<Vec<rusqlite::types::Value>>> {
+        let names = conn.prepare("SELECT name FROM sqlite_schema WHERE type='table' ORDER BY name").unwrap()
+            .query_map([], |r| r.get::<_, String>(0)).unwrap().collect::<Result<Vec<_>, _>>().unwrap();
+        names.into_iter().map(|name| {
+            let mut statement = conn.prepare(&format!("SELECT * FROM \"{}\"", name.replace('"', "\"\""))).unwrap();
+            let columns = statement.column_count();
+            let mut rows = statement.query_map([], |r| (0..columns).map(|i|r.get::<_,rusqlite::types::Value>(i)).collect::<Result<Vec<_>,_>>()).unwrap()
+                .collect::<Result<Vec<_>,_>>().unwrap();
+            rows.sort_by_cached_key(|row|format!("{row:?}"));(name, rows)
+        }).collect()
+    }
+    #[test]
+    fn private_image_matches_backup_and_retains_fresh_independent_state() {
+        let source = Store::memory_for_campaign().unwrap();
+        source.set_meta("lat1", "initial").unwrap();
+        source.conn.execute("INSERT INTO _principals VALUES ('alice','user','Alice',1800000000000)", []).unwrap();
+        source.conn.execute("INSERT INTO _sessions(token_digest,principal,kind,created_at,expires_at) VALUES ('digest','alice','user',1800000000000,1800000001000)", []).unwrap();
+        let original = dump(&source.conn);
+        let mut direct = Connection::open_in_memory().unwrap();assert!(source.copy_campaign_image(&mut direct));assert_eq!(dump(&direct), original);
+        let image = source.fork_memory().unwrap();
+        let bytes = source.campaign_assets.replace(None);let backup = source.fork_memory().unwrap();source.campaign_assets.replace(bytes);
+        assert_eq!(dump(&image.conn), dump(&backup.conn));assert_eq!(image.page_size, backup.page_size);
+        image.set_meta("lat1", "child").unwrap();assert_eq!(dump(&source.conn), original);
+        source.set_meta("lat1", "parent-v2").unwrap();let next=source.fork_memory().unwrap();assert_eq!(next.meta("lat1").unwrap().as_deref(),Some("parent-v2"));
+        assert_eq!(image.meta("lat1").unwrap().as_deref(),Some("child"));
+        let transaction=source.conn.unchecked_transaction().unwrap();assert!(!source.copy_campaign_image(&mut direct));transaction.rollback().unwrap();
+    }
+    #[test]
+    fn ordinary_and_oversized_sources_keep_backup_fallback() {
+        let ordinary=Store::memory().unwrap();let mut destination=Connection::open_in_memory().unwrap();assert!(!ordinary.copy_campaign_image(&mut destination));
+        let large=Store::memory_for_campaign().unwrap();let value="x".repeat(33*1024*1024);large.set_meta("lat1-large", &value).unwrap();
+        assert!(!large.copy_campaign_image(&mut destination));let fork=large.fork_memory().unwrap();assert_eq!(fork.meta("lat1-large").unwrap().as_deref(),Some(value.as_str()));
     }
 }

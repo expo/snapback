@@ -10,6 +10,7 @@ impl Engine {
 
     // @ref LLP 3000.036.004#122-reproducible-campaigns-and-reachability — isolation includes entropy, assets and ephemeral ownership.
     pub fn fork_fixture(&self) -> Result<Self, RuntimeError> {
+    let _profile = crate::replay_profile::span("replay.engine_fork");
         if self.presence.is_some(){return Err(RuntimeError::Schema("fixture fork needs an isolated external presence snapshot".into()));}
         let store=self.store.fork_memory()?;
         let identity=store.store_identity()?.ok_or_else(||RuntimeError::Store("fixture store has no identity".into()))?;

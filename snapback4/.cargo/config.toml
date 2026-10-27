@@ -1,6 +1,6 @@
 # @ref LLP 3000.009.001.000.002#sqlite-durable-write-cycle — retain FULL, use the native data durability primitive.
 [env]
-LIBSQLITE3_FLAGS = "-DHAVE_FDATASYNC=1 -USQLITE_ENABLE_MEMORY_MANAGEMENT"
+LIBSQLITE3_FLAGS = "-DHAVE_FDATASYNC=1 -USQLITE_ENABLE_MEMORY_MANAGEMENT -DSQLITE_MEMDB_DEFAULT_MAXSIZE=9223372036854775807"
 
 [profile.dev]
 debug = "line-tables-only"
