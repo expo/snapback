@@ -14,7 +14,7 @@ pub(crate) fn render_in(root: &Path, name: &str, text: &str, force: bool) -> Str
     let blocks = snapback4_lang::guide::reading_blocks(text);
     let mut new = Vec::new(); let mut already = 0;
     for block in &blocks {
-        let hash = format!("{:x}", Sha256::digest(block.as_bytes()));
+        let hash = format!("{:x}", Sha256::digest(format!("{name}\0{block}").as_bytes()));
         if seen.insert(hash) { new.push(block.as_str()); } else { already += 1; }
     }
     // A lost concurrent history update merely reprints text; it cannot hide new content.
@@ -38,6 +38,7 @@ mod tests {
         let first = "# Uploads\n\nOwn bytes.\n\n```js\nawait upload(bytes);\n\nawait place();\n```\n";
         assert_eq!(render_in(&root,"uploads",first,false), first);
         assert!(render_in(&root,"uploads",first,false).contains("new: 0 blocks"));
+        assert_eq!(render_in(&root,"another-card",first,false), first, "a first card read keeps shared context");
         let changed = first.replace("place()", "placeCopy()");
         let delta = render_in(&root,"uploads",&changed,false);
         assert!(delta.contains("```js\nawait upload(bytes);\n\nawait placeCopy();\n```"));

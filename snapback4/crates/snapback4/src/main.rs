@@ -171,7 +171,10 @@ fn main() -> ExitCode {
                                 let explicit = ["full", "section", "find", "sections"].iter().any(|f| options.flags.contains_key(*f));
                                 let text = if explicit { text } else { guide::bounded_default(name, &text) };
                                 if options.flags.contains_key("sections") || options.flags.contains_key("find") { println!("{text}"); }
-                                else { println!("{}", guide_seen::render(name, &text, options.flags.contains_key("repeat") || options.flags.contains_key("full"))); }
+                                else {
+                                    let shown = guide_seen::render(name, &text, options.flags.contains_key("repeat") || options.flags.contains_key("full"));
+                                    println!("{}", if explicit { shown } else { guide::bounded_default(name, &shown) });
+                                }
                             },
                             Err(problem) => { println!("{problem}"); return ExitCode::from(1); }
                         }

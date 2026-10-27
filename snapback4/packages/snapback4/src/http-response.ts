@@ -45,7 +45,7 @@ export async function readResponse(response: Response, decode?: (response: Respo
   if (!json || typeof json !== 'object' || Array.isArray(json)) return { denied: invalidResponse(response.status) };
   const why = json.denied ?? json.why;
   if (why !== undefined && !refusal(why) || !response.ok && !refusal(why)) return { denied: invalidResponse(response.status) };
-  if (why && typeof why === 'object' && (why as Refusal).code === 'E_ASSET_PLACED') {
+  if (why && typeof why === 'object' && (why as Refusal).code === 'E_ASSET_PLACED' && !(why as Refusal).message.includes('Copy recipe:')) {
     const placement = why as Refusal;
     const recipe = 'Copy recipe: as the placing account, await client.upload(bytes) separately for EACH image column (even on the same record), check each result.ok, then pass {id: result.asset.id} per column. Each app uploadAndPlace intent owns one placement; use explicit uploads for several columns in one mutation. Or reference the original home row. See snapback4 guide uploads --section "Copy the same image".';
     const improved = { ...placement, message: `${placement.message}; ${recipe}` };

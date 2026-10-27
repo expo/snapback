@@ -249,6 +249,9 @@ pub fn init(options: &Options) -> i32 {
         // `check` and `dev` write snapback/generated/ and rewrite it on every
         // run: an existing file there is init's to replace, never a conflict.
         // @ref LLP 3000.011.003.000#7.4 — schema-first init after `check` (wave 4: E_INIT_CONFLICT on check's own package.json).
+        if regenerable(name) && dir.join(name).symlink_metadata().is_ok_and(|metadata| !metadata.is_file()) {
+            conflicts.push(format!("{} is not a regular generated file", dir.join(name).display()));
+        }
         if *name != "package.json" && !regenerable(name) {
             match dir.join(*name).symlink_metadata() {
                 Ok(_) => present.push(format!("{} already exists", dir.join(*name).display())),
@@ -286,9 +289,17 @@ pub fn init(options: &Options) -> i32 {
         println!("No files written; rerun without --dry-run to create this starter.");
         return 0;
     }
-    println!("{}", crate::guide_seen::render_in(dir, "start", snapback4_lang::guide::card("start").unwrap(), false));
-    let _ = std::io::stdout().flush();
     let readme = files.iter().find(|(name, _)| name.starts_with("README.")).map(|(name, _)| *name);
+    let mut overwritten = Vec::new();
+    for name in files.iter().filter(|(name, _)| *name == "package.json" || regenerable(name)).map(|(name, _)| *name).chain([".gitignore"]) {
+        let path = dir.join(name);
+        if path.is_file() {
+            match std::fs::read_to_string(&path) {
+                Ok(original) => overwritten.push((path, original)),
+                Err(error) => { eprintln!("init: could not preserve {}: {error}; no files written", path.display()); return 2; }
+            }
+        }
+    }
     let mut created = Vec::new();
     let mut write = || -> std::io::Result<()> {
         for (name, text) in &files {
@@ -318,8 +329,15 @@ pub fn init(options: &Options) -> i32 {
         for path in created.iter().rev() {
             if let Err(error) = std::fs::remove_file(path) { eprintln!("init: could not remove {}: {error}", path.display()); }
         }
+        for (path, original) in overwritten.iter().rev() {
+            if std::fs::read_to_string(path).ok().as_ref() != Some(original) {
+                if let Err(error) = replace_file(path, original) { eprintln!("init: could not restore {}: {error}", path.display()); }
+            }
+        }
         return 2;
     }
+    println!("{}", crate::guide_seen::render_in(dir, "start", snapback4_lang::guide::card("start").unwrap(), false));
+    let _ = std::io::stdout().flush();
     // A starter that wrote package.json dependencies needs them installed before
     // its typecheck, build or `npm start` can run.
     let install = if web || expo { "`node scripts/install.mjs --wait`, then " } else if files.iter().any(|(name, _)| *name == "package.json") { "`npm install`, then " } else { "" };
@@ -756,16 +774,20 @@ fn starter_gitignore(text: &str) -> String {
 fn background_install(dir: &Path) -> std::io::Result<()> {
     use std::process::{Command, Stdio};
     let logs = dir.join(".snapback4"); std::fs::create_dir_all(&logs)?;
-    let log = std::fs::OpenOptions::new().create(true).append(true).open(logs.join("install.log"))?;
-    let child = Command::new("node").arg("scripts/install.mjs").arg("--background").current_dir(dir)
+    #[cfg(unix)] { use std::os::unix::fs::PermissionsExt; std::fs::set_permissions(&logs, std::fs::Permissions::from_mode(0o700))?; }
+    let mut log_options = std::fs::OpenOptions::new(); log_options.create(true).append(true);
+    #[cfg(unix)] { use std::os::unix::fs::OpenOptionsExt; log_options.mode(0o600); }
+    let log = log_options.open(logs.join("install.log"))?;
+    #[cfg(unix)] { use std::os::unix::fs::PermissionsExt; log.set_permissions(std::fs::Permissions::from_mode(0o600))?; }
+    // Publish request identity BEFORE spawning: an immediate --wait cannot
+    // mistake an older successful receipt for this install, even on slow Node startup.
+    let request = format!("{}-{}", std::process::id(), std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_nanos());
+    let mut request_options = std::fs::OpenOptions::new(); request_options.create(true).write(true).truncate(true);
+    #[cfg(unix)] { use std::os::unix::fs::OpenOptionsExt; request_options.mode(0o600); }
+    let mut pending = request_options.open(logs.join("install-request.json"))?;
+    pending.write_all(serde_json::to_string(&json!({"id":request})).unwrap().as_bytes())?;
+    Command::new("node").arg("scripts/install.mjs").arg("--background").env("SNAPBACK4_INSTALL_REQUEST", &request).current_dir(dir)
         .stdin(Stdio::null()).stdout(Stdio::from(log.try_clone()?)).stderr(Stdio::from(log)).spawn()?;
-    // Join only the owner's short startup handshake, never npm's dependency work.
-    let began = std::time::Instant::now();
-    while began.elapsed() < std::time::Duration::from_secs(3) {
-        let state = std::fs::read(logs.join("install.json")).ok().and_then(|bytes| serde_json::from_slice::<Value>(&bytes).ok());
-        if state.as_ref().and_then(|s| s["pid"].as_u64()) == Some(u64::from(child.id())) { break; }
-        std::thread::sleep(std::time::Duration::from_millis(10));
-    }
     println!("init: frontend install running in background; read/edit now. Progress: node scripts/install.mjs --status; join once: node scripts/install.mjs --wait; log .snapback4/install.log");
     Ok(())
 }

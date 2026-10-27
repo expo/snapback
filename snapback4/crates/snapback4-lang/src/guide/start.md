@@ -1,7 +1,9 @@
 # Start: install, write the schema, check
 
 Read this card once. It replaces the README, cheatsheet and introductory card
-tour. Write your first schema now; do not read language --full, security --full,
+tour. Before the first schema write, do NOT open --help, guide --list, guide
+tasks, --sections, language, or declaration files. The schema and syntax below
+are sufficient for a first compiling workflow. Write it now; do not read language --full, security --full,
 dist/contract.d.ts or all the other cards first. Open at most the two or three
 sections named below when your feature needs them. `--repeat` shows a card again;
 `--full` explicitly requests its entire reference.
@@ -27,7 +29,6 @@ After replacing a starter schema, run `npx snapback4 init --adapt --apply`.
 
 Save the entire block as snapback/schema.q, replacing the sample schema. All
 snapback/*.q files share one namespace; remove sample tables you no longer use.
-Change role names, fields, bounds and independent intent to match your spec.
 
 ```quarry
 use identity password
@@ -45,10 +46,11 @@ table requests:
   owner: principal
   title: text 1..120
   photo: image <=5000000
+  openedAt: time
   dueAt: time
   status: enum('open', 'approved') default 'open'
   internalNote: text <=500 default '' read <- exists roles[viewer, role = 'staff']
-  immutable owner, dueAt
+  immutable owner, openedAt, dueAt
   read <- .owner = viewer or exists roles[viewer, role = 'staff']
   insert <- .owner = viewer and exists roles[viewer, role = 'customer']
   update <- exists roles[viewer, role = 'staff']
@@ -58,9 +60,8 @@ mutation provision(principal: principal, role: enum('customer', 'staff')):
   require viewer = 'service:operator' else NOT_OPERATOR
   return insert roles { principal, role } if absent
 
-mutation openRequest(title: text 1..120, photo: image <=5000000, dueAt: time):
-  require dueAt > now else BAD_DEADLINE
-  return insert requests { owner: viewer, title, photo, dueAt }
+mutation openRequest(title: text 1..120, photo: image <=5000000):
+  return insert requests { owner: viewer, title, photo, openedAt: now, dueAt: now + 30d }
 
 mutation approve(request: requests, internalNote: text <=500):
   row = requests[request] ! else NOT_FOUND
@@ -94,14 +95,25 @@ Required evidence uses a required creating argument AND column. Guard deadlines
 in every transition, before status; freeze or revalidate their stored anchors.
 `now` is server milliseconds. Do not put a moving clock in a read rule.
 
+Small syntax reference for adapting the block: `money USD` is integer cents on
+the wire (1234 = USD 12.34); `int 0..` is nonnegative; `text 1..120` bounds length;
+`T ?` is nullable. Add enum lifecycle states to status and a separate mutation
+per transition; use `r = requests[id] ! else NOT_FOUND` before its requires.
+`require now < r.dueAt else DEADLINE` checks at the action, independent of a sweep.
+Derive fixed deadlines from server `now + 30d` or an immutable stored event,
+never a caller's timestamp. Use 365d only for a fixed-duration year; actual UTC
+calendar months/years: `guide time --section "Months and years"` AFTER first check.
+A scheduled job may flag overdue rows, but its lateness cannot authorize a late
+approval. Photo columns each need a separate upload of the same selected bytes.
+
 ## Route only when your feature needs it
 
 - Roles, private fields, approvals: the complete schema above is the starting
-  point. More column grants: `guide rules --section column`; independent security
-  intent and unproved paths: `guide security --section 'Write intent'`.
+  point. More column grants: `guide rules --section "Column read rules"`; independent security
+  intent and unproved paths: `guide security --section Reference`.
 - Uploads (including several photo columns): `guide uploads --section 'Copy the same image'`.
   The placing account uploads each column separately; an asset has one home.
-- Deadlines and scheduled work: `guide time --section durations`, then
+- Deadlines and scheduled work: `guide time --section Values`, then
   `guide jobs --section Operations` only if you actually need a background job.
   Jobs may run late; transition guards enforce the deadline at the action.
 

@@ -53,7 +53,7 @@ export async function serveCheck(options: ServeCheckOptions): Promise<ServeCheck
   const requested = resolve(cwd,options.deployment), storePath = join(requested,"store.sqlite");
   const canonical = (path:string) => { try {return realpathSync(path);} catch {return resolve(path);} };
   const child = spawn(process.execPath, [fileURLToPath(new URL("./proof-serve-driver.js", import.meta.url)), script], {
-    cwd, env:{...process.env, ...options.env, SNAPBACK4_SERVE_CHECK_STORES:observedStores}, detached:true, stdio:["pipe", "pipe", "pipe", "ipc"],
+    cwd, env:{...process.env, ...options.env, SNAPBACK4_SERVE_CHECK_STORES:observedStores, SNAPBACK4_PROBE_HOLD:"1"}, detached:true, stdio:["pipe", "pipe", "pipe", "ipc"],
   });
   register(child); child.stdin!.on("error", () => {});
   let serveExitCode: number | null | undefined, serveExitSignal: string | null | undefined;

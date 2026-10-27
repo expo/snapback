@@ -21,7 +21,7 @@ export function probeServeGuard(options: { directory?: string; hold?: boolean } 
   let previous: Receipt | undefined;
   try { previous = JSON.parse(readFileSync(path, 'utf8')) as Receipt; } catch {}
   if (!hold && previous && !alive(previous.pid) && previous.requests === 0 && (previous.ended ?? previous.lastSeen) - previous.started > 60_000) {
-    throw Error(`E_PROBE_IDLE: previous run exceeded 60s without requests; ${probeAdvice}. Deliberate service: npm run probe:serve -- --hold`);
+    throw Error(`E_PROBE_IDLE: previous run exceeded 60s without requests; ${probeAdvice}. Deliberate service: npm run probe:serve -- --hold (or SNAPBACK4_PROBE_HOLD=1)`);
   }
   const activity = join(directory, `probe-${randomUUID()}.activity`), oldActivity = process.env.SNAPBACK4_PROBE_ACTIVITY;
   process.env.SNAPBACK4_PROBE_ACTIVITY = activity;

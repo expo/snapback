@@ -4,7 +4,9 @@ pub fn render(module: &str, full: bool) -> Result<String, String> {
     match module {
         "proof" if full => Ok(include_str!("../../snapback4-lang/src/guide/proof_api_reference.md").into()),
         "proof" => Ok(include_str!("../../snapback4-lang/src/guide/api_proof.md").into()),
+        "client" if full => Ok(include_str!("../../snapback4-lang/src/guide/api_client_full.md").into()),
         "client" => Ok(include_str!("../../snapback4-lang/src/guide/api_client.md").into()),
+        "auth" if full => Ok(include_str!("../../snapback4-lang/src/guide/api_auth_full.md").into()),
         "auth" => Ok(include_str!("../../snapback4-lang/src/guide/api_auth.md").into()),
         "generated" => {
             let cwd = std::env::current_dir().map_err(|e| e.to_string())?;

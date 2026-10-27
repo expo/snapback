@@ -18,7 +18,7 @@ function digest(module, names) {
   const checker = program.getTypeChecker(), source = program.getSourceFile(file);
   const exports = checker.getExportsOfModule(checker.getSymbolAtLocation(source));
   const hashes = new Map();
-  function declarations(name) {
+  function declarations(name, compact = true) {
     let symbol = exports.find(e => e.name === name);
     if (!symbol) {
       const dependency = ts.createSourceFile('contract.d.ts', readFileSync(new URL('contract.d.ts',dist),'utf8'), ts.ScriptTarget.Latest, true);
@@ -31,9 +31,9 @@ function digest(module, names) {
     return (symbol.declarations ?? []).map(node => {
       const source = node.getSourceFile();
       hashes.set(source.fileName.split('/').at(-1), createHash('sha256').update(source.text).digest('hex'));
-      let text = node.getText(source);
+      let text = (ts.isVariableDeclaration(node) ? 'export const ' : '') + node.getText(source);
       // Client's core methods replace the much larger advanced-lifecycle surface.
-      if (name === 'Client' && ts.isInterfaceDeclaration(node)) {
+      if (compact && name === 'Client' && ts.isInterfaceDeclaration(node)) {
         const wanted = ['query','mutate','observe','upload','asset','close','watch'];
         const members = node.members.filter(n => wanted.includes(n.name?.getText(source)));
         text = `export interface Client { ${members.map(n => n.getText(source)).join(' ')} /* other methods: dist/contract.d.ts */ }`;
@@ -54,6 +54,13 @@ function digest(module, names) {
   // A source digest covers selected and omitted requested declarations, so drift fails.
   text += `\nDeclaration fingerprint: ${createHash('sha256').update(JSON.stringify([...hashes].sort())).digest('hex')}\n`;
   if (encoding.encode(text).length > 3000) throw Error(`guide api ${module} exceeds 3000 tokens`);
+  if (module !== 'proof') {
+    const complete = `${title}\n\`\`\`ts\n${exports.map(s => declarations(s.name, false)).join('\n')}\n\`\`\`\n`;
+    for (const target of [new URL(`api_${module}_full.md`,out), new URL(`guide-api/${module}-full.md`,dist)]) {
+      if (process.argv.includes('--check')) { if (readFileSync(target,'utf8') !== complete) throw Error(`guide api ${module} --full drift`); }
+      else writeFileSync(target, complete);
+    }
+  }
   return text;
 }
 for (const [module,names] of Object.entries(modules)) {

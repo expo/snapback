@@ -235,7 +235,7 @@ export async function proveStarters(client, platform, expo, directory, browserPr
   import {pathToFileURL} from 'node:url';
   const guideTypeScriptExport=${guideTypeScriptExport.toString()};
   const cli=${JSON.stringify(cli)}, testPersistent=${JSON.stringify(id === "web")};
-  const guide=execFileSync(cli,['guide','testing','--section','Loading fixture rows'],{encoding:'utf8',timeout:10000});
+  const guide=execFileSync(cli,['guide','testing','--section','Loading fixture rows','--repeat'],{encoding:'utf8',timeout:10000});
   const fence=String.fromCharCode(96).repeat(3), snippet=guide.split(fence+'js')[1].split(fence)[0].trim();
   writeFileSync('guide-fixtures-snippet.mjs',snippet);
   const schema='snapback/schema.q', original=readFileSync(schema,'utf8');
@@ -301,7 +301,7 @@ export async function proveStarters(client, platform, expo, directory, browserPr
     `], cwd);
     if (browserProofs && id === "web") {
       const card = join(cwd, "testing-card.md");
-      await run(process.execPath, ["--input-type=commonjs", "-e", `require('node:fs').writeFileSync(${JSON.stringify(card)},require('node:child_process').execFileSync(${JSON.stringify(cli)},['guide','testing','--section','An acceptance script'],{encoding:'utf8',timeout:30000}));`], cwd);
+      await run(process.execPath, ["--input-type=commonjs", "-e", `require('node:fs').writeFileSync(${JSON.stringify(card)},require('node:child_process').execFileSync(${JSON.stringify(cli)},['guide','testing','--section','An acceptance script','--repeat'],{encoding:'utf8',timeout:30000}));`], cwd);
       const acceptance = readFileSync(card, "utf8").match(/```js\n([\s\S]*?)\n```/);
       assert.ok(acceptance, "packed testing card carries its browser recipe");
       writeFileSync(join(cwd, "guide-acceptance.mjs"), acceptance[1]);
