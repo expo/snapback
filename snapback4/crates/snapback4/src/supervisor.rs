@@ -32,7 +32,7 @@ fn npm(pid: u32) -> bool {
     #[cfg(target_os = "linux")]
     { fs::read_to_string(format!("/proc/{pid}/comm")).is_ok_and(|name| name.trim().starts_with("npm")) }
     #[cfg(not(target_os = "linux"))]
-    { Command::new("ps").args(["-p", &pid.to_string(), "-o", "comm="]).output().is_ok_and(|out| String::from_utf8_lossy(&out.stdout).trim().starts_with("npm")) }
+    { Command::new("ps").args(["-p", &pid.to_string(), "-o", "args="]).output().is_ok_and(|out| { let text = String::from_utf8_lossy(&out.stdout); text.trim().starts_with("npm") || text.contains("/npm-cli.js ") }) }
 }
 
 // Use a dedicated notification signal: Linux binds PDEATHSIG to the spawning
@@ -60,6 +60,8 @@ pub(crate) fn adopt() {
     PARENT.store(parent, Ordering::Release);
     let mut watched = Vec::new();
     if let Some((_, birth)) = identity(parent) { watched.push((parent, birth)); }
+    if let Some(pid) = supplied.filter(|pid| *pid != parent)
+        && let Some((_, birth)) = identity(pid) { watched.push((pid, birth)); }
     // npm can leave sh -c alive when only the npm PID is killed. Observe the
     // nearest npm ancestor too, without tying hosts to arbitrary ancestors.
     let mut next = parent;

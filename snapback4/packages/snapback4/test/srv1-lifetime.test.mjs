@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,rmSync} from 'node:fs';
+import {mkdtempSync,mkdirSync,writeFileSync,readFileSync,rmSync,symlinkSync} from 'node:fs';
 import {join,resolve} from 'node:path';
 import {tmpdir} from 'node:os';
-import {spawn,execFileSync} from 'node:child_process';
+import {spawn} from 'node:child_process';
 import {pathToFileURL} from 'node:url';
 import {setTimeout as sleep} from 'node:timers/promises';
 import {deploy,cli,startServe} from '../dist/proof.js';
@@ -25,15 +25,15 @@ for(const signal of ['SIGTERM','SIGKILL'])for(const direct of [false,true])test(
  npmScript(cwd,direct?'':driver,direct?`node ${JSON.stringify(wrapper)} serve production --port 0`:'node serve.mjs');
  const run=launch(t,cwd,'npm',['run','--silent','prod:serve']);
  if(direct)await until(()=>/SNAPBACK4_READY/.test(run.err()));else await ready(run);
- run.c.kill(signal);
- await until(run.closed);await restarted(cwd);
+ const stoppedAt=performance.now();run.c.kill(signal);
+ await until(run.closed);console.log(JSON.stringify({shape:'036/017/008',kind:direct?'native CLI':'serveUntilSignal',signal,pipeEOFms:Math.round(performance.now()-stoppedAt)}));await restarted(cwd);
 });
 
 test('024: request-making driver exits; serveUntilSignal child cannot keep | tail open',{skip:process.platform==='win32',timeout:30000},async t=>{
  const cwd=await project(t);writeFileSync(join(cwd,'serve.mjs'),driver);
  writeFileSync(join(cwd,'driver.mjs'),`import{spawn}from'node:child_process';const c=spawn(process.execPath,['serve.mjs'],{stdio:['ignore','pipe','inherit']});let text='';c.stdout.on('data',async d=>{process.stdout.write(d);text+=d;if(text.includes('\\n')){const {backendUrl}=JSON.parse(text.trim());await fetch(backendUrl+'/auth/config');console.log('024 requests complete; driver exits');process.exit(0);}});`);
  const run=launch(t,cwd,'bash',['-o','pipefail','-c','node driver.mjs | tail -n 2']);
- await until(run.closed);assert.match(run.out(),/024 requests complete/);assert.equal(run.c.exitCode,0,run.err());await restarted(cwd);
+ await until(run.closed);console.log('024 transcript: node driver.mjs | tail -n 2 -> requests complete, EOF, exit 0; next serve/deploy succeeds');assert.match(run.out(),/024 requests complete/);assert.equal(run.c.exitCode,0,run.err());await restarted(cwd);
 });
 
 for(const signal of ['SIGTERM','SIGINT','SIGHUP'])test(`serveUntilSignal handles ${signal} and closes inherited pipes`,{skip:process.platform==='win32',timeout:30000},async t=>{
@@ -70,4 +70,15 @@ test('Linux PDEATHSIG spawning-thread exit does not kill a live-parent host',{sk
  const cwd=await project(t);
  writeFileSync(join(cwd,'thread.py'),`import threading,subprocess,time\ndef spawn():\n subprocess.Popen([${JSON.stringify(binary)},'serve','production','--port','0'])\nt=threading.Thread(target=spawn);t.start();t.join()\nprint('spawning thread exited',flush=True)\nwhile True: time.sleep(1)\n`);
  const run=launch(t,cwd,'python3',['thread.py']);await until(()=>/SNAPBACK4_READY/.test(run.err()));await sleep(500);assert.equal(run.closed(),false,run.err());assert.match(run.out(),/spawning thread exited/);run.c.kill('SIGKILL');await until(run.closed);await restarted(cwd);
+});
+
+
+test('password starter ships exec serve scripts and bounded prod:check against its real deployment',{skip:process.platform==='win32',timeout:120000},async t=>{
+ const parent=mkdtempSync(join(tmpdir(),'srv1-starter-'));t.after(()=>rmSync(parent,{recursive:true,force:true}));
+ const init=await cli(['init','app','--web','--password','--no-install'],{cwd:parent,env});assert.equal(init.code,0,init.stderr);
+ const cwd=join(parent,'app'),pkg=JSON.parse(readFileSync(join(cwd,'package.json')));
+ assert.equal(pkg.scripts['probe:serve'],'exec node scripts/probe-serve.mjs');assert.equal(pkg.scripts['prod:serve'],'exec node scripts/prod-serve.mjs');assert.ok(pkg.scripts['prod:check']);assert.match(init.stdout,/prod:check/);
+ mkdirSync(join(cwd,'node_modules'));symlinkSync(join(root,'packages/snapback4'),join(cwd,'node_modules/snapback4'),'dir');mkdirSync(join(cwd,'dist'));writeFileSync(join(cwd,'dist/index.html'),'<h1>production</h1>');
+ await deploy('production','snapback',{cwd,env});
+ const run=launch(t,cwd,'npm',['run','--silent','prod:check']);await until(run.closed,90000);assert.equal(run.c.exitCode,0,run.err());const report=JSON.parse(run.out().trim());assert.equal(report.ok,true,JSON.stringify(report));assert.equal(report.lockReleased,true);await released(cwd);
 });
