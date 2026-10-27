@@ -46,7 +46,7 @@ fn paths_disjoint(a:&ast::ProgramDecl,b:&ast::ProgramDecl)->bool{
 fn prior_field_write(w:&Write<'_>,writes:&[Write<'_>],table:&str,column:&str)->bool{
     let resolved=writes.iter().filter(|other|std::ptr::eq(other.p,w.p)).map(|other|other.site.to_string()).collect::<BTreeSet<_>>();
     let mut unknown=false;super::super::super::intent_walk::statements(&mut w.p.body.clone(),&mut |node|if let Expr::Write{site,..}=node&&site.file==w.site.file&&site.line<w.site.line&&!resolved.contains(&site.to_string()){unknown=true;});
-    unknown||writes.iter().take_while(|other|!std::ptr::eq(*other,w)).any(|other|std::ptr::eq(other.p,w.p)&&!paths_disjoint(&other.context,&w.context)&&other.table==table&&other.fields.iter().any(|field|field.name==column))
+    w.unknown_prior||unknown||writes.iter().take_while(|other|!std::ptr::eq(*other,w)).any(|other|std::ptr::eq(other.p,w.p)&&!paths_disjoint(&other.context,&w.context)&&other.table==table&&other.fields.iter().any(|field|field.name==column))
 }
 fn earlier_change(w:&Write<'_>,writes:&[Write<'_>],column:&str,_bound:&Bound)->bool{prior_field_write(w,writes,&w.table,column)}
 fn lifecycle_guard(w:&Write<'_>,writes:&[Write<'_>],bound:&Bound)->bool{

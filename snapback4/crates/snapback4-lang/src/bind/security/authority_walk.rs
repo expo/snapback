@@ -250,6 +250,9 @@ fn statements(catalog:&Catalog,p:&ProgramDecl,body:&[Stmt],env:&mut Env,guards:&
     if consuming{changes.clear();}
     }
 }
+// Advisory freshness must retain unresolved effects across instantiated helpers.
+// Existing gate/structural callers keep the filtered writer contract below.
+pub(in crate::bind) fn advice_writes(catalog:&Catalog,p:&ProgramDecl)->Vec<(Expr,ProgramDecl)>{walk_writes(catalog,p,None)}
 pub(in crate::bind) fn writes(catalog:&Catalog,p:&ProgramDecl)->Vec<(Expr,ProgramDecl)>{walk_writes(catalog,p,None).into_iter().filter(|(write,_)|matches!(write,Expr::Write{table,..} if catalog.tables.contains_key(table))).collect()}
 pub(super) fn column_writes(catalog:&Catalog,p:&ProgramDecl,column:&str)->Vec<(Expr,ProgramDecl)>{walk_writes(catalog,p,Some(column)).into_iter().filter(|(write,_)|matches!(write,Expr::Write{table,..} if catalog.tables.contains_key(table))).collect()}
 // Expand a helper's single guaranteed value for source analysis. Requirements

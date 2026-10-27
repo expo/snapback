@@ -197,3 +197,13 @@ const SWEEP:&str="table docs:\n  status:enum('open','expired','done') default 'o
     let source=format!("{READER}table shares:\n  recipient:principal\n  read <- .recipient = viewer\n  insert <- allow\n  online only\nmutation grant(recipient:principal,flag:bool):\n  r=roles[principal=recipient] ! else NO\n  other=roles[viewer] ! else NO\n  require r.role = 'member' else NO\n  chosen=r if flag else other\n  update chosen {{role:'admin'}}\n  return insert shares {{recipient}}\n");
     assert!(notes(&source).iter().any(|n|n.code=="N_ARGUMENT_GRANT"&&n.message.starts_with("grant:")));
 }
+#[test]fn unresolved_helper_effects_expire_lifecycle_and_recipient_guards(){
+    let source="table docs:\n  stage:enum('quoted','approved') default 'quoted'\n  photo:image <=10000\n  read <- allow\n  update <- allow\n  online only\nfn approveChosen(doc:docs,other:docs,flag:bool):\n  a=docs[doc] ! else NO\n  b=docs[other] ! else NO\n  chosen=a if flag else b\n  update chosen {stage:'approved'}\n  return true\nmutation edit(doc:docs,other:docs,flag:bool,photo:image <=10000):\n  d=docs[doc] ! else NO\n  require d.stage = 'quoted' else NO\n  approveChosen(doc,other,flag)\n  update docs[doc] {photo}\n";
+    assert!(notes(source).iter().any(|n|n.code=="N_EDIT_AFTER_APPROVAL"&&n.message.starts_with("edit:")));
+    let source=format!("{READER}table shares:\n  recipient:principal\n  read <- .recipient = viewer\n  insert <- allow\n  online only\nfn change(recipient:principal,flag:bool):\n  a=roles[principal=recipient] ! else NO\n  b=roles[viewer] ! else NO\n  chosen=a if flag else b\n  update chosen {{role:'admin'}}\n  return true\nmutation grant(recipient:principal,flag:bool):\n  r=roles[principal=recipient] ! else NO\n  require r.role = 'member' else NO\n  change(recipient,flag)\n  return insert shares {{recipient}}\n");
+    assert!(notes(&source).iter().any(|n|n.code=="N_ARGUMENT_GRANT"&&n.message.starts_with("grant:")));
+}
+#[test]fn unresolved_helper_effects_expire_parent_window_snapshots(){
+    let source="table parents:\n  due:time\n  read <- allow\n  update <- allow\n  online only\ntable children:\n  parent:parents\n  due:time\n  read <- allow\n  insert <- allow\n  online only\nfn shorten(first:parents,second:parents,flag:bool):\n  a=parents[first] ! else NO\n  b=parents[second] ! else NO\n  chosen=a if flag else b\n  update chosen {due:now}\n  return true\nmutation create(parent:parents,other:parents,proposed:time,flag:bool):\n  p=parents[parent] ! else NO\n  require proposed > now else NO\n  shorten(parent,other,flag)\n  require proposed <= p.due else NO\n  return insert children {parent,due:proposed}\n";
+    assert!(notes(source).iter().any(|n|n.code=="N_DEPENDENT_WINDOW"));
+}
