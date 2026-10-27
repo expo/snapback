@@ -3,7 +3,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 export PATH="$HOME/.local/bin:$HOME/.cargo/bin:$PATH"
-export LIBSQLITE3_FLAGS="-DHAVE_FDATASYNC=1 -USQLITE_ENABLE_MEMORY_MANAGEMENT -DSQLITE_MEMDB_DEFAULT_MAXSIZE=9223372036854775807"
+export LIBSQLITE3_FLAGS="-DHAVE_FDATASYNC=1 -USQLITE_ENABLE_MEMORY_MANAGEMENT"
 export CC_x86_64_unknown_linux_musl="${SNAPBACK4_MUSL_CC:-$HOME/.local/share/snapback4-musl-1.2.5/bin/musl-gcc}"
 export CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER="$CC_x86_64_unknown_linux_musl"
 export CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_RUSTFLAGS='-C target-feature=+crt-static -C relocation-model=static'

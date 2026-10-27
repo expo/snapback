@@ -7,7 +7,7 @@ import { matchesPinnedProof } from "./linux-proof-inputs.mjs";
 import { starterCases } from "./publication-starters.mjs";
 import { checkElf } from "./check-elf.mjs";
 // @ref LLP 3000.009.001.000.002#sqlite-durable-write-cycle — FULL keeps its ordering; Linux WAL syncs use fdatasync (Apple keeps F_FULLFSYNC). Mirrors .cargo/config.toml.
-export const sqliteBuildFlags = "-DHAVE_FDATASYNC=1 -USQLITE_ENABLE_MEMORY_MANAGEMENT -DSQLITE_MEMDB_DEFAULT_MAXSIZE=9223372036854775807";
+export const sqliteBuildFlags = "-DHAVE_FDATASYNC=1 -USQLITE_ENABLE_MEMORY_MANAGEMENT";
 export const platforms = ["snapback4-darwin-arm64", "snapback4-linux-x64"];
 export const linuxTarget = "x86_64-unknown-linux-musl";
 export const linuxRustFlags = "-C target-feature=+crt-static -C relocation-model=static";

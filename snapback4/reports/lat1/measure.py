@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Source/fixture copies only; paired binaries, exact security JSON, retained failures."""
 import argparse, concurrent.futures, hashlib, json, math, os, pathlib, shutil, statistics, subprocess, tempfile, time
+def failed(summary):
+ return bool(summary["toolFailures"] or summary["inputMismatches"] or summary.get("mismatches"))
 def canonical(value):
  return json.dumps(value,sort_keys=True,separators=(',',':'),ensure_ascii=False,allow_nan=False).encode()
 # Comparison controls retain scalar types, complete payloads and array order.
@@ -14,7 +16,9 @@ if __import__('sys').argv[1:]==['--self-test']:
   assert canonical(original)!=canonical(altered)
  assert canonical(dict(a=1,b=True))==canonical(dict(b=True,a=1))
  assert canonical(1)!=canonical(1.0)
- print('canonical comparator: 8 negative/ordering controls pass');raise SystemExit(0)
+ assert failed(dict(toolFailures=[],inputMismatches=[],mismatches=[dict(changed='payload')]))
+ assert not failed(dict(toolFailures=[],inputMismatches=[],mismatches=[]))
+ print('canonical comparator: 8 negative/ordering controls and acceptance failure control pass');raise SystemExit(0)
 p=argparse.ArgumentParser();p.add_argument('--baseline',required=True);p.add_argument('--candidate',required=True);p.add_argument('--keys',required=True);p.add_argument('--out',required=True);p.add_argument('--workers',type=int,default=4);p.add_argument('--identity',action='store_true');p.add_argument('--trace',action='store_true');p.add_argument('--resume',action='store_true');a=p.parse_args()
 out=pathlib.Path(a.out);out.mkdir(parents=True,exist_ok=True);keys=json.loads(pathlib.Path(a.keys).read_text());home=pathlib.Path.home()/'sb4-loop'
 binaries={k:pathlib.Path(v).resolve() for k,v in [('baseline',a.baseline),('candidate',a.candidate)]}
@@ -84,4 +88,4 @@ else:
    selected=[r for r in rows if(r['label'],r['mode'],r['temperature'])==(label,mode,temp)];xs=sorted(r['seconds']for r in selected)
    summary['timings'].append(dict(label=label,mode=mode,temperature=temp,count=len(xs),median=statistics.median(xs),p90=xs[math.ceil(.9*len(xs))-1],max=max(xs)))
 (out/'summary.json').write_text(json.dumps(summary,indent=2)+'\n');print(json.dumps(summary,indent=2),flush=True)
-if summary['toolFailures']or summary['inputMismatches']:raise SystemExit(1)
+if failed(summary):raise SystemExit(1)

@@ -1,0 +1,16 @@
+muse: workspace root: /home/ccheever/projects/sb4-b34-lat1 (cwd default)
+muse: workspace trust: trusted source=run-flag
+READY — correctness/design only, at commit `cbec13403c`.
+
+I reviewed the full delta from `2921a639cc` against the governing amendment ([LLP 3000.036.004.000.000](llp/3000.036.004.000.000-production-security-replay-latency.rfc.md)) and the affected tests plus [measure.py](/home/ccheever/projects/sb4-b34-lat1/snapback4/reports/lat1/measure.py). No material hidden semantic change, cache hole, guard bypass, unsafe fallback, or invalid oracle found. Budgets (512/3072/8192) are untouched; no rule-family or tier change; all current-source and individual-decision guards still execute after every join.
+
+Why each mechanism holds:
+
+- Parallel restoration ([witnesses.rs](/home/ccheever/projects/sb4-b34-lat1/snapback4/crates/snapback4/src/verbs/security/witnesses.rs)) clones the report into a private copy on its own 8192-work campaign, never touches the advice cache (read or write), and the main thread's `collect` keeps sole cache ownership — so no file race. Notes and values are appended in original order, and the deploy `security-deploy` conditional fires only on the pending-evidence path, never double-restoring.
+- Compiler reuse ([compilation_reuse.rs](/home/ccheever/projects/sb4-b34-lat1/snapback4/crates/snapback4-lang/src/compilation_reuse.rs), [lib.rs](/home/ccheever/projects/sb4-b34-lat1/snapback4/crates/snapback4-lang/src/lib.rs)) is thread-local, single-entry, scoped to `deploy` only, keyed on the exact ordered `(filename, bytes)` vector. Hits return owned `Bound` clones; diagnostics travel with the bytes, so no validation is skipped. Oversized inputs recompute.
+- CoW code ([code.rs](/home/ccheever/projects/sb4-b34-lat1/snapback4/crates/snapback4-core/src/engine/code.rs)) shares `Arc` handles across forks and detaches on the only in-place mutation path (`insert_fixture`); adoption installs fresh handles at the commit boundary. Serialization is byte-identical.
+- SQLite forks ([fork.rs](/home/ccheever/projects/sb4-b34-lat1/snapback4/crates/snapback4-core/src/store/fork.rs)) fall back to ordinary backup on transactions, WAL images, non-campaign stores, file-backed DBs, and images over 32 MiB. Post-fork configuration is shared code, so limits and fresh state match backup; the `MEMDB_DEFAULT_MAXSIZE` removal only restores parity for the deserialize path and is disclosed in the RFC.
+- ID minting preserves the 1,024-row reservation and clock advancement, with independent clone cursors, host-mint fallback on exhaustion, ephemeral discard of both representations, and revision-cache exclusion — all covered by boundary tests.
+- `measure.py` canonical comparison preserves scalar types (`1` vs `1.0` vs `true`), array order, and complete payloads with negative controls; identity mode covers check, staging, and production, which together exercise both deploy scheduling paths.
+
+Explicitly not granted: performance/full-corpus identity qualification — those runs are pending, and this review ran no suites. Two non-blocking notes: the worktree has an unfinished `WORKSTREAM-REPORT.md` modification (not part of the commit), and Linux musl+mimalloc-secure link correctness rests on inspection (pinned `0.1.52`, target-gated dep and allocator, consistent flags in all three build routes), not a build.
