@@ -1,5 +1,5 @@
 // The affected consumer-only subset of qualify-linux; no publication or override.
-import {mkdirSync,writeFileSync,readFileSync} from 'node:fs';
+import {mkdirSync,writeFileSync,readFileSync,existsSync} from 'node:fs';
 import {resolve,join} from 'node:path';
 import {createHash} from 'node:crypto';
 import {proveDay2} from '../../../scripts/publication-day2.mjs';
@@ -26,6 +26,7 @@ for(const [name,run]of [
   const start=Date.now();
   try {const value=await run();summary.proofs[name]={status:'passed',elapsedMs:Date.now()-start,proof:value};console.log(name,'PASS');}
   catch(error) {summary.proofs[name]={status:'failed',elapsedMs:Date.now()-start,errorType:error.name};writeFileSync(join(out,name+'-failure.private.txt'),String(error.stack),{mode:0o600});console.log(name,'FAIL',error.name);}
+  const native=join(consumer,'node_modules/snapback4-linux-x64/snapback4');if(existsSync(native))summary.nativeSha256=sha(native);
   writeFileSync(join(out,'summary.json'),JSON.stringify(summary,null,2));
 }
 process.exitCode=Object.values(summary.proofs).some(p=>p.status!=='passed')?1:0;

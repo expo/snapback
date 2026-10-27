@@ -788,6 +788,7 @@ pub(super) fn transition(tx:&Tx<'_>,next:&Schema,previous:Option<&Schema>,source
     tx.set_meta("activation_population","true")?;
     Ok(())
 }
+// @ref LLP 3000.000.000.003#forward-dependencies-remain-binding — unknown computations need certificates for data reads.
 // Index discovery is not purity: fileText also reads the ledger and file bytes.
 // Migration admission has already checked the deterministic instruction subset.
 fn input_only(body:&[crate::ir::Stmt])->bool {
