@@ -52,9 +52,11 @@ fn steps(sources:&[(String,String)],bound:&Bound)->Vec<Step>{
             let mapping=BTreeMap::from([(arg.name.clone(),workflow::member(workflow::focal(),"id"))]);
             // Eligibility inspects authored fields before returned()/helper
             // reduction can erase an asserted-read prerequisite.
-            let raw_fields=match &p.body[at]{Stmt::Expr{value:Expr::Write{fields,..},..}|Stmt::Return{value:Expr::Write{fields,..},..}=>fields,_=>unreachable!()};
+            let raw_write=match &p.body[at]{Stmt::Expr{value,..}|Stmt::Return{value,..}=>value,_=>unreachable!()};
+            let Expr::Write{table:raw_table,keys:raw_keys,fields:raw_fields,..}=raw_write else{unreachable!()};
+            let authored_target_simple=if raw_keys.is_empty(){raw_table==&arg.name||p.body[..at].iter().any(|s|matches!(s,Stmt::Bind{names,value,..}if names.contains(raw_table)&&super::plain_row(value)&&super::same_resource(value,table,keys,p)))}else{workflow::target_arg(p,raw_write,table).is_some_and(|a|a.name==arg.name)};
             let authored_fields_simple=raw_fields.iter().all(|f|!f.spread&&f.value.as_ref().is_some_and(|v|matches!(v,Expr::Literal{..})||matches!(v,Expr::Name{name,..}if name=="now"||name=="viewer")));
-            let anchor=authored_fields_simple&&p.args.len()==1&&p.body[..at].iter().all(|s|match s{Stmt::Require{condition,..}=>plain_guard(condition),Stmt::Bind{value,..}=>super::plain_row(value)&&super::same_resource(value,table,keys,p),_=>false})&&p.body[at+1..].iter().all(|s|matches!(s,Stmt::Return{value:Expr::Literal{value:ast::Literal::Null,..},..}))&&fields.iter().all(|f|f.value.as_ref().is_some_and(|v|matches!(v,Expr::Literal{..})||matches!(v,Expr::Name{name,..}if name=="now"||name=="viewer")));
+            let anchor=authored_target_simple&&authored_fields_simple&&p.args.len()==1&&p.body[..at].iter().all(|s|match s{Stmt::Require{condition,..}=>plain_guard(condition),Stmt::Bind{value,..}=>super::plain_row(value)&&super::same_resource(value,table,keys,p),_=>false})&&p.body[at+1..].iter().all(|s|matches!(s,Stmt::Return{value:Expr::Literal{value:ast::Literal::Null,..},..}))&&fields.iter().all(|f|f.value.as_ref().is_some_and(|v|matches!(v,Expr::Literal{..})||matches!(v,Expr::Name{name,..}if name=="now"||name=="viewer")));
             let mut guards=Vec::new();let mut complete=true;
             for s in &context.body{if let Stmt::Require{condition,..}=s{if let Some(value)=workflow::normalize(condition,&bound.schema,table,&mapping){conjuncts(&value,&mut guards);}else{complete=false;}}}
             if fields.iter().any(|f|f.spread){continue;}
@@ -173,6 +175,8 @@ pub(crate) fn judge(inv:&Invariant,old:Option<&Value>,row:&Value,rows:&BTreeMap<
  #[test]fn helper_reduction_cannot_erase_an_anchor_field_prerequisite(){
   let source=format!("table reviewWindows:\n  open: bool\n  unique open\n  read <- allow\n  insert <- allow\n  online only\nfn stamp():\n  w = reviewWindows[open = true] ! else CLOSED\n  return 0\n{}",STUDY.replace("table studies:\n","table studies:\n  reviewStamp: int default 0\n").replace("update studies[study] { status: 'reviewed' }","update studies[study] { status: 'reviewed', reviewStamp: stamp() }"));
   assert!(compile(&source).1.is_empty());assert!(compile(&source.replace("open = true","open = false")).1.is_empty());
+  let source=format!("table reviewWindows:\n  open: bool\n  unique open\n  read <- allow\n  insert <- allow\n  online only\nfn selectTarget(study: studies):\n  w = reviewWindows[open = true] ! else CLOSED\n  return study\n{}",STUDY.replace("update studies[study] { status: 'reviewed' }","update studies[selectTarget(study)] { status: 'reviewed' }"));assert!(compile(&source).1.is_empty(),"a reduced target helper cannot erase its prerequisite either");
+  let source=STUDY.replace("update studies[study] { status: 'reviewed' }","update s { status: 'reviewed' }");assert_eq!(compile(&source).1.len(),1,"the paved direct-row update retains its typed target");
  }
 
 }
