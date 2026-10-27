@@ -1,0 +1,16 @@
+{
+  "schemas": 1,
+  "binaries": {
+    "optimized": "70280c4533a44a0b099b1fdc3431223cdfbdd57df15479c14f34913c08d71a62",
+    "sequential": "70280c4533a44a0b099b1fdc3431223cdfbdd57df15479c14f34913c08d71a62"
+  },
+  "identityMismatches": [],
+  "rawPayloadMismatches": [
+    [
+      23,
+      "008-snapback-arborist-removal-quotes"
+    ]
+  ],
+  "verdictMismatches": [],
+  "method": "Merged rule set: same immutable source/fixture copies, wave31 exact local predecessor, independent cold copies per executable. External control disables batching, concurrency, advisory/report reuse and asset-byte cache. Literal decision IDs, witness IDs, tiers, exits, notes and FIX identities; raw full decision payload separately checked without normalization. Fixture-constructor representation remains optimized in both and has focused isolation/page-size/captured-authority tests."
+}
