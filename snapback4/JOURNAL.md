@@ -109724,3 +109724,17 @@ No campaign, command, credential or mutable deployment cache was introduced.
 LLP 3000.011.003.000.000 §18 records the execution-only amendment. Copied-lane
 profiles identify campaign time and authored race timers separately; measurements
 and limitations belong to the LAT3 workstream report, not a publication claim.
+
+
+## 2026-10-27 — G6D: investigate a safe Postgres read-grant default
+
+LLP 3000.009.001.000.002 §4.2 gains a dated Review proposal, with local
+paired write aggregates and marker/clock-witness prototypes in
+`reports/20261027-g6-default/`. The retained one-second evidence separates
+cold-reader convoys, generator overload and the original gate wait budget;
+the historical smoke's initiating instruction remains untraced. A real-PG
+regression now holds COMMIT beyond one second while requiring prompt G5
+fallback. The marker design combines an exact backend format with an extra
+owner column, so old public owners refuse before claiming. Clock samples
+can trip on observed skew/suspend but cannot prove future behavior; automatic
+G6 still requires an enforced deployment clock contract. Defaults are unchanged.
