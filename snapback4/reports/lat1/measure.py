@@ -25,8 +25,10 @@ if a.resume:assert json.loads(manifest.read_text())==provenance
 else:manifest.write_text(json.dumps(provenance,indent=2)+'\n')
 def project(source,root,wave,lane):
  (root/'snapback').mkdir()
+ assert (source/"snapback").is_dir(),source
  texts=[]
  for q in sorted((source/'snapback').glob('*.q')):shutil.copy2(q,root/'snapback'/q.name);texts.append((q.name,q.read_text()))
+ assert texts,source
  fixture_files=[]
  for q in sorted((source/'fixtures').rglob('*.jsonl')):
   target=root/'fixtures'/q.relative_to(source/'fixtures');target.parent.mkdir(parents=True,exist_ok=True);shutil.copy2(q,target);fixture_files.append((q.relative_to(source/'fixtures').as_posix(),digest(target)))
