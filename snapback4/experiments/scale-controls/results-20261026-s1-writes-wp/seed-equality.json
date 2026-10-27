@@ -1,0 +1,12 @@
+{
+  "matrix-g6": {
+    "rooms": 1025,
+    "users": 256,
+    "counters": 257,
+    "messages": 1000000,
+    "memberships": 8448,
+    "room_mismatches": 0,
+    "sender_mismatches": 0,
+    "message_image_mismatches": 0
+  }
+}

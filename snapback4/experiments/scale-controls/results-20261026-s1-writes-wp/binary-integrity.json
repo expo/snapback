@@ -1,0 +1,16 @@
+{
+  "base": "9ee365bbd683c053158152ae352f420798dcbaa4",
+  "product_and_runner_diff_empty": true,
+  "binaries": {
+    "s1-wr-queue-probe": "83ba7e9a5774ff3283fff10ff73596c00f626365316b7ac0080c34f3ca27b181",
+    "snapback4": "d337f019dd92c95fa0a302ba805ccb01221856c80225f5bd6b5d459d2fc927d0",
+    "sb4-scale-controls": "ea2ca655f19cd90824fc610b9fc2a1c6aa32ae61436c602595de0b037691d595",
+    "sb4-postgres-scale-seed": "1bef5b93546245444266e5f9ec03949e69a6c89a072632b026c8621a606769bc"
+  },
+  "probe": {
+    "status": 0,
+    "profile": "release",
+    "sha256": "b2c1e5bab1a9757a94d6917abb03fd5225e539b1082f94a094fcbe66747cdcb8",
+    "source": "current-tree copy plus numeric clocks only"
+  }
+}

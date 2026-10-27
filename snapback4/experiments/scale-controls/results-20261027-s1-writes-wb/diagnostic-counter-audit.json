@@ -1,0 +1,5 @@
+{
+  "trials": 24,
+  "mismatches": 0,
+  "basis": "independent before/after durable sums equal all acknowledged writes including warm-up"
+}

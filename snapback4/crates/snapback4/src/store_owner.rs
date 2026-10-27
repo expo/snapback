@@ -230,7 +230,8 @@ impl Owner {
     pub(crate) fn open_store(&self, timeout: Duration) -> Result<AnyStore, RuntimeError> {
         let mut store = AnyStore::open_with_busy_timeout(self.path()?, timeout)?;
         #[cfg(unix)]
-        store.retain_ownership(self._sidecar.clone())?;
+        if self.record.is_some() { store.retain_exclusive_ownership(self._sidecar.clone(), self.identity)?; }
+        else { store.retain_ownership(self._sidecar.clone())?; }
         Ok(store)
     }
 

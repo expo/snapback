@@ -1,0 +1,31 @@
+{
+  "ref_check": {
+    "command": "./ref-check --verbose",
+    "passed": true,
+    "summary": "ref-check: ok \u2014 570 LLP docs, 12064 refs in 45472 files, 0 errors, 0 unchecked"
+  },
+  "packaged_docs_lint": {
+    "passed": true
+  },
+  "scope": "report, links, arithmetic, source/binary integrity, archived evidence; no product battery or publication claim",
+  "complete_product_battery_executed": false,
+  "unchanged_runner_qualification_audited": true,
+  "failed_native_smoke_retained": true,
+  "affected_selector": {
+    "command": "node snapback4/scripts/affected.mjs --base sb4-pg/main-wp --worktree --json",
+    "plan_only": true,
+    "broad": true,
+    "planned_steps": 31,
+    "reason": "experimental result paths are unknown to the selector; product and runner source unchanged; same report-scoped policy as S1-WF",
+    "complete_product_battery_executed": false
+  },
+  "independent_report_verification": {
+    "passed": true,
+    "source_repetitions": 123,
+    "archive_sha256": "10066f91f7baa71c121b82fea2b4db055d6e75f470020dbc93e35b08b8c3b3fe"
+  },
+  "diff_check": {
+    "command": "git diff --cached --check",
+    "passed": true
+  }
+}

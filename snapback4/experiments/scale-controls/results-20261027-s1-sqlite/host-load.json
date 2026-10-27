@@ -1,0 +1,20 @@
+{
+  "released_starts": 13,
+  "wait_observations": 0,
+  "all_released_unrelated_over_one_core": 0,
+  "loadavg_ranges": {
+    "one": {
+      "min": 0.71,
+      "max": 29.99
+    },
+    "five": {
+      "min": 1.39,
+      "max": 26.53
+    },
+    "fifteen": {
+      "min": 1.85,
+      "max": 20.92
+    }
+  },
+  "no_database_rtt": "SQLite in process; no before/after database RTT applies."
+}

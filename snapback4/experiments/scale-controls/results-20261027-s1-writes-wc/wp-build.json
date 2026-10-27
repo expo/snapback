@@ -1,0 +1,24 @@
+{
+  "commit": "9ee365bbd683c053158152ae352f420798dcbaa4",
+  "command": [
+    "cargo",
+    "build",
+    "--release",
+    "--locked",
+    "--offline",
+    "-p",
+    "snapback4",
+    "--features",
+    "postgres"
+  ],
+  "target": "/home/ccheever/projects/sb4-s1sk/snapback4/target/s1-wc-wp",
+  "status": 0,
+  "sha256": "d337f019dd92c95fa0a302ba805ccb01221856c80225f5bd6b5d459d2fc927d0",
+  "source": "git archive of local commit; no code changes",
+  "environment": {
+    "CARGO_TARGET_DIR": "/home/ccheever/projects/sb4-s1sk/snapback4/target/s1-wc-wp",
+    "LIBSQLITE3_FLAGS": "-USQLITE_ENABLE_MEMORY_MANAGEMENT",
+    "CARGO_BUILD_JOBS": "4",
+    "CARGO_INCREMENTAL": "0"
+  }
+}

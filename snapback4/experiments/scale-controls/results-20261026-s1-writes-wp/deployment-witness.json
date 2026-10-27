@@ -1,0 +1,145 @@
+[
+  {
+    "campaign": "matrix-g6",
+    "pid": 4122684,
+    "start_ticks": 1561339770,
+    "time": 1793053802.1535776,
+    "clock_bounds": "1000,250",
+    "cache_metrics_enabled": false,
+    "read_trace_enabled": false,
+    "pipeline_depth": "shipped default 2",
+    "commit_mode": "sync"
+  },
+  {
+    "campaign": "matrix-g6",
+    "pid": 4124643,
+    "start_ticks": 1561350641,
+    "time": 1793053910.9701545,
+    "clock_bounds": "1000,250",
+    "cache_metrics_enabled": false,
+    "read_trace_enabled": false,
+    "pipeline_depth": "shipped default 2",
+    "commit_mode": "sync"
+  },
+  {
+    "campaign": "matrix-g6",
+    "pid": 4129744,
+    "start_ticks": 1561389372,
+    "time": 1793054298.269924,
+    "clock_bounds": "1000,250",
+    "cache_metrics_enabled": false,
+    "read_trace_enabled": false,
+    "pipeline_depth": "shipped default 2",
+    "commit_mode": "sync"
+  },
+  {
+    "campaign": "matrix-g6",
+    "pid": 4134454,
+    "start_ticks": 1561428399,
+    "time": 1793054688.4960914,
+    "clock_bounds": "1000,250",
+    "cache_metrics_enabled": false,
+    "read_trace_enabled": false,
+    "pipeline_depth": "shipped default 2",
+    "commit_mode": "sync"
+  },
+  {
+    "campaign": "matrix-g6",
+    "pid": 4141935,
+    "start_ticks": 1561486159,
+    "time": 1793055266.1407435,
+    "clock_bounds": "1000,250",
+    "cache_metrics_enabled": false,
+    "read_trace_enabled": false,
+    "pipeline_depth": "shipped default 2",
+    "commit_mode": "sync"
+  },
+  {
+    "campaign": "matrix-g6",
+    "pid": 4148735,
+    "start_ticks": 1561544428,
+    "time": 1793055848.8233247,
+    "clock_bounds": "1000,250",
+    "cache_metrics_enabled": false,
+    "read_trace_enabled": false,
+    "pipeline_depth": "shipped default 2",
+    "commit_mode": "sync"
+  },
+  {
+    "campaign": "matrix-g6",
+    "pid": 4153976,
+    "start_ticks": 1561583197,
+    "time": 1793056236.4836588,
+    "clock_bounds": "1000,250",
+    "cache_metrics_enabled": false,
+    "read_trace_enabled": false,
+    "pipeline_depth": "shipped default 2",
+    "commit_mode": "sync"
+  },
+  {
+    "campaign": "diagnostic-http",
+    "pid": 4158769,
+    "start_ticks": 1561622225,
+    "time": 1793056626.690422,
+    "clock_bounds": "1000,250",
+    "cache_metrics_enabled": false,
+    "read_trace_enabled": true,
+    "pipeline_depth": "shipped default 2",
+    "commit_mode": "sync"
+  },
+  {
+    "campaign": "diagnostic-http",
+    "pid": 16832,
+    "start_ticks": 1561641880,
+    "time": 1793056823.3918939,
+    "clock_bounds": "1000,250",
+    "cache_metrics_enabled": false,
+    "read_trace_enabled": true,
+    "pipeline_depth": "shipped default 2",
+    "commit_mode": "sync"
+  },
+  {
+    "campaign": "diagnostic-http",
+    "pid": 22529,
+    "start_ticks": 1561661667,
+    "time": 1793057021.1532006,
+    "clock_bounds": "1000,250",
+    "cache_metrics_enabled": false,
+    "read_trace_enabled": true,
+    "pipeline_depth": "shipped default 2",
+    "commit_mode": "sync"
+  },
+  {
+    "campaign": "diagnostic-http",
+    "pid": 26283,
+    "start_ticks": 1561672003,
+    "time": 1793057124.4883153,
+    "clock_bounds": "1000,250",
+    "cache_metrics_enabled": false,
+    "read_trace_enabled": true,
+    "pipeline_depth": "shipped default 2",
+    "commit_mode": "sync"
+  },
+  {
+    "campaign": "diagnostic-http",
+    "pid": 27646,
+    "start_ticks": 1561682473,
+    "time": 1793057229.2013986,
+    "clock_bounds": "1000,250",
+    "cache_metrics_enabled": false,
+    "read_trace_enabled": true,
+    "pipeline_depth": "shipped default 2",
+    "commit_mode": "sync"
+  },
+  {
+    "campaign": "diagnostic-http",
+    "pid": 30338,
+    "start_ticks": 1561692806,
+    "time": 1793057332.556819,
+    "clock_bounds": "1000,250",
+    "cache_metrics_enabled": false,
+    "read_trace_enabled": true,
+    "pipeline_depth": "shipped default 2",
+    "commit_mode": "sync"
+  }
+]

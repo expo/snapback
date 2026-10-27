@@ -1,0 +1,13 @@
+{
+  "observer_source_sha256": "84f4722cdd1c926d7dc0852cf4ac382486e30df8de0af2997cac2b5b32c9ef68",
+  "observer_library_sha256": "67baca8840bccdcc62ab2e9ea2033d2de7c997ba5a735be15075669f60ac2d2d",
+  "symbol_offsets": {
+    "LD_PRELOAD": "/home/ccheever/sb4scale/s1-sqlite-20261027/bin/sqlite-observe.so",
+    "SB4_SQLITE_PROBE": "/home/ccheever/sb4scale/s1-sqlite-20261027/observer-smoke.jsonl",
+    "SB4_SQLITE_OPEN_OFFSET": "00000000037e2ea0",
+    "SB4_SQLITE_TRACE_OFFSET": "0000000003696d80",
+    "SB4_SQLITE_SQL_OFFSET": "0000000003653e20",
+    "SB4_SQLITE_EXEC_OFFSET": "000000000377d430"
+  },
+  "instrumentation": "Opt-in process-memory open wrapper installs SQLite tracing and times real sync syscalls; immutable executable file hash unchanged. Capacity runs have no preload."
+}

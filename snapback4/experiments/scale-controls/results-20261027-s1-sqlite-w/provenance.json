@@ -1,0 +1,63 @@
+{
+  "source_commit": "1b38085f583289649d59e5cef357be23bb695749",
+  "implementation_commits": [
+    "39d05c399e9568f78622aa5205698a91ec09b8d5",
+    "1b38085f583289649d59e5cef357be23bb695749"
+  ],
+  "s1sq_base": "99d9499be6",
+  "s1sq_product": "9ee365bbd6",
+  "binary_sha256": "afeb62f07d9105b7a6782de32ecd092f46f6442f323be85ba891cd0c434b020d",
+  "harness_sha256": "ea2ca655f19cd90824fc610b9fc2a1c6aa32ae61436c602595de0b037691d595",
+  "observer_sha256": "9f8e704b4c6bb8bde57397851c3bdbe632e0f19d0f49146316a963d9f02b3feb",
+  "method_sources_unchanged_vs_s1sq": true,
+  "source_sha256": {
+    "scripts/s1-onehost.py": "74504ed079615aa727460520d2664961eafd40c79e5a5552712ff0e0f50cb482",
+    "scripts/sqlite_onehost.py": "9a41da88c6872caedd6a54e9de423bb0d56c515c6586763b33b5b20c4b373da1",
+    "scripts/run.py": "c568af389e23793dc86cab0f272f6356ffb687b111687e4bdbdb31000ee5c4d9",
+    "scripts/snapback.py": "fea8a4f55c27624a3917c19a1f4145bd7e82b2d6ee21f54b73a8dcb1b48ff0c1",
+    "snapback-app/snapback/schema.q": "d81afc50e1ead9ba3c8fd245fc2fd84f2ed1b179e03d3382fccf18b2bef9c65f",
+    "src/auth.rs": "a7e540f37ba0c294227359363bd2ae84bbca9c5851760b2e43d0c6aa5cd236c8",
+    "src/convex.rs": "a2e818c03d1ac70eb7903dc4b081caf6de9d5f1cdd7d05118c11893e1aac3f8d",
+    "src/db.rs": "eca578555897ee3f14c5dae20326746956ada1f15e68c901be0bf1932477ab70",
+    "src/load.rs": "2023cc9ec9d3450b112f08e62950d6f68e6d8e67072a7ebd650c6dcb89443d09",
+    "src/main.rs": "f6e003264fda4450c04f9189cc4670a3cafdc13a3009b7701fa1722ed60a7d01",
+    "src/snapback.rs": "cad18abbd44f8eb4e24d1ef7cf55a47cccde0eab5b49ffd04a928fd8d7c3e064",
+    "src/supabase.rs": "363836f645d2257615a4fcdf95368b3e5b83daba00a5b3f294719286350fb66a",
+    "src/unix.rs": "36cb3af8eaef8c5c89b3cf3737d4baf15dc35e433f148e0983abdb28dbc24c04"
+  },
+  "controller_function_unchanged": true,
+  "controller_function_sha256": "c428dfd98de64980042e41e7e8effaa1358c115ae66c77761f0c38ff59820b66",
+  "queue_policy_source_unchanged": true,
+  "policy": "Adaptive; no diagnostic overrides in matrix",
+  "dependencies": {
+    "libsqlite3-sys": "0.38.2",
+    "rusqlite": "0.40.2"
+  },
+  "sqlite_flags": "-DHAVE_FDATASYNC=1 -USQLITE_ENABLE_MEMORY_MANAGEMENT",
+  "durability": "WAL/FULL; native directory synchronization",
+  "wal_policy": "1000-frame PASSIVE via custom WAL hook; journal_size_limit=-1; custom-hook pragma reports0",
+  "profile": "release opt3; inherited incremental profile; dev/test line-tables-only",
+  "method": {
+    "warmup_ms": 10000,
+    "duration_ms": 20000,
+    "repeats": 3,
+    "extra_read_rates": [
+      19027,
+      22627,
+      32000,
+      45254
+    ]
+  },
+  "app_cpus": [
+    3,
+    4,
+    9,
+    10
+  ],
+  "generator_cpus": [
+    5,
+    11
+  ],
+  "postgres_started": false,
+  "read_grant_clock_bounds": "1000,250; unused by SQLite local tier"
+}

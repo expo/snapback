@@ -1,0 +1,606 @@
+[
+  {
+    "cell": "matrix/W4-disjoint-A",
+    "rates": [
+      {
+        "attempts": 3,
+        "selected": 3,
+        "eligible": 3,
+        "passes": 3,
+        "failures": 0,
+        "excluded_selected": 0,
+        "p50_ms": {
+          "median": 8.552447,
+          "min": 8.495103,
+          "max": 8.847359
+        },
+        "p99_ms": {
+          "median": 15.654911,
+          "min": 13.606911,
+          "max": 26.820607
+        },
+        "dispatch_p50_ms": {
+          "median": 0.016815,
+          "min": 0.016783,
+          "max": 0.016847
+        },
+        "dispatch_p99_ms": {
+          "median": 0.118527,
+          "min": 0.060863,
+          "max": 0.504063
+        },
+        "http_service_p99_ms": {
+          "median": 14.368767,
+          "min": 13.516799,
+          "max": 21.659647
+        },
+        "achieved_per_s": {
+          "median": 1131.0,
+          "min": 1131.0,
+          "max": 1131.0
+        },
+        "unrelated_peak_cores": {
+          "median": 0.12765598033883474,
+          "min": 0.12171235298917944,
+          "max": 0.14899929934803804
+        },
+        "unrelated_mean_cores": {
+          "median": 0.06077609387257264,
+          "min": 0.05616850417814466,
+          "max": 0.06310753793209752
+        },
+        "errors": 0,
+        "error_types": {},
+        "repetition_flags": [
+          "PASS",
+          "PASS",
+          "PASS"
+        ],
+        "rate": 1131,
+        "contaminated_attempts": 0
+      },
+      {
+        "attempts": 3,
+        "selected": 3,
+        "eligible": 3,
+        "passes": 3,
+        "failures": 0,
+        "excluded_selected": 0,
+        "p50_ms": {
+          "median": 8.962047,
+          "min": 8.904703,
+          "max": 8.994815
+        },
+        "p99_ms": {
+          "median": 30.867455,
+          "min": 13.778943,
+          "max": 33.030143
+        },
+        "dispatch_p50_ms": {
+          "median": 0.016023,
+          "min": 0.015935,
+          "max": 0.016447
+        },
+        "dispatch_p99_ms": {
+          "median": 11.001855,
+          "min": 0.064735,
+          "max": 13.451263
+        },
+        "http_service_p99_ms": {
+          "median": 15.826943,
+          "min": 13.369343,
+          "max": 18.825215
+        },
+        "achieved_per_s": {
+          "median": 1600.0,
+          "min": 1599.95,
+          "max": 1600.0
+        },
+        "unrelated_peak_cores": {
+          "median": 0.1729917713397252,
+          "min": 0.09006988133866975,
+          "max": 0.17938664453380132
+        },
+        "unrelated_mean_cores": {
+          "median": 0.0634418492080856,
+          "min": 0.053212725132077004,
+          "max": 0.06791548399069817
+        },
+        "errors": 1,
+        "error_types": {
+          "http_503": 1
+        },
+        "repetition_flags": [
+          "PASS",
+          "PASS",
+          "PASS"
+        ],
+        "rate": 1600,
+        "contaminated_attempts": 0
+      },
+      {
+        "attempts": 3,
+        "selected": 3,
+        "eligible": 3,
+        "passes": 3,
+        "failures": 0,
+        "excluded_selected": 0,
+        "p50_ms": {
+          "median": 9.895935,
+          "min": 9.715711,
+          "max": 9.928703
+        },
+        "p99_ms": {
+          "median": 25.460735,
+          "min": 22.659071,
+          "max": 77.004799
+        },
+        "dispatch_p50_ms": {
+          "median": 0.015671,
+          "min": 0.015663,
+          "max": 0.015815
+        },
+        "dispatch_p99_ms": {
+          "median": 11.091967,
+          "min": 8.593407,
+          "max": 62.881791
+        },
+        "http_service_p99_ms": {
+          "median": 14.819327,
+          "min": 13.860863,
+          "max": 16.515071
+        },
+        "achieved_per_s": {
+          "median": 2261.95,
+          "min": 2261.95,
+          "max": 2262.0
+        },
+        "unrelated_peak_cores": {
+          "median": 0.15799908396663817,
+          "min": 0.09654666229636123,
+          "max": 0.47981877972497183
+        },
+        "unrelated_mean_cores": {
+          "median": 0.05693696107333522,
+          "min": 0.05263343147966293,
+          "max": 0.06454825159828803
+        },
+        "errors": 2,
+        "error_types": {
+          "http_503": 2
+        },
+        "repetition_flags": [
+          "PASS",
+          "PASS",
+          "PASS"
+        ],
+        "rate": 2262,
+        "contaminated_attempts": 0
+      },
+      {
+        "attempts": 3,
+        "selected": 3,
+        "eligible": 3,
+        "passes": 0,
+        "failures": 3,
+        "excluded_selected": 0,
+        "p50_ms": {
+          "median": 1006.108671,
+          "min": 1005.584383,
+          "max": 1006.108671
+        },
+        "p99_ms": {
+          "median": 1014.497279,
+          "min": 1013.448703,
+          "max": 1015.021567
+        },
+        "dispatch_p50_ms": {
+          "median": 996.147199,
+          "min": 995.622911,
+          "max": 996.147199
+        },
+        "dispatch_p99_ms": {
+          "median": 1004.535807,
+          "min": 1003.487231,
+          "max": 1005.060095
+        },
+        "http_service_p99_ms": {
+          "median": 17.317887,
+          "min": 15.540223,
+          "max": 17.727487
+        },
+        "achieved_per_s": {
+          "median": 2712.6,
+          "min": 2697.9,
+          "max": 2714.55
+        },
+        "unrelated_peak_cores": {
+          "median": 0.1250143965870697,
+          "min": 0.11000539504373726,
+          "max": 0.14247971770965034
+        },
+        "unrelated_mean_cores": {
+          "median": 0.06383038826786888,
+          "min": 0.06078742837802113,
+          "max": 0.06505293073701585
+        },
+        "errors": 29499,
+        "error_types": {
+          "expired_before_send": 29415,
+          "http_503": 84
+        },
+        "repetition_flags": [
+          "FAIL",
+          "FAIL",
+          "FAIL"
+        ],
+        "rate": 3200,
+        "contaminated_attempts": 0
+      }
+    ],
+    "highest_passing_rate": 2262
+  },
+  {
+    "cell": "matrix/W5-hot1-B",
+    "rates": [
+      {
+        "attempts": 3,
+        "selected": 3,
+        "eligible": 3,
+        "passes": 3,
+        "failures": 0,
+        "excluded_selected": 0,
+        "p50_ms": {
+          "median": 10.141695,
+          "min": 10.076159,
+          "max": 10.190847
+        },
+        "p99_ms": {
+          "median": 15.958015,
+          "min": 15.319039,
+          "max": 16.056319
+        },
+        "dispatch_p50_ms": {
+          "median": 0.016895,
+          "min": 0.016735,
+          "max": 0.016991
+        },
+        "dispatch_p99_ms": {
+          "median": 0.052863,
+          "min": 0.048927,
+          "max": 0.057791
+        },
+        "http_service_p99_ms": {
+          "median": 15.900671,
+          "min": 15.278079,
+          "max": 16.031743
+        },
+        "achieved_per_s": {
+          "median": 1131.0,
+          "min": 1131.0,
+          "max": 1131.0
+        },
+        "unrelated_peak_cores": {
+          "median": 0.14896154801969488,
+          "min": 0.1096350104015027,
+          "max": 0.1666247607629954
+        },
+        "unrelated_mean_cores": {
+          "median": 0.06265531243436655,
+          "min": 0.05456777060455848,
+          "max": 0.0657776053947878
+        },
+        "errors": 0,
+        "error_types": {},
+        "repetition_flags": [
+          "PASS",
+          "PASS",
+          "PASS"
+        ],
+        "rate": 1131,
+        "contaminated_attempts": 0
+      },
+      {
+        "attempts": 3,
+        "selected": 3,
+        "eligible": 3,
+        "passes": 3,
+        "failures": 0,
+        "excluded_selected": 0,
+        "p50_ms": {
+          "median": 10.952703,
+          "min": 10.878975,
+          "max": 11.010047
+        },
+        "p99_ms": {
+          "median": 18.415615,
+          "min": 17.956863,
+          "max": 35.979263
+        },
+        "dispatch_p50_ms": {
+          "median": 0.016063,
+          "min": 0.016007,
+          "max": 0.016431
+        },
+        "dispatch_p99_ms": {
+          "median": 0.272383,
+          "min": 0.127615,
+          "max": 15.958015
+        },
+        "http_service_p99_ms": {
+          "median": 17.514495,
+          "min": 17.121279,
+          "max": 20.152319
+        },
+        "achieved_per_s": {
+          "median": 1600.0,
+          "min": 1600.0,
+          "max": 1600.0
+        },
+        "unrelated_peak_cores": {
+          "median": 0.13340836688941893,
+          "min": 0.11543245369490632,
+          "max": 0.8484644900189788
+        },
+        "unrelated_mean_cores": {
+          "median": 0.06360050067954963,
+          "min": 0.050567299654416156,
+          "max": 0.06978081300970677
+        },
+        "errors": 0,
+        "error_types": {},
+        "repetition_flags": [
+          "PASS",
+          "PASS",
+          "PASS"
+        ],
+        "rate": 1600,
+        "contaminated_attempts": 0
+      },
+      {
+        "attempts": 3,
+        "selected": 3,
+        "eligible": 3,
+        "passes": 3,
+        "failures": 0,
+        "excluded_selected": 0,
+        "p50_ms": {
+          "median": 13.754367,
+          "min": 13.516799,
+          "max": 15.491071
+        },
+        "p99_ms": {
+          "median": 74.383359,
+          "min": 31.932415,
+          "max": 90.832895
+        },
+        "dispatch_p50_ms": {
+          "median": 0.021567,
+          "min": 0.019759,
+          "max": 1.341439
+        },
+        "dispatch_p99_ms": {
+          "median": 60.227583,
+          "min": 17.809407,
+          "max": 76.677119
+        },
+        "http_service_p99_ms": {
+          "median": 18.022399,
+          "min": 17.416191,
+          "max": 18.825215
+        },
+        "achieved_per_s": {
+          "median": 2261.4,
+          "min": 2261.2,
+          "max": 2261.5
+        },
+        "unrelated_peak_cores": {
+          "median": 0.5673213762827373,
+          "min": 0.10216208316641659,
+          "max": 1.3398690206446844
+        },
+        "unrelated_mean_cores": {
+          "median": 0.05167244253189691,
+          "min": 0.05107167628828711,
+          "max": 0.06765761978751342
+        },
+        "errors": 38,
+        "error_types": {
+          "http_503": 38
+        },
+        "repetition_flags": [
+          "PASS",
+          "PASS",
+          "PASS"
+        ],
+        "rate": 2262,
+        "contaminated_attempts": 0
+      },
+      {
+        "attempts": 3,
+        "selected": 3,
+        "eligible": 3,
+        "passes": 0,
+        "failures": 3,
+        "excluded_selected": 0,
+        "p50_ms": {
+          "median": 1007.157247,
+          "min": 1007.157247,
+          "max": 1007.157247
+        },
+        "p99_ms": {
+          "median": 1015.545855,
+          "min": 1015.545855,
+          "max": 1016.070143
+        },
+        "dispatch_p50_ms": {
+          "median": 997.195775,
+          "min": 997.195775,
+          "max": 997.195775
+        },
+        "dispatch_p99_ms": {
+          "median": 1005.584383,
+          "min": 1005.584383,
+          "max": 1006.108671
+        },
+        "http_service_p99_ms": {
+          "median": 18.268159,
+          "min": 17.973247,
+          "max": 18.382847
+        },
+        "achieved_per_s": {
+          "median": 2296.55,
+          "min": 2272.65,
+          "max": 2314.45
+        },
+        "unrelated_peak_cores": {
+          "median": 0.19113392884596808,
+          "min": 0.1008165484324687,
+          "max": 0.1923010636628565
+        },
+        "unrelated_mean_cores": {
+          "median": 0.0608790467720311,
+          "min": 0.0572616505135788,
+          "max": 0.061105665003697615
+        },
+        "errors": 54327,
+        "error_types": {
+          "expired_before_send": 54222,
+          "http_503": 105
+        },
+        "repetition_flags": [
+          "FAIL",
+          "FAIL",
+          "FAIL"
+        ],
+        "rate": 3200,
+        "contaminated_attempts": 0
+      }
+    ],
+    "highest_passing_rate": 2262
+  },
+  {
+    "cell": "matrix/W4-disjoint-B",
+    "rates": [
+      {
+        "attempts": 3,
+        "selected": 3,
+        "eligible": 3,
+        "passes": 3,
+        "failures": 0,
+        "excluded_selected": 0,
+        "p50_ms": {
+          "median": 10.780671,
+          "min": 10.756095,
+          "max": 10.788863
+        },
+        "p99_ms": {
+          "median": 17.956863,
+          "min": 17.235967,
+          "max": 36.339711
+        },
+        "dispatch_p50_ms": {
+          "median": 0.016527,
+          "min": 0.016415,
+          "max": 0.016543
+        },
+        "dispatch_p99_ms": {
+          "median": 0.141951,
+          "min": 0.113407,
+          "max": 16.449535
+        },
+        "http_service_p99_ms": {
+          "median": 17.350655,
+          "min": 15.728639,
+          "max": 20.299775
+        },
+        "achieved_per_s": {
+          "median": 1600.0,
+          "min": 1599.95,
+          "max": 1600.0
+        },
+        "unrelated_peak_cores": {
+          "median": 0.1323577116954297,
+          "min": 0.11648860934464976,
+          "max": 0.18838248234551996
+        },
+        "unrelated_mean_cores": {
+          "median": 0.05480438699897437,
+          "min": 0.0528117640624303,
+          "max": 0.06554492202235394
+        },
+        "errors": 1,
+        "error_types": {
+          "http_503": 1
+        },
+        "repetition_flags": [
+          "PASS",
+          "PASS",
+          "PASS"
+        ],
+        "rate": 1600,
+        "contaminated_attempts": 0
+      },
+      {
+        "attempts": 3,
+        "selected": 3,
+        "eligible": 3,
+        "passes": 2,
+        "failures": 1,
+        "excluded_selected": 0,
+        "p50_ms": {
+          "median": 12.615679,
+          "min": 12.296191,
+          "max": 12.984319
+        },
+        "p99_ms": {
+          "median": 36.995071,
+          "min": 24.952831,
+          "max": 110.100479
+        },
+        "dispatch_p50_ms": {
+          "median": 0.017087,
+          "min": 0.016231,
+          "max": 0.017759
+        },
+        "dispatch_p99_ms": {
+          "median": 22.855679,
+          "min": 10.846207,
+          "max": 95.944703
+        },
+        "http_service_p99_ms": {
+          "median": 17.858559,
+          "min": 17.137663,
+          "max": 19.972095
+        },
+        "achieved_per_s": {
+          "median": 2261.9,
+          "min": 2261.8,
+          "max": 2261.9
+        },
+        "unrelated_peak_cores": {
+          "median": 0.21989283688023437,
+          "min": 0.15996467327408978,
+          "max": 0.36205656845246187
+        },
+        "unrelated_mean_cores": {
+          "median": 0.05742654323412787,
+          "min": 0.05659278454768989,
+          "max": 0.06130880085548182
+        },
+        "errors": 8,
+        "error_types": {
+          "http_503": 8
+        },
+        "repetition_flags": [
+          "FAIL",
+          "PASS",
+          "PASS"
+        ],
+        "rate": 2262,
+        "contaminated_attempts": 0
+      }
+    ],
+    "highest_passing_rate": 1600
+  }
+]

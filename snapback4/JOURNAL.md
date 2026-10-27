@@ -109354,3 +109354,129 @@ full core/binary and private Stage P receipts remain explicitly attributed to
 that lane. Add its admitted-helper/settings upgrade behavior to the same
 0.4.43 guide-changes entry; this is documentation of the accepted §3.11 rule,
 not a new storage design.
+
+
+## 2026-10-27 — BCTL: retain batch capacity through queue pressure
+
+Lane BCTL reproduces the adaptive controller's low-rate trap on local,
+shared expo-build-1000. Main exact-W5/B at 100/s halves 32→16→8→4→2→1 and
+stays at 1 for 1661 completions: service p50 446 ms, completion rate 70/s.
+The last singleton takes 12.94 ms service but 431.59 ms admission age;
+queue age, rather than its own execution, keeps the old feedback signal high.
+The first cold two-member batch takes 124.81 ms service versus 16.26 ms after
+preparation moves before READY. The controller/exclusion predate S1-WF;
+Stage P's additional catalog admission on second-writer attach is new.
+
+Adaptive collection now always retains its 32-member cap. End-to-end p99 is
+a diagnostic and external SLO; it cannot shrink the capacity needed to drain
+its own queue. Both PG writer sessions and constant protocol statements are
+prepared before queue construction returns. Request-shaped plans stay lazy.
+SQLite retains depth-one collection with its original 1 ms bound; depth two
+still starts available work without waiting. Sizing/readiness amendments land
+in the committer §7, controls §3.4 and pipelined group-commit §§3.6/8.1 LLPs.
+
+The paired 32768-message, fixed-core, interleaved matrix completes 192
+counter-reconciled trials. Fix passes the cliff grid 24/24 versus main 22/24;
+all fix targets remain 32. No broad capacity lift is established: exact/B 1600
+is main 3/3 versus fix 1/3, and remains a material relative-run regression.
+One additional main ownership-loss attempt lacks a counter receipt after
+old cleanup deleted its cluster; it remains a failure, never a pass. The
+continuation reconciles independently after drain refusal, and the checked-in
+runner retains stopped data on an unhandled failure. No bound is relaxed.
+
+Verification: core lib 864/0, binary 626/0, focused controller/Arrivals 8/0,
+G7 incl E 92/0 plus PG17-only 2/0, Stage P 13/0, WF 9/0, program batch 147/0 plus
+repaired fixture 1/0, wire 15/0, levers 87/0, E HTTP 5/0, crash 11/0 and RT0
+core/binary 5/0+10/0. Initial setup reds and corrected controls are retained.
+The [BCTL report](reports/20261027-batch-ctl/REPORT.md) contains every paired
+cell, cap trajectories, rationale and final custody checks. These shared-host
+numbers are relative only; the authoritative expo-build-450b rerun remains.
+No fetch, push, stash, Git configuration change or publication occurs.
+
+Final ref-check passes **570 documents / 12064 references**, zero errors or
+unchecked refs. The independent **27603-identity** process census finds no
+live/zombie owned PID or private-path process; every private cluster is
+stopped. The 25 GiB guard never fires; bookend free space is **82.07 GiB**.
+The exact staged audit compares 1028 generated fixture credentials with zero
+matches; raw logs/data remain outside Git.
+
+
+## 2026-10-27 — SQW: SQLite durable cycles and owned revision reuse
+
+On `sb4-pg/sqlite-w`, from S1-SQ `99d9499be6`, the native SQLite build selects
+fdatasync while retaining FULL ordering and directory/WAL-creation syncs.
+Program groups use count-checked family tails, a guarded current-layout overlay
+at the actual deployment generation, one final-image UPDATE, and vector root
+and authority facts. Every member retains serial authority, clock, meter,
+receipt and history semantics. An exclusive backend owner can reuse immutable
+query results under a complete process revision stream; native shared devices,
+external writers and restarted caches cannot borrow that proof.
+
+A wholly empty bulk cycle now coalesces commit notifications to its 100 ms
+idle-probe boundary. Skipped pacing/clock turns do not establish emptiness;
+useful-work budgets, repayment and independent aged service remain. This removes
+empty solo writer turns without weakening durability. The adaptive size
+controller and queue policy are byte-identical to S1-SQ. A local fixed-32
+experiment also misses W4 and shows no adaptive target collapse; its override
+is removed. A two-millisecond collection experiment gives no useful gain and
+is reverted to one millisecond.
+
+Core: **873 passed / 0 failed / 498 ignored**. CLI: **627 passed / 0 failed /
+75 ignored**, including the lowered RT0 ratchet, ownership/serving and the new
+empty-cycle/job witness. The crash witness recovers acknowledged groups after
+SIGKILL and after loss of a later WAL suffix. Actual strace observes fdatasync
+and the directory sync. The final-code W4 development probe passes 4,525/s at
+26.36 ms p99 and 0.036% errors with exact counter equality; 6,400/s fails. This
+single repetition is not the S1 matrix qualification. The unchanged six-cell,
+three-repetition matrix and its separate cost observations belong in
+[the SQW report](experiments/scale-controls/results-20261027-s1-sqlite-w/README.md).
+No push or publication is authorized.
+
+
+## 2026-10-27 — SQW review: case-folded layout fences and buffered authority cuts
+
+Before accepting the matrix, manual review finds two proof gaps: optional family
+classification must follow SQLite's ASCII case folding, and scalar authority
+facts in a serial group must expose the buffered predecessor head rather than
+only MAX(_commits.seq). Both receive focused regressions. The first matrix is
+interrupted through its recorded owned controller and native cleanup; its W1
+samples remain evidence, but do not qualify the corrected executable. The final
+matrix restarts after the corrected code's tests. The adaptive size controller,
+S1 ladder and FULL durability are unchanged.
+
+The corrected source is requalified with **873 core / 627 CLI passes, zero
+failures**; **498 / 75** tests remain ignored. Ref-check verifies **570 docs /
+12074 references**, with zero errors or unchecked refs. The authoritative
+matrix uses the corrected executable; the interrupted predecessor is retained
+separately.
+
+
+## 2026-10-27 — SQW: six strict one-host S1 wins on SQLite
+
+The corrected `1b38085f58` executable qualifies **W1 16,000 / W2 11,313 /
+W3 16,000 / W4 4,525 / W5 exact 3,200 / W5 nominal 1% 4,525 offered/s**.
+Every selected rate passes all three 10 s warm + 20 s measured repetitions,
+under the unchanged ladder, SLO, affinity and durability criteria. These are
+**6/6 strict wins**, including the stronger later Convex W2 8,000/s control.
+W1 preserves capacity but its median p99 rises 24.63→38.70 ms, below 50 ms.
+W5 exact's 4,525/s rung fails latency/error repetitions and is not substituted.
+
+The independent auditor passes **126 trials / 30,390,720 measured arrivals**;
+independent counter arithmetic passes **42 write trials / zero mismatches**.
+Separate observation of the same binary has W4 mean **N=28.64**, **0.59 SQLite
+statements/member**, **156.11 µs writer wall/member** and **2.61 ms mean WAL
+fdatasync**, versus S1-SQ's N=15.23, 15.65 statements and 7.87 ms fsync. The
+written WAL high-water and PASSIVE checkpoint policy remain; no new flush
+pipeline is credited. Empty bulk absence probes no longer cut every returning
+cohort. The unchanged adaptive controller remains at target 32 in these probes.
+W3 has **98.81% local query hits** and **138.94 µs app CPU/ack**, versus
+1,261.32 µs in S1-SQ; the uncached inbox remains 132 statements.
+
+Final core **873/0**, CLI **627/0** pass/fail, with **498/75 ignored**; the
+owned crash child runs through its parent witness. FULL acknowledgement ordering,
+SIGKILL and durable-prefix recovery pass. Actual syscall tracing confirms WAL
+fdatasync and directory synchronization. The report preserves failed trials,
+setup/refinement attempts, per-lever limits and the scoped ownership proof.
+Raw logs/HDR/events stay outside Git; private stores are removed, known-secret
+scans pass, and the owned process audit finds no remaining helper or zombie.
+No push or publication. [Full SQW report](experiments/scale-controls/results-20261027-s1-sqlite-w/README.md).

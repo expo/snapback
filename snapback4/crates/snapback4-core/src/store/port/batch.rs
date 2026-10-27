@@ -21,7 +21,17 @@ pub(crate) struct Facts {
     pub receipt: Option<((String, String), Option<crate::receipts::ReceiptRecord>)>,
     pub placement: Option<((String, String), Option<crate::assets::IntentRecord>)>,
 }
+impl crate::store_port::AnyStore {
+    pub(crate) fn program_plan_generation(&self, generation: u64) -> u64 {
+        // Planning is optimistic. SQLite proves absence of retained lifecycle
+        // state again under its actual writer lock before using this plan.
+        match self { Self::Sqlite(_) => 1, _ => generation }
+    }
+}
 impl AnyTx<'_> {
+    pub(crate) fn buffered_layout_compatible(&self) -> Result<bool, RuntimeError> {
+        match self { Self::Sqlite(SqliteTx(tx)) => tx.buffered_layout_compatible(), _ => Ok(true) }
+    }
     pub(crate) fn chain_head(&self, chain: &crate::engine::program_pipeline::Chain) -> Result<(), RuntimeError> {
         #[cfg(feature="postgres")]
         if let Self::Postgres(PostgresTx(tx)) = self { tx.chain_head(chain)?; }
@@ -36,21 +46,7 @@ impl AnyTx<'_> {
         base: &mut Base,
     ) -> Result<(), RuntimeError> {
         match self {
-            Self::Sqlite(_) => {
-                for access in accesses {
-                    let row = if access.index == "byId" {
-                        self.get(&access.table, access.key[0].as_str()?)?
-                    } else {
-                        self.lookup(
-                            &access.table,
-                            &access.index,
-                            &schema.tables[&access.table].indexes[&access.index],
-                            &access.key,
-                        )?
-                    };
-                    base.insert(access, row);
-                }
-            }
+            Self::Sqlite(SqliteTx(tx)) => tx.batch_level(accesses, schema, base)?,
             #[cfg(feature = "postgres")]
             Self::Postgres(PostgresTx(tx)) => tx.batch_level(accesses, base)?,
         }
@@ -64,9 +60,9 @@ impl AnyTx<'_> {
         base: &mut Base,
     ) -> Result<Vec<Facts>, RuntimeError> {
         match self {
-            Self::Sqlite(_) => {
-                self.batch_level(accesses, schema, base)?;
-                Ok(requests.iter().map(|_| Facts::default()).collect())
+            Self::Sqlite(SqliteTx(tx)) => {
+                tx.batch_level(accesses, schema, base)?;
+                tx.batch_authority_facts(requests)
             }
             #[cfg(feature = "postgres")]
             Self::Postgres(PostgresTx(tx)) => tx.batch_facts(requests, accesses, base),
@@ -98,21 +94,7 @@ impl AnyTx<'_> {
         images: Vec<Image>,
     ) -> Result<(), RuntimeError> {
         match self {
-            Self::Sqlite(_) => {
-                for image in images {
-                    if self.put(
-                        &image.table,
-                        &schema.tables[&image.table],
-                        &image.new,
-                        Some(&image.old),
-                    )? != 0
-                    {
-                        return Err(RuntimeError::Store(
-                            "qualified overlay changed an index".into(),
-                        ));
-                    }
-                }
-            }
+            Self::Sqlite(SqliteTx(tx)) => tx.apply_overlay(schema, images)?,
             #[cfg(feature = "postgres")]
             Self::Postgres(PostgresTx(tx)) => *tx.group_images.borrow_mut() = images,
         }
@@ -128,6 +110,12 @@ impl AnyTx<'_> {
 }
 #[cfg(feature="postgres")]
 impl crate::store_port::AnyStore {
+    pub(crate) fn prepare_pipeline_writer(&mut self) -> Result<(), RuntimeError> {
+        if let Self::Postgres(super::handles::PostgresStore(h)) = self {
+            h.store.get_mut().prepare_batch_protocol()?;
+        }
+        Ok(())
+    }
     pub(crate) fn refresh_pipeline_writer(&mut self) -> Result<(), RuntimeError> {
         match self {
             Self::Postgres(super::handles::PostgresStore(handle)) => handle.reconnect_pipeline_writer(),

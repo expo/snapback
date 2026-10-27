@@ -1,0 +1,529 @@
+{
+  "seed": {
+    "rooms": 1025,
+    "users": 256,
+    "counters": 257,
+    "messages": 1000000,
+    "memberships": 8448,
+    "room_mismatches": 0,
+    "sender_mismatches": 0,
+    "message_image_mismatches": 0
+  },
+  "affinity": [
+    {
+      "cell": "native/w4-n1000000-d1000-c32-disjoint",
+      "masks": {
+        "app/proxy": [
+          [
+            3,
+            4,
+            9,
+            10
+          ]
+        ],
+        "postgres": [
+          [
+            0,
+            1,
+            2,
+            6,
+            7,
+            8
+          ]
+        ],
+        "postgres-child": [
+          [
+            0,
+            1,
+            2,
+            6,
+            7,
+            8
+          ]
+        ]
+      }
+    },
+    {
+      "cell": "native/w4-n1000000-d500-c32-disjoint",
+      "masks": {
+        "app/proxy": [
+          [
+            3,
+            4,
+            9,
+            10
+          ]
+        ],
+        "postgres": [
+          [
+            0,
+            1,
+            2,
+            6,
+            7,
+            8
+          ]
+        ],
+        "postgres-child": [
+          [
+            0,
+            1,
+            2,
+            6,
+            7,
+            8
+          ]
+        ]
+      }
+    },
+    {
+      "cell": "native/w5-n1000000-d1000-c32-hot1",
+      "masks": {
+        "app/proxy": [
+          [
+            3,
+            4,
+            9,
+            10
+          ]
+        ],
+        "postgres": [
+          [
+            0,
+            1,
+            2,
+            6,
+            7,
+            8
+          ]
+        ],
+        "postgres-child": [
+          [
+            0,
+            1,
+            2,
+            6,
+            7,
+            8
+          ]
+        ]
+      }
+    },
+    {
+      "cell": "paired/1-main/w4-n1000000-d500-c32-disjoint",
+      "masks": {
+        "app/proxy": [
+          [
+            3,
+            4,
+            9,
+            10
+          ]
+        ],
+        "postgres": [
+          [
+            0,
+            1,
+            2,
+            6,
+            7,
+            8
+          ]
+        ],
+        "postgres-child": [
+          [
+            0,
+            1,
+            2,
+            6,
+            7,
+            8
+          ]
+        ]
+      }
+    },
+    {
+      "cell": "paired/1-wp/w4-n1000000-d500-c32-disjoint",
+      "masks": {
+        "app/proxy": [
+          [
+            3,
+            4,
+            9,
+            10
+          ]
+        ],
+        "postgres": [
+          [
+            0,
+            1,
+            2,
+            6,
+            7,
+            8
+          ]
+        ],
+        "postgres-child": [
+          [
+            0,
+            1,
+            2,
+            6,
+            7,
+            8
+          ]
+        ]
+      }
+    },
+    {
+      "cell": "paired/2-main/w4-n1000000-d500-c32-disjoint",
+      "masks": {
+        "app/proxy": [
+          [
+            3,
+            4,
+            9,
+            10
+          ]
+        ],
+        "postgres": [
+          [
+            0,
+            1,
+            2,
+            6,
+            7,
+            8
+          ]
+        ],
+        "postgres-child": [
+          [
+            0,
+            1,
+            2,
+            6,
+            7,
+            8
+          ]
+        ]
+      }
+    },
+    {
+      "cell": "paired/2-wp/w4-n1000000-d500-c32-disjoint",
+      "masks": {
+        "app/proxy": [
+          [
+            3,
+            4,
+            9,
+            10
+          ]
+        ],
+        "postgres": [
+          [
+            0,
+            1,
+            2,
+            6,
+            7,
+            8
+          ]
+        ],
+        "postgres-child": [
+          [
+            0,
+            1,
+            2,
+            6,
+            7,
+            8
+          ]
+        ]
+      }
+    },
+    {
+      "cell": "paired/3-main/w4-n1000000-d500-c32-disjoint",
+      "masks": {
+        "app/proxy": [
+          [
+            3,
+            4,
+            9,
+            10
+          ]
+        ],
+        "postgres": [
+          [
+            0,
+            1,
+            2,
+            6,
+            7,
+            8
+          ]
+        ],
+        "postgres-child": [
+          [
+            0,
+            1,
+            2,
+            6,
+            7,
+            8
+          ]
+        ]
+      }
+    },
+    {
+      "cell": "paired/3-wp/w4-n1000000-d500-c32-disjoint",
+      "masks": {
+        "app/proxy": [
+          [
+            3,
+            4,
+            9,
+            10
+          ]
+        ],
+        "postgres": [
+          [
+            0,
+            1,
+            2,
+            6,
+            7,
+            8
+          ]
+        ],
+        "postgres-child": [
+          [
+            0,
+            1,
+            2,
+            6,
+            7,
+            8
+          ]
+        ]
+      }
+    }
+  ],
+  "rtts": [
+    {
+      "cell": "native/w4-n1000000-d1000-c32-disjoint",
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 1.12,
+      "p99_ms": 1.145,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-qzsdzjz7/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "cell": "native/w4-n1000000-d1000-c32-disjoint",
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 1.096,
+      "p99_ms": 1.12,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-qzsdzjz7/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "cell": "native/w4-n1000000-d500-c32-disjoint",
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 0.572,
+      "p99_ms": 0.649,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-qzsdzjz7/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "cell": "native/w4-n1000000-d500-c32-disjoint",
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 0.563,
+      "p99_ms": 0.586,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-qzsdzjz7/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "cell": "native/w5-n1000000-d1000-c32-hot1",
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 1.082,
+      "p99_ms": 1.137,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-qzsdzjz7/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "cell": "native/w5-n1000000-d1000-c32-hot1",
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 1.089,
+      "p99_ms": 1.124,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-qzsdzjz7/s",
+      "warmup_queries": 100,
+      "delay_us": 1000
+    },
+    {
+      "cell": "paired/1-main/w4-n1000000-d500-c32-disjoint",
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 0.571,
+      "p99_ms": 0.614,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-qzsdzjz7/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "cell": "paired/1-main/w4-n1000000-d500-c32-disjoint",
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 0.579,
+      "p99_ms": 0.623,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-qzsdzjz7/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "cell": "paired/1-wp/w4-n1000000-d500-c32-disjoint",
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 0.58,
+      "p99_ms": 0.618,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-qzsdzjz7/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "cell": "paired/1-wp/w4-n1000000-d500-c32-disjoint",
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 0.563,
+      "p99_ms": 0.591,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-qzsdzjz7/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "cell": "paired/2-main/w4-n1000000-d500-c32-disjoint",
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 0.561,
+      "p99_ms": 0.61,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-qzsdzjz7/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "cell": "paired/2-main/w4-n1000000-d500-c32-disjoint",
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 0.56,
+      "p99_ms": 0.598,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-qzsdzjz7/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "cell": "paired/2-wp/w4-n1000000-d500-c32-disjoint",
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 0.57,
+      "p99_ms": 0.595,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-qzsdzjz7/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "cell": "paired/2-wp/w4-n1000000-d500-c32-disjoint",
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 0.573,
+      "p99_ms": 0.608,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-qzsdzjz7/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "cell": "paired/3-main/w4-n1000000-d500-c32-disjoint",
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 0.561,
+      "p99_ms": 0.589,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-qzsdzjz7/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "cell": "paired/3-main/w4-n1000000-d500-c32-disjoint",
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 0.562,
+      "p99_ms": 0.611,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-qzsdzjz7/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "cell": "paired/3-wp/w4-n1000000-d500-c32-disjoint",
+      "edge": "before",
+      "count": 1000,
+      "p50_ms": 0.562,
+      "p99_ms": 0.576,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-qzsdzjz7/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    },
+    {
+      "cell": "paired/3-wp/w4-n1000000-d500-c32-disjoint",
+      "edge": "after",
+      "count": 1000,
+      "p50_ms": 0.562,
+      "p99_ms": 0.599,
+      "port": 55441,
+      "query": "prepared SELECT 1",
+      "socket_dir": "/tmp/s1c-qzsdzjz7/s",
+      "warmup_queries": 100,
+      "delay_us": 500
+    }
+  ]
+}

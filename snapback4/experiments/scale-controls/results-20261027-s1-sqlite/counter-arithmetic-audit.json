@@ -1,0 +1,5 @@
+{
+  "trials": 42,
+  "mismatches": 0,
+  "checks": "Before/after durable sum vs whole-cohort acknowledgements; includes warm-up, every write rate/repetition."
+}

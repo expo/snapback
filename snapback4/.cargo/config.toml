@@ -1,0 +1,9 @@
+# @ref LLP 3000.009.001.000.002#sqlite-durable-write-cycle — retain FULL, use the native data durability primitive.
+[env]
+LIBSQLITE3_FLAGS = "-DHAVE_FDATASYNC=1 -USQLITE_ENABLE_MEMORY_MANAGEMENT"
+
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.test]
+debug = "line-tables-only"

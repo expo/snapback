@@ -1,4 +1,4 @@
-//! FIFO collection and latency control for the program-only batch lane.
+//! FIFO collection and latency diagnostics for the program-only batch lane.
 use super::{Completion, Engine, SubmitError, Ticket, Work};
 use crate::Refusal;
 use crate::engine::{MutationAcknowledgement, program::Invocation};
@@ -149,6 +149,7 @@ impl<T: Send + 'static> Task for ProgramTask<T> {
 
 #[derive(Clone, Copy, Debug)]
 pub enum BatchPolicy {
+    /// Coalesce available traffic up to 32; latency never reduces drain capacity.
     Adaptive,
     Fixed(usize),
 }
@@ -165,13 +166,9 @@ pub struct BatchStats {
     pub commit_attempts: u64,
     pub commit_nanos: u64,
     #[serde(skip)]
-    fixed: bool,
-    #[serde(skip)]
     pipeline_fill: bool,
     #[serde(skip)]
     samples: VecDeque<u64>,
-    #[serde(skip)]
-    since_resize: usize,
 }
 impl BatchStats {
     pub(super) fn new(policy: BatchPolicy) -> Self {
@@ -192,10 +189,8 @@ impl BatchStats {
             p99_micros: 0,
             commit_attempts: 0,
             commit_nanos: 0,
-            fixed: matches!(policy, BatchPolicy::Fixed(_)),
             pipeline_fill: false,
             samples: VecDeque::new(),
-            since_resize: 0,
         }
     }
     fn observe(&mut self, latencies: impl IntoIterator<Item = u64>, fill: usize) {
@@ -213,28 +208,18 @@ impl BatchStats {
         let mut sorted: Vec<_> = self.samples.iter().copied().collect();
         sorted.sort_unstable();
         self.p99_micros = sorted[(sorted.len() * 99).div_ceil(100).saturating_sub(1)];
-        self.since_resize += 1;
-        // @ref LLP 3000.009.001.000.002#3.4 — queue through COMMIT latency governs the largest admitted N; only recent traffic can coalesce.
-        if !self.fixed && self.since_resize >= 32 {
-            let next = if self.p99_micros > 100_000 {
-                (self.target / 2).max(1)
-            } else if self.p99_micros < 80_000 {
-                (self.target + 1).min(32)
-            } else {
-                self.target
-            };
-            if next != self.target {
-                self.target = next;
-                self.samples.clear();
-            }
-            self.since_resize = 0;
-        }
+        // @ref LLP 3000.009.001.000.002#3.4 — queue age diagnoses overload; it must not reduce the capacity needed to drain it.
+        // The cap bounds work, not collection delay. A latency-driven reduction
+        // can strand a batched-capable store at serial throughput, including
+        // after a transient service spike. Keep all 32 slots available on both
+        // stores; Arrivals independently bounds waiting (none at depth two).
     }
 }
 
 const COLLECTION: Duration = Duration::from_millis(1);
+const SQLITE_COLLECTION: Duration = Duration::from_millis(1);
 // A burst queued during a write cycle is still recent. This is history age,
-// not a fill budget: collection always ends at started + COLLECTION.
+// not a fill budget: collection always ends at its original window boundary.
 const RECENT: Duration = Duration::from_millis(20);
 /// An exponentially smoothed interarrival interval from actual mailbox intake,
 /// never response rate. A gap beyond the history horizon starts idle again.
@@ -265,8 +250,14 @@ impl Arrivals {
         Some(remaining.min(interval.max(Duration::from_micros(1))))
     }
     // @ref LLP 3000.009.001.000.000.002#8.1 — depth two starts available work rather than waiting for clients held by its predecessor.
-    fn collection_wait(&self, started: Instant, now: Instant, depth: usize) -> Option<Duration> {
-        if depth == 2 { None } else { self.wait(started, now) }
+    fn collection_wait(&self, started: Instant, now: Instant, depth: usize, sqlite_burst: bool) -> Option<Duration> {
+        if depth == 2 { return None; }
+        if sqlite_burst {
+            self.interval?;
+            if now.saturating_duration_since(self.last?) >= RECENT { return None; }
+            return (started + SQLITE_COLLECTION).checked_duration_since(now).filter(|r| !r.is_zero());
+        }
+        self.wait(started, now)
     }
 }
 
@@ -277,6 +268,7 @@ pub(super) fn run(
     depth:usize,
     admission: Arc<Mutex<super::Admission>>,
     notice: Arc<super::notice::Notice>,
+    ready: mpsc::SyncSender<Result<(), String>>,
 ) {
     #[cfg(not(feature="postgres"))]
     let _=(depth, &admission);
@@ -305,13 +297,32 @@ pub(super) fn run(
         Arc::new(Mutex::new(lane))
     };
     #[cfg(feature="postgres")]
-    let recovery_gate={
-        let slot=Arc::new(Mutex::new(None));let capture=slot.clone();
-        execute(Box::new(move|engine|*capture.lock().unwrap()=engine.store.durability()));
-        let gate=slot.lock().unwrap().clone();gate
+    let (recovery_gate, sqlite_collection)={
+        let slot=Arc::new(Mutex::new((None,false)));let capture=slot.clone();
+        execute(Box::new(move|engine|*capture.lock().unwrap()=(engine.store.durability(),matches!(engine.store,crate::store_port::AnyStore::Sqlite(_)))));
+        let configuration=slot.lock().unwrap().clone();configuration
     };
+    #[cfg(feature="postgres")]
+    let preparation = {
+        let result = Arc::new(Mutex::new(Ok(())));
+        let prepared = result.clone();
+        let state = lane.clone();
+        execute(Box::new(move |engine| {
+            if depth == 2 { *prepared.lock().unwrap() = state.lock().unwrap().prepare(engine).map_err(|e| e.to_string()); }
+        }));
+        let result = result.lock().unwrap().clone();
+        result
+    };
+    #[cfg(not(feature="postgres"))]
+    let preparation = Ok(());
+    let failed = preparation.is_err();
+    let _ = ready.send(preparation);
+    if failed { return; }
+    #[cfg(not(feature="postgres"))]
+    let sqlite_collection=true;
     let mut pending = None;
     let mut arrivals = Arrivals::default();
+    let mut sqlite_burst: Option<Instant> = None;
     loop {
         #[cfg(feature="postgres")]
         let observed=notice.version();
@@ -372,10 +383,12 @@ pub(super) fn run(
             (stats.target, if depth == 2 && stats.pipeline_fill { 2 } else { 1 })
         };
         let mut tasks = vec![first];
-        while tasks.len() < target && started.elapsed() < COLLECTION {
+        let sqlite_cohort = sqlite_collection && sqlite_burst.is_some_and(|at|at.elapsed()<RECENT);
+        let collection = if sqlite_cohort { SQLITE_COLLECTION } else { COLLECTION };
+        while tasks.len() < target && started.elapsed() < collection {
             let next = match receiver.try_recv() {
                 Ok(work) => Ok(work),
-                Err(mpsc::TryRecvError::Empty) => match arrivals.collection_wait(started, Instant::now(), fill_depth) {
+                Err(mpsc::TryRecvError::Empty) => match arrivals.collection_wait(started, Instant::now(), fill_depth, sqlite_cohort) {
                     Some(wait) => receiver.recv_timeout(wait).map_err(|_| ()),
                     None => Err(()),
                 },
@@ -390,6 +403,8 @@ pub(super) fn run(
                 Err(_) => break,
             }
         }
+        // @ref LLP 3000.009.001.000.002#sqlite-burst-collection — retain one fixed window for a known returning SQLite cohort, independently of size control.
+        if sqlite_collection && tasks.len()>1 { sqlite_burst=Some(started); }
         #[cfg(test)]
         let collected=Instant::now();
         #[cfg(test)]
@@ -413,6 +428,7 @@ pub(super) fn run(
             }
             #[cfg(feature="postgres")]
             { stats.lock().unwrap().pipeline_fill = matches!(engine.store, crate::store_port::AnyStore::Postgres(_)); }
+            let dispatched = Instant::now();
             let mut invocations = Vec::new();
             let mut slots = Vec::new();
             for mut task in tasks {
@@ -431,7 +447,26 @@ pub(super) fn run(
             let dispatch_stats = stats.clone();
             let finish = move |engine:&mut Engine, outcomes:Option<Vec<Outcome>>| {
                 let latencies:Vec<_>=admitted.iter().map(|i|i.elapsed().as_micros().min(u64::MAX as u128) as u64).collect();
-                stats.lock().unwrap().observe(latencies,count);
+                let service_us = dispatched.elapsed().as_micros() as u64;
+                let admitted_us = latencies.iter().copied().max().unwrap_or(0);
+                let mut stats = stats.lock().unwrap();
+                stats.observe(latencies,count);
+                // Numeric, opt-in diagnostic over the existing BatchStats surface.
+                static TRACE: std::sync::OnceLock<Option<Mutex<std::fs::File>>> = std::sync::OnceLock::new();
+                // A bad path disables the trace; it must never take down the committer.
+                if let Some(file) = TRACE.get_or_init(|| std::env::var_os("SNAPBACK4_BATCH_TRACE").and_then(|path| {
+                    match std::fs::OpenOptions::new().create_new(true).write(true).open(&path) {
+                        Ok(file) => Some(Mutex::new(file)),
+                        Err(error) => { eprintln!("snapback4: SNAPBACK4_BATCH_TRACE disabled ({}): {error}", std::path::Path::new(&path).display()); None }
+                    }
+                })) {
+                    use std::io::Write;
+                    let _ = writeln!(file.lock().unwrap(), "{}", serde_json::json!({
+                        "n":count,"members":stats.members,"target":stats.target,
+                        "p99_us":stats.p99_micros,"admitted_us":admitted_us,"service_us":service_us
+                    }));
+                }
+                drop(stats);
                 let mut outcomes=outcomes.map(|outcomes|outcomes.into_iter().map(Some).collect::<Vec<_>>());
                 for (task,slot) in slots {
                     if let Some(outcomes)=&mut outcomes {task.finish(engine,match slot {Ok(i)=>outcomes[i].take().expect("one callback per invocation"),Err(why)=>Err(why)});}
@@ -476,27 +511,107 @@ mod tests {
         let mut arrivals = Arrivals::default();
         arrivals.observe(now - Duration::from_micros(100));
         arrivals.observe(now);
-        assert!(arrivals.collection_wait(now, now, 1).is_some());
-        assert!(arrivals.collection_wait(now, now, 2).is_none(),
+        assert!(arrivals.collection_wait(now, now, 1, false).is_some());
+        assert!(arrivals.collection_wait(now, now, 2, false).is_none(),
             "a free pipeline slot must start the available FIFO members");
     }
     #[test]
-    fn p99_control_backs_off_and_recovers_inside_32() {
+    fn queue_dominated_trace_collapses_legacy_control_but_keeps_drain_capacity() {
+        let mut old = BatchStats::new(BatchPolicy::Adaptive);
+        let mut current = BatchStats::new(BatchPolicy::Adaptive);
+        let mut old_targets = Vec::new();
+        // Replay the old 32-batch decision windows exactly. Each member has
+        // 12 ms service plus queue age above the SLO, regardless of batch cap.
+        for window in 0..6 {
+            for _ in 0..32 {
+                let latency = 120_000 + window * 10_000;
+                old.observe([latency], 1);
+                current.observe([latency], 1);
+            }
+            let next = if old.p99_micros > 100_000 { (old.target / 2).max(1) }
+                else if old.p99_micros < 80_000 { (old.target + 1).min(32) }
+                else { old.target };
+            if next != old.target { old.target = next; old.samples.clear(); }
+            old_targets.push(old.target);
+            assert_eq!(current.target, 32);
+        }
+        assert_eq!(old_targets, [16, 8, 4, 2, 1, 1]);
+        assert!(current.p99_micros > 100_000, "queue pressure remains observable");
+    }
+    #[test]
+    fn sqlite_recent_cohort_uses_one_window_and_never_delays_an_idle_arrival() {
+        let now = Instant::now();
+        let mut arrivals = Arrivals::default();
+        arrivals.observe(now);
+        assert!(arrivals.collection_wait(now, now, 1, true).is_none());
+        arrivals.observe(now + Duration::from_millis(6));
+        let started = now + Duration::from_millis(6);
+        assert!(arrivals.collection_wait(started, started, 1, false).is_none());
+        assert_eq!(arrivals.collection_wait(started, started, 1, true), Some(SQLITE_COLLECTION));
+        arrivals.observe(started + Duration::from_micros(800));
+        assert_eq!(arrivals.collection_wait(started, started + Duration::from_micros(900), 1, true), Some(Duration::from_micros(100)));
+        assert!(arrivals.collection_wait(started, started + SQLITE_COLLECTION, 1, true).is_none());
+        assert!(arrivals.collection_wait(started, started, 2, true).is_none());
+        let idle = started + Duration::from_millis(30); arrivals.observe(idle);
+        assert!(arrivals.collection_wait(idle, idle, 1, true).is_none());
+    }
+    #[test]
+    fn transient_service_spike_ages_out_without_reducing_available_fill() {
         let mut stats = BatchStats::new(BatchPolicy::Adaptive);
-        for _ in 0..32 {
-            stats.observe([101_000], 1);
+        stats.observe([400_000; 32], 32);
+        for _ in 0..256 {
+            stats.observe([12_000], 1);
+            assert_eq!(stats.target, 32);
         }
-        assert_eq!(stats.target, 16);
-        for _ in 0..32 {
-            stats.observe([1_000], 1);
-        }
-        assert_eq!(stats.target, 17);
+        assert_eq!(stats.p99_micros, 12_000);
+        assert_eq!(stats.members, 288);
+        assert_eq!(stats.fills[32], 1);
         let mut fixed = BatchStats::new(BatchPolicy::Fixed(4));
-        for _ in 0..64 {
-            fixed.observe([1_000_000], 4);
-        }
+        for _ in 0..64 { fixed.observe([1_000_000; 4], 4); }
         assert_eq!(fixed.target, 4);
     }
+    fn queued_age_does_not_poison_next_burst(pg: bool) {
+        use crate::engine::command::{Command, ProgramCommand, Queue};
+        let engine = crate::engine::program_batch::tests::fixture(pg);
+        let queue = Queue::start(engine, 128).unwrap();
+        let invocation = || Invocation::new("increment", None, crate::Context::new("alice", [
+            ("key".into(), crate::Value::Id("a".into())),
+            ("delta".into(), crate::Value::Int(1)),
+            ("reject".into(), crate::Value::Bool(false)),
+        ].into()).at(1001));
+        // Deterministic admission age avoids a wall-clock sleep. Whether an
+        // overdue member refuses or commits, its completion cannot poison N.
+        for _ in 0..192 {
+            queue.submit_program(ProgramCommand::new(invocation(), |_, _| ())
+                .accepted_at(Instant::now() - Duration::from_millis(200)))
+                .unwrap().wait().unwrap();
+        }
+        let before = queue.batch_stats();
+        assert_eq!(before.target, 32);
+        assert!(before.p99_micros > 100_000);
+        let (entered, started) = mpsc::channel();
+        let (release, resume) = mpsc::channel();
+        let held = queue.submit(Command::new(move |_| {
+            entered.send(()).unwrap();
+            resume.recv_timeout(Duration::from_secs(10)).unwrap();
+        })).unwrap();
+        started.recv_timeout(Duration::from_secs(5)).unwrap();
+        let replies: Vec<_> = (0..32).map(|_| queue.submit_program(
+            ProgramCommand::new(invocation(), |_, result| result)).unwrap()).collect();
+        release.send(()).unwrap();
+        held.wait().unwrap();
+        for reply in replies { assert!(reply.wait().unwrap().is_ok()); }
+        let after = queue.batch_stats();
+        assert_eq!(after.members - before.members, 32);
+        assert!(after.fills.iter().enumerate().skip(2).any(|(n, count)| *count > before.fills[n]),
+            "fresh queued members must coalesce after old admission-age spikes");
+    }
+    #[test]
+    fn sqlite_queue_age_does_not_poison_next_burst() { queued_age_does_not_poison_next_burst(false); }
+    #[cfg(feature = "postgres")]
+    #[test]
+    #[ignore = "private Postgres"]
+    fn postgres_queue_age_does_not_poison_next_burst() { queued_age_does_not_poison_next_burst(true); }
     #[test]
     fn idle_and_low_rate_never_wait() {
         let start = Instant::now();

@@ -1,0 +1,17 @@
+{
+  "binary_hashes_unchanged": true,
+  "checked_in_runner_hashes_unchanged": true,
+  "product_runner_fixture_diff_empty": true,
+  "checks": "every raw and selected trial; native stdout vs histogram counts, arrivals/errors, warmup, SLO, independent before/after durable arithmetic; CPU sample sums and contamination; all released quiet tails; affinity; fixture; binary hashes",
+  "time": 1793097623.4110494,
+  "report_verification": {
+    "source_repetitions_reread": 36,
+    "rate_table": true,
+    "latency_and_dispatch_medians": true,
+    "paired_sequence": true,
+    "readme_links": true,
+    "archive_sha256": true,
+    "only_requested_directory": true,
+    "no_raw_trial_files": true
+  }
+}
