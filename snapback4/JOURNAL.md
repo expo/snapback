@@ -109743,3 +109743,5 @@ can trip on observed skew/suspend but cannot prove future behavior; automatic
 G6 still requires an enforced deployment clock contract. Defaults are unchanged.
 
 The refusal observer also covers identity-request decoding and browser auth replies, so a real failed login can name `/auth/login` and the anonymous role while discarding credentials and successful session bodies. The Horse Trailer Rentals auth shape has a real-server regression. The generic custom-code recovery route is `snapback4 why CODE`.
+
+The original-lane compiler replays exposed an additional verifier boundary: declaration-local checking removed other operations and invalidated authored invariant targets, withholding safe fixes in otherwise valid real applications. Safe fix verification now retains all original operations and their invariant referents, permits only identical unrelated pre-existing diagnostics, and refuses every new diagnostic or error in the edited declaration. A cross-file invariant plus an independent unknown-name regression pins this behavior.

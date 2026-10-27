@@ -4,6 +4,7 @@ use crate::ast::Expr as A;
 
 // @ref LLP 3000.007#8 — a fix must be a verified source edit, never prose advice.
 pub(super) fn verify(documents: &[Document], diagnostics: &mut [Diagnostic]) {
+    let baseline = diagnostics.iter().map(|d| (d.site.clone(),d.code.clone(),d.message.clone())).collect::<Vec<_>>();
     for d in diagnostics {
         if !matches!(d.code.as_str(), "E_QUARRY_TYPE" | "E_QUARRY_UNKNOWN" | "E_QUARRY_BOUND") { continue; }
         let Some(doc) = documents.iter().find(|doc| doc.file == d.site.file) else { continue; };
@@ -44,7 +45,7 @@ pub(super) fn verify(documents: &[Document], diagnostics: &mut [Diagnostic]) {
         if source.get(span.clone()) != Some(original.as_str()) { continue; }
         let candidate = Candidate { site: d.site.clone(), declaration_site: program.site.clone(), source: source.clone(), replacement: span,
             rewrite, intended: None, message: None };
-        if check_context(documents, &candidate, false) != Check::Accepted { continue; }
+        if !accepted(documents, &candidate, &baseline) { continue; }
         d.rewrite = candidate.rewrite;
         d.mechanical = true;
         d.verified_edit = Some((edit_start.clone(), original.clone()));
@@ -136,6 +137,16 @@ mod tests {
         assert!(bound.diagnostics.iter().all(|d| !d.mechanical), "{:?}", bound.diagnostics);
     }
     #[test]
+    fn fixes_keep_cross_file_invariant_targets_and_independent_errors() {
+        let schema = "table notes:\n  owner: principal\n  read <- .owner = viewer\n  insert <- .owner = viewer\nmutation add():\n  return insert notes {owner: viewer}\ninvariant notes.add only .owner = viewer\n";
+        let sources = vec![("schema.q".into(),schema.into()),("calls.q".into(),"query q(at: time ?):\n  require at + 1 > now else LATE\n  return 1\nquery unrelated():\n  return undefinedName\n".into())];
+        let bound = crate::compile(&sources);
+        let repair = bound.diagnostics.iter().find(|d| d.code == "E_QUARRY_TYPE").unwrap();
+        assert!(repair.mechanical, "{:?}",bound.diagnostics);
+        assert_eq!(repair.rewrite,"at != null and (at + 1 > now)");
+        assert!(bound.diagnostics.iter().any(|d| d.code == "E_QUARRY_UNKNOWN"));
+    }
+    #[test]
     fn nullable_guard_has_an_exact_source_span() {
         let source = "query q(at: time ?):\n  require at + 1 > now else LATE\n  return 1\n";
         let (doc, _) = crate::parse_document("schema.q", source);
@@ -162,4 +173,18 @@ fn total_unique(expr: &A, documents: &[Document]) -> bool {
     table.indexes.iter().any(|index| index.unique && index.is_plain() && index.columns.len() == read.keys.len()
         && index.columns.iter().all(|column| (column == "id" || table.columns.iter().any(|c| c.name == *column && !c.type_.optional))
             && (named(column) || read.index.as_ref() == Some(&index.name) && read.keys.iter().all(|key| key.column.is_none()))))
+}
+
+// Keep every operation so authored invariants and security targets retain their
+// real referents. Unrelated existing errors may remain, but no new diagnostic
+// (or any error in the edited operation) is allowed by the repair.
+fn accepted(documents: &[Document], candidate: &Candidate, baseline: &[(Site,String,String)]) -> bool {
+    let Some(patched) = parser::repairs::splice(&candidate.source, vec![(candidate.replacement.clone(),candidate.rewrite.clone())]) else { return false; };
+    let source = format!("{}{patched}", "\n".repeat(candidate.declaration_site.line.saturating_sub(1) as usize));
+    let tables = documents.iter().flat_map(|doc| doc.tables.iter().cloned()).collect();
+    let (replacement, errors) = parser::parse_with_types(&candidate.site.file, &source, tables, Default::default());
+    if !errors.is_empty() { return false; }
+    let bound = bind::bind_unverified(context(documents,candidate,replacement,true));
+    bound.diagnostics.iter().all(|d| !affected(candidate,&d.site) && baseline.iter().any(|(site,code,message)|
+        *site == d.site && *code == d.code && *message == d.message))
 }
