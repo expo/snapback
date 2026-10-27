@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.46
+
+### Guide changes
+
+- Backend proof scripts load browser tooling only when a browser selector is used. Common proof commands launch the native binary without an extra CLI shim process, retaining command deadlines, private token logs and process cleanup. Staging tests still create fresh deployments and real users.
+
 ## 0.4.44
 
 ### Guide changes

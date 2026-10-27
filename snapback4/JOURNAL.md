@@ -109712,3 +109712,15 @@ Only `serving()` arms the G6 exit. Deploy retains persisted-selection recovery,
 pointer/log completion and lease release. The report's new regressions fill a
 real stderr pipe and delay an unknown-but-durable activation's reconciliation
 probe. LLP 3000.009.001.000 §5.1 records the corrected lifecycle contract.
+
+### 2026-10-27 — LAT3 proof execution startup
+
+Backend proof imports no longer eagerly load Playwright or Node SQLite; selector
+registration remains awaited at the first locator, and production provisioning
+loads its unchanged kernel roster lock before account effects. Common native
+proof verbs skip one Node CLI shim while preserving the installed helper paths,
+per-call resolution, secret token stdout and existing keeper-backed groups.
+No campaign, command, credential or mutable deployment cache was introduced.
+LLP 3000.011.003.000.000 §18 records the execution-only amendment. Copied-lane
+profiles identify campaign time and authored race timers separately; measurements
+and limitations belong to the LAT3 workstream report, not a publication claim.

@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, writeFileSync, mkdirSync, readFileSync, rmSync, symlinkSync, cpSync } from "node:fs";
+import { mkdtempSync, writeFileSync, mkdirSync, readFileSync, rmSync, symlinkSync, cpSync, chmodSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { spawn, execFileSync } from "node:child_process";
@@ -18,6 +18,36 @@ function fixture(t) {
   t.after(() => rmSync(cwd, { recursive: true, force: true })); return cwd;
 }
 const bind = server => new Promise(resolve => server.listen(0, "127.0.0.1", () => resolve(server.address().port)));
+test("process-only proof imports leave Playwright and SQLite unloaded", async t => {
+  const cwd = fixture(t);
+  const result = await command(process.execPath, ["--input-type=module", "-e", `
+    import { createRequire } from 'node:module';
+    import assert from 'node:assert/strict';
+    await import(${JSON.stringify(new URL('../dist/proof.js', import.meta.url).href)});
+    const require = createRequire(import.meta.url);
+    assert.ok(!Object.keys(require.cache).some(path => path.includes('playwright-core')));
+    assert.ok(!process.moduleLoadList.some(name => name.includes('sqlite')));
+  `], {cwd});
+  assert.equal(result.code, 0, result.stderr);
+});
+test("native proof commands retain helper environment, argument boundaries and secret logs", {skip:process.platform === "win32" ? "executable shebang fixture requires Unix" : false}, async t => {
+  const cwd = fixture(t), binary = join(cwd, "native.mjs");
+  writeFileSync(binary, `#!/usr/bin/env node\nconsole.log(JSON.stringify({args:process.argv.slice(2), parent:process.ppid, helpers:Object.fromEntries(['ACQUIRE','UPGRADE','WEB'].map(key=>[key,process.env['SNAPBACK4_'+key+'_HELPER']])),supervisor:process.env.SNAPBACK4_SUPERVISOR_PID}));process.exitCode=7;\n`);
+  chmodSync(binary, 0o700);
+  const result = await cli(["token", "--service", "literal space; $text"], {cwd, env:{SNAPBACK4_BIN:binary,SNAPBACK4_WEB_HELPER:"wrong"}});
+  assert.equal(result.code, 7, result.stderr);
+  const reply = JSON.parse(result.stdout);
+  assert.deepEqual(reply.args, ["token", "--service", "literal space; $text"]);
+  assert.equal(reply.supervisor, String(process.pid));
+  for (const [key, file] of [["ACQUIRE", "witness-acquire"], ["UPGRADE", "upgrade"], ["WEB", "witness-web"]]) {
+    assert.equal(reply.helpers[key], fileURLToPath(new URL(`../bin/${file}.js`, import.meta.url)));
+  }
+  assert.match(readFileSync(result.logs.stdout, "utf8"), /^stdout withheld: secret command/);
+  // A changed invocation resolves its binary afresh; no result or resolver cache.
+  const second = join(cwd, "second.mjs");
+  writeFileSync(second, "#!/usr/bin/env node\nconsole.log('second');\n"); chmodSync(second, 0o700);
+  assert.equal((await cli(["data"], {cwd,env:{SNAPBACK4_BIN:second}})).stdout.trim(), "second");
+});
 test("runtime port range is inclusive, validated, and never cached", () => {
   assert.equal(portRange({}), "0"); assert.equal(portRange({ PORT_LO: "29040", PORT_HI: "29049" }), "29040-29049");
   for (const env of [{ PORT_LO: "2" }, { PORT_HI: "2" }, { PORT_LO: "3", PORT_HI: "2" }, { PORT_LO: "0", PORT_HI: "2" }, { PORT_LO: "2", PORT_HI: "65536" }, { PORT_LO: "x", PORT_HI: "3" }]) assert.throws(() => portRange(env), /PORT_LO/);

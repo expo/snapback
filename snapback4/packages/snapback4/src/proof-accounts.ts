@@ -1,4 +1,3 @@
-import { rosterLock } from "./proof-roster-lock.ts";
 import { identityRequest } from "./identity-request.ts";
 import { randomUUID, randomBytes } from "node:crypto";
 import { mkdirSync, openSync, closeSync, readFileSync, writeFileSync, renameSync, unlinkSync, lstatSync, fsyncSync } from "node:fs";
@@ -195,6 +194,9 @@ export async function provisionAccounts(host: Pick<ServeHost, "url" | "operatorT
   // Persist the newly created roster directory's link as well as each snapshot.
   const parent = openSync(base, "r"); try { fsyncSync(parent); } finally { closeSync(parent); }
   const path = join(folder, name + ".json"), lock = path + ".lock";
+  // SQLite is needed only for persistent production rosters, not a process-only
+  // proof import or disposable staging accounts. Acquire the same kernel lock.
+  const { rosterLock } = await import("./proof-roster-lock.ts");
   const owned = rosterLock(lock);
   try {
     const plan = JSON.stringify({...(options.users?{users:options.users}:{}),roles:Object.entries(options.roles??{}).sort(), provision:options.provision?.name, service:options.service ?? "operator"});

@@ -220,6 +220,19 @@ export interface CliResult { code: number | null; signal: NodeJS.Signals | null;
 /** Waits for close (stdio drained), never merges the two streams. Nonzero is returned for refusal assertions. */
 /** @throws spawn error or command deadline; nonzero exit is returned in code, not thrown. */
 export function cli(args: readonly string[], options: ProofOptions = {}): Promise<CliResult> {
+  // @ref LLP 3000.011.003.000.000#18-proof-command-startup-lat3 — native proof verbs retain the shim's helpers and group custody without another Node process.
+  if (["deploy", "rollback", "test", "token", "serve", "data", "sql", "releases", "clock", "stop"].includes(args[0] ?? "")) {
+    const env = { ...process.env, ...options.env };
+    let binary: string | undefined;
+    try { binary = resolveBinary(env); } catch { /* The shim retains its established resolution refusal and exit code. */ }
+    if (binary) return command(binary, args, { ...options, secret: options.secret || args[0] === "token", env: {
+      ...env,
+      SNAPBACK4_ACQUIRE_HELPER: fileURLToPath(new URL("../bin/witness-acquire.js", import.meta.url)),
+      SNAPBACK4_UPGRADE_HELPER: fileURLToPath(new URL("../bin/upgrade.js", import.meta.url)),
+      SNAPBACK4_WEB_HELPER: fileURLToPath(new URL("../bin/witness-web.js", import.meta.url)),
+      SNAPBACK4_SUPERVISOR_PID: String(process.pid),
+    } });
+  }
   return command(process.execPath, [fileURLToPath(new URL("../bin/snapback4.js", import.meta.url)), ...args], { ...options, secret: options.secret || args[0] === "token" });
 }
 /** A bounded directly spawned build/tool command, with the same file logs. */
