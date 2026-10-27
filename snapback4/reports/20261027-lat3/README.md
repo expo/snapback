@@ -1,8 +1,9 @@
 # LAT3 proof execution startup
 
 Scope: `snapback4/proof` imports, native proof command dispatch, and execution
-measurements of copied app-farm scripts. Product changes are in `0f8f0a206f`,
-`f14c2ba98e` and `707f09a0f8`. Package versions remain 0.4.44.
+measurements of copied app-farm scripts. Product changes start at `0f8f0a206f`
+and include the reviewed error/deadline fixes through `eb80c8c7b3`.
+Package versions remain 0.4.44.
 
 The orientation context is LLP 3000.011.003.000.000 §§1, 4, 5, 8, 16–18
 (proof identity, keeper custody, browser assertions, native dispatch),
@@ -33,9 +34,10 @@ python3 snapback4/reports/20261027-lat3/replay.py --worker 0 --workers 4
 Raw task-local logs/receipts are under `/tmp/lat3/` while running. The final
 workstream report records actual completed coverage, mismatches, timing
 distributions, excluded setup attempts and deferrals. An unchanged pass/fail
-result is distinguished from a successful app proof. Source paths, random
-identities and stack locations are not failure-message differences; raw logs
-remain separate from any normalized comparison.
+result is distinguished from a successful app proof. Comparison removes Node
+warnings, the independent copy roots and explicit generated selector/run/log
+identities. It preserves operative errors, assertions, deadlines and app call
+sites. Raw logs remain private and separate from the normalized comparison.
 
 `verify.mjs` retains the selector's complete plan, then replaces its conservative
 449-file client closure with the named proof/browser/accounts/starter and
@@ -46,8 +48,15 @@ runs the four actual publication consumer entry points from installed tarballs;
 it does not publish or claim a complete publication receipt.
 
 Independent reviews and their exact prompts/transcripts are under
-`llp/reviews/3000.011.003.000.000-lat3-*`. Round 1 includes the Codex NOT READY
-findings; both round-2 reviews are READY after those fixes. The Muse round-2
+`llp/reviews/3000.011.003.000.000-lat3-*`. Rounds 1 and 3 include Codex NOT READY
+findings; both round-4 reviews are READY on the final runtime. The Muse round-2
 response contains a model-authored placeholder hyperlink for a commit; the
 verbatim response is preserved, and the actual source commit is recorded in
 its provenance header.
+
+`export.py` requires the complete script census and matching identity results,
+then writes only numerical measurements and hashes into the retained report.
+It rejects setup errors, unclassified verdict/message differences, installed
+client mutations and native trace parse failures. Raw app logs and credentials
+are never copied into the repository. The `.json` receipts distinguish complete
+corpus coverage from the subset recording input digests and native telemetry.
