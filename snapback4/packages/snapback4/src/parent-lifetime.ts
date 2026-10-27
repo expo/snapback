@@ -12,7 +12,7 @@ function identity(pid: number): Identity | undefined {
       return { parent: Number(fields[1]), birth: fields[19], command: readFileSync(`/proc/${pid}/comm`, 'utf8').trim() };
     }
     // Darwin has no /proc; ps lstart pins the original process incarnation.
-    const fields = execFileSync('ps', ['-p', String(pid), '-o', 'ppid=,stat=,lstart=,args='], { encoding: 'utf8', timeout: 2000, stdio: ['ignore', 'pipe', 'ignore'] }).trim().split(/\s+/);
+    const fields = execFileSync('ps', ['-p', String(pid), '-o', 'ppid=,stat=,lstart=,args='], { env: { ...process.env, LC_ALL: 'C' }, encoding: 'utf8', timeout: 2000, stdio: ['ignore', 'pipe', 'ignore'] }).trim().split(/\s+/);
     if (fields.length < 8 || fields[1]?.startsWith('Z')) return;
     return { parent: Number(fields[0]), birth: fields.slice(2, 7).join(' '), command: fields.slice(7).join(' ') };
   } catch { return; }
@@ -31,11 +31,12 @@ function capture(): Array<[number, string]> {
   return watched;
 }
 // Capture on import, before asynchronous host startup can outlive npm.
+const parent = process.ppid;
 const parents = capture();
 export function watchParent(onLost: () => void): () => void {
   let stopped = false;
   const check = () => {
-    if (!stopped && parents.some(([pid, birth]) => identity(pid)?.birth !== birth)) {
+    if (!stopped && ((parent > 1 && process.ppid !== parent) || parents.some(([pid, birth]) => identity(pid)?.birth !== birth))) {
       stopped = true; clearInterval(timer); onLost();
     }
   };

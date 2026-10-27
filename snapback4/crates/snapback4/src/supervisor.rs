@@ -1,7 +1,9 @@
 //! A host is owned by its launching parent, including npm above a surviving shell.
 // @ref LLP 3000.037.000#9-serve-lifetime-and-store-recovery-srv1 — parent death must release ports, pipes and store custody.
 use std::sync::atomic::{AtomicU32, Ordering};
-use std::{fs, time::Duration};
+use std::time::Duration;
+#[cfg(target_os = "linux")]
+use std::fs;
 #[cfg(not(target_os = "linux"))]
 use std::process::Command;
 
@@ -18,9 +20,19 @@ pub(crate) fn identity(pid: u32) -> Option<(u32, String)> {
     if matches!(*fields.first()?, "Z" | "X") { return None; }
     Some((fields.get(1)?.parse().ok()?, fields.get(19)?.to_string()))
 }
-#[cfg(not(target_os = "linux"))]
+#[cfg(target_os = "macos")]
 pub(crate) fn identity(pid: u32) -> Option<(u32, String)> {
-    let output = Command::new("ps").args(["-p", &pid.to_string(), "-o", "ppid=,stat=,lstart="]).output().ok()?;
+    let mut info = std::mem::MaybeUninit::<libc::proc_bsdinfo>::uninit();
+    let size = std::mem::size_of::<libc::proc_bsdinfo>();
+    let read = unsafe { libc::proc_pidinfo(pid as i32, libc::PROC_PIDTBSDINFO, 0, info.as_mut_ptr().cast(), size as i32) };
+    if read != size as i32 { return None; }
+    let info = unsafe { info.assume_init() };
+    if info.pbi_status == libc::SZOMB { return None; }
+    Some((info.pbi_ppid, format!("{}.{:06} Unix seconds", info.pbi_start_tvsec, info.pbi_start_tvusec)))
+}
+#[cfg(not(any(target_os = "linux", target_os = "macos")))]
+pub(crate) fn identity(pid: u32) -> Option<(u32, String)> {
+    let output = Command::new("ps").env("LC_ALL", "C").args(["-p", &pid.to_string(), "-o", "ppid=,stat=,lstart="]).output().ok()?;
     if !output.status.success() { return None; }
     let text = String::from_utf8(output.stdout).ok()?;
     let mut fields = text.split_whitespace();
@@ -32,7 +44,7 @@ fn npm(pid: u32) -> bool {
     #[cfg(target_os = "linux")]
     { fs::read_to_string(format!("/proc/{pid}/comm")).is_ok_and(|name| name.trim().starts_with("npm")) }
     #[cfg(not(target_os = "linux"))]
-    { Command::new("ps").args(["-p", &pid.to_string(), "-o", "args="]).output().is_ok_and(|out| { let text = String::from_utf8_lossy(&out.stdout); text.trim().starts_with("npm") || text.contains("/npm-cli.js ") }) }
+    { Command::new("ps").env("LC_ALL", "C").args(["-p", &pid.to_string(), "-o", "args="]).output().is_ok_and(|out| { let text = String::from_utf8_lossy(&out.stdout); text.trim().starts_with("npm") || text.contains("/npm-cli.js ") }) }
 }
 
 // Use a dedicated notification signal: Linux binds PDEATHSIG to the spawning
