@@ -1,0 +1,10 @@
+{
+  "binarySha256": "3a4ac751164bb96b7a07c8076e65b89350b2916c1d50704e73dc99815212d6b7",
+  "reviewedSource": "883aeea5d0",
+  "runtimeMainMerge": "fe9476a5e1",
+  "laterMainMerge": "f8fa80dc50",
+  "originMain": "98177aa48b",
+  "frozenInputs": 1961,
+  "mismatches": [],
+  "assessment": "Later main merge adds only benchmark records; all frozen production inputs remain byte-identical. Reviews bind the implemented security delta, independent of later report commits."
+}

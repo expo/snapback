@@ -1,0 +1,147 @@
+[
+  {
+    "wave": 30,
+    "lane": "004",
+    "finding": "F1",
+    "category": "witnessed question on default verdict",
+    "targetVisible": true,
+    "evidence": [
+      {
+        "code": "N_ASSIGNMENT_SCOPE",
+        "operation": "privateDetail",
+        "viewer": "account:security-roles-coordinator-1",
+        "decision": "76625d0d11d8c8724784f8caa9a24ddcba37fee5d85169ff86a59387c094f372",
+        "witness": "8a98f7b1c89c06a4b2274c0b597747a262b60dc8061d5d8d12983faf1bfb86ad",
+        "candidate": "question: jobPrivate.careNeeds read: coordinator has role-wide payload access despite modeled assignment `exists jobs[.job, coordinator = viewer]`; assigned or any?",
+        "gated": false
+      }
+    ]
+  },
+  {
+    "wave": 30,
+    "lane": "014",
+    "finding": "F1",
+    "category": "witnessed question on default verdict",
+    "targetVisible": true,
+    "evidence": [
+      {
+        "code": "N_ASSIGNMENT_SCOPE",
+        "operation": "board",
+        "viewer": "account:security-roles-lead-0",
+        "decision": "4c2cccc04be1e565f76063d91216713a0e1fe1e2837fef63ff267eff0a470eb8",
+        "witness": "4691509106c4a140b1eb282721f5a6a3de6d4c492eb6af1cc04ec52e7ffb26c3",
+        "candidate": "question: projects.clientPhone read: `exists roles[viewer, role = 'owner'] or exists roles[viewer, role = 'lead']` admits the whole role with no modeled assignment constraint; assigned or any?",
+        "gated": false
+      }
+    ]
+  },
+  {
+    "wave": 30,
+    "lane": "018",
+    "finding": "F1",
+    "category": "witnessed question on default verdict",
+    "targetVisible": true,
+    "evidence": [
+      {
+        "code": "N_APPROVAL_PATH",
+        "operation": "pruneTouchup",
+        "viewer": "account:security-roles-lead-0",
+        "decision": "7fbe02ddcb3a705ef6def317d37eeeac2657f40e961b8e9fbd767e8fdc839a8d",
+        "witness": "ba05c57ae54b546f6085dc9e958edd5eadf803fb9add44e6860d99a3f0961efb",
+        "candidate": "invariant touchups.done update only false -> true completion requires (not .visit.orchard.quarantine or (exists approvals[visit = .visit.id]))",
+        "gated": false
+      }
+    ]
+  },
+  {
+    "wave": 30,
+    "lane": "025",
+    "finding": "F1",
+    "category": "witnessed question on default verdict",
+    "targetVisible": true,
+    "evidence": [
+      {
+        "code": "N_CALLER_HISTORY",
+        "operation": "logExam",
+        "viewer": "account:security-roles-registrar-0",
+        "decision": "ec4e8594ceefe12be86dc00f739321040b00fa639f55bfaddef4651f49617c31",
+        "witness": "f6f1e62699f1e4bfcc24747f8fc7d1e7b475a91f0bc108f0b84493c80a7f894a",
+        "candidate": "invariant exams.insert only (.attempt >= 3 or .attempt >= count(exams[candidate = .candidate]))",
+        "gated": false
+      }
+    ]
+  },
+  {
+    "wave": 30,
+    "lane": "025",
+    "finding": "F2",
+    "category": "witnessed question on default verdict",
+    "targetVisible": true,
+    "evidence": [
+      {
+        "code": "N_LATEST_SUBJECT",
+        "operation": "logExam",
+        "viewer": "account:security-roles-registrar-0",
+        "decision": "b9d8e7734358038aa8075635806681b357e0880711df3d032d5a5da017165501",
+        "witness": "c9e32839e1ca86f341d39e13a05713d6716947ccc0d2d3bf2f079e03e5b49c4e",
+        "candidate": "invariant exams.insert only selected 'priorExam' is latest for 'candidate' by 'attempt'; receipt exists retestApprovals[candidate = candidate, priorExam = priorExam]; applicability (not (attempt = 1) and attempt >= 3)",
+        "gated": false
+      }
+    ]
+  },
+  {
+    "wave": 30,
+    "lane": "030",
+    "finding": "F2",
+    "category": "witnessed question on default verdict",
+    "targetVisible": true,
+    "evidence": [
+      {
+        "code": "N_TRANSITION_BYPASS",
+        "operation": "publishReport",
+        "viewer": "account:security-roles-engineer-0",
+        "decision": "659781d2dccefcef431e82202580e29adde0499151fbbe3d94346b55d3628b38",
+        "witness": "78411a77d30fc62a64904706492a1e19570aacbd3ec7ed4a75fac5b40909ae05",
+        "candidate": "question: studies.status: publishReport can bypass sibling markReviewed's measured -> reviewed step; must reported require reviewed?",
+        "gated": false
+      }
+    ]
+  },
+  {
+    "wave": 30,
+    "lane": "033",
+    "finding": "F1",
+    "category": "gated with witness",
+    "targetVisible": true,
+    "evidence": [
+      {
+        "code": "N_APPROVAL_NOT_ENFORCED",
+        "operation": "advanceJob",
+        "viewer": "account:security-roles-owner-0",
+        "decision": "6a1780afc7a25a96a827deaf3a5b97f08cef9ac29bf10223c5665078f11cc371",
+        "witness": "73544f77d04f6a3d8621f3e095990704216edd028d5d264dcbb48c4aff219318",
+        "candidate": "invariant jobs.advanceJob only (not .dampSigned or .dampApproved)",
+        "gated": true
+      }
+    ],
+    "productionFixes": []
+  },
+  {
+    "wave": 30,
+    "lane": "035",
+    "finding": "F1",
+    "category": "witnessed question on default verdict",
+    "targetVisible": true,
+    "evidence": [
+      {
+        "code": "N_TRANSITION_BYPASS",
+        "operation": "advanceStage",
+        "viewer": "account:security-roles-cleaner-0",
+        "decision": "2056b3ebc232075e8535ea9bbd7024e9f4f63f05c38dfdca60a5981725085244",
+        "witness": "06079f4a022ad75a6f056e15610f64d0a978e5696d6d0ab9bfe1885eb86ae5a2",
+        "candidate": "question: batches.stage: advanceStage accepts a caller-selected stage; sibling markReady requires finished; must intermediate declared values have explicit transitions?",
+        "gated": false
+      }
+    ]
+  }
+]
