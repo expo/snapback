@@ -73,6 +73,7 @@ export async function uploadAsset(base: string, headers: Record<string, string>,
   let target = file ? `${base}/assets?as=file&name=${encodeURIComponent(file.name)}` : `${base}/assets`;
   if (intent) target += `${file ? "&" : "?"}intent=${encodeURIComponent(intent.id)}&store_id=${encodeURIComponent(intent.store)}`;
   const contentType = file?.type ?? "application/octet-stream";
+  let imageFallback = false;
   // Caller-owned buffers may change during admission backoff. Every attempt
   // sends the same selected byte range, including inputs from another realm.
   // Native Blob rejects buffer parts; its fetch accepts an owned buffer view.
@@ -90,6 +91,16 @@ export async function uploadAsset(base: string, headers: Record<string, string>,
       catch { return { ok: false, why: invalidResponse(response.status, "upload") }; }
       if (response.ok && json?.asset) return { ok: true, asset: json.asset };
       const denied = refusal(json?.denied) ?? invalidResponse(response.status, "upload");
+      // @ref LLP 3000.038#3 — metadata does not prove an image's type. A
+      // file-less schema refuses before reading/staging, so retry once through
+      // its media sniffer, which verifies bytes and the image column's bound.
+      if (file && !intent && !imageFallback && denied.code === "E_ASSET_TYPE"
+        && denied.message.startsWith("no column of this backend takes a file;")) {
+        if (!canRetry()) return { ok: false, why: denied };
+        imageFallback = true;
+        target = `${base}/assets`;
+        continue;
+      }
       const why = denied.code === "E_RATE_LIMIT" ? { ...denied, message: `${denied.message}; upload admission is busy: send files sequentially, then retry the same selected bytes after Retry-After (automatic retries are bounded)` } : denied;
       // Only an explicit admission refusal proves these bytes were not stored.
       // A transport failure or another retryable code may follow acceptance.

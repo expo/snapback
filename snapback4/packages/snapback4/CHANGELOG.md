@@ -4,6 +4,8 @@
 
 ### Guide changes
 
+- Image-only backends accept client.upload file metadata through the verified image path after a file-kind refusal; invalid bytes and image bounds still refuse. File scenarios are labelled inapplicable when the schema has no file column. Frontend install logs stay in .snapback4/install.log; init names one blocking --wait command whose output is a single completion line.
+
 - Start replaces the introductory card tour with one compiling customer/staff workflow and feature pointers. Default cards have a hard reading budget; project repeats show deltas (guide --repeat/--full restore content). Build-time API digests and a generated operation index replace declaration greps. Init shows the recipe and file map before a background frontend install with status/wait. Probe scripts announce their lifetime, refuse repeated empty long runs and bound idle foreground waiting unless the npm script receives --hold; probe:check verifies. Upload placement explains separate uploads for several image columns.
 
 - Production proofs have one serve/accounts/static-host/SIGTERM recipe. Roster mismatches name supplied and pinned plans. Inherited serve drivers get a serve-check --then next step on upgrade; the proof preserves the requested uptime. waitForFresh can observe a stable control before its trigger. Admin data --all and snapshotAll inspect all active rows; generated query help exposes next. Reads show the complete-empty absent arm; ambiguous signup advises login without revealing account existence.

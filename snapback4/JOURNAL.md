@@ -109712,3 +109712,7 @@ Only `serving()` arms the G6 exit. Deploy retains persisted-selection recovery,
 pointer/log completion and lease release. The report's new regressions fill a
 real stderr pipe and delay an unknown-but-durable activation's reconciliation
 probe. LLP 3000.009.001.000 §5.1 records the corrected lifecycle contract.
+
+## 2026-10-27 — CALLS1: image metadata and a quiet install join
+
+Wave 34 file options selected the document path on image-only schemas. The client now retries only the explicit pre-body no-file-column refusal through the existing media sniffer, using the same bytes and credentials; mixed/file schemas keep document semantics. Image bounds, placement and authorization remain enforced. The installer retains its private worker custody, puts npm chatter in its private log and gives --wait one final completion line; init promotes that blocking join instead of status polling. No version bump.

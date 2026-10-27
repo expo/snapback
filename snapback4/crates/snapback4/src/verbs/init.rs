@@ -788,6 +788,6 @@ fn background_install(dir: &Path) -> std::io::Result<()> {
     pending.write_all(serde_json::to_string(&json!({"id":request})).unwrap().as_bytes())?;
     Command::new("node").arg("scripts/install.mjs").arg("--background").env("SNAPBACK4_INSTALL_REQUEST", &request).current_dir(dir)
         .stdin(Stdio::null()).stdout(Stdio::from(log.try_clone()?)).stderr(Stdio::from(log)).spawn()?;
-    println!("init: frontend install running in background; read/edit now. Progress: node scripts/install.mjs --status; join once: node scripts/install.mjs --wait; log .snapback4/install.log");
+    println!("init: frontend install running in background; read/edit now. Next: node scripts/install.mjs --wait (one blocking command; allow it to finish, no status polling). Completion prints one final line; log .snapback4/install.log");
     Ok(())
 }
