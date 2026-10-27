@@ -93,7 +93,7 @@ impl Binder<'_> {
     }
     // Advisory-only helper implication. Existing lexical facts retain their
     // rebinding/write invalidation; expanded values never enter runtime proofs.
-    // @ref LLP 3000.036.004.003#2-read-guards — pure role helpers are transparent to advice.
+    // @ref LLP 3000.036.004.005#2-read-guards — pure role helpers are transparent to advice.
     fn lookup_advice_proved(&self, table: &str, value: &A) -> bool {
         let Some(expanded) = super::super::advisory_guards::expand(self.catalog,value)else{return false;};
         if self.lookup_rule_proved(&expanded) { return true; }

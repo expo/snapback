@@ -1,3 +1,5 @@
+// Generation/adaptation fixtures defer dependency installation; packed starters exercise the installer.
+process.env.SNAPBACK4_INIT_INSTALL = "0";
 // @ref LLP 3000.001.000#hs-cross-repository-correction-2026-10-13 — every starter includes its configuration in the typecheck.
 import test from 'node:test';
 import assert from 'node:assert/strict';

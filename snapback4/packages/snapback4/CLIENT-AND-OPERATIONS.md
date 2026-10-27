@@ -4350,6 +4350,32 @@ export async function chooseOwner(page: Page, id: string) {
 }
 ```
 
+## Feature lookup and operator snapshots
+
+Open only the needed feature: `guide reads` for queries, `guide sync` for offline
+acquisition bounds, `guide maintains` for derived counts and `guide feeds` for feeds.
+These references follow the bounded README/start path; they are optional lookups.
+
+Administrative snapshots bypass application read rules. Use them only in a trusted
+local/operator proof process, never as an application reader:
+
+```ts
+import { snapshotAll } from "snapback4/proof";
+export async function inspectMessages(release: string) {
+  return snapshotAll("messages", { release });
+}
+```
+
+Generated probe scripts already own their lifetime. An existing custom driver
+acquires the guard before deployment, calls ready after its hosts are ready,
+checks idle to stop its owned hosts, and closes it in finally. Intentional held
+service uses --hold or SNAPBACK4_PROBE_HOLD=1:
+
+```ts
+import { probeServeGuard } from "snapback4/proof";
+export const acquireProbeLifetime = (directory: string) => probeServeGuard({ directory });
+```
+
 ## Your first working account screen
 
 This optional walkthrough replaces the generated starter with a password profile, avatar and thread. Run the starter first; read on when you need those features.

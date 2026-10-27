@@ -1,5 +1,5 @@
 //! Source-constructor relationships for review advice, never runtime assumptions.
-// @ref LLP 3000.036.004.003#2-read-guards — complete immutable constructor copies answer source advice, never database authority.
+// @ref LLP 3000.036.004.005#2-read-guards — complete immutable constructor copies answer source advice, never database authority.
 use super::catalog::Catalog;
 use crate::ast::*;
 use snapback4_core::schema::{Schema,ColumnType,Constraint};

@@ -692,7 +692,7 @@ mod tests {
 /// separate current finite replay, so their work cannot displace any gate or
 /// question in the ordinary collector. Generated advice caches supply no part
 /// of this restoration and are not overwritten by it.
-// @ref LLP 3000.036.004.003#integration-tier-boundary — retain every current witnessed question before advisory omission.
+// @ref LLP 3000.036.004.005#integration-tier-boundary — retain every current witnessed question before advisory omission.
 pub(in crate::verbs) fn restore_questions(project:&Project,bound:&Bound,sources:&[(String,String)],report:&mut security::Report,evidence:&mut Vec<Option<serde_json::Value>>,options:&Options){
     let basis=security::question_basis(sources,bound).into_iter().filter(|note|!report.notes.iter().any(|n|n.code==note.code&&n.site==note.site)).collect::<Vec<_>>();
     if basis.is_empty(){return;}

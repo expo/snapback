@@ -168,7 +168,7 @@ cp.execFileSync = (cmd,args,opts={}) => {
       context = args.at(-1);
       const dockerfile = readFileSync(join(args.at(-1), "Dockerfile"), "utf8");
       assert.ok(dockerfile.split(String.fromCharCode(10)).some(line => line.startsWith("COPY ") && line.includes("starter-audit-allowlist.json") && line.endsWith(" /proof/")), "the image must carry the starter audit policy");
-      assert.deepEqual(JSON.parse(readFileSync(join(args.at(-1), "starter-audit-allowlist.json"), "utf8")), JSON.parse(readFileSync(new URL("../../../scripts/starter-audit-allowlist.json", import.meta.url), "utf8")), "the image must retain the exact current audit policy");
+      assert.deepEqual(JSON.parse(readFileSync(join(args.at(-1), "starter-audit-allowlist.json"), "utf8")), ${JSON.stringify(JSON.parse(readFileSync(new URL("../../../scripts/starter-audit-allowlist.json", import.meta.url), "utf8")))}, "the image must retain the exact current audit policy");
       const configs = [...dockerfile.matchAll(/NPM_CONFIG_(?:USER|GLOBAL)CONFIG=(\\S+)/g)].map(m => m[1]);
       if(configs.length !== 2 || configs[0] === configs[1]) throw Error("npm cannot double-load one config path");
     }

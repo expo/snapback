@@ -31,7 +31,7 @@ function fixture(t, index) {
   assert.deepEqual(check.notes.map(note => note.code), ['N_LOOKUP_FILTERED']);
   const [note] = check.notes;
   const [operation, table] = index === 0 ? ['addEntry', 'folders'] : ['recordAsset', 'assets'];
-  assert.match(note.message, new RegExp(`mutation ${operation}: lookup of ${table}`));
+  assert.match(note.message, new RegExp(`mutation ${operation}: saw lookup of ${table}`));
   assert.match(note.message, /read <- \.owner = viewer/);
   assert.match(note.message, /hidden, expired or missing/);
   assert.match(note.rewrite, /do not widen private rows/);

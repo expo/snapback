@@ -109659,3 +109659,21 @@ hypothesis only with concrete evidence, preserving the ordinary collector and
 its gates. This replay reads no advice cache. Production rechecks source identity
 after joining it. Restored questions stay nonblocking and keep evaluated answers.
 The guide and SECP LLP record this integration boundary.
+
+## 2026-10-27 — Integration 28 publication fixture reconciliation
+
+Keep bounded start/README reading and move reference assertions through their
+existing client-reference pointer. Refresh the generated operation-index metadata
+and await census, preserving all frozen durable bytes and all 215 delivery await
+identities. Fault instrumentation now captures the client before its watch-guard
+wrapper; fault assertions still require real injection and recovery. Generation
+fixtures defer installers; dedicated TOK1 and packed-starter paths own installer
+lifecycle. Ignore named ephemeral test trees/logs so concurrent verification does
+not make an unchanged publication checkout dirty. Job guide tests retain backlog
+catch-up before the exclusive coalesced period end.
+
+SECP's final conflict-correction identity is .005: a read-only check of excluded
+SEC11b found provisional .003/.004 reservations after the first integration
+assignment. Historical .001 reviews and the intermediate .003 commit remain in
+history. SEC11b's .002 conflict with landed SEC12 is a filesystem follow-up; none
+of that excluded branch's new code or documents is merged.

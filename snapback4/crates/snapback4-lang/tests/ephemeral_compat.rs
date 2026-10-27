@@ -345,6 +345,8 @@ fn strip_client_metadata(types: &str, bound: &snapback4_lang::Bound) -> String {
     assert_eq!(types.matches(IMPORTS).count(), 1);
     const UNWRAP: &str = " Unwrap with isReady(read) && read.data, or matchRead(read, handlers) from snapback4/contract (also snapback4/react).";
     assert_eq!(types.matches(UNWRAP).count(), bound.programs.iter().filter(|p| p.program.kind == ProgramKind::Query).count());
+    const PAGINATION: &str = " Ready client.query results expose next: Cursor | null; pass it to the query cursor argument until null.";
+    assert_eq!(types.matches(PAGINATION).count(),bound.programs.iter().filter(|p|p.program.kind==ProgramKind::Query).count());
     // Wave 14 adds only this generated header and one timing sentence per
     // durable mutation. Pin their exact text/counts independently of the emitter
     // before removing them; every frozen schema/type byte still compares below.
@@ -356,7 +358,12 @@ fn strip_client_metadata(types: &str, bound: &snapback4_lang::Bound) -> String {
     const TIMING_NEVER: &str = " Timing: no predicted row; query results change after server settlement and delivery.";
     const TIMING_ELIGIBLE: &str = " Timing: with a device and held facts, a pending row may render before run() settles; otherwise queues without a predicted row.";
     assert_eq!(types.matches(PREDICTION_HEADER).count(), 1);
-    assert_eq!(types.find(PREDICTION_HEADER), types.find('\n').map(|at| at + 1), "prediction header follows the generated banner");
+    let banner_end=types.find('\n').unwrap()+1;
+    let prediction_at=types.find(PREDICTION_HEADER).unwrap();
+    let operation_index=&types[banner_end..prediction_at];
+    assert!(operation_index.starts_with("// Operation index — guide api generated; signatures: guide api client | auth | proof\n"));
+    assert!(operation_index.ends_with("// Full signatures and result types below. Never edit generated files.\n\n"));
+    assert!(operation_index.lines().all(|line|line.is_empty()||line.starts_with("// ")),"only the separately tested TOK1 comment index precedes prediction facts");
     let (mut never, mut eligible) = (0, 0);
     for program in bound.programs.iter().filter(|p| p.program.kind == ProgramKind::Mutation) {
         let fact = &bound.schema.operations[&program.program.name];
@@ -369,8 +376,8 @@ fn strip_client_metadata(types: &str, bound: &snapback4_lang::Bound) -> String {
     }
     assert_eq!(types.matches(TIMING_NEVER).count(), never);
     assert_eq!(types.matches(TIMING_ELIGIBLE).count(), eligible);
-    let mut normalized = types.replacen(IMPORTS, "", 1).replace(UNWRAP, "")
-        .replacen(PREDICTION_HEADER, "", 1).replace(TIMING_NEVER, "").replace(TIMING_ELIGIBLE, "");
+    let mut normalized = types.replacen(IMPORTS, "", 1).replace(UNWRAP, "").replace(PAGINATION, "")
+        .replacen(operation_index, "", 1).replacen(PREDICTION_HEADER, "", 1).replace(TIMING_NEVER, "").replace(TIMING_ELIGIBLE, "");
     let mut count = 0;
     for program in &bound.programs {
         let program = &program.program;

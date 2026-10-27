@@ -1,3 +1,5 @@
+// Generation/adaptation fixtures defer dependency installation; packed starters exercise the installer.
+process.env.SNAPBACK4_INIT_INSTALL = "0";
 import { captureStdout } from './helpers/server-output.mjs';
 import { waitFor as awaitState, hangBudget } from './helpers/wait.mjs';
 import test from "node:test";

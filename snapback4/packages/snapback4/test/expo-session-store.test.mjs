@@ -33,7 +33,8 @@ test('SecureStore failures propagate without claiming persistence', async () => 
 });
 
 test('published native snippets and both active Expo starters use the injected SecureStore adapter', () => {
-  for (const path of ['../README.md', '../CLIENT-AND-OPERATIONS.md', '../../../crates/snapback4/src/verbs/init/expo-client.ts', '../../../crates/snapback4/src/verbs/init/starter/expo/client.ts']) {
+  assert.match(readFileSync(new URL('../README.md',import.meta.url),'utf8'), /CLIENT-AND-OPERATIONS\.md/);
+  for (const path of ['../CLIENT-AND-OPERATIONS.md', '../../../crates/snapback4/src/verbs/init/expo-client.ts', '../../../crates/snapback4/src/verbs/init/starter/expo/client.ts']) {
     const text = readFileSync(new URL(path, import.meta.url), 'utf8');
     assert.match(text, /secureStoreSessionStore\(SecureStore\)/, path);
     assert.doesNotMatch(text, /SecureStore\.(getItemAsync|setItemAsync|deleteItemAsync)/, path);

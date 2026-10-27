@@ -33,3 +33,34 @@ summary; full phase traces live under ~/sb4-loop/reports/integration28/
 latency-tier-rows.json. Reproduce with the retained latency harness and key list.
 No threshold assertion was weakened. Full production and Mac qualification
 remain publication work.
+
+## Final production-binary measurement
+
+Use the actual wave32 digest-pinned static 0.4.43 binary (a8c85c5907b50bc62419313594f0563a9171a58795191bd13d21ff6fe2114b74)
+and Integration 28 static 0.4.44 (aa6a5388fcf1f26066abb49af8b40da076145bef34493c91f674fd858b1005bf)
+for the builder-facing result. Same deterministic 54-schema sample, four latency
+workers alongside four survey workers. This is a stratified sample of the 940-schema
+corpus, not a full latency census. Source/fixture copies only; zero tool failures.
+
+| Command | 0.4.43 median / p90 | 0.4.44 median / p90 |
+| --- | --- | --- |
+| check cold | 6.238 / 33.032 | 8.460 / 21.395 |
+| check warm | 2.303 / 15.140 | 6.069 / 16.317 |
+| staging cold | 7.280 / 31.326 | 9.085 / 27.189 |
+| staging warm | 0.554 / 1.094 | 1.490 / 2.706 |
+
+Both cold tails improve, while medians and warm measurements regress; the 10s/15s
+cold targets remain unmet. Wave31/033 takes 36.841s for cold check: ordinary
+witness collection 24.463s (derived report 24.027s), followed by independent
+restoration 11.032s. Cold staging is 35.735s: ordinary witnesses 23.428s,
+restoration 9.947s. Generated initialization dominates both. Default check and
+non-strict staging begin with a 512-work report; their collector independently
+needs the larger augmented derived report. Reusing that weaker initial report
+would change verdicts and is not a safe one-line optimization. The 3072/8192 work
+budgets and independent tier-preserving replay remain intact.
+
+The final public profile is latency-production-profile.json beside this report's
+retained evidence. Candidate follow-up: share immutable fixture initialization,
+or schedule independent replay concurrently with ordered reduction and current
+source/decision guards. Recompare exact verdicts and witness payloads against the
+uncached sequential control. No threshold or security assertion was weakened.

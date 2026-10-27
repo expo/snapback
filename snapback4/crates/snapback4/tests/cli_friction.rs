@@ -650,7 +650,7 @@ query staffNotes(c: cursor ?):\n  require exists staff[viewer] else NOT_STAFF\n 
 /// wrapper for `web-shell` instead of "unknown verb" (060).
 #[test]
 fn the_acceptance_recipe_reads_both_refusal_envelopes_and_web_shell_names_its_wrapper() {
-    let guide = Command::new(BIN).args(["guide", "testing", "--section", "acceptance"]).output().unwrap();
+    let guide = Command::new(BIN).args(["guide", "testing", "--section", "acceptance", "--repeat"]).output().unwrap();
     let guide = text(&guide);
     for term in ["snapback4/proof", "await startDev({ args: [\"--memory\"] })", "await startStatic(\"dist\")", "PORT_LO..PORT_HI", "{state:'failed', why}", "HTTP acknowledgement is not React settlement"] {
         assert!(guide.contains(term), "guide testing's acceptance section names {term}:\n{guide}");
@@ -788,7 +788,7 @@ fn persona_lists_and_repeated_flags_run_each_requested_persona() {
 fn literal_guide_find_and_sql_object_envelope() {
     let project = Project::new("query who():\n  return viewer\n");
     for needle in ["--json-objects", "{", "'"] {
-        let output = project.run(&["guide", "deploy", "--find", needle]);
+        let output = project.run(&["guide", "deploy", "--find", needle, "--repeat"]);
         let out = text(&output);
         assert!(!out.contains("E_INPUT:"), "{out}");
         assert!(out.contains(needle), "literal search was lost: {out}");
@@ -989,11 +989,11 @@ fn generated_mounts_do_not_imply_a_device_and_custom_artifacts_are_identified_by
 #[test]
 fn guide_find_without_a_card_searches_punctuation_and_reports_literal_misses() {
     let project=Project::new("query who():\n  return viewer\n");
-    let output=project.run(&["guide","--find","sum("]);
+    let output=project.run(&["guide","--find","sum(","--repeat"]);
     assert!(output.status.success(),"{}",text(&output));
     assert!(text(&output).contains("sum(") && text(&output).contains("guide "));
     for needle in ["--hand-no-such-option"] {
-        let output=project.run(&["guide","--find",needle]);
+        let output=project.run(&["guide","--find",needle,"--repeat"]);
         assert_eq!(output.status.code(),Some(1),"{}",text(&output));
         assert!(text(&output).contains(needle) && text(&output).contains("no line of any guide card"),"{}",text(&output));
     }

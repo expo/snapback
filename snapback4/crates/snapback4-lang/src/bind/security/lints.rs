@@ -166,7 +166,7 @@ pub(super) fn source_notes(sources:&[(String,String)],bound:&Bound)->Vec<Diagnos
                 prior_tables.insert(table.clone());
 
 
-                // @ref LLP 3000.036.004.003#4-operator-provisioning — the
+                // @ref LLP 3000.036.004.005#4-operator-provisioning — the
                 // documented local operator chooses recipients deliberately.
                 let requirements=catalog.tables.get(table).map(|info|super::operation::requirements(&catalog,info,&context)).unwrap_or_default();
                 let operator=RuleExpr::Eq(RuleTerm::Viewer,RuleTerm::Literal(snapback4_core::Value::Id("service:operator".into())));
@@ -259,7 +259,7 @@ pub(super) fn argument_guard(expr:&Expr,argument:&str,target:&str)->Option<bool>
     }
 }
 
-// @ref LLP 3000.036.004.003#integration-tier-boundary — source facts may omit advice, never an executable witnessed question.
+// @ref LLP 3000.036.004.005#integration-tier-boundary — source facts may omit advice, never an executable witnessed question.
 pub(super) fn question_basis(sources:&[(String,String)],bound:&Bound)->Vec<Diagnostic>{
     let mut out=Vec::new();
     for (file,source) in sources {let doc=crate::parse_document(file,source).0;
