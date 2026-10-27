@@ -5,6 +5,7 @@ impl Store {
     pub fn fork_memory(&self) -> Result<Self, RuntimeError> {
         let started = crate::replay_profile::start();
         let mut conn = Connection::open_in_memory()?;
+        let page_size=conn.query_row("PRAGMA page_size",[],|row|row.get::<_,i64>(0))? as u64;
         {
             let backup = rusqlite::backup::Backup::new(&self.conn, &mut conn)?;
             backup.run_to_completion(256, std::time::Duration::ZERO, None)?;
@@ -14,6 +15,8 @@ impl Store {
         // Prepare the copied database once. Initializing a blank schema before
         // backup only builds tables that the backup immediately discards.
         let mut fork = Self::prepare(conn, Self::memory_assets_dir()?, true, self.server)?;
+        // Retain the previous memory fork's accounting page size as well.
+        fork.page_size=page_size;
         fork.catalog = self.catalog.clone();
         fork.identity = self.identity.clone();
         fork.server = self.server;
