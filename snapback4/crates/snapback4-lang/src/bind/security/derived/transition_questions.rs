@@ -26,7 +26,7 @@ fn actor_check(e:&Expr,bound:&Bound)->bool{match e{
 }}
 fn plain_guard(e:&Expr)->bool{let mut e=e.clone();let mut safe=true;super::super::super::intent_walk::expression(&mut e,&mut |e|if matches!(e,Expr::Assert{..}|Expr::Call{..}|Expr::Write{..}){safe=false;});safe}
 fn conjuncts(e:&Expr,out:&mut Vec<Expr>){if let Expr::Binary{op,left,right,..}=e&&op=="and"{conjuncts(left,out);conjuncts(right,out);}else{out.push(e.clone());}}
-#[derive(Clone)]struct Step{table:String,column:String,value:Expr,site:Site,operation:String,effect:String,guards:Vec<Expr>,anchor:bool,old_restricted:bool}
+#[derive(Clone)]struct Step{table:String,column:String,value:Expr,site:Site,operation:String,effect:String,types:BTreeMap<String,C>,guards:Vec<Expr>,anchor:bool}
 fn direct(p:&ast::ProgramDecl,site:&Site)->Option<usize>{
     if !p.prelude.is_empty()||p.body.iter().any(|s|matches!(s,Stmt::If{..}|Stmt::For{..}|Stmt::As{..}|Stmt::Break{..}|Stmt::Continue{..})){return None;}
     let at=p.body.iter().position(|s|matches!(s,Stmt::Expr{value:Expr::Write{site:s,..},..}|Stmt::Return{value:Expr::Write{site:s,..},..}if s==site))?;
@@ -49,16 +49,14 @@ fn steps(sources:&[(String,String)],bound:&Bound)->Vec<Step>{
                 if writes.iter().filter(|(w,_)|matches!(w,Expr::Write{table:t,fields,..}if t==table&&fields.iter().any(|f|f.name==field.name))).count()!=1{continue;}
                 let Some(value)=&field.value else{continue;};let literal=literal(value).is_some();
                 let caller=if let Expr::Name{name,..}=value{p.args.iter().any(|a|a.name==*name&&matches!(&a.type_.kind,TypeKind::Enum{variants:v}if v.iter().collect::<BTreeSet<_>>()==variants.iter().collect::<BTreeSet<_>>()))}else{false};
-                let focused=|e:&Expr|{let mut e=e.clone();let mut found=false;super::super::super::intent_walk::expression(&mut e,&mut |e|if matches!(e,Expr::Member{base,name,..}if name==&field.name&&super::same_resource(base,table,keys,p)){found=true;});found};
-                let old_restricted=context.body.iter().any(|s|if let Stmt::Require{condition,..}=s{focused(condition)&&!matches!(condition,Expr::Binary{op,left,right,..}if op=="!="&&((focused(left)&&crate::print::expression(right)==crate::print::expression(value))||(focused(right)&&crate::print::expression(left)==crate::print::expression(value))))}else{false});
-                if literal||caller{out.push(Step{table:table.clone(),column:field.name.clone(),value:value.clone(),site:site.clone(),operation:operation.clone(),effect:crate::print::expression(write),guards:guards.clone(),anchor:anchor&&complete&&writes.len()==1,old_restricted});}
+                if literal||caller{out.push(Step{table:table.clone(),column:field.name.clone(),value:value.clone(),site:site.clone(),operation:operation.clone(),effect:crate::print::expression(write),types:fields.iter().map(|f|(f.name.clone(),bound.schema.tables[table].columns[&f.name].clone())).collect(),guards:guards.clone(),anchor:anchor&&complete&&writes.len()==1});}
             }
         }
     }out
 }
 fn add(out:&mut Vec<(Diagnostic,Invariant)>,write:&Step,anchor:&Step,from:&str,to:&str,focus:&str,message:String,bound:&Bound){
     let applicable=anchor.guards.iter().filter(|g|choices(g,focus).is_none()&&!actor_check(g,bound)).cloned().reduce(|a,b|workflow::binary("and",a,b)).unwrap_or(Expr::Literal{value:ast::Literal::Bool(true),site:Site::default()});
-    let basis=format!("{} effect {}; guards {}; bypass {} effect {}; domain {:?}; anchor domain {:?}",anchor.operation,anchor.effect,anchor.guards.iter().map(|g|format!("({})",crate::print::expression(g))).collect::<Vec<_>>().join(" and "),write.operation,write.effect,bound.schema.tables[&write.table].columns[&write.column],bound.schema.tables[&anchor.table].columns[&anchor.column]);
+    let basis=format!("{} effect {}; guards {}; bypass {} effect {}; types {:?}; anchor types {:?}",anchor.operation,anchor.effect,anchor.guards.iter().map(|g|format!("({})",crate::print::expression(g))).collect::<Vec<_>>().join(" and "),write.operation,write.effect,write.types,anchor.types);
     let policy=Expr::Call{name:"$sec11-transition".into(),args:vec![string(&write.site.to_string()),string(&write.column),string(from),string(to),applicable,string(&basis)],site:Site::default()};let mut invs=Vec::new();
     workflow::add_syntax(&mut invs,&write.table,Some(&write.column),"update",policy,&write.site,"sec11-transition",Some(write.operation.clone()));let mut inv=invs.remove(0);
     inv.predicate=format!("question hypothesis {}.{} {from} -> {to}; {basis}",write.table,write.column);
@@ -73,7 +71,7 @@ pub fn questions(sources:&[(String,String)],bound:&Bound)->Vec<(Diagnostic,Invar
             let Some(to)=literal(&write.value)else{continue;};let old=write.guards.iter().filter_map(|g|choices(g,&write.column)).reduce(|a,b|a.intersection(&b).cloned().collect());
             let prior=anchor.guards.iter().filter_map(|g|choices(g,&write.column)).reduce(|a,b|a.intersection(&b).cloned().collect());
             if let(Some(old),Some(prior))=(old,prior)&&old.len()==2&&prior.len()==1&&old.contains(target)&&!old.contains(to){let from=prior.first().unwrap();if from!=target&&old.contains(from){add(&mut out,write,anchor,from,to,&write.column,format!("{}.{}: {} can bypass sibling {}'s {from} -> {target} step; must {to} require {target}?",write.table,write.column,write.operation,anchor.operation),bound);}}
-        }else if matches!(write.value,Expr::Name{..})&&!write.old_restricted{
+        }else if matches!(write.value,Expr::Name{..}){
             let Some(ColumnDefault::Literal(Value::String(from)))=bound.schema.tables[&write.table].defaults.get(&write.column)else{continue;};
             let prior=anchor.guards.iter().filter_map(|g|choices(g,&anchor.column)).reduce(|a,b|a.intersection(&b).cloned().collect());
             if prior.as_ref().is_none_or(|s|s.len()!=1||s.contains(target)){continue;}
@@ -109,7 +107,10 @@ pub(crate) fn judge(inv:&Invariant,old:Option<&Value>,row:&Value,rows:&BTreeMap<
    (BATCH,"advanceStage","inspection","finished","require stage != b.stage else NO_CHANGE","require stage != b.stage else NO_CHANGE\n  require (b.stage = 'inspection' and stage = 'cleaning') or (b.stage = 'cleaning' and stage = 'flameproofing') or (b.stage = 'flameproofing' and stage = 'pleating') or (b.stage = 'pleating' and stage = 'finished') else BAD_TRANSITION")]{
    let(mut b,qs)=compile(source);b.invariants=qs.iter().map(|(_,i)|i.clone()).collect();let mut c=challenges::Campaign::work_bounded(8192);challenges::generated_campaign(&b,&mut c,false);
    assert!(c.violations.iter().any(|v|v.operation==op&&v.old.as_ref().and_then(|r|r.field(qs[0].1.column.as_ref().unwrap()).ok())==Some(&Value::String(from.into()))&&v.row.field(qs[0].1.column.as_ref().unwrap()).ok()==Some(&Value::String(to.into()))&&v.reachability.is_reachable()),"{op} missing actual edge: {} calls; {:?}",c.attempted,c.unsupported);
-   assert!(compile(&source.replace(broken,fixed)).1.is_empty());
+   let repaired=source.replace(broken,fixed);let(mut fixed_bound,fixed_questions)=compile(&repaired);
+   if op=="advanceStage"{assert_eq!(fixed_questions.len(),1);fixed_bound.invariants=fixed_questions.into_iter().map(|(_,i)|i).collect();}
+   else{assert!(fixed_questions.is_empty());let mut retained=qs[0].1.clone();let doc=crate::parse_document("schema.q",&repaired).0;let program=doc.programs.iter().find(|p|p.name==op).unwrap();let site=program.body.iter().find_map(|s|if let Stmt::Expr{value:Expr::Write{op:WriteOp::Update,site,..},..}=s{Some(site)}else{None}).unwrap();if let Some(Expr::Call{args,..})=&mut retained.syntax{args[0]=string(&site.to_string());}fixed_bound.invariants=vec![retained];}
+   let mut fixed_campaign=challenges::Campaign::work_bounded(8192);challenges::generated_campaign(&fixed_bound,&mut fixed_campaign,false);assert!(fixed_campaign.violations.is_empty(),"the same bad-edge hypothesis survives the repair: {:?}",fixed_campaign.violations);
   }
  }
  #[test]fn anchor_scope_and_domain_are_material_and_unrelated_targets_are_uncovered(){
@@ -135,6 +136,11 @@ pub(crate) fn judge(inv:&Invariant,old:Option<&Value>,row:&Value,rows:&BTreeMap<
   let open=BTreeMap::from([("reviewWindows".into(),vec![snapback4_core::value::object([("id",Value::Id("window".into())),("open",Value::Bool(true))])])]);assert_eq!(judge(inv,Some(&old),&next,&open,&b.schema,"actor",0,Some(site)),Some(false));
   let asserted=STUDY.replace("require s.status = 'measured' else BAD_STATUS","customerRole = roles[principal = s.customer] ! else NO_CUSTOMER_ROLE\n  require s.status = 'measured' else BAD_STATUS");assert!(compile(&asserted).1.is_empty(),"an auxiliary asserted read is an unmodeled prerequisite");
   let guard=STUDY.replace("require s.status = 'measured' else BAD_STATUS","require (roles[principal = s.customer] ! else NO_CUSTOMER_ROLE).role = 'customer' else WRONG_ROLE\n  require s.status = 'measured' else BAD_STATUS");assert!(compile(&guard).1.is_empty(),"an assertion inside a guard must not escape the anchor boundary");
+ }
+
+ #[test]fn guard_presence_cannot_hide_an_admitted_jump_and_secondary_types_bind_the_basis(){
+  let source=BATCH.replace("require stage != b.stage else NO_CHANGE","require stage != b.stage and stage != b.stage else NO_CHANGE");let(mut b,qs)=compile(&source);assert_eq!(qs.len(),1);b.invariants=qs.into_iter().map(|(_,i)|i).collect();let mut c=challenges::Campaign::work_bounded(8192);challenges::generated_campaign(&b,&mut c,false);assert!(c.violations.iter().any(|c|c.operation=="advanceStage"));
+  let usd=STUDY.replace("table studies:\n","table studies:\n  reviewFee: money USD default 0\n").replace("update studies[study] { status: 'reviewed' }","update studies[study] { status: 'reviewed', reviewFee: 100 }");let eur=usd.replace("reviewFee: money USD","reviewFee: money EUR");let(_,a)=compile(&usd);let(_,b)=compile(&eur);assert_eq!(a.len(),1);assert_eq!(b.len(),1);assert_ne!(a[0].1.predicate,b[0].1.predicate);assert!(a[0].1.predicate.contains("USD")&&b[0].1.predicate.contains("EUR"));
  }
 
 }
