@@ -463,7 +463,15 @@ N_APPROVAL_INFORMATIONAL: No operation models the approved act. This advisory ca
 
 N_INSERT_TABLE_AUTHORITY: A table-only edit restriction remains advisory. Confirm the declared table insert and edit audiences against the specification; this note does not establish a distinct mutation require.
 
+### N_RELEASE_CREATE_AUTHORITY
+
 N_RELEASE_CREATE_AUTHORITY: A predecessor-backed setter narrowing left an older creating path admitting a non-default value as an excluded caller. A current create replay makes this a gate. Narrow creation or answer its actual audience with an evaluated allowance; unknown comparisons and unchanged asymmetry stay advisory.
+
+### N_RELEASE_CREATE_COVERAGE
+
+N_RELEASE_CREATE_COVERAGE: The local successful-check source baseline cannot be read or compiled. Restore the private baseline or compare against the immutable selected deployment predecessor. This is a coverage notice and never a gate.
+
+### N_INSERT_WRITE_INTENT
 
 N_INSERT_WRITE_INTENT: A mutation requires stricter authority to edit caller-controlled columns than an insert requires to create them. This advisory question asks whether that asymmetry is deliberate; an example of broader creation does not establish unwanted authority. One matching `invariant T.c update only P` declares the intended edit boundary; a column `write <- P` enforces its authority at creation too. A table-only edit restriction remains advisory as N_INSERT_TABLE_AUTHORITY.
 

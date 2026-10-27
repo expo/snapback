@@ -219,8 +219,9 @@ pub(super) fn release_loop(project:&Project,bound:&Bound,sources:&[(String,Strin
     let test=release_notice(project,bound,sources,options);
     let advice=scoped_dispositions.iter().filter(|d|!d.gated&&!d.acknowledged&&d.witness.is_none()).count();
     let witnessed=scoped_dispositions.iter().filter(|d|!d.gated&&!d.acknowledged&&d.witness.is_some()).count();
-    notice.push_str(&format!("{}; {witnessed} witnessed questions; {advice} advisories (don't block): deploy --review (or check --review)\n",enforced_text(&report,bound).replacen("check:","security:",1)));
-    if review||test.contains("run `snapback4 test")||test.contains("FAILED") {notice.push_str(&format!("  {test}\n"));}
+    notice.push_str(&format!("{}; {witnessed} witnessed questions; {advice} advisories (don't block): deploy --review (or check --review)",enforced_text(&report,bound).replacen("check:","security:",1)));
+    if review||test.contains("run `snapback4 test")||test.contains("FAILED") {notice.push_str(&if review{format!("\n  {test}")}else{format!("; {test}")});}
+    notice.push('\n');
     let gates=dispositions.iter().filter(|d|d.gated&&!d.acknowledged).count();
     let verdict=format!("security FIX {authored_fixes}; {gates} gates; {witnessed} witnessed questions; {advice} advisories (don't block): deploy --review");
     Ok(Some(serde_json::json!({"notice":notice,"verdict":verdict,"fixes":fixes,"pending":pending,"changedNotes":count,"report":report,"securityReviews":dispositions}).to_string()))

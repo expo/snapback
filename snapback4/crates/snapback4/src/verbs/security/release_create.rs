@@ -110,3 +110,8 @@ pub(super) fn prior_policy(sources:&[(String,String)],note:&snapback4_lang::Diag
   std::fs::remove_dir_all(project.root).unwrap();
  }
 }
+
+pub(super) fn setter(note:&snapback4_lang::Diagnostic)->Option<(String,String)>{
+ let details:serde_json::Value=serde_json::from_str(note.details.as_deref()?).ok()?;let fields=details.get("releaseCreate")?;
+ Some((fields["setter"].as_str()?.into(),fields["setterArgument"].as_str()?.into()))
+}

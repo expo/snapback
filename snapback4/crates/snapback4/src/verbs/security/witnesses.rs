@@ -526,7 +526,12 @@ pub(in crate::verbs) fn collect(project:&Project,bound:&Bound,sources:&[(String,
                 if notes[*index].code=="N_GUARD_NOT_CONSUMED" {let Some(repeated)=questions::repeat(bound,inv,c,&notes[*index],sources)else{continue;};value=repeated;}
                 if notes[*index].code=="N_TEXT_EVIDENCE" {value=questions::text_evidence(value,&notes[*index]);}
                 if questions::advisory(&notes[*index].code){value["advisory"]=true.into();}
-                if notes[*index].code=="N_RELEASE_CREATE_AUTHORITY"{value["predecessorAudience"]=prior_policies[index].quarry().into();}
+                if notes[*index].code=="N_RELEASE_CREATE_AUTHORITY"{
+                    let Some((setter,argument))=super::release_create::setter(&notes[*index])else{continue;};
+                    let Some(actor)=challenges::release_witness::setter_actor(bound,inv,&setter,&argument,c)else{continue;};
+                    value["predecessorAudience"]=prior_policies[index].quarry().into();
+                    value["setterAudience"]=serde_json::json!({"operation":setter,"viewer":actor,"qualification":"straight-line input/read/write judgment on current committed witness state"});
+                }
                 if enforcement{answers::attach(sources,bound,inv,replay.as_ref().unwrap_or(c),&answer_lines,&mut value);}
                 value=super::super::security_reviews::witness::stamp(value);
                 if super::super::security_reviews::witness::concrete(&value){
