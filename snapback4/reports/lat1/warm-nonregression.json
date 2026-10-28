@@ -1,0 +1,132 @@
+{
+  "method": "Same54stratifiedkeys,4pairedworkers,alternatingbinaryorder,freshsource/JSONLprojectcopies,coldthenwarm,samefrozen0.4.44vsLAT1staticbinaries. Supplementalmatchedwindow;tracingoff.",
+  "timings": [
+    {
+      "label": "baseline",
+      "mode": "review",
+      "temperature": "cold",
+      "count": 54,
+      "median": 8.475150104612112,
+      "p90": 23.20849113794975,
+      "max": 40.316539169987664
+    },
+    {
+      "label": "baseline",
+      "mode": "review",
+      "temperature": "warm",
+      "count": 54,
+      "median": 5.846606084611267,
+      "p90": 16.315494910115376,
+      "max": 26.200557782081887
+    },
+    {
+      "label": "baseline",
+      "mode": "production",
+      "temperature": "cold",
+      "count": 54,
+      "median": 13.04247562144883,
+      "p90": 26.571701240958646,
+      "max": 45.47320420201868
+    },
+    {
+      "label": "baseline",
+      "mode": "production",
+      "temperature": "warm",
+      "count": 54,
+      "median": 1.4033895240863785,
+      "p90": 4.186536014080048,
+      "max": 44.15487744403072
+    },
+    {
+      "label": "candidate",
+      "mode": "review",
+      "temperature": "cold",
+      "count": 54,
+      "median": 2.513508936506696,
+      "p90": 5.320389789994806,
+      "max": 7.098816258832812
+    },
+    {
+      "label": "candidate",
+      "mode": "review",
+      "temperature": "warm",
+      "count": 54,
+      "median": 2.377063542488031,
+      "p90": 4.7861097869463265,
+      "max": 7.13059805915691
+    },
+    {
+      "label": "candidate",
+      "mode": "production",
+      "temperature": "cold",
+      "count": 54,
+      "median": 3.227271481999196,
+      "p90": 7.189762948080897,
+      "max": 10.833799112122506
+    },
+    {
+      "label": "candidate",
+      "mode": "production",
+      "temperature": "warm",
+      "count": 54,
+      "median": 0.0749468399444595,
+      "p90": 0.17062395089305937,
+      "max": 7.586981598986313
+    }
+  ],
+  "inputMismatches": [],
+  "toolFailures": [],
+  "pairs": [
+    {
+      "mode": "review",
+      "temperature": "cold",
+      "pairs": 54,
+      "allCandidateFaster": true,
+      "maxRatio": 0.5497035808311594,
+      "slowPairs": []
+    },
+    {
+      "mode": "review",
+      "temperature": "warm",
+      "pairs": 54,
+      "allCandidateFaster": true,
+      "maxRatio": 0.5362034674433152,
+      "slowPairs": []
+    },
+    {
+      "mode": "production",
+      "temperature": "cold",
+      "pairs": 54,
+      "allCandidateFaster": true,
+      "maxRatio": 0.42427708490958865,
+      "slowPairs": []
+    },
+    {
+      "mode": "production",
+      "temperature": "warm",
+      "pairs": 54,
+      "allCandidateFaster": true,
+      "maxRatio": 0.26975249615086055,
+      "slowPairs": []
+    }
+  ],
+  "provenance": {
+    "binaries": {
+      "baseline": {
+        "path": "/home/ccheever/sb4-loop/reports/lat1/baseline-0.4.44",
+        "sha256": "aa6a5388fcf1f26066abb49af8b40da076145bef34493c91f674fd858b1005bf"
+      },
+      "candidate": {
+        "path": "/home/ccheever/sb4-loop/reports/lat1/candidate-lazy",
+        "sha256": "155ba9bcdd5890e0d58aeaeaeca66085d2d9675dce75711780da27ef6045bff3"
+      }
+    },
+    "keysSha256": "1bb16d3438c876b49dedd7060d99bfc01bfbb82f85c01c3d526c38e388335889",
+    "workers": 4,
+    "identity": false,
+    "latencyTrace": false,
+    "toolSha256": "d9ce0ae496d48626bfdb4463eeadac1d63d6f57925b7f0ddd1c08395800cda06",
+    "method": "Independent fresh source/JSONL fixture copies per binary and command. Four paired latency tasks (or declared identity workers), alternating binary order by schema. Cold then warm in one project; no live stores copied or opened. No payload normalization. Shared host; per-command load recorded."
+  },
+  "summarySha256": "dfeff436fbbb4e421746468b7c34efc815391a4b6618279769b81a115515286b"
+}

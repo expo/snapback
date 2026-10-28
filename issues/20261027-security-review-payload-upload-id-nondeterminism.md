@@ -24,3 +24,21 @@ ULID-shaped strings or replace the full-payload proof with witness-ID equality.
 
 Evidence: snapback4/reports/sec11-latency/ and LLP 3000.036.004.000.000.
 Raw captures remain under ~/sb4-loop/reports/sec11l.
+
+## LAT1 full-report identity evidence
+
+The stronger 940-schema LAT1 comparison retains the full raw security reports as
+well as expanded questions. It finds 30 literal command-pair differences across
+18 schemas: five pairs in this existing copied-ID witness, and 25 pairs limited
+to typed image/file metadata IDs in raw counterexamples. Two independent fresh
+executions of the unchanged sequential control reproduce the permitted drift in
+every affected schema. No verdict, gate, question/witness ID, caller, other value
+or history/order difference remains. Source-bound graph audits preserve aliases,
+all other metadata, valid ULID form and the logical ID timestamp; they do not
+scrub arbitrary strings. The literal comparator and its nonzero result remain.
+
+Exact source scopes, capture/tool hashes and independent review provenance are
+in `snapback4/reports/lat1/identity-{summary,provenance}.json`; raw captures and
+historical audit tools remain under `~/sb4-loop/reports/lat1/`. This verifies the
+LAT1 exception boundary and does not implement deterministic presentation. The
+ticket stays open for that separate follow-up.

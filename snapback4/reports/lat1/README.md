@@ -22,15 +22,37 @@ binaries, keys, tool digest and worker count. `production-binary.json` identifie
 the final static ELF; later commits contain only review/verification/evidence
 changes. No version was bumped or package published.
 
+The supplemental matched 54-schema window also qualifies warm review/production
+non-regression (`warm-nonregression.json`). All 54 individual pairs are faster
+for each cold and warm mode, with zero tool/input failures.
+
+| Warm command | 0.4.44 median / p90 s | LAT1 median / p90 s |
+| --- | ---: | ---: |
+| check --review | 5.847 / 16.315 | 2.377 / 4.786 |
+| production deploy | 1.403 / 4.187 | 0.075 / 0.171 |
+
 `consumer-proofs.json` records the actual packed security and staging proofs;
 the complete packed-security test file also passed all three tests with its
 existing guards against that frozen production binary. `profiles.json` records
 a bounded, instrumented before/after diagnostic on wave20/017; nested phases
 overlap and those timings do not qualify the targets.
 
-Full-corpus identity is a separate requirement. Its result and the final affected
-receipt are recorded in the worktree-root `WORKSTREAM-REPORT.md`; no identity
-claim derives from timing evidence. Raw captures live in
+Full-corpus identity is independently qualified in `identity-summary.json`:
+940 schemas, 5,640 pairs / 11,280 invocations, zero input or tool failures.
+5,610 pairs match literally. The other 30 differ only by source-reviewed host
+upload IDs: valid ULIDs with identical logical timestamps and bijective aliases
+through complete counterexample/witness graphs. All verdicts, gates, question and
+witness IDs, other values, callers, histories and array order match. Two fresh
+runs of the unchanged sequential control reproduce the permitted drift in each
+of the 18 differing schemas. The original literal comparator still exits 1;
+it has no payload scrubbing or weakened assertion. `identity-provenance.json`
+records the exact source scopes, capture/review/tool hashes and two existing
+warm-staging administrative response shapes. The fresh final review is retained
+under `llp/reviews/3000.036.004.000.000-lat1-identity-final.*`.
+
+The final affected receipt is recorded in the worktree-root
+`WORKSTREAM-REPORT.md`; no identity claim derives from timing evidence.
+Raw captures and frozen historical guard/replay/audit tools live in
 `~/sb4-loop/reports/lat1/`. The OOM-interrupted `identity940-lazy` run is discarded
 as qualification and is never resumed; its replacement is `identity940-capped4`.
 

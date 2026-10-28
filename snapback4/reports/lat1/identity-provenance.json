@@ -1,0 +1,255 @@
+{
+  "qualifiedAt": "2026-10-27T23:59:25.979379+00:00",
+  "source": "Frozen production runtime built from485a321e58; later source commits add tests, references, reviews and evidence. Main through6d658dbc40 merged without product runtime change. Final affected receipt is separately recorded in WORKSTREAM-REPORT.md.",
+  "rawRoot": "/home/ccheever/sb4-loop/reports/lat1",
+  "fileSha256": {
+    "identity940-capped4/summary.json": "9938a75159bd346220eb7743b556ab1a397eee1f6f1e5b0aa2d8220a9fe4fac2",
+    "identity940-capped4/provenance.json": "857c747f1409f16ba78fa0623f3781ea266eb0d137e969f077584ab5335d0f00",
+    "identity940-capped4/capture-manifest.json": "9d7a8e4561982beec13e9dc00d5bf14ffc715325c9fec324fe4993b9f7a14f51",
+    "identity940-capped4/identity-qualification.json": "35c5eec7e56782224c1ea89b05d84551bba18f65dd65809db224066f05c3eadb",
+    "control-self-replays/complete.json": "93c0a828029610e264dc5a8a92d75c88adf3256e6f7c071d9e36df75ce1dc207",
+    "control-self-replays/provenance.json": "4f4f51507a8d9904037820c65e670a94bde02e36eee5a1c7188e3a02c1dee086",
+    "direct-upload-audit.py": "2f69f210db56503f58359d264508f66749b851068638aa599ea2eb79d2492440",
+    "copied-upload-audit.py": "9d6dfb47869f96295f6161773d89026c51999b675a3856a815d63287c90a6ebc",
+    "identity_validation.py": "fea2e61278bbe78d90a8b3b05274dad1dbace2b5f8068ec8fd4e4e6c3db8d703",
+    "qualify-identity.py": "d8ec57844c2a9becb7a0e7ad3700576ff6434f0a99c1ea653824f210931f2b30",
+    "reproduce-control-upload.py": "bd1d4874a236aa8dd9363653b9acd1ab1fcd5ecbfccbebd287116396b5e13448",
+    "test-direct-upload-audit.py": "d8e7772bff04ae68942c38fde17ea8e04b4331589434e2198d31077923cb0085",
+    "test-copied-upload-audit.py": "282117914c5c0fcbeb70711cadeff715ab222b8bd85cd0cc1c543b598d2da09f",
+    "test-identity-validation.py": "021dd10e141dd73c5d92f6bffe72f79d808c1abbe338c417cce0b398822fc627",
+    "test-warm-reactivation.py": "ee497ed7d0206ca94f83b71474282faaa19a38a33c5a7e0d0112c86f95cbe8c2",
+    "test-nonce-guards.py": "514ad8a451de9dc0a7d200c8397f29b35e0d48a9e8b45a815d5865e9003e2e07",
+    "direct-audit-review.codex.txt": "47ad9ef9a6d53abdffe2c4bf4a71deec154cf7981b313c3aecc18a780b7b28b0",
+    "direct-audit-review.provenance.json": "2e98cbde736125b9a93061e7decbfb9dafcbf45f7afed6abad494c5d6bdf12bc",
+    "copied-audit-review.codex.txt": "24f7b03884f79420a8aad3e7a6813e76fa004adf1b4c0ce2754769f59d8c0923",
+    "copied-audit-review.provenance.json": "920b023b52bc1b501125206a0afa359f5c00412d213ff8518b605bd9e72a5a63",
+    "identity-driver-review.codex.txt": "5489f77968706d5d25882d0897fc89e016e7739afbc3bd471dd7edc28e4484c1",
+    "identity-driver-review.provenance.json": "86879c0a401368dd641e848dc71329fad1c5d56ebd9357c0d2af3c37189c7074",
+    "identity-driver-review-r2.codex.txt": "5c07b9c3f73f4f41bc340f88050939c9c0b53129842bb7c48cc8132fe7e0aa0d",
+    "identity-driver-review-r2.provenance.json": "93070ea1fe467b8d0b0bb7153edfe477b1b58f0d8d9324dd7fa01e9681ea927d",
+    "additional-direct-audit-review.codex.txt": "3e47f90e7fca5b64464ee5c7ef1ea5f52895f063beb8f1a61cb2a06764689e01",
+    "additional-direct-audit-review.provenance.json": "76870298efb12d91248a94896c859898e2d73d3b9e19aa98e405991fad49e986"
+  },
+  "originScopes": {
+    "direct": {
+      "18/010-snapback-cobbler-repair-tickets": {
+        "assetFields": [
+          "solePhoto",
+          "upperPhoto"
+        ],
+        "basis": "Explicit image argument/column declarations; raw differences are their media metadata IDs."
+      },
+      "18/025-snapback-wheelchair-repair-loaners": {
+        "assetFields": [
+          "handoverPhoto"
+        ],
+        "basis": "Explicit image argument/column declaration; raw supporting-row media metadata ID only."
+      },
+      "19/010-snapback-cobbler-repair-tickets": {
+        "assetFields": [
+          "solePhoto",
+          "upperPhoto"
+        ],
+        "basis": "Reviewed explicit source asset argument/column declarations; only typed asset metadata ID leaves allowed.",
+        "declarations": [
+          "  solePhoto: image <=10000000",
+          "  upperPhoto: image <=10000000",
+          "mutation createTicket(customer: principal, shoe: text 1..120, plan: text 1..500 ?, repair: text 1..500, solePhoto: image <=10000000, upperPhoto: image <=10000000, price: money USD):"
+        ]
+      },
+      "19/025-snapback-wheelchair-repair-loaners": {
+        "assetFields": [
+          "handoverPhoto"
+        ],
+        "basis": "Reviewed explicit source asset argument/column declarations; only typed asset metadata ID leaves allowed.",
+        "declarations": [
+          "  handoverPhoto: image <=5000000 ?",
+          "mutation lendLoaner(repair: repairs, loanerLabel: text 1..80, handoverPhoto: image <=5000000):"
+        ]
+      },
+      "18/045-snapback-honor-guard-details": {
+        "assetFields": [
+          "discharge",
+          "requestDoc"
+        ],
+        "basis": "Reviewed explicit source asset argument/column declarations; only typed asset metadata ID leaves allowed.",
+        "declarations": [
+          "  requestDoc: file <=10000000",
+          "  discharge: file <=10000000",
+          "mutation requestDetail(veteran: text 1..120, serviceAt: time, location: text 1..300, needed: int 1..50, requestDoc: file <=10000000, discharge: file <=10000000):",
+          "mutation updatePapers(detailId: details, requestDoc: file <=10000000, discharge: file <=10000000):"
+        ]
+      },
+      "19/045-snapback-honor-guard-details": {
+        "assetFields": [
+          "discharge",
+          "requestDoc"
+        ],
+        "basis": "Reviewed explicit source asset argument/column declarations; only typed asset metadata ID leaves allowed.",
+        "declarations": [
+          "  requestDoc: file <=10000000",
+          "  discharge: file <=10000000",
+          "mutation requestDetail(veteran: text 1..120, serviceAt: time, location: text 1..300, needed: int 1..50, requestDoc: file <=10000000, discharge: file <=10000000):",
+          "mutation updatePapers(detailId: details, requestDoc: file <=10000000, discharge: file <=10000000):"
+        ]
+      }
+    },
+    "copied": {
+      "23/008-snapback-arborist-removal-quotes": {
+        "sourceSha256": "63bfeee99ad4c3778b0b556d3404d163c31ac94f4a7d0dfa8edf8ef83ed4c820",
+        "requiredSourceText": [
+          "mutation openQuote(tree: trees, price: int 100..100000000, treePhoto: image <=5000000, linesPhoto: image <=5000000, buildingsPhoto: image <=5000000):",
+          "insert siteSurveys { quote: q.id, homeowner: t.homeowner, initial: true, initialKey: q.id, visitedAt: now, treePhoto: treePhoto.id, linesPhoto: linesPhoto.id, buildingsPhoto: buildingsPhoto.id }",
+          "treePhoto: id ?",
+          "linesPhoto: id ?",
+          "buildingsPhoto: id ?"
+        ],
+        "basis": "Ticket explicitly names this source and N_ARGUMENT_GRANT copied upload-ID witness. Source-bound, fixed witness-ID audit only; no general nominal ID normalization. Control self-reproduction is a separate pending qualification condition."
+      }
+    },
+    "supplemental": {
+      "26/008-snapback-stucco-repair-jobs": {
+        "assetFields": [
+          "photo"
+        ],
+        "sourceSha256": "1c0e5831d89248aba6a2f5a6eccf32dae65dd278f02bb29ef5b12bd50b6650a8",
+        "declarations": [
+          "  photo: image <=5000000",
+          "mutation openJob(homeowner: principal, address: text 1..200, quotedPrice: money USD, photo: image <=5000000, wallLabel: text 1..80, notes: text <=1000 ?):",
+          "mutation addPhoto(job: jobs, photo: image <=5000000, caption: text <=200 ?):"
+        ],
+        "basis": "Inspected explicit image argument/column declarations. Literal differences only at typed media Map.id.Id leaves in full raw counterexample graphs; all other fields still exact. Separate additional origin review and unchanged-control reproduction required."
+      },
+      "26/018-snapback-livestock-ultrasound-scans": {
+        "assetFields": [
+          "photo"
+        ],
+        "sourceSha256": "643134a9c082d4ad701ae84a3c635d3c3af80b94b28758e971dae1a63a88acc7",
+        "declarations": [
+          "  photo: image <=8000000",
+          "mutation openVisit(herd: herds, photo: image <=8000000, feeCents: int 1..1000000, visitDate: time):"
+        ],
+        "basis": "Inspected explicit image argument/column declarations. Literal differences only at typed media Map.id.Id leaves in full raw counterexample graphs; all other fields still exact. Separate additional origin review and unchanged-control reproduction required."
+      },
+      "26/025-snapback-lifeguard-certification-exams": {
+        "assetFields": [
+          "photo"
+        ],
+        "sourceSha256": "9aa973c5f9c29e098472bbd72f8ba2f20fec5101b06e7854274cb2a072f25a65",
+        "declarations": [
+          "  photo: image <=5000000",
+          "mutation logExam(candidate: principal, feeCents: int 0..20000, photo: image <=5000000):",
+          "mutation retest(priorExam: exams, feeCents: int 0..20000, photo: image <=5000000):"
+        ],
+        "basis": "Inspected explicit image argument/column declarations. Literal differences only at typed media Map.id.Id leaves in full raw counterexample graphs; all other fields still exact. Separate additional origin review and unchanged-control reproduction required."
+      },
+      "26/033-snapback-asphalt-sealcoating-jobs": {
+        "assetFields": [
+          "photo"
+        ],
+        "sourceSha256": "fcc2220e8f7e5c450d2132f3e08a5bbfaa059ce9593fed7be003b8404acb8ffe",
+        "declarations": [
+          "  photo: image <=10000000",
+          "  photo: image <=10000000 ?",
+          "mutation addPhoto(job: jobs, caption: text 1..120, photo: image <=10000000):",
+          "mutation reportMissed(job: jobs, description: text 1..500, photo: image <=10000000 ?):"
+        ],
+        "basis": "Inspected explicit image argument/column declarations. Literal differences only at typed media Map.id.Id leaves in full raw counterexample graphs; all other fields still exact. Separate additional origin review and unchanged-control reproduction required."
+      },
+      "27/008-snapback-stucco-repair-jobs": {
+        "assetFields": [
+          "photo"
+        ],
+        "sourceSha256": "572f9f8d90412e9f756d79e08dd06271813228928ab5862faec3b6ed5fa6659e",
+        "declarations": [
+          "  photo: image <=5000000",
+          "mutation openRepairOrder(homeowner: principal, address: text 1..200, quotedPrice: money USD, photo: image <=5000000, wallLabel: text 1..80, notes: text <=1000 ?):",
+          "mutation addPhoto(repairOrder: repairOrders alias job, photo: image <=5000000, caption: text <=200 ?):"
+        ],
+        "basis": "Explicit source asset declarations collected for independent review. Original literal comparison remains failed; only reviewed typed metadata IDs with identical other fields and bijective graph aliases may qualify after review/control self-reproduction."
+      },
+      "27/018-snapback-livestock-ultrasound-scans": {
+        "assetFields": [
+          "photo"
+        ],
+        "sourceSha256": "f52740a0d407f86cc978fe894b94fc826be1375fec8e18d7a557fd47ff8cce76",
+        "declarations": [
+          "  photo: image <=8000000",
+          "mutation openVisit(herd: herds, photo: image <=8000000, feeCents: int 1..1000000, visitDate: time):"
+        ],
+        "basis": "Explicit source asset declarations collected for independent review. Original literal comparison remains failed; only reviewed typed metadata IDs with identical other fields and bijective graph aliases may qualify after review/control self-reproduction."
+      },
+      "27/020-snapback-llama-trekking-trips": {
+        "assetFields": [
+          "permitPhoto"
+        ],
+        "sourceSha256": "b2a4f042ea9ad07fd8740db7a41760bb30d3ac309afc17bfc54dd41fd738df67",
+        "declarations": [
+          "  permitPhoto: image <=5000000 write <- exists roles[principal = viewer, role = 'office'] or exists roles[principal = viewer, role = 'owner']",
+          "mutation addOutingHiker(outing: outings alias trek, hiker: principal, permitPhoto: image <=5000000, permitValidUntil: time):",
+          "mutation replaceOutingPhoto(entry: outingHikers, permitPhoto: image <=5000000, permitValidUntil: time):"
+        ],
+        "basis": "Explicit source asset declarations collected for independent review. Original literal comparison remains failed; only reviewed typed metadata IDs with identical other fields and bijective graph aliases may qualify after review/control self-reproduction."
+      },
+      "27/025-snapback-lifeguard-certification-exams": {
+        "assetFields": [
+          "photo"
+        ],
+        "sourceSha256": "4f10877176aed99fd20e2ab30e5fe8ee63d34fc66eaabc7ec6f6db8799be49d5",
+        "declarations": [
+          "  photo: image <=5000000",
+          "mutation logExam(candidate: principal, feeCents: int 0..20000, photo: image <=5000000, feeCategory: enum('charged', 'waived', 'credited') default 'charged'):",
+          "mutation retest(priorExam: exams, feeCents: int 0..20000, photo: image <=5000000, feeCategory: enum('charged', 'waived', 'credited') default 'charged'):"
+        ],
+        "basis": "Explicit source asset declarations collected for independent review. Original literal comparison remains failed; only reviewed typed metadata IDs with identical other fields and bijective graph aliases may qualify after review/control self-reproduction."
+      },
+      "27/033-snapback-asphalt-sealcoating-jobs": {
+        "assetFields": [
+          "photo"
+        ],
+        "sourceSha256": "020b712c08d4952219ecb530791bd99b38c569a7a7af2c2c42dc0f8b702a62f6",
+        "declarations": [
+          "  photo: image <=10000000",
+          "  photo: image <=10000000 ?",
+          "mutation addPhoto(job: jobs, caption: text 1..120, photo: image <=10000000):",
+          "mutation reportMissed(job: jobs, description: text 1..500, photo: image <=10000000 ?):"
+        ],
+        "basis": "Explicit source asset declarations collected for independent review. Original literal comparison remains failed; only reviewed typed metadata IDs with identical other fields and bijective graph aliases may qualify after review/control self-reproduction."
+      },
+      "28/036-snapback-wax-figure-commissions": {
+        "assetFields": [
+          "likenessScan"
+        ],
+        "sourceSha256": "a466da58177ab69507527481662a1b979692b278dab5d64bd0797bd0d1cbdfdd",
+        "declarations": [
+          "  likenessScan: image <=10000000",
+          "mutation createFigure(client: principal, title: text 3..120, likenessScan: image <=10000000, quotedPrice: money USD, unveilingAt: time):",
+          "mutation changeLikeness(figure: figures, likenessScan: image <=10000000):",
+          "mutation approveLikenessChange(figure: figures, likenessScan: image <=10000000, extraCost: money USD):"
+        ],
+        "basis": "Explicit image argument/column declarations inspected. Candidate origin for independent review; raw differences only typed media ID leaves, all other metadata and graph fields exact. Control self-reproduction remains required."
+      },
+      "31/036-snapback-mascot-costume-commissions": {
+        "assetFields": [
+          "artwork"
+        ],
+        "sourceSha256": "e3c8ab9a5419c98e23847490c31a715429a75e9524a06ab52ca87cb3a63cca45",
+        "declarations": [
+          "  artwork: file <=10000000 ('application/pdf', 'image/png', 'image/jpeg')",
+          "mutation openCommission(client: principal, name: text 1..100, artwork: file <=10000000 ('application/pdf', 'image/png', 'image/jpeg'), quoteCents: int 100..100000000, depositCents: int 1..100000000, debutAt: time):"
+        ],
+        "basis": "Explicit file argument/column with approved PDF/PNG/JPEG MIME declarations inspected. Only typed metadata ID leaves differ in raw counterexample history/results/old/row/supporting rows. Source SHA includes exact wave31 predecessor vector. Independent review/control reproduction required."
+      }
+    }
+  },
+  "comparison": "All security fields scalar-exact with canonical object-key ordering; arrays/types/opaque strings preserved. Original comparator exits1 for30literal upload-ID nonmatches. Separate source-bound bijective nonce audit requires validULIDs and equal logical timestamps; all18differing schemas reproduce only allowed nonce drift between two unchanged-control executions. No other difference is waived.",
+  "warmAdministration": "Two exact-source warmstaging cases emit security:null with release2/generation2 rather than unchanged:true in both binaries. Security envelopes match literally. Additional admin-only validation compares all other fields, isolating only measuredms in3named phase strings and3specific physical deployment-event timestamps. No security/witness/user-row/history field is normalized.",
+  "frozenTools": "Metrology guard/replay/exception scripts and all raw command captures are retained at rawRoot, with these exact hashes. They are historical fixed-cohort evidence, not shipped runtime or an authority cache.",
+  "supplementalTiming": {
+    "rawRoot": "/home/ccheever/sb4-loop/reports/lat1/warm-nonregression54",
+    "tool": "/home/ccheever/sb4-loop/reports/lat1/measure-warm-nonregression.py",
+    "toolSha256": "d9ce0ae496d48626bfdb4463eeadac1d63d6f57925b7f0ddd1c08395800cda06",
+    "summarySha256": "dfeff436fbbb4e421746468b7c34efc815391a4b6618279769b81a115515286b",
+    "reportSha256": "f40513e0fd2b51206ec6594296fdae1006bd4beedfa89e1fe1a6bdfc63fd0335"
+  }
+}

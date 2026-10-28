@@ -1,0 +1,35 @@
+{
+  "date": "2026-10-27T23:54:17.042734+00:00",
+  "reviewer": "fresh codex exec gpt-6.1-sol high, scoped40G, read-only, no prior reviews/product execution",
+  "verdict": "READY",
+  "approvedScope": "additional-source-bound-direct-media-origins",
+  "verdictLine": "VERDICT: READY",
+  "exit": 0,
+  "sha256": {
+    "additional-upload-origins.json": "c579294377408863077b1fa9f242a84d9e171599c9c893826bb7369383f5ad0b",
+    "direct-upload-audit.py": "2f69f210db56503f58359d264508f66749b851068638aa599ea2eb79d2492440",
+    "copied-upload-audit.py": "9d6dfb47869f96295f6161773d89026c51999b675a3856a815d63287c90a6ebc",
+    "qualify-identity.py": "d8ec57844c2a9becb7a0e7ad3700576ff6434f0a99c1ea653824f210931f2b30",
+    "identity_validation.py": "fea2e61278bbe78d90a8b3b05274dad1dbace2b5f8068ec8fd4e4e6c3db8d703",
+    "reproduce-control-upload.py": "bd1d4874a236aa8dd9363653b9acd1ab1fcd5ecbfccbebd287116396b5e13448",
+    "test-identity-validation.py": "021dd10e141dd73c5d92f6bffe72f79d808c1abbe338c417cce0b398822fc627",
+    "test-warm-reactivation.py": "ee497ed7d0206ca94f83b71474282faaa19a38a33c5a7e0d0112c86f95cbe8c2",
+    "test-nonce-guards.py": "514ad8a451de9dc0a7d200c8397f29b35e0d48a9e8b45a815d5865e9003e2e07",
+    "additional-direct-audit-review.brief.md": "ab266021a7d7ada87ca416fa5bddf6f1a64cb6b16a6a363b86385f817b29e555",
+    "additional-direct-audit-review.codex.txt": "3e47f90e7fca5b64464ee5c7ef1ea5f52895f063beb8f1a61cb2a06764689e01",
+    "additional-direct-audit-review.codex.log": "462ff1477c152a2b343a1264aa51066cc6d56b369b3a2fea59b8c7c77eb9eff3"
+  },
+  "reviewedCapturesSha256": {
+    "w26-008-snapback-stucco-repair-jobs.json": "d113e8ab8b9bac20b76cc0c747891d42cce2aecd4a502f53baf4c2797957348a",
+    "w26-018-snapback-livestock-ultrasound-scans.json": "0be54f3957fa4c3459767b543a747f4be959761776bcf05554299c17a859fc36",
+    "w26-025-snapback-lifeguard-certification-exams.json": "effddd9a4717eb758c369d80cb6114b33371bfab9e4cd122ba7be17451082b7f",
+    "w26-033-snapback-asphalt-sealcoating-jobs.json": "44d8d7b526e582cea3df37a64127a7f245bda3e8118599345dae65bc46aab43a",
+    "w27-008-snapback-stucco-repair-jobs.json": "32b081df56f347894ec3df12c42b4b2cb06c564dfcea0a9bb1a6928a3fc7b1dc",
+    "w27-018-snapback-livestock-ultrasound-scans.json": "dd761fd3ec699ef87660cd0863253bfe4d96ce0ba5eef39da1f3e99f7cd5d1ec",
+    "w27-020-snapback-llama-trekking-trips.json": "179c5585d496473aaf494d146aa1318c034cf9a82df8e71268ac8e845266d677",
+    "w27-025-snapback-lifeguard-certification-exams.json": "729dfdcbd8175278742e29ee5354f7f819e2fc4399196e73b82db3d0fb6c9ac6",
+    "w27-033-snapback-asphalt-sealcoating-jobs.json": "b660b1602d983c0e58b5bfd099cc43d3dd28bf90101b883b315479245c64c5ef",
+    "w28-036-snapback-wax-figure-commissions.json": "e21c046bcd7dd3fc263ada31a5a4c6692f5d629882c5ac5c89dc1be9b7f7557d",
+    "w31-036-snapback-mascot-costume-commissions.json": "778e1a9593c29377df3a5909c3fe7457da399c9e9867d7e8b1af2dea5114f78d"
+  }
+}

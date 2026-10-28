@@ -1,0 +1,50 @@
+VERDICT: READY
+
+No material acceptance hole found. Approval is limited to the **11 fixed, source-bound supplemental origins**, the nonce restrictions, and this qualifier integration. It does **not** establish overall identity or performance qualification.
+
+I inspected every listed schema and verified its source fingerprint. Wave31/036 correctly binds both current and predecessor filename/text vectors.
+
+| Origin | Eligible field | Changed leaves |
+|---|---|---:|
+| 26/008 stucco | `photos.photo` | 4 |
+| 26/018 ultrasound | `visits.photo` | 2 |
+| 26/025 lifeguard | `exams.photo` | 22 |
+| 26/033 asphalt | `photos.photo` | 2 |
+| 27/008 stucco | `photos.photo` | 4 |
+| 27/018 ultrasound | `visits.photo` | 2 |
+| 27/020 llama | `outingHikers.permitPhoto` | 5 |
+| 27/025 lifeguard | `exams.photo` | 22 |
+| 27/033 asphalt | `photos.photo` | 2 |
+| 28/036 wax figures | `figures.likenessScan` | 14 |
+| 31/036 mascot | `mascotCommissions.artwork` | 7 |
+
+These are actual typed image/file values flowing through the inspected sources. The supplemental differences occupy **86 `Map.id.Id` leaves across 16 complete counterexample graphs**, all in production/cold pairs. Their contexts include supporting photos/visits, retest histories and committed exams, participant removal, likeness replacement, and quote updates retaining artwork. Metadata—including PDF filename/MIME/bytes—remains exact.
+
+I checked complete baseline/candidate security envelopes for **all 30 original nonexact pairs**, including unchanged occurrences and full histories, rows, supporting rows, results and observations. The source-bound mappings preserve bijection and aliases. All remaining content, including verdicts, gates, question/witness IDs, callers, scalar types, opaque values and array order, satisfies the existing exact restrictions.
+
+The qualification branch requires structured `READY`, the precise verdict line, the supplemental approved scope, required artifact/verbatim-review hashes, exact reviewed-capture membership and digests, source SHA matches, and disjointness from existing scopes. It checks every original pair before requiring control self-reproductions. It preserves the main literal failure inventory.
+
+The nonce wrappers are strictly restrictive: acceptance first requires the existing graph audit, then valid 128-bit Crockford ULIDs with identical first-ten-character timestamps. They introduce no additional eligible origins or ordinary-ID treatment.
+
+The two warm-reactivation cases have literally identical security envelopes and raw `security:null` responses. Their administrative comparison isolates only measured-ms tokens in the three named strings and the three specified event timestamps. Other semantic fields, event identity/order, row shapes and rollback digests remain exact. Replay completion must bind the revised validator SHA.
+
+Checks actually run:
+
+- Read-only census validation: **940 schemas, 11,280 invocations, 5,610 exact pairs, 30 literal nonmatches across 18 schemas**, zero tool/input failures.
+- Nonce tests: **25 direct + 5 copied positives; 60 rejection controls**.
+- Direct audit: nine rejection controls; copied audit: 20.
+- Supplemental approval guard: 29 in-memory rejection controls.
+- Warm-reactivation tests: 34 supplied controls, plus 552 independent semantic/type/text mutations rejected.
+
+Reviewed SHA-256 bindings:
+
+```text
+manifest: c579294377408863077b1fa9f242a84d9e171599c9c893826bb7369383f5ad0b
+direct:   2f69f210db56503f58359d264508f66749b851068638aa599ea2eb79d2492440
+qualifier:d8ec57844c2a9becb7a0e7ad3700576ff6434f0a99c1ea653824f210931f2b30
+validator:fea2e61278bbe78d90a8b3b05274dad1dbace2b5f8068ec8fd4e4e6c3db8d703
+```
+
+The unchanged main comparator retains all 30 literal failures and its nonzero failure behavior. Control self-replay completion was **not assessed**; no replay receipts were read.
+
+No prior model reviews or secrets inspected; no product/campaign execution, qualification/reproduction-driver execution, file edits, or git-state changes.
