@@ -111,7 +111,7 @@ getSnapshot/subscribe/close; close on cleanup. Signatures: guide api client.
 
 ## Acceptance: scripts/acceptance.mjs
 
-After init, seedUsers in scripts/staging.mjs is
+seedUsers in scripts/staging.mjs is
 `{roles:{customer:2,intake:2,staff:2,director:2},provision:{name:'provision'}}`.
 Fill scripts/proof-scaffold/cases.mjs; wire its acceptance/frontend/probe runners
 into package.json, then `npm run verify`. Example assertions:

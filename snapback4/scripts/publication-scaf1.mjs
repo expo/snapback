@@ -1,4 +1,4 @@
-// @ref LLP 3000.011.003.000.000#19-generated-proof-scaffolding-scaf1 — execute emitted code through installed tarballs and reject missing/incorrect proofs.
+// @ref LLP 3000.011.003.000.000#20-generated-proof-scaffolding-scaf1 — execute emitted code through installed tarballs and reject missing/incorrect proofs.
 import assert from 'node:assert/strict';
 import { mkdirSync, writeFileSync, readFileSync } from 'node:fs';
 import { resolve, join } from 'node:path';
