@@ -36,6 +36,12 @@ impl PartitionRows for Tx<'_> {
     ) -> Result<Vec<LogEvent>, RuntimeError> {
         self.memberships_before(partition, watermark)
     }
+    fn record_commit_partitions(&self, seq: u64, summary: &str) -> Result<(), RuntimeError> {
+        Tx::record_commit_partitions(self, seq, summary)
+    }
+    fn commit_partitions_between(&self, after: u64, through: u64, limit: usize) -> Result<Option<Vec<(u64, String)>>, RuntimeError> {
+        Tx::commit_partitions_between(self, after, through, limit).map(Some)
+    }
     fn commit_times(&self, sequences: &[u64]) -> Result<BTreeMap<u64, i64>, RuntimeError> {
         self.commit_times(sequences)
     }

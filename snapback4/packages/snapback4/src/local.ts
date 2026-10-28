@@ -11,7 +11,7 @@ import { QueryCustody } from "./query-custody.ts";
 import { notifyFollowing } from "./following-transport.ts";
 import { bindSessionRefusal } from "./session-refusal.ts";
 import { refuseReadDevice, validateReadOptions, refreshDeviceSession as rotateSession } from "./read-only.ts";
-import { watchCanRevoke, evidenceTouches } from "./change-evidence.ts";
+import { watchCanRevoke, evidenceTouches, classifyChange, watchAffected, watchRevokes, declaredTables, audienceArity } from "./change-evidence.ts";
 import { assetReader, readAsset } from "./asset-progress.ts";
 import { ObservationWork } from "./observation-work.ts";
 import { readyRead } from "./read-existence.ts";
@@ -182,6 +182,14 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
   let partitionDenied: Refusal | null = null, changesStopped: Refusal | null = null;
   const linkListeners = new Set<(link: Link) => void>();
   const watches = new Map<string, Watch>();
+  // @ref LLP 3000.041#42-w2-the-client-re-evaluates-precisely-and-never-loses-a-notification — declared online-only interest, re-issued when it changes.
+  let interestKey = "";
+  const syncedTable = (table: string): boolean | undefined => { const entry = backend?.schema.tables[table]; return entry ? !!entry.sync : undefined; };
+  const arityOf = (table: string) => audienceArity(backend?.schema.tables[table]?.sync?.audience);
+  function durableInterest(): { tables: readonly string[] } { const tables = declaredTables(watches.values(), syncedTable); interestKey = tables.join(","); return { tables }; }
+  function refreshInterest() { if (declaredTables(watches.values(), syncedTable).join(",") !== interestKey) ephemeralReads.reissuePoll(); }
+  // W2d: the head a notification named, which the next sync rounds must reach.
+  let wantedSeq = 0, wantedChains = 0, unmetSince: number | undefined;
   const ephemeralReads = new EphemeralReads(aborter.signal);
   const ephemeral = ephemeralLane({ url: base, fetch: doFetch, headers: () => ({ ...headers }),
     link: () => link, mint: mintId, signal: aborter.signal, offline: () => setLink("offline"),
@@ -809,7 +817,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const changeIncarnation = incarnation;
       const capture = await captureStore();
       if (!capture || versionBlocked()) return false;
-      const { response, json } = await withReadSignal(version.signal, eph.signal, signal => changes(seq, options.waitSeconds ?? 25, request.headers, storeIdentity, Object.values(backend!.schema.tables).some(table => table.ephemeral) ? ephemeralReads.parameters() : undefined, signal));
+      const { response, json } = await withReadSignal(version.signal, eph.signal, signal => changes(seq, options.waitSeconds ?? 25, request.headers, storeIdentity, Object.values(backend!.schema.tables).some(table => table.ephemeral) ? ephemeralReads.parameters() : undefined, signal, durableInterest()));
       if (versionBlocked() || !ephemeralReads.current(eph)) return false;
       if (!response.ok || json.denied) {
         if (incompatible(json.denied)) { changesStopped = json.denied!; return false; }
@@ -824,7 +832,11 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       if (!ephemeralReads.changed(eph, json.ephemeral)) return false;
       const replaced = json.store_id !== undefined && json.store_id !== storeIdentity;
       if (await witnessRestore(json.store_id, json.seq, capture) || versionBlocked()) return false;
-      const notifiedTables = answers.notified(json.tables, json.seq, json.seq > seq, json.store_id === storeIdentity && json.generation === generation ? intervalChanges(json.changes, seq, json.seq) : undefined);
+      const interval = json.store_id === storeIdentity && json.generation === generation ? intervalChanges(json.changes, seq, json.seq) : undefined;
+      const evidence = classifyChange(json, interval);
+      const notifiedTables = evidence.projected
+        ? answers.notified(evidence.unknown ? undefined : json.tables, json.seq, json.seq > seq, evidence.unknown || evidence.writesOthers ? undefined : evidence.writes, !evidence.unknown)
+        : answers.notified(json.tables, json.seq, json.seq > seq, interval);
       const shrank = json.seq < Math.max(seq, capture.watermark);
       // @ref LLP 3000.023#10 — a program change retires the replica even with no touched tables or sequence advance.
       const generationChanged = json.generation !== undefined && json.generation !== generation;
@@ -832,8 +844,9 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
       const changed = replaced || shrank || generationChanged || json.seq > seq;
       if (changed) {
         seq = Math.max(seq, json.seq);
+        if (json.seq > wantedSeq) { wantedSeq = json.seq; wantedChains = 0; }
         for (const watch of watches.values()) {
-          if (evidenceTouches(watch, notifiedTables)) void scheduleRead(watch, true, json.seq, json.preserved);
+          if (evidence.projected ? watchAffected(watch, evidence, arityOf) : evidenceTouches(watch, notifiedTables)) void scheduleRead(watch, true, json.seq, evidence.projected ? (watchRevokes(watch, evidence) ? [] : null) : json.preserved);
         }
       }
       return changed;
@@ -854,6 +867,12 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         let ok = false;
         try {
           ok = await network.once();
+          // @ref LLP 3000.041#42-w2-the-client-re-evaluates-precisely-and-never-loses-a-notification — a
+          // round that did not reach the notified head reserves another, at
+          // most three times per goal; a goal still unmet is surfaced, never
+          // hidden, and waits for the next notification.
+          while (ok && !closed && wantedSeq > answers.publishedCut() && wantedChains < 3) { wantedChains++; ok = await network.once(true); }
+          unmetSince = ok && wantedSeq > answers.publishedCut() ? (unmetSince ?? Date.now()) : undefined;
         } catch {
           if (closed) break;
         }
@@ -953,7 +972,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           if (watches.get(watch.key) !== watch || watch.snapshot !== shown || watch.running || watch.changeVersion !== changeVersion && !result.publicationCurrent?.() || !answers.current(watch, result)) return false;
           watch.serverRead = true; watch.serverOnly = result.serverOnly === true;
           ephemeralReads.incomplete(watch, "data" in read && !read.complete);
-          watch.tables = tables; watch.scopes = result.scopes; watch.setExistenceTables(result.existenceTables ?? null);
+          watch.tables = tables; watch.scopes = result.scopes; watch.setExistenceTables(result.existenceTables ?? null); refreshInterest();
           scheduleExpiry(watch, nextExpiry, serverExpiry, localWakeup, valueDevice, valueServer);
           const denied = unavailable();
           watch.publish(denied ? { denied } : result.read);
@@ -971,6 +990,8 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     const denied = changesStopped ?? partitionDenied; if (denied) { watch.reset({ denied }); notify(watch); return; }
     if (watch.scopeCut !== undefined && link !== "online") { watch.publish({ denied: offline() }); notify(watch); return; }
     watch.reload(changed && watchCanRevoke(watch, preserved), { queued: true }); notify(watch); acquireRead(watch);
+    // @ref LLP 3000.041#42-w2-the-client-re-evaluates-precisely-and-never-loses-a-notification — W2b: a wake read goes first on this tier too.
+    if (changed) readWork.prioritize(watch);
   }
   function acquireRead(watch: Watch) {
     if (closed || sessionDead) return;
@@ -1016,7 +1037,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
         }
         scheduleExpiry(watch, nextExpiry, serverExpiry, localWakeup, valueDevice, valueServer);
         if (watch.snapshot !== read) {
-          watch.tables = tables; watch.scopes = result.scopes;
+          watch.tables = tables; watch.scopes = result.scopes; refreshInterest();
           watch.setExistenceTables(result.existenceTables ?? null); const denied = unavailable(); // Rule 1: immediately before notifying observers.
           watch.publish(denied ? { denied } : copyDecorations(result.read, result.transportOffline && "data" in result.read ? { ...result.read, revalidating: true as const } : result.read));
           notify(watch);
@@ -1223,7 +1244,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
           // @ref LLP 3000.023#3.4 — resubscription resumes the displayed row's original deadlines.
           if (d) scheduleExpiry(watch, d.device, d.server, d.localWakeup, d.valueDevice, d.valueServer);
           answers.resume(watch); void scheduleRead(watch); },
-        watch => { answers.detach(watch); readWork.cancel(watch); ephemeralReads.remove(watch); }, unavailable, false, watch => { watch.dirty = false; return readWork.cancel(watch); },
+        watch => { answers.detach(watch); readWork.cancel(watch); ephemeralReads.remove(watch); refreshInterest(); }, unavailable, false, watch => { watch.dirty = false; return readWork.cancel(watch); },
         (watch, detached) => answers.restore(watch, detached, unavailable() ?? changesStopped ?? partitionDenied));
     },
     mutate: routeMutations(ephemeral.mutate, function<A, R>(op: Mutation<A, R>, args: A, options?: MutateOptions): Promise<Write<R>> {
@@ -1478,7 +1499,7 @@ export async function createLocalClient(options: LocalOptions): Promise<LocalCli
     refreshing: () => !!refreshing, pending: pendingRead, intents: followingIntents,
     send: (op, args, body, signal) => post(`/following/${op.name}`, { ...body, args }, undefined, undefined, false, undefined, undefined, signal),
   });
-  progress.bind(client); readWork.bind(client, watches);
+  progress.bind(client); readWork.bind(client, watches); readWork.liveness = () => ({ wantedSeq, watermark: answers.publishedCut(), unmetMs: unmetSince === undefined ? null : Math.max(0, Date.now() - unmetSince) });
   bindWatchPeek(client, watches, unavailable);
   trackRotation(client, () => refreshing);
   trackClose(client, closingResponses);

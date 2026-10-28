@@ -333,6 +333,7 @@ impl Store {
              CREATE TABLE IF NOT EXISTS _log (partition TEXT NOT NULL, seq INTEGER NOT NULL, ord INTEGER NOT NULL, t TEXT NOT NULL, kind TEXT NOT NULL, id TEXT NOT NULL, data TEXT, PRIMARY KEY (partition, seq, ord)) WITHOUT ROWID;
              DROP INDEX IF EXISTS _log_row_seq;
              DROP INDEX IF EXISTS _log_row_seq_kind;
+             CREATE TABLE IF NOT EXISTS _commit_partitions (seq INTEGER PRIMARY KEY, partitions TEXT NOT NULL);
              CREATE TABLE IF NOT EXISTS _ops (principal TEXT NOT NULL, id TEXT NOT NULL, seq INTEGER NOT NULL, outcome TEXT NOT NULL, PRIMARY KEY (principal, id)) WITHOUT ROWID;
              CREATE TABLE IF NOT EXISTS _principals (id TEXT PRIMARY KEY, kind TEXT NOT NULL, name TEXT, created_at INTEGER NOT NULL);
              CREATE TABLE IF NOT EXISTS _sessions (token_digest TEXT PRIMARY KEY, principal TEXT NOT NULL, kind TEXT NOT NULL, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL);
@@ -883,6 +884,24 @@ impl Tx<'_> {
     // @ref LLP 3000.009.001.000#3.4 — the member driver resets evidence without exposing recorder storage.
     pub(crate) fn begin_member_evidence(&self) {
         *self.changes.borrow_mut() = Default::default();
+    }
+
+    /// The bounded per-table partition summary of one commit's events, kept
+    /// beside the log by `partition::append` so a held poll can be woken by
+    /// audience and an interval's changed partitions can be read without a
+    /// sequence index on `_log` (LLP 3000.041 §4.1).
+    pub fn record_commit_partitions(&self, seq: u64, summary: &str) -> Result<(), RuntimeError> {
+        self.conn().prepare_cached("INSERT OR REPLACE INTO _commit_partitions(seq, partitions) VALUES (?1, ?2)")?.execute(params![seq as i64, summary])?;
+        Ok(())
+    }
+
+    /// The recorded summaries in (after, through], oldest first, at most `limit`.
+    pub fn commit_partitions_between(&self, after: u64, through: u64, limit: usize) -> Result<Vec<(u64, String)>, RuntimeError> {
+        let mut statement = self.conn().prepare_cached("SELECT seq, partitions FROM _commit_partitions WHERE seq > ?1 AND seq <= ?2 ORDER BY seq LIMIT ?3")?;
+        let rows = statement.query_map(params![after as i64, through.min(i64::MAX as u64) as i64, limit as i64], |row| {
+            Ok((row.get::<_, i64>(0)? as u64, row.get::<_, String>(1)?))
+        })?;
+        rows.map(|row| { let (seq, summary) = row?; Ok((seq, summary)) }).collect()
     }
 
     pub fn read_log(&self, partition: &str, after: u64, limit: usize) -> Result<Vec<LogEvent>, RuntimeError> {

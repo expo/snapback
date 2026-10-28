@@ -16,6 +16,7 @@ fn a_request_after_engine_poison_still_serves() {
         latency: Arc::new(latency::Registry::new(&snapback4_lang::compile(&[]))),
         ephemeral: ephemeral::hub(&engine), ephemeral_rate: ephemeral::Rate::default(),
         wake: Mutex::new(ephemeral::Wake::new(&engine)), polls: Condvar::new(),
+            alarm: wake::Alarm::default(),
         adoption: Mutex::new(adoption::Status::new(String::new())),
         readers: Mutex::new(QueryReaders::new(&engine, &Default::default())),
         engine: FairMutex::new(engine), read_cuts: Mutex::new(read_cost::ReadCuts::default()),
@@ -51,6 +52,7 @@ fn a_request_after_engine_poison_still_serves() {
         mutation_wait: Mutex::new(None),
     });
     shared.install_ephemeral_wake();
+    // No opening alarm here: its lock recovery would clear the poison this test asserts.
     let poisoned = shared.clone();
     assert!(std::thread::spawn(move || {
         let _engine = poisoned.engine.lock().unwrap();

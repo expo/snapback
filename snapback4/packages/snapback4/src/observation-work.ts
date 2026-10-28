@@ -19,6 +19,8 @@ export interface ReadInspection {
   queries: readonly (PressureCounts & { name: string })[];
   recentWithdrawals: readonly { at: number; query: string; cause: string; code?: string }[];
   latency: { samples: number; queueMs: Percentiles; attemptMs: Percentiles };
+  /** W2d (LLP 3000.041 §4.2): the last notified head versus the published watermark; null when no goal is unmet. */
+  liveness?: { wantedSeq: number; watermark: number; unmetMs: number | null };
 }
 interface Percentiles { p50: number | null; p95: number | null; max: number | null }
 type Watch = ReadObservation<unknown> & { op: { name: string }; subscribers: Set<() => void> };
@@ -40,6 +42,7 @@ export function forwardInspection(client: Client, raw: Client, valid: () => bool
 }
 export class ObservationWork<W extends Watch> extends ReadWork<W> {
   private watches: () => Iterable<W> = () => [];
+  liveness: (() => NonNullable<ReadInspection["liveness"]>) | undefined;
   private diagnostics: {
     withdrawals: ReadInspection["recentWithdrawals"][number][];
     timings: { queueMs: number; attemptMs: number }[];
@@ -96,6 +99,7 @@ export class ObservationWork<W extends Watch> extends ReadWork<W> {
     for (const counts of groups.values()) for (const key of Object.keys(totals) as (keyof PressureCounts)[]) totals[key] += counts[key];
     return { version: 1, supported: true, totals, queries: [...groups].sort(([a], [b]) => a.localeCompare(b)).map(([name, counts]) => ({ name, ...counts })),
       recentWithdrawals: withdrawals.map(event => ({ ...event })),
-      latency: { samples: timings.length, queueMs: percentile(timings.map(x => x.queueMs)), attemptMs: percentile(timings.map(x => x.attemptMs)) } };
+      latency: { samples: timings.length, queueMs: percentile(timings.map(x => x.queueMs)), attemptMs: percentile(timings.map(x => x.attemptMs)) },
+      ...(this.liveness ? { liveness: this.liveness() } : {}) };
   }
 }

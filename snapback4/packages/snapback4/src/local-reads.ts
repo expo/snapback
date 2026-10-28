@@ -247,6 +247,8 @@ export class LocalReads {
     return tables => current() && barrier === this.inputBarrier && [...tables].every(table => (this.inputVersions.get(table) ?? 0) <= revision);
   }
   // @ref LLP 3000.028#3.2 — a covering server cut cannot renew an older route.
+  /** The device's published watermark, the goal a notified head must reach (W2d). */
+  publishedCut(): number { return this.publishedWatermark; }
   published(watermark: number): void {
     if (validCut(watermark)) this.publishedWatermark = Math.max(this.publishedWatermark, watermark);
   }
@@ -261,9 +263,10 @@ export class LocalReads {
   private readonly notifiedCuts = new Map<string | undefined, number>();
   /** Notifications invalidate memory even when its last observation is closed.
    * The existing revision fences every older evaluation, including unseen keys. */
-  notified(tables: readonly string[] | undefined, cut: number, advanced = true, writes?: Footprint): readonly string[] | undefined {
+  notified(tables: readonly string[] | undefined, cut: number, advanced = true, writes?: Footprint, known = false): readonly string[] | undefined {
     if (!advanced && tables?.length === 0) return tables;
-    if (advanced && !tables?.length) tables = undefined;
+    // @ref LLP 3000.041#42-w2-the-client-re-evaluates-precisely-and-never-loses-a-notification — a projected body that names no interest table is a known empty footprint, not an unknown one.
+    if (advanced && !tables?.length && !known) tables = undefined;
     this.evidence(cut, tables, writes ?? tables, writes ?? (tables && tableFootprint(tables)));
     this.serverAnswers.clear(tables);
     for (const table of tables ?? [undefined]) this.notifiedCuts.set(table, Math.max(this.notifiedCuts.get(table) ?? 0, cut));

@@ -7,6 +7,7 @@ use serde_json::{Value as Json, json};
 use std::io;
 use std::time::{Duration, Instant};
 use tiny_http::Request;
+use snapback4_core::partition::PartitionRows;
 
 const HEARTBEAT: Duration = Duration::from_secs(2);
 
@@ -36,14 +37,20 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
     } else { None };
     let present = capability.2 == snapback4_core::identity::SessionScope::Full;
     let heartbeat = params.get("heartbeat").is_some_and(|s| s == "1") && request.http_version().0 == 1 && request.http_version().1 >= 1;
+    // @ref LLP 3000.041#41-w1-a-publication-contract-and-the-server-answers-by-audience — a
+    // client that declares interest is woken by audience and answered with a
+    // body projected to that interest; a client that does not keeps today's
+    // store-wide wake and the unprojected body.
+    let declared = super::wake::Interest::declared(&params);
     let mut response = PollResponse { request: Some(request), started: false, shared };
     let initial = { let wake=lock(&shared.wake); (wake.seq,wake.eph.version.clone(),wake.generation) };
     let epoch = params.get("eph").and_then(|s| s.parse().ok()).unwrap_or(initial.1.epoch);
     let incarnation = params.get("ephi").cloned().unwrap_or(initial.1.incarnation);
-    let interest: Option<std::collections::BTreeSet<String>> = params.get("ephTables").map(|s| {
+    let eph_interest: Option<std::collections::BTreeSet<String>> = params.get("ephTables").map(|s| {
         s.split(',').filter(|s|!s.is_empty()).map(str::to_owned).collect()
     });
     let wants_ephemeral = ["eph", "ephi", "ephTables"].iter().any(|k|params.contains_key(*k));
+    let mut interest: Option<(u64, super::wake::Interest)> = None;
     {
         let mut engine = lock(&shared.engine);
         if let Err(why) = super::session_identity::persona_read_authority(response.request.as_ref().unwrap(), shared, &engine) {
@@ -53,7 +60,25 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
             response.finish(500, json!({ "denied": refusal_json(&error.refusal()) })); return;
         }
         if present { shared.presence.enter(&connected); }
+        if let Some(declared) = declared {
+            // Derive the interest behind the engine, then register it under
+            // the wake mutex (engine → wake, the existing order): a commit
+            // cannot publish between the derivation and the registration
+            // without stamping this waiter, because publication takes the
+            // same engine lock first.
+            match engine.held_partitions(connected, shared.now()) {
+                Ok(partitions) => {
+                    let derived = super::wake::Interest::derive(connected, declared, partitions, engine.schema());
+                    let mut wake = lock(&shared.wake);
+                    let stamp = wake.seq;
+                    let id = wake.waiters.register(derived.clone(), stamp);
+                    interest = Some((id, derived));
+                }
+                Err(error) => { response.finish(500, json!({ "denied": refusal_json(&error.refusal()) })); return; }
+            }
+        }
     }
+    let waiter = interest.as_ref().map(|(id, _)| *id);
     let result = (|| -> Result<_, snapback4_core::RuntimeError> {
         // Entry always reads the store: the client may already know a head
         // committed after the last publication (LLP 3000 finding 5).
@@ -62,24 +87,19 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
         let mut sequence_wake=false;
         let mut beat=Instant::now();
         loop {
-            // The deadline is private scheduling state. Production polls wake
-            // at it even without another application request; development
-            // clock jumps run the same advancement through their control
-            // request and notify this condition variable.
-            let opening = if shared.personas {
-                None
-            } else {
-                shared.next_time_audience()?
-            };
             // Snapshot and wait share one mutex. Commit cannot pass between
             // the predicate check and the condvar's atomic unlock-and-wait.
             let wake=lock(&shared.wake);
-            if wake.seq != observed {
-                observed=wake.seq; sequence_wake=true; drop(wake);
+            // A waiter with interest answers only a publication that stamped
+            // it; every other waiter answers any publication, as before.
+            let advanced = match waiter { Some(id) => wake.waiters.stamp(id).is_some_and(|stamp| stamp != observed), None => wake.seq != observed };
+            if advanced {
+                observed = match waiter { Some(id) => wake.waiters.stamp(id).unwrap_or(wake.seq), None => wake.seq };
+                sequence_wake=true; drop(wake);
                 current=answer(shared, since)?;
                 continue;
             }
-            let tables=wake.eph.changed(epoch,Some(&incarnation),interest.as_ref());
+            let tables=wake.eph.changed(epoch,Some(&incarnation),eph_interest.as_ref());
             let reset=wake.eph.version.incarnation!=incarnation;
             let eph_ready=reset||!tables.is_empty();
             let durable=wake.generation != initial.2 || sequence_wake || current.0!=since || params.get("store_id").is_some_and(|id|Some(id)!=current.1.as_ref());
@@ -98,9 +118,9 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
             }
             let mut until=if heartbeat {deadline.min(beat)} else {deadline};
             if eph_ready {until=until.min(paced);}
-            if let Some(opening) = opening {
-                until = until.min(Instant::now() + shared.time_audience_delay(opening));
-            }
+            // Openings are published by the host-owned alarm (LLP 3000.041
+            // §4.1), not sampled here: a poll wakes for an opening it can see
+            // like any other attributed publication.
             #[cfg(test)]
             super::test_work(&shared.poll_wait);
             let (wake, timeout)=shared.polls.wait_timeout(wake,until.saturating_duration_since(Instant::now())).unwrap_or_else(|e|e.into_inner());
@@ -108,15 +128,11 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
             super::test_work(&shared.poll_resumed);
             #[cfg(test)]
             if !timeout.timed_out() { super::test_work(&shared.poll_notified); }
+            let _ = &timeout;
             drop(wake);
-            if timeout.timed_out()
-                && opening.is_some_and(|at| shared.time_audience_delay(at).is_zero())
-            {
-                shared.advance_time_audiences()?;
-                current = answer(shared, since)?;
-            }
         }
     })();
+    if let Some(id) = waiter { lock(&shared.wake).waiters.forget(id); }
     // @ref LLP 3000.033#1.2 — a reader never enters OR leaves presence.
     if present { shared.presence.leave(&connected); }
     // Recheck bearer liveness on a pooled detached reader. Ephemeral-only
@@ -148,8 +164,13 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
     };
     if let Err(refusal)=authenticated { response.finish(401,json!({"denied":refusal_json(&refusal)}));return; }
     match result {
-        Ok(((seq,store_id,tables,preserved,changes),generation,ephemeral))=>{
-            let mut reply=json!({"seq":seq,"tables":tables,"preserved":preserved,"changes":changes,"generation":generation,"store_id":store_id});
+        Ok(((seq,store_id,tables,preserved,changes,partitions),generation,ephemeral))=>{
+            let mut reply = match interest.as_ref() {
+                // @ref LLP 3000.041#41-w1-a-publication-contract-and-the-server-answers-by-audience — projected after the shared cache.
+                Some((_, interest)) => super::wake::project(interest, &tables, &preserved, &changes, &partitions),
+                None => json!({"tables":tables,"preserved":preserved,"changes":changes}),
+            };
+            reply["seq"]=json!(seq); reply["generation"]=json!(generation); reply["store_id"]=json!(store_id);
             if wants_ephemeral {reply["ephemeral"]=json!(ephemeral);}
             response.finish(200,reply);
         }
@@ -157,7 +178,9 @@ pub(super) fn serve(request: Request, shared: &Shared, url: &str) {
     }
 }
 
-type Checked = (u64, Option<String>, Vec<String>, Option<Vec<String>>, Json);
+/// Head, identity, touched tables, preservation evidence, settlement changes,
+/// and the interval's changed partitions per table (None when unattributable).
+type Checked = (u64, Option<String>, Vec<String>, Option<Vec<String>>, Json, Option<std::collections::BTreeMap<String, std::collections::BTreeSet<String>>>);
 // @ref LLP 3000.036#6-idle-live-clients-must-not-cost-a-thread — one commit wakes every held poll; they share one answer per cursor.
 /// Wake answers by (cursor, published head, generation, store identity). Only
 /// a held poll woken by a publication asks here, and an answer is computed
@@ -219,14 +242,35 @@ fn check(engine: &mut snapback4_core::engine::Engine, since: u64) -> Result<Chec
     let changes = tx.commits_after(since, 500)?;
     // Advancing to the actual head must not skip invalidation beyond the
     // bounded commit page. Saturation conservatively invalidates every table.
-    let mut tables = if changes.last().is_some_and(|(seq, _)| *seq < head) { all_tables }
+    let saturated = changes.last().is_some_and(|(seq, _)| *seq < head);
+    let mut tables = if saturated { all_tables.clone() }
         else { changes.into_iter().flat_map(|(_, tables)| tables).filter(|name| all_tables.contains(name)).collect() };
     tables.sort();
     tables.dedup();
     let preserved = tx.preserved_between(&schema, since, head);
     let changes = settlement_changes(tx.footprint_between(since, head), &schema, since, head);
+    // @ref LLP 3000.041#42-w2-the-client-re-evaluates-precisely-and-never-loses-a-notification — the
+    // interval's changed partitions per table, for the per-viewer projection;
+    // a saturated page, an overflowed summary or a store without summaries
+    // is unattributable (`*`).
+    let partitions = if saturated { None } else {
+        match tx.commit_partitions_between(since, head, 500)? {
+            None => None,
+            Some(summaries) => {
+                let mut by_table: std::collections::BTreeMap<String, std::collections::BTreeSet<String>> = Default::default();
+                let mut known = true;
+                for (_, summary) in summaries {
+                    match snapback4_core::partition::parse_commit_partitions(&summary) {
+                        None => { known = false; break; }
+                        Some(map) => for (table, partitions) in map { if all_tables.contains(&table) { by_table.entry(table).or_default().extend(partitions); } },
+                    }
+                }
+                known.then_some(by_table)
+            }
+        }
+    };
     tx.rollback()?;
-    Ok((head, store_id, tables, preserved, changes))
+    Ok((head, store_id, tables, preserved, changes, partitions))
 }
 
 struct PollResponse<'a> {
@@ -339,7 +383,7 @@ mod column_tests {
         let tx=engine.store_mut().transaction().unwrap();
         for seq in from + 2..=from + 501 {tx.record_commit(seq,1000,"like","alice","mutation",&["likes".into()],1).unwrap()}
         tx.commit().unwrap();
-        let (seq,_,tables,_,_)=super::check(&mut engine,from).unwrap();
+        let (seq,_,tables,_,_,_)=super::check(&mut engine,from).unwrap();
         assert_eq!(seq,from + 501);
         assert_eq!(tables,["likes","posts"]);
     }

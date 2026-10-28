@@ -37,6 +37,8 @@ mod ephemeral;
 mod read_scopes;
 #[path = "serve_changes.rs"]
 pub(crate) mod changes;
+#[path = "serve_wake.rs"]
+pub(crate) mod wake;
 #[path = "serve_long_waits.rs"]
 pub(crate) mod long_waits;
 #[path = "serve_sync.rs"]
@@ -84,6 +86,8 @@ pub struct Shared {
     ephemeral_rate: ephemeral::Rate,
     wake: Mutex<ephemeral::Wake>,
     polls: Condvar,
+    /// The host-owned opening alarm (LLP 3000.041 §4.1).
+    pub(crate) alarm: wake::Alarm,
     pub clock: Arc<Mutex<crate::dev_clock::Clock>>,
     /// Highest durable time-audience clock observed by this host. Responses
     /// never regress below the authority clock even if wall time rolls back.

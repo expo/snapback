@@ -150,6 +150,7 @@ impl Host {
             latency: Arc::new(latency::Registry::new(&bound)),
             ephemeral: ephemeral::hub(&engine), ephemeral_rate: ephemeral::Rate::default(),
             wake: Mutex::new(ephemeral::Wake::new(&engine)), polls: Condvar::new(),
+            alarm: wake::Alarm::default(),
             adoption: Mutex::new(adoption::Status::new(String::new())),
             engine: super::engine_lock::FairMutex::new(engine),
             readers, read_cuts: Mutex::new(read_cost::ReadCuts::default()), refusals,
@@ -184,6 +185,7 @@ impl Host {
             mutation_wait: Mutex::new(None),
         });
         shared.install_ephemeral_wake();
+        drop(wake::spawn_alarm(&shared));
         let server = Arc::new(
             Server::http_with_limits((bind, 0), tiny_http::ConnectionLimits { max_connections: capacity.connections(), ..Default::default() })
                 .unwrap(),

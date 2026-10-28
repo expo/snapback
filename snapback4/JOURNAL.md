@@ -100573,3 +100573,37 @@ each new store code. The refreshed 350-schema baseline has no refusals; Lean
 20,000 reproduces only the four established signatures (130 disagreements).
 Compact evidence: reports/integration21/step0.json; raw logs remain in the
 owned external integration21 scratch. No publication was performed here.
+
+## 2026-10-29 — LLP 3000.041 W1 and W2: the host answers by audience; the client re-evaluates by partition
+
+Landed on `live-propagation-rfc` from the converged RFC (all three families
+READY on r5). Server: `partition::append` keeps a bounded per-commit
+partition summary (`_commit_partitions`); `Engine::publication_record`
+derives each publication's record (touched partitions and tables, pending
+presence principals; global when unattributable); held polls that send
+`interest=1` register their interest behind the engine lock and are stamped
+only by the publications that concern them; the body is projected per viewer
+after the shared answer cache (`interest`, `partitions`, `preservedOthers`,
+`changes.others`); the opening alarm is host-owned (re-read after every
+publication, every fire, at startup and on a clock jump; one due row per
+advance; zero-delay re-arm while due). Legacy polls are unchanged. Client:
+`changes.ts` declares the online-only tables its reads depend on and
+re-issues the poll when they change; `change-evidence.ts` applies the §4.1
+truth table (`classifyChange`, `watchAffected`, `watchRevokes`); local wake
+reads are prioritized; the device tier chains at most three sync rounds to
+the notified head and reports an unmet goal through inspection. exact2's
+client declares the same interest (exact2 `0ef4f93297`).
+
+Verification on this Linux host: `cargo test -p snapback4 --bin snapback4`
+511 passed, 0 failed, 5 ignored with `SNAPBACK_NODE` pinned (the worker and
+witness process tests need it here; they are environment, not product);
+`cargo test -p snapback4-core` 46 result lines, all ok; the core
+no-default-features check passes; `cargo test -p snapback4-lang --test guide`
+passes after the wire card's new bullet moved below the `E_STREAMS` paragraph
+(w11 excerpts the first paragraph that names a code); the four new
+`serve_wake` tests and the six `wake-evidence` unit tests pass; the client
+package typechecks apart from the unbuilt wasm module. The
+`live-propagation` client suite was still running at this entry. Owed: the
+T1/T7 matrix, T2 and T8 as host probes, the online-tier W2d, the
+2026-09-30 reproduction fixture, LLP 1110, W4, and exact2's pin raise, which
+waits for a published release carrying this work.

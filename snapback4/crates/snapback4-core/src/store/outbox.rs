@@ -119,6 +119,11 @@ impl OutboxTransaction for Tx<'_> {
         Ok(self.conn().query_row("SELECT EXISTS(SELECT 1 FROM _effect_presence WHERE principal = ?1 AND deadline >= ?2 AND reconnected = 0)", params![principal, now], |r| r.get(0))?)
     }
 
+    fn pending_effect_presence_principals(&self, now: i64) -> Result<Option<Vec<String>>, RuntimeError> {
+        let principals = self.conn().prepare("SELECT DISTINCT principal FROM _effect_presence WHERE deadline >= ?1 AND reconnected = 0 ORDER BY principal")?
+            .query_map([now], |row| row.get::<_, String>(0))?.collect::<Result<Vec<_>, _>>()?;
+        Ok(Some(principals))
+    }
     fn reconnect_effect_presence(&self, principal: &str, now: i64) -> Result<(), RuntimeError> {
         self.conn().execute("UPDATE _effect_presence SET reconnected = 1 WHERE principal = ?1 AND deadline >= ?2", params![principal, now])?;
         Ok(())

@@ -7,6 +7,8 @@ pub(super) struct Wake {
     pub store_id: Option<String>,
     pub generation: u64,
     pub eph: Snapshot,
+    /// Held polls that declared interest, stamped by the publications that concern them.
+    pub waiters: super::wake::Waiters,
 }
 impl Wake {
     pub fn new(engine: &Engine) -> Self {
@@ -15,6 +17,7 @@ impl Wake {
             store_id: engine.store().store_identity().unwrap_or(None),
             generation: engine.generation(),
             eph: engine.ephemeral_hub().snapshot().expect("new hub"),
+            waiters: Default::default(),
         }
     }
 }
@@ -79,6 +82,15 @@ impl Shared {
             let mut current = lock(&self.seq);
             let mut wake = lock(&self.wake);
             let changed = wake.seq != seq || wake.store_id != store_id || wake.generation != generation;
+            // @ref LLP 3000.041#41-w1-a-publication-contract-and-the-server-answers-by-audience — the
+            // record for (previous, seq] stamps only the waiters it concerns;
+            // an identity or generation change, a regression or an unreadable
+            // interval wakes everyone, as the store-wide counter did.
+            if committed || changed {
+                let attributed = wake.store_id == store_id && wake.generation == generation && seq >= wake.seq;
+                let record = if attributed { engine.publication_record(wake.seq, seq, i64::MIN).unwrap_or_else(|_| super::wake::global_record()) } else { super::wake::global_record() };
+                wake.waiters.publish(&record, seq);
+            }
             *current = seq;
             wake.seq = seq;
             wake.store_id = store_id;
@@ -88,6 +100,7 @@ impl Shared {
             if committed || changed {
                 self.polls.notify_all();
                 self.committed.notify_all();
+                self.alarm.rearm();
             }
             Ok(())
         });

@@ -862,7 +862,56 @@ pub fn append(tx: &dyn PartitionRows, seq: u64, events: &[Event]) -> Result<(), 
         let data = event.data.as_ref().map(canonical_json);
         tx.append_log(&event.partition, seq, ord as u32, &event.table, event.kind.word(), &event.id, data.as_deref())?;
     }
+    if !events.is_empty() {
+        tx.record_commit_partitions(seq, &commit_partition_summary(events))?;
+    }
     Ok(())
+}
+
+/// At most this many (table, partition) pairs are named per commit; past it
+/// the summary is `*` and the host treats the commit as touching every
+/// partition (LLP 3000.041 §4.1, "saturation or log overflow" is global).
+pub const COMMIT_PARTITION_BOUND: usize = 256;
+
+/// The per-table partitions a commit's events touched, as the bounded JSON the
+/// store keeps: `{"table": ["p:…", "g:table:…"], …}` or `"*"` past the bound.
+pub fn commit_partition_summary(events: &[Event]) -> String {
+    let mut by_table: BTreeMap<&str, BTreeSet<&str>> = BTreeMap::new();
+    let mut pairs = 0usize;
+    for event in events {
+        if by_table.entry(&event.table).or_default().insert(&event.partition) {
+            pairs += 1;
+            if pairs > COMMIT_PARTITION_BOUND { return "\"*\"".to_owned(); }
+        }
+    }
+    serde_json::to_string(&by_table).unwrap_or_else(|_| "\"*\"".to_owned())
+}
+
+/// A recorded summary back as per-table partitions; `None` for an overflowed
+/// (`*`) or unreadable summary, which the reader treats as every partition.
+pub fn parse_commit_partitions(summary: &str) -> Option<BTreeMap<String, BTreeSet<String>>> {
+    serde_json::from_str::<BTreeMap<String, BTreeSet<String>>>(summary).ok()
+}
+
+/// The partitions a principal currently holds: its own, the public one, and
+/// one per published group membership (LLP 3000.041 §4.1, a held poll's
+/// interest). The same memberships `stream` acquires from; no log is read.
+#[cfg(feature = "sqlite")]
+pub fn held_partitions(tx: &dyn PartitionRows, schema: &Schema, principal: &str, now: i64) -> Result<BTreeSet<String>, RuntimeError> {
+    let mut held = BTreeSet::from([partition_of(principal), PUBLIC.to_owned()]);
+    for (table_name, _, sync) in schema.synced() {
+        let Audience::Target { table: target, .. } = &sync.audience else { continue };
+        let Some(bound) = binding(schema, table_name, sync) else { continue };
+        let Some(table) = schema.table(target) else { continue };
+        for (member, _) in tx.scan(target, &bound.principal_index, &[Value::Id(principal.to_owned())], &Bounds::default(), Dir::Asc, usize::MAX)? {
+            let member = row_image(&member, table);
+            if !published(tx, target, table, &member, now)? { continue; }
+            let group: Vec<Value> = bound.columns.iter().map(|c| member.field(c).cloned().unwrap_or(Value::Null)).collect();
+            if group.contains(&Value::Null) { continue; }
+            held.insert(group_partition(table_name, &group));
+        }
+    }
+    Ok(held)
 }
 
 #[cfg(feature = "sqlite")]

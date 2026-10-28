@@ -107,6 +107,10 @@ pub(crate) trait OutboxTransaction {
     fn required_effect_run(&self, id: &str) -> Result<EffectRun, RuntimeError>;
     fn effect_presence(&self, id: &str) -> Result<Vec<(String, bool)>, RuntimeError>;
     fn pending_effect_presence(&self, principal: &str, now: i64) -> Result<bool, RuntimeError>;
+    /// Every principal with an unconfirmed presence dependency still inside its
+    /// deadline, or None when this store cannot say; the host then wakes every
+    /// held poll for presence (LLP 3000.041 §4.1, the `_effect_presence` wake).
+    fn pending_effect_presence_principals(&self, _now: i64) -> Result<Option<Vec<String>>, RuntimeError> { Ok(None) }
     fn reconnect_effect_presence(&self, principal: &str, now: i64) -> Result<(), RuntimeError>;
     fn send_effect(&self, id: &str, result: Option<&Value>) -> Result<(), RuntimeError>;
     fn retry_effect(&self, id: &str, error: &str, next_at: i64) -> Result<(), RuntimeError>;

@@ -415,6 +415,8 @@ pub(super) fn advance(request: Request, shared: &Shared, body: &str) {
         lock(&shared.maintenance).advancing = true;
         engine.advance_worker_leases_at(milliseconds, clock.now()).map_err(|e| e.refusal())?;
         *clock = next;
+        // @ref LLP 3000.041#41-w1-a-publication-contract-and-the-server-answers-by-audience — a clock jump re-arms the opening alarm.
+        shared.alarm.rearm();
         let offset = clock.offset();
         let skew = now - snapback4_core::now_ms();
         let isolated = if crate::dev_clock_store::has_data(&engine) {

@@ -206,6 +206,17 @@ mutation add(title: text <=80):
   16) gets 429 `E_STREAMS` (Retry-After: 5). Both are retryable and admitted
   nothing: wait for Retry-After, poll `/changes?since=<seq>` without `wait`
   meanwhile, then hold again. The JS client does this for you.
+- Add `&interest=1` to be woken by audience: the poll then answers only a
+  commit that touched a partition you hold (your own, your groups, public),
+  an online-only table you name in `&tables=a,b` (at most 256), or an effect
+  that names you; a bystander sleeps to its deadline and learns nothing. The
+  body is then projected to your interest: `tables` and `preserved` are cut
+  to it, `interest` echoes your tables (`"*"` past the bound: treat every
+  field as unknown), `partitions` says per table which of your groups
+  changed (`own`, `public`, `groups`; `"*"` when unattributable),
+  `preservedOthers` says whether every table outside your interest kept its
+  rows, and `changes.others` whether one was written. Without `interest=1`
+  you get today's store-wide wake and unprojected body. The JS client sends it.
 - A host that runs the device itself (the native module or the wasm device
   without `snapback4/client`) must route each device `query` reply: some say
   "ask the server" (`unknown` without `retained`) and carry a placeholder

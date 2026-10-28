@@ -6,7 +6,7 @@ import { assetReader, readAsset } from "./asset-progress.ts";
 import { ReadScopeGate, readOnlyRefusal, validateReadOptions, registerReadVerification } from "./read-only.ts";
 import { OnlineIntentPresentation, offerIntentRead, registerPendingIntents, registerIntentObserver } from "./pending-items.ts";
 import { withDecorations, currentDecorations, valueDeadline, type ValueDeadlines, type DecorationPaths } from "./read-decoration.ts";
-import { watchCanRevoke, evidenceTouches } from "./change-evidence.ts";
+import { watchCanRevoke, evidenceTouches, classifyChange, watchAffected, watchRevokes, declaredTables, audienceArity } from "./change-evidence.ts";
 import { ObservationWork } from "./observation-work.ts";
 import { episodeDeadline } from "./read-episode.ts";
 import { readyRead } from "./read-existence.ts";
@@ -257,6 +257,14 @@ export function createClient(options: ClientOptions): Client {
     return write;
   };
   const watches = new Map<string, Watch>();
+  // @ref LLP 3000.041#42-w2-the-client-re-evaluates-precisely-and-never-loses-a-notification — the
+  // poll declares the online-only tables its reads depend on and re-issues
+  // itself when that set changes; synced tables need no declaration.
+  let interestKey = "";
+  const syncedTable = (table: string): boolean | undefined => { const entry = backend?.schema.tables[table]; return entry ? !!entry.sync : undefined; };
+  const arityOf = (table: string) => audienceArity(backend?.schema.tables[table]?.sync?.audience);
+  function durableInterest(): { tables: readonly string[] } { const tables = declaredTables(watches.values(), syncedTable); interestKey = tables.join(","); return { tables }; }
+  function refreshInterest() { if (declaredTables(watches.values(), syncedTable).join(",") !== interestKey) ephemeralReads.reissuePoll(); }
   const resetWatches = (publish = true, cause = "schema-reset") => {
     intentEpoch++; intentPresentation?.items(); pendingEvents.notify();
     const deliver = deferReadNotifications(() => {
@@ -803,7 +811,7 @@ export function createClient(options: ClientOptions): Client {
     if (result.transportOffline || result.deadlineWithdrawn?.() || !currentRead(result, watch)) { schedulePresence(watch, false); return; }
     if (watch.snapshot !== shown || watch.inFlight || watches.get(watch.key) !== watch) return;
     // An accepted reply is published whatever it says, loading and refusals included.
-    watch.tables = new Set(result.tables); watch.scopes = result.scopes; watch.answerGeneration = result.generation;
+    watch.tables = new Set(result.tables); watch.scopes = result.scopes; watch.answerGeneration = result.generation; refreshInterest();
     watch.publish(result.read);
     acceptDelivery(result, watch.snapshot);
     ephemeralReads.incomplete(watch, "data" in result.read && !result.read.complete);
@@ -866,7 +874,7 @@ export function createClient(options: ClientOptions): Client {
         notify(watch);
         return;
       }
-      if (!result.transportOffline && !exhausted) { watch.tables = new Set(tables); watch.scopes = result.scopes; watch.answerGeneration = result.generation; }
+      if (!result.transportOffline && !exhausted) { watch.tables = new Set(tables); watch.scopes = result.scopes; watch.answerGeneration = result.generation; refreshInterest(); }
       const previousDeadline = episodeDeadline(watch.snapshot);
       if (result.transportOffline || exhausted) watch.failed(result.transportOffline); else watch.publish(result.read);
       acceptDelivery(result, watch.snapshot);
@@ -943,10 +951,14 @@ export function createClient(options: ClientOptions): Client {
         if (closed || storeRefusal || !credentials) break;
         const revision = credentialRevision;
         const floor = minimumReadSeq;
-        const { response, json } = await changes(seq, options.waitSeconds ?? 25, { ...headers }, storeIdentity, hasEphemeral() ? ephemeralReads.parameters() : undefined, eph.signal);
+        const { response, json } = await changes(seq, options.waitSeconds ?? 25, { ...headers }, storeIdentity, hasEphemeral() ? ephemeralReads.parameters() : undefined, eph.signal, durableInterest());
         if (closed || storeRefusal) break;
         if (!ephemeralReads.current(eph)) continue;
-        observeStore(json as unknown as Record<string, unknown>, floor, false, seq <= minimumReadSeq ? (json.generation === queryBackend?.generation ? intervalChanges(json.changes, seq, json.seq) : undefined) ?? json.tables : undefined);
+        const interval = json.generation === queryBackend?.generation ? intervalChanges(json.changes, seq, json.seq) : undefined;
+        const evidence = classifyChange(json, interval);
+        // A projected body settles on its projected writes only while nothing outside the interest was written; unknown stays unknown.
+        const settlement = evidence.projected ? (evidence.unknown || evidence.writesOthers ? undefined : evidence.writes ?? evidence.tables) : interval ?? json.tables;
+        observeStore(json as unknown as Record<string, unknown>, floor, false, seq <= minimumReadSeq ? settlement : undefined);
         if (storeRefusal) break;
         if (await obsoleteRefusal(json.denied, revision)) continue;
         if (closed || storeRefusal || !credentials) break;
@@ -972,7 +984,7 @@ export function createClient(options: ClientOptions): Client {
         if (json.seq > seq || changedGeneration) {
           seq = Math.max(seq, json.seq);
           for (const watch of watches.values()) {
-            if (changedGeneration || evidenceTouches(watch, json.tables)) void scheduleRead(watch, true, json.preserved, json.generation);
+            if (changedGeneration || watchAffected(watch, evidence, arityOf)) void scheduleRead(watch, true, evidence.projected ? (watchRevokes(watch, evidence) ? [] : null) : json.preserved, json.generation);
           }
         }
       } catch (error) {
@@ -1147,7 +1159,7 @@ export function createClient(options: ClientOptions): Client {
           return watch;
         },
         watch => { watchEphemeral(watch); void scheduleRead(watch); void poll(); },
-        watch => { readWork.cancel(watch); ephemeralReads.remove(watch); }, () => armRefusal(operationArm(op)) ?? storeRefusal ?? (closed ? ended() : !credentials ? auth() : null), true,
+        watch => { readWork.cancel(watch); ephemeralReads.remove(watch); refreshInterest(); }, () => armRefusal(operationArm(op)) ?? storeRefusal ?? (closed ? ended() : !credentials ? auth() : null), true,
         watch => { watch.dirty = false; return readWork.cancel(watch); });
     },
     mutate: routeMutations(options.readOnly ? () => Promise.resolve({ state: "failed", id: mintId(), why: readOnlyRefusal() }) : ephemeral!.mutate, function<A, R>(op: Mutation<A, R>, args: A, options?: MutateOptions): Promise<Write<R>> {

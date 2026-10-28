@@ -31,6 +31,10 @@ pub mod effects;
 #[cfg(feature = "sqlite")]
 pub mod ephemeral;
 #[cfg(feature = "sqlite")]
+mod publication;
+#[cfg(feature = "sqlite")]
+pub use publication::PublicationRecord;
+#[cfg(feature = "sqlite")]
 pub mod job;
 #[cfg(feature = "sqlite")]
 mod job_reads;

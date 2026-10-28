@@ -10,7 +10,9 @@ const HEARTBEAT_SECONDS = 2;
 // @ref LLP 3000.036#6-idle-live-clients-must-not-cost-a-thread — a full long-wait bound degrades to unheld polls, never to offline.
 /** After E_STREAMS, poll without holding for this long, at the server's Retry-After pace. */
 const UNHELD_MS = 30_000;
-interface Change { changes?: unknown; preserved?: unknown; ephemeral?: EphemeralVersion & { tables: string[] }; serverNow?: number; clockRevision?: string; seq: number; tables: string[]; generation?: number; store_id?: string; denied?: Refusal }
+interface Change { changes?: unknown; preserved?: unknown; preservedOthers?: unknown; interest?: unknown; partitions?: unknown; ephemeral?: EphemeralVersion & { tables: string[] }; serverNow?: number; clockRevision?: string; seq: number; tables: string[]; generation?: number; store_id?: string; denied?: Refusal }
+/** The durable interest a poll declares (LLP 3000.041 §4.1): online-only tables its reads depend on. */
+export interface DurableInterest { tables: readonly string[] }
 
 export function changeFeed(fetchNow: typeof fetch, base: string, lifetime: AbortSignal, offline: () => void, online: () => void) {
   const active = new Set<AbortController>();
@@ -49,7 +51,7 @@ export function changeFeed(fetchNow: typeof fetch, base: string, lifetime: Abort
       signal?.addEventListener("abort", done, { once: true });
     }).then(() => { pace.started(); return fetchNow(input, init); });
   };
-  return async (seq: number, wait: number, headers: Record<string, string>, storeIdentity?: string, ephemeral?: { epoch: number; incarnation: string; tables: string[] }, restart?: AbortSignal) => {
+  return async (seq: number, wait: number, headers: Record<string, string>, storeIdentity?: string, ephemeral?: { epoch: number; incarnation: string; tables: string[] }, restart?: AbortSignal, interest?: DurableInterest) => {
     const controller = new AbortController();
     active.add(controller);
     const reissue = () => controller.abort();
@@ -74,7 +76,9 @@ export function changeFeed(fetchNow: typeof fetch, base: string, lifetime: Abort
     paceNext = false;
     try {
       if (lifetime.aborted || restart?.aborted) controller.abort();
-      const parameters = ephemeral ? `&eph=${ephemeral.epoch}&ephi=${encodeURIComponent(ephemeral.incarnation)}&ephTables=${encodeURIComponent(ephemeral.tables.join(","))}` : "";
+      // @ref LLP 3000.041#41-w1-a-publication-contract-and-the-server-answers-by-audience — `interest=1` asks to be woken by audience and answered with a projected body.
+      const parameters = (ephemeral ? `&eph=${ephemeral.epoch}&ephi=${encodeURIComponent(ephemeral.incarnation)}&ephTables=${encodeURIComponent(ephemeral.tables.join(","))}` : "")
+        + (interest ? `&interest=1${interest.tables.length ? `&tables=${encodeURIComponent(interest.tables.slice(0, 256).join(","))}` : ""}` : "");
       const work = (async () => {
         const response = await doFetch(`${base}/changes?since=${seq}&wait=${seconds}${streaming ? "&heartbeat=1" : ""}${storeIdentity === undefined ? "" : `&store_id=${encodeURIComponent(storeIdentity)}`}${parameters}`, { headers, signal: controller.signal });
         if (controller.signal.aborted) throw controller.signal.reason;

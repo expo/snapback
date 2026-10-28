@@ -221,6 +221,7 @@ pub fn serve(
         ephemeral_rate: ephemeral::Rate::default(),
         wake: Mutex::new(ephemeral::Wake::new(&engine)),
         polls: Condvar::new(),
+        alarm: wake::Alarm::default(),
         adoption,
         clock,
         time_audience_clock: AtomicI64::new(time_audience_clock),
@@ -271,6 +272,8 @@ pub fn serve(
         mutation_wait: Mutex::new(None),
     });
     shared.install_ephemeral_wake();
+    // @ref LLP 3000.041#41-w1-a-publication-contract-and-the-server-answers-by-audience — openings are published by the host, not sampled by polls.
+    drop(wake::spawn_alarm(&shared));
     if dev {
         crate::lifecycle::managed_cleanup();
     }

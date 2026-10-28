@@ -18,6 +18,8 @@ mod route_tests;
 mod ephemeral_tests;
 #[path = "../tests/serve_presence/mod.rs"]
 mod presence_tests;
+#[path = "../tests/serve_wake/mod.rs"]
+mod wake_tests;
 #[path = "../tests/serve_sync/mod.rs"]
 mod sync_generation_tests;
 #[path = "../tests/serve_timeline/mod.rs"]
@@ -87,7 +89,8 @@ impl Host {
 impl Drop for Host {
     fn drop(&mut self) {
         *self.shared.seq.lock().unwrap() = u64::MAX;
-        lock(&self.shared.wake).seq=u64::MAX;
+        { let mut wake = lock(&self.shared.wake); wake.seq=u64::MAX; wake.waiters.wake_all(u64::MAX); }
+        self.shared.alarm.stop();
         self.shared.committed.notify_all();
         self.shared.polls.notify_all();
         self.server.unblock();
@@ -1500,6 +1503,9 @@ fn kit3_memory_http_retries_publish_only_the_ordinary_prelude_and_encountered_ro
     use snapback4_core::Value;
     let host = Host::with_store(true, snapback4_core::store_port::AnyStore::memory().unwrap(),
         "use personas alice\ntable a_unrelated:\n  opens: time\n  by opening: opens\n  not before .opens\n  public 'fixture'\n  online only\ntable needed:\n  opens: time\n  by opening: opens\n  not before .opens\n  public 'fixture'\n  online only\nquery list():\n  return needed first 10 by .id\n");
+    // The subject is what one request publishes. The host-owned opening alarm
+    // (LLP 3000.041 §4.1) is a separate publisher of due rows; keep it out.
+    host.shared.alarm.stop();
     let now = host.shared.now();
     let rows = [("a_unrelated", 5), ("needed", 3)].into_iter().flat_map(|(table, n)| (0..n).map(move |id| {
         (table.to_owned(), snapback4_core::value::object([("id", Value::Id(format!("r{id}"))), ("opens", Value::Int(now+1000))]))

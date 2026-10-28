@@ -116,6 +116,8 @@ mod partition {
         fn read_log_spans(&self, spans: &[LogSpan], after: u64, only_seq: Option<u64>, limit: usize) -> Result<Vec<LogEvent>, RuntimeError> { match self { Self::Sqlite(inner) => <sqlite::Tx<'_> as PartitionRows>::read_log_spans(inner, spans, after, only_seq, limit) } }
         fn audience_epoch(&self, _table: &str) -> Result<u64, RuntimeError> { match self { Self::Sqlite(inner) => <sqlite::Tx<'_> as PartitionRows>::audience_epoch(inner, _table) } }
         fn audience_epoch_time(&self, _table: &str) -> Result<Option<i64>, RuntimeError> { match self { Self::Sqlite(inner) => <sqlite::Tx<'_> as PartitionRows>::audience_epoch_time(inner, _table) } }
+        fn record_commit_partitions(&self, seq: u64, summary: &str) -> Result<(), RuntimeError> { match self { Self::Sqlite(inner) => <sqlite::Tx<'_> as PartitionRows>::record_commit_partitions(inner, seq, summary) } }
+        fn commit_partitions_between(&self, after: u64, through: u64, limit: usize) -> Result<Option<Vec<(u64, String)>>, RuntimeError> { match self { Self::Sqlite(inner) => <sqlite::Tx<'_> as PartitionRows>::commit_partitions_between(inner, after, through, limit) } }
     }
     impl PartitionRows for ReadSnapshot<'_> {
         fn next_seq(&self) -> Result<u64, RuntimeError> { <AnyTx<'_> as PartitionRows>::next_seq(&self.tx) }
@@ -126,6 +128,8 @@ mod partition {
         fn read_log_spans(&self, spans: &[LogSpan], after: u64, only_seq: Option<u64>, limit: usize) -> Result<Vec<LogEvent>, RuntimeError> { <AnyTx<'_> as PartitionRows>::read_log_spans(&self.tx, spans, after, only_seq, limit) }
         fn audience_epoch(&self, _table: &str) -> Result<u64, RuntimeError> { <AnyTx<'_> as PartitionRows>::audience_epoch(&self.tx, _table) }
         fn audience_epoch_time(&self, _table: &str) -> Result<Option<i64>, RuntimeError> { <AnyTx<'_> as PartitionRows>::audience_epoch_time(&self.tx, _table) }
+        fn record_commit_partitions(&self, seq: u64, summary: &str) -> Result<(), RuntimeError> { <AnyTx<'_> as PartitionRows>::record_commit_partitions(&self.tx, seq, summary) }
+        fn commit_partitions_between(&self, after: u64, through: u64, limit: usize) -> Result<Option<Vec<(u64, String)>>, RuntimeError> { <AnyTx<'_> as PartitionRows>::commit_partitions_between(&self.tx, after, through, limit) }
     }
 }
 
@@ -270,6 +274,7 @@ mod outbox_transaction {
         fn required_effect_run(&self, id: &str) -> Result<EffectRun, RuntimeError> { match self { Self::Sqlite(inner) => <sqlite::Tx<'_> as OutboxTransaction>::required_effect_run(inner, id) } }
         fn effect_presence(&self, id: &str) -> Result<Vec<(String, bool)>, RuntimeError> { match self { Self::Sqlite(inner) => <sqlite::Tx<'_> as OutboxTransaction>::effect_presence(inner, id) } }
         fn pending_effect_presence(&self, principal: &str, now: i64) -> Result<bool, RuntimeError> { match self { Self::Sqlite(inner) => <sqlite::Tx<'_> as OutboxTransaction>::pending_effect_presence(inner, principal, now) } }
+        fn pending_effect_presence_principals(&self, now: i64) -> Result<Option<Vec<String>>, RuntimeError> { match self { Self::Sqlite(inner) => <sqlite::Tx<'_> as OutboxTransaction>::pending_effect_presence_principals(inner, now) } }
         fn reconnect_effect_presence(&self, principal: &str, now: i64) -> Result<(), RuntimeError> { match self { Self::Sqlite(inner) => <sqlite::Tx<'_> as OutboxTransaction>::reconnect_effect_presence(inner, principal, now) } }
         fn send_effect(&self, id: &str, result: Option<&Value>) -> Result<(), RuntimeError> { match self { Self::Sqlite(inner) => <sqlite::Tx<'_> as OutboxTransaction>::send_effect(inner, id, result) } }
         fn retry_effect(&self, id: &str, error: &str, next_at: i64) -> Result<(), RuntimeError> { match self { Self::Sqlite(inner) => <sqlite::Tx<'_> as OutboxTransaction>::retry_effect(inner, id, error, next_at) } }
