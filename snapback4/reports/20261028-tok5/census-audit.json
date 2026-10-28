@@ -1,0 +1,17 @@
+{
+  "base": "11fb847329",
+  "oldEntries": 907,
+  "newEntries": 932,
+  "added": 64,
+  "removed": 39,
+  "normalizedAdded": [
+    "checkUsage | never",
+    "deliver | never",
+    "fit | never"
+  ],
+  "normalizedRemoved": [],
+  "oldSha256": "383d755e5168c1e67fc3ddcd1da27f7902882e41f6d10d0387e206188af60795",
+  "newSha256": "2fc3dcdc85be781aa715c0fddacbe30cd5063a4a6eb0223f192796a453e3a821",
+  "quarryEquivalence": "quarry-equivalence.json",
+  "disposition": "Refresh stale corpus membership; no private/read-rule outcome is lost or added."
+}
