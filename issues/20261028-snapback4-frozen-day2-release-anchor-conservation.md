@@ -11,11 +11,11 @@ horseback trail rides pass with LAT3's retained 0.4.44 native, then fail with
 `rollbackParent_permits`. The fields are present in a rollback view's owner
 inspection snapshot and absent after the next transition. The literal
 assertions treat them as conserved authored values. Wave33/038 dry-ice deliveries
-shows the same signature on `rollbackParent_deliveryProofs`; its same-version
-control remains pending.
+shows the same signature on `rollbackParent_deliveryProofs`; its complete
+ordered same-version control also reproduces the failure on both binaries.
 
 Fresh private-copy controls compare the unoptimized 0.4.45 native against LAT4's
-optimized 0.4.45 native. Both fail on 012 and 020 with the same field/value
+optimized 0.4.45 native. Both fail on 012, 020 and 038 with the same field/value
 assertion. Thus those failures are not introduced by LAT4's pure compiler reuse
 or finite runner. No original store is opened, and no assertion is removed.
 
@@ -28,8 +28,13 @@ Control native SHA-256:
 Private control rows/logs are under `/tmp/lat4/native45-control/` and
 `/tmp/lat4/native45-control.log`; safe summary/evidence is retained with LAT4.
 The complete ordered census (acceptance → frontend → day-two → client calls)
-is still running. Its actual verdicts take precedence over the initial
-day-two-only diagnostic; this ticket does not relabel a failed qualification.
+finished all 400 pairs across 120 lanes. It reproduces all three version-related
+verdict differences. Only 012 and 038 belong to LAT3's successful 33-lane target;
+020 was already outside that target. The 038 ordered control is under
+`/tmp/lat4/native45-more/`, using final optimized native
+`3fdd8109f2a76eb9f4d1f39d1418786091f29d9b3fd9854b959e17c3ca746a12`.
+The safe LAT4 summaries retain the actual failed statuses. No qualification is
+relabeled as passing.
 
 Decide whether owner inspection should expose these engine-owned anchor fields
 and/or the frozen proof should explicitly project authored fields. The paved

@@ -1,0 +1,244 @@
+{
+  "qualification": false,
+  "completedPairs": 2,
+  "setupErrors": [],
+  "verdictOrMessageDifferences": [],
+  "LAT3TargetLanes": [
+    "002-snapback-breast-prosthesis-fittings",
+    "003-snapback-slot-machine-restorations",
+    "005-snapback-library-ladder-commissions",
+    "006-snapback-turntable-servicing",
+    "007-snapback-garden-design-commissions",
+    "008-snapback-retaining-wall-repairs",
+    "009-snapback-tapestry-conservation",
+    "010-snapback-tandem-paragliding-flights",
+    "011-snapback-heat-pump-installs",
+    "012-snapback-picture-book-illustration",
+    "013-snapback-life-jacket-inspections",
+    "014-snapback-ceiling-draping-installs",
+    "015-snapback-camping-gear-rentals",
+    "016-snapback-stagecoach-restorations",
+    "018-snapback-ash-tree-injections",
+    "021-snapback-cacao-fermentary-lots",
+    "022-snapback-custom-corset-fittings",
+    "023-snapback-shower-enclosure-repairs",
+    "024-snapback-home-sauna-installs",
+    "025-snapback-drone-pilot-certifications",
+    "026-snapback-vintage-synthesizer-repairs",
+    "027-snapback-animatronic-figure-builds",
+    "028-snapback-bandstand-restorations",
+    "029-snapback-grand-piano-moves",
+    "030-snapback-wireless-site-surveys",
+    "031-snapback-kitchen-hood-cleanings",
+    "032-snapback-executive-search-placements",
+    "034-snapback-baseball-glove-restorations",
+    "035-snapback-choir-robe-cleaning",
+    "036-snapback-championship-ring-orders",
+    "037-snapback-custom-cowboy-boots",
+    "038-snapback-dry-ice-deliveries",
+    "039-snapback-goat-kid-reservations"
+  ],
+  "tables": {
+    "all": {
+      "day2:proof": {
+        "seconds": {
+          "before": null,
+          "after": null
+        },
+        "withoutPreflightSeconds": {
+          "before": null,
+          "after": null
+        }
+      }
+    },
+    "LAT3-day2-33": {
+      "day2:proof": {
+        "seconds": {
+          "before": null,
+          "after": null
+        },
+        "withoutPreflightSeconds": {
+          "before": null,
+          "after": null
+        }
+      }
+    }
+  },
+  "tails": {
+    "completedSuites": 6,
+    "overOneSecond": {
+      "before": 0,
+      "after": 0
+    },
+    "postCompletionSeconds": {
+      "before": {
+        "n": 3,
+        "median": 0.001,
+        "p90": 0.005,
+        "max": 0.005
+      },
+      "after": {
+        "n": 3,
+        "median": 0.001,
+        "p90": 0.002,
+        "max": 0.002
+      }
+    }
+  },
+  "commands": {
+    "before": {
+      "rollback": {
+        "wallSeconds": {
+          "n": 4,
+          "median": 0.8009999999999999,
+          "p90": 1.002,
+          "max": 1.002
+        },
+        "outsideSecuritySeconds": {
+          "n": 4,
+          "median": 0.8009999999999999,
+          "p90": 1.002,
+          "max": 1.002
+        },
+        "count": 4
+      },
+      "token": {
+        "wallSeconds": {
+          "n": 2,
+          "median": 0.112,
+          "p90": 0.126,
+          "max": 0.126
+        },
+        "outsideSecuritySeconds": {
+          "n": 2,
+          "median": 0.112,
+          "p90": 0.126,
+          "max": 0.126
+        },
+        "count": 2
+      },
+      "deploy": {
+        "wallSeconds": {
+          "n": 5,
+          "median": 2.882,
+          "p90": 15.884,
+          "max": 15.884
+        },
+        "outsideSecuritySeconds": {
+          "n": 5,
+          "median": 1.881602117,
+          "p90": 3.2217668570000004,
+          "max": 3.2217668570000004
+        },
+        "count": 5
+      },
+      "releases": {
+        "wallSeconds": {
+          "n": 1,
+          "median": 0.262,
+          "p90": 0.262,
+          "max": 0.262
+        },
+        "outsideSecuritySeconds": {
+          "n": 1,
+          "median": 0.262,
+          "p90": 0.262,
+          "max": 0.262
+        },
+        "count": 1
+      },
+      "sql": {
+        "wallSeconds": {
+          "n": 42,
+          "median": 0.019,
+          "p90": 0.055,
+          "max": 0.057
+        },
+        "outsideSecuritySeconds": {
+          "n": 42,
+          "median": 0.019,
+          "p90": 0.055,
+          "max": 0.057
+        },
+        "count": 42
+      }
+    },
+    "after": {
+      "rollback": {
+        "wallSeconds": {
+          "n": 4,
+          "median": 0.281,
+          "p90": 0.507,
+          "max": 0.507
+        },
+        "outsideSecuritySeconds": {
+          "n": 4,
+          "median": 0.281,
+          "p90": 0.507,
+          "max": 0.507
+        },
+        "count": 4
+      },
+      "token": {
+        "wallSeconds": {
+          "n": 2,
+          "median": 0.11,
+          "p90": 0.119,
+          "max": 0.119
+        },
+        "outsideSecuritySeconds": {
+          "n": 2,
+          "median": 0.11,
+          "p90": 0.119,
+          "max": 0.119
+        },
+        "count": 2
+      },
+      "deploy": {
+        "wallSeconds": {
+          "n": 5,
+          "median": 0.785,
+          "p90": 14.097,
+          "max": 14.097
+        },
+        "outsideSecuritySeconds": {
+          "n": 5,
+          "median": 0.671924303,
+          "p90": 0.9293227799999997,
+          "max": 0.9293227799999997
+        },
+        "count": 5
+      },
+      "releases": {
+        "wallSeconds": {
+          "n": 1,
+          "median": 0.127,
+          "p90": 0.127,
+          "max": 0.127
+        },
+        "outsideSecuritySeconds": {
+          "n": 1,
+          "median": 0.127,
+          "p90": 0.127,
+          "max": 0.127
+        },
+        "count": 1
+      },
+      "sql": {
+        "wallSeconds": {
+          "n": 42,
+          "median": 0.021,
+          "p90": 0.055,
+          "max": 0.066
+        },
+        "outsideSecuritySeconds": {
+          "n": 42,
+          "median": 0.021,
+          "p90": 0.055,
+          "max": 0.066
+        },
+        "count": 42
+      }
+    }
+  }
+}

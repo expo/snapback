@@ -1,0 +1,27 @@
+{
+  "primary": "/tmp/lat4/ordered",
+  "correction": "/tmp/lat4/ordered-corrections",
+  "correctedWholeLanes": [
+    [
+      34,
+      "010-snapback-well-pump-service-calls"
+    ],
+    [
+      34,
+      "031-snapback-privacy-fence-installs"
+    ]
+  ],
+  "supersededAttempts": [
+    {
+      "wave": 34,
+      "lane": "010-snapback-well-pump-service-calls",
+      "setupError": "entry completion requires explicit adaptation: scripts/client-calls.mjs: back4/reports/20261028-lat4/wrap.mjs:12:191\n    at ModuleJob.run (node:internal/modules/esm/module_job:430:25)\n    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:661:26)\n    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)\n\nNode.js v24.13.1\n"
+    },
+    {
+      "wave": 34,
+      "lane": "031-snapback-privacy-fence-installs",
+      "setupError": "entry completion requires explicit adaptation: scripts/client-calls.mjs: back4/reports/20261028-lat4/wrap.mjs:12:191\n    at ModuleJob.run (node:internal/modules/esm/module_job:430:25)\n    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:661:26)\n    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:101:5)\n\nNode.js v24.13.1\n"
+    }
+  ],
+  "pairs": 400
+}
