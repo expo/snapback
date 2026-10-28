@@ -252,11 +252,11 @@ fn independent_intent_refuses_required_field_gaps_and_narrowed_inputs() {
         "{}invariant docs.secret write only .owner = viewer\n",
         old.replace("{owner,secret}", "{owner:viewer,secret}")
     );
-    for current in [
-        next.replace("secret: text <=40):", "secret: text <=20):"),
-        next.replace("  owner: principal\n", "  author: principal\n")
+    for (current, missing_column) in [
+        (next.replace("secret: text <=40):", "secret: text <=20):"), false),
+        (next.replace("  owner: principal\n", "  author: principal\n")
             .replace("{owner:viewer,secret}", "{author:viewer,secret}")
-            .replace(".owner = viewer", ".author = viewer"),
+            .replace(".owner = viewer", ".author = viewer"), true),
     ] {
         let checked = compile(&[("schema.q".into(), current.clone())]);
         assert!(checked.diagnostics.is_empty(), "{:?}", checked.diagnostics);
@@ -265,7 +265,10 @@ fn independent_intent_refuses_required_field_gaps_and_narrowed_inputs() {
             &[("schema.q".into(), current)],
         );
         if bridge.diagnostics.is_empty(){assert!(!compile(&bridge.sources).programs.iter().any(|p|p.program.name=="create"));}
-        else {assert!(bridge.diagnostics.iter().any(|d|d.message.contains("current independent intent")),"{:?}",bridge.diagnostics);}
+        else {
+            let expected = if missing_column { "missing `down`" } else { "current independent intent" };
+            assert!(bridge.diagnostics.iter().any(|d|d.message.contains(expected) && (!missing_column || d.message.contains("docs.owner"))),"{:?}",bridge.diagnostics);
+        }
     }
 }
 

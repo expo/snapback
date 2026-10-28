@@ -82,31 +82,9 @@ Deploy prepares compiled rollback views when a predecessor cannot hold newly all
 
 ### Required to optional, with intentional hiding
 
-Keep the column nullable in ordinary source and declare the independent intent
-there. Invariants compose with the registered rollback workflow. An explicit
-`rollback 1 hides orders where fee = null because 'Unquoted is not free.'`
-narrows only the generated view's null domain; its ordinary metered write
-assertions refuse null with `ROLLBACK_NULL`. Select the forward release to
-create an unquoted row. Nonnull widened values remain visible in the view.
+Keep the column nullable in ordinary source and declare the independent intent there. Invariants compose with the registered rollback workflow. An explicit `rollback 1 hides orders where fee = null because 'Unquoted is not free.'` narrows only the generated view's null domain; its ordinary metered write assertions refuse null with `ROLLBACK_NULL`. Select the forward release to create an unquoted row. Nonnull widened values remain visible in the view. `deploy DIR --check` qualifies adoption before enforcing the security gate and labels the first failing phase. Its JSON lists `rollbackViewEffects[].ready`. If intentional hiding would remove a safety lookup population, the hiding view is unavailable; this does not block a valid forward activation. Remove the `rollback hides` declaration and preview/deploy a visible optional view, or inspect the original historical workflow with `rollback DIR --to 1 --exact --check` before explicitly selecting it. Exact source retains its own rules and can hide rows; a preview never authorizes weakening a current safety rule. Actual hiding selection revalidates its guard population in the writer transaction. Unsupported write spreads or migration compositions refuse view compilation with the repair before activation.
 
-`deploy DIR --check` qualifies adoption before enforcing the security gate and
-labels the first failing phase. Its JSON lists `rollbackViewEffects[].ready`.
-If intentional hiding would remove a safety lookup population, the hiding view
-is unavailable; this does not block a valid forward activation. Remove the
-`rollback hides` declaration and preview/deploy a visible optional view, or
-inspect the original historical workflow with
-`rollback DIR --to 1 --exact --check` before explicitly selecting it. Exact
-source retains its own rules and can hide rows; a preview never authorizes
-weakening a current safety rule. Actual hiding selection revalidates its guard
-population in the writer transaction. Unsupported write spreads or migration
-compositions refuse view compilation with the repair before activation.
-
-Bare global `cap N` retains its meaning through generated rollback source.
-An extraction's unmapped `default now`/`default viewer` column refuses at
-`check`: use a literal default, an optional column without a default, or an
-explicit mapping from retained parent data. Retiring a required old column
-needs a truthful `down` output or an authored bridge retaining that column;
-the refusal names each missing column.
+Bare global `cap N` retains its meaning through generated rollback source. An extraction's unmapped `default now`/`default viewer` column refuses at `check`: use a literal default, an optional column without a default, or an explicit mapping from retained parent data. Retiring a required old column needs a truthful `down` output or an authored bridge retaining that column; the refusal names each missing column.
 
 ### Promote a real-time staging deployment
 
@@ -117,16 +95,7 @@ snapback4 promote ./staging ./production --check
 snapback4 promote ./staging ./production
 snapback4 serve ./production
 ```
-Password accounts, ids, data, retained assets and release/rollback history survive.
-Users sign in again: inherited full/read/service tokens and refresh families are
-revoked, and devices reacquire under a fresh store identity. `promotion.json`
-records the source and new incarnations with release and clock provenance.
-Mint destination operator credentials with the ordinary local `token` command.
-E_PROMOTE refuses existing/nested targets and live sources. Finish queued work and started
-external steps before stopping; promotion refuses them, live guest sessions that
-cannot sign in again, paused/advanced staging clocks and production security
-findings. Use real-time staging for promotion; test-clock timestamps are never
-rebased. `--check` runs the same private-copy qualification without publishing.
+Password accounts, ids, data, retained assets and release/rollback history survive. Users sign in again: inherited full/read/service tokens and refresh families are revoked, and devices reacquire under a fresh store identity. `promotion.json` records the source and new incarnations with release and clock provenance. Mint destination operator credentials with the ordinary local `token` command. E_PROMOTE refuses existing/nested targets and live sources. Finish queued work and started external steps before stopping; promotion refuses them, live guest sessions that cannot sign in again, paused/advanced staging clocks and production security findings. Use real-time staging for promotion; test-clock timestamps are never rebased. `--check` runs the same private-copy qualification without publishing.
 
 ## Bridge a safety gate before exact rollback (SQLite)
 Use this beside the enum-widening rollback recipe above. Suppose v2 added `grounding.state = 'inspection'`; v1 holds only `'clear'`/`'hold'`. Selecting exact v1 hides that row and its children, so v1's `book` guard may allow a booking that v2 blocks. Counts and sample ids are snapshot dependencies, not predicate matches; later writes can change the plan.
